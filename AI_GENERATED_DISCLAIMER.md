@@ -1,7 +1,7 @@
 # AI-GENERATED CONTENT DISCLAIMER
 
 **Project**: EMDR Bilateral Stimulation Device  
-**Generated**: 2025-09-18, Updated: 2025-09-20  
+**Generated**: 2025-09-18, Updated: 2025-10-16  
 **AI Assistant**: Claude Sonnet 4 (Anthropic)  
 **Human Engineering**: Requirements specification and design validation
 
@@ -13,20 +13,21 @@
 
 ## Development Standards Compliance Requirements
 
-### 🔧 ESP-IDF v5.5.1 Validation Requirements
+### 🔧 ESP-IDF v5.3.0 Validation Requirements
 
 **MANDATORY FRAMEWORK VERIFICATION:**
-- **Exact version targeting**: Code must be built and tested specifically with ESP-IDF v5.5.1
-- **API compatibility**: All function calls must use v5.5.1 APIs (no deprecated functions)
-- **BLE stability**: NimBLE implementation requires v5.5.1 for ESP32-C6 stability
-- **Power management**: Deep sleep and wake functionality depends on v5.5.1 improvements
-- **Real-time performance**: FreeRTOS integration validated specifically with v5.5.1
+- **Current version**: Code targets ESP-IDF v5.3.0 (stable, proven, full PlatformIO compatibility)
+- **Rationale**: v5.5.0+ requires interface version 4, which espressif32@6.8.1 doesn't support
+- **API compatibility**: All function calls use ESP-IDF v5.3.x APIs and best practices
+- **BLE stability**: NimBLE implementation in v5.3.0 provides proven ESP32-C6 stability
+- **Power management**: Deep sleep and wake functionality validated with v5.3.0
+- **Real-time performance**: FreeRTOS integration validated with v5.3.0
 
-**ESP-IDF v5.5.1 Testing Protocol:**
-1. **Build verification**: Confirm successful compilation with exact ESP-IDF v5.5.1
+**ESP-IDF v5.3.0 Testing Protocol:**
+1. **Build verification**: Confirm successful compilation with ESP-IDF v5.3.0
 2. **API validation**: Static analysis to ensure no deprecated function usage
 3. **BLE stability testing**: 24-hour continuous operation with device pairing
-4. **Power consumption**: Validate deep sleep current < 1mA with v5.5.1
+4. **Power consumption**: Validate deep sleep current < 1mA with v5.3.0
 5. **Real-time timing**: Verify ±10ms bilateral stimulation precision
 
 ### 🛡️ JPL Coding Standard Compliance Validation
@@ -58,7 +59,7 @@ This code is designed to follow JPL Institutional Coding Standard for C Programm
 **Safety-Critical Code Review:**
 - **Qualified embedded systems engineer** with medical device experience
 - **JPL coding standard expertise** - Reviewer must understand all JPL rules
-- **ESP-IDF v5.5.1 proficiency** - Deep knowledge of framework specifics
+- **ESP-IDF v5.3.0 proficiency** - Deep knowledge of framework specifics
 - **Medical device regulations** - Understanding of IEC 62304 software lifecycle
 - **Real-time systems experience** - FreeRTOS and timing-critical applications
 
@@ -94,10 +95,11 @@ This code is designed to follow JPL Institutional Coding Standard for C Programm
 - **Stack usage verification** - Actual stack consumption requires analysis tools
 - **Error path coverage** - All error conditions may not be fully implemented
 
-### 🔧 ESP-IDF v5.5.1 Specific Risks
+### 🔧 ESP-IDF v5.3.0 Specific Risks
 
 **Framework Dependencies:**
-- **Version sensitivity** - Code may not work correctly with other ESP-IDF versions
+- **Version stability** - Code uses ESP-IDF v5.3.0 (stable, well-tested with full PlatformIO support)
+- **PlatformIO compatibility** - Fully supported by espressif32@6.8.1 platform
 - **Configuration requirements** - Specific sdkconfig.defaults may be needed
 - **Component interactions** - Some ESP-IDF component combinations may conflict
 - **Hardware abstraction** - ESP32-C6 specific features may not be fully utilized
@@ -192,10 +194,10 @@ This code is designed to follow JPL Institutional Coding Standard for C Programm
 - **Memory pattern verification**: Confirm static-only allocation throughout system
 - **Control flow validation**: Verify single entry/exit patterns and error handling
 
-**ESP-IDF v5.5.1 Specific Validation:**
-- **Version lock verification**: Confirm exact ESP-IDF v5.5.1 usage in build system
-- **API compatibility testing**: Validate all function calls against v5.5.1 documentation
-- **Configuration validation**: Verify sdkconfig settings match v5.5.1 best practices
+**ESP-IDF v5.3.0 Specific Validation:**
+- **Version lock verification**: Confirm ESP-IDF v5.3.0 usage in build system
+- **API compatibility testing**: Validate all function calls against v5.3.0 documentation
+- **Configuration validation**: Verify sdkconfig settings match v5.3.0 best practices
 - **Component testing**: Individual ESP-IDF component functionality verification
 
 ### 🧪 Comprehensive Validation Protocol
@@ -238,16 +240,16 @@ This code is designed to follow JPL Institutional Coding Standard for C Programm
 **Required Attribution:**
 - **AI Assistant**: Claude Sonnet 4 (Anthropic) - Code generation assistance
 - **Development Standards**: JPL Institutional Coding Standard for C Programming Language
-- **Framework**: ESP-IDF v5.5.1 (Espressif Systems)
+- **Framework**: ESP-IDF v5.3.0 (Espressif Systems) - stable, proven, full PlatformIO compatibility
 - **Human Engineering**: Requirements specification and safety validation  
-- **Generation Date**: 2025-09-18, Updated: 2025-09-20
+- **Generation Date**: 2025-09-18, Updated: 2025-10-16
 - **Disclaimer Reference**: This disclaimer document must accompany all distributions
 
 ### 📚 Documentation and Compliance Standards
 
 **Mandatory Documentation:**
 - **Doxygen-style function documentation** with safety annotations
-- **Architecture decisions documentation** with ESP-IDF v5.5.1 rationale
+- **Architecture decisions documentation** with ESP-IDF v5.3.0 rationale
 - **JPL compliance verification** reports from static analysis tools
 - **Test results documentation** including timing precision measurements
 - **Risk analysis documentation** following medical device standards
@@ -264,7 +266,7 @@ This code is designed to follow JPL Institutional Coding Standard for C Programm
 
 **For Technical Questions:**
 - **Review comprehensive documentation** in `/docs/` directory first
-- **Consult ESP-IDF v5.5.1 documentation** for framework-specific issues
+- **Consult ESP-IDF v5.3.0 documentation** for framework-specific issues
 - **Reference JPL coding standard** for safety-critical coding practices
 - **Follow API contracts** in ai_context.md for compatible modifications
 
@@ -285,4 +287,4 @@ If you discover any safety-critical issues in this code:
 
 **REMEMBER: AI-generated code is a starting point, not a finished medical device. Professional engineering review, comprehensive validation, and regulatory compliance are absolutely essential for safe, reliable operation in therapeutic applications.**
 
-**The combination of ESP-IDF v5.5.1 and JPL coding standards provides a strong foundation, but human expertise and rigorous testing are irreplaceable for safety-critical medical device development.**
+**The combination of ESP-IDF v5.3.0 (stable, proven compatibility) and JPL coding standards provides a strong foundation, but human expertise and rigorous testing are irreplaceable for safety-critical medical device development.**

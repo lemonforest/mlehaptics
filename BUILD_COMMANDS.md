@@ -1,0 +1,309 @@
+# Quick Build & Test Reference
+
+## Available Build Environments
+
+### Main Application Environments
+
+| Environment | Purpose | Command |
+|-------------|---------|---------|
+| `xiao_esp32c6` | Development build (default) | `pio run -t upload && pio device monitor` |
+| `xiao_esp32c6_production` | Production release | `pio run -e xiao_esp32c6_production -t upload` |
+| `xiao_esp32c6_testing` | Unit testing | `pio test -e xiao_esp32c6_testing` |
+
+### Hardware Test Environments
+
+| Test | Purpose | Command |
+|------|---------|---------|
+| `ledc_blink_test` | Minimal LEDC test (blink LED at 1Hz) | `pio run -e ledc_blink_test -t upload && pio device monitor` |
+| `hbridge_test` | H-bridge GPIO control test (100% power) | `pio run -e hbridge_test -t upload && pio device monitor` |
+| `hbridge_pwm_test` | H-bridge PWM control @ 60% duty ✅ WORKING | `pio run -e hbridge_pwm_test -t upload && pio device monitor` |
+| `ulp_hbridge_test` | ULP-coordinated H-bridge test | `pio run -e ulp_hbridge_test -t upload && pio device monitor` |
+
+---
+
+## Common Commands
+
+### Building
+```bash
+# Build default environment (xiao_esp32c6)
+pio run
+
+# Build specific environment
+pio run -e hbridge_test
+
+# Clean build (force rebuild)
+pio run -t clean
+pio run
+```
+
+### Uploading & Monitoring
+```bash
+# Upload and start serial monitor (default env)
+pio run -t upload && pio device monitor
+
+# Upload specific test
+pio run -e hbridge_test -t upload
+
+# Just monitor (no upload)
+pio device monitor
+
+# Monitor with custom baud rate
+pio device monitor -b 115200
+```
+
+### Serial Monitor Controls
+- `Ctrl+C` - Exit monitor
+- `Ctrl+T` followed by `Ctrl+D` - Toggle DTR
+- `Ctrl+T` followed by `Ctrl+R` - Toggle RTS
+
+### Cleaning
+```bash
+# Clean build artifacts
+pio run -t clean
+
+# Full clean (including downloaded packages)
+pio run -t fullclean
+
+# Clean specific environment
+pio run -e hbridge_test -t clean
+```
+
+**Windows PowerShell:**
+```powershell
+# Remove specific build folder
+Remove-Item -Recurse -Force .pio\build\hbridge_test
+
+# Remove all build artifacts
+Remove-Item -Recurse -Force .pio\build
+```
+
+**Windows Command Prompt:**
+```cmd
+# Remove specific build folder
+rmdir /s /q .pio\build\hbridge_test
+
+# Remove all build artifacts
+rmdir /s /q .pio\build
+```
+
+### Project Information
+```bash
+# List all environments
+pio project config
+
+# Show device information
+pio device list
+
+# Check PlatformIO version
+pio --version
+```
+
+---
+
+## Quick Start - Hardware Testing
+
+### First Time Setup
+```bash
+# 1. Let PlatformIO download ESP-IDF (first build only, takes 5-10 minutes)
+pio run
+
+# 2. Connect your board via USB
+
+# 3. Run H-bridge test
+pio run -e hbridge_test -t upload && pio device monitor
+```
+
+### After Making Changes
+```bash
+# Quick rebuild and test
+pio run -e hbridge_test -t upload && pio device monitor
+
+# Or if you prefer separate steps
+pio run -e hbridge_test -t upload
+pio device monitor
+```
+
+### Switch Back to Main Application
+```bash
+pio run -t upload && pio device monitor
+```
+
+---
+
+## Troubleshooting
+
+### Port Issues (Windows)
+```bash
+# List available COM ports
+pio device list
+
+# Manually specify port in platformio.ini:
+# upload_port = COM3
+# monitor_port = COM3
+```
+
+### Port Issues (Linux/Mac)
+```bash
+# List available ports
+ls /dev/tty*
+
+# Give permissions (Linux)
+sudo usermod -a -G dialout $USER
+# Then log out and back in
+
+# Manually specify port in platformio.ini:
+# upload_port = /dev/ttyACM0
+# monitor_port = /dev/ttyACM0
+```
+
+### Build Errors
+```bash
+# Clean and rebuild
+pio run -t clean
+pio run
+```
+
+**If ESP-IDF download failed, delete and retry:**
+
+*Linux/Mac:*
+```bash
+rm -rf ~/.platformio/packages/framework-espidf
+pio run
+```
+
+*Windows PowerShell:*
+```powershell
+Remove-Item -Recurse -Force $env:USERPROFILE\.platformio\packages\framework-espidf
+pio run
+```
+
+*Windows Command Prompt:*
+```cmd
+rmdir /s /q %USERPROFILE%\.platformio\packages\framework-espidf
+pio run
+```
+
+### Upload Fails
+```bash
+# Try holding BOOT button during upload
+# Or reset board and immediately run:
+pio run -t upload
+
+# Reduce upload speed (in platformio.ini):
+# upload_speed = 460800
+```
+
+---
+
+## Build Flags Reference
+
+### Development Flags (enabled by default)
+- `TESTING_MODE=1` - Enable test features
+- `ENABLE_FACTORY_RESET=1` - Allow factory reset
+- `DEBUG_LEVEL=3` - Verbose logging
+
+### Hardware Test Flags
+- `HARDWARE_TEST=1` - Indicates hardware test mode
+- `DEBUG_LEVEL=3` - Verbose test logging
+
+### Production Flags
+- `TESTING_MODE=0` - Disable test features
+- `ENABLE_FACTORY_RESET=0` - Disable factory reset
+- `DEBUG_LEVEL=0` - Minimal logging
+
+---
+
+## Windows-Specific Notes
+
+### Finding Your COM Port
+1. Open Device Manager
+2. Expand "Ports (COM & LPT)"
+3. Look for "USB Serial Device" or "USB-SERIAL CH340"
+4. Note the COM number (e.g., COM3)
+
+### Common Issues
+- **Driver not found:** Install CH340 USB driver
+- **Access denied:** Close Arduino IDE or other serial monitors
+- **Port disappeared:** Try different USB cable or port
+
+---
+
+## Tips & Best Practices
+
+### Efficient Development Workflow
+```bash
+# Keep monitor running in one terminal
+pio device monitor
+
+# Build and upload in another terminal
+pio run -e hbridge_test -t upload
+```
+
+### Quick Test Cycle
+
+**Linux/Mac (bash/zsh):**
+```bash
+# Create alias for quick testing (add to .bashrc or .zshrc)
+alias pio-htest='pio run -e hbridge_test -t upload && pio device monitor'
+
+# Then just run:
+pio-htest
+```
+
+**Windows PowerShell:**
+```powershell
+# Create function in your PowerShell profile
+# Edit profile: notepad $PROFILE
+function pio-htest {
+    pio run -e hbridge_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+# Then just run:
+pio-htest
+```
+
+**Windows Command Prompt:**
+```cmd
+# Create batch file: pio-htest.bat
+@echo off
+pio run -e hbridge_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# Then just run:
+pio-htest
+```
+
+### Save Build Output
+```bash
+# Log build output to file
+pio run 2>&1 | tee build_output.log
+
+# Log monitor output
+pio device monitor | tee test_results.log
+```
+
+---
+
+## Adding New Test Environments
+
+**Checklist for adding new hardware tests:**
+
+1. **Create test file:** `test/my_new_test.c`
+2. **Add to source map:** Edit `scripts/select_source.py`
+   ```python
+   "my_new_test": "../test/my_new_test.c",
+   ```
+3. **Add environment:** Edit `platformio.ini`
+   ```ini
+   [env:my_new_test]
+   extends = env:xiao_esp32c6
+   build_flags = 
+       ${env:xiao_esp32c6.build_flags}
+       -DHARDWARE_TEST=1
+       -DDEBUG_LEVEL=3
+   ```
+4. **Update this file:** Add to Hardware Test Environments table above
+5. **Test build:** `pio run -e my_new_test -t upload && pio device monitor`
+
+This ensures consistency across all project documentation!

@@ -8,7 +8,7 @@
  * @note This is NOT the full application - just a configuration test
  * 
  * Generated with assistance from Claude Sonnet 4 (Anthropic)
- * Last Updated: 2025-10-15
+ * Last Updated: 2025-10-16
  */
 
 #include <stdio.h>
@@ -22,13 +22,15 @@
 static const char *TAG = "CONFIG_TEST";
 
 /**
- * @brief Main application entry point
+ * @brief Main application entry point (ESP-IDF framework calls this)
  * 
  * This test function verifies:
- * - ESP-IDF version is correct
+ * - ESP-IDF version is correct (v5.3.0)
  * - ESP32-C6 chip information
  * - Build configuration defines
  * - Memory availability
+ * 
+ * @note app_main() is the standard ESP-IDF entry point - no prototype needed
  */
 void app_main(void)
 {
@@ -40,14 +42,14 @@ void app_main(void)
     /* ESP-IDF Version Check */
     ESP_LOGI(TAG, "ESP-IDF Version: %s", esp_get_idf_version());
     
-    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
-        ESP_LOGI(TAG, "✓ ESP-IDF v5.5.x or later detected");
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
+        ESP_LOGI(TAG, "✓ ESP-IDF v5.3.0 detected (stable, full PlatformIO compatibility)");
     #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-        ESP_LOGW(TAG, "⚠ ESP-IDF v5.x detected but not v5.5+");
-        ESP_LOGW(TAG, "⚠ Please update to ESP-IDF v5.5.1 for full compatibility");
+        ESP_LOGW(TAG, "⚠ ESP-IDF v5.x detected but not v5.3.0");
+        ESP_LOGW(TAG, "⚠ Please update to ESP-IDF v5.3.0 for full compatibility");
     #else
         ESP_LOGE(TAG, "✗ ESP-IDF version is too old!");
-        ESP_LOGE(TAG, "✗ This project requires ESP-IDF v5.5.1 or later");
+        ESP_LOGE(TAG, "✗ This project requires ESP-IDF v5.3.0");
     #endif
     
     /* Chip Information */
@@ -114,7 +116,7 @@ void app_main(void)
     ESP_LOGI(TAG, "========================================");
     ESP_LOGI(TAG, " ");
     ESP_LOGI(TAG, "Next Steps:");
-    ESP_LOGI(TAG, "1. Verify ESP-IDF version is v5.5.x");
+    ESP_LOGI(TAG, "1. Verify ESP-IDF version is v5.3.0 (stable, tested)");
     ESP_LOGI(TAG, "2. Verify chip is ESP32-C6");
     ESP_LOGI(TAG, "3. Verify build flags are enabled");
     ESP_LOGI(TAG, "4. Update docs/platformio_verification.md with results");

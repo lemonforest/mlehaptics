@@ -39,13 +39,16 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 - **Form Factor:** Ultra-compact (21x17.5mm)
 
 ### Complete GPIO Assignments
-- **GPIO0**: User button (hardware debounced, external pull-up)
-- **GPIO1**: ADC input (battery voltage divider monitoring)
-- **GPIO15**: Status LED (system state indication)
+- **GPIO0**: Back-EMF sense (OUTA from H-bridge, power-efficient motor stall detection via ADC)
+- **GPIO1**: User button (via jumper from GPIO18, hardware debounced with 10k pull-up, ISR support for emergency response)
+- **GPIO2**: Battery voltage monitor (resistor divider, periodic battery level reporting)
+- **GPIO15**: Status LED (system state indication, **ACTIVE LOW** on Xiao ESP32C6)
+- **GPIO16**: Therapy LED Enable (P-MOSFET driver)
+- **GPIO17**: Therapy LED / WS2812B DIN (dual footprint, translucent case only)
+- **GPIO18**: User button (physical PCB location, jumpered to GPIO1, configured as high-impedance input)
 - **GPIO19**: H-bridge IN1 (motor forward control)
 - **GPIO20**: H-bridge IN2 (motor reverse control)
-- **GPIO22**: Battery monitor enable (P-MOSFET gate driver control)
-- **GPIO23**: Therapy LED / WS2812B DIN (dual footprint, translucent case only)
+- **GPIO21**: Battery monitor enable (P-MOSFET gate driver control)
 
 ### H-Bridge Motor Control Configuration
 ```c
@@ -56,7 +59,12 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 // NEVER: GPIO19=H, GPIO20=H (shoot-through condition)
 
 #define MOTOR_PWM_FREQ          25000   // 25kHz frequency (above hearing)
-#define MOTOR_PWM_RESOLUTION    LEDC_TIMER_13_BIT  // 0-8191 range
+#define MOTOR_PWM_RESOLUTION    LEDC_TIMER_10_BIT  // 10-bit (0-1023 range)
+
+// CRITICAL PWM Resolution Selection:
+// 10-bit @ 25kHz requires: 25,000 Hz × 1024 = 25.6 MHz clock ✓ (within 80/160MHz APB)
+// 13-bit @ 25kHz would need: 25,000 Hz × 8192 = 204.8 MHz clock ✗ (exceeds ESP32-C6 max!)
+// Resolution trade-off: 1024 steps provides imperceptible smoothness for motor control
 
 // Dead time configuration (JPL compliant - uses FreeRTOS delays)
 #define MOTOR_DEAD_TIME_MS      1       // 1ms FreeRTOS delay at end of half-cycle
@@ -86,7 +94,8 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
  * @return ESP_OK on success
  * 
  * Configures GPIO19/20 for H-bridge control with 1ms FreeRTOS dead time
- * Sets up 25kHz PWM with 13-bit resolution for smooth motor control
+ * Sets up 25kHz PWM with 10-bit resolution for smooth motor control
+ * Resolution: 10-bit (0-1023) chosen for ESP32-C6 clock constraints
  * JPL Compliant: No busy-wait loops, all timing uses vTaskDelay()
  */
 esp_err_t motor_controller_init(void);
@@ -211,13 +220,39 @@ esp_err_t bilateral_start_haptic_effect(uint8_t intensity_percent,
 esp_err_t motor_emergency_stop(void);
 
 /**
- * @brief Detect motor stall condition via battery voltage drop
+ * @brief Detect motor stall condition via back-EMF sensing (primary method)
  * @return ESP_OK if motor running normally, ESP_ERR_MOTOR_STALL if stalled
  * 
- * Software-based stall detection using battery voltage monitoring:
+ * Power-efficient stall detection using back-EMF monitoring:
+ * - Reads back-EMF voltage on GPIO0 (OUTA from H-bridge) during coast periods
+ * - Signal conditioning circuit: V_GPIO0 = 1.65V + 0.5 × V_OUTA
+ *   - Maps -3.3V to +3.3V back-EMF → 0V to 3.3V ADC range (100% utilization)
+ *   - R_bias = R_signal = 10kΩ, R_load unpopulated, C_filter = 15nF
+ *   - 2.1kHz low-pass filter removes 25kHz PWM noise
+ * - Stalled motor: back-EMF magnitude < 100mV (essentially no back-EMF)
+ * - Normal operation: back-EMF magnitude > 1000mV (~1-2V depending on speed)
+ * - Power consumption: 165µA continuous (bias network)
+ * - 33% more efficient than battery voltage monitoring (248µA)
+ * - Uses vTaskDelay() for all timing (JPL compliant)
+ * 
+ * ADC to Back-EMF conversion:
+ *   V_backemf = 2 × (V_ADC - 1650mV)
+ *   Example: ADC reads 0mV → back-EMF = -3.3V
+ *            ADC reads 1650mV → back-EMF = 0V
+ *            ADC reads 3300mV → back-EMF = +3.3V
+ */
+esp_err_t motor_detect_stall_via_backemf(void);
+
+/**
+ * @brief Detect motor stall condition via battery voltage drop (backup method)
+ * @return ESP_OK if motor running normally, ESP_ERR_MOTOR_STALL if stalled
+ * 
+ * Backup stall detection using battery voltage monitoring:
  * - Measures voltage drop during motor operation
  * - >300mV drop indicates stall condition (120mA vs 90mA normal)
+ * - Less power-efficient: enables resistor divider (~248µA when active)
  * - Uses vTaskDelay() for all timing (JPL compliant)
+ * - Use back-EMF sensing as primary method when available
  */
 esp_err_t motor_detect_stall_via_voltage_drop(void);
 
@@ -445,7 +480,7 @@ esp_err_t button_factory_reset(void);
  * Simple LED Implementation:
  * - Uses LEDC peripheral (same as motor PWM)
  * - 25kHz frequency for silent operation
- * - 13-bit resolution (0-8191 range)
+ * - 10-bit resolution (0-1023 range) - matches motor PWM constraints
  * - Independent PWM channel from motor control
  * 
  * WS2812B Implementation:
@@ -462,7 +497,7 @@ esp_err_t therapy_light_init(void);
  * @param intensity_percent Light intensity (0-100%)
  * @return ESP_OK on success, ESP_ERR_NOT_SUPPORTED if no therapy light
  * 
- * Simple LED: Maps 0-100% to LEDC duty cycle (0-8191)
+ * Simple LED: Maps 0-100% to LEDC duty cycle (0-1023)
  * WS2812B: Scales RGB values by intensity percentage
  */
 esp_err_t therapy_light_set_intensity(uint8_t intensity_percent);
@@ -628,11 +663,24 @@ typedef struct {
 #define TOTAL_CYCLE_MIN_MS              500                 // 2 Hz max rate
 #define TOTAL_CYCLE_MAX_MS              2000                // 0.5 Hz min rate
 
-// Motor stall detection thresholds
-#define STALL_VOLTAGE_DROP_THRESHOLD_MV     300     // >300mV drop indicates stall
-#define DIRECTION_CHANGE_THRESHOLD_MV       50      // <50mV difference indicates stall
+// Motor stall detection thresholds (back-EMF sensing)
+#define BACKEMF_STALL_THRESHOLD_MV          1000    // <1000mV magnitude indicates stall
+#define BACKEMF_NORMAL_MIN_MV               1000    // Normal operation: ~1-2V back-EMF magnitude
+#define BACKEMF_ADC_CENTER_MV               1650    // ADC center point (maps to 0V back-EMF)
+#define MOTOR_COAST_SETTLE_TIME_MS          10      // Wait for back-EMF and filter to stabilize
 #define MOTOR_STARTUP_TIME_MS               200     // Wait before stall detection
 #define MOTOR_STALL_CHECK_INTERVAL_MS       500     // Check every 500ms
+
+// Back-EMF signal conditioning circuit (see AD021)
+#define BACKEMF_R_BIAS                      10000   // 10kΩ from 3.3V to GPIO0
+#define BACKEMF_R_SIGNAL                    10000   // 10kΩ from OUTA to GPIO0
+// Note: R_load intentionally NOT POPULATED for maximum ADC range (100%)
+#define BACKEMF_C_FILTER_NF                 15      // 15nF low-pass filter (2.1kHz cutoff)
+#define BACKEMF_FILTER_CUTOFF_HZ            2100    // Removes 25kHz PWM, preserves motor back-EMF
+#define BACKEMF_BIAS_CURRENT_UA             165     // Continuous bias current
+
+// Motor stall detection thresholds (battery voltage sensing - backup method)
+#define STALL_VOLTAGE_DROP_THRESHOLD_MV     300     // >300mV battery drop indicates stall (backup method)
 
 // Packet loss detection parameters
 #define PACKET_LOSS_CONSECUTIVE_THRESHOLD   3       // 3 missed packets = fallback
@@ -659,7 +707,7 @@ typedef struct {
         #define THERAPY_GPIO                23      // LED pin
         #define THERAPY_LEDC_CHANNEL        LEDC_CHANNEL_2  // Independent from motor
         #define THERAPY_PWM_FREQ            25000   // 25kHz (same as motor)
-        #define THERAPY_PWM_RESOLUTION      LEDC_TIMER_13_BIT
+        #define THERAPY_PWM_RESOLUTION      LEDC_TIMER_10_BIT  // 10-bit (0-1023)
     #endif
 #else
     // Opaque case: GPIO23 unused (motor-only stimulation)
@@ -699,7 +747,7 @@ typedef struct {
     therapy_light_preset_t current_preset;  // Current color preset
     led_strip_handle_t led_strip;       // ESP-IDF led_strip handle
 #else
-    uint32_t ledc_duty;                 // Current LEDC duty cycle (0-8191)
+    uint32_t ledc_duty;                 // Current LEDC duty cycle (0-1023)
 #endif
 } therapy_light_state_t;
 
@@ -797,7 +845,7 @@ esp_err_t therapy_light_init_simple(void) {
     ledc_timer_config_t ledc_timer = {
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .timer_num = LEDC_TIMER_1,              // Different from motor timer
-        .duty_resolution = LEDC_TIMER_13_BIT,
+        .duty_resolution = LEDC_TIMER_10_BIT,   // 10-bit (0-1023)
         .freq_hz = 25000,                       // 25kHz
         .clk_cfg = LEDC_AUTO_CLK
     };
@@ -816,8 +864,8 @@ esp_err_t therapy_light_init_simple(void) {
 }
 
 esp_err_t therapy_light_set_intensity(uint8_t intensity_percent) {
-    // Map 0-100% to 0-8191 (13-bit)
-    uint32_t duty = (8191 * intensity_percent) / 100;
+    // Map 0-100% to 0-1023 (10-bit)
+    uint32_t duty = (1023 * intensity_percent) / 100;
     return ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, duty)
            && ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
 }
@@ -887,6 +935,65 @@ esp_err_t motor_execute_half_cycle(motor_direction_t direction,
     // Extended diagnostics for H-bridge operation
 #endif
 ```
+
+## Build System Architecture (CRITICAL FOR AI ASSISTANTS)
+
+### ESP-IDF CMake Build System
+
+**CRITICAL: ESP-IDF uses CMake, NOT PlatformIO's build_src_filter**
+
+ESP-IDF requires source files to be specified in `src/CMakeLists.txt`. PlatformIO's `build_src_filter` has no effect. We use a Python pre-build script to solve this.
+
+### Hardware Test Build System
+
+**How It Works:**
+1. Python script `scripts/select_source.py` runs before every build
+2. Script detects build environment (e.g., `hbridge_test`, `xiao_esp32c6`)
+3. Script modifies `src/CMakeLists.txt` to use correct source file
+4. ESP-IDF CMake builds the selected file
+
+**Source File Mapping:**
+```python
+# scripts/select_source.py
+source_map = {
+    "xiao_esp32c6": "main.c",                    # Main application
+    "xiao_esp32c6_production": "main.c",
+    "xiao_esp32c6_testing": "main.c",
+    "hbridge_test": "../test/hbridge_test.c",    # H-bridge hardware test
+    # Add future tests here
+}
+```
+
+**Build Commands:**
+```bash
+# Main application
+pio run -e xiao_esp32c6 -t upload && pio device monitor
+
+# H-bridge hardware test
+pio run -e hbridge_test -t upload && pio device monitor
+
+# Production build
+pio run -e xiao_esp32c6_production -t upload
+```
+
+**Adding New Hardware Tests:**
+1. Create `test/my_test.c`
+2. Add to `scripts/select_source.py` source_map: `"my_test": "../test/my_test.c"`
+3. Add environment to `platformio.ini` (copy `hbridge_test` pattern)
+4. Build: `pio run -e my_test -t upload`
+
+**Why This Architecture:**
+- ✅ ESP-IDF native (works with CMake)
+- ✅ Clean separation (tests in `test/`, main in `src/`)
+- ✅ Automatic (no manual CMakeLists.txt editing)
+- ✅ Scalable (easy to add new tests)
+- ✅ Fast (<100ms script overhead)
+
+**See Also:**
+- `docs/architecture_decisions.md` - AD022: ESP-IDF Build System
+- `docs/ESP_IDF_SOURCE_SELECTION.md` - Technical details
+- `test/README.md` - Hardware test procedures
+- `BUILD_COMMANDS.md` - Quick reference
 
 ## Implementation Checklist for AI Code Generation
 

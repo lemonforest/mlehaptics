@@ -1,0 +1,13 @@
+# ESP-IDF Partition Table for EMDR Bilateral Stimulation Device
+# Seeed Xiao ESP32-C6 - 4MB Flash Configuration
+# Generated for ESP-IDF v5.3.0 compatibility
+#
+# Name,   Type, SubType, Offset,   Size,     Flags
+# Note: Offset values are in hexadecimal
+
+# NVS (Non-Volatile Storage) - For WiFi credentials, device config, pairing data
+nvs,      data, nvs,     0x9000,   0x6000,
+# PHY Initialization Data
+phy_init, data, phy,     0xF000,   0x1000,
+# Factory Application - Main firmware (~3.9MB available)
+factory,  app,  factory, 0x10000,  0x3F0000,
