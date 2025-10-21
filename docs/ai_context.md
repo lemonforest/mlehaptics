@@ -455,6 +455,31 @@ esp_err_t ble_validate_config_parameters(uint32_t total_cycle_ms,
 esp_err_t button_handle_press(uint32_t press_duration_ms);
 
 /**
+ * @brief Enter deep sleep with guaranteed wake-on-new-press
+ * @return Does not return (device sleeps)
+ * 
+ * ESP32-C6 ext1 wake pattern (see AD023):
+ * 1. Check button state
+ * 2. If LOW (held): Blink LED at 5Hz while waiting for release
+ * 3. Once HIGH: Configure ext1 wake on LOW
+ * 4. Enter deep sleep (button guaranteed released)
+ * 5. Next wake guaranteed to be NEW button press
+ * 
+ * Visual feedback: LED blinks at 5Hz (100ms on, 100ms off) while waiting
+ * No serial monitor required for user to know when to release
+ * 
+ * Power consumption:
+ * - While waiting (LED blinking): ~50mA
+ * - Deep sleep: <1mA
+ * - Wake latency: <2 seconds to full operation
+ * 
+ * JPL Compliant: Uses vTaskDelay() for all timing
+ * 
+ * Reference implementation: test/button_deepsleep_test.c
+ */
+esp_err_t enter_deep_sleep_with_wake_guarantee(void);
+
+/**
  * @brief Factory reset - clear all NVS data (conditional compilation)
  * @return ESP_OK on success
  * 
@@ -995,6 +1020,117 @@ pio run -e xiao_esp32c6_production -t upload
 - `test/README.md` - Hardware test procedures
 - `BUILD_COMMANDS.md` - Quick reference
 
+## Deep Sleep and Wake Patterns
+
+### ESP32-C6 ext1 Wake Limitation
+
+ext1 wake is **level-triggered**, not edge-triggered:
+- Wake condition: GPIO is LOW (button pressed)
+- Not an edge detection (no press "event")
+- If GPIO is LOW when sleeping → wakes immediately
+
+**The Problem:**
+When a user holds a button to trigger deep sleep (e.g., 5-second countdown), the button is still LOW (pressed) when the device enters sleep. Since ext1 wakes when GPIO is LOW, the device wakes immediately. There's no way to distinguish "still held from countdown" vs "new button press."
+
+### Guaranteed Wake-on-New-Press Pattern
+
+**Always use this pattern for button-triggered deep sleep (see AD023):**
+
+```c
+esp_err_t enter_deep_sleep_with_wake_guarantee(void) {
+    // Step 1: Wait for button release if currently pressed
+    if (gpio_get_level(GPIO_BUTTON) == 0) {
+        // Step 2: Blink LED at 5Hz while waiting (visual feedback)
+        while (gpio_get_level(GPIO_BUTTON) == 0) {
+            gpio_set_level(GPIO_STATUS_LED, LED_ON);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            gpio_set_level(GPIO_STATUS_LED, LED_OFF);
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+    
+    // Step 3: Configure ext1 to wake on LOW (button press)
+    //         Button is guaranteed HIGH at this point
+    uint64_t gpio_mask = (1ULL << GPIO_BUTTON);
+    esp_sleep_enable_ext1_wakeup(gpio_mask, ESP_EXT1_WAKEUP_ANY_LOW);
+    
+    // Step 4: Enter deep sleep
+    //         Next wake will be from NEW button press only
+    esp_deep_sleep_start();
+    return ESP_OK;  // Never reached
+}
+```
+
+**Why This Works:**
+
+1. **Before sleep**: Ensure button is HIGH (not pressed)
+2. **Configure ext1**: Wake when GPIO goes LOW (button pressed)
+3. **Sleep entry**: Wake condition is FALSE (button is HIGH)
+4. **Sleep state**: Device waits for wake condition to become TRUE
+5. **Wake event**: Only occurs when button transitions HIGH → LOW
+6. **Guarantee**: This can only happen with a NEW button press
+
+**User Experience:**
+1. Hold button for countdown (e.g., 5 seconds)
+2. LED blinks fast (5Hz) → Visual cue: "Release the button now"
+3. Release button → Device sleeps immediately
+4. Later: Press button → Device wakes (guaranteed NEW press)
+
+**Key Features:**
+- ✅ LED blink provides visual feedback (no serial monitor needed)
+- ✅ Guarantees button is HIGH before sleep
+- ✅ ext1 always configured for wake-on-LOW
+- ✅ Next wake guaranteed to be NEW press
+- ✅ Simple - no complex state machine
+- ✅ JPL compliant - uses vTaskDelay() for all timing
+
+**Reference Implementation:** `test/button_deepsleep_test.c`
+
+**Build & Test:**
+```bash
+pio run -e button_deepsleep_test -t upload && pio device monitor
+```
+
+**Failed Approaches (DO NOT USE):**
+
+❌ **Immediate re-sleep pattern** (DOES NOT WORK):
+```c
+// Device wakes immediately while button held
+esp_deep_sleep_start();
+// Check if button still held
+if (gpio_get_level(GPIO_BUTTON) == 0) {
+    esp_deep_sleep_start();  // Try to sleep again
+}
+// Problem: After release, ext1 still waiting for LOW
+// Device stuck sleeping, can't detect new press!
+```
+
+❌ **Wake-on-HIGH state machine** (TOO COMPLEX/UNRELIABLE):
+```c
+// Try to configure wake-on-HIGH for button release
+if (gpio_get_level(GPIO_BUTTON) == 0) {
+    esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_HIGH);
+}
+// Problem: ESP32-C6 ext1 wake-on-HIGH is unreliable
+// Adds unnecessary complexity
+```
+
+### Integration with Main Application
+
+**Use this pattern for:**
+- Session timeout → automatic sleep (no button hold scenario)
+- User-initiated sleep → button hold countdown with wait-for-release
+- Emergency shutdown → immediate coast, then sleep with wait-for-release
+- Battery low → warning, then sleep with wait-for-release
+
+**Power Consumption:**
+- Active (LED blinking): ~50mA
+- Deep sleep: <1mA
+- Wake latency: <2 seconds
+- Battery life: 50x improvement during sleep
+
+---
+
 ## Implementation Checklist for AI Code Generation
 
 When generating code for this project, always ensure:
@@ -1009,7 +1145,8 @@ When generating code for this project, always ensure:
 ✅ **Non-overlapping guarantee** maintained at all cycle times
 ✅ **Comprehensive Doxygen documentation** for all functions
 ✅ **JPL compliance** - no dynamic allocation, no recursion, error checking
+✅ **Deep sleep pattern** - always use wait-for-release with LED blink (AD023)
 
 ---
 
-**This document serves as the complete specification for building the EMDR bilateral stimulation device with configurable cycle times and JPL-compliant dead time implementation.**
+**This document serves as the complete specification for building the EMDR bilateral stimulation device with configurable cycle times, JPL-compliant dead time implementation, and guaranteed wake-on-new-press deep sleep patterns.**

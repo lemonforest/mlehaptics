@@ -1,36 +1,22 @@
 # platformio.ini Verification Checklist
 
 **Project**: EMDR Bilateral Stimulation Device  
-**Date**: 2025-10-15  
-**Purpose**: Verify correct ESP-IDF v5.5.1 configuration
+**Date**: 2025-10-20  
+**Purpose**: Verify correct ESP-IDF v5.5.0 configuration
 
 ---
 
-## ✅ Changes Made to Fix Configuration
+## ✅ ESP-IDF v5.5.0 Migration Complete
 
-### 1. **Fixed Platform Version**
-- **Changed from**: `espressif32@6.9.0` (doesn't exist)
-- **Changed to**: `espressif32@6.8.1` (latest stable)
-- **Reason**: Version 6.9.0 was incorrectly specified
+**Status:** Build verified successful on October 20, 2025
 
-### 2. **Fixed ESP-IDF Package Reference**
-- **Changed from**: `framework-espidf @ ~3.50501.0`
-- **Changed to**: `platformio/framework-espidf @ ~3.50501.240916`
-- **Reason**: Added proper package namespace and build date for ESP-IDF v5.5.1
-
-### 3. **Removed Wrong Dependency** ❌
-- **Removed**: `h2zero/NimBLE-Arduino@^1.4.1`
-- **Reason**: This is an Arduino library. ESP-IDF v5.5.1 includes NimBLE as a native component
-- **No external library needed**: NimBLE is built into ESP-IDF
-
-### 4. **Fixed Build Flags**
-- **Removed**: `-fcomplexity-limit=10` (not a real GCC flag)
-- **Removed**: `-Wno-dynamic-exception-spec` (C++ only, not needed for C)
-- **Added**: Proper JPL-compliant warnings:
-  - `-Wstrict-prototypes`
-  - `-Wmissing-prototypes`
-  - `-Wold-style-definition`
-  - `-Wimplicit-fallthrough=3`
+### Current Working Configuration
+- **Platform**: espressif32 @ 6.12.0 (official Seeed XIAO ESP32-C6 support)
+- **Framework**: ESP-IDF v5.5.0 (framework-espidf @ 3.50500.0)
+- **Board**: seeed_xiao_esp32c6 (official support added in platform v6.11.0)
+- **Build Time**: 610 seconds first build, ~60 seconds incremental
+- **RAM Usage**: 3.1% (10,148 / 327,680 bytes)
+- **Flash Usage**: 4.1% (168,667 / 4,128,768 bytes)
 
 ---
 
@@ -38,28 +24,31 @@
 
 Run these commands in your project directory to verify the configuration:
 
-### Step 1: Update Package Cache
+### Step 1: Verify PlatformIO Installation
 ```bash
 cd "G:\My Drive\AI_PROJECTS\EMDR_PULSER_SONNET4"
-pio pkg update
+pio --version
 ```
 
 **Expected output:**
 ```
-Updating espressif32 @ 6.8.1
-Updating framework-espidf @ 3.50501.240916
-...
+PlatformIO Core, version 6.1.x or later
 ```
 
-### Step 2: Check Available Packages
+**If PlatformIO needs update:**
+```bash
+pio upgrade
+```
+
+### Step 2: Check Package Installation
 ```bash
 pio pkg list
 ```
 
 **Look for**:
 ```
-espressif32 @ 6.8.1
-framework-espidf @ 3.50501.240916
+espressif32 @ 6.12.0
+framework-espidf @ 3.50500.0
 ```
 
 ### Step 3: Build Project (Verbose)
@@ -69,108 +58,78 @@ pio run --verbose
 
 **Critical lines to verify in output:**
 ```
-Processing xiao_esp32c6 (platform: espressif32@6.8.1; framework: espidf)
+Processing xiao_esp32c6 (platform: espressif32@6.12.0; framework: espidf)
 ...
-ESP-IDF v5.5.1
+PLATFORM: Espressif 32 (6.12.0) > Seeed Studio XIAO ESP32C6
+HARDWARE: ESP32C6 160MHz, 320KB RAM, 4MB Flash
 ...
-Compiling .pio/build/xiao_esp32c6/...
+PACKAGES:
+ - framework-espidf @ 3.50500.0 (5.5.0)
+ - tool-cmake @ 3.30.2
+ - toolchain-riscv32-esp @ 14.2.0+20241119
+...
+ESP-IDF v5.5.0
+...
+RAM:   [          ]   3.1% (used 10148 bytes from 327680 bytes)
+Flash: [          ]   4.1% (used 168667 bytes from 4128768 bytes)
+============================================ [SUCCESS] ============================================
 ```
 
-### Step 4: Open ESP-IDF Configuration Menu (Optional)
+### Step 4: Verify ESP-IDF Configuration (Optional)
 ```bash
-pio run --target menuconfig
+pio run -t menuconfig
 ```
 
-**Verify in menu:**
-- Check "Component config" → "Bluetooth" → Verify NimBLE is available
-- Check "Component config" → "FreeRTOS" → Verify watchdog settings
+**In the menu:**
+- Navigate through to verify NimBLE and other components are available
+- **DO NOT SAVE** unless you need to make changes
+- Press 'Q' to quit
 
 ---
 
-## ⚠️ Potential Issues and Solutions
+## ⚠️ Migration Requirements from v5.3.0
 
-### Issue 1: "Package not found: framework-espidf @ 3.50501.240916"
+If upgrading from ESP-IDF v5.3.0, follow these steps:
 
-**Reason**: ESP-IDF v5.5.1 might not be available in PlatformIO registry yet
+### Required: Fresh PlatformIO Install
+```bash
+# Uninstall PlatformIO (via IDE extension manager or pip)
+pip uninstall platformio
 
-**Solution Options**:
+# Reinstall PlatformIO
+pip install platformio
 
-#### Option A: Use Latest Available ESP-IDF
-1. Check available versions:
-   ```bash
-   pio pkg search "framework-espidf"
-   ```
-
-2. Find the latest v5.x version (e.g., `3.50402.0` for v5.4.2)
-
-3. Update `platformio.ini`:
-   ```ini
-   platform_packages = 
-       platformio/framework-espidf @ ~3.50402.0  ; Use latest available
-   ```
-
-4. Update ALL documentation to reflect actual version used
-
-#### Option B: Use ESP-IDF v5.3.1 (Known Stable)
-```ini
-platform = espressif32@6.8.1
-platform_packages = 
-    platformio/framework-espidf @ ~3.50301.0  ; ESP-IDF v5.3.1
+# Verify new installation
+pio --version
 ```
 
-**⚠️ WARNING**: If changing from v5.5.1, you MUST:
-- Update `requirements_spec.md` DS001
-- Update `README.md` 
-- Update `architecture_decisions.md` AD001
-- Re-test all bilateral timing
-- Re-validate JPL compliance
+### Required: Menuconfig Minimal Save
+```bash
+# After fresh PlatformIO install and first build attempt
+pio run -t menuconfig
 
-### Issue 2: Build Errors with NimBLE
-
-**If you see**: `nimble.h: No such file or directory`
-
-**Solution**: NimBLE must be enabled in ESP-IDF config
-
-1. Open menuconfig:
-   ```bash
-   pio run --target menuconfig
-   ```
-
-2. Navigate to:
-   ```
-   Component config → Bluetooth → Bluedroid Bluetooth stack enabled [*]
-   Component config → Bluetooth → NimBLE Stack [*]
-   ```
-
-3. Save and exit (press 'S', then 'Q')
-
-### Issue 3: Board Not Found
-
-**If you see**: `Unknown board ID 'seeed_xiao_esp32c6'`
-
-**Solution**: Board definition might be missing
-
-Add custom board definition:
-```ini
-board = esp32-c6-devkitc-1  ; Use generic ESP32-C6 board
-board_build.mcu = esp32c6
-board_build.f_cpu = 160000000L
+# In menuconfig:
+# Navigate to bottom of main menu
+# Select: "Save minimal configuration"
+# Confirm save
+# Exit menuconfig (press 'Q')
 ```
 
----
+### Required: Clean Build
+```bash
+# Remove all build artifacts
+pio run -t fullclean
 
-## 📋 Configuration Validation Checklist
+# First clean build (takes ~10 minutes, downloads ~1GB)
+pio run
+```
 
-Before considering the configuration "verified", confirm:
-
-- [ ] `pio pkg update` completes without errors
-- [ ] `pio pkg list` shows correct espressif32 platform version
-- [ ] `pio pkg list` shows correct framework-espidf version
-- [ ] `pio run --verbose` shows "ESP-IDF v5.5.1" (or documented alternative)
-- [ ] Build completes without errors
-- [ ] No Arduino libraries are referenced (NimBLE is native ESP-IDF)
-- [ ] All build flags compile without errors
-- [ ] JPL compliance flags are present and active
+**First Build Expectations:**
+- Downloads ESP-IDF v5.5.0 framework (~500MB)
+- Downloads toolchains and packages (~500MB)
+- Compiles entire framework (10-15 minutes)
+- Creates sdkconfig files
+- Subsequent builds: 30-60 seconds
 
 ---
 
@@ -189,10 +148,10 @@ void app_main(void)
     // Print ESP-IDF version
     ESP_LOGI(TAG, "ESP-IDF Version: %s", esp_get_idf_version());
     
-    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 1)
-        ESP_LOGI(TAG, "✓ ESP-IDF v5.5.1 or later confirmed");
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+        ESP_LOGI(TAG, "✓ ESP-IDF v5.5.0 or later confirmed");
     #else
-        ESP_LOGW(TAG, "⚠ ESP-IDF version is older than v5.5.1");
+        ESP_LOGW(TAG, "⚠ ESP-IDF version is older than v5.5.0");
         ESP_LOGW(TAG, "⚠ This may cause compatibility issues");
     #endif
     
@@ -202,9 +161,173 @@ void app_main(void)
 
 **Expected console output:**
 ```
-I (xxx) VERSION_CHECK: ESP-IDF Version: v5.5.1
-I (xxx) VERSION_CHECK: ✓ ESP-IDF v5.5.1 or later confirmed
+I (xxx) VERSION_CHECK: ESP-IDF Version: v5.5.0
+I (xxx) VERSION_CHECK: ✓ ESP-IDF v5.5.0 or later confirmed
 ```
+
+---
+
+## 🔧 Configuration Details
+
+### platformio.ini Configuration (Current Working)
+
+```ini
+[env:xiao_esp32c6]
+; Official PlatformIO platform with ESP-IDF v5.5.0
+platform = espressif32 @ 6.12.0
+
+; ESP-IDF framework (v5.5.0 automatically selected by platform)
+framework = espidf
+
+; Official Seeed XIAO ESP32-C6 board (supported since platform v6.11.0)
+board = seeed_xiao_esp32c6
+
+; Board configuration
+board_build.partitions = default.csv
+
+; Build flags (JPL compliance)
+build_flags = 
+    -O2
+    -Wall
+    -Wextra
+    -Werror
+    -fstack-protector-strong
+    -Wformat=2
+    -Wformat-overflow=2
+    -Wno-format-truncation
+    -Wno-format-nonliteral
+    -Wimplicit-fallthrough=3
+    -DESP_IDF_VERSION_MAJOR=5
+    -DESP_IDF_VERSION_MINOR=5
+    -DESP_IDF_VERSION_PATCH=0
+    -DJPL_COMPLIANT_BUILD=1
+    -DSAFETY_CRITICAL=1
+    -DTESTING_MODE=1
+    -DENABLE_FACTORY_RESET=1
+    -DDEBUG_LEVEL=3
+
+; Source file selection (ESP-IDF uses CMake, not build_src_filter)
+extra_scripts = 
+    pre:scripts/select_source.py
+
+; Monitoring
+monitor_speed = 115200
+monitor_filters = 
+    esp32_exception_decoder
+    colorize
+    time
+
+; Upload
+upload_speed = 921600
+upload_protocol = esptool
+```
+
+**Key Points:**
+- ✅ No `platform_packages` line needed (platform auto-selects ESP-IDF v5.5.0)
+- ✅ Board name uses underscore: `seeed_xiao_esp32c6` (not hyphen)
+- ✅ Platform v6.12.0 includes official Seeed board support
+- ✅ ESP-IDF v5.5.0 automatically selected by platform
+
+---
+
+## 📋 Configuration Validation Checklist
+
+Before considering the configuration "verified", confirm:
+
+- [ ] `pio --version` shows PlatformIO Core v6.1.x or later
+- [ ] `pio pkg list` shows espressif32 @ 6.12.0
+- [ ] `pio pkg list` shows framework-espidf @ 3.50500.0
+- [ ] `pio run --verbose` shows "PLATFORM: Espressif 32 (6.12.0)"
+- [ ] `pio run --verbose` shows "ESP-IDF v5.5.0"
+- [ ] Build completes without errors
+- [ ] Build output shows "framework-espidf @ 3.50500.0 (5.5.0)"
+- [ ] RAM usage: 3.1% (10,148 bytes)
+- [ ] Flash usage: 4.1% (168,667 bytes)
+- [ ] All build flags compile without errors
+- [ ] JPL compliance flags are present and active
+
+---
+
+## ❌ Common Issues and Solutions
+
+### Issue 1: "Interface version 4 not supported"
+
+**Error:**
+```
+CMake Error: argument --interface_version: invalid choice: '4'
+(choose from 0, 1, 2, 3)
+```
+
+**Root Cause:** Corrupted PlatformIO cache or old CMake version
+
+**Solution:**
+1. Fresh PlatformIO install (completely uninstall/reinstall)
+2. Clear all caches:
+   ```bash
+   # Windows
+   rmdir /s /q "%USERPROFILE%\.platformio\platforms\espressif32"
+   rmdir /s /q "%USERPROFILE%\.platformio\packages\framework-espidf"
+   
+   # Linux/Mac
+   rm -rf ~/.platformio/platforms/espressif32
+   rm -rf ~/.platformio/packages/framework-espidf
+   ```
+3. Run `pio run -t menuconfig` and save minimal configuration
+4. Clean rebuild: `pio run -t fullclean && pio run`
+
+### Issue 2: Board Not Found
+
+**Error:**
+```
+Unknown board ID 'seeed_xiao_esp32c6'
+```
+
+**Root Cause:** Platform version too old (< v6.11.0)
+
+**Solution:** 
+- Verify platform v6.12.0 is installed: `pio pkg list`
+- If wrong version, update platformio.ini to lock platform: `platform = espressif32 @ 6.12.0`
+- Clean and rebuild: `pio run -t fullclean && pio run`
+
+### Issue 3: Package Not Found
+
+**Error:**
+```
+Package not found: framework-espidf @ 3.50500.0
+```
+
+**Solution:**
+1. Update PlatformIO: `pio upgrade`
+2. Update packages: `pio pkg update`
+3. Clear cache and rebuild:
+   ```bash
+   pio run -t fullclean
+   pio run
+   ```
+
+### Issue 4: Build Flags Errors
+
+**Error:** Various warnings about `-Wstrict-prototypes` or stack usage
+
+**Solution:**
+- Verify `build_flags` in platformio.ini match working configuration above
+- These flags are specifically tuned for ESP-IDF v5.5.0 framework compatibility
+- See `BUILD_CONFIGURATION.md` for detailed flag rationale
+
+### Issue 5: NimBLE Not Found
+
+**Error:**
+```
+nimble.h: No such file or directory
+```
+
+**Solution:**
+- NimBLE is included in ESP-IDF v5.5.0 as a native component
+- No external libraries needed
+- If error persists, run `pio run -t menuconfig`:
+  - Component config → Bluetooth → Enable Bluetooth
+  - Component config → Bluetooth → Bluedroid Enable → NimBLE
+  - Save and exit
 
 ---
 
@@ -212,39 +335,53 @@ I (xxx) VERSION_CHECK: ✓ ESP-IDF v5.5.1 or later confirmed
 
 If verification fails or you encounter errors:
 
-1. **Check PlatformIO ESP32 platform releases**:
+1. **Check official PlatformIO ESP32 releases**:
    https://github.com/platformio/platform-espressif32/releases
 
-2. **Check ESP-IDF release dates**:
-   https://github.com/espressif/esp-idf/releases
+2. **Check ESP-IDF v5.5.0 release notes**:
+   https://github.com/espressif/esp-idf/releases/tag/v5.5.0
 
 3. **Search PlatformIO registry**:
    ```bash
    pio pkg search framework-espidf
+   pio pkg search espressif32
    ```
 
-4. **Verify your PlatformIO installation**:
+4. **Verify PlatformIO installation**:
    ```bash
    pio --version
    pio upgrade
+   pio system info
    ```
+
+5. **Review migration documentation**:
+   - `docs/ESP_IDF_V5.5.0_MIGRATION.md` - Complete migration guide
+   - `BUILD_CONFIGURATION.md` - Build flag details
 
 ---
 
-## ✅ Configuration Verified
+## ✅ Verified Configuration Summary
 
-Once all checks pass, document the results:
+**Verified Configuration (October 20, 2025):**
+- **Platform**: espressif32 @ 6.12.0
+- **Framework**: ESP-IDF v5.5.0 (framework-espidf @ 3.50500.0)
+- **Board**: seeed_xiao_esp32c6 (official support)
+- **Build Status**: SUCCESS
+- **RAM Usage**: 3.1% (10,148 / 327,680 bytes)
+- **Flash Usage**: 4.1% (168,667 / 4,128,768 bytes)
+- **Build Time**: 610 seconds (first), ~60 seconds (incremental)
 
-**Verified Configuration:**
-- Platform: espressif32 @ _______
-- Framework: ESP-IDF v_______
-- Date: _______
-- Verified by: _______
+**Migration Requirements:**
+- Fresh PlatformIO install
+- Menuconfig minimal save
+- Clean rebuild
 
-**Update this information in**:
-- `requirements_spec.md` (DS001)
-- `README.md` (Quick Start section)
-- `architecture_decisions.md` (AD001)
+**Update this information in:**
+- ✅ `BUILD_CONFIGURATION.md` - Updated October 20, 2025
+- ✅ `platformio_verification.md` - This document
+- ✅ `docs/ESP_IDF_V5.5.0_MIGRATION.md` - Complete migration guide
+- [ ] `README.md` - User-facing documentation (next update)
+- [ ] `QUICK_START.md` - Setup instructions (next update)
 
 ---
 

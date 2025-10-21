@@ -4,7 +4,7 @@
 # This tells ESP-IDF how to build the src/ directory
 
 idf_component_register(
-    SRCS "../test/ulp_hbridge_test.c"
+    SRCS "../test/ws2812b_test.c"
     INCLUDE_DIRS "."
     REQUIRES 
         freertos
@@ -13,5 +13,4 @@ idf_component_register(
         driver
         nvs_flash
         bt
-        ulp
 )

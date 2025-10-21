@@ -19,8 +19,9 @@ source_map = {
     "xiao_esp32c6_testing": "main.c",
     "hbridge_test": "../test/hbridge_test.c",
     "hbridge_pwm_test": "../test/hbridge_pwm_test.c",
-    "ulp_hbridge_test": "../test/ulp_hbridge_test.c",
     "ledc_blink_test": "../test/ledc_blink_test.c",
+    "button_deepsleep_test": "../test/button_deepsleep_test.c",
+    "ws2812b_test": "../test/ws2812b_test.c",
     # Add future test environments here
 }
 

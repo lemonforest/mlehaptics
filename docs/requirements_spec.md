@@ -1,7 +1,7 @@
 # EMDR Bilateral Stimulation Device - Requirements Specification
 
 **Generated with assistance from Claude Sonnet 4 (Anthropic)**  
-**Last Updated: 2025-10-17**
+**Last Updated: 2025-10-20**
 
 ## Project Overview
 
@@ -25,12 +25,14 @@ This document defines the complete functional and technical requirements for a d
 ### ESP-IDF Framework Requirements
 
 #### DS001: ESP-IDF Version Targeting
-- **Mandatory Version**: ESP-IDF v5.3.0 (stable, full PlatformIO compatibility)
-- **Rationale**: Proven stability, excellent BLE support for ESP32-C6, full PlatformIO integration
-- **API Compliance**: All code must use ESP-IDF v5.3.x APIs and best practices
+- **Mandatory Version**: ESP-IDF v5.5.0 (VERIFIED BUILD SUCCESS October 20, 2025)
+- **Platform**: PlatformIO espressif32 v6.12.0 (official Seeed XIAO ESP32-C6 support)
+- **Framework Package**: framework-espidf @ 3.50500.0
+- **Rationale**: Latest stable version with enhanced ESP32-C6 ULP support, BR/EDR eSCO + Wi-Fi coexistence, MQTT 5.0
+- **API Compliance**: All code must use ESP-IDF v5.5.x APIs and best practices
 - **Deprecation Handling**: No use of deprecated functions from earlier ESP-IDF versions
-- **Verification**: Build must fail if incorrect ESP-IDF version is used
-- **Note**: v5.5.0+ requires newer platform packages with potential compatibility issues
+- **Verification**: Build must succeed with platform v6.12.0
+- **Migration Notes**: Requires fresh PlatformIO install + menuconfig minimal save
 
 #### DS002: Build System Requirements and Version Enforcement
 - **Platform**: PlatformIO with espressif32 platform
@@ -38,30 +40,32 @@ This document defines the complete functional and technical requirements for a d
 - **Toolchain**: Latest stable GCC toolchain for RISC-V (ESP32-C6)
 - **Static Analysis**: Code must pass ESP-IDF component analysis tools
 
-**CRITICAL: `platformio.ini` Configuration Enforcement**
+**CRITICAL: `platformio.ini` Configuration**
 
-The ESP-IDF v5.3.0 requirement is **enforced** via the `platformio.ini` file in the project root directory. This file MUST contain:
+The ESP-IDF v5.5.0 configuration is managed via the `platformio.ini` file in the project root directory. This file MUST contain:
 
 ```ini
 [env:xiao_esp32c6]
-; Lock to specific platform version that includes ESP-IDF v5.3.0
-platform = espressif32@6.8.1
-platform_packages = 
-    platformio/framework-espidf @ 3.50300.0  ; Explicitly lock ESP-IDF v5.3.0
+; VERIFIED BUILD SUCCESS with ESP-IDF v5.5.0 (October 20, 2025)
+platform = espressif32 @ 6.12.0  ; Official Seeed XIAO ESP32-C6 support
+; Platform automatically selects framework-espidf @ 3.50500.0 (ESP-IDF v5.5.0)
 framework = espidf
 ```
 
 **Key Requirements:**
-- **Platform version lock**: `espressif32@6.8.1` ensures PlatformIO uses correct ESP32 platform release
-- **Framework lock**: `framework-espidf @ 3.50300.0` explicitly pins ESP-IDF to v5.3.0 (stable, tested)
-- **No version flexibility**: The `@` syntax creates a hard dependency (not `>=` or `^`)
-- **Build validation**: PlatformIO will fail the build if these packages are unavailable
-- **Compatibility**: v5.5.0+ requires newer platform packages (espressif32@6.9.0+) with potential issues
+- **Platform version lock**: `espressif32 @ 6.12.0` ensures latest ESP32-C6 support and ESP-IDF v5.5.0
+- **Automatic framework selection**: Platform v6.12.0 automatically selects framework-espidf @ 3.50500.0
+- **Seeed board support**: Official seeed_xiao_esp32c6 board definition (added in v6.11.0)
+- **Enhanced ULP**: ESP32-C6 ULP RISC-V support for battery-efficient bilateral timing
+- **Build validation**: VERIFIED successful build on October 20, 2025
+- **Migration requirement**: Fresh PlatformIO install required if upgrading from v5.3.0
 
 **Verification Steps:**
-1. After any `platformio.ini` change, run `pio pkg update` to verify package availability
-2. Build output must show "ESP-IDF v5.3.0" in framework version
-3. Static analysis must validate no deprecated API usage from earlier versions
+1. Build output must show "framework-espidf @ 3.50500.0 (5.5.0)"
+2. First build after fresh install: ~10 minutes (downloads ~1GB)
+3. Subsequent builds: ~1 minute incremental
+4. Run `pio run -t menuconfig` → Save minimal configuration for sdkconfig
+5. Static analysis must validate no deprecated API usage from earlier versions
 
 **Safety Note**: Modifying the platform or framework versions requires:
 - Complete requirements specification review and update
@@ -129,7 +133,7 @@ framework = espidf
 **Disabled for ESP-IDF Framework Compatibility:**
 - **`-Wstack-usage=2048`**: Removed - ESP-IDF ADC calibration code has unbounded stack usage
 - **`-Wstrict-prototypes`**: Removed - C-only flag conflicts with C++ framework components
-- **`-Wold-style-definition`**: Removed - conflicts with ESP-IDF v5.3.0 framework bugs
+- **`-Wold-style-definition`**: Removed - conflicts with ESP-IDF framework limitations
 - **`-Wno-format-truncation`**: ESP-IDF console component has unavoidable buffer sizing warnings
 - **`-Wno-format-nonliteral`**: ESP-IDF argtable3 uses dynamic format strings
 
@@ -422,7 +426,7 @@ framework = espidf
 - Research validation for visual bilateral stimulation (therapy light)
 
 #### CP003: Development Standards Compliance
-- **ESP-IDF v5.3.0**: Stable framework version with full PlatformIO compatibility
+- **ESP-IDF v5.5.0**: Latest stable framework (VERIFIED October 20, 2025)
 - **JPL Coding Standard**: Safety-critical software development practices including no busy-wait loops
 - **Static Analysis**: Automated code quality verification
 - **Medical Device Quality**: IEC 62304 software lifecycle considerations

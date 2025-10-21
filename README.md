@@ -2,7 +2,7 @@
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
-Generated with assistance from **Claude Sonnet 4 (Anthropic)** - Last Updated: 2025-10-16
+Generated with assistance from **Claude Sonnet 4 (Anthropic)** - Last Updated: 2025-10-20
 
 ## 🎯 Project Overview
 
@@ -18,9 +18,10 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 ## 🛡️ Safety-Critical Development Standards
 
 ### ESP-IDF Framework Requirements
-- **Mandatory Version**: ESP-IDF v5.3.0 (stable, full PlatformIO compatibility)
+- **Mandatory Version**: ESP-IDF v5.5.0 (latest stable, enhanced ESP32-C6 support)
+- **Platform**: PlatformIO espressif32 v6.12.0 with official Seeed XIAO ESP32-C6 support
 - **Framework**: ESP-IDF (not Arduino) for real-time guarantees
-- **Rationale**: Proven stability, excellent BLE support, full PlatformIO integration
+- **Rationale**: Enhanced ULP support, BR/EDR + Wi-Fi coexistence, MQTT 5.0, proven stability
 
 ### JPL Institutional Coding Standard Compliance
 This project follows **JPL Coding Standard for C Programming Language** for safety-critical medical device software:
@@ -47,7 +48,7 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 ## ⚡ Quick Start
 
 ### Prerequisites
-- **ESP-IDF v5.3.0**: Automatically managed by PlatformIO via `platformio.ini`
+- **ESP-IDF v5.5.0**: Automatically managed by PlatformIO via `platformio.ini`
 - **PlatformIO**: Install via VS Code extension or standalone
 - **Two Seeed Xiao ESP32-C6 boards**: Hardware platform requirement
 
@@ -61,22 +62,22 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 
 2. **Open in PlatformIO**: File → Open Folder → select project directory
 
-3. **Verify ESP-IDF version enforcement**: 
-   - The `platformio.ini` file at the project root **enforces** ESP-IDF v5.3.0
+3. **Verify ESP-IDF version configuration**: 
+   - The `platformio.ini` file at the project root uses ESP-IDF v5.5.0
    - PlatformIO will automatically download and use the correct version
-   - Build output will confirm "ESP-IDF v5.3.0" is being used
+   - Build output will confirm "ESP-IDF v5.5.0" is being used
    
-   **Critical configuration in `platformio.ini`:**
+   **Working configuration in `platformio.ini`:**
    ```ini
-   platform = espressif32@6.8.1  ; Full v5.3.0 compatibility
-   platform_packages = 
-       platformio/framework-espidf @ 3.50300.0  ; Lock ESP-IDF v5.3.0
-   framework = espidf
+   platform = espressif32 @ 6.12.0  ; Official Seeed XIAO ESP32-C6 support
+   framework = espidf               ; Platform auto-selects ESP-IDF v5.5.0
+   board = seeed_xiao_esp32c6       ; Official board definition
    ```
 
 4. **Build project**: PlatformIO → Build (Ctrl+Alt+B)
-   - First build will download ESP-IDF v5.3.0 if not already cached
-   - Verify build output shows correct ESP-IDF version
+   - First build will download ESP-IDF v5.5.0 (~1GB, takes ~10 minutes)
+   - Verify build output shows "framework-espidf @ 3.50500.0 (5.5.0)"
+   - Subsequent builds: ~1 minute incremental
 
 5. **Upload to both devices**: PlatformIO → Upload (Ctrl+Alt+U)
 
@@ -135,7 +136,7 @@ Client: [---999ms off---][1ms dead][===999ms motor===][1ms dead]
 ## 📁 Project Structure
 
 ```
-├── platformio.ini              # Build configuration (ESP-IDF v5.5.1)
+├── platformio.ini              # Build configuration (ESP-IDF v5.5.0)
 ├── README.md                   # This file
 ├── AI_GENERATED_DISCLAIMER.md  # Important safety notice
 ├── Doxyfile                    # Documentation generation
@@ -219,7 +220,7 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 // JPL Coding Standard compliance
 #define JPL_COMPLIANT_BUILD    1   // Enable JPL standard checks
-#define ESP_IDF_TARGET_VERSION "v5.5.0"  // Enforce ESP-IDF version (v5.5.1 target)
+#define ESP_IDF_TARGET_VERSION "v5.5.0"  // Verified ESP-IDF version
 
 // Bilateral timing configuration
 #define BILATERAL_CYCLE_TOTAL_MIN_MS    500     // 2 Hz max
@@ -233,7 +234,7 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 - **Integration testing**: Full two-device bilateral coordination validation at multiple cycle times
 - **Timing precision**: Automated testing of ±10ms bilateral timing requirements
 - **JPL compliance**: Static analysis verification of coding standard adherence
-- **ESP-IDF compatibility**: Build verification against v5.5.0 (v5.5.1 target when available)
+- **ESP-IDF compatibility**: Build verified against v5.5.0 (October 20, 2025)
 
 ### Testing Protocol
 
@@ -264,14 +265,14 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 ### Required Validation for Medical Use
 - **Complete code review** by qualified embedded systems engineer
 - **JPL coding standard verification** using certified static analysis tools
-- **ESP-IDF v5.5.0 compatibility** testing on target hardware (v5.5.1 when available)
+- **ESP-IDF v5.5.0 compatibility** verified on target hardware (October 20, 2025)
 - **Safety validation** for therapeutic applications following IEC 62304
 - **Timing precision validation** with laboratory-grade measurement equipment
 - **EMC compliance testing** for medical device environments
 - **Battery safety validation** for portable medical equipment
 
 ### Development Environment Requirements
-- **ESP-IDF v5.5.0**: Exact version required for BLE stability and power management (v5.5.1 when available)
+- **ESP-IDF v5.5.0**: Required version for enhanced ESP32-C6 support and BLE stability
 - **Static analysis tools**: PC-Lint, Coverity, or equivalent for JPL compliance
 - **Timing measurement**: Oscilloscope or logic analyzer for bilateral precision testing
 - **Multi-device testing**: Minimum two ESP32-C6 boards for integration testing
@@ -291,13 +292,13 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 ## 🤝 Contributing
 
 ### API-Compatible Development
-Use the complete API contracts in `docs/ai_context.md` to generate compatible code additions without sharing the full source code. All generated code automatically follows ESP-IDF v5.5.0 and JPL coding standards (v5.5.1 compatible).
+Use the complete API contracts in `docs/ai_context.md` to generate compatible code additions without sharing the full source code. All generated code automatically follows ESP-IDF v5.5.0 and JPL coding standards.
 
 ### Adding Features
 1. **Reference API contracts** for function signatures and safety requirements
 2. **Maintain JPL compliance** - no dynamic allocation, no busy-wait loops, comprehensive error checking
 3. **Use vTaskDelay() exclusively** for all timing operations (no esp_rom_delay_us or ets_delay_us)
-4. **Use ESP-IDF v5.5.x APIs** exclusively - no deprecated function calls
+4. **Use ESP-IDF v5.5.0 APIs** exclusively - no deprecated function calls
 5. **Include comprehensive Doxygen documentation** with safety annotations
 6. **Add appropriate logging** with conditional compilation for production builds
 7. **Update architecture decisions** document with rationale for changes
@@ -322,9 +323,9 @@ Use the complete API contracts in `docs/ai_context.md` to generate compatible co
 
 - **AI Assistant**: Claude Sonnet 4 (Anthropic) - Code generation assistance
 - **Development Standards**: JPL Institutional Coding Standard for C Programming Language
-- **Framework**: ESP-IDF v5.5.0 (Espressif Systems) - v5.5.1 target when available
+- **Framework**: ESP-IDF v5.5.0 (Espressif Systems) - Verified October 20, 2025
 - **Human Engineering**: Requirements specification and safety validation
-- **Generated**: 2025-09-18, Updated: 2025-10-16
+- **Generated**: 2025-09-18, Updated: 2025-10-20
 
 Please maintain attribution when using or modifying this code.
 
@@ -343,7 +344,7 @@ Please maintain attribution when using or modifying this code.
 - **OTA updates**: BLE-based firmware updates with dual partition safety
 
 ### Development Tools and Standards
-- **ESP-IDF v5.5.0**: [Official ESP-IDF Documentation](https://docs.espressif.com/projects/esp-idf/en/v5.5.0/) (v5.5.1 when available)
+- **ESP-IDF v5.5.0**: [Official ESP-IDF Documentation](https://docs.espressif.com/projects/esp-idf/en/v5.5.0/)
 - **JPL Coding Standard**: [JPL Institutional Coding Standard for C](https://web.archive.org/web/20200914031549/https://lars-lab.jpl.nasa.gov/JPL_Coding_Standard_C.pdf)
 - **Medical Device Standards**: IEC 62304 Software Development Lifecycle
 - **PlatformIO ESP32**: [ESP32 Platform Documentation](https://docs.platformio.org/en/latest/platforms/espressif32.html)

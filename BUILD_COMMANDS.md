@@ -17,7 +17,8 @@
 | `ledc_blink_test` | Minimal LEDC test (blink LED at 1Hz) | `pio run -e ledc_blink_test -t upload && pio device monitor` |
 | `hbridge_test` | H-bridge GPIO control test (100% power) | `pio run -e hbridge_test -t upload && pio device monitor` |
 | `hbridge_pwm_test` | H-bridge PWM control @ 60% duty ✅ WORKING | `pio run -e hbridge_pwm_test -t upload && pio device monitor` |
-| `ulp_hbridge_test` | ULP-coordinated H-bridge test | `pio run -e ulp_hbridge_test -t upload && pio device monitor` |
+| `button_deepsleep_test` | Button toggle, 5s hold → deep sleep, wake test | `pio run -e button_deepsleep_test -t upload && pio device monitor` |
+| `ws2812b_test` | WS2812B color cycling (Red→Green→Blue→Rainbow) + deep sleep | `pio run -e ws2812b_test -t upload && pio device monitor` |
 
 ---
 
@@ -121,6 +122,21 @@ pio run -e hbridge_test -t upload && pio device monitor
 # Or if you prefer separate steps
 pio run -e hbridge_test -t upload
 pio device monitor
+```
+
+### Test Button and Deep Sleep
+```bash
+# Button toggle, 5-second hold deep sleep test
+pio run -e button_deepsleep_test -t upload && pio device monitor
+
+# WS2812B LED color cycling test
+pio run -e ws2812b_test -t upload && pio device monitor
+
+# Test sequence:
+# 1. LED should be ON after power-up
+# 2. Press button: Toggle LED
+# 3. Hold button 5 seconds: Countdown + deep sleep
+# 4. Press button while sleeping: Wake up, LED ON
 ```
 
 ### Switch Back to Main Application
@@ -243,35 +259,79 @@ pio run -e hbridge_test -t upload
 
 **Linux/Mac (bash/zsh):**
 ```bash
-# Create alias for quick testing (add to .bashrc or .zshrc)
+# Create aliases for quick testing (add to .bashrc or .zshrc)
 alias pio-htest='pio run -e hbridge_test -t upload && pio device monitor'
+alias pio-btntest='pio run -e button_deepsleep_test -t upload && pio device monitor'
+alias pio-ledtest='pio run -e ledc_blink_test -t upload && pio device monitor'
+alias pio-ws2812b='pio run -e ws2812b_test -t upload && pio device monitor'
 
 # Then just run:
-pio-htest
+pio-htest      # H-bridge test
+pio-btntest    # Button and deep sleep test
+pio-ledtest    # LED blink test
+pio-ws2812b    # WS2812B color cycling test
 ```
 
 **Windows PowerShell:**
 ```powershell
-# Create function in your PowerShell profile
+# Create functions in your PowerShell profile
 # Edit profile: notepad $PROFILE
 function pio-htest {
     pio run -e hbridge_test -t upload
     if ($LASTEXITCODE -eq 0) { pio device monitor }
 }
 
+function pio-btntest {
+    pio run -e button_deepsleep_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-ledtest {
+    pio run -e ledc_blink_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-ws2812b {
+    pio run -e ws2812b_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
 # Then just run:
-pio-htest
+pio-htest      # H-bridge test
+pio-btntest    # Button and deep sleep test
+pio-ledtest    # LED blink test
+pio-ws2812b    # WS2812B color cycling test
 ```
 
 **Windows Command Prompt:**
 ```cmd
-# Create batch file: pio-htest.bat
+# Create batch files in a directory in your PATH:
+
+# pio-htest.bat
 @echo off
 pio run -e hbridge_test -t upload
 if %errorlevel% equ 0 pio device monitor
 
+# pio-btntest.bat
+@echo off
+pio run -e button_deepsleep_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-ledtest.bat
+@echo off
+pio run -e ledc_blink_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-ws2812b.bat
+@echo off
+pio run -e ws2812b_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
 # Then just run:
-pio-htest
+pio-htest      REM H-bridge test
+pio-btntest    REM Button and deep sleep test
+pio-ledtest    REM LED blink test
+pio-ws2812b    REM WS2812B color cycling test
 ```
 
 ### Save Build Output

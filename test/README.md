@@ -185,6 +185,215 @@ pio run -e hbridge_pwm_test -t upload && pio device monitor
 
 ---
 
+### 4. Button, Deep Sleep, and Wake Test (`button_deepsleep_test.c`)
+
+**Purpose:** Verify button functionality, deep sleep mode, and wake-from-sleep capability
+
+**Test Sequence:**
+- Power on → LED ON (GPIO15 = 0, active LOW)
+- Short button press → Toggle LED ON/OFF
+- Hold button 5 seconds → Countdown and enter deep sleep (<1mA)
+- Press button to wake → LED turns ON, restart cycle
+
+**GPIO Configuration:**
+- GPIO1: Button input (RTC GPIO for wake, hardware pull-up)
+- GPIO15: Status LED output (active LOW - 0=ON, 1=OFF)
+
+**Deep Sleep Features:**
+- Ultra-low power consumption: <1mA (vs ~50mA active)
+- RTC domain remains active for GPIO wake monitoring
+- Main CPU and peripherals powered down
+- Wake latency: <2 seconds to full operation
+
+**Hardware Requirements:**
+- Button connected to GPIO1 (hardware pull-up resistor)
+- GPIO15 LED (onboard LED on Xiao ESP32C6)
+- No external hardware needed
+
+**Build & Run:**
+```bash
+pio run -e button_deepsleep_test -t upload && pio device monitor
+```
+
+**Expected Behavior:**
+- ✅ LED ON immediately after power-up or wake
+- ✅ Button press toggles LED (with 50ms debounce)
+- ✅ Button hold for 5s shows countdown: "5... 4... 3... 2... 1..."
+- ✅ Device enters deep sleep (serial output stops)
+- ✅ Button press wakes device (boot messages appear)
+- ✅ After wake, LED is ON and test restarts
+- ✅ Cycle repeats continuously
+
+**Console Output Example:**
+```
+=== Button & Deep Sleep Hardware Test ===
+Wake up! Reason: Power-on or reset (not from deep sleep)
+LED: ON (press button to toggle)
+Button pressed! LED: OFF
+Button pressed! LED: ON
+Button HOLD detected (5.0s) - entering deep sleep in...
+5... 4... 3... 2... 1...
+Entering ultra-low power deep sleep mode...
+[Device sleeps]
+[Button pressed]
+ESP-ROM:esp32c6-20220919
+...
+Wake up! Reason: GPIO (button press on GPIO1)
+LED: ON (press button to toggle)
+```
+
+**What to Check:**
+- [ ] LED is ON immediately after power-up
+- [ ] LED toggles cleanly with each button press (no double-triggers)
+- [ ] Button hold shows smooth countdown without glitches
+- [ ] Device enters deep sleep after countdown completes
+- [ ] Serial output stops completely during sleep
+- [ ] Button press reliably wakes device
+- [ ] LED is ON immediately after wake
+- [ ] Wake-up reason correctly shows "GPIO (button press)"
+- [ ] No button bounce issues (debounce working)
+
+**Troubleshooting:**
+- **LED doesn't turn on:** Check GPIO15 polarity (should be active LOW)
+- **Button press not detected:** Check GPIO1 connection and pull-up resistor
+- **Button toggles multiple times:** Increase debounce time (currently 50ms)
+- **Device doesn't enter sleep:** Button must be held continuously for 5 seconds
+- **Device doesn't wake:** Check GPIO1 RTC capability and wake configuration
+- **Wake reason shows wrong value:** Verify ext1 wake source configuration
+- **Countdown interrupted:** Normal if button released - by design
+
+**Why This Test?**
+This test verifies the complete button and power management hardware chain:
+1. Button input with hardware debouncing works correctly
+2. LED output (active LOW) operates as expected
+3. Button timing detection (short press vs hold) is accurate
+4. Deep sleep mode achieves ultra-low power consumption
+5. RTC GPIO wake capability functions reliably
+6. Wake-up reason detection works correctly
+7. System state persistence across sleep/wake cycles
+
+**Integration Notes:**
+This test validates the hardware foundation for the main program's sleep/wake logic:
+- Emergency shutdown (5-second button hold) hardware mechanism
+- Deep sleep power management for battery life
+- Wake-from-sleep for user interaction
+- LED status indication (active during motor operation)
+- Button debouncing and timing accuracy
+
+Once this test passes, the main program can implement similar sleep/wake logic with confidence that the hardware chain is working correctly.
+
+---
+
+### 5. WS2812B LED Hardware Test (`ws2812b_test.c`)
+
+**Purpose:** Verify WS2812B LED functionality, power control, color display, and deep sleep integration
+
+**Status:** ✅ **Ready for hardware verification**
+
+**Test Sequence:**
+- Power on → WS2812B RED, GPIO15 status LED slow blink (2Hz)
+- Button press → Cycle colors: RED → GREEN → BLUE → RAINBOW → repeat
+- Hold button 5s → Purple blink shutdown effect, then deep sleep (<1mA)
+- Press button to wake → Returns to RED state
+
+**GPIO Configuration:**
+- GPIO1: Button input (RTC GPIO for wake, hardware pull-up)
+- GPIO15: Status LED output (active LOW, state indicator with unique blink patterns)
+- GPIO16: WS2812B power enable (P-MOSFET gate control, HIGH=enabled)
+- GPIO17: WS2812B DIN (data control pin)
+
+**Color States:**
+| State | WS2812B Color | RGB Values | GPIO15 Pattern | Frequency |
+|-------|---------------|------------|----------------|--------|
+| RED | Pure red | (255, 0, 0) | Slow blink | 2Hz (500ms) |
+| GREEN | Pure green | (0, 255, 0) | Medium blink | 4Hz (250ms) |
+| BLUE | Pure blue | (0, 0, 255) | Fast blink | 8Hz (125ms) |
+| RAINBOW | HSV color cycle | 360° sweep | Very fast blink | 10Hz (100ms) |
+| PURPLE | Shutdown effect | (128, 0, 128) | Blink during wait | 5Hz (200ms) |
+
+**Rainbow Effect:**
+- Smooth HSV color wheel rotation (0-360 degrees)
+- Update rate: 50Hz (20ms per step)
+- Full cycle: ~7.2 seconds
+- Saturation: 100%, Value: 100% (full brightness)
+
+**Hardware Requirements:**
+- WS2812B LED connected to GPIO17 (DIN)
+- P-MOSFET power switch on GPIO16
+- Button on GPIO1 (hardware pull-up)
+- GPIO15 status LED (onboard)
+
+**Build & Run:**
+```bash
+pio run -e ws2812b_test -t upload && pio device monitor
+```
+
+**Expected Behavior:**
+- ✅ WS2812B lights up RED after power-on
+- ✅ GPIO15 blinks slowly (2Hz) for RED state
+- ✅ Button press cycles through colors smoothly
+- ✅ Each color has distinct GPIO15 blink pattern
+- ✅ Rainbow effect shows smooth color transitions
+- ✅ 5-second hold triggers purple blink shutdown
+- ✅ Device enters deep sleep (<1mA consumption)
+- ✅ WS2812B powers off during sleep (GPIO16 LOW)
+- ✅ Button press wakes device to RED state
+
+**Console Output Example:**
+```
+================================================
+=== WS2812B LED Hardware Verification Test ===
+================================================
+Board: Seeed Xiao ESP32C6
+Framework: ESP-IDF v5.5.0
+WS2812B Enable: GPIO16 (HIGH=powered)
+WS2812B DIN: GPIO17 (data control)
+
+WS2812B powered ON
+State: RED (press button to cycle colors)
+Button pressed! State: GREEN
+Button pressed! State: BLUE
+Button pressed! State: RAINBOW
+Button pressed! State: RED
+
+Hold button for deep sleep...
+5... 4... 3... 2... 1...
+Waiting for button release... (purple blink)
+Button released! Entering deep sleep...
+[Device sleeps]
+```
+
+**What to Check:**
+- [ ] WS2812B shows correct colors for each state
+- [ ] Colors are pure (no contamination from other channels)
+- [ ] Rainbow effect is smooth (no sudden color jumps)
+- [ ] GPIO15 blink patterns correctly indicate current state
+- [ ] Purple blink effect visible during shutdown
+- [ ] WS2812B turns completely off before sleep
+- [ ] Device wakes reliably on button press
+- [ ] Returns to RED state after wake (fresh session)
+- [ ] No visible flicker or color instability
+
+**Troubleshooting:**
+- **WS2812B not lighting:** Check GPIO16 power enable, verify P-MOSFET connection
+- **Wrong colors displayed:** Verify GRB byte order (WS2812B standard)
+- **Rainbow not smooth:** Increase update period or check task priority
+- **Button not responding:** Verify GPIO1 pull-up, check debounce timing
+- **Wake fails:** Ensure button released before sleep (AD023 pattern)
+- **Status LED wrong pattern:** Check GPIO15 connection (active LOW)
+
+**Integration Notes:**
+This test validates the hardware foundation for therapy light features:
+- GPIO16 power control for battery efficiency
+- GPIO17 WS2812B data control using ESP-IDF led_strip
+- Color accuracy for therapeutic applications
+- Deep sleep integration for extended battery life
+- AD023 wake guarantee (wait-for-release pattern)
+
+**See Also:** `test/WS2812B_TEST_GUIDE.md` for complete test documentation, troubleshooting, and advanced testing procedures.
+
+---
+
 ## Adding New Hardware Tests
 
 When creating new hardware tests:
