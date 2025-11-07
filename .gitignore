@@ -47,6 +47,7 @@ Thumbs.db
 desktop.ini
 
 # Claude Code
+.claude/
 nul
 
 # Temporary source files

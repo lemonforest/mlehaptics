@@ -2,6 +2,8 @@
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
+![EMDR Device in Hand](images/device-in-hand.jpg)
+
 Generated with assistance from **Claude Sonnet 4 (Anthropic)** - Last Updated: 2025-11-07
 
 ## 🎯 Project Overview
@@ -21,6 +23,46 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - **Adaptive watchdog feeding**: Short cycles feed at end, long cycles feed mid-cycle + end (4-8x safety margin)
 - **Haptic effects support**: Short vibration pulses within half-cycle windows
 - **Open-source hardware**: Complete PCB designs, schematics, 3D-printable cases
+
+## 🔌 Hardware Overview
+
+### Physical Device
+
+The device features a compact, ergonomic design with a 3D-printed enclosure housing a custom PCB based on the Seeed XIAO ESP32-C6 module.
+
+<table>
+<tr>
+<td width="50%">
+
+![Device Top View](images/device-top-view.jpg)
+**Top View:** USB-C charging port, button, and status LED openings visible in the smooth enclosure surface.
+
+</td>
+<td width="50%">
+
+![Device Bottom View](images/device-bottom-view.jpg)
+**Bottom View:** Battery compartment access panel and mounting holes for internal components.
+
+</td>
+</tr>
+</table>
+
+**Size Reference:**
+
+![Device Size Comparison](images/device-in-hand.jpg)
+
+The device fits comfortably in the palm of your hand - approximately the size of a computer mouse. Compact enough for bilateral handheld therapy sessions.
+
+### Key Hardware Components
+
+- **MCU:** Seeed XIAO ESP32-C6 (RISC-V @ 160 MHz)
+- **Motors:** 2× ERM vibration motors with TB6612FNG H-bridge control
+- **LEDs:** 2× WS2812B RGB LEDs for status feedback
+- **Power:** Dual 350mAh LiPo batteries (700mAh total) with USB-C charging
+- **Enclosure:** 3D-printed PLA case (files in [hardware/enclosure/](hardware/enclosure/))
+- **PCB:** Custom design (KiCad files in [hardware/pcb/](hardware/pcb/))
+
+For complete hardware documentation, assembly instructions, and manufacturing files, see [hardware/README.md](hardware/README.md).
 
 ## 🛡️ Safety-Critical Development Standards
 

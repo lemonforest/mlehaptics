@@ -33,7 +33,7 @@ This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bila
 **Key Peripherals:**
 - **Motors:** 2× ERM vibration motors via H-bridge (TB6612FNG)
 - **LEDs:** 2× WS2812B RGB LEDs for status feedback
-- **Power:** 350mAh LiPo with integrated charging
+- **Power:** dual 350mAh LiPo batteries (700mAh) with integrated charging
 - **Button:** Single hardware button for mode switching and sleep
 
 **Critical GPIO Constraints:**
@@ -169,7 +169,7 @@ void example_task(void *arg) {
 **Phase 2 Planning (Not Yet Implemented):**
 - Explicit light sleep during inter-stimulus intervals
 - Dedicated haptic driver ICs (DRV2605L family)
-- Advanced power profiling with 350mAh battery constraints
+- Advanced power profiling with dual 350mAh batteries (700mAh)
 
 ---
 
@@ -547,7 +547,7 @@ Evaluate DRV2605L family:
 
 - Measure current draw in all operational modes
 - Characterize battery life under various duty cycles
-- Validate 20+ minute session target with 350mAh battery
+- Validate 20+ minute session target with dual 350mAh batteries (700mAh)
 
 ---
 

@@ -100,7 +100,7 @@ hardware/
 - ERM vibration motors (φ10mm × 3mm)
 - WS2812B RGB LEDs (optional - for therapy light feature)
 - H-bridge MOSFETs (AO3400A/AO3401A family)
-- 350mAh LiPo battery
+- dual 350mAh LiPo batteries (700mAh)
 - Passive components (resistors, capacitors)
 
 ### 3D Printing the Enclosure
@@ -200,7 +200,7 @@ Hardware LEDs (not GPIO-controlled):
 
 ### Enclosure Features
 - **Form factor:** Designed for Seeed XIAO ESP32-C6
-- **Battery compartment:** Fits 350mAh LiPo battery
+- **Battery compartment:** Fits dual 350mAh LiPo batteries (700mAh)
 - **Button access:** Hardware button accessible through case
 - **Material variants:** Supports both opaque and translucent case builds
 - **Variant options:** Standard (with LED/pin access) or CLRMOD (clean, no access holes)
