@@ -62,10 +62,10 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 
 ### Build and Deploy
 
-1. **Clone repository**: 
+1. **Clone repository**:
    ```bash
-   git clone <repository-url>
-   cd emdr-bilateral-device
+   git clone https://github.com/lemonforest/mlehaptics.git
+   cd mlehaptics
    ```
 
 2. **Open in PlatformIO**: File → Open Folder → select project directory
