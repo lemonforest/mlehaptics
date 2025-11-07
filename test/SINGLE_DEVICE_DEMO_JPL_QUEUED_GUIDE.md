@@ -447,7 +447,7 @@ Flash: 185,234 bytes (4.5% of 4,128,768)
 - Additional 10-20% battery life improvement
 - Automatic during motor coast periods
 
-**Battery Life (350mAh LiPo):**
+**Battery Life (dual 350mAh LiPo - 700mAh total):**
 - Mode 1/3: ~16 sessions
 - Mode 2/4: ~25 sessions
 - **With tickless idle: Add ~2-4 more sessions**

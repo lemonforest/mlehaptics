@@ -278,7 +278,7 @@ Power: Wake overhead ~0.5ms per cycle, but enables 10ms sleep for other tasks
 
 ---
 
-## Battery Life Projection (350mAh Battery)
+## Battery Life Projection (dual 350mAh batteries - 700mAh total)
 
 ### Phase 1 - Always On
 

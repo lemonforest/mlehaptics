@@ -616,7 +616,7 @@ Every subsystem reports status
 | **Mode 4** | 25% | ~43mA | ~14 mAh |
 | **Deep Sleep** | - | < 1mA | - |
 
-**Battery Life (350mAh):**
+**Battery Life (dual 350mAh - 700mAh total):**
 - Mode 1/3: ~16 sessions
 - Mode 2/4: ~25 sessions (+56%!)
 

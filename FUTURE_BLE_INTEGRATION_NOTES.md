@@ -310,7 +310,7 @@ void ble_task(void *pvParameters) {
 
 ### Battery Life Impact:
 
-| Configuration | Mode 2 Current | Battery Life (350mAh) | vs Phase 2 |
+| Configuration | Mode 2 Current | Battery Life (dual 350mAh - 700mAh total) | vs Phase 2 |
 |---------------|----------------|----------------------|------------|
 | Phase 2 (No BLE) | 25mA | ~50 minutes | Baseline |
 | Future (with BLE) | 32mA | ~40 minutes | -20% |

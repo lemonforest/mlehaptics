@@ -280,7 +280,7 @@ CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP=y
 
 **Phase 3 savings: ~1-2mA (4-8% improvement over Phase 2)**
 
-### Battery Life Projection (350mAh):
+### Battery Life Projection (dual 350mAh - 700mAh total):
 
 | Configuration | Mode 2 Current | Battery Life | vs Phase 2 |
 |---------------|----------------|--------------|------------|

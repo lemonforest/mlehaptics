@@ -484,7 +484,7 @@ Deep Sleep:
 - <1mA total (WS2812B unpowered)
 ```
 
-### Battery Life Estimates (350mAh Battery)
+### Battery Life Estimates (dual 350mAh batteries - 700mAh total)
 
 ```
 Mode 1 (1Hz @ 50%):  22mAh/session → ~16 sessions per charge

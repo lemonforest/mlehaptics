@@ -163,7 +163,7 @@ Battery: 3.84V [74%]
 | Mode 3 (0.5Hz@50%) | ~55mA | ~35mA | 36% |
 | Mode 4 (0.5Hz@25%) | ~40mA | ~20mA | 50% |
 
-### Battery Life (350mAh battery):
+### Battery Life (dual 350mAh batteries - 700mAh total):
 
 | Mode | Phase 1 | Phase 2 | Improvement |
 |------|---------|---------|-------------|

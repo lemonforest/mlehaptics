@@ -49,9 +49,9 @@ The device features a compact, ergonomic design with a 3D-printed enclosure hous
 
 **Size Reference:**
 
-![Device Size Comparison](images/device-in-hand.jpg)
+![Device Size Comparison](images/device-aa_battery-mouse-size-comparison.jpg)
 
-The device fits comfortably in the palm of your hand - approximately the size of a computer mouse. Compact enough for bilateral handheld therapy sessions.
+The device is significantly smaller than a standard computer mouse - approximately the length of an AA battery and comfortably fits in the palm of your hand. The compact form factor makes it ideal for discreet bilateral handheld therapy sessions.
 
 ### Key Hardware Components
 

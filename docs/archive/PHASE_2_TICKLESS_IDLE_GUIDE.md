@@ -212,7 +212,7 @@ while (1) {
 | Mode 3 (0.5Hz@50%) | 100% | ~60-70% | 30-40% savings |
 | Mode 4 (0.5Hz@25%) | 100% | ~35-45% | 55-65% savings |
 
-### With 350mAh Battery:
+### With dual 350mAh batteries (700mAh total):
 - **Mode 1:** 20 min → ~28-30 min
 - **Mode 2:** 20 min → ~35-40 min
 - **Mode 3:** 20 min → ~28-30 min  

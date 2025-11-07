@@ -156,7 +156,7 @@ Mode 2 (1Hz @ 25%):  ~43mA avg → 14mAh per 20min session (36% savings!)
 Mode 3 (0.5Hz @ 50%): ~65mA avg → 22mAh per 20min session
 Mode 4 (0.5Hz @ 25%): ~43mA avg → 14mAh per 20min session (36% savings!)
 
-With 350mAh battery:
+With dual 350mAh batteries (700mAh total):
 - Mode 1/3: ~16 sessions per charge
 - Mode 2/4: ~25 sessions per charge (56% more!)
 ```
