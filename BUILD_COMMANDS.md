@@ -19,6 +19,18 @@
 | `hbridge_pwm_test` | H-bridge PWM control @ 60% duty ✅ WORKING | `pio run -e hbridge_pwm_test -t upload && pio device monitor` |
 | `button_deepsleep_test` | Button toggle, 5s hold → deep sleep, wake test | `pio run -e button_deepsleep_test -t upload && pio device monitor` |
 | `ws2812b_test` | WS2812B color cycling (Red→Green→Blue→Rainbow) + deep sleep | `pio run -e ws2812b_test -t upload && pio device monitor` |
+| `single_device_demo_test` | 20-min research study: 4 modes testing duty cycle effects (0.5-1Hz @ 25-50%) | `pio run -e single_device_demo_test -t upload && pio device monitor` |
+| `battery_voltage_test` | Battery monitoring with LVO protection (3.2V threshold), 20-min session limit | `pio run -e battery_voltage_test -t upload && pio device monitor` |
+| `single_device_battery_bemf_test` | Integrated test: 4-mode motor + battery + back-EMF characterization | `pio run -e single_device_battery_bemf_test -t upload && pio device monitor` |
+| `single_device_demo_jpl_queued` | **JPL-compliant** FreeRTOS architecture: Task isolation, message queues, proper watchdog feeding, 4-mode motor control | `pio run -e single_device_demo_jpl_queued -t upload && pio device monitor` |
+| `single_device_ble_gatt_test` | **NEW!** Phase A BLE GATT server: Mobile app config, 5-mode operation, NVS persistence | `pio run -e single_device_ble_gatt_test -t upload && pio device monitor` |
+
+### Diagnostic Test Environments
+
+| Test | Purpose | Command |
+|------|---------|---------|
+| `minimal_ble_test` | **BLE Diagnostic** - NimBLE advertising + scanning with RSSI for RF testing | `pio run -e minimal_ble_test -t upload && pio device monitor` |
+| `minimal_wifi_test` | **WiFi Diagnostic** - 2.4GHz radio hardware validation (same radio as BLE) | `pio run -e minimal_wifi_test -t upload && pio device monitor` |
 
 ---
 
@@ -137,6 +149,15 @@ pio run -e ws2812b_test -t upload && pio device monitor
 # 2. Press button: Toggle LED
 # 3. Hold button 5 seconds: Countdown + deep sleep
 # 4. Press button while sleeping: Wake up, LED ON
+```
+
+### Research and Demo Tests
+```bash
+# Single device demo test (20-minute research study)
+pio run -e single_device_demo_test -t upload && pio device monitor
+
+# Battery voltage monitoring test
+pio run -e battery_voltage_test -t upload && pio device monitor
 ```
 
 ### Switch Back to Main Application
@@ -264,12 +285,26 @@ alias pio-htest='pio run -e hbridge_test -t upload && pio device monitor'
 alias pio-btntest='pio run -e button_deepsleep_test -t upload && pio device monitor'
 alias pio-ledtest='pio run -e ledc_blink_test -t upload && pio device monitor'
 alias pio-ws2812b='pio run -e ws2812b_test -t upload && pio device monitor'
+alias pio-demo='pio run -e single_device_demo_test -t upload && pio device monitor'
+alias pio-battery='pio run -e battery_voltage_test -t upload && pio device monitor'
+alias pio-bemf='pio run -e single_device_battery_bemf_test -t upload && pio device monitor'
+alias pio-jplqueue='pio run -e single_device_demo_jpl_queued -t upload && pio device monitor'
+alias pio-ble='pio run -e single_device_ble_gatt_test -t upload && pio device monitor'
+alias pio-bletest='pio run -e minimal_ble_test -t upload && pio device monitor'
+alias pio-wifitest='pio run -e minimal_wifi_test -t upload && pio device monitor'
 
 # Then just run:
 pio-htest      # H-bridge test
 pio-btntest    # Button and deep sleep test
 pio-ledtest    # LED blink test
 pio-ws2812b    # WS2812B color cycling test
+pio-demo       # Single device demo (research modes)
+pio-battery    # Battery voltage monitoring test
+pio-bemf       # Integrated battery + back-EMF + motor test
+pio-jplqueue   # JPL-compliant FreeRTOS architecture test
+pio-ble        # BLE GATT server test (Phase A)
+pio-bletest    # BLE diagnostic with RSSI scanning
+pio-wifitest   # WiFi diagnostic test
 ```
 
 **Windows PowerShell:**
@@ -296,11 +331,53 @@ function pio-ws2812b {
     if ($LASTEXITCODE -eq 0) { pio device monitor }
 }
 
+function pio-demo {
+    pio run -e single_device_demo_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-battery {
+    pio run -e battery_voltage_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-bemf {
+    pio run -e single_device_battery_bemf_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-jplqueue {
+    pio run -e single_device_demo_jpl_queued -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-ble {
+    pio run -e single_device_ble_gatt_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-bletest {
+    pio run -e minimal_ble_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
+function pio-wifitest {
+    pio run -e minimal_wifi_test -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
 # Then just run:
 pio-htest      # H-bridge test
 pio-btntest    # Button and deep sleep test
 pio-ledtest    # LED blink test
 pio-ws2812b    # WS2812B color cycling test
+pio-demo       # Single device demo (research modes)
+pio-battery    # Battery voltage monitoring test
+pio-bemf       # Integrated battery + back-EMF + motor test
+pio-jplqueue   # JPL-compliant FreeRTOS architecture test
+pio-ble        # BLE GATT server test (Phase A)
+pio-bletest    # BLE diagnostic with RSSI scanning
+pio-wifitest   # WiFi diagnostic test
 ```
 
 **Windows Command Prompt:**
@@ -327,11 +404,53 @@ if %errorlevel% equ 0 pio device monitor
 pio run -e ws2812b_test -t upload
 if %errorlevel% equ 0 pio device monitor
 
+# pio-demo.bat
+@echo off
+pio run -e single_device_demo_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-battery.bat
+@echo off
+pio run -e battery_voltage_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-bemf.bat
+@echo off
+pio run -e single_device_battery_bemf_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-jplqueue.bat
+@echo off
+pio run -e single_device_demo_jpl_queued -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-ble.bat
+@echo off
+pio run -e single_device_ble_gatt_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-bletest.bat
+@echo off
+pio run -e minimal_ble_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
+# pio-wifitest.bat
+@echo off
+pio run -e minimal_wifi_test -t upload
+if %errorlevel% equ 0 pio device monitor
+
 # Then just run:
 pio-htest      REM H-bridge test
 pio-btntest    REM Button and deep sleep test
 pio-ledtest    REM LED blink test
 pio-ws2812b    REM WS2812B color cycling test
+pio-demo       REM Single device demo (research modes)
+pio-battery    REM Battery voltage monitoring test
+pio-bemf       REM Integrated battery + back-EMF + motor test
+pio-jplqueue   REM JPL-compliant FreeRTOS architecture test
+pio-ble        REM BLE GATT server test (Phase A)
+pio-bletest    REM BLE diagnostic with RSSI scanning
+pio-wifitest   REM WiFi diagnostic test
 ```
 
 ### Save Build Output

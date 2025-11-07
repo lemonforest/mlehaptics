@@ -22,6 +22,14 @@ source_map = {
     "ledc_blink_test": "../test/ledc_blink_test.c",
     "button_deepsleep_test": "../test/button_deepsleep_test.c",
     "ws2812b_test": "../test/ws2812b_test.c",
+    "single_device_demo_test": "../test/single_device_demo_test.c",
+    "battery_voltage_test": "../test/battery_voltage_test.c",
+    "single_device_battery_bemf_test": "../test/single_device_battery_bemf_test.c",
+    "single_device_battery_bemf_queued_test": "../test/single_device_battery_bemf_queued_test.c",
+    "single_device_demo_jpl_queued": "../test/single_device_demo_jpl_queued.c",
+    "single_device_ble_gatt_test": "../test/single_device_ble_gatt_test.c",
+    "minimal_ble_test": "../test/minimal_ble_test.c",
+    "minimal_wifi_test": "../test/minimal_wifi_test.c",
     # Add future test environments here
 }
 

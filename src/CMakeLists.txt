@@ -4,9 +4,9 @@
 # This tells ESP-IDF how to build the src/ directory
 
 idf_component_register(
-    SRCS "../test/ws2812b_test.c"
+    SRCS "../test/single_device_ble_gatt_test.c"
     INCLUDE_DIRS "."
-    REQUIRES 
+    REQUIRES
         freertos
         esp_system
         esp_common

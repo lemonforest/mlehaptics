@@ -131,8 +131,8 @@ See **AD022: ESP-IDF Build System and Hardware Test Architecture** for full deta
 - **GPIO1**: User button (via jumper from GPIO18, hardware debounced with 10k pull-up, RTC wake for deep sleep)
 - **GPIO2**: Battery voltage monitor (resistor divider: VBAT→3.3kΩ→GPIO2→10kΩ→GND)
 - **GPIO15**: Status LED (system state indication)
-- **GPIO16**: Therapy LED Enable (P-MOSFET driver)
-- **GPIO17**: Therapy LED / WS2812B DIN (dual footprint, translucent case only)
+- **GPIO16**: Therapy LED Enable (P-MOSFET driver, **ACTIVE LOW** - LOW=enabled, HIGH=disabled)
+- **GPIO17**: Therapy LED / WS2812B DIN (dual footprint, requires case with light transmission - see CP005 for material testing)
 - **GPIO18**: User button (physical PCB location, jumpered to GPIO0, configured as high-impedance input)
 - **GPIO19**: H-bridge IN2 (motor reverse control)
 - **GPIO20**: H-bridge IN1 (motor forward control)
@@ -1495,6 +1495,149 @@ This pattern must be used for all button-triggered deep sleep scenarios:
 ✅ **JPL compliant** - no busy-wait loops
 ✅ **Power efficient** - minimal active time before sleep
 ✅ **User-friendly** - clear indication of expected action
+
+### AD024: LED Strip Component Version Selection
+
+**Decision**: Use led_strip version 2.5.x family (specifically ^2.5.0) for WS2812B control
+
+**Current Version**: 2.5.5 (automatically updated from 2.5.0 via semver range)
+
+**Rationale:**
+
+**Stability and Maturity:**
+- Version 2.5.x is the mature, production-tested branch (>1M downloads)
+- Over 1 year of field deployment with extensive bug fixes
+- No known critical issues with ESP32-C6 or WS2812B operation
+- Latest 2.5.5 includes build time optimizations for ESP-IDF v5.5.0
+
+**API Simplicity:**
+- Clean, intuitive API using `LED_PIXEL_FORMAT_GRB` enum style
+- Configuration structure straightforward and readable:
+  ```c
+  led_strip_config_t strip_config = {
+      .strip_gpio_num = GPIO_WS2812B_DIN,
+      .max_leds = WS2812B_NUM_LEDS,
+      .led_pixel_format = LED_PIXEL_FORMAT_GRB,  // Simple, clear
+      .led_model = LED_MODEL_WS2812,
+      .flags.invert_out = false,
+  };
+  ```
+
+**JPL Coding Standards Alignment:**
+- Safety-critical medical device prioritizes stability over cutting-edge features
+- "If it ain't broke, don't fix it" principle
+- Proven code more valuable than latest version for therapeutic applications
+- Reduces risk of introducing bugs during development
+
+**Version 3.x Breaking Changes (Why Not to Upgrade):**
+- Field name changed: `led_pixel_format` → `color_component_format`
+- Enum renamed: `LED_PIXEL_FORMAT_GRB` → `LED_STRIP_COLOR_COMPONENT_FMT_GRB`
+- These are cosmetic API changes with zero functional benefit
+- Only new feature: custom color component ordering (irrelevant for standard WS2812B GRB format)
+- Migration effort: 1-2 hours across all test files
+- Testing overhead: Full regression testing required after migration
+- **No therapeutic or functional improvements gained**
+
+**Automatic Security Updates:**
+- Dependency specification `^2.5.0` receives automatic patch updates
+- Already received 2.5.0 → 2.5.5 updates automatically
+- Stays within 2.5.x family (no breaking changes)
+- Future 2.5.6, 2.5.7, etc. will auto-update if released
+
+**ESP-IDF Compatibility:**
+- Version 2.5.x supports ESP-IDF v4.4 through v5.5.0
+- Version 3.x drops ESP-IDF v4.x support (not relevant for this project)
+- Both versions fully compatible with ESP-IDF v5.5.0 (our target)
+
+**Implementation Pattern:**
+```yaml
+# File: src/idf_component.yml
+dependencies:
+  espressif/led_strip: "^2.5.0"  # Allows 2.5.x patches, blocks 3.x
+```
+
+**Working Code Pattern:**
+```c
+// Current working pattern (2.5.x)
+led_strip_config_t strip_config = {
+    .strip_gpio_num = GPIO_WS2812B_DIN,
+    .max_leds = WS2812B_NUM_LEDS,
+    .led_pixel_format = LED_PIXEL_FORMAT_GRB,  // ✅ 2.5.x API
+    .led_model = LED_MODEL_WS2812,
+    .flags.invert_out = false,
+};
+
+led_strip_rmt_config_t rmt_config = {
+    .clk_src = RMT_CLK_SRC_DEFAULT,
+    .resolution_hz = 10 * 1000 * 1000,  // 10MHz
+    .flags.with_dma = false,
+};
+
+ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+```
+
+**Files Using LED Strip:**
+- `test/ws2812b_test.c` - Hardware validation test
+- `test/single_device_demo_test.c` - Research study test with integrated LED
+- Future bilateral application files
+
+**Alternatives Considered:**
+
+1. **Version 3.0.1 (latest stable):**
+   - ❌ Rejected: Breaking API changes require code modifications
+   - ❌ Rejected: Only new feature is custom color ordering (not needed)
+   - ❌ Rejected: Migration effort with zero functional benefit
+   - ❌ Rejected: Increases risk during critical development phase
+
+2. **Lock to specific version 2.5.5:**
+   - ❌ Rejected: Loses automatic security patch updates
+   - ❌ Rejected: `^2.5.0` range is safer (gets patches automatically)
+   - ✅ Alternative acceptable if version stability critical
+
+3. **Version 3.x range specification:**
+   - ❌ Rejected: Would receive future breaking changes automatically
+   - ❌ Rejected: Not appropriate for safety-critical medical device
+
+**Migration Path (Future):**
+If version 3.x becomes necessary (unlikely scenarios):
+- ESP-IDF v6.x forces 3.x requirement
+- Critical bug only fixed in 3.x
+- Version 2.5.x reaches end-of-life
+
+Migration checklist:
+1. Update `src/idf_component.yml`: `espressif/led_strip: "^3.0.1"`
+2. Update all `led_strip_config_t` initializations:
+   - Replace: `led_pixel_format` → `color_component_format`
+   - Replace: `LED_PIXEL_FORMAT_GRB` → `LED_STRIP_COLOR_COMPONENT_FMT_GRB`
+3. Clean build: `rm -rf managed_components/espressif__led_strip && pio run -t clean`
+4. Test on hardware: Full regression testing of WS2812B functionality
+
+**Decision Timeline:**
+- October 2025: Selected version 2.5.0 for initial implementation
+- November 2025: Documented as AD024 after version 3.x investigation
+- Auto-updated to 2.5.5 via semver range specification
+
+**Benefits:**
+
+✅ **Stable and proven** - Over 1 year of production use
+✅ **JPL compliant** - Prioritizes stability over bleeding-edge features
+✅ **Zero migration overhead** - Code works today, continues working
+✅ **Automatic security updates** - Patch versions auto-update
+✅ **Simple API** - Clean, readable configuration
+✅ **Medical device appropriate** - Risk reduction for safety-critical system
+✅ **Development velocity** - No time spent on unnecessary refactoring
+✅ **Focus on therapeutics** - Engineering effort on bilateral stimulation, not library upgrades
+
+**Verification:**
+- Current build: ✅ Successful with 2.5.5
+- Hardware testing: ✅ WS2812B control working correctly
+- Test files: ✅ ws2812b_test.c and single_device_demo_test.c validated
+- Deep sleep integration: ✅ LED power management verified
+
+**Related Documentation:**
+- Full version analysis: `docs/led_strip_version_analysis.md` (detailed comparison)
+- Component manifest: `src/idf_component.yml` (dependency specification)
+- Test implementation: `test/ws2812b_test.c` (reference code pattern)
 
 ---
 

@@ -43,8 +43,12 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 - **GPIO1**: User button (via jumper from GPIO18, hardware debounced with 10k pull-up, ISR support for emergency response)
 - **GPIO2**: Battery voltage monitor (resistor divider, periodic battery level reporting)
 - **GPIO15**: Status LED (system state indication, **ACTIVE LOW** on Xiao ESP32C6)
-- **GPIO16**: Therapy LED Enable (P-MOSFET driver)
-- **GPIO17**: Therapy LED / WS2812B DIN (dual footprint, translucent case only)
+- **GPIO16**: Therapy LED Enable (P-MOSFET driver, **ACTIVE LOW** - LOW=enabled, HIGH=disabled)
+- **GPIO17**: Therapy light output (dual footprint: WS2812B or simple 1206 LED)
+  - WS2812B option: Addressable RGB via led_strip component (default)
+  - Simple LED option: 1206 LED via LEDC PWM (community alternative)
+  - 62Ω current-limiting resistor inline (always populated)
+  - Only functional with translucent case materials
 - **GPIO18**: User button (physical PCB location, jumpered to GPIO1, configured as high-impedance input)
 - **GPIO19**: H-bridge IN1 (motor forward control)
 - **GPIO20**: H-bridge IN2 (motor reverse control)
@@ -83,6 +87,55 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 - **Current**: 90mA running, ~120mA stall
 - **Dimensions**: φ10mm × 3mm thickness
 - **Speed**: ~12,000 RPM at 3V
+
+## Hardware Assembly Options
+
+### Therapy Light Dual Footprint Design
+
+The PCB includes a dual footprint design on GPIO17 allowing builders to choose their LED hardware at assembly time:
+
+#### Option 1: WS2812B RGB LED (Default)
+- **Who uses**: Original developer (all builds)
+- **Hardware**: WS2812B addressable RGB LED
+- **Connection**: Standard WS2812B footprint on GPIO17
+- **Current limiting**: 62Ω resistor (always populated)
+- **Control**: ESP-IDF led_strip component via RMT peripheral
+- **Build flag**: `THERAPY_LIGHT_WS2812B`
+- **Features**: Full RGB color control, 5 therapeutic presets
+- **Firmware requirement**: `src/idf_component.yml` with espressif/led_strip
+
+#### Option 2: Simple 1206 LED (Community Alternative)
+- **Who uses**: Community builders preferring simpler/cheaper option
+- **Hardware**: Standard 1206 single-color LED
+- **Connection**: DIN and GND pads of WS2812B footprint
+- **Current limiting**: Same 62Ω resistor (always populated)
+- **Control**: LEDC PWM (standard GPIO control)
+- **Build flag**: `THERAPY_LIGHT_SIMPLE_LED`
+- **Features**: Intensity control only (no color)
+- **Firmware requirement**: Standard LEDC driver (no external dependencies)
+
+#### Hardware Notes
+- **Current limiting resistor**: 62Ω is always populated regardless of LED choice
+  - Works for WS2812B (data line protection)
+  - Works for simple LED (current limiting)
+  - Standard part (reduces BOM complexity)
+- **Assembly time decision**: Builder chooses which LED to populate
+- **Firmware responsibility**: Builder must use correct build flag for their hardware
+- **Testing**: `ws2812b_test.c` validates WS2812B option
+- **Testing**: `dual_footprint_simple_led_test.c` validates simple LED option (untested by original dev)
+
+#### Case Compatibility Matrix
+
+| LED Hardware | Opaque Case | Translucent Case |
+|--------------|-------------|------------------|
+| WS2812B | Light blocked (GPIO17 disabled) | ✅ Full RGB therapy |
+| Simple LED | Light blocked (GPIO17 disabled) | ✅ Single-color therapy |
+| None | Motor-only device | Motor-only device |
+
+**Build Flag Strategy:**
+- Opaque case (any LED): No flags defined → therapy light code disabled
+- Translucent + WS2812B: `THERAPY_LIGHT_WS2812B` defined
+- Translucent + Simple LED: `THERAPY_LIGHT_SIMPLE_LED` defined
 
 ## API Contracts & Function Prototypes
 
@@ -439,6 +492,246 @@ esp_err_t ble_validate_config_parameters(uint32_t total_cycle_ms,
                                          uint32_t session_duration_ms);
 ```
 
+### BLE GATT Server API (Single-Device Configuration)
+
+**Note:** This is separate from the bilateral coordination BLE system. This API provides mobile app configuration of single-device Mode 5 (Custom) parameters via NimBLE GATT services.
+
+```c
+/**
+ * @brief Initialize NimBLE GATT server for mobile app configuration
+ * @return ESP_OK on success
+ *
+ * Implements complete NimBLE GATT service with 9 characteristics:
+ * - Custom 128-bit UUID base: a1b2c3d4-e5f6-7890-a1b2-c3d4e5f6xxxx
+ * - Service UUID ends in ...0000
+ * - Characteristic UUIDs end in ...0001 through ...0009
+ *
+ * CRITICAL: Uses NimBLE stack, NOT Bluedroid
+ * - nimble_port_init() handles all BT controller setup
+ * - Never manually call esp_bt_controller_init()
+ * - Double initialization causes complete system lockup
+ */
+esp_err_t ble_gatt_server_init(void);
+
+/**
+ * @brief GATT Characteristic 0x0001: Mode Selection
+ * @param mode Device mode (0-4)
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if mode > 4
+ *
+ * Mode mapping:
+ * - 0 = Mode 1 (1Hz @ 50%)
+ * - 1 = Mode 2 (1Hz @ 25%)
+ * - 2 = Mode 3 (0.5Hz @ 50%)
+ * - 3 = Mode 4 (0.5Hz @ 25%)
+ * - 4 = Mode 5 (Custom - uses BLE-configured parameters)
+ *
+ * Properties: Read/Write
+ * Type: uint8
+ */
+esp_err_t ble_gatt_set_mode(uint8_t mode);
+
+/**
+ * @brief GATT Characteristic 0x0002: Custom Frequency (Mode 5 only)
+ * @param frequency_hz_x100 Frequency in Hz × 100 (50-200 = 0.5-2.0Hz)
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
+ *
+ * Example values:
+ * - 50 = 0.5 Hz (2000ms cycle)
+ * - 100 = 1.0 Hz (1000ms cycle)
+ * - 150 = 1.5 Hz (667ms cycle)
+ * - 200 = 2.0 Hz (500ms cycle)
+ *
+ * Properties: Read/Write
+ * Type: uint16 (little-endian)
+ * Therapeutic range: 0.5-2.0 Hz (EMDRIA standards)
+ */
+esp_err_t ble_gatt_set_custom_frequency(uint16_t frequency_hz_x100);
+
+/**
+ * @brief GATT Characteristic 0x0003: Custom Duty Cycle (Mode 5 only)
+ * @param duty_percent Duty cycle percentage (10-90%)
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
+ *
+ * Range: 10-90%
+ * - Minimum 10% prevents motor stall
+ * - Maximum 90% prevents overheating
+ *
+ * Properties: Read/Write
+ * Type: uint8
+ */
+esp_err_t ble_gatt_set_custom_duty_cycle(uint8_t duty_percent);
+
+/**
+ * @brief GATT Characteristic 0x0004: Battery Level (Read-only)
+ * @param battery_percent Pointer to store battery percentage
+ * @return ESP_OK on success
+ *
+ * Returns current battery level as percentage (0-100%)
+ *
+ * Properties: Read/Notify
+ * Type: uint8
+ */
+esp_err_t ble_gatt_read_battery_level(uint8_t* battery_percent);
+
+/**
+ * @brief GATT Characteristic 0x0005: Session Time (Read-only)
+ * @param session_time_s Pointer to store elapsed session time in seconds
+ * @return ESP_OK on success
+ *
+ * Returns elapsed time since session start
+ *
+ * Properties: Read/Notify
+ * Type: uint32 (little-endian)
+ */
+esp_err_t ble_gatt_read_session_time(uint32_t* session_time_s);
+
+/**
+ * @brief GATT Characteristic 0x0006: LED Enable (Mode 5 only)
+ * @param enable LED enable state (0=off, 1=on)
+ * @return ESP_OK on success
+ *
+ * Controls WS2812B LED behavior in Mode 5:
+ * - 0x00 (false): LED off entire session (battery conservation)
+ * - 0x01 (true): LED blinks in sync with motor patterns entire session
+ *
+ * Note: Other modes (1-4) use fixed 10-second LED timeout
+ * Mode 5 LED behavior respects this setting (no timeout when enabled)
+ *
+ * Properties: Read/Write
+ * Type: uint8
+ * Default: 0x01 (enabled)
+ */
+esp_err_t ble_gatt_set_led_enable(uint8_t enable);
+
+/**
+ * @brief GATT Characteristic 0x0007: LED Color (Mode 5 only)
+ * @param color_index Color palette index (0-15)
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if > 15
+ *
+ * 16-color therapeutic palette for WS2812B:
+ * - 0: Red, 1: Orange, 2: Yellow, 3: Green
+ * - 4: Spring Green, 5: Cyan, 6: Sky Blue, 7: Blue
+ * - 8: Violet, 9: Magenta, 10: Pink, 11: White
+ * - 12: Gray, 13: Dark Gray, 14: Light Gray, 15: Brown
+ *
+ * Properties: Read/Write
+ * Type: uint8
+ * Default: 0x00 (Red)
+ */
+esp_err_t ble_gatt_set_led_color(uint8_t color_index);
+
+/**
+ * @brief GATT Characteristic 0x0008: LED Brightness (Mode 5 only)
+ * @param brightness_percent Brightness percentage (10-30%)
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
+ *
+ * Range: 10-30%
+ * - Minimum 10% ensures visibility
+ * - Maximum 30% prevents excessive power consumption
+ * - Applied on top of base color from palette
+ *
+ * Properties: Read/Write
+ * Type: uint8
+ * Default: 20%
+ */
+esp_err_t ble_gatt_set_led_brightness(uint8_t brightness_percent);
+
+/**
+ * @brief GATT Characteristic 0x0009: PWM Intensity (Mode 5 only)
+ * @param intensity_percent Motor PWM intensity percentage (30-90%)
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
+ *
+ * Range: 30-90%
+ * - Minimum 30% ensures adequate stimulation
+ * - Maximum 90% prevents motor damage and excessive power draw
+ * - Adjusts motor strength independently of duty cycle
+ *
+ * Properties: Read/Write
+ * Type: uint8
+ * Default: 75%
+ */
+esp_err_t ble_gatt_set_pwm_intensity(uint8_t intensity_percent);
+
+/**
+ * @brief Start advertising as "EMDR_Pulser_XXXXXX" (XXXXXX = last 6 MAC digits)
+ * @return ESP_OK on success
+ *
+ * Advertising includes:
+ * - Device name: EMDR_Pulser_XXXXXX
+ * - Service UUID: a1b2c3d4-e5f6-7890-a1b2-c3d4e5f60000
+ * - Flags: BLE-only, general discoverable
+ *
+ * Use nRF Connect (iOS/Android) to connect and configure
+ */
+esp_err_t ble_gatt_start_advertising(void);
+
+/**
+ * @brief Stop BLE advertising
+ * @return ESP_OK on success
+ *
+ * Call during deep sleep or when BLE configuration not needed
+ */
+esp_err_t ble_gatt_stop_advertising(void);
+```
+
+**BLE GATT Implementation Notes:**
+
+**UUID Structure:**
+- Base: `a1b2c3d4-e5f6-7890-a1b2-c3d4e5f6xxxx`
+- Service: `...0000`
+- Characteristics: `...0001` through `...0009`
+- Format: Complete little-endian byte order (all 16 bytes reversed)
+
+**Critical NimBLE Initialization:**
+```c
+// CORRECT - NimBLE handles BT controller automatically
+esp_err_t ble_gatt_server_init(void) {
+    ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(nimble_port_init());  // This does everything
+    // Configure NimBLE stack...
+    nimble_port_freertos_init(nimble_host_task);
+    return ESP_OK;
+}
+
+// WRONG - Double initialization causes system lockup
+esp_err_t ble_gatt_server_init(void) {
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_bt_controller_init(&bt_cfg));       // ❌ Conflict!
+    ESP_ERROR_CHECK(esp_bt_controller_enable(ESP_BT_MODE_BLE)); // ❌ Conflict!
+    ESP_ERROR_CHECK(nimble_port_init());  // Already initializes controller!
+    // System freezes before any output!
+}
+```
+
+**Mode 5 LED Behavior Fix:**
+```c
+// Critical fix: Mode 5 LED should NOT timeout after 10 seconds
+// Motor task checks mode before applying LED timeout:
+
+if (current_mode != MODE_CUSTOM && led_indication_active &&
+    ((now - led_indication_start_ms) >= LED_INDICATION_TIME_MS)) {
+    led_indication_active = false;
+    led_clear();
+    ESP_LOGI(TAG, "LED off (battery conservation)");
+}
+
+// Mode 5 LED behavior:
+// - If mode5_led_enable = true: LED blinks entire session (no timeout)
+// - If mode5_led_enable = false: LED off entire session
+// Other modes: LED blinks 10 seconds after mode change (battery conservation)
+```
+
+**Testing with nRF Connect:**
+- **Android:** [Google Play](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp)
+- **iOS:** [App Store](https://apps.apple.com/us/app/nrf-connect-for-mobile/id1054362403)
+
+**Test Guide:** `test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md`
+
+**Build Command:**
+```bash
+pio run -e single_device_ble_gatt_test -t upload && pio device monitor
+```
+
 ### Button Handler API
 
 ```c
@@ -448,7 +741,7 @@ esp_err_t ble_validate_config_parameters(uint32_t total_cycle_ms,
  * @return ESP_OK on success
  * 
  * Timing-based functionality:
- * - First 30 seconds after boot: 10-second hold = factory reset (if enabled)
+ * - First 30 seconds after boot: 10-second hold = clear NVS (if enabled)
  * - After 30 seconds: 10-second hold ignored (safety)
  * - Any time: 5-second hold = emergency shutdown
  */
@@ -480,13 +773,26 @@ esp_err_t button_handle_press(uint32_t press_duration_ms);
 esp_err_t enter_deep_sleep_with_wake_guarantee(void);
 
 /**
- * @brief Factory reset - clear all NVS data (conditional compilation)
+ * @brief Clear all NVS data (conditional compilation)
  * @return ESP_OK on success
  * 
- * Only compiled when ENABLE_FACTORY_RESET is defined
+ * Clears from NVS:
+ * - Paired device MAC address
+ * - User preference defaults (cycle time, intensity)
+ * - Session statistics (if stored)
+ * 
+ * Does NOT affect:
+ * - Firmware or bootloader
+ * - Hardware calibration data
+ * - Device serial number
+ * 
+ * User-facing description: "Unpair device and reset settings"
+ * After clearing, device restarts and enters pairing mode.
+ * 
+ * Only compiled when ENABLE_CLEAR_NVS is defined.
  */
-#ifdef ENABLE_FACTORY_RESET
-esp_err_t button_factory_reset(void);
+#ifdef ENABLE_CLEAR_NVS
+esp_err_t button_clear_nvs(void);
 #endif
 ```
 
@@ -494,69 +800,87 @@ esp_err_t button_factory_reset(void);
 
 ```c
 /**
- * @brief Initialize therapy light system (case-dependent)
- * @return ESP_OK on success, ESP_ERR_NOT_SUPPORTED if opaque case
+ * @brief Initialize therapy light system (hardware and case dependent)
+ * @return ESP_OK on success, ESP_ERR_NOT_SUPPORTED if disabled or opaque case
  * 
- * Configures GPIO23 based on case type and build configuration:
- * - Translucent case + simple LED: LEDC PWM control (same as motor control)
- * - Translucent case + WS2812B: RMT peripheral for precise timing
- * - Opaque case: GPIO23 disabled, function returns not supported
+ * Hardware-dependent initialization based on build flags:
  * 
- * Simple LED Implementation:
- * - Uses LEDC peripheral (same as motor PWM)
- * - 25kHz frequency for silent operation
- * - 10-bit resolution (0-1023 range) - matches motor PWM constraints
- * - Independent PWM channel from motor control
+ * THERAPY_LIGHT_WS2812B defined:
+ * - Configures GPIO17 for WS2812B via RMT peripheral
+ * - Uses ESP-IDF led_strip component
+ * - Requires idf_component.yml with espressif/led_strip dependency
+ * - Returns ESP_ERR_NOT_SUPPORTED if opaque case (light blocked)
  * 
- * WS2812B Implementation:
- * - Uses RMT (Remote Control) peripheral for precise bit-level timing
- * - 800kHz data rate (1.25μs per bit)
- * - GRB color order (WS2812B standard)
- * - Single LED control via ESP-IDF led_strip component
- * - RMT channel independent from motor/LED PWM channels
+ * THERAPY_LIGHT_SIMPLE_LED defined:
+ * - Configures GPIO17 for LEDC PWM control
+ * - Uses standard LEDC peripheral (like motor control)
+ * - Independent LEDC timer and channel from motor
+ * - Returns ESP_ERR_NOT_SUPPORTED if opaque case (light blocked)
+ * 
+ * Neither flag defined:
+ * - Returns ESP_ERR_NOT_SUPPORTED immediately
+ * - No GPIO17 configuration (disabled/unused)
+ * - Saves flash space when therapy light not needed
+ * 
+ * GPIO16 (Power Enable):
+ * - Configured as output, ACTIVE LOW (LOW=enabled, HIGH=disabled)
+ * - P-MOSFET gate control for LED power
+ * - Set LOW during initialization to enable LED power
  */
 esp_err_t therapy_light_init(void);
 
-/**
- * @brief Set therapy light intensity
- * @param intensity_percent Light intensity (0-100%)
- * @return ESP_OK on success, ESP_ERR_NOT_SUPPORTED if no therapy light
- * 
- * Simple LED: Maps 0-100% to LEDC duty cycle (0-1023)
- * WS2812B: Scales RGB values by intensity percentage
- */
-esp_err_t therapy_light_set_intensity(uint8_t intensity_percent);
-
-#ifdef THERAPY_LIGHT_WS2812B
+#if defined(THERAPY_LIGHT_WS2812B)
 /**
  * @brief Set therapy light color (WS2812B only)
  * @param red Red component (0-255)
  * @param green Green component (0-255)
  * @param blue Blue component (0-255)
- * @return ESP_OK on success, ESP_ERR_NOT_SUPPORTED if simple LED
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE if not initialized
  * 
  * Uses ESP-IDF led_strip component with RMT backend:
- * - led_strip_rmt_config_t for RMT configuration
- * - led_strip_config_t for LED strip parameters
  * - led_strip_set_pixel() for single LED control
  * - led_strip_refresh() to update LED output
- * - GRB color order (WS2812B standard)
+ * - GRB color order handled automatically by component
+ * 
+ * Only available when THERAPY_LIGHT_WS2812B is defined.
  */
 esp_err_t therapy_light_set_color(uint8_t red, uint8_t green, uint8_t blue);
 
 /**
- * @brief Set therapy light to preset therapeutic colors
- * @param preset Therapeutic color preset (WARM_WHITE, COOL_WHITE, BLUE, etc.)
+ * @brief Set therapy light to preset therapeutic colors (WS2812B only)
+ * @param preset Therapeutic color preset
  * @return ESP_OK on success
  * 
  * Predefined therapeutic color presets:
- * - WARM_WHITE: Calming, relaxing effect (2700K equivalent)
- * - COOL_WHITE: Alertness, focus (5000K equivalent) 
- * - BLUE: Calming, stress reduction
- * - GREEN: Balance, grounding
- * - AMBER: Comfort, warmth
+ * - THERAPY_PRESET_WARM_WHITE: Calming, relaxing (2700K)
+ * - THERAPY_PRESET_COOL_WHITE: Alertness, focus (5000K)
+ * - THERAPY_PRESET_BLUE: Calming, stress reduction
+ * - THERAPY_PRESET_GREEN: Balance, grounding
+ * - THERAPY_PRESET_AMBER: Comfort, warmth
+ * 
+ * Only available when THERAPY_LIGHT_WS2812B is defined.
  */
 esp_err_t therapy_light_set_preset(therapy_light_preset_t preset);
+
+#elif defined(THERAPY_LIGHT_SIMPLE_LED)
+/**
+ * @brief Set therapy light intensity (Simple LED only)
+ * @param intensity_percent Light intensity (0-100%)
+ * @return ESP_OK on success
+ * 
+ * Uses LEDC PWM for intensity control:
+ * - Maps 0-100% to LEDC duty cycle
+ * - Same 25kHz frequency as motor control
+ * - Independent LEDC timer and channel
+ * - No color control (single-color LED)
+ * 
+ * Only available when THERAPY_LIGHT_SIMPLE_LED is defined.
+ */
+esp_err_t therapy_light_set_intensity(uint8_t intensity_percent);
+
+#else
+// No therapy light functions available when neither flag defined
+// therapy_light_init() will return ESP_ERR_NOT_SUPPORTED
 #endif
 
 /**
@@ -900,6 +1224,87 @@ esp_err_t therapy_light_set_intensity(uint8_t intensity_percent) {
 - **Use separate LEDC timer and channel** from motor control
 - **Same 25kHz frequency** for consistency
 - **Independent duty cycle control** doesn't affect motor
+
+### WS2812B Component Installation via idf_component.yml
+
+**PlatformIO with ESP-IDF requires component registry setup:**
+
+Create `src/idf_component.yml` to automatically fetch ESP-IDF components:
+
+```yaml
+## IDF Component Manager Manifest File
+## This file tells ESP-IDF's component manager which external components to download
+
+dependencies:
+  espressif/led_strip: "^2.5.0"
+```
+
+**What happens on first build:**
+1. ESP-IDF component manager sees `src/idf_component.yml`
+2. Downloads `espressif/led_strip` from component registry
+3. Caches in `.pio/build/.../managed_components/`
+4. Includes automatically in build
+
+**Expected build output:**
+```
+-- Component espressif__led_strip downloading...
+-- Component espressif__led_strip downloaded (v2.5.0)
+```
+
+**No CMakeLists.txt changes needed** - component manager handles everything!
+
+### WS2812B Hardware Test
+
+**Test File:** `test/ws2812b_test.c`
+
+**Build & Run:**
+```bash
+pio run -e ws2812b_test -t upload && pio device monitor
+```
+
+**Test Features:**
+- Color cycling: RED → GREEN → BLUE → RAINBOW → repeat
+- Button press: Cycle through colors
+- Button hold 5s: Deep sleep with purple blink wait-for-release
+- GPIO15 status LED: Blink pattern indicates current color
+- 50% brightness default (battery-friendly)
+- Deep sleep: <1mA with button wake
+
+**Test Sequence:**
+1. Power on → WS2812B shows RED (50% brightness)
+2. GPIO15 blinks slowly (2Hz) for RED state
+3. Press button → GREEN, GPIO15 blinks 4Hz
+4. Press button → BLUE, GPIO15 blinks 8Hz
+5. Press button → RAINBOW cycle, GPIO15 blinks 10Hz
+6. Hold button 5s → Countdown, purple blink on WS2812B
+7. Release button → Deep sleep (<1mA)
+8. Press button → Wake to RED state
+
+**Brightness Control:**
+```c
+#define WS2812B_BRIGHTNESS 50  // 0-100%, default 50%
+
+// In code:
+apply_brightness(&r, &g, &b, WS2812B_BRIGHTNESS);
+led_strip_set_pixel(led_strip, 0, r, g, b);
+led_strip_refresh(led_strip);
+```
+
+**Power Consumption:**
+- 50% brightness: ~30mA LED + ~20mA ESP32 = 50mA active
+- 100% brightness: ~60mA LED + ~20mA ESP32 = 80mA active
+- Deep sleep: <1mA total
+
+**GPIO16 Power Control (ACTIVE LOW):**
+```c
+// Enable WS2812B power (P-MOSFET conducts)
+gpio_set_level(GPIO_WS2812B_ENABLE, 0);  // LOW = ON
+
+// Disable WS2812B power for deep sleep
+gpio_set_level(GPIO_WS2812B_ENABLE, 1);  // HIGH = OFF
+```
+
+**Reference:** See `test/ws2812b_test.c` for complete implementation pattern
 
 ## Critical Implementation Notes
 

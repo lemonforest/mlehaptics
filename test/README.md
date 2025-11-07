@@ -394,6 +394,150 @@ This test validates the hardware foundation for therapy light features:
 
 ---
 
+### 6. BLE GATT Server Test (`single_device_ble_gatt_test.c`) 🚧 NEW - Phase A
+
+**Purpose:** Verify BLE GATT server integration for mobile app configuration of motor control modes
+
+**Status:** 🚧 **Phase A Complete** - BLE GATT server ready, mobile app development pending
+
+**Key Features:**
+- ✅ **Smart BLE Advertising** - 5-minute auto-timeout for battery conservation
+- ✅ **Button Re-enable** - 1-2 second hold re-activates advertising
+- ✅ **5-Mode Operation** - Modes 1-4 (baseline) + Mode 5 (custom via BLE)
+- ✅ **NVS Persistence** - Settings survive deep sleep
+- ✅ **Status LED** - Amber LED (GPIO15) for BLE feedback
+- ✅ **JPL Compliant** - All baseline safety features preserved
+
+**Test Sequence:**
+- Power on → BLE advertising starts (device name: "EMDR_XXXXX")
+- Short button press → Cycle through modes 1-5
+- Hold 1-2 seconds → Re-enable BLE advertising (3× amber blink)
+- Hold 2+ seconds → Emergency shutdown countdown → deep sleep
+- Advertising auto-stops after 5 minutes (battery conservation)
+- Settings saved to NVS on mode change
+
+**GPIO Configuration:**
+- GPIO2-7, GPIO21: Motor H-bridge control (same as baseline)
+- GPIO5, GPIO10: WS2812B RGB LED for motor indication
+- GPIO15: **NEW** - Amber status LED (active-low)
+- GPIO20: Button input (temporary, moves to GPIO1 in next HW revision)
+- GPIO23: Battery voltage monitoring
+
+**BLE Configuration:**
+- **Controller Mode:** BLE-only (Bluedroid stack)
+- **Device Name:** "EMDR_XXXXX" (last 5 MAC digits)
+- **Services:** Device Information (0x180A), Motor Control (custom, Phase B)
+- **Advertising:** 5-minute timeout, button re-enable
+- **Security:** Open (no pairing in Phase A)
+
+**Hardware Requirements:**
+- All baseline components (motors, H-bridge, WS2812B, battery)
+- **NEW:** Amber status LED on GPIO15 with current-limiting resistor
+- Bluetooth-enabled mobile device for testing (phone/tablet)
+
+**Build & Run:**
+```bash
+pio run -e single_device_ble_gatt_test -t upload && pio device monitor
+```
+
+**Expected Behavior:**
+- ✅ BLE advertising starts automatically at boot
+- ✅ Device visible on phone as "EMDR_XXXXX"
+- ✅ Short button press cycles modes 1→2→3→4→5→1
+- ✅ Mode saved to NVS (survives reset/deep sleep)
+- ✅ 1-2s button hold: 3× amber blinks, BLE re-enabled
+- ✅ 2+s button hold: Countdown → purple blink → deep sleep
+- ✅ Advertising stops after 5 minutes (amber LED indicates timeout)
+- ✅ All baseline features work (battery monitoring, 20-min session, etc.)
+
+**Console Output Example:**
+```
+========================================================
+=== BLE GATT EMDR Test (Phase A) ===
+=== Bluetooth Configuration via Mobile App ===
+========================================================
+
+BLE Features:
+  ✅ Smart advertising (5-minute timeout)
+  ✅ Button re-enable (1-2s hold)
+  ✅ GATT server with device info
+  ✅ Settings persist via NVS
+  ✅ Status LED feedback (GPIO15)
+
+I (XXX) BLE_GATT: BLE stack initialized
+I (XXX) BLE_GATT: GATT server registered
+I (XXX) BLE_GATT: Advertising started (Device: EMDR_12345)
+I (XXX) BLE_GATT: Motor task started: Mode 1 (1Hz@50%)
+I (XXX) BLE_GATT: Button task started
+I (XXX) BLE_GATT: Battery task started
+I (XXX) BLE_GATT: BLE task started
+I (XXX) BLE_GATT: All tasks started successfully
+```
+
+**What to Check:**
+- [ ] Device appears in phone's BLE scanner as "EMDR_XXXXX"
+- [ ] Mode cycling works (1-5, wraps back to 1)
+- [ ] Last mode persists after power cycle
+- [ ] 1-2s button hold: 3× amber blinks, BLE re-enabled
+- [ ] 2+s button hold: Emergency shutdown with countdown
+- [ ] Advertising stops after 5 minutes (check serial log)
+- [ ] Status LED patterns match documentation
+- [ ] All motor control modes work correctly
+- [ ] Battery monitoring still functions
+
+**Amber Status LED Patterns:**
+| Event | Pattern | Description |
+|-------|---------|-------------|
+| BLE Re-enabled | 3× blink (200ms) | Advertising restarted |
+| BLE Connection | 5× blink (100ms) | Client connected (Phase B) |
+| BLE Timeout | 1× long (500ms) | 5-minute timeout reached |
+| Battery Critical | 10× fast (50ms) | < 3.2V, halt startup |
+
+**Button State Machine (8 States):**
+1. IDLE - Waiting for press
+2. DEBOUNCE - 50ms debounce window
+3. PRESSED - Button confirmed pressed
+4. **HOLD_DETECT** - **NEW** - 1-2s window for BLE re-enable
+5. **SHUTDOWN_HOLD** - **NEW** - 2s+ continued hold
+6. COUNTDOWN - 2s-5s shutdown countdown
+7. SHUTDOWN - Purple blink, wait for release
+
+**Troubleshooting:**
+- **Device not visible in BLE scan:** Check advertising hasn't timed out (< 5 min since boot)
+- **Linker errors for esp_ble_gap_*:** Missing CONFIG_BTDM_CTRL_MODE_BLE_ONLY=y in sdkconfig
+- **NVS init fails:** Erase NVS partition: `esptool.py --port COM3 erase_region 0x9000 0x6000`
+- **Status LED not working:** Check GPIO15 is active-low (0=ON, 1=OFF)
+- **Build takes very long:** BLE stack compilation is slow (~8 minutes first time)
+- **Mode doesn't persist:** Check NVS namespace "emdr_config" initialization
+
+**Why This Test?**
+This test extends the baseline JPL-compliant implementation with BLE connectivity:
+1. Mobile app configuration without hardware button cycling
+2. Mode 5 (custom frequency/duty cycle) via BLE write (Phase B)
+3. Settings persistence across power cycles and deep sleep
+4. Smart power management (advertising timeout)
+5. Non-intrusive BLE integration (baseline features unchanged)
+
+**Phase A Limitations:**
+- ❌ No mobile app yet (GATT server ready but not tested)
+- ❌ Mode 5 custom parameters not yet configurable
+- ❌ No BLE pairing/security (open access)
+- ❌ Connection status not fully implemented
+
+**Phase B Roadmap:**
+- Mobile app development (React Native or Flutter)
+- Mode 5 write handlers for frequency/duty cycle
+- BLE security (pairing, encryption)
+- Real-time session status notifications
+- Firmware OTA updates via BLE
+
+**See Also:**
+- `test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md` - Comprehensive BLE test documentation
+- `test/PHASE_4_JPL_QUEUED_COMPLETE_GUIDE.md` - Baseline JPL implementation
+- `FUTURE_BLE_INTEGRATION_NOTES.md` - Phase B planning document
+
+---
+
 ## Adding New Hardware Tests
 
 When creating new hardware tests:

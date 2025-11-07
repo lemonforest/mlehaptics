@@ -5,7 +5,7 @@
  * Purpose: Verify WS2812B LED functionality, power control, and deep sleep integration
  * 
  * Hardware Test Behavior:
- *   - LED starts in RED state
+ *   - LED starts in RED state (50% brightness)
  *   - Short button press: Cycle through colors (Red → Green → Blue → Rainbow → repeat)
  *   - GPIO15 status LED blinks with pattern indicating current color state
  *   - Button hold 5 seconds: Purple blink shutdown effect, then deep sleep
@@ -24,15 +24,15 @@
  * GPIO Configuration:
  *   - GPIO1: Button input (RTC GPIO, hardware pull-up, wake source)
  *   - GPIO15: Status LED output (ACTIVE LOW - 0=ON, 1=OFF)
- *   - GPIO16: WS2812B power enable (P-MOSFET gate control, HIGH=enabled)
+ *   - GPIO16: WS2812B power enable (P-MOSFET gate control, LOW=enabled)
  *   - GPIO17: WS2812B DIN (data control pin)
  * 
- * Color States:
- *   - RED: RGB(255, 0, 0), GPIO15 slow blink (500ms period, 2Hz)
- *   - GREEN: RGB(0, 255, 0), GPIO15 medium blink (250ms period, 4Hz)
- *   - BLUE: RGB(0, 0, 255), GPIO15 fast blink (125ms period, 8Hz)
- *   - RAINBOW: Smooth color cycle, GPIO15 very fast blink (100ms period, 10Hz)
- *   - PURPLE (shutdown): RGB(128, 0, 128), WS2812B blinks while counting down
+ * Color States (50% brightness for battery life):
+ *   - RED: RGB(128, 0, 0), GPIO15 slow blink (500ms period, 2Hz)
+ *   - GREEN: RGB(0, 128, 0), GPIO15 medium blink (250ms period, 4Hz)
+ *   - BLUE: RGB(0, 0, 128), GPIO15 fast blink (125ms period, 8Hz)
+ *   - RAINBOW: Smooth HSV color cycle, GPIO15 very fast blink (100ms period, 10Hz)
+ *   - PURPLE (shutdown): RGB(64, 0, 64), WS2812B blinks while counting down
  * 
  * Wake Guarantee Strategy (AD023):
  *   - Wait for button release before entering sleep
@@ -41,31 +41,16 @@
  *   - Guarantees next wake is from NEW button press
  * 
  * Power Management:
- *   - GPIO16 HIGH: WS2812B powered (during active states)
- *   - GPIO16 LOW: WS2812B unpowered (during deep sleep)
+ *   - GPIO16 LOW: WS2812B powered (P-MOSFET conducts, during active states)
+ *   - GPIO16 HIGH: WS2812B unpowered (P-MOSFET off, during deep sleep)
+ *   - 50% brightness: ~30mA LED consumption (vs ~60mA at full brightness)
  *   - Deep sleep: <1mA consumption (ESP32-C6 + unpowered WS2812B)
  * 
  * Build & Run:
  *   pio run -e ws2812b_test -t upload && pio device monitor
  * 
- * Expected Behavior:
- *   === WS2812B LED Hardware Test ===
- *   WS2812B powered ON
- *   State: RED (press button to cycle colors)
- *   Button pressed! State: GREEN
- *   Button pressed! State: BLUE
- *   Button pressed! State: RAINBOW
- *   Button pressed! State: RED
- *   Hold button for deep sleep...
- *   5... 4... 3... 2... 1...
- *   Waiting for button release... (purple blink)
- *   Button released! Entering deep sleep...
- *   [Device sleeps, <1mA consumption]
- *   [User presses button]
- *   Wake up! Reason: EXT1 (RTC GPIO)
- *   State: RED (press button to cycle colors)
- * 
  * Seeed Xiao ESP32C6: ESP-IDF v5.5.0
+ * Uses espressif/led_strip component from ESP Component Registry
  * Generated with assistance from Claude Sonnet 4 (Anthropic)
  */
 
@@ -88,14 +73,14 @@ static const char *TAG = "WS2812B_TEST";
 // ========================================
 #define GPIO_BUTTON             1       // Button input (RTC GPIO, hardware pull-up)
 #define GPIO_STATUS_LED         15      // Status LED (ACTIVE LOW)
-#define GPIO_WS2812B_ENABLE     16      // WS2812B power enable (P-MOSFET gate, HIGH=enabled)
+#define GPIO_WS2812B_ENABLE     16      // WS2812B power enable (P-MOSFET gate, LOW=enabled)
 #define GPIO_WS2812B_DIN        17      // WS2812B data input pin
 
 // ========================================
 // WS2812B CONFIGURATION
 // ========================================
 #define WS2812B_NUM_LEDS        1       // Single WS2812B LED
-#define WS2812B_RMT_CHANNEL     0       // RMT channel for WS2812B control
+#define WS2812B_BRIGHTNESS      50      // Brightness percentage (50% for battery life)
 
 // ========================================
 // BUTTON TIMING CONFIGURATION
@@ -186,6 +171,19 @@ static void hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t *r, uint8_t *g,
 }
 
 /**
+ * @brief Apply brightness scaling to RGB values
+ * @param r Pointer to red value (0-255)
+ * @param g Pointer to green value (0-255)
+ * @param b Pointer to blue value (0-255)
+ * @param brightness_percent Brightness percentage (0-100)
+ */
+static void apply_brightness(uint8_t *r, uint8_t *g, uint8_t *b, uint8_t brightness_percent) {
+    *r = (*r * brightness_percent) / 100;
+    *g = (*g * brightness_percent) / 100;
+    *b = (*b * brightness_percent) / 100;
+}
+
+/**
  * @brief Get status LED blink period for current color state
  * @return Blink period in milliseconds
  */
@@ -247,6 +245,9 @@ static esp_err_t update_ws2812b(void) {
             r = 0; g = 0; b = 0;
             break;
     }
+    
+    // Apply brightness scaling
+    apply_brightness(&r, &g, &b, WS2812B_BRIGHTNESS);
     
     esp_err_t ret = led_strip_set_pixel(led_strip, 0, r, g, b);
     if (ret != ESP_OK) {
@@ -377,7 +378,7 @@ static esp_err_t init_gpio(void) {
     ESP_LOGI(TAG, "Status LED GPIO%d configured (active LOW)", GPIO_STATUS_LED);
     
     // ========================================
-    // Configure WS2812B Power Enable (GPIO16)
+    // Configure WS2812B Power Enable (GPIO16) - P-MOSFET
     // ========================================
     gpio_config_t ws2812b_enable_config = {
         .pin_bit_mask = (1ULL << GPIO_WS2812B_ENABLE),
@@ -393,14 +394,14 @@ static esp_err_t init_gpio(void) {
         return ret;
     }
     
-    // Enable WS2812B power (HIGH = P-MOSFET conducts)
-    ret = gpio_set_level(GPIO_WS2812B_ENABLE, 1);
+    // Enable WS2812B power (LOW = P-MOSFET conducts)
+    ret = gpio_set_level(GPIO_WS2812B_ENABLE, 0);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to enable WS2812B power: %s", esp_err_to_name(ret));
         return ret;
     }
     
-    ESP_LOGI(TAG, "WS2812B power enable GPIO%d configured (HIGH=enabled)", GPIO_WS2812B_ENABLE);
+    ESP_LOGI(TAG, "WS2812B power enable GPIO%d configured (LOW=enabled, P-MOSFET)", GPIO_WS2812B_ENABLE);
     
     return ESP_OK;
 }
@@ -485,9 +486,11 @@ static void enter_deep_sleep(void) {
         bool ws2812b_on = true;
         while (gpio_get_level(GPIO_BUTTON) == 0) {
             if (ws2812b_on) {
-                led_strip_set_pixel(led_strip, 0, 128, 0, 128);  // Purple
+                uint8_t r = 128, g = 0, b = 128;  // Purple
+                apply_brightness(&r, &g, &b, WS2812B_BRIGHTNESS);
+                led_strip_set_pixel(led_strip, 0, r, g, b);
             } else {
-                led_strip_set_pixel(led_strip, 0, 0, 0, 0);      // Off
+                led_strip_set_pixel(led_strip, 0, 0, 0, 0);  // Off
             }
             led_strip_refresh(led_strip);
             ws2812b_on = !ws2812b_on;
@@ -501,7 +504,7 @@ static void enter_deep_sleep(void) {
     // Turn off WS2812B before sleep
     led_strip_clear(led_strip);
     gpio_set_level(GPIO_STATUS_LED, LED_OFF);
-    gpio_set_level(GPIO_WS2812B_ENABLE, 0);  // Disable WS2812B power
+    gpio_set_level(GPIO_WS2812B_ENABLE, 1);  // Disable WS2812B power (P-MOSFET off)
     
     ESP_LOGI(TAG, "");
     ESP_LOGI(TAG, "===========================================");
@@ -536,6 +539,9 @@ static void rainbow_task(void *pvParameters) {
             // Calculate RGB from current hue
             uint8_t r, g, b;
             hsv_to_rgb(rainbow_hue, 100, 100, &r, &g, &b);
+            
+            // Apply brightness
+            apply_brightness(&r, &g, &b, WS2812B_BRIGHTNESS);
             
             // Update WS2812B
             led_strip_set_pixel(led_strip, 0, r, g, b);
@@ -650,9 +656,11 @@ void app_main(void) {
     ESP_LOGI(TAG, "================================================");
     ESP_LOGI(TAG, "Board: Seeed Xiao ESP32C6");
     ESP_LOGI(TAG, "Framework: ESP-IDF v5.5.0");
+    ESP_LOGI(TAG, "LED Strip: espressif/led_strip component");
+    ESP_LOGI(TAG, "Brightness: %d%% (battery-friendly)", WS2812B_BRIGHTNESS);
     ESP_LOGI(TAG, "Button: GPIO%d (hardware pull-up)", GPIO_BUTTON);
-    ESP_LOGI(TAG, "Status LED: GPIO%d (active LOW - 0=ON, 1=OFF)", GPIO_STATUS_LED);
-    ESP_LOGI(TAG, "WS2812B Enable: GPIO%d (HIGH=powered)", GPIO_WS2812B_ENABLE);
+    ESP_LOGI(TAG, "Status LED: GPIO%d (active LOW)", GPIO_STATUS_LED);
+    ESP_LOGI(TAG, "WS2812B Enable: GPIO%d (LOW=powered, P-MOSFET)", GPIO_WS2812B_ENABLE);
     ESP_LOGI(TAG, "WS2812B DIN: GPIO%d (data control)", GPIO_WS2812B_DIN);
     ESP_LOGI(TAG, "");
     
@@ -698,7 +706,7 @@ void app_main(void) {
     
     // Test Instructions
     ESP_LOGI(TAG, "=== Test Instructions ===");
-    ESP_LOGI(TAG, "1. WS2812B should show RED");
+    ESP_LOGI(TAG, "1. WS2812B should show RED (%d%% brightness)", WS2812B_BRIGHTNESS);
     ESP_LOGI(TAG, "2. GPIO%d blinks slowly (2Hz) for RED state", GPIO_STATUS_LED);
     ESP_LOGI(TAG, "3. Press button: Cycle through colors");
     ESP_LOGI(TAG, "   - RED → GREEN (GPIO%d blinks 4Hz)", GPIO_STATUS_LED);

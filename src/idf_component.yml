@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+## This file tells ESP-IDF's component manager which external components to download
+
+dependencies:
+  espressif/led_strip: "^2.5.0"
