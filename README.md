@@ -2,11 +2,17 @@
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
-Generated with assistance from **Claude Sonnet 4 (Anthropic)** - Last Updated: 2025-10-20
+Generated with assistance from **Claude Sonnet 4 (Anthropic)** - Last Updated: 2025-11-07
 
 ## 🎯 Project Overview
 
 This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes LED testing capabilities during development.
+
+**Current Development Status:**
+- ✅ Phase 4 JPL-compliant firmware complete (single-device testing)
+- ✅ BLE GATT server for mobile app configuration (5 operational modes)
+- ✅ Hardware v0.663399ADS with GPIO crosstalk fixes implemented
+- 🔄 Dual-device bilateral coordination protocol in development
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.5-2 Hz (500-2000ms total cycle time)
@@ -14,6 +20,7 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - **JPL-compliant timing**: All delays use FreeRTOS vTaskDelay() (no busy-wait loops)
 - **Adaptive watchdog feeding**: Short cycles feed at end, long cycles feed mid-cycle + end (4-8x safety margin)
 - **Haptic effects support**: Short vibration pulses within half-cycle windows
+- **Open-source hardware**: Complete PCB designs, schematics, 3D-printable cases
 
 ## 🛡️ Safety-Critical Development Standards
 
@@ -50,7 +57,8 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 ### Prerequisites
 - **ESP-IDF v5.5.0**: Automatically managed by PlatformIO via `platformio.ini`
 - **PlatformIO**: Install via VS Code extension or standalone
-- **Two Seeed Xiao ESP32-C6 boards**: Hardware platform requirement
+- **Two Seeed Xiao ESP32-C6 boards**: Hardware platform requirement (dual-device mode)
+- **Hardware files**: See [hardware/README.md](hardware/README.md) for PCB manufacturing and case printing
 
 ### Build and Deploy
 
@@ -79,10 +87,16 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
    - Verify build output shows "framework-espidf @ 3.50500.0 (5.5.0)"
    - Subsequent builds: ~1 minute incremental
 
-5. **Upload to both devices**: PlatformIO → Upload (Ctrl+Alt+U)
+5. **Upload to device(s)**: PlatformIO → Upload (Ctrl+Alt+U)
 
 ### First Power-On
 
+**Single-Device Mode (Current Testing):**
+1. **Power device** - use nRF Connect app to configure parameters
+2. **5 operational modes**: Four presets + custom BLE-controlled mode
+3. **Hold button 5 seconds** to shutdown
+
+**Dual-Device Mode (In Development):**
 1. **Power both devices** - they will automatically pair within 30 seconds
 2. **Status LED patterns**:
    - Fast blink = searching for server  
@@ -138,12 +152,21 @@ Client: [---999ms off---][1ms dead][===999ms motor===][1ms dead]
 ```
 ├── platformio.ini              # Build configuration (ESP-IDF v5.5.0)
 ├── README.md                   # This file
+├── LICENSE                     # GPL v3 (software/firmware)
 ├── AI_GENERATED_DISCLAIMER.md  # Important safety notice
-├── Doxyfile                    # Documentation generation
+├── hardware/
+│   ├── LICENSE                 # CERN-OHL-S v2 (hardware designs)
+│   ├── README.md               # Hardware documentation
+│   ├── pcb/                    # KiCad PCB project files
+│   ├── enclosure/              # FreeCAD case designs
+│   └── datasheets/             # Component specifications
 ├── docs/
 │   ├── ai_context.md           # Complete rebuild instructions & API contracts
 │   ├── requirements_spec.md    # Business requirements with dev standards
 │   └── architecture_decisions.md # Technical rationale (PDR)
+├── test/
+│   ├── single_device_ble_gatt_test.c  # Phase 4 current implementation
+│   └── *.md                    # Test-specific guides
 ├── include/
 │   ├── config.h               # System constants, JPL compliance macros
 │   ├── ble_manager.h          # BLE services and connection management
@@ -152,18 +175,14 @@ Client: [---999ms off---][1ms dead][===999ms motor===][1ms dead]
 │   ├── button_handler.h       # ISR-based button timing
 │   └── power_manager.h        # Deep sleep and session management
 └── src/
-    ├── main.c                 # FreeRTOS tasks and state machine
-    ├── ble_manager.c          # NimBLE implementation
-    ├── led_controller.c       # LEDC PWM and pattern generation
-    ├── nvs_manager.c          # Configuration persistence
-    ├── button_handler.c       # Button ISR and timing logic
-    └── power_manager.c        # Power management and timers
+    ├── main.c                 # FreeRTOS tasks and state machine (placeholder)
+    └── ...                    # (actual code in test/ during development)
 ```
 
 ## 🎮 User Operation
 
 ### Normal Operation
-- **Power on**: Devices auto-pair and start bilateral stimulation
+- **Power on**: Devices auto-pair and start bilateral stimulation (dual-device mode)
 - **Default session**: 20 minutes with automatic shutdown
 - **Cycle time**: Configurable via mobile app (500-2000ms, displayed as Hz)
 - **Status feedback**: Status LED shows connection and system state
@@ -247,8 +266,8 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 #### Single-Device Testing  
 1. Power single device
-2. Wait 30 seconds for fallback to single mode
-3. Verify heartbeat status LED and alternating forward/reverse motor
+2. Use nRF Connect app for BLE configuration
+3. Test all 5 operational modes
 4. Test button wake/shutdown functionality
 
 #### Timing Validation
@@ -279,10 +298,15 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ## 📚 Documentation
 
+### For Builders
+- **[hardware/README.md](hardware/README.md)**: PCB manufacturing, case printing, assembly instructions
+- **[test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md](test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md)**: BLE GATT testing with nRF Connect
+
 ### For Developers
-- **docs/ai_context.md**: Complete API contracts and rebuild instructions with JPL compliance
-- **docs/architecture_decisions.md**: Technical decision rationale (PDR) including timing architecture
-- **docs/requirements_spec.md**: Business requirements with development standards
+- **[docs/ai_context.md](docs/ai_context.md)**: Complete API contracts and rebuild instructions with JPL compliance
+- **[docs/architecture_decisions.md](docs/architecture_decisions.md)**: Technical decision rationale (PDR) including timing architecture
+- **[docs/requirements_spec.md](docs/requirements_spec.md)**: Business requirements with development standards
+- **[CLAUDE.md](CLAUDE.md)**: Developer reference for AI-assisted workflow
 - **Doxygen docs**: Run `doxygen Doxyfile` for comprehensive API documentation
 
 ### For Users
@@ -319,38 +343,89 @@ Use the complete API contracts in `docs/ai_context.md` to generate compatible co
 - **Timing validation**: Bilateral precision within ±10ms specification
 - **Code review**: Peer review required for all safety-critical changes
 
-## 📄 License & Attribution
+## 📄 License
 
+This project uses **dual licensing** to separate software and hardware:
+
+### Software License: GPL v3
+
+All firmware, software, and code in this repository is licensed under the **GNU General Public License v3.0**.
+
+- **Applies to:** All `.c`, `.h`, Python scripts, and other software files
+- **Location:** [LICENSE](LICENSE)
+- **Summary:** Copyleft license - modifications must be shared under same license
+- **Compatibility:** Can be integrated into GPL-compatible projects
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+### Hardware License: CERN-OHL-S v2
+
+All hardware designs (PCB schematics, layouts, enclosures) are licensed under the **CERN Open Hardware Licence Version 2 - Strongly Reciprocal**.
+
+- **Applies to:** KiCad files, gerbers, FreeCAD models, STL/STEP files in `/hardware`
+- **Location:** [hardware/LICENSE](hardware/LICENSE)
+- **Summary:** Copyleft for hardware - derivative designs must be shared under same license
+- **Compatibility:** Reciprocal like GPL but for physical designs
+
+[![License: CERN-OHL-S-2.0](https://img.shields.io/badge/Hardware-CERN--OHL--S--2.0-green.svg)](https://ohwr.org/cern_ohl_s_v2.txt)
+
+### Why Dual Licensing?
+
+- **Software copyleft (GPL v3):** Ensures firmware improvements benefit the community
+- **Hardware copyleft (CERN-OHL-S v2):** Ensures PCB/case improvements benefit the community
+- **Strong reciprocal:** Both licenses require sharing modifications under the same terms
+- **Patent protection:** Both provide protection against patent claims
+- **Medical device safety:** Copyleft ensures safety improvements are shared publicly
+
+### Attribution Requirements
+
+When using or modifying this project:
+- **Retain all license notices** in source files and documentation
+- **Document modifications** with dates and descriptions
+- **Share modified source** if distributing devices or derivatives
+- **Credit original project:** Link to this repository
+
+## 📄 Attribution
+
+- **License:** Dual - [GPL v3](LICENSE) (software) + [CERN-OHL-S v2](hardware/LICENSE) (hardware)
 - **AI Assistant**: Claude Sonnet 4 (Anthropic) - Code generation assistance
 - **Development Standards**: JPL Institutional Coding Standard for C Programming Language
 - **Framework**: ESP-IDF v5.5.0 (Espressif Systems) - Verified October 20, 2025
-- **Human Engineering**: Requirements specification and safety validation
-- **Generated**: 2025-09-18, Updated: 2025-10-20
+- **Human Engineering**: Requirements specification, safety validation, hardware design
+- **Project**: MLE Haptics - mlehaptics.org
+- **Generated**: 2025-09-18, Updated: 2025-11-07
 
-Please maintain attribution when using or modifying this code.
+Please maintain attribution when using or modifying this code or hardware designs.
 
 ## 🔗 Related Projects and Future Development
 
-### Current Phase: Motor Control with Configurable Timing
-- **GPIO19/20 H-bridge control**: Variable intensity ERM motor bilateral stimulation
+### Current Phase: Single-Device Testing & Hardware Validation
+- **Phase 4 firmware**: JPL-compliant single-device operation with BLE GATT control
+- **5 operational modes**: Four presets + custom BLE-configured mode
+- **Hardware v0.663399ADS**: GPIO crosstalk fixes implemented, ready for production
+- **Mobile app integration**: BLE GATT Configuration via nRF Connect
+
+### Phase 5: Dual-Device Bilateral Coordination (In Development)
+- **Automatic pairing**: Device discovery and role assignment
+- **Synchronized timing**: Safety-critical non-overlapping bilateral stimulation
 - **Configurable cycle times**: 500-2000ms (0.5-2 Hz therapeutic range)
 - **Safety-critical timing**: Non-overlapping half-cycles with 1ms FreeRTOS dead time
-- **Mobile app integration**: BLE Configuration Service for therapist control
 
-### Phase 2: Advanced Features
-- **Dedicated H-bridge IC**: Hardware-based stall detection and thermal protection
+### Phase 2: Advanced Haptic Research (Future)
+- **Dedicated haptic driver ICs**: DRV2605L family evaluation
+- **ERM vs LRA comparison**: Comparative therapeutic efficacy research
 - **Pattern library**: Multiple stimulation waveforms and haptic effects
-- **Biofeedback integration**: Heart rate and stress level monitoring
-- **OTA updates**: BLE-based firmware updates with dual partition safety
+- **Enhanced power management**: Extended battery life optimization
 
 ### Development Tools and Standards
 - **ESP-IDF v5.5.0**: [Official ESP-IDF Documentation](https://docs.espressif.com/projects/esp-idf/en/v5.5.0/)
 - **JPL Coding Standard**: [JPL Institutional Coding Standard for C](https://web.archive.org/web/20200914031549/https://lars-lab.jpl.nasa.gov/JPL_Coding_Standard_C.pdf)
 - **Medical Device Standards**: IEC 62304 Software Development Lifecycle
 - **PlatformIO ESP32**: [ESP32 Platform Documentation](https://docs.platformio.org/en/latest/platforms/espressif32.html)
+- **CERN-OHL**: [Open Hardware License](https://ohwr.org/project/cernohl/wikis/home)
 
 ---
 
-**Ready to build the future of EMDR therapy devices with safety-critical reliability! 🚀**
+**Building open-source EMDR therapy devices with safety-critical reliability! 🚀**
 
-*Ensuring therapeutic effectiveness through precise engineering, rigorous safety standards, and JPL-compliant code quality.*
+*Combining precise engineering, rigorous safety standards, and open-source accessibility for the therapeutic community.*
