@@ -46,6 +46,7 @@ fp-info-cache
 # FreeCAD temporary files
 *.FCStd1  # FreeCAD automatic backup
 *~
+*.FCBak  # FreeCAD backup file
 
 # OS files
 .DS_Store
