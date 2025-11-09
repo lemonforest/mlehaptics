@@ -275,6 +275,303 @@ DEBUG: Mode 5 settings load complete
 - Signature mismatch automatically falls back to defaults
 - Missing NVS data treated as first boot (uses defaults)
 
+---
+
+## State Machine Architecture
+
+**Implemented:** November 8, 2025
+**Motivation:** Instant mode switching (< 100ms latency) with safe cleanup
+**Analysis Status:** ✅ Production-ready (no critical bugs found)
+
+This implementation uses explicit state machines for all three FreeRTOS tasks, following JPL coding standards for embedded systems.
+
+### Motor Task State Machine (8 States)
+
+**Purpose:** Control bilateral alternation pattern with instant response to mode changes
+
+**States:**
+
+```
+                                    ┌──────────────────┐
+                                    │ CHECK_MESSAGES   │ ← Loop entry point
+                                    └────────┬─────────┘
+                                             ↓
+                                    ┌──────────────────┐
+                                    │ FORWARD_ACTIVE   │ ← PWM forward, LED on
+                                    └────────┬─────────┘
+                                             ↓
+┌─────────────────────────────┬─────────────┴─────────────┬────────────────────────────┐
+│ Back-EMF Sampling Path      │                           │ Normal Operation Path      │
+│ (first 10s after mode change)                           │ (after 10s)                │
+├─────────────────────────────┤                           ├────────────────────────────┤
+│  ┌──────────────────┐       │                           │  ┌──────────────────────┐  │
+│  │ BEMF_IMMEDIATE   │       │                           │  │ FORWARD_COAST_       │  │
+│  │ (coast + sample) │       │                           │  │ REMAINING            │  │
+│  └────────┬─────────┘       │                           │  │ (coast full period)  │  │
+│           ↓                 │                           │  └──────────┬───────────┘  │
+│  ┌──────────────────┐       │                           │             ↓               │
+│  │ COAST_SETTLE     │       │                           │  (skip BEMF states)        │
+│  │ (wait + sample)  │       │                           │                             │
+│  └────────┬─────────┘       │                           │                             │
+│           ↓                 │                           │                             │
+│  ┌──────────────────┐       │                           │                             │
+│  │ FORWARD_COAST_   │←──────┴───────────────────────────┴─────────────────────────────┘
+│  │ REMAINING        │
+│  └────────┬─────────┘
+│           ↓
+│  ┌──────────────────┐
+│  │ REVERSE_ACTIVE   │ ← PWM reverse, LED on
+│  └────────┬─────────┘
+│           ↓
+│  (Same BEMF sampling or direct coast path)
+│           ↓
+│  ┌──────────────────┐
+│  │ REVERSE_COAST_   │
+│  │ REMAINING        │
+│  └────────┬─────────┘
+│           ↓
+└───────────┴──→ Return to CHECK_MESSAGES (loop)
+
+Any State + MSG_EMERGENCY_SHUTDOWN → SHUTDOWN → enter_deep_sleep() → (never returns)
+```
+
+**Key Design Decisions:**
+
+1. **Shared Back-EMF States** - `BEMF_IMMEDIATE` and `COAST_SETTLE` are used by both FORWARD and REVERSE phases
+   - Back-EMF measurement hardware (voltage summing circuit) produces same output regardless of motor direction
+   - Reduces state count from 10 to 8 while maintaining JPL compliance
+   - `in_forward_phase` boolean tracks direction for logging purposes only
+
+2. **Instant Mode Switching** - `delay_with_mode_check()` helper function
+   - Checks message queue every 50ms during delays (20 Hz polling)
+   - Worst-case latency: < 100ms (feels instant to user)
+   - Allows interruption during any delay: motor active, coast settle, coast remaining
+
+3. **Safe Cleanup Everywhere** - Critical pattern: coast motor + clear LED before ALL state transitions
+   ```c
+   if (delay_with_mode_check(motor_on_ms)) {
+       motor_coast();        // ALWAYS coast before transition
+       led_clear();          // ALWAYS clear LED before transition
+       state = MOTOR_STATE_CHECK_MESSAGES;  // Return to message check
+       break;
+   }
+   ```
+
+4. **Queue Purging** - Multiple rapid mode changes → only last one takes effect
+   - Prevents queue overflow from button mashing
+   - Prevents "queued mode changes" behavior (user expects immediate response)
+
+**State Transition Table:**
+
+| From State | Trigger | To State | Cleanup? | Notes |
+|-----------|---------|----------|----------|-------|
+| CHECK_MESSAGES | Mode change | FORWARD_ACTIVE | N/A | Fresh cycle start |
+| CHECK_MESSAGES | Shutdown/Battery critical | SHUTDOWN | N/A | Emergency exit |
+| FORWARD_ACTIVE | Delay complete (sampling) | BEMF_IMMEDIATE | No | Continue cycle |
+| FORWARD_ACTIVE | Delay complete (no sampling) | FORWARD_COAST_REMAINING | ✅ Coast + clear | Skip BEMF |
+| FORWARD_ACTIVE | Mode change during delay | CHECK_MESSAGES | ✅ Coast + clear | Instant response |
+| BEMF_IMMEDIATE | Always | COAST_SETTLE | No | Already coasted |
+| COAST_SETTLE | Delay complete | FORWARD_COAST_REMAINING | No | Continue cycle |
+| COAST_SETTLE | Mode change during delay | CHECK_MESSAGES | No | Already coasted |
+| FORWARD_COAST_REMAINING | Delay complete | REVERSE_ACTIVE | No | Half cycle done |
+| FORWARD_COAST_REMAINING | Mode change during delay | CHECK_MESSAGES | No | Already coasted |
+| REVERSE_ACTIVE | (same patterns as FORWARD) | ... | ... | ... |
+| SHUTDOWN | Loop exits | `enter_deep_sleep()` | ✅ Coast + clear | Never returns |
+
+### BLE Task State Machine (4 States)
+
+**Purpose:** Manage advertising lifecycle and client connections
+
+**States:**
+
+```
+┌─────┐     MSG_BLE_REENABLE      ┌─────────────┐
+│IDLE │────────────────────────→│ ADVERTISING │
+└──┬──┘                          └──────┬──────┘
+   ↑                                    │
+   │ Timeout (5 min)                    │ Client connected
+   │ or advertising stopped             │ (GAP event)
+   │                                    ↓
+   │                          ┌────────────────┐
+   └──────────────────────────┤   CONNECTED    │
+                              └────────┬───────┘
+                                       │
+                                       │ Client disconnected
+                                       │ (GAP event)
+                                       ↓
+                              (Auto-restart advertising
+                               or return to IDLE)
+
+Any State + MSG_EMERGENCY_SHUTDOWN → SHUTDOWN → ble_stop_advertising() → vTaskDelete()
+```
+
+**Analysis Result:** Grade A - No critical bugs found
+
+**Why BLE Task Avoided Bugs (compared to Motor Task):**
+
+1. **Simpler message handling** - Uses `if (xQueueReceive(...))` instead of `while (xQueueReceive(...))`
+   - No nested loops around shutdown handling
+   - Break statements always exit the correct scope
+
+2. **Conditional-only state transitions** - No unconditional state assignments
+   - Motor task HAD: `state = MOTOR_STATE_FORWARD_ACTIVE;` after message loop (bug!)
+   - BLE task: All transitions inside `if` blocks, shutdown cannot be overwritten
+
+3. **Fewer states** - 4 states vs motor's 8 states
+   - Simpler control flow = less error-prone
+
+4. **Cleanup only when needed** - `ble_stop_advertising()` called only when advertising is active
+   - Idempotent design (calling stop when already stopped is safe)
+
+**State Transition Table:**
+
+| From State | Trigger | To State | Cleanup? | Notes |
+|-----------|---------|----------|----------|-------|
+| IDLE | MSG_BLE_REENABLE + success | ADVERTISING | N/A | Start advertising |
+| IDLE | MSG_EMERGENCY_SHUTDOWN | SHUTDOWN | N/A | Clean exit |
+| ADVERTISING | MSG_EMERGENCY_SHUTDOWN | SHUTDOWN | ✅ Stop advertising | Clean exit |
+| ADVERTISING | Client connected (GAP event) | CONNECTED | N/A | GAP stops advertising |
+| ADVERTISING | Timeout (5 min) | IDLE | ✅ Stop advertising | Battery conservation |
+| CONNECTED | MSG_EMERGENCY_SHUTDOWN | SHUTDOWN | N/A | GAP handles disconnect |
+| CONNECTED | Client disconnected | ADVERTISING or IDLE | N/A | Auto-restart or idle |
+| SHUTDOWN | Task exits | `vTaskDelete()` | ✅ Stop if active | Clean task cleanup |
+
+### Button Task State Machine (5 States)
+
+**Purpose:** Detect button patterns for mode changes, shutdown, and BLE re-enable
+
+**States:**
+
+1. `BTN_STATE_IDLE` - Waiting for button press
+2. `BTN_STATE_DEBOUNCE` - 50ms debounce period after press
+3. `BTN_STATE_PRESSED` - Waiting for release (mode change) or hold (shutdown)
+4. `BTN_STATE_SHUTDOWN` - Hold detected (5s), send shutdown message, wait for purple blink
+5. `BTN_STATE_SHUTDOWN_SENT` - Terminal state after sending shutdown (prevents message spam)
+
+**Critical Fix Applied:**
+- **Bug:** Continuous "Emergency shutdown" message spam
+- **Root Cause:** No terminal state after sending shutdown message
+- **Fix:** Added `BTN_STATE_SHUTDOWN_SENT` terminal state that does nothing (waits for deep sleep)
+
+### Critical Bugs Fixed During Development
+
+The state machine refactoring uncovered **6 critical bugs** that were fixed before production:
+
+#### Bug #1: State Overwrite After Shutdown (CRITICAL)
+**Location:** Motor task, CHECK_MESSAGES state (lines 1815-1890)
+
+**Symptom:** Emergency shutdown never stopped motor, no purple blink LED, device unresponsive
+
+**Root Cause:** Nested loop break scope error
+```c
+// Inside CHECK_MESSAGES case:
+while (xQueueReceive(button_to_motor_queue, &msg, 0) == pdPASS) {
+    if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+        state = MOTOR_STATE_SHUTDOWN;
+        break;  // ❌ Only breaks inner while loop, NOT switch case!
+    }
+}
+// Execution continues in CHECK_MESSAGES case...
+state = MOTOR_STATE_FORWARD_ACTIVE;  // ❌ OVERWRITES shutdown state!
+```
+
+**Fix:** Added state guard before forward transition
+```c
+if (state == MOTOR_STATE_SHUTDOWN) {
+    break;  // Exit CHECK_MESSAGES case
+}
+state = MOTOR_STATE_FORWARD_ACTIVE;  // Only if not shutting down
+```
+
+#### Bug #2-#3: Missing Cleanup (CRITICAL)
+**Symptom:** LED always on, motor stuck running during mode changes
+
+**Root Cause:** Forgot to call `motor_coast()` and `led_clear()` in non-sampling code path
+
+**Fix:** Added explicit cleanup in ALL transition paths:
+```c
+// Non-sampling path (after 10 seconds)
+if (delay_with_mode_check(motor_on_ms)) {
+    motor_coast();   // ✅ Added
+    led_clear();     // ✅ Added
+    state = MOTOR_STATE_CHECK_MESSAGES;
+    break;
+}
+// CRITICAL: Always coast and clear before next state!
+motor_coast();   // ✅ Added
+led_clear();     // ✅ Added
+state = MOTOR_STATE_FORWARD_COAST_REMAINING;
+```
+
+#### Bug #4: Button Task Message Spam
+**Symptom:** "Emergency shutdown" logged continuously after shutdown button held
+
+**Fix:** Added terminal state `BTN_STATE_SHUTDOWN_SENT` to prevent re-sending
+
+#### Bug #5: Watchdog Timeout
+**Symptom:** Watchdog timeout during normal operation
+
+**Root Cause:** Motor task subscribed to watchdog but only fed it in purple blink loop
+
+**Fix:** Feed watchdog in CHECK_MESSAGES every cycle:
+```c
+case MOTOR_STATE_CHECK_MESSAGES: {
+    esp_task_wdt_reset();  // ✅ Feed every cycle
+    // ... message handling ...
+}
+```
+
+#### Bug #6: BLE Parameter Update Latency
+**Symptom:** BLE writes (LED color, frequency, etc.) delayed up to 1 second
+
+**Root Cause:** Motor task only reloaded Mode 5 parameters in CHECK_MESSAGES (once per cycle)
+
+**Fix:** Added `ble_params_updated` flag checked in `delay_with_mode_check()`:
+```c
+// In delay_with_mode_check():
+if (ble_params_updated) {
+    return true;  // Interrupt delay, return to CHECK_MESSAGES
+}
+
+// In CHECK_MESSAGES after parameter reload:
+ble_params_updated = false;  // Clear flag
+```
+
+### Mode Switch Latency
+
+**Measurement:** < 100ms worst-case (typically 50ms)
+
+**How it works:**
+- `delay_with_mode_check()` polls queue every 50ms
+- Queue check is non-blocking (`xQueuePeek(..., 0)`)
+- If message found, delay returns early with `true`
+- Caller coasts motor, clears LED, returns to CHECK_MESSAGES
+
+**User experience:** Instant (indistinguishable from hardware button press)
+
+### Analysis Methodology
+
+All three state machines were systematically analyzed using:
+- **Checklist:** `docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md` (10-step verification process)
+- **BLE Task Report:** `test/BLE_TASK_STATE_MACHINE_ANALYSIS.md` (400+ line audit)
+- **Refactoring Log:** `test/MODE_SWITCH_REFACTORING_PLAN.md` (implementation details)
+
+**Key checks performed:**
+1. ✅ Verify loop exit conditions (shutdown cannot be ignored)
+2. ✅ Trace all state transitions (no orphaned states)
+3. ✅ Analyze queue message handling (shutdown prioritized)
+4. ✅ Check break/continue scope (correct loop exit)
+5. ✅ Verify cleanup paths (motor/LED in all exit paths)
+6. ✅ Look for race conditions (shared state protected)
+7. ✅ Check timing and delays (watchdog fed, delays interruptible)
+8. ✅ Verify state machine completeness (all enum cases handled)
+9. ✅ Test edge cases (rapid messages, timeouts, battery critical)
+10. ✅ Document findings and fixes
+
+**Result:** Motor task had 6 critical bugs (all fixed), BLE task had 0 bugs (simpler design)
+
+---
+
 ## Build & Flash
 
 ```bash

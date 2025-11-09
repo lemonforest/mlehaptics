@@ -911,7 +911,7 @@ GPIO19: Haptic driver 2 enable (if dual drivers)
 
 **Dual Haptic Driver Consideration:**
 - **PCB size constraint**: Must fit Phase 1 case (or close variant)
-- **dual 350mAh batteries (700mAh)**: Power budget for two haptic drivers requires careful analysis
+- **dual 320mAh batteries (640mAh)**: Power budget for two haptic drivers requires careful analysis
 - **Bilateral independence**: Could each device have ERM + LRA for A/B comparison?
 - **GPIO availability**: I2C control frees GPIOs for dual-driver PCB designs
 - **Research value**: Side-by-side ERM/LRA comparison within single device
@@ -1035,7 +1035,7 @@ build_flags =
 
 **Phase 1 Case as Reference Design:**
 - **Current case dimensions**: Designed for discrete MOSFET Phase 1 PCB
-- **dual 350mAh batteries (700mAh) fitment**: Case sized for specific battery form factor
+- **dual 320mAh batteries (640mAh) fitment**: Case sized for specific battery form factor
 - **Seeed XIAO ESP32-C6**: Form factor assumes specific module dimensions
 
 **Phase 2 PCB Design Goals:**
@@ -1047,7 +1047,7 @@ build_flags =
 **Case Compatibility Trade-offs:**
 
 **Priority 1: Maintain battery compatibility**
-- dual 350mAh batteries (700mAh) form factor non-negotiable (power budget established)
+- dual 320mAh batteries (640mAh) form factor non-negotiable (power budget established)
 - Case must accommodate same battery regardless of PCB changes
 
 **Priority 2: Preserve therapy light window** (if case has light transmission)
@@ -1151,7 +1151,7 @@ Enable EMDR therapists to evaluate ERM vs LRA haptic technologies in real therap
 - [ ] PCB assembly with DRV260x IC and LRA actuators
 - [ ] Firmware HAL implementation for Phase 2 hardware
 - [ ] Bilateral timing precision validation (±10ms requirement)
-- [ ] 20-minute battery life testing with dual 350mAh batteries (700mAh)
+- [ ] 20-minute battery life testing with dual 320mAh batteries (640mAh)
 
 **Milestone 4: Comparative Testing** (4-6 weeks)
 - [ ] Side-by-side ERM vs LRA haptic feel evaluation
@@ -1198,7 +1198,7 @@ Enable EMDR therapists to evaluate ERM vs LRA haptic technologies in real therap
 **Technical Success:**
 - ✅ DRV260x haptic driver demonstrates equal or better bilateral timing precision vs Phase 1
 - ✅ LRA actuators show 40-60% power consumption reduction vs ERM baseline
-- ✅ 20+ minute session duration maintained with dual 350mAh batteries (700mAh) (both ERM and LRA)
+- ✅ 20+ minute session duration maintained with dual 320mAh batteries (640mAh) (both ERM and LRA)
 - ✅ Thermal performance within acceptable limits (no overheating during extended sessions)
 - ✅ Single firmware codebase supports Phase 1 and Phase 2 hardware variants
 
@@ -1238,7 +1238,7 @@ Enable EMDR therapists to evaluate ERM vs LRA haptic technologies in real therap
 - **Fallback**: Publish Phase 2 case variant as separate open-source design
 
 **Risk 4: Insufficient battery capacity for dual-driver research mode**
-- **Likelihood**: High (dual drivers exceed dual 350mAh batteries (700mAh) budget)
+- **Likelihood**: High (dual drivers exceed dual 320mAh batteries (640mAh) budget)
 - **Impact**: Low (dual-driver mode remains research-only, not production requirement)
 - **Mitigation**: Power management limits dual-driver operation to brief comparison testing
 - **Fallback**: Dual-driver PCB variant abandoned, focus on single-driver comparison

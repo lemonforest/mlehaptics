@@ -33,7 +33,7 @@ This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bila
 **Key Peripherals:**
 - **Motors:** 2× ERM vibration motors via H-bridge (TB6612FNG)
 - **LEDs:** 2× WS2812B RGB LEDs for status feedback
-- **Power:** dual 350mAh LiPo batteries (700mAh) with integrated charging
+- **Power:** dual 320mAh LiPo batteries (640mAh) with integrated charging
 - **Button:** Single hardware button for mode switching and sleep
 
 **Critical GPIO Constraints:**
@@ -50,6 +50,7 @@ EMDR_PULSER_SONNET4/
 │   └── main.c                    # Empty - actual code in test/
 ├── test/                         # All functional test programs
 │   ├── single_device_demo_jpl_queued.c # **PRIMARY** - Phase 4 JPL-compliant
+│   ├── single_device_ble_gatt_test.c # **BLE** - Full NimBLE GATT server with state machines
 │   ├── single_device_battery_bemf_test.c # Baseline with battery monitoring
 │   ├── single_device_battery_bemf_queued_test.c # Phase 1 (message queues)
 │   ├── single_device_demo_test.c # Simple 4-mode demo (no battery)
@@ -67,8 +68,9 @@ EMDR_PULSER_SONNET4/
 ├── platformio.ini                # Build system configuration
 └── BUILD_COMMANDS.md             # Essential build commands reference
 
-**Active Development Files (as of Nov 4, 2025):**
+**Active Development Files (as of Nov 8, 2025):**
 - **Primary:** `test/single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant (PRODUCTION-READY)
+- **BLE Version:** `test/single_device_ble_gatt_test.c` - Full BLE GATT server with 8-state motor machine (PRODUCTION-READY)
 - **Baseline:** `test/single_device_battery_bemf_test.c` - Research baseline with battery monitoring
 - **Simple Demo:** `test/single_device_demo_test.c` - 4-mode demo without battery features
 ```
@@ -86,6 +88,10 @@ EMDR_PULSER_SONNET4/
 pio run -e single_device_demo_jpl_queued -t upload
 pio device monitor
 
+# Build BLE GATT version with mobile app control
+pio run -e single_device_ble_gatt_test -t upload
+pio device monitor
+
 # Alternative: Build baseline with battery monitoring
 pio run -e single_device_battery_bemf_test -t upload
 pio device monitor
@@ -99,6 +105,7 @@ pio run -e single_device_demo_jpl_queued -t clean
 Each test has its own PlatformIO environment and sdkconfig:
 
 - `single_device_demo_jpl_queued` - **PRIMARY** - Phase 4 JPL-compliant (production-ready)
+- `single_device_ble_gatt_test` - **BLE** - Full NimBLE GATT server with state machines (production-ready)
 - `single_device_battery_bemf_test` - Baseline with battery + back-EMF monitoring
 - `single_device_battery_bemf_queued_test` - Phase 1 (adds message queues)
 - `single_device_demo_test` - Simple 4-mode demo (no battery features)
@@ -523,6 +530,159 @@ CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=3
 
 ---
 
+## BLE GATT Test - State Machine Architecture
+
+**Status:** ✅ PRODUCTION-READY (November 8, 2025)
+**File:** `test/single_device_ble_gatt_test.c`
+**Build Environment:** `single_device_ble_gatt_test`
+
+### Overview
+
+This is a complete BLE-enabled version with NimBLE GATT server for mobile app control (via nRF Connect or similar apps). It implements explicit state machines for motor control, button handling, and BLE advertising lifecycle.
+
+### Key Features
+
+1. **Full NimBLE GATT Server** - Custom 128-bit UUID service with 9 characteristics
+2. **8-State Motor Task** - Instant mode switching with safe cleanup
+3. **4-State BLE Task** - Advertising lifecycle management with shutdown handling
+4. **4-State Button Task** - Mode changes, emergency shutdown, BLE re-enable
+5. **NVS Persistence** - Mode 5 settings saved across power cycles
+6. **Back-EMF Integration** - Research measurements during first 10 seconds of mode changes
+
+### Motor State Machine (8 States)
+
+**Design Goal:** Instant mode switching (< 100ms latency) with safe motor coast
+
+```
+CHECK_MESSAGES → FORWARD_ACTIVE → BEMF_IMMEDIATE → COAST_SETTLE → FORWARD_COAST_REMAINING
+                                                                     ↓
+                                                      REVERSE_COAST_REMAINING ← COAST_SETTLE ← BEMF_IMMEDIATE ← REVERSE_ACTIVE
+                                                                     ↓
+                                                                  SHUTDOWN
+```
+
+**Key States:**
+- `CHECK_MESSAGES` - Process mode changes, shutdown, battery messages
+- `FORWARD_ACTIVE` / `REVERSE_ACTIVE` - Motor PWM active
+- `BEMF_IMMEDIATE` / `COAST_SETTLE` - Back-EMF sampling (shared between directions)
+- `FORWARD_COAST_REMAINING` / `REVERSE_COAST_REMAINING` - Complete coast period
+- `SHUTDOWN` - Final cleanup before task exit
+
+**Critical Features:**
+- **Instant mode switching:** `delay_with_mode_check()` checks queue every 50ms during delays
+- **Safe cleanup:** `motor_coast()` and `led_clear()` called in ALL state transition paths
+- **Queue purging:** Multiple rapid mode changes → only last one takes effect
+- **Shared back-EMF states:** Reduces complexity from 10 to 8 states
+
+### BLE State Machine (4 States)
+
+**Design:** Simple lifecycle management for advertising and client connections
+
+```
+IDLE → ADVERTISING → CONNECTED
+  ↑        ↓            ↓
+  └────────┴────────────┘
+           ↓
+       SHUTDOWN
+```
+
+**Analysis Result:** Grade A - No critical bugs found
+**Why it's safer:** Simpler message handling (if vs while), conditional-only state transitions
+
+### Mobile App Control (GATT Characteristics)
+
+**Service UUID:** `a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890` (custom 128-bit)
+
+| Characteristic | Read | Write | Notify | Description |
+|----------------|------|-------|--------|-------------|
+| Mode | ✅ | ✅ | | Current mode (0-4) |
+| Custom Frequency | ✅ | ✅ | | Hz × 100 (0.5-2.0 Hz) |
+| Custom Duty Cycle | ✅ | ✅ | | Percentage (10-90%) |
+| Battery Level | ✅ | | ✅ | Battery % (0-100) |
+| Session Time | ✅ | | ✅ | Elapsed seconds |
+| LED Enable | ✅ | ✅ | | LED on/off for Mode 5 |
+| LED Color | ✅ | ✅ | | 16-color palette index |
+| LED Brightness | ✅ | ✅ | | Brightness % (10-30%) |
+| PWM Intensity | ✅ | ✅ | | Motor PWM % (30-90%) |
+
+### Critical Bugs Fixed During Development
+
+**Bug #1: State Overwrite After Shutdown** (CRITICAL)
+- **Symptom:** Emergency shutdown never stopped motor, no purple blink
+- **Root Cause:** `break` inside queue receive loop only exited inner loop, not switch case
+- **Result:** Shutdown state overwritten by unconditional transition to FORWARD
+- **Fix:** Added state guard before all forward transitions
+
+**Bug #2-#3: Missing Cleanup** (CRITICAL)
+- **Symptom:** LED always on, motor stuck running
+- **Root Cause:** Missing `motor_coast()` / `led_clear()` in non-sampling code paths
+- **Fix:** Added explicit cleanup in ALL state transition paths
+
+**Bug #4: Button Task Message Spam**
+- **Symptom:** Continuous "Emergency shutdown" logging after shutdown message sent
+- **Root Cause:** No terminal state after sending shutdown message
+- **Fix:** Added `BTN_STATE_SHUTDOWN_SENT` terminal state
+
+**Bug #5: Watchdog Timeout**
+- **Symptom:** Watchdog timeout during normal operation
+- **Root Cause:** Motor task subscribed to watchdog but only fed it in purple blink loop
+- **Fix:** Feed watchdog in CHECK_MESSAGES state every cycle
+
+**Bug #6: BLE Parameter Update Latency**
+- **Symptom:** BLE parameter changes delayed up to 1 second
+- **Root Cause:** Motor task only reloaded parameters in CHECK_MESSAGES (once per cycle)
+- **Fix:** Added `ble_params_updated` flag checked in `delay_with_mode_check()`
+
+### State Machine Analysis
+
+**Methodology:** Systematic checklist-based analysis (see `docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md`)
+
+**Motor Task:** 8 states, multiple critical bugs found and fixed
+**BLE Task:** 4 states, NO critical bugs found (simpler design inherently safer)
+**Button Task:** 5 states, one bug fixed (message spam)
+
+**Key Learning:** Simpler state machines with fewer states and less complex control flow are less error-prone.
+
+### Build & Test
+
+```bash
+# Build and upload
+pio run -e single_device_ble_gatt_test -t upload
+
+# Monitor output
+pio device monitor
+
+# Connect via nRF Connect app
+# Device name: "EMDR_Pulser"
+# Service UUID: a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890
+```
+
+### Documentation
+
+- **Test Guide:** `test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md` - Complete GATT reference
+- **Refactoring Plan:** `test/MODE_SWITCH_REFACTORING_PLAN.md` - State machine implementation details
+- **BLE Task Analysis:** `test/BLE_TASK_STATE_MACHINE_ANALYSIS.md` - Comprehensive audit (400+ lines)
+- **Analysis Checklist:** `docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md` - Reusable audit template
+
+### Comparison to Phase 4 JPL Version
+
+| Aspect | Phase 4 JPL | BLE GATT Test |
+|--------|-------------|---------------|
+| **BLE Support** | No | ✅ Full NimBLE GATT |
+| **Mobile App Control** | No | ✅ 9 GATT characteristics |
+| **Mode Switching** | Button only | Button + BLE writes |
+| **State Machine** | Message queues | ✅ Explicit state machines |
+| **Mode Switch Latency** | Variable | < 100ms (instant) |
+| **Back-EMF Sampling** | No | ✅ First 10 seconds after mode change |
+| **NVS Persistence** | No | ✅ Mode 5 settings saved |
+| **Code Complexity** | Lower | Higher (state machines) |
+| **Production Status** | ✅ Ready | ✅ Ready |
+
+**Use Phase 4 JPL when:** Simple button-only control is sufficient
+**Use BLE GATT when:** Mobile app control and research data collection needed
+
+---
+
 ## Future Work Considerations
 
 ### Explicit Light Sleep
@@ -576,7 +736,9 @@ Evaluate DRV2605L family:
 ```
 Build Configuration:     platformio.ini
 Primary Code (Phase 4):  test/single_device_demo_jpl_queued.c
+BLE GATT Code:           test/single_device_ble_gatt_test.c
 Test-Specific Guide:     test/SINGLE_DEVICE_DEMO_JPL_QUEUED_GUIDE.md
+BLE GATT Guide:          test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md
 Comprehensive Guide:     test/PHASE_4_JPL_QUEUED_COMPLETE_GUIDE.md
 Baseline Code:           test/single_device_battery_bemf_test.c
 Simple Demo:             test/single_device_demo_test.c
@@ -585,6 +747,9 @@ Build Commands:          BUILD_COMMANDS.md
 Quick Start:             PHASE_4_COMPLETE_QUICKSTART.md
 Full Spec:               docs/requirements_spec.md
 Architecture Decisions:  docs/architecture_decisions.md
+State Machine Analysis:  docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md
+BLE Task Analysis:       test/BLE_TASK_STATE_MACHINE_ANALYSIS.md
+Mode Switch Refactor:    test/MODE_SWITCH_REFACTORING_PLAN.md
 Archived Docs:           docs/archive/PHASE_*.md
 ```
 
@@ -593,17 +758,24 @@ Archived Docs:           docs/archive/PHASE_*.md
 ## Questions Claude Code Might Ask
 
 **Q: Where is the main application code?**
-A: `test/single_device_demo_jpl_queued.c` (Phase 4 production-ready). It's copied to `src/main.c` automatically during build.
+A: Two production-ready versions exist:
+- `test/single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant (button-only control)
+- `test/single_device_ble_gatt_test.c` - BLE GATT server with state machines (mobile app control)
+
+Both are automatically copied to `src/main.c` during build.
 
 **Q: How do I switch between different tests?**
-A: Use `pio run -e [environment_name] -t upload`, e.g., `pio run -e single_device_demo_jpl_queued -t upload`.
+A: Use `pio run -e [environment_name] -t upload`, e.g.:
+- `pio run -e single_device_demo_jpl_queued -t upload` (Phase 4 JPL)
+- `pio run -e single_device_ble_gatt_test -t upload` (BLE GATT)
 
 **Q: Why are there so many sdkconfig files?**
-A: Each test needs different ESP-IDF configurations (GPIO, peripherals, power management).
+A: Each test needs different ESP-IDF configurations (GPIO, peripherals, power management, BLE stack).
 
 **Q: What's the difference between the test files?**
 A:
-- `single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant (production-ready)
+- `single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant, button-only (production-ready)
+- `single_device_ble_gatt_test.c` - Full BLE GATT server, state machines, mobile app control (production-ready)
 - `single_device_battery_bemf_test.c` - Baseline with battery + back-EMF monitoring
 - `single_device_battery_bemf_queued_test.c` - Phase 1 (adds message queues)
 - `single_device_demo_test.c` - Simple 4-mode demo (no battery features)

@@ -429,7 +429,7 @@ This test validates hardware and patterns for main program features:
 ### Active Session (20 minutes)
 - **Current draw**: ~50mA average
 - **Capacity used**: 50mA × (20/60)h = 16.67 mAh
-- **dual 350mAh batteries (700mAh)**: ~21 sessions per charge
+- **dual 320mAh batteries (640mAh)**: ~21 sessions per charge
 
 ### Deep Sleep (Between Sessions)
 - **Current draw**: <1mA

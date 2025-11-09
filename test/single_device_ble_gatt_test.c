@@ -29,6 +29,7 @@
 #include "esp_sleep.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_task_wdt.h"
 #include "led_strip.h"
 
 // NimBLE includes
@@ -146,8 +147,36 @@ typedef enum {
     BTN_STATE_HOLD_DETECT,        // 1s-2s window for BLE re-enable
     BTN_STATE_SHUTDOWN_HOLD,      // 2s+ continued hold
     BTN_STATE_COUNTDOWN,
-    BTN_STATE_SHUTDOWN
+    BTN_STATE_SHUTDOWN,
+    BTN_STATE_SHUTDOWN_SENT       // Terminal state - waiting for deep sleep
 } button_state_t;
+
+// BLE STATE MACHINE
+typedef enum {
+    BLE_STATE_IDLE,               // Not advertising, no client
+    BLE_STATE_ADVERTISING,        // Advertising active, waiting for client
+    BLE_STATE_CONNECTED,          // Client connected
+    BLE_STATE_SHUTDOWN            // Cleanup and exit
+} ble_state_t;
+
+// MOTOR STATE MACHINE
+typedef enum {
+    MOTOR_STATE_CHECK_MESSAGES,           // Check queues, handle mode changes
+
+    // FORWARD phase
+    MOTOR_STATE_FORWARD_ACTIVE,           // Motor forward, PWM active
+    MOTOR_STATE_FORWARD_COAST_REMAINING,  // Coast remaining time
+
+    // Shared back-EMF states (used by both FORWARD and REVERSE)
+    MOTOR_STATE_BEMF_IMMEDIATE,           // Coast + immediate back-EMF sample
+    MOTOR_STATE_COAST_SETTLE,             // Wait settle time + settled sample
+
+    // REVERSE phase
+    MOTOR_STATE_REVERSE_ACTIVE,           // Motor reverse, PWM active
+    MOTOR_STATE_REVERSE_COAST_REMAINING,  // Coast remaining time
+
+    MOTOR_STATE_SHUTDOWN                  // Final cleanup before task exit
+} motor_state_t;
 
 // MESSAGES
 typedef enum {
@@ -310,7 +339,10 @@ static uint32_t mode5_coast_ms = 250;      // Default: 250ms coast
 
 // NVS persistence tracking
 static bool mode5_settings_dirty = false;         // True if settings changed since last NVS save
-static SemaphoreHandle_t mode5_settings_mutex = NULL;  // Mutex for thread-safe dirty flag access
+static SemaphoreHandle_t mode5_settings_mutex = NULL;  // Mutex for thread-safe access
+
+// BLE parameter update flag (for instant mode change responsiveness)
+static volatile bool ble_params_updated = false;  // Set by GATT write handlers, cleared by motor_task
 
 // ADC INIT (same as baseline)
 static bool adc_calibration_init(adc_cali_handle_t *out_handle) {
@@ -476,8 +508,8 @@ static void update_mode5_timing(void) {
     mode5_motor_on_ms = on_time_ms;
     mode5_coast_ms = coast_ms;
 
-    ESP_LOGI(TAG, "Mode 5 updated: freq=%uHz duty=%u%% -> on=%ums coast=%ums",
-             custom_frequency_hz / 100, custom_duty_percent, on_time_ms, coast_ms);
+    ESP_LOGI(TAG, "Mode 5 updated: freq=%.2fHz duty=%u%% -> on=%ums coast=%ums",
+             custom_frequency_hz / 100.0f, custom_duty_percent, on_time_ms, coast_ms);
 }
 
 // ============================================================================
@@ -708,6 +740,9 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
         mode5_settings_dirty = true;
     }
 
+    // Signal motor task to reload parameters immediately
+    ble_params_updated = true;
+
     // If currently in Mode 5, send update to motor task
     if (current_mode_ble == MODE_CUSTOM) {
         task_message_t msg = {.type = MSG_MODE_CHANGE, .data.new_mode = MODE_CUSTOM};
@@ -755,6 +790,9 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
     } else {
         mode5_settings_dirty = true;
     }
+
+    // Signal motor task to reload parameters immediately
+    ble_params_updated = true;
 
     // If currently in Mode 5, send update to motor task
     if (current_mode_ble == MODE_CUSTOM) {
@@ -832,7 +870,9 @@ static int gatt_char_led_enable_write(uint16_t conn_handle, uint16_t attr_handle
         mode5_settings_dirty = true;
     }
 
-    // TODO: Update LED state if currently in Mode 5
+    // Signal motor task to reload parameters immediately
+    ble_params_updated = true;
+
     return 0;
 }
 
@@ -875,7 +915,9 @@ static int gatt_char_led_color_write(uint16_t conn_handle, uint16_t attr_handle,
         mode5_settings_dirty = true;
     }
 
-    // TODO: Update LED color if currently in Mode 5
+    // Signal motor task to reload parameters immediately
+    ble_params_updated = true;
+
     return 0;
 }
 
@@ -917,7 +959,9 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
         mode5_settings_dirty = true;
     }
 
-    // TODO: Update LED brightness if currently in Mode 5
+    // Signal motor task to reload parameters immediately
+    ble_params_updated = true;
+
     return 0;
 }
 
@@ -958,6 +1002,9 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
     } else {
         mode5_settings_dirty = true;
     }
+
+    // Signal motor task to reload parameters immediately
+    ble_params_updated = true;
 
     return 0;
 }
@@ -1434,31 +1481,121 @@ static void ble_stop_advertising(void) {
 // BLE TASK - handles advertising timeout and message queue
 static void ble_task(void *pvParameters) {
     task_message_t msg;
+    ble_state_t state = BLE_STATE_IDLE;
 
     ESP_LOGI(TAG, "BLE task started");
 
-    while (1) {
-        // Check for messages from button task
-        if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
-            if (msg.type == MSG_BLE_REENABLE) {
-                ESP_LOGI(TAG, "BLE re-enable requested");
-                ble_start_advertising();
+    while (state != BLE_STATE_SHUTDOWN) {
+        uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+
+        switch (state) {
+            case BLE_STATE_IDLE: {
+                // Check for messages
+                if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
+                    if (msg.type == MSG_BLE_REENABLE) {
+                        ESP_LOGI(TAG, "BLE re-enable requested");
+                        ble_start_advertising();
+
+                        // Transition based on result
+                        if (ble_adv_state.advertising_active) {
+                            state = BLE_STATE_ADVERTISING;
+                        }
+                    } else if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "BLE shutdown requested");
+                        state = BLE_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
+
+                // Check if connection established (via GAP event)
+                if (ble_adv_state.client_connected) {
+                    ESP_LOGI(TAG, "BLE client connected (from IDLE)");
+                    state = BLE_STATE_CONNECTED;
+                }
+                break;
             }
-        }
 
-        // Check advertising timeout (5 minutes)
-        if (ble_adv_state.advertising_active && !ble_adv_state.client_connected) {
-            uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
-            uint32_t elapsed = now - ble_adv_state.advertising_start_ms;
+            case BLE_STATE_ADVERTISING: {
+                // Check for shutdown message
+                if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                    if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "BLE shutdown during advertising");
+                        ble_stop_advertising();
+                        state = BLE_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
 
-            if (elapsed >= ble_adv_state.advertising_timeout_ms) {
-                ESP_LOGI(TAG, "BLE advertising timeout (5 min)");
-                ble_stop_advertising();
+                // Check for client connection (set by GAP event handler)
+                if (ble_adv_state.client_connected) {
+                    ESP_LOGI(TAG, "BLE client connected");
+                    state = BLE_STATE_CONNECTED;
+                    break;
+                }
+
+                // Check advertising timeout (5 minutes)
+                if (ble_adv_state.advertising_active) {
+                    uint32_t elapsed = now - ble_adv_state.advertising_start_ms;
+
+                    if (elapsed >= ble_adv_state.advertising_timeout_ms) {
+                        ESP_LOGI(TAG, "BLE advertising timeout (5 min)");
+                        ble_stop_advertising();
+                        state = BLE_STATE_IDLE;
+                    }
+                } else {
+                    // Advertising stopped externally, return to idle
+                    state = BLE_STATE_IDLE;
+                }
+                break;
+            }
+
+            case BLE_STATE_CONNECTED: {
+                // Check for shutdown message
+                if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                    if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "BLE shutdown during connection");
+                        // Client disconnect is handled by GAP event handler
+                        state = BLE_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
+
+                // Check if client disconnected (set by GAP event handler)
+                if (!ble_adv_state.client_connected) {
+                    ESP_LOGI(TAG, "BLE client disconnected");
+
+                    // GAP event handler automatically restarts advertising
+                    if (ble_adv_state.advertising_active) {
+                        state = BLE_STATE_ADVERTISING;
+                    } else {
+                        state = BLE_STATE_IDLE;
+                    }
+                }
+                break;
+            }
+
+            case BLE_STATE_SHUTDOWN: {
+                // Loop exit handled by while condition
+                break;
             }
         }
 
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+
+    // Cleanup section
+    ESP_LOGI(TAG, "BLE task cleanup");
+
+    // Stop advertising if active
+    if (ble_adv_state.advertising_active) {
+        ble_stop_advertising();
+    }
+
+    // Note: Full BLE stack deinit (nimble_port_stop/deinit) could be added here
+    // but may cause issues if motor task enters deep sleep immediately
+
+    ESP_LOGI(TAG, "BLE task exiting");
+    vTaskDelete(NULL);
 }
 
 // DEEP SLEEP (same as baseline)
@@ -1471,6 +1608,10 @@ static void enter_deep_sleep(void) {
             if (led_on) led_set_color(128, 0, 128);
             else led_clear();
             led_on = !led_on;
+
+            // Feed watchdog during purple blink (motor_task subscribed at task start)
+            esp_task_wdt_reset();
+
             vTaskDelay(pdMS_TO_TICKS(PURPLE_BLINK_MS));
         }
     }
@@ -1581,7 +1722,14 @@ static void button_task(void *pvParameters) {
                 status_led_off();
                 task_message_t msg = {.type = MSG_EMERGENCY_SHUTDOWN};
                 xQueueSend(button_to_motor_queue, &msg, pdMS_TO_TICKS(100));
-                vTaskDelay(pdMS_TO_TICKS(500));
+                xQueueSend(button_to_ble_queue, &msg, pdMS_TO_TICKS(100));  // Shutdown BLE too
+                ESP_LOGI(TAG, "Shutdown messages sent to motor and BLE tasks");
+                state = BTN_STATE_SHUTDOWN_SENT;  // Transition to terminal state
+                break;
+
+            case BTN_STATE_SHUTDOWN_SENT:
+                // Terminal state - do nothing, waiting for deep sleep
+                // Motor task handles purple blink and deep sleep entry
                 break;
         }
 
@@ -1627,147 +1775,355 @@ static void battery_task(void *pvParameters) {
     }
 }
 
-// MOTOR TASK - receives messages
+// Helper: vTaskDelay that checks for mode changes periodically
+// Returns: true if mode change detected, false if delay completed normally
+static bool delay_with_mode_check(uint32_t delay_ms) {
+    const uint32_t CHECK_INTERVAL_MS = 50; // Check every 50ms for responsiveness
+    uint32_t remaining_ms = delay_ms;
+
+    while (remaining_ms > 0) {
+        uint32_t this_delay = (remaining_ms < CHECK_INTERVAL_MS) ? remaining_ms : CHECK_INTERVAL_MS;
+        vTaskDelay(pdMS_TO_TICKS(this_delay));
+        remaining_ms -= this_delay;
+
+        // Quick check for BLE parameter updates (instant response)
+        if (ble_params_updated) {
+            return true; // BLE parameters changed - reload immediately
+        }
+
+        // Quick check for mode change or shutdown (non-blocking peek)
+        task_message_t msg;
+        if (xQueuePeek(button_to_motor_queue, &msg, 0) == pdPASS) {
+            if (msg.type == MSG_MODE_CHANGE || msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                return true; // Mode change or shutdown detected
+            }
+        }
+    }
+
+    return false; // Delay completed normally
+}
+
+// MOTOR TASK - 10-state machine with instant mode switching
 static void motor_task(void *pvParameters) {
+    motor_state_t state = MOTOR_STATE_CHECK_MESSAGES;
     mode_t current_mode = MODE_1HZ_50;
     uint32_t session_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
     uint32_t led_indication_start_ms = session_start_ms;
     bool led_indication_active = true;
-    bool session_active = true;
+
+    // Motor timing variables (updated when mode changes)
+    uint32_t motor_on_ms = 0;
+    uint32_t coast_ms = 0;
+    uint8_t pwm_intensity = 0;
+    bool show_led = false;
+
+    // Back-EMF sampling flag and storage
+    bool sample_backemf = false;
+    int raw_mv_drive = 0, raw_mv_immed = 0, raw_mv_settled = 0;
+    int16_t bemf_drive = 0, bemf_immed = 0, bemf_settled = 0;
+
+    // Phase tracking for shared back-EMF states
+    bool in_forward_phase = true;
 
     // Initialize session timestamp for BLE
     session_start_time_ms = session_start_ms;
     current_mode_ble = current_mode;
 
+    // Subscribe to watchdog (needed for purple blink loop in enter_deep_sleep)
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+
     ESP_LOGI(TAG, "Motor task started: %s", modes[current_mode].name);
-    
-    while (session_active) {
-        // Check messages
-        task_message_t msg;
-        if (xQueueReceive(button_to_motor_queue, &msg, 0) == pdPASS) {
-            if (msg.type == MSG_MODE_CHANGE) {
-                current_mode = msg.data.new_mode;
-                current_mode_ble = current_mode;  // Update BLE tracking
-                ESP_LOGI(TAG, "Mode: %s", modes[current_mode].name);
-                led_indication_active = true;
-                led_indication_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-            } else if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
-                ESP_LOGI(TAG, "Emergency shutdown");
-                break;
-            }
-        }
-        
-        if (xQueueReceive(battery_to_motor_queue, &msg, 0) == pdPASS) {
-            if (msg.type == MSG_BATTERY_CRITICAL) {
-                ESP_LOGW(TAG, "Critical battery: %.2fV", msg.data.battery.voltage);
-                break;
-            }
-        }
-        
+
+    while (state != MOTOR_STATE_SHUTDOWN) {
         uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
         uint32_t elapsed = now - session_start_ms;
-        
-        if (elapsed >= SESSION_DURATION_MS) {
-            ESP_LOGI(TAG, "Session complete (20 min)");
-            break;
-        }
-        
-        bool sample_backemf = led_indication_active && ((now - led_indication_start_ms) < LED_INDICATION_TIME_MS);
-        bool last_minute = (elapsed >= WARNING_START_MS);
-        
-        if (led_indication_active && ((now - led_indication_start_ms) >= LED_INDICATION_TIME_MS)) {
-            led_indication_active = false;
-            led_clear();
-            ESP_LOGI(TAG, "LED off (battery conservation)");
-        }
 
-        // Get motor timing - use mutable variables for MODE_CUSTOM
-        uint32_t motor_on_ms, coast_ms;
-        uint8_t pwm_intensity;
-        bool show_led;
+        switch (state) {
+            case MOTOR_STATE_CHECK_MESSAGES: {
+                // Feed watchdog every cycle
+                esp_task_wdt_reset();
 
-        if (current_mode == MODE_CUSTOM) {
-            // Mode 5: Use BLE-configured settings
-            motor_on_ms = mode5_motor_on_ms;
-            coast_ms = mode5_coast_ms;
-            pwm_intensity = mode5_pwm_intensity;
-            // Mode 5 LED: If enabled, show always; if disabled, never show
-            show_led = mode5_led_enable || last_minute;
-        } else {
-            // Other modes: Use preset settings
-            motor_on_ms = modes[current_mode].motor_on_ms;
-            coast_ms = modes[current_mode].coast_ms;
-            pwm_intensity = PWM_INTENSITY_PERCENT;
-            // Other modes: Show LED for 10 seconds after mode change + last minute warning
-            show_led = led_indication_active || last_minute;
-        }
+                // Check for emergency shutdown and mode changes
+                task_message_t msg;
+                while (xQueueReceive(button_to_motor_queue, &msg, 0) == pdPASS) {
+                    if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "Emergency shutdown");
+                        state = MOTOR_STATE_SHUTDOWN;
+                        break;
+                    } else if (msg.type == MSG_MODE_CHANGE) {
+                        // Process LAST mode change only (purge queue)
+                        mode_t new_mode = msg.data.new_mode;
+                        while (xQueuePeek(button_to_motor_queue, &msg, 0) == pdPASS) {
+                            if (msg.type == MSG_MODE_CHANGE) {
+                                xQueueReceive(button_to_motor_queue, &msg, 0);
+                                new_mode = msg.data.new_mode;
+                            } else {
+                                break;
+                            }
+                        }
 
-        // FORWARD
-        motor_forward(pwm_intensity);
-        if (show_led) led_set_mode_color(current_mode);
-        
-        if (sample_backemf) {
-            if (motor_on_ms > 10) vTaskDelay(pdMS_TO_TICKS(motor_on_ms - 10));
+                        if (new_mode != current_mode) {
+                            current_mode = new_mode;
+                            current_mode_ble = new_mode;
+                            ESP_LOGI(TAG, "Mode: %s", modes[current_mode].name);
+                            led_indication_active = true;
+                            led_indication_start_ms = now;
+                        }
+                    }
+                }
 
-            int raw_mv_drive, raw_mv_immed, raw_mv_settled;
-            int16_t bemf_drive, bemf_immed, bemf_settled;
-            read_backemf(&raw_mv_drive, &bemf_drive);
-            vTaskDelay(pdMS_TO_TICKS(10));
+                // Check battery messages
+                if (xQueueReceive(battery_to_motor_queue, &msg, 0) == pdPASS) {
+                    if (msg.type == MSG_BATTERY_CRITICAL) {
+                        ESP_LOGW(TAG, "Critical battery: %.2fV", msg.data.battery.voltage);
+                        state = MOTOR_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
 
-            motor_coast();
-            if (show_led) led_clear();
+                // Check session timeout
+                if (elapsed >= SESSION_DURATION_MS) {
+                    ESP_LOGI(TAG, "Session complete (20 min)");
+                    state = MOTOR_STATE_SHUTDOWN;
+                    break;
+                }
 
-            read_backemf(&raw_mv_immed, &bemf_immed);
-            vTaskDelay(pdMS_TO_TICKS(BACKEMF_SETTLE_MS));
-            read_backemf(&raw_mv_settled, &bemf_settled);
+                // Update motor parameters based on current mode
+                bool last_minute = (elapsed >= WARNING_START_MS);
 
-            ESP_LOGI(TAG, "FWD: %dmV→%+dmV | %dmV→%+dmV | %dmV→%+dmV",
-                     raw_mv_drive, bemf_drive, raw_mv_immed, bemf_immed, raw_mv_settled, bemf_settled);
+                if (current_mode == MODE_CUSTOM) {
+                    motor_on_ms = mode5_motor_on_ms;
+                    coast_ms = mode5_coast_ms;
+                    pwm_intensity = mode5_pwm_intensity;
+                    show_led = mode5_led_enable || last_minute;
+                } else {
+                    motor_on_ms = modes[current_mode].motor_on_ms;
+                    coast_ms = modes[current_mode].coast_ms;
+                    pwm_intensity = PWM_INTENSITY_PERCENT;
+                    show_led = led_indication_active || last_minute;
+                }
 
-            uint32_t remaining = coast_ms - BACKEMF_SETTLE_MS;
-            if (remaining > 0) vTaskDelay(pdMS_TO_TICKS(remaining));
-        } else {
-            vTaskDelay(pdMS_TO_TICKS(motor_on_ms));
-            motor_coast();
-            if (show_led) led_clear();
-            vTaskDelay(pdMS_TO_TICKS(coast_ms));
-        }
+                // Clear BLE parameter update flag (parameters have been reloaded)
+                ble_params_updated = false;
 
-        // REVERSE (same pattern)
-        motor_reverse(pwm_intensity);
-        if (show_led) led_set_mode_color(current_mode);
+                // Update back-EMF sampling flag (first 10 seconds after mode change)
+                sample_backemf = led_indication_active && ((now - led_indication_start_ms) < LED_INDICATION_TIME_MS);
 
-        if (sample_backemf) {
-            if (motor_on_ms > 10) vTaskDelay(pdMS_TO_TICKS(motor_on_ms - 10));
+                // Disable LED indication after 10 seconds
+                if (led_indication_active && ((now - led_indication_start_ms) >= LED_INDICATION_TIME_MS)) {
+                    led_indication_active = false;
+                    led_clear();
+                    ESP_LOGI(TAG, "LED off (battery conservation)");
+                }
 
-            int raw_mv_drive, raw_mv_immed, raw_mv_settled;
-            int16_t bemf_drive, bemf_immed, bemf_settled;
-            read_backemf(&raw_mv_drive, &bemf_drive);
-            vTaskDelay(pdMS_TO_TICKS(10));
+                // Don't transition to FORWARD if shutting down
+                if (state == MOTOR_STATE_SHUTDOWN) {
+                    break;
+                }
 
-            motor_coast();
-            if (show_led) led_clear();
+                // Transition to FORWARD
+                state = MOTOR_STATE_FORWARD_ACTIVE;
+                break;
+            }
 
-            read_backemf(&raw_mv_immed, &bemf_immed);
-            vTaskDelay(pdMS_TO_TICKS(BACKEMF_SETTLE_MS));
-            read_backemf(&raw_mv_settled, &bemf_settled);
+            case MOTOR_STATE_FORWARD_ACTIVE: {
+                // Start motor forward
+                motor_forward(pwm_intensity);
+                if (show_led) led_set_mode_color(current_mode);
 
-            ESP_LOGI(TAG, "REV: %dmV→%+dmV | %dmV→%+dmV | %dmV→%+dmV",
-                     raw_mv_drive, bemf_drive, raw_mv_immed, bemf_immed, raw_mv_settled, bemf_settled);
+                // Mark that we're in forward phase
+                in_forward_phase = true;
 
-            uint32_t remaining = coast_ms - BACKEMF_SETTLE_MS;
-            if (remaining > 0) vTaskDelay(pdMS_TO_TICKS(remaining));
-        } else {
-            vTaskDelay(pdMS_TO_TICKS(motor_on_ms));
-            motor_coast();
-            if (show_led) led_clear();
-            vTaskDelay(pdMS_TO_TICKS(coast_ms));
+                if (sample_backemf) {
+                    // Shortened active time for back-EMF sampling
+                    uint32_t active_time = (motor_on_ms > 10) ? (motor_on_ms - 10) : motor_on_ms;
+
+                    if (delay_with_mode_check(active_time)) {
+                        motor_coast();
+                        led_clear();
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+
+                    // Sample #1: During active drive
+                    read_backemf(&raw_mv_drive, &bemf_drive);
+
+                    // Short delay before coasting
+                    vTaskDelay(pdMS_TO_TICKS(10));
+
+                    // Transition to shared immediate back-EMF sample state
+                    state = MOTOR_STATE_BEMF_IMMEDIATE;
+                } else {
+                    // Full active time, no sampling
+                    if (delay_with_mode_check(motor_on_ms)) {
+                        motor_coast();
+                        led_clear();
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+
+                    // CRITICAL: Always coast motor and clear LED!
+                    motor_coast();
+                    led_clear();
+
+                    // Skip back-EMF states, go straight to coast remaining
+                    state = MOTOR_STATE_FORWARD_COAST_REMAINING;
+                }
+                break;
+            }
+
+            case MOTOR_STATE_BEMF_IMMEDIATE: {
+                // Coast motor and clear LED
+                motor_coast();
+                led_clear();
+
+                // Sample #2: Immediately after coast starts
+                read_backemf(&raw_mv_immed, &bemf_immed);
+
+                // Transition to settling state (shared)
+                state = MOTOR_STATE_COAST_SETTLE;
+                break;
+            }
+
+            case MOTOR_STATE_COAST_SETTLE: {
+                // Wait for back-EMF to settle
+                if (delay_with_mode_check(BACKEMF_SETTLE_MS)) {
+                    state = MOTOR_STATE_CHECK_MESSAGES;
+                    break;
+                }
+
+                // Sample #3: Settled back-EMF reading
+                read_backemf(&raw_mv_settled, &bemf_settled);
+
+                // Log readings with direction label
+                if (in_forward_phase) {
+                    ESP_LOGI(TAG, "FWD: %dmV→%+dmV | %dmV→%+dmV | %dmV→%+dmV",
+                             raw_mv_drive, bemf_drive, raw_mv_immed, bemf_immed,
+                             raw_mv_settled, bemf_settled);
+                } else {
+                    ESP_LOGI(TAG, "REV: %dmV→%+dmV | %dmV→%+dmV | %dmV→%+dmV",
+                             raw_mv_drive, bemf_drive, raw_mv_immed, bemf_immed,
+                             raw_mv_settled, bemf_settled);
+                }
+
+                // Transition to appropriate COAST_REMAINING state based on phase
+                if (in_forward_phase) {
+                    state = MOTOR_STATE_FORWARD_COAST_REMAINING;
+                } else {
+                    state = MOTOR_STATE_REVERSE_COAST_REMAINING;
+                }
+                break;
+            }
+
+            case MOTOR_STATE_FORWARD_COAST_REMAINING: {
+                // Calculate remaining coast time
+                uint32_t remaining_coast;
+                if (sample_backemf) {
+                    // Already spent BACKEMF_SETTLE_MS, finish the rest
+                    remaining_coast = (coast_ms > BACKEMF_SETTLE_MS) ? (coast_ms - BACKEMF_SETTLE_MS) : 0;
+                } else {
+                    // Full coast time
+                    remaining_coast = coast_ms;
+                }
+
+                if (remaining_coast > 0) {
+                    if (delay_with_mode_check(remaining_coast)) {
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+                }
+
+                // Transition to REVERSE phase
+                state = MOTOR_STATE_REVERSE_ACTIVE;
+                break;
+            }
+
+            case MOTOR_STATE_REVERSE_ACTIVE: {
+                // Start motor reverse
+                motor_reverse(pwm_intensity);
+                if (show_led) led_set_mode_color(current_mode);
+
+                // Mark that we're in reverse phase
+                in_forward_phase = false;
+
+                if (sample_backemf) {
+                    // Shortened active time for back-EMF sampling
+                    uint32_t active_time = (motor_on_ms > 10) ? (motor_on_ms - 10) : motor_on_ms;
+
+                    if (delay_with_mode_check(active_time)) {
+                        motor_coast();
+                        led_clear();
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+
+                    // Sample #1: During active drive
+                    read_backemf(&raw_mv_drive, &bemf_drive);
+
+                    // Short delay before coasting
+                    vTaskDelay(pdMS_TO_TICKS(10));
+
+                    // Transition to shared immediate back-EMF sample state
+                    state = MOTOR_STATE_BEMF_IMMEDIATE;
+                } else {
+                    // Full active time, no sampling
+                    if (delay_with_mode_check(motor_on_ms)) {
+                        motor_coast();
+                        led_clear();
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+
+                    // CRITICAL: Always coast motor and clear LED!
+                    motor_coast();
+                    led_clear();
+
+                    // Skip back-EMF states, go straight to coast remaining
+                    state = MOTOR_STATE_REVERSE_COAST_REMAINING;
+                }
+                break;
+            }
+
+            case MOTOR_STATE_REVERSE_COAST_REMAINING: {
+                // Calculate remaining coast time
+                uint32_t remaining_coast;
+                if (sample_backemf) {
+                    // Already spent BACKEMF_SETTLE_MS, finish the rest
+                    remaining_coast = (coast_ms > BACKEMF_SETTLE_MS) ? (coast_ms - BACKEMF_SETTLE_MS) : 0;
+                } else {
+                    // Full coast time
+                    remaining_coast = coast_ms;
+                }
+
+                if (remaining_coast > 0) {
+                    if (delay_with_mode_check(remaining_coast)) {
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+                }
+
+                // Cycle complete, check messages again
+                state = MOTOR_STATE_CHECK_MESSAGES;
+                break;
+            }
+
+            case MOTOR_STATE_SHUTDOWN: {
+                // Loop exit handled by while condition
+                break;
+            }
         }
     }
-    
+
+    // Final cleanup
     motor_coast();
+    led_clear();
     vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Always enter deep sleep on shutdown (never returns)
+    // This handles: emergency shutdown, battery critical, and session timeout
     enter_deep_sleep();
+
+    // Never reached, but kept for safety
     vTaskDelete(NULL);
 }
 

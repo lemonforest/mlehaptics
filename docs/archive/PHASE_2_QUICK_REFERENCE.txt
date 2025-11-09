@@ -40,7 +40,7 @@
   CONFIG_PM_POWER_DOWN_PERIPHERAL_IN_LIGHT_SLEEP=y ← Save more power
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ BATTERY LIFE PROJECTION (dual 350mAh - 700mAh total)                        ┃
+┃ BATTERY LIFE PROJECTION (dual 320mAh - 640mAh total)                        ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
   Mode          Phase 1 (Current)  Phase 2 (w/ PM)  Improvement

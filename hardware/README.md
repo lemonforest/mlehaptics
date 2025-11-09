@@ -21,7 +21,7 @@ Existing firmware test files in `/test` directory still use the OLD GPIO definit
 
 ```c
 // OLD GPIO definitions (pre-v0.663399ADS hardware)
-#define GPIO_BUTTON     20  // ❌ Old hardware via jumper to GPIO1
+#define GPIO_BUTTON     18  // ❌ Old hardware via jumper to GPIO1
 #define GPIO_M_IN1      19  // ✅ Still correct
 #define GPIO_M_IN2      20  // ❌ Changed to GPIO18
 
@@ -100,7 +100,7 @@ hardware/
 - ERM vibration motors (φ10mm × 3mm)
 - WS2812B RGB LEDs (optional - for therapy light feature)
 - H-bridge MOSFETs (AO3400A/AO3401A family)
-- dual 350mAh LiPo batteries (700mAh)
+- dual 320mAh LiPo batteries (640mAh)
 - Passive components (resistors, capacitors)
 
 ### 3D Printing the Enclosure
@@ -200,7 +200,7 @@ Hardware LEDs (not GPIO-controlled):
 
 ### Enclosure Features
 - **Form factor:** Designed for Seeed XIAO ESP32-C6
-- **Battery compartment:** Fits dual 350mAh LiPo batteries (700mAh)
+- **Battery compartment:** Fits dual 320mAh LiPo batteries (640mAh)
 - **Button access:** Hardware button accessible through case
 - **Material variants:** Supports both opaque and translucent case builds
 - **Variant options:** Standard (with LED/pin access) or CLRMOD (clean, no access holes)

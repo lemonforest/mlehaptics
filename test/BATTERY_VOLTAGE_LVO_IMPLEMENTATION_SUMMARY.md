@@ -257,7 +257,7 @@ Battery: 3.85V (Raw: 2.89V at GPIO2) [85%] - 5:23 elapsed
 - **Current draw:** ~50mA average
 - **Duration:** 20 minutes per session
 - **Energy used:** 16.67 mAh per session
-- **dual 350mAh batteries (700mAh):** ~21 sessions per charge
+- **dual 320mAh batteries (640mAh):** ~21 sessions per charge
 
 ### Deep Sleep Mode
 - **Current draw:** <1mA
