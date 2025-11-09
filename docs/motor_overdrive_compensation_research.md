@@ -277,7 +277,7 @@ V_BEMF = V_supply - (I_measured × R_coil)
 ```c
 // During PWM off-time (motor coasting)
 esp_err_t measure_bemf(uint32_t *rpm_out) {
-    // Wait for RC settling (5τ = 375µs, use 1ms for safety margin)
+    // Wait for RC settling (5τ = 550µs, use 1ms for safety margin)
     vTaskDelay(pdMS_TO_TICKS(1));  // 1ms delay
 
     // Read ADC
@@ -332,7 +332,7 @@ void adaptive_overdrive_step(overdrive_state_t *state) {
 
 **Disadvantages:**
 ❌ Requires hardware connection (OUTA to ADC)
-❌ Adds ~1ms measurement latency per sample (RC settling time)
+❌ Adds ~1ms measurement latency per sample (0.55ms RC settling + safety margin)
 ❌ Interrupts PWM drive during measurement (brief coast period required)
 
 ### 3.4 BEMF-Derived Motor Constants
@@ -579,7 +579,7 @@ case MOTOR_STATE_FORWARD_ACTIVE: {
 
 ```c
 // BEMF measurement with OUTA signal
-#define BEMF_SETTLING_TIME_MS  1   // RC settling (5τ = 375µs, rounded up)
+#define BEMF_SETTLING_TIME_MS  1   // RC settling (5τ = 550µs, rounded up for safety)
 #define BEMF_TARGET_RPM_THRESHOLD  0.9f  // Switch at 90% of target
 
 typedef enum {
@@ -1011,38 +1011,40 @@ uint32_t overdrive_duration = calculate_overdrive_duration_ms(pulse_ms, tau_mech
 ```
 Motor OUTA → R1 (10kΩ) → ADC Input (GPIO0/1) → R2 (10kΩ) → GND
                               ↓
-                         C (15nF) → GND
+                         C (22nF) → GND
                               ↓
                     GPIO Internal Pulldown (100kΩ, optional)
 ```
 
-**Component Values (Confirmed):**
+**Component Values (Production BOM):**
 - **Voltage Divider:** 10kΩ / 10kΩ (scales ±3.3V motor swing to 0-3.3V ADC range)
-- **Filter Capacitor:** 15nF to ground
+- **Filter Capacitor:** 22nF to ground (chosen for better PWM filtering vs. 10nF)
 - **GPIO Pulldown:** 100kΩ internal (when enabled, negligible compared to 10kΩ divider)
+
+**Design Note:** Original design used 15nF, prototypes built with 12nF. Production BOM standardized on 22nF for improved noise immunity and signal quality.
 
 **RC Time Constant Calculation:**
 
 ```
 R_thevenin = (R1 || R2) = (10kΩ || 10kΩ) = 5kΩ
-τ = R_thevenin × C = 5kΩ × 15nF = 75µs
+τ = R_thevenin × C = 5kΩ × 22nF = 110µs
 
 Settling time (5τ for 99.3% accuracy):
-t_settle = 5 × 75µs = 375µs ≈ 0.4ms
+t_settle = 5 × 110µs = 550µs ≈ 0.55ms
 ```
 
-**Key Insight:** The settling time is **much faster than initially assumed** (0.4ms vs. 7.5ms with 100kΩ assumption). This enables more frequent BEMF sampling without interrupting therapeutic pulse patterns.
+**Key Insight:** The settling time is **much faster than initially assumed** (0.55ms vs. 7.5ms with 100kΩ assumption). This enables frequent BEMF sampling without interrupting therapeutic pulse patterns. The code uses 1ms delays for safety margin.
 
 **Low-Pass Filter Cutoff Frequency:**
 
 ```
-f_cutoff = 1 / (2π × R × C) = 1 / (2π × 5kΩ × 15nF) ≈ 2.1 kHz
+f_cutoff = 1 / (2π × R × C) = 1 / (2π × 5kΩ × 22nF) ≈ 1.45 kHz
 ```
 
 **Effect on 25 kHz PWM ripple:**
-- PWM fundamental at 25 kHz is **~12× above cutoff**
-- Attenuation: -20 dB/decade beyond cutoff → ~-22 dB at 25 kHz
-- **Result:** PWM ripple reduced by >90%, ADC reads smooth DC average during active drive
+- PWM fundamental at 25 kHz is **~17× above cutoff**
+- Attenuation: -20 dB/decade beyond cutoff → ~-25 dB at 25 kHz
+- **Result:** PWM ripple reduced by >94%, ADC reads very clean DC average during active drive
 
 ### 10.2 Circuit Behavior in Different H-Bridge States
 
@@ -1101,19 +1103,19 @@ V_ADC_measured = V_BEMF / 2
 
 Where:
 - V_BEMF = Pure back-EMF from motor (no drive voltage present)
-- Clean signal after RC settling (375µs)
+- Clean signal after RC settling (550µs)
 ```
 
 **This is the PRIMARY measurement mode** for BEMF-based overdrive control:
 1. Set motor to coast (IN1=IN2=LOW)
-2. Wait 0.4ms for RC settling (5τ = 375µs)
+2. Wait 0.55ms for RC settling (5τ = 550µs)
 3. Read ADC to get clean BEMF measurement
 4. Calculate motor RPM from BEMF
 
 **Current Paths:**
 - Motor → R1 (10kΩ) → ADC input
 - ADC input → R2 (10kΩ) → GND
-- ADC input → C (15nF) → GND (filter cap slowly discharges/charges to BEMF voltage)
+- ADC input → C (22nF) → GND (filter cap slowly discharges/charges to BEMF voltage)
 - GPIO pulldown (100kΩ) provides weak additional path to ground (negligible)
 
 **Measurement Code (Clean BEMF):**
@@ -1123,7 +1125,7 @@ esp_err_t measure_bemf_during_coast(float *rpm_out) {
     // Ensure motor is coasting
     motor_coast();  // Sets IN1=IN2=LOW
 
-    // Wait for RC settling (5τ = 375µs, round up to 1ms for margin)
+    // Wait for RC settling (5τ = 550µs, round up to 1ms for margin)
     vTaskDelay(pdMS_TO_TICKS(1));  // 1ms delay (conservative)
 
     // Read ADC
@@ -1239,7 +1241,7 @@ When new boards arrive with BEMF properly connected to OUTA:
 1. Trigger on motor coast transition (IN1=IN2 transition to LOW)
 2. Measure voltage at ADC input (GPIO0)
 3. Verify exponential decay/rise to BEMF voltage
-4. Confirm 5τ ≈ 375µs settling time
+4. Confirm 5τ ≈ 550µs settling time
 
 **Expected Waveform:**
 ```
@@ -1248,10 +1250,10 @@ V_ADC
   |     Active Drive (PWM ripple filtered)
   |  ___/\/\/\/\___
   |  |             \
-  |  |              \_____ BEMF steady-state (after 375µs)
+  |  |              \_____ BEMF steady-state (after 550µs)
   |  |               <-5τ->
   +--|---------------|----> Time
-     Coast starts   375µs
+     Coast starts   550µs
 ```
 
 #### **Test 2: Stall Detection Empirical Validation**
@@ -1393,15 +1395,16 @@ While Extended Kalman Filters and Luenberger observers are powerful for PMSM/BLD
 
 ### Updated Circuit Analysis Findings
 
-**Key Discoveries from 10kΩ/10kΩ Voltage Divider Analysis:**
+**Key Discoveries from 10kΩ/10kΩ Voltage Divider + 22nF Filter Analysis:**
 
-1. **RC Settling Time:** 375µs (NOT 7.5ms as initially assumed with 100kΩ)
+1. **RC Settling Time:** 550µs (NOT 7.5ms as initially assumed with 100kΩ)
    - Much faster than expected, enabling frequent BEMF sampling
    - Fast enough to sample during natural coast periods without timing impact
+   - Production BOM uses 22nF for improved signal quality vs. 10nF option
 
-2. **PWM Ripple Filtering:** 25kHz PWM attenuated by >90% (2.1kHz cutoff)
-   - ADC reads smooth DC average even during active drive
-   - Enables stall detection hypothesis testing (ADC reading during drive)
+2. **PWM Ripple Filtering:** 25kHz PWM attenuated by >94% (1.45kHz cutoff)
+   - ADC reads very clean DC average even during active drive
+   - Excellent noise immunity for stall detection hypothesis testing
 
 3. **Periodic Calibration Recommendation:** Update motor Kv every 10 seconds
    - Adapts to battery voltage sag (slow drift over minutes)

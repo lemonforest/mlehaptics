@@ -98,7 +98,7 @@ GPIO0 ← Connected to motor_out_a (H-bridge output to motor)
               │
 OUTA ─[10kΩ]─┤  ← Must connect to H-bridge OUTPUT, not control input!
               │
-           [15nF]
+           [22nF]
               │
              GND
 ```
@@ -106,7 +106,7 @@ OUTA ─[10kΩ]─┤  ← Must connect to H-bridge OUTPUT, not control input!
 **Requirements:**
 - ✅ Connect to motor_out_a (H-bridge output)
 - ✅ R_load must be NOT POPULATED
-- ✅ 15nF capacitor for PWM filtering
+- ✅ 22nF capacitor for PWM filtering (production BOM, prototypes used 12nF)
 - ❌ Do NOT connect to motor_ctrl_a (PWM control signal)
 
 **Why This Matters:**

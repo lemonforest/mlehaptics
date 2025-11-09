@@ -87,7 +87,7 @@ REV: Drive: GPIO0=XXXXmV → YYYYmV | Coast-Immed: GPIO0=XXXXmV → YYYYmV | Coa
 - Check summing network connections
 - Verify R_load is NOT populated
 - Verify 10kΩ resistors on 3.3V and OUTA
-- Check 15nF capacitor placement
+- Check 22nF capacitor placement (prototypes may have 12nF or 15nF)
 
 ### If Forward/Reverse Drive Readings Are Different:
 ✅ **Expected and good!**

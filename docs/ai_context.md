@@ -280,8 +280,8 @@ esp_err_t motor_emergency_stop(void);
  * - Reads back-EMF voltage on GPIO0 (OUTA from H-bridge) during coast periods
  * - Signal conditioning circuit: V_GPIO0 = 1.65V + 0.5 × V_OUTA
  *   - Maps -3.3V to +3.3V back-EMF → 0V to 3.3V ADC range (100% utilization)
- *   - R_bias = R_signal = 10kΩ, R_load unpopulated, C_filter = 15nF
- *   - 2.1kHz low-pass filter removes 25kHz PWM noise
+ *   - R_bias = R_signal = 10kΩ, R_load unpopulated, C_filter = 22nF
+ *   - 1.45kHz low-pass filter removes 25kHz PWM noise (>94% attenuation)
  * - Stalled motor: back-EMF magnitude < 100mV (essentially no back-EMF)
  * - Normal operation: back-EMF magnitude > 1000mV (~1-2V depending on speed)
  * - Power consumption: 165µA continuous (bias network)
@@ -1024,8 +1024,8 @@ typedef struct {
 #define BACKEMF_R_BIAS                      10000   // 10kΩ from 3.3V to GPIO0
 #define BACKEMF_R_SIGNAL                    10000   // 10kΩ from OUTA to GPIO0
 // Note: R_load intentionally NOT POPULATED for maximum ADC range (100%)
-#define BACKEMF_C_FILTER_NF                 15      // 15nF low-pass filter (2.1kHz cutoff)
-#define BACKEMF_FILTER_CUTOFF_HZ            2100    // Removes 25kHz PWM, preserves motor back-EMF
+#define BACKEMF_C_FILTER_NF                 22      // 22nF low-pass filter (1.45kHz cutoff, >94% PWM attenuation)
+#define BACKEMF_FILTER_CUTOFF_HZ            1450    // Removes 25kHz PWM, preserves motor back-EMF
 #define BACKEMF_BIAS_CURRENT_UA             165     // Continuous bias current
 
 // Motor stall detection thresholds (battery voltage sensing - backup method)

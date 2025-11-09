@@ -100,11 +100,12 @@ This test will help you determine:
               │
 OUTA ─[10kΩ]─┤
               │
-           [15nF]
+           [22nF]
               │
              GND
 ```
 **CRITICAL:** R_load must be **NOT POPULATED**!
+**Note:** Production BOM uses 22nF (prototypes may have 12nF or 15nF)
 
 ### Battery Voltage Divider (GPIO2)
 ```

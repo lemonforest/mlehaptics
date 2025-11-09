@@ -902,11 +902,12 @@ typedef struct {
 OUTA ---/\/\/\---+--- GPIO0 (ADC input) ---> [ESP32-C6 ADC, ~100kΩ-1MΩ input Z]
                  |
               C_filter
-               (15nF)
+               (22nF)
                  |
                 GND
 
 Note: R_load intentionally NOT POPULATED for maximum ADC range
+Production: 22nF capacitor (prototypes used 12nF, original design 15nF)
 ```
 
 **Circuit Analysis:**
@@ -948,11 +949,11 @@ The negative back-EMF is handled by the voltage divider action between R_bias an
 ```
 R_parallel = R_bias || R_signal = 10kΩ || 10kΩ = 5kΩ
 f_c = 1 / (2π × R_parallel × C_filter)
-f_c = 1 / (2π × 5kΩ × 15nF) ≈ 2.1 kHz
+f_c = 1 / (2π × 5kΩ × 22nF) ≈ 1.45 kHz
 
-- Filters 25kHz PWM switching noise (12× attenuation)
+- Filters 25kHz PWM switching noise (17× attenuation, >94% reduction)
 - Preserves ~100-200Hz motor back-EMF fundamental frequency
-- Settles in ~0.5ms (sufficient for 10ms coast period)
+- Settles in ~0.55ms (5τ = 550µs, sufficient for 1ms+ coast measurement window)
 ```
 
 **Power Consumption:**

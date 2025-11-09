@@ -16,11 +16,12 @@
 OUTA ---/\/\/\---+--- GPIO0 (ADC) ---> [ESP32-C6, ~100kΩ-1MΩ input Z]
                  |
               C_filter
-               (15nF)
+               (22nF)
                  |
                 GND
 
 Note: R_load intentionally NOT POPULATED
+Production: 22nF capacitor (prototypes used 12nF, original design 15nF)
 ```
 
 ### The Elegant Math
@@ -63,12 +64,12 @@ Adding R_load to ground pulls GPIO0 down, breaking the symmetry:
 ### Filter Performance
 
 ```
-Cutoff frequency: f_c = 1 / (2π × 5kΩ × 15nF) ≈ 2.1 kHz
+Cutoff frequency: f_c = 1 / (2π × 5kΩ × 22nF) ≈ 1.45 kHz
 
 Attenuation:
-- 25kHz PWM noise: -12× (removes switching artifacts)
+- 25kHz PWM noise: ~17× attenuation, >94% reduction (removes switching artifacts)
 - 100-200Hz back-EMF: Passed with minimal loss
-- Settling time: ~0.5ms (fits easily in 10ms coast period)
+- Settling time: ~0.55ms (5τ = 550µs, fits easily in 10ms coast period)
 ```
 
 ### Power Consumption Comparison
@@ -592,11 +593,11 @@ The crosstalk is **internal to ESP32-C6 silicon**, not from external signals.
 
 ### Key Insights Documented
 
-✓ **Jumper wire strategy** for deep sleep wake without PCB rework  
-✓ **Voltage averaging math** - much simpler than initially thought!  
-✓ **Why R_load unpopulated** - breaks symmetry and wastes ADC range  
-✓ **Power efficiency comparison** - back-EMF wins even with continuous bias  
-✓ **Filter design** - 2.1kHz removes PWM, preserves motor signal  
+✓ **Jumper wire strategy** for deep sleep wake without PCB rework
+✓ **Voltage averaging math** - much simpler than initially thought!
+✓ **Why R_load unpopulated** - breaks symmetry and wastes ADC range
+✓ **Power efficiency comparison** - back-EMF wins even with continuous bias
+✓ **Filter design** - 1.45kHz removes PWM (>94% attenuation), preserves motor signal
 ✓ **ESP32-C6 GPIO crosstalk** - documented behavior, practical mitigation  
 ✓ **Shoot-through analysis** - external pull-downs prevent MOSFET destruction  
 ✓ **Hardware debounce** - external R-C network, no internal pull-up needed  
@@ -627,11 +628,11 @@ The crosstalk is **internal to ESP32-C6 silicon**, not from external signals.
 
 ### Engineering Wins
 
-✅ **No PCB rework required** - simple jumper wire solution for button  
-✅ **Maximum ADC utilization** - 100% range with perfect centering  
-✅ **Power optimized** - 165µA continuous monitoring (33% better)  
-✅ **Elegant circuit** - voltage averaging, not bias + signal  
-✅ **Well filtered** - 2.1kHz cutoff removes PWM noise  
+✅ **No PCB rework required** - simple jumper wire solution for button
+✅ **Maximum ADC utilization** - 100% range with perfect centering
+✅ **Power optimized** - 165µA continuous monitoring (33% better)
+✅ **Elegant circuit** - voltage averaging, not bias + signal
+✅ **Well filtered** - 1.45kHz cutoff removes PWM noise (>94% attenuation)
 ✅ **Critical behavior found** - before hardware testing, enabling informed decisions  
 ✅ **Risk properly assessed** - unintended activation vs. destruction  
 ✅ **Practical testing plan** - prototype safe to characterize behavior  
@@ -641,7 +642,7 @@ The crosstalk is **internal to ESP32-C6 silicon**, not from external signals.
 
 **Hardware:**
 - [ ] Solder jumper wire: D10/GPIO18 → D1/GPIO1
-- [ ] Populate: R_bias = 10kΩ, R_signal = 10kΩ, C_filter = 15nF
+- [ ] Populate: R_bias = 10kΩ, R_signal = 10kΩ, C_filter = 22nF
 - [ ] Leave unpopulated: R_load (for maximum ADC range)
 - [ ] Verify: GPIO18 → GPIO1 continuity
 

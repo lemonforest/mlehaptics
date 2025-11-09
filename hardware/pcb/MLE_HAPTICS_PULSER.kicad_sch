@@ -9405,7 +9405,7 @@
 				)
 			)
 		)
-		(property "Value" "15nF"
+		(property "Value" "22nF"
 			(at 110.49 184.15 0)
 			(effects
 				(font
