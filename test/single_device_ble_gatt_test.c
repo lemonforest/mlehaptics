@@ -27,6 +27,7 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_sleep.h"
+#include "esp_pm.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_task_wdt.h"
@@ -74,6 +75,7 @@ static const char *TAG = "BLE_GATT_TEST";
 #define VOLTAGE_MULTIPLIER      (1.0f / DIVIDER_RATIO)
 #define BAT_VOLTAGE_MAX         4.2f
 #define BAT_VOLTAGE_MIN         3.0f
+#define LVO_NO_BATTERY_THRESHOLD 0.5f
 #define LVO_CUTOFF_VOLTAGE      3.2f
 #define LVO_WARNING_VOLTAGE     3.0f
 
@@ -461,7 +463,15 @@ static bool check_low_voltage_cutout(void) {
     if (ret != ESP_OK) return true;
     
     ESP_LOGI(TAG, "LVO check: %.2fV [%d%%]", battery_v, percentage);
-    
+
+    // Check if no battery present (< 0.5V)
+    if (battery_v < LVO_NO_BATTERY_THRESHOLD) {
+        ESP_LOGW(TAG, "LVO check: No battery detected (%.2fV) - allowing operation", battery_v);
+        ESP_LOGW(TAG, "Device can be programmed/tested without battery");
+        ESP_LOGI(TAG, "LVO check: SKIPPED - no battery present");
+        return true;  // Skip LVO, continue operation
+    }
+
     if (battery_v < LVO_CUTOFF_VOLTAGE) {
         ESP_LOGW(TAG, "LVO TRIGGERED: %.2fV", battery_v);
         if (battery_v >= LVO_WARNING_VOLTAGE) low_battery_warning();
@@ -2314,6 +2324,23 @@ void app_main(void) {
     if (!check_low_voltage_cutout()) {
         ESP_LOGE(TAG, "LVO failed!");
         while(1) vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    // Configure automatic power management for light sleep during idle
+    // This enables automatic light sleep when all FreeRTOS tasks are blocked (vTaskDelay)
+    // BLE stack is compatible - it will wake for radio events automatically
+    ESP_LOGI(TAG, "Configuring automatic light sleep...");
+    esp_pm_config_t pm_config = {
+        .max_freq_mhz = 160,        // Max CPU frequency during active operation
+        .min_freq_mhz = 10,         // Min CPU frequency (can drop to 10MHz when idle)
+        .light_sleep_enable = true  // Enable automatic light sleep during vTaskDelay
+    };
+    esp_err_t pm_ret = esp_pm_configure(&pm_config);
+    if (pm_ret == ESP_OK) {
+        ESP_LOGI(TAG, "Automatic light sleep enabled (160MHz max, 10MHz min)");
+        ESP_LOGI(TAG, "Expected power savings: ~10-20mA during motor coast periods");
+    } else {
+        ESP_LOGW(TAG, "PM configure failed: %s (continuing anyway)", esp_err_to_name(pm_ret));
     }
 
     ESP_LOGI(TAG, "Starting tasks...");
