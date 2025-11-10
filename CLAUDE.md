@@ -37,8 +37,10 @@ This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bila
 - **Button:** Single hardware button for mode switching and sleep
 
 **Critical GPIO Constraints:**
-- **GPIO19/GPIO20 Crosstalk:** Known hardware issue - cannot use both simultaneously
-- **Next PCB Revision:** Button will move to GPIO1 to resolve this
+- **GPIO19/GPIO20 Crosstalk:** ESP32-C6 silicon issue - crosstalk during boot can cause unintended GPIO20 activation (see [docs/GPIO_UPDATE_2025-10-17.md](docs/GPIO_UPDATE_2025-10-17.md) for details)
+- **Current Implementation:** Button on GPIO1 (moved from GPIO18 via hardware jumper), GPIO19/20 used for H-bridge IN2/IN1
+- **Mitigation:** External pull-downs prevent shoot-through; crosstalk risk remains during boot/reset
+- **Future PCB:** May move IN1 from GPIO20 to GPIO18 to eliminate crosstalk entirely
 
 ---
 
@@ -176,7 +178,7 @@ void example_task(void *arg) {
 **Phase 2 Planning (Not Yet Implemented):**
 - Explicit light sleep during inter-stimulus intervals
 - Dedicated haptic driver ICs (DRV2605L family)
-- Advanced power profiling with dual 350mAh batteries (700mAh)
+- Advanced power profiling with dual 320mAh batteries (640mAh)
 
 ---
 
@@ -223,28 +225,19 @@ Motor B: [375ms OFF] [125ms ON]
 ### GPIO Pin Mapping
 
 ```c
-// Motors (H-bridge TB6612FNG)
-#define GPIO_M1_IN1  2  // Motor 1 direction
-#define GPIO_M1_IN2  3
-#define GPIO_M1_PWM  4  // Motor 1 speed (LEDC)
-#define GPIO_M2_IN1  6  // Motor 2 direction
-#define GPIO_M2_IN2  7
-#define GPIO_M2_PWM  21 // Motor 2 speed (LEDC)
-
-// LEDs (WS2812B via RMT)
-#define GPIO_WS2812B_DATA   5  // RMT data pin
-#define GPIO_WS2812B_ENABLE 10 // Active-low power enable
-
-// Button
-#define GPIO_BUTTON 20  // **TEMPORARY** - moves to GPIO1 in next HW revision
-
-// Back-EMF Sensing
-#define GPIO_M1_BEMF 0  // ADC1 Channel 0
-#define GPIO_M2_BEMF 1  // ADC1 Channel 1
-
-// Battery Monitoring
-#define GPIO_BATTERY_VOLTAGE 23 // ADC through voltage divider
+// Production GPIO Mapping (Single Motor Device)
+#define GPIO_BACKEMF            0       // Back-EMF sense (ADC1_CH0)
+#define GPIO_BUTTON             1       // Button (RTC wake, moved from GPIO18 via jumper)
+#define GPIO_BAT_VOLTAGE        2       // Battery voltage (ADC1_CH2)
+#define GPIO_STATUS_LED         15      // Status LED (ACTIVE LOW: 0=ON, 1=OFF)
+#define GPIO_WS2812B_ENABLE     16      // WS2812B power enable (P-MOSFET, LOW=enabled)
+#define GPIO_WS2812B_DIN        17      // WS2812B data input
+#define GPIO_HBRIDGE_IN2        19      // H-bridge reverse control (LEDC PWM)
+#define GPIO_HBRIDGE_IN1        20      // H-bridge forward control (LEDC PWM)
+#define GPIO_BAT_ENABLE         21      // Battery monitor enable (HIGH=enabled)
 ```
+
+**Note:** For detailed circuit analysis (BEMF filter, battery divider resistor values, etc.), see [docs/architecture_decisions.md](docs/architecture_decisions.md) AD005 and AD021.
 
 ---
 
@@ -707,7 +700,7 @@ Evaluate DRV2605L family:
 
 - Measure current draw in all operational modes
 - Characterize battery life under various duty cycles
-- Validate 20+ minute session target with dual 350mAh batteries (700mAh)
+- Validate 20+ minute session target with dual 320mAh batteries (640mAh)
 
 ---
 

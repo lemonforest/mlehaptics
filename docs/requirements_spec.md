@@ -994,7 +994,7 @@ build_flags =
 #### FE007: Battery and Power Budget Analysis
 
 **Fixed Power Constraints:**
-- **Battery capacity**: Pair of (2) 350mAh per device (case form factor constraint)
+- **Battery capacity**: Pair of (2) 320mAh per device (case form factor constraint)
 - **Target session duration**: 20+ minutes bilateral stimulation (unchanged from Phase 1)
 - **USB-C charging**: 100mA @ 5V via Seeed XIAO ESP32-C6 battery management IC (hardware limitation)
 

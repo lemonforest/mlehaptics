@@ -357,7 +357,7 @@ All features implemented and tested:
 - Windows Command Prompt
 - PlatformIO with ESP-IDF v5.5.0
 - Seeed Xiao ESP32C6 board
-- 350mAh LiPo battery
+- Dual 320mAh LiPo batteries (640mAh total)
 
 ---
 
