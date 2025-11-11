@@ -293,6 +293,36 @@ esp_err_t motor_execute_half_cycle(motor_direction_t direction,
 - **Collision-free guarantee**: Random generation ensures uniqueness
 - **NimBLE format**: Uses `BLE_UUID128_INIT()` macro for proper byte ordering
 
+**Characteristic UUID Assignment (Added November 11, 2025):**
+
+Services use the 13th byte (position 12 in array) for service differentiation (0x01, 0x02).
+Characteristics within each service use the 14th byte (position 13 in array) for incremental IDs:
+
+```
+Service UUID:     6E4000XX-B5A3-F393-E0A9-E50E24DCCA9E
+                        ↑ (13th byte: service ID)
+
+Characteristic:   6E40XXYY-B5A3-F393-E0A9-E50E24DCCA9E
+                        ↑  ↑
+                    13th  14th (characteristic ID)
+
+Example - Bilateral Control Service Characteristics:
+6E400101-... = Bilateral Command (service 01, char 01)
+6E400201-... = Total Cycle Time (service 01, char 02)
+6E400301-... = Motor Intensity (service 01, char 03)
+
+Example - Configuration Service Characteristics:
+6E400201-... = Mode Selection (service 02, char 01)
+6E400202-... = Battery Level (service 02, char 02)
+6E400203-... = Session Time (service 02, char 03)
+```
+
+This scheme allows:
+- 255 services (byte 13: 0x01-0xFF)
+- 255 characteristics per service (byte 14: 0x01-0xFF)
+- Clear relationship between services and their characteristics
+- Future expansion without UUID collisions
+
 **NimBLE Implementation:**
 ```c
 // EMDR Bilateral Control Service UUID: 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
@@ -577,7 +607,7 @@ esp_task_wdt_reset();
 ### AD018: Technical Risk Mitigation
 
 **Identified Risks:**
-1. **BLE connection instability** → Mitigation: ESP-IDF v5.3.0 with proven, stable BLE stack
+1. **BLE connection instability** → Mitigation: ESP-IDF v5.5.0 with proven, stable BLE stack
 2. **Timing precision degradation** → Mitigation: FreeRTOS delays with ±10ms specification
 3. **Power management complexity** → Mitigation: Proven deep sleep patterns from ESP-IDF
 4. **Code complexity growth** → Mitigation: JPL coding standard with complexity limits
@@ -2413,9 +2443,270 @@ User testing confirmed no perceptible difference between:
 
 ---
 
+### AD030: BLE Bilateral Control Service Architecture
+
+**Date:** November 11, 2025
+
+**Status:** Approved
+
+**Context:**
+
+Current implementation (`single_device_ble_gatt_test.c`) provides Configuration Service for mobile app control but lacks device-to-device Bilateral Control Service. Research platform requirements expand beyond standard EMDR parameters (0.5-2 Hz) to explore wider frequency ranges and stimulation patterns.
+
+**Decision:**
+
+Implement comprehensive BLE Bilateral Control Service for device-to-device coordination with research platform extensions.
+
+**Service Architecture:**
+
+**Bilateral Control Service** (Device-to-Device):
+- **UUID**: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- **Purpose**: Real-time bilateral coordination between paired devices
+
+**Characteristics** (14th byte increments: 01, 02, 03, etc.):
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `6E400101-B5A3-...` | Bilateral Command | uint8 | Write | 0-6 | START/STOP/SYNC/MODE_CHANGE/EMERGENCY/PATTERN |
+| `6E400201-B5A3-...` | Total Cycle Time | uint16 | R/W | 500-4000ms | 0.25-2 Hz research range |
+| `6E400301-B5A3-...` | Motor Intensity | uint8 | R/W | 30-80% | Safe research PWM range |
+| `6E400401-B5A3-...` | Stimulation Pattern | uint8 | R/W | 0-2 | BILATERAL_FIXED/ALTERNATING/UNILATERAL |
+| `6E400501-B5A3-...` | Device Role | uint8 | Read | 0-2 | SERVER/CLIENT/STANDALONE |
+| `6E400601-B5A3-...` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
+| `6E400701-B5A3-...` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
+| `6E400801-B5A3-...` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
+| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 10-50% | Research into minimal stimulation |
+
+**Research Platform Stimulation Patterns:**
+
+1. **BILATERAL_FIXED** (Standard EMDR):
+```
+Server: Always FORWARD stimulation
+Client: Always REVERSE stimulation
+Time     Server    Client
+0-250    ON        OFF
+250-500  OFF       ON
+500-750  ON        OFF
+750-1000 OFF       ON
+```
+
+2. **BILATERAL_ALTERNATING** (Research Mode):
+```
+Both devices alternate direction each cycle
+Time     Server         Client
+0-250    FORWARD ON     OFF
+250-500  OFF           REVERSE ON
+500-750  REVERSE ON    OFF
+750-1000 OFF          FORWARD ON
+```
+
+3. **UNILATERAL** (Control Studies):
+```
+Only one device active (for research controls)
+Server: Normal operation
+Client: Remains OFF
+```
+
+**Extended Research Parameters:**
+
+**Frequency Range** (0.25-2 Hz):
+- Ultra-slow: 0.25 Hz (4000ms cycle) - research into slow processing
+- Slow: 0.5 Hz (2000ms cycle) - standard EMDR minimum
+- Standard: 1 Hz (1000ms cycle) - typical therapeutic rate
+- Fast: 1.5 Hz (667ms cycle) - enhanced processing
+- Ultra-fast: 2 Hz (500ms cycle) - standard EMDR maximum
+
+**Safety Constraints:**
+- Motor PWM: 30-80% (prevents motor damage and excessive stimulation)
+- Duty Cycle: 10-50% (ensures motor cooling and user comfort)
+- Non-overlapping: Enforced in all patterns (safety-critical)
+
+**UUID Assignment Rationale:**
+
+Using 14th byte (position 13 in array) for characteristic differentiation:
+```c
+// Base service UUID: 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
+// Characteristic: 6E400X01-B5A3-... where X increments
+static const ble_uuid128_t bilateral_cmd_uuid = BLE_UUID128_INIT(
+    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
+    0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x01, 0x40, 0x6e);
+//                               ↑     ↑
+//                           14th  13th (service)
+```
+
+**Integration with AD028 Synchronized Fallback:**
+
+During BLE disconnection, devices use last known pattern setting:
+- Phase 1 (0-2 min): Continue pattern with last timing reference
+- Phase 2 (2+ min): Fallback based on pattern type:
+  - BILATERAL_FIXED: Server=forward only, Client=reverse only
+  - BILATERAL_ALTERNATING: Continue local alternation
+  - UNILATERAL: Active device continues, inactive remains off
+
+**Benefits:**
+
+✅ **Research Flexibility:** Extended frequency range for studies
+✅ **Pattern Variety:** Three distinct stimulation patterns
+✅ **Safety First:** Hard limits on PWM (30-80%) and duty cycle
+✅ **Clear UUID Scheme:** Incremental 14th byte for characteristics
+✅ **Backward Compatible:** Maintains standard EMDR capabilities
+✅ **Data Collection Ready:** Sequence numbers enable packet analysis
+
+---
+
+### AD031: Research Platform Extensions
+
+**Date:** November 11, 2025
+
+**Status:** Approved
+
+**Context:**
+
+Device serves dual purpose: clinical EMDR therapy tool AND research platform for studying bilateral stimulation parameters. Standard EMDR uses 0.5-2 Hz, but research requires extended ranges to explore therapeutic boundaries.
+
+**Decision:**
+
+Extend platform capabilities beyond standard EMDR while maintaining safety constraints.
+
+**Research Extensions:**
+
+**1. Extended Frequency Range (0.25-2 Hz vs Standard 0.5-2 Hz):**
+
+**Rationale for 0.25 Hz (4000ms cycle):**
+- Explore slow bilateral processing for trauma with dissociation
+- Study attention and working memory at slower rates
+- Investigate relationship between stimulation rate and processing speed
+- Research applications for elderly or cognitively impaired populations
+
+**Rationale for Full 2 Hz (500ms cycle):**
+- Match fastest standard EMDR rate for complete compatibility
+- Study rapid bilateral stimulation effects
+- Research applications for ADHD and high-arousal states
+
+**2. Bilateral Alternating Pattern:**
+
+**Research Questions Enabled:**
+- Does motor direction (forward vs reverse) affect therapeutic outcome?
+- Is alternating direction more/less effective than fixed direction?
+- How does direction change impact habituation?
+- Can direction alternation reduce motor adaptation?
+
+**Implementation:**
+```c
+// Each device alternates its own direction
+typedef enum {
+    RESEARCH_PATTERN_FIXED,        // Standard: Server=forward, Client=reverse
+    RESEARCH_PATTERN_ALTERNATING,  // Both alternate direction each cycle
+    RESEARCH_PATTERN_UNILATERAL    // Control: single device only
+} research_pattern_t;
+```
+
+**3. Minimal Stimulation Research (10-50% Duty Cycle):**
+
+**Research Applications:**
+- Determine minimum effective stimulation duration
+- Study micro-stimulation (10% = 50ms pulses at 500ms cycle)
+- Energy efficiency for extended sessions
+- Reduce habituation with shorter pulses
+
+**4. Motor Intensity Research (30-80% PWM):**
+
+**Safety Rationale:**
+- **Minimum 30%:** Ensures perceptible stimulation
+- **Maximum 80%:** Prevents motor overheating and tissue irritation
+- **Research Range:** 50% variation allows significant comparison
+
+**5. Session Duration Flexibility (20-90 minutes):**
+
+**Applications:**
+- **20 minutes:** Minimum for research protocols
+- **45 minutes:** Standard therapy session
+- **60 minutes:** Extended therapy session
+- **90 minutes:** Maximum research session
+
+**6. Data Collection Capabilities:**
+
+**Logged Parameters:**
+- Timestamp of each stimulation cycle
+- Actual vs commanded timing (drift analysis)
+- BLE packet loss rate (sequence number gaps)
+- Battery voltage during session
+- Motor back-EMF readings (when implemented)
+- Pattern changes mid-session
+
+**Storage Format:**
+```c
+typedef struct {
+    uint32_t timestamp_ms;
+    uint16_t cycle_time_ms;
+    uint8_t motor_intensity;
+    uint8_t pattern_type;
+    uint8_t device_role;
+    uint16_t sequence_num;
+    uint8_t battery_percent;
+} research_data_point_t;
+```
+
+**7. Safety Constraints:**
+
+**Hard Limits (Cannot Override):**
+- PWM maximum: 80% (prevents motor damage)
+- PWM minimum: 30% (ensures perception)
+- Non-overlapping stimulation (safety-critical)
+- Emergency shutdown always available
+
+**Soft Limits (Configurable with Warning):**
+- Session > 60 minutes: Requires confirmation
+- Duty cycle > 40%: Warning about motor heating
+- Frequency < 0.5 Hz: Outside standard EMDR range
+
+**Research Protocol Support:**
+
+**Example Protocol: Direction Preference Study**
+```
+1. Baseline: 5 min BILATERAL_FIXED at 1 Hz
+2. Condition A: 5 min BILATERAL_ALTERNATING at 1 Hz
+3. Rest: 2 min no stimulation
+4. Condition B: 5 min BILATERAL_FIXED reversed roles
+5. Data: Compare subjective ratings and physiological measures
+```
+
+**Example Protocol: Minimal Stimulation Study**
+```
+1. Standard: 10 min at 25% duty cycle, 1 Hz
+2. Minimal: 10 min at 10% duty cycle, 1 Hz
+3. Micro: 10 min at 10% duty cycle, 2 Hz
+4. Data: Compare therapeutic efficacy
+```
+
+**Compliance Notes:**
+
+- Research features require explicit opt-in via Configuration Service
+- Standard EMDR mode uses only approved parameters (0.5-2 Hz, fixed pattern)
+- Research mode displays clear indication via LED patterns
+- All research data is anonymous (no patient identifiers)
+
+**Future Research Directions:**
+
+1. **Phase 2**: Integration with physiological sensors (HR, HRV, GSR)
+2. **Phase 3**: Closed-loop stimulation based on physiological feedback
+3. **Phase 4**: Machine learning optimization of parameters
+4. **Phase 5**: Multi-site research protocol coordination
+
+**Benefits:**
+
+✅ **Scientific Rigor:** Controlled parameter manipulation
+✅ **Safety Maintained:** Hard limits prevent harmful operation
+✅ **Clinical + Research:** Dual-purpose platform
+✅ **Open Source:** Enables collaborative research
+✅ **Data-Driven:** Built-in logging for analysis
+✅ **Expandable:** Architecture supports future sensors
+
+---
+
 ## Conclusion
 
-This architecture provides a robust foundation for a safety-critical medical device while maintaining flexibility for future enhancements. The combination of ESP-IDF v5.3.0 and JPL coding standards (including no busy-wait loops) ensures both reliability and regulatory compliance for therapeutic applications.
+This architecture provides a robust foundation for a safety-critical medical device while maintaining flexibility for future enhancements. The combination of ESP-IDF v5.5.0 and JPL coding standards (including no busy-wait loops) ensures both reliability and regulatory compliance for therapeutic applications.
 
 The modular design with comprehensive API contracts enables distributed development while maintaining interface stability and code quality standards appropriate for medical device software. The 1ms FreeRTOS dead time implementation provides both hardware protection and watchdog feeding opportunities while maintaining strict JPL compliance.
 

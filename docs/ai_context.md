@@ -23,14 +23,16 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 8. **Fire-and-forget shutdown:** Emergency shutdown sends BLE command without waiting for ACK
 9. **JPL Compliance**: No busy-wait loops - all timing uses vTaskDelay() or hardware timers
 10. **Synchronized fallback (AD028):** 0-2min maintain bilateral rhythm, 2+ min continue assigned role only, reconnect every 5min
+11. **Research Platform (AD030/AD031):** Extended 0.25-2 Hz range, 3 patterns (FIXED/ALTERNATING/UNILATERAL), 30-80% PWM safety limits
 
 ### Critical Safety Requirements:
 - **Non-overlapping stimulation:** Server and client alternate in precise half-cycles
-- **Configurable cycle time:** 500-2000ms total cycle (0.5-2 Hz bilateral rate)
+- **Configurable cycle time:** 500-4000ms total cycle (0.25-2 Hz research range, 0.5-2 Hz standard)
 - **Half-cycle guarantee:** Each device gets exactly 50% of total cycle time
 - **Dead time inclusion:** 1ms FreeRTOS dead time included within each half-cycle
 - **Emergency shutdown:** 5-second button hold stops everything immediately
 - **H-bridge protection:** 1ms dead time prevents shoot-through, feeds watchdog
+- **Motor intensity limits:** 30-80% PWM for research safety (prevents damage/overheating)
 - **No state persistence:** Every startup begins new session (no NVS recovery)
 - **Factory reset window:** Only first 30 seconds after boot (prevents accidental resets)
 

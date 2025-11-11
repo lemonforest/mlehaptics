@@ -163,16 +163,19 @@ framework = espidf
 
 #### FR002: Bilateral Stimulation Control
 - **Non-overlapping pattern**: Devices NEVER stimulate simultaneously (safety-critical requirement)
-- **Precise timing**: Total cycle time configurable 500-2000ms with ±10ms accuracy
+- **Precise timing**: Total cycle time configurable 500-4000ms with ±100ms accuracy (per AD029)
 - **Half-cycle allocation**: Each device gets exactly 50% of total cycle time
 - **Default cycle**: 1000ms total (500ms per device, 1 Hz bilateral rate)
-- **Therapeutic range**: 0.5 Hz (2000ms cycle) to 2 Hz (500ms cycle) bilateral stimulation
+- **Standard therapeutic range**: 0.5 Hz (2000ms cycle) to 2 Hz (500ms cycle) bilateral stimulation
+- **Research platform range**: 0.25 Hz (4000ms cycle) to 2 Hz (500ms cycle) for studies (per AD031)
 - **Server control**: Server device maintains master timing and coordinates client
-- **Intensity control**: Variable PWM intensity from 0-100% for both devices
+- **Intensity control**: Variable PWM intensity 30-80% for research safety (per AD031)
+- **Stimulation patterns**: BILATERAL_FIXED, BILATERAL_ALTERNATING, UNILATERAL (per AD030)
 - **Dead time inclusion**: 1ms dead time included within each half-cycle window
 
 #### FR003: Session Management
 - **Default duration**: 60-90 minutes typical therapy session (configurable via app)
+- **Research range**: 20-90 minutes configurable for protocols (per AD031)
 - **Manual control**: User-configurable session length via mobile app
 - **Progress tracking**: Session time remaining indicated via status patterns
 - **Coordinated shutdown**: Either device can trigger bilateral shutdown
