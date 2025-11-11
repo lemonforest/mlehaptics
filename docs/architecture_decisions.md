@@ -1913,6 +1913,311 @@ While operating in single-device mode after disconnection:
 ✅ **NVS exception justified** - Pairing data enables reconnection (settings, not state)
 ✅ **Symmetric design** - Works for server or client failure
 
+### AD027: Modular Source File Architecture
+
+**Decision**: Hybrid task-based + functional modular architecture for production dual-device implementation
+
+**Problem Statement:**
+
+Current code organization uses monolithic single-file test programs:
+- `test/single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant (all code in one file)
+- `test/single_device_ble_gatt_test.c` - BLE GATT server (all code in one file)
+- Difficult to maintain as features grow
+- Code reuse between single-device and dual-device modes challenging
+- Clear separation of concerns needed for safety-critical development
+
+**Solution:**
+
+**Hybrid Architecture:**
+- **Task modules** - Mirror FreeRTOS task structure (proven in BLE GATT test)
+- **Support modules** - Functional components reusable across tasks
+- **Single header per module** - Clear interface (motor_task.c + motor_task.h)
+- **State-based behavior** - Single-device vs dual-device is STATE, not separate code
+
+**File Structure:**
+
+```
+src/
+├── main.c                      # app_main(), initialization, task creation
+├── motor_task.c/h              # Motor control task (FreeRTOS task)
+├── ble_task.c/h                # BLE advertising/connection task
+├── button_task.c/h             # Button monitoring task
+├── battery_monitor.c/h         # Battery voltage/percentage (support)
+├── nvs_manager.c/h             # NVS read/write/clear (support)
+├── power_manager.c/h           # Light sleep/deep sleep config (support)
+└── led_control.c/h             # WS2812B + GPIO15 LED control (support)
+
+include/
+├── motor_task.h                # Public motor task interface
+├── ble_task.h                  # Public BLE task interface
+├── button_task.h               # Public button task interface
+├── battery_monitor.h           # Public battery monitor interface
+├── nvs_manager.h               # Public NVS manager interface
+├── power_manager.h             # Public power manager interface
+└── led_control.h               # Public LED control interface
+```
+
+**Module Responsibilities:**
+
+**Task Modules (FreeRTOS Tasks):**
+
+**motor_task.c/h:**
+- Owns motor control FreeRTOS task
+- Implements bilateral stimulation timing (server/client coordination)
+- Single-device mode (forward/reverse alternating)
+- Role-based behavior: SERVER, CLIENT, STANDALONE (state variable)
+- Message queue for mode changes, BLE commands, shutdown
+- Calls: battery_monitor (LVO check), led_control (therapy light), power_manager (sleep)
+
+**ble_task.c/h:**
+- Owns BLE FreeRTOS task
+- NimBLE stack initialization and management
+- Advertising lifecycle (IDLE → ADVERTISING → CONNECTED → SHUTDOWN)
+- Role assignment and automatic recovery ("survivor becomes server")
+- GATT server (optional, for mobile app configuration)
+- Calls: nvs_manager (pairing data), motor_task (via message queue)
+
+**button_task.c/h:**
+- Owns button monitoring FreeRTOS task
+- Button hold duration tracking (5s shutdown, 10s NVS clear)
+- Emergency shutdown coordination (fire-and-forget)
+- Deep sleep entry with wait-for-release pattern (AD023)
+- Calls: motor_task (shutdown message), ble_task (shutdown message), nvs_manager (clear), led_control (purple blink), power_manager (deep sleep)
+
+**Support Modules (Functional Components):**
+
+**battery_monitor.c/h:**
+- Battery voltage reading via ADC
+- Percentage calculation (4.2V → 3.0V range)
+- LVO detection (< 3.0V cutoff)
+- Called by: motor_task (startup LVO check, periodic monitoring)
+
+**nvs_manager.c/h:**
+- NVS namespace management
+- Pairing data storage (peer MAC address)
+- Settings storage (Mode 5 custom parameters)
+- Factory reset (clear all NVS data)
+- Called by: ble_task (pairing), motor_task (settings), button_task (clear)
+
+**power_manager.c/h:**
+- Light sleep configuration (esp_pm_configure)
+- Deep sleep entry (esp_deep_sleep_start)
+- Wake source configuration (ext1 button wake)
+- Called by: main.c (init), button_task (deep sleep)
+
+**led_control.c/h:**
+- WS2812B RGB LED control (if translucent case)
+- GPIO15 status LED control (always available)
+- Therapy light patterns (purple blink, mode indication)
+- Called by: motor_task (therapy patterns), button_task (purple blink), main.c (boot sequence)
+
+**Key Design Principles:**
+
+**1. Single-Device vs Dual-Device as State:**
+```c
+// motor_task.c
+typedef enum {
+    MOTOR_ROLE_SERVER,      // Dual-device: server role (first half-cycle)
+    MOTOR_ROLE_CLIENT,      // Dual-device: client role (second half-cycle)
+    MOTOR_ROLE_STANDALONE   // Single-device: forward/reverse alternating
+} motor_role_t;
+
+static motor_role_t current_role = MOTOR_ROLE_STANDALONE;  // Start standalone
+
+// Same motor_task code handles all three roles
+void motor_task(void *arg) {
+    while (session_active) {
+        switch (current_role) {
+            case MOTOR_ROLE_SERVER:
+                // Execute server half-cycle, wait client half-cycle
+                break;
+            case MOTOR_ROLE_CLIENT:
+                // Wait server half-cycle, execute client half-cycle
+                break;
+            case MOTOR_ROLE_STANDALONE:
+                // Forward half-cycle, reverse half-cycle
+                break;
+        }
+    }
+}
+```
+
+**2. API Contract Alignment:**
+Module filenames mirror API contracts in `docs/ai_context.md`:
+- Motor Control API → `motor_task.c/h`
+- BLE Manager API → `ble_task.c/h`
+- Button Handler API → `button_task.c/h`
+- Battery Monitor API → `battery_monitor.c/h`
+- Power Manager API → `power_manager.c/h`
+- Therapy Light API → `led_control.c/h` (renamed from "therapy_light" for brevity)
+
+**3. Header File Strategy:**
+Single public header per module:
+- motor_task.h - Public functions, message queue handles, enums
+- motor_task.c - Private static functions, task implementation
+- No `_private.h` headers needed (use `static` for private functions)
+
+**4. Module Dependencies:**
+```
+main.c
+  ├─> motor_task ──> battery_monitor
+  │                ├─> led_control
+  │                └─> power_manager
+  ├─> ble_task ────> nvs_manager
+  │                └─> motor_task (message queue)
+  └─> button_task ─> motor_task (message queue)
+                    ├─> ble_task (message queue)
+                    ├─> nvs_manager
+                    ├─> led_control
+                    └─> power_manager
+```
+
+**5. Message Queue Communication:**
+Tasks communicate via FreeRTOS message queues (established pattern from BLE GATT test):
+```c
+// motor_task.h
+typedef enum {
+    MOTOR_MSG_MODE_CHANGE,
+    MOTOR_MSG_EMERGENCY_SHUTDOWN,
+    MOTOR_MSG_BLE_CONNECTED,
+    MOTOR_MSG_BLE_DISCONNECTED,
+    MOTOR_MSG_ROLE_CHANGE
+} motor_msg_type_t;
+
+extern QueueHandle_t motor_msg_queue;
+```
+
+**Rationale:**
+
+**Why Hybrid (Task + Functional)?**
+- ✅ Task modules map 1:1 to FreeRTOS tasks (clear ownership, proven structure)
+- ✅ Support modules reusable across tasks (battery_monitor used by motor + BLE)
+- ✅ Matches existing BLE GATT test structure (de-risk migration)
+- ✅ API contracts remain meaningful (battery_monitor API = battery_monitor.c/h)
+- ✅ Single-device vs dual-device unified (state variable, not separate code paths)
+
+**Why Single Header Per Module?**
+- ✅ Consistent naming (motor_task.c + motor_task.h)
+- ✅ Clear public interface (header = API contract)
+- ✅ Private functions via `static` (no `_private.h` complexity)
+- ✅ Standard C project organization
+
+**Why State-Based Behavior?**
+- ✅ Same code handles server/client/standalone (reduces bugs)
+- ✅ Role changes at runtime (automatic recovery, AD026)
+- ✅ No conditional compilation (#ifdef SINGLE_DEVICE / DUAL_DEVICE)
+- ✅ Easier testing (single test suite covers all modes)
+
+**Migration Path from Monolithic Test Files:**
+
+**Phase 1: Extract Support Modules**
+1. Create battery_monitor.c/h from BLE GATT test battery code
+2. Create nvs_manager.c/h from NVS storage code
+3. Create power_manager.c/h from sleep management code
+4. Create led_control.c/h from WS2812B + GPIO15 code
+5. Test: Verify support modules work independently
+
+**Phase 2: Extract Task Modules**
+1. Create motor_task.c/h from motor_task function + state machine
+2. Create ble_task.c/h from ble_task function + NimBLE init
+3. Create button_task.c/h from button_task function + state machine
+4. Test: Verify tasks communicate via message queues
+
+**Phase 3: Create Main**
+1. Create main.c with app_main()
+2. Initialize all modules
+3. Create FreeRTOS tasks
+4. Test: Full system integration
+
+**Build System Integration:**
+
+ESP-IDF CMake naturally supports this structure:
+```cmake
+# src/CMakeLists.txt
+idf_component_register(
+    SRCS
+        "main.c"
+        "motor_task.c"
+        "ble_task.c"
+        "button_task.c"
+        "battery_monitor.c"
+        "nvs_manager.c"
+        "power_manager.c"
+        "led_control.c"
+    INCLUDE_DIRS
+        "."
+        "include"
+    REQUIRES
+        nvs_flash
+        esp_adc
+        driver
+        led_strip
+)
+```
+
+**JPL Compliance Maintained:**
+- ✅ No dynamic memory allocation (all static/stack)
+- ✅ Fixed loop bounds (all while loops have exit conditions)
+- ✅ vTaskDelay() for all timing (no busy-wait)
+- ✅ Watchdog feeding (task-level subscription)
+- ✅ Explicit error checking (ESP_ERROR_CHECK wrapper)
+- ✅ Comprehensive logging (ESP_LOGI throughout)
+
+**Test Strategy Preserved:**
+
+Test files remain monolithic for hardware validation:
+- `test/single_device_demo_jpl_queued.c` - Baseline JPL compliance test
+- `test/single_device_ble_gatt_test.c` - BLE GATT hardware validation
+- `test/battery_voltage_test.c` - Battery monitoring validation
+
+Production code uses modular architecture:
+- `src/main.c` + task/support modules
+
+**Alternatives Considered:**
+
+**1. Pure Functional (No Task Modules):**
+- ❌ Rejected: Doesn't mirror FreeRTOS task structure
+- ❌ Rejected: Harder to map to existing BLE GATT test code
+- ❌ Rejected: Task ownership unclear (who owns motor_task function?)
+
+**2. Pure Task-Based (All Modules Are Tasks):**
+- ❌ Rejected: Battery monitor doesn't need dedicated task
+- ❌ Rejected: NVS manager doesn't need dedicated task
+- ❌ Rejected: Wastes FreeRTOS resources (stack per task)
+
+**3. Monolithic with #ifdef SINGLE_DEVICE / DUAL_DEVICE:**
+- ❌ Rejected: Maintenance nightmare (two code paths)
+- ❌ Rejected: Violates "single-device shouldn't deviate from dual-device" requirement
+- ❌ Rejected: Harder testing (need to test both #ifdef paths)
+
+**4. Hybrid Task + Functional (Chosen):**
+- ✅ Chosen: Best of both worlds
+- ✅ Chosen: Matches proven BLE GATT test structure
+- ✅ Chosen: Single-device vs dual-device as state (not separate code)
+
+**Documentation Updates:**
+- ai_context.md: Added implementation mapping note to API Contracts section
+- requirements_spec.md: No changes needed (functional requirements unchanged)
+- This AD documents modular architecture for dual-device implementation
+
+**Verification Strategy:**
+- Extract battery_monitor module first (simplest, most isolated)
+- Verify API compatibility with existing test code
+- Incrementally migrate other modules
+- Maintain test files as monolithic validation baseline
+- Compare production modular build vs test monolithic build (behavior identical)
+
+**Benefits:**
+
+✅ **Maintainability** - Clear module boundaries, easier code navigation
+✅ **Reusability** - Support modules shared across tasks
+✅ **Testability** - Modules testable independently
+✅ **Proven structure** - Mirrors successful BLE GATT test implementation
+✅ **Unified behavior** - Single-device vs dual-device as state, not separate code
+✅ **API alignment** - Module names match API contracts (clear documentation)
+✅ **Migration path** - Incremental refactoring from monolithic test files
+✅ **JPL compliant** - All standards maintained throughout modular architecture
+
 ---
 
 ## Conclusion

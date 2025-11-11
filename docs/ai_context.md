@@ -142,6 +142,16 @@ The PCB includes a dual footprint design on GPIO17 allowing builders to choose t
 
 ## API Contracts & Function Prototypes
 
+**Implementation Mapping (see AD027):** These API contracts map to production source modules in the hybrid task-based + functional modular architecture:
+- Motor Control API → `motor_task.c/h` (FreeRTOS task module)
+- BLE Manager API → `ble_task.c/h` (FreeRTOS task module)
+- Button Handler API → `button_task.c/h` (FreeRTOS task module)
+- Battery Monitor API → `battery_monitor.c/h` (support module)
+- Power Manager API → `power_manager.c/h` (support module)
+- Therapy Light API → `led_control.c/h` (support module)
+
+For complete modular architecture details, including file structure, module dependencies, and migration strategy, see `docs/architecture_decisions.md` AD027.
+
 ### Motor Control API
 
 ```c
