@@ -2332,13 +2332,14 @@ void app_main(void) {
     ESP_LOGI(TAG, "Configuring automatic light sleep...");
     esp_pm_config_t pm_config = {
         .max_freq_mhz = 160,        // Max CPU frequency during active operation
-        .min_freq_mhz = 10,         // Min CPU frequency (can drop to 10MHz when idle)
+        .min_freq_mhz = 80,         // Min CPU frequency (80MHz safe for BLE radio timing)
         .light_sleep_enable = true  // Enable automatic light sleep during vTaskDelay
     };
     esp_err_t pm_ret = esp_pm_configure(&pm_config);
     if (pm_ret == ESP_OK) {
-        ESP_LOGI(TAG, "Automatic light sleep enabled (160MHz max, 10MHz min)");
+        ESP_LOGI(TAG, "Automatic light sleep enabled (160MHz max, 80MHz min for BLE safety)");
         ESP_LOGI(TAG, "Expected power savings: ~10-20mA during motor coast periods");
+        ESP_LOGI(TAG, "Note: Light sleep provides main savings, not CPU frequency scaling");
     } else {
         ESP_LOGW(TAG, "PM configure failed: %s (continuing anyway)", esp_err_to_name(pm_ret));
     }
