@@ -22,6 +22,7 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 7. **Instant wake:** Button press immediately wakes from deep sleep (no hold required for dual-device coordination)
 8. **Fire-and-forget shutdown:** Emergency shutdown sends BLE command without waiting for ACK
 9. **JPL Compliance**: No busy-wait loops - all timing uses vTaskDelay() or hardware timers
+10. **Synchronized fallback (AD028):** 0-2min maintain bilateral rhythm, 2+ min continue assigned role only, reconnect every 5min
 
 ### Critical Safety Requirements:
 - **Non-overlapping stimulation:** Server and client alternate in precise half-cycles

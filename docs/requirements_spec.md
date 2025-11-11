@@ -172,13 +172,17 @@ framework = espidf
 - **Dead time inclusion**: 1ms dead time included within each half-cycle window
 
 #### FR003: Session Management
-- **Default duration**: 20 minutes with automatic shutdown
+- **Default duration**: 60-90 minutes typical therapy session (configurable via app)
 - **Manual control**: User-configurable session length via mobile app
 - **Progress tracking**: Session time remaining indicated via status patterns
 - **Coordinated shutdown**: Either device can trigger bilateral shutdown
 - **Automatic session start**: Session begins automatically after successful pairing
-- **Single-device continuation**: If peer disconnects, device continues in single-device mode (forward/reverse alternating pattern)
-- **Background pairing**: Single-device mode continues scanning for peer device in background
+- **Synchronized fallback (per AD028)**:
+  - Phase 1 (0-2 min): Maintain bilateral rhythm using last timing reference
+  - Phase 2 (2+ min): Continue in assigned role only (server=forward, client=reverse)
+  - Reconnection attempts every 5 minutes (non-blocking)
+  - Session end: Both devices enter deep sleep after configured duration
+- **Background pairing**: Periodic reconnection attempts without disrupting therapy
 
 #### FR004: Emergency Safety Features
 - **Emergency stop**: 5-second button hold immediately disables all outputs on both devices
@@ -364,7 +368,7 @@ build_flags =
 #### PF001: Response Times and Bilateral Timing
 - **Button Response**: < 50ms from press to acknowledgment
 - **BLE Connection**: < 10 seconds for device discovery and pairing
-- **Total Cycle Timing**: ±10ms precision for configured total cycle time (500-2000ms)
+- **Total Cycle Timing**: ±100ms precision for configured total cycle time (500-2000ms) (relaxed from ±10ms per AD029)
 - **Half-cycle precision**: Each device maintains exact 50% of total cycle time
 - **Dead time overhead**: 1ms per half-cycle (0.1-0.2% of half-cycle budget)
 - **Therapeutic rates**: 

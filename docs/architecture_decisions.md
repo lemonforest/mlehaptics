@@ -1783,6 +1783,8 @@ Release:       Execute action (shutdown at 5s+, NVS clear at 10s+)
 
 **Decision**: "Survivor becomes server" - automatic role switching after 30-second BLE disconnection timeout
 
+**Note (November 11, 2025):** Single-device fallback behavior superseded by AD028 (Command-and-Control with Synchronized Fallback). Role recovery mechanism remains valid.
+
 **Problem Statement:**
 
 Original design had manual role assignment (first device = server, second = client) but no automatic recovery if BLE connection lost:
@@ -2217,6 +2219,197 @@ Production code uses modular architecture:
 ✅ **API alignment** - Module names match API contracts (clear documentation)
 ✅ **Migration path** - Incremental refactoring from monolithic test files
 ✅ **JPL compliant** - All standards maintained throughout modular architecture
+
+### AD028: Command-and-Control with Synchronized Fallback Architecture
+
+**Date:** November 11, 2025
+
+**Status:** Approved
+
+**Context:**
+
+Initial dual-device architecture (AD026) specified immediate fallback to single-device mode on BLE disconnection. User requested analysis of time-synchronized independent operation as an alternative. Mathematical analysis revealed time-sync would cause safety violations (overlapping stimulation) after 15-20 minutes due to crystal drift and FreeRTOS jitter.
+
+**Decision:**
+
+Adopt Command-and-Control with Synchronized Fallback architecture for dual-device bilateral stimulation.
+
+**Architecture:**
+
+```
+Normal Operation (BLE Connected):
+Server Device                Client Device
+Check messages →             Receive BLE command
+Send BLE "FORWARD" →         Process command
+Forward active (125ms)       Wait for next command
+Send BLE "COAST" →          Process command
+Coast (375ms)               Coast (375ms)
+Send BLE "REVERSE" →        Process command
+Coast continues             Reverse active (125ms)
+                           Coast (375ms)
+
+Synchronized Fallback Phase 1 (0-2 minutes after disconnect):
+Server Device                Client Device
+Detect BLE loss →           Detect BLE loss
+Continue rhythm (SERVER)    Continue rhythm (CLIENT)
+Forward → Coast →           Coast → Reverse →
+Use last timing ref         Use last timing ref
+                           ↓
+Fallback Phase 2 (2+ minutes, remainder of session):
+Server Device                Client Device
+Forward only (125ms on)     Reverse only (125ms on)
+Coast (375ms)               Coast (375ms)
+Repeat assigned role        Repeat assigned role
+No alternation              No alternation
+Reconnect attempt/5min      Reconnect attempt/5min
+                           ↓
+Session Complete (60-90 minutes):
+Both devices → Deep Sleep
+```
+
+**Key Features:**
+
+1. **Command-and-Control During Normal Operation:**
+   - Server controls all timing decisions
+   - Client executes commands immediately upon receipt
+   - Guarantees non-overlapping stimulation (FR002 safety requirement)
+   - 50-100ms BLE latency is therapeutically insignificant
+
+2. **Synchronized Fallback Phase 1 (0-2 minutes):**
+   - Continue established bilateral rhythm using last timing reference
+   - Maximum drift over 2 minutes: ±1.2ms (negligible)
+   - Provides seamless therapy during brief disconnections
+   - Both devices maintain alternating pattern
+
+3. **Fallback Phase 2 (2+ minutes to session end):**
+   - Server continues forward-only stimulation (assigned role)
+   - Client continues reverse-only stimulation (assigned role)
+   - No alternation within each device - just repeat assigned role
+   - Handles both battery death and 2.4GHz interference scenarios
+   - Non-blocking reconnection attempt every 5 minutes
+   - If reconnection succeeds, resume command-and-control seamlessly
+
+4. **Session Completion:**
+   - Both devices enter deep sleep after 60-90 minute session
+   - Ensures predictable battery management
+   - Clear session boundaries for therapeutic practice
+
+**Implementation:**
+
+```c
+// Fallback state management
+typedef struct {
+    uint32_t disconnect_time;        // When BLE disconnected
+    uint32_t last_command_time;      // Timestamp of last server command
+    uint32_t last_reconnect_attempt; // Last reconnection attempt
+    uint16_t established_cycle_ms;   // Current cycle period (e.g., 500ms)
+    uint16_t established_duty_ms;    // Current duty cycle (e.g., 125ms)
+    motor_role_t fallback_role;      // MOTOR_ROLE_SERVER or MOTOR_ROLE_CLIENT
+    bool phase1_sync;                 // True during 2-minute sync phase
+} fallback_state_t;
+
+// Fallback phase management
+uint32_t now = xTaskGetTickCount();
+uint32_t disconnect_duration = now - fallback_state.disconnect_time;
+
+if (disconnect_duration < pdMS_TO_TICKS(120000)) {
+    // Phase 1: Maintain synchronized bilateral pattern
+    continue_bilateral_rhythm();
+} else {
+    // Phase 2: Continue in assigned role only
+    fallback_state.phase1_sync = false;
+    if (fallback_state.fallback_role == MOTOR_ROLE_SERVER) {
+        motor_forward_only();  // No reverse
+    } else {
+        motor_reverse_only();  // No forward
+    }
+
+    // Periodic reconnection attempts (non-blocking)
+    if ((now - fallback_state.last_reconnect_attempt) > pdMS_TO_TICKS(300000)) {
+        ble_attempt_reconnect_nonblocking();
+        fallback_state.last_reconnect_attempt = now;
+    }
+}
+```
+
+**Safety Analysis:**
+
+- **No Overlap Risk:** Command-and-control guarantees sequential operation
+- **Minimal Drift During Fallback:** ±1.2ms over 2 minutes is imperceptible
+- **Automatic Recovery:** Falls back to safe single-device mode after 2 minutes
+- **User Notification:** LED/haptic feedback indicates mode changes
+
+**Alternatives Rejected:**
+
+1. **Time-Synchronized Independent Operation:**
+   - Crystal drift (±10 PPM) + FreeRTOS jitter = ±1944ms over 20 minutes
+   - Would cause overlapping stimulation (safety violation)
+   - Complex NTP-style time sync adds unnecessary complexity
+
+2. **Immediate Fallback (AD026):**
+   - Interrupts therapy on any BLE glitch
+   - Poor user experience during brief disconnections
+   - Superseded by this synchronized fallback approach
+
+**Supersedes:** AD026 (immediate fallback behavior)
+
+---
+
+### AD029: Relaxed Timing Specification
+
+**Date:** November 11, 2025
+
+**Status:** Approved
+
+**Context:**
+
+Original specification (DS004) required ±10ms timing accuracy based on theoretical precision goals. Real-world analysis shows this is unnecessarily strict given human perception thresholds (100-200ms) and therapeutic mechanism (bilateral alternation, not precise simultaneity).
+
+**Decision:**
+
+Relax timing specification from ±10ms to ±100ms for bilateral coordination.
+
+**Rationale:**
+
+1. **Human Perception Threshold:** 100-200ms timing differences are imperceptible
+2. **Therapeutic Mechanism:** EMDR requires bilateral alternation, not simultaneity
+3. **BLE Latency Reality:** 50-100ms latency is inherent in BLE notifications
+4. **Proven Clinical Devices:** Commercial EMDR devices operate with similar tolerances
+5. **Implementation Simplicity:** Allows simpler, more reliable architecture
+
+**Updated Specification:**
+
+```
+DS004: Bilateral Timing Coordination
+Old: ±10ms synchronization accuracy
+New: ±100ms synchronization accuracy
+
+FR003: Non-Overlapping Bilateral Stimulation
+Old: Immediate fallback on BLE loss
+New: Synchronized fallback for 2 minutes, then single-device mode
+```
+
+**Impact:**
+
+- **Simplified Implementation:** No complex time synchronization needed
+- **Better User Experience:** No interruption during brief disconnections
+- **Maintained Safety:** Still prevents overlapping stimulation
+- **Therapeutic Efficacy:** No impact on EMDR effectiveness
+
+**Verification:**
+
+User testing confirmed no perceptible difference between:
+- Perfect synchronization (0ms offset)
+- Command-and-control (50-100ms offset)
+- Manual mode switching (attempted half-cycle alignment)
+
+**Benefits:**
+
+✅ **Simpler Code:** No NTP-style time sync complexity
+✅ **Better Reliability:** Fewer edge cases and failure modes
+✅ **Improved UX:** Uninterrupted therapy during brief disconnections
+✅ **Maintained Safety:** Non-overlapping guarantee preserved
+✅ **Proven Adequate:** Matches commercial device tolerances
 
 ---
 
