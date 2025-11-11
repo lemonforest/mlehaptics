@@ -16,9 +16,12 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
 1. **This is a safety-critical medical device** - bilateral stimulation must NEVER overlap
 2. **Dual identical devices** - same code, automatic role switching (server/client)
 3. **ESP32-C6 + NimBLE** - C language (not C++), FreeRTOS, heavy documentation required
-4. **Current phase:** ERM motor control with H-bridge → LED testing capability
+4. **Current phase:** ERM motor control with H-bridge → LED testing capability → Dual-device pairing implementation
 5. **Power-on race condition solution:** Random 0-2000ms delay before BLE operations
-6. **JPL Compliance**: No busy-wait loops - all timing uses vTaskDelay() or hardware timers
+6. **Automatic role recovery:** Client becomes server after 30s disconnection timeout ("survivor becomes server")
+7. **Instant wake:** Button press immediately wakes from deep sleep (no hold required for dual-device coordination)
+8. **Fire-and-forget shutdown:** Emergency shutdown sends BLE command without waiting for ACK
+9. **JPL Compliance**: No busy-wait loops - all timing uses vTaskDelay() or hardware timers
 
 ### Critical Safety Requirements:
 - **Non-overlapping stimulation:** Server and client alternate in precise half-cycles
@@ -739,11 +742,18 @@ pio run -e single_device_ble_gatt_test -t upload && pio device monitor
  * @brief Handle button press with timing-based actions
  * @param press_duration_ms How long button was held
  * @return ESP_OK on success
- * 
- * Timing-based functionality:
- * - First 30 seconds after boot: 10-second hold = clear NVS (if enabled)
- * - After 30 seconds: 10-second hold ignored (safety)
- * - Any time: 5-second hold = emergency shutdown
+ *
+ * Button hold sequence (updated for dual-device operation):
+ * - Instant press: Wake from deep sleep (no hold required)
+ * - 0-5 seconds: Normal hold, no action
+ * - 5 seconds: Emergency shutdown ready (purple LED blink via therapy light)
+ * - 5-10 seconds: Continue holding (purple blink continues, release triggers shutdown)
+ * - 10 seconds: NVS clear triggered (GPIO15 solid on, only first 30s of boot per AD013)
+ * - Release: Execute action (shutdown at 5s+, NVS clear at 10s+)
+ *
+ * GPIO15 LED indication:
+ * - 5s hold: Purple therapy light blink (if available)
+ * - 10s hold (first 30s only): GPIO15 solid on (distinct from purple blink)
  */
 esp_err_t button_handle_press(uint32_t press_duration_ms);
 

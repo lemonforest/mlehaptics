@@ -412,18 +412,34 @@ dead_time = 1ms;
 
 ### AD011: Emergency Shutdown Protocol
 
-**Decision**: Immediate motor coast with coordinated shutdown
+**Decision**: Immediate motor coast with fire-and-forget coordinated shutdown
 
 **Safety Requirements:**
 - 5-second button hold triggers emergency stop
 - Immediate motor coast (GPIO write, no delay)
-- Coordinated shutdown message to paired device
-- No NVS state saving during emergency (new session on restart)
+- Fire-and-forget shutdown message to paired device (no ACK wait)
+- No NVS session state saving during emergency (new session on restart)
+- Pairing data and settings preserved in NVS (exception for reconnection)
 
 **Implementation:**
 - ISR-based button monitoring for fastest response
 - Immediate GPIO write for motor coast (~50ns)
-- Fallback to local shutdown if communication fails
+- BLE shutdown command sent without waiting for acknowledgment
+- Fallback to local shutdown if BLE disconnected (always safe)
+
+**Fire-and-Forget Rationale:**
+- **Safety-first**: Device executes local shutdown immediately
+- **No blocking**: Don't wait for peer acknowledgment (may be powered off)
+- **Best effort**: Send BLE command but don't depend on it
+- **Always safe**: Each device shuts down independently
+
+**NVS Storage Clarification:**
+
+AD011 "no NVS state saving" means session state, not settings:
+- ❌ Session state NOT saved: Don't resume mid-session at 15 minutes (unsafe)
+- ✅ Pairing data saved: Peer device MAC address for reconnection (AD026)
+- ✅ Settings saved: Mode 5 custom parameters (frequency, duty cycle, LED)
+- Rationale: Settings enable reconnection and user preferences, state would create unsafe resume
 
 ### AD012: Dead Time Implementation Strategy
 
@@ -458,18 +474,32 @@ esp_task_wdt_reset();
 
 ### AD013: Factory Reset Security Window
 
-**Decision**: Time-limited factory reset capability (first 30 seconds only)
+**Decision**: Time-limited factory reset capability (first 30 seconds only) with GPIO15 solid on indication
 
 **Rationale:**
 - **Accidental reset prevention**: No factory reset during therapy sessions
 - **Service technician access**: Reset available during initial setup
-- **Clear user feedback**: Different LED patterns for reset vs shutdown
+- **Clear user feedback**: GPIO15 solid on distinct from purple therapy light blink
+- **Security window**: 10-second hold only works in first 30 seconds after boot
 - **Conditional compilation**: Factory reset can be disabled in production builds
 
 **Implementation:**
 - Boot time tracking with 30-second window
-- LED rapid blink pattern for reset confirmation
+- 10-second button hold triggers NVS clear (only in first 30s)
+- GPIO15 status LED solid on at 10-second mark (clear visual warning)
+- Purple therapy light blink for 5s emergency shutdown (different indication)
 - Comprehensive NVS clearing including pairing data
+
+**LED Indication Pattern:**
+- **5-second hold**: Purple therapy light blink (emergency shutdown)
+- **10-second hold (first 30s only)**: GPIO15 solid on + purple blink (NVS clear)
+- **10-second hold (after 30s)**: No NVS clear, only emergency shutdown
+
+**GPIO15 Rationale:**
+- Distinct from purple therapy light (separate LED)
+- Solid on vs blinking provides clear differentiation
+- On-board LED always available (no case material dependency)
+- Active LOW: GPIO15 = 0 turns LED on
 
 ## Power Management Architecture
 
@@ -1639,6 +1669,249 @@ Migration checklist:
 - Full version analysis: `docs/led_strip_version_analysis.md` (detailed comparison)
 - Component manifest: `src/idf_component.yml` (dependency specification)
 - Test implementation: `test/ws2812b_test.c` (reference code pattern)
+
+### AD025: Dual-Device Wake Pattern and UX Design
+
+**Decision**: Instant button press to wake from deep sleep (no hold required) with GPIO15 LED indication for NVS clear
+
+**Problem Statement:**
+
+Original design specified 2-second button hold to wake from deep sleep. However, hardware testing with dual-device use case revealed this creates poor user experience:
+- User must coordinate 2-second hold on BOTH devices simultaneously
+- Difficult to synchronize without visual feedback
+- Creates frustration and delays session start
+- Hardware already supports instant wake via ESP32-C6 ext1 (per AD023)
+
+**Solution:**
+
+**Instant Wake (No Hold):**
+- Single button press immediately wakes device from deep sleep
+- Both devices can be woken simultaneously with natural two-handed button press
+- Fast, intuitive user experience for dual-device operation
+- Leverages existing AD023 wait-for-release pattern (unchanged)
+
+**Button Hold Sequence (Updated):**
+```
+0-5 seconds:   Normal hold, no action
+5 seconds:     Emergency shutdown ready (purple LED blink via therapy light)
+5-10 seconds:  Continue holding (purple blink continues, release triggers shutdown)
+10 seconds:    NVS clear triggered (GPIO15 solid on, only first 30s of boot per AD013)
+Release:       Execute action (shutdown at 5s+, NVS clear at 10s+)
+```
+
+**GPIO15 LED Indication for NVS Clear:**
+- GPIO15 status LED turns solid on at 10-second hold mark
+- Only active during first 30 seconds of boot (per AD013 security window)
+- Clear visual indication distinct from purple therapy light blink
+- Prevents accidental NVS clear during therapy sessions
+
+**Dual-Device Simultaneous Wake Workflow:**
+1. Both devices in deep sleep
+2. User presses button on both devices (natural two-handed press)
+3. Both devices wake instantly (< 100ms)
+4. Devices discover each other via BLE (< 30s)
+5. Session ready to begin
+
+**Hardware Compatibility:**
+- ESP32-C6 ext1 wake already supports instant wake (level-triggered on GPIO LOW)
+- AD023 wait-for-release pattern unchanged (applies to shutdown, not wake)
+- No firmware changes needed beyond removing 2-second wake hold logic
+
+**Rationale:**
+- **User experience**: Instant wake feels responsive, professional
+- **Dual-device coordination**: Eliminates synchronization difficulty
+- **Hardware lessons learned**: Original 2-second spec written before hardware testing
+- **Safety preserved**: Emergency shutdown still requires 5-second hold (prevents accidents)
+- **NVS clear indication**: GPIO15 solid on provides clear visual feedback (distinct from purple blink)
+- **Security window**: 10s NVS clear only works in first 30s of boot (AD013)
+
+**Alternatives Considered:**
+
+1. **Keep 2-second wake hold:**
+   - ❌ Rejected: Poor UX for dual-device operation
+   - ❌ Rejected: Hardware already supports instant wake
+
+2. **1-second wake hold (compromise):**
+   - ❌ Rejected: Still requires synchronization
+   - ❌ Rejected: Adds complexity without benefit
+
+3. **Instant wake with accidental press protection:**
+   - ✅ Chosen: Deep sleep itself prevents accidental wake (device must be sleeping)
+   - ✅ Chosen: Natural use case - user intends to wake device when pressing button
+
+**Security Considerations:**
+
+**NVS Clear Protection (Unchanged):**
+- 10-second hold required (prevents accidental clear)
+- Only works in first 30 seconds after boot (AD013)
+- GPIO15 solid on provides clear warning
+- After 30s boot window, 10s hold does nothing (safe for therapy sessions)
+
+**Emergency Shutdown (Unchanged):**
+- 5-second hold required (prevents accidental shutdown during therapy)
+- Purple LED blink provides visual countdown
+- Wait-for-release pattern ensures clean deep sleep entry (AD023)
+
+**JPL Compliance:**
+- No busy-wait loops (instant wake uses hardware ext1)
+- Deterministic wake behavior (level-triggered)
+- Predictable timing (< 100ms wake latency)
+
+**Documentation Updates:**
+- UI001 in requirements_spec.md: Updated to reflect instant wake
+- FR001: Added automatic role recovery after 30s timeout
+- FR003: Added automatic session start, background pairing
+- FR004: Clarified fire-and-forget emergency shutdown
+- PF002: Removed obsolete wake time specification
+
+**Verification Strategy:**
+- Hardware test: Press both device buttons simultaneously
+- Measure wake latency: < 100ms from button press to CPU active
+- BLE discovery: < 30s from wake to paired
+- NVS clear test: GPIO15 solid on during 10s hold (first 30s only)
+
+**Benefits:**
+
+✅ **Instant response** - Professional, responsive UX
+✅ **Dual-device friendly** - Natural two-handed simultaneous wake
+✅ **Hardware lessons applied** - Spec updated based on real testing
+✅ **Safety preserved** - Emergency shutdown still protected by 5s hold
+✅ **Clear NVS indication** - GPIO15 solid on distinct from purple blink
+✅ **Simple implementation** - Hardware already supports instant wake
+
+### AD026: BLE Automatic Role Recovery
+
+**Decision**: "Survivor becomes server" - automatic role switching after 30-second BLE disconnection timeout
+
+**Problem Statement:**
+
+Original design had manual role assignment (first device = server, second = client) but no automatic recovery if BLE connection lost:
+- If server device fails, client device stuck waiting
+- If client device fails, server has no reconnection target
+- User must manually power cycle both devices to reset roles
+- Interrupts therapy session unnecessarily
+
+**Solution:**
+
+**Automatic Role Recovery Protocol:**
+
+**Server Failure Scenario:**
+1. Server device fails or is powered off
+2. Client detects BLE disconnection
+3. Client continues in single-device mode (forward/reverse alternating)
+4. After 30-second timeout, client switches to server role
+5. Client (now server) begins advertising
+6. When original server returns, it discovers new server and becomes client
+7. Session continues in bilateral mode
+
+**Client Failure Scenario:**
+1. Client device fails or is powered off
+2. Server detects BLE disconnection
+3. Server continues in single-device mode (forward/reverse alternating)
+4. Server continues advertising for new client
+5. When original client returns, it discovers server and reconnects as client
+6. Session continues in bilateral mode
+
+**"Survivor Becomes Server" Logic:**
+```c
+// Client device monitoring BLE connection
+if (ble_connection_lost) {
+    // Continue therapy in single-device mode
+    motor_mode = SINGLE_DEVICE_ALTERNATING;
+
+    // Start 30s timeout for role switch
+    uint32_t timeout_start = xTaskGetTickCount();
+
+    while (ble_connection_lost && !session_timeout) {
+        // Continue single-device therapy
+        motor_task_single_device();
+
+        // Check if 30s elapsed
+        if ((xTaskGetTickCount() - timeout_start) > pdMS_TO_TICKS(30000)) {
+            // Switch to server role
+            ble_role = BLE_ROLE_SERVER;
+            ble_start_advertising();
+            ESP_LOGI(TAG, "Role switch: Client → Server (survivor)");
+            break;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Check every 1s
+    }
+}
+```
+
+**Pairing Data in NVS (Exception to AD011):**
+
+AD011 states "no NVS state saving" but clarifies this means session state, not settings:
+- ✅ Pairing data (peer MAC address) stored in NVS
+- ✅ Mode 5 settings (frequency, duty cycle, LED color) stored in NVS
+- ❌ Session state (mid-session at 15 minutes) NOT stored in NVS
+- Rationale: Settings enable reconnection, state would resume mid-session (unsafe)
+
+**Background Pairing in Single-Device Mode:**
+
+While operating in single-device mode after disconnection:
+- Motor task continues forward/reverse alternating pattern
+- BLE task scans for peer device in background (low priority)
+- If peer reappears, automatic reconnection and bilateral mode resume
+- User experience: seamless transition from single to bilateral
+
+**Rationale:**
+- **Session continuity**: Therapy continues despite device failure
+- **User experience**: No manual intervention required
+- **Role flexibility**: "Survivor" takes charge to enable reconnection
+- **Automatic recovery**: When failed device returns, bilateral mode resumes
+- **NVS exception justified**: Pairing data enables reconnection (AD011 allows settings)
+
+**Alternatives Considered:**
+
+1. **No automatic role recovery:**
+   - ❌ Rejected: User must manually reset both devices
+   - ❌ Rejected: Interrupts therapy session unnecessarily
+
+2. **Immediate role switch on disconnection:**
+   - ❌ Rejected: 30s timeout allows transient interference recovery
+   - ❌ Rejected: Too aggressive (BLE packet loss shouldn't trigger role switch)
+
+3. **Manual role selection via button:**
+   - ❌ Rejected: Adds UI complexity
+   - ❌ Rejected: Requires user intervention during session
+
+4. **30-second timeout with automatic switch:**
+   - ✅ Chosen: Balances transient interference vs permanent failure
+   - ✅ Chosen: Survivor takes server role automatically
+
+**Coordination with FR001 (Automatic Pairing):**
+- Power-on: Random 0-2000ms delay prevents simultaneous server attempts
+- Disconnection: 30s timeout gives failed device time to return
+- Reconnection: Failed device discovers new server and becomes client
+- Symmetric: Works for both server and client failure scenarios
+
+**JPL Compliance:**
+- Timeout using vTaskDelay() (no busy-wait)
+- Bounded loop (session timeout or reconnection)
+- Deterministic behavior (30s timeout always)
+- Fail-safe: Single-device mode always safe
+
+**Documentation Updates:**
+- FR001: Added automatic role recovery bullet points
+- FR003: Added background pairing in single-device mode
+- AD011: Clarified NVS pairing storage exception
+
+**Verification Strategy:**
+- Test server failure: Client switches to server after 30s
+- Test client failure: Server continues advertising
+- Test reconnection: Failed device becomes client when returning
+- Test transient interference: < 30s packet loss doesn't trigger role switch
+
+**Benefits:**
+
+✅ **Session continuity** - Therapy not interrupted by device failure
+✅ **Automatic recovery** - No user intervention required
+✅ **Role flexibility** - Survivor takes charge
+✅ **Balanced timeout** - 30s allows transient vs permanent failure distinction
+✅ **NVS exception justified** - Pairing data enables reconnection (settings, not state)
+✅ **Symmetric design** - Works for server or client failure
 
 ---
 

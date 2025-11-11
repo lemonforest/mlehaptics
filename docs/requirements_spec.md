@@ -158,6 +158,8 @@ framework = espidf
 - **Role assignment**: First device becomes server, second becomes client
 - **Race condition prevention**: Random 0-2000ms startup delay prevents simultaneous server attempts
 - **Pairing persistence**: Device MAC addresses stored in NVS for reconnection
+- **Automatic role recovery**: If BLE disconnects, client device becomes server after 30-second timeout
+- **Survivor becomes server**: Remaining device takes server role to enable reconnection when peer returns
 
 #### FR002: Bilateral Stimulation Control
 - **Non-overlapping pattern**: Devices NEVER stimulate simultaneously (safety-critical requirement)
@@ -174,12 +176,17 @@ framework = espidf
 - **Manual control**: User-configurable session length via mobile app
 - **Progress tracking**: Session time remaining indicated via status patterns
 - **Coordinated shutdown**: Either device can trigger bilateral shutdown
+- **Automatic session start**: Session begins automatically after successful pairing
+- **Single-device continuation**: If peer disconnects, device continues in single-device mode (forward/reverse alternating pattern)
+- **Background pairing**: Single-device mode continues scanning for peer device in background
 
 #### FR004: Emergency Safety Features
-- **Emergency stop**: 5-second button hold immediately disables all outputs
+- **Emergency stop**: 5-second button hold immediately disables all outputs on both devices
+- **Fire-and-forget shutdown**: Device sending emergency shutdown sends BLE command to peer without waiting for acknowledgment
+- **BLE-disconnected shutdown**: If BLE connection lost, device still executes local emergency shutdown
 - **Connection monitoring**: Automatic safe mode if peer device disconnects
 - **Power failure handling**: No persistent unsafe states across power cycles
-- **Clear NVS (unpair and reset)**: 10-second button hold during first 30 seconds clears paired device and user settings from NVS
+- **Clear NVS (unpair and reset)**: 10-second button hold during first 30 seconds clears paired device and user settings from NVS (GPIO15 solid on indication)
 
 #### FR005: Single Device Operation
 - **Standalone mode**: Device operates alone if pairing fails after 30 seconds
@@ -365,10 +372,9 @@ build_flags =
   - Standard: 1000ms cycle (500ms per device, 1 Hz rate)  
   - Slow: 2000ms cycle (1000ms per device, 0.5 Hz rate)
 
-#### PF002: Battery Life  
+#### PF002: Battery Life
 - **Active Session**: Minimum 20 minutes of bilateral stimulation
 - **Deep Sleep**: < 1mA current consumption
-- **Wake Time**: < 2 seconds from button press to full operation
 
 #### PF003: Reliability
 - **Connection Stability**: 99% uptime during 20-minute sessions
@@ -396,9 +402,16 @@ build_flags =
 ### Physical Interface
 
 #### UI001: Button Operation
-- **Wake Up**: 2-second hold to wake from deep sleep
-- **Emergency Shutdown**: 5-second hold for immediate stop (both devices)
-- **Clear NVS**: 10-second hold during first 30 seconds after boot (unpairs device and clears user settings)
+- **Wake Up**: Instant button press to wake from deep sleep (no hold required for dual-device simultaneous wake)
+- **Emergency Shutdown**: 5-second hold for immediate stop (purple LED blink pattern, both devices)
+- **Clear NVS**: 10-second hold during first 30 seconds after boot (GPIO15 status LED solid on, unpairs device and clears user settings)
+
+**Button Hold Sequence:**
+- **0-5 seconds**: Normal hold, no action
+- **5 seconds**: Emergency shutdown ready (purple LED blink pattern via therapy light)
+- **5-10 seconds**: Continue holding (purple blink continues, release triggers emergency shutdown)
+- **10 seconds**: NVS clear triggered (GPIO15 solid on indication, only during first 30s of boot per AD013)
+- **Release**: Execute action (emergency shutdown at 5s+, NVS clear at 10s+)
 
 #### UI002: Visual Feedback
 - **Boot Sequence**: 3-flash confirmation of successful startup
