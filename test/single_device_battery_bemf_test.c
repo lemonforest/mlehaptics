@@ -106,6 +106,7 @@ static const char *TAG = "BATTERY_BEMF_TEST";
 
 #define BAT_VOLTAGE_MAX         4.2f    // Fully charged (100%)
 #define BAT_VOLTAGE_MIN         3.0f    // Cutoff voltage (0%)
+#define LVO_NO_BATTERY_THRESHOLD 0.5f   // Below this = no battery, skip LVO
 #define LVO_CUTOFF_VOLTAGE      3.2f    // LVO threshold
 #define LVO_WARNING_VOLTAGE     3.0f    // Visual warning threshold
 
@@ -370,7 +371,16 @@ static bool check_low_voltage_cutout(void) {
     }
     
     ESP_LOGI(TAG, "LVO check: Battery voltage = %.2fV [%d%%]", battery_voltage_v, battery_percentage);
-    
+
+    // Check if no battery present (< 0.5V)
+    if (battery_voltage_v < LVO_NO_BATTERY_THRESHOLD) {
+        ESP_LOGW(TAG, "LVO check: No battery detected (%.2fV) - allowing operation", battery_voltage_v);
+        ESP_LOGW(TAG, "Device can be programmed/tested without battery");
+        ESP_LOGI(TAG, "LVO check: SKIPPED - no battery present");
+        ESP_LOGI(TAG, "");
+        return true;  // Skip LVO, continue operation
+    }
+
     if (battery_voltage_v < LVO_CUTOFF_VOLTAGE) {
         ESP_LOGW(TAG, "");
         ESP_LOGW(TAG, "============================================");

@@ -24,6 +24,7 @@ source_map = {
     "ws2812b_test": "../test/ws2812b_test.c",
     "single_device_demo_test": "../test/single_device_demo_test.c",
     "battery_voltage_test": "../test/battery_voltage_test.c",
+    "minimal_battery_voltage_test": "../test/minimal_battery_voltage_test.c",
     "single_device_battery_bemf_test": "../test/single_device_battery_bemf_test.c",
     "single_device_battery_bemf_queued_test": "../test/single_device_battery_bemf_queued_test.c",
     "single_device_demo_jpl_queued": "../test/single_device_demo_jpl_queued.c",

@@ -61,6 +61,7 @@ static const char *TAG = "QUEUED_TEST";
 #define VOLTAGE_MULTIPLIER      (1.0f / DIVIDER_RATIO)
 #define BAT_VOLTAGE_MAX         4.2f
 #define BAT_VOLTAGE_MIN         3.0f
+#define LVO_NO_BATTERY_THRESHOLD 0.5f
 #define LVO_CUTOFF_VOLTAGE      3.2f
 #define LVO_WARNING_VOLTAGE     3.0f
 
@@ -267,7 +268,15 @@ static bool check_low_voltage_cutout(void) {
     if (ret != ESP_OK) return true;
     
     ESP_LOGI(TAG, "LVO check: %.2fV [%d%%]", battery_v, percentage);
-    
+
+    // Check if no battery present (< 0.5V)
+    if (battery_v < LVO_NO_BATTERY_THRESHOLD) {
+        ESP_LOGW(TAG, "LVO check: No battery detected (%.2fV) - allowing operation", battery_v);
+        ESP_LOGW(TAG, "Device can be programmed/tested without battery");
+        ESP_LOGI(TAG, "LVO check: SKIPPED - no battery present");
+        return true;  // Skip LVO, continue operation
+    }
+
     if (battery_v < LVO_CUTOFF_VOLTAGE) {
         ESP_LOGW(TAG, "LVO TRIGGERED: %.2fV", battery_v);
         if (battery_v >= LVO_WARNING_VOLTAGE) low_battery_warning();

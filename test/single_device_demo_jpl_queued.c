@@ -72,6 +72,7 @@ static const char *TAG = "JPL_PHASE4";
 #define VOLTAGE_MULTIPLIER      (1.0f / DIVIDER_RATIO)
 #define BAT_VOLTAGE_MAX         4.2f
 #define BAT_VOLTAGE_MIN         3.0f
+#define LVO_NO_BATTERY_THRESHOLD 0.5f
 #define LVO_CUTOFF_VOLTAGE      3.2f
 #define LVO_WARNING_VOLTAGE     3.5f
 
@@ -461,8 +462,13 @@ static void battery_task(void *pvParameters) {
 
         ESP_LOGI(TAG, "Battery: %.2fV [%d%%]", battery_voltage, battery_percentage);
 
+        // Check if no battery present (< 0.5V) - skip LVO checks
+        if (battery_voltage < LVO_NO_BATTERY_THRESHOLD) {
+            // No battery detected - don't send warnings/critical messages
+            ESP_LOGW(TAG, "No battery detected (%.2fV) - monitoring skipped", battery_voltage);
+        }
         // Check for critical voltage
-        if (battery_voltage < LVO_CUTOFF_VOLTAGE) {
+        else if (battery_voltage < LVO_CUTOFF_VOLTAGE) {
             ESP_LOGE(TAG, "CRITICAL: Battery voltage %.2fV < %.2fV cutoff!",
                      battery_voltage, LVO_CUTOFF_VOLTAGE);
 
@@ -1072,7 +1078,14 @@ void app_main(void) {
 
         ESP_LOGI(TAG, "LVO check: %.2fV [%d%%]", battery_voltage, battery_percentage);
 
-        if (battery_voltage < LVO_CUTOFF_VOLTAGE) {
+        // Check if no battery present (< 0.5V)
+        if (battery_voltage < LVO_NO_BATTERY_THRESHOLD) {
+            ESP_LOGW(TAG, "LVO check: No battery detected (%.2fV) - allowing operation", battery_voltage);
+            ESP_LOGW(TAG, "Device can be programmed/tested without battery");
+            ESP_LOGI(TAG, "LVO check: SKIPPED - no battery present");
+            gpio_set_level(GPIO_BAT_ENABLE, 0);
+            // Continue with initialization (skip LVO enforcement)
+        } else if (battery_voltage < LVO_CUTOFF_VOLTAGE) {
             ESP_LOGE(TAG, "FATAL: Battery voltage too low (%.2fV < %.2fV)",
                      battery_voltage, LVO_CUTOFF_VOLTAGE);
             ESP_LOGE(TAG, "Charge battery before use!");
