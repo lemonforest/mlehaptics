@@ -1635,7 +1635,19 @@ static void enter_deep_sleep(void) {
 
     ESP_LOGI(TAG, "Entering deep sleep");
     vTaskDelay(pdMS_TO_TICKS(100));
-    
+
+    // Disable power management before deep sleep to prevent spurious wakes
+    // PM light sleep wake sources can interfere with deep sleep wake configuration
+    esp_pm_config_t pm_config_sleep = {
+        .max_freq_mhz = 160,
+        .min_freq_mhz = 160,        // Disable frequency scaling
+        .light_sleep_enable = false  // Disable light sleep before deep sleep
+    };
+    esp_pm_configure(&pm_config_sleep);
+    ESP_LOGI(TAG, "PM disabled for clean deep sleep");
+
+    vTaskDelay(pdMS_TO_TICKS(50));  // Let PM changes settle
+
     esp_sleep_enable_ext1_wakeup((1ULL << GPIO_BUTTON), ESP_EXT1_WAKEUP_ANY_LOW);
     esp_deep_sleep_start();
 }
