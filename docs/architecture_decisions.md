@@ -2475,7 +2475,7 @@ Implement comprehensive BLE Bilateral Control Service for device-to-device coord
 | `6E400601-B5A3-...` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
 | `6E400701-B5A3-...` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
 | `6E400801-B5A3-...` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
-| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 10-50% | Research into minimal stimulation |
+| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 10-90% | Perceptible stimulation to commercial-grade |
 
 **Research Platform Stimulation Patterns:**
 
@@ -2518,8 +2518,8 @@ Client: Remains OFF
 
 **Safety Constraints:**
 - Motor PWM: 30-80% (prevents motor damage and excessive stimulation)
-- Duty Cycle: 10-50% (ensures motor cooling and user comfort)
-- Non-overlapping: Enforced in all patterns (safety-critical)
+- Duty Cycle: 10-90% (10% ensures perception, 90% matches commercial devices with safety margin)
+- Non-overlapping: Time-window separation prevents overlap (devices/directions have sequential windows)
 
 **UUID Assignment Rationale:**
 
@@ -2601,13 +2601,16 @@ typedef enum {
 } research_pattern_t;
 ```
 
-**3. Minimal Stimulation Research (10-50% Duty Cycle):**
+**3. Duty Cycle Research (10-90%):**
 
 **Research Applications:**
-- Determine minimum effective stimulation duration
-- Study micro-stimulation (10% = 50ms pulses at 500ms cycle)
-- Energy efficiency for extended sessions
-- Reduce habituation with shorter pulses
+- Determine minimum effective stimulation duration (10% = 50ms pulses at 500ms cycle)
+- Study micro-stimulation for energy efficiency
+- Explore high-duty commercial-grade stimulation (90% = 450ms at 500ms cycle)
+- Compare minimal vs maximal stimulation therapeutic efficacy
+- Reduce habituation with varied pulse durations
+
+**Safety Note:** 90% max provides safety margin below commercial 100% while enabling direct comparison studies. Time-window separation (dual-device) or sequential forward/reverse (single-device) prevents overlap regardless of duty cycle.
 
 **4. Motor Intensity Research (30-80% PWM):**
 
@@ -2701,6 +2704,145 @@ typedef struct {
 ✅ **Open Source:** Enables collaborative research
 ✅ **Data-Driven:** Built-in logging for analysis
 ✅ **Expandable:** Architecture supports future sensors
+
+---
+
+### AD032: BLE Configuration Service Architecture
+
+**Date:** November 11, 2025
+
+**Status:** Approved
+
+**Supersedes:** Test UUID scheme (`a1b2c3d4-e5f6-7890-a1b2-c3d4e5f6xxxx`)
+
+**Context:**
+
+Mobile app control requires a dedicated GATT service separate from Bilateral Control Service (AD030). Current implementation uses temporary test UUIDs which cause confusion and should be replaced with production UUIDs from day one. Configuration Service provides single point of control for motor parameters, LED control, and status monitoring for BOTH single-device and dual-device operation.
+
+**Decision:**
+
+Implement comprehensive BLE Configuration Service using production UUIDs with logical characteristic grouping.
+
+**Service Architecture:**
+
+**Configuration Service** (Mobile App Control):
+- **UUID**: `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` (13th byte = `02`)
+- **Purpose**: Mobile app control for motor, LED, and status monitoring
+- **Scope**: Used by both single-device and dual-device configurations
+
+**Characteristics** (14th byte increments: 01, 02, 03... 0A, 0B):
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| **MOTOR CONTROL GROUP** |
+| `6E400102-B5A3-...` | Mode | uint8 | R/W | 0-4 | MODE_1HZ_50, MODE_1HZ_25, MODE_05HZ_50, MODE_05HZ_25, MODE_CUSTOM |
+| `6E400202-B5A3-...` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
+| `6E400302-B5A3-...` | Custom Duty Cycle | uint8 | R/W | 10-90% | Perceptible to commercial-grade |
+| `6E400402-B5A3-...` | PWM Intensity | uint8 | R/W | 30-80% | Motor power safety limits |
+| **LED CONTROL GROUP** |
+| `6E400502-B5A3-...` | LED Enable | uint8 | R/W | 0-1 | 0=off, 1=on |
+| `6E400602-B5A3-...` | LED Color Mode | uint8 | R/W | 0-1 | 0=palette, 1=custom RGB |
+| `6E400702-B5A3-...` | LED Palette Index | uint8 | R/W | 0-15 | 16-color preset palette |
+| `6E400802-B5A3-...` | LED Custom RGB | uint8[3] | R/W | RGB 0-255 | Custom color wheel RGB values |
+| `6E400902-B5A3-...` | LED Brightness | uint8 | R/W | 10-30% | User comfort range (eye strain prevention) |
+| **STATUS/MONITORING GROUP** |
+| `6E400A02-B5A3-...` | Session Duration | uint32 | R/W | 1200-5400 sec | Target session length (20-90 min) |
+| `6E400B02-B5A3-...` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
+| `6E400C02-B5A3-...` | Battery Level | uint8 | R/Notify | 0-100% | Battery state of charge |
+
+**LED Color Control Architecture:**
+
+**Two-Mode System:**
+
+1. **Palette Mode** (Color Mode = 0):
+   - Uses 16-color preset palette (Red, Green, Blue, Yellow, etc.)
+   - Mobile app selects via Palette Index (0-15)
+   - Simple for users who want quick color selection
+   - Palette defined in firmware (see `color_palette[]` in ble_manager.c)
+
+2. **Custom RGB Mode** (Color Mode = 1):
+   - Mobile app sends RGB values from color wheel/picker
+   - Enables full-spectrum color selection
+   - Allows precise color matching for therapeutic preferences
+   - RGB values applied directly to WS2812B LED
+
+**Brightness Application:**
+```c
+// Brightness is 10-30% for user comfort (eye strain prevention)
+// Applied uniformly to all RGB channels regardless of color mode
+uint8_t r_final = (source_r * led_brightness) / 100;
+uint8_t g_final = (source_g * led_brightness) / 100;
+uint8_t b_final = (source_b * led_brightness) / 100;
+```
+
+**Example:** Pure red RGB(255, 0, 0) at 20% brightness → RGB(51, 0, 0)
+
+**Default Settings (First Boot):**
+- Mode: MODE_1HZ_50 (standard 1 Hz bilateral)
+- Custom Frequency: 100 (1.00 Hz)
+- Custom Duty: 50%
+- PWM Intensity: 75%
+- LED Enable: false
+- LED Color Mode: 1 (Custom RGB)
+- LED Custom RGB: (255, 0, 0) Red
+- LED Brightness: 20%
+- Session Duration: 1200 seconds (20 minutes)
+
+**NVS Persistence:**
+
+**Saved Parameters (User Preferences):**
+- Mode (uint8: 0-4) - Last used mode
+- Custom Frequency (uint16: 25-200) - For Mode 5
+- Custom Duty Cycle (uint8: 10-90%) - For Mode 5
+- LED Enable (uint8: 0 or 1)
+- LED Color Mode (uint8: 0 or 1) ← NEW
+- LED Palette Index (uint8: 0-15)
+- LED Custom RGB (uint8[3]: R, G, B) ← NEW
+- LED Brightness (uint8: 10-30%)
+- PWM Intensity (uint8: 30-80%)
+- Session Duration (uint32: 1200-5400 sec) ← NEW
+
+**NVS Signature:** CRC32 of characteristic UUID endings and data types (detects structure changes)
+
+**Migration Strategy:** Clear NVS on signature mismatch (simple, clean slate for structural changes)
+
+**UUID Scheme Rationale:**
+
+**Service Differentiation (13th byte):**
+```
+6E400001-... = Bilateral Control Service (device-to-device, AD030)
+6E400002-... = Configuration Service (mobile app, AD032)
+        ↑
+   13th byte (service ID)
+```
+
+**Characteristic Differentiation (14th byte):**
+```
+6E400102-... = Characteristic 01 of service 02
+6E400202-... = Characteristic 02 of service 02
+        ↑  ↑
+     14th 13th
+```
+
+**Benefits:**
+
+✅ **Production UUIDs:** No test UUID migration complexity
+✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
+✅ **Logical Grouping:** Motor (4), LED (5), Status (3) = 12 characteristics
+✅ **RGB Flexibility:** Palette presets AND custom color wheel support
+✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
+✅ **Research Platform:** Full 0.25-2 Hz, 10-90% duty, 30-80% PWM
+✅ **User Comfort:** 10-30% LED brightness prevents eye strain
+✅ **Persistent Preferences:** NVS saves user settings across power cycles
+✅ **Future-Proof:** Architecture supports bilateral implementation without changes
+
+**Integration Notes:**
+
+- Configuration Service works identically for single-device and dual-device modes
+- Dual-device coordination handled separately via Bilateral Control Service (AD030)
+- Mobile app connects to ONE device's Configuration Service to control session
+- LED Custom RGB mode is default (most users want color wheel control)
+- Palette mode provides convenience for users who prefer presets
 
 ---
 

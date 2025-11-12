@@ -111,6 +111,8 @@ static const char *TAG = "BLE_GATT_TEST";
 #define BUTTON_SHUTDOWN_THRESHOLD_MS 2000  // Shutdown countdown starts at 2s
 #define BUTTON_COUNTDOWN_SEC        3      // Countdown duration (2s + 3s = 5s total)
 #define BUTTON_SAMPLE_MS            10
+#define BUTTON_NVS_CLEAR_MS         15000  // 15s hold for NVS factory reset
+#define BUTTON_NVS_CLEAR_WINDOW_MS  30000  // Must be within first 30s of boot
 
 // QUEUES
 #define BUTTON_TO_MOTOR_QUEUE_SIZE      5
@@ -538,6 +540,30 @@ static uint32_t calculate_mode5_signature(void) {
         0x09, 1    // PWM Intensity: uint8_t
     };
     return esp_crc32_le(0, sig_data, sizeof(sig_data));
+}
+
+// Clear all NVS data (factory reset)
+static esp_err_t nvs_clear_all(void) {
+    ESP_LOGI(TAG, "Clearing all NVS data (factory reset)");
+
+    // Erase NVS partition
+    esp_err_t ret = nvs_flash_erase();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS erase failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "NVS partition erased");
+
+    // Reinitialize NVS
+    ret = nvs_flash_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS reinit after erase failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "Factory reset complete (all NVS data cleared)");
+    return ESP_OK;
 }
 
 // Load Mode 5 settings from NVS (called once at boot)
@@ -1657,6 +1683,7 @@ static void button_task(void *pvParameters) {
     button_state_t state = BTN_STATE_IDLE;
     uint32_t press_start = 0;
     mode_t local_mode = MODE_1HZ_50;
+    uint32_t boot_time = (uint32_t)(esp_timer_get_time() / 1000);  // Boot time in ms
 
     ESP_LOGI(TAG, "Button task started");
 
@@ -1715,6 +1742,45 @@ static void button_task(void *pvParameters) {
                 break;
 
             case BTN_STATE_SHUTDOWN_HOLD:
+                // Check for NVS clear (15s hold within 30s boot window)
+                if (duration >= BUTTON_NVS_CLEAR_MS) {
+                    uint32_t uptime = now - boot_time;
+                    if (uptime < BUTTON_NVS_CLEAR_WINDOW_MS) {
+                        ESP_LOGI(TAG, "Button held ≥15s within 30s window, NVS clear triggered");
+                        ESP_LOGI(TAG, "Factory reset: Clearing NVS settings");
+
+                        // Clear purple LED before NVS operations
+                        led_clear();
+
+                        // Clear NVS
+                        esp_err_t ret = nvs_clear_all();
+                        if (ret == ESP_OK) {
+                            ESP_LOGI(TAG, "NVS cleared successfully");
+                            // Flash status LED to indicate success
+                            for (int i = 0; i < 3; i++) {
+                                status_led_on();
+                                vTaskDelay(pdMS_TO_TICKS(100));
+                                status_led_off();
+                                vTaskDelay(pdMS_TO_TICKS(100));
+                            }
+                        } else {
+                            ESP_LOGE(TAG, "NVS clear failed: %s", esp_err_to_name(ret));
+                        }
+
+                        // Wait for button release
+                        ESP_LOGI(TAG, "Waiting for button release after NVS clear");
+                        while (gpio_get_level(GPIO_BUTTON) == 0) {
+                            vTaskDelay(pdMS_TO_TICKS(100));
+                        }
+
+                        // After factory reset, proceed to shutdown for clean restart
+                        ESP_LOGI(TAG, "NVS cleared - proceeding to shutdown");
+                        state = BTN_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
+
+                // Normal shutdown (not NVS clear)
                 ESP_LOGI(TAG, "Emergency shutdown...");
                 state = BTN_STATE_COUNTDOWN;
                 break;
