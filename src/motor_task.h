@@ -114,7 +114,8 @@ typedef enum {
     MSG_EMERGENCY_SHUTDOWN,   /**< Button hold 5s: immediate shutdown */
     MSG_BLE_REENABLE,         /**< Button hold 1-2s: re-enable BLE advertising */
     MSG_BATTERY_WARNING,      /**< Battery voltage below warning threshold */
-    MSG_BATTERY_CRITICAL      /**< Battery voltage below critical threshold (LVO) */
+    MSG_BATTERY_CRITICAL,     /**< Battery voltage below critical threshold (LVO) */
+    MSG_SESSION_TIMEOUT       /**< Session duration exceeded (60 minutes) */
 } message_type_t;
 
 /**
@@ -250,6 +251,7 @@ void motor_mode5_settings_mark_clean(void);
  */
 extern QueueHandle_t button_to_motor_queue;
 extern QueueHandle_t battery_to_motor_queue;
+extern QueueHandle_t motor_to_button_queue;
 
 #ifdef __cplusplus
 }

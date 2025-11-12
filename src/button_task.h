@@ -160,6 +160,14 @@ extern QueueHandle_t button_to_motor_queue;
  */
 extern QueueHandle_t button_to_ble_queue;
 
+/**
+ * @brief Message queue from motor_task to button_task
+ *
+ * Created in main.c, used for session timeout notification
+ * Queue size: 1 message (only session timeout)
+ */
+extern QueueHandle_t motor_to_button_queue;
+
 #ifdef __cplusplus
 }
 #endif

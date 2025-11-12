@@ -68,6 +68,14 @@ QueueHandle_t button_to_motor_queue = NULL;
  */
 QueueHandle_t button_to_ble_queue = NULL;
 
+/**
+ * @brief Message queue from motor_task to button_task
+ *
+ * Queue size: 1 message (only session timeout notification)
+ * Message types: MSG_SESSION_TIMEOUT
+ */
+QueueHandle_t motor_to_button_queue = NULL;
+
 // ============================================================================
 // WATCHDOG CONFIGURATION
 // ============================================================================
@@ -232,6 +240,15 @@ static esp_err_t create_message_queues(void) {
     if (button_to_ble_queue == NULL) {
         ESP_LOGE(TAG, "Failed to create button_to_ble_queue");
         vQueueDelete(button_to_motor_queue);
+        return ESP_FAIL;
+    }
+
+    // Motor → Button queue (1 message, session timeout only)
+    motor_to_button_queue = xQueueCreate(1, sizeof(task_message_t));
+    if (motor_to_button_queue == NULL) {
+        ESP_LOGE(TAG, "Failed to create motor_to_button_queue");
+        vQueueDelete(button_to_motor_queue);
+        vQueueDelete(button_to_ble_queue);
         return ESP_FAIL;
     }
 

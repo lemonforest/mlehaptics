@@ -106,6 +106,19 @@ void button_task(void *pvParameters) {
 
         switch (state) {
             case BTN_STATE_IDLE: {
+                // Check for session timeout message from motor task (non-blocking)
+                task_message_t motor_msg;
+                if (xQueueReceive(motor_to_button_queue, &motor_msg, 0) == pdTRUE) {
+                    if (motor_msg.type == MSG_SESSION_TIMEOUT) {
+                        ESP_LOGI(TAG, "Session timeout received from motor_task");
+                        ESP_LOGI(TAG, "State: IDLE → SHUTDOWN (non-abortable session timeout)");
+                        // Skip countdown for session timeout - go directly to shutdown
+                        // This is a safety limit that cannot be overridden
+                        state = BTN_STATE_SHUTDOWN;
+                        break;  // Exit IDLE state immediately
+                    }
+                }
+
                 // Wait for button press (GPIO low)
                 if (button_level == 0) {
                     ESP_LOGI(TAG, "Button pressed");

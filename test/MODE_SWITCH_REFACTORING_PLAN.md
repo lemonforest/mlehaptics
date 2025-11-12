@@ -843,6 +843,23 @@ ble_params_updated = false;  // Parameters reloaded
 
 ---
 
+### Bug #8: Session Timeout Deep Sleep Failure (FIXED ✓)
+**Date:** November 11, 2025
+**Symptom:** After 60-minute session timeout, device didn't enter deep sleep. Motor task deleted itself but button task remained running, causing "queue full" errors on button press.
+**Location:** motor_task.c line 292 (session timeout detection), button_task.c (no handler for timeout)
+**Root Cause:** Motor task correctly detected session timeout and shut itself down but had no mechanism to notify button_task to trigger deep sleep. Comment said "button_task will coordinate final shutdown" but this coordination was missing.
+**Fix:**
+1. Added MSG_SESSION_TIMEOUT message type
+2. Created motor_to_button_queue for inter-task communication
+3. Motor task sends MSG_SESSION_TIMEOUT to button task before shutdown
+4. Button task receives message and goes directly to SHUTDOWN state (non-abortable)
+**Secondary Issue:** Initial implementation allowed session timeout countdown to be aborted, which would create zombie device (motor task dead, button task in IDLE).
+**Final Fix:** Session timeout now skips countdown entirely, goes directly to deep sleep (safety requirement).
+
+**Result:** Device now properly enters deep sleep after 60-minute session timeout with no user override possible.
+
+---
+
 ## BLE Task State Machine Refactoring
 
 **Date:** November 8, 2025

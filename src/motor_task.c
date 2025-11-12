@@ -290,6 +290,18 @@ void motor_task(void *pvParameters) {
                 uint32_t session_duration_sec = ble_get_session_duration_sec();
                 if (session_time_sec >= session_duration_sec) {
                     ESP_LOGI(TAG, "Session complete (%u sec)", session_duration_sec);
+
+                    // Send session timeout message to button task
+                    task_message_t timeout_msg = {
+                        .type = MSG_SESSION_TIMEOUT,
+                        .data = {.new_mode = 0}
+                    };
+                    if (xQueueSend(motor_to_button_queue, &timeout_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        ESP_LOGI(TAG, "Session timeout message sent to button_task");
+                    } else {
+                        ESP_LOGW(TAG, "Failed to send session timeout message to button_task");
+                    }
+
                     state = MOTOR_STATE_SHUTDOWN;
                     break;
                 }
@@ -554,9 +566,10 @@ void motor_task(void *pvParameters) {
     }
 
     // Motor task cleanup complete
-    // NOTE: button_task coordinates final deep sleep entry after countdown
-    // Do NOT call power_enter_deep_sleep() here - would skip countdown
-    ESP_LOGI(TAG, "Motor task stopped (button_task will coordinate final shutdown)");
+    // NOTE: For emergency shutdown (button hold), button_task coordinates deep sleep
+    // NOTE: For session timeout, we've notified button_task via motor_to_button_queue
+    // Do NOT call power_enter_deep_sleep() here - would skip proper shutdown sequence
+    ESP_LOGI(TAG, "Motor task stopped");
     vTaskDelay(pdMS_TO_TICKS(100));  // Allow log to flush
     vTaskDelete(NULL);
 }

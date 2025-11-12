@@ -65,6 +65,10 @@ idf_component_register(
         "nvs_manager.c"
         "power_manager.c"
 
+        # Command-and-Control modules (AD028)
+        "command_protocol.c"
+        "role_manager.c"
+
     INCLUDE_DIRS
         "."
 
