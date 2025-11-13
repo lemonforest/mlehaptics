@@ -10,7 +10,7 @@
  * - Integration with BLE configuration service
  *
  * Hardware Configuration:
- * - 2× WS2812B RGB LEDs (one per motor)
+ * - 1× WS2812B RGB LED
  * - GPIO16: WS2812B power enable (P-MOSFET, LOW=enabled)
  * - GPIO17: WS2812B data input (RMT TX)
  *
@@ -46,7 +46,7 @@ extern "C" {
 /**
  * @brief LED count
  */
-#define LED_COUNT               2       /**< Number of WS2812B LEDs (one per motor) */
+#define LED_COUNT               1       /**< Number of WS2812B LEDs */
 
 /**
  * @brief Brightness limits (percentage)

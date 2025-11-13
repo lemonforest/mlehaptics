@@ -110,10 +110,10 @@ esp_err_t led_init(void) {
     gpio_set_level(GPIO_WS2812B_ENABLE, 1);  // P-MOSFET: HIGH = disabled
     led_power_enabled = false;
 
-    // Configure led_strip for WS2812B (2 LEDs)
+    // Configure led_strip for WS2812B (1 LED)
     led_strip_config_t strip_config = {
         .strip_gpio_num = GPIO_WS2812B_DIN,
-        .max_leds = LED_COUNT,  // 2 LEDs
+        .max_leds = LED_COUNT,  // 1 LED
         .led_pixel_format = LED_PIXEL_FORMAT_GRB,
         .led_model = LED_MODEL_WS2812,
         .flags.invert_out = false,
@@ -134,7 +134,7 @@ esp_err_t led_init(void) {
     // Clear all LEDs (turn off)
     led_strip_clear(led_strip);
 
-    ESP_LOGI(TAG, "LED control initialized (2 LEDs, GPIO%d power, GPIO%d data)",
+    ESP_LOGI(TAG, "LED control initialized (1 LED, GPIO%d power, GPIO%d data)",
              GPIO_WS2812B_ENABLE, GPIO_WS2812B_DIN);
     return ESP_OK;
 }
@@ -186,7 +186,7 @@ esp_err_t led_set_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
     uint8_t r_scaled, g_scaled, b_scaled;
     apply_brightness(r, g, b, brightness, &r_scaled, &g_scaled, &b_scaled);
 
-    // Set both LEDs to the same color
+    // Set LED color
     esp_err_t ret = ESP_OK;
     for (int i = 0; i < LED_COUNT; i++) {
         esp_err_t result = led_strip_set_pixel(led_strip, i, r_scaled, g_scaled, b_scaled);
