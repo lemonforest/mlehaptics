@@ -1,7 +1,9 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Last Updated:** November 4, 2025
-**Project Version:** Phase 4 Complete (JPL-Compliant)
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Production-Ready
+**Project Phase:** Phase 4 Complete (JPL-Compliant)
 **Hardware:** Seeed XIAO ESP32-C6
 **Framework:** ESP-IDF v5.5.0 via PlatformIO
 
@@ -590,13 +592,13 @@ IDLE → ADVERTISING → CONNECTED
 |----------------|------|-------|--------|-------------|
 | Mode | ✅ | ✅ | | Current mode (0-4) |
 | Custom Frequency | ✅ | ✅ | | Hz × 100 (0.5-2.0 Hz) |
-| Custom Duty Cycle | ✅ | ✅ | | Percentage (0-50%, 0%=LED-only) |
+| Custom Duty Cycle | ✅ | ✅ | | Percentage (10-50%) |
 | Battery Level | ✅ | | ✅ | Battery % (0-100) |
 | Session Time | ✅ | | ✅ | Elapsed seconds |
 | LED Enable | ✅ | ✅ | | LED on/off for Mode 5 |
 | LED Color | ✅ | ✅ | | 16-color palette index |
 | LED Brightness | ✅ | ✅ | | Brightness % (10-30%) |
-| PWM Intensity | ✅ | ✅ | | Motor PWM % (30-90%) |
+| PWM Intensity | ✅ | ✅ | | Motor PWM % (0-80%, 0%=LED-only) |
 
 ### Critical Bugs Fixed During Development
 

@@ -91,8 +91,8 @@ typedef struct {
     // Motor Control Group (4 characteristics)
     mode_t current_mode;              /**< Current mode 0-4 (read/write) */
     uint16_t custom_frequency_hz;     /**< Hz × 100 (25-200 = 0.25-2.0 Hz) (read/write) */
-    uint8_t custom_duty_percent;      /**< Duty cycle 0-50% (0% = LED-only, 50% max prevents motor overlap) (read/write) */
-    uint8_t pwm_intensity;            /**< Motor PWM 30-80% (read/write) */
+    uint8_t custom_duty_percent;      /**< Duty cycle 10-50% (10% min, 50% max prevents motor overlap) (read/write) */
+    uint8_t pwm_intensity;            /**< Motor PWM 0-80% (0% = LED-only) (read/write) */
 
     // LED Control Group (5 characteristics)
     bool led_enable;                  /**< LED enable (read/write) */
@@ -188,9 +188,21 @@ void ble_update_battery_level(uint8_t percentage);
  *
  * Thread-safe update of session time characteristic
  * Triggers BLE notification if client subscribed
- * Called by motor_task every second
+ * NOTE: Should be called every 30-60 seconds (not every second)
+ * Mobile app counts seconds in UI between notifications
  */
 void ble_update_session_time(uint32_t seconds);
+
+/**
+ * @brief Update mode and send BLE notification
+ * @param mode New mode value (0-4)
+ *
+ * Thread-safe update of mode characteristic
+ * Triggers BLE notification if client subscribed
+ * Called by button_task when mode changes via button press
+ * Allows mobile app to stay synchronized with device mode
+ */
+void ble_update_mode(mode_t mode);
 
 /**
  * @brief Get current BLE-configured mode
@@ -212,21 +224,23 @@ uint16_t ble_get_custom_frequency_hz(void);
 
 /**
  * @brief Get Mode 5 custom duty cycle
- * @return Duty cycle percentage 0-50%
+ * @return Duty cycle percentage 10-50%
  *
  * Thread-safe read of custom duty cycle characteristic
- * Percentage of half-cycle that motor is active
- * 0% enables LED-only mode (visual therapy without motor)
+ * Percentage of half-cycle that motor/LED is active
+ * 10% minimum ensures perceptible timing pattern
  * 50% maximum prevents motor overlap in bilateral alternation
+ * For LED-only mode (no motor), use PWM intensity = 0% instead
  */
 uint8_t ble_get_custom_duty_percent(void);
 
 /**
  * @brief Get Mode 5 PWM intensity
- * @return PWM intensity percentage 30-80%
+ * @return PWM intensity percentage 0-80%
  *
  * Thread-safe read of PWM intensity characteristic
- * Safety-limited range per AD031
+ * 0% enables LED-only mode (no motor vibration)
+ * 80% maximum prevents motor overheating (safety limit per AD031)
  */
 uint8_t ble_get_pwm_intensity(void);
 

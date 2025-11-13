@@ -1,5 +1,11 @@
 # Quick Build & Test Reference
 
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Production-Ready
+
+---
+
 ## Available Build Environments
 
 ### Main Application Environments

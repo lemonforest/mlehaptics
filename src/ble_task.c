@@ -75,7 +75,7 @@ void ble_task(void *pvParameters) {
             }
 
             case BLE_STATE_ADVERTISING: {
-                // Check for shutdown message (100ms timeout for fast response)
+                // Check for messages (100ms timeout for fast response)
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
                     if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
                         ESP_LOGI(TAG, "Emergency shutdown during advertising");
@@ -83,6 +83,13 @@ void ble_task(void *pvParameters) {
                         ESP_LOGI(TAG, "State: ADVERTISING → SHUTDOWN");
                         state = BLE_STATE_SHUTDOWN;
                         break;
+                    } else if (msg.type == MSG_BLE_REENABLE) {
+                        // Restart advertising from 0 (reset timeout)
+                        ESP_LOGI(TAG, "BLE re-enable requested while advertising, restarting");
+                        ble_stop_advertising();
+                        vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay
+                        ble_start_advertising();
+                        ESP_LOGI(TAG, "Advertising restarted (timeout reset)");
                     }
                 }
 
@@ -121,7 +128,7 @@ void ble_task(void *pvParameters) {
             }
 
             case BLE_STATE_CONNECTED: {
-                // Check for shutdown message (100ms timeout for fast response)
+                // Check for messages (100ms timeout for fast response)
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
                     if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
                         ESP_LOGI(TAG, "Emergency shutdown during connection");
@@ -129,6 +136,9 @@ void ble_task(void *pvParameters) {
                         ESP_LOGI(TAG, "State: CONNECTED → SHUTDOWN");
                         state = BLE_STATE_SHUTDOWN;
                         break;
+                    } else if (msg.type == MSG_BLE_REENABLE) {
+                        // Already connected, no action needed
+                        ESP_LOGI(TAG, "BLE re-enable requested while connected (ignored, already active)");
                     }
                 }
 

@@ -1,7 +1,10 @@
 # EMDR Bilateral Stimulation Device - Requirements Specification
 
-**Generated with assistance from Claude Sonnet 4 (Anthropic)**  
-**Last Updated: 2025-10-21** *(CP005 updated based on hardware testing)*
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Production-Ready
+
+**Generated with assistance from Claude Sonnet 4 (Anthropic)**
 
 ## Project Overview
 

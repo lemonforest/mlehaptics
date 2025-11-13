@@ -35,7 +35,8 @@ static const char *TAG = "MOTOR_TASK";
 #define LED_INDICATION_TIME_MS  10000               // Back-EMF sampling window
 #define BACKEMF_SETTLE_MS       10                  // Back-EMF settle time
 #define MODE_CHECK_INTERVAL_MS  50                  // Check queue every 50ms
-#define BATTERY_CHECK_INTERVAL_MS  10000            // Check battery every 10 seconds
+#define BATTERY_CHECK_INTERVAL_MS  60000            // Check battery every 60 seconds
+#define SESSION_TIME_NOTIFY_INTERVAL_MS 60000       // Notify session time every 60 seconds
 
 // ============================================================================
 // MODE CONFIGURATIONS
@@ -56,6 +57,7 @@ const mode_config_t modes[MODE_COUNT] = {
 // Session state (for BLE time notifications)
 static uint32_t session_start_time_ms = 0;
 static uint32_t last_battery_check_ms = 0;
+static uint32_t last_session_time_notify_ms = 0;
 
 // Current operating mode (accessed by motor_get_current_mode())
 static mode_t current_mode = MODE_1HZ_50;   // Default: Mode 0 (1Hz @ 50%)
@@ -157,7 +159,7 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
     if (mode == MODE_CUSTOM) {
         // Mode 5: Custom parameters from BLE
         uint16_t freq_x100 = ble_get_custom_frequency_hz();  // Hz × 100
-        uint8_t duty = ble_get_custom_duty_percent();         // 0-50% (0% = LED-only, 50% max prevents motor overlap)
+        uint8_t duty = ble_get_custom_duty_percent();         // 10-50% (timing pattern, 50% max prevents motor overlap)
 
         // Calculate cycle period in ms: period = 1000 / (freq / 100)
         uint32_t cycle_ms = 100000 / freq_x100;  // e.g., 100 → 1000ms for 1Hz
@@ -214,6 +216,7 @@ void motor_task(void *pvParameters) {
     // Initialize session timestamp for BLE
     session_start_time_ms = session_start_ms;
     last_battery_check_ms = session_start_ms;
+    last_session_time_notify_ms = session_start_ms;
 
     // Subscribe to watchdog (soft-fail pattern)
     esp_err_t err = esp_task_wdt_add(NULL);
@@ -243,11 +246,17 @@ void motor_task(void *pvParameters) {
                     ESP_LOGW(TAG, "Failed to reset watchdog: %s", esp_err_to_name(err));
                 }
 
-                // Update session time to BLE (every second)
+                // Calculate current session time (used for notifications and timeout check)
                 uint32_t session_time_sec = elapsed / 1000;
-                ble_update_session_time(session_time_sec);
 
-                // Check battery periodically (every 10 seconds)
+                // Notify session time periodically (every 60 seconds)
+                // Mobile app counts seconds in UI between notifications
+                if ((now - last_session_time_notify_ms) >= SESSION_TIME_NOTIFY_INTERVAL_MS) {
+                    ble_update_session_time(session_time_sec);
+                    last_session_time_notify_ms = now;
+                }
+
+                // Check battery periodically (every 60 seconds)
                 if ((now - last_battery_check_ms) >= BATTERY_CHECK_INTERVAL_MS) {
                     int raw_mv;
                     float battery_v;

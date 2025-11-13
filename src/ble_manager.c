@@ -151,12 +151,20 @@ typedef struct {
     bool advertising_active;
     bool client_connected;
     uint32_t advertising_start_ms;
+    uint16_t conn_handle;              /**< Connection handle for notifications */
+    bool notify_mode_subscribed;        /**< Client subscribed to Mode notifications */
+    bool notify_session_time_subscribed; /**< Client subscribed to Session Time notifications */
+    bool notify_battery_subscribed;     /**< Client subscribed to Battery notifications */
 } ble_advertising_state_t;
 
 static ble_advertising_state_t adv_state = {
     .advertising_active = false,
     .client_connected = false,
-    .advertising_start_ms = 0
+    .advertising_start_ms = 0,
+    .conn_handle = BLE_HS_CONN_HANDLE_NONE,
+    .notify_mode_subscribed = false,
+    .notify_session_time_subscribed = false,
+    .notify_battery_subscribed = false
 };
 
 // Settings dirty flag (thread-safe via char_data_mutex)
@@ -334,9 +342,10 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 0-50% (0% = LED-only mode, 50% max prevents motor overlap in bilateral alternation)
-    if (duty_val > 50) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 0-50)", duty_val);
+    // AD032: Range 10-50% (10% min ensures perception, 50% max prevents motor overlap in bilateral alternation)
+    // For LED-only mode, set PWM intensity to 0% instead
+    if (duty_val < 10 || duty_val > 50) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 10-50)", duty_val);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -374,9 +383,9 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD031: Range 30-80%
-    if (value < 30 || value > 80) {
-        ESP_LOGE(TAG, "GATT Write: Invalid PWM %u%% (range 30-80)", value);
+    // AD031: Range 0-80% (0% = LED-only mode, no motor vibration)
+    if (value > 80) {
+        ESP_LOGE(TAG, "GATT Write: Invalid PWM %u%% (range 0-80)", value);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -743,7 +752,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             {
                 .uuid = &uuid_char_mode.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
             },
             {
                 .uuid = &uuid_char_custom_freq.u,
@@ -912,9 +921,14 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
     switch (event->type) {
         case BLE_GAP_EVENT_CONNECT:
             if (event->connect.status == 0) {
-                ESP_LOGI(TAG, "BLE connection established");
+                ESP_LOGI(TAG, "BLE connection established; conn_handle=%d", event->connect.conn_handle);
                 adv_state.client_connected = true;
                 adv_state.advertising_active = false;
+                adv_state.conn_handle = event->connect.conn_handle;
+                // Clear subscription flags (client must resubscribe)
+                adv_state.notify_mode_subscribed = false;
+                adv_state.notify_session_time_subscribed = false;
+                adv_state.notify_battery_subscribed = false;
             } else {
                 ESP_LOGW(TAG, "BLE connection failed; status=%d (%s)",
                          event->connect.status,
@@ -928,6 +942,10 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                      event->disconnect.reason & 0xFF,
                      ble_disconnect_reason_str(event->disconnect.reason & 0xFF));
             adv_state.client_connected = false;
+            adv_state.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+            adv_state.notify_mode_subscribed = false;
+            adv_state.notify_session_time_subscribed = false;
+            adv_state.notify_battery_subscribed = false;
 
             // Small delay to allow BLE stack cleanup (Android compatibility)
             vTaskDelay(pdMS_TO_TICKS(100));
@@ -968,6 +986,62 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                      event->subscribe.attr_handle,
                      event->subscribe.cur_notify,
                      event->subscribe.cur_indicate);
+
+            // Find which characteristic was subscribed to by comparing handles
+            uint16_t val_handle;
+
+            if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_mode.u, NULL, &val_handle) == 0) {
+                if (event->subscribe.attr_handle == val_handle) {
+                    adv_state.notify_mode_subscribed = event->subscribe.cur_notify;
+                    ESP_LOGI(TAG, "Mode notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
+                }
+            }
+
+            if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_session_time.u, NULL, &val_handle) == 0) {
+                if (event->subscribe.attr_handle == val_handle) {
+                    adv_state.notify_session_time_subscribed = event->subscribe.cur_notify;
+                    ESP_LOGI(TAG, "Session Time notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
+
+                    // Send initial value immediately on subscription
+                    if (event->subscribe.cur_notify) {
+                        uint32_t current_time;
+                        xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+                        current_time = char_data.session_time_sec;
+                        xSemaphoreGive(char_data_mutex);
+
+                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_time, sizeof(current_time));
+                        if (om != NULL) {
+                            int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                            if (rc == 0) {
+                                ESP_LOGI(TAG, "Initial session time sent: %lu seconds", current_time);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_battery.u, NULL, &val_handle) == 0) {
+                if (event->subscribe.attr_handle == val_handle) {
+                    adv_state.notify_battery_subscribed = event->subscribe.cur_notify;
+                    ESP_LOGI(TAG, "Battery notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
+
+                    // Send initial value immediately on subscription
+                    if (event->subscribe.cur_notify) {
+                        uint8_t current_battery;
+                        xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+                        current_battery = char_data.battery_level;
+                        xSemaphoreGive(char_data_mutex);
+
+                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_battery, sizeof(current_battery));
+                        if (om != NULL) {
+                            int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                            if (rc == 0) {
+                                ESP_LOGI(TAG, "Initial battery level sent: %u%%", current_battery);
+                            }
+                        }
+                    }
+                }
+            }
             break;
 
         default:
@@ -1315,12 +1389,66 @@ void ble_update_battery_level(uint8_t percentage) {
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.battery_level = percentage;
     xSemaphoreGive(char_data_mutex);
+
+    // Send notification if client subscribed
+    if (adv_state.client_connected && adv_state.notify_battery_subscribed) {
+        uint16_t val_handle;
+        if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_battery.u, NULL, &val_handle) == 0) {
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(&percentage, sizeof(percentage));
+            if (om != NULL) {
+                int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                if (rc != 0) {
+                    ESP_LOGD(TAG, "Battery notify failed: rc=%d", rc);
+                }
+            }
+        }
+    }
 }
 
 void ble_update_session_time(uint32_t seconds) {
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.session_time_sec = seconds;
     xSemaphoreGive(char_data_mutex);
+
+    // Send notification if client subscribed
+    // NOTE: Motor task should call this every 30-60 seconds, not every second
+    // Mobile app is responsible for counting seconds in UI between notifications
+    if (adv_state.client_connected && adv_state.notify_session_time_subscribed) {
+        uint16_t val_handle;
+        if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_session_time.u, NULL, &val_handle) == 0) {
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(&seconds, sizeof(seconds));
+            if (om != NULL) {
+                int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                if (rc != 0) {
+                    ESP_LOGD(TAG, "Session time notify failed: rc=%d", rc);
+                }
+            }
+        }
+    }
+}
+
+void ble_update_mode(mode_t mode) {
+    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    char_data.current_mode = mode;
+    xSemaphoreGive(char_data_mutex);
+
+    // Send notification if client subscribed
+    // This notifies mobile app when mode is changed via button press
+    if (adv_state.client_connected && adv_state.notify_mode_subscribed) {
+        uint16_t val_handle;
+        if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_mode.u, NULL, &val_handle) == 0) {
+            uint8_t mode_val = (uint8_t)mode;
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(&mode_val, sizeof(mode_val));
+            if (om != NULL) {
+                int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                if (rc != 0) {
+                    ESP_LOGD(TAG, "Mode notify failed: rc=%d", rc);
+                } else {
+                    ESP_LOGI(TAG, "Mode notification sent: %d", mode_val);
+                }
+            }
+        }
+    }
 }
 
 mode_t ble_get_current_mode(void) {

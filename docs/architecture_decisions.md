@@ -1,8 +1,12 @@
-# EMDR Bilateral Stimulation Device - Architecture Decisions (PDR)
+# Architecture Decisions (AD Format)
 
-**Preliminary Design Review Document**  
-**Generated with assistance from Claude Sonnet 4 (Anthropic)**  
-**Last Updated: 2025-10-20**
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Living Document
+**Total Decisions:** AD001-AD034
+
+**Preliminary Design Review Document**
+**Generated with assistance from Claude Sonnet 4 (Anthropic)**
 
 ## Executive Summary
 
@@ -2475,7 +2479,7 @@ Implement comprehensive BLE Bilateral Control Service for device-to-device coord
 | `6E400601-B5A3-...` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
 | `6E400701-B5A3-...` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
 | `6E400801-B5A3-...` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
-| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 0-50% | LED-only to max bilateral (no motor overlap) |
+| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 10-50% | Timing pattern (50% max prevents motor overlap) |
 
 **Research Platform Stimulation Patterns:**
 
@@ -2517,8 +2521,8 @@ Client: Remains OFF
 - Ultra-fast: 2 Hz (500ms cycle) - standard EMDR maximum
 
 **Safety Constraints:**
-- Motor PWM: 30-80% (prevents motor damage and excessive stimulation)
-- Duty Cycle: 0-50% (0% enables LED-only mode, 50% max prevents motor overlap in single-device bilateral alternation)
+- Motor PWM: 0-80% (0% = LED-only mode, 80% max prevents overheating)
+- Duty Cycle: 10-50% (timing pattern, 50% max prevents motor overlap in single-device bilateral alternation)
 - Non-overlapping: Time-window separation prevents overlap (devices/directions have sequential windows)
 
 **UUID Assignment Rationale:**
@@ -2601,7 +2605,7 @@ typedef enum {
 } research_pattern_t;
 ```
 
-**3. Duty Cycle Research (0-50%):**
+**3. Duty Cycle Research (10-50%):**
 
 **Single-Device Bilateral Constraint:**
 In single-device mode, one motor alternates forward/reverse in sequential half-cycles:
@@ -2613,19 +2617,22 @@ In single-device mode, one motor alternates forward/reverse in sequential half-c
   - Poor haptic experience (no clear bilateral separation)
 
 **Research Applications:**
-- **0% duty cycle:** LED-only mode for pure visual bilateral stimulation (no motor vibration)
-- **10% = 50ms pulses:** Micro-stimulation studies, minimum perceptual threshold research
+- **10% = 50ms pulses:** Micro-stimulation studies, minimum perceptible timing pattern
 - **25% = 125ms pulses:** Standard therapy baseline (4× battery life improvement vs continuous)
 - **50% = 250ms pulses:** Maximum bilateral stimulation intensity without motor overlap
 
+**Important Note:** Duty cycle controls TIMING pattern (when motor/LED are active), NOT motor strength. For LED-only mode (pure visual stimulation), set PWM intensity = 0% instead of duty = 0%.
+
 **Safety Note:** 50% maximum is a **hard physical limit** for single-device bilateral alternation. Each half-cycle must allow both active time AND coast time. Dual-device mode (future) can support higher duty cycles since devices operate in separate time windows without direction reversals.
 
-**4. Motor Intensity Research (30-80% PWM):**
+**4. Motor Intensity Research (0-80% PWM):**
 
 **Safety Rationale:**
-- **Minimum 30%:** Ensures perceptible stimulation
-- **Maximum 80%:** Prevents motor overheating and tissue irritation
-- **Research Range:** 50% variation allows significant comparison
+- **0% (LED-only mode):** Disables motor vibration while maintaining LED blink pattern (pure visual therapy)
+- **10-30%:** Gentle stimulation for sensitive users
+- **40-60%:** Standard therapeutic range
+- **70-80%:** Strong stimulation (maximum prevents overheating and tissue irritation)
+- **Research Range:** 80% variation allows comprehensive intensity studies
 
 **5. Session Duration Flexibility (20-90 minutes):**
 
@@ -2743,10 +2750,10 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | **MOTOR CONTROL GROUP** |
-| `6E400102-B5A3-...` | Mode | uint8 | R/W | 0-4 | MODE_1HZ_50, MODE_1HZ_25, MODE_05HZ_50, MODE_05HZ_25, MODE_CUSTOM |
+| `6E400102-B5A3-...` | Mode | uint8 | R/W/Notify | 0-4 | MODE_1HZ_50, MODE_1HZ_25, MODE_05HZ_50, MODE_05HZ_25, MODE_CUSTOM |
 | `6E400202-B5A3-...` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
-| `6E400302-B5A3-...` | Custom Duty Cycle | uint8 | R/W | 0-50% | LED-only to max bilateral (no overlap) |
-| `6E400402-B5A3-...` | PWM Intensity | uint8 | R/W | 30-80% | Motor power safety limits |
+| `6E400302-B5A3-...` | Custom Duty Cycle | uint8 | R/W | 10-50% | Timing pattern (50% max, no overlap) |
+| `6E400402-B5A3-...` | PWM Intensity | uint8 | R/W | 0-80% | Motor strength (0% = LED-only) |
 | **LED CONTROL GROUP** |
 | `6E400502-B5A3-...` | LED Enable | uint8 | R/W | 0-1 | 0=off, 1=on |
 | `6E400602-B5A3-...` | LED Color Mode | uint8 | R/W | 0-1 | 0=palette, 1=custom RGB |
@@ -2801,13 +2808,13 @@ uint8_t b_final = (source_b * led_brightness) / 100;
 **Saved Parameters (User Preferences):**
 - Mode (uint8: 0-4) - Last used mode
 - Custom Frequency (uint16: 25-200) - For Mode 5
-- Custom Duty Cycle (uint8: 0-50%) - For Mode 5 (0% = LED-only)
+- Custom Duty Cycle (uint8: 10-50%) - For Mode 5 (timing pattern)
 - LED Enable (uint8: 0 or 1)
 - LED Color Mode (uint8: 0 or 1) ← NEW
 - LED Palette Index (uint8: 0-15)
 - LED Custom RGB (uint8[3]: R, G, B) ← NEW
 - LED Brightness (uint8: 10-30%)
-- PWM Intensity (uint8: 30-80%)
+- PWM Intensity (uint8: 0-80%, 0% = LED-only mode)
 - Session Duration (uint32: 1200-5400 sec) ← NEW
 
 **NVS Signature:** CRC32 of characteristic UUID endings and data types (detects structure changes)
@@ -2893,7 +2900,7 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 ✅ **Logical Grouping:** Motor (4), LED (5), Status (3) = 12 characteristics
 ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
-✅ **Research Platform:** Full 0.25-2 Hz, 0-50% duty (0%=LED-only), 30-80% PWM
+✅ **Research Platform:** Full 0.25-2 Hz, 10-50% duty, 0-80% PWM (0%=LED-only)
 ✅ **User Comfort:** 10-30% LED brightness prevents eye strain
 ✅ **Persistent Preferences:** NVS saves user settings across power cycles
 ✅ **Future-Proof:** Architecture supports bilateral implementation without changes
@@ -2905,6 +2912,211 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 - Mobile app connects to ONE device's Configuration Service to control session
 - LED Custom RGB mode is default (most users want color wheel control)
 - Palette mode provides convenience for users who prefer presets
+
+---
+
+### AD033: LED Color Palette Standard
+
+**Date:** November 13, 2025
+
+**Status:** Approved
+
+**Context:**
+
+Mobile app control via BLE Configuration Service (AD032) includes a 16-color palette mode for WS2812B RGB LED control. During modular architecture implementation, a color palette mismatch was discovered between `ble_manager.c` (master palette) and `led_control.c` (hardware implementation) - colors 8-15 were completely different, which would cause incorrect LED colors when users selected palette indices via mobile app.
+
+**Decision:**
+
+Standardize on a single 16-color palette across all modules, with `ble_manager.c` as the authoritative source and `led_control.c` synchronized to match.
+
+**16-Color Palette Standard:**
+
+| Index | Color Name | RGB Values | Hex | Notes |
+|-------|------------|------------|-----|-------|
+| 0 | Red | (255, 0, 0) | #FF0000 | Primary colors |
+| 1 | Green | (0, 255, 0) | #00FF00 | Primary colors |
+| 2 | Blue | (0, 0, 255) | #0000FF | Primary colors |
+| 3 | Yellow | (255, 255, 0) | #FFFF00 | Secondary colors |
+| 4 | Cyan | (0, 255, 255) | #00FFFF | Secondary colors |
+| 5 | Magenta | (255, 0, 255) | #FF00FF | Secondary colors |
+| 6 | Orange | (255, 128, 0) | #FF8000 | Warm tones |
+| 7 | Purple | (128, 0, 255) | #8000FF | Cool tones |
+| 8 | Spring Green | (0, 255, 128) | #00FF80 | Nature colors |
+| 9 | Pink | (255, 192, 203) | #FFC0CB | Soft colors |
+| 10 | White | (255, 255, 255) | #FFFFFF | Neutral |
+| 11 | Olive | (128, 128, 0) | #808000 | Earth tones |
+| 12 | Teal | (0, 128, 128) | #008080 | Cool tones |
+| 13 | Violet | (128, 0, 128) | #800080 | Cool tones |
+| 14 | Turquoise | (64, 224, 208) | #40E0D0 | Cool tones |
+| 15 | Dark Orange | (255, 140, 0) | #FF8C00 | Warm tones |
+
+**Implementation:**
+
+**Master Definition** (`ble_manager.c`):
+```c
+const rgb_color_t color_palette[16] = {
+    {255, 0,   0,   "Red"},
+    {0,   255, 0,   "Green"},
+    {0,   0,   255, "Blue"},
+    {255, 255, 0,   "Yellow"},
+    {0,   255, 255, "Cyan"},
+    {255, 0,   255, "Magenta"},
+    {255, 128, 0,   "Orange"},
+    {128, 0,   255, "Purple"},
+    {0,   255, 128, "Spring Green"},
+    {255, 192, 203, "Pink"},
+    {255, 255, 255, "White"},
+    {128, 128, 0,   "Olive"},
+    {0,   128, 128, "Teal"},
+    {128, 0,   128, "Violet"},
+    {64,  224, 208, "Turquoise"},
+    {255, 140, 0,   "Dark Orange"}
+};
+```
+
+**Hardware Implementation** (`led_control.c`):
+```c
+const led_rgb_t led_color_palette[16] = {
+    {255,   0,   0},  // 0: Red
+    {0,   255,   0},  // 1: Green
+    {0,     0, 255},  // 2: Blue
+    {255, 255,   0},  // 3: Yellow
+    {0,   255, 255},  // 4: Cyan
+    {255,   0, 255},  // 5: Magenta
+    {255, 128,   0},  // 6: Orange
+    {128,   0, 255},  // 7: Purple
+    {0,   255, 128},  // 8: Spring Green
+    {255, 192, 203},  // 9: Pink
+    {255, 255, 255},  // 10: White
+    {128, 128,   0},  // 11: Olive
+    {0,   128, 128},  // 12: Teal
+    {128,   0, 128},  // 13: Violet
+    {64,  224, 208},  // 14: Turquoise
+    {255, 140,   0}   // 15: Dark Orange
+};
+```
+
+**Usage Flow:**
+
+1. **Mobile App**: User selects color from palette (sends index 0-15 via BLE)
+2. **BLE Manager**: Stores `led_palette_index` in characteristic data
+3. **LED Control**: Reads `ble_get_led_palette_index()` and looks up RGB from `led_color_palette[]`
+4. **WS2812B**: Applies RGB with brightness scaling (10-30%) and sends to LED hardware
+
+**Brightness Scaling:**
+
+All RGB values are scaled by brightness percentage (10-30% range for user comfort):
+```c
+// Example: Red (255,0,0) at 20% brightness → (51,0,0)
+uint8_t r_final = (color.r * brightness) / 100;
+uint8_t g_final = (color.g * brightness) / 100;
+uint8_t b_final = (color.b * brightness) / 100;
+```
+
+**Palette Design Rationale:**
+
+- **0-2**: Primary colors (Red/Green/Blue) - Essential basics
+- **3-5**: Secondary colors (Yellow/Cyan/Magenta) - RGB mixing completes
+- **6-7**: Popular warm/cool tones (Orange/Purple) - User favorites
+- **8-15**: Diverse extended palette - Nature colors, soft colors, earth tones, neutrals
+- **Balanced distribution**: Warm tones (6,15), cool tones (7,12,13,14), nature (8,11), soft (9,10)
+
+**Alternative Considered:**
+
+**Custom RGB Mode** (Color Mode = 1) allows full-spectrum color selection via mobile app color wheel/picker, bypassing palette entirely. This provides unlimited color options but requires more complex UI. Palette mode is for users who prefer quick selection.
+
+**Benefits:**
+
+✅ **Consistency:** Mobile app → BLE → Hardware produces expected LED colors
+✅ **User Experience:** What you select is what you get (WYSIWYG)
+✅ **Maintenance:** Single source of truth for palette definition
+✅ **Documentation:** Clear reference for mobile app developers
+✅ **Flexibility:** 16 colors covers most therapeutic/preference needs
+✅ **Fallback:** Users can always use Custom RGB mode for exact colors
+
+**Integration Notes:**
+
+- Palette is compile-time constant (no runtime modification needed)
+- Mobile app should display palette preview using these exact RGB values
+- BLE characteristic validates index 0-15, returns error for invalid indices
+- Default palette index is 0 (Red) on first boot
+- NVS saves last-used palette index across power cycles
+
+---
+
+### AD034: Documentation Versioning and Release Management (2025-11-13)
+
+**Decision:** Implement unified semantic versioning for project documentation using v0.MAJOR.MINOR pre-release format.
+
+**Rationale:**
+- **Unified versioning**: All core docs share one version number, making out-of-sync documents immediately obvious
+- **Pre-release format**: v0.x.x indicates active development; v1.0.0 for production-ready
+- **Version bump triggers**: Minor (v0.x.Y) for doc updates/fixes; Major (v0.X.0) for features/architecture changes
+- **Consistency**: Standardized header format across all core documentation
+- **Traceability**: Git tags enable version checkout and GitHub releases
+
+**Versioned Documents (Tier 1 - Core Project Docs):**
+1. CLAUDE.md - AI reference guide
+2. README.md - Main project documentation
+3. QUICK_START.md - Consolidated quick start guide
+4. BUILD_COMMANDS.md - Essential build commands reference
+5. docs/architecture_decisions.md - Design decision record (this document)
+6. docs/requirements_spec.md - Full project specification
+7. docs/ai_context.md - API contracts and rebuild instructions
+
+**Excluded from Versioning:**
+- test/ directory documents (test-specific, evolve independently)
+- Session summaries (already date-tracked)
+- Archived documentation (frozen by nature)
+
+**Standard Header Format:**
+```markdown
+# Document Title
+
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Production-Ready | In Development | Archived
+**Project Phase:** Phase 4 Complete (JPL-Compliant)
+```
+
+**Version Bump Guidelines:**
+- **v0.x.Y (Minor)**: Documentation updates, clarifications, typo fixes, content additions
+- **v0.X.0 (Major)**: New features (BLE, dual-device), architecture changes, requirement updates
+- **v1.0.0**: Production release (feature-complete, tested, documented)
+
+**Git Tag Policy:**
+- Create git tags for all minor and major version bumps
+- Tag format: `v0.1.0`, `v0.2.0`, etc.
+- Tag message includes brief description of changes
+
+**CHANGELOG.md Tracking:**
+- Track major project milestones only (not individual doc edits)
+- Examples: BLE integration, Phase 4 completion, dual-device support
+- Link to relevant session summaries and ADs
+
+**Implementation Date:** 2025-11-13
+**Initial Version:** v0.1.0 (Phase 4 Complete with BLE GATT production-ready)
+
+**Benefits:**
+
+✅ **Synchronization Detection**: Out-of-date docs are immediately visible (mismatched version numbers)
+✅ **Release Management**: Git tags enable rollback to specific documentation versions
+✅ **Change Tracking**: CHANGELOG.md provides high-level project milestone history
+✅ **Collaboration**: Version numbers provide clear reference points for discussions
+✅ **Maintenance**: Unified versioning reduces overhead compared to per-doc versioning
+
+**Alternatives Considered:**
+
+- **Per-document versioning**: Rejected due to complexity and synchronization challenges
+- **Date-only tracking**: Rejected due to lack of semantic meaning (what changed?)
+- **No versioning**: Rejected due to difficulty tracking when docs are out of sync
+
+**Integration Notes:**
+
+- When ANY core document is updated, bump version across ALL core docs (maintains unified version)
+- Update CHANGELOG.md for major milestones only (not every doc edit)
+- Create git tag after committing version bump
+- Session summaries remain date-tracked (not versioned)
 
 ---
 

@@ -806,9 +806,10 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // Validate range (0-50%): 0% = LED-only mode, 50% max prevents motor overlap in bilateral alternation
-    if (duty_val > 50) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty cycle %u%% (range 0-50%%)", duty_val);
+    // Validate range (10-50%): 10% min ensures perception, 50% max prevents motor overlap in bilateral alternation
+    // For LED-only mode, set PWM intensity to 0% instead
+    if (duty_val < 10 || duty_val > 50) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty cycle %u%% (range 10-50%%)", duty_val);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -1022,8 +1023,9 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
     int rc = ble_hs_mbuf_to_flat(ctxt->om, &value, sizeof(value), NULL);
     if (rc != 0) return BLE_ATT_ERR_UNLIKELY;
 
-    if (value < 30 || value > 90) {
-        ESP_LOGW(TAG, "GATT Write: PWM intensity %d%% out of range (30-90%%)", value);
+    // Range 0-80%: 0% = LED-only mode (no motor vibration), 80% max prevents overheating
+    if (value > 80) {
+        ESP_LOGW(TAG, "GATT Write: PWM intensity %d%% out of range (0-80%%)", value);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 

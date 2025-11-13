@@ -156,6 +156,9 @@ void button_task(void *pvParameters) {
                         ESP_LOGW(TAG, "Failed to send mode change message (queue full)");
                     }
 
+                    // Notify BLE clients of mode change (mobile app sync)
+                    ble_update_mode(next_mode);
+
                     ESP_LOGI(TAG, "State: PRESSED → IDLE");
                     state = BTN_STATE_IDLE;
                 } else if (elapsed >= BUTTON_BLE_HOLD_MIN_MS) {

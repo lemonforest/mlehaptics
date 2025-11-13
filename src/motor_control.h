@@ -66,7 +66,7 @@ extern "C" {
 /**
  * @brief PWM intensity limits (percentage)
  */
-#define MOTOR_PWM_MIN           30      /**< Minimum PWM % (prevents motor damage) */
+#define MOTOR_PWM_MIN           0       /**< Minimum PWM % (0% = LED-only mode, no motor) */
 #define MOTOR_PWM_MAX           80      /**< Maximum PWM % (safety limit per AD031) */
 #define MOTOR_PWM_DEFAULT       75      /**< Default PWM % (balanced performance) */
 

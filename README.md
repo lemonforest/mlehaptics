@@ -1,10 +1,15 @@
 # EMDR Bilateral Stimulation Device
 
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Production-Ready
+**Project Phase:** Phase 4 Complete (JPL-Compliant)
+
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
 ![EMDR Device in Hand](images/device-in-hand.jpg)
 
-Generated with assistance from **Claude Sonnet 4 (Anthropic)** - Last Updated: 2025-11-07
+Generated with assistance from **Claude Sonnet 4 (Anthropic)**
 
 ## 🎯 Project Overview
 
@@ -17,7 +22,7 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - 🔄 Dual-device bilateral coordination protocol in development
 
 **Key Features:**
-- **Configurable bilateral frequency**: 0.5-2 Hz (500-2000ms total cycle time)
+- **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
 - **Precise half-cycle allocation**: Each device gets exactly 50% of total cycle
 - **JPL-compliant timing**: All delays use FreeRTOS vTaskDelay() (no busy-wait loops)
 - **Adaptive watchdog feeding**: Short cycles feed at end, long cycles feed mid-cycle + end (4-8x safety margin)
@@ -156,7 +161,7 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 ### Configurable Cycle Times
 
 **Total cycle time** is the primary configuration parameter:
-- **Range**: 500-2000ms (displayed to therapists as 0.5-2 Hz)
+- **Range**: 500-4000ms (displayed to therapists as 0.25-2 Hz)
 - **Default**: 1000ms (1 Hz, traditional EMDR bilateral rate)
 - **Half-cycle allocation**: Each device gets exactly total_cycle / 2
 
@@ -450,7 +455,7 @@ Please maintain attribution when using or modifying this code or hardware design
 ### Phase 5: Dual-Device Bilateral Coordination (In Development)
 - **Automatic pairing**: Device discovery and role assignment
 - **Synchronized timing**: Safety-critical non-overlapping bilateral stimulation
-- **Configurable cycle times**: 500-2000ms (0.5-2 Hz therapeutic range)
+- **Configurable cycle times**: 500-4000ms (0.25-2 Hz therapeutic range)
 - **Safety-critical timing**: Non-overlapping half-cycles with 1ms FreeRTOS dead time
 
 ### Phase 2: Advanced Haptic Research (Future)

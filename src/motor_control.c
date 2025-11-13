@@ -34,14 +34,11 @@ static SemaphoreHandle_t motor_mutex = NULL;
 /**
  * @brief Clamp PWM intensity to safety limits
  * @param intensity_percent Input intensity percentage
- * @return Clamped intensity (30-80%)
+ * @return Clamped intensity (0-80%, 0% = LED-only mode)
  */
 static uint8_t clamp_intensity(uint8_t intensity_percent) {
-    if (intensity_percent < MOTOR_PWM_MIN) {
-        ESP_LOGW(TAG, "Intensity %u%% below minimum, clamping to %u%%",
-                 intensity_percent, MOTOR_PWM_MIN);
-        return MOTOR_PWM_MIN;
-    }
+    // Note: MOTOR_PWM_MIN is 0 (LED-only mode), so no minimum check needed
+    // uint8_t is unsigned, so it can't be < 0
     if (intensity_percent > MOTOR_PWM_MAX) {
         ESP_LOGW(TAG, "Intensity %u%% above maximum, clamping to %u%%",
                  intensity_percent, MOTOR_PWM_MAX);

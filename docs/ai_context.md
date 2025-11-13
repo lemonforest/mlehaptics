@@ -1,10 +1,13 @@
-# EMDR Bilateral Stimulation Device - Complete Project DNA
+# EMDR Bilateral Stimulation Device - AI Context Reference
+
+**Version:** v0.1.0
+**Last Updated:** 2025-11-13
+**Status:** Historical Reference (use CLAUDE.md for current info)
 
 **Generated with Claude Sonnet 4 (Anthropic) - Master Reference Version**
-**Last Updated: 2025-10-02**
 
 > **Usage Instructions for AI Assistants:**
-> This file contains complete project specifications and API contracts. Use this as the authoritative source for generating any project component. All generated code must maintain API compatibility with the contracts defined here.
+> This file contains historical project specifications and API contracts. For current project information, refer to CLAUDE.md as the primary authoritative source. This document is maintained for historical reference and may contain outdated information.
 
 ## 🎯 Project Mission
 
@@ -565,12 +568,13 @@ esp_err_t ble_gatt_set_custom_frequency(uint16_t frequency_hz_x100);
 
 /**
  * @brief GATT Characteristic 0x0003: Custom Duty Cycle (Mode 5 only)
- * @param duty_percent Duty cycle percentage (0-50%)
+ * @param duty_percent Duty cycle percentage (10-50%)
  * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
  *
- * Range: 0-50%
- * - 0% enables LED-only mode (visual therapy without motor vibration)
+ * Range: 10-50%
+ * - 10% minimum ensures perceptible timing pattern
  * - Maximum 50% prevents motor overlap in single-device bilateral alternation
+ * - For LED-only mode (no motor), use PWM intensity = 0% instead
  *
  * Properties: Read/Write
  * Type: uint8
@@ -654,13 +658,13 @@ esp_err_t ble_gatt_set_led_brightness(uint8_t brightness_percent);
 
 /**
  * @brief GATT Characteristic 0x0009: PWM Intensity (Mode 5 only)
- * @param intensity_percent Motor PWM intensity percentage (30-90%)
+ * @param intensity_percent Motor PWM intensity percentage (0-80%)
  * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
  *
- * Range: 30-90%
- * - Minimum 30% ensures adequate stimulation
- * - Maximum 90% prevents motor damage and excessive power draw
- * - Adjusts motor strength independently of duty cycle
+ * Range: 0-80%
+ * - 0% enables LED-only mode (visual therapy without motor vibration)
+ * - Maximum 80% prevents motor overheating and excessive power draw
+ * - Adjusts motor strength independently of duty cycle timing
  *
  * Properties: Read/Write
  * Type: uint8
