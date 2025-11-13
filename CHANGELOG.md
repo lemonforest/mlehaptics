@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2025-11-13
+
+### Fixed
+- **LED_COUNT constant**: Corrected from 2 to 1 in [led_control.h](src/led_control.h) to match actual hardware (1 WS2812B per device)
+- **Frequency range documentation**: Updated from 0.5-2 Hz to 0.25-2 Hz research platform range in README and related docs
+- **Hardware descriptions**: Corrected references from "TB6612FNG H-bridge IC" to "discrete MOSFET H-bridge" to accurately reflect hardware design
+
+---
+
 ## [0.1.0] - 2025-11-13
 
 ### Added

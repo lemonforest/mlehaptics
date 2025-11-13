@@ -1,6 +1,6 @@
 # Architecture Decisions (AD Format)
 
-**Version:** v0.1.0
+**Version:** v0.1.1
 **Last Updated:** 2025-11-13
 **Status:** Living Document
 **Total Decisions:** AD001-AD034

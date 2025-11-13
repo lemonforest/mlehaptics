@@ -1,6 +1,6 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Version:** v0.1.0
+**Version:** v0.1.1
 **Last Updated:** 2025-11-13
 **Status:** Production-Ready
 **Project Phase:** Phase 4 Complete (JPL-Compliant)

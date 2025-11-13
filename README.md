@@ -1,6 +1,6 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.1.0
+**Version:** v0.1.1
 **Last Updated:** 2025-11-13
 **Status:** Production-Ready
 **Project Phase:** Phase 4 Complete (JPL-Compliant)
@@ -61,10 +61,10 @@ The device is significantly smaller than a standard computer mouse - approximate
 ### Key Hardware Components
 
 - **MCU:** Seeed XIAO ESP32-C6 (RISC-V @ 160 MHz)
-- **Motors:** ERM vibration motor with discrete MOSFET H-bridge control
-- **LEDs:** WS2812B RGB LED for status feedback
+- **Motor:** ERM vibration motor with discrete MOSFET H-bridge control
+- **LED:** WS2812B RGB LED for status feedback
 - **Power:** Dual 320mAh LiPo batteries (640mAh total) with USB-C charging
-- **Enclosure:** 3D-printed PLA case (files in [hardware/enclosure/](hardware/enclosure/))
+- **Enclosure:** 3D-printed SLS case (files in [hardware/enclosure/](hardware/enclosure/))
 - **PCB:** Custom design (KiCad files in [hardware/pcb/](hardware/pcb/))
 
 For complete hardware documentation, assembly instructions, and manufacturing files, see [hardware/README.md](hardware/README.md).
