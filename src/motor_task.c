@@ -151,12 +151,13 @@ static bool delay_with_mode_check(uint32_t delay_ms) {
  * @param motor_on_ms Output: Motor ON time in milliseconds
  * @param coast_ms Output: Coast time in milliseconds
  * @param pwm_intensity Output: PWM intensity percentage
+ * @param verbose_logging If true, log timing calculations (gated with BEMF sampling)
  */
-static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *coast_ms, uint8_t *pwm_intensity) {
+static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *coast_ms, uint8_t *pwm_intensity, bool verbose_logging) {
     if (mode == MODE_CUSTOM) {
         // Mode 5: Custom parameters from BLE
         uint16_t freq_x100 = ble_get_custom_frequency_hz();  // Hz × 100
-        uint8_t duty = ble_get_custom_duty_percent();         // 10-90%
+        uint8_t duty = ble_get_custom_duty_percent();         // 0-50% (0% = LED-only, 50% max prevents motor overlap)
 
         // Calculate cycle period in ms: period = 1000 / (freq / 100)
         uint32_t cycle_ms = 100000 / freq_x100;  // e.g., 100 → 1000ms for 1Hz
@@ -170,8 +171,10 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
         // PWM intensity from BLE
         *pwm_intensity = ble_get_pwm_intensity();
 
-        ESP_LOGI(TAG, "Mode 5: %.2fHz, %u%% duty → %lums ON, %lums coast, %u%% PWM",
-                 freq_x100 / 100.0f, duty, *motor_on_ms, *coast_ms, *pwm_intensity);
+        if (verbose_logging) {
+            ESP_LOGI(TAG, "Mode 5: %.2fHz, %u%% duty → %lums ON, %lums coast, %u%% PWM",
+                     freq_x100 / 100.0f, duty, *motor_on_ms, *coast_ms, *pwm_intensity);
+        }
     } else {
         // Modes 0-3: Predefined
         *motor_on_ms = modes[mode].motor_on_ms;
@@ -306,21 +309,20 @@ void motor_task(void *pvParameters) {
                     break;
                 }
 
-                // Calculate motor parameters from BLE settings
-                calculate_mode_timing(current_mode, &motor_on_ms, &coast_ms, &pwm_intensity);
-
                 // Show LED logic:
                 // - Mode 5 (CUSTOM): LED blinks for entire session if BLE LED enabled
                 // - Other modes: LED blinks for first 10 seconds after mode change
                 if (current_mode == MODE_CUSTOM) {
                     show_led = ble_get_led_enable();  // Always use BLE setting for custom mode
-                    ESP_LOGI(TAG, "Custom mode: LED enable=%d, show_led=%d", ble_get_led_enable(), show_led);
                 } else {
                     show_led = led_indication_active;  // 10-second timeout for other modes
                 }
 
                 // Update back-EMF sampling flag (first 10 seconds after mode change)
                 sample_backemf = led_indication_active && ((now - led_indication_start_ms) < LED_INDICATION_TIME_MS);
+
+                // Calculate motor parameters from BLE settings (verbose logging gated with BEMF)
+                calculate_mode_timing(current_mode, &motor_on_ms, &coast_ms, &pwm_intensity, sample_backemf);
 
                 // Disable LED indication after 10 seconds (non-custom modes only)
                 if (current_mode != MODE_CUSTOM && led_indication_active && ((now - led_indication_start_ms) >= LED_INDICATION_TIME_MS)) {
@@ -344,7 +346,7 @@ void motor_task(void *pvParameters) {
             // ================================================================
             case MOTOR_STATE_FORWARD_ACTIVE: {
                 // Start motor forward
-                motor_set_forward(pwm_intensity);
+                motor_set_forward(pwm_intensity, sample_backemf);
                 if (show_led) led_set_mode_color(current_mode);
 
                 // Mark that we're in forward phase
@@ -355,7 +357,7 @@ void motor_task(void *pvParameters) {
                     uint32_t active_time = (motor_on_ms > 10) ? (motor_on_ms - 10) : motor_on_ms;
 
                     if (delay_with_mode_check(active_time)) {
-                        motor_coast();
+                        motor_coast(sample_backemf);
                         led_clear();
                         state = MOTOR_STATE_CHECK_MESSAGES;
                         break;
@@ -372,14 +374,14 @@ void motor_task(void *pvParameters) {
                 } else {
                     // Full active time, no sampling
                     if (delay_with_mode_check(motor_on_ms)) {
-                        motor_coast();
+                        motor_coast(sample_backemf);
                         led_clear();
                         state = MOTOR_STATE_CHECK_MESSAGES;
                         break;
                     }
 
                     // CRITICAL: Always coast motor and clear LED!
-                    motor_coast();
+                    motor_coast(sample_backemf);
                     led_clear();
 
                     // Skip back-EMF states, go straight to coast remaining
@@ -393,7 +395,7 @@ void motor_task(void *pvParameters) {
             // ================================================================
             case MOTOR_STATE_BEMF_IMMEDIATE: {
                 // Coast motor and clear LED
-                motor_coast();
+                motor_coast(sample_backemf);
                 led_clear();
 
                 // Sample #2: Immediately after coast starts
@@ -468,7 +470,7 @@ void motor_task(void *pvParameters) {
             // ================================================================
             case MOTOR_STATE_REVERSE_ACTIVE: {
                 // Start motor reverse
-                motor_set_reverse(pwm_intensity);
+                motor_set_reverse(pwm_intensity, sample_backemf);
                 if (show_led) led_set_mode_color(current_mode);
 
                 // Mark that we're in reverse phase
@@ -479,7 +481,7 @@ void motor_task(void *pvParameters) {
                     uint32_t active_time = (motor_on_ms > 10) ? (motor_on_ms - 10) : motor_on_ms;
 
                     if (delay_with_mode_check(active_time)) {
-                        motor_coast();
+                        motor_coast(sample_backemf);
                         led_clear();
                         state = MOTOR_STATE_CHECK_MESSAGES;
                         break;
@@ -496,14 +498,14 @@ void motor_task(void *pvParameters) {
                 } else {
                     // Full active time, no sampling
                     if (delay_with_mode_check(motor_on_ms)) {
-                        motor_coast();
+                        motor_coast(sample_backemf);
                         led_clear();
                         state = MOTOR_STATE_CHECK_MESSAGES;
                         break;
                     }
 
                     // CRITICAL: Always coast motor and clear LED!
-                    motor_coast();
+                    motor_coast(sample_backemf);
                     led_clear();
 
                     // Skip back-EMF states, go straight to coast remaining
@@ -555,7 +557,7 @@ void motor_task(void *pvParameters) {
     ESP_LOGI(TAG, "Motor task shutting down");
 
     // Coast motor, clear LED
-    motor_coast();
+    motor_coast(sample_backemf);
     led_clear();
     vTaskDelay(pdMS_TO_TICKS(100));
 

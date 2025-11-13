@@ -2475,7 +2475,7 @@ Implement comprehensive BLE Bilateral Control Service for device-to-device coord
 | `6E400601-B5A3-...` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
 | `6E400701-B5A3-...` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
 | `6E400801-B5A3-...` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
-| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 10-90% | Perceptible stimulation to commercial-grade |
+| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 0-50% | LED-only to max bilateral (no motor overlap) |
 
 **Research Platform Stimulation Patterns:**
 
@@ -2518,7 +2518,7 @@ Client: Remains OFF
 
 **Safety Constraints:**
 - Motor PWM: 30-80% (prevents motor damage and excessive stimulation)
-- Duty Cycle: 10-90% (10% ensures perception, 90% matches commercial devices with safety margin)
+- Duty Cycle: 0-50% (0% enables LED-only mode, 50% max prevents motor overlap in single-device bilateral alternation)
 - Non-overlapping: Time-window separation prevents overlap (devices/directions have sequential windows)
 
 **UUID Assignment Rationale:**
@@ -2601,16 +2601,24 @@ typedef enum {
 } research_pattern_t;
 ```
 
-**3. Duty Cycle Research (10-90%):**
+**3. Duty Cycle Research (0-50%):**
+
+**Single-Device Bilateral Constraint:**
+In single-device mode, one motor alternates forward/reverse in sequential half-cycles:
+- **Cycle pattern:** [Forward active] → [Forward coast] → [Reverse active] → [Reverse coast]
+- **Maximum 50% duty cycle** ensures adequate coast time between direction changes
+- **Above 50% causes motor overlap:** Motor attempts to reverse before fully stopped, causing:
+  - Mechanical stress from direction change while spinning
+  - Potential current spikes and H-bridge stress
+  - Poor haptic experience (no clear bilateral separation)
 
 **Research Applications:**
-- Determine minimum effective stimulation duration (10% = 50ms pulses at 500ms cycle)
-- Study micro-stimulation for energy efficiency
-- Explore high-duty commercial-grade stimulation (90% = 450ms at 500ms cycle)
-- Compare minimal vs maximal stimulation therapeutic efficacy
-- Reduce habituation with varied pulse durations
+- **0% duty cycle:** LED-only mode for pure visual bilateral stimulation (no motor vibration)
+- **10% = 50ms pulses:** Micro-stimulation studies, minimum perceptual threshold research
+- **25% = 125ms pulses:** Standard therapy baseline (4× battery life improvement vs continuous)
+- **50% = 250ms pulses:** Maximum bilateral stimulation intensity without motor overlap
 
-**Safety Note:** 90% max provides safety margin below commercial 100% while enabling direct comparison studies. Time-window separation (dual-device) or sequential forward/reverse (single-device) prevents overlap regardless of duty cycle.
+**Safety Note:** 50% maximum is a **hard physical limit** for single-device bilateral alternation. Each half-cycle must allow both active time AND coast time. Dual-device mode (future) can support higher duty cycles since devices operate in separate time windows without direction reversals.
 
 **4. Motor Intensity Research (30-80% PWM):**
 
@@ -2737,7 +2745,7 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | **MOTOR CONTROL GROUP** |
 | `6E400102-B5A3-...` | Mode | uint8 | R/W | 0-4 | MODE_1HZ_50, MODE_1HZ_25, MODE_05HZ_50, MODE_05HZ_25, MODE_CUSTOM |
 | `6E400202-B5A3-...` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
-| `6E400302-B5A3-...` | Custom Duty Cycle | uint8 | R/W | 10-90% | Perceptible to commercial-grade |
+| `6E400302-B5A3-...` | Custom Duty Cycle | uint8 | R/W | 0-50% | LED-only to max bilateral (no overlap) |
 | `6E400402-B5A3-...` | PWM Intensity | uint8 | R/W | 30-80% | Motor power safety limits |
 | **LED CONTROL GROUP** |
 | `6E400502-B5A3-...` | LED Enable | uint8 | R/W | 0-1 | 0=off, 1=on |
@@ -2793,7 +2801,7 @@ uint8_t b_final = (source_b * led_brightness) / 100;
 **Saved Parameters (User Preferences):**
 - Mode (uint8: 0-4) - Last used mode
 - Custom Frequency (uint16: 25-200) - For Mode 5
-- Custom Duty Cycle (uint8: 10-90%) - For Mode 5
+- Custom Duty Cycle (uint8: 0-50%) - For Mode 5 (0% = LED-only)
 - LED Enable (uint8: 0 or 1)
 - LED Color Mode (uint8: 0 or 1) ← NEW
 - LED Palette Index (uint8: 0-15)
@@ -2824,6 +2832,60 @@ uint8_t b_final = (source_b * led_brightness) / 100;
      14th 13th
 ```
 
+**BLE Advertising Configuration:**
+
+Mobile app discovery requires Configuration Service UUID in scan response data for efficient device filtering.
+
+**Advertising Parameters:**
+- **Connection Mode**: Undirected connectable (`BLE_GAP_CONN_MODE_UND`)
+- **Discovery Mode**: General discoverable (`BLE_GAP_DISC_MODE_GEN`)
+- **Interval Range**: 20-40ms (0x20-0x40)
+- **Duration**: Forever (`BLE_HS_FOREVER`) until disconnect
+
+**Advertising Packet Fields (31-byte limit):**
+
+| Field | Value | Purpose | Location |
+|-------|-------|---------|----------|
+| **Device Name** | `EMDR_Pulser_XXXXXX` | Human-readable identification (last 3 MAC bytes) | Advertising |
+| **Flags** | `0x06` | General discoverable + BR/EDR not supported | Advertising |
+| **TX Power** | Auto | Signal strength indication | Advertising |
+| **Service UUID** | `6E400002-B5A3-...` | Configuration Service UUID for app filtering | **Scan Response** |
+
+**Service UUID in Scan Response:**
+
+The Configuration Service UUID **MUST** be included in scan response data (not advertising packet) to:
+- Avoid exceeding 31-byte advertising packet limit
+- Enable mobile app filtering for EMDR devices only
+- Allow automatic device discovery without manual scanning
+- Support service-based connection validation before GATT discovery
+- Comply with BLE best practices for service advertisement
+
+**Implementation:**
+```c
+// In ble_on_sync() - Advertising packet (device name, flags, TX power)
+rc = ble_gap_adv_set_fields(&fields);
+
+// Scan response packet (Configuration Service UUID)
+struct ble_hs_adv_fields rsp_fields;
+memset(&rsp_fields, 0, sizeof(rsp_fields));
+rsp_fields.uuids128 = &uuid_config_service;
+rsp_fields.num_uuids128 = 1;
+rsp_fields.uuids128_is_complete = 1;
+rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+```
+
+**Re-advertising Strategy:**
+- **Trigger**: Automatic on client disconnect
+- **Delay**: 100ms after disconnect (Android compatibility)
+- **Error Handling**: BLE task retry on failure (30-second heartbeat)
+- **Recovery**: Automatic restart ensures discoverability
+
+**Rationale:**
+- PWAs and mobile apps can filter `navigator.bluetooth.requestDevice()` by service UUID
+- Prevents users from seeing non-EMDR devices in scan results
+- Reduces connection attempts to wrong devices (battery savings)
+- Standard practice for service-oriented BLE applications
+
 **Benefits:**
 
 ✅ **Production UUIDs:** No test UUID migration complexity
@@ -2831,7 +2893,7 @@ uint8_t b_final = (source_b * led_brightness) / 100;
 ✅ **Logical Grouping:** Motor (4), LED (5), Status (3) = 12 characteristics
 ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
-✅ **Research Platform:** Full 0.25-2 Hz, 10-90% duty, 30-80% PWM
+✅ **Research Platform:** Full 0.25-2 Hz, 0-50% duty (0%=LED-only), 30-80% PWM
 ✅ **User Comfort:** 10-30% LED brightness prevents eye strain
 ✅ **Persistent Preferences:** NVS saves user settings across power cycles
 ✅ **Future-Proof:** Architecture supports bilateral implementation without changes

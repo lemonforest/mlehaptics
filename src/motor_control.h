@@ -92,6 +92,7 @@ esp_err_t motor_init(void);
 /**
  * @brief Set motor forward PWM
  * @param intensity_percent PWM intensity percentage (30-80%)
+ * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  * @return ESP_OK on success, error code on failure
  *
  * Drives motor in forward direction:
@@ -103,11 +104,12 @@ esp_err_t motor_init(void);
  *
  * Thread-safe: Can be called from any task
  */
-esp_err_t motor_set_forward(uint8_t intensity_percent);
+esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging);
 
 /**
  * @brief Set motor reverse PWM
  * @param intensity_percent PWM intensity percentage (30-80%)
+ * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  * @return ESP_OK on success, error code on failure
  *
  * Drives motor in reverse direction:
@@ -119,10 +121,11 @@ esp_err_t motor_set_forward(uint8_t intensity_percent);
  *
  * Thread-safe: Can be called from any task
  */
-esp_err_t motor_set_reverse(uint8_t intensity_percent);
+esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging);
 
 /**
  * @brief Coast motor (both directions off)
+ * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  *
  * Sets both IN1 and IN2 to LOW (0% duty):
  * - IN1 (GPIO20) = LOW
@@ -133,7 +136,7 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent);
  *
  * Thread-safe: Can be called from any task
  */
-void motor_coast(void);
+void motor_coast(bool verbose_logging);
 
 /**
  * @brief Get current PWM intensity setting

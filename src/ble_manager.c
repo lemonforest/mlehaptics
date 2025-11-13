@@ -191,9 +191,9 @@ static struct ble_gap_adv_params adv_params = {
 
 // Calculate settings signature using CRC32 (AD032 structure)
 static uint32_t calculate_settings_signature(void) {
-    // Signature data: {uuid_ending, byte_length} pairs for all 10 saved parameters
+    // Signature data: {uuid_ending, byte_length} pairs for all 9 saved parameters
+    // NOTE: Mode (0x01) is NOT saved - device always boots to MODE_1HZ_50
     uint8_t sig_data[] = {
-        0x01, 1,   // Mode: uint8
         0x02, 2,   // Custom Frequency: uint16
         0x03, 1,   // Custom Duty: uint8
         0x05, 1,   // LED Enable: uint8
@@ -241,7 +241,7 @@ static int gatt_char_mode_read(uint16_t conn_handle, uint16_t attr_handle,
     uint8_t mode_val = (uint8_t)char_data.current_mode;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: Mode = %u", mode_val);
+    ESP_LOGD(TAG, "GATT Read: Mode = %u", mode_val);
     int rc = os_mbuf_append(ctxt->om, &mode_val, sizeof(mode_val));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -279,7 +279,7 @@ static int gatt_char_custom_freq_read(uint16_t conn_handle, uint16_t attr_handle
     uint16_t freq_val = char_data.custom_frequency_hz;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: Frequency = %u (%.2f Hz)", freq_val, freq_val / 100.0f);
+    ESP_LOGD(TAG, "GATT Read: Frequency = %u (%.2f Hz)", freq_val, freq_val / 100.0f);
     int rc = os_mbuf_append(ctxt->om, &freq_val, sizeof(freq_val));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -300,7 +300,7 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: Frequency = %u (%.2f Hz)", freq_val, freq_val / 100.0f);
+    ESP_LOGD(TAG, "GATT Write: Frequency = %u (%.2f Hz)", freq_val, freq_val / 100.0f);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.custom_frequency_hz = freq_val;
@@ -319,7 +319,7 @@ static int gatt_char_custom_duty_read(uint16_t conn_handle, uint16_t attr_handle
     uint8_t duty_val = char_data.custom_duty_percent;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: Duty = %u%%", duty_val);
+    ESP_LOGD(TAG, "GATT Read: Duty = %u%%", duty_val);
     int rc = os_mbuf_append(ctxt->om, &duty_val, sizeof(duty_val));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -334,13 +334,13 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 10-90%
-    if (duty_val < 10 || duty_val > 90) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 10-90)", duty_val);
+    // AD032: Range 0-50% (0% = LED-only mode, 50% max prevents motor overlap in bilateral alternation)
+    if (duty_val > 50) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 0-50)", duty_val);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: Duty = %u%%", duty_val);
+    ESP_LOGD(TAG, "GATT Write: Duty = %u%%", duty_val);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.custom_duty_percent = duty_val;
@@ -359,7 +359,7 @@ static int gatt_char_pwm_intensity_read(uint16_t conn_handle, uint16_t attr_hand
     uint8_t intensity = char_data.pwm_intensity;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: PWM = %u%%", intensity);
+    ESP_LOGD(TAG, "GATT Read: PWM = %u%%", intensity);
     int rc = os_mbuf_append(ctxt->om, &intensity, sizeof(intensity));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -380,7 +380,7 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: PWM = %u%%", value);
+    ESP_LOGD(TAG, "GATT Write: PWM = %u%%", value);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.pwm_intensity = value;
@@ -403,7 +403,7 @@ static int gatt_char_led_enable_read(uint16_t conn_handle, uint16_t attr_handle,
     uint8_t enabled = char_data.led_enable ? 1 : 0;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: LED Enable = %d", enabled);
+    ESP_LOGD(TAG, "GATT Read: LED Enable = %d", enabled);
     int rc = os_mbuf_append(ctxt->om, &enabled, sizeof(enabled));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -419,7 +419,7 @@ static int gatt_char_led_enable_write(uint16_t conn_handle, uint16_t attr_handle
     }
 
     bool enabled = (value != 0);
-    ESP_LOGI(TAG, "GATT Write: LED Enable = %d", enabled);
+    ESP_LOGD(TAG, "GATT Write: LED Enable = %d", enabled);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.led_enable = enabled;
@@ -437,7 +437,7 @@ static int gatt_char_led_color_mode_read(uint16_t conn_handle, uint16_t attr_han
     uint8_t mode = char_data.led_color_mode;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: LED Color Mode = %u", mode);
+    ESP_LOGD(TAG, "GATT Read: LED Color Mode = %u", mode);
     int rc = os_mbuf_append(ctxt->om, &mode, sizeof(mode));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -457,7 +457,7 @@ static int gatt_char_led_color_mode_write(uint16_t conn_handle, uint16_t attr_ha
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: LED Color Mode = %u (%s)",
+    ESP_LOGD(TAG, "GATT Write: LED Color Mode = %u (%s)",
              value, value == 0 ? "palette" : "custom RGB");
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
@@ -476,7 +476,7 @@ static int gatt_char_led_palette_read(uint16_t conn_handle, uint16_t attr_handle
     uint8_t idx = char_data.led_palette_index;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: LED Palette = %u", idx);
+    ESP_LOGD(TAG, "GATT Read: LED Palette = %u", idx);
     int rc = os_mbuf_append(ctxt->om, &idx, sizeof(idx));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -496,7 +496,7 @@ static int gatt_char_led_palette_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: LED Palette = %u (%s)",
+    ESP_LOGD(TAG, "GATT Write: LED Palette = %u (%s)",
              value, color_palette[value].name);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
@@ -519,7 +519,7 @@ static int gatt_char_led_custom_rgb_read(uint16_t conn_handle, uint16_t attr_han
     rgb[2] = char_data.led_custom_b;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: LED RGB = (%u, %u, %u)", rgb[0], rgb[1], rgb[2]);
+    ESP_LOGD(TAG, "GATT Read: LED RGB = (%u, %u, %u)", rgb[0], rgb[1], rgb[2]);
     int rc = os_mbuf_append(ctxt->om, rgb, sizeof(rgb));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -534,7 +534,7 @@ static int gatt_char_led_custom_rgb_write(uint16_t conn_handle, uint16_t attr_ha
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: LED RGB = (%u, %u, %u)", rgb[0], rgb[1], rgb[2]);
+    ESP_LOGD(TAG, "GATT Write: LED RGB = (%u, %u, %u)", rgb[0], rgb[1], rgb[2]);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.led_custom_r = rgb[0];
@@ -554,7 +554,7 @@ static int gatt_char_led_brightness_read(uint16_t conn_handle, uint16_t attr_han
     uint8_t brightness = char_data.led_brightness;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: LED Brightness = %u%%", brightness);
+    ESP_LOGD(TAG, "GATT Read: LED Brightness = %u%%", brightness);
     int rc = os_mbuf_append(ctxt->om, &brightness, sizeof(brightness));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -575,7 +575,7 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGI(TAG, "GATT Write: LED Brightness = %u%%", value);
+    ESP_LOGD(TAG, "GATT Write: LED Brightness = %u%%", value);
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
     char_data.led_brightness = value;
@@ -593,7 +593,7 @@ static int gatt_char_session_duration_read(uint16_t conn_handle, uint16_t attr_h
     uint32_t duration = char_data.session_duration_sec;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: Session Duration = %u sec (%.1f min)",
+    ESP_LOGD(TAG, "GATT Read: Session Duration = %u sec (%.1f min)",
              duration, duration / 60.0f);
     int rc = os_mbuf_append(ctxt->om, &duration, sizeof(duration));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -634,7 +634,7 @@ static int gatt_char_session_time_read(uint16_t conn_handle, uint16_t attr_handl
     uint32_t session_time = char_data.session_time_sec;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: Session Time = %u sec", session_time);
+    ESP_LOGD(TAG, "GATT Read: Session Time = %u sec", session_time);
     int rc = os_mbuf_append(ctxt->om, &session_time, sizeof(session_time));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -646,7 +646,7 @@ static int gatt_char_battery_read(uint16_t conn_handle, uint16_t attr_handle,
     uint8_t battery_val = char_data.battery_level;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGI(TAG, "GATT Read: Battery = %u%%", battery_val);
+    ESP_LOGD(TAG, "GATT Read: Battery = %u%%", battery_val);
     int rc = os_mbuf_append(ctxt->om, &battery_val, sizeof(battery_val));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
@@ -864,33 +864,110 @@ static esp_err_t gatt_svr_init(void) {
 // NIMBLE GAP EVENT HANDLER
 // ============================================================================
 
+/**
+ * @brief Decode BLE disconnect reason code to human-readable string
+ * @param reason BLE disconnect reason code
+ * @return Human-readable string describing the disconnect reason
+ */
+static const char* ble_disconnect_reason_str(uint8_t reason) {
+    switch (reason) {
+        case 0x08: return "Connection Timeout";
+        case 0x13: return "Remote User Terminated";
+        case 0x14: return "Remote Device Terminated (Low Resources)";
+        case 0x15: return "Remote Device Terminated (Power Off)";
+        case 0x16: return "Connection Terminated by Local Host";
+        case 0x22: return "Connection Failed to be Established";
+        case 0x3E: return "Connection Failed (LMP Response Timeout)";
+        default:   return "Unknown";
+    }
+}
+
+/**
+ * @brief Decode BLE connection status code to human-readable string
+ * @param status BLE connection status code
+ * @return Human-readable string describing the connection status
+ */
+static const char* ble_connect_status_str(uint8_t status) {
+    switch (status) {
+        case 0:    return "Success";
+        case 2:    return "Unknown HCI Error";
+        case 5:    return "Authentication Failure";
+        case 6:    return "PIN or Key Missing";
+        case 7:    return "Memory Capacity Exceeded";
+        case 8:    return "Connection Timeout";
+        case 13:   return "Remote Terminated (User)";
+        case 14:   return "Remote Terminated (Low Resources)";
+        case 15:   return "Remote Terminated (Power Off)";
+        case 22:   return "LMP Response Timeout";
+        case 26:   return "Unsupported Remote Feature";
+        case 34:   return "LMP Error Transaction Collision";
+        case 40:   return "Advertising Timeout";
+        default:   return "Unknown Status";
+    }
+}
+
 static int ble_gap_event(struct ble_gap_event *event, void *arg) {
+    int rc;
+
     switch (event->type) {
         case BLE_GAP_EVENT_CONNECT:
-            ESP_LOGI(TAG, "BLE connection %s; status=%d",
-                     event->connect.status == 0 ? "established" : "failed",
-                     event->connect.status);
             if (event->connect.status == 0) {
+                ESP_LOGI(TAG, "BLE connection established");
                 adv_state.client_connected = true;
                 adv_state.advertising_active = false;
+            } else {
+                ESP_LOGW(TAG, "BLE connection failed; status=%d (%s)",
+                         event->connect.status,
+                         ble_connect_status_str(event->connect.status));
             }
             break;
 
         case BLE_GAP_EVENT_DISCONNECT:
-            ESP_LOGI(TAG, "BLE disconnect; reason=%d", event->disconnect.reason);
+            // Mask to 1 byte (BLE spec uses 1-byte reason codes)
+            ESP_LOGI(TAG, "BLE disconnect; reason=0x%02X (%s)",
+                     event->disconnect.reason & 0xFF,
+                     ble_disconnect_reason_str(event->disconnect.reason & 0xFF));
             adv_state.client_connected = false;
 
+            // Small delay to allow BLE stack cleanup (Android compatibility)
+            vTaskDelay(pdMS_TO_TICKS(100));
+
             // Resume advertising on disconnect
-            ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                              &adv_params, ble_gap_event, NULL);
-            adv_state.advertising_active = true;
-            adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-            ESP_LOGI(TAG, "BLE advertising restarted after disconnect");
+            rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                   &adv_params, ble_gap_event, NULL);
+            if (rc == 0) {
+                adv_state.advertising_active = true;
+                adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                ESP_LOGI(TAG, "BLE advertising restarted after disconnect");
+            } else {
+                ESP_LOGE(TAG, "Failed to restart advertising after disconnect; rc=%d", rc);
+                adv_state.advertising_active = false;
+                // BLE task will retry via CHECK_ADVERTISING_STATE message
+            }
             break;
 
         case BLE_GAP_EVENT_ADV_COMPLETE:
             ESP_LOGI(TAG, "BLE advertising complete; reason=%d", event->adv_complete.reason);
             adv_state.advertising_active = false;
+            break;
+
+        case BLE_GAP_EVENT_CONN_UPDATE:
+            ESP_LOGI(TAG, "BLE conn params updated; status=%d", event->conn_update.status);
+            break;
+
+        case BLE_GAP_EVENT_CONN_UPDATE_REQ:
+            ESP_LOGI(TAG, "BLE conn params update requested");
+            break;
+
+        case BLE_GAP_EVENT_MTU:
+            ESP_LOGI(TAG, "BLE MTU exchange: %u bytes", event->mtu.value);
+            break;
+
+        case BLE_GAP_EVENT_SUBSCRIBE:
+            ESP_LOGI(TAG, "BLE characteristic subscription: handle=%u, cur_notify=%d, cur_indicate=%d",
+                     event->subscribe.attr_handle,
+                     event->subscribe.cur_notify,
+                     event->subscribe.cur_indicate);
             break;
 
         default:
@@ -948,6 +1025,21 @@ static void ble_on_sync(void) {
         return;
     }
 
+    // Configure scan response data with Configuration Service UUID (AD032)
+    // Using scan response keeps advertising packet small while still enabling app filtering
+    struct ble_hs_adv_fields rsp_fields;
+    memset(&rsp_fields, 0, sizeof(rsp_fields));
+
+    rsp_fields.uuids128 = &uuid_config_service;
+    rsp_fields.num_uuids128 = 1;
+    rsp_fields.uuids128_is_complete = 1;
+
+    rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to set scan response data; rc=%d", rc);
+        return;
+    }
+
     // Start advertising
     rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
                            &adv_params, ble_gap_event, NULL);
@@ -998,8 +1090,8 @@ esp_err_t ble_save_settings_to_nvs(void) {
     }
 
     // Write all settings (mutex-protected)
+    // NOTE: Mode is NOT saved - device always boots to MODE_1HZ_50
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
-    nvs_set_u8(nvs_handle, NVS_KEY_MODE, (uint8_t)char_data.current_mode);
     nvs_set_u16(nvs_handle, NVS_KEY_FREQUENCY, char_data.custom_frequency_hz);
     nvs_set_u8(nvs_handle, NVS_KEY_DUTY, char_data.custom_duty_percent);
     nvs_set_u8(nvs_handle, NVS_KEY_LED_ENABLE, char_data.led_enable ? 1 : 0);
@@ -1049,15 +1141,12 @@ esp_err_t ble_load_settings_from_nvs(void) {
     ESP_LOGI(TAG, "NVS: Signature valid, loading settings...");
 
     // Load all settings
-    uint8_t mode, duty, led_en, led_cmode, led_pal, r, g, b, led_bri, pwm;
+    // NOTE: Mode is NOT loaded - device always boots to MODE_1HZ_50
+    uint8_t duty, led_en, led_cmode, led_pal, r, g, b, led_bri, pwm;
     uint16_t freq;
     uint32_t sess_dur;
 
     xSemaphoreTake(char_data_mutex, portMAX_DELAY);
-
-    if (nvs_get_u8(nvs_handle, NVS_KEY_MODE, &mode) == ESP_OK) {
-        char_data.current_mode = (mode_t)mode;
-    }
 
     if (nvs_get_u16(nvs_handle, NVS_KEY_FREQUENCY, &freq) == ESP_OK) {
         char_data.custom_frequency_hz = freq;
@@ -1173,16 +1262,24 @@ esp_err_t ble_manager_init(void) {
 }
 
 void ble_start_advertising(void) {
+    ESP_LOGI(TAG, "ble_start_advertising() called (current state: advertising_active=%s, connected=%s)",
+             adv_state.advertising_active ? "YES" : "NO",
+             adv_state.client_connected ? "YES" : "NO");
+
     if (!adv_state.advertising_active) {
+        ESP_LOGI(TAG, "Starting BLE advertising via ble_gap_adv_start()...");
         int rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
                                     &adv_params, ble_gap_event, NULL);
         if (rc == 0) {
             adv_state.advertising_active = true;
             adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-            ESP_LOGI(TAG, "BLE advertising re-enabled");
+            ESP_LOGI(TAG, "✓ BLE advertising started successfully");
         } else {
-            ESP_LOGE(TAG, "Failed to restart advertising; rc=%d", rc);
+            ESP_LOGE(TAG, "✗ Failed to start advertising: NimBLE rc=%d (0x%x)", rc, rc);
+            ESP_LOGE(TAG, "  Common causes: BLE stack not ready, already advertising, or GAP error");
         }
+    } else {
+        ESP_LOGW(TAG, "Advertising already active, skipping ble_gap_adv_start()");
     }
 }
 

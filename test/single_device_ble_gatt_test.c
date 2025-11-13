@@ -806,9 +806,9 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // Validate range (10-90%)
-    if (duty_val < 10 || duty_val > 90) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty cycle %u%% (range 10-90%%)", duty_val);
+    // Validate range (0-50%): 0% = LED-only mode, 50% max prevents motor overlap in bilateral alternation
+    if (duty_val > 50) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty cycle %u%% (range 0-50%%)", duty_val);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 

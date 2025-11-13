@@ -98,7 +98,7 @@ void power_enter_deep_sleep(bool save_settings) {
     ESP_LOGI(TAG, "Entering deep sleep sequence");
 
     // 1. Coast motor immediately (safe state)
-    motor_coast();
+    motor_coast(false);  // Shutdown - no logging needed
     led_clear();
 
     // 2. Save settings if requested

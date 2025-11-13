@@ -16,6 +16,7 @@
 #include "battery_monitor.h"
 #include "nvs_manager.h"
 #include "led_control.h"
+#include "status_led.h"
 #include "power_manager.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -26,14 +27,6 @@
 #include "freertos/task.h"
 
 static const char *TAG = "BTN_TASK";
-
-// ============================================================================
-// STATUS LED CONTROL (for countdown)
-// ============================================================================
-
-#define GPIO_STATUS_LED         15      // Status LED (ACTIVE LOW)
-#define LED_ON                  0       // Active LOW
-#define LED_OFF                 1
 
 // ============================================================================
 // MODE CYCLING
@@ -84,21 +77,13 @@ void button_task(void *pvParameters) {
         return;
     }
 
-    // Configure status LED GPIO (output, start OFF)
-    gpio_config_t led_cfg = {
-        .pin_bit_mask = (1ULL << GPIO_STATUS_LED),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE
-    };
-    ret = gpio_config(&led_cfg);
+    // Initialize status LED module
+    ret = status_led_init();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to configure GPIO_STATUS_LED: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "Failed to initialize status LED: %s", esp_err_to_name(ret));
         vTaskDelete(NULL);
         return;
     }
-    gpio_set_level(GPIO_STATUS_LED, LED_OFF);
 
     while (state != BTN_STATE_SHUTDOWN_SENT) {
         uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);  // Current time in ms
@@ -159,6 +144,9 @@ void button_task(void *pvParameters) {
 
                     ESP_LOGI(TAG, "Mode change: %d → %d", current_mode, next_mode);
 
+                    // Quick blink for mode change feedback
+                    status_led_pattern(STATUS_PATTERN_MODE_CHANGE);
+
                     task_message_t msg = {
                         .type = MSG_MODE_CHANGE,
                         .data = {.new_mode = next_mode}
@@ -174,6 +162,7 @@ void button_task(void *pvParameters) {
                     // Button held ≥1s, transition to hold detection
                     ESP_LOGI(TAG, "Button held ≥1s, entering hold detection");
                     ESP_LOGI(TAG, "State: PRESSED → HOLD_DETECT");
+                    status_led_pattern(STATUS_PATTERN_BUTTON_HOLD);  // Turn LED ON for hold
                     state = BTN_STATE_HOLD_DETECT;
                 }
                 break;
@@ -185,9 +174,11 @@ void button_task(void *pvParameters) {
                 if (button_level == 1) {
                     // Button released between 1-2s
                     ESP_LOGI(TAG, "Button released after %u ms (1-2s hold)", elapsed);
+                    status_led_off();  // Turn LED OFF when button released
 
                     if (elapsed >= BUTTON_BLE_HOLD_MIN_MS && elapsed < BUTTON_BLE_HOLD_MAX_MS) {
                         ESP_LOGI(TAG, "BLE re-enable triggered (1-2s hold)");
+                        status_led_pattern(STATUS_PATTERN_BLE_REENABLE);  // 3× blink for BLE re-enable
 
                         task_message_t msg = {
                             .type = MSG_BLE_REENABLE,
@@ -266,12 +257,7 @@ void button_task(void *pvParameters) {
                         if (ret == ESP_OK) {
                             ESP_LOGI(TAG, "NVS cleared successfully");
                             // Flash LED to indicate success
-                            for (int i = 0; i < 3; i++) {
-                                gpio_set_level(GPIO_STATUS_LED, LED_ON);
-                                vTaskDelay(pdMS_TO_TICKS(100));
-                                gpio_set_level(GPIO_STATUS_LED, LED_OFF);
-                                vTaskDelay(pdMS_TO_TICKS(100));
-                            }
+                            status_led_pattern(STATUS_PATTERN_NVS_RESET);
                         } else {
                             ESP_LOGE(TAG, "NVS clear failed: %s", esp_err_to_name(ret));
                         }

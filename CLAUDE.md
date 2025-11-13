@@ -590,7 +590,7 @@ IDLE → ADVERTISING → CONNECTED
 |----------------|------|-------|--------|-------------|
 | Mode | ✅ | ✅ | | Current mode (0-4) |
 | Custom Frequency | ✅ | ✅ | | Hz × 100 (0.5-2.0 Hz) |
-| Custom Duty Cycle | ✅ | ✅ | | Percentage (10-90%) |
+| Custom Duty Cycle | ✅ | ✅ | | Percentage (0-50%, 0%=LED-only) |
 | Battery Level | ✅ | | ✅ | Battery % (0-100) |
 | Session Time | ✅ | | ✅ | Elapsed seconds |
 | LED Enable | ✅ | ✅ | | LED on/off for Mode 5 |

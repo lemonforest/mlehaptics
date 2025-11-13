@@ -19,6 +19,7 @@ idf_component_register(
         "battery_monitor.c"
         "motor_control.c"
         "led_control.c"
+        "status_led.c"
 
         # System modules
         "ble_manager.c"

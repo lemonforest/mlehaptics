@@ -149,18 +149,20 @@ Includes access features for development and visual feedback:
 
 File: `MLE_HAPTICS_PULSER-v0.663399u-bodyTop_CLRMOD.step`
 
-Simplified variant that removes all access and light transmission features:
+Simplified variant that removes access holes for clean, diffused light transmission:
 - **No Reset/Boot pin access:** Pinholes removed (cleaner appearance, no programming access)
-- **No LED light transmission holes:** Blocks all LED light:
-  - Red battery charge status LED (hardware-controlled) - not visible
-  - Amber GPIO15 user LED (firmware status indicator) - not visible
+- **No indicator LED holes:** Prevents focused LED hotspots through case:
+  - Red battery charge status LED (hardware-controlled) - visible as diffused glow through translucent material
+  - Amber GPIO15 user LED (firmware status indicator) - visible as diffused glow through translucent material
+  - **Result with clear/translucent materials:** Clean, uniform illumination without bright hotspots
 
 **Use CLRMOD bodyTop when:**
+- **Printing with clear SLA resin or translucent materials** - provides diffused LED visibility without focused hotspots
 - Building production/end-user devices where Reset/Boot access not needed
-- Using translucent case materials but want clean appearance without random LED bleed-through
-- Prioritizing minimalist aesthetics over visual debug feedback
+- Want WS2812B therapy light to illuminate entire case uniformly
+- Prioritizing clean aesthetics over direct indicator LED visibility
 - Device will be programmed and tested before final case assembly
-- Creating a professional, finished product without visible indicator LEDs
+- Creating a professional, finished product with diffused lighting effect
 
 **Note:** CLRMOD is only available as STEP file - import into your CAD software and export to STL if needed.
 

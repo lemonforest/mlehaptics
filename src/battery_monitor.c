@@ -11,6 +11,7 @@
 
 #include "battery_monitor.h"
 #include "button_task.h"  // For GPIO_BUTTON definition
+#include "status_led.h"   // For status LED patterns
 #include "esp_log.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
@@ -28,7 +29,6 @@ static const char *TAG = "BAT_MONITOR";
 
 #define GPIO_BACKEMF            0       // ADC1_CH0
 #define GPIO_BAT_VOLTAGE        2       // ADC1_CH2
-#define GPIO_STATUS_LED         15      // Status LED (ACTIVE LOW)
 #define GPIO_BAT_ENABLE         21      // Battery monitor enable
 
 // ============================================================================
@@ -57,11 +57,6 @@ static const char *TAG = "BAT_MONITOR";
 
 // ============================================================================
 // LED CONTROL
-// ============================================================================
-
-#define LED_ON                  0       // Active LOW
-#define LED_OFF                 1
-
 // ============================================================================
 // STATIC VARIABLES
 // ============================================================================
@@ -145,20 +140,7 @@ esp_err_t battery_monitor_init(void) {
     }
     gpio_set_level(GPIO_BAT_ENABLE, 0);  // Start disabled
 
-    // Configure GPIO15 for status LED (output, start OFF)
-    gpio_config_t led_cfg = {
-        .pin_bit_mask = (1ULL << GPIO_STATUS_LED),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE
-    };
-    ret = gpio_config(&led_cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to configure GPIO_STATUS_LED: %s", esp_err_to_name(ret));
-        return ret;
-    }
-    gpio_set_level(GPIO_STATUS_LED, LED_OFF);
+    // Status LED is handled by status_led module
 
     // Initialize ADC1 unit
     adc_oneshot_unit_init_cfg_t init_config = {
@@ -300,12 +282,7 @@ bool battery_check_lvo(void) {
 
 void battery_low_battery_warning(void) {
     ESP_LOGI(TAG, "Flashing low battery warning");
-    for (int i = 0; i < 3; i++) {
-        gpio_set_level(GPIO_STATUS_LED, LED_ON);
-        vTaskDelay(pdMS_TO_TICKS(200));
-        gpio_set_level(GPIO_STATUS_LED, LED_OFF);
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
+    status_led_pattern(STATUS_PATTERN_LOW_BATTERY);  // 3× slow blink (200ms ON/OFF)
 }
 
 esp_err_t battery_read_backemf(int *raw_mv, int16_t *actual_backemf_mv) {

@@ -21,7 +21,7 @@ This test implements a complete NimBLE GATT service for the EMDR bilateral stimu
 |----------------|-------------|------|------------|-------------|
 | Mode | 0x0001 | uint8 | Read/Write | Current mode (0-4) |
 | Custom Frequency | 0x0002 | uint16 | Read/Write | Hz × 100 (50-200 = 0.5-2.0Hz) |
-| Custom Duty Cycle | 0x0003 | uint8 | Read/Write | Percentage (10-90%) |
+| Custom Duty Cycle | 0x0003 | uint8 | Read/Write | Percentage (0-50%, 0%=LED-only) |
 | Battery Level | 0x0004 | uint8 | Read/Notify | Battery % (0-100) |
 | Session Time | 0x0005 | uint32 | Read/Notify | Elapsed seconds |
 | LED Enable | 0x0006 | uint8 | Read/Write | LED on/off for Mode 5 (0=off, 1=on) |
@@ -198,7 +198,7 @@ Structure Changed (Signature Mismatch):
 **Storage Keys:**
 - `sig` (uint32) - CRC32 signature for structure validation
 - `freq` (uint16) - Custom frequency in centahertz (50-200)
-- `duty` (uint8) - Duty cycle percentage (10-90)
+- `duty` (uint8) - Duty cycle percentage (0-50, 0=LED-only)
 - `led_en` (uint8) - LED enable flag (0 or 1)
 - `led_col` (uint8) - LED color index (0-15)
 - `led_bri` (uint8) - LED brightness percentage (10-30)
@@ -766,9 +766,9 @@ pio device monitor
 3. Serial log: `GATT Write: Invalid frequency 48 (range 50-200 = 0.5-2.0Hz)`
 
 #### Invalid Duty Cycle (should reject)
-1. Try writing duty cycle `0x05` (5%, below 10% min)
+1. Try writing duty cycle `0x33` (51%, above 50% max)
 2. **Expected:** Write fails, no change
-3. Serial log: `GATT Write: Invalid duty cycle 5% (range 10-90%)`
+3. Serial log: `GATT Write: Invalid duty cycle 51% (range 0-50%)`
 
 #### Invalid Mode (should reject)
 1. Try writing mode `0x05` (Mode 6, doesn't exist)
@@ -1050,8 +1050,8 @@ a1b2c3d4-e5f6-7890-a1b2-c3d4e5f60009  (PWM Intensity)
 - [ ] Mode write changes motor pattern (test all 5 modes)
 - [ ] Custom frequency write accepted (50-200)
 - [ ] Custom frequency write rejected (< 50 or > 200)
-- [ ] Custom duty cycle write accepted (10-90)
-- [ ] Custom duty cycle write rejected (< 10 or > 90)
+- [ ] Custom duty cycle write accepted (0-50)
+- [ ] Custom duty cycle write rejected (> 50)
 - [ ] Mode 5 applies custom freq/duty settings
 - [ ] Motor pattern updates immediately when changing freq/duty in Mode 5
 

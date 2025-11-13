@@ -91,7 +91,7 @@ typedef struct {
     // Motor Control Group (4 characteristics)
     mode_t current_mode;              /**< Current mode 0-4 (read/write) */
     uint16_t custom_frequency_hz;     /**< Hz × 100 (25-200 = 0.25-2.0 Hz) (read/write) */
-    uint8_t custom_duty_percent;      /**< Duty cycle 10-90% (read/write) */
+    uint8_t custom_duty_percent;      /**< Duty cycle 0-50% (0% = LED-only, 50% max prevents motor overlap) (read/write) */
     uint8_t pwm_intensity;            /**< Motor PWM 30-80% (read/write) */
 
     // LED Control Group (5 characteristics)
@@ -212,11 +212,12 @@ uint16_t ble_get_custom_frequency_hz(void);
 
 /**
  * @brief Get Mode 5 custom duty cycle
- * @return Duty cycle percentage 10-90%
+ * @return Duty cycle percentage 0-50%
  *
  * Thread-safe read of custom duty cycle characteristic
  * Percentage of half-cycle that motor is active
- * 10% minimum ensures perception, 90% matches commercial devices
+ * 0% enables LED-only mode (visual therapy without motor)
+ * 50% maximum prevents motor overlap in bilateral alternation
  */
 uint8_t ble_get_custom_duty_percent(void);
 

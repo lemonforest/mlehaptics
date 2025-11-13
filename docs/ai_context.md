@@ -565,12 +565,12 @@ esp_err_t ble_gatt_set_custom_frequency(uint16_t frequency_hz_x100);
 
 /**
  * @brief GATT Characteristic 0x0003: Custom Duty Cycle (Mode 5 only)
- * @param duty_percent Duty cycle percentage (10-90%)
+ * @param duty_percent Duty cycle percentage (0-50%)
  * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
  *
- * Range: 10-90%
- * - Minimum 10% prevents motor stall
- * - Maximum 90% prevents overheating
+ * Range: 0-50%
+ * - 0% enables LED-only mode (visual therapy without motor vibration)
+ * - Maximum 50% prevents motor overlap in single-device bilateral alternation
  *
  * Properties: Read/Write
  * Type: uint8

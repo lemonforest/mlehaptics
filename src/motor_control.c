@@ -135,7 +135,7 @@ esp_err_t motor_init(void) {
     return ESP_OK;
 }
 
-esp_err_t motor_set_forward(uint8_t intensity_percent) {
+esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
     if (!motor_initialized) {
         ESP_LOGE(TAG, "Motor not initialized");
         return ESP_ERR_INVALID_STATE;
@@ -183,11 +183,13 @@ esp_err_t motor_set_forward(uint8_t intensity_percent) {
 
     xSemaphoreGive(motor_mutex);
 
-    ESP_LOGI(TAG, "Motor forward: %u%% (duty=%u/1023)", intensity_percent, duty);
+    if (verbose_logging) {
+        ESP_LOGI(TAG, "Motor forward: %u%% (duty=%u/1023)", intensity_percent, duty);
+    }
     return ESP_OK;
 }
 
-esp_err_t motor_set_reverse(uint8_t intensity_percent) {
+esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
     if (!motor_initialized) {
         ESP_LOGE(TAG, "Motor not initialized");
         return ESP_ERR_INVALID_STATE;
@@ -235,11 +237,13 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent) {
 
     xSemaphoreGive(motor_mutex);
 
-    ESP_LOGI(TAG, "Motor reverse: %u%% (duty=%u/1023)", intensity_percent, duty);
+    if (verbose_logging) {
+        ESP_LOGI(TAG, "Motor reverse: %u%% (duty=%u/1023)", intensity_percent, duty);
+    }
     return ESP_OK;
 }
 
-void motor_coast(void) {
+void motor_coast(bool verbose_logging) {
     if (!motor_initialized) {
         ESP_LOGW(TAG, "Motor not initialized, cannot coast");
         return;
@@ -258,7 +262,9 @@ void motor_coast(void) {
 
     xSemaphoreGive(motor_mutex);
 
-    ESP_LOGI(TAG, "Motor coasting (both channels 0%%)");
+    if (verbose_logging) {
+        ESP_LOGI(TAG, "Motor coasting (both channels 0%%)");
+    }
 }
 
 uint8_t motor_get_intensity(void) {
@@ -281,7 +287,7 @@ esp_err_t motor_deinit(void) {
     ESP_LOGI(TAG, "Deinitializing motor control");
 
     // Coast motor before deinit
-    motor_coast();
+    motor_coast(false);  // Shutdown - no logging needed
 
     // Stop LEDC channels
     if (motor_initialized) {

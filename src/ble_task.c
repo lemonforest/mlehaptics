@@ -11,6 +11,7 @@
 
 #include "ble_task.h"
 #include "ble_manager.h"
+#include "status_led.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 
@@ -23,8 +24,12 @@ static const char *TAG = "BLE_TASK";
 void ble_task(void *pvParameters) {
     task_message_t msg;
     ble_state_t state = BLE_STATE_IDLE;
+    uint32_t idle_log_counter = 0;  // For periodic state logging
 
     ESP_LOGI(TAG, "BLE task started");
+    ESP_LOGI(TAG, "Initial state: IDLE, advertising=%s, connected=%s",
+             ble_is_advertising() ? "YES" : "NO",
+             ble_is_connected() ? "YES" : "NO");
 
     while (state != BLE_STATE_SHUTDOWN) {
         switch (state) {
@@ -53,8 +58,18 @@ void ble_task(void *pvParameters) {
                 // Check if connection established (possible if advertising was ongoing)
                 if (ble_is_connected()) {
                     ESP_LOGI(TAG, "Client connected (from IDLE)");
+                    status_led_pattern(STATUS_PATTERN_BLE_CONNECTED);  // 5× blink for connection
                     ESP_LOGI(TAG, "State: IDLE → CONNECTED");
                     state = BLE_STATE_CONNECTED;
+                }
+
+                // Periodic state logging (every 30 seconds)
+                idle_log_counter++;
+                if (idle_log_counter >= 30) {
+                    ESP_LOGI(TAG, "State: IDLE (advertising=%s, connected=%s)",
+                             ble_is_advertising() ? "YES" : "NO",
+                             ble_is_connected() ? "YES" : "NO");
+                    idle_log_counter = 0;
                 }
                 break;
             }
@@ -74,6 +89,7 @@ void ble_task(void *pvParameters) {
                 // Check for client connection (set by GAP event handler)
                 if (ble_is_connected()) {
                     ESP_LOGI(TAG, "Client connected");
+                    status_led_pattern(STATUS_PATTERN_BLE_CONNECTED);  // 5× blink for connection
                     ESP_LOGI(TAG, "State: ADVERTISING → CONNECTED");
                     state = BLE_STATE_CONNECTED;
                     break;
