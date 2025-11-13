@@ -61,8 +61,8 @@ The device is significantly smaller than a standard computer mouse - approximate
 ### Key Hardware Components
 
 - **MCU:** Seeed XIAO ESP32-C6 (RISC-V @ 160 MHz)
-- **Motors:** 2× ERM vibration motors with TB6612FNG H-bridge control
-- **LEDs:** 2× WS2812B RGB LEDs for status feedback
+- **Motors:** ERM vibration motor with discrete MOSFET H-bridge control
+- **LEDs:** WS2812B RGB LED for status feedback
 - **Power:** Dual 320mAh LiPo batteries (640mAh total) with USB-C charging
 - **Enclosure:** 3D-printed PLA case (files in [hardware/enclosure/](hardware/enclosure/))
 - **PCB:** Custom design (KiCad files in [hardware/pcb/](hardware/pcb/))
