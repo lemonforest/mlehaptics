@@ -455,7 +455,8 @@ Please maintain attribution when using or modifying this code or hardware design
 ### Phase 1b/1c/2: Dual-Device Bilateral Coordination (In Progress)
 - ✅ **Phase 1b Complete**: Peer discovery and connection type identification (~1-2s connection time)
 - ✅ **Battery exchange**: Bilateral Battery characteristic for role assignment foundation
-- ⏳ **Phase 1c (Next)**: Battery-based role assignment (higher battery = SERVER role)
+- 🚨 **Phase 1b.1 (REQUIRED)**: Fix mobile app connection when devices peer-paired (BLOCKING issue)
+- ⏳ **Phase 1c (After 1b.1)**: Battery-based role assignment (higher battery = SERVER role)
 - ⏳ **Phase 2 (Planned)**: Command-and-control with synchronized fallback
 - **Synchronized timing**: Safety-critical non-overlapping bilateral stimulation
 - **Configurable cycle times**: 500-4000ms (0.25-2 Hz therapeutic range)

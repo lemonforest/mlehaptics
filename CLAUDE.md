@@ -771,9 +771,18 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
 - **AD032**: BLE Service UUID Namespace (project-specific UUID base)
 - **AD035**: Battery-Based Initial Role Assignment (Phase 1b foundation)
 
-### Next Steps (Phase 1c)
+### Next Steps
 
-⏳ **Role Assignment Logic:**
+🚨 **Phase 1b.1 (REQUIRED before Phase 1c):**
+- **Fix BLOCKING Issue #3**: Enable mobile app connection when devices are peer-paired
+- **Proposed solution**: Only SERVER advertises Configuration Service when peer-paired
+- **Implementation**: CLIENT stops advertising Configuration Service after peer connection established
+- **Alternative**: Enable NimBLE simultaneous connections (SERVER accepts peer + mobile app)
+- **Priority**: MUST be resolved - this is a project requirement for mobile app control
+
+⏳ **Phase 1c (After 1b.1 complete):**
+
+**Role Assignment Logic:**
 - Implement `role_manager.c` with battery comparison
 - Add `ble_get_peer_battery_level()` to read peer's battery characteristic
 - Assign SERVER role to device with higher battery, CLIENT to lower
