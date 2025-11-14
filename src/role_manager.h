@@ -134,11 +134,20 @@ esp_err_t role_manager_deinit(void);
 // ============================================================================
 
 /**
- * @brief Determine device role based on connection state
- * @param is_first_device True if this device started advertising first
+ * @brief Determine device role based on battery levels (Phase 1b: AD034)
+ * @param local_battery Local device battery percentage (0-100%)
+ * @param peer_battery Peer device battery percentage (0-100%)
+ * @param local_mac Local device MAC address (6 bytes)
+ * @param peer_mac Peer device MAC address (6 bytes)
  * @return Determined device role
+ *
+ * Algorithm:
+ * - Higher battery → SERVER (Controller)
+ * - Lower battery → CLIENT (Follower)
+ * - Equal battery → MAC address tiebreaker (higher MAC → SERVER)
  */
-device_role_t role_determine(bool is_first_device);
+device_role_t role_determine_by_battery(uint8_t local_battery, uint8_t peer_battery,
+                                         const uint8_t local_mac[6], const uint8_t peer_mac[6]);
 
 /**
  * @brief Get current device role

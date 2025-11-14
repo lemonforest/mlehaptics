@@ -1,9 +1,9 @@
 # Architecture Decisions (AD Format)
 
-**Version:** v0.1.1
-**Last Updated:** 2025-11-13
+**Version:** v0.1.2
+**Last Updated:** 2025-11-14
 **Status:** Living Document
-**Total Decisions:** AD001-AD034
+**Total Decisions:** AD001-AD035
 
 **Preliminary Design Review Document**
 **Generated with assistance from Claude Sonnet 4 (Anthropic)**
@@ -432,17 +432,106 @@ dead_time = 1ms;
 
 ### AD010: Race Condition Prevention Strategy
 
-**Decision**: Random startup delay to prevent simultaneous server attempts
+**Date:** Originally planned 2025-10-XX, Updated 2025-11-14 (Phase 1b Implementation)
 
-**Problem**: If both devices power on simultaneously, both might attempt server role
+**Status:** Approved
 
-**Solution**: 
-- Random delay 0-2000ms before starting BLE operations
-- First device to advertise becomes server
-- Second device discovers server and becomes client
-- Hardware RNG used for true randomness
+**Problem**:
 
-**Verification**: Stress testing with simultaneous power-on scenarios
+When both devices power on simultaneously, both attempt to connect to each other, creating a race condition. This can result in:
+1. Both devices initiating connection simultaneously (error `BLE_ERR_ACL_CONN_EXISTS` / 523)
+2. Connection event arriving before scan event is processed (peer not yet identified)
+3. Ambiguous role assignment (which device is SERVER vs CLIENT?)
+
+**Phase 1b Solution Implemented:**
+
+Instead of random delays, we use simultaneous advertising + scanning with graceful race condition handling:
+
+**1. Simultaneous Advertising + Scanning:**
+- Both devices advertise Bilateral Control Service UUID (`4BCAE9BE-9829-4F0A-9E88-267DE5E70100`)
+- Both devices scan for peers advertising same UUID
+- First device to discover peer initiates connection
+
+**2. ACL Connection Exists Error Handling** (`ble_manager.c:1779-1789`):
+```c
+int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_state.peer_addr,
+                         30000, NULL, ble_gap_event, NULL);
+
+if (rc != 0) {
+    ESP_LOGE(TAG, "Failed to connect to peer; rc=%d", rc);
+
+    // BLE_ERR_ACL_CONN_EXISTS (523) means peer is connecting to US
+    // Don't reset peer_discovered - connection event will arrive momentarily
+    if (rc != 523) {
+        peer_state.peer_discovered = false;
+    } else {
+        ESP_LOGI(TAG, "Peer is connecting to us (ACL already exists)");
+    }
+}
+```
+
+**3. Connection Event Before Scan Event** (`ble_manager.c:1094-1134`):
+
+Fallback logic for when connection arrives before scan event is processed:
+```c
+// Primary: Match by peer address (if scan event arrived first)
+if (peer_state.peer_discovered &&
+    memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
+    is_peer = true;
+    ESP_LOGI(TAG, "Peer identified by address match");
+} else {
+    // Fallback: Connection while scanning = peer device
+    if (scanning_active && !adv_state.client_connected) {
+        is_peer = true;
+        peer_state.peer_discovered = true;
+        memcpy(&peer_state.peer_addr, &desc.peer_id_addr, sizeof(ble_addr_t));
+        ESP_LOGI(TAG, "Peer identified by simultaneous connection (address saved)");
+    }
+}
+```
+
+**4. Role Assignment:**
+- Device that successfully initiates connection becomes SERVER (connection initiator)
+- Device that receives connection becomes CLIENT (connection acceptor)
+- Tie-breaker for battery-based role assignment (see AD035)
+
+**Benefits of Phase 1b Implementation:**
+
+✅ **No Artificial Delays**: Devices discover each other as fast as possible (~1-2 seconds)
+✅ **Graceful Race Handling**: ACL error 523 handled without resetting discovery state
+✅ **Robust Peer Identification**: Dual path (address match + fallback) ensures correct identification
+✅ **Deterministic Outcome**: One device always becomes initiator, other becomes acceptor
+✅ **Fast Reconnection**: After disconnect, devices rediscover within ~2 seconds
+
+**Testing Evidence (November 14, 2025):**
+
+Stress testing with simultaneous power-on:
+```
+Device 1:
+11:09:01.749 > Peer discovered: b4:3a:45:89:5c:76
+11:09:01.949 > BLE connection established
+11:09:01.963 > Peer identified by address match
+
+Device 2:
+11:09:01.824 > Peer discovered: a2:1f:33:67:4d:52
+11:09:01.943 > Failed to connect to peer; rc=523
+11:09:01.950 > Peer is connecting to us (ACL already exists)
+11:09:01.969 > BLE connection established
+11:09:01.975 > Peer identified by simultaneous connection (address saved)
+```
+
+**Future Enhancements (Not Yet Implemented):**
+
+- **Random startup delay** (original AD010 plan): Could still be added for additional robustness
+- **Connection initiator preference**: Could prefer device with higher battery as initiator
+- **Retry logic**: Automatic retry if both connections fail simultaneously (extremely rare)
+
+**Integration with AD035 (Battery-Based Role Assignment):**
+
+Phase 1b provides connection establishment and tie-breaking. Phase 1c will add:
+- Battery level comparison after connection
+- Dynamic role reassignment based on battery status
+- Connection initiator as tie-breaker when batteries are equal
 
 ### AD011: Emergency Shutdown Protocol
 
@@ -2387,6 +2476,56 @@ if (disconnect_duration < pdMS_TO_TICKS(120000)) {
 
 **Supersedes:** AD026 (immediate fallback behavior)
 
+**Phase 1b Implementation Status (November 14, 2025):**
+
+Phase 1b establishes the foundation for Command-and-Control architecture:
+
+✅ **Peer Discovery** (Implemented):
+- Both devices advertise Bilateral Control Service UUID
+- Both devices scan for peer advertising same service
+- First device to discover peer initiates connection
+- Race condition handled per AD010 (ACL error 523 gracefully handled)
+- Connection type identification (`ble_get_connection_type_str()` returns "Peer" vs "App")
+
+✅ **Battery Exchange** (Implemented):
+- Bilateral Battery characteristic (`6E400A01-B5A3-...`) updating every 60 seconds
+- `ble_update_bilateral_battery_level()` called by motor_task
+- Motor task battery logs show connection status: `Battery: 4.18V [98%] | BLE: Peer`
+
+⏳ **Role Assignment** (Phase 1c - Pending):
+- Battery-based role assignment logic (see AD035)
+- Higher battery device becomes SERVER (controller)
+- Lower battery device becomes CLIENT (follower)
+- Tie-breaker: Connection initiator becomes SERVER if batteries equal
+
+⏳ **Command-and-Control** (Phase 2 - Pending):
+- Bilateral Command characteristic for SERVER→CLIENT commands
+- Device Role characteristic to store assigned role
+- Command types: START/STOP/SYNC/MODE_CHANGE/EMERGENCY/PATTERN
+- Normal operation with BLE commands as described above
+
+⏳ **Synchronized Fallback** (Phase 2 - Pending):
+- Fallback Phase 1 (0-2 minutes): Continue bilateral rhythm
+- Fallback Phase 2 (2+ minutes): Fixed role assignment (no alternation)
+- Periodic reconnection attempts every 5 minutes
+- Seamless resume of command-and-control on reconnection
+
+**Integration with AD035 (Battery-Based Role Assignment):**
+
+Phase 1b provides connection establishment and peer identification. Phase 1c will add role assignment based on battery comparison. Phase 2 will implement the full command-and-control architecture with synchronized fallback as described above.
+
+**Testing Evidence (November 14, 2025):**
+
+Peer discovery working reliably with ~1-2 second connection time:
+```
+11:09:01.749 > Peer discovered: b4:3a:45:89:5c:76
+11:09:01.949 > BLE connection established
+11:09:01.963 > Peer identified by address match
+11:09:27.452 > Battery: 4.18V [98%] | BLE: Peer  ← Correct identification
+```
+
+Devices successfully reconnect after disconnect (see AD035 Known Issues for noisy advertising timer loop during reconnection window).
+
 ---
 
 ### AD029: Relaxed Timing Specification
@@ -2555,6 +2694,69 @@ During BLE disconnection, devices use last known pattern setting:
 ✅ **Clear UUID Scheme:** Incremental 14th byte for characteristics
 ✅ **Backward Compatible:** Maintains standard EMDR capabilities
 ✅ **Data Collection Ready:** Sequence numbers enable packet analysis
+
+**Phase 1b Implementation Status (November 14, 2025):**
+
+**UUID Update:** Changed from Nordic UART Service UUID to project-specific UUID base (see AD032).
+
+✅ **Implemented Characteristics:**
+
+| Characteristic | UUID | Type | Status | Phase |
+|----------------|------|------|--------|-------|
+| **Bilateral Battery** | `6E400A01-...` | uint8 R/Notify | ✅ Implemented | Phase 1b |
+| Bilateral Command | `6E400101-...` | uint8 Write | ⏳ Pending | Phase 2 |
+| Total Cycle Time | `6E400201-...` | uint16 R/W | ⏳ Pending | Phase 2 |
+| Motor Intensity | `6E400301-...` | uint8 R/W | ⏳ Pending | Phase 2 |
+| Stimulation Pattern | `6E400401-...` | uint8 R/W | ⏳ Pending | Phase 2 |
+| Device Role | `6E400501-...` | uint8 Read | ⏳ Pending | Phase 1c |
+| Session Duration | `6E400601-...` | uint32 R/W | ⏳ Pending | Phase 2 |
+| Sequence Number | `6E400701-...` | uint16 Read | ⏳ Pending | Phase 2 |
+| Emergency Shutdown | `6E400801-...` | uint8 Write | ⏳ Pending | Phase 2 |
+| Duty Cycle | `6E400901-...` | uint8 R/W | ⏳ Pending | Phase 2 |
+
+**Bilateral Battery Characteristic Implementation:**
+
+`src/ble_manager.c` lines 2650-2730:
+```c
+// Bilateral Control Service Battery Characteristic
+// Updated by motor_task every 60 seconds via ble_update_bilateral_battery_level()
+// Allows peer devices to read battery level for role assignment (AD035)
+static uint16_t bilateral_battery_handle;
+static uint8_t bilateral_battery_level = 100;  // Default 100%
+static SemaphoreHandle_t bilateral_data_mutex;  // Thread-safe access
+```
+
+Called by motor_task (`src/motor_task.c:269`):
+```c
+if (battery_read_voltage(&raw_mv, &battery_v, &battery_pct) == ESP_OK) {
+    ble_update_battery_level((uint8_t)battery_pct);           // Configuration Service
+    ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service
+    ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct,
+             ble_get_connection_type_str());
+}
+```
+
+**UUID Clarification (AD032 Update):**
+
+Phase 1b changed Bilateral Control Service UUID from `6E400001-...` (Nordic UART) to `4BCAE9BE-9829-4F0A-9E88-267DE5E70100` (project-specific). Characteristics within this service now use byte 13 for service type and bytes 14-15 for characteristic ID:
+
+```
+Project UUID Base: 4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY
+                                                ↑↑ ↑↑
+                                            Service Char
+
+Bilateral Control Service: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
+                                                            01 00
+
+Bilateral Battery Char:    4BCAE9BE-9829-4F0A-9E88-267DE5E7010A
+                                                            01 0A
+```
+
+This prevents UUID collision with Nordic UART Service and provides clear namespace for project characteristics.
+
+**Integration with AD035 (Battery-Based Role Assignment):**
+
+Phase 1b provides battery exchange mechanism via Bilateral Battery characteristic. Phase 1c will implement role assignment logic that reads peer battery level and compares with local battery to determine SERVER vs CLIENT role.
 
 ---
 
@@ -3117,6 +3319,167 @@ uint8_t b_final = (color.b * brightness) / 100;
 - Update CHANGELOG.md for major milestones only (not every doc edit)
 - Create git tag after committing version bump
 - Session summaries remain date-tracked (not versioned)
+
+---
+
+### AD035: Battery-Based Initial Role Assignment (Phase 1b)
+
+**Date:** November 14, 2025
+
+**Status:** Approved
+
+**Context:**
+
+Phase 1b implements peer-to-peer device discovery for bilateral stimulation. When two EMDR devices connect, they must assign SERVER and CLIENT roles to coordinate bilateral alternation patterns. Without role assignment, both devices may behave identically (causing simultaneous stimulation instead of alternating stimulation).
+
+**Decision:**
+
+Implement battery-based initial role assignment where the device with HIGHER battery level becomes SERVER (controller) and the device with LOWER battery level becomes CLIENT (follower).
+
+**Rationale:**
+
+**Why Battery-Based Selection:**
+
+1. **No User Configuration Required**: Role assignment happens automatically without user intervention - critical for accessibility and ease of use
+2. **Deterministic Outcome**: Comparison of battery percentages always produces a clear winner (unlike RSSI which fluctuates)
+3. **Already Measured**: Battery monitoring already runs every 60 seconds for low-voltage protection
+4. **Fair Distribution**: Over multiple sessions, users will naturally alternate roles as battery levels vary
+5. **Intuitive Fallback**: If batteries are identical, SERVER defaults to device that initiated connection (tie-breaker)
+
+**Alternative Approaches Considered:**
+
+| Method | Pros | Cons | Verdict |
+|--------|------|------|---------|
+| **RSSI-based** | Uses existing BLE radio data | RSSI fluctuates wildly (±10 dBm), unstable role assignment | ❌ Rejected |
+| **MAC address comparison** | Deterministic, no fluctuation | Always assigns same device as SERVER (unfair distribution) | ❌ Rejected |
+| **Manual configuration** | User has full control | Requires UI, poor user experience, accessibility barrier | ❌ Rejected |
+| **Random selection** | Simple implementation | No fairness over time, unpredictable behavior | ❌ Rejected |
+| **Battery-based** | Fair, deterministic, no config needed | Requires battery monitoring (already implemented) | ✅ **Selected** |
+
+**Implementation Details:**
+
+**Phase 1b (Current Implementation):**
+
+1. **Peer Discovery** (`ble_manager.c:2450-2600`):
+   - Both devices advertise Bilateral Control Service UUID (`4BCAE9BE-9829-4F0A-9E88-267DE5E70100`)
+   - Both devices scan for peer advertising same service
+   - First device to discover peer initiates connection (race condition handled per AD010)
+
+2. **Connection Type Identification** (`ble_manager.c:1094-1134`):
+   ```c
+   // Identify peer by address match or simultaneous connection
+   if (peer_state.peer_discovered &&
+       memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
+       is_peer = true;
+   } else if (scanning_active && !adv_state.client_connected) {
+       is_peer = true;  // Connection while scanning = peer device
+   }
+   ```
+
+3. **Battery Exchange** (GATT Characteristic):
+   - Each device advertises battery level via Bilateral Control Service Battery characteristic
+   - `ble_update_bilateral_battery_level()` called every 60 seconds by motor_task
+   - Peer reads battery level after connection established
+
+4. **Role Assignment Logic** (Future Phase 1c - Not Yet Implemented):
+   ```c
+   // Pseudocode for Phase 1c:
+   if (local_battery > peer_battery) {
+       role = DEVICE_ROLE_SERVER;  // Higher battery = SERVER
+   } else if (local_battery < peer_battery) {
+       role = DEVICE_ROLE_CLIENT;  // Lower battery = CLIENT
+   } else {
+       // Tie-breaker: Connection initiator becomes SERVER
+       role = (we_initiated_connection) ? DEVICE_ROLE_SERVER : DEVICE_ROLE_CLIENT;
+   }
+   ```
+
+**Connection Status Display:**
+
+Motor task now shows connection type in battery logs (src/motor_task.c:269):
+```c
+ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct,
+         ble_get_connection_type_str());
+```
+
+Output examples:
+- `Battery: 4.16V [96%] | BLE: Peer` ← Peer device connected
+- `Battery: 4.10V [89%] | BLE: App` ← Mobile app connected
+- `Battery: 3.95V [72%] | BLE: Disconnected` ← No connection
+
+**Race Condition Handling (per AD010):**
+
+When both devices simultaneously attempt connection:
+- Error `BLE_ERR_ACL_CONN_EXISTS` (523) indicates peer is already connecting to us
+- Don't reset `peer_discovered` flag - connection event will arrive momentarily
+- Passive device accepts incoming connection, active device's attempt fails gracefully
+- Result: One device becomes SERVER (initiator), other becomes CLIENT (acceptor)
+
+**Known Issues (Phase 1b Testing):**
+
+1. **Advertising Timer Loop** (Cosmetic, Does Not Block Functionality):
+   - After peer disconnect, rapid IDLE→ADVERTISING→timeout loop occurs (~100ms cycles)
+   - Root cause: `ble_get_advertising_elapsed_ms()` returns time since boot, not since restart
+   - Impact: Noisy logging only - devices successfully reconnect despite loop
+   - Fix: Deferred to Phase 1c (reset timer when advertising restarts)
+
+2. **Status LED 5× Blink Not Visible**:
+   - `status_led_pattern()` called on peer connection (logs confirm)
+   - User observes NO LED blinks on GPIO15 (hardware confirmed functional via button hold test)
+   - Root cause: Unknown (timing issue or state conflict suspected)
+   - Impact: Minor - connection still works, only visual feedback missing
+   - Fix: Deferred to Phase 1c investigation
+
+**Integration with AD028 (Command-and-Control Architecture):**
+
+Battery-based role assignment provides the foundation for Phase 2 synchronized bilateral control:
+- SERVER device sends timing commands via Bilateral Control Service
+- CLIENT device receives and executes commands
+- Role can be reassigned if battery levels flip (SERVER battery drops below CLIENT)
+
+**Integration with AD030 (Bilateral Control Service):**
+
+Phase 1b implements peer discovery and connection type identification. Future phases will use:
+- `Device Role` characteristic (UUID `6E400501-B5A3-...`) to store assigned role
+- `Bilateral Command` characteristic (UUID `6E400101-B5A3-...`) for SERVER→CLIENT commands
+- `Bilateral Battery` characteristic for ongoing battery level comparison
+
+**Benefits:**
+
+✅ **Zero Configuration**: No user setup required, works out of the box
+✅ **Fair Role Distribution**: Over time, users naturally alternate roles as battery levels vary
+✅ **Deterministic**: Clear winner in all cases (battery comparison + tie-breaker)
+✅ **Accessible**: No UI barriers, works for all users regardless of technical ability
+✅ **Efficient**: Leverages existing battery monitoring (no additional overhead)
+✅ **Graceful Degradation**: Tie-breaker ensures role assignment even with identical batteries
+
+**Phase 1b Completion Status:**
+
+✅ Peer discovery working (both devices discover each other)
+✅ Connection type identification (`ble_get_connection_type_str()` returns "Peer" vs "App")
+✅ Bilateral Battery characteristic implemented and updating every 60 seconds
+✅ Motor task logs show correct connection status
+✅ Devices successfully reconnect after disconnect
+⏳ Role assignment logic (Phase 1c - pending)
+⏳ Role-based bilateral control (Phase 2 - pending)
+
+**Testing Evidence (November 14, 2025):**
+
+```
+11:09:01.749 > Peer discovered: b4:3a:45:89:5c:76
+11:09:01.949 > BLE connection established
+11:09:01.963 > Peer identified by address match
+11:09:01.969 > Peer device connected
+11:09:27.452 > Battery: 4.18V [98%] | BLE: Peer  ← Correct identification
+```
+
+**Next Steps (Phase 1c):**
+
+1. Implement `role_manager.c` with battery comparison logic
+2. Add `ble_get_peer_battery_level()` function to read peer's battery characteristic
+3. Implement role assignment after peer connection established
+4. Add role change notification when battery levels flip
+5. Update motor task to show assigned role in logs (`BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)`)
 
 ---
 

@@ -1,9 +1,9 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.1.1
-**Last Updated:** 2025-11-13
+**Version:** v0.1.2
+**Last Updated:** 2025-11-14
 **Status:** Production-Ready
-**Project Phase:** Phase 4 Complete (JPL-Compliant)
+**Project Phase:** Phase 1b Complete (Peer Discovery) | Phase 4 Complete (JPL-Compliant)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
@@ -452,8 +452,11 @@ Please maintain attribution when using or modifying this code or hardware design
 - **Hardware v0.663399ADS**: GPIO crosstalk fixes implemented, ready for production
 - **Mobile app integration**: BLE GATT Configuration via nRF Connect
 
-### Phase 5: Dual-Device Bilateral Coordination (In Development)
-- **Automatic pairing**: Device discovery and role assignment
+### Phase 1b/1c/2: Dual-Device Bilateral Coordination (In Progress)
+- ✅ **Phase 1b Complete**: Peer discovery and connection type identification (~1-2s connection time)
+- ✅ **Battery exchange**: Bilateral Battery characteristic for role assignment foundation
+- ⏳ **Phase 1c (Next)**: Battery-based role assignment (higher battery = SERVER role)
+- ⏳ **Phase 2 (Planned)**: Command-and-control with synchronized fallback
 - **Synchronized timing**: Safety-critical non-overlapping bilateral stimulation
 - **Configurable cycle times**: 500-4000ms (0.25-2 Hz therapeutic range)
 - **Safety-critical timing**: Non-overlapping half-cycles with 1ms FreeRTOS dead time

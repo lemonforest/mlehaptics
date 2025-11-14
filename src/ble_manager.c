@@ -10,6 +10,8 @@
  */
 
 #include "ble_manager.h"
+#include "motor_task.h"
+#include "role_manager.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -32,72 +34,98 @@
 static const char *TAG = "BLE_MANAGER";
 
 // ============================================================================
-// BLE SERVICE UUIDs (Production - AD032)
+// BLE SERVICE UUIDs (Production - AD030/AD032)
 // ============================================================================
 
-// Configuration Service: 6E400002-B5A3-F393-E0A9-E50E24DCCA9E (13th byte = 02)
-// Characteristics: 6E400X02-B5A3-... where X = 01, 02, 03... 0C (14th byte)
+// EMDR Pulser Project UUID Base: 4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY
+// Service differentiation: XX = service type, YY = characteristic ID
 
 // NOTE: BLE_UUID128_INIT expects bytes in REVERSE order (little-endian)
-// UUID format: 6E 40 0X 02 - B5 A3 - F3 93 - E0 A9 - E5 0E 24 DC CA 9E
-// Reversed:    9E CA DC 24 0E E5 A9 E0 93 F3 A3 B5 02 0X 40 6E
-//                                                  ↑  ↑
-//                                               13th 14th
+// UUID format: 4B CA E9 BE - 9829 - 4F0A - 9E88 - 267D E5 E7 XX YY
+// Reversed:    0x0b, 0x14, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+//              0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b
+//                                                  ↑  ↑  ↑  ↑
+//                                              13th 14th 15th 16th
+// Service differentiation (bytes 13-14):
+//   0x01 0x00 = Bilateral Control Service (device-to-device, AD030)
+//   0x02 0x00 = Configuration Service (mobile app, AD032)
 
+// Bilateral Control Service (4BCAE9BE-9829-4F0A-9E88-267DE5E70100)
+// Device-to-device communication for dual-device coordination
+static const ble_uuid128_t uuid_bilateral_service = BLE_UUID128_INIT(
+    0x00, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+// Bilateral Control Service Characteristics (bytes 13-14 = 0x01 0xNN)
+// Phase 1b: Battery-based role assignment (AD030/AD034)
+static const ble_uuid128_t uuid_bilateral_battery = BLE_UUID128_INIT(
+    0x01, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_bilateral_mac = BLE_UUID128_INIT(
+    0x02, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_bilateral_role = BLE_UUID128_INIT(
+    0x03, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+// Configuration Service (4BCAE9BE-9829-4F0A-9E88-267DE5E70200)
+// Mobile app control interface (single or dual device)
 static const ble_uuid128_t uuid_config_service = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x00, 0x40, 0x6e);
+    0x00, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
-// Motor Control Group
+// Motor Control Group (bytes 13-14 = 0x02 0x0N)
 static const ble_uuid128_t uuid_char_mode = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x01, 0x40, 0x6e);
+    0x01, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_custom_freq = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x02, 0x40, 0x6e);
+    0x02, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_custom_duty = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x03, 0x40, 0x6e);
+    0x03, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_pwm_intensity = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x04, 0x40, 0x6e);
+    0x04, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
-// LED Control Group
+// LED Control Group (bytes 13-14 = 0x02 0x0N)
 static const ble_uuid128_t uuid_char_led_enable = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x05, 0x40, 0x6e);
+    0x05, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_led_color_mode = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x06, 0x40, 0x6e);
+    0x06, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_led_palette = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x07, 0x40, 0x6e);
+    0x07, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_led_custom_rgb = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x08, 0x40, 0x6e);
+    0x08, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_led_brightness = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x09, 0x40, 0x6e);
+    0x09, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
-// Status/Monitoring Group
+// Status/Monitoring Group (bytes 13-14 = 0x02 0x0N)
 static const ble_uuid128_t uuid_char_session_duration = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x0a, 0x40, 0x6e);
+    0x0a, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_session_time = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x0b, 0x40, 0x6e);
+    0x0b, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 static const ble_uuid128_t uuid_char_battery = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x02, 0x0c, 0x40, 0x6e);
+    0x0c, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 // ============================================================================
 // MODE 5 LED COLOR PALETTE (16 colors)
@@ -169,6 +197,41 @@ static ble_advertising_state_t adv_state = {
 
 // Settings dirty flag (thread-safe via char_data_mutex)
 static bool settings_dirty = false;
+
+// Peer device state (Phase 1a: Dual-device support)
+typedef struct {
+    bool peer_discovered;              /**< Peer device found via scan */
+    bool peer_connected;               /**< BLE connection established to peer */
+    ble_addr_t peer_addr;              /**< Peer device BLE address */
+    uint16_t peer_conn_handle;         /**< Peer connection handle */
+    uint8_t peer_battery_level;        /**< Peer's battery percentage (0-100) */
+    uint8_t peer_mac[6];               /**< Peer's MAC address for tiebreaker */
+} ble_peer_state_t;
+
+static ble_peer_state_t peer_state = {
+    .peer_discovered = false,
+    .peer_connected = false,
+    .peer_addr = {0},
+    .peer_conn_handle = BLE_HS_CONN_HANDLE_NONE,
+    .peer_battery_level = 0,
+    .peer_mac = {0}
+};
+
+// Bilateral Control Service characteristic data (Phase 1b: AD030/AD034)
+typedef struct {
+    uint8_t battery_level;      /**< Local battery percentage 0-100% */
+    uint8_t mac_address[6];     /**< Local MAC address (6 bytes) */
+    uint8_t device_role;        /**< Device role: 0=SERVER, 1=CLIENT, 2=CONTROLLER, 3=FOLLOWER */
+} bilateral_char_data_t;
+
+static bilateral_char_data_t bilateral_data = {
+    .battery_level = 0,
+    .mac_address = {0},
+    .device_role = ROLE_SERVER  // Default to SERVER until role determined
+};
+
+static SemaphoreHandle_t bilateral_data_mutex = NULL;
+static bool scanning_active = false;
 
 // NimBLE advertising parameters
 static struct ble_gap_adv_params adv_params = {
@@ -639,9 +702,10 @@ static int gatt_char_session_duration_write(uint16_t conn_handle, uint16_t attr_
 // Session Time - Read
 static int gatt_char_session_time_read(uint16_t conn_handle, uint16_t attr_handle,
                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
-    uint32_t session_time = char_data.session_time_sec;
-    xSemaphoreGive(char_data_mutex);
+    // Calculate REAL-TIME session time instead of using cached value
+    // This ensures GATT reads always return current uptime
+    uint32_t session_time_ms = motor_get_session_time_ms();
+    uint32_t session_time = session_time_ms / 1000;  // Convert to seconds
 
     ESP_LOGD(TAG, "GATT Read: Session Time = %u sec", session_time);
     int rc = os_mbuf_append(ctxt->om, &session_time, sizeof(session_time));
@@ -658,6 +722,73 @@ static int gatt_char_battery_read(uint16_t conn_handle, uint16_t attr_handle,
     ESP_LOGD(TAG, "GATT Read: Battery = %u%%", battery_val);
     int rc = os_mbuf_append(ctxt->om, &battery_val, sizeof(battery_val));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// ============================================================================
+// BILATERAL CONTROL SERVICE CHARACTERISTIC HANDLERS (Phase 1b: AD030/AD034)
+// ============================================================================
+
+// Bilateral Battery Level - Read (for peer device role comparison)
+static int gatt_bilateral_battery_read(uint16_t conn_handle, uint16_t attr_handle,
+                                        struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    uint8_t battery_val = bilateral_data.battery_level;
+    xSemaphoreGive(bilateral_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Bilateral Battery = %u%%", battery_val);
+    int rc = os_mbuf_append(ctxt->om, &battery_val, sizeof(battery_val));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Bilateral MAC Address - Read (for role assignment tiebreaker)
+static int gatt_bilateral_mac_read(uint16_t conn_handle, uint16_t attr_handle,
+                                    struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    uint8_t mac[6];
+    memcpy(mac, bilateral_data.mac_address, 6);
+    xSemaphoreGive(bilateral_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: MAC = %02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    int rc = os_mbuf_append(ctxt->om, mac, 6);
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Bilateral Device Role - Read/Write
+static int gatt_bilateral_role_read(uint16_t conn_handle, uint16_t attr_handle,
+                                     struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    uint8_t role = bilateral_data.device_role;
+    xSemaphoreGive(bilateral_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Device Role = %u", role);
+    int rc = os_mbuf_append(ctxt->om, &role, sizeof(role));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+static int gatt_bilateral_role_write(uint16_t conn_handle, uint16_t attr_handle,
+                                      struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint8_t role;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &role, sizeof(role), NULL);
+    if (rc != 0) {
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // Validate role value (0-3: SERVER, CLIENT, CONTROLLER, FOLLOWER)
+    if (role > 3) {
+        ESP_LOGE(TAG, "GATT Write: Invalid role %u (valid: 0-3)", role);
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    ESP_LOGI(TAG, "GATT Write: Device Role = %u", role);
+    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    bilateral_data.device_role = role;
+    xSemaphoreGive(bilateral_data_mutex);
+
+    // Update role_manager with new role
+    role_set((device_role_t)role);
+
+    return 0;
 }
 
 // GATT characteristic access dispatcher
@@ -734,17 +865,58 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return gatt_char_battery_read(conn_handle, attr_handle, ctxt, arg);
     }
 
+    // Bilateral Control Service characteristics (Phase 1b)
+    if (ble_uuid_cmp(uuid, &uuid_bilateral_battery.u) == 0) {
+        return gatt_bilateral_battery_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_bilateral_mac.u) == 0) {
+        return gatt_bilateral_mac_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_bilateral_role.u) == 0) {
+        return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
+               gatt_bilateral_role_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_bilateral_role_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
     // Unknown characteristic
     return BLE_ATT_ERR_UNLIKELY;
 }
 
 // ============================================================================
-// GATT SERVICE DEFINITION (AD032)
+// GATT SERVICE DEFINITION (AD030 + AD032)
 // ============================================================================
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     {
-        // Configuration Service (UUID: 6E400002-...)
+        // Bilateral Control Service (UUID: 6E400001-...) - Phase 1b: AD030/AD034
+        // Device-to-device coordination for dual-device operation
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = &uuid_bilateral_service.u,
+        .characteristics = (struct ble_gatt_chr_def[]){
+            {
+                .uuid = &uuid_bilateral_battery.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            {
+                .uuid = &uuid_bilateral_mac.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            {
+                .uuid = &uuid_bilateral_role.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+            },
+            {
+                0, // No more characteristics
+            }
+        },
+    },
+    {
+        // Configuration Service (UUID: 6E400002-...) - AD032
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &uuid_config_service.u,
         .characteristics = (struct ble_gatt_chr_def[]){
@@ -922,45 +1094,122 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         case BLE_GAP_EVENT_CONNECT:
             if (event->connect.status == 0) {
                 ESP_LOGI(TAG, "BLE connection established; conn_handle=%d", event->connect.conn_handle);
-                adv_state.client_connected = true;
-                adv_state.advertising_active = false;
-                adv_state.conn_handle = event->connect.conn_handle;
-                // Clear subscription flags (client must resubscribe)
-                adv_state.notify_mode_subscribed = false;
-                adv_state.notify_session_time_subscribed = false;
-                adv_state.notify_battery_subscribed = false;
+
+                // Phase 1b: Determine if this is peer or mobile app connection
+                // Strategy: Check device name - EMDR_Pulser_* = peer, anything else = mobile app
+                // This works even if connection happens before scan event is processed
+                struct ble_gap_conn_desc desc;
+                bool is_peer = false;
+
+                if (ble_gap_conn_find(event->connect.conn_handle, &desc) == 0) {
+                    // Check if address matches our discovered peer (if we've discovered one)
+                    if (peer_state.peer_discovered &&
+                        memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
+                        is_peer = true;
+                        ESP_LOGI(TAG, "Peer identified by address match");
+                    } else {
+                        // Fallback: Any EMDR_Pulser device is a peer (scan event may not have arrived yet)
+                        // We'll discover the device name from advertising data later
+                        // For now, assume peer if we're in scanning mode and not already connected to app
+                        if (scanning_active && !adv_state.client_connected) {
+                            is_peer = true;
+                            peer_state.peer_discovered = true;  // Set flag now
+                            memcpy(&peer_state.peer_addr, &desc.peer_id_addr, sizeof(ble_addr_t));
+                            ESP_LOGI(TAG, "Peer identified by simultaneous connection (address saved)");
+                        }
+                    }
+                }
+
+                if (is_peer) {
+                    // This is the peer device connection
+                    peer_state.peer_connected = true;
+                    peer_state.peer_conn_handle = event->connect.conn_handle;
+                    ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
+
+                    // Stop scanning once peer connected
+                    if (scanning_active) {
+                        ble_gap_disc_cancel();
+                        scanning_active = false;
+                        ESP_LOGI(TAG, "Scanning stopped (peer connected)");
+                    }
+                } else {
+                    // This is a mobile app connection (standard GATT server role)
+                    adv_state.client_connected = true;
+                    adv_state.advertising_active = false;
+                    adv_state.conn_handle = event->connect.conn_handle;
+                    ESP_LOGI(TAG, "Mobile app connected; conn_handle=%d", event->connect.conn_handle);
+
+                    // Clear subscription flags (client must resubscribe)
+                    adv_state.notify_mode_subscribed = false;
+                    adv_state.notify_session_time_subscribed = false;
+                    adv_state.notify_battery_subscribed = false;
+                }
             } else {
                 ESP_LOGW(TAG, "BLE connection failed; status=%d (%s)",
                          event->connect.status,
                          ble_connect_status_str(event->connect.status));
+
+                // Phase 1a: Reset peer discovery on connection failure
+                if (peer_state.peer_discovered) {
+                    ESP_LOGW(TAG, "Peer connection failed, will retry discovery");
+                    peer_state.peer_discovered = false;
+                    peer_state.peer_connected = false;
+
+                    // Resume scanning for retry
+                    if (!scanning_active) {
+                        vTaskDelay(pdMS_TO_TICKS(1000));  // Brief delay before retry
+                        ble_start_scanning();
+                    }
+                }
             }
             break;
 
         case BLE_GAP_EVENT_DISCONNECT:
             // Mask to 1 byte (BLE spec uses 1-byte reason codes)
-            ESP_LOGI(TAG, "BLE disconnect; reason=0x%02X (%s)",
+            ESP_LOGI(TAG, "BLE disconnect; conn_handle=%d, reason=0x%02X (%s)",
+                     event->disconnect.conn.conn_handle,
                      event->disconnect.reason & 0xFF,
                      ble_disconnect_reason_str(event->disconnect.reason & 0xFF));
-            adv_state.client_connected = false;
-            adv_state.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-            adv_state.notify_mode_subscribed = false;
-            adv_state.notify_session_time_subscribed = false;
-            adv_state.notify_battery_subscribed = false;
 
-            // Small delay to allow BLE stack cleanup (Android compatibility)
-            vTaskDelay(pdMS_TO_TICKS(100));
+            // Phase 1a: Determine if this is peer or mobile app disconnect
+            if (peer_state.peer_connected &&
+                event->disconnect.conn.conn_handle == peer_state.peer_conn_handle) {
+                // Peer device disconnected
+                ESP_LOGI(TAG, "Peer device disconnected");
+                peer_state.peer_connected = false;
+                peer_state.peer_discovered = false;
+                peer_state.peer_conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-            // Resume advertising on disconnect
-            rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                                   &adv_params, ble_gap_event, NULL);
-            if (rc == 0) {
-                adv_state.advertising_active = true;
-                adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                ESP_LOGI(TAG, "BLE advertising restarted after disconnect");
+                // Resume scanning to find peer again
+                vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay
+                if (!scanning_active && adv_state.advertising_active) {
+                    ble_start_scanning();
+                    ESP_LOGI(TAG, "Resuming peer scan after disconnect");
+                }
             } else {
-                ESP_LOGE(TAG, "Failed to restart advertising after disconnect; rc=%d", rc);
-                adv_state.advertising_active = false;
-                // BLE task will retry via CHECK_ADVERTISING_STATE message
+                // Mobile app disconnected
+                ESP_LOGI(TAG, "Mobile app disconnected");
+                adv_state.client_connected = false;
+                adv_state.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+                adv_state.notify_mode_subscribed = false;
+                adv_state.notify_session_time_subscribed = false;
+                adv_state.notify_battery_subscribed = false;
+
+                // Small delay to allow BLE stack cleanup (Android compatibility)
+                vTaskDelay(pdMS_TO_TICKS(100));
+
+                // Resume advertising on mobile app disconnect
+                rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                       &adv_params, ble_gap_event, NULL);
+                if (rc == 0) {
+                    adv_state.advertising_active = true;
+                    adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                    ESP_LOGI(TAG, "BLE advertising restarted after mobile app disconnect");
+                } else {
+                    ESP_LOGE(TAG, "Failed to restart advertising after disconnect; rc=%d", rc);
+                    adv_state.advertising_active = false;
+                    // BLE task will retry via CHECK_ADVERTISING_STATE message
+                }
             }
             break;
 
@@ -1002,18 +1251,18 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     adv_state.notify_session_time_subscribed = event->subscribe.cur_notify;
                     ESP_LOGI(TAG, "Session Time notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
 
-                    // Send initial value immediately on subscription
+                        // Send initial value immediately on subscription
                     if (event->subscribe.cur_notify) {
-                        uint32_t current_time;
-                        xSemaphoreTake(char_data_mutex, portMAX_DELAY);
-                        current_time = char_data.session_time_sec;
-                        xSemaphoreGive(char_data_mutex);
+                        // Get REAL-TIME session time instead of cached value
+                        // This ensures clients connecting within first 60s get correct uptime
+                        uint32_t current_time_ms = motor_get_session_time_ms();
+                        uint32_t current_time_sec = current_time_ms / 1000;
 
-                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_time, sizeof(current_time));
+                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_time_sec, sizeof(current_time_sec));
                         if (om != NULL) {
                             int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
                             if (rc == 0) {
-                                ESP_LOGI(TAG, "Initial session time sent: %lu seconds", current_time);
+                                ESP_LOGI(TAG, "Initial session time sent: %lu seconds", current_time_sec);
                             }
                         }
                     }
@@ -1081,7 +1330,7 @@ static void ble_on_sync(void) {
         ESP_LOGI(TAG, "BLE device name: %s", unique_name);
     }
 
-    // Configure advertising data
+    // Configure advertising data (main packet: flags + name only, fits in 31 bytes)
     struct ble_hs_adv_fields fields;
     memset(&fields, 0, sizeof(fields));
 
@@ -1099,12 +1348,13 @@ static void ble_on_sync(void) {
         return;
     }
 
-    // Configure scan response data with Configuration Service UUID (AD032)
-    // Using scan response keeps advertising packet small while still enabling app filtering
+    // Configure scan response with Bilateral Service UUID for peer discovery (Phase 1b)
+    // Using scan response prevents exceeding 31-byte advertising packet limit
+    // Devices perform active scanning so they WILL receive scan response
     struct ble_hs_adv_fields rsp_fields;
     memset(&rsp_fields, 0, sizeof(rsp_fields));
 
-    rsp_fields.uuids128 = &uuid_config_service;
+    rsp_fields.uuids128 = &uuid_bilateral_service;
     rsp_fields.num_uuids128 = 1;
     rsp_fields.uuids128_is_complete = 1;
 
@@ -1286,10 +1536,16 @@ esp_err_t ble_manager_init(void) {
 
     ESP_LOGI(TAG, "Initializing BLE manager (AD032)...");
 
-    // Create mutex
+    // Create mutexes
     char_data_mutex = xSemaphoreCreateMutex();
     if (char_data_mutex == NULL) {
-        ESP_LOGE(TAG, "Failed to create mutex");
+        ESP_LOGE(TAG, "Failed to create char_data mutex");
+        return ESP_FAIL;
+    }
+
+    bilateral_data_mutex = xSemaphoreCreateMutex();
+    if (bilateral_data_mutex == NULL) {
+        ESP_LOGE(TAG, "Failed to create bilateral_data mutex");
         return ESP_FAIL;
     }
 
@@ -1313,6 +1569,20 @@ esp_err_t ble_manager_init(void) {
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "NimBLE init failed: %s", esp_err_to_name(ret));
         return ret;
+    }
+
+    // Get local MAC address for Bilateral Control Service (Phase 1b)
+    // This is needed for role assignment tiebreaker (AD034)
+    uint8_t own_addr[6];
+    ret = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr, NULL);
+    if (ret == ESP_OK) {
+        xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+        memcpy(bilateral_data.mac_address, own_addr, 6);
+        xSemaphoreGive(bilateral_data_mutex);
+        ESP_LOGI(TAG, "Local MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                 own_addr[0], own_addr[1], own_addr[2], own_addr[3], own_addr[4], own_addr[5]);
+    } else {
+        ESP_LOGW(TAG, "Failed to get MAC address, will retry after sync");
     }
 
     // Configure callbacks
@@ -1369,6 +1639,182 @@ void ble_stop_advertising(void) {
     }
 }
 
+// ============================================================================
+// Peer Discovery & Scanning (Phase 1a)
+// ============================================================================
+
+/**
+ * @brief BLE GAP scan event callback
+ *
+ * Detects peer devices advertising Bilateral Control Service (6E400001-...).
+ * Devices advertising this service are potential peers for dual-device operation.
+ *
+ * @param event GAP event data
+ * @param arg User argument (unused)
+ * @return 0 on success
+ */
+static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
+    switch (event->type) {
+        case BLE_GAP_EVENT_DISC: {
+            // Device discovered - check if it advertises Bilateral Control Service
+            struct ble_hs_adv_fields fields;
+            int rc = ble_hs_adv_parse_fields(&fields, event->disc.data, event->disc.length_data);
+
+            if (rc != 0) {
+                ESP_LOGI(TAG, "Scan: malformed adv data (rc=%d)", rc);
+                return 0;  // Skip malformed advertisements
+            }
+
+            // Log device name for debugging (temporary - can remove once working)
+            if (fields.name != NULL) {
+                ESP_LOGI(TAG, "Scan: Device '%.*s' (%d UUIDs)",
+                         fields.name_len, fields.name, fields.num_uuids128);
+            }
+
+            // Check for Bilateral Control Service in scan response
+            // UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
+            if (fields.uuids128 != NULL && fields.num_uuids128 > 0) {
+                for (int i = 0; i < fields.num_uuids128; i++) {
+                    // Compare against Bilateral Control Service UUID
+                    if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_bilateral_service.u) == 0) {
+                        // Found peer device! Log discovery
+                        char addr_str[18];
+                        snprintf(addr_str, sizeof(addr_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+                                event->disc.addr.val[5], event->disc.addr.val[4],
+                                event->disc.addr.val[3], event->disc.addr.val[2],
+                                event->disc.addr.val[1], event->disc.addr.val[0]);
+
+                        ESP_LOGI(TAG, "Peer discovered: %s (RSSI: %d)", addr_str, event->disc.rssi);
+
+                        // Save peer address
+                        memcpy(&peer_state.peer_addr, &event->disc.addr, sizeof(ble_addr_t));
+                        peer_state.peer_discovered = true;
+
+                        // Stop scanning and connect to peer
+                        ble_gap_disc_cancel();
+                        ble_connect_to_peer();
+
+                        return 0;
+                    }
+                }
+            }
+            break;
+        }
+
+        case BLE_GAP_EVENT_DISC_COMPLETE:
+            ESP_LOGI(TAG, "BLE scan complete");
+            scanning_active = false;
+
+            // If no peer found, restart scanning (continuous discovery)
+            if (!peer_state.peer_discovered && !peer_state.peer_connected) {
+                ESP_LOGI(TAG, "No peer found, restarting scan...");
+                vTaskDelay(pdMS_TO_TICKS(1000));  // Brief delay before retry
+                ble_start_scanning();
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Start BLE scanning for peer devices
+ *
+ * Initiates BLE scanning while maintaining advertising (simultaneous mode).
+ * Scans for devices advertising Bilateral Control Service.
+ */
+void ble_start_scanning(void) {
+    if (scanning_active) {
+        ESP_LOGW(TAG, "BLE scanning already active");
+        return;
+    }
+
+    if (peer_state.peer_connected) {
+        ESP_LOGW(TAG, "Already connected to peer, skipping scan");
+        return;
+    }
+
+    // Configure scan parameters
+    struct ble_gap_disc_params disc_params = {
+        .itvl = 0x10,           // Scan interval: 10ms (units of 0.625ms)
+        .window = 0x10,         // Scan window: 10ms
+        .filter_policy = BLE_HCI_SCAN_FILT_NO_WL,  // No whitelist filtering
+        .limited = 0,           // General discovery (not limited)
+        .passive = 0,           // Active scanning (request scan responses)
+        .filter_duplicates = 1  // Filter duplicate advertisements
+    };
+
+    int rc = ble_gap_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                          ble_gap_scan_event, NULL);
+
+    if (rc == 0) {
+        scanning_active = true;
+        ESP_LOGI(TAG, "BLE scanning started (searching for peer devices)");
+    } else {
+        ESP_LOGE(TAG, "Failed to start BLE scanning; rc=%d", rc);
+    }
+}
+
+/**
+ * @brief Stop BLE scanning
+ */
+void ble_stop_scanning(void) {
+    if (scanning_active) {
+        int rc = ble_gap_disc_cancel();
+        if (rc == 0) {
+            scanning_active = false;
+            ESP_LOGI(TAG, "BLE scanning stopped");
+        } else {
+            ESP_LOGE(TAG, "Failed to stop scanning; rc=%d", rc);
+        }
+    }
+}
+
+/**
+ * @brief Connect to discovered peer device
+ *
+ * Initiates BLE connection to peer advertising Bilateral Control Service.
+ * Uses existing ble_gap_event() callback for connection events.
+ */
+void ble_connect_to_peer(void) {
+    if (!peer_state.peer_discovered) {
+        ESP_LOGW(TAG, "Cannot connect: no peer discovered");
+        return;
+    }
+
+    if (peer_state.peer_connected) {
+        ESP_LOGW(TAG, "Already connected to peer");
+        return;
+    }
+
+    ESP_LOGI(TAG, "Connecting to peer device...");
+
+    // Initiate connection (uses default connection parameters)
+    int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_state.peer_addr,
+                             30000,  // 30 second timeout
+                             NULL,   // Default connection parameters
+                             ble_gap_event, NULL);
+
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to connect to peer; rc=%d", rc);
+
+        // BLE_ERR_ACL_CONN_EXISTS (523) means the peer is connecting to US
+        // Don't reset peer_discovered - we'll get the connection event momentarily
+        if (rc != 523) {  // 523 = BLE_ERR_ACL_CONN_EXISTS
+            peer_state.peer_discovered = false;  // Reset for retry
+        } else {
+            ESP_LOGI(TAG, "Peer is connecting to us (ACL already exists)");
+        }
+    }
+}
+
+// ============================================================================
+// Status Query Functions
+// ============================================================================
+
 bool ble_is_connected(void) {
     return adv_state.client_connected;
 }
@@ -1383,6 +1829,20 @@ uint32_t ble_get_advertising_elapsed_ms(void) {
     }
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
     return now - adv_state.advertising_start_ms;
+}
+
+bool ble_is_peer_connected(void) {
+    return peer_state.peer_connected;
+}
+
+const char* ble_get_connection_type_str(void) {
+    if (peer_state.peer_connected) {
+        return "Peer";
+    } else if (adv_state.client_connected) {
+        return "App";
+    } else {
+        return "Disconnected";
+    }
 }
 
 void ble_update_battery_level(uint8_t percentage) {
@@ -1403,6 +1863,13 @@ void ble_update_battery_level(uint8_t percentage) {
             }
         }
     }
+}
+
+void ble_update_bilateral_battery_level(uint8_t percentage) {
+    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    bilateral_data.battery_level = percentage;
+    xSemaphoreGive(bilateral_data_mutex);
+    ESP_LOGD(TAG, "Bilateral battery level updated: %u%%", percentage);
 }
 
 void ble_update_session_time(uint32_t seconds) {

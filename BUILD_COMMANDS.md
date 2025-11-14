@@ -1,7 +1,7 @@
 # Quick Build & Test Reference
 
-**Version:** v0.1.1
-**Last Updated:** 2025-11-13
+**Version:** v0.1.2
+**Last Updated:** 2025-11-14
 **Status:** Production-Ready
 
 ---

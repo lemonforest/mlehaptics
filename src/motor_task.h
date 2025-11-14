@@ -190,10 +190,22 @@ void motor_task(void *pvParameters);
 mode_t motor_get_current_mode(void);
 
 /**
- * @brief Get session elapsed time
- * @return Milliseconds since session start (xTaskGetTickCount())
+ * @brief Initialize session start timestamp
  *
- * Used by BLE GATT server for session time notifications
+ * Must be called during hardware initialization (before motor_task starts).
+ * Captures boot time for accurate session time calculations when BLE clients
+ * connect before motor_task has started.
+ *
+ * Called by main.c during init_hardware() sequence.
+ */
+void motor_init_session_time(void);
+
+/**
+ * @brief Get session elapsed time
+ * @return Milliseconds since motor_init_session_time() was called
+ *
+ * Used by BLE GATT server for session time notifications.
+ * Returns real-time uptime calculation, not cached value.
  */
 uint32_t motor_get_session_time_ms(void);
 

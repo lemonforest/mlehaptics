@@ -195,8 +195,10 @@ void motor_task(void *pvParameters) {
     // Initialize current_mode from BLE (may have been loaded from NVS)
     current_mode = ble_get_current_mode();
 
-    uint32_t session_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-    uint32_t led_indication_start_ms = session_start_ms;
+    // Note: session_start_time_ms already set by motor_init_session_time() during hardware init
+    // Use current time for task-specific timers
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t led_indication_start_ms = now_ms;
     bool led_indication_active = true;
 
     // Motor timing variables (updated when mode changes)
@@ -213,10 +215,9 @@ void motor_task(void *pvParameters) {
     // Phase tracking for shared back-EMF states
     bool in_forward_phase = true;
 
-    // Initialize session timestamp for BLE
-    session_start_time_ms = session_start_ms;
-    last_battery_check_ms = session_start_ms;
-    last_session_time_notify_ms = session_start_ms;
+    // Initialize task-specific timers (session_start_time_ms already set during hardware init)
+    last_battery_check_ms = now_ms;
+    last_session_time_notify_ms = now_ms;
 
     // Subscribe to watchdog (soft-fail pattern)
     esp_err_t err = esp_task_wdt_add(NULL);
@@ -233,7 +234,7 @@ void motor_task(void *pvParameters) {
 
     while (state != MOTOR_STATE_SHUTDOWN) {
         uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
-        uint32_t elapsed = now - session_start_ms;
+        uint32_t elapsed = now - session_start_time_ms;
 
         switch (state) {
             // ================================================================
@@ -263,8 +264,9 @@ void motor_task(void *pvParameters) {
                     int battery_pct;
 
                     if (battery_read_voltage(&raw_mv, &battery_v, &battery_pct) == ESP_OK) {
-                        ble_update_battery_level((uint8_t)battery_pct);
-                        ESP_LOGI(TAG, "Battery: %.2fV [%d%%]", battery_v, battery_pct);
+                        ble_update_battery_level((uint8_t)battery_pct);           // Configuration Service (mobile app)
+                        ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service (peer device)
+                        ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct, ble_get_connection_type_str());
                     }
 
                     last_battery_check_ms = now;
@@ -592,6 +594,23 @@ void motor_task(void *pvParameters) {
 mode_t motor_get_current_mode(void) {
     // Thread-safe read of current operating mode
     return current_mode;
+}
+
+void motor_init_session_time(void) {
+    // Initialize session start time during hardware init
+    // This allows BLE clients connecting early to get correct uptime
+    session_start_time_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    ESP_LOGI(TAG, "Session start time initialized: %lu ms", session_start_time_ms);
+}
+
+uint32_t motor_get_session_time_ms(void) {
+    // Calculate elapsed time since session start
+    // Returns milliseconds since motor_init_session_time() was called
+    if (session_start_time_ms == 0) {
+        return 0;  // Not initialized yet (shouldn't happen in normal flow)
+    }
+    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+    return now - session_start_time_ms;
 }
 
 esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms) {

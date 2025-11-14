@@ -8,9 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Dual-device bilateral control (AD028, AD030)
-- Command-and-control protocol implementation
+- Phase 1c: Battery-based role assignment logic
+- Phase 2: Command-and-control protocol implementation
 - Mobile app development
+
+---
+
+## [0.1.2] - 2025-11-14
+
+### Added - Phase 1b: Peer Discovery and Initial Role Assignment
+- **Peer-to-Peer Discovery**: Devices discover and connect to each other via BLE scanning (~1-2s connection time)
+- **Connection Type Identification**: `ble_is_peer_connected()` and `ble_get_connection_type_str()` differentiate peer vs mobile app connections
+- **Battery Exchange**: Bilateral Battery characteristic updates every 60 seconds for role assignment foundation
+- **Race Condition Handling**: Graceful handling of ACL_CONN_EXISTS error (523) when both devices connect simultaneously (AD010)
+- **Project-Specific UUIDs**: Changed from Nordic UART Service to custom UUID base `4BCAE9BE-9829-...` to prevent collision (AD032)
+- **Battery Status Logging**: Motor task now logs connection type: `Battery: 4.18V [98%] | BLE: Peer/App/Disconnected`
+
+### Architecture Decisions
+- **AD035**: Battery-Based Initial Role Assignment strategy (higher battery = SERVER role)
+- **AD010**: Updated Race Condition Prevention Strategy with Phase 1b simultaneous connection handling
+- **AD028**: Updated Command-and-Control Architecture with Phase 1b implementation status
+- **AD030**: Updated Bilateral Control Service with Phase 1b battery characteristic implementation
+
+### Known Issues
+- **Advertising Timer Loop** (Cosmetic): Rapid IDLE→ADVERTISING→timeout loop after disconnect (devices reconnect successfully despite noisy logging)
+- **Status LED 5× Blink Not Visible**: Function called on peer connection but LED doesn't blink (hardware confirmed functional)
+
+### Infrastructure
+- Modular architecture in `src/` (ble_manager, motor_task, ble_task, button_task)
+- Build environment: `xiao_esp32c6`
+- Dual battery characteristic updates (Configuration Service + Bilateral Control Service)
+
+### Documentation
+- Phase 1b section added to CLAUDE.md with implementation details and testing evidence
+- architecture_decisions.md updated with Phase 1b status in AD010, AD028, AD030
+- AD035 created documenting battery-based role assignment strategy
 
 ---
 

@@ -149,12 +149,58 @@ void ble_start_advertising(void);
 void ble_stop_advertising(void);
 
 /**
+ * @brief Start BLE scanning for peer devices (Phase 1a)
+ *
+ * Initiates BLE scanning while maintaining advertising (simultaneous mode).
+ * Scans for Bilateral Control Service (6E400001-B5A3-F393-E0A9-E50E24DCCA9E).
+ * Automatically connects when peer discovered.
+ *
+ * Called by ble_task after advertising starts (dual-device pairing)
+ */
+void ble_start_scanning(void);
+
+/**
+ * @brief Stop BLE scanning (Phase 1a)
+ *
+ * Stops active scanning for peer devices
+ * Called when peer connection established or during shutdown
+ */
+void ble_stop_scanning(void);
+
+/**
+ * @brief Connect to discovered peer device (Phase 1a)
+ *
+ * Initiates BLE connection to peer advertising Bilateral Control Service.
+ * Called automatically by scan callback when peer discovered.
+ *
+ * Connection events handled by existing ble_gap_event() callback
+ */
+void ble_connect_to_peer(void);
+
+/**
  * @brief Check if BLE client is connected
  * @return true if client connected, false otherwise
  *
  * Used by motor_task and button_task to determine if BLE control is active
  */
 bool ble_is_connected(void);
+
+/**
+ * @brief Check if connected to peer device (Phase 1b)
+ * @return true if peer device connected, false otherwise
+ *
+ * Differentiates peer connections from mobile app connections
+ * Used by motor_task for connection status logging
+ */
+bool ble_is_peer_connected(void);
+
+/**
+ * @brief Get connection type string for logging (Phase 1b)
+ * @return "Peer" if peer connected, "App" if mobile app connected, "Disconnected" if no connection
+ *
+ * Used by motor_task for periodic connection status heartbeat
+ */
+const char* ble_get_connection_type_str(void);
 
 /**
  * @brief Check if BLE is currently advertising
@@ -181,6 +227,16 @@ uint32_t ble_get_advertising_elapsed_ms(void);
  * Called by motor_task every 10 seconds
  */
 void ble_update_battery_level(uint8_t percentage);
+
+/**
+ * @brief Update bilateral battery level for peer device role comparison (Phase 1b)
+ * @param percentage Battery percentage 0-100
+ *
+ * Thread-safe update of Bilateral Control Service battery characteristic
+ * Used by peer devices for battery-based role assignment (AD034)
+ * Called by motor_task alongside ble_update_battery_level()
+ */
+void ble_update_bilateral_battery_level(uint8_t percentage);
 
 /**
  * @brief Update session time for BLE notifications

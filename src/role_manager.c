@@ -60,15 +60,38 @@ esp_err_t role_manager_deinit(void) {
 // ROLE DETERMINATION
 // ============================================================================
 
-device_role_t role_determine(bool is_first_device) {
+device_role_t role_determine_by_battery(uint8_t local_battery, uint8_t peer_battery,
+                                         const uint8_t local_mac[6], const uint8_t peer_mac[6]) {
     xSemaphoreTake(g_state_mutex, portMAX_DELAY);
 
-    if (is_first_device) {
+    // Battery-based role assignment per AD034
+    // Higher battery = Controller (Server role)
+    // Lower battery = Follower (Client role)
+    // If equal batteries, use MAC address tiebreaker
+
+    if (local_battery > peer_battery) {
         g_fallback_state.current_role = ROLE_SERVER;
-        ESP_LOGI(TAG, "Role determined: SERVER (first device)");
-    } else {
+        ESP_LOGI(TAG, "Role determined: SERVER (local battery %u%% > peer %u%%)",
+                 local_battery, peer_battery);
+    } else if (peer_battery > local_battery) {
         g_fallback_state.current_role = ROLE_CLIENT;
-        ESP_LOGI(TAG, "Role determined: CLIENT (second device)");
+        ESP_LOGI(TAG, "Role determined: CLIENT (peer battery %u%% > local %u%%)",
+                 peer_battery, local_battery);
+    } else {
+        // Batteries equal - use MAC address tiebreaker
+        // Higher MAC address becomes Server (Controller)
+        int mac_cmp = memcmp(local_mac, peer_mac, 6);
+        if (mac_cmp > 0) {
+            g_fallback_state.current_role = ROLE_SERVER;
+            ESP_LOGI(TAG, "Role determined: SERVER (equal battery %u%%, local MAC higher)", local_battery);
+        } else {
+            g_fallback_state.current_role = ROLE_CLIENT;
+            ESP_LOGI(TAG, "Role determined: CLIENT (equal battery %u%%, peer MAC higher)", peer_battery);
+        }
+        ESP_LOGD(TAG, "Local MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                 local_mac[0], local_mac[1], local_mac[2], local_mac[3], local_mac[4], local_mac[5]);
+        ESP_LOGD(TAG, "Peer MAC:  %02X:%02X:%02X:%02X:%02X:%02X",
+                 peer_mac[0], peer_mac[1], peer_mac[2], peer_mac[3], peer_mac[4], peer_mac[5]);
     }
 
     device_role_t role = g_fallback_state.current_role;

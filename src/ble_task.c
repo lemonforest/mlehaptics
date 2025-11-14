@@ -34,6 +34,16 @@ void ble_task(void *pvParameters) {
     while (state != BLE_STATE_SHUTDOWN) {
         switch (state) {
             case BLE_STATE_IDLE: {
+                // Check if advertising was auto-started by ble_on_sync() callback
+                // This happens when NimBLE synchronizes during initialization
+                // Don't auto-detect if already connected to peer (Phase 1b)
+                if (ble_is_advertising() && !ble_is_peer_connected()) {
+                    ble_start_scanning();
+                    ESP_LOGI(TAG, "State: IDLE → ADVERTISING (auto-detected, scanning started)");
+                    state = BLE_STATE_ADVERTISING;
+                    break;
+                }
+
                 // Check for messages (1s timeout for responsiveness)
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
                     if (msg.type == MSG_BLE_REENABLE) {
@@ -42,7 +52,9 @@ void ble_task(void *pvParameters) {
 
                         // Transition based on result
                         if (ble_is_advertising()) {
-                            ESP_LOGI(TAG, "State: IDLE → ADVERTISING");
+                            // Phase 1a: Start scanning for peer devices
+                            ble_start_scanning();
+                            ESP_LOGI(TAG, "State: IDLE → ADVERTISING (scanning for peer)");
                             state = BLE_STATE_ADVERTISING;
                         } else {
                             ESP_LOGW(TAG, "Failed to start advertising, staying in IDLE");
@@ -79,6 +91,7 @@ void ble_task(void *pvParameters) {
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
                     if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
                         ESP_LOGI(TAG, "Emergency shutdown during advertising");
+                        ble_stop_scanning();  // Phase 1a: Stop scanning
                         ble_stop_advertising();
                         ESP_LOGI(TAG, "State: ADVERTISING → SHUTDOWN");
                         state = BLE_STATE_SHUTDOWN;
@@ -86,16 +99,19 @@ void ble_task(void *pvParameters) {
                     } else if (msg.type == MSG_BLE_REENABLE) {
                         // Restart advertising from 0 (reset timeout)
                         ESP_LOGI(TAG, "BLE re-enable requested while advertising, restarting");
+                        ble_stop_scanning();  // Phase 1a: Stop scanning before restart
                         ble_stop_advertising();
                         vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay
                         ble_start_advertising();
-                        ESP_LOGI(TAG, "Advertising restarted (timeout reset)");
+                        ble_start_scanning();  // Phase 1a: Restart scanning
+                        ESP_LOGI(TAG, "Advertising restarted (timeout reset, scanning resumed)");
                     }
                 }
 
                 // Check for client connection (set by GAP event handler)
                 if (ble_is_connected()) {
                     ESP_LOGI(TAG, "Client connected");
+                    ble_stop_scanning();  // Phase 1a: Stop scanning when connected
                     status_led_pattern(STATUS_PATTERN_BLE_CONNECTED);  // 5× blink for connection
                     ESP_LOGI(TAG, "State: ADVERTISING → CONNECTED");
                     state = BLE_STATE_CONNECTED;
@@ -108,6 +124,7 @@ void ble_task(void *pvParameters) {
 
                     if (elapsed >= BLE_ADV_TIMEOUT_MS) {
                         ESP_LOGI(TAG, "Advertising timeout (5 minutes)");
+                        ble_stop_scanning();  // Phase 1a: Stop scanning on timeout
                         ble_stop_advertising();
                         ESP_LOGI(TAG, "State: ADVERTISING → IDLE");
                         state = BLE_STATE_IDLE;
@@ -148,7 +165,9 @@ void ble_task(void *pvParameters) {
 
                     // GAP event handler automatically restarts advertising
                     if (ble_is_advertising()) {
-                        ESP_LOGI(TAG, "Auto-restarting advertising after disconnect");
+                        // Phase 1a: Resume scanning for peer after disconnect
+                        ble_start_scanning();
+                        ESP_LOGI(TAG, "Auto-restarting advertising after disconnect (scanning for peer)");
                         ESP_LOGI(TAG, "State: CONNECTED → ADVERTISING");
                         state = BLE_STATE_ADVERTISING;
                     } else {

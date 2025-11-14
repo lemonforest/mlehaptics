@@ -193,6 +193,10 @@ static esp_err_t init_hardware(void) {
         return ret;
     }
 
+    // Initialize session start time for BLE uptime reporting
+    // Must happen before BLE advertising starts so early clients get correct time
+    motor_init_session_time();
+
     // 4. Initialize LED Control
     ESP_LOGI(TAG, "Initializing LED Control...");
     ret = led_init();
@@ -211,6 +215,21 @@ static esp_err_t init_hardware(void) {
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "BLE Manager init failed: %s", esp_err_to_name(ret));
         return ret;
+    }
+
+    // 6. Cache initial battery level in BLE characteristics
+    // This ensures BLE clients get a valid battery reading on initial connection
+    // Must happen AFTER ble_manager_init() creates the char_data_mutex and bilateral_data_mutex
+    ESP_LOGI(TAG, "Caching initial battery level for BLE...");
+    int raw_mv = 0;
+    float battery_v = 0.0f;
+    int battery_pct = 0;
+    if (battery_read_voltage(&raw_mv, &battery_v, &battery_pct) == ESP_OK) {
+        ble_update_battery_level((uint8_t)battery_pct);           // Configuration Service (mobile app)
+        ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service (peer device)
+        ESP_LOGI(TAG, "Initial battery level cached: %d%%", battery_pct);
+    } else {
+        ESP_LOGW(TAG, "Failed to read initial battery level");
     }
 
     ESP_LOGI(TAG, "All hardware modules initialized successfully");

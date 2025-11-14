@@ -1,9 +1,9 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Version:** v0.1.1
-**Last Updated:** 2025-11-13
+**Version:** v0.1.2
+**Last Updated:** 2025-11-14
 **Status:** Production-Ready
-**Project Phase:** Phase 4 Complete (JPL-Compliant)
+**Project Phase:** Phase 1b Complete (Peer Discovery) | Phase 4 Complete (JPL-Compliant)
 **Hardware:** Seeed XIAO ESP32-C6
 **Framework:** ESP-IDF v5.5.0 via PlatformIO
 
@@ -678,6 +678,130 @@ pio device monitor
 
 ---
 
+## Phase 1b - Peer Discovery and Initial Role Assignment
+
+**Status:** ✅ COMPLETE (November 14, 2025)
+**Build Environment:** `xiao_esp32c6` (modular architecture)
+
+### Overview
+
+Phase 1b implements peer-to-peer device discovery for dual-device bilateral stimulation. Two EMDR devices can now discover each other, connect, and exchange battery information for future role assignment.
+
+### Key Features Implemented
+
+1. **Peer Discovery** (`src/ble_manager.c`):
+   - Both devices advertise Bilateral Control Service UUID (`4BCAE9BE-9829-4F0A-9E88-267DE5E70100`)
+   - Both devices scan for peer advertising same service
+   - First device to discover peer initiates connection
+   - Connection time: ~1-2 seconds
+
+2. **Connection Type Identification**:
+   - `ble_is_peer_connected()` - Check if connected to peer device
+   - `ble_get_connection_type_str()` - Returns "Peer", "App", or "Disconnected"
+   - Motor task battery logs show connection status every 60 seconds
+
+3. **Battery Exchange** (GATT Characteristic):
+   - Bilateral Battery characteristic (`6E400A01-B5A3-...`)
+   - `ble_update_bilateral_battery_level()` called every 60 seconds by motor_task
+   - Allows peer devices to read battery level for role assignment (Phase 1c)
+
+4. **Race Condition Handling** (per AD010):
+   - Error `BLE_ERR_ACL_CONN_EXISTS` (523) gracefully handled
+   - Fallback logic for connection-before-scan-event scenarios
+   - Devices successfully reconnect after disconnect
+
+### Battery Status Logging
+
+Motor task now shows connection type in battery logs (`src/motor_task.c:269`):
+```
+Battery: 4.16V [96%] | BLE: Peer          ← Peer device connected
+Battery: 4.10V [89%] | BLE: App           ← Mobile app connected
+Battery: 3.95V [72%] | BLE: Disconnected  ← No connection
+```
+
+### UUID Architecture (AD032)
+
+Phase 1b changed from Nordic UART Service UUID to project-specific UUID base to prevent collision:
+
+```
+Project UUID Base: 4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY
+                                                ↑↑ ↑↑
+                                            Service Char
+
+Bilateral Control Service: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
+Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
+```
+
+### Known Issues (Documented in AD035)
+
+1. **Advertising Timer Loop** (Cosmetic, Does Not Block Functionality):
+   - After peer disconnect, rapid IDLE→ADVERTISING→timeout loop occurs (~100ms cycles)
+   - Root cause: `ble_get_advertising_elapsed_ms()` returns time since boot, not since restart
+   - Impact: Noisy logging only - devices successfully reconnect despite loop
+   - Fix: Deferred to Phase 1c
+
+2. **Status LED 5× Blink Not Visible**:
+   - `status_led_pattern()` called on peer connection (logs confirm)
+   - User observes NO LED blinks on GPIO15 (hardware confirmed functional via button hold test)
+   - Root cause: Unknown (timing issue or state conflict suspected)
+   - Impact: Minor - connection still works, only visual feedback missing
+   - Fix: Deferred to Phase 1c investigation
+
+### Testing Evidence
+
+```
+11:09:01.749 > Peer discovered: b4:3a:45:89:5c:76
+11:09:01.949 > BLE connection established
+11:09:01.963 > Peer identified by address match
+11:09:01.969 > Peer device connected
+11:09:27.452 > Battery: 4.18V [98%] | BLE: Peer  ← Correct!
+```
+
+### Architecture Decisions
+
+- **AD010**: Race Condition Prevention Strategy (updated with Phase 1b implementation)
+- **AD032**: BLE Service UUID Namespace (project-specific UUID base)
+- **AD035**: Battery-Based Initial Role Assignment (Phase 1b foundation)
+
+### Next Steps (Phase 1c)
+
+⏳ **Role Assignment Logic:**
+- Implement `role_manager.c` with battery comparison
+- Add `ble_get_peer_battery_level()` to read peer's battery characteristic
+- Assign SERVER role to device with higher battery, CLIENT to lower
+- Tie-breaker: Connection initiator becomes SERVER if batteries equal
+- Update motor task logs to show role: `BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)`
+
+⏳ **Device Role Characteristic:**
+- Add Device Role GATT characteristic to Bilateral Control Service
+- Store assigned role (SERVER=0, CLIENT=1, STANDALONE=2)
+- Allow role reassignment if battery levels flip
+
+### Build & Test
+
+```bash
+# Build Phase 1b (modular architecture)
+pio run -e xiao_esp32c6 -t upload
+
+# Monitor output
+pio device monitor
+
+# Test with two devices
+# - Power on both devices within ~10 seconds
+# - Watch for "Peer discovered" and "BLE connection established" in logs
+# - Verify battery logs show "BLE: Peer" after connection
+# - Test disconnect/reconnect by power cycling one device
+```
+
+### Documentation
+
+- **Architecture Decisions**: `docs/architecture_decisions.md` (AD010, AD032, AD035)
+- **Command-and-Control**: `docs/architecture_decisions.md` (AD028 - Phase 1b status added)
+- **Bilateral Control Service**: `docs/architecture_decisions.md` (AD030 - Phase 1b status added)
+- **Session Summary**: `SESSION_SUMMARY_PHASE_1B.md` (to be created)
+
+---
+
 ## Future Work Considerations
 
 ### Explicit Light Sleep
@@ -730,6 +854,7 @@ Evaluate DRV2605L family:
 
 ```
 Build Configuration:     platformio.ini
+Phase 1b (Modular):      src/*.c (ble_manager, motor_task, ble_task, button_task)
 Primary Code (Phase 4):  test/single_device_demo_jpl_queued.c
 BLE GATT Code:           test/single_device_ble_gatt_test.c
 Test-Specific Guide:     test/SINGLE_DEVICE_DEMO_JPL_QUEUED_GUIDE.md
@@ -737,11 +862,11 @@ BLE GATT Guide:          test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md
 Comprehensive Guide:     test/PHASE_4_JPL_QUEUED_COMPLETE_GUIDE.md
 Baseline Code:           test/single_device_battery_bemf_test.c
 Simple Demo:             test/single_device_demo_test.c
-GPIO Definitions:        [Within test files]
+GPIO Definitions:        [Within test files and src/*.h]
 Build Commands:          BUILD_COMMANDS.md
 Quick Start:             PHASE_4_COMPLETE_QUICKSTART.md
 Full Spec:               docs/requirements_spec.md
-Architecture Decisions:  docs/architecture_decisions.md
+Architecture Decisions:  docs/architecture_decisions.md (AD010, AD028, AD030, AD032, AD035)
 State Machine Analysis:  docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md
 BLE Task Analysis:       test/BLE_TASK_STATE_MACHINE_ANALYSIS.md
 Mode Switch Refactor:    test/MODE_SWITCH_REFACTORING_PLAN.md
@@ -774,6 +899,12 @@ A:
 - `single_device_battery_bemf_test.c` - Baseline with battery + back-EMF monitoring
 - `single_device_battery_bemf_queued_test.c` - Phase 1 (adds message queues)
 - `single_device_demo_test.c` - Simple 4-mode demo (no battery features)
+
+**Q: What is Phase 1b and how do I build it?**
+A: Phase 1b is peer-to-peer device discovery for dual-device bilateral stimulation (modular architecture in `src/`).
+- Build: `pio run -e xiao_esp32c6 -t upload`
+- Features: Peer discovery, connection type identification, battery exchange for role assignment
+- Status: Phase 1b complete (peer discovery), Phase 1c pending (role assignment logic)
 
 **Q: Can I add new motor control modes?**
 A: Yes! See `mode_t` enum in single_device_demo_jpl_queued.c. Add your mode to the modes array, and the system will automatically cycle through it.
