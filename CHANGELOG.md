@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Known Issues
 - **Advertising Timer Loop** (Cosmetic): Rapid IDLE→ADVERTISING→timeout loop after disconnect (devices reconnect successfully despite noisy logging)
 - **Status LED 5× Blink Not Visible**: Function called on peer connection but LED doesn't blink (hardware confirmed functional)
+- **Mobile App Cannot Connect When Peer-Paired** (BLOCKING): nRF Connect cannot connect when devices are peer-paired; workaround: restart device before mobile app connection
 
 ### Infrastructure
 - Modular architecture in `src/` (ble_manager, motor_task, ble_task, button_task)

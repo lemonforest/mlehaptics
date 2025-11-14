@@ -3430,6 +3430,19 @@ When both devices simultaneously attempt connection:
    - Impact: Minor - connection still works, only visual feedback missing
    - Fix: Deferred to Phase 1c investigation
 
+3. **Mobile App Cannot Connect When Devices Peer-Paired** (BLOCKING for mobile app control during peer operation):
+   - Symptom: When two devices are peer-connected, nRF Connect sees advertising but cannot connect
+   - Connection attempts fail silently (no logs, no connection event)
+   - Configuration Service still advertising, but connection rejected/ignored
+   - Root cause: Connection identification logic or NimBLE connection limit
+   - Impact: **Cannot configure devices via mobile app while peer-paired** - must disconnect peer first
+   - **Proposed solutions for Phase 1c/2:**
+     - **Option 1**: Only SERVER device advertises Configuration Service when peer-paired (hand-off advertising)
+     - **Option 2**: Disconnect peer connection to allow mobile app connection (button hold 1-2s on CLIENT triggers peer disconnect)
+     - **Option 3**: Enable simultaneous connections (SERVER accepts both peer + mobile app connections)
+   - Current workaround: Restart device (breaks peer connection), then connect mobile app before devices re-pair
+   - Fix: Phase 1c/2 architecture decision needed for mobile app control strategy during peer operation
+
 **Integration with AD028 (Command-and-Control Architecture):**
 
 Battery-based role assignment provides the foundation for Phase 2 synchronized bilateral control:

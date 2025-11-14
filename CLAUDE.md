@@ -747,6 +747,14 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
    - Impact: Minor - connection still works, only visual feedback missing
    - Fix: Deferred to Phase 1c investigation
 
+3. **Mobile App Cannot Connect When Devices Peer-Paired** (BLOCKING):
+   - nRF Connect sees advertising but cannot connect when devices are peer-paired
+   - Connection attempts fail silently (no logs, no connection event)
+   - **Impact: Cannot configure devices via mobile app while peer-paired**
+   - Workaround: Restart device to break peer connection, connect mobile app before re-pairing
+   - Proposed solutions: SERVER-only Configuration Service advertising, or peer disconnect via button
+   - Fix: Phase 1c/2 architecture decision needed (see AD035 for full analysis)
+
 ### Testing Evidence
 
 ```
