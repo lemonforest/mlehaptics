@@ -219,6 +219,22 @@ uint16_t ble_get_peer_conn_handle(void);
 uint16_t ble_get_app_conn_handle(void);
 
 /**
+ * @brief Check if BLE pairing is in progress (Phase 1b.3)
+ * @return true if pairing/bonding active, false otherwise
+ *
+ * Used by button task to handle pairing confirmation
+ */
+bool ble_is_pairing(void);
+
+/**
+ * @brief Get connection handle for active pairing (Phase 1b.3)
+ * @return Connection handle for pairing, or BLE_HS_CONN_HANDLE_NONE if not pairing
+ *
+ * Used by button task for pairing confirmation via ble_sm_inject_io()
+ */
+uint16_t ble_get_pairing_conn_handle(void);
+
+/**
  * @brief Check if BLE is currently advertising
  * @return true if advertising active, false otherwise
  *

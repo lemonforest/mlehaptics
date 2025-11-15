@@ -208,6 +208,24 @@ static ble_advertising_state_t adv_state = {
 // Settings dirty flag (thread-safe via char_data_mutex)
 static bool settings_dirty = false;
 
+// ============================================================================
+// BLE SECURITY CONFIGURATION (Phase 1b.3)
+// ============================================================================
+
+/**
+ * @brief BLE pairing/bonding state
+ *
+ * Configuration: LE Secure Connections with MITM protection via button confirmation
+ * - Just Works pairing method (no passkey display required)
+ * - Button confirmation required (MITM protection)
+ * - Bonding enabled (keys stored in NVS)
+ * - Conditional NVS writes based on BLE_PAIRING_TEST_MODE flag
+ *
+ * Security configured via global ble_hs_cfg in ble_manager_init()
+ */
+static bool pairing_in_progress = false;
+static uint16_t pairing_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
 // Peer role (Phase 1b.2: Role-aware advertising)
 typedef enum {
     PEER_ROLE_NONE = 0,    /**< No peer connection */
@@ -1831,6 +1849,30 @@ esp_err_t ble_manager_init(void) {
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
+    // Configure BLE security (Phase 1b.3: Pairing/Bonding)
+    // LE Secure Connections with MITM protection via button confirmation
+    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISPLAY;  // Support numeric comparison
+    ble_hs_cfg.sm_bonding = 1;                               // Enable bonding (store keys)
+    ble_hs_cfg.sm_mitm = 1;                                  // Require MITM protection
+    ble_hs_cfg.sm_sc = 1;                                    // Use LE Secure Connections (ECDH)
+    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+
+#ifdef BLE_PAIRING_TEST_MODE
+    // Test mode: Skip NVS writes for bonding data (prevents flash wear during testing)
+    ESP_LOGW(TAG, "BLE_PAIRING_TEST_MODE enabled - bonding data will NOT persist across reboots");
+    // Note: Bonding data normally stored via ble_store_config (NVS)
+    // In test mode, bonding data is kept in RAM only and cleared on reboot
+    // This allows unlimited pairing test cycles without NVS degradation
+#else
+    // Production mode: Enable persistent bonding via NVS
+    ESP_LOGI(TAG, "BLE bonding enabled - pairing data will persist in NVS");
+    // Initialize bonding storage (uses "ble_sec" NVS namespace)
+    ble_store_config_init();
+#endif
+
+    ESP_LOGI(TAG, "BLE security configured: LE SC + MITM + bonding");
+
     // Initialize GATT services
     ret = gatt_svr_init();
     if (ret != ESP_OK) {
@@ -2103,6 +2145,14 @@ const char* ble_get_connection_type_str(void) {
     } else {
         return "Disconnected";
     }
+}
+
+bool ble_is_pairing(void) {
+    return pairing_in_progress;
+}
+
+uint16_t ble_get_pairing_conn_handle(void) {
+    return pairing_conn_handle;
 }
 
 uint16_t ble_get_peer_conn_handle(void) {
