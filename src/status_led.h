@@ -42,7 +42,11 @@ typedef enum {
     STATUS_PATTERN_NVS_RESET,          /**< 3× blink (100ms ON, 100ms OFF) - NVS factory reset successful */
     STATUS_PATTERN_MODE_CHANGE,        /**< 1× quick blink (50ms ON) - Mode changed */
     STATUS_PATTERN_BUTTON_HOLD,        /**< Continuous ON - Button hold detected (1s+) */
-    STATUS_PATTERN_COUNTDOWN           /**< Continuous ON - Shutdown countdown in progress */
+    STATUS_PATTERN_COUNTDOWN,          /**< Continuous ON - Shutdown countdown in progress */
+    STATUS_PATTERN_PAIRING_WAIT,       /**< Solid ON - Waiting for peer discovery (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_PROGRESS,   /**< Pulsing 1Hz - Pairing in progress (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_SUCCESS,    /**< WS2812B green 3× blink - Pairing success (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_FAILED      /**< WS2812B red 3× blink - Pairing failed (Phase 1b.3) */
 } status_pattern_t;
 
 // ============================================================================

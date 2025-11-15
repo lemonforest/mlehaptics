@@ -87,9 +87,11 @@ extern const mode_config_t modes[MODE_COUNT];
 /**
  * @brief Motor task state machine states
  *
- * 8-state machine for bilateral alternating motor control with back-EMF sampling
+ * 9-state machine (Phase 1b.3 adds PAIRING_WAIT) for bilateral alternating motor control
+ * with back-EMF sampling and BLE pairing security
  */
 typedef enum {
+    MOTOR_STATE_PAIRING_WAIT,             /**< Wait for BLE pairing to complete (Phase 1b.3) */
     MOTOR_STATE_CHECK_MESSAGES,           /**< Check queues, handle mode changes */
     MOTOR_STATE_FORWARD_ACTIVE,           /**< Motor forward, PWM active */
     MOTOR_STATE_FORWARD_COAST_REMAINING,  /**< Coast remaining time (forward cycle) */
@@ -107,7 +109,7 @@ typedef enum {
 /**
  * @brief Inter-task message types
  *
- * Used for communication between button_task, battery monitor, and motor_task
+ * Used for communication between button_task, battery monitor, BLE task, and motor_task
  */
 typedef enum {
     MSG_MODE_CHANGE,          /**< Button press: cycle to next mode */
@@ -115,7 +117,9 @@ typedef enum {
     MSG_BLE_REENABLE,         /**< Button hold 1-2s: re-enable BLE advertising */
     MSG_BATTERY_WARNING,      /**< Battery voltage below warning threshold */
     MSG_BATTERY_CRITICAL,     /**< Battery voltage below critical threshold (LVO) */
-    MSG_SESSION_TIMEOUT       /**< Session duration exceeded (60 minutes) */
+    MSG_SESSION_TIMEOUT,      /**< Session duration exceeded (60 minutes) */
+    MSG_PAIRING_COMPLETE,     /**< BLE pairing successful (Phase 1b.3) */
+    MSG_PAIRING_FAILED        /**< BLE pairing failed or timeout (Phase 1b.3) */
 } message_type_t;
 
 /**
@@ -156,19 +160,21 @@ esp_err_t motor_init(void);
  * @brief Motor control FreeRTOS task
  * @param pvParameters Task parameters (unused, pass NULL)
  *
- * Main motor control loop implementing 8-state machine:
- * 1. CHECK_MESSAGES: Process queue, handle mode/shutdown messages
- * 2. FORWARD_ACTIVE: Drive motor forward with PWM
- * 3. BEMF_IMMEDIATE: Sample back-EMF immediately after motor off
- * 4. COAST_SETTLE: Wait settle time, sample settled back-EMF
- * 5. FORWARD_COAST_REMAINING: Complete forward coast period
- * 6. REVERSE_ACTIVE: Drive motor reverse with PWM
- * 7. REVERSE_COAST_REMAINING: Complete reverse coast period
- * 8. SHUTDOWN: Cleanup and exit
+ * Main motor control loop implementing 9-state machine (Phase 1b.3):
+ * 1. PAIRING_WAIT: Wait for BLE pairing to complete before starting session
+ * 2. CHECK_MESSAGES: Process queue, handle mode/shutdown messages
+ * 3. FORWARD_ACTIVE: Drive motor forward with PWM
+ * 4. BEMF_IMMEDIATE: Sample back-EMF immediately after motor off
+ * 5. COAST_SETTLE: Wait settle time, sample settled back-EMF
+ * 6. FORWARD_COAST_REMAINING: Complete forward coast period
+ * 7. REVERSE_ACTIVE: Drive motor reverse with PWM
+ * 8. REVERSE_COAST_REMAINING: Complete reverse coast period
+ * 9. SHUTDOWN: Cleanup and exit
  *
  * Message queue inputs:
  * - button_to_motor_queue: Mode changes, emergency shutdown, BLE re-enable
  * - battery_to_motor_queue: Battery warnings, critical LVO
+ * - ble_to_motor_queue: Pairing complete/failed (Phase 1b.3)
  *
  * Watchdog: Uses soft-fail pattern (logs errors, continues on failure)
  *
@@ -264,6 +270,8 @@ void motor_mode5_settings_mark_clean(void);
 extern QueueHandle_t button_to_motor_queue;
 extern QueueHandle_t battery_to_motor_queue;
 extern QueueHandle_t motor_to_button_queue;
+extern QueueHandle_t ble_to_motor_queue;     /**< BLE task → motor task (Phase 1b.3) */
+extern QueueHandle_t button_to_ble_queue;    /**< Button task → BLE task (existing) */
 
 #ifdef __cplusplus
 }

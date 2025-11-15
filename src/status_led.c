@@ -138,6 +138,40 @@ void status_led_pattern(status_pattern_t pattern) {
             status_led_on();
             break;
 
+        case STATUS_PATTERN_PAIRING_WAIT:
+            // Solid ON - Waiting for peer discovery (Phase 1b.3)
+            // TODO: Synchronize with WS2812B purple solid
+            ESP_LOGI(TAG, "Pattern: Pairing Wait (solid ON + purple WS2812B)");
+            status_led_on();
+            break;
+
+        case STATUS_PATTERN_PAIRING_PROGRESS:
+            // Pulsing 1Hz (500ms ON, 500ms OFF) - Pairing in progress (Phase 1b.3)
+            // TODO: Synchronize with WS2812B purple pulsing
+            ESP_LOGI(TAG, "Pattern: Pairing Progress (pulsing 1Hz + purple WS2812B)");
+            // Note: This is a one-shot pattern, caller should loop if continuous pulsing needed
+            status_led_on();
+            vTaskDelay(pdMS_TO_TICKS(500));
+            status_led_off();
+            vTaskDelay(pdMS_TO_TICKS(500));
+            break;
+
+        case STATUS_PATTERN_PAIRING_SUCCESS:
+            // GPIO15 OFF, WS2812B green 3× blink (Phase 1b.3)
+            // TODO: Add WS2812B green blink integration
+            ESP_LOGI(TAG, "Pattern: Pairing Success (GPIO15 OFF + green 3× WS2812B blink)");
+            status_led_off();
+            // WS2812B: 3× green blink (250ms each) = 1.5 seconds total
+            break;
+
+        case STATUS_PATTERN_PAIRING_FAILED:
+            // GPIO15 OFF, WS2812B red 3× blink (Phase 1b.3)
+            // TODO: Add WS2812B red blink integration
+            ESP_LOGI(TAG, "Pattern: Pairing Failed (GPIO15 OFF + red 3× WS2812B blink)");
+            status_led_off();
+            // WS2812B: 3× red blink (250ms each) = 1.5 seconds total
+            break;
+
         default:
             ESP_LOGW(TAG, "Unknown pattern: %d", pattern);
             break;
