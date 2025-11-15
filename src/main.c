@@ -31,6 +31,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
+#include "esp_sleep.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -361,30 +362,31 @@ void app_main(void) {
     ret = init_hardware();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Hardware init failed: %s", esp_err_to_name(ret));
-        ESP_LOGE(TAG, "System halted");
-        while (1) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Entering deep sleep for recovery - press button to restart");
+        // JPL compliance: Enter deep sleep instead of infinite loop
+        // Allows button-wake recovery instead of permanent hang
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Allow log message to flush
+        esp_deep_sleep_start();
     }
 
     // Create message queues
     ret = create_message_queues();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Message queue creation failed");
-        ESP_LOGE(TAG, "System halted");
-        while (1) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Entering deep sleep for recovery - press button to restart");
+        // JPL compliance: Enter deep sleep instead of infinite loop
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Allow log message to flush
+        esp_deep_sleep_start();
     }
 
     // Create and start tasks
     ret = create_tasks();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Task creation failed");
-        ESP_LOGE(TAG, "System halted");
-        while (1) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Entering deep sleep for recovery - press button to restart");
+        // JPL compliance: Enter deep sleep instead of infinite loop
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Allow log message to flush
+        esp_deep_sleep_start();
     }
 
     ESP_LOGI(TAG, "========================================");

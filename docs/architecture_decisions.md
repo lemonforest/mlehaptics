@@ -271,7 +271,12 @@ esp_err_t motor_execute_half_cycle(motor_direction_t direction,
 
 ### AD008: BLE Protocol Architecture
 
+**Status:** SUPERSEDED by Phase 1b UUID change (November 14, 2025)
+**Current UUIDs:** See AD030 and AD032 for project-specific UUIDs (`4BCAE9BE-9829-...`)
+
 **Decision**: Dual GATT service architecture for different connection types with proper 128-bit UUIDs
+
+**HISTORICAL NOTE:** UUIDs below (`6E400001-...` and `6E400002-...`) were **REPLACED** in Phase 1b due to Nordic UART Service collision. Current implementation uses project-specific UUID base `4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`. This AD is retained for historical reference only.
 
 **UUID Collision Issue - CRITICAL:**
 - **0x1800 and 0x1801 are RESERVED by Bluetooth SIG**
@@ -2588,9 +2593,13 @@ User testing confirmed no perceptible difference between:
 
 ### AD030: BLE Bilateral Control Service Architecture
 
-**Date:** November 11, 2025
+**Date:** November 11, 2025 (Updated November 14, 2025 with Phase 1b UUID change)
 
 **Status:** Approved
+
+**Supersedes:** Nordic UART Service collision UUID (`6E400001-B5A3-F393-E0A9-E50E24DCCA9E`) from AD008
+
+**Current UUID:** Project-specific `4BCAE9BE-9829-4F0A-9E88-267DE5E70100` (no collisions)
 
 **Context:**
 
@@ -2603,22 +2612,26 @@ Implement comprehensive BLE Bilateral Control Service for device-to-device coord
 **Service Architecture:**
 
 **Bilateral Control Service** (Device-to-Device):
-- **UUID**: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- **UUID**: `4BCAE9BE-9829-4F0A-9E88-267DE5E70100` (Project-specific, no Nordic collision)
 - **Purpose**: Real-time bilateral coordination between paired devices
 
-**Characteristics** (14th byte increments: 01, 02, 03, etc.):
+**UUID Scheme:** `4BCAE9BE-9829-4F0A-9E88-267DE5E70100` (base service, YY=00)
+**Characteristics:** `4BCAE9BE-9829-4F0A-9E88-267DE5E701YY` (YY increments: 01-0A)
+
+**Characteristics** (YY byte increments: 01, 02, 03... 0A):
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
-| `6E400101-B5A3-...` | Bilateral Command | uint8 | Write | 0-6 | START/STOP/SYNC/MODE_CHANGE/EMERGENCY/PATTERN |
-| `6E400201-B5A3-...` | Total Cycle Time | uint16 | R/W | 500-4000ms | 0.25-2 Hz research range |
-| `6E400301-B5A3-...` | Motor Intensity | uint8 | R/W | 30-80% | Safe research PWM range |
-| `6E400401-B5A3-...` | Stimulation Pattern | uint8 | R/W | 0-2 | BILATERAL_FIXED/ALTERNATING/UNILATERAL |
-| `6E400501-B5A3-...` | Device Role | uint8 | Read | 0-2 | SERVER/CLIENT/STANDALONE |
-| `6E400601-B5A3-...` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
-| `6E400701-B5A3-...` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
-| `6E400801-B5A3-...` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
-| `6E400901-B5A3-...` | Duty Cycle | uint8 | R/W | 10-50% | Timing pattern (50% max prevents motor overlap) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70101` | Bilateral Command | uint8 | Write | 0-6 | START/STOP/SYNC/MODE_CHANGE/EMERGENCY/PATTERN |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70102` | Total Cycle Time | uint16 | R/W | 500-4000ms | 0.25-2 Hz research range |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70103` | Motor Intensity | uint8 | R/W | 30-80% | Safe research PWM range |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70104` | Stimulation Pattern | uint8 | R/W | 0-2 | BILATERAL_FIXED/ALTERNATING/UNILATERAL |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70105` | Device Role | uint8 | Read | 0-2 | SERVER/CLIENT/STANDALONE |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70106` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70107` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70108` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70109` | Duty Cycle | uint8 | R/W | 10-50% | Timing pattern (50% max prevents motor overlap) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E7010A` | Bilateral Battery | uint8 | R/Notify | 0-100% | Peer battery level for role assignment (Phase 1b) |
 
 **Research Platform Stimulation Patterns:**
 
@@ -2666,15 +2679,15 @@ Client: Remains OFF
 
 **UUID Assignment Rationale:**
 
-Using 14th byte (position 13 in array) for characteristic differentiation:
+Using YY bytes (last 2 bytes) for characteristic differentiation in project-specific UUID base:
 ```c
-// Base service UUID: 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
-// Characteristic: 6E400X01-B5A3-... where X increments
+// Base service UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
+// Characteristic:    4BCAE9BE-9829-4F0A-9E88-267DE5E701YY where YY increments (01-0A)
 static const ble_uuid128_t bilateral_cmd_uuid = BLE_UUID128_INIT(
-    0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0,
-    0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x01, 0x40, 0x6e);
-//                               ↑     ↑
-//                           14th  13th (service)
+    0x01, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+//    ↑     ↑
+//   YY=01 XX=01 (Bilateral Command characteristic of Bilateral Control Service)
 ```
 
 **Integration with AD028 Synchronized Fallback:**
@@ -2703,16 +2716,18 @@ During BLE disconnection, devices use last known pattern setting:
 
 | Characteristic | UUID | Type | Status | Phase |
 |----------------|------|------|--------|-------|
-| **Bilateral Battery** | `6E400A01-...` | uint8 R/Notify | ✅ Implemented | Phase 1b |
-| Bilateral Command | `6E400101-...` | uint8 Write | ⏳ Pending | Phase 2 |
-| Total Cycle Time | `6E400201-...` | uint16 R/W | ⏳ Pending | Phase 2 |
-| Motor Intensity | `6E400301-...` | uint8 R/W | ⏳ Pending | Phase 2 |
-| Stimulation Pattern | `6E400401-...` | uint8 R/W | ⏳ Pending | Phase 2 |
-| Device Role | `6E400501-...` | uint8 Read | ⏳ Pending | Phase 1c |
-| Session Duration | `6E400601-...` | uint32 R/W | ⏳ Pending | Phase 2 |
-| Sequence Number | `6E400701-...` | uint16 Read | ⏳ Pending | Phase 2 |
-| Emergency Shutdown | `6E400801-...` | uint8 Write | ⏳ Pending | Phase 2 |
-| Duty Cycle | `6E400901-...` | uint8 R/W | ⏳ Pending | Phase 2 |
+| **Bilateral Battery** | `...E7010A` | uint8 R/Notify | ✅ Implemented | Phase 1b |
+| Bilateral Command | `...E70101` | uint8 Write | ⏳ Pending | Phase 2 |
+| Total Cycle Time | `...E70102` | uint16 R/W | ⏳ Pending | Phase 2 |
+| Motor Intensity | `...E70103` | uint8 R/W | ⏳ Pending | Phase 2 |
+| Stimulation Pattern | `...E70104` | uint8 R/W | ⏳ Pending | Phase 2 |
+| Device Role | `...E70105` | uint8 Read | ⏳ Pending | Phase 1c |
+| Session Duration | `...E70106` | uint32 R/W | ⏳ Pending | Phase 2 |
+| Sequence Number | `...E70107` | uint16 Read | ⏳ Pending | Phase 2 |
+| Emergency Shutdown | `...E70108` | uint8 Write | ⏳ Pending | Phase 2 |
+| Duty Cycle | `...E70109` | uint8 R/W | ⏳ Pending | Phase 2 |
+
+**Note:** All UUIDs have base `4BCAE9BE-9829-4F0A-9E88-267DE5E7____` (project-specific, no Nordic UART Service collision)
 
 **Bilateral Battery Characteristic Implementation:**
 
@@ -2926,11 +2941,15 @@ typedef struct {
 
 ### AD032: BLE Configuration Service Architecture
 
-**Date:** November 11, 2025
+**Date:** November 11, 2025 (Updated November 14, 2025 with Phase 1b UUID change)
 
 **Status:** Approved
 
-**Supersedes:** Test UUID scheme (`a1b2c3d4-e5f6-7890-a1b2-c3d4e5f6xxxx`)
+**Supersedes:**
+- Test UUID scheme (`a1b2c3d4-e5f6-7890-a1b2-c3d4e5f6xxxx`)
+- Nordic UART Service collision UUIDs (`6E400002-B5A3-F393-E0A9-E50E24DCCA9E`) from AD008
+
+**Current UUID:** Project-specific `4BCAE9BE-9829-4F0A-9E88-267DE5E70200` (no collisions)
 
 **Context:**
 
@@ -2943,29 +2962,34 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 **Service Architecture:**
 
 **Configuration Service** (Mobile App Control):
-- **UUID**: `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` (13th byte = `02`)
+- **UUID**: `4BCAE9BE-9829-4F0A-9E88-267DE5E70200` (Project-specific, no Nordic collision)
 - **Purpose**: Mobile app control for motor, LED, and status monitoring
 - **Scope**: Used by both single-device and dual-device configurations
 
-**Characteristics** (14th byte increments: 01, 02, 03... 0A, 0B):
+**UUID Scheme:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`
+- **Base**: `4BCAE9BE-9829-4F0A-9E88-267DE5E7____` (Project-specific, avoids Nordic UART Service collision)
+- **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
+- **YY byte** (characteristic ID): `00` = service UUID, `01-0C` = characteristics
+
+**Characteristics** (YY byte increments: 01, 02, 03... 0A, 0B, 0C):
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | **MOTOR CONTROL GROUP** |
-| `6E400102-B5A3-...` | Mode | uint8 | R/W/Notify | 0-4 | MODE_1HZ_50, MODE_1HZ_25, MODE_05HZ_50, MODE_05HZ_25, MODE_CUSTOM |
-| `6E400202-B5A3-...` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
-| `6E400302-B5A3-...` | Custom Duty Cycle | uint8 | R/W | 10-50% | Timing pattern (50% max, no overlap) |
-| `6E400402-B5A3-...` | PWM Intensity | uint8 | R/W | 0-80% | Motor strength (0% = LED-only) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70201` | Mode | uint8 | R/W/Notify | 0-4 | MODE_1HZ_50, MODE_1HZ_25, MODE_05HZ_50, MODE_05HZ_25, MODE_CUSTOM |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70202` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70203` | Custom Duty Cycle | uint8 | R/W | 10-50% | Timing pattern (50% max, no overlap) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70204` | PWM Intensity | uint8 | R/W | 0-80% | Motor strength (0% = LED-only) |
 | **LED CONTROL GROUP** |
-| `6E400502-B5A3-...` | LED Enable | uint8 | R/W | 0-1 | 0=off, 1=on |
-| `6E400602-B5A3-...` | LED Color Mode | uint8 | R/W | 0-1 | 0=palette, 1=custom RGB |
-| `6E400702-B5A3-...` | LED Palette Index | uint8 | R/W | 0-15 | 16-color preset palette |
-| `6E400802-B5A3-...` | LED Custom RGB | uint8[3] | R/W | RGB 0-255 | Custom color wheel RGB values |
-| `6E400902-B5A3-...` | LED Brightness | uint8 | R/W | 10-30% | User comfort range (eye strain prevention) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70205` | LED Enable | uint8 | R/W | 0-1 | 0=off, 1=on |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70206` | LED Color Mode | uint8 | R/W | 0-1 | 0=palette, 1=custom RGB |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70207` | LED Palette Index | uint8 | R/W | 0-15 | 16-color preset palette |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70208` | LED Custom RGB | uint8[3] | R/W | RGB 0-255 | Custom color wheel RGB values |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E70209` | LED Brightness | uint8 | R/W | 10-30% | User comfort range (eye strain prevention) |
 | **STATUS/MONITORING GROUP** |
-| `6E400A02-B5A3-...` | Session Duration | uint32 | R/W | 1200-5400 sec | Target session length (20-90 min) |
-| `6E400B02-B5A3-...` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
-| `6E400C02-B5A3-...` | Battery Level | uint8 | R/Notify | 0-100% | Battery state of charge |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E7020A` | Session Duration | uint32 | R/W | 1200-5400 sec | Target session length (20-90 min) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E7020B` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
+| `4BCAE9BE-9829-4F0A-9E88-267DE5E7020C` | Battery Level | uint8 | R/Notify | 0-100% | Battery state of charge |
 
 **LED Color Control Architecture:**
 
@@ -3025,20 +3049,30 @@ uint8_t b_final = (source_b * led_brightness) / 100;
 
 **UUID Scheme Rationale:**
 
-**Service Differentiation (13th byte):**
+**Project-Specific UUID Base:**
 ```
-6E400001-... = Bilateral Control Service (device-to-device, AD030)
-6E400002-... = Configuration Service (mobile app, AD032)
-        ↑
-   13th byte (service ID)
+4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY
+                               ││││
+                               │││└─ YY: Characteristic ID (00-0C)
+                               ││└── XX: Service type (01, 02)
+                               │└─── Project UUID base (fixed)
+                               └──── (Avoids Nordic UART Service 6E400001-... collision)
 ```
 
-**Characteristic Differentiation (14th byte):**
+**Service Differentiation (XX byte):**
 ```
-6E400102-... = Characteristic 01 of service 02
-6E400202-... = Characteristic 02 of service 02
-        ↑  ↑
-     14th 13th
+4BCAE9BE-...-267DE5E70100 = Bilateral Control Service (device-to-device, AD030)
+4BCAE9BE-...-267DE5E70200 = Configuration Service (mobile app, AD032)
+                        ↑↑
+                        XX (service type)
+```
+
+**Characteristic Differentiation (YY byte):**
+```
+4BCAE9BE-...-267DE5E70201 = Characteristic 01 of service 02 (Mode)
+4BCAE9BE-...-267DE5E70202 = Characteristic 02 of service 02 (Custom Frequency)
+                        ↑↑
+                        YY (characteristic ID)
 ```
 
 **BLE Advertising Configuration:**
@@ -3058,7 +3092,9 @@ Mobile app discovery requires Configuration Service UUID in scan response data f
 | **Device Name** | `EMDR_Pulser_XXXXXX` | Human-readable identification (last 3 MAC bytes) | Advertising |
 | **Flags** | `0x06` | General discoverable + BR/EDR not supported | Advertising |
 | **TX Power** | Auto | Signal strength indication | Advertising |
-| **Service UUID** | `6E400002-B5A3-...` | Configuration Service UUID for app filtering | **Scan Response** |
+| **Service UUID** | `4BCAE9BE-9829-4F0A-9E88-267DE5E70200` | Configuration Service UUID for app filtering | **Scan Response** |
+
+**Phase 1b Update:** Scan response now advertises **Bilateral Control Service** UUID (`...0100`) for peer discovery. Configuration Service UUID can be discovered via GATT after connection.
 
 **Service UUID in Scan Response:**
 
@@ -3430,18 +3466,62 @@ When both devices simultaneously attempt connection:
    - Impact: Minor - connection still works, only visual feedback missing
    - Fix: Deferred to Phase 1c investigation
 
-3. **Mobile App Cannot Connect When Devices Peer-Paired** (BLOCKING for mobile app control during peer operation):
-   - Symptom: When two devices are peer-connected, nRF Connect sees advertising but cannot connect
-   - Connection attempts fail silently (no logs, no connection event)
-   - Configuration Service still advertising, but connection rejected/ignored
-   - Root cause: Connection identification logic or NimBLE connection limit
-   - Impact: **Cannot configure devices via mobile app while peer-paired** - must disconnect peer first
-   - **Proposed solutions for Phase 1c/2:**
-     - **Option 1**: Only SERVER device advertises Configuration Service when peer-paired (hand-off advertising)
-     - **Option 2**: Disconnect peer connection to allow mobile app connection (button hold 1-2s on CLIENT triggers peer disconnect)
-     - **Option 3**: Enable simultaneous connections (SERVER accepts both peer + mobile app connections)
-   - Current workaround: Restart device (breaks peer connection), then connect mobile app before devices re-pair
-   - Fix: Phase 1c/2 architecture decision needed for mobile app control strategy during peer operation
+**RESOLVED Issues:**
+
+3. **Advertising Timeout Disconnects Peer Connection** (CRITICAL - RESOLVED Phase 1b.2):
+   - Symptom: After peer connection, advertising timeout (5 minutes) would disconnect the peer connection
+   - Root cause: Both devices continued advertising Configuration Service after peer connection. When BLE_TASK timeout triggered, it called `ble_stop_advertising()` which broke the peer connection
+   - Impact: **Peer connections would fail after 5 minutes** - completely blocked bilateral operation for sessions > 5 minutes
+   - **Fix applied (Phase 1b.2)**: Both devices now stop advertising Configuration Service immediately after peer connection established (`ble_manager.c:1136-1145`)
+   - Behavior: User can manually re-enable advertising with button hold (1-2s) if mobile app configuration needed while peer-connected
+   - Phase 1c TODO: Implement role-based advertising (only CLIENT stops, SERVER continues for mobile app access)
+   - Status: ✅ **RESOLVED** - tested and confirmed fix prevents timeout disconnect (November 14, 2025)
+
+4. **Mobile App Cannot Connect When Devices Peer-Paired** (RESOLVED Phase 1b.1):
+   - Symptom: When two devices were peer-connected, nRF Connect saw advertising but couldn't connect
+   - Connection attempts failed silently (no logs, no connection event)
+   - Root cause: `CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1` limited to single connection (peer OR mobile app, not both)
+   - **Fix applied**: Increased `CONFIG_BT_NIMBLE_MAX_CONNECTIONS` from 1 to 2 in sdkconfig.xiao_esp32c6
+   - Result: ✅ SERVER can now accept both peer device AND mobile app connections simultaneously
+   - Status: ✅ **RESOLVED** - tested and confirmed working (November 14, 2025)
+
+4. **Battery Level Calibration Needed** (Planned for Phase 1c):
+   - Symptom: Fully charged batteries don't reach 100% in battery monitor (observed ~95-98%)
+   - Root causes:
+     - **1S2P dual-battery configuration**: Parallel cells may charge unevenly due to slight capacity/impedance differences
+     - **P-MOSFET voltage drop**: High-side switch in battery sense circuit introduces ~50-100mV drop
+     - **Battery aging/wear**: Maximum cell voltage decreases over time (4.2V → 4.1V → 4.0V)
+     - **ADC calibration tolerance**: ESP32-C6 ADC ±2% accuracy contributes to measurement error
+   - Impact:
+     - Battery percentage inaccurate (user experience issue)
+     - Affects role assignment fairness in Phase 1c (higher battery = SERVER, but if both show 95%, wrong device may become SERVER)
+   - **Proposed solution (Phase 1c):**
+     - **Hardware**: Add 5V pin monitoring via 45kΩ + 100kΩ voltage divider to detect USB connection (community-tested design)
+     - **Software**: Implement automatic calibration that tracks maximum battery voltage seen during USB connection
+     - **Algorithm**:
+       ```c
+       // Only update calibration when USB connected AND voltage in valid charging range
+       if (usb_connected && (voltage >= 4.0V && voltage <= 4.25V)) {
+           if (voltage > max_voltage_seen) {
+               max_voltage_seen = voltage;  // Save to NVS
+           }
+       }
+
+       // Use tracked maximum as 100% reference (with safety clamps)
+       float v_100 = max_voltage_seen;
+       if (v_100 < 4.0f) v_100 = 4.2f;    // Reset if severely degraded
+       if (v_100 > 4.25f) v_100 = 4.25f;  // Prevent overcharge reference
+
+       percentage = ((voltage - 3.2V) / (v_100 - 3.2V)) * 100.0f;
+       ```
+     - **Benefits**:
+       - ✅ Automatic calibration during normal charging (no user intervention)
+       - ✅ Graceful tracking of battery wear (4.2V → 4.1V → 4.0V over years)
+       - ✅ Protection against invalid calibration (won't allow 3.8V as 100% reference)
+       - ✅ Per-device calibration stored in NVS (accounts for manufacturing variations)
+   - Reference: [Seeed XIAO Forum - USB Detection via 5V pin](https://forum.seeedstudio.com/t/detecting-usb-or-battery-power/280968)
+   - Implementation complexity: Moderate (requires board rework: 1 wire + 2 resistors per device)
+   - Fix: Phase 1c implementation (before role assignment logic)
 
 **Integration with AD028 (Command-and-Control Architecture):**
 
@@ -3453,8 +3533,8 @@ Battery-based role assignment provides the foundation for Phase 2 synchronized b
 **Integration with AD030 (Bilateral Control Service):**
 
 Phase 1b implements peer discovery and connection type identification. Future phases will use:
-- `Device Role` characteristic (UUID `6E400501-B5A3-...`) to store assigned role
-- `Bilateral Command` characteristic (UUID `6E400101-B5A3-...`) for SERVER→CLIENT commands
+- `Device Role` characteristic (UUID `4BCAE9BE-9829-4F0A-9E88-267DE5E70105`) to store assigned role
+- `Bilateral Command` characteristic (UUID `4BCAE9BE-9829-4F0A-9E88-267DE5E70101`) for SERVER→CLIENT commands
 - `Bilateral Battery` characteristic for ongoing battery level comparison
 
 **Benefits:**
@@ -3490,9 +3570,15 @@ Phase 1b implements peer discovery and connection type identification. Future ph
 
 1. Implement `role_manager.c` with battery comparison logic
 2. Add `ble_get_peer_battery_level()` function to read peer's battery characteristic
-3. Implement role assignment after peer connection established
-4. Add role change notification when battery levels flip
-5. Update motor task to show assigned role in logs (`BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)`)
+3. **ONE-TIME role assignment immediately after peer connection:**
+   - Exchange battery levels between devices (read peer's Bilateral Battery characteristic)
+   - Compare: local battery vs peer battery
+   - Higher battery → SERVER role (keeps advertising for mobile app)
+   - Lower battery → CLIENT role (stops advertising to save power)
+   - If current roles are backwards, perform ONE role swap within first 100ms of connection
+   - Log final role assignment: "Role assigned: SERVER (battery 4.18V > peer 4.16V)"
+4. **DO NOT implement ongoing role monitoring** - Once roles assigned, they are FIXED for this session. Role changes during active session would disconnect mobile app from SERVER device. Only reassign roles on next peer connection/reconnection.
+5. ✅ Update motor task to show assigned role in logs (`BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)`) - COMPLETE (Phase 1b.2)
 
 ---
 

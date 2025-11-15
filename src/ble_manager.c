@@ -11,6 +11,7 @@
 
 #include "ble_manager.h"
 #include "motor_task.h"
+#include "motor_control.h"  // For MOTOR_PWM_DEFAULT
 #include "role_manager.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -32,6 +33,15 @@
 #include "store/config/ble_store_config.h"
 
 static const char *TAG = "BLE_MANAGER";
+
+/**
+ * @brief Mutex timeout for operations
+ *
+ * JPL Rule #6: No unbounded waits - all mutex operations must have timeouts
+ * 100ms timeout provides safety margin
+ * If mutex timeout occurs, indicates potential deadlock or system failure
+ */
+#define MUTEX_TIMEOUT_MS 100
 
 // ============================================================================
 // BLE SERVICE UUIDs (Production - AD030/AD032)
@@ -159,7 +169,7 @@ static ble_char_data_t char_data = {
     .current_mode = MODE_1HZ_50,
     .custom_frequency_hz = 100,  // 1.00 Hz
     .custom_duty_percent = 50,
-    .pwm_intensity = 75,
+    .pwm_intensity = MOTOR_PWM_DEFAULT,  // From motor_control.h (single source of truth)
     .led_enable = true,  // Enable LED by default for custom mode
     .led_color_mode = LED_COLOR_MODE_CUSTOM_RGB,  // Default: custom RGB
     .led_palette_index = 0,
@@ -198,6 +208,13 @@ static ble_advertising_state_t adv_state = {
 // Settings dirty flag (thread-safe via char_data_mutex)
 static bool settings_dirty = false;
 
+// Peer role (Phase 1b.2: Role-aware advertising)
+typedef enum {
+    PEER_ROLE_NONE = 0,    /**< No peer connection */
+    PEER_ROLE_CLIENT,      /**< We initiated connection (stop advertising) */
+    PEER_ROLE_SERVER       /**< Peer initiated connection (keep advertising) */
+} peer_role_t;
+
 // Peer device state (Phase 1a: Dual-device support)
 typedef struct {
     bool peer_discovered;              /**< Peer device found via scan */
@@ -206,6 +223,7 @@ typedef struct {
     uint16_t peer_conn_handle;         /**< Peer connection handle */
     uint8_t peer_battery_level;        /**< Peer's battery percentage (0-100) */
     uint8_t peer_mac[6];               /**< Peer's MAC address for tiebreaker */
+    peer_role_t role;                  /**< Our role: CLIENT or SERVER (Phase 1b.2) */
 } ble_peer_state_t;
 
 static ble_peer_state_t peer_state = {
@@ -213,6 +231,7 @@ static ble_peer_state_t peer_state = {
     .peer_connected = false,
     .peer_addr = {0},
     .peer_conn_handle = BLE_HS_CONN_HANDLE_NONE,
+    .role = PEER_ROLE_NONE,
     .peer_battery_level = 0,
     .peer_mac = {0}
 };
@@ -286,7 +305,11 @@ static uint32_t calculate_settings_signature(void) {
 static void update_mode5_timing(void) {
     uint32_t freq, duty;
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in update_mode5_timing - possible deadlock");
+        return;  // Early return on timeout
+    }
     freq = char_data.custom_frequency_hz;
     duty = char_data.custom_duty_percent;
     xSemaphoreGive(char_data_mutex);
@@ -308,7 +331,11 @@ static void update_mode5_timing(void) {
 // Mode characteristic - Read callback
 static int gatt_char_mode_read(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t mode_val = (uint8_t)char_data.current_mode;
     xSemaphoreGive(char_data_mutex);
 
@@ -334,7 +361,11 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
 
     ESP_LOGI(TAG, "GATT Write: Mode = %u", mode_val);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.current_mode = (mode_t)mode_val;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -346,7 +377,11 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
 // Custom Frequency - Read
 static int gatt_char_custom_freq_read(uint16_t conn_handle, uint16_t attr_handle,
                                        struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_custom_freq_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint16_t freq_val = char_data.custom_frequency_hz;
     xSemaphoreGive(char_data_mutex);
 
@@ -373,7 +408,11 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
 
     ESP_LOGD(TAG, "GATT Write: Frequency = %u (%.2f Hz)", freq_val, freq_val / 100.0f);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_custom_freq_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.custom_frequency_hz = freq_val;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -386,7 +425,11 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
 // Custom Duty Cycle - Read
 static int gatt_char_custom_duty_read(uint16_t conn_handle, uint16_t attr_handle,
                                        struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_custom_duty_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t duty_val = char_data.custom_duty_percent;
     xSemaphoreGive(char_data_mutex);
 
@@ -414,7 +457,11 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
 
     ESP_LOGD(TAG, "GATT Write: Duty = %u%%", duty_val);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_custom_duty_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.custom_duty_percent = duty_val;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -427,7 +474,11 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
 // PWM Intensity - Read
 static int gatt_char_pwm_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_pwm_intensity_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t intensity = char_data.pwm_intensity;
     xSemaphoreGive(char_data_mutex);
 
@@ -454,7 +505,11 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
 
     ESP_LOGD(TAG, "GATT Write: PWM = %u%%", value);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_pwm_intensity_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.pwm_intensity = value;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -471,7 +526,11 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
 // LED Enable - Read
 static int gatt_char_led_enable_read(uint16_t conn_handle, uint16_t attr_handle,
                                       struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_enable_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t enabled = char_data.led_enable ? 1 : 0;
     xSemaphoreGive(char_data_mutex);
 
@@ -493,7 +552,11 @@ static int gatt_char_led_enable_write(uint16_t conn_handle, uint16_t attr_handle
     bool enabled = (value != 0);
     ESP_LOGD(TAG, "GATT Write: LED Enable = %d", enabled);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_enable_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.led_enable = enabled;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -505,7 +568,11 @@ static int gatt_char_led_enable_write(uint16_t conn_handle, uint16_t attr_handle
 // LED Color Mode - Read
 static int gatt_char_led_color_mode_read(uint16_t conn_handle, uint16_t attr_handle,
                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_color_mode_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t mode = char_data.led_color_mode;
     xSemaphoreGive(char_data_mutex);
 
@@ -532,7 +599,11 @@ static int gatt_char_led_color_mode_write(uint16_t conn_handle, uint16_t attr_ha
     ESP_LOGD(TAG, "GATT Write: LED Color Mode = %u (%s)",
              value, value == 0 ? "palette" : "custom RGB");
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_color_mode_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.led_color_mode = value;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -544,7 +615,11 @@ static int gatt_char_led_color_mode_write(uint16_t conn_handle, uint16_t attr_ha
 // LED Palette - Read
 static int gatt_char_led_palette_read(uint16_t conn_handle, uint16_t attr_handle,
                                        struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_palette_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t idx = char_data.led_palette_index;
     xSemaphoreGive(char_data_mutex);
 
@@ -571,7 +646,11 @@ static int gatt_char_led_palette_write(uint16_t conn_handle, uint16_t attr_handl
     ESP_LOGD(TAG, "GATT Write: LED Palette = %u (%s)",
              value, color_palette[value].name);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_palette_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.led_palette_index = value;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -585,7 +664,11 @@ static int gatt_char_led_custom_rgb_read(uint16_t conn_handle, uint16_t attr_han
                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
     uint8_t rgb[3];
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_custom_rgb_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     rgb[0] = char_data.led_custom_r;
     rgb[1] = char_data.led_custom_g;
     rgb[2] = char_data.led_custom_b;
@@ -608,7 +691,11 @@ static int gatt_char_led_custom_rgb_write(uint16_t conn_handle, uint16_t attr_ha
 
     ESP_LOGD(TAG, "GATT Write: LED RGB = (%u, %u, %u)", rgb[0], rgb[1], rgb[2]);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_custom_rgb_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.led_custom_r = rgb[0];
     char_data.led_custom_g = rgb[1];
     char_data.led_custom_b = rgb[2];
@@ -622,7 +709,11 @@ static int gatt_char_led_custom_rgb_write(uint16_t conn_handle, uint16_t attr_ha
 // LED Brightness - Read
 static int gatt_char_led_brightness_read(uint16_t conn_handle, uint16_t attr_handle,
                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_brightness_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t brightness = char_data.led_brightness;
     xSemaphoreGive(char_data_mutex);
 
@@ -649,7 +740,11 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
 
     ESP_LOGD(TAG, "GATT Write: LED Brightness = %u%%", value);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_led_brightness_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.led_brightness = value;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -661,7 +756,11 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
 // Session Duration - Read
 static int gatt_char_session_duration_read(uint16_t conn_handle, uint16_t attr_handle,
                                             struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_session_duration_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint32_t duration = char_data.session_duration_sec;
     xSemaphoreGive(char_data_mutex);
 
@@ -690,7 +789,11 @@ static int gatt_char_session_duration_write(uint16_t conn_handle, uint16_t attr_
     ESP_LOGI(TAG, "GATT Write: Session Duration = %u sec (%.1f min)",
              value, value / 60.0f);
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_session_duration_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     char_data.session_duration_sec = value;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
@@ -715,7 +818,11 @@ static int gatt_char_session_time_read(uint16_t conn_handle, uint16_t attr_handl
 // Battery Level - Read
 static int gatt_char_battery_read(uint16_t conn_handle, uint16_t attr_handle,
                                    struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_battery_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t battery_val = char_data.battery_level;
     xSemaphoreGive(char_data_mutex);
 
@@ -731,7 +838,11 @@ static int gatt_char_battery_read(uint16_t conn_handle, uint16_t attr_handle,
 // Bilateral Battery Level - Read (for peer device role comparison)
 static int gatt_bilateral_battery_read(uint16_t conn_handle, uint16_t attr_handle,
                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_bilateral_battery_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t battery_val = bilateral_data.battery_level;
     xSemaphoreGive(bilateral_data_mutex);
 
@@ -743,7 +854,11 @@ static int gatt_bilateral_battery_read(uint16_t conn_handle, uint16_t attr_handl
 // Bilateral MAC Address - Read (for role assignment tiebreaker)
 static int gatt_bilateral_mac_read(uint16_t conn_handle, uint16_t attr_handle,
                                     struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_bilateral_mac_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t mac[6];
     memcpy(mac, bilateral_data.mac_address, 6);
     xSemaphoreGive(bilateral_data_mutex);
@@ -757,7 +872,11 @@ static int gatt_bilateral_mac_read(uint16_t conn_handle, uint16_t attr_handle,
 // Bilateral Device Role - Read/Write
 static int gatt_bilateral_role_read(uint16_t conn_handle, uint16_t attr_handle,
                                      struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_bilateral_role_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     uint8_t role = bilateral_data.device_role;
     xSemaphoreGive(bilateral_data_mutex);
 
@@ -781,7 +900,11 @@ static int gatt_bilateral_role_write(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     ESP_LOGI(TAG, "GATT Write: Device Role = %u", role);
-    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_bilateral_role_write - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
     bilateral_data.device_role = role;
     xSemaphoreGive(bilateral_data_mutex);
 
@@ -1102,11 +1225,13 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 bool is_peer = false;
 
                 if (ble_gap_conn_find(event->connect.conn_handle, &desc) == 0) {
-                    // Check if address matches our discovered peer (if we've discovered one)
-                    if (peer_state.peer_discovered &&
-                        memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
+                    // CRITICAL FIX (Bug #14): Check cached peer address (don't require peer_discovered flag)
+                    // The flag gets cleared on disconnect, but we keep the address cached for reconnection
+                    // This allows peer to reconnect without needing to be rediscovered
+                    if (memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
                         is_peer = true;
-                        ESP_LOGI(TAG, "Peer identified by address match");
+                        peer_state.peer_discovered = true;  // Re-set flag for reconnection
+                        ESP_LOGI(TAG, "Peer identified by cached address");
                     } else {
                         // Fallback: Any EMDR_Pulser device is a peer (scan event may not have arrived yet)
                         // We'll discover the device name from advertising data later
@@ -1121,6 +1246,13 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 }
 
                 if (is_peer) {
+                    // Check if we already have a peer connection
+                    if (peer_state.peer_connected) {
+                        ESP_LOGW(TAG, "Already connected to peer, rejecting additional peer connection");
+                        ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                        break;
+                    }
+
                     // This is the peer device connection
                     peer_state.peer_connected = true;
                     peer_state.peer_conn_handle = event->connect.conn_handle;
@@ -1132,12 +1264,58 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         scanning_active = false;
                         ESP_LOGI(TAG, "Scanning stopped (peer connected)");
                     }
+
+                    // CRITICAL FIX (Bug #16): Assign role FIRST, regardless of advertising state
+                    // Use desc.role from NimBLE to determine connection initiator
+                    // BLE_GAP_ROLE_MASTER (0) = we initiated connection (CLIENT)
+                    // BLE_GAP_ROLE_SLAVE (1) = peer initiated connection to us (SERVER)
+                    bool we_initiated = (desc.role == BLE_GAP_ROLE_MASTER);
+
+                    if (we_initiated) {
+                        peer_state.role = PEER_ROLE_CLIENT;
+                        ESP_LOGI(TAG, "CLIENT role assigned (BLE MASTER)");
+                    } else {
+                        peer_state.role = PEER_ROLE_SERVER;
+                        ESP_LOGI(TAG, "SERVER role assigned (BLE SLAVE)");
+                    }
+
+                    // Role-aware advertising strategy (Phase 1b.2):
+                    // - CLIENT (initiated connection): Stop advertising to prevent timeout disconnect
+                    // - SERVER (received connection): Keep advertising for mobile app access
+                    if (adv_state.advertising_active) {
+                        if (we_initiated) {
+                            // CLIENT: Stop advertising (we don't need more connections)
+                            ble_gap_adv_stop();
+                            adv_state.advertising_active = false;
+                            ESP_LOGI(TAG, "CLIENT: Advertising stopped (prevents timeout)");
+                        } else {
+                            // SERVER: Restart advertising for mobile app access
+                            // NimBLE automatically stops advertising when connection is established
+                            // We must explicitly restart it for mobile app access
+                            int rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                                       &adv_params, ble_gap_event, NULL);
+                            if (rc == 0) {
+                                adv_state.advertising_active = true;
+                                adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                                ESP_LOGI(TAG, "SERVER: Advertising restarted for mobile app access");
+                            } else {
+                                ESP_LOGE(TAG, "SERVER: Failed to restart advertising; rc=%d", rc);
+                                adv_state.advertising_active = false;
+                            }
+                        }
+                    }
                 } else {
                     // This is a mobile app connection (standard GATT server role)
                     adv_state.client_connected = true;
-                    adv_state.advertising_active = false;
                     adv_state.conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Mobile app connected; conn_handle=%d", event->connect.conn_handle);
+
+                    // Stop advertising (have both connections or just app)
+                    if (adv_state.advertising_active) {
+                        ble_gap_adv_stop();
+                        adv_state.advertising_active = false;
+                        ESP_LOGI(TAG, "Advertising stopped (mobile app connected)");
+                    }
 
                     // Clear subscription flags (client must resubscribe)
                     adv_state.notify_mode_subscribed = false;
@@ -1172,21 +1350,48 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                      ble_disconnect_reason_str(event->disconnect.reason & 0xFF));
 
             // Phase 1a: Determine if this is peer or mobile app disconnect
-            if (peer_state.peer_connected &&
-                event->disconnect.conn.conn_handle == peer_state.peer_conn_handle) {
+            // CRITICAL: Check BOTH connection handles explicitly (don't use else!)
+            bool peer_disconnected = (peer_state.peer_connected &&
+                                      event->disconnect.conn.conn_handle == peer_state.peer_conn_handle);
+            bool app_disconnected = (adv_state.client_connected &&
+                                     event->disconnect.conn.conn_handle == adv_state.conn_handle);
+
+            if (peer_disconnected) {
                 // Peer device disconnected
                 ESP_LOGI(TAG, "Peer device disconnected");
                 peer_state.peer_connected = false;
                 peer_state.peer_discovered = false;
                 peer_state.peer_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+                peer_state.role = PEER_ROLE_NONE;
 
-                // Resume scanning to find peer again
-                vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay
-                if (!scanning_active && adv_state.advertising_active) {
+                // JPL compliance: Allow NimBLE to fully clean up connection handle
+                // Measured reconnection timing from logs:
+                //   - Immediate retry (2s after disconnect) → BLE_ERR_UNK_CONN_ID errors
+                //   - Success after 46 seconds (NimBLE finished cleanup)
+                // Solution: 2-second delay prevents immediate retry errors
+                vTaskDelay(pdMS_TO_TICKS(2000));
+
+                // CRITICAL FIX (Phase 1b.2): Restart advertising + scanning for peer rediscovery
+                // Phase 1b.2 stopped advertising after peer connection, so we must restart it here
+                // Don't rely on advertising_active flag - explicitly restart both services
+                rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                       &adv_params, ble_gap_event, NULL);
+                if (rc == 0) {
+                    adv_state.advertising_active = true;
+                    adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                    ESP_LOGI(TAG, "Advertising restarted after peer disconnect");
+
+                    // Resume scanning for peer rediscovery
                     ble_start_scanning();
-                    ESP_LOGI(TAG, "Resuming peer scan after disconnect");
+                    ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
+                } else {
+                    ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
+                    adv_state.advertising_active = false;
+                    // BLE task will retry via state machine
                 }
-            } else {
+            }
+
+            if (app_disconnected) {
                 // Mobile app disconnected
                 ESP_LOGI(TAG, "Mobile app disconnected");
                 adv_state.client_connected = false;
@@ -1198,18 +1403,27 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 // Small delay to allow BLE stack cleanup (Android compatibility)
                 vTaskDelay(pdMS_TO_TICKS(100));
 
-                // Resume advertising on mobile app disconnect
-                rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                                       &adv_params, ble_gap_event, NULL);
-                if (rc == 0) {
-                    adv_state.advertising_active = true;
-                    adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                    ESP_LOGI(TAG, "BLE advertising restarted after mobile app disconnect");
+                // Resume advertising on mobile app disconnect (if not already restarted by peer disconnect)
+                if (!adv_state.advertising_active) {
+                    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                           &adv_params, ble_gap_event, NULL);
+                    if (rc == 0) {
+                        adv_state.advertising_active = true;
+                        adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                        ESP_LOGI(TAG, "BLE advertising restarted after mobile app disconnect");
+                    } else {
+                        ESP_LOGE(TAG, "Failed to restart advertising after disconnect; rc=%d", rc);
+                        adv_state.advertising_active = false;
+                        // BLE task will retry via CHECK_ADVERTISING_STATE message
+                    }
                 } else {
-                    ESP_LOGE(TAG, "Failed to restart advertising after disconnect; rc=%d", rc);
-                    adv_state.advertising_active = false;
-                    // BLE task will retry via CHECK_ADVERTISING_STATE message
+                    ESP_LOGI(TAG, "Advertising already active (peer still connected)");
                 }
+            }
+
+            if (!peer_disconnected && !app_disconnected) {
+                ESP_LOGW(TAG, "Unknown connection disconnected; conn_handle=%d",
+                         event->disconnect.conn.conn_handle);
             }
             break;
 
@@ -1277,7 +1491,11 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     // Send initial value immediately on subscription
                     if (event->subscribe.cur_notify) {
                         uint8_t current_battery;
-                        xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+                        // JPL compliance: Bounded mutex wait with timeout error handling
+                        if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+                            ESP_LOGE(TAG, "Mutex timeout in GAP event handler (battery notify) - possible deadlock");
+                            return 0;
+                        }
                         current_battery = char_data.battery_level;
                         xSemaphoreGive(char_data_mutex);
 
@@ -1319,15 +1537,21 @@ static void ble_on_sync(void) {
         return;
     }
 
-    // Get BLE address for device name suffix
+    // CRITICAL FIX (Bug #17): Get BLE MAC address for unique device name suffix
+    // Use ble_hs_id_copy_addr() to get actual MAC address bytes
+    // Previous code used ble_hs_id_infer_auto() which returns address TYPE, not address bytes!
     uint8_t addr_val[6];
-    rc = ble_hs_id_infer_auto(0, &addr_val[0]);
+    rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr_val, NULL);
     if (rc == 0) {
         char unique_name[32];
         snprintf(unique_name, sizeof(unique_name), "%s_%02X%02X%02X",
                  BLE_DEVICE_NAME, addr_val[3], addr_val[4], addr_val[5]);
         ble_svc_gap_device_name_set(unique_name);
-        ESP_LOGI(TAG, "BLE device name: %s", unique_name);
+        ESP_LOGI(TAG, "BLE device name: %s (MAC: %02X:%02X:%02X:%02X:%02X:%02X)",
+                 unique_name, addr_val[0], addr_val[1], addr_val[2],
+                 addr_val[3], addr_val[4], addr_val[5]);
+    } else {
+        ESP_LOGW(TAG, "Failed to get BLE MAC address; rc=%d (using base name)", rc);
     }
 
     // Configure advertising data (main packet: flags + name only, fits in 31 bytes)
@@ -1348,13 +1572,15 @@ static void ble_on_sync(void) {
         return;
     }
 
-    // Configure scan response with Bilateral Service UUID for peer discovery (Phase 1b)
+    // Configure scan response with Configuration Service UUID (Phase 1b.2)
+    // - Configuration Service UUID (0x0200): For mobile app/PWA discovery
+    // - Peer discovery works via GATT service presence (devices already connecting)
     // Using scan response prevents exceeding 31-byte advertising packet limit
-    // Devices perform active scanning so they WILL receive scan response
     struct ble_hs_adv_fields rsp_fields;
     memset(&rsp_fields, 0, sizeof(rsp_fields));
 
-    rsp_fields.uuids128 = &uuid_bilateral_service;
+    // Advertise Configuration Service so PWA can filter and find the device
+    rsp_fields.uuids128 = &uuid_config_service;
     rsp_fields.num_uuids128 = 1;
     rsp_fields.uuids128_is_complete = 1;
 
@@ -1415,7 +1641,12 @@ esp_err_t ble_save_settings_to_nvs(void) {
 
     // Write all settings (mutex-protected)
     // NOTE: Mode is NOT saved - device always boots to MODE_1HZ_50
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_settings_save_to_nvs - possible deadlock");
+        nvs_close(nvs_handle);
+        return ESP_ERR_TIMEOUT;
+    }
     nvs_set_u16(nvs_handle, NVS_KEY_FREQUENCY, char_data.custom_frequency_hz);
     nvs_set_u8(nvs_handle, NVS_KEY_DUTY, char_data.custom_duty_percent);
     nvs_set_u8(nvs_handle, NVS_KEY_LED_ENABLE, char_data.led_enable ? 1 : 0);
@@ -1470,7 +1701,12 @@ esp_err_t ble_load_settings_from_nvs(void) {
     uint16_t freq;
     uint32_t sess_dur;
 
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_settings_load_from_nvs - possible deadlock");
+        nvs_close(nvs_handle);
+        return ESP_ERR_TIMEOUT;
+    }
 
     if (nvs_get_u16(nvs_handle, NVS_KEY_FREQUENCY, &freq) == ESP_OK) {
         char_data.custom_frequency_hz = freq;
@@ -1576,7 +1812,11 @@ esp_err_t ble_manager_init(void) {
     uint8_t own_addr[6];
     ret = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr, NULL);
     if (ret == ESP_OK) {
-        xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+        // JPL compliance: Bounded mutex wait with timeout error handling
+        if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+            ESP_LOGE(TAG, "Mutex timeout in ble_manager_init (MAC copy) - possible deadlock");
+            return ESP_ERR_TIMEOUT;
+        }
         memcpy(bilateral_data.mac_address, own_addr, 6);
         xSemaphoreGive(bilateral_data_mutex);
         ESP_LOGI(TAG, "Local MAC: %02X:%02X:%02X:%02X:%02X:%02X",
@@ -1675,8 +1915,16 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
             // UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
             if (fields.uuids128 != NULL && fields.num_uuids128 > 0) {
                 for (int i = 0; i < fields.num_uuids128; i++) {
-                    // Compare against Bilateral Control Service UUID
-                    if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_bilateral_service.u) == 0) {
+                    // Compare against Configuration Service UUID (Phase 1b.2: simplified discovery)
+                    // Both peer devices advertise this UUID, and it also enables PWA discovery
+                    if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_config_service.u) == 0) {
+                        // Check if already connected to a peer (prevent multiple peer connections)
+                        if (peer_state.peer_connected || peer_state.peer_discovered) {
+                            // Already connected or connecting to a peer, ignore this one
+                            ESP_LOGD(TAG, "Already have peer connection, ignoring additional peer");
+                            break;
+                        }
+
                         // Found peer device! Log discovery
                         char addr_str[18];
                         snprintf(addr_str, sizeof(addr_str), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -1801,13 +2049,14 @@ void ble_connect_to_peer(void) {
     if (rc != 0) {
         ESP_LOGE(TAG, "Failed to connect to peer; rc=%d", rc);
 
-        // BLE_ERR_ACL_CONN_EXISTS (523) means the peer is connecting to US
-        // Don't reset peer_discovered - we'll get the connection event momentarily
-        if (rc != 523) {  // 523 = BLE_ERR_ACL_CONN_EXISTS
-            peer_state.peer_discovered = false;  // Reset for retry
-        } else {
-            ESP_LOGI(TAG, "Peer is connecting to us (ACL already exists)");
+        // BLE_ERR_ACL_CONN_EXISTS (523) means the peer successfully initiated connection to us
+        // This is normal during simultaneous discovery - connection event will fire on both sides
+        if (rc == 523) {  // 523 = BLE_ERR_ACL_CONN_EXISTS
+            ESP_LOGI(TAG, "Peer is connecting to us (ACL already exists) - connection event will determine role");
         }
+
+        // Reset discovery flag for retry
+        peer_state.peer_discovered = false;
     }
 }
 
@@ -1820,6 +2069,10 @@ bool ble_is_connected(void) {
 }
 
 bool ble_is_advertising(void) {
+    // Return our internal flag (set by start/stop functions)
+    // Note: NimBLE's ble_gap_adv_active() can return false transiently during state transitions
+    // or when scanning is active (CONFIG_BT_NIMBLE_HOST_ALLOW_CONNECT_WITH_SCAN=n)
+    // Trust our flag which tracks explicit start/stop calls
     return adv_state.advertising_active;
 }
 
@@ -1837,7 +2090,14 @@ bool ble_is_peer_connected(void) {
 
 const char* ble_get_connection_type_str(void) {
     if (peer_state.peer_connected) {
-        return "Peer";
+        // Show role (Phase 1c Step 5: Log assigned role)
+        if (peer_state.role == PEER_ROLE_CLIENT) {
+            return "Peer (CLIENT)";
+        } else if (peer_state.role == PEER_ROLE_SERVER) {
+            return "Peer (SERVER)";
+        } else {
+            return "Peer";  // Role not yet assigned
+        }
     } else if (adv_state.client_connected) {
         return "App";
     } else {
@@ -1845,8 +2105,20 @@ const char* ble_get_connection_type_str(void) {
     }
 }
 
+uint16_t ble_get_peer_conn_handle(void) {
+    return peer_state.peer_conn_handle;
+}
+
+uint16_t ble_get_app_conn_handle(void) {
+    return adv_state.conn_handle;
+}
+
 void ble_update_battery_level(uint8_t percentage) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_battery_level - possible deadlock");
+        return;  // Early return on timeout
+    }
     char_data.battery_level = percentage;
     xSemaphoreGive(char_data_mutex);
 
@@ -1866,14 +2138,22 @@ void ble_update_battery_level(uint8_t percentage) {
 }
 
 void ble_update_bilateral_battery_level(uint8_t percentage) {
-    xSemaphoreTake(bilateral_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_bilateral_battery_level - possible deadlock");
+        return;  // Early return on timeout
+    }
     bilateral_data.battery_level = percentage;
     xSemaphoreGive(bilateral_data_mutex);
     ESP_LOGD(TAG, "Bilateral battery level updated: %u%%", percentage);
 }
 
 void ble_update_session_time(uint32_t seconds) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_session_time - possible deadlock");
+        return;  // Early return on timeout
+    }
     char_data.session_time_sec = seconds;
     xSemaphoreGive(char_data_mutex);
 
@@ -1895,7 +2175,11 @@ void ble_update_session_time(uint32_t seconds) {
 }
 
 void ble_update_mode(mode_t mode) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_mode - possible deadlock");
+        return;  // Early return on timeout
+    }
     char_data.current_mode = mode;
     xSemaphoreGive(char_data_mutex);
 
@@ -1919,56 +2203,89 @@ void ble_update_mode(mode_t mode) {
 }
 
 mode_t ble_get_current_mode(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_current_mode - possible deadlock");
+        return MODE_1HZ_50;  // Return safe default
+    }
     mode_t mode = char_data.current_mode;
     xSemaphoreGive(char_data_mutex);
     return mode;
 }
 
 uint16_t ble_get_custom_frequency_hz(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_custom_frequency_hz - possible deadlock");
+        return 100;  // Return safe default (1.0 Hz)
+    }
     uint16_t freq = char_data.custom_frequency_hz;
     xSemaphoreGive(char_data_mutex);
     return freq;
 }
 
 uint8_t ble_get_custom_duty_percent(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_custom_duty_percent - possible deadlock");
+        return 50;  // Return safe default
+    }
     uint8_t duty = char_data.custom_duty_percent;
     xSemaphoreGive(char_data_mutex);
     return duty;
 }
 
 uint8_t ble_get_pwm_intensity(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_pwm_intensity - possible deadlock");
+        return 50;  // Return safe default
+    }
     uint8_t intensity = char_data.pwm_intensity;
     xSemaphoreGive(char_data_mutex);
     return intensity;
 }
 
 bool ble_get_led_enable(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_led_enable - possible deadlock");
+        return true;  // Return safe default
+    }
     bool enabled = char_data.led_enable;
     xSemaphoreGive(char_data_mutex);
     return enabled;
 }
 
 uint8_t ble_get_led_color_mode(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_led_color_mode - possible deadlock");
+        return 0;  // Return safe default (palette mode)
+    }
     uint8_t mode = char_data.led_color_mode;
     xSemaphoreGive(char_data_mutex);
     return mode;
 }
 
 uint8_t ble_get_led_palette_index(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_led_palette_index - possible deadlock");
+        return 0;  // Return safe default
+    }
     uint8_t idx = char_data.led_palette_index;
     xSemaphoreGive(char_data_mutex);
     return idx;
 }
 
 void ble_get_led_custom_rgb(uint8_t *r, uint8_t *g, uint8_t *b) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_led_custom_rgb - possible deadlock");
+        *r = 0; *g = 0; *b = 255;  // Return safe default (blue)
+        return;
+    }
     *r = char_data.led_custom_r;
     *g = char_data.led_custom_g;
     *b = char_data.led_custom_b;
@@ -1976,28 +2293,44 @@ void ble_get_led_custom_rgb(uint8_t *r, uint8_t *g, uint8_t *b) {
 }
 
 uint8_t ble_get_led_brightness(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_led_brightness - possible deadlock");
+        return 20;  // Return safe default
+    }
     uint8_t brightness = char_data.led_brightness;
     xSemaphoreGive(char_data_mutex);
     return brightness;
 }
 
 uint32_t ble_get_session_duration_sec(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_session_duration_sec - possible deadlock");
+        return 1800;  // Return safe default (30 minutes)
+    }
     uint32_t duration = char_data.session_duration_sec;
     xSemaphoreGive(char_data_mutex);
     return duration;
 }
 
 bool ble_settings_dirty(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_settings_dirty - possible deadlock");
+        return false;  // Return safe default
+    }
     bool dirty = settings_dirty;
     xSemaphoreGive(char_data_mutex);
     return dirty;
 }
 
 void ble_settings_mark_clean(void) {
-    xSemaphoreTake(char_data_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_settings_mark_clean - possible deadlock");
+        return;  // Early return on timeout
+    }
     settings_dirty = false;
     xSemaphoreGive(char_data_mutex);
 }

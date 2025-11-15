@@ -14,6 +14,8 @@
 #include "status_led.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "host/ble_gap.h"
+#include "host/ble_hs.h"
 
 static const char *TAG = "BLE_TASK";
 
@@ -119,21 +121,30 @@ void ble_task(void *pvParameters) {
                 }
 
                 // Check advertising timeout (5 minutes = 300000ms)
+                // Skip timeout if mobile app is connected (Configuration Service active)
                 if (ble_is_advertising()) {
-                    uint32_t elapsed = ble_get_advertising_elapsed_ms();
+                    // Don't timeout if mobile app is using Configuration Service
+                    if (ble_is_connected()) {
+                        // Mobile app connected, no timeout needed
+                        // (Advertising should have been stopped when app connected,
+                        //  but if it's still running, don't timeout it)
+                        vTaskDelay(pdMS_TO_TICKS(100));
+                    } else {
+                        uint32_t elapsed = ble_get_advertising_elapsed_ms();
 
-                    if (elapsed >= BLE_ADV_TIMEOUT_MS) {
-                        ESP_LOGI(TAG, "Advertising timeout (5 minutes)");
-                        ble_stop_scanning();  // Phase 1a: Stop scanning on timeout
-                        ble_stop_advertising();
-                        ESP_LOGI(TAG, "State: ADVERTISING → IDLE");
-                        state = BLE_STATE_IDLE;
-                    }
+                        if (elapsed >= BLE_ADV_TIMEOUT_MS) {
+                            ESP_LOGI(TAG, "Advertising timeout (5 minutes)");
+                            ble_stop_scanning();  // Phase 1a: Stop scanning on timeout
+                            ble_stop_advertising();
+                            ESP_LOGI(TAG, "State: ADVERTISING → IDLE");
+                            state = BLE_STATE_IDLE;
+                        }
 
-                    // Log progress every minute
-                    if ((elapsed % 60000) < 200) {  // Within 200ms of minute boundary
-                        ESP_LOGI(TAG, "Advertising for %u seconds (timeout at %u sec)",
-                                 elapsed / 1000, BLE_ADV_TIMEOUT_MS / 1000);
+                        // Log progress every minute
+                        if ((elapsed % 60000) < 200) {  // Within 200ms of minute boundary
+                            ESP_LOGI(TAG, "Advertising for %u seconds (timeout at %u sec)",
+                                     elapsed / 1000, BLE_ADV_TIMEOUT_MS / 1000);
+                        }
                     }
                 } else {
                     // Advertising stopped externally, return to idle
@@ -149,7 +160,28 @@ void ble_task(void *pvParameters) {
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
                     if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
                         ESP_LOGI(TAG, "Emergency shutdown during connection");
-                        // Client disconnect is handled by GAP event handler
+
+                        // CRITICAL FIX (Bug #15): Gracefully disconnect BLE connections before shutdown
+                        // Check which connections are active and terminate them
+                        if (ble_is_peer_connected()) {
+                            uint16_t peer_handle = ble_get_peer_conn_handle();
+                            if (peer_handle != 0xFFFF) {  // BLE_HS_CONN_HANDLE_NONE
+                                ESP_LOGI(TAG, "Disconnecting peer connection (handle=%d)", peer_handle);
+                                ble_gap_terminate(peer_handle, BLE_ERR_REM_USER_CONN_TERM);
+                            }
+                        }
+
+                        if (ble_is_connected()) {
+                            uint16_t app_handle = ble_get_app_conn_handle();
+                            if (app_handle != 0xFFFF) {  // BLE_HS_CONN_HANDLE_NONE
+                                ESP_LOGI(TAG, "Disconnecting mobile app connection (handle=%d)", app_handle);
+                                ble_gap_terminate(app_handle, BLE_ERR_REM_USER_CONN_TERM);
+                            }
+                        }
+
+                        // Small delay to allow disconnect events to process
+                        vTaskDelay(pdMS_TO_TICKS(100));
+
                         ESP_LOGI(TAG, "State: CONNECTED → SHUTDOWN");
                         state = BLE_STATE_SHUTDOWN;
                         break;
@@ -163,11 +195,16 @@ void ble_task(void *pvParameters) {
                 if (!ble_is_connected()) {
                     ESP_LOGI(TAG, "Client disconnected");
 
+                    // JPL compliance: Wait for disconnect handler to complete advertising restart
+                    // Measured disconnect handler advertising restart time: ~80ms
+                    // Use 150ms delay for safety margin (deterministic wait)
+                    vTaskDelay(pdMS_TO_TICKS(150));
+
                     // GAP event handler automatically restarts advertising
                     if (ble_is_advertising()) {
                         // Phase 1a: Resume scanning for peer after disconnect
                         ble_start_scanning();
-                        ESP_LOGI(TAG, "Auto-restarting advertising after disconnect (scanning for peer)");
+                        ESP_LOGI(TAG, "Advertising restarted after disconnect (scanning for peer)");
                         ESP_LOGI(TAG, "State: CONNECTED → ADVERTISING");
                         state = BLE_STATE_ADVERTISING;
                     } else {

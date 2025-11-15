@@ -65,7 +65,7 @@ static mode_t current_mode = MODE_1HZ_50;   // Default: Mode 0 (1Hz @ 50%)
 // Mode 5 (custom) parameters (updated via BLE)
 static uint32_t mode5_on_ms = 250;          // Default: 250ms on (1Hz)
 static uint32_t mode5_coast_ms = 250;       // Default: 250ms coast (1Hz)
-static uint8_t mode5_pwm_intensity = 75;    // Default: 75% PWM
+static uint8_t mode5_pwm_intensity = MOTOR_PWM_DEFAULT;  // From motor_control.h (single source of truth)
 
 // BLE parameter update flag
 static volatile bool ble_params_updated = false;

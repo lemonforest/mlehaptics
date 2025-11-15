@@ -64,7 +64,7 @@ The device is significantly smaller than a standard computer mouse - approximate
 - **Motor:** ERM vibration motor with discrete MOSFET H-bridge control
 - **LED:** WS2812B RGB LED for status feedback
 - **Power:** Dual 320mAh LiPo batteries (640mAh total) with USB-C charging
-- **Enclosure:** 3D-printed SLS case (files in [hardware/enclosure/](hardware/enclosure/))
+- **Enclosure:** 3D-printed Nylon 12 SLS case (files in [hardware/enclosure/](hardware/enclosure/))
 - **PCB:** Custom design (KiCad files in [hardware/pcb/](hardware/pcb/))
 
 For complete hardware documentation, assembly instructions, and manufacturing files, see [hardware/README.md](hardware/README.md).

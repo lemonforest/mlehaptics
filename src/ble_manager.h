@@ -203,6 +203,22 @@ bool ble_is_peer_connected(void);
 const char* ble_get_connection_type_str(void);
 
 /**
+ * @brief Get peer connection handle
+ * @return Peer connection handle, or BLE_HS_CONN_HANDLE_NONE (0xFFFF) if not connected
+ *
+ * Used for graceful disconnect during shutdown
+ */
+uint16_t ble_get_peer_conn_handle(void);
+
+/**
+ * @brief Get mobile app connection handle
+ * @return Mobile app connection handle, or BLE_HS_CONN_HANDLE_NONE (0xFFFF) if not connected
+ *
+ * Used for graceful disconnect during shutdown
+ */
+uint16_t ble_get_app_conn_handle(void);
+
+/**
  * @brief Check if BLE is currently advertising
  * @return true if advertising active, false otherwise
  *

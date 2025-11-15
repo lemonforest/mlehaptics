@@ -732,13 +732,50 @@ Bilateral Control Service: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
 Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
 ```
 
-### Known Issues (Documented in AD035)
+### Critical Bugs Fixed (Phase 1b.1 and 1b.2)
 
-1. **Advertising Timer Loop** (Cosmetic, Does Not Block Functionality):
-   - After peer disconnect, rapid IDLE→ADVERTISING→timeout loop occurs (~100ms cycles)
-   - Root cause: `ble_get_advertising_elapsed_ms()` returns time since boot, not since restart
-   - Impact: Noisy logging only - devices successfully reconnect despite loop
-   - Fix: Deferred to Phase 1c
+**Bug #6: Mobile App Cannot Connect When Devices Peer-Paired** (RESOLVED Phase 1b.1):
+- **Symptom**: nRF Connect saw advertising but connection attempts failed silently
+- **Root Cause**: `CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1` limited to single connection (peer OR app, not both)
+- **Fix**: Increased to `CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2` in `sdkconfig.xiao_esp32c6`
+- **Result**: SERVER now accepts both peer and mobile app connections simultaneously
+- **Status**: ✅ RESOLVED - Tested and working (November 14, 2025)
+
+**Bug #7: Advertising Timeout Disconnects Peer Connection** (RESOLVED Phase 1b.2):
+- **Symptom**: Peer connections would break after 5 minutes of operation
+- **Root Cause**: Both devices continued advertising Configuration Service after peer connection. BLE_TASK timeout (5 minutes) would call `ble_stop_advertising()`, which broke the peer connection
+- **Fix**: Both devices now stop advertising Configuration Service immediately after peer connection (`ble_manager.c:1136-1145`)
+- **Workaround**: User can manually re-enable advertising with button hold (1-2s) if mobile app access needed
+- **Status**: ✅ RESOLVED - Code complete, hardware testing pending
+
+**Bug #8: Peer Reconnection Broken After Disconnect** (RESOLVED Phase 1b.2):
+- **Symptom**: After peer disconnect, devices would never reconnect (stuck in IDLE state forever)
+- **Root Cause**: Bug #7 fix set `adv_state.advertising_active = false`. Disconnect handler checked this flag before restarting scanning, so condition was never met
+- **Serial Evidence**: "Failed to restart advertising after disconnect; rc=2" followed by permanent IDLE state
+- **Fix**: Peer disconnect handler now explicitly restarts both advertising and scanning without relying on flag (`ble_manager.c:1186-1214`)
+- **Result**: Devices should now reconnect automatically after disconnect
+- **Status**: ✅ RESOLVED - Code complete, hardware testing pending
+
+**Bug #9: PWA Cannot Discover Device** (RESOLVED Phase 1b.2):
+- **Symptom**: nRF Connect could see device, but Web Bluetooth PWA required "Show all BLE Devices" to find it
+- **Root Cause**: PWA filtered by Configuration Service UUID (`...0200`), but device only advertised Bilateral Service UUID (`...0100`) in scan response
+- **Impact**: Web Bluetooth API `navigator.bluetooth.requestDevice()` with service filter would not show device
+- **Fix**: Simplified to single-UUID approach - now advertising Configuration Service UUID in scan response (`ble_manager.c:1385`). Peer discovery updated to look for Configuration Service UUID instead of Bilateral Service UUID (`ble_manager.c:1708`). Both peers and PWAs discover via same UUID.
+- **Status**: ✅ RESOLVED - Code complete, hardware testing pending
+
+**Bug #10: Both Devices Think They're CLIENT** (RESOLVED Phase 1b.2):
+- **Symptom**: Both devices would log "CLIENT role: Advertising stopped", preventing mobile app connection to either device
+- **Root Cause**: Role detection logic used `peer_discovered` flag to determine connection initiator. When both devices scan simultaneously, both discover each other and set flag to `true`. When connection event fires on both sides, both think they initiated the connection and assign themselves CLIENT role.
+- **Serial Evidence**: User logs showed both devices logging "CLIENT role: Advertising stopped (peer connected)"
+- **Impact**: CRITICAL - Both devices stop advertising, making mobile app connection impossible during peer pairing
+- **Fix**: Use NimBLE's actual connection role from `desc.role` field (`BLE_GAP_ROLE_MASTER` = CLIENT, `BLE_GAP_ROLE_SLAVE` = SERVER) instead of discovery flag (`ble_manager.c:1150-1166`). Connection role is definitively assigned by BLE stack based on who actually initiated the link.
+- **Status**: ✅ RESOLVED - Code complete, hardware testing pending
+
+### Known Issues (Remaining)
+
+1. **Advertising Timer Loop** (Possibly RESOLVED by Bug #8 fix):
+   - Previous rapid IDLE→ADVERTISING→timeout loop after disconnect may be fixed by peer reconnection logic
+   - Status: Requires hardware testing to confirm
 
 2. **Status LED 5× Blink Not Visible**:
    - `status_led_pattern()` called on peer connection (logs confirm)
@@ -747,13 +784,11 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
    - Impact: Minor - connection still works, only visual feedback missing
    - Fix: Deferred to Phase 1c investigation
 
-3. **Mobile App Cannot Connect When Devices Peer-Paired** (BLOCKING):
-   - nRF Connect sees advertising but cannot connect when devices are peer-paired
-   - Connection attempts fail silently (no logs, no connection event)
-   - **Impact: Cannot configure devices via mobile app while peer-paired**
-   - Workaround: Restart device to break peer connection, connect mobile app before re-pairing
-   - Proposed solutions: SERVER-only Configuration Service advertising, or peer disconnect via button
-   - Fix: Phase 1c/2 architecture decision needed (see AD035 for full analysis)
+3. **Battery Calibration Needed** (Planned Phase 1c):
+   - Fully charged batteries don't reach 100% (~95-98% observed)
+   - Root causes: 1S2P dual-battery configuration, P-MOSFET voltage drop, battery aging/wear
+   - Proposed solution: Monitor 5V pin via voltage divider, track max voltage during USB connection
+   - See AD035 for complete calibration algorithm
 
 ### Testing Evidence
 
@@ -773,26 +808,27 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
 
 ### Next Steps
 
-🚨 **Phase 1b.1 (REQUIRED before Phase 1c):**
-- **Fix BLOCKING Issue #3**: Enable mobile app connection when devices are peer-paired
-- **Proposed solution**: Only SERVER advertises Configuration Service when peer-paired
-- **Implementation**: CLIENT stops advertising Configuration Service after peer connection established
-- **Alternative**: Enable NimBLE simultaneous connections (SERVER accepts peer + mobile app)
-- **Priority**: MUST be resolved - this is a project requirement for mobile app control
+✅ **Phase 1b.1 and 1b.2: COMPLETE** (November 14, 2025)
+- Bug #6 (Mobile app connection): RESOLVED - NimBLE max connections increased to 2
+- Bug #7 (Advertising timeout): RESOLVED - Role-aware advertising (CLIENT stops, SERVER continues)
+- Bug #8 (Peer reconnection): RESOLVED - Explicit advertising/scanning restart on disconnect
+- Bug #9 (PWA discovery): RESOLVED - Advertise Configuration Service UUID for PWA filtering
+- Bug #10 (Both devices CLIENT): RESOLVED - Use NimBLE's actual connection role (desc.role)
+- **Hardware testing pending**: Verify role assignment, SERVER advertising, and PWA discovery
 
-⏳ **Phase 1c (After 1b.1 complete):**
+⏳ **Phase 1c (Next):**
 
 **Role Assignment Logic:**
 - Implement `role_manager.c` with battery comparison
 - Add `ble_get_peer_battery_level()` to read peer's battery characteristic
 - Assign SERVER role to device with higher battery, CLIENT to lower
 - Tie-breaker: Connection initiator becomes SERVER if batteries equal
-- Update motor task logs to show role: `BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)`
+- ✅ Update motor task logs to show role: `BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)` - COMPLETE (Phase 1b.2)
 
 ⏳ **Device Role Characteristic:**
 - Add Device Role GATT characteristic to Bilateral Control Service
 - Store assigned role (SERVER=0, CLIENT=1, STANDALONE=2)
-- Allow role reassignment if battery levels flip
+- ~~Allow role reassignment if battery levels flip~~ **DO NOT IMPLEMENT** - Would disconnect mobile app from SERVER device
 
 ### Build & Test
 
@@ -844,6 +880,30 @@ Evaluate DRV2605L family:
 - Measure current draw in all operational modes
 - Characterize battery life under various duty cycles
 - Validate 20+ minute session target with dual 320mAh batteries (640mAh)
+
+### Battery Calibration System (Phase 1c)
+
+Implement automatic calibration routine to address observed full-charge discrepancy:
+
+**Problem:**
+- Fully charged batteries don't reach 100% (observed ~95-98%)
+- Causes: 1S2P parallel configuration, P-MOSFET voltage drop, battery wear, ADC tolerance
+- Impact: Inaccurate battery percentage, affects role assignment fairness
+
+**Solution:**
+- **Hardware**: Add 5V pin monitoring via 45kΩ + 100kΩ voltage divider (community-tested)
+- **Software**: Track maximum battery voltage during USB connection
+- **Algorithm**: Only update calibration when USB connected AND voltage in valid charging range (4.0-4.25V)
+- **Storage**: Save per-device calibration offset to NVS
+- **Safety**: Clamp reference to 4.0-4.25V range, reset if degraded below 4.0V
+
+**Benefits:**
+- Automatic calibration during normal charging (no user intervention)
+- Graceful tracking of battery wear over years
+- Per-device compensation for manufacturing variations
+- Protection against invalid calibration values
+
+**Reference:** [Seeed Forum - USB Detection](https://forum.seeedstudio.com/t/detecting-usb-or-battery-power/280968)
 
 ---
 
