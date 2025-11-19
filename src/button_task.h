@@ -105,7 +105,7 @@ typedef enum {
  * 8. SHUTDOWN_SENT: Terminal state (task exits)
  *
  * Actions by hold duration:
- * - <1s: Mode change (cycle through MODE_1HZ_50 → MODE_1HZ_25 → MODE_05HZ_50 → MODE_05HZ_25 → MODE_CUSTOM)
+ * - <1s: Mode change (cycle through MODE_05HZ_25 → MODE_1HZ_25 → MODE_15HZ_25 → MODE_2HZ_25 → MODE_CUSTOM)
  * - 1-2s: BLE advertising re-enable (if BLE idle)
  * - >5s: Emergency shutdown (purple countdown, enter deep sleep)
  * - >10s: Factory reset (NVS clear, only in first 30s after boot)

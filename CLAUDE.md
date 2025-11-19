@@ -1,11 +1,36 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Version:** v0.1.2
-**Last Updated:** 2025-11-14
-**Status:** Production-Ready
-**Project Phase:** Phase 1b Complete (Peer Discovery) | Phase 4 Complete (JPL-Compliant)
+**Version:** v0.2.0-beta.1 (Phase 1c Complete)
+**Last Updated:** 2025-11-19
+**Status:** Beta Testing (Phase 1c - Battery-Based Role Assignment)
+**Project Phase:** Phase 1c Complete (Battery-Based Role Assignment) | Phase 0.4 Complete (JPL Single-Device)
 **Hardware:** Seeed XIAO ESP32-C6
 **Framework:** ESP-IDF v5.5.0 via PlatformIO
+
+---
+
+## CRITICAL BUG FIX (v0.1.3 - November 17, 2025)
+
+**Issue:** Motor operated at 2× configured frequency due to fundamental timing calculation error.
+- OLD behavior: Both forward AND reverse activations within single frequency period
+- NEW behavior: ONE activation per frequency period, direction alternates BETWEEN cycles
+
+**Impact:**
+- All therapeutic sessions ran at wrong frequencies:
+  - 0.5Hz setting → Actually ran at 1.0Hz
+  - 1.0Hz setting → Actually ran at 2.0Hz
+  - 2.0Hz setting → Actually ran at 4.0Hz (outside therapeutic range!)
+
+**Resolution:**
+- State machine refactored: 9 states → 6 states (FORWARD/REVERSE unified into ACTIVE/INACTIVE)
+- Timing formula corrected: `(period_ms * duty) / 100` instead of `/ 200`
+- Mode presets updated: Now 0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty
+- Direction alternation: Added flag that flips after each INACTIVE period
+- **Enum names kept for compatibility** (MODE_1HZ_50 now actually means 0.5Hz@25%)
+
+**Testing Required:** Oscilloscope verification of actual frequency output.
+
+**Files Modified:** [src/motor_task.h](src/motor_task.h), [src/motor_task.c](src/motor_task.c), [src/ble_manager.c](src/ble_manager.c)
 
 ---
 
@@ -367,10 +392,17 @@ rm -rf .pio/build
 
 ### 4. Watchdog Timeout During Purple Blink Loop
 
-**Issue:** Watchdog timeout during wait-for-button-release in sleep sequence  
-**Status:** FIXED in current code  
-**Solution:** `button_task` subscribes to watchdog and feeds during purple blink loop  
+**Issue:** Watchdog timeout during wait-for-button-release in sleep sequence
+**Status:** FIXED in current code
+**Solution:** `button_task` subscribes to watchdog and feeds during purple blink loop
 **Details:** See `/mnt/project/purple_blink_logic_analysis.md` for complete analysis
+
+### 5. Enclosure Pinholes Misalignment
+
+**Issue:** Pinholes for RESET and BOOT pins in enclosure don't align with actual button/pad locations
+**Status:** Known hardware limitation, unlikely to be fixed
+**Workaround:** Access RESET/BOOT via USB reprogramming or remove from enclosure
+**Impact:** Minimal - normal operation uses button wake from deep sleep; RESET/BOOT only needed for firmware recovery
 
 ---
 
@@ -500,7 +532,7 @@ CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=3
 
 ---
 
-## Phase 4 Complete - JPL Coding Standards
+## Phase 0.4 Complete - JPL Coding Standards (Single-Device)
 
 **Status:** ✅ IMPLEMENTED in `test/single_device_demo_jpl_queued.c`
 
@@ -516,7 +548,7 @@ CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=3
 
 - **Baseline:** `single_device_battery_bemf_test.c` - 4 modes + battery monitoring
 - **Phase 1:** `single_device_battery_bemf_queued_test.c` - Adds message queues
-- **Phase 4:** `single_device_demo_jpl_queued.c` - Full JPL compliance (PRODUCTION-READY)
+- **Phase 0.4:** `single_device_demo_jpl_queued.c` - Full JPL compliance (PRODUCTION-READY)
 
 **Documentation:**
 - **Test-Specific Guide:** `test/SINGLE_DEVICE_DEMO_JPL_QUEUED_GUIDE.md` - Quick reference for JPL environment
@@ -659,9 +691,9 @@ pio device monitor
 - **BLE Task Analysis:** `test/BLE_TASK_STATE_MACHINE_ANALYSIS.md` - Comprehensive audit (400+ lines)
 - **Analysis Checklist:** `docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md` - Reusable audit template
 
-### Comparison to Phase 4 JPL Version
+### Comparison to Phase 0.4 JPL Version
 
-| Aspect | Phase 4 JPL | BLE GATT Test |
+| Aspect | Phase 0.4 JPL (Single-Device) | BLE GATT Test |
 |--------|-------------|---------------|
 | **BLE Support** | No | ✅ Full NimBLE GATT |
 | **Mobile App Control** | No | ✅ 9 GATT characteristics |
@@ -673,19 +705,19 @@ pio device monitor
 | **Code Complexity** | Lower | Higher (state machines) |
 | **Production Status** | ✅ Ready | ✅ Ready |
 
-**Use Phase 4 JPL when:** Simple button-only control is sufficient
+**Use Phase 0.4 JPL when:** Simple button-only control is sufficient (single-device testing)
 **Use BLE GATT when:** Mobile app control and research data collection needed
 
 ---
 
-## Phase 1b - Peer Discovery and Initial Role Assignment
+## Phase 1c - Battery-Based Role Assignment (Complete)
 
-**Status:** ✅ COMPLETE (November 14, 2025)
+**Status:** ✅ COMPLETE (November 19, 2025)
 **Build Environment:** `xiao_esp32c6` (modular architecture)
 
 ### Overview
 
-Phase 1b implements peer-to-peer device discovery for dual-device bilateral stimulation. Two EMDR devices can now discover each other, connect, and exchange battery information for future role assignment.
+Phase 1c implements battery-based role assignment for peer-to-peer bilateral stimulation. Devices broadcast battery level in advertising packets (BLE Service Data), compare batteries during discovery, and automatically assign SERVER (higher battery) and CLIENT (lower battery) roles BEFORE connection.
 
 ### Key Features Implemented
 
@@ -700,10 +732,12 @@ Phase 1b implements peer-to-peer device discovery for dual-device bilateral stim
    - `ble_get_connection_type_str()` - Returns "Peer", "App", or "Disconnected"
    - Motor task battery logs show connection status every 60 seconds
 
-3. **Battery Exchange** (GATT Characteristic):
-   - Bilateral Battery characteristic (`6E400A01-B5A3-...`)
-   - `ble_update_bilateral_battery_level()` called every 60 seconds by motor_task
-   - Allows peer devices to read battery level for role assignment (Phase 1c)
+3. **Battery Exchange** (BLE Service Data - Phase 1c):
+   - Battery level broadcast in advertising packet via Service Data (AD Type 0x16)
+   - Battery Service UUID (0x180F) + battery percentage (0-100%)
+   - Only broadcast during Bilateral UUID window (0-30s, peer discovery)
+   - `ble_update_bilateral_battery_level()` restarts advertising when battery changes
+   - Peer extracts battery from scan response BEFORE connection
 
 4. **Race Condition Handling** (per AD010):
    - Error `BLE_ERR_ACL_CONN_EXISTS` (523) gracefully handled
@@ -777,12 +811,13 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
    - Previous rapid IDLE→ADVERTISING→timeout loop after disconnect may be fixed by peer reconnection logic
    - Status: Requires hardware testing to confirm
 
-2. **Status LED 5× Blink Not Visible**:
-   - `status_led_pattern()` called on peer connection (logs confirm)
-   - User observes NO LED blinks on GPIO15 (hardware confirmed functional via button hold test)
-   - Root cause: Unknown (timing issue or state conflict suspected)
-   - Impact: Minor - connection still works, only visual feedback missing
-   - Fix: Deferred to Phase 1c investigation
+2. **GPIO15 Status LED Stuck ON After Pairing** (RESOLVED November 19, 2025):
+   - Symptom: GPIO15 remains ON after peer pairing completes, blocking subsequent blink patterns
+   - Root cause: Motor task takes WS2812B ownership after pairing, but GPIO15 was left ON
+   - When motor owns WS2812B, all `status_led_pattern()` calls skip GPIO15 control
+   - Fix: Explicitly call `status_led_off()` after pairing success/failure patterns complete
+   - Files modified: `src/ble_task.c:251-252, 301-302`
+   - Status: ✅ RESOLVED - Hardware testing pending
 
 3. **Battery Calibration Needed** (Planned Phase 1c):
    - Fully charged batteries don't reach 100% (~95-98% observed)
@@ -816,19 +851,22 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
 - Bug #10 (Both devices CLIENT): RESOLVED - Use NimBLE's actual connection role (desc.role)
 - **Hardware testing pending**: Verify role assignment, SERVER advertising, and PWA discovery
 
-⏳ **Phase 1c (Next):**
+✅ **Phase 1c: COMPLETE** (November 19, 2025)
 
-**Role Assignment Logic:**
-- Implement `role_manager.c` with battery comparison
-- Add `ble_get_peer_battery_level()` to read peer's battery characteristic
-- Assign SERVER role to device with higher battery, CLIENT to lower
-- Tie-breaker: Connection initiator becomes SERVER if batteries equal
-- ✅ Update motor task logs to show role: `BLE: Peer (SERVER)` vs `BLE: Peer (CLIENT)` - COMPLETE (Phase 1b.2)
+**Role Assignment Logic (IMPLEMENTED):**
+- ✅ Battery level broadcast via BLE Service Data (Battery Service UUID 0x180F)
+- ✅ Peer battery extracted from scan response BEFORE connection
+- ✅ Higher battery device initiates connection (becomes SERVER/MASTER)
+- ✅ Lower battery device waits for connection (becomes CLIENT/SLAVE)
+- ✅ MAC address tie-breaker when batteries equal (lower MAC initiates)
+- ✅ Fallback to discovery-based role if no battery data available
+- **Implementation**: `src/ble_manager.c:2256-2319` (battery-based role assignment in scan callback)
 
-⏳ **Device Role Characteristic:**
-- Add Device Role GATT characteristic to Bilateral Control Service
-- Store assigned role (SERVER=0, CLIENT=1, STANDALONE=2)
-- ~~Allow role reassignment if battery levels flip~~ **DO NOT IMPLEMENT** - Would disconnect mobile app from SERVER device
+**Key Benefits:**
+- Faster role assignment (comparison during discovery, not after connection)
+- Eliminates race condition (deterministic, higher battery always initiates)
+- Standard BLE practice (Service Data is industry-standard approach)
+- No privacy concerns (battery not personal health data, 30s window only)
 
 ### Build & Test
 
@@ -977,11 +1015,11 @@ A:
 - `single_device_battery_bemf_queued_test.c` - Phase 1 (adds message queues)
 - `single_device_demo_test.c` - Simple 4-mode demo (no battery features)
 
-**Q: What is Phase 1b and how do I build it?**
-A: Phase 1b is peer-to-peer device discovery for dual-device bilateral stimulation (modular architecture in `src/`).
+**Q: What is Phase 1c and how do I build it?**
+A: Phase 1c is battery-based role assignment for dual-device bilateral stimulation (modular architecture in `src/`).
 - Build: `pio run -e xiao_esp32c6 -t upload`
-- Features: Peer discovery, connection type identification, battery exchange for role assignment
-- Status: Phase 1b complete (peer discovery), Phase 1c pending (role assignment logic)
+- Features: Battery broadcast via Service Data, automatic role assignment (higher battery = SERVER)
+- Status: ✅ Phase 1c complete (role assignment implemented November 19, 2025)
 
 **Q: Can I add new motor control modes?**
 A: Yes! See `mode_t` enum in single_device_demo_jpl_queued.c. Add your mode to the modes array, and the system will automatically cycle through it.

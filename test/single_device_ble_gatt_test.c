@@ -806,6 +806,8 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
+    // NOTE: This OLD test file uses 10-50% range. Production code (src/) uses 10-100% range.
+    // 100% duty = motor ON for entire ACTIVE period, guaranteed OFF for INACTIVE period.
     // Validate range (10-50%): 10% min ensures perception, 50% max prevents motor overlap in bilateral alternation
     // For LED-only mode, set PWM intensity to 0% instead
     if (duty_val < 10 || duty_val > 50) {

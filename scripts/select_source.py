@@ -16,7 +16,7 @@ import os
 build_env = env["PIOENV"]
 
 # Define which environments use modular architecture
-MODULAR_BUILDS = ["xiao_esp32c6", "xiao_esp32c6_production", "xiao_esp32c6_testing"]
+MODULAR_BUILDS = ["xiao_esp32c6", "xiao_esp32c6_production", "xiao_esp32c6_testing", "xiao_esp32c6_ble_no_nvs"]
 
 # Define source file mapping for test builds
 source_map = {

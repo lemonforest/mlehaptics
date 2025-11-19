@@ -1,9 +1,9 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.1.2
-**Last Updated:** 2025-11-14
-**Status:** Production-Ready
-**Project Phase:** Phase 1b Complete (Peer Discovery) | Phase 4 Complete (JPL-Compliant)
+**Version:** v0.2.0-beta.1
+**Last Updated:** 2025-11-19
+**Status:** Beta Testing
+**Project Phase:** Phase 1c Complete (Battery-Based Role Assignment) | Phase 0.4 Complete (JPL Single-Device)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
@@ -16,10 +16,11 @@ Generated with assistance from **Claude Sonnet 4 (Anthropic)**
 This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes LED testing capabilities during development.
 
 **Current Development Status:**
-- ✅ Phase 4 JPL-compliant firmware complete (single-device testing)
+- ✅ Phase 0.4 JPL-compliant firmware complete (single-device testing)
 - ✅ BLE GATT server for mobile app configuration (5 operational modes)
 - ✅ Hardware v0.663399ADS with GPIO crosstalk fixes implemented
-- 🔄 Dual-device bilateral coordination protocol in development
+- ✅ Phase 1c complete: Peer discovery with battery-based role assignment
+- 🔄 Phase 2 (next): Command-and-control bilateral coordination protocol
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
@@ -236,22 +237,25 @@ Client: [---999ms off---][1ms dead][===999ms motor===][1ms dead]
 - **Safety-critical timing**: Alternating half-cycles with NO overlap
 
 ### Button Controls
-- **2-second hold**: Wake from deep sleep
+- **Button press**: Wake from deep sleep
+- **1-2 second hold**: Re-enable BLE advertising for mobile app connection (SERVER role only)
 - **5-second hold**: Emergency shutdown (both devices stop immediately)
-- **10-second hold** (first 30s only): Factory reset
+- **15-second hold** (within 30s of boot): Factory reset (NVS clear)
 
 ### LED Status Indicators
 
 | Status | Pattern | Description |
 |--------|---------|-------------|
-| 🔄 **Boot** | 3 quick flashes | Boot sequence complete |
-| 🔍 **Searching** | Fast blink (200ms) | Searching for server device |
-| ⏳ **Waiting** | Slow blink (1000ms) | Waiting for client connection |
-| ✅ **Connected** | Solid on | Connected, bilateral stimulation active |
-| ❌ **Disconnected** | Double blink | Connection lost |
-| 💓 **Single Mode** | Heartbeat (100ms on, 1900ms off) | Single mode fallback |
-| 🔽 **Shutdown** | Fade out | Shutting down |
-| 🚨 **Error** | SOS pattern | Critical error |
+| 🔌 **BLE Connected** | 5× blink (100ms) | Mobile app or peer connected |
+| 📡 **BLE Re-enabled** | 3× blink (100ms) | Advertising restarted (1-2s button hold) |
+| 🪫 **Low Battery** | 3× blink (200ms) | Battery low warning |
+| 🔧 **Factory Reset** | 3× blink (100ms) | NVS cleared successfully |
+| 🎯 **Mode Change** | Single quick blink (50ms) | Mode switched |
+| ⏸️ **Button Hold** | Continuous ON | Hold detected (1s+), waiting for action |
+| ⏳ **Pairing Wait** | Solid ON + Purple LED | Waiting for peer (30s window) |
+| 🔄 **Pairing Progress** | Pulsing 1Hz + Purple LED | Peer connection in progress |
+| ✅ **Pairing Success** | 3× green synchronized | Peer paired successfully |
+| ❌ **Pairing Failed** | 3× red synchronized | Peer pairing failed |
 
 ## 🔬 Development Configuration
 
@@ -440,29 +444,33 @@ When using or modifying this project:
 - **Framework**: ESP-IDF v5.5.0 (Espressif Systems) - Verified October 20, 2025
 - **Human Engineering**: Requirements specification, safety validation, hardware design
 - **Project**: MLE Haptics - mlehaptics.org
-- **Generated**: 2025-09-18, Updated: 2025-11-07
+- **Generated**: 2025-09-18, Updated: 2025-11-19
 
 Please maintain attribution when using or modifying this code or hardware designs.
 
 ## 🔗 Related Projects and Future Development
 
-### Current Phase: Single-Device Testing & Hardware Validation
-- **Phase 4 firmware**: JPL-compliant single-device operation with BLE GATT control
+### Phase 0.4: Single-Device Testing & Hardware Validation (Complete)
+- **Phase 0.4 firmware**: JPL-compliant single-device operation with BLE GATT control
 - **5 operational modes**: Four presets + custom BLE-configured mode
 - **Hardware v0.663399ADS**: GPIO crosstalk fixes implemented, ready for production
 - **Mobile app integration**: BLE GATT Configuration via nRF Connect
 
-### Phase 1b/1c/2: Dual-Device Bilateral Coordination (In Progress)
-- ✅ **Phase 1b Complete**: Peer discovery and connection type identification (~1-2s connection time)
-- ✅ **Battery exchange**: Bilateral Battery characteristic for role assignment foundation
-- 🚨 **Phase 1b.1 (REQUIRED)**: Fix mobile app connection when devices peer-paired (BLOCKING issue)
-- ⏳ **Phase 1c (After 1b.1)**: Battery-based role assignment (higher battery = SERVER role)
-- ⏳ **Phase 2 (Planned)**: Command-and-control with synchronized fallback
-- **Synchronized timing**: Safety-critical non-overlapping bilateral stimulation
-- **Configurable cycle times**: 500-4000ms (0.25-2 Hz therapeutic range)
-- **Safety-critical timing**: Non-overlapping half-cycles with 1ms FreeRTOS dead time
+### Phase 1b/1c: Dual-Device Peer Discovery and Role Assignment (Complete)
+- ✅ **Phase 1b Complete**: Peer discovery with UUID switching (Bilateral UUID 0-30s, Config UUID 30s+)
+- ✅ **Phase 1b.1 Complete**: Multiple connection support (peer + mobile app simultaneously)
+- ✅ **Phase 1b.2 Complete**: Role-aware advertising (SERVER continues, CLIENT stops)
+- ✅ **Phase 1b.3 Complete**: Exclusive pairing (once bonded, only that peer can connect until NVS erase)
+- ✅ **Phase 1c Complete**: Battery-based role assignment via BLE Service Data (higher battery initiates as SERVER)
 
-### Phase 2: Advanced Haptic Research (Future)
+### Phase 2: Command-and-Control Bilateral Coordination (Planned)
+- ⏳ **Command Protocol**: Synchronized bilateral stimulation with safety-critical timing
+- ⏳ **Non-overlapping Half-Cycles**: Each device gets exactly 50% of total cycle time
+- ⏳ **Configurable Cycle Times**: 500-4000ms (0.25-2 Hz therapeutic range)
+- ⏳ **Emergency Shutdown**: Coordinated stop from either device within 50ms
+- ⏳ **Dead Time Protection**: 1ms FreeRTOS delay between half-cycles
+
+### Phase 3: Advanced Haptic Research (Future)
 - **Dedicated haptic driver ICs**: DRV2605L family evaluation
 - **ERM vs LRA comparison**: Comparative therapeutic efficacy research
 - **Pattern library**: Multiple stimulation waveforms and haptic effects

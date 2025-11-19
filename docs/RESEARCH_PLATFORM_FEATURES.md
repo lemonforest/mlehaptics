@@ -136,7 +136,10 @@ Time (ms)    Server Device    Client Device
 | 15% | 75ms | Minimal effective dose studies |
 | 25% | 125ms | Standard therapy (battery efficient) |
 | 35% | 175ms | Enhanced stimulation |
-| 50% | 250ms | Maximum bilateral (no overlap) |
+| 50% | 250ms | Moderate duty (battery efficient) |
+| 75% | 375ms | High intensity stimulation |
+| 100% | 500ms | Maximum duty (uses entire ACTIVE period, respects INACTIVE period) |
+n**Note:** All duty levels guarantee motor is OFF for at least 50% of total cycle time. Duty cycle is percentage of ACTIVE period only.
 
 ### Session Duration: 20-90 minutes
 

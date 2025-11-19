@@ -54,6 +54,9 @@ static led_strip_handle_t led_strip = NULL;
 static bool led_power_enabled = false;
 static SemaphoreHandle_t led_mutex = NULL;
 
+// LED ownership flag (Phase 1b.3: Prevents status_led from interrupting motor_task)
+static bool motor_owns_ws2812b = false;
+
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
@@ -253,6 +256,37 @@ void led_clear(void) {
     }
 
     xSemaphoreGive(led_mutex);
+}
+
+// ============================================================================
+// LED OWNERSHIP MANAGEMENT (Phase 1b.3)
+// ============================================================================
+
+/**
+ * @brief Set motor task ownership of WS2812B
+ * @param motor_owns true if motor task owns WS2812B, false otherwise
+ *
+ * When motor_owns=true, status_led patterns will skip WS2812B control
+ * to prevent interrupting motor task's 10-second LED indication.
+ *
+ * Motor task should call this:
+ * - Set true when entering operational state (CHECK_MESSAGES)
+ * - Set false when entering shutdown state
+ */
+void led_set_motor_ownership(bool motor_owns) {
+    motor_owns_ws2812b = motor_owns;
+    ESP_LOGI(TAG, "WS2812B ownership: %s", motor_owns ? "MOTOR_TASK" : "STATUS_LED");
+}
+
+/**
+ * @brief Check if motor task owns WS2812B
+ * @return true if motor task owns WS2812B, false if status_led can use it
+ *
+ * Status LED patterns should check this before controlling WS2812B
+ * to avoid interrupting motor task's LED indication.
+ */
+bool led_get_motor_ownership(void) {
+    return motor_owns_ws2812b;
 }
 
 esp_err_t led_deinit(void) {

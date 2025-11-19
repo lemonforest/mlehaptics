@@ -213,6 +213,36 @@ void led_update_from_ble(void);
  */
 esp_err_t led_deinit(void);
 
+// ============================================================================
+// LED OWNERSHIP MANAGEMENT (Phase 1b.3)
+// ============================================================================
+
+/**
+ * @brief Set motor task ownership of WS2812B
+ * @param motor_owns true if motor task owns WS2812B, false otherwise
+ *
+ * When motor_owns=true, status_led patterns will skip WS2812B control
+ * to prevent interrupting motor task's 10-second LED indication.
+ *
+ * Motor task should call this:
+ * - Set true when entering operational state (CHECK_MESSAGES)
+ * - Set false when entering shutdown state
+ *
+ * Thread-safe: Can be called from any task
+ */
+void led_set_motor_ownership(bool motor_owns);
+
+/**
+ * @brief Check if motor task owns WS2812B
+ * @return true if motor task owns WS2812B, false if status_led can use it
+ *
+ * Status LED patterns should check this before controlling WS2812B
+ * to avoid interrupting motor task's LED indication.
+ *
+ * Thread-safe: Can be called from any task
+ */
+bool led_get_motor_ownership(void);
+
 #ifdef __cplusplus
 }
 #endif

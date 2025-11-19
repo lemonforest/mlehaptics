@@ -30,6 +30,7 @@
 | `single_device_battery_bemf_test` | Integrated test: 4-mode motor + battery + back-EMF characterization | `pio run -e single_device_battery_bemf_test -t upload && pio device monitor` |
 | `single_device_demo_jpl_queued` | **JPL-compliant** FreeRTOS architecture: Task isolation, message queues, proper watchdog feeding, 4-mode motor control | `pio run -e single_device_demo_jpl_queued -t upload && pio device monitor` |
 | `single_device_ble_gatt_test` | **NEW!** Phase A BLE GATT server: Mobile app config, 5-mode operation, NVS persistence | `pio run -e single_device_ble_gatt_test -t upload && pio device monitor` |
+| `xiao_esp32c6_ble_no_nvs` | **Phase 1b.3** BLE Pairing Test Mode (RAM-only bonding, no NVS wear) | `pio run -e xiao_esp32c6_ble_no_nvs -t upload && pio device monitor` |
 
 ### Diagnostic Test Environments
 
@@ -296,6 +297,7 @@ alias pio-battery='pio run -e battery_voltage_test -t upload && pio device monit
 alias pio-bemf='pio run -e single_device_battery_bemf_test -t upload && pio device monitor'
 alias pio-jplqueue='pio run -e single_device_demo_jpl_queued -t upload && pio device monitor'
 alias pio-ble='pio run -e single_device_ble_gatt_test -t upload && pio device monitor'
+alias pio-pairing='pio run -e xiao_esp32c6_ble_no_nvs -t upload && pio device monitor'
 alias pio-bletest='pio run -e minimal_ble_test -t upload && pio device monitor'
 alias pio-wifitest='pio run -e minimal_wifi_test -t upload && pio device monitor'
 
@@ -309,6 +311,7 @@ pio-battery    # Battery voltage monitoring test
 pio-bemf       # Integrated battery + back-EMF + motor test
 pio-jplqueue   # JPL-compliant FreeRTOS architecture test
 pio-ble        # BLE GATT server test (Phase A)
+pio-pairing    # BLE pairing test (Phase 1b.3, RAM-only bonding)
 pio-bletest    # BLE diagnostic with RSSI scanning
 pio-wifitest   # WiFi diagnostic test
 ```
@@ -362,6 +365,11 @@ function pio-ble {
     if ($LASTEXITCODE -eq 0) { pio device monitor }
 }
 
+function pio-pairing {
+    pio run -e xiao_esp32c6_ble_no_nvs -t upload
+    if ($LASTEXITCODE -eq 0) { pio device monitor }
+}
+
 function pio-bletest {
     pio run -e minimal_ble_test -t upload
     if ($LASTEXITCODE -eq 0) { pio device monitor }
@@ -382,6 +390,7 @@ pio-battery    # Battery voltage monitoring test
 pio-bemf       # Integrated battery + back-EMF + motor test
 pio-jplqueue   # JPL-compliant FreeRTOS architecture test
 pio-ble        # BLE GATT server test (Phase A)
+pio-pairing    # BLE pairing test (Phase 1b.3, RAM-only bonding)
 pio-bletest    # BLE diagnostic with RSSI scanning
 pio-wifitest   # WiFi diagnostic test
 ```
@@ -435,6 +444,11 @@ if %errorlevel% equ 0 pio device monitor
 pio run -e single_device_ble_gatt_test -t upload
 if %errorlevel% equ 0 pio device monitor
 
+# pio-pairing.bat
+@echo off
+pio run -e xiao_esp32c6_ble_no_nvs -t upload
+if %errorlevel% equ 0 pio device monitor
+
 # pio-bletest.bat
 @echo off
 pio run -e minimal_ble_test -t upload
@@ -455,6 +469,7 @@ pio-battery    REM Battery voltage monitoring test
 pio-bemf       REM Integrated battery + back-EMF + motor test
 pio-jplqueue   REM JPL-compliant FreeRTOS architecture test
 pio-ble        REM BLE GATT server test (Phase A)
+pio-pairing    REM BLE pairing test (Phase 1b.3, RAM-only bonding)
 pio-bletest    REM BLE diagnostic with RSSI scanning
 pio-wifitest   REM WiFi diagnostic test
 ```

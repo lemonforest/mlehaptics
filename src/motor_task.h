@@ -50,15 +50,19 @@ extern "C" {
 /**
  * @brief Motor operating modes
  *
- * Modes 0-3 are predefined EMDR patterns
+ * Modes 0-3 are predefined EMDR patterns (bilateral alternation frequencies)
  * Mode 4 (MODE_CUSTOM) is configurable via BLE GATT characteristics
+ *
+ * NOTE: Frequencies refer to BILATERAL alternation rate (dual-device mode)
+ * - "1.0Hz" = 1 complete left-right alternation per second
+ * - Single device mode: same frequency, alternating directions
  */
 typedef enum {
-    MODE_1HZ_50,      /**< 1 Hz @ 50% duty (250ms ON, 250ms coast) */
-    MODE_1HZ_25,      /**< 1 Hz @ 25% duty (125ms ON, 375ms coast) */
-    MODE_05HZ_50,     /**< 0.5 Hz @ 50% duty (500ms ON, 500ms coast) */
-    MODE_05HZ_25,     /**< 0.5 Hz @ 25% duty (250ms ON, 750ms coast) */
-    MODE_CUSTOM,      /**< Mode 5: Custom frequency/duty (BLE configurable) */
+    MODE_05HZ_25,     /**< 0.5Hz bilateral @ 25% duty (500ms ON, 1500ms coast) */
+    MODE_1HZ_25,      /**< 1.0Hz bilateral @ 25% duty (250ms ON, 750ms coast) */
+    MODE_15HZ_25,     /**< 1.5Hz bilateral @ 25% duty (167ms ON, 500ms coast) */
+    MODE_2HZ_25,      /**< 2.0Hz bilateral @ 25% duty (125ms ON, 375ms coast) */
+    MODE_CUSTOM,      /**< Mode 4: Custom frequency/duty (BLE configurable) */
     MODE_COUNT        /**< Total number of modes */
 } mode_t;
 
@@ -87,19 +91,23 @@ extern const mode_config_t modes[MODE_COUNT];
 /**
  * @brief Motor task state machine states
  *
- * 9-state machine (Phase 1b.3 adds PAIRING_WAIT) for bilateral alternating motor control
- * with back-EMF sampling and BLE pairing security
+ * 6-state machine (simplified from 9-state to fix 2× frequency bug)
+ * Direction alternates between cycles (not within cycles)
+ *
+ * State Flow:
+ * PAIRING_WAIT → CHECK_MESSAGES → ACTIVE (one direction) → INACTIVE → [repeat, alternate direction]
+ *
+ * Back-EMF sampling states (BEMF_IMMEDIATE, COAST_SETTLE) are entered from ACTIVE state
+ * when sampling is enabled (first 10 seconds after mode change)
  */
 typedef enum {
-    MOTOR_STATE_PAIRING_WAIT,             /**< Wait for BLE pairing to complete (Phase 1b.3) */
-    MOTOR_STATE_CHECK_MESSAGES,           /**< Check queues, handle mode changes */
-    MOTOR_STATE_FORWARD_ACTIVE,           /**< Motor forward, PWM active */
-    MOTOR_STATE_FORWARD_COAST_REMAINING,  /**< Coast remaining time (forward cycle) */
-    MOTOR_STATE_BEMF_IMMEDIATE,           /**< Coast + immediate back-EMF sample */
-    MOTOR_STATE_COAST_SETTLE,             /**< Wait settle time + settled sample */
-    MOTOR_STATE_REVERSE_ACTIVE,           /**< Motor reverse, PWM active */
-    MOTOR_STATE_REVERSE_COAST_REMAINING,  /**< Coast remaining time (reverse cycle) */
-    MOTOR_STATE_SHUTDOWN                  /**< Final cleanup before task exit */
+    MOTOR_STATE_PAIRING_WAIT,      /**< Wait for BLE pairing to complete (Phase 1b.3) */
+    MOTOR_STATE_CHECK_MESSAGES,    /**< Check queues, handle mode changes, battery, session timeout */
+    MOTOR_STATE_ACTIVE,            /**< Motor active in current direction (forward or reverse) */
+    MOTOR_STATE_BEMF_IMMEDIATE,    /**< Coast + immediate back-EMF sample (optional) */
+    MOTOR_STATE_COAST_SETTLE,      /**< Wait settle time + settled sample (optional) */
+    MOTOR_STATE_INACTIVE,          /**< Motor coast (inactive period), alternate direction for next cycle */
+    MOTOR_STATE_SHUTDOWN           /**< Final cleanup before task exit */
 } motor_state_t;
 
 // ============================================================================

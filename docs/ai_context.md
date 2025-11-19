@@ -568,12 +568,14 @@ esp_err_t ble_gatt_set_custom_frequency(uint16_t frequency_hz_x100);
 
 /**
  * @brief GATT Characteristic 0x0003: Custom Duty Cycle (Mode 5 only)
- * @param duty_percent Duty cycle percentage (10-50%)
+ * @param duty_percent Duty cycle percentage (10-100%)
  * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
  *
- * Range: 10-50%
+ * Range: 10-100% (percentage of ACTIVE half-cycle only)
  * - 10% minimum ensures perceptible timing pattern
- * - Maximum 50% prevents motor overlap in single-device bilateral alternation
+ * - Frequency guarantees 50/50 ACTIVE/INACTIVE split (e.g., at 1Hz: ACTIVE 0-500ms, INACTIVE 500-1000ms)
+ * - 100% duty uses entire ACTIVE period but respects INACTIVE period
+ * - GUARANTEE: Motor is always OFF for at least 50% of total cycle time
  * - For LED-only mode (no motor), use PWM intensity = 0% instead
  *
  * Properties: Read/Write

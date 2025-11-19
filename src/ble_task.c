@@ -1,11 +1,12 @@
 /**
  * @file ble_task.c
- * @brief BLE Task Implementation - 4-state advertising lifecycle manager
+ * @brief BLE Task Implementation - 5-state advertising lifecycle manager
  *
- * Implements BLE advertising timeout enforcement and message queue handling.
+ * Implements BLE advertising timeout enforcement, pairing lifecycle management,
+ * and message queue handling.
  * Extracted from single_device_ble_gatt_test.c reference implementation.
  *
- * @date November 11, 2025
+ * @date November 15, 2025 (Phase 1b.3: Added pairing state)
  * @author Claude Code (Anthropic)
  */
 
@@ -110,6 +111,62 @@ void ble_task(void *pvParameters) {
                     }
                 }
 
+                // Check for 30s UUID switch (Phase 1b.3 UUID-switching)
+                // Switch from Bilateral UUID (peer discovery) to Config UUID (app discovery)
+                static bool uuid_switched = false;
+                if (!uuid_switched && !ble_check_bonded_peer_exists()) {
+                    uint32_t elapsed_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                    if (elapsed_ms >= 30000) {
+                        ESP_LOGI(TAG, "30s pairing window expired - switching to Config Service UUID");
+                        ble_stop_advertising();
+                        vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay
+                        ble_start_advertising();  // Will use Config UUID (ble_get_advertised_uuid checks elapsed time)
+                        ESP_LOGI(TAG, "Now advertising Config UUID (apps can connect)");
+                        uuid_switched = true;
+                    }
+                }
+
+                // Check for pairing started (Phase 1b.3)
+                // CRITICAL FIX: Check NVS for bonded peers before starting pairing window
+                // If bonded peer exists, skip pairing window for silent reconnection
+                static bool pairing_window_started = false;
+                if (!pairing_window_started) {
+                    // Check if bonded peer exists in NVS storage
+                    bool bonded_peer_exists = ble_check_bonded_peer_exists();
+
+                    if (bonded_peer_exists) {
+                        // Bonded peer found - skip pairing window and allow silent reconnection
+                        ESP_LOGI(TAG, "Bonded peer found in NVS, skipping pairing window (silent reconnection)");
+                        pairing_window_started = true;  // Prevent repeated checks
+
+                        // Send immediate MSG_PAIRING_COMPLETE to motor_task (bonded reconnection mode)
+                        extern QueueHandle_t ble_to_motor_queue;
+                        if (ble_to_motor_queue != NULL) {
+                            task_message_t msg = {
+                                .type = MSG_PAIRING_COMPLETE,
+                                .data = {.new_mode = 0}
+                            };
+                            if (xQueueSend(ble_to_motor_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                                ESP_LOGI(TAG, "Motor task notified: can continue session (bonded peer mode)");
+                            } else {
+                                ESP_LOGW(TAG, "Failed to send MSG_PAIRING_COMPLETE for bonded peer");
+                            }
+                        }
+
+                        // Stay in ADVERTISING state, wait for bonded peer reconnection
+                        // NO status LED patterns, NO 30-second countdown
+                        break;
+                    }
+
+                    // No bonded peer found - proceed with first-time pairing
+                    pairing_window_started = true;
+                    ESP_LOGI(TAG, "Starting 30-second peer pairing window (first-time pairing)");
+                    status_led_pattern(STATUS_PATTERN_PAIRING_WAIT);  // Solid ON during pairing window
+                    ESP_LOGI(TAG, "State: ADVERTISING → PAIRING (window started)");
+                    state = BLE_STATE_PAIRING;
+                    break;
+                }
+
                 // Check for client connection (set by GAP event handler)
                 if (ble_is_connected()) {
                     ESP_LOGI(TAG, "Client connected");
@@ -138,12 +195,12 @@ void ble_task(void *pvParameters) {
                             ble_stop_advertising();
                             ESP_LOGI(TAG, "State: ADVERTISING → IDLE");
                             state = BLE_STATE_IDLE;
-                        }
-
-                        // Log progress every minute
-                        if ((elapsed % 60000) < 200) {  // Within 200ms of minute boundary
-                            ESP_LOGI(TAG, "Advertising for %u seconds (timeout at %u sec)",
-                                     elapsed / 1000, BLE_ADV_TIMEOUT_MS / 1000);
+                        } else {
+                            // Log progress every minute (only if NOT timing out)
+                            if ((elapsed % 60000) < 200) {  // Within 200ms of minute boundary
+                                ESP_LOGI(TAG, "Advertising for %u seconds (timeout at %u sec)",
+                                         elapsed / 1000, BLE_ADV_TIMEOUT_MS / 1000);
+                            }
                         }
                     }
                 } else {
@@ -152,6 +209,140 @@ void ble_task(void *pvParameters) {
                     ESP_LOGI(TAG, "State: ADVERTISING → IDLE");
                     state = BLE_STATE_IDLE;
                 }
+                break;
+            }
+
+            case BLE_STATE_PAIRING: {
+                // Phase 1b.3: Wait for pairing to complete with 30-second timeout
+                static int64_t pairing_start_time = 0;
+                const uint32_t PAIRING_TIMEOUT_MS = 30000;  // 30 seconds (JPL compliant)
+
+                // Initialize pairing start time on first entry
+                if (pairing_start_time == 0) {
+                    pairing_start_time = esp_timer_get_time() / 1000;  // Convert to milliseconds
+                    ESP_LOGI(TAG, "Pairing started, 30-second timeout active");
+                }
+
+                // Check for messages (500ms timeout for LED pattern pulsing)
+                if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(500)) == pdTRUE) {
+                    if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "Emergency shutdown during pairing");
+                        pairing_start_time = 0;  // Reset timer
+                        ESP_LOGI(TAG, "State: PAIRING → SHUTDOWN");
+                        state = BLE_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
+
+                // Display pairing progress pattern (pulsing 1Hz)
+                // Pattern: 500ms ON, 500ms OFF (implemented in status_led.c)
+                status_led_pattern(STATUS_PATTERN_PAIRING_PROGRESS);
+
+                // Check if PEER pairing completed successfully
+                // Pairing is complete when peer is connected AND encryption finished
+                if (ble_is_peer_connected() && !ble_is_pairing()) {
+                    pairing_start_time = 0;  // Reset timer
+                    ESP_LOGI(TAG, "Peer pairing completed successfully");
+                    status_led_pattern(STATUS_PATTERN_PAIRING_SUCCESS);  // Green 3× blink
+                    vTaskDelay(pdMS_TO_TICKS(1500));  // Wait for LED pattern to complete
+
+                    // BUG FIX: Explicitly turn off GPIO15 before motor takes WS2812B ownership
+                    // Ensures status LED is not left ON when motor_task disables status_led patterns
+                    status_led_off();
+                    ESP_LOGI(TAG, "GPIO15 (status LED) turned OFF before motor ownership transfer");
+
+                    // Send success message to motor_task (BUG FIX: was missing)
+                    extern QueueHandle_t ble_to_motor_queue;
+                    if (ble_to_motor_queue != NULL) {
+                        task_message_t success_msg = {
+                            .type = MSG_PAIRING_COMPLETE,
+                            .data = {.new_mode = 0}
+                        };
+                        if (xQueueSend(ble_to_motor_queue, &success_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                            ESP_LOGI(TAG, "Pairing complete message sent to motor_task");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to send pairing complete message");
+                        }
+                    }
+
+                    // BUG FIX: Stop scanning for additional peers (peer connection complete)
+                    ESP_LOGI(TAG, "Stopping peer discovery scan (peer connected)");
+                    ble_stop_scanning();
+
+                    // BUG #26 FIX: Restart advertising for SERVER device (mobile app access)
+                    // This gives ~4s between peer connection and advertising restart
+                    // (prevents timing race with NimBLE controller that caused BLE_HS_ECONTROLLER errors)
+                    // Only SERVER devices advertise after peer pairing (CLIENT does not)
+                    if (ble_get_peer_role() == PEER_ROLE_SERVER) {
+                        if (!ble_is_advertising()) {
+                            ble_start_advertising();
+                            ESP_LOGI(TAG, "SERVER: Advertising restarted for mobile app access (5 min timeout)");
+                        }
+                    } else {
+                        ESP_LOGI(TAG, "CLIENT: No advertising (peer connection only)");
+                    }
+
+                    ESP_LOGI(TAG, "State: PAIRING → ADVERTISING");
+                    state = BLE_STATE_ADVERTISING;
+                    break;
+                }
+
+                // Check pairing timeout (30 seconds JPL compliant)
+                int64_t current_time = esp_timer_get_time() / 1000;
+                uint32_t elapsed = (uint32_t)(current_time - pairing_start_time);
+
+                if (elapsed >= PAIRING_TIMEOUT_MS) {
+                    ESP_LOGW(TAG, "Pairing timeout after %u seconds", PAIRING_TIMEOUT_MS / 1000);
+                    pairing_start_time = 0;  // Reset timer
+                    status_led_pattern(STATUS_PATTERN_PAIRING_FAILED);  // Red 3× blink
+                    vTaskDelay(pdMS_TO_TICKS(1500));  // Wait for LED pattern to complete
+
+                    // BUG FIX: Explicitly turn off GPIO15 before motor takes WS2812B ownership
+                    status_led_off();
+                    ESP_LOGI(TAG, "GPIO15 (status LED) turned OFF after pairing timeout");
+
+                    // Send timeout failure message to motor_task (Phase 1b.3)
+                    extern QueueHandle_t ble_to_motor_queue;
+                    if (ble_to_motor_queue != NULL) {
+                        task_message_t timeout_msg = {
+                            .type = MSG_PAIRING_FAILED,
+                            .data = {.new_mode = 0}
+                        };
+                        if (xQueueSend(ble_to_motor_queue, &timeout_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                            ESP_LOGI(TAG, "Pairing timeout message sent to motor_task");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to send pairing timeout message");
+                        }
+                    }
+
+                    // Disconnect if still connected
+                    if (ble_is_connected()) {
+                        uint16_t conn_handle = ble_get_pairing_conn_handle();
+                        if (conn_handle != 0xFFFF) {  // BLE_HS_CONN_HANDLE_NONE
+                            ESP_LOGI(TAG, "Disconnecting pairing connection (handle=%d)", conn_handle);
+                            ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                            vTaskDelay(pdMS_TO_TICKS(100));  // Wait for disconnect
+                        }
+                    }
+
+                    // BUG FIX: Stop scanning for peers and restart advertising with Config UUID
+                    // Single-device mode: advertise Config UUID for PWA/mobile app discovery
+                    ESP_LOGI(TAG, "Single-device mode: stopping peer scan, advertising Config UUID for apps");
+                    ble_stop_scanning();  // Stop peer discovery scanning
+                    ble_stop_advertising();  // Stop Bilateral UUID advertising
+                    vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay for cleanup
+                    ble_start_advertising();  // Restart with Config UUID (30s elapsed)
+                    ESP_LOGI(TAG, "State: PAIRING → ADVERTISING (Config UUID for PWA/app)");
+                    state = BLE_STATE_ADVERTISING;
+                    break;
+                }
+
+                // Log progress every 5 seconds
+                if ((elapsed % 5000) < 600) {  // Within 600ms of 5-second boundary
+                    ESP_LOGI(TAG, "Pairing in progress: %u/%u seconds",
+                             elapsed / 1000, PAIRING_TIMEOUT_MS / 1000);
+                }
+
                 break;
             }
 
@@ -202,9 +393,26 @@ void ble_task(void *pvParameters) {
 
                     // GAP event handler automatically restarts advertising
                     if (ble_is_advertising()) {
-                        // Phase 1a: Resume scanning for peer after disconnect
-                        ble_start_scanning();
-                        ESP_LOGI(TAG, "Advertising restarted after disconnect (scanning for peer)");
+                        // Phase 1b.3: Only scan for peers during initial pairing window
+                        // Don't scan if:
+                        // - Past 30s (single-device mode)
+                        // - Peer already connected (dual-device mode)
+                        // - Peer already bonded (no need to re-pair)
+                        uint32_t elapsed_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                        bool should_scan = (elapsed_ms < 30000) &&
+                                          !ble_is_peer_connected() &&
+                                          !ble_check_bonded_peer_exists();
+
+                        if (should_scan) {
+                            ble_start_scanning();
+                            ESP_LOGI(TAG, "Advertising restarted after app disconnect (within 30s - scanning for peer)");
+                        } else {
+                            if (ble_is_peer_connected()) {
+                                ESP_LOGI(TAG, "Advertising restarted after app disconnect (peer connected - no scanning)");
+                            } else {
+                                ESP_LOGI(TAG, "Advertising restarted after app disconnect (single-device mode - no scanning)");
+                            }
+                        }
                         ESP_LOGI(TAG, "State: CONNECTED → ADVERTISING");
                         state = BLE_STATE_ADVERTISING;
                     } else {

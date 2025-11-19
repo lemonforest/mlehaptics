@@ -36,17 +36,17 @@ extern "C" {
  * @brief Status LED patterns for different system events
  */
 typedef enum {
-    STATUS_PATTERN_BLE_CONNECTED,      /**< 5× blink (100ms ON, 100ms OFF) - BLE client connected */
-    STATUS_PATTERN_BLE_REENABLE,       /**< 3× blink (100ms ON, 100ms OFF) - BLE advertising restarted */
-    STATUS_PATTERN_LOW_BATTERY,        /**< 3× blink (200ms ON, 200ms OFF) - Low battery warning */
-    STATUS_PATTERN_NVS_RESET,          /**< 3× blink (100ms ON, 100ms OFF) - NVS factory reset successful */
-    STATUS_PATTERN_MODE_CHANGE,        /**< 1× quick blink (50ms ON) - Mode changed */
-    STATUS_PATTERN_BUTTON_HOLD,        /**< Continuous ON - Button hold detected (1s+) */
-    STATUS_PATTERN_COUNTDOWN,          /**< Continuous ON - Shutdown countdown in progress */
-    STATUS_PATTERN_PAIRING_WAIT,       /**< Solid ON - Waiting for peer discovery (Phase 1b.3) */
-    STATUS_PATTERN_PAIRING_PROGRESS,   /**< Pulsing 1Hz - Pairing in progress (Phase 1b.3) */
-    STATUS_PATTERN_PAIRING_SUCCESS,    /**< WS2812B green 3× blink - Pairing success (Phase 1b.3) */
-    STATUS_PATTERN_PAIRING_FAILED      /**< WS2812B red 3× blink - Pairing failed (Phase 1b.3) */
+    STATUS_PATTERN_BLE_CONNECTED,      /**< GPIO15 5× blink (100ms ON, 100ms OFF) - BLE client connected */
+    STATUS_PATTERN_BLE_REENABLE,       /**< GPIO15 3× blink (100ms ON, 100ms OFF) - BLE advertising restarted */
+    STATUS_PATTERN_LOW_BATTERY,        /**< GPIO15 3× blink (200ms ON, 200ms OFF) - Low battery warning */
+    STATUS_PATTERN_NVS_RESET,          /**< GPIO15 3× blink (100ms ON, 100ms OFF) - NVS factory reset successful */
+    STATUS_PATTERN_MODE_CHANGE,        /**< GPIO15 1× quick blink (50ms ON) - Mode changed */
+    STATUS_PATTERN_BUTTON_HOLD,        /**< GPIO15 continuous ON - Button hold detected (1s+) */
+    STATUS_PATTERN_COUNTDOWN,          /**< GPIO15 continuous ON - Shutdown countdown in progress */
+    STATUS_PATTERN_PAIRING_WAIT,       /**< GPIO15 solid ON + WS2812B purple solid - Waiting for peer discovery (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_PROGRESS,   /**< GPIO15 pulsing 1Hz + WS2812B purple pulsing - Pairing in progress (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_SUCCESS,    /**< GPIO15 + WS2812B green 3× synchronized blink - Pairing success (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_FAILED      /**< GPIO15 + WS2812B red 3× synchronized blink - Pairing failed (Phase 1b.3) */
 } status_pattern_t;
 
 // ============================================================================

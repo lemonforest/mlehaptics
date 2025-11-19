@@ -2,14 +2,15 @@
  * @file motor_task.c
  * @brief Motor Control Task Module - Implementation
  *
- * Complete 8-state machine for bilateral alternating motor control with:
+ * Complete 9-state machine for bilateral alternating motor control with:
+ * - Pairing wait state (Phase 1b.3) - delays session start until BLE pairing completes
  * - Mode configurations (predefined + custom via BLE)
- * - Message queue handling (button events, battery warnings)
+ * - Message queue handling (button events, battery warnings, pairing events)
  * - Back-EMF sampling for research
  * - Soft-fail watchdog pattern
  * - JPL compliance (no busy-wait loops)
  *
- * @date November 11, 2025
+ * @date November 15, 2025 (Phase 1b.3: Added pairing wait state)
  * @author Claude Code (Anthropic)
  */
 
@@ -24,6 +25,7 @@
 #include "motor_control.h"
 #include "led_control.h"
 #include "ble_manager.h"
+#include "role_manager.h"
 #include "power_manager.h"
 
 static const char *TAG = "MOTOR_TASK";
@@ -42,12 +44,26 @@ static const char *TAG = "MOTOR_TASK";
 // MODE CONFIGURATIONS
 // ============================================================================
 
+// NOTE: Frequencies are BILATERAL alternation rates (not per-device rates)
+// ACTIVE/INACTIVE Architecture (50/50 split):
+// - Each cycle is divided into ACTIVE (50%) and INACTIVE (50%) periods
+// - All presets use 50% duty for consistency (50% of ACTIVE period)
+// - Direction alternates AFTER each INACTIVE period
+//
+// BILATERAL MODE (dual devices):
+// - "1.0Hz" = 1 complete left-right alternation per second
+// - DEV A ACTIVE while DEV B INACTIVE, then vice versa
+// - Example 1.0Hz: DEV_A [250ms ON | 750ms OFF], DEV_B [750ms OFF | 250ms ON]
+//
+// SINGLE DEVICE MODE:
+// - "1.0Hz" = motor reverses direction every 1000ms
+// - Total cycle time: 1000ms (250ms ON, 750ms OFF per direction)
 const mode_config_t modes[MODE_COUNT] = {
-    {"1Hz@50%", 250, 250},    // MODE_1HZ_50
-    {"1Hz@25%", 125, 375},    // MODE_1HZ_25
-    {"0.5Hz@50%", 500, 500},  // MODE_05HZ_50
-    {"0.5Hz@25%", 250, 750},  // MODE_05HZ_25
-    {"Custom", 250, 250}      // MODE_CUSTOM (default to 1Hz@50%)
+    {"0.5Hz@25%",  500, 1500},  // MODE_05HZ_25 → 0.5Hz: 500ms ON, 1500ms OFF (25% of 2000ms period)
+    {"1.0Hz@25%",  250,  750},  // MODE_1HZ_25 → 1.0Hz: 250ms ON, 750ms OFF (25% of 1000ms period)
+    {"1.5Hz@25%",  167,  500},  // MODE_15HZ_25 → 1.5Hz: 167ms ON, 500ms OFF (25% of 667ms period)
+    {"2.0Hz@25%",  125,  375},  // MODE_2HZ_25 → 2.0Hz: 125ms ON, 375ms OFF (25% of 500ms period)
+    {"Custom", 250, 750}        // MODE_CUSTOM (default to 1.0Hz@25%)
 };
 
 // ============================================================================
@@ -60,15 +76,26 @@ static uint32_t last_battery_check_ms = 0;
 static uint32_t last_session_time_notify_ms = 0;
 
 // Current operating mode (accessed by motor_get_current_mode())
-static mode_t current_mode = MODE_1HZ_50;   // Default: Mode 0 (1Hz @ 50%)
+static mode_t current_mode = MODE_05HZ_25;   // Default: Mode 0 (0.5Hz @ 25%)
 
-// Mode 5 (custom) parameters (updated via BLE)
-static uint32_t mode5_on_ms = 250;          // Default: 250ms on (1Hz)
-static uint32_t mode5_coast_ms = 250;       // Default: 250ms coast (1Hz)
+// Mode 4 (custom) parameters (updated via BLE)
+static uint32_t mode5_on_ms = 250;          // Default: 250ms on (1Hz @ 25% duty)
+static uint32_t mode5_coast_ms = 750;       // Default: 750ms coast (1Hz @ 25% duty)
 static uint8_t mode5_pwm_intensity = MOTOR_PWM_DEFAULT;  // From motor_control.h (single source of truth)
 
 // BLE parameter update flag
 static volatile bool ble_params_updated = false;
+
+// Direction alternation flag (fixes 2× frequency bug)
+// true = forward, false = reverse
+// Alternates after each INACTIVE period
+static bool is_forward_direction = true;
+
+// Phase 2 forward-compatibility: Direction mode flag
+// When true: Direction alternates each cycle (motor wear reduction)
+// When false: Direction fixed per device (research capability - dual-device only)
+// Default: true (alternating mode)
+static bool direction_alternation_enabled = true;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -85,16 +112,16 @@ static void led_set_mode_color(mode_t mode) {
 
     // Mode-specific colors (matching BLE GATT test)
     switch (mode) {
-        case MODE_1HZ_50:
+        case MODE_05HZ_25:
             led_set_palette(0, brightness);  // Red
             break;
         case MODE_1HZ_25:
             led_set_palette(4, brightness);  // Green
             break;
-        case MODE_05HZ_50:
+        case MODE_15HZ_25:
             led_set_palette(8, brightness);  // Blue
             break;
-        case MODE_05HZ_25:
+        case MODE_2HZ_25:
             led_set_palette(2, brightness);  // Yellow
             break;
         case MODE_CUSTOM:
@@ -151,30 +178,41 @@ static bool delay_with_mode_check(uint32_t delay_ms) {
  * @brief Calculate motor timing based on current mode and BLE parameters
  * @param mode Current mode
  * @param motor_on_ms Output: Motor ON time in milliseconds
- * @param coast_ms Output: Coast time in milliseconds
+ * @param coast_ms Output: Coast time in milliseconds (INACTIVE period)
  * @param pwm_intensity Output: PWM intensity percentage
  * @param verbose_logging If true, log timing calculations (gated with BEMF sampling)
+ *
+ * ACTIVE/INACTIVE Architecture:
+ * - Cycle is split 50/50 into ACTIVE and INACTIVE periods
+ * - ACTIVE period: Motor can be ON (based on duty%) or coasting
+ * - INACTIVE period: Motor always coasting (guaranteed 50% OFF time)
+ * - Duty% applies only to ACTIVE period (10% duty = 10% of ACTIVE period)
+ * - Direction alternates AFTER each INACTIVE period
  */
 static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *coast_ms, uint8_t *pwm_intensity, bool verbose_logging) {
     if (mode == MODE_CUSTOM) {
-        // Mode 5: Custom parameters from BLE
+        // Mode 4: Custom parameters from BLE
         uint16_t freq_x100 = ble_get_custom_frequency_hz();  // Hz × 100
-        uint8_t duty = ble_get_custom_duty_percent();         // 10-50% (timing pattern, 50% max prevents motor overlap)
+        uint8_t duty = ble_get_custom_duty_percent();         // 10-100% of ACTIVE period
 
-        // Calculate cycle period in ms: period = 1000 / (freq / 100)
+        // Calculate FULL cycle period in ms: period = 1000 / (freq / 100)
         uint32_t cycle_ms = 100000 / freq_x100;  // e.g., 100 → 1000ms for 1Hz
 
-        // Calculate motor ON time: on_time = (cycle / 2) * (duty / 100)
-        *motor_on_ms = (cycle_ms * duty) / 200;  // Half-cycle × duty%
+        // Split cycle 50/50 into ACTIVE and INACTIVE periods
+        uint32_t active_period_ms = cycle_ms / 2;
+        uint32_t inactive_period_ms = cycle_ms - active_period_ms;  // Handle odd values
 
-        // Coast is remaining half-cycle
-        *coast_ms = (cycle_ms / 2) - *motor_on_ms;
+        // Apply duty% within ACTIVE period only (linear scaling)
+        *motor_on_ms = (active_period_ms * duty) / 100;
+
+        // Coast time is always the INACTIVE period (guaranteed 50% OFF)
+        *coast_ms = inactive_period_ms;
 
         // PWM intensity from BLE
         *pwm_intensity = ble_get_pwm_intensity();
 
         if (verbose_logging) {
-            ESP_LOGI(TAG, "Mode 5: %.2fHz, %u%% duty → %lums ON, %lums coast, %u%% PWM",
+            ESP_LOGI(TAG, "Mode 4 (Custom): %.2fHz, %u%% duty → %lums ON, %lums OFF (50/50 split), %u%% PWM",
                      freq_x100 / 100.0f, duty, *motor_on_ms, *coast_ms, *pwm_intensity);
         }
     } else {
@@ -190,12 +228,14 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
 // ============================================================================
 
 void motor_task(void *pvParameters) {
-    motor_state_t state = MOTOR_STATE_CHECK_MESSAGES;
+    // Phase 1b.3: Start in PAIRING_WAIT state
+    // Session timer will be initialized only after pairing completes
+    motor_state_t state = MOTOR_STATE_PAIRING_WAIT;
 
     // Initialize current_mode from BLE (may have been loaded from NVS)
     current_mode = ble_get_current_mode();
 
-    // Note: session_start_time_ms already set by motor_init_session_time() during hardware init
+    // Note: session_start_time_ms will be set AFTER pairing completes (Phase 1b.3)
     // Use current time for task-specific timers
     uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
     uint32_t led_indication_start_ms = now_ms;
@@ -211,9 +251,6 @@ void motor_task(void *pvParameters) {
     bool sample_backemf = false;
     int raw_mv_drive = 0, raw_mv_immed = 0, raw_mv_settled = 0;
     int16_t bemf_drive = 0, bemf_immed = 0, bemf_settled = 0;
-
-    // Phase tracking for shared back-EMF states
-    bool in_forward_phase = true;
 
     // Initialize task-specific timers (session_start_time_ms already set during hardware init)
     last_battery_check_ms = now_ms;
@@ -234,15 +271,109 @@ void motor_task(void *pvParameters) {
 
     while (state != MOTOR_STATE_SHUTDOWN) {
         uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
-        uint32_t elapsed = now - session_start_time_ms;
+
+        // NOTE: elapsed calculation moved inside CHECK_MESSAGES state
+        // (not available during PAIRING_WAIT since session hasn't started yet)
 
         switch (state) {
+            // ================================================================
+            // STATE: PAIRING_WAIT (Phase 1b.3)
+            // ================================================================
+            case MOTOR_STATE_PAIRING_WAIT: {
+                // Feed watchdog during pairing wait
+                esp_err_t err = esp_task_wdt_reset();
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "Failed to reset watchdog: %s", esp_err_to_name(err));
+                }
+
+                // Check for emergency shutdown from button task
+                task_message_t msg;
+                if (xQueueReceive(button_to_motor_queue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                    if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "Emergency shutdown during pairing wait");
+                        state = MOTOR_STATE_SHUTDOWN;
+                        break;
+                    }
+                }
+
+                // Check for pairing completion from BLE task
+                if (xQueueReceive(ble_to_motor_queue, &msg, 0) == pdTRUE) {
+                    if (msg.type == MSG_PAIRING_COMPLETE) {
+                        ESP_LOGI(TAG, "Pairing completed successfully");
+
+                        // Initialize session timer NOW (after pairing complete)
+                        motor_init_session_time();
+                        ESP_LOGI(TAG, "Session timer initialized (pairing complete)");
+
+                        // Motor task now owns WS2812B (Phase 1b.3: Prevent status_led interruption)
+                        led_set_motor_ownership(true);
+
+                        // Reset LED indication timer (BUG FIX: Timer starts during BLE pattern)
+                        led_indication_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+                        // Bilateral Coordination: CLIENT starts in INACTIVE to offset from SERVER
+                        peer_role_t role = ble_get_peer_role();
+                        if (role == PEER_ROLE_CLIENT) {
+                            // Initialize timing parameters for initial cycle
+                            calculate_mode_timing(current_mode, &motor_on_ms, &coast_ms, &pwm_intensity, false);
+                            show_led = (current_mode == MODE_CUSTOM) ? ble_get_led_enable() : led_indication_active;
+                            is_forward_direction = true;  // Start in forward direction
+
+                            // Calculate proper bilateral offset (half of bilateral cycle)
+                            // For 1.0Hz@50%: bilateral_cycle = 250ms + 750ms = 1000ms → offset = 500ms
+                            // This ensures CLIENT activates when SERVER is inactive (true alternation)
+                            uint32_t bilateral_cycle_ms = motor_on_ms + coast_ms;
+                            uint32_t bilateral_offset_ms = bilateral_cycle_ms / 2;
+                            coast_ms = bilateral_offset_ms;  // Override for initial INACTIVE wait
+
+                            ESP_LOGI(TAG, "State: PAIRING_WAIT → INACTIVE (CLIENT offset=%lums, bilateral_cycle=%lums)",
+                                     bilateral_offset_ms, bilateral_cycle_ms);
+                            state = MOTOR_STATE_INACTIVE;
+                        } else {
+                            // SERVER or STANDALONE: Normal forward start
+                            ESP_LOGI(TAG, "State: PAIRING_WAIT → CHECK_MESSAGES (%s)",
+                                     role == PEER_ROLE_SERVER ? "SERVER" : "STANDALONE");
+                            state = MOTOR_STATE_CHECK_MESSAGES;
+                        }
+                        break;
+                    } else if (msg.type == MSG_PAIRING_FAILED) {
+                        ESP_LOGW(TAG, "Peer pairing failed or timeout - continuing as single device");
+
+                        // Initialize session timer (single-device mode)
+                        motor_init_session_time();
+                        ESP_LOGI(TAG, "Session timer initialized (single-device mode)");
+
+                        // Motor task now owns WS2812B (Phase 1b.3: Prevent status_led interruption)
+                        led_set_motor_ownership(true);
+
+                        // Reset LED indication timer (BUG FIX: Timer starts during BLE pattern)
+                        led_indication_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+                        // Transition to normal operation (single-device)
+                        ESP_LOGI(TAG, "State: PAIRING_WAIT → CHECK_MESSAGES (single-device)");
+                        state = MOTOR_STATE_CHECK_MESSAGES;
+                        break;
+                    }
+                }
+
+                // Periodic status log (every 5 seconds)
+                static uint32_t last_pairing_log_ms = 0;
+                if ((now - last_pairing_log_ms) >= 5000) {
+                    ESP_LOGI(TAG, "Waiting for BLE pairing to complete...");
+                    last_pairing_log_ms = now;
+                }
+
+                break;
+            }
+
             // ================================================================
             // STATE: CHECK_MESSAGES
             // ================================================================
             case MOTOR_STATE_CHECK_MESSAGES: {
+                // Calculate elapsed time (session timer now initialized)
+                uint32_t elapsed = now - session_start_time_ms;
                 // Feed watchdog every cycle (soft-fail pattern)
-                err = esp_task_wdt_reset();
+                esp_err_t err = esp_task_wdt_reset();
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "Failed to reset watchdog: %s", esp_err_to_name(err));
                 }
@@ -342,26 +473,27 @@ void motor_task(void *pvParameters) {
                     ESP_LOGI(TAG, "LED off (battery conservation)");
                 }
 
-                // Don't transition to FORWARD if shutting down
+                // Don't transition to ACTIVE if shutting down
                 if (state == MOTOR_STATE_SHUTDOWN) {
                     break;
                 }
 
-                // Transition to FORWARD
-                state = MOTOR_STATE_FORWARD_ACTIVE;
+                // Transition to ACTIVE (direction determined by is_forward_direction flag)
+                state = MOTOR_STATE_ACTIVE;
                 break;
             }
 
             // ================================================================
-            // STATE: FORWARD_ACTIVE
+            // STATE: ACTIVE
             // ================================================================
-            case MOTOR_STATE_FORWARD_ACTIVE: {
-                // Start motor forward
-                motor_set_forward(pwm_intensity, sample_backemf);
+            case MOTOR_STATE_ACTIVE: {
+                // Start motor in current direction (determined by is_forward_direction flag)
+                if (is_forward_direction) {
+                    motor_set_forward(pwm_intensity, sample_backemf);
+                } else {
+                    motor_set_reverse(pwm_intensity, sample_backemf);
+                }
                 if (show_led) led_set_mode_color(current_mode);
-
-                // Mark that we're in forward phase
-                in_forward_phase = true;
 
                 if (sample_backemf) {
                     // Shortened active time for back-EMF sampling
@@ -380,7 +512,7 @@ void motor_task(void *pvParameters) {
                     // Short delay before coasting
                     vTaskDelay(pdMS_TO_TICKS(10));
 
-                    // Transition to shared immediate back-EMF sample state
+                    // Transition to immediate back-EMF sample state
                     state = MOTOR_STATE_BEMF_IMMEDIATE;
                 } else {
                     // Full active time, no sampling
@@ -395,14 +527,14 @@ void motor_task(void *pvParameters) {
                     motor_coast(sample_backemf);
                     led_clear();
 
-                    // Skip back-EMF states, go straight to coast remaining
-                    state = MOTOR_STATE_FORWARD_COAST_REMAINING;
+                    // Transition to INACTIVE state
+                    state = MOTOR_STATE_INACTIVE;
                 }
                 break;
             }
 
             // ================================================================
-            // STATE: BEMF_IMMEDIATE (Shared between forward and reverse)
+            // STATE: BEMF_IMMEDIATE
             // ================================================================
             case MOTOR_STATE_BEMF_IMMEDIATE: {
                 // Coast motor and clear LED
@@ -412,13 +544,13 @@ void motor_task(void *pvParameters) {
                 // Sample #2: Immediately after coast starts
                 battery_read_backemf(&raw_mv_immed, &bemf_immed);
 
-                // Transition to settling state (shared)
+                // Transition to settling state
                 state = MOTOR_STATE_COAST_SETTLE;
                 break;
             }
 
             // ================================================================
-            // STATE: COAST_SETTLE (Shared between forward and reverse)
+            // STATE: COAST_SETTLE
             // ================================================================
             case MOTOR_STATE_COAST_SETTLE: {
                 // Wait for back-EMF to settle
@@ -431,7 +563,7 @@ void motor_task(void *pvParameters) {
                 battery_read_backemf(&raw_mv_settled, &bemf_settled);
 
                 // Log readings with direction label
-                if (in_forward_phase) {
+                if (is_forward_direction) {
                     ESP_LOGI(TAG, "FWD: %dmV→%+dmV | %dmV→%+dmV | %dmV→%+dmV",
                              raw_mv_drive, bemf_drive, raw_mv_immed, bemf_immed,
                              raw_mv_settled, bemf_settled);
@@ -441,19 +573,15 @@ void motor_task(void *pvParameters) {
                              raw_mv_settled, bemf_settled);
                 }
 
-                // Transition to appropriate COAST_REMAINING state based on phase
-                if (in_forward_phase) {
-                    state = MOTOR_STATE_FORWARD_COAST_REMAINING;
-                } else {
-                    state = MOTOR_STATE_REVERSE_COAST_REMAINING;
-                }
+                // Transition to INACTIVE state
+                state = MOTOR_STATE_INACTIVE;
                 break;
             }
 
             // ================================================================
-            // STATE: FORWARD_COAST_REMAINING
+            // STATE: INACTIVE
             // ================================================================
-            case MOTOR_STATE_FORWARD_COAST_REMAINING: {
+            case MOTOR_STATE_INACTIVE: {
                 // Calculate remaining coast time
                 uint32_t remaining_coast;
                 if (sample_backemf) {
@@ -471,79 +599,13 @@ void motor_task(void *pvParameters) {
                     }
                 }
 
-                // Transition to REVERSE phase
-                state = MOTOR_STATE_REVERSE_ACTIVE;
-                break;
-            }
-
-            // ================================================================
-            // STATE: REVERSE_ACTIVE
-            // ================================================================
-            case MOTOR_STATE_REVERSE_ACTIVE: {
-                // Start motor reverse
-                motor_set_reverse(pwm_intensity, sample_backemf);
-                if (show_led) led_set_mode_color(current_mode);
-
-                // Mark that we're in reverse phase
-                in_forward_phase = false;
-
-                if (sample_backemf) {
-                    // Shortened active time for back-EMF sampling
-                    uint32_t active_time = (motor_on_ms > 10) ? (motor_on_ms - 10) : motor_on_ms;
-
-                    if (delay_with_mode_check(active_time)) {
-                        motor_coast(sample_backemf);
-                        led_clear();
-                        state = MOTOR_STATE_CHECK_MESSAGES;
-                        break;
-                    }
-
-                    // Sample #1: During active drive
-                    battery_read_backemf(&raw_mv_drive, &bemf_drive);
-
-                    // Short delay before coasting
-                    vTaskDelay(pdMS_TO_TICKS(10));
-
-                    // Transition to shared immediate back-EMF sample state
-                    state = MOTOR_STATE_BEMF_IMMEDIATE;
-                } else {
-                    // Full active time, no sampling
-                    if (delay_with_mode_check(motor_on_ms)) {
-                        motor_coast(sample_backemf);
-                        led_clear();
-                        state = MOTOR_STATE_CHECK_MESSAGES;
-                        break;
-                    }
-
-                    // CRITICAL: Always coast motor and clear LED!
-                    motor_coast(sample_backemf);
-                    led_clear();
-
-                    // Skip back-EMF states, go straight to coast remaining
-                    state = MOTOR_STATE_REVERSE_COAST_REMAINING;
-                }
-                break;
-            }
-
-            // ================================================================
-            // STATE: REVERSE_COAST_REMAINING
-            // ================================================================
-            case MOTOR_STATE_REVERSE_COAST_REMAINING: {
-                // Calculate remaining coast time
-                uint32_t remaining_coast;
-                if (sample_backemf) {
-                    // Already spent BACKEMF_SETTLE_MS, finish the rest
-                    remaining_coast = (coast_ms > BACKEMF_SETTLE_MS) ? (coast_ms - BACKEMF_SETTLE_MS) : 0;
-                } else {
-                    // Full coast time
-                    remaining_coast = coast_ms;
-                }
-
-                if (remaining_coast > 0) {
-                    if (delay_with_mode_check(remaining_coast)) {
-                        state = MOTOR_STATE_CHECK_MESSAGES;
-                        break;
-                    }
+                // CRITICAL: Alternate direction for next cycle (fixes 2× frequency bug)
+                // Single-device mode: Always alternate (motor wear reduction)
+                // Dual-device mode: Depends on direction_alternation_enabled flag
+                //   - Mode 0 (alternating): Both devices alternate forward/reverse
+                //   - Mode 1 (fixed_opposite): Device A always forward, Device B always reverse
+                if (direction_alternation_enabled) {
+                    is_forward_direction = !is_forward_direction;
                 }
 
                 // Cycle complete, check messages again
@@ -555,6 +617,9 @@ void motor_task(void *pvParameters) {
             // STATE: SHUTDOWN
             // ================================================================
             case MOTOR_STATE_SHUTDOWN: {
+                // Release WS2812B ownership (Phase 1b.3: Allow status_led patterns)
+                led_set_motor_ownership(false);
+
                 // Loop exit handled by while condition
                 break;
             }
@@ -614,21 +679,30 @@ uint32_t motor_get_session_time_ms(void) {
 }
 
 esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms) {
-    // Validate parameters (safety limits per AD031)
-    if (motor_on_ms < 10 || motor_on_ms > 500) {
-        ESP_LOGE(TAG, "Invalid motor_on_ms: %u (must be 10-500ms)", motor_on_ms);
-        return ESP_ERR_INVALID_ARG;
-    }
-    if (coast_ms < 10 || coast_ms > 2000) {
-        ESP_LOGE(TAG, "Invalid coast_ms: %u (must be 10-2000ms)", coast_ms);
+    // Validate parameters (safety limits per AD031/AD032)
+    // AD032: 0.25-2.0Hz @ 10-100% duty (full cycle timing)
+    uint32_t cycle_ms = motor_on_ms + coast_ms;
+
+    if (motor_on_ms < 10) {
+        ESP_LOGE(TAG, "Invalid motor_on_ms: %u (must be ≥10ms for perception)", motor_on_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Update global mode 5 parameters (thread-safe, motor_task reads these)
+    if (motor_on_ms > cycle_ms) {
+        ESP_LOGE(TAG, "Invalid motor_on_ms: %u exceeds cycle %u", motor_on_ms, cycle_ms);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (coast_ms > 4000) {
+        ESP_LOGE(TAG, "Invalid coast_ms: %u (must be ≤4000ms)", coast_ms);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // Update global mode 4 parameters (thread-safe, motor_task reads these)
     mode5_on_ms = motor_on_ms;
     mode5_coast_ms = coast_ms;
 
-    ESP_LOGI(TAG, "Mode 5 timing updated: on=%ums coast=%ums", motor_on_ms, coast_ms);
+    ESP_LOGI(TAG, "Mode 4 (Custom) timing updated: on=%ums coast=%ums", motor_on_ms, coast_ms);
     return ESP_OK;
 }
 

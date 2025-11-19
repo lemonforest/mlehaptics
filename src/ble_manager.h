@@ -91,7 +91,7 @@ typedef struct {
     // Motor Control Group (4 characteristics)
     mode_t current_mode;              /**< Current mode 0-4 (read/write) */
     uint16_t custom_frequency_hz;     /**< Hz × 100 (25-200 = 0.25-2.0 Hz) (read/write) */
-    uint8_t custom_duty_percent;      /**< Duty cycle 10-50% (10% min, 50% max prevents motor overlap) (read/write) */
+    uint8_t custom_duty_percent;      /**< Duty cycle 10-100% (10% min, 100% = entire half-cycle) (read/write) */
     uint8_t pwm_intensity;            /**< Motor PWM 0-80% (0% = LED-only) (read/write) */
 
     // LED Control Group (5 characteristics)
@@ -261,6 +261,35 @@ uint32_t ble_get_advertising_elapsed_ms(void);
 void ble_update_battery_level(uint8_t percentage);
 
 /**
+ * @brief Peer role in dual-device configuration (Phase 1b.2)
+ */
+typedef enum {
+    PEER_ROLE_NONE = 0,    /**< No peer connection */
+    PEER_ROLE_CLIENT,      /**< We initiated connection (stop advertising) */
+    PEER_ROLE_SERVER       /**< Peer initiated connection (keep advertising) */
+} peer_role_t;
+
+/**
+ * @brief Get current peer role (CLIENT/SERVER/NONE)
+ * @return Current peer role
+ *
+ * Thread-safe read of peer connection role state
+ * Used by motor_task for bilateral coordination (Phase 1b.3)
+ * Returns PEER_ROLE_NONE if no peer connected
+ */
+peer_role_t ble_get_peer_role(void);
+
+/**
+ * @brief Check if any bonded peer exists in NVS storage
+ * @return true if bonded peer found, false otherwise
+ *
+ * Used by BLE task to determine if pairing window should be skipped
+ * on reconnection (Phase 1b.3). If bonded peer exists, device can
+ * silently wait for reconnection without 30-second pairing window.
+ */
+bool ble_check_bonded_peer_exists(void);
+
+/**
  * @brief Update bilateral battery level for peer device role comparison (Phase 1b)
  * @param percentage Battery percentage 0-100
  *
@@ -312,12 +341,15 @@ uint16_t ble_get_custom_frequency_hz(void);
 
 /**
  * @brief Get Mode 5 custom duty cycle
- * @return Duty cycle percentage 10-50%
+ * @return Duty cycle percentage 10-100%
  *
  * Thread-safe read of custom duty cycle characteristic
  * Percentage of half-cycle that motor/LED is active
+ * DUTY CYCLE CLARIFICATION: Percentage of ACTIVE half-cycle only
+ * Each frequency cycle has ACTIVE/INACTIVE periods (50/50 split)
+ * GUARANTEE: Motor is always OFF for at least 50% of total cycle time
  * 10% minimum ensures perceptible timing pattern
- * 50% maximum prevents motor overlap in bilateral alternation
+ * 100% duty = motor ON for entire ACTIVE period, then guaranteed OFF for INACTIVE period
  * For LED-only mode (no motor), use PWM intensity = 0% instead
  */
 uint8_t ble_get_custom_duty_percent(void);

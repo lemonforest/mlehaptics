@@ -138,6 +138,30 @@ static const ble_uuid128_t uuid_char_battery = BLE_UUID128_INIT(
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 // ============================================================================
+// UUID-SWITCHING CONFIGURATION (Phase 1b.3)
+// ============================================================================
+
+/**
+ * @brief Pairing window duration (30 seconds)
+ *
+ * During first 30s: Advertise Bilateral UUID (peer discovery only)
+ * After 30s: Switch to Config UUID (app discovery + bonded peer reconnect)
+ */
+#define PAIRING_WINDOW_MS 30000
+
+/**
+ * @brief Boot timestamp for pairing window tracking
+ *
+ * Initialized in ble_init() to esp_timer_get_time() / 1000
+ * Used to determine which UUID to advertise (Bilateral vs Config)
+ */
+static uint32_t ble_boot_time_ms = 0;
+
+// Forward declarations for helper functions
+static const ble_uuid128_t* ble_get_advertised_uuid(void);
+static bool ble_get_bonded_peer_addr(ble_addr_t *addr_out);
+
+// ============================================================================
 // MODE 5 LED COLOR PALETTE (16 colors)
 // ============================================================================
 
@@ -166,7 +190,7 @@ const rgb_color_t color_palette[16] = {
 
 // Characteristic data (protected by mutex) - AD032 defaults
 static ble_char_data_t char_data = {
-    .current_mode = MODE_1HZ_50,
+    .current_mode = MODE_05HZ_25,
     .custom_frequency_hz = 100,  // 1.00 Hz
     .custom_duty_percent = 50,
     .pwm_intensity = MOTOR_PWM_DEFAULT,  // From motor_control.h (single source of truth)
@@ -226,12 +250,7 @@ static bool settings_dirty = false;
 static bool pairing_in_progress = false;
 static uint16_t pairing_conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-// Peer role (Phase 1b.2: Role-aware advertising)
-typedef enum {
-    PEER_ROLE_NONE = 0,    /**< No peer connection */
-    PEER_ROLE_CLIENT,      /**< We initiated connection (stop advertising) */
-    PEER_ROLE_SERVER       /**< Peer initiated connection (keep advertising) */
-} peer_role_t;
+// NOTE: peer_role_t typedef moved to ble_manager.h (Phase 1b.3)
 
 // Peer device state (Phase 1a: Dual-device support)
 typedef struct {
@@ -240,6 +259,7 @@ typedef struct {
     ble_addr_t peer_addr;              /**< Peer device BLE address */
     uint16_t peer_conn_handle;         /**< Peer connection handle */
     uint8_t peer_battery_level;        /**< Peer's battery percentage (0-100) */
+    bool peer_battery_known;           /**< Peer battery received via advertising (AD035) */
     uint8_t peer_mac[6];               /**< Peer's MAC address for tiebreaker */
     peer_role_t role;                  /**< Our role: CLIENT or SERVER (Phase 1b.2) */
 } ble_peer_state_t;
@@ -251,6 +271,7 @@ static ble_peer_state_t peer_state = {
     .peer_conn_handle = BLE_HS_CONN_HANDLE_NONE,
     .role = PEER_ROLE_NONE,
     .peer_battery_level = 0,
+    .peer_battery_known = false,
     .peer_mac = {0}
 };
 
@@ -300,7 +321,7 @@ static struct ble_gap_adv_params adv_params = {
 // Calculate settings signature using CRC32 (AD032 structure)
 static uint32_t calculate_settings_signature(void) {
     // Signature data: {uuid_ending, byte_length} pairs for all 9 saved parameters
-    // NOTE: Mode (0x01) is NOT saved - device always boots to MODE_1HZ_50
+    // NOTE: Mode (0x01) is NOT saved - device always boots to MODE_05HZ_25
     uint8_t sig_data[] = {
         0x02, 2,   // Custom Frequency: uint16
         0x03, 1,   // Custom Duty: uint8
@@ -332,17 +353,24 @@ static void update_mode5_timing(void) {
     duty = char_data.custom_duty_percent;
     xSemaphoreGive(char_data_mutex);
 
-    uint32_t period_ms = (100000 / freq);  // Avoid float
-    uint32_t on_time_ms = (period_ms * duty) / 100;
-    uint32_t coast_ms = period_ms - on_time_ms;
+    uint32_t period_ms = (100000 / freq);  // Full period in ms (avoid float)
+
+    // ACTIVE/INACTIVE Architecture (50/50 split):
+    // Split cycle into 50% ACTIVE and 50% INACTIVE periods
+    uint32_t active_period_ms = period_ms / 2;
+    uint32_t inactive_period_ms = period_ms - active_period_ms;  // Handle odd values
+
+    // Apply duty% within ACTIVE period only (linear scaling)
+    uint32_t on_time_ms = (active_period_ms * duty) / 100;
+    uint32_t coast_ms = inactive_period_ms;  // Coast time is always INACTIVE period (guaranteed 50% OFF)
 
     // Call motor_task API to update timing
     esp_err_t err = motor_update_mode5_timing(on_time_ms, coast_ms);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "Mode 5 updated: freq=%.2fHz duty=%u%% -> on=%ums coast=%ums",
+        ESP_LOGI(TAG, "Mode 4 (Custom) updated: freq=%.2fHz duty=%u%% -> on=%ums off=%ums (50/50 split)",
                  freq / 100.0f, duty, on_time_ms, coast_ms);
     } else {
-        ESP_LOGE(TAG, "Failed to update Mode 5 timing: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to update Mode 4 timing: %s", esp_err_to_name(err));
     }
 }
 
@@ -466,10 +494,10 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 10-50% (10% min ensures perception, 50% max prevents motor overlap in bilateral alternation)
+    // AD032: Range 10-100% (10% min ensures perception, 100% max = entire half-cycle)
     // For LED-only mode, set PWM intensity to 0% instead
-    if (duty_val < 10 || duty_val > 50) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 10-50)", duty_val);
+    if (duty_val < 10 || duty_val > 100) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 10-100)", duty_val);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -1236,51 +1264,117 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             if (event->connect.status == 0) {
                 ESP_LOGI(TAG, "BLE connection established; conn_handle=%d", event->connect.conn_handle);
 
-                // Phase 1b: Determine if this is peer or mobile app connection
-                // Strategy: Check device name - EMDR_Pulser_* = peer, anything else = mobile app
-                // This works even if connection happens before scan event is processed
+                // Get connection descriptor
                 struct ble_gap_conn_desc desc;
+                if (ble_gap_conn_find(event->connect.conn_handle, &desc) != 0) {
+                    ESP_LOGE(TAG, "Failed to get connection descriptor");
+                    ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                    break;
+                }
+
+                // Check if device is bonded
+                union ble_store_value bond_value;
+                union ble_store_key bond_key;
+                memset(&bond_key, 0, sizeof(bond_key));
+                bond_key.sec.peer_addr = desc.peer_id_addr;
+                int bond_rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &bond_key, &bond_value);
+                bool is_bonded = (bond_rc == 0);
+
+                // CRITICAL: Determine connection type BEFORE applying security
+                // Phase 1b.3: UUID-based connection identification (SIMPLIFIED)
+                // No more grace period, state machine complexity, or timing windows!
+                // Connection type is determined by which UUID we're currently advertising:
+                // - Bilateral UUID (0-30s): Only peers can discover → connection = peer
+                // - Config UUID (30s+): Apps can discover, bonded peers reconnect by address
                 bool is_peer = false;
 
-                if (ble_gap_conn_find(event->connect.conn_handle, &desc) == 0) {
-                    // CRITICAL FIX (Bug #14): Check cached peer address (don't require peer_discovered flag)
-                    // The flag gets cleared on disconnect, but we keep the address cached for reconnection
-                    // This allows peer to reconnect without needing to be rediscovered
-                    if (memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
+                // Get currently advertised UUID to determine connection type
+                const ble_uuid128_t *current_uuid = ble_get_advertised_uuid();
+
+                if (current_uuid == &uuid_bilateral_service) {
+                    // CASE 1: Advertising Bilateral UUID - this connection is from peer discovery
+                    // Mobile apps CANNOT discover device during Bilateral UUID window (Bug #27 eliminated!)
+                    is_peer = true;
+                    peer_state.peer_discovered = true;
+                    memcpy(&peer_state.peer_addr, &desc.peer_id_addr, sizeof(ble_addr_t));
+                    ESP_LOGI(TAG, "Peer identified (connected during Bilateral UUID window)");
+                } else {
+                    // CASE 2: Advertising Config UUID - check if this is bonded peer reconnect
+                    if (memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0 &&
+                        peer_state.peer_discovered) {
+                        // Cached address match - bonded peer reconnecting
                         is_peer = true;
-                        peer_state.peer_discovered = true;  // Re-set flag for reconnection
-                        ESP_LOGI(TAG, "Peer identified by cached address");
+                        ESP_LOGI(TAG, "Peer identified (bonded reconnection by address)");
                     } else {
-                        // Fallback: Any EMDR_Pulser device is a peer (scan event may not have arrived yet)
-                        // We'll discover the device name from advertising data later
-                        // For now, assume peer if we're in scanning mode and not already connected to app
-                        if (scanning_active && !adv_state.client_connected) {
-                            is_peer = true;
-                            peer_state.peer_discovered = true;  // Set flag now
-                            memcpy(&peer_state.peer_addr, &desc.peer_id_addr, sizeof(ble_addr_t));
-                            ESP_LOGI(TAG, "Peer identified by simultaneous connection (address saved)");
-                        }
+                        // New connection during Config UUID window - mobile app
+                        is_peer = false;
+                        ESP_LOGI(TAG, "Mobile app connected; conn_handle=%d", event->connect.conn_handle);
                     }
                 }
 
+
+                // SECURITY: Apply connection-type-specific security rules (Phase 1b.3)
                 if (is_peer) {
-                    // Check if we already have a peer connection
-                    if (peer_state.peer_connected) {
-                        ESP_LOGW(TAG, "Already connected to peer, rejecting additional peer connection");
+                    // ===== PEER CONNECTION SECURITY =====
+                    // UUID-switching enforces pairing window automatically:
+                    // - Bilateral UUID (0-30s): Unbonded peers allowed (initial pairing)
+                    // - Config UUID (30s+): Only bonded peers reconnect (unbonded = app)
+                    //
+                    // EXCLUSIVE PAIRING: Once a peer is bonded, ONLY that peer can connect
+                    // This ensures devices remain paired until explicit NVS erase
+                    ble_addr_t bonded_peer_addr;
+                    if (ble_get_bonded_peer_addr(&bonded_peer_addr)) {
+                        // We have a bonded peer in NVS - check if this connection is from that peer
+                        if (memcmp(&desc.peer_id_addr, &bonded_peer_addr, sizeof(ble_addr_t)) != 0) {
+                            // Different peer trying to connect - reject
+                            ESP_LOGW(TAG, "EXCLUSIVE PAIRING: Rejecting peer connection from %02X:%02X:%02X:%02X:%02X:%02X",
+                                     desc.peer_id_addr.val[0], desc.peer_id_addr.val[1], desc.peer_id_addr.val[2],
+                                     desc.peer_id_addr.val[3], desc.peer_id_addr.val[4], desc.peer_id_addr.val[5]);
+                            ESP_LOGW(TAG, "  Different peer already bonded - NVS erase required to re-pair");
+                            ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                            break;
+                        } else {
+                            ESP_LOGI(TAG, "EXCLUSIVE PAIRING: Bonded peer reconnecting (address match verified)");
+                        }
+                    }
+
+                    // Security check: Prevent multiple peer connections
+                    if (!is_bonded && peer_state.peer_connected) {
+                        ESP_LOGW(TAG, "Rejecting unbonded peer (bonded peer already connected)");
                         ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                         break;
                     }
 
-                    // This is the peer device connection
+                    if (is_bonded) {
+                        ESP_LOGI(TAG, "Bonded peer reconnecting (allowed anytime via Config UUID)");
+                    } else {
+                        ESP_LOGI(TAG, "Unbonded peer connecting (within 30s Bilateral UUID window - allowed for pairing)");
+                    }
+                }
+
+                // ===== CONNECTION TYPE HANDLING =====
+                if (is_peer) {
+                    // Check if we already have a peer connection
+                    if (peer_state.peer_connected) {
+                        ESP_LOGW(TAG, "Already connected to peer, rejecting duplicate peer connection");
+                        ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                        break;
+                    }
+
+                    // Accept peer connection
                     peer_state.peer_connected = true;
                     peer_state.peer_conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
 
                     // Stop scanning once peer connected
                     if (scanning_active) {
-                        ble_gap_disc_cancel();
-                        scanning_active = false;
-                        ESP_LOGI(TAG, "Scanning stopped (peer connected)");
+                        int scan_rc = ble_gap_disc_cancel();
+                        if (scan_rc == 0 || scan_rc == BLE_HS_EALREADY) {
+                            scanning_active = false;
+                            ESP_LOGI(TAG, "Scanning stopped (peer connected)");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to stop scanning; rc=%d", scan_rc);
+                        }
                     }
 
                     // CRITICAL FIX (Bug #16): Assign role FIRST, regardless of advertising state
@@ -1297,9 +1391,13 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         ESP_LOGI(TAG, "SERVER role assigned (BLE SLAVE)");
                     }
 
-                    // Role-aware advertising strategy (Phase 1b.2):
-                    // - CLIENT (initiated connection): Stop advertising to prevent timeout disconnect
-                    // - SERVER (received connection): Keep advertising for mobile app access
+                    // Role-aware advertising strategy (Phase 1b.3 - Bug #26 fix):
+                    // - CLIENT (initiated connection): Stop advertising immediately
+                    // - SERVER (received connection): BLE_TASK will restart advertising after pairing
+                    //
+                    // BUG #26 FIX: Don't restart advertising immediately here (timing race with NimBLE controller)
+                    // Immediate restart (20ms after connection) causes intermittent BLE_HS_ECONTROLLER errors (rc=6)
+                    // BLE_TASK handles advertising restart in PAIRING → ADVERTISING transition (~4s later)
                     if (adv_state.advertising_active) {
                         if (we_initiated) {
                             // CLIENT: Stop advertising (we don't need more connections)
@@ -1307,23 +1405,23 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                             adv_state.advertising_active = false;
                             ESP_LOGI(TAG, "CLIENT: Advertising stopped (prevents timeout)");
                         } else {
-                            // SERVER: Restart advertising for mobile app access
-                            // NimBLE automatically stops advertising when connection is established
-                            // We must explicitly restart it for mobile app access
-                            int rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                                                       &adv_params, ble_gap_event, NULL);
-                            if (rc == 0) {
-                                adv_state.advertising_active = true;
-                                adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                                ESP_LOGI(TAG, "SERVER: Advertising restarted for mobile app access");
-                            } else {
-                                ESP_LOGE(TAG, "SERVER: Failed to restart advertising; rc=%d", rc);
-                                adv_state.advertising_active = false;
-                            }
+                            // SERVER: Stop advertising now, BLE_TASK will restart after pairing completes
+                            // This prevents timing race with NimBLE controller initialization
+                            ble_gap_adv_stop();
+                            adv_state.advertising_active = false;
+                            ESP_LOGI(TAG, "SERVER: Advertising stopped (will restart after pairing)");
                         }
                     }
                 } else {
-                    // This is a mobile app connection (standard GATT server role)
+                    // ===== APP CONNECTION HANDLING =====
+                    // Check if we already have an app connection
+                    if (adv_state.client_connected) {
+                        ESP_LOGW(TAG, "Already connected to app, rejecting duplicate app connection");
+                        ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+                        break;
+                    }
+
+                    // Accept mobile app connection
                     adv_state.client_connected = true;
                     adv_state.conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Mobile app connected; conn_handle=%d", event->connect.conn_handle);
@@ -1404,7 +1502,8 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
                 } else {
                     ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
-                    adv_state.advertising_active = false;
+                    // Sync flag with actual NimBLE state (handles BLE_HS_EALREADY case)
+                    adv_state.advertising_active = ble_gap_adv_active();
                     // BLE task will retry via state machine
                 }
             }
@@ -1431,7 +1530,8 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         ESP_LOGI(TAG, "BLE advertising restarted after mobile app disconnect");
                     } else {
                         ESP_LOGE(TAG, "Failed to restart advertising after disconnect; rc=%d", rc);
-                        adv_state.advertising_active = false;
+                        // Sync flag with actual NimBLE state (handles BLE_HS_EALREADY case)
+                        adv_state.advertising_active = ble_gap_adv_active();
                         // BLE task will retry via CHECK_ADVERTISING_STATE message
                     }
                 } else {
@@ -1529,10 +1629,111 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             }
             break;
 
+        case BLE_GAP_EVENT_ENC_CHANGE: {
+            // Encryption state changed (pairing started or completed)
+            ESP_LOGI(TAG, "BLE encryption change; conn_handle=%d, status=%d",
+                     event->enc_change.conn_handle, event->enc_change.status);
+
+            // CRITICAL: Only trigger pairing workflow for PEER connections
+            // Mobile app/PWA connections can encrypt without triggering motor task wait
+            bool is_peer_connection = (event->enc_change.conn_handle == peer_state.peer_conn_handle);
+
+            if (!is_peer_connection) {
+                // App connection - allow encryption but don't trigger pairing workflow
+                if (event->enc_change.status == 0) {
+                    ESP_LOGI(TAG, "App connection encrypted successfully (no pairing workflow)");
+                } else {
+                    ESP_LOGI(TAG, "App connection encryption in progress (no pairing workflow)");
+                }
+                break;
+            }
+
+            // This is a PEER connection - handle pairing workflow
+            if (event->enc_change.status == 0) {
+                // Peer pairing completed successfully
+                pairing_in_progress = false;
+                pairing_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+                ESP_LOGI(TAG, "PEER pairing completed successfully");
+
+                // Send success message to motor_task (Phase 1b.3)
+                extern QueueHandle_t ble_to_motor_queue;
+                if (ble_to_motor_queue != NULL) {
+                    task_message_t msg = {
+                        .type = MSG_PAIRING_COMPLETE,
+                        .data = {.new_mode = 0}
+                    };
+                    if (xQueueSend(ble_to_motor_queue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
+                        ESP_LOGW(TAG, "Failed to send peer pairing complete message");
+                    } else {
+                        ESP_LOGI(TAG, "Peer pairing complete message sent to motor_task");
+                    }
+                }
+            } else {
+                // Peer pairing in progress or failed
+                // Check if this is a pairing request
+                if (!pairing_in_progress) {
+                    // New peer pairing request
+                    pairing_in_progress = true;
+                    pairing_conn_handle = event->enc_change.conn_handle;
+                    ESP_LOGI(TAG, "PEER pairing started; conn_handle=%d", pairing_conn_handle);
+                } else {
+                    // Peer pairing failed
+                    pairing_in_progress = false;
+                    pairing_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+                    ESP_LOGW(TAG, "PEER pairing failed: status=%d", event->enc_change.status);
+
+                    // Send failure message to motor_task
+                    extern QueueHandle_t ble_to_motor_queue;
+                    if (ble_to_motor_queue != NULL) {
+                        task_message_t msg = {
+                            .type = MSG_PAIRING_FAILED,
+                            .data = {.new_mode = 0}
+                        };
+                        xQueueSend(ble_to_motor_queue, &msg, pdMS_TO_TICKS(100));
+                    }
+                }
+            }
+            break;
+        }
+
         default:
             break;
     }
     return 0;
+}
+
+// ============================================================================
+// UUID-SWITCHING HELPER FUNCTIONS (Phase 1b.3)
+// ============================================================================
+
+/**
+ * @brief Determine which UUID to advertise based on timing and pairing state
+ * @return Pointer to UUID to advertise (Bilateral or Config)
+ *
+ * Logic:
+ * - No peer bonded AND within 30s: Bilateral UUID (peer discovery only)
+ * - Peer bonded OR after 30s: Config UUID (app discovery + bonded peer reconnect)
+ *
+ * This eliminates complex state-based connection identification by preventing
+ * wrong connection types at the BLE scan level (pre-connection).
+ */
+static const ble_uuid128_t* ble_get_advertised_uuid(void) {
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t elapsed_ms = now_ms - ble_boot_time_ms;
+
+    // Check if peer already bonded (NVS check) OR peer currently connected
+    bool peer_bonded = ble_check_bonded_peer_exists();
+    bool peer_connected = ble_is_peer_connected();
+
+    if (!peer_bonded && !peer_connected && elapsed_ms < PAIRING_WINDOW_MS) {
+        // Within pairing window, no peer bonded/connected yet - advertise Bilateral UUID
+        // Mobile apps cannot discover device during this window (security benefit)
+        return &uuid_bilateral_service;
+    } else {
+        // After pairing window OR peer bonded/connected - advertise Config UUID
+        // Apps can discover device, bonded peers reconnect by address (no scan needed)
+        return &uuid_config_service;
+    }
 }
 
 // ============================================================================
@@ -1555,21 +1756,25 @@ static void ble_on_sync(void) {
         return;
     }
 
-    // CRITICAL FIX (Bug #17): Get BLE MAC address for unique device name suffix
-    // Use ble_hs_id_copy_addr() to get actual MAC address bytes
-    // Previous code used ble_hs_id_infer_auto() which returns address TYPE, not address bytes!
+    // BONDING FIX (Bug #19): Only use PUBLIC address for stable device identity
+    // Random addresses break bonding - devices MUST have consistent MAC for pairing
     uint8_t addr_val[6];
-    rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr_val, NULL);
+    int is_nrpa;  // NimBLE API requires int*, not uint8_t*
+    rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr_val, &is_nrpa);
+
     if (rc == 0) {
+        // CRITICAL FIX (Bug #21): NimBLE stores MAC in reverse byte order
+        // For MAC b4:3a:45:89:45:de, addr_val = [de, 45, 89, 45, 3a, b4]
+        // We want LAST 3 bytes of actual MAC (89:45:de) = addr_val[2], addr_val[1], addr_val[0]
         char unique_name[32];
         snprintf(unique_name, sizeof(unique_name), "%s_%02X%02X%02X",
-                 BLE_DEVICE_NAME, addr_val[3], addr_val[4], addr_val[5]);
+                 BLE_DEVICE_NAME, addr_val[2], addr_val[1], addr_val[0]);
         ble_svc_gap_device_name_set(unique_name);
         ESP_LOGI(TAG, "BLE device name: %s (MAC: %02X:%02X:%02X:%02X:%02X:%02X)",
-                 unique_name, addr_val[0], addr_val[1], addr_val[2],
-                 addr_val[3], addr_val[4], addr_val[5]);
+                 unique_name, addr_val[5], addr_val[4], addr_val[3],
+                 addr_val[2], addr_val[1], addr_val[0]);
     } else {
-        ESP_LOGW(TAG, "Failed to get BLE MAC address; rc=%d (using base name)", rc);
+        ESP_LOGE(TAG, "CRITICAL: Failed to get PUBLIC MAC address; rc=%d (bonding requires stable identity!)", rc);
     }
 
     // Configure advertising data (main packet: flags + name only, fits in 31 bytes)
@@ -1590,17 +1795,21 @@ static void ble_on_sync(void) {
         return;
     }
 
-    // Configure scan response with Configuration Service UUID (Phase 1b.2)
-    // - Configuration Service UUID (0x0200): For mobile app/PWA discovery
-    // - Peer discovery works via GATT service presence (devices already connecting)
+    // Configure scan response with dynamic UUID (Phase 1b.3 UUID-switching)
+    // - 0-30s: Bilateral Service UUID (0x0100) - peer discovery only
+    // - 30s+: Configuration Service UUID (0x0200) - app discovery + bonded peer reconnect
     // Using scan response prevents exceeding 31-byte advertising packet limit
     struct ble_hs_adv_fields rsp_fields;
     memset(&rsp_fields, 0, sizeof(rsp_fields));
 
-    // Advertise Configuration Service so PWA can filter and find the device
-    rsp_fields.uuids128 = &uuid_config_service;
+    // Get UUID to advertise based on timing and bonding state
+    const ble_uuid128_t *advertised_uuid = ble_get_advertised_uuid();
+    rsp_fields.uuids128 = advertised_uuid;
     rsp_fields.num_uuids128 = 1;
     rsp_fields.uuids128_is_complete = 1;
+
+    ESP_LOGI(TAG, "Advertising UUID: %s",
+             (advertised_uuid == &uuid_bilateral_service) ? "Bilateral (peer discovery)" : "Config (app + bonded peer)");
 
     rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
     if (rc != 0) {
@@ -1658,7 +1867,7 @@ esp_err_t ble_save_settings_to_nvs(void) {
     }
 
     // Write all settings (mutex-protected)
-    // NOTE: Mode is NOT saved - device always boots to MODE_1HZ_50
+    // NOTE: Mode is NOT saved - device always boots to MODE_05HZ_25
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in ble_settings_save_to_nvs - possible deadlock");
@@ -1714,7 +1923,7 @@ esp_err_t ble_load_settings_from_nvs(void) {
     ESP_LOGI(TAG, "NVS: Signature valid, loading settings...");
 
     // Load all settings
-    // NOTE: Mode is NOT loaded - device always boots to MODE_1HZ_50
+    // NOTE: Mode is NOT loaded - device always boots to MODE_05HZ_25
     uint8_t duty, led_en, led_cmode, led_pal, r, g, b, led_bri, pwm;
     uint16_t freq;
     uint32_t sess_dur;
@@ -1790,6 +1999,10 @@ esp_err_t ble_manager_init(void) {
 
     ESP_LOGI(TAG, "Initializing BLE manager (AD032)...");
 
+    // Initialize boot timestamp for UUID-switching (Phase 1b.3)
+    ble_boot_time_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    ESP_LOGI(TAG, "BLE boot timestamp: %lu ms (30s pairing window)", ble_boot_time_ms);
+
     // Create mutexes
     char_data_mutex = xSemaphoreCreateMutex();
     if (char_data_mutex == NULL) {
@@ -1828,7 +2041,9 @@ esp_err_t ble_manager_init(void) {
     // Get local MAC address for Bilateral Control Service (Phase 1b)
     // This is needed for role assignment tiebreaker (AD034)
     uint8_t own_addr[6];
-    ret = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr, NULL);
+    int is_nrpa;  // NimBLE API requires int*, not uint8_t*
+    ret = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr, &is_nrpa);
+
     if (ret == ESP_OK) {
         // JPL compliance: Bounded mutex wait with timeout error handling
         if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -1847,11 +2062,10 @@ esp_err_t ble_manager_init(void) {
     ble_hs_cfg.reset_cb = ble_on_reset;
     ble_hs_cfg.sync_cb = ble_on_sync;
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
-    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
     // Configure BLE security (Phase 1b.3: Pairing/Bonding)
     // LE Secure Connections with MITM protection via button confirmation
-    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISPLAY;  // Support numeric comparison
+    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISP;  // Support numeric comparison
     ble_hs_cfg.sm_bonding = 1;                               // Enable bonding (store keys)
     ble_hs_cfg.sm_mitm = 1;                                  // Require MITM protection
     ble_hs_cfg.sm_sc = 1;                                    // Use LE Secure Connections (ECDH)
@@ -1859,16 +2073,17 @@ esp_err_t ble_manager_init(void) {
     ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
 #ifdef BLE_PAIRING_TEST_MODE
-    // Test mode: Skip NVS writes for bonding data (prevents flash wear during testing)
-    ESP_LOGW(TAG, "BLE_PAIRING_TEST_MODE enabled - bonding data will NOT persist across reboots");
-    // Note: Bonding data normally stored via ble_store_config (NVS)
-    // In test mode, bonding data is kept in RAM only and cleared on reboot
-    // This allows unlimited pairing test cycles without NVS degradation
+    // Test mode: RAM-only bonding (no NVS writes)
+    // Setting store_status_cb to NULL prevents NimBLE from writing pairing data to NVS
+    // Bonding data is kept in RAM only and cleared on reboot
+    // This allows unlimited pairing test cycles without flash wear
+    ble_hs_cfg.store_status_cb = NULL;
+    ESP_LOGW(TAG, "BLE_PAIRING_TEST_MODE enabled - bonding data will NOT persist across reboots (RAM only)");
 #else
-    // Production mode: Enable persistent bonding via NVS
+    // Production mode: Persistent bonding via NVS
+    // ble_store_util_status_rr callback triggers NVS writes when bonding keys are generated
+    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
     ESP_LOGI(TAG, "BLE bonding enabled - pairing data will persist in NVS");
-    // Initialize bonding storage (uses "ble_sec" NVS namespace)
-    ble_store_config_init();
 #endif
 
     ESP_LOGI(TAG, "BLE security configured: LE SC + MITM + bonding");
@@ -1887,12 +2102,65 @@ esp_err_t ble_manager_init(void) {
     return ESP_OK;
 }
 
+/**
+ * @brief Update scan response with current UUID based on timing and bonding state
+ *
+ * Called before starting/restarting advertising to ensure correct UUID is advertised:
+ * - 0-30s: Bilateral UUID (peer discovery)
+ * - 30s+: Config UUID (app discovery)
+ *
+ * Phase 1b.3 UUID-switching fix for Bug #30
+ */
+static void ble_update_scan_response(void) {
+    struct ble_hs_adv_fields rsp_fields;
+    memset(&rsp_fields, 0, sizeof(rsp_fields));
+
+    // Get current UUID based on timing and bonding state
+    const ble_uuid128_t *advertised_uuid = ble_get_advertised_uuid();
+    rsp_fields.uuids128 = advertised_uuid;
+    rsp_fields.num_uuids128 = 1;
+    rsp_fields.uuids128_is_complete = 1;
+
+    // AD035: Add battery level as Service Data for role assignment
+    // Battery Service UUID (0x180F) + battery percentage (0-100)
+    // Only broadcast during Bilateral UUID window (peer discovery phase)
+    static uint8_t battery_svc_data[3];
+    if (advertised_uuid == &uuid_bilateral_service) {
+        // Read battery level (mutex-protected)
+        uint8_t battery_pct = 0;
+        if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+            battery_pct = bilateral_data.battery_level;
+            xSemaphoreGive(bilateral_data_mutex);
+        }
+
+        battery_svc_data[0] = 0x0F;  // Battery Service UUID LSB (0x180F)
+        battery_svc_data[1] = 0x18;  // Battery Service UUID MSB
+        battery_svc_data[2] = battery_pct;  // Battery percentage 0-100
+
+        rsp_fields.svc_data_uuid16 = battery_svc_data;
+        rsp_fields.svc_data_uuid16_len = 3;
+
+        ESP_LOGI(TAG, "Advertising battery level: %d%% (for role assignment)", battery_pct);
+    }
+
+    int rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to update scan response UUID; rc=%d", rc);
+    } else {
+        ESP_LOGI(TAG, "Scan response UUID updated: %s",
+                 (advertised_uuid == &uuid_bilateral_service) ? "Bilateral (peer discovery)" : "Config (app + bonded peer)");
+    }
+}
+
 void ble_start_advertising(void) {
     ESP_LOGI(TAG, "ble_start_advertising() called (current state: advertising_active=%s, connected=%s)",
              adv_state.advertising_active ? "YES" : "NO",
              adv_state.client_connected ? "YES" : "NO");
 
     if (!adv_state.advertising_active) {
+        // Update scan response with current UUID before starting advertising
+        ble_update_scan_response();
+
         ESP_LOGI(TAG, "Starting BLE advertising via ble_gap_adv_start()...");
         int rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
                                     &adv_params, ble_gap_event, NULL);
@@ -1957,15 +2225,20 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
             // UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70100
             if (fields.uuids128 != NULL && fields.num_uuids128 > 0) {
                 for (int i = 0; i < fields.num_uuids128; i++) {
-                    // Compare against Configuration Service UUID (Phase 1b.2: simplified discovery)
-                    // Both peer devices advertise this UUID, and it also enables PWA discovery
-                    if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_config_service.u) == 0) {
+                    // Compare against Bilateral Service UUID (Phase 1b.3: UUID-switching)
+                    // Peer devices advertise this UUID during pairing window (0-30s)
+                    // After pairing, bonded peers reconnect by address (no scanning needed)
+                    if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_bilateral_service.u) == 0) {
                         // Check if already connected to a peer (prevent multiple peer connections)
                         if (peer_state.peer_connected || peer_state.peer_discovered) {
                             // Already connected or connecting to a peer, ignore this one
                             ESP_LOGD(TAG, "Already have peer connection, ignoring additional peer");
                             break;
                         }
+
+                        // NOTE: Pairing window enforcement handled by UUID-switching
+                        // Peers only advertise Bilateral UUID for first 30s, then switch to Config UUID
+                        // This scan match automatically guarantees we're within the pairing window
 
                         // Found peer device! Log discovery
                         char addr_str[18];
@@ -1980,9 +2253,70 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                         memcpy(&peer_state.peer_addr, &event->disc.addr, sizeof(ble_addr_t));
                         peer_state.peer_discovered = true;
 
-                        // Stop scanning and connect to peer
+                        // AD035: Extract peer battery level from Service Data for role assignment
+                        // Battery Service UUID (0x180F) + battery percentage (0-100)
+                        if (fields.svc_data_uuid16 != NULL && fields.svc_data_uuid16_len >= 3) {
+                            uint16_t svc_uuid = (fields.svc_data_uuid16[1] << 8) | fields.svc_data_uuid16[0];
+                            if (svc_uuid == 0x180F) {  // Battery Service UUID
+                                peer_state.peer_battery_level = fields.svc_data_uuid16[2];
+                                peer_state.peer_battery_known = true;
+                                ESP_LOGI(TAG, "Peer battery: %d%% (for role assignment)",
+                                         peer_state.peer_battery_level);
+                            }
+                        }
+
+                        // Stop scanning (peer discovered)
                         ble_gap_disc_cancel();
-                        ble_connect_to_peer();
+
+                        // AD035: Battery-based role assignment
+                        // Higher battery device initiates connection (becomes SERVER/MASTER)
+                        // Lower battery device waits (becomes CLIENT/SLAVE)
+                        if (peer_state.peer_battery_known) {
+                            // Read local battery level (mutex-protected)
+                            uint8_t local_battery = 0;
+                            if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                                local_battery = bilateral_data.battery_level;
+                                xSemaphoreGive(bilateral_data_mutex);
+                            }
+
+                            if (local_battery > peer_state.peer_battery_level) {
+                                // We have higher battery - initiate connection (SERVER/MASTER)
+                                ESP_LOGI(TAG, "Higher battery (%d%% > %d%%) - initiating as SERVER",
+                                         local_battery, peer_state.peer_battery_level);
+                                ble_connect_to_peer();
+                            } else if (local_battery < peer_state.peer_battery_level) {
+                                // Peer has higher battery - wait for peer to connect (CLIENT/SLAVE)
+                                ESP_LOGI(TAG, "Lower battery (%d%% < %d%%) - waiting as CLIENT",
+                                         local_battery, peer_state.peer_battery_level);
+                                // Don't call ble_connect_to_peer() - peer will connect to us
+                            } else {
+                                // Batteries equal - use MAC address tie-breaker
+                                // Lower MAC address initiates connection
+                                bool we_are_lower = false;
+                                for (int j = 0; j < 6; j++) {
+                                    if (event->disc.addr.val[j] < peer_state.peer_addr.val[j]) {
+                                        we_are_lower = false;  // Peer is lower, they initiate
+                                        break;
+                                    } else if (event->disc.addr.val[j] > peer_state.peer_addr.val[j]) {
+                                        we_are_lower = true;  // We are lower, we initiate
+                                        break;
+                                    }
+                                }
+
+                                if (we_are_lower) {
+                                    ESP_LOGI(TAG, "Equal battery (%d%%), lower MAC - initiating as SERVER",
+                                             local_battery);
+                                    ble_connect_to_peer();
+                                } else {
+                                    ESP_LOGI(TAG, "Equal battery (%d%%), higher MAC - waiting as CLIENT",
+                                             local_battery);
+                                }
+                            }
+                        } else {
+                            // No battery data - fall back to connection-initiator logic (AD010)
+                            ESP_LOGW(TAG, "No peer battery data - falling back to discovery-based role");
+                            ble_connect_to_peer();
+                        }
 
                         return 0;
                     }
@@ -2015,6 +2349,9 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
  *
  * Initiates BLE scanning while maintaining advertising (simultaneous mode).
  * Scans for devices advertising Bilateral Control Service.
+ *
+ * RACE CONDITION FIX: Adds random delay to break symmetry when both devices
+ * power on simultaneously. Uses MAC address as seed for deterministic randomness.
  */
 void ble_start_scanning(void) {
     if (scanning_active) {
@@ -2025,6 +2362,25 @@ void ble_start_scanning(void) {
     if (peer_state.peer_connected) {
         ESP_LOGW(TAG, "Already connected to peer, skipping scan");
         return;
+    }
+
+    // RACE CONDITION FIX: Add randomized delay (0-500ms) before scanning
+    // This breaks symmetry when both devices power on simultaneously
+    // Use last 3 bytes of MAC as seed for unique but deterministic delay per device
+    uint8_t addr_val[6];
+    int is_nrpa;
+    int rc_addr = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr_val, &is_nrpa);
+
+    if (rc_addr == 0) {
+        // Use last 3 bytes of MAC to generate delay (0-500ms)
+        uint32_t seed = (addr_val[0] << 16) | (addr_val[1] << 8) | addr_val[2];
+        uint32_t delay_ms = seed % 500;  // 0-499ms delay
+
+        ESP_LOGI(TAG, "Scan startup delay: %lums (MAC-based)", delay_ms);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    } else {
+        ESP_LOGW(TAG, "Failed to get MAC for scan delay, using default 100ms");
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     // Configure scan parameters
@@ -2187,15 +2543,93 @@ void ble_update_battery_level(uint8_t percentage) {
     }
 }
 
+peer_role_t ble_get_peer_role(void) {
+    return peer_state.role;
+}
+
+bool ble_check_bonded_peer_exists(void) {
+    // Check if any bonded peer exists in NVS storage
+    // This is used to determine if we should skip pairing window on reconnection
+    union ble_store_key key;
+    union ble_store_value value;
+
+    // Clear key to search for any bonded device
+    memset(&key, 0, sizeof(key));
+    key.sec.idx = 0;  // Start at first index
+
+    // Try to read first bonded peer entry
+    int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
+
+    if (rc == 0) {
+        ESP_LOGI(TAG, "Found bonded peer in NVS: %02X:%02X:%02X:%02X:%02X:%02X",
+                 value.sec.peer_addr.val[0], value.sec.peer_addr.val[1],
+                 value.sec.peer_addr.val[2], value.sec.peer_addr.val[3],
+                 value.sec.peer_addr.val[4], value.sec.peer_addr.val[5]);
+        return true;
+    }
+
+    ESP_LOGD(TAG, "No bonded peers found in NVS (rc=%d)", rc);
+    return false;
+}
+
+/**
+ * @brief Get bonded peer address from NVS storage
+ * @param addr_out Pointer to store bonded peer address
+ * @return true if bonded peer found and address copied, false otherwise
+ *
+ * Used for EXCLUSIVE PAIRING enforcement - only the bonded peer can connect
+ * until NVS is erased.
+ */
+static bool ble_get_bonded_peer_addr(ble_addr_t *addr_out) {
+    union ble_store_key key;
+    union ble_store_value value;
+
+    // Clear key to search for first bonded device
+    memset(&key, 0, sizeof(key));
+    key.sec.idx = 0;  // First bonded peer index
+
+    // Try to read first bonded peer entry
+    int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
+
+    if (rc == 0) {
+        // Copy bonded peer address to output
+        memcpy(addr_out, &value.sec.peer_addr, sizeof(ble_addr_t));
+        ESP_LOGD(TAG, "Bonded peer address: %02X:%02X:%02X:%02X:%02X:%02X (type=%d)",
+                 addr_out->val[0], addr_out->val[1], addr_out->val[2],
+                 addr_out->val[3], addr_out->val[4], addr_out->val[5],
+                 addr_out->type);
+        return true;
+    }
+
+    ESP_LOGD(TAG, "No bonded peer address found (rc=%d)", rc);
+    return false;
+}
+
 void ble_update_bilateral_battery_level(uint8_t percentage) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in ble_update_bilateral_battery_level - possible deadlock");
         return;  // Early return on timeout
     }
+
+    uint8_t old_level = bilateral_data.battery_level;
     bilateral_data.battery_level = percentage;
     xSemaphoreGive(bilateral_data_mutex);
+
     ESP_LOGD(TAG, "Bilateral battery level updated: %u%%", percentage);
+
+    // AD035: Restart advertising if battery changed and we're in peer discovery window
+    // This updates the Service Data in scan response for role assignment
+    if (old_level != percentage && adv_state.advertising_active) {
+        const ble_uuid128_t *current_uuid = ble_get_advertised_uuid();
+        if (current_uuid == &uuid_bilateral_service) {
+            ESP_LOGI(TAG, "Battery changed %d%% → %d%%, updating advertising (peer discovery)",
+                     old_level, percentage);
+            ble_stop_advertising();
+            vTaskDelay(pdMS_TO_TICKS(50));  // Brief delay for cleanup
+            ble_start_advertising();
+        }
+    }
 }
 
 void ble_update_session_time(uint32_t seconds) {
@@ -2256,7 +2690,7 @@ mode_t ble_get_current_mode(void) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in ble_get_current_mode - possible deadlock");
-        return MODE_1HZ_50;  // Return safe default
+        return MODE_05HZ_25;  // Return safe default
     }
     mode_t mode = char_data.current_mode;
     xSemaphoreGive(char_data_mutex);
