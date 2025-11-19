@@ -1,4 +1,4 @@
-# Phase 4 JPL Compliance - COMPLETE! 🎉
+# Phase 0.4 JPL Compliance - COMPLETE! 🎉
 
 **Date:** November 4, 2025  
 **Status:** ✅ Ready to build and test!
@@ -31,7 +31,7 @@ pio device monitor
 ```
 ========================================================
 === JPL-Compliant EMDR Demo (FULL) ===
-=== Phase 4: Queues + State Machine + Checks ===
+=== Phase 0.4: Queues + State Machine + Checks ===
 ========================================================
 
 JPL Compliance Features:
@@ -98,7 +98,7 @@ Motor Task (Priority 5)
 - ❌ `goto` statements
 - ❌ Unchecked returns
 
-### Phase 4 (This Version)
+### Phase 0.4 (This Version)
 - ✅ Message queues (proper task isolation)
 - ✅ State machine (6 states, no `goto`)
 - ✅ All returns checked (esp_err_t, BaseType_t)
