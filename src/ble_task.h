@@ -4,20 +4,24 @@
  *
  * This module implements the BLE task that manages:
  * - BLE advertising lifecycle (start, timeout, stop)
+ * - BLE pairing/bonding security (Phase 1b.3)
  * - Message queue for BLE re-enable and shutdown commands
  * - Advertising timeout enforcement (5 minutes)
+ * - Pairing timeout enforcement (30 seconds)
  * - State transitions based on connection events
  *
- * State Machine: 4 states
+ * State Machine: 5 states (Phase 1b.3)
  * - IDLE: Not advertising, waiting for BLE re-enable message
  * - ADVERTISING: Advertising active, monitoring for connection or timeout
+ * - PAIRING: Pairing in progress, waiting for user confirmation
  * - CONNECTED: Client connected, monitoring for disconnection
  * - SHUTDOWN: Cleanup before task exit
  *
  * Message Queue Integration:
  * - button_to_ble_queue: Receives MSG_BLE_REENABLE and MSG_EMERGENCY_SHUTDOWN
+ * - ble_to_motor_queue: Sends MSG_PAIRING_COMPLETE and MSG_PAIRING_FAILED
  *
- * @date November 11, 2025
+ * @date November 15, 2025
  * @author Claude Code (Anthropic)
  */
 
@@ -42,12 +46,13 @@ extern "C" {
 /**
  * @brief BLE task state machine states
  *
- * 4-state machine for BLE advertising lifecycle management
+ * 5-state machine (Phase 1b.3 adds PAIRING) for BLE advertising lifecycle management
  * Simpler than motor task (no complex timing requirements)
  */
 typedef enum {
     BLE_STATE_IDLE,        /**< Not advertising, waiting for re-enable message */
     BLE_STATE_ADVERTISING, /**< Advertising active, monitoring for timeout */
+    BLE_STATE_PAIRING,     /**< Pairing in progress, waiting for confirmation (Phase 1b.3) */
     BLE_STATE_CONNECTED,   /**< Client connected */
     BLE_STATE_SHUTDOWN     /**< Final cleanup before task exit */
 } ble_state_t;
@@ -60,22 +65,28 @@ typedef enum {
  * @brief BLE control FreeRTOS task
  * @param pvParameters Task parameters (unused, pass NULL)
  *
- * Main BLE control loop implementing 4-state machine:
+ * Main BLE control loop implementing 5-state machine (Phase 1b.3):
  * 1. IDLE: Wait for MSG_BLE_REENABLE (1-2s button hold)
  * 2. ADVERTISING: Monitor connection and 5-minute timeout
- * 3. CONNECTED: Monitor disconnection
- * 4. SHUTDOWN: Exit cleanly
+ * 3. PAIRING: Wait for user confirmation, enforce 30-second timeout (Phase 1b.3)
+ * 4. CONNECTED: Monitor disconnection
+ * 5. SHUTDOWN: Exit cleanly
  *
  * State transitions:
  * - IDLE → ADVERTISING: MSG_BLE_REENABLE received, advertising started
- * - ADVERTISING → CONNECTED: Client connection established (via GAP event)
- * - ADVERTISING → IDLE: 5-minute timeout expired
+ * - ADVERTISING → PAIRING: Peer connection established, pairing initiated (Phase 1b.3)
+ * - PAIRING → CONNECTED: Pairing successful, bonding complete
+ * - PAIRING → IDLE: Pairing timeout (30s) or failure
+ * - ADVERTISING → IDLE: 5-minute timeout expired (no connection)
  * - CONNECTED → ADVERTISING: Client disconnected (GAP event restarts advertising)
  * - CONNECTED → IDLE: Client disconnected but advertising failed to restart
  * - Any state → SHUTDOWN: MSG_EMERGENCY_SHUTDOWN received
  *
  * Message queue inputs:
  * - button_to_ble_queue: MSG_BLE_REENABLE (start advertising), MSG_EMERGENCY_SHUTDOWN
+ *
+ * Message queue outputs (Phase 1b.3):
+ * - ble_to_motor_queue: MSG_PAIRING_COMPLETE, MSG_PAIRING_FAILED
  *
  * Task parameters:
  * - Priority: 3 (lower than motor_task)

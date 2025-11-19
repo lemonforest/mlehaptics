@@ -31,6 +31,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
+#include "esp_sleep.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -75,6 +76,14 @@ QueueHandle_t button_to_ble_queue = NULL;
  * Message types: MSG_SESSION_TIMEOUT
  */
 QueueHandle_t motor_to_button_queue = NULL;
+
+/**
+ * @brief Message queue from BLE task to motor_task (Phase 1b.3)
+ *
+ * Queue size: 2 messages (pairing result notifications)
+ * Message types: MSG_PAIRING_COMPLETE, MSG_PAIRING_FAILED
+ */
+QueueHandle_t ble_to_motor_queue = NULL;
 
 // ============================================================================
 // WATCHDOG CONFIGURATION
@@ -193,9 +202,8 @@ static esp_err_t init_hardware(void) {
         return ret;
     }
 
-    // Initialize session start time for BLE uptime reporting
-    // Must happen before BLE advertising starts so early clients get correct time
-    motor_init_session_time();
+    // NOTE: Session timer initialization moved to motor_task (Phase 1b.3)
+    // Session timer now starts AFTER pairing completes to ensure accurate session duration
 
     // 4. Initialize LED Control
     ESP_LOGI(TAG, "Initializing LED Control...");
@@ -271,7 +279,17 @@ static esp_err_t create_message_queues(void) {
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Message queues created successfully");
+    // BLE → Motor queue (2 messages, pairing result notifications) - Phase 1b.3
+    ble_to_motor_queue = xQueueCreate(2, sizeof(task_message_t));
+    if (ble_to_motor_queue == NULL) {
+        ESP_LOGE(TAG, "Failed to create ble_to_motor_queue");
+        vQueueDelete(button_to_motor_queue);
+        vQueueDelete(button_to_ble_queue);
+        vQueueDelete(motor_to_button_queue);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Message queues created successfully (4 queues total)");
     return ESP_OK;
 }
 
@@ -361,30 +379,31 @@ void app_main(void) {
     ret = init_hardware();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Hardware init failed: %s", esp_err_to_name(ret));
-        ESP_LOGE(TAG, "System halted");
-        while (1) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Entering deep sleep for recovery - press button to restart");
+        // JPL compliance: Enter deep sleep instead of infinite loop
+        // Allows button-wake recovery instead of permanent hang
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Allow log message to flush
+        esp_deep_sleep_start();
     }
 
     // Create message queues
     ret = create_message_queues();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Message queue creation failed");
-        ESP_LOGE(TAG, "System halted");
-        while (1) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Entering deep sleep for recovery - press button to restart");
+        // JPL compliance: Enter deep sleep instead of infinite loop
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Allow log message to flush
+        esp_deep_sleep_start();
     }
 
     // Create and start tasks
     ret = create_tasks();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Task creation failed");
-        ESP_LOGE(TAG, "System halted");
-        while (1) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        ESP_LOGE(TAG, "Entering deep sleep for recovery - press button to restart");
+        // JPL compliance: Enter deep sleep instead of infinite loop
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Allow log message to flush
+        esp_deep_sleep_start();
     }
 
     ESP_LOGI(TAG, "========================================");

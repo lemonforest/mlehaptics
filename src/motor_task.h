@@ -50,15 +50,19 @@ extern "C" {
 /**
  * @brief Motor operating modes
  *
- * Modes 0-3 are predefined EMDR patterns
+ * Modes 0-3 are predefined EMDR patterns (bilateral alternation frequencies)
  * Mode 4 (MODE_CUSTOM) is configurable via BLE GATT characteristics
+ *
+ * NOTE: Frequencies refer to BILATERAL alternation rate (dual-device mode)
+ * - "1.0Hz" = 1 complete left-right alternation per second
+ * - Single device mode: same frequency, alternating directions
  */
 typedef enum {
-    MODE_1HZ_50,      /**< 1 Hz @ 50% duty (250ms ON, 250ms coast) */
-    MODE_1HZ_25,      /**< 1 Hz @ 25% duty (125ms ON, 375ms coast) */
-    MODE_05HZ_50,     /**< 0.5 Hz @ 50% duty (500ms ON, 500ms coast) */
-    MODE_05HZ_25,     /**< 0.5 Hz @ 25% duty (250ms ON, 750ms coast) */
-    MODE_CUSTOM,      /**< Mode 5: Custom frequency/duty (BLE configurable) */
+    MODE_05HZ_25,     /**< 0.5Hz bilateral @ 25% duty (500ms ON, 1500ms coast) */
+    MODE_1HZ_25,      /**< 1.0Hz bilateral @ 25% duty (250ms ON, 750ms coast) */
+    MODE_15HZ_25,     /**< 1.5Hz bilateral @ 25% duty (167ms ON, 500ms coast) */
+    MODE_2HZ_25,      /**< 2.0Hz bilateral @ 25% duty (125ms ON, 375ms coast) */
+    MODE_CUSTOM,      /**< Mode 4: Custom frequency/duty (BLE configurable) */
     MODE_COUNT        /**< Total number of modes */
 } mode_t;
 
@@ -87,17 +91,23 @@ extern const mode_config_t modes[MODE_COUNT];
 /**
  * @brief Motor task state machine states
  *
- * 8-state machine for bilateral alternating motor control with back-EMF sampling
+ * 6-state machine (simplified from 9-state to fix 2× frequency bug)
+ * Direction alternates between cycles (not within cycles)
+ *
+ * State Flow:
+ * PAIRING_WAIT → CHECK_MESSAGES → ACTIVE (one direction) → INACTIVE → [repeat, alternate direction]
+ *
+ * Back-EMF sampling states (BEMF_IMMEDIATE, COAST_SETTLE) are entered from ACTIVE state
+ * when sampling is enabled (first 10 seconds after mode change)
  */
 typedef enum {
-    MOTOR_STATE_CHECK_MESSAGES,           /**< Check queues, handle mode changes */
-    MOTOR_STATE_FORWARD_ACTIVE,           /**< Motor forward, PWM active */
-    MOTOR_STATE_FORWARD_COAST_REMAINING,  /**< Coast remaining time (forward cycle) */
-    MOTOR_STATE_BEMF_IMMEDIATE,           /**< Coast + immediate back-EMF sample */
-    MOTOR_STATE_COAST_SETTLE,             /**< Wait settle time + settled sample */
-    MOTOR_STATE_REVERSE_ACTIVE,           /**< Motor reverse, PWM active */
-    MOTOR_STATE_REVERSE_COAST_REMAINING,  /**< Coast remaining time (reverse cycle) */
-    MOTOR_STATE_SHUTDOWN                  /**< Final cleanup before task exit */
+    MOTOR_STATE_PAIRING_WAIT,      /**< Wait for BLE pairing to complete (Phase 1b.3) */
+    MOTOR_STATE_CHECK_MESSAGES,    /**< Check queues, handle mode changes, battery, session timeout */
+    MOTOR_STATE_ACTIVE,            /**< Motor active in current direction (forward or reverse) */
+    MOTOR_STATE_BEMF_IMMEDIATE,    /**< Coast + immediate back-EMF sample (optional) */
+    MOTOR_STATE_COAST_SETTLE,      /**< Wait settle time + settled sample (optional) */
+    MOTOR_STATE_INACTIVE,          /**< Motor coast (inactive period), alternate direction for next cycle */
+    MOTOR_STATE_SHUTDOWN           /**< Final cleanup before task exit */
 } motor_state_t;
 
 // ============================================================================
@@ -107,7 +117,7 @@ typedef enum {
 /**
  * @brief Inter-task message types
  *
- * Used for communication between button_task, battery monitor, and motor_task
+ * Used for communication between button_task, battery monitor, BLE task, and motor_task
  */
 typedef enum {
     MSG_MODE_CHANGE,          /**< Button press: cycle to next mode */
@@ -115,7 +125,9 @@ typedef enum {
     MSG_BLE_REENABLE,         /**< Button hold 1-2s: re-enable BLE advertising */
     MSG_BATTERY_WARNING,      /**< Battery voltage below warning threshold */
     MSG_BATTERY_CRITICAL,     /**< Battery voltage below critical threshold (LVO) */
-    MSG_SESSION_TIMEOUT       /**< Session duration exceeded (60 minutes) */
+    MSG_SESSION_TIMEOUT,      /**< Session duration exceeded (60 minutes) */
+    MSG_PAIRING_COMPLETE,     /**< BLE pairing successful (Phase 1b.3) */
+    MSG_PAIRING_FAILED        /**< BLE pairing failed or timeout (Phase 1b.3) */
 } message_type_t;
 
 /**
@@ -156,19 +168,21 @@ esp_err_t motor_init(void);
  * @brief Motor control FreeRTOS task
  * @param pvParameters Task parameters (unused, pass NULL)
  *
- * Main motor control loop implementing 8-state machine:
- * 1. CHECK_MESSAGES: Process queue, handle mode/shutdown messages
- * 2. FORWARD_ACTIVE: Drive motor forward with PWM
- * 3. BEMF_IMMEDIATE: Sample back-EMF immediately after motor off
- * 4. COAST_SETTLE: Wait settle time, sample settled back-EMF
- * 5. FORWARD_COAST_REMAINING: Complete forward coast period
- * 6. REVERSE_ACTIVE: Drive motor reverse with PWM
- * 7. REVERSE_COAST_REMAINING: Complete reverse coast period
- * 8. SHUTDOWN: Cleanup and exit
+ * Main motor control loop implementing 9-state machine (Phase 1b.3):
+ * 1. PAIRING_WAIT: Wait for BLE pairing to complete before starting session
+ * 2. CHECK_MESSAGES: Process queue, handle mode/shutdown messages
+ * 3. FORWARD_ACTIVE: Drive motor forward with PWM
+ * 4. BEMF_IMMEDIATE: Sample back-EMF immediately after motor off
+ * 5. COAST_SETTLE: Wait settle time, sample settled back-EMF
+ * 6. FORWARD_COAST_REMAINING: Complete forward coast period
+ * 7. REVERSE_ACTIVE: Drive motor reverse with PWM
+ * 8. REVERSE_COAST_REMAINING: Complete reverse coast period
+ * 9. SHUTDOWN: Cleanup and exit
  *
  * Message queue inputs:
  * - button_to_motor_queue: Mode changes, emergency shutdown, BLE re-enable
  * - battery_to_motor_queue: Battery warnings, critical LVO
+ * - ble_to_motor_queue: Pairing complete/failed (Phase 1b.3)
  *
  * Watchdog: Uses soft-fail pattern (logs errors, continues on failure)
  *
@@ -264,6 +278,8 @@ void motor_mode5_settings_mark_clean(void);
 extern QueueHandle_t button_to_motor_queue;
 extern QueueHandle_t battery_to_motor_queue;
 extern QueueHandle_t motor_to_button_queue;
+extern QueueHandle_t ble_to_motor_queue;     /**< BLE task → motor task (Phase 1b.3) */
+extern QueueHandle_t button_to_ble_queue;    /**< Button task → BLE task (existing) */
 
 #ifdef __cplusplus
 }

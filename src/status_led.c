@@ -3,13 +3,15 @@
  * @brief Status LED Control Module Implementation
  *
  * Implements GPIO15 status LED control with predefined blink patterns
- * for system status indication.
+ * for system status indication, including WS2812B RGB integration for
+ * pairing feedback (Phase 1b.3).
  *
  * @date November 11, 2025
  * @author Claude Code (Anthropic)
  */
 
 #include "status_led.h"
+#include "led_control.h"  // For WS2812B pairing patterns
 #include "esp_log.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
@@ -136,6 +138,86 @@ void status_led_pattern(status_pattern_t pattern) {
             // Continuous ON - Shutdown countdown
             ESP_LOGI(TAG, "Pattern: Shutdown Countdown (continuous ON)");
             status_led_on();
+            break;
+
+        case STATUS_PATTERN_PAIRING_WAIT:
+            // Solid ON - Waiting for peer discovery (Phase 1b.3)
+            ESP_LOGI(TAG, "Pattern: Pairing Wait (solid ON + purple WS2812B)");
+            status_led_on();
+            // WS2812B: Solid purple (palette index 7: RGB 128, 0, 255)
+            // Only control if motor doesn't own it
+            if (led_is_enabled() && !led_get_motor_ownership()) {
+                led_set_palette(7, 20);  // Purple at 20% brightness
+            }
+            break;
+
+        case STATUS_PATTERN_PAIRING_PROGRESS:
+            // Pulsing 1Hz (500ms ON, 500ms OFF) - Pairing in progress (Phase 1b.3)
+            ESP_LOGI(TAG, "Pattern: Pairing Progress (pulsing 1Hz + purple WS2812B)");
+            // Note: This is a one-shot pattern, caller should loop if continuous pulsing needed
+            status_led_on();
+            // WS2812B: Purple ON (palette index 7: RGB 128, 0, 255)
+            // Only control if motor doesn't own it
+            if (led_is_enabled() && !led_get_motor_ownership()) {
+                led_set_palette(7, 20);  // Purple at 20% brightness
+            }
+            vTaskDelay(pdMS_TO_TICKS(500));
+            status_led_off();
+            // WS2812B: OFF (clear)
+            if (led_is_enabled() && !led_get_motor_ownership()) {
+                led_clear();
+            }
+            vTaskDelay(pdMS_TO_TICKS(500));
+            break;
+
+        case STATUS_PATTERN_PAIRING_SUCCESS:
+            // GPIO15 blink + WS2812B green 3× blink (Phase 1b.3)
+            ESP_LOGI(TAG, "Pattern: Pairing Success (GPIO15 + WS2812B green 3× blink)");
+
+            // 3× synchronized blink (250ms ON, 250ms OFF) = 1.5 seconds total
+            for (int i = 0; i < 3; i++) {
+                // Blink ON
+                status_led_on();
+                // WS2812B: Only control if motor doesn't own it
+                if (led_is_enabled() && !led_get_motor_ownership()) {
+                    led_set_palette(1, 20);  // Green (palette index 1) at 20% brightness
+                }
+                vTaskDelay(pdMS_TO_TICKS(250));
+
+                // Blink OFF
+                status_led_off();
+                if (led_is_enabled() && !led_get_motor_ownership()) {
+                    led_clear();
+                }
+                if (i < 2) {  // Don't delay after last blink
+                    vTaskDelay(pdMS_TO_TICKS(250));
+                }
+            }
+            break;
+
+        case STATUS_PATTERN_PAIRING_FAILED:
+            // GPIO15 blink + WS2812B red 3× blink (Phase 1b.3)
+            ESP_LOGI(TAG, "Pattern: Pairing Failed (GPIO15 + WS2812B red 3× blink)");
+
+            // 3× synchronized blink (250ms ON, 250ms OFF) = 1.5 seconds total
+            for (int i = 0; i < 3; i++) {
+                // Blink ON
+                status_led_on();
+                // WS2812B: Only control if motor doesn't own it
+                if (led_is_enabled() && !led_get_motor_ownership()) {
+                    led_set_palette(0, 20);  // Red (palette index 0) at 20% brightness
+                }
+                vTaskDelay(pdMS_TO_TICKS(250));
+
+                // Blink OFF
+                status_led_off();
+                if (led_is_enabled() && !led_get_motor_ownership()) {
+                    led_clear();
+                }
+                if (i < 2) {  // Don't delay after last blink
+                    vTaskDelay(pdMS_TO_TICKS(250));
+                }
+            }
             break;
 
         default:

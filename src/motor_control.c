@@ -19,6 +19,19 @@
 static const char *TAG = "MOTOR_CTRL";
 
 // ============================================================================
+// JPL COMPLIANCE
+// ============================================================================
+
+/**
+ * @brief Mutex timeout for motor control operations
+ *
+ * JPL Rule #6: No unbounded waits - all mutex operations must have timeouts
+ * 100ms timeout provides safety margin for motor control operations
+ * If mutex timeout occurs, indicates potential deadlock or system failure
+ */
+#define MUTEX_TIMEOUT_MS 100
+
+// ============================================================================
 // MOTOR STATE
 // ============================================================================
 
@@ -138,7 +151,11 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
         return ESP_ERR_INVALID_STATE;
     }
 
-    xSemaphoreTake(motor_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in motor_set_forward - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     // Clamp intensity to safety limits
     intensity_percent = clamp_intensity(intensity_percent);
@@ -192,7 +209,11 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
         return ESP_ERR_INVALID_STATE;
     }
 
-    xSemaphoreTake(motor_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in motor_set_reverse - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     // Clamp intensity to safety limits
     intensity_percent = clamp_intensity(intensity_percent);
@@ -246,7 +267,11 @@ void motor_coast(bool verbose_logging) {
         return;
     }
 
-    xSemaphoreTake(motor_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in motor_coast - possible deadlock");
+        return;  // Cannot coast motor safely
+    }
 
     // Set both IN1 and IN2 to LOW (0% duty)
     ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1, 0);
@@ -266,7 +291,11 @@ void motor_coast(bool verbose_logging) {
 
 uint8_t motor_get_intensity(void) {
     uint8_t intensity;
-    xSemaphoreTake(motor_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in motor_get_intensity - possible deadlock");
+        return MOTOR_PWM_DEFAULT;  // Return safe default value
+    }
     intensity = current_intensity;
     xSemaphoreGive(motor_mutex);
     return intensity;
@@ -274,7 +303,11 @@ uint8_t motor_get_intensity(void) {
 
 bool motor_is_coasting(void) {
     bool coasting;
-    xSemaphoreTake(motor_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in motor_is_coasting - possible deadlock");
+        return true;  // Return safe default (assume coasting if uncertain)
+    }
     coasting = motor_coasting;
     xSemaphoreGive(motor_mutex);
     return coasting;

@@ -16,6 +16,15 @@
 
 static const char *TAG = "ROLE_MGR";
 
+/**
+ * @brief Mutex timeout for operations
+ *
+ * JPL Rule #6: No unbounded waits - all mutex operations must have timeouts
+ * 100ms timeout provides safety margin
+ * If mutex timeout occurs, indicates potential deadlock or system failure
+ */
+#define MUTEX_TIMEOUT_MS 100
+
 // ============================================================================
 // PRIVATE STATE
 // ============================================================================
@@ -62,7 +71,11 @@ esp_err_t role_manager_deinit(void) {
 
 device_role_t role_determine_by_battery(uint8_t local_battery, uint8_t peer_battery,
                                          const uint8_t local_mac[6], const uint8_t peer_mac[6]) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in role_determine_by_battery - possible deadlock");
+        return ROLE_UNDETERMINED;  // Return safe default
+    }
 
     // Battery-based role assignment per AD034
     // Higher battery = Controller (Server role)
@@ -101,14 +114,22 @@ device_role_t role_determine_by_battery(uint8_t local_battery, uint8_t peer_batt
 }
 
 device_role_t role_get_current(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in role_get_current - possible deadlock");
+        return ROLE_UNDETERMINED;  // Return safe default
+    }
     device_role_t role = g_fallback_state.current_role;
     xSemaphoreGive(g_state_mutex);
     return role;
 }
 
 esp_err_t role_set(device_role_t role) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in role_set - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     device_role_t old_role = g_fallback_state.current_role;
     g_fallback_state.current_role = role;
@@ -122,7 +143,11 @@ esp_err_t role_set(device_role_t role) {
 
 bool role_should_become_server(uint32_t disconnect_duration_ms) {
     if (disconnect_duration_ms >= ROLE_SURVIVOR_TIMEOUT_MS) {
-        xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+        // JPL compliance: Bounded mutex wait with timeout error handling
+        if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+            ESP_LOGE(TAG, "Mutex timeout in role_should_become_server - possible deadlock");
+            return false;  // Return safe default
+        }
         bool should_become = (g_fallback_state.current_role == ROLE_CLIENT);
         xSemaphoreGive(g_state_mutex);
 
@@ -144,7 +169,11 @@ esp_err_t fallback_start(const fallback_state_t *established_params) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in fallback_start - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     // Capture current operational parameters
     g_fallback_state.disconnect_time = xTaskGetTickCount();
@@ -170,7 +199,11 @@ esp_err_t fallback_start(const fallback_state_t *established_params) {
 }
 
 fallback_phase_t fallback_update_phase(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in fallback_update_phase - possible deadlock");
+        return FALLBACK_NONE;  // Return safe default
+    }
 
     if (g_fallback_state.current_phase == FALLBACK_NONE) {
         xSemaphoreGive(g_state_mutex);
@@ -200,7 +233,11 @@ fallback_phase_t fallback_update_phase(void) {
 }
 
 fallback_phase_t fallback_get_phase(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in fallback_get_phase - possible deadlock");
+        return FALLBACK_NONE;  // Return safe default
+    }
     fallback_phase_t phase = g_fallback_state.current_phase;
     xSemaphoreGive(g_state_mutex);
     return phase;
@@ -212,7 +249,11 @@ const fallback_state_t* fallback_get_state(void) {
 }
 
 esp_err_t fallback_stop(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in fallback_stop - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     ESP_LOGI(TAG, "Fallback stopped - connection restored");
 
@@ -225,7 +266,11 @@ esp_err_t fallback_stop(void) {
 }
 
 bool fallback_should_reconnect(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in fallback_should_reconnect - possible deadlock");
+        return false;  // Return safe default
+    }
 
     if (g_fallback_state.current_phase == FALLBACK_NONE) {
         xSemaphoreGive(g_state_mutex);
@@ -242,7 +287,11 @@ bool fallback_should_reconnect(void) {
 }
 
 void fallback_mark_reconnect_attempt(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in fallback_mark_reconnect_attempt - possible deadlock");
+        return;  // Early return on timeout
+    }
     g_fallback_state.last_reconnect_attempt = xTaskGetTickCount() * portTICK_PERIOD_MS;
     ESP_LOGI(TAG, "Reconnection attempt marked");
     xSemaphoreGive(g_state_mutex);
@@ -253,7 +302,11 @@ void fallback_mark_reconnect_attempt(void) {
 // ============================================================================
 
 esp_err_t connection_state_set(connection_state_t state) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in connection_state_set - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     connection_state_t old_state = g_connection_state;
     g_connection_state = state;
@@ -267,7 +320,11 @@ esp_err_t connection_state_set(connection_state_t state) {
 }
 
 connection_state_t connection_state_get(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in connection_state_get - possible deadlock");
+        return CONN_STATE_IDLE;  // Return safe default
+    }
     connection_state_t state = g_connection_state;
     xSemaphoreGive(g_state_mutex);
     return state;
@@ -282,7 +339,11 @@ bool connection_is_active(void) {
 // ============================================================================
 
 esp_err_t session_start(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in session_start - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     g_fallback_state.session_start_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
     g_fallback_state.session_active = true;
@@ -294,7 +355,11 @@ esp_err_t session_start(void) {
 }
 
 bool session_should_end(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in session_should_end - possible deadlock");
+        return false;  // Return safe default
+    }
 
     if (!g_fallback_state.session_active) {
         xSemaphoreGive(g_state_mutex);
@@ -317,7 +382,11 @@ bool session_should_end(void) {
 }
 
 uint32_t session_get_elapsed_ms(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in session_get_elapsed_ms - possible deadlock");
+        return 0;  // Return safe default
+    }
 
     uint32_t elapsed = 0;
     if (g_fallback_state.session_active) {
@@ -330,7 +399,11 @@ uint32_t session_get_elapsed_ms(void) {
 }
 
 esp_err_t session_end(void) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in session_end - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
 
     g_fallback_state.session_active = false;
     uint32_t duration = session_get_elapsed_ms();
@@ -365,7 +438,11 @@ const char* fallback_phase_to_string(fallback_phase_t phase) {
 }
 
 void role_log_status(const char *tag) {
-    xSemaphoreTake(g_state_mutex, portMAX_DELAY);
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in role_log_status - possible deadlock");
+        return;  // Early return on timeout
+    }
 
     ESP_LOGI(tag, "Role Manager Status:");
     ESP_LOGI(tag, "  Current Role: %s", role_to_string(g_fallback_state.current_role));

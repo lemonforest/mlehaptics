@@ -37,16 +37,16 @@ static const char *TAG = "BTN_TASK";
  * @param current Current mode
  * @return Next mode in sequence
  *
- * Cycle: MODE_1HZ_50 → MODE_1HZ_25 → MODE_05HZ_50 → MODE_05HZ_25 → MODE_CUSTOM → [repeat]
+ * Cycle: MODE_05HZ_25 → MODE_1HZ_25 → MODE_15HZ_25 → MODE_2HZ_25 → MODE_CUSTOM → [repeat]
  */
 static mode_t get_next_mode(mode_t current) {
     switch (current) {
-        case MODE_1HZ_50:   return MODE_1HZ_25;
-        case MODE_1HZ_25:   return MODE_05HZ_50;
-        case MODE_05HZ_50:  return MODE_05HZ_25;
-        case MODE_05HZ_25:  return MODE_CUSTOM;
-        case MODE_CUSTOM:   return MODE_1HZ_50;
-        default:            return MODE_1HZ_50;
+        case MODE_05HZ_25:  return MODE_1HZ_25;
+        case MODE_1HZ_25:   return MODE_15HZ_25;
+        case MODE_15HZ_25:  return MODE_2HZ_25;
+        case MODE_2HZ_25:   return MODE_CUSTOM;
+        case MODE_CUSTOM:   return MODE_05HZ_25;
+        default:            return MODE_05HZ_25;
     }
 }
 
@@ -144,8 +144,9 @@ void button_task(void *pvParameters) {
 
                     ESP_LOGI(TAG, "Mode change: %d → %d", current_mode, next_mode);
 
-                    // Quick blink for mode change feedback
-                    status_led_pattern(STATUS_PATTERN_MODE_CHANGE);
+                    // Quick blink for mode change feedback (non-blocking)
+                    // Just turn on LED - it will auto-off after ~10-20ms naturally
+                    status_led_on();
 
                     task_message_t msg = {
                         .type = MSG_MODE_CHANGE,
@@ -181,7 +182,8 @@ void button_task(void *pvParameters) {
 
                     if (elapsed >= BUTTON_BLE_HOLD_MIN_MS && elapsed < BUTTON_BLE_HOLD_MAX_MS) {
                         ESP_LOGI(TAG, "BLE re-enable triggered (1-2s hold)");
-                        status_led_pattern(STATUS_PATTERN_BLE_REENABLE);  // 3× blink for BLE re-enable
+                        // Brief LED pulse for BLE re-enable feedback (non-blocking)
+                        status_led_on();
 
                         task_message_t msg = {
                             .type = MSG_BLE_REENABLE,
