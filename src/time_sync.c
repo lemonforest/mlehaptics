@@ -61,7 +61,6 @@ static uint16_t calculate_crc16(const uint8_t *data, size_t length);
 static uint8_t calculate_sync_quality(int32_t offset_us, uint32_t drift_us, uint32_t rtt_us);
 static void update_quality_metrics(int32_t offset_us, uint32_t rtt_us);
 static esp_err_t adjust_sync_interval(void);
-static bool should_send_sync_beacon(void);
 
 /*******************************************************************************
  * PUBLIC API IMPLEMENTATION
@@ -585,15 +584,20 @@ static esp_err_t adjust_sync_interval(void)
     return ESP_OK;
 }
 
+/*******************************************************************************
+ * PUBLIC API IMPLEMENTATION (CONTINUED)
+ ******************************************************************************/
+
 /**
  * @brief Check if sync beacon should be sent (SERVER only)
  *
+ * Public function for motor task to determine when to send sync beacons.
  * Determines if enough time has elapsed since last sync based on
  * adaptive interval.
  *
  * @return true if beacon should be sent, false otherwise
  */
-static bool should_send_sync_beacon(void)
+bool time_sync_should_send_beacon(void)
 {
     uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
     uint32_t elapsed_ms = now_ms - g_time_sync_state.last_sync_ms;

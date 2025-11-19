@@ -90,11 +90,16 @@ static const ble_uuid128_t uuid_bilateral_time_sync = BLE_UUID128_INIT(
 // Phase 2: Time sync beacon (16 bytes, statically allocated per JPL Rule 1)
 static time_sync_beacon_t g_time_sync_beacon = {0};
 static SemaphoreHandle_t time_sync_beacon_mutex = NULL;
+
+// Cache attribute handle for time sync characteristic (set during GATT registration)
+static uint16_t g_time_sync_char_handle = 0;
 ```
 
 **JPL Compliance:**
 - ✅ Rule 1: Static allocation (no malloc)
 - ✅ Rule 6: Mutex protection for thread safety
+
+**Note:** Also need to add helper function `ble_get_peer_conn_handle()` to return the peer device connection handle, or use existing connection tracking in ble_manager.c.
 
 ### 1.3 Add Time Sync Read Handler
 
@@ -246,9 +251,23 @@ esp_err_t ble_send_time_sync_beacon(void) {
     memcpy(&g_time_sync_beacon, &beacon, sizeof(beacon));
     xSemaphoreGive(time_sync_beacon_mutex);
 
-    // Send via BLE notify
-    // TODO: Get attribute handle for time sync characteristic
-    // ble_gatts_notify(conn_handle, attr_handle);
+    // Send via BLE notify to connected peer
+    // Note: Attribute handle will be cached during GATT service registration
+    // Connection handle obtained from ble_manager's peer tracking
+    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
+    if (peer_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        struct os_mbuf *om = ble_hs_mbuf_from_flat(&beacon, sizeof(beacon));
+        if (om != NULL) {
+            int rc = ble_gatts_notify_custom(peer_conn_handle,
+                                            g_time_sync_char_handle, om);
+            if (rc != 0) {
+                ESP_LOGW(TAG, "BLE notify failed: %d", rc);
+            }
+        } else {
+            ESP_LOGE(TAG, "Failed to allocate mbuf for beacon");
+            return ESP_ERR_NO_MEM;
+        }
+    }
 
     ESP_LOGI(TAG, "Time sync beacon sent (seq: %u, quality: %u%%)",
              beacon.sequence, beacon.quality_score);
@@ -325,7 +344,8 @@ esp_err_t ble_send_time_sync_beacon(void) {
         }
 
         // SERVER: Send beacon if interval elapsed
-        if (TIME_SYNC_IS_SERVER() && should_send_sync_beacon()) {
+        // Note: time_sync_should_send_beacon() is exposed as public API in time_sync.h
+        if (TIME_SYNC_IS_SERVER() && time_sync_should_send_beacon()) {
             ble_send_time_sync_beacon();
         }
     }
@@ -393,7 +413,7 @@ esp_err_t ble_send_time_sync_beacon(void) {
 
 ### 3.1 Update CMakeLists.txt
 
-**File:** `src/CMakeLists.txt`
+**File:** `CMakeLists.txt` (project root, ESP-IDF component registration section)
 **Action:** Add `time_sync.c` to source list
 
 ```cmake
@@ -465,6 +485,16 @@ CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=256
    - Force disconnect during operation
    - Verify continued sync using frozen state
    - Measure actual drift vs expected
+
+6. **RTT Measurement Enhancement (Future Work)**
+   - **Status:** Not implemented in Phase 2.1
+   - **Current:** RTT hardcoded to 0 in `time_sync.c:312`
+   - **Impact:** Quality score based solely on offset and drift (acceptable for ±100ms requirement)
+   - **Future Enhancement:**
+     - Add CLIENT→SERVER response beacon for RTT measurement
+     - Update `time_sync_process_beacon()` to calculate actual round-trip time
+     - Improve quality score accuracy with BLE latency data
+   - **Priority:** Low (not blocking for Phase 2 completion)
 
 ### 4.2 Hardware Validation Plan
 

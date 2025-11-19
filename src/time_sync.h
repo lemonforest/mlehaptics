@@ -343,6 +343,16 @@ time_sync_role_t time_sync_get_role(void);
 uint32_t time_sync_calculate_expected_drift(uint32_t elapsed_ms);
 
 /**
+ * @brief Check if sync beacon should be sent (SERVER only)
+ *
+ * Determines if enough time has elapsed since last sync based on
+ * adaptive interval. Used by motor task to trigger beacon transmission.
+ *
+ * @return true if beacon should be sent, false otherwise
+ */
+bool time_sync_should_send_beacon(void);
+
+/**
  * @brief Force immediate resynchronization
  *
  * Resets sync interval to minimum and triggers immediate sync beacon
