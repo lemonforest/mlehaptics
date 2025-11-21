@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - CLAUDE.md updated with Phase 2 summary and test results
-- architecture_decisions.md updated with AD037-AD040
+- Architecture decisions migrated to docs/adr/ (AD037-AD040 added as individual files)
 - PHASE3_COMMAND_CONTROL_IDEAS.md created for Phase 3 planning
 
 ### Known Issues (Non-Blocking)

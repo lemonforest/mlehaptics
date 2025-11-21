@@ -357,7 +357,7 @@ Motor B: [375ms OFF] [125ms ON]
 #define GPIO_BAT_ENABLE         21      // Battery monitor enable (HIGH=enabled)
 ```
 
-**Note:** For detailed circuit analysis (BEMF filter, battery divider resistor values, etc.), see [docs/architecture_decisions.md](docs/architecture_decisions.md) AD005 and AD021.
+**Note:** For detailed circuit analysis (BEMF filter, battery divider resistor values, etc.), see [AD005](docs/adr/0005-gpio-assignment-strategy.md) and [AD021](docs/adr/0021-motor-stall-detection-back-emf.md).
 
 ---
 
@@ -979,9 +979,12 @@ pio device monitor
 
 ### Documentation
 
-- **Architecture Decisions**: `docs/architecture_decisions.md` (AD010, AD032, AD035)
-- **Command-and-Control**: `docs/architecture_decisions.md` (AD028 - Phase 1b status added)
-- **Bilateral Control Service**: `docs/architecture_decisions.md` (AD030 - Phase 1b status added)
+- **Architecture Decisions**: `docs/adr/` - Individual ADR files (see [index](docs/adr/README.md))
+  - [AD010](docs/adr/0010-race-condition-prevention-strategy.md): Race Condition Prevention
+  - [AD028](docs/adr/0028-command-control-synchronized-fallback.md): Command-and-Control Architecture
+  - [AD030](docs/adr/0030-ble-bilateral-control-service.md): BLE Bilateral Control Service
+  - [AD032](docs/adr/0032-ble-configuration-service-architecture.md): BLE Service UUID Namespace
+  - [AD035](docs/adr/0035-battery-based-initial-role-assignment.md): Battery-Based Role Assignment
 - **Session Summary**: `SESSION_SUMMARY_PHASE_1B.md` (to be created)
 
 ---
@@ -1074,7 +1077,7 @@ GPIO Definitions:        [Within test files and src/*.h]
 Build Commands:          BUILD_COMMANDS.md
 Quick Start:             QUICK_START.md
 Full Spec:               docs/requirements_spec.md
-Architecture Decisions:  docs/architecture_decisions.md (AD010, AD028, AD030, AD032, AD035)
+Architecture Decisions:  docs/adr/ (40 individual ADR files, see docs/adr/README.md index)
 State Machine Analysis:  docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md
 BLE Task Analysis:       test/BLE_TASK_STATE_MACHINE_ANALYSIS.md
 Mode Switch Refactor:    test/MODE_SWITCH_REFACTORING_PLAN.md
