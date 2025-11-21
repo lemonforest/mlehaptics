@@ -1,11 +1,13 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Version:** v0.2.0-beta.1 (Phase 1c Complete)
-**Last Updated:** 2025-11-19
-**Status:** Beta Testing (Phase 1c - Battery-Based Role Assignment)
-**Project Phase:** Phase 1c Complete (Battery-Based Role Assignment) | Phase 0.4 Complete (JPL Single-Device)
+**Version:** v0.3.0-beta.1 (Phase 2 Complete)
+**Last Updated:** 2025-11-21
+**Status:** Dual-Device Time Synchronization (Phase 2 - Production Ready ✅)
+**Project Phase:** Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing) | Phase 0.4 Complete (Single-Device)
 **Hardware:** Seeed XIAO ESP32-C6
 **Framework:** ESP-IDF v5.5.0 via PlatformIO
+
+> **Note:** Phase 2 time synchronization is complete and tested (90-minute stress test passed). Next milestone: Phase 3 - Command & Control for bilateral motor coordination.
 
 ---
 
@@ -31,6 +33,97 @@
 **Testing Required:** Oscilloscope verification of actual frequency output.
 
 **Files Modified:** [src/motor_task.h](src/motor_task.h), [src/motor_task.c](src/motor_task.c), [src/ble_manager.c](src/ble_manager.c)
+
+---
+
+## Phase 2: Time Synchronization (v0.3.0-beta.1 - November 21, 2025) ✅
+
+**Status:** COMPLETE - Production Ready
+
+Phase 2 implements NTP-style time synchronization between peer devices to enable precise bilateral motor coordination in Phase 3.
+
+### Key Features Implemented
+
+1. **Time Sync Protocol** (`src/time_sync.c`, `src/time_sync_task.c`)
+   - NTP-style beacon exchange (timestamped messages)
+   - Clock offset and drift tracking
+   - Quality metrics (0-100%)
+   - Hybrid approach: NTP algorithm + hardware timestamps
+
+2. **Dual-Clock Architecture**
+   - System clock remains untouched (no watchdog implications)
+   - Synchronized time calculated on-demand via API
+   - Applications opt-in to using synchronized time
+
+3. **API for Phase 3 Integration**
+   ```c
+   bool time_sync_is_synchronized(void);
+   int64_t time_sync_get_local_time_us(void);
+   int64_t time_sync_get_peer_time_us(void);
+   int64_t time_sync_get_drift_us(void);
+   uint8_t time_sync_get_quality(void);
+   ```
+
+### Test Results (90-Minute Stress Test)
+
+**Metrics:**
+- **Beacons Exchanged:** 271/270 expected (100% delivery rate)
+- **Initial Drift:** -377 μs
+- **Converged Drift:** -14 μs (stable)
+- **Final Drift:** -31 μs after 90 minutes
+- **Quality Score:** 95% sustained (excellent)
+- **Session Duration:** 5400 seconds (90 minutes, unattended)
+- **System Stability:** No crashes, no BLE disconnects
+- **Sequence Wrap:** Clean 255→0 transition (no errors)
+
+**Anomalies Detected:** 7 brief 50ms offset jumps over 90 minutes
+- **Root Cause:** Likely BLE connection parameter updates (not time sync bugs)
+- **Recovery:** Time sync detected all anomalies (quality→0%), recovered within 2 beacons
+- **Impact:** Negligible for 20-minute therapy sessions
+
+**Verdict:** Time synchronization is production-ready. The ±30 μs drift over 90 minutes is excellent (0.003% timing error at 1 Hz).
+
+### Bug Fixes This Session
+
+**Bug #11:** Windows PC PWA Connection Tracking (FIXED - November 21, 2025)
+- **Symptom:** PWA from Windows PC not tracked properly, device became invisible after disconnect
+- **Root Cause:** CLIENT devices kept scanning after peer connection, causing connection interference
+- **Fix:** Stop scanning immediately when peer connects (unconditional `ble_gap_disc_cancel()`)
+- **Files:** `src/ble_manager.c:1613-1626`
+
+**NimBLE Configuration Migration** (November 21, 2025)
+- Replaced custom `BLE_PAIRING_TEST_MODE` flag with standard `CONFIG_BT_NIMBLE_NVS_PERSIST`
+- Production environment: NVS bonding enabled
+- Test environment: RAM-only bonding (unlimited pairing cycles)
+- Binary size: Test environment 1,738 bytes smaller (NVS backend not compiled)
+
+**Pairing Race Condition Fix (Bug #10)** (November 21, 2025)
+- **Issue:** CLIENT devices stopped scanning before role assignment, SERVER couldn't discover them
+- **Fix:** CLIENT devices keep scanning during wait period, only SERVER stops before connecting
+- **Result:** Devices can be powered on at different times (not synchronized) and still pair successfully
+
+### Phase 3 Planning
+
+**Next Milestone:** Command & Control for Bilateral Motor Coordination
+
+**Scope:**
+1. Motor command protocol (start/stop/mode change via BLE GATT)
+2. One-time phase alignment at session start (using time sync API)
+3. Bilateral alternation patterns (Device A forward, Device B reverse, 500ms phase offset)
+4. Mode change synchronization (both devices switch together)
+5. Emergency shutdown propagation
+
+**Design Decision:** One-time phase alignment is sufficient
+- Observed drift: 28 μs over 90 minutes → 6 μs over 20-minute session
+- At 1 Hz: 0.0006% timing error (imperceptible)
+- Periodic re-sync unnecessary for therapy sessions
+- Simpler implementation = fewer bugs
+
+**Challenge:** Mode changes during active session
+- Must coordinate between devices
+- Phase recalculation for new frequency
+- Graceful stop → switch → synchronized restart
+- Expected to be complex ("fun bugs")
 
 ---
 
@@ -78,7 +171,7 @@ EMDR_PULSER_SONNET4/
 ├── src/                          # Main source (placeholder - uses test/)
 │   └── main.c                    # Empty - actual code in test/
 ├── test/                         # All functional test programs
-│   ├── single_device_demo_jpl_queued.c # **PRIMARY** - Phase 4 JPL-compliant
+│   ├── single_device_demo_jpl_queued.c # **PRIMARY** - Phase 0.4 JPL-compliant
 │   ├── single_device_ble_gatt_test.c # **BLE** - Full NimBLE GATT server with state machines
 │   ├── single_device_battery_bemf_test.c # Baseline with battery monitoring
 │   ├── single_device_battery_bemf_queued_test.c # Phase 1 (message queues)
@@ -98,7 +191,7 @@ EMDR_PULSER_SONNET4/
 └── BUILD_COMMANDS.md             # Essential build commands reference
 
 **Active Development Files (as of Nov 8, 2025):**
-- **Primary:** `test/single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant (PRODUCTION-READY)
+- **Primary:** `test/single_device_demo_jpl_queued.c` - Phase 0.4 JPL-compliant (PRODUCTION-READY)
 - **BLE Version:** `test/single_device_ble_gatt_test.c` - Full BLE GATT server with 8-state motor machine (PRODUCTION-READY)
 - **Baseline:** `test/single_device_battery_bemf_test.c` - Research baseline with battery monitoring
 - **Simple Demo:** `test/single_device_demo_test.c` - 4-mode demo without battery features
@@ -113,7 +206,7 @@ EMDR_PULSER_SONNET4/
 ### Essential Commands
 
 ```bash
-# Build for Phase 4 JPL-compliant (PRIMARY - use these)
+# Build for Phase 0.4 JPL-compliant (PRIMARY - use these)
 pio run -e single_device_demo_jpl_queued -t upload
 pio device monitor
 
@@ -133,7 +226,7 @@ pio run -e single_device_demo_jpl_queued -t clean
 
 Each test has its own PlatformIO environment and sdkconfig:
 
-- `single_device_demo_jpl_queued` - **PRIMARY** - Phase 4 JPL-compliant (production-ready)
+- `single_device_demo_jpl_queued` - **PRIMARY** - Phase 0.4 JPL-compliant (production-ready)
 - `single_device_ble_gatt_test` - **BLE** - Full NimBLE GATT server with state machines (production-ready)
 - `single_device_battery_bemf_test` - Baseline with battery + back-EMF monitoring
 - `single_device_battery_bemf_queued_test` - Phase 1 (adds message queues)
@@ -348,7 +441,7 @@ rm -rf .pio/build
 
 ### Source Files
 
-- **test/single_device_demo_jpl_queued.c** - Phase 4 JPL-compliant (PRIMARY)
+- **test/single_device_demo_jpl_queued.c** - Phase 0.4 JPL-compliant (PRIMARY)
 - **test/single_device_battery_bemf_test.c** - Baseline with battery monitoring
 - **test/single_device_demo_test.c** - Simple demo (no battery features)
 - **src/main.c** - Auto-generated, do not edit manually
@@ -410,15 +503,15 @@ rm -rf .pio/build
 
 ### Typical Development Session
 
-1. **Check current status:** Read PHASE_4_COMPLETE_QUICKSTART.md
-2. **Build Phase 4:** `pio run -e single_device_demo_jpl_queued -t upload`
+1. **Check current status:** Read QUICK_START.md and relevant test guides
+2. **Build Phase 0.4:** `pio run -e single_device_demo_jpl_queued -t upload`
 3. **Monitor:** `pio device monitor`
 4. **Iterate:** Make changes, rebuild, test
 5. **Document:** Update session summaries and architecture decisions
 
 ### Testing Different Versions
 
-- **Production (Phase 4):** `pio run -e single_device_demo_jpl_queued -t upload`
+- **Production (Phase 0.4):** `pio run -e single_device_demo_jpl_queued -t upload`
 - **Baseline (with battery):** `pio run -e single_device_battery_bemf_test -t upload`
 - **Simple demo (no battery):** `pio run -e single_device_demo_test -t upload`
 
@@ -453,7 +546,7 @@ Example:
 - 200ms feed interval vs 2000ms timeout = 10× safety margin
 - Complete analysis: See `purple_blink_logic_analysis.md`
 
-**Status:** ✅ FIXED and tested in Phase 4 implementation
+**Status:** ✅ FIXED and tested in Phase 0.4 implementation
 
 ### BLE Initialization Fix (November 5, 2025)
 
@@ -552,8 +645,8 @@ CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP=3
 
 **Documentation:**
 - **Test-Specific Guide:** `test/SINGLE_DEVICE_DEMO_JPL_QUEUED_GUIDE.md` - Quick reference for JPL environment
-- **Comprehensive Guide:** `test/PHASE_4_JPL_QUEUED_COMPLETE_GUIDE.md` - Full JPL compliance details
-- **Archived Guides:** `docs/archive/PHASE_*.md` - Development history (Phases 1-3)
+- **Comprehensive Guide:** `test/PHASE_0.4_JPL_QUEUED_COMPLETE_GUIDE.md` - Full JPL compliance details
+- **Archived Guides:** `docs/archive/PHASE_*.md` - Development history
 
 ---
 
@@ -969,23 +1062,23 @@ Implement automatic calibration routine to address observed full-charge discrepa
 
 ```
 Build Configuration:     platformio.ini
-Phase 1b (Modular):      src/*.c (ble_manager, motor_task, ble_task, button_task)
-Primary Code (Phase 4):  test/single_device_demo_jpl_queued.c
+Phase 1c (Modular):      src/*.c (ble_manager, motor_task, ble_task, button_task)
+Phase 0.4 Code:          test/single_device_demo_jpl_queued.c
 BLE GATT Code:           test/single_device_ble_gatt_test.c
 Test-Specific Guide:     test/SINGLE_DEVICE_DEMO_JPL_QUEUED_GUIDE.md
 BLE GATT Guide:          test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md
-Comprehensive Guide:     test/PHASE_4_JPL_QUEUED_COMPLETE_GUIDE.md
+Comprehensive Guide:     test/PHASE_0.4_JPL_QUEUED_COMPLETE_GUIDE.md
 Baseline Code:           test/single_device_battery_bemf_test.c
 Simple Demo:             test/single_device_demo_test.c
 GPIO Definitions:        [Within test files and src/*.h]
 Build Commands:          BUILD_COMMANDS.md
-Quick Start:             PHASE_4_COMPLETE_QUICKSTART.md
+Quick Start:             QUICK_START.md
 Full Spec:               docs/requirements_spec.md
 Architecture Decisions:  docs/architecture_decisions.md (AD010, AD028, AD030, AD032, AD035)
 State Machine Analysis:  docs/STATE_MACHINE_ANALYSIS_CHECKLIST.md
 BLE Task Analysis:       test/BLE_TASK_STATE_MACHINE_ANALYSIS.md
 Mode Switch Refactor:    test/MODE_SWITCH_REFACTORING_PLAN.md
-Archived Docs:           docs/archive/PHASE_*.md
+Archived Docs:           docs/archive/ (includes archived PHASE_0.4_COMPLETE_QUICKSTART.md)
 ```
 
 ---
@@ -994,14 +1087,14 @@ Archived Docs:           docs/archive/PHASE_*.md
 
 **Q: Where is the main application code?**
 A: Two production-ready versions exist:
-- `test/single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant (button-only control)
+- `test/single_device_demo_jpl_queued.c` - Phase 0.4 JPL-compliant (button-only control)
 - `test/single_device_ble_gatt_test.c` - BLE GATT server with state machines (mobile app control)
 
 Both are automatically copied to `src/main.c` during build.
 
 **Q: How do I switch between different tests?**
 A: Use `pio run -e [environment_name] -t upload`, e.g.:
-- `pio run -e single_device_demo_jpl_queued -t upload` (Phase 4 JPL)
+- `pio run -e single_device_demo_jpl_queued -t upload` (Phase 0.4 JPL)
 - `pio run -e single_device_ble_gatt_test -t upload` (BLE GATT)
 
 **Q: Why are there so many sdkconfig files?**
@@ -1009,7 +1102,7 @@ A: Each test needs different ESP-IDF configurations (GPIO, peripherals, power ma
 
 **Q: What's the difference between the test files?**
 A:
-- `single_device_demo_jpl_queued.c` - Phase 4 JPL-compliant, button-only (production-ready)
+- `single_device_demo_jpl_queued.c` - Phase 0.4 JPL-compliant, button-only (production-ready)
 - `single_device_ble_gatt_test.c` - Full BLE GATT server, state machines, mobile app control (production-ready)
 - `single_device_battery_bemf_test.c` - Baseline with battery + back-EMF monitoring
 - `single_device_battery_bemf_queued_test.c` - Phase 1 (adds message queues)

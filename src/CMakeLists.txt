@@ -25,6 +25,8 @@ idf_component_register(
         "ble_manager.c"
         "nvs_manager.c"
         "power_manager.c"
+        "time_sync.c"
+        "time_sync_task.c"
 
         # Command-and-Control modules (AD028)
         "command_protocol.c"

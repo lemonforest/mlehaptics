@@ -13,6 +13,8 @@
 #include "motor_task.h"
 #include "motor_control.h"  // For MOTOR_PWM_DEFAULT
 #include "role_manager.h"
+#include "time_sync.h"      // Phase 2: Time synchronization (AD039)
+#include "time_sync_task.h" // Phase 2: Time sync task integration
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -79,6 +81,12 @@ static const ble_uuid128_t uuid_bilateral_mac = BLE_UUID128_INIT(
 static const ble_uuid128_t uuid_bilateral_role = BLE_UUID128_INIT(
     0x03, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+// Phase 2: Time synchronization (AD036)
+static const ble_uuid128_t uuid_bilateral_time_sync = BLE_UUID128_INIT(
+    0x04, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+// UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70104
 
 // Configuration Service (4BCAE9BE-9829-4F0A-9E88-267DE5E70200)
 // Mobile app control interface (single or dual device)
@@ -233,6 +241,23 @@ static ble_advertising_state_t adv_state = {
 static bool settings_dirty = false;
 
 // ============================================================================
+// TIME SYNC BEACON STORAGE (Phase 2 - AD039)
+// ============================================================================
+
+// Phase 2: Time sync beacon (16 bytes, statically allocated per JPL Rule 1)
+static time_sync_beacon_t g_time_sync_beacon = {0};
+static SemaphoreHandle_t time_sync_beacon_mutex = NULL;
+
+// Cache attribute handle for time sync characteristic
+// - SERVER (BLE_GAP_ROLE_SLAVE): Set during GATT registration (gatt_svr_register_cb)
+// - CLIENT (BLE_GAP_ROLE_MASTER): Set during GATT discovery (gattc_on_chr_disc)
+static uint16_t g_time_sync_char_handle = 0;
+
+// CLIENT-specific: Handle for peer's time sync characteristic (discovered via GATT client)
+// Only used when we are CLIENT role (initiated connection to SERVER peer)
+static uint16_t g_peer_time_sync_char_handle = 0;
+
+// ============================================================================
 // BLE SECURITY CONFIGURATION (Phase 1b.3)
 // ============================================================================
 
@@ -243,7 +268,7 @@ static bool settings_dirty = false;
  * - Just Works pairing method (no passkey display required)
  * - Button confirmation required (MITM protection)
  * - Bonding enabled (keys stored in NVS)
- * - Conditional NVS writes based on BLE_PAIRING_TEST_MODE flag
+ * - Conditional NVS writes based on CONFIG_BT_NIMBLE_NVS_PERSIST flag
  *
  * Security configured via global ble_hs_cfg in ble_manager_init()
  */
@@ -335,6 +360,12 @@ static uint32_t calculate_settings_signature(void) {
     };
     return esp_crc32_le(0, sig_data, sizeof(sig_data));
 }
+
+// ============================================================================
+// FORWARD DECLARATIONS (for helper functions used before definition)
+// ============================================================================
+
+static bool ble_is_app_connected(void);
 
 // ============================================================================
 // GATT CHARACTERISTIC CALLBACKS
@@ -960,6 +991,63 @@ static int gatt_bilateral_role_write(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
+// Time Sync Beacon - Read (Phase 2: AD039)
+static int gatt_bilateral_time_sync_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    // Only readable by peer devices (not mobile app)
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "Time sync read attempted by non-peer");
+        return BLE_ATT_ERR_READ_NOT_PERMITTED;
+    }
+
+    // JPL Rule 6: Bounded mutex wait
+    if (xSemaphoreTake(time_sync_beacon_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in time sync read");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    time_sync_beacon_t beacon;
+    memcpy(&beacon, &g_time_sync_beacon, sizeof(time_sync_beacon_t));
+    xSemaphoreGive(time_sync_beacon_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Time sync beacon (seq: %u, quality: %u%%)",
+             beacon.sequence, beacon.quality_score);
+
+    int rc = os_mbuf_append(ctxt->om, &beacon, sizeof(beacon));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Time Sync Beacon - Write (Phase 2: CLIENT receives from SERVER)
+static int gatt_bilateral_time_sync_write(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    // Only writable by peer devices (not mobile app)
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "Time sync write attempted by non-peer");
+        return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+    }
+
+    time_sync_beacon_t beacon;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &beacon, sizeof(beacon), NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Time sync write: Invalid length");
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // Get receive timestamp ASAP for accuracy
+    uint64_t receive_time_us = esp_timer_get_time();
+
+    // Forward beacon to time_sync_task for processing
+    esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send beacon to time_sync_task: %s", esp_err_to_name(err));
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+
+    ESP_LOGD(TAG, "Time sync beacon forwarded to task (seq: %u)", beacon.sequence);
+
+    return 0;
+}
+
 // GATT characteristic access dispatcher
 static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg) {
@@ -1049,6 +1137,13 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                gatt_bilateral_role_write(conn_handle, attr_handle, ctxt, arg);
     }
 
+    // Phase 2: Time synchronization
+    if (ble_uuid_cmp(uuid, &uuid_bilateral_time_sync.u) == 0) {
+        return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
+               gatt_bilateral_time_sync_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_bilateral_time_sync_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
     // Unknown characteristic
     return BLE_ATT_ERR_UNLIKELY;
 }
@@ -1078,6 +1173,12 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = &uuid_bilateral_role.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+            },
+            {
+                // Phase 2: Time synchronization (AD039)
+                .uuid = &uuid_bilateral_time_sync.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
             },
             {
                 0, // No more characteristics
@@ -1175,6 +1276,13 @@ static void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
         case BLE_GATT_REGISTER_OP_CHR:
             ESP_LOGI(TAG, "GATT: Characteristic %s registered",
                      ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf));
+
+            // Capture time sync characteristic handle (Phase 2 - AD039)
+            // This handle is required for ble_send_time_sync_beacon() to send notifications
+            if (ble_uuid_cmp(ctxt->chr.chr_def->uuid, &uuid_bilateral_time_sync.u) == 0) {
+                g_time_sync_char_handle = ctxt->chr.val_handle;
+                ESP_LOGI(TAG, "Time sync characteristic handle captured: %u", g_time_sync_char_handle);
+            }
             break;
 
         case BLE_GATT_REGISTER_OP_DSC:
@@ -1255,6 +1363,142 @@ static const char* ble_connect_status_str(uint8_t status) {
         default:   return "Unknown Status";
     }
 }
+
+// ============================================================================
+// GATT CLIENT DISCOVERY CALLBACKS (Phase 2 - CLIENT role time sync)
+// ============================================================================
+
+/**
+ * @brief GATT client callback: CCCD write completion
+ *
+ * Called after successfully writing to Client Characteristic Configuration Descriptor
+ * to enable notifications for time sync characteristic.
+ *
+ * @param conn_handle Connection handle
+ * @param error Error code (0 = success)
+ * @param attr Attribute handle
+ * @param arg User argument (unused)
+ * @return 0 on success
+ */
+static int gattc_on_cccd_write(uint16_t conn_handle,
+                                const struct ble_gatt_error *error,
+                                struct ble_gatt_attr *attr,
+                                void *arg)
+{
+    if (error->status == 0) {
+        ESP_LOGI(TAG, "CLIENT: Time sync notifications ENABLED (CCCD write successful)");
+        ESP_LOGI(TAG, "CLIENT: Ready to receive sync beacons from SERVER");
+    } else {
+        ESP_LOGE(TAG, "CLIENT: Failed to write CCCD; status=%d", error->status);
+    }
+    return 0;
+}
+
+/**
+ * @brief GATT client callback: Characteristic discovery completion
+ *
+ * Called for each characteristic found during discovery.
+ * Searches for time sync characteristic and initiates descriptor discovery.
+ *
+ * @param conn_handle Connection handle
+ * @param error Error code
+ * @param chr Characteristic
+ * @param arg User argument (unused)
+ * @return 0 to continue discovery, non-zero to stop
+ */
+static int gattc_on_chr_disc(uint16_t conn_handle,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_chr *chr,
+                              void *arg)
+{
+    if (error->status != 0) {
+        ESP_LOGE(TAG, "CLIENT: Characteristic discovery error; status=%d", error->status);
+        return 0;
+    }
+
+    if (chr == NULL) {
+        // Discovery complete
+        ESP_LOGI(TAG, "CLIENT: Characteristic discovery complete");
+        return 0;
+    }
+
+    // Compare UUID with time sync characteristic
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_bilateral_time_sync.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found time sync characteristic; val_handle=%u", chr->val_handle);
+
+        // Store handle for notification reception
+        g_peer_time_sync_char_handle = chr->val_handle;
+
+        // Write directly to CCCD (standard location is val_handle + 1)
+        // This avoids descriptor discovery which has handle range issues
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;  // 0x0001 = notifications enabled
+
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc != 0) {
+            ESP_LOGE(TAG, "CLIENT: Failed to write CCCD at handle %u; rc=%d", cccd_handle, rc);
+        } else {
+            ESP_LOGI(TAG, "CLIENT: CCCD write initiated at handle %u (enabling notifications)", cccd_handle);
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * @brief GATT client callback: Service discovery completion
+ *
+ * Called for each service found during discovery.
+ * Searches for Bilateral Control Service and initiates characteristic discovery.
+ *
+ * @param conn_handle Connection handle
+ * @param error Error code
+ * @param service Service
+ * @param arg User argument (unused)
+ * @return 0 to continue discovery, non-zero to stop
+ */
+static int gattc_on_svc_disc(uint16_t conn_handle,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_svc *service,
+                              void *arg)
+{
+    if (error->status != 0) {
+        ESP_LOGE(TAG, "CLIENT: Service discovery error; status=%d", error->status);
+        return 0;
+    }
+
+    if (service == NULL) {
+        // Discovery complete
+        ESP_LOGI(TAG, "CLIENT: Service discovery complete");
+        return 0;
+    }
+
+    // Compare UUID with Bilateral Control Service
+    if (ble_uuid_cmp(&service->uuid.u, &uuid_bilateral_service.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found Bilateral Control Service; start_handle=%u, end_handle=%u",
+                 service->start_handle, service->end_handle);
+
+        // Start characteristic discovery within this service
+        int rc = ble_gattc_disc_all_chrs(conn_handle,
+                                          service->start_handle,
+                                          service->end_handle,
+                                          gattc_on_chr_disc,
+                                          NULL);
+        if (rc != 0) {
+            ESP_LOGE(TAG, "CLIENT: Failed to start characteristic discovery; rc=%d", rc);
+        } else {
+            ESP_LOGI(TAG, "CLIENT: Characteristic discovery started");
+        }
+    }
+
+    return 0;
+}
+
+// ============================================================================
+// BLE GAP EVENT HANDLER
+// ============================================================================
 
 static int ble_gap_event(struct ble_gap_event *event, void *arg) {
     int rc;
@@ -1339,7 +1583,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     }
 
                     // Security check: Prevent multiple peer connections
-                    if (!is_bonded && peer_state.peer_connected) {
+                    if (!is_bonded && ble_is_peer_connected()) {
                         ESP_LOGW(TAG, "Rejecting unbonded peer (bonded peer already connected)");
                         ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                         break;
@@ -1355,7 +1599,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 // ===== CONNECTION TYPE HANDLING =====
                 if (is_peer) {
                     // Check if we already have a peer connection
-                    if (peer_state.peer_connected) {
+                    if (ble_is_peer_connected()) {
                         ESP_LOGW(TAG, "Already connected to peer, rejecting duplicate peer connection");
                         ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                         break;
@@ -1366,15 +1610,19 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     peer_state.peer_conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
 
-                    // Stop scanning once peer connected
-                    if (scanning_active) {
-                        int scan_rc = ble_gap_disc_cancel();
-                        if (scan_rc == 0 || scan_rc == BLE_HS_EALREADY) {
-                            scanning_active = false;
-                            ESP_LOGI(TAG, "Scanning stopped (peer connected)");
-                        } else {
-                            ESP_LOGW(TAG, "Failed to stop scanning; rc=%d", scan_rc);
-                        }
+                    // CRITICAL: Stop scanning immediately to prevent connection race conditions
+                    // This prevents scan callback from discovering and trying to connect to other devices
+                    // while we're processing incoming connections (Bug #11 - Windows PC PWA misidentification)
+                    int scan_rc = ble_gap_disc_cancel();
+                    if (scan_rc == 0 || scan_rc == BLE_HS_EALREADY) {
+                        scanning_active = false;
+                        ESP_LOGI(TAG, "Scanning stopped (peer connected)");
+                    } else if (scan_rc == BLE_HS_EINVAL) {
+                        // Scanning wasn't active - that's fine
+                        scanning_active = false;
+                        ESP_LOGD(TAG, "Scanning already stopped");
+                    } else {
+                        ESP_LOGW(TAG, "Failed to stop scanning; rc=%d", scan_rc);
                     }
 
                     // CRITICAL FIX (Bug #16): Assign role FIRST, regardless of advertising state
@@ -1386,6 +1634,16 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     if (we_initiated) {
                         peer_state.role = PEER_ROLE_CLIENT;
                         ESP_LOGI(TAG, "CLIENT role assigned (BLE MASTER)");
+
+                        // Phase 2: Start GATT service discovery to find SERVER's time sync characteristic
+                        // This is required for CLIENT to receive sync beacons via notifications
+                        ESP_LOGI(TAG, "CLIENT: Starting GATT service discovery for peer services");
+                        int disc_rc = ble_gattc_disc_all_svcs(event->connect.conn_handle,
+                                                               gattc_on_svc_disc,
+                                                               NULL);
+                        if (disc_rc != 0) {
+                            ESP_LOGE(TAG, "CLIENT: Failed to start service discovery; rc=%d", disc_rc);
+                        }
                     } else {
                         peer_state.role = PEER_ROLE_SERVER;
                         ESP_LOGI(TAG, "SERVER role assigned (BLE SLAVE)");
@@ -1415,7 +1673,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 } else {
                     // ===== APP CONNECTION HANDLING =====
                     // Check if we already have an app connection
-                    if (adv_state.client_connected) {
+                    if (ble_is_app_connected()) {
                         ESP_LOGW(TAG, "Already connected to app, rejecting duplicate app connection");
                         ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
                         break;
@@ -1472,6 +1730,32 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             bool app_disconnected = (adv_state.client_connected &&
                                      event->disconnect.conn.conn_handle == adv_state.conn_handle);
 
+            // IMPROVED: If state tracking failed to identify connection, verify with NimBLE API
+            // This handles race conditions where state flags got out of sync with actual connections
+            if (!peer_disconnected && !app_disconnected) {
+                struct ble_gap_conn_desc desc;
+
+                // Check if peer connection still exists (if we think it should)
+                if (peer_state.peer_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+                    int peer_rc = ble_gap_conn_find(peer_state.peer_conn_handle, &desc);
+                    if (peer_rc != 0) {
+                        // Peer connection no longer exists - THIS disconnect was the peer!
+                        ESP_LOGW(TAG, "State tracking mismatch: disconnect was peer (verified by NimBLE API)");
+                        peer_disconnected = true;
+                    }
+                }
+
+                // Check if app connection still exists (if we think it should)
+                if (!peer_disconnected && adv_state.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+                    int app_rc = ble_gap_conn_find(adv_state.conn_handle, &desc);
+                    if (app_rc != 0) {
+                        // App connection no longer exists - THIS disconnect was the app!
+                        ESP_LOGW(TAG, "State tracking mismatch: disconnect was app (verified by NimBLE API)");
+                        app_disconnected = true;
+                    }
+                }
+            }
+
             if (peer_disconnected) {
                 // Peer device disconnected
                 ESP_LOGI(TAG, "Peer device disconnected");
@@ -1479,6 +1763,17 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 peer_state.peer_discovered = false;
                 peer_state.peer_conn_handle = BLE_HS_CONN_HANDLE_NONE;
                 peer_state.role = PEER_ROLE_NONE;
+
+                // Phase 2: Notify time_sync_task of peer disconnection (AD039)
+                if (TIME_SYNC_IS_INITIALIZED()) {
+                    esp_err_t err = time_sync_task_send_disconnection();
+                    if (err == ESP_OK) {
+                        ESP_LOGI(TAG, "Time sync disconnection notification sent");
+                    } else {
+                        ESP_LOGW(TAG, "Failed to send time sync disconnection: %s",
+                                 esp_err_to_name(err));
+                    }
+                }
 
                 // JPL compliance: Allow NimBLE to fully clean up connection handle
                 // Measured reconnection timing from logs:
@@ -1542,6 +1837,36 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             if (!peer_disconnected && !app_disconnected) {
                 ESP_LOGW(TAG, "Unknown connection disconnected; conn_handle=%d",
                          event->disconnect.conn.conn_handle);
+
+                // BUG FIX: Restart advertising for unknown disconnections (mobile app fallback)
+                // This handles cases where connection wasn't properly registered due to race conditions
+                // or timing issues during connection establishment
+                ESP_LOGI(TAG, "Restarting advertising after unknown disconnect (mobile app fallback)");
+
+                vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay for BLE stack cleanup
+
+                rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                       &adv_params, ble_gap_event, NULL);
+                if (rc == 0) {
+                    adv_state.advertising_active = true;
+                    adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                    ESP_LOGI(TAG, "Advertising restarted successfully");
+                } else if (rc == BLE_HS_EALREADY) {
+                    ESP_LOGI(TAG, "Advertising already active");
+                    adv_state.advertising_active = ble_gap_adv_active();
+                } else {
+                    ESP_LOGE(TAG, "Failed to restart advertising; rc=%d", rc);
+                    adv_state.advertising_active = ble_gap_adv_active();
+                }
+
+                // Stop scanning if active (mobile app doesn't need peer discovery)
+                if (scanning_active) {
+                    int scan_rc = ble_gap_disc_cancel();
+                    if (scan_rc == 0 || scan_rc == BLE_HS_EALREADY) {
+                        scanning_active = false;
+                        ESP_LOGI(TAG, "Scanning stopped (mobile app fallback)");
+                    }
+                }
             }
             break;
 
@@ -1628,6 +1953,56 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 }
             }
             break;
+
+        case BLE_GAP_EVENT_NOTIFY_RX: {
+            // BLE notification received from peer (Phase 2 - AD039 Time Sync)
+            // This handler processes incoming sync beacons sent by SERVER device
+
+            ESP_LOGD(TAG, "BLE notification received: attr_handle=%u, indication=%d",
+                     event->notify_rx.attr_handle,
+                     event->notify_rx.indication);
+
+            // Verify this is the time sync characteristic
+            // Check both SERVER handle (our own GATT service) and CLIENT handle (discovered from peer)
+            bool is_server_handle = (event->notify_rx.attr_handle == g_time_sync_char_handle);
+            bool is_client_handle = (event->notify_rx.attr_handle == g_peer_time_sync_char_handle);
+
+            if (!is_server_handle && !is_client_handle) {
+                // Not time sync characteristic - ignore
+                ESP_LOGD(TAG, "Notification from unknown characteristic handle=%u (expected server=%u or client=%u)",
+                         event->notify_rx.attr_handle,
+                         g_time_sync_char_handle,
+                         g_peer_time_sync_char_handle);
+                break;
+            }
+
+            // Capture receive timestamp IMMEDIATELY (critical for timing accuracy)
+            // OPTIMIZATION: Capture before mbuf extraction to minimize timing error
+            // mbuf extraction adds 0.1-1ms delay - capturing afterwards introduces error
+            uint64_t receive_time_us = esp_timer_get_time();
+
+            // Extract beacon from mbuf
+            time_sync_beacon_t beacon;
+            int copy_rc = ble_hs_mbuf_to_flat(event->notify_rx.om,
+                                               &beacon,
+                                               sizeof(beacon),
+                                               NULL);
+            if (copy_rc != 0) {
+                ESP_LOGE(TAG, "Failed to extract beacon from notification: rc=%d", copy_rc);
+                break;
+            }
+
+            // Forward beacon to time_sync_task for processing
+            esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to queue beacon to time_sync_task: %s", esp_err_to_name(err));
+            } else {
+                ESP_LOGD(TAG, "Beacon notification queued (seq=%u, timestamp=%llu μs)",
+                         beacon.sequence, beacon.timestamp_us);
+            }
+
+            break;
+        }
 
         case BLE_GAP_EVENT_ENC_CHANGE: {
             // Encryption state changed (pairing started or completed)
@@ -2016,6 +2391,13 @@ esp_err_t ble_manager_init(void) {
         return ESP_FAIL;
     }
 
+    // Phase 2: Create time sync beacon mutex (AD039)
+    time_sync_beacon_mutex = xSemaphoreCreateMutex();
+    if (time_sync_beacon_mutex == NULL) {
+        ESP_LOGE(TAG, "Failed to create time_sync_beacon mutex");
+        return ESP_FAIL;
+    }
+
     // Initialize NVS
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -2072,18 +2454,19 @@ esp_err_t ble_manager_init(void) {
     ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
-#ifdef BLE_PAIRING_TEST_MODE
-    // Test mode: RAM-only bonding (no NVS writes)
-    // Setting store_status_cb to NULL prevents NimBLE from writing pairing data to NVS
-    // Bonding data is kept in RAM only and cleared on reboot
-    // This allows unlimited pairing test cycles without flash wear
-    ble_hs_cfg.store_status_cb = NULL;
-    ESP_LOGW(TAG, "BLE_PAIRING_TEST_MODE enabled - bonding data will NOT persist across reboots (RAM only)");
-#else
+#ifdef CONFIG_BT_NIMBLE_NVS_PERSIST
     // Production mode: Persistent bonding via NVS
+    // CONFIG_BT_NIMBLE_NVS_PERSIST compiles NVS store backend and enables persistence
     // ble_store_util_status_rr callback triggers NVS writes when bonding keys are generated
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-    ESP_LOGI(TAG, "BLE bonding enabled - pairing data will persist in NVS");
+    ESP_LOGI(TAG, "BLE bonding enabled - pairing data will persist in NVS (CONFIG_BT_NIMBLE_NVS_PERSIST)");
+#else
+    // Test mode: RAM-only bonding (no NVS writes)
+    // CONFIG_BT_NIMBLE_NVS_PERSIST disabled - NVS store backend not compiled
+    // Setting store_status_cb to NULL ensures bonding data stays in RAM only
+    // Bonding data is cleared on reboot, allowing unlimited pairing test cycles without flash wear
+    ble_hs_cfg.store_status_cb = NULL;
+    ESP_LOGW(TAG, "BLE test mode - bonding data will NOT persist across reboots (RAM only)");
 #endif
 
     ESP_LOGI(TAG, "BLE security configured: LE SC + MITM + bonding");
@@ -2155,7 +2538,7 @@ static void ble_update_scan_response(void) {
 void ble_start_advertising(void) {
     ESP_LOGI(TAG, "ble_start_advertising() called (current state: advertising_active=%s, connected=%s)",
              adv_state.advertising_active ? "YES" : "NO",
-             adv_state.client_connected ? "YES" : "NO");
+             ble_is_app_connected() ? "YES" : "NO");
 
     if (!adv_state.advertising_active) {
         // Update scan response with current UUID before starting advertising
@@ -2230,7 +2613,7 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                     // After pairing, bonded peers reconnect by address (no scanning needed)
                     if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_bilateral_service.u) == 0) {
                         // Check if already connected to a peer (prevent multiple peer connections)
-                        if (peer_state.peer_connected || peer_state.peer_discovered) {
+                        if (ble_is_peer_connected() || peer_state.peer_discovered) {
                             // Already connected or connecting to a peer, ignore this one
                             ESP_LOGD(TAG, "Already have peer connection, ignoring additional peer");
                             break;
@@ -2265,9 +2648,6 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                             }
                         }
 
-                        // Stop scanning (peer discovered)
-                        ble_gap_disc_cancel();
-
                         // AD035: Battery-based role assignment
                         // Higher battery device initiates connection (becomes SERVER/MASTER)
                         // Lower battery device waits (becomes CLIENT/SLAVE)
@@ -2283,11 +2663,18 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 // We have higher battery - initiate connection (SERVER/MASTER)
                                 ESP_LOGI(TAG, "Higher battery (%d%% > %d%%) - initiating as SERVER",
                                          local_battery, peer_state.peer_battery_level);
+
+                                // Stop scanning before connection attempt
+                                ble_gap_disc_cancel();
+
                                 ble_connect_to_peer();
                             } else if (local_battery < peer_state.peer_battery_level) {
                                 // Peer has higher battery - wait for peer to connect (CLIENT/SLAVE)
                                 ESP_LOGI(TAG, "Lower battery (%d%% < %d%%) - waiting as CLIENT",
                                          local_battery, peer_state.peer_battery_level);
+
+                                // KEEP SCANNING during wait period to improve peer's discovery odds
+                                ESP_LOGI(TAG, "Continuing scan during wait - peer may still be discovering");
                                 // Don't call ble_connect_to_peer() - peer will connect to us
                             } else {
                                 // Batteries equal - use MAC address tie-breaker
@@ -2306,15 +2693,26 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 if (we_are_lower) {
                                     ESP_LOGI(TAG, "Equal battery (%d%%), lower MAC - initiating as SERVER",
                                              local_battery);
+
+                                    // Stop scanning before connection attempt
+                                    ble_gap_disc_cancel();
+
                                     ble_connect_to_peer();
                                 } else {
                                     ESP_LOGI(TAG, "Equal battery (%d%%), higher MAC - waiting as CLIENT",
                                              local_battery);
+
+                                    // KEEP SCANNING during wait period to improve peer's discovery odds
+                                    ESP_LOGI(TAG, "Continuing scan during wait - peer may still be discovering");
                                 }
                             }
                         } else {
                             // No battery data - fall back to connection-initiator logic (AD010)
                             ESP_LOGW(TAG, "No peer battery data - falling back to discovery-based role");
+
+                            // Stop scanning before connection attempt
+                            ble_gap_disc_cancel();
+
                             ble_connect_to_peer();
                         }
 
@@ -2330,7 +2728,7 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
             scanning_active = false;
 
             // If no peer found, restart scanning (continuous discovery)
-            if (!peer_state.peer_discovered && !peer_state.peer_connected) {
+            if (!peer_state.peer_discovered && !ble_is_peer_connected()) {
                 ESP_LOGI(TAG, "No peer found, restarting scan...");
                 vTaskDelay(pdMS_TO_TICKS(1000));  // Brief delay before retry
                 ble_start_scanning();
@@ -2359,7 +2757,7 @@ void ble_start_scanning(void) {
         return;
     }
 
-    if (peer_state.peer_connected) {
+    if (ble_is_peer_connected()) {
         ESP_LOGW(TAG, "Already connected to peer, skipping scan");
         return;
     }
@@ -2431,7 +2829,7 @@ void ble_connect_to_peer(void) {
         return;
     }
 
-    if (peer_state.peer_connected) {
+    if (ble_is_peer_connected()) {
         ESP_LOGW(TAG, "Already connected to peer");
         return;
     }
@@ -2463,7 +2861,7 @@ void ble_connect_to_peer(void) {
 // ============================================================================
 
 bool ble_is_connected(void) {
-    return adv_state.client_connected;
+    return ble_is_app_connected();
 }
 
 bool ble_is_advertising(void) {
@@ -2483,11 +2881,27 @@ uint32_t ble_get_advertising_elapsed_ms(void) {
 }
 
 bool ble_is_peer_connected(void) {
-    return peer_state.peer_connected;
+    // Use NimBLE API as source of truth (no state drift)
+    if (peer_state.peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        return false;
+    }
+
+    struct ble_gap_conn_desc desc;
+    return (ble_gap_conn_find(peer_state.peer_conn_handle, &desc) == 0);
+}
+
+static bool ble_is_app_connected(void) {
+    // Use NimBLE API as source of truth (no state drift)
+    if (adv_state.conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        return false;
+    }
+
+    struct ble_gap_conn_desc desc;
+    return (ble_gap_conn_find(adv_state.conn_handle, &desc) == 0);
 }
 
 const char* ble_get_connection_type_str(void) {
-    if (peer_state.peer_connected) {
+    if (ble_is_peer_connected()) {
         // Show role (Phase 1c Step 5: Log assigned role)
         if (peer_state.role == PEER_ROLE_CLIENT) {
             return "Peer (CLIENT)";
@@ -2496,7 +2910,7 @@ const char* ble_get_connection_type_str(void) {
         } else {
             return "Peer";  // Role not yet assigned
         }
-    } else if (adv_state.client_connected) {
+    } else if (ble_is_app_connected()) {
         return "App";
     } else {
         return "Disconnected";
@@ -2529,7 +2943,7 @@ void ble_update_battery_level(uint8_t percentage) {
     xSemaphoreGive(char_data_mutex);
 
     // Send notification if client subscribed
-    if (adv_state.client_connected && adv_state.notify_battery_subscribed) {
+    if (ble_is_app_connected() && adv_state.notify_battery_subscribed) {
         uint16_t val_handle;
         if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_battery.u, NULL, &val_handle) == 0) {
             struct os_mbuf *om = ble_hs_mbuf_from_flat(&percentage, sizeof(percentage));
@@ -2632,6 +3046,77 @@ void ble_update_bilateral_battery_level(uint8_t percentage) {
     }
 }
 
+/**
+ * @brief Send time sync beacon to peer device (SERVER only)
+ *
+ * Called periodically by motor task when time_sync_should_send_beacon() returns true.
+ * Generates beacon from time sync module and sends via BLE notification to peer.
+ *
+ * Phase 2 (AD039): Hybrid time synchronization protocol
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not SERVER role or peer not connected
+ * @return ESP_ERR_TIMEOUT if mutex timeout
+ * @return ESP_FAIL if notification send failed
+ */
+esp_err_t ble_send_time_sync_beacon(void) {
+    // Check if we're the SERVER
+    if (time_sync_get_role() != TIME_SYNC_ROLE_SERVER) {
+        ESP_LOGW(TAG, "Cannot send sync beacon: not SERVER role");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Check if peer is connected
+    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
+    if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGD(TAG, "Cannot send sync beacon: peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Generate beacon from time sync module
+    time_sync_beacon_t beacon;
+    esp_err_t err = time_sync_generate_beacon(&beacon);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to generate sync beacon: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    // Check characteristic handle first (before mutex)
+    if (g_time_sync_char_handle == 0) {
+        ESP_LOGW(TAG, "Time sync characteristic handle not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Hold mutex through entire critical section (update + send) for atomicity
+    // This prevents GATT reads from getting stale data between update and send
+    if (xSemaphoreTake(time_sync_beacon_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_send_time_sync_beacon - possible deadlock");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    // Send notification to peer (while holding mutex)
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(&beacon, sizeof(beacon));
+    if (om == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate mbuf for sync beacon");
+        xSemaphoreGive(time_sync_beacon_mutex);
+        return ESP_ERR_NO_MEM;
+    }
+
+    int rc = ble_gatts_notify_custom(peer_conn_handle, g_time_sync_char_handle, om);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to send sync beacon notification: rc=%d", rc);
+        xSemaphoreGive(time_sync_beacon_mutex);
+        return ESP_FAIL;
+    }
+
+    // Only update global after successful send (while still holding mutex)
+    g_time_sync_beacon = beacon;
+    xSemaphoreGive(time_sync_beacon_mutex);
+
+    ESP_LOGD(TAG, "Sync beacon sent to peer (seq=%u)", beacon.sequence);
+    return ESP_OK;
+}
+
 void ble_update_session_time(uint32_t seconds) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -2644,7 +3129,7 @@ void ble_update_session_time(uint32_t seconds) {
     // Send notification if client subscribed
     // NOTE: Motor task should call this every 30-60 seconds, not every second
     // Mobile app is responsible for counting seconds in UI between notifications
-    if (adv_state.client_connected && adv_state.notify_session_time_subscribed) {
+    if (ble_is_app_connected() && adv_state.notify_session_time_subscribed) {
         uint16_t val_handle;
         if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_session_time.u, NULL, &val_handle) == 0) {
             struct os_mbuf *om = ble_hs_mbuf_from_flat(&seconds, sizeof(seconds));
@@ -2669,7 +3154,7 @@ void ble_update_mode(mode_t mode) {
 
     // Send notification if client subscribed
     // This notifies mobile app when mode is changed via button press
-    if (adv_state.client_connected && adv_state.notify_mode_subscribed) {
+    if (ble_is_app_connected() && adv_state.notify_mode_subscribed) {
         uint16_t val_handle;
         if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_mode.u, NULL, &val_handle) == 0) {
             uint8_t mode_val = (uint8_t)mode;

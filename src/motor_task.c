@@ -27,6 +27,8 @@
 #include "ble_manager.h"
 #include "role_manager.h"
 #include "power_manager.h"
+#include "time_sync.h"
+#include "time_sync_task.h"
 
 static const char *TAG = "MOTOR_TASK";
 
@@ -305,6 +307,25 @@ void motor_task(void *pvParameters) {
                         motor_init_session_time();
                         ESP_LOGI(TAG, "Session timer initialized (pairing complete)");
 
+                        // Phase 2: Initialize time synchronization via dedicated task (AD039)
+                        peer_role_t peer_role = ble_get_peer_role();
+                        if (peer_role != PEER_ROLE_NONE) {
+                            // Map peer role to time sync role
+                            time_sync_role_t sync_role = (peer_role == PEER_ROLE_SERVER)
+                                ? TIME_SYNC_ROLE_SERVER
+                                : TIME_SYNC_ROLE_CLIENT;
+
+                            // Send initialization message to time_sync_task (NTP-style, no timestamp needed)
+                            esp_err_t err = time_sync_task_send_init(sync_role);
+                            if (err == ESP_OK) {
+                                ESP_LOGI(TAG, "Time sync initialization requested (%s role, NTP-style)",
+                                         sync_role == TIME_SYNC_ROLE_SERVER ? "SERVER" : "CLIENT");
+                            } else {
+                                ESP_LOGE(TAG, "Failed to send time sync init message: %s",
+                                         esp_err_to_name(err));
+                            }
+                        }
+
                         // Motor task now owns WS2812B (Phase 1b.3: Prevent status_led interruption)
                         led_set_motor_ownership(true);
 
@@ -397,7 +418,23 @@ void motor_task(void *pvParameters) {
                     if (battery_read_voltage(&raw_mv, &battery_v, &battery_pct) == ESP_OK) {
                         ble_update_battery_level((uint8_t)battery_pct);           // Configuration Service (mobile app)
                         ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service (peer device)
-                        ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct, ble_get_connection_type_str());
+
+                        // Phase 2: Add sync quality to battery log if time sync active (AD039)
+                        if (TIME_SYNC_IS_ACTIVE()) {
+                            int64_t clock_offset_us = 0;
+                            time_sync_quality_t quality;
+
+                            if (time_sync_get_clock_offset(&clock_offset_us) == ESP_OK &&
+                                time_sync_get_quality(&quality) == ESP_OK) {
+                                ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s | Sync: %u%% (offset: %lld μs)",
+                                         battery_v, battery_pct, ble_get_connection_type_str(),
+                                         quality.quality_score, clock_offset_us);
+                            } else {
+                                ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct, ble_get_connection_type_str());
+                            }
+                        } else {
+                            ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct, ble_get_connection_type_str());
+                        }
                     }
 
                     last_battery_check_ms = now;
@@ -465,6 +502,15 @@ void motor_task(void *pvParameters) {
 
                 // Calculate motor parameters from BLE settings (verbose logging gated with BEMF)
                 calculate_mode_timing(current_mode, &motor_on_ms, &coast_ms, &pwm_intensity, sample_backemf);
+
+                // Phase 2: Apply bilateral offset for CLIENT devices throughout session
+                // This ensures CLIENT maintains half-cycle offset from SERVER for true alternation
+                if (ble_get_peer_role() == PEER_ROLE_CLIENT) {
+                    uint32_t bilateral_cycle_ms = motor_on_ms + coast_ms;
+                    coast_ms = bilateral_cycle_ms / 2;  // Maintain half-cycle offset
+                    ESP_LOGD(TAG, "CLIENT bilateral: coast=%lu ms (cycle=%lu ms)",
+                             coast_ms, bilateral_cycle_ms);
+                }
 
                 // Disable LED indication after 10 seconds (non-custom modes only)
                 if (current_mode != MODE_CUSTOM && led_indication_active && ((now - led_indication_start_ms) >= LED_INDICATION_TIME_MS)) {

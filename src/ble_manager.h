@@ -300,6 +300,20 @@ bool ble_check_bonded_peer_exists(void);
 void ble_update_bilateral_battery_level(uint8_t percentage);
 
 /**
+ * @brief Send time sync beacon to peer device (SERVER only)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not SERVER role or peer not connected
+ * @return ESP_ERR_TIMEOUT if mutex timeout
+ * @return ESP_FAIL if notification send failed
+ *
+ * Called periodically by motor_task when time_sync_should_send_beacon() returns true
+ * Generates sync beacon from time sync module and sends via BLE notification to peer
+ *
+ * Phase 2 (AD039): Hybrid time synchronization protocol
+ */
+esp_err_t ble_send_time_sync_beacon(void);
+
+/**
  * @brief Update session time for BLE notifications
  * @param seconds Elapsed session time in seconds
  *

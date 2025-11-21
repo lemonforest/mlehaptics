@@ -1,21 +1,21 @@
-# Phase 4 COMPLETE: JPL-Compliant EMDR Demo Guide
+# Phase 0.4 COMPLETE: JPL-Compliant EMDR Demo Guide
 **Production-Ready Implementation with Full JPL Coding Standards**
 
 **Board:** Seeed Xiao ESP32-C6
 **Framework:** ESP-IDF v5.5.0
 **Date:** November 4, 2025
-**Version:** Phase 4 COMPLETE
+**Version:** Phase 0.4 COMPLETE
 **Status:** ✅ Production-Ready
 
 ---
 
 ## Executive Summary
 
-This is the **complete, production-ready Phase 4 implementation** that combines ALL JPL coding standard features into a single, thoroughly tested system for therapeutic EMDR research.
+This is the **complete, production-ready Phase 0.4 implementation** that combines ALL JPL coding standard features into a single, thoroughly tested system for therapeutic EMDR research.
 
-### What Makes This "Phase 4 COMPLETE"?
+### What Makes This "Phase 0.4 COMPLETE"?
 
-| Feature | Baseline | Phase 4 COMPLETE |
+| Feature | Baseline | Phase 0.4 COMPLETE |
 |---------|----------|------------------|
 | **Task Isolation** | ❌ Shared globals | ✅ Message queues |
 | **Control Flow** | ❌ Uses `goto` | ✅ State machine |
@@ -46,7 +46,7 @@ pio device monitor
 ```
 ========================================================
 === JPL-Compliant EMDR Demo (FULL) ===
-=== Phase 4: Queues + State Machine + Checks ===
+=== Phase 0.4: Queues + State Machine + Checks ===
 ========================================================
 
 JPL Compliance Features:
@@ -116,7 +116,7 @@ static mode_t current_mode = MODE_1HZ_50;
 static uint32_t led_indication_start_ms = 0;
 ```
 
-**After (Phase 4):**
+**After (Phase 0.4):**
 ```c
 // ✅ Each task owns its data
 // Motor task (local variables):
@@ -245,7 +245,7 @@ switch (ctx->state) {
 xTaskCreate(motor_task, "motor", 3072, NULL, 5, NULL);
 xQueueSend(queue, &msg, timeout);
 
-// ✅ After (Phase 4)
+// ✅ After (Phase 0.4)
 BaseType_t task_ret = xTaskCreate(motor_task, "motor", 3072, NULL, 5, NULL);
 if (task_ret != pdPASS) {
     ESP_LOGE(TAG, "FATAL: Failed to create motor task!");
@@ -633,13 +633,13 @@ Flash: 185,234 bytes (4.5% of 4,128,768)
 
 ```
 test/
-├── single_device_demo_jpl_queued.c          # Phase 4 COMPLETE (this file)
+├── single_device_demo_jpl_queued.c          # Phase 0.4 COMPLETE (this file)
 ├── PHASE_4_JPL_QUEUED_COMPLETE_GUIDE.md     # This guide
 ├── single_device_demo_test.c                # Baseline (simple)
 └── single_device_battery_bemf_queued_test.c # Phase 1 (queues only)
 
 platformio.ini:
-- [env:single_device_demo_jpl_queued]        # Phase 4 environment
+- [env:single_device_demo_jpl_queued]        # Phase 0.4 environment
 
 sdkconfig.single_device_demo_jpl_queued      # ESP-IDF config
 ```
@@ -648,7 +648,7 @@ sdkconfig.single_device_demo_jpl_queued      # ESP-IDF config
 
 ## Comparison Matrix
 
-| Feature | Baseline | Phase 1 | Phase 4 COMPLETE |
+| Feature | Baseline | Phase 1 | Phase 0.4 COMPLETE |
 |---------|----------|---------|------------------|
 | **4 Modes** | ✅ | ✅ | ✅ |
 | **LED Feedback** | ✅ | ✅ | ✅ |
@@ -807,7 +807,7 @@ This implementation is successful when:
 
 ## Version History
 
-**v4.0 (November 4, 2025) - Phase 4 COMPLETE**
+**v4.0 (November 4, 2025) - Phase 0.4 COMPLETE**
 - ✅ Complete from-scratch implementation
 - ✅ All JPL features integrated
 - ✅ Message queues + state machine + checks
@@ -819,7 +819,7 @@ This implementation is successful when:
 
 ## Summary
 
-**Phase 4 COMPLETE** is the production-ready implementation of the EMDR research device with:
+**Phase 0.4 COMPLETE** is the production-ready implementation of the EMDR research device with:
 
 ✅ **Functionality:** 4 modes, LED feedback, 20-minute sessions
 ✅ **Safety:** Battery LVO, error handling, graceful degradation
