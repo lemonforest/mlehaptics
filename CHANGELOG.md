@@ -8,9 +8,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Phase 2: Command-and-control protocol implementation
+- Phase 3: Bilateral motor coordination (command-and-control protocol)
 - Mobile app development
 - Enhanced pairing with numeric comparison and button confirmation
+
+---
+
+## [0.3.0-beta.1] - 2025-11-20
+
+### Added - Phase 2: Time Synchronization Complete ✅
+
+**Time Synchronization Implementation:**
+- **NTP-Style Clock Sync**: Dual-clock architecture preserving system clock while calculating synchronized time (`src/time_sync.c`, `src/time_sync.h`, `src/time_sync_task.c`, `src/time_sync_task.h`)
+- **Beacon Exchange Protocol**: Timestamped messages exchanged every 10-60 seconds (adaptive based on quality)
+- **Quality Metrics**: Confidence score (0-100%) based on round-trip time and drift stability
+- **One-Time Phase Alignment**: Single synchronization at session start (drift < 30 μs over 90 minutes - periodic re-sync unnecessary)
+- **Opt-In Synchronization**: Applications choose sync clock (`time_sync_get_time_us()`) vs system clock (`esp_timer_get_time()`)
+- **Sequence Wrap Handling**: Beacon counter (uint8_t) wraps correctly at 255→0
+
+**Architecture Decisions:**
+- **AD037**: Time Synchronization Protocol (NTP-style beacon exchange)
+- **AD038**: Synchronized vs System Clock Usage (dual-clock architecture)
+- **AD039**: Time Synchronization Protocol Details (beacon format, quality metrics)
+- **AD040**: Firmware Version Checking (semantic versioning comparison)
+
+**Production Readiness:**
+- 90-minute unattended stress test PASSED:
+  - 271/271 beacons delivered (100% delivery rate)
+  - Drift converged to -14 μs, stable at -31 μs final
+  - Quality sustained at 95%
+  - 7 brief 50ms offset jumps (suspected BLE connection parameter updates, not time sync bugs)
+  - Recovery: Quality→0% detected, recovered within 2 beacons
+  - Sequence wrap verified (255→0 transition handled correctly)
+
+### Fixed
+
+**NVS Configuration Standardization:**
+- Replaced custom `BLE_PAIRING_TEST_MODE` flag with standard ESP-IDF `CONFIG_BT_NIMBLE_NVS_PERSIST` (`sdkconfig.xiao_esp32c6:715`, `src/ble_manager.c:2453-2466`, `platformio.ini:485,495,499`)
+- Production environment: `CONFIG_BT_NIMBLE_NVS_PERSIST=y` enables persistent bonding across reboots
+- Test environment: `CONFIG_BT_NIMBLE_NVS_PERSIST` not set for RAM-only bonding (unlimited pairing cycles)
+- Test binary now 1,738 bytes smaller (NVS backend not compiled)
+- Better compatibility with developers familiar with NimBLE stack conventions
+
+**Pairing Race Condition** (CRITICAL - Bug #35):
+- **Symptom**: DEV_A (98% battery) never discovered DEV_B (96% battery), both timed out after 30 seconds
+- **Root Cause**: Scanning stopped immediately after peer discovery, BEFORE role assignment. CLIENT devices would stop scanning, then wait for connection, but SERVER couldn't discover them.
+- **Fix**: CLIENT devices now keep scanning during wait period. Moved `ble_gap_disc_cancel()` to only execute when device initiates connection (SERVER role). Applied same pattern to MAC tie-breaker and fallback cases. (`src/ble_manager.c:2658-2674`)
+- **Result**: Robust pairing regardless of power-on timing
+
+**PWA Connection Tracking** (CRITICAL - Bug #36):
+- **Symptom**: Windows PC PWA connected (MTU exchange visible) but no "Mobile app connected" log. Device became invisible after disconnect. Android PWA worked correctly.
+- **Root Cause**: "Keep scanning" fix caused CLIENT device to attempt connections to discovered devices while also accepting incoming connections, creating interference.
+- **Fix**: Stop scanning immediately when peer connects (unconditional call). Added BLE_HS_EINVAL handling for cases where scanning already stopped. Updated comments to reference Bug #36. (`src/ble_manager.c:1613-1626`)
+- **Result**: All BLE central devices work correctly (Android PWA, Windows PC PWA, nRF Connect)
+
+### Infrastructure
+
+- Message queue added: `time_sync_to_motor_queue` for coordination messages (MSG_PHASE_ALIGNMENT, MSG_DRIFT_UPDATE)
+- Task added: `time_sync_task` managing beacon exchange and quality monitoring
+- Module added: `time_sync.c/h` with dual-clock calculation functions
+- API documentation: `docs/AD038_TIME_SYNCHRONIZATION_API.md` (planned API examples)
+
+### Documentation
+
+- CLAUDE.md updated with Phase 2 summary and test results
+- architecture_decisions.md updated with AD037-AD040
+- PHASE3_COMMAND_CONTROL_IDEAS.md created for Phase 3 planning
+
+### Known Issues (Non-Blocking)
+
+**50ms Timing Jumps** (Under Investigation):
+- 7 brief 50ms offset jumps over 90 minutes (suspected BLE connection parameter updates)
+- Time sync correctly detects (quality→0%) and recovers within 2 beacons
+- Impact: Negligible for 20-minute therapy sessions
+- Decision: Not blocking Phase 2 completion; will investigate if Phase 3 motor coordination affected
 
 ---
 

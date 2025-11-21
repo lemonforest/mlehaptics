@@ -111,21 +111,6 @@ void ble_task(void *pvParameters) {
                     }
                 }
 
-                // Check for 30s UUID switch (Phase 1b.3 UUID-switching)
-                // Switch from Bilateral UUID (peer discovery) to Config UUID (app discovery)
-                static bool uuid_switched = false;
-                if (!uuid_switched && !ble_check_bonded_peer_exists()) {
-                    uint32_t elapsed_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                    if (elapsed_ms >= 30000) {
-                        ESP_LOGI(TAG, "30s pairing window expired - switching to Config Service UUID");
-                        ble_stop_advertising();
-                        vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay
-                        ble_start_advertising();  // Will use Config UUID (ble_get_advertised_uuid checks elapsed time)
-                        ESP_LOGI(TAG, "Now advertising Config UUID (apps can connect)");
-                        uuid_switched = true;
-                    }
-                }
-
                 // Check for pairing started (Phase 1b.3)
                 // CRITICAL FIX: Check NVS for bonded peers before starting pairing window
                 // If bonded peer exists, skip pairing window for silent reconnection

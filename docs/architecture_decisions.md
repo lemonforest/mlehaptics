@@ -3,7 +3,7 @@
 **Version:** v0.1.2
 **Last Updated:** 2025-11-18
 **Status:** Living Document
-**Total Decisions:** AD001-AD037 (AD037 maintained as external document)
+**Total Decisions:** AD001-AD040 (AD037-AD040 maintained as external documents)
 
 **Preliminary Design Review Document**
 **Generated with assistance from Claude Sonnet 4 (Anthropic)**
@@ -4241,6 +4241,8 @@ AD023 documents the critical deep sleep wake pattern that ensures reliable butto
 
 Starting with **AD038** (Phase 1b.3), some architecture decisions are maintained as separate documents for better maintainability and version control. External AD documents are linked below in numerical order.
 
+**Note:** AD037 (State-Based Connection Identification) was superseded by AD038 and remains inline for historical reference. AD038-AD040 are external documents.
+
 ### AD038: UUID-Switching Strategy for Connection Type Identification
 
 **Status:** ✅ **APPROVED and IMPLEMENTED** - **SUPERSEDES AD037 State-Based Approach**
@@ -4267,6 +4269,85 @@ Implements time-based UUID switching for peer/app identification, replacing the 
 **Implementation:** Complete, build successful, ready for hardware testing
 
 See full document for detailed implementation, testing scenarios, tradeoff analysis, and comparison to AD037.
+
+---
+
+### AD039: Time Synchronization Protocol
+
+**Status:** ✅ **IMPLEMENTED** - Hybrid sync for coordination features (NOT motor control)
+**Phase:** 2
+**Document:** [AD039_TIME_SYNCHRONIZATION_PROTOCOL.md](AD039_TIME_SYNCHRONIZATION_PROTOCOL.md)
+
+**Summary:**
+
+Implements hybrid time synchronization protocol for coordination features between peer devices. **IMPORTANT:** This is NOT for motor control timing (which AD028 rejected due to crystal drift). Time sync is used for auxiliary coordination only.
+
+**Use Cases:**
+- ✅ Sync quality logging (diagnostic heartbeats every 10-60s)
+- ✅ Command timestamp verification (detect stale BLE commands)
+- ✅ Session time coordination (simultaneous session end)
+- ✅ Bilateral offset tracking (research data collection)
+
+**Architecture:**
+- **Hybrid Approach**: Initial connection sync + periodic sync beacons (adaptive 10-60s intervals)
+- **Roles**: SERVER (higher battery) sends beacons, CLIENT (lower battery) receives and calculates offset
+- **Accuracy**: ±100ms target (AD029 revised specification)
+- **Battery Efficient**: Exponential backoff based on sync quality (high quality = longer intervals)
+
+**Key Distinction from AD028:**
+- ❌ **AD028 REJECTED**: Time sync for independent motor operation (crystal drift causes safety violations after 15-20 minutes)
+- ✅ **AD039 APPROVED**: Time sync for coordination features (motor control remains command-and-control per AD028)
+
+**Implementation:** Complete (time_sync.c, time_sync_task.c), hardware testing pending
+
+See full document for protocol details, state machine, quality metrics, and relationship to AD028.
+
+---
+
+### AD040: Firmware Version Checking for Peer Devices
+
+**Status:** ⏳ **APPROVED** - Implementation pending
+**Phase:** 2 (Post-Time Sync)
+**Document:** [AD040_FIRMWARE_VERSION_CHECKING.md](AD040_FIRMWARE_VERSION_CHECKING.md)
+
+**Summary:**
+
+Implements automatic firmware version checking to ensure peer devices run compatible builds before bilateral stimulation begins.
+
+**Architecture:**
+- **Git Commit Hash Versioning**: Automatically embedded at build time (zero maintenance)
+- **Three Strictness Levels**:
+  - `VERSION_CHECK_STRICT`: Exact git hash match required (production default)
+  - `VERSION_CHECK_COMPATIBLE`: Major.minor must match, patch can differ (field updates)
+  - `VERSION_CHECK_DISABLED`: No checking (development only)
+
+**Version Exchange Protocol:**
+- **Bidirectional Negotiation**: Both devices exchange versions AND compatibility evaluation results
+- **Motor Task Coordination**: New states (VERSION_CHECK, VERSION_BLINK) wait for version check before motors start
+- **Warning Patterns**: Different LED blinks indicate version compatibility status
+  - No blink: Exact match (proceed immediately)
+  - Yellow (2×): Patch differs (warning, allow)
+  - Orange (3×): Minor differs (warning, allow)
+  - Red (5×): Major differs (reject, shutdown)
+  - Blue (1×): Dev mode (version check disabled)
+
+**Build Environments:**
+```bash
+pio run -e xiao_esp32c6                  # Production (strict)
+pio run -e xiao_esp32c6_allow_mismatch   # Development (disabled)
+pio run -e xiao_esp32c6_compatible       # Field updates (compatible)
+```
+
+**Benefits:**
+- ✅ Zero maintenance (git hash automatic)
+- ✅ Prevents silent protocol incompatibilities
+- ✅ Traceable (hash maps to exact git commit)
+- ✅ Flexible (three strictness levels)
+- ✅ User-friendly (clear LED warning patterns)
+
+**Implementation:** Design complete, code pending
+
+See full document for compatibility matrix, bidirectional protocol, motor task integration, and backward compatibility handling.
 
 ---
 

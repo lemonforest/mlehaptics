@@ -113,17 +113,12 @@ esp_err_t time_sync_deinit(void)
     return ESP_OK;
 }
 
-esp_err_t time_sync_on_connection(uint64_t connection_time_us)
+esp_err_t time_sync_on_connection(void)
 {
-    /* JPL Rule 5: Validate state and parameters */
+    /* JPL Rule 5: Validate state */
     if (!g_time_sync_state.initialized) {
         ESP_LOGE(TAG, "Not initialized");
         return ESP_ERR_INVALID_STATE;
-    }
-
-    if (connection_time_us == 0) {
-        ESP_LOGE(TAG, "Invalid connection time");
-        return ESP_ERR_INVALID_ARG;
     }
 
     if (g_time_sync_state.state != SYNC_STATE_INIT) {
@@ -131,20 +126,23 @@ esp_err_t time_sync_on_connection(uint64_t connection_time_us)
         return ESP_ERR_INVALID_STATE;
     }
 
-    /* Record connection timestamp as reference */
-    g_time_sync_state.local_ref_time_us = connection_time_us;
-    g_time_sync_state.server_ref_time_us = connection_time_us;  /* Initial assumption */
-    g_time_sync_state.last_sync_ms = (uint32_t)(connection_time_us / 1000);
+    /* NTP-style: No common reference needed - each device uses absolute boot time */
+    uint64_t now_us = esp_timer_get_time();
+    g_time_sync_state.last_sync_ms = (uint32_t)(now_us / 1000);
     g_time_sync_state.state = SYNC_STATE_CONNECTED;
 
-    ESP_LOGI(TAG, "Connection sync established at %llu μs (%s role)",
-             connection_time_us,
+    ESP_LOGI(TAG, "Connection sync established (%s role, NTP-style)",
              (g_time_sync_state.role == TIME_SYNC_ROLE_SERVER) ? "SERVER" : "CLIENT");
 
     /* SERVER immediately transitions to SYNCED, CLIENT waits for first beacon */
     if (g_time_sync_state.role == TIME_SYNC_ROLE_SERVER) {
         g_time_sync_state.state = SYNC_STATE_SYNCED;
-        ESP_LOGI(TAG, "SERVER ready to send sync beacons (interval: %lu ms)",
+
+        /* SERVER is authoritative reference - initialize quality to 100% (excellent) */
+        g_time_sync_state.quality.quality_score = 100;
+        g_time_sync_state.quality.samples_collected = 1;
+
+        ESP_LOGI(TAG, "SERVER ready to send sync beacons (interval: %lu ms, quality: 100%%)",
                  g_time_sync_state.sync_interval_ms);
     } else {
         ESP_LOGI(TAG, "CLIENT waiting for initial beacon from SERVER");
@@ -167,7 +165,6 @@ esp_err_t time_sync_on_disconnection(void)
     }
 
     /* Freeze current sync state for continued operation */
-    time_sync_state_t old_state = g_time_sync_state.state;
     g_time_sync_state.state = SYNC_STATE_DISCONNECTED;
 
     uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
@@ -200,7 +197,7 @@ esp_err_t time_sync_update(void)
 
     /* SERVER: Check if time to send sync beacon */
     if (g_time_sync_state.role == TIME_SYNC_ROLE_SERVER) {
-        if (should_send_sync_beacon()) {
+        if (time_sync_should_send_beacon()) {
             /* Note: Actual beacon sending handled by BLE manager via time_sync_generate_beacon() */
             g_time_sync_state.last_sync_ms = now_ms;
             g_time_sync_state.total_syncs++;
@@ -303,15 +300,55 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
         return ESP_ERR_INVALID_CRC;
     }
 
-    /* Calculate clock offset: CLIENT_time - SERVER_time */
+    /* NTP-STYLE: Calculate clock offset directly from absolute timestamps
+     * offset = CLIENT_boot_time - SERVER_boot_time
+     *
+     * Example: SERVER booted first, CLIENT booted later
+     * - SERVER_time = 12345678900 μs (12345s uptime)
+     * - CLIENT_time = 500000 μs (500ms uptime)
+     * - offset = 500000 - 12345678900 = -12,345,178,900 μs
+     *
+     * This large negative offset is CORRECT - CLIENT is 12345s behind SERVER.
+     * Offset magnitude is irrelevant - only STABILITY (drift) matters.
+     */
     int64_t offset = (int64_t)receive_time_us - (int64_t)beacon->timestamp_us;
-    g_time_sync_state.clock_offset_us = (int32_t)offset;  /* Cast to 32-bit (sufficient for ±2000s) */
 
-    /* Calculate round-trip time (approximate, assumes symmetric delay) */
-    uint32_t rtt_us = 0;  /* TODO: Implement proper RTT measurement with request/response */
+    /* Calculate offset CHANGE (drift) since last beacon */
+    int32_t offset_change_us = 0;
+    bool is_first_beacon = (g_time_sync_state.quality.samples_collected == 0);
 
-    /* Update quality metrics */
-    update_quality_metrics(g_time_sync_state.clock_offset_us, rtt_us);
+    if (!is_first_beacon) {
+        offset_change_us = (int32_t)(offset - g_time_sync_state.clock_offset_us);
+    }
+
+    /* Update stored offset (int64_t for unlimited range, no overflow) */
+    g_time_sync_state.clock_offset_us = offset;
+
+    /* Calculate round-trip time (approximate, assumes symmetric delay)
+     * Phase 2 FIX: Use conservative RTT estimate based on typical BLE connection interval
+     * BLE notification latency ranges from 7.5-30ms depending on connection interval
+     * Use 20ms as conservative round-trip estimate (10ms each direction)
+     *
+     * Phase 3 TODO: Implement proper RTT measurement with request/response protocol:
+     * - SERVER sends beacon with transmit timestamp
+     * - CLIENT immediately responds with receive timestamp
+     * - SERVER calculates RTT = response_time - transmit_time
+     */
+    uint32_t rtt_us = 20000;  /* 20ms estimated RTT (BLE connection interval based) */
+
+    /* Update quality metrics (NTP-style: track DRIFT, not absolute offset)
+     * Skip drift calculation on first beacon to avoid artificially excellent quality
+     */
+    if (!is_first_beacon) {
+        update_quality_metrics(offset_change_us, rtt_us);
+    } else {
+        /* First beacon: Initialize quality tracking without drift calculation */
+        g_time_sync_state.quality.samples_collected = 1;
+        g_time_sync_state.quality.avg_drift_us = 0;  /* Explicitly initialize (JPL Rule 5) */
+        g_time_sync_state.quality.last_rtt_us = rtt_us;
+        g_time_sync_state.quality.quality_score = 50;  /* Start at neutral quality */
+        ESP_LOGI(TAG, "First beacon: Initialized quality tracking (neutral quality: 50%%)");
+    }
 
     /* Update state */
     g_time_sync_state.server_ref_time_us = beacon->timestamp_us;
@@ -322,20 +359,22 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
     /* Transition to SYNCED if this is first beacon */
     if (g_time_sync_state.state == SYNC_STATE_CONNECTED) {
         g_time_sync_state.state = SYNC_STATE_SYNCED;
-        ESP_LOGI(TAG, "Initial sync complete (offset: %ld μs, quality: %u%%)",
+        ESP_LOGI(TAG, "Initial sync complete (offset: %lld μs, drift: %ld μs, quality: %u%%)",
                  g_time_sync_state.clock_offset_us,
+                 g_time_sync_state.quality.avg_drift_us,
                  g_time_sync_state.quality.quality_score);
     }
     /* Clear drift flag if resync successful */
     else if (g_time_sync_state.state == SYNC_STATE_DRIFT_DETECTED) {
         g_time_sync_state.state = SYNC_STATE_SYNCED;
         g_time_sync_state.drift_detected = false;
-        ESP_LOGI(TAG, "Resync complete (offset: %ld μs, quality: %u%%)",
+        ESP_LOGI(TAG, "Resync complete (offset: %lld μs, drift: %ld μs, quality: %u%%)",
                  g_time_sync_state.clock_offset_us,
+                 g_time_sync_state.quality.avg_drift_us,
                  g_time_sync_state.quality.quality_score);
     }
 
-    ESP_LOGD(TAG, "Beacon processed (seq: %u, offset: %ld μs, SERVER_quality: %u%%)",
+    ESP_LOGD(TAG, "Beacon processed (seq: %u, offset: %lld μs, SERVER_quality: %u%%)",
              beacon->sequence,
              g_time_sync_state.clock_offset_us,
              beacon->quality_score);
@@ -362,7 +401,11 @@ esp_err_t time_sync_generate_beacon(time_sync_beacon_t *beacon)
     }
 
     /* Populate beacon fields */
-    beacon->timestamp_us = esp_timer_get_time();
+    /* NTP-STYLE: Send ABSOLUTE timestamp (boot time in microseconds)
+     * CLIENT will calculate offset directly: offset = receive_time - beacon_time
+     * Offset magnitude doesn't matter - only stability (drift) matters
+     */
+    beacon->timestamp_us = esp_timer_get_time();  /* Absolute boot time */
     beacon->session_ref_ms = g_time_sync_state.session_start_ms;
     beacon->sequence = ++g_time_sync_state.sync_sequence;  /* Increment and use */
     beacon->quality_score = g_time_sync_state.quality.quality_score;
@@ -395,7 +438,7 @@ esp_err_t time_sync_get_quality(time_sync_quality_t *quality)
     return ESP_OK;
 }
 
-time_sync_state_t time_sync_get_state(void)
+sync_state_t time_sync_get_state(void)
 {
     return g_time_sync_state.state;
 }
@@ -403,6 +446,24 @@ time_sync_state_t time_sync_get_state(void)
 time_sync_role_t time_sync_get_role(void)
 {
     return g_time_sync_state.role;
+}
+
+esp_err_t time_sync_get_clock_offset(int64_t *offset_us)
+{
+    /* JPL Rule 7: Validate pointer */
+    if (offset_us == NULL) {
+        ESP_LOGE(TAG, "NULL offset pointer");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!g_time_sync_state.initialized) {
+        ESP_LOGE(TAG, "Not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* Return calculated clock offset (CLIENT - SERVER) */
+    *offset_us = g_time_sync_state.clock_offset_us;
+    return ESP_OK;
 }
 
 uint32_t time_sync_calculate_expected_drift(uint32_t elapsed_ms)
@@ -475,30 +536,34 @@ static uint16_t calculate_crc16(const uint8_t *data, size_t length)
 /**
  * @brief Calculate sync quality score (0-100%)
  *
+ * NTP-STYLE: Quality based on offset STABILITY (drift), not absolute magnitude.
+ * Measures how much the offset CHANGED since last beacon.
+ *
  * Quality based on:
- * - Clock offset magnitude (lower is better)
- * - Drift from expected (lower is better)
+ * - Drift (offset change between beacons) - lower is better
  * - Round-trip time (lower is better)
  *
- * @param offset_us Clock offset in microseconds (absolute value used)
- * @param drift_us Drift from expected in microseconds
+ * @param offset_change_us Change in offset since last beacon (drift)
+ * @param drift_us Expected drift from crystal spec
  * @param rtt_us Round-trip time in microseconds
  * @return Quality score (0-100%)
  */
-static uint8_t calculate_sync_quality(int32_t offset_us, uint32_t drift_us, uint32_t rtt_us)
+static uint8_t calculate_sync_quality(int32_t offset_change_us, uint32_t drift_us, uint32_t rtt_us)
 {
-    /* Convert to absolute offset */
-    uint32_t abs_offset_us = (offset_us < 0) ? (uint32_t)(-offset_us) : (uint32_t)offset_us;
+    /* Convert to absolute drift (how much offset changed) */
+    uint32_t abs_drift_us = (offset_change_us < 0) ? (uint32_t)(-offset_change_us) : (uint32_t)offset_change_us;
 
-    /* Quality thresholds based on ±100ms requirement (half = 50ms) */
-    if (abs_offset_us < 5000 && drift_us < 5000) {
-        return SYNC_QUALITY_EXCELLENT;  /* < 5ms */
-    } else if (abs_offset_us < 15000 && drift_us < 15000) {
-        return SYNC_QUALITY_GOOD;       /* < 15ms */
-    } else if (abs_offset_us < 30000 && drift_us < 30000) {
-        return SYNC_QUALITY_FAIR;       /* < 30ms */
-    } else if (abs_offset_us < 50000 && drift_us < 50000) {
-        return SYNC_QUALITY_POOR;       /* < 50ms (threshold) */
+    /* Quality thresholds based on ±100ms requirement (half = 50ms)
+     * Measures how much offset CHANGED (drift), not absolute offset value
+     */
+    if (abs_drift_us < 5000) {
+        return SYNC_QUALITY_EXCELLENT;  /* < 5ms drift between beacons */
+    } else if (abs_drift_us < 15000) {
+        return SYNC_QUALITY_GOOD;       /* < 15ms drift */
+    } else if (abs_drift_us < 30000) {
+        return SYNC_QUALITY_FAIR;       /* < 30ms drift */
+    } else if (abs_drift_us < 50000) {
+        return SYNC_QUALITY_POOR;       /* < 50ms drift (threshold) */
     } else {
         return 0;  /* Failed - exceeds threshold */
     }
@@ -507,38 +572,58 @@ static uint8_t calculate_sync_quality(int32_t offset_us, uint32_t drift_us, uint
 /**
  * @brief Update quality metrics with new sync sample
  *
- * Updates running statistics for sync quality tracking.
+ * NTP-STYLE: Tracks offset DRIFT (change between samples), not absolute offset magnitude.
+ * A stable offset (even if large) is excellent quality.
+ * A changing offset (even if small) indicates clock drift.
+ *
  * JPL Rule 2: Bounded by SYNC_QUALITY_WINDOW constant.
  *
- * @param offset_us New clock offset sample
+ * @param offset_change_us Change in offset since last beacon (drift)
  * @param rtt_us New round-trip time sample
  */
-static void update_quality_metrics(int32_t offset_us, uint32_t rtt_us)
+static void update_quality_metrics(int32_t offset_change_us, uint32_t rtt_us)
 {
     time_sync_quality_t *q = &g_time_sync_state.quality;
 
-    /* Update sample count (bounded by window size) */
-    if (q->samples_collected < TIME_SYNC_QUALITY_WINDOW) {
-        q->samples_collected++;
+    /* JPL Rule 5: Defensive bounds checking to prevent division by zero
+     * Note: With Issue #2 fix, this should never trigger, but guard anyway
+     */
+    if (q->samples_collected == 0) {
+        ESP_LOGW(TAG, "update_quality_metrics() called with samples_collected=0, ignoring");
+        return;
     }
 
-    /* Update average offset (simple moving average) */
-    q->avg_offset_us = (q->avg_offset_us * (q->samples_collected - 1) + offset_us) / q->samples_collected;
+    /* Track DRIFT (offset change) - calculate average BEFORE incrementing count
+     * CRITICAL: samples_collected is uint32_t, so (samples_collected - 1) causes
+     * unsigned promotion of the entire expression. When offset_change_us is negative
+     * (e.g., -69 μs), it wraps to UINT32_MAX - 69 + 1, producing garbage values like
+     * 2147483613 μs instead of -34 μs. Fix: Cast to signed and calculate before increment.
+     */
+    if (q->samples_collected < TIME_SYNC_QUALITY_WINDOW) {
+        /* Calculate new average using current count, then increment */
+        int32_t count = (int32_t)q->samples_collected;  /* Cast to prevent unsigned promotion */
+        q->avg_drift_us = (q->avg_drift_us * count + offset_change_us) / (count + 1);
+        q->samples_collected++;
+    } else {
+        /* Window full - use simple moving average with fixed window size */
+        int32_t window = (int32_t)TIME_SYNC_QUALITY_WINDOW;  /* Cast to prevent unsigned promotion */
+        q->avg_drift_us = (q->avg_drift_us * (window - 1) + offset_change_us) / window;
+    }
 
     /* Update max drift */
-    uint32_t abs_offset = (offset_us < 0) ? (uint32_t)(-offset_us) : (uint32_t)offset_us;
-    if (abs_offset > q->max_drift_us) {
-        q->max_drift_us = abs_offset;
+    uint32_t abs_drift = (offset_change_us < 0) ? (uint32_t)(-offset_change_us) : (uint32_t)offset_change_us;
+    if (abs_drift > q->max_drift_us) {
+        q->max_drift_us = abs_drift;
     }
 
     /* Update RTT */
     q->last_rtt_us = rtt_us;
 
-    /* Calculate quality score */
+    /* Calculate quality score based on DRIFT STABILITY (not offset magnitude) */
     uint32_t expected_drift = time_sync_calculate_expected_drift(
         (uint32_t)(esp_timer_get_time() / 1000) - g_time_sync_state.last_sync_ms
     );
-    q->quality_score = calculate_sync_quality(offset_us, expected_drift, rtt_us);
+    q->quality_score = calculate_sync_quality(offset_change_us, expected_drift, rtt_us);
 }
 
 /**
@@ -603,4 +688,17 @@ bool time_sync_should_send_beacon(void)
     uint32_t elapsed_ms = now_ms - g_time_sync_state.last_sync_ms;
 
     return (elapsed_ms >= g_time_sync_state.sync_interval_ms);
+}
+
+/**
+ * @brief Get current adaptive sync interval
+ *
+ * Returns the current sync interval in milliseconds, which is adaptively
+ * adjusted based on sync quality (10-60s range).
+ *
+ * @return Current sync interval in milliseconds
+ */
+uint32_t time_sync_get_interval_ms(void)
+{
+    return g_time_sync_state.sync_interval_ms;
 }

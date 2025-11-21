@@ -46,6 +46,7 @@
 #include "ble_task.h"
 #include "button_task.h"
 #include "power_manager.h"
+#include "time_sync_task.h"
 
 static const char *TAG = "MAIN";
 
@@ -348,6 +349,13 @@ static esp_err_t create_tasks(void) {
     );
     if (ret != pdPASS) {
         ESP_LOGE(TAG, "Failed to create button_task");
+        return ESP_FAIL;
+    }
+
+    // Create Time Sync Task (Phase 2: AD039)
+    esp_err_t err = time_sync_task_init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create time_sync_task: %s", esp_err_to_name(err));
         return ESP_FAIL;
     }
 

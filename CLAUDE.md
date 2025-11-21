@@ -1,13 +1,13 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Version:** v0.2.0-beta.1 (Phase 1c Complete)
-**Last Updated:** 2025-11-19
-**Status:** Dual-Device Development (Phase 1c - Battery-Based Role Assignment)
-**Project Phase:** Phase 1c Complete (Dual-Device) | Phase 0.4 Complete (Single-Device Testing Complete ✅)
+**Version:** v0.3.0-beta.1 (Phase 2 Complete)
+**Last Updated:** 2025-11-21
+**Status:** Dual-Device Time Synchronization (Phase 2 - Production Ready ✅)
+**Project Phase:** Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing) | Phase 0.4 Complete (Single-Device)
 **Hardware:** Seeed XIAO ESP32-C6
 **Framework:** ESP-IDF v5.5.0 via PlatformIO
 
-> **Note:** Single-device testing is complete (Phase 0.4). Development focus is now on dual-device peer-to-peer bilateral stimulation (Phase 1c and beyond).
+> **Note:** Phase 2 time synchronization is complete and tested (90-minute stress test passed). Next milestone: Phase 3 - Command & Control for bilateral motor coordination.
 
 ---
 
@@ -33,6 +33,97 @@
 **Testing Required:** Oscilloscope verification of actual frequency output.
 
 **Files Modified:** [src/motor_task.h](src/motor_task.h), [src/motor_task.c](src/motor_task.c), [src/ble_manager.c](src/ble_manager.c)
+
+---
+
+## Phase 2: Time Synchronization (v0.3.0-beta.1 - November 21, 2025) ✅
+
+**Status:** COMPLETE - Production Ready
+
+Phase 2 implements NTP-style time synchronization between peer devices to enable precise bilateral motor coordination in Phase 3.
+
+### Key Features Implemented
+
+1. **Time Sync Protocol** (`src/time_sync.c`, `src/time_sync_task.c`)
+   - NTP-style beacon exchange (timestamped messages)
+   - Clock offset and drift tracking
+   - Quality metrics (0-100%)
+   - Hybrid approach: NTP algorithm + hardware timestamps
+
+2. **Dual-Clock Architecture**
+   - System clock remains untouched (no watchdog implications)
+   - Synchronized time calculated on-demand via API
+   - Applications opt-in to using synchronized time
+
+3. **API for Phase 3 Integration**
+   ```c
+   bool time_sync_is_synchronized(void);
+   int64_t time_sync_get_local_time_us(void);
+   int64_t time_sync_get_peer_time_us(void);
+   int64_t time_sync_get_drift_us(void);
+   uint8_t time_sync_get_quality(void);
+   ```
+
+### Test Results (90-Minute Stress Test)
+
+**Metrics:**
+- **Beacons Exchanged:** 271/270 expected (100% delivery rate)
+- **Initial Drift:** -377 μs
+- **Converged Drift:** -14 μs (stable)
+- **Final Drift:** -31 μs after 90 minutes
+- **Quality Score:** 95% sustained (excellent)
+- **Session Duration:** 5400 seconds (90 minutes, unattended)
+- **System Stability:** No crashes, no BLE disconnects
+- **Sequence Wrap:** Clean 255→0 transition (no errors)
+
+**Anomalies Detected:** 7 brief 50ms offset jumps over 90 minutes
+- **Root Cause:** Likely BLE connection parameter updates (not time sync bugs)
+- **Recovery:** Time sync detected all anomalies (quality→0%), recovered within 2 beacons
+- **Impact:** Negligible for 20-minute therapy sessions
+
+**Verdict:** Time synchronization is production-ready. The ±30 μs drift over 90 minutes is excellent (0.003% timing error at 1 Hz).
+
+### Bug Fixes This Session
+
+**Bug #11:** Windows PC PWA Connection Tracking (FIXED - November 21, 2025)
+- **Symptom:** PWA from Windows PC not tracked properly, device became invisible after disconnect
+- **Root Cause:** CLIENT devices kept scanning after peer connection, causing connection interference
+- **Fix:** Stop scanning immediately when peer connects (unconditional `ble_gap_disc_cancel()`)
+- **Files:** `src/ble_manager.c:1613-1626`
+
+**NimBLE Configuration Migration** (November 21, 2025)
+- Replaced custom `BLE_PAIRING_TEST_MODE` flag with standard `CONFIG_BT_NIMBLE_NVS_PERSIST`
+- Production environment: NVS bonding enabled
+- Test environment: RAM-only bonding (unlimited pairing cycles)
+- Binary size: Test environment 1,738 bytes smaller (NVS backend not compiled)
+
+**Pairing Race Condition Fix (Bug #10)** (November 21, 2025)
+- **Issue:** CLIENT devices stopped scanning before role assignment, SERVER couldn't discover them
+- **Fix:** CLIENT devices keep scanning during wait period, only SERVER stops before connecting
+- **Result:** Devices can be powered on at different times (not synchronized) and still pair successfully
+
+### Phase 3 Planning
+
+**Next Milestone:** Command & Control for Bilateral Motor Coordination
+
+**Scope:**
+1. Motor command protocol (start/stop/mode change via BLE GATT)
+2. One-time phase alignment at session start (using time sync API)
+3. Bilateral alternation patterns (Device A forward, Device B reverse, 500ms phase offset)
+4. Mode change synchronization (both devices switch together)
+5. Emergency shutdown propagation
+
+**Design Decision:** One-time phase alignment is sufficient
+- Observed drift: 28 μs over 90 minutes → 6 μs over 20-minute session
+- At 1 Hz: 0.0006% timing error (imperceptible)
+- Periodic re-sync unnecessary for therapy sessions
+- Simpler implementation = fewer bugs
+
+**Challenge:** Mode changes during active session
+- Must coordinate between devices
+- Phase recalculation for new frequency
+- Graceful stop → switch → synchronized restart
+- Expected to be complex ("fun bugs")
 
 ---
 

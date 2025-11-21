@@ -87,7 +87,7 @@ typedef enum {
     SYNC_STATE_DISCONNECTED,    /**< Using last sync reference */
     SYNC_STATE_ERROR,           /**< Sync failed, fallback mode */
     SYNC_STATE_MAX              /**< Sentinel for bounds checking */
-} time_sync_state_t;
+} sync_state_t;
 
 /**
  * @brief Device role for time synchronization
@@ -104,10 +104,12 @@ typedef enum {
  *
  * Tracks synchronization accuracy over time for adaptive interval
  * adjustment and diagnostic logging.
+ *
+ * NTP-style: Tracks offset DRIFT (stability), not absolute offset magnitude.
  */
 typedef struct {
     uint32_t samples_collected;             /**< Number of sync samples */
-    int32_t  avg_offset_us;                 /**< Average clock offset (μs) */
+    int32_t  avg_drift_us;                  /**< Average drift (offset change between beacons, μs) */
     uint32_t std_deviation_us;              /**< Standard deviation (μs) */
     uint32_t max_drift_us;                  /**< Maximum observed drift (μs) */
     uint32_t sync_failures;                 /**< Count of failed sync attempts */
@@ -122,14 +124,13 @@ typedef struct {
  * This structure maintains the complete state for hybrid time sync.
  */
 typedef struct {
-    /* Timing References */
-    uint64_t local_ref_time_us;      /**< Local reference timestamp (esp_timer) */
+    /* Timing References (NTP-style: absolute timestamps) */
     uint64_t server_ref_time_us;     /**< SERVER's reference timestamp */
-    int32_t  clock_offset_us;        /**< Calculated offset (CLIENT - SERVER) */
+    int64_t  clock_offset_us;        /**< Calculated offset (CLIENT - SERVER) */
     uint32_t last_sync_ms;           /**< When last sync occurred (milliseconds since boot) */
 
     /* Sync Protocol State */
-    time_sync_state_t state;         /**< Current sync state */
+    sync_state_t state;              /**< Current sync state */
     time_sync_role_t  role;          /**< Device role (SERVER or CLIENT) */
     uint32_t sync_interval_ms;       /**< Current sync interval (adaptive) */
     uint8_t  sync_sequence;          /**< Message sequence number (wraps at 255) */
@@ -197,19 +198,17 @@ esp_err_t time_sync_deinit(void);
  * @brief Establish initial time sync on connection
  *
  * Called by both devices immediately after peer BLE connection.
- * Records the connection event timestamp as common reference.
+ * Initializes NTP-style synchronization (no common reference needed).
  *
- * For SERVER: Records local timestamp and prepares to send initial beacon.
- * For CLIENT: Records local timestamp and waits for SERVER beacon.
+ * For SERVER: Prepares to send sync beacons with absolute timestamps.
+ * For CLIENT: Waits for SERVER beacon to establish initial offset.
  *
  * JPL Rule 5: Explicit error checking required.
  *
- * @param connection_time_us Timestamp of connection event (from esp_timer)
  * @return ESP_OK on success
  * @return ESP_ERR_INVALID_STATE if not in INIT state
- * @return ESP_ERR_INVALID_ARG if connection_time_us is 0
  */
-esp_err_t time_sync_on_connection(uint64_t connection_time_us);
+esp_err_t time_sync_on_connection(void);
 
 /**
  * @brief Handle disconnection event
@@ -318,7 +317,7 @@ esp_err_t time_sync_get_quality(time_sync_quality_t *quality);
  *
  * @return Current sync state (SYNC_STATE_*)
  */
-time_sync_state_t time_sync_get_state(void);
+sync_state_t time_sync_get_state(void);
 
 /**
  * @brief Get device role
@@ -328,6 +327,23 @@ time_sync_state_t time_sync_get_state(void);
  * @return Current role (TIME_SYNC_ROLE_*)
  */
 time_sync_role_t time_sync_get_role(void);
+
+/**
+ * @brief Get current clock offset
+ *
+ * Returns the calculated clock offset between CLIENT and SERVER.
+ * For CLIENT: offset = CLIENT_time - SERVER_time
+ * For SERVER: offset is always 0 (self-reference)
+ *
+ * NTP-style: Offset magnitude can be large (seconds) - this is normal.
+ * What matters is offset stability (drift), not magnitude.
+ *
+ * @param offset_us [out] Pointer to store clock offset in microseconds (int64_t for unlimited range)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if offset_us is NULL
+ * @return ESP_ERR_INVALID_STATE if not synchronized
+ */
+esp_err_t time_sync_get_clock_offset(int64_t *offset_us);
 
 /**
  * @brief Calculate expected drift over time
@@ -363,6 +379,16 @@ bool time_sync_should_send_beacon(void);
  * @return ESP_ERR_INVALID_STATE if not in synchronized state
  */
 esp_err_t time_sync_force_resync(void);
+
+/**
+ * @brief Get current adaptive sync interval
+ *
+ * Returns the current sync interval in milliseconds, which is adaptively
+ * adjusted based on sync quality (10-60s range).
+ *
+ * @return Current sync interval in milliseconds
+ */
+uint32_t time_sync_get_interval_ms(void);
 
 /*******************************************************************************
  * UTILITY MACROS
