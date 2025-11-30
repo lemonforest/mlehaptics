@@ -1,19 +1,20 @@
 /**
  * @file battery_monitor.h
- * @brief Battery Monitoring Module - ADC-based voltage and back-EMF sensing
+ * @brief Battery Monitoring Module - ADC-based voltage sensing
  *
- * This module provides battery voltage monitoring and back-EMF measurement
- * capabilities for the EMDR bilateral stimulation device. It implements:
+ * This module provides battery voltage monitoring for the EMDR bilateral
+ * stimulation device. It implements:
  * - LiPo battery voltage sensing with resistive divider (3.0-4.2V range)
  * - Percentage calculation for battery state of charge
  * - Low voltage cutout (LVO) protection at 3.2V
- * - Back-EMF sensing for motor research (±3.3V with 1.65V bias)
  * - ADC calibration using curve fitting or line fitting
+ * - Shared ADC1 access for backemf module
  *
  * Hardware Configuration:
  * - GPIO2 (ADC1_CH2): Battery voltage via 3.3kΩ/10kΩ divider
- * - GPIO0 (ADC1_CH0): Back-EMF via summing circuit with 1.65V offset
  * - GPIO21: Battery monitor enable (HIGH=enabled, reduces idle current)
+ *
+ * Note: Back-EMF sensing moved to separate backemf module (backemf.h)
  *
  * ADC Configuration:
  * - ADC1 unit (independent from WiFi/BLE)
@@ -31,6 +32,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "esp_err.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,19 +62,6 @@ extern "C" {
  */
 #define BAT_READ_INTERVAL_MS    10000   /**< Check battery every 10 seconds */
 #define BAT_ENABLE_SETTLE_MS    10      /**< Wait 10ms after enabling monitor */
-
-// ============================================================================
-// BACK-EMF CONFIGURATION
-// ============================================================================
-
-/**
- * @brief Back-EMF bias voltage (1.65V offset for ±3.3V signals)
- *
- * Motor H-bridge produces -3.3V to +3.3V during coast
- * Voltage divider with 1.65V offset shifts this to 0V to 3.3V for ADC
- */
-#define BACKEMF_BIAS_MV         1650    /**< ADC bias voltage in millivolts */
-#define BACKEMF_SETTLE_MS       10      /**< Wait 10ms after motor off for sampling */
 
 // ============================================================================
 // PUBLIC API
@@ -138,22 +128,30 @@ bool battery_check_lvo(void);
  */
 void battery_low_battery_warning(void);
 
+// ============================================================================
+// ADC ACCESS (for backemf module)
+// ============================================================================
+
 /**
- * @brief Read back-EMF voltage from motor
- * @param raw_mv Output: ADC voltage in millivolts (0-3300mV range)
- * @param actual_backemf_mv Output: Actual back-EMF in millivolts (±3300mV range)
- * @return ESP_OK on success, error code on failure
+ * @brief Get ADC unit handle for shared access
+ * @return ADC handle (NULL if not initialized)
  *
- * Conversion formula:
- * - ADC reads 0-3.3V (after voltage divider with 1.65V offset)
- * - Actual back-EMF = 2 × (V_adc - 1.65V)
- * - Example: 1.65V ADC = 0mV back-EMF (motor at rest)
- * - Example: 3.3V ADC = +3.3V back-EMF (maximum forward)
- * - Example: 0V ADC = -3.3V back-EMF (maximum reverse)
- *
- * Used for motor research during first 10 seconds after mode change
+ * Used by backemf module to read back-EMF channel on shared ADC1 unit.
+ * Caller must check for NULL before using.
  */
-esp_err_t battery_read_backemf(int *raw_mv, int16_t *actual_backemf_mv);
+adc_oneshot_unit_handle_t battery_get_adc_handle(void);
+
+/**
+ * @brief Get ADC calibration handle
+ * @return Calibration handle (NULL if calibration unavailable)
+ */
+adc_cali_handle_t battery_get_cali_handle(void);
+
+/**
+ * @brief Check if ADC calibration is available
+ * @return true if calibrated, false otherwise
+ */
+bool battery_is_calibrated(void);
 
 /**
  * @brief Deinitialize battery monitoring (cleanup)

@@ -9,7 +9,7 @@
 
 ## Overview
 
-After completing Phase 4 (Full JPL Compliance), the next major feature will be **BLE GATT server** functionality. This document outlines power management considerations for BLE integration.
+After completing Phase 0.4 (Full JPL Compliance), the next major feature will be **BLE GATT server** functionality. This document outlines power management considerations for BLE integration.
 
 ---
 

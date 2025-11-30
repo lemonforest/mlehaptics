@@ -1150,4 +1150,34 @@ A: Watchdog will trigger reset after 2000ms. Check serial logs for panic handler
 - **Hardware constraints matter:** Remember GPIO limitations, LEDC timing constraints, battery capacity
 - **Test on hardware when possible:** Simulators don't catch timing issues or hardware quirks
 
+### Branch and PR Workflow (MANDATORY)
+
+**No direct commits to main.** All changes must go through feature branches and PRs.
+
+**Before finalizing any branch for PR:**
+
+1. **Update CHANGELOG.md:**
+   - Add entries under `[Unreleased]` section for all changes
+   - Use appropriate categories: Added, Fixed, Changed, Infrastructure, Documentation
+   - Include bug numbers for fixes (e.g., "Bug #12: Description")
+   - Reference affected files with line numbers when helpful
+
+2. **Suggest Version Bump:**
+   - **Patch (v0.x.Y):** Bug fixes, documentation updates, minor tweaks
+   - **Minor (v0.X.0):** New features, architecture changes, new phases
+   - **Major (v1.0.0):** Production release milestone
+   - Ask user to confirm version before updating CLAUDE.md header
+
+3. **Branch Naming Convention:**
+   - Feature branches: `phase6-bilateral-motor-coordination`, `feature/client-battery`
+   - Bug fix branches: `fix/ble-sync-disruption`, `fix/bug-12-settings-spam`
+   - Documentation: `docs/phase6-changelog`
+
+4. **PR Checklist (remind user):**
+   - [ ] CHANGELOG.md updated
+   - [ ] Version bump agreed (if applicable)
+   - [ ] Build verified (`pio run -e xiao_esp32c6_ble_no_nvs`)
+   - [ ] Hardware testing completed (if behavior changed)
+   - [ ] CLAUDE.md version header updated (if version bumped)
+
 **Most Important:** The device must be reliable and safe for therapeutic use. When in doubt, ask before making changes that could affect safety or therapeutic effectiveness.

@@ -7,8 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Phase 6: Bilateral Motor Coordination (In Progress)
+
+**Coordination Message System:**
+- **SYNC_MSG_MODE_CHANGE**: Button press mode changes propagated to CLIENT device (`src/time_sync_task.c:321-366`)
+- **SYNC_MSG_SETTINGS**: BLE GATT parameter changes synced to CLIENT via coordination messages
+- **SYNC_MSG_SHUTDOWN**: Emergency shutdown propagation between devices
+- **SYNC_MSG_START_ADVERTISING**: Re-enable BLE advertising command to CLIENT
+- **SYNC_MSG_CLIENT_BATTERY**: CLIENT reports battery level to SERVER for PWA display
+
+**Motor Epoch Mechanism:**
+- Motor epoch timestamp republished on mode change for CLIENT phase alignment (`src/motor_task.c`)
+- CLIENT resets to INACTIVE state when receiving new timing parameters (prevents overlap during frequency changes)
+
+**Client Battery Characteristic (Configuration Service):**
+- **UUID `...020D`**: New GATT characteristic for CLIENT battery level (`src/ble_manager.c`)
+- SERVER relays CLIENT battery to PWA for dual-device battery monitoring
+- Returns 0% in single-device mode, actual battery in dual-device mode
+- Updates via `SYNC_MSG_CLIENT_BATTERY` coordination message
+
+### Fixed
+
+**BLE Writes Breaking Bilateral Sync** (CRITICAL - Bug #12):
+- **Symptom**: CLIENT device experienced excessive phase resets during PWA operation, causing device overlap
+- **Root Cause**: Every BLE GATT write (including Session Duration) triggered `sync_settings_to_peer()`. CLIENT received `SYNC_MSG_SETTINGS` and unconditionally called `ble_callback_params_updated()`, which reset CLIENT to INACTIVE state even when no motor-timing parameters changed.
+- **Fix**: Three-layer change detection defense:
+  1. `ble_update_custom_freq()` only calls `update_mode5_timing()` if value actually changed (`src/ble_manager.c:3858-3882`)
+  2. `ble_update_custom_duty()` only calls `update_mode5_timing()` if value changed (`src/ble_manager.c:3884-3908`)
+  3. `ble_update_pwm_intensity()` only calls `motor_update_mode5_intensity()` if value changed (`src/ble_manager.c:3910-3938`)
+  4. `handle_coordination_message()` SYNC_MSG_SETTINGS tracks old values, only calls `ble_callback_params_updated()` if freq/duty/intensity changed (`src/time_sync_task.c:369-444`)
+- **Result**: PWA Session Duration updates no longer disrupt bilateral timing
+
+**Frequency Change Skip/Overlap Pattern** (CRITICAL - Bug #13):
+- **Symptom**: Mode 4 frequency changes via PWA caused skip-then-overlap pattern during transition
+- **Root Cause**: Race condition between SYNC_MSG_SETTINGS and motor epoch beacon. CLIENT received new frequency via SYNC_MSG_SETTINGS BEFORE SERVER's beacon with updated motor_epoch arrived. CLIENT's drift correction used OLD motor_epoch with NEW cycle_ms → wrong wait calculation → skip/overlap.
+- **Fix**: Added `skip_drift_correction_once` flag in CLIENT (`src/motor_task.c:112-116`):
+  1. Flag set when CLIENT processes `ble_params_updated` for MODE_CUSTOM (`src/motor_task.c:624-627`)
+  2. INACTIVE state checks flag, uses nominal timing instead of drift correction (`src/motor_task.c:809-813`)
+  3. Flag cleared after use, normal drift correction resumes with fresh beacon
+- **Result**: CLIENT uses nominal timing for one INACTIVE cycle after param change, then resumes drift correction when fresh beacon arrives with new motor_epoch
+
+**Drift Correction Too Aggressive at High Duty Cycles** (CRITICAL - Bug #14):
+- **Symptom**: At 2Hz 95% duty, perceptible drift with corrections of +198ms and -185ms causing phase jumps
+- **Root Cause**: Drift correction allowed corrections up to a full cycle (500ms), but at 95% duty the inactive period is only 250ms with just 13ms coast time. Large corrections caused CLIENT to wait much longer/shorter than expected, creating visible phase drift.
+- **Fix**: Added correction clamping (`src/motor_task.c:815-882`):
+  1. Always apply drift correction (removed quality threshold that caused drift-then-snap behavior)
+  2. Correction clamping: Max correction is ±50ms or 20% of nominal, whichever is larger
+  3. Gradual correction over multiple cycles instead of single large jump
+- **Result**: Continuous gradual correction keeps devices synchronized without perceptible phase jumps
+
+### Documentation
+
+- CLAUDE.md: Added Branch and PR Workflow section (mandatory changelog updates and version bumps before PRs)
+
 ### Planned
-- Phase 3: Bilateral motor coordination (command-and-control protocol)
+- Phase 6: Complete bilateral motor coordination testing
 - Mobile app development
 - Enhanced pairing with numeric comparison and button confirmation
 

@@ -91,14 +91,56 @@ void button_task(void *pvParameters) {
 
         switch (state) {
             case BTN_STATE_IDLE: {
-                // Check for session timeout message from motor task (non-blocking)
+                // Check for messages from motor task (non-blocking)
                 task_message_t motor_msg;
                 if (xQueueReceive(motor_to_button_queue, &motor_msg, 0) == pdTRUE) {
                     if (motor_msg.type == MSG_SESSION_TIMEOUT) {
                         ESP_LOGI(TAG, "Session timeout received from motor_task");
                         ESP_LOGI(TAG, "State: IDLE → SHUTDOWN (non-abortable session timeout)");
+
+                        // Issue #4 Fix: Send shutdown messages to local tasks
+                        // (Session timeout originated from motor_task, so it already knows)
+                        task_message_t ble_msg = {
+                            .type = MSG_EMERGENCY_SHUTDOWN,
+                            .data = {.new_mode = 0}
+                        };
+                        if (xQueueSend(button_to_ble_queue, &ble_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                            ESP_LOGI(TAG, "Shutdown message sent to ble_task");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to send shutdown message to ble_task");
+                        }
+
                         // Skip countdown for session timeout - go directly to shutdown
-                        // This is a safety limit that cannot be overridden
+                        state = BTN_STATE_SHUTDOWN;
+                        break;  // Exit IDLE state immediately
+
+                    } else if (motor_msg.type == MSG_EMERGENCY_SHUTDOWN) {
+                        ESP_LOGI(TAG, "Peer-initiated shutdown received from motor_task");
+                        ESP_LOGI(TAG, "State: IDLE → SHUTDOWN (peer requested shutdown)");
+
+                        // Issue #4 Fix: Send shutdown messages to local tasks
+                        // Peer shutdown goes through time_sync_task → button_task, so local tasks don't know yet
+                        task_message_t local_motor_msg = {
+                            .type = MSG_EMERGENCY_SHUTDOWN,
+                            .data = {.new_mode = 0}
+                        };
+                        if (xQueueSend(button_to_motor_queue, &local_motor_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                            ESP_LOGI(TAG, "Shutdown message sent to motor_task");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to send shutdown message to motor_task");
+                        }
+
+                        task_message_t ble_msg = {
+                            .type = MSG_EMERGENCY_SHUTDOWN,
+                            .data = {.new_mode = 0}
+                        };
+                        if (xQueueSend(button_to_ble_queue, &ble_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                            ESP_LOGI(TAG, "Shutdown message sent to ble_task");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to send shutdown message to ble_task");
+                        }
+
+                        // Skip countdown for peer shutdown - go directly to shutdown
                         state = BTN_STATE_SHUTDOWN;
                         break;  // Exit IDLE state immediately
                     }
@@ -144,8 +186,7 @@ void button_task(void *pvParameters) {
 
                     ESP_LOGI(TAG, "Mode change: %d → %d", current_mode, next_mode);
 
-                    // Quick blink for mode change feedback (non-blocking)
-                    // Just turn on LED - it will auto-off after ~10-20ms naturally
+                    // Quick blink for mode change feedback
                     status_led_on();
 
                     task_message_t msg = {
@@ -159,6 +200,26 @@ void button_task(void *pvParameters) {
 
                     // Notify BLE clients of mode change (mobile app sync)
                     ble_update_mode(next_mode);
+
+                    // Phase 3: Sync mode change to peer device
+                    if (ble_is_peer_connected()) {
+                        coordination_message_t coord_msg = {
+                            .type = SYNC_MSG_MODE_CHANGE,
+                            .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
+                            .payload = {.mode = next_mode}
+                        };
+                        esp_err_t err = ble_send_coordination_message(&coord_msg);
+                        if (err == ESP_OK) {
+                            ESP_LOGI(TAG, "Mode change synced to peer: MODE_%d", next_mode);
+                        } else {
+                            ESP_LOGW(TAG, "Failed to sync mode change to peer: %s", esp_err_to_name(err));
+                        }
+                    }
+
+                    // Bug #25 FIX: Turn off status LED after mode change feedback
+                    // The status_led_on() above was for brief visual feedback,
+                    // but GPIO15 has no auto-off mechanism - must explicitly turn off.
+                    status_led_off();
 
                     ESP_LOGI(TAG, "State: PRESSED → IDLE");
                     state = BTN_STATE_IDLE;
@@ -185,14 +246,36 @@ void button_task(void *pvParameters) {
                         // Brief LED pulse for BLE re-enable feedback (non-blocking)
                         status_led_on();
 
-                        task_message_t msg = {
-                            .type = MSG_BLE_REENABLE,
-                            .data = {.new_mode = 0}
-                        };
+                        // Phase 3: Check if this is CLIENT requesting SERVER to advertise
+                        peer_role_t role = ble_get_peer_role();
+                        if (role == PEER_ROLE_CLIENT && ble_is_peer_connected()) {
+                            // CLIENT: Send coordination message to SERVER
+                            ESP_LOGI(TAG, "CLIENT requesting SERVER to start advertising");
+                            coordination_message_t coord_msg = {
+                                .type = SYNC_MSG_START_ADVERTISING,
+                                .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
+                                .payload = {0}  // No payload
+                            };
+                            esp_err_t err = ble_send_coordination_message(&coord_msg);
+                            if (err != ESP_OK) {
+                                ESP_LOGW(TAG, "Failed to send advertising request: %s", esp_err_to_name(err));
+                            }
+                        } else {
+                            // SERVER or standalone: Re-enable local advertising
+                            task_message_t msg = {
+                                .type = MSG_BLE_REENABLE,
+                                .data = {.new_mode = 0}
+                            };
 
-                        if (xQueueSend(button_to_ble_queue, &msg, 0) != pdTRUE) {
-                            ESP_LOGW(TAG, "Failed to send BLE re-enable message (queue full)");
+                            if (xQueueSend(button_to_ble_queue, &msg, 0) != pdTRUE) {
+                                ESP_LOGW(TAG, "Failed to send BLE re-enable message (queue full)");
+                            }
                         }
+
+                        // BUG #18 FIX: Turn off LED after BLE re-enable feedback
+                        // The status_led_on() at line 207 was for brief feedback,
+                        // but we never turned it off. This left GPIO15 stuck ON.
+                        status_led_off();
                     } else {
                         ESP_LOGI(TAG, "Released outside 1-2s window, no BLE action");
                     }
@@ -203,6 +286,26 @@ void button_task(void *pvParameters) {
                     // Button held ≥5s, send shutdown messages immediately
                     ESP_LOGI(TAG, "Button held ≥5s, emergency shutdown triggered");
 
+                    // Phase 3: Send coordinated shutdown to peer device FIRST (before shutting down BLE!)
+                    if (ble_is_peer_connected()) {
+                        coordination_message_t coord_msg = {
+                            .type = SYNC_MSG_SHUTDOWN,
+                            .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
+                            .payload = {0}  // No payload for shutdown
+                        };
+                        esp_err_t err = ble_send_coordination_message(&coord_msg);
+                        if (err == ESP_OK) {
+                            ESP_LOGI(TAG, "Coordinated shutdown sent to peer");
+                        } else {
+                            ESP_LOGW(TAG, "Failed to send coordinated shutdown: %s", esp_err_to_name(err));
+                        }
+
+                        // Wait for BLE transmission to complete before shutting down BLE stack
+                        // BLE write-without-response typically takes 10-50ms; 200ms provides safety margin
+                        vTaskDelay(pdMS_TO_TICKS(200));
+                    }
+
+                    // Now shut down local tasks (after peer notification sent)
                     // Send shutdown message to motor task (stop motor NOW)
                     task_message_t motor_msg = {
                         .type = MSG_EMERGENCY_SHUTDOWN,

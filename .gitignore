@@ -52,3 +52,6 @@ nul
 
 # Temporary source files
 temp_*.c
+
+# serial logs
+serial_log*.txt

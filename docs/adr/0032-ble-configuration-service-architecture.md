@@ -1,6 +1,6 @@
 # 0032: BLE Configuration Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-11-17: Duty cycle 10-100%, half-cycle calculation)
+**Date:** 2025-11-11 (Updated 2025-11-24: Added Client Battery characteristic for dual-device mode)
 **Phase:** Phase 1b
 **Status:** Approved
 **Type:** Architecture
@@ -11,7 +11,7 @@
 
 In the context of mobile app control for motor parameters, LED settings, and status monitoring,
 facing the need for a dedicated GATT service separate from bilateral control,
-we decided to implement a comprehensive BLE Configuration Service using production UUIDs with 12 logically grouped characteristics,
+we decided to implement a comprehensive BLE Configuration Service using production UUIDs with 13 logically grouped characteristics,
 and neglected using temporary test UUIDs that would require future migration,
 to achieve single point of control for BOTH single-device and dual-device operation,
 accepting additional BLE stack complexity and NVS persistence requirements.
@@ -58,9 +58,9 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 **Base:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`
 - **Project UUID Base:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7____`
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
-- **YY byte** (characteristic ID): `00` = service UUID, `01-0C` = characteristics
+- **YY byte** (characteristic ID): `00` = service UUID, `01-0D` = characteristics
 
-### Characteristics (12 Total)
+### Characteristics (13 Total)
 
 **MOTOR CONTROL GROUP (4 characteristics):**
 
@@ -81,13 +81,14 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...0208` | LED Custom RGB | uint8[3] | R/W | RGB 0-255 | Custom color wheel RGB values |
 | `...0209` | LED Brightness | uint8 | R/W | 10-30% | User comfort range (eye strain prevention) |
 
-**STATUS/MONITORING GROUP (3 characteristics):**
+**STATUS/MONITORING GROUP (4 characteristics):**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | `...020A` | Session Duration | uint32 | R/W | 1200-5400 sec | Target session length (20-90 min) |
 | `...020B` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
-| `...020C` | Battery Level | uint8 | R/Notify | 0-100% | Battery state of charge |
+| `...020C` | Battery Level | uint8 | R/Notify | 0-100% | SERVER battery state of charge |
+| `...020D` | Client Battery | uint8 | R/Notify | 0-100% | CLIENT battery (dual-device mode) |
 
 ### LED Color Control Architecture
 
@@ -115,6 +116,33 @@ uint8_t b_final = (source_b * led_brightness) / 100;
 ```
 
 **Example:** Pure red RGB(255, 0, 0) at 20% brightness → RGB(51, 0, 0)
+
+### Client Battery (Dual-Device Mode)
+
+**Data Flow:**
+```
+CLIENT Device                    SERVER Device                   PWA
+     |                                |                           |
+     |-- SYNC_MSG_CLIENT_BATTERY ---->|                           |
+     |   (coordination message)       |                           |
+     |                                |-- GATT notify ----------->|
+     |                                |   (client_battery char)   |
+```
+
+**Update Triggers:**
+1. **Immediate:** When peer coordination starts (CLIENT sends battery to SERVER)
+2. **Periodic:** Every 60 seconds (aligned with existing battery measurement cycle)
+
+**Characteristic Behavior:**
+- **Single-device mode:** Returns 0% (no CLIENT device)
+- **Dual-device mode:** Returns CLIENT's last reported battery level
+- **Read-only:** PWA cannot write this characteristic (data comes from CLIENT)
+- **Notifications:** Optional subscribe for real-time updates
+
+**Rationale for Always-Update (vs On-Demand):**
+- Motor (ERM) dominates power consumption (4000-20000× more than BLE packet)
+- Conditional updates add complexity with negligible power savings
+- Data always available when PWA connects (no 60s wait)
 
 ### Default Settings (First Boot)
 
@@ -251,7 +279,7 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (4), LED (5), Status (3) = 12 characteristics
+- ✅ **Logical Grouping:** Motor (4), LED (5), Status (4) = 13 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)

@@ -57,6 +57,7 @@ idf_component_register(
 
         # Hardware control modules
         "battery_monitor.c"
+        "backemf.c"
         "motor_control.c"
         "led_control.c"
         "status_led.c"

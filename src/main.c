@@ -47,6 +47,7 @@
 #include "button_task.h"
 #include "power_manager.h"
 #include "time_sync_task.h"
+#include "firmware_version.h"
 
 static const char *TAG = "MAIN";
 
@@ -368,11 +369,13 @@ static esp_err_t create_tasks(void) {
 // ============================================================================
 
 void app_main(void) {
+    // Get firmware version information
+    firmware_version_t fw_version = firmware_get_version();
+
     ESP_LOGI(TAG, "========================================");
     ESP_LOGI(TAG, "EMDR Bilateral Stimulation Device");
     ESP_LOGI(TAG, "Hardware: Seeed XIAO ESP32-C6");
-    ESP_LOGI(TAG, "Firmware: Modular BLE GATT v1.0");
-    ESP_LOGI(TAG, "Build Date: %s %s", __DATE__, __TIME__);
+    firmware_log_version(TAG, "Firmware", fw_version);
     ESP_LOGI(TAG, "========================================");
 
     esp_err_t ret;

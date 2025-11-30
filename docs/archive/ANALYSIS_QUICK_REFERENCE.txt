@@ -1,0 +1,297 @@
+================================================================================
+DUAL-DEVICE BOOT LOG ANALYSIS - QUICK REFERENCE
+November 28, 2025
+================================================================================
+
+FILES CREATED:
+  1. DUAL_DEVICE_BOOT_ANALYSIS.md    - Full technical analysis (2500+ lines)
+  2. BOOT_ANALYSIS_SUMMARY.txt        - Executive summary with fixes
+  3. TIMELINE_TABLES.md               - Detailed timeline and comparisons
+  4. ANALYSIS_QUICK_REFERENCE.txt     - This file
+
+LOGS ANALYZED:
+  - serial_log_dev_a_2355-20251128.txt (CLIENT device)
+  - serial_log_dev_b_2355-20251128.txt (SERVER device)
+
+================================================================================
+ISSUE #1: SERVER MOTOR STARTS 3.7 SECONDS BEFORE CLIENT
+================================================================================
+
+SYMPTOM:
+  First boot shows unilateral vibration (SERVER only) for 3.7 seconds before
+  CLIENT motor activates, then bilateral operation begins.
+
+ROOT CAUSE:
+  MOTOR_STARTED BLE notification has extreme latency (3745 ms instead of 50 ms)
+
+TIMELINE:
+  12029 ms - SERVER sends MOTOR_STARTED notification
+  15774 ms - CLIENT receives MOTOR_STARTED (arrives after SERVER is 3+ cycles in)
+  DELAY:   3745 milliseconds (3.7 seconds)
+
+MOTOR CYCLES DURING DISPARITY:
+  SERVER Cycle #1 (12029-12229 ms): ACTIVE forward
+  SERVER Cycle #2 (13029-14029 ms): INACTIVE
+  SERVER Cycle #3 (14029-14229 ms): ACTIVE reverse
+  SERVER Cycle #4 (15029-15774 ms): INACTIVE (partial)
+
+  CLIENT: Still waiting...
+
+  Then at 15774 ms: CLIENT finally starts with INACTIVE phase
+
+IMPACT:
+  X Patient experiences unilateral vibration for 3.7 seconds
+  X Violates EMDRIA bilateral alternation requirement
+  X Bad first impression - device appears broken
+  X Potential therapeutic efficacy reduction
+
+FIX LOCATION:
+  File: src/ble_manager.c
+  Function: Find MOTOR_STARTED characteristic notification write
+  Issue: Add timing analysis around ble_gatts_notify_or_indicate()
+  Check: Possible mutex contention, task queue blocking
+
+FIX STRATEGY:
+  Option A: Debug why 3745 ms delay occurs (preferred)
+  Option B: Pre-send notification 500 ms before motor start
+
+TARGET RESULT:
+  Notification delivery < 100 ms
+  Bilateral alternation starts by 6 second mark
+
+================================================================================
+ISSUE #2: CLIENT OFFSET INVERTED DURING RTT UPDATE
+================================================================================
+
+SYMPTOM:
+  Second boot shows correct operation initially, but offset suddenly inverts
+  after RTT measurement, causing motors to vibrate in opposite directions
+  (antiphase) for 12+ seconds.
+
+ROOT CAUSE:
+  RTT offset calculation has sign error. Formula inverts offset instead of
+  refining it.
+
+INITIAL STATE (CORRECT):
+  Initial offset: +353346 µs (CLIENT ahead of SERVER)
+  Bilateral alternation: LEFT-RIGHT-LEFT-RIGHT
+
+RTT UPDATE (WRONG):
+  Time: 16314 ms (66 ms after first motor cycle)
+  Old offset: +353346 µs
+  New offset: -394378 µs  - INVERTED!
+  Drift: -747724 µs (almost exactly -2x initial offset)
+
+PHASE DURING INVERSION:
+  16454 ms onwards: Both motors ACTIVE but in opposite directions
+  SERVER: ACTIVE forward - Correct
+  CLIENT: ACTIVE forward - Using wrong offset, acts like ACTIVE reverse
+
+  Result: Motors vibrate 180 degrees out of phase (ANTIPHASE)
+
+CONVERGENCE:
+  Catch-up logic tries to fix drift with -50 ms corrections per cycle
+  Initial drift: -756 ms
+  Final residual: -337 µs (after 12 cycles)
+  Status: Partially fixed but offset sign never corrects
+
+TIMELINE:
+  6064 ms  - Initial handshake: offset=+353346 µs (GOOD)
+  16314 ms - RTT update: offset=-394378 µs (WRONG)
+  16454 ms - Motors enter antiphase operation
+  17464 ms - First catch-up: drift=-756 ms
+  26244 ms - Still correcting: drift=-500 ms
+  37044 ms - Catch-up stops: drift=-337 µs (residual)
+
+IMPACT:
+  X 12+ seconds of antiphase operation (motors opposite directions)
+  X Vestibuloocular reflex disruption
+  X Therapeutic efficacy compromised
+  X Residual error never fully corrected
+
+FIX LOCATION:
+  File: src/time_sync.c
+  Function: RTT offset update/recalculation
+  Issue: Sign error in formula - likely using negation incorrectly
+  Suspect: Something like new_offset = -old_offset instead of proper update
+
+FIX STRATEGY:
+  1. Review RTT calculation formula for sign errors
+  2. Add validation: |new_offset - old_offset| should be < 200 µs
+  3. If anomaly detected, fall back to previous offset
+  4. Add unit tests for offset calculations
+
+TARGET RESULT:
+  RTT offset update should refine to ±360 µs (not invert to -394378)
+  Phase stays synchronized (never becomes antiphase)
+  Residual error < 50 µs after convergence
+
+================================================================================
+THERAPEUTIC IMPACT ASSESSMENT
+================================================================================
+
+EMDRIA Bilateral Alternation Requirement:
+  Therapeutic bilateral stimulation must begin immediately and continue
+  throughout the session. Unilateral or non-alternating patterns are
+  contraindicated.
+
+Boot 1 Violation:
+  Duration: 3.7 seconds
+  Pattern: UNILATERAL (SERVER only)
+  Severity: CRITICAL
+
+Boot 2 Violation:
+  Duration: 12+ seconds
+  Pattern: ANTIPHASE (opposite directions)
+  Severity: SEVERE
+
+Combined Session Impact:
+  - First 15.7 seconds: Non-therapeutic patterns
+  - Patient expects bilateral from start
+  - Reduced efficacy during critical initial period
+  - Potential dropout if user perceives device malfunction
+
+Verdict: DEVICE NOT APPROVED FOR TESTING
+  - Does not meet EMDRIA safety/efficacy standards
+  - Requires fixes before any therapeutic use
+
+================================================================================
+DEBUGGING CHECKLIST
+================================================================================
+
+ISSUE 1 (BLE NOTIFICATION LATENCY):
+  [ ] Add timestamp logs in ble_manager.c around MOTOR_STARTED write
+  [ ] Check for mutex locks during notification send
+  [ ] Review BLE task priority vs motor task priority
+  [ ] Check notification queue size/blocking
+  [ ] Measure end-to-end latency: motor_started -> ble_write -> client_received
+
+ISSUE 2 (RTT OFFSET SIGN ERROR):
+  [ ] Review time_sync.c RTT offset formula
+  [ ] Check sign convention documentation
+  [ ] Verify calculation doesn't use unnecessary negation
+  [ ] Add offset sanity check (< 200 µs change per update)
+  [ ] Test RTT calculation with known input values
+  [ ] Verify: offset should NEVER flip sign after RTT update
+
+TESTING PROTOCOL:
+  [ ] Boot 1: Verify MOTOR_STARTED arrives within 100 ms of SERVER start
+  [ ] Boot 1: Confirm bilateral alternation begins by 6 second mark
+  [ ] Boot 2: Verify RTT offset stays within ±100 µs of initial
+  [ ] Boot 2: Confirm motors never become antiphase
+  [ ] Both: Back-EMF measurements valid throughout (no inversion)
+  [ ] Both: Motor timing matches ±50 µs precision
+
+================================================================================
+CODE REVIEW PRIORITIES
+================================================================================
+
+PRIORITY 1 (BLOCKING):
+  [ ] Fix Issue 2 (RTT offset inversion) - blocks all dual-device testing
+  [ ] Fix Issue 1 (notification latency) - requires therapeutic compliance
+
+PRIORITY 2 (IMPORTANT):
+  [ ] Add offset validation and fallback logic
+  [ ] Add notification latency monitoring
+  [ ] Improve error logging for synchronization issues
+
+PRIORITY 3 (NICE TO HAVE):
+  [ ] Performance optimization of BLE notification path
+  [ ] Drift rate calibration for better convergence
+  [ ] Telemetry for offset/drift monitoring
+
+================================================================================
+FILES TO MODIFY
+================================================================================
+
+CRITICAL CHANGES NEEDED:
+
+1. src/time_sync.c
+   - Function: RTT offset recalculation
+   - Change: Fix sign error in offset formula
+   - Also: Add validation for offset changes > 200 µs
+   - Test: Unit tests for RTT calculation
+
+2. src/ble_manager.c
+   - Function: MOTOR_STARTED characteristic write
+   - Change: Debug 3745 ms latency, reduce to < 100 ms
+   - Also: Add timing instrumentation
+   - Consider: Pre-sending notification earlier
+
+3. src/motor_task.c (possibly)
+   - Change: May need adjustment if notification pre-send implemented
+   - Check: Task timing assumptions
+
+================================================================================
+REFERENCES IN CODEBASE
+================================================================================
+
+Offset Update Code:
+  - Search for: RTT update in src/time_sync.c
+  - Look for: new_offset = ... (likely has sign error)
+  - Check: old_offset calculation, drift calculation
+
+MOTOR_STARTED Notification:
+  - Search for: MOTOR_STARTED in src/ble_manager.c
+  - Look for: ble_gatts_notify_or_indicate() call
+  - Check: Timing around this call
+
+Catch-up Logic:
+  - Search for: CATCH-UP in src/motor_task.c
+  - Already correct logic, just slowed by wrong offset
+
+================================================================================
+EXPECTED BEHAVIOR (AFTER FIXES)
+================================================================================
+
+BOOT 1 (After Fix):
+  + 5884 ms - Connection complete
+  + 6074 ms - Time sync handshake (offset=+3740 µs)
+  + 9019 ms - SERVER ready (beacon sent)
+  + 9769 ms - CLIENT ready (MOTOR_STARTED received < 100 ms latency)
+  + 12029 ms - SERVER starts motors ACTIVE
+  + 12100 ms - CLIENT receives MOTOR_STARTED (71 ms latency, < 100 ms!)
+  + 12100 ms - CLIENT starts motors INACTIVE
+  + 12100 ms - Bilateral alternation begins
+  + No unilateral vibration period
+
+BOOT 2 (After Fix):
+  + 5884 ms - Connection complete
+  + 6064 ms - Time sync handshake (offset=+353 µs)
+  + 8714 ms - MOTOR_STARTED received
+  + 9464 ms - CLIENT starts motors INACTIVE
+  + 10444 ms - CLIENT cycles ACTIVE (reverse)
+  + 16314 ms - RTT update: offset=+358 µs (refined, NOT inverted)
+  + 16454 ms - CLIENT continues in correct phase
+  + No antiphase operation
+  + Motors remain synchronized throughout
+
+================================================================================
+SUMMARY
+================================================================================
+
+Two critical synchronization failures detected:
+
+1. MOTOR_STARTED notification latency (3.7 second delay)
+   - Causes unilateral vibration at session start
+   - Violates EMDRIA bilateral alternation requirement
+   - Root: BLE notification queue/latency in ble_manager.c
+
+2. RTT offset sign inversion (12 second antiphase operation)
+   - Causes opposite-direction vibration during second boot
+   - Disrupts therapeutic efficacy
+   - Root: Sign error in time_sync.c RTT calculation
+
+Both issues must be fixed before device can be tested therapeutically.
+
+Fixes are straightforward code changes requiring careful review of:
+  - Time sync module (src/time_sync.c)
+  - BLE manager notification delivery (src/ble_manager.c)
+
+Testing protocol is clear and measurable.
+
+DOCUMENTS PROVIDED:
+  1. DUAL_DEVICE_BOOT_ANALYSIS.md - Full 2500-line technical analysis
+  2. BOOT_ANALYSIS_SUMMARY.txt - Executive summary with fixes
+  3. TIMELINE_TABLES.md - Detailed timeline tables and patterns
+  4. ANALYSIS_QUICK_REFERENCE.txt - This quick reference

@@ -51,6 +51,9 @@ void ble_task(void *pvParameters) {
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
                     if (msg.type == MSG_BLE_REENABLE) {
                         ESP_LOGI(TAG, "BLE re-enable requested (button hold 1-2s)");
+
+                        // Purpose: Restart advertising for mobile app connection after 5-min timeout
+                        // DO NOT reset pairing window or roles - preserves session continuity with peer
                         ble_start_advertising();
 
                         // Transition based on result
@@ -367,9 +370,11 @@ void ble_task(void *pvParameters) {
                     }
                 }
 
-                // Check if client disconnected (set by GAP event handler)
-                if (!ble_is_connected()) {
-                    ESP_LOGI(TAG, "Client disconnected");
+                // Check if ALL connections lost (both mobile app AND peer)
+                // BUG FIX: ble_is_connected() only checks mobile app, not peer!
+                // Must stay in CONNECTED state if peer is connected (even without mobile app)
+                if (!ble_is_connected() && !ble_is_peer_connected()) {
+                    ESP_LOGI(TAG, "All connections lost (app and peer)");
 
                     // JPL compliance: Wait for disconnect handler to complete advertising restart
                     // Measured disconnect handler advertising restart time: ~80ms

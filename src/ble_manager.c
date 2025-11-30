@@ -15,6 +15,7 @@
 #include "role_manager.h"
 #include "time_sync.h"      // Phase 2: Time synchronization (AD039)
 #include "time_sync_task.h" // Phase 2: Time sync task integration
+#include "firmware_version.h" // AD040: Firmware version enforcement
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -82,11 +83,17 @@ static const ble_uuid128_t uuid_bilateral_role = BLE_UUID128_INIT(
     0x03, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
-// Phase 2: Time synchronization (AD036)
+// Phase 2: Time synchronization (AD039)
 static const ble_uuid128_t uuid_bilateral_time_sync = BLE_UUID128_INIT(
     0x04, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 // UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70104
+
+// Phase 3: Coordination messages (hybrid architecture)
+static const ble_uuid128_t uuid_bilateral_coordination = BLE_UUID128_INIT(
+    0x05, 0x01, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+// UUID: 4BCAE9BE-9829-4F0A-9E88-267DE5E70105
 
 // Configuration Service (4BCAE9BE-9829-4F0A-9E88-267DE5E70200)
 // Mobile app control interface (single or dual device)
@@ -145,6 +152,10 @@ static const ble_uuid128_t uuid_char_battery = BLE_UUID128_INIT(
     0x0c, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+static const ble_uuid128_t uuid_char_client_battery = BLE_UUID128_INIT(
+    0x0d, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // ============================================================================
 // UUID-SWITCHING CONFIGURATION (Phase 1b.3)
 // ============================================================================
@@ -168,6 +179,7 @@ static uint32_t ble_boot_time_ms = 0;
 // Forward declarations for helper functions
 static const ble_uuid128_t* ble_get_advertised_uuid(void);
 static bool ble_get_bonded_peer_addr(ble_addr_t *addr_out);
+static esp_err_t sync_settings_to_peer(void);
 
 // ============================================================================
 // MODE 5 LED COLOR PALETTE (16 colors)
@@ -225,6 +237,7 @@ typedef struct {
     bool notify_mode_subscribed;        /**< Client subscribed to Mode notifications */
     bool notify_session_time_subscribed; /**< Client subscribed to Session Time notifications */
     bool notify_battery_subscribed;     /**< Client subscribed to Battery notifications */
+    bool notify_client_battery_subscribed; /**< Client subscribed to Client Battery notifications */
 } ble_advertising_state_t;
 
 static ble_advertising_state_t adv_state = {
@@ -234,11 +247,50 @@ static ble_advertising_state_t adv_state = {
     .conn_handle = BLE_HS_CONN_HANDLE_NONE,
     .notify_mode_subscribed = false,
     .notify_session_time_subscribed = false,
-    .notify_battery_subscribed = false
+    .notify_battery_subscribed = false,
+    .notify_client_battery_subscribed = false
 };
 
 // Settings dirty flag (thread-safe via char_data_mutex)
 static bool settings_dirty = false;
+
+// ============================================================================
+// BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
+// ============================================================================
+
+/**
+ * Custom connection parameters for therapeutic sessions
+ *
+ * - Connection interval: 50ms (40 units × 1.25ms) - balances power and responsiveness
+ * - Slave latency: 0 - no latency for precise bilateral stimulation timing
+ * - Supervision timeout: 32 seconds (3200 units × 10ms) - BLE specification maximum
+ *
+ * Default NimBLE parameters use ~2-6 second timeout, causing disconnects during normal use.
+ * Phase 6p increases timeout to 32 seconds (BLE spec maximum) to prevent connection loss during therapeutic sessions.
+ */
+static const struct ble_gap_conn_params therapeutic_conn_params = {
+    .scan_itvl = 0x0010,           // Scan interval (not used for connection, only for scanning)
+    .scan_window = 0x0010,         // Scan window (not used for connection, only for scanning)
+    .itvl_min = 40,                // Min connection interval: 40 × 1.25ms = 50ms
+    .itvl_max = 40,                // Max connection interval: 40 × 1.25ms = 50ms
+    .latency = 0,                  // Slave latency: 0 events (no latency)
+    .supervision_timeout = 3200,   // Supervision timeout: 3200 × 10ms = 32 seconds (BLE spec maximum)
+    .min_ce_len = 0,               // Min connection event length (0 = no preference)
+    .max_ce_len = 0                // Max connection event length (0 = no preference)
+};
+
+/**
+ * Connection parameter update structure for ble_gap_update_params()
+ * Same values as therapeutic_conn_params but in update format
+ */
+static const struct ble_gap_upd_params therapeutic_upd_params = {
+    .itvl_min = 40,                // Min connection interval: 40 × 1.25ms = 50ms
+    .itvl_max = 40,                // Max connection interval: 40 × 1.25ms = 50ms
+    .latency = 0,                  // Slave latency: 0 events (no latency)
+    .supervision_timeout = 3200,   // Supervision timeout: 3200 × 10ms = 32 seconds (BLE spec maximum)
+    .min_ce_len = 0,               // Min connection event length (0 = no preference)
+    .max_ce_len = 0                // Max connection event length (0 = no preference)
+};
 
 // ============================================================================
 // TIME SYNC BEACON STORAGE (Phase 2 - AD039)
@@ -256,6 +308,50 @@ static uint16_t g_time_sync_char_handle = 0;
 // CLIENT-specific: Handle for peer's time sync characteristic (discovered via GATT client)
 // Only used when we are CLIENT role (initiated connection to SERVER peer)
 static uint16_t g_peer_time_sync_char_handle = 0;
+
+// ============================================================================
+// COORDINATION STATE (Phase 3 - Hybrid Architecture)
+// ============================================================================
+
+// Current coordination mode (thread-safe via char_data_mutex)
+static coordination_mode_t g_coordination_mode = COORD_MODE_STANDALONE;
+
+// Cache attribute handle for coordination characteristic
+// - SERVER: Set during GATT registration (gatt_svr_register_cb)
+// - CLIENT: Set during GATT discovery (gattc_on_chr_disc)
+static uint16_t g_coordination_char_handle = 0;
+
+// CLIENT-specific: Handle for peer's coordination characteristic
+static uint16_t g_peer_coordination_char_handle = 0;
+
+// CLIENT-specific: Discovery state tracking
+static bool g_bilateral_discovery_complete = false;
+static bool g_config_service_found = false;
+static uint16_t g_config_service_start_handle = 0;
+static uint16_t g_config_service_end_handle = 0;
+static uint16_t g_discovery_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
+// Phase 3a: Characteristic value handles for notification-based sync
+// These handles are set during GATT registration and used to send notifications
+static uint16_t g_freq_val_handle = 0;
+static uint16_t g_duty_val_handle = 0;
+static uint16_t g_pwm_val_handle = 0;
+static uint16_t g_led_enable_val_handle = 0;
+static uint16_t g_led_color_mode_val_handle = 0;
+static uint16_t g_led_palette_val_handle = 0;
+static uint16_t g_led_custom_rgb_val_handle = 0;
+static uint16_t g_led_brightness_val_handle = 0;
+
+// Phase 3a: Peer characteristic handles for subscription
+// CLIENT subscribes to SERVER's characteristics to receive notifications
+static uint16_t g_peer_freq_val_handle = 0;
+static uint16_t g_peer_duty_val_handle = 0;
+static uint16_t g_peer_pwm_val_handle = 0;
+static uint16_t g_peer_led_enable_val_handle = 0;
+static uint16_t g_peer_led_color_mode_val_handle = 0;
+static uint16_t g_peer_led_palette_val_handle = 0;
+static uint16_t g_peer_led_custom_rgb_val_handle = 0;
+static uint16_t g_peer_led_brightness_val_handle = 0;
 
 // ============================================================================
 // BLE SECURITY CONFIGURATION (Phase 1b.3)
@@ -405,6 +501,15 @@ static void update_mode5_timing(void) {
     }
 }
 
+// ============================================================================
+// PWA SETTINGS SYNCHRONIZATION (Phase 3a - Notification-Based)
+// ============================================================================
+
+// NOTE: Settings sync now uses BLE GATT notifications instead of coordination messages
+// When SERVER writes a config value, ble_gatts_chr_updated() sends notification to CLIENT
+// CLIENT receives notification via BLE_GAP_EVENT_NOTIFY_RX and updates char_data
+// See notification handlers in ble_gap_event() around line 2377+
+
 // Mode characteristic - Read callback
 static int gatt_char_mode_read(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg) {
@@ -448,6 +553,22 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
     xSemaphoreGive(char_data_mutex);
 
     ble_callback_mode_changed((mode_t)mode_val);
+
+    // Phase 3: Sync mode change to peer device (PWA-triggered mode changes)
+    if (ble_is_peer_connected()) {
+        coordination_message_t coord_msg = {
+            .type = SYNC_MSG_MODE_CHANGE,
+            .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
+            .payload = {.mode = (mode_t)mode_val}
+        };
+        esp_err_t err = ble_send_coordination_message(&coord_msg);
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "Mode change synced to peer: MODE_%u", mode_val);
+        } else {
+            ESP_LOGW(TAG, "Failed to sync mode change to peer: %s", esp_err_to_name(err));
+        }
+    }
+
     return 0;
 }
 
@@ -496,6 +617,10 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
 
     update_mode5_timing();
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -545,6 +670,10 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
 
     update_mode5_timing();
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -597,6 +726,10 @@ static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_han
     }
 
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -639,6 +772,10 @@ static int gatt_char_led_enable_write(uint16_t conn_handle, uint16_t attr_handle
     xSemaphoreGive(char_data_mutex);
 
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -686,6 +823,10 @@ static int gatt_char_led_color_mode_write(uint16_t conn_handle, uint16_t attr_ha
     xSemaphoreGive(char_data_mutex);
 
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -733,6 +874,10 @@ static int gatt_char_led_palette_write(uint16_t conn_handle, uint16_t attr_handl
     xSemaphoreGive(char_data_mutex);
 
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -780,6 +925,10 @@ static int gatt_char_led_custom_rgb_write(uint16_t conn_handle, uint16_t attr_ha
     xSemaphoreGive(char_data_mutex);
 
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -827,6 +976,10 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
     xSemaphoreGive(char_data_mutex);
 
     ble_callback_params_updated();
+
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     return 0;
 }
 
@@ -875,6 +1028,9 @@ static int gatt_char_session_duration_write(uint16_t conn_handle, uint16_t attr_
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
 
+    // Phase 3a: Sync ALL settings to peer device (coordination message)
+    sync_settings_to_peer();
+
     // Motor task will check this value to determine when to end session
     return 0;
 }
@@ -905,6 +1061,22 @@ static int gatt_char_battery_read(uint16_t conn_handle, uint16_t attr_handle,
 
     ESP_LOGD(TAG, "GATT Read: Battery = %u%%", battery_val);
     int rc = os_mbuf_append(ctxt->om, &battery_val, sizeof(battery_val));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Client Battery Level - Read (dual-device mode, Phase 6)
+static int gatt_char_client_battery_read(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_client_battery_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    uint8_t client_battery_val = char_data.client_battery_level;
+    xSemaphoreGive(char_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Client Battery = %u%%", client_battery_val);
+    int rc = os_mbuf_append(ctxt->om, &client_battery_val, sizeof(client_battery_val));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
@@ -1048,6 +1220,39 @@ static int gatt_bilateral_time_sync_write(uint16_t conn_handle, uint16_t attr_ha
     return 0;
 }
 
+// ============================================================================
+// PHASE 3: COORDINATION MESSAGE WRITE HANDLER
+// ============================================================================
+
+static int gatt_bilateral_coordination_write(uint16_t conn_handle, uint16_t attr_handle,
+                                             struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    // Only writable by peer devices (not mobile app)
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "Coordination message write attempted by non-peer");
+        return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+    }
+
+    // Parse coordination message from mbuf
+    coordination_message_t msg;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &msg, sizeof(msg), NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Coordination write: Invalid length");
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // Phase 3: Forward to time_sync_task for handling (moved from motor_task)
+    // This prevents BLE processing from blocking motor timing
+    esp_err_t err = time_sync_task_send_coordination(&msg);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to queue coordination message: %s", esp_err_to_name(err));
+    }
+
+    ESP_LOGD(TAG, "Coordination message received: type=%d, timestamp=%lu",
+             msg.type, (unsigned long)msg.timestamp_ms);
+
+    return 0;
+}
+
 // GATT characteristic access dispatcher
 static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg) {
@@ -1122,6 +1327,10 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return gatt_char_battery_read(conn_handle, attr_handle, ctxt, arg);
     }
 
+    if (ble_uuid_cmp(uuid, &uuid_char_client_battery.u) == 0) {
+        return gatt_char_client_battery_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
     // Bilateral Control Service characteristics (Phase 1b)
     if (ble_uuid_cmp(uuid, &uuid_bilateral_battery.u) == 0) {
         return gatt_bilateral_battery_read(conn_handle, attr_handle, ctxt, arg);
@@ -1142,6 +1351,14 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
                gatt_bilateral_time_sync_read(conn_handle, attr_handle, ctxt, arg) :
                gatt_bilateral_time_sync_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    // Phase 3: Coordination messages (write-only)
+    if (ble_uuid_cmp(uuid, &uuid_bilateral_coordination.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            return gatt_bilateral_coordination_write(conn_handle, attr_handle, ctxt, arg);
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // No READ support
     }
 
     // Unknown characteristic
@@ -1181,6 +1398,13 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
             },
             {
+                // Phase 3: Coordination messages (hybrid architecture)
+                // Mode sync, settings sync, shutdown commands, advertising control
+                .uuid = &uuid_bilateral_coordination.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+            },
+            {
                 0, // No more characteristics
             }
         },
@@ -1199,43 +1423,51 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             {
                 .uuid = &uuid_char_custom_freq.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_freq_val_handle,  // Phase 3a: Notification-based sync
             },
             {
                 .uuid = &uuid_char_custom_duty.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_duty_val_handle,  // Phase 3a: Notification-based sync
             },
             {
                 .uuid = &uuid_char_pwm_intensity.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_pwm_val_handle,  // Phase 3a: Notification-based sync
             },
             // LED Control Group
             {
                 .uuid = &uuid_char_led_enable.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_led_enable_val_handle,  // Phase 3a: Notification-based sync
             },
             {
                 .uuid = &uuid_char_led_color_mode.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_led_color_mode_val_handle,  // Phase 3a: Notification-based sync
             },
             {
                 .uuid = &uuid_char_led_palette.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_led_palette_val_handle,  // Phase 3a: Notification-based sync
             },
             {
                 .uuid = &uuid_char_led_custom_rgb.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_led_custom_rgb_val_handle,  // Phase 3a: Notification-based sync
             },
             {
                 .uuid = &uuid_char_led_brightness.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_led_brightness_val_handle,  // Phase 3a: Notification-based sync
             },
             // Status/Monitoring Group
             {
@@ -1250,6 +1482,11 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             },
             {
                 .uuid = &uuid_char_battery.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+            },
+            {
+                .uuid = &uuid_char_client_battery.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
             },
@@ -1282,6 +1519,13 @@ static void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
             if (ble_uuid_cmp(ctxt->chr.chr_def->uuid, &uuid_bilateral_time_sync.u) == 0) {
                 g_time_sync_char_handle = ctxt->chr.val_handle;
                 ESP_LOGI(TAG, "Time sync characteristic handle captured: %u", g_time_sync_char_handle);
+            }
+
+            // Capture coordination characteristic handle (Phase 3 - Hybrid Architecture)
+            // This handle is required for ble_send_coordination_message() to send notifications
+            if (ble_uuid_cmp(ctxt->chr.chr_def->uuid, &uuid_bilateral_coordination.u) == 0) {
+                g_coordination_char_handle = ctxt->chr.val_handle;
+                ESP_LOGI(TAG, "Coordination characteristic handle captured: %u", g_coordination_char_handle);
             }
             break;
 
@@ -1419,6 +1663,31 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
     if (chr == NULL) {
         // Discovery complete
         ESP_LOGI(TAG, "CLIENT: Characteristic discovery complete");
+
+        // If this was Bilateral Service discovery, mark complete and start Config Service discovery
+        if (!g_bilateral_discovery_complete) {
+            g_bilateral_discovery_complete = true;
+            ESP_LOGI(TAG, "CLIENT: Bilateral Service discovery complete");
+
+            // If Configuration Service was found during service discovery, discover its characteristics now
+            if (g_config_service_found) {
+                ESP_LOGI(TAG, "CLIENT: Starting deferred Configuration Service characteristic discovery");
+                int rc = ble_gattc_disc_all_chrs(g_discovery_conn_handle,
+                                                  g_config_service_start_handle,
+                                                  g_config_service_end_handle,
+                                                  gattc_on_chr_disc,
+                                                  NULL);
+                if (rc != 0) {
+                    ESP_LOGE(TAG, "CLIENT: Failed to start deferred Configuration Service discovery; rc=%d", rc);
+                } else {
+                    ESP_LOGI(TAG, "CLIENT: Configuration Service characteristic discovery started (deferred)");
+                }
+
+                // Reset flags for next connection
+                g_config_service_found = false;
+            }
+        }
+
         return 0;
     }
 
@@ -1441,6 +1710,150 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
             ESP_LOGE(TAG, "CLIENT: Failed to write CCCD at handle %u; rc=%d", cccd_handle, rc);
         } else {
             ESP_LOGI(TAG, "CLIENT: CCCD write initiated at handle %u (enabling notifications)", cccd_handle);
+        }
+    }
+
+    // Compare UUID with coordination characteristic (Phase 3 - Hybrid Architecture)
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_bilateral_coordination.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found coordination characteristic; val_handle=%u", chr->val_handle);
+
+        // Store handle for notification reception and writes
+        g_peer_coordination_char_handle = chr->val_handle;
+
+        // Enable notifications for coordination messages
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;  // 0x0001 = notifications enabled
+
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc != 0) {
+            ESP_LOGE(TAG, "CLIENT: Failed to write coordination CCCD at handle %u; rc=%d", cccd_handle, rc);
+        } else {
+            ESP_LOGI(TAG, "CLIENT: Coordination CCCD write initiated at handle %u (enabling notifications)", cccd_handle);
+        }
+    }
+
+    // Phase 3a: Subscribe to configuration characteristics for notification-based sync
+    // Pattern: For each config characteristic that we write from SERVER, CLIENT subscribes to notifications
+
+    // Custom Frequency
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_custom_freq.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found frequency characteristic; val_handle=%u", chr->val_handle);
+        g_peer_freq_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to frequency notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // Custom Duty Cycle
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_custom_duty.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found duty cycle characteristic; val_handle=%u", chr->val_handle);
+        g_peer_duty_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to duty cycle notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // PWM Intensity
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_pwm_intensity.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found PWM intensity characteristic; val_handle=%u", chr->val_handle);
+        g_peer_pwm_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to PWM intensity notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // LED Enable
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_led_enable.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found LED enable characteristic; val_handle=%u", chr->val_handle);
+        g_peer_led_enable_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to LED enable notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // LED Color Mode
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_led_color_mode.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found LED color mode characteristic; val_handle=%u", chr->val_handle);
+        g_peer_led_color_mode_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to LED color mode notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // LED Palette
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_led_palette.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found LED palette characteristic; val_handle=%u", chr->val_handle);
+        g_peer_led_palette_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to LED palette notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // LED Custom RGB
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_led_custom_rgb.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found LED custom RGB characteristic; val_handle=%u", chr->val_handle);
+        g_peer_led_custom_rgb_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to LED custom RGB notifications at handle %u", cccd_handle);
+        }
+    }
+
+    // LED Brightness
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_led_brightness.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found LED brightness characteristic; val_handle=%u", chr->val_handle);
+        g_peer_led_brightness_val_handle = chr->val_handle;
+
+        uint16_t cccd_handle = chr->val_handle + 1;
+        uint16_t notify_enable = 1;
+        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
+                                       &notify_enable, sizeof(notify_enable),
+                                       gattc_on_cccd_write, NULL);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "CLIENT: Subscribed to LED brightness notifications at handle %u", cccd_handle);
         }
     }
 
@@ -1493,6 +1906,21 @@ static int gattc_on_svc_disc(uint16_t conn_handle,
         }
     }
 
+    // Phase 3a: Also discover Configuration Service for notification-based settings sync
+    // DEFER this discovery until Bilateral Service discovery completes to avoid concurrent discovery conflicts
+    if (ble_uuid_cmp(&service->uuid.u, &uuid_config_service.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found Configuration Service; start_handle=%u, end_handle=%u",
+                 service->start_handle, service->end_handle);
+
+        // Store service info for deferred discovery
+        g_config_service_found = true;
+        g_config_service_start_handle = service->start_handle;
+        g_config_service_end_handle = service->end_handle;
+        g_discovery_conn_handle = conn_handle;
+
+        ESP_LOGI(TAG, "CLIENT: Configuration Service discovery DEFERRED (will start after Bilateral Service completes)");
+    }
+
     return 0;
 }
 
@@ -1507,6 +1935,13 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         case BLE_GAP_EVENT_CONNECT:
             if (event->connect.status == 0) {
                 ESP_LOGI(TAG, "BLE connection established; conn_handle=%d", event->connect.conn_handle);
+
+                // Reset discovery state for new connection
+                g_bilateral_discovery_complete = false;
+                g_config_service_found = false;
+                g_config_service_start_handle = 0;
+                g_config_service_end_handle = 0;
+                g_discovery_conn_handle = event->connect.conn_handle;
 
                 // Get connection descriptor
                 struct ble_gap_conn_desc desc;
@@ -1544,11 +1979,17 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     ESP_LOGI(TAG, "Peer identified (connected during Bilateral UUID window)");
                 } else {
                     // CASE 2: Advertising Config UUID - check if this is bonded peer reconnect
-                    if (memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0 &&
-                        peer_state.peer_discovered) {
-                        // Cached address match - bonded peer reconnecting
+                    // FIX: Check for non-zero cached address instead of peer_discovered flag
+                    // (peer_discovered is cleared on disconnect, but peer_addr is preserved)
+                    static const ble_addr_t zero_addr = {0};
+                    bool has_cached_peer = (memcmp(&peer_state.peer_addr, &zero_addr, sizeof(ble_addr_t)) != 0);
+                    bool address_matches = (memcmp(&desc.peer_id_addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0);
+
+                    if (has_cached_peer && address_matches) {
+                        // Cached address match - peer reconnecting after disconnect
                         is_peer = true;
-                        ESP_LOGI(TAG, "Peer identified (bonded reconnection by address)");
+                        peer_state.peer_discovered = true;  // Restore flag for subsequent logic
+                        ESP_LOGI(TAG, "Peer identified (reconnection by cached address)");
                     } else {
                         // New connection during Config UUID window - mobile app
                         is_peer = false;
@@ -1590,9 +2031,12 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     }
 
                     if (is_bonded) {
-                        ESP_LOGI(TAG, "Bonded peer reconnecting (allowed anytime via Config UUID)");
+                        ESP_LOGI(TAG, "Bonded peer reconnecting (NVS bond verified)");
+                    } else if (current_uuid == &uuid_bilateral_service) {
+                        ESP_LOGI(TAG, "Peer connecting (within 30s Bilateral UUID window - initial pairing)");
                     } else {
-                        ESP_LOGI(TAG, "Unbonded peer connecting (within 30s Bilateral UUID window - allowed for pairing)");
+                        // Config UUID + address match but no NVS bond = RAM-only reconnection
+                        ESP_LOGI(TAG, "Peer reconnecting (cached address match, RAM-only mode)");
                     }
                 }
 
@@ -1635,8 +2079,17 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         peer_state.role = PEER_ROLE_CLIENT;
                         ESP_LOGI(TAG, "CLIENT role assigned (BLE MASTER)");
 
-                        // Phase 2: Start GATT service discovery to find SERVER's time sync characteristic
-                        // This is required for CLIENT to receive sync beacons via notifications
+                        // Phase 6f: Initiate MTU exchange for larger beacon payload (28 bytes)
+                        // Default MTU is 23 bytes (20 payload) - too small for beacons
+                        // MTU exchange runs in parallel with GATT discovery
+                        ESP_LOGI(TAG, "CLIENT: Initiating MTU exchange for larger beacon payload");
+                        int mtu_rc = ble_gattc_exchange_mtu(event->connect.conn_handle, NULL, NULL);
+                        if (mtu_rc != 0) {
+                            ESP_LOGW(TAG, "CLIENT: MTU exchange failed (rc=%d)", mtu_rc);
+                        }
+
+                        // Start GATT service discovery to find SERVER's time sync characteristic
+                        // This runs in parallel with MTU exchange - MTU will be ready before beacons arrive
                         ESP_LOGI(TAG, "CLIENT: Starting GATT service discovery for peer services");
                         int disc_rc = ble_gattc_disc_all_svcs(event->connect.conn_handle,
                                                                gattc_on_svc_disc,
@@ -1647,6 +2100,40 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     } else {
                         peer_state.role = PEER_ROLE_SERVER;
                         ESP_LOGI(TAG, "SERVER role assigned (BLE SLAVE)");
+
+                        // Phase 6f: SERVER also initiates MTU exchange for bidirectional communication
+                        ESP_LOGI(TAG, "SERVER: Initiating MTU exchange for larger beacon payload");
+                        int mtu_rc = ble_gattc_exchange_mtu(event->connect.conn_handle, NULL, NULL);
+                        if (mtu_rc != 0) {
+                            ESP_LOGW(TAG, "SERVER: MTU exchange failed (rc=%d)", mtu_rc);
+                        }
+
+                        // Start GATT service discovery for peer services (for coordination writes)
+                        ESP_LOGI(TAG, "SERVER: Starting GATT service discovery for peer services");
+                        int disc_rc = ble_gattc_disc_all_svcs(event->connect.conn_handle,
+                                                               gattc_on_svc_disc,
+                                                               NULL);
+                        if (disc_rc != 0) {
+                            ESP_LOGE(TAG, "SERVER: Failed to start service discovery; rc=%d", disc_rc);
+                        }
+                    }
+
+                    // PHASE 6r: Check for role swap on reconnection (should NOT happen per Phase 6n)
+                    // Map peer_role_t to time_sync_role_t for time sync module
+                    time_sync_role_t sync_role = (peer_state.role == PEER_ROLE_SERVER) ?
+                                                  TIME_SYNC_ROLE_SERVER : TIME_SYNC_ROLE_CLIENT;
+                    esp_err_t reconnect_rc = time_sync_on_reconnection(sync_role);
+                    if (reconnect_rc != ESP_OK) {
+                        ESP_LOGW(TAG, "time_sync_on_reconnection failed; rc=%d", reconnect_rc);
+                    }
+
+                    // Phase 6p: Update connection parameters for long therapeutic sessions
+                    // This ensures both CLIENT and SERVER use 32-second supervision timeout (BLE spec max)
+                    // even when peer initiated connection with default parameters
+                    ESP_LOGI(TAG, "Updating connection parameters for long sessions (32s timeout)");
+                    int param_rc = ble_gap_update_params(event->connect.conn_handle, &therapeutic_upd_params);
+                    if (param_rc != 0) {
+                        ESP_LOGW(TAG, "Failed to update connection parameters; rc=%d (will use negotiated defaults)", param_rc);
                     }
 
                     // Role-aware advertising strategy (Phase 1b.3 - Bug #26 fix):
@@ -1695,6 +2182,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     adv_state.notify_mode_subscribed = false;
                     adv_state.notify_session_time_subscribed = false;
                     adv_state.notify_battery_subscribed = false;
+                    adv_state.notify_client_battery_subscribed = false;
                 }
             } else {
                 ESP_LOGW(TAG, "BLE connection failed; status=%d (%s)",
@@ -1758,11 +2246,18 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
 
             if (peer_disconnected) {
                 // Peer device disconnected
-                ESP_LOGI(TAG, "Peer device disconnected");
+                ESP_LOGI(TAG, "Peer device disconnected (was %s)",
+                         peer_state.role == PEER_ROLE_SERVER ? "SERVER" :
+                         peer_state.role == PEER_ROLE_CLIENT ? "CLIENT" : "NONE");
                 peer_state.peer_connected = false;
                 peer_state.peer_discovered = false;
                 peer_state.peer_conn_handle = BLE_HS_CONN_HANDLE_NONE;
-                peer_state.role = PEER_ROLE_NONE;
+                // NOTE: Preserve peer_state.role for mid-session reconnection!
+                // Previous SERVER will initiate reconnect, previous CLIENT will wait.
+                // Role is only cleared on fresh pairing (ble_reset_pairing_window).
+
+                // Phase 3: Clear coordination characteristic handle (prevents stale handle blocking)
+                g_peer_coordination_char_handle = 0;
 
                 // Phase 2: Notify time_sync_task of peer disconnection (AD039)
                 if (TIME_SYNC_IS_INITIALIZED()) {
@@ -1782,9 +2277,16 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 // Solution: 2-second delay prevents immediate retry errors
                 vTaskDelay(pdMS_TO_TICKS(2000));
 
-                // CRITICAL FIX (Phase 1b.2): Restart advertising + scanning for peer rediscovery
-                // Phase 1b.2 stopped advertising after peer connection, so we must restart it here
-                // Don't rely on advertising_active flag - explicitly restart both services
+                // CRITICAL FIX (Phase 6m): Stop advertising first, then restart for peer rediscovery
+                // After Phase 1b.2, SERVER continues advertising after peer connection (for mobile app).
+                // When peer disconnects, advertising might still be active → must stop first before restart.
+                // Stop advertising if active (ignore errors - advertising might already be stopped)
+                if (ble_gap_adv_active()) {
+                    ble_gap_adv_stop();
+                    ESP_LOGI(TAG, "Stopped existing advertising before restart");
+                }
+
+                // Now restart advertising + scanning for peer rediscovery
                 rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
                                        &adv_params, ble_gap_event, NULL);
                 if (rc == 0) {
@@ -1797,9 +2299,8 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
                 } else {
                     ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
-                    // Sync flag with actual NimBLE state (handles BLE_HS_EALREADY case)
+                    // Sync flag with actual NimBLE state
                     adv_state.advertising_active = ble_gap_adv_active();
-                    // BLE task will retry via state machine
                 }
             }
 
@@ -1811,6 +2312,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 adv_state.notify_mode_subscribed = false;
                 adv_state.notify_session_time_subscribed = false;
                 adv_state.notify_battery_subscribed = false;
+                adv_state.notify_client_battery_subscribed = false;
 
                 // Small delay to allow BLE stack cleanup (Android compatibility)
                 vTaskDelay(pdMS_TO_TICKS(100));
@@ -1884,7 +2386,10 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             break;
 
         case BLE_GAP_EVENT_MTU:
-            ESP_LOGI(TAG, "BLE MTU exchange: %u bytes", event->mtu.value);
+            ESP_LOGI(TAG, "BLE MTU exchange: %u bytes (conn_handle=%d)",
+                     event->mtu.value, event->mtu.conn_handle);
+            // Phase 6f: MTU negotiation complete - 28-byte beacons should work now
+            // GATT discovery runs in parallel (started in connection handler)
             break;
 
         case BLE_GAP_EVENT_SUBSCRIBE:
@@ -1952,6 +2457,34 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     }
                 }
             }
+
+            // Client Battery subscription handling (Phase 6 - dual-device mode)
+            if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_client_battery.u, NULL, &val_handle) == 0) {
+                if (event->subscribe.attr_handle == val_handle) {
+                    adv_state.notify_client_battery_subscribed = event->subscribe.cur_notify;
+                    ESP_LOGI(TAG, "Client Battery notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
+
+                    // Send initial value immediately on subscription
+                    if (event->subscribe.cur_notify) {
+                        uint8_t current_client_battery;
+                        // JPL compliance: Bounded mutex wait with timeout error handling
+                        if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+                            ESP_LOGE(TAG, "Mutex timeout in GAP event handler (client battery notify) - possible deadlock");
+                            return 0;
+                        }
+                        current_client_battery = char_data.client_battery_level;
+                        xSemaphoreGive(char_data_mutex);
+
+                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_client_battery, sizeof(current_client_battery));
+                        if (om != NULL) {
+                            int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                            if (rc == 0) {
+                                ESP_LOGI(TAG, "Initial client battery level sent: %u%%", current_client_battery);
+                            }
+                        }
+                    }
+                }
+            }
             break;
 
         case BLE_GAP_EVENT_NOTIFY_RX: {
@@ -1961,6 +2494,126 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             ESP_LOGD(TAG, "BLE notification received: attr_handle=%u, indication=%d",
                      event->notify_rx.attr_handle,
                      event->notify_rx.indication);
+
+            // Phase 3a: Handle configuration characteristic notifications (notification-based sync)
+            // When SERVER writes a config value, it sends notification. CLIENT receives it here and updates char_data.
+
+            // Custom Frequency notification
+            if (event->notify_rx.attr_handle == g_peer_freq_val_handle) {
+                uint16_t freq_val;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &freq_val, sizeof(freq_val), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.custom_frequency_hz = freq_val;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: Frequency notification received: %.2f Hz", freq_val / 100.0f);
+                    }
+                }
+                break;
+            }
+
+            // Custom Duty Cycle notification
+            if (event->notify_rx.attr_handle == g_peer_duty_val_handle) {
+                uint8_t duty_val;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &duty_val, sizeof(duty_val), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.custom_duty_percent = duty_val;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: Duty cycle notification received: %u%%", duty_val);
+                    }
+                }
+                break;
+            }
+
+            // PWM Intensity notification
+            if (event->notify_rx.attr_handle == g_peer_pwm_val_handle) {
+                uint8_t pwm_val;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &pwm_val, sizeof(pwm_val), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.pwm_intensity = pwm_val;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: PWM intensity notification received: %u%%", pwm_val);
+                    }
+                }
+                break;
+            }
+
+            // LED Enable notification
+            if (event->notify_rx.attr_handle == g_peer_led_enable_val_handle) {
+                uint8_t enabled;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &enabled, sizeof(enabled), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.led_enable = enabled;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: LED enable notification received: %d", enabled);
+                    }
+                }
+                break;
+            }
+
+            // LED Color Mode notification
+            if (event->notify_rx.attr_handle == g_peer_led_color_mode_val_handle) {
+                uint8_t mode;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &mode, sizeof(mode), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.led_color_mode = mode;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: LED color mode notification received: %u (%s)",
+                                 mode, mode == 0 ? "palette" : "custom RGB");
+                    }
+                }
+                break;
+            }
+
+            // LED Palette notification
+            if (event->notify_rx.attr_handle == g_peer_led_palette_val_handle) {
+                uint8_t palette_idx;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &palette_idx, sizeof(palette_idx), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.led_palette_index = palette_idx;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: LED palette notification received: %u (%s)",
+                                 palette_idx, color_palette[palette_idx].name);
+                    }
+                }
+                break;
+            }
+
+            // LED Custom RGB notification
+            if (event->notify_rx.attr_handle == g_peer_led_custom_rgb_val_handle) {
+                uint8_t rgb[3];
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, rgb, sizeof(rgb), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.led_custom_r = rgb[0];
+                        char_data.led_custom_g = rgb[1];
+                        char_data.led_custom_b = rgb[2];
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: LED custom RGB notification received: (%u, %u, %u)",
+                                 rgb[0], rgb[1], rgb[2]);
+                    }
+                }
+                break;
+            }
+
+            // LED Brightness notification
+            if (event->notify_rx.attr_handle == g_peer_led_brightness_val_handle) {
+                uint8_t brightness;
+                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &brightness, sizeof(brightness), NULL) == 0) {
+                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                        char_data.led_brightness = brightness;
+                        xSemaphoreGive(char_data_mutex);
+                        ble_callback_params_updated();
+                        ESP_LOGI(TAG, "CLIENT: LED brightness notification received: %u%%", brightness);
+                    }
+                }
+                break;
+            }
 
             // Verify this is the time sync characteristic
             // Check both SERVER handle (our own GATT service) and CLIENT handle (discovered from peer)
@@ -1982,14 +2635,21 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             uint64_t receive_time_us = esp_timer_get_time();
 
             // Extract beacon from mbuf
-            time_sync_beacon_t beacon;
+            time_sync_beacon_t beacon = {0};  // Zero-init to detect truncation
+            uint16_t actual_len = 0;
             int copy_rc = ble_hs_mbuf_to_flat(event->notify_rx.om,
                                                &beacon,
                                                sizeof(beacon),
-                                               NULL);
+                                               &actual_len);
             if (copy_rc != 0) {
                 ESP_LOGE(TAG, "Failed to extract beacon from notification: rc=%d", copy_rc);
                 break;
+            }
+
+            // Debug: Check for payload truncation
+            if (actual_len != sizeof(beacon)) {
+                ESP_LOGW(TAG, "Beacon truncated: received %u bytes, expected %u bytes",
+                         actual_len, (unsigned)sizeof(beacon));
             }
 
             // Forward beacon to time_sync_task for processing
@@ -2572,6 +3232,23 @@ void ble_stop_advertising(void) {
     }
 }
 
+void ble_reset_pairing_window(void) {
+    // Reset boot timestamp to restart 30-second pairing window
+    // This makes ble_get_advertised_uuid() return Bilateral UUID again
+    ble_boot_time_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    ESP_LOGI(TAG, "Pairing window reset (new boot time: %lu ms)", ble_boot_time_ms);
+
+    // Clear cached peer state to enable fresh battery-based role assignment
+    peer_state.peer_discovered = false;
+    peer_state.peer_battery_known = false;
+    peer_state.peer_battery_level = 0;
+    peer_state.role = PEER_ROLE_NONE;  // Clear role for fresh pairing
+    // NOTE: peer_addr is preserved so reconnection logic can still work
+    // if both devices don't reset simultaneously
+
+    ESP_LOGI(TAG, "Peer state cleared for re-pairing (address preserved, role cleared)");
+}
+
 // ============================================================================
 // Peer Discovery & Scanning (Phase 1a)
 // ============================================================================
@@ -2648,10 +3325,33 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                             }
                         }
 
-                        // AD035: Battery-based role assignment
-                        // Higher battery device initiates connection (becomes SERVER/MASTER)
-                        // Lower battery device waits (becomes CLIENT/SLAVE)
-                        if (peer_state.peer_battery_known) {
+                        // Phase 6n: Preserve roles for mid-session reconnection
+                        // Only use battery-based assignment for FRESH PAIRING (role == PEER_ROLE_NONE)
+                        // For reconnection, preserve existing role from previous session
+                        if (peer_state.role != PEER_ROLE_NONE) {
+                            // RECONNECTION: Preserve existing role
+                            ESP_LOGI(TAG, "Reconnection detected - preserving role from previous session (%s)",
+                                     peer_state.role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT");
+
+                            if (peer_state.role == PEER_ROLE_SERVER) {
+                                // We were SERVER before - initiate connection again
+                                ESP_LOGI(TAG, "Previous SERVER - initiating reconnection");
+
+                                // Stop scanning before connection attempt
+                                ble_gap_disc_cancel();
+
+                                ble_connect_to_peer();
+                            } else {
+                                // We were CLIENT before - wait for SERVER to reconnect
+                                ESP_LOGI(TAG, "Previous CLIENT - waiting for SERVER to reconnect");
+
+                                // KEEP SCANNING during wait period to improve peer's discovery odds
+                                ESP_LOGI(TAG, "Continuing scan during wait - SERVER may still be discovering");
+                            }
+                        } else if (peer_state.peer_battery_known) {
+                            // FRESH PAIRING: Use battery-based role assignment
+                            // Higher battery device initiates connection (becomes SERVER/MASTER)
+                            // Lower battery device waits (becomes CLIENT/SLAVE)
                             // Read local battery level (mutex-protected)
                             uint8_t local_battery = 0;
                             if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
@@ -2679,13 +3379,18 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                             } else {
                                 // Batteries equal - use MAC address tie-breaker
                                 // Lower MAC address initiates connection
+
+                                // BUG FIX: Compare OUR MAC to PEER's MAC (not peer to peer!)
+                                ble_addr_t own_addr;
+                                ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr.val, NULL);
+
                                 bool we_are_lower = false;
                                 for (int j = 0; j < 6; j++) {
-                                    if (event->disc.addr.val[j] < peer_state.peer_addr.val[j]) {
-                                        we_are_lower = false;  // Peer is lower, they initiate
+                                    if (own_addr.val[j] < event->disc.addr.val[j]) {
+                                        we_are_lower = true;   // We are lower, we initiate
                                         break;
-                                    } else if (event->disc.addr.val[j] > peer_state.peer_addr.val[j]) {
-                                        we_are_lower = true;  // We are lower, we initiate
+                                    } else if (own_addr.val[j] > event->disc.addr.val[j]) {
+                                        we_are_lower = false;  // Peer is lower, they initiate
                                         break;
                                     }
                                 }
@@ -2717,6 +3422,67 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                         }
 
                         return 0;
+                    }
+
+                    // Phase 6: Check for Config UUID (peer reconnection after initial pairing)
+                    // After 30s, devices advertise Config UUID instead of Bilateral UUID
+                    // Reconnection requires address match with previously-known peer
+                    if (ble_uuid_cmp(&fields.uuids128[i].u, &uuid_config_service.u) == 0) {
+                        // Only attempt reconnection if we have a cached peer address
+                        // (peer_addr is preserved across disconnect, peer_discovered is cleared)
+                        static const ble_addr_t zero_addr = {0};
+                        if (memcmp(&peer_state.peer_addr, &zero_addr, sizeof(ble_addr_t)) != 0) {
+                            // Check if this is our previously-bonded peer
+                            if (memcmp(&event->disc.addr, &peer_state.peer_addr, sizeof(ble_addr_t)) == 0) {
+                                // Check if already reconnecting or connected
+                                if (ble_is_peer_connected() || peer_state.peer_discovered) {
+                                    ESP_LOGD(TAG, "Already reconnecting/connected to peer");
+                                    break;
+                                }
+
+                                char addr_str[18];
+                                snprintf(addr_str, sizeof(addr_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+                                        event->disc.addr.val[5], event->disc.addr.val[4],
+                                        event->disc.addr.val[3], event->disc.addr.val[2],
+                                        event->disc.addr.val[1], event->disc.addr.val[0]);
+
+                                ESP_LOGI(TAG, "Peer RECONNECT discovered: %s (RSSI: %d, prev_role: %s)",
+                                         addr_str, event->disc.rssi,
+                                         peer_state.role == PEER_ROLE_SERVER ? "SERVER" :
+                                         peer_state.role == PEER_ROLE_CLIENT ? "CLIENT" : "NONE");
+                                peer_state.peer_discovered = true;
+
+                                // Mid-session reconnect: Use preserved role from before disconnect
+                                // Previous SERVER initiates, previous CLIENT waits
+                                // This avoids battery comparison race condition
+                                if (peer_state.role == PEER_ROLE_SERVER) {
+                                    // We were SERVER - we initiate reconnection
+                                    ESP_LOGI(TAG, "Peer reconnect: initiating (was SERVER)");
+                                    ble_gap_disc_cancel();
+                                    ble_connect_to_peer();
+                                } else if (peer_state.role == PEER_ROLE_CLIENT) {
+                                    // We were CLIENT - wait for peer (SERVER) to connect to us
+                                    ESP_LOGI(TAG, "Peer reconnect: waiting (was CLIENT)");
+                                    // Keep scanning - peer (SERVER) should connect to us
+                                } else {
+                                    // No previous role (fresh pairing) - use battery comparison
+                                    uint8_t local_battery = 0;
+                                    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+                                        local_battery = bilateral_data.battery_level;
+                                        xSemaphoreGive(bilateral_data_mutex);
+                                    }
+                                    if (local_battery >= peer_state.peer_battery_level || !peer_state.peer_battery_known) {
+                                        ESP_LOGI(TAG, "Peer reconnect: initiating (higher battery)");
+                                        ble_gap_disc_cancel();
+                                        ble_connect_to_peer();
+                                    } else {
+                                        ESP_LOGI(TAG, "Peer reconnect: waiting (lower battery)");
+                                    }
+                                }
+
+                                return 0;
+                            }
+                        }
                     }
                 }
             }
@@ -2760,25 +3526,6 @@ void ble_start_scanning(void) {
     if (ble_is_peer_connected()) {
         ESP_LOGW(TAG, "Already connected to peer, skipping scan");
         return;
-    }
-
-    // RACE CONDITION FIX: Add randomized delay (0-500ms) before scanning
-    // This breaks symmetry when both devices power on simultaneously
-    // Use last 3 bytes of MAC as seed for unique but deterministic delay per device
-    uint8_t addr_val[6];
-    int is_nrpa;
-    int rc_addr = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr_val, &is_nrpa);
-
-    if (rc_addr == 0) {
-        // Use last 3 bytes of MAC to generate delay (0-500ms)
-        uint32_t seed = (addr_val[0] << 16) | (addr_val[1] << 8) | addr_val[2];
-        uint32_t delay_ms = seed % 500;  // 0-499ms delay
-
-        ESP_LOGI(TAG, "Scan startup delay: %lums (MAC-based)", delay_ms);
-        vTaskDelay(pdMS_TO_TICKS(delay_ms));
-    } else {
-        ESP_LOGW(TAG, "Failed to get MAC for scan delay, using default 100ms");
-        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     // Configure scan parameters
@@ -2836,10 +3583,11 @@ void ble_connect_to_peer(void) {
 
     ESP_LOGI(TAG, "Connecting to peer device...");
 
-    // Initiate connection (uses default connection parameters)
+    // Phase 6p: Use custom connection parameters for long therapeutic sessions
+    // 32-second supervision timeout (BLE spec max) prevents disconnects during normal use
     int rc = ble_gap_connect(BLE_OWN_ADDR_PUBLIC, &peer_state.peer_addr,
                              30000,  // 30 second timeout
-                             NULL,   // Default connection parameters
+                             &therapeutic_conn_params,  // Custom parameters (32s supervision timeout)
                              ble_gap_event, NULL);
 
     if (rc != 0) {
@@ -2849,10 +3597,12 @@ void ble_connect_to_peer(void) {
         // This is normal during simultaneous discovery - connection event will fire on both sides
         if (rc == 523) {  // 523 = BLE_ERR_ACL_CONN_EXISTS
             ESP_LOGI(TAG, "Peer is connecting to us (ACL already exists) - connection event will determine role");
+            // Don't reset peer_discovered - connection is already in progress
+        } else {
+            // Actual connection failure - reset discovery flag to allow retry
+            ESP_LOGW(TAG, "Connection failed (rc=%d) - will retry discovery", rc);
+            peer_state.peer_discovered = false;
         }
-
-        // Reset discovery flag for retry
-        peer_state.peer_discovered = false;
     }
 }
 
@@ -2951,6 +3701,32 @@ void ble_update_battery_level(uint8_t percentage) {
                 int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
                 if (rc != 0) {
                     ESP_LOGD(TAG, "Battery notify failed: rc=%d", rc);
+                }
+            }
+        }
+    }
+}
+
+void ble_update_client_battery_level(uint8_t percentage) {
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_client_battery_level - possible deadlock");
+        return;  // Early return on timeout
+    }
+    char_data.client_battery_level = percentage;
+    xSemaphoreGive(char_data_mutex);
+
+    ESP_LOGI(TAG, "Client battery updated: %u%%", percentage);
+
+    // Send notification if client subscribed
+    if (ble_is_app_connected() && adv_state.notify_client_battery_subscribed) {
+        uint16_t val_handle;
+        if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_client_battery.u, NULL, &val_handle) == 0) {
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(&percentage, sizeof(percentage));
+            if (om != NULL) {
+                int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                if (rc != 0) {
+                    ESP_LOGD(TAG, "Client battery notify failed: rc=%d", rc);
                 }
             }
         }
@@ -3081,6 +3857,11 @@ esp_err_t ble_send_time_sync_beacon(void) {
         return err;
     }
 
+    // Bug #27 Fix: Record T1 for two-way RTT measurement
+    // beacon.timestamp_us IS the T1 (SERVER send time)
+    // CLIENT will send response with T2, T3; we receive at T4
+    time_sync_record_beacon_t1(beacon.timestamp_us, beacon.sequence);
+
     // Check characteristic handle first (before mutex)
     if (g_time_sync_char_handle == 0) {
         ESP_LOGW(TAG, "Time sync characteristic handle not initialized");
@@ -3111,9 +3892,319 @@ esp_err_t ble_send_time_sync_beacon(void) {
 
     // Only update global after successful send (while still holding mutex)
     g_time_sync_beacon = beacon;
+
+    // Debug: Log beacon size and checksum for truncation diagnosis
+    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X",
+             (unsigned)sizeof(beacon), beacon.sequence, beacon.checksum);
     xSemaphoreGive(time_sync_beacon_mutex);
 
     ESP_LOGD(TAG, "Sync beacon sent to peer (seq=%u)", beacon.sequence);
+    return ESP_OK;
+}
+
+// ============================================================================
+// PHASE 3: COORDINATION API IMPLEMENTATION
+// ============================================================================
+
+coordination_mode_t ble_get_coordination_mode(void) {
+    // Thread-safe read (atomic for enum)
+    return g_coordination_mode;
+}
+
+void ble_set_coordination_mode(coordination_mode_t mode) {
+    // Thread-safe write (atomic for enum)
+    coordination_mode_t old_mode = g_coordination_mode;
+    g_coordination_mode = mode;
+
+    if (old_mode != mode) {
+        ESP_LOGI(TAG, "Coordination mode changed: %d -> %d", old_mode, mode);
+    }
+}
+
+esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
+    if (msg == NULL) {
+        ESP_LOGE(TAG, "NULL coordination message");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // Check if peer is connected
+    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
+    if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGD(TAG, "Cannot send coordination message: peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Check peer's coordination characteristic handle (discovered during GATT service discovery)
+    if (g_peer_coordination_char_handle == 0) {
+        ESP_LOGW(TAG, "Peer coordination characteristic handle not discovered yet");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Write to peer's coordination characteristic (triggers their gatt_bilateral_coordination_write callback)
+    // Use write-without-response for fire-and-forget delivery (no ACK waiting)
+    int rc = ble_gattc_write_no_rsp_flat(peer_conn_handle, g_peer_coordination_char_handle,
+                                          msg, sizeof(coordination_message_t));
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to write coordination message to peer: rc=%d", rc);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGD(TAG, "Coordination message written to peer: type=%d, timestamp=%lu",
+             msg->type, (unsigned long)msg->timestamp_ms);
+    return ESP_OK;
+}
+
+/**
+ * @brief Send all current settings to peer device (Phase 3a)
+ * @return ESP_OK on success, error code on failure
+ *
+ * Helper function to sync all PWA-configurable settings to peer.
+ * Called after ANY setting is changed via BLE write callbacks.
+ * Prevents infinite sync loops (write callbacks call this, but update functions don't).
+ */
+static esp_err_t sync_settings_to_peer(void) {
+    // Only sync if peer is connected
+    if (!ble_is_peer_connected()) {
+        return ESP_OK;  // Silently succeed if no peer
+    }
+
+    // Gather all current settings (mutex-protected)
+    coordination_settings_t settings;
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in sync_settings_to_peer");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    // Copy all settings from char_data
+    settings.frequency_cHz = char_data.custom_frequency_hz;
+    settings.duty_pct = char_data.custom_duty_percent;
+    settings.intensity_pct = char_data.pwm_intensity;
+    settings.led_enable = char_data.led_enable ? 1 : 0;
+    settings.led_color_mode = char_data.led_color_mode;
+    settings.led_color_idx = char_data.led_palette_index;
+    settings.led_custom_r = char_data.led_custom_r;
+    settings.led_custom_g = char_data.led_custom_g;
+    settings.led_custom_b = char_data.led_custom_b;
+    settings.led_brightness_pct = char_data.led_brightness;
+
+    // Only sync session_duration if it's been explicitly set by PWA (valid range check)
+    // Prevents syncing uninitialized memory (Bug fix: Nov 23, 2025)
+    if (char_data.session_duration_sec >= 1200 && char_data.session_duration_sec <= 5400) {
+        settings.session_duration_sec = char_data.session_duration_sec;
+    } else {
+        // Skip syncing invalid/uninitialized session_duration
+        // Keep peer's current value by setting to 0 (coordination handler will skip update)
+        settings.session_duration_sec = 0;
+    }
+
+    xSemaphoreGive(char_data_mutex);
+
+    // Build coordination message
+    coordination_message_t msg = {
+        .type = SYNC_MSG_SETTINGS,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
+        .payload = {.settings = settings}
+    };
+
+    // Send to peer
+    esp_err_t err = ble_send_coordination_message(&msg);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Settings synced to peer: freq=%.2fHz duty=%u%% intensity=%u%% LED=%s",
+                 settings.frequency_cHz / 100.0f, settings.duty_pct, settings.intensity_pct,
+                 settings.led_enable ? "ON" : "OFF");
+    } else if (err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "Failed to sync settings to peer: %s", esp_err_to_name(err));
+    }
+
+    return err;
+}
+
+// ============================================================================
+// COORDINATION SETTINGS UPDATE API (Phase 3 - Internal Use Only)
+// ============================================================================
+// These functions update char_data WITHOUT triggering sync_settings_to_peer()
+// to prevent infinite sync loops. Used only by ble_callback_coordination_message().
+
+esp_err_t ble_update_custom_freq(uint16_t freq_cHz) {
+    if (freq_cHz < 25 || freq_cHz > 200) {
+        ESP_LOGE(TAG, "Invalid frequency: %u (range 25-200)", freq_cHz);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_custom_freq");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    // Only update if value changed (prevents redundant motor timing updates)
+    bool changed = (char_data.custom_frequency_hz != freq_cHz);
+    if (changed) {
+        char_data.custom_frequency_hz = freq_cHz;
+        settings_dirty = true;
+    }
+    xSemaphoreGive(char_data_mutex);
+
+    // Only recalculate timing if value actually changed
+    if (changed) {
+        update_mode5_timing();
+    }
+    return ESP_OK;
+}
+
+esp_err_t ble_update_custom_duty(uint8_t duty_pct) {
+    if (duty_pct < 10 || duty_pct > 100) {
+        ESP_LOGE(TAG, "Invalid duty: %u (range 10-100)", duty_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_custom_duty");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    // Only update if value changed (prevents redundant motor timing updates)
+    bool changed = (char_data.custom_duty_percent != duty_pct);
+    if (changed) {
+        char_data.custom_duty_percent = duty_pct;
+        settings_dirty = true;
+    }
+    xSemaphoreGive(char_data_mutex);
+
+    // Only recalculate timing if value actually changed
+    if (changed) {
+        update_mode5_timing();
+    }
+    return ESP_OK;
+}
+
+esp_err_t ble_update_pwm_intensity(uint8_t intensity_pct) {
+    if (intensity_pct > 80) {
+        ESP_LOGE(TAG, "Invalid PWM intensity: %u (range 0-80)", intensity_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_pwm_intensity");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    // Only update if value changed (prevents redundant motor updates)
+    bool changed = (char_data.pwm_intensity != intensity_pct);
+    if (changed) {
+        char_data.pwm_intensity = intensity_pct;
+        settings_dirty = true;
+    }
+    xSemaphoreGive(char_data_mutex);
+
+    // Only update motor if value actually changed
+    if (changed) {
+        esp_err_t err = motor_update_mode5_intensity(intensity_pct);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to update PWM: %s", esp_err_to_name(err));
+            return err;
+        }
+    }
+    return ESP_OK;
+}
+
+esp_err_t ble_update_led_palette(uint8_t palette_idx) {
+    if (palette_idx > 15) {
+        ESP_LOGE(TAG, "Invalid LED palette: %u (range 0-15)", palette_idx);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_led_palette");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.led_palette_index = palette_idx;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    return ESP_OK;
+}
+
+esp_err_t ble_update_led_brightness(uint8_t brightness_pct) {
+    if (brightness_pct < 10 || brightness_pct > 30) {
+        ESP_LOGE(TAG, "Invalid LED brightness: %u (range 10-30)", brightness_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_led_brightness");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.led_brightness = brightness_pct;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    return ESP_OK;
+}
+
+esp_err_t ble_update_led_enable(bool enable) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_led_enable");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.led_enable = enable;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    return ESP_OK;
+}
+
+esp_err_t ble_update_led_color_mode(uint8_t mode) {
+    if (mode > 1) {
+        ESP_LOGE(TAG, "Invalid LED color mode: %u (range 0-1)", mode);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_led_color_mode");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.led_color_mode = mode;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    return ESP_OK;
+}
+
+esp_err_t ble_update_led_custom_rgb(uint8_t r, uint8_t g, uint8_t b) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_led_custom_rgb");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.led_custom_r = r;
+    char_data.led_custom_g = g;
+    char_data.led_custom_b = b;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    return ESP_OK;
+}
+
+esp_err_t ble_update_session_duration(uint32_t duration_sec) {
+    // Skip update if duration is 0 (indicates sender didn't have valid value to sync)
+    // Bug fix: Nov 23, 2025 - prevents trying to sync uninitialized session_duration
+    if (duration_sec == 0) {
+        ESP_LOGD(TAG, "Skipping session_duration update (sender has no valid value)");
+        return ESP_OK;  // Not an error - just skip the update
+    }
+
+    if (duration_sec < 1200 || duration_sec > 5400) {
+        ESP_LOGE(TAG, "Invalid session duration: %lu (range 1200-5400)", duration_sec);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_session_duration");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.session_duration_sec = duration_sec;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
     return ESP_OK;
 }
 
@@ -3302,6 +4393,50 @@ void ble_settings_mark_clean(void) {
     }
     settings_dirty = false;
     xSemaphoreGive(char_data_mutex);
+}
+
+// ============================================================================
+// BLE DIAGNOSTICS (Phase 2: Notification buffering investigation)
+// ============================================================================
+
+void ble_log_diagnostics(void) {
+    // Only log if BLE is initialized and connected to peer
+    if (!ble_is_peer_connected()) {
+        return;  // Skip if no peer connection
+    }
+
+    ESP_LOGI(TAG, "=== BLE DIAGNOSTICS ===");
+
+    // 1. HCI Controller Buffer Stats (ESP32-C6 BLE controller)
+    // Note: ESP-IDF v5.5.0 may not expose detailed HCI buffer stats
+    // We'll log what's available via NimBLE APIs
+
+    // 2. Connection statistics
+    uint16_t peer_handle = ble_get_peer_conn_handle();
+    if (peer_handle != BLE_HS_CONN_HANDLE_NONE) {
+        struct ble_gap_conn_desc desc;
+        int rc = ble_gap_conn_find(peer_handle, &desc);
+        if (rc == 0) {
+            ESP_LOGI(TAG, "Peer connection: handle=%u, interval=%u (%.1fms), latency=%u, timeout=%u",
+                     peer_handle,
+                     desc.conn_itvl, desc.conn_itvl * 1.25,
+                     desc.conn_latency,
+                     desc.supervision_timeout);
+        }
+    }
+
+    // 3. GATT notification stats (characteristic handles)
+    ESP_LOGI(TAG, "GATT handles: time_sync=%u, coordination=%u (peer=%u)",
+             g_time_sync_char_handle,
+             g_coordination_char_handle,
+             g_peer_coordination_char_handle);
+
+    // 4. Memory stats (NimBLE host stack)
+    // Note: os_mempool_info_get_next() not available in ESP-IDF v5.5.0
+    // Future enhancement: Monitor NimBLE mbuf pool usage if API becomes available
+    ESP_LOGI(TAG, "NimBLE mbuf pool monitoring: Not available in current ESP-IDF version");
+
+    ESP_LOGI(TAG, "=== END DIAGNOSTICS ===");
 }
 
 esp_err_t ble_manager_deinit(void) {

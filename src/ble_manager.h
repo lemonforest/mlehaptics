@@ -5,7 +5,7 @@
  * This module implements a complete BLE GATT Configuration Service for EMDR
  * device configuration via mobile applications. It provides:
  * - Configuration Service (UUID: 6E400002-B5A3-F393-E0A9-E50E24DCCA9E)
- * - 12 GATT characteristics for motor control, LED control, and status monitoring
+ * - 13 GATT characteristics for motor control, LED control, and status monitoring
  * - Battery level and session time notifications
  * - NVS persistence for user preferences
  * - Advertising lifecycle management
@@ -103,10 +103,11 @@ typedef struct {
     uint8_t led_custom_b;             /**< Custom RGB blue 0-255 (read/write) */
     uint8_t led_brightness;           /**< LED brightness 10-30% (read/write) */
 
-    // Status/Monitoring Group (3 characteristics)
+    // Status/Monitoring Group (4 characteristics)
     uint32_t session_duration_sec;    /**< Target session length 1200-5400 sec (read/write) */
     uint32_t session_time_sec;        /**< Elapsed seconds 0-5400 (read/notify) */
-    uint8_t battery_level;            /**< Battery % 0-100 (read/notify) */
+    uint8_t battery_level;            /**< SERVER battery % 0-100 (read/notify) */
+    uint8_t client_battery_level;     /**< CLIENT battery % 0-100 (read/notify, dual-device) */
 } ble_char_data_t;
 
 // ============================================================================
@@ -147,6 +148,17 @@ void ble_start_advertising(void);
  * Used to save power after connection established
  */
 void ble_stop_advertising(void);
+
+/**
+ * @brief Reset pairing window for re-pairing after disconnect
+ *
+ * Resets the boot timestamp so devices advertise Bilateral UUID again,
+ * enabling fresh battery-based role assignment instead of stale reconnection logic.
+ * Also clears cached peer state to start fresh.
+ *
+ * Called by ble_task on MSG_BLE_REENABLE (button hold 1-2s)
+ */
+void ble_reset_pairing_window(void);
 
 /**
  * @brief Start BLE scanning for peer devices (Phase 1a)
@@ -261,6 +273,18 @@ uint32_t ble_get_advertising_elapsed_ms(void);
 void ble_update_battery_level(uint8_t percentage);
 
 /**
+ * @brief Update client battery level for BLE notifications (SERVER only)
+ * @param percentage CLIENT battery percentage 0-100
+ *
+ * Thread-safe update of client_battery characteristic
+ * Triggers BLE notification if PWA client subscribed
+ * Called when SERVER receives SYNC_MSG_CLIENT_BATTERY from CLIENT
+ *
+ * Phase 6: Dual-device CLIENT battery reporting for PWA display
+ */
+void ble_update_client_battery_level(uint8_t percentage);
+
+/**
  * @brief Peer role in dual-device configuration (Phase 1b.2)
  */
 typedef enum {
@@ -278,6 +302,159 @@ typedef enum {
  * Returns PEER_ROLE_NONE if no peer connected
  */
 peer_role_t ble_get_peer_role(void);
+
+// ============================================================================
+// PHASE 3: COORDINATION MESSAGES (Hybrid Architecture)
+// ============================================================================
+
+/**
+ * @brief Coordination mode for dual-device operation (Phase 3)
+ *
+ * Tracks current coordination state for seamless fallback behavior
+ */
+typedef enum {
+    COORD_MODE_STANDALONE = 0,  /**< No peer connected, independent operation */
+    COORD_MODE_SERVER,          /**< Connected as SERVER, sending sync messages */
+    COORD_MODE_CLIENT,          /**< Connected as CLIENT, receiving sync messages */
+    COORD_MODE_FALLBACK         /**< Was coordinated, now independent (seamless fallback) */
+} coordination_mode_t;
+
+/**
+ * @brief Coordination message types (Phase 3)
+ *
+ * Messages exchanged between peer devices for synchronized operation
+ */
+typedef enum {
+    SYNC_MSG_MODE_CHANGE = 0,      /**< Mode changed (MODE_1 through MODE_CUSTOM) */
+    SYNC_MSG_SETTINGS,             /**< Custom settings changed (frequency, duty, intensity, LED) */
+    SYNC_MSG_SHUTDOWN,             /**< Coordinated shutdown request (fire-and-forget) */
+    SYNC_MSG_START_ADVERTISING,    /**< CLIENT requests SERVER to enable advertising */
+    SYNC_MSG_CLIENT_BATTERY,       /**< CLIENT battery level update (Phase 6) */
+    SYNC_MSG_CLIENT_READY,         /**< CLIENT ready to start (received beacon, calculated phase) */
+    SYNC_MSG_TIME_REQUEST,         /**< Time sync handshake: CLIENT→SERVER with T1 (client send time) */
+    SYNC_MSG_TIME_RESPONSE,        /**< Time sync handshake: SERVER→CLIENT with T1, T2, T3 */
+    SYNC_MSG_BEACON_RESPONSE,      /**< Bug #27 Fix: CLIENT→SERVER with T2, T3 for RTT measurement */
+    SYNC_MSG_RTT_RESULT,           /**< Bug #27 Fix: SERVER→CLIENT with calculated offset and RTT */
+    SYNC_MSG_MOTOR_STARTED         /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
+} sync_message_type_t;
+
+/**
+ * @brief Settings payload for SYNC_MSG_SETTINGS
+ *
+ * Contains ALL PWA-configurable parameters that sync between devices (Phase 3a)
+ *
+ * BUG FIX (Nov 24, 2025): Added __attribute__((packed)) to prevent compiler padding
+ * that causes data corruption during BLE transmission
+ */
+typedef struct __attribute__((packed)) {
+    // Motor Control
+    uint16_t frequency_cHz;        /**< Frequency Hz × 100 (25-200 = 0.25-2.0 Hz) */
+    uint8_t duty_pct;              /**< Duty cycle 10-100% */
+    uint8_t intensity_pct;         /**< Motor PWM intensity 0-80% */
+
+    // LED Control
+    uint8_t led_enable;            /**< LED enable (0=off, 1=on) */
+    uint8_t led_color_mode;        /**< LED color mode (0=palette, 1=custom RGB) */
+    uint8_t led_color_idx;         /**< LED palette index 0-15 */
+    uint8_t led_custom_r;          /**< LED custom RGB red 0-255 */
+    uint8_t led_custom_g;          /**< LED custom RGB green 0-255 */
+    uint8_t led_custom_b;          /**< LED custom RGB blue 0-255 */
+    uint8_t led_brightness_pct;    /**< LED brightness 10-30% */
+
+    // Session Control
+    uint32_t session_duration_sec; /**< Target session duration 1200-5400 sec */
+} coordination_settings_t;
+
+/**
+ * @brief Time sync request payload for SYNC_MSG_TIME_REQUEST
+ *
+ * CLIENT sends this to SERVER to initiate NTP-style handshake.
+ * T1 = CLIENT's local time when request was sent.
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t t1_client_send_us;    /**< CLIENT's local time when request sent */
+} time_sync_request_t;
+
+/**
+ * @brief Time sync response payload for SYNC_MSG_TIME_RESPONSE
+ *
+ * SERVER sends this back to CLIENT with all timestamps.
+ * CLIENT calculates: offset = ((T2-T1) + (T3-T4)) / 2
+ *                    RTT = (T4-T1) - (T3-T2)
+ *
+ * Also includes motor_epoch so CLIENT doesn't have to wait for next beacon.
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t t1_client_send_us;    /**< Echo back T1 from request */
+    uint64_t t2_server_recv_us;    /**< SERVER's local time when request received */
+    uint64_t t3_server_send_us;    /**< SERVER's local time when response sent */
+    uint64_t motor_epoch_us;       /**< SERVER's motor epoch (0 if not set) */
+    uint32_t motor_cycle_ms;       /**< Motor cycle period in ms (0 if not set) */
+} time_sync_response_t;
+
+/**
+ * @brief Beacon response payload for SYNC_MSG_BEACON_RESPONSE
+ *
+ * Bug #27 Fix: CLIENT sends this after each beacon for two-way RTT measurement.
+ * SERVER uses T2, T3 with its T1 (beacon send time) and T4 (response receive time)
+ * to calculate precise RTT and offset per NTP formula:
+ *   offset = ((T2-T1) + (T3-T4)) / 2
+ *   RTT = (T4-T1) - (T3-T2)
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  sequence;             /**< Beacon sequence number (to match response to beacon) */
+    uint64_t t2_client_recv_us;    /**< CLIENT's local time when beacon received */
+    uint64_t t3_client_send_us;    /**< CLIENT's local time when response sent */
+} time_sync_beacon_response_t;
+
+/**
+ * @brief RTT result payload for SYNC_MSG_RTT_RESULT
+ *
+ * Bug #27 Fix: SERVER sends this to CLIENT after calculating two-way RTT.
+ * Contains the calculated clock offset and measured RTT.
+ * CLIENT uses this to update its clock_offset_us for accurate drift correction.
+ */
+typedef struct __attribute__((packed)) {
+    int64_t  offset_us;            /**< Calculated clock offset (CLIENT - SERVER) in μs */
+    int32_t  rtt_us;               /**< Measured round-trip time in μs */
+    uint8_t  sequence;             /**< Beacon sequence for correlation */
+} time_sync_rtt_result_t;
+
+/**
+ * @brief Motor started payload for SYNC_MSG_MOTOR_STARTED
+ *
+ * Phase 6: SERVER sends this to CLIENT immediately when motors start.
+ * Eliminates the 9.5s delay waiting for periodic beacon or handshake.
+ * CLIENT can calculate antiphase and start motors within 100-200ms.
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t motor_epoch_us;       /**< SERVER's motor epoch (cycle start time) */
+    uint32_t motor_cycle_ms;       /**< Motor cycle period in ms */
+} motor_started_t;
+
+/**
+ * @brief Coordination message structure (Phase 3)
+ *
+ * Unified message format for all peer-to-peer coordination
+ * Includes timestamp for conflict resolution using Phase 2 time sync
+ *
+ * BUG FIX (Nov 24, 2025): Added __attribute__((packed)) to prevent compiler padding
+ */
+typedef struct __attribute__((packed)) {
+    sync_message_type_t type;      /**< Message type */
+    uint32_t timestamp_ms;         /**< Synchronized timestamp for conflict resolution */
+    union {
+        mode_t mode;               /**< MODE_CHANGE: New mode (0-4) */
+        coordination_settings_t settings;  /**< SETTINGS: PWA parameter changes */
+        uint8_t battery_level;     /**< CLIENT_BATTERY: Battery percentage 0-100 */
+        time_sync_request_t time_request;   /**< TIME_REQUEST: NTP handshake T1 */
+        time_sync_response_t time_response; /**< TIME_RESPONSE: NTP handshake T1,T2,T3 */
+        time_sync_beacon_response_t beacon_response; /**< BEACON_RESPONSE: Two-way RTT (Bug #27) */
+        time_sync_rtt_result_t rtt_result;  /**< RTT_RESULT: Calculated offset/RTT (Bug #27) */
+        motor_started_t motor_started;      /**< MOTOR_STARTED: Immediate epoch notification (Phase 6) */
+        // SHUTDOWN and START_ADVERTISING have no payload
+    } payload;
+} coordination_message_t;
 
 /**
  * @brief Check if any bonded peer exists in NVS storage
@@ -491,7 +668,76 @@ esp_err_t ble_load_settings_from_nvs(void);
 esp_err_t ble_manager_deinit(void);
 
 // ============================================================================
-// EXTERNAL CALLBACKS (implemented by motor_task)
+// PHASE 3: COORDINATION API
+// ============================================================================
+
+/**
+ * @brief Send coordination message to peer device (Phase 3)
+ * @param msg Coordination message to send
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if peer not connected
+ * @return ESP_FAIL if notification send failed
+ *
+ * Non-blocking send via BLE notification. Does not wait for acknowledgment.
+ * Used for mode sync, settings sync, shutdown commands, advertising requests.
+ * Called by motor_task, button_task, and BLE characteristic write callbacks.
+ */
+esp_err_t ble_send_coordination_message(const coordination_message_t *msg);
+
+/**
+ * @brief Get current coordination mode (Phase 3)
+ * @return Current coordination mode (STANDALONE/SERVER/CLIENT/FALLBACK)
+ *
+ * Thread-safe read of coordination state
+ * Used by motor_task to determine sync behavior
+ */
+coordination_mode_t ble_get_coordination_mode(void);
+
+/**
+ * @brief Set coordination mode (Phase 3)
+ * @param mode New coordination mode
+ *
+ * Thread-safe write of coordination state
+ * Called by BLE manager during connection/disconnection events
+ * Called by motor_task when detecting fallback condition
+ */
+void ble_set_coordination_mode(coordination_mode_t mode);
+
+/**
+ * @brief Internal update functions for coordination message handling
+ *
+ * These functions update char_data WITHOUT triggering sync_settings_to_peer()
+ * to prevent infinite sync loops. Used ONLY by ble_callback_coordination_message().
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if parameter out of range
+ * @return ESP_ERR_TIMEOUT if mutex timeout
+ */
+esp_err_t ble_update_custom_freq(uint16_t freq_cHz);
+esp_err_t ble_update_custom_duty(uint8_t duty_pct);
+esp_err_t ble_update_pwm_intensity(uint8_t intensity_pct);
+esp_err_t ble_update_led_enable(bool enable);
+esp_err_t ble_update_led_color_mode(uint8_t mode);
+esp_err_t ble_update_led_palette(uint8_t palette_idx);
+esp_err_t ble_update_led_custom_rgb(uint8_t r, uint8_t g, uint8_t b);
+esp_err_t ble_update_led_brightness(uint8_t brightness_pct);
+esp_err_t ble_update_session_duration(uint32_t duration_sec);
+
+/**
+ * @brief Log BLE diagnostics (RX queue, HCI buffers, connection stats)
+ *
+ * Logs diagnostic information to help identify BLE notification buffering issues:
+ * - NimBLE notification queue depth
+ * - HCI controller buffer usage (ACL RX/TX)
+ * - Connection event statistics
+ * - BLE error counters
+ *
+ * Call periodically (e.g., with sync beacons) to monitor BLE health.
+ */
+void ble_log_diagnostics(void);
+
+// ============================================================================
+// EXTERNAL CALLBACKS (implemented by time_sync_task)
 // ============================================================================
 
 /**
@@ -514,6 +760,10 @@ extern void ble_callback_mode_changed(mode_t new_mode);
  * NOTE: Implemented in motor_task.c, declared extern here
  */
 extern void ble_callback_params_updated(void);
+
+// NOTE: ble_callback_coordination_message() removed in Phase 3 refactor.
+// Coordination messages now go through time_sync_task_send_coordination()
+// to prevent BLE processing from blocking motor timing.
 
 #ifdef __cplusplus
 }

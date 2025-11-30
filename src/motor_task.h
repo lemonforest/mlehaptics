@@ -69,12 +69,18 @@ typedef enum {
 /**
  * @brief Mode configuration structure
  *
- * Defines timing parameters for each motor mode
+ * Defines timing parameters for each motor mode (Phase 3a: Bilateral timing)
+ *
+ * Pattern: [ACTIVE period: motor_on_ms + active_coast_ms] [INACTIVE: inactive_ms]
+ * - ACTIVE period = first half of frequency period
+ * - INACTIVE period = second half (always period/2)
+ * - Motor duty % applies to ACTIVE period only
  */
 typedef struct {
-    const char* name;         /**< Human-readable mode name */
-    uint32_t motor_on_ms;     /**< Motor ON duration in milliseconds */
-    uint32_t coast_ms;        /**< Motor coast duration in milliseconds */
+    const char* name;             /**< Human-readable mode name */
+    uint32_t motor_on_ms;         /**< Motor ON duration (motor duty % of ACTIVE period) */
+    uint32_t active_coast_ms;     /**< Coast within ACTIVE period (remainder of ACTIVE period) */
+    uint32_t inactive_ms;         /**< INACTIVE period (always half the frequency period) */
 } mode_config_t;
 
 /**
@@ -91,22 +97,21 @@ extern const mode_config_t modes[MODE_COUNT];
 /**
  * @brief Motor task state machine states
  *
- * 6-state machine (simplified from 9-state to fix 2× frequency bug)
+ * 4-state machine for bilateral motor coordination
  * Direction alternates between cycles (not within cycles)
  *
  * State Flow:
- * PAIRING_WAIT → CHECK_MESSAGES → ACTIVE (one direction) → INACTIVE → [repeat, alternate direction]
+ * SERVER:  PAIRING_WAIT → CHECK_MESSAGES → ACTIVE → INACTIVE → [repeat]
+ * CLIENT:  PAIRING_WAIT → CHECK_MESSAGES → INACTIVE → ACTIVE → [repeat, with drift correction]
  *
- * Back-EMF sampling states (BEMF_IMMEDIATE, COAST_SETTLE) are entered from ACTIVE state
- * when sampling is enabled (first 10 seconds after mode change)
+ * Back-EMF sampling is done inline in ACTIVE state (not separate states)
+ * CLIENT uses time sync epoch for drift correction in INACTIVE state
  */
 typedef enum {
     MOTOR_STATE_PAIRING_WAIT,      /**< Wait for BLE pairing to complete (Phase 1b.3) */
     MOTOR_STATE_CHECK_MESSAGES,    /**< Check queues, handle mode changes, battery, session timeout */
     MOTOR_STATE_ACTIVE,            /**< Motor active in current direction (forward or reverse) */
-    MOTOR_STATE_BEMF_IMMEDIATE,    /**< Coast + immediate back-EMF sample (optional) */
-    MOTOR_STATE_COAST_SETTLE,      /**< Wait settle time + settled sample (optional) */
-    MOTOR_STATE_INACTIVE,          /**< Motor coast (inactive period), alternate direction for next cycle */
+    MOTOR_STATE_INACTIVE,          /**< Motor coast (inactive period), CLIENT drift correction here */
     MOTOR_STATE_SHUTDOWN           /**< Final cleanup before task exit */
 } motor_state_t;
 
@@ -222,6 +227,31 @@ void motor_init_session_time(void);
  * Returns real-time uptime calculation, not cached value.
  */
 uint32_t motor_get_session_time_ms(void);
+
+/**
+ * @brief Trigger 10-second back-EMF logging window after time sync beacon
+ *
+ * Phase 2: Time synchronization verification
+ * Called by time_sync_task when a time sync beacon is received.
+ * Enables back-EMF logging for 10 seconds to verify bilateral timing
+ * remains synchronized after time sync updates.
+ *
+ * Gracefully refuses if mode-change logging is already active
+ * (mode-change logging takes priority).
+ */
+void motor_trigger_beacon_bemf_logging(void);
+
+/**
+ * @brief Notify motor_task that MOTOR_STARTED message arrived
+ *
+ * Phase 6: Issue #3 fix for MOTOR_STARTED latency
+ * Called by time_sync_task when CLIENT receives MOTOR_STARTED from SERVER.
+ * Sets flag to abort coordinated start wait loop and start motors immediately.
+ *
+ * This fixes the case where handshake and MOTOR_STARTED have the same epoch value,
+ * so epoch change detection doesn't work. Flag-based detection responds within 50ms.
+ */
+void motor_task_notify_motor_started(void);
 
 /**
  * @brief Update Mode 5 (custom) motor parameters from BLE
