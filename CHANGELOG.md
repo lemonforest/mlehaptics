@@ -79,6 +79,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Impact**: Critical for debugging - impossible to verify time sync correctness when logged timestamps were corrupted
 - **Discovery**: Gemini's 90-minute log analysis identified the mathematical inconsistency (see GEMINI.md)
 
+**BLE GATT Discovery BUSY Errors** (Bug #31):
+- **Symptom**: "Service discovery error; status=14" and "Characteristic discovery error; status=14" during pairing (status 14 = BLE_HS_EBUSY)
+- **Root Cause**: CLIENT tried to start Configuration Service characteristic discovery from within the Bilateral Service discovery completion callback. NimBLE stack was still processing the completion event, causing BLE_HS_EBUSY when starting new discovery.
+- **Fix**: Deferred Configuration Service discovery using esp_timer (`src/ble_manager.c`):
+  - Added `g_deferred_discovery_timer` to defer discovery by 50ms
+  - Created `deferred_discovery_timer_cb()` to start Config Service discovery after Bilateral completes
+  - Modified `gattc_on_chr_disc()` to schedule timer instead of immediate discovery call
+  - Timer and state cleanup in disconnect handler
+- **Result**: Eliminates BUSY errors, cleaner logs, potentially 10-50ms faster pairing (avoids retry overhead)
+- **Impact**: Non-functional fix (errors were non-fatal), but improves code quality and debugging experience
+
 **Quality Metrics Stuck at 0% - Handshake Race Condition** (CRITICAL - Bug #28):
 - **Symptom**: Quality metrics always showed 0%, RTT updates never improved quality score
 - **Root Cause**: TIME_REQUEST arrived 840-1040ms before SERVER time_sync initialization completed, SERVER rejected with `ESP_ERR_INVALID_STATE`, CLIENT never retried, fell back to beacon path which didn't initialize quality metrics

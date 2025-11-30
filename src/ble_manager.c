@@ -181,6 +181,12 @@ static const ble_uuid128_t* ble_get_advertised_uuid(void);
 static bool ble_get_bonded_peer_addr(ble_addr_t *addr_out);
 static esp_err_t sync_settings_to_peer(void);
 
+// Forward declaration for GATT discovery callback (Bug #31 fix)
+static int gattc_on_chr_disc(uint16_t conn_handle,
+                              const struct ble_gatt_error *error,
+                              const struct ble_gatt_chr *chr,
+                              void *arg);
+
 // ============================================================================
 // MODE 5 LED COLOR PALETTE (16 colors)
 // ============================================================================
@@ -330,6 +336,10 @@ static bool g_config_service_found = false;
 static uint16_t g_config_service_start_handle = 0;
 static uint16_t g_config_service_end_handle = 0;
 static uint16_t g_discovery_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+
+// CLIENT-specific: Deferred discovery timer (Bug #31 fix)
+// Avoids BLE_HS_EBUSY by deferring Config Service discovery until Bilateral discovery callback completes
+static esp_timer_handle_t g_deferred_discovery_timer = NULL;
 
 // Phase 3a: Characteristic value handles for notification-based sync
 // These handles are set during GATT registration and used to send notifications
@@ -1639,6 +1649,34 @@ static int gattc_on_cccd_write(uint16_t conn_handle,
 }
 
 /**
+ * @brief Timer callback for deferred Configuration Service discovery (Bug #31 fix)
+ *
+ * This callback runs 50ms after Bilateral Service discovery completes, giving
+ * the NimBLE stack time to finish processing the completion event before starting
+ * Configuration Service discovery. This avoids BLE_HS_EBUSY errors.
+ *
+ * @param arg Unused
+ */
+static void deferred_discovery_timer_cb(void *arg) {
+    (void)arg;  // Unused
+
+    if (g_config_service_found && g_discovery_conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGI(TAG, "CLIENT: Starting deferred Configuration Service characteristic discovery");
+        int rc = ble_gattc_disc_all_chrs(g_discovery_conn_handle,
+                                          g_config_service_start_handle,
+                                          g_config_service_end_handle,
+                                          gattc_on_chr_disc,
+                                          NULL);
+        if (rc != 0) {
+            ESP_LOGE(TAG, "CLIENT: Failed to start deferred Configuration Service discovery; rc=%d", rc);
+        }
+
+        // Reset flags for next connection
+        g_config_service_found = false;
+    }
+}
+
+/**
  * @brief GATT client callback: Characteristic discovery completion
  *
  * Called for each characteristic found during discovery.
@@ -1669,22 +1707,17 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
             g_bilateral_discovery_complete = true;
             ESP_LOGI(TAG, "CLIENT: Bilateral Service discovery complete");
 
-            // If Configuration Service was found during service discovery, discover its characteristics now
-            if (g_config_service_found) {
-                ESP_LOGI(TAG, "CLIENT: Starting deferred Configuration Service characteristic discovery");
-                int rc = ble_gattc_disc_all_chrs(g_discovery_conn_handle,
-                                                  g_config_service_start_handle,
-                                                  g_config_service_end_handle,
-                                                  gattc_on_chr_disc,
-                                                  NULL);
-                if (rc != 0) {
-                    ESP_LOGE(TAG, "CLIENT: Failed to start deferred Configuration Service discovery; rc=%d", rc);
-                } else {
-                    ESP_LOGI(TAG, "CLIENT: Configuration Service characteristic discovery started (deferred)");
+            // Bug #31 Fix: Schedule Configuration Service discovery via timer (avoids BLE_HS_EBUSY)
+            // The NimBLE stack is still processing the Bilateral discovery completion event.
+            // Starting Config discovery immediately causes BLE_HS_EBUSY. Defer by 50ms.
+            if (g_config_service_found && g_deferred_discovery_timer != NULL) {
+                ESP_LOGI(TAG, "CLIENT: Scheduling Configuration Service discovery (50ms delay to avoid BUSY)");
+                esp_err_t err = esp_timer_start_once(g_deferred_discovery_timer, 50000);  // 50ms = 50000µs
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "CLIENT: Failed to start deferred discovery timer: %s", esp_err_to_name(err));
+                    // Fallback: reset flag to prevent stale state
+                    g_config_service_found = false;
                 }
-
-                // Reset flags for next connection
-                g_config_service_found = false;
             }
         }
 
@@ -2258,6 +2291,14 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
 
                 // Phase 3: Clear coordination characteristic handle (prevents stale handle blocking)
                 g_peer_coordination_char_handle = 0;
+
+                // Bug #31 Fix: Stop deferred discovery timer and reset discovery state
+                if (g_deferred_discovery_timer != NULL) {
+                    esp_timer_stop(g_deferred_discovery_timer);  // Safe even if not running
+                }
+                g_bilateral_discovery_complete = false;
+                g_config_service_found = false;
+                g_discovery_conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
                 // Phase 2: Notify time_sync_task of peer disconnection (AD039)
                 if (TIME_SYNC_IS_INITIALIZED()) {
@@ -3056,6 +3097,18 @@ esp_err_t ble_manager_init(void) {
     if (time_sync_beacon_mutex == NULL) {
         ESP_LOGE(TAG, "Failed to create time_sync_beacon mutex");
         return ESP_FAIL;
+    }
+
+    // Bug #31 Fix: Create deferred discovery timer (avoids BLE_HS_EBUSY during GATT discovery)
+    const esp_timer_create_args_t timer_args = {
+        .callback = deferred_discovery_timer_cb,
+        .arg = NULL,
+        .name = "deferred_disc"
+    };
+    ret = esp_timer_create(&timer_args, &g_deferred_discovery_timer);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create deferred discovery timer: %s", esp_err_to_name(ret));
+        return ret;
     }
 
     // Initialize NVS
