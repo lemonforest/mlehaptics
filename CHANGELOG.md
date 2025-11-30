@@ -56,11 +56,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3. Gradual correction over multiple cycles instead of single large jump
 - **Result**: Continuous gradual correction keeps devices synchronized without perceptible phase jumps
 
+### Added - Phase 6r: Drift Continuation During Disconnect (November 30, 2025)
+
+**Conditional Clearing for Motor Continuation:**
+- **Modified Disconnect Handler** (`src/time_sync.c:174-217`): Preserves motor_epoch and drift_rate when BLE disconnects
+- **Safety Timeout** (`src/time_sync.c:935-958`): Motor epoch expires after 2-minute disconnect, returns `ESP_ERR_TIMEOUT`
+- **Role Swap Detection** (`src/time_sync.c:219-278`): New `time_sync_on_reconnection()` detects role changes on reconnection
+- **BLE Integration** (`src/ble_manager.c:2121-2128`): Calls reconnection handler after role assignment
+- **Documentation** (`src/motor_task.c:21-28`, `README.md`): Phase 6r section explaining drift continuation behavior
+
+**Key Behavior Changes:**
+- ✅ **CLIENT motors continue** during brief BLE disconnect (< 2 min) using frozen drift rate
+- ✅ **Bilateral alternation maintained** with ±2.4ms drift over 20-minute session (well within ±100ms spec)
+- ✅ **Therapeutic continuity** preserved during BLE glitches
+- ⏱️ **Safety timeout** stops motors gracefully after 2-minute disconnect
+- ⚠️ **Role swap warning** logged if roles change on reconnection (indicates Phase 6n bug)
+
+**Technical Rationale:**
+- Original Phase 6 bug was about role SWAP corruption during reconnection (not disconnect continuation)
+- Drift rate stability from Phase 2 testing (±30 μs over 90 min) validates continuation approach
+- Conditional clearing: Preserve during disconnect, clear only on role swap
+- Aligns with AD041 (predictive bilateral synchronization philosophy)
+
 ### Documentation
 
+- CLAUDE.md: Added Phase 6r section with complete implementation details
+- README.md: Updated to v0.3.0-beta.2, added "Typical Bilateral Operation Flow" section
 - CLAUDE.md: Added Branch and PR Workflow section (mandatory changelog updates and version bumps before PRs)
 
 ### Planned
+- Phase 6r: Hardware testing (brief disconnect, long disconnect, role swap scenarios)
 - Phase 6: Complete bilateral motor coordination testing
 - Mobile app development
 - Enhanced pairing with numeric comparison and button confirmation

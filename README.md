@@ -1,9 +1,9 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.2.0-beta.1
-**Last Updated:** 2025-11-19
-**Status:** Beta Testing
-**Project Phase:** Phase 1c Complete (Battery-Based Role Assignment) | Phase 0.4 Complete (JPL Single-Device)
+**Version:** v0.3.0-beta.2 (Phase 6 In Progress)
+**Last Updated:** 2025-11-30
+**Status:** Beta Testing - Bilateral Coordination Implementation
+**Project Phase:** Phase 6 (Bilateral Motor Coordination) | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
@@ -17,10 +17,11 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 
 **Current Development Status:**
 - ✅ Phase 0.4 JPL-compliant firmware complete (single-device testing)
-- ✅ BLE GATT server for mobile app configuration (5 operational modes)
-- ✅ Hardware v0.663399ADS with GPIO crosstalk fixes implemented
 - ✅ Phase 1c complete: Peer discovery with battery-based role assignment
-- 🔄 Phase 2 (next): Command-and-control bilateral coordination protocol
+- ✅ Phase 2 complete: NTP-style time synchronization (±30 μs over 90 minutes)
+- ✅ Phase 6k complete: Drift-rate prediction for bilateral coordination
+- 🔄 Phase 6r (in progress): Drift continuation during brief BLE disconnects
+- ⏳ Hardware testing pending: Multi-hour bilateral sessions, reconnection scenarios
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
@@ -144,10 +145,10 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 2. **5 operational modes**: Four presets + custom BLE-controlled mode
 3. **Hold button 5 seconds** to shutdown
 
-**Dual-Device Mode (In Development):**
+**Dual-Device Mode (Current Implementation):**
 1. **Power both devices** - they will automatically pair within 30 seconds
 2. **Status LED patterns**:
-   - Fast blink = searching for server  
+   - Fast blink = searching for server
    - Slow blink = waiting for client
    - Solid on = connected and bilateral active
 3. **Test bilateral stimulation** - Motors alternate based on configured cycle time:
@@ -156,6 +157,55 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
    - Slow 2000ms cycle: Each motor active for 999ms (0.5 Hz bilateral rate)
    - **NO overlap** at any cycle time setting
 4. **Hold button 5 seconds** on either device to shutdown both
+
+## 🎬 Typical Bilateral Operation Flow
+
+### Starting a Therapy Session
+
+**Step 1: Power On Both Devices**
+- Remove both devices from cases or turn on simultaneously
+- Devices boot within 2-3 seconds
+- Purple LED + status LED ON = waiting for peer
+
+**Step 2: Automatic Pairing (< 10 seconds)**
+- Both devices scan for Bilateral Control Service UUID
+- Higher battery device initiates connection (becomes SERVER/MASTER)
+- Lower battery device accepts connection (becomes CLIENT/SLAVE)
+- **Pairing success**: 3× green synchronized flash on both devices
+- **Pairing failure** (rare): 3× red flash, power cycle to retry
+
+**Step 3: Session Starts Automatically**
+- Default mode: 0.5Hz @ 25% duty (Mode 0)
+- SERVER motors activate while CLIENT motors coast
+- After 1 second: CLIENT motors activate while SERVER motors coast
+- Bilateral alternation continues automatically
+- **Session continuity**: If BLE briefly disconnects (<2 min), motors continue using frozen drift rate
+
+**Step 4: Mode Switching During Session** (Optional)
+- **Button tap** on either device: Cycle through modes (0→1→2→3→0...)
+- Mode change propagates to peer device automatically
+- Both devices synchronize to new frequency within 1 cycle
+- Single quick blink confirms mode change
+- **Available modes**: 0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% motor duty
+
+**Step 5: Session Termination**
+- **Normal end**: Session stops after configured duration (default 20 minutes)
+- **Emergency shutdown**: 5-second button hold on **either** device
+  - Purple LED ON during hold = release to shutdown
+  - Both devices stop motors within 50ms
+  - Both devices enter deep sleep simultaneously
+- **Automatic shutdown**: Low battery warning → graceful stop
+
+### Reconnection After Brief Disconnect
+
+**If BLE connection drops during session:**
+- ✅ **Motors continue** using frozen drift rate (CLIENT only)
+- ✅ **Bilateral alternation maintained** (±2.4ms drift over 20 min)
+- ✅ **Therapeutic continuity** preserved during BLE glitches
+- ⏱️ **Safety timeout**: After 2 minutes, motors stop gracefully
+- 🔄 **Reconnection**: Devices automatically reconnect, motors resume coordination
+
+**Note:** Roles are preserved on reconnection (Phase 6n). If roles somehow swap, device logs warning (indicates bug).
 
 ## 🔧 Bilateral Timing Architecture
 

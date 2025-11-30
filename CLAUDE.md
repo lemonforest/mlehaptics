@@ -127,6 +127,97 @@ Phase 2 implements NTP-style time synchronization between peer devices to enable
 
 ---
 
+## Phase 6r: Drift Continuation During Disconnect (November 30, 2025)
+
+**Status:** IMPLEMENTATION COMPLETE (Hardware testing pending)
+
+Phase 6r implements conditional clearing of time sync state to allow CLIENT devices to continue bilateral motor coordination during brief BLE disconnections using frozen drift rate extrapolation.
+
+### Key Features Implemented
+
+1. **Modified Disconnect Handler** (`src/time_sync.c:174-217`)
+   - PRESERVES motor_epoch_us, motor_cycle_ms, motor_epoch_valid
+   - PRESERVES drift_rate_us_per_s and drift tracking state
+   - CLIENT can continue bilateral alternation during disconnect
+   - Only clears RTT measurement state (no fresh measurements possible)
+
+2. **Safety Timeout** (`src/time_sync.c:935-958`)
+   - `time_sync_get_motor_epoch()` expires after 2-minute disconnect
+   - Returns `ESP_ERR_TIMEOUT` to gracefully stop coordination
+   - Prevents unbounded drift accumulation (±2.4ms over 20min acceptable)
+
+3. **Role Swap Detection** (`src/time_sync.c:219-278`)
+   - New `time_sync_on_reconnection()` function detects role changes
+   - Logs ⚠️ WARNING if role swap detected (shouldn't happen per Phase 6n)
+   - Conditionally clears motor_epoch only on role swap
+   - Normal case: Role preserved → motor epoch valid → smooth continuation
+
+4. **BLE Manager Integration** (`src/ble_manager.c:2121-2128`)
+   - Calls `time_sync_on_reconnection()` after role assignment
+   - Maps `peer_role_t` → `time_sync_role_t` correctly
+
+5. **Documentation** (`src/motor_task.c:21-28`)
+   - Phase 6r section in motor_task.c header
+   - Explains drift stability metrics from Phase 2 testing
+
+### Technical Rationale
+
+**Original Phase 6 Bug (2466ms phase skip):**
+- Stale motor epoch from previous session when role SWAPPED on reconnection
+- Example: CLIENT session 1 → disconnect → reconnect as SERVER → used old CLIENT epoch
+- Original fix: Aggressive clearing stopped ALL continuation (even valid cases)
+
+**Separate Question: Can CLIENT Continue During Disconnect?**
+- Drift rate stability: ±30 μs over 90 minutes (Phase 2 testing)
+- For 20-minute therapy: ±2.4ms worst-case drift (well within ±100ms spec)
+- Technical conclusion: YES - continuation is valid and therapeutically beneficial
+
+**Phase 6r Solution:**
+- Preserve motor_epoch during disconnect → CLIENT continues using frozen drift
+- Clear motor_epoch only on role swap → prevents original Phase 6 bug
+- Safety timeout (2 min) → prevents unbounded drift for long disconnects
+- Role swap detection → logs warning (indicates Phase 6n bug if triggered)
+
+### Expected Behavior
+
+**Brief Disconnect (< 2 min):**
+- ✅ CLIENT motors continue using frozen drift rate
+- ✅ Bilateral alternation maintained (±2.4ms drift over 20 min)
+- ✅ No interruption to therapy session
+- ✅ Smooth reconnection without phase skip
+
+**Long Disconnect (> 2 min):**
+- ⏱️ Motor epoch expires automatically
+- ⏹️ Coordination stops gracefully
+- 🔄 Resumes after reconnection with fresh handshake
+
+**Role Swap (shouldn't happen):**
+- ⚠️ Warning logged: "Role swap detected - THIS SHOULD NOT HAPPEN!"
+- 🧹 Motor epoch cleared to prevent corruption
+- 🐛 Indicates bug in Phase 6n role preservation logic
+
+### Testing Required (Pending Hardware)
+
+- [ ] Brief disconnect (30s): Verify motors continue without interruption
+- [ ] Long disconnect (3 min): Verify timeout stops motors gracefully
+- [ ] Role swap: Verify warning appears if roles somehow swap
+- [ ] Timing accuracy: Verify <5ms drift during 60s disconnect
+
+### Files Modified
+
+- `src/time_sync.c` - Disconnect/reconnection handlers, safety timeout
+- `src/time_sync.h` - New API declaration
+- `src/ble_manager.c` - Integration with connect event
+- `src/motor_task.c` - Documentation
+
+### ADR Impact
+
+- Partially supersedes original Phase 6 fix rationale
+- Aligns with AD041 (predictive bilateral synchronization philosophy)
+- Validates drift-based continuation model from tech spike
+
+---
+
 ## Project Overview
 
 This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bilateral stimulation device designed for therapeutic applications. The device uses dual wireless ESP32-C6 microcontrollers with ERM motors for bilateral tactile stimulation.
