@@ -1416,10 +1416,16 @@ esp_err_t time_sync_update_offset_from_rtt(int64_t offset_us, int32_t rtt_us, ui
      * Pass the filtered drift rate from beacon-to-beacon comparison instead of
      * noisy RTT-based offset change. This prevents BLE latency variation from
      * being misinterpreted as clock instability.
+     *
+     * BUG FIX: Only update quality metrics if handshake is complete (samples_collected > 0)
+     * This prevents the warning "update_quality_metrics() called with samples_collected=0"
+     * when RTT updates arrive before initial handshake completes.
      */
-    int32_t offset_change_us = (int32_t)(drift_us);  /* Clamp to int32_t for quality function */
-    int32_t drift_rate = g_time_sync_state.drift_rate_valid ? g_time_sync_state.drift_rate_us_per_s : 0;
-    update_quality_metrics(offset_change_us, (uint32_t)(rtt_us > 0 ? rtt_us : 0), drift_rate);
+    if (g_time_sync_state.quality.samples_collected > 0) {
+        int32_t offset_change_us = (int32_t)(drift_us);  /* Clamp to int32_t for quality function */
+        int32_t drift_rate = g_time_sync_state.drift_rate_valid ? g_time_sync_state.drift_rate_us_per_s : 0;
+        update_quality_metrics(offset_change_us, (uint32_t)(rtt_us > 0 ? rtt_us : 0), drift_rate);
+    }
 
     ESP_LOGI(TAG, "RTT offset updated: seq=%u, offset=%lld μs (raw_drift=%+lld μs), drift_rate=%+ld μs/s, rtt=%ld μs, quality=%u%%",
              sequence, offset_us, drift_us, (long)drift_rate, (long)rtt_us, g_time_sync_state.quality.quality_score);
