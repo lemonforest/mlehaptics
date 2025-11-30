@@ -1457,16 +1457,23 @@ void motor_task(void *pvParameters) {
                         } else {
                             // Bug #27 Fix: Pure P controller with deadband (replaces PD)
                             // - PD's D-term amplified measurement noise, causing oscillation
-                            // - Deadband ignores drift within perception threshold (±50ms)
+                            // - Deadband ignores drift within perception threshold
                             // - Handles BOTH directions since coast catch-up is disabled
                             //
                             // Reference: NTP best practices - filter noise before control
 
-                            #define DRIFT_DEADBAND_MS 50  // ±50ms deadband (within ±100ms perception)
                             #define P_GAIN_PCT 50         // Apply 50% of error per cycle
-                            #define MAX_CORRECTION_MS 100 // ±100ms max correction per cycle
 
-                            if (abs(diff_ms) < DRIFT_DEADBAND_MS) {
+                            // Frequency-dependent correction limits (November 30, 2025)
+                            // - Max correction: 20% of inactive period (more aggressive at low freq, safer at high freq)
+                            // - Deadband: 10% of inactive period (proportional noise tolerance)
+                            // - Minimum practical limits prevent too-small corrections at high frequencies
+                            uint32_t max_correction_ms = (inactive_ms * 20) / 100;  // 20% of inactive
+                            uint32_t deadband_ms = (inactive_ms * 10) / 100;        // 10% of inactive
+                            if (max_correction_ms < 50) max_correction_ms = 50;     // Minimum 50ms max correction
+                            if (deadband_ms < 25) deadband_ms = 25;                 // Minimum 25ms deadband
+
+                            if (abs(diff_ms) < (int32_t)deadband_ms) {
                                 // Within deadband - drift is imperceptible, no correction needed
                                 // This prevents oscillation from measurement noise
                                 wait_ms = inactive_ms;
@@ -1480,10 +1487,10 @@ void motor_task(void *pvParameters) {
                                 int32_t correction_ms = (diff_ms * P_GAIN_PCT) / 100;
 
                                 // Clamp to max correction to prevent overshoot
-                                if (correction_ms > MAX_CORRECTION_MS) {
-                                    correction_ms = MAX_CORRECTION_MS;
-                                } else if (correction_ms < -MAX_CORRECTION_MS) {
-                                    correction_ms = -MAX_CORRECTION_MS;
+                                if (correction_ms > (int32_t)max_correction_ms) {
+                                    correction_ms = (int32_t)max_correction_ms;
+                                } else if (correction_ms < -(int32_t)max_correction_ms) {
+                                    correction_ms = -(int32_t)max_correction_ms;
                                 }
 
                                 // For negative corrections (catch-up), enforce floor constraint

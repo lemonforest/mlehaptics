@@ -56,6 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3. Gradual correction over multiple cycles instead of single large jump
 - **Result**: Continuous gradual correction keeps devices synchronized without perceptible phase jumps
 
+**Fixed Correction Limits Not Frequency-Dependent** (Bug #29):
+- **Symptom**: Mode switching at 0.5Hz with high RTT (>300ms) took 3 cycles to converge to antiphase
+- **Root Cause**: Fixed 100ms max correction was only 10% of inactive period at 0.5Hz (1000ms) but 40% at 2Hz (250ms), causing inconsistent convergence behavior across frequencies
+- **Fix**: Replaced fixed constants with frequency-dependent calculation (`src/motor_task.c:1467-1493`):
+  - Max correction: 20% of inactive period (minimum 50ms)
+  - Deadband: 10% of inactive period (minimum 25ms)
+  - At 0.5Hz: 200ms max correction, 100ms deadband (was 100ms/50ms)
+  - At 1.0Hz: 100ms max correction, 50ms deadband (unchanged)
+  - At 2.0Hz: 50ms max correction, 25ms deadband (was 100ms/50ms, now safer)
+- **Expected Result**: 1-cycle convergence at 0.5Hz with high RTT, safer corrections at high frequencies
+- **Impact**: Addresses Gemini's log analysis findings (see GEMINI.md)
+
 **Quality Metrics Stuck at 0% - Handshake Race Condition** (CRITICAL - Bug #28):
 - **Symptom**: Quality metrics always showed 0%, RTT updates never improved quality score
 - **Root Cause**: TIME_REQUEST arrived 840-1040ms before SERVER time_sync initialization completed, SERVER rejected with `ESP_ERR_INVALID_STATE`, CLIENT never retried, fell back to beacon path which didn't initialize quality metrics

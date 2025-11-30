@@ -111,3 +111,49 @@ This session established a new collaborative workflow:
 - **Gemini**: Log file analysis, pattern recognition, "second set of eyes"
 - **Claude Code**: Significant code changes, architectural decisions, JPL compliance
 - **Result**: Leverages strengths of both AIs while maintaining code quality standards
+
+---
+
+## 6. Follow-Up: Frequency-Dependent Correction Clamping (November 30, 2025)
+
+### Issue Identified from Gemini's Log Analysis
+
+While reviewing mode switching behavior with high RTT (>300ms), we observed that CLIENT devices took 3 cycles to converge to antiphase after frequency changes. This was particularly noticeable at 0.5Hz.
+
+### Root Cause Analysis (Claude Code)
+
+The fixed 100ms max correction limit created **frequency-dependent inconsistency**:
+- At 0.5Hz (1000ms inactive): 100ms = only 10% of inactive period (too conservative)
+- At 1.0Hz (500ms inactive): 100ms = 20% of inactive period (optimal)
+- At 2.0Hz (250ms inactive): 100ms = 40% of inactive period (too aggressive)
+
+This meant low-frequency modes converged slowly while high-frequency modes risked perceptible phase jumps.
+
+### Solution Implemented (Bug #29)
+
+**Frequency-dependent correction limits** (`src/motor_task.c:1467-1493`):
+```c
+// Calculate limits as percentage of inactive period
+uint32_t max_correction_ms = (inactive_ms * 20) / 100;  // 20% of inactive
+uint32_t deadband_ms = (inactive_ms * 10) / 100;        // 10% of inactive
+
+// Enforce minimum practical values
+if (max_correction_ms < 50) max_correction_ms = 50;     // Minimum 50ms
+if (deadband_ms < 25) deadband_ms = 25;                 // Minimum 25ms
+```
+
+**Results by Frequency Mode**:
+| Mode | Frequency | Inactive | Old Limits | New Limits | Convergence |
+|------|-----------|----------|------------|------------|-------------|
+| 0    | 0.5Hz     | 1000ms   | ±100ms/50ms | ±200ms/100ms | 1-cycle (expected) |
+| 1    | 1.0Hz     | 500ms    | ±100ms/50ms | ±100ms/50ms | Unchanged |
+| 2    | 1.5Hz     | 333ms    | ±100ms/50ms | ±67ms/33ms | Safer |
+| 3    | 2.0Hz     | 250ms    | ±100ms/50ms | ±50ms/25ms | Much safer |
+
+**Benefits**:
+- **Faster convergence** at low frequencies (0.5Hz now gets 1-cycle convergence even with 200ms drift)
+- **Safer corrections** at high frequencies (2Hz max correction reduced from 40% to 20% of inactive)
+- **Consistent behavior** across frequency range (always 20% correction, 10% deadband)
+- **Easily tunable** via percentage values if settling behavior needs adjustment
+
+**Status**: ✅ IMPLEMENTED - Build verified, hardware testing pending
