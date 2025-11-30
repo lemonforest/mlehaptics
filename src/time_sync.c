@@ -26,6 +26,7 @@
 #include "freertos/task.h"
 #include <string.h>
 #include <math.h>
+#include <inttypes.h>  /* For portable PRId64/PRIu64 format specifiers */
 
 /*******************************************************************************
  * CONSTANTS
@@ -375,7 +376,7 @@ esp_err_t time_sync_get_time(uint64_t *sync_time_us)
          * If CLIENT hasn't run long enough for local_time > offset, return 0 instead of underflowing */
         int64_t sync_time_signed = (int64_t)local_time_us - offset_us;
         if (sync_time_signed < 0) {
-            ESP_LOGW(TAG, "time_sync_get_time: Underflow prevented (local=%llu μs, offset=%lld μs, would be %lld μs)",
+            ESP_LOGW(TAG, "time_sync_get_time: Underflow prevented (local=%" PRIu64 " μs, offset=%" PRId64 " μs, would be %" PRId64 " μs)",
                      local_time_us, offset_us, sync_time_signed);
             *sync_time_us = 0;  // Clamp to zero
         } else {
@@ -441,7 +442,7 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
         ESP_LOGI(TAG, "Initial sync beacon processed");
     }
 
-    ESP_LOGD(TAG, "Beacon processed (seq: %u, motor_epoch: %llu, cycle: %lu)",
+    ESP_LOGD(TAG, "Beacon processed (seq: %u, motor_epoch: %" PRIu64 ", cycle: %lu)",
              beacon->sequence, beacon->motor_epoch_us, beacon->motor_cycle_ms);
 
     return ESP_OK;
@@ -482,7 +483,7 @@ esp_err_t time_sync_generate_beacon(time_sync_beacon_t *beacon)
     /* Calculate and append checksum */
     beacon->checksum = calculate_crc16((const uint8_t *)beacon, sizeof(time_sync_beacon_t) - sizeof(uint16_t));
 
-    ESP_LOGD(TAG, "Beacon generated (seq: %u, time: %llu μs, quality: %u%%, motor_epoch: %llu μs, cycle: %lu ms)",
+    ESP_LOGD(TAG, "Beacon generated (seq: %u, time: %" PRIu64 " μs, quality: %u%%, motor_epoch: %" PRIu64 " μs, cycle: %lu ms)",
              beacon->sequence, beacon->timestamp_us, beacon->quality_score,
              beacon->motor_epoch_us, beacon->motor_cycle_ms);
 
@@ -870,7 +871,7 @@ esp_err_t time_sync_set_motor_epoch(uint64_t epoch_us, uint32_t cycle_ms)
     g_time_sync_state.motor_cycle_ms = cycle_ms;
     g_time_sync_state.motor_epoch_valid = true;
 
-    ESP_LOGI(TAG, "Motor epoch set: %llu us, cycle: %lu ms", epoch_us, cycle_ms);
+    ESP_LOGI(TAG, "Motor epoch set: %" PRIu64 " us, cycle: %lu ms", epoch_us, cycle_ms);
 
     return ESP_OK;
 }
@@ -986,7 +987,7 @@ esp_err_t time_sync_initiate_handshake(uint64_t *t1_out)
     g_time_sync_state.handshake_t1_us = t1;
     *t1_out = t1;
 
-    ESP_LOGI(TAG, "Handshake initiated: T1=%llu μs", t1);
+    ESP_LOGI(TAG, "Handshake initiated: T1=%" PRIu64 " μs", t1);
 
     return ESP_OK;
 }
@@ -1020,7 +1021,7 @@ esp_err_t time_sync_process_handshake_request(uint64_t t1_client_send_us,
     /* T3 = SERVER send time (now, just before sending response) */
     *t3_server_send_out = esp_timer_get_time();
 
-    ESP_LOGI(TAG, "Handshake request processed: T1=%llu, T2=%llu, T3=%llu μs",
+    ESP_LOGI(TAG, "Handshake request processed: T1=%" PRIu64 ", T2=%" PRIu64 ", T3=%" PRIu64 " μs",
              t1_client_send_us, t2_server_recv_us, *t3_server_send_out);
 
     return ESP_OK;
@@ -1056,7 +1057,7 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
 
     /* Verify T1 matches what we sent (sanity check) */
     if (t1_us != g_time_sync_state.handshake_t1_us) {
-        ESP_LOGW(TAG, "T1 mismatch: sent=%llu, received=%llu (possible stale response)",
+        ESP_LOGW(TAG, "T1 mismatch: sent=%" PRIu64 ", received=%" PRIu64 " (possible stale response)",
                  g_time_sync_state.handshake_t1_us, t1_us);
         /* Continue anyway - the offset calculation is still valid */
     }
@@ -1096,7 +1097,7 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
     g_time_sync_state.state = SYNC_STATE_SYNCED;
     g_time_sync_state.last_sync_ms = (uint32_t)(t4_us / 1000);
 
-    ESP_LOGI(TAG, "Handshake complete: offset=%lld μs, RTT=%lld μs (T1=%llu, T2=%llu, T3=%llu, T4=%llu)",
+    ESP_LOGI(TAG, "Handshake complete: offset=%" PRId64 " μs, RTT=%" PRId64 " μs (T1=%" PRIu64 ", T2=%" PRIu64 ", T3=%" PRIu64 ", T4=%" PRIu64 ")",
              offset, rtt, t1_us, t2_us, t3_us, t4_us);
 
     return ESP_OK;
@@ -1124,7 +1125,7 @@ esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t c
     g_time_sync_state.motor_cycle_ms = cycle_ms;
     g_time_sync_state.motor_epoch_valid = true;
 
-    ESP_LOGI(TAG, "Motor epoch set from handshake: %llu μs, cycle: %lu ms", epoch_us, cycle_ms);
+    ESP_LOGI(TAG, "Motor epoch set from handshake: %" PRIu64 " μs, cycle: %lu ms", epoch_us, cycle_ms);
 
     return ESP_OK;
 }
@@ -1213,17 +1214,17 @@ esp_err_t time_sync_process_beacon_response(uint8_t sequence, uint64_t t2_us,
 
     /* Sanity check RTT - should be positive and reasonable (< 10 seconds) */
     if (rtt < 0) {
-        ESP_LOGW(TAG, "Beacon response: Negative RTT (%lld μs) - time sync not stable yet, ignoring", rtt);
+        ESP_LOGW(TAG, "Beacon response: Negative RTT (%" PRId64 " μs) - time sync not stable yet, ignoring", rtt);
         return ESP_ERR_INVALID_RESPONSE;
     }
 
     if (rtt > 10000000) {  /* > 10 seconds = corrupt/overflow */
-        ESP_LOGW(TAG, "Beacon response: RTT too large (%lld μs) - likely overflow, ignoring", rtt);
+        ESP_LOGW(TAG, "Beacon response: RTT too large (%" PRId64 " μs) - likely overflow, ignoring", rtt);
         return ESP_ERR_INVALID_RESPONSE;
     }
 
     if (rtt > 500000) {  /* > 500ms = suspect but not fatal */
-        ESP_LOGW(TAG, "Beacon response: RTT unusually high (%lld μs) - possible BLE congestion", rtt);
+        ESP_LOGW(TAG, "Beacon response: RTT unusually high (%" PRId64 " μs) - possible BLE congestion", rtt);
         /* Continue anyway - might be real BLE latency spike */
     }
 
@@ -1245,7 +1246,7 @@ esp_err_t time_sync_process_beacon_response(uint8_t sequence, uint64_t t2_us,
     /* Clear T1 to prevent reuse */
     g_time_sync_state.last_beacon_t1_valid = false;
 
-    ESP_LOGI(TAG, "Beacon RTT measured: %ld μs, offset: %lld μs (drift: %+lld μs)",
+    ESP_LOGI(TAG, "Beacon RTT measured: %ld μs, offset: %" PRId64 " μs (drift: %+" PRId64 " μs)",
              (long)rtt, offset, drift_us);
 
     return ESP_OK;
@@ -1295,7 +1296,7 @@ esp_err_t time_sync_update_offset_from_rtt(int64_t offset_us, int32_t rtt_us, ui
         return ESP_ERR_INVALID_ARG;
     }
     if (offset_us > 50000000 || offset_us < -50000000) { /* >50s or <-50s */
-        ESP_LOGW(TAG, "RTT offset update: Offset too large (%lld μs), rejecting", offset_us);
+        ESP_LOGW(TAG, "RTT offset update: Offset too large (%" PRId64 " μs), rejecting", offset_us);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -1367,7 +1368,7 @@ esp_err_t time_sync_update_offset_from_rtt(int64_t offset_us, int32_t rtt_us, ui
                  (long)drift_rate);
     }
 
-    ESP_LOGI(TAG, "RTT offset updated: seq=%u, offset=%lld μs (raw_drift=%+lld μs), drift_rate=%+ld μs/s, rtt=%ld μs, quality=%u%%",
+    ESP_LOGI(TAG, "RTT offset updated: seq=%u, offset=%" PRId64 " μs (raw_drift=%+" PRId64 " μs), drift_rate=%+ld μs/s, rtt=%ld μs, quality=%u%%",
              sequence, offset_us, drift_us, (long)drift_rate, (long)rtt_us, g_time_sync_state.quality.quality_score);
 
     return ESP_OK;
@@ -1440,7 +1441,7 @@ esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us)
     /* Phase 6l: Log first prediction only (avoid spam) */
     static bool prediction_logged = false;
     if (!prediction_logged) {
-        ESP_LOGI(TAG, "Prediction: Using DRIFT RATE (%d μs/s, elapsed=%lu ms, correction=%lld μs)",
+        ESP_LOGI(TAG, "Prediction: Using DRIFT RATE (%d μs/s, elapsed=%lu ms, correction=%" PRId64 " μs)",
                  g_time_sync_state.drift_rate_us_per_s, elapsed_ms, drift_correction_us);
         prediction_logged = true;
     }

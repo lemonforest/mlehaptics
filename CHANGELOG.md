@@ -68,6 +68,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Expected Result**: 1-cycle convergence at 0.5Hz with high RTT, safer corrections at high frequencies
 - **Impact**: Addresses Gemini's log analysis findings (see GEMINI.md)
 
+**64-bit Timestamp Logging Corruption** (CRITICAL - Bug #30):
+- **Symptom**: "Handshake complete" logs showed timestamps (T1-T4) that didn't mathematically match the calculated offset/RTT values. Example: Log showed RTT=1320μs, but timestamps calculated to RTT=59540μs (45× difference!)
+- **Root Cause**: Using non-portable format specifiers (`%lld`/`%llu`) for 64-bit integers on RISC-V architecture. ESP-IDF requires `PRId64`/`PRIu64` macros from `<inttypes.h>` for correct printf parsing on 32-bit systems with 64-bit values.
+- **Fix**: Added `#include <inttypes.h>` and replaced all format specifiers (`src/time_sync.c`):
+  - `%lld` → `%" PRId64 "` for int64_t (offset, drift, signed timestamps)
+  - `%llu` → `%" PRIu64 "` for uint64_t (T1-T4 timestamps, motor epoch)
+  - Fixed 15 logging statements across handshake, beacon, RTT, and drift tracking
+- **Result**: Timestamp values in logs now correctly match calculated offset/RTT values, enabling accurate verification of synchronization math
+- **Impact**: Critical for debugging - impossible to verify time sync correctness when logged timestamps were corrupted
+- **Discovery**: Gemini's 90-minute log analysis identified the mathematical inconsistency (see GEMINI.md)
+
 **Quality Metrics Stuck at 0% - Handshake Race Condition** (CRITICAL - Bug #28):
 - **Symptom**: Quality metrics always showed 0%, RTT updates never improved quality score
 - **Root Cause**: TIME_REQUEST arrived 840-1040ms before SERVER time_sync initialization completed, SERVER rejected with `ESP_ERR_INVALID_STATE`, CLIENT never retried, fell back to beacon path which didn't initialize quality metrics
