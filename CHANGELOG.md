@@ -56,6 +56,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3. Gradual correction over multiple cycles instead of single large jump
 - **Result**: Continuous gradual correction keeps devices synchronized without perceptible phase jumps
 
+**Quality Metrics Stuck at 0% - Handshake Race Condition** (CRITICAL - Bug #28):
+- **Symptom**: Quality metrics always showed 0%, RTT updates never improved quality score
+- **Root Cause**: TIME_REQUEST arrived 840-1040ms before SERVER time_sync initialization completed, SERVER rejected with `ESP_ERR_INVALID_STATE`, CLIENT never retried, fell back to beacon path which didn't initialize quality metrics
+- **Fix**: Implemented TIME_REQUEST buffering (matching existing CLIENT_READY pattern):
+  1. Buffer TIME_REQUEST if time_sync not initialized (`src/time_sync_task.c:574-580`)
+  2. Process buffered request after initialization complete (`src/time_sync_task.c:300-337`)
+  3. Fallback: Initialize quality metrics from beacon if handshake missed (`src/time_sync.c:511-517`)
+  4. Fixed drift_rate variable scoping issue for logging (`src/time_sync.c:1432`)
+- **Result**: Handshake completes successfully (quality=95%), RTT updates properly track sync quality
+- **Files Modified**: `src/time_sync_task.c` (buffering), `src/time_sync.c` (beacon fallback)
+
 ### Added - Phase 6r: Drift Continuation During Disconnect (November 30, 2025)
 
 **Conditional Clearing for Motor Continuation:**

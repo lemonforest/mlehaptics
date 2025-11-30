@@ -48,6 +48,11 @@ static volatile bool client_ready_received = false;
 /** @brief Bug #11 fix: Buffer CLIENT_READY if received before time_sync initialized */
 static volatile bool client_ready_buffered = false;
 
+/** @brief Bug #28 fix: Buffer TIME_REQUEST if received before time_sync initialized */
+static volatile bool time_request_buffered = false;
+static volatile uint64_t buffered_t1_us = 0;
+static volatile uint64_t buffered_t2_us = 0;
+
 /*******************************************************************************
  * PRIVATE FUNCTION DECLARATIONS
  ******************************************************************************/
@@ -290,6 +295,45 @@ static void handle_init_message(const time_sync_message_t *msg)
         client_ready_received = true;
         client_ready_buffered = false;  // Clear buffer flag
         ESP_LOGI(TAG, "Processing buffered CLIENT_READY (received before init)");
+    }
+
+    // Bug #28 fix: Process buffered TIME_REQUEST if received before initialization
+    if (time_request_buffered && msg->data.init.role == TIME_SYNC_ROLE_SERVER) {
+        uint64_t t3_server_send = 0;
+        err = time_sync_process_handshake_request(buffered_t1_us, buffered_t2_us, &t3_server_send);
+        if (err == ESP_OK) {
+            // Get motor epoch to include in response
+            uint64_t motor_epoch = 0;
+            uint32_t motor_cycle = 0;
+            time_sync_get_motor_epoch(&motor_epoch, &motor_cycle);
+
+            // Send TIME_RESPONSE back to CLIENT
+            coordination_message_t response = {
+                .type = SYNC_MSG_TIME_RESPONSE,
+                .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                .payload.time_response = {
+                    .t1_client_send_us = buffered_t1_us,
+                    .t2_server_recv_us = buffered_t2_us,
+                    .t3_server_send_us = t3_server_send,
+                    .motor_epoch_us = motor_epoch,
+                    .motor_cycle_ms = motor_cycle
+                }
+            };
+
+            err = ble_send_coordination_message(&response);
+            if (err == ESP_OK) {
+                ESP_LOGI(TAG, "TIME_RESPONSE sent (buffered): T1=%llu, T2=%llu, T3=%llu, epoch=%llu, cycle=%lu",
+                         buffered_t1_us, buffered_t2_us, t3_server_send, motor_epoch, motor_cycle);
+            } else {
+                ESP_LOGW(TAG, "Failed to send TIME_RESPONSE (buffered): %s", esp_err_to_name(err));
+            }
+        } else {
+            ESP_LOGW(TAG, "Failed to process buffered TIME_REQUEST: %s", esp_err_to_name(err));
+        }
+
+        // Clear buffer flag
+        time_request_buffered = false;
+        ESP_LOGI(TAG, "Processing buffered TIME_REQUEST (received before init)");
     }
 
     // CLIENT: Initiate NTP-style 3-way handshake for precise initial offset
@@ -565,6 +609,16 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             // Record T2 (receive time) and generate T3 for response
             uint64_t t2_server_recv = esp_timer_get_time();
             uint64_t t1_client_send = coord->payload.time_request.t1_client_send_us;
+
+            // Bug #28 fix: Buffer TIME_REQUEST if time_sync not yet initialized
+            if (!TIME_SYNC_IS_INITIALIZED()) {
+                time_request_buffered = true;
+                buffered_t1_us = t1_client_send;
+                buffered_t2_us = t2_server_recv;
+                ESP_LOGI(TAG, "TIME_REQUEST received early (buffered until time_sync initialized)");
+                break;
+            }
+
             uint64_t t3_server_send = 0;
 
             esp_err_t err = time_sync_process_handshake_request(t1_client_send, t2_server_recv, &t3_server_send);
@@ -803,4 +857,5 @@ void time_sync_reset_client_ready(void)
 {
     client_ready_received = false;
     client_ready_buffered = false;  // Bug #11 fix: Also clear buffer flag
+    time_request_buffered = false;  // Bug #28 fix: Also clear TIME_REQUEST buffer flag
 }

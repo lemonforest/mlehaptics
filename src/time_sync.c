@@ -508,6 +508,14 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
 
     /* Transition to SYNCED if this is first beacon */
     if (g_time_sync_state.state == SYNC_STATE_CONNECTED) {
+        /* Bug #28 fix: Initialize quality metrics if not already set by handshake
+         * This provides a fallback if handshake failed or was missed */
+        if (g_time_sync_state.quality.samples_collected == 0) {
+            g_time_sync_state.quality.samples_collected = 1;
+            g_time_sync_state.quality.quality_score = 50;  /* Lower than handshake (95) since beacon is less precise */
+            ESP_LOGI(TAG, "Quality metrics initialized from beacon (handshake not completed)");
+        }
+
         g_time_sync_state.state = SYNC_STATE_SYNCED;
         ESP_LOGI(TAG, "Initial sync complete (offset: %lld μs, drift: %ld μs, quality: %u%%)",
                  g_time_sync_state.clock_offset_us,
@@ -1421,9 +1429,9 @@ esp_err_t time_sync_update_offset_from_rtt(int64_t offset_us, int32_t rtt_us, ui
      * This prevents the warning "update_quality_metrics() called with samples_collected=0"
      * when RTT updates arrive before initial handshake completes.
      */
+    int32_t drift_rate = g_time_sync_state.drift_rate_valid ? g_time_sync_state.drift_rate_us_per_s : 0;
     if (g_time_sync_state.quality.samples_collected > 0) {
         int32_t offset_change_us = (int32_t)(drift_us);  /* Clamp to int32_t for quality function */
-        int32_t drift_rate = g_time_sync_state.drift_rate_valid ? g_time_sync_state.drift_rate_us_per_s : 0;
         update_quality_metrics(offset_change_us, (uint32_t)(rtt_us > 0 ? rtt_us : 0), drift_rate);
     }
 
