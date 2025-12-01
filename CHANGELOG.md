@@ -26,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Returns 0% in single-device mode, actual battery in dual-device mode
 - Updates via `SYNC_MSG_CLIENT_BATTERY` coordination message
 
+**Per-Mode PWM Intensity (Configuration Service):**
+- **4 new GATT characteristics** for mode-specific motor intensity (`src/ble_manager.c`):
+  - **UUID `...020E`**: Mode 0 (0.5Hz) intensity - Range 50-80%, default 65%
+  - **UUID `...020F`**: Mode 1 (1.0Hz) intensity - Range 50-80%, default 65%
+  - **UUID `...0210`**: Mode 2 (1.5Hz) intensity - Range 70-90%, default 80%
+  - **UUID `...0211`**: Mode 3 (2.0Hz) intensity - Range 70-90%, default 80%
+- **UUID `...0204`** renamed to Mode 4 (Custom) intensity - Range 30-80%, default 75%
+- **Frequency-dependent intensity ranges**: Higher frequencies (1.5Hz, 2Hz) require stronger PWM (70-90%) due to shorter activation periods (83-167ms). Lower frequencies (0.5Hz, 1Hz) work well at 50-80% with longer activation periods (250-1000ms).
+- **Motor task integration**: `calculate_mode_timing()` selects appropriate intensity based on current mode (`src/motor_task.c:357-376`)
+- **NVS persistence**: All 5 mode intensities saved/loaded across power cycles (`src/ble_manager.c`)
+- **Peer synchronization**: All 5 mode intensities synced via `SYNC_MSG_SETTINGS` (`src/time_sync_task.c:504-527`)
+- **Benefits**: Each preset mode feels "right" without manual adjustment; 2Hz maintains therapeutic effectiveness despite brief 125ms activation at 25% duty
+
 ### Fixed
 
 **BLE Writes Breaking Bilateral Sync** (CRITICAL - Bug #12):
@@ -89,6 +102,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Timer and state cleanup in disconnect handler
 - **Result**: Eliminates BUSY errors, cleaner logs, potentially 10-50ms faster pairing (avoids retry overhead)
 - **Impact**: Non-functional fix (errors were non-fatal), but improves code quality and debugging experience
+
+**Motor Overlap After Mode Changes - Stale Epoch Prediction** (CRITICAL - Bug #32):
+- **Symptom**: 91ms-127ms motor activation overlap after multiple mode changes during active session (Gemini analysis: `GEMINI.md`)
+- **Timeline**: Device B (CLIENT): 16:18:36.498-36.922 (424ms), Device A (SERVER): 16:18:36.795-37.213 (418ms), overlap 16:18:36.795-36.922 = 127ms
+- **Root Cause**: CLIENT only received motor epoch ONCE at session start via `SYNC_MSG_MOTOR_STARTED`. When user changed modes (2000ms → 1000ms → 667ms → 500ms → 1000ms), SERVER set new epoch locally but never sent it to CLIENT. CLIENT continued predicting epoch using stale cycle time, causing 8.13-second drift after ~60 seconds.
+- **Evidence**: CLIENT log showed `epoch=57669660` while SERVER actual epoch was `65798967` (8,129,307 μs difference)
+- **Fix**: Send `SYNC_MSG_MOTOR_STARTED` to CLIENT after every mode/frequency change (`src/motor_task.c`):
+  1. After button-triggered mode change on SERVER (lines 961-976)
+  2. After BLE-triggered frequency change in MODE_CUSTOM (lines 1053-1067)
+  3. CLIENT already receives and processes `SYNC_MSG_MOTOR_STARTED` correctly (handled since Phase 6)
+- **Result**: CLIENT epoch updates immediately on every mode/frequency change, eliminating prediction drift
+- **Impact**: Prevents motor overlap during multi-mode therapy sessions (0.5Hz → 1Hz → 1.5Hz → 2Hz sequences)
+- **Discovery**: Gemini's bilateral timing overlap analysis (November 30, 2025) - see updated `GEMINI.md`
 
 **Quality Metrics Stuck at 0% - Handshake Race Condition** (CRITICAL - Bug #28):
 - **Symptom**: Quality metrics always showed 0%, RTT updates never improved quality score

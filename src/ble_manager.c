@@ -114,8 +114,24 @@ static const ble_uuid128_t uuid_char_custom_duty = BLE_UUID128_INIT(
     0x03, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
-static const ble_uuid128_t uuid_char_pwm_intensity = BLE_UUID128_INIT(
+static const ble_uuid128_t uuid_char_mode4_intensity = BLE_UUID128_INIT(
     0x04, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_mode0_intensity = BLE_UUID128_INIT(
+    0x0e, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_mode1_intensity = BLE_UUID128_INIT(
+    0x0f, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_mode2_intensity = BLE_UUID128_INIT(
+    0x10, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_mode3_intensity = BLE_UUID128_INIT(
+    0x11, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
 // LED Control Group (bytes 13-14 = 0x02 0x0N)
@@ -219,7 +235,11 @@ static ble_char_data_t char_data = {
     .current_mode = MODE_05HZ_25,
     .custom_frequency_hz = 100,  // 1.00 Hz
     .custom_duty_percent = 50,
-    .pwm_intensity = MOTOR_PWM_DEFAULT,  // From motor_control.h (single source of truth)
+    .mode0_intensity = 65,  // Mode 0 (0.5Hz): 50-80% range, default 65%
+    .mode1_intensity = 65,  // Mode 1 (1.0Hz): 50-80% range, default 65%
+    .mode2_intensity = 80,  // Mode 2 (1.5Hz): 70-90% range, default 80%
+    .mode3_intensity = 80,  // Mode 3 (2.0Hz): 70-90% range, default 80%
+    .mode4_intensity = MOTOR_PWM_DEFAULT,  // Mode 4 (Custom): 30-80% range, default from motor_control.h
     .led_enable = true,  // Enable LED by default for custom mode
     .led_color_mode = LED_COLOR_MODE_CUSTOM_RGB,  // Default: custom RGB
     .led_palette_index = 0,
@@ -345,7 +365,11 @@ static esp_timer_handle_t g_deferred_discovery_timer = NULL;
 // These handles are set during GATT registration and used to send notifications
 static uint16_t g_freq_val_handle = 0;
 static uint16_t g_duty_val_handle = 0;
-static uint16_t g_pwm_val_handle = 0;
+static uint16_t g_mode0_val_handle = 0;
+static uint16_t g_mode1_val_handle = 0;
+static uint16_t g_mode2_val_handle = 0;
+static uint16_t g_mode3_val_handle = 0;
+static uint16_t g_mode4_val_handle = 0;
 static uint16_t g_led_enable_val_handle = 0;
 static uint16_t g_led_color_mode_val_handle = 0;
 static uint16_t g_led_palette_val_handle = 0;
@@ -356,7 +380,11 @@ static uint16_t g_led_brightness_val_handle = 0;
 // CLIENT subscribes to SERVER's characteristics to receive notifications
 static uint16_t g_peer_freq_val_handle = 0;
 static uint16_t g_peer_duty_val_handle = 0;
-static uint16_t g_peer_pwm_val_handle = 0;
+static uint16_t g_peer_mode0_val_handle = 0;
+static uint16_t g_peer_mode1_val_handle = 0;
+static uint16_t g_peer_mode2_val_handle = 0;
+static uint16_t g_peer_mode3_val_handle = 0;
+static uint16_t g_peer_mode4_val_handle = 0;
 static uint16_t g_peer_led_enable_val_handle = 0;
 static uint16_t g_peer_led_color_mode_val_handle = 0;
 static uint16_t g_peer_led_palette_val_handle = 0;
@@ -446,7 +474,11 @@ static struct ble_gap_adv_params adv_params = {
 #define NVS_KEY_LED_RGB_G        "led_g"
 #define NVS_KEY_LED_RGB_B        "led_b"
 #define NVS_KEY_LED_BRIGHTNESS   "led_bri"
-#define NVS_KEY_PWM_INTENSITY    "pwm_int"
+#define NVS_KEY_MODE0_INTENSITY  "m0_int"
+#define NVS_KEY_MODE1_INTENSITY  "m1_int"
+#define NVS_KEY_MODE2_INTENSITY  "m2_int"
+#define NVS_KEY_MODE3_INTENSITY  "m3_int"
+#define NVS_KEY_MODE4_INTENSITY  "m4_int"
 #define NVS_KEY_SESSION_DURATION "sess_dur"
 
 // Calculate settings signature using CRC32 (AD032 structure)
@@ -687,52 +719,236 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
     return 0;
 }
 
-// PWM Intensity - Read
-static int gatt_char_pwm_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
-                                        struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    // JPL compliance: Bounded mutex wait with timeout error handling
+// Mode 0 (0.5Hz) Intensity - Read
+static int gatt_char_mode0_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        ESP_LOGE(TAG, "Mutex timeout in gatt_char_pwm_intensity_read - possible deadlock");
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode0_intensity_read");
         return BLE_ATT_ERR_UNLIKELY;
     }
-    uint8_t intensity = char_data.pwm_intensity;
+    uint8_t intensity = char_data.mode0_intensity;
     xSemaphoreGive(char_data_mutex);
 
-    ESP_LOGD(TAG, "GATT Read: PWM = %u%%", intensity);
+    ESP_LOGD(TAG, "GATT Read: Mode 0 Intensity = %u%%", intensity);
     int rc = os_mbuf_append(ctxt->om, &intensity, sizeof(intensity));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-// PWM Intensity - Write
-static int gatt_char_pwm_intensity_write(uint16_t conn_handle, uint16_t attr_handle,
-                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+// Mode 0 (0.5Hz) Intensity - Write
+static int gatt_char_mode0_intensity_write(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
     uint8_t value;
     int rc = ble_hs_mbuf_to_flat(ctxt->om, &value, sizeof(value), NULL);
     if (rc != 0) {
-        ESP_LOGE(TAG, "GATT Write: PWM read failed");
+        ESP_LOGE(TAG, "GATT Write: Mode 0 Intensity read failed");
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD031: Range 0-80% (0% = LED-only mode, no motor vibration)
+    // Mode 0 (0.5Hz): Range 50-80%
+    if (value < 50 || value > 80) {
+        ESP_LOGE(TAG, "GATT Write: Invalid Mode 0 Intensity %u%% (range 50-80)", value);
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    ESP_LOGD(TAG, "GATT Write: Mode 0 Intensity = %u%%", value);
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode0_intensity_write");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    char_data.mode0_intensity = value;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    ble_callback_params_updated();
+    sync_settings_to_peer();
+    return 0;
+}
+
+// Mode 1 (1.0Hz) Intensity - Read
+static int gatt_char_mode1_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode1_intensity_read");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    uint8_t intensity = char_data.mode1_intensity;
+    xSemaphoreGive(char_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Mode 1 Intensity = %u%%", intensity);
+    int rc = os_mbuf_append(ctxt->om, &intensity, sizeof(intensity));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Mode 1 (1.0Hz) Intensity - Write
+static int gatt_char_mode1_intensity_write(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint8_t value;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &value, sizeof(value), NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "GATT Write: Mode 1 Intensity read failed");
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // Mode 1 (1.0Hz): Range 50-80%
+    if (value < 50 || value > 80) {
+        ESP_LOGE(TAG, "GATT Write: Invalid Mode 1 Intensity %u%% (range 50-80)", value);
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    ESP_LOGD(TAG, "GATT Write: Mode 1 Intensity = %u%%", value);
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode1_intensity_write");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    char_data.mode1_intensity = value;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    ble_callback_params_updated();
+    sync_settings_to_peer();
+    return 0;
+}
+
+// Mode 2 (1.5Hz) Intensity - Read
+static int gatt_char_mode2_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode2_intensity_read");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    uint8_t intensity = char_data.mode2_intensity;
+    xSemaphoreGive(char_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Mode 2 Intensity = %u%%", intensity);
+    int rc = os_mbuf_append(ctxt->om, &intensity, sizeof(intensity));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Mode 2 (1.5Hz) Intensity - Write
+static int gatt_char_mode2_intensity_write(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint8_t value;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &value, sizeof(value), NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "GATT Write: Mode 2 Intensity read failed");
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // Mode 2 (1.5Hz): Range 70-90%
+    if (value < 70 || value > 90) {
+        ESP_LOGE(TAG, "GATT Write: Invalid Mode 2 Intensity %u%% (range 70-90)", value);
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    ESP_LOGD(TAG, "GATT Write: Mode 2 Intensity = %u%%", value);
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode2_intensity_write");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    char_data.mode2_intensity = value;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    ble_callback_params_updated();
+    sync_settings_to_peer();
+    return 0;
+}
+
+// Mode 3 (2.0Hz) Intensity - Read
+static int gatt_char_mode3_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode3_intensity_read");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    uint8_t intensity = char_data.mode3_intensity;
+    xSemaphoreGive(char_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Mode 3 Intensity = %u%%", intensity);
+    int rc = os_mbuf_append(ctxt->om, &intensity, sizeof(intensity));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Mode 3 (2.0Hz) Intensity - Write
+static int gatt_char_mode3_intensity_write(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint8_t value;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &value, sizeof(value), NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "GATT Write: Mode 3 Intensity read failed");
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // Mode 3 (2.0Hz): Range 70-90%
+    if (value < 70 || value > 90) {
+        ESP_LOGE(TAG, "GATT Write: Invalid Mode 3 Intensity %u%% (range 70-90)", value);
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    ESP_LOGD(TAG, "GATT Write: Mode 3 Intensity = %u%%", value);
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode3_intensity_write");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    char_data.mode3_intensity = value;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+
+    ble_callback_params_updated();
+    sync_settings_to_peer();
+    return 0;
+}
+
+// Mode 4 (Custom) Intensity - Read
+static int gatt_char_mode4_intensity_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    // JPL compliance: Bounded mutex wait with timeout error handling
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode4_intensity_read - possible deadlock");
+        return BLE_ATT_ERR_UNLIKELY;
+    }
+    uint8_t intensity = char_data.mode4_intensity;
+    xSemaphoreGive(char_data_mutex);
+
+    ESP_LOGD(TAG, "GATT Read: Mode 4 Intensity = %u%%", intensity);
+    int rc = os_mbuf_append(ctxt->om, &intensity, sizeof(intensity));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Mode 4 (Custom) Intensity - Write
+static int gatt_char_mode4_intensity_write(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint8_t value;
+    int rc = ble_hs_mbuf_to_flat(ctxt->om, &value, sizeof(value), NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "GATT Write: Mode 4 Intensity read failed");
+        return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+    }
+
+    // AD032: Range 30-80% for Mode 4 (Custom) (0-29% reserved for LED-only if needed)
     if (value > 80) {
-        ESP_LOGE(TAG, "GATT Write: Invalid PWM %u%% (range 0-80)", value);
+        ESP_LOGE(TAG, "GATT Write: Invalid Mode 4 Intensity %u%% (range 30-80)", value);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    ESP_LOGD(TAG, "GATT Write: PWM = %u%%", value);
+    ESP_LOGD(TAG, "GATT Write: Mode 4 Intensity = %u%%", value);
 
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        ESP_LOGE(TAG, "Mutex timeout in gatt_char_pwm_intensity_write - possible deadlock");
+        ESP_LOGE(TAG, "Mutex timeout in gatt_char_mode4_intensity_write - possible deadlock");
         return BLE_ATT_ERR_UNLIKELY;
     }
-    char_data.pwm_intensity = value;
+    char_data.mode4_intensity = value;
     settings_dirty = true;
     xSemaphoreGive(char_data_mutex);
 
     esp_err_t err = motor_update_mode5_intensity(value);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to update PWM: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to update Mode 4 Intensity: %s", esp_err_to_name(err));
     }
 
     ble_callback_params_updated();
@@ -1287,10 +1503,34 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                gatt_char_custom_duty_write(conn_handle, attr_handle, ctxt, arg);
     }
 
-    if (ble_uuid_cmp(uuid, &uuid_char_pwm_intensity.u) == 0) {
+    if (ble_uuid_cmp(uuid, &uuid_char_mode0_intensity.u) == 0) {
         return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
-               gatt_char_pwm_intensity_read(conn_handle, attr_handle, ctxt, arg) :
-               gatt_char_pwm_intensity_write(conn_handle, attr_handle, ctxt, arg);
+               gatt_char_mode0_intensity_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_char_mode0_intensity_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_mode1_intensity.u) == 0) {
+        return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
+               gatt_char_mode1_intensity_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_char_mode1_intensity_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_mode2_intensity.u) == 0) {
+        return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
+               gatt_char_mode2_intensity_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_char_mode2_intensity_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_mode3_intensity.u) == 0) {
+        return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
+               gatt_char_mode3_intensity_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_char_mode3_intensity_write(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_mode4_intensity.u) == 0) {
+        return (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) ?
+               gatt_char_mode4_intensity_read(conn_handle, attr_handle, ctxt, arg) :
+               gatt_char_mode4_intensity_write(conn_handle, attr_handle, ctxt, arg);
     }
 
     if (ble_uuid_cmp(uuid, &uuid_char_led_enable.u) == 0) {
@@ -1443,10 +1683,34 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .val_handle = &g_duty_val_handle,  // Phase 3a: Notification-based sync
             },
             {
-                .uuid = &uuid_char_pwm_intensity.u,
+                .uuid = &uuid_char_mode0_intensity.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
-                .val_handle = &g_pwm_val_handle,  // Phase 3a: Notification-based sync
+                .val_handle = &g_mode0_val_handle,  // Phase 3a: Notification-based sync
+            },
+            {
+                .uuid = &uuid_char_mode1_intensity.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_mode1_val_handle,  // Phase 3a: Notification-based sync
+            },
+            {
+                .uuid = &uuid_char_mode2_intensity.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_mode2_val_handle,  // Phase 3a: Notification-based sync
+            },
+            {
+                .uuid = &uuid_char_mode3_intensity.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_mode3_val_handle,  // Phase 3a: Notification-based sync
+            },
+            {
+                .uuid = &uuid_char_mode4_intensity.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = &g_mode4_val_handle,  // Phase 3a: Notification-based sync
             },
             // LED Control Group
             {
@@ -1800,19 +2064,30 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
         }
     }
 
-    // PWM Intensity
-    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_pwm_intensity.u) == 0) {
-        ESP_LOGI(TAG, "CLIENT: Found PWM intensity characteristic; val_handle=%u", chr->val_handle);
-        g_peer_pwm_val_handle = chr->val_handle;
+    // Mode 0-4 Intensity Characteristics (no notifications - updated via SYNC_MSG_SETTINGS)
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_mode0_intensity.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found mode 0 intensity characteristic; val_handle=%u", chr->val_handle);
+        g_peer_mode0_val_handle = chr->val_handle;
+    }
 
-        uint16_t cccd_handle = chr->val_handle + 1;
-        uint16_t notify_enable = 1;
-        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
-                                       &notify_enable, sizeof(notify_enable),
-                                       gattc_on_cccd_write, NULL);
-        if (rc == 0) {
-            ESP_LOGI(TAG, "CLIENT: Subscribed to PWM intensity notifications at handle %u", cccd_handle);
-        }
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_mode1_intensity.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found mode 1 intensity characteristic; val_handle=%u", chr->val_handle);
+        g_peer_mode1_val_handle = chr->val_handle;
+    }
+
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_mode2_intensity.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found mode 2 intensity characteristic; val_handle=%u", chr->val_handle);
+        g_peer_mode2_val_handle = chr->val_handle;
+    }
+
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_mode3_intensity.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found mode 3 intensity characteristic; val_handle=%u", chr->val_handle);
+        g_peer_mode3_val_handle = chr->val_handle;
+    }
+
+    if (ble_uuid_cmp(&chr->uuid.u, &uuid_char_mode4_intensity.u) == 0) {
+        ESP_LOGI(TAG, "CLIENT: Found mode 4 intensity characteristic; val_handle=%u", chr->val_handle);
+        g_peer_mode4_val_handle = chr->val_handle;
     }
 
     // LED Enable
@@ -2567,19 +2842,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 break;
             }
 
-            // PWM Intensity notification
-            if (event->notify_rx.attr_handle == g_peer_pwm_val_handle) {
-                uint8_t pwm_val;
-                if (ble_hs_mbuf_to_flat(event->notify_rx.om, &pwm_val, sizeof(pwm_val), NULL) == 0) {
-                    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-                        char_data.pwm_intensity = pwm_val;
-                        xSemaphoreGive(char_data_mutex);
-                        ble_callback_params_updated();
-                        ESP_LOGI(TAG, "CLIENT: PWM intensity notification received: %u%%", pwm_val);
-                    }
-                }
-                break;
-            }
+            // Note: Mode 0-4 intensity notifications removed - now handled via SYNC_MSG_SETTINGS
 
             // LED Enable notification
             if (event->notify_rx.attr_handle == g_peer_led_enable_val_handle) {
@@ -2959,7 +3222,11 @@ esp_err_t ble_save_settings_to_nvs(void) {
     nvs_set_u8(nvs_handle, NVS_KEY_LED_RGB_G, char_data.led_custom_g);
     nvs_set_u8(nvs_handle, NVS_KEY_LED_RGB_B, char_data.led_custom_b);
     nvs_set_u8(nvs_handle, NVS_KEY_LED_BRIGHTNESS, char_data.led_brightness);
-    nvs_set_u8(nvs_handle, NVS_KEY_PWM_INTENSITY, char_data.pwm_intensity);
+    nvs_set_u8(nvs_handle, NVS_KEY_MODE0_INTENSITY, char_data.mode0_intensity);
+    nvs_set_u8(nvs_handle, NVS_KEY_MODE1_INTENSITY, char_data.mode1_intensity);
+    nvs_set_u8(nvs_handle, NVS_KEY_MODE2_INTENSITY, char_data.mode2_intensity);
+    nvs_set_u8(nvs_handle, NVS_KEY_MODE3_INTENSITY, char_data.mode3_intensity);
+    nvs_set_u8(nvs_handle, NVS_KEY_MODE4_INTENSITY, char_data.mode4_intensity);
     nvs_set_u32(nvs_handle, NVS_KEY_SESSION_DURATION, char_data.session_duration_sec);
     xSemaphoreGive(char_data_mutex);
 
@@ -3000,7 +3267,8 @@ esp_err_t ble_load_settings_from_nvs(void) {
 
     // Load all settings
     // NOTE: Mode is NOT loaded - device always boots to MODE_05HZ_25
-    uint8_t duty, led_en, led_cmode, led_pal, r, g, b, led_bri, pwm;
+    uint8_t duty, led_en, led_cmode, led_pal, r, g, b, led_bri;
+    uint8_t m0_int, m1_int, m2_int, m3_int, m4_int;
     uint16_t freq;
     uint32_t sess_dur;
 
@@ -3047,8 +3315,24 @@ esp_err_t ble_load_settings_from_nvs(void) {
         char_data.led_brightness = led_bri;
     }
 
-    if (nvs_get_u8(nvs_handle, NVS_KEY_PWM_INTENSITY, &pwm) == ESP_OK) {
-        char_data.pwm_intensity = pwm;
+    if (nvs_get_u8(nvs_handle, NVS_KEY_MODE0_INTENSITY, &m0_int) == ESP_OK) {
+        char_data.mode0_intensity = m0_int;
+    }
+
+    if (nvs_get_u8(nvs_handle, NVS_KEY_MODE1_INTENSITY, &m1_int) == ESP_OK) {
+        char_data.mode1_intensity = m1_int;
+    }
+
+    if (nvs_get_u8(nvs_handle, NVS_KEY_MODE2_INTENSITY, &m2_int) == ESP_OK) {
+        char_data.mode2_intensity = m2_int;
+    }
+
+    if (nvs_get_u8(nvs_handle, NVS_KEY_MODE3_INTENSITY, &m3_int) == ESP_OK) {
+        char_data.mode3_intensity = m3_int;
+    }
+
+    if (nvs_get_u8(nvs_handle, NVS_KEY_MODE4_INTENSITY, &m4_int) == ESP_OK) {
+        char_data.mode4_intensity = m4_int;
     }
 
     if (nvs_get_u32(nvs_handle, NVS_KEY_SESSION_DURATION, &sess_dur) == ESP_OK) {
@@ -4031,7 +4315,11 @@ static esp_err_t sync_settings_to_peer(void) {
     // Copy all settings from char_data
     settings.frequency_cHz = char_data.custom_frequency_hz;
     settings.duty_pct = char_data.custom_duty_percent;
-    settings.intensity_pct = char_data.pwm_intensity;
+    settings.mode0_intensity_pct = char_data.mode0_intensity;
+    settings.mode1_intensity_pct = char_data.mode1_intensity;
+    settings.mode2_intensity_pct = char_data.mode2_intensity;
+    settings.mode3_intensity_pct = char_data.mode3_intensity;
+    settings.mode4_intensity_pct = char_data.mode4_intensity;
     settings.led_enable = char_data.led_enable ? 1 : 0;
     settings.led_color_mode = char_data.led_color_mode;
     settings.led_color_idx = char_data.led_palette_index;
@@ -4062,8 +4350,8 @@ static esp_err_t sync_settings_to_peer(void) {
     // Send to peer
     esp_err_t err = ble_send_coordination_message(&msg);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "Settings synced to peer: freq=%.2fHz duty=%u%% intensity=%u%% LED=%s",
-                 settings.frequency_cHz / 100.0f, settings.duty_pct, settings.intensity_pct,
+        ESP_LOGI(TAG, "Settings synced to peer: freq=%.2fHz duty=%u%% LED=%s (5 mode intensities)",
+                 settings.frequency_cHz / 100.0f, settings.duty_pct,
                  settings.led_enable ? "ON" : "OFF");
     } else if (err != ESP_ERR_INVALID_STATE) {
         ESP_LOGW(TAG, "Failed to sync settings to peer: %s", esp_err_to_name(err));
@@ -4130,33 +4418,97 @@ esp_err_t ble_update_custom_duty(uint8_t duty_pct) {
     return ESP_OK;
 }
 
-esp_err_t ble_update_pwm_intensity(uint8_t intensity_pct) {
+// Mode 4 (Custom) PWM Intensity Update (for coordination sync)
+esp_err_t ble_update_mode4_intensity(uint8_t intensity_pct) {
     if (intensity_pct > 80) {
-        ESP_LOGE(TAG, "Invalid PWM intensity: %u (range 0-80)", intensity_pct);
+        ESP_LOGE(TAG, "Invalid Mode 4 intensity: %u (range 30-80)", intensity_pct);
         return ESP_ERR_INVALID_ARG;
     }
 
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        ESP_LOGE(TAG, "Mutex timeout in ble_update_pwm_intensity");
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_mode4_intensity");
         return ESP_ERR_TIMEOUT;
     }
 
-    // Only update if value changed (prevents redundant motor updates)
-    bool changed = (char_data.pwm_intensity != intensity_pct);
+    bool changed = (char_data.mode4_intensity != intensity_pct);
     if (changed) {
-        char_data.pwm_intensity = intensity_pct;
+        char_data.mode4_intensity = intensity_pct;
         settings_dirty = true;
     }
     xSemaphoreGive(char_data_mutex);
 
-    // Only update motor if value actually changed
     if (changed) {
         esp_err_t err = motor_update_mode5_intensity(intensity_pct);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to update PWM: %s", esp_err_to_name(err));
+            ESP_LOGE(TAG, "Failed to update Mode 4 intensity: %s", esp_err_to_name(err));
             return err;
         }
     }
+    return ESP_OK;
+}
+
+// Mode 0-3 PWM Intensity Updates (for coordination sync)
+esp_err_t ble_update_mode0_intensity(uint8_t intensity_pct) {
+    if (intensity_pct < 50 || intensity_pct > 80) {
+        ESP_LOGE(TAG, "Invalid Mode 0 intensity: %u (range 50-80)", intensity_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_mode0_intensity");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.mode0_intensity = intensity_pct;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+    return ESP_OK;
+}
+
+esp_err_t ble_update_mode1_intensity(uint8_t intensity_pct) {
+    if (intensity_pct < 50 || intensity_pct > 80) {
+        ESP_LOGE(TAG, "Invalid Mode 1 intensity: %u (range 50-80)", intensity_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_mode1_intensity");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.mode1_intensity = intensity_pct;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+    return ESP_OK;
+}
+
+esp_err_t ble_update_mode2_intensity(uint8_t intensity_pct) {
+    if (intensity_pct < 70 || intensity_pct > 90) {
+        ESP_LOGE(TAG, "Invalid Mode 2 intensity: %u (range 70-90)", intensity_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_mode2_intensity");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.mode2_intensity = intensity_pct;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
+    return ESP_OK;
+}
+
+esp_err_t ble_update_mode3_intensity(uint8_t intensity_pct) {
+    if (intensity_pct < 70 || intensity_pct > 90) {
+        ESP_LOGE(TAG, "Invalid Mode 3 intensity: %u (range 70-90)", intensity_pct);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_update_mode3_intensity");
+        return ESP_ERR_TIMEOUT;
+    }
+    char_data.mode3_intensity = intensity_pct;
+    settings_dirty = true;
+    xSemaphoreGive(char_data_mutex);
     return ESP_OK;
 }
 
@@ -4348,13 +4700,63 @@ uint8_t ble_get_custom_duty_percent(void) {
     return duty;
 }
 
+// Legacy function - returns Mode 4 (Custom) intensity for backward compatibility
 uint8_t ble_get_pwm_intensity(void) {
-    // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in ble_get_pwm_intensity - possible deadlock");
         return 50;  // Return safe default
     }
-    uint8_t intensity = char_data.pwm_intensity;
+    uint8_t intensity = char_data.mode4_intensity;
+    xSemaphoreGive(char_data_mutex);
+    return intensity;
+}
+
+uint8_t ble_get_mode0_intensity(void) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_mode0_intensity");
+        return 65;  // Safe default for mode 0 (50-80% range)
+    }
+    uint8_t intensity = char_data.mode0_intensity;
+    xSemaphoreGive(char_data_mutex);
+    return intensity;
+}
+
+uint8_t ble_get_mode1_intensity(void) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_mode1_intensity");
+        return 65;  // Safe default for mode 1 (50-80% range)
+    }
+    uint8_t intensity = char_data.mode1_intensity;
+    xSemaphoreGive(char_data_mutex);
+    return intensity;
+}
+
+uint8_t ble_get_mode2_intensity(void) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_mode2_intensity");
+        return 80;  // Safe default for mode 2 (70-90% range)
+    }
+    uint8_t intensity = char_data.mode2_intensity;
+    xSemaphoreGive(char_data_mutex);
+    return intensity;
+}
+
+uint8_t ble_get_mode3_intensity(void) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_mode3_intensity");
+        return 80;  // Safe default for mode 3 (70-90% range)
+    }
+    uint8_t intensity = char_data.mode3_intensity;
+    xSemaphoreGive(char_data_mutex);
+    return intensity;
+}
+
+uint8_t ble_get_mode4_intensity(void) {
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGE(TAG, "Mutex timeout in ble_get_mode4_intensity");
+        return 75;  // Safe default for mode 4 (30-80% range)
+    }
+    uint8_t intensity = char_data.mode4_intensity;
     xSemaphoreGive(char_data_mutex);
     return intensity;
 }

@@ -341,19 +341,38 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
         // Active coast is remainder of ACTIVE period
         *active_coast_ms = active_period_ms - *motor_on_ms;
 
-        // PWM intensity from BLE
-        *pwm_intensity = ble_get_pwm_intensity();
+        // PWM intensity for Mode 4 (Custom)
+        *pwm_intensity = ble_get_mode4_intensity();
 
         if (verbose_logging) {
             ESP_LOGI(TAG, "Mode 4 (Custom): %.2fHz, %u%% duty → ACTIVE[%lums motor + %lums coast] | INACTIVE[%lums], PWM=%u%%",
                      freq_x100 / 100.0f, duty, *motor_on_ms, *active_coast_ms, *inactive_ms, *pwm_intensity);
         }
     } else {
-        // Modes 0-3: Predefined
+        // Modes 0-3: Predefined with per-mode PWM intensity
         *motor_on_ms = modes[mode].motor_on_ms;
         *active_coast_ms = modes[mode].active_coast_ms;
         *inactive_ms = modes[mode].inactive_ms;
-        *pwm_intensity = ble_get_pwm_intensity();  // Still use BLE intensity for all modes
+
+        // Select PWM intensity based on mode
+        switch (mode) {
+            case MODE_05HZ_25:
+                *pwm_intensity = ble_get_mode0_intensity();
+                break;
+            case MODE_1HZ_25:
+                *pwm_intensity = ble_get_mode1_intensity();
+                break;
+            case MODE_15HZ_25:
+                *pwm_intensity = ble_get_mode2_intensity();
+                break;
+            case MODE_2HZ_25:
+                *pwm_intensity = ble_get_mode3_intensity();
+                break;
+            default:
+                *pwm_intensity = 75;  // Safe fallback (should never reach here)
+                ESP_LOGW(TAG, "Unknown mode %d, using fallback PWM intensity 75%%", mode);
+                break;
+        }
     }
 }
 
@@ -957,6 +976,23 @@ void motor_task(void *pvParameters) {
                                     if (ble_send_time_sync_beacon() == ESP_OK) {
                                         ESP_LOGI(TAG, "SERVER: Immediate sync beacon sent for mode change");
                                     }
+
+                                    // Bug #32 fix: Send motor epoch to CLIENT immediately
+                                    // Without this, CLIENT uses stale epoch causing 8+ second drift
+                                    coordination_message_t motor_started_msg = {
+                                        .type = SYNC_MSG_MOTOR_STARTED,
+                                        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                                        .payload.motor_started = {
+                                            .motor_epoch_us = motor_epoch_us,
+                                            .motor_cycle_ms = cycle_ms
+                                        }
+                                    };
+                                    esp_err_t err = ble_send_coordination_message(&motor_started_msg);
+                                    if (err == ESP_OK) {
+                                        ESP_LOGI(TAG, "SERVER: MOTOR_STARTED sent for mode change (epoch=%llu)", motor_epoch_us);
+                                    } else {
+                                        ESP_LOGW(TAG, "SERVER: Failed to send MOTOR_STARTED: %s", esp_err_to_name(err));
+                                    }
                                 }
                             } else if (role == PEER_ROLE_CLIENT) {
                                 // Phase 3: CLIENT resets toggle to start new mode in INACTIVE
@@ -1031,6 +1067,22 @@ void motor_task(void *pvParameters) {
                                 // Send immediate beacon so CLIENT can sync right away
                                 if (ble_send_time_sync_beacon() == ESP_OK) {
                                     ESP_LOGI(TAG, "SERVER: Immediate beacon sent for frequency change");
+                                }
+
+                                // Bug #32 fix: Send motor epoch to CLIENT immediately
+                                coordination_message_t motor_started_msg = {
+                                    .type = SYNC_MSG_MOTOR_STARTED,
+                                    .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                                    .payload.motor_started = {
+                                        .motor_epoch_us = motor_epoch_us,
+                                        .motor_cycle_ms = cycle_ms
+                                    }
+                                };
+                                esp_err_t err = ble_send_coordination_message(&motor_started_msg);
+                                if (err == ESP_OK) {
+                                    ESP_LOGI(TAG, "SERVER: MOTOR_STARTED sent for frequency change (epoch=%llu)", motor_epoch_us);
+                                } else {
+                                    ESP_LOGW(TAG, "SERVER: Failed to send MOTOR_STARTED: %s", esp_err_to_name(err));
                                 }
                             }
                         } else {

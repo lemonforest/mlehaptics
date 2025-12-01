@@ -483,12 +483,12 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             const coordination_settings_t *settings = &coord->payload.settings;
             esp_err_t err;
 
-            // Bug fix: Only notify motor task if motor-timing params (freq/duty/intensity) changed
+            // Bug fix: Only notify motor task if motor-timing params (freq/duty) changed
             // Previously, ANY settings sync (e.g., session duration) triggered motor phase reset
             // causing bilateral timing to break during rapid PWA parameter adjustments
+            // Note: Intensity changes handled per-mode via ble_update_modeX_intensity()
             uint16_t old_freq = ble_get_custom_frequency_hz();
             uint8_t old_duty = ble_get_custom_duty_percent();
-            uint8_t old_intensity = ble_get_pwm_intensity();
 
             err = ble_update_custom_freq(settings->frequency_cHz);
             if (err != ESP_OK) {
@@ -500,9 +500,30 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 ESP_LOGW(TAG, "Failed to update duty from peer: %s", esp_err_to_name(err));
             }
 
-            err = ble_update_pwm_intensity(settings->intensity_pct);
+            // Update all 5 mode intensities
+            err = ble_update_mode0_intensity(settings->mode0_intensity_pct);
             if (err != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to update intensity from peer: %s", esp_err_to_name(err));
+                ESP_LOGW(TAG, "Failed to update mode 0 intensity from peer: %s", esp_err_to_name(err));
+            }
+
+            err = ble_update_mode1_intensity(settings->mode1_intensity_pct);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to update mode 1 intensity from peer: %s", esp_err_to_name(err));
+            }
+
+            err = ble_update_mode2_intensity(settings->mode2_intensity_pct);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to update mode 2 intensity from peer: %s", esp_err_to_name(err));
+            }
+
+            err = ble_update_mode3_intensity(settings->mode3_intensity_pct);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to update mode 3 intensity from peer: %s", esp_err_to_name(err));
+            }
+
+            err = ble_update_mode4_intensity(settings->mode4_intensity_pct);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "Failed to update mode 4 intensity from peer: %s", esp_err_to_name(err));
             }
 
             err = ble_update_led_palette(settings->led_color_idx);
@@ -537,17 +558,17 @@ static void handle_coordination_message(const time_sync_message_t *msg)
 
             // Only notify motor task if motor-timing params actually changed
             // This prevents phase resets from session duration or LED changes
+            // Note: Intensity changes handled per-mode, not checked here
             bool motor_timing_changed = (old_freq != settings->frequency_cHz) ||
-                                        (old_duty != settings->duty_pct) ||
-                                        (old_intensity != settings->intensity_pct);
+                                        (old_duty != settings->duty_pct);
             if (motor_timing_changed) {
                 ble_callback_params_updated();
-                ESP_LOGI(TAG, "Settings synced from peer: freq=%.2fHz duty=%u%% intensity=%u%% LED=%s (MOTOR UPDATE)",
-                         settings->frequency_cHz / 100.0f, settings->duty_pct, settings->intensity_pct,
+                ESP_LOGI(TAG, "Settings synced from peer: freq=%.2fHz duty=%u%% LED=%s (MOTOR UPDATE + per-mode intensities)",
+                         settings->frequency_cHz / 100.0f, settings->duty_pct,
                          settings->led_enable ? "ON" : "OFF");
             } else {
-                ESP_LOGI(TAG, "Settings synced from peer: freq=%.2fHz duty=%u%% intensity=%u%% LED=%s (no motor change)",
-                         settings->frequency_cHz / 100.0f, settings->duty_pct, settings->intensity_pct,
+                ESP_LOGI(TAG, "Settings synced from peer: freq=%.2fHz duty=%u%% LED=%s (intensities updated)",
+                         settings->frequency_cHz / 100.0f, settings->duty_pct,
                          settings->led_enable ? "ON" : "OFF");
             }
             break;

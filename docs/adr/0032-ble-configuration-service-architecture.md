@@ -58,18 +58,22 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 **Base:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`
 - **Project UUID Base:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7____`
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
-- **YY byte** (characteristic ID): `00` = service UUID, `01-0D` = characteristics
+- **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (13 Total)
+### Characteristics (17 Total)
 
-**MOTOR CONTROL GROUP (4 characteristics):**
+**MOTOR CONTROL GROUP (8 characteristics):**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | `...0201` | Mode | uint8 | R/W/Notify | 0-4 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM |
 | `...0202` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
 | `...0203` | Custom Duty Cycle | uint8 | R/W | 10-100% | Half-cycle duty (100% = entire half-cycle) |
-| `...0204` | PWM Intensity | uint8 | R/W | 0-80% | Motor strength (0% = LED-only) |
+| `...0204` | Mode 4 PWM Intensity | uint8 | R/W | 30-80% | Mode 4 (Custom) motor strength (0% = LED-only) |
+| `...020E` | Mode 0 PWM Intensity | uint8 | R/W | 50-80% | Mode 0 (0.5Hz) motor strength |
+| `...020F` | Mode 1 PWM Intensity | uint8 | R/W | 50-80% | Mode 1 (1.0Hz) motor strength |
+| `...0210` | Mode 2 PWM Intensity | uint8 | R/W | 70-90% | Mode 2 (1.5Hz) motor strength |
+| `...0211` | Mode 3 PWM Intensity | uint8 | R/W | 70-90% | Mode 3 (2.0Hz) motor strength |
 
 **LED CONTROL GROUP (5 characteristics):**
 
@@ -89,6 +93,35 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...020B` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
 | `...020C` | Battery Level | uint8 | R/Notify | 0-100% | SERVER battery state of charge |
 | `...020D` | Client Battery | uint8 | R/Notify | 0-100% | CLIENT battery (dual-device mode) |
+
+### Per-Mode PWM Intensity Rationale
+
+**Problem:** Preset modes (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz) have shorter active duty cycles by design (25% of half-cycle). When global PWM intensity is reduced, these modes feel weak compared to custom mode.
+
+**Solution:** Each mode has its own PWM intensity setting with frequency-appropriate ranges:
+
+**Low-Frequency Modes (0.5Hz, 1.0Hz):**
+- Range: 50-80%
+- Rationale: Longer activation periods (250-1000ms) allow lower PWM without feeling weak
+- Default: 65%
+
+**High-Frequency Modes (1.5Hz, 2.0Hz):**
+- Range: 70-90%
+- Rationale: Shorter activation periods (83-167ms) need higher PWM to feel perceptible
+- Default: 80%
+- Note: 2Hz especially needs "punch" due to brief 125ms activation at 25% duty
+
+**Custom Mode (Mode 4):**
+- Range: 30-80%
+- Rationale: User controls both frequency AND duty, so wider intensity range needed
+- Includes 0% for LED-only mode (no motor vibration)
+- Default: 75%
+
+**Benefits:**
+- Users no longer need to adjust intensity when switching between preset modes
+- Higher frequencies maintain therapeutic effectiveness at shorter duty cycles
+- Each mode feels "right" out of the box
+- PWM tuning per-mode enables frequency-dependent perceptual compensation
 
 ### LED Color Control Architecture
 
@@ -202,14 +235,18 @@ uint32_t coast_ms = half_cycle_ms - motor_on_ms;      // Remaining coast time
 
 **Saved Parameters (User Preferences):**
 - Mode (uint8: 0-4) - Last used mode
-- Custom Frequency (uint16: 25-200) - For Mode 5
-- Custom Duty Cycle (uint8: 10-100%) - For Mode 5 (half-cycle duty)
+- Custom Frequency (uint16: 25-200) - For Mode 4 (Custom)
+- Custom Duty Cycle (uint8: 10-100%) - For Mode 4 (half-cycle duty)
+- Mode 0 PWM Intensity (uint8: 50-80%) - 0.5Hz mode motor strength
+- Mode 1 PWM Intensity (uint8: 50-80%) - 1.0Hz mode motor strength
+- Mode 2 PWM Intensity (uint8: 70-90%) - 1.5Hz mode motor strength
+- Mode 3 PWM Intensity (uint8: 70-90%) - 2.0Hz mode motor strength
+- Mode 4 PWM Intensity (uint8: 30-80%, 0% = LED-only mode) - Custom mode motor strength
 - LED Enable (uint8: 0 or 1)
 - LED Color Mode (uint8: 0 or 1)
 - LED Palette Index (uint8: 0-15)
 - LED Custom RGB (uint8[3]: R, G, B)
 - LED Brightness (uint8: 10-30%)
-- PWM Intensity (uint8: 0-80%, 0% = LED-only mode)
 - Session Duration (uint32: 1200-5400 sec)
 
 **NVS Signature:** CRC32 of characteristic UUID endings and data types (detects structure changes)

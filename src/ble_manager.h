@@ -88,11 +88,15 @@ typedef enum {
  * Updated by write callbacks, read by read callbacks
  */
 typedef struct {
-    // Motor Control Group (4 characteristics)
+    // Motor Control Group (8 characteristics - per-mode PWM intensity)
     mode_t current_mode;              /**< Current mode 0-4 (read/write) */
     uint16_t custom_frequency_hz;     /**< Hz × 100 (25-200 = 0.25-2.0 Hz) (read/write) */
     uint8_t custom_duty_percent;      /**< Duty cycle 10-100% (10% min, 100% = entire half-cycle) (read/write) */
-    uint8_t pwm_intensity;            /**< Motor PWM 0-80% (0% = LED-only) (read/write) */
+    uint8_t mode0_intensity;          /**< Mode 0 (0.5Hz) PWM 50-80% (read/write) */
+    uint8_t mode1_intensity;          /**< Mode 1 (1.0Hz) PWM 50-80% (read/write) */
+    uint8_t mode2_intensity;          /**< Mode 2 (1.5Hz) PWM 70-90% (read/write) */
+    uint8_t mode3_intensity;          /**< Mode 3 (2.0Hz) PWM 70-90% (read/write) */
+    uint8_t mode4_intensity;          /**< Mode 4 (Custom) PWM 30-80% (0% = LED-only) (read/write) */
 
     // LED Control Group (5 characteristics)
     bool led_enable;                  /**< LED enable (read/write) */
@@ -350,7 +354,11 @@ typedef struct __attribute__((packed)) {
     // Motor Control
     uint16_t frequency_cHz;        /**< Frequency Hz × 100 (25-200 = 0.25-2.0 Hz) */
     uint8_t duty_pct;              /**< Duty cycle 10-100% */
-    uint8_t intensity_pct;         /**< Motor PWM intensity 0-80% */
+    uint8_t mode0_intensity_pct;   /**< Mode 0 (0.5Hz) PWM intensity 50-80% */
+    uint8_t mode1_intensity_pct;   /**< Mode 1 (1.0Hz) PWM intensity 50-80% */
+    uint8_t mode2_intensity_pct;   /**< Mode 2 (1.5Hz) PWM intensity 70-90% */
+    uint8_t mode3_intensity_pct;   /**< Mode 3 (2.0Hz) PWM intensity 70-90% */
+    uint8_t mode4_intensity_pct;   /**< Mode 4 (Custom) PWM intensity 30-80% */
 
     // LED Control
     uint8_t led_enable;            /**< LED enable (0=off, 1=on) */
@@ -546,14 +554,45 @@ uint16_t ble_get_custom_frequency_hz(void);
 uint8_t ble_get_custom_duty_percent(void);
 
 /**
- * @brief Get Mode 5 PWM intensity
+ * @brief Get Mode 5 PWM intensity (legacy - returns Mode 4 intensity)
  * @return PWM intensity percentage 0-80%
+ * @deprecated Use ble_get_mode0_intensity() through ble_get_mode4_intensity() instead
  *
  * Thread-safe read of PWM intensity characteristic
  * 0% enables LED-only mode (no motor vibration)
  * 80% maximum prevents motor overheating (safety limit per AD031)
  */
 uint8_t ble_get_pwm_intensity(void);
+
+/**
+ * @brief Get Mode 0 (0.5Hz) PWM intensity
+ * @return Intensity percentage (50-80%)
+ */
+uint8_t ble_get_mode0_intensity(void);
+
+/**
+ * @brief Get Mode 1 (1.0Hz) PWM intensity
+ * @return Intensity percentage (50-80%)
+ */
+uint8_t ble_get_mode1_intensity(void);
+
+/**
+ * @brief Get Mode 2 (1.5Hz) PWM intensity
+ * @return Intensity percentage (70-90%)
+ */
+uint8_t ble_get_mode2_intensity(void);
+
+/**
+ * @brief Get Mode 3 (2.0Hz) PWM intensity
+ * @return Intensity percentage (70-90%)
+ */
+uint8_t ble_get_mode3_intensity(void);
+
+/**
+ * @brief Get Mode 4 (Custom) PWM intensity
+ * @return Intensity percentage (30-80%)
+ */
+uint8_t ble_get_mode4_intensity(void);
 
 /**
  * @brief Get LED enable state
@@ -715,7 +754,11 @@ void ble_set_coordination_mode(coordination_mode_t mode);
  */
 esp_err_t ble_update_custom_freq(uint16_t freq_cHz);
 esp_err_t ble_update_custom_duty(uint8_t duty_pct);
-esp_err_t ble_update_pwm_intensity(uint8_t intensity_pct);
+esp_err_t ble_update_mode0_intensity(uint8_t intensity_pct);
+esp_err_t ble_update_mode1_intensity(uint8_t intensity_pct);
+esp_err_t ble_update_mode2_intensity(uint8_t intensity_pct);
+esp_err_t ble_update_mode3_intensity(uint8_t intensity_pct);
+esp_err_t ble_update_mode4_intensity(uint8_t intensity_pct);
 esp_err_t ble_update_led_enable(bool enable);
 esp_err_t ble_update_led_color_mode(uint8_t mode);
 esp_err_t ble_update_led_palette(uint8_t palette_idx);
