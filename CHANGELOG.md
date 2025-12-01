@@ -146,6 +146,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 5th beacon: 80s interval (max)
 - **Result**: Reduced BLE overhead during long sessions (80s beacons vs 10s), improved battery life
 
+**MAC Comparison Inverted (Equal Battery Tie-Breaker)** (CRITICAL - Bug #37):
+- **Symptom**: When both devices have equal battery levels, MAC address tie-breaker made backwards decisions (lower MAC device waited as CLIENT, higher MAC device initiated as SERVER)
+- **Root Cause**: BLE MAC addresses stored in reverse byte order (LSB first) in `ble_addr_t.val[]` array. Comparison loop iterated from index 0→5 (LSB to MSB), inverting the result.
+- **Log Evidence**:
+  - DEV_A (MAC: `b4:3a:45:89:45:de` = 0x45de lower) logged: "higher MAC - waiting as CLIENT" ❌
+  - DEV_B (MAC: `b4:3a:45:89:5c:76` = 0x5c76 higher) logged: "lower MAC - initiating as SERVER" ❌
+  - Result: Both devices made opposite decisions → DEV_A stopped advertising, DEV_B couldn't connect → pairing failed
+- **Fix**: Reversed comparison loop to iterate from index 5→0 (MSB to LSB) (`src/ble_manager.c:3785-3796`)
+- **Expected Behavior**: Lower MAC address initiates connection (SERVER/SLAVE), higher MAC address waits (CLIENT/MASTER)
+- **Result**: Correct tie-breaker logic when batteries are equal
+
 **64-bit Timestamp Logging Corruption** (CRITICAL - Bug #30):
 - **Symptom**: "Handshake complete" logs showed timestamps (T1-T4) that didn't mathematically match the calculated offset/RTT values. Example: Log showed RTT=1320μs, but timestamps calculated to RTT=59540μs (45× difference!)
 - **Root Cause**: Using non-portable format specifiers (`%lld`/`%llu`) for 64-bit integers on RISC-V architecture. ESP-IDF requires `PRId64`/`PRIu64` macros from `<inttypes.h>` for correct printf parsing on 32-bit systems with 64-bit values.

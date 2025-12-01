@@ -3782,8 +3782,10 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 ble_addr_t own_addr;
                                 ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr.val, NULL);
 
+                                // Bug #37: MAC addresses stored in reverse byte order (LSB first)
+                                // Must compare from MSB to LSB (index 5 down to 0)
                                 bool we_are_lower = false;
-                                for (int j = 0; j < 6; j++) {
+                                for (int j = 5; j >= 0; j--) {
                                     if (own_addr.val[j] < event->disc.addr.val[j]) {
                                         we_are_lower = true;   // We are lower, we initiate
                                         break;
