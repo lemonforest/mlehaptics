@@ -157,6 +157,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Expected Behavior**: Lower MAC address initiates connection (SERVER/SLAVE), higher MAC address waits (CLIENT/MASTER)
 - **Result**: Correct tie-breaker logic when batteries are equal
 
+**Waiting Device Stops Advertising (Bug #33 Fix Was Incorrect)** (CRITICAL - Bug #38):
+- **Symptom**: Devices failed to pair in all scenarios (battery comparison, MAC tie-breaker, reconnection). 3 boot attempts, all timed out after 30 seconds.
+- **Root Cause**: Bug #33 fix incorrectly stopped advertising on connection-waiting device, preventing connection-initiating device from discovering it.
+- **Log Evidence** (December 1, 2025):
+  - DEV_B (96% battery, higher MAC) discovered DEV_A (97%) successfully ✅
+  - DEV_B correctly identified: "Lower battery (96% < 97%) - waiting as CLIENT" ✅
+  - DEV_B stopped advertising (per Bug #33 fix) ✅
+  - DEV_A (97%) never discovered DEV_B ❌ (not advertising!)
+  - Result: Pairing timeout after 30 seconds (3 attempts)
+- **Understanding the Bug #33 Fix Mistake**:
+  - Original Bug #33: Both devices calling `ble_gap_connect()` caused race condition
+  - Incorrect Fix: Stop advertising on waiting device → prevents discovery ❌
+  - Correct Fix: Keep advertising, but don't call `ble_gap_connect()` → discoverable but passive ✅
+- **Fix**: Removed `ble_gap_adv_stop()` calls from three code paths (`src/ble_manager.c`):
+  1. Lower battery device waiting (lines 3766-3769)
+  2. Higher MAC device waiting (equal batteries) (lines 3803-3805)
+  3. Previous CLIENT waiting for reconnection (lines 3730-3732)
+- **Expected Behavior**:
+  - Connection-waiting device: Keeps advertising (discoverable) + keeps scanning (doesn't call `ble_gap_connect()`)
+  - Connection-initiating device: Keeps scanning + calls `ble_gap_connect()` when peer discovered
+  - Result: Only ONE device calls `ble_gap_connect()`, preventing race condition while maintaining discoverability
+- **Result**: Pairing should succeed within 5-10 seconds
+
 **64-bit Timestamp Logging Corruption** (CRITICAL - Bug #30):
 - **Symptom**: "Handshake complete" logs showed timestamps (T1-T4) that didn't mathematically match the calculated offset/RTT values. Example: Log showed RTT=1320μs, but timestamps calculated to RTT=59540μs (45× difference!)
 - **Root Cause**: Using non-portable format specifiers (`%lld`/`%llu`) for 64-bit integers on RISC-V architecture. ESP-IDF requires `PRId64`/`PRIu64` macros from `<inttypes.h>` for correct printf parsing on 32-bit systems with 64-bit values.

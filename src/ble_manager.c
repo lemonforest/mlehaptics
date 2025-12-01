@@ -3727,16 +3727,8 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 // We were CLIENT before - wait for SERVER to reconnect
                                 ESP_LOGI(TAG, "Previous CLIENT - waiting for SERVER to reconnect");
 
-                                // STOP ADVERTISING - only SERVER should be discoverable
-                                int rc = ble_gap_adv_stop();
-                                if (rc == 0) {
-                                    ESP_LOGI(TAG, "Stopped advertising (waiting for SERVER as CLIENT)");
-                                } else if (rc != BLE_HS_EALREADY) {
-                                    ESP_LOGW(TAG, "Failed to stop advertising: rc=%d", rc);
-                                }
-
-                                // KEEP SCANNING during wait period to improve peer's discovery odds
-                                ESP_LOGI(TAG, "Continuing scan during wait - SERVER may still be discovering");
+                                // Bug #38: KEEP ADVERTISING - SERVER needs to discover us!
+                                ESP_LOGI(TAG, "Continuing advertising + scanning - waiting for SERVER connection");
                             }
                         } else if (peer_state.peer_battery_known) {
                             // FRESH PAIRING: Use battery-based role assignment
@@ -3763,16 +3755,9 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 ESP_LOGI(TAG, "Lower battery (%d%% < %d%%) - waiting as CLIENT",
                                          local_battery, peer_state.peer_battery_level);
 
-                                // STOP ADVERTISING - only higher-battery device should be discoverable
-                                int rc = ble_gap_adv_stop();
-                                if (rc == 0) {
-                                    ESP_LOGI(TAG, "Stopped advertising (waiting for peer as CLIENT)");
-                                } else if (rc != BLE_HS_EALREADY) {
-                                    ESP_LOGW(TAG, "Failed to stop advertising: rc=%d", rc);
-                                }
-
-                                // KEEP SCANNING during wait period to improve peer's discovery odds
-                                ESP_LOGI(TAG, "Continuing scan during wait - peer may still be discovering");
+                                // Bug #38: KEEP ADVERTISING - higher-battery device needs to discover us!
+                                // Only stop calling ble_gap_connect() (wait for peer to connect to us)
+                                ESP_LOGI(TAG, "Continuing advertising + scanning - waiting for peer connection");
                                 // Don't call ble_connect_to_peer() - peer will connect to us
                             } else {
                                 // Batteries equal - use MAC address tie-breaker
@@ -3807,16 +3792,8 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                     ESP_LOGI(TAG, "Equal battery (%d%%), higher MAC - waiting as CLIENT",
                                              local_battery);
 
-                                    // STOP ADVERTISING - only lower-MAC device should be discoverable
-                                    int rc = ble_gap_adv_stop();
-                                    if (rc == 0) {
-                                        ESP_LOGI(TAG, "Stopped advertising (waiting for peer as CLIENT)");
-                                    } else if (rc != BLE_HS_EALREADY) {
-                                        ESP_LOGW(TAG, "Failed to stop advertising: rc=%d", rc);
-                                    }
-
-                                    // KEEP SCANNING during wait period to improve peer's discovery odds
-                                    ESP_LOGI(TAG, "Continuing scan during wait - peer may still be discovering");
+                                    // Bug #38: KEEP ADVERTISING - lower-MAC device needs to discover us!
+                                    ESP_LOGI(TAG, "Continuing advertising + scanning - waiting for peer connection");
                                 }
                             }
                         } else {
