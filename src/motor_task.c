@@ -1407,40 +1407,48 @@ void motor_task(void *pvParameters) {
                         uint64_t cycle_us = (uint64_t)cycle_ms * 1000ULL;
                         uint64_t half_period_us = cycle_us / 2;
 
-                        // Where is SERVER in its cycle right now?
-                        uint64_t elapsed_us = sync_time_us - server_epoch_us;
-                        uint64_t server_position_us = elapsed_us % cycle_us;
+                        // Phase 6p: ABSOLUTE TARGET TIME calculation (replaces relative position)
+                        // Bug #40 Fix: Systematic +662ms phase offset due to accumulated errors
+                        // in relative position calculation. Absolute timing eliminates error buildup
+                        // from ACTIVE duration and scheduling overhead.
+                        //
+                        // OLD: "Where is SERVER now? When will it reach half-period?" (relative)
+                        // NEW: "When did SERVER start this cycle? Add half-period." (absolute)
 
-                        // Phase 6: Diagnostic logging for overlap debugging
+                        // Calculate how many complete cycles have elapsed since epoch
+                        uint64_t elapsed_us = sync_time_us - server_epoch_us;
+                        uint64_t cycles_since_epoch = elapsed_us / cycle_us;
+
+                        // Calculate absolute timestamp when SERVER started current cycle
+                        uint64_t server_current_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us);
+
+                        // CLIENT target: Start ACTIVE exactly half-period after SERVER's cycle start
+                        // (This is when SERVER ends ACTIVE and starts INACTIVE = ideal antiphase)
+                        uint64_t client_target_active_us = server_current_cycle_start_us + half_period_us;
+
+                        // If target already passed (we're past halfway through SERVER's cycle),
+                        // advance to next cycle's antiphase point
+                        if (client_target_active_us <= sync_time_us) {
+                            client_target_active_us += cycle_us;
+                        }
+
+                        // Calculate wait time to reach absolute target
+                        uint64_t target_wait_us = client_target_active_us - sync_time_us;
+
+                        // Phase 6p: Enhanced diagnostic logging
                         // Log every 10 cycles to avoid spam but capture phase calculation details
                         static uint32_t inactive_cycle_count = 0;
                         bool should_log = (inactive_cycle_count % 10 == 0);
                         if (should_log) {
-                            ESP_LOGI(TAG, "CLIENT PHASE CALC: sync_time=%llu, epoch=%llu, elapsed=%llu",
-                                     sync_time_us, server_epoch_us, elapsed_us);
-                            ESP_LOGI(TAG, "CLIENT PHASE CALC: server_pos=%lu/%lu (%.1f%%), half=%lu",
-                                     (uint32_t)(server_position_us / 1000), (uint32_t)(cycle_us / 1000),
-                                     (float)(server_position_us * 100) / cycle_us,
-                                     (uint32_t)(half_period_us / 1000));
+                            uint64_t epoch_age_ms = elapsed_us / 1000;
+                            ESP_LOGI(TAG, "CLIENT PHASE CALC: sync_time=%llu us, epoch=%llu us (age=%lu ms)",
+                                     sync_time_us, server_epoch_us, (uint32_t)epoch_age_ms);
+                            ESP_LOGI(TAG, "CLIENT PHASE CALC: cycles_since_epoch=%lu, SERVER_cycle_start=%llu us",
+                                     (uint32_t)cycles_since_epoch, server_current_cycle_start_us);
+                            ESP_LOGI(TAG, "CLIENT PHASE CALC: CLIENT_target=%llu us, wait=%lu ms",
+                                     client_target_active_us, (uint32_t)(target_wait_us / 1000));
                         }
                         inactive_cycle_count++;
-
-                        // CLIENT should end INACTIVE (start ACTIVE) when SERVER reaches half_period
-                        // That's when SERVER transitions from ACTIVE to INACTIVE
-                        uint64_t target_wait_us;
-                        if (server_position_us < half_period_us) {
-                            target_wait_us = half_period_us - server_position_us;
-                            if (should_log) {
-                                ESP_LOGI(TAG, "CLIENT PHASE CALC: SERVER in ACTIVE, wait %lu ms to antiphase",
-                                         (uint32_t)(target_wait_us / 1000));
-                            }
-                        } else {
-                            target_wait_us = cycle_us + half_period_us - server_position_us;
-                            if (should_log) {
-                                ESP_LOGI(TAG, "CLIENT PHASE CALC: SERVER in INACTIVE, wait %lu ms to next antiphase",
-                                         (uint32_t)(target_wait_us / 1000));
-                            }
-                        }
 
                         // Convert to ms with sanity bounds
                         uint32_t calculated_ms = (uint32_t)(target_wait_us / 1000);
