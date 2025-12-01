@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added - Phase 6: Bilateral Motor Coordination (In Progress)
 
+**BLE TX Power Boost (+6 dBm improvement):**
+- **Maximum TX Power**: Set to +9 dBm for advertising, scanning, and connections
+- **Default was +3 dBm**: Resulted in weak RSSI (-98 dBm) with nylon case and body attenuation
+- **API**: `esp_ble_tx_power_set_enhanced()` for ESP32-C6 (ESP-IDF recommended approach)
+- **Power Types Configured**:
+  - `ESP_BLE_ENHANCED_PWR_TYPE_ADV`: Advertising/discoverable mode
+  - `ESP_BLE_ENHANCED_PWR_TYPE_SCAN`: Peer discovery scanning
+  - `ESP_BLE_ENHANCED_PWR_TYPE_DEFAULT`: Active connections
+- **Expected RSSI Improvement**: ~6 dBm stronger signal (2× power increase)
+- **Use Case**: Compensates for RF attenuation from nylon enclosure and human body tissue during bilateral therapy sessions
+- **Implementation**: `src/ble_manager.c:3120-3142` (ble_on_sync callback)
+
+**Connection RSSI in Sync Beacons (Link Quality Monitoring):**
+- **Purpose**: Track BLE link quality during bilateral sessions for debugging and future adaptive algorithms
+- **Implementation**: `server_rssi` field added to `time_sync_beacon_t` structure (28 bytes total, was 26 bytes)
+- **Measurement**: CLIENT measures SERVER RSSI when receiving sync beacons via `ble_gap_conn_rssi()`
+- **Logging**: RSSI logged with every beacon at DEBUG level: "Beacon processed (seq: N, ..., RSSI: -60 dBm)"
+- **Use Cases**:
+  - Debug device-to-device link quality (currently -88 to -92 dBm estimated with +9 dBm TX power)
+  - Future: Adaptive drift correction thresholds based on RSSI (weak signal → wider deadband)
+  - Future: Predictive disconnect detection (RSSI < -90 dBm → freeze drift rate proactively)
+- **Files Modified**: `src/time_sync.h:209-210`, `src/time_sync.c:484-485`, `src/ble_manager.c:1438-1446`
+
 **Coordination Message System:**
 - **SYNC_MSG_MODE_CHANGE**: Button press mode changes propagated to CLIENT device (`src/time_sync_task.c:321-366`)
 - **SYNC_MSG_SETTINGS**: BLE GATT parameter changes synced to CLIENT via coordination messages
@@ -78,8 +101,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - At 0.5Hz: 200ms max correction, 100ms deadband (was 100ms/50ms)
   - At 1.0Hz: 100ms max correction, 50ms deadband (unchanged)
   - At 2.0Hz: 50ms max correction, 25ms deadband (was 100ms/50ms, now safer)
-- **Expected Result**: 1-cycle convergence at 0.5Hz with high RTT, safer corrections at high frequencies
-- **Impact**: Addresses Gemini's log analysis findings (see GEMINI.md)
+
+**Lower-Battery Device Assigned Wrong Role** (CRITICAL - Bug #33):
+- **Symptom**: Device with lower battery (96%) incorrectly assigned itself SERVER role instead of CLIENT
+- **Root Cause**: CLIENT-waiting devices kept advertising after deciding to wait. Higher-battery device could connect TO lower-battery device, reversing BLE roles (MASTER/SLAVE) and thus reversing device roles (SERVER/CLIENT).
+- **Log Evidence**: DEV_B correctly logged "Lower battery (96% < 97%) - waiting as CLIENT", but then logged "SERVER role assigned (BLE SLAVE)" when DEV_A connected to it
+- **Fix**: Added `ble_gap_adv_stop()` in three CLIENT-waiting code paths (`src/ble_manager.c`):
+  1. Lower battery device waiting for higher battery (line 3713-3719)
+  2. Higher MAC device waiting for lower MAC (equal batteries) (line 3755-3761)
+  3. Previous CLIENT waiting for previous SERVER reconnection (line 3685-3691)
+- **Result**: Only the connection-initiating device (higher battery / lower MAC / previous SERVER) remains discoverable. CLIENT devices stop advertising and wait to receive connection, ensuring correct role assignment.
+
+**Discovery Race Condition (Pairing Timeout)** (CRITICAL - Bug #34):
+- **Symptom**: Both devices scanning for 30 seconds but failing to discover each other (pairing timeout)
+- **Root Cause**: Both devices used identical scan parameters (10ms interval, 10ms window), causing synchronization where devices scan at exactly the same time and miss each other's advertisements
+- **Log Evidence**: DEV_A scanned for full 30s but never discovered DEV_B. DEV_B discovered DEV_A at 4.3s (RSSI: -98 dBm) but DEV_A never reciprocated.
+- **Fix**: Added MAC-based jitter to scan interval (`src/ble_manager.c:3892-3919`):
+  - Base interval: 16 units (10ms)
+  - MAC jitter: 0-15 units (0-9.375ms) based on last byte of MAC address
+  - Result: Each device scans at 10-19.375ms intervals
+  - Desynchronization is imperceptible to humans but prevents scan timing races
+- **Result**: Devices gradually desynchronize over the 30-second pairing window, improving discovery probability. Each device logs its unique scan interval for debugging.
+
+**BLE_HS_EDONE Logged as Error** (Bug #35):
+- **Symptom**: Service and characteristic discovery logged "error; status=14" at ERROR level during normal pairing
+- **Root Cause**: NimBLE uses BLE_HS_EDONE (status=14) to signal "discovery complete" - this is a normal completion status, not an error
+- **Impact**: Error logs appeared during successful pairing, confusing debugging and implying failure when operations succeeded
+- **Fix**: Added status check in both GATT client callbacks (`src/ble_manager.c`):
+  - `gattc_on_chr_disc()`: Status 14 logged as DEBUG instead of ERROR (line 1963-1964)
+  - `gattc_on_svc_disc()`: Status 14 logged as DEBUG instead of ERROR (line 2196-2197)
+  - Other non-zero statuses still logged as ERROR (actual errors)
+- **Result**: Clean logs during successful discovery, ERROR level reserved for actual failures
 
 **64-bit Timestamp Logging Corruption** (CRITICAL - Bug #30):
 - **Symptom**: "Handshake complete" logs showed timestamps (T1-T4) that didn't mathematically match the calculated offset/RTT values. Example: Log showed RTT=1320μs, but timestamps calculated to RTT=59540μs (45× difference!)

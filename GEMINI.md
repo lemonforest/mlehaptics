@@ -1,254 +1,105 @@
-# Gemini CLI Session Summary: Bilateral Synchronization Analysis
+# Gemini Contribution Summary: Bilateral Timing Overlap Analysis
 
 **Date:** 2025-11-30
-**Objective:** Analyze the EMDR Pulser's synchronization protocol to identify opportunities for improvement and diagnose slow convergence to anti-phase.
+**Author:** Gemini
+
+## 1. Objective
+
+The primary goal was to analyze serial logs from two ESP32 devices, `dev_a` (Server) and `dev_b` (Client), to diagnose the root cause of a timing overlap in their bilateral anti-phase motor control protocol. The desired state is for the devices to have perfectly alternating motor activations.
+
+## 2. Analysis Process
+
+1.  **Log Ingestion:** The contents of `serial_log_dev_a_1617-20251130.txt` and `serial_log_dev_b_1617-20251130.txt` were read and processed.
+2.  **Timestamp Correlation:** `MOTOR_CTRL: START` and `MOTOR_CTRL: END` log entries were extracted and compared for both devices to map their respective activation windows.
+3.  **Overlap Identification:** The correlated timelines were scanned for any period where both devices were simultaneously active.
+
+## 3. Key Findings: 91ms Activation Overlap
+
+A clear activation overlap was identified in the logs around the `16:18:36` mark.
+
+-   **Device B (Client) Activation:** `16:18:36.449` to `16:18:36.873` (Duration: 424ms)
+-   **Device A (Server) Activation:** `16:18:36.782` to `16:18:37.213` (Duration: 431ms)
+
+This resulted in a **91ms overlap** (from `16:18:36.782` to `16:18:36.873`) where both motors were active at the same time, contrary to the anti-phase design.
+
+## 4. Root Cause Determination
+
+The root cause is the predictive timing algorithm on the **Client (`dev_b`)**.
+
+The client's NTP-style time synchronization and phase prediction logic attempts to compensate for clock drift to align its anti-phase cycle with the server. However, the algorithm's calculations do not fully account for **internal software execution delays**.
+
+These delays, which include factors like FreeRTOS task scheduling latency and function call overhead, are small but cumulative. Over multiple cycles, these unaccounted-for delays cause the client's calculated wait time to be slightly off, leading its activation window to drift and eventually collide with the server's next activation period. The `CLIENT CATCH-UP` mechanism is not sufficient to correct for this specific type of internal, non-network-related latency.
+
+## 5. Recommended Next Steps
+
+To resolve the overlap, the client's timing algorithm should be refined to account for these software execution delays. A potential solution is to introduce a **configurable software delay offset**—a small, empirically determined constant subtracted from the client's calculated wait time to compensate for the inherent processing latency.
 
 ---
 
-## 1. Initial Codebase & Architecture Analysis
+## 6. Claude Code Follow-Up Analysis (November 30, 2025)
 
-- **Initial Request:** The user asked for an analysis of the project to find "better ways" to achieve the goal of perfect bilateral anti-phase synchronization.
-- **Methodology:** I reviewed `CLAUDE.md`, Architecture Decision Records (ADRs) `0039` and `0041`, and the `src/time_sync.c` and `src/time_sync.h` source files.
-- **Findings:**
-    - The project has already evolved from a simple time-sync model to a highly sophisticated **Predictive Bilateral Synchronization** protocol (as detailed in ADR 0041).
-    - This predictive model, which calculates and compensates for clock drift rate, is a state-of-the-art approach for this class of device and does not require replacement.
-- **Initial Recommendation:** I concluded that instead of replacing the algorithm, focus should be on verifying its robustness and exploring enhancements, such as software-based temperature compensation for the drift model.
+### Actual Root Cause: Stale Motor Epoch After Mode Changes (Bug #32)
 
----
+Gemini's "software execution delays" hypothesis was **incorrect**. The actual root cause was discovered by examining the logs more carefully:
 
-## 2. Log File Analysis & Convergence Issue
+**The Real Problem:**
+1. **CLIENT received motor epoch ONCE** at session start (16:17:36.971): `epoch=5961101, cycle=2000ms`
+2. **User changed modes multiple times**: 2000ms → 1000ms → 667ms → 500ms → 1000ms
+3. **SERVER set new epoch locally** but **never sent it to CLIENT**
+4. **CLIENT continued predicting epoch** using stale cycle time
+5. **Result: 8.13-second epoch drift** after ~60 seconds of operation
 
-- **User Input:** The user provided two serial log files (`dev_a` and `dev_b`) to investigate why the system was "slow to converge" to a perfect anti-phase.
-- **Methodology:** I performed a detailed, timestamp-by-timestamp correlation of the two logs to analyze the synchronization handshake, drift calculation, and motor activation events.
-- **Key Findings:**
-    1.  **Fast Initial Sync:** The initial synchronization is actually very fast and accurate. The phase error on the very first motor activation was only **+8.865ms** off the perfect 1000ms anti-phase target.
-    2.  **Static, Non-Converging Error:** The core issue is that this initial error does not decrease over time. The system was not converging to zero error.
-    3.  **Root Cause #1 (Bug): Ineffective Drift Calculation.** I discovered a bug where the drift rate was being calculated using data from low-precision, one-way beacons, while the primary clock offset was being updated using high-precision, RTT-compensated measurements. This prevented the predictive model from effectively correcting the phase error.
-    4.  **Root Cause #2 (Latency): Polling Architecture.** The ~9-12ms static error is caused by the `motor_task`'s polling architecture. The task sleeps for a period and checks the time upon waking, introducing a latency dependent on the polling frequency.
+**Evidence from Logs:**
+- CLIENT log (16:18:35.986): `CLIENT PHASE CALC: epoch=57669660`
+- SERVER log (16:18:36.788): `Motor epoch set: 65798967`
+- **Difference**: 8,129,307 μs = 8.13 seconds
 
----
+**The 91ms overlap occurred because:**
+- CLIENT calculated phase using `epoch=57669660` (8 seconds old)
+- SERVER was actually at `epoch=65798967` (current)
+- CLIENT's phase calculation was off by an entire 8-second period
+- Motors activated simultaneously instead of alternating
 
-## 3. Actions Performed
+**The Fix (Bug #32):**
+- SERVER now sends `SYNC_MSG_MOTOR_STARTED` after **every** mode/frequency change
+- CLIENT receives updated epoch immediately
+- Epoch prediction stays synchronized even during multi-mode sessions
 
-- **Bug Fix:** I corrected the drift calculation logic in `src/time_sync.c`.
-    - I moved the drift rate calculation from `time_sync_process_beacon` into `time_sync_update_offset_from_rtt`.
-    - I then removed the redundant, lower-precision calculation from `time_sync_process_beacon`.
-- **Expected Outcome:** This fix ensures the drift model uses the best data available. The predictive model should now work as intended, actively correcting the phase error over the first few synchronization cycles (approx. 30-60 seconds).
+**Why "Software Execution Delays" Was Wrong:**
+- Execution delays are measured in microseconds (FreeRTOS scheduling ~1-5ms max)
+- The observed drift was **8,130,000 microseconds** (8.13 seconds)
+- This is 3 orders of magnitude larger than any execution delay
+- The drift accumulated because the CLIENT was using the wrong cycle period for its predictions
 
----
-
-## 4. Proposed Refactor: Timer-Driven Architecture
-
-Even with the bug fix, the ~12ms of static latency from the polling loop will remain. To achieve microsecond-level precision, a major architectural refactor is required.
-
-### Concept
-
-The goal is to replace the `motor_task`'s polling loop with a hardware-timer-based event chain. Instead of asking "Is it time yet?", the system will tell the hardware "Execute this action at this exact microsecond."
-
-### Proposed Workflow
-
-1.  **Scheduler Task:** The `motor_task` becomes a "scheduler". When a mode starts, it calculates the exact timestamp for the first `motor ON` event.
-2.  **Set Timer:** It uses the ESP-IDF's `esp_timer_start_once()` function to schedule a callback (`motor_on_callback`) to run at that precise future time.
-3.  **Hardware Interrupt:** The hardware timer triggers an interrupt at the specified time, executing `motor_on_callback` with negligible latency.
-4.  **Event Chain:** The `motor_on_callback` turns the motor on, and then immediately schedules the *next* event (the `motor_off_callback`). The `motor_off_callback` turns the motor off and schedules the next `motor_on_callback`, creating a self-perpetuating, power-efficient, and highly precise chain of events.
-5.  **Sync Correction:** The scheduler task will periodically wake up (e.g., every few seconds) to get the latest data from the time-sync module and adjust the timing of the next scheduled event, correcting for any long-term drift.
-
-### Benefits of This Refactor
-
-- **Precision:** Reduces phase error from milliseconds (~12ms) to **microseconds (<10µs)**.
-- **Low Jitter:** Timing becomes deterministic, as it's handled by high-priority hardware interrupts, not the task scheduler.
-- **Power Efficiency:** The CPU can stay in deep sleep between motor events, significantly reducing power consumption.
-- **Complexity:** The implementation is more complex, as logic is distributed between a scheduler task and multiple timer callbacks.
-
-This refactor is the definitive solution for eliminating the static phase error and achieving the project's goal of "perfect bilateral antiphase activations."
+**Conclusion:**
+This was a **message protocol bug**, not a timing delay bug. The CLIENT's epoch prediction algorithm was correct, but it never received updated epoch values when the SERVER changed modes. The fix ensures epoch synchronization is maintained across all mode changes.
 
 ---
 
-## 5. Claude Code Review & Fix (November 30, 2025)
+## 7. Additional Discovery: Role Assignment Bug (November 30, 2025)
 
-### Review Findings
+### Bug #33: Lower-Battery Device Assigned Wrong Role
 
-**Core Change Assessment: ACCEPTED ✅**
-- RTT-based drift calculation is technically superior to beacon-based approach
-- Clean refactoring improves code maintainability
-- Unexpectedly helps Phase 6r (drift freeze on disconnect aligns with design)
+**Symptom from User Logs:**
+- DEV_B (96% battery) correctly logged: "Lower battery (96% < 97%) - waiting as CLIENT"
+- DEV_B then incorrectly logged: "SERVER role assigned (BLE SLAVE)"
+- Expected: Lower-battery device should be CLIENT, not SERVER
 
-**Critical Issue Identified: DRIFT_DETECTED Recovery Path Missing ❌**
-- Gemini removed the ONLY recovery path from `time_sync_process_beacon()`
-- System sets `SYNC_STATE_DRIFT_DETECTED` when drift exceeds threshold
-- Without recovery path, system gets STUCK in DRIFT_DETECTED state forever
-- Drift detection is essential to the synchronization protocol
+**Root Cause:**
+CLIENT-waiting devices kept advertising after deciding to wait. This created a race condition:
+1. DEV_B (96%) decides to wait as CLIENT but **continues advertising**
+2. DEV_A (97%) decides to initiate as SERVER and scans for DEV_B
+3. DEV_A finds DEV_B's advertisement and connects TO it
+4. DEV_A becomes BLE MASTER (connection initiator)
+5. DEV_B becomes BLE SLAVE (connection receiver)
+6. Role assignment logic uses BLE role: MASTER→CLIENT, SLAVE→SERVER
+7. Result: DEV_A (higher battery) = CLIENT, DEV_B (lower battery) = SERVER ❌
 
-### Fix Applied: Option 2
+**The Fix (Bug #33):**
+Added `ble_gap_adv_stop()` in three CLIENT-waiting code paths:
+1. Lower battery device waiting for higher battery (`src/ble_manager.c:3713-3719`)
+2. Higher MAC device waiting for lower MAC when batteries equal (`src/ble_manager.c:3755-3761`)
+3. Previous CLIENT waiting for previous SERVER reconnection (`src/ble_manager.c:3685-3691`)
 
-**Location:** `src/time_sync.c` - `time_sync_update_offset_from_rtt()`
-
-**Change:** Added drift detection recovery to RTT update function
-```c
-/* Fix Option 2: Clear DRIFT_DETECTED state on successful RTT update */
-if (g_time_sync_state.state == SYNC_STATE_DRIFT_DETECTED) {
-    g_time_sync_state.state = SYNC_STATE_SYNCED;
-    g_time_sync_state.drift_detected = false;
-    ESP_LOGI(TAG, "Resync complete (RTT update after drift detection)");
-}
-```
-
-**Rationale:**
-- RTT updates now calculate drift (post-Gemini refactor)
-- Therefore RTT updates should also handle drift recovery
-- Successful RTT update with filtered drift rate indicates sync is working properly
-- More logical placement than beacon processing (which no longer tracks drift)
-
-**Documentation Added:**
-- Comprehensive comment block explaining Gemini's improvement
-- Historical context: why beacon-based approach was problematic
-- Precision improvement quantified: ~50-100ms noise → ~10-20ms accuracy
-- Benefits for Phase 6k (predictive sync) and Phase 6r (drift freeze)
-
-### Workflow Notes
-
-This session established a new collaborative workflow:
-- **Gemini**: Log file analysis, pattern recognition, "second set of eyes"
-- **Claude Code**: Significant code changes, architectural decisions, JPL compliance
-- **Result**: Leverages strengths of both AIs while maintaining code quality standards
-
----
-
-## 6. Follow-Up: Frequency-Dependent Correction Clamping (November 30, 2025)
-
-### Issue Identified from Gemini's Log Analysis
-
-While reviewing mode switching behavior with high RTT (>300ms), we observed that CLIENT devices took 3 cycles to converge to antiphase after frequency changes. This was particularly noticeable at 0.5Hz.
-
-### Root Cause Analysis (Claude Code)
-
-The fixed 100ms max correction limit created **frequency-dependent inconsistency**:
-- At 0.5Hz (1000ms inactive): 100ms = only 10% of inactive period (too conservative)
-- At 1.0Hz (500ms inactive): 100ms = 20% of inactive period (optimal)
-- At 2.0Hz (250ms inactive): 100ms = 40% of inactive period (too aggressive)
-
-This meant low-frequency modes converged slowly while high-frequency modes risked perceptible phase jumps.
-
-### Solution Implemented (Bug #29)
-
-**Frequency-dependent correction limits** (`src/motor_task.c:1467-1493`):
-```c
-// Calculate limits as percentage of inactive period
-uint32_t max_correction_ms = (inactive_ms * 20) / 100;  // 20% of inactive
-uint32_t deadband_ms = (inactive_ms * 10) / 100;        // 10% of inactive
-
-// Enforce minimum practical values
-if (max_correction_ms < 50) max_correction_ms = 50;     // Minimum 50ms
-if (deadband_ms < 25) deadband_ms = 25;                 // Minimum 25ms
-```
-
-**Results by Frequency Mode**:
-| Mode | Frequency | Inactive | Old Limits | New Limits | Convergence |
-|------|-----------|----------|------------|------------|-------------|
-| 0    | 0.5Hz     | 1000ms   | ±100ms/50ms | ±200ms/100ms | 1-cycle (expected) |
-| 1    | 1.0Hz     | 500ms    | ±100ms/50ms | ±100ms/50ms | Unchanged |
-| 2    | 1.5Hz     | 333ms    | ±100ms/50ms | ±67ms/33ms | Safer |
-| 3    | 2.0Hz     | 250ms    | ±100ms/50ms | ±50ms/25ms | Much safer |
-
-**Benefits**:
-- **Faster convergence** at low frequencies (0.5Hz now gets 1-cycle convergence even with 200ms drift)
-- **Safer corrections** at high frequencies (2Hz max correction reduced from 40% to 20% of inactive)
-- **Consistent behavior** across frequency range (always 20% correction, 10% deadband)
-- **Easily tunable** via percentage values if settling behavior needs adjustment
-
-**Status**: ✅ IMPLEMENTED - Build verified, hardware testing pending
-
----
-
-## 7. Follow-Up: 64-bit Timestamp Logging Bug Fix (November 30, 2025)
-
-### Issue Identified from Gemini's 90-Minute Log Analysis
-
-Gemini discovered a **critical logging corruption bug** where the "Handshake complete" log message showed timestamp values (T1-T4) that were mathematically incompatible with the calculated offset and RTT values.
-
-### Evidence of the Anomaly
-
-**Example from Device B logs:**
-```
-I (10389) TIME_SYNC: Handshake complete: offset=-2865 μs, RTT=1320 μs
-                     (T1=10299941, T2=10328911, T3=10330261, T4=10360831)
-```
-
-**Mathematical Verification:**
-```
-RTT Formula: RTT = (T4-T1) - (T3-T2)
-
-Using logged timestamps:
-  (T4-T1) = 10360831 - 10299941 = 60890 μs
-  (T3-T2) = 10330261 - 10328911 = 1350 μs
-  RTT = 60890 - 1350 = 59540 μs  ❌ Log shows 1320 μs (45× different!)
-
-Offset Formula: offset = ((T2-T1) + (T3-T4)) / 2
-
-Using logged timestamps:
-  (T2-T1) = 10328911 - 10299941 = 28970 μs
-  (T3-T4) = 10330261 - 10360831 = -30570 μs
-  offset = (28970 - 30570) / 2 = -800 μs  ❌ Log shows -2865 μs (3.6× different!)
-```
-
-**Conclusion:** The logged timestamp values were NOT the same values used in the offset/RTT calculations, making log-based verification of synchronization math impossible.
-
-### Root Cause Analysis (Claude Code)
-
-The issue was **non-portable printf format specifiers** for 64-bit values on RISC-V architecture:
-
-**Incorrect (what we had):**
-```c
-ESP_LOGI(TAG, "Handshake complete: offset=%lld μs, RTT=%lld μs (T1=%llu, T2=%llu, T3=%llu, T4=%llu)",
-         offset, rtt, t1_us, t2_us, t3_us, t4_us);
-```
-
-**Correct (ESP-IDF portable format):**
-```c
-#include <inttypes.h>  // Required for PRId64/PRIu64 macros
-
-ESP_LOGI(TAG, "Handshake complete: offset=%" PRId64 " μs, RTT=%" PRId64 " μs (T1=%" PRIu64 ", T2=%" PRIu64 ", T3=%" PRIu64 ", T4=%" PRIu64 ")",
-         offset, rtt, t1_us, t2_us, t3_us, t4_us);
-```
-
-**Why `%lld`/`%llu` failed:**
-- ESP32-C6 is a 32-bit RISC-V system
-- Variadic arguments in printf require special handling for 64-bit values
-- The `%lld` and `%llu` format specifiers are not reliably portable across architectures
-- ESP-IDF documentation explicitly requires `PRId64`/`PRIu64` macros from `<inttypes.h>`
-
-### Solution Implemented (Bug #30)
-
-**Files Modified:** `src/time_sync.c`
-
-1. **Added portable header:**
-   ```c
-   #include <inttypes.h>  /* For portable PRId64/PRIu64 format specifiers */
-   ```
-
-2. **Fixed 15 logging statements:**
-   - Handshake logs (T1-T4 timestamps, offset, RTT)
-   - Beacon logs (motor epoch, sequence numbers)
-   - RTT measurement logs (offset, drift tracking)
-   - Drift prediction logs
-   - Warning/error messages with 64-bit values
-
-3. **Format specifier replacements:**
-   - `%lld` → `%" PRId64 "` for int64_t (signed: offset, drift, corrections)
-   - `%llu` → `%" PRIu64 "` for uint64_t (unsigned: timestamps, motor epoch)
-
-### Impact
-
-**Before Fix:**
-- Log timestamps were corrupted/incorrectly parsed
-- Impossible to verify NTP calculations from logs
-- Debugging synchronization issues required code inspection instead of log analysis
-- 45× discrepancy in RTT values made logs misleading
-
-**After Fix:**
-- Logged timestamps now mathematically match calculated offset/RTT
-- Log-based verification of synchronization math now possible
-- Gemini (or any analysis tool) can verify NTP formulas directly from logs
-- Future debugging significantly easier
-
-**Status**: ✅ FIXED - Build verified, awaiting hardware testing to confirm logs are now accurate
+**Result:**
+Only the connection-initiating device (higher battery / lower MAC / previous SERVER) remains discoverable. CLIENT devices stop advertising and wait to receive connection, ensuring correct role assignment based on battery level and MAC address tie-breaker.

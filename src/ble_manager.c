@@ -23,6 +23,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_timer.h"
+#include "esp_bt.h"  // For TX power control (esp_ble_tx_power_set_enhanced)
 
 // NimBLE includes
 #include "host/ble_hs.h"
@@ -1434,6 +1435,16 @@ static int gatt_bilateral_time_sync_write(uint16_t conn_handle, uint16_t attr_ha
     // Get receive timestamp ASAP for accuracy
     uint64_t receive_time_us = esp_timer_get_time();
 
+    // Measure connection RSSI (Phase 6: Link quality monitoring)
+    int8_t rssi = 0;
+    rc = ble_gap_conn_rssi(conn_handle, &rssi);
+    if (rc == 0) {
+        beacon.server_rssi = rssi;  // Store measured RSSI in beacon
+    } else {
+        ESP_LOGW(TAG, "Failed to read connection RSSI: rc=%d", rc);
+        beacon.server_rssi = -127;  // Invalid RSSI marker
+    }
+
     // Forward beacon to time_sync_task for processing
     esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
     if (err != ESP_OK) {
@@ -1958,7 +1969,12 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
                               void *arg)
 {
     if (error->status != 0) {
-        ESP_LOGE(TAG, "CLIENT: Characteristic discovery error; status=%d", error->status);
+        // BLE_HS_EDONE (14) is normal "discovery done" status, not an error
+        if (error->status == 14) {
+            ESP_LOGD(TAG, "CLIENT: Characteristic discovery done (status=14 - BLE_HS_EDONE)");
+        } else {
+            ESP_LOGE(TAG, "CLIENT: Characteristic discovery error; status=%d", error->status);
+        }
         return 0;
     }
 
@@ -2186,7 +2202,12 @@ static int gattc_on_svc_disc(uint16_t conn_handle,
                               void *arg)
 {
     if (error->status != 0) {
-        ESP_LOGE(TAG, "CLIENT: Service discovery error; status=%d", error->status);
+        // BLE_HS_EDONE (14) is normal "discovery done" status, not an error
+        if (error->status == 14) {
+            ESP_LOGD(TAG, "CLIENT: Service discovery done (status=14 - BLE_HS_EDONE)");
+        } else {
+            ESP_LOGE(TAG, "CLIENT: Service discovery error; status=%d", error->status);
+        }
         return 0;
     }
 
@@ -3116,6 +3137,30 @@ static void ble_on_sync(void) {
         ESP_LOGE(TAG, "CRITICAL: Failed to get PUBLIC MAC address; rc=%d (bonding requires stable identity!)", rc);
     }
 
+    // Set maximum TX power (+9 dBm) to compensate for nylon case and body attenuation
+    // Default is +3 dBm, which gives weak RSSI (-98 dBm) in real-world use
+    esp_err_t err;
+
+    // Set advertising TX power (when device is discoverable)
+    err = esp_ble_tx_power_set_enhanced(ESP_BLE_ENHANCED_PWR_TYPE_ADV, 0, ESP_PWR_LVL_P9);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to set ADV TX power to +9dBm: %s", esp_err_to_name(err));
+    }
+
+    // Set scan TX power (when device is scanning for peers)
+    err = esp_ble_tx_power_set_enhanced(ESP_BLE_ENHANCED_PWR_TYPE_SCAN, 0, ESP_PWR_LVL_P9);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to set SCAN TX power to +9dBm: %s", esp_err_to_name(err));
+    }
+
+    // Set default TX power (for connections)
+    err = esp_ble_tx_power_set_enhanced(ESP_BLE_ENHANCED_PWR_TYPE_DEFAULT, 0, ESP_PWR_LVL_P9);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to set DEFAULT TX power to +9dBm: %s", esp_err_to_name(err));
+    } else {
+        ESP_LOGI(TAG, "BLE TX power set to maximum (+9 dBm) for ADV/SCAN/CONN");
+    }
+
     // Configure advertising data (main packet: flags + name only, fits in 31 bytes)
     struct ble_hs_adv_fields fields;
     memset(&fields, 0, sizeof(fields));
@@ -3682,6 +3727,14 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 // We were CLIENT before - wait for SERVER to reconnect
                                 ESP_LOGI(TAG, "Previous CLIENT - waiting for SERVER to reconnect");
 
+                                // STOP ADVERTISING - only SERVER should be discoverable
+                                int rc = ble_gap_adv_stop();
+                                if (rc == 0) {
+                                    ESP_LOGI(TAG, "Stopped advertising (waiting for SERVER as CLIENT)");
+                                } else if (rc != BLE_HS_EALREADY) {
+                                    ESP_LOGW(TAG, "Failed to stop advertising: rc=%d", rc);
+                                }
+
                                 // KEEP SCANNING during wait period to improve peer's discovery odds
                                 ESP_LOGI(TAG, "Continuing scan during wait - SERVER may still be discovering");
                             }
@@ -3709,6 +3762,14 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 // Peer has higher battery - wait for peer to connect (CLIENT/SLAVE)
                                 ESP_LOGI(TAG, "Lower battery (%d%% < %d%%) - waiting as CLIENT",
                                          local_battery, peer_state.peer_battery_level);
+
+                                // STOP ADVERTISING - only higher-battery device should be discoverable
+                                int rc = ble_gap_adv_stop();
+                                if (rc == 0) {
+                                    ESP_LOGI(TAG, "Stopped advertising (waiting for peer as CLIENT)");
+                                } else if (rc != BLE_HS_EALREADY) {
+                                    ESP_LOGW(TAG, "Failed to stop advertising: rc=%d", rc);
+                                }
 
                                 // KEEP SCANNING during wait period to improve peer's discovery odds
                                 ESP_LOGI(TAG, "Continuing scan during wait - peer may still be discovering");
@@ -3743,6 +3804,14 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
                                 } else {
                                     ESP_LOGI(TAG, "Equal battery (%d%%), higher MAC - waiting as CLIENT",
                                              local_battery);
+
+                                    // STOP ADVERTISING - only lower-MAC device should be discoverable
+                                    int rc = ble_gap_adv_stop();
+                                    if (rc == 0) {
+                                        ESP_LOGI(TAG, "Stopped advertising (waiting for peer as CLIENT)");
+                                    } else if (rc != BLE_HS_EALREADY) {
+                                        ESP_LOGW(TAG, "Failed to stop advertising: rc=%d", rc);
+                                    }
 
                                     // KEEP SCANNING during wait period to improve peer's discovery odds
                                     ESP_LOGI(TAG, "Continuing scan during wait - peer may still be discovering");
@@ -3865,10 +3934,21 @@ void ble_start_scanning(void) {
         return;
     }
 
+    // Get MAC address for scan interval jitter
+    ble_addr_t own_addr;
+    ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr.val, NULL);
+
+    // Add MAC-based jitter to scan interval to prevent synchronization races
+    // Base: 0x10 (10ms) + jitter: 0-15 units (0-9.375ms) based on MAC last byte
+    // Result: Each device scans at 10-19.375ms intervals (imperceptible to humans)
+    // This desynchronizes devices over time, improving discovery
+    uint16_t mac_jitter = own_addr.val[5] & 0x0F;  // Last byte, lower nibble (0-15)
+    uint16_t scan_interval = 0x10 + mac_jitter;    // 16-31 units (10-19.375ms)
+
     // Configure scan parameters
     struct ble_gap_disc_params disc_params = {
-        .itvl = 0x10,           // Scan interval: 10ms (units of 0.625ms)
-        .window = 0x10,         // Scan window: 10ms
+        .itvl = scan_interval,  // MAC-based interval: 10-19.375ms (prevents sync races)
+        .window = 0x10,         // Scan window: 10ms (same for all devices)
         .filter_policy = BLE_HCI_SCAN_FILT_NO_WL,  // No whitelist filtering
         .limited = 0,           // General discovery (not limited)
         .passive = 0,           // Active scanning (request scan responses)
@@ -3880,7 +3960,8 @@ void ble_start_scanning(void) {
 
     if (rc == 0) {
         scanning_active = true;
-        ESP_LOGI(TAG, "BLE scanning started (searching for peer devices)");
+        ESP_LOGI(TAG, "BLE scanning started (interval=%ums, jitter=+%ums, MAC=...%02X)",
+                 scan_interval * 625 / 1000, mac_jitter * 625 / 1000, own_addr.val[5]);
     } else {
         ESP_LOGE(TAG, "Failed to start BLE scanning; rc=%d", rc);
     }

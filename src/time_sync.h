@@ -206,6 +206,8 @@ typedef struct __attribute__((packed)) {
     uint32_t motor_cycle_ms;         /**< Motor cycle period (Phase 3) */
     uint8_t  sequence;               /**< Sequence number (for ordering) */
     uint8_t  quality_score;          /**< SERVER's sync quality (0-100) */
+    int8_t   server_rssi;            /**< SERVER RSSI as measured by CLIENT (dBm, Phase 6) */
+    uint8_t  reserved;               /**< Reserved for future use (padding) */
     uint16_t checksum;               /**< CRC-16 for integrity */
 } time_sync_beacon_t;
 

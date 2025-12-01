@@ -989,6 +989,18 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
 - **Fix**: Use NimBLE's actual connection role from `desc.role` field (`BLE_GAP_ROLE_MASTER` = CLIENT, `BLE_GAP_ROLE_SLAVE` = SERVER) instead of discovery flag (`ble_manager.c:1150-1166`). Connection role is definitively assigned by BLE stack based on who actually initiated the link.
 - **Status**: ✅ RESOLVED - Code complete, hardware testing pending
 
+**Bug #33: Lower-Battery Device Assigned Wrong Role** (CRITICAL - RESOLVED November 30, 2025):
+- **Symptom**: Device with lower battery (96%) incorrectly assigned itself SERVER role instead of CLIENT
+- **Root Cause**: CLIENT-waiting devices kept advertising after deciding to wait. Higher-battery device could connect TO lower-battery device, reversing BLE roles (MASTER/SLAVE) and thus reversing device roles (SERVER/CLIENT).
+- **Log Evidence**: DEV_B correctly logged "Lower battery (96% < 97%) - waiting as CLIENT", but then logged "SERVER role assigned (BLE SLAVE)" when DEV_A connected to it
+- **Impact**: CRITICAL - Role reversal could cause both devices to behave incorrectly (wrong coordination logic)
+- **Fix**: Added `ble_gap_adv_stop()` in three CLIENT-waiting code paths (`src/ble_manager.c`):
+  1. Lower battery device waiting for higher battery (line 3713-3719)
+  2. Higher MAC device waiting for lower MAC (equal batteries) (line 3755-3761)
+  3. Previous CLIENT waiting for previous SERVER reconnection (line 3685-3691)
+- **Result**: Only the connection-initiating device (higher battery / lower MAC / previous SERVER) remains discoverable. CLIENT devices stop advertising and wait to receive connection, ensuring correct role assignment.
+- **Status**: ✅ RESOLVED - Code complete, hardware testing pending
+
 ### Known Issues (Remaining)
 
 1. **Advertising Timer Loop** (Possibly RESOLVED by Bug #8 fix):

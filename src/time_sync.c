@@ -442,8 +442,8 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
         ESP_LOGI(TAG, "Initial sync beacon processed");
     }
 
-    ESP_LOGD(TAG, "Beacon processed (seq: %u, motor_epoch: %" PRIu64 ", cycle: %lu)",
-             beacon->sequence, beacon->motor_epoch_us, beacon->motor_cycle_ms);
+    ESP_LOGD(TAG, "Beacon processed (seq: %u, motor_epoch: %" PRIu64 ", cycle: %lu, RSSI: %d dBm)",
+             beacon->sequence, beacon->motor_epoch_us, beacon->motor_cycle_ms, beacon->server_rssi);
 
     return ESP_OK;
 }
@@ -479,6 +479,10 @@ esp_err_t time_sync_generate_beacon(time_sync_beacon_t *beacon)
     /* Phase 3: Include motor epoch for bilateral coordination */
     beacon->motor_epoch_us = g_time_sync_state.motor_epoch_us;
     beacon->motor_cycle_ms = g_time_sync_state.motor_cycle_ms;
+
+    /* Phase 6: Initialize RSSI field (CLIENT will populate when receiving beacon) */
+    beacon->server_rssi = 0;     // Not yet measured (SERVER doesn't know own RSSI)
+    beacon->reserved = 0;        // Reserved for future use
 
     /* Calculate and append checksum */
     beacon->checksum = calculate_crc16((const uint8_t *)beacon, sizeof(time_sync_beacon_t) - sizeof(uint16_t));

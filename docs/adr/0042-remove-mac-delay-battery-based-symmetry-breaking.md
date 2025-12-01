@@ -382,5 +382,31 @@ if (rc != 0) {
 
 ---
 
+## Post-Decision Update (November 30, 2025)
+
+### MAC-Based Scan Interval Jitter (Bug #34)
+
+**Clarification:** The scan **delay** removed in this ADR is distinct from scan **interval jitter** implemented in Bug #34.
+
+**Scan Delay (Rejected in AD042):**
+- **What:** 0-500ms delay before scanning **starts**
+- **Problem:** Created advertising-only window (peer misidentification)
+- **Status:** ❌ Removed - Battery comparison makes this unnecessary
+
+**Scan Interval Jitter (Added in Bug #34):**
+- **What:** 0-9.375ms variation in scan **interval** during scanning
+- **Problem:** Identical 10ms scan intervals caused timing synchronization (devices missed each other)
+- **Solution:** Each device scans at unique 10-19.375ms intervals based on MAC last byte
+- **Status:** ✅ Implemented - Prevents synchronized scan collision without delaying discovery
+- **Implementation:** `src/ble_manager.c:3892-3919`
+
+**Key Difference:**
+- **Scan delay:** Delays when scanning **begins** → Creates race condition ❌
+- **Scan interval jitter:** Varies scan **rate** during operation → Prevents timing collision ✅
+
+**Rationale:** Scan interval jitter solves a different problem (synchronized scan timing) without reintroducing the advertising-only window race condition that scan delay caused.
+
+---
+
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-11-30
