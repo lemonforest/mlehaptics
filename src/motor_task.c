@@ -1542,9 +1542,10 @@ void motor_task(void *pvParameters) {
                                 // Don't log - this is the normal steady-state
                             } else {
                                 // Outside deadband - apply pure P correction (no D-term)
-                                // Positive diff = CLIENT ahead = extend INACTIVE (slow down)
-                                // Negative diff = CLIENT behind = shorten INACTIVE (catch up)
-                                int32_t correction_ms = (diff_ms * P_GAIN_PCT) / 100;
+                                // Bug #42 Fix: After Bug #40, diff_ms = calculated_wait - nominal
+                                // Positive diff = target is LATE = need to CATCH UP = shorten INACTIVE
+                                // Negative diff = target is EARLY = need to SLOW DOWN = extend INACTIVE
+                                int32_t correction_ms = -(diff_ms * P_GAIN_PCT) / 100;
 
                                 // Phase 6q (Bug #41): RTT-based outlier rejection + adaptive EWMA comparison
                                 // Get last measured RTT for link quality assessment
@@ -1576,7 +1577,8 @@ void motor_task(void *pvParameters) {
                                     adaptive_alpha = 0.5 * (200.0 / (float)rtt_ms);
                                     if (adaptive_alpha < 0.1) adaptive_alpha = 0.1;  // Floor at 10%
                                 }
-                                int32_t adaptive_correction_ms = (diff_ms * (int32_t)(adaptive_alpha * 100.0)) / 100;
+                                // Bug #42: Invert sign to match corrected interpretation
+                                int32_t adaptive_correction_ms = -(diff_ms * (int32_t)(adaptive_alpha * 100.0)) / 100;
 
                                 // Clamp adaptive correction to same max (for fair comparison)
                                 if (adaptive_correction_ms > (int32_t)max_correction_ms) {
