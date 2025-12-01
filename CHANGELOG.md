@@ -64,6 +64,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+**Systematic Phase Offset in CLIENT Drift Correction** (CRITICAL - Bug #40):
+- **Symptom**: CLIENT motor activation consistently 662ms late relative to ideal antiphase target (should be period/2 after SERVER)
+- **Impact**: Over 90-minute Mode 0 baseline, 0% of cycles within acceptable ±50ms timing (100% DRIFT status)
+- **Root Cause**: INACTIVE state used relative position calculation (`elapsed_us % cycle_us`) which accumulated errors from:
+  - CLIENT ACTIVE duration (500ms) not accounted for in wait calculation
+  - CHECK_MESSAGES processing overhead
+  - FreeRTOS scheduling delays
+- **Fix**: Replaced relative calculation with absolute target time (`src/motor_task.c:1410-1451`):
+  1. Calculate `server_current_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us)`
+  2. Set `client_target_active_us = server_current_cycle_start_us + half_period_us`
+  3. Wait until absolute target: `target_wait_us = client_target_active_us - sync_time_us`
+  4. If target in past, advance to next cycle
+- **Test Results (90-minute Mode 0 baseline)**:
+  - Mean phase error: +662ms → **+9.1ms** (98.6% improvement)
+  - Acceptable timing (±50ms): 0% → **74.9%**
+  - Excellent timing (±10ms): 0% → **18.7%**
+  - DRIFT status (>50ms): 100% → **19.0%**
+- **Remaining Issues**:
+  - Initial convergence artifacts (first 3-5 cycles show large errors, converge quickly)
+  - Periodic drift patterns around T=700-750s (temporary degradation to ±85-105ms, recovers)
+  - Large std deviation (156.6ms) suggests room for further improvement
+- **Next Steps**: Implement outlier rejection and predictive filtering to achieve 95% within ±10ms target
+
 **BLE Writes Breaking Bilateral Sync** (CRITICAL - Bug #12):
 - **Symptom**: CLIENT device experienced excessive phase resets during PWA operation, causing device overlap
 - **Root Cause**: Every BLE GATT write (including Session Duration) triggered `sync_settings_to_peer()`. CLIENT received `SYNC_MSG_SETTINGS` and unconditionally called `ble_callback_params_updated()`, which reset CLIENT to INACTIVE state even when no motor-timing parameters changed.

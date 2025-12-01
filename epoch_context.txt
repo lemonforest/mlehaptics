@@ -1,0 +1,42 @@
+Checking first 10 motor epoch updates:
+
+44: 08:21:36.829 > [0;32mI (5766) MOTOR_TASK: SERVER: CLIENT_READY already received (buffered during init)[0m
+45: 08:21:36.837 > [0;32mI (5776) MOTOR_TASK: SERVER: CLIENT_READY received - scheduling coordinated start[0m
+46: 08:21:36.844 > [0;32mI (5786) TIME_SYNC: Motor epoch set: 5926613 us, cycle: 2000 ms[0m <-- EPOCH
+
+66: 08:21:37.357 > [0;32mI (6306) MOTOR_TASK: SERVER: MOTOR_STARTED notification sent (epoch=5926613, cycle=2000)[0m
+67: 08:21:37.364 > [0;32mI (6306) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+68: 08:21:37.371 > [0;32mI (6316) TIME_SYNC: Motor epoch set: 5954220 us, cycle: 2000 ms[0m <-- EPOCH
+
+72: 08:21:38.365 > [0;32mI (7316) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+73: 08:21:39.364 > [0;32mI (8316) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+74: 08:21:39.367 > [0;32mI (8316) TIME_SYNC: Motor epoch set: 7954419 us, cycle: 2000 ms[0m <-- EPOCH
+
+78: 08:21:40.365 > [0;32mI (9316) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+79: 08:21:41.364 > [0;32mI (10316) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+80: 08:21:41.367 > [0;32mI (10316) TIME_SYNC: Motor epoch set: 9954445 us, cycle: 2000 ms[0m <-- EPOCH
+
+84: 08:21:42.364 > [0;32mI (11316) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+85: 08:21:43.365 > [0;32mI (12316) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+86: 08:21:43.368 > [0;32mI (12316) TIME_SYNC: Motor epoch set: 11954427 us, cycle: 2000 ms[0m <-- EPOCH
+
+90: 08:21:44.365 > [0;32mI (13316) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+91: 08:21:45.365 > [0;32mI (14316) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+92: 08:21:45.368 > [0;32mI (14316) TIME_SYNC: Motor epoch set: 13954410 us, cycle: 2000 ms[0m <-- EPOCH
+
+109: 08:21:47.365 > [0;32mI (16316) MOTOR_TASK: LED off (battery conservation)[0m
+110: 08:21:47.372 > [0;32mI (16316) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+111: 08:21:47.379 > [0;32mI (16326) TIME_SYNC: Motor epoch set: 15961662 us, cycle: 2000 ms[0m <-- EPOCH
+
+115: 08:21:48.372 > [0;32mI (17326) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+116: 08:21:49.372 > [0;32mI (18326) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+117: 08:21:49.375 > [0;32mI (18326) TIME_SYNC: Motor epoch set: 17961422 us, cycle: 2000 ms[0m <-- EPOCH
+
+121: 08:21:50.372 > [0;32mI (19326) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+122: 08:21:51.372 > [0;32mI (20326) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+123: 08:21:51.375 > [0;32mI (20326) TIME_SYNC: Motor epoch set: 19961402 us, cycle: 2000 ms[0m <-- EPOCH
+
+127: 08:21:52.372 > [0;32mI (21326) MOTOR_TASK: SERVER: Cycle starts INACTIVE (next will be ACTIVE)[0m
+128: 08:21:53.371 > [0;32mI (22326) MOTOR_TASK: SERVER: Cycle starts ACTIVE (next will be INACTIVE)[0m
+129: 08:21:53.374 > [0;32mI (22326) TIME_SYNC: Motor epoch set: 21961427 us, cycle: 2000 ms[0m <-- EPOCH
+
