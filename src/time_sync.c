@@ -300,6 +300,13 @@ esp_err_t time_sync_update(void)
             g_time_sync_state.last_sync_ms = now_ms;
             g_time_sync_state.total_syncs++;
 
+            /* Bug #36: Increment SERVER's sample counter to allow interval backoff
+             * SERVER assumes 100% quality (authoritative), but needs sample history
+             * to trust that quality is sustained over time before increasing interval */
+            if (g_time_sync_state.quality.samples_collected < TIME_SYNC_QUALITY_WINDOW) {
+                g_time_sync_state.quality.samples_collected++;
+            }
+
             /* Adjust interval based on quality */
             esp_err_t err = adjust_sync_interval();
             if (err != ESP_OK) {

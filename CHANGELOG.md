@@ -133,6 +133,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Other non-zero statuses still logged as ERROR (actual errors)
 - **Result**: Clean logs during successful discovery, ERROR level reserved for actual failures
 
+**Beacon Interval Stuck at 10 Seconds** (Bug #36):
+- **Symptom**: Sync beacon interval stuck at 10s despite 100% quality score (should increase to 20s, 40s, 80s)
+- **Root Cause**: SERVER's `samples_collected` initialized to 1 and never incremented. Interval backoff requires `samples_collected >= 3`, so condition always false.
+- **Analysis**: Discovered by Gemini analyzing server logs showing "quality=100%" but "next_interval" stuck at 10000ms
+- **Fix**: Increment SERVER's `samples_collected` on each beacon send up to `TIME_SYNC_QUALITY_WINDOW` (`src/time_sync.c:303-308`)
+- **Expected Behavior After Fix**:
+  - 1st beacon: 5s interval (initial)
+  - 2nd beacon: 10s interval (samples_collected=2)
+  - 3rd beacon: 20s interval (samples_collected=3, backoff begins)
+  - 4th beacon: 40s interval
+  - 5th beacon: 80s interval (max)
+- **Result**: Reduced BLE overhead during long sessions (80s beacons vs 10s), improved battery life
+
 **64-bit Timestamp Logging Corruption** (CRITICAL - Bug #30):
 - **Symptom**: "Handshake complete" logs showed timestamps (T1-T4) that didn't mathematically match the calculated offset/RTT values. Example: Log showed RTT=1320μs, but timestamps calculated to RTT=59540μs (45× difference!)
 - **Root Cause**: Using non-portable format specifiers (`%lld`/`%llu`) for 64-bit integers on RISC-V architecture. ESP-IDF requires `PRId64`/`PRIu64` macros from `<inttypes.h>` for correct printf parsing on 32-bit systems with 64-bit values.

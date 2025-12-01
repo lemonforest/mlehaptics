@@ -103,3 +103,55 @@ Added `ble_gap_adv_stop()` in three CLIENT-waiting code paths:
 
 **Result:**
 Only the connection-initiating device (higher battery / lower MAC / previous SERVER) remains discoverable. CLIENT devices stop advertising and wait to receive connection, ensuring correct role assignment based on battery level and MAC address tie-breaker.
+
+---
+
+## 8. Beacon Interval Backoff Bug (November 30, 2025)
+
+### Bug #36: Sync Beacon Interval Stuck at 10 Seconds
+
+**Symptom from User Logs:**
+- Beacon interval stuck at 10 seconds despite 100% quality score
+- Expected: 5s → 10s → 20s → 40s → 80s (adaptive backoff)
+- Observed: 5s → 10s → **stuck at 10s forever**
+
+**Root Cause:**
+SERVER's `samples_collected` counter was initialized to 1 and never incremented. The `adjust_sync_interval()` function requires `samples_collected >= 3` before allowing interval increases, so the condition was always false.
+
+**Code Analysis:**
+```c
+// adjust_sync_interval() - Line 770
+if (q->quality_score >= SYNC_QUALITY_GOOD && q->samples_collected >= 3) {
+    // Double interval up to max
+    g_time_sync_state.sync_interval_ms *= 2;
+    // ... clamp to max ...
+}
+
+// time_sync_on_connection() - Line 142-143
+g_time_sync_state.quality.quality_score = 100;  // SERVER is authoritative
+g_time_sync_state.quality.samples_collected = 1; // ❌ Never incremented!
+```
+
+**The Fix (Bug #36):**
+Added increment logic in `time_sync_update()` for SERVER (`src/time_sync.c:303-308`):
+```c
+/* Bug #36: Increment SERVER's sample counter to allow interval backoff
+ * SERVER assumes 100% quality (authoritative), but needs sample history
+ * to trust that quality is sustained over time before increasing interval */
+if (g_time_sync_state.quality.samples_collected < TIME_SYNC_QUALITY_WINDOW) {
+    g_time_sync_state.quality.samples_collected++;
+}
+```
+
+**Expected Behavior After Fix:**
+1. 1st beacon (samples_collected=1): 5s interval
+2. 2nd beacon (samples_collected=2): 10s interval (first doubling)
+3. 3rd beacon (samples_collected=3): 20s interval (backoff begins)
+4. 4th beacon (samples_collected=4): 40s interval
+5. 5th+ beacon (samples_collected=5): 80s interval (max)
+
+**Benefits:**
+- Reduced BLE overhead during long therapy sessions
+- 80s beacons vs 10s beacons = 8× fewer transmissions
+- Improved battery life for both devices
+- CLIENT still gets motor epoch updates at 80s intervals (sufficient for drift correction)
