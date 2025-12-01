@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-01
 **Issue:** CLIENT motor activation consistently 660ms late relative to ideal antiphase target
-**Status:** 🔍 ROOT CAUSE IDENTIFIED - Systematic phase offset in CLIENT drift correction
+**Status:** ✅ FIXED (Bug #40) - 98.6% improvement | 🔬 ENHANCEMENT (Bug #41) - RTT-based outlier rejection implemented
 
 ---
 
@@ -329,6 +329,91 @@ Choose Option 1, 2, or 3 based on diagnostic evidence.
 
 ---
 
+## Implementation Results
+
+### Bug #40: Absolute Target Time Calculation (IMPLEMENTED)
+
+**Fix Applied:** Option 1 - Replace relative position calculation with absolute target time
+
+**Implementation:** [src/motor_task.c:1410-1443](src/motor_task.c)
+
+```c
+// Calculate when SERVER last started ACTIVE (within current epoch window)
+uint64_t cycles_since_epoch = (sync_time_us - server_epoch_us) / cycle_us;
+uint64_t server_current_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us);
+
+// CLIENT should start ACTIVE at SERVER's cycle start + half_period
+uint64_t client_target_active_us = server_current_cycle_start_us + half_period_us;
+
+// If target is in the past, advance to next cycle
+if (client_target_active_us <= sync_time_us) {
+    client_target_active_us += cycle_us;
+}
+
+// Calculate wait time
+target_wait_us = client_target_active_us - sync_time_us;
+```
+
+**Test Results (90-minute Mode 0 baseline):**
+- Mean phase error: **+662ms → +9.1ms** (98.6% improvement)
+- Acceptable timing (±50ms): **0% → 74.9%**
+- Excellent timing (±10ms): **0% → 18.7%**
+- Standard deviation: 156.6ms (room for improvement)
+
+**Remaining Issues:**
+- Initial convergence artifacts (first 3-5 cycles show large errors)
+- Periodic drift patterns around T=700-750s
+- Only 18.7% achieve ±10ms target (goal: 95%)
+
+### Bug #41: RTT-Based Outlier Rejection (IMPLEMENTED)
+
+**Root Cause:** Analysis revealed **84% of POOR cycles (569/676) have RTT >100ms**
+- Mean RTT for POOR timing: 246.5ms vs 137.8ms for GOOD timing (79% higher)
+- RTT can spike to 950ms during BLE connection parameter updates
+- Beacon adaptive backoff (5s→80s) means some corrections use stale data
+
+**Implementation:** [src/motor_task.c:1543-1599](src/motor_task.c)
+
+**Approach 1 (ACTIVE CORRECTION):** RTT-based hard thresholds
+- RTT >300ms: No correction (use nominal timing)
+- RTT 150-300ms: Limit correction to ±25ms
+- RTT <150ms: Full correction allowed
+
+**Approach 2 (DATA COLLECTION):** Adaptive EWMA gain
+- Base alpha = 0.5 for normal RTT
+- High RTT reduces alpha: `alpha = 0.5 * (200ms / RTT)`
+- Floor at alpha = 0.1 (10% trust minimum)
+- Logged side-by-side with clamping for comparison
+
+**Design Rationale:**
+- Start with simple proven approach (hard thresholds, 84% correlation)
+- Collect evidence for whether adaptive gain would improve results
+- Both use same max_correction ceiling for fair comparison
+
+**Test Status:** Hardware testing pending
+
+**Expected Outcome:**
+- Reject corrections when beacon data is stale (RTT >300ms)
+- Target: **95% of cycles within ±10ms** (currently 18.7%)
+
+### Enhanced Analysis Tools
+
+**[scripts/analyze_bilateral_phase_detailed.py](scripts/analyze_bilateral_phase_detailed.py):**
+- Extracts RSSI, RTT, Quality from beacon processing logs
+- Carries forward last known metrics to all motor activations
+- Correlates phase errors with BLE link quality
+- Identifies outlier patterns
+
+**Key Discovery:**
+```
+GOOD timing (±10ms): RTT mean=137.8ms, min=90.9ms, max=950.0ms
+POOR timing (>50ms): RTT mean=246.5ms, min=71.5ms, max=950.0ms
+
+High RTT (>100ms) cycles: 569/676 (84%) of POOR cycles
+```
+
+---
+
 ## Files for Investigation
 
 1. **[src/motor_task.c:1387-1508](src/motor_task.c)** - CLIENT INACTIVE drift correction logic
@@ -352,14 +437,18 @@ Choose Option 1, 2, or 3 based on diagnostic evidence.
 1. ✅ Create corrected analysis script (DONE)
 2. ✅ Identify systematic phase offset (DONE - +662ms mean error)
 3. ✅ Develop root cause hypotheses (DONE - 3 options)
-4. 🔲 Add diagnostic logging to confirm hypothesis
-5. 🔲 Implement fix based on diagnostic results
-6. 🔲 Test fix with 90-minute Mode 0 baseline
-7. 🔲 Test fix with multi-mode session (mode changes)
-8. 🔲 Update BILATERAL_TIMING_ANALYSIS_20251201.md with corrected findings
+4. ✅ Add diagnostic logging to confirm hypothesis (DONE)
+5. ✅ Implement Bug #40 fix - Absolute target time calculation (DONE - 98.6% improvement)
+6. ✅ Test Bug #40 fix with 90-minute Mode 0 baseline (DONE - mean error +662ms → +9.1ms)
+7. ✅ Enhanced analysis: RTT/RSSI/Quality correlation (DONE - 84% of POOR cycles have RTT >100ms)
+8. ✅ Implement Bug #41 - RTT-based outlier rejection + adaptive EWMA comparison (DONE)
+9. 🔲 Test Bug #41 with 90-minute Mode 0 baseline (hardware testing pending)
+10. 🔲 Compare RTT clamping vs adaptive EWMA logs
+11. 🔲 Evaluate if 95% ±10ms target achieved
+12. 🔲 Test fix with multi-mode session (mode changes)
 
 ---
 
 **Generated:** 2025-12-01
 **Analysis Duration:** ~3 hours
-**Status:** Root cause identified, fix options proposed, awaiting diagnostic confirmation
+**Status:** Bug #40 fixed (98.6% improvement), Bug #41 implemented (RTT-based outlier rejection), hardware testing pending
