@@ -87,6 +87,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Large std deviation (156.6ms) suggests room for further improvement
 - **Next Steps**: Implement outlier rejection and predictive filtering to achieve 95% within ±10ms target
 
+**Sign Error in Drift Correction After Bug #40** (CRITICAL - Bug #42):
+- **Symptom**: Bug #41 testing showed 31× regression from Bug #40: mean phase error +9.1ms → +282.9ms, GOOD timing 18.7% → 0%, DRIFT 25.1% → 100%
+- **Root Cause**: After Bug #40 changed target calculation from relative to absolute, drift correction sign interpretation became inverted
+  - Bug #40 introduced: `calculated_ms = target_time - current_time` (wait duration until target)
+  - Drift calc remained: `diff_ms = calculated_ms - nominal_ms`
+  - **Before Bug #40**: Positive diff meant CLIENT ahead of cycle position → slow down ✓
+  - **After Bug #40**: Positive diff meant target is LATE → need to catch up, but code still slowed down ✗
+- **Evidence**: Phase analysis showed CLIENT +275ms LATE, but motor logs showed drift=-101ms (backwards!), applied -50ms correction (wrong direction!)
+- **Fix**: Inverted sign in correction calculation (`src/motor_task.c:1548`):
+  - OLD: `correction_ms = (diff_ms * P_GAIN_PCT) / 100`
+  - NEW: `correction_ms = -(diff_ms * P_GAIN_PCT) / 100`
+  - Also fixed adaptive EWMA sign (line 1581) for fair comparison in logs
+  - Updated comments: Positive diff = target LATE = catch up (shorten INACTIVE), Negative diff = target EARLY = slow down (extend INACTIVE)
+- **Expected Outcome**: Should restore Bug #40 performance (~+9ms mean, ~19% GOOD timing, ~25% DRIFT), allowing Bug #41 RTT-based clamping to be properly evaluated
+
 **BLE Writes Breaking Bilateral Sync** (CRITICAL - Bug #12):
 - **Symptom**: CLIENT device experienced excessive phase resets during PWA operation, causing device overlap
 - **Root Cause**: Every BLE GATT write (including Session Duration) triggered `sync_settings_to_peer()`. CLIENT received `SYNC_MSG_SETTINGS` and unconditionally called `ble_callback_params_updated()`, which reset CLIENT to INACTIVE state even when no motor-timing parameters changed.
