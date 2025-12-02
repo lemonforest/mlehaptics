@@ -1,7 +1,0 @@
-Traceback (most recent call last):
-  File "c:\AI_PROJECTS\EMDR_PULSER_SONNET4\check_corrections.py", line 8, in <module>
-    print(line.strip())
-  File "C:\Python312\Lib\encodings\cp1252.py", line 19, in encode
-    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode characters in position 126-127: character maps to <undefined>
