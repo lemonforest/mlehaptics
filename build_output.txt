@@ -1,0 +1,52 @@
+Processing xiao_esp32c6_ble_no_nvs (platform: espressif32 @ 6.12.0; framework: espidf; board: seeed_xiao_esp32c6)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+[BUILD] Generating MODULAR CMakeLists.txt for xiao_esp32c6_ble_no_nvs
+[BUILD] CMakeLists.txt generation complete
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/seeed_xiao_esp32c6.html
+PLATFORM: Espressif 32 (6.12.0) > Seeed Studio XIAO ESP32C6
+HARDWARE: ESP32C6 160MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-builtin, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-espidf @ 3.50500.0 (5.5.0) 
+ - tool-cmake @ 3.30.2 
+ - tool-esp-rom-elfs @ 0.0.1+20241011 
+ - tool-esptoolpy @ 2.40900.250804 (4.9.0) 
+ - tool-idf @ 1.0.1 
+ - tool-mconf @ 1.4060000.20190628 (406.0.0) 
+ - tool-ninja @ 1.9.0 
+ - tool-openocd-esp32 @ 2.1100.20220706 (11.0) 
+ - tool-riscv32-esp-elf-gdb @ 11.2.0+20220823 
+ - tool-xtensa-esp-elf-gdb @ 11.2.0+20230208 
+ - toolchain-esp32ulp @ 1.23800.240113 (2.38.0) 
+ - toolchain-riscv32-esp @ 14.2.0+20241119
+Reading CMake configuration...
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 0 compatible libraries
+Scanning dependencies...
+No dependencies
+Building in release mode
+Compiling .pio\build\xiao_esp32c6_ble_no_nvs\src\main.c.o
+Compiling .pio\build\xiao_esp32c6_ble_no_nvs\src\motor_task.c.o
+Compiling .pio\build\xiao_esp32c6_ble_no_nvs\src\ble_manager.c.o
+Compiling .pio\build\xiao_esp32c6_ble_no_nvs\src\time_sync_task.c.o
+src/motor_task.c: In function 'motor_task':
+src/motor_task.c:677:29: error: 'client_next_inactive' undeclared (first use in this function)
+  677 |                             client_next_inactive = false;  // Not used for SERVER/STANDALONE
+      |                             ^~~~~~~~~~~~~~~~~~~~
+src/motor_task.c:677:29: note: each undeclared identifier is reported only once for each function it appears in
+src/motor_task.c:1171:72: error: 'server_epoch_us' undeclared (first use in this function)
+ 1171 |                     if (time_sync_get_time(&sync_time_us) == ESP_OK && server_epoch_us > 0) {
+      |                                                                        ^~~~~~~~~~~~~~~
+src/motor_task.c:1173:55: error: 'cycle_ms' undeclared (first use in this function); did you mean 'cycle_us'?
+ 1173 |                         uint64_t cycle_us = (uint64_t)cycle_ms * 1000;
+      |                                                       ^~~~~~~~
+      |                                                       cycle_us
+*** [.pio\build\xiao_esp32c6_ble_no_nvs\src\motor_task.c.o] Error 1
+========================= [FAILED] Took 60.29 seconds =========================
+
+Environment              Status    Duration
+-----------------------  --------  ------------
+xiao_esp32c6_ble_no_nvs  FAILED    00:01:00.293
+==================== 1 failed, 0 succeeded in 00:01:00.293 ====================

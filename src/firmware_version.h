@@ -26,11 +26,11 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_MINOR
-#define FIRMWARE_VERSION_MINOR 3
+#define FIRMWARE_VERSION_MINOR 6  // Tracks phase number (Phase 6)
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 0
+#define FIRMWARE_VERSION_PATCH 50  // Tracks bug number (Bug #50)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

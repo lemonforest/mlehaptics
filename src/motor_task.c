@@ -61,6 +61,13 @@ static const char *TAG = "MOTOR_TASK";
 #define BATTERY_CHECK_INTERVAL_MS  60000            // Check battery every 60 seconds
 #define SESSION_TIME_NOTIFY_INTERVAL_MS 60000       // Notify session time every 60 seconds
 
+// Tech Spike: Single-device drift baseline measurement
+// Enable continuous activation logging when NO peer is connected
+// Purpose: Measure natural oscillator drift between two independent devices
+//          to determine optimal correction interval for bilateral synchronization
+// Usage: Flash both devices, run as standalone (no pairing), compare logs
+#define ENABLE_SINGLE_DEVICE_DRIFT_BASELINE  // Uncomment to enable
+
 // ============================================================================
 // MODE CONFIGURATIONS
 // ============================================================================
@@ -400,7 +407,7 @@ void motor_task(void *pvParameters) {
     uint32_t inactive_ms = 0;        // INACTIVE period (always period/2)
     uint8_t pwm_intensity = 0;
     bool show_led = false;
-    bool client_next_inactive = false;  // Phase 3: CLIENT toggles between INACTIVE/ACTIVE starts
+    // Bug #50: Removed client_next_inactive toggle - replaced with position-based state calculation
 
     // Bug #17 Fix: Absolute time scheduling to eliminate vTaskDelay jitter accumulation
     // cycle_start_ms is recorded at the beginning of each cycle and used to calculate
@@ -556,7 +563,7 @@ void motor_task(void *pvParameters) {
 
                                     // Set coordinated start with SHORT delay (CLIENT already ready)
                                     coordinated_start_us = current_time_us + 500000ULL;  // 500ms for BLE transmission
-                                    time_sync_set_motor_epoch(coordinated_start_us, cycle_ms);
+                                    // BUG #47: Don't set motor epoch here - set it at ACTUAL motor start time (after wait)
                                     ESP_LOGI(TAG, "SERVER: Coordinated start in 500ms (CLIENT ready, cycle=%lums)", cycle_ms);
 
                                     // Send second beacon with coordinated start epoch
@@ -574,7 +581,7 @@ void motor_task(void *pvParameters) {
                                         current_time_us = esp_timer_get_time();
                                     }
                                     coordinated_start_us = current_time_us + (COORD_START_DELAY_MS * 1000ULL);
-                                    time_sync_set_motor_epoch(coordinated_start_us, cycle_ms);
+                                    // BUG #47: Don't set motor epoch here - set it at ACTUAL motor start time (after wait)
                                     ESP_LOGI(TAG, "SERVER: Coordinated start in %dms (fallback, cycle=%lums)",
                                              COORD_START_DELAY_MS, cycle_ms);
                                 }
@@ -584,20 +591,17 @@ void motor_task(void *pvParameters) {
                             }
                         }
 
-                        // CLIENT: Initialize toggle to start with INACTIVE (bilateral alternation)
-                        // SERVER/STANDALONE: Always start with ACTIVE
+                        // CLIENT: Initialize correction parameters for bilateral alternation
+                        // Bug #50: Removed client_next_inactive toggle - state now calculated from SERVER position
                         // BUG FIX: Check role only, not sync state (sync may not be active yet)
                         if (role == PEER_ROLE_CLIENT) {
-                            client_next_inactive = true;  // CLIENT first cycle: INACTIVE
                             // Bug #16 fix: Allow unclamped drift correction for initial phase alignment
                             unclamped_correction_cycles = INITIAL_UNCLAMPED_CYCLES;
                             // Bug #20 fix: Reset PD state to avoid stale derivative after mode change
                             last_drift_valid = false;
                             last_drift_ms = 0;
                             // Phase 6l: Diagnostic logging for initial pairing phase alignment
-                            ESP_LOGI(TAG, "CLIENT: client_next_inactive=%d (will start with INACTIVE state)",
-                                     client_next_inactive ? 1 : 0);
-                            ESP_LOGI(TAG, "CLIENT: Bilateral alternation enabled (starts INACTIVE, %d unclamped cycles)",
+                            ESP_LOGI(TAG, "CLIENT: Bilateral alternation enabled (position-based state, %d unclamped cycles)",
                                      INITIAL_UNCLAMPED_CYCLES);
 
                             /* Issue #2 FIXED: Send CLIENT_READY immediately after time sync init
@@ -669,9 +673,8 @@ void motor_task(void *pvParameters) {
                                     ESP_LOGW(TAG, "CLIENT: Failed to send initial battery: %s", esp_err_to_name(err));
                                 }
                             }
-                        } else {
-                            client_next_inactive = false;  // Not used for SERVER/STANDALONE
                         }
+                        // Bug #50: Removed client_next_inactive initialization (no longer needed)
 
                         // Phase 6i: Both devices wait until coordinated start time
                         // This ensures SIMULTANEOUS motor activation - no "two activations before other"
@@ -776,14 +779,17 @@ void motor_task(void *pvParameters) {
 
                                 // Phase 6: Wait in 50ms chunks to detect MOTOR_STARTED message arrival
                                 // Issue #3 fix: Check flag instead of epoch value (handshake and MOTOR_STARTED may have same epoch)
+                                // Bug #46 fix: Don't abort antiphase wait when Strategy A active
                                 motor_started_received = false;  // Clear flag before wait
+                                bool strategy_a_active = (role == PEER_ROLE_CLIENT && unclamped_correction_cycles == 0);
                                 while (wait_ms > 0) {
                                     uint32_t chunk_ms = (wait_ms > 50) ? 50 : wait_ms;
                                     vTaskDelay(pdMS_TO_TICKS(chunk_ms));
                                     esp_task_wdt_reset();  // Feed watchdog
 
-                                    // Check if MOTOR_STARTED message arrived (flag set by time_sync_task)
-                                    if (motor_started_received && role == PEER_ROLE_CLIENT) {
+                                    // Bug #46: Only abort wait if NOT using Strategy A (antiphase pre-calculated)
+                                    // When Strategy A active, CLIENT must complete full antiphase wait for correct timing
+                                    if (motor_started_received && role == PEER_ROLE_CLIENT && !strategy_a_active) {
                                         ESP_LOGI(TAG, "CLIENT: MOTOR_STARTED received - starting motors NOW (abort wait)");
                                         break;  // Abort wait, start immediately
                                     }
@@ -799,6 +805,31 @@ void motor_task(void *pvParameters) {
                             }
                             ESP_LOGI(TAG, "%s: Coordinated start time reached - motors starting NOW",
                                      role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT");
+
+                            // BUG #47 FIX: Set motor epoch at ACTUAL motor start time (not target time)
+                            // This ensures CLIENT's antiphase calculation uses correct reference point
+                            //
+                            // BUG #49 FIX: Use SYNCHRONIZED time, not local time
+                            // All phase calculations use time_sync_get_time() (synchronized time domain).
+                            // Epoch must be in same time domain or drift calculations will be wrong.
+                            uint64_t actual_start_us;
+                            if (time_sync_get_time(&actual_start_us) != ESP_OK) {
+                                // Fallback to local time if sync not available (should never happen)
+                                ESP_LOGW(TAG, "%s: time_sync_get_time() failed - using local time for epoch (SYNC MAY FAIL)",
+                                         role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT");
+                                actual_start_us = esp_timer_get_time();
+                            }
+
+                            // Calculate cycle_ms from current mode timing
+                            uint32_t temp_motor_on_ms, temp_active_coast_ms, temp_inactive_ms;
+                            uint8_t temp_pwm_intensity;
+                            calculate_mode_timing(current_mode, &temp_motor_on_ms, &temp_active_coast_ms,
+                                                 &temp_inactive_ms, &temp_pwm_intensity, false);
+                            uint32_t current_cycle_ms = temp_motor_on_ms + temp_active_coast_ms + temp_inactive_ms;
+
+                            time_sync_set_motor_epoch(actual_start_us, current_cycle_ms);
+                            ESP_LOGI(TAG, "%s: Motor epoch set to actual start time: %llu μs (cycle=%lu ms)",
+                                     role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT", actual_start_us, current_cycle_ms);
 
                             /* Phase 6: SERVER sends immediate motor epoch notification
                              * This eliminates the 9.5s delay for late-joining CLIENTs waiting for periodic beacons.
@@ -994,12 +1025,8 @@ void motor_task(void *pvParameters) {
                                         ESP_LOGW(TAG, "SERVER: Failed to send MOTOR_STARTED: %s", esp_err_to_name(err));
                                     }
                                 }
-                            } else if (role == PEER_ROLE_CLIENT) {
-                                // Phase 3: CLIENT resets toggle to start new mode in INACTIVE
-                                // BUG FIX: Check role only, not sync state
-                                client_next_inactive = true;
-                                ESP_LOGI(TAG, "CLIENT: Mode change - resetting to INACTIVE start");
                             }
+                            // Bug #50: Removed client_next_inactive reset - state now calculated from position
                         }
                     }
                 }
@@ -1090,12 +1117,9 @@ void motor_task(void *pvParameters) {
                         }
                         prev_cycle_ms = cycle_ms;
                     } else if (params_role == PEER_ROLE_CLIENT && current_mode == MODE_CUSTOM) {
-                        // CLIENT: Only reset phase if frequency changed
-                        // Duty/PWM changes should maintain current phase
+                        // Bug #50: No phase reset needed - position-based state calculation auto-adapts
                         if (cycle_changed) {
-                            // Frequency change: Reset phase to sync with SERVER's new timing
-                            client_next_inactive = true;
-                            ESP_LOGI(TAG, "CLIENT: Frequency changed - resetting to INACTIVE start");
+                            ESP_LOGI(TAG, "CLIENT: Frequency changed - position-based state will auto-adjust");
                         } else {
                             ESP_LOGI(TAG, "CLIENT: Duty/PWM changed - phase unchanged");
                         }
@@ -1129,28 +1153,59 @@ void motor_task(void *pvParameters) {
                 }
 
                 // Phase 3: CLIENT alternates INACTIVE/ACTIVE, SERVER always starts ACTIVE
-                // BUG FIX: Check role only, not sync state (bilateral alternation based on role)
+                // Bug #50: Position-based state selection instead of blind toggle
+                // Calculate CLIENT state from SERVER's actual position every cycle
                 peer_role_t role = ble_get_peer_role();
                 if (role == PEER_ROLE_CLIENT) {
-                    // CLIENT: Toggle between INACTIVE and ACTIVE starts
-                    // Phase 6l: Diagnostic - log flag value before using it
-                    ESP_LOGI(TAG, "CLIENT: client_next_inactive=%d before state transition",
-                             client_next_inactive ? 1 : 0);
-                    if (client_next_inactive) {
-                        state = MOTOR_STATE_INACTIVE;
-                        client_next_inactive = false;  // Next cycle: ACTIVE
-                        ESP_LOGI(TAG, "CLIENT: Cycle starts INACTIVE (next will be ACTIVE)");
+                    // CLIENT: Calculate state based on SERVER's position in cycle
+                    // Get synchronized time and motor epoch for phase calculation
+                    uint64_t sync_time_us = 0;
+                    uint64_t server_epoch_us = 0;
+                    uint32_t cycle_ms_temp = 0;
+
+                    if (time_sync_get_time(&sync_time_us) == ESP_OK &&
+                        time_sync_get_motor_epoch(&server_epoch_us, &cycle_ms_temp) == ESP_OK &&
+                        server_epoch_us > 0 && cycle_ms_temp > 0) {
+                        // Calculate SERVER's position in current cycle
+                        uint64_t cycle_us = (uint64_t)cycle_ms_temp * 1000;
+                        uint64_t elapsed_us = sync_time_us - server_epoch_us;
+                        uint64_t cycles_since_epoch = elapsed_us / cycle_us;
+                        uint64_t server_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us);
+                        uint64_t position_in_cycle_us = sync_time_us - server_cycle_start_us;
+
+                        // Half-cycle = when SERVER transitions from ACTIVE to INACTIVE
+                        uint64_t half_cycle_us = cycle_us / 2;
+
+                        // SERVER in first half = ACTIVE, second half = INACTIVE
+                        // CLIENT does opposite for antiphase coordination
+                        bool server_is_active = (position_in_cycle_us < half_cycle_us);
+                        state = server_is_active ? MOTOR_STATE_INACTIVE : MOTOR_STATE_ACTIVE;
+
+                        ESP_LOGI(TAG, "CLIENT: Position-based state: SERVER %s (pos=%lu/%lu ms) → CLIENT %s",
+                                 server_is_active ? "ACTIVE" : "INACTIVE",
+                                 (uint32_t)(position_in_cycle_us / 1000),
+                                 (uint32_t)(cycle_us / 1000),
+                                 state == MOTOR_STATE_INACTIVE ? "INACTIVE" : "ACTIVE");
                     } else {
-                        state = MOTOR_STATE_ACTIVE;
-                        client_next_inactive = true;   // Next cycle: INACTIVE
-                        ESP_LOGI(TAG, "CLIENT: Cycle starts ACTIVE (next will be INACTIVE)");
+                        // Fallback: Start with INACTIVE if no time sync available yet
+                        state = MOTOR_STATE_INACTIVE;
+                        ESP_LOGI(TAG, "CLIENT: No time sync - starting INACTIVE (fallback)");
                     }
                 } else {
                     // SERVER/STANDALONE: Always start with ACTIVE
                     // Log ACTIVE/INACTIVE cycle to match CLIENT logging for sync verification
+                    // Tech Spike: Continuous logging for single-device drift baseline measurement
+                    #ifdef ENABLE_SINGLE_DEVICE_DRIFT_BASELINE
+                    // Log continuously (no peer connection required) for drift baseline
+                    if (role == PEER_ROLE_SERVER || role == PEER_ROLE_NONE) {
+                        ESP_LOGI(TAG, "SERVER: Cycle starts ACTIVE (next will be INACTIVE)");
+                    }
+                    #else
+                    // Production: Only log when peer is connected
                     if (role == PEER_ROLE_SERVER) {
                         ESP_LOGI(TAG, "SERVER: Cycle starts ACTIVE (next will be INACTIVE)");
                     }
+                    #endif
                     state = MOTOR_STATE_ACTIVE;
                 }
                 break;
@@ -1373,9 +1428,18 @@ void motor_task(void *pvParameters) {
                 peer_role_t inactive_role = ble_get_peer_role();
 
                 // Log INACTIVE state for SERVER to match CLIENT logging
+                // Tech Spike: Continuous logging for single-device drift baseline measurement
+                #ifdef ENABLE_SINGLE_DEVICE_DRIFT_BASELINE
+                // Log continuously (no peer connection required) for drift baseline
+                if (inactive_role == PEER_ROLE_SERVER || inactive_role == PEER_ROLE_NONE) {
+                    ESP_LOGI(TAG, "SERVER: Cycle starts INACTIVE (next will be ACTIVE)");
+                }
+                #else
+                // Production: Only log when peer is connected
                 if (inactive_role == PEER_ROLE_SERVER) {
                     ESP_LOGI(TAG, "SERVER: Cycle starts INACTIVE (next will be ACTIVE)");
                 }
+                #endif
 
                 // Bug #17 Fix: CLIENT records start time for absolute wait
                 // (SERVER uses cycle_start_ms from ACTIVE state)

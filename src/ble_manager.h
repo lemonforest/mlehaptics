@@ -165,6 +165,21 @@ void ble_stop_advertising(void);
 void ble_reset_pairing_window(void);
 
 /**
+ * @brief Close peer pairing window permanently (Bug #45)
+ *
+ * Closes the peer pairing window to prevent subsequent connections from being
+ * identified as peers. This handles:
+ * - Early peer pairing (e.g., at T=5s) - prevents mobile apps connecting after
+ * - 30s timeout expiry - prevents late peer connections
+ * - Simultaneous connection race conditions
+ *
+ * Called by:
+ * - ble_manager connection handler when first peer identified
+ * - ble_task when 30s pairing timeout expires
+ */
+void ble_close_pairing_window(void);
+
+/**
  * @brief Start BLE scanning for peer devices (Phase 1a)
  *
  * Initiates BLE scanning while maintaining advertising (simultaneous mode).

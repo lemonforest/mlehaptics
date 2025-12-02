@@ -1,6 +1,6 @@
 # 0032: BLE Configuration Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-11-24: Added Client Battery characteristic for dual-device mode)
+**Date:** 2025-11-11 (Updated 2025-12-02: Added Firmware Version characteristics for version matching)
 **Phase:** Phase 1b
 **Status:** Approved
 **Type:** Architecture
@@ -60,7 +60,7 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
 - **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (17 Total)
+### Characteristics (19 Total)
 
 **MOTOR CONTROL GROUP (8 characteristics):**
 
@@ -93,6 +93,13 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...020B` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
 | `...020C` | Battery Level | uint8 | R/Notify | 0-100% | SERVER battery state of charge |
 | `...020D` | Client Battery | uint8 | R/Notify | 0-100% | CLIENT battery (dual-device mode) |
+
+**FIRMWARE VERSION GROUP (2 characteristics):**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0212` | Local Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Local device firmware version with build timestamp |
+| `...0213` | Peer Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Peer device firmware version (dual-device mode, empty if no peer) |
 
 ### Per-Mode PWM Intensity Rationale
 
@@ -176,6 +183,60 @@ CLIENT Device                    SERVER Device                   PWA
 - Motor (ERM) dominates power consumption (4000-20000× more than BLE packet)
 - Conditional updates add complexity with negligible power savings
 - Data always available when PWA connects (no 60s wait)
+
+### Firmware Version Characteristics
+
+**Purpose:**
+- Verify both devices run identical firmware builds before therapy sessions
+- Detect firmware mismatch that could cause timing issues or protocol incompatibility
+- Enable PWA to display version info for troubleshooting
+
+**Local Firmware Version (Read-Only):**
+- **Format**: `"vMAJOR.MINOR.PATCH (MMM DD YYYY HH:MM:SS)"`
+- **Example**: `"v0.6.47 (Dec  2 2025 15:30:45)"`
+- **Source**: Compile-time macros from `src/firmware_version.h`
+- **Update**: Static, set at build time
+
+**Peer Firmware Version (Read-Only):**
+- **Single-device mode**: Returns empty string `""` (no peer connected)
+- **Dual-device mode**: Returns peer's firmware version string after handshake
+- **Exchange Protocol**: Sent via `SYNC_MSG_FIRMWARE_VERSION` coordination message during time sync handshake
+- **Update Trigger**: Immediately after peer time sync handshake completes
+- **Mismatch Handling**:
+  - If `FIRMWARE_VERSION_CHECK_ENABLED=1` (default): Reject pairing, log warning, enter single-device mode
+  - If `FIRMWARE_VERSION_CHECK_ENABLED=0` (dev mode): Allow pairing, log warning only
+
+**Data Flow:**
+```
+CLIENT Device                    SERVER Device                   PWA
+     |                                |                           |
+     |<-- Time Sync Handshake ------->|                           |
+     |                                |                           |
+     |-- SYNC_MSG_FIRMWARE_VERSION -->|                           |
+     |   (coordination message)       |                           |
+     |                                |-- Store peer version      |
+     |                                |                           |
+     |<-- SYNC_MSG_FIRMWARE_VERSION --|                           |
+     |                                |                           |
+     |-- Store peer version           |                           |
+     |                                |                           |
+     |                                |<-- GATT read -------------|
+     |                                |   (local_fw_version)      |
+     |                                |                           |
+     |                                |-- "v0.6.47..." ---------->|
+     |                                |                           |
+     |                                |<-- GATT read -------------|
+     |                                |   (peer_fw_version)       |
+     |                                |                           |
+     |                                |-- "v0.6.47..." ---------->|
+     |                                |   (or "" if no peer)      |
+```
+
+**Rationale:**
+- **Build Timestamp Ensures Exact Match**: Version number (v0.6.47) alone insufficient - two developers compiling same version could have different bugs. Build timestamp guarantees binary-identical firmware.
+- **Coordination Message (Not Beacon)**: Firmware version sent via coordination message (guaranteed delivery, requires ACK) instead of beacon (periodic, best-effort). Ensures both devices receive peer version before motors start.
+- **Read-Only Characteristics**: PWA cannot modify firmware version (obviously). Only used for display and pre-session verification.
+- **Empty String for No Peer**: Simplifies PWA logic - empty string clearly indicates single-device mode.
 
 ### Default Settings (First Boot)
 
@@ -316,21 +377,23 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (4), LED (5), Status (4) = 13 characteristics
+- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2) = 19 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)
 - ✅ **User Comfort:** 10-30% LED brightness prevents eye strain
 - ✅ **Persistent Preferences:** NVS saves user settings across power cycles
+- ✅ **Firmware Version Verification:** PWA can verify both devices run matching firmware builds
 - ✅ **Future-Proof:** Architecture supports bilateral implementation without changes
 
 ### Drawbacks
 
-- 12 characteristics increase BLE stack memory usage
+- 19 characteristics increase BLE stack memory usage
 - NVS persistence adds flash wear (mitigated by write-on-change only)
 - Two LED color modes add configuration complexity
 - Mobile app must implement both palette and custom RGB UIs
 - UUID scheme requires documentation for app developers
+- Firmware version exchange adds coordination message overhead (one-time at pairing)
 
 ---
 

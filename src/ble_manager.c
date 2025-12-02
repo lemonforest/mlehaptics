@@ -435,6 +435,11 @@ static ble_peer_state_t peer_state = {
     .peer_mac = {0}
 };
 
+// Bug #45: Peer pairing window state flag
+// Tracks whether pairing window is closed (peer paired OR 30s timeout)
+// Once closed, all new connections are treated as mobile apps
+static bool peer_pairing_window_closed = false;
+
 // Bilateral Control Service characteristic data (Phase 1b: AD030/AD034)
 typedef struct {
     uint8_t battery_level;      /**< Local battery percentage 0-100% */
@@ -2299,13 +2304,33 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 // Get currently advertised UUID to determine connection type
                 const ble_uuid128_t *current_uuid = ble_get_advertised_uuid();
 
-                if (current_uuid == &uuid_bilateral_service) {
-                    // CASE 1: Advertising Bilateral UUID - this connection is from peer discovery
+                // Bug #45: Use pairing window state flag instead of time-based check
+                // This prevents race conditions where multiple connections arrive simultaneously
+                // and prevents accepting peers after early pairing completes (e.g., at T=5s)
+                if (current_uuid == &uuid_bilateral_service && !peer_pairing_window_closed) {
+                    // CASE 1: Advertising Bilateral UUID AND pairing window still open
                     // Mobile apps CANNOT discover device during Bilateral UUID window (Bug #27 eliminated!)
                     is_peer = true;
                     peer_state.peer_discovered = true;
                     memcpy(&peer_state.peer_addr, &desc.peer_id_addr, sizeof(ble_addr_t));
-                    ESP_LOGI(TAG, "Peer identified (connected during Bilateral UUID window)");
+
+                    // CRITICAL: Close pairing window immediately to prevent subsequent connections
+                    // from being identified as peers (handles simultaneous connection race condition)
+                    peer_pairing_window_closed = true;
+
+                    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                    uint32_t elapsed_ms = now_ms - ble_boot_time_ms;
+                    ESP_LOGI(TAG, "Peer identified (connected at T=%lu ms, pairing window now closed)", elapsed_ms);
+                } else if (current_uuid == &uuid_bilateral_service && peer_pairing_window_closed) {
+                    // Bug #45: Pairing window already closed (peer paired OR 30s timeout)
+                    // This handles:
+                    // 1. Late connections arriving after 30s timeout
+                    // 2. Mobile app connections after early peer pairing (e.g., T=5s)
+                    // 3. Simultaneous connections (second connection sees closed window)
+                    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                    uint32_t elapsed_ms = now_ms - ble_boot_time_ms;
+                    ESP_LOGW(TAG, "Connection rejected - pairing window closed (T=%lu ms)", elapsed_ms);
+                    is_peer = false;
                 } else {
                     // CASE 2: Advertising Config UUID - check if this is bonded peer reconnect
                     // FIX: Check for non-zero cached address instead of peer_discovered flag
@@ -3098,6 +3123,96 @@ static const ble_uuid128_t* ble_get_advertised_uuid(void) {
 }
 
 // ============================================================================
+// ADVERTISING & SCAN RESPONSE UPDATE HELPERS
+// ============================================================================
+
+/**
+ * @brief Update advertising data with battery Service Data
+ *
+ * Bug #44: Battery extraction failure - advertising vs scan response data
+ * BLE discovery events only contain advertising data, not scan response data
+ * Solution: Add battery to advertising packet (visible to scanners during discovery)
+ *
+ * Advertising packet contents:
+ * - Flags (3 bytes)
+ * - TX power (3 bytes)
+ * - Device name (~12 bytes)
+ * - Battery Service Data (3 bytes, only during Bilateral UUID window)
+ * Total: ~21 bytes (fits in 31-byte BLE advertising packet limit)
+ */
+static void ble_update_advertising_data(void) {
+    struct ble_hs_adv_fields fields;
+    memset(&fields, 0, sizeof(fields));
+
+    // Standard advertising fields
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.tx_pwr_lvl_is_present = 1;
+    fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+
+    fields.name = (uint8_t *)ble_svc_gap_device_name();
+    fields.name_len = strlen((char *)fields.name);
+    fields.name_is_complete = 1;
+
+    // AD035: Add battery level as Service Data for role assignment
+    // Battery Service UUID (0x180F) + battery percentage (0-100)
+    // Only broadcast during Bilateral UUID window (peer discovery phase)
+    static uint8_t battery_svc_data[3];
+    const ble_uuid128_t *advertised_uuid = ble_get_advertised_uuid();
+    if (advertised_uuid == &uuid_bilateral_service) {
+        // Read battery level (mutex-protected)
+        uint8_t battery_pct = 0;
+        if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+            battery_pct = bilateral_data.battery_level;
+            xSemaphoreGive(bilateral_data_mutex);
+        }
+
+        battery_svc_data[0] = 0x0F;  // Battery Service UUID LSB (0x180F)
+        battery_svc_data[1] = 0x18;  // Battery Service UUID MSB
+        battery_svc_data[2] = battery_pct;  // Battery percentage 0-100
+
+        fields.svc_data_uuid16 = battery_svc_data;
+        fields.svc_data_uuid16_len = 3;
+
+        ESP_LOGI(TAG, "Advertising battery level: %d%% (for role assignment)", battery_pct);
+    }
+
+    int rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to update advertising data; rc=%d", rc);
+    }
+}
+
+/**
+ * @brief Update scan response with dynamic UUID
+ *
+ * UUID switches based on timing and bonding state:
+ * - 0-30s: Bilateral Service UUID (0x0100) - peer discovery only
+ * - 30s+: Configuration Service UUID (0x0200) - app discovery + bonded peer reconnect
+ *
+ * Scan response packet contents:
+ * - 128-bit UUID (17 bytes)
+ * Total: ~17 bytes (fits in 31-byte BLE scan response packet limit)
+ */
+static void ble_update_scan_response(void) {
+    struct ble_hs_adv_fields rsp_fields;
+    memset(&rsp_fields, 0, sizeof(rsp_fields));
+
+    // Get current UUID based on timing and bonding state
+    const ble_uuid128_t *advertised_uuid = ble_get_advertised_uuid();
+    rsp_fields.uuids128 = advertised_uuid;
+    rsp_fields.num_uuids128 = 1;
+    rsp_fields.uuids128_is_complete = 1;
+
+    int rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to update scan response UUID; rc=%d", rc);
+    } else {
+        ESP_LOGI(TAG, "Scan response UUID updated: %s",
+                 (advertised_uuid == &uuid_bilateral_service) ? "Bilateral (peer discovery)" : "Config (app + bonded peer)");
+    }
+}
+
+// ============================================================================
 // NIMBLE HOST CALLBACKS
 // ============================================================================
 
@@ -3162,28 +3277,12 @@ static void ble_on_sync(void) {
         ESP_LOGI(TAG, "BLE TX power set to maximum (+9 dBm) for ADV/SCAN/CONN");
     }
 
-    // Configure advertising data (main packet: flags + name only, fits in 31 bytes)
-    struct ble_hs_adv_fields fields;
-    memset(&fields, 0, sizeof(fields));
+    // Bug #44: Configure advertising and scan response dynamically
+    // - Advertising data: flags, name, battery Service Data (updated via ble_update_advertising_data)
+    // - Scan response: UUID (dynamic switching via ble_update_scan_response)
+    ble_update_advertising_data();  // Set initial advertising data with battery
 
-    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    fields.tx_pwr_lvl_is_present = 1;
-    fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-
-    fields.name = (uint8_t *)ble_svc_gap_device_name();
-    fields.name_len = strlen((char *)fields.name);
-    fields.name_is_complete = 1;
-
-    rc = ble_gap_adv_set_fields(&fields);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to set advertising data; rc=%d", rc);
-        return;
-    }
-
-    // Configure scan response with dynamic UUID (Phase 1b.3 UUID-switching)
-    // - 0-30s: Bilateral Service UUID (0x0100) - peer discovery only
-    // - 30s+: Configuration Service UUID (0x0200) - app discovery + bonded peer reconnect
-    // Using scan response prevents exceeding 31-byte advertising packet limit
+    // Initialize scan response (will be updated dynamically)
     struct ble_hs_adv_fields rsp_fields;
     memset(&rsp_fields, 0, sizeof(rsp_fields));
 
@@ -3537,46 +3636,6 @@ esp_err_t ble_manager_init(void) {
  *
  * Phase 1b.3 UUID-switching fix for Bug #30
  */
-static void ble_update_scan_response(void) {
-    struct ble_hs_adv_fields rsp_fields;
-    memset(&rsp_fields, 0, sizeof(rsp_fields));
-
-    // Get current UUID based on timing and bonding state
-    const ble_uuid128_t *advertised_uuid = ble_get_advertised_uuid();
-    rsp_fields.uuids128 = advertised_uuid;
-    rsp_fields.num_uuids128 = 1;
-    rsp_fields.uuids128_is_complete = 1;
-
-    // AD035: Add battery level as Service Data for role assignment
-    // Battery Service UUID (0x180F) + battery percentage (0-100)
-    // Only broadcast during Bilateral UUID window (peer discovery phase)
-    static uint8_t battery_svc_data[3];
-    if (advertised_uuid == &uuid_bilateral_service) {
-        // Read battery level (mutex-protected)
-        uint8_t battery_pct = 0;
-        if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-            battery_pct = bilateral_data.battery_level;
-            xSemaphoreGive(bilateral_data_mutex);
-        }
-
-        battery_svc_data[0] = 0x0F;  // Battery Service UUID LSB (0x180F)
-        battery_svc_data[1] = 0x18;  // Battery Service UUID MSB
-        battery_svc_data[2] = battery_pct;  // Battery percentage 0-100
-
-        rsp_fields.svc_data_uuid16 = battery_svc_data;
-        rsp_fields.svc_data_uuid16_len = 3;
-
-        ESP_LOGI(TAG, "Advertising battery level: %d%% (for role assignment)", battery_pct);
-    }
-
-    int rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to update scan response UUID; rc=%d", rc);
-    } else {
-        ESP_LOGI(TAG, "Scan response UUID updated: %s",
-                 (advertised_uuid == &uuid_bilateral_service) ? "Bilateral (peer discovery)" : "Config (app + bonded peer)");
-    }
-}
 
 void ble_start_advertising(void) {
     ESP_LOGI(TAG, "ble_start_advertising() called (current state: advertising_active=%s, connected=%s)",
@@ -3584,8 +3643,9 @@ void ble_start_advertising(void) {
              ble_is_app_connected() ? "YES" : "NO");
 
     if (!adv_state.advertising_active) {
-        // Update scan response with current UUID before starting advertising
-        ble_update_scan_response();
+        // Bug #44: Update BOTH advertising data (with battery) and scan response (with UUID)
+        ble_update_advertising_data();  // Battery in advertising data (visible to scanners)
+        ble_update_scan_response();     // UUID in scan response (dynamic switching)
 
         ESP_LOGI(TAG, "Starting BLE advertising via ble_gap_adv_start()...");
         int rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
@@ -3621,15 +3681,27 @@ void ble_reset_pairing_window(void) {
     ble_boot_time_ms = (uint32_t)(esp_timer_get_time() / 1000);
     ESP_LOGI(TAG, "Pairing window reset (new boot time: %lu ms)", ble_boot_time_ms);
 
-    // Clear cached peer state to enable fresh battery-based role assignment
+    // Clear ONLY discovery flags for fresh pairing attempt
+    // PRESERVE peer_addr and role for reconnection to same device with same role
     peer_state.peer_discovered = false;
     peer_state.peer_battery_known = false;
     peer_state.peer_battery_level = 0;
-    peer_state.role = PEER_ROLE_NONE;  // Clear role for fresh pairing
-    // NOTE: peer_addr is preserved so reconnection logic can still work
-    // if both devices don't reset simultaneously
+    // NOTE: peer_addr preserved for reconnection logic
+    // NOTE: role preserved for time sync continuity (SERVER/CLIENT relationship)
 
-    ESP_LOGI(TAG, "Peer state cleared for re-pairing (address preserved, role cleared)");
+    // Bug #45: Reset pairing window flag to allow new peer pairing
+    peer_pairing_window_closed = false;
+
+    ESP_LOGI(TAG, "Pairing window reset (address and role preserved for reconnection)");
+}
+
+void ble_close_pairing_window(void) {
+    // Bug #45: Close pairing window to prevent subsequent connections from being identified as peers
+    // This handles early peer pairing (T=5s), 30s timeout, and simultaneous connection race conditions
+    peer_pairing_window_closed = true;
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t elapsed_ms = now_ms - ble_boot_time_ms;
+    ESP_LOGI(TAG, "Pairing window closed at T=%lu ms (no new peer connections allowed)", elapsed_ms);
 }
 
 // ============================================================================

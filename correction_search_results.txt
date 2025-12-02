@@ -1,0 +1,9 @@
+No CORRECTION COMPARE logs found in CLIENT log.
+
+Searching for RTT-related logs instead...
+
+17:47:38.041 > [0;32mI (10086) TIME_SYNC: Beacon RTT measured: 83124 ╬╝s, offset: -4155215 ╬╝s (drift: -4155215 ╬╝s)[0m
+17:47:47.140 > [0;32mI (19186) TIME_SYNC: Beacon RTT measured: 72655 ╬╝s, offset: -4159911 ╬╝s (drift: -4696 ╬╝s)[0m
+17:47:57.240 > [0;32mI (29286) TIME_SYNC: Beacon RTT measured: 92597 ╬╝s, offset: -4149875 ╬╝s (drift: +10036 ╬╝s)[0m
+17:48:17.340 > [0;32mI (49386) TIME_SYNC: Beacon RTT measured: 92608 ╬╝s, offset: -4149878 ╬╝s (drift: -3 ╬╝s)[0m
+17:48:57.689 > [0;32mI (89736) TIME_SYNC: Beacon RTT measured: 92586 ╬╝s, offset: -4149870 ╬╝s (drift: +8 ╬╝s)[0m

@@ -282,6 +282,11 @@ void ble_task(void *pvParameters) {
                 if (elapsed >= PAIRING_TIMEOUT_MS) {
                     ESP_LOGW(TAG, "Pairing timeout after %u seconds", PAIRING_TIMEOUT_MS / 1000);
                     pairing_start_time = 0;  // Reset timer
+
+                    // Bug #45: Close pairing window to prevent late peer connections
+                    // This ensures devices powered on >30s apart do NOT pair
+                    ble_close_pairing_window();
+
                     status_led_pattern(STATUS_PATTERN_PAIRING_FAILED);  // Red 3× blink
                     vTaskDelay(pdMS_TO_TICKS(1500));  // Wait for LED pattern to complete
 

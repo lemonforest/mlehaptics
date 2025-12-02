@@ -7,6 +7,318 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.6.50] - 2025-12-02
+
+### Fixed
+
+**Blind Toggle Causes Phase Desynchronization** (CRITICAL - Bug #50):
+- **Symptom**: CLIENT state selection used a blind toggle (`client_next_inactive`) that assumed perfect 1000ms cycles forever. Any drift would cause toggle to desynchronize from SERVER's actual phase position.
+- **User Observation**: "Could have something to do with a special flag that the client uses to start in inactive by default? It just seems like if you think the logic says this should be antiphase, something outside your scope is maybe changing how the client really starts vs how your logic sees it start."
+- **Root Cause**: Toggle-based state selection (lines 1169-1182 in old code):
+  ```c
+  if (client_next_inactive) {
+      state = MOTOR_STATE_INACTIVE;
+      client_next_inactive = false;  // Next cycle: ACTIVE
+  } else {
+      state = MOTOR_STATE_ACTIVE;
+      client_next_inactive = true;   // Next cycle: INACTIVE
+  }
+  ```
+  - Toggle flips every cycle based on LOCAL cycle completion
+  - No connection to SERVER's actual position in its cycle
+  - Any timing drift causes toggle to drift relative to SERVER
+  - Assumes perfect 1000ms cycles (no jitter, no corrections)
+- **Impact**:
+  - CLIENT state can drift out of phase with SERVER over time
+  - Toggle can't self-correct - once wrong, stays wrong until reset
+  - Especially problematic with drift corrections (Bug #49) that change cycle duration
+  - Creates fragile dependency between state selection and timing corrections
+- **Fix**: Replace toggle with position-based state calculation (`src/motor_task.c:1167-1196`):
+  - Calculate SERVER's position in current cycle every time
+  - Determine if SERVER is in first half (ACTIVE) or second half (INACTIVE)
+  - Set CLIENT to opposite state (antiphase coordination)
+  - Algorithm:
+    ```c
+    // Calculate SERVER's current position
+    uint64_t elapsed_us = sync_time_us - server_epoch_us;
+    uint64_t cycles_since_epoch = elapsed_us / cycle_us;
+    uint64_t server_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us);
+    uint64_t position_in_cycle_us = sync_time_us - server_cycle_start_us;
+
+    // SERVER in first half = ACTIVE, CLIENT should be INACTIVE (antiphase)
+    bool server_is_active = (position_in_cycle_us < half_cycle_us);
+    state = server_is_active ? MOTOR_STATE_INACTIVE : MOTOR_STATE_ACTIVE;
+    ```
+- **Benefits**:
+  - Deterministic state selection based on SERVER's actual position
+  - No state to get out of sync - calculated fresh every cycle
+  - Self-correcting - always reflects SERVER's true phase
+  - Works correctly even with drift corrections changing cycle duration
+  - Simpler mental model - CLIENT always does opposite of SERVER's current position
+- **Files Modified**:
+  - `src/motor_task.c:410` - Removed `client_next_inactive` variable declaration
+  - `src/motor_task.c:598-606` - Removed toggle initialization and logging
+  - `src/motor_task.c:1167-1196` - Replaced toggle logic with position-based calculation
+- **Expected Outcome**:
+  - CLIENT state always correctly antiphase to SERVER
+  - No phase drift over time
+  - Robust to timing corrections and jitter
+  - Logs show: "CLIENT: Position-based state: SERVER ACTIVE (pos=500/1000 ms) → CLIENT INACTIVE"
+
+---
+
+## [0.6.49] - 2025-12-02
+
+### Fixed
+
+**Time Domain Mismatch in Motor Epoch Causes In-Phase Activation Overlap** (CRITICAL - Bug #49):
+- **Symptom**: CLIENT starts with correct state (INACTIVE when SERVER ACTIVE), but timing is wrong, causing both devices to activate simultaneously later. CLIENT's first INACTIVE period is 1209ms instead of 1000ms. Both devices ACTIVE together for ~109ms.
+- **Activation Overlap Timeline**:
+  ```
+  11:14:24.295: SERVER ACTIVE starts (cycle 2)
+  11:14:24.431: CLIENT ACTIVE starts ← 136ms later, BOTH ACTIVE!
+  11:14:24.540: SERVER INACTIVE starts
+  11:14:24.676: CLIENT INACTIVE starts
+
+  Overlap: 109ms of simultaneous activation (in-phase, not antiphase!)
+  ```
+- **Evidence from Logs**:
+  ```
+  CLIENT: Motor epoch set: 6851136 us (synchronized time)
+  CLIENT PHASE CALC: sync_time=11665475 us, epoch=6851136 us (age=4814 ms)
+  CLIENT PHASE CALC: cycles_since_epoch=2 ← Should be 0! CLIENT just started!
+  CLIENT SLOW-DOWN: drift=-815 ms, correction=+200 ms ← Wrong correction
+  Result: First INACTIVE = 1209ms (should be 1000ms) → phase misalignment
+  ```
+- **Root Cause**: Bug #47 fix set epoch using `esp_timer_get_time()` (LOCAL time domain), but all phase calculations use `time_sync_get_time()` (SYNCHRONIZED time domain)
+  - SERVER/CLIENT have ~360ms clock offset (time sync correction)
+  - Epoch set in local time: 6851ms local → stored as 6851ms
+  - Phase calculation uses synchronized time: 11665ms sync - 6851ms = 4814ms age
+  - **Wrong time domain:** 4814ms / 2000ms = 2.4 cycles elapsed (CLIENT thinks it's on cycle #2, but it just started!)
+  - CLIENT applies +200ms slow-down correction to first INACTIVE period
+  - 1000ms + 200ms = 1200ms → CLIENT ACTIVE delayed into SERVER's next ACTIVE cycle
+- **Impact**:
+  - Both devices activate simultaneously (in-phase) instead of alternating (antiphase)
+  - Defeats entire purpose of bilateral alternation for therapeutic effect
+  - User feels synchronized pulses instead of alternating pattern
+  - All drift calculations wrong from first cycle onward
+- **Fix**: Use synchronized time when setting motor epoch (`src/motor_task.c:819-825`)
+  - Changed from `actual_start_us = esp_timer_get_time();` (local time)
+  - Changed to `time_sync_get_time(&actual_start_us)` (synchronized time)
+  - Fallback to local time only if time_sync_get_time() fails (should never happen)
+  - Epoch now in same time domain as phase calculation reference
+- **Expected Outcome**:
+  - CLIENT phase calculation: age = 0ms on first cycle (correct!)
+  - First INACTIVE period: 1000ms (not 1209ms)
+  - No phantom drift corrections on early cycles
+  - Antiphase timing accurate: SERVER ACTIVE at T=0, CLIENT ACTIVE at T=1000ms ±10ms
+  - No activation overlap - devices alternate as designed
+
+---
+
+## [0.6.48] - 2025-12-02
+
+### Fixed
+
+**Watchdog Initialization Error on Deep Sleep Wake** (Bug #48):
+- **Symptom**: On wake from deep sleep, watchdog initialization fails with `ESP_ERR_INVALID_STATE`:
+  ```
+  E (442) task_wdt: esp_task_wdt_init(517): TWDT already initialized
+  E (452) MAIN: Watchdog init failed: ESP_ERR_INVALID_STATE
+  E (462) MAIN: Watchdog init failed, continuing anyway
+  ```
+- **Root Cause**: Code unconditionally calls `esp_task_wdt_init()` on every boot. On wake from deep sleep, the watchdog timer is already initialized by the bootloader, causing the error.
+- **Impact**: Harmless but noisy error logs on approximately 25% of boots (specifically when waking from deep sleep via button press). System continued to function normally despite the error.
+- **Fix**: Check if watchdog is already initialized before attempting to initialize it (`src/main.c:143-164`):
+  - Call `esp_task_wdt_status(NULL)` to check initialization state
+  - Only call `esp_task_wdt_init()` if status returns `ESP_ERR_INVALID_STATE` (not initialized)
+  - Log "Watchdog already initialized (wake from deep sleep)" on wake from sleep
+  - Eliminates error messages while maintaining proper initialization on cold boot
+- **Expected Outcome**: Clean startup logs on both cold boot and deep sleep wake, no error messages
+
+---
+
+## [0.6.47] - 2025-12-02
+
+### Fixed
+
+**Motor Epoch Set Before Actual Start Causes In-Phase Activation** (CRITICAL - Bug #47):
+- **Symptom**: After Bug #46 fix, devices still activate in-phase (within 50ms) instead of antiphase (1000ms offset). Bug #46 fixed CLIENT abort issue, but didn't resolve root timing problem.
+- **Evidence from Logs (Post-Bug-#46)**:
+  ```
+  08:55:36.316 > SERVER: T=9782ms: Set epoch=9857669 μs, beacon sent
+  08:55:36.491 > CLIENT: Pre-calculated antiphase: server_pos=1385/2000 ms (69.3%), wait=1614 ms
+  08:55:36.804 > SERVER: T=10222ms: Motors actually start (440ms AFTER epoch!)
+  08:55:36.810 > SERVER: MOTOR_STARTED notification sent (epoch=9857669)
+  08:55:38.398 > CLIENT: Completed full 1587ms wait (no abort - Bug #46 fixed!)
+  08:55:38.820 > SERVER ACTIVE (T=10222ms)
+  08:55:38.856 > CLIENT ACTIVE (T=10256ms) ← 36ms apart, IN-PHASE!
+  ```
+- **Root Cause**: SERVER sets motor_epoch to coordinated_start_us (TARGET time) BEFORE waiting
+  - Line 566/584: `time_sync_set_motor_epoch(coordinated_start_us, cycle_ms);` called before wait
+  - SERVER waits ~440ms, then starts motors at T=10222ms
+  - CLIENT receives epoch=9857669 μs (T=9857ms), but SERVER actually started at T=10222ms
+  - CLIENT's antiphase calculation: `elapsed_us = sync_time_us - server_epoch_us` uses PAST reference
+  - Result: CLIENT calculates position based on time 364ms in the PAST → wrong phase offset
+- **Timeline Analysis**:
+  ```
+  T=9782ms:  SERVER sets epoch = coordinated_start_us = 9857669 μs (target)
+  T=9857ms:  (Target time - doesn't match actual start)
+  T=10222ms: SERVER actually starts motors (364ms LATER than epoch!)
+             SERVER sends MOTOR_STARTED with epoch=9857669 (OLD time)
+  T=10256ms: CLIENT receives epoch, calculates antiphase using 9857669 reference
+             CLIENT calculation based on PAST time → IN-PHASE result
+  ```
+- **Impact**:
+  - Bug #46 fix worked correctly (no abort during wait)
+  - But antiphase calculation still wrong due to incorrect epoch reference
+  - Strategy A calculation is correct, but uses wrong input data
+  - All Phase 6 testing still shows in-phase activation
+- **Fix**: Move motor_epoch setting from target time to ACTUAL motor start time (`src/motor_task.c:566, 584, 813-818`)
+  - Removed early epoch setting at lines 566, 584 (before wait)
+  - Added epoch setting RIGHT AFTER "Coordinated start time reached" log (line 815-818)
+  - Use `esp_timer_get_time()` for actual motor start time (not coordinated_start_us target)
+  - Applied to both SERVER and CLIENT roles
+  - MOTOR_STARTED notification now contains correct epoch (actual start time)
+- **Expected Outcome**:
+  - SERVER sets epoch at T=10222ms (actual start) instead of T=9857ms (target)
+  - CLIENT receives correct epoch reference
+  - CLIENT antiphase calculation: `elapsed_us = sync_time_us - 10222000` uses correct reference
+  - Devices activate in antiphase: SERVER at T=0, CLIENT at T=1000ms (±50ms tolerance)
+- **Testing Required**: Hardware test with both devices to confirm antiphase timing with corrected epoch
+
+---
+
+## [0.6.46] - 2025-12-02
+
+### Fixed
+
+**In-Phase Motor Activation Instead of Antiphase** (CRITICAL - Bug #46):
+- **Symptom**: Both devices activating motors simultaneously (within 50ms) instead of alternating. User reported "feels like the devices are trying to activate in phase instead of bilateral antiphase."
+- **Evidence from Logs**:
+  ```
+  08:42:08.215: Dev B ACTIVE
+  08:42:08.243: Dev A ACTIVE (28ms later!) ← IN-PHASE!
+
+  08:42:10.200: Dev A ACTIVE
+  08:42:10.215: Dev B ACTIVE (15ms later!) ← IN-PHASE!
+  ```
+  - Expected: Device A ACTIVE at T=0ms, Device B ACTIVE at T=1000ms (antiphase)
+  - Actual: Both devices ACTIVE within 50ms (in-phase)
+- **Root Cause**: CLIENT aborted antiphase wait when `MOTOR_STARTED` message arrived
+  - CLIENT calculated correct antiphase wait: `server_pos=1561/2000 ms (78.1%), wait=1438 ms`
+  - MOTOR_STARTED message arrived during wait
+  - Abort logic at `src/motor_task.c:793-796` broke out of wait loop immediately
+  - CLIENT started motors ~1400ms early, synchronized with SERVER (in-phase)
+- **Impact**:
+  - Bilateral stimulation ineffective (requires antiphase for therapeutic effect)
+  - All Phase 6 testing has been in-phase, not antiphase
+  - Correction algorithms tested on wrong phase relationship
+- **Fix**: Disable MOTOR_STARTED abort when Strategy A (antiphase pre-calculation) active (`src/motor_task.c:786-799`)
+  - Added `strategy_a_active` flag: `(role == PEER_ROLE_CLIENT && unclamped_correction_cycles == 0)`
+  - MOTOR_STARTED abort only happens if NOT using Strategy A
+  - When Strategy A active, CLIENT must complete full antiphase wait
+  - Preserves fast startup for non-Strategy-A paths (backward compatibility)
+- **Expected Outcome**:
+  - Device A ACTIVE → Device B ACTIVE exactly 1000ms later (at 0.5 Hz)
+  - User should feel distinct alternating pattern, not simultaneous activation
+- **Testing Required**: Hardware test with both devices to confirm antiphase timing
+
+---
+
+## [0.6.45] - 2025-12-02
+
+### Fixed
+
+**Peer Connection Accepted After 30s Pairing Window** (CRITICAL - Bug #45):
+- **Symptom**: Devices that powered on at different times would pair even after 30s window expired. Also, mobile apps could connect during early peer pairing (e.g., if peer paired at T=5s, app connecting at T=10s would be misidentified as peer).
+- **Evidence from Logs**:
+  - Dev A: Discovered peer at T=29.781s (within window), initiated connection
+  - Dev B: Received connection at T=30.111s (AFTER window), incorrectly accepted as peer
+  - Both devices successfully paired despite 30.111s > 30s timeout
+- **Root Causes**:
+  1. **Time-based check missing**: Connection handler only checked `current_uuid == &uuid_bilateral_service`, didn't verify pairing window still open
+  2. **BLE handshake latency**: Peer initiated at T=29.9s, arrived at T=30.1s (after timeout)
+  3. **Early pairing vulnerability**: If peer paired at T=5s, mobile app at T=10s would still see Bilateral UUID until `peer_connected` flag updated
+  4. **Race condition**: Simultaneous connections could both be identified as peers before flag updated
+- **Impact**:
+  - Tech spike impossible (both devices always paired)
+  - Breaks architectural assumption that peer pairing only happens within 30s window
+  - Mobile apps blocked from connecting during 0-30s window even after peer pairing complete
+- **Fix**: Flag-based pairing window closure (`src/ble_manager.c:438-441, 2307-2333, 3678-3705` + `src/ble_manager.h:167-180` + `src/ble_task.c:286-288`)
+  - Added `peer_pairing_window_closed` static flag
+  - Close window when EITHER: (1) First peer identified OR (2) 30s timeout expires
+  - Connection handler checks: `current_uuid == &uuid_bilateral_service AND !peer_pairing_window_closed`
+  - Flag set IMMEDIATELY when first peer identified (line 2319) - prevents simultaneous connection race
+  - Flag set by `ble_close_pairing_window()` called from ble_task timeout handler (line 288)
+  - Flag reset by `ble_reset_pairing_window()` to allow re-pairing after disconnect
+- **Additional Fix**: Role preservation across temporary disconnects
+  - **Issue**: Original `ble_reset_pairing_window()` cleared `peer_state.role`, breaking time sync continuity
+  - **Impact**: After temporary disconnect, devices didn't know which was SERVER/CLIENT for reconnection
+  - **Fix**: Preserve `peer_state.role` in `ble_reset_pairing_window()` (line 3678-3695)
+  - **Rationale**: Roles must persist for time sync relationship (SERVER sends beacons, CLIENT applies corrections)
+- **Expected Outcomes**:
+  1. Devices powered on >30s apart will NOT pair (timeout → single-device mode)
+  2. Mobile apps can connect after early peer pairing (e.g., peer at T=5s, app at T=10s works)
+  3. Simultaneous connections handled correctly (second connection rejected)
+  4. Temporary disconnects maintain SERVER/CLIENT roles for time sync continuity
+- **Use Case**: Enables tech spike - power on devices separately to measure natural oscillator drift
+
+---
+
+## [0.6.44] - 2025-12-02
+
+### Changed - Versioning Scheme
+
+**New Semantic Versioning Convention:**
+- **MINOR version tracks PHASE number**: Phase 6 → v0.6.x, Phase 7 → v0.7.x
+- **PATCH version tracks BUG number**: Bug #44 → v0.x.44, Bug #45 → v0.x.45
+- **Benefits**: Logs instantly show context - "v0.6.44" = Phase 6, Bug 44 fix
+- **Example**: v0.6.44 clearly indicates Phase 6 bilateral motor coordination, Bug #44 fix
+
+### Fixed
+
+**Battery Extraction Failure from Scan Response** (CRITICAL - Bug #44):
+- **Symptom**: After Bug #43 fix, battery-based role assignment still failing. Logs showed "No peer battery data - falling back to discovery-based role"
+- **Root Cause**: Battery Service Data was added to SCAN RESPONSE (via `ble_gap_adv_rsp_set_fields()`), but scanner only parsed ADVERTISING DATA (`event->disc.data`). Even with active scanning enabled, NimBLE stores advertising and scan response data separately. Scanner never saw battery data.
+- **Evidence**:
+  - Advertising: Battery added to scan response at `src/ble_manager.c:3566-3567`
+  - Scanning: Only advertising data parsed at `src/ble_manager.c:3654` via `event->disc.data`
+  - Result: `fields.svc_data_uuid16` always NULL, battery extraction failed
+- **Fix**: Moved battery Service Data from scan response to ADVERTISING DATA (`src/ble_manager.c:3540-3583`)
+  - Created `ble_update_advertising_data()` function (mirrors `ble_update_scan_response()`)
+  - Battery now in advertising packet: flags (3B) + TX power (3B) + name (~12B) + battery (3B) = ~21B (fits in 31B limit)
+  - UUID remains in scan response (17B) for dynamic switching (Bilateral ↔ Config)
+  - Both `ble_update_advertising_data()` and `ble_update_scan_response()` called when starting advertising
+- **Expected Outcome**: Scanners will now extract battery from `event->disc.data`, battery-based role assignment will work correctly
+- **Files Modified**: `src/ble_manager.c:3540-3612` (new function + updated `ble_start_advertising()` + updated init)
+
+### Added
+
+**Tech Spike: Single-Device Drift Baseline Measurement** (December 2, 2025):
+- **Purpose**: Measure natural oscillator drift between two independent devices (no peer connection, no corrections)
+- **Compile-Time Flag**: `ENABLE_SINGLE_DEVICE_DRIFT_BASELINE` in `src/motor_task.c:64-69`
+- **Behavior When Enabled**:
+  - Continuous activation logging even when `role == PEER_ROLE_NONE` (no peer connected)
+  - Both devices run as independent SERVERs using nominal timing
+  - Logs compatible with existing `analyze_bilateral_phase_detailed.py` script
+- **Goal**: Compare isolated device timing vs synchronized timing to determine:
+  - What the drift correction algorithm is actually correcting
+  - Whether corrections add noise instead of improving timing
+  - Optimal correction interval based on actual crystal oscillator drift
+- **Files Modified**: `src/motor_task.c:1159-1169, 1393-1403` (conditional logging)
+
+### Infrastructure
+
+- Firmware version: v0.3.1 → v0.6.44 (new versioning scheme)
+- Version header updated: `src/firmware_version.h:29-34` (comments added)
+
+---
+
+## Phase 6: Bilateral Motor Coordination (In Progress)
+
 ### Added - Phase 6: Bilateral Motor Coordination (In Progress)
 
 **BLE TX Power Boost (+6 dBm improvement):**
@@ -121,6 +433,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated comments to reflect correct AD010 mapping
 - **Expected Outcome**: CLIENT device will now actually apply drift corrections, Bug #42 sign fix can be properly evaluated
 - **Files Modified**: `src/ble_manager.c:2401-2449`
+
+**Battery Extraction Failure from Scan Response** (CRITICAL - Bug #44):
+- **Symptom**: After Bug #43 fix, battery-based role assignment still failing. Logs showed "No peer battery data - falling back to discovery-based role"
+- **Root Cause**: Battery Service Data was added to SCAN RESPONSE (via `ble_gap_adv_rsp_set_fields()`), but scanner only parsed ADVERTISING DATA (`event->disc.data`). Even with active scanning enabled, NimBLE stores advertising and scan response data separately. Scanner never saw battery data.
+- **Evidence**:
+  - Advertising: Battery added to scan response at `src/ble_manager.c:3566-3567`
+  - Scanning: Only advertising data parsed at `src/ble_manager.c:3654` via `event->disc.data`
+  - Result: `fields.svc_data_uuid16` always NULL, battery extraction failed
+- **Fix**: Moved battery Service Data from scan response to ADVERTISING DATA (`src/ble_manager.c:3540-3583`)
+  - Created `ble_update_advertising_data()` function (mirrors `ble_update_scan_response()`)
+  - Battery now in advertising packet: flags (3B) + TX power (3B) + name (~12B) + battery (3B) = ~21B (fits in 31B limit)
+  - UUID remains in scan response (17B) for dynamic switching (Bilateral ↔ Config)
+  - Both `ble_update_advertising_data()` and `ble_update_scan_response()` called when starting advertising
+- **Expected Outcome**: Scanners will now extract battery from `event->disc.data`, battery-based role assignment will work correctly
+- **Files Modified**: `src/ble_manager.c:3540-3612` (new function + updated `ble_start_advertising()` + updated init)
 
 **BLE Writes Breaking Bilateral Sync** (CRITICAL - Bug #12):
 - **Symptom**: CLIENT device experienced excessive phase resets during PWA operation, causing device overlap

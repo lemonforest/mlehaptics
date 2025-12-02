@@ -120,7 +120,7 @@ QueueHandle_t ble_to_motor_queue = NULL;
  * Motor task second for timing accuracy
  * BLE task lowest (non-critical background)
  */
-#define MOTOR_TASK_PRIORITY     5
+#define MOTOR_TASK_PRIORITY     6
 #define BUTTON_TASK_PRIORITY    4
 #define BLE_TASK_PRIORITY       3
 
@@ -140,19 +140,29 @@ QueueHandle_t ble_to_motor_queue = NULL;
 static esp_err_t init_watchdog(void) {
     ESP_LOGI(TAG, "Initializing watchdog (%d sec timeout)", WATCHDOG_TIMEOUT_SEC);
 
-    esp_task_wdt_config_t wdt_cfg = {
-        .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,
-        .idle_core_mask = 0,  // Don't monitor idle task
-        .trigger_panic = true  // Panic on timeout
-    };
+    // Check if watchdog already initialized (e.g., wake from deep sleep)
+    // esp_task_wdt_status() returns ESP_ERR_INVALID_STATE if not initialized
+    esp_err_t ret = esp_task_wdt_status(NULL);
 
-    esp_err_t ret = esp_task_wdt_init(&wdt_cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Watchdog init failed: %s", esp_err_to_name(ret));
-        return ret;
+    if (ret == ESP_ERR_INVALID_STATE) {
+        // Watchdog not initialized, initialize it now
+        esp_task_wdt_config_t wdt_cfg = {
+            .timeout_ms = WATCHDOG_TIMEOUT_SEC * 1000,
+            .idle_core_mask = 0,  // Don't monitor idle task
+            .trigger_panic = true  // Panic on timeout
+        };
+
+        ret = esp_task_wdt_init(&wdt_cfg);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Watchdog init failed: %s", esp_err_to_name(ret));
+            return ret;
+        }
+        ESP_LOGI(TAG, "Watchdog initialized successfully");
+    } else {
+        // Already initialized (likely wake from deep sleep)
+        ESP_LOGI(TAG, "Watchdog already initialized (wake from deep sleep)");
     }
 
-    ESP_LOGI(TAG, "Watchdog initialized successfully");
     return ESP_OK;
 }
 
