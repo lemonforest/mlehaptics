@@ -2398,19 +2398,40 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         ESP_LOGW(TAG, "Failed to stop scanning; rc=%d", scan_rc);
                     }
 
-                    // CRITICAL FIX (Bug #16): Assign role FIRST, regardless of advertising state
-                    // Use desc.role from NimBLE to determine connection initiator
-                    // BLE_GAP_ROLE_MASTER (0) = we initiated connection (CLIENT)
-                    // BLE_GAP_ROLE_SLAVE (1) = peer initiated connection to us (SERVER)
+                    // Bug #43 Fix: Correct role mapping from BLE connection role to time sync role
+                    // Per AD010: BLE_GAP_ROLE_MASTER = SERVER, BLE_GAP_ROLE_SLAVE = CLIENT
+                    // - Connection initiator (MASTER) → TIME SYNC SERVER (sends beacons)
+                    // - Connection acceptor (SLAVE) → TIME SYNC CLIENT (receives beacons, applies corrections)
+                    // This mapping ensures lower battery device (initiator) has simpler role (SERVER)
                     bool we_initiated = (desc.role == BLE_GAP_ROLE_MASTER);
 
                     if (we_initiated) {
-                        peer_state.role = PEER_ROLE_CLIENT;
-                        ESP_LOGI(TAG, "CLIENT role assigned (BLE MASTER)");
+                        peer_state.role = PEER_ROLE_SERVER;
+                        ESP_LOGI(TAG, "SERVER role assigned (BLE MASTER)");
 
-                        // Phase 6f: Initiate MTU exchange for larger beacon payload (28 bytes)
+                        // Phase 6f: SERVER initiates MTU exchange for larger beacon payload (28 bytes)
                         // Default MTU is 23 bytes (20 payload) - too small for beacons
                         // MTU exchange runs in parallel with GATT discovery
+                        ESP_LOGI(TAG, "SERVER: Initiating MTU exchange for larger beacon payload");
+                        int mtu_rc = ble_gattc_exchange_mtu(event->connect.conn_handle, NULL, NULL);
+                        if (mtu_rc != 0) {
+                            ESP_LOGW(TAG, "SERVER: MTU exchange failed (rc=%d)", mtu_rc);
+                        }
+
+                        // Start GATT service discovery to find CLIENT's coordination characteristic
+                        // This runs in parallel with MTU exchange
+                        ESP_LOGI(TAG, "SERVER: Starting GATT service discovery for peer services");
+                        int disc_rc = ble_gattc_disc_all_svcs(event->connect.conn_handle,
+                                                               gattc_on_svc_disc,
+                                                               NULL);
+                        if (disc_rc != 0) {
+                            ESP_LOGE(TAG, "SERVER: Failed to start service discovery; rc=%d", disc_rc);
+                        }
+                    } else {
+                        peer_state.role = PEER_ROLE_CLIENT;
+                        ESP_LOGI(TAG, "CLIENT role assigned (BLE SLAVE)");
+
+                        // Phase 6f: CLIENT also initiates MTU exchange for bidirectional communication
                         ESP_LOGI(TAG, "CLIENT: Initiating MTU exchange for larger beacon payload");
                         int mtu_rc = ble_gattc_exchange_mtu(event->connect.conn_handle, NULL, NULL);
                         if (mtu_rc != 0) {
@@ -2418,32 +2439,12 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         }
 
                         // Start GATT service discovery to find SERVER's time sync characteristic
-                        // This runs in parallel with MTU exchange - MTU will be ready before beacons arrive
                         ESP_LOGI(TAG, "CLIENT: Starting GATT service discovery for peer services");
                         int disc_rc = ble_gattc_disc_all_svcs(event->connect.conn_handle,
                                                                gattc_on_svc_disc,
                                                                NULL);
                         if (disc_rc != 0) {
                             ESP_LOGE(TAG, "CLIENT: Failed to start service discovery; rc=%d", disc_rc);
-                        }
-                    } else {
-                        peer_state.role = PEER_ROLE_SERVER;
-                        ESP_LOGI(TAG, "SERVER role assigned (BLE SLAVE)");
-
-                        // Phase 6f: SERVER also initiates MTU exchange for bidirectional communication
-                        ESP_LOGI(TAG, "SERVER: Initiating MTU exchange for larger beacon payload");
-                        int mtu_rc = ble_gattc_exchange_mtu(event->connect.conn_handle, NULL, NULL);
-                        if (mtu_rc != 0) {
-                            ESP_LOGW(TAG, "SERVER: MTU exchange failed (rc=%d)", mtu_rc);
-                        }
-
-                        // Start GATT service discovery for peer services (for coordination writes)
-                        ESP_LOGI(TAG, "SERVER: Starting GATT service discovery for peer services");
-                        int disc_rc = ble_gattc_disc_all_svcs(event->connect.conn_handle,
-                                                               gattc_on_svc_disc,
-                                                               NULL);
-                        if (disc_rc != 0) {
-                            ESP_LOGE(TAG, "SERVER: Failed to start service discovery; rc=%d", disc_rc);
                         }
                     }
 

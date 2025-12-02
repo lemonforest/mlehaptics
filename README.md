@@ -405,7 +405,7 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ### For Developers
 - **[docs/ai_context.md](docs/ai_context.md)**: Complete API contracts and rebuild instructions with JPL compliance
-- **[docs/architecture_decisions.md](docs/architecture_decisions.md)**: Technical decision rationale (PDR) including timing architecture
+- **[docs/adr/README.md](docs/adr/README.md)**: Technical decision rationale (PDR) including timing architecture
 - **[docs/requirements_spec.md](docs/requirements_spec.md)**: Business requirements with development standards
 - **[CLAUDE.md](CLAUDE.md)**: Developer reference for AI-assisted workflow
 - **Doxygen docs**: Run `doxygen Doxyfile` for comprehensive API documentation
@@ -461,7 +461,7 @@ All firmware, software, and code in this repository is licensed under the **GNU 
 
 ### Hardware License: CERN-OHL-S v2
 
-All hardware designs (PCB schematics, layouts, enclosures) are licensed under the **CERN Open Hardware Licence Version 2 - Strongly Reciprocal**.
+All hardware designs (PCB schematics, layouts, enclosures) are licensed under the **CERN Open Hardware License Version 2 - Strongly Reciprocal**.
 
 - **Applies to:** KiCad files, gerbers, FreeCAD models, STL/STEP files in `/hardware`
 - **Location:** [hardware/LICENSE](hardware/LICENSE)

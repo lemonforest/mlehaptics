@@ -102,6 +102,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated comments: Positive diff = target LATE = catch up (shorten INACTIVE), Negative diff = target EARLY = slow down (extend INACTIVE)
 - **Expected Outcome**: Should restore Bug #40 performance (~+9ms mean, ~19% GOOD timing, ~25% DRIFT), allowing Bug #41 RTT-based clamping to be properly evaluated
 
+**Role Assignment Inverted - No Drift Corrections Applied** (CRITICAL - Bug #43):
+- **Symptom**: Bug #42 test showed oscillating phase errors with NO correction logs. Device that should be CLIENT (higher battery, higher MAC) was running as SERVER instead
+- **Root Cause**: BLE role to time sync role mapping was backwards in `ble_manager.c:2407-2430`
+  - **Intended (per AD010)**: BLE MASTER → SERVER (sends beacons), BLE SLAVE → CLIENT (receives beacons, applies corrections)
+  - **Actual Code**: BLE MASTER → CLIENT, BLE SLAVE → SERVER (inverted!)
+  - Lower battery device initiated connection (became BLE MASTER) but got CLIENT role
+  - Higher battery device accepted connection (became BLE SLAVE) but got SERVER role
+  - Result: Device that should apply corrections was running nominal timing instead
+- **Evidence from logs**:
+  - Dev_a (lower MAC): "lower MAC - initiating as SERVER" → "CLIENT role assigned (BLE MASTER)" → Motor task in CLIENT mode
+  - Dev_b (higher MAC): "higher MAC - waiting as CLIENT" → "SERVER role assigned (BLE SLAVE)" → Motor task in SERVER mode (no corrections!)
+  - Dev_b motor logs: All "SERVER: Cycle starts ACTIVE/INACTIVE" (nominal timing only)
+  - NO "CORRECTION COMPARE" or "CATCH-UP" logs despite oscillating phase errors
+- **Fix**: Swapped role assignment in connection callback (`src/ble_manager.c:2409-2432`)
+  - BLE_GAP_ROLE_MASTER now assigns PEER_ROLE_SERVER (was CLIENT)
+  - BLE_GAP_ROLE_SLAVE now assigns PEER_ROLE_CLIENT (was SERVER)
+  - Updated comments to reflect correct AD010 mapping
+- **Expected Outcome**: CLIENT device will now actually apply drift corrections, Bug #42 sign fix can be properly evaluated
+- **Files Modified**: `src/ble_manager.c:2401-2449`
+
 **BLE Writes Breaking Bilateral Sync** (CRITICAL - Bug #12):
 - **Symptom**: CLIENT device experienced excessive phase resets during PWA operation, causing device overlap
 - **Root Cause**: Every BLE GATT write (including Session Duration) triggered `sync_settings_to_peer()`. CLIENT received `SYNC_MSG_SETTINGS` and unconditionally called `ble_callback_params_updated()`, which reset CLIENT to INACTIVE state even when no motor-timing parameters changed.
