@@ -62,6 +62,7 @@ static uint16_t calculate_crc16(const uint8_t *data, size_t length);
 static uint8_t calculate_sync_quality(int32_t offset_us, uint32_t drift_us, uint32_t rtt_us);
 static void update_quality_metrics(int32_t offset_change_us, uint32_t rtt_us, int32_t drift_rate_us_per_s);
 static esp_err_t adjust_sync_interval(void);
+static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, uint8_t sequence);
 
 /*******************************************************************************
  * PUBLIC API IMPLEMENTATION
@@ -88,6 +89,10 @@ esp_err_t time_sync_init(time_sync_role_t role)
     g_time_sync_state.sync_interval_ms = TIME_SYNC_INTERVAL_MIN_MS;  /* Start aggressive */
     g_time_sync_state.initialized = true;
     g_time_sync_state.session_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    /* Phase 6r: Initialize EMA filter (AD043) */
+    memset(&g_time_sync_state.filter, 0, sizeof(time_filter_t));
+    g_time_sync_state.filter.initialized = false;  /* Will be set true on first sample */
 
     ESP_LOGI(TAG, "Initialized as %s (interval: %lu ms)",
              (role == TIME_SYNC_ROLE_SERVER) ? "SERVER" : "CLIENT",
@@ -199,11 +204,6 @@ esp_err_t time_sync_on_disconnection(void)
     /* PRESERVE drift rate data (CLIENT can extrapolate offset during disconnect) */
     /* drift_rate_us_per_s, drift_rate_valid - NOT cleared */
     /* last_beacon_offset_us, last_beacon_valid, last_beacon_time_us - NOT cleared */
-
-    /* Clear RTT measurement state (no fresh measurements possible while disconnected) */
-    g_time_sync_state.measured_rtt_us = 0;
-    g_time_sync_state.measured_rtt_valid = false;
-    g_time_sync_state.last_beacon_t1_valid = false;
 
     /* Clear handshake state (forces fresh handshake on reconnection) */
     g_time_sync_state.handshake_complete = false;
@@ -424,11 +424,24 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
         return ESP_ERR_INVALID_CRC;
     }
 
-    /* The primary purpose of the beacon is now to deliver the motor epoch.
-     * The drift rate and offset are calculated from the more precise RTT updates.
-     * We still update some secondary state here.
+    /* Phase 6r (AD043): Calculate one-way offset from beacon timestamp
+     *
+     * One-way delay estimation (simplified from NTP):
+     *   raw_offset = client_rx_time - server_tx_time
+     *
+     * This includes both:
+     * - Clock offset (what we want)
+     * - BLE transmission delay (~10-50ms, varies with RTT)
+     *
+     * EMA filter (Step 2) smooths out the BLE delay variation.
      */
-    g_time_sync_state.server_ref_time_us = beacon->timestamp_us;
+    int64_t raw_offset = (int64_t)receive_time_us - (int64_t)beacon->server_time_us;
+
+    /* Phase 6r Step 2: Apply EMA filter with outlier detection (AD043) */
+    int64_t filtered_offset = update_time_filter(raw_offset, receive_time_us, beacon->sequence);
+    g_time_sync_state.clock_offset_us = filtered_offset;
+
+    g_time_sync_state.server_ref_time_us = beacon->server_time_us;
     g_time_sync_state.last_sync_ms = (uint32_t)(receive_time_us / 1000);
     g_time_sync_state.sync_sequence = beacon->sequence;
     g_time_sync_state.total_syncs++;
@@ -443,14 +456,14 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
         if (g_time_sync_state.quality.samples_collected == 0) {
             g_time_sync_state.quality.samples_collected = 1;
             g_time_sync_state.quality.quality_score = 50;
-            ESP_LOGI(TAG, "Quality metrics initialized from beacon (handshake not completed)");
+            ESP_LOGI(TAG, "Quality metrics initialized from beacon (raw offset, filter pending)");
         }
         g_time_sync_state.state = SYNC_STATE_SYNCED;
-        ESP_LOGI(TAG, "Initial sync beacon processed");
+        ESP_LOGI(TAG, "Initial sync beacon processed (one-way timestamp)");
     }
 
-    ESP_LOGD(TAG, "Beacon processed (seq: %u, motor_epoch: %" PRIu64 ", cycle: %lu, RSSI: %d dBm)",
-             beacon->sequence, beacon->motor_epoch_us, beacon->motor_cycle_ms, beacon->server_rssi);
+    ESP_LOGD(TAG, "Beacon processed (seq: %u, raw_offset: %" PRId64 " μs, motor_epoch: %" PRIu64 ", cycle: %lu)",
+             beacon->sequence, raw_offset, beacon->motor_epoch_us, beacon->motor_cycle_ms);
 
     return ESP_OK;
 }
@@ -473,29 +486,22 @@ esp_err_t time_sync_generate_beacon(time_sync_beacon_t *beacon)
         return ESP_ERR_INVALID_STATE;
     }
 
-    /* Populate beacon fields */
-    /* NTP-STYLE: Send ABSOLUTE timestamp (boot time in microseconds)
-     * CLIENT will calculate offset directly: offset = receive_time - beacon_time
-     * Offset magnitude doesn't matter - only stability (drift) matters
+    /* Populate beacon fields (Phase 6r: Simplified for filtered time sync)
+     * AD043: One-way timestamp approach (no RTT measurement in beacon)
+     * CLIENT will capture receive time immediately and apply EMA filter
      */
-    beacon->timestamp_us = esp_timer_get_time();  /* Absolute boot time */
-    beacon->session_ref_ms = g_time_sync_state.session_start_ms;
+    beacon->server_time_us = esp_timer_get_time();  /* Absolute boot time */
     beacon->sequence = ++g_time_sync_state.sync_sequence;  /* Increment and use */
-    beacon->quality_score = g_time_sync_state.quality.quality_score;
 
     /* Phase 3: Include motor epoch for bilateral coordination */
     beacon->motor_epoch_us = g_time_sync_state.motor_epoch_us;
     beacon->motor_cycle_ms = g_time_sync_state.motor_cycle_ms;
 
-    /* Phase 6: Initialize RSSI field (CLIENT will populate when receiving beacon) */
-    beacon->server_rssi = 0;     // Not yet measured (SERVER doesn't know own RSSI)
-    beacon->reserved = 0;        // Reserved for future use
-
     /* Calculate and append checksum */
     beacon->checksum = calculate_crc16((const uint8_t *)beacon, sizeof(time_sync_beacon_t) - sizeof(uint16_t));
 
-    ESP_LOGD(TAG, "Beacon generated (seq: %u, time: %" PRIu64 " μs, quality: %u%%, motor_epoch: %" PRIu64 " μs, cycle: %lu ms)",
-             beacon->sequence, beacon->timestamp_us, beacon->quality_score,
+    ESP_LOGD(TAG, "Beacon generated (seq: %u, server_time: %" PRIu64 " μs, motor_epoch: %" PRIu64 " μs, cycle: %lu ms)",
+             beacon->sequence, beacon->server_time_us,
              beacon->motor_epoch_us, beacon->motor_cycle_ms);
 
     return ESP_OK;
@@ -583,6 +589,101 @@ esp_err_t time_sync_force_resync(void)
 /*******************************************************************************
  * PRIVATE HELPER FUNCTIONS
  ******************************************************************************/
+
+/**
+ * @brief Update EMA filter with new time offset sample (Phase 6r Step 2 - AD043)
+ *
+ * Implements exponential moving average filter with outlier rejection:
+ * 1. Check if sample deviates >200ms from filtered value (outlier detection)
+ * 2. If outlier, log and return previous filtered value (reject)
+ * 3. If valid, apply EMA: filtered = (alpha * raw) + ((1-alpha) * filtered)
+ * 4. Store sample in ring buffer for debugging
+ * 5. Log filter statistics every 10 samples
+ *
+ * JPL Rule 1: Fixed-size ring buffer (no dynamic allocation)
+ * JPL Rule 2: Bounded loops (ring buffer size = 8)
+ *
+ * @param raw_offset_us Raw offset measurement (rx_time - server_time)
+ * @param timestamp_us When this sample was taken
+ * @param sequence Beacon sequence number
+ * @return Filtered offset value (microseconds)
+ */
+static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, uint8_t sequence)
+{
+    time_filter_t *filter = &g_time_sync_state.filter;
+
+    /* First sample: Initialize filter with raw value (no history to compare) */
+    if (!filter->initialized) {
+        filter->filtered_offset_us = raw_offset_us;
+        filter->initialized = true;
+        filter->sample_count = 1;
+        filter->outlier_count = 0;
+        filter->head = 0;
+
+        /* Store in ring buffer */
+        filter->samples[0].raw_offset_us = raw_offset_us;
+        filter->samples[0].timestamp_us = timestamp_us;
+        filter->samples[0].sequence = sequence;
+        filter->samples[0].outlier = false;
+
+        ESP_LOGI(TAG, "Filter initialized: raw=%" PRId64 " μs (seq=%u)", raw_offset_us, sequence);
+        return raw_offset_us;
+    }
+
+    /* Outlier detection: Reject samples >200ms from filtered value */
+    int64_t deviation = raw_offset_us - filter->filtered_offset_us;
+    int64_t abs_deviation = (deviation >= 0) ? deviation : -deviation;
+
+    if (abs_deviation > (int64_t)TIME_FILTER_OUTLIER_THRESHOLD_US) {
+        filter->outlier_count++;
+
+        ESP_LOGW(TAG, "Outlier rejected: raw=%" PRId64 " μs, filtered=%" PRId64 " μs, deviation=%+" PRId64 " μs (seq=%u)",
+                 raw_offset_us, filter->filtered_offset_us, deviation, sequence);
+
+        /* Store outlier in ring buffer but don't update filter */
+        filter->samples[filter->head].raw_offset_us = raw_offset_us;
+        filter->samples[filter->head].timestamp_us = timestamp_us;
+        filter->samples[filter->head].sequence = sequence;
+        filter->samples[filter->head].outlier = true;
+
+        filter->head = (filter->head + 1) % TIME_FILTER_RING_SIZE;
+        filter->sample_count++;
+
+        /* Return previous filtered value (reject outlier) */
+        return filter->filtered_offset_us;
+    }
+
+    /* Valid sample: Apply EMA filter
+     * Formula: filtered = (alpha/100 * raw) + ((100-alpha)/100 * filtered)
+     *
+     * Phase 6r: Dual-alpha for fast startup convergence
+     * - First 10 samples: alpha=30% (fast tracking, ~3× faster convergence)
+     * - Samples 11+: alpha=10% (heavy smoothing, long-term stability)
+     */
+    uint8_t alpha = (filter->sample_count < 10) ? 30 : TIME_FILTER_ALPHA_PCT;
+    int64_t alpha_term = (raw_offset_us * alpha) / 100;
+    int64_t history_term = (filter->filtered_offset_us * (100 - alpha)) / 100;
+    filter->filtered_offset_us = alpha_term + history_term;
+
+    /* Store in ring buffer */
+    filter->samples[filter->head].raw_offset_us = raw_offset_us;
+    filter->samples[filter->head].timestamp_us = timestamp_us;
+    filter->samples[filter->head].sequence = sequence;
+    filter->samples[filter->head].outlier = false;
+
+    filter->head = (filter->head + 1) % TIME_FILTER_RING_SIZE;
+    filter->sample_count++;
+
+    /* Log filter statistics every 10 samples (avoid log spam) */
+    if (filter->sample_count % 10 == 0) {
+        uint32_t outlier_pct = (filter->outlier_count * 100) / filter->sample_count;
+        ESP_LOGI(TAG, "Filter stats: samples=%lu, outliers=%lu (%lu%%), filtered=%" PRId64 " μs, last_raw=%" PRId64 " μs",
+                 filter->sample_count, filter->outlier_count, outlier_pct,
+                 filter->filtered_offset_us, raw_offset_us);
+    }
+
+    return filter->filtered_offset_us;
+}
 
 /**
  * @brief Calculate CRC-16 checksum for message integrity
@@ -1141,250 +1242,6 @@ esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t c
     return ESP_OK;
 }
 
-/*******************************************************************************
- * BUG #27 FIX: TWO-WAY RTT MEASUREMENT PER BEACON
- ******************************************************************************/
-
-/**
- * @brief Record beacon T1 timestamp (SERVER only)
- */
-esp_err_t time_sync_record_beacon_t1(uint64_t t1_us, uint8_t sequence)
-{
-    if (!g_time_sync_state.initialized) {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (g_time_sync_state.role != TIME_SYNC_ROLE_SERVER) {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    g_time_sync_state.last_beacon_t1_us = t1_us;
-    g_time_sync_state.last_beacon_seq = sequence;
-    g_time_sync_state.last_beacon_t1_valid = true;
-
-    return ESP_OK;
-}
-
-/**
- * @brief Process beacon response (SERVER only)
- *
- * Calculates RTT and precise offset using NTP formula.
- * Also implements Fix #2: Update clock_offset_us from measured two-way data
- * instead of preserving stale handshake offset.
- */
-esp_err_t time_sync_process_beacon_response(uint8_t sequence, uint64_t t2_us,
-                                            uint64_t t3_us, uint64_t t4_us)
-{
-    if (!g_time_sync_state.initialized) {
-        ESP_LOGE(TAG, "Beacon response: Not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (g_time_sync_state.role != TIME_SYNC_ROLE_SERVER) {
-        ESP_LOGE(TAG, "Beacon response: Not SERVER role");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (!g_time_sync_state.last_beacon_t1_valid) {
-        ESP_LOGW(TAG, "Beacon response: No T1 stored for matching");
-        return ESP_ERR_NOT_FOUND;
-    }
-
-    if (sequence != g_time_sync_state.last_beacon_seq) {
-        ESP_LOGW(TAG, "Beacon response: Sequence mismatch (got %u, expected %u)",
-                 sequence, g_time_sync_state.last_beacon_seq);
-        return ESP_ERR_INVALID_RESPONSE;
-    }
-
-    uint64_t t1_us = g_time_sync_state.last_beacon_t1_us;
-
-    /* NTP formula:
-     * offset = ((T2-T1) + (T3-T4)) / 2
-     * RTT = (T4-T1) - (T3-T2)
-     *
-     * Note: offset is CLIENT_time - SERVER_time
-     * Positive offset = CLIENT clock ahead of SERVER
-     */
-    int64_t t2_minus_t1 = (int64_t)t2_us - (int64_t)t1_us;
-    int64_t t3_minus_t4 = (int64_t)t3_us - (int64_t)t4_us;
-    int64_t offset = (t2_minus_t1 + t3_minus_t4) / 2;
-
-    /* CRITICAL FIX (Phase 6): Calculate RTT using signed arithmetic to prevent overflow
-     *
-     * Root cause: The subtraction (t4_us - t1_us) can produce huge positive values when
-     * t4_us < t1_us due to unsigned wraparound. This creates astronomically large RTT
-     * values (4.6×10^15 μs ≈ 147,000 years!) that corrupt drift calculations.
-     *
-     * Evidence: All RTT measurements in logs show RTT=4648207396655XXXXXX μs pattern
-     *
-     * Solution: Use signed arithmetic throughout to detect negative results
-     */
-    int64_t t4_minus_t1 = (int64_t)t4_us - (int64_t)t1_us;
-    int64_t t3_minus_t2 = (int64_t)t3_us - (int64_t)t2_us;
-    int64_t rtt = t4_minus_t1 - t3_minus_t2;
-
-    /* Sanity check RTT - should be positive and reasonable (< 10 seconds) */
-    if (rtt < 0) {
-        ESP_LOGW(TAG, "Beacon response: Negative RTT (%" PRId64 " μs) - time sync not stable yet, ignoring", rtt);
-        return ESP_ERR_INVALID_RESPONSE;
-    }
-
-    if (rtt > 10000000) {  /* > 10 seconds = corrupt/overflow */
-        ESP_LOGW(TAG, "Beacon response: RTT too large (%" PRId64 " μs) - likely overflow, ignoring", rtt);
-        return ESP_ERR_INVALID_RESPONSE;
-    }
-
-    if (rtt > 500000) {  /* > 500ms = suspect but not fatal */
-        ESP_LOGW(TAG, "Beacon response: RTT unusually high (%" PRId64 " μs) - possible BLE congestion", rtt);
-        /* Continue anyway - might be real BLE latency spike */
-    }
-
-    /* Store measured RTT */
-    g_time_sync_state.measured_rtt_us = (int32_t)rtt;
-    g_time_sync_state.measured_rtt_valid = true;
-
-    /* Track drift for diagnostics */
-    int64_t old_offset = g_time_sync_state.clock_offset_us;
-    int64_t drift_us = offset - old_offset;
-
-    /* Fix #2: Update clock_offset_us with fresh two-way measurement
-     * The handshake offset becomes stale as crystals drift.
-     * Two-way measurement gives us accurate, current offset.
-     */
-    g_time_sync_state.clock_offset_us = offset;
-    g_time_sync_state.quality.last_rtt_us = (uint32_t)rtt;
-
-    /* Clear T1 to prevent reuse */
-    g_time_sync_state.last_beacon_t1_valid = false;
-
-    ESP_LOGI(TAG, "Beacon RTT measured: %ld μs, offset: %" PRId64 " μs (drift: %+" PRId64 " μs)",
-             (long)rtt, offset, drift_us);
-
-    return ESP_OK;
-}
-
-/**
- * @brief Get last measured RTT
- */
-esp_err_t time_sync_get_measured_rtt(int32_t *rtt_us)
-{
-    if (rtt_us == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    if (g_time_sync_state.measured_rtt_valid) {
-        *rtt_us = g_time_sync_state.measured_rtt_us;
-        return ESP_OK;
-    } else {
-        /* Return default estimate */
-        *rtt_us = 20000;  /* 20ms default */
-        return ESP_ERR_NOT_FOUND;
-    }
-}
-
-/**
- * @brief Update clock offset from two-way RTT measurement (CLIENT only)
- *
- * Bug #27 Fix: Called when CLIENT receives RTT_RESULT from SERVER.
- * SERVER calculated offset using proper NTP 4-timestamp formula,
- * so CLIENT can directly use this value instead of one-way estimate.
- */
-esp_err_t time_sync_update_offset_from_rtt(int64_t offset_us, int32_t rtt_us, uint8_t sequence)
-{
-    if (!g_time_sync_state.initialized) {
-        ESP_LOGE(TAG, "RTT offset update: Not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (g_time_sync_state.role != TIME_SYNC_ROLE_CLIENT) {
-        ESP_LOGE(TAG, "RTT offset update: Not CLIENT role");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    /* CRITICAL FIX (Phase 6): Validate RTT and offset before accepting */
-    if (rtt_us < 0 || rtt_us > 10000000) { /* <0 or >10s */
-        ESP_LOGW(TAG, "RTT offset update: RTT out of range (%ld μs), rejecting", (long)rtt_us);
-        return ESP_ERR_INVALID_ARG;
-    }
-    if (offset_us > 50000000 || offset_us < -50000000) { /* >50s or <-50s */
-        ESP_LOGW(TAG, "RTT offset update: Offset too large (%" PRId64 " μs), rejecting", offset_us);
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    /* Store the old offset before updating, for drift calculation */
-    int64_t old_offset = g_time_sync_state.clock_offset_us;
-    int64_t drift_us = offset_us - old_offset;
-
-    /* Update clock offset with the new, precise two-way measurement */
-    g_time_sync_state.clock_offset_us = offset_us;
-
-    /* DRIFT RATE CALCULATION (Gemini Improvement - November 30, 2025)
-     *
-     * Historical Context:
-     * - Original implementation calculated drift from one-way beacon timestamps
-     * - Beacons used static 20ms RTT estimate when actual RTT varies (50-100ms typical)
-     * - This introduced significant timing noise into drift calculations
-     *
-     * Current Approach (Post-Gemini Refactor):
-     * - Calculate drift from change in RTT-compensated offset (two-way NTP protocol)
-     * - Uses measured RTT from beacon response round-trip
-     * - Precision improvement: ~50-100ms beacon noise → ~10-20ms RTT measurement accuracy
-     * - Same EWMA filtering algorithm (70/30 alpha) applied to filtered data
-     *
-     * Benefits:
-     * - More accurate drift rate for predictive synchronization (Phase 6k)
-     * - Better quality metrics (based on stable drift tracking)
-     * - Aligns with Phase 6r drift freeze on disconnect (RTT stops → drift freezes)
-     *
-     * Formula: drift_rate = (offset_change_us * 1000) / interval_ms
-     * Units: μs/s (microseconds per second)
-     */
-    uint64_t now_us = esp_timer_get_time();
-    if (g_time_sync_state.last_rtt_update_ms > 0) {
-        uint32_t interval_ms = (uint32_t)(now_us / 1000) - g_time_sync_state.last_rtt_update_ms;
-        if (interval_ms > 100 && interval_ms < 120000) { /* 100ms to 2 minutes */
-            int32_t instant_drift_rate = (int32_t)((drift_us * 1000) / (int64_t)interval_ms);
-
-            if (!g_time_sync_state.drift_rate_valid) {
-                g_time_sync_state.drift_rate_us_per_s = instant_drift_rate;
-                g_time_sync_state.drift_rate_valid = true;
-            } else {
-                int32_t alpha = TIME_SYNC_EWMA_ALPHA_PCT;
-                int32_t prev_rate = g_time_sync_state.drift_rate_us_per_s;
-                g_time_sync_state.drift_rate_us_per_s = (alpha * instant_drift_rate + (100 - alpha) * prev_rate) / 100;
-            }
-        }
-    }
-
-    /* Update timestamps and quality metrics */
-    g_time_sync_state.last_rtt_update_ms = (uint32_t)(now_us / 1000);
-    g_time_sync_state.measured_rtt_us = rtt_us;
-    g_time_sync_state.measured_rtt_valid = true;
-    g_time_sync_state.quality.last_rtt_us = (uint32_t)(rtt_us > 0 ? rtt_us : 0);
-
-    int32_t drift_rate = g_time_sync_state.drift_rate_valid ? g_time_sync_state.drift_rate_us_per_s : 0;
-    if (g_time_sync_state.quality.samples_collected > 0) {
-        update_quality_metrics((int32_t)drift_us, (uint32_t)rtt_us, drift_rate);
-    }
-
-    /* Fix Option 2: Clear DRIFT_DETECTED state on successful RTT update
-     * Since RTT updates now calculate drift (post-Gemini refactor), they should
-     * also handle drift detection recovery. Successful RTT update with filtered
-     * drift rate indicates sync is working properly again.
-     */
-    if (g_time_sync_state.state == SYNC_STATE_DRIFT_DETECTED) {
-        g_time_sync_state.state = SYNC_STATE_SYNCED;
-        g_time_sync_state.drift_detected = false;
-        ESP_LOGI(TAG, "Resync complete (RTT update after drift detection, drift_rate=%ld μs/s)",
-                 (long)drift_rate);
-    }
-
-    ESP_LOGI(TAG, "RTT offset updated: seq=%u, offset=%" PRId64 " μs (raw_drift=%+" PRId64 " μs), drift_rate=%+ld μs/s, rtt=%ld μs, quality=%u%%",
-             sequence, offset_us, drift_us, (long)drift_rate, (long)rtt_us, g_time_sync_state.quality.quality_score);
-
-    return ESP_OK;
-}
-
 /**
  * @brief Get filtered drift rate (Fix #2)
  */
@@ -1425,11 +1282,11 @@ esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us)
     }
 
     /* Fall back to raw offset if drift rate not yet calculated */
-    if (!g_time_sync_state.drift_rate_valid || g_time_sync_state.last_rtt_update_ms == 0) {
-        /* Phase 6l: Log first fallback only (avoid spam) */
+    if (!g_time_sync_state.drift_rate_valid || g_time_sync_state.last_beacon_time_us == 0) {
+        /* Phase 6r: Log first fallback only (avoid spam) */
         static bool fallback_logged = false;
         if (!fallback_logged) {
-            ESP_LOGI(TAG, "Prediction: Using RAW offset (drift_rate_valid=%d, no RTT updates yet)",
+            ESP_LOGI(TAG, "Prediction: Using RAW offset (drift_rate_valid=%d, no beacon updates yet)",
                      g_time_sync_state.drift_rate_valid ? 1 : 0);
             fallback_logged = true;
         }
@@ -1437,9 +1294,9 @@ esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us)
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Calculate time since last RTT update */
-    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
-    uint32_t elapsed_ms = now_ms - g_time_sync_state.last_rtt_update_ms;
+    /* Calculate time since last beacon update */
+    uint64_t now_us = esp_timer_get_time();
+    uint32_t elapsed_ms = (uint32_t)((now_us - g_time_sync_state.last_beacon_time_us) / 1000);
 
     /* Extrapolate offset using drift rate
      * predicted_offset = last_offset + (drift_rate_us_per_s * elapsed_seconds)

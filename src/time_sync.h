@@ -42,11 +42,11 @@ extern "C" {
  * CONSTANTS AND CONFIGURATION
  ******************************************************************************/
 
-/** @brief Time sync beacon message size (bytes) */
-#define TIME_SYNC_MSG_SIZE          (28U)
+/** @brief Time sync beacon message size (bytes) - Phase 6r reduced from 28 to 23 */
+#define TIME_SYNC_MSG_SIZE          (23U)
 
-/** @brief Minimum sync interval (milliseconds) - aggressive sync */
-#define TIME_SYNC_INTERVAL_MIN_MS   (10000U)    // 10 seconds
+/** @brief Minimum sync interval (milliseconds) - fast startup (Phase 6r) */
+#define TIME_SYNC_INTERVAL_MIN_MS   (1000U)     // 1 second (10× faster convergence)
 
 /** @brief Maximum sync interval (milliseconds) - steady state */
 #define TIME_SYNC_INTERVAL_MAX_MS   (60000U)    // 60 seconds
@@ -83,9 +83,48 @@ extern "C" {
 /** @brief ESP32-C6 crystal drift specification (parts per million) */
 #define TIME_SYNC_CRYSTAL_DRIFT_PPM (10U)       // ±10 PPM from datasheet
 
+/** @brief Phase 6r: EMA filter alpha (percentage, 0-100) - heavy smoothing */
+#define TIME_FILTER_ALPHA_PCT       (10U)       // 10% weight on new sample (90% on history)
+
+/** @brief Phase 6r: Ring buffer size for outlier detection */
+#define TIME_FILTER_RING_SIZE       (8U)        // Last 8 samples
+
+/** @brief Phase 6r: Outlier threshold (microseconds) - reject samples >200ms deviation */
+#define TIME_FILTER_OUTLIER_THRESHOLD_US (200000U)  // 200ms
+
 /*******************************************************************************
  * TYPE DEFINITIONS
  ******************************************************************************/
+
+/**
+ * @brief Phase 6r: Time sample for ring buffer (AD043)
+ *
+ * Stores individual beacon measurements for debugging and outlier detection.
+ */
+typedef struct {
+    int64_t  raw_offset_us;      /**< Raw offset measurement (rx_time - server_time) */
+    uint64_t timestamp_us;       /**< When this sample was taken */
+    uint8_t  sequence;           /**< Beacon sequence number */
+    bool     outlier;            /**< True if rejected as outlier (>200ms deviation) */
+} time_sample_t;
+
+/**
+ * @brief Phase 6r: EMA filter state (AD043 - Filtered Time Sync)
+ *
+ * Implements exponential moving average filter with ring buffer for
+ * outlier detection. Smooths out BLE transmission delay variation
+ * (±10-30ms typical) while rejecting extreme outliers (>200ms).
+ *
+ * JPL Rule 1: Fixed size ring buffer, no dynamic allocation.
+ */
+typedef struct {
+    time_sample_t samples[TIME_FILTER_RING_SIZE];  /**< Ring buffer of recent samples */
+    uint8_t       head;                             /**< Next write index (0-7) */
+    int64_t       filtered_offset_us;               /**< Smoothed offset estimate */
+    uint32_t      sample_count;                     /**< Total samples processed */
+    uint32_t      outlier_count;                    /**< Samples rejected as outliers */
+    bool          initialized;                      /**< Filter has first sample */
+} time_filter_t;
 
 /**
  * @brief Time synchronization states
@@ -153,6 +192,9 @@ typedef struct {
     /* Quality Metrics */
     time_sync_quality_t quality;     /**< Sync quality tracking */
 
+    /* Phase 6r: EMA filter for one-way timestamp smoothing (AD043) */
+    time_filter_t filter;            /**< Exponential moving average filter */
+
     /* Flags */
     bool     initialized;            /**< Module initialization complete */
     bool     sync_in_progress;       /**< Sync operation active */
@@ -173,41 +215,29 @@ typedef struct {
     uint32_t motor_cycle_ms;         /**< Current motor cycle period (e.g., 2000ms for Mode 0) */
     bool     motor_epoch_valid;      /**< Whether motor epoch has been set by SERVER */
 
-    /* Bug #27 Fix: Two-way RTT measurement per beacon */
-    uint64_t last_beacon_t1_us;      /**< SERVER: T1 of last sent beacon (for RTT calc) */
-    uint8_t  last_beacon_seq;        /**< SERVER: Sequence of last sent beacon */
-    bool     last_beacon_t1_valid;   /**< SERVER: T1 available for matching response */
-    int32_t  measured_rtt_us;        /**< Last measured RTT (μs) from two-way exchange */
-    bool     measured_rtt_valid;     /**< Whether measured_rtt_us is valid */
-
     /* Fix #2: Drift rate filtering (NTP best practice) */
     uint64_t last_beacon_time_us;    /**< CLIENT: Time when last beacon was received */
     int32_t  drift_rate_us_per_s;    /**< Filtered drift rate (μs/s) - positive = CLIENT faster */
     bool     drift_rate_valid;       /**< Whether drift_rate_us_per_s has been calculated */
-
-    /* Phase 6k: Drift-rate-based offset prediction for faster bilateral convergence */
-    uint32_t last_rtt_update_ms;     /**< When clock_offset_us was last updated (for prediction) */
 } time_sync_state_t;
 
 /**
- * @brief Time sync beacon message structure
+ * @brief Time sync beacon message structure (AD043 - Filtered Time Sync)
  *
  * Transmitted by SERVER to CLIENT for periodic synchronization.
- * Fixed 28-byte size for efficient BLE notification.
+ * Fixed 23-byte size for efficient BLE notification.
  *
  * JPL Rule 1: Fixed size, no dynamic allocation.
  *
- * Phase 3: Extended to include motor epoch for bilateral coordination.
+ * Phase 6r: Simplified to one-way timestamp for filtered time sync.
+ * Removes RTT measurement fields (session_ref_ms, quality_score, server_rssi).
+ * CLIENT captures receive time immediately and applies EMA filter.
  */
 typedef struct __attribute__((packed)) {
-    uint64_t timestamp_us;           /**< SERVER's current time (microseconds) */
-    uint32_t session_ref_ms;         /**< Session reference time (milliseconds) */
+    uint64_t server_time_us;         /**< SERVER's current time (microseconds) - one-way timestamp */
     uint64_t motor_epoch_us;         /**< Motor cycle start time (Phase 3) */
     uint32_t motor_cycle_ms;         /**< Motor cycle period (Phase 3) */
     uint8_t  sequence;               /**< Sequence number (for ordering) */
-    uint8_t  quality_score;          /**< SERVER's sync quality (0-100) */
-    int8_t   server_rssi;            /**< SERVER RSSI as measured by CLIENT (dBm, Phase 6) */
-    uint8_t  reserved;               /**< Reserved for future use (padding) */
     uint16_t checksum;               /**< CRC-16 for integrity */
 } time_sync_beacon_t;
 
@@ -559,70 +589,6 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
  * @return ESP_ERR_INVALID_ARG if parameters are invalid
  */
 esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t cycle_ms);
-
-/*******************************************************************************
- * BUG #27 FIX: TWO-WAY RTT MEASUREMENT PER BEACON
- ******************************************************************************/
-
-/**
- * @brief Record beacon T1 timestamp (SERVER only)
- *
- * Called by SERVER when generating a beacon, before sending.
- * Stores T1 and sequence for matching with CLIENT's response.
- *
- * @param t1_us SERVER's local time when beacon generated
- * @param sequence Beacon sequence number
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_STATE if not SERVER role
- */
-esp_err_t time_sync_record_beacon_t1(uint64_t t1_us, uint8_t sequence);
-
-/**
- * @brief Process beacon response (SERVER only)
- *
- * Called by SERVER when receiving SYNC_MSG_BEACON_RESPONSE from CLIENT.
- * Calculates RTT and precise offset using NTP formula:
- *   offset = ((T2-T1) + (T3-T4)) / 2
- *   RTT = (T4-T1) - (T3-T2)
- *
- * Updates clock_offset_us with measured value (more accurate than one-way).
- *
- * @param sequence Beacon sequence (to match with stored T1)
- * @param t2_us CLIENT's receive time
- * @param t3_us CLIENT's response send time
- * @param t4_us SERVER's receive time (when response arrived)
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_STATE if not SERVER role or sequence mismatch
- */
-esp_err_t time_sync_process_beacon_response(uint8_t sequence, uint64_t t2_us,
-                                            uint64_t t3_us, uint64_t t4_us);
-
-/**
- * @brief Get last measured RTT
- *
- * Returns the RTT from the most recent two-way exchange.
- * If no valid measurement, returns default estimate (20ms).
- *
- * @param rtt_us [out] Pointer to store RTT in microseconds
- * @return ESP_OK if valid measurement available
- * @return ESP_ERR_NOT_FOUND if using default estimate
- */
-esp_err_t time_sync_get_measured_rtt(int32_t *rtt_us);
-
-/**
- * @brief Update clock offset from two-way RTT measurement (CLIENT only)
- *
- * Bug #27 Fix: Called when CLIENT receives RTT_RESULT from SERVER.
- * SERVER calculated offset using proper NTP 4-timestamp formula,
- * so CLIENT can directly use this value instead of one-way estimate.
- *
- * @param offset_us Calculated clock offset (CLIENT - SERVER) in μs
- * @param rtt_us Measured round-trip time in μs
- * @param sequence Beacon sequence for correlation
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_STATE if not CLIENT role
- */
-esp_err_t time_sync_update_offset_from_rtt(int64_t offset_us, int32_t rtt_us, uint8_t sequence);
 
 /**
  * @brief Get filtered drift rate (Fix #2)

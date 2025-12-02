@@ -66,7 +66,7 @@ static const char *TAG = "MOTOR_TASK";
 // Purpose: Measure natural oscillator drift between two independent devices
 //          to determine optimal correction interval for bilateral synchronization
 // Usage: Flash both devices, run as standalone (no pairing), compare logs
-#define ENABLE_SINGLE_DEVICE_DRIFT_BASELINE  // Uncomment to enable
+// #define ENABLE_SINGLE_DEVICE_DRIFT_BASELINE  // Uncomment to enable
 
 // ============================================================================
 // MODE CONFIGURATIONS
@@ -1611,57 +1611,12 @@ void motor_task(void *pvParameters) {
                                 // Negative diff = target is EARLY = need to SLOW DOWN = extend INACTIVE
                                 int32_t correction_ms = -(diff_ms * P_GAIN_PCT) / 100;
 
-                                // Phase 6q (Bug #41): RTT-based outlier rejection + adaptive EWMA comparison
-                                // Get last measured RTT for link quality assessment
-                                int32_t rtt_us = 0;
-                                esp_err_t rtt_err = time_sync_get_measured_rtt(&rtt_us);
-                                uint32_t rtt_ms = (rtt_err == ESP_OK && rtt_us > 0) ? (uint32_t)(rtt_us / 1000) : 0;
-
-                                // APPROACH 1 (ACTIVE): RTT-based clamping with hard thresholds
-                                // This is what actually gets applied to motor timing
-                                uint32_t rtt_adjusted_max_correction = max_correction_ms;
-                                if (rtt_ms > 300) {
-                                    // Very high RTT (>300ms) - use nominal timing (no correction)
-                                    // Reasoning: Beacon data is too stale to trust for phase correction
-                                    rtt_adjusted_max_correction = 0;
-                                } else if (rtt_ms > 150) {
-                                    // High RTT (150-300ms) - limit correction to 25ms
-                                    // Reasoning: Partial trust - allow gentle corrections only
-                                    rtt_adjusted_max_correction = 25;
-                                }
-                                // else: Normal RTT (<150ms) - use full max_correction_ms
-
-                                // APPROACH 2 (DATA COLLECTION): Adaptive EWMA gain
-                                // Calculate what adaptive EWMA would do (logged but not used)
-                                float adaptive_alpha = 0.5;  // Base alpha for normal RTT
-                                if (rtt_ms > 200) {
-                                    // Reduce alpha when RTT is high (trust measurement less)
-                                    // At 300ms RTT: alpha = 0.5 * (200/300) = 0.33
-                                    // At 400ms RTT: alpha = 0.5 * (200/400) = 0.25
-                                    adaptive_alpha = 0.5 * (200.0 / (float)rtt_ms);
-                                    if (adaptive_alpha < 0.1) adaptive_alpha = 0.1;  // Floor at 10%
-                                }
-                                // Bug #42: Invert sign to match corrected interpretation
-                                int32_t adaptive_correction_ms = -(diff_ms * (int32_t)(adaptive_alpha * 100.0)) / 100;
-
-                                // Clamp adaptive correction to same max (for fair comparison)
-                                if (adaptive_correction_ms > (int32_t)max_correction_ms) {
-                                    adaptive_correction_ms = (int32_t)max_correction_ms;
-                                } else if (adaptive_correction_ms < -(int32_t)max_correction_ms) {
-                                    adaptive_correction_ms = -(int32_t)max_correction_ms;
-                                }
-
-                                // Apply RTT-adjusted clamping (ACTIVE correction used by motor)
-                                if (correction_ms > (int32_t)rtt_adjusted_max_correction) {
-                                    correction_ms = (int32_t)rtt_adjusted_max_correction;
-                                } else if (correction_ms < -(int32_t)rtt_adjusted_max_correction) {
-                                    correction_ms = -(int32_t)rtt_adjusted_max_correction;
-                                }
-
-                                // Log both approaches for comparison (only when meaningful)
-                                if (should_log && rtt_ms > 0 && (correction_ms != 0 || adaptive_correction_ms != 0)) {
-                                    ESP_LOGI(TAG, "CORRECTION COMPARE: RTT=%lu ms | Active=%+ld ms (rtt_clamp) | Adaptive=%+ld ms (ewma α=%.2f)",
-                                             rtt_ms, (long)correction_ms, (long)adaptive_correction_ms, (double)adaptive_alpha);
+                                // Phase 6r: Simple clamping to frequency-dependent max_correction_ms
+                                // EMA filter in time_sync.c handles outlier rejection now
+                                if (correction_ms > (int32_t)max_correction_ms) {
+                                    correction_ms = (int32_t)max_correction_ms;
+                                } else if (correction_ms < -(int32_t)max_correction_ms) {
+                                    correction_ms = -(int32_t)max_correction_ms;
                                 }
 
                                 // For negative corrections (catch-up), enforce floor constraint

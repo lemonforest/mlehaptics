@@ -9,6 +9,139 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.54] - 2025-12-02
+
+### Added
+
+**Phase 6r: Immediate Bootstrap Beacon (Option A)**:
+- **SERVER sends beacon immediately after TIME_RESPONSE** instead of waiting for first periodic interval
+- **First sample timing**: ~2s after BLE connection (down from 4.35s = 54% faster)
+- **Then fast interval**: t=3s, t=4s, t=5s... (1s intervals from v0.6.53)
+- **Expected convergence**: 3-4 seconds to ±100 μs band (down from 5-8s in v0.6.53)
+- **Implementation**: Single 9-line addition after handshake completion
+- **Benefits**:
+  - Filter gets first sample 2.35s earlier
+  - 9 samples by t=10s (vs 7 in v0.6.53, vs 3 in v0.6.52)
+  - More robust to unlucky first sample (more data for outlier detection)
+  - Negligible overhead (one extra 23-byte packet)
+- **Files Modified**:
+  - `src/time_sync_task.c:652-661` - Added immediate beacon send after TIME_RESPONSE sent
+  - `src/firmware_version.h:33` - Version v0.6.54
+
+---
+
+## [0.6.53] - 2025-12-02
+
+### Changed
+
+**Phase 6r: Fast Convergence Optimization**:
+- **Beacon Interval**: Reduced `TIME_SYNC_INTERVAL_MIN_MS` from 10000ms to 1000ms (10× faster startup)
+  - **Before**: 3 beacons in first 30 seconds (at t=4.35s, 13.90s, 23.95s)
+  - **After**: 10+ beacons in first 10 seconds (expected convergence in 5-8 seconds)
+  - Adaptive backoff still works: 1s → 10s → 20s → 60s based on quality
+  - **Impact**: Negligible power (23 bytes/s for 10s = 230 bytes total)
+- **Dual-Alpha EMA**: Implemented fast-attack filter for startup
+  - **First 10 samples**: alpha=30% (fast tracking, 3× faster convergence)
+  - **Samples 11+**: alpha=10% (heavy smoothing, same long-term stability as v0.6.52)
+  - **Benefit**: Robust to unlucky first sample (±500 μs error recovery in seconds, not minutes)
+  - **Tradeoff**: Slightly more sensitive to outliers during startup (30% vs 10%)
+- **Expected Performance**:
+  - Convergence: 5-8 seconds to ±100 μs band (down from 4.35s with lucky first sample, robust to all conditions)
+  - Long-term stability: Same as v0.6.52 (±29 μs jitter over 90 minutes)
+  - Outlier rejection: Same 200ms threshold
+- **Files Modified**:
+  - `src/time_sync.h:49` - Changed `TIME_SYNC_INTERVAL_MIN_MS` from 10000 to 1000
+  - `src/time_sync.c:663` - Added dual-alpha logic: `alpha = (sample_count < 10) ? 30 : 10`
+  - `src/firmware_version.h:33` - Version v0.6.53
+
+---
+
+## [0.6.52] - 2025-12-02
+
+### Added
+
+**Phase 6r Steps 2-3: EMA Filter + RTT Removal (AD043)**:
+- **Step 2: EMA Filter Implementation**:
+  - Added exponential moving average filter with outlier rejection for one-way timestamp smoothing
+  - Filter constants: alpha=10% (heavy smoothing), ring_size=8, outlier_threshold=200ms
+  - Outlier detection: Reject samples >200ms deviation from filtered value
+  - Ring buffer stores last 8 samples for debugging and correlation analysis
+  - Filter statistics logged every 10 samples to track outlier percentage
+  - **Benefits**: Smooths out BLE transmission delay variation (±10-30ms typical, 300ms outliers)
+  - **Expected outcome**: <5ms mean error vs ±15ms current with RTT approach
+- **Step 3: RTT Logic Removal (COMPLETE)**:
+  - Removed RTT message types from `ble_manager.h`: `SYNC_MSG_BEACON_RESPONSE`, `SYNC_MSG_RTT_RESULT`
+  - Removed RTT payload structures: `time_sync_beacon_response_t`, `time_sync_rtt_result_t`
+  - Removed RTT case handlers from `time_sync_task.c` (Bug #27 beacon response and RTT result processing)
+  - Removed Bug #41 RTT-based clamping logic from `motor_task.c` (replaced with simple frequency-dependent clamping)
+  - Removed all 4 RTT function implementations from `time_sync.c`:
+    - `time_sync_record_beacon_t1()` (117 lines)
+    - `time_sync_process_beacon_response()` (90 lines)
+    - `time_sync_get_measured_rtt()` (15 lines)
+    - `time_sync_update_offset_from_rtt()` (95 lines)
+  - Removed RTT state variable references in `time_sync_on_disconnection()`
+  - Replaced `last_rtt_update_ms` with `last_beacon_time_us` in `time_sync_get_predicted_offset()`
+  - **Total code removed**: ~320 lines of RTT-related logic
+  - **Compilation status**: ✅ Clean build (one minor unused function warning)
+- **Files Modified (Step 2 - EMA Filter)**:
+  - `src/time_sync.h:86-127` - Added filter constants and structures (`TIME_FILTER_*`, `time_sample_t`, `time_filter_t`)
+  - `src/time_sync.h:195-196` - Added `time_filter_t filter` to `time_sync_state_t`
+  - `src/time_sync.c:65` - Added `update_time_filter()` forward declaration
+  - `src/time_sync.c:92-94` - Initialize filter in `time_sync_init()`
+  - `src/time_sync.c:445-447` - Apply EMA filter to raw offset in `time_sync_process_beacon()`
+  - `src/time_sync.c:598-689` - Implemented `update_time_filter()` function (93 lines)
+- **Files Modified (Step 3 - RTT Removal)**:
+  - `src/ble_manager.h:355-356` - Removed `SYNC_MSG_BEACON_RESPONSE` and `SYNC_MSG_RTT_RESULT` enum values
+  - `src/ble_manager.h:418-444` - Removed RTT payload structures (27 lines)
+  - `src/ble_manager.h:475-476` - Removed RTT payload union members
+  - `src/time_sync.h:603-665` - Removed RTT API declarations (4 functions, 63 lines)
+  - `src/time_sync.h:218-231` - Removed RTT state variables (6 variables)
+  - `src/time_sync_task.c:686-738` - Removed RTT case handlers (53 lines)
+  - `src/motor_task.c:1614-1665` - Replaced Bug #41 RTT-based logic with simple clamping (52 lines)
+  - `src/time_sync.c:208-211` - Removed RTT state clearing in disconnection handler
+  - `src/time_sync.c:1246-1248` - Removed "BUG #27 FIX" section header
+  - `src/time_sync.c:1250-1488` - Removed 4 RTT function implementations (239 lines)
+  - `src/time_sync.c:1281,1285,1294-1295` - Replaced `last_rtt_update_ms` with `last_beacon_time_us`
+  - `src/firmware_version.h:33` - Version v0.6.52
+
+---
+
+## [0.6.51] - 2025-12-02
+
+### Changed
+
+**Phase 6r Step 1: Simplified Beacon Structure (AD043)**:
+- **Context**: Grok AI analysis identified RTT measurement overhead as root cause of timing instability. 300ms RTT spikes → 150ms stale timestamps → ±15ms jitter despite corrections. Recommend industry-standard filtered one-way timestamp approach.
+- **Changes**:
+  - Beacon structure reduced from 28 to 23 bytes (removed `session_ref_ms`, `quality_score`, `server_rssi`, `reserved`)
+  - Renamed `timestamp_us` → `server_time_us` for clarity (one-way timestamp)
+  - CLIENT captures receive time immediately, calculates raw offset: `offset = rx_time - server_time`
+  - Removed beacon response (T2/T3) from CLIENT → no more 4-way RTT handshake overhead
+  - Removed RSSI measurement code (not needed for filtering approach)
+  - Removed `time_sync_record_beacon_t1()` call (no RTT tracking)
+- **Benefits**:
+  - Simpler protocol: One message instead of two (beacon + response)
+  - Lower BLE bandwidth: 23 bytes vs 28 bytes per beacon
+  - Eliminates RTT measurement delay (100-300ms round-trip → instant one-way)
+  - Prepares for EMA filter in Step 2 (smooth out BLE transmission delay variation)
+- **Files Modified**:
+  - `src/time_sync.h:45-46` - Updated `TIME_SYNC_MSG_SIZE` constant (28→23)
+  - `src/time_sync.h:204-210` - Simplified beacon structure
+  - `src/time_sync.c:476-492` - Updated beacon generation (removed quality/RSSI fields)
+  - `src/time_sync.c:427-468` - One-way offset calculation (raw, filter pending Step 2)
+  - `src/time_sync_task.c:385-416` - Removed beacon response logic
+  - `src/ble_manager.c:1417-1418` - Removed quality_score from debug log
+  - `src/ble_manager.c:1440-1443` - Removed RSSI measurement code
+  - `src/ble_manager.c:3001-3002` - Updated timestamp field name
+  - `src/ble_manager.c:4320-4321` - Removed RTT recording call
+  - `src/firmware_version.h:33` - Version v0.6.51
+- **Next Steps**:
+  - Step 2: Implement EMA filter with ring buffer for outlier detection
+  - Step 3: Remove legacy RTT measurement functions and state
+  - Expected outcome: <5ms mean error vs ±15ms current (3× minimum improvement)
+
+---
+
 ## [0.6.50] - 2025-12-02
 
 ### Fixed

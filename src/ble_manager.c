@@ -1414,8 +1414,8 @@ static int gatt_bilateral_time_sync_read(uint16_t conn_handle, uint16_t attr_han
     memcpy(&beacon, &g_time_sync_beacon, sizeof(time_sync_beacon_t));
     xSemaphoreGive(time_sync_beacon_mutex);
 
-    ESP_LOGD(TAG, "GATT Read: Time sync beacon (seq: %u, quality: %u%%)",
-             beacon.sequence, beacon.quality_score);
+    ESP_LOGD(TAG, "GATT Read: Time sync beacon (seq: %u)",
+             beacon.sequence);
 
     int rc = os_mbuf_append(ctxt->om, &beacon, sizeof(beacon));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -1437,18 +1437,8 @@ static int gatt_bilateral_time_sync_write(uint16_t conn_handle, uint16_t attr_ha
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // Get receive timestamp ASAP for accuracy
+    // Get receive timestamp ASAP for accuracy (Phase 6r: One-way timestamp protocol)
     uint64_t receive_time_us = esp_timer_get_time();
-
-    // Measure connection RSSI (Phase 6: Link quality monitoring)
-    int8_t rssi = 0;
-    rc = ble_gap_conn_rssi(conn_handle, &rssi);
-    if (rc == 0) {
-        beacon.server_rssi = rssi;  // Store measured RSSI in beacon
-    } else {
-        ESP_LOGW(TAG, "Failed to read connection RSSI: rc=%d", rc);
-        beacon.server_rssi = -127;  // Invalid RSSI marker
-    }
 
     // Forward beacon to time_sync_task for processing
     esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
@@ -3008,8 +2998,8 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to queue beacon to time_sync_task: %s", esp_err_to_name(err));
             } else {
-                ESP_LOGD(TAG, "Beacon notification queued (seq=%u, timestamp=%llu μs)",
-                         beacon.sequence, beacon.timestamp_us);
+                ESP_LOGD(TAG, "Beacon notification queued (seq=%u, server_time=%llu μs)",
+                         beacon.sequence, beacon.server_time_us);
             }
 
             break;
@@ -4327,10 +4317,7 @@ esp_err_t ble_send_time_sync_beacon(void) {
         return err;
     }
 
-    // Bug #27 Fix: Record T1 for two-way RTT measurement
-    // beacon.timestamp_us IS the T1 (SERVER send time)
-    // CLIENT will send response with T2, T3; we receive at T4
-    time_sync_record_beacon_t1(beacon.timestamp_us, beacon.sequence);
+    // Phase 6r (AD043): No RTT measurement - CLIENT uses one-way timestamp with filter
 
     // Check characteristic handle first (before mutex)
     if (g_time_sync_char_handle == 0) {

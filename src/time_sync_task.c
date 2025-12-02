@@ -384,10 +384,11 @@ static void handle_disconnection_message(void)
 
 static void handle_beacon_message(const time_sync_message_t *msg)
 {
-    // Bug #27 Fix: Record T2 (receive time) for two-way RTT measurement
-    // We'll send this back to SERVER along with T3 (send time)
-    uint64_t t2_client_recv_us = msg->data.beacon.receive_time_us;
-    uint8_t beacon_seq = msg->data.beacon.beacon.sequence;
+    /* Phase 6r (AD043): Simplified beacon processing - no response sent
+     *
+     * CLIENT receives one-way timestamp from SERVER and applies EMA filter.
+     * No need to send T2/T3 back to SERVER (eliminates RTT measurement overhead).
+     */
 
     // Process beacon (CLIENT only)
     esp_err_t err = time_sync_process_beacon(&msg->data.beacon.beacon,
@@ -400,34 +401,11 @@ static void handle_beacon_message(const time_sync_message_t *msg)
 
         if (time_sync_get_clock_offset(&clock_offset_us) == ESP_OK &&
             time_sync_get_quality(&quality) == ESP_OK) {
-            ESP_LOGI(TAG, "Sync beacon received: seq=%u, offset=%lld μs, drift=%ld μs, quality=%u%%, rtt=%lu μs",
+            ESP_LOGI(TAG, "Sync beacon received: seq=%u, offset=%lld μs, drift=%ld μs, quality=%u%%",
                      msg->data.beacon.beacon.sequence,
                      clock_offset_us,         // Actual offset (CLIENT - SERVER)
                      quality.avg_drift_us,    // Drift (average offset change)
-                     quality.quality_score,
-                     quality.last_rtt_us);
-        }
-
-        // Bug #27 Fix: Send beacon response to SERVER for two-way RTT measurement
-        // T3 = CLIENT send time (now, just before sending response)
-        uint64_t t3_client_send_us = esp_timer_get_time();
-
-        coordination_message_t response = {
-            .type = SYNC_MSG_BEACON_RESPONSE,
-            .timestamp_ms = (uint32_t)(t3_client_send_us / 1000),
-            .payload.beacon_response = {
-                .sequence = beacon_seq,
-                .t2_client_recv_us = t2_client_recv_us,
-                .t3_client_send_us = t3_client_send_us
-            }
-        };
-
-        err = ble_send_coordination_message(&response);
-        if (err == ESP_OK) {
-            ESP_LOGD(TAG, "Beacon response sent: seq=%u, T2=%llu, T3=%llu μs",
-                     beacon_seq, t2_client_recv_us, t3_client_send_us);
-        } else {
-            ESP_LOGW(TAG, "Failed to send beacon response: %s", esp_err_to_name(err));
+                     quality.quality_score);
         }
 
         // Phase 2: Trigger back-EMF logging to verify bilateral timing after sync
@@ -670,6 +648,17 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             if (err == ESP_OK) {
                 ESP_LOGI(TAG, "TIME_RESPONSE sent: T1=%llu, T2=%llu, T3=%llu, epoch=%llu, cycle=%lu",
                          t1_client_send, t2_server_recv, t3_server_send, motor_epoch, motor_cycle);
+
+                /* Phase 6r: Send immediate beacon to bootstrap CLIENT's EMA filter
+                 * Reduces first sample delay from ~4.35s to ~2s (2.35s faster convergence)
+                 * Then 1s interval kicks in for fast startup tracking
+                 */
+                esp_err_t beacon_err = ble_send_time_sync_beacon();
+                if (beacon_err == ESP_OK) {
+                    ESP_LOGI(TAG, "Bootstrap beacon sent immediately after handshake (Phase 6r)");
+                } else {
+                    ESP_LOGW(TAG, "Failed to send bootstrap beacon: %s", esp_err_to_name(beacon_err));
+                }
             } else {
                 ESP_LOGW(TAG, "Failed to send TIME_RESPONSE: %s", esp_err_to_name(err));
             }
@@ -701,60 +690,6 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 }
             } else {
                 ESP_LOGW(TAG, "Failed to process handshake response: %s", esp_err_to_name(err));
-            }
-            break;
-        }
-
-        case SYNC_MSG_BEACON_RESPONSE: {
-            // Bug #27 Fix: SERVER receives beacon response from CLIENT
-            // Now we have all 4 timestamps for precise RTT/offset calculation
-            uint64_t t4_server_recv = esp_timer_get_time();  // T4 = now
-            uint8_t seq = coord->payload.beacon_response.sequence;
-            uint64_t t2 = coord->payload.beacon_response.t2_client_recv_us;
-            uint64_t t3 = coord->payload.beacon_response.t3_client_send_us;
-
-            esp_err_t err = time_sync_process_beacon_response(seq, t2, t3, t4_server_recv);
-            if (err == ESP_OK) {
-                // Get calculated offset and RTT to send back to CLIENT
-                int64_t offset = 0;
-                int32_t rtt = 0;
-                time_sync_get_clock_offset(&offset);
-                time_sync_get_measured_rtt(&rtt);
-
-                // Send RTT result back to CLIENT so it can update its offset
-                coordination_message_t rtt_msg = {
-                    .type = SYNC_MSG_RTT_RESULT,
-                    .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
-                    .payload.rtt_result = {
-                        .offset_us = offset,
-                        .rtt_us = rtt,
-                        .sequence = seq
-                    }
-                };
-
-                err = ble_send_coordination_message(&rtt_msg);
-                if (err == ESP_OK) {
-                    ESP_LOGI(TAG, "RTT result sent to CLIENT: seq=%u, offset=%lld μs, rtt=%ld μs",
-                             seq, offset, (long)rtt);
-                } else {
-                    ESP_LOGW(TAG, "Failed to send RTT result: %s", esp_err_to_name(err));
-                }
-            } else {
-                ESP_LOGW(TAG, "Failed to process beacon response: %s", esp_err_to_name(err));
-            }
-            break;
-        }
-
-        case SYNC_MSG_RTT_RESULT: {
-            // Bug #27 Fix: CLIENT receives RTT result from SERVER
-            // Update our clock offset with the precise two-way measurement
-            int64_t offset = coord->payload.rtt_result.offset_us;
-            int32_t rtt = coord->payload.rtt_result.rtt_us;
-            uint8_t seq = coord->payload.rtt_result.sequence;
-
-            esp_err_t err = time_sync_update_offset_from_rtt(offset, rtt, seq);
-            if (err != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to update offset from RTT: %s", esp_err_to_name(err));
             }
             break;
         }

@@ -352,8 +352,6 @@ typedef enum {
     SYNC_MSG_CLIENT_READY,         /**< CLIENT ready to start (received beacon, calculated phase) */
     SYNC_MSG_TIME_REQUEST,         /**< Time sync handshake: CLIENT→SERVER with T1 (client send time) */
     SYNC_MSG_TIME_RESPONSE,        /**< Time sync handshake: SERVER→CLIENT with T1, T2, T3 */
-    SYNC_MSG_BEACON_RESPONSE,      /**< Bug #27 Fix: CLIENT→SERVER with T2, T3 for RTT measurement */
-    SYNC_MSG_RTT_RESULT,           /**< Bug #27 Fix: SERVER→CLIENT with calculated offset and RTT */
     SYNC_MSG_MOTOR_STARTED         /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
 } sync_message_type_t;
 
@@ -416,34 +414,6 @@ typedef struct __attribute__((packed)) {
 } time_sync_response_t;
 
 /**
- * @brief Beacon response payload for SYNC_MSG_BEACON_RESPONSE
- *
- * Bug #27 Fix: CLIENT sends this after each beacon for two-way RTT measurement.
- * SERVER uses T2, T3 with its T1 (beacon send time) and T4 (response receive time)
- * to calculate precise RTT and offset per NTP formula:
- *   offset = ((T2-T1) + (T3-T4)) / 2
- *   RTT = (T4-T1) - (T3-T2)
- */
-typedef struct __attribute__((packed)) {
-    uint8_t  sequence;             /**< Beacon sequence number (to match response to beacon) */
-    uint64_t t2_client_recv_us;    /**< CLIENT's local time when beacon received */
-    uint64_t t3_client_send_us;    /**< CLIENT's local time when response sent */
-} time_sync_beacon_response_t;
-
-/**
- * @brief RTT result payload for SYNC_MSG_RTT_RESULT
- *
- * Bug #27 Fix: SERVER sends this to CLIENT after calculating two-way RTT.
- * Contains the calculated clock offset and measured RTT.
- * CLIENT uses this to update its clock_offset_us for accurate drift correction.
- */
-typedef struct __attribute__((packed)) {
-    int64_t  offset_us;            /**< Calculated clock offset (CLIENT - SERVER) in μs */
-    int32_t  rtt_us;               /**< Measured round-trip time in μs */
-    uint8_t  sequence;             /**< Beacon sequence for correlation */
-} time_sync_rtt_result_t;
-
-/**
  * @brief Motor started payload for SYNC_MSG_MOTOR_STARTED
  *
  * Phase 6: SERVER sends this to CLIENT immediately when motors start.
@@ -472,8 +442,6 @@ typedef struct __attribute__((packed)) {
         uint8_t battery_level;     /**< CLIENT_BATTERY: Battery percentage 0-100 */
         time_sync_request_t time_request;   /**< TIME_REQUEST: NTP handshake T1 */
         time_sync_response_t time_response; /**< TIME_RESPONSE: NTP handshake T1,T2,T3 */
-        time_sync_beacon_response_t beacon_response; /**< BEACON_RESPONSE: Two-way RTT (Bug #27) */
-        time_sync_rtt_result_t rtt_result;  /**< RTT_RESULT: Calculated offset/RTT (Bug #27) */
         motor_started_t motor_started;      /**< MOTOR_STARTED: Immediate epoch notification (Phase 6) */
         // SHUTDOWN and START_ADVERTISING have no payload
     } payload;

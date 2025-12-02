@@ -13,7 +13,7 @@ Generated with assistance from **Claude Sonnet 4 (Anthropic)**
 
 ## 🎯 Project Overview
 
-This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes LED testing capabilities during development.
+This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes a WS2812B RGB LED for dual-modality stimulation.
 
 **Current Development Status:**
 - ✅ Phase 0.4 JPL-compliant firmware complete (single-device testing)

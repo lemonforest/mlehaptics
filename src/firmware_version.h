@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 50  // Tracks bug number (Bug #50)
+#define FIRMWARE_VERSION_PATCH 54  // Phase 6r: Immediate beacon after handshake (sub-2s first sample)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
