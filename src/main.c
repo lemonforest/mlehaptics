@@ -229,28 +229,33 @@ static esp_err_t init_hardware(void) {
     led_enable();
     ESP_LOGI(TAG, "LED power enabled");
 
-    // 5. Initialize BLE Manager (load settings from NVS)
+    // 5. Read initial battery level BEFORE BLE init (Bug #48 Fix)
+    // Battery must be known before ble_on_sync() callback fires for role assignment
+    ESP_LOGI(TAG, "Reading initial battery level (Bug #48)...");
+    int raw_mv = 0;
+    float battery_v = 0.0f;
+    int battery_pct = 0;
+    if (battery_read_voltage(&raw_mv, &battery_v, &battery_pct) != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to read initial battery level, using 0%%");
+        battery_pct = 0;
+    } else {
+        ESP_LOGI(TAG, "Initial battery: %.2fV [%d%%]", battery_v, battery_pct);
+    }
+
+    // 6. Initialize BLE Manager (load settings from NVS)
+    // Pass initial battery for role assignment (Bug #48 Fix)
     ESP_LOGI(TAG, "Initializing BLE Manager...");
-    ret = ble_manager_init();
+    ret = ble_manager_init((uint8_t)battery_pct);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "BLE Manager init failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
-    // 6. Cache initial battery level in BLE characteristics
-    // This ensures BLE clients get a valid battery reading on initial connection
-    // Must happen AFTER ble_manager_init() creates the char_data_mutex and bilateral_data_mutex
-    ESP_LOGI(TAG, "Caching initial battery level for BLE...");
-    int raw_mv = 0;
-    float battery_v = 0.0f;
-    int battery_pct = 0;
-    if (battery_read_voltage(&raw_mv, &battery_v, &battery_pct) == ESP_OK) {
-        ble_update_battery_level((uint8_t)battery_pct);           // Configuration Service (mobile app)
-        ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service (peer device)
-        ESP_LOGI(TAG, "Initial battery level cached: %d%%", battery_pct);
-    } else {
-        ESP_LOGW(TAG, "Failed to read initial battery level");
-    }
+    // 7. Update BLE characteristics with battery level
+    // This updates the Configuration Service battery characteristic for mobile apps
+    // (bilateral_data.battery_level already initialized in ble_on_sync())
+    ESP_LOGI(TAG, "Updating BLE Configuration Service battery...");
+    ble_update_battery_level((uint8_t)battery_pct);  // Configuration Service (mobile app)
 
     ESP_LOGI(TAG, "All hardware modules initialized successfully");
     return ESP_OK;

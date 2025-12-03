@@ -120,6 +120,7 @@ typedef struct {
 
 /**
  * @brief Initialize BLE subsystem and GATT server
+ * @param initial_battery_pct Initial battery percentage (0-100) for role assignment
  * @return ESP_OK on success, error code on failure
  *
  * Configures:
@@ -133,8 +134,11 @@ typedef struct {
  * Device name format: "EMDR_Pulser_XXXXXX" (last 3 MAC bytes)
  *
  * Must be called after motor_init() and battery_monitor_init()
+ *
+ * Bug #48 Fix: Battery level must be read BEFORE calling this function
+ * to ensure it's available when ble_on_sync() callback fires.
  */
-esp_err_t ble_manager_init(void);
+esp_err_t ble_manager_init(uint8_t initial_battery_pct);
 
 /**
  * @brief Start BLE advertising
