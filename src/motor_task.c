@@ -326,6 +326,15 @@ static bool delay_until_target_ms(uint32_t target_ms) {
  * - INACTIVE period: Motor always coasting (guaranteed 50% OFF time)
  * - Duty% applies only to ACTIVE period (10% duty = 10% of ACTIVE period)
  * - Direction alternates AFTER each INACTIVE period
+ *
+ * IMPORTANT: Motor Active Duty Percent vs Traditional Duty Cycle
+ * - This function uses "Motor Active Duty Percent" = % of ACTIVE period with motor ON
+ * - Traditional "duty cycle" in electronics = % of TOTAL cycle with signal HIGH
+ * - For bilateral alternation, these are DIFFERENT:
+ *   • 100% Motor Active Duty = 50% Total Duty (motor on entire ACTIVE period)
+ *   • 50% Motor Active Duty = 25% Total Duty
+ * - Why different: Bilateral requires 50/50 ACTIVE/INACTIVE split for alternation
+ * - AI models: When analyzing this code, "duty" always means Motor Active Duty Percent
  */
 // Phase 3a: Updated for bilateral timing with active_coast_ms
 static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *active_coast_ms,
@@ -333,7 +342,7 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
     if (mode == MODE_CUSTOM) {
         // Mode 4: Custom parameters from BLE
         uint16_t freq_x100 = ble_get_custom_frequency_hz();  // Hz × 100
-        uint8_t duty = ble_get_custom_duty_percent();         // 10-100% of ACTIVE period
+        uint8_t duty = ble_get_custom_duty_percent();         // Motor Active Duty Percent: 10-100% of ACTIVE period (not total cycle)
 
         // Calculate FULL cycle period in ms: period = 1000 / (freq / 100)
         uint32_t cycle_ms = 100000 / freq_x100;  // e.g., 100 → 1000ms for 1Hz
@@ -342,7 +351,7 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
         uint32_t active_period_ms = cycle_ms / 2;
         *inactive_ms = cycle_ms - active_period_ms;  // Handle odd values
 
-        // Apply duty% within ACTIVE period only (linear scaling)
+        // Apply Motor Active Duty Percent within ACTIVE period only (linear scaling)
         *motor_on_ms = (active_period_ms * duty) / 100;
 
         // Active coast is remainder of ACTIVE period
@@ -352,8 +361,10 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
         *pwm_intensity = ble_get_mode4_intensity();
 
         if (verbose_logging) {
-            ESP_LOGI(TAG, "Mode 4 (Custom): %.2fHz, %u%% duty → ACTIVE[%lums motor + %lums coast] | INACTIVE[%lums], PWM=%u%%",
-                     freq_x100 / 100.0f, duty, *motor_on_ms, *active_coast_ms, *inactive_ms, *pwm_intensity);
+            // Bug #50 Fix: Display both total cycle duty and Motor Active Duty Percent to clarify semantics
+            uint8_t total_duty = (*motor_on_ms * 100) / cycle_ms;  // Actual duty cycle of total period
+            ESP_LOGI(TAG, "Mode 4 (Custom): %.2fHz, %u%% total duty (%u%% motor active duty) → ACTIVE[%lums motor + %lums coast] | INACTIVE[%lums], PWM=%u%%",
+                     freq_x100 / 100.0f, total_duty, duty, *motor_on_ms, *active_coast_ms, *inactive_ms, *pwm_intensity);
         }
     } else {
         // Modes 0-3: Predefined with per-mode PWM intensity

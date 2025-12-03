@@ -255,6 +255,10 @@ static ble_char_data_t char_data = {
 
 static SemaphoreHandle_t char_data_mutex = NULL;
 
+// Bug #48 Fix: Pre-initialized battery level (read before BLE init in main.c)
+// This ensures battery is available when ble_on_sync() callback fires
+static uint8_t g_initial_battery_pct = 0;
+
 // Advertising state
 typedef struct {
     bool advertising_active;
@@ -3289,10 +3293,19 @@ static void ble_on_sync(void) {
         ESP_LOGI(TAG, "BLE TX power set to maximum (+9 dBm) for ADV/SCAN/CONN");
     }
 
+    // Bug #48 Fix: Initialize battery data before first advertising update
+    // This ensures battery is available for role assignment before devices connect
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        bilateral_data.battery_level = g_initial_battery_pct;
+        xSemaphoreGive(bilateral_data_mutex);
+    } else {
+        ESP_LOGW(TAG, "Failed to acquire bilateral_data_mutex for battery init");
+    }
+
     // Bug #44: Configure advertising and scan response dynamically
     // - Advertising data: flags, name, battery Service Data (updated via ble_update_advertising_data)
     // - Scan response: UUID (dynamic switching via ble_update_scan_response)
-    ble_update_advertising_data();  // Set initial advertising data with battery
+    ble_update_advertising_data();  // Set initial advertising data with battery (Bug #48: now includes pre-cached battery)
 
     // Initialize scan response (will be updated dynamically)
     struct ble_hs_adv_fields rsp_fields;
@@ -3511,10 +3524,14 @@ esp_err_t ble_load_settings_from_nvs(void) {
 // PUBLIC API IMPLEMENTATION
 // ============================================================================
 
-esp_err_t ble_manager_init(void) {
+esp_err_t ble_manager_init(uint8_t initial_battery_pct) {
     esp_err_t ret;
 
     ESP_LOGI(TAG, "Initializing BLE manager (AD032)...");
+
+    // Bug #48 Fix: Store initial battery for use in ble_on_sync()
+    g_initial_battery_pct = initial_battery_pct;
+    ESP_LOGI(TAG, "Initial battery cached: %u%% (for role assignment)", g_initial_battery_pct);
 
     // Initialize boot timestamp for UUID-switching (Phase 1b.3)
     ble_boot_time_ms = (uint32_t)(esp_timer_get_time() / 1000);

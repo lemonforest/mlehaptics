@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+**Bug #48: Battery-Based Role Assignment Race Condition**:
+- **Symptom**: Both devices fell back to discovery-based role assignment (power-on order) instead of using battery level
+- **Root Cause**: BLE stack's `ble_on_sync()` callback fired before battery was cached, causing both devices to advertise 0% battery
+- **Fix**: Battery now read BEFORE `ble_manager_init()` and passed as parameter
+  - Added `g_initial_battery_pct` static variable to store battery before BLE init
+  - `ble_on_sync()` initializes `bilateral_data.battery_level` with pre-cached value before first advertising update
+  - Ensures battery available for role assignment when peer devices discover each other
+- **Impact**: Higher-battery device now correctly becomes SERVER, balancing load and battery life
+- **Files Modified**:
+  - `src/ble_manager.h:141` - Updated signature: `esp_err_t ble_manager_init(uint8_t initial_battery_pct)`
+  - `src/ble_manager.c:258-260` - Static variable declaration
+  - `src/ble_manager.c:3523-3530` - Store initial battery in ble_manager_init()
+  - `src/ble_manager.c:3292-3299` - Initialize bilateral_data.battery_level in ble_on_sync()
+  - `src/main.c:232-258` - Read battery before BLE init, pass to ble_manager_init()
+
+**Bug #50: Mode 4 Duty Cycle Display Confusion**:
+- **Symptom**: Mode 4 displayed "79% duty" but actual motor duty cycle was 39.5% of total cycle, causing AI model confusion
+- **Root Cause**: Cross-domain terminology ambiguity - "duty cycle" means different things in different contexts:
+  - Traditional electronics: % of total period with signal HIGH
+  - Bilateral alternation: % of ACTIVE period with motor ON (must maintain 50/50 ACTIVE/INACTIVE split)
+- **Fix**: Enhanced with "Motor Active Duty Percent" terminology throughout
+  - Logging: "39% total duty (79% motor active duty)" clarifies both measurements
+  - Comments: Explicitly state "Motor Active Duty Percent: 10-100% of ACTIVE period (not total cycle)"
+  - Documentation: Added comprehensive section explaining semantic difference for AI models
+  - Example: 100% Motor Active Duty = 50% Total Duty (motor on entire ACTIVE period)
+- **Impact**:
+  - Users understand actual haptic feedback intensity (39.5% total vs 79% active)
+  - AI models can correctly interpret "duty" in bilateral context (not traditional duty cycle)
+  - Prevents future confusion about cross-domain terminology
+- **Files Modified**:
+  - `src/motor_task.c:315-338` - Enhanced function documentation with Motor Active Duty Percent explanation
+  - `src/motor_task.c:345` - Comment: "Motor Active Duty Percent: 10-100% of ACTIVE period (not total cycle)"
+  - `src/motor_task.c:354` - Comment: "Apply Motor Active Duty Percent within ACTIVE period only"
+  - `src/motor_task.c:355-366` - Logging: "motor active duty" terminology, dual display
+
 ---
 
 ## [0.6.57] - 2025-12-03
