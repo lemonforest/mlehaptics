@@ -127,6 +127,97 @@ Phase 2 implements NTP-style time synchronization between peer devices to enable
 
 ---
 
+## Phase 6r: Drift Continuation During Disconnect (November 30, 2025)
+
+**Status:** IMPLEMENTATION COMPLETE (Hardware testing pending)
+
+Phase 6r implements conditional clearing of time sync state to allow CLIENT devices to continue bilateral motor coordination during brief BLE disconnections using frozen drift rate extrapolation.
+
+### Key Features Implemented
+
+1. **Modified Disconnect Handler** (`src/time_sync.c:174-217`)
+   - PRESERVES motor_epoch_us, motor_cycle_ms, motor_epoch_valid
+   - PRESERVES drift_rate_us_per_s and drift tracking state
+   - CLIENT can continue bilateral alternation during disconnect
+   - Only clears RTT measurement state (no fresh measurements possible)
+
+2. **Safety Timeout** (`src/time_sync.c:935-958`)
+   - `time_sync_get_motor_epoch()` expires after 2-minute disconnect
+   - Returns `ESP_ERR_TIMEOUT` to gracefully stop coordination
+   - Prevents unbounded drift accumulation (±2.4ms over 20min acceptable)
+
+3. **Role Swap Detection** (`src/time_sync.c:219-278`)
+   - New `time_sync_on_reconnection()` function detects role changes
+   - Logs ⚠️ WARNING if role swap detected (shouldn't happen per Phase 6n)
+   - Conditionally clears motor_epoch only on role swap
+   - Normal case: Role preserved → motor epoch valid → smooth continuation
+
+4. **BLE Manager Integration** (`src/ble_manager.c:2121-2128`)
+   - Calls `time_sync_on_reconnection()` after role assignment
+   - Maps `peer_role_t` → `time_sync_role_t` correctly
+
+5. **Documentation** (`src/motor_task.c:21-28`)
+   - Phase 6r section in motor_task.c header
+   - Explains drift stability metrics from Phase 2 testing
+
+### Technical Rationale
+
+**Original Phase 6 Bug (2466ms phase skip):**
+- Stale motor epoch from previous session when role SWAPPED on reconnection
+- Example: CLIENT session 1 → disconnect → reconnect as SERVER → used old CLIENT epoch
+- Original fix: Aggressive clearing stopped ALL continuation (even valid cases)
+
+**Separate Question: Can CLIENT Continue During Disconnect?**
+- Drift rate stability: ±30 μs over 90 minutes (Phase 2 testing)
+- For 20-minute therapy: ±2.4ms worst-case drift (well within ±100ms spec)
+- Technical conclusion: YES - continuation is valid and therapeutically beneficial
+
+**Phase 6r Solution:**
+- Preserve motor_epoch during disconnect → CLIENT continues using frozen drift
+- Clear motor_epoch only on role swap → prevents original Phase 6 bug
+- Safety timeout (2 min) → prevents unbounded drift for long disconnects
+- Role swap detection → logs warning (indicates Phase 6n bug if triggered)
+
+### Expected Behavior
+
+**Brief Disconnect (< 2 min):**
+- ✅ CLIENT motors continue using frozen drift rate
+- ✅ Bilateral alternation maintained (±2.4ms drift over 20 min)
+- ✅ No interruption to therapy session
+- ✅ Smooth reconnection without phase skip
+
+**Long Disconnect (> 2 min):**
+- ⏱️ Motor epoch expires automatically
+- ⏹️ Coordination stops gracefully
+- 🔄 Resumes after reconnection with fresh handshake
+
+**Role Swap (shouldn't happen):**
+- ⚠️ Warning logged: "Role swap detected - THIS SHOULD NOT HAPPEN!"
+- 🧹 Motor epoch cleared to prevent corruption
+- 🐛 Indicates bug in Phase 6n role preservation logic
+
+### Testing Required (Pending Hardware)
+
+- [ ] Brief disconnect (30s): Verify motors continue without interruption
+- [ ] Long disconnect (3 min): Verify timeout stops motors gracefully
+- [ ] Role swap: Verify warning appears if roles somehow swap
+- [ ] Timing accuracy: Verify <5ms drift during 60s disconnect
+
+### Files Modified
+
+- `src/time_sync.c` - Disconnect/reconnection handlers, safety timeout
+- `src/time_sync.h` - New API declaration
+- `src/ble_manager.c` - Integration with connect event
+- `src/motor_task.c` - Documentation
+
+### ADR Impact
+
+- Partially supersedes original Phase 6 fix rationale
+- Aligns with AD041 (predictive bilateral synchronization philosophy)
+- Validates drift-based continuation model from tech spike
+
+---
+
 ## Project Overview
 
 This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bilateral stimulation device designed for therapeutic applications. The device uses dual wireless ESP32-C6 microcontrollers with ERM motors for bilateral tactile stimulation.
@@ -898,6 +989,18 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
 - **Fix**: Use NimBLE's actual connection role from `desc.role` field (`BLE_GAP_ROLE_MASTER` = CLIENT, `BLE_GAP_ROLE_SLAVE` = SERVER) instead of discovery flag (`ble_manager.c:1150-1166`). Connection role is definitively assigned by BLE stack based on who actually initiated the link.
 - **Status**: ✅ RESOLVED - Code complete, hardware testing pending
 
+**Bug #33: Lower-Battery Device Assigned Wrong Role** (CRITICAL - RESOLVED November 30, 2025):
+- **Symptom**: Device with lower battery (96%) incorrectly assigned itself SERVER role instead of CLIENT
+- **Root Cause**: CLIENT-waiting devices kept advertising after deciding to wait. Higher-battery device could connect TO lower-battery device, reversing BLE roles (MASTER/SLAVE) and thus reversing device roles (SERVER/CLIENT).
+- **Log Evidence**: DEV_B correctly logged "Lower battery (96% < 97%) - waiting as CLIENT", but then logged "SERVER role assigned (BLE SLAVE)" when DEV_A connected to it
+- **Impact**: CRITICAL - Role reversal could cause both devices to behave incorrectly (wrong coordination logic)
+- **Fix**: Added `ble_gap_adv_stop()` in three CLIENT-waiting code paths (`src/ble_manager.c`):
+  1. Lower battery device waiting for higher battery (line 3713-3719)
+  2. Higher MAC device waiting for lower MAC (equal batteries) (line 3755-3761)
+  3. Previous CLIENT waiting for previous SERVER reconnection (line 3685-3691)
+- **Result**: Only the connection-initiating device (higher battery / lower MAC / previous SERVER) remains discoverable. CLIENT devices stop advertising and wait to receive connection, ensuring correct role assignment.
+- **Status**: ✅ RESOLVED - Code complete, hardware testing pending
+
 ### Known Issues (Remaining)
 
 1. **Advertising Timer Loop** (Possibly RESOLVED by Bug #8 fix):
@@ -1149,5 +1252,35 @@ A: Watchdog will trigger reset after 2000ms. Check serial logs for panic handler
 - **Document design choices:** Add to architecture_decisions.md if making significant changes
 - **Hardware constraints matter:** Remember GPIO limitations, LEDC timing constraints, battery capacity
 - **Test on hardware when possible:** Simulators don't catch timing issues or hardware quirks
+
+### Branch and PR Workflow (MANDATORY)
+
+**No direct commits to main.** All changes must go through feature branches and PRs.
+
+**Before finalizing any branch for PR:**
+
+1. **Update CHANGELOG.md:**
+   - Add entries under `[Unreleased]` section for all changes
+   - Use appropriate categories: Added, Fixed, Changed, Infrastructure, Documentation
+   - Include bug numbers for fixes (e.g., "Bug #12: Description")
+   - Reference affected files with line numbers when helpful
+
+2. **Suggest Version Bump:**
+   - **Patch (v0.x.Y):** Bug fixes, documentation updates, minor tweaks
+   - **Minor (v0.X.0):** New features, architecture changes, new phases
+   - **Major (v1.0.0):** Production release milestone
+   - Ask user to confirm version before updating CLAUDE.md header
+
+3. **Branch Naming Convention:**
+   - Feature branches: `phase6-bilateral-motor-coordination`, `feature/client-battery`
+   - Bug fix branches: `fix/ble-sync-disruption`, `fix/bug-12-settings-spam`
+   - Documentation: `docs/phase6-changelog`
+
+4. **PR Checklist (remind user):**
+   - [ ] CHANGELOG.md updated
+   - [ ] Version bump agreed (if applicable)
+   - [ ] Build verified (`pio run -e xiao_esp32c6_ble_no_nvs`)
+   - [ ] Hardware testing completed (if behavior changed)
+   - [ ] CLAUDE.md version header updated (if version bumped)
 
 **Most Important:** The device must be reliable and safe for therapeutic use. When in doubt, ask before making changes that could affect safety or therapeutic effectiveness.

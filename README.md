@@ -1,9 +1,9 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.2.0-beta.1
-**Last Updated:** 2025-11-19
-**Status:** Beta Testing
-**Project Phase:** Phase 1c Complete (Battery-Based Role Assignment) | Phase 0.4 Complete (JPL Single-Device)
+**Version:** v0.6.57 (Phase 6t Complete)
+**Last Updated:** 2025-12-03
+**Status:** Phase 6s Deployed to Therapist (Live Testing) | Phase 6t Ready (Fast Lock)
+**Project Phase:** Phase 6t Complete (Fast Lock) | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
@@ -13,14 +13,17 @@ Generated with assistance from **Claude Sonnet 4 (Anthropic)**
 
 ## 🎯 Project Overview
 
-This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes LED testing capabilities during development.
+This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes a WS2812B RGB LED for dual-modality stimulation.
 
 **Current Development Status:**
 - ✅ Phase 0.4 JPL-compliant firmware complete (single-device testing)
-- ✅ BLE GATT server for mobile app configuration (5 operational modes)
-- ✅ Hardware v0.663399ADS with GPIO crosstalk fixes implemented
 - ✅ Phase 1c complete: Peer discovery with battery-based role assignment
-- 🔄 Phase 2 (next): Command-and-control bilateral coordination protocol
+- ✅ Phase 2 complete: NTP-style time synchronization (±30 μs over 90 minutes)
+- ✅ Phase 6k complete: Drift-rate prediction for bilateral coordination
+- ✅ Phase 6r complete: Filtered time sync with outlier rejection
+- ✅ Phase 6s deployed: Two-stage antiphase lock (live therapist testing)
+- ✅ Phase 6t complete: Fast lock with coordinated startup (~1s lock time)
+- ⏸️ Development paused: Hardware build in progress (new units)
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
@@ -144,10 +147,10 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
 2. **5 operational modes**: Four presets + custom BLE-controlled mode
 3. **Hold button 5 seconds** to shutdown
 
-**Dual-Device Mode (In Development):**
+**Dual-Device Mode (Current Implementation):**
 1. **Power both devices** - they will automatically pair within 30 seconds
 2. **Status LED patterns**:
-   - Fast blink = searching for server  
+   - Fast blink = searching for server
    - Slow blink = waiting for client
    - Solid on = connected and bilateral active
 3. **Test bilateral stimulation** - Motors alternate based on configured cycle time:
@@ -156,6 +159,55 @@ This project follows **JPL Coding Standard for C Programming Language** for safe
    - Slow 2000ms cycle: Each motor active for 999ms (0.5 Hz bilateral rate)
    - **NO overlap** at any cycle time setting
 4. **Hold button 5 seconds** on either device to shutdown both
+
+## 🎬 Typical Bilateral Operation Flow
+
+### Starting a Therapy Session
+
+**Step 1: Power On Both Devices**
+- Remove both devices from cases or turn on simultaneously
+- Devices boot within 2-3 seconds
+- Purple LED + status LED ON = waiting for peer
+
+**Step 2: Automatic Pairing (< 10 seconds)**
+- Both devices scan for Bilateral Control Service UUID
+- Higher battery device initiates connection (becomes SERVER/MASTER)
+- Lower battery device accepts connection (becomes CLIENT/SLAVE)
+- **Pairing success**: 3× green synchronized flash on both devices
+- **Pairing failure** (rare): 3× red flash, power cycle to retry
+
+**Step 3: Session Starts Automatically**
+- Default mode: 0.5Hz @ 25% duty (Mode 0)
+- SERVER motors activate while CLIENT motors coast
+- After 1 second: CLIENT motors activate while SERVER motors coast
+- Bilateral alternation continues automatically
+- **Session continuity**: If BLE briefly disconnects (<2 min), motors continue using frozen drift rate
+
+**Step 4: Mode Switching During Session** (Optional)
+- **Button tap** on either device: Cycle through modes (0→1→2→3→0...)
+- Mode change propagates to peer device automatically
+- Both devices synchronize to new frequency within 1 cycle
+- Single quick blink confirms mode change
+- **Available modes**: 0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% motor duty
+
+**Step 5: Session Termination**
+- **Normal end**: Session stops after configured duration (default 20 minutes)
+- **Emergency shutdown**: 5-second button hold on **either** device
+  - Purple LED ON during hold = release to shutdown
+  - Both devices stop motors within 50ms
+  - Both devices enter deep sleep simultaneously
+- **Automatic shutdown**: Low battery warning → graceful stop
+
+### Reconnection After Brief Disconnect
+
+**If BLE connection drops during session:**
+- ✅ **Motors continue** using frozen drift rate (CLIENT only)
+- ✅ **Bilateral alternation maintained** (±2.4ms drift over 20 min)
+- ✅ **Therapeutic continuity** preserved during BLE glitches
+- ⏱️ **Safety timeout**: After 2 minutes, motors stop gracefully
+- 🔄 **Reconnection**: Devices automatically reconnect, motors resume coordination
+
+**Note:** Roles are preserved on reconnection (Phase 6n). If roles somehow swap, device logs warning (indicates bug).
 
 ## 🔧 Bilateral Timing Architecture
 
@@ -355,7 +407,7 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ### For Developers
 - **[docs/ai_context.md](docs/ai_context.md)**: Complete API contracts and rebuild instructions with JPL compliance
-- **[docs/architecture_decisions.md](docs/architecture_decisions.md)**: Technical decision rationale (PDR) including timing architecture
+- **[docs/adr/README.md](docs/adr/README.md)**: Technical decision rationale (PDR) including timing architecture
 - **[docs/requirements_spec.md](docs/requirements_spec.md)**: Business requirements with development standards
 - **[CLAUDE.md](CLAUDE.md)**: Developer reference for AI-assisted workflow
 - **Doxygen docs**: Run `doxygen Doxyfile` for comprehensive API documentation
@@ -411,7 +463,7 @@ All firmware, software, and code in this repository is licensed under the **GNU 
 
 ### Hardware License: CERN-OHL-S v2
 
-All hardware designs (PCB schematics, layouts, enclosures) are licensed under the **CERN Open Hardware Licence Version 2 - Strongly Reciprocal**.
+All hardware designs (PCB schematics, layouts, enclosures) are licensed under the **CERN Open Hardware License Version 2 - Strongly Reciprocal**.
 
 - **Applies to:** KiCad files, gerbers, FreeCAD models, STL/STEP files in `/hardware`
 - **Location:** [hardware/LICENSE](hardware/LICENSE)

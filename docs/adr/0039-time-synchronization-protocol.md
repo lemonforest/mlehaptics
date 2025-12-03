@@ -2,7 +2,9 @@
 
 **Date:** November 19, 2025
 **Phase:** 2
-**Status:** ✅ **IMPLEMENTED** - Hybrid sync for coordination features (NOT motor control)
+**Status:** ⚠️ **SUPERSEDED** by [AD043: Filtered Time Synchronization](0043-filtered-time-synchronization.md)
+**Superseded By:** [AD043](0043-filtered-time-synchronization.md) (December 2, 2025)
+**Historical:** RTT-based beacon protocol - replaced by filtered one-way timestamp approach
 
 ---
 

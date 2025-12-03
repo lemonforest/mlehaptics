@@ -1,6 +1,6 @@
 # 0032: BLE Configuration Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-11-17: Duty cycle 10-100%, half-cycle calculation)
+**Date:** 2025-11-11 (Updated 2025-12-02: Added Firmware Version characteristics for version matching)
 **Phase:** Phase 1b
 **Status:** Approved
 **Type:** Architecture
@@ -11,7 +11,7 @@
 
 In the context of mobile app control for motor parameters, LED settings, and status monitoring,
 facing the need for a dedicated GATT service separate from bilateral control,
-we decided to implement a comprehensive BLE Configuration Service using production UUIDs with 12 logically grouped characteristics,
+we decided to implement a comprehensive BLE Configuration Service using production UUIDs with 13 logically grouped characteristics,
 and neglected using temporary test UUIDs that would require future migration,
 to achieve single point of control for BOTH single-device and dual-device operation,
 accepting additional BLE stack complexity and NVS persistence requirements.
@@ -58,18 +58,22 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 **Base:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`
 - **Project UUID Base:** `4BCAE9BE-9829-4F0A-9E88-267DE5E7____`
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
-- **YY byte** (characteristic ID): `00` = service UUID, `01-0C` = characteristics
+- **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (12 Total)
+### Characteristics (19 Total)
 
-**MOTOR CONTROL GROUP (4 characteristics):**
+**MOTOR CONTROL GROUP (8 characteristics):**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | `...0201` | Mode | uint8 | R/W/Notify | 0-4 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM |
 | `...0202` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
 | `...0203` | Custom Duty Cycle | uint8 | R/W | 10-100% | Half-cycle duty (100% = entire half-cycle) |
-| `...0204` | PWM Intensity | uint8 | R/W | 0-80% | Motor strength (0% = LED-only) |
+| `...0204` | Mode 4 PWM Intensity | uint8 | R/W | 30-80% | Mode 4 (Custom) motor strength (0% = LED-only) |
+| `...020E` | Mode 0 PWM Intensity | uint8 | R/W | 50-80% | Mode 0 (0.5Hz) motor strength |
+| `...020F` | Mode 1 PWM Intensity | uint8 | R/W | 50-80% | Mode 1 (1.0Hz) motor strength |
+| `...0210` | Mode 2 PWM Intensity | uint8 | R/W | 70-90% | Mode 2 (1.5Hz) motor strength |
+| `...0211` | Mode 3 PWM Intensity | uint8 | R/W | 70-90% | Mode 3 (2.0Hz) motor strength |
 
 **LED CONTROL GROUP (5 characteristics):**
 
@@ -81,13 +85,50 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...0208` | LED Custom RGB | uint8[3] | R/W | RGB 0-255 | Custom color wheel RGB values |
 | `...0209` | LED Brightness | uint8 | R/W | 10-30% | User comfort range (eye strain prevention) |
 
-**STATUS/MONITORING GROUP (3 characteristics):**
+**STATUS/MONITORING GROUP (4 characteristics):**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | `...020A` | Session Duration | uint32 | R/W | 1200-5400 sec | Target session length (20-90 min) |
 | `...020B` | Session Time | uint32 | R/Notify | 0-5400 sec | Elapsed session seconds (0-90 min) |
-| `...020C` | Battery Level | uint8 | R/Notify | 0-100% | Battery state of charge |
+| `...020C` | Battery Level | uint8 | R/Notify | 0-100% | SERVER battery state of charge |
+| `...020D` | Client Battery | uint8 | R/Notify | 0-100% | CLIENT battery (dual-device mode) |
+
+**FIRMWARE VERSION GROUP (2 characteristics):**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0212` | Local Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Local device firmware version with build timestamp |
+| `...0213` | Peer Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Peer device firmware version (dual-device mode, empty if no peer) |
+
+### Per-Mode PWM Intensity Rationale
+
+**Problem:** Preset modes (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz) have shorter active duty cycles by design (25% of half-cycle). When global PWM intensity is reduced, these modes feel weak compared to custom mode.
+
+**Solution:** Each mode has its own PWM intensity setting with frequency-appropriate ranges:
+
+**Low-Frequency Modes (0.5Hz, 1.0Hz):**
+- Range: 50-80%
+- Rationale: Longer activation periods (250-1000ms) allow lower PWM without feeling weak
+- Default: 65%
+
+**High-Frequency Modes (1.5Hz, 2.0Hz):**
+- Range: 70-90%
+- Rationale: Shorter activation periods (83-167ms) need higher PWM to feel perceptible
+- Default: 80%
+- Note: 2Hz especially needs "punch" due to brief 125ms activation at 25% duty
+
+**Custom Mode (Mode 4):**
+- Range: 30-80%
+- Rationale: User controls both frequency AND duty, so wider intensity range needed
+- Includes 0% for LED-only mode (no motor vibration)
+- Default: 75%
+
+**Benefits:**
+- Users no longer need to adjust intensity when switching between preset modes
+- Higher frequencies maintain therapeutic effectiveness at shorter duty cycles
+- Each mode feels "right" out of the box
+- PWM tuning per-mode enables frequency-dependent perceptual compensation
 
 ### LED Color Control Architecture
 
@@ -115,6 +156,87 @@ uint8_t b_final = (source_b * led_brightness) / 100;
 ```
 
 **Example:** Pure red RGB(255, 0, 0) at 20% brightness → RGB(51, 0, 0)
+
+### Client Battery (Dual-Device Mode)
+
+**Data Flow:**
+```
+CLIENT Device                    SERVER Device                   PWA
+     |                                |                           |
+     |-- SYNC_MSG_CLIENT_BATTERY ---->|                           |
+     |   (coordination message)       |                           |
+     |                                |-- GATT notify ----------->|
+     |                                |   (client_battery char)   |
+```
+
+**Update Triggers:**
+1. **Immediate:** When peer coordination starts (CLIENT sends battery to SERVER)
+2. **Periodic:** Every 60 seconds (aligned with existing battery measurement cycle)
+
+**Characteristic Behavior:**
+- **Single-device mode:** Returns 0% (no CLIENT device)
+- **Dual-device mode:** Returns CLIENT's last reported battery level
+- **Read-only:** PWA cannot write this characteristic (data comes from CLIENT)
+- **Notifications:** Optional subscribe for real-time updates
+
+**Rationale for Always-Update (vs On-Demand):**
+- Motor (ERM) dominates power consumption (4000-20000× more than BLE packet)
+- Conditional updates add complexity with negligible power savings
+- Data always available when PWA connects (no 60s wait)
+
+### Firmware Version Characteristics
+
+**Purpose:**
+- Verify both devices run identical firmware builds before therapy sessions
+- Detect firmware mismatch that could cause timing issues or protocol incompatibility
+- Enable PWA to display version info for troubleshooting
+
+**Local Firmware Version (Read-Only):**
+- **Format**: `"vMAJOR.MINOR.PATCH (MMM DD YYYY HH:MM:SS)"`
+- **Example**: `"v0.6.47 (Dec  2 2025 15:30:45)"`
+- **Source**: Compile-time macros from `src/firmware_version.h`
+- **Update**: Static, set at build time
+
+**Peer Firmware Version (Read-Only):**
+- **Single-device mode**: Returns empty string `""` (no peer connected)
+- **Dual-device mode**: Returns peer's firmware version string after handshake
+- **Exchange Protocol**: Sent via `SYNC_MSG_FIRMWARE_VERSION` coordination message during time sync handshake
+- **Update Trigger**: Immediately after peer time sync handshake completes
+- **Mismatch Handling**:
+  - If `FIRMWARE_VERSION_CHECK_ENABLED=1` (default): Reject pairing, log warning, enter single-device mode
+  - If `FIRMWARE_VERSION_CHECK_ENABLED=0` (dev mode): Allow pairing, log warning only
+
+**Data Flow:**
+```
+CLIENT Device                    SERVER Device                   PWA
+     |                                |                           |
+     |<-- Time Sync Handshake ------->|                           |
+     |                                |                           |
+     |-- SYNC_MSG_FIRMWARE_VERSION -->|                           |
+     |   (coordination message)       |                           |
+     |                                |-- Store peer version      |
+     |                                |                           |
+     |<-- SYNC_MSG_FIRMWARE_VERSION --|                           |
+     |                                |                           |
+     |-- Store peer version           |                           |
+     |                                |                           |
+     |                                |<-- GATT read -------------|
+     |                                |   (local_fw_version)      |
+     |                                |                           |
+     |                                |-- "v0.6.47..." ---------->|
+     |                                |                           |
+     |                                |<-- GATT read -------------|
+     |                                |   (peer_fw_version)       |
+     |                                |                           |
+     |                                |-- "v0.6.47..." ---------->|
+     |                                |   (or "" if no peer)      |
+```
+
+**Rationale:**
+- **Build Timestamp Ensures Exact Match**: Version number (v0.6.47) alone insufficient - two developers compiling same version could have different bugs. Build timestamp guarantees binary-identical firmware.
+- **Coordination Message (Not Beacon)**: Firmware version sent via coordination message (guaranteed delivery, requires ACK) instead of beacon (periodic, best-effort). Ensures both devices receive peer version before motors start.
+- **Read-Only Characteristics**: PWA cannot modify firmware version (obviously). Only used for display and pre-session verification.
+- **Empty String for No Peer**: Simplifies PWA logic - empty string clearly indicates single-device mode.
 
 ### Default Settings (First Boot)
 
@@ -174,14 +296,18 @@ uint32_t coast_ms = half_cycle_ms - motor_on_ms;      // Remaining coast time
 
 **Saved Parameters (User Preferences):**
 - Mode (uint8: 0-4) - Last used mode
-- Custom Frequency (uint16: 25-200) - For Mode 5
-- Custom Duty Cycle (uint8: 10-100%) - For Mode 5 (half-cycle duty)
+- Custom Frequency (uint16: 25-200) - For Mode 4 (Custom)
+- Custom Duty Cycle (uint8: 10-100%) - For Mode 4 (half-cycle duty)
+- Mode 0 PWM Intensity (uint8: 50-80%) - 0.5Hz mode motor strength
+- Mode 1 PWM Intensity (uint8: 50-80%) - 1.0Hz mode motor strength
+- Mode 2 PWM Intensity (uint8: 70-90%) - 1.5Hz mode motor strength
+- Mode 3 PWM Intensity (uint8: 70-90%) - 2.0Hz mode motor strength
+- Mode 4 PWM Intensity (uint8: 30-80%, 0% = LED-only mode) - Custom mode motor strength
 - LED Enable (uint8: 0 or 1)
 - LED Color Mode (uint8: 0 or 1)
 - LED Palette Index (uint8: 0-15)
 - LED Custom RGB (uint8[3]: R, G, B)
 - LED Brightness (uint8: 10-30%)
-- PWM Intensity (uint8: 0-80%, 0% = LED-only mode)
 - Session Duration (uint32: 1200-5400 sec)
 
 **NVS Signature:** CRC32 of characteristic UUID endings and data types (detects structure changes)
@@ -251,21 +377,23 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (4), LED (5), Status (3) = 12 characteristics
+- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2) = 19 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)
 - ✅ **User Comfort:** 10-30% LED brightness prevents eye strain
 - ✅ **Persistent Preferences:** NVS saves user settings across power cycles
+- ✅ **Firmware Version Verification:** PWA can verify both devices run matching firmware builds
 - ✅ **Future-Proof:** Architecture supports bilateral implementation without changes
 
 ### Drawbacks
 
-- 12 characteristics increase BLE stack memory usage
+- 19 characteristics increase BLE stack memory usage
 - NVS persistence adds flash wear (mitigated by write-on-change only)
 - Two LED color modes add configuration complexity
 - Mobile app must implement both palette and custom RGB UIs
 - UUID scheme requires documentation for app developers
+- Firmware version exchange adds coordination message overhead (one-time at pairing)
 
 ---
 

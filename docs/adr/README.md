@@ -52,6 +52,8 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD038](0038-uuid-switching-strategy.md) | UUID-Switching Strategy for Connection Type Identification | ✅ Implemented | Phase 1b.3 | 2025-11-18 |
 | [AD039](0039-time-synchronization-protocol.md) | Time Synchronization Protocol | ✅ Implemented | Phase 2 | 2025-11-19 |
 | [AD040](0040-firmware-version-checking.md) | Firmware Version Checking for Peer Devices | ⏳ Approved | Phase 2 | 2025-11-19 |
+| [AD041](0041-predictive-bilateral-synchronization.md) | Predictive Bilateral Synchronization Protocol | ✅ Implemented | Phase 6k | 2025-11-28 |
+| [AD042](0042-remove-mac-delay-battery-based-symmetry-breaking.md) | Remove MAC-Based Scan Delay (Battery-Based Symmetry Breaking) | ✅ Implemented | Phase 6q | 2025-11-29 |
 
 ---
 
@@ -95,6 +97,18 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - Mode coordination
 - Emergency shutdown
 
+### Phase 6k: Predictive Bilateral Synchronization
+- Drift-rate prediction
+- Motor epoch broadcasting
+- CLIENT antiphase calculation
+- Validates AD028 Option A with drift compensation
+
+### Phase 6q: Discovery Race Condition Fix
+- Remove MAC-based scan delay
+- Fix error 523 handler bug
+- Battery-based symmetry breaking
+- Eliminates advertising-only race window
+
 ---
 
 ## Navigation by Status
@@ -107,7 +121,9 @@ Decisions that have been replaced by newer decisions.
 
 **Supersession Chain:**
 - AD008 (BLE Protocol Architecture) → 🔄 Superseded in Phase 1b (replaced by AD030, AD032)
+- AD010 (Race Condition Prevention - MAC Delay) → 🔄 Partially Superseded by AD042 (MAC delay component removed; error 523 handling retained)
 - AD026 (BLE Automatic Role Recovery) → 🔄 Superseded by AD028 (Command-and-Control Architecture)
+- AD028 (Command-and-Control - Motor Control) → 🔄 Partially Superseded by AD041 (Predictive Sync for motor control, command-and-control retained for emergency features)
 - AD037 (State-Based Connection ID) → 🔄 Superseded by AD038 (UUID-Switching Strategy)
 
 ### ⏳ Approved
@@ -203,18 +219,19 @@ _(To be populated with decision dependency visualization)_
 
 ## Statistics
 
-- **Total Decisions:** 40
+- **Total Decisions:** 41
 - **Accepted:** 30 (AD001-007, AD009-013, AD015-024, AD027-032)
-- **Implemented:** 3 (AD035, AD038, AD039)
+- **Implemented:** 4 (AD035, AD038, AD039, AD041)
 - **Approved:** 4 (AD033, AD034, AD036, AD040)
 - **Superseded:** 3 (AD008, AD026, AD037)
+- **Partially Superseded:** 1 (AD028 - motor control only)
 - **Deprecated:** 0
 
 ---
 
 ## Maintenance
 
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-28
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)

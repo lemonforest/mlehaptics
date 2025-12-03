@@ -2,8 +2,10 @@
 
 **Date:** 2025-10-15 (originally planned), Updated 2025-11-14 (Phase 1b implementation)
 **Phase:** 1b (Peer Discovery and Connection)
-**Status:** Accepted
+**Status:** 🔄 Partially Superseded (MAC delay removed in Phase 6q; error 523 handling retained)
 **Type:** Architecture
+
+> **Note:** MAC-based scan delay (Component #5) removed in [AD042](0042-remove-mac-delay-battery-based-symmetry-breaking.md) (Phase 6q, November 29, 2025). Battery-based role assignment (Phase 1c) provides superior symmetry breaking, making the MAC delay unnecessary. Error 523 handling and fallback peer identification logic remain valid and in use.
 
 ---
 

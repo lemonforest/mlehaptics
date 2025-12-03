@@ -1,8 +1,8 @@
 # 0030: BLE Bilateral Control Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-11-14 with Phase 1b UUID change)
-**Phase:** 1b
-**Status:** Accepted
+**Date:** 2025-11-11 (Updated 2025-11-25 with Phase 6 Implementation)
+**Phase:** Phase 6 (Bilateral Motor Coordination)
+**Status:** Implemented
 **Type:** Architecture
 
 ---
@@ -11,10 +11,10 @@
 
 In the context of device-to-device bilateral coordination and research platform capabilities,
 facing Nordic UART Service UUID collision from AD008,
-we decided for project-specific UUID base (`4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`) with comprehensive Bilateral Control Service,
-and neglected continuing with Nordic UUID or limiting to standard EMDR parameters,
-to achieve collision-free namespace and extended research frequency range (0.25-2 Hz),
-accepting increased UUID complexity and 10 characteristics to manage.
+we decided for project-specific UUID base (`4BCAE9BE-9829-4F0A-9E88-267DE5E7XXYY`) with coordination messages via time_sync_task,
+and neglected per-cycle BLE commands (too much latency) or GATT characteristics for device-to-device (too complex),
+to achieve collision-free namespace, instant mode switching, and precise bilateral motor coordination,
+accepting motor epoch complexity and CLIENT phase reset requirements.
 
 ---
 
@@ -47,13 +47,13 @@ Current implementation (`single_device_ble_gatt_test.c`) provides Configuration 
 
 ## Decision
 
-We will implement comprehensive BLE Bilateral Control Service for device-to-device coordination with research platform extensions.
+We implement BLE Bilateral Control Service using **coordination messages** sent via NimBLE GATT writes, processed by time_sync_task to avoid motor timing disruption.
 
 **Service Architecture:**
 
 **Bilateral Control Service** (Device-to-Device):
 - **UUID:** `4BCAE9BE-9829-4F0A-9E88-267DE5E70100` (Project-specific, no Nordic collision)
-- **Purpose:** Real-time bilateral coordination between paired devices
+- **Purpose:** Peer discovery during pairing and coordination message exchange
 
 **UUID Scheme:**
 ```
@@ -68,20 +68,75 @@ Configuration Service:     4BCAE9BE-9829-4F0A-9E88-267DE5E70200
                                                             02 00
 ```
 
-**Characteristics** (YY byte increments: 01, 02, 03... 0A):
+### Phase 6 Implementation: Coordination Messages
 
-| UUID | Name | Type | Access | Range/Values | Purpose |
-|------|------|------|--------|--------------|---------|
-| `...E70101` | Bilateral Command | uint8 | Write | 0-6 | START/STOP/SYNC/MODE_CHANGE/EMERGENCY/PATTERN |
-| `...E70102` | Total Cycle Time | uint16 | R/W | 500-4000ms | 0.25-2 Hz research range |
-| `...E70103` | Motor Intensity | uint8 | R/W | 30-80% | Safe research PWM range |
-| `...E70104` | Stimulation Pattern | uint8 | R/W | 0-2 | BILATERAL_FIXED/ALTERNATING/UNILATERAL |
-| `...E70105` | Device Role | uint8 | Read | 0-2 | SERVER/CLIENT/STANDALONE |
-| `...E70106` | Session Duration | uint32 | R/W | 1200000-5400000ms | 20-90 minutes |
-| `...E70107` | Sequence Number | uint16 | Read | 0-65535 | Packet loss detection |
-| `...E70108` | Emergency Shutdown | uint8 | Write | 1 | Fire-and-forget safety |
-| `...E70109` | Duty Cycle | uint8 | R/W | 10-100% | Percentage of ACTIVE period |
-| `...E7010A` | Bilateral Battery | uint8 | R/Notify | 0-100% | Peer battery for role assignment |
+Instead of individual GATT characteristics, Phase 6 uses **coordination messages** sent via a single GATT characteristic. Messages are processed by `time_sync_task` (not motor_task) to prevent motor timing disruption.
+
+**Coordination Message Types (`sync_message_type_t`):**
+
+| Type | Value | Payload | Direction | Purpose |
+|------|-------|---------|-----------|---------|
+| `SYNC_MSG_MODE_CHANGE` | 0 | `mode_t new_mode` | SERVER→CLIENT | Button press mode change |
+| `SYNC_MSG_SETTINGS` | 1 | `coordination_settings_t` | SERVER→CLIENT | BLE GATT parameter changes |
+| `SYNC_MSG_SHUTDOWN` | 2 | None | Bidirectional | Emergency shutdown propagation |
+| `SYNC_MSG_START_ADVERTISING` | 3 | None | SERVER→CLIENT | Re-enable BLE advertising |
+| `SYNC_MSG_CLIENT_BATTERY` | 4 | `uint8_t battery_level` | CLIENT→SERVER | Client battery for PWA display |
+
+**Settings Payload (`coordination_settings_t`):**
+```c
+typedef struct {
+    uint16_t frequency_cHz;     // Hz × 100 (25-200 = 0.25-2.0 Hz)
+    uint8_t duty_pct;           // 10-100% duty cycle
+    uint8_t intensity_pct;      // 0-80% PWM (0% = LED-only)
+    uint8_t led_enable;         // 0=off, 1=on
+    uint8_t led_color_mode;     // 0=palette, 1=custom RGB
+    uint8_t led_color_idx;      // 0-15 palette index
+    uint8_t led_brightness_pct; // 10-30%
+    uint8_t led_custom_r;       // Custom RGB red
+    uint8_t led_custom_g;       // Custom RGB green
+    uint8_t led_custom_b;       // Custom RGB blue
+    uint32_t session_duration_sec; // 1200-5400 seconds
+} coordination_settings_t;
+```
+
+### Motor Epoch Mechanism
+
+Phase 6 uses **motor epoch** for bilateral timing synchronization instead of per-cycle BLE commands:
+
+```
+SERVER                              CLIENT
+   |                                   |
+   |-- Publishes motor epoch --------->|
+   |   (time_sync_set_motor_epoch)     |
+   |                                   |
+   |-- Sends time sync beacon -------->|
+   |   (ble_send_time_sync_beacon)     |
+   |                                   |
+   |   ACTIVE state                    |   INACTIVE state (drift correction)
+   |   [motor_on_ms ON]               |   [calculated from epoch]
+   |   [active_coast_ms coast]        |
+   |                                   |
+   |   INACTIVE state                  |   ACTIVE state
+   |   [inactive_ms coast]            |   [motor_on_ms ON]
+   |                                   |   [active_coast_ms coast]
+```
+
+**Motor Epoch Republish Triggers:**
+1. **Mode change:** Button press changes mode 0-4
+2. **Parameter change:** BLE GATT writes frequency/duty in Mode 4 (Custom)
+
+**CLIENT Phase Reset:**
+When CLIENT receives new timing parameters, it resets to INACTIVE state to resync with SERVER's new epoch. This prevents overlap when switching from slow→fast frequency.
+
+### Implementation Files
+
+| File | Function |
+|------|----------|
+| `src/ble_manager.h` | `sync_message_type_t`, `coordination_message_t` definitions |
+| `src/ble_manager.c` | `ble_send_coordination_message()`, GATT handlers |
+| `src/time_sync_task.c` | `handle_coordination_message()` - processes all message types |
+| `src/time_sync.c` | `time_sync_set_motor_epoch()`, beacon generation |
+| `src/motor_task.c` | Motor epoch publish, CLIENT phase reset on param change |
 
 **Research Platform Stimulation Patterns:**
 

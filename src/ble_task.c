@@ -51,6 +51,9 @@ void ble_task(void *pvParameters) {
                 if (xQueueReceive(button_to_ble_queue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
                     if (msg.type == MSG_BLE_REENABLE) {
                         ESP_LOGI(TAG, "BLE re-enable requested (button hold 1-2s)");
+
+                        // Purpose: Restart advertising for mobile app connection after 5-min timeout
+                        // DO NOT reset pairing window or roles - preserves session continuity with peer
                         ble_start_advertising();
 
                         // Transition based on result
@@ -279,6 +282,11 @@ void ble_task(void *pvParameters) {
                 if (elapsed >= PAIRING_TIMEOUT_MS) {
                     ESP_LOGW(TAG, "Pairing timeout after %u seconds", PAIRING_TIMEOUT_MS / 1000);
                     pairing_start_time = 0;  // Reset timer
+
+                    // Bug #45: Close pairing window to prevent late peer connections
+                    // This ensures devices powered on >30s apart do NOT pair
+                    ble_close_pairing_window();
+
                     status_led_pattern(STATUS_PATTERN_PAIRING_FAILED);  // Red 3× blink
                     vTaskDelay(pdMS_TO_TICKS(1500));  // Wait for LED pattern to complete
 
@@ -367,9 +375,11 @@ void ble_task(void *pvParameters) {
                     }
                 }
 
-                // Check if client disconnected (set by GAP event handler)
-                if (!ble_is_connected()) {
-                    ESP_LOGI(TAG, "Client disconnected");
+                // Check if ALL connections lost (both mobile app AND peer)
+                // BUG FIX: ble_is_connected() only checks mobile app, not peer!
+                // Must stay in CONNECTED state if peer is connected (even without mobile app)
+                if (!ble_is_connected() && !ble_is_peer_connected()) {
+                    ESP_LOGI(TAG, "All connections lost (app and peer)");
 
                     // JPL compliance: Wait for disconnect handler to complete advertising restart
                     // Measured disconnect handler advertising restart time: ~80ms

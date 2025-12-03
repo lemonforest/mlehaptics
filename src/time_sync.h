@@ -42,11 +42,11 @@ extern "C" {
  * CONSTANTS AND CONFIGURATION
  ******************************************************************************/
 
-/** @brief Time sync beacon message size (bytes) */
-#define TIME_SYNC_MSG_SIZE          (16U)
+/** @brief Time sync beacon message size (bytes) - Phase 6r reduced from 28 to 23 */
+#define TIME_SYNC_MSG_SIZE          (23U)
 
-/** @brief Minimum sync interval (milliseconds) - aggressive sync */
-#define TIME_SYNC_INTERVAL_MIN_MS   (10000U)    // 10 seconds
+/** @brief Minimum sync interval (milliseconds) - fast startup (Phase 6r) */
+#define TIME_SYNC_INTERVAL_MIN_MS   (1000U)     // 1 second (10× faster convergence)
 
 /** @brief Maximum sync interval (milliseconds) - steady state */
 #define TIME_SYNC_INTERVAL_MAX_MS   (60000U)    // 60 seconds
@@ -66,12 +66,80 @@ extern "C" {
 /** @brief Sync quality evaluation window (number of samples) */
 #define TIME_SYNC_QUALITY_WINDOW    (10U)
 
+/** @brief EWMA smoothing factor for clock offset (percentage, 0-100)
+ *
+ * EWMA (Exponentially Weighted Moving Average) reduces oscillation from BLE jitter:
+ *   new_offset = (alpha/100)*sample + (1 - alpha/100)*old_offset
+ *
+ * Values:
+ *   100 = No smoothing (raw samples)
+ *   50  = Equal weight (responsive but some smoothing)
+ *   25  = Heavy smoothing (stable but slower to track drift)
+ *
+ * Recommended: 25-35% for BLE time sync (balances stability vs responsiveness)
+ */
+#define TIME_SYNC_EWMA_ALPHA_PCT    (30U)       // 30% weight on new sample
+
 /** @brief ESP32-C6 crystal drift specification (parts per million) */
 #define TIME_SYNC_CRYSTAL_DRIFT_PPM (10U)       // ±10 PPM from datasheet
+
+/** @brief Phase 6r: EMA filter alpha - fast attack (percentage, 0-100) */
+#define TIME_FILTER_ALPHA_FAST_PCT  (30U)       // 30% weight for first N samples (fast convergence)
+
+/** @brief Phase 6r: EMA filter alpha - slow/steady (percentage, 0-100) - heavy smoothing */
+#define TIME_FILTER_ALPHA_PCT       (10U)       // 10% weight on new sample (90% on history)
+
+/** @brief Phase 6r: Ring buffer size for outlier detection */
+#define TIME_FILTER_RING_SIZE       (8U)        // Last 8 samples
+
+/** @brief Phase 6r: Outlier threshold (microseconds) - reject samples >100ms deviation */
+#define TIME_FILTER_OUTLIER_THRESHOLD_US (100000U)  // 100ms (steady-state mode)
+
+/** @brief Phase 6r: Fast-mode outlier threshold (microseconds) - more aggressive during mode changes */
+#define TIME_FILTER_OUTLIER_THRESHOLD_FAST_US (50000U)  // 50ms (fast-attack mode)
+
+/** @brief Phase 6r: Early convergence detection threshold (microseconds) */
+#define TIME_FILTER_CONVERGENCE_THRESHOLD_US (50U)  // 50µs stability over 4 beacons
 
 /*******************************************************************************
  * TYPE DEFINITIONS
  ******************************************************************************/
+
+/**
+ * @brief Phase 6r: Time sample for ring buffer (AD043)
+ *
+ * Stores individual beacon measurements for debugging and outlier detection.
+ */
+typedef struct {
+    int64_t  raw_offset_us;      /**< Raw offset measurement (rx_time - server_time) */
+    uint64_t timestamp_us;       /**< When this sample was taken */
+    uint8_t  sequence;           /**< Beacon sequence number */
+    bool     outlier;            /**< True if rejected as outlier (>200ms deviation) */
+} time_sample_t;
+
+/**
+ * @brief Phase 6r: EMA filter state (AD043 - Filtered Time Sync)
+ *
+ * Implements exponential moving average filter with ring buffer for
+ * outlier detection. Smooths out BLE transmission delay variation
+ * (±10-30ms typical) while rejecting extreme outliers (>100ms).
+ *
+ * Dual-alpha fast-attack:
+ * - Fast alpha (30%) for first N valid beacons (N=12 or early convergence)
+ * - Slow alpha (10%) for long-term stability after convergence
+ *
+ * JPL Rule 1: Fixed size ring buffer, no dynamic allocation.
+ */
+typedef struct {
+    time_sample_t samples[TIME_FILTER_RING_SIZE];  /**< Ring buffer of recent samples */
+    uint8_t       head;                             /**< Next write index (0-7) */
+    int64_t       filtered_offset_us;               /**< Smoothed offset estimate */
+    uint32_t      sample_count;                     /**< Total samples processed */
+    uint32_t      outlier_count;                    /**< Samples rejected as outliers */
+    bool          initialized;                      /**< Filter has first sample */
+    bool          fast_attack_active;               /**< True until switched to slow alpha */
+    uint8_t       valid_beacon_count;               /**< Count of non-outlier beacons (for N=12 check) */
+} time_filter_t;
 
 /**
  * @brief Time synchronization states
@@ -136,32 +204,59 @@ typedef struct {
     uint8_t  sync_sequence;          /**< Message sequence number (wraps at 255) */
     uint8_t  retry_count;            /**< Current retry attempt (bounded by MAX_RETRIES) */
 
+    /* Forced beacon state (mode change fast convergence) */
+    uint8_t  forced_beacon_count;    /**< Remaining forced beacons (3→0, triggers 500ms interval) */
+    uint32_t forced_beacon_next_ms;  /**< When next forced beacon should be sent */
+
     /* Quality Metrics */
     time_sync_quality_t quality;     /**< Sync quality tracking */
+
+    /* Phase 6r: EMA filter for one-way timestamp smoothing (AD043) */
+    time_filter_t filter;            /**< Exponential moving average filter */
 
     /* Flags */
     bool     initialized;            /**< Module initialization complete */
     bool     sync_in_progress;       /**< Sync operation active */
     bool     drift_detected;         /**< Excessive drift flag */
+    bool     handshake_complete;     /**< Initial NTP-style handshake done (precise bootstrap) */
+    uint64_t handshake_t1_us;        /**< CLIENT: Stored T1 for RTT calculation */
+
+    /* Beacon-to-beacon drift tracking (separate from handshake offset) */
+    int64_t  last_beacon_offset_us;  /**< Last beacon's raw offset for drift calculation */
+    bool     last_beacon_valid;      /**< Whether last_beacon_offset_us is valid */
 
     /* JPL Rule 2: Bounded operation tracking */
     uint32_t total_syncs;            /**< Total sync operations (diagnostic) */
     uint32_t session_start_ms;       /**< Session start time for drift calculation */
+
+    /* Bilateral Motor Coordination (Phase 2) */
+    uint64_t motor_epoch_us;         /**< When SERVER started motor cycles (synchronized time) */
+    uint32_t motor_cycle_ms;         /**< Current motor cycle period (e.g., 2000ms for Mode 0) */
+    bool     motor_epoch_valid;      /**< Whether motor epoch has been set by SERVER */
+
+    /* Fix #2: Drift rate filtering (NTP best practice) */
+    uint64_t last_beacon_time_us;    /**< CLIENT: Time when last beacon was received */
+    int32_t  drift_rate_us_per_s;    /**< Filtered drift rate (μs/s) - positive = CLIENT faster */
+    bool     drift_rate_valid;       /**< Whether drift_rate_us_per_s has been calculated */
 } time_sync_state_t;
 
 /**
- * @brief Time sync beacon message structure
+ * @brief Time sync beacon message structure (AD043 - Filtered Time Sync)
  *
  * Transmitted by SERVER to CLIENT for periodic synchronization.
- * Fixed 16-byte size for efficient BLE notification.
+ * Fixed 23-byte size for efficient BLE notification.
  *
  * JPL Rule 1: Fixed size, no dynamic allocation.
+ *
+ * Phase 6r: Simplified to one-way timestamp for filtered time sync.
+ * Removes RTT measurement fields (session_ref_ms, quality_score, server_rssi).
+ * CLIENT captures receive time immediately and applies EMA filter.
  */
 typedef struct __attribute__((packed)) {
-    uint64_t timestamp_us;           /**< SERVER's current time (microseconds) */
-    uint32_t session_ref_ms;         /**< Session reference time (milliseconds) */
+    uint64_t server_time_us;         /**< SERVER's current time (microseconds) - one-way timestamp */
+    uint64_t motor_epoch_us;         /**< Motor cycle start time (Phase 3) */
+    uint32_t motor_cycle_ms;         /**< Motor cycle period (Phase 3) */
     uint8_t  sequence;               /**< Sequence number (for ordering) */
-    uint8_t  quality_score;          /**< SERVER's sync quality (0-100) */
     uint16_t checksum;               /**< CRC-16 for integrity */
 } time_sync_beacon_t;
 
@@ -213,13 +308,28 @@ esp_err_t time_sync_on_connection(void);
 /**
  * @brief Handle disconnection event
  *
- * Transitions to SYNC_STATE_DISCONNECTED and freezes current sync state
- * for continued operation using last known offset.
+ * Transitions to SYNC_STATE_DISCONNECTED. Phase 6r: Preserves motor epoch
+ * and drift rate for continuation during brief disconnects.
  *
  * @return ESP_OK on success
  * @return ESP_ERR_INVALID_STATE if not in synchronized state
  */
 esp_err_t time_sync_on_disconnection(void);
+
+/**
+ * @brief Handle reconnection event with role swap detection
+ *
+ * Called when BLE peer connection is re-established. Conditionally clears
+ * motor epoch data if role changed between connections (Phase 6r).
+ *
+ * Phase 6n ensures roles are preserved on reconnection, so role swap should
+ * NOT occur. If detected, logs warning and clears epoch to prevent corruption.
+ *
+ * @param new_role Device role after reconnection (SERVER or CLIENT)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not initialized
+ */
+esp_err_t time_sync_on_reconnection(time_sync_role_t new_role);
 
 /**
  * @brief Update time synchronization (periodic call)
@@ -389,6 +499,197 @@ esp_err_t time_sync_force_resync(void);
  * @return Current sync interval in milliseconds
  */
 uint32_t time_sync_get_interval_ms(void);
+
+/**
+ * @brief Set motor epoch timestamp (SERVER only)
+ *
+ * Called by SERVER's motor task when it starts motor cycles. This establishes
+ * the timing reference that CLIENT will use for bilateral synchronization.
+ *
+ * @param epoch_us Motor cycle start time in microseconds (synchronized time)
+ * @param cycle_ms Motor cycle period in milliseconds (e.g., 2000ms for Mode 0)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if parameters are invalid
+ * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ */
+esp_err_t time_sync_set_motor_epoch(uint64_t epoch_us, uint32_t cycle_ms);
+
+/**
+ * @brief Get motor epoch timestamp (CLIENT only)
+ *
+ * Called by CLIENT's motor task to retrieve SERVER's motor cycle timing reference.
+ * CLIENT uses this to calculate when to activate its own motors for proper
+ * bilateral alternation.
+ *
+ * @param epoch_us [out] Pointer to store motor epoch timestamp (microseconds)
+ * @param cycle_ms [out] Pointer to store motor cycle period (milliseconds)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if pointers are NULL
+ * @return ESP_ERR_INVALID_STATE if motor epoch not yet set
+ */
+esp_err_t time_sync_get_motor_epoch(uint64_t *epoch_us, uint32_t *cycle_ms);
+
+/*******************************************************************************
+ * NTP-STYLE HANDSHAKE API (Phase 6k - Precision Bootstrap)
+ ******************************************************************************/
+
+/**
+ * @brief Check if initial NTP handshake is complete
+ *
+ * The 3-way handshake provides a precise initial offset measurement with
+ * measured RTT (vs estimated). After handshake, one-way beacons with EWMA
+ * filtering maintain sync.
+ *
+ * @return true if handshake complete, false if pending or not started
+ */
+bool time_sync_is_handshake_complete(void);
+
+/**
+ * @brief Initiate NTP-style handshake (CLIENT only)
+ *
+ * CLIENT calls this to start the 3-way handshake:
+ * 1. CLIENT sends TIME_REQUEST with T1 (client send time)
+ * 2. SERVER receives, responds with T1, T2, T3
+ * 3. CLIENT processes response to calculate precise offset
+ *
+ * @param t1_out [out] Pointer to store T1 timestamp for message payload
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not CLIENT role or already complete
+ * @return ESP_ERR_INVALID_ARG if t1_out is NULL
+ */
+esp_err_t time_sync_initiate_handshake(uint64_t *t1_out);
+
+/**
+ * @brief Process handshake request (SERVER only)
+ *
+ * SERVER calls this when receiving TIME_REQUEST from CLIENT.
+ * Returns timestamps for TIME_RESPONSE: T1 (echoed), T2 (receive time), T3 (send time).
+ *
+ * @param t1_client_send_us T1 from CLIENT's request
+ * @param t2_server_recv_us SERVER's local time when request received
+ * @param t3_server_send_out [out] Pointer to store T3 (SERVER send time)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not SERVER role
+ * @return ESP_ERR_INVALID_ARG if t3_server_send_out is NULL
+ */
+esp_err_t time_sync_process_handshake_request(uint64_t t1_client_send_us,
+                                               uint64_t t2_server_recv_us,
+                                               uint64_t *t3_server_send_out);
+
+/**
+ * @brief Process handshake response (CLIENT only)
+ *
+ * CLIENT calls this when receiving TIME_RESPONSE from SERVER.
+ * Calculates precise offset using NTP formula:
+ *   offset = ((T2-T1) + (T3-T4)) / 2
+ *   RTT = (T4-T1) - (T3-T2)
+ *
+ * This offset becomes the EWMA filter's initial value (precise bootstrap).
+ *
+ * @param t1_us T1 from original request (echoed in response)
+ * @param t2_us T2 SERVER receive time
+ * @param t3_us T3 SERVER send time
+ * @param t4_us T4 CLIENT receive time (caller's local time when response received)
+ * @return ESP_OK on success (handshake complete, offset set)
+ * @return ESP_ERR_INVALID_STATE if not CLIENT role or handshake already complete
+ */
+esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
+                                                uint64_t t3_us, uint64_t t4_us);
+
+/**
+ * @brief Set motor epoch from handshake response (CLIENT only)
+ *
+ * Called by CLIENT when receiving motor_epoch in TIME_RESPONSE.
+ * This avoids waiting 10s for next beacon to get motor epoch.
+ *
+ * @param epoch_us Motor epoch timestamp from SERVER
+ * @param cycle_ms Motor cycle period from SERVER
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if parameters are invalid
+ */
+esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t cycle_ms);
+
+/**
+ * @brief Trigger forced beacons for fast convergence (SERVER only)
+ *
+ * Forces 3 immediate beacons at 500ms intervals for fast time sync convergence
+ * after mode changes. After 3 beacons, returns to adaptive interval.
+ *
+ * Call this on SERVER when mode changes to help CLIENT filter adapt quickly.
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ */
+esp_err_t time_sync_trigger_forced_beacons(void);
+
+/**
+ * @brief Reset EMA filter to fast-attack mode (for mode changes)
+ *
+ * Resets the filter to fast-attack mode with aggressive convergence:
+ * - Sets fast_attack_active = true
+ * - Resets valid_beacon_count = 0 (forces 12 samples or early convergence)
+ * - Clears sample_count = 0
+ * - Uses 50ms outlier threshold (vs 100ms in steady-state)
+ * - Keeps current filtered_offset_us (doesn't reset to zero)
+ *
+ * Call this when mode changes (frequency/duty/cycle) to quickly adapt
+ * to the new motor epoch without jerky corrections.
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not initialized
+ */
+esp_err_t time_sync_reset_filter_fast_attack(void);
+
+/**
+ * @brief Get filtered drift rate (Fix #2)
+ *
+ * Returns the EWMA-filtered drift rate in μs/s.
+ * Positive value means CLIENT clock is running faster than SERVER.
+ *
+ * @param drift_rate_us_per_s [out] Pointer to store drift rate
+ * @return ESP_OK if valid drift rate available
+ * @return ESP_ERR_NOT_FOUND if drift rate not yet calculated
+ */
+esp_err_t time_sync_get_drift_rate(int32_t *drift_rate_us_per_s);
+
+/**
+ * @brief Get predicted clock offset using drift rate (Phase 6k)
+ *
+ * Provides smoother offset estimation between RTT measurements by extrapolating
+ * based on filtered drift rate. Reduces RTT asymmetry noise (±10-30ms) for
+ * bilateral motor coordination, enabling faster antiphase convergence (2-5s vs 10-20s).
+ *
+ * Formula: predicted_offset = last_offset + (drift_rate * elapsed_time)
+ *
+ * @param predicted_offset_us [out] Pointer to store predicted offset in μs
+ * @return ESP_OK if prediction available (drift rate valid)
+ * @return ESP_ERR_NOT_FOUND if using raw offset (first ~20s after boot)
+ */
+esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us);
+
+/**
+ * @brief Check if antiphase lock is achieved (Phase 6s)
+ *
+ * Determines if time synchronization has converged to a stable state suitable
+ * for starting motors. This prevents startup jitter from EWMA filter convergence.
+ *
+ * Lock criteria:
+ * - Handshake complete (precise NTP-style bootstrap)
+ * - Minimum 3 beacons received (filter has data)
+ * - Filter in steady-state mode (sample_count >= 10, not fast-attack)
+ * - Recent beacon within 2× adaptive interval (not stale)
+ *
+ * Expected lock time: 2-3 seconds from connection
+ *
+ * Usage:
+ * - CLIENT motor task waits for lock before starting motors (5s timeout)
+ * - Periodically check during operation for lock maintenance (every 10 cycles)
+ * - Request forced beacons if lock lost during session
+ *
+ * @return true if locked and stable, false otherwise
+ * @note SERVER always returns true (no phase lock needed, it's authoritative)
+ */
+bool time_sync_is_antiphase_locked(void);
 
 /*******************************************************************************
  * UTILITY MACROS

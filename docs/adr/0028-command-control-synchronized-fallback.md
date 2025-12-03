@@ -2,7 +2,7 @@
 
 **Date:** 2025-11-11
 **Phase:** 1b
-**Status:** Accepted
+**Status:** Accepted (Motor Control) | Superseded by AD041 (Bilateral Alternation)
 **Type:** Architecture
 
 ---
@@ -229,6 +229,9 @@ if (disconnect_duration < pdMS_TO_TICKS(120000)) {
 ### Supersedes
 - **AD026: BLE Automatic Role Recovery** - Immediate fallback behavior replaced with synchronized fallback phases
 
+### Superseded By
+- **AD041: Predictive Bilateral Synchronization** - Validates Option A with drift-rate compensation. Motor control now uses predictive sync instead of command-and-control. Command-and-control retained for emergency features (shutdown, mode sync).
+
 ### Related
 - **AD029: Relaxed Timing Specification** - ±100ms tolerance enables command-and-control architecture
 - **AD030: BLE Bilateral Control Service** - Bilateral Command characteristic implements command-and-control
@@ -329,5 +332,28 @@ Phase 1b provides connection establishment and peer identification. Phase 1c wil
 
 ---
 
+---
+
+## Phase 6k Update (November 28, 2025)
+
+**Status Change:** Motor control architecture superseded by AD041 (Predictive Bilateral Synchronization).
+
+**What Changed:**
+- **Motor Control:** Now uses AD041 (predictive sync with drift-rate compensation) instead of command-and-control
+- **Emergency Features:** Still uses command-and-control (shutdown, mode sync)
+- **Rationale:** AD041 validates Option A by solving the drift problem that caused rejection
+
+**Coexistence:**
+```
+Motor Control:         AD041 (Predictive Sync) ← Changed from AD028
+Emergency Shutdown:    AD028 (Command-and-Control) ← Retained
+Mode Sync:             AD028 (Command-and-Control) ← Retained
+Session Management:    AD041 (Predictive Sync) ← Changed from AD028
+```
+
+**Result:** AD028 Option A (rejected due to drift) is now validated and implemented via AD041's drift-rate prediction. Command-and-control architecture retained for critical safety features only.
+
+---
+
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-28

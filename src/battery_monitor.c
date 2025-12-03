@@ -2,10 +2,12 @@
  * @file battery_monitor.c
  * @brief Battery Monitoring Module Implementation
  *
- * Implements ADC-based battery voltage and back-EMF sensing for EMDR device.
- * Extracted from single_device_ble_gatt_test.c reference implementation.
+ * Implements ADC-based battery voltage sensing for EMDR device.
+ * Provides shared ADC1 access for backemf module.
  *
- * @date November 11, 2025
+ * Note: Back-EMF sensing moved to separate backemf module (backemf.c)
+ *
+ * @date November 26, 2025 (refactored - back-EMF separated)
  * @author Claude Code (Anthropic)
  */
 
@@ -285,42 +287,20 @@ void battery_low_battery_warning(void) {
     status_led_pattern(STATUS_PATTERN_LOW_BATTERY);  // 3× slow blink (200ms ON/OFF)
 }
 
-esp_err_t battery_read_backemf(int *raw_mv, int16_t *actual_backemf_mv) {
-    if (adc_handle == NULL) {
-        ESP_LOGE(TAG, "ADC not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
+// ============================================================================
+// ADC ACCESS FOR BACKEMF MODULE
+// ============================================================================
 
-    // Read ADC
-    int adc_raw = 0;
-    esp_err_t ret = adc_oneshot_read(adc_handle, ADC_CHANNEL_BACKEMF, &adc_raw);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Back-EMF ADC read failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
+adc_oneshot_unit_handle_t battery_get_adc_handle(void) {
+    return adc_handle;
+}
 
-    // Convert to voltage (mV)
-    int voltage_mv = 0;
-    if (adc_calibrated) {
-        ret = adc_cali_raw_to_voltage(adc_cali_handle, adc_raw, &voltage_mv);
-        if (ret != ESP_OK) {
-            // Calibration failed, use raw conversion
-            voltage_mv = (adc_raw * 3300) / 4095;
-        }
-    } else {
-        // No calibration available
-        voltage_mv = (adc_raw * 3300) / 4095;
-    }
+adc_cali_handle_t battery_get_cali_handle(void) {
+    return adc_cali_handle;
+}
 
-    // Convert to actual back-EMF
-    // Formula: V_motor = 2 × (V_adc - 1.65V)
-    // Example: 1650mV ADC = 0mV motor (at rest)
-    // Example: 3300mV ADC = +3300mV motor (max forward)
-    // Example: 0mV ADC = -3300mV motor (max reverse)
-    *raw_mv = voltage_mv;
-    *actual_backemf_mv = 2 * ((int16_t)voltage_mv - BACKEMF_BIAS_MV);
-
-    return ESP_OK;
+bool battery_is_calibrated(void) {
+    return adc_calibrated;
 }
 
 esp_err_t battery_monitor_deinit(void) {

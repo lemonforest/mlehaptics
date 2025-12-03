@@ -31,6 +31,18 @@ static const char *TAG = "MOTOR_CTRL";
  */
 #define MUTEX_TIMEOUT_MS 100
 
+/**
+ * @brief Dead-time delay for shoot-through protection (milliseconds)
+ *
+ * With discrete MOSFETs (no H-bridge IC with built-in protection), we must
+ * ensure the opposite channel is fully OFF before turning on the desired channel.
+ * 1ms provides sufficient margin for MOSFET turn-off time (~100ns typical)
+ * while adding negligible timing error at therapeutic frequencies (0.5-2Hz).
+ *
+ * Sequence: Turn OFF opposite channel → wait DEAD_TIME_MS → turn ON desired channel
+ */
+#define DEAD_TIME_MS 1
+
 // ============================================================================
 // MOTOR STATE
 // ============================================================================
@@ -164,22 +176,9 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
     // Convert to duty cycle value
     uint32_t duty = percent_to_duty(intensity_percent);
 
-    // Set IN1 (forward) to PWM, IN2 (reverse) to LOW
-    esp_err_t ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1, duty);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set IN1 duty: %s", esp_err_to_name(ret));
-        xSemaphoreGive(motor_mutex);
-        return ret;
-    }
-
-    ret = ledc_update_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to update IN1 duty: %s", esp_err_to_name(ret));
-        xSemaphoreGive(motor_mutex);
-        return ret;
-    }
-
-    ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2, 0);
+    // SHOOT-THROUGH PROTECTION: Turn OFF opposite channel FIRST
+    // With discrete MOSFETs, both channels HIGH simultaneously = short circuit
+    esp_err_t ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2, 0);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set IN2 duty: %s", esp_err_to_name(ret));
         xSemaphoreGive(motor_mutex);
@@ -189,6 +188,24 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
     ret = ledc_update_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to update IN2 duty: %s", esp_err_to_name(ret));
+        xSemaphoreGive(motor_mutex);
+        return ret;
+    }
+
+    // Dead-time: Wait for MOSFET to fully turn off before turning on opposite side
+    vTaskDelay(pdMS_TO_TICKS(DEAD_TIME_MS));
+
+    // NOW safe to turn on forward channel (IN1)
+    ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1, duty);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set IN1 duty: %s", esp_err_to_name(ret));
+        xSemaphoreGive(motor_mutex);
+        return ret;
+    }
+
+    ret = ledc_update_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to update IN1 duty: %s", esp_err_to_name(ret));
         xSemaphoreGive(motor_mutex);
         return ret;
     }
@@ -222,22 +239,9 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
     // Convert to duty cycle value
     uint32_t duty = percent_to_duty(intensity_percent);
 
-    // Set IN2 (reverse) to PWM, IN1 (forward) to LOW
-    esp_err_t ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2, duty);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set IN2 duty: %s", esp_err_to_name(ret));
-        xSemaphoreGive(motor_mutex);
-        return ret;
-    }
-
-    ret = ledc_update_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to update IN2 duty: %s", esp_err_to_name(ret));
-        xSemaphoreGive(motor_mutex);
-        return ret;
-    }
-
-    ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1, 0);
+    // SHOOT-THROUGH PROTECTION: Turn OFF opposite channel FIRST
+    // With discrete MOSFETs, both channels HIGH simultaneously = short circuit
+    esp_err_t ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1, 0);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set IN1 duty: %s", esp_err_to_name(ret));
         xSemaphoreGive(motor_mutex);
@@ -247,6 +251,24 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
     ret = ledc_update_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to update IN1 duty: %s", esp_err_to_name(ret));
+        xSemaphoreGive(motor_mutex);
+        return ret;
+    }
+
+    // Dead-time: Wait for MOSFET to fully turn off before turning on opposite side
+    vTaskDelay(pdMS_TO_TICKS(DEAD_TIME_MS));
+
+    // NOW safe to turn on reverse channel (IN2)
+    ret = ledc_set_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2, duty);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set IN2 duty: %s", esp_err_to_name(ret));
+        xSemaphoreGive(motor_mutex);
+        return ret;
+    }
+
+    ret = ledc_update_duty(MOTOR_PWM_MODE, MOTOR_LEDC_CHANNEL_IN2);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to update IN2 duty: %s", esp_err_to_name(ret));
         xSemaphoreGive(motor_mutex);
         return ret;
     }
