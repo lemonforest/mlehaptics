@@ -1912,6 +1912,21 @@ static int gattc_on_cccd_write(uint16_t conn_handle,
     if (error->status == 0) {
         ESP_LOGI(TAG, "CLIENT: Time sync notifications ENABLED (CCCD write successful)");
         ESP_LOGI(TAG, "CLIENT: Ready to receive sync beacons from SERVER");
+
+        /* PHASE 6r: Now that connection is fully ready (services discovered,
+         * characteristics found, notifications enabled), initialize time sync.
+         * Moved from GAP connect event to fix BLE_HS_EALREADY (259) and
+         * BLE_ERR_UNK_CONN_ID (0x202) race conditions.
+         */
+        time_sync_role_t sync_role = (peer_state.role == PEER_ROLE_SERVER) ?
+                                      TIME_SYNC_ROLE_SERVER : TIME_SYNC_ROLE_CLIENT;
+        esp_err_t reconnect_rc = time_sync_on_reconnection(sync_role);
+        if (reconnect_rc != ESP_OK) {
+            ESP_LOGW(TAG, "time_sync_on_reconnection failed; rc=%d", reconnect_rc);
+        } else {
+            ESP_LOGI(TAG, "Time sync initialized successfully (role: %s)",
+                     (sync_role == TIME_SYNC_ROLE_SERVER) ? "SERVER" : "CLIENT");
+        }
     } else {
         ESP_LOGE(TAG, "CLIENT: Failed to write CCCD; status=%d", error->status);
     }
@@ -2463,14 +2478,15 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         }
                     }
 
-                    // PHASE 6r: Check for role swap on reconnection (should NOT happen per Phase 6n)
-                    // Map peer_role_t to time_sync_role_t for time sync module
-                    time_sync_role_t sync_role = (peer_state.role == PEER_ROLE_SERVER) ?
-                                                  TIME_SYNC_ROLE_SERVER : TIME_SYNC_ROLE_CLIENT;
-                    esp_err_t reconnect_rc = time_sync_on_reconnection(sync_role);
-                    if (reconnect_rc != ESP_OK) {
-                        ESP_LOGW(TAG, "time_sync_on_reconnection failed; rc=%d", reconnect_rc);
-                    }
+                    /* PHASE 6r: time_sync_on_reconnection() MOVED to gattc_on_cccd_write()
+                     *
+                     * Calling it here (during GAP connection event) was too early and caused:
+                     * - BLE_HS_EALREADY (259) - operation already in progress
+                     * - BLE_ERR_UNK_CONN_ID (0x202) - connection handle not valid yet
+                     *
+                     * Now called AFTER service discovery and notification enable complete,
+                     * ensuring connection is fully ready before time sync starts.
+                     */
 
                     // Phase 6p: Update connection parameters for long therapeutic sessions
                     // This ensures both CLIENT and SERVER use 32-second supervision timeout (BLE spec max)
@@ -3097,9 +3113,16 @@ static const ble_uuid128_t* ble_get_advertised_uuid(void) {
     uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
     uint32_t elapsed_ms = now_ms - ble_boot_time_ms;
 
-    // Check if peer already bonded (NVS check) OR peer currently connected
+    // Check connection states
     bool peer_bonded = ble_check_bonded_peer_exists();
     bool peer_connected = ble_is_peer_connected();
+    bool app_connected = ble_is_app_connected();
+
+    // Bug #45: If PWA (app) is actively connected, ALWAYS advertise Config UUID
+    // This prevents UUID switching during peer reconnection from disrupting PWA connection
+    if (app_connected) {
+        return &uuid_config_service;
+    }
 
     if (!peer_bonded && !peer_connected && elapsed_ms < PAIRING_WINDOW_MS) {
         // Within pairing window, no peer bonded/connected yet - advertise Bilateral UUID
@@ -3145,26 +3168,25 @@ static void ble_update_advertising_data(void) {
 
     // AD035: Add battery level as Service Data for role assignment
     // Battery Service UUID (0x180F) + battery percentage (0-100)
-    // Only broadcast during Bilateral UUID window (peer discovery phase)
+    // Bug #45 fix: Always broadcast battery (not just during Bilateral UUID window)
+    // After Bug #9 switched to Config UUID for PWA discovery, battery was never included
     static uint8_t battery_svc_data[3];
-    const ble_uuid128_t *advertised_uuid = ble_get_advertised_uuid();
-    if (advertised_uuid == &uuid_bilateral_service) {
-        // Read battery level (mutex-protected)
-        uint8_t battery_pct = 0;
-        if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-            battery_pct = bilateral_data.battery_level;
-            xSemaphoreGive(bilateral_data_mutex);
-        }
 
-        battery_svc_data[0] = 0x0F;  // Battery Service UUID LSB (0x180F)
-        battery_svc_data[1] = 0x18;  // Battery Service UUID MSB
-        battery_svc_data[2] = battery_pct;  // Battery percentage 0-100
-
-        fields.svc_data_uuid16 = battery_svc_data;
-        fields.svc_data_uuid16_len = 3;
-
-        ESP_LOGI(TAG, "Advertising battery level: %d%% (for role assignment)", battery_pct);
+    // Read battery level (mutex-protected)
+    uint8_t battery_pct = 0;
+    if (xSemaphoreTake(bilateral_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        battery_pct = bilateral_data.battery_level;
+        xSemaphoreGive(bilateral_data_mutex);
     }
+
+    battery_svc_data[0] = 0x0F;  // Battery Service UUID LSB (0x180F)
+    battery_svc_data[1] = 0x18;  // Battery Service UUID MSB
+    battery_svc_data[2] = battery_pct;  // Battery percentage 0-100
+
+    fields.svc_data_uuid16 = battery_svc_data;
+    fields.svc_data_uuid16_len = 3;
+
+    ESP_LOGD(TAG, "Advertising battery level: %d%% (for role assignment)", battery_pct);
 
     int rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
@@ -4039,6 +4061,20 @@ void ble_connect_to_peer(void) {
     if (ble_is_peer_connected()) {
         ESP_LOGW(TAG, "Already connected to peer");
         return;
+    }
+
+    // Bug #45: Add MAC-based connection delay jitter to prevent simultaneous connection race
+    // When both devices discover each other at the same time, both try to connect simultaneously
+    // This causes BLE_ERR_UNK_CONN_ID (Unknown Connection Identifier) timeout
+    // Solution: Add small random delay (0-5ms) before connection based on MAC address
+    ble_addr_t own_addr;
+    ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, own_addr.val, NULL);
+    uint8_t mac_jitter = own_addr.val[5] & 0x07;  // 0-7 from last MAC byte (half of scan jitter)
+    uint32_t delay_ms = mac_jitter;  // 0-7ms delay
+
+    if (delay_ms > 0) {
+        ESP_LOGI(TAG, "Connection delay jitter: %ums (MAC-based)", delay_ms);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
     }
 
     ESP_LOGI(TAG, "Connecting to peer device...");

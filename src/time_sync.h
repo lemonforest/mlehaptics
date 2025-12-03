@@ -83,14 +83,23 @@ extern "C" {
 /** @brief ESP32-C6 crystal drift specification (parts per million) */
 #define TIME_SYNC_CRYSTAL_DRIFT_PPM (10U)       // ±10 PPM from datasheet
 
-/** @brief Phase 6r: EMA filter alpha (percentage, 0-100) - heavy smoothing */
+/** @brief Phase 6r: EMA filter alpha - fast attack (percentage, 0-100) */
+#define TIME_FILTER_ALPHA_FAST_PCT  (30U)       // 30% weight for first N samples (fast convergence)
+
+/** @brief Phase 6r: EMA filter alpha - slow/steady (percentage, 0-100) - heavy smoothing */
 #define TIME_FILTER_ALPHA_PCT       (10U)       // 10% weight on new sample (90% on history)
 
 /** @brief Phase 6r: Ring buffer size for outlier detection */
 #define TIME_FILTER_RING_SIZE       (8U)        // Last 8 samples
 
-/** @brief Phase 6r: Outlier threshold (microseconds) - reject samples >200ms deviation */
-#define TIME_FILTER_OUTLIER_THRESHOLD_US (200000U)  // 200ms
+/** @brief Phase 6r: Outlier threshold (microseconds) - reject samples >100ms deviation */
+#define TIME_FILTER_OUTLIER_THRESHOLD_US (100000U)  // 100ms (steady-state mode)
+
+/** @brief Phase 6r: Fast-mode outlier threshold (microseconds) - more aggressive during mode changes */
+#define TIME_FILTER_OUTLIER_THRESHOLD_FAST_US (50000U)  // 50ms (fast-attack mode)
+
+/** @brief Phase 6r: Early convergence detection threshold (microseconds) */
+#define TIME_FILTER_CONVERGENCE_THRESHOLD_US (50U)  // 50µs stability over 4 beacons
 
 /*******************************************************************************
  * TYPE DEFINITIONS
@@ -113,7 +122,11 @@ typedef struct {
  *
  * Implements exponential moving average filter with ring buffer for
  * outlier detection. Smooths out BLE transmission delay variation
- * (±10-30ms typical) while rejecting extreme outliers (>200ms).
+ * (±10-30ms typical) while rejecting extreme outliers (>100ms).
+ *
+ * Dual-alpha fast-attack:
+ * - Fast alpha (30%) for first N valid beacons (N=12 or early convergence)
+ * - Slow alpha (10%) for long-term stability after convergence
  *
  * JPL Rule 1: Fixed size ring buffer, no dynamic allocation.
  */
@@ -124,6 +137,8 @@ typedef struct {
     uint32_t      sample_count;                     /**< Total samples processed */
     uint32_t      outlier_count;                    /**< Samples rejected as outliers */
     bool          initialized;                      /**< Filter has first sample */
+    bool          fast_attack_active;               /**< True until switched to slow alpha */
+    uint8_t       valid_beacon_count;               /**< Count of non-outlier beacons (for N=12 check) */
 } time_filter_t;
 
 /**
@@ -188,6 +203,10 @@ typedef struct {
     uint32_t sync_interval_ms;       /**< Current sync interval (adaptive) */
     uint8_t  sync_sequence;          /**< Message sequence number (wraps at 255) */
     uint8_t  retry_count;            /**< Current retry attempt (bounded by MAX_RETRIES) */
+
+    /* Forced beacon state (mode change fast convergence) */
+    uint8_t  forced_beacon_count;    /**< Remaining forced beacons (3→0, triggers 500ms interval) */
+    uint32_t forced_beacon_next_ms;  /**< When next forced beacon should be sent */
 
     /* Quality Metrics */
     time_sync_quality_t quality;     /**< Sync quality tracking */
@@ -591,6 +610,37 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
 esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t cycle_ms);
 
 /**
+ * @brief Trigger forced beacons for fast convergence (SERVER only)
+ *
+ * Forces 3 immediate beacons at 500ms intervals for fast time sync convergence
+ * after mode changes. After 3 beacons, returns to adaptive interval.
+ *
+ * Call this on SERVER when mode changes to help CLIENT filter adapt quickly.
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ */
+esp_err_t time_sync_trigger_forced_beacons(void);
+
+/**
+ * @brief Reset EMA filter to fast-attack mode (for mode changes)
+ *
+ * Resets the filter to fast-attack mode with aggressive convergence:
+ * - Sets fast_attack_active = true
+ * - Resets valid_beacon_count = 0 (forces 12 samples or early convergence)
+ * - Clears sample_count = 0
+ * - Uses 50ms outlier threshold (vs 100ms in steady-state)
+ * - Keeps current filtered_offset_us (doesn't reset to zero)
+ *
+ * Call this when mode changes (frequency/duty/cycle) to quickly adapt
+ * to the new motor epoch without jerky corrections.
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not initialized
+ */
+esp_err_t time_sync_reset_filter_fast_attack(void);
+
+/**
  * @brief Get filtered drift rate (Fix #2)
  *
  * Returns the EWMA-filtered drift rate in μs/s.
@@ -616,6 +666,30 @@ esp_err_t time_sync_get_drift_rate(int32_t *drift_rate_us_per_s);
  * @return ESP_ERR_NOT_FOUND if using raw offset (first ~20s after boot)
  */
 esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us);
+
+/**
+ * @brief Check if antiphase lock is achieved (Phase 6s)
+ *
+ * Determines if time synchronization has converged to a stable state suitable
+ * for starting motors. This prevents startup jitter from EWMA filter convergence.
+ *
+ * Lock criteria:
+ * - Handshake complete (precise NTP-style bootstrap)
+ * - Minimum 3 beacons received (filter has data)
+ * - Filter in steady-state mode (sample_count >= 10, not fast-attack)
+ * - Recent beacon within 2× adaptive interval (not stale)
+ *
+ * Expected lock time: 2-3 seconds from connection
+ *
+ * Usage:
+ * - CLIENT motor task waits for lock before starting motors (5s timeout)
+ * - Periodically check during operation for lock maintenance (every 10 cycles)
+ * - Request forced beacons if lock lost during session
+ *
+ * @return true if locked and stable, false otherwise
+ * @note SERVER always returns true (no phase lock needed, it's authoritative)
+ */
+bool time_sync_is_antiphase_locked(void);
 
 /*******************************************************************************
  * UTILITY MACROS

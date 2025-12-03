@@ -619,6 +619,8 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
         filter->sample_count = 1;
         filter->outlier_count = 0;
         filter->head = 0;
+        filter->fast_attack_active = true;   /* Start in fast-attack mode */
+        filter->valid_beacon_count = 1;      /* First valid beacon */
 
         /* Store in ring buffer */
         filter->samples[0].raw_offset_us = raw_offset_us;
@@ -626,15 +628,22 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
         filter->samples[0].sequence = sequence;
         filter->samples[0].outlier = false;
 
-        ESP_LOGI(TAG, "Filter initialized: raw=%" PRId64 " μs (seq=%u)", raw_offset_us, sequence);
+        ESP_LOGI(TAG, "Filter initialized: raw=%" PRId64 " μs (seq=%u, fast-attack active)", raw_offset_us, sequence);
         return raw_offset_us;
     }
 
-    /* Outlier detection: Reject samples >200ms from filtered value */
+    /* Outlier detection: Dynamic threshold based on filter mode
+     * - Fast-attack mode: 50ms threshold (aggressive during mode changes)
+     * - Steady-state mode: 100ms threshold (normal operation)
+     */
+    uint32_t outlier_threshold = filter->fast_attack_active ?
+                                 TIME_FILTER_OUTLIER_THRESHOLD_FAST_US :
+                                 TIME_FILTER_OUTLIER_THRESHOLD_US;
+
     int64_t deviation = raw_offset_us - filter->filtered_offset_us;
     int64_t abs_deviation = (deviation >= 0) ? deviation : -deviation;
 
-    if (abs_deviation > (int64_t)TIME_FILTER_OUTLIER_THRESHOLD_US) {
+    if (abs_deviation > (int64_t)outlier_threshold) {
         filter->outlier_count++;
 
         ESP_LOGW(TAG, "Outlier rejected: raw=%" PRId64 " μs, filtered=%" PRId64 " μs, deviation=%+" PRId64 " μs (seq=%u)",
@@ -653,14 +662,51 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
         return filter->filtered_offset_us;
     }
 
-    /* Valid sample: Apply EMA filter
+    /* Dual-alpha fast-attack: Check if we should switch from fast to slow alpha */
+    if (filter->fast_attack_active) {
+        /* Condition 1: N=12 valid beacons received */
+        if (filter->valid_beacon_count >= 12) {
+            filter->fast_attack_active = false;
+            ESP_LOGI(TAG, "Fast-attack filter ended after %u beacons, switching to slow alpha",
+                     filter->valid_beacon_count);
+        }
+        /* Condition 2: Early convergence - offset changed by <50µs over last 4 beacons */
+        else if (filter->valid_beacon_count >= 4) {
+            /* Scan last 4 valid (non-outlier) samples in ring buffer */
+            int64_t min_offset = INT64_MAX;
+            int64_t max_offset = INT64_MIN;
+            uint8_t samples_checked = 0;
+
+            /* Walk backwards through ring buffer to find last 4 valid samples */
+            for (uint8_t i = 0; i < TIME_FILTER_RING_SIZE && samples_checked < 4; i++) {
+                /* Calculate index walking backwards from current head */
+                uint8_t idx = (filter->head + TIME_FILTER_RING_SIZE - 1 - i) % TIME_FILTER_RING_SIZE;
+
+                if (!filter->samples[idx].outlier) {
+                    int64_t offset = filter->samples[idx].raw_offset_us;
+                    if (offset < min_offset) min_offset = offset;
+                    if (offset > max_offset) max_offset = offset;
+                    samples_checked++;
+                }
+            }
+
+            /* Check convergence: max deviation < 50µs */
+            if (samples_checked == 4 && (max_offset - min_offset) < TIME_FILTER_CONVERGENCE_THRESHOLD_US) {
+                filter->fast_attack_active = false;
+                ESP_LOGI(TAG, "Fast-attack filter ended after %u beacons (early convergence: %lld µs stability), switching to slow alpha",
+                         filter->valid_beacon_count, (max_offset - min_offset));
+            }
+        }
+    }
+
+    /* Valid sample: Apply EMA filter with selected alpha
      * Formula: filtered = (alpha/100 * raw) + ((100-alpha)/100 * filtered)
      *
-     * Phase 6r: Dual-alpha for fast startup convergence
-     * - First 10 samples: alpha=30% (fast tracking, ~3× faster convergence)
-     * - Samples 11+: alpha=10% (heavy smoothing, long-term stability)
+     * Dual-alpha fast-attack:
+     * - Fast alpha (30%) until N=12 or early convergence detected
+     * - Slow alpha (10%) for long-term stability after convergence
      */
-    uint8_t alpha = (filter->sample_count < 10) ? 30 : TIME_FILTER_ALPHA_PCT;
+    uint8_t alpha = filter->fast_attack_active ? TIME_FILTER_ALPHA_FAST_PCT : TIME_FILTER_ALPHA_PCT;
     int64_t alpha_term = (raw_offset_us * alpha) / 100;
     int64_t history_term = (filter->filtered_offset_us * (100 - alpha)) / 100;
     filter->filtered_offset_us = alpha_term + history_term;
@@ -673,6 +719,7 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
 
     filter->head = (filter->head + 1) % TIME_FILTER_RING_SIZE;
     filter->sample_count++;
+    filter->valid_beacon_count++;  /* Increment valid beacon counter */
 
     /* Log filter statistics every 10 samples (avoid log spam) */
     if (filter->sample_count % 10 == 0) {
@@ -917,6 +964,31 @@ static esp_err_t adjust_sync_interval(void)
 bool time_sync_should_send_beacon(void)
 {
     uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    /* Check for forced beacon mode (mode change fast convergence) */
+    if (g_time_sync_state.forced_beacon_count > 0) {
+        if (now_ms >= g_time_sync_state.forced_beacon_next_ms) {
+            /* Time for next forced beacon */
+            g_time_sync_state.forced_beacon_count--;
+
+            if (g_time_sync_state.forced_beacon_count > 0) {
+                /* Phase 6t: Schedule next forced beacon in 200ms (5 total for fast lock) */
+                g_time_sync_state.forced_beacon_next_ms = now_ms + 200;
+                ESP_LOGI(TAG, "Forced beacon %d/5 sent, next in 200ms",
+                         5 - g_time_sync_state.forced_beacon_count);
+            } else {
+                /* Last forced beacon - return to adaptive interval */
+                ESP_LOGI(TAG, "Forced beacon 5/5 sent, returning to adaptive interval (%lu ms)",
+                         (unsigned long)g_time_sync_state.sync_interval_ms);
+            }
+
+            return true;
+        }
+        /* Not time for forced beacon yet */
+        return false;
+    }
+
+    /* Normal adaptive interval check */
     uint32_t elapsed_ms = now_ms - g_time_sync_state.last_sync_ms;
 
     return (elapsed_ms >= g_time_sync_state.sync_interval_ms);
@@ -1243,6 +1315,85 @@ esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t c
 }
 
 /**
+ * @brief Reset EMA filter to fast-attack mode (for mode changes)
+ *
+ * Resets the filter to fast-attack mode for rapid convergence after mode changes.
+ * This prevents jerky motor corrections during the first 10-40 seconds after
+ * frequency/duty/cycle changes.
+ *
+ * Changes:
+ * - Sets fast_attack_active = true (enables 30% alpha)
+ * - Resets valid_beacon_count = 0 (forces 12 samples or early convergence)
+ * - Resets sample_count = 0 (restart filter statistics)
+ * - Uses 50ms outlier threshold (vs 100ms in steady-state)
+ * - Preserves filtered_offset_us (doesn't reset to zero)
+ */
+esp_err_t time_sync_reset_filter_fast_attack(void)
+{
+    if (!g_time_sync_state.initialized) {
+        ESP_LOGE(TAG, "Not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    time_filter_t *filter = &g_time_sync_state.filter;
+
+    /* Reset filter to fast-attack mode */
+    filter->fast_attack_active = true;
+    filter->valid_beacon_count = 0;
+    filter->sample_count = 0;
+    filter->outlier_count = 0;
+
+    /* Keep filtered_offset_us unchanged - we don't want to reset to zero,
+     * just want to adapt quickly to the new motor epoch timing */
+
+    ESP_LOGI(TAG, "Mode change detected - resetting to fast-attack filter (alpha=30%%, threshold=50ms, preserving offset=%" PRId64 " μs)",
+             filter->filtered_offset_us);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief Trigger forced beacons for fast convergence (SERVER only)
+ *
+ * Forces 3 immediate beacons at 500ms intervals to help CLIENT filter
+ * adapt quickly after mode changes. After 3 beacons, returns to adaptive interval.
+ *
+ * This is only valid for SERVER role (beacon sender).
+ *
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ */
+esp_err_t time_sync_trigger_forced_beacons(void)
+{
+    if (!g_time_sync_state.initialized) {
+        ESP_LOGE(TAG, "Not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (g_time_sync_state.role != TIME_SYNC_ROLE_SERVER) {
+        ESP_LOGW(TAG, "Forced beacons only valid for SERVER role");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* Phase 6t: Set up fast lock beacon burst
+     * - 5 beacons total (vs 3 in Phase 6r)
+     * - First beacon sent immediately (next_ms = 0)
+     * - Subsequent beacons at 200ms intervals (vs 500ms in Phase 6r)
+     * - Total lock time: ~1 second (vs 2-3 seconds in Phase 6r)
+     *
+     * Research basis: IEEE/Bluetooth SIG papers show 50-100ms lock achievable
+     * for biomedical BLE sensors with rapid beacon bursts handling 16-50ppm
+     * crystal drift (ESP32-C6 is ~16ppm).
+     */
+    g_time_sync_state.forced_beacon_count = 5;
+    g_time_sync_state.forced_beacon_next_ms = 0;  // Send first beacon immediately
+
+    ESP_LOGI(TAG, "Forcing 5 beacons at 200ms intervals for fast lock (Phase 6t)");
+
+    return ESP_OK;
+}
+
+/**
  * @brief Get filtered drift rate (Fix #2)
  */
 esp_err_t time_sync_get_drift_rate(int32_t *drift_rate_us_per_s)
@@ -1315,4 +1466,108 @@ esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us)
     }
 
     return ESP_OK;
+}
+
+/**
+ * @brief Check if antiphase lock is achieved (stable synchronization)
+ *
+ * Determines if time synchronization has converged to a stable state suitable
+ * for starting motors. This prevents startup jitter from filter convergence.
+ *
+ * Lock criteria:
+ * - Handshake complete (precise NTP-style bootstrap)
+ * - Minimum 3 beacons received (filter has data)
+ * - Filter in steady-state mode (sample_count >= 10, not fast-attack)
+ * - Recent beacon within 2× adaptive interval (not stale)
+ *
+ * Expected lock time: 2-3 seconds from connection
+ *
+ * @return true if locked and stable, false otherwise
+ *
+ * @note This function is called by CLIENT motor task before starting motors
+ *       and periodically during operation for lock maintenance
+ */
+bool time_sync_is_antiphase_locked(void)
+{
+    /* Not initialized - definitely not locked */
+    if (!g_time_sync_state.initialized) {
+        return false;
+    }
+
+    /* Only CLIENT devices need phase lock (SERVER is authoritative) */
+    if (g_time_sync_state.role != TIME_SYNC_ROLE_CLIENT) {
+        /* SERVER always reports "locked" (no phase lock needed) */
+        return true;
+    }
+
+    /* 1. Handshake must be complete (precise NTP-style offset calculated) */
+    if (!g_time_sync_state.handshake_complete) {
+        return false;
+    }
+
+    /* 2. Minimum beacon history (filter needs data to be reliable) */
+    if (g_time_sync_state.filter.sample_count < 3) {
+        return false;
+    }
+
+    /* 3. Phase 6t: Early lock detection during fast-attack mode
+     * Allow lock if offset variance is low (< ±2ms) even during fast-attack.
+     * This enables ~1s lock time vs 2-3s waiting for steady-state.
+     *
+     * Check variance of last 5 valid samples in ring buffer.
+     */
+    if (g_time_sync_state.filter.fast_attack_active) {
+        /* Need at least 5 valid beacons for variance calculation */
+        if (g_time_sync_state.filter.valid_beacon_count < 5) {
+            return false;  /* Not enough samples yet */
+        }
+
+        /* Scan last 5 valid (non-outlier) samples to calculate variance */
+        int64_t min_offset = INT64_MAX;
+        int64_t max_offset = INT64_MIN;
+        uint8_t samples_checked = 0;
+
+        /* Walk backwards through ring buffer to find last 5 valid samples */
+        for (uint8_t i = 0; i < TIME_FILTER_RING_SIZE && samples_checked < 5; i++) {
+            uint8_t idx = (g_time_sync_state.filter.head + TIME_FILTER_RING_SIZE - 1 - i) % TIME_FILTER_RING_SIZE;
+
+            if (!g_time_sync_state.filter.samples[idx].outlier) {
+                int64_t offset = g_time_sync_state.filter.samples[idx].raw_offset_us;
+                if (offset < min_offset) min_offset = offset;
+                if (offset > max_offset) max_offset = offset;
+                samples_checked++;
+            }
+        }
+
+        /* Check if variance is low enough for stable lock */
+        const int64_t FAST_LOCK_VARIANCE_THRESHOLD_US = 2000;  /* ±2ms */
+        if (samples_checked == 5 && (max_offset - min_offset) < FAST_LOCK_VARIANCE_THRESHOLD_US) {
+            /* Variance is low - safe to lock even during fast-attack */
+            static bool fast_lock_logged = false;
+            if (!fast_lock_logged) {
+                ESP_LOGI(TAG, "Phase 6t: Fast lock achieved (variance=%lld µs < 2ms threshold, %u beacons)",
+                         (max_offset - min_offset), g_time_sync_state.filter.valid_beacon_count);
+                fast_lock_logged = true;
+            }
+            return true;
+        }
+
+        /* Variance too high - need to wait for more samples */
+        return false;
+    }
+
+    /* 4. Beacon must not be stale (recent update within 2× adaptive interval)
+     * Stale beacons indicate connection issues or SERVER stopped sending.
+     * Use 2× interval for safety margin during adaptive backoff.
+     */
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t elapsed_ms = now_ms - g_time_sync_state.last_sync_ms;
+    uint32_t staleness_threshold_ms = g_time_sync_state.sync_interval_ms * 2;
+
+    if (elapsed_ms > staleness_threshold_ms) {
+        return false;  /* Beacon too old */
+    }
+
+    /* All criteria met - phase lock achieved */
+    return true;
 }

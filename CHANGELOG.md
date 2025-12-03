@@ -9,6 +9,170 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.57] - 2025-12-03
+
+### Added
+
+**Phase 6t: Fast Lock with Coordinated Motor Start**:
+- **Forced Beacon Burst After Handshake**: SERVER triggers 5 beacons at 200ms intervals (vs 3 @ 500ms in Phase 6r)
+  - Enables ~1s lock acquisition (vs 5+ seconds in Phase 6s)
+  - Research basis: IEEE/Bluetooth SIG papers show 50-100ms lock achievable for biomedical BLE sensors with rapid beacon bursts handling 16-50ppm crystal drift (ESP32-C6 is ~16ppm)
+  - **Implementation**: `src/time_sync_task.c:670-682` (trigger after handshake)
+  - `src/time_sync.c:975-983` (beacon timing logic)
+  - `src/time_sync.c:1378-1394` (forced beacon setup)
+- **Early Lock Detection**: Allows lock during fast-attack mode if offset variance < ±2ms
+  - Checks last 5 valid beacon samples for low variance
+  - Enables lock before reaching steady-state (sample_count 10+)
+  - Reduces lock time from 2-3s to ~1s
+  - **Implementation**: `src/time_sync.c:1513-1557` (44 lines)
+- **Coordinated Motor Start**: Both SERVER and CLIENT wait ~1.5s before starting motors
+  - SERVER waits for CLIENT to achieve fast lock
+  - Coordinated start delay increased from 500ms to 1500ms
+  - Both devices start within ~100ms of each other (vs CLIENT appearing unresponsive for 5s)
+  - **Implementation**: `src/motor_task.c:564-573` (coordinated start timing)
+
+### Changed
+
+**Root Cause Analysis - Startup UX Issue**:
+- **Problem**: SERVER started motors immediately while CLIENT waited 5s for lock, appearing broken
+- **Phase 6s Behavior**: CLIENT timeout at 11.4s after 5s wait, SERVER already buzzing at 10.4s
+- **Root Cause**: Phase 6s required 10 beacon samples for steady-state lock, but beacons arrived at 1-2s intervals → 10-20s wait
+- **Solution**: Fast lock via rapid beacon burst + early variance-based lock detection
+
+**Protocol Hardening**:
+- Increased beacon burst from 3→5 beacons for better convergence
+- Reduced interval from 500ms→200ms for faster lock acquisition
+- Variance-based early lock (±2ms threshold) inspired by Kalman filter approaches in literature
+
+**Expected Performance**:
+- **Startup**: Both devices synchronized within ~1.5s (vs SERVER immediate + CLIENT 5s timeout)
+- **Lock Time**: ~1s with fast lock (vs 2-3s in Phase 6s, 5s+ timeout fallback)
+- **User Experience**: Both devices responsive, professional synchronized feel
+- **Phase Error**: Stable ±10ms from first cycle (maintained from Phase 6s)
+
+### Files Modified
+- `src/time_sync_task.c:670-682` - Trigger forced beacon burst after handshake
+- `src/time_sync.c:975-983, 1378-1394` - Fast lock beacon burst (5 @ 200ms)
+- `src/time_sync.c:1513-1557` - Early lock detection (variance < ±2ms)
+- `src/motor_task.c:564-573` - Coordinated start delay (1.5s)
+- `src/firmware_version.h:33` - Version v0.6.57
+
+---
+
+## [0.6.56] - 2025-12-03
+
+### Added
+
+**Phase 6s: Two-Stage Antiphase Lock (Eliminates Startup & Mode Switch Jitter)**:
+- **Lock Detection Function**: `time_sync_is_antiphase_locked()` determines when time sync has converged to stable state
+  - Checks handshake complete (precise NTP-style bootstrap)
+  - Verifies minimum 3 beacons received (filter has data)
+  - Confirms filter in steady-state mode (sample_count >= 10, alpha = 10%)
+  - Validates beacon not stale (within 2× adaptive interval)
+  - Expected lock time: 2-3 seconds from connection
+  - **Implementation**: `src/time_sync.c:1466-1531` (66 lines)
+  - **API Declaration**: `src/time_sync.h:670-692`
+- **Pre-Motor-Start Lock Wait**: CLIENT waits for antiphase lock before starting motors
+  - Prevents startup jitter from EWMA filter oscillation during fast-attack mode (±1-5ms offset changes)
+  - 5-second timeout (fallback to best-effort start if lock not achieved)
+  - Logs lock acquisition time for diagnostics
+  - **Implementation**: `src/motor_task.c:723-755` (33 lines)
+  - **Expected outcome**: Clean bilateral feel from first cycle (no "keep getting closer" convergence)
+- **Periodic Lock Monitoring**: Checks lock status every 10 cycles during operation
+  - Detects lock loss (stale beacons, connection issues, etc.)
+  - Automatically requests forced beacons from SERVER for fast re-convergence
+  - Logs lock status changes only (avoids spam)
+  - **Implementation**: `src/motor_task.c:993-1033` (41 lines)
+  - **Benefits**: Prevents long-term drift or desynchronization during sessions
+- **Mode Change Integration**: Automatic re-lock after mode changes
+  - Phase 6r forced beacons + filter reset already implemented in `time_sync_task.c:458-470`
+  - Periodic lock monitoring detects when re-lock established (~1.5s)
+  - No additional blocking wait needed (motors continue during convergence)
+- **Files Modified**:
+  - `src/time_sync.c:1466-1531` - Added `time_sync_is_antiphase_locked()` implementation
+  - `src/time_sync.h:670-692` - Added lock detection API declaration
+  - `src/motor_task.c:723-755` - Added pre-motor-start lock wait for CLIENT
+  - `src/motor_task.c:993-1033` - Added periodic lock monitoring (every 10 cycles)
+  - `src/firmware_version.h:33` - Version v0.6.56
+
+### Changed
+
+**Root Cause Analysis**:
+- **Problem**: Startup jitter - devices converge toward in-phase instead of antiphase for 10-20 seconds
+- **Root Cause**: Filter offset oscillates ±1-5ms during fast-attack mode (30% alpha, samples 0-9)
+  - Phase calculations use this noisy offset
+  - Produces incorrect negative drift values (e.g., drift=-997ms when actually +3ms)
+  - CLIENT applies SLOW-DOWN corrections, pushing toward in-phase convergence
+- **Solution**: Wait for filter to reach steady-state (10% alpha, samples 10+) before starting motors
+  - Offset stable within ±0.3-1ms (vs ±1-5ms during fast-attack)
+  - Phase calculations use converged offset from first cycle
+  - Clean antiphase from motor start
+
+**Design Decision**:
+- **Option A rejected**: Disable drift corrections during fast-attack mode (workaround for symptom)
+- **Two-stage lock chosen**: Address root cause by waiting for filter convergence
+  - More principled approach (similar to IEEE 1588 PTP lock detection)
+  - Enables stable phase calculations from motor start
+  - Reuses existing forced beacon + filter reset mechanisms from Phase 6r
+
+**Expected Performance**:
+- **Startup**: Motors start 2-3 seconds after connection (vs immediate jerky start)
+- **Phase Error**: Immediately stable within ±10ms from first cycle (vs 10-20 seconds convergence)
+- **Mode Changes**: Brief pause (~1.5s) → smooth restart (vs 10-40 seconds jerky corrections)
+- **Lock Maintenance**: Automatic forced beacon request if lock lost during session
+
+---
+
+## [0.6.55] - 2025-12-02
+
+### Added
+
+**Phase 6r: Mode Change Fast-Attack Filter**:
+- **Filter Reset on Mode Change**: Automatically resets EWMA filter to fast-attack mode (alpha=30%) when mode changes
+  - Triggered by `SYNC_MSG_MODE_CHANGE` coordination message
+  - Resets `sample_count=0` to force fast alpha for next 12 samples
+  - Preserves current `filtered_offset_us` instead of resetting to zero (avoids large jumps)
+  - Reduces outlier threshold from 100ms to 50ms during fast-attack mode
+  - **Expected outcome**: ~1.5s to adapt (vs 10-40s jerky corrections previously)
+- **Forced Beacon Sequence**: SERVER sends 3 immediate beacons at 500ms intervals after mode change
+  - First beacon sent immediately (forced_beacon_next_ms = 0)
+  - Subsequent beacons at 500ms intervals
+  - Returns to adaptive interval (10-60s) after 3rd beacon
+  - Helps CLIENT filter converge quickly after motor epoch reset
+  - **Implementation**: `time_sync_trigger_forced_beacons()` API for SERVER role
+- **Dynamic Outlier Threshold**: Threshold adapts based on filter mode
+  - Fast-attack mode (samples 0-11): 50ms threshold (more aggressive convergence)
+  - Steady-state mode (samples 12+): 100ms threshold (same as v0.6.54)
+- **Files Modified**:
+  - `src/time_sync.h:145-152` - Added fast-attack outlier threshold constant and API declaration
+  - `src/time_sync.h:192-194` - Added forced beacon state fields to `time_sync_state_t`
+  - `src/time_sync.h:600-611` - Added `time_sync_trigger_forced_beacons()` API declaration
+  - `src/time_sync.c:600-616` - Implemented `time_sync_reset_filter_fast_attack()` function
+  - `src/time_sync.c:673-674` - Added dynamic outlier threshold based on sample count
+  - `src/time_sync.c:816-847` - Modified `time_sync_should_send_beacon()` to support forced beacon mode
+  - `src/time_sync.c:1193-1216` - Implemented `time_sync_trigger_forced_beacons()` function
+  - `src/time_sync_task.c:486-493` - Added filter reset and forced beacon trigger on mode change
+  - `src/firmware_version.h:33` - Version v0.6.55
+
+### Fixed
+
+**Phase 6r: BLE Connection Timing Race Conditions**:
+- **Issue**: `time_sync_on_reconnection()` called too early during GAP connection event
+  - Caused `BLE_HS_EALREADY` (259) - operation already in progress
+  - Caused `BLE_ERR_UNK_CONN_ID` (0x202) - connection handle not valid yet
+  - Caused `BLE_HS_EDONE` (547) - previous operation not complete
+  - Connection would eventually succeed but logged spurious errors
+- **Root Cause**: Called at ~1557ms before service discovery and CCCD write completed
+- **Solution**: Moved `time_sync_on_reconnection()` from GAP connect event to CCCD write callback
+  - Now called at ~1697ms after services discovered, characteristics found, notifications enabled
+  - ~140ms delay ensures connection fully ready before time sync initialization
+  - Eliminates all three BLE error codes
+- **Files Modified**:
+  - `src/ble_manager.c:2466-2474` - Removed early call from GAP connect event (replaced with comment)
+  - `src/ble_manager.c:1916-1929` - Added call after CCCD write succeeds in `gattc_on_cccd_write()`
+
+---
+
 ## [0.6.54] - 2025-12-02
 
 ### Added

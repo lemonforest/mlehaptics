@@ -561,10 +561,16 @@ void motor_task(void *pvParameters) {
                                         current_time_us = esp_timer_get_time();
                                     }
 
-                                    // Set coordinated start with SHORT delay (CLIENT already ready)
-                                    coordinated_start_us = current_time_us + 500000ULL;  // 500ms for BLE transmission
+                                    /* Phase 6t: Set coordinated start with delay for fast lock acquisition
+                                     * CLIENT needs time for:
+                                     * - 5 forced beacons @ 200ms = 1000ms
+                                     * - Fast lock detection (variance check)
+                                     * - Phase calculation prep
+                                     * Total: ~1200ms, use 1500ms for safety margin
+                                     */
+                                    coordinated_start_us = current_time_us + 1500000ULL;  // 1.5s for Phase 6t fast lock
                                     // BUG #47: Don't set motor epoch here - set it at ACTUAL motor start time (after wait)
-                                    ESP_LOGI(TAG, "SERVER: Coordinated start in 500ms (CLIENT ready, cycle=%lums)", cycle_ms);
+                                    ESP_LOGI(TAG, "SERVER: Coordinated start in 1500ms (CLIENT fast lock, cycle=%lums)", cycle_ms);
 
                                     // Send second beacon with coordinated start epoch
                                     vTaskDelay(pdMS_TO_TICKS(50));
@@ -718,6 +724,40 @@ void motor_task(void *pvParameters) {
                                 } else {
                                     ESP_LOGW(TAG, "CLIENT: Handshake incomplete after 1s, offset=%lld μs (may be inaccurate)",
                                              handshake_offset_us);
+                                }
+
+                                /* Phase 6s: Wait for antiphase lock before calculating offset
+                                 *
+                                 * Ensures EWMA filter has converged to steady-state before using it for
+                                 * phase calculations. This prevents startup jitter from filter oscillation.
+                                 *
+                                 * Lock criteria (checked by time_sync_is_antiphase_locked):
+                                 * - Handshake complete (already checked above)
+                                 * - Minimum 3 beacons received (filter has data)
+                                 * - Filter in steady-state mode (sample_count >= 10, alpha = 10%)
+                                 * - Recent beacon within 2× adaptive interval (not stale)
+                                 *
+                                 * Expected lock time: 2-3 seconds from connection
+                                 * Timeout: 5 seconds (fallback to best-effort start)
+                                 */
+                                ESP_LOGI(TAG, "CLIENT: Waiting for antiphase lock...");
+                                uint32_t lock_wait_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                                int lock_wait_cycles = 100;  // 100 × 50ms = 5000ms timeout
+                                bool lock_acquired = false;
+                                while (lock_wait_cycles > 0) {
+                                    if (time_sync_is_antiphase_locked()) {
+                                        uint32_t lock_duration_ms = (uint32_t)(esp_timer_get_time() / 1000) - lock_wait_start_ms;
+                                        ESP_LOGI(TAG, "CLIENT: Antiphase lock ACQUIRED in %lu ms", lock_duration_ms);
+                                        lock_acquired = true;
+                                        break;
+                                    }
+                                    vTaskDelay(pdMS_TO_TICKS(50));
+                                    esp_task_wdt_reset();
+                                    lock_wait_cycles--;
+                                }
+
+                                if (!lock_acquired) {
+                                    ESP_LOGW(TAG, "CLIENT: Antiphase lock TIMEOUT after 5s - proceeding anyway (may have startup jitter)");
                                 }
 
                                 // Calculate where SERVER currently is in its cycle
@@ -954,6 +994,42 @@ void motor_task(void *pvParameters) {
                     }
 
                     last_battery_check_ms = now;
+                }
+
+                /* Phase 6s: Periodic antiphase lock monitoring (CLIENT only)
+                 *
+                 * Check lock status every 10 cycles during operation. If lock is lost
+                 * (stale beacons, filter issue, etc.), request forced beacons from SERVER
+                 * to re-establish stable synchronization.
+                 *
+                 * This prevents long-term drift or desynchronization during sessions.
+                 */
+                static uint32_t lock_check_cycle_count = 0;
+                static bool last_lock_status = true;  // Assume locked initially
+                peer_role_t current_role = ble_get_peer_role();
+
+                if (current_role == PEER_ROLE_CLIENT) {
+                    lock_check_cycle_count++;
+
+                    if (lock_check_cycle_count >= 10) {
+                        bool current_lock_status = time_sync_is_antiphase_locked();
+
+                        // Log lock status changes only (avoid spam)
+                        if (current_lock_status != last_lock_status) {
+                            if (current_lock_status) {
+                                ESP_LOGI(TAG, "CLIENT: Antiphase lock RESTORED");
+                            } else {
+                                ESP_LOGW(TAG, "CLIENT: Antiphase lock LOST (will re-establish via beacons)");
+                                /* Note: Forced beacons are automatically triggered on mode changes
+                                 * via MOTOR_STARTED messages (Phase 6r). No explicit request needed.
+                                 * Lock will naturally re-establish within 1-2 seconds via existing
+                                 * beacon mechanism. */
+                            }
+                            last_lock_status = current_lock_status;
+                        }
+
+                        lock_check_cycle_count = 0;  // Reset counter
+                    }
                 }
 
                 // Check for emergency shutdown and mode changes

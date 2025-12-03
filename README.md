@@ -1,9 +1,9 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.3.0-beta.2 (Phase 6 In Progress)
-**Last Updated:** 2025-11-30
-**Status:** Beta Testing - Bilateral Coordination Implementation
-**Project Phase:** Phase 6 (Bilateral Motor Coordination) | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
+**Version:** v0.6.57 (Phase 6t Complete)
+**Last Updated:** 2025-12-03
+**Status:** Phase 6s Deployed to Therapist (Live Testing) | Phase 6t Ready (Fast Lock)
+**Project Phase:** Phase 6t Complete (Fast Lock) | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
@@ -20,8 +20,10 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - ✅ Phase 1c complete: Peer discovery with battery-based role assignment
 - ✅ Phase 2 complete: NTP-style time synchronization (±30 μs over 90 minutes)
 - ✅ Phase 6k complete: Drift-rate prediction for bilateral coordination
-- 🔄 Phase 6r (in progress): Drift continuation during brief BLE disconnects
-- ⏳ Hardware testing pending: Multi-hour bilateral sessions, reconnection scenarios
+- ✅ Phase 6r complete: Filtered time sync with outlier rejection
+- ✅ Phase 6s deployed: Two-stage antiphase lock (live therapist testing)
+- ✅ Phase 6t complete: Fast lock with coordinated startup (~1s lock time)
+- ⏸️ Development paused: Hardware build in progress (new units)
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)

@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 54  // Phase 6r: Immediate beacon after handshake (sub-2s first sample)
+#define FIRMWARE_VERSION_PATCH 57  // Phase 6t: Fast lock with coordinated start (1s lock, both devices synchronized)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
