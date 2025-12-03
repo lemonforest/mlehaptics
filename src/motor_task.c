@@ -696,7 +696,7 @@ void motor_task(void *pvParameters) {
                         // Phase 6i: Both devices wait until coordinated start time
                         // This ensures SIMULTANEOUS motor activation - no "two activations before other"
                         if (coordinated_start_us > 0 && (role == PEER_ROLE_SERVER || role == PEER_ROLE_CLIENT)) {
-                            // Strategy A: Pre-calculated antiphase (Phase 7)
+                            // Strategy A: Pre-calculated antiphase (potential future optimization)
                             // CLIENT calculates exact antiphase offset immediately, skipping handshake wait
                             // This eliminates early activation + 3-cycle alignment (~6s savings)
                             if (role == PEER_ROLE_CLIENT) {

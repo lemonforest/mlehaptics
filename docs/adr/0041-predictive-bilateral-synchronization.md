@@ -531,11 +531,13 @@ predicted_offset = last_offset + (median_drift_rate * time_since_rtt / 1000000);
 - Reference implementation for bilateral coordination (GPL v3)
 - Demonstrates viability of rejected architecture with modern compensation
 
-### Future Work
+### Future Work (Unnumbered)
 
-**Phase 7:** Extended session testing (90-180 minutes)
-**Phase 8:** Multi-device coordination (>2 devices)
-**Phase 9:** Adaptive drift rate adjustment based on battery voltage and temperature
+The following enhancements are planned but not yet scheduled:
+
+- **Extended session testing:** 90-180 minute validation runs to characterize long-term drift behavior
+- **Multi-device coordination:** Support for >2 devices (e.g., quad-lateral stimulation patterns)
+- **Adaptive drift compensation:** Adjust drift rate estimates based on battery voltage and temperature variations
 
 ---
 
