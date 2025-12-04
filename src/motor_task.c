@@ -184,6 +184,49 @@ static correction_type_t last_correction_type = CORRECTION_NONE;
 static int32_t last_correction_amount_ms = 0;
 
 // ============================================================================
+// CLIENT HARDWARE TIMER SYNCHRONIZATION (AD044)
+// ============================================================================
+
+/**
+ * @brief CLIENT-specific hardware timer for precise antiphase synchronization
+ *
+ * Design rationale (AD044):
+ * - CLIENT must synchronize to SERVER's motor_epoch (external timing reference)
+ * - Polling introduces ±1ms jitter from queue receive timeout granularity
+ * - Hardware timers achieve ±50μs precision (20× improvement)
+ * - Analogous to BLE callbacks responding to external radio events
+ *
+ * Timer lifecycle:
+ * - Created during motor_task initialization
+ * - Armed when CLIENT receives beacon with SERVER motor_epoch
+ * - Fires callback at exact antiphase moment (halfway through SERVER's cycle)
+ * - Cancelled on mode changes or shutdown
+ *
+ * Safety:
+ * - Callback runs in esp_timer task (not ISR), full FreeRTOS API available
+ * - Posts message to motor task queue, motor task handles actual transitions
+ * - Timer automatically disarms after firing (one-shot mode)
+ */
+static esp_timer_handle_t client_motor_timer = NULL;
+
+/**
+ * @brief Timer callback that fires when CLIENT motor should transition
+ *
+ * Runs in esp_timer task context (ESP_TIMER_TASK dispatch mode).
+ * Posts message to motor task queue to trigger state transition.
+ *
+ * @param arg Unused (required by esp_timer API)
+ */
+static void IRAM_ATTR client_motor_timer_callback(void *arg) {
+    // Post message to motor task to trigger transition
+    // Use FromISR variant for safety (esp_timer task has higher priority)
+    task_message_t msg = { .type = MSG_TIMER_MOTOR_TRANSITION };
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(button_to_motor_queue, &msg, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -439,6 +482,23 @@ void motor_task(void *pvParameters) {
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "Failed to add to watchdog: %s (continuing anyway)",
                  esp_err_to_name(err));
+    }
+
+    // AD044: Create CLIENT hardware timer for precise antiphase synchronization
+    // Timer is created at startup but only armed when CLIENT needs to synchronize
+    const esp_timer_create_args_t timer_args = {
+        .callback = &client_motor_timer_callback,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,  // Run in esp_timer task (not ISR)
+        .name = "client_motor",
+        .skip_unhandled_events = false
+    };
+    err = esp_timer_create(&timer_args, &client_motor_timer);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create CLIENT motor timer: %s", esp_err_to_name(err));
+        // Continue without timer - will fall back to polling-based synchronization
+    } else {
+        ESP_LOGI(TAG, "CLIENT motor timer created successfully");
     }
 
     ESP_LOGI(TAG, "Motor task started: %s", modes[current_mode].name);
@@ -1048,8 +1108,21 @@ void motor_task(void *pvParameters) {
                 while (xQueueReceive(button_to_motor_queue, &msg, 0) == pdPASS) {
                     if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
                         ESP_LOGI(TAG, "Emergency shutdown");
+
+                        // AD044: Cancel CLIENT timer on shutdown
+                        if (client_motor_timer != NULL && esp_timer_is_active(client_motor_timer)) {
+                            esp_timer_stop(client_motor_timer);
+                            ESP_LOGD(TAG, "CLIENT timer cancelled (shutdown)");
+                        }
+
                         state = MOTOR_STATE_SHUTDOWN;
                         break;
+                    } else if (msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                        // AD044: CLIENT hardware timer fired - precise antiphase moment reached
+                        // This message indicates the exact time for CLIENT to transition to ACTIVE
+                        // No action needed here - just log and continue to normal state transition
+                        ESP_LOGD(TAG, "CLIENT: Hardware timer fired (antiphase moment)");
+                        // Fall through to normal ACTIVE transition below
                     } else if (msg.type == MSG_MODE_CHANGE) {
                         // Process LAST mode change only (purge queue)
                         mode_t new_mode = msg.data.new_mode;
@@ -1072,6 +1145,12 @@ void motor_task(void *pvParameters) {
                             // Bug #20 fix: Reset PD state on mode change to avoid stale derivative
                             last_drift_valid = false;
                             last_drift_ms = 0;
+
+                            // AD044: Cancel CLIENT timer on mode change (will be re-armed with new timing)
+                            if (client_motor_timer != NULL && esp_timer_is_active(client_motor_timer)) {
+                                esp_timer_stop(client_motor_timer);
+                                ESP_LOGD(TAG, "CLIENT timer cancelled (mode change)");
+                            }
 
                             // Phase 3: Motor epoch synchronization on mode changes
                             peer_role_t role = ble_get_peer_role();
@@ -1586,6 +1665,26 @@ void motor_task(void *pvParameters) {
                         // Calculate wait time to reach absolute target
                         uint64_t target_wait_us = client_target_active_us - sync_time_us;
 
+                        // AD044: Arm hardware timer for precise antiphase synchronization
+                        // Timer fires at exact moment CLIENT should transition to ACTIVE
+                        // Hybrid approach: Timer provides precision, polling provides fallback
+                        if (client_motor_timer != NULL) {
+                            // Cancel any pending timer first
+                            if (esp_timer_is_active(client_motor_timer)) {
+                                esp_timer_stop(client_motor_timer);
+                            }
+
+                            // Arm one-shot timer to fire at exact target time
+                            esp_err_t timer_err = esp_timer_start_once(client_motor_timer, target_wait_us);
+                            if (timer_err == ESP_OK) {
+                                ESP_LOGD(TAG, "CLIENT: Hardware timer armed for %llu µs (%.1f ms)",
+                                         target_wait_us, (float)target_wait_us / 1000.0f);
+                            } else {
+                                ESP_LOGW(TAG, "CLIENT: Failed to arm timer: %s (falling back to polling)",
+                                         esp_err_to_name(timer_err));
+                            }
+                        }
+
                         // Phase 6p: Enhanced diagnostic logging
                         // Log every 10 cycles to avoid spam but capture phase calculation details
                         static uint32_t inactive_cycle_count = 0;
@@ -1596,8 +1695,9 @@ void motor_task(void *pvParameters) {
                                      sync_time_us, server_epoch_us, (uint32_t)epoch_age_ms);
                             ESP_LOGI(TAG, "CLIENT PHASE CALC: cycles_since_epoch=%lu, SERVER_cycle_start=%llu us",
                                      (uint32_t)cycles_since_epoch, server_current_cycle_start_us);
-                            ESP_LOGI(TAG, "CLIENT PHASE CALC: CLIENT_target=%llu us, wait=%lu ms",
-                                     client_target_active_us, (uint32_t)(target_wait_us / 1000));
+                            ESP_LOGI(TAG, "CLIENT PHASE CALC: CLIENT_target=%llu us, wait=%lu ms (timer %s)",
+                                     client_target_active_us, (uint32_t)(target_wait_us / 1000),
+                                     client_motor_timer != NULL ? "armed" : "disabled");
                         }
                         inactive_cycle_count++;
 

@@ -132,7 +132,8 @@ typedef enum {
     MSG_BATTERY_CRITICAL,     /**< Battery voltage below critical threshold (LVO) */
     MSG_SESSION_TIMEOUT,      /**< Session duration exceeded (60 minutes) */
     MSG_PAIRING_COMPLETE,     /**< BLE pairing successful (Phase 1b.3) */
-    MSG_PAIRING_FAILED        /**< BLE pairing failed or timeout (Phase 1b.3) */
+    MSG_PAIRING_FAILED,       /**< BLE pairing failed or timeout (Phase 1b.3) */
+    MSG_TIMER_MOTOR_TRANSITION /**< CLIENT hardware timer fired (AD044: precise antiphase synchronization) */
 } message_type_t;
 
 /**
