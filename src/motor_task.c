@@ -57,7 +57,7 @@ static const char *TAG = "MOTOR_TASK";
 
 #define LED_INDICATION_TIME_MS  10000               // Back-EMF sampling window
 #define BACKEMF_SETTLE_MS       10                  // Back-EMF settle time
-#define MODE_CHECK_INTERVAL_MS  50                  // Check queue every 50ms
+#define MODE_CHECK_INTERVAL_MS  1                   // Check queue every 1ms (AD044: Non-blocking motor timing)
 #define BATTERY_CHECK_INTERVAL_MS  60000            // Check battery every 60 seconds
 #define SESSION_TIME_NOTIFY_INTERVAL_MS 60000       // Notify session time every 60 seconds
 
