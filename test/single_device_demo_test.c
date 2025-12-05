@@ -28,7 +28,7 @@
  *   - GPIO16: WS2812B power enable (P-MOSFET, LOW=enabled)
  *   - GPIO17: WS2812B data
  *   - GPIO19: H-bridge IN2 (reverse)
- *   - GPIO20: H-bridge IN1 (forward)
+ *   - GPIO18: H-bridge IN1 (forward) - MOVED from GPIO20
  * 
  * Build & Run:
  *   pio run -e single_device_demo_test -t upload && pio device monitor
