@@ -84,7 +84,7 @@ static const char *TAG = "BATTERY_BEMF_TEST";
 #define GPIO_WS2812B_ENABLE     16      // WS2812B power (P-MOSFET, LOW=enabled)
 #define GPIO_WS2812B_DIN        17      // WS2812B data
 #define GPIO_HBRIDGE_IN2        19      // H-bridge reverse
-#define GPIO_HBRIDGE_IN1        20      // H-bridge forward
+#define GPIO_HBRIDGE_IN1        18      // H-bridge forward - MOVED from GPIO20
 #define GPIO_BAT_ENABLE         21      // Battery monitor enable (HIGH=enabled)
 
 // ========================================

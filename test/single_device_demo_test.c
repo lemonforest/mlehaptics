@@ -61,7 +61,7 @@ static const char *TAG = "DEMO_TEST";
 #define GPIO_WS2812B_ENABLE     16
 #define GPIO_WS2812B_DIN        17
 #define GPIO_HBRIDGE_IN2        19      // Reverse
-#define GPIO_HBRIDGE_IN1        20      // Forward
+#define GPIO_HBRIDGE_IN1        18      // Forward - MOVED from GPIO20
 
 // ========================================
 // PWM CONFIGURATION
