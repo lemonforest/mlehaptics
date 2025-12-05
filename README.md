@@ -23,7 +23,7 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - ✅ Phase 6r complete: Filtered time sync with outlier rejection
 - ✅ Phase 6s deployed: Two-stage antiphase lock (live therapist testing)
 - ✅ Phase 6t complete: Fast lock with coordinated startup (~1s lock time)
-- ⏸️ Development paused: Hardware build in progress (new units)
+- ✅ GPIO remapping complete: H-bridge IN1 moved from GPIO20 to GPIO18 (eliminates crosstalk)
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
