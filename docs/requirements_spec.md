@@ -277,7 +277,7 @@ framework = espidf
   - **Build flags**: `THERAPY_LIGHT_WS2812B` or `THERAPY_LIGHT_SIMPLE_LED` (see build configuration)
   - **Case dependency**: Visual therapy light only functional with light-transmitting case materials (see CP005)
   - **Light-blocking cases**: GPIO17 unused (light hardware may be assembled but not visible)
-- **Motor Control**: GPIO19 (H-bridge IN1 forward), GPIO20 (H-bridge IN2 reverse) for bidirectional motor control
+- **Motor Control**: GPIO19 (H-bridge IN2 reverse), GPIO18 (H-bridge IN1 forward, MOVED from GPIO20) for bidirectional motor control
 
 #### TR007: Therapy Light Build Configuration
 
@@ -694,7 +694,7 @@ END
 - **Packet loss testing**: BLE interference testing with spectrum analyzer
 - **Recovery validation**: Automatic recovery from all identified failure modes
 - **Timing precision**: Hardware verification of ±10ms bilateral timing under all cycle times
-- **Shoot-through testing**: Verify no simultaneous high signals on GPIO19/GPIO20
+- **Shoot-through testing**: Verify no simultaneous high signals on GPIO19/GPIO18 (H-bridge IN2/IN1)
 
 #### QA005: Case Material Light Transmission Testing
 - **Test sample verification**: All case materials tested with LED hardware before production
@@ -713,7 +713,7 @@ END
 **Hardware Readiness Requirements:**
 - **Final PCB revision**: Complete Phase 1 hardware fixes before Phase 2 transition
   - Hardware button moved from GPIO18 (with jumper) to GPIO1 (direct connection)
-  - GPIO20 relocated to GPIO18 to resolve GPIO19/GPIO20 hardware crosstalk issue
+  - H-bridge IN1 (forward) relocated from GPIO20 to GPIO18 to resolve GPIO19/GPIO20 hardware crosstalk issue
   - ESP32-C6 documented GPIO19↔GPIO20 coupling during boot requires hardware remapping
   - All Phase 1 discrete MOSFET H-bridge circuits validated and production-ready
 - **Software validation**: Core bilateral timing and BLE communication proven reliable
@@ -895,8 +895,8 @@ GPIO2:  Battery voltage monitor (ADC1_CH2, resistor divider)
 GPIO15: Status LED (on-board, active LOW)
 GPIO16: Therapy light enable (P-MOSFET, active LOW)
 GPIO17: Therapy light output (WS2812B DIN or simple LED)
-GPIO18: H-bridge IN2 (moved from GPIO20 due to crosstalk)
-GPIO19: H-bridge IN1 (forward control)
+GPIO18: H-bridge IN1 (forward control, MOVED from GPIO20 due to crosstalk)
+GPIO19: H-bridge IN2 (reverse control)
 GPIO21: Battery monitor enable (P-MOSFET gate control)
 ```
 

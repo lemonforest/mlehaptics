@@ -58,18 +58,17 @@ Create a dual-device EMDR bilateral stimulation system using ESP32-C6 microcontr
   - Simple LED option: 1206 LED via LEDC PWM (community alternative)
   - 62Ω current-limiting resistor inline (always populated)
   - Only functional with translucent case materials
-- **GPIO18**: User button (physical PCB location, jumpered to GPIO1, configured as high-impedance input)
-- **GPIO19**: H-bridge IN1 (motor forward control)
-- **GPIO20**: H-bridge IN2 (motor reverse control)
+- **GPIO18**: H-bridge IN1 (motor forward control) - MOVED from GPIO20
+- **GPIO19**: H-bridge IN2 (motor reverse control) - UNCHANGED
 - **GPIO21**: Battery monitor enable (P-MOSFET gate driver control)
 
 ### H-Bridge Motor Control Configuration
 ```c
 // H-bridge control modes (IN/IN configuration)
-#define MOTOR_FORWARD_MODE      // GPIO19=H, GPIO20=L
-#define MOTOR_REVERSE_MODE      // GPIO19=L, GPIO20=H  
-#define MOTOR_COAST_MODE        // GPIO19=L, GPIO20=L
-// NEVER: GPIO19=H, GPIO20=H (shoot-through condition)
+#define MOTOR_FORWARD_MODE      // GPIO18=H (IN1), GPIO19=L (IN2)
+#define MOTOR_REVERSE_MODE      // GPIO18=L (IN1), GPIO19=H (IN2)
+#define MOTOR_COAST_MODE        // GPIO18=L (IN1), GPIO19=L (IN2)
+// NEVER: GPIO18=H AND GPIO19=H (shoot-through condition)
 
 #define MOTOR_PWM_FREQ          25000   // 25kHz frequency (above hearing)
 #define MOTOR_PWM_RESOLUTION    LEDC_TIMER_10_BIT  // 10-bit (0-1023 range)
