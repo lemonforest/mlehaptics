@@ -248,10 +248,10 @@ This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bila
 - **Button:** Single hardware button for mode switching and sleep
 
 **Critical GPIO Constraints:**
-- **GPIO19/GPIO20 Crosstalk:** ESP32-C6 silicon issue - crosstalk during boot can cause unintended GPIO20 activation (see [docs/GPIO_UPDATE_2025-10-17.md](docs/GPIO_UPDATE_2025-10-17.md) for details)
-- **Current Implementation:** Button on GPIO1 (moved from GPIO18 via hardware jumper), GPIO19/20 used for H-bridge IN2/IN1
-- **Mitigation:** External pull-downs prevent shoot-through; crosstalk risk remains during boot/reset
-- **Future PCB:** May move IN1 from GPIO20 to GPIO18 to eliminate crosstalk entirely
+- **GPIO19/GPIO20 Crosstalk (RESOLVED December 2025):** ESP32-C6 silicon crosstalk issue eliminated by moving H-bridge IN1 from GPIO20 to GPIO18
+- **Current Implementation:** Button on GPIO1, GPIO19 for H-bridge IN2 (reverse), GPIO18 for H-bridge IN1 (forward)
+- **Breaking Change:** Firmware incompatible with old hardware (2 units in field retired, new PCB required)
+- **Historical Context:** See [docs/GPIO_UPDATE_2025-10-17.md](docs/GPIO_UPDATE_2025-10-17.md) for original crosstalk analysis
 
 ---
 
@@ -436,7 +436,8 @@ Motor B: [375ms OFF] [125ms ON]
 ### GPIO Pin Mapping
 
 ```c
-// Production GPIO Mapping (Single Motor Device)
+// Production GPIO Mapping (December 2025 - New Hardware)
+// BREAKING CHANGE: GPIO20 → GPIO18 to eliminate ESP32-C6 crosstalk
 #define GPIO_BACKEMF            0       // Back-EMF sense (ADC1_CH0)
 #define GPIO_BUTTON             1       // Button (RTC wake, moved from GPIO18 via jumper)
 #define GPIO_BAT_VOLTAGE        2       // Battery voltage (ADC1_CH2)
@@ -444,7 +445,7 @@ Motor B: [375ms OFF] [125ms ON]
 #define GPIO_WS2812B_ENABLE     16      // WS2812B power enable (P-MOSFET, LOW=enabled)
 #define GPIO_WS2812B_DIN        17      // WS2812B data input
 #define GPIO_HBRIDGE_IN2        19      // H-bridge reverse control (LEDC PWM)
-#define GPIO_HBRIDGE_IN1        20      // H-bridge forward control (LEDC PWM)
+#define GPIO_HBRIDGE_IN1        18      // H-bridge forward control (LEDC PWM) - MOVED from GPIO20
 #define GPIO_BAT_ENABLE         21      // Battery monitor enable (HIGH=enabled)
 ```
 
@@ -555,12 +556,12 @@ rm -rf .pio/build
 
 ## Known Issues & Workarounds
 
-### 1. GPIO19/GPIO20 Crosstalk
+### 1. GPIO19/GPIO20 Crosstalk (RESOLVED)
 
-**Issue:** Hardware crosstalk between GPIO19 and GPIO20  
-**Status:** Documented in hardware design notes  
-**Workaround:** Don't use both simultaneously  
-**Fix:** Next PCB revision moves button to GPIO1
+**Issue:** ESP32-C6 silicon crosstalk between GPIO19 and GPIO20 during boot/reset
+**Status:** ✅ RESOLVED (December 2025) - H-bridge IN1 moved from GPIO20 to GPIO18
+**Breaking Change:** Incompatible with old hardware (2 field units retired)
+**Historical Documentation:** See [docs/GPIO_UPDATE_2025-10-17.md](docs/GPIO_UPDATE_2025-10-17.md) for analysis
 
 ### 2. ESP-IDF Build System Constraints
 
