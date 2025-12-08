@@ -266,7 +266,9 @@ case MOTOR_STATE_INACTIVE: {
 
 The watchdog timeout is **NOT caused by GPIO remapping**. My changes only affected GPIO pin numbers, not code logic.
 
-**Root Cause:** AD044 implementation - `delay_until_target_ms()` function loops without feeding watchdog during long INACTIVE periods (>2 seconds).
+**Root Cause:** AD044 changed `MODE_CHECK_INTERVAL_MS` from **50ms → 1ms**, starving the IDLE task.
+
+When `delay_until_target_ms()` calls `vTaskDelay(1ms)` 2000 times during a 2-second INACTIVE period, motor_task only yields for 1ms at a time. The IDLE task (priority 0, lowest) doesn't get enough CPU time to feed its own watchdog, causing timeout.
 
 **User Context Match:** "new unit build" + "client timing debugging" = Watchdog timeout during normal motor operation, button lag from blocking delays.
 
@@ -274,17 +276,18 @@ The watchdog timeout is **NOT caused by GPIO remapping**. My changes only affect
 
 ✅ **Priority 1: CLIENT handshake loop** (line 697) - Added `esp_task_wdt_reset()` in 5-second wait loop
 ✅ **Priority 2: SERVER init loop** (line 595) - Added `esp_task_wdt_reset()` in 1-second wait loop
-✅ **Priority 3: delay_until_target_ms() function** (line 345) - Added `esp_task_wdt_reset()` in main delay loop
+✅ **Priority 3: delay_until_target_ms() function** (line 345) - Added `esp_task_wdt_reset()` in main delay loop (NOT SUFFICIENT)
+✅ **REAL FIX: MODE_CHECK_INTERVAL_MS** (line 60) - Changed from 1ms to 10ms (gives IDLE task CPU time)
 
 **Impact:**
-- Eliminates watchdog timeout during INACTIVE state (can be >2s at low frequencies)
-- Fixes button lag - motor_task checks queue every 1ms AND feeds watchdog
-- All three blocking paths now properly feed watchdog
+- Eliminates IDLE task starvation - motor_task yields for 10ms instead of 1ms
+- Button response still excellent - 10ms latency (was 50ms on main branch)
+- All tasks get fair CPU time - FreeRTOS scheduler can run IDLE task
 
 ---
 
 **Testing Required:**
 1. ✅ Build verification
-2. Hardware test: Run 0.5Hz mode (longest INACTIVE periods) for 5+ minutes
-3. Hardware test: Verify quick button presses change mode instantly (<100ms latency)
+2. Hardware test: Run 0.5Hz mode (longest INACTIVE periods) for 5+ minutes - NO watchdog timeout
+3. Hardware test: Verify quick button presses change mode instantly (<20ms latency)
 4. Hardware test: Verify no watchdog timeouts during CLIENT pairing
