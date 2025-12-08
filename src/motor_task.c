@@ -340,6 +340,10 @@ static bool delay_until_target_ms(uint32_t target_ms) {
 
         vTaskDelay(pdMS_TO_TICKS(this_delay));
 
+        // Feed watchdog during long waits (INACTIVE can be >2s)
+        // AD044 FIX: Without this, watchdog times out during CLIENT drift correction
+        esp_task_wdt_reset();
+
         // Quick check for mode change or shutdown (non-blocking peek)
         task_message_t msg;
         if (xQueuePeek(button_to_motor_queue, &msg, 0) == pdPASS) {
@@ -592,6 +596,7 @@ void motor_task(void *pvParameters) {
                             int init_wait = 20;  // 20 × 50ms = 1000ms max
                             while (init_wait > 0 && !TIME_SYNC_IS_INITIALIZED()) {
                                 vTaskDelay(pdMS_TO_TICKS(50));
+                                esp_task_wdt_reset();  // Feed watchdog during wait
                                 init_wait--;
                             }
                             if (!TIME_SYNC_IS_INITIALIZED()) {
@@ -693,6 +698,7 @@ void motor_task(void *pvParameters) {
                             int handshake_wait = 100;  // 100 × 50ms = 5s max
                             while (handshake_wait > 0 && !TIME_SYNC_IS_INITIALIZED()) {
                                 vTaskDelay(pdMS_TO_TICKS(50));
+                                esp_task_wdt_reset();  // Feed watchdog during long wait (CRITICAL: 5s loop)
                                 handshake_wait--;
                             }
 
