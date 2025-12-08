@@ -1993,16 +1993,20 @@ esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms) {
 }
 
 esp_err_t motor_update_mode5_intensity(uint8_t intensity_percent) {
-    // Validate intensity (safety limits per AD031)
-    if (intensity_percent < 30 || intensity_percent > 80) {
-        ESP_LOGE(TAG, "Invalid intensity: %u%% (must be 30-80%%)", intensity_percent);
+    // Validate intensity (0% for LED-only, 30-80% for motor safety per AD031)
+    if (intensity_percent != 0 && (intensity_percent < 30 || intensity_percent > 80)) {
+        ESP_LOGE(TAG, "Invalid intensity: %u%% (must be 0%% or 30-80%%)", intensity_percent);
         return ESP_ERR_INVALID_ARG;
     }
 
     // Update global mode 5 intensity (thread-safe, motor_task reads this)
     mode5_pwm_intensity = intensity_percent;
 
-    ESP_LOGI(TAG, "Mode 5 intensity updated: %u%%", intensity_percent);
+    if (intensity_percent == 0) {
+        ESP_LOGI(TAG, "Mode 5 intensity updated: 0%% (LED-only mode)");
+    } else {
+        ESP_LOGI(TAG, "Mode 5 intensity updated: %u%%", intensity_percent);
+    }
     return ESP_OK;
 }
 

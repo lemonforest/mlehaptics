@@ -270,14 +270,14 @@ esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms);
 
 /**
  * @brief Update Mode 5 (custom) PWM intensity from BLE
- * @param intensity_percent PWM intensity 30-80% (research safety limits)
+ * @param intensity_percent PWM intensity: 0% (LED-only) or 30-80% (motor active)
  * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
  *
  * Thread-safe update of Mode 5 motor intensity
  * Changes take effect on next cycle when MODE_CUSTOM is active
  *
  * NOTE: Only affects MODE_CUSTOM (Mode 5)
- * NOTE: Limited to 30-80% per AD031 research safety constraints
+ * NOTE: 0% = LED-only mode (no motor), 30-80% per AD031 research safety constraints
  */
 esp_err_t motor_update_mode5_intensity(uint8_t intensity_percent);
 

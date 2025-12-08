@@ -69,7 +69,7 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...0201` | Mode | uint8 | R/W/Notify | 0-4 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM |
 | `...0202` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
 | `...0203` | Custom Duty Cycle | uint8 | R/W | 10-100% | Half-cycle duty (100% = entire half-cycle) |
-| `...0204` | Mode 4 PWM Intensity | uint8 | R/W | 30-80% | Mode 4 (Custom) motor strength (0% = LED-only) |
+| `...0204` | Mode 4 PWM Intensity | uint8 | R/W | 0, 30-80% | Mode 4 (Custom) motor strength (0% = LED-only) |
 | `...020E` | Mode 0 PWM Intensity | uint8 | R/W | 50-80% | Mode 0 (0.5Hz) motor strength |
 | `...020F` | Mode 1 PWM Intensity | uint8 | R/W | 50-80% | Mode 1 (1.0Hz) motor strength |
 | `...0210` | Mode 2 PWM Intensity | uint8 | R/W | 70-90% | Mode 2 (1.5Hz) motor strength |
