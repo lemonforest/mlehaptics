@@ -277,17 +277,98 @@ When `delay_until_target_ms()` calls `vTaskDelay(1ms)` 2000 times during a 2-sec
 ✅ **Priority 1: CLIENT handshake loop** (line 697) - Added `esp_task_wdt_reset()` in 5-second wait loop
 ✅ **Priority 2: SERVER init loop** (line 595) - Added `esp_task_wdt_reset()` in 1-second wait loop
 ✅ **Priority 3: delay_until_target_ms() function** (line 345) - Added `esp_task_wdt_reset()` in main delay loop (NOT SUFFICIENT)
-✅ **REAL FIX: MODE_CHECK_INTERVAL_MS** (line 60) - Changed from 1ms to 10ms (gives IDLE task CPU time)
+✅ **INTERIM FIX: MODE_CHECK_INTERVAL_MS** (line 60) - Changed from 1ms to 10ms (fixed IDLE starvation but still unnecessary optimization)
+✅ **FINAL FIX: MODE_CHECK_INTERVAL_MS** (line 60) - Reverted to 50ms (main branch baseline)
 
 **Impact:**
-- Eliminates IDLE task starvation - motor_task yields for 10ms instead of 1ms
-- Button response still excellent - 10ms latency (was 50ms on main branch)
+- Eliminates IDLE task starvation - motor_task yields for 50ms (proven stable baseline)
+- Button response remains excellent - 50ms latency is imperceptible (<100ms threshold)
 - All tasks get fair CPU time - FreeRTOS scheduler can run IDLE task
+- Removes unnecessary CPU overhead from 1ms polling (980 additional wake-ups/second eliminated)
 
 ---
 
 **Testing Required:**
 1. ✅ Build verification
 2. Hardware test: Run 0.5Hz mode (longest INACTIVE periods) for 5+ minutes - NO watchdog timeout
-3. Hardware test: Verify quick button presses change mode instantly (<20ms latency)
+3. Hardware test: Verify quick button presses change mode instantly (50ms latency)
 4. Hardware test: Verify no watchdog timeouts during CLIENT pairing
+
+---
+
+## AD044 Design Conflation Analysis
+
+### Why Did AD044 Include Button Polling Optimization?
+
+**AD044 Primary Goal (lines 10-17):**
+- CLIENT hardware timer synchronization for bilateral antiphase precision
+- Achieve ±50μs precision (20× improvement over ±1ms jitter)
+- Problem: CLIENT needs to synchronize to SERVER motor_epoch
+
+**Design Conflation Identified:**
+
+AD044 conflated **two independent optimizations**:
+
+1. **Non-Blocking Motor Timing** (NECESSARY FOR GOAL)
+   - Check time with `esp_timer_get_time()` instead of blocking with `vTaskDelay()`
+   - Allows motor task to remain responsive during long coast periods
+   - Enables CLIENT hardware timer callbacks to trigger transitions with ±50μs precision
+   - **This is the core goal of AD044**
+
+2. **Fast Button Response** (UNNECESSARY SIDE EFFECT)
+   - Poll queue every 1ms instead of 50ms
+   - Reduces message latency from 50ms to 1ms
+   - **But 50ms was already instant** (<100ms human perception threshold)
+   - Caused IDLE task starvation (watchdog timeout)
+
+### Evidence of Conflation
+
+**AD044 Decision Section (lines 103-108) lists these together:**
+1. "Polls control queue every 1ms" instead of blocking
+2. "Tracks state transitions using `esp_timer_get_time()`" for precise timing
+3. "Processes messages immediately" (target <1ms latency)
+
+**Key Insight:**
+
+CLIENT synchronization precision comes from `esp_timer_get_time()` hardware accuracy (±10-50μs), NOT from queue polling rate. You could poll the queue every 50ms and still achieve ±50μs CLIENT synchronization if you check `esp_timer_get_time()` on each poll to see if a transition is needed.
+
+**Conflation Indicators in AD044:**
+
+- Line 188: "~1ms message response time (50× improvement from 50ms baseline)" - Treating button response as part of bilateral timing goal
+- Lines 205-214: Performance analysis focuses on 980 additional wake-ups/second from 1ms polling - This overhead was unnecessary for the stated goal
+- Lines 186-191: Benefits list mixes bilateral timing ("Simplifies bilateral synchronization") with user input ("Enables responsive features")
+
+### Correct Implementation
+
+**What AD044 Should Have Specified:**
+
+```c
+// NON-BLOCKING state machine with 50ms polling (CORRECT)
+while (1) {
+    // Poll queue every 50ms (instant button response)
+    if (xQueueReceive(motor_queue, &msg, pdMS_TO_TICKS(50)) == pdTRUE) {
+        handle_message(&msg);
+    }
+
+    // Check if it's time to transition (±50μs precision)
+    int64_t now_us = esp_timer_get_time();
+    if (now_us >= next_transition_us) {
+        // Transition to next state
+    }
+}
+```
+
+This achieves both goals:
+- ✅ Non-blocking motor timing (check time on each loop)
+- ✅ ±50μs CLIENT synchronization (from `esp_timer_get_time()` precision)
+- ✅ Instant button response (50ms < 100ms perception threshold)
+- ✅ Fair task scheduling (IDLE task gets CPU time)
+
+### Lessons Learned
+
+1. **Separate concerns in architecture decisions** - Motor timing precision and user input responsiveness are independent
+2. **Question performance optimizations** - 1ms vs 50ms button response is imperceptible to humans
+3. **Understand where precision comes from** - CLIENT precision comes from hardware timer accuracy, not polling rate
+4. **Consider task starvation** - Very short vTaskDelay() intervals can prevent lower-priority tasks from running
+
+**Resolution:** Reverted MODE_CHECK_INTERVAL_MS to 50ms (main branch baseline). This preserves all AD044 benefits (non-blocking motor timing, ±50μs CLIENT precision) without the unnecessary CPU overhead and task starvation issues.
