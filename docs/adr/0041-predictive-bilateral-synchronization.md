@@ -2,8 +2,20 @@
 
 **Date:** 2025-11-29 (Last Updated)
 **Phase:** 6q (Adaptive Beacon Intervals - Quality Metric Fix)
-**Status:** ✅ **IMPLEMENTED** - Validates AD028 Option A with drift compensation
+**Status:** ❌ **SUPERSEDED by AD045** - Correction approach caused death spiral
 **Type:** Architecture
+
+---
+
+> **⚠️ SUPERSEDED NOTICE (2025-12-08):**
+>
+> This ADR is superseded by [AD045: Synchronized Independent Operation](0045-synchronized-independent-bilateral-operation.md).
+>
+> **Why:** The position-based correction approach documented here caused oscillation and divergence instead of convergence. Serial log analysis revealed CLIENT ended at 36ms instead of 1000ms (completely in-phase instead of antiphase) due to correction "death spiral."
+>
+> **AD045 Solution:** Removes all cycle-by-cycle corrections and relies on Phase 2's ±6 μs clock precision. Both devices calculate transitions from synchronized motor_epoch independently, like Bluetooth audio synchronization.
+>
+> **What Remains Valid:** Time synchronization infrastructure (Phase 2) continues to provide ±6 μs precision. Drift-rate prediction may be retained for quality monitoring but is NOT used for motor timing corrections.
 
 ---
 

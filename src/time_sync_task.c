@@ -737,6 +737,121 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             break;
         }
 
+        case SYNC_MSG_MODE_CHANGE_PROPOSAL: {
+            // AD045: CLIENT receives mode change proposal from SERVER
+            // Validate epochs, send ACK, arm mode change
+            const mode_change_proposal_t *proposal = &coord->payload.mode_proposal;
+
+            ESP_LOGI(TAG, "CLIENT: Mode change proposal received (mode=%s, server_epoch=%llu, client_epoch=%llu)",
+                     modes[proposal->new_mode].name, proposal->server_epoch_us, proposal->client_epoch_us);
+
+            // Validate that epochs are in the future
+            uint64_t current_time_us;
+            if (time_sync_get_time(&current_time_us) != ESP_OK) {
+                ESP_LOGW(TAG, "CLIENT: Cannot validate proposal - time sync not available");
+                break;
+            }
+
+            if (proposal->client_epoch_us <= current_time_us) {
+                ESP_LOGW(TAG, "CLIENT: Proposal rejected - epoch already passed (current=%llu, client_epoch=%llu)",
+                         current_time_us, proposal->client_epoch_us);
+                break;
+            }
+
+            // Send acknowledgment to SERVER
+            coordination_message_t ack = {
+                .type = SYNC_MSG_MODE_CHANGE_ACK,
+                .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                .payload = {0}  // No payload for ACK
+            };
+
+            esp_err_t err = ble_send_coordination_message(&ack);
+            if (err == ESP_OK) {
+                ESP_LOGI(TAG, "CLIENT: Mode change ACK sent to SERVER");
+
+                // Arm mode change for CLIENT epoch
+                // motor_task will check mode_change_armed and execute when epoch reached
+                mode_change_armed = true;
+                armed_new_mode = proposal->new_mode;
+                armed_epoch_us = proposal->client_epoch_us;
+                armed_cycle_ms = proposal->new_cycle_ms;
+                armed_active_ms = proposal->new_active_ms;
+
+                ESP_LOGI(TAG, "CLIENT: Mode change armed for epoch %llu", armed_epoch_us);
+            } else {
+                ESP_LOGW(TAG, "CLIENT: Failed to send mode change ACK: %s", esp_err_to_name(err));
+            }
+            break;
+        }
+
+        case SYNC_MSG_MODE_CHANGE_ACK: {
+            // AD045: SERVER receives acknowledgment from CLIENT
+            ESP_LOGI(TAG, "SERVER: Mode change ACK received from CLIENT - proposal accepted");
+            // No action needed - both devices will execute at their respective epochs
+            break;
+        }
+
+        case SYNC_MSG_ACTIVATION_REPORT: {
+            // PTP-style synchronization error feedback (IEEE 1588 Delay_Req pattern)
+            // CLIENT reports its activation timing for SERVER's independent drift verification
+            const activation_report_t *report = &coord->payload.activation_report;
+
+            // Get SERVER's motor epoch for independent calculation
+            uint64_t server_epoch_us;
+            uint32_t server_cycle_ms;
+            esp_err_t err = time_sync_get_motor_epoch(&server_epoch_us, &server_cycle_ms);
+
+            if (err == ESP_OK && server_cycle_ms > 0) {
+                // Bug #54b fix: Calculate cycles from actual timestamp, not cycle_number counter
+                // CLIENT should activate at: epoch + (N * cycle_period) + half_cycle
+                // Where N is derived from actual elapsed time, not CLIENT's counter
+                uint64_t half_cycle_us = ((uint64_t)server_cycle_ms * 1000ULL) / 2;
+                uint64_t cycle_period_us = (uint64_t)server_cycle_ms * 1000ULL;
+
+                // Derive which cycle this activation belongs to from actual timestamp
+                // Subtract half_cycle first since CLIENT activates at half-cycle offset
+                int64_t time_since_epoch_us = (int64_t)report->actual_time_us - (int64_t)server_epoch_us;
+                int64_t time_adjusted_us = time_since_epoch_us - (int64_t)half_cycle_us;
+
+                // Calculate cycle number (round to nearest cycle)
+                int64_t cycles_elapsed = (time_adjusted_us + (int64_t)(cycle_period_us / 2)) / (int64_t)cycle_period_us;
+                if (cycles_elapsed < 0) cycles_elapsed = 0;  // Safety: no negative cycles
+
+                // Calculate expected activation for this cycle
+                uint64_t expected_client_us = server_epoch_us +
+                                              ((uint64_t)cycles_elapsed * cycle_period_us) +
+                                              half_cycle_us;
+
+                // SERVER's independent drift measurement
+                int64_t server_measured_drift_us = (int64_t)report->actual_time_us - (int64_t)expected_client_us;
+                int32_t server_measured_drift_ms = (int32_t)(server_measured_drift_us / 1000);
+
+                // Cross-check: Compare SERVER's calculation with CLIENT's self-report
+                int32_t discrepancy_ms = server_measured_drift_ms - report->client_error_ms;
+
+                // Log synchronization error feedback
+                // Format: [SYNC_FB] cycle=N(reported)/M(derived) client_err=Xms server_err=Yms delta=Zms
+                ESP_LOGI(TAG, "[SYNC_FB] cycle=%lu/%ld client_err=%ldms server_err=%ldms delta=%ldms",
+                         (unsigned long)report->cycle_number,
+                         (long)cycles_elapsed,
+                         (long)report->client_error_ms,
+                         (long)server_measured_drift_ms,
+                         (long)discrepancy_ms);
+
+                // Warn if significant discrepancy between CLIENT and SERVER measurements
+                // This would indicate a time sync problem or calculation bug
+                if (discrepancy_ms > 50 || discrepancy_ms < -50) {
+                    ESP_LOGW(TAG, "[SYNC_FB] ALERT: Client/Server measurement discrepancy > 50ms!");
+                }
+            } else {
+                // Fallback: Just log CLIENT's self-reported error
+                ESP_LOGI(TAG, "[SYNC_FB] cycle=%lu client_err=%ldms (no server epoch)",
+                         (unsigned long)report->cycle_number,
+                         (long)report->client_error_ms);
+            }
+            break;
+        }
+
         default:
             ESP_LOGW(TAG, "Unknown coordination message type: %d", coord->type);
             break;

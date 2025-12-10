@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 57  // Phase 6t: Fast lock with coordinated start (1s lock, both devices synchronized)
+#define FIRMWARE_VERSION_PATCH 65  // Bug #54a/b: Fix activation report timing (CLIENT after wait, SERVER cycle calc)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

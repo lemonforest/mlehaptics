@@ -297,6 +297,32 @@ bool motor_mode5_settings_dirty(void);
 void motor_mode5_settings_mark_clean(void);
 
 // ============================================================================
+// AD045: SYNCHRONIZED MODE CHANGE (TWO-PHASE COMMIT)
+// ============================================================================
+
+/**
+ * @brief Armed mode change state variables (shared with time_sync_task.c)
+ *
+ * These variables implement the two-phase commit protocol for synchronized
+ * mode changes between SERVER and CLIENT devices (AD045).
+ *
+ * Protocol:
+ * 1. SERVER: Button pressed → calculate epochs → send PROPOSAL to CLIENT
+ * 2. CLIENT: Receive PROPOSAL → validate → send ACK → arm mode change
+ * 3. Both devices: Wait until respective epoch → execute mode change
+ *
+ * Access:
+ * - motor_task.c: Arms mode change (SERVER via button, CLIENT via proposal)
+ * - motor_task.c: Executes mode change when epoch reached
+ * - time_sync_task.c: CLIENT arms mode change when PROPOSAL received
+ */
+extern bool mode_change_armed;       /**< True if mode change is armed and waiting for epoch */
+extern mode_t armed_new_mode;        /**< Mode to activate when epoch is reached */
+extern uint64_t armed_epoch_us;      /**< Synchronized time (μs) to execute mode change */
+extern uint32_t armed_cycle_ms;      /**< New cycle period (ms) for armed mode */
+extern uint32_t armed_active_ms;     /**< New active period (ms) for armed mode */
+
+// ============================================================================
 // EXTERNAL DEPENDENCIES
 // ============================================================================
 

@@ -24,6 +24,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/ble_manager.c:3292-3299` - Initialize bilateral_data.battery_level in ble_on_sync()
   - `src/main.c:232-258` - Read battery before BLE init, pass to ble_manager_init()
 
+**Bug #49: CLIENT Overwrites Motor Epoch (COMPLETE FIX - Startup + Mode Change)**:
+- **Symptom**:
+  - 275 motor overlaps (87.1 seconds) over 90-minute session - both devices running ACTIVE simultaneously instead of alternating
+  - Startup antiphase error: CLIENT 1009ms offset from SERVER (should be exactly half-cycle = 1000ms at 1 Hz)
+  - User reports: "start up motor behavior is not correct", "systematic overlap in client/server activation periods"
+- **Root Cause**: CLIENT overwrote SERVER's authoritative motor epoch in TWO locations:
+  1. **Mode change handler** (v0.6.59 fix): CLIENT calculated epoch by subtracting half-cycle from its own start time
+  2. **Coordinated start handler** (v0.6.60 fix): CLIENT set epoch to its own actual start time during startup
+  - In both cases: CLIENT replaced SERVER's precise epoch with CLIENT's local time
+  - Result: Antiphase calculation used WRONG reference point → progressive drift → overlap
+- **Analysis Evidence**:
+  - v0.6.58 logs: 275 overlaps, avg 316.9ms, progressive drift 25ms → 209ms within 10 minutes
+  - v0.6.59 logs: Startup antiphase error persists (CLIENT epoch 12170137 μs vs SERVER 11161172 μs = 1009ms offset)
+  - CLIENT log showed: "CLIENT: Motor epoch set to actual start time: 12170137 μs" (should NOT set, only read!)
+- **Fix** (v0.6.59 + v0.6.60):
+  - **v0.6.59**: Removed CLIENT epoch update in mode change handler (motor_task.c:1201-1210)
+  - **v0.6.60**: Removed CLIENT epoch update in coordinated start handler (motor_task.c:900-909)
+  - Only SERVER calls `time_sync_set_motor_epoch()` (authoritative source of truth per AD045)
+  - CLIENT only calls `time_sync_get_motor_epoch()` to READ epoch (never writes)
+  - Maintains single source of truth for antiphase calculation
+- **Impact**:
+  - Eliminates motor overlap during session
+  - Fixes startup antiphase error (CLIENT now uses SERVER's exact epoch)
+  - Restores proper antiphase alternation (one device ACTIVE while other INACTIVE)
+- **Files Modified**:
+  - `src/motor_task.c:900-909` - Added SERVER role check before epoch update (coordinated start)
+  - `src/motor_task.c:1201-1210` - Added SERVER role check before epoch update (mode change)
+
 **Bug #50: Mode 4 Duty Cycle Display Confusion**:
 - **Symptom**: Mode 4 displayed "79% duty" but actual motor duty cycle was 39.5% of total cycle, causing AI model confusion
 - **Root Cause**: Cross-domain terminology ambiguity - "duty cycle" means different things in different contexts:
@@ -43,6 +71,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/motor_task.c:345` - Comment: "Motor Active Duty Percent: 10-100% of ACTIVE period (not total cycle)"
   - `src/motor_task.c:354` - Comment: "Apply Motor Active Duty Percent within ACTIVE period only"
   - `src/motor_task.c:355-366` - Logging: "motor active duty" terminology, dual display
+
+**Bug #51: Motors Pause During Mode Change Arming (Synchronized Transitions)**:
+- **Symptom**:
+  - Mode changes left one device running the NEW pattern while the other ran the OLD pattern for ~3.5 seconds
+  - User report: "mode change behavior is still leaving one device running the previous pattern"
+  - CLIENT changed pattern immediately after button press, SERVER continued OLD pattern until synchronized epoch
+  - Log evidence: "CLIENT: Antiphase lock LOST (will re-establish via beacons)" during every mode change
+- **Root Cause**: CLIENT executed mode change immediately after arming instead of waiting for synchronized epoch
+  - Line 1166 in motor_task.c changed `current_mode = new_mode` for CLIENT after button press
+  - Motor state machine immediately started running NEW pattern parameters (frequency, duty cycle)
+  - SERVER continued running OLD pattern until its synchronized epoch was reached
+  - Result: ~3.5 seconds of pattern chaos with mismatched frequencies and loss of antiphase lock
+- **Analysis Evidence**:
+  - v0.6.60 logs (first mode change 0.5Hz → 1.0Hz):
+    - 17:56:02.365: CLIENT mode change requested
+    - 17:56:02.366: CLIENT executes immediately: "Mode: 1.0Hz@25% (standalone)"
+    - 17:56:03.364: CLIENT starts NEW pattern: "Motor reverse: 65%" (1.0Hz timing)
+    - 17:56:03.864: CLIENT detects problem: "Antiphase lock LOST"
+    - Meanwhile SERVER still running 0.5Hz pattern until 17:56:04.025
+  - User confirmed observation: "I think that we need to stop active motor patterns during the arming behavior"
+- **Fix** (v0.6.61):
+  - **Part 1**: CLIENT doesn't execute mode change immediately (motor_task.c:1165-1178)
+    - If time sync active (CLIENT role): Don't change `current_mode`, log "Mode change armed"
+    - Wait for synchronized execution at agreed epoch
+    - Only standalone devices change mode immediately (no peer coordination needed)
+  - **Part 2**: Add PAUSED state during arming period (motor_task.c:1339-1346)
+    - Check `mode_change_armed` flag in CHECK_MESSAGES state
+    - If armed: Motors pause, log "Motors paused (mode change armed)", continue checking
+    - Both devices enter PAUSED state, resume together at synchronized epoch
+- **Impact**:
+  - Eliminates pattern chaos during mode changes (both devices now change together)
+  - Prevents antiphase lock loss (motors pause instead of running mismatched patterns)
+  - Smooth synchronized transitions with coordinated pause → resume behavior
+  - Professional UX: Users see both devices pause briefly, then resume in sync with new pattern
+- **Files Modified**:
+  - `src/motor_task.c:1165-1178` - CLIENT doesn't execute mode change immediately, waits for synchronized epoch
+  - `src/motor_task.c:1339-1346` - Added PAUSED state check to prevent motor activation during arming
+  - `src/firmware_version.h:33` - Version bump to v0.6.61
+  - `platformio.ini:101` - Version bump to v0.6.61
+
+**Bug #52: [INCORRECT FIX - Superseded by Bug #53]**:
+- v0.6.62 moved timing recalculation to BEFORE message handling
+- This was wrong - timing calculated from OLD current_mode before mode change executed
+- See Bug #53 for correct fix
+
+**Bug #53: Timing Recalculation Must Happen AFTER Mode Change Execution**:
+- **Symptom** (v0.6.61 analysis):
+  - SERVER stuck at old frequency after mode changes while CLIENT switches correctly
+  - Mode Change 1.0Hz → 1.5Hz: SERVER measured at 1.000 Hz (33% error), CLIENT perfect at 1.500 Hz
+  - Mode Change 1.5Hz → 2.0Hz: SERVER measured at 1.499 Hz (25% error), CLIENT perfect at 2.001 Hz
+  - Pattern: CLIENT immediately switches, SERVER continues running old frequency
+- **Symptom** (v0.6.62 - Bug #52 incorrect fix made it worse):
+  - BOTH devices stuck at approximately half target frequency
+  - Mode 0.5→1.0 Hz: Both measured ~0.5 Hz (50% error)
+  - Mode 1.0→1.5 Hz: Both measured ~0.8-0.9 Hz (42-47% error)
+  - Mode 1.5→2.0 Hz: SERVER 0.994 Hz (50% error), CLIENT 0.821 Hz (59% error)
+- **Root Cause**:
+  - Original (v0.6.61): Timing calculated AFTER pause check's `continue` statement
+  - Bug #52 fix (v0.6.62): Moved timing to BEFORE message handling - WRONG!
+  - Timing was now calculated from OLD current_mode before mode change updated it
+  - Correct location: AFTER mode change execution, BEFORE pause check
+- **Analysis Evidence**:
+  - analyze_mode_change_convergence.py tool created for systematic analysis
+  - v0.6.61 logs: SERVER stuck at previous frequency, CLIENT correct
+  - v0.6.62 logs: Both devices running at ~50% of target frequency
+- **Fix** (v0.6.63):
+  - Moved timing recalculation to AFTER mode change execution (line 1305-1326)
+  - Correct sequence: 1) Process messages → 2) Execute mode change → 3) Calculate timing
+  - Timing now reflects NEW current_mode after mode change updates it
+  - Then pause check runs (but mode already changed, so won't pause)
+- **Impact**:
+  - Both devices calculate timing from correct (new) mode after mode change
+  - Eliminates frequency mismatch (SERVER no longer stuck at old frequency)
+  - Eliminates halved frequency bug introduced by Bug #52
+- **Files Modified**:
+  - `src/motor_task.c:1305-1326` - Timing recalculation after mode change execution
+  - `src/firmware_version.h:33` - Version bump to v0.6.63
+  - `platformio.ini:101` - Version bump to v0.6.63
 
 ---
 

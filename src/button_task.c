@@ -180,11 +180,14 @@ void button_task(void *pvParameters) {
                     // Button released before 1s hold threshold
                     ESP_LOGI(TAG, "Button released after %u ms (short press)", elapsed);
 
-                    // Trigger mode change (read actual mode from motor task)
-                    mode_t current_mode = motor_get_current_mode();
-                    mode_t next_mode = get_next_mode(current_mode);
+                    // AD045: Calculate next mode based on armed mode (if present) to allow rapid cycling
+                    // If mode change already armed, use that as base; otherwise use current mode
+                    // This allows: Press 1: 0→1, Press 2: 1→2, Press 3: 2→3 (rapid queue)
+                    mode_t base_mode = mode_change_armed ? armed_new_mode : motor_get_current_mode();
+                    mode_t next_mode = get_next_mode(base_mode);
 
-                    ESP_LOGI(TAG, "Mode change: %d → %d", current_mode, next_mode);
+                    ESP_LOGI(TAG, "Mode change: %d → %d%s", base_mode, next_mode,
+                             mode_change_armed ? " (override armed)" : "");
 
                     // Quick blink for mode change feedback
                     status_led_on();

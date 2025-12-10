@@ -348,7 +348,7 @@ typedef enum {
  * Messages exchanged between peer devices for synchronized operation
  */
 typedef enum {
-    SYNC_MSG_MODE_CHANGE = 0,      /**< Mode changed (MODE_1 through MODE_CUSTOM) */
+    SYNC_MSG_MODE_CHANGE = 0,      /**< Mode changed (MODE_1 through MODE_CUSTOM) - deprecated, use PROPOSAL/ACK */
     SYNC_MSG_SETTINGS,             /**< Custom settings changed (frequency, duty, intensity, LED) */
     SYNC_MSG_SHUTDOWN,             /**< Coordinated shutdown request (fire-and-forget) */
     SYNC_MSG_START_ADVERTISING,    /**< CLIENT requests SERVER to enable advertising */
@@ -356,7 +356,10 @@ typedef enum {
     SYNC_MSG_CLIENT_READY,         /**< CLIENT ready to start (received beacon, calculated phase) */
     SYNC_MSG_TIME_REQUEST,         /**< Time sync handshake: CLIENT→SERVER with T1 (client send time) */
     SYNC_MSG_TIME_RESPONSE,        /**< Time sync handshake: SERVER→CLIENT with T1, T2, T3 */
-    SYNC_MSG_MOTOR_STARTED         /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
+    SYNC_MSG_MOTOR_STARTED,        /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
+    SYNC_MSG_MODE_CHANGE_PROPOSAL, /**< AD045: SERVER→CLIENT mode change proposal with future epochs */
+    SYNC_MSG_MODE_CHANGE_ACK,      /**< AD045: CLIENT→SERVER mode change acknowledgment */
+    SYNC_MSG_ACTIVATION_REPORT     /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
 } sync_message_type_t;
 
 /**
@@ -418,6 +421,27 @@ typedef struct __attribute__((packed)) {
 } time_sync_response_t;
 
 /**
+ * @brief Mode change proposal payload for SYNC_MSG_MODE_CHANGE_PROPOSAL (AD045)
+ *
+ * SERVER sends this to CLIENT to propose a synchronized mode change.
+ * Contains future epochs ensuring both devices transition together while
+ * maintaining perfect antiphase alignment.
+ *
+ * Two-Phase Commit Protocol:
+ * 1. SERVER proposes mode change with future epochs (2s from now)
+ * 2. CLIENT validates epochs are in future, sends SYNC_MSG_MODE_CHANGE_ACK
+ * 3. Both devices arm mode change and wait until their respective epochs
+ * 4. Both transition simultaneously - SERVER at server_epoch_us, CLIENT at client_epoch_us
+ */
+typedef struct __attribute__((packed)) {
+    mode_t new_mode;               /**< New mode to activate (0-4) */
+    uint32_t new_cycle_ms;         /**< New cycle period in ms */
+    uint32_t new_active_ms;        /**< New active period in ms */
+    uint64_t server_epoch_us;      /**< When SERVER will start new pattern */
+    uint64_t client_epoch_us;      /**< When CLIENT should start new pattern (server + half_cycle) */
+} mode_change_proposal_t;
+
+/**
  * @brief Motor started payload for SYNC_MSG_MOTOR_STARTED
  *
  * Phase 6: SERVER sends this to CLIENT immediately when motors start.
@@ -428,6 +452,26 @@ typedef struct __attribute__((packed)) {
     uint64_t motor_epoch_us;       /**< SERVER's motor epoch (cycle start time) */
     uint32_t motor_cycle_ms;       /**< Motor cycle period in ms */
 } motor_started_t;
+
+/**
+ * @brief Activation report payload for SYNC_MSG_ACTIVATION_REPORT
+ *
+ * PTP-style synchronization error feedback: CLIENT reports its activation
+ * timing to SERVER for independent drift verification.
+ *
+ * Following IEEE 1588 Delay_Req/Delay_Resp pattern:
+ * - CLIENT sends this after transitioning to ACTIVE state
+ * - SERVER receives and independently calculates drift
+ * - Enables bidirectional timing verification (both sides know the error)
+ *
+ * Rate limited: Sent every N cycles to avoid BLE congestion
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t actual_time_us;       /**< CLIENT's actual ACTIVE start (synchronized time) */
+    uint64_t target_time_us;       /**< CLIENT's calculated target time */
+    int32_t  client_error_ms;      /**< CLIENT's self-measured error (actual - target) */
+    uint32_t cycle_number;         /**< Cycle count for correlation */
+} activation_report_t;
 
 /**
  * @brief Coordination message structure (Phase 3)
@@ -441,13 +485,15 @@ typedef struct __attribute__((packed)) {
     sync_message_type_t type;      /**< Message type */
     uint32_t timestamp_ms;         /**< Synchronized timestamp for conflict resolution */
     union {
-        mode_t mode;               /**< MODE_CHANGE: New mode (0-4) */
+        mode_t mode;               /**< MODE_CHANGE: New mode (0-4) - deprecated */
         coordination_settings_t settings;  /**< SETTINGS: PWA parameter changes */
         uint8_t battery_level;     /**< CLIENT_BATTERY: Battery percentage 0-100 */
         time_sync_request_t time_request;   /**< TIME_REQUEST: NTP handshake T1 */
         time_sync_response_t time_response; /**< TIME_RESPONSE: NTP handshake T1,T2,T3 */
         motor_started_t motor_started;      /**< MOTOR_STARTED: Immediate epoch notification (Phase 6) */
-        // SHUTDOWN and START_ADVERTISING have no payload
+        mode_change_proposal_t mode_proposal; /**< MODE_CHANGE_PROPOSAL: Two-phase commit proposal (AD045) */
+        activation_report_t activation_report; /**< ACTIVATION_REPORT: PTP-style timing feedback */
+        // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
     } payload;
 } coordination_message_t;
 

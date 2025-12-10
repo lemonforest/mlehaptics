@@ -50,10 +50,13 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD036](0036-ble-bonding-and-pairing-security.md) | BLE Bonding and Pairing Security (Phase 1b.3) | ⏳ Approved | Phase 1b.3 | 2025-11-15 |
 | [AD037](0037-state-based-connection-type-identification.md) | State-Based BLE Connection Type Identification | 🔄 Superseded | Phase 1b.3 | 2025-11-18 |
 | [AD038](0038-uuid-switching-strategy.md) | UUID-Switching Strategy for Connection Type Identification | ✅ Implemented | Phase 1b.3 | 2025-11-18 |
-| [AD039](0039-time-synchronization-protocol.md) | Time Synchronization Protocol | ✅ Implemented | Phase 2 | 2025-11-19 |
+| [AD039](0039-time-synchronization-protocol.md) | Time Synchronization Protocol | 🔄 Superseded | Phase 2 | 2025-11-19 |
 | [AD040](0040-firmware-version-checking.md) | Firmware Version Checking for Peer Devices | ⏳ Approved | Phase 2 | 2025-11-19 |
 | [AD041](0041-predictive-bilateral-synchronization.md) | Predictive Bilateral Synchronization Protocol | ✅ Implemented | Phase 6k | 2025-11-28 |
 | [AD042](0042-remove-mac-delay-battery-based-symmetry-breaking.md) | Remove MAC-Based Scan Delay (Battery-Based Symmetry Breaking) | ✅ Implemented | Phase 6q | 2025-11-29 |
+| [AD043](0043-filtered-time-synchronization.md) | Filtered Time Synchronization Protocol | ✅ Approved | Phase 6r | 2025-12-02 |
+| [AD044](0044-non-blocking-motor-timing.md) | CLIENT Hardware Timer Synchronization | ✅ Accepted | Phase 6 | 2025-12-03 |
+| [AD045](0045-synchronized-independent-bilateral-operation.md) | Synchronized Independent Bilateral Operation | ⏳ Proposed | Phase 6u | 2025-12-08 |
 
 ---
 
@@ -109,6 +112,18 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - Battery-based symmetry breaking
 - Eliminates advertising-only race window
 
+### Phase 6r: Filtered Time Synchronization
+- One-way SERVER timestamps (replaces 4-way RTT)
+- Exponential moving average filter
+- Eliminates RTT spike sensitivity
+- ±15ms accuracy improvement
+
+### Phase 6u: Synchronized Independent Operation
+- Both devices calculate from synced clocks
+- Eliminates correction death spiral
+- Passive monitoring for edge cases
+- ±6 μs precision over 20 minutes
+
 ---
 
 ## Navigation by Status
@@ -125,6 +140,7 @@ Decisions that have been replaced by newer decisions.
 - AD026 (BLE Automatic Role Recovery) → 🔄 Superseded by AD028 (Command-and-Control Architecture)
 - AD028 (Command-and-Control - Motor Control) → 🔄 Partially Superseded by AD041 (Predictive Sync for motor control, command-and-control retained for emergency features)
 - AD037 (State-Based Connection ID) → 🔄 Superseded by AD038 (UUID-Switching Strategy)
+- AD039 (Time Synchronization Protocol) → 🔄 Superseded by AD043 (Filtered Time Sync replaces 4-way RTT with one-way timestamps + EMA filter)
 
 ### ⏳ Approved
 Decisions that have been accepted but not yet fully implemented.
@@ -219,19 +235,20 @@ _(To be populated with decision dependency visualization)_
 
 ## Statistics
 
-- **Total Decisions:** 41
-- **Accepted:** 30 (AD001-007, AD009-013, AD015-024, AD027-032)
-- **Implemented:** 4 (AD035, AD038, AD039, AD041)
-- **Approved:** 4 (AD033, AD034, AD036, AD040)
-- **Superseded:** 3 (AD008, AD026, AD037)
-- **Partially Superseded:** 1 (AD028 - motor control only)
+- **Total Decisions:** 45
+- **Accepted:** 31 (AD001-007, AD009-013, AD015-024, AD027-032, AD044)
+- **Implemented:** 4 (AD035, AD038, AD041, AD042)
+- **Approved:** 5 (AD033, AD034, AD036, AD040, AD043)
+- **Proposed:** 1 (AD045)
+- **Superseded:** 4 (AD008, AD026, AD037, AD039)
+- **Partially Superseded:** 2 (AD010 - MAC delay only, AD028 - motor control only)
 - **Deprecated:** 0
 
 ---
 
 ## Maintenance
 
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-12-10
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)
