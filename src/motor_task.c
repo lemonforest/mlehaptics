@@ -1276,15 +1276,21 @@ void motor_task(void *pvParameters) {
                             // AD045: SERVER updates motor_epoch for instant antiphase coordination
                             // Bug #49 fix: CLIENT must NOT update epoch (only SERVER is authoritative)
                             // Bug #82 fix: CLIENT sets epoch from proposal for immediate antiphase
+                            // Bug #93 fix: Use LOCAL time (esp_timer) for cycle_start_ms
+                            // The epoch is in SYNC TIME - used for coordinating WHEN to execute
+                            // But delay_until_target_ms() uses esp_timer (LOCAL time)
+                            // Mixing time domains causes target to appear in the past → short activations
+                            uint32_t local_now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
                             if (role == PEER_ROLE_SERVER) {
                                 // SERVER: Set motor_epoch to its own start time
                                 time_sync_set_motor_epoch(armed_epoch_us, armed_cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Motor epoch updated to %llu (cycle=%lu ms)",
                                          armed_epoch_us, armed_cycle_ms);
-                                // Bug #91: Set epoch-anchored cycle start for mode change
-                                // SERVER's armed_epoch_us is in sync time ≈ local time for SERVER
-                                server_epoch_cycle_start_ms = (uint32_t)(armed_epoch_us / 1000);
+                                // Bug #93 fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
+                                server_epoch_cycle_start_ms = local_now_ms;
                                 server_cycle_count = 0;  // Reset cycle count on mode change
+                                ESP_LOGI(TAG, "SERVER: cycle_start set to %lu ms (local time)", server_epoch_cycle_start_ms);
                             } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
                                 // Bug #82 fix: CLIENT sets motor_epoch from proposal
                                 // Without this, CLIENT uses old epoch for antiphase calculation
@@ -1298,14 +1304,10 @@ void motor_task(void *pvParameters) {
                                 // Going to INACTIVE and recalculating would add an extra cycle delay
                                 client_skip_inactive_wait = true;
 
-                                // Bug #90 fix: Set epoch-anchored cycle start for ACTIVE state
-                                // Without this, ACTIVE uses esp_timer_get_time() which is LATE
-                                // Convert sync time (armed_epoch_us) to local time: local = sync + offset
-                                int64_t mode_offset_us = 0;
-                                time_sync_get_clock_offset(&mode_offset_us);
-                                uint64_t local_epoch_us = armed_epoch_us + mode_offset_us;
-                                client_epoch_cycle_start_ms = (uint32_t)(local_epoch_us / 1000);
-                                ESP_LOGI(TAG, "CLIENT: cycle_start set to %lu ms (epoch-anchored)", client_epoch_cycle_start_ms);
+                                // Bug #93 fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
+                                // Previous code converted sync→local but offset was stale/wrong
+                                client_epoch_cycle_start_ms = local_now_ms;
+                                ESP_LOGI(TAG, "CLIENT: cycle_start set to %lu ms (local time)", client_epoch_cycle_start_ms);
                             }
 
                             // Bug #80 fix: Reset CLIENT cycle counter on mode change
@@ -1349,8 +1351,9 @@ void motor_task(void *pvParameters) {
                             if (time_sync_get_time(&motor_epoch_us) == ESP_OK) {
                                 time_sync_set_motor_epoch(motor_epoch_us, cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Frequency changed - motor epoch updated (cycle=%lums)", cycle_ms);
-                                // Bug #91: Set epoch-anchored cycle start for frequency change
-                                server_epoch_cycle_start_ms = (uint32_t)(motor_epoch_us / 1000);
+                                // Bug #93 fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
+                                // motor_epoch_us is SYNC TIME but delays use esp_timer (LOCAL TIME)
+                                server_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
                                 server_cycle_count = 0;  // Reset cycle count on frequency change
 
                                 // Send immediate beacon so CLIENT can sync right away

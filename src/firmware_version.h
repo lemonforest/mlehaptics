@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 113  // Bug #92: Recalculate timing immediately after mode change
+#define FIRMWARE_VERSION_PATCH 114  // Bug #93: Use LOCAL time for cycle_start_ms (time domain fix)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
