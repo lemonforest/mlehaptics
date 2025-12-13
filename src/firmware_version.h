@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 109  // Bug #88b: Also clear pending timer message before ACTIVE
+#define FIRMWARE_VERSION_PATCH 112  // Bug #91: SERVER uses epoch-anchored timing (prevents drift)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

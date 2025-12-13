@@ -161,6 +161,10 @@ static uint32_t client_inactive_cycle_count = 0;
 // (the antiphase was already pre-calculated and waited for in coordinated start)
 static bool client_skip_inactive_wait = false;
 
+// Bug #90 fix: Epoch-anchored cycle start for notify path (file-scope for extern access)
+// Set by motor_task_notify_motor_started() when MOTOR_STARTED received during operation
+static uint32_t notify_epoch_cycle_start_ms = 0;
+
 // Phase 6i: Coordinated Start Time
 // Both devices agree on a FUTURE timestamp to start motors simultaneously.
 // This eliminates the "two activations before other starts" problem.
@@ -472,6 +476,17 @@ void motor_task(void *pvParameters) {
     // cycle_start_ms is recorded at the beginning of each cycle and used to calculate
     // absolute wake times for each phase (motor_on, active_coast, inactive)
     uint32_t cycle_start_ms = 0;
+
+    // Bug #89 Fix: CLIENT epoch-anchored cycle start for ACTIVE state
+    // CLIENT calculates target time in INACTIVE, stores here for use in ACTIVE
+    // This prevents "now" jitter accumulation that causes ms walk between devices
+    uint32_t client_epoch_cycle_start_ms = 0;
+
+    // Bug #91 Fix: SERVER epoch-anchored cycle start for ACTIVE state
+    // SERVER calculates next ACTIVE target in INACTIVE, stores here for use in ACTIVE
+    // This prevents "now" jitter accumulation that causes SERVER drift
+    uint32_t server_epoch_cycle_start_ms = 0;
+    uint32_t server_cycle_count = 0;  // Track cycles since epoch for SERVER
 
     // Back-EMF sampling flag and storage (inline in ACTIVE state)
     bool sample_backemf = false;
@@ -929,11 +944,19 @@ void motor_task(void *pvParameters) {
                                 time_sync_set_motor_epoch(actual_start_us, current_cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Motor epoch set to actual start time: %llu μs (cycle=%lu ms)",
                                          actual_start_us, current_cycle_ms);
+                                // Bug #91: Initialize epoch-anchored cycle start for first ACTIVE
+                                // SERVER's sync time ≈ local time (SERVER is the reference)
+                                server_epoch_cycle_start_ms = (uint32_t)(actual_start_us / 1000);
+                                server_cycle_count = 0;  // Reset cycle count at coordinated start
                             } else {
                                 ESP_LOGI(TAG, "CLIENT: Using motor epoch from SERVER (coordinated start)");
                                 // Bug #81 fix: Skip INACTIVE wait on first cycle
                                 // Antiphase was already pre-calculated and waited for in coordinated start
                                 client_skip_inactive_wait = true;
+
+                                // Bug #90 fix: Set epoch-anchored cycle start for ACTIVE state
+                                // actual_start_us is already in local time (from esp_timer_get_time)
+                                client_epoch_cycle_start_ms = (uint32_t)(actual_start_us / 1000);
                             }
 
                             /* Phase 6: SERVER sends immediate motor epoch notification
@@ -1251,6 +1274,10 @@ void motor_task(void *pvParameters) {
                                 time_sync_set_motor_epoch(armed_epoch_us, armed_cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Motor epoch updated to %llu (cycle=%lu ms)",
                                          armed_epoch_us, armed_cycle_ms);
+                                // Bug #91: Set epoch-anchored cycle start for mode change
+                                // SERVER's armed_epoch_us is in sync time ≈ local time for SERVER
+                                server_epoch_cycle_start_ms = (uint32_t)(armed_epoch_us / 1000);
+                                server_cycle_count = 0;  // Reset cycle count on mode change
                             } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
                                 // Bug #82 fix: CLIENT sets motor_epoch from proposal
                                 // Without this, CLIENT uses old epoch for antiphase calculation
@@ -1263,6 +1290,15 @@ void motor_task(void *pvParameters) {
                                 // When CLIENT executes mode change at this epoch, it's at perfect antiphase
                                 // Going to INACTIVE and recalculating would add an extra cycle delay
                                 client_skip_inactive_wait = true;
+
+                                // Bug #90 fix: Set epoch-anchored cycle start for ACTIVE state
+                                // Without this, ACTIVE uses esp_timer_get_time() which is LATE
+                                // Convert sync time (armed_epoch_us) to local time: local = sync + offset
+                                int64_t mode_offset_us = 0;
+                                time_sync_get_clock_offset(&mode_offset_us);
+                                uint64_t local_epoch_us = armed_epoch_us + mode_offset_us;
+                                client_epoch_cycle_start_ms = (uint32_t)(local_epoch_us / 1000);
+                                ESP_LOGI(TAG, "CLIENT: cycle_start set to %lu ms (epoch-anchored)", client_epoch_cycle_start_ms);
                             }
 
                             // Bug #80 fix: Reset CLIENT cycle counter on mode change
@@ -1306,6 +1342,9 @@ void motor_task(void *pvParameters) {
                             if (time_sync_get_time(&motor_epoch_us) == ESP_OK) {
                                 time_sync_set_motor_epoch(motor_epoch_us, cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Frequency changed - motor epoch updated (cycle=%lums)", cycle_ms);
+                                // Bug #91: Set epoch-anchored cycle start for frequency change
+                                server_epoch_cycle_start_ms = (uint32_t)(motor_epoch_us / 1000);
+                                server_cycle_count = 0;  // Reset cycle count on frequency change
 
                                 // Send immediate beacon so CLIENT can sync right away
                                 if (ble_send_time_sync_beacon() == ESP_OK) {
@@ -1443,7 +1482,33 @@ void motor_task(void *pvParameters) {
                 // Bug #17 Fix: Record cycle start time for ABSOLUTE timing
                 // All subsequent delays are calculated relative to this timestamp
                 // This eliminates vTaskDelay jitter accumulation
-                cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                //
+                // Bug #89 Fix: CLIENT uses epoch-anchored target from INACTIVE state
+                // instead of "now". This prevents ms walk between devices caused by
+                // polling jitter accumulation.
+                //
+                // Bug #90 Fix: When CLIENT skips INACTIVE (mode change, coordinated start,
+                // frequency change), epoch-anchored time comes from:
+                //   - client_epoch_cycle_start_ms: mode change or coordinated start path
+                //   - notify_epoch_cycle_start_ms: frequency change via motor_task_notify_motor_started()
+                //
+                // Bug #91 Fix: SERVER also uses epoch-anchored timing calculated in INACTIVE
+                // This prevents SERVER drift from "now" jitter accumulation
+                peer_role_t active_role = ble_get_peer_role();
+                if (active_role == PEER_ROLE_CLIENT && client_epoch_cycle_start_ms > 0) {
+                    cycle_start_ms = client_epoch_cycle_start_ms;
+                    client_epoch_cycle_start_ms = 0;  // Clear after use
+                } else if (active_role == PEER_ROLE_CLIENT && notify_epoch_cycle_start_ms > 0) {
+                    cycle_start_ms = notify_epoch_cycle_start_ms;
+                    notify_epoch_cycle_start_ms = 0;  // Clear after use
+                } else if (active_role == PEER_ROLE_SERVER && server_epoch_cycle_start_ms > 0) {
+                    // Bug #91: SERVER uses epoch-anchored target from INACTIVE
+                    cycle_start_ms = server_epoch_cycle_start_ms;
+                    server_epoch_cycle_start_ms = 0;  // Clear after use
+                } else {
+                    // Fallback: STANDALONE mode or first cycle before epoch set
+                    cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                }
 
                 // AD045: Motor epoch is set once at coordinated start, not updated every cycle
                 // CLIENT calculates target times from the ORIGINAL epoch
@@ -1705,6 +1770,10 @@ void motor_task(void *pvParameters) {
                         uint64_t local_now_us = esp_timer_get_time();
                         client_local_target_ms = (uint32_t)((local_now_us + target_wait_us) / 1000);
 
+                        // Bug #89: Store epoch-anchored target for ACTIVE state
+                        // ACTIVE will use this instead of esp_timer_get_time() to prevent walk
+                        client_epoch_cycle_start_ms = client_local_target_ms;
+
                         // AD044: Arm hardware timer for precise antiphase synchronization
                         // Timer provides microsecond precision (no polling jitter)
                         if (client_motor_timer != NULL) {
@@ -1895,6 +1964,22 @@ void motor_task(void *pvParameters) {
                     }
                     state = MOTOR_STATE_ACTIVE;
                 } else {
+                    // Bug #91: SERVER calculates next ACTIVE start from motor_epoch
+                    // This prevents SERVER drift from "now" jitter accumulation
+                    uint64_t server_epoch_us = 0;
+                    uint32_t server_cycle_ms = 0;
+                    if (inactive_role == PEER_ROLE_SERVER &&
+                        time_sync_get_motor_epoch(&server_epoch_us, &server_cycle_ms) == ESP_OK &&
+                        server_cycle_ms > 0) {
+                        // Increment cycle count and calculate next ACTIVE start
+                        server_cycle_count++;
+                        uint64_t cycle_us = (uint64_t)server_cycle_ms * 1000ULL;
+                        uint64_t next_active_us = server_epoch_us + (server_cycle_count * cycle_us);
+                        // Convert sync time to local time: local = sync + offset
+                        // Wait - motor_epoch is in SERVER's local time (esp_timer), not sync time
+                        // So no conversion needed
+                        server_epoch_cycle_start_ms = (uint32_t)(next_active_us / 1000);
+                    }
                     state = MOTOR_STATE_CHECK_MESSAGES;
                 }
                 break;
@@ -2086,7 +2171,12 @@ void motor_task_notify_motor_started(void) {
     //
     motor_started_received = true;
     client_skip_inactive_wait = true;  // Bug #84: Handle frequency changes during operation
-    ESP_LOGI(TAG, "MOTOR_STARTED: flags set (coordinated start + frequency change)");
+
+    // Bug #90 fix: Set epoch-anchored cycle start for ACTIVE state
+    // Use current local time as the cycle start (motor epoch was just updated)
+    notify_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    ESP_LOGI(TAG, "MOTOR_STARTED: flags set, cycle_start=%lu ms", notify_epoch_cycle_start_ms);
 }
 
 // NOTE: ble_callback_coordination_message() removed in Phase 3 refactor.
