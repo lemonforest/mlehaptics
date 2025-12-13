@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 104  // Bug #84: Mode 4 frequency change desync
+#define FIRMWARE_VERSION_PATCH 107  // Bug #87: Stale timer message causes short motor ON duration
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

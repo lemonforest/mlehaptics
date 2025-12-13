@@ -316,8 +316,16 @@ static bool delay_until_target_ms(uint32_t target_ms) {
     while (true) {
         uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
-        // Already past target? Return immediately
+        // Already past target? Clear any stale timer message and return
         if (now_ms >= target_ms) {
+            // Bug #87: Clear any pending timer message to prevent it from
+            // causing early exit in the NEXT delay_until_target_ms() call
+            task_message_t stale_msg;
+            if (xQueuePeek(button_to_motor_queue, &stale_msg, 0) == pdPASS) {
+                if (stale_msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                    xQueueReceive(button_to_motor_queue, &stale_msg, 0);
+                }
+            }
             return false;  // Target reached
         }
 
@@ -330,11 +338,18 @@ static bool delay_until_target_ms(uint32_t target_ms) {
         // AD044 FIX: Without this, watchdog times out during CLIENT drift correction
         esp_task_wdt_reset();
 
-        // Quick check for mode change or shutdown (non-blocking peek)
+        // Quick check for mode change, shutdown, or timer event (non-blocking peek)
+        // Bug #86: Hardware timer posts MSG_TIMER_MOTOR_TRANSITION for μs precision
         task_message_t msg;
         if (xQueuePeek(button_to_motor_queue, &msg, 0) == pdPASS) {
             if (msg.type == MSG_MODE_CHANGE || msg.type == MSG_EMERGENCY_SHUTDOWN) {
                 return true; // Mode change or shutdown detected
+            }
+            if (msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                // Hardware timer fired - consume the message and exit wait
+                // This provides μs-precision timing instead of ms-polling jitter
+                xQueueReceive(button_to_motor_queue, &msg, 0);
+                return false; // Target reached via timer
             }
         }
     }
@@ -1624,6 +1639,7 @@ void motor_task(void *pvParameters) {
 
                 uint32_t wait_ms = inactive_ms;  // Default for SERVER/standalone
                 uint32_t inactive_start_ms = 0;  // For CLIENT absolute timing
+                uint32_t client_local_target_ms = 0;  // Bug #86: Epoch-anchored local target
 
                 // Bug #54a fix: Static variables for activation report (sent AFTER wait, not before)
                 // Bug #80: client_inactive_cycle_count moved to file scope for mode change reset
@@ -1684,6 +1700,11 @@ void motor_task(void *pvParameters) {
                         // Calculate wait time to reach target
                         uint64_t target_wait_us = client_target_active_us - sync_time_us;
 
+                        // Bug #86: Compute local target time NOW (same instant as target_wait_us)
+                        // This ensures time domain consistency for polling fallback
+                        uint64_t local_now_us = esp_timer_get_time();
+                        client_local_target_ms = (uint32_t)((local_now_us + target_wait_us) / 1000);
+
                         // AD044: Arm hardware timer for precise antiphase synchronization
                         // Timer provides microsecond precision (no polling jitter)
                         if (client_motor_timer != NULL) {
@@ -1733,6 +1754,29 @@ void motor_task(void *pvParameters) {
                             // Mark that we should send activation report after wait
                             send_activation_report = true;
                         }
+
+                        // IEEE 1588 REV_PROBE: Send every 10 cycles (offset by 5 from SYNC_FB)
+                        // This enables bidirectional path asymmetry detection
+                        if ((client_inactive_cycle_count + 5) % 10 == 0) {
+                            static uint32_t rev_probe_sequence = 0;
+                            uint64_t t1_prime = esp_timer_get_time();  // T1': CLIENT send time
+
+                            coordination_message_t probe = {
+                                .type = SYNC_MSG_REVERSE_PROBE,
+                                .timestamp_ms = (uint32_t)(t1_prime / 1000),
+                                .payload.reverse_probe = {
+                                    .client_send_time_us = t1_prime,
+                                    .probe_sequence = rev_probe_sequence
+                                }
+                            };
+
+                            esp_err_t send_err = ble_send_coordination_message(&probe);
+                            if (send_err == ESP_OK) {
+                                ESP_LOGI(TAG, "CLIENT: REV_PROBE sent seq=%lu", (unsigned long)rev_probe_sequence);
+                                rev_probe_sequence++;
+                            }
+                        }
+
                         client_inactive_cycle_count++;
                     } else {
                         // No epoch available - fall back to nominal timing
@@ -1745,8 +1789,12 @@ void motor_task(void *pvParameters) {
                 if (wait_ms > 0) {
                     uint32_t wait_target_ms;
 
-                    if (inactive_role == PEER_ROLE_CLIENT) {
-                        // CLIENT: Wait relative to inactive_start_ms (recorded at state entry)
+                    if (inactive_role == PEER_ROLE_CLIENT && client_local_target_ms > 0) {
+                        // Bug #86: Use epoch-anchored local target (computed at same instant as wait)
+                        // This eliminates time domain mismatch between sync time and local time
+                        wait_target_ms = client_local_target_ms;
+                    } else if (inactive_role == PEER_ROLE_CLIENT) {
+                        // Fallback: Use relative timing if epoch not available
                         wait_target_ms = inactive_start_ms + wait_ms;
                     } else {
                         // SERVER/STANDALONE: Wait until end of full cycle
@@ -1776,26 +1824,45 @@ void motor_task(void *pvParameters) {
                         if (time_sync_get_time(&actual_sync_time_us) == ESP_OK) {
                             int32_t client_error_ms = (int32_t)((int64_t)actual_sync_time_us - (int64_t)client_target_for_report) / 1000;
 
+                            // AD043/Bug #85: Get PTP timestamps for NTP-style offset calculation
+                            // T1 = SERVER's beacon send time, T2 = CLIENT's beacon receive time
+                            uint64_t beacon_server_time = 0;
+                            uint64_t beacon_rx_time = 0;
+                            time_sync_get_last_beacon_timestamps(&beacon_server_time, &beacon_rx_time);
+
+                            // T3 = CLIENT's current time when sending this report
+                            uint64_t report_tx_time = esp_timer_get_time();
+
                             coordination_message_t report = {
                                 .type = SYNC_MSG_ACTIVATION_REPORT,
-                                .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                                .timestamp_ms = (uint32_t)(report_tx_time / 1000),
                                 .payload.activation_report = {
                                     .actual_time_us = actual_sync_time_us,
                                     .target_time_us = client_target_for_report,
                                     .client_error_ms = client_error_ms,
-                                    .cycle_number = client_inactive_cycle_count - 1  // -1 because already incremented
+                                    .cycle_number = client_inactive_cycle_count - 1,  // -1 because already incremented
+                                    // AD043: Paired timestamps for NTP-style offset
+                                    .beacon_server_time_us = beacon_server_time,  // T1
+                                    .beacon_rx_time_us = beacon_rx_time,          // T2
+                                    .report_tx_time_us = report_tx_time           // T3
                                 }
                             };
 
                             esp_err_t send_err = ble_send_coordination_message(&report);
                             if (send_err == ESP_OK) {
-                                ESP_LOGD(TAG, "CLIENT: Activation report sent (cycle=%lu, err=%ldms)",
-                                         (unsigned long)(client_inactive_cycle_count - 1), (long)client_error_ms);
+                                // Match v0.6.97 log format for sync analysis
+                                int64_t offset_us = 0;
+                                time_sync_get_clock_offset(&offset_us);
+                                ESP_LOGI(TAG, "CLIENT: SYNC_FB sent cycle=%lu err=%ldms offset=%lldms",
+                                         (unsigned long)(client_inactive_cycle_count - 1),
+                                         (long)client_error_ms, offset_us / 1000);
                             }
                         }
                         send_activation_report = false;  // Reset flag
                     }
 
+                    // Log CLIENT activation for manual sync verification (matches SERVER logging)
+                    ESP_LOGI(TAG, "CLIENT: Cycle starts ACTIVE (antiphase to SERVER)");
 
                     // Bug #79: CLIENT must check LED timer (doesn't visit CHECK_MESSAGES)
                     // SERVER checks LED in CHECK_MESSAGES every cycle, but CLIENT bypasses it
