@@ -388,11 +388,103 @@ TIME_SYNC: Filtered offset: -4150124 us (alpha=0.10, samples=5/8)
 
 ## Status
 
-**Current:** ✅ **APPROVED** - Ready for implementation
-**Next Step:** Implement Phase 6r filter in `src/time_sync.c`
-**Expected Duration:** 1-2 days (4 hours coding + hardware validation)
+**Current:** ✅ **IMPLEMENTED** - Enhanced in v0.6.72 with paired timestamps
+**Original Implementation:** Phase 6r filter in `src/time_sync.c`
+**Enhancement:** v0.6.72 - Paired timestamps in SYNC_FB for bias correction
+
+---
+
+## Enhancement: Paired Timestamps in SYNC_FB (v0.6.72)
+
+### Problem: One-Way Delay Bias
+
+The original AD043 EMA filter smooths **variance** but cannot correct **systematic bias** from one-way delays. If every beacon has +20ms one-way delay:
+
+```
+One-way offset: T2 - T1 = clock_offset + one_way_delay
+EMA smooths variance but converges to: clock_offset + 20ms (wrong!)
+```
+
+This explains observed ~40ms phase offsets despite excellent filter stability.
+
+### Solution: NTP-Style Paired Timestamps via SYNC_FB
+
+CLIENT already sends SYNC_FB (activation report) every 10 cycles for drift verification. Enhanced structure now includes beacon timestamps:
+
+```c
+typedef struct __attribute__((packed)) {
+    uint64_t actual_time_us;         // CLIENT's activation (original)
+    uint64_t target_time_us;         // CLIENT's target (original)
+    int32_t  client_error_ms;        // Self-measured error (original)
+    uint32_t cycle_number;           // Cycle count (original)
+    // v0.6.72: Paired timestamps for bias correction
+    uint64_t beacon_server_time_us;  // T1: server_time_us from last beacon
+    uint64_t beacon_rx_time_us;      // T2: CLIENT's local time when beacon received
+    uint64_t report_tx_time_us;      // T3: CLIENT's local time when sending this
+} activation_report_t;
+```
+
+SERVER records T4 when receiving SYNC_FB and calculates bias-corrected offset:
+
+```c
+// NTP formula: offset = ((T2-T1) + (T3-T4)) / 2
+// (T2-T1) includes: clock_offset + delay_to_client
+// (T3-T4) includes: clock_offset - delay_to_server
+// Sum = 2*offset (delays cancel if symmetric)
+int64_t d1 = t2 - t1;  // CLIENT rx - SERVER beacon tx
+int64_t d2 = t3 - t4;  // CLIENT report tx - SERVER report rx
+int64_t paired_offset = (d1 + d2) / 2;
+```
+
+### Why This Works Now (But RTT Caused Problems Before)
+
+**Previous RTT Problem (AD039):** RTT spikes caused immediate bad corrections
+```
+RTT spike → stale timestamp → CLIENT applies stale correction → motor jitter
+```
+
+**Pattern-Broadcast Architecture (AD045):** Motors calculate independently, no active correction
+```
+RTT spike → EMA filter rejects outlier → motor timing unaffected
+```
+
+Paired timestamps now feed the EMA filter (not motor corrections directly), giving us bias-corrected offset estimates while maintaining outlier rejection.
+
+### Implementation Details
+
+**Files Modified:**
+- `src/ble_manager.h`: Extended `activation_report_t` structure
+- `src/time_sync.h`: Added new APIs:
+  - `time_sync_get_last_beacon_timestamps()` - CLIENT gets T1/T2
+  - `time_sync_update_from_paired_timestamps()` - SERVER calculates offset
+- `src/time_sync.c`: Store T2 in `process_beacon()`, implement new functions
+- `src/motor_task.c`: Populate paired timestamps in SYNC_FB
+- `src/time_sync_task.c`: Call paired update on SYNC_FB receive
+
+**Logging:**
+```
+[PAIRED] offset=-4150 µs, RTT=82000 µs (T1=..., T2=..., T3=..., T4=...)
+```
+
+### Expected Improvement
+
+- One-way bias: Eliminated (NTP formula cancels symmetric delays)
+- Phase offset: ~40ms → <5ms (target)
+- RTT spikes: Still filtered by EMA (no jitter)
+- Additional overhead: ~24 bytes per SYNC_FB (3× uint64_t)
+
+### Hybrid Approach Summary
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| Beacon (SERVER→CLIENT) | One-way timestamp | Fast periodic sync (10-60s interval) |
+| EMA Filter | AD043 | Smooth variance, reject outliers |
+| SYNC_FB (CLIENT→SERVER) | Paired timestamps | Correct one-way delay bias |
+| Pattern-Broadcast | AD045 | Both devices calculate independently |
+
+This combines the best of both worlds: beacon simplicity + paired timestamp accuracy.
 
 ---
 
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** December 2, 2025
+**Last Updated:** December 11, 2025

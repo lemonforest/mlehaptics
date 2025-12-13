@@ -359,7 +359,9 @@ typedef enum {
     SYNC_MSG_MOTOR_STARTED,        /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
     SYNC_MSG_MODE_CHANGE_PROPOSAL, /**< AD045: SERVER→CLIENT mode change proposal with future epochs */
     SYNC_MSG_MODE_CHANGE_ACK,      /**< AD045: CLIENT→SERVER mode change acknowledgment */
-    SYNC_MSG_ACTIVATION_REPORT     /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
+    SYNC_MSG_ACTIVATION_REPORT,    /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
+    SYNC_MSG_REVERSE_PROBE,        /**< IEEE 1588 bidirectional: CLIENT→SERVER with T1' timestamp */
+    SYNC_MSG_REVERSE_PROBE_RESPONSE /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
 } sync_message_type_t;
 
 /**
@@ -464,6 +466,12 @@ typedef struct __attribute__((packed)) {
  * - SERVER receives and independently calculates drift
  * - Enables bidirectional timing verification (both sides know the error)
  *
+ * AD043 Enhancement (v0.6.72): Added paired timestamps for NTP-style offset calculation
+ * CLIENT includes beacon timestamps so SERVER can calculate bias-corrected offset:
+ *   offset = ((T2-T1) + (T3-T4)) / 2
+ * where T1=beacon_server_time, T2=beacon_rx_time, T3=report_tx_time, T4=SERVER rx
+ * This corrects the systematic one-way delay bias in the EMA filter.
+ *
  * Rate limited: Sent every N cycles to avoid BLE congestion
  */
 typedef struct __attribute__((packed)) {
@@ -471,7 +479,46 @@ typedef struct __attribute__((packed)) {
     uint64_t target_time_us;       /**< CLIENT's calculated target time */
     int32_t  client_error_ms;      /**< CLIENT's self-measured error (actual - target) */
     uint32_t cycle_number;         /**< Cycle count for correlation */
+    /* AD043: Paired timestamps for NTP-style offset calculation */
+    uint64_t beacon_server_time_us; /**< T1: server_time_us from last beacon */
+    uint64_t beacon_rx_time_us;     /**< T2: CLIENT's local time when beacon received */
+    uint64_t report_tx_time_us;     /**< T3: CLIENT's local time when sending this report */
 } activation_report_t;
+
+/**
+ * @brief Reverse probe payload for SYNC_MSG_REVERSE_PROBE
+ *
+ * IEEE 1588 bidirectional path measurement: CLIENT initiates probe to SERVER.
+ * This is the "reverse direction" compared to the normal SERVER→CLIENT beacons.
+ *
+ * Purpose: Detect path asymmetry by measuring delay from CLIENT→SERVER direction.
+ * If BLE paths are symmetric, forward and reverse offsets should match.
+ * If asymmetric, the difference reveals the "ghost time" causing drift.
+ *
+ * Flow:
+ * 1. CLIENT records T1' (local time) just before sending this probe
+ * 2. SERVER receives probe, records T2' (local time at receipt)
+ * 3. SERVER sends REVERSE_PROBE_RESPONSE with T2', T3' (send time)
+ * 4. CLIENT receives response, records T4' (local time)
+ * 5. CLIENT calculates reverse offset: ((T2'-T1') - (T4'-T3')) / 2
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t client_send_time_us;  /**< T1': CLIENT's local time when probe sent */
+    uint32_t probe_sequence;       /**< Sequence number for correlation */
+} reverse_probe_t;
+
+/**
+ * @brief Reverse probe response payload for SYNC_MSG_REVERSE_PROBE_RESPONSE
+ *
+ * SERVER response to CLIENT's reverse probe, completing the bidirectional
+ * timing measurement. Contains T2' and T3' for CLIENT's offset calculation.
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t client_send_time_us;  /**< T1': Echo from probe (for CLIENT correlation) */
+    uint64_t server_recv_time_us;  /**< T2': SERVER's local time when probe received */
+    uint64_t server_send_time_us;  /**< T3': SERVER's local time when response sent */
+    uint32_t probe_sequence;       /**< Sequence number echo for correlation */
+} reverse_probe_response_t;
 
 /**
  * @brief Coordination message structure (Phase 3)
@@ -493,6 +540,8 @@ typedef struct __attribute__((packed)) {
         motor_started_t motor_started;      /**< MOTOR_STARTED: Immediate epoch notification (Phase 6) */
         mode_change_proposal_t mode_proposal; /**< MODE_CHANGE_PROPOSAL: Two-phase commit proposal (AD045) */
         activation_report_t activation_report; /**< ACTIVATION_REPORT: PTP-style timing feedback */
+        reverse_probe_t reverse_probe;       /**< REVERSE_PROBE: CLIENT→SERVER bidirectional timing */
+        reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
         // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
     } payload;
 } coordination_message_t;

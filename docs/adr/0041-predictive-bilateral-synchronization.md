@@ -15,7 +15,7 @@
 >
 > **AD045 Solution:** Removes all cycle-by-cycle corrections and relies on Phase 2's ±6 μs clock precision. Both devices calculate transitions from synchronized motor_epoch independently, like Bluetooth audio synchronization.
 >
-> **What Remains Valid:** Time synchronization infrastructure (Phase 2) continues to provide ±6 μs precision. Drift-rate prediction may be retained for quality monitoring but is NOT used for motor timing corrections.
+> **What Remains Valid:** Time synchronization infrastructure (Phase 2) continues to provide ±30 μs precision via EMA filtering. Drift-rate prediction code was **removed entirely** in v0.6.91 (~143 lines deleted) - EMA filter is sufficient without extrapolation.
 
 ---
 

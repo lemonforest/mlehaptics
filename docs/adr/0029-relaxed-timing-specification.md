@@ -1,8 +1,9 @@
-# 0029: Relaxed Timing Specification
+# 0029: Bilateral Timing Specification
 
 **Date:** 2025-11-11
-**Phase:** 1b
-**Status:** Accepted
+**Updated:** 2025-12-11
+**Phase:** 1b → Phase 6 (tightened after time sync proven)
+**Status:** Superseded (see AD043, AD045)
 **Type:** Architecture
 
 ---
@@ -10,162 +11,186 @@
 ## Summary (Y-Statement)
 
 In the context of bilateral timing coordination between dual devices,
-facing original ±10ms specification based on theoretical precision goals,
-we decided for relaxed ±100ms synchronization accuracy,
-and neglected maintaining strict ±10ms requirement,
-to achieve simpler implementation aligned with human perception thresholds,
-accepting 10× timing tolerance increase with zero therapeutic impact.
+facing original ±10ms specification and later relaxed ±100ms target,
+we decided for **±15ms synchronization accuracy** (with ±5ms stretch goal),
+achieving tighter precision than human perception requires,
+accepting modest implementation complexity for improved bilateral coordination,
+**superseding the ±100ms relaxation** now that Phase 2 time sync is proven.
+
+> **UPDATE December 2025:** Original ±100ms relaxation was based on pre-time-sync
+> assumptions. Phase 2 testing proved ±30μs clock drift over 90 minutes. AD043
+> targets <5ms mean error with EMA filter. This ADR is tightened accordingly.
 
 ---
 
 ## Problem Statement
 
-Original specification (DS004) required ±10ms timing accuracy based on theoretical precision goals. Real-world analysis shows this is unnecessarily strict given:
-- Human perception threshold: 100-200ms timing differences imperceptible
-- Therapeutic mechanism: EMDR requires bilateral alternation, not precise simultaneity
-- BLE latency: 50-100ms inherent in BLE notifications
-- Commercial devices: Similar tolerances in proven EMDR devices
+**Original History:**
+- DS004 originally required ±10ms timing accuracy (theoretical precision goal)
+- AD029 (November 2025) relaxed this to ±100ms citing BLE latency and human perception
+- Phase 2 time sync (November 2025) proved ±30μs clock drift is achievable
+- This revision tightens to ±15ms based on proven capabilities
+
+**Current Problem:**
+While ±100ms was therapeutically adequate, we now have the capability to do much better.
+The ±40ms phase offsets observed in testing are technically within spec, but we can achieve
+tighter coordination. AD043 targets <5ms mean error with EMA filtering.
 
 ---
 
 ## Context
 
-**Human Perception Research:**
+**Human Perception Research (Unchanged):**
 - Temporal resolution: 100-200ms threshold for perceiving timing differences
 - Haptic stimulation: Even coarser temporal discrimination (~200ms)
 - EMDR studies: No evidence that <100ms timing matters therapeutically
 
-**Therapeutic Mechanism:**
+**Therapeutic Mechanism (Unchanged):**
 - EMDR requires bilateral alternation (left-right pattern)
 - Precise simultaneity NOT required for therapeutic efficacy
 - Clinical focus: Alternation pattern, not microsecond precision
 
-**Technical Realities:**
-- BLE notifications: 50-100ms latency inherent in protocol
-- FreeRTOS scheduling: ±100ms jitter typical
-- Crystal drift: ±10 PPM (±1944ms over 20 minutes without correction)
-- Command-and-control: 50-100ms command latency acceptable
+**Technical Capabilities (Updated December 2025):**
+- Phase 2 time sync: ±30μs clock drift proven over 90 minutes
+- EMA filter (AD043): <5ms mean error target with paired timestamps
+- Pattern-broadcast (AD045): Independent execution eliminates per-cycle corrections
+- BLE beacon latency: 10-50ms jitter, smoothed by EMA filter
+- Crystal drift: ±10 PPM, corrected by continuous beacon exchange
 
-**Commercial Device Comparison:**
-- Established EMDR devices operate with similar tolerances
-- No clinical evidence that tighter tolerances improve outcomes
-- Industry standard: ~100ms coordination acceptable
+**Why Tighten Beyond Therapeutic Requirement:**
+- We have the capability to do better, so we should
+- Tighter spec validates the investment in Phase 2/3 time sync
+- Provides headroom for future applications (research, accessibility)
+- Demonstrates technical excellence in open-source project
 
 ---
 
 ## Decision
 
-We will relax timing specification from ±10ms to ±100ms for bilateral coordination.
+**December 2025 Revision:** Tighten timing specification from ±100ms to **±15ms** for bilateral coordination.
 
 **Updated Specification:**
 
 ```
 DS004: Bilateral Timing Coordination
-Old: ±10ms synchronization accuracy
-New: ±100ms synchronization accuracy
+Original (2025-11):     ±10ms (theoretical)
+Relaxed (AD029 v1):     ±100ms (pre-time-sync)
+Tightened (AD029 v2):   ±15ms REQUIRED, ±5ms GOAL
+
+Specification Tiers:
+  ±15ms - MUST ACHIEVE (hard requirement)
+  ±10ms - SHOULD ACHIEVE (expected typical)
+  ±5ms  - STRETCH GOAL (AD043 target)
 
 FR003: Non-Overlapping Bilateral Stimulation
 Old: Immediate fallback on BLE loss
-New: Synchronized fallback for 2 minutes, then single-device mode
+Current: Synchronized fallback for 2 minutes, then single-device mode (unchanged)
 ```
 
-**Rationale:**
+**Rationale for Tightening:**
 
-1. **Human Perception Threshold:** 100-200ms timing differences are imperceptible
-2. **Therapeutic Mechanism:** EMDR requires bilateral alternation, not simultaneity
-3. **BLE Latency Reality:** 50-100ms latency is inherent in BLE notifications
-4. **Proven Clinical Devices:** Commercial EMDR devices operate with similar tolerances
-5. **Implementation Simplicity:** Allows simpler, more reliable architecture
+1. **Proven Capability:** Phase 2 time sync achieves ±30μs clock drift over 90 minutes
+2. **AD043 Implementation:** EMA filter with paired timestamps targets <5ms mean error
+3. **Engineering Pride:** We can do better than ±40ms, so let's do it
+4. **Future-Proofing:** Tighter spec enables research and accessibility applications
+5. **Therapeutic Safety Margin:** Well within human perception threshold (~200ms)
 
 ---
 
 ## Consequences
 
-### Benefits
+### Benefits of Tightened Spec (±15ms)
 
-- **Simpler code:** No complex NTP-style time synchronization needed
-- **Better reliability:** Fewer edge cases and failure modes
-- **Improved UX:** Uninterrupted therapy during brief disconnections (0-2 min grace period)
-- **Maintained safety:** Non-overlapping guarantee preserved via command-and-control
-- **Proven adequate:** Matches commercial device tolerances
-- **Therapeutic equivalence:** No impact on EMDR effectiveness
-- **Reduced testing burden:** Wider tolerance easier to validate
+- **Technical excellence:** Validates Phase 2/3 time sync investment
+- **Engineering satisfaction:** ±40ms offsets no longer acceptable, too easily achieved
+- **Future applications:** Enables research requiring precise bilateral timing
+- **Open-source credibility:** Demonstrates capability, not just "good enough"
+- **Safety margin:** Still 10× inside human perception threshold
+- **Therapeutic equivalence:** No change to EMDR effectiveness
 
-### Drawbacks
+### Costs of Tightened Spec
 
-- **Perception by users:** Some users may perceive relaxed timing as "less precise" (education needed)
-- **Marketing challenge:** Competitors may advertise tighter specs (irrelevant clinically)
-- **Theoretical compromise:** Engineers may prefer tighter specs (pragmatism wins)
+- **Implementation complexity:** Requires EMA filter, paired timestamps (already implemented)
+- **Testing rigor:** Must validate ±15ms across all modes and conditions
+- **Debugging effort:** Phase offsets >15ms now require investigation
+
+### Unchanged from Original
+
+- **Uninterrupted therapy:** Brief disconnections (0-2 min) still handled gracefully
+- **Non-overlapping safety:** Guaranteed via pattern-broadcast architecture
+- **FreeRTOS compatibility:** vTaskDelay() timing unchanged
 
 ---
 
-## Options Considered
+## Options Considered (December 2025 Revision)
 
-### Option A: Maintain ±10ms Specification
+### Option A: Keep ±100ms (No Change)
 
 **Pros:**
-- Tightest possible timing
-- Impressive marketing specification
+- No code changes needed
+- Already therapeutically adequate
 
 **Cons:**
-- Complex NTP-style time synchronization required
-- No therapeutic benefit (below human perception)
-- BLE latency makes it impossible without continuous correction
-- Would require time-sync approach (rejected in AD028 as unsafe)
+- We can do better than ±40ms offsets
+- Doesn't leverage Phase 2/3 time sync investment
+- Leaves performance on the table
 
 **Selected:** NO
-**Rationale:** Unnecessary complexity with no therapeutic benefit
+**Rationale:** We can do better, and we should
 
-### Option B: ±50ms Tolerance (Middle Ground)
+### Option B: ±50ms Tolerance
 
 **Pros:**
 - Tighter than ±100ms
-- Still achievable with BLE
+- Achievable with current implementation
 
 **Cons:**
-- Still stricter than human perception threshold
-- Adds complexity without therapeutic benefit
-- BLE latency already at 50-100ms (tight margin)
+- Still allows ~40ms offsets that prompted this revision
+- Doesn't push toward AD043's <5ms goal
 
 **Selected:** NO
-**Rationale:** No advantage over ±100ms, adds unnecessary complexity
+**Rationale:** Half-measure that doesn't address the core complaint
 
-### Option C: ±100ms Tolerance (CHOSEN)
+### Option C: ±15ms Tolerance (CHOSEN)
 
 **Pros:**
-- Aligned with human perception threshold (100-200ms)
-- Matches BLE latency realities (50-100ms)
-- Simpler implementation (command-and-control)
-- Matches commercial device tolerances
-- No therapeutic impact
+- Achievable with EMA filter (AD043)
+- Improves on 40ms offsets we observed in testing
+- Clear stretch goal (±5ms) provides direction
+- 10× inside human perception threshold
 
 **Cons:**
-- May be perceived as "less precise" by some users
+- Requires validation testing
+- Phase offsets >15ms now bugs instead of features
 
 **Selected:** YES
-**Rationale:** Best balance of simplicity, reliability, and therapeutic adequacy
+**Rationale:** Balances achievability with engineering pride
 
-### Option D: ±200ms Tolerance (Too Relaxed)
+### Option D: ±5ms Tolerance (Stretch Goal Only)
 
 **Pros:**
-- Even simpler implementation
-- Maximum margin
+- Maximum precision
+- AD043's stated target
 
 **Cons:**
-- Approaches edge of human perception threshold
-- Unnecessarily relaxed (±100ms already adequate)
+- May not be consistently achievable during BLE jitter spikes
+- Too aggressive as hard requirement
 
-**Selected:** NO
-**Rationale:** No benefit over ±100ms, approaches perception threshold edge
+**Selected:** AS STRETCH GOAL
+**Rationale:** Aspirational target, not hard requirement
 
 ---
 
 ## Related Decisions
 
+### Superseding Documents
+- **AD043: Filtered Time Synchronization** - EMA filter with paired timestamps, <5ms target
+- **AD045: Synchronized Independent Bilateral Operation** - Pattern-broadcast architecture
+
 ### Related
-- **AD028: Command-and-Control with Synchronized Fallback** - Enabled by relaxed timing (50-100ms BLE latency acceptable)
-- **AD029: Relaxed Timing** - This decision document
-- **FR002: Non-Overlapping Stimulation** - Safety preserved despite relaxed timing
+- **AD028: Command-and-Control with Synchronized Fallback** - Original architecture (pre-time-sync)
+- **AD041: Predictive Bilateral Synchronization** - Drift-rate extrapolation during disconnect
+- **FR002: Non-Overlapping Stimulation** - Safety preserved via pattern-broadcast
 
 ---
 
@@ -173,33 +198,34 @@ New: Synchronized fallback for 2 minutes, then single-device mode
 
 ### Code References
 
-- **Motor Task:** `src/motor_task.c` (bilateral timing implementation)
-- **BLE Task:** `src/ble_task.c` (command transmission with acceptable latency)
+- **Time Sync:** `src/time_sync.c`, `src/time_sync_task.c` (EMA filter, paired timestamps)
+- **Motor Task:** `src/motor_task.c` (bilateral timing, epoch-based activation)
+- **BLE Manager:** `src/ble_manager.c` (beacon exchange, motor epoch broadcast)
 
 ### Build Environment
 
-- **Environment Name:** `xiao_esp32c6`
-- **Configuration File:** `sdkconfig.xiao_esp32c6`
-- **Phase:** Phase 1b specification update
+- **Environment Name:** `xiao_esp32c6_ble_no_nvs`
+- **Configuration File:** `sdkconfig.xiao_esp32c6_ble_no_nvs`
+- **Phase:** Phase 6 (tightened specification)
 
 ### Testing & Verification
 
-**User Testing Confirmed:**
+**Phase 2 Time Sync Validation (November 2025):**
+- 90-minute stress test: ±30μs clock drift (excellent)
+- 271/270 beacons exchanged (100% delivery)
+- Quality score: 95% sustained
+- 7 brief jitter spikes detected and recovered
 
-No perceptible difference between:
-- Perfect synchronization (0ms offset)
-- Command-and-control (50-100ms offset)
-- Manual mode switching (attempted half-cycle alignment)
+**Tightened Spec Validation (December 2025 - PENDING):**
+- [ ] Measure actual phase offset in all 5 modes
+- [ ] Verify ±15ms achieved during mode changes
+- [ ] Stress test: 20-minute session with mode changes
+- [ ] Edge case: Verify recovery after BLE jitter spike
 
-**Therapeutic Validation:**
-- EMDRIA standards: No specific timing tolerance requirement
-- Clinical studies: Focus on alternation pattern, not precise timing
-- User testing: ±100ms tolerance imperceptible in blind tests
-
-**Technical Validation:**
-- BLE command latency: Measured 50-100ms typical
-- Motor response: <10ms from command receipt to motor activation
-- Total coordination: ~60-110ms (well within ±100ms spec)
+**Pass/Fail Criteria:**
+- **PASS:** 95th percentile phase offset ≤ 15ms
+- **GOAL:** Mean phase offset ≤ 5ms
+- **FAIL:** Any phase offset > 15ms during stable operation
 
 ---
 
@@ -214,32 +240,31 @@ No perceptible difference between:
 
 ---
 
+## Revision History
+
+### v2 (December 2025) - Tightened Specification
+- Spec changed: ±100ms → ±15ms (±5ms goal)
+- Status changed: Accepted → Superseded
+- Rationale: Phase 2 time sync proven, AD043/AD045 implemented
+- Trigger: We can do better than ±40ms, so let's raise the bar
+
+### v1 (November 2025) - Original Relaxation
+- Spec changed: ±10ms → ±100ms
+- Rationale: Pre-time-sync, aligned with human perception
+- Context: Command-and-control architecture (AD028)
+
 ## Migration Notes
 
-Migrated from `docs/architecture_decisions.md` on 2025-11-21
+**Original Migration (2025-11-21):**
+Migrated from `docs/architecture_decisions.md`
 Original location: AD029
-Git commit: (phase 1b specification update)
 
-**Impact:**
-
-- **Simplified Implementation:** No complex time synchronization needed
-- **Better User Experience:** No interruption during brief disconnections
-- **Maintained Safety:** Still prevents overlapping stimulation via command-and-control
-- **Therapeutic Efficacy:** No impact on EMDR effectiveness
-
-**Verification:**
-
-User testing confirmed no perceptible difference between:
-- Perfect synchronization (0ms offset)
-- Command-and-control (50-100ms offset)
-- Manual mode switching (attempted half-cycle alignment)
-
-**Documentation Updates:**
-- DS004: Updated from ±10ms to ±100ms
-- FR003: Updated fallback behavior (0-2 min synchronized, then fixed role)
-- requirements_spec.md: Timing tolerance section updated
+**December 2025 Update:**
+- DS004: Updated from ±100ms to ±15ms (±5ms goal)
+- AD043, AD045: Referenced as superseding implementations
+- requirements_spec.md: Timing tolerance section to be updated
 
 ---
 
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-12-11

@@ -133,7 +133,7 @@ typedef enum {
     MSG_SESSION_TIMEOUT,      /**< Session duration exceeded (60 minutes) */
     MSG_PAIRING_COMPLETE,     /**< BLE pairing successful (Phase 1b.3) */
     MSG_PAIRING_FAILED,       /**< BLE pairing failed or timeout (Phase 1b.3) */
-    MSG_TIMER_MOTOR_TRANSITION /**< CLIENT hardware timer fired (AD044: precise antiphase synchronization) */
+    MSG_TIMER_MOTOR_TRANSITION /**< Internal timer: motor state transition */
 } message_type_t;
 
 /**
@@ -210,6 +210,18 @@ void motor_task(void *pvParameters);
 mode_t motor_get_current_mode(void);
 
 /**
+ * @brief Get duty percent for current mode (AD045: Pattern-broadcast)
+ * @return Duty percent (0-100) for motor ON time as fraction of ACTIVE period
+ *
+ * Duty calculation: (motor_on_ms * 100) / (motor_on_ms + active_coast_ms)
+ * Example: Mode 0 (0.5Hz@25%): (250 * 100) / (250 + 750) = 25%
+ *
+ * Used by time_sync beacon to broadcast pattern to CLIENT device.
+ * Thread-safe read of current mode configuration.
+ */
+uint8_t motor_get_duty_percent(void);
+
+/**
  * @brief Initialize session start timestamp
  *
  * Must be called during hardware initialization (before motor_task starts).
@@ -229,18 +241,8 @@ void motor_init_session_time(void);
  */
 uint32_t motor_get_session_time_ms(void);
 
-/**
- * @brief Trigger 10-second back-EMF logging window after time sync beacon
- *
- * Phase 2: Time synchronization verification
- * Called by time_sync_task when a time sync beacon is received.
- * Enables back-EMF logging for 10 seconds to verify bilateral timing
- * remains synchronized after time sync updates.
- *
- * Gracefully refuses if mode-change logging is already active
- * (mode-change logging takes priority).
- */
-void motor_trigger_beacon_bemf_logging(void);
+// Note: motor_trigger_beacon_bemf_logging() removed - BEMF now uses independent 60s timer
+// See periodic_bemf_logging_active in motor_task.c CHECK_MESSAGES state
 
 /**
  * @brief Notify motor_task that MOTOR_STARTED message arrived
@@ -321,6 +323,7 @@ extern mode_t armed_new_mode;        /**< Mode to activate when epoch is reached
 extern uint64_t armed_epoch_us;      /**< Synchronized time (μs) to execute mode change */
 extern uint32_t armed_cycle_ms;      /**< New cycle period (ms) for armed mode */
 extern uint32_t armed_active_ms;     /**< New active period (ms) for armed mode */
+extern uint64_t armed_server_epoch_us; /**< Bug #82: SERVER's motor epoch for CLIENT antiphase */
 
 // ============================================================================
 // EXTERNAL DEPENDENCIES

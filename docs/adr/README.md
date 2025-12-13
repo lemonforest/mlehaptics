@@ -52,11 +52,13 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD038](0038-uuid-switching-strategy.md) | UUID-Switching Strategy for Connection Type Identification | ✅ Implemented | Phase 1b.3 | 2025-11-18 |
 | [AD039](0039-time-synchronization-protocol.md) | Time Synchronization Protocol | 🔄 Superseded | Phase 2 | 2025-11-19 |
 | [AD040](0040-firmware-version-checking.md) | Firmware Version Checking for Peer Devices | ⏳ Approved | Phase 2 | 2025-11-19 |
-| [AD041](0041-predictive-bilateral-synchronization.md) | Predictive Bilateral Synchronization Protocol | ✅ Implemented | Phase 6k | 2025-11-28 |
+| [AD041](0041-predictive-bilateral-synchronization.md) | Predictive Bilateral Synchronization Protocol | 🔄 Superseded | Phase 6v | 2025-12-12 |
 | [AD042](0042-remove-mac-delay-battery-based-symmetry-breaking.md) | Remove MAC-Based Scan Delay (Battery-Based Symmetry Breaking) | ✅ Implemented | Phase 6q | 2025-11-29 |
 | [AD043](0043-filtered-time-synchronization.md) | Filtered Time Synchronization Protocol | ✅ Approved | Phase 6r | 2025-12-02 |
 | [AD044](0044-non-blocking-motor-timing.md) | CLIENT Hardware Timer Synchronization | ✅ Accepted | Phase 6 | 2025-12-03 |
 | [AD045](0045-synchronized-independent-bilateral-operation.md) | Synchronized Independent Bilateral Operation | ⏳ Proposed | Phase 6u | 2025-12-08 |
+| [AD046](0046-ptp-observation-mode-integration.md) | PTP Observation Mode Integration | ⏳ Proposed | Phase 6v | 2025-12-12 |
+| [AD047](0047-scheduled-pattern-playback.md) | Scheduled Pattern Playback Architecture | ⏳ Proposed | Phase 7 | 2025-12-13 |
 
 ---
 
@@ -235,11 +237,11 @@ _(To be populated with decision dependency visualization)_
 
 ## Statistics
 
-- **Total Decisions:** 45
+- **Total Decisions:** 47
 - **Accepted:** 31 (AD001-007, AD009-013, AD015-024, AD027-032, AD044)
 - **Implemented:** 4 (AD035, AD038, AD041, AD042)
 - **Approved:** 5 (AD033, AD034, AD036, AD040, AD043)
-- **Proposed:** 1 (AD045)
+- **Proposed:** 3 (AD045, AD046, AD047)
 - **Superseded:** 4 (AD008, AD026, AD037, AD039)
 - **Partially Superseded:** 2 (AD010 - MAC delay only, AD028 - motor control only)
 - **Deprecated:** 0
@@ -248,7 +250,7 @@ _(To be populated with decision dependency visualization)_
 
 ## Maintenance
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2025-12-13
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)

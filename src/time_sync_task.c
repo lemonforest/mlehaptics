@@ -201,6 +201,25 @@ QueueHandle_t time_sync_task_get_queue(void)
     return time_sync_queue;
 }
 
+esp_err_t time_sync_task_trigger_beacons(void)
+{
+    if (time_sync_queue == NULL) {
+        ESP_LOGE(TAG, "Time sync queue not initialized");
+        return ESP_FAIL;
+    }
+
+    time_sync_message_t msg = {
+        .type = TIME_SYNC_MSG_TRIGGER_BEACONS
+    };
+
+    if (xQueueSend(time_sync_queue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to send trigger beacons message");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
 /*******************************************************************************
  * TASK IMPLEMENTATION
  ******************************************************************************/
@@ -216,10 +235,18 @@ static void time_sync_task(void *arg)
     next_update_time = xTaskGetTickCount() + pdMS_TO_TICKS(time_sync_get_interval_ms());
 
     while (1) {
-        // Wait for message or timeout for periodic update
-        TickType_t wait_time = pdMS_TO_TICKS(1000);  // Check every 1 second
+        /* Bug #58 fix: Drain ALL messages from queue each iteration
+         *
+         * Previous bug: Task processed only ONE message per iteration with 1-second
+         * timeout. When multiple messages arrived rapidly (mode change + ACK + SYNC_FB),
+         * the queue would fill up and never recover.
+         *
+         * Fix: Use a short timeout (100ms) and drain all pending messages each iteration.
+         * This ensures queue stays responsive even during burst traffic.
+         */
+        TickType_t wait_time = pdMS_TO_TICKS(100);  // Short wait to stay responsive
 
-        if (xQueueReceive(time_sync_queue, &msg, wait_time) == pdTRUE) {
+        while (xQueueReceive(time_sync_queue, &msg, wait_time) == pdTRUE) {
             // Handle received message
             switch (msg.type) {
                 case TIME_SYNC_MSG_INIT:
@@ -238,6 +265,32 @@ static void time_sync_task(void *arg)
                     handle_coordination_message(&msg);
                     break;
 
+                case TIME_SYNC_MSG_TRIGGER_BEACONS:
+                    /* Bug #62 fix: Send ONE beacon for epoch delivery
+                     *
+                     * Original Bug #57: Beacons delayed during mode change.
+                     * Failed fix #57/58: Beacon blasting caused spam (100+ beacons).
+                     *
+                     * Root cause: Beacon blasting doesn't help EMA convergence.
+                     * CLIENT only needs ONE beacon to get the new motor_epoch.
+                     * EMA converges over TIME, not rapid samples.
+                     *
+                     * Fix: Send single beacon immediately, let normal interval
+                     * handle subsequent syncs.
+                     */
+                    if (TIME_SYNC_IS_SERVER()) {
+                        ESP_LOGI(TAG, "Mode change: Sending single beacon for epoch delivery");
+                        esp_err_t err = ble_send_time_sync_beacon();
+                        if (err != ESP_OK) {
+                            if (err == ESP_ERR_INVALID_STATE) {
+                                ESP_LOGI(TAG, "Cannot send beacon: peer not connected");
+                            } else {
+                                ESP_LOGW(TAG, "Failed to send beacon: %s", esp_err_to_name(err));
+                            }
+                        }
+                    }
+                    break;
+
                 case TIME_SYNC_MSG_SHUTDOWN:
                     ESP_LOGI(TAG, "Shutdown requested");
                     esp_task_wdt_delete(NULL);
@@ -248,7 +301,25 @@ static void time_sync_task(void *arg)
                     ESP_LOGW(TAG, "Unknown message type: %d", msg.type);
                     break;
             }
+
+            /* After processing each message, check for more with zero wait */
+            wait_time = 0;  // Don't block on subsequent checks
         }
+
+        /* Bug #62 fix: REMOVED continuous beacon check
+         *
+         * Previous Bug #57/58: Tried to send forced beacons every 100ms to help
+         * CLIENT converge after mode changes.
+         *
+         * Problem: time_sync_should_send_beacon() doesn't update last_sync_ms,
+         * so it returned true continuously, causing beacon spam (100+ beacons).
+         *
+         * Root cause: Beacon blasting doesn't help EMA convergence anyway.
+         * EMA converges based on sample COUNT over TIME, not rapid-fire samples.
+         *
+         * Fix: Send ONE beacon on mode change (for epoch delivery), then let
+         * perform_periodic_update() handle normal interval beacons.
+         */
 
         // Periodic update check
         TickType_t now = xTaskGetTickCount();
@@ -408,8 +479,7 @@ static void handle_beacon_message(const time_sync_message_t *msg)
                      quality.quality_score);
         }
 
-        // Phase 2: Trigger back-EMF logging to verify bilateral timing after sync
-        motor_trigger_beacon_bemf_logging();
+        // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     } else {
         ESP_LOGW(TAG, "Failed to process beacon: %s", esp_err_to_name(err));
     }
@@ -739,7 +809,7 @@ static void handle_coordination_message(const time_sync_message_t *msg)
 
         case SYNC_MSG_MODE_CHANGE_PROPOSAL: {
             // AD045: CLIENT receives mode change proposal from SERVER
-            // Validate epochs, send ACK, arm mode change
+            // Bug #69: Validate epoch-relative consistency (both devices can verify)
             const mode_change_proposal_t *proposal = &coord->payload.mode_proposal;
 
             ESP_LOGI(TAG, "CLIENT: Mode change proposal received (mode=%s, server_epoch=%llu, client_epoch=%llu)",
@@ -756,6 +826,27 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 ESP_LOGW(TAG, "CLIENT: Proposal rejected - epoch already passed (current=%llu, client_epoch=%llu)",
                          current_time_us, proposal->client_epoch_us);
                 break;
+            }
+
+            // Bug #69: Verify epoch-relative consistency
+            // CLIENT can independently check that server_epoch aligns with known motor epoch
+            uint64_t motor_epoch_us;
+            uint32_t motor_cycle_ms;
+            if (time_sync_get_motor_epoch(&motor_epoch_us, &motor_cycle_ms) == ESP_OK &&
+                motor_epoch_us > 0 && motor_cycle_ms > 0) {
+                // Server's transition epoch should be: motor_epoch + (N * period)
+                uint64_t period_us = (uint64_t)motor_cycle_ms * 1000ULL;
+                uint64_t offset_from_epoch = (proposal->server_epoch_us > motor_epoch_us) ?
+                                             (proposal->server_epoch_us - motor_epoch_us) : 0;
+                uint64_t cycles_to_transition = offset_from_epoch / period_us;
+                uint64_t remainder_us = offset_from_epoch % period_us;
+
+                // Log verification (remainder should be ~0 if epoch-aligned)
+                if (remainder_us > 1000) {  // >1ms remainder = not cycle-aligned
+                    ESP_LOGW(TAG, "CLIENT: Proposal not epoch-aligned (remainder=%lluus)", remainder_us);
+                } else {
+                    ESP_LOGI(TAG, "CLIENT: Proposal verified (transition at cycle %llu)", cycles_to_transition);
+                }
             }
 
             // Send acknowledgment to SERVER
@@ -776,6 +867,8 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 armed_epoch_us = proposal->client_epoch_us;
                 armed_cycle_ms = proposal->new_cycle_ms;
                 armed_active_ms = proposal->new_active_ms;
+                // Bug #82 fix: Store SERVER's epoch for CLIENT antiphase calculation
+                armed_server_epoch_us = proposal->server_epoch_us;
 
                 ESP_LOGI(TAG, "CLIENT: Mode change armed for epoch %llu", armed_epoch_us);
             } else {
@@ -796,20 +889,70 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             // CLIENT reports its activation timing for SERVER's independent drift verification
             const activation_report_t *report = &coord->payload.activation_report;
 
+            // AD043: Record T4 = SERVER's local time when SYNC_FB received
+            uint64_t t4_server_rx_time_us = esp_timer_get_time();
+
+            // PTP hardening: Log raw timestamps and path asymmetry for systematic error analysis
+            // T1 = SERVER send beacon, T2 = CLIENT receive beacon
+            // T3 = CLIENT send report, T4 = SERVER receive report
+            if (report->beacon_server_time_us > 0 && report->beacon_rx_time_us > 0) {
+                int64_t t1 = (int64_t)report->beacon_server_time_us;
+                int64_t t2 = (int64_t)report->beacon_rx_time_us;
+                int64_t t3 = (int64_t)report->report_tx_time_us;
+                int64_t t4 = (int64_t)t4_server_rx_time_us;
+
+                // NTP offset formula: offset = [(T2-T1) - (T4-T3)] / 2
+                // delay = [(T2-T1) + (T4-T3)] / 2  (this cancels clock offset, shows REAL delay)
+                int64_t raw_fwd_us = t2 - t1;         // Contaminated by clock offset
+                int64_t raw_rev_us = t4 - t3;         // Contaminated by clock offset
+                int64_t ntp_offset_us = (raw_fwd_us - raw_rev_us) / 2;  // Clock offset
+                int64_t one_way_delay_us = (raw_fwd_us + raw_rev_us) / 2;  // TRUE one-way delay
+
+                // REAL path asymmetry (offset-corrected):
+                // real_fwd = raw_fwd + offset = (raw_fwd + raw_rev)/2 = delay (same for both!)
+                // If NTP assumptions hold (symmetric paths), asymmetry should be ~0
+                // Non-zero asymmetry here indicates our 25ms bug source!
+                //
+                // Derivation: If real delays are D+A and D-A (asymmetric by 2A):
+                //   raw_fwd = D+A - X, raw_rev = D-A + X
+                //   delay = D (correct), offset_ntp = A - X (WRONG by A!)
+                // So we CANNOT detect asymmetry from a single exchange - it's baked into offset.
+                // But we can compare offset_ntp with EMA offset to detect asymmetry.
+                int64_t ema_offset_us = 0;
+                time_sync_get_clock_offset(&ema_offset_us);
+                int64_t offset_diff_us = ntp_offset_us - ema_offset_us;
+
+                // Log: delay_ms is the actual BLE latency, offset_diff shows if this sample differs from EMA
+                ESP_LOGI(TAG, "[PTP] delay=%lldms offset_ntp=%lldms ema=%lldms diff=%lldms",
+                         one_way_delay_us / 1000, ntp_offset_us / 1000,
+                         ema_offset_us / 1000, offset_diff_us / 1000);
+
+                // Process paired timestamps for offset update
+                esp_err_t paired_err = time_sync_update_from_paired_timestamps(t1, t2, t3, t4);
+                if (paired_err != ESP_OK) {
+                    ESP_LOGW(TAG, "[SYNC_FB] Paired timestamp update failed: %d", paired_err);
+                }
+            }
+
             // Get SERVER's motor epoch for independent calculation
             uint64_t server_epoch_us;
             uint32_t server_cycle_ms;
             esp_err_t err = time_sync_get_motor_epoch(&server_epoch_us, &server_cycle_ms);
 
             if (err == ESP_OK && server_cycle_ms > 0) {
-                // Bug #54b fix: Calculate cycles from actual timestamp, not cycle_number counter
-                // CLIENT should activate at: epoch + (N * cycle_period) + half_cycle
-                // Where N is derived from actual elapsed time, not CLIENT's counter
+                // AD045: Pattern-broadcast SYNC_FB - derive cycles from SERVER's time domain
+                //
+                // IMPORTANT: CLIENT's actual_time_us is already converted to SERVER's time domain
+                // via time_sync_get_time() which does: CLIENT_local - clock_offset
+                // So we can directly compare with server_epoch_us (SERVER's local time)
+                //
+                // CLIENT activates at: epoch + (N * cycle_period) + half_cycle
+                // Where N is the cycle number in SERVER's time domain
                 uint64_t half_cycle_us = ((uint64_t)server_cycle_ms * 1000ULL) / 2;
                 uint64_t cycle_period_us = (uint64_t)server_cycle_ms * 1000ULL;
 
-                // Derive which cycle this activation belongs to from actual timestamp
-                // Subtract half_cycle first since CLIENT activates at half-cycle offset
+                // Derive which cycle this activation belongs to from timestamp
+                // Both actual_time_us and server_epoch_us should be in SERVER's time domain
                 int64_t time_since_epoch_us = (int64_t)report->actual_time_us - (int64_t)server_epoch_us;
                 int64_t time_adjusted_us = time_since_epoch_us - (int64_t)half_cycle_us;
 
@@ -822,32 +965,152 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                                               ((uint64_t)cycles_elapsed * cycle_period_us) +
                                               half_cycle_us;
 
-                // SERVER's independent drift measurement
+                // SERVER's independent drift measurement (in SERVER time domain)
                 int64_t server_measured_drift_us = (int64_t)report->actual_time_us - (int64_t)expected_client_us;
                 int32_t server_measured_drift_ms = (int32_t)(server_measured_drift_us / 1000);
 
-                // Cross-check: Compare SERVER's calculation with CLIENT's self-report
-                int32_t discrepancy_ms = server_measured_drift_ms - report->client_error_ms;
+                // Calculate elapsed time from epoch for diagnostics
+                int64_t elapsed_since_epoch_ms = time_since_epoch_us / 1000;
 
-                // Log synchronization error feedback
-                // Format: [SYNC_FB] cycle=N(reported)/M(derived) client_err=Xms server_err=Yms delta=Zms
-                ESP_LOGI(TAG, "[SYNC_FB] cycle=%lu/%ld client_err=%ldms server_err=%ldms delta=%ldms",
+                // Enhanced diagnostic format:
+                // [SYNC_FB] cycle=N/M err=Xms elapsed=Yms
+                // N = CLIENT's counter, M = derived from timestamp, err = timing error, elapsed = time since epoch
+                ESP_LOGI(TAG, "[SYNC_FB] cycle=%lu/%ld err=%ldms elapsed=%ldms",
                          (unsigned long)report->cycle_number,
                          (long)cycles_elapsed,
-                         (long)report->client_error_ms,
                          (long)server_measured_drift_ms,
-                         (long)discrepancy_ms);
+                         (long)elapsed_since_epoch_ms);
 
-                // Warn if significant discrepancy between CLIENT and SERVER measurements
-                // This would indicate a time sync problem or calculation bug
-                if (discrepancy_ms > 50 || discrepancy_ms < -50) {
-                    ESP_LOGW(TAG, "[SYNC_FB] ALERT: Client/Server measurement discrepancy > 50ms!");
+                // Warn if cycle counter diverges significantly (indicates epoch or time domain issue)
+                int32_t cycle_divergence = (int32_t)report->cycle_number - (int32_t)cycles_elapsed;
+                if (cycle_divergence > 5 || cycle_divergence < -5) {
+                    ESP_LOGW(TAG, "[SYNC_FB] Cycle divergence=%ld (epoch may be stale or time domain mismatch)",
+                             (long)cycle_divergence);
+                }
+
+                // Warn if significant timing error
+                if (server_measured_drift_ms > 50 || server_measured_drift_ms < -50) {
+                    ESP_LOGW(TAG, "[SYNC_FB] ALERT: Timing error > 50ms!");
                 }
             } else {
                 // Fallback: Just log CLIENT's self-reported error
                 ESP_LOGI(TAG, "[SYNC_FB] cycle=%lu client_err=%ldms (no server epoch)",
                          (unsigned long)report->cycle_number,
                          (long)report->client_error_ms);
+            }
+            break;
+        }
+
+        case SYNC_MSG_REVERSE_PROBE: {
+            // IEEE 1588 bidirectional path measurement: SERVER handles CLIENT-initiated probe
+            // This enables detection of path asymmetry between SERVER→CLIENT and CLIENT→SERVER
+            //
+            // Flow (reverse direction from normal beacon):
+            // 1. CLIENT sends REVERSE_PROBE with T1' (client send time)
+            // 2. SERVER receives here, records T2' immediately
+            // 3. SERVER sends REVERSE_PROBE_RESPONSE with T2', T3' just before BLE send
+            // 4. CLIENT receives, records T4', calculates reverse offset
+            //
+            // By comparing forward offset (from beacons) with reverse offset (from probes),
+            // we can detect systematic BLE path asymmetry causing the ~36ms systematic error
+            const reverse_probe_t *probe = &coord->payload.reverse_probe;
+
+            // T2': SERVER's local time when probe received - record IMMEDIATELY
+            uint64_t t2_prime_us = esp_timer_get_time();
+
+            ESP_LOGI(TAG, "[REV_PROBE] seq=%lu T1'=%llu T2'=%llu",
+                     (unsigned long)probe->probe_sequence,
+                     (unsigned long long)probe->client_send_time_us,
+                     (unsigned long long)t2_prime_us);
+
+            // Send response with T2', T3' - T3' recorded right before BLE send
+            uint64_t t3_prime_us = esp_timer_get_time();  // T3': As close to BLE send as possible
+
+            coordination_message_t response = {
+                .type = SYNC_MSG_REVERSE_PROBE_RESPONSE,
+                .timestamp_ms = (uint32_t)(t3_prime_us / 1000),
+                .payload.reverse_probe_response = {
+                    .client_send_time_us = probe->client_send_time_us,  // Echo T1'
+                    .server_recv_time_us = t2_prime_us,                 // T2'
+                    .server_send_time_us = t3_prime_us,                 // T3'
+                    .probe_sequence = probe->probe_sequence             // Echo sequence
+                }
+            };
+
+            esp_err_t err = ble_send_coordination_message(&response);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "[REV_PROBE] Failed to send response: %s", esp_err_to_name(err));
+            }
+            break;
+        }
+
+        case SYNC_MSG_REVERSE_PROBE_RESPONSE: {
+            // CLIENT receives SERVER's response to reverse probe
+            // Calculate reverse offset and compare with forward offset
+            const reverse_probe_response_t *resp = &coord->payload.reverse_probe_response;
+
+            // T4': CLIENT's local time when response received - record IMMEDIATELY
+            uint64_t t4_prime_us = esp_timer_get_time();
+
+            int64_t t1 = (int64_t)resp->client_send_time_us;   // T1': CLIENT send
+            int64_t t2 = (int64_t)resp->server_recv_time_us;   // T2': SERVER recv
+            int64_t t3 = (int64_t)resp->server_send_time_us;   // T3': SERVER send
+            int64_t t4 = (int64_t)t4_prime_us;                 // T4': CLIENT recv
+
+            // NTP offset formula (reverse direction):
+            // reverse_offset = [(T2'-T1') - (T4'-T3')] / 2
+            //
+            // BUG FIX: This gives SERVER_clock - CLIENT_clock (OPPOSITE of forward!)
+            // Proof: T2'-T1' = (SERVER+d) - CLIENT = SERVER-CLIENT+d
+            //        T4'-T3' = CLIENT - (SERVER+d) = CLIENT-SERVER-d
+            //        reverse = [(S-C+d) - (C-S-d)]/2 = [2(S-C)+2d]/2 ≈ SERVER-CLIENT
+            //
+            // Forward offset (EMA) = CLIENT_clock - SERVER_clock
+            // Reverse offset = SERVER_clock - CLIENT_clock (opposite sign convention!)
+            int64_t raw_fwd_prime_us = t2 - t1;  // T2' - T1' (contaminated by offset)
+            int64_t raw_rev_prime_us = t4 - t3;  // T4' - T3' (contaminated by offset)
+            int64_t reverse_offset_us = (raw_fwd_prime_us - raw_rev_prime_us) / 2;
+            int64_t reverse_delay_us = (raw_fwd_prime_us + raw_rev_prime_us) / 2;
+
+            // Get current forward offset (from EMA filter)
+            // Convention: forward_offset = CLIENT_clock - SERVER_clock
+            int64_t forward_offset_us = 0;
+            time_sync_get_clock_offset(&forward_offset_us);
+
+            // Path asymmetry = forward_offset + reverse_offset (NOT minus!)
+            // Since they have opposite sign conventions, they should sum to ~0 if symmetric.
+            // forward = C-S, reverse = S-C, so: (C-S) + (S-C) = 0 if no asymmetry
+            // Non-zero sum indicates systematic BLE path difference (asymmetric delays)
+            int64_t asymmetry_us = forward_offset_us + reverse_offset_us;
+
+            // Calculate RTT for quality filtering
+            int64_t rtt_us = reverse_delay_us * 2;
+
+            ESP_LOGI(TAG, "[REV_PROBE_RESP] seq=%lu fwd=%lldms rev=%lldms asym=%lldms RTT=%lldms",
+                     (unsigned long)resp->probe_sequence,
+                     forward_offset_us / 1000,
+                     reverse_offset_us / 1000,
+                     asymmetry_us / 1000,
+                     rtt_us / 1000);
+
+            // Update asymmetry correction (v0.6.97)
+            // This applies to time_sync_get_time() for CLIENT motor timing
+            esp_err_t asym_err = time_sync_update_asymmetry(asymmetry_us, rtt_us);
+            if (asym_err == ESP_OK) {
+                // Get updated asymmetry for logging
+                int64_t filtered_asym_us = 0;
+                bool asym_valid = false;
+                time_sync_get_asymmetry(&filtered_asym_us, &asym_valid);
+                ESP_LOGI(TAG, "[ASYM] Updated EMA=%lldms correction=%lldms valid=%d",
+                         filtered_asym_us / 1000,
+                         filtered_asym_us / 2000,
+                         asym_valid);
+            }
+
+            // Large asymmetry indicates systematic BLE path difference
+            // ~50ms asymmetry at 0.5Hz = 2.5% phase error
+            if (asymmetry_us > 30000 || asymmetry_us < -30000) {  // > 30ms
+                ESP_LOGW(TAG, "[REV_PROBE] PATH ASYMMETRY: %lldms!", asymmetry_us / 1000);
             }
             break;
         }
@@ -919,9 +1182,7 @@ static void perform_periodic_update(void)
         // Monitors RX queue depth, HCI buffers, connection stats to identify notification buffering issues
         ble_log_diagnostics();
 
-        // SERVER: Trigger back-EMF logging to verify bilateral timing (mirror CLIENT behavior)
-        // This allows comparing motor timings on both devices simultaneously
-        motor_trigger_beacon_bemf_logging();
+        // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     }
 }
 

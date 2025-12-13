@@ -25,9 +25,9 @@
  * - Timer: LEDC Timer 0
  * - Mode: High-speed mode
  *
- * Safety Limits (per AD031):
- * - Minimum PWM: 30% (prevents motor damage from undervoltage)
- * - Maximum PWM: 80% (prevents excessive stimulation and overheating)
+ * Safety Limits:
+ * - Minimum PWM: 0% (LED-only mode, no motor activation)
+ * - Maximum PWM: 100% (allows dynamic intensity boosting for short pulses)
  *
  * @date November 11, 2025
  * @author Claude Code (Anthropic)
@@ -72,7 +72,7 @@ extern "C" {
  * @brief PWM intensity limits (percentage)
  */
 #define MOTOR_PWM_MIN           0       /**< Minimum PWM % (0% = LED-only mode, no motor) */
-#define MOTOR_PWM_MAX           80      /**< Maximum PWM % (safety limit per AD031) */
+#define MOTOR_PWM_MAX           100     /**< Maximum PWM % (allows dynamic intensity boosting) */
 #define MOTOR_PWM_DEFAULT       60      /**< Default PWM % (comfortable intensity) */
 
 // ============================================================================
@@ -96,7 +96,7 @@ esp_err_t motor_init(void);
 
 /**
  * @brief Set motor forward PWM
- * @param intensity_percent PWM intensity percentage (30-80%)
+ * @param intensity_percent PWM intensity percentage (0-100%)
  * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  * @return ESP_OK on success, error code on failure
  *
@@ -104,7 +104,7 @@ esp_err_t motor_init(void);
  * - IN1 (GPIO18) = PWM at specified intensity
  * - IN2 (GPIO19) = LOW (0%)
  *
- * Intensity is clamped to safety limits (30-80%)
+ * Intensity is clamped to limits (0-100%)
  * Values outside range are automatically adjusted
  *
  * Thread-safe: Can be called from any task
@@ -113,7 +113,7 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging);
 
 /**
  * @brief Set motor reverse PWM
- * @param intensity_percent PWM intensity percentage (30-80%)
+ * @param intensity_percent PWM intensity percentage (0-100%)
  * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  * @return ESP_OK on success, error code on failure
  *
@@ -121,7 +121,7 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging);
  * - IN2 (GPIO19) = PWM at specified intensity
  * - IN1 (GPIO18) = LOW (0%)
  *
- * Intensity is clamped to safety limits (30-80%)
+ * Intensity is clamped to limits (0-100%)
  * Values outside range are automatically adjusted
  *
  * Thread-safe: Can be called from any task
@@ -145,7 +145,7 @@ void motor_coast(bool verbose_logging);
 
 /**
  * @brief Get current PWM intensity setting
- * @return Current intensity percentage (30-80%)
+ * @return Current intensity percentage (0-100%)
  *
  * Returns the last configured PWM intensity
  * Does not indicate which direction is active

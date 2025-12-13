@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 65  // Bug #54a/b: Fix activation report timing (CLIENT after wait, SERVER cycle calc)
+#define FIRMWARE_VERSION_PATCH 104  // Bug #84: Mode 4 frequency change desync
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
