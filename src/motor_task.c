@@ -1266,6 +1266,13 @@ void motor_task(void *pvParameters) {
                                      role_str, current_time_us);
                             ESP_LOGI(TAG, "Mode: %s (synchronized)", modes[current_mode].name);
 
+                            // Bug #92 fix: Recalculate timing for new mode IMMEDIATELY
+                            // Without this, CLIENT skips to ACTIVE with OLD mode's motor_on_ms
+                            calculate_mode_timing(current_mode, &motor_on_ms, &active_coast_ms,
+                                                  &inactive_ms, &pwm_intensity, sample_backemf);
+                            ESP_LOGI(TAG, "Timing recalculated: on=%lums coast=%lums inactive=%lums",
+                                     motor_on_ms, active_coast_ms, inactive_ms);
+
                             // AD045: SERVER updates motor_epoch for instant antiphase coordination
                             // Bug #49 fix: CLIENT must NOT update epoch (only SERVER is authoritative)
                             // Bug #82 fix: CLIENT sets epoch from proposal for immediate antiphase

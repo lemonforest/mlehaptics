@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 112  // Bug #91: SERVER uses epoch-anchored timing (prevents drift)
+#define FIRMWARE_VERSION_PATCH 113  // Bug #92: Recalculate timing immediately after mode change
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
