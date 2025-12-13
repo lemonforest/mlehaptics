@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 114  // Bug #93: Use LOCAL time for cycle_start_ms (time domain fix)
+#define FIRMWARE_VERSION_PATCH 115  // Bug #94a: Fix CLIENT coordinated start time domain (SYNC vs LOCAL)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

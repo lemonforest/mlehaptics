@@ -954,9 +954,12 @@ void motor_task(void *pvParameters) {
                                 // Antiphase was already pre-calculated and waited for in coordinated start
                                 client_skip_inactive_wait = true;
 
-                                // Bug #90 fix: Set epoch-anchored cycle start for ACTIVE state
-                                // actual_start_us is already in local time (from esp_timer_get_time)
-                                client_epoch_cycle_start_ms = (uint32_t)(actual_start_us / 1000);
+                                // Bug #94a fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
+                                // actual_start_us is SYNC TIME from time_sync_get_time(), NOT local time!
+                                // delay_until_target_ms() uses esp_timer (LOCAL time domain)
+                                // Mixing domains causes target to appear in past → short activations
+                                client_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                                ESP_LOGI(TAG, "CLIENT: cycle_start set to %lu ms (local time)", client_epoch_cycle_start_ms);
                             }
 
                             /* Phase 6: SERVER sends immediate motor epoch notification
