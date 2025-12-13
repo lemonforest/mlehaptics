@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 107  // Bug #87: Stale timer message causes short motor ON duration
+#define FIRMWARE_VERSION_PATCH 109  // Bug #88b: Also clear pending timer message before ACTIVE
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

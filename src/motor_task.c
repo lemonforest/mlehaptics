@@ -1864,6 +1864,23 @@ void motor_task(void *pvParameters) {
                     // Log CLIENT activation for manual sync verification (matches SERVER logging)
                     ESP_LOGI(TAG, "CLIENT: Cycle starts ACTIVE (antiphase to SERVER)");
 
+                    // Bug #88: Stop hardware timer AND clear any pending message before ACTIVE
+                    // Race condition: timer fires AFTER polling exits but BEFORE we stop it
+                    // Result: MSG_TIMER_MOTOR_TRANSITION in queue causes early motor-off
+                    if (client_motor_timer != NULL) {
+                        // Stop timer if still pending
+                        if (esp_timer_is_active(client_motor_timer)) {
+                            esp_timer_stop(client_motor_timer);
+                        }
+                        // Clear any timer message that already fired (race condition)
+                        task_message_t stale_msg;
+                        if (xQueuePeek(button_to_motor_queue, &stale_msg, 0) == pdPASS) {
+                            if (stale_msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                                xQueueReceive(button_to_motor_queue, &stale_msg, 0);
+                            }
+                        }
+                    }
+
                     // Bug #79: CLIENT must check LED timer (doesn't visit CHECK_MESSAGES)
                     // SERVER checks LED in CHECK_MESSAGES every cycle, but CLIENT bypasses it
                     // after first cycle (INACTIVE -> ACTIVE -> INACTIVE -> ... loop).
