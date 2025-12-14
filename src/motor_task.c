@@ -1279,21 +1279,19 @@ void motor_task(void *pvParameters) {
                             // AD045: SERVER updates motor_epoch for instant antiphase coordination
                             // Bug #49 fix: CLIENT must NOT update epoch (only SERVER is authoritative)
                             // Bug #82 fix: CLIENT sets epoch from proposal for immediate antiphase
-                            // Bug #93 fix: Use LOCAL time (esp_timer) for cycle_start_ms
-                            // The epoch is in SYNC TIME - used for coordinating WHEN to execute
-                            // But delay_until_target_ms() uses esp_timer (LOCAL time)
-                            // Mixing time domains causes target to appear in the past → short activations
-                            uint32_t local_now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                            // Bug #94b fix: Don't set cycle_start here - let ACTIVE use fresh time
 
                             if (role == PEER_ROLE_SERVER) {
                                 // SERVER: Set motor_epoch to its own start time
                                 time_sync_set_motor_epoch(armed_epoch_us, armed_cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Motor epoch updated to %llu (cycle=%lu ms)",
                                          armed_epoch_us, armed_cycle_ms);
-                                // Bug #93 fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
-                                server_epoch_cycle_start_ms = local_now_ms;
+                                // Bug #94b fix: DON'T set server_epoch_cycle_start_ms here!
+                                // Mode change execution happens BEFORE ACTIVE state runs.
+                                // If we set cycle_start now, it's stale by the time ACTIVE uses it.
+                                // Let ACTIVE use fresh esp_timer_get_time() for first cycle.
+                                // INACTIVE will set epoch-anchored timing for subsequent cycles.
                                 server_cycle_count = 0;  // Reset cycle count on mode change
-                                ESP_LOGI(TAG, "SERVER: cycle_start set to %lu ms (local time)", server_epoch_cycle_start_ms);
                             } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
                                 // Bug #82 fix: CLIENT sets motor_epoch from proposal
                                 // Without this, CLIENT uses old epoch for antiphase calculation
@@ -1307,10 +1305,11 @@ void motor_task(void *pvParameters) {
                                 // Going to INACTIVE and recalculating would add an extra cycle delay
                                 client_skip_inactive_wait = true;
 
-                                // Bug #93 fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
-                                // Previous code converted sync→local but offset was stale/wrong
-                                client_epoch_cycle_start_ms = local_now_ms;
-                                ESP_LOGI(TAG, "CLIENT: cycle_start set to %lu ms (local time)", client_epoch_cycle_start_ms);
+                                // Bug #94b fix: DON'T set client_epoch_cycle_start_ms here!
+                                // Mode change execution happens BEFORE ACTIVE state runs.
+                                // If we set cycle_start now, it's stale by the time ACTIVE uses it.
+                                // Let ACTIVE use fresh esp_timer_get_time() for first cycle.
+                                // INACTIVE will set epoch-anchored timing for subsequent cycles.
                             }
 
                             // Bug #80 fix: Reset CLIENT cycle counter on mode change
@@ -1398,6 +1397,22 @@ void motor_task(void *pvParameters) {
                     }
                 }
 
+                // Don't transition to ACTIVE if shutting down
+                if (state == MOTOR_STATE_SHUTDOWN) {
+                    break;
+                }
+
+                // Bug #50 fix: Pause motors during mode change arming
+                // Both devices enter PAUSED state until synchronized epoch is reached
+                // This prevents CLIENT from running NEW pattern while SERVER runs OLD pattern
+                // Bug #94c fix: Check armed BEFORE calculate_mode_timing to avoid log spam
+                // Previously, calculate_mode_timing was called every 50ms during armed wait
+                if (mode_change_armed) {
+                    ESP_LOGD(TAG, "Motors paused (mode change armed for epoch %llu)", armed_epoch_us);
+                    vTaskDelay(pdMS_TO_TICKS(50));  // Wait and check again
+                    continue;  // Stay in CHECK_MESSAGES
+                }
+
                 // Bug #53 fix: Calculate timing AFTER mode change execution
                 // Bug #52 incorrectly placed this BEFORE message handling, meaning timing was
                 // calculated from OLD current_mode before mode change updated it.
@@ -1436,20 +1451,6 @@ void motor_task(void *pvParameters) {
                 if (beacon_bemf_logging_active && ((now - beacon_bemf_start_ms) >= LED_INDICATION_TIME_MS)) {
                     beacon_bemf_logging_active = false;
                     ESP_LOGI(TAG, "Beacon BEMF logging complete (10s window ended)");
-                }
-
-                // Don't transition to ACTIVE if shutting down
-                if (state == MOTOR_STATE_SHUTDOWN) {
-                    break;
-                }
-
-                // Bug #50 fix: Pause motors during mode change arming
-                // Both devices enter PAUSED state until synchronized epoch is reached
-                // This prevents CLIENT from running NEW pattern while SERVER runs OLD pattern
-                if (mode_change_armed) {
-                    ESP_LOGD(TAG, "Motors paused (mode change armed for epoch %llu)", armed_epoch_us);
-                    vTaskDelay(pdMS_TO_TICKS(50));  // Wait and check again
-                    continue;  // Stay in CHECK_MESSAGES
                 }
 
                 // AD045: Synchronized Independent Operation

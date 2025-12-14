@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 115  // Bug #94a: Fix CLIENT coordinated start time domain (SYNC vs LOCAL)
+#define FIRMWARE_VERSION_PATCH 116  // Bug #94b/c: Fix stale cycle_start + log spam during mode change
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
