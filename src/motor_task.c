@@ -1157,8 +1157,17 @@ void motor_task(void *pvParameters) {
 
                         if (new_mode != current_mode) {
                             ESP_LOGI(TAG, "Mode change requested: %s → %s", modes[current_mode].name, modes[new_mode].name);
-                            led_indication_active = true;
-                            led_indication_start_ms = now;
+
+                            // Bug #97 fix: Don't activate LED indication here if time sync active
+                            // When synchronized, mode change is ARMED for later execution (2s delay).
+                            // If LED indication activates now, CLIENT shows OLD mode color until
+                            // mode change executes. LED indication will activate at line 1328
+                            // when mode change actually executes.
+                            // Only activate LED immediately for standalone (non-synchronized) mode.
+                            if (!TIME_SYNC_IS_ACTIVE()) {
+                                led_indication_active = true;
+                                led_indication_start_ms = now;
+                            }
                             last_mode_change_ms = now;
 
                             // AD044: Cancel CLIENT timer on mode change (will be re-armed with new timing)

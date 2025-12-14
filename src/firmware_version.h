@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 118  // Bug #96: Update motor_epoch to actual start time after mode change
+#define FIRMWARE_VERSION_PATCH 119  // Bug #97: Delay LED indication until mode change executes (not arming)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

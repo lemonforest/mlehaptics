@@ -114,6 +114,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Note**: Duty cycle changes don't need this - duty only affects motor ON time within fixed cycle
 - **Files Modified**: `src/ble_manager.c`, `src/ble_manager.h`, `src/time_sync_task.c`
 
+**Bug #97: CLIENT LED Shows Old Mode Color at Mode Change Boundary (v0.6.119)**:
+- **Symptom**: CLIENT LED activates too soon at mode change, showing OLD mode color for last pulse
+  - LED turns on when mode change is REQUESTED (arming phase)
+  - But mode change doesn't EXECUTE until ~2 seconds later (synchronized epoch)
+  - CLIENT continues OLD pattern with LED active → shows OLD mode color
+- **Root Cause**: `led_indication_active = true` set at mode change REQUEST (line 1160)
+  - Should only activate when mode change EXECUTES (line 1328)
+  - Two-phase commit means 2s delay between REQUEST and EXECUTE
+  - During delay, CLIENT still running OLD mode but LED is on
+- **Fix**: Only set `led_indication_active` at REQUEST time when NOT synchronized
+  - Added `if (!TIME_SYNC_IS_ACTIVE())` guard around immediate LED activation
+  - When synchronized, LED indication activates at EXECUTE time (existing line 1328)
+  - Standalone mode still gets immediate LED feedback
+- **Files Modified**: `src/motor_task.c` (lines 1161-1170)
+
 **Bug #96: Short Motor Activations After Mode Change (v0.6.118)**:
 - **Symptom**: After mode change, cycles 2-4 have very short motor activations (~0-10ms instead of 63-84ms)
   - SERVER's second activation is nearly instant (motor coasts immediately)
