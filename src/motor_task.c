@@ -1237,6 +1237,8 @@ void motor_task(void *pvParameters) {
                                     // Standalone (no peer): Change mode immediately
                                     current_mode = new_mode;
                                     ESP_LOGI(TAG, "Mode: %s (standalone)", modes[current_mode].name);
+                                    // Bug #102: Notify PWA of mode change (standalone case)
+                                    ble_update_mode(new_mode);
                                 }
                             }
                         }
@@ -1277,6 +1279,8 @@ void motor_task(void *pvParameters) {
                             ESP_LOGI(TAG, "%s: Synchronized mode change executed at epoch %llu",
                                      role_str, current_time_us);
                             ESP_LOGI(TAG, "Mode: %s (synchronized)", modes[current_mode].name);
+                            // Bug #102: Notify PWA of mode change (synchronized case)
+                            ble_update_mode(armed_new_mode);
 
                             // Bug #92 fix: Recalculate timing for new mode IMMEDIATELY
                             // Without this, CLIENT skips to ACTIVE with OLD mode's motor_on_ms
@@ -1351,8 +1355,18 @@ void motor_task(void *pvParameters) {
                 if (ble_params_updated) {
                     ble_params_updated = false;  // Clear flag
 
-                    // Calculate current cycle period
-                    uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                    // Bug #101: Get FRESH cycle period from BLE, not stale local variables
+                    // Local vars (motor_on_ms, active_coast_ms, inactive_ms) are set at cycle START
+                    // and don't reflect mid-cycle BLE changes. Must calculate fresh from BLE.
+                    uint32_t cycle_ms;
+                    if (current_mode == MODE_CUSTOM) {
+                        // Mode 4: Calculate from current BLE frequency
+                        uint16_t freq_x100 = ble_get_custom_frequency_hz();
+                        cycle_ms = 100000 / freq_x100;  // Fresh from BLE
+                    } else {
+                        // Other modes: Use local variables (they don't change mid-cycle)
+                        cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                    }
                     bool cycle_changed = (cycle_ms != prev_cycle_ms && prev_cycle_ms != 0);
 
                     // If SERVER in MODE_CUSTOM, check if cycle period changed

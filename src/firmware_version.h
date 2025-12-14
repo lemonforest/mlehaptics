@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 120  // Bug #98/#99: Fix CLIENT first cycle truncation + beacon warning log level
+#define FIRMWARE_VERSION_PATCH 121  // Bug #101/#102: Mode 4 timing + PWA mode notifications when paired
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
