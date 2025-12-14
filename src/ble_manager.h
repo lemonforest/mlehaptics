@@ -230,6 +230,20 @@ bool ble_is_connected(void);
 bool ble_is_peer_connected(void);
 
 /**
+ * @brief Check and clear pending frequency change for debounced sync (Bug #95)
+ * @param debounce_ms Debounce time in milliseconds (300ms recommended)
+ * @return true if frequency change is ready for coordinated sync, false otherwise
+ *
+ * Called by time_sync_task to check if a Mode 4 frequency change has settled.
+ * Returns true (and clears pending flag) if:
+ * - A frequency change is pending AND
+ * - At least debounce_ms has elapsed since last change
+ *
+ * Used to trigger AD045 mode change protocol after slider drag ends.
+ */
+bool ble_check_and_clear_freq_change_pending(uint32_t debounce_ms);
+
+/**
  * @brief Get connection type string for logging (Phase 1b)
  * @return "Peer" if peer connected, "App" if mobile app connected, "Disconnected" if no connection
  *

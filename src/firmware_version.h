@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 116  // Bug #94b/c: Fix stale cycle_start + log spam during mode change
+#define FIRMWARE_VERSION_PATCH 117  // Bug #95: Debounced Mode 4 frequency change triggers coordinated sync
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

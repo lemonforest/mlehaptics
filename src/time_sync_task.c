@@ -321,6 +321,25 @@ static void time_sync_task(void *arg)
          * perform_periodic_update() handle normal interval beacons.
          */
 
+        // Bug #95: Debounced frequency change triggers coordinated mode change
+        // When PWA user drags frequency slider, we debounce 300ms then trigger
+        // AD045 two-phase commit mode change to resynchronize both devices.
+        // Only SERVER initiates mode changes (button press equivalent).
+        if (TIME_SYNC_IS_SERVER() && ble_check_and_clear_freq_change_pending(300)) {
+            ESP_LOGI(TAG, "Bug #95: Frequency change settled - triggering coordinated mode change");
+
+            // Send MSG_MODE_CHANGE to motor_task (same as button press)
+            // Motor task will execute AD045 protocol to sync with CLIENT
+            task_message_t msg = {
+                .type = MSG_MODE_CHANGE,
+                .data.new_mode = MODE_CUSTOM  // Re-arm Mode 4 with new frequency
+            };
+
+            if (xQueueSend(button_to_motor_queue, &msg, 0) != pdTRUE) {
+                ESP_LOGW(TAG, "Failed to queue frequency change mode update");
+            }
+        }
+
         // Periodic update check
         TickType_t now = xTaskGetTickCount();
         if ((int32_t)(now - next_update_time) >= 0) {

@@ -285,6 +285,13 @@ static ble_advertising_state_t adv_state = {
 // Settings dirty flag (thread-safe via char_data_mutex)
 static bool settings_dirty = false;
 
+// Bug #95: Debounced frequency change for Mode 4 (AD047 Phase 1 stepping stone)
+// When frequency changes via BLE slider, we debounce before triggering coordinated sync
+// This prevents rapid mode changes during slider drag while ensuring eventual sync
+#define FREQ_CHANGE_DEBOUNCE_MS 300  // Wait 300ms after last change before sync
+static bool freq_change_pending = false;
+static uint32_t freq_change_timestamp_ms = 0;
+
 // ============================================================================
 // BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
 // ============================================================================
@@ -688,7 +695,19 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
     ble_callback_params_updated();
 
     // Phase 3a: Sync ALL settings to peer device (coordination message)
+    // This syncs the VALUE immediately so both devices have same frequency
     sync_settings_to_peer();
+
+    // Bug #95: Set pending flag for debounced coordinated mode change
+    // When user drags slider, we get many rapid changes. We debounce to avoid
+    // triggering mode change protocol for each slider position.
+    // time_sync_task checks this flag and triggers mode change after 300ms idle.
+    // Only applies when we're in Mode 4 (Custom) AND peer is connected.
+    if (ble_get_current_mode() == MODE_CUSTOM && ble_is_peer_connected()) {
+        freq_change_pending = true;
+        freq_change_timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
+        ESP_LOGI(TAG, "Frequency change pending (debounce started)");
+    }
 
     return 0;
 }
@@ -4266,6 +4285,26 @@ bool ble_is_peer_connected(void) {
 
     struct ble_gap_conn_desc desc;
     return (ble_gap_conn_find(peer_state.peer_conn_handle, &desc) == 0);
+}
+
+bool ble_check_and_clear_freq_change_pending(uint32_t debounce_ms) {
+    // Bug #95: Check if frequency change has settled (debounce expired)
+    if (!freq_change_pending) {
+        return false;
+    }
+
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t elapsed = now_ms - freq_change_timestamp_ms;
+
+    if (elapsed >= debounce_ms) {
+        // Debounce expired - clear flag and return true to trigger mode change
+        freq_change_pending = false;
+        ESP_LOGI(TAG, "Frequency change debounce complete (elapsed=%lu ms) - triggering sync", elapsed);
+        return true;
+    }
+
+    // Still within debounce window
+    return false;
 }
 
 static bool ble_is_app_connected(void) {

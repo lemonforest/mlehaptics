@@ -93,6 +93,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+**Bug #95: Mode 4 Frequency Changes Need Coordinated Sync (v0.6.117)**:
+- **Symptom**: When PWA user drags frequency slider in Mode 4, devices desync
+  - Each slider position change sends BLE write immediately
+  - Without coordination, only frequency VALUE is synced (via Phase 3a settings sync)
+  - Motor patterns continue at old timing until manual mode cycle
+- **Root Cause**: Mode 4 frequency changes weren't triggering AD045 coordinated mode change
+  - Bug #84 fixed CLIENT desync AFTER mode change
+  - But frequency changes weren't triggering mode change protocol at all
+  - Settings sync updates VALUE; mode change updates TIMING
+- **Solution**: Debounced frequency change triggers coordinated mode change (AD047 stepping stone)
+  - 300ms debounce window handles rapid slider drag gracefully
+  - After debounce settles, SERVER triggers MSG_MODE_CHANGE to motor_task
+  - Motor task executes AD045 two-phase commit to resync both devices
+- **Implementation**:
+  - Added `freq_change_pending` flag and `freq_change_timestamp_ms` in ble_manager.c
+  - Added `ble_check_and_clear_freq_change_pending()` API in ble_manager.h
+  - time_sync_task checks debounce periodically (SERVER only)
+  - On debounce expiry, sends MSG_MODE_CHANGE with MODE_CUSTOM to motor_task
+- **Note**: Duty cycle changes don't need this - duty only affects motor ON time within fixed cycle
+- **Files Modified**: `src/ble_manager.c`, `src/ble_manager.h`, `src/time_sync_task.c`
+
 **Bug #84: Mode 4 Frequency Changes Cause CLIENT Desync (v0.6.104)**:
 - **Symptom**: When changing frequency within Mode 4 (via PWA), CLIENT gets severely out of sync
   - Desync persists until mode switch away and back to Mode 4
