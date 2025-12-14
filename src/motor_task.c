@@ -1524,6 +1524,20 @@ void motor_task(void *pvParameters) {
                     cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
                 }
 
+                // Bug #96 fix: Update motor_epoch when SERVER's first cycle actually starts
+                // After mode change, motor_epoch is set to PROPOSED time (500ms before execution).
+                // Bug #94b correctly uses fresh time for first cycle, but INACTIVE calculates
+                // next cycle targets from motor_epoch. If motor_epoch is 500ms in the past,
+                // the calculated target for cycle 2 is already past when we reach it.
+                // Fix: When SERVER's first cycle starts (server_cycle_count==0), update
+                // motor_epoch to actual cycle_start_ms so INACTIVE calculations are correct.
+                if (active_role == PEER_ROLE_SERVER && server_cycle_count == 0) {
+                    uint64_t actual_epoch_us = (uint64_t)cycle_start_ms * 1000ULL;
+                    uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                    time_sync_set_motor_epoch(actual_epoch_us, cycle_ms);
+                    ESP_LOGI(TAG, "Bug #96: SERVER motor_epoch updated to actual start %lu ms", cycle_start_ms);
+                }
+
                 // AD045: Motor epoch is set once at coordinated start, not updated every cycle
                 // CLIENT calculates target times from the ORIGINAL epoch
                 // Per-cycle updates would break synchronized independent operation

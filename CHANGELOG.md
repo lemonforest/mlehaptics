@@ -114,6 +114,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Note**: Duty cycle changes don't need this - duty only affects motor ON time within fixed cycle
 - **Files Modified**: `src/ble_manager.c`, `src/ble_manager.h`, `src/time_sync_task.c`
 
+**Bug #96: Short Motor Activations After Mode Change (v0.6.118)**:
+- **Symptom**: After mode change, cycles 2-4 have very short motor activations (~0-10ms instead of 63-84ms)
+  - SERVER's second activation is nearly instant (motor coasts immediately)
+  - Observable as brief motor pulses that don't provide proper tactile feedback
+- **Root Cause**: Motor epoch mismatch between proposed and actual execution time
+  - Mode change sets `motor_epoch` to PROPOSED time (500ms before execution)
+  - Bug #94b correctly uses fresh `esp_timer_get_time()` for first cycle
+  - INACTIVE calculates next cycle target: `motor_epoch + (cycle_count * cycle_period)`
+  - Since motor_epoch is ~500ms in the past, calculated target is already past
+  - `delay_until_target_ms()` returns immediately → motor coasts instantly
+- **Example Trace**:
+  - `motor_epoch = 25941170` (proposed from 500ms ago)
+  - First ACTIVE actually started at ~26388ms (fresh time)
+  - INACTIVE calculates: `25941170 + 667000 = 26608170` → target = 26608ms
+  - Second ACTIVE enters at 27058ms → target is 450ms in the PAST!
+- **Fix**: Update motor_epoch when SERVER's first cycle actually starts
+  - In ACTIVE state, when `server_cycle_count == 0`, update motor_epoch to actual `cycle_start_ms`
+  - INACTIVE calculations now anchor to correct starting point
+  - Subsequent cycles have valid future targets
+- **Files Modified**: `src/motor_task.c` (ACTIVE state, lines 1527-1539)
+
 **Bug #84: Mode 4 Frequency Changes Cause CLIENT Desync (v0.6.104)**:
 - **Symptom**: When changing frequency within Mode 4 (via PWA), CLIENT gets severely out of sync
   - Desync persists until mode switch away and back to Mode 4

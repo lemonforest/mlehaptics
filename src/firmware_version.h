@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 117  // Bug #95: Debounced Mode 4 frequency change triggers coordinated sync
+#define FIRMWARE_VERSION_PATCH 118  // Bug #96: Update motor_epoch to actual start time after mode change
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
