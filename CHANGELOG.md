@@ -129,6 +129,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Standalone mode still gets immediate LED feedback
 - **Files Modified**: `src/motor_task.c` (lines 1161-1170)
 
+**Bug #98: CLIENT First ACTIVE Cycle Truncated After Mode Change (v0.6.120)**:
+- **Symptom**: After rapid mode changes, CLIENT's first ACTIVE cycle is only ~10ms instead of full duration
+  - Motor starts then immediately coasts
+  - Observable as very brief pulse that doesn't match SERVER's timing
+- **Root Cause**: Stale `client_epoch_cycle_start_ms` from interrupted INACTIVE state
+  - CLIENT is in INACTIVE state, calculates target time for next cycle
+  - Rapid mode changes get armed and CLIENT stays in wait loop
+  - Mode change finally executes, sets `client_skip_inactive_wait = true`
+  - CHECK_MESSAGES goes directly to ACTIVE (skips INACTIVE)
+  - ACTIVE finds stale `client_epoch_cycle_start_ms > 0` from before mode change armed
+  - Uses stale value (which is now in the past) for `motor_off_target_ms`
+  - `delay_until_target_ms()` returns immediately → motor coasts after ~10ms
+- **Fix**: Clear epoch cycle start values when CLIENT executes mode change
+  - `client_epoch_cycle_start_ms = 0` clears stale INACTIVE target
+  - `notify_epoch_cycle_start_ms = 0` clears frequency change path too
+  - ACTIVE falls through to fresh `esp_timer_get_time()` for first cycle
+- **Files Modified**: `src/motor_task.c` (mode change execution, lines 1317-1324)
+
+**Bug #99: Misleading Beacon Warning for CLIENT During Mode Change (v0.6.120)**:
+- **Symptom**: CLIENT logs `W: Beacon trigger only valid for SERVER role` on every mode change
+  - Creates unnecessary alarm in logs
+  - Makes it look like something is wrong when it's expected behavior
+- **Root Cause**: `time_sync_trigger_forced_beacons()` called unconditionally on mode change
+  - `SYNC_MSG_MODE_CHANGE` handler calls this function for both SERVER and CLIENT
+  - Comment at line 558 says "This is expected on CLIENT (not an error)"
+  - But function itself uses `ESP_LOGW` (warning level) instead of `ESP_LOGD` (debug)
+- **Fix**: Change log level from WARNING to DEBUG
+  - CLIENT calling this is expected and harmless (function returns early)
+  - DEBUG level won't clutter logs at default verbosity
+- **Files Modified**: `src/time_sync.c` (line 1411-1413)
+
 **Bug #96: Short Motor Activations After Mode Change (v0.6.118)**:
 - **Symptom**: After mode change, cycles 2-4 have very short motor activations (~0-10ms instead of 63-84ms)
   - SERVER's second activation is nearly instant (motor coasts immediately)

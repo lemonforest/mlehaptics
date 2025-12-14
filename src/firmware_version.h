@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 119  // Bug #97: Delay LED indication until mode change executes (not arming)
+#define FIRMWARE_VERSION_PATCH 120  // Bug #98/#99: Fix CLIENT first cycle truncation + beacon warning log level
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

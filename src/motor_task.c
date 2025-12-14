@@ -1314,11 +1314,14 @@ void motor_task(void *pvParameters) {
                                 // Going to INACTIVE and recalculating would add an extra cycle delay
                                 client_skip_inactive_wait = true;
 
-                                // Bug #94b fix: DON'T set client_epoch_cycle_start_ms here!
-                                // Mode change execution happens BEFORE ACTIVE state runs.
-                                // If we set cycle_start now, it's stale by the time ACTIVE uses it.
-                                // Let ACTIVE use fresh esp_timer_get_time() for first cycle.
-                                // INACTIVE will set epoch-anchored timing for subsequent cycles.
+                                // Bug #98 fix: Clear stale epoch cycle start from interrupted INACTIVE
+                                // If CLIENT was in INACTIVE when mode change was armed, it may have
+                                // already calculated a target time for the next cycle. That value is
+                                // now stale (in the past) and would cause ACTIVE to use a past target,
+                                // resulting in immediate motor coast (~10ms instead of full duration).
+                                // Clearing this forces ACTIVE to use fresh esp_timer_get_time().
+                                client_epoch_cycle_start_ms = 0;
+                                notify_epoch_cycle_start_ms = 0;  // Also clear notify path
                             }
 
                             // Bug #80 fix: Reset CLIENT cycle counter on mode change

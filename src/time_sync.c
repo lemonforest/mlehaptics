@@ -1408,7 +1408,9 @@ esp_err_t time_sync_trigger_forced_beacons(void)
     }
 
     if (g_time_sync_state.role != TIME_SYNC_ROLE_SERVER) {
-        ESP_LOGW(TAG, "Beacon trigger only valid for SERVER role");
+        // Bug #99: Use LOGD instead of LOGW - CLIENT calling this is expected behavior
+        // when handling SYNC_MSG_MODE_CHANGE (see time_sync_task.c line 556 comment)
+        ESP_LOGD(TAG, "Beacon trigger only valid for SERVER role");
         return ESP_ERR_INVALID_STATE;
     }
 
