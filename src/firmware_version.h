@@ -2,11 +2,40 @@
  * @file firmware_version.h
  * @brief Firmware Version Information (AD040 - Simplified Phase 1)
  *
- * Provides firmware versioning for ensuring both devices run identical builds.
- * Version information is automatically embedded at compile time.
+ * @defgroup firmware_version Firmware Version Module
+ * @{
  *
- * @date November 22, 2025
- * @author Claude Code (Anthropic)
+ * @section fv_overview Overview
+ *
+ * Provides firmware versioning for ensuring both peer devices run identical builds.
+ * Version information is automatically embedded at compile time from platformio.ini.
+ *
+ * @section fv_arduino Arduino Developers: Why This Matters
+ *
+ * In Arduino, you typically don't worry about versioning - you just flash and go.
+ * For bilateral stimulation with two devices, **both must run the same firmware**:
+ * - Different timing constants = motors won't alternate properly
+ * - Different protocol versions = BLE messages won't parse correctly
+ * - Different mode definitions = modes mean different things on each device
+ *
+ * This module lets devices detect mismatched firmware and warn/refuse.
+ *
+ * @section fv_versioning Version Scheme
+ *
+ * | Component | Meaning | Example |
+ * |-----------|---------|---------|
+ * | Major | Breaking protocol changes | 0 (pre-release) |
+ * | Minor | Phase number | 6 (Phase 6 complete) |
+ * | Patch | Bug fix number | 122 (122nd fix) |
+ * | Build timestamp | Unique per compile | "Dec 14 2025 14:30:00" |
+ *
+ * Two devices match if: major.minor.patch AND build timestamp are identical.
+ *
+ * @see docs/adr/0040-firmware-version-checking.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef FIRMWARE_VERSION_H
@@ -30,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 57  // Phase 6t: Fast lock with coordinated start (1s lock, both devices synchronized)
+#define FIRMWARE_VERSION_PATCH 122  // Bug #103: First PWA frequency change now triggers sync
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
@@ -137,5 +166,7 @@ static inline void firmware_log_version(const char *tag, const char *prefix, fir
              version.build_date, version.build_time,
              version.check_enabled ? "ENABLED" : "DISABLED");
 }
+
+/** @} */ // end of firmware_version group
 
 #endif // FIRMWARE_VERSION_H

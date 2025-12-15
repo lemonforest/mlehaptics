@@ -230,7 +230,7 @@ if (disconnect_duration < pdMS_TO_TICKS(120000)) {
 - **AD026: BLE Automatic Role Recovery** - Immediate fallback behavior replaced with synchronized fallback phases
 
 ### Superseded By
-- **AD041: Predictive Bilateral Synchronization** - Validates Option A with drift-rate compensation. Motor control now uses predictive sync instead of command-and-control. Command-and-control retained for emergency features (shutdown, mode sync).
+- **[AD045: Synchronized Independent Operation](0045-synchronized-independent-bilateral-operation.md)** - Motor control uses epoch-based calculation without corrections. Both devices calculate transitions independently from synchronized motor_epoch (like Bluetooth audio). Command-and-control retained for mode changes (two-phase commit protocol) and emergency features only.
 
 ### Related
 - **AD029: Relaxed Timing Specification** - ±100ms tolerance enables command-and-control architecture

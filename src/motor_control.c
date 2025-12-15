@@ -57,9 +57,9 @@ static SemaphoreHandle_t motor_mutex = NULL;
 // ============================================================================
 
 /**
- * @brief Clamp PWM intensity to safety limits
+ * @brief Clamp PWM intensity to limits
  * @param intensity_percent Input intensity percentage
- * @return Clamped intensity (0-80%, 0% = LED-only mode)
+ * @return Clamped intensity (0-100%, 0% = LED-only mode)
  */
 static uint8_t clamp_intensity(uint8_t intensity_percent) {
     // Note: MOTOR_PWM_MIN is 0 (LED-only mode), so no minimum check needed
@@ -129,7 +129,7 @@ esp_err_t motor_init(void) {
         return ret;
     }
 
-    // Configure LEDC channel for IN1 (forward) - GPIO20
+    // Configure LEDC channel for IN1 (forward) - GPIO18 (MOVED from GPIO20)
     ledc_channel_config_t in1_cfg = {
         .gpio_num = GPIO_HBRIDGE_IN1,
         .speed_mode = MOTOR_PWM_MODE,

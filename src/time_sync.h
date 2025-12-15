@@ -2,29 +2,59 @@
  * @file time_sync.h
  * @brief Hybrid time synchronization for bilateral motor coordination
  *
- * This module implements a hybrid time synchronization protocol for coordinating
- * bilateral motor activation between two peer devices. The approach combines:
+ * @defgroup time_sync Time Synchronization Module
+ * @{
  *
- * 1. Initial connection sync - Capture common timestamp reference at connection
- * 2. Periodic sync beacons - SERVER sends time updates every 10-60s
- * 3. Timestamped commands - All motor commands include timing verification
+ * @section ts_overview Overview
  *
- * Design Goals:
- * - ±100ms timing accuracy (AD029 revised specification)
- * - Battery-efficient sync intervals with exponential backoff
- * - Graceful degradation during BLE disconnects
- * - Full JPL Power of Ten compliance
+ * This module implements a PTP-inspired (IEEE 1588) time synchronization protocol
+ * for coordinating bilateral motor activation between two ESP32-C6 peer devices.
+ * Achieves ±30 microseconds drift over 90-minute sessions using only BLE.
  *
- * JPL Compliance:
- * - Rule 1: Static allocation only (no malloc)
- * - Rule 2: Bounded loops (max iterations defined)
- * - Rule 3: vTaskDelay() for all timing (no busy-wait)
- * - Rule 5: Explicit error checking (all return codes checked)
- * - Rule 8: Watchdog integration for sync task
+ * @section ts_arduino Arduino Developers: Key Differences
  *
- * @version 0.3.0
- * @date 2025-11-19
- * @author Phase 2 Implementation
+ * | Arduino Way | ESP-IDF Way (This Code) |
+ * |-------------|-------------------------|
+ * | `millis()` | `esp_timer_get_time()` (microseconds, 64-bit) |
+ * | `delay()` | `vTaskDelay(pdMS_TO_TICKS(ms))` (FreeRTOS, non-blocking) |
+ * | Global variables | Structured state with mutex protection |
+ * | Single loop() | Multiple FreeRTOS tasks running concurrently |
+ * | BLE libraries | NimBLE stack with GATT services |
+ *
+ * @section ts_architecture Architecture
+ *
+ * The protocol uses a "pattern broadcast" approach inspired by emergency vehicle
+ * light bars (Feniex, Whelen). Instead of sending "activate NOW" commands:
+ *
+ * @code{.unparsed}
+ *   SERVER broadcasts: "Pattern epoch = T, period = 2000ms"
+ *   CLIENT calculates:  "I activate at T + 1000ms (antiphase)"
+ *   Both execute independently from shared reference
+ * @endcode
+ *
+ * This eliminates feedback oscillation and tolerates BLE dropouts gracefully.
+ *
+ * @section ts_protocol Protocol Layers
+ *
+ * 1. **Initial Handshake** - NTP-style 4-timestamp exchange for precise bootstrap
+ * 2. **Periodic Beacons** - SERVER sends one-way timestamps every 10-60s
+ * 3. **EMA Filter** - Smooths BLE jitter (30% fast-attack, 10% steady-state)
+ * 4. **Motor Epoch** - Shared timing reference for bilateral alternation
+ *
+ * @section ts_jpl JPL Coding Standard Compliance
+ *
+ * - **Rule 1:** Static allocation only (no malloc/free at runtime)
+ * - **Rule 2:** All loops have bounded iteration counts
+ * - **Rule 3:** All timing uses vTaskDelay() (no busy-wait spin loops)
+ * - **Rule 5:** Every function returns esp_err_t, caller must check
+ * - **Rule 8:** Task subscribes to watchdog, feeds regularly
+ *
+ * @see docs/adr/0043-filtered-time-synchronization.md
+ * @see docs/Bilateral_Time_Sync_Protocol_Technical_Report.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef TIME_SYNC_H
@@ -42,14 +72,20 @@ extern "C" {
  * CONSTANTS AND CONFIGURATION
  ******************************************************************************/
 
-/** @brief Time sync beacon message size (bytes) - Phase 6r reduced from 28 to 23 */
-#define TIME_SYNC_MSG_SIZE          (23U)
+/** @brief Time sync beacon message size (bytes) - Pattern-broadcast (AD045) expanded from 23 to 25 */
+#define TIME_SYNC_MSG_SIZE          (25U)
 
 /** @brief Minimum sync interval (milliseconds) - fast startup (Phase 6r) */
 #define TIME_SYNC_INTERVAL_MIN_MS   (1000U)     // 1 second (10× faster convergence)
 
 /** @brief Maximum sync interval (milliseconds) - steady state */
 #define TIME_SYNC_INTERVAL_MAX_MS   (60000U)    // 60 seconds
+
+/** @brief Minimum asymmetry samples before applying correction (v0.6.97) */
+#define TIME_SYNC_MIN_ASYMMETRY_SAMPLES (3U)    // Need 3 valid samples for reliable EMA
+
+/** @brief Maximum RTT for asymmetry sample to be valid (microseconds) */
+#define TIME_SYNC_ASYMMETRY_RTT_MAX_US  (80000U) // 80ms - reject congested samples
 
 /** @brief Sync interval step size for exponential backoff */
 #define TIME_SYNC_INTERVAL_STEP_MS  (10000U)    // 10 second increments
@@ -204,9 +240,9 @@ typedef struct {
     uint8_t  sync_sequence;          /**< Message sequence number (wraps at 255) */
     uint8_t  retry_count;            /**< Current retry attempt (bounded by MAX_RETRIES) */
 
-    /* Forced beacon state (mode change fast convergence) */
-    uint8_t  forced_beacon_count;    /**< Remaining forced beacons (3→0, triggers 500ms interval) */
-    uint32_t forced_beacon_next_ms;  /**< When next forced beacon should be sent */
+    /* Bug #62: Removed forced_beacon_count and forced_beacon_next_ms
+     * Beacon blasting doesn't help EMA convergence, single beacon suffices.
+     */
 
     /* Quality Metrics */
     time_sync_quality_t quality;     /**< Sync quality tracking */
@@ -234,28 +270,41 @@ typedef struct {
     uint32_t motor_cycle_ms;         /**< Current motor cycle period (e.g., 2000ms for Mode 0) */
     bool     motor_epoch_valid;      /**< Whether motor epoch has been set by SERVER */
 
-    /* Fix #2: Drift rate filtering (NTP best practice) */
-    uint64_t last_beacon_time_us;    /**< CLIENT: Time when last beacon was received */
-    int32_t  drift_rate_us_per_s;    /**< Filtered drift rate (μs/s) - positive = CLIENT faster */
-    bool     drift_rate_valid;       /**< Whether drift_rate_us_per_s has been calculated */
+    /* Beacon timestamp for NTP-style pairing */
+    uint64_t last_beacon_time_us;    /**< CLIENT: Time when last beacon was received (T2) */
+    /* AD045: drift_rate fields removed - EMA filter provides ±30μs accuracy */
+
+    /* IEEE 1588 Bidirectional Path Asymmetry Correction (v0.6.97) */
+    int64_t  asymmetry_us;           /**< EMA-filtered path asymmetry (fwd + rev offset) */
+    uint32_t asymmetry_sample_count; /**< Number of valid asymmetry samples received */
+    bool     asymmetry_valid;        /**< True after MIN_ASYMMETRY_SAMPLES collected */
 } time_sync_state_t;
 
 /**
- * @brief Time sync beacon message structure (AD043 - Filtered Time Sync)
+ * @brief Time sync beacon message structure (AD045 - Pattern-Broadcast Architecture)
  *
  * Transmitted by SERVER to CLIENT for periodic synchronization.
- * Fixed 23-byte size for efficient BLE notification.
+ * Fixed 25-byte size for efficient BLE notification.
  *
  * JPL Rule 1: Fixed size, no dynamic allocation.
  *
- * Phase 6r: Simplified to one-way timestamp for filtered time sync.
- * Removes RTT measurement fields (session_ref_ms, quality_score, server_rssi).
- * CLIENT captures receive time immediately and applies EMA filter.
+ * Pattern-broadcast (Emergency Vehicle architecture adaptation):
+ * - SERVER broadcasts pattern once: epoch, period, duty, mode_id
+ * - Both devices calculate independently from shared pattern
+ * - CLIENT applies half-cycle antiphase offset
+ * - No cycle-by-cycle corrections needed
+ *
+ * Benefits over correction-based approaches:
+ * - Eliminates correction death spirals
+ * - Both ends know what time it is, both know the pattern
+ * - Execute independently in perfect sync (Feniex philosophy)
  */
 typedef struct __attribute__((packed)) {
     uint64_t server_time_us;         /**< SERVER's current time (microseconds) - one-way timestamp */
-    uint64_t motor_epoch_us;         /**< Motor cycle start time (Phase 3) */
-    uint32_t motor_cycle_ms;         /**< Motor cycle period (Phase 3) */
+    uint64_t motor_epoch_us;         /**< Pattern start time (Phase 3) */
+    uint32_t motor_cycle_ms;         /**< Pattern period (Phase 3) */
+    uint8_t  duty_percent;           /**< Motor ON time as % of half-cycle (25-50% typical) */
+    uint8_t  mode_id;                /**< Mode identifier (0-4) for validation */
     uint8_t  sequence;               /**< Sequence number (for ordering) */
     uint16_t checksum;               /**< CRC-16 for integrity */
 } time_sync_beacon_t;
@@ -270,12 +319,38 @@ typedef struct __attribute__((packed)) {
  * Prepares the time sync module for operation. Must be called before any
  * other time sync functions. Initializes state to SYNC_STATE_INIT.
  *
- * JPL Rule 5: Returns error code for explicit checking.
+ * @par Arduino Equivalent
+ * This is like calling `BLE.begin()` in Arduino BLE libraries, but for our
+ * custom time sync protocol. ESP-IDF separates initialization from operation.
  *
- * @param role Device role (SERVER or CLIENT)
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_ARG if role is invalid
- * @return ESP_ERR_INVALID_STATE if already initialized
+ * @par Example Usage
+ * @code{.c}
+ * // In main.c after BLE role is determined
+ * peer_role_t role = ble_get_peer_role();
+ * time_sync_role_t ts_role = (role == PEER_ROLE_SERVER)
+ *                            ? TIME_SYNC_ROLE_SERVER
+ *                            : TIME_SYNC_ROLE_CLIENT;
+ *
+ * esp_err_t err = time_sync_init(ts_role);
+ * if (err != ESP_OK) {
+ *     ESP_LOGE(TAG, "Time sync init failed: %s", esp_err_to_name(err));
+ *     // Handle error - cannot proceed without time sync
+ * }
+ * @endcode
+ *
+ * @pre BLE connection established and peer role determined
+ * @post Module ready for time_sync_on_connection() call
+ *
+ * @param[in] role Device role (TIME_SYNC_ROLE_SERVER or TIME_SYNC_ROLE_CLIENT)
+ *
+ * @return
+ * - ESP_OK: Success
+ * - ESP_ERR_INVALID_ARG: Role is TIME_SYNC_ROLE_NONE or invalid
+ * - ESP_ERR_INVALID_STATE: Already initialized (call time_sync_deinit() first)
+ *
+ * @note JPL Rule 5: Always check return value
+ * @see time_sync_deinit() to reset module state
+ * @see ble_get_peer_role() to determine device role
  */
 esp_err_t time_sync_init(time_sync_role_t role);
 
@@ -408,6 +483,18 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
 esp_err_t time_sync_generate_beacon(time_sync_beacon_t *beacon);
 
 /**
+ * @brief Finalize beacon timestamp just before BLE transmission
+ *
+ * Bug #76 (PTP Hardening): Updates server_time_us (T1) and recalculates CRC
+ * as late as possible to minimize timestamp-to-transmission asymmetry.
+ *
+ * Call this right before ble_hs_mbuf_from_flat() in ble_send_time_sync_beacon().
+ *
+ * @param beacon Pointer to beacon struct to update
+ */
+void time_sync_finalize_beacon_timestamp(time_sync_beacon_t *beacon);
+
+/**
  * @brief Get current sync quality metrics
  *
  * Returns quality metrics for diagnostic logging and adaptive sync interval
@@ -454,6 +541,34 @@ time_sync_role_t time_sync_get_role(void);
  * @return ESP_ERR_INVALID_STATE if not synchronized
  */
 esp_err_t time_sync_get_clock_offset(int64_t *offset_us);
+
+/**
+ * @brief Update path asymmetry correction from bidirectional measurement (v0.6.97)
+ *
+ * Called when CLIENT receives REVERSE_PROBE_RESPONSE. Updates EMA-filtered
+ * asymmetry value used to correct systematic offset bias.
+ *
+ * IEEE 1588 bidirectional path measurement:
+ * - Forward offset (from beacons): CLIENT - SERVER, biased by path difference
+ * - Reverse offset (from probes): SERVER - CLIENT, biased opposite direction
+ * - Asymmetry = forward + reverse (should be 0 if symmetric)
+ * - Correction = asymmetry / 2 (applied to offset)
+ *
+ * @param asymmetry_us Measured asymmetry (forward_offset + reverse_offset)
+ * @param rtt_us Round-trip time of the measurement (for quality filtering)
+ * @return ESP_OK if sample accepted
+ * @return ESP_ERR_INVALID_STATE if RTT too high (congested sample rejected)
+ */
+esp_err_t time_sync_update_asymmetry(int64_t asymmetry_us, int64_t rtt_us);
+
+/**
+ * @brief Get current asymmetry correction value
+ *
+ * @param asymmetry_us [out] Pointer to store asymmetry in microseconds
+ * @param valid [out] Pointer to store validity flag (optional, can be NULL)
+ * @return ESP_OK on success
+ */
+esp_err_t time_sync_get_asymmetry(int64_t *asymmetry_us, bool *valid);
 
 /**
  * @brief Calculate expected drift over time
@@ -506,11 +621,33 @@ uint32_t time_sync_get_interval_ms(void);
  * Called by SERVER's motor task when it starts motor cycles. This establishes
  * the timing reference that CLIENT will use for bilateral synchronization.
  *
- * @param epoch_us Motor cycle start time in microseconds (synchronized time)
- * @param cycle_ms Motor cycle period in milliseconds (e.g., 2000ms for Mode 0)
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_ARG if parameters are invalid
- * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ * @par Why This Matters
+ * The motor epoch is the foundation of bilateral coordination. Both devices
+ * calculate their activation times from this single reference point. If the
+ * epoch is wrong, motors will overlap or have gaps instead of alternating.
+ *
+ * @par Arduino Equivalent
+ * Similar to setting `startTime = millis()` at the beginning of a pattern,
+ * but with microsecond precision and synchronized across two devices.
+ *
+ * @warning This function should only be called once per session start or mode
+ *          change. Calling it repeatedly during a session will cause CLIENT
+ *          to recalculate its phase offset, potentially causing motor overlap.
+ *
+ * @pre time_sync_init() called with TIME_SYNC_ROLE_SERVER
+ * @pre BLE peer connected
+ * @post Epoch will be broadcast to CLIENT in next beacon
+ *
+ * @param[in] epoch_us Motor cycle start time in microseconds (from esp_timer_get_time())
+ * @param[in] cycle_ms Motor cycle period in milliseconds (500-4000ms for 0.25-2Hz)
+ *
+ * @return
+ * - ESP_OK: Success, epoch set and will be sent to CLIENT
+ * - ESP_ERR_INVALID_ARG: cycle_ms outside valid range (500-4000ms)
+ * - ESP_ERR_INVALID_STATE: Not SERVER role, or module not initialized
+ *
+ * @see time_sync_get_motor_epoch() for CLIENT retrieval
+ * @see docs/adr/0045-synchronized-independent-bilateral-operation.md
  */
 esp_err_t time_sync_set_motor_epoch(uint64_t epoch_us, uint32_t cycle_ms);
 
@@ -640,32 +777,8 @@ esp_err_t time_sync_trigger_forced_beacons(void);
  */
 esp_err_t time_sync_reset_filter_fast_attack(void);
 
-/**
- * @brief Get filtered drift rate (Fix #2)
- *
- * Returns the EWMA-filtered drift rate in μs/s.
- * Positive value means CLIENT clock is running faster than SERVER.
- *
- * @param drift_rate_us_per_s [out] Pointer to store drift rate
- * @return ESP_OK if valid drift rate available
- * @return ESP_ERR_NOT_FOUND if drift rate not yet calculated
- */
-esp_err_t time_sync_get_drift_rate(int32_t *drift_rate_us_per_s);
-
-/**
- * @brief Get predicted clock offset using drift rate (Phase 6k)
- *
- * Provides smoother offset estimation between RTT measurements by extrapolating
- * based on filtered drift rate. Reduces RTT asymmetry noise (±10-30ms) for
- * bilateral motor coordination, enabling faster antiphase convergence (2-5s vs 10-20s).
- *
- * Formula: predicted_offset = last_offset + (drift_rate * elapsed_time)
- *
- * @param predicted_offset_us [out] Pointer to store predicted offset in μs
- * @return ESP_OK if prediction available (drift rate valid)
- * @return ESP_ERR_NOT_FOUND if using raw offset (first ~20s after boot)
- */
-esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us);
+/* AD045: time_sync_get_drift_rate() and time_sync_get_predicted_offset() removed.
+ * EMA filter provides ±30μs accuracy - no drift rate extrapolation needed. */
 
 /**
  * @brief Check if antiphase lock is achieved (Phase 6s)
@@ -691,6 +804,43 @@ esp_err_t time_sync_get_predicted_offset(int64_t *predicted_offset_us);
  */
 bool time_sync_is_antiphase_locked(void);
 
+/**
+ * @brief Get last beacon timestamps for paired offset calculation (AD043)
+ *
+ * CLIENT uses this to populate SYNC_FB with T1/T2 timestamps for NTP-style
+ * offset calculation on SERVER. This enables bias correction for the one-way
+ * delay inherent in beacon-based synchronization.
+ *
+ * @param server_time_us [out] T1: server_time_us from last beacon
+ * @param local_rx_time_us [out] T2: CLIENT's local time when beacon received
+ * @return ESP_OK if timestamps available
+ * @return ESP_ERR_INVALID_STATE if no beacon received yet
+ */
+esp_err_t time_sync_get_last_beacon_timestamps(uint64_t *server_time_us, uint64_t *local_rx_time_us);
+
+/**
+ * @brief Update offset using paired timestamps from SYNC_FB (AD043)
+ *
+ * SERVER calls this when receiving SYNC_FB with paired timestamps.
+ * Calculates bias-corrected offset using NTP formula:
+ *   offset = ((T2-T1) + (T3-T4)) / 2
+ *
+ * The calculated offset is fed into the EMA filter, correcting the
+ * systematic one-way delay bias from beacon-only synchronization.
+ *
+ * @param t1_server_beacon_time_us T1: SERVER's beacon timestamp (from SYNC_FB)
+ * @param t2_client_rx_time_us T2: CLIENT's beacon receive time (from SYNC_FB)
+ * @param t3_client_tx_time_us T3: CLIENT's SYNC_FB send time (from SYNC_FB)
+ * @param t4_server_rx_time_us T4: SERVER's local time when SYNC_FB received
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if timestamps are invalid (e.g., t4 < t1)
+ */
+esp_err_t time_sync_update_from_paired_timestamps(
+    uint64_t t1_server_beacon_time_us,
+    uint64_t t2_client_rx_time_us,
+    uint64_t t3_client_tx_time_us,
+    uint64_t t4_server_rx_time_us);
+
 /*******************************************************************************
  * UTILITY MACROS
  ******************************************************************************/
@@ -707,6 +857,8 @@ bool time_sync_is_antiphase_locked(void);
 
 /** @brief Check if device is CLIENT */
 #define TIME_SYNC_IS_CLIENT() (time_sync_get_role() == TIME_SYNC_ROLE_CLIENT)
+
+/** @} */ // end of time_sync group
 
 #ifdef __cplusplus
 }

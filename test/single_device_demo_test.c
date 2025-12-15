@@ -28,7 +28,7 @@
  *   - GPIO16: WS2812B power enable (P-MOSFET, LOW=enabled)
  *   - GPIO17: WS2812B data
  *   - GPIO19: H-bridge IN2 (reverse)
- *   - GPIO20: H-bridge IN1 (forward)
+ *   - GPIO18: H-bridge IN1 (forward) - MOVED from GPIO20
  * 
  * Build & Run:
  *   pio run -e single_device_demo_test -t upload && pio device monitor
@@ -61,7 +61,7 @@ static const char *TAG = "DEMO_TEST";
 #define GPIO_WS2812B_ENABLE     16
 #define GPIO_WS2812B_DIN        17
 #define GPIO_HBRIDGE_IN2        19      // Reverse
-#define GPIO_HBRIDGE_IN1        20      // Forward
+#define GPIO_HBRIDGE_IN1        18      // Forward - MOVED from GPIO20
 
 // ========================================
 // PWM CONFIGURATION

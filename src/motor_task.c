@@ -57,7 +57,7 @@ static const char *TAG = "MOTOR_TASK";
 
 #define LED_INDICATION_TIME_MS  10000               // Back-EMF sampling window
 #define BACKEMF_SETTLE_MS       10                  // Back-EMF settle time
-#define MODE_CHECK_INTERVAL_MS  50                  // Check queue every 50ms
+#define MODE_CHECK_INTERVAL_MS  50                  // Check queue every 50ms (main branch baseline, instant button response)
 #define BATTERY_CHECK_INTERVAL_MS  60000            // Check battery every 60 seconds
 #define SESSION_TIME_NOTIFY_INTERVAL_MS 60000       // Notify session time every 60 seconds
 
@@ -111,9 +111,8 @@ static uint32_t last_mode_change_ms = 0;     // Track mode changes for beacon lo
 // Current operating mode (accessed by motor_get_current_mode())
 static mode_t current_mode = MODE_05HZ_25;   // Default: Mode 0 (0.5Hz @ 25%)
 
-// Mode 4 (custom) parameters (updated via BLE)
-static uint32_t mode5_on_ms = 250;          // Default: 250ms on (1Hz @ 25% duty)
-static uint32_t mode5_coast_ms = 750;       // Default: 750ms coast (1Hz @ 25% duty)
+// Mode 4 (custom) PWM intensity (updated via BLE)
+// Note: Timing comes from ble_get_custom_frequency_hz() and ble_get_custom_duty_percent()
 static uint8_t mode5_pwm_intensity = MOTOR_PWM_DEFAULT;  // From motor_control.h (single source of truth)
 
 // BLE parameter update flag
@@ -140,12 +139,30 @@ static bool direction_alternation_enabled = true;
 static bool beacon_bemf_logging_active = false;
 static uint32_t beacon_bemf_start_ms = 0;
 
-// Bug #16 fix: Allow unclamped drift correction for initial phase alignment
-// After pairing, devices may have large initial phase offset (up to 1000ms).
-// Normal clamping (20% of nominal = 200ms max) prevents proper alignment.
-// Solution: Allow unclamped corrections for first N cycles, then clamp.
-static int8_t unclamped_correction_cycles = 0;  // Counter for unclamped cycles
-#define INITIAL_UNCLAMPED_CYCLES 3  // Allow 3 unclamped cycles for convergence
+// AD045: Removed correction variables (no longer needed with synchronized independent operation)
+// Replaced complex drift correction with simple epoch-based calculation
+
+// AD045: Mode change proposal state (two-phase commit protocol)
+// Note: Shared with time_sync_task.c (extern declarations in motor_task.h)
+bool mode_change_armed = false;          /**< True if mode change is armed and waiting for epoch */
+mode_t armed_new_mode = MODE_05HZ_25;    /**< Mode to activate when armed epoch reached */
+uint64_t armed_epoch_us = 0;             /**< Absolute time to activate armed mode change */
+uint32_t armed_cycle_ms = 0;             /**< New cycle period for armed mode */
+uint32_t armed_active_ms = 0;            /**< New active period for armed mode */
+uint64_t armed_server_epoch_us = 0;      /**< Bug #82: SERVER's motor epoch for CLIENT antiphase */
+
+// Bug #80 fix: CLIENT cycle counter (moved to file scope for mode change reset)
+// Tracks cycles for activation_report correlation - must reset on mode change
+static uint32_t client_inactive_cycle_count = 0;
+
+// Bug #81 fix: CLIENT skip INACTIVE wait flag
+// After coordinated start wait completes, CLIENT should go directly to ACTIVE
+// (the antiphase was already pre-calculated and waited for in coordinated start)
+static bool client_skip_inactive_wait = false;
+
+// Bug #90 fix: Epoch-anchored cycle start for notify path (file-scope for extern access)
+// Set by motor_task_notify_motor_started() when MOTOR_STARTED received during operation
+static uint32_t notify_epoch_cycle_start_ms = 0;
 
 // Phase 6i: Coordinated Start Time
 // Both devices agree on a FUTURE timestamp to start motors simultaneously.
@@ -155,33 +172,48 @@ static int8_t unclamped_correction_cycles = 0;  // Counter for unclamped cycles
 // (beacon transmission ~50ms + CLIENT handshake ~500ms + CLIENT_READY ~50ms + margin)
 #define COORD_START_DELAY_MS 3000  // 3000ms buffer for coordination (was 500ms)
 
-// Bug #20 fix: Damped PD correction to prevent oscillation
-// Problem: Applying 100% of measured error causes overshoot → overcorrection → oscillation
-// Solution: Apply fraction of error (proportional) and reduce when drift changing rapidly (derivative)
-// PD = Proportional-Derivative controller (no integral term to avoid wind-up)
-static int32_t last_drift_ms = 0;                // Previous cycle's drift for derivative calculation
-static bool last_drift_valid = false;            // True after first measurement
-#define CORRECTION_DAMPING_PCT 50                // Apply 50% of measured error (P term)
-#define DERIVATIVE_DAMPING_PCT 30                // Reduce correction by 30% of drift change (D term)
+// ============================================================================
+// CLIENT HARDWARE TIMER SYNCHRONIZATION (AD044)
+// ============================================================================
 
-// Phase 6j: ACTIVE Coast Adjustment for Asymmetric Correction
-// Key insight: Catch-up (behind) is safer at END of ACTIVE than START of ACTIVE
-// - Shortening coast = ending early = safe (no overlap risk)
-// - Shortening INACTIVE = starting early = risky (may overlap SERVER's ACTIVE)
-#define MIN_COAST_MS 10                          // Minimum coast time for back-EMF sampling
-#define MIN_MOTOR_ON_MS 50                       // Minimum motor on time for therapeutic effect
+/**
+ * @brief CLIENT-specific hardware timer for precise antiphase synchronization
+ *
+ * Design rationale (AD044):
+ * - CLIENT must synchronize to SERVER's motor_epoch (external timing reference)
+ * - Polling introduces ±1ms jitter from queue receive timeout granularity
+ * - Hardware timers achieve ±50μs precision (20× improvement)
+ * - Analogous to BLE callbacks responding to external radio events
+ *
+ * Timer lifecycle:
+ * - Created during motor_task initialization
+ * - Armed when CLIENT receives beacon with SERVER motor_epoch
+ * - Fires callback at exact antiphase moment (halfway through SERVER's cycle)
+ * - Cancelled on mode changes or shutdown
+ *
+ * Safety:
+ * - Callback runs in esp_timer task (not ISR), full FreeRTOS API available
+ * - Posts message to motor task queue, motor task handles actual transitions
+ * - Timer automatically disarms after firing (one-shot mode)
+ */
+static esp_timer_handle_t client_motor_timer = NULL;
 
-// Phase 6j: Track which correction was applied for logging
-typedef enum {
-    CORRECTION_NONE,          // No correction needed
-    CORRECTION_COAST_SHORTEN, // Catch-up: shortened ACTIVE coast
-    CORRECTION_MOTOR_BORROW,   // Catch-up: borrowed from motor_on (coast exhausted)
-    CORRECTION_INACTIVE_EXTEND, // Slow-down: extended INACTIVE wait
-    CORRECTION_INACTIVE_SHORTEN // Catch-up: shortened INACTIVE wait (Bug #27)
-} correction_type_t;
-
-static correction_type_t last_correction_type = CORRECTION_NONE;
-static int32_t last_correction_amount_ms = 0;
+/**
+ * @brief Timer callback that fires when CLIENT motor should transition
+ *
+ * Runs in esp_timer task context (ESP_TIMER_TASK dispatch mode).
+ * Posts message to motor task queue to trigger state transition.
+ *
+ * @param arg Unused (required by esp_timer API)
+ */
+static void IRAM_ATTR client_motor_timer_callback(void *arg) {
+    // Post message to motor task to trigger transition
+    // Use FromISR variant for safety (esp_timer task has higher priority)
+    task_message_t msg = { .type = MSG_TIMER_MOTOR_TRANSITION };
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(button_to_motor_queue, &msg, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -287,8 +319,16 @@ static bool delay_until_target_ms(uint32_t target_ms) {
     while (true) {
         uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
 
-        // Already past target? Return immediately
+        // Already past target? Clear any stale timer message and return
         if (now_ms >= target_ms) {
+            // Bug #87: Clear any pending timer message to prevent it from
+            // causing early exit in the NEXT delay_until_target_ms() call
+            task_message_t stale_msg;
+            if (xQueuePeek(button_to_motor_queue, &stale_msg, 0) == pdPASS) {
+                if (stale_msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                    xQueueReceive(button_to_motor_queue, &stale_msg, 0);
+                }
+            }
             return false;  // Target reached
         }
 
@@ -297,11 +337,22 @@ static bool delay_until_target_ms(uint32_t target_ms) {
 
         vTaskDelay(pdMS_TO_TICKS(this_delay));
 
-        // Quick check for mode change or shutdown (non-blocking peek)
+        // Feed watchdog during long waits (INACTIVE can be >2s)
+        // AD044 FIX: Without this, watchdog times out during CLIENT drift correction
+        esp_task_wdt_reset();
+
+        // Quick check for mode change, shutdown, or timer event (non-blocking peek)
+        // Bug #86: Hardware timer posts MSG_TIMER_MOTOR_TRANSITION for μs precision
         task_message_t msg;
         if (xQueuePeek(button_to_motor_queue, &msg, 0) == pdPASS) {
             if (msg.type == MSG_MODE_CHANGE || msg.type == MSG_EMERGENCY_SHUTDOWN) {
                 return true; // Mode change or shutdown detected
+            }
+            if (msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                // Hardware timer fired - consume the message and exit wait
+                // This provides μs-precision timing instead of ms-polling jitter
+                xQueueReceive(button_to_motor_queue, &msg, 0);
+                return false; // Target reached via timer
             }
         }
     }
@@ -425,6 +476,17 @@ void motor_task(void *pvParameters) {
     // absolute wake times for each phase (motor_on, active_coast, inactive)
     uint32_t cycle_start_ms = 0;
 
+    // Bug #89 Fix: CLIENT epoch-anchored cycle start for ACTIVE state
+    // CLIENT calculates target time in INACTIVE, stores here for use in ACTIVE
+    // This prevents "now" jitter accumulation that causes ms walk between devices
+    uint32_t client_epoch_cycle_start_ms = 0;
+
+    // Bug #91 Fix: SERVER epoch-anchored cycle start for ACTIVE state
+    // SERVER calculates next ACTIVE target in INACTIVE, stores here for use in ACTIVE
+    // This prevents "now" jitter accumulation that causes SERVER drift
+    uint32_t server_epoch_cycle_start_ms = 0;
+    uint32_t server_cycle_count = 0;  // Track cycles since epoch for SERVER
+
     // Back-EMF sampling flag and storage (inline in ACTIVE state)
     bool sample_backemf = false;
     int raw_mv_active = 0, raw_mv_immed = 0, raw_mv_settled = 0;
@@ -439,6 +501,23 @@ void motor_task(void *pvParameters) {
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "Failed to add to watchdog: %s (continuing anyway)",
                  esp_err_to_name(err));
+    }
+
+    // AD044: Create CLIENT hardware timer for precise antiphase synchronization
+    // Timer is created at startup but only armed when CLIENT needs to synchronize
+    const esp_timer_create_args_t timer_args = {
+        .callback = &client_motor_timer_callback,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,  // Run in esp_timer task (not ISR)
+        .name = "client_motor",
+        .skip_unhandled_events = false
+    };
+    err = esp_timer_create(&timer_args, &client_motor_timer);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to create CLIENT motor timer: %s", esp_err_to_name(err));
+        // Continue without timer - will fall back to polling-based synchronization
+    } else {
+        ESP_LOGI(TAG, "CLIENT motor timer created successfully");
     }
 
     ESP_LOGI(TAG, "Motor task started: %s", modes[current_mode].name);
@@ -532,6 +611,7 @@ void motor_task(void *pvParameters) {
                             int init_wait = 20;  // 20 × 50ms = 1000ms max
                             while (init_wait > 0 && !TIME_SYNC_IS_INITIALIZED()) {
                                 vTaskDelay(pdMS_TO_TICKS(50));
+                                esp_task_wdt_reset();  // Feed watchdog during wait
                                 init_wait--;
                             }
                             if (!TIME_SYNC_IS_INITIALIZED()) {
@@ -583,13 +663,20 @@ void motor_task(void *pvParameters) {
                                     // BUG #47: Don't set motor epoch here - set it at ACTUAL motor start time (after wait)
                                     ESP_LOGI(TAG, "SERVER: Coordinated start in 1500ms (CLIENT fast lock, cycle=%lums)", cycle_ms);
 
-                                    // Send second beacon with coordinated start epoch
-                                    vTaskDelay(pdMS_TO_TICKS(50));
-                                    if (ble_send_time_sync_beacon() == ESP_OK) {
-                                        ESP_LOGI(TAG, "SERVER: Coordinated start beacon sent");
-                                    } else {
-                                        ESP_LOGW(TAG, "SERVER: Failed to send coordinated start beacon");
-                                    }
+                                    /* BUG #48: Removed coordinated start beacon - causes first-cycle antiphase error
+                                     *
+                                     * PROBLEM: Beacon sent here contains motor_epoch = 0 (not yet set per Bug #47).
+                                     * CLIENT receives beacon, stores epoch = 0, then calculates antiphase using
+                                     * wrong epoch. Result: CLIENT activates IN-PHASE with SERVER instead of antiphase.
+                                     *
+                                     * SOLUTION: Don't send beacon here. MOTOR_STARTED notification (sent after actual
+                                     * motor start at line 901-918) already provides correct epoch to CLIENT.
+                                     * CLIENT's antiphase pre-calculation (line 787-815) uses MOTOR_STARTED epoch.
+                                     *
+                                     * Evidence: Serial logs show CLIENT calc "server_pos=54ms" when it should be ~200ms,
+                                     * indicating stale/zero epoch used. After fix, CLIENT should calculate correct
+                                     * antiphase position on first cycle.
+                                     */
                                 } else {
                                     ESP_LOGW(TAG, "SERVER: CLIENT_READY timeout - using fallback delay");
                                     // CLIENT_READY timeout: Use LONG delay as fallback
@@ -612,14 +699,8 @@ void motor_task(void *pvParameters) {
                         // Bug #50: Removed client_next_inactive toggle - state now calculated from SERVER position
                         // BUG FIX: Check role only, not sync state (sync may not be active yet)
                         if (role == PEER_ROLE_CLIENT) {
-                            // Bug #16 fix: Allow unclamped drift correction for initial phase alignment
-                            unclamped_correction_cycles = INITIAL_UNCLAMPED_CYCLES;
-                            // Bug #20 fix: Reset PD state to avoid stale derivative after mode change
-                            last_drift_valid = false;
-                            last_drift_ms = 0;
-                            // Phase 6l: Diagnostic logging for initial pairing phase alignment
-                            ESP_LOGI(TAG, "CLIENT: Bilateral alternation enabled (position-based state, %d unclamped cycles)",
-                                     INITIAL_UNCLAMPED_CYCLES);
+                            // AD045: Synchronized Independent Operation - no correction state needed
+                            ESP_LOGI(TAG, "CLIENT: Bilateral alternation enabled (synchronized independent operation)");
 
                             /* Issue #2 FIXED: Send CLIENT_READY immediately after time sync init
                              * This breaks the deadlock where:
@@ -633,6 +714,7 @@ void motor_task(void *pvParameters) {
                             int handshake_wait = 100;  // 100 × 50ms = 5s max
                             while (handshake_wait > 0 && !TIME_SYNC_IS_INITIALIZED()) {
                                 vTaskDelay(pdMS_TO_TICKS(50));
+                                esp_task_wdt_reset();  // Feed watchdog during long wait (CRITICAL: 5s loop)
                                 handshake_wait--;
                             }
 
@@ -696,7 +778,7 @@ void motor_task(void *pvParameters) {
                         // Phase 6i: Both devices wait until coordinated start time
                         // This ensures SIMULTANEOUS motor activation - no "two activations before other"
                         if (coordinated_start_us > 0 && (role == PEER_ROLE_SERVER || role == PEER_ROLE_CLIENT)) {
-                            // Strategy A: Pre-calculated antiphase (Phase 7)
+                            // Strategy A: Pre-calculated antiphase (potential future optimization)
                             // CLIENT calculates exact antiphase offset immediately, skipping handshake wait
                             // This eliminates early activation + 3-cycle alignment (~6s savings)
                             if (role == PEER_ROLE_CLIENT) {
@@ -737,39 +819,16 @@ void motor_task(void *pvParameters) {
                                              handshake_offset_us);
                                 }
 
-                                /* Phase 6s: Wait for antiphase lock before calculating offset
+                                /* AD045: Skip antiphase lock wait - chicken-and-egg problem
                                  *
-                                 * Ensures EWMA filter has converged to steady-state before using it for
-                                 * phase calculations. This prevents startup jitter from filter oscillation.
+                                 * OLD (Phase 6s): Waited 5s for antiphase lock before starting motors
+                                 * PROBLEM: Lock criteria require motors to be running, but we haven't
+                                 * started motors yet! Always timed out, adding 5s delay to startup.
                                  *
-                                 * Lock criteria (checked by time_sync_is_antiphase_locked):
-                                 * - Handshake complete (already checked above)
-                                 * - Minimum 3 beacons received (filter has data)
-                                 * - Filter in steady-state mode (sample_count >= 10, alpha = 10%)
-                                 * - Recent beacon within 2× adaptive interval (not stale)
-                                 *
-                                 * Expected lock time: 2-3 seconds from connection
-                                 * Timeout: 5 seconds (fallback to best-effort start)
+                                 * FIX: Remove wait. Coordinated start mechanism is sufficient - both
+                                 * devices already agree on when to start based on synchronized clocks.
+                                 * Lock monitoring happens DURING operation (passive), not before.
                                  */
-                                ESP_LOGI(TAG, "CLIENT: Waiting for antiphase lock...");
-                                uint32_t lock_wait_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                                int lock_wait_cycles = 100;  // 100 × 50ms = 5000ms timeout
-                                bool lock_acquired = false;
-                                while (lock_wait_cycles > 0) {
-                                    if (time_sync_is_antiphase_locked()) {
-                                        uint32_t lock_duration_ms = (uint32_t)(esp_timer_get_time() / 1000) - lock_wait_start_ms;
-                                        ESP_LOGI(TAG, "CLIENT: Antiphase lock ACQUIRED in %lu ms", lock_duration_ms);
-                                        lock_acquired = true;
-                                        break;
-                                    }
-                                    vTaskDelay(pdMS_TO_TICKS(50));
-                                    esp_task_wdt_reset();
-                                    lock_wait_cycles--;
-                                }
-
-                                if (!lock_acquired) {
-                                    ESP_LOGW(TAG, "CLIENT: Antiphase lock TIMEOUT after 5s - proceeding anyway (may have startup jitter)");
-                                }
 
                                 // Calculate where SERVER currently is in its cycle
                                 uint64_t sync_time_us;
@@ -801,9 +860,8 @@ void motor_task(void *pvParameters) {
                                         // Override coordinated_start to use calculated antiphase timing
                                         coordinated_start_us = sync_time_us + target_wait_us;
 
-                                        // Disable 3-cycle unclamped alignment (we're already perfect!)
-                                        unclamped_correction_cycles = 0;
-                                        ESP_LOGI(TAG, "CLIENT: Strategy A active - skipping 3-cycle alignment");
+                                        // AD045: Always use synchronized independent operation (no unclamped alignment cycles)
+                                        ESP_LOGI(TAG, "CLIENT: Synchronized independent operation active");
                                     }
                                 } else {
                                     ESP_LOGW(TAG, "CLIENT: time_sync_get_time() failed - fallback to standard alignment");
@@ -830,9 +888,9 @@ void motor_task(void *pvParameters) {
 
                                 // Phase 6: Wait in 50ms chunks to detect MOTOR_STARTED message arrival
                                 // Issue #3 fix: Check flag instead of epoch value (handshake and MOTOR_STARTED may have same epoch)
-                                // Bug #46 fix: Don't abort antiphase wait when Strategy A active
+                                // AD045: Always use synchronized independent operation for CLIENT
                                 motor_started_received = false;  // Clear flag before wait
-                                bool strategy_a_active = (role == PEER_ROLE_CLIENT && unclamped_correction_cycles == 0);
+                                bool strategy_a_active = (role == PEER_ROLE_CLIENT);  // Always true for CLIENT (synchronized independent)
                                 while (wait_ms > 0) {
                                     uint32_t chunk_ms = (wait_ms > 50) ? 50 : wait_ms;
                                     vTaskDelay(pdMS_TO_TICKS(chunk_ms));
@@ -878,9 +936,30 @@ void motor_task(void *pvParameters) {
                                                  &temp_inactive_ms, &temp_pwm_intensity, false);
                             uint32_t current_cycle_ms = temp_motor_on_ms + temp_active_coast_ms + temp_inactive_ms;
 
-                            time_sync_set_motor_epoch(actual_start_us, current_cycle_ms);
-                            ESP_LOGI(TAG, "%s: Motor epoch set to actual start time: %llu μs (cycle=%lu ms)",
-                                     role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT", actual_start_us, current_cycle_ms);
+                            // AD045: Only SERVER sets motor epoch (authoritative source of truth)
+                            // Bug #49 fix (coordinated start): CLIENT receives epoch via MOTOR_STARTED notification
+                            // CLIENT must NOT overwrite SERVER's epoch with its own start time
+                            if (role == PEER_ROLE_SERVER) {
+                                time_sync_set_motor_epoch(actual_start_us, current_cycle_ms);
+                                ESP_LOGI(TAG, "SERVER: Motor epoch set to actual start time: %llu μs (cycle=%lu ms)",
+                                         actual_start_us, current_cycle_ms);
+                                // Bug #91: Initialize epoch-anchored cycle start for first ACTIVE
+                                // SERVER's sync time ≈ local time (SERVER is the reference)
+                                server_epoch_cycle_start_ms = (uint32_t)(actual_start_us / 1000);
+                                server_cycle_count = 0;  // Reset cycle count at coordinated start
+                            } else {
+                                ESP_LOGI(TAG, "CLIENT: Using motor epoch from SERVER (coordinated start)");
+                                // Bug #81 fix: Skip INACTIVE wait on first cycle
+                                // Antiphase was already pre-calculated and waited for in coordinated start
+                                client_skip_inactive_wait = true;
+
+                                // Bug #94a fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
+                                // actual_start_us is SYNC TIME from time_sync_get_time(), NOT local time!
+                                // delay_until_target_ms() uses esp_timer (LOCAL time domain)
+                                // Mixing domains causes target to appear in past → short activations
+                                client_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                                ESP_LOGI(TAG, "CLIENT: cycle_start set to %lu ms (local time)", client_epoch_cycle_start_ms);
+                            }
 
                             /* Phase 6: SERVER sends immediate motor epoch notification
                              * This eliminates the 9.5s delay for late-joining CLIENTs waiting for periodic beacons.
@@ -1048,8 +1127,21 @@ void motor_task(void *pvParameters) {
                 while (xQueueReceive(button_to_motor_queue, &msg, 0) == pdPASS) {
                     if (msg.type == MSG_EMERGENCY_SHUTDOWN) {
                         ESP_LOGI(TAG, "Emergency shutdown");
+
+                        // AD044: Cancel CLIENT timer on shutdown
+                        if (client_motor_timer != NULL && esp_timer_is_active(client_motor_timer)) {
+                            esp_timer_stop(client_motor_timer);
+                            ESP_LOGD(TAG, "CLIENT timer cancelled (shutdown)");
+                        }
+
                         state = MOTOR_STATE_SHUTDOWN;
                         break;
+                    } else if (msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                        // AD044: CLIENT hardware timer fired - precise antiphase moment reached
+                        // This message indicates the exact time for CLIENT to transition to ACTIVE
+                        // No action needed here - just log and continue to normal state transition
+                        ESP_LOGD(TAG, "CLIENT: Hardware timer fired (antiphase moment)");
+                        // Fall through to normal ACTIVE transition below
                     } else if (msg.type == MSG_MODE_CHANGE) {
                         // Process LAST mode change only (purge queue)
                         mode_t new_mode = msg.data.new_mode;
@@ -1063,57 +1155,91 @@ void motor_task(void *pvParameters) {
                         }
 
                         if (new_mode != current_mode) {
-                            current_mode = new_mode;
-                            ESP_LOGI(TAG, "Mode: %s", modes[current_mode].name);
-                            led_indication_active = true;
-                            led_indication_start_ms = now;
-                            last_mode_change_ms = now;  // Track for beacon logging conflict detection
+                            ESP_LOGI(TAG, "Mode change requested: %s → %s", modes[current_mode].name, modes[new_mode].name);
 
-                            // Bug #20 fix: Reset PD state on mode change to avoid stale derivative
-                            last_drift_valid = false;
-                            last_drift_ms = 0;
+                            // Bug #97 fix: Don't activate LED indication here if time sync active
+                            // When synchronized, mode change is ARMED for later execution (2s delay).
+                            // If LED indication activates now, CLIENT shows OLD mode color until
+                            // mode change executes. LED indication will activate at line 1328
+                            // when mode change actually executes.
+                            // Only activate LED immediately for standalone (non-synchronized) mode.
+                            if (!TIME_SYNC_IS_ACTIVE()) {
+                                led_indication_active = true;
+                                led_indication_start_ms = now;
+                            }
+                            last_mode_change_ms = now;
 
-                            // Phase 3: Motor epoch synchronization on mode changes
+                            // AD044: Cancel CLIENT timer on mode change (will be re-armed with new timing)
+                            if (client_motor_timer != NULL && esp_timer_is_active(client_motor_timer)) {
+                                esp_timer_stop(client_motor_timer);
+                                ESP_LOGD(TAG, "CLIENT timer cancelled (mode change)");
+                            }
+
                             peer_role_t role = ble_get_peer_role();
 
+                            // AD045: Two-phase commit protocol for synchronized mode changes
                             if (role == PEER_ROLE_SERVER && TIME_SYNC_IS_ACTIVE()) {
-                                // SERVER: Publish new motor epoch for drift tracking
+                                // SERVER: Calculate new mode timing and send proposal
                                 uint32_t mode_motor_on, mode_active_coast, mode_inactive;
                                 uint8_t mode_pwm;
-                                calculate_mode_timing(current_mode, &mode_motor_on, &mode_active_coast,
+                                calculate_mode_timing(new_mode, &mode_motor_on, &mode_active_coast,
                                                      &mode_inactive, &mode_pwm, false);
-                                uint32_t cycle_ms = mode_motor_on + mode_active_coast + mode_inactive;
 
-                                uint64_t motor_epoch_us;
-                                if (time_sync_get_time(&motor_epoch_us) == ESP_OK) {
-                                    time_sync_set_motor_epoch(motor_epoch_us, cycle_ms);
-                                    ESP_LOGI(TAG, "SERVER: Motor epoch published for mode change (cycle=%lums)", cycle_ms);
+                                uint32_t new_cycle_ms = mode_motor_on + mode_active_coast + mode_inactive;
+                                uint32_t new_active_ms = mode_motor_on + mode_active_coast;
+                                uint64_t now_us;
 
-                                    // Send immediate beacon so CLIENT can sync right away
-                                    // (don't wait 10s for next scheduled beacon)
-                                    if (ble_send_time_sync_beacon() == ESP_OK) {
-                                        ESP_LOGI(TAG, "SERVER: Immediate sync beacon sent for mode change");
-                                    }
+                                if (time_sync_get_time(&now_us) == ESP_OK) {
+                                    // Calculate future epochs (2 seconds from now for coordination)
+                                    uint64_t server_epoch_us = now_us + 2000000ULL;  // 2s buffer
+                                    uint64_t half_cycle_us = ((uint64_t)new_cycle_ms * 1000ULL) / 2;
+                                    uint64_t client_epoch_us = server_epoch_us + half_cycle_us;
 
-                                    // Bug #32 fix: Send motor epoch to CLIENT immediately
-                                    // Without this, CLIENT uses stale epoch causing 8+ second drift
-                                    coordination_message_t motor_started_msg = {
-                                        .type = SYNC_MSG_MOTOR_STARTED,
+                                    // Send mode change proposal to CLIENT
+                                    coordination_message_t proposal = {
+                                        .type = SYNC_MSG_MODE_CHANGE_PROPOSAL,
                                         .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
-                                        .payload.motor_started = {
-                                            .motor_epoch_us = motor_epoch_us,
-                                            .motor_cycle_ms = cycle_ms
+                                        .payload.mode_proposal = {
+                                            .new_mode = new_mode,
+                                            .new_cycle_ms = new_cycle_ms,
+                                            .new_active_ms = new_active_ms,
+                                            .server_epoch_us = server_epoch_us,
+                                            .client_epoch_us = client_epoch_us
                                         }
                                     };
-                                    esp_err_t err = ble_send_coordination_message(&motor_started_msg);
+
+                                    esp_err_t err = ble_send_coordination_message(&proposal);
                                     if (err == ESP_OK) {
-                                        ESP_LOGI(TAG, "SERVER: MOTOR_STARTED sent for mode change (epoch=%llu)", motor_epoch_us);
+                                        // Arm mode change for SERVER epoch
+                                        mode_change_armed = true;
+                                        armed_new_mode = new_mode;
+                                        armed_epoch_us = server_epoch_us;
+                                        armed_cycle_ms = new_cycle_ms;
+                                        armed_active_ms = new_active_ms;
+
+                                        ESP_LOGI(TAG, "SERVER: Mode change proposal sent (server_epoch=%llu, client_epoch=%llu)",
+                                                 server_epoch_us, client_epoch_us);
                                     } else {
-                                        ESP_LOGW(TAG, "SERVER: Failed to send MOTOR_STARTED: %s", esp_err_to_name(err));
+                                        ESP_LOGW(TAG, "SERVER: Failed to send mode change proposal: %s", esp_err_to_name(err));
                                     }
                                 }
+                            } else {
+                                // Standalone or CLIENT
+                                if (TIME_SYNC_IS_ACTIVE()) {
+                                    // CLIENT: Mode change already armed by time_sync_task (from proposal)
+                                    // Bug #50 fix: Don't execute here - wait for synchronized epoch
+                                    // Motors will pause during arming period (see CHECK_MESSAGES state)
+                                    ESP_LOGI(TAG, "Mode change armed: %s → %s (will execute at synchronized epoch)",
+                                             modes[current_mode].name, modes[new_mode].name);
+                                    // Do NOT change current_mode here - wait for synchronized execution
+                                } else {
+                                    // Standalone (no peer): Change mode immediately
+                                    current_mode = new_mode;
+                                    ESP_LOGI(TAG, "Mode: %s (standalone)", modes[current_mode].name);
+                                    // Bug #102: Notify PWA of mode change (standalone case)
+                                    ble_update_mode(new_mode);
+                                }
                             }
-                            // Bug #50: Removed client_next_inactive reset - state now calculated from position
                         }
                     }
                 }
@@ -1138,23 +1264,88 @@ void motor_task(void *pvParameters) {
                     break;
                 }
 
-                // Show LED logic:
-                // - Mode 5 (CUSTOM): LED blinks for entire session if BLE LED enabled
-                // - Other modes: LED blinks for first 10 seconds after mode change
-                if (current_mode == MODE_CUSTOM) {
-                    show_led = ble_get_led_enable();  // Always use BLE setting for custom mode
-                } else {
-                    show_led = led_indication_active;  // 10-second timeout for other modes
+                // AD045: Check if armed mode change has reached its epoch
+                if (mode_change_armed && TIME_SYNC_IS_ACTIVE()) {
+                    uint64_t current_time_us;
+                    if (time_sync_get_time(&current_time_us) == ESP_OK) {
+                        if (current_time_us >= armed_epoch_us) {
+                            // Epoch reached - execute synchronized mode change
+                            current_mode = armed_new_mode;
+
+                            peer_role_t role = ble_get_peer_role();
+                            const char* role_str = (role == PEER_ROLE_SERVER) ? "SERVER" : "CLIENT";
+
+                            ESP_LOGI(TAG, "%s: Synchronized mode change executed at epoch %llu",
+                                     role_str, current_time_us);
+                            ESP_LOGI(TAG, "Mode: %s (synchronized)", modes[current_mode].name);
+                            // Bug #102: Notify PWA of mode change (synchronized case)
+                            ble_update_mode(armed_new_mode);
+
+                            // Bug #92 fix: Recalculate timing for new mode IMMEDIATELY
+                            // Without this, CLIENT skips to ACTIVE with OLD mode's motor_on_ms
+                            calculate_mode_timing(current_mode, &motor_on_ms, &active_coast_ms,
+                                                  &inactive_ms, &pwm_intensity, sample_backemf);
+                            ESP_LOGI(TAG, "Timing recalculated: on=%lums coast=%lums inactive=%lums",
+                                     motor_on_ms, active_coast_ms, inactive_ms);
+
+                            // AD045: SERVER updates motor_epoch for instant antiphase coordination
+                            // Bug #49 fix: CLIENT must NOT update epoch (only SERVER is authoritative)
+                            // Bug #82 fix: CLIENT sets epoch from proposal for immediate antiphase
+                            // Bug #94b fix: Don't set cycle_start here - let ACTIVE use fresh time
+
+                            if (role == PEER_ROLE_SERVER) {
+                                // SERVER: Set motor_epoch to its own start time
+                                time_sync_set_motor_epoch(armed_epoch_us, armed_cycle_ms);
+                                ESP_LOGI(TAG, "SERVER: Motor epoch updated to %llu (cycle=%lu ms)",
+                                         armed_epoch_us, armed_cycle_ms);
+                                // Bug #94b fix: DON'T set server_epoch_cycle_start_ms here!
+                                // Mode change execution happens BEFORE ACTIVE state runs.
+                                // If we set cycle_start now, it's stale by the time ACTIVE uses it.
+                                // Let ACTIVE use fresh esp_timer_get_time() for first cycle.
+                                // INACTIVE will set epoch-anchored timing for subsequent cycles.
+                                server_cycle_count = 0;  // Reset cycle count on mode change
+                            } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
+                                // Bug #82 fix: CLIENT sets motor_epoch from proposal
+                                // Without this, CLIENT uses old epoch for antiphase calculation
+                                time_sync_set_motor_epoch(armed_server_epoch_us, armed_cycle_ms);
+                                ESP_LOGI(TAG, "CLIENT: Motor epoch set to server's epoch %llu (cycle=%lu ms)",
+                                         armed_server_epoch_us, armed_cycle_ms);
+
+                                // Bug #83 fix: CLIENT skips INACTIVE wait after mode change
+                                // CLIENT's armed_epoch_us (client_epoch) is already half-cycle after server_epoch
+                                // When CLIENT executes mode change at this epoch, it's at perfect antiphase
+                                // Going to INACTIVE and recalculating would add an extra cycle delay
+                                client_skip_inactive_wait = true;
+
+                                // Bug #98 fix: Clear stale epoch cycle start from interrupted INACTIVE
+                                // If CLIENT was in INACTIVE when mode change was armed, it may have
+                                // already calculated a target time for the next cycle. That value is
+                                // now stale (in the past) and would cause ACTIVE to use a past target,
+                                // resulting in immediate motor coast (~10ms instead of full duration).
+                                // Clearing this forces ACTIVE to use fresh esp_timer_get_time().
+                                client_epoch_cycle_start_ms = 0;
+                                notify_epoch_cycle_start_ms = 0;  // Also clear notify path
+                            }
+
+                            // Bug #80 fix: Reset CLIENT cycle counter on mode change
+                            // (Prevents cycle divergence in activation reports)
+                            client_inactive_cycle_count = 0;
+
+                            // Disarm mode change
+                            mode_change_armed = false;
+                            armed_new_mode = MODE_05HZ_25;
+                            armed_epoch_us = 0;
+                            armed_cycle_ms = 0;
+                            armed_active_ms = 0;
+                            armed_server_epoch_us = 0;  // Bug #82 fix
+
+                            // Update LED indication
+                            led_indication_active = true;
+                            led_indication_start_ms = now;
+                            last_mode_change_ms = now;
+                        }
+                    }
                 }
-
-                // Update back-EMF sampling flag (first 10 seconds after mode change OR beacon)
-                bool mode_change_bemf = led_indication_active && ((now - led_indication_start_ms) < LED_INDICATION_TIME_MS);
-                bool beacon_bemf = beacon_bemf_logging_active && ((now - beacon_bemf_start_ms) < LED_INDICATION_TIME_MS);
-                sample_backemf = mode_change_bemf || beacon_bemf;
-
-                // Calculate motor parameters from BLE settings (verbose logging gated with BEMF)
-                // Phase 3a: Bilateral timing with active_coast_ms and inactive_ms
-                calculate_mode_timing(current_mode, &motor_on_ms, &active_coast_ms, &inactive_ms, &pwm_intensity, sample_backemf);
 
                 // Phase 6: Check if BLE params changed (Mode 4 frequency/duty via GATT write)
                 // SERVER must republish motor epoch ONLY if cycle period changed (frequency)
@@ -1163,8 +1354,18 @@ void motor_task(void *pvParameters) {
                 if (ble_params_updated) {
                     ble_params_updated = false;  // Clear flag
 
-                    // Calculate current cycle period
-                    uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                    // Bug #101: Get FRESH cycle period from BLE, not stale local variables
+                    // Local vars (motor_on_ms, active_coast_ms, inactive_ms) are set at cycle START
+                    // and don't reflect mid-cycle BLE changes. Must calculate fresh from BLE.
+                    uint32_t cycle_ms;
+                    if (current_mode == MODE_CUSTOM) {
+                        // Mode 4: Calculate from current BLE frequency
+                        uint16_t freq_x100 = ble_get_custom_frequency_hz();
+                        cycle_ms = 100000 / freq_x100;  // Fresh from BLE
+                    } else {
+                        // Other modes: Use local variables (they don't change mid-cycle)
+                        cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                    }
                     bool cycle_changed = (cycle_ms != prev_cycle_ms && prev_cycle_ms != 0);
 
                     // If SERVER in MODE_CUSTOM, check if cycle period changed
@@ -1177,6 +1378,10 @@ void motor_task(void *pvParameters) {
                             if (time_sync_get_time(&motor_epoch_us) == ESP_OK) {
                                 time_sync_set_motor_epoch(motor_epoch_us, cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Frequency changed - motor epoch updated (cycle=%lums)", cycle_ms);
+                                // Bug #93 fix: Use LOCAL time for cycle_start (matches delay_until_target_ms)
+                                // motor_epoch_us is SYNC TIME but delays use esp_timer (LOCAL TIME)
+                                server_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                                server_cycle_count = 0;  // Reset cycle count on frequency change
 
                                 // Send immediate beacon so CLIENT can sync right away
                                 if (ble_send_time_sync_beacon() == ESP_OK) {
@@ -1217,6 +1422,54 @@ void motor_task(void *pvParameters) {
                     }
                 }
 
+                // Bug #103: Initialize prev_cycle_ms when first entering MODE_CUSTOM
+                // Without this, the first PWA frequency change doesn't trigger sync because
+                // prev_cycle_ms is 0, and cycle_changed check requires prev_cycle_ms != 0
+                if (current_mode == MODE_CUSTOM && prev_cycle_ms == 0) {
+                    uint16_t freq_x100 = ble_get_custom_frequency_hz();
+                    prev_cycle_ms = 100000 / freq_x100;
+                    ESP_LOGD(TAG, "MODE_CUSTOM: prev_cycle_ms initialized to %lu", prev_cycle_ms);
+                }
+
+                // Don't transition to ACTIVE if shutting down
+                if (state == MOTOR_STATE_SHUTDOWN) {
+                    break;
+                }
+
+                // Bug #50 fix: Pause motors during mode change arming
+                // Both devices enter PAUSED state until synchronized epoch is reached
+                // This prevents CLIENT from running NEW pattern while SERVER runs OLD pattern
+                // Bug #94c fix: Check armed BEFORE calculate_mode_timing to avoid log spam
+                // Previously, calculate_mode_timing was called every 50ms during armed wait
+                if (mode_change_armed) {
+                    ESP_LOGD(TAG, "Motors paused (mode change armed for epoch %llu)", armed_epoch_us);
+                    vTaskDelay(pdMS_TO_TICKS(50));  // Wait and check again
+                    continue;  // Stay in CHECK_MESSAGES
+                }
+
+                // Bug #53 fix: Calculate timing AFTER mode change execution
+                // Bug #52 incorrectly placed this BEFORE message handling, meaning timing was
+                // calculated from OLD current_mode before mode change updated it.
+                // Correct sequence: 1) Process messages → 2) Execute mode change → 3) Calculate timing
+                //
+                // Show LED logic:
+                // - Mode 5 (CUSTOM): LED blinks for entire session if BLE LED enabled
+                // - Other modes: LED blinks for first 10 seconds after mode change
+                if (current_mode == MODE_CUSTOM) {
+                    show_led = ble_get_led_enable();  // Always use BLE setting for custom mode
+                } else {
+                    show_led = led_indication_active;  // 10-second timeout for other modes
+                }
+
+                // Update back-EMF sampling flag (first 10 seconds after mode change OR beacon)
+                bool mode_change_bemf = led_indication_active && ((now - led_indication_start_ms) < LED_INDICATION_TIME_MS);
+                bool beacon_bemf = beacon_bemf_logging_active && ((now - beacon_bemf_start_ms) < LED_INDICATION_TIME_MS);
+                sample_backemf = mode_change_bemf || beacon_bemf;
+
+                // Calculate motor parameters from BLE settings (verbose logging gated with BEMF)
+                // Phase 3a: Bilateral timing with active_coast_ms and inactive_ms
+                calculate_mode_timing(current_mode, &motor_on_ms, &active_coast_ms, &inactive_ms, &pwm_intensity, sample_backemf);
+
                 // BUG FIX (Phase 3a): Removed ongoing bilateral offset code that changed frequency
                 // Initial offset (lines 335-351 in PAIRING state) is sufficient for phase alignment
                 // Devices naturally maintain phase offset as long as they run at same frequency
@@ -1234,49 +1487,21 @@ void motor_task(void *pvParameters) {
                     ESP_LOGI(TAG, "Beacon BEMF logging complete (10s window ended)");
                 }
 
-                // Don't transition to ACTIVE if shutting down
-                if (state == MOTOR_STATE_SHUTDOWN) {
-                    break;
-                }
-
-                // Phase 3: CLIENT alternates INACTIVE/ACTIVE, SERVER always starts ACTIVE
-                // Bug #50: Position-based state selection instead of blind toggle
-                // Calculate CLIENT state from SERVER's actual position every cycle
+                // AD045: Synchronized Independent Operation
+                // CLIENT and SERVER use different state machine initialization
                 peer_role_t role = ble_get_peer_role();
                 if (role == PEER_ROLE_CLIENT) {
-                    // CLIENT: Calculate state based on SERVER's position in cycle
-                    // Get synchronized time and motor epoch for phase calculation
-                    uint64_t sync_time_us = 0;
-                    uint64_t server_epoch_us = 0;
-                    uint32_t cycle_ms_temp = 0;
-
-                    if (time_sync_get_time(&sync_time_us) == ESP_OK &&
-                        time_sync_get_motor_epoch(&server_epoch_us, &cycle_ms_temp) == ESP_OK &&
-                        server_epoch_us > 0 && cycle_ms_temp > 0) {
-                        // Calculate SERVER's position in current cycle
-                        uint64_t cycle_us = (uint64_t)cycle_ms_temp * 1000;
-                        uint64_t elapsed_us = sync_time_us - server_epoch_us;
-                        uint64_t cycles_since_epoch = elapsed_us / cycle_us;
-                        uint64_t server_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us);
-                        uint64_t position_in_cycle_us = sync_time_us - server_cycle_start_us;
-
-                        // Half-cycle = when SERVER transitions from ACTIVE to INACTIVE
-                        uint64_t half_cycle_us = cycle_us / 2;
-
-                        // SERVER in first half = ACTIVE, second half = INACTIVE
-                        // CLIENT does opposite for antiphase coordination
-                        bool server_is_active = (position_in_cycle_us < half_cycle_us);
-                        state = server_is_active ? MOTOR_STATE_INACTIVE : MOTOR_STATE_ACTIVE;
-
-                        ESP_LOGI(TAG, "CLIENT: Position-based state: SERVER %s (pos=%lu/%lu ms) → CLIENT %s",
-                                 server_is_active ? "ACTIVE" : "INACTIVE",
-                                 (uint32_t)(position_in_cycle_us / 1000),
-                                 (uint32_t)(cycle_us / 1000),
-                                 state == MOTOR_STATE_INACTIVE ? "INACTIVE" : "ACTIVE");
+                    // Bug #81/#83 fix: Skip INACTIVE wait after coordinated start or mode change
+                    // CLIENT's epoch timing already places it at perfect antiphase
+                    if (client_skip_inactive_wait) {
+                        client_skip_inactive_wait = false;  // Clear flag (one-shot)
+                        ESP_LOGI(TAG, "CLIENT: Skipping INACTIVE (antiphase pre-calculated)");
+                        state = MOTOR_STATE_ACTIVE;
                     } else {
-                        // Fallback: Start with INACTIVE if no time sync available yet
+                        // CLIENT: Normal cycle - go to INACTIVE state
+                        // INACTIVE state handler calculates target time from SERVER epoch
+                        // and transitions to ACTIVE when target is reached
                         state = MOTOR_STATE_INACTIVE;
-                        ESP_LOGI(TAG, "CLIENT: No time sync - starting INACTIVE (fallback)");
                     }
                 } else {
                     // SERVER/STANDALONE: Always start with ACTIVE
@@ -1305,24 +1530,55 @@ void motor_task(void *pvParameters) {
                 // Bug #17 Fix: Record cycle start time for ABSOLUTE timing
                 // All subsequent delays are calculated relative to this timestamp
                 // This eliminates vTaskDelay jitter accumulation
-                cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-
-                // Phase 3: SERVER updates motor epoch at start of each ACTIVE cycle
-                // This timestamp is sent in beacons for CLIENT drift correction
+                //
+                // Bug #89 Fix: CLIENT uses epoch-anchored target from INACTIVE state
+                // instead of "now". This prevents ms walk between devices caused by
+                // polling jitter accumulation.
+                //
+                // Bug #90 Fix: When CLIENT skips INACTIVE (mode change, coordinated start,
+                // frequency change), epoch-anchored time comes from:
+                //   - client_epoch_cycle_start_ms: mode change or coordinated start path
+                //   - notify_epoch_cycle_start_ms: frequency change via motor_task_notify_motor_started()
+                //
+                // Bug #91 Fix: SERVER also uses epoch-anchored timing calculated in INACTIVE
+                // This prevents SERVER drift from "now" jitter accumulation
                 peer_role_t active_role = ble_get_peer_role();
-                if (active_role == PEER_ROLE_SERVER && TIME_SYNC_IS_ACTIVE()) {
-                    uint64_t motor_epoch_us;
-                    if (time_sync_get_time(&motor_epoch_us) == ESP_OK) {
-                        uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
-                        time_sync_set_motor_epoch(motor_epoch_us, cycle_ms);
-                        // Only log once every ~60 seconds to avoid spam
-                        static uint32_t last_epoch_log_ms = 0;
-                        if ((now - last_epoch_log_ms) >= 60000) {
-                            ESP_LOGI(TAG, "SERVER: Motor epoch updated (cycle=%lu ms)", cycle_ms);
-                            last_epoch_log_ms = now;
-                        }
-                    }
+                if (active_role == PEER_ROLE_CLIENT && client_epoch_cycle_start_ms > 0) {
+                    cycle_start_ms = client_epoch_cycle_start_ms;
+                    client_epoch_cycle_start_ms = 0;  // Clear after use
+                } else if (active_role == PEER_ROLE_CLIENT && notify_epoch_cycle_start_ms > 0) {
+                    cycle_start_ms = notify_epoch_cycle_start_ms;
+                    notify_epoch_cycle_start_ms = 0;  // Clear after use
+                } else if (active_role == PEER_ROLE_SERVER && server_epoch_cycle_start_ms > 0) {
+                    // Bug #91: SERVER uses epoch-anchored target from INACTIVE
+                    cycle_start_ms = server_epoch_cycle_start_ms;
+                    server_epoch_cycle_start_ms = 0;  // Clear after use
+                } else {
+                    // Fallback: STANDALONE mode or first cycle before epoch set
+                    cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
                 }
+
+                // Bug #96 fix: Update motor_epoch when SERVER's first cycle actually starts
+                // After mode change, motor_epoch is set to PROPOSED time (500ms before execution).
+                // Bug #94b correctly uses fresh time for first cycle, but INACTIVE calculates
+                // next cycle targets from motor_epoch. If motor_epoch is 500ms in the past,
+                // the calculated target for cycle 2 is already past when we reach it.
+                // Fix: When SERVER's first cycle starts (server_cycle_count==0), update
+                // motor_epoch to actual cycle_start_ms so INACTIVE calculations are correct.
+                if (active_role == PEER_ROLE_SERVER && server_cycle_count == 0) {
+                    uint64_t actual_epoch_us = (uint64_t)cycle_start_ms * 1000ULL;
+                    uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                    time_sync_set_motor_epoch(actual_epoch_us, cycle_ms);
+                    ESP_LOGI(TAG, "Bug #96: SERVER motor_epoch updated to actual start %lu ms", cycle_start_ms);
+                }
+
+                // AD045: Motor epoch is set once at coordinated start, not updated every cycle
+                // CLIENT calculates target times from the ORIGINAL epoch
+                // Per-cycle updates would break synchronized independent operation
+                // Motor epoch only changes on:
+                //   1. Coordinated start (PAIRING_WAIT exit)
+                //   2. Synchronized mode changes (two-phase commit)
+                // Removed Phase 3 per-cycle epoch update for AD045
 
                 // Start motor in current direction (determined by is_forward_direction flag)
                 if (is_forward_direction) {
@@ -1501,21 +1757,25 @@ void motor_task(void *pvParameters) {
             // STATE: INACTIVE
             // ================================================================
             case MOTOR_STATE_INACTIVE: {
-                // Phase 3: INACTIVE period with drift correction for CLIENT
-                // SERVER: Uses fixed inactive_ms delay (it's the time reference)
-                // CLIENT: Calculates delay from SERVER's motor epoch to correct crystal drift
+                // AD045: Synchronized Independent Operation
+                // Both devices calculate transitions from synced clocks independently
+                // No cycle-by-cycle corrections - passive monitoring only
                 //
-                // Bug #17 Fix: Use absolute time scheduling to eliminate jitter
-                // SERVER: cycle_start_ms was set in ACTIVE, wait until full cycle end
-                // CLIENT: Record start time now (CLIENT enters INACTIVE directly via toggle)
+                // SERVER: Uses fixed inactive_ms delay (it's the authoritative time reference)
+                // CLIENT: Calculates target time from SERVER's motor epoch (antiphase = epoch + half_cycle)
 
                 uint32_t wait_ms = inactive_ms;  // Default for SERVER/standalone
                 uint32_t inactive_start_ms = 0;  // For CLIENT absolute timing
+                uint32_t client_local_target_ms = 0;  // Bug #86: Epoch-anchored local target
+
+                // Bug #54a fix: Static variables for activation report (sent AFTER wait, not before)
+                // Bug #80: client_inactive_cycle_count moved to file scope for mode change reset
+                static uint64_t client_target_for_report = 0;
+                static bool send_activation_report = false;
 
                 peer_role_t inactive_role = ble_get_peer_role();
 
                 // Log INACTIVE state for SERVER to match CLIENT logging
-                // Tech Spike: Continuous logging for single-device drift baseline measurement
                 #ifdef ENABLE_SINGLE_DEVICE_DRIFT_BASELINE
                 // Log continuously (no peer connection required) for drift baseline
                 if (inactive_role == PEER_ROLE_SERVER || inactive_role == PEER_ROLE_NONE) {
@@ -1528,25 +1788,15 @@ void motor_task(void *pvParameters) {
                 }
                 #endif
 
-                // Bug #17 Fix: CLIENT records start time for absolute wait
+                // CLIENT records start time for absolute wait
                 // (SERVER uses cycle_start_ms from ACTIVE state)
                 if (inactive_role == PEER_ROLE_CLIENT) {
                     inactive_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
                 }
 
-                // Phase 6l: Always use drift correction for CLIENT (removed skip logic)
+                // AD045: Synchronized Independent Operation for CLIENT
+                // Calculate target time from SERVER epoch, no corrections
                 if (inactive_role == PEER_ROLE_CLIENT) {
-                    // BUG #17 FIX: Removed TIME_SYNC_IS_ACTIVE() gate
-                    // During first 10 seconds after pairing, TIME_SYNC_IS_ACTIVE() is false
-                    // (state is still CONNECTED, not SYNCED yet). This prevented drift
-                    // correction entirely, causing phase misalignment.
-                    // The motor_epoch check below (lines 949-951) already guards the actual
-                    // calculation - if no epoch available, we fall through to nominal timing.
-                    // CLIENT: Calculate drift-corrected wait time from SERVER's epoch
-                    // Bug #14 fix: Always apply drift correction (no quality threshold),
-                    // but clamp corrections to avoid perceptible phase jumps.
-                    // At high duty cycles, large corrections cause visible overlap/gaps.
-                    // Gradual correction over multiple cycles is smoother than one big jump.
                     uint64_t sync_time_us = 0;
                     uint64_t server_epoch_us = 0;
                     uint32_t cycle_ms = 0;
@@ -1556,189 +1806,113 @@ void motor_task(void *pvParameters) {
                         cycle_ms > 0) {
 
                         uint64_t cycle_us = (uint64_t)cycle_ms * 1000ULL;
-                        uint64_t half_period_us = cycle_us / 2;
-
-                        // Phase 6p: ABSOLUTE TARGET TIME calculation (replaces relative position)
-                        // Bug #40 Fix: Systematic +662ms phase offset due to accumulated errors
-                        // in relative position calculation. Absolute timing eliminates error buildup
-                        // from ACTIVE duration and scheduling overhead.
-                        //
-                        // OLD: "Where is SERVER now? When will it reach half-period?" (relative)
-                        // NEW: "When did SERVER start this cycle? Add half-period." (absolute)
+                        uint64_t half_cycle_us = cycle_us / 2;
 
                         // Calculate how many complete cycles have elapsed since epoch
                         uint64_t elapsed_us = sync_time_us - server_epoch_us;
                         uint64_t cycles_since_epoch = elapsed_us / cycle_us;
 
-                        // Calculate absolute timestamp when SERVER started current cycle
+                        // Calculate when SERVER started current cycle
                         uint64_t server_current_cycle_start_us = server_epoch_us + (cycles_since_epoch * cycle_us);
 
-                        // CLIENT target: Start ACTIVE exactly half-period after SERVER's cycle start
-                        // (This is when SERVER ends ACTIVE and starts INACTIVE = ideal antiphase)
-                        uint64_t client_target_active_us = server_current_cycle_start_us + half_period_us;
+                        // CLIENT target: Start ACTIVE exactly half-cycle after SERVER's cycle start
+                        // This achieves perfect antiphase (SERVER INACTIVE while CLIENT ACTIVE)
+                        uint64_t client_target_active_us = server_current_cycle_start_us + half_cycle_us;
 
-                        // If target already passed (we're past halfway through SERVER's cycle),
-                        // advance to next cycle's antiphase point
+                        // If target already passed, advance to next cycle's antiphase point
                         if (client_target_active_us <= sync_time_us) {
                             client_target_active_us += cycle_us;
                         }
 
-                        // Calculate wait time to reach absolute target
+                        // Calculate wait time to reach target
                         uint64_t target_wait_us = client_target_active_us - sync_time_us;
 
-                        // Phase 6p: Enhanced diagnostic logging
-                        // Log every 10 cycles to avoid spam but capture phase calculation details
-                        static uint32_t inactive_cycle_count = 0;
-                        bool should_log = (inactive_cycle_count % 10 == 0);
-                        if (should_log) {
-                            uint64_t epoch_age_ms = elapsed_us / 1000;
-                            ESP_LOGI(TAG, "CLIENT PHASE CALC: sync_time=%llu us, epoch=%llu us (age=%lu ms)",
-                                     sync_time_us, server_epoch_us, (uint32_t)epoch_age_ms);
-                            ESP_LOGI(TAG, "CLIENT PHASE CALC: cycles_since_epoch=%lu, SERVER_cycle_start=%llu us",
-                                     (uint32_t)cycles_since_epoch, server_current_cycle_start_us);
-                            ESP_LOGI(TAG, "CLIENT PHASE CALC: CLIENT_target=%llu us, wait=%lu ms",
-                                     client_target_active_us, (uint32_t)(target_wait_us / 1000));
-                        }
-                        inactive_cycle_count++;
+                        // Bug #86: Compute local target time NOW (same instant as target_wait_us)
+                        // This ensures time domain consistency for polling fallback
+                        uint64_t local_now_us = esp_timer_get_time();
+                        client_local_target_ms = (uint32_t)((local_now_us + target_wait_us) / 1000);
 
-                        // Convert to ms with sanity bounds
+                        // Bug #89: Store epoch-anchored target for ACTIVE state
+                        // ACTIVE will use this instead of esp_timer_get_time() to prevent walk
+                        client_epoch_cycle_start_ms = client_local_target_ms;
+
+                        // AD044: Arm hardware timer for precise antiphase synchronization
+                        // Timer provides microsecond precision (no polling jitter)
+                        if (client_motor_timer != NULL) {
+                            // Cancel any pending timer first
+                            if (esp_timer_is_active(client_motor_timer)) {
+                                esp_timer_stop(client_motor_timer);
+                            }
+
+                            // Arm one-shot timer to fire at exact target time
+                            esp_err_t timer_err = esp_timer_start_once(client_motor_timer, target_wait_us);
+                            if (timer_err != ESP_OK) {
+                                ESP_LOGW(TAG, "CLIENT: Failed to arm timer: %s (falling back to polling)",
+                                         esp_err_to_name(timer_err));
+                            }
+                        }
+
+                        // Convert to ms for waiting (sanity check: 0-5000ms range)
                         uint32_t calculated_ms = (uint32_t)(target_wait_us / 1000);
-
-                        // Bug #15 fix: Minimum wait time = SERVER's ACTIVE duration
-                        // CLIENT must wait at least until SERVER's motor finishes
-                        // At 2Hz 92% duty: motor_on=230ms, active_coast=20ms, so min_wait=250ms
-                        // Negative corrections CANNOT make CLIENT start before SERVER finishes
-                        uint32_t floor_overlap = motor_on_ms + active_coast_ms;
-
-                        // Bug #19 fix: At high duty cycles (>85%), floor_overlap can equal
-                        // or exceed inactive_ms, preventing ANY negative corrections.
-                        // This causes oscillation: CLIENT overshoots, can't slow down, drifts.
-                        // Cap floor to ensure at least 50ms headroom for negative corrections.
-                        #define MIN_CORRECTION_HEADROOM_MS 50U
-                        uint32_t floor_max = (inactive_ms > MIN_CORRECTION_HEADROOM_MS)
-                            ? (inactive_ms - MIN_CORRECTION_HEADROOM_MS)
-                            : (inactive_ms / 2);  // Fallback for very short cycles
-                        uint32_t min_wait_ms = (floor_overlap < floor_max) ? floor_overlap : floor_max;
-
-                        int32_t diff_ms = (int32_t)calculated_ms - (int32_t)inactive_ms;
-
-                        // Bug #16 fix: Allow unclamped corrections for initial phase alignment
-                        // After pairing, devices may have large phase offset (up to 1000ms)
-                        // Normal clamping prevents proper alignment - allow full correction initially
-                        if (unclamped_correction_cycles > 0) {
-                            // Unclamped correction - apply calculated value with only floor constraint
-                            if (calculated_ms < min_wait_ms) {
-                                // Bug #23 Fix: Phase skip when floor prevents antiphase
-                                // Using floor would push CLIENT into near-collision zone (SERVER in
-                                // late INACTIVE). Instead, skip to next cycle's antiphase window.
-                                // Example: calc=265ms, floor=950ms, cycle=2000ms
-                                //   Using floor: SERVER ends up at ~1700ms (near collision)
-                                //   Phase skip: 265+2000=2265ms, SERVER at 1000ms (exact antiphase)
-                                wait_ms = calculated_ms + cycle_ms;
-
-                                /* CRITICAL FIX (Phase 6): Clamp phase skip to safety maximum
-                                 *
-                                 * Root cause: Stale epoch data from previous connection can cause
-                                 * cycle_ms to be corrupt, leading to multi-second delays (e.g., 2367ms
-                                 * when using stale 2000ms cycle_ms from disconnected session).
-                                 *
-                                 * Evidence: Boot #3 logs showed "calc=367 ms < floor=450 ms, next cycle: 2367 ms"
-                                 *
-                                 * Solution: Clamp to maximum 5 seconds to prevent observable glitches
-                                 */
-                                if (wait_ms > 5000) {
-                                    ESP_LOGW(TAG, "CLIENT PHASE SKIP ANOMALY: wait_ms=%lu exceeds safety threshold (5s), clamping to 1000ms",
-                                             wait_ms);
-                                    wait_ms = 1000;  // Use nominal 1Hz fallback
-                                }
-
-                                ESP_LOGI(TAG, "CLIENT PHASE SKIP: calc=%lu ms < floor=%lu ms, next cycle: %lu ms",
-                                         calculated_ms, min_wait_ms, wait_ms);
-                            } else if (calculated_ms <= cycle_ms) {
-                                wait_ms = calculated_ms;
-                                ESP_LOGI(TAG, "CLIENT INITIAL ALIGN: wait=%lu ms (diff=%+ld ms, cycles_left=%d)",
-                                         wait_ms, (long)diff_ms, unclamped_correction_cycles);
-                            } else {
-                                // Out of bounds - use nominal for safety
-                                wait_ms = inactive_ms;
-                                ESP_LOGW(TAG, "CLIENT INITIAL ALIGN: calc=%lu ms out of bounds, using nominal",
-                                         calculated_ms);
-                            }
-                            unclamped_correction_cycles--;
+                        if (calculated_ms > 5000) {
+                            ESP_LOGW(TAG, "CLIENT: Calculated wait %lu ms exceeds 5s, using nominal %lu ms",
+                                     calculated_ms, inactive_ms);
+                            wait_ms = inactive_ms;
                         } else {
-                            // Bug #27 Fix: Pure P controller with deadband (replaces PD)
-                            // - PD's D-term amplified measurement noise, causing oscillation
-                            // - Deadband ignores drift within perception threshold
-                            // - Handles BOTH directions since coast catch-up is disabled
-                            //
-                            // Reference: NTP best practices - filter noise before control
+                            wait_ms = calculated_ms;
+                        }
 
-                            #define P_GAIN_PCT 50         // Apply 50% of error per cycle
+                        // AD045: Passive monitoring (every 10 cycles)
+                        // Monitor sync quality and drift without actively correcting
+                        // Note: static variables moved to INACTIVE case level for report sending after wait
+                        client_target_for_report = client_target_active_us;  // Store for report after wait
 
-                            // Frequency-dependent correction limits (November 30, 2025)
-                            // - Max correction: 20% of inactive period (more aggressive at low freq, safer at high freq)
-                            // - Deadband: 10% of inactive period (proportional noise tolerance)
-                            // - Minimum practical limits prevent too-small corrections at high frequencies
-                            uint32_t max_correction_ms = (inactive_ms * 20) / 100;  // 20% of inactive
-                            uint32_t deadband_ms = (inactive_ms * 10) / 100;        // 10% of inactive
-                            if (max_correction_ms < 50) max_correction_ms = 50;     // Minimum 50ms max correction
-                            if (deadband_ms < 25) deadband_ms = 25;                 // Minimum 25ms deadband
+                        if (client_inactive_cycle_count % 10 == 0) {
+                            time_sync_quality_t quality;
+                            int32_t phase_offset_ms = (int32_t)calculated_ms - (int32_t)inactive_ms;
 
-                            if (abs(diff_ms) < (int32_t)deadband_ms) {
-                                // Within deadband - drift is imperceptible, no correction needed
-                                // This prevents oscillation from measurement noise
-                                wait_ms = inactive_ms;
-                                last_correction_type = CORRECTION_NONE;
-                                last_correction_amount_ms = 0;
-                                // Don't log - this is the normal steady-state
-                            } else {
-                                // Outside deadband - apply pure P correction (no D-term)
-                                // Bug #42 Fix: After Bug #40, diff_ms = calculated_wait - nominal
-                                // Positive diff = target is LATE = need to CATCH UP = shorten INACTIVE
-                                // Negative diff = target is EARLY = need to SLOW DOWN = extend INACTIVE
-                                int32_t correction_ms = -(diff_ms * P_GAIN_PCT) / 100;
+                            if (time_sync_get_quality(&quality) == ESP_OK) {
+                                ESP_LOGI(TAG, "CLIENT SYNC: quality=%u%%, avg_drift=%+ld μs, phase_offset=%+ld ms, wait=%lu ms",
+                                         quality.quality_score, (long)quality.avg_drift_us, (long)phase_offset_ms, wait_ms);
 
-                                // Phase 6r: Simple clamping to frequency-dependent max_correction_ms
-                                // EMA filter in time_sync.c handles outlier rejection now
-                                if (correction_ms > (int32_t)max_correction_ms) {
-                                    correction_ms = (int32_t)max_correction_ms;
-                                } else if (correction_ms < -(int32_t)max_correction_ms) {
-                                    correction_ms = -(int32_t)max_correction_ms;
+                                // Edge case detection (for future adaptive corrections)
+                                if (quality.quality_score < 50 || llabs(quality.avg_drift_us) > 100000) {  // 100ms threshold
+                                    ESP_LOGW(TAG, "CLIENT SYNC DEGRADED: quality=%u%%, avg_drift=%+ld μs",
+                                             quality.quality_score, (long)quality.avg_drift_us);
+                                    // Future: Could trigger targeted correction or re-sync
                                 }
+                            }
+                            // Mark that we should send activation report after wait
+                            send_activation_report = true;
+                        }
 
-                                // For negative corrections (catch-up), enforce floor constraint
-                                // CLIENT must not start ACTIVE before SERVER finishes
-                                if (correction_ms < 0) {
-                                    int32_t max_shorten = (int32_t)inactive_ms - (int32_t)min_wait_ms;
-                                    if (-correction_ms > max_shorten) {
-                                        correction_ms = -max_shorten;
-                                    }
-                                }
+                        // IEEE 1588 REV_PROBE: Send every 10 cycles (offset by 5 from SYNC_FB)
+                        // This enables bidirectional path asymmetry detection
+                        if ((client_inactive_cycle_count + 5) % 10 == 0) {
+                            static uint32_t rev_probe_sequence = 0;
+                            uint64_t t1_prime = esp_timer_get_time();  // T1': CLIENT send time
 
-                                // Apply correction: positive extends, negative shortens
-                                int32_t new_wait = (int32_t)inactive_ms + correction_ms;
-                                if (new_wait < (int32_t)min_wait_ms) {
-                                    new_wait = (int32_t)min_wait_ms;
+                            coordination_message_t probe = {
+                                .type = SYNC_MSG_REVERSE_PROBE,
+                                .timestamp_ms = (uint32_t)(t1_prime / 1000),
+                                .payload.reverse_probe = {
+                                    .client_send_time_us = t1_prime,
+                                    .probe_sequence = rev_probe_sequence
                                 }
-                                wait_ms = (uint32_t)new_wait;
+                            };
 
-                                // Track correction type for diagnostics
-                                if (correction_ms > 0) {
-                                    last_correction_type = CORRECTION_INACTIVE_EXTEND;
-                                    last_correction_amount_ms = correction_ms;
-                                    ESP_LOGI(TAG, "CLIENT SLOW-DOWN: drift=%+ld ms, correction=+%ld ms",
-                                             (long)diff_ms, (long)correction_ms);
-                                } else if (correction_ms < 0) {
-                                    last_correction_type = CORRECTION_INACTIVE_SHORTEN;
-                                    last_correction_amount_ms = correction_ms;
-                                    ESP_LOGI(TAG, "CLIENT CATCH-UP: drift=%+ld ms, correction=%ld ms",
-                                             (long)diff_ms, (long)correction_ms);
-                                } else {
-                                    last_correction_type = CORRECTION_NONE;
-                                    last_correction_amount_ms = 0;
-                                }
+                            esp_err_t send_err = ble_send_coordination_message(&probe);
+                            if (send_err == ESP_OK) {
+                                ESP_LOGI(TAG, "CLIENT: REV_PROBE sent seq=%lu", (unsigned long)rev_probe_sequence);
+                                rev_probe_sequence++;
                             }
                         }
+
+                        client_inactive_cycle_count++;
+                    } else {
+                        // No epoch available - fall back to nominal timing
+                        wait_ms = inactive_ms;
+                        ESP_LOGD(TAG, "CLIENT: No motor epoch available, using nominal wait %lu ms", wait_ms);
                     }
                 }
 
@@ -1746,8 +1920,12 @@ void motor_task(void *pvParameters) {
                 if (wait_ms > 0) {
                     uint32_t wait_target_ms;
 
-                    if (inactive_role == PEER_ROLE_CLIENT) {
-                        // CLIENT: Wait relative to inactive_start_ms (recorded at state entry)
+                    if (inactive_role == PEER_ROLE_CLIENT && client_local_target_ms > 0) {
+                        // Bug #86: Use epoch-anchored local target (computed at same instant as wait)
+                        // This eliminates time domain mismatch between sync time and local time
+                        wait_target_ms = client_local_target_ms;
+                    } else if (inactive_role == PEER_ROLE_CLIENT) {
+                        // Fallback: Use relative timing if epoch not available
                         wait_target_ms = inactive_start_ms + wait_ms;
                     } else {
                         // SERVER/STANDALONE: Wait until end of full cycle
@@ -1768,8 +1946,104 @@ void motor_task(void *pvParameters) {
                     is_forward_direction = !is_forward_direction;
                 }
 
-                // Cycle complete, check messages again
-                state = MOTOR_STATE_CHECK_MESSAGES;
+                // AD045: CLIENT transitions to ACTIVE, SERVER/STANDALONE to CHECK_MESSAGES
+                if (inactive_role == PEER_ROLE_CLIENT) {
+                    // Bug #54a fix: Send activation report NOW (after wait completed, before ACTIVE)
+                    // This captures the actual transition time, not the pre-wait time
+                    if (send_activation_report && client_target_for_report > 0) {
+                        uint64_t actual_sync_time_us;
+                        if (time_sync_get_time(&actual_sync_time_us) == ESP_OK) {
+                            int32_t client_error_ms = (int32_t)((int64_t)actual_sync_time_us - (int64_t)client_target_for_report) / 1000;
+
+                            // AD043/Bug #85: Get PTP timestamps for NTP-style offset calculation
+                            // T1 = SERVER's beacon send time, T2 = CLIENT's beacon receive time
+                            uint64_t beacon_server_time = 0;
+                            uint64_t beacon_rx_time = 0;
+                            time_sync_get_last_beacon_timestamps(&beacon_server_time, &beacon_rx_time);
+
+                            // T3 = CLIENT's current time when sending this report
+                            uint64_t report_tx_time = esp_timer_get_time();
+
+                            coordination_message_t report = {
+                                .type = SYNC_MSG_ACTIVATION_REPORT,
+                                .timestamp_ms = (uint32_t)(report_tx_time / 1000),
+                                .payload.activation_report = {
+                                    .actual_time_us = actual_sync_time_us,
+                                    .target_time_us = client_target_for_report,
+                                    .client_error_ms = client_error_ms,
+                                    .cycle_number = client_inactive_cycle_count - 1,  // -1 because already incremented
+                                    // AD043: Paired timestamps for NTP-style offset
+                                    .beacon_server_time_us = beacon_server_time,  // T1
+                                    .beacon_rx_time_us = beacon_rx_time,          // T2
+                                    .report_tx_time_us = report_tx_time           // T3
+                                }
+                            };
+
+                            esp_err_t send_err = ble_send_coordination_message(&report);
+                            if (send_err == ESP_OK) {
+                                // Match v0.6.97 log format for sync analysis
+                                int64_t offset_us = 0;
+                                time_sync_get_clock_offset(&offset_us);
+                                ESP_LOGI(TAG, "CLIENT: SYNC_FB sent cycle=%lu err=%ldms offset=%lldms",
+                                         (unsigned long)(client_inactive_cycle_count - 1),
+                                         (long)client_error_ms, offset_us / 1000);
+                            }
+                        }
+                        send_activation_report = false;  // Reset flag
+                    }
+
+                    // Log CLIENT activation for manual sync verification (matches SERVER logging)
+                    ESP_LOGI(TAG, "CLIENT: Cycle starts ACTIVE (antiphase to SERVER)");
+
+                    // Bug #88: Stop hardware timer AND clear any pending message before ACTIVE
+                    // Race condition: timer fires AFTER polling exits but BEFORE we stop it
+                    // Result: MSG_TIMER_MOTOR_TRANSITION in queue causes early motor-off
+                    if (client_motor_timer != NULL) {
+                        // Stop timer if still pending
+                        if (esp_timer_is_active(client_motor_timer)) {
+                            esp_timer_stop(client_motor_timer);
+                        }
+                        // Clear any timer message that already fired (race condition)
+                        task_message_t stale_msg;
+                        if (xQueuePeek(button_to_motor_queue, &stale_msg, 0) == pdPASS) {
+                            if (stale_msg.type == MSG_TIMER_MOTOR_TRANSITION) {
+                                xQueueReceive(button_to_motor_queue, &stale_msg, 0);
+                            }
+                        }
+                    }
+
+                    // Bug #79: CLIENT must check LED timer (doesn't visit CHECK_MESSAGES)
+                    // SERVER checks LED in CHECK_MESSAGES every cycle, but CLIENT bypasses it
+                    // after first cycle (INACTIVE -> ACTIVE -> INACTIVE -> ... loop).
+                    {
+                        uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                        if (current_mode != MODE_CUSTOM && led_indication_active &&
+                            ((now_ms - led_indication_start_ms) >= LED_INDICATION_TIME_MS)) {
+                            led_indication_active = false;
+                            led_clear();
+                            ESP_LOGI(TAG, "LED off (battery conservation)");
+                        }
+                    }
+                    state = MOTOR_STATE_ACTIVE;
+                } else {
+                    // Bug #91: SERVER calculates next ACTIVE start from motor_epoch
+                    // This prevents SERVER drift from "now" jitter accumulation
+                    uint64_t server_epoch_us = 0;
+                    uint32_t server_cycle_ms = 0;
+                    if (inactive_role == PEER_ROLE_SERVER &&
+                        time_sync_get_motor_epoch(&server_epoch_us, &server_cycle_ms) == ESP_OK &&
+                        server_cycle_ms > 0) {
+                        // Increment cycle count and calculate next ACTIVE start
+                        server_cycle_count++;
+                        uint64_t cycle_us = (uint64_t)server_cycle_ms * 1000ULL;
+                        uint64_t next_active_us = server_epoch_us + (server_cycle_count * cycle_us);
+                        // Convert sync time to local time: local = sync + offset
+                        // Wait - motor_epoch is in SERVER's local time (esp_timer), not sync time
+                        // So no conversion needed
+                        server_epoch_cycle_start_ms = (uint32_t)(next_active_us / 1000);
+                    }
+                    state = MOTOR_STATE_CHECK_MESSAGES;
+                }
                 break;
             }
 
@@ -1821,6 +2095,21 @@ mode_t motor_get_current_mode(void) {
     return current_mode;
 }
 
+uint8_t motor_get_duty_percent(void) {
+    // AD045: Pattern-broadcast - return duty percent for time_sync beacon
+    // Duty = motor_on_ms / (motor_on_ms + active_coast_ms) as percentage
+    mode_t mode = current_mode;
+    uint32_t motor_on = modes[mode].motor_on_ms;
+    uint32_t active_coast = modes[mode].active_coast_ms;
+    uint32_t active_period = motor_on + active_coast;
+
+    if (active_period == 0) {
+        return 0;  // Prevent division by zero
+    }
+
+    return (uint8_t)((motor_on * 100) / active_period);
+}
+
 void motor_init_session_time(void) {
     // Initialize session start time during hardware init
     // This allows BLE clients connecting early to get correct uptime
@@ -1861,42 +2150,44 @@ void motor_trigger_beacon_bemf_logging(void) {
 esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms) {
     // Validate parameters (safety limits per AD031/AD032)
     // AD032: 0.25-2.0Hz @ 10-100% duty (full cycle timing)
+    // Note: Actual timing is read from ble_get_custom_frequency_hz() and ble_get_custom_duty_percent()
+    // This function validates and logs the update - BLE char_data is the source of truth
     uint32_t cycle_ms = motor_on_ms + coast_ms;
 
     if (motor_on_ms < 10) {
-        ESP_LOGE(TAG, "Invalid motor_on_ms: %u (must be ≥10ms for perception)", motor_on_ms);
+        ESP_LOGE(TAG, "Invalid motor_on_ms: %lu (must be ≥10ms for perception)", motor_on_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
     if (motor_on_ms > cycle_ms) {
-        ESP_LOGE(TAG, "Invalid motor_on_ms: %u exceeds cycle %u", motor_on_ms, cycle_ms);
+        ESP_LOGE(TAG, "Invalid motor_on_ms: %lu exceeds cycle %lu", motor_on_ms, cycle_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
     if (coast_ms > 4000) {
-        ESP_LOGE(TAG, "Invalid coast_ms: %u (must be ≤4000ms)", coast_ms);
+        ESP_LOGE(TAG, "Invalid coast_ms: %lu (must be ≤4000ms)", coast_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Update global mode 4 parameters (thread-safe, motor_task reads these)
-    mode5_on_ms = motor_on_ms;
-    mode5_coast_ms = coast_ms;
-
-    ESP_LOGI(TAG, "Mode 4 (Custom) timing updated: on=%ums coast=%ums", motor_on_ms, coast_ms);
+    ESP_LOGI(TAG, "Mode 4 (Custom) timing updated: on=%lums coast=%lums", motor_on_ms, coast_ms);
     return ESP_OK;
 }
 
 esp_err_t motor_update_mode5_intensity(uint8_t intensity_percent) {
-    // Validate intensity (safety limits per AD031)
-    if (intensity_percent < 30 || intensity_percent > 80) {
-        ESP_LOGE(TAG, "Invalid intensity: %u%% (must be 30-80%%)", intensity_percent);
+    // Validate intensity (0% for LED-only, 30-80% for motor safety per AD031)
+    if (intensity_percent != 0 && (intensity_percent < 30 || intensity_percent > 80)) {
+        ESP_LOGE(TAG, "Invalid intensity: %u%% (must be 0%% or 30-80%%)", intensity_percent);
         return ESP_ERR_INVALID_ARG;
     }
 
     // Update global mode 5 intensity (thread-safe, motor_task reads this)
     mode5_pwm_intensity = intensity_percent;
 
-    ESP_LOGI(TAG, "Mode 5 intensity updated: %u%%", intensity_percent);
+    if (intensity_percent == 0) {
+        ESP_LOGI(TAG, "Mode 5 intensity updated: 0%% (LED-only mode)");
+    } else {
+        ESP_LOGI(TAG, "Mode 5 intensity updated: %u%%", intensity_percent);
+    }
     return ESP_OK;
 }
 
@@ -1928,9 +2219,24 @@ void ble_callback_params_updated(void) {
 
 void motor_task_notify_motor_started(void) {
     // Phase 6: Signal CLIENT that MOTOR_STARTED message arrived from SERVER
-    // This aborts the coordinated start wait loop immediately (Issue #3 fix)
+    // This handles TWO scenarios:
+    //
+    // 1. Coordinated start: Aborts wait loop immediately (Issue #3 fix)
+    //    - CLIENT is in coordinated start wait loop, checks motor_started_received
+    //
+    // 2. Frequency change (Bug #84): Skip INACTIVE after epoch update
+    //    - CLIENT is in ACTIVE/INACTIVE loop, next INACTIVE would recalculate
+    //    - Setting client_skip_inactive_wait causes CLIENT to go directly to ACTIVE
+    //    - This is the same pattern as Bug #81/#83 fixes
+    //
     motor_started_received = true;
-    ESP_LOGI(TAG, "MOTOR_STARTED flag set (CLIENT can abort wait)");
+    client_skip_inactive_wait = true;  // Bug #84: Handle frequency changes during operation
+
+    // Bug #90 fix: Set epoch-anchored cycle start for ACTIVE state
+    // Use current local time as the cycle start (motor epoch was just updated)
+    notify_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    ESP_LOGI(TAG, "MOTOR_STARTED: flags set, cycle_start=%lu ms", notify_epoch_cycle_start_ms);
 }
 
 // NOTE: ble_callback_coordination_message() removed in Phase 3 refactor.

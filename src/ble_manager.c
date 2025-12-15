@@ -285,6 +285,13 @@ static ble_advertising_state_t adv_state = {
 // Settings dirty flag (thread-safe via char_data_mutex)
 static bool settings_dirty = false;
 
+// Bug #95: Debounced frequency change for Mode 4 (AD047 Phase 1 stepping stone)
+// When frequency changes via BLE slider, we debounce before triggering coordinated sync
+// This prevents rapid mode changes during slider drag while ensuring eventual sync
+#define FREQ_CHANGE_DEBOUNCE_MS 300  // Wait 300ms after last change before sync
+static bool freq_change_pending = false;
+static uint32_t freq_change_timestamp_ms = 0;
+
 // ============================================================================
 // BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
 // ============================================================================
@@ -438,6 +445,23 @@ static ble_peer_state_t peer_state = {
     .peer_battery_known = false,
     .peer_mac = {0}
 };
+
+// Bug #61: Battery cache for role assignment
+// BLE sends advertising data and scan response in SEPARATE events:
+// - Advertising packet: Contains battery Service Data (but no UUID)
+// - Scan response: Contains UUID (but no battery Service Data)
+// We must cache battery from advertising event and use it when scan response arrives
+typedef struct {
+    ble_addr_t addr;          /**< Device address */
+    uint8_t battery_level;    /**< Cached battery percentage */
+    bool valid;               /**< Cache entry is valid */
+    uint32_t timestamp_ms;    /**< When entry was cached (for expiry) */
+} battery_cache_entry_t;
+
+#define BATTERY_CACHE_SIZE    4       // Small cache for nearby devices
+#define BATTERY_CACHE_TTL_MS  5000    // Cache entry expires after 5 seconds
+
+static battery_cache_entry_t battery_cache[BATTERY_CACHE_SIZE] = {0};
 
 // Bug #45: Peer pairing window state flag
 // Tracks whether pairing window is closed (peer paired OR 30s timeout)
@@ -671,7 +695,19 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
     ble_callback_params_updated();
 
     // Phase 3a: Sync ALL settings to peer device (coordination message)
+    // This syncs the VALUE immediately so both devices have same frequency
     sync_settings_to_peer();
+
+    // Bug #95: Set pending flag for debounced coordinated mode change
+    // When user drags slider, we get many rapid changes. We debounce to avoid
+    // triggering mode change protocol for each slider position.
+    // time_sync_task checks this flag and triggers mode change after 300ms idle.
+    // Only applies when we're in Mode 4 (Custom) AND peer is connected.
+    if (ble_get_current_mode() == MODE_CUSTOM && ble_is_peer_connected()) {
+        freq_change_pending = true;
+        freq_change_timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
+        ESP_LOGI(TAG, "Frequency change pending (debounce started)");
+    }
 
     return 0;
 }
@@ -1660,9 +1696,10 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             {
                 // Phase 3: Coordination messages (hybrid architecture)
                 // Mode sync, settings sync, shutdown commands, advertising control
+                // Bug #60 fix: Add WRITE_NO_RSP - CLIENT uses ble_gattc_write_no_rsp_flat()
                 .uuid = &uuid_bilateral_coordination.u,
                 .access_cb = gatt_svr_chr_access,
-                .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
+                .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
             },
             {
                 0, // No more characteristics
@@ -3738,6 +3775,82 @@ void ble_close_pairing_window(void) {
 // ============================================================================
 
 /**
+ * @brief Cache battery level from advertising packet (Bug #61)
+ *
+ * BLE sends advertising data and scan response in separate events.
+ * Battery Service Data is in advertising packet, UUID is in scan response.
+ * We cache battery when we see it, then look it up when UUID match arrives.
+ */
+static void battery_cache_store(const ble_addr_t *addr, uint8_t battery_level) {
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    // Find existing entry or oldest entry to replace
+    int oldest_idx = 0;
+    uint32_t oldest_time = UINT32_MAX;
+
+    for (int i = 0; i < BATTERY_CACHE_SIZE; i++) {
+        // Check for existing entry with same address
+        if (battery_cache[i].valid &&
+            memcmp(battery_cache[i].addr.val, addr->val, 6) == 0) {
+            // Update existing entry
+            battery_cache[i].battery_level = battery_level;
+            battery_cache[i].timestamp_ms = now_ms;
+            ESP_LOGD(TAG, "Battery cache updated: %d%% for %02X:%02X:%02X:%02X:%02X:%02X",
+                     battery_level, addr->val[5], addr->val[4], addr->val[3],
+                     addr->val[2], addr->val[1], addr->val[0]);
+            return;
+        }
+
+        // Track oldest entry for LRU replacement
+        if (!battery_cache[i].valid || battery_cache[i].timestamp_ms < oldest_time) {
+            oldest_time = battery_cache[i].valid ? battery_cache[i].timestamp_ms : 0;
+            oldest_idx = i;
+        }
+    }
+
+    // Store in oldest/invalid slot
+    memcpy(battery_cache[oldest_idx].addr.val, addr->val, 6);
+    battery_cache[oldest_idx].battery_level = battery_level;
+    battery_cache[oldest_idx].timestamp_ms = now_ms;
+    battery_cache[oldest_idx].valid = true;
+
+    ESP_LOGD(TAG, "Battery cache stored: %d%% for %02X:%02X:%02X:%02X:%02X:%02X",
+             battery_level, addr->val[5], addr->val[4], addr->val[3],
+             addr->val[2], addr->val[1], addr->val[0]);
+}
+
+/**
+ * @brief Look up cached battery level by address (Bug #61)
+ *
+ * @param addr Device address to look up
+ * @param battery_level Output: battery percentage if found
+ * @return true if found and not expired, false otherwise
+ */
+static bool battery_cache_lookup(const ble_addr_t *addr, uint8_t *battery_level) {
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    for (int i = 0; i < BATTERY_CACHE_SIZE; i++) {
+        if (battery_cache[i].valid &&
+            memcmp(battery_cache[i].addr.val, addr->val, 6) == 0) {
+            // Check TTL
+            if ((now_ms - battery_cache[i].timestamp_ms) > BATTERY_CACHE_TTL_MS) {
+                // Entry expired
+                battery_cache[i].valid = false;
+                return false;
+            }
+
+            *battery_level = battery_cache[i].battery_level;
+            ESP_LOGI(TAG, "Battery cache hit: %d%% for %02X:%02X:%02X:%02X:%02X:%02X",
+                     *battery_level, addr->val[5], addr->val[4], addr->val[3],
+                     addr->val[2], addr->val[1], addr->val[0]);
+            return true;
+        }
+    }
+
+    return false;  // Not found
+}
+
+/**
  * @brief BLE GAP scan event callback
  *
  * Detects peer devices advertising Bilateral Control Service (6E400001-...).
@@ -3763,6 +3876,15 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
             if (fields.name != NULL) {
                 ESP_LOGI(TAG, "Scan: Device '%.*s' (%d UUIDs)",
                          fields.name_len, fields.name, fields.num_uuids128);
+            }
+
+            // Bug #61: Cache battery data from advertising packet for later lookup
+            // BLE sends advertising data (with battery) and scan response (with UUID) separately
+            if (fields.svc_data_uuid16 != NULL && fields.svc_data_uuid16_len >= 3) {
+                uint16_t svc_uuid = (fields.svc_data_uuid16[1] << 8) | fields.svc_data_uuid16[0];
+                if (svc_uuid == 0x180F) {  // Battery Service UUID
+                    battery_cache_store(&event->disc.addr, fields.svc_data_uuid16[2]);
+                }
             }
 
             // Check for Bilateral Control Service in scan response
@@ -3799,13 +3921,25 @@ static int ble_gap_scan_event(struct ble_gap_event *event, void *arg) {
 
                         // AD035: Extract peer battery level from Service Data for role assignment
                         // Battery Service UUID (0x180F) + battery percentage (0-100)
+                        // Bug #61: Check current packet first, then fall back to cache
                         if (fields.svc_data_uuid16 != NULL && fields.svc_data_uuid16_len >= 3) {
                             uint16_t svc_uuid = (fields.svc_data_uuid16[1] << 8) | fields.svc_data_uuid16[0];
                             if (svc_uuid == 0x180F) {  // Battery Service UUID
                                 peer_state.peer_battery_level = fields.svc_data_uuid16[2];
                                 peer_state.peer_battery_known = true;
-                                ESP_LOGI(TAG, "Peer battery: %d%% (for role assignment)",
+                                ESP_LOGI(TAG, "Peer battery: %d%% (from current packet)",
                                          peer_state.peer_battery_level);
+                            }
+                        }
+
+                        // Bug #61: If battery not in current packet (scan response), check cache
+                        // Battery was in advertising packet, UUID is in scan response - different events
+                        if (!peer_state.peer_battery_known) {
+                            uint8_t cached_battery;
+                            if (battery_cache_lookup(&event->disc.addr, &cached_battery)) {
+                                peer_state.peer_battery_level = cached_battery;
+                                peer_state.peer_battery_known = true;
+                                ESP_LOGI(TAG, "Peer battery: %d%% (from cache)", cached_battery);
                             }
                         }
 
@@ -4153,6 +4287,26 @@ bool ble_is_peer_connected(void) {
     return (ble_gap_conn_find(peer_state.peer_conn_handle, &desc) == 0);
 }
 
+bool ble_check_and_clear_freq_change_pending(uint32_t debounce_ms) {
+    // Bug #95: Check if frequency change has settled (debounce expired)
+    if (!freq_change_pending) {
+        return false;
+    }
+
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t elapsed = now_ms - freq_change_timestamp_ms;
+
+    if (elapsed >= debounce_ms) {
+        // Debounce expired - clear flag and return true to trigger mode change
+        freq_change_pending = false;
+        ESP_LOGI(TAG, "Frequency change debounce complete (elapsed=%lu ms) - triggering sync", elapsed);
+        return true;
+    }
+
+    // Still within debounce window
+    return false;
+}
+
 static bool ble_is_app_connected(void) {
     // Use NimBLE API as source of truth (no state drift)
     if (adv_state.conn_handle == BLE_HS_CONN_HANDLE_NONE) {
@@ -4384,6 +4538,11 @@ esp_err_t ble_send_time_sync_beacon(void) {
         ESP_LOGE(TAG, "Mutex timeout in ble_send_time_sync_beacon - possible deadlock");
         return ESP_ERR_TIMEOUT;
     }
+
+    // Bug #76 (PTP Hardening): Update T1 timestamp as late as possible
+    // This minimizes the gap between timestamp recording and actual RF transmission.
+    // Original T1 was set in time_sync_generate_beacon() ~1-50ms earlier.
+    time_sync_finalize_beacon_timestamp(&beacon);
 
     // Send notification to peer (while holding mutex)
     struct os_mbuf *om = ble_hs_mbuf_from_flat(&beacon, sizeof(beacon));

@@ -2,31 +2,71 @@
  * @file motor_task.h
  * @brief Motor Control Task Module - FreeRTOS task for bilateral motor control
  *
+ * @defgroup motor_task Motor Control Module
+ * @{
+ *
+ * @section mt_overview Overview
+ *
  * This module implements the motor control state machine responsible for:
- * - Bilateral alternating motor patterns (forward/reverse cycles)
- * - Mode configurations (1 Hz, 0.5 Hz, custom via BLE)
- * - Message queue handling (button events, battery warnings)
+ * - Bilateral alternating motor patterns (0.5-2 Hz therapeutic range)
+ * - Mode configurations (presets + custom via BLE/PWA)
+ * - Message queue handling (button events, battery warnings, BLE commands)
  * - Back-EMF sampling for motor research
- * - NVS settings management for Mode 5 (custom parameters)
+ * - NVS settings persistence across power cycles
  *
- * Architecture (per AD027):
- * - Task module (mirrors FreeRTOS task structure)
- * - Single-device vs dual-device as STATE (not separate code)
- * - Message queue communication with button_task and battery monitor
- * - Dependencies: battery_monitor.h, nvs_manager.h, led_control.h
+ * @section mt_arduino Arduino Developers: Key Differences
  *
- * State Machine: 8 states
- * - CHECK_MESSAGES: Process queue messages, handle mode changes
- * - FORWARD_ACTIVE: Motor forward PWM
- * - BEMF_IMMEDIATE: Immediate back-EMF sample after motor off
- * - COAST_SETTLE: Wait for back-EMF settle time
- * - FORWARD_COAST_REMAINING: Complete forward coast period
- * - REVERSE_ACTIVE: Motor reverse PWM
- * - REVERSE_COAST_REMAINING: Complete reverse coast period
- * - SHUTDOWN: Cleanup before task exit
+ * | Arduino Pattern | ESP-IDF Pattern (This Code) |
+ * |-----------------|----------------------------|
+ * | `loop() { if(buttonPressed)... }` | FreeRTOS queue with `xQueueReceive()` |
+ * | `analogWrite(pin, pwm)` | LEDC driver with `ledc_set_duty()` |
+ * | Global `currentMode` variable | State machine with explicit transitions |
+ * | `delay()` blocks everything | `vTaskDelay()` yields to other tasks |
+ * | Single thread of execution | Multiple concurrent tasks communicate via queues |
  *
- * @date November 11, 2025
- * @author Claude Code (Anthropic)
+ * @section mt_state_machine State Machine Design
+ *
+ * Unlike Arduino's single `loop()`, this uses an explicit state machine:
+ *
+ * @code{.unparsed}
+ *   PAIRING_WAIT ──► CHECK_MESSAGES ──► ACTIVE ──► INACTIVE ──► (repeat)
+ *         │                │                           │
+ *         │                └───► SHUTDOWN ◄────────────┘
+ *         │                      (5s button hold)
+ *         └──────────────────────────────────────────────────────┘
+ * @endcode
+ *
+ * Each state has a single responsibility and explicit transitions.
+ * This makes the code testable, debuggable, and safe.
+ *
+ * @section mt_queues Message Queue Communication
+ *
+ * Instead of polling globals, tasks communicate via FreeRTOS queues:
+ *
+ * @code{.c}
+ * // Button task sends mode change request
+ * task_message_t msg = { .type = MSG_MODE_CHANGE, .data.new_mode = MODE_1HZ_25 };
+ * xQueueSend(button_to_motor_queue, &msg, 0);
+ *
+ * // Motor task receives in CHECK_MESSAGES state
+ * if (xQueueReceive(button_to_motor_queue, &msg, 0) == pdTRUE) {
+ *     current_mode = msg.data.new_mode;
+ * }
+ * @endcode
+ *
+ * @section mt_jpl JPL Coding Standard Compliance
+ *
+ * - **Rule 1:** No malloc - all state is static or stack-allocated
+ * - **Rule 2:** Bounded loops - state machine has finite states
+ * - **Rule 3:** vTaskDelay() for timing, never `while(flag)` spin loops
+ * - **Rule 8:** Watchdog fed in CHECK_MESSAGES, triggers reset if stuck
+ *
+ * @see docs/adr/0027-modular-source-file-architecture.md
+ * @see docs/adr/0044-non-blocking-motor-timing.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef MOTOR_TASK_H
@@ -132,7 +172,8 @@ typedef enum {
     MSG_BATTERY_CRITICAL,     /**< Battery voltage below critical threshold (LVO) */
     MSG_SESSION_TIMEOUT,      /**< Session duration exceeded (60 minutes) */
     MSG_PAIRING_COMPLETE,     /**< BLE pairing successful (Phase 1b.3) */
-    MSG_PAIRING_FAILED        /**< BLE pairing failed or timeout (Phase 1b.3) */
+    MSG_PAIRING_FAILED,       /**< BLE pairing failed or timeout (Phase 1b.3) */
+    MSG_TIMER_MOTOR_TRANSITION /**< Internal timer: motor state transition */
 } message_type_t;
 
 /**
@@ -157,15 +198,41 @@ typedef struct {
 
 /**
  * @brief Initialize motor control subsystem
- * @return ESP_OK on success, error code on failure
  *
- * Configures:
- * - GPIO19/20 for H-bridge control (IN1/IN2)
- * - LEDC PWM: 25kHz, 10-bit resolution
- * - Dead time: 1ms FreeRTOS dead time (watchdog feed)
- * - Initial state: motors off (brake mode)
+ * Configures hardware peripherals for motor control:
+ * - GPIO18/GPIO19 for H-bridge IN1/IN2 (forward/reverse)
+ * - LEDC PWM at 25kHz with 10-bit resolution (1024 levels)
+ * - Initial state: motors off (brake mode, both GPIOs LOW)
  *
- * Must be called before motor_task starts
+ * @par Arduino Equivalent
+ * @code{.c}
+ * // Arduino approach:
+ * pinMode(MOTOR_PIN, OUTPUT);
+ * analogWrite(MOTOR_PIN, 0);  // Simple, but limited
+ *
+ * // ESP-IDF approach (this function does internally):
+ * ledc_timer_config(&timer_config);    // Configure PWM timer
+ * ledc_channel_config(&channel_config); // Attach GPIO to timer
+ * // More complex, but: 25kHz (inaudible), 1024 levels, H-bridge control
+ * @endcode
+ *
+ * @warning Must be called BEFORE creating motor_task. The task assumes
+ *          hardware is already initialized. Calling from multiple tasks
+ *          or calling twice will cause undefined behavior.
+ *
+ * @warning GPIO18/19 are hard-coded for this specific PCB design.
+ *          Different hardware requires modifying the GPIO defines.
+ *
+ * @pre NVS flash initialized (for settings restoration)
+ * @post GPIOs configured, PWM timers running, motors in brake mode
+ *
+ * @return
+ * - ESP_OK: Hardware initialized successfully
+ * - ESP_ERR_INVALID_STATE: Already initialized
+ * - ESP_FAIL: LEDC timer or channel configuration failed
+ *
+ * @see motor_task() - the FreeRTOS task that uses this hardware
+ * @see docs/adr/0005-gpio-assignment-strategy.md
  */
 esp_err_t motor_init(void);
 
@@ -209,6 +276,18 @@ void motor_task(void *pvParameters);
 mode_t motor_get_current_mode(void);
 
 /**
+ * @brief Get duty percent for current mode (AD045: Pattern-broadcast)
+ * @return Duty percent (0-100) for motor ON time as fraction of ACTIVE period
+ *
+ * Duty calculation: (motor_on_ms * 100) / (motor_on_ms + active_coast_ms)
+ * Example: Mode 0 (0.5Hz@25%): (250 * 100) / (250 + 750) = 25%
+ *
+ * Used by time_sync beacon to broadcast pattern to CLIENT device.
+ * Thread-safe read of current mode configuration.
+ */
+uint8_t motor_get_duty_percent(void);
+
+/**
  * @brief Initialize session start timestamp
  *
  * Must be called during hardware initialization (before motor_task starts).
@@ -228,18 +307,8 @@ void motor_init_session_time(void);
  */
 uint32_t motor_get_session_time_ms(void);
 
-/**
- * @brief Trigger 10-second back-EMF logging window after time sync beacon
- *
- * Phase 2: Time synchronization verification
- * Called by time_sync_task when a time sync beacon is received.
- * Enables back-EMF logging for 10 seconds to verify bilateral timing
- * remains synchronized after time sync updates.
- *
- * Gracefully refuses if mode-change logging is already active
- * (mode-change logging takes priority).
- */
-void motor_trigger_beacon_bemf_logging(void);
+// Note: motor_trigger_beacon_bemf_logging() removed - BEMF now uses independent 60s timer
+// See periodic_bemf_logging_active in motor_task.c CHECK_MESSAGES state
 
 /**
  * @brief Notify motor_task that MOTOR_STARTED message arrived
@@ -269,14 +338,14 @@ esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms);
 
 /**
  * @brief Update Mode 5 (custom) PWM intensity from BLE
- * @param intensity_percent PWM intensity 30-80% (research safety limits)
+ * @param intensity_percent PWM intensity: 0% (LED-only) or 30-80% (motor active)
  * @return ESP_OK on success, ESP_ERR_INVALID_ARG if out of range
  *
  * Thread-safe update of Mode 5 motor intensity
  * Changes take effect on next cycle when MODE_CUSTOM is active
  *
  * NOTE: Only affects MODE_CUSTOM (Mode 5)
- * NOTE: Limited to 30-80% per AD031 research safety constraints
+ * NOTE: 0% = LED-only mode (no motor), 30-80% per AD031 research safety constraints
  */
 esp_err_t motor_update_mode5_intensity(uint8_t intensity_percent);
 
@@ -296,6 +365,33 @@ bool motor_mode5_settings_dirty(void);
 void motor_mode5_settings_mark_clean(void);
 
 // ============================================================================
+// AD045: SYNCHRONIZED MODE CHANGE (TWO-PHASE COMMIT)
+// ============================================================================
+
+/**
+ * @brief Armed mode change state variables (shared with time_sync_task.c)
+ *
+ * These variables implement the two-phase commit protocol for synchronized
+ * mode changes between SERVER and CLIENT devices (AD045).
+ *
+ * Protocol:
+ * 1. SERVER: Button pressed → calculate epochs → send PROPOSAL to CLIENT
+ * 2. CLIENT: Receive PROPOSAL → validate → send ACK → arm mode change
+ * 3. Both devices: Wait until respective epoch → execute mode change
+ *
+ * Access:
+ * - motor_task.c: Arms mode change (SERVER via button, CLIENT via proposal)
+ * - motor_task.c: Executes mode change when epoch reached
+ * - time_sync_task.c: CLIENT arms mode change when PROPOSAL received
+ */
+extern bool mode_change_armed;       /**< True if mode change is armed and waiting for epoch */
+extern mode_t armed_new_mode;        /**< Mode to activate when epoch is reached */
+extern uint64_t armed_epoch_us;      /**< Synchronized time (μs) to execute mode change */
+extern uint32_t armed_cycle_ms;      /**< New cycle period (ms) for armed mode */
+extern uint32_t armed_active_ms;     /**< New active period (ms) for armed mode */
+extern uint64_t armed_server_epoch_us; /**< Bug #82: SERVER's motor epoch for CLIENT antiphase */
+
+// ============================================================================
 // EXTERNAL DEPENDENCIES
 // ============================================================================
 
@@ -310,6 +406,8 @@ extern QueueHandle_t battery_to_motor_queue;
 extern QueueHandle_t motor_to_button_queue;
 extern QueueHandle_t ble_to_motor_queue;     /**< BLE task → motor task (Phase 1b.3) */
 extern QueueHandle_t button_to_ble_queue;    /**< Button task → BLE task (existing) */
+
+/** @} */ // end of motor_task group
 
 #ifdef __cplusplus
 }

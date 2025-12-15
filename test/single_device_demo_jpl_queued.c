@@ -52,7 +52,7 @@ static const char *TAG = "JPL_PHASE4";
 #define GPIO_WS2812B_ENABLE     16
 #define GPIO_WS2812B_DIN        17
 #define GPIO_HBRIDGE_IN2        19
-#define GPIO_HBRIDGE_IN1        20
+#define GPIO_HBRIDGE_IN1        18      // MOVED from GPIO20
 #define GPIO_BAT_ENABLE         21
 
 // ========================================

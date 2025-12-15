@@ -7,7 +7,412 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+**Doxygen Quality Improvements for Arduino Developer Accessibility**:
+- **Purpose**: Make ESP-IDF codebase approachable for developers transitioning from Arduino
+- **Files Updated**:
+  - `src/time_sync.h` - Added `@defgroup`, Arduino comparison table (`millis()` vs `esp_timer_get_time()`), protocol architecture, `@warning`/`@pre`/`@post` tags, example code
+  - `src/motor_task.h` - Added `@defgroup`, Arduino pattern comparison (`loop()` vs FreeRTOS queues), state machine ASCII diagram, queue code examples
+  - `src/ble_manager.h` - Added `@defgroup`, Arduino BLE library comparison, GATT service tree structure, callback threading `@warning` tags
+  - `src/firmware_version.h` - Added `@defgroup`, "Why This Matters" section explaining dual-device versioning requirements
+- **Consistent Pattern Applied**:
+  - `@defgroup` with opening `@{` and closing `@}`
+  - "Arduino Developers" sections with side-by-side comparison tables
+  - `@warning` tags for safety-critical constraints
+  - `@pre`/`@post` conditions on init functions
+  - `@see` cross-references to ADR documentation
+  - `@par Example Usage` with `@code` blocks
+  - Updated version (0.6.122), date (2025-12-14), author credit (Sonnet 4, Sonnet 4.5, Opus 4.5)
+
+**README.md Updates**:
+- Added Phase 6 "Bilateral Motor Coordination (Complete)" milestone section
+- Added Phase 7 "Scheduled Pattern Playback (Next - AD047)" preview section
+- Added link to MLE Haptics PWA: https://lemonforest.github.io/mlehaptics-pwa/
+- Added link to Bilateral Time Sync Protocol Technical Report
+
+**ADR README.md Updates**:
+- Phase 2 now shows "(Complete)" status
+- Added Phase 6 section with key achievements (PTP-inspired sync, EMA filter, ±30 μs precision)
+- Added Phase 7 section (Lightbar Mode, half-cycle boundaries)
+- Updated Last Updated date to 2025-12-14
+
+### Added
+
+**AD047: Scheduled Pattern Playback Architecture (Phase 7 - Proposed)**:
+- **Purpose**: Future "Lightbar Mode" enabling GPS-quality bilateral sync with complex visual patterns
+- **Core Concept**: Scheduled playback with half-cycle boundary execution
+  - All parameter changes take effect at clean half-cycle boundaries
+  - Neither device is mid-motor-pulse at boundary → safe to apply new parameters
+  - 250-1000ms latency (half-cycle) vs reactive architecture (immediate but glitchy)
+- **Key Benefits**:
+  - Eliminates Bug #81-#84 class of timing issues (mid-cycle changes impossible)
+  - Enables lightbar-style patterns with scheduled frequency changes
+  - RF disruption resilient (continues executing from local buffer)
+- **Pattern Buffer Design**: Pre-computed segments with boundary_time, frequency, duty, intensity, LED color
+- **Related**: Builds on AD041, AD044, AD045, AD046 timing infrastructure
+- **Files Added**: `docs/adr/0047-scheduled-pattern-playback.md`
+- **ADR Index Updated**: `docs/adr/README.md` (47 total decisions, 3 proposed)
+
+**AD043 Enhancement: Paired Timestamps for Bias-Corrected Offset (v0.6.72)**:
+- **Problem Solved**: One-way delay bias in beacon-based time sync
+  - Original AD043 EMA filter smooths variance but cannot correct systematic bias
+  - Every beacon has ~20-40ms one-way delay → EMA converges to wrong offset
+  - Explains observed ~40ms phase offset despite excellent filter stability
+- **Solution**: NTP-style paired timestamps in SYNC_FB (activation report)
+  - CLIENT includes beacon timestamps (T1, T2) and report send time (T3)
+  - SERVER records receive time (T4) and calculates: `offset = ((T2-T1) + (T3-T4)) / 2`
+  - NTP formula cancels symmetric delays, giving bias-corrected offset
+- **Why This Works Now**: Pattern-broadcast architecture (AD045) changed the problem
+  - OLD: RTT spikes → stale timestamp → bad motor correction → jitter
+  - NEW: RTT spikes → EMA filter rejects outlier → motor timing unaffected
+  - Paired timestamps feed EMA filter, not motor corrections directly
+- **Expected Improvement**: ~40ms offset → <5ms target
+- **Files Modified**:
+  - `src/ble_manager.h` - Extended `activation_report_t` with T1/T2/T3 timestamps
+  - `src/time_sync.h` - Added `time_sync_get_last_beacon_timestamps()` and `time_sync_update_from_paired_timestamps()` APIs
+  - `src/time_sync.c` - Store T2 in process_beacon(), implement paired offset calculation
+  - `src/motor_task.c` - Populate paired timestamps when sending SYNC_FB
+  - `src/time_sync_task.c` - Call paired timestamp update on SYNC_FB receive
+  - `docs/adr/0043-filtered-time-synchronization.md` - Updated with v0.6.72 enhancement section
+
+**AD045: Pattern-Broadcast Architecture (Emergency Vehicle Adaptation)**:
+- **Beacon Enhancement**: Added `duty_percent` and `mode_id` fields to time_sync beacon (25 bytes, was 23)
+  - Both devices now have complete pattern info: epoch, period, duty, mode
+  - CLIENT can validate mode matches SERVER (warns if mismatch detected)
+- **Feniex-style Boundary Resync**: CLIENT detects epoch changes and resets cycle counter
+  - When SERVER changes mode, new epoch propagates via beacon
+  - CLIENT resets `client_inactive_cycle_count` to 0 on epoch change
+  - Eliminates cycle counter divergence in SYNC_FB diagnostics
+- **Enhanced SYNC_FB Diagnostics**:
+  - CLIENT logs: `SYNC_FB sent cycle=N err=Xms offset=Yms` (shows offset being applied)
+  - SERVER logs: `[SYNC_FB] cycle=N/M err=Xms elapsed=Yms` (shows elapsed time since epoch)
+  - Warns on cycle divergence > 5 (indicates stale epoch or time domain issue)
+- **Files Modified**:
+  - `src/time_sync.h` - Beacon struct expanded with duty_percent, mode_id
+  - `src/time_sync.c` - Beacon generation includes pattern fields, mode validation
+  - `src/motor_task.c` - Epoch change detection, cycle counter reset
+  - `src/motor_task.h` - Added `motor_get_duty_percent()` API
+  - `src/time_sync_task.c` - Enhanced SYNC_FB handler with elapsed time
+
+### Infrastructure
+
+**Code Cleanup: Emergency Vehicle Light Sync Architecture Alignment**:
+- **Motivation**: Align with proven "pattern-broadcast + independent execution" architecture from emergency vehicle lighting systems (Whelen, Federal Signal, SoundOff, Feniex)
+- **Research**: [docs/Emergency_Vehicle_Light_Sync_Proven_Architectures_for_ESP32_Adaptation.md](docs/Emergency_Vehicle_Light_Sync_Proven_Architectures_for_ESP32_Adaptation.md)
+- **Phase 1**: Removed Bug #26 disabled coast correction block (~68 lines)
+  - Code was inside `#if 0` block, permanently disabled
+  - Attempted drift corrections during COAST state that made overlap WORSE
+- **Phase 2**: Removed unused hardware timer infrastructure (~91 lines)
+  - `MSG_TIMER_MOTOR_TRANSITION` message type removed from motor_task.h
+  - Timer declaration, callback, creation, and arming code removed
+  - Timer was never controlling transitions - polling-based `delay_until_target_ms()` did actual work
+  - Phase 2 time sync already provides ±30 μs accuracy (200× better than ±10ms spec)
+- **Phase 3**: Simplified CLIENT motor cycle monitoring (~26 lines)
+  - Removed verbose SERVER cycle logging (reduced log spam)
+  - Simplified quality monitoring (removed unused edge case detection)
+  - Preserved essential calculation, Bug #54a activation report, and direction alternation
+- **Phase 4-5**: Skipped (mode change protocol and startup handshaking)
+  - These would require behavioral changes, not just dead code removal
+  - Deferred for future refactoring with hardware testing
+- **Total Removed**: 195 lines (-185 net deletions)
+- **Flash Reduction**: ~1,152 bytes saved (896,409 → 895,257)
+- **Files Modified**:
+  - `src/motor_task.c` - 194 lines removed
+  - `src/motor_task.h` - 1 line removed (MSG_TIMER_MOTOR_TRANSITION enum)
+
 ### Fixed
+
+**Bug #95: Mode 4 Frequency Changes Need Coordinated Sync (v0.6.117)**:
+- **Symptom**: When PWA user drags frequency slider in Mode 4, devices desync
+  - Each slider position change sends BLE write immediately
+  - Without coordination, only frequency VALUE is synced (via Phase 3a settings sync)
+  - Motor patterns continue at old timing until manual mode cycle
+- **Root Cause**: Mode 4 frequency changes weren't triggering AD045 coordinated mode change
+  - Bug #84 fixed CLIENT desync AFTER mode change
+  - But frequency changes weren't triggering mode change protocol at all
+  - Settings sync updates VALUE; mode change updates TIMING
+- **Solution**: Debounced frequency change triggers coordinated mode change (AD047 stepping stone)
+  - 300ms debounce window handles rapid slider drag gracefully
+  - After debounce settles, SERVER triggers MSG_MODE_CHANGE to motor_task
+  - Motor task executes AD045 two-phase commit to resync both devices
+- **Implementation**:
+  - Added `freq_change_pending` flag and `freq_change_timestamp_ms` in ble_manager.c
+  - Added `ble_check_and_clear_freq_change_pending()` API in ble_manager.h
+  - time_sync_task checks debounce periodically (SERVER only)
+  - On debounce expiry, sends MSG_MODE_CHANGE with MODE_CUSTOM to motor_task
+- **Note**: Duty cycle changes don't need this - duty only affects motor ON time within fixed cycle
+- **Files Modified**: `src/ble_manager.c`, `src/ble_manager.h`, `src/time_sync_task.c`
+
+**Bug #97: CLIENT LED Shows Old Mode Color at Mode Change Boundary (v0.6.119)**:
+- **Symptom**: CLIENT LED activates too soon at mode change, showing OLD mode color for last pulse
+  - LED turns on when mode change is REQUESTED (arming phase)
+  - But mode change doesn't EXECUTE until ~2 seconds later (synchronized epoch)
+  - CLIENT continues OLD pattern with LED active → shows OLD mode color
+- **Root Cause**: `led_indication_active = true` set at mode change REQUEST (line 1160)
+  - Should only activate when mode change EXECUTES (line 1328)
+  - Two-phase commit means 2s delay between REQUEST and EXECUTE
+  - During delay, CLIENT still running OLD mode but LED is on
+- **Fix**: Only set `led_indication_active` at REQUEST time when NOT synchronized
+  - Added `if (!TIME_SYNC_IS_ACTIVE())` guard around immediate LED activation
+  - When synchronized, LED indication activates at EXECUTE time (existing line 1328)
+  - Standalone mode still gets immediate LED feedback
+- **Files Modified**: `src/motor_task.c` (lines 1161-1170)
+
+**Bug #98: CLIENT First ACTIVE Cycle Truncated After Mode Change (v0.6.120)**:
+- **Symptom**: After rapid mode changes, CLIENT's first ACTIVE cycle is only ~10ms instead of full duration
+  - Motor starts then immediately coasts
+  - Observable as very brief pulse that doesn't match SERVER's timing
+- **Root Cause**: Stale `client_epoch_cycle_start_ms` from interrupted INACTIVE state
+  - CLIENT is in INACTIVE state, calculates target time for next cycle
+  - Rapid mode changes get armed and CLIENT stays in wait loop
+  - Mode change finally executes, sets `client_skip_inactive_wait = true`
+  - CHECK_MESSAGES goes directly to ACTIVE (skips INACTIVE)
+  - ACTIVE finds stale `client_epoch_cycle_start_ms > 0` from before mode change armed
+  - Uses stale value (which is now in the past) for `motor_off_target_ms`
+  - `delay_until_target_ms()` returns immediately → motor coasts after ~10ms
+- **Fix**: Clear epoch cycle start values when CLIENT executes mode change
+  - `client_epoch_cycle_start_ms = 0` clears stale INACTIVE target
+  - `notify_epoch_cycle_start_ms = 0` clears frequency change path too
+  - ACTIVE falls through to fresh `esp_timer_get_time()` for first cycle
+- **Files Modified**: `src/motor_task.c` (mode change execution, lines 1317-1324)
+
+**Bug #99: Misleading Beacon Warning for CLIENT During Mode Change (v0.6.120)**:
+- **Symptom**: CLIENT logs `W: Beacon trigger only valid for SERVER role` on every mode change
+  - Creates unnecessary alarm in logs
+  - Makes it look like something is wrong when it's expected behavior
+- **Root Cause**: `time_sync_trigger_forced_beacons()` called unconditionally on mode change
+  - `SYNC_MSG_MODE_CHANGE` handler calls this function for both SERVER and CLIENT
+  - Comment at line 558 says "This is expected on CLIENT (not an error)"
+  - But function itself uses `ESP_LOGW` (warning level) instead of `ESP_LOGD` (debug)
+- **Fix**: Change log level from WARNING to DEBUG
+  - CLIENT calling this is expected and harmless (function returns early)
+  - DEBUG level won't clutter logs at default verbosity
+- **Files Modified**: `src/time_sync.c` (line 1411-1413)
+
+**Bug #96: Short Motor Activations After Mode Change (v0.6.118)**:
+- **Symptom**: After mode change, cycles 2-4 have very short motor activations (~0-10ms instead of 63-84ms)
+  - SERVER's second activation is nearly instant (motor coasts immediately)
+  - Observable as brief motor pulses that don't provide proper tactile feedback
+- **Root Cause**: Motor epoch mismatch between proposed and actual execution time
+  - Mode change sets `motor_epoch` to PROPOSED time (500ms before execution)
+  - Bug #94b correctly uses fresh `esp_timer_get_time()` for first cycle
+  - INACTIVE calculates next cycle target: `motor_epoch + (cycle_count * cycle_period)`
+  - Since motor_epoch is ~500ms in the past, calculated target is already past
+  - `delay_until_target_ms()` returns immediately → motor coasts instantly
+- **Example Trace**:
+  - `motor_epoch = 25941170` (proposed from 500ms ago)
+  - First ACTIVE actually started at ~26388ms (fresh time)
+  - INACTIVE calculates: `25941170 + 667000 = 26608170` → target = 26608ms
+  - Second ACTIVE enters at 27058ms → target is 450ms in the PAST!
+- **Fix**: Update motor_epoch when SERVER's first cycle actually starts
+  - In ACTIVE state, when `server_cycle_count == 0`, update motor_epoch to actual `cycle_start_ms`
+  - INACTIVE calculations now anchor to correct starting point
+  - Subsequent cycles have valid future targets
+- **Files Modified**: `src/motor_task.c` (ACTIVE state, lines 1527-1539)
+
+**Bug #84: Mode 4 Frequency Changes Cause CLIENT Desync (v0.6.104)**:
+- **Symptom**: When changing frequency within Mode 4 (via PWA), CLIENT gets severely out of sync
+  - Desync persists until mode switch away and back to Mode 4
+  - Bug #83 fix only covered mode changes, not intra-mode frequency changes
+- **Root Cause**: MOTOR_STARTED message handler didn't set `client_skip_inactive_wait` flag
+  - Mode 4 frequency changes send MOTOR_STARTED (not full mode change protocol)
+  - CLIENT receives MOTOR_STARTED, updates epoch from beacon
+  - CLIENT then enters INACTIVE state and recalculates antiphase
+  - Recalculation misses first target, advances to NEXT cycle (1 cycle behind)
+- **Fix**: `motor_task_notify_motor_started()` now sets BOTH flags
+  - `motor_started_received = true` (existing - for coordinated start)
+  - `client_skip_inactive_wait = true` (new - for frequency change scenario)
+  - Same skip pattern as Bug #81/#83 - antiphase already correct, don't recalculate
+- **Files Modified**: `src/motor_task.c` (motor_task_notify_motor_started function)
+
+**Bug #83: CLIENT Mode Change Adds Extra Cycle Delay (v0.6.103)**:
+- **Symptom**: After mode change, SERVER runs 1 cycle ahead of CLIENT
+  - CLIENT LED activates late with motor already active
+  - Regression from v0.6.99 Bug #82 fix
+- **Root Cause**: CLIENT INACTIVE state recalculates antiphase after mode change execution
+  - CLIENT executes mode change at correct time (two-phase commit)
+  - CLIENT then transitions to INACTIVE state per normal flow
+  - INACTIVE calls `time_sync_get_motor_epoch()` and recalculates antiphase target
+  - By recalculation time, first antiphase target has passed
+  - `advance_past_target_cycles()` jumps to NEXT cycle → CLIENT 1 cycle behind
+- **Why Bug #81 didn't catch this**: Bug #81 was for coordinated start (epoch from beacon)
+  - Mode changes use two-phase commit (epoch from proposal, not beacon)
+  - CLIENT sets motor_epoch from proposal correctly (Bug #82 fix)
+  - But `client_skip_inactive_wait` flag not set during mode change execution
+- **Fix**: Set `client_skip_inactive_wait = true` when CLIENT executes mode change
+  - CLIENT's armed_epoch_us is already half-cycle after server_epoch (antiphase)
+  - When CLIENT executes at this epoch, it's at perfect antiphase position
+  - Skip INACTIVE and go directly to ACTIVE (same pattern as Bug #81)
+- **Files Modified**: `src/motor_task.c` (mode change execution for CLIENT)
+
+**Bug #74: Mode Change Latency Coupled to Current Frequency (v0.6.90)**:
+- **Symptom**: Mode changes at 0.5Hz took ~4 seconds, at 1.0Hz took ~2 seconds
+  - User perceived mode changes as "sluggish" at lower frequencies
+- **Root Cause**: Mode change scheduled "2 cycles from now" based on CURRENT frequency
+  - At 0.5Hz (2000ms period): 2 cycles = 4000ms wait
+  - At 1.0Hz (1000ms period): 2 cycles = 2000ms wait
+  - At 2.0Hz (500ms period): 2 cycles = 1000ms wait
+- **Fix**: Use fixed 500ms time margin instead of cycle-based margin
+  - BLE delivery + processing is ~100ms, so 500ms is plenty
+  - Find next cycle boundary after `now + 500ms`
+  - Mode change latency now independent of current frequency
+- **Expected Latency**: 500ms-1000ms at any frequency (was 1-4 seconds)
+- **Files Modified**: `src/motor_task.c` (lines 1138-1161)
+
+**Bug #73: CLIENT Epoch Race Condition on Mode Change (v0.6.89)**:
+- **Symptom**: After mode change, CLIENT's first activation uses OLD epoch, causing phase inversion
+  - CLIENT activates almost synchronized with SERVER instead of half-cycle offset
+  - ~1.4 seconds later, "New epoch detected" triggers recalculation
+  - After recalculation, CLIENT phase is inverted (activating half-cycle BEFORE SERVER)
+- **Root Cause**: CLIENT knew epoch from proposal but waited for beacon
+  - Mode change proposal sends epoch=28871170 to CLIENT
+  - CLIENT executes mode change, enters INACTIVE state
+  - CLIENT calls `time_sync_get_motor_epoch()` which reads from beacon data
+  - Forced beacon sent 28ms after mode change, but CLIENT already calculated
+  - First INACTIVE uses OLD epoch → wrong timing
+- **Fix**: CLIENT now sets motor_epoch directly from proposal (like SERVER does)
+  - Both devices call `time_sync_set_motor_epoch(armed_epoch_us, armed_cycle_ms)`
+  - CLIENT no longer waits for beacon - it already knows the epoch
+  - SERVER still sends forced beacons for ongoing sync validation
+- **Files Modified**: `src/motor_task.c` (lines 1250-1265)
+
+**Bug #72: Double Half-Cycle Offset on Mode Change (v0.6.88)**:
+- **Symptom**: ~3 second gap where only SERVER activates after mode change at lower frequencies
+- **Root Cause**: Double half-cycle offset calculation
+  - SERVER (line 1158): `client_epoch = server_epoch + half_cycle` → adds half-cycle
+  - CLIENT INACTIVE (line 1706): `target = server_cycle_start + half_cycle` → adds ANOTHER half-cycle
+  - Result: CLIENT activates 1.5 cycles after SERVER instead of 0.5 cycles
+- **Example at 0.5Hz (2000ms period)**:
+  - Expected: CLIENT activates 1000ms after SERVER (antiphase)
+  - Actual: CLIENT activates 3000ms after SERVER (1 full cycle + half)
+- **Fix**: SERVER now sends `client_epoch = server_epoch` (same epoch)
+  - CLIENT adds the ONE half-cycle offset in INACTIVE state as designed
+  - Mode changes now complete within a single cycle
+- **Files Modified**: `src/motor_task.c` (line 1160)
+
+**Bug #71: First Cycle After Mode Change Has Shortened Motor ON Time (v0.6.86→v0.6.87)**:
+- **Symptom**: First motor cycle after mode change only ran ~160ms instead of 250ms
+  - Second cycle onwards was correct (250ms for 0.5Hz@25%)
+  - Caused noticeable "short pulse" on first activation after mode change
+- **Root Cause**: Epoch calculated for mode change is in the PAST by execution time
+  - Mode change arms with epoch = current_epoch + (N * period) (Bug #69)
+  - By the time ACTIVE state runs (~500ms later), epoch is 400-500ms in the past
+  - `cycle_start_ms = epoch + 0` is in the past
+  - `motor_off_target = cycle_start + 250ms` is ALSO in the past
+  - `delay_until_target_ms()` returns immediately when target is past
+  - Motor ON time shortened to whatever processing time occurred (~160ms)
+- **Fix v0.6.86 (WRONG - caused motor to run 2230ms!)**: Skip past cycles to find future boundary
+  - While loop advanced `server_cycle_count` until `cycle_start_us >= now_us`
+  - **BUG**: Motor turns ON now, but waits until `cycle_start + 250ms` (future) to turn OFF
+  - Result: Motor ran for ~2230ms instead of 250ms (even worse!)
+- **Fix v0.6.87 (CORRECT)**: Check if motor_on phase already passed BEFORE turning on motor
+  - Calculate `motor_off_target_ms` and `active_end_target_ms` before motor_on
+  - If past `active_end`: skip entire ACTIVE phase, go to INACTIVE
+  - If past `motor_off` but before `active_end`: skip motor_on, still wait for coast period
+  - If neither: normal operation (turn on motor, wait until motor_off)
+  - Result: Clean phase skip without extending motor duration
+- **Files Modified**:
+  - `src/motor_task.c:1518-1549` - Bug #71 pre-check before motor_on
+  - `src/motor_task.c:1573` - Remove duplicate variable declaration
+
+**Bug #70: Mode 4 Log Spam During Mode Change Armed Wait (v0.6.85)**:
+- **Symptom**: ~40 lines of "Mode 4 (Custom): 0.50Hz..." printed every 50ms during mode change wait
+  - Log spam lasted 2-4 seconds (entire armed wait period)
+  - Cluttered serial output, made debugging difficult
+- **Root Cause**: Verbose logging not suppressed during armed wait
+  - `calculate_mode_timing()` called with `sample_backemf=true` every poll iteration
+  - Mode change triggers `led_indication_active=true` → `mode_change_logging=true`
+  - Armed wait loop polls every 50ms, calling calculate_mode_timing each time
+- **Fix**: Add `&& !mode_change_armed` to verbose logging condition
+  - `sample_backemf = (mode_change_logging || periodic_bemf) && !mode_change_armed`
+  - Motors paused during armed wait, no cycles executing → no logging needed
+- **Files Modified**:
+  - `src/motor_task.c:1368-1372` - Skip verbose logging during armed wait
+
+**Bug #69: Mode Change Transition - Epoch-Relative Scheduling (v0.6.84)**:
+- **Symptom**: Mode changes caused one device to activate early/late relative to the other
+  - Both devices observed timing mismatch during mode transitions
+  - Early activation visible to user despite sync working during steady-state
+- **Root Cause**: Mode change epoch calculated as `now + 2s` (non-deterministic)
+  - "now" varies between devices due to BLE transmission delay
+  - CLIENT couldn't independently verify SERVER's calculation
+- **Fix**: Epoch-relative mode change transitions (deterministic)
+  - SERVER calculates: `transition_epoch = current_epoch + (N * current_period)`
+  - N is typically `current_cycle + 2` (margin for BLE delivery)
+  - CLIENT can verify: transition must align with known motor epoch
+  - Both devices use same epoch + period → independently verifiable math
+- **Architecture**: Extension of Bug #68 epoch-anchored principle to mode changes
+- **Files Modified**:
+  - `src/motor_task.c:1128-1154` - SERVER epoch-relative transition calculation
+  - `src/time_sync_task.c:831-850` - CLIENT epoch-relative verification
+
+**Bug #68: SERVER ADC-Induced Timing Drift - Epoch-Based Cycle Scheduling (v0.6.83)**:
+- **Symptom**: SERVER motor cycles drift 10-20ms when BEMF/ADC sampling is active
+  - Without BEMF: Perfect 2000ms cycles
+  - With BEMF: Cycles drift by +10ms, +20ms, etc. (cumulative)
+  - Log evidence: `4153923 → 4155923 → 4157933 → 4159953` (2000, 2010, 2020ms intervals)
+- **Root Cause**: SERVER used `esp_timer_get_time()` ("now") for cycle_start_ms each cycle
+  - Any processing delay in CHECK_MESSAGES (ADC, logging, queue) accumulated
+  - CLIENT already used epoch-based timing (correct), but SERVER did not
+- **Fix**: SERVER now calculates cycle_start_ms from motor_epoch + cycle_count
+  - `cycle_start_us = motor_epoch + (server_cycle_count * cycle_period * 1000)`
+  - Cycles start at fixed intervals regardless of CHECK_MESSAGES processing time
+  - Added epoch change detection to reset cycle counter on mode changes
+  - Fallback to "now" for standalone mode (no epoch)
+- **Architecture**: Both devices now use same epoch-based approach (Emergency Vehicle pattern)
+- **Files Modified**:
+  - `src/motor_task.c:1437-1479` - Epoch-based cycle start calculation for SERVER
+
+**Bug #67: CLIENT Starts Motor Cycle After Button Press Before Proposal (v0.6.82)**:
+- **Symptom**: CLIENT starts a new ACTIVE motor cycle AFTER button press but BEFORE proposal arrives
+  - Log evidence: "Mode change armed" at 09:06:49.946, then "Cycle starts ACTIVE" at 09:06:49.988
+  - CLIENT runs old mode PWM (90%) during ~100ms gap before proposal arrives
+  - Mode change execution latency: 10-43ms late due to 50ms poll interval
+- **Root Cause**: Two issues:
+  1. CLIENT logged "Mode change armed" but did NOT actually set `mode_change_armed = true`
+  2. Real arming only happened when proposal arrived from SERVER (~100ms later)
+  3. During this gap, CLIENT continued running motor cycles
+  4. After proposal, 50ms poll interval caused additional 0-50ms execution latency
+- **Fix**: CLIENT now arms immediately on button press with two changes:
+  1. Set `mode_change_armed = true` with placeholder epoch (`UINT64_MAX`) on button press
+  2. Motors pause immediately; real epoch is set when proposal arrives
+  3. Improved pause loop: calculates precise wait time if <50ms remaining
+- **Files Modified**:
+  - `src/motor_task.c:1164-1175` - CLIENT arms immediately with placeholder epoch
+  - `src/motor_task.c:1374-1394` - Precise wait time calculation in pause loop
+
+**Bug #66: CLIENT Startup Offset - Extra Cycle Before First Activation (v0.6.81)**:
+- **Symptom**: CLIENT first activation ~2 seconds after SERVER (should be ~1 second for antiphase)
+  - Log evidence: SERVER activates at 08:29:49.334, CLIENT at 08:29:52.323 (~3s later, should be ~1s)
+- **Root Cause**: After coordinated start, CLIENT transitions to INACTIVE state instead of ACTIVE
+  - Coordinated start waits until antiphase moment (half-cycle after SERVER's epoch)
+  - But then CLIENT goes CHECK_MESSAGES → INACTIVE → calculates target
+  - By the time INACTIVE runs, antiphase moment has passed (~60ms transit time)
+  - INACTIVE adds a full cycle: `client_target_active_us += cycle_us` (line 1580)
+  - CLIENT ends up waiting an extra full cycle before first activation
+- **Fix**: CLIENT goes directly to ACTIVE after coordinated start (no INACTIVE wait)
+  - Added `client_first_cycle_active` flag set after coordinated start
+  - CHECK_MESSAGES checks flag: if true, go to ACTIVE instead of INACTIVE
+  - Flag cleared after first use (subsequent cycles use normal INACTIVE logic)
+- **Files Modified**:
+  - `src/motor_task.c:156-159` - Added `client_first_cycle_active` flag
+  - `src/motor_task.c:922-924` - Set flag when CLIENT reaches coordinated start
+  - `src/motor_task.c:1377-1388` - Use flag to bypass INACTIVE on first cycle
+
+**Bug #65: CLIENT Continues Cycles After Mode Change Armed (v0.6.80)**:
+- **Symptom**: 830 unpaired activations over 90-minute session (only 81 properly paired)
+  - CLIENT continued 2.0Hz cycles AFTER mode change was armed to 0.5Hz
+  - User report: "mode change arming does not always command both devices to stop"
+- **Root Cause**: `delay_until_target_ms()` and `delay_until_sync_target_us()` only checked `button_to_motor_queue` for MSG_MODE_CHANGE
+  - Did NOT check `mode_change_armed` flag set by `time_sync_task`
+  - CLIENT received mode proposal, armed the change, but continued delay loop
+- **Fix**: Added `mode_change_armed` check to both delay functions
+  - Returns early if mode change is armed, breaking out of wait loop
+  - Motor task returns to CHECK_MESSAGES where armed mode change is executed
+- **Files Modified**:
+  - `src/motor_task.c:290-294` - Added mode_change_armed check to delay_until_target_ms()
+  - `src/motor_task.c:355-359` - Added mode_change_armed check to delay_until_sync_target_us()
 
 **Bug #48: Battery-Based Role Assignment Race Condition**:
 - **Symptom**: Both devices fell back to discovery-based role assignment (power-on order) instead of using battery level
@@ -23,6 +428,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/ble_manager.c:3523-3530` - Store initial battery in ble_manager_init()
   - `src/ble_manager.c:3292-3299` - Initialize bilateral_data.battery_level in ble_on_sync()
   - `src/main.c:232-258` - Read battery before BLE init, pass to ble_manager_init()
+
+**Bug #49: CLIENT Overwrites Motor Epoch (COMPLETE FIX - Startup + Mode Change)**:
+- **Symptom**:
+  - 275 motor overlaps (87.1 seconds) over 90-minute session - both devices running ACTIVE simultaneously instead of alternating
+  - Startup antiphase error: CLIENT 1009ms offset from SERVER (should be exactly half-cycle = 1000ms at 1 Hz)
+  - User reports: "start up motor behavior is not correct", "systematic overlap in client/server activation periods"
+- **Root Cause**: CLIENT overwrote SERVER's authoritative motor epoch in TWO locations:
+  1. **Mode change handler** (v0.6.59 fix): CLIENT calculated epoch by subtracting half-cycle from its own start time
+  2. **Coordinated start handler** (v0.6.60 fix): CLIENT set epoch to its own actual start time during startup
+  - In both cases: CLIENT replaced SERVER's precise epoch with CLIENT's local time
+  - Result: Antiphase calculation used WRONG reference point → progressive drift → overlap
+- **Analysis Evidence**:
+  - v0.6.58 logs: 275 overlaps, avg 316.9ms, progressive drift 25ms → 209ms within 10 minutes
+  - v0.6.59 logs: Startup antiphase error persists (CLIENT epoch 12170137 μs vs SERVER 11161172 μs = 1009ms offset)
+  - CLIENT log showed: "CLIENT: Motor epoch set to actual start time: 12170137 μs" (should NOT set, only read!)
+- **Fix** (v0.6.59 + v0.6.60):
+  - **v0.6.59**: Removed CLIENT epoch update in mode change handler (motor_task.c:1201-1210)
+  - **v0.6.60**: Removed CLIENT epoch update in coordinated start handler (motor_task.c:900-909)
+  - Only SERVER calls `time_sync_set_motor_epoch()` (authoritative source of truth per AD045)
+  - CLIENT only calls `time_sync_get_motor_epoch()` to READ epoch (never writes)
+  - Maintains single source of truth for antiphase calculation
+- **Impact**:
+  - Eliminates motor overlap during session
+  - Fixes startup antiphase error (CLIENT now uses SERVER's exact epoch)
+  - Restores proper antiphase alternation (one device ACTIVE while other INACTIVE)
+- **Files Modified**:
+  - `src/motor_task.c:900-909` - Added SERVER role check before epoch update (coordinated start)
+  - `src/motor_task.c:1201-1210` - Added SERVER role check before epoch update (mode change)
 
 **Bug #50: Mode 4 Duty Cycle Display Confusion**:
 - **Symptom**: Mode 4 displayed "79% duty" but actual motor duty cycle was 39.5% of total cycle, causing AI model confusion
@@ -43,6 +476,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/motor_task.c:345` - Comment: "Motor Active Duty Percent: 10-100% of ACTIVE period (not total cycle)"
   - `src/motor_task.c:354` - Comment: "Apply Motor Active Duty Percent within ACTIVE period only"
   - `src/motor_task.c:355-366` - Logging: "motor active duty" terminology, dual display
+
+**Bug #51: Motors Pause During Mode Change Arming (Synchronized Transitions)**:
+- **Symptom**:
+  - Mode changes left one device running the NEW pattern while the other ran the OLD pattern for ~3.5 seconds
+  - User report: "mode change behavior is still leaving one device running the previous pattern"
+  - CLIENT changed pattern immediately after button press, SERVER continued OLD pattern until synchronized epoch
+  - Log evidence: "CLIENT: Antiphase lock LOST (will re-establish via beacons)" during every mode change
+- **Root Cause**: CLIENT executed mode change immediately after arming instead of waiting for synchronized epoch
+  - Line 1166 in motor_task.c changed `current_mode = new_mode` for CLIENT after button press
+  - Motor state machine immediately started running NEW pattern parameters (frequency, duty cycle)
+  - SERVER continued running OLD pattern until its synchronized epoch was reached
+  - Result: ~3.5 seconds of pattern chaos with mismatched frequencies and loss of antiphase lock
+- **Analysis Evidence**:
+  - v0.6.60 logs (first mode change 0.5Hz → 1.0Hz):
+    - 17:56:02.365: CLIENT mode change requested
+    - 17:56:02.366: CLIENT executes immediately: "Mode: 1.0Hz@25% (standalone)"
+    - 17:56:03.364: CLIENT starts NEW pattern: "Motor reverse: 65%" (1.0Hz timing)
+    - 17:56:03.864: CLIENT detects problem: "Antiphase lock LOST"
+    - Meanwhile SERVER still running 0.5Hz pattern until 17:56:04.025
+  - User confirmed observation: "I think that we need to stop active motor patterns during the arming behavior"
+- **Fix** (v0.6.61):
+  - **Part 1**: CLIENT doesn't execute mode change immediately (motor_task.c:1165-1178)
+    - If time sync active (CLIENT role): Don't change `current_mode`, log "Mode change armed"
+    - Wait for synchronized execution at agreed epoch
+    - Only standalone devices change mode immediately (no peer coordination needed)
+  - **Part 2**: Add PAUSED state during arming period (motor_task.c:1339-1346)
+    - Check `mode_change_armed` flag in CHECK_MESSAGES state
+    - If armed: Motors pause, log "Motors paused (mode change armed)", continue checking
+    - Both devices enter PAUSED state, resume together at synchronized epoch
+- **Impact**:
+  - Eliminates pattern chaos during mode changes (both devices now change together)
+  - Prevents antiphase lock loss (motors pause instead of running mismatched patterns)
+  - Smooth synchronized transitions with coordinated pause → resume behavior
+  - Professional UX: Users see both devices pause briefly, then resume in sync with new pattern
+- **Files Modified**:
+  - `src/motor_task.c:1165-1178` - CLIENT doesn't execute mode change immediately, waits for synchronized epoch
+  - `src/motor_task.c:1339-1346` - Added PAUSED state check to prevent motor activation during arming
+  - `src/firmware_version.h:33` - Version bump to v0.6.61
+  - `platformio.ini:101` - Version bump to v0.6.61
+
+**Bug #52: [INCORRECT FIX - Superseded by Bug #53]**:
+- v0.6.62 moved timing recalculation to BEFORE message handling
+- This was wrong - timing calculated from OLD current_mode before mode change executed
+- See Bug #53 for correct fix
+
+**Bug #53: Timing Recalculation Must Happen AFTER Mode Change Execution**:
+- **Symptom** (v0.6.61 analysis):
+  - SERVER stuck at old frequency after mode changes while CLIENT switches correctly
+  - Mode Change 1.0Hz → 1.5Hz: SERVER measured at 1.000 Hz (33% error), CLIENT perfect at 1.500 Hz
+  - Mode Change 1.5Hz → 2.0Hz: SERVER measured at 1.499 Hz (25% error), CLIENT perfect at 2.001 Hz
+  - Pattern: CLIENT immediately switches, SERVER continues running old frequency
+- **Symptom** (v0.6.62 - Bug #52 incorrect fix made it worse):
+  - BOTH devices stuck at approximately half target frequency
+  - Mode 0.5→1.0 Hz: Both measured ~0.5 Hz (50% error)
+  - Mode 1.0→1.5 Hz: Both measured ~0.8-0.9 Hz (42-47% error)
+  - Mode 1.5→2.0 Hz: SERVER 0.994 Hz (50% error), CLIENT 0.821 Hz (59% error)
+- **Root Cause**:
+  - Original (v0.6.61): Timing calculated AFTER pause check's `continue` statement
+  - Bug #52 fix (v0.6.62): Moved timing to BEFORE message handling - WRONG!
+  - Timing was now calculated from OLD current_mode before mode change updated it
+  - Correct location: AFTER mode change execution, BEFORE pause check
+- **Analysis Evidence**:
+  - analyze_mode_change_convergence.py tool created for systematic analysis
+  - v0.6.61 logs: SERVER stuck at previous frequency, CLIENT correct
+  - v0.6.62 logs: Both devices running at ~50% of target frequency
+- **Fix** (v0.6.63):
+  - Moved timing recalculation to AFTER mode change execution (line 1305-1326)
+  - Correct sequence: 1) Process messages → 2) Execute mode change → 3) Calculate timing
+  - Timing now reflects NEW current_mode after mode change updates it
+  - Then pause check runs (but mode already changed, so won't pause)
+- **Impact**:
+  - Both devices calculate timing from correct (new) mode after mode change
+  - Eliminates frequency mismatch (SERVER no longer stuck at old frequency)
+  - Eliminates halved frequency bug introduced by Bug #52
+- **Files Modified**:
+  - `src/motor_task.c:1305-1326` - Timing recalculation after mode change execution
+  - `src/firmware_version.h:33` - Version bump to v0.6.63
+  - `platformio.ini:101` - Version bump to v0.6.63
+
+**Bug #57: Forced Beacons Not Sent Promptly After Mode Change (v0.6.68)**:
+- **Symptom**:
+  - CLIENT continued running at OLD frequency for 10-60 seconds after mode change
+  - Mode Change 0.5Hz → 1.0Hz at 09:26:54: CLIENT continued at 2000ms period (should be 1000ms)
+  - SYNC_FB showed server_err=-329ms confirming desync
+  - Log evidence: "SERVER: Forced beacons triggered for mode change sync" at 09:26:56.307
+  - But NO "Forced beacon 1/5 sent" until 09:27:47 (51 seconds later!)
+- **Root Cause**:
+  - `time_sync_trigger_forced_beacons()` only SET FLAGS (`forced_beacon_count=5`, `forced_beacon_next_ms=0`)
+  - But beacons were only SENT when `perform_periodic_update()` called `time_sync_should_send_beacon()`
+  - `perform_periodic_update()` was called based on ADAPTIVE INTERVAL (10-60 seconds)
+  - After system stabilized, adaptive interval was 10+ seconds, so forced beacons were delayed!
+  - At startup, interval was short (1-2 seconds), so forced beacons worked correctly
+  - Result: CLIENT didn't receive new motor_epoch_us/motor_cycle_ms for 10-60 seconds after mode changes
+- **Analysis Evidence**:
+  - v0.6.67 logs show startup beacons working (1/5 through 5/5 within 5 seconds)
+  - Mode change logs show 51-second delay before forced beacon burst
+  - CLIENT motor cycle logs confirm 2000ms period after mode change (should be 1000ms)
+- **Fix** (v0.6.68):
+  - Added new message type `TIME_SYNC_MSG_TRIGGER_BEACONS` to wake up time_sync_task
+  - Added API function `time_sync_task_trigger_beacons()` to send this message
+  - Modified `time_sync_trigger_forced_beacons()` to call the new API after setting flags
+  - Handler in time_sync_task.c sends all 5 forced beacons immediately (with 200ms spacing)
+  - Beacons now sent within 1 second of mode change (vs 10-60 seconds before)
+- **Impact**:
+  - CLIENT receives new motor_epoch_us/motor_cycle_ms within ~1 second of mode change
+  - Eliminates extended desync period after mode changes
+  - Both devices now transition to new frequency together (professional UX)
+- **Files Modified**:
+  - `src/time_sync_task.h:57` - Added `TIME_SYNC_MSG_TRIGGER_BEACONS` enum value
+  - `src/time_sync_task.h:175-189` - Added `time_sync_task_trigger_beacons()` declaration
+  - `src/time_sync_task.c:204-221` - Added API function implementation
+  - `src/time_sync_task.c:241-274` - Added message handler with immediate beacon burst
+  - `src/time_sync.c:23` - Added include for time_sync_task.h
+  - `src/time_sync.c:1394-1407` - Modified to call new API function
+  - `src/firmware_version.h:33` - Version bump to v0.6.68
 
 ---
 

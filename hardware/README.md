@@ -13,22 +13,22 @@ Open-source hardware for EMDR bilateral stimulation device.
 
 **Current hardware (v0.663399ADS) has GPIO fixes implemented:**
 
-The hardware files in this repository include fixes for ESP32-C6 GPIO19/GPIO20 crosstalk issues. **H-bridge control has been moved from GPIO19/GPIO20 to GPIO19/GPIO18**, and the button is now directly connected to GPIO1 (no jumper wire required).
+The hardware files in this repository include fixes for ESP32-C6 GPIO19/GPIO20 crosstalk issues. **H-bridge IN1 (forward) has been moved from GPIO20 to GPIO18 (IN2 stays on GPIO19)**, and the button is now directly connected to GPIO1 (no jumper wire required).
 
-**Firmware test files have NOT been updated yet:**
+**Firmware test files and production code HAVE been updated (December 2025):**
 
 Existing firmware test files in `/test` directory still use the OLD GPIO definitions. Before building this hardware, you MUST update test file GPIO definitions:
 
 ```c
 // OLD GPIO definitions (pre-v0.663399ADS hardware)
 #define GPIO_BUTTON     18  // ❌ Old hardware via jumper to GPIO1
-#define GPIO_M_IN1      19  // ✅ Still correct
-#define GPIO_M_IN2      20  // ❌ Changed to GPIO18
+#define GPIO_M_IN2      19  // ✅ Unchanged
+#define GPIO_M_IN1      20  // ❌ Changed to GPIO18
 
 // NEW GPIO definitions (v0.663399ADS and later)
 #define GPIO_BUTTON      1  // ✅ Direct connection, no jumper
-#define GPIO_M_IN1      19  // ✅ Unchanged
-#define GPIO_M_IN2      18  // ✅ Moved from GPIO20
+#define GPIO_M_IN2      19  // ✅ Unchanged
+#define GPIO_M_IN1      18  // ✅ Moved from GPIO20
 ```
 
 **Until firmware is updated:** This hardware should be considered developer-only. The schematic and gerbers are correct, but firmware compatibility requires manual GPIO definition updates.
@@ -77,7 +77,7 @@ hardware/
 
 ### ⚠️ Pre-Build Requirements
 
-1. **Check firmware compatibility:** Ensure your firmware uses GPIO18 for H-bridge IN2 (not GPIO20)
+1. **Check firmware compatibility:** Ensure your firmware uses GPIO18 for H-bridge IN1 forward (not GPIO20)
 2. **Update test files:** Modify `#define` statements in `/test` files to match new GPIO assignments
 3. **Verify schematic:** Review `pcb/production/schematic/MLE_HAPTICS_PULSER.pdf` for current pin assignments
 
@@ -187,8 +187,8 @@ GPIO2:  Battery voltage monitor (ADC1_CH2, resistor divider)
 GPIO15: Status LED (on-board amber LED, ACTIVE LOW, firmware-controlled)
 GPIO16: Therapy light enable (P-MOSFET, ACTIVE LOW)
 GPIO17: Therapy light output (WS2812B DIN or simple LED)
-GPIO18: H-bridge IN2 (motor reverse control) ← MOVED FROM GPIO20
-GPIO19: H-bridge IN1 (motor forward control)
+GPIO18: H-bridge IN1 (motor forward control) ← MOVED FROM GPIO20
+GPIO19: H-bridge IN2 (motor reverse control) - UNCHANGED
 GPIO21: Battery monitor enable (P-MOSFET gate control)
 
 Hardware LEDs (not GPIO-controlled):
@@ -197,7 +197,7 @@ Hardware LEDs (not GPIO-controlled):
 ```
 
 **Key Change from Previous Hardware:**
-- ✅ **GPIO20 → GPIO18** for H-bridge IN2 (fixes ESP32-C6 GPIO19/GPIO20 crosstalk)
+- ✅ **GPIO20 → GPIO18** for H-bridge IN1 forward (fixes ESP32-C6 GPIO19/GPIO20 crosstalk)
 - ✅ **Button on GPIO1** directly (no jumper wire required)
 
 ### Enclosure Features
@@ -217,7 +217,7 @@ Hardware LEDs (not GPIO-controlled):
 **Status:** ✅ **RESOLVED in v0.663399ADS hardware**
 
 **Solution Implemented:**
-- H-bridge IN2 relocated from GPIO20 → GPIO18
+- H-bridge IN1 (forward) relocated from GPIO20 → GPIO18
 - Button connected directly to GPIO1 (no jumper wire)
 - GPIO20 avoided entirely in current design
 
@@ -235,15 +235,15 @@ Hardware LEDs (not GPIO-controlled):
 **Important:** Firmware test files in `/test` directory still reference OLD GPIO assignments:
 
 ```c
-// Test files currently use (INCORRECT for v0.663399ADS):
-#define GPIO_BUTTON  20   // Should be GPIO1
-#define GPIO_M_IN2   20   // Should be GPIO18
+// OLD test files used (NOW CORRECTED as of December 2025):
+#define GPIO_BUTTON  18   // Now GPIO1 (direct connection)
+#define GPIO_M_IN1   20   // Now GPIO18 (crosstalk fix)
 ```
 
 **Required firmware updates:**
 1. Update all test files: `GPIO_BUTTON` from 20 → 1
 2. Update all test files: `GPIO_M_IN2` from 20 → 18
-3. Verify no remaining references to GPIO20 in motor control code
+3. ✅ COMPLETE: All GPIO20 references updated to GPIO18 (December 2025)
 
 **This will be addressed in a future firmware update.** Early builders should manually update GPIO definitions before compiling.
 

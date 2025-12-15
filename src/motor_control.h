@@ -11,8 +11,13 @@
  * Hardware Configuration:
  * - TB6612FNG H-bridge driver
  * - GPIO19: IN2 (reverse/backward) - LEDC Channel 0
- * - GPIO20: IN1 (forward) - LEDC Channel 1
+ * - GPIO18: IN1 (forward) - LEDC Channel 1 (MOVED from GPIO20 to eliminate crosstalk)
  * - Motor operates in "slow decay" mode (one side PWM, other side LOW)
+ *
+ * BREAKING CHANGE (December 2025):
+ * - GPIO20 → GPIO18 for H-bridge IN1 (forward control)
+ * - Eliminates ESP32-C6 silicon crosstalk between GPIO19/GPIO20
+ * - Incompatible with old hardware (2 units in field will be retired)
  *
  * PWM Configuration:
  * - Frequency: 25kHz (ultrasonic, prevents audible motor noise)
@@ -20,9 +25,9 @@
  * - Timer: LEDC Timer 0
  * - Mode: High-speed mode
  *
- * Safety Limits (per AD031):
- * - Minimum PWM: 30% (prevents motor damage from undervoltage)
- * - Maximum PWM: 80% (prevents excessive stimulation and overheating)
+ * Safety Limits:
+ * - Minimum PWM: 0% (LED-only mode, no motor activation)
+ * - Maximum PWM: 100% (allows dynamic intensity boosting for short pulses)
  *
  * @date November 11, 2025
  * @author Claude Code (Anthropic)
@@ -47,7 +52,7 @@ extern "C" {
  * @brief Motor GPIO pins (H-bridge control)
  */
 #define GPIO_HBRIDGE_IN2        19      /**< H-bridge reverse control (LEDC PWM) */
-#define GPIO_HBRIDGE_IN1        20      /**< H-bridge forward control (LEDC PWM) */
+#define GPIO_HBRIDGE_IN1        18      /**< H-bridge forward control (LEDC PWM) - MOVED from GPIO20 */
 
 /**
  * @brief LEDC PWM configuration
@@ -67,7 +72,7 @@ extern "C" {
  * @brief PWM intensity limits (percentage)
  */
 #define MOTOR_PWM_MIN           0       /**< Minimum PWM % (0% = LED-only mode, no motor) */
-#define MOTOR_PWM_MAX           80      /**< Maximum PWM % (safety limit per AD031) */
+#define MOTOR_PWM_MAX           100     /**< Maximum PWM % (allows dynamic intensity boosting) */
 #define MOTOR_PWM_DEFAULT       60      /**< Default PWM % (comfortable intensity) */
 
 // ============================================================================
@@ -81,7 +86,7 @@ extern "C" {
  * Configures:
  * - LEDC Timer 0 (25kHz, 10-bit resolution)
  * - LEDC Channel 0 (GPIO19/IN2 for reverse)
- * - LEDC Channel 1 (GPIO20/IN1 for forward)
+ * - LEDC Channel 1 (GPIO18/IN1 for forward)
  *
  * Motor starts in coast state (both channels at 0% duty)
  *
@@ -91,15 +96,15 @@ esp_err_t motor_init(void);
 
 /**
  * @brief Set motor forward PWM
- * @param intensity_percent PWM intensity percentage (30-80%)
+ * @param intensity_percent PWM intensity percentage (0-100%)
  * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  * @return ESP_OK on success, error code on failure
  *
  * Drives motor in forward direction:
- * - IN1 (GPIO20) = PWM at specified intensity
+ * - IN1 (GPIO18) = PWM at specified intensity
  * - IN2 (GPIO19) = LOW (0%)
  *
- * Intensity is clamped to safety limits (30-80%)
+ * Intensity is clamped to limits (0-100%)
  * Values outside range are automatically adjusted
  *
  * Thread-safe: Can be called from any task
@@ -108,15 +113,15 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging);
 
 /**
  * @brief Set motor reverse PWM
- * @param intensity_percent PWM intensity percentage (30-80%)
+ * @param intensity_percent PWM intensity percentage (0-100%)
  * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  * @return ESP_OK on success, error code on failure
  *
  * Drives motor in reverse direction:
  * - IN2 (GPIO19) = PWM at specified intensity
- * - IN1 (GPIO20) = LOW (0%)
+ * - IN1 (GPIO18) = LOW (0%)
  *
- * Intensity is clamped to safety limits (30-80%)
+ * Intensity is clamped to limits (0-100%)
  * Values outside range are automatically adjusted
  *
  * Thread-safe: Can be called from any task
@@ -128,7 +133,7 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging);
  * @param verbose_logging If true, log the operation (gated with BEMF sampling)
  *
  * Sets both IN1 and IN2 to LOW (0% duty):
- * - IN1 (GPIO20) = LOW
+ * - IN1 (GPIO18) = LOW
  * - IN2 (GPIO19) = LOW
  *
  * Motor enters "coast" state (high impedance, free spin)
@@ -140,7 +145,7 @@ void motor_coast(bool verbose_logging);
 
 /**
  * @brief Get current PWM intensity setting
- * @return Current intensity percentage (30-80%)
+ * @return Current intensity percentage (0-100%)
  *
  * Returns the last configured PWM intensity
  * Does not indicate which direction is active

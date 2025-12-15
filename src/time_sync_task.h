@@ -39,8 +39,13 @@ extern "C" {
 /** @brief Priority for time sync task (lower than motor, higher than BLE) */
 #define TIME_SYNC_TASK_PRIORITY    4
 
-/** @brief Queue depth for time sync messages */
-#define TIME_SYNC_QUEUE_DEPTH      8
+/** @brief Queue depth for time sync messages
+ *
+ * Bug #58 fix: Increased from 8 to 16 to handle burst traffic during mode changes.
+ * Mode changes generate multiple coordination messages (proposal, ACK, SYNC_FB)
+ * that can arrive faster than the task drains them.
+ */
+#define TIME_SYNC_QUEUE_DEPTH      16
 
 /*******************************************************************************
  * MESSAGE TYPES
@@ -54,6 +59,7 @@ typedef enum {
     TIME_SYNC_MSG_DISCONNECTION,    /**< Peer disconnected */
     TIME_SYNC_MSG_BEACON_RECEIVED,  /**< Beacon received from peer (CLIENT only) */
     TIME_SYNC_MSG_COORDINATION,     /**< Coordination message from peer (Phase 3) */
+    TIME_SYNC_MSG_TRIGGER_BEACONS,  /**< Bug #57: Trigger immediate forced beacon burst (SERVER only) */
     TIME_SYNC_MSG_SHUTDOWN          /**< Stop task gracefully */
 } time_sync_msg_type_t;
 
@@ -170,6 +176,22 @@ bool time_sync_client_ready_received(void);
  * Called at start of pairing to clear stale state from previous session
  */
 void time_sync_reset_client_ready(void);
+
+/**
+ * @brief Trigger immediate forced beacon burst (Bug #57 fix)
+ *
+ * Sends a message to the time_sync_task to immediately start sending
+ * forced beacons. This is used after mode changes to ensure CLIENT
+ * receives the new motor_epoch_us and motor_cycle_ms promptly.
+ *
+ * Without this, forced beacons were only sent when perform_periodic_update()
+ * was called (10-60 second adaptive interval), leaving CLIENT running at
+ * the old frequency for an extended period after mode changes.
+ *
+ * @return ESP_OK on success
+ * @return ESP_FAIL if queue send fails
+ */
+esp_err_t time_sync_task_trigger_beacons(void);
 
 #ifdef __cplusplus
 }

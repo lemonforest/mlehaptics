@@ -2,8 +2,20 @@
 
 **Date:** 2025-11-29 (Last Updated)
 **Phase:** 6q (Adaptive Beacon Intervals - Quality Metric Fix)
-**Status:** ✅ **IMPLEMENTED** - Validates AD028 Option A with drift compensation
+**Status:** ❌ **SUPERSEDED by AD045** - Correction approach caused death spiral
 **Type:** Architecture
+
+---
+
+> **⚠️ SUPERSEDED NOTICE (2025-12-08):**
+>
+> This ADR is superseded by [AD045: Synchronized Independent Operation](0045-synchronized-independent-bilateral-operation.md).
+>
+> **Why:** The position-based correction approach documented here caused oscillation and divergence instead of convergence. Serial log analysis revealed CLIENT ended at 36ms instead of 1000ms (completely in-phase instead of antiphase) due to correction "death spiral."
+>
+> **AD045 Solution:** Removes all cycle-by-cycle corrections and relies on Phase 2's ±6 μs clock precision. Both devices calculate transitions from synchronized motor_epoch independently, like Bluetooth audio synchronization.
+>
+> **What Remains Valid:** Time synchronization infrastructure (Phase 2) continues to provide ±30 μs precision via EMA filtering. Drift-rate prediction code was **removed entirely** in v0.6.91 (~143 lines deleted) - EMA filter is sufficient without extrapolation.
 
 ---
 
@@ -531,11 +543,13 @@ predicted_offset = last_offset + (median_drift_rate * time_since_rtt / 1000000);
 - Reference implementation for bilateral coordination (GPL v3)
 - Demonstrates viability of rejected architecture with modern compensation
 
-### Future Work
+### Future Work (Unnumbered)
 
-**Phase 7:** Extended session testing (90-180 minutes)
-**Phase 8:** Multi-device coordination (>2 devices)
-**Phase 9:** Adaptive drift rate adjustment based on battery voltage and temperature
+The following enhancements are planned but not yet scheduled:
+
+- **Extended session testing:** 90-180 minute validation runs to characterize long-term drift behavior
+- **Multi-device coordination:** Support for >2 devices (e.g., quad-lateral stimulation patterns)
+- **Adaptive drift compensation:** Adjust drift rate estimates based on battery voltage and temperature variations
 
 ---
 

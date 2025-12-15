@@ -22,8 +22,8 @@
 static const char *TAG = "HBRIDGE_TEST";
 
 // GPIO Pin Definitions (from project spec)
-#define GPIO_HBRIDGE_IN1        19      // Motor forward control
-#define GPIO_HBRIDGE_IN2        20      // Motor reverse control
+#define GPIO_HBRIDGE_IN2        19      // Motor reverse control
+#define GPIO_HBRIDGE_IN1        18      // Motor forward control - MOVED from GPIO20
 #define GPIO_STATUS_LED         15      // Status LED (ACTIVE LOW on Xiao ESP32C6)
 
 // LED Control Macros (ACTIVE LOW)
@@ -155,8 +155,8 @@ void app_main(void) {
     ESP_LOGI(TAG, "GPIO15 LED: Active LOW (ON=0, OFF=1)");
     ESP_LOGI(TAG, "");
     ESP_LOGI(TAG, "Hardware Connections:");
-    ESP_LOGI(TAG, "  GPIO19 (IN1) -> H-bridge IN1");
-    ESP_LOGI(TAG, "  GPIO20 (IN2) -> H-bridge IN2");
+    ESP_LOGI(TAG, "  GPIO19 (IN2) -> H-bridge IN2");
+    ESP_LOGI(TAG, "  GPIO18 (IN1) -> H-bridge IN1 - MOVED from GPIO20");
     ESP_LOGI(TAG, "  GPIO15       -> Status LED (active low)");
     ESP_LOGI(TAG, "");
     

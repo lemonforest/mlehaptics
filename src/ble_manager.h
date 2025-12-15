@@ -2,22 +2,67 @@
  * @file ble_manager.h
  * @brief BLE Manager Module - NimBLE GATT Configuration Service per AD032
  *
+ * @defgroup ble_manager BLE Manager Module
+ * @{
+ *
+ * @section bm_overview Overview
+ *
  * This module implements a complete BLE GATT Configuration Service for EMDR
- * device configuration via mobile applications. It provides:
- * - Configuration Service (UUID: 6E400002-B5A3-F393-E0A9-E50E24DCCA9E)
- * - 13 GATT characteristics for motor control, LED control, and status monitoring
+ * device configuration via mobile applications (nRF Connect, custom PWA). It provides:
+ * - Dual-device peer discovery and role assignment
+ * - Configuration Service with 13+ GATT characteristics
  * - Battery level and session time notifications
  * - NVS persistence for user preferences
- * - Advertising lifecycle management
+ * - Coordinated bilateral motor synchronization messages
  *
- * BLE Service Architecture (per AD032):
- * - **Configuration Service** (13th byte = 02)
- *   - Motor Control: Mode, Frequency, Duty, PWM (4 characteristics)
- *   - LED Control: Enable, Color Mode, Palette, RGB, Brightness (5 characteristics)
- *   - Status: Session Duration, Session Time, Battery (3 characteristics)
+ * @section bm_arduino Arduino Developers: BLE Differences
  *
- * @date November 11, 2025
- * @author Claude Code (Anthropic)
+ * | Arduino BLE | NimBLE (This Code) |
+ * |-------------|-------------------|
+ * | `BLE.begin()` | `nimble_port_init()` + `ble_hs_cfg` setup |
+ * | `BLECharacteristic` class | Flat `ble_gatt_chr_def` struct arrays |
+ * | `characteristic.setValue()` | `os_mbuf` and `ble_gattc_notify()` |
+ * | Blocking read/write | Callback-based async I/O |
+ * | Single connection | Multiple simultaneous connections |
+ *
+ * @section bm_gatt GATT Service Architecture
+ *
+ * @code{.unparsed}
+ * Configuration Service (UUID: ...0200)
+ * ├── Motor Control
+ * │   ├── Mode (R/W)           - Current mode 0-4
+ * │   ├── Frequency (R/W)      - Hz × 100 (25-200)
+ * │   ├── Duty (R/W)           - Percentage 10-100%
+ * │   └── Intensity (R/W)      - PWM 0-80% per mode
+ * ├── LED Control
+ * │   ├── Enable (R/W)         - On/off
+ * │   ├── Color Mode (R/W)     - Palette or RGB
+ * │   ├── Palette Index (R/W)  - 0-15 color selection
+ * │   └── Brightness (R/W)     - 10-30%
+ * └── Status
+ *     ├── Battery (R/Notify)   - 0-100%
+ *     └── Session Time (R/Notify) - Seconds elapsed
+ * @endcode
+ *
+ * @section bm_peer Peer-to-Peer Coordination
+ *
+ * Two devices discover each other via Bilateral Control Service UUID.
+ * Higher-battery device becomes SERVER (timing authority), lower becomes CLIENT.
+ *
+ * @section bm_safety Safety Considerations
+ *
+ * @warning BLE callbacks run in NimBLE's context, not FreeRTOS tasks.
+ *          Never block in callbacks. Use queues to signal tasks.
+ *
+ * @warning Notifications can fail silently if client not subscribed.
+ *          Always check return values from `ble_gattc_notify()`.
+ *
+ * @see docs/adr/0032-ble-configuration-service-architecture.md
+ * @see docs/adr/0030-ble-bilateral-control-service.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef BLE_MANAGER_H
@@ -120,23 +165,52 @@ typedef struct {
 
 /**
  * @brief Initialize BLE subsystem and GATT server
- * @param initial_battery_pct Initial battery percentage (0-100) for role assignment
- * @return ESP_OK on success, error code on failure
  *
- * Configures:
- * - NVS flash (required for BLE)
- * - NimBLE host and stack
- * - GATT Configuration Service (AD032) with 12 characteristics
- * - Advertising parameters
- * - Callbacks for GAP events and GATT access
+ * This is the main entry point for BLE functionality. Initializes the full
+ * NimBLE stack, configures GATT services, and starts advertising.
  *
- * Starts NimBLE host task and begins advertising
- * Device name format: "EMDR_Pulser_XXXXXX" (last 3 MAC bytes)
+ * @par Arduino Equivalent
+ * @code{.c}
+ * // Arduino (simple):
+ * BLE.begin();
+ * BLE.setLocalName("EMDR_Pulser");
+ * BLE.advertise();
  *
- * Must be called after motor_init() and battery_monitor_init()
+ * // ESP-IDF (this function does internally):
+ * nimble_port_init();           // Initialize BLE controller
+ * ble_hs_cfg.xxx = callback;    // Set up ALL callbacks manually
+ * ble_gatts_count_cfg(...);     // Configure GATT table
+ * ble_gatts_add_svcs(...);      // Register services
+ * nimble_port_freertos_init();  // Start FreeRTOS task for BLE
+ * // Much more explicit, but full control over every aspect
+ * @endcode
  *
- * Bug #48 Fix: Battery level must be read BEFORE calling this function
- * to ensure it's available when ble_on_sync() callback fires.
+ * @warning This function starts a FreeRTOS task internally. Calling it
+ *          multiple times without ble_manager_deinit() will leak resources.
+ *
+ * @warning Battery percentage must be measured BEFORE calling this function.
+ *          It's used for peer role assignment during advertising (Bug #48).
+ *
+ * @warning BLE uses 2.4GHz radio. WiFi coexistence can cause timing jitter.
+ *          Disable WiFi for best bilateral sync performance.
+ *
+ * @pre NVS flash initialized (esp_flash_init())
+ * @pre Battery monitor initialized (battery_monitor_init())
+ * @pre Motor hardware initialized (motor_init())
+ * @post NimBLE host task running
+ * @post Advertising started (device discoverable)
+ *
+ * @param[in] initial_battery_pct Battery percentage 0-100 for role assignment
+ *                                 during peer discovery (higher battery = SERVER)
+ *
+ * @return
+ * - ESP_OK: BLE stack initialized and advertising
+ * - ESP_ERR_NO_MEM: Failed to allocate NimBLE buffers
+ * - ESP_ERR_INVALID_STATE: Already initialized or NVS not ready
+ * - ESP_FAIL: NimBLE port initialization failed
+ *
+ * @see ble_manager_deinit() for clean shutdown
+ * @see ble_start_advertising() to manually restart advertising
  */
 esp_err_t ble_manager_init(uint8_t initial_battery_pct);
 
@@ -228,6 +302,20 @@ bool ble_is_connected(void);
  * Used by motor_task for connection status logging
  */
 bool ble_is_peer_connected(void);
+
+/**
+ * @brief Check and clear pending frequency change for debounced sync (Bug #95)
+ * @param debounce_ms Debounce time in milliseconds (300ms recommended)
+ * @return true if frequency change is ready for coordinated sync, false otherwise
+ *
+ * Called by time_sync_task to check if a Mode 4 frequency change has settled.
+ * Returns true (and clears pending flag) if:
+ * - A frequency change is pending AND
+ * - At least debounce_ms has elapsed since last change
+ *
+ * Used to trigger AD045 mode change protocol after slider drag ends.
+ */
+bool ble_check_and_clear_freq_change_pending(uint32_t debounce_ms);
 
 /**
  * @brief Get connection type string for logging (Phase 1b)
@@ -348,7 +436,7 @@ typedef enum {
  * Messages exchanged between peer devices for synchronized operation
  */
 typedef enum {
-    SYNC_MSG_MODE_CHANGE = 0,      /**< Mode changed (MODE_1 through MODE_CUSTOM) */
+    SYNC_MSG_MODE_CHANGE = 0,      /**< Mode changed (MODE_1 through MODE_CUSTOM) - deprecated, use PROPOSAL/ACK */
     SYNC_MSG_SETTINGS,             /**< Custom settings changed (frequency, duty, intensity, LED) */
     SYNC_MSG_SHUTDOWN,             /**< Coordinated shutdown request (fire-and-forget) */
     SYNC_MSG_START_ADVERTISING,    /**< CLIENT requests SERVER to enable advertising */
@@ -356,7 +444,12 @@ typedef enum {
     SYNC_MSG_CLIENT_READY,         /**< CLIENT ready to start (received beacon, calculated phase) */
     SYNC_MSG_TIME_REQUEST,         /**< Time sync handshake: CLIENT→SERVER with T1 (client send time) */
     SYNC_MSG_TIME_RESPONSE,        /**< Time sync handshake: SERVER→CLIENT with T1, T2, T3 */
-    SYNC_MSG_MOTOR_STARTED         /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
+    SYNC_MSG_MOTOR_STARTED,        /**< Phase 6: SERVER→CLIENT immediate motor epoch notification */
+    SYNC_MSG_MODE_CHANGE_PROPOSAL, /**< AD045: SERVER→CLIENT mode change proposal with future epochs */
+    SYNC_MSG_MODE_CHANGE_ACK,      /**< AD045: CLIENT→SERVER mode change acknowledgment */
+    SYNC_MSG_ACTIVATION_REPORT,    /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
+    SYNC_MSG_REVERSE_PROBE,        /**< IEEE 1588 bidirectional: CLIENT→SERVER with T1' timestamp */
+    SYNC_MSG_REVERSE_PROBE_RESPONSE /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
 } sync_message_type_t;
 
 /**
@@ -418,6 +511,27 @@ typedef struct __attribute__((packed)) {
 } time_sync_response_t;
 
 /**
+ * @brief Mode change proposal payload for SYNC_MSG_MODE_CHANGE_PROPOSAL (AD045)
+ *
+ * SERVER sends this to CLIENT to propose a synchronized mode change.
+ * Contains future epochs ensuring both devices transition together while
+ * maintaining perfect antiphase alignment.
+ *
+ * Two-Phase Commit Protocol:
+ * 1. SERVER proposes mode change with future epochs (2s from now)
+ * 2. CLIENT validates epochs are in future, sends SYNC_MSG_MODE_CHANGE_ACK
+ * 3. Both devices arm mode change and wait until their respective epochs
+ * 4. Both transition simultaneously - SERVER at server_epoch_us, CLIENT at client_epoch_us
+ */
+typedef struct __attribute__((packed)) {
+    mode_t new_mode;               /**< New mode to activate (0-4) */
+    uint32_t new_cycle_ms;         /**< New cycle period in ms */
+    uint32_t new_active_ms;        /**< New active period in ms */
+    uint64_t server_epoch_us;      /**< When SERVER will start new pattern */
+    uint64_t client_epoch_us;      /**< When CLIENT should start new pattern (server + half_cycle) */
+} mode_change_proposal_t;
+
+/**
  * @brief Motor started payload for SYNC_MSG_MOTOR_STARTED
  *
  * Phase 6: SERVER sends this to CLIENT immediately when motors start.
@@ -428,6 +542,71 @@ typedef struct __attribute__((packed)) {
     uint64_t motor_epoch_us;       /**< SERVER's motor epoch (cycle start time) */
     uint32_t motor_cycle_ms;       /**< Motor cycle period in ms */
 } motor_started_t;
+
+/**
+ * @brief Activation report payload for SYNC_MSG_ACTIVATION_REPORT
+ *
+ * PTP-style synchronization error feedback: CLIENT reports its activation
+ * timing to SERVER for independent drift verification.
+ *
+ * Following IEEE 1588 Delay_Req/Delay_Resp pattern:
+ * - CLIENT sends this after transitioning to ACTIVE state
+ * - SERVER receives and independently calculates drift
+ * - Enables bidirectional timing verification (both sides know the error)
+ *
+ * AD043 Enhancement (v0.6.72): Added paired timestamps for NTP-style offset calculation
+ * CLIENT includes beacon timestamps so SERVER can calculate bias-corrected offset:
+ *   offset = ((T2-T1) + (T3-T4)) / 2
+ * where T1=beacon_server_time, T2=beacon_rx_time, T3=report_tx_time, T4=SERVER rx
+ * This corrects the systematic one-way delay bias in the EMA filter.
+ *
+ * Rate limited: Sent every N cycles to avoid BLE congestion
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t actual_time_us;       /**< CLIENT's actual ACTIVE start (synchronized time) */
+    uint64_t target_time_us;       /**< CLIENT's calculated target time */
+    int32_t  client_error_ms;      /**< CLIENT's self-measured error (actual - target) */
+    uint32_t cycle_number;         /**< Cycle count for correlation */
+    /* AD043: Paired timestamps for NTP-style offset calculation */
+    uint64_t beacon_server_time_us; /**< T1: server_time_us from last beacon */
+    uint64_t beacon_rx_time_us;     /**< T2: CLIENT's local time when beacon received */
+    uint64_t report_tx_time_us;     /**< T3: CLIENT's local time when sending this report */
+} activation_report_t;
+
+/**
+ * @brief Reverse probe payload for SYNC_MSG_REVERSE_PROBE
+ *
+ * IEEE 1588 bidirectional path measurement: CLIENT initiates probe to SERVER.
+ * This is the "reverse direction" compared to the normal SERVER→CLIENT beacons.
+ *
+ * Purpose: Detect path asymmetry by measuring delay from CLIENT→SERVER direction.
+ * If BLE paths are symmetric, forward and reverse offsets should match.
+ * If asymmetric, the difference reveals the "ghost time" causing drift.
+ *
+ * Flow:
+ * 1. CLIENT records T1' (local time) just before sending this probe
+ * 2. SERVER receives probe, records T2' (local time at receipt)
+ * 3. SERVER sends REVERSE_PROBE_RESPONSE with T2', T3' (send time)
+ * 4. CLIENT receives response, records T4' (local time)
+ * 5. CLIENT calculates reverse offset: ((T2'-T1') - (T4'-T3')) / 2
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t client_send_time_us;  /**< T1': CLIENT's local time when probe sent */
+    uint32_t probe_sequence;       /**< Sequence number for correlation */
+} reverse_probe_t;
+
+/**
+ * @brief Reverse probe response payload for SYNC_MSG_REVERSE_PROBE_RESPONSE
+ *
+ * SERVER response to CLIENT's reverse probe, completing the bidirectional
+ * timing measurement. Contains T2' and T3' for CLIENT's offset calculation.
+ */
+typedef struct __attribute__((packed)) {
+    uint64_t client_send_time_us;  /**< T1': Echo from probe (for CLIENT correlation) */
+    uint64_t server_recv_time_us;  /**< T2': SERVER's local time when probe received */
+    uint64_t server_send_time_us;  /**< T3': SERVER's local time when response sent */
+    uint32_t probe_sequence;       /**< Sequence number echo for correlation */
+} reverse_probe_response_t;
 
 /**
  * @brief Coordination message structure (Phase 3)
@@ -441,13 +620,17 @@ typedef struct __attribute__((packed)) {
     sync_message_type_t type;      /**< Message type */
     uint32_t timestamp_ms;         /**< Synchronized timestamp for conflict resolution */
     union {
-        mode_t mode;               /**< MODE_CHANGE: New mode (0-4) */
+        mode_t mode;               /**< MODE_CHANGE: New mode (0-4) - deprecated */
         coordination_settings_t settings;  /**< SETTINGS: PWA parameter changes */
         uint8_t battery_level;     /**< CLIENT_BATTERY: Battery percentage 0-100 */
         time_sync_request_t time_request;   /**< TIME_REQUEST: NTP handshake T1 */
         time_sync_response_t time_response; /**< TIME_RESPONSE: NTP handshake T1,T2,T3 */
         motor_started_t motor_started;      /**< MOTOR_STARTED: Immediate epoch notification (Phase 6) */
-        // SHUTDOWN and START_ADVERTISING have no payload
+        mode_change_proposal_t mode_proposal; /**< MODE_CHANGE_PROPOSAL: Two-phase commit proposal (AD045) */
+        activation_report_t activation_report; /**< ACTIVATION_REPORT: PTP-style timing feedback */
+        reverse_probe_t reverse_probe;       /**< REVERSE_PROBE: CLIENT→SERVER bidirectional timing */
+        reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
+        // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
     } payload;
 } coordination_message_t;
 
@@ -794,6 +977,8 @@ extern void ble_callback_params_updated(void);
 // NOTE: ble_callback_coordination_message() removed in Phase 3 refactor.
 // Coordination messages now go through time_sync_task_send_coordination()
 // to prevent BLE processing from blocking motor timing.
+
+/** @} */ // end of ble_manager group
 
 #ifdef __cplusplus
 }
