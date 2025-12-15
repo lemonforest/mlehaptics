@@ -92,15 +92,16 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - Battery-based roles
 - SERVER/CLIENT assignment
 
-### Phase 2: Time Synchronization
+### Phase 2: Time Synchronization (Complete)
 - NTP-style beacon exchange
 - Clock drift compensation
 - Quality metrics
 
-### Phase 3+: Motor Coordination (Planned)
-- Bilateral synchronization
-- Mode coordination
-- Emergency shutdown
+### Phase 6: Bilateral Motor Coordination (Complete)
+- PTP-inspired pattern broadcast architecture
+- EMA filter with dual-alpha design
+- Motor epoch for independent operation
+- ±30 μs precision over 90 minutes
 
 ### Phase 6k: Predictive Bilateral Synchronization
 - Drift-rate prediction
@@ -125,6 +126,12 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - Eliminates correction death spiral
 - Passive monitoring for edge cases
 - ±6 μs precision over 20 minutes
+
+### Phase 7: Scheduled Pattern Playback (Next - AD047)
+- Pre-buffered pattern execution
+- Half-cycle boundary transitions
+- RF disruption resilient operation
+- "Lightbar Mode" for GPS-quality sync
 
 ---
 
@@ -250,7 +257,7 @@ _(To be populated with decision dependency visualization)_
 
 ## Maintenance
 
-**Last Updated:** 2025-12-13
+**Last Updated:** 2025-12-14
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)

@@ -2,22 +2,67 @@
  * @file ble_manager.h
  * @brief BLE Manager Module - NimBLE GATT Configuration Service per AD032
  *
+ * @defgroup ble_manager BLE Manager Module
+ * @{
+ *
+ * @section bm_overview Overview
+ *
  * This module implements a complete BLE GATT Configuration Service for EMDR
- * device configuration via mobile applications. It provides:
- * - Configuration Service (UUID: 6E400002-B5A3-F393-E0A9-E50E24DCCA9E)
- * - 13 GATT characteristics for motor control, LED control, and status monitoring
+ * device configuration via mobile applications (nRF Connect, custom PWA). It provides:
+ * - Dual-device peer discovery and role assignment
+ * - Configuration Service with 13+ GATT characteristics
  * - Battery level and session time notifications
  * - NVS persistence for user preferences
- * - Advertising lifecycle management
+ * - Coordinated bilateral motor synchronization messages
  *
- * BLE Service Architecture (per AD032):
- * - **Configuration Service** (13th byte = 02)
- *   - Motor Control: Mode, Frequency, Duty, PWM (4 characteristics)
- *   - LED Control: Enable, Color Mode, Palette, RGB, Brightness (5 characteristics)
- *   - Status: Session Duration, Session Time, Battery (3 characteristics)
+ * @section bm_arduino Arduino Developers: BLE Differences
  *
- * @date November 11, 2025
- * @author Claude Code (Anthropic)
+ * | Arduino BLE | NimBLE (This Code) |
+ * |-------------|-------------------|
+ * | `BLE.begin()` | `nimble_port_init()` + `ble_hs_cfg` setup |
+ * | `BLECharacteristic` class | Flat `ble_gatt_chr_def` struct arrays |
+ * | `characteristic.setValue()` | `os_mbuf` and `ble_gattc_notify()` |
+ * | Blocking read/write | Callback-based async I/O |
+ * | Single connection | Multiple simultaneous connections |
+ *
+ * @section bm_gatt GATT Service Architecture
+ *
+ * @code{.unparsed}
+ * Configuration Service (UUID: ...0200)
+ * ├── Motor Control
+ * │   ├── Mode (R/W)           - Current mode 0-4
+ * │   ├── Frequency (R/W)      - Hz × 100 (25-200)
+ * │   ├── Duty (R/W)           - Percentage 10-100%
+ * │   └── Intensity (R/W)      - PWM 0-80% per mode
+ * ├── LED Control
+ * │   ├── Enable (R/W)         - On/off
+ * │   ├── Color Mode (R/W)     - Palette or RGB
+ * │   ├── Palette Index (R/W)  - 0-15 color selection
+ * │   └── Brightness (R/W)     - 10-30%
+ * └── Status
+ *     ├── Battery (R/Notify)   - 0-100%
+ *     └── Session Time (R/Notify) - Seconds elapsed
+ * @endcode
+ *
+ * @section bm_peer Peer-to-Peer Coordination
+ *
+ * Two devices discover each other via Bilateral Control Service UUID.
+ * Higher-battery device becomes SERVER (timing authority), lower becomes CLIENT.
+ *
+ * @section bm_safety Safety Considerations
+ *
+ * @warning BLE callbacks run in NimBLE's context, not FreeRTOS tasks.
+ *          Never block in callbacks. Use queues to signal tasks.
+ *
+ * @warning Notifications can fail silently if client not subscribed.
+ *          Always check return values from `ble_gattc_notify()`.
+ *
+ * @see docs/adr/0032-ble-configuration-service-architecture.md
+ * @see docs/adr/0030-ble-bilateral-control-service.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef BLE_MANAGER_H
@@ -120,23 +165,52 @@ typedef struct {
 
 /**
  * @brief Initialize BLE subsystem and GATT server
- * @param initial_battery_pct Initial battery percentage (0-100) for role assignment
- * @return ESP_OK on success, error code on failure
  *
- * Configures:
- * - NVS flash (required for BLE)
- * - NimBLE host and stack
- * - GATT Configuration Service (AD032) with 12 characteristics
- * - Advertising parameters
- * - Callbacks for GAP events and GATT access
+ * This is the main entry point for BLE functionality. Initializes the full
+ * NimBLE stack, configures GATT services, and starts advertising.
  *
- * Starts NimBLE host task and begins advertising
- * Device name format: "EMDR_Pulser_XXXXXX" (last 3 MAC bytes)
+ * @par Arduino Equivalent
+ * @code{.c}
+ * // Arduino (simple):
+ * BLE.begin();
+ * BLE.setLocalName("EMDR_Pulser");
+ * BLE.advertise();
  *
- * Must be called after motor_init() and battery_monitor_init()
+ * // ESP-IDF (this function does internally):
+ * nimble_port_init();           // Initialize BLE controller
+ * ble_hs_cfg.xxx = callback;    // Set up ALL callbacks manually
+ * ble_gatts_count_cfg(...);     // Configure GATT table
+ * ble_gatts_add_svcs(...);      // Register services
+ * nimble_port_freertos_init();  // Start FreeRTOS task for BLE
+ * // Much more explicit, but full control over every aspect
+ * @endcode
  *
- * Bug #48 Fix: Battery level must be read BEFORE calling this function
- * to ensure it's available when ble_on_sync() callback fires.
+ * @warning This function starts a FreeRTOS task internally. Calling it
+ *          multiple times without ble_manager_deinit() will leak resources.
+ *
+ * @warning Battery percentage must be measured BEFORE calling this function.
+ *          It's used for peer role assignment during advertising (Bug #48).
+ *
+ * @warning BLE uses 2.4GHz radio. WiFi coexistence can cause timing jitter.
+ *          Disable WiFi for best bilateral sync performance.
+ *
+ * @pre NVS flash initialized (esp_flash_init())
+ * @pre Battery monitor initialized (battery_monitor_init())
+ * @pre Motor hardware initialized (motor_init())
+ * @post NimBLE host task running
+ * @post Advertising started (device discoverable)
+ *
+ * @param[in] initial_battery_pct Battery percentage 0-100 for role assignment
+ *                                 during peer discovery (higher battery = SERVER)
+ *
+ * @return
+ * - ESP_OK: BLE stack initialized and advertising
+ * - ESP_ERR_NO_MEM: Failed to allocate NimBLE buffers
+ * - ESP_ERR_INVALID_STATE: Already initialized or NVS not ready
+ * - ESP_FAIL: NimBLE port initialization failed
+ *
+ * @see ble_manager_deinit() for clean shutdown
+ * @see ble_start_advertising() to manually restart advertising
  */
 esp_err_t ble_manager_init(uint8_t initial_battery_pct);
 
@@ -903,6 +977,8 @@ extern void ble_callback_params_updated(void);
 // NOTE: ble_callback_coordination_message() removed in Phase 3 refactor.
 // Coordination messages now go through time_sync_task_send_coordination()
 // to prevent BLE processing from blocking motor timing.
+
+/** @} */ // end of ble_manager group
 
 #ifdef __cplusplus
 }

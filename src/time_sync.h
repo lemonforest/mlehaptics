@@ -2,29 +2,59 @@
  * @file time_sync.h
  * @brief Hybrid time synchronization for bilateral motor coordination
  *
- * This module implements a hybrid time synchronization protocol for coordinating
- * bilateral motor activation between two peer devices. The approach combines:
+ * @defgroup time_sync Time Synchronization Module
+ * @{
  *
- * 1. Initial connection sync - Capture common timestamp reference at connection
- * 2. Periodic sync beacons - SERVER sends time updates every 10-60s
- * 3. Timestamped commands - All motor commands include timing verification
+ * @section ts_overview Overview
  *
- * Design Goals:
- * - ±100ms timing accuracy (AD029 revised specification)
- * - Battery-efficient sync intervals with exponential backoff
- * - Graceful degradation during BLE disconnects
- * - Full JPL Power of Ten compliance
+ * This module implements a PTP-inspired (IEEE 1588) time synchronization protocol
+ * for coordinating bilateral motor activation between two ESP32-C6 peer devices.
+ * Achieves ±30 microseconds drift over 90-minute sessions using only BLE.
  *
- * JPL Compliance:
- * - Rule 1: Static allocation only (no malloc)
- * - Rule 2: Bounded loops (max iterations defined)
- * - Rule 3: vTaskDelay() for all timing (no busy-wait)
- * - Rule 5: Explicit error checking (all return codes checked)
- * - Rule 8: Watchdog integration for sync task
+ * @section ts_arduino Arduino Developers: Key Differences
  *
- * @version 0.3.0
- * @date 2025-11-19
- * @author Phase 2 Implementation
+ * | Arduino Way | ESP-IDF Way (This Code) |
+ * |-------------|-------------------------|
+ * | `millis()` | `esp_timer_get_time()` (microseconds, 64-bit) |
+ * | `delay()` | `vTaskDelay(pdMS_TO_TICKS(ms))` (FreeRTOS, non-blocking) |
+ * | Global variables | Structured state with mutex protection |
+ * | Single loop() | Multiple FreeRTOS tasks running concurrently |
+ * | BLE libraries | NimBLE stack with GATT services |
+ *
+ * @section ts_architecture Architecture
+ *
+ * The protocol uses a "pattern broadcast" approach inspired by emergency vehicle
+ * light bars (Feniex, Whelen). Instead of sending "activate NOW" commands:
+ *
+ * @code{.unparsed}
+ *   SERVER broadcasts: "Pattern epoch = T, period = 2000ms"
+ *   CLIENT calculates:  "I activate at T + 1000ms (antiphase)"
+ *   Both execute independently from shared reference
+ * @endcode
+ *
+ * This eliminates feedback oscillation and tolerates BLE dropouts gracefully.
+ *
+ * @section ts_protocol Protocol Layers
+ *
+ * 1. **Initial Handshake** - NTP-style 4-timestamp exchange for precise bootstrap
+ * 2. **Periodic Beacons** - SERVER sends one-way timestamps every 10-60s
+ * 3. **EMA Filter** - Smooths BLE jitter (30% fast-attack, 10% steady-state)
+ * 4. **Motor Epoch** - Shared timing reference for bilateral alternation
+ *
+ * @section ts_jpl JPL Coding Standard Compliance
+ *
+ * - **Rule 1:** Static allocation only (no malloc/free at runtime)
+ * - **Rule 2:** All loops have bounded iteration counts
+ * - **Rule 3:** All timing uses vTaskDelay() (no busy-wait spin loops)
+ * - **Rule 5:** Every function returns esp_err_t, caller must check
+ * - **Rule 8:** Task subscribes to watchdog, feeds regularly
+ *
+ * @see docs/adr/0043-filtered-time-synchronization.md
+ * @see docs/Bilateral_Time_Sync_Protocol_Technical_Report.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef TIME_SYNC_H
@@ -289,12 +319,38 @@ typedef struct __attribute__((packed)) {
  * Prepares the time sync module for operation. Must be called before any
  * other time sync functions. Initializes state to SYNC_STATE_INIT.
  *
- * JPL Rule 5: Returns error code for explicit checking.
+ * @par Arduino Equivalent
+ * This is like calling `BLE.begin()` in Arduino BLE libraries, but for our
+ * custom time sync protocol. ESP-IDF separates initialization from operation.
  *
- * @param role Device role (SERVER or CLIENT)
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_ARG if role is invalid
- * @return ESP_ERR_INVALID_STATE if already initialized
+ * @par Example Usage
+ * @code{.c}
+ * // In main.c after BLE role is determined
+ * peer_role_t role = ble_get_peer_role();
+ * time_sync_role_t ts_role = (role == PEER_ROLE_SERVER)
+ *                            ? TIME_SYNC_ROLE_SERVER
+ *                            : TIME_SYNC_ROLE_CLIENT;
+ *
+ * esp_err_t err = time_sync_init(ts_role);
+ * if (err != ESP_OK) {
+ *     ESP_LOGE(TAG, "Time sync init failed: %s", esp_err_to_name(err));
+ *     // Handle error - cannot proceed without time sync
+ * }
+ * @endcode
+ *
+ * @pre BLE connection established and peer role determined
+ * @post Module ready for time_sync_on_connection() call
+ *
+ * @param[in] role Device role (TIME_SYNC_ROLE_SERVER or TIME_SYNC_ROLE_CLIENT)
+ *
+ * @return
+ * - ESP_OK: Success
+ * - ESP_ERR_INVALID_ARG: Role is TIME_SYNC_ROLE_NONE or invalid
+ * - ESP_ERR_INVALID_STATE: Already initialized (call time_sync_deinit() first)
+ *
+ * @note JPL Rule 5: Always check return value
+ * @see time_sync_deinit() to reset module state
+ * @see ble_get_peer_role() to determine device role
  */
 esp_err_t time_sync_init(time_sync_role_t role);
 
@@ -565,11 +621,33 @@ uint32_t time_sync_get_interval_ms(void);
  * Called by SERVER's motor task when it starts motor cycles. This establishes
  * the timing reference that CLIENT will use for bilateral synchronization.
  *
- * @param epoch_us Motor cycle start time in microseconds (synchronized time)
- * @param cycle_ms Motor cycle period in milliseconds (e.g., 2000ms for Mode 0)
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_ARG if parameters are invalid
- * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ * @par Why This Matters
+ * The motor epoch is the foundation of bilateral coordination. Both devices
+ * calculate their activation times from this single reference point. If the
+ * epoch is wrong, motors will overlap or have gaps instead of alternating.
+ *
+ * @par Arduino Equivalent
+ * Similar to setting `startTime = millis()` at the beginning of a pattern,
+ * but with microsecond precision and synchronized across two devices.
+ *
+ * @warning This function should only be called once per session start or mode
+ *          change. Calling it repeatedly during a session will cause CLIENT
+ *          to recalculate its phase offset, potentially causing motor overlap.
+ *
+ * @pre time_sync_init() called with TIME_SYNC_ROLE_SERVER
+ * @pre BLE peer connected
+ * @post Epoch will be broadcast to CLIENT in next beacon
+ *
+ * @param[in] epoch_us Motor cycle start time in microseconds (from esp_timer_get_time())
+ * @param[in] cycle_ms Motor cycle period in milliseconds (500-4000ms for 0.25-2Hz)
+ *
+ * @return
+ * - ESP_OK: Success, epoch set and will be sent to CLIENT
+ * - ESP_ERR_INVALID_ARG: cycle_ms outside valid range (500-4000ms)
+ * - ESP_ERR_INVALID_STATE: Not SERVER role, or module not initialized
+ *
+ * @see time_sync_get_motor_epoch() for CLIENT retrieval
+ * @see docs/adr/0045-synchronized-independent-bilateral-operation.md
  */
 esp_err_t time_sync_set_motor_epoch(uint64_t epoch_us, uint32_t cycle_ms);
 
@@ -779,6 +857,8 @@ esp_err_t time_sync_update_from_paired_timestamps(
 
 /** @brief Check if device is CLIENT */
 #define TIME_SYNC_IS_CLIENT() (time_sync_get_role() == TIME_SYNC_ROLE_CLIENT)
+
+/** @} */ // end of time_sync group
 
 #ifdef __cplusplus
 }

@@ -2,31 +2,71 @@
  * @file motor_task.h
  * @brief Motor Control Task Module - FreeRTOS task for bilateral motor control
  *
+ * @defgroup motor_task Motor Control Module
+ * @{
+ *
+ * @section mt_overview Overview
+ *
  * This module implements the motor control state machine responsible for:
- * - Bilateral alternating motor patterns (forward/reverse cycles)
- * - Mode configurations (1 Hz, 0.5 Hz, custom via BLE)
- * - Message queue handling (button events, battery warnings)
+ * - Bilateral alternating motor patterns (0.5-2 Hz therapeutic range)
+ * - Mode configurations (presets + custom via BLE/PWA)
+ * - Message queue handling (button events, battery warnings, BLE commands)
  * - Back-EMF sampling for motor research
- * - NVS settings management for Mode 5 (custom parameters)
+ * - NVS settings persistence across power cycles
  *
- * Architecture (per AD027):
- * - Task module (mirrors FreeRTOS task structure)
- * - Single-device vs dual-device as STATE (not separate code)
- * - Message queue communication with button_task and battery monitor
- * - Dependencies: battery_monitor.h, nvs_manager.h, led_control.h
+ * @section mt_arduino Arduino Developers: Key Differences
  *
- * State Machine: 8 states
- * - CHECK_MESSAGES: Process queue messages, handle mode changes
- * - FORWARD_ACTIVE: Motor forward PWM
- * - BEMF_IMMEDIATE: Immediate back-EMF sample after motor off
- * - COAST_SETTLE: Wait for back-EMF settle time
- * - FORWARD_COAST_REMAINING: Complete forward coast period
- * - REVERSE_ACTIVE: Motor reverse PWM
- * - REVERSE_COAST_REMAINING: Complete reverse coast period
- * - SHUTDOWN: Cleanup before task exit
+ * | Arduino Pattern | ESP-IDF Pattern (This Code) |
+ * |-----------------|----------------------------|
+ * | `loop() { if(buttonPressed)... }` | FreeRTOS queue with `xQueueReceive()` |
+ * | `analogWrite(pin, pwm)` | LEDC driver with `ledc_set_duty()` |
+ * | Global `currentMode` variable | State machine with explicit transitions |
+ * | `delay()` blocks everything | `vTaskDelay()` yields to other tasks |
+ * | Single thread of execution | Multiple concurrent tasks communicate via queues |
  *
- * @date November 11, 2025
- * @author Claude Code (Anthropic)
+ * @section mt_state_machine State Machine Design
+ *
+ * Unlike Arduino's single `loop()`, this uses an explicit state machine:
+ *
+ * @code{.unparsed}
+ *   PAIRING_WAIT ──► CHECK_MESSAGES ──► ACTIVE ──► INACTIVE ──► (repeat)
+ *         │                │                           │
+ *         │                └───► SHUTDOWN ◄────────────┘
+ *         │                      (5s button hold)
+ *         └──────────────────────────────────────────────────────┘
+ * @endcode
+ *
+ * Each state has a single responsibility and explicit transitions.
+ * This makes the code testable, debuggable, and safe.
+ *
+ * @section mt_queues Message Queue Communication
+ *
+ * Instead of polling globals, tasks communicate via FreeRTOS queues:
+ *
+ * @code{.c}
+ * // Button task sends mode change request
+ * task_message_t msg = { .type = MSG_MODE_CHANGE, .data.new_mode = MODE_1HZ_25 };
+ * xQueueSend(button_to_motor_queue, &msg, 0);
+ *
+ * // Motor task receives in CHECK_MESSAGES state
+ * if (xQueueReceive(button_to_motor_queue, &msg, 0) == pdTRUE) {
+ *     current_mode = msg.data.new_mode;
+ * }
+ * @endcode
+ *
+ * @section mt_jpl JPL Coding Standard Compliance
+ *
+ * - **Rule 1:** No malloc - all state is static or stack-allocated
+ * - **Rule 2:** Bounded loops - state machine has finite states
+ * - **Rule 3:** vTaskDelay() for timing, never `while(flag)` spin loops
+ * - **Rule 8:** Watchdog fed in CHECK_MESSAGES, triggers reset if stuck
+ *
+ * @see docs/adr/0027-modular-source-file-architecture.md
+ * @see docs/adr/0044-non-blocking-motor-timing.md
+ *
+ * @version 0.6.122
+ * @date 2025-12-14
+ * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
 #ifndef MOTOR_TASK_H
@@ -158,15 +198,41 @@ typedef struct {
 
 /**
  * @brief Initialize motor control subsystem
- * @return ESP_OK on success, error code on failure
  *
- * Configures:
- * - GPIO19/20 for H-bridge control (IN1/IN2)
- * - LEDC PWM: 25kHz, 10-bit resolution
- * - Dead time: 1ms FreeRTOS dead time (watchdog feed)
- * - Initial state: motors off (brake mode)
+ * Configures hardware peripherals for motor control:
+ * - GPIO18/GPIO19 for H-bridge IN1/IN2 (forward/reverse)
+ * - LEDC PWM at 25kHz with 10-bit resolution (1024 levels)
+ * - Initial state: motors off (brake mode, both GPIOs LOW)
  *
- * Must be called before motor_task starts
+ * @par Arduino Equivalent
+ * @code{.c}
+ * // Arduino approach:
+ * pinMode(MOTOR_PIN, OUTPUT);
+ * analogWrite(MOTOR_PIN, 0);  // Simple, but limited
+ *
+ * // ESP-IDF approach (this function does internally):
+ * ledc_timer_config(&timer_config);    // Configure PWM timer
+ * ledc_channel_config(&channel_config); // Attach GPIO to timer
+ * // More complex, but: 25kHz (inaudible), 1024 levels, H-bridge control
+ * @endcode
+ *
+ * @warning Must be called BEFORE creating motor_task. The task assumes
+ *          hardware is already initialized. Calling from multiple tasks
+ *          or calling twice will cause undefined behavior.
+ *
+ * @warning GPIO18/19 are hard-coded for this specific PCB design.
+ *          Different hardware requires modifying the GPIO defines.
+ *
+ * @pre NVS flash initialized (for settings restoration)
+ * @post GPIOs configured, PWM timers running, motors in brake mode
+ *
+ * @return
+ * - ESP_OK: Hardware initialized successfully
+ * - ESP_ERR_INVALID_STATE: Already initialized
+ * - ESP_FAIL: LEDC timer or channel configuration failed
+ *
+ * @see motor_task() - the FreeRTOS task that uses this hardware
+ * @see docs/adr/0005-gpio-assignment-strategy.md
  */
 esp_err_t motor_init(void);
 
@@ -340,6 +406,8 @@ extern QueueHandle_t battery_to_motor_queue;
 extern QueueHandle_t motor_to_button_queue;
 extern QueueHandle_t ble_to_motor_queue;     /**< BLE task → motor task (Phase 1b.3) */
 extern QueueHandle_t button_to_ble_queue;    /**< Button task → BLE task (existing) */
+
+/** @} */ // end of motor_task group
 
 #ifdef __cplusplus
 }

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+**Doxygen Quality Improvements for Arduino Developer Accessibility**:
+- **Purpose**: Make ESP-IDF codebase approachable for developers transitioning from Arduino
+- **Files Updated**:
+  - `src/time_sync.h` - Added `@defgroup`, Arduino comparison table (`millis()` vs `esp_timer_get_time()`), protocol architecture, `@warning`/`@pre`/`@post` tags, example code
+  - `src/motor_task.h` - Added `@defgroup`, Arduino pattern comparison (`loop()` vs FreeRTOS queues), state machine ASCII diagram, queue code examples
+  - `src/ble_manager.h` - Added `@defgroup`, Arduino BLE library comparison, GATT service tree structure, callback threading `@warning` tags
+  - `src/firmware_version.h` - Added `@defgroup`, "Why This Matters" section explaining dual-device versioning requirements
+- **Consistent Pattern Applied**:
+  - `@defgroup` with opening `@{` and closing `@}`
+  - "Arduino Developers" sections with side-by-side comparison tables
+  - `@warning` tags for safety-critical constraints
+  - `@pre`/`@post` conditions on init functions
+  - `@see` cross-references to ADR documentation
+  - `@par Example Usage` with `@code` blocks
+  - Updated version (0.6.122), date (2025-12-14), author credit (Sonnet 4, Sonnet 4.5, Opus 4.5)
+
+**README.md Updates**:
+- Added Phase 6 "Bilateral Motor Coordination (Complete)" milestone section
+- Added Phase 7 "Scheduled Pattern Playback (Next - AD047)" preview section
+- Added link to MLE Haptics PWA: https://lemonforest.github.io/mlehaptics-pwa/
+- Added link to Bilateral Time Sync Protocol Technical Report
+
+**ADR README.md Updates**:
+- Phase 2 now shows "(Complete)" status
+- Added Phase 6 section with key achievements (PTP-inspired sync, EMA filter, ±30 μs precision)
+- Added Phase 7 section (Lightbar Mode, half-cycle boundaries)
+- Updated Last Updated date to 2025-12-14
+
 ### Added
 
 **AD047: Scheduled Pattern Playback Architecture (Phase 7 - Proposed)**:

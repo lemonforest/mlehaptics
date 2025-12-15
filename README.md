@@ -1,15 +1,15 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.6.57 (Phase 6t Complete)
-**Last Updated:** 2025-12-03
-**Status:** Phase 6s Deployed to Therapist (Live Testing) | Phase 6t Ready (Fast Lock)
-**Project Phase:** Phase 6t Complete (Fast Lock) | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
+**Version:** v0.6.122 (Phase 6 Complete)
+**Last Updated:** 2025-12-14
+**Status:** Phase 6 Complete (Bilateral Sync) | Ready for Phase 7 (AD047 - Scheduled Pattern Playback)
+**Project Phase:** Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
 ![EMDR Device in Hand](images/device-in-hand.jpg)
 
-Generated with assistance from **Claude Sonnet 4 (Anthropic)**
+Generated with assistance from **Claude Opus 4.5 (Anthropic)**
 
 ## 🎯 Project Overview
 
@@ -19,11 +19,9 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - ✅ Phase 0.4 JPL-compliant firmware complete (single-device testing)
 - ✅ Phase 1c complete: Peer discovery with battery-based role assignment
 - ✅ Phase 2 complete: NTP-style time synchronization (±30 μs over 90 minutes)
-- ✅ Phase 6k complete: Drift-rate prediction for bilateral coordination
-- ✅ Phase 6r complete: Filtered time sync with outlier rejection
-- ✅ Phase 6s deployed: Two-stage antiphase lock (live therapist testing)
-- ✅ Phase 6t complete: Fast lock with coordinated startup (~1s lock time)
+- ✅ Phase 6 complete: Bilateral motor coordination with PTP-inspired sync protocol
 - ✅ GPIO remapping complete: H-bridge IN1 moved from GPIO20 to GPIO18 (eliminates crosstalk)
+- ⏳ Phase 7 next: AD047 - Scheduled Pattern Playback ("Lightbar Mode")
 
 **Key Features:**
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
@@ -401,13 +399,19 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ## 📚 Documentation
 
+### Web App
+- **[MLE Haptics PWA](https://lemonforest.github.io/mlehaptics-pwa/)**: Web Bluetooth control app for device configuration and monitoring
+
+### Technical Reports
+- **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
+
 ### For Builders
 - **[hardware/README.md](hardware/README.md)**: PCB manufacturing, case printing, assembly instructions
 - **[test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md](test/SINGLE_DEVICE_BLE_GATT_TEST_GUIDE.md)**: BLE GATT testing with nRF Connect
 
 ### For Developers
 - **[docs/ai_context.md](docs/ai_context.md)**: Complete API contracts and rebuild instructions with JPL compliance
-- **[docs/adr/README.md](docs/adr/README.md)**: Technical decision rationale (PDR) including timing architecture
+- **[docs/adr/README.md](docs/adr/README.md)**: Architecture Decision Records (47 ADRs documenting design rationale)
 - **[docs/requirements_spec.md](docs/requirements_spec.md)**: Business requirements with development standards
 - **[CLAUDE.md](CLAUDE.md)**: Developer reference for AI-assisted workflow
 - **Doxygen docs**: Run `doxygen Doxyfile` for comprehensive API documentation
@@ -515,14 +519,25 @@ Please maintain attribution when using or modifying this code or hardware design
 - ✅ **Phase 1b.3 Complete**: Exclusive pairing (once bonded, only that peer can connect until NVS erase)
 - ✅ **Phase 1c Complete**: Battery-based role assignment via BLE Service Data (higher battery initiates as SERVER)
 
-### Phase 2: Command-and-Control Bilateral Coordination (Planned)
-- ⏳ **Command Protocol**: Synchronized bilateral stimulation with safety-critical timing
-- ⏳ **Non-overlapping Half-Cycles**: Each device gets exactly 50% of total cycle time
-- ⏳ **Configurable Cycle Times**: 500-4000ms (0.25-2 Hz therapeutic range)
-- ⏳ **Emergency Shutdown**: Coordinated stop from either device within 50ms
-- ⏳ **Dead Time Protection**: 1ms FreeRTOS delay between half-cycles
+### Phase 2: NTP-Style Time Synchronization (Complete)
+- ✅ **Time Sync Protocol**: NTP-style beacon exchange achieving ±30 μs over 90 minutes
+- ✅ **Dual-Clock Architecture**: System clock untouched, synchronized time via API
+- ✅ **Quality Metrics**: 0-100% sync quality with automatic recovery from anomalies
+- ✅ **90-Minute Stress Test**: 271 beacons exchanged, 95% quality sustained
 
-### Phase 3: Advanced Haptic Research (Future)
+### Phase 6: Bilateral Motor Coordination (Complete)
+- ✅ **PTP-Inspired Sync**: Pattern broadcast architecture (like emergency vehicle light bars)
+- ✅ **EMA Filter**: Dual-alpha design (30% fast-attack, 10% steady state)
+- ✅ **Motor Epoch**: Shared timing reference for independent device operation
+- ✅ **Non-overlapping Half-Cycles**: Each device gets exactly 50% of total cycle time
+- ✅ **Emergency Shutdown**: Coordinated stop from either device within 50ms
+
+### Phase 7: Scheduled Pattern Playback (Next - AD047)
+- ⏳ **Lightbar Mode**: Pre-buffered pattern execution for GPS-quality sync
+- ⏳ **Half-Cycle Boundaries**: Pattern changes only at safe transition points
+- ⏳ **RF Disruption Resilient**: Continues from local buffer during BLE glitches
+
+### Phase 8: Advanced Haptic Research (Future)
 - **Dedicated haptic driver ICs**: DRV2605L family evaluation
 - **ERM vs LRA comparison**: Comparative therapeutic efficacy research
 - **Pattern library**: Multiple stimulation waveforms and haptic effects
