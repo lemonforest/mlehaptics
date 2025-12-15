@@ -111,9 +111,8 @@ static uint32_t last_mode_change_ms = 0;     // Track mode changes for beacon lo
 // Current operating mode (accessed by motor_get_current_mode())
 static mode_t current_mode = MODE_05HZ_25;   // Default: Mode 0 (0.5Hz @ 25%)
 
-// Mode 4 (custom) parameters (updated via BLE)
-static uint32_t mode5_on_ms = 250;          // Default: 250ms on (1Hz @ 25% duty)
-static uint32_t mode5_coast_ms = 750;       // Default: 750ms coast (1Hz @ 25% duty)
+// Mode 4 (custom) PWM intensity (updated via BLE)
+// Note: Timing comes from ble_get_custom_frequency_hz() and ble_get_custom_duty_percent()
 static uint8_t mode5_pwm_intensity = MOTOR_PWM_DEFAULT;  // From motor_control.h (single source of truth)
 
 // BLE parameter update flag
@@ -1423,6 +1422,15 @@ void motor_task(void *pvParameters) {
                     }
                 }
 
+                // Bug #103: Initialize prev_cycle_ms when first entering MODE_CUSTOM
+                // Without this, the first PWA frequency change doesn't trigger sync because
+                // prev_cycle_ms is 0, and cycle_changed check requires prev_cycle_ms != 0
+                if (current_mode == MODE_CUSTOM && prev_cycle_ms == 0) {
+                    uint16_t freq_x100 = ble_get_custom_frequency_hz();
+                    prev_cycle_ms = 100000 / freq_x100;
+                    ESP_LOGD(TAG, "MODE_CUSTOM: prev_cycle_ms initialized to %lu", prev_cycle_ms);
+                }
+
                 // Don't transition to ACTIVE if shutting down
                 if (state == MOTOR_STATE_SHUTDOWN) {
                     break;
@@ -2142,28 +2150,26 @@ void motor_trigger_beacon_bemf_logging(void) {
 esp_err_t motor_update_mode5_timing(uint32_t motor_on_ms, uint32_t coast_ms) {
     // Validate parameters (safety limits per AD031/AD032)
     // AD032: 0.25-2.0Hz @ 10-100% duty (full cycle timing)
+    // Note: Actual timing is read from ble_get_custom_frequency_hz() and ble_get_custom_duty_percent()
+    // This function validates and logs the update - BLE char_data is the source of truth
     uint32_t cycle_ms = motor_on_ms + coast_ms;
 
     if (motor_on_ms < 10) {
-        ESP_LOGE(TAG, "Invalid motor_on_ms: %u (must be ≥10ms for perception)", motor_on_ms);
+        ESP_LOGE(TAG, "Invalid motor_on_ms: %lu (must be ≥10ms for perception)", motor_on_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
     if (motor_on_ms > cycle_ms) {
-        ESP_LOGE(TAG, "Invalid motor_on_ms: %u exceeds cycle %u", motor_on_ms, cycle_ms);
+        ESP_LOGE(TAG, "Invalid motor_on_ms: %lu exceeds cycle %lu", motor_on_ms, cycle_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
     if (coast_ms > 4000) {
-        ESP_LOGE(TAG, "Invalid coast_ms: %u (must be ≤4000ms)", coast_ms);
+        ESP_LOGE(TAG, "Invalid coast_ms: %lu (must be ≤4000ms)", coast_ms);
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Update global mode 4 parameters (thread-safe, motor_task reads these)
-    mode5_on_ms = motor_on_ms;
-    mode5_coast_ms = coast_ms;
-
-    ESP_LOGI(TAG, "Mode 4 (Custom) timing updated: on=%ums coast=%ums", motor_on_ms, coast_ms);
+    ESP_LOGI(TAG, "Mode 4 (Custom) timing updated: on=%lums coast=%lums", motor_on_ms, coast_ms);
     return ESP_OK;
 }
 

@@ -30,7 +30,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 121  // Bug #101/#102: Mode 4 timing + PWA mode notifications when paired
+#define FIRMWARE_VERSION_PATCH 122  // Bug #103: First PWA frequency change now triggers sync
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
