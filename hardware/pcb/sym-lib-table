@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "MLEHaptics_Library")(type "KiCad")(uri "${KIPRJMOD}/libraries/mlehaptics_library/MLEHaptics_Library.kicad_sym")(options "")(descr ""))
+)

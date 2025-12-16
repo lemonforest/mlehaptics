@@ -2,36 +2,99 @@
 
 Open-source hardware for EMDR bilateral stimulation device.
 
-## Current Version
+## Hardware Versions
 
-**PCB:** v0.663399ADS (Phase 1 - Discrete MOSFET H-bridge)  
-**Enclosure:** v0.663399u (Phase 1 - Seeed XIAO ESP32-C6 form factor)
+| Version | Status | Description | Gerbers |
+|---------|--------|-------------|---------|
+| **v0.663399-T** | 🔧 In Development | Tri-Modal (DRV2603 + audio amp + RGB) | `gerbers-v.663399-T.zip` |
+| v0.663399ADS | ✅ Production | Discrete MOSFET H-bridge | `gerbers-v.663399ADS.zip` |
+
+**Enclosure:** v0.663399u (compatible with both PCB versions)
 
 > **Note on Versioning:** These are development versions. The project uses fractional version numbers during active development to indicate pre-release status. First production-ready release will be v1.0.
 
-## ⚠️ Important: Hardware/Firmware Compatibility
+### v0.663399-T (Tri-Modal) - In Development
 
-**Current hardware (v0.663399ADS) has GPIO fixes implemented:**
+The "T" designates **Tri-Modal** output: haptic (motor), visual (RGB LED), and audio (amplified speaker). This is the first revision with a dedicated audio amplifier rather than a simple piezo sounder.
 
-The hardware files in this repository include fixes for ESP32-C6 GPIO19/GPIO20 crosstalk issues. **H-bridge IN1 (forward) has been moved from GPIO20 to GPIO18 (IN2 stays on GPIO19)**, and the button is now directly connected to GPIO1 (no jumper wire required).
+The PCB uses dedicated ICs instead of discrete MOSFETs:
 
-**Firmware test files and production code HAVE been updated (December 2025):**
+- **DRV2603** - Texas Instruments haptic driver (replaces discrete H-bridge)
+- **MAX9938** - Current sense amplifier for motor diagnostics
+- **MAX98357A** - I2S audio amplifier (future audio feedback feature)
+- **Dialight 587-2056-147F** - Addressable RGB LED (replaces WS2812B)
 
-Existing firmware test files in `/test` directory still use the OLD GPIO definitions. Before building this hardware, you MUST update test file GPIO definitions:
+**Firmware status:** Not yet adapted for dedicated IC hardware. GPIO mappings and driver code TBD.
+
+**Build Notes for v0.663399-T:**
+
+**JP1 - LRA/ERM Motor Selection:**
+The DRV2603 supports both LRA (Linear Resonant Actuator) and ERM (Eccentric Rotating Mass) motors via a 3-pad jumper:
+- **Default (LRA):** JP1 etched between pads 1-2 (no modification needed)
+- **For ERM motors:** Scratch/break the 1-2 trace, then solder blob pads 2-3
+
+This approach avoids locking the design to one motor type or consuming a GPIO for runtime selection.
+
+**Motor Selection Note:**
+The development path uses a low-power LRA (0.8G, 54mA max) compared to the higher-powered ERM in v0.663399ADS production (15K RPM, 120mA). This is an intentional comparison of a high-power ERM against the lowest-power LRA available - not representative of all LRA options. Higher-force LRAs exist but draw more current.
+
+**Component Sizes:**
+This revision diverges from strictly 0805 passives:
+- **0603:** Several capacitors in current sense topology + battery sense filter cap
+- **0402:** Shunt resistor for MAX9938 current sense
+
+Assembly complexity increases slightly, but smaller components are localized to the current sense area.
+
+**Optional Components:**
+- **MAX9938 + shunt R:** Can be omitted entirely; solder-blob the shunt pads if skipping
+- **Battery sense filter cap (0603):** Optional - current v0.663399ADS production runs without a low-pass filter cap and ADC works fine
+
+**Motor/Speaker Connector:**
+The motor connector is now 4-pin, combining motor and speaker outputs. The existing enclosure (v0.663399u) has 3 overlapping 10mm circles in the bottom designed for the motor - this accommodates a small speaker, though audio quality will be modest (adequate for tones/feedback, not music playback). Finding speakers that fit the 10mm constraint is challenging but several candidates identified.
+
+**Battery Sense Redesign:**
+The battery monitoring circuit no longer requires a dedicated enable GPIO. Instead, a self-latching voltage divider design is used - the ADC pin is driven HIGH or LOW to control the measurement. This frees up GPIO21 compared to v0.663399ADS.
+
+**3.3V Addressable RGB:**
+The Dialight 587-2056-147F was specifically chosen because it is rated for 3.3V operation, unlike the WS2812B which is nominally 5V (and required level shifting or tolerance of out-of-spec operation).
+
+**GPIO Utilization:**
+This revision uses **all available GPIO** broken out on the Seeed XIAO ESP32-C6. No spare pins remain for future expansion on this form factor.
+
+**Board Size:**
+The PCB is slightly larger near the MCU module area to accommodate a continuous ground strip across all board edges, improving EMI performance and ground return paths.
+
+### v0.663399ADS (MOSFET H-bridge) - Production Ready
+
+The current production hardware uses discrete MOSFET H-bridge topology. This is the version to build if you want working hardware today.
+
+**Archive:** The complete MOSFET H-bridge design is preserved in `pcb/MLE_HAPTICS_PULSER_MOSFET_H_BRIDGE.7z`
+
+## Hardware/Firmware Compatibility
+
+### v0.663399ADS (MOSFET H-bridge) - ✅ Fully Compatible
+
+Firmware is fully updated for v0.663399ADS hardware. GPIO crosstalk fixes are implemented:
+- H-bridge IN1 (forward) on GPIO18 (moved from GPIO20)
+- H-bridge IN2 (reverse) on GPIO19
+- Button directly connected to GPIO1 (no jumper wire required)
 
 ```c
-// OLD GPIO definitions (pre-v0.663399ADS hardware)
-#define GPIO_BUTTON     18  // ❌ Old hardware via jumper to GPIO1
-#define GPIO_M_IN2      19  // ✅ Unchanged
-#define GPIO_M_IN1      20  // ❌ Changed to GPIO18
-
-// NEW GPIO definitions (v0.663399ADS and later)
-#define GPIO_BUTTON      1  // ✅ Direct connection, no jumper
-#define GPIO_M_IN2      19  // ✅ Unchanged
-#define GPIO_M_IN1      18  // ✅ Moved from GPIO20
+// Current GPIO definitions (v0.663399ADS)
+#define GPIO_BUTTON      1  // Direct connection
+#define GPIO_M_IN2      19  // H-bridge reverse
+#define GPIO_M_IN1      18  // H-bridge forward
 ```
 
-**Until firmware is updated:** This hardware should be considered developer-only. The schematic and gerbers are correct, but firmware compatibility requires manual GPIO definition updates.
+### v0.663399-T (Dedicated IC) - ⏳ Firmware Pending
+
+The dedicated IC hardware uses different components requiring new firmware:
+- DRV2603 haptic driver (I2C or analog control - TBD)
+- MAX98357A audio amp (I2S interface)
+- Dialight addressable RGB (different protocol than WS2812B)
+- MAX9938 current sense (analog input)
+
+GPIO mapping for v0.663399-T will be documented once firmware development begins.
 
 ## Repository Structure
 
@@ -39,14 +102,19 @@ Existing firmware test files in `/test` directory still use the OLD GPIO definit
 hardware/
 ├── pcb/                                    # KiCad PCB project
 │   ├── MLE_HAPTICS_PULSER.kicad_pro       # KiCad project file
-│   ├── MLE_HAPTICS_PULSER.kicad_sch       # Schematic (GPIO fixes included)
-│   ├── MLE_HAPTICS_PULSER.kicad_pcb       # PCB layout
+│   ├── MLE_HAPTICS_PULSER.kicad_sch       # Schematic (v0.663399-T dedicated IC)
+│   ├── MLE_HAPTICS_PULSER.kicad_pcb       # PCB layout (v0.663399-T dedicated IC)
+│   ├── MLE_HAPTICS_PULSER_MOSFET_H_BRIDGE.7z  # Archive of v0.663399ADS design
 │   ├── libraries/                          # Custom KiCad libraries
+│   │   ├── mlehaptics_library/            # Project symbols and footprints
+│   │   └── 3dmodels/                      # 3D models for components
 │   ├── production/
-│   │   ├── gerbers/                        # Manufacturing files
-│   │   │   └── gerbers-v.663399ADS.zip    # Gerber files (GPIO fixes included)
+│   │   ├── gerbers/
+│   │   │   ├── gerbers-v.663399-T.zip     # v0.663399-T (dedicated IC) - IN DEVELOPMENT
+│   │   │   └── gerbers-v.663399ADS.zip    # v0.663399ADS (MOSFET) - PRODUCTION
 │   │   └── schematic/
-│   │       └── MLE_HAPTICS_PULSER.pdf     # Schematic PDF (GPIO fixes included)
+│   │       ├── MLE_HAPTICS_PULSER_663399-T.pdf              # Dedicated IC schematic
+│   │       └── MLE_HAPTICS_PULSER_MOSFET_H_BRIDGE_663399ADS.pdf  # MOSFET schematic
 │   └── images/                             # PCB visualizations
 │       ├── pcb_top_view.png
 │       └── pcb_bottom_view.png
@@ -66,24 +134,42 @@ hardware/
 │           └── MLE_HAPTICS_PULSER-v0.663399u_WITH_PCB.png
 │
 ├── datasheets/                             # Component datasheets
-│   ├── esp32-c6_datasheet_en.pdf
-│   ├── WS2812B.pdf
-│   └── XIAO-ESP32-C6_v1.0_SCH_PDF_24028.pdf
+│   ├── esp32-c6_datasheet_en.pdf          # MCU
+│   ├── XIAO-ESP32-C6_v1.0_SCH_PDF_24028.pdf  # Dev board schematic
+│   ├── WS2812B.pdf                         # RGB LED (v0.663399ADS)
+│   ├── drv2603.pdf                         # Haptic driver IC (v0.663399-T)
+│   ├── max9938.pdf                         # Current sense amp (v0.663399-T)
+│   ├── max98357a-max98357b.pdf             # Audio amp (v0.663399-T)
+│   ├── Dialight_datasheet_587-2056-147F_Addressable_RGB.pdf  # RGB LED (v0.663399-T)
+│   ├── JYLRA0825Z.pdf                      # ERM motor option
+│   └── PYU-RL_GROUP_521_ROHS_L.pdf         # ERM motor option
 │
-└── docs/                                   # Hardware documentation (TBD)
+└── docs/                                   # KiCad library source files
+    ├── DRV2603RUNR.zip                     # DRV2603 KiCad library
+    ├── MAX9938TEUK_T.zip                   # MAX9938 KiCad library
+    ├── MAX98357AETE_T.zip                  # MAX98357A KiCad library
+    ├── LIB_587-2056-147F.zip               # Dialight RGB KiCad library
+    └── OPL_Kicad_Library.zip               # Open Parts Library
 ```
 
 ## Quick Start for Builders
 
-### ⚠️ Pre-Build Requirements
+### Choose Your Version
 
-1. **Check firmware compatibility:** Ensure your firmware uses GPIO18 for H-bridge IN1 forward (not GPIO20)
-2. **Update test files:** Modify `#define` statements in `/test` files to match new GPIO assignments
-3. **Verify schematic:** Review `pcb/production/schematic/MLE_HAPTICS_PULSER.pdf` for current pin assignments
+**Building today? Use v0.663399ADS** (MOSFET H-bridge)
+- Firmware ready, fully tested
+- Production gerbers: `gerbers-v.663399ADS.zip`
+- Schematic: `MLE_HAPTICS_PULSER_MOSFET_H_BRIDGE_663399ADS.pdf`
+
+**Experimenting with new ICs? Use v0.663399-T** (Dedicated IC)
+- Hardware ready, firmware pending
+- Development gerbers: `gerbers-v.663399-T.zip`
+- Schematic: `MLE_HAPTICS_PULSER_663399-T.pdf`
 
 ### PCB Manufacturing
 
-1. **Download gerbers:** `pcb/production/gerbers/gerbers-v.663399ADS.zip`
+**For production builds (recommended):**
+1. **Download gerbers:** `pcb/production/gerbers/gerbers-v.663399ADS.zip` (MOSFET H-bridge)
 2. **Upload to fab house:** JLCPCB, PCBWay, OSH Park, etc.
 3. **Recommended specs:**
    - 2-layer PCB
@@ -91,16 +177,30 @@ hardware/
    - HASL or ENIG finish
    - Any color (black recommended for aesthetics)
 
+**For development builds (dedicated IC - firmware not ready):**
+1. **Download gerbers:** `pcb/production/gerbers/gerbers-v.663399-T.zip`
+2. **Note:** Firmware support for DRV2603 not yet implemented
+
 ### Component Sourcing
 
 **Bill of Materials (BOM):** See main repository `/docs/` for complete parts list
 
-**Key Components:**
+**Key Components (v0.663399ADS - MOSFET H-bridge):**
 - Seeed XIAO ESP32-C6 development board
 - ERM vibration motors (φ10mm × 3mm)
 - WS2812B RGB LEDs (optional - for therapy light feature)
 - H-bridge MOSFETs (AO3400A/AO3401A family)
-- dual 320mAh LiPo batteries (640mAh)
+- Dual 320mAh LiPo batteries (640mAh)
+- Passive components (resistors, capacitors)
+
+**Key Components (v0.663399-T - Dedicated IC):**
+- Seeed XIAO ESP32-C6 development board
+- ERM vibration motors (φ10mm × 3mm)
+- DRV2603 haptic driver IC (Texas Instruments)
+- MAX9938 current sense amplifier (Analog Devices)
+- MAX98357A I2S audio amplifier (Analog Devices)
+- Dialight 587-2056-147F addressable RGB LED
+- Dual 320mAh LiPo batteries (640mAh)
 - Passive components (resistors, capacitors)
 
 ### 3D Printing the Enclosure
@@ -232,25 +332,13 @@ Hardware LEDs (not GPIO-controlled):
 
 ### Firmware Compatibility Notes
 
-**Important:** Firmware test files in `/test` directory still reference OLD GPIO assignments:
-
-```c
-// OLD test files used (NOW CORRECTED as of December 2025):
-#define GPIO_BUTTON  18   // Now GPIO1 (direct connection)
-#define GPIO_M_IN1   20   // Now GPIO18 (crosstalk fix)
-```
-
-**Required firmware updates:**
-1. Update all test files: `GPIO_BUTTON` from 20 → 1
-2. Update all test files: `GPIO_M_IN2` from 20 → 18
-3. ✅ COMPLETE: All GPIO20 references updated to GPIO18 (December 2025)
-
-**This will be addressed in a future firmware update.** Early builders should manually update GPIO definitions before compiling.
+✅ **All firmware updated (December 2025):** GPIO definitions in `/test` and `/src` directories now match v0.663399ADS hardware. No manual updates required for production builds.
 
 ## Other Considerations
 
 - **Battery life:** Current design targets 20+ minute sessions; power optimization ongoing
-- **Component sourcing:** Some MOSFETs have long lead times; check availability before ordering PCBs
+- **Component sourcing (v0.663399ADS):** Some MOSFETs have long lead times; check availability
+- **Component sourcing (v0.663399-T):** DRV2603, MAX9938, MAX98357A available from major distributors (Mouser, DigiKey)
 
 ## License
 
@@ -263,31 +351,65 @@ Full license text: [CERN-OHL-S-2.0](https://ohwr.org/cern_ohl_s_v2.txt)
 ## Datasheets
 
 Key component datasheets are included in `datasheets/` directory:
-- **ESP32-C6:** Complete MCU specifications
-- **WS2812B:** RGB LED timing and control
-- **XIAO ESP32-C6:** Module schematic and pinout
 
-Additional datasheets (MOSFETs, passives) available from component manufacturers.
+**Common to both versions:**
+- **ESP32-C6:** Complete MCU specifications
+- **XIAO ESP32-C6:** Module schematic and pinout
+- **JYLRA0825Z / PYU-RL:** ERM motor options
+
+**v0.663399ADS (MOSFET H-bridge):**
+- **WS2812B:** RGB LED timing and control
+
+**v0.663399-T (Dedicated IC):**
+- **DRV2603:** Texas Instruments haptic driver
+- **MAX9938:** Analog Devices current sense amplifier
+- **MAX98357A:** Analog Devices I2S audio amplifier
+- **Dialight 587-2056-147F:** Addressable RGB LED
+- **SPKM.10.8.A / AS01008MR-3:** Small speaker candidates for audio output
+
+Additional datasheets (passives) available from component manufacturers.
 
 ## Development Status
 
-### Current Hardware (v0.663399ADS)
-✅ PCB designed with GPIO crosstalk fixes  
-✅ Enclosure v0.663399u validated with hardware  
-✅ Discrete MOSFET H-bridge functional  
-✅ Button directly connected to GPIO1 (no jumper)  
-✅ H-bridge on GPIO18/GPIO19 (crosstalk resolved)  
-✅ Standard and CLRMOD case variants available  
-⚠️  Firmware test files not yet updated for new GPIO assignments  
+### v0.663399ADS (MOSFET H-bridge) - Production Ready
+✅ PCB designed with GPIO crosstalk fixes
+✅ Enclosure v0.663399u validated with hardware
+✅ Discrete MOSFET H-bridge functional
+✅ Button directly connected to GPIO1 (no jumper)
+✅ H-bridge on GPIO18/GPIO19 (crosstalk resolved)
+✅ Standard and CLRMOD case variants available
+✅ Firmware fully functional
+
+### v0.663399-T (Dedicated IC) - In Development
+✅ Schematic complete
+✅ PCB layout complete
+✅ Gerbers generated
+✅ KiCad libraries created (DRV2603, MAX9938, MAX98357A, Dialight RGB)
+⏳ Awaiting PCB fabrication
+⏳ Firmware adaptation needed (DRV2603 driver, I2S audio, new GPIO mapping)
 
 ### Firmware Development Status
-✅ Single-device operation with 5 modes  
-✅ BLE GATT server operational  
-⚠️  Firmware uses old GPIO definitions (manual update required)  
-🔄 Dual-device bilateral pairing protocol in development  
+✅ Single-device operation with 5 modes
+✅ BLE GATT server operational
+✅ v0.663399ADS GPIO definitions updated
+🔄 Dual-device bilateral pairing protocol in development
+⏳ v0.663399-T dedicated IC firmware TBD
 
-### Phase 2 (Future)
-- [ ] Dedicated haptic driver ICs (DRV2605L family evaluation)
+### Hardware Roadmap
+
+**v1.0 Target: v0.663399-T (Tri-Modal)**
+- Validates dedicated IC approach with existing enclosure (v0.663399u)
+- Uses current 3D printed case design - no mechanical changes
+- Focus: firmware development for DRV2603, I2S audio, new RGB protocol
+
+**v2.0 (Future):**
+- Improved battery supply options
+- New enclosure design required
+- Scope TBD based on v1.0 learnings
+
+### Future Work
+- [ ] DRV2603 driver implementation for v0.663399-T
+- [ ] I2S audio feedback (MAX98357A) for v0.663399-T
 - [ ] ERM vs LRA actuator comparative research
 - [ ] Enhanced power management
 
@@ -299,9 +421,12 @@ Additional datasheets (MOSFETs, passives) available from component manufacturers
 - Soldering iron and basic SMD soldering skills
 - Multimeter for continuity and voltage testing
 - 3D printer or 3D printing service access
-- **Firmware modification skills** to update GPIO definitions
 
-**Estimated build time:** 2-3 hours for experienced builders (plus firmware GPIO updates)
+**Estimated build time:** 2-3 hours for experienced builders
+
+**Version Notes:**
+- **v0.663399ADS:** Firmware ready, build and flash immediately
+- **v0.663399-T:** Firmware in development, hardware can be built but not yet functional
 
 ## Contributing
 
@@ -311,8 +436,8 @@ Hardware contributions welcome! See main repository `CONTRIBUTING.md` for guidel
 - PCB layout optimization
 - Alternative enclosure designs (different form factors, materials)
 - Bill of materials cost reduction
-- Phase 2 haptic driver IC evaluation
-- Firmware GPIO definition updates for v0.663399ADS hardware
+- v0.663399-T firmware development (DRV2603 driver, I2S audio)
+- ERM vs LRA motor evaluation with DRV2603
 - STL export of CLRMOD variant for community convenience
 
 ## Questions or Issues?
