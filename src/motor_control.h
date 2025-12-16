@@ -50,9 +50,17 @@ extern "C" {
 
 /**
  * @brief Motor GPIO pins (H-bridge control)
+ *
+ * @note Hardware revision support:
+ *       - Production (default): GPIO18 for IN1 (eliminates GPIO19/20 crosstalk)
+ *       - Prototype (-DHARDWARE_REV_PROTOTYPE): GPIO20 for IN1 (original pinout)
  */
 #define GPIO_HBRIDGE_IN2        19      /**< H-bridge reverse control (LEDC PWM) */
-#define GPIO_HBRIDGE_IN1        18      /**< H-bridge forward control (LEDC PWM) - MOVED from GPIO20 */
+#ifdef HARDWARE_REV_PROTOTYPE
+#define GPIO_HBRIDGE_IN1        20      /**< Original prototype pinout (GPIO19/20 crosstalk present) */
+#else
+#define GPIO_HBRIDGE_IN1        18      /**< Production pinout (crosstalk eliminated) */
+#endif
 
 /**
  * @brief LEDC PWM configuration

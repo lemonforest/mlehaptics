@@ -38,6 +38,28 @@ This approach avoids locking the design to one motor type or consuming a GPIO fo
 **Motor Selection Note:**
 The development path uses a low-power LRA (0.8G, 54mA max) compared to the higher-powered ERM in v0.663399ADS production (15K RPM, 120mA). This is an intentional comparison of a high-power ERM against the lowest-power LRA available - not representative of all LRA options. Higher-force LRAs exist but draw more current.
 
+**⚠️ DRV2603 LRA Resonance Compatibility:**
+
+The DRV2603 auto-resonance tracking range is **140-235 Hz**. This is a critical constraint for LRA selection:
+
+| LRA Size | Typical Resonance | DRV2603 Compatible |
+|----------|-------------------|-------------------|
+| 8mm | 200-280 Hz | ⚠️ Most are OUT OF RANGE |
+| 10mm | 150-200 Hz | ✅ Generally compatible |
+| 12mm+ | 120-170 Hz | ✅ Compatible |
+
+**Design Decision:** After evaluating multiple 8mm LRAs, nearly all had resonance frequencies above 235 Hz (outside DRV2603 tracking range). Switching to 10mm LRA was chosen over the DRV2604L (wider range but significantly higher IC cost). 8mm and 10mm LRAs are similarly priced, making motor substitution the economical choice.
+
+**Alternative:** The DRV2604L supports 45-300 Hz resonance tracking but costs significantly more. Only consider if 8mm form factor is absolutely required.
+
+**PCB Revision Notes (December 2025):**
+
+Recent hardware improvements to v0.663399-T:
+
+1. **Current Sense Shunt - Kelvin Connection:** The MAX9938 current sense topology now uses proper 4-wire (Kelvin) sensing with matched-length traces from shunt to sense amplifier. This eliminates voltage drop errors from current-carrying PCB traces.
+
+2. **DRV2603 PWM Series Resistor:** Added 22Ω series resistor on GPIO PWM output to DRV2603. Suppresses ringing from GPIO driving capacitive load. At 25kHz PWM, values up to 100Ω would work; 22Ω is conservative standard practice.
+
 **Component Sizes:**
 This revision diverges from strictly 0805 passives:
 - **0603:** Several capacitors in current sense topology + battery sense filter cap
@@ -185,23 +207,58 @@ hardware/
 
 **Bill of Materials (BOM):** See main repository `/docs/` for complete parts list
 
+### Battery Specification
+
+The enclosure is designed for two EEMB LP402535 LiPo batteries wired in parallel (1S2P configuration).
+
+**Reference Battery:** [EEMB LP402535 320mAh 3.7V](https://www.amazon.com/dp/B08HD1N273)
+
+| Specification | Value |
+|---------------|-------|
+| Model | LP402535 (4.0mm × 25mm × 35mm naming convention) |
+| Voltage | 3.7V nominal |
+| Capacity | 320mAh typical (300mAh minimum) |
+| **Dimensions** | **25.5 × 36 × 4.3mm** (W × L × H) |
+| Weight | ~6g per cell |
+| Connector | Molex-style 2-pin (⚠️ verify polarity!) |
+| Protection | PCM with overcharge/overdischarge/overcurrent/short circuit |
+| Certifications | UN 38.3, IEC, UL |
+
+**Configuration:** Two cells in parallel (1S2P)
+- Combined capacity: 640mAh
+- Voltage: 3.7V (unchanged - parallel connection)
+- Fits in enclosure battery compartment
+
+**Substitution Guidelines:**
+
+If sourcing alternative batteries, match these critical dimensions:
+- **Thickness:** ≤4.5mm (enclosure clearance)
+- **Width:** ~25mm (battery slot width)
+- **Length:** ~35mm (battery slot length)
+
+Batteries with similar "402535" or "402530" designations should fit. Always verify polarity before connecting - LiPo connector polarity is NOT standardized.
+
 **Key Components (v0.663399ADS - MOSFET H-bridge):**
 - Seeed XIAO ESP32-C6 development board
 - ERM vibration motors (φ10mm × 3mm)
 - WS2812B RGB LEDs (optional - for therapy light feature)
 - H-bridge MOSFETs (AO3400A/AO3401A family)
-- Dual 320mAh LiPo batteries (640mAh)
+- Dual EEMB LP402535 320mAh LiPo batteries (640mAh combined)
 - Passive components (resistors, capacitors)
 
 **Key Components (v0.663399-T - Dedicated IC):**
 - Seeed XIAO ESP32-C6 development board
-- ERM vibration motors (φ10mm × 3mm)
+- **10mm LRA motor** (resonance 150-200 Hz for DRV2603 compatibility - see note above)
+- **E-Switch TL1105 (65gf)** - Soft-touch tactile switch (see note below)
 - DRV2603 haptic driver IC (Texas Instruments)
 - MAX9938 current sense amplifier (Analog Devices)
 - MAX98357A I2S audio amplifier (Analog Devices)
 - Dialight 587-2056-147F addressable RGB LED
-- Dual 320mAh LiPo batteries (640mAh)
-- Passive components (resistors, capacitors)
+- Dual EEMB LP402535 320mAh LiPo batteries (640mAh combined)
+- Passive components (resistors, capacitors, 22Ω series R for PWM)
+
+**Button Selection Note:**
+The E-Switch TL1105 with 65gf actuation force was chosen over standard SMT 6×6×5mm tact switches (typically 160-260gf) for user comfort during therapy sessions. The soft-touch feel reduces finger fatigue and provides a gentler, less jarring interaction appropriate for therapeutic use. The metal dome mechanism produces a subtle tactile "tick" rather than a loud click. Higher BOM cost accepted for improved user experience.
 
 ### 3D Printing the Enclosure
 
