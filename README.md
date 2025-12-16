@@ -422,33 +422,20 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ## 🤝 Contributing
 
-### API-Compatible Development
-Use the complete API contracts in `docs/ai_context.md` to generate compatible code additions without sharing the full source code. All generated code automatically follows ESP-IDF v5.5.0 and JPL coding standards.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
-### Adding Features
-1. **Reference API contracts** for function signatures and safety requirements
-2. **Maintain JPL compliance** - no dynamic allocation, no busy-wait loops, comprehensive error checking
-3. **Use vTaskDelay() exclusively** for all timing operations (no esp_rom_delay_us or ets_delay_us)
-4. **Use ESP-IDF v5.5.0 APIs** exclusively - no deprecated function calls
-5. **Include comprehensive Doxygen documentation** with safety annotations
-6. **Add appropriate logging** with conditional compilation for production builds
-7. **Update architecture decisions** document with rationale for changes
+**In brief:** This is a personal research project. Bug reports and suggestions via GitHub issues are welcome! I prefer to implement changes myself to ensure hands-on hardware testing and consistency with the AI-assisted development workflow. Forks are encouraged if you want to take the project in your own direction.
 
-### Code Standards Enforcement
+### Code Standards Reference
+
+If you're forking or studying the code, these are the standards followed:
+
 - **C language**: Strictly C (no C++ features)
 - **JPL coding standard**: All safety-critical rules must be followed
 - **No busy-wait loops**: All delays use vTaskDelay() or hardware timers
 - **Doxygen-style comments**: Required for all public functions
 - **ESP-IDF v5.5.x conventions**: Follow latest framework best practices
 - **Hierarchical error handling**: Proper esp_err_t propagation
-- **Conditional compilation**: Support for testing, debug, and production builds
-
-### Quality Gates
-- **Static analysis**: Must pass JPL-compliant analysis tools
-- **Unit testing**: Minimum 90% coverage for safety-critical functions
-- **Integration testing**: Two-device coordination verification at multiple cycle times
-- **Timing validation**: Bilateral precision within ±10ms specification
-- **Code review**: Peer review required for all safety-critical changes
 
 ## 📄 License
 
