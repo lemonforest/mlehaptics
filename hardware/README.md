@@ -487,15 +487,15 @@ Additional datasheets (passives) available from component manufacturers.
 
 ## Contributing
 
-Hardware contributions welcome! See main repository `CONTRIBUTING.md` for guidelines.
+See main repository [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
-**Areas of interest:**
-- PCB layout optimization
+**In brief:** Bug reports and suggestions via GitHub issues are welcome. I prefer to implement changes myself to ensure hands-on hardware testing. Forks are encouraged!
+
+**Areas where feedback is especially helpful:**
+- PCB layout issues or improvements
 - Alternative enclosure designs (different form factors, materials)
-- Bill of materials cost reduction
-- v0.663399-T firmware development (DRV2603 driver, I2S audio)
-- ERM vs LRA motor evaluation with DRV2603
-- STL export of CLRMOD variant for community convenience
+- Bill of materials cost reduction ideas
+- ERM vs LRA motor evaluation experiences with DRV2603
 
 ## Questions or Issues?
 
