@@ -670,6 +670,27 @@ This provides the therapeutic benefit (bilateral synchronization) without requir
 | Phase 3 | Tetrahedralization | 4+ | 3D relative positioning |
 | Phase 4 | Dynamic tracking | N | Moving swarm coordination |
 
+### 9.4 Lightbar Testbed: 4-Device UTLP/RFIP Demonstration
+
+**Hardware:** Four EMDR bilateral devices, LED-only mode (motors disabled)
+
+**Dual Purpose:**
+1. **Lightbar Demo**: Prove synchronized pattern playback across 4 nodes using "sheet music" paradigm - visible proof that UTLP time synchronization enables fleet-wide coordination
+2. **Mesh Protocol Testbed**: First physical implementation of multi-node UTLP + RFIP, validating the architecture before scaling to larger swarms
+
+**Why 4 Devices:**
+- **Tetrahedron geometry**: 4 nodes is the minimum for full 3D RFIP (volumetric positioning)
+- **Mesh topology**: Tests multi-hop stratum propagation (PWA → Device 1 → Devices 2-4)
+- **Proof of concept**: If 4 WS2812B LEDs flash in perfect sync without per-device GPS, the protocol works
+
+**Phased Approach:**
+- **Phase A** (Current): 2-device bilateral pair - validates core UTLP time sync
+- **Phase B**: 4-device lightbar - validates mesh topology and pattern playback
+- **Phase C**: Add FTM ranging - validates RFIP distance measurement
+- **Phase D**: Full RFIP coordinate synthesis - demonstrates spatial awareness
+
+**Using Existing Hardware:** The EMDR devices already have WS2812B LEDs and BLE. No new hardware required - just firmware expansion to support 4+ device mesh topology.
+
 ---
 
 ## 10. Conclusion
