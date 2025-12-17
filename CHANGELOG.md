@@ -39,6 +39,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**AD040: Peer Firmware Version Exchange (v0.6.124)**:
+- **Purpose**: Ensure both peer devices run identical firmware builds for reliable bilateral coordination
+- **Core Feature**: One-time firmware version exchange after GATT discovery completes
+  - Both SERVER and CLIENT send their version via SYNC_MSG_FIRMWARE_VERSION (0x10)
+  - Compares major.minor.patch AND build timestamps for exact match
+  - Soft enforcement: mismatch logs WARNING but connection allowed, motors run normally
+- **LED Feedback**:
+  - Green 3× blink on version match (reuses PAIRING_SUCCESS pattern)
+  - Yellow/amber 3× blink on mismatch (new STATUS_PATTERN_VERSION_MISMATCH, RGB 255,180,0)
+- **BLE Integration**: Peer firmware version exposed via characteristic (AD032: ...0213)
+- **Bug Fixes During Implementation**:
+  - Fixed infinite loop: Removed response send from handler (each side sends once)
+  - Fixed timing: Moved send from MTU event to GATT discovery completion
+- **Files Modified**:
+  - `src/ble_manager.h` - Add message type, payload, and API declarations
+  - `src/ble_manager.c` - Implement send/set/match functions, discovery trigger
+  - `src/status_led.h` - Add STATUS_PATTERN_VERSION_MISMATCH enum
+  - `src/status_led.c` - Implement yellow RGB(255,180,0) blink pattern
+  - `src/time_sync_task.c` - Handle SYNC_MSG_FIRMWARE_VERSION message
+  - `src/firmware_version.h` - Bump to v0.6.124
+
 **AD047: Scheduled Pattern Playback Architecture (Phase 7 - Proposed)**:
 - **Purpose**: Future "Lightbar Mode" enabling GPS-quality bilateral sync with complex visual patterns
 - **Core Concept**: Scheduled playback with half-cycle boundary execution
