@@ -683,17 +683,188 @@ This provides the therapeutic benefit (bilateral synchronization) without requir
 - **Mesh topology**: Tests multi-hop stratum propagation (PWA → Device 1 → Devices 2-4)
 - **Proof of concept**: If 4 WS2812B LEDs flash in perfect sync without per-device GPS, the protocol works
 
-**Phased Approach:**
-- **Phase A** (Current): 2-device bilateral pair - validates core UTLP time sync
-- **Phase B**: 4-device lightbar - validates mesh topology and pattern playback
-- **Phase C**: Add FTM ranging - validates RFIP distance measurement
-- **Phase D**: Full RFIP coordinate synthesis - demonstrates spatial awareness
+**Development Philosophy: Lightbar Drives EMDR Improvements**
 
-**Using Existing Hardware:** The EMDR devices already have WS2812B LEDs and BLE. No new hardware required - just firmware expansion to support 4+ device mesh topology.
+The lightbar showcase is not a separate product—it's a proving ground. Every improvement made to achieve smooth, synchronized LED patterns across 4 devices flows directly back to the EMDR therapy firmware:
+
+| Lightbar Requirement | EMDR Therapy Benefit |
+|---------------------|----------------------|
+| Seamless pattern transitions | Smooth frequency changes mid-session |
+| Multi-device mesh sync | Future multi-zone therapy configurations |
+| Atomic-grade timing | Tighter bilateral alternation precision |
+| RF disruption resilience | Therapy continuity during BLE glitches |
+
+**The test**: If 4 LEDs can flash in perfect sync through arbitrary pattern changes, 2 motors can alternate smoothly through frequency changes.
+
+**Using Existing Hardware:** The EMDR devices already have WS2812B LEDs and BLE. No new hardware required—just firmware expansion to support 4+ device mesh topology.
 
 ---
 
-## 10. Conclusion
+## 10. Protocol Hardening Extensions
+
+As UTLP scales beyond trusted bilateral pairs to multi-node meshes and potentially adversarial environments, the protocol requires hardening. These extensions leverage the atomic-grade time that UTLP already provides.
+
+### 10.1 TOTP Beacon Integrity (Replay Attack Prevention)
+
+**Problem:** Current sync beacons use plaintext rolling counters, vulnerable to replay attacks.
+
+**Solution:** Time-Based One-Time Password (TOTP) tokens ensure packet freshness.
+
+```c
+// UTLP TOTP parameters
+#define TOTP_WINDOW_US      100000  // 100ms validity window
+#define TOTP_SECRET_SIZE    16      // 128-bit shared secret (pre-provisioned at pairing)
+
+typedef struct __attribute__((packed)) {
+    // Existing beacon fields...
+    uint64_t atomic_time_us;   // UTLP synchronized time
+    uint32_t totp_token;       // HMAC-SHA256(secret, time_slot) truncated to 32 bits
+} utlp_hardened_beacon_t;
+
+// Token generation
+uint32_t utlp_generate_totp(uint64_t atomic_time_us, const uint8_t* secret) {
+    uint64_t time_slot = atomic_time_us / TOTP_WINDOW_US;
+    uint8_t hash[32];
+    hmac_sha256(secret, TOTP_SECRET_SIZE, &time_slot, sizeof(time_slot), hash);
+    return *(uint32_t*)hash;  // Truncate to 32 bits
+}
+```
+
+**Validation:** Receiver generates expected token locally. Mismatch → drop packet.
+
+**Benefit:** Immunity to replay attacks; ensures "freshness" of all UTLP messages.
+
+### 10.2 Pseudo-802.11az Security Layer (Ranging Integrity)
+
+Since 802.11az hardware encryption is unavailable at the application layer, we implement "Defense in Depth" to validate FTM ranging data.
+
+#### 10.2.1 Identity Verification (Signed Nonce)
+
+**Problem:** Rogue device could initiate ranging to inject false distance data.
+
+**Solution:** Cryptographically signed nonce in FTM setup proves swarm membership.
+
+```c
+typedef struct __attribute__((packed)) {
+    uint8_t  nonce[16];           // Random challenge
+    uint8_t  signature[64];       // Ed25519 signature of nonce
+    uint8_t  public_key[32];      // Signer's public key (for verification)
+} ftm_identity_proof_t;
+```
+
+**Requirement:** Device must possess private key provisioned at swarm enrollment.
+
+#### 10.2.2 Newtonian Gating (Physics-Based Spoofing Detection)
+
+**Problem:** Attacker could inject false ranging measurements implying impossible motion.
+
+**Solution:** Reject measurements violating physical velocity limits.
+
+```c
+#define MAX_HUMAN_VELOCITY_CM_S     1000   // 10 m/s (running speed)
+#define MAX_VEHICLE_VELOCITY_CM_S   5000   // 50 m/s (highway speed)
+
+bool is_physically_plausible(int16_t old_dist_cm, int16_t new_dist_cm,
+                             uint32_t time_delta_us, uint16_t max_velocity) {
+    // Implied velocity = Δd / Δt
+    int32_t delta_cm = abs(new_dist_cm - old_dist_cm);
+    uint32_t implied_velocity_cm_s = (delta_cm * 1000000UL) / time_delta_us;
+
+    if (implied_velocity_cm_s > max_velocity) {
+        ESP_LOGW(TAG, "Newtonian gate: rejected (%.1f m/s > %.1f m/s limit)",
+                 implied_velocity_cm_s / 100.0f, max_velocity / 100.0f);
+        return false;
+    }
+    return true;
+}
+```
+
+**Integration:** Add as filter before Kalman update step.
+
+#### 10.2.3 Geometric Consensus (Swarm Witness)
+
+**Problem:** "Teleportation/Wormhole" attacks where a node claims impossible positions.
+
+**Solution:** Verify spatial claims against neighbor observations using triangle inequality.
+
+```c
+// Triangle inequality: For any three nodes A, B, C:
+// dist(A,C) ≤ dist(A,B) + dist(B,C)
+// dist(A,C) ≥ |dist(A,B) - dist(B,C)|
+
+bool validate_triangle_inequality(int16_t ab_cm, int16_t bc_cm, int16_t ac_cm,
+                                  int16_t tolerance_cm) {
+    // Upper bound: AC ≤ AB + BC
+    if (ac_cm > ab_cm + bc_cm + tolerance_cm) {
+        ESP_LOGW(TAG, "Triangle inequality violated: AC=%d > AB+BC=%d",
+                 ac_cm, ab_cm + bc_cm);
+        return false;
+    }
+    // Lower bound: AC ≥ |AB - BC|
+    int16_t lower_bound = abs(ab_cm - bc_cm);
+    if (ac_cm < lower_bound - tolerance_cm) {
+        ESP_LOGW(TAG, "Triangle inequality violated: AC=%d < |AB-BC|=%d",
+                 ac_cm, lower_bound);
+        return false;
+    }
+    return true;
+}
+```
+
+**Requirement:** 3+ nodes for basic validation, 4+ for full 3D verification.
+
+### 10.3 Deterministic TDMA (Collision-Free Transmission)
+
+**Problem:** As swarm size increases, RF collisions degrade sync quality.
+
+**Solution:** Use atomic time to procedurally assign speaking slots—no central scheduler needed.
+
+```c
+#define TDMA_SLOT_DURATION_US  10000  // 10ms per slot
+
+// Each node gets a deterministic speaking window
+bool utlp_can_transmit(uint64_t atomic_time_us, uint8_t node_id, uint8_t total_nodes) {
+    uint64_t current_slot = (atomic_time_us / TDMA_SLOT_DURATION_US) % total_nodes;
+    return (current_slot == node_id);
+}
+
+// Usage in beacon transmission
+void utlp_beacon_task(void* arg) {
+    while (running) {
+        uint64_t now = time_sync_get_atomic_time();
+
+        if (utlp_can_transmit(now, my_node_id, swarm_size)) {
+            send_beacon();
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1));  // Check frequently, transmit only in slot
+    }
+}
+```
+
+**Benefit:** Virtual wired bus over RF—continuous swarm communication without handshakes or collisions.
+
+**Topology Discovery:** Requires knowing `total_nodes`. Options:
+- Fixed at compile time (4-device testbed)
+- Discovered via beacon counting
+- Configured via PWA
+
+### 10.4 Unified Security Model
+
+All three hardening features leverage the same foundation:
+
+| Feature | Uses Atomic Time For |
+|---------|---------------------|
+| TOTP | Token freshness (100ms micro-window) |
+| Newtonian Gating | Velocity calculation (Δd / Δt) |
+| Geometric Consensus | Timestamped position claims |
+| Deterministic TDMA | Speaking slot assignment |
+
+**Key Insight:** Atomic-grade synchronized time is the security primitive. Once you have trusted time, you can build trusted identity, trusted physics, and trusted coordination.
+
+---
+
+## 11. Conclusion
 
 Reference-Frame Independent Positioning emerges naturally from UTLP's architecture when combined with peer-to-peer ranging. By asking "where are we relative to each other?" instead of "where are we on Earth?", RFIP eliminates dependencies on external infrastructure and fixed reference frames.
 
@@ -708,6 +879,8 @@ RFIP represents a philosophical shift: **the swarm defines its own space**, just
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-12-17 | Steve / Claude | Initial specification |
+| 1.1 | 2025-12-17 | Steve / Claude | Added Section 5.7 (Lightbar return offering), Section 9.4 (4-device testbed) |
+| 1.2 | 2025-12-17 | Steve / Claude | Added Section 10 (Protocol Hardening: TOTP, Pseudo-802.11az, TDMA) |
 
 ---
 
