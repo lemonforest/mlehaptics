@@ -173,6 +173,15 @@ static const ble_uuid128_t uuid_char_client_battery = BLE_UUID128_INIT(
     0x0d, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+// Firmware Version Group (AD032: bytes 13-14 = 0x02 0x12/0x13)
+static const ble_uuid128_t uuid_char_local_firmware = BLE_UUID128_INIT(
+    0x12, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_peer_firmware = BLE_UUID128_INIT(
+    0x13, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // ============================================================================
 // UUID-SWITCHING CONFIGURATION (Phase 1b.3)
 // ============================================================================
@@ -291,6 +300,11 @@ static bool settings_dirty = false;
 #define FREQ_CHANGE_DEBOUNCE_MS 300  // Wait 300ms after last change before sync
 static bool freq_change_pending = false;
 static uint32_t freq_change_timestamp_ms = 0;
+
+// AD032/AD040: Firmware version strings
+static char local_firmware_version_str[32] = "";   // Initialized in ble_manager_init()
+static char peer_firmware_version_str[32] = "";    // Set by ble_set_peer_firmware_version()
+static bool firmware_versions_match_flag = true;   // AD040: Assume match until proven otherwise
 
 // ============================================================================
 // BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
@@ -1352,6 +1366,25 @@ static int gatt_char_client_battery_read(uint16_t conn_handle, uint16_t attr_han
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
+// Local Firmware Version - Read (AD032: immutable after init, no mutex needed)
+static int gatt_char_local_firmware_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    ESP_LOGD(TAG, "GATT Read: Local Firmware = %s", local_firmware_version_str);
+    int rc = os_mbuf_append(ctxt->om, local_firmware_version_str,
+                            strlen(local_firmware_version_str));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Peer Firmware Version - Read (AD032: TODO AD040 for peer version exchange)
+static int gatt_char_peer_firmware_read(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    ESP_LOGD(TAG, "GATT Read: Peer Firmware = %s",
+             peer_firmware_version_str[0] ? peer_firmware_version_str : "(none)");
+    int rc = os_mbuf_append(ctxt->om, peer_firmware_version_str,
+                            strlen(peer_firmware_version_str));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
 // ============================================================================
 // BILATERAL CONTROL SERVICE CHARACTERISTIC HANDLERS (Phase 1b: AD030/AD034)
 // ============================================================================
@@ -1627,6 +1660,15 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return gatt_char_client_battery_read(conn_handle, attr_handle, ctxt, arg);
     }
 
+    // Firmware Version Group (AD032: read-only)
+    if (ble_uuid_cmp(uuid, &uuid_char_local_firmware.u) == 0) {
+        return gatt_char_local_firmware_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_peer_firmware.u) == 0) {
+        return gatt_char_peer_firmware_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
     // Bilateral Control Service characteristics (Phase 1b)
     if (ble_uuid_cmp(uuid, &uuid_bilateral_battery.u) == 0) {
         return gatt_bilateral_battery_read(conn_handle, attr_handle, ctxt, arg);
@@ -1810,6 +1852,17 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = &uuid_char_client_battery.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+            },
+            // Firmware Version Group (AD032)
+            {
+                .uuid = &uuid_char_local_firmware.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            {
+                .uuid = &uuid_char_peer_firmware.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
             },
             {
                 0, // No more characteristics
@@ -2095,6 +2148,15 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
             ESP_LOGE(TAG, "CLIENT: Failed to write coordination CCCD at handle %u; rc=%d", cccd_handle, rc);
         } else {
             ESP_LOGI(TAG, "CLIENT: Coordination CCCD write initiated at handle %u (enabling notifications)", cccd_handle);
+        }
+
+        // AD040: Send firmware version to peer now that coordination handle is valid
+        // Both SERVER and CLIENT go through GATT discovery, so both send here.
+        // Each side sends once - handler does NOT respond (avoids infinite loop).
+        ESP_LOGI(TAG, "AD040: Coordination handle discovered, sending firmware version");
+        esp_err_t fw_err = ble_send_firmware_version_to_peer();
+        if (fw_err != ESP_OK) {
+            ESP_LOGW(TAG, "AD040: Firmware version send failed: %s", esp_err_to_name(fw_err));
         }
     }
 
@@ -2800,6 +2862,8 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                      event->mtu.value, event->mtu.conn_handle);
             // Phase 6f: MTU negotiation complete - 28-byte beacons should work now
             // GATT discovery runs in parallel (started in connection handler)
+            // AD040: Firmware version exchange happens after GATT discovery completes
+            // (when coordination characteristic handle is discovered)
             break;
 
         case BLE_GAP_EVENT_SUBSCRIBE:
@@ -3573,6 +3637,13 @@ esp_err_t ble_manager_init(uint8_t initial_battery_pct) {
     // Initialize boot timestamp for UUID-switching (Phase 1b.3)
     ble_boot_time_ms = (uint32_t)(esp_timer_get_time() / 1000);
     ESP_LOGI(TAG, "BLE boot timestamp: %lu ms (30s pairing window)", ble_boot_time_ms);
+
+    // AD032: Initialize firmware version string (immutable after this point)
+    snprintf(local_firmware_version_str, sizeof(local_firmware_version_str),
+             "v%d.%d.%d (%s)",
+             FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH,
+             __DATE__);
+    ESP_LOGI(TAG, "Firmware version: %s", local_firmware_version_str);
 
     // Create mutexes
     char_data_mutex = xSemaphoreCreateMutex();
@@ -5224,6 +5295,66 @@ void ble_log_diagnostics(void) {
     ESP_LOGI(TAG, "NimBLE mbuf pool monitoring: Not available in current ESP-IDF version");
 
     ESP_LOGI(TAG, "=== END DIAGNOSTICS ===");
+}
+
+// ============================================================================
+// AD040: FIRMWARE VERSION EXCHANGE
+// ============================================================================
+
+esp_err_t ble_send_firmware_version_to_peer(void) {
+    // Check if peer is connected
+    if (!ble_is_peer_connected()) {
+        ESP_LOGD(TAG, "AD040: Cannot send firmware version - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Build coordination message with local firmware version
+    firmware_version_t my_version = firmware_get_version();
+    coordination_message_t msg = {
+        .type = SYNC_MSG_FIRMWARE_VERSION,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+    memcpy(&msg.payload.firmware_version, &my_version, sizeof(firmware_version_t));
+
+    // Send via coordination channel
+    esp_err_t err = ble_send_coordination_message(&msg);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "AD040: Sent firmware version: v%d.%d.%d (%s %s)",
+                 my_version.major, my_version.minor, my_version.patch,
+                 my_version.build_date, my_version.build_time);
+    } else {
+        ESP_LOGW(TAG, "AD040: Failed to send firmware version: %s", esp_err_to_name(err));
+    }
+
+    return err;
+}
+
+void ble_set_peer_firmware_version(const char *version_str) {
+    if (version_str == NULL) {
+        return;
+    }
+
+    // Thread-safe update (mutex not strictly needed for simple string copy,
+    // but keeping consistent with other char_data access patterns)
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        snprintf(peer_firmware_version_str, sizeof(peer_firmware_version_str), "%s", version_str);
+        xSemaphoreGive(char_data_mutex);
+        ESP_LOGD(TAG, "AD040: Peer firmware version set: %s", peer_firmware_version_str);
+    } else {
+        ESP_LOGW(TAG, "AD040: Mutex timeout setting peer firmware version");
+    }
+}
+
+bool ble_firmware_versions_match(void) {
+    return firmware_versions_match_flag;
+}
+
+/**
+ * @brief Internal function to update version match flag (called from time_sync_task)
+ * @param match true if versions match, false otherwise
+ */
+void ble_set_firmware_version_match(bool match) {
+    firmware_versions_match_flag = match;
 }
 
 esp_err_t ble_manager_deinit(void) {

@@ -46,7 +46,8 @@ typedef enum {
     STATUS_PATTERN_PAIRING_WAIT,       /**< GPIO15 solid ON + WS2812B purple solid - Waiting for peer discovery (Phase 1b.3) */
     STATUS_PATTERN_PAIRING_PROGRESS,   /**< GPIO15 pulsing 1Hz + WS2812B purple pulsing - Pairing in progress (Phase 1b.3) */
     STATUS_PATTERN_PAIRING_SUCCESS,    /**< GPIO15 + WS2812B green 3× synchronized blink - Pairing success (Phase 1b.3) */
-    STATUS_PATTERN_PAIRING_FAILED      /**< GPIO15 + WS2812B red 3× synchronized blink - Pairing failed (Phase 1b.3) */
+    STATUS_PATTERN_PAIRING_FAILED,     /**< GPIO15 + WS2812B red 3× synchronized blink - Pairing failed (Phase 1b.3) */
+    STATUS_PATTERN_VERSION_MISMATCH    /**< GPIO15 + WS2812B yellow/amber 3× blink - Firmware version mismatch warning (AD040) */
 } status_pattern_t;
 
 // ============================================================================
