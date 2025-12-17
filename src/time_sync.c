@@ -1159,6 +1159,74 @@ esp_err_t time_sync_get_motor_epoch(uint64_t *epoch_us, uint32_t *cycle_ms)
 }
 
 /*******************************************************************************
+ * PWA TIME INJECTION IMPLEMENTATION (AD047 - UTLP Integration)
+ ******************************************************************************/
+
+/* UTLP stratum state - defaults to peer-only */
+static uint8_t g_utlp_stratum = UTLP_STRATUM_PEER_ONLY;
+
+/**
+ * @brief Inject external time reference from PWA
+ *
+ * ALWAYS adopts the injected time (no stratum comparison).
+ * Rationale: We need bilateral sync, not wall-clock accuracy.
+ */
+esp_err_t time_sync_inject_pwa_time(const pwa_time_inject_t *inject)
+{
+    /* JPL Rule 7: Validate pointer */
+    if (inject == NULL) {
+        ESP_LOGE(TAG, "NULL pointer passed to time_sync_inject_pwa_time");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!g_time_sync_state.initialized) {
+        ESP_LOGE(TAG, "Not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* Update stratum from injected source */
+    g_utlp_stratum = inject->stratum;
+
+    ESP_LOGI(TAG, "PWA time adopted: stratum=%d, quality=%d, time=%llu us, uncertainty=±%ld us",
+             inject->stratum, inject->quality,
+             (unsigned long long)inject->utc_time_us,
+             (long)inject->uncertainty_us);
+
+    /* TODO: Actually apply the time offset when full UTLP integration is done.
+     * For now, just update the stratum. The time value would be used to:
+     * 1. Calculate offset from local time
+     * 2. Apply to synchronized time calculations
+     * 3. Propagate to peer if we're SERVER
+     */
+
+    /* Propagate to peer if we're SERVER */
+    if (g_time_sync_state.role == TIME_SYNC_ROLE_SERVER) {
+        ESP_LOGI(TAG, "SERVER: Will propagate new stratum to CLIENT in next beacon");
+        /* The stratum will be included in the next beacon generation */
+    }
+
+    return ESP_OK;
+}
+
+/**
+ * @brief Get current UTLP stratum level
+ */
+uint8_t time_sync_get_stratum(void)
+{
+    return g_utlp_stratum;
+}
+
+/**
+ * @brief Get current UTLP quality value (battery percentage)
+ */
+uint8_t time_sync_get_utlp_quality(void)
+{
+    /* Import battery percentage from battery_monitor module */
+    extern uint8_t battery_get_percentage(void);
+    return battery_get_percentage();
+}
+
+/*******************************************************************************
  * NTP-STYLE HANDSHAKE IMPLEMENTATION (Phase 6k - Precision Bootstrap)
  ******************************************************************************/
 

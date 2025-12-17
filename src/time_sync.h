@@ -310,6 +310,60 @@ typedef struct __attribute__((packed)) {
 } time_sync_beacon_t;
 
 /*******************************************************************************
+ * UTLP INTEGRATION STRUCTURES (AD047)
+ ******************************************************************************/
+
+/** @brief UTLP magic bytes for beacon v2 detection */
+#define UTLP_MAGIC_BYTE_0       (0xFEU)
+#define UTLP_MAGIC_BYTE_1       (0xFEU)
+
+/** @brief UTLP stratum values */
+#define UTLP_STRATUM_GPS        (0U)    /**< GPS/atomic time source */
+#define UTLP_STRATUM_PHONE      (1U)    /**< Phone network time (cellular/NTP) */
+#define UTLP_STRATUM_PEER_1     (2U)    /**< One hop from phone */
+#define UTLP_STRATUM_PEER_ONLY  (255U)  /**< No external time source */
+
+/**
+ * @brief UTLP-enhanced time sync beacon (v2)
+ *
+ * Extends time_sync_beacon_t with UTLP stratum and quality fields for:
+ * - Time source hierarchy (GPS > phone > peer)
+ * - Battery-based quality metric (Swarm Rule for leader election)
+ *
+ * Backward compatibility: v1 beacons start with server_time_us (8 bytes).
+ * v2 beacons start with magic bytes 0xFE, 0xFE - detect by checking first 2 bytes.
+ *
+ * @see docs/UTLP_Specification.md
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  magic[2];               /**< UTLP identifier: 0xFE, 0xFE */
+    uint8_t  stratum;                /**< Time source stratum (0=GPS, 1=phone, 255=peer-only) */
+    uint8_t  quality;                /**< Battery level 0-100 (Swarm Rule) */
+    uint64_t server_time_us;         /**< SERVER's current time (microseconds) */
+    uint64_t motor_epoch_us;         /**< Pattern start time */
+    uint32_t motor_cycle_ms;         /**< Pattern period */
+    uint8_t  mode_id;                /**< Mode identifier (0-6) */
+    uint8_t  sequence;               /**< Sequence number (for ordering) */
+    uint16_t checksum;               /**< CRC-16 for integrity */
+} time_sync_beacon_v2_t;             /**< 29 bytes total */
+
+/**
+ * @brief PWA time injection structure
+ *
+ * Allows PWA to inject GPS/cellular time into devices for improved sync accuracy.
+ * The device ALWAYS adopts this time (no stratum comparison) because we only need
+ * devices to agree on "when seconds change", not absolute UTC correctness.
+ *
+ * @see docs/bilateral_pattern_playback_architecture.md
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  stratum;                /**< Source stratum: 0=GPS, 1=network time */
+    uint8_t  quality;                /**< Signal quality 0-100 (GPS accuracy indicator) */
+    uint64_t utc_time_us;            /**< Microseconds since Unix epoch (1970-01-01) */
+    int32_t  uncertainty_us;         /**< Estimated uncertainty (± microseconds) */
+} pwa_time_inject_t;                 /**< 14 bytes total */
+
+/*******************************************************************************
  * PUBLIC API FUNCTIONS
  ******************************************************************************/
 
@@ -665,6 +719,68 @@ esp_err_t time_sync_set_motor_epoch(uint64_t epoch_us, uint32_t cycle_ms);
  * @return ESP_ERR_INVALID_STATE if motor epoch not yet set
  */
 esp_err_t time_sync_get_motor_epoch(uint64_t *epoch_us, uint32_t *cycle_ms);
+
+/*******************************************************************************
+ * PWA TIME INJECTION API (AD047 - UTLP Integration)
+ ******************************************************************************/
+
+/**
+ * @brief Inject external time reference from PWA
+ *
+ * Allows PWA to provide GPS or cellular network time to improve device sync.
+ * The device ALWAYS adopts this time regardless of current stratum - we don't
+ * care about absolute UTC correctness, only that devices agree on "when seconds
+ * change".
+ *
+ * @par Time Adoption Philosophy
+ * Traditional NTP rejects time jumps to prevent security issues. Our use case
+ * is different:
+ * - We need bilateral sync, not wall-clock accuracy
+ * - Rejecting "worse" time could lock us to spoofed high timestamps
+ * - Always accepting allows recovery from any state
+ *
+ * @par When to Call
+ * PWA should inject time:
+ * - At session start (before pattern playback begins)
+ * - After GPS fix obtained on mobile device
+ * - Periodically if high-precision sync is required
+ *
+ * @param[in] inject Pointer to time injection structure
+ * @return ESP_OK on success, time adopted
+ * @return ESP_ERR_INVALID_ARG if inject is NULL
+ * @return ESP_ERR_INVALID_STATE if module not initialized
+ *
+ * @see pwa_time_inject_t for structure details
+ * @see docs/bilateral_pattern_playback_architecture.md
+ */
+esp_err_t time_sync_inject_pwa_time(const pwa_time_inject_t *inject);
+
+/**
+ * @brief Get current UTLP stratum level
+ *
+ * Returns the current time source stratum:
+ * - 0: GPS time (highest quality)
+ * - 1: Phone/cellular time (from PWA injection)
+ * - 2+: Peer-derived time (each hop increments)
+ * - 255: No external time source (peer-only sync)
+ *
+ * @return Current stratum value
+ */
+uint8_t time_sync_get_stratum(void);
+
+/**
+ * @brief Get current UTLP quality value
+ *
+ * Returns battery percentage as quality metric (Swarm Rule).
+ * Higher quality devices are preferred as time sources.
+ *
+ * @note Named `utlp_quality` to avoid conflict with existing
+ *       `time_sync_get_quality(time_sync_quality_t*)` which returns
+ *       sync accuracy metrics.
+ *
+ * @return Quality value 0-100 (battery percentage)
+ */
+uint8_t time_sync_get_utlp_quality(void);
 
 /*******************************************************************************
  * NTP-STYLE HANDSHAKE API (Phase 6k - Precision Bootstrap)

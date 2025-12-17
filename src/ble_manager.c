@@ -182,6 +182,12 @@ static const ble_uuid128_t uuid_char_peer_firmware = BLE_UUID128_INIT(
     0x13, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+// Time Beacon Group (AD047/UTLP: bytes 13-14 = 0x02 0x14)
+// UTLP semantics: devices passively listen for time beacons from any source
+static const ble_uuid128_t uuid_char_time_beacon = BLE_UUID128_INIT(
+    0x14, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // ============================================================================
 // UUID-SWITCHING CONFIGURATION (Phase 1b.3)
 // ============================================================================
@@ -1669,6 +1675,41 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return gatt_char_peer_firmware_read(conn_handle, attr_handle, ctxt, arg);
     }
 
+    // Time Beacon (AD047/UTLP: passive opportunistic time adoption)
+    // PWA broadcasts time beacons; device passively listens and adopts
+    if (ble_uuid_cmp(uuid, &uuid_char_time_beacon.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            // Parse time beacon (14 bytes): stratum, quality, utc_time_us, uncertainty_us
+            uint16_t om_len = OS_MBUF_PKTLEN(ctxt->om);
+            if (om_len != sizeof(pwa_time_inject_t)) {
+                ESP_LOGW(TAG, "Time beacon: invalid size %u (expected %u)",
+                         om_len, (unsigned)sizeof(pwa_time_inject_t));
+                return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            }
+
+            pwa_time_inject_t beacon;
+            int rc = ble_hs_mbuf_to_flat(ctxt->om, &beacon, sizeof(beacon), NULL);
+            if (rc != 0) {
+                ESP_LOGE(TAG, "Time beacon: mbuf parse failed: %d", rc);
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            // Log and adopt (UTLP: always adopt from external source)
+            ESP_LOGI(TAG, "Time beacon received: stratum=%u quality=%u time=%llu us uncertainty=%d us",
+                     beacon.stratum, beacon.quality,
+                     (unsigned long long)beacon.utc_time_us, (int)beacon.uncertainty_us);
+
+            esp_err_t err = time_sync_inject_pwa_time(&beacon);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Time beacon adoption failed: %s", esp_err_to_name(err));
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            return 0;  // Success
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
+    }
+
     // Bilateral Control Service characteristics (Phase 1b)
     if (ble_uuid_cmp(uuid, &uuid_bilateral_battery.u) == 0) {
         return gatt_bilateral_battery_read(conn_handle, attr_handle, ctxt, arg);
@@ -1863,6 +1904,12 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = &uuid_char_peer_firmware.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ,
+            },
+            // Time Beacon Group (AD047/UTLP: passive opportunistic adoption)
+            {
+                .uuid = &uuid_char_time_beacon.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: PWA broadcasts time beacons
             },
             {
                 0, // No more characteristics

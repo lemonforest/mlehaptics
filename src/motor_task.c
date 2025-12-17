@@ -48,6 +48,8 @@
 #include "power_manager.h"
 #include "time_sync.h"
 #include "time_sync_task.h"
+#include "pattern_playback.h"
+#include "zone_config.h"
 
 static const char *TAG = "MOTOR_TASK";
 
@@ -95,7 +97,8 @@ const mode_config_t modes[MODE_COUNT] = {
     {"1.0Hz@25%",  125,  375,  500},  // MODE_1HZ_25: 1.0Hz, 25% motor duty (period=1000ms)
     {"1.5Hz@25%",   84,  250,  333},  // MODE_15HZ_25: 1.5Hz, 25% motor duty (period=667ms)
     {"2.0Hz@25%",   63,  187,  250},  // MODE_2HZ_25: 2.0Hz, 25% motor duty (period=500ms)
-    {"Custom",     250,  250,  500}   // MODE_CUSTOM: Default 1.0Hz @ 50% motor duty
+    {"Custom",     250,  250,  500},  // MODE_CUSTOM: Default 1.0Hz @ 50% motor duty
+    {"Pattern",      0,    0,   10}   // MODE_PATTERN: Pattern playback (10ms tick rate)
 };
 
 // ============================================================================
@@ -159,6 +162,10 @@ static uint32_t client_inactive_cycle_count = 0;
 // After coordinated start wait completes, CLIENT should go directly to ACTIVE
 // (the antiphase was already pre-calculated and waited for in coordinated start)
 static bool client_skip_inactive_wait = false;
+
+// AD047: Pattern playback mode tracking
+// When true, pattern playback is active and we skip normal ACTIVE/INACTIVE states
+static bool pattern_mode_active = false;
 
 // Bug #90 fix: Epoch-anchored cycle start for notify path (file-scope for extern access)
 // Set by motor_task_notify_motor_started() when MOTOR_STARTED received during operation
@@ -1234,10 +1241,26 @@ void motor_task(void *pvParameters) {
                                     // Do NOT change current_mode here - wait for synchronized execution
                                 } else {
                                     // Standalone (no peer): Change mode immediately
+                                    mode_t old_mode = current_mode;
                                     current_mode = new_mode;
                                     ESP_LOGI(TAG, "Mode: %s (standalone)", modes[current_mode].name);
                                     // Bug #102: Notify PWA of mode change (standalone case)
                                     ble_update_mode(new_mode);
+
+                                    // AD047: Handle pattern mode transitions
+                                    if (MODE_IS_PATTERN(new_mode) && !MODE_IS_PATTERN(old_mode)) {
+                                        // Entering pattern mode: Load and start pattern
+                                        pattern_playback_init();
+                                        pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
+                                        pattern_start(0);  // Start immediately
+                                        pattern_mode_active = true;
+                                        ESP_LOGI(TAG, "Pattern playback started (standalone)");
+                                    } else if (!MODE_IS_PATTERN(new_mode) && MODE_IS_PATTERN(old_mode)) {
+                                        // Leaving pattern mode: Stop pattern
+                                        pattern_stop();
+                                        pattern_mode_active = false;
+                                        ESP_LOGI(TAG, "Pattern playback stopped (standalone)");
+                                    }
                                 }
                             }
                         }
@@ -1270,6 +1293,7 @@ void motor_task(void *pvParameters) {
                     if (time_sync_get_time(&current_time_us) == ESP_OK) {
                         if (current_time_us >= armed_epoch_us) {
                             // Epoch reached - execute synchronized mode change
+                            mode_t old_mode = current_mode;  // AD047: Save for pattern transition check
                             current_mode = armed_new_mode;
 
                             peer_role_t role = ble_get_peer_role();
@@ -1330,6 +1354,22 @@ void motor_task(void *pvParameters) {
                             // Bug #80 fix: Reset CLIENT cycle counter on mode change
                             // (Prevents cycle divergence in activation reports)
                             client_inactive_cycle_count = 0;
+
+                            // AD047: Handle pattern mode transitions (synchronized)
+                            if (MODE_IS_PATTERN(armed_new_mode) && !MODE_IS_PATTERN(old_mode)) {
+                                // Entering pattern mode: Load and start pattern
+                                pattern_playback_init();
+                                pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
+                                // Start at synchronized epoch time for bilateral coordination
+                                pattern_start(current_time_us);
+                                pattern_mode_active = true;
+                                ESP_LOGI(TAG, "%s: Pattern playback started (synchronized)", role_str);
+                            } else if (!MODE_IS_PATTERN(armed_new_mode) && MODE_IS_PATTERN(old_mode)) {
+                                // Leaving pattern mode: Stop pattern
+                                pattern_stop();
+                                pattern_mode_active = false;
+                                ESP_LOGI(TAG, "%s: Pattern playback stopped (synchronized)", role_str);
+                            }
 
                             // Disarm mode change
                             mode_change_armed = false;
@@ -1485,6 +1525,35 @@ void motor_task(void *pvParameters) {
                 if (beacon_bemf_logging_active && ((now - beacon_bemf_start_ms) >= LED_INDICATION_TIME_MS)) {
                     beacon_bemf_logging_active = false;
                     ESP_LOGI(TAG, "Beacon BEMF logging complete (10s window ended)");
+                }
+
+                // ================================================================
+                // AD047: PATTERN PLAYBACK MODE
+                // ================================================================
+                // When in pattern mode, execute pattern tick and stay in CHECK_MESSAGES
+                // (skip normal ACTIVE/INACTIVE state transitions)
+                if (MODE_IS_PATTERN(current_mode)) {
+                    // Pattern mode: Execute pattern tick with synchronized time
+                    uint64_t sync_time_us;
+                    if (time_sync_get_time(&sync_time_us) == ESP_OK) {
+                        // Execute pattern tick (controls LED and motor based on pattern timeline)
+                        esp_err_t tick_err = pattern_execute_tick(sync_time_us);
+                        if (tick_err == ESP_ERR_NOT_FOUND) {
+                            // Pattern complete (non-looping) - stop pattern and stay in pattern mode
+                            pattern_stop();
+                            ESP_LOGI(TAG, "Pattern playback complete");
+                        } else if (tick_err != ESP_OK) {
+                            ESP_LOGW(TAG, "Pattern tick error: %s", esp_err_to_name(tick_err));
+                        }
+                    } else {
+                        // No sync time available - use local time
+                        uint64_t local_time_us = esp_timer_get_time();
+                        pattern_execute_tick(local_time_us);
+                    }
+
+                    // Stay in CHECK_MESSAGES, delay 10ms for pattern tick rate
+                    vTaskDelay(pdMS_TO_TICKS(10));
+                    break;  // Skip normal state transitions
                 }
 
                 // AD045: Synchronized Independent Operation

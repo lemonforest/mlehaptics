@@ -33,6 +33,10 @@ idf_component_register(
         "command_protocol.c"
         "role_manager.c"
 
+        # Pattern Playback modules (AD047)
+        "zone_config.c"
+        "pattern_playback.c"
+
     INCLUDE_DIRS
         "."
 

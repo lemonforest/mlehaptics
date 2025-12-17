@@ -1,6 +1,6 @@
 # 0032: BLE Configuration Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-12-02: Added Firmware Version characteristics for version matching)
+**Date:** 2025-11-11 (Updated 2025-12-17: Added Time Beacon characteristic for UTLP opportunistic time adoption)
 **Phase:** Phase 1b
 **Status:** Approved
 **Type:** Architecture
@@ -60,7 +60,7 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
 - **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (19 Total)
+### Characteristics (20 Total)
 
 **MOTOR CONTROL GROUP (8 characteristics):**
 
@@ -100,6 +100,71 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 |------|------|------|--------|--------------|---------|
 | `...0212` | Local Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Local device firmware version with build timestamp |
 | `...0213` | Peer Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Peer device firmware version (dual-device mode, empty if no peer) |
+
+**TIME SYNCHRONIZATION GROUP (1 characteristic) - AD047/UTLP:**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0214` | Time Beacon | struct(14) | W | See below | UTLP time beacon for opportunistic adoption |
+
+**Time Beacon Structure (14 bytes, packed):**
+```c
+typedef struct __attribute__((packed)) {
+    uint8_t  stratum;         // 0=GPS, 1=network/cellular, 2+=peer-derived, 255=no external source
+    uint8_t  quality;         // Signal quality 0-100 (GPS accuracy or battery for peers)
+    uint64_t utc_time_us;     // Microseconds since Unix epoch (1970-01-01)
+    int32_t  uncertainty_us;  // Estimated uncertainty (± microseconds)
+} time_beacon_t;              // 14 bytes
+```
+
+### Time Beacon UTLP Semantics
+
+**Philosophy: Passive Opportunistic Adoption**
+
+The Time Beacon characteristic implements UTLP (Universal Time Layer Protocol) semantics within our BLE channel:
+
+1. **Devices passively listen** - The characteristic is write-only; devices don't request time, they simply accept beacons when sources send them.
+
+2. **Sources broadcast opportunistically** - PWAs, phones, or any connected source with GPS/cellular time can write beacons periodically. From the source's perspective, it's "broadcasting" time into our closed BLE channel.
+
+3. **Stratum-based adoption** - Devices adopt time from lower stratum sources:
+   - Stratum 0: GPS time (atomic clock accuracy)
+   - Stratum 1: Phone/cellular network time
+   - Stratum 2+: Peer-derived time (each hop increments)
+   - Stratum 255: No external source (internal clock only)
+
+4. **Quality as tiebreaker** - When stratums are equal, higher quality wins (battery level for peers, signal strength for GPS).
+
+**Why "Beacon" not "Inject":**
+- "Inject" implies device-initiated request/response
+- "Beacon" emphasizes source-initiated broadcast semantics
+- Devices are passive listeners that opportunistically benefit from any time source
+
+**PWA Beacon Behavior:**
+```javascript
+// PWA broadcasts time beacons periodically while connected
+setInterval(async () => {
+    const gpsTime = await navigator.geolocation.getCurrentPosition();
+    const beacon = {
+        stratum: 0,  // GPS source
+        quality: 100,
+        utc_time_us: BigInt(gpsTime.timestamp) * 1000n,
+        uncertainty_us: 1000  // ±1ms typical GPS
+    };
+    await characteristic.writeValue(encodeBeacon(beacon));
+}, 1000);  // Every second
+```
+
+**Device Reception:**
+- Always adopts received time (no stratum comparison needed for single-source)
+- Updates internal stratum to match source
+- SERVER propagates to CLIENT via time sync beacon
+- Both devices now share GPS-quality synchronized time
+
+**Rationale: "Closed Channel Broadcast"**
+- BLE provides authenticated, encrypted channel (not open RF broadcast)
+- But semantics remain broadcast-style: sources send, devices listen
+- UTLP's opportunistic adoption works identically - just over BLE instead of WiFi/ESP-NOW
 
 ### Per-Mode PWM Intensity Rationale
 
