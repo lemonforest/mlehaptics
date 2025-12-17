@@ -220,6 +220,32 @@ void status_led_pattern(status_pattern_t pattern) {
             }
             break;
 
+        case STATUS_PATTERN_VERSION_MISMATCH:
+            // GPIO15 blink + WS2812B yellow/amber 3× blink (AD040)
+            ESP_LOGI(TAG, "Pattern: Version Mismatch (GPIO15 + WS2812B yellow 3× blink)");
+
+            // 3× synchronized blink (250ms ON, 250ms OFF) = 1.5 seconds total
+            for (int i = 0; i < 3; i++) {
+                // Blink ON
+                status_led_on();
+                // WS2812B: Yellow/amber RGB(255, 180, 0) at 20% brightness
+                // Only control if motor doesn't own it
+                if (led_is_enabled() && !led_get_motor_ownership()) {
+                    led_set_rgb(255, 180, 0, 20);  // Yellow/amber
+                }
+                vTaskDelay(pdMS_TO_TICKS(250));
+
+                // Blink OFF
+                status_led_off();
+                if (led_is_enabled() && !led_get_motor_ownership()) {
+                    led_clear();
+                }
+                if (i < 2) {  // Don't delay after last blink
+                    vTaskDelay(pdMS_TO_TICKS(250));
+                }
+            }
+            break;
+
         default:
             ESP_LOGW(TAG, "Unknown pattern: %d", pattern);
             break;

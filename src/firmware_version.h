@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 122  // Bug #103: First PWA frequency change now triggers sync
+#define FIRMWARE_VERSION_PATCH 124  // AD040: Peer firmware version exchange after MTU
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

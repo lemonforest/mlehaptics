@@ -71,7 +71,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "esp_err.h"
-#include "motor_task.h"  // For mode_t enum
+#include "motor_task.h"        // For mode_t enum
+#include "firmware_version.h"  // For firmware_version_t (AD040)
 
 #ifdef __cplusplus
 extern "C" {
@@ -449,7 +450,8 @@ typedef enum {
     SYNC_MSG_MODE_CHANGE_ACK,      /**< AD045: CLIENT→SERVER mode change acknowledgment */
     SYNC_MSG_ACTIVATION_REPORT,    /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
     SYNC_MSG_REVERSE_PROBE,        /**< IEEE 1588 bidirectional: CLIENT→SERVER with T1' timestamp */
-    SYNC_MSG_REVERSE_PROBE_RESPONSE /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
+    SYNC_MSG_REVERSE_PROBE_RESPONSE, /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
+    SYNC_MSG_FIRMWARE_VERSION = 0x10 /**< AD040: One-time firmware version exchange after MTU */
 } sync_message_type_t;
 
 /**
@@ -630,6 +632,7 @@ typedef struct __attribute__((packed)) {
         activation_report_t activation_report; /**< ACTIVATION_REPORT: PTP-style timing feedback */
         reverse_probe_t reverse_probe;       /**< REVERSE_PROBE: CLIENT→SERVER bidirectional timing */
         reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
+        firmware_version_t firmware_version; /**< FIRMWARE_VERSION: AD040 one-time version exchange */
         // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
     } payload;
 } coordination_message_t;
@@ -948,6 +951,51 @@ esp_err_t ble_update_session_duration(uint32_t duration_sec);
  * Call periodically (e.g., with sync beacons) to monitor BLE health.
  */
 void ble_log_diagnostics(void);
+
+// ============================================================================
+// AD040: FIRMWARE VERSION EXCHANGE
+// ============================================================================
+
+/**
+ * @brief Send local firmware version to connected peer (AD040)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if peer not connected
+ * @return ESP_FAIL if send failed
+ *
+ * Called after MTU exchange completes to exchange firmware versions.
+ * Both SERVER and CLIENT call this after their MTU negotiation completes.
+ * The peer handles the received version in time_sync_task via SYNC_MSG_FIRMWARE_VERSION.
+ */
+esp_err_t ble_send_firmware_version_to_peer(void);
+
+/**
+ * @brief Set peer firmware version string (AD040)
+ * @param version_str Version string to store (e.g., "v0.6.124 (Dec 16 2025)")
+ *
+ * Called by time_sync_task when SYNC_MSG_FIRMWARE_VERSION is received.
+ * Updates the peer_firmware_version_str for BLE characteristic reads.
+ *
+ * Thread-safe: Uses internal mutex
+ */
+void ble_set_peer_firmware_version(const char *version_str);
+
+/**
+ * @brief Check if firmware versions match (AD040)
+ * @return true if peer firmware matches local (or no peer connected)
+ * @return false if mismatch detected
+ *
+ * Used by time_sync_task to determine if LED warning should be shown.
+ */
+bool ble_firmware_versions_match(void);
+
+/**
+ * @brief Set firmware version match flag (AD040)
+ * @param match true if versions match, false otherwise
+ *
+ * Called by time_sync_task when SYNC_MSG_FIRMWARE_VERSION is received
+ * after comparing local and peer versions.
+ */
+void ble_set_firmware_version_match(bool match);
 
 // ============================================================================
 // EXTERNAL CALLBACKS (implemented by time_sync_task)

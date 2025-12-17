@@ -23,7 +23,8 @@
 #include "esp_timer.h"
 #include "esp_task_wdt.h"
 #include "ble_manager.h"
-#include "firmware_version.h"  // AD040: Firmware version logging
+#include "firmware_version.h"  // AD040: Firmware version checking
+#include "status_led.h"        // AD040: Version mismatch LED pattern
 #include "motor_task.h"        // Phase 2: Beacon-triggered back-EMF logging
 #include "button_task.h"       // Phase 3: Queue externs for coordination forwarding
 
@@ -1131,6 +1132,47 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             if (asymmetry_us > 30000 || asymmetry_us < -30000) {  // > 30ms
                 ESP_LOGW(TAG, "[REV_PROBE] PATH ASYMMETRY: %lldms!", asymmetry_us / 1000);
             }
+            break;
+        }
+
+        case SYNC_MSG_FIRMWARE_VERSION: {
+            // AD040: Peer sent their firmware version - compare and respond
+            const firmware_version_t *peer_version = &coord->payload.firmware_version;
+            firmware_version_t local_version = firmware_get_version();
+
+            // Build peer version string for BLE characteristic (AD032)
+            char version_str[32];
+            snprintf(version_str, sizeof(version_str), "v%d.%d.%d (%s)",
+                     peer_version->major, peer_version->minor, peer_version->patch,
+                     peer_version->build_date);
+
+            // Store for BLE characteristic reads
+            ble_set_peer_firmware_version(version_str);
+
+            // Compare versions using firmware_version.h helper
+            bool match = firmware_versions_match(local_version, *peer_version);
+            ble_set_firmware_version_match(match);
+
+            if (match) {
+                ESP_LOGI(TAG, "AD040: Peer firmware: %s %s (MATCH)",
+                         version_str, peer_version->build_time);
+                // Show green success pattern (same as pairing success)
+                status_led_pattern(STATUS_PATTERN_PAIRING_SUCCESS);
+            } else {
+                // Show full timestamps so user can see WHY it's a mismatch
+                // (version numbers may match but build timestamps differ)
+                ESP_LOGW(TAG, "AD040: FIRMWARE MISMATCH!");
+                ESP_LOGW(TAG, "  Peer:  v%d.%d.%d built %s %s",
+                         peer_version->major, peer_version->minor, peer_version->patch,
+                         peer_version->build_date, peer_version->build_time);
+                ESP_LOGW(TAG, "  Local: v%d.%d.%d built %s %s",
+                         local_version.major, local_version.minor, local_version.patch,
+                         local_version.build_date, local_version.build_time);
+                // Show yellow warning pattern - connection allowed but versions differ
+                status_led_pattern(STATUS_PATTERN_VERSION_MISMATCH);
+            }
+            // Note: Do NOT respond here - both sides send once after GATT discovery.
+            // Responding would cause an infinite ping-pong loop.
             break;
         }
 
