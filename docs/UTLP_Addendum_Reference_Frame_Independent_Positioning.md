@@ -364,6 +364,28 @@ It does **not** require:
 - Works regardless of jamming
 - No signals to external infrastructure that could be detected
 
+### 5.7 Emergency Vehicle Lightbar Synchronization (A Return Offering)
+
+**Scenario**: Multiple emergency vehicles requiring synchronized warning lights.
+
+**Problem**: Current lightbar systems either flash independently (chaotic appearance, reduced visibility) or require each unit to have its own GPS module for synchronization. GPS adds cost, complexity, and fails in tunnels, parking structures, and urban canyons.
+
+**UTLP Solution**:
+- **Single time source**: One vehicle with GPS (or cellular time) acts as stratum 0/1 source
+- **Peer propagation**: Nearby vehicles passively adopt time via UTLP beacon
+- **Synchronized patterns**: All lightbars execute identical "sheet music" patterns in lockstep
+- **No per-unit GPS**: Only the time source needs external reference; all others sync opportunistically
+
+**The Symmetry**: This project borrowed the "lightbar paradigm" for bilateral pattern playback—the concept that synchronized flashing patterns can be pre-programmed and executed independently by each unit once they share a common time reference. UTLP is our return offering: a protocol that enables the very systems that inspired us to achieve coordination without requiring GPS in every unit.
+
+**Technical Implementation**:
+- Emergency vehicle #1 (with GPS): Broadcasts UTLP beacons at stratum 0
+- Vehicles #2-N: Receive beacons, adopt time, increment stratum
+- All vehicles: Execute `emergency_pattern[]` segments at identical offsets
+- Result: Fleet-wide synchronized flashing, tunnel-proof, no per-unit GPS cost
+
+This exemplifies UTLP's philosophy: **time as a public utility**. One accurate source benefits the entire swarm.
+
 ---
 
 ## 6. Geometric Self-Diagnostics
