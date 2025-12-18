@@ -191,6 +191,11 @@ esp_err_t led_set_palette(uint8_t index, uint8_t brightness) {
 }
 
 esp_err_t led_set_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_set_rgb: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return ESP_ERR_TIMEOUT;
@@ -228,6 +233,11 @@ esp_err_t led_set_individual(uint8_t led_index, uint8_t r, uint8_t g, uint8_t b,
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_set_individual: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return ESP_ERR_TIMEOUT;
@@ -256,6 +266,11 @@ esp_err_t led_set_individual(uint8_t led_index, uint8_t r, uint8_t g, uint8_t b,
 }
 
 void led_clear(void) {
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_clear: mutex is NULL");
+        return;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return;
@@ -381,6 +396,11 @@ bool led_get_motor_ownership(void) {
 esp_err_t led_deinit(void) {
     ESP_LOGI(TAG, "Deinitializing LED control");
 
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_deinit: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         // Clear and disable LEDs
         led_strip_clear(led_strip);

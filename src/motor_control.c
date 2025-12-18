@@ -330,6 +330,11 @@ void motor_coast(bool verbose_logging) {
 }
 
 uint8_t motor_get_intensity(void) {
+    // Bug fix: NULL guard for mutex
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_get_intensity: mutex is NULL");
+        return MOTOR_PWM_DEFAULT;  // Return safe default value
+    }
     uint8_t intensity;
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -342,6 +347,11 @@ uint8_t motor_get_intensity(void) {
 }
 
 bool motor_is_coasting(void) {
+    // Bug fix: NULL guard for mutex
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_is_coasting: mutex is NULL");
+        return true;  // Return safe default (assume coasting if uncertain)
+    }
     bool coasting;
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
