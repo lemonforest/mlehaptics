@@ -2380,6 +2380,12 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
         if (fw_err != ESP_OK) {
             ESP_LOGW(TAG, "AD040: Firmware version send failed: %s", esp_err_to_name(fw_err));
         }
+
+        // AD048: Send hardware info (silicon revision, FTM capability) alongside firmware version
+        esp_err_t hw_err = ble_send_hardware_info_to_peer();
+        if (hw_err != ESP_OK) {
+            ESP_LOGW(TAG, "AD048: Hardware info send failed: %s", esp_err_to_name(hw_err));
+        }
     }
 
     // Phase 3a: Subscribe to configuration characteristics for notification-based sync
@@ -5608,6 +5614,37 @@ bool ble_firmware_versions_match(void) {
  */
 void ble_set_firmware_version_match(bool match) {
     firmware_versions_match_flag = match;
+}
+
+// ============================================================================
+// AD048: HARDWARE INFO EXCHANGE
+// ============================================================================
+
+esp_err_t ble_send_hardware_info_to_peer(void) {
+    // Check if peer is connected
+    if (!ble_is_peer_connected()) {
+        ESP_LOGD(TAG, "AD048: Cannot send hardware info - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Build coordination message with local hardware info
+    coordination_message_t msg = {
+        .type = SYNC_MSG_HARDWARE_INFO,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+    snprintf(msg.payload.hardware_info.info_str,
+             sizeof(msg.payload.hardware_info.info_str),
+             "%s", local_hardware_info_str);
+
+    // Send via coordination channel
+    esp_err_t err = ble_send_coordination_message(&msg);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "AD048: Sent hardware info to peer: %s", local_hardware_info_str);
+    } else {
+        ESP_LOGW(TAG, "AD048: Failed to send hardware info: %s", esp_err_to_name(err));
+    }
+
+    return err;
 }
 
 void ble_set_peer_hardware_info(const char *hardware_str) {

@@ -451,7 +451,8 @@ typedef enum {
     SYNC_MSG_ACTIVATION_REPORT,    /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
     SYNC_MSG_REVERSE_PROBE,        /**< IEEE 1588 bidirectional: CLIENT→SERVER with T1' timestamp */
     SYNC_MSG_REVERSE_PROBE_RESPONSE, /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
-    SYNC_MSG_FIRMWARE_VERSION = 0x10 /**< AD040: One-time firmware version exchange after MTU */
+    SYNC_MSG_FIRMWARE_VERSION = 0x10, /**< AD040: One-time firmware version exchange after MTU */
+    SYNC_MSG_HARDWARE_INFO = 0x11    /**< AD048: One-time hardware info exchange (silicon rev, FTM capability) */
 } sync_message_type_t;
 
 /**
@@ -611,6 +612,16 @@ typedef struct __attribute__((packed)) {
 } reverse_probe_response_t;
 
 /**
+ * @brief Hardware info payload for SYNC_MSG_HARDWARE_INFO (AD048)
+ *
+ * Contains silicon revision and 802.11mc FTM capability string.
+ * Format: "ESP32-C6 v0.2 FTM:full" or "ESP32-C6 v0.1 FTM:resp-only"
+ */
+typedef struct __attribute__((packed)) {
+    char info_str[48];  /**< Hardware info string (null-terminated) */
+} hardware_info_t;
+
+/**
  * @brief Coordination message structure (Phase 3)
  *
  * Unified message format for all peer-to-peer coordination
@@ -633,6 +644,7 @@ typedef struct __attribute__((packed)) {
         reverse_probe_t reverse_probe;       /**< REVERSE_PROBE: CLIENT→SERVER bidirectional timing */
         reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
         firmware_version_t firmware_version; /**< FIRMWARE_VERSION: AD040 one-time version exchange */
+        hardware_info_t hardware_info;       /**< HARDWARE_INFO: AD048 one-time hardware info exchange */
         // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
     } payload;
 } coordination_message_t;
@@ -996,6 +1008,18 @@ bool ble_firmware_versions_match(void);
  * after comparing local and peer versions.
  */
 void ble_set_firmware_version_match(bool match);
+
+/**
+ * @brief Send local hardware info to connected peer (AD048)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if peer not connected
+ * @return ESP_FAIL if send failed
+ *
+ * Called alongside firmware version after GATT discovery completes.
+ * Both SERVER and CLIENT call this after their MTU negotiation completes.
+ * The peer handles the received info in time_sync_task via SYNC_MSG_HARDWARE_INFO.
+ */
+esp_err_t ble_send_hardware_info_to_peer(void);
 
 /**
  * @brief Set peer hardware info string (AD048)

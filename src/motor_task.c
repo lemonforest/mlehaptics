@@ -444,6 +444,10 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
             case MODE_2HZ_25:
                 *pwm_intensity = ble_get_mode3_intensity();
                 break;
+            case MODE_PATTERN:
+                // Pattern mode uses mode5_pwm_intensity (set via motor_update_mode5_intensity)
+                *pwm_intensity = mode5_pwm_intensity;
+                break;
             default:
                 *pwm_intensity = 75;  // Safe fallback (should never reach here)
                 ESP_LOGW(TAG, "Unknown mode %d, using fallback PWM intensity 75%%", mode);

@@ -163,6 +163,12 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
         return ESP_ERR_INVALID_STATE;
     }
 
+    // Bug fix: NULL guard for mutex (prevents crash if mutex creation failed)
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_set_forward: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in motor_set_forward - possible deadlock");
@@ -226,6 +232,12 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
         return ESP_ERR_INVALID_STATE;
     }
 
+    // Bug fix: NULL guard for mutex (prevents crash if mutex creation failed)
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_set_reverse: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in motor_set_reverse - possible deadlock");
@@ -286,6 +298,12 @@ esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
 void motor_coast(bool verbose_logging) {
     if (!motor_initialized) {
         ESP_LOGW(TAG, "Motor not initialized, cannot coast");
+        return;
+    }
+
+    // Bug fix: NULL guard for mutex (prevents crash if mutex creation failed)
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_coast: mutex is NULL");
         return;
     }
 

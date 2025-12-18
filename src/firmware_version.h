@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 126  // AD047: Pattern Control BLE characteristics (0x0217-0x0219) for Mode 5 lightbar
+#define FIRMWARE_VERSION_PATCH 127  // Bug #104: Mode 5 NULL mutex crash fix + MODE_PATTERN PWM intensity case
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

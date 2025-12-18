@@ -1176,6 +1176,19 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             break;
         }
 
+        case SYNC_MSG_HARDWARE_INFO: {
+            // AD048: Peer sent their hardware info (silicon revision, FTM capability)
+            const hardware_info_t *peer_hw = &coord->payload.hardware_info;
+
+            // Store for BLE characteristic reads
+            ble_set_peer_hardware_info(peer_hw->info_str);
+
+            ESP_LOGI(TAG, "AD048: Peer hardware: %s", peer_hw->info_str);
+
+            // Note: Do NOT respond here - both sides send once after GATT discovery.
+            break;
+        }
+
         default:
             ESP_LOGW(TAG, "Unknown coordination message type: %d", coord->type);
             break;

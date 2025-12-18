@@ -144,6 +144,11 @@ esp_err_t led_init(void) {
 }
 
 void led_enable(void) {
+    // Bug fix: NULL guard for mutex (prevents crash if led_init() not called)
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_enable: mutex is NULL - led_init() not called?");
+        return;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         if (!led_power_enabled) {
             gpio_set_level(GPIO_WS2812B_ENABLE, 0);  // P-MOSFET: LOW = enabled
@@ -155,6 +160,11 @@ void led_enable(void) {
 }
 
 void led_disable(void) {
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_disable: mutex is NULL");
+        return;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         if (led_power_enabled) {
             led_strip_clear(led_strip);  // Turn off LEDs before disabling power
@@ -291,6 +301,11 @@ static void apply_brightness_perceptual(uint8_t r, uint8_t g, uint8_t b, uint8_t
 }
 
 esp_err_t led_set_rgb_perceptual(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
+    // Bug fix: NULL guard for mutex (prevents crash if led_init() not called)
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_set_rgb_perceptual: mutex is NULL - led_init() not called?");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return ESP_ERR_TIMEOUT;
