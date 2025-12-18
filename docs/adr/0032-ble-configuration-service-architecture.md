@@ -60,13 +60,13 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
 - **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (22 Total)
+### Characteristics (25 Total)
 
 **MOTOR CONTROL GROUP (8 characteristics):**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
-| `...0201` | Mode | uint8 | R/W/Notify | 0-4 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM |
+| `...0201` | Mode | uint8 | R/W/Notify | 0-5 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM, MODE_PATTERN* |
 | `...0202` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
 | `...0203` | Custom Duty Cycle | uint8 | R/W | 10-100% | Half-cycle duty (100% = entire half-cycle) |
 | `...0204` | Mode 4 PWM Intensity | uint8 | R/W | 0, 30-80% | Mode 4 (Custom) motor strength (0% = LED-only) |
@@ -74,6 +74,8 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...020F` | Mode 1 PWM Intensity | uint8 | R/W | 50-80% | Mode 1 (1.0Hz) motor strength |
 | `...0210` | Mode 2 PWM Intensity | uint8 | R/W | 70-90% | Mode 2 (1.5Hz) motor strength |
 | `...0211` | Mode 3 PWM Intensity | uint8 | R/W | 70-90% | Mode 3 (2.0Hz) motor strength |
+
+*\*MODE_PATTERN (5): Experimental pattern playback mode. Not accessible via button cycling. PWA should hide behind "advanced features" toggle. See [Mode 5: Pattern Playback](#mode-5-pattern-playback-ad047---experimental) section below.*
 
 **LED CONTROL GROUP (5 characteristics):**
 
@@ -203,6 +205,37 @@ LOCAL Device                                     PWA
      |   (or "" if no peer connected)             |
 ```
 
+**PATTERN CONTROL GROUP (3 characteristics) - AD047:**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0217` | Pattern Control | uint8 | W | 0-255 | 0=stop, 1=start, 2+=select builtin pattern ID |
+| `...0218` | Pattern Data | bytes | W | max 512 | Chunked transfer for custom patterns (future) |
+| `...0219` | Pattern Status | uint8 | R/Notify | 0-2 | 0=stopped, 1=playing, 2=error |
+
+**Pattern Control Commands:**
+```c
+// Write values to Pattern Control characteristic:
+// 0 = pattern_stop() - Stop current pattern
+// 1 = pattern_start(now) - Start/resume current pattern
+// 2 = pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING) + start
+// 3 = pattern_load_builtin(BUILTIN_PATTERN_EMERGENCY) + start (future)
+// 4+ = Reserved for additional builtin patterns
+```
+
+**Usage Flow:**
+1. PWA writes Mode=5 (`0x0201`) to enter pattern mode
+2. PWA writes Pattern Control=2 (`0x0217`) to load and start alternating pattern
+3. Device executes pattern via `pattern_execute_tick()`
+4. PWA can read Pattern Status (`0x0219`) to monitor playback
+5. PWA writes Pattern Control=0 to stop
+
+**Pattern Data (Future):**
+- Chunked transfer protocol for custom pattern segments
+- First byte = sequence number, remaining = payload
+- PWA sends complete pattern definition before starting
+- Not implemented in initial release (builtin patterns only)
+
 ### Per-Mode PWM Intensity Rationale
 
 **Problem:** Preset modes (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz) have shorter active duty cycles by design (25% of half-cycle). When global PWM intensity is reduced, these modes feel weak compared to custom mode.
@@ -231,6 +264,61 @@ LOCAL Device                                     PWA
 - Higher frequencies maintain therapeutic effectiveness at shorter duty cycles
 - Each mode feels "right" out of the box
 - PWM tuning per-mode enables frequency-dependent perceptual compensation
+
+### Mode 5: Pattern Playback (AD047 - Experimental)
+
+**Mode 5 (`MODE_PATTERN`)** is a pattern playback mode designed for:
+- "Lightbar" visual showcase patterns (police light, emergency vehicle effects)
+- Pre-buffered bilateral patterns with microsecond-precision scheduling
+- Research into synchronized LED+motor sequences
+
+**Current Implementation Status:**
+- ✅ Pattern playback infrastructure implemented (`src/pattern_playback.c`)
+- ✅ Zone configuration (SERVER=RIGHT, CLIENT=LEFT)
+- ✅ 10ms tick-based execution via `vTaskDelay()`
+- ⏳ GPTimer ISR upgrade pending (Phase A6 - ±30μs precision for lightbar sync)
+
+**UI Gating Recommendation:**
+
+> **PWA Developers:** Mode 5 should be **hidden by default** in production PWA builds using your existing "advanced features" toggle. This ensures therapy test units used in clinical settings aren't interrupted by experimental pattern modes.
+>
+> Pattern mode is intended as a **development testbed** for validating synchronized bilateral playback before potentially expanding to therapy-specific patterns in future phases.
+
+**Why Mode 5 is Button-Gated:**
+```c
+// button_task.c - Mode cycling intentionally skips MODE_PATTERN
+case MODE_CUSTOM:   return MODE_05HZ_25;  // Wraps back, skips MODE_PATTERN
+```
+
+- Modes 0-4 are production therapy modes (validated, clinical-ready)
+- Mode 5 is accessible ONLY via BLE characteristic write (not button cycling)
+- This prevents accidental entry during therapy sessions
+- PWA can expose Mode 5 in developer/research builds
+
+**Pattern Mode Parameters:**
+- Pattern data loaded via separate BLE transfer (not Mode characteristic)
+- Mode 5 PWM intensity: Controlled per-segment in pattern data
+- LED colors: Controlled per-segment in pattern data (overrides LED settings)
+- Timing: Currently 10ms resolution, upgradeable to ±30μs with GPTimer
+
+**GPTimer Upgrade Path (Phase A6):**
+
+When lightbar-quality visual synchronization is needed (±30μs across devices), upgrade from `vTaskDelay()` to hardware GPTimer ISR:
+
+```ini
+# Required sdkconfig additions for microsecond precision:
+CONFIG_GPTIMER_ISR_HANDLER_IN_IRAM=y   # Already set
+CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM=y     # ADD - prevents flash cache stalls
+CONFIG_GPTIMER_ISR_CACHE_SAFE=y        # ADD - critical for timing consistency
+```
+
+| Timing Method | Resolution | Use Case |
+|---------------|------------|----------|
+| `vTaskDelay()` | ~1-10ms | Modes 0-4 therapy (current) |
+| `esp_timer` | ~50μs | Soft real-time (current Mode 5) |
+| **GPTimer ISR** | ~12.5ns | Hard real-time lightbar sync (future) |
+
+**Rationale for Deferred GPTimer:** Current 10ms polling is adequate for Mode 5 development/testing. GPTimer upgrade only needed when sub-millisecond visual synchronization becomes a requirement (lightbar showcase mode).
 
 ### LED Color Control Architecture
 
@@ -479,7 +567,7 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2), Time (1), Hardware (2) = 22 characteristics
+- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2), Time (1), Hardware (2), Pattern (3) = 25 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)
@@ -491,7 +579,7 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 ### Drawbacks
 
-- 22 characteristics increase BLE stack memory usage
+- 25 characteristics increase BLE stack memory usage
 - NVS persistence adds flash wear (mitigated by write-on-change only)
 - Two LED color modes add configuration complexity
 - Mobile app must implement both palette and custom RGB UIs

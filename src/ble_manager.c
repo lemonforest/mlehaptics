@@ -16,6 +16,7 @@
 #include "time_sync.h"      // Phase 2: Time synchronization (AD039)
 #include "time_sync_task.h" // Phase 2: Time sync task integration
 #include "firmware_version.h" // AD040: Firmware version enforcement
+#include "pattern_playback.h" // AD047: Pattern playback control for Mode 5
 #include "esp_chip_info.h"    // AD048: Silicon revision for hardware info characteristic
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -199,6 +200,20 @@ static const ble_uuid128_t uuid_char_time_beacon = BLE_UUID128_INIT(
     0x14, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+// Pattern Control Group (AD047: bytes 13-14 = 0x02 0x17/0x18/0x19)
+// Mode 5 pattern playback control for lightbar/bilateral patterns
+static const ble_uuid128_t uuid_char_pattern_control = BLE_UUID128_INIT(
+    0x17, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_pattern_data = BLE_UUID128_INIT(
+    0x18, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_pattern_status = BLE_UUID128_INIT(
+    0x19, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // ============================================================================
 // UUID-SWITCHING CONFIGURATION (Phase 1b.3)
 // ============================================================================
@@ -327,6 +342,10 @@ static bool firmware_versions_match_flag = true;   // AD040: Assume match until 
 // Format: "ESP32-C6 v0.2 (FTM:full)" or "ESP32-C6 v0.1 (FTM:resp-only)"
 static char local_hardware_info_str[48] = "";      // Initialized in ble_manager_init()
 static char peer_hardware_info_str[48] = "";       // Set by ble_set_peer_hardware_info()
+
+// AD047: Pattern status for Mode 5 pattern playback
+// 0=stopped, 1=playing, 2=error
+static uint8_t pattern_status = 0;
 
 // ============================================================================
 // BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
@@ -1784,6 +1803,91 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_UNLIKELY;  // No READ support
     }
 
+    // ========================================================================
+    // AD047: Pattern Control Group (Mode 5 lightbar/bilateral patterns)
+    // ========================================================================
+
+    // Pattern Control (0x0217) - Write-only: 0=stop, 1=start, 2+=select builtin pattern
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_control.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            uint16_t len = OS_MBUF_PKTLEN(ctxt->om);
+            if (len < 1) {
+                ESP_LOGW(TAG, "Pattern control: empty write");
+                return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            }
+
+            uint8_t control_cmd;
+            int rc = ble_hs_mbuf_to_flat(ctxt->om, &control_cmd, sizeof(control_cmd), NULL);
+            if (rc != 0) {
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            esp_err_t err = ESP_OK;
+
+            switch (control_cmd) {
+                case 0:  // Stop pattern
+                    ESP_LOGI(TAG, "Pattern control: STOP");
+                    err = pattern_stop();
+                    pattern_status = 0;  // Stopped
+                    break;
+
+                case 1:  // Start pattern (using loaded pattern)
+                    ESP_LOGI(TAG, "Pattern control: START");
+                    err = pattern_start(0);  // 0 = start immediately
+                    if (err == ESP_OK) {
+                        pattern_status = 1;  // Playing
+                    } else {
+                        ESP_LOGW(TAG, "Pattern start failed: %s", esp_err_to_name(err));
+                        pattern_status = 2;  // Error
+                    }
+                    break;
+
+                default:  // 2+ = Load and start builtin pattern
+                    {
+                        builtin_pattern_id_t pattern_id = (builtin_pattern_id_t)(control_cmd - 1);
+                        ESP_LOGI(TAG, "Pattern control: LOAD builtin %d", pattern_id);
+
+                        err = pattern_load_builtin(pattern_id);
+                        if (err == ESP_OK) {
+                            err = pattern_start(0);  // Start immediately after load
+                            pattern_status = (err == ESP_OK) ? 1 : 2;
+                        } else {
+                            ESP_LOGW(TAG, "Pattern load failed: %s", esp_err_to_name(err));
+                            pattern_status = 2;  // Error
+                        }
+                    }
+                    break;
+            }
+
+            // TODO: Send notification to subscribed clients with updated pattern_status
+            return (err == ESP_OK) ? 0 : BLE_ATT_ERR_UNLIKELY;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
+    }
+
+    // Pattern Data (0x0218) - Write-only: chunked pattern data (future)
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_data.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            // Future: Implement chunked pattern transfer from PWA
+            // For now, return "not supported" since we only use builtin patterns
+            ESP_LOGW(TAG, "Pattern data write: NOT YET IMPLEMENTED (use builtin patterns)");
+            return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
+    }
+
+    // Pattern Status (0x0219) - Read + Notify: 0=stopped, 1=playing, 2=error
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_status.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            // Update status from actual playback state
+            pattern_status = pattern_is_playing() ? 1 : 0;
+
+            int rc = os_mbuf_append(ctxt->om, &pattern_status, sizeof(pattern_status));
+            return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Read+Notify only, no write
+    }
+
     // Unknown characteristic
     return BLE_ATT_ERR_UNLIKELY;
 }
@@ -1965,6 +2069,22 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = &uuid_char_time_beacon.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: PWA broadcasts time beacons
+            },
+            // Pattern Control Group (AD047: Mode 5 lightbar/bilateral patterns)
+            {
+                .uuid = &uuid_char_pattern_control.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: 0=stop, 1=start, 2+=select builtin
+            },
+            {
+                .uuid = &uuid_char_pattern_data.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: chunked pattern data (future)
+            },
+            {
+                .uuid = &uuid_char_pattern_status.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,  // Read + Notify: 0=stopped, 1=playing, 2=error
             },
             {
                 0, // No more characteristics

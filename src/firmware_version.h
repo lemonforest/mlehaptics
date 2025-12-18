@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 125  // AD048: Hardware info BLE characteristics for 802.11mc FTM discovery
+#define FIRMWARE_VERSION_PATCH 126  // AD047: Pattern Control BLE characteristics (0x0217-0x0219) for Mode 5 lightbar
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
