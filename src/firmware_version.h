@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 127  // Bug #104: Mode 5 NULL mutex crash fix + MODE_PATTERN PWM intensity case
+#define FIRMWARE_VERSION_PATCH 128  // Bug #104 part 3: NULL guards for role_manager.c g_state_mutex
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
