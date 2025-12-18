@@ -29,7 +29,7 @@
  * | Patch | Bug fix number | 122 (122nd fix) |
  * | Build timestamp | Unique per compile | "Dec 14 2025 14:30:00" |
  *
- * Two devices match if: major.minor.patch AND build timestamp are identical.
+ * Two devices match if: major.minor.patch are identical (timestamp logged but not enforced).
  *
  * @see docs/adr/0040-firmware-version-checking.md
  *
@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 128  // Bug #104 part 3: NULL guards for role_manager.c g_state_mutex
+#define FIRMWARE_VERSION_PATCH 129  // Relax version matching: semantic version only, timestamp logged not enforced
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
@@ -124,15 +124,17 @@ static inline firmware_version_t firmware_get_version(void) {
 }
 
 /**
- * @brief Compare two firmware versions for equality
+ * @brief Compare two firmware versions for compatibility
  *
  * @param a First version
  * @param b Second version
- * @return true if versions match (same build timestamp), false otherwise
+ * @return true if versions are compatible (same major.minor.patch), false otherwise
  *
  * Logic:
  * - If either device has check disabled, always return true (allow mismatch)
- * - Otherwise, compare major.minor.patch AND build timestamp
+ * - Otherwise, compare major.minor.patch only
+ * - Build timestamp is logged for diagnostics but NOT enforced
+ *   (PlatformIO rebuilds on any file change, making identical timestamps impractical)
  */
 static inline bool firmware_versions_match(firmware_version_t a, firmware_version_t b) {
     // If either device has version checking disabled, allow connection
@@ -140,17 +142,18 @@ static inline bool firmware_versions_match(firmware_version_t a, firmware_versio
         return true;  // Dev mode - allow any mismatch
     }
 
-    // Check semantic version numbers
+    // Check semantic version numbers only (timestamp not enforced)
     if (a.major != b.major || a.minor != b.minor || a.patch != b.patch) {
         return false;
     }
 
-    // Check build timestamp (ensures same binary)
+    // Log timestamp mismatch as warning (for diagnostics, not rejection)
     if (strcmp(a.build_date, b.build_date) != 0 || strcmp(a.build_time, b.build_time) != 0) {
-        return false;
+        ESP_LOGW("FW_VER", "Build timestamps differ (acceptable): %s %s vs %s %s",
+                 a.build_date, a.build_time, b.build_date, b.build_time);
     }
 
-    return true;  // Exact match
+    return true;  // Semantic version match
 }
 
 /**
