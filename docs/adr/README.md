@@ -59,6 +59,7 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD045](0045-synchronized-independent-bilateral-operation.md) | Synchronized Independent Bilateral Operation | ⏳ Proposed | Phase 6u | 2025-12-08 |
 | [AD046](0046-ptp-observation-mode-integration.md) | PTP Observation Mode Integration | ⏳ Proposed | Phase 6v | 2025-12-12 |
 | [AD047](0047-scheduled-pattern-playback.md) | Scheduled Pattern Playback Architecture | ⏳ Proposed | Phase 7 | 2025-12-13 |
+| [AD048](0048-espnow-adaptive-transport-hardware-acceleration.md) | ESP-NOW Adaptive Transport and Hardware Acceleration | 🔬 Research | Phase 7+ | 2025-12-17 |
 
 ---
 
@@ -133,6 +134,12 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - RF disruption resilient operation
 - "Lightbar Mode" for GPS-quality sync
 
+### Phase 7+: ESP-NOW and Hardware Acceleration (Research - AD048)
+- ESP-NOW as adaptive BLE fallback for extended range
+- 802.11mc FTM coexistence for ranging
+- AES/SHA/ECC hardware accelerator utilization
+- Transport abstraction layer design
+
 ---
 
 ## Navigation by Status
@@ -153,6 +160,9 @@ Decisions that have been replaced by newer decisions.
 
 ### ⏳ Approved
 Decisions that have been accepted but not yet fully implemented.
+
+### 🔬 Research
+Decisions under active investigation/research before implementation planning.
 
 ### ❌ Deprecated
 Decisions that are no longer valid or relevant.
@@ -244,11 +254,12 @@ _(To be populated with decision dependency visualization)_
 
 ## Statistics
 
-- **Total Decisions:** 47
+- **Total Decisions:** 48
 - **Accepted:** 31 (AD001-007, AD009-013, AD015-024, AD027-032, AD044)
 - **Implemented:** 4 (AD035, AD038, AD041, AD042)
 - **Approved:** 5 (AD033, AD034, AD036, AD040, AD043)
 - **Proposed:** 3 (AD045, AD046, AD047)
+- **Research:** 1 (AD048)
 - **Superseded:** 4 (AD008, AD026, AD037, AD039)
 - **Partially Superseded:** 2 (AD010 - MAC delay only, AD028 - motor control only)
 - **Deprecated:** 0
@@ -257,7 +268,7 @@ _(To be populated with decision dependency visualization)_
 
 ## Maintenance
 
-**Last Updated:** 2025-12-14
+**Last Updated:** 2025-12-17
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)

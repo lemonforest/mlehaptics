@@ -997,6 +997,26 @@ bool ble_firmware_versions_match(void);
  */
 void ble_set_firmware_version_match(bool match);
 
+/**
+ * @brief Set peer hardware info string (AD048)
+ * @param hardware_str Hardware string to store (e.g., "ESP32-C6 v0.2 FTM:full")
+ *
+ * Called by time_sync_task when peer hardware info is received.
+ * Updates the peer_hardware_info_str for BLE characteristic reads.
+ *
+ * Thread-safe: Uses internal mutex
+ */
+void ble_set_peer_hardware_info(const char *hardware_str);
+
+/**
+ * @brief Get local hardware info string (AD048)
+ * @return const char* Hardware string (e.g., "ESP32-C6 v0.2 FTM:full")
+ *
+ * Returns the local device's silicon revision and 802.11mc FTM capability.
+ * Initialized at startup in ble_manager_init().
+ */
+const char* ble_get_local_hardware_info(void);
+
 // ============================================================================
 // EXTERNAL CALLBACKS (implemented by time_sync_task)
 // ============================================================================

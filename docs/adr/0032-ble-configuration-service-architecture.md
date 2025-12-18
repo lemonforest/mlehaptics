@@ -1,6 +1,6 @@
 # 0032: BLE Configuration Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-12-17: Added Time Beacon characteristic for UTLP opportunistic time adoption)
+**Date:** 2025-11-11 (Updated 2025-12-17: Added Time Beacon + Hardware Info characteristics for UTLP/AD048)
 **Phase:** Phase 1b
 **Status:** Approved
 **Type:** Architecture
@@ -60,7 +60,7 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
 - **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (20 Total)
+### Characteristics (22 Total)
 
 **MOTOR CONTROL GROUP (8 characteristics):**
 
@@ -165,6 +165,43 @@ setInterval(async () => {
 - BLE provides authenticated, encrypted channel (not open RF broadcast)
 - But semantics remain broadcast-style: sources send, devices listen
 - UTLP's opportunistic adoption works identically - just over BLE instead of WiFi/ESP-NOW
+
+**HARDWARE INFO GROUP (2 characteristics) - AD048:**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0215` | Local Hardware Info | string(48) | R | "ESP32-C6 v0.2 FTM:full" | Local device silicon revision and 802.11mc FTM capability |
+| `...0216` | Peer Hardware Info | string(48) | R | "ESP32-C6 v0.2 FTM:full" | Peer device hardware info (dual-device mode, empty if no peer) |
+
+**Hardware Info String Format:**
+```
+<model> v<major>.<minor> [FTM:full|FTM:resp]
+```
+
+**Examples:**
+- `"ESP32-C6 v0.2 FTM:full"` - Silicon revision v0.2+, 802.11mc FTM Initiator + Responder supported
+- `"ESP32-C6 v0.1 FTM:resp"` - Silicon revision v0.1, only FTM Responder (errata WIFI-9686)
+- `"ESP32-C3 v0.4"` - Non-C6 chip, no FTM capability
+
+**Purpose:**
+- PWA can discover 802.11mc FTM capability without terminal output
+- Enables adaptive transport layer decisions (ESP-NOW fallback threshold adjustment)
+- Silicon revision affects range/timing capabilities
+- Peer hardware info useful for diagnosing bilateral sync issues
+
+**Data Flow:**
+```
+LOCAL Device                                     PWA
+     |                                            |
+     |<-- GATT read (local_hardware_info) --------|
+     |                                            |
+     |-- "ESP32-C6 v0.2 FTM:full" --------------->|
+     |                                            |
+     |<-- GATT read (peer_hardware_info) ---------|
+     |                                            |
+     |-- "ESP32-C6 v0.2 FTM:full" --------------->|
+     |   (or "" if no peer connected)             |
+```
 
 ### Per-Mode PWM Intensity Rationale
 
@@ -442,18 +479,19 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2) = 19 characteristics
+- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2), Time (1), Hardware (2) = 22 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)
 - ✅ **User Comfort:** 10-30% LED brightness prevents eye strain
 - ✅ **Persistent Preferences:** NVS saves user settings across power cycles
 - ✅ **Firmware Version Verification:** PWA can verify both devices run matching firmware builds
+- ✅ **Hardware Discovery:** PWA can discover silicon revision and 802.11mc FTM capability (AD048)
 - ✅ **Future-Proof:** Architecture supports bilateral implementation without changes
 
 ### Drawbacks
 
-- 19 characteristics increase BLE stack memory usage
+- 22 characteristics increase BLE stack memory usage
 - NVS persistence adds flash wear (mitigated by write-on-change only)
 - Two LED color modes add configuration complexity
 - Mobile app must implement both palette and custom RGB UIs
@@ -519,6 +557,8 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 - AD030: Bilateral Control Service - Separate service for device-to-device communication
 - AD031: Research Platform Extensions - Defines extended parameter ranges
 - AD033: LED Color Palette Standard - Defines 16-color palette for palette mode
+- AD047: Scheduled Pattern Playback - Time Beacon characteristic for UTLP integration
+- AD048: ESP-NOW Adaptive Transport and Hardware Acceleration - Hardware Info characteristics for 802.11mc FTM discovery
 
 ---
 
@@ -583,4 +623,4 @@ Git commit: TBD (migration commit)
 ---
 
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-12-17

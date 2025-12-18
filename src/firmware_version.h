@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 124  // AD040: Peer firmware version exchange after MTU
+#define FIRMWARE_VERSION_PATCH 125  // AD048: Hardware info BLE characteristics for 802.11mc FTM discovery
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

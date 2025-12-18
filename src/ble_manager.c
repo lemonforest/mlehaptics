@@ -16,6 +16,7 @@
 #include "time_sync.h"      // Phase 2: Time synchronization (AD039)
 #include "time_sync_task.h" // Phase 2: Time sync task integration
 #include "firmware_version.h" // AD040: Firmware version enforcement
+#include "esp_chip_info.h"    // AD048: Silicon revision for hardware info characteristic
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -182,6 +183,16 @@ static const ble_uuid128_t uuid_char_peer_firmware = BLE_UUID128_INIT(
     0x13, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+// Hardware Info Group (AD048: bytes 13-14 = 0x02 0x15/0x16)
+// Exposes silicon revision for 802.11mc FTM capability discovery
+static const ble_uuid128_t uuid_char_local_hardware = BLE_UUID128_INIT(
+    0x15, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_peer_hardware = BLE_UUID128_INIT(
+    0x16, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // Time Beacon Group (AD047/UTLP: bytes 13-14 = 0x02 0x14)
 // UTLP semantics: devices passively listen for time beacons from any source
 static const ble_uuid128_t uuid_char_time_beacon = BLE_UUID128_INIT(
@@ -311,6 +322,11 @@ static uint32_t freq_change_timestamp_ms = 0;
 static char local_firmware_version_str[32] = "";   // Initialized in ble_manager_init()
 static char peer_firmware_version_str[32] = "";    // Set by ble_set_peer_firmware_version()
 static bool firmware_versions_match_flag = true;   // AD040: Assume match until proven otherwise
+
+// AD048: Hardware info strings (silicon revision, 802.11mc FTM capability)
+// Format: "ESP32-C6 v0.2 (FTM:full)" or "ESP32-C6 v0.1 (FTM:resp-only)"
+static char local_hardware_info_str[48] = "";      // Initialized in ble_manager_init()
+static char peer_hardware_info_str[48] = "";       // Set by ble_set_peer_hardware_info()
 
 // ============================================================================
 // BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
@@ -1391,6 +1407,25 @@ static int gatt_char_peer_firmware_read(uint16_t conn_handle, uint16_t attr_hand
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
+// Local Hardware Info - Read (AD048: silicon revision + 802.11mc FTM capability)
+static int gatt_char_local_hardware_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    ESP_LOGD(TAG, "GATT Read: Local Hardware = %s", local_hardware_info_str);
+    int rc = os_mbuf_append(ctxt->om, local_hardware_info_str,
+                            strlen(local_hardware_info_str));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Peer Hardware Info - Read (AD048: populated after peer connection)
+static int gatt_char_peer_hardware_read(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    ESP_LOGD(TAG, "GATT Read: Peer Hardware = %s",
+             peer_hardware_info_str[0] ? peer_hardware_info_str : "(none)");
+    int rc = os_mbuf_append(ctxt->om, peer_hardware_info_str,
+                            strlen(peer_hardware_info_str));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
 // ============================================================================
 // BILATERAL CONTROL SERVICE CHARACTERISTIC HANDLERS (Phase 1b: AD030/AD034)
 // ============================================================================
@@ -1675,6 +1710,15 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return gatt_char_peer_firmware_read(conn_handle, attr_handle, ctxt, arg);
     }
 
+    // Hardware Info Group (AD048: read-only, silicon revision + 802.11mc FTM capability)
+    if (ble_uuid_cmp(uuid, &uuid_char_local_hardware.u) == 0) {
+        return gatt_char_local_hardware_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_peer_hardware.u) == 0) {
+        return gatt_char_peer_hardware_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
     // Time Beacon (AD047/UTLP: passive opportunistic time adoption)
     // PWA broadcasts time beacons; device passively listens and adopts
     if (ble_uuid_cmp(uuid, &uuid_char_time_beacon.u) == 0) {
@@ -1902,6 +1946,17 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
             },
             {
                 .uuid = &uuid_char_peer_firmware.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            // Hardware Info Group (AD048: silicon revision + 802.11mc FTM capability)
+            {
+                .uuid = &uuid_char_local_hardware.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            {
+                .uuid = &uuid_char_peer_hardware.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ,
             },
@@ -3692,6 +3747,37 @@ esp_err_t ble_manager_init(uint8_t initial_battery_pct) {
              __DATE__);
     ESP_LOGI(TAG, "Firmware version: %s", local_firmware_version_str);
 
+    // AD048: Initialize hardware info string (silicon revision + 802.11mc FTM capability)
+    {
+        esp_chip_info_t chip_info;
+        esp_chip_info(&chip_info);
+
+        const char *model_name = "Unknown";
+        switch (chip_info.model) {
+            case CHIP_ESP32:   model_name = "ESP32"; break;
+            case CHIP_ESP32S2: model_name = "ESP32-S2"; break;
+            case CHIP_ESP32S3: model_name = "ESP32-S3"; break;
+            case CHIP_ESP32C3: model_name = "ESP32-C3"; break;
+            case CHIP_ESP32C6: model_name = "ESP32-C6"; break;
+            case CHIP_ESP32H2: model_name = "ESP32-H2"; break;
+            default: break;
+        }
+
+        uint8_t rev_major = (chip_info.revision >> 8) & 0xFF;
+        uint8_t rev_minor = chip_info.revision & 0xFF;
+
+        // Determine FTM capability string
+        const char *ftm_cap = "";
+        if (chip_info.model == CHIP_ESP32C6) {
+            bool ftm_full = (rev_major > 0) || (rev_major == 0 && rev_minor >= 2);
+            ftm_cap = ftm_full ? " FTM:full" : " FTM:resp";
+        }
+
+        snprintf(local_hardware_info_str, sizeof(local_hardware_info_str),
+                 "%s v%d.%d%s", model_name, rev_major, rev_minor, ftm_cap);
+        ESP_LOGI(TAG, "Hardware info: %s", local_hardware_info_str);
+    }
+
     // Create mutexes
     char_data_mutex = xSemaphoreCreateMutex();
     if (char_data_mutex == NULL) {
@@ -5402,6 +5488,26 @@ bool ble_firmware_versions_match(void) {
  */
 void ble_set_firmware_version_match(bool match) {
     firmware_versions_match_flag = match;
+}
+
+void ble_set_peer_hardware_info(const char *hardware_str) {
+    if (hardware_str == NULL) {
+        return;
+    }
+
+    // Thread-safe update (mutex not strictly needed for simple string copy,
+    // but keeping consistent with other char_data access patterns)
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        snprintf(peer_hardware_info_str, sizeof(peer_hardware_info_str), "%s", hardware_str);
+        xSemaphoreGive(char_data_mutex);
+        ESP_LOGD(TAG, "AD048: Peer hardware info set: %s", peer_hardware_info_str);
+    } else {
+        ESP_LOGW(TAG, "AD048: Mutex timeout setting peer hardware info");
+    }
+}
+
+const char* ble_get_local_hardware_info(void) {
+    return local_hardware_info_str;
 }
 
 esp_err_t ble_manager_deinit(void) {

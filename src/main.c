@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_chip_info.h"
 #include "esp_task_wdt.h"
 #include "esp_sleep.h"
 #include "freertos/FreeRTOS.h"
@@ -127,6 +128,61 @@ QueueHandle_t ble_to_motor_queue = NULL;
 // ============================================================================
 // INITIALIZATION FUNCTIONS
 // ============================================================================
+
+/**
+ * @brief Log ESP32-C6 silicon revision and capabilities
+ *
+ * Reports chip model, revision, and feature availability for debugging.
+ * Critical for 802.11mc FTM: Initiator mode requires silicon v0.2+
+ * (Errata WIFI-9686 affects v0.0 and v0.1)
+ *
+ * @see docs/802.11mc_FTM_Reconnaissance_Report.md Section 4.3
+ */
+static void log_silicon_info(void) {
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+
+    const char *model_name = "Unknown";
+    switch (chip_info.model) {
+        case CHIP_ESP32:   model_name = "ESP32"; break;
+        case CHIP_ESP32S2: model_name = "ESP32-S2"; break;
+        case CHIP_ESP32S3: model_name = "ESP32-S3"; break;
+        case CHIP_ESP32C3: model_name = "ESP32-C3"; break;
+        case CHIP_ESP32C6: model_name = "ESP32-C6"; break;
+        case CHIP_ESP32H2: model_name = "ESP32-H2"; break;
+        default: break;
+    }
+
+    // Extract major and minor revision
+    // ESP-IDF v5.x: revision = (major << 8) | minor
+    uint8_t rev_major = (chip_info.revision >> 8) & 0xFF;
+    uint8_t rev_minor = chip_info.revision & 0xFF;
+
+    ESP_LOGI(TAG, "Silicon: %s v%d.%d (%d cores @ %d MHz)",
+             model_name, rev_major, rev_minor,
+             chip_info.cores, CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
+
+    // Feature flags
+    ESP_LOGI(TAG, "Features: WiFi%s%s%s%s",
+             (chip_info.features & CHIP_FEATURE_BT) ? " BT" : "",
+             (chip_info.features & CHIP_FEATURE_BLE) ? " BLE" : "",
+             (chip_info.features & CHIP_FEATURE_IEEE802154) ? " 802.15.4" : "",
+             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? " EmbFlash" : "");
+
+    // 802.11mc FTM capability check (ESP32-C6 specific)
+    if (chip_info.model == CHIP_ESP32C6) {
+        // Errata WIFI-9686: v0.0 and v0.1 have broken FTM initiator
+        bool ftm_initiator_ok = (rev_major > 0) || (rev_major == 0 && rev_minor >= 2);
+        if (ftm_initiator_ok) {
+            ESP_LOGI(TAG, "802.11mc FTM: Initiator + Responder (full support)");
+        } else {
+            ESP_LOGW(TAG, "802.11mc FTM: Responder ONLY (v0.2+ needed for Initiator)");
+        }
+    }
+
+    // Note about ESP-NOW/802.11mc coexistence
+    ESP_LOGI(TAG, "ESP-NOW: Available (can coexist with 802.11mc)");
+}
 
 /**
  * @brief Initialize watchdog timer
@@ -391,6 +447,8 @@ void app_main(void) {
     ESP_LOGI(TAG, "EMDR Bilateral Stimulation Device");
     ESP_LOGI(TAG, "Hardware: Seeed XIAO ESP32-C6");
     firmware_log_version(TAG, "Firmware", fw_version);
+    ESP_LOGI(TAG, "----------------------------------------");
+    log_silicon_info();
     ESP_LOGI(TAG, "========================================");
 
     esp_err_t ret;
