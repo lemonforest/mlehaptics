@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 130  // AD049: Phase coherence query - diagnostic logging for antiphase validation
+#define FIRMWARE_VERSION_PATCH 132  // TDM spike concluded (dead end), Phase Query retained
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

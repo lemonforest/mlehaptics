@@ -49,6 +49,38 @@ static volatile bool client_ready_received = false;
 /** @brief Bug #11 fix: Buffer CLIENT_READY if received before time_sync initialized */
 static volatile bool client_ready_buffered = false;
 
+#if TDM_TECH_SPIKE_ENABLED
+/*******************************************************************************
+ * TDM TECH SPIKE - Results (December 2025)
+ *
+ * KEY FINDING: ~74ms consistent latency bias, outliers inflate stddev to ~150ms.
+ * Mean converges as sample count increases - this is useful!
+ * Next step: Add histogram to measure % of packets within ±30ms of mean.
+ * See time_sync.h for full analysis.
+ ******************************************************************************/
+
+/** @brief Last beacon receive timestamp (microseconds) */
+static int64_t tdm_last_receive_us = 0;
+
+/** @brief Jitter measurement sample count */
+static uint32_t tdm_jitter_count = 0;
+
+/** @brief Sum of jitter values (for mean calculation) */
+static int64_t tdm_jitter_sum_us = 0;
+
+/** @brief Sum of squared jitter values (for stddev calculation) */
+static int64_t tdm_jitter_sum_sq = 0;
+
+/** @brief Minimum jitter observed (microseconds) */
+static int64_t tdm_jitter_min_us = INT64_MAX;
+
+/** @brief Maximum jitter observed (microseconds) */
+static int64_t tdm_jitter_max_us = INT64_MIN;
+
+/** @brief Log stats every N samples */
+#define TDM_JITTER_LOG_INTERVAL  10
+#endif /* TDM_TECH_SPIKE_ENABLED */
+
 /** @brief Bug #28 fix: Buffer TIME_REQUEST if received before time_sync initialized */
 static volatile bool time_request_buffered = false;
 static volatile uint64_t buffered_t1_us = 0;
@@ -267,29 +299,15 @@ static void time_sync_task(void *arg)
                     break;
 
                 case TIME_SYNC_MSG_TRIGGER_BEACONS:
-                    /* Bug #62 fix: Send ONE beacon for epoch delivery
+                    /* UTLP Refactor: Mode-change beacons REMOVED
                      *
-                     * Original Bug #57: Beacons delayed during mode change.
-                     * Failed fix #57/58: Beacon blasting caused spam (100+ beacons).
+                     * Mode changes use SYNC_MSG_MOTOR_STARTED for epoch delivery.
+                     * Beacons are now handled by the time layer on a fixed schedule,
+                     * not triggered by application events.
                      *
-                     * Root cause: Beacon blasting doesn't help EMA convergence.
-                     * CLIENT only needs ONE beacon to get the new motor_epoch.
-                     * EMA converges over TIME, not rapid samples.
-                     *
-                     * Fix: Send single beacon immediately, let normal interval
-                     * handle subsequent syncs.
+                     * See: UTLP architecture - time handles time, application handles application.
                      */
-                    if (TIME_SYNC_IS_SERVER()) {
-                        ESP_LOGI(TAG, "Mode change: Sending single beacon for epoch delivery");
-                        esp_err_t err = ble_send_time_sync_beacon();
-                        if (err != ESP_OK) {
-                            if (err == ESP_ERR_INVALID_STATE) {
-                                ESP_LOGI(TAG, "Cannot send beacon: peer not connected");
-                            } else {
-                                ESP_LOGW(TAG, "Failed to send beacon: %s", esp_err_to_name(err));
-                            }
-                        }
-                    }
+                    ESP_LOGD(TAG, "TRIGGER_BEACONS ignored (UTLP refactor - use MOTOR_STARTED for epoch)");
                     break;
 
                 case TIME_SYNC_MSG_SHUTDOWN:
@@ -499,6 +517,59 @@ static void handle_beacon_message(const time_sync_message_t *msg)
                      quality.quality_score);
         }
 
+#if TDM_TECH_SPIKE_ENABLED
+        /* TDM jitter measurement: ~74ms consistent bias, outliers inflate stddev.
+         * TODO: Add histogram buckets to measure distribution. */
+        {
+            int64_t receive_us = msg->data.beacon.receive_time_us;
+
+            if (tdm_last_receive_us != 0) {
+                /* Calculate inter-beacon interval and jitter */
+                int64_t actual_interval_us = receive_us - tdm_last_receive_us;
+                int64_t expected_interval_us = (int64_t)TDM_INTERVAL_MS * 1000;
+                int64_t jitter_us = actual_interval_us - expected_interval_us;
+
+                /* Update running statistics */
+                tdm_jitter_count++;
+                tdm_jitter_sum_us += jitter_us;
+                tdm_jitter_sum_sq += (jitter_us * jitter_us);
+
+                if (jitter_us < tdm_jitter_min_us) {
+                    tdm_jitter_min_us = jitter_us;
+                }
+                if (jitter_us > tdm_jitter_max_us) {
+                    tdm_jitter_max_us = jitter_us;
+                }
+
+                /* Log statistics every N samples */
+                if (tdm_jitter_count % TDM_JITTER_LOG_INTERVAL == 0) {
+                    int64_t mean_us = tdm_jitter_sum_us / (int64_t)tdm_jitter_count;
+                    /* Variance = E[X²] - E[X]² */
+                    int64_t mean_sq = tdm_jitter_sum_sq / (int64_t)tdm_jitter_count;
+                    int64_t variance = mean_sq - (mean_us * mean_us);
+                    /* Approximate sqrt for stddev (integer math) */
+                    int64_t stddev_us = 0;
+                    if (variance > 0) {
+                        /* Newton-Raphson integer sqrt approximation */
+                        stddev_us = variance;
+                        int64_t x = variance;
+                        while (x > stddev_us / x) {
+                            x = (x + variance / x) / 2;
+                        }
+                        stddev_us = x;
+                    }
+
+                    ESP_LOGI(TAG, "TDM Jitter [n=%lu]: mean=%lld μs, stddev=%lld μs, min=%lld, max=%lld",
+                             (unsigned long)tdm_jitter_count,
+                             mean_us, stddev_us,
+                             tdm_jitter_min_us, tdm_jitter_max_us);
+                }
+            }
+
+            tdm_last_receive_us = receive_us;
+        }
+#endif /* TDM_TECH_SPIKE_ENABLED */
+
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     } else {
         ESP_LOGW(TAG, "Failed to process beacon: %s", esp_err_to_name(err));
@@ -551,14 +622,13 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                          esp_err_to_name(reset_err));
             }
 
-            /* Trigger forced beacons for fast convergence (SERVER only)
-             * Send 3 immediate beacons at 500ms intervals to help CLIENT
-             * filter adapt quickly to the new motor epoch timing */
-            esp_err_t beacon_err = time_sync_trigger_forced_beacons();
-            if (beacon_err != ESP_OK) {
-                /* This is expected on CLIENT (not an error) */
-                ESP_LOGD(TAG, "Forced beacons not triggered (CLIENT role or not initialized)");
-            }
+            /* UTLP Refactor: Mode-change beacons REMOVED
+             *
+             * Mode changes deliver epoch via SYNC_MSG_MOTOR_STARTED message,
+             * not via forced beacons. Time layer handles timing on fixed schedule.
+             *
+             * See: UTLP architecture - time handles time, application handles application.
+             */
             break;
         }
 
@@ -756,20 +826,10 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             if (err == ESP_OK) {
                 ESP_LOGI(TAG, "TIME_RESPONSE sent: T1=%llu, T2=%llu, T3=%llu, epoch=%llu, cycle=%lu",
                          t1_client_send, t2_server_recv, t3_server_send, motor_epoch, motor_cycle);
-
-                /* Phase 6t: Trigger forced beacon burst for fast lock acquisition
-                 * Send 5 beacons at 200ms intervals to enable lock in ~1 second
-                 * (vs 5+ seconds with normal beacon interval)
-                 *
-                 * Research basis: IEEE/Bluetooth SIG papers show 50-100ms lock
-                 * achievable for biomedical BLE sensors with rapid beacon bursts.
+                /* UTLP Refactor: Beacon burst REMOVED
+                 * Time sync now relies on fixed-interval beacons, not event-triggered bursts.
+                 * Handshake provides epoch via TIME_RESPONSE.motor_epoch_us field.
                  */
-                esp_err_t beacon_err = time_sync_trigger_forced_beacons();
-                if (beacon_err == ESP_OK) {
-                    ESP_LOGI(TAG, "Fast lock beacon burst triggered (5 beacons @ 200ms intervals)");
-                } else {
-                    ESP_LOGW(TAG, "Failed to trigger beacon burst: %s", esp_err_to_name(beacon_err));
-                }
             } else {
                 ESP_LOGW(TAG, "Failed to send TIME_RESPONSE: %s", esp_err_to_name(err));
             }
@@ -1190,14 +1250,14 @@ static void handle_coordination_message(const time_sync_message_t *msg)
         }
 
         case SYNC_MSG_PHASE_QUERY: {
-            // AD049: Peer is asking "how long until your next ACTIVE state?"
+            // Phase Query: Peer is asking "how long until your next ACTIVE state?"
             // Calculate our time to next active and respond
             uint64_t epoch_us = 0;
             uint32_t cycle_ms = 0;
             esp_err_t err = time_sync_get_motor_epoch(&epoch_us, &cycle_ms);
 
             if (err != ESP_OK || epoch_us == 0 || cycle_ms == 0) {
-                ESP_LOGW(TAG, "AD049: Phase query received but motor epoch not set");
+                ESP_LOGW(TAG, "Phase Query: Phase query received but motor epoch not set");
                 break;
             }
 
@@ -1255,14 +1315,14 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             response.payload.phase_response.current_state = current_state;
 
             ble_send_coordination_message(&response);
-            ESP_LOGD(TAG, "AD049: Phase query response: ms_to_active=%lu, state=%s, cycle=%lu",
+            ESP_LOGD(TAG, "Phase Query: Phase query response: ms_to_active=%lu, state=%s, cycle=%lu",
                      (unsigned long)ms_to_active, current_state ? "ACTIVE" : "INACTIVE",
                      (unsigned long)current_cycle);
             break;
         }
 
         case SYNC_MSG_PHASE_RESPONSE: {
-            // AD049: Peer responded with their time-to-active
+            // Phase Query: Peer responded with their time-to-active
             // LOGGING ONLY - compare to our time-to-inactive for phase error detection
             const phase_response_t *pr = &coord->payload.phase_response;
 
@@ -1271,7 +1331,7 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             esp_err_t err = time_sync_get_motor_epoch(&epoch_us, &cycle_ms);
 
             if (err != ESP_OK || epoch_us == 0 || cycle_ms == 0) {
-                ESP_LOGW(TAG, "AD049: Phase response received but motor epoch not set");
+                ESP_LOGW(TAG, "Phase Query: Phase response received but motor epoch not set");
                 break;
             }
 
@@ -1310,14 +1370,14 @@ static void handle_coordination_message(const time_sync_message_t *msg)
 
             // Log for diagnostic purposes (no correction applied yet)
             if (abs(phase_error_ms) > 10) {
-                ESP_LOGW(TAG, "AD049: PHASE ERROR: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
+                ESP_LOGW(TAG, "Phase Query: PHASE ERROR: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
                          (unsigned long)pr->ms_to_active, (unsigned long)my_ms_to_inactive, (long)phase_error_ms);
             } else {
-                ESP_LOGI(TAG, "AD049: Phase OK: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
+                ESP_LOGI(TAG, "Phase Query: Phase OK: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
                          (unsigned long)pr->ms_to_active, (unsigned long)my_ms_to_inactive, (long)phase_error_ms);
             }
 
-            ESP_LOGI(TAG, "AD049: Peer state=%s, cycle=%lu | My pos_in_cycle=%lu ms",
+            ESP_LOGI(TAG, "Phase Query: Peer state=%s, cycle=%lu | My pos_in_cycle=%lu ms",
                      pr->current_state ? "ACTIVE" : "INACTIVE",
                      (unsigned long)pr->current_cycle,
                      (unsigned long)pos_in_cycle_ms);
@@ -1394,7 +1454,7 @@ static void perform_periodic_update(void)
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     }
 
-    // AD049: CLIENT sends periodic phase queries for diagnostic logging
+    // Phase Query: CLIENT sends periodic phase queries for diagnostic logging
     // Send every 10 seconds when motor is running (motor_epoch_valid)
     static uint32_t phase_query_counter = 0;
     phase_query_counter++;
@@ -1414,7 +1474,7 @@ static void perform_periodic_update(void)
                 };
                 esp_err_t qerr = ble_send_coordination_message(&query);
                 if (qerr == ESP_OK) {
-                    ESP_LOGD(TAG, "AD049: Phase query sent to SERVER");
+                    ESP_LOGD(TAG, "Phase Query: Phase query sent to SERVER");
                 }
             }
         }

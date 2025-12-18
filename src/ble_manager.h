@@ -453,8 +453,8 @@ typedef enum {
     SYNC_MSG_REVERSE_PROBE_RESPONSE, /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
     SYNC_MSG_FIRMWARE_VERSION = 0x10, /**< AD040: One-time firmware version exchange after MTU */
     SYNC_MSG_HARDWARE_INFO = 0x11,   /**< AD048: One-time hardware info exchange (silicon rev, FTM capability) */
-    SYNC_MSG_PHASE_QUERY = 0x12,     /**< AD049: Phase coherence query - "how long until your next active?" */
-    SYNC_MSG_PHASE_RESPONSE = 0x13   /**< AD049: Phase coherence response - ms until next ACTIVE state */
+    SYNC_MSG_PHASE_QUERY = 0x12,     /**< Phase coherence query - "how long until your next active?" */
+    SYNC_MSG_PHASE_RESPONSE = 0x13   /**< Phase coherence response - ms until next ACTIVE state */
 } sync_message_type_t;
 
 /**
@@ -624,7 +624,7 @@ typedef struct __attribute__((packed)) {
 } hardware_info_t;
 
 /**
- * @brief Phase coherence response payload for SYNC_MSG_PHASE_RESPONSE (AD049)
+ * @brief Phase coherence response payload for SYNC_MSG_PHASE_RESPONSE
  *
  * Direct phase measurement: responder reports time until their next ACTIVE state.
  * Queryer compares to their own time-until-INACTIVE for antiphase verification.
@@ -664,7 +664,7 @@ typedef struct __attribute__((packed)) {
         reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
         firmware_version_t firmware_version; /**< FIRMWARE_VERSION: AD040 one-time version exchange */
         hardware_info_t hardware_info;       /**< HARDWARE_INFO: AD048 one-time hardware info exchange */
-        phase_response_t phase_response;     /**< PHASE_RESPONSE: AD049 direct phase coherence measurement */
+        phase_response_t phase_response;     /**< PHASE_RESPONSE: Direct phase coherence measurement */
         // MODE_CHANGE_ACK, SHUTDOWN, START_ADVERTISING, and PHASE_QUERY have no payload
     } payload;
 } coordination_message_t;

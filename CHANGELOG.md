@@ -39,7 +39,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-**AD049: Phase Coherence Query Protocol (v0.6.130)**:
+**TDM Tech Spike - Results (v0.6.132)**:
+- **Purpose**: Validate TDM timing model for BLE stack jitter measurement
+- **KEY FINDING**: BLE stack has consistent ~74ms latency bias
+  - **Mean**: ~74ms late - STABLE (converges over 790+ samples)
+  - **Stddev**: ~150ms - inflated by rare outliers
+  - **Min**: -50ms (rare early packet), **Max**: 1.05s late (occasional massive delay)
+- **Insight**: High stddev is from outliers, NOT random jitter
+  - Mean converges: 83ms→76ms→74ms as sample count increases
+  - If 95% of packets are within ±30ms of mean, TDM could work with:
+    1. Bias compensation (expect arrival at T + 1074ms)
+    2. Outlier filtering (reject packets outside ±100ms window)
+    3. Graceful degradation to Phase Query on outlier detection
+- **Current Status**: Disabled pending histogram analysis to measure distribution
+- **TODO**: Add bucket tracking to count packets in ±10ms, ±30ms, ±50ms ranges
+- **Files Modified**:
+  - `src/time_sync.h` - TDM constants with analysis notes
+  - `src/time_sync.c` - Guarded code
+  - `src/time_sync_task.c` - Jitter measurement code
+  - `src/firmware_version.h` - Bump to v0.6.132
+
+**Phase Coherence Query Protocol (v0.6.130)**:
 - **Purpose**: Direct antiphase validation without NTP-style timestamp exchange
 - **Core Concept**: Device A asks "how long until your next ACTIVE?", compares to own time-to-inactive
   - If antiphase is correct: peer's time_to_active == my time_to_inactive
@@ -134,6 +154,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/motor_task.c` - Epoch change detection, cycle counter reset
   - `src/motor_task.h` - Added `motor_get_duty_percent()` API
   - `src/time_sync_task.c` - Enhanced SYNC_FB handler with elapsed time
+
+### Changed
+
+**UTLP Refactor: Remove Mode-Change Beacon Triggers (v0.6.131)**:
+- **Purpose**: Decouple time handling from application events - time layer handles timing on fixed schedule
+- **Core Change**: Mode changes no longer trigger beacon bursts; epoch delivery via SYNC_MSG_MOTOR_STARTED
+- **Removed Code**:
+  - `time_sync_trigger_forced_beacons()` function (time_sync.c) - replaced with removal comment
+  - TIME_SYNC_MSG_TRIGGER_BEACONS handler action (time_sync_task.c) - now just logs and breaks
+  - Beacon burst trigger in TIME_RESPONSE handler (time_sync_task.c)
+  - Beacon call in SYNC_MSG_MODE_CHANGE handler (time_sync_task.c)
+  - Immediate beacon on frequency change (motor_task.c) - MOTOR_STARTED delivers epoch
+- **Header Cleanup**: Removed function declaration from time_sync.h
+- **Rationale**: Moving to pre-buffered playback architecture means mode changes don't need timing improvements
+- **Key Insight**: SYNC_MSG_MOTOR_STARTED is the authoritative epoch delivery mechanism
+- **Files Modified**:
+  - `src/time_sync.c` - Remove time_sync_trigger_forced_beacons() function
+  - `src/time_sync.h` - Remove function declaration
+  - `src/time_sync_task.c` - Remove beacon triggers from handlers
+  - `src/motor_task.c` - Remove immediate beacon on frequency change
+  - `src/firmware_version.h` - Bump to v0.6.131
 
 ### Infrastructure
 

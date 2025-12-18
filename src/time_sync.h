@@ -90,6 +90,32 @@ extern "C" {
 /** @brief Sync interval step size for exponential backoff */
 #define TIME_SYNC_INTERVAL_STEP_MS  (10000U)    // 10 second increments
 
+// ============================================================================
+// TDM TECH SPIKE - Results (December 2025)
+// ============================================================================
+//
+// FINDINGS: BLE stack has consistent ~74ms latency bias with occasional outliers
+//
+// Measured jitter with fixed 1000ms beacon interval (n=790+ samples):
+//   - Mean:   ~74 ms late - CONSISTENT (converges as samples increase)
+//   - Stddev: ~150 ms - inflated by outliers
+//   - Min:    -50 ms (rare early packet)
+//   - Max:    1.05 seconds late (occasional massive delay)
+//
+// KEY INSIGHT: Mean is stable! The high stddev is from rare outliers.
+// If 95% of packets are within ±30ms of the 74ms mean, TDM could work with:
+//   1. Bias compensation: Expect beacon at T + 1000ms + 74ms = 1074ms
+//   2. Outlier filtering: Reject packets outside ±100ms window
+//   3. Graceful degradation: Fall back to Phase Query when outliers detected
+//
+// CURRENT STATUS: Disabled pending outlier analysis
+// TODO: Add histogram tracking to measure actual distribution
+//
+#define TDM_TECH_SPIKE_ENABLED      (0U)        // Disabled - needs outlier filtering
+
+/** @brief TDM fixed beacon interval - kept for code compilation */
+#define TDM_INTERVAL_MS             (1000U)     // Unused when disabled
+
 /** @brief Drift threshold for resync (microseconds) */
 #define TIME_SYNC_DRIFT_THRESHOLD_US (50000U)   // 50ms (half of ±100ms spec)
 
@@ -943,18 +969,10 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
  */
 esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t cycle_ms);
 
-/**
- * @brief Trigger forced beacons for fast convergence (SERVER only)
- *
- * Forces 3 immediate beacons at 500ms intervals for fast time sync convergence
- * after mode changes. After 3 beacons, returns to adaptive interval.
- *
- * Call this on SERVER when mode changes to help CLIENT filter adapt quickly.
- *
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+/* REMOVED: time_sync_trigger_forced_beacons() - UTLP Refactor
+ * Mode-change beacons eliminated. Epoch delivery via SYNC_MSG_MOTOR_STARTED.
+ * Time layer handles beacons on fixed schedule, not application events.
  */
-esp_err_t time_sync_trigger_forced_beacons(void);
 
 /**
  * @brief Reset EMA filter to fast-attack mode (for mode changes)

@@ -1233,6 +1233,14 @@ static uint8_t calculate_sync_quality(int32_t actual_drift_us, uint32_t expected
  */
 static esp_err_t adjust_sync_interval(void)
 {
+#if TDM_TECH_SPIKE_ENABLED
+    /* TDM Tech Spike: Fixed 1s interval for jitter analysis.
+     * Results: ~74ms consistent bias, outliers inflate stddev.
+     * See time_sync.h for full analysis and next steps. */
+    g_time_sync_state.sync_interval_ms = TDM_INTERVAL_MS;
+    return ESP_OK;
+#endif
+
     time_sync_quality_t *q = &g_time_sync_state.quality;
 
     /* If quality excellent and we have enough samples, increase interval */
@@ -1720,51 +1728,14 @@ esp_err_t time_sync_reset_filter_fast_attack(void)
     return ESP_OK;
 }
 
-/**
- * @brief Trigger single beacon for epoch delivery (SERVER only)
+/* REMOVED: time_sync_trigger_forced_beacons() - UTLP Refactor
  *
- * Bug #62 fix: Renamed from "forced beacons" (plural) to "beacon" (singular).
+ * Mode-change beacons eliminated. Epoch delivery now handled by
+ * SYNC_MSG_MOTOR_STARTED message. Time layer handles beacons on
+ * fixed schedule, not triggered by application events.
  *
- * Sends ONE beacon immediately to deliver the new motor_epoch to CLIENT
- * after mode changes. Previous beacon blasting approach was removed because:
- * - EMA convergence depends on time between samples, not rapid fire
- * - Beacon blasting caused spam (100+ beacons due to last_sync_ms bug)
- *
- * This is only valid for SERVER role (beacon sender).
- *
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+ * See: UTLP architecture - time handles time, application handles application.
  */
-esp_err_t time_sync_trigger_forced_beacons(void)
-{
-    if (!g_time_sync_state.initialized) {
-        ESP_LOGE(TAG, "Not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    if (g_time_sync_state.role != TIME_SYNC_ROLE_SERVER) {
-        // Bug #99: Use LOGD instead of LOGW - CLIENT calling this is expected behavior
-        // when handling SYNC_MSG_MODE_CHANGE (see time_sync_task.c line 556 comment)
-        ESP_LOGD(TAG, "Beacon trigger only valid for SERVER role");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    /* Bug #62 fix: Send single beacon for epoch delivery
-     *
-     * Previous approach (beacon blasting) was flawed:
-     * - EMA doesn't converge faster with rapid samples
-     * - The continuous check loop had a bug causing 100+ beacon spam
-     *
-     * New approach: Send ONE beacon via queue message, let normal
-     * adaptive interval handle subsequent syncs.
-     */
-    esp_err_t err = time_sync_task_trigger_beacons();
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to trigger beacon: %s", esp_err_to_name(err));
-    }
-
-    return ESP_OK;
-}
 
 /* REMOVED: time_sync_get_drift_rate() - AD045 simplification
  * Never called externally. Drift rate calculation was only used for

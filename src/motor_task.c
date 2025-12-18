@@ -1427,10 +1427,9 @@ void motor_task(void *pvParameters) {
                                 server_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
                                 server_cycle_count = 0;  // Reset cycle count on frequency change
 
-                                // Send immediate beacon so CLIENT can sync right away
-                                if (ble_send_time_sync_beacon() == ESP_OK) {
-                                    ESP_LOGI(TAG, "SERVER: Immediate beacon sent for frequency change");
-                                }
+                                /* UTLP Refactor: Immediate beacon REMOVED
+                                 * Epoch delivery via SYNC_MSG_MOTOR_STARTED (below).
+                                 * Time layer handles beacons on fixed schedule. */
 
                                 // Bug #32 fix: Send motor epoch to CLIENT immediately
                                 coordination_message_t motor_started_msg = {
