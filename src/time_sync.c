@@ -63,7 +63,17 @@ static time_sync_state_t g_time_sync_state = {
 static uint16_t calculate_crc16(const uint8_t *data, size_t length);
 static uint8_t calculate_sync_quality(int32_t offset_us, uint32_t drift_us, uint32_t rtt_us);
 static esp_err_t adjust_sync_interval(void);
-static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, uint8_t sequence);
+static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, uint8_t sequence, uint32_t rtt_us);
+
+/* UTLP Phase 1: MDPS (Minimum Delay Packet Selection) */
+static void mdps_add_sample(mdps_state_t *mdps, uint32_t rtt_us, int64_t offset_us);
+static uint32_t mdps_get_percentile_rtt(mdps_state_t *mdps);
+static bool mdps_is_min_delay_sample(mdps_state_t *mdps, uint32_t rtt_us);
+
+/* UTLP Phase 1: Two-State Kalman Filter (offset + drift) */
+static void kalman_init(kalman_state_t *kf, int64_t initial_offset_us, uint64_t timestamp_us);
+static void kalman_predict(kalman_state_t *kf, uint64_t current_time_us);
+static void kalman_update(kalman_state_t *kf, int64_t measured_offset_us, uint32_t rtt_us, uint64_t timestamp_us);
 
 /*******************************************************************************
  * PUBLIC API IMPLEMENTATION
@@ -443,8 +453,10 @@ esp_err_t time_sync_process_beacon(const time_sync_beacon_t *beacon, uint64_t re
      */
     int64_t raw_offset = (int64_t)receive_time_us - (int64_t)beacon->server_time_us;
 
-    /* Phase 6r Step 2: Apply EMA filter with outlier detection (AD043) */
-    int64_t filtered_offset = update_time_filter(raw_offset, receive_time_us, beacon->sequence);
+    /* Phase 6r Step 2: Apply EMA filter with outlier detection (AD043)
+     * Note: RTT=0 for one-way beacon (RTT only available after paired exchange)
+     * UTLP Phase 1: MDPS uses RTT for minimum delay packet selection */
+    int64_t filtered_offset = update_time_filter(raw_offset, receive_time_us, beacon->sequence, 0);
     g_time_sync_state.clock_offset_us = filtered_offset;
 
     g_time_sync_state.server_ref_time_us = beacon->server_time_us;
@@ -675,27 +687,252 @@ esp_err_t time_sync_force_resync(void)
  * PRIVATE HELPER FUNCTIONS
  ******************************************************************************/
 
+/*******************************************************************************
+ * UTLP PHASE 1: MDPS + KALMAN FILTER IMPLEMENTATION
+ ******************************************************************************/
+
+/**
+ * @brief Add sample to MDPS ring buffer
+ *
+ * Stores RTT and offset for minimum delay packet selection.
+ * JPL Rule 1: Fixed-size ring buffer (no dynamic allocation)
+ *
+ * @param mdps MDPS state structure
+ * @param rtt_us Round-trip time in microseconds
+ * @param offset_us Measured offset in microseconds
+ */
+static void mdps_add_sample(mdps_state_t *mdps, uint32_t rtt_us, int64_t offset_us)
+{
+    /* Store in ring buffer */
+    mdps->rtt_history[mdps->head] = rtt_us;
+    mdps->offset_history[mdps->head] = offset_us;
+
+    /* Advance head and update count */
+    mdps->head = (mdps->head + 1) % MDPS_RING_SIZE;
+    if (mdps->count < MDPS_RING_SIZE) {
+        mdps->count++;
+    }
+}
+
+/**
+ * @brief Get 10th percentile RTT from MDPS history
+ *
+ * Finds the N-th lowest RTT value where N = MDPS_PERCENTILE_IDX.
+ * JPL Rule 2: Bounded loop (MDPS_RING_SIZE iterations max)
+ *
+ * @param mdps MDPS state structure
+ * @return 10th percentile RTT value, or UINT32_MAX if insufficient samples
+ */
+static uint32_t mdps_get_percentile_rtt(mdps_state_t *mdps)
+{
+    if (mdps->count < MDPS_MIN_SAMPLES) {
+        return UINT32_MAX;  /* Not enough samples */
+    }
+
+    /* Simple selection: find (MDPS_PERCENTILE_IDX+1)-th smallest RTT
+     * For 16 samples and index 1, this gives us 2nd lowest (10th percentile)
+     * JPL Rule 2: Bounded loop - max MDPS_RING_SIZE * MDPS_PERCENTILE_IDX iterations
+     */
+    uint32_t selected_rtts[MDPS_PERCENTILE_IDX + 1];
+    for (uint8_t i = 0; i <= MDPS_PERCENTILE_IDX; i++) {
+        selected_rtts[i] = UINT32_MAX;
+    }
+
+    /* Find lowest (MDPS_PERCENTILE_IDX+1) RTT values */
+    for (uint8_t i = 0; i < mdps->count; i++) {
+        uint32_t rtt = mdps->rtt_history[i];
+        if (rtt == 0) continue;  /* Skip invalid samples */
+
+        /* Insert into sorted selection array */
+        for (uint8_t j = 0; j <= MDPS_PERCENTILE_IDX; j++) {
+            if (rtt < selected_rtts[j]) {
+                /* Shift larger values down */
+                for (uint8_t k = MDPS_PERCENTILE_IDX; k > j; k--) {
+                    selected_rtts[k] = selected_rtts[k - 1];
+                }
+                selected_rtts[j] = rtt;
+                break;
+            }
+        }
+    }
+
+    mdps->min_rtt_us = selected_rtts[MDPS_PERCENTILE_IDX];
+    return mdps->min_rtt_us;
+}
+
+/**
+ * @brief Check if sample is within minimum delay threshold
+ *
+ * @param mdps MDPS state structure
+ * @param rtt_us Sample RTT to check
+ * @return true if RTT is within 10% of minimum, false otherwise
+ */
+static bool mdps_is_min_delay_sample(mdps_state_t *mdps, uint32_t rtt_us)
+{
+    if (rtt_us == 0 || mdps->min_rtt_us == 0 || mdps->min_rtt_us == UINT32_MAX) {
+        return true;  /* Accept sample if RTT not available */
+    }
+
+    /* Accept samples within 10% of minimum RTT */
+    uint32_t threshold = mdps->min_rtt_us + (mdps->min_rtt_us / 10);
+    return (rtt_us <= threshold);
+}
+
+/**
+ * @brief Initialize Kalman filter state
+ *
+ * @param kf Kalman filter state
+ * @param initial_offset_us First offset measurement
+ * @param timestamp_us Current timestamp
+ */
+static void kalman_init(kalman_state_t *kf, int64_t initial_offset_us, uint64_t timestamp_us)
+{
+    kf->offset_us = (float)initial_offset_us;
+    kf->drift_ppm = 0.0f;  /* Assume no initial drift */
+
+    /* Initialize covariance matrix (diagonal) */
+    kf->P[0][0] = KALMAN_P_OFFSET_INIT;
+    kf->P[0][1] = 0.0f;
+    kf->P[1][0] = 0.0f;
+    kf->P[1][1] = KALMAN_P_DRIFT_INIT;
+
+    kf->R = KALMAN_R_INITIAL;
+    kf->last_update_us = timestamp_us;
+    kf->initialized = true;
+
+    ESP_LOGI(TAG, "Kalman filter initialized: offset=%.0f µs, drift=%.3f ppm",
+             kf->offset_us, kf->drift_ppm);
+}
+
+/**
+ * @brief Kalman filter prediction step
+ *
+ * Propagates state estimate forward in time using drift rate.
+ * State transition: offset += drift * dt
+ *
+ * @param kf Kalman filter state
+ * @param current_time_us Current timestamp
+ */
+static void kalman_predict(kalman_state_t *kf, uint64_t current_time_us)
+{
+    if (!kf->initialized || current_time_us <= kf->last_update_us) {
+        return;
+    }
+
+    /* Calculate time delta in seconds */
+    float dt_s = (float)(current_time_us - kf->last_update_us) / 1000000.0f;
+
+    /* State prediction: offset += drift_ppm * dt_s (drift is µs per second) */
+    kf->offset_us += kf->drift_ppm * dt_s;
+
+    /* Covariance prediction: P = F*P*F' + Q
+     * F = [1, dt; 0, 1]
+     * Q = [Q_offset*dt, 0; 0, Q_drift*dt]
+     */
+    float P00_new = kf->P[0][0] + 2.0f * dt_s * kf->P[0][1] + dt_s * dt_s * kf->P[1][1] + KALMAN_Q_OFFSET * dt_s;
+    float P01_new = kf->P[0][1] + dt_s * kf->P[1][1];
+    float P11_new = kf->P[1][1] + KALMAN_Q_DRIFT * dt_s;
+
+    kf->P[0][0] = P00_new;
+    kf->P[0][1] = P01_new;
+    kf->P[1][0] = P01_new;  /* Symmetric */
+    kf->P[1][1] = P11_new;
+}
+
+/**
+ * @brief Kalman filter update step
+ *
+ * Incorporates new measurement to update state estimate.
+ * Measurement noise R is adapted based on RTT (higher RTT = more noise).
+ *
+ * @param kf Kalman filter state
+ * @param measured_offset_us New offset measurement
+ * @param rtt_us Round-trip time (for adaptive noise estimation)
+ * @param timestamp_us Measurement timestamp
+ */
+static void kalman_update(kalman_state_t *kf, int64_t measured_offset_us, uint32_t rtt_us, uint64_t timestamp_us)
+{
+    if (!kf->initialized) {
+        kalman_init(kf, measured_offset_us, timestamp_us);
+        return;
+    }
+
+    /* Run prediction step */
+    kalman_predict(kf, timestamp_us);
+
+    /* Adaptive measurement noise based on RTT
+     * Higher RTT indicates more queueing delay uncertainty
+     */
+    if (rtt_us > 0) {
+        /* R scales with RTT: base + (RTT/1000)^2 µs² */
+        float rtt_factor = (float)rtt_us / 1000.0f;
+        kf->R = KALMAN_R_MIN + rtt_factor * rtt_factor;
+    }
+
+    /* Kalman gain: K = P * H' * (H * P * H' + R)^-1
+     * H = [1, 0] (we only measure offset, not drift)
+     */
+    float S = kf->P[0][0] + kf->R;  /* Innovation covariance */
+    if (S < 1e-6f) S = 1e-6f;       /* Prevent division by zero */
+
+    float K0 = kf->P[0][0] / S;     /* Kalman gain for offset */
+    float K1 = kf->P[1][0] / S;     /* Kalman gain for drift */
+
+    /* State update: x = x + K * (z - H*x) */
+    float innovation = (float)measured_offset_us - kf->offset_us;
+    kf->offset_us += K0 * innovation;
+    kf->drift_ppm += K1 * innovation;
+
+    /* Covariance update: P = (I - K*H) * P */
+    float P00_new = (1.0f - K0) * kf->P[0][0];
+    float P01_new = (1.0f - K0) * kf->P[0][1];
+    float P10_new = -K1 * kf->P[0][0] + kf->P[1][0];
+    float P11_new = -K1 * kf->P[0][1] + kf->P[1][1];
+
+    kf->P[0][0] = P00_new;
+    kf->P[0][1] = P01_new;
+    kf->P[1][0] = P10_new;
+    kf->P[1][1] = P11_new;
+
+    kf->last_update_us = timestamp_us;
+}
+
+/*******************************************************************************
+ * EMA FILTER WITH MDPS + KALMAN INTEGRATION
+ ******************************************************************************/
+
 /**
  * @brief Update EMA filter with new time offset sample (Phase 6r Step 2 - AD043)
  *
- * Implements exponential moving average filter with outlier rejection:
- * 1. Check if sample deviates >200ms from filtered value (outlier detection)
- * 2. If outlier, log and return previous filtered value (reject)
- * 3. If valid, apply EMA: filtered = (alpha * raw) + ((1-alpha) * filtered)
- * 4. Store sample in ring buffer for debugging
- * 5. Log filter statistics every 10 samples
+ * UTLP Phase 1: Implements hybrid EMA + MDPS + Kalman filtering:
+ * 1. MDPS tracks RTT history to identify minimum-delay samples
+ * 2. EMA provides primary filtering with outlier rejection
+ * 3. Kalman filter tracks drift rate for prediction
+ * 4. MDPS-weighted alpha gives more weight to low-RTT samples
  *
- * JPL Rule 1: Fixed-size ring buffer (no dynamic allocation)
- * JPL Rule 2: Bounded loops (ring buffer size = 8)
+ * Retains original EMA behavior for backward compatibility.
+ * MDPS and Kalman provide enhanced accuracy when RTT is available.
+ *
+ * JPL Rule 1: Fixed-size ring buffers (no dynamic allocation)
+ * JPL Rule 2: Bounded loops (ring buffer sizes are constants)
  *
  * @param raw_offset_us Raw offset measurement (rx_time - server_time)
  * @param timestamp_us When this sample was taken
  * @param sequence Beacon sequence number
+ * @param rtt_us Round-trip time (0 if not available, e.g., one-way beacon)
  * @return Filtered offset value (microseconds)
  */
-static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, uint8_t sequence)
+static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, uint8_t sequence, uint32_t rtt_us)
 {
     time_filter_t *filter = &g_time_sync_state.filter;
+    mdps_state_t *mdps = &g_time_sync_state.mdps;
+    kalman_state_t *kalman = &g_time_sync_state.kalman;
+
+    /* UTLP Phase 1: Add sample to MDPS if RTT available */
+    if (rtt_us > 0) {
+        mdps_add_sample(mdps, rtt_us, raw_offset_us);
+        mdps_get_percentile_rtt(mdps);  /* Update min RTT threshold */
+    }
 
     /* First sample: Initialize filter with raw value (no history to compare) */
     if (!filter->initialized) {
@@ -710,10 +947,15 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
         /* Store in ring buffer */
         filter->samples[0].raw_offset_us = raw_offset_us;
         filter->samples[0].timestamp_us = timestamp_us;
+        filter->samples[0].rtt_us = rtt_us;  /* UTLP Phase 1: Store RTT */
         filter->samples[0].sequence = sequence;
         filter->samples[0].outlier = false;
 
-        ESP_LOGI(TAG, "Filter initialized: raw=%" PRId64 " μs (seq=%u, fast-attack active)", raw_offset_us, sequence);
+        /* UTLP Phase 1: Initialize Kalman filter */
+        kalman_init(kalman, raw_offset_us, timestamp_us);
+
+        ESP_LOGI(TAG, "Filter initialized: raw=%" PRId64 " µs, RTT=%lu µs (seq=%u, fast-attack active)",
+                 raw_offset_us, (unsigned long)rtt_us, sequence);
         return raw_offset_us;
     }
 
@@ -731,12 +973,13 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
     if (abs_deviation > (int64_t)outlier_threshold) {
         filter->outlier_count++;
 
-        ESP_LOGW(TAG, "Outlier rejected: raw=%" PRId64 " μs, filtered=%" PRId64 " μs, deviation=%+" PRId64 " μs (seq=%u)",
-                 raw_offset_us, filter->filtered_offset_us, deviation, sequence);
+        ESP_LOGW(TAG, "Outlier rejected: raw=%" PRId64 " µs, filtered=%" PRId64 " µs, deviation=%+" PRId64 " µs (seq=%u, RTT=%lu)",
+                 raw_offset_us, filter->filtered_offset_us, deviation, sequence, (unsigned long)rtt_us);
 
         /* Store outlier in ring buffer but don't update filter */
         filter->samples[filter->head].raw_offset_us = raw_offset_us;
         filter->samples[filter->head].timestamp_us = timestamp_us;
+        filter->samples[filter->head].rtt_us = rtt_us;  /* UTLP Phase 1: Store RTT */
         filter->samples[filter->head].sequence = sequence;
         filter->samples[filter->head].outlier = true;
 
@@ -746,6 +989,11 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
         /* Return previous filtered value (reject outlier) */
         return filter->filtered_offset_us;
     }
+
+    /* UTLP Phase 1: MDPS quality weighting
+     * Samples with RTT near minimum get full weight, higher RTT get reduced weight
+     */
+    bool is_min_delay = mdps_is_min_delay_sample(mdps, rtt_us);
 
     /* Dual-alpha fast-attack: Check if we should switch from fast to slow alpha */
     if (filter->fast_attack_active) {
@@ -785,20 +1033,33 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
     }
 
     /* Valid sample: Apply EMA filter with selected alpha
+     * UTLP Phase 1: Minimum-delay samples get higher alpha (more weight)
      * Formula: filtered = (alpha/100 * raw) + ((100-alpha)/100 * filtered)
      *
      * Dual-alpha fast-attack:
      * - Fast alpha (30%) until N=12 or early convergence detected
      * - Slow alpha (10%) for long-term stability after convergence
      */
-    uint8_t alpha = filter->fast_attack_active ? TIME_FILTER_ALPHA_FAST_PCT : TIME_FILTER_ALPHA_PCT;
+    uint8_t base_alpha = filter->fast_attack_active ? TIME_FILTER_ALPHA_FAST_PCT : TIME_FILTER_ALPHA_PCT;
+    uint8_t alpha = base_alpha;
+
+    /* MDPS bonus: Give minimum-delay samples 50% more weight */
+    if (is_min_delay && rtt_us > 0) {
+        alpha = (base_alpha * 3) / 2;  /* 1.5x weight */
+        if (alpha > 50) alpha = 50;    /* Cap at 50% */
+    }
+
     int64_t alpha_term = (raw_offset_us * alpha) / 100;
     int64_t history_term = (filter->filtered_offset_us * (100 - alpha)) / 100;
     filter->filtered_offset_us = alpha_term + history_term;
 
+    /* UTLP Phase 1: Update Kalman filter for drift tracking */
+    kalman_update(kalman, raw_offset_us, rtt_us, timestamp_us);
+
     /* Store in ring buffer */
     filter->samples[filter->head].raw_offset_us = raw_offset_us;
     filter->samples[filter->head].timestamp_us = timestamp_us;
+    filter->samples[filter->head].rtt_us = rtt_us;  /* UTLP Phase 1: Store RTT */
     filter->samples[filter->head].sequence = sequence;
     filter->samples[filter->head].outlier = false;
 
@@ -809,9 +1070,15 @@ static int64_t update_time_filter(int64_t raw_offset_us, uint64_t timestamp_us, 
     /* Log filter statistics every 10 samples (avoid log spam) */
     if (filter->sample_count % 10 == 0) {
         uint32_t outlier_pct = (filter->outlier_count * 100) / filter->sample_count;
-        ESP_LOGI(TAG, "Filter stats: samples=%lu, outliers=%lu (%lu%%), filtered=%" PRId64 " μs, last_raw=%" PRId64 " μs",
+        ESP_LOGI(TAG, "Filter stats: samples=%lu, outliers=%lu (%lu%%), EMA=%" PRId64 " µs, Kalman=%.0f µs, drift=%.2f µs/s",
                  filter->sample_count, filter->outlier_count, outlier_pct,
-                 filter->filtered_offset_us, raw_offset_us);
+                 filter->filtered_offset_us, kalman->offset_us, kalman->drift_ppm);
+
+        /* Log MDPS stats if active */
+        if (mdps->count >= MDPS_MIN_SAMPLES) {
+            ESP_LOGI(TAG, "MDPS: min_RTT=%lu µs, samples=%u, is_min_delay=%s",
+                     (unsigned long)mdps->min_rtt_us, mdps->count, is_min_delay ? "yes" : "no");
+        }
     }
 
     return filter->filtered_offset_us;
@@ -1711,9 +1978,11 @@ esp_err_t time_sync_update_from_paired_timestamps(
     /* Feed paired offset into EMA filter for smoothing
      * This overwrites the one-way offset with the bias-corrected value.
      * Using the same filter ensures consistency and outlier rejection.
+     * UTLP Phase 1: Pass RTT for MDPS minimum delay selection.
      */
+    uint32_t rtt_u32 = (rtt > 0 && rtt < UINT32_MAX) ? (uint32_t)rtt : 0;
     int64_t filtered_offset = update_time_filter(paired_offset, t4_server_rx_time_us,
-                                                  g_time_sync_state.sync_sequence);
+                                                  g_time_sync_state.sync_sequence, rtt_u32);
     g_time_sync_state.clock_offset_us = filtered_offset;
 
     /* Update quality metrics with RTT */

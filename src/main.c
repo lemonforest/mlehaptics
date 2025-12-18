@@ -49,6 +49,7 @@
 #include "power_manager.h"
 #include "time_sync_task.h"
 #include "firmware_version.h"
+#include "role_manager.h"
 
 static const char *TAG = "MAIN";
 
@@ -241,6 +242,15 @@ static esp_err_t init_hardware(void) {
     ret = nvs_manager_init();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "NVS Manager init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // 1b. Initialize Role Manager (Bug #111 Fix)
+    // Must be initialized early - zone_config depends on role_get_current()
+    ESP_LOGI(TAG, "Initializing Role Manager...");
+    ret = role_manager_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Role Manager init failed: %s", esp_err_to_name(ret));
         return ret;
     }
 

@@ -138,6 +138,37 @@ extern "C" {
 #define TIME_FILTER_CONVERGENCE_THRESHOLD_US (50U)  // 50µs stability over 4 beacons
 
 /*******************************************************************************
+ * UTLP PHASE 1: MDPS + KALMAN FILTER CONSTANTS (UTLP_Technical_Supplement_S1)
+ ******************************************************************************/
+
+/** @brief MDPS: Ring buffer size for RTT history (must be power of 2 for efficiency) */
+#define MDPS_RING_SIZE          (16U)
+
+/** @brief MDPS: Percentile for minimum delay selection (10th percentile = position 1-2 of 16) */
+#define MDPS_PERCENTILE_IDX     (1U)    // Use 2nd lowest RTT (10th percentile of 16 samples)
+
+/** @brief MDPS: Minimum samples before MDPS is active (use EMA until then) */
+#define MDPS_MIN_SAMPLES        (4U)
+
+/** @brief Kalman: Process noise for offset (microseconds^2 per second) */
+#define KALMAN_Q_OFFSET         (100.0f)    // 10 µs/s standard deviation
+
+/** @brief Kalman: Process noise for drift rate (ppm^2 per second) */
+#define KALMAN_Q_DRIFT          (0.01f)     // 0.1 ppm/s standard deviation
+
+/** @brief Kalman: Initial measurement noise (microseconds^2) - conservative */
+#define KALMAN_R_INITIAL        (10000.0f)  // 100 µs standard deviation initially
+
+/** @brief Kalman: Minimum measurement noise (microseconds^2) */
+#define KALMAN_R_MIN            (100.0f)    // 10 µs floor
+
+/** @brief Kalman: Initial covariance for offset (microseconds^2) */
+#define KALMAN_P_OFFSET_INIT    (1000000.0f) // 1000 µs uncertainty initially
+
+/** @brief Kalman: Initial covariance for drift (ppm^2) */
+#define KALMAN_P_DRIFT_INIT     (1.0f)      // 1 ppm uncertainty initially
+
+/*******************************************************************************
  * TYPE DEFINITIONS
  ******************************************************************************/
 
@@ -145,13 +176,59 @@ extern "C" {
  * @brief Phase 6r: Time sample for ring buffer (AD043)
  *
  * Stores individual beacon measurements for debugging and outlier detection.
+ * UTLP Phase 1: Added RTT for MDPS minimum delay selection.
  */
 typedef struct {
     int64_t  raw_offset_us;      /**< Raw offset measurement (rx_time - server_time) */
     uint64_t timestamp_us;       /**< When this sample was taken */
+    uint32_t rtt_us;             /**< Round-trip time for this sample (UTLP MDPS) */
     uint8_t  sequence;           /**< Beacon sequence number */
     bool     outlier;            /**< True if rejected as outlier (>200ms deviation) */
 } time_sample_t;
+
+/**
+ * @brief UTLP Phase 1: Two-State Kalman Filter (offset + drift)
+ *
+ * Joint estimation of clock offset and drift rate per UTLP_Technical_Supplement_S1.
+ * State vector: [offset_us, drift_ppm]
+ * Covariance matrix: 2x2 (P[0][0]=offset variance, P[1][1]=drift variance)
+ *
+ * JPL Rule 1: Static allocation, no dynamic memory.
+ */
+typedef struct {
+    /* State estimates */
+    float offset_us;             /**< Estimated clock offset (microseconds) */
+    float drift_ppm;             /**< Estimated drift rate (parts per million) */
+
+    /* 2x2 Covariance matrix (symmetric, store upper triangle) */
+    float P[2][2];               /**< P[0][0]=offset var, P[1][1]=drift var, P[0][1]=cross */
+
+    /* Measurement noise (adaptive based on RTT variance) */
+    float R;                     /**< Current measurement noise variance (µs²) */
+
+    /* Timing for prediction step */
+    uint64_t last_update_us;     /**< Timestamp of last Kalman update */
+
+    /* Status */
+    bool initialized;            /**< True after first measurement */
+} kalman_state_t;
+
+/**
+ * @brief UTLP Phase 1: MDPS (Minimum Delay Packet Selection) state
+ *
+ * Maintains sorted RTT history to select 10th percentile samples.
+ * Per UTLP spec, minimum-delay packets have least queueing delay,
+ * giving most accurate offset measurements.
+ *
+ * JPL Rule 1: Fixed-size ring buffer, no dynamic allocation.
+ */
+typedef struct {
+    uint32_t rtt_history[MDPS_RING_SIZE];  /**< Ring buffer of RTT values */
+    int64_t  offset_history[MDPS_RING_SIZE]; /**< Corresponding offset values */
+    uint8_t  head;                          /**< Next write index */
+    uint8_t  count;                         /**< Number of valid samples (0-16) */
+    uint32_t min_rtt_us;                    /**< Current 10th percentile RTT */
+} mdps_state_t;
 
 /**
  * @brief Phase 6r: EMA filter state (AD043 - Filtered Time Sync)
@@ -278,6 +355,10 @@ typedef struct {
     int64_t  asymmetry_us;           /**< EMA-filtered path asymmetry (fwd + rev offset) */
     uint32_t asymmetry_sample_count; /**< Number of valid asymmetry samples received */
     bool     asymmetry_valid;        /**< True after MIN_ASYMMETRY_SAMPLES collected */
+
+    /* UTLP Phase 1: MDPS + Kalman Filter (UTLP_Technical_Supplement_S1) */
+    mdps_state_t   mdps;             /**< Minimum Delay Packet Selection state */
+    kalman_state_t kalman;           /**< Two-state Kalman filter (offset + drift) */
 } time_sync_state_t;
 
 /**

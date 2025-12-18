@@ -417,7 +417,8 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ### For Developers
 - **[docs/ai_context.md](docs/ai_context.md)**: Complete API contracts and rebuild instructions with JPL compliance
-- **[docs/adr/README.md](docs/adr/README.md)**: Architecture Decision Records (47 ADRs documenting design rationale)
+- **[docs/adr/README.md](docs/adr/README.md)**: Architecture Decision Records (48 ADRs documenting design rationale)
+- **[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)**: Known bugs and limitations being tracked for resolution
 - **[docs/requirements_spec.md](docs/requirements_spec.md)**: Business requirements with development standards
 - **[CLAUDE.md](CLAUDE.md)**: Developer reference for AI-assisted workflow
 - **Doxygen docs**: Run `doxygen Doxyfile` for comprehensive API documentation
