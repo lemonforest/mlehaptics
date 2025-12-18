@@ -452,7 +452,9 @@ typedef enum {
     SYNC_MSG_REVERSE_PROBE,        /**< IEEE 1588 bidirectional: CLIENT→SERVER with T1' timestamp */
     SYNC_MSG_REVERSE_PROBE_RESPONSE, /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
     SYNC_MSG_FIRMWARE_VERSION = 0x10, /**< AD040: One-time firmware version exchange after MTU */
-    SYNC_MSG_HARDWARE_INFO = 0x11    /**< AD048: One-time hardware info exchange (silicon rev, FTM capability) */
+    SYNC_MSG_HARDWARE_INFO = 0x11,   /**< AD048: One-time hardware info exchange (silicon rev, FTM capability) */
+    SYNC_MSG_PHASE_QUERY = 0x12,     /**< AD049: Phase coherence query - "how long until your next active?" */
+    SYNC_MSG_PHASE_RESPONSE = 0x13   /**< AD049: Phase coherence response - ms until next ACTIVE state */
 } sync_message_type_t;
 
 /**
@@ -622,6 +624,23 @@ typedef struct __attribute__((packed)) {
 } hardware_info_t;
 
 /**
+ * @brief Phase coherence response payload for SYNC_MSG_PHASE_RESPONSE (AD049)
+ *
+ * Direct phase measurement: responder reports time until their next ACTIVE state.
+ * Queryer compares to their own time-until-INACTIVE for antiphase verification.
+ *
+ * Key insight: If antiphase is correct, peer's time_to_active == my time_to_inactive.
+ * Phase error = peer_ms_to_active - my_ms_to_inactive (transmission delay cancels out).
+ *
+ * Logging only for now - diagnostics to validate approach before using for correction.
+ */
+typedef struct __attribute__((packed)) {
+    uint32_t ms_to_active;    /**< Milliseconds until responder's next ACTIVE state */
+    uint32_t current_cycle;   /**< Current cycle number (for correlation/debugging) */
+    uint8_t current_state;    /**< Responder's current state (0=INACTIVE, 1=ACTIVE) */
+} phase_response_t;
+
+/**
  * @brief Coordination message structure (Phase 3)
  *
  * Unified message format for all peer-to-peer coordination
@@ -645,7 +664,8 @@ typedef struct __attribute__((packed)) {
         reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
         firmware_version_t firmware_version; /**< FIRMWARE_VERSION: AD040 one-time version exchange */
         hardware_info_t hardware_info;       /**< HARDWARE_INFO: AD048 one-time hardware info exchange */
-        // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
+        phase_response_t phase_response;     /**< PHASE_RESPONSE: AD049 direct phase coherence measurement */
+        // MODE_CHANGE_ACK, SHUTDOWN, START_ADVERTISING, and PHASE_QUERY have no payload
     } payload;
 } coordination_message_t;
 

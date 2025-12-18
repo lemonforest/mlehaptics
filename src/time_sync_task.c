@@ -1189,6 +1189,141 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             break;
         }
 
+        case SYNC_MSG_PHASE_QUERY: {
+            // AD049: Peer is asking "how long until your next ACTIVE state?"
+            // Calculate our time to next active and respond
+            uint64_t epoch_us = 0;
+            uint32_t cycle_ms = 0;
+            esp_err_t err = time_sync_get_motor_epoch(&epoch_us, &cycle_ms);
+
+            if (err != ESP_OK || epoch_us == 0 || cycle_ms == 0) {
+                ESP_LOGW(TAG, "AD049: Phase query received but motor epoch not set");
+                break;
+            }
+
+            uint64_t now_us = esp_timer_get_time();
+            uint64_t elapsed_us = now_us - epoch_us;
+            uint32_t cycle_us = cycle_ms * 1000;
+
+            // Position within current cycle (0 to cycle_us)
+            uint32_t pos_in_cycle_us = (uint32_t)(elapsed_us % cycle_us);
+            uint32_t pos_in_cycle_ms = pos_in_cycle_us / 1000;
+
+            // For phase query, we report time until OUR next ACTIVE
+            // SERVER (phase 0): ACTIVE at cycle start (pos=0)
+            // CLIENT (phase 180): ACTIVE at half-cycle (pos=cycle/2)
+            uint32_t half_cycle_ms = cycle_ms / 2;
+            uint32_t ms_to_active = 0;
+            uint8_t current_state = 0;  // 0=INACTIVE, 1=ACTIVE
+            uint32_t current_cycle = (uint32_t)(elapsed_us / cycle_us);
+
+            // Simplified: Assume we're ACTIVE for first 25% of our phase
+            // SERVER: ACTIVE 0-25%, INACTIVE 25-100%
+            // CLIENT: INACTIVE 0-50%, ACTIVE 50-75%, INACTIVE 75-100%
+            uint32_t duty_ms = cycle_ms / 4;  // 25% duty cycle assumption
+
+            if (ble_get_peer_role() == PEER_ROLE_CLIENT) {
+                // We are SERVER (peer is CLIENT) - our ACTIVE is at cycle start
+                if (pos_in_cycle_ms < duty_ms) {
+                    current_state = 1;  // ACTIVE now
+                    ms_to_active = 0;
+                } else {
+                    current_state = 0;  // INACTIVE
+                    ms_to_active = cycle_ms - pos_in_cycle_ms;
+                }
+            } else {
+                // We are CLIENT (peer is SERVER) - our ACTIVE is at half-cycle
+                if (pos_in_cycle_ms >= half_cycle_ms && pos_in_cycle_ms < half_cycle_ms + duty_ms) {
+                    current_state = 1;  // ACTIVE now
+                    ms_to_active = 0;
+                } else if (pos_in_cycle_ms < half_cycle_ms) {
+                    current_state = 0;  // INACTIVE, waiting for half-cycle
+                    ms_to_active = half_cycle_ms - pos_in_cycle_ms;
+                } else {
+                    current_state = 0;  // INACTIVE, waiting for next cycle
+                    ms_to_active = cycle_ms - pos_in_cycle_ms + half_cycle_ms;
+                }
+            }
+
+            // Send response
+            coordination_message_t response = {
+                .type = SYNC_MSG_PHASE_RESPONSE,
+                .timestamp_ms = (uint32_t)(now_us / 1000),
+            };
+            response.payload.phase_response.ms_to_active = ms_to_active;
+            response.payload.phase_response.current_cycle = current_cycle;
+            response.payload.phase_response.current_state = current_state;
+
+            ble_send_coordination_message(&response);
+            ESP_LOGD(TAG, "AD049: Phase query response: ms_to_active=%lu, state=%s, cycle=%lu",
+                     (unsigned long)ms_to_active, current_state ? "ACTIVE" : "INACTIVE",
+                     (unsigned long)current_cycle);
+            break;
+        }
+
+        case SYNC_MSG_PHASE_RESPONSE: {
+            // AD049: Peer responded with their time-to-active
+            // LOGGING ONLY - compare to our time-to-inactive for phase error detection
+            const phase_response_t *pr = &coord->payload.phase_response;
+
+            uint64_t epoch_us = 0;
+            uint32_t cycle_ms = 0;
+            esp_err_t err = time_sync_get_motor_epoch(&epoch_us, &cycle_ms);
+
+            if (err != ESP_OK || epoch_us == 0 || cycle_ms == 0) {
+                ESP_LOGW(TAG, "AD049: Phase response received but motor epoch not set");
+                break;
+            }
+
+            uint64_t now_us = esp_timer_get_time();
+            uint64_t elapsed_us = now_us - epoch_us;
+            uint32_t cycle_us = cycle_ms * 1000;
+            uint32_t pos_in_cycle_us = (uint32_t)(elapsed_us % cycle_us);
+            uint32_t pos_in_cycle_ms = pos_in_cycle_us / 1000;
+            uint32_t half_cycle_ms = cycle_ms / 2;
+            uint32_t duty_ms = cycle_ms / 4;
+
+            // Calculate OUR time to INACTIVE (which should equal peer's time to ACTIVE for antiphase)
+            uint32_t my_ms_to_inactive = 0;
+
+            if (ble_get_peer_role() == PEER_ROLE_CLIENT) {
+                // We are SERVER - our ACTIVE ends at duty_ms
+                if (pos_in_cycle_ms < duty_ms) {
+                    my_ms_to_inactive = duty_ms - pos_in_cycle_ms;
+                } else {
+                    my_ms_to_inactive = cycle_ms - pos_in_cycle_ms + duty_ms;
+                }
+            } else {
+                // We are CLIENT - our ACTIVE ends at half_cycle + duty_ms
+                uint32_t active_end = half_cycle_ms + duty_ms;
+                if (pos_in_cycle_ms >= half_cycle_ms && pos_in_cycle_ms < active_end) {
+                    my_ms_to_inactive = active_end - pos_in_cycle_ms;
+                } else if (pos_in_cycle_ms < half_cycle_ms) {
+                    my_ms_to_inactive = half_cycle_ms + duty_ms - pos_in_cycle_ms;
+                } else {
+                    my_ms_to_inactive = cycle_ms - pos_in_cycle_ms + half_cycle_ms + duty_ms;
+                }
+            }
+
+            // Phase error: If antiphase is perfect, peer's time_to_active == my time_to_inactive
+            int32_t phase_error_ms = (int32_t)pr->ms_to_active - (int32_t)my_ms_to_inactive;
+
+            // Log for diagnostic purposes (no correction applied yet)
+            if (abs(phase_error_ms) > 10) {
+                ESP_LOGW(TAG, "AD049: PHASE ERROR: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
+                         (unsigned long)pr->ms_to_active, (unsigned long)my_ms_to_inactive, (long)phase_error_ms);
+            } else {
+                ESP_LOGI(TAG, "AD049: Phase OK: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
+                         (unsigned long)pr->ms_to_active, (unsigned long)my_ms_to_inactive, (long)phase_error_ms);
+            }
+
+            ESP_LOGI(TAG, "AD049: Peer state=%s, cycle=%lu | My pos_in_cycle=%lu ms",
+                     pr->current_state ? "ACTIVE" : "INACTIVE",
+                     (unsigned long)pr->current_cycle,
+                     (unsigned long)pos_in_cycle_ms);
+            break;
+        }
+
         default:
             ESP_LOGW(TAG, "Unknown coordination message type: %d", coord->type);
             break;
@@ -1257,6 +1392,32 @@ static void perform_periodic_update(void)
         ble_log_diagnostics();
 
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
+    }
+
+    // AD049: CLIENT sends periodic phase queries for diagnostic logging
+    // Send every 10 seconds when motor is running (motor_epoch_valid)
+    static uint32_t phase_query_counter = 0;
+    phase_query_counter++;
+
+    if (phase_query_counter >= 10) {  // Every 10 seconds
+        phase_query_counter = 0;
+
+        // Only send if we're CLIENT, peer is connected, and motor is running
+        if (!TIME_SYNC_IS_SERVER() && ble_is_peer_connected()) {
+            uint64_t epoch_us = 0;
+            uint32_t cycle_ms = 0;
+            if (time_sync_get_motor_epoch(&epoch_us, &cycle_ms) == ESP_OK && epoch_us != 0) {
+                // Send phase query to SERVER
+                coordination_message_t query = {
+                    .type = SYNC_MSG_PHASE_QUERY,
+                    .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                };
+                esp_err_t qerr = ble_send_coordination_message(&query);
+                if (qerr == ESP_OK) {
+                    ESP_LOGD(TAG, "AD049: Phase query sent to SERVER");
+                }
+            }
+        }
     }
 }
 

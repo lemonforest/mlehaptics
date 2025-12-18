@@ -39,6 +39,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**AD049: Phase Coherence Query Protocol (v0.6.130)**:
+- **Purpose**: Direct antiphase validation without NTP-style timestamp exchange
+- **Core Concept**: Device A asks "how long until your next ACTIVE?", compares to own time-to-inactive
+  - If antiphase is correct: peer's time_to_active == my time_to_inactive
+  - RTT cancels out: transmission delay affects both sides equally
+- **Implementation**: Logging-only diagnostic tool (no corrections applied yet)
+  - CLIENT sends SYNC_MSG_PHASE_QUERY (0x12) every 10 seconds when motor running
+  - SERVER responds with SYNC_MSG_PHASE_RESPONSE (0x13) containing ms_to_active, current_cycle, current_state
+  - CLIENT compares peer's ms_to_active with own ms_to_inactive, logs phase error
+  - Threshold: >10ms error logged as WARNING, ≤10ms logged as INFO
+- **New Message Types**:
+  - `SYNC_MSG_PHASE_QUERY = 0x12` - Phase coherence query
+  - `SYNC_MSG_PHASE_RESPONSE = 0x13` - Response with timing data
+- **New Payload Structure**: `phase_response_t` (ms_to_active, current_cycle, current_state)
+- **Files Modified**:
+  - `src/ble_manager.h` - Add message types and payload struct
+  - `src/time_sync_task.c` - Handle query/response, add periodic 10s trigger for CLIENT
+  - `src/firmware_version.h` - Bump to v0.6.130
+
 **AD040: Peer Firmware Version Exchange (v0.6.124)**:
 - **Purpose**: Ensure both peer devices run identical firmware builds for reliable bilateral coordination
 - **Core Feature**: One-time firmware version exchange after GATT discovery completes
