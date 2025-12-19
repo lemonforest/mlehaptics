@@ -60,7 +60,7 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
 - **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (25 Total)
+### Characteristics (26 Total)
 
 **MOTOR CONTROL GROUP (8 characteristics):**
 
@@ -205,13 +205,14 @@ LOCAL Device                                     PWA
      |   (or "" if no peer connected)             |
 ```
 
-**PATTERN CONTROL GROUP (3 characteristics) - AD047:**
+**PATTERN CONTROL GROUP (4 characteristics) - AD047:**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
 | `...0217` | Pattern Control | uint8 | W | 0-255 | 0=stop, 1=start, 2+=select builtin pattern ID |
 | `...0218` | Pattern Data | bytes | W | max 512 | Chunked transfer for custom patterns (future) |
 | `...0219` | Pattern Status | uint8 | R/Notify | 0-2 | 0=stopped, 1=playing, 2=error |
+| `...021A` | Pattern List | JSON | R | ~150 bytes | Array of available patterns with id, name, desc |
 
 **Pattern Control Commands:**
 ```c
@@ -224,12 +225,25 @@ LOCAL Device                                     PWA
 // 5+ = Reserved for additional builtin patterns
 ```
 
+**Pattern List JSON Format:**
+```json
+[
+  {"id":2,"name":"Alternating","desc":"Green bilateral"},
+  {"id":3,"name":"Emergency","desc":"Red/blue wig-wag"},
+  {"id":4,"name":"Breathe","desc":"Cyan pulse"}
+]
+```
+- `id`: Pattern Control write value to load this pattern
+- `name`: Short display name for UI
+- `desc`: Brief description
+
 **Usage Flow:**
-1. PWA writes Mode=5 (`0x0201`) to enter pattern mode
-2. PWA writes Pattern Control=2 (`0x0217`) to load and start alternating pattern
-3. Device executes pattern via `pattern_execute_tick()`
-4. PWA can read Pattern Status (`0x0219`) to monitor playback
-5. PWA writes Pattern Control=0 to stop
+1. PWA reads Pattern List (`0x021A`) on connection to discover available patterns
+2. PWA writes Mode=5 (`0x0201`) to enter pattern mode
+3. PWA writes Pattern Control=2 (`0x0217`) to load and start alternating pattern
+4. Device executes pattern via `pattern_execute_tick()`
+5. PWA can read Pattern Status (`0x0219`) to monitor playback
+6. PWA writes Pattern Control=0 to stop
 
 **Pattern Data (Future):**
 - Chunked transfer protocol for custom pattern segments
@@ -568,7 +582,7 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2), Time (1), Hardware (2), Pattern (3) = 25 characteristics
+- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2), Time (1), Hardware (2), Pattern (4) = 26 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)
@@ -712,4 +726,4 @@ Git commit: TBD (migration commit)
 ---
 
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** 2025-12-17
+**Last Updated:** 2025-12-18

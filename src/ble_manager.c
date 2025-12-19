@@ -214,6 +214,10 @@ static const ble_uuid128_t uuid_char_pattern_status = BLE_UUID128_INIT(
     0x19, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+static const ble_uuid128_t uuid_char_pattern_list = BLE_UUID128_INIT(
+    0x1a, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // ============================================================================
 // UUID-SWITCHING CONFIGURATION (Phase 1b.3)
 // ============================================================================
@@ -1913,6 +1917,22 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_UNLIKELY;  // Read+Notify only, no write
     }
 
+    // Pattern List (0x021A) - Read-only: JSON list of available patterns
+    // PWA reads once on connection to discover available patterns
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_list.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            // Static JSON - pattern IDs match Pattern Control write values
+            static const char pattern_list_json[] =
+                "[{\"id\":2,\"name\":\"Alternating\",\"desc\":\"Green bilateral\"},"
+                "{\"id\":3,\"name\":\"Emergency\",\"desc\":\"Red/blue wig-wag\"},"
+                "{\"id\":4,\"name\":\"Breathe\",\"desc\":\"Cyan pulse\"}]";
+
+            int rc = os_mbuf_append(ctxt->om, pattern_list_json, strlen(pattern_list_json));
+            return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Read-only
+    }
+
     // Unknown characteristic
     return BLE_ATT_ERR_UNLIKELY;
 }
@@ -2110,6 +2130,11 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = &uuid_char_pattern_status.u,
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,  // Read + Notify: 0=stopped, 1=playing, 2=error
+            },
+            {
+                .uuid = &uuid_char_pattern_list.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,  // Read-only: JSON list of available patterns
             },
             {
                 0, // No more characteristics
