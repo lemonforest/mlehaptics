@@ -1253,7 +1253,7 @@ void motor_task(void *pvParameters) {
 
                                     // AD047: Handle pattern mode transitions
                                     if (MODE_IS_PATTERN(new_mode) && !MODE_IS_PATTERN(old_mode)) {
-                                        // Entering pattern mode: Load and start pattern
+                                        // Entering pattern mode: Load default pattern (BLE can override via Pattern Control)
                                         pattern_playback_init();
                                         pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
                                         pattern_start(0);  // Start immediately
@@ -1361,7 +1361,7 @@ void motor_task(void *pvParameters) {
 
                             // AD047: Handle pattern mode transitions (synchronized)
                             if (MODE_IS_PATTERN(armed_new_mode) && !MODE_IS_PATTERN(old_mode)) {
-                                // Entering pattern mode: Load and start pattern
+                                // Entering pattern mode: Load default pattern (BLE can override via Pattern Control)
                                 pattern_playback_init();
                                 pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
                                 // Start at synchronized epoch time for bilateral coordination

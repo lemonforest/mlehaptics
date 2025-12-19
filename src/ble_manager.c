@@ -1859,6 +1859,31 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                     break;
             }
 
+            // Sync pattern selection to peer device (if connected)
+            if (err == ESP_OK && ble_is_peer_connected()) {
+                // Get synchronized start time for bilateral coordination
+                uint64_t start_time_us = 0;
+                time_sync_get_time(&start_time_us);
+
+                // Send pattern change to peer with same start time
+                coordination_message_t coord_msg = {
+                    .type = SYNC_MSG_PATTERN_CHANGE,
+                    .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                    .payload.pattern_sync = {
+                        .control_cmd = control_cmd,
+                        .start_time_us = start_time_us
+                    }
+                };
+
+                esp_err_t send_err = ble_send_coordination_message(&coord_msg);
+                if (send_err == ESP_OK) {
+                    ESP_LOGI(TAG, "Pattern sync sent to peer: cmd=%d, start=%llu",
+                             control_cmd, (unsigned long long)start_time_us);
+                } else {
+                    ESP_LOGW(TAG, "Failed to send pattern sync to peer: %s", esp_err_to_name(send_err));
+                }
+            }
+
             // TODO: Send notification to subscribed clients with updated pattern_status
             return (err == ESP_OK) ? 0 : BLE_ATT_ERR_UNLIKELY;
         }

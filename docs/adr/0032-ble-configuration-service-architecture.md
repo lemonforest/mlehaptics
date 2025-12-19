@@ -218,9 +218,10 @@ LOCAL Device                                     PWA
 // Write values to Pattern Control characteristic:
 // 0 = pattern_stop() - Stop current pattern
 // 1 = pattern_start(now) - Start/resume current pattern
-// 2 = pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING) + start
-// 3 = pattern_load_builtin(BUILTIN_PATTERN_EMERGENCY) + start (future)
-// 4+ = Reserved for additional builtin patterns
+// 2 = pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING) + start  (green bilateral)
+// 3 = pattern_load_builtin(BUILTIN_PATTERN_EMERGENCY) + start    (red/blue wig-wag)
+// 4 = pattern_load_builtin(BUILTIN_PATTERN_BREATHE) + start      (cyan pulse)
+// 5+ = Reserved for additional builtin patterns
 ```
 
 **Usage Flow:**

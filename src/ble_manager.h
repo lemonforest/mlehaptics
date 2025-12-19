@@ -454,7 +454,8 @@ typedef enum {
     SYNC_MSG_FIRMWARE_VERSION = 0x10, /**< AD040: One-time firmware version exchange after MTU */
     SYNC_MSG_HARDWARE_INFO = 0x11,   /**< AD048: One-time hardware info exchange (silicon rev, FTM capability) */
     SYNC_MSG_PHASE_QUERY = 0x12,     /**< Phase coherence query - "how long until your next active?" */
-    SYNC_MSG_PHASE_RESPONSE = 0x13   /**< Phase coherence response - ms until next ACTIVE state */
+    SYNC_MSG_PHASE_RESPONSE = 0x13,  /**< Phase coherence response - ms until next ACTIVE state */
+    SYNC_MSG_PATTERN_CHANGE = 0x14   /**< AD047: Pattern selection sync (builtin_pattern_id + start_time) */
 } sync_message_type_t;
 
 /**
@@ -547,6 +548,17 @@ typedef struct __attribute__((packed)) {
     uint64_t motor_epoch_us;       /**< SERVER's motor epoch (cycle start time) */
     uint32_t motor_cycle_ms;       /**< Motor cycle period in ms */
 } motor_started_t;
+
+/**
+ * @brief Pattern sync payload for SYNC_MSG_PATTERN_CHANGE (AD047)
+ *
+ * Sent from SERVER to CLIENT when PWA changes pattern selection.
+ * Enables synchronized pattern playback across both devices.
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  control_cmd;          /**< Pattern control: 0=stop, 1=start, 2+=load builtin */
+    uint64_t start_time_us;        /**< Synchronized start time for bilateral coordination */
+} pattern_sync_t;
 
 /**
  * @brief Activation report payload for SYNC_MSG_ACTIVATION_REPORT
@@ -665,6 +677,7 @@ typedef struct __attribute__((packed)) {
         firmware_version_t firmware_version; /**< FIRMWARE_VERSION: AD040 one-time version exchange */
         hardware_info_t hardware_info;       /**< HARDWARE_INFO: AD048 one-time hardware info exchange */
         phase_response_t phase_response;     /**< PHASE_RESPONSE: Direct phase coherence measurement */
+        pattern_sync_t pattern_sync;         /**< PATTERN_CHANGE: AD047 pattern selection sync */
         // MODE_CHANGE_ACK, SHUTDOWN, START_ADVERTISING, and PHASE_QUERY have no payload
     } payload;
 } coordination_message_t;

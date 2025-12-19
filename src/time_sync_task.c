@@ -27,6 +27,7 @@
 #include "status_led.h"        // AD040: Version mismatch LED pattern
 #include "motor_task.h"        // Phase 2: Beacon-triggered back-EMF logging
 #include "button_task.h"       // Phase 3: Queue externs for coordination forwarding
+#include "pattern_playback.h"  // AD047: Pattern sync between devices
 
 static const char *TAG = "TIME_SYNC_TASK";
 
@@ -1381,6 +1382,38 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                      pr->current_state ? "ACTIVE" : "INACTIVE",
                      (unsigned long)pr->current_cycle,
                      (unsigned long)pos_in_cycle_ms);
+            break;
+        }
+
+        case SYNC_MSG_PATTERN_CHANGE: {
+            // AD047: Handle pattern selection sync from SERVER (peer relay)
+            const pattern_sync_t *ps = &coord->payload.pattern_sync;
+
+            ESP_LOGI(TAG, "Pattern sync received: cmd=%d, start_time=%llu",
+                     ps->control_cmd, (unsigned long long)ps->start_time_us);
+
+            // Execute pattern command (same logic as BLE Pattern Control)
+            if (ps->control_cmd == 0) {
+                // Stop pattern
+                pattern_stop();
+                ESP_LOGI(TAG, "Pattern stopped via sync");
+            } else if (ps->control_cmd == 1) {
+                // Start current pattern
+                pattern_start(ps->start_time_us);
+                ESP_LOGI(TAG, "Pattern started via sync");
+            } else if (ps->control_cmd >= 2 && ps->control_cmd <= 4) {
+                // Load and start builtin pattern (BLE cmd 2→enum 1, cmd 3→enum 2, etc.)
+                builtin_pattern_id_t pattern_id = (builtin_pattern_id_t)(ps->control_cmd - 1);
+                if (pattern_id < BUILTIN_PATTERN_COUNT) {
+                    pattern_load_builtin(pattern_id);
+                    pattern_start(ps->start_time_us);
+                    ESP_LOGI(TAG, "Pattern %d loaded and started via sync", pattern_id);
+                } else {
+                    ESP_LOGW(TAG, "Invalid pattern ID: %d", pattern_id);
+                }
+            } else {
+                ESP_LOGW(TAG, "Unknown pattern control command: %d", ps->control_cmd);
+            }
             break;
         }
 
