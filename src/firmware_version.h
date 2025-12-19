@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 132  // TDM spike concluded (dead end), Phase Query retained
+#define FIRMWARE_VERSION_PATCH 135  // AD048: ESP-NOW key exchange with HKDF session key derivation
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

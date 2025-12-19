@@ -17,6 +17,7 @@
 #include "time_sync_task.h" // Phase 2: Time sync task integration
 #include "firmware_version.h" // AD040: Firmware version enforcement
 #include "pattern_playback.h" // AD047: Pattern playback control for Mode 5
+#include "espnow_transport.h" // AD048: ESP-NOW transport for low-latency time sync
 #include "esp_chip_info.h"    // AD048: Silicon revision for hardware info characteristic
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -1577,14 +1578,14 @@ static int gatt_bilateral_time_sync_write(uint16_t conn_handle, uint16_t attr_ha
     // Get receive timestamp ASAP for accuracy (Phase 6r: One-way timestamp protocol)
     uint64_t receive_time_us = esp_timer_get_time();
 
-    // Forward beacon to time_sync_task for processing
-    esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
+    // Forward beacon to time_sync_task for processing (AD048: mark as BLE transport)
+    esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us, BEACON_TRANSPORT_BLE);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send beacon to time_sync_task: %s", esp_err_to_name(err));
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    ESP_LOGD(TAG, "Time sync beacon forwarded to task (seq: %u)", beacon.sequence);
+    ESP_LOGD(TAG, "Time sync beacon forwarded to task via BLE (seq: %u)", beacon.sequence);
 
     return 0;
 }
@@ -2435,6 +2436,14 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
         esp_err_t hw_err = ble_send_hardware_info_to_peer();
         if (hw_err != ESP_OK) {
             ESP_LOGW(TAG, "AD048: Hardware info send failed: %s", esp_err_to_name(hw_err));
+        }
+
+        // AD048: Send WiFi MAC for ESP-NOW transport setup (if ESP-NOW initialized)
+        if (espnow_transport_get_state() != ESPNOW_STATE_UNINITIALIZED) {
+            esp_err_t mac_err = ble_send_wifi_mac_to_peer();
+            if (mac_err != ESP_OK) {
+                ESP_LOGW(TAG, "AD048: WiFi MAC send failed: %s", esp_err_to_name(mac_err));
+            }
         }
     }
 
@@ -3392,12 +3401,12 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                          actual_len, (unsigned)sizeof(beacon));
             }
 
-            // Forward beacon to time_sync_task for processing
-            esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
+            // Forward beacon to time_sync_task for processing (AD048: mark as BLE transport)
+            esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us, BEACON_TRANSPORT_BLE);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to queue beacon to time_sync_task: %s", esp_err_to_name(err));
             } else {
-                ESP_LOGD(TAG, "Beacon notification queued (seq=%u, server_time=%llu μs)",
+                ESP_LOGD(TAG, "Beacon notification queued via BLE (seq=%u, server_time=%llu μs)",
                          beacon.sequence, beacon.server_time_us);
             }
 
@@ -4924,7 +4933,21 @@ esp_err_t ble_send_time_sync_beacon(void) {
     // Original T1 was set in time_sync_generate_beacon() ~1-50ms earlier.
     time_sync_finalize_beacon_timestamp(&beacon);
 
-    // Send notification to peer (while holding mutex)
+    // AD048: Try ESP-NOW first (±100μs jitter vs BLE's ±50ms)
+    // ESP-NOW provides sub-millisecond latency for time-critical beacons
+    bool espnow_sent = false;
+    if (espnow_transport_is_ready()) {
+        esp_err_t espnow_err = espnow_transport_send_beacon(&beacon);
+        if (espnow_err == ESP_OK) {
+            espnow_sent = true;
+            ESP_LOGD(TAG, "AD048: Beacon sent via ESP-NOW (low latency)");
+        } else {
+            ESP_LOGW(TAG, "AD048: ESP-NOW send failed: %s, using BLE fallback",
+                     esp_err_to_name(espnow_err));
+        }
+    }
+
+    // Send notification to peer via BLE (redundancy or fallback)
     struct os_mbuf *om = ble_hs_mbuf_from_flat(&beacon, sizeof(beacon));
     if (om == NULL) {
         ESP_LOGE(TAG, "Failed to allocate mbuf for sync beacon");
@@ -4942,9 +4965,10 @@ esp_err_t ble_send_time_sync_beacon(void) {
     // Only update global after successful send (while still holding mutex)
     g_time_sync_beacon = beacon;
 
-    // Debug: Log beacon size and checksum for truncation diagnosis
-    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X",
-             (unsigned)sizeof(beacon), beacon.sequence, beacon.checksum);
+    // Debug: Log beacon size, transport, and checksum for truncation diagnosis
+    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X [%s%s]",
+             (unsigned)sizeof(beacon), beacon.sequence, beacon.checksum,
+             espnow_sent ? "ESP-NOW" : "", espnow_sent ? "+BLE" : "BLE");
     xSemaphoreGive(time_sync_beacon_mutex);
 
     ESP_LOGD(TAG, "Sync beacon sent to peer (seq=%u)", beacon.sequence);
@@ -5715,6 +5739,65 @@ void ble_set_peer_hardware_info(const char *hardware_str) {
 
 const char* ble_get_local_hardware_info(void) {
     return local_hardware_info_str;
+}
+
+esp_err_t ble_send_wifi_mac_to_peer(void) {
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "AD048: Cannot send WiFi MAC - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    coordination_message_t msg = {
+        .type = SYNC_MSG_WIFI_MAC,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+
+    // Get local WiFi MAC address for ESP-NOW
+    esp_err_t err = espnow_transport_get_local_mac(msg.payload.wifi_mac.mac);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "AD048: Failed to get WiFi MAC: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    ESP_LOGI(TAG, "AD048: Sending WiFi MAC to peer: %02X:%02X:%02X:%02X:%02X:%02X",
+             msg.payload.wifi_mac.mac[0], msg.payload.wifi_mac.mac[1],
+             msg.payload.wifi_mac.mac[2], msg.payload.wifi_mac.mac[3],
+             msg.payload.wifi_mac.mac[4], msg.payload.wifi_mac.mac[5]);
+
+    err = ble_send_coordination_message(&msg);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "AD048: Failed to send WiFi MAC: %s", esp_err_to_name(err));
+    }
+
+    return err;
+}
+
+esp_err_t ble_send_espnow_key_exchange(const uint8_t nonce[8], const uint8_t server_mac[6]) {
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "AD048: Cannot send key exchange - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    coordination_message_t msg = {
+        .type = SYNC_MSG_ESPNOW_KEY_EXCHANGE,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+
+    // Copy nonce and server MAC to payload
+    memcpy(msg.payload.espnow_key.nonce, nonce, 8);
+    memcpy(msg.payload.espnow_key.server_mac, server_mac, 6);
+
+    ESP_LOGI(TAG, "AD048: Sending ESP-NOW key exchange to CLIENT");
+    ESP_LOGI(TAG, "  Nonce: %02X%02X%02X%02X%02X%02X%02X%02X",
+             nonce[0], nonce[1], nonce[2], nonce[3],
+             nonce[4], nonce[5], nonce[6], nonce[7]);
+
+    esp_err_t err = ble_send_coordination_message(&msg);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "AD048: Failed to send key exchange: %s", esp_err_to_name(err));
+    }
+
+    return err;
 }
 
 esp_err_t ble_manager_deinit(void) {

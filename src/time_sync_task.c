@@ -22,12 +22,15 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_task_wdt.h"
+#include "esp_random.h"        // AD048: Hardware RNG for nonce generation
 #include "ble_manager.h"
 #include "firmware_version.h"  // AD040: Firmware version checking
 #include "status_led.h"        // AD040: Version mismatch LED pattern
 #include "motor_task.h"        // Phase 2: Beacon-triggered back-EMF logging
 #include "button_task.h"       // Phase 3: Queue externs for coordination forwarding
 #include "pattern_playback.h"  // AD047: Pattern sync between devices
+#include "espnow_transport.h"  // AD048: ESP-NOW transport for low-latency beacons
+#include <string.h>            // AD048: memcpy, memset for MAC/key handling
 
 static const char *TAG = "TIME_SYNC_TASK";
 
@@ -49,6 +52,9 @@ static volatile bool client_ready_received = false;
 
 /** @brief Bug #11 fix: Buffer CLIENT_READY if received before time_sync initialized */
 static volatile bool client_ready_buffered = false;
+
+/** @brief AD048: Last processed beacon sequence for deduplication (ESP-NOW + BLE) */
+static uint8_t last_processed_beacon_seq = 255;  // Init to unlikely value
 
 #if TDM_TECH_SPIKE_ENABLED
 /*******************************************************************************
@@ -88,6 +94,29 @@ static volatile uint64_t buffered_t1_us = 0;
 static volatile uint64_t buffered_t2_us = 0;
 
 /*******************************************************************************
+ * AD048: ESP-NOW KEY EXCHANGE STATE
+ *
+ * Storage for peer WiFi MAC and nonce during key derivation.
+ * Flow:
+ * 1. Both devices exchange WIFI_MAC messages
+ * 2. SERVER generates nonce, sends KEY_EXCHANGE to CLIENT
+ * 3. Both derive LMK using HKDF(server_mac || client_mac || nonce)
+ * 4. Both configure encrypted ESP-NOW peer
+ ******************************************************************************/
+
+/** @brief Stored peer WiFi MAC for key derivation */
+static uint8_t peer_wifi_mac[6] = {0};
+
+/** @brief Flag indicating peer MAC has been received */
+static bool peer_wifi_mac_received = false;
+
+/** @brief Server-generated nonce for key derivation (only valid on SERVER) */
+static uint8_t session_nonce[8] = {0};
+
+/** @brief Flag indicating key exchange is complete (encrypted ESP-NOW ready) */
+static bool espnow_key_exchange_complete = false;
+
+/*******************************************************************************
  * PRIVATE FUNCTION DECLARATIONS
  ******************************************************************************/
 
@@ -97,6 +126,7 @@ static void handle_disconnection_message(void);
 static void handle_beacon_message(const time_sync_message_t *msg);
 static void handle_coordination_message(const time_sync_message_t *msg);
 static void perform_periodic_update(void);
+static void espnow_beacon_recv_callback(const time_sync_beacon_t *beacon, uint64_t rx_time_us);
 
 /*******************************************************************************
  * PUBLIC API IMPLEMENTATION
@@ -130,6 +160,11 @@ esp_err_t time_sync_task_init(void)
 
     ESP_LOGI(TAG, "Time sync task created (priority=%d, stack=%d bytes)",
              TIME_SYNC_TASK_PRIORITY, TIME_SYNC_TASK_STACK_SIZE);
+
+    // AD048: Register ESP-NOW beacon callback for low-latency beacon delivery
+    // The callback runs in WiFi task context and queues beacons to time_sync_task
+    espnow_transport_register_callback(espnow_beacon_recv_callback);
+    ESP_LOGI(TAG, "AD048: ESP-NOW beacon callback registered");
 
     return ESP_OK;
 }
@@ -175,7 +210,7 @@ esp_err_t time_sync_task_send_disconnection(void)
     return ESP_OK;
 }
 
-esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t receive_time_us)
+esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t receive_time_us, uint8_t transport)
 {
     if (beacon == NULL) {
         ESP_LOGE(TAG, "Beacon pointer is NULL");
@@ -191,7 +226,8 @@ esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t 
         .type = TIME_SYNC_MSG_BEACON_RECEIVED,
         .data.beacon = {
             .beacon = *beacon,
-            .receive_time_us = receive_time_us
+            .receive_time_us = receive_time_us,
+            .transport = transport
         }
     };
 
@@ -480,6 +516,18 @@ static void handle_disconnection_message(void)
 {
     ESP_LOGI(TAG, "Peer disconnected, freezing time sync state");
 
+    // AD048: Reset deduplication state so we don't skip first beacon after reconnect
+    last_processed_beacon_seq = 255;
+
+    // AD048: Reset key exchange state for new session on reconnect
+    peer_wifi_mac_received = false;
+    espnow_key_exchange_complete = false;
+    memset(peer_wifi_mac, 0, sizeof(peer_wifi_mac));
+    memset(session_nonce, 0, sizeof(session_nonce));
+
+    // Clear ESP-NOW peer (will be reconfigured on reconnect)
+    espnow_transport_clear_peer();
+
     esp_err_t err = time_sync_on_disconnection();
     if (err == ESP_OK) {
         time_sync_quality_t quality;
@@ -500,6 +548,17 @@ static void handle_beacon_message(const time_sync_message_t *msg)
      * No need to send T2/T3 back to SERVER (eliminates RTT measurement overhead).
      */
 
+    /* AD048: Deduplicate - ESP-NOW arrives first (~100μs latency), BLE arrives
+     * ~50-70ms later with same sequence number. Skip duplicates to prevent
+     * BLE's higher latency from polluting the EMA filter. First-wins strategy. */
+    uint8_t seq = msg->data.beacon.beacon.sequence;
+    if (seq == last_processed_beacon_seq) {
+        const char *transport_str = (msg->data.beacon.transport == BEACON_TRANSPORT_ESPNOW) ? "ESP-NOW" : "BLE";
+        ESP_LOGD(TAG, "AD048: Skipping duplicate seq=%u [%s] (already processed)", seq, transport_str);
+        return;
+    }
+    last_processed_beacon_seq = seq;
+
     // Process beacon (CLIENT only)
     esp_err_t err = time_sync_process_beacon(&msg->data.beacon.beacon,
                                               msg->data.beacon.receive_time_us);
@@ -511,7 +570,9 @@ static void handle_beacon_message(const time_sync_message_t *msg)
 
         if (time_sync_get_clock_offset(&clock_offset_us) == ESP_OK &&
             time_sync_get_quality(&quality) == ESP_OK) {
-            ESP_LOGI(TAG, "Sync beacon received: seq=%u, offset=%lld μs, drift=%ld μs, quality=%u%%",
+            const char *transport_str = (msg->data.beacon.transport == BEACON_TRANSPORT_ESPNOW) ? "ESP-NOW" : "BLE";
+            ESP_LOGI(TAG, "Sync beacon received [%s]: seq=%u, offset=%lld μs, drift=%ld μs, quality=%u%%",
+                     transport_str,
                      msg->data.beacon.beacon.sequence,
                      clock_offset_us,         // Actual offset (CLIENT - SERVER)
                      quality.avg_drift_us,    // Drift (average offset change)
@@ -574,6 +635,34 @@ static void handle_beacon_message(const time_sync_message_t *msg)
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     } else {
         ESP_LOGW(TAG, "Failed to process beacon: %s", esp_err_to_name(err));
+    }
+}
+
+/**
+ * @brief ESP-NOW beacon receive callback (AD048)
+ *
+ * This callback runs in WiFi task context when an ESP-NOW beacon is received.
+ * It queues the beacon to time_sync_task for processing (same path as BLE beacons).
+ *
+ * Benefits of ESP-NOW:
+ * - Sub-millisecond latency (~100μs jitter vs BLE's ~50ms)
+ * - Connectionless, fires-and-forgets (no ACK overhead)
+ * - Runs alongside BLE for redundancy
+ *
+ * @param beacon   Pointer to received beacon data
+ * @param rx_time_us  Hardware timestamp when beacon was received
+ */
+static void espnow_beacon_recv_callback(const time_sync_beacon_t *beacon, uint64_t rx_time_us)
+{
+    // Queue beacon to time_sync_task with ESP-NOW transport marker
+    esp_err_t err = time_sync_task_send_beacon(beacon, rx_time_us, BEACON_TRANSPORT_ESPNOW);
+
+    if (err == ESP_OK) {
+        ESP_LOGD(TAG, "AD048: ESP-NOW beacon queued (seq=%u, rx=%llu μs)",
+                 beacon->sequence, rx_time_us);
+    } else {
+        // Queue full or other error - beacon dropped (not critical, next one will arrive)
+        ESP_LOGW(TAG, "AD048: Failed to queue ESP-NOW beacon: %s", esp_err_to_name(err));
     }
 }
 
@@ -1250,6 +1339,137 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             break;
         }
 
+        case SYNC_MSG_WIFI_MAC: {
+            // AD048: Peer sent their WiFi MAC for ESP-NOW transport
+            const wifi_mac_payload_t *wifi_mac = &coord->payload.wifi_mac;
+
+            ESP_LOGI(TAG, "AD048: Received peer WiFi MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                     wifi_mac->mac[0], wifi_mac->mac[1], wifi_mac->mac[2],
+                     wifi_mac->mac[3], wifi_mac->mac[4], wifi_mac->mac[5]);
+
+            // Store peer MAC for key derivation
+            memcpy(peer_wifi_mac, wifi_mac->mac, 6);
+            peer_wifi_mac_received = true;
+
+            // SERVER: Initiate key exchange after receiving CLIENT's MAC
+            // CLIENT: Just store MAC; key exchange message will follow
+            if (TIME_SYNC_IS_SERVER()) {
+                ESP_LOGI(TAG, "AD048: SERVER initiating key exchange");
+
+                // Get our own WiFi MAC
+                uint8_t server_mac[6];
+                esp_err_t err = espnow_transport_get_local_mac(server_mac);
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "AD048: Failed to get local WiFi MAC: %s", esp_err_to_name(err));
+                    break;
+                }
+
+                // Generate random nonce using hardware RNG
+                esp_fill_random(session_nonce, sizeof(session_nonce));
+
+                // Derive LMK using HKDF: server_mac || client_mac || nonce
+                uint8_t lmk[ESPNOW_KEY_SIZE];
+                err = espnow_transport_derive_session_key(
+                    server_mac,           // SERVER MAC (initiator)
+                    peer_wifi_mac,        // CLIENT MAC (responder)
+                    session_nonce,
+                    lmk
+                );
+                if (err != ESP_OK) {
+                    ESP_LOGE(TAG, "AD048: HKDF key derivation failed: %s", esp_err_to_name(err));
+                    break;
+                }
+
+                // Configure encrypted ESP-NOW peer
+                err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
+                if (err == ESP_OK) {
+                    ESP_LOGI(TAG, "AD048: SERVER configured encrypted ESP-NOW peer");
+                    espnow_key_exchange_complete = true;
+                } else {
+                    ESP_LOGE(TAG, "AD048: Failed to configure encrypted peer: %s", esp_err_to_name(err));
+                    break;
+                }
+
+                // Send key exchange to CLIENT
+                err = ble_send_espnow_key_exchange(session_nonce, server_mac);
+                if (err == ESP_OK) {
+                    ESP_LOGI(TAG, "AD048: Key exchange sent to CLIENT");
+                } else {
+                    ESP_LOGE(TAG, "AD048: Failed to send key exchange: %s", esp_err_to_name(err));
+                }
+
+                // Clear sensitive data
+                memset(lmk, 0, sizeof(lmk));
+            } else {
+                // CLIENT: Configure unencrypted peer for now, will upgrade after key exchange
+                // (This allows BLE fallback if key exchange fails)
+                esp_err_t err = espnow_transport_set_peer(wifi_mac->mac);
+                if (err == ESP_OK) {
+                    ESP_LOGI(TAG, "AD048: CLIENT configured ESP-NOW peer (awaiting key exchange)");
+                } else {
+                    ESP_LOGE(TAG, "AD048: Failed to configure ESP-NOW peer: %s", esp_err_to_name(err));
+                }
+            }
+            break;
+        }
+
+        case SYNC_MSG_ESPNOW_KEY_EXCHANGE: {
+            // AD048: CLIENT receives key exchange from SERVER
+            // Derive LMK using same inputs as SERVER (HKDF is deterministic)
+            const espnow_key_exchange_payload_t *key_ex = &coord->payload.espnow_key;
+
+            ESP_LOGI(TAG, "AD048: Received ESP-NOW key exchange from SERVER");
+            ESP_LOGI(TAG, "  Nonce: %02X%02X%02X%02X%02X%02X%02X%02X",
+                     key_ex->nonce[0], key_ex->nonce[1], key_ex->nonce[2], key_ex->nonce[3],
+                     key_ex->nonce[4], key_ex->nonce[5], key_ex->nonce[6], key_ex->nonce[7]);
+            ESP_LOGI(TAG, "  Server MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                     key_ex->server_mac[0], key_ex->server_mac[1], key_ex->server_mac[2],
+                     key_ex->server_mac[3], key_ex->server_mac[4], key_ex->server_mac[5]);
+
+            // Get our own WiFi MAC (CLIENT MAC)
+            uint8_t client_mac[6];
+            esp_err_t err = espnow_transport_get_local_mac(client_mac);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "AD048: Failed to get local WiFi MAC: %s", esp_err_to_name(err));
+                break;
+            }
+
+            // Derive LMK using HKDF: server_mac || client_mac || nonce
+            // Must use SAME order as SERVER for identical keys!
+            uint8_t lmk[ESPNOW_KEY_SIZE];
+            err = espnow_transport_derive_session_key(
+                key_ex->server_mac,   // SERVER MAC (initiator) - from message
+                client_mac,           // CLIENT MAC (responder) - local
+                key_ex->nonce,        // Nonce - from message
+                lmk
+            );
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "AD048: HKDF key derivation failed: %s", esp_err_to_name(err));
+                break;
+            }
+
+            // Verify server MAC matches what we received earlier via WIFI_MAC message
+            if (peer_wifi_mac_received) {
+                if (memcmp(key_ex->server_mac, peer_wifi_mac, 6) != 0) {
+                    ESP_LOGW(TAG, "AD048: Server MAC mismatch (possible MITM attempt)");
+                    // Continue anyway - peer_wifi_mac was from same connection
+                }
+            }
+
+            // Upgrade ESP-NOW peer to encrypted
+            err = espnow_transport_set_peer_encrypted(key_ex->server_mac, lmk);
+            if (err == ESP_OK) {
+                ESP_LOGI(TAG, "AD048: CLIENT configured encrypted ESP-NOW peer");
+                espnow_key_exchange_complete = true;
+            } else {
+                ESP_LOGE(TAG, "AD048: Failed to configure encrypted peer: %s", esp_err_to_name(err));
+            }
+
+            // Clear sensitive data
+            memset(lmk, 0, sizeof(lmk));
+            break;
+        }
+
         case SYNC_MSG_PHASE_QUERY: {
             // Phase Query: Peer is asking "how long until your next ACTIVE state?"
             // Calculate our time to next active and respond
@@ -1312,13 +1532,14 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 .timestamp_ms = (uint32_t)(now_us / 1000),
             };
             response.payload.phase_response.ms_to_active = ms_to_active;
+            response.payload.phase_response.pos_in_cycle_ms = pos_in_cycle_ms;  // Direct position for comparison
             response.payload.phase_response.current_cycle = current_cycle;
             response.payload.phase_response.current_state = current_state;
 
             ble_send_coordination_message(&response);
-            ESP_LOGD(TAG, "Phase Query: Phase query response: ms_to_active=%lu, state=%s, cycle=%lu",
-                     (unsigned long)ms_to_active, current_state ? "ACTIVE" : "INACTIVE",
-                     (unsigned long)current_cycle);
+            ESP_LOGD(TAG, "Phase Query: Response: pos=%lu ms, ms_to_active=%lu, state=%s",
+                     (unsigned long)pos_in_cycle_ms, (unsigned long)ms_to_active,
+                     current_state ? "ACTIVE" : "INACTIVE");
             break;
         }
 
@@ -1342,46 +1563,40 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             uint32_t pos_in_cycle_us = (uint32_t)(elapsed_us % cycle_us);
             uint32_t pos_in_cycle_ms = pos_in_cycle_us / 1000;
             uint32_t half_cycle_ms = cycle_ms / 2;
-            uint32_t duty_ms = cycle_ms / 4;
 
-            // Calculate OUR time to INACTIVE (which should equal peer's time to ACTIVE for antiphase)
-            uint32_t my_ms_to_inactive = 0;
+            // Phase error calculation using direct position comparison
+            // For perfect antiphase: peer_pos should be (my_pos + half_cycle) % cycle
+            //
+            // Protocol now includes pos_in_cycle_ms directly - no more deriving from ms_to_active!
+            // This eliminates the semantic confusion that caused ±1500ms "errors".
+            uint32_t peer_pos_ms = pr->pos_in_cycle_ms;
 
-            if (ble_get_peer_role() == PEER_ROLE_CLIENT) {
-                // We are SERVER - our ACTIVE ends at duty_ms
-                if (pos_in_cycle_ms < duty_ms) {
-                    my_ms_to_inactive = duty_ms - pos_in_cycle_ms;
-                } else {
-                    my_ms_to_inactive = cycle_ms - pos_in_cycle_ms + duty_ms;
-                }
-            } else {
-                // We are CLIENT - our ACTIVE ends at half_cycle + duty_ms
-                uint32_t active_end = half_cycle_ms + duty_ms;
-                if (pos_in_cycle_ms >= half_cycle_ms && pos_in_cycle_ms < active_end) {
-                    my_ms_to_inactive = active_end - pos_in_cycle_ms;
-                } else if (pos_in_cycle_ms < half_cycle_ms) {
-                    my_ms_to_inactive = half_cycle_ms + duty_ms - pos_in_cycle_ms;
-                } else {
-                    my_ms_to_inactive = cycle_ms - pos_in_cycle_ms + half_cycle_ms + duty_ms;
-                }
+            // Expected peer position for perfect antiphase
+            uint32_t expected_peer_pos = (pos_in_cycle_ms + half_cycle_ms) % cycle_ms;
+
+            // Phase error (normalize to ±half_cycle range)
+            int32_t phase_error_ms = (int32_t)peer_pos_ms - (int32_t)expected_peer_pos;
+            if (phase_error_ms > (int32_t)half_cycle_ms) {
+                phase_error_ms -= (int32_t)cycle_ms;
             }
-
-            // Phase error: If antiphase is perfect, peer's time_to_active == my time_to_inactive
-            int32_t phase_error_ms = (int32_t)pr->ms_to_active - (int32_t)my_ms_to_inactive;
+            if (phase_error_ms < -(int32_t)half_cycle_ms) {
+                phase_error_ms += (int32_t)cycle_ms;
+            }
 
             // Log for diagnostic purposes (no correction applied yet)
-            if (abs(phase_error_ms) > 10) {
-                ESP_LOGW(TAG, "Phase Query: PHASE ERROR: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
-                         (unsigned long)pr->ms_to_active, (unsigned long)my_ms_to_inactive, (long)phase_error_ms);
+            // Note: BLE latency (~50-70ms) will always show some error
+            if (abs(phase_error_ms) > 100) {
+                ESP_LOGW(TAG, "Phase Query: PHASE ERROR: my_pos=%lu ms, peer_pos=%lu ms (expected %lu), error=%+ld ms",
+                         (unsigned long)pos_in_cycle_ms, (unsigned long)peer_pos_ms,
+                         (unsigned long)expected_peer_pos, (long)phase_error_ms);
             } else {
-                ESP_LOGI(TAG, "Phase Query: Phase OK: peer_to_active=%lu ms, my_to_inactive=%lu ms, error=%+ld ms",
-                         (unsigned long)pr->ms_to_active, (unsigned long)my_ms_to_inactive, (long)phase_error_ms);
+                ESP_LOGI(TAG, "Phase Query: Phase OK: my_pos=%lu ms, peer_pos=%lu ms, error=%+ld ms (BLE latency)",
+                         (unsigned long)pos_in_cycle_ms, (unsigned long)peer_pos_ms, (long)phase_error_ms);
             }
 
-            ESP_LOGI(TAG, "Phase Query: Peer state=%s, cycle=%lu | My pos_in_cycle=%lu ms",
+            ESP_LOGD(TAG, "Phase Query: Peer state=%s, ms_to_active=%lu",
                      pr->current_state ? "ACTIVE" : "INACTIVE",
-                     (unsigned long)pr->current_cycle,
-                     (unsigned long)pos_in_cycle_ms);
+                     (unsigned long)pr->ms_to_active);
             break;
         }
 

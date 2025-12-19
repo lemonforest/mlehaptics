@@ -1,93 +1,175 @@
 # ADR 0048: ESP-NOW Adaptive Transport and Hardware Acceleration
 
-**Status:** Research
-**Date:** 2025-12-17
+**Status:** Accepted
+**Date:** 2025-12-17 (updated 2025-12-19)
 **Authors:** Claude Code (Opus 4.5)
+**Supersedes:** Portions of AD041 (BLE-only time sync)
 
 ## Context
 
-Currently, EMDR Pulser devices communicate peer-to-peer exclusively via BLE. While BLE is excellent for:
-- Phone compatibility ("When someone asks bluetooth or BLE, they usually want to know if they can use their phone")
-- Low power consumption
-- Established pairing/bonding security
+Phase 2 time synchronization over BLE achieved ±30μs drift over 90 minutes through mathematical convergence (EMA filtering, drift rate estimation). However, this required extended convergence time and the raw BLE jitter (~50-70ms) created perceptible phase errors during pattern playback (wig-wag effects) before the filter converged.
 
-There are scenarios where BLE range or reliability is insufficient. ESP-NOW offers:
+**Human testing revealed that >50ms phase variance is perceptually detectable.** BLE's connection-event-based scheduling cannot guarantee sub-50ms jitter for individual messages, even though the statistical average converges well.
+
+ESP-NOW offers:
+- Sub-millisecond latency (~100-500μs typical)
+- ±100μs jitter (vs BLE's ±50ms)
+- Connectionless broadcast capability
+- WiFi/BLE coexistence on ESP32-C6
 - 200+ meter range (vs ~100m for BLE)
-- Lower latency (~1ms vs ~7-15ms for BLE)
-- No connection overhead (broadcast-based)
-- Coexistence with 802.11mc FTM for ranging
-
-Additionally, the ESP32-C6 has hardware cryptographic accelerators (AES, SHA, ECC) that are currently underutilized for CRC and message authentication.
+- Future FTM support path (sub-nanosecond)
 
 ## Decision
 
-### Part 1: ESP-NOW as Adaptive BLE Fallback
+### Dual-Transport Architecture
 
-**Goal:** Use ESP-NOW when BLE quality degrades (RSSI < threshold, packet loss > threshold), while maintaining BLE for phone connectivity.
+Implement a **dual-transport architecture** where each transport serves its optimal purpose:
 
-**Proposed Architecture:**
+| Transport | Purpose | Latency Target | Power |
+|-----------|---------|----------------|-------|
+| **ESP-NOW** | Time sync beacons, coordination messages | <1ms | Higher (WiFi) |
+| **BLE** | PWA connectivity, human-initiated commands | ~50ms OK | Lower |
+
+### Message Classification
+
+Three distinct message types with different behaviors:
+
+#### 1. Time Sync Beacons (ESP-NOW Broadcast)
+- **Trigger:** Adaptive schedule (1 min → 20 min based on quality)
+- **Pattern:** 3 broadcasts at 100ms intervals (burst)
+- **Purpose:** Clock maintenance, drift correction
+- **Latency:** Best-effort (scheduled)
+
+#### 2. Coordination Messages (ESP-NOW Unicast)
+- **Trigger:** User action (mode change, settings update, shutdown)
+- **Pattern:** Single message, immediate
+- **Purpose:** State synchronization
+- **Latency:** <100ms required
+- **Key insight:** Mode changes do NOT wait for scheduled beacons
+
+#### 3. PWA Commands (BLE GATT)
+- **Trigger:** Web app interaction
+- **Pattern:** GATT characteristic writes
+- **Purpose:** Human interface, configuration
+- **Latency:** ~50-100ms acceptable (human perception)
+
+### Adaptive Beacon Interval Algorithm
+
+```c
+// Time sync beacon intervals
+#define BEACON_INTERVAL_MIN_MS      (60 * 1000)     // 1 minute
+#define BEACON_INTERVAL_MAX_MS      (20 * 60 * 1000) // 20 minutes
+#define QUALITY_THRESHOLD_HIGH      95   // %
+#define QUALITY_THRESHOLD_LOW       80   // %
+#define BURST_VARIANCE_THRESHOLD_US 1000 // 1ms
+
+// Adaptive logic
+if (quality >= QUALITY_THRESHOLD_HIGH for 3 consecutive beacons) {
+    interval = min(interval * 2, BEACON_INTERVAL_MAX_MS);
+}
+
+if (quality < QUALITY_THRESHOLD_LOW) {
+    interval = BEACON_INTERVAL_MIN_MS;  // Reset
+}
+
+if (burst_variance > BURST_VARIANCE_THRESHOLD_US) {
+    interval = max(interval / 2, BEACON_INTERVAL_MIN_MS);
+}
+```
+
+### Beacon Burst Pattern
+
+Each scheduled sync is actually 3 broadcasts at 100ms intervals:
+
+```
+t=0ms:    Beacon (seq=N, burst_idx=0)
+t=100ms:  Beacon (seq=N, burst_idx=1)
+t=200ms:  Beacon (seq=N, burst_idx=2)
+```
+
+Benefits:
+- Statistical confidence (3 samples vs 1)
+- Measure inter-beacon timing variance
+- Redundancy for packet loss
+- Phase coherence confirms receipt ("dinner bell" model - we know it was heard by who shows up)
+
+### BLE Bootstrap Model (Trust Establishment Only)
+
+BLE peer connection is used ONLY for initial trust establishment, then released:
+
+1. **Discovery Phase:** Both devices advertise, discover peer via Bilateral Service UUID
+2. **Connection Phase:** One device connects to peer (battery-based role assignment)
+3. **Key Exchange Phase:**
+   - SERVER generates key exchange message (nonce + MAC)
+   - SERVER sends `SYNC_MSG_ESPNOW_KEY_EXCHANGE` via BLE
+   - Both devices derive shared LMK via HKDF-SHA256
+   - Both devices configure ESP-NOW peer with derived key
+4. **Release Phase:** Peer BLE connection terminated
+5. **Operation Phase:** ALL peer communication via encrypted ESP-NOW
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Transport Abstraction Layer                   │
+│                    BLE Bootstrap Sequence                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│   ┌──────────┐      ┌──────────┐      ┌──────────┐              │
-│   │   BLE    │      │ ESP-NOW  │      │ 802.11mc │              │
-│   │ (Primary)│      │(Fallback)│      │  (FTM)   │              │
-│   └────┬─────┘      └────┬─────┘      └────┬─────┘              │
-│        │                 │                 │                     │
-│        ▼                 ▼                 ▼                     │
-│   ┌─────────────────────────────────────────────────────────┐   │
-│   │              sync_transport_t Interface                  │   │
-│   │  - send_beacon(beacon)                                   │   │
-│   │  - receive_beacon(beacon, timeout)                       │   │
-│   │  - get_tx_timestamp()                                    │   │
-│   │  - get_rx_timestamp()                                    │   │
-│   │  - get_link_quality() → RSSI, packet_loss, latency       │   │
-│   └─────────────────────────────────────────────────────────┘   │
+│  ┌─────────────┐         ┌─────────────┐         ┌────────────┐ │
+│  │ BLE Discover│  ──→    │ Key Exchange│  ──→    │ BLE Release│ │
+│  │ + Connect   │         │ via GATT    │         │ ESP-NOW Go │ │
+│  └─────────────┘         └─────────────┘         └────────────┘ │
+│        ~2s                    ~200ms                  ~50ms     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Post-Bootstrap Operation                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────────┐                      ┌──────────────┐        │
+│   │   ESP-NOW    │                      │     BLE      │        │
+│   │  (Peer Ops)  │                      │  (PWA Only)  │        │
+│   └──────┬───────┘                      └──────┬───────┘        │
+│          │                                     │                │
+│   Time Sync Beacons                     PWA Web Interface       │
+│   Coordination Messages                 Human Commands          │
+│   Mode Changes                          Mobile App Control      │
+│   Shutdown Propagation                                          │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Adaptive Switching Logic:**
+**Key Insight:** BLE peer connection is NOT maintained between devices.
+- Eliminates BLE connection overhead during operation
+- ESP-NOW handles all timing-critical peer communication
+- BLE only used for PWA (phone) interface
+- Simpler architecture, fewer failure modes
+
+**Coexistence:**
+- BLE uses 2.4 GHz with frequency hopping (advertising channels 37, 38, 39)
+- ESP-NOW uses WiFi channel (configurable, channel 1 default)
+- ESP32-C6 handles coexistence automatically (`CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y`)
+
+### UTLP Transport HAL
+
+Platform-agnostic transport abstraction for portability:
 
 ```c
-// Proposed thresholds
-#define BLE_RSSI_FALLBACK_THRESHOLD    -85  // dBm - switch to ESP-NOW
-#define BLE_RSSI_RECOVER_THRESHOLD     -75  // dBm - switch back to BLE
-#define BLE_PACKET_LOSS_THRESHOLD      10   // % - switch to ESP-NOW
-#define ESPNOW_CHANNEL_SCAN_INTERVAL   5000 // ms - find peer channel
+// utlp_transport.h - Universal interface
+typedef struct {
+    utlp_err_t (*init)(void);
+    utlp_err_t (*send)(const utlp_frame_t *frame);
+    utlp_err_t (*set_peer_encrypted)(const uint8_t mac[6], const uint8_t key[16]);
+    // ... other operations
+} utlp_transport_ops_t;
 
-typedef enum {
-    TRANSPORT_BLE_PRIMARY,      // Normal operation
-    TRANSPORT_ESPNOW_FALLBACK,  // BLE degraded, using ESP-NOW
-    TRANSPORT_HYBRID,           // Both active (future: multipath)
-} transport_mode_t;
+// Usage: UTLP logic never touches vendor APIs
+utlp_transport->send(&beacon_frame);
 ```
 
-**Phone Compatibility Preservation:**
-
-| Mode | BLE Advertising | ESP-NOW | Phone Can Connect |
-|------|-----------------|---------|-------------------|
-| `BLE_PRIMARY` | Yes | No | Yes |
-| `ESPNOW_FALLBACK` | Yes (reduced rate) | Yes | Yes (but may be slower) |
-| `HYBRID` | Yes | Yes | Yes |
-
-Key insight: ESP-NOW and BLE advertising can coexist because:
-- BLE uses 2.4 GHz with frequency hopping (37, 38, 39 advertising channels)
-- ESP-NOW uses WiFi channel (1-14)
-- ESP32-C6 can switch between them rapidly
-
-**ESP-NOW + 802.11mc Coexistence:**
-
-Both use the WiFi radio but for different purposes:
-- ESP-NOW: Data transfer (connectionless, broadcast/unicast)
-- 802.11mc FTM: Ranging (Action Frame exchange)
-
-Interleaving strategy:
-1. ESP-NOW for time sync beacons (low latency)
-2. 802.11mc FTM on-demand for position updates (higher accuracy time but more overhead)
+**Implementations:**
+- `utlp_transport_espnow.c` - Current (ESP32 ESP-NOW)
+- `utlp_transport_shockburst.c` - Future (Nordic Enhanced ShockBurst)
+- `utlp_transport_802154.c` - Future (IEEE 802.15.4 / Thread)
 
 ### Part 2: Hardware Accelerator Opportunities
 
@@ -155,28 +237,47 @@ Interleaving strategy:
 
 Note: CRC-32 is already fast via ROM lookup table; hardware acceleration most beneficial for SHA/AES operations.
 
-## Implementation Plan
+## Implementation Status
 
-### Phase 1: Transport Abstraction (This Sprint)
+### ✅ Phase 1: ESP-NOW Transport (COMPLETE)
 
-1. Create `sync_transport.h` interface
-2. Implement BLE transport (refactor from current `time_sync.c`)
-3. Add link quality monitoring to BLE transport
+| File | Status | Description |
+|------|--------|-------------|
+| `src/espnow_transport.h` | ✅ Done | API definitions, types, jitter metrics |
+| `src/espnow_transport.c` | ✅ Done | WiFi init, peer management, callbacks |
+| `src/time_sync_task.h` | ✅ Done | Transport field in beacon message |
+| `src/time_sync_task.c` | ✅ Done | Deduplication logic, disconnect reset |
+| `src/ble_manager.c` | ✅ Done | Transport parameter for beacon calls |
+| `src/CMakeLists.txt` | ✅ Done | ESP-NOW source and WiFi deps |
+| `sdkconfig.xiao_esp32c6*` | ✅ Done | WiFi + coexistence enabled |
 
-### Phase 2: ESP-NOW Transport
+### 🚧 Phase 2: Adaptive Intervals & Burst Pattern (TODO)
 
-1. Implement `espnow_transport.c`
-2. Add peer discovery via MAC address exchange (from BLE pairing)
-3. Implement adaptive switching logic
-4. Test ESP-NOW + BLE advertising coexistence
+1. [ ] Implement beacon burst (3x at 100ms)
+2. [ ] Add adaptive interval algorithm (1-20 min)
+3. [ ] Quality-based interval scaling
+4. [ ] Burst variance measurement
 
-### Phase 3: Hardware Crypto Integration
+### 🚧 Phase 3: Coordination Messages (TODO)
+
+1. [ ] Create `transport_coordinator.c/.h`
+2. [ ] Immediate ESP-NOW for mode changes
+3. [ ] Settings sync on ESP-NOW
+4. [ ] Shutdown propagation
+
+### 🚧 Phase 4: BLE Fallback & Recovery (TODO)
+
+1. [ ] BLE reconnect backoff (30s, 30s, 30s, 60s)
+2. [ ] RSSI-triggered reconnection
+3. [ ] Seamless handoff between transports
+
+### 📋 Phase 5: Hardware Crypto Integration (Future)
 
 1. Replace CRC-16 with HMAC-SHA256-32 in beacons
 2. Implement TOTP beacon integrity (RFIP requirement)
 3. Add pattern encryption for BLE transfer
 
-### Phase 4: 802.11mc FTM Integration
+### 📋 Phase 6: 802.11mc FTM Integration (Future)
 
 1. Check silicon revision (v0.2+ required for initiator)
 2. Implement FTM ranging alongside ESP-NOW
@@ -202,36 +303,56 @@ if (chip_info.model == CHIP_ESP32C6) {
 
 ### Positive
 
-- Better range for peer communication in challenging RF environments
-- Faster failover when BLE quality degrades
-- Hardware acceleration improves security without CPU overhead
-- Future-proofs for 802.11mc ranging integration
-- Maintains phone compatibility (BLE advertising always available)
+- **Immediate phase coherence** (<1ms) without convergence delay
+- **Pattern playback** within 50ms perceptual threshold (wig-wag works)
+- **Mode changes propagate immediately** (not waiting for scheduled beacons)
+- **Graceful BLE disconnect** - devices continue coordinating via ESP-NOW
+- **Better range** (200m+ vs ~100m for BLE)
+- **Future FTM path** for sub-nanosecond precision
+- **Maintains PWA compatibility** - BLE always available for phone
 
 ### Negative
 
-- Increased code complexity (transport abstraction layer)
-- WiFi radio power consumption higher than BLE
-- Need to manage ESP-NOW channel selection
-- SHA-256 beacons larger than CRC-16 (but still fits in BLE advertisement)
+- **Higher power** during active WiFi (addressed by adaptive intervals)
+- **More complex** transport layer
+- **Two radios** to coordinate
 
 ### Neutral
 
-- ESP-NOW and BLE can coexist on ESP32-C6 (validated by Espressif)
-- Hardware crypto is transparent via mbedTLS (no code changes for SHA)
-- Silicon revision check is informational only (graceful degradation)
+- ESP-NOW and BLE coexist automatically (`CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y`)
+- BLE math (EMA filtering, drift estimation) still valid as fallback
+- Phase 2 work preserved (provides graceful degradation)
+
+### Power Budget Analysis
+
+| Mode | WiFi Radio | BLE Radio | Duty Cycle | Notes |
+|------|------------|-----------|------------|-------|
+| Synced Idle | Sleep | Connected | 0% WiFi | Minimal power |
+| Beacon Burst | Active 300ms | Connected | ~0.025% @ 20min | 3 broadcasts |
+| Mode Change | Active ~50ms | Connected | On-demand | User action |
+| BLE Fallback | Active | Off | Variable | Temporary |
+
+At 20-minute beacon intervals: WiFi active 300ms per 1200s = 0.025% duty cycle.
+Estimated impact: +2-5% battery consumption vs BLE-only.
 
 ## References
 
 - [ESP-NOW Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-reference/network/esp_now.html)
 - [802.11mc FTM Reconnaissance Report](../802.11mc_FTM_Reconnaissance_Report.md)
 - [ESP32-C6 Technical Reference Manual - Crypto Accelerators](https://www.espressif.com/sites/default/files/documentation/esp32-c6_technical_reference_manual_en.pdf)
-- [UTLP RFIP Addendum - Protocol Hardening](../UTLP_Addendum_Reference_Frame_Independent_Positioning.md)
+- [UTLP Specification](../UTLP_Specification.md)
 - [AD039: Time Synchronization Protocol](0039-time-synchronization-protocol.md)
+- [AD041: Predictive Bilateral Synchronization](0041-predictive-bilateral-synchronization.md)
+
+## Resolved Questions
+
+1. ✅ **ESP-NOW channel:** Fixed at channel 1 (ESPNOW_CHANNEL constant)
+2. ✅ **BLE fallback model:** ESP-NOW primary for timing, BLE for PWA only
+3. ✅ **Broadcast vs unicast:** Broadcast for time sync (fire-and-forget), unicast for coordination
+4. ✅ **Mode change latency:** Immediate ESP-NOW, NOT piggybacked on scheduled beacons
 
 ## Open Questions
 
-1. Should ESP-NOW use the same channel as PWA's WiFi connection (if any)?
-2. What's the optimal RSSI threshold for BLE → ESP-NOW fallback?
-3. Should we implement bidirectional ESP-NOW or keep it broadcast-only like BLE beacons?
-4. Is HMAC-SHA256 overkill for beacon integrity vs. simpler CMAC-AES?
+1. Should beacon burst use same sequence number for all 3, or increment?
+2. What variance threshold (in the burst) indicates poor link quality?
+3. Should RSSI improvements trigger immediate BLE reconnection or wait for pattern?

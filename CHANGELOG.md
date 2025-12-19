@@ -39,6 +39,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+**AD048: ESP-NOW Key Exchange with HKDF Session Key Derivation (v0.6.135)**:
+- **Purpose**: Secure peer-to-peer ESP-NOW channel for sub-millisecond time sync beacons
+- **Architecture**: BLE Bootstrap Model - BLE used only for trust establishment, then released
+  - Peer BLE connection established for key exchange
+  - SERVER generates 8-byte hardware RNG nonce
+  - Both devices derive identical 16-byte LMK via HKDF-SHA256
+  - ESP-NOW peer configured with encrypted channel
+  - BLE peer connection released (PWA keeps BLE for phone interface)
+- **Key Exchange Flow**:
+  1. Both devices exchange WiFi STA MAC via `SYNC_MSG_WIFI_MAC`
+  2. SERVER generates nonce, sends `SYNC_MSG_ESPNOW_KEY_EXCHANGE` via BLE
+  3. Both devices compute: `HKDF-SHA256(salt=nonce, ikm=server_mac||client_mac, info="ESPNOW_LMK")`
+  4. Both configure ESP-NOW peer with derived key
+- **UTLP Transport HAL**: Platform-agnostic transport abstraction
+  - `utlp_transport.h/.c` - Universal interface for transport implementations
+  - `espnow_transport.h/.c` - ESP-NOW implementation for ESP32
+  - Future: Nordic Enhanced ShockBurst, IEEE 802.15.4, etc.
+- **Security Features**:
+  - HKDF-SHA256 via mbedTLS hardware accelerator
+  - ESP-NOW AES-CCM encryption with derived LMK
+  - Session nonce prevents replay across power cycles
+- **Files Added**:
+  - `src/utlp_transport.h` - Transport HAL interface
+  - `src/utlp_transport.c` - HAL implementation
+  - `src/espnow_transport.h` - ESP-NOW transport API
+  - `src/espnow_transport.c` - ESP-NOW implementation with HKDF
+- **Files Modified**:
+  - `src/ble_manager.h` - Add `SYNC_MSG_ESPNOW_KEY_EXCHANGE`, `espnow_key_exchange_t` struct
+  - `src/ble_manager.c` - Add `ble_send_espnow_key_exchange()` function
+  - `src/time_sync_task.c` - Handle key exchange messages, configure encrypted peer
+  - `sdkconfig.xiao_esp32c6*` - Enable `CONFIG_MBEDTLS_HKDF_C=y`
+  - `docs/adr/0048-espnow-adaptive-transport-hardware-acceleration.md` - Updated with BLE Bootstrap Model
+- **Status**: Infrastructure complete, hardware testing pending
+
 **TDM Tech Spike - Results (v0.6.132)**:
 - **Purpose**: Validate TDM timing model for BLE stack jitter measurement
 - **KEY FINDING**: BLE stack has consistent ~74ms latency bias
