@@ -50,6 +50,7 @@
 #include "time_sync_task.h"
 #include "firmware_version.h"
 #include "role_manager.h"
+#include "espnow_transport.h"  // AD048: ESP-NOW transport for low-latency time sync
 
 static const char *TAG = "MAIN";
 
@@ -322,6 +323,17 @@ static esp_err_t init_hardware(void) {
     // (bilateral_data.battery_level already initialized in ble_on_sync())
     ESP_LOGI(TAG, "Updating BLE Configuration Service battery...");
     ble_update_battery_level((uint8_t)battery_pct);  // Configuration Service (mobile app)
+
+    // 8. Initialize ESP-NOW transport for low-latency time sync beacons (AD048)
+    // ESP-NOW runs alongside BLE using WiFi/BLE coexistence
+    ESP_LOGI(TAG, "Initializing ESP-NOW transport (AD048)...");
+    ret = espnow_transport_init();
+    if (ret != ESP_OK) {
+        // ESP-NOW is optional - BLE fallback still works
+        ESP_LOGW(TAG, "ESP-NOW init failed: %s (BLE-only mode)", esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "ESP-NOW transport ready for sub-millisecond time sync");
+    }
 
     ESP_LOGI(TAG, "All hardware modules initialized successfully");
     return ESP_OK;
