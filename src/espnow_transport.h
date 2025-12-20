@@ -51,11 +51,14 @@ extern "C" {
 /** @brief ESP-NOW encryption key size (PMK/LMK) */
 #define ESPNOW_KEY_SIZE             (16U)
 
-/** @brief Session nonce size for HKDF key derivation */
+/** @brief Session nonce size for HKDF key derivation (legacy, kept for API compat) */
 #define ESPNOW_NONCE_SIZE           (8U)
 
-/** @brief HKDF context string for ESP-NOW session keys */
-#define ESPNOW_HKDF_INFO            "EMDR-ESP-NOW-LMK-v1"
+/** @brief BLE Long Term Key size (128-bit from SMP pairing) */
+#define ESPNOW_LTK_SIZE             (16U)
+
+/** @brief HKDF context string for ESP-NOW session keys (v2 uses LTK as IKM) */
+#define ESPNOW_HKDF_INFO            "EMDR-ESP-NOW-LMK-v2"
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -239,10 +242,47 @@ bool espnow_transport_is_ready(void);
 esp_err_t espnow_transport_generate_key_exchange(espnow_key_exchange_t *key_exchange);
 
 /**
- * @brief Derive session LMK from key exchange data
+ * @brief Derive session LMK from BLE LTK and WiFi MACs (recommended)
  *
- * Both SERVER and CLIENT call this with the same inputs to derive
- * identical session keys using HKDF-SHA256.
+ * Both SERVER and CLIENT call this after BLE pairing completes.
+ * Each device independently derives identical ESP-NOW session keys.
+ *
+ * Input keying material (38 bytes total):
+ *   LTK (16 bytes) - BLE Long Term Key from SMP pairing (128-bit entropy)
+ *   SERVER_MAC (6 bytes) - WiFi STA MAC of SERVER device
+ *   CLIENT_MAC (6 bytes) - WiFi STA MAC of CLIENT device
+ *
+ * Salt: None (LTK provides sufficient entropy)
+ * Info string: "EMDR-ESP-NOW-LMK-v2"
+ * Output: 16-byte LMK for ESP-NOW encryption
+ *
+ * Security properties:
+ * - 128-bit entropy from BLE pairing (vs 64-bit from nonce approach)
+ * - MAC binding prevents replay across different device pairs
+ * - No key exchange message needed (both devices derive independently)
+ * - Ephemeral: LTK captured at pairing time, never persisted
+ *
+ * @param[in] ltk BLE Long Term Key from SMP pairing (16 bytes)
+ * @param[in] server_mac Server's WiFi MAC address (6 bytes)
+ * @param[in] client_mac Client's WiFi MAC address (6 bytes)
+ * @param[out] lmk_out Buffer to store 16-byte derived LMK
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if any parameter is NULL
+ * @return ESP_FAIL if HKDF derivation fails
+ */
+esp_err_t espnow_transport_derive_key_from_ltk(
+    const uint8_t ltk[ESPNOW_LTK_SIZE],
+    const uint8_t server_mac[6],
+    const uint8_t client_mac[6],
+    uint8_t lmk_out[ESPNOW_KEY_SIZE]
+);
+
+/**
+ * @brief Derive session LMK from nonce (deprecated - use derive_key_from_ltk)
+ *
+ * @deprecated Use espnow_transport_derive_key_from_ltk() instead.
+ *             This function provides only 64-bit entropy from the nonce
+ *             and requires an additional key exchange message.
  *
  * Input keying material: SERVER_MAC || CLIENT_MAC || nonce
  * Info string: "EMDR-ESP-NOW-LMK-v1"

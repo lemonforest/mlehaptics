@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 135  // AD048: ESP-NOW key exchange with HKDF session key derivation
+#define FIRMWARE_VERSION_PATCH 136  // LTK-based ESP-NOW key derivation (128-bit entropy from BLE pairing)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

@@ -4878,6 +4878,81 @@ void ble_update_bilateral_battery_level(uint8_t percentage) {
     }
 }
 
+// ============================================================================
+// AD048: LTK-BASED ESP-NOW KEY DERIVATION
+// ============================================================================
+
+esp_err_t ble_get_peer_ltk(uint8_t ltk_out[16]) {
+    if (ltk_out == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // Must have peer connected
+    if (!ble_is_peer_connected()) {
+        ESP_LOGD(TAG, "ble_get_peer_ltk: No peer connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Get peer address from connection state
+    if (!peer_state.peer_discovered) {
+        ESP_LOGW(TAG, "ble_get_peer_ltk: Peer discovered flag not set");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Read LTK from NimBLE bond store
+    // Use OUR_SEC because we want our local copy of the encryption keys
+    // The LTK is the same on both devices after pairing
+    union ble_store_key key;
+    union ble_store_value value;
+
+    memset(&key, 0, sizeof(key));
+    key.sec.peer_addr = peer_state.peer_addr;
+
+    int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
+    if (rc != 0) {
+        ESP_LOGD(TAG, "ble_get_peer_ltk: ble_store_read failed (rc=%d)", rc);
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // Check if LTK is present
+    if (!value.sec.ltk_present) {
+        ESP_LOGW(TAG, "ble_get_peer_ltk: LTK not present in bond data");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // Copy LTK to output
+    memcpy(ltk_out, value.sec.ltk, 16);
+
+    ESP_LOGI(TAG, "AD048: Retrieved peer LTK [%02X%02X...%02X%02X]",
+             ltk_out[0], ltk_out[1], ltk_out[14], ltk_out[15]);
+
+    return ESP_OK;
+}
+
+bool ble_peer_ltk_available(void) {
+    if (!ble_is_peer_connected()) {
+        return false;
+    }
+
+    if (!peer_state.peer_discovered) {
+        return false;
+    }
+
+    // Check if we can read LTK from store
+    union ble_store_key key;
+    union ble_store_value value;
+
+    memset(&key, 0, sizeof(key));
+    key.sec.peer_addr = peer_state.peer_addr;
+
+    int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
+    if (rc != 0) {
+        return false;
+    }
+
+    return value.sec.ltk_present;
+}
+
 /**
  * @brief Send time sync beacon to peer device (SERVER only)
  *

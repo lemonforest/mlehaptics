@@ -94,14 +94,16 @@ static volatile uint64_t buffered_t1_us = 0;
 static volatile uint64_t buffered_t2_us = 0;
 
 /*******************************************************************************
- * AD048: ESP-NOW KEY EXCHANGE STATE
+ * AD048: ESP-NOW LTK-BASED KEY DERIVATION STATE
  *
- * Storage for peer WiFi MAC and nonce during key derivation.
- * Flow:
- * 1. Both devices exchange WIFI_MAC messages
- * 2. SERVER generates nonce, sends KEY_EXCHANGE to CLIENT
- * 3. Both derive LMK using HKDF(server_mac || client_mac || nonce)
- * 4. Both configure encrypted ESP-NOW peer
+ * Storage for peer WiFi MAC during key derivation.
+ * Flow (simplified with LTK-based derivation):
+ * 1. BLE pairing completes - LTK available in bond store (128-bit entropy)
+ * 2. Both devices exchange WIFI_MAC messages via BLE
+ * 3. Each device independently derives: HKDF(LTK || server_mac || client_mac)
+ * 4. Both configure encrypted ESP-NOW peer - no additional message needed
+ *
+ * Security advantage: 128-bit entropy from BLE LTK (vs 64-bit from nonce)
  ******************************************************************************/
 
 /** @brief Stored peer WiFi MAC for key derivation */
@@ -109,9 +111,6 @@ static uint8_t peer_wifi_mac[6] = {0};
 
 /** @brief Flag indicating peer MAC has been received */
 static bool peer_wifi_mac_received = false;
-
-/** @brief Server-generated nonce for key derivation (only valid on SERVER) */
-static uint8_t session_nonce[8] = {0};
 
 /** @brief Flag indicating key exchange is complete (encrypted ESP-NOW ready) */
 static bool espnow_key_exchange_complete = false;
@@ -523,7 +522,6 @@ static void handle_disconnection_message(void)
     peer_wifi_mac_received = false;
     espnow_key_exchange_complete = false;
     memset(peer_wifi_mac, 0, sizeof(peer_wifi_mac));
-    memset(session_nonce, 0, sizeof(session_nonce));
 
     // Clear ESP-NOW peer (will be reconfigured on reconnect)
     espnow_transport_clear_peer();
@@ -1341,6 +1339,7 @@ static void handle_coordination_message(const time_sync_message_t *msg)
 
         case SYNC_MSG_WIFI_MAC: {
             // AD048: Peer sent their WiFi MAC for ESP-NOW transport
+            // LTK-based key derivation: Both devices derive independently after pairing
             const wifi_mac_payload_t *wifi_mac = &coord->payload.wifi_mac;
 
             ESP_LOGI(TAG, "AD048: Received peer WiFi MAC: %02X:%02X:%02X:%02X:%02X:%02X",
@@ -1351,122 +1350,82 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             memcpy(peer_wifi_mac, wifi_mac->mac, 6);
             peer_wifi_mac_received = true;
 
-            // SERVER: Initiate key exchange after receiving CLIENT's MAC
-            // CLIENT: Just store MAC; key exchange message will follow
-            if (TIME_SYNC_IS_SERVER()) {
-                ESP_LOGI(TAG, "AD048: SERVER initiating key exchange");
+            // LTK-based derivation: Both SERVER and CLIENT derive independently
+            // after BLE pairing completes. No message exchange needed.
+            ESP_LOGI(TAG, "AD048: %s initiating LTK-based key derivation",
+                     TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
 
-                // Get our own WiFi MAC
-                uint8_t server_mac[6];
-                esp_err_t err = espnow_transport_get_local_mac(server_mac);
-                if (err != ESP_OK) {
-                    ESP_LOGE(TAG, "AD048: Failed to get local WiFi MAC: %s", esp_err_to_name(err));
-                    break;
-                }
-
-                // Generate random nonce using hardware RNG
-                esp_fill_random(session_nonce, sizeof(session_nonce));
-
-                // Derive LMK using HKDF: server_mac || client_mac || nonce
-                uint8_t lmk[ESPNOW_KEY_SIZE];
-                err = espnow_transport_derive_session_key(
-                    server_mac,           // SERVER MAC (initiator)
-                    peer_wifi_mac,        // CLIENT MAC (responder)
-                    session_nonce,
-                    lmk
-                );
-                if (err != ESP_OK) {
-                    ESP_LOGE(TAG, "AD048: HKDF key derivation failed: %s", esp_err_to_name(err));
-                    break;
-                }
-
-                // Configure encrypted ESP-NOW peer
-                err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
-                if (err == ESP_OK) {
-                    ESP_LOGI(TAG, "AD048: SERVER configured encrypted ESP-NOW peer");
-                    espnow_key_exchange_complete = true;
-                } else {
-                    ESP_LOGE(TAG, "AD048: Failed to configure encrypted peer: %s", esp_err_to_name(err));
-                    break;
-                }
-
-                // Send key exchange to CLIENT
-                err = ble_send_espnow_key_exchange(session_nonce, server_mac);
-                if (err == ESP_OK) {
-                    ESP_LOGI(TAG, "AD048: Key exchange sent to CLIENT");
-                } else {
-                    ESP_LOGE(TAG, "AD048: Failed to send key exchange: %s", esp_err_to_name(err));
-                }
-
-                // Clear sensitive data
-                memset(lmk, 0, sizeof(lmk));
-            } else {
-                // CLIENT: Configure unencrypted peer for now, will upgrade after key exchange
-                // (This allows BLE fallback if key exchange fails)
-                esp_err_t err = espnow_transport_set_peer(wifi_mac->mac);
-                if (err == ESP_OK) {
-                    ESP_LOGI(TAG, "AD048: CLIENT configured ESP-NOW peer (awaiting key exchange)");
-                } else {
-                    ESP_LOGE(TAG, "AD048: Failed to configure ESP-NOW peer: %s", esp_err_to_name(err));
-                }
-            }
-            break;
-        }
-
-        case SYNC_MSG_ESPNOW_KEY_EXCHANGE: {
-            // AD048: CLIENT receives key exchange from SERVER
-            // Derive LMK using same inputs as SERVER (HKDF is deterministic)
-            const espnow_key_exchange_payload_t *key_ex = &coord->payload.espnow_key;
-
-            ESP_LOGI(TAG, "AD048: Received ESP-NOW key exchange from SERVER");
-            ESP_LOGI(TAG, "  Nonce: %02X%02X%02X%02X%02X%02X%02X%02X",
-                     key_ex->nonce[0], key_ex->nonce[1], key_ex->nonce[2], key_ex->nonce[3],
-                     key_ex->nonce[4], key_ex->nonce[5], key_ex->nonce[6], key_ex->nonce[7]);
-            ESP_LOGI(TAG, "  Server MAC: %02X:%02X:%02X:%02X:%02X:%02X",
-                     key_ex->server_mac[0], key_ex->server_mac[1], key_ex->server_mac[2],
-                     key_ex->server_mac[3], key_ex->server_mac[4], key_ex->server_mac[5]);
-
-            // Get our own WiFi MAC (CLIENT MAC)
-            uint8_t client_mac[6];
-            esp_err_t err = espnow_transport_get_local_mac(client_mac);
+            // Get our own WiFi MAC
+            uint8_t local_mac[6];
+            esp_err_t err = espnow_transport_get_local_mac(local_mac);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "AD048: Failed to get local WiFi MAC: %s", esp_err_to_name(err));
                 break;
             }
 
-            // Derive LMK using HKDF: server_mac || client_mac || nonce
-            // Must use SAME order as SERVER for identical keys!
+            // Retrieve LTK from BLE bond store (captured during pairing)
+            uint8_t ltk[16];
+            err = ble_get_peer_ltk(ltk);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "AD048: LTK not available (pairing may not be complete)");
+                // Configure unencrypted peer as fallback
+                err = espnow_transport_set_peer(wifi_mac->mac);
+                if (err == ESP_OK) {
+                    ESP_LOGI(TAG, "AD048: Configured unencrypted ESP-NOW peer (LTK unavailable)");
+                }
+                break;
+            }
+
+            // Derive LMK using HKDF: LTK || server_mac || client_mac
+            // Server MAC is always first for consistent ordering on both devices
             uint8_t lmk[ESPNOW_KEY_SIZE];
-            err = espnow_transport_derive_session_key(
-                key_ex->server_mac,   // SERVER MAC (initiator) - from message
-                client_mac,           // CLIENT MAC (responder) - local
-                key_ex->nonce,        // Nonce - from message
-                lmk
-            );
+            if (TIME_SYNC_IS_SERVER()) {
+                // SERVER: local_mac is server_mac, peer_wifi_mac is client_mac
+                err = espnow_transport_derive_key_from_ltk(
+                    ltk,              // LTK provides 128-bit entropy
+                    local_mac,        // SERVER MAC (this device)
+                    peer_wifi_mac,    // CLIENT MAC (peer device)
+                    lmk
+                );
+            } else {
+                // CLIENT: peer_wifi_mac is server_mac, local_mac is client_mac
+                err = espnow_transport_derive_key_from_ltk(
+                    ltk,              // LTK provides 128-bit entropy
+                    peer_wifi_mac,    // SERVER MAC (peer device)
+                    local_mac,        // CLIENT MAC (this device)
+                    lmk
+                );
+            }
+
+            // Clear LTK from RAM immediately after use
+            memset(ltk, 0, sizeof(ltk));
+
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "AD048: HKDF key derivation failed: %s", esp_err_to_name(err));
                 break;
             }
 
-            // Verify server MAC matches what we received earlier via WIFI_MAC message
-            if (peer_wifi_mac_received) {
-                if (memcmp(key_ex->server_mac, peer_wifi_mac, 6) != 0) {
-                    ESP_LOGW(TAG, "AD048: Server MAC mismatch (possible MITM attempt)");
-                    // Continue anyway - peer_wifi_mac was from same connection
-                }
-            }
+            // Configure encrypted ESP-NOW peer
+            err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
 
-            // Upgrade ESP-NOW peer to encrypted
-            err = espnow_transport_set_peer_encrypted(key_ex->server_mac, lmk);
+            // Clear LMK from RAM
+            memset(lmk, 0, sizeof(lmk));
+
             if (err == ESP_OK) {
-                ESP_LOGI(TAG, "AD048: CLIENT configured encrypted ESP-NOW peer");
+                ESP_LOGI(TAG, "AD048: %s configured encrypted ESP-NOW peer (LTK-derived)",
+                         TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
                 espnow_key_exchange_complete = true;
             } else {
                 ESP_LOGE(TAG, "AD048: Failed to configure encrypted peer: %s", esp_err_to_name(err));
             }
+            break;
+        }
 
-            // Clear sensitive data
-            memset(lmk, 0, sizeof(lmk));
+        case SYNC_MSG_ESPNOW_KEY_EXCHANGE: {
+            // DEPRECATED: Nonce-based key exchange (legacy, kept for backwards compatibility)
+            // New firmware uses LTK-based derivation in SYNC_MSG_WIFI_MAC handler above
+            ESP_LOGW(TAG, "AD048: Received legacy ESPNOW_KEY_EXCHANGE (deprecated - using LTK-based derivation)");
+            // Ignore - key was already derived using LTK when WIFI_MAC was received
             break;
         }
 

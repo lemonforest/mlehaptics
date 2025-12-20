@@ -502,7 +502,61 @@ esp_err_t espnow_transport_derive_session_key(
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Session LMK derived: [%02X%02X...%02X%02X]",
+    ESP_LOGI(TAG, "Session LMK derived (nonce): [%02X%02X...%02X%02X]",
+             lmk_out[0], lmk_out[1],
+             lmk_out[ESPNOW_KEY_SIZE - 2], lmk_out[ESPNOW_KEY_SIZE - 1]);
+
+    return ESP_OK;
+}
+
+esp_err_t espnow_transport_derive_key_from_ltk(
+    const uint8_t ltk[ESPNOW_LTK_SIZE],
+    const uint8_t server_mac[6],
+    const uint8_t client_mac[6],
+    uint8_t lmk_out[ESPNOW_KEY_SIZE])
+{
+    if (ltk == NULL || server_mac == NULL || client_mac == NULL || lmk_out == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // Build input keying material: LTK || SERVER_MAC || CLIENT_MAC
+    // Total: 16 + 6 + 6 = 28 bytes
+    // LTK provides 128-bit entropy (vs 64-bit from nonce approach)
+    // MACs provide binding to specific device pair
+    uint8_t ikm[28];
+    memcpy(ikm, ltk, ESPNOW_LTK_SIZE);
+    memcpy(ikm + 16, server_mac, 6);
+    memcpy(ikm + 22, client_mac, 6);
+
+    // Get SHA-256 message digest info for HKDF
+    const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    if (md_info == NULL) {
+        ESP_LOGE(TAG, "Failed to get SHA-256 MD info");
+        memset(ikm, 0, sizeof(ikm));
+        return ESP_FAIL;
+    }
+
+    // Derive 16-byte LMK using HKDF-SHA256
+    // Note: No salt needed - LTK already has 128-bit entropy from SMP
+    // Info string "v2" distinguishes from legacy nonce-based derivation
+    int ret = mbedtls_hkdf(
+        md_info,
+        NULL, 0,                                    // salt (not needed with high-entropy IKM)
+        ikm, sizeof(ikm),                           // input keying material
+        (const uint8_t *)ESPNOW_HKDF_INFO,          // info string ("EMDR-ESP-NOW-LMK-v2")
+        strlen(ESPNOW_HKDF_INFO),                   // info length
+        lmk_out, ESPNOW_KEY_SIZE                    // output key
+    );
+
+    // Zero out sensitive input keying material
+    memset(ikm, 0, sizeof(ikm));
+
+    if (ret != 0) {
+        ESP_LOGE(TAG, "HKDF (LTK) derivation failed: -0x%04X", -ret);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Session LMK derived (LTK-based): [%02X%02X...%02X%02X]",
              lmk_out[0], lmk_out[1],
              lmk_out[ESPNOW_KEY_SIZE - 2], lmk_out[ESPNOW_KEY_SIZE - 1]);
 

@@ -477,10 +477,10 @@ esp_err_t derive_espnow_keys_ltk(
 - No additional key exchange protocol needed
 
 **Practical Challenges:**
-- Requires `CONFIG_BT_NIMBLE_NVS_PERSIST=y` for LTK storage
-- LTK retrieval via NimBLE's `ble_store_util_*` APIs is complex
-- Test environments with RAM-only bonding cannot use this approach
-- NVS wear concerns with frequent re-pairing during development
+- LTK retrieval via NimBLE's `ble_store_util_*` APIs assumes NVS backend
+- Ephemeral LTK access requires pairing callback hook to capture key at generation
+- More complex integration with NimBLE's security manager internals
+- Additional code path vs. explicit nonce exchange
 
 #### 4.1.2 Approach B: Nonce-Based Derivation (Implementation Simplicity)
 
@@ -533,11 +533,13 @@ esp_err_t espnow_derive_session_key(
 | Factor | Approach A (LTK) | Approach B (Nonce) |
 |--------|------------------|-------------------|
 | Entropy | 128-bit | 64-bit |
-| NVS dependency | Required | None |
+| NVS dependency | None (LTK in RAM during session)* | None |
 | Implementation complexity | Higher | Lower |
-| Test environment support | NVS builds only | All builds |
+| Test environment support | All builds (with callback hook) | All builds |
 | BLE channel security | Implicit (derived) | Explicit (transport) |
 | Threat model coverage | Exceeds | Meets |
+
+*LTK exists in RAM during active bonding session. However, NimBLE's `ble_store_util_*` APIs assume NVS backend. Ephemeral LTK access requires hooking into the pairing callback to capture the key at generation time—adding implementation complexity.
 
 **Recommendation for medical devices:** Start with Approach B for development velocity, migrate to Approach A for production if regulatory requirements mandate 128-bit key strength. Document the decision in your Design History File (DHF).
 

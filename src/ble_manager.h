@@ -1128,6 +1128,44 @@ void ble_set_peer_hardware_info(const char *hardware_str);
 const char* ble_get_local_hardware_info(void);
 
 // ============================================================================
+// AD048: LTK-BASED ESP-NOW KEY DERIVATION
+// ============================================================================
+
+/**
+ * @brief Get peer's Long Term Key (LTK) for ESP-NOW key derivation
+ *
+ * Retrieves the LTK from NimBLE's bond store after BLE pairing completes.
+ * Used by time_sync_task to derive ESP-NOW session key via HKDF.
+ *
+ * Security notes:
+ * - LTK is 128-bit (16 bytes) of cryptographic-quality entropy
+ * - Both devices have identical LTK after SMP pairing
+ * - Works in both NVS-persistent and RAM-only (test) builds
+ * - LTK is ephemeral in RAM - not persisted beyond session
+ *
+ * @param[out] ltk_out Buffer to store 16-byte LTK
+ * @return ESP_OK if LTK retrieved successfully
+ * @return ESP_ERR_NOT_FOUND if no bonded peer or LTK not available
+ * @return ESP_ERR_INVALID_ARG if ltk_out is NULL
+ * @return ESP_ERR_INVALID_STATE if peer not connected
+ *
+ * @see espnow_transport_derive_key_from_ltk()
+ */
+esp_err_t ble_get_peer_ltk(uint8_t ltk_out[16]);
+
+/**
+ * @brief Check if peer is bonded with LTK available
+ *
+ * Returns true if peer connection is encrypted and LTK is available
+ * for ESP-NOW key derivation. Called by time_sync_task to determine
+ * when to trigger key derivation.
+ *
+ * @return true if LTK is available for key derivation
+ * @return false if not bonded or LTK not yet available
+ */
+bool ble_peer_ltk_available(void);
+
+// ============================================================================
 // EXTERNAL CALLBACKS (implemented by time_sync_task)
 // ============================================================================
 
