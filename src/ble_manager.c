@@ -5029,42 +5029,28 @@ esp_err_t ble_send_time_sync_beacon(void) {
     // Original T1 was set in time_sync_generate_beacon() ~1-50ms earlier.
     time_sync_finalize_beacon_timestamp(&beacon);
 
-    // AD048: Try ESP-NOW first (±100μs jitter vs BLE's ±50ms)
-    // ESP-NOW provides sub-millisecond latency for time-critical beacons
-    bool espnow_sent = false;
-    if (espnow_transport_is_ready()) {
-        esp_err_t espnow_err = espnow_transport_send_beacon(&beacon);
-        if (espnow_err == ESP_OK) {
-            espnow_sent = true;
-            ESP_LOGD(TAG, "AD048: Beacon sent via ESP-NOW (low latency)");
-        } else {
-            ESP_LOGW(TAG, "AD048: ESP-NOW send failed: %s, using BLE fallback",
-                     esp_err_to_name(espnow_err));
-        }
+    // UTLP Design: Time beacons use ESP-NOW broadcast ONLY
+    // "Shout the time, don't care who hears" - no BLE fallback for timing
+    // Broadcast eliminates ACK contention and always succeeds
+    if (!espnow_transport_is_ready()) {
+        ESP_LOGW(TAG, "ESP-NOW not ready - beacon skipped (UTLP: no BLE fallback for time)");
+        xSemaphoreGive(time_sync_beacon_mutex);
+        return ESP_ERR_INVALID_STATE;
     }
 
-    // Send notification to peer via BLE (redundancy or fallback)
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(&beacon, sizeof(beacon));
-    if (om == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate mbuf for sync beacon");
+    esp_err_t espnow_err = espnow_transport_send_beacon(&beacon);
+    if (espnow_err != ESP_OK) {
+        ESP_LOGE(TAG, "ESP-NOW beacon broadcast failed: %s", esp_err_to_name(espnow_err));
         xSemaphoreGive(time_sync_beacon_mutex);
-        return ESP_ERR_NO_MEM;
-    }
-
-    int rc = ble_gatts_notify_custom(peer_conn_handle, g_time_sync_char_handle, om);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to send sync beacon notification: rc=%d", rc);
-        xSemaphoreGive(time_sync_beacon_mutex);
-        return ESP_FAIL;
+        return espnow_err;
     }
 
     // Only update global after successful send (while still holding mutex)
     g_time_sync_beacon = beacon;
 
-    // Debug: Log beacon size, transport, and checksum for truncation diagnosis
-    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X [%s%s]",
-             (unsigned)sizeof(beacon), beacon.sequence, beacon.checksum,
-             espnow_sent ? "ESP-NOW" : "", espnow_sent ? "+BLE" : "BLE");
+    // Debug: Log beacon size and checksum
+    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X [ESP-NOW]",
+             (unsigned)sizeof(beacon), beacon.sequence, beacon.checksum);
     xSemaphoreGive(time_sync_beacon_mutex);
 
     ESP_LOGD(TAG, "Sync beacon sent to peer (seq=%u)", beacon.sequence);
@@ -5091,15 +5077,15 @@ void ble_set_coordination_mode(coordination_mode_t mode) {
 }
 
 /**
- * @brief Check if message type should use ESP-NOW for timing
+ * @brief Check if message type needs TDM scheduling
  *
- * Time-critical messages (PTP handshake, asymmetry probes) benefit from
- * ESP-NOW's ~1ms RTT vs BLE's ~50-100ms RTT.
+ * Time-critical messages (PTP handshake, asymmetry probes) need TDM scheduling
+ * to avoid BLE connection event contention. Other messages can send immediately.
  *
  * @param type Message type
- * @return true if should prefer ESP-NOW transport
+ * @return true if TDM scheduling required
  */
-static bool is_espnow_preferred_msg_type(sync_message_type_t type) {
+static bool is_tdm_required_msg_type(sync_message_type_t type) {
     switch (type) {
         case SYNC_MSG_TIME_REQUEST:           // PTP handshake CLIENT→SERVER
         case SYNC_MSG_TIME_RESPONSE:          // PTP handshake SERVER→CLIENT
@@ -5113,51 +5099,96 @@ static bool is_espnow_preferred_msg_type(sync_message_type_t type) {
     }
 }
 
+/**
+ * @brief Check if message type is a bootstrap message (must use BLE)
+ *
+ * Bootstrap messages are needed to ESTABLISH ESP-NOW peer configuration.
+ * They must go over BLE because ESP-NOW peer isn't configured yet.
+ *
+ * @param type Message type
+ * @return true if bootstrap message (must use BLE)
+ */
+static bool is_bootstrap_msg_type(sync_message_type_t type) {
+    switch (type) {
+        case SYNC_MSG_FIRMWARE_VERSION:       // AD040: Version exchange
+        case SYNC_MSG_HARDWARE_INFO:          // AD048: Hardware info
+        case SYNC_MSG_WIFI_MAC:               // AD048: WiFi MAC for ESP-NOW peer config
+        case SYNC_MSG_ESPNOW_KEY_EXCHANGE:    // AD048: HKDF key derivation
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * @brief Send coordination message to peer device
+ *
+ * AD048 Phase 7: Peer coordination uses ESP-NOW after bootstrap. BLE is used for:
+ * - Bootstrap messages (firmware version, hardware info, WiFi MAC, key exchange)
+ * - PWA ↔ SERVER communication
+ *
+ * @param msg Coordination message to send
+ * @return ESP_OK on success, error code on failure
+ */
 esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
     if (msg == NULL) {
         ESP_LOGE(TAG, "NULL coordination message");
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Try ESP-NOW for time-critical messages (sub-ms latency vs BLE's 50-100ms)
-    if (is_espnow_preferred_msg_type(msg->type) && espnow_transport_is_ready()) {
-        esp_err_t ret = espnow_transport_send_coordination(
-            (const uint8_t *)msg, sizeof(coordination_message_t));
-        if (ret == ESP_OK) {
-            ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW: type=%d", msg->type);
-            return ESP_OK;
+    // Bootstrap messages MUST use BLE (ESP-NOW peer not configured yet)
+    if (is_bootstrap_msg_type(msg->type)) {
+        // Check if peer is connected via BLE
+        uint16_t peer_conn_handle = ble_get_peer_conn_handle();
+        if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            ESP_LOGD(TAG, "Cannot send bootstrap message: peer not connected");
+            return ESP_ERR_INVALID_STATE;
         }
-        // Fall through to BLE on ESP-NOW failure
-        ESP_LOGW(TAG, "ESP-NOW send failed, falling back to BLE: type=%d", msg->type);
+
+        // Check peer's coordination characteristic handle
+        if (g_peer_coordination_char_handle == 0) {
+            ESP_LOGW(TAG, "Peer coordination handle not discovered yet");
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        // Send via BLE GATT write (bootstrap path)
+        int rc = ble_gattc_write_no_rsp_flat(peer_conn_handle, g_peer_coordination_char_handle,
+                                              msg, sizeof(coordination_message_t));
+        if (rc != 0) {
+            ESP_LOGE(TAG, "Failed to write bootstrap message to peer: rc=%d", rc);
+            return ESP_FAIL;
+        }
+
+        ESP_LOGD(TAG, "Bootstrap msg sent via BLE: type=%d", msg->type);
+        return ESP_OK;
     }
 
-    // BLE path (fallback or non-time-critical messages)
-
-    // Check if peer is connected
-    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
-    if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        ESP_LOGD(TAG, "Cannot send coordination message: peer not connected");
+    // Non-bootstrap messages use ESP-NOW
+    if (!espnow_transport_is_ready()) {
+        ESP_LOGW(TAG, "ESP-NOW not ready - coordination msg skipped: type=%d", msg->type);
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Check peer's coordination characteristic handle (discovered during GATT service discovery)
-    if (g_peer_coordination_char_handle == 0) {
-        ESP_LOGW(TAG, "Peer coordination characteristic handle not discovered yet");
-        return ESP_ERR_INVALID_STATE;
+    esp_err_t ret;
+    if (is_tdm_required_msg_type(msg->type)) {
+        // Time-critical: Use TDM-scheduled send to avoid BLE contention
+        ret = espnow_transport_send_coordination_tdm(
+            (const uint8_t *)msg, sizeof(coordination_message_t));
+    } else {
+        // Non-time-critical: Send immediately via ESP-NOW
+        ret = espnow_transport_send_coordination(
+            (const uint8_t *)msg, sizeof(coordination_message_t));
     }
 
-    // Write to peer's coordination characteristic (triggers their gatt_bilateral_coordination_write callback)
-    // Use write-without-response for fire-and-forget delivery (no ACK waiting)
-    int rc = ble_gattc_write_no_rsp_flat(peer_conn_handle, g_peer_coordination_char_handle,
-                                          msg, sizeof(coordination_message_t));
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to write coordination message to peer: rc=%d", rc);
-        return ESP_FAIL;
+    if (ret == ESP_OK) {
+        ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW: type=%d%s",
+                 msg->type, is_tdm_required_msg_type(msg->type) ? " [TDM]" : "");
+    } else {
+        ESP_LOGE(TAG, "ESP-NOW coordination send failed: type=%d, err=%s",
+                 msg->type, esp_err_to_name(ret));
     }
 
-    ESP_LOGD(TAG, "Coordination message written to peer (BLE): type=%d, timestamp=%lu",
-             msg->type, (unsigned long)msg->timestamp_ms);
-    return ESP_OK;
+    return ret;
 }
 
 /**

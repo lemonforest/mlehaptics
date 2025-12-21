@@ -48,6 +48,34 @@ extern "C" {
 /** @brief Jitter measurement window size */
 #define ESPNOW_JITTER_WINDOW_SIZE   (32U)
 
+// ============================================================================
+// TDM SCHEDULING CONSTANTS (BLE/ESP-NOW Coexistence)
+// ============================================================================
+
+/**
+ * @brief BLE connection interval in milliseconds
+ *
+ * BLE connection events occur at this interval (50ms = 40 × 1.25ms units).
+ * ESP-NOW coordination messages should be scheduled between BLE events.
+ */
+#define ESPNOW_TDM_BLE_INTERVAL_MS  (50U)
+
+/**
+ * @brief TDM safe window offset from BLE event start (ms)
+ *
+ * BLE events use the radio for ~1-5ms at the start of each interval.
+ * Schedule ESP-NOW at the midpoint (25ms offset) for maximum clearance.
+ */
+#define ESPNOW_TDM_SAFE_OFFSET_MS   (25U)
+
+/**
+ * @brief TDM safe window duration (ms)
+ *
+ * How long the "safe" window lasts around the midpoint.
+ * ESP-NOW should complete transmission within this window.
+ */
+#define ESPNOW_TDM_SAFE_WINDOW_MS   (20U)
+
 /** @brief ESP-NOW encryption key size (PMK/LMK) */
 #define ESPNOW_KEY_SIZE             (16U)
 
@@ -273,6 +301,48 @@ esp_err_t espnow_transport_register_coordination_callback(espnow_coordination_ca
  * @return ESP_FAIL if send fails
  */
 esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len);
+
+/**
+ * @brief Send coordination message with TDM scheduling
+ *
+ * Like espnow_transport_send_coordination() but waits for a TDM-safe
+ * window before transmitting. This avoids radio contention with BLE
+ * connection events.
+ *
+ * TDM schedule:
+ * - BLE events occur at t=0, 50, 100ms, etc.
+ * - Safe window is centered at t=25, 75, 125ms, etc.
+ * - Function blocks up to ESPNOW_TDM_BLE_INTERVAL_MS until safe window
+ *
+ * @param data Pointer to coordination message bytes
+ * @param len Length of message data
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if data is NULL or len is 0
+ * @return ESP_ERR_INVALID_STATE if no peer configured
+ * @return ESP_FAIL if send fails
+ */
+esp_err_t espnow_transport_send_coordination_tdm(const uint8_t *data, size_t len);
+
+/**
+ * @brief Check if currently in TDM safe window for ESP-NOW
+ *
+ * Returns true if the current time is in the safe window for ESP-NOW
+ * transmission (midpoint between BLE connection events).
+ *
+ * @return true if safe to send ESP-NOW now
+ * @return false if BLE event may be active
+ */
+bool espnow_transport_is_tdm_safe(void);
+
+/**
+ * @brief Wait until next TDM safe window
+ *
+ * Blocks until the next TDM-safe window for ESP-NOW transmission.
+ * Maximum wait is ESPNOW_TDM_BLE_INTERVAL_MS.
+ *
+ * @return Time waited in milliseconds
+ */
+uint32_t espnow_transport_wait_for_tdm_safe(void);
 
 // ============================================================================
 // SECURE KEY DERIVATION API (HKDF-SHA256)

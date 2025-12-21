@@ -22,7 +22,14 @@
 #include "mbedtls/hkdf.h"
 #include "mbedtls/md.h"
 
+// FreeRTOS for TDM scheduling delays
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 static const char *TAG = "ESPNOW";
+
+// Broadcast MAC address for UTLP time beacons (no ACK expected)
+static const uint8_t ESPNOW_BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // ============================================================================
 // MODULE STATE (JPL Rule 1: Static allocation)
@@ -30,8 +37,9 @@ static const char *TAG = "ESPNOW";
 
 static struct {
     espnow_state_t state;
-    uint8_t peer_mac[6];
-    bool peer_configured;
+    uint8_t peer_mac[6];              // Unicast peer for coordination messages
+    bool peer_configured;              // Unicast peer registered
+    bool broadcast_configured;         // Broadcast peer registered for beacons
     bool encryption_enabled;
     espnow_beacon_callback_t beacon_callback;
     espnow_coordination_callback_t coordination_callback;
@@ -40,6 +48,7 @@ static struct {
 } s_espnow = {
     .state = ESPNOW_STATE_UNINITIALIZED,
     .peer_configured = false,
+    .broadcast_configured = false,
     .encryption_enabled = false,
     .beacon_callback = NULL,
     .coordination_callback = NULL,
@@ -271,6 +280,23 @@ esp_err_t espnow_transport_init(void)
     // Clear metrics
     memset(&s_espnow.metrics, 0, sizeof(s_espnow.metrics));
 
+    // Register broadcast peer for UTLP time beacons (no ACK expected)
+    // This allows fire-and-forget beacon transmission per UTLP design
+    esp_now_peer_info_t broadcast_peer = {0};
+    memcpy(broadcast_peer.peer_addr, ESPNOW_BROADCAST_MAC, 6);
+    broadcast_peer.channel = ESPNOW_CHANNEL;
+    broadcast_peer.ifidx = WIFI_IF_STA;
+    broadcast_peer.encrypt = false;  // Broadcast cannot be encrypted
+
+    ret = esp_now_add_peer(&broadcast_peer);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Add broadcast peer failed: %s (non-fatal)", esp_err_to_name(ret));
+        // Non-fatal - beacons will fall back to unicast if needed
+    } else {
+        s_espnow.broadcast_configured = true;
+        ESP_LOGI(TAG, "Broadcast peer registered for UTLP time beacons");
+    }
+
     s_espnow.state = ESPNOW_STATE_READY;
 
     // Log local MAC for debugging
@@ -377,28 +403,47 @@ esp_err_t espnow_transport_send_beacon(const time_sync_beacon_t *beacon)
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (!s_espnow.peer_configured) {
-        ESP_LOGW(TAG, "Cannot send: no peer configured");
-        return ESP_ERR_INVALID_STATE;
+    // UTLP Design: Time beacons use broadcast (no ACK expected)
+    // "Shout the time, don't care who hears" - fire and forget
+    // This eliminates ACK contention with BLE and always succeeds
+    if (!s_espnow.broadcast_configured) {
+        // Fallback to unicast if broadcast not available
+        if (!s_espnow.peer_configured) {
+            ESP_LOGW(TAG, "Cannot send beacon: no peer configured");
+            return ESP_ERR_INVALID_STATE;
+        }
+        // Use unicast (legacy path)
+        esp_err_t ret = esp_now_send(s_espnow.peer_mac,
+                                      (const uint8_t *)beacon,
+                                      sizeof(time_sync_beacon_t));
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "ESP-NOW beacon send failed: %s", esp_err_to_name(ret));
+            s_espnow.metrics.send_failures++;
+            return ESP_FAIL;
+        }
+        s_espnow.metrics.beacons_sent++;
+        ESP_LOGD(TAG, "Beacon sent via ESP-NOW unicast (seq: %u)", beacon->sequence);
+        return ESP_OK;
     }
 
     // Record expected arrival time for jitter calculation
     // Assuming ~1ms one-way latency for ESP-NOW
     s_espnow.metrics.last_expected_us = esp_timer_get_time() + 1000;
 
-    // Send beacon
-    esp_err_t ret = esp_now_send(s_espnow.peer_mac,
+    // Send beacon via broadcast - no ACK, no contention, always succeeds
+    esp_err_t ret = esp_now_send(ESPNOW_BROADCAST_MAC,
                                   (const uint8_t *)beacon,
                                   sizeof(time_sync_beacon_t));
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "ESP-NOW send failed: %s", esp_err_to_name(ret));
+        // This should rarely fail (only if ESP-NOW not ready)
+        ESP_LOGE(TAG, "ESP-NOW broadcast failed: %s", esp_err_to_name(ret));
         s_espnow.metrics.send_failures++;
         return ESP_FAIL;
     }
 
     s_espnow.metrics.beacons_sent++;
 
-    ESP_LOGD(TAG, "Beacon sent via ESP-NOW (seq: %u)", beacon->sequence);
+    ESP_LOGD(TAG, "Beacon broadcast via ESP-NOW (seq: %u)", beacon->sequence);
     return ESP_OK;
 }
 
@@ -498,6 +543,111 @@ esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
     }
 
     ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW (%zu bytes)", len);
+    return ESP_OK;
+}
+
+// ============================================================================
+// TDM SCHEDULING IMPLEMENTATION (BLE/ESP-NOW Coexistence)
+// ============================================================================
+
+/**
+ * @brief Check if currently in TDM safe window for ESP-NOW
+ *
+ * BLE connection events occur at regular intervals (50ms).
+ * Safe window is centered at the midpoint between events.
+ *
+ * Timeline: |---BLE---||--------SAFE--------|---BLE---||--------SAFE--------|
+ *           0         5       15-35          50        55      65-85         100
+ */
+bool espnow_transport_is_tdm_safe(void)
+{
+    // Get current time in milliseconds
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    // Calculate position within BLE interval
+    uint32_t phase = now_ms % ESPNOW_TDM_BLE_INTERVAL_MS;
+
+    // Safe window is centered at ESPNOW_TDM_SAFE_OFFSET_MS (25ms)
+    // Window spans from (offset - window/2) to (offset + window/2)
+    uint32_t window_start = ESPNOW_TDM_SAFE_OFFSET_MS - (ESPNOW_TDM_SAFE_WINDOW_MS / 2);
+    uint32_t window_end = ESPNOW_TDM_SAFE_OFFSET_MS + (ESPNOW_TDM_SAFE_WINDOW_MS / 2);
+
+    return (phase >= window_start && phase <= window_end);
+}
+
+/**
+ * @brief Wait until next TDM safe window
+ *
+ * Calculates time until midpoint of next BLE interval and waits.
+ */
+uint32_t espnow_transport_wait_for_tdm_safe(void)
+{
+    uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    uint32_t phase = now_ms % ESPNOW_TDM_BLE_INTERVAL_MS;
+
+    // Calculate delay to reach safe window center
+    uint32_t delay_ms;
+    if (phase < ESPNOW_TDM_SAFE_OFFSET_MS) {
+        // Haven't reached safe window yet in this interval
+        delay_ms = ESPNOW_TDM_SAFE_OFFSET_MS - phase;
+    } else {
+        // Past safe window, wait for next interval
+        delay_ms = (ESPNOW_TDM_BLE_INTERVAL_MS - phase) + ESPNOW_TDM_SAFE_OFFSET_MS;
+    }
+
+    if (delay_ms > 0) {
+        ESP_LOGD(TAG, "TDM: Waiting %lu ms for safe window (phase=%lu)",
+                 (unsigned long)delay_ms, (unsigned long)phase);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    }
+
+    return delay_ms;
+}
+
+/**
+ * @brief Send coordination message with TDM scheduling
+ *
+ * Waits for TDM-safe window, then sends via ESP-NOW unicast.
+ * This minimizes radio contention with BLE connection events.
+ */
+esp_err_t espnow_transport_send_coordination_tdm(const uint8_t *data, size_t len)
+{
+    if (data == NULL || len == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!s_espnow.peer_configured) {
+        ESP_LOGW(TAG, "Cannot send coordination: no peer configured");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Wait for TDM safe window
+    uint32_t waited = espnow_transport_wait_for_tdm_safe();
+    if (waited > 0) {
+        ESP_LOGD(TAG, "TDM: Delayed %lu ms for safe window", (unsigned long)waited);
+    }
+
+    // Build packet: [0xC0 marker][coordination message bytes]
+    uint8_t pkt[ESPNOW_MAX_PAYLOAD];
+    if (len + 1 > ESPNOW_MAX_PAYLOAD) {
+        ESP_LOGE(TAG, "Coordination message too large: %zu > %u",
+                 len, ESPNOW_MAX_PAYLOAD - 1);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    pkt[0] = ESPNOW_PKT_TYPE_COORDINATION;
+    memcpy(pkt + 1, data, len);
+
+    // Send via ESP-NOW (unicast with ACK)
+    esp_err_t ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ESP-NOW coordination send failed: %s", esp_err_to_name(ret));
+        s_espnow.metrics.send_failures++;
+        return ESP_FAIL;
+    }
+
+    ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW with TDM (%zu bytes, waited %lu ms)",
+             len, (unsigned long)waited);
     return ESP_OK;
 }
 

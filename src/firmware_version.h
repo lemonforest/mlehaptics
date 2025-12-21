@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 3  // Add ESP-NOW send failure diagnostics
+#define FIRMWARE_VERSION_PATCH 9  // Bootstrap messages via BLE, coordination via ESP-NOW
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

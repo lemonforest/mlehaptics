@@ -1629,11 +1629,15 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
      *   (T3-T4) = -(One-way delay + clock offset) (server→client, negated)
      *   Average = clock offset (delays cancel if symmetric)
      *
-     * Sign convention: offset > 0 means CLIENT is ahead of SERVER
+     * Raw NTP convention: offset > 0 means SERVER is ahead of CLIENT
+     * Our convention: offset > 0 means CLIENT is ahead of SERVER
+     *
+     * We NEGATE to match our beacon convention (client_rx - server_tx)
+     * so time_sync_get_time can use consistent subtraction.
      */
     int64_t d1 = (int64_t)t2_us - (int64_t)t1_us;  /* T2 - T1 */
     int64_t d2 = (int64_t)t3_us - (int64_t)t4_us;  /* T3 - T4 */
-    int64_t offset = (d1 + d2) / 2;
+    int64_t offset = -((d1 + d2) / 2);  /* NEGATE to match CLIENT-SERVER convention */
 
     /* RTT formula: RTT = (T4-T1) - (T3-T2)
      *
