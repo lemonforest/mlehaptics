@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 9  // Bootstrap messages via BLE, coordination via ESP-NOW
+#define FIRMWARE_VERSION_PATCH 10  // Remove dead BLE beacon code (beacons via ESP-NOW)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

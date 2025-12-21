@@ -404,10 +404,6 @@ static SemaphoreHandle_t time_sync_beacon_mutex = NULL;
 // - CLIENT (BLE_GAP_ROLE_MASTER): Set during GATT discovery (gattc_on_chr_disc)
 static uint16_t g_time_sync_char_handle = 0;
 
-// CLIENT-specific: Handle for peer's time sync characteristic (discovered via GATT client)
-// Only used when we are CLIENT role (initiated connection to SERVER peer)
-static uint16_t g_peer_time_sync_char_handle = 0;
-
 // ============================================================================
 // COORDINATION STATE (Phase 3 - Hybrid Architecture)
 // ============================================================================
@@ -2382,29 +2378,8 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
         return 0;
     }
 
-    // Compare UUID with time sync characteristic
-    if (ble_uuid_cmp(&chr->uuid.u, &uuid_bilateral_time_sync.u) == 0) {
-        ESP_LOGI(TAG, "CLIENT: Found time sync characteristic; val_handle=%u", chr->val_handle);
-
-        // Store handle for notification reception
-        g_peer_time_sync_char_handle = chr->val_handle;
-
-        // Write directly to CCCD (standard location is val_handle + 1)
-        // This avoids descriptor discovery which has handle range issues
-        uint16_t cccd_handle = chr->val_handle + 1;
-        uint16_t notify_enable = 1;  // 0x0001 = notifications enabled
-
-        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
-                                       &notify_enable, sizeof(notify_enable),
-                                       gattc_on_cccd_write, NULL);
-        if (rc != 0) {
-            ESP_LOGE(TAG, "CLIENT: Failed to write CCCD at handle %u; rc=%d", cccd_handle, rc);
-        } else {
-            ESP_LOGI(TAG, "CLIENT: CCCD write initiated at handle %u (enabling notifications)", cccd_handle);
-        }
-    }
-
     // Compare UUID with coordination characteristic (Phase 3 - Hybrid Architecture)
+    // Note: Time sync CCCD subscription removed (v0.7.10) - beacons now via ESP-NOW
     if (ble_uuid_cmp(&chr->uuid.u, &uuid_bilateral_coordination.u) == 0) {
         ESP_LOGI(TAG, "CLIENT: Found coordination characteristic; val_handle=%u", chr->val_handle);
 
@@ -3369,52 +3344,10 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 break;
             }
 
-            // Verify this is the time sync characteristic
-            // Check both SERVER handle (our own GATT service) and CLIENT handle (discovered from peer)
-            bool is_server_handle = (event->notify_rx.attr_handle == g_time_sync_char_handle);
-            bool is_client_handle = (event->notify_rx.attr_handle == g_peer_time_sync_char_handle);
-
-            if (!is_server_handle && !is_client_handle) {
-                // Not time sync characteristic - ignore
-                ESP_LOGD(TAG, "Notification from unknown characteristic handle=%u (expected server=%u or client=%u)",
-                         event->notify_rx.attr_handle,
-                         g_time_sync_char_handle,
-                         g_peer_time_sync_char_handle);
-                break;
-            }
-
-            // Capture receive timestamp IMMEDIATELY (critical for timing accuracy)
-            // OPTIMIZATION: Capture before mbuf extraction to minimize timing error
-            // mbuf extraction adds 0.1-1ms delay - capturing afterwards introduces error
-            uint64_t receive_time_us = esp_timer_get_time();
-
-            // Extract beacon from mbuf
-            time_sync_beacon_t beacon = {0};  // Zero-init to detect truncation
-            uint16_t actual_len = 0;
-            int copy_rc = ble_hs_mbuf_to_flat(event->notify_rx.om,
-                                               &beacon,
-                                               sizeof(beacon),
-                                               &actual_len);
-            if (copy_rc != 0) {
-                ESP_LOGE(TAG, "Failed to extract beacon from notification: rc=%d", copy_rc);
-                break;
-            }
-
-            // Debug: Check for payload truncation
-            if (actual_len != sizeof(beacon)) {
-                ESP_LOGW(TAG, "Beacon truncated: received %u bytes, expected %u bytes",
-                         actual_len, (unsigned)sizeof(beacon));
-            }
-
-            // Forward beacon to time_sync_task for processing (AD048: mark as BLE transport)
-            esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us, BEACON_TRANSPORT_BLE);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to queue beacon to time_sync_task: %s", esp_err_to_name(err));
-            } else {
-                ESP_LOGD(TAG, "Beacon notification queued via BLE (seq=%u, server_time=%llu μs)",
-                         beacon.sequence, beacon.server_time_us);
-            }
-
+            // Note: Time sync beacon handler removed (v0.7.10) - beacons now via ESP-NOW
+            // Unhandled notification - log for debugging
+            ESP_LOGD(TAG, "Notification from unknown characteristic handle=%u",
+                     event->notify_rx.attr_handle);
             break;
         }
 
