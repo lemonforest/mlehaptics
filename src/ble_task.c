@@ -81,6 +81,49 @@ void ble_task(void *pvParameters) {
                     state = BLE_STATE_CONNECTED;
                 }
 
+                // Bug #34 fix: Handle peer connection that occurred before ble_task reached PAIRING state
+                // This happens when CLIENT receives incoming connection during startup (before IDLE→ADVERTISING)
+                // CLIENT's ble_manager handles connection in GAP callback, but ble_task misses MSG_PAIRING_COMPLETE
+                static bool idle_peer_handled = false;
+                if (!idle_peer_handled && ble_is_peer_connected()) {
+                    // Peer already connected - check if pairing workflow complete
+                    if (ble_firmware_version_exchanged() && ble_firmware_versions_match()) {
+                        ESP_LOGI(TAG, "Peer already connected during IDLE (late ble_task start)");
+
+                        // Send MSG_PAIRING_COMPLETE to motor_task
+                        extern QueueHandle_t ble_to_motor_queue;
+                        if (ble_to_motor_queue != NULL) {
+                            task_message_t success_msg = {
+                                .type = MSG_PAIRING_COMPLETE,
+                                .data = {.new_mode = 0}
+                            };
+                            if (xQueueSend(ble_to_motor_queue, &success_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                                ESP_LOGI(TAG, "Pairing complete message sent to motor_task (from IDLE)");
+                                idle_peer_handled = true;
+
+                                // Stop advertising if still active (peer pairing complete)
+                                if (ble_is_advertising()) {
+                                    // Only SERVER should continue advertising for mobile app access
+                                    if (ble_get_peer_role() != PEER_ROLE_SERVER) {
+                                        ble_stop_advertising();
+                                        ESP_LOGI(TAG, "CLIENT: Advertising stopped (peer connected from IDLE)");
+                                    }
+                                }
+
+                                // Transition to ADVERTISING state (handles app connections, timeouts)
+                                ESP_LOGI(TAG, "State: IDLE → ADVERTISING (peer already paired)");
+                                state = BLE_STATE_ADVERTISING;
+                            } else {
+                                ESP_LOGW(TAG, "Failed to send pairing complete (from IDLE)");
+                            }
+                        }
+                    } else {
+                        // Peer connected but firmware version not yet exchanged
+                        // This is normal during startup - wait for time_sync_task to exchange versions
+                        ESP_LOGD(TAG, "Peer connected but waiting for firmware version exchange...");
+                    }
+                }
+
                 // Periodic state logging (every 30 seconds)
                 idle_log_counter++;
                 if (idle_log_counter >= 30) {

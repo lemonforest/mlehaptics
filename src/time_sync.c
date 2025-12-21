@@ -243,8 +243,11 @@ esp_err_t time_sync_on_disconnection(void)
 esp_err_t time_sync_on_reconnection(time_sync_role_t new_role)
 {
     if (!g_time_sync_state.initialized) {
-        ESP_LOGE(TAG, "Not initialized");
-        return ESP_ERR_INVALID_STATE;
+        // Bug #34 fix: This is expected on initial connection - time_sync_init() is called
+        // by motor_task AFTER pairing completes, but this function is called from GATT
+        // CCCD callback which fires before pairing is complete. Not an error.
+        ESP_LOGI(TAG, "Not yet initialized (initial connection - will init after pairing)");
+        return ESP_OK;  // Return OK for initial connection (nothing to reconnect)
     }
 
     if (g_time_sync_state.state != SYNC_STATE_DISCONNECTED &&

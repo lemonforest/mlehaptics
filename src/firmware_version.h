@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 10  // Remove dead BLE beacon code (beacons via ESP-NOW)
+#define FIRMWARE_VERSION_PATCH 11  // Bug #34: Fix CLIENT ble_task IDLE state handling
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

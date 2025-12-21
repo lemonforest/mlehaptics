@@ -2287,10 +2287,9 @@ static int gattc_on_cccd_write(uint16_t conn_handle,
         esp_err_t reconnect_rc = time_sync_on_reconnection(sync_role);
         if (reconnect_rc != ESP_OK) {
             ESP_LOGW(TAG, "time_sync_on_reconnection failed; rc=%d", reconnect_rc);
-        } else {
-            ESP_LOGI(TAG, "Time sync initialized successfully (role: %s)",
-                     (sync_role == TIME_SYNC_ROLE_SERVER) ? "SERVER" : "CLIENT");
         }
+        // Note: time_sync_on_reconnection returns ESP_OK on initial connection too
+        // (before time_sync_init called), so we don't log "initialized" here
     } else {
         ESP_LOGE(TAG, "CLIENT: Failed to write CCCD; status=%d", error->status);
     }
