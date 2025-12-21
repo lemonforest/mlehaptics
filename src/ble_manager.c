@@ -342,6 +342,7 @@ static uint32_t freq_change_timestamp_ms = 0;
 static char local_firmware_version_str[32] = "";   // Initialized in ble_manager_init()
 static char peer_firmware_version_str[32] = "";    // Set by ble_set_peer_firmware_version()
 static bool firmware_versions_match_flag = true;   // AD040: Assume match until proven otherwise
+static bool firmware_version_exchanged = false;    // AD040: Set true when SYNC_MSG_FIRMWARE_VERSION processed
 
 // AD048: Hardware info strings (silicon revision, 802.11mc FTM capability)
 // Format: "ESP32-C6 v0.2 (FTM:full)" or "ESP32-C6 v0.1 (FTM:resp-only)"
@@ -2803,6 +2804,10 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     peer_state.peer_conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
 
+                    // AD040: Reset version exchange state for new connection
+                    firmware_version_exchanged = false;
+                    firmware_versions_match_flag = true;  // Assume match until proven otherwise
+
                     // CRITICAL: Stop scanning immediately to prevent connection race conditions
                     // This prevents scan callback from discovering and trying to connect to other devices
                     // while we're processing incoming connections (Bug #11 - Windows PC PWA misidentification)
@@ -4739,6 +4744,22 @@ uint16_t ble_get_app_conn_handle(void) {
     return adv_state.conn_handle;
 }
 
+esp_err_t ble_disconnect_peer(uint8_t reason) {
+    uint16_t handle = peer_state.peer_conn_handle;
+    if (handle == BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGW(TAG, "ble_disconnect_peer: No peer connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGI(TAG, "Disconnecting peer (handle=%d, reason=0x%02X)", handle, reason);
+    int rc = ble_gap_terminate(handle, reason);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_terminate failed: rc=%d", rc);
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
 void ble_update_battery_level(uint8_t percentage) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -5069,11 +5090,48 @@ void ble_set_coordination_mode(coordination_mode_t mode) {
     }
 }
 
+/**
+ * @brief Check if message type should use ESP-NOW for timing
+ *
+ * Time-critical messages (PTP handshake, asymmetry probes) benefit from
+ * ESP-NOW's ~1ms RTT vs BLE's ~50-100ms RTT.
+ *
+ * @param type Message type
+ * @return true if should prefer ESP-NOW transport
+ */
+static bool is_espnow_preferred_msg_type(sync_message_type_t type) {
+    switch (type) {
+        case SYNC_MSG_TIME_REQUEST:           // PTP handshake CLIENT→SERVER
+        case SYNC_MSG_TIME_RESPONSE:          // PTP handshake SERVER→CLIENT
+        case SYNC_MSG_REVERSE_PROBE:          // Asymmetry CLIENT→SERVER
+        case SYNC_MSG_REVERSE_PROBE_RESPONSE: // Asymmetry SERVER→CLIENT
+        case SYNC_MSG_PHASE_QUERY:            // Phase coherence query
+        case SYNC_MSG_PHASE_RESPONSE:         // Phase coherence response
+            return true;
+        default:
+            return false;
+    }
+}
+
 esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
     if (msg == NULL) {
         ESP_LOGE(TAG, "NULL coordination message");
         return ESP_ERR_INVALID_ARG;
     }
+
+    // Try ESP-NOW for time-critical messages (sub-ms latency vs BLE's 50-100ms)
+    if (is_espnow_preferred_msg_type(msg->type) && espnow_transport_is_ready()) {
+        esp_err_t ret = espnow_transport_send_coordination(
+            (const uint8_t *)msg, sizeof(coordination_message_t));
+        if (ret == ESP_OK) {
+            ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW: type=%d", msg->type);
+            return ESP_OK;
+        }
+        // Fall through to BLE on ESP-NOW failure
+        ESP_LOGW(TAG, "ESP-NOW send failed, falling back to BLE: type=%d", msg->type);
+    }
+
+    // BLE path (fallback or non-time-critical messages)
 
     // Check if peer is connected
     uint16_t peer_conn_handle = ble_get_peer_conn_handle();
@@ -5097,7 +5155,7 @@ esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
         return ESP_FAIL;
     }
 
-    ESP_LOGD(TAG, "Coordination message written to peer: type=%d, timestamp=%lu",
+    ESP_LOGD(TAG, "Coordination message written to peer (BLE): type=%d, timestamp=%lu",
              msg->type, (unsigned long)msg->timestamp_ms);
     return ESP_OK;
 }
@@ -5757,12 +5815,17 @@ bool ble_firmware_versions_match(void) {
     return firmware_versions_match_flag;
 }
 
+bool ble_firmware_version_exchanged(void) {
+    return firmware_version_exchanged;
+}
+
 /**
  * @brief Internal function to update version match flag (called from time_sync_task)
  * @param match true if versions match, false otherwise
  */
 void ble_set_firmware_version_match(bool match) {
     firmware_versions_match_flag = match;
+    firmware_version_exchanged = true;  // Mark that exchange completed
 }
 
 // ============================================================================

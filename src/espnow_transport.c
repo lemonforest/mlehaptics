@@ -34,6 +34,7 @@ static struct {
     bool peer_configured;
     bool encryption_enabled;
     espnow_beacon_callback_t beacon_callback;
+    espnow_coordination_callback_t coordination_callback;
     espnow_metrics_t metrics;
     bool wifi_initialized;
 } s_espnow = {
@@ -41,6 +42,7 @@ static struct {
     .peer_configured = false,
     .encryption_enabled = false,
     .beacon_callback = NULL,
+    .coordination_callback = NULL,
     .wifi_initialized = false
 };
 
@@ -77,6 +79,10 @@ static void update_jitter_stats(int64_t jitter_us)
 
 /**
  * @brief ESP-NOW receive callback (runs in WiFi task context)
+ *
+ * Routes incoming packets based on type:
+ * - Beacons: 25 bytes, starts with server_time_us
+ * - Coordination: Variable length, starts with 0xC0 marker
  */
 static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
                            const uint8_t *data,
@@ -84,13 +90,6 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
 {
     // Capture receive timestamp immediately
     uint64_t rx_time_us = esp_timer_get_time();
-
-    // Validate length matches beacon size
-    if (len != sizeof(time_sync_beacon_t)) {
-        ESP_LOGW(TAG, "Unexpected packet size: %d (expected %zu)",
-                 len, sizeof(time_sync_beacon_t));
-        return;
-    }
 
     // Verify sender is our peer
     if (s_espnow.peer_configured) {
@@ -100,7 +99,26 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
         }
     }
 
-    // Update metrics
+    // Route based on packet type
+    // Coordination messages start with 0xC0 marker byte
+    if (len > 0 && data[0] == ESPNOW_PKT_TYPE_COORDINATION) {
+        // Coordination message (PTP, asymmetry probes)
+        if (s_espnow.coordination_callback != NULL && len > 1) {
+            // Pass message data without the marker byte
+            s_espnow.coordination_callback(data + 1, len - 1, rx_time_us);
+        }
+        ESP_LOGD(TAG, "Coordination msg received via ESP-NOW (%d bytes)", len - 1);
+        return;
+    }
+
+    // Beacon message - validate size
+    if (len != sizeof(time_sync_beacon_t)) {
+        ESP_LOGW(TAG, "Unexpected packet size: %d (expected %zu for beacon)",
+                 len, sizeof(time_sync_beacon_t));
+        return;
+    }
+
+    // Update metrics (beacons only)
     s_espnow.metrics.beacons_received++;
     s_espnow.metrics.last_actual_us = rx_time_us;
 
@@ -130,7 +148,14 @@ static void espnow_send_cb(const wifi_tx_info_t *tx_info, esp_now_send_status_t 
     if (status == ESP_NOW_SEND_SUCCESS) {
         ESP_LOGD(TAG, "ESP-NOW send success");
     } else {
-        ESP_LOGW(TAG, "ESP-NOW send failed");
+        // Log channel info for diagnostics
+        uint8_t primary_chan = 0;
+        wifi_second_chan_t second_chan;
+        esp_wifi_get_channel(&primary_chan, &second_chan);
+        ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
+                 primary_chan,
+                 s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
+                 s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
         s_espnow.metrics.send_failures++;
     }
 }
@@ -310,9 +335,14 @@ esp_err_t espnow_transport_set_peer(const uint8_t peer_mac[6])
     s_espnow.peer_configured = true;
     s_espnow.state = ESPNOW_STATE_PEER_SET;
 
-    ESP_LOGI(TAG, "Peer configured: %02X:%02X:%02X:%02X:%02X:%02X",
+    // Log current WiFi channel for diagnostics
+    uint8_t current_chan = 0;
+    wifi_second_chan_t second_chan;
+    esp_wifi_get_channel(&current_chan, &second_chan);
+    ESP_LOGI(TAG, "Peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=%d, wifi_channel=%d)",
              peer_mac[0], peer_mac[1], peer_mac[2],
-             peer_mac[3], peer_mac[4], peer_mac[5]);
+             peer_mac[3], peer_mac[4], peer_mac[5],
+             ESPNOW_CHANNEL, current_chan);
 
     return ESP_OK;
 }
@@ -422,6 +452,53 @@ void espnow_transport_log_jitter_stats(void)
 bool espnow_transport_is_ready(void)
 {
     return s_espnow.state == ESPNOW_STATE_PEER_SET && s_espnow.peer_configured;
+}
+
+// ============================================================================
+// COORDINATION MESSAGE IMPLEMENTATION
+// ============================================================================
+
+esp_err_t espnow_transport_register_coordination_callback(espnow_coordination_callback_t callback)
+{
+    s_espnow.coordination_callback = callback;
+    ESP_LOGI(TAG, "Coordination callback %s",
+             callback ? "registered" : "cleared");
+    return ESP_OK;
+}
+
+esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
+{
+    if (data == NULL || len == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (!s_espnow.peer_configured) {
+        ESP_LOGW(TAG, "Cannot send coordination: no peer configured");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Build packet: [0xC0 marker][coordination message bytes]
+    // Use stack buffer - coordination messages are small (<100 bytes)
+    uint8_t pkt[ESPNOW_MAX_PAYLOAD];
+    if (len + 1 > ESPNOW_MAX_PAYLOAD) {
+        ESP_LOGE(TAG, "Coordination message too large: %zu > %u",
+                 len, ESPNOW_MAX_PAYLOAD - 1);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    pkt[0] = ESPNOW_PKT_TYPE_COORDINATION;
+    memcpy(pkt + 1, data, len);
+
+    // Send via ESP-NOW
+    esp_err_t ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ESP-NOW coordination send failed: %s", esp_err_to_name(ret));
+        s_espnow.metrics.send_failures++;
+        return ESP_FAIL;
+    }
+
+    ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW (%zu bytes)", len);
+    return ESP_OK;
 }
 
 // ============================================================================
@@ -602,9 +679,14 @@ esp_err_t espnow_transport_set_peer_encrypted(
     s_espnow.encryption_enabled = true;
     s_espnow.state = ESPNOW_STATE_PEER_SET;
 
-    ESP_LOGI(TAG, "Encrypted peer configured: %02X:%02X:%02X:%02X:%02X:%02X",
+    // Log current WiFi channel for diagnostics
+    uint8_t current_chan = 0;
+    wifi_second_chan_t second_chan;
+    esp_wifi_get_channel(&current_chan, &second_chan);
+    ESP_LOGI(TAG, "Encrypted peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=%d, wifi_channel=%d)",
              peer_mac[0], peer_mac[1], peer_mac[2],
-             peer_mac[3], peer_mac[4], peer_mac[5]);
+             peer_mac[3], peer_mac[4], peer_mac[5],
+             ESPNOW_CHANNEL, current_chan);
 
     return ESP_OK;
 }

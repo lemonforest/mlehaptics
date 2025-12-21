@@ -55,11 +55,11 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_MINOR
-#define FIRMWARE_VERSION_MINOR 6  // Tracks phase number (Phase 6)
+#define FIRMWARE_VERSION_MINOR 7  // Phase 7: ESP-NOW coordination transport
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 136  // LTK-based ESP-NOW key derivation (128-bit entropy from BLE pairing)
+#define FIRMWARE_VERSION_PATCH 3  // Add ESP-NOW send failure diagnostics
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

@@ -336,8 +336,6 @@ Each test has its own PlatformIO environment and sdkconfig:
 2. Preserves test files in `test/` directory
 3. Allows clean separation of different functional tests
 
-**Never manually edit `src/main.c`** - it's auto-generated from test files.
-
 ---
 
 ## Coding Standards & Patterns

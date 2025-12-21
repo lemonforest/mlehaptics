@@ -85,6 +85,9 @@ extern "C" {
 #define BLE_DEVICE_NAME         "EMDR_Pulser"   /**< Base device name */
 #define BLE_ADV_TIMEOUT_MS      300000          /**< 5-minute advertising timeout */
 
+/** @brief BLE disconnect reason for user-initiated termination (from NimBLE) */
+#define BLE_DISCONNECT_REASON_USER  0x13        /**< Remote user terminated connection */
+
 /**
  * @brief BLE advertising parameters
  *
@@ -333,6 +336,15 @@ const char* ble_get_connection_type_str(void);
  * Used for graceful disconnect during shutdown
  */
 uint16_t ble_get_peer_conn_handle(void);
+
+/**
+ * @brief Disconnect peer device
+ * @param reason BLE disconnect reason (e.g., BLE_ERR_REM_USER_CONN_TERM)
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE if not connected
+ *
+ * Used by time_sync_task for firmware version mismatch enforcement (AD040)
+ */
+esp_err_t ble_disconnect_peer(uint8_t reason);
 
 /**
  * @brief Get mobile app connection handle
@@ -1064,11 +1076,20 @@ void ble_set_peer_firmware_version(const char *version_str);
 bool ble_firmware_versions_match(void);
 
 /**
+ * @brief Check if firmware version exchange has completed (AD040)
+ * @return true if peer firmware version has been received and processed
+ *
+ * Used by ble_task to wait for version exchange before declaring pairing success.
+ * Prevents false "pairing complete" when version mismatch will cause disconnect.
+ */
+bool ble_firmware_version_exchanged(void);
+
+/**
  * @brief Set firmware version match flag (AD040)
  * @param match true if versions match, false otherwise
  *
  * Called by time_sync_task when SYNC_MSG_FIRMWARE_VERSION is received
- * after comparing local and peer versions.
+ * after comparing local and peer versions. Also sets version_exchanged=true.
  */
 void ble_set_firmware_version_match(bool match);
 

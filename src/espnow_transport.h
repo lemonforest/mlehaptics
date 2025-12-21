@@ -57,6 +57,9 @@ extern "C" {
 /** @brief BLE Long Term Key size (128-bit from SMP pairing) */
 #define ESPNOW_LTK_SIZE             (16U)
 
+/** @brief ESP-NOW packet type (first byte for non-beacon messages) */
+#define ESPNOW_PKT_TYPE_COORDINATION (0xC0U)  /**< Coordination message marker */
+
 /** @brief HKDF context string for ESP-NOW session keys (v2 uses LTK as IKM) */
 #define ESPNOW_HKDF_INFO            "EMDR-ESP-NOW-LMK-v2"
 
@@ -102,6 +105,21 @@ typedef enum {
  */
 typedef void (*espnow_beacon_callback_t)(const time_sync_beacon_t *beacon,
                                          uint64_t receive_time_us);
+
+/**
+ * @brief Coordination message receive callback type
+ *
+ * Called when a coordination message is received via ESP-NOW.
+ * Enables PTP handshake and asymmetry probes to use low-latency transport.
+ * The callback runs in WiFi task context - keep it fast!
+ *
+ * @param data Pointer to received coordination message bytes
+ * @param len Length of received data (excluding type marker byte)
+ * @param receive_time_us Timestamp when message was received (esp_timer_get_time)
+ */
+typedef void (*espnow_coordination_callback_t)(const uint8_t *data,
+                                                size_t len,
+                                                uint64_t receive_time_us);
 
 /**
  * @brief ESP-NOW timing metrics for jitter measurement
@@ -222,6 +240,39 @@ void espnow_transport_log_jitter_stats(void);
  * @return true if peer is configured and ready to send
  */
 bool espnow_transport_is_ready(void);
+
+// ============================================================================
+// COORDINATION MESSAGE API (PTP/Asymmetry over ESP-NOW)
+// ============================================================================
+
+/**
+ * @brief Register coordination message receive callback
+ *
+ * Enables receiving coordination messages (PTP handshake, asymmetry probes)
+ * via ESP-NOW for sub-millisecond timing accuracy.
+ *
+ * @param callback Function to call when coordination message received
+ * @return ESP_OK on success
+ */
+esp_err_t espnow_transport_register_coordination_callback(espnow_coordination_callback_t callback);
+
+/**
+ * @brief Send coordination message via ESP-NOW
+ *
+ * Sends time-critical coordination messages (PTP, asymmetry probes) via
+ * low-latency ESP-NOW instead of BLE GATT.
+ *
+ * Message format: [0xC0][coordination_message_t bytes...]
+ * The 0xC0 marker distinguishes from beacons for routing on receive.
+ *
+ * @param data Pointer to coordination message bytes
+ * @param len Length of message data
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_ARG if data is NULL or len is 0
+ * @return ESP_ERR_INVALID_STATE if no peer configured
+ * @return ESP_FAIL if send fails
+ */
+esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len);
 
 // ============================================================================
 // SECURE KEY DERIVATION API (HKDF-SHA256)

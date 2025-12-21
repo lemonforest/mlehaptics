@@ -228,9 +228,11 @@ void ble_task(void *pvParameters) {
 
                 // Check if PEER pairing completed successfully
                 // Pairing is complete when peer is connected AND encryption finished
-                if (ble_is_peer_connected() && !ble_is_pairing()) {
+                // AND firmware version exchange completed with matching versions (AD040)
+                if (ble_is_peer_connected() && !ble_is_pairing() &&
+                    ble_firmware_version_exchanged() && ble_firmware_versions_match()) {
                     pairing_start_time = 0;  // Reset timer
-                    ESP_LOGI(TAG, "Peer pairing completed successfully");
+                    ESP_LOGI(TAG, "Peer pairing completed successfully (versions match)");
                     status_led_pattern(STATUS_PATTERN_PAIRING_SUCCESS);  // Green 3× blink
                     vTaskDelay(pdMS_TO_TICKS(1500));  // Wait for LED pattern to complete
 

@@ -126,6 +126,7 @@ static void handle_beacon_message(const time_sync_message_t *msg);
 static void handle_coordination_message(const time_sync_message_t *msg);
 static void perform_periodic_update(void);
 static void espnow_beacon_recv_callback(const time_sync_beacon_t *beacon, uint64_t rx_time_us);
+static void espnow_coordination_recv_callback(const uint8_t *data, size_t len, uint64_t rx_time_us);
 
 /*******************************************************************************
  * PUBLIC API IMPLEMENTATION
@@ -160,10 +161,11 @@ esp_err_t time_sync_task_init(void)
     ESP_LOGI(TAG, "Time sync task created (priority=%d, stack=%d bytes)",
              TIME_SYNC_TASK_PRIORITY, TIME_SYNC_TASK_STACK_SIZE);
 
-    // AD048: Register ESP-NOW beacon callback for low-latency beacon delivery
-    // The callback runs in WiFi task context and queues beacons to time_sync_task
+    // AD048: Register ESP-NOW callbacks for low-latency delivery
+    // Callbacks run in WiFi task context and queue to time_sync_task
     espnow_transport_register_callback(espnow_beacon_recv_callback);
-    ESP_LOGI(TAG, "AD048: ESP-NOW beacon callback registered");
+    espnow_transport_register_coordination_callback(espnow_coordination_recv_callback);
+    ESP_LOGI(TAG, "AD048: ESP-NOW beacon + coordination callbacks registered");
 
     return ESP_OK;
 }
@@ -665,6 +667,45 @@ static void espnow_beacon_recv_callback(const time_sync_beacon_t *beacon, uint64
 }
 
 /**
+ * @brief ESP-NOW coordination message receive callback
+ *
+ * Receives time-critical coordination messages (PTP handshake, asymmetry probes)
+ * via ESP-NOW instead of BLE for sub-ms latency.
+ *
+ * Called from WiFi task context - keep it fast!
+ *
+ * @param data       Raw coordination message bytes
+ * @param len        Length of message data
+ * @param rx_time_us Hardware timestamp when message was received
+ */
+static void espnow_coordination_recv_callback(const uint8_t *data, size_t len, uint64_t rx_time_us)
+{
+    // Validate message size
+    if (len != sizeof(coordination_message_t)) {
+        ESP_LOGW(TAG, "AD048: Invalid coordination message size: %zu (expected %zu)",
+                 len, sizeof(coordination_message_t));
+        return;
+    }
+
+    // Cast to coordination message
+    const coordination_message_t *coord = (const coordination_message_t *)data;
+
+    // Queue to time_sync_task for processing
+    esp_err_t err = time_sync_task_send_coordination(coord);
+
+    if (err == ESP_OK) {
+        ESP_LOGD(TAG, "AD048: ESP-NOW coordination msg queued (type=%d, rx=%llu μs)",
+                 coord->type, rx_time_us);
+    } else {
+        ESP_LOGW(TAG, "AD048: Failed to queue ESP-NOW coordination: %s", esp_err_to_name(err));
+    }
+
+    // Note: rx_time_us is available here for future timestamp injection if needed
+    // Currently, PTP messages carry their own timestamps in the payload
+    (void)rx_time_us;
+}
+
+/**
  * @brief Handle coordination message from peer (Phase 3)
  *
  * Processes coordination messages that were previously handled by motor_task.
@@ -983,14 +1024,15 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             ESP_LOGI(TAG, "CLIENT: Mode change proposal received (mode=%s, server_epoch=%llu, client_epoch=%llu)",
                      modes[proposal->new_mode].name, proposal->server_epoch_us, proposal->client_epoch_us);
 
-            // Validate that epochs are in the future
-            uint64_t current_time_us;
-            if (time_sync_get_time(&current_time_us) != ESP_OK) {
-                ESP_LOGW(TAG, "CLIENT: Cannot validate proposal - time sync not available");
-                break;
-            }
+            // Validate that epochs are in the future (if time sync is available)
+            uint64_t current_time_us = 0;
+            bool time_sync_available = (time_sync_get_time(&current_time_us) == ESP_OK);
 
-            if (proposal->client_epoch_us <= current_time_us) {
+            if (!time_sync_available) {
+                // Time sync not ready yet - accept proposal without validation
+                // This can happen when ESP-NOW delivers message before initialization completes
+                ESP_LOGW(TAG, "CLIENT: Time sync not available - accepting proposal without validation");
+            } else if (proposal->client_epoch_us <= current_time_us) {
                 ESP_LOGW(TAG, "CLIENT: Proposal rejected - epoch already passed (current=%llu, client_epoch=%llu)",
                          current_time_us, proposal->client_epoch_us);
                 break;
@@ -1316,8 +1358,15 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 ESP_LOGW(TAG, "  Local: v%d.%d.%d built %s %s",
                          local_version.major, local_version.minor, local_version.patch,
                          local_version.build_date, local_version.build_time);
-                // Show yellow warning pattern - connection allowed but versions differ
+
+                // AD040: Enforce version matching if enabled
+                // Note: firmware_versions_match() already checked both check_enabled flags
+                // If we got here with !match, enforcement is requested
+                ESP_LOGE(TAG, "AD040: Version mismatch - rejecting peer, will resume scanning");
                 status_led_pattern(STATUS_PATTERN_VERSION_MISMATCH);
+
+                // Disconnect immediately - BLE_TASK will see version mismatch and resume scanning
+                ble_disconnect_peer(BLE_DISCONNECT_REASON_USER);
             }
             // Note: Do NOT respond here - both sides send once after GATT discovery.
             // Responding would cause an infinite ping-pong loop.
@@ -1485,26 +1534,27 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 }
             }
 
-            // Send response
+            // Send response with MICROSECOND precision for sub-ms jitter measurement
+            // NOTE: pos_in_cycle_ms field repurposed for microseconds (v0.6.137+)
             coordination_message_t response = {
                 .type = SYNC_MSG_PHASE_RESPONSE,
                 .timestamp_ms = (uint32_t)(now_us / 1000),
             };
             response.payload.phase_response.ms_to_active = ms_to_active;
-            response.payload.phase_response.pos_in_cycle_ms = pos_in_cycle_ms;  // Direct position for comparison
+            response.payload.phase_response.pos_in_cycle_ms = pos_in_cycle_us;  // MICROSECONDS for precision!
             response.payload.phase_response.current_cycle = current_cycle;
             response.payload.phase_response.current_state = current_state;
 
             ble_send_coordination_message(&response);
-            ESP_LOGD(TAG, "Phase Query: Response: pos=%lu ms, ms_to_active=%lu, state=%s",
-                     (unsigned long)pos_in_cycle_ms, (unsigned long)ms_to_active,
+            ESP_LOGD(TAG, "Phase Query: Response: pos=%lu µs, ms_to_active=%lu, state=%s",
+                     (unsigned long)pos_in_cycle_us, (unsigned long)ms_to_active,
                      current_state ? "ACTIVE" : "INACTIVE");
             break;
         }
 
         case SYNC_MSG_PHASE_RESPONSE: {
-            // Phase Query: Peer responded with their time-to-active
-            // LOGGING ONLY - compare to our time-to-inactive for phase error detection
+            // Phase Query: Peer responded with their position in cycle
+            // LOGGING ONLY - compare positions to measure phase alignment quality
             const phase_response_t *pr = &coord->payload.phase_response;
 
             uint64_t epoch_us = 0;
@@ -1516,41 +1566,74 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 break;
             }
 
-            uint64_t now_us = esp_timer_get_time();
-            uint64_t elapsed_us = now_us - epoch_us;
+            // Get RTT for latency compensation
+            // Peer measured their position ~RTT/2 ago (message transit time)
+            time_sync_quality_t quality;
+            uint32_t rtt_compensation_us = 0;
+            if (time_sync_get_quality(&quality) == ESP_OK && quality.last_rtt_us > 0) {
+                rtt_compensation_us = quality.last_rtt_us / 2;
+            }
+
+            // CRITICAL: Use SYNCHRONIZED time, not local time!
+            // Motor epoch is in SERVER's time domain, so we must compare using
+            // synchronized time to get accurate phase measurements.
+            // This fixes the ~300ms epoch alignment error.
+            uint64_t sync_time_us = 0;
+            esp_err_t sync_err = time_sync_get_time(&sync_time_us);
+            if (sync_err != ESP_OK) {
+                ESP_LOGW(TAG, "Phase Query: Cannot get sync time - using local (may be inaccurate)");
+                sync_time_us = esp_timer_get_time();  // Fallback to local time
+            }
+
+            uint64_t elapsed_us = sync_time_us - epoch_us;
+
+            // Compensate for RTT: subtract RTT/2 from our elapsed time to compare
+            // positions at approximately the same instant the peer measured theirs
+            if (elapsed_us > rtt_compensation_us) {
+                elapsed_us -= rtt_compensation_us;
+            }
+
             uint32_t cycle_us = cycle_ms * 1000;
             uint32_t pos_in_cycle_us = (uint32_t)(elapsed_us % cycle_us);
-            uint32_t pos_in_cycle_ms = pos_in_cycle_us / 1000;
-            uint32_t half_cycle_ms = cycle_ms / 2;
 
-            // Phase error calculation using direct position comparison
-            // For perfect antiphase: peer_pos should be (my_pos + half_cycle) % cycle
+            // Phase error calculation in MICROSECONDS for sub-ms precision
+            // NOTE: pos_in_cycle_ms field contains MICROSECONDS as of v0.6.137+
+            uint32_t peer_pos_us = pr->pos_in_cycle_ms;  // Already in µs!
+
+            // CRITICAL FIX (v0.6.138): Both devices use SAME motor_epoch (SERVER's epoch)!
+            // So they should be at the SAME position in the cycle.
             //
-            // Protocol now includes pos_in_cycle_ms directly - no more deriving from ms_to_active!
-            // This eliminates the semantic confusion that caused ±1500ms "errors".
-            uint32_t peer_pos_ms = pr->pos_in_cycle_ms;
+            // The antiphase comes from activation RANGES, not position values:
+            //   - SERVER activates at position [0, duty)
+            //   - CLIENT activates at position [half_cycle, half_cycle + duty)
+            //
+            // Phase error = my_pos - peer_pos = clock sync quality measurement
+            // Perfect sync: error = 0 (both at exact same position)
+            // Typical: error = ±RTT/2 due to message latency
+            int32_t phase_error_us = (int32_t)pos_in_cycle_us - (int32_t)peer_pos_us;
 
-            // Expected peer position for perfect antiphase
-            uint32_t expected_peer_pos = (pos_in_cycle_ms + half_cycle_ms) % cycle_ms;
-
-            // Phase error (normalize to ±half_cycle range)
-            int32_t phase_error_ms = (int32_t)peer_pos_ms - (int32_t)expected_peer_pos;
-            if (phase_error_ms > (int32_t)half_cycle_ms) {
-                phase_error_ms -= (int32_t)cycle_ms;
+            // Normalize to ±half_cycle range (wrap-around handling)
+            int32_t half_cycle_us = (int32_t)(cycle_us / 2);
+            if (phase_error_us > half_cycle_us) {
+                phase_error_us -= (int32_t)cycle_us;
             }
-            if (phase_error_ms < -(int32_t)half_cycle_ms) {
-                phase_error_ms += (int32_t)cycle_ms;
+            if (phase_error_us < -half_cycle_us) {
+                phase_error_us += (int32_t)cycle_us;
             }
 
-            // Log for diagnostic purposes (no correction applied yet)
-            // Note: BLE latency (~50-70ms) will always show some error
-            if (abs(phase_error_ms) > 100) {
-                ESP_LOGW(TAG, "Phase Query: PHASE ERROR: my_pos=%lu ms, peer_pos=%lu ms (expected %lu), error=%+ld ms",
-                         (unsigned long)pos_in_cycle_ms, (unsigned long)peer_pos_ms,
-                         (unsigned long)expected_peer_pos, (long)phase_error_ms);
+            // Log for diagnostic purposes - jitter measurement data collection
+            // Target: sub-millisecond timing, so display in microseconds
+            uint32_t rtt_us = rtt_compensation_us * 2;  // Full RTT
+            int32_t abs_error_us = (phase_error_us >= 0) ? phase_error_us : -phase_error_us;
+
+            // Threshold: 1000µs = 1ms is concerning, <500µs is good
+            if (abs_error_us > 10000) {  // >10ms = likely sync issue
+                ESP_LOGW(TAG, "Phase Query: peer=%lu µs, me=%lu µs, err=%+ld µs, RTT=%lu µs",
+                         (unsigned long)peer_pos_us, (unsigned long)pos_in_cycle_us,
+                         (long)phase_error_us, (unsigned long)rtt_us);
             } else {
-                ESP_LOGI(TAG, "Phase Query: Phase OK: my_pos=%lu ms, peer_pos=%lu ms, error=%+ld ms (BLE latency)",
-                         (unsigned long)pos_in_cycle_ms, (unsigned long)peer_pos_ms, (long)phase_error_ms);
+                ESP_LOGI(TAG, "Phase Query: err=%+ld µs (RTT=%lu µs)",
+                         (long)phase_error_us, (unsigned long)rtt_us);
             }
 
             ESP_LOGD(TAG, "Phase Query: Peer state=%s, ms_to_active=%lu",
