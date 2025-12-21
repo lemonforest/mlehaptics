@@ -24,6 +24,10 @@ static const char *TAG = "BLE_TASK";
 // BLE TASK IMPLEMENTATION
 // ============================================================================
 
+// Bug #34 fix: Track if MSG_PAIRING_COMPLETE was sent (prevents duplicates)
+// Set by both PAIRING state flow and IDLE state fallback (Bug #34 path)
+static bool pairing_complete_sent = false;
+
 void ble_task(void *pvParameters) {
     task_message_t msg;
     ble_state_t state = BLE_STATE_IDLE;
@@ -84,8 +88,8 @@ void ble_task(void *pvParameters) {
                 // Bug #34 fix: Handle peer connection that occurred before ble_task reached PAIRING state
                 // This happens when CLIENT receives incoming connection during startup (before IDLE→ADVERTISING)
                 // CLIENT's ble_manager handles connection in GAP callback, but ble_task misses MSG_PAIRING_COMPLETE
-                static bool idle_peer_handled = false;
-                if (!idle_peer_handled && ble_is_peer_connected()) {
+                // Note: Also guards against duplicate sends if PAIRING state already sent MSG_PAIRING_COMPLETE
+                if (!pairing_complete_sent && ble_is_peer_connected()) {
                     // Peer already connected - check if pairing workflow complete
                     if (ble_firmware_version_exchanged() && ble_firmware_versions_match()) {
                         ESP_LOGI(TAG, "Peer already connected during IDLE (late ble_task start)");
@@ -99,7 +103,7 @@ void ble_task(void *pvParameters) {
                             };
                             if (xQueueSend(ble_to_motor_queue, &success_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
                                 ESP_LOGI(TAG, "Pairing complete message sent to motor_task (from IDLE)");
-                                idle_peer_handled = true;
+                                pairing_complete_sent = true;
 
                                 // Stop advertising if still active (peer pairing complete)
                                 if (ble_is_advertising()) {
@@ -293,6 +297,7 @@ void ble_task(void *pvParameters) {
                         };
                         if (xQueueSend(ble_to_motor_queue, &success_msg, pdMS_TO_TICKS(100)) == pdTRUE) {
                             ESP_LOGI(TAG, "Pairing complete message sent to motor_task");
+                            pairing_complete_sent = true;  // Bug #34: Prevent duplicate in IDLE state
                         } else {
                             ESP_LOGW(TAG, "Failed to send pairing complete message");
                         }

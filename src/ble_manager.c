@@ -5046,6 +5046,11 @@ static bool is_bootstrap_msg_type(sync_message_type_t type) {
         case SYNC_MSG_HARDWARE_INFO:          // AD048: Hardware info
         case SYNC_MSG_WIFI_MAC:               // AD048: WiFi MAC for ESP-NOW peer config
         case SYNC_MSG_ESPNOW_KEY_EXCHANGE:    // AD048: HKDF key derivation
+        // Bug #35: Critical coordination messages need reliable BLE delivery
+        // ESP-NOW fails intermittently during BLE coexistence, causing CLIENT_READY
+        // and MOTOR_STARTED to be lost. Route these via BLE for reliable setup.
+        case SYNC_MSG_CLIENT_READY:           // CLIENT→SERVER: handshake complete
+        case SYNC_MSG_MOTOR_STARTED:          // SERVER→CLIENT: motor epoch notification
             return true;
         default:
             return false;

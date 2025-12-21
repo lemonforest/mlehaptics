@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 11  // Bug #34: Fix CLIENT ble_task IDLE state handling
+#define FIRMWARE_VERSION_PATCH 12  // Bug #35: Route CLIENT_READY/MOTOR_STARTED via BLE
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
