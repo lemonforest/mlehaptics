@@ -85,7 +85,7 @@ extern "C" {
 #define TIME_SYNC_MIN_ASYMMETRY_SAMPLES (3U)    // Need 3 valid samples for reliable EMA
 
 /** @brief Maximum RTT for asymmetry sample to be valid (microseconds) */
-#define TIME_SYNC_ASYMMETRY_RTT_MAX_US  (80000U) // 80ms - reject congested samples
+#define TIME_SYNC_ASYMMETRY_RTT_MAX_US  (250000U) // 250ms - BLE GATT RTT is 100-200ms typical
 
 /** @brief Sync interval step size for exponential backoff */
 #define TIME_SYNC_INTERVAL_STEP_MS  (10000U)    // 10 second increments

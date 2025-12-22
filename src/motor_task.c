@@ -163,6 +163,12 @@ static uint32_t client_inactive_cycle_count = 0;
 // (the antiphase was already pre-calculated and waited for in coordinated start)
 static bool client_skip_inactive_wait = false;
 
+// Bug #38 fix: SERVER skip epoch update after mode change
+// Bug #96 updates motor_epoch when server_cycle_count==0, but this conflicts with
+// Bug #36's aligned epoch calculation. After mode change, the aligned epoch is already
+// correct - don't overwrite it.
+static bool server_skip_epoch_update = false;
+
 // AD047: Pattern playback mode tracking
 // When true, pattern playback is active and we skip normal ACTIVE/INACTIVE states
 static bool pattern_mode_active = false;
@@ -1201,8 +1207,32 @@ void motor_task(void *pvParameters) {
                                 uint64_t now_us;
 
                                 if (time_sync_get_time(&now_us) == ESP_OK) {
-                                    // Calculate future epochs (2 seconds from now for coordination)
-                                    uint64_t server_epoch_us = now_us + 2000000ULL;  // 2s buffer
+                                    // Bug #36: Align mode change to CURRENT motor cycle boundary
+                                    // Arbitrary epochs (now + 2s) caused ~100ms phase errors and asymmetry.
+                                    // Fix: Calculate next cycle boundary of current motor timing, then
+                                    // switch both devices at that aligned point.
+                                    uint64_t motor_epoch_us = 0;
+                                    uint32_t motor_cycle_ms = 0;
+                                    uint64_t server_epoch_us;
+
+                                    if (time_sync_get_motor_epoch(&motor_epoch_us, &motor_cycle_ms) == ESP_OK &&
+                                        motor_epoch_us > 0 && motor_cycle_ms > 0) {
+                                        // Calculate next cycle boundary of CURRENT motor cycle
+                                        uint64_t current_period_us = (uint64_t)motor_cycle_ms * 1000ULL;
+                                        uint64_t elapsed_us = now_us - motor_epoch_us;
+                                        uint64_t cycles_completed = elapsed_us / current_period_us;
+                                        // +2 cycles gives margin for message delivery
+                                        server_epoch_us = motor_epoch_us + ((cycles_completed + 2) * current_period_us);
+
+                                        ESP_LOGI(TAG, "SERVER: Mode change epoch aligned (boundary=%llu, cycles=%llu)",
+                                                 server_epoch_us, cycles_completed + 2);
+                                    } else {
+                                        // Fallback: no motor epoch available (shouldn't happen in normal flow)
+                                        server_epoch_us = now_us + 2000000ULL;  // 2s buffer
+                                        ESP_LOGW(TAG, "SERVER: No motor epoch for alignment, using arbitrary epoch");
+                                    }
+
+                                    // Client epoch: half a NEW cycle after server epoch for antiphase
                                     uint64_t half_cycle_us = ((uint64_t)new_cycle_ms * 1000ULL) / 2;
                                     uint64_t client_epoch_us = server_epoch_us + half_cycle_us;
 
@@ -1332,6 +1362,7 @@ void motor_task(void *pvParameters) {
                                 // Let ACTIVE use fresh esp_timer_get_time() for first cycle.
                                 // INACTIVE will set epoch-anchored timing for subsequent cycles.
                                 server_cycle_count = 0;  // Reset cycle count on mode change
+                                server_skip_epoch_update = true;  // Bug #38: Don't overwrite aligned epoch
                             } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
                                 // Bug #82 fix: CLIENT sets motor_epoch from proposal
                                 // Without this, CLIENT uses old epoch for antiphase calculation
@@ -1631,17 +1662,27 @@ void motor_task(void *pvParameters) {
                 }
 
                 // Bug #96 fix: Update motor_epoch when SERVER's first cycle actually starts
-                // After mode change, motor_epoch is set to PROPOSED time (500ms before execution).
+                // After initial pairing, motor_epoch is set to PROPOSED time.
                 // Bug #94b correctly uses fresh time for first cycle, but INACTIVE calculates
-                // next cycle targets from motor_epoch. If motor_epoch is 500ms in the past,
+                // next cycle targets from motor_epoch. If motor_epoch is in the past,
                 // the calculated target for cycle 2 is already past when we reach it.
                 // Fix: When SERVER's first cycle starts (server_cycle_count==0), update
                 // motor_epoch to actual cycle_start_ms so INACTIVE calculations are correct.
+                //
+                // Bug #38 fix: DON'T update epoch after MODE CHANGE - the aligned epoch is correct!
+                // Only update after initial pairing (when server_skip_epoch_update is false).
                 if (active_role == PEER_ROLE_SERVER && server_cycle_count == 0) {
-                    uint64_t actual_epoch_us = (uint64_t)cycle_start_ms * 1000ULL;
-                    uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
-                    time_sync_set_motor_epoch(actual_epoch_us, cycle_ms);
-                    ESP_LOGI(TAG, "Bug #96: SERVER motor_epoch updated to actual start %lu ms", cycle_start_ms);
+                    if (server_skip_epoch_update) {
+                        // Mode change just happened - keep the aligned epoch from Bug #36
+                        ESP_LOGI(TAG, "Bug #38: Skipping epoch update (mode change aligned epoch preserved)");
+                        server_skip_epoch_update = false;  // Clear flag for next time
+                    } else {
+                        // Initial pairing - update to actual start time
+                        uint64_t actual_epoch_us = (uint64_t)cycle_start_ms * 1000ULL;
+                        uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                        time_sync_set_motor_epoch(actual_epoch_us, cycle_ms);
+                        ESP_LOGI(TAG, "Bug #96: SERVER motor_epoch updated to actual start %lu ms", cycle_start_ms);
+                    }
                 }
 
                 // AD045: Motor epoch is set once at coordinated start, not updated every cycle
@@ -1960,23 +2001,40 @@ void motor_task(void *pvParameters) {
 
                         // IEEE 1588 REV_PROBE: Send every 10 cycles (offset by 5 from SYNC_FB)
                         // This enables bidirectional path asymmetry detection
+                        // Bug #39: Added retry logic for ESP-NOW send failures
                         if ((client_inactive_cycle_count + 5) % 10 == 0) {
                             static uint32_t rev_probe_sequence = 0;
-                            uint64_t t1_prime = esp_timer_get_time();  // T1': CLIENT send time
+                            #define REV_PROBE_MAX_RETRIES 3
+                            #define REV_PROBE_RETRY_DELAY_MS 5
 
-                            coordination_message_t probe = {
-                                .type = SYNC_MSG_REVERSE_PROBE,
-                                .timestamp_ms = (uint32_t)(t1_prime / 1000),
-                                .payload.reverse_probe = {
-                                    .client_send_time_us = t1_prime,
-                                    .probe_sequence = rev_probe_sequence
+                            esp_err_t send_err = ESP_FAIL;
+                            uint64_t t1_prime = 0;
+
+                            for (int retry = 0; retry < REV_PROBE_MAX_RETRIES && send_err != ESP_OK; retry++) {
+                                if (retry > 0) {
+                                    vTaskDelay(pdMS_TO_TICKS(REV_PROBE_RETRY_DELAY_MS));
                                 }
-                            };
 
-                            esp_err_t send_err = ble_send_coordination_message(&probe);
+                                // Record T1' at EACH send attempt (accurate timing)
+                                t1_prime = esp_timer_get_time();
+
+                                coordination_message_t probe = {
+                                    .type = SYNC_MSG_REVERSE_PROBE,
+                                    .timestamp_ms = (uint32_t)(t1_prime / 1000),
+                                    .payload.reverse_probe = {
+                                        .client_send_time_us = t1_prime,
+                                        .probe_sequence = rev_probe_sequence
+                                    }
+                                };
+
+                                send_err = ble_send_coordination_message(&probe);
+                            }
+
                             if (send_err == ESP_OK) {
                                 ESP_LOGI(TAG, "CLIENT: REV_PROBE sent seq=%lu", (unsigned long)rev_probe_sequence);
                                 rev_probe_sequence++;
+                            } else {
+                                ESP_LOGW(TAG, "CLIENT: REV_PROBE failed after %d retries", REV_PROBE_MAX_RETRIES);
                             }
                         }
 

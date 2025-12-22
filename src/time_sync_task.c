@@ -1234,22 +1234,42 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                      (unsigned long long)t2_prime_us);
 
             // Send response with T2', T3' - T3' recorded right before BLE send
-            uint64_t t3_prime_us = esp_timer_get_time();  // T3': As close to BLE send as possible
+            // Bug #39: Added retry logic for ESP-NOW send failures
+            #define REV_PROBE_RESP_MAX_RETRIES 3
+            #define REV_PROBE_RESP_RETRY_DELAY_MS 5
 
-            coordination_message_t response = {
-                .type = SYNC_MSG_REVERSE_PROBE_RESPONSE,
-                .timestamp_ms = (uint32_t)(t3_prime_us / 1000),
-                .payload.reverse_probe_response = {
-                    .client_send_time_us = probe->client_send_time_us,  // Echo T1'
-                    .server_recv_time_us = t2_prime_us,                 // T2'
-                    .server_send_time_us = t3_prime_us,                 // T3'
-                    .probe_sequence = probe->probe_sequence             // Echo sequence
+            esp_err_t send_err = ESP_FAIL;
+            uint64_t t3_prime_us = 0;
+
+            for (int retry = 0; retry < REV_PROBE_RESP_MAX_RETRIES && send_err != ESP_OK; retry++) {
+                if (retry > 0) {
+                    vTaskDelay(pdMS_TO_TICKS(REV_PROBE_RESP_RETRY_DELAY_MS));
                 }
-            };
 
-            esp_err_t err = ble_send_coordination_message(&response);
-            if (err != ESP_OK) {
-                ESP_LOGW(TAG, "[REV_PROBE] Failed to send response: %s", esp_err_to_name(err));
+                // T3': Record as close to BLE send as possible - EACH retry attempt
+                t3_prime_us = esp_timer_get_time();
+
+                coordination_message_t response = {
+                    .type = SYNC_MSG_REVERSE_PROBE_RESPONSE,
+                    .timestamp_ms = (uint32_t)(t3_prime_us / 1000),
+                    .payload.reverse_probe_response = {
+                        .client_send_time_us = probe->client_send_time_us,  // Echo T1'
+                        .server_recv_time_us = t2_prime_us,                 // T2'
+                        .server_send_time_us = t3_prime_us,                 // T3'
+                        .probe_sequence = probe->probe_sequence             // Echo sequence
+                    }
+                };
+
+                send_err = ble_send_coordination_message(&response);
+            }
+
+            if (send_err == ESP_OK) {
+                ESP_LOGI(TAG, "[REV_PROBE] Response sent seq=%lu T3'=%llu",
+                         (unsigned long)probe->probe_sequence,
+                         (unsigned long long)t3_prime_us);
+            } else {
+                ESP_LOGW(TAG, "[REV_PROBE] Response failed after %d retries: %s",
+                         REV_PROBE_RESP_MAX_RETRIES, esp_err_to_name(send_err));
             }
             break;
         }
@@ -1478,169 +1498,9 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             break;
         }
 
-        case SYNC_MSG_PHASE_QUERY: {
-            // Phase Query: Peer is asking "how long until your next ACTIVE state?"
-            // Calculate our time to next active and respond
-            uint64_t epoch_us = 0;
-            uint32_t cycle_ms = 0;
-            esp_err_t err = time_sync_get_motor_epoch(&epoch_us, &cycle_ms);
-
-            if (err != ESP_OK || epoch_us == 0 || cycle_ms == 0) {
-                ESP_LOGW(TAG, "Phase Query: Phase query received but motor epoch not set");
-                break;
-            }
-
-            uint64_t now_us = esp_timer_get_time();
-            uint64_t elapsed_us = now_us - epoch_us;
-            uint32_t cycle_us = cycle_ms * 1000;
-
-            // Position within current cycle (0 to cycle_us)
-            uint32_t pos_in_cycle_us = (uint32_t)(elapsed_us % cycle_us);
-            uint32_t pos_in_cycle_ms = pos_in_cycle_us / 1000;
-
-            // For phase query, we report time until OUR next ACTIVE
-            // SERVER (phase 0): ACTIVE at cycle start (pos=0)
-            // CLIENT (phase 180): ACTIVE at half-cycle (pos=cycle/2)
-            uint32_t half_cycle_ms = cycle_ms / 2;
-            uint32_t ms_to_active = 0;
-            uint8_t current_state = 0;  // 0=INACTIVE, 1=ACTIVE
-            uint32_t current_cycle = (uint32_t)(elapsed_us / cycle_us);
-
-            // Simplified: Assume we're ACTIVE for first 25% of our phase
-            // SERVER: ACTIVE 0-25%, INACTIVE 25-100%
-            // CLIENT: INACTIVE 0-50%, ACTIVE 50-75%, INACTIVE 75-100%
-            uint32_t duty_ms = cycle_ms / 4;  // 25% duty cycle assumption
-
-            if (ble_get_peer_role() == PEER_ROLE_CLIENT) {
-                // We are SERVER (peer is CLIENT) - our ACTIVE is at cycle start
-                if (pos_in_cycle_ms < duty_ms) {
-                    current_state = 1;  // ACTIVE now
-                    ms_to_active = 0;
-                } else {
-                    current_state = 0;  // INACTIVE
-                    ms_to_active = cycle_ms - pos_in_cycle_ms;
-                }
-            } else {
-                // We are CLIENT (peer is SERVER) - our ACTIVE is at half-cycle
-                if (pos_in_cycle_ms >= half_cycle_ms && pos_in_cycle_ms < half_cycle_ms + duty_ms) {
-                    current_state = 1;  // ACTIVE now
-                    ms_to_active = 0;
-                } else if (pos_in_cycle_ms < half_cycle_ms) {
-                    current_state = 0;  // INACTIVE, waiting for half-cycle
-                    ms_to_active = half_cycle_ms - pos_in_cycle_ms;
-                } else {
-                    current_state = 0;  // INACTIVE, waiting for next cycle
-                    ms_to_active = cycle_ms - pos_in_cycle_ms + half_cycle_ms;
-                }
-            }
-
-            // Send response with MICROSECOND precision for sub-ms jitter measurement
-            // NOTE: pos_in_cycle_ms field repurposed for microseconds (v0.6.137+)
-            coordination_message_t response = {
-                .type = SYNC_MSG_PHASE_RESPONSE,
-                .timestamp_ms = (uint32_t)(now_us / 1000),
-            };
-            response.payload.phase_response.ms_to_active = ms_to_active;
-            response.payload.phase_response.pos_in_cycle_ms = pos_in_cycle_us;  // MICROSECONDS for precision!
-            response.payload.phase_response.current_cycle = current_cycle;
-            response.payload.phase_response.current_state = current_state;
-
-            ble_send_coordination_message(&response);
-            ESP_LOGD(TAG, "Phase Query: Response: pos=%lu µs, ms_to_active=%lu, state=%s",
-                     (unsigned long)pos_in_cycle_us, (unsigned long)ms_to_active,
-                     current_state ? "ACTIVE" : "INACTIVE");
-            break;
-        }
-
-        case SYNC_MSG_PHASE_RESPONSE: {
-            // Phase Query: Peer responded with their position in cycle
-            // LOGGING ONLY - compare positions to measure phase alignment quality
-            const phase_response_t *pr = &coord->payload.phase_response;
-
-            uint64_t epoch_us = 0;
-            uint32_t cycle_ms = 0;
-            esp_err_t err = time_sync_get_motor_epoch(&epoch_us, &cycle_ms);
-
-            if (err != ESP_OK || epoch_us == 0 || cycle_ms == 0) {
-                ESP_LOGW(TAG, "Phase Query: Phase response received but motor epoch not set");
-                break;
-            }
-
-            // Get RTT for latency compensation
-            // Peer measured their position ~RTT/2 ago (message transit time)
-            time_sync_quality_t quality;
-            uint32_t rtt_compensation_us = 0;
-            if (time_sync_get_quality(&quality) == ESP_OK && quality.last_rtt_us > 0) {
-                rtt_compensation_us = quality.last_rtt_us / 2;
-            }
-
-            // CRITICAL: Use SYNCHRONIZED time, not local time!
-            // Motor epoch is in SERVER's time domain, so we must compare using
-            // synchronized time to get accurate phase measurements.
-            // This fixes the ~300ms epoch alignment error.
-            uint64_t sync_time_us = 0;
-            esp_err_t sync_err = time_sync_get_time(&sync_time_us);
-            if (sync_err != ESP_OK) {
-                ESP_LOGW(TAG, "Phase Query: Cannot get sync time - using local (may be inaccurate)");
-                sync_time_us = esp_timer_get_time();  // Fallback to local time
-            }
-
-            uint64_t elapsed_us = sync_time_us - epoch_us;
-
-            // Compensate for RTT: subtract RTT/2 from our elapsed time to compare
-            // positions at approximately the same instant the peer measured theirs
-            if (elapsed_us > rtt_compensation_us) {
-                elapsed_us -= rtt_compensation_us;
-            }
-
-            uint32_t cycle_us = cycle_ms * 1000;
-            uint32_t pos_in_cycle_us = (uint32_t)(elapsed_us % cycle_us);
-
-            // Phase error calculation in MICROSECONDS for sub-ms precision
-            // NOTE: pos_in_cycle_ms field contains MICROSECONDS as of v0.6.137+
-            uint32_t peer_pos_us = pr->pos_in_cycle_ms;  // Already in µs!
-
-            // CRITICAL FIX (v0.6.138): Both devices use SAME motor_epoch (SERVER's epoch)!
-            // So they should be at the SAME position in the cycle.
-            //
-            // The antiphase comes from activation RANGES, not position values:
-            //   - SERVER activates at position [0, duty)
-            //   - CLIENT activates at position [half_cycle, half_cycle + duty)
-            //
-            // Phase error = my_pos - peer_pos = clock sync quality measurement
-            // Perfect sync: error = 0 (both at exact same position)
-            // Typical: error = ±RTT/2 due to message latency
-            int32_t phase_error_us = (int32_t)pos_in_cycle_us - (int32_t)peer_pos_us;
-
-            // Normalize to ±half_cycle range (wrap-around handling)
-            int32_t half_cycle_us = (int32_t)(cycle_us / 2);
-            if (phase_error_us > half_cycle_us) {
-                phase_error_us -= (int32_t)cycle_us;
-            }
-            if (phase_error_us < -half_cycle_us) {
-                phase_error_us += (int32_t)cycle_us;
-            }
-
-            // Log for diagnostic purposes - jitter measurement data collection
-            // Target: sub-millisecond timing, so display in microseconds
-            uint32_t rtt_us = rtt_compensation_us * 2;  // Full RTT
-            int32_t abs_error_us = (phase_error_us >= 0) ? phase_error_us : -phase_error_us;
-
-            // Threshold: 1000µs = 1ms is concerning, <500µs is good
-            if (abs_error_us > 10000) {  // >10ms = likely sync issue
-                ESP_LOGW(TAG, "Phase Query: peer=%lu µs, me=%lu µs, err=%+ld µs, RTT=%lu µs",
-                         (unsigned long)peer_pos_us, (unsigned long)pos_in_cycle_us,
-                         (long)phase_error_us, (unsigned long)rtt_us);
-            } else {
-                ESP_LOGI(TAG, "Phase Query: err=%+ld µs (RTT=%lu µs)",
-                         (long)phase_error_us, (unsigned long)rtt_us);
-            }
-
-            ESP_LOGD(TAG, "Phase Query: Peer state=%s, ms_to_active=%lu",
-                     pr->current_state ? "ACTIVE" : "INACTIVE",
-                     (unsigned long)pr->ms_to_active);
-            break;
-        }
+        // SYNC_MSG_PHASE_QUERY and SYNC_MSG_PHASE_RESPONSE: REMOVED (v0.7.14)
+        // Phase Query was diagnostic-only and used a stale RTT value. The asymmetry
+        // correction via REV_PROBE is the actual fix for phase coherency issues.
 
         case SYNC_MSG_PATTERN_CHANGE: {
             // AD047: Handle pattern selection sync from SERVER (peer relay)
@@ -1744,31 +1604,9 @@ static void perform_periodic_update(void)
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     }
 
-    // Phase Query: CLIENT sends periodic phase queries for diagnostic logging
-    // Send every 10 seconds when motor is running (motor_epoch_valid)
-    static uint32_t phase_query_counter = 0;
-    phase_query_counter++;
-
-    if (phase_query_counter >= 10) {  // Every 10 seconds
-        phase_query_counter = 0;
-
-        // Only send if we're CLIENT, peer is connected, and motor is running
-        if (!TIME_SYNC_IS_SERVER() && ble_is_peer_connected()) {
-            uint64_t epoch_us = 0;
-            uint32_t cycle_ms = 0;
-            if (time_sync_get_motor_epoch(&epoch_us, &cycle_ms) == ESP_OK && epoch_us != 0) {
-                // Send phase query to SERVER
-                coordination_message_t query = {
-                    .type = SYNC_MSG_PHASE_QUERY,
-                    .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
-                };
-                esp_err_t qerr = ble_send_coordination_message(&query);
-                if (qerr == ESP_OK) {
-                    ESP_LOGD(TAG, "Phase Query: Phase query sent to SERVER");
-                }
-            }
-        }
-    }
+    // Phase Query: REMOVED (v0.7.14)
+    // Phase Query was diagnostic-only and used a stale RTT value (from initial handshake).
+    // The asymmetry correction via REV_PROBE is the actual fix for phase coherency.
 }
 
 /*******************************************************************************
