@@ -80,7 +80,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 22  // Config headers architecture (SSOT refactor)
+#define FIRMWARE_VERSION_PATCH 23  // Bug #103: Pattern sync stop dead loop fix
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

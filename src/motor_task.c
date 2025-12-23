@@ -1570,7 +1570,13 @@ void motor_task(void *pvParameters) {
                 // ================================================================
                 // When in pattern mode, execute pattern tick and stay in CHECK_MESSAGES
                 // (skip normal ACTIVE/INACTIVE state transitions)
-                if (MODE_IS_PATTERN(current_mode)) {
+                //
+                // Bug #103 fix: Check pattern_is_playing() BEFORE executing tick.
+                // Pattern can be stopped externally via sync (time_sync_task.c) which
+                // calls pattern_stop() but does NOT change current_mode. If we don't
+                // check, motor task gets stuck in dead loop calling pattern_execute_tick()
+                // which returns ESP_ERR_INVALID_STATE forever.
+                if (MODE_IS_PATTERN(current_mode) && pattern_is_playing()) {
                     // Pattern mode: Execute pattern tick with synchronized time
                     uint64_t sync_time_us;
                     if (time_sync_get_time(&sync_time_us) == ESP_OK) {
@@ -1592,6 +1598,11 @@ void motor_task(void *pvParameters) {
                     // Stay in CHECK_MESSAGES, delay 10ms for pattern tick rate
                     vTaskDelay(pdMS_TO_TICKS(10));
                     break;  // Skip normal state transitions
+                } else if (MODE_IS_PATTERN(current_mode) && !pattern_is_playing()) {
+                    // Bug #103: Pattern mode but pattern stopped externally (via sync)
+                    // Fall through to normal motor control using Mode 5 timing
+                    // This allows bilateral alternation to continue even when pattern stopped
+                    ESP_LOGI(TAG, "Pattern stopped externally - using Mode 5 timing for bilateral alternation");
                 }
 
                 // AD045: Synchronized Independent Operation
