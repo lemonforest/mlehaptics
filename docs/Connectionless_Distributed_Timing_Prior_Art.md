@@ -16,7 +16,7 @@ This document establishes prior art for a class of distributed embedded systems 
 
 We document the journey from attempting to solve BLE (Bluetooth Low Energy) stack timing jitter to recognizing that the constraint itself was artificial. By separating *configuration* (which requires bidirectional communication) from *execution* (which does not), we achieve sub-millisecond synchronization using commodity microcontrollers and standard RF protocols.
 
-This architecture was validated using SAE J845-compliant emergency lighting patterns (Quad Flash) captured at 240fps, demonstrating zero perceptible overlap between alternating signals—precision sufficient for therapeutic bilateral stimulation, emergency vehicle warning systems, and distributed swarm coordination.
+This architecture was validated using SAE J845-compliant emergency lighting patterns (Quad Flash) captured at 240fps, demonstrating zero perceptible overlap between alternating signals—precision sufficient for therapeutic bilateral stimulation, emergency vehicle warning systems, and distributed swarm coordination. Reference implementation runs on commodity ESP32-C6 hardware with a bill of materials under $15 per node.
 
 This work is published as open-source prior art to ensure these techniques remain freely available for public use and cannot be enclosed by patents.
 
@@ -240,6 +240,13 @@ When UTLP is combined with 802.11mc FTM (Fine Time Measurement) ranging, devices
 
 This enables applications where GPS is unavailable or meaningless: drone swarms in GPS-denied environments, rescue operations in collapsed structures, coordination on mobile platforms. Critically, the swarm can *build a map of where it has been* using only peer-derived coordinates—enabling systematic search patterns without any external positioning infrastructure.
 
+**Distributed IMU from ranging geometry**: With 3+ nodes ranging to each other, the swarm gains 6-DOF orientation sensing without per-node IMUs:
+- **Translation**: Swarm centroid moves
+- **Rotation**: Inter-node angles change  
+- **Scale**: All distances shift proportionally
+
+A per-node 6-axis IMU (e.g., Seeed XIAO MG24 Sense) adds ~$5-8 per device. Ranging geometry provides equivalent swarm-level orientation for the cost of the ranging capability you already need. For budget-constrained projects—high school robotics teams, community safety initiatives—this tradeoff matters. The $5 saved per node is another node in the swarm.
+
 ### 4.3 Autonomous Zone Assignment via Ranging
 
 802.11mc ranging enables a capability beyond simple positioning: **autonomous zone assignment**. When devices can measure distances to each other, the swarm can self-organize without explicit configuration.
@@ -268,6 +275,19 @@ With 802.11mc ranging:
 - Coherent warning pattern emerges from spatial reality
 
 The swarm becomes spatially self-aware. Zone assignment becomes a property of where you *are*, not what you were *labeled*.
+
+### 4.4 IMU-Augmented Positioning (Hardware Option)
+
+RFIP using 802.11mc ranging provides position but not orientation. Adding a 6-axis IMU (accelerometer + gyroscope) enables:
+
+- **Reflection ambiguity resolution**: RFIP's distance-only geometry has a mirror ambiguity—the swarm could be "flipped." Gravity vector from accelerometer defines "down," resolving which solution is correct.
+- **Dead reckoning between ranging updates**: FTM exchanges take time. IMU provides continuous position estimates during gaps via inertial navigation.
+- **Orientation awareness**: Ranging tells you *where* you are relative to peers. IMU tells you *which way you're facing*. Search patterns require both.
+- **Motion state detection**: Ranging accuracy differs when stationary vs. moving. IMU provides immediate motion classification.
+
+**Hardware example**: Adding a 6-axis IMU (e.g., MPU6050, ~$2) to ESP32-C6 provides inertial sensing. Alternatively, integrated boards like Seeed XIAO MG24 Sense (~$15, Silicon Labs platform) include IMU on-board—though this requires porting UTLP from ESP-IDF. The architecture is platform-agnostic; the primitives work on any microcontroller with suitable RF capabilities.
+
+**Design tradeoff**: For bilateral EMDR devices (stationary during use, only 2 nodes, known left/right assignment), IMU is unnecessary cost. For mobile swarms doing search patterns, IMU becomes valuable. The architecture supports both—IMU data feeds into the same RFIP coordinate system when available.
 
 ---
 
@@ -518,10 +538,16 @@ Reference implementations are available under MIT license:
 - **RFIP addendum with 802.11mc FTM integration**: Included in UTLP repository
 - **Bilateral stimulation firmware**: ESP32-C6 reference design with BLE+ESP-NOW
 
-Hardware requirements:
-- ESP32-C6 (recommended) or ESP32-S3/C3
+**Hardware requirements (minimum):**
+- ESP32-C6 (recommended) or ESP32-S3/C3: ~$5-8
 - Standard BLE and WiFi capabilities
 - No specialized timing hardware required
+- **Total BOM for bilateral device: under $15/node**
+
+**Hardware options (enhanced capabilities):**
+- Seeed XIAO MG24 Sense (~$15): Adds 6-axis IMU for orientation/dead reckoning
+- ESP32-C6 v0.2+ silicon: Enables FTM initiator role (earlier revisions: responder only)
+- External GPS module: Stratum 0 time source for outdoor applications
 
 ---
 
@@ -597,6 +623,10 @@ This document establishes prior art for the following techniques, ensuring they 
 
 29. **Self-mapping search patterns in GPS-denied environments**: Swarm builds and tracks searched areas using only peer-derived RFIP coordinates, enabling coordinated coverage without external positioning infrastructure
 
+30. **Distributed IMU from ranging geometry**: 3+ nodes with peer ranging provide 6-DOF swarm orientation (translation, rotation, scale) without per-node inertial sensors—the swarm's geometry is itself an inertial reference
+
+30. **IMU-augmented peer ranging**: Combining 802.11mc FTM with inertial measurement for reflection ambiguity resolution, dead reckoning between ranging updates, and orientation awareness in mobile swarms
+
 ---
 
 ## 10. Conclusion
@@ -616,6 +646,8 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 | 1.0 | 2025-12-23 | Initial defensive publication |
 | 1.1 | 2025-12-23 | Added defense-in-depth security architecture, HKDF selection rationale, multi-layer replay protection, threat-proportional design philosophy; clarified BLE Bootstrap Model with peer release |
 | 1.2 | 2025-12-23 | Added GPS-denied search and rescue with self-mapping patterns |
+| 1.3 | 2025-12-23 | Added distributed IMU from ranging geometry—swarm orientation without per-node inertial sensors |
+| 1.3 | 2025-12-23 | Added IMU-augmented positioning option, hardware cost breakdown |
 
 ---
 
