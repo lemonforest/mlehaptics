@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 15  // Bug #41: Fix zone config (role propagation) + CLIENT TDM bypass
+#define FIRMWARE_VERSION_PATCH 16  // Bug #43: ESP-NOW diagnostic logging + WiFi channel re-sync
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

@@ -101,10 +101,18 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
     // Capture receive timestamp immediately
     uint64_t rx_time_us = esp_timer_get_time();
 
+    // Bug #43 diagnostic: Log ALL ESP-NOW packet arrivals at INFO level
+    ESP_LOGI(TAG, "ESP-NOW RX: %d bytes from %02X:%02X:%02X:%02X:%02X:%02X",
+             len,
+             recv_info->src_addr[0], recv_info->src_addr[1], recv_info->src_addr[2],
+             recv_info->src_addr[3], recv_info->src_addr[4], recv_info->src_addr[5]);
+
     // Verify sender is our peer
     if (s_espnow.peer_configured) {
         if (memcmp(recv_info->src_addr, s_espnow.peer_mac, 6) != 0) {
-            ESP_LOGD(TAG, "Ignoring packet from unknown sender");
+            ESP_LOGW(TAG, "Ignoring packet from unknown sender (expected %02X:%02X:%02X:%02X:%02X:%02X)",
+                     s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
+                     s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
             return;
         }
     }
@@ -158,12 +166,14 @@ static void espnow_send_cb(const wifi_tx_info_t *tx_info, esp_now_send_status_t 
     if (status == ESP_NOW_SEND_SUCCESS) {
         ESP_LOGD(TAG, "ESP-NOW send success");
     } else {
-        // Log channel info for diagnostics
+        // Bug #43 diagnostic: Log detailed channel and WiFi state info
         uint8_t primary_chan = 0;
         wifi_second_chan_t second_chan;
+        wifi_mode_t mode;
         esp_wifi_get_channel(&primary_chan, &second_chan);
-        ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
-                 primary_chan,
+        esp_wifi_get_mode(&mode);
+        ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, mode=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
+                 primary_chan, mode,
                  s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
                  s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
         s_espnow.metrics.send_failures++;
@@ -362,10 +372,23 @@ esp_err_t espnow_transport_set_peer(const uint8_t peer_mac[6])
     s_espnow.peer_configured = true;
     s_espnow.state = ESPNOW_STATE_PEER_SET;
 
-    // Log current WiFi channel for diagnostics
+    // Bug #43: Re-synchronize WiFi channel after BLE operations
+    // BLE scanning/connection may have changed WiFi channel state
     uint8_t current_chan = 0;
     wifi_second_chan_t second_chan;
     esp_wifi_get_channel(&current_chan, &second_chan);
+
+    if (current_chan != ESPNOW_CHANNEL) {
+        ESP_LOGW(TAG, "WiFi channel mismatch: current=%d, expected=%d - re-setting",
+                 current_chan, ESPNOW_CHANNEL);
+        esp_err_t ch_ret = esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+        if (ch_ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to re-set WiFi channel: %s", esp_err_to_name(ch_ret));
+        } else {
+            ESP_LOGI(TAG, "WiFi channel re-set to %d", ESPNOW_CHANNEL);
+        }
+    }
+
     ESP_LOGI(TAG, "Peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=%d, wifi_channel=%d)",
              peer_mac[0], peer_mac[1], peer_mac[2],
              peer_mac[3], peer_mac[4], peer_mac[5],
