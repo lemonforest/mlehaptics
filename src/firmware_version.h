@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 16  // Bug #43: ESP-NOW diagnostic logging + WiFi channel re-sync
+#define FIRMWARE_VERSION_PATCH 17  // Bug #43: ESP-NOW retry logic + diagnostic logging
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

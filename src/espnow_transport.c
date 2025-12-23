@@ -558,10 +558,23 @@ esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
     pkt[0] = ESPNOW_PKT_TYPE_COORDINATION;
     memcpy(pkt + 1, data, len);
 
-    // Send via ESP-NOW
-    esp_err_t ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+    // Bug #43: Retry logic for ESP-NOW send failures
+    esp_err_t ret = ESP_FAIL;
+    for (uint8_t retry = 0; retry < ESPNOW_COORD_MAX_RETRIES; retry++) {
+        if (retry > 0) {
+            vTaskDelay(pdMS_TO_TICKS(ESPNOW_COORD_RETRY_DELAY_MS));
+            ESP_LOGD(TAG, "ESP-NOW coordination retry %u/%u", retry + 1, ESPNOW_COORD_MAX_RETRIES);
+        }
+
+        ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+        if (ret == ESP_OK) {
+            break;  // Success
+        }
+    }
+
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "ESP-NOW coordination send failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "ESP-NOW coordination send failed after %u retries: %s",
+                 ESPNOW_COORD_MAX_RETRIES, esp_err_to_name(ret));
         s_espnow.metrics.send_failures++;
         return ESP_FAIL;
     }
@@ -669,10 +682,28 @@ esp_err_t espnow_transport_send_coordination_tdm(const uint8_t *data, size_t len
     pkt[0] = ESPNOW_PKT_TYPE_COORDINATION;
     memcpy(pkt + 1, data, len);
 
-    // Send via ESP-NOW (unicast with ACK)
-    esp_err_t ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+    // Bug #43: Retry logic for ESP-NOW send failures (with TDM)
+    esp_err_t ret = ESP_FAIL;
+    for (uint8_t retry = 0; retry < ESPNOW_COORD_MAX_RETRIES; retry++) {
+        if (retry > 0) {
+            // On retry, wait for next TDM safe window (SERVER only)
+            if (role_get_current() == ROLE_SERVER) {
+                waited += espnow_transport_wait_for_tdm_safe();
+            } else {
+                vTaskDelay(pdMS_TO_TICKS(ESPNOW_COORD_RETRY_DELAY_MS));
+            }
+            ESP_LOGD(TAG, "ESP-NOW TDM coordination retry %u/%u", retry + 1, ESPNOW_COORD_MAX_RETRIES);
+        }
+
+        ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+        if (ret == ESP_OK) {
+            break;  // Success
+        }
+    }
+
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "ESP-NOW coordination send failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "ESP-NOW TDM coordination send failed after %u retries: %s",
+                 ESPNOW_COORD_MAX_RETRIES, esp_err_to_name(ret));
         s_espnow.metrics.send_failures++;
         return ESP_FAIL;
     }

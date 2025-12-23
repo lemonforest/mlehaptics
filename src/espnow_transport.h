@@ -45,6 +45,10 @@ extern "C" {
 /** @brief ESP-NOW max payload (250 bytes) - beacon is only 25 bytes */
 #define ESPNOW_MAX_PAYLOAD          (250U)
 
+/** @brief Coordination message retry configuration (Bug #43) */
+#define ESPNOW_COORD_MAX_RETRIES    (3U)    /**< Max retry attempts for coordination messages */
+#define ESPNOW_COORD_RETRY_DELAY_MS (10U)   /**< Delay between retries (ms) */
+
 /** @brief Jitter measurement window size */
 #define ESPNOW_JITTER_WINDOW_SIZE   (32U)
 

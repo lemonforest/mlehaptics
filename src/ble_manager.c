@@ -1420,7 +1420,7 @@ static int gatt_char_local_firmware_read(uint16_t conn_handle, uint16_t attr_han
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-// Peer Firmware Version - Read (AD032: TODO AD040 for peer version exchange)
+// Peer Firmware Version - Read (AD040: Peer version exchanged via coordination message)
 static int gatt_char_peer_firmware_read(uint16_t conn_handle, uint16_t attr_handle,
                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
     ESP_LOGD(TAG, "GATT Read: Peer Firmware = %s",
