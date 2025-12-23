@@ -557,6 +557,36 @@ For AI agents implementing similar protocols:
 
 5. **Document the journey.** Future maintainers (human or AI) benefit from understanding rejected alternatives as much as chosen solutions.
 
+#### 4.1.5 Why HKDF-SHA256, Not PBKDF2 or Argon2
+
+A common security hardening question: "Should we use PBKDF2 or Argon2 for stronger key derivation?"
+
+**Answer: No—HKDF is the correct choice for our use case.**
+
+| Algorithm | Purpose | Input Entropy | Iterations | Memory |
+|-----------|---------|---------------|------------|--------|
+| **HKDF-SHA256** | Key derivation from high-entropy secrets | 64-128 bits | 1 | Minimal |
+| **PBKDF2** | Password stretching | Low (human passwords) | 10K-600K | Minimal |
+| **Argon2** | Memory-hard password hashing | Low (human passwords) | Configurable | 64MB+ |
+
+**Why PBKDF2/Argon2 are inappropriate here:**
+
+1. **Our input is already high-entropy.** BLE LTK is 128-bit random; our nonce is 64-bit hardware RNG. These are not weak human-memorable passwords that need stretching.
+
+2. **Iterations solve the wrong problem.** PBKDF2's 600K iterations slow brute-force attacks on 40-bit passwords (~1M guesses). With 64-128 bit entropy, brute force is already computationally infeasible (2^64 to 2^128 operations).
+
+3. **Resource constraints.** Argon2's memory-hardness (64MB+) exceeds ESP32-C6's 512KB SRAM. PBKDF2's CPU-bound iterations add latency during time-critical key exchange.
+
+4. **MAC binding is already implemented.** Both device WiFi MACs are included in the HKDF `info` parameter, providing cryptographic binding to the specific device pair.
+
+**Correct hardening approaches for high-entropy inputs:**
+- Increase HKDF output length (16→32 bytes for 256-bit keys)
+- Add timestamps to derivation for session time-bounding
+- Implement key rotation after N beacons or T minutes
+- Ensure hardware RNG is properly seeded (ESP32-C6: automatic)
+
+**Summary:** Use PBKDF2/Argon2 for passwords, HKDF for secrets. Our implementation correctly uses HKDF.
+
 ### 4.2 Time-Synchronized TOTP
 
 UTLP's synchronized time enables tight TOTP windows:
@@ -638,6 +668,151 @@ typedef struct __attribute__((packed)) {
 
 **Note:** This provides *authentication*, not *confidentiality*. Sync beacons remain readable (consistent with Common Mode Rejection model) but cannot be forged or replayed.
 
+#### 4.4.1 Replay Protection Implementation Details
+
+Replay attacks are prevented through multiple complementary mechanisms:
+
+**1. Key Exchange Nonce (Session Uniqueness)**
+
+Each ESP-NOW session begins with a fresh 8-byte hardware RNG nonce:
+
+```c
+// From espnow_transport.c - key exchange initiation
+esp_fill_random(key_exchange->nonce, ESPNOW_NONCE_SIZE);  // 8 bytes
+```
+
+The nonce is included in HKDF key derivation, ensuring each pairing session produces unique keys. An attacker cannot replay captured traffic from a previous session—the keys won't match.
+
+**2. Beacon Sequence Numbers (Intra-Session)**
+
+Each beacon contains a monotonic sequence number (8-bit, wraps 255→0):
+
+```c
+typedef struct __attribute__((packed)) {
+    // ... header fields ...
+    uint8_t sequence;        // Monotonic counter
+    // ... payload fields ...
+} espnow_beacon_t;
+```
+
+Receiver tracks `last_sequence` and rejects duplicates:
+
+```c
+// Replay detection logic
+if (beacon->sequence == last_sequence) {
+    ESP_LOGW(TAG, "Duplicate beacon seq=%u (replay?)", beacon->sequence);
+    return ESP_ERR_INVALID_STATE;
+}
+// Handle wrap-around: valid if new > old OR (old > 200 AND new < 50)
+if (beacon->sequence < last_sequence &&
+    !(last_sequence > 200 && beacon->sequence < 50)) {
+    ESP_LOGW(TAG, "Out-of-order beacon seq=%u < last=%u",
+             beacon->sequence, last_sequence);
+    return ESP_ERR_INVALID_STATE;
+}
+last_sequence = beacon->sequence;
+```
+
+**3. TOTP Time Binding (Optional Layer)**
+
+When FLAG_AUTHENTICATED is set, beacons include a 32-bit TOTP:
+- 100ms window granularity (300× tighter than standard 30s TOTP)
+- Counter derived from synchronized time, not beacon sequence
+- Prevents replay even if attacker captures and immediately retransmits
+
+**4. ESP-NOW CCMP Encryption**
+
+ESP-NOW uses AES-128-CCMP (same as WPA2) which includes:
+- Per-packet nonce (PN) managed by hardware
+- Message authentication via CCMP MIC
+- Protection against bit-flipping attacks
+
+**Attack Surface Analysis:**
+
+| Attack | Mitigation | Residual Risk |
+|--------|-----------|---------------|
+| Replay old session | Key exchange nonce | None (keys differ) |
+| Replay same session | Sequence number | 1-packet window |
+| Immediate replay | TOTP + sequence | None |
+| Bit-flip modification | CCMP MIC | None |
+| Key extraction | BLE encryption + proximity | Physical access required |
+
+**Sequence Wrap Handling:**
+
+The 8-bit sequence wraps every 256 beacons (~51 seconds at 200ms interval). Wrap detection uses heuristics:
+- If `old > 200` and `new < 50`, assume valid wrap (255→0)
+- Otherwise, `new < old` indicates replay or out-of-order
+- Edge case: 51+ seconds of packet loss could cause false rejection (acceptable—session would be degraded anyway)
+
+### 4.5 Cryptographic Hardening Rationale
+
+This section documents the defense-in-depth security architecture and explains why specific cryptographic choices were made.
+
+#### 4.5.1 Layered Security Model
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PHYSICAL LAYER                            │
+│  • Proximity requirement (~10m BLE range)                    │
+│  • User must physically power on both devices                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    TRANSPORT LAYER                           │
+│  • BLE SMP bonding (MITM protection via numeric comparison)  │
+│  • ESP-NOW AES-128-CCMP encryption                          │
+│  • Hardware-managed per-packet nonces                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    KEY DERIVATION LAYER                      │
+│  • 8-byte hardware RNG nonce (64-bit entropy)               │
+│  • HKDF-SHA256 key derivation                               │
+│  • Dual-MAC binding (WiFi MACs in derivation info)          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    APPLICATION LAYER                         │
+│  • Monotonic sequence numbers (replay detection)             │
+│  • Optional 100ms TOTP windows (time-bound authentication)   │
+│  • CRC16 integrity check                                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 4.5.2 Why This Architecture Exceeds Threat Model Requirements
+
+**Threat model for therapeutic bilateral stimulation:**
+- Not handling financial transactions
+- Not storing sensitive health records (only session timing)
+- Physical proximity inherently required for therapy
+- Attacker value proposition: Low (no monetary gain)
+
+**Security provided:**
+- Session hijacking: Prevented (CCMP + key binding)
+- Eavesdropping: Mitigated (CCMP encryption, low-value data)
+- Replay attacks: Prevented (nonce + sequence + TOTP)
+- Device impersonation: Prevented (MAC-bound keys)
+- Denial of service: Out of scope (RF jamming always possible)
+
+**Design philosophy:** Security should be proportional to threat. We implement strong cryptographic primitives (AES-128, HKDF-SHA256) but avoid over-engineering that would increase complexity, power consumption, and attack surface.
+
+#### 4.5.3 Future Hardening Options (If Required)
+
+If regulatory requirements or threat model changes mandate stronger security:
+
+| Enhancement | Effort | Benefit |
+|-------------|--------|---------|
+| Increase nonce to 16 bytes | Low | 128-bit session entropy |
+| LTK-based derivation (4.1.1) | Medium | 128-bit from BLE bond |
+| 256-bit HKDF output | Low | Larger key space |
+| Key rotation every N minutes | Medium | Limit exposure window |
+| Mutual authentication (challenge-response) | High | Prevent rogue devices |
+
+**Current stance:** The implemented 64-bit nonce + HKDF + CCMP architecture exceeds requirements for the therapeutic device threat model. Enhancements are documented for future consideration if regulatory landscape changes.
+
 ---
 
 # Part IV: Beacon Version 3
@@ -705,11 +880,15 @@ This supplement establishes additional prior art for:
 11. **Time-synchronized TOTP** with 100ms windows (300× tighter than standard)
 12. **Authenticated broadcast beacons** (authentication without confidentiality)
 13. **Nonce-over-encrypted-channel**: Leveraging BLE encryption for key material transport
+14. **HKDF vs PBKDF2/Argon2 selection criteria**: Algorithm choice based on input entropy characteristics
+15. **Multi-layer replay protection**: Session nonce + sequence numbers + TOTP + CCMP
+16. **Defense-in-depth architecture**: Physical, transport, key derivation, and application layer security
+17. **Threat-proportional security design**: Appropriate cryptographic strength for device threat model
 
 ### 6.4 Implementation Guidance
-14. **Design journey documentation**: Preserving rejected alternatives for AI/human maintainers
-15. **Medical device development velocity**: Nonce-based approach for development, LTK for production
-16. **Hardware RNG requirements**: `esp_fill_random()` for cryptographic material, never `rand()`
+18. **Design journey documentation**: Preserving rejected alternatives for AI/human maintainers
+19. **Medical device development velocity**: Nonce-based approach for development, LTK for production
+20. **Hardware RNG requirements**: `esp_fill_random()` for cryptographic material, never `rand()`
 
 ---
 
