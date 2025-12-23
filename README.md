@@ -1,11 +1,13 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.6.122 (Phase 6 Complete)
-**Last Updated:** 2025-12-14
-**Status:** Phase 6 Complete (Bilateral Sync) | Ready for Phase 7 (AD047 - Scheduled Pattern Playback)
-**Project Phase:** Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
+**Version:** v0.7.x (Phase 7 Development)
+**Last Updated:** 2025-12-23
+**Status:** Phase 7 In Progress (Scheduled Pattern Playback) | Phase 6 Complete (Bilateral Sync)
+**Project Phase:** Phase 7 (Patterns) | Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
+
+> **Architecture Note:** This system uses a **hybrid BLE + ESP-NOW architecture**. BLE handles device discovery, pairing, and mobile app communication. ESP-NOW handles all peer-to-peer coordination with ±100μs timing precision. See [Connectionless Distributed Timing](docs/Connectionless_Distributed_Timing_Prior_Art.md) for the foundational techniques.
 
 ![EMDR Device in Hand](images/device-in-hand.jpg)
 
@@ -24,11 +26,12 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - ⏳ Phase 7 next: AD047 - Scheduled Pattern Playback ("Lightbar Mode")
 
 **Key Features:**
+- **Hybrid BLE + ESP-NOW**: BLE for discovery/pairing, ESP-NOW for sub-millisecond peer coordination
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
 - **Precise half-cycle allocation**: Each device gets exactly 50% of total cycle
+- **Connectionless execution**: Devices sync once, then execute independently without coordination traffic
 - **JPL-compliant timing**: All delays use FreeRTOS vTaskDelay() (no busy-wait loops)
 - **Adaptive watchdog feeding**: Short cycles feed at end, long cycles feed mid-cycle + end (4-8x safety margin)
-- **Haptic effects support**: Short vibration pulses within half-cycle windows
 - **Open-source hardware**: Complete PCB designs, schematics, 3D-printable cases
 
 ## 🔌 Hardware Overview
@@ -500,7 +503,7 @@ When using or modifying this project:
 - **Framework**: ESP-IDF v5.5.0 (Espressif Systems) - Verified October 20, 2025
 - **Human Engineering**: Requirements specification, safety validation, hardware design
 - **Project**: MLE Haptics - mlehaptics.org
-- **Generated**: 2025-09-18, Updated: 2025-11-19
+- **Generated**: 2025-09-18, Updated: 2025-12-23
 
 Please maintain attribution when using or modifying this code or hardware designs.
 
@@ -520,22 +523,22 @@ Please maintain attribution when using or modifying this code or hardware design
 - ✅ **Phase 1c Complete**: Battery-based role assignment via BLE Service Data (higher battery initiates as SERVER)
 
 ### Phase 2: NTP-Style Time Synchronization (Complete)
-- ✅ **Time Sync Protocol**: NTP-style beacon exchange achieving ±30 μs over 90 minutes
+- ✅ **Time Sync Protocol**: NTP-style beacon exchange via ESP-NOW achieving ±30 μs over 90 minutes
 - ✅ **Dual-Clock Architecture**: System clock untouched, synchronized time via API
 - ✅ **Quality Metrics**: 0-100% sync quality with automatic recovery from anomalies
-- ✅ **90-Minute Stress Test**: 271 beacons exchanged, 95% quality sustained
+- ✅ **90-Minute Stress Test**: 271 ESP-NOW beacons exchanged, 95% quality sustained
 
 ### Phase 6: Bilateral Motor Coordination (Complete)
+- ✅ **ESP-NOW Coordination**: Sub-millisecond peer sync (±100μs jitter vs BLE's ±10-50ms)
 - ✅ **PTP-Inspired Sync**: Pattern broadcast architecture (like emergency vehicle light bars)
-- ✅ **EMA Filter**: Dual-alpha design (30% fast-attack, 10% steady state)
 - ✅ **Motor Epoch**: Shared timing reference for independent device operation
 - ✅ **Non-overlapping Half-Cycles**: Each device gets exactly 50% of total cycle time
 - ✅ **Emergency Shutdown**: Coordinated stop from either device within 50ms
 
-### Phase 7: Scheduled Pattern Playback (Next - AD047)
+### Phase 7: Scheduled Pattern Playback (In Progress - AD047)
 - ⏳ **Lightbar Mode**: Pre-buffered pattern execution for GPS-quality sync
 - ⏳ **Half-Cycle Boundaries**: Pattern changes only at safe transition points
-- ⏳ **RF Disruption Resilient**: Continues from local buffer during BLE glitches
+- ⏳ **RF Disruption Resilient**: Continues from local buffer during ESP-NOW gaps
 
 ### Phase 8: Advanced Haptic Research (Future)
 - **Dedicated haptic driver ICs**: DRV2605L family evaluation
