@@ -15,6 +15,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_random.h"
+#include "esp_coexist.h"  // WiFi/BLE coexistence priority
 #include "nvs_flash.h"
 #include <string.h>
 #include <math.h>
@@ -310,6 +311,20 @@ esp_err_t espnow_transport_init(void)
 
     s_espnow.state = ESPNOW_STATE_READY;
 
+    // Set WiFi/ESP-NOW priority over BLE for coordination messages
+    // This reduces TDM contention by giving ESP-NOW preferential radio access.
+    // Rationale: Post-bootstrap, coordination messages are time-critical;
+    // BLE is mainly for PWA connectivity which tolerates slight delays.
+    // Note: esp_coex_preference_set() is deprecated but still functional.
+    ret = esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Coexistence priority set to WIFI (ESP-NOW preferred)");
+    } else {
+        ESP_LOGW(TAG, "Coexistence preference set failed: %s (non-fatal)",
+                 esp_err_to_name(ret));
+        // Non-fatal - TDM scheduling still provides contention mitigation
+    }
+
     // Log local MAC for debugging
     uint8_t mac[6];
     espnow_transport_get_local_mac(mac);
@@ -355,9 +370,12 @@ esp_err_t espnow_transport_set_peer(const uint8_t peer_mac[6])
     }
 
     // Configure peer info
+    // Bug #43 Fix: Use channel=0 to send on current WiFi channel instead of fixed channel
+    // This avoids channel mismatch issues when BLE coexistence causes channel state changes.
+    // With channel=0, ESP-NOW uses whatever channel WiFi is currently on.
     esp_now_peer_info_t peer_info = {0};
     memcpy(peer_info.peer_addr, peer_mac, 6);
-    peer_info.channel = ESPNOW_CHANNEL;
+    peer_info.channel = 0;  // 0 = use current WiFi channel (more flexible than fixed channel)
     peer_info.ifidx = WIFI_IF_STA;
     peer_info.encrypt = false;  // No encryption for now (BLE handles security)
 
@@ -389,10 +407,10 @@ esp_err_t espnow_transport_set_peer(const uint8_t peer_mac[6])
         }
     }
 
-    ESP_LOGI(TAG, "Peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=%d, wifi_channel=%d)",
+    ESP_LOGI(TAG, "Peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=0 [current], wifi_channel=%d)",
              peer_mac[0], peer_mac[1], peer_mac[2],
              peer_mac[3], peer_mac[4], peer_mac[5],
-             ESPNOW_CHANNEL, current_chan);
+             current_chan);
 
     return ESP_OK;
 }
@@ -872,9 +890,10 @@ esp_err_t espnow_transport_set_peer_encrypted(
     }
 
     // Configure peer with encryption
+    // Bug #43 Fix: Use channel=0 to send on current WiFi channel instead of fixed channel
     esp_now_peer_info_t peer_info = {0};
     memcpy(peer_info.peer_addr, peer_mac, 6);
-    peer_info.channel = ESPNOW_CHANNEL;
+    peer_info.channel = 0;  // 0 = use current WiFi channel (more flexible than fixed channel)
     peer_info.ifidx = WIFI_IF_STA;
     peer_info.encrypt = true;  // Enable encryption
     memcpy(peer_info.lmk, lmk, ESPNOW_KEY_SIZE);
@@ -895,10 +914,10 @@ esp_err_t espnow_transport_set_peer_encrypted(
     uint8_t current_chan = 0;
     wifi_second_chan_t second_chan;
     esp_wifi_get_channel(&current_chan, &second_chan);
-    ESP_LOGI(TAG, "Encrypted peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=%d, wifi_channel=%d)",
+    ESP_LOGI(TAG, "Encrypted peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=0 [current], wifi_channel=%d)",
              peer_mac[0], peer_mac[1], peer_mac[2],
              peer_mac[3], peer_mac[4], peer_mac[5],
-             ESPNOW_CHANNEL, current_chan);
+             current_chan);
 
     return ESP_OK;
 }

@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 17  // Bug #43: ESP-NOW retry logic + diagnostic logging
+#define FIRMWARE_VERSION_PATCH 19  // Bug #43: SMP pairing + ESP-NOW channel=0 fix
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

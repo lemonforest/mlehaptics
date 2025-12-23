@@ -96,6 +96,62 @@ static const bilateral_segment_t breathe_pattern_segments[] = {
 };
 #define BREATHE_PATTERN_COUNT (sizeof(breathe_pattern_segments) / sizeof(bilateral_segment_t))
 
+/**
+ * @brief Emergency Quad Flash - SAE J845-style Red/Blue/White
+ *
+ * Advanced emergency vehicle light simulation with quad flash bursts.
+ * Inspired by SAE J845 Class 1 optical warning devices.
+ * Total duration: 2000ms (2 seconds), loops at ~1.5 Hz effective rate.
+ *
+ * Flash Pattern (per SAE guidelines, 1-2 Hz safe range):
+ *   Phase 1: LEFT quad flash (RED) - 4 rapid bursts
+ *   Phase 2: RIGHT quad flash (BLUE) - 4 rapid bursts
+ *   Phase 3: BOTH double flash (WHITE) - takedown/alley lights
+ *
+ * Timing: 50ms ON, 50ms OFF per flash (10 Hz burst within pattern)
+ * Color Palette: 0=Red, 2=Blue, 10=White
+ *
+ * Reference: SAE J845 Class 1, safe flash rate 60-240 FPM (1-4 Hz)
+ */
+static const bilateral_segment_t emergency_quad_pattern_segments[] = {
+    // Phase 1: LEFT (RED) quad flash - 4 bursts, 50ms each
+    // time_offset, transition, flags, waveform, L_color, L_bright, L_motor, R_color, R_bright, R_motor
+    {    0,   0, 0, 0,   0, 100, 0,   2,   0, 0 },  // RED on LEFT
+    {   50,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF
+    {  100,   0, 0, 0,   0, 100, 0,   2,   0, 0 },  // RED on LEFT
+    {  150,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF
+    {  200,   0, 0, 0,   0, 100, 0,   2,   0, 0 },  // RED on LEFT
+    {  250,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF
+    {  300,   0, 0, 0,   0, 100, 0,   2,   0, 0 },  // RED on LEFT
+    {  350,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF - end quad
+
+    // Gap before Phase 2
+    {  500,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // Brief pause
+
+    // Phase 2: RIGHT (BLUE) quad flash - 4 bursts, 50ms each
+    {  550,   0, 0, 0,   0,   0, 0,   2, 100, 0 },  // BLUE on RIGHT
+    {  600,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF
+    {  650,   0, 0, 0,   0,   0, 0,   2, 100, 0 },  // BLUE on RIGHT
+    {  700,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF
+    {  750,   0, 0, 0,   0,   0, 0,   2, 100, 0 },  // BLUE on RIGHT
+    {  800,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF
+    {  850,   0, 0, 0,   0,   0, 0,   2, 100, 0 },  // BLUE on RIGHT
+    {  900,   0, 0, 0,   0,   0, 0,   2,   0, 0 },  // OFF - end quad
+
+    // Gap before Phase 3
+    { 1050,   0, 0, 0,   0,   0, 0,   0,   0, 0 },  // Brief pause
+
+    // Phase 3: BOTH (WHITE) double flash - takedown lights
+    { 1100,   0, 0, 0,  10, 100, 0,  10, 100, 0 },  // WHITE on BOTH
+    { 1200,   0, 0, 0,  10,   0, 0,  10,   0, 0 },  // OFF
+    { 1300,   0, 0, 0,  10, 100, 0,  10, 100, 0 },  // WHITE on BOTH
+    { 1400,   0, 0, 0,  10,   0, 0,  10,   0, 0 },  // OFF
+
+    // End marker (loop point)
+    { 2000,   0, 0, 0,   0,   0, 0,   0,   0, 0 },  // Loop
+};
+#define EMERGENCY_QUAD_PATTERN_COUNT (sizeof(emergency_quad_pattern_segments) / sizeof(bilateral_segment_t))
+
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
@@ -184,6 +240,12 @@ esp_err_t pattern_load_builtin(builtin_pattern_id_t pattern_id) {
             src_segments = breathe_pattern_segments;
             segment_count = BREATHE_PATTERN_COUNT;
             pattern_name = "breathe";
+            break;
+
+        case BUILTIN_PATTERN_EMERGENCY_QUAD:
+            src_segments = emergency_quad_pattern_segments;
+            segment_count = EMERGENCY_QUAD_PATTERN_COUNT;
+            pattern_name = "emergency_quad";
             break;
 
         default:

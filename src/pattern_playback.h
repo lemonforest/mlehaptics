@@ -170,6 +170,7 @@ typedef struct {
  * - control_cmd 2 = ALTERNATING (green bilateral, therapy)
  * - control_cmd 3 = EMERGENCY (red/blue wig-wag, lightbar demo)
  * - control_cmd 4 = BREATHE (cyan pulse, calming)
+ * - control_cmd 5 = EMERGENCY_QUAD (red/blue/white quad flash, SAE J845 style)
  *
  * Formula: pattern_id = control_cmd - 1
  */
@@ -178,6 +179,7 @@ typedef enum {
     BUILTIN_PATTERN_ALTERNATING,        /**< Simple left/right alternation (BLE: 2) */
     BUILTIN_PATTERN_EMERGENCY,          /**< Red/blue emergency lights (BLE: 3) */
     BUILTIN_PATTERN_BREATHE,            /**< Slow breathing pulse (BLE: 4) */
+    BUILTIN_PATTERN_EMERGENCY_QUAD,     /**< Red/blue/white quad flash (BLE: 5) */
     BUILTIN_PATTERN_COUNT               /**< Number of built-in patterns */
 } builtin_pattern_id_t;
 

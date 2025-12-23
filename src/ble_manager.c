@@ -2795,6 +2795,21 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     peer_state.peer_conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
 
+                    // Bug #43 Fix: Initiate BLE SMP pairing to generate LTK for ESP-NOW encryption
+                    // Without this call, devices connect but never run Security Manager Protocol,
+                    // so no Long Term Key is generated and ESP-NOW falls back to unencrypted mode.
+                    // Note: ble_hs_cfg.sm_* settings (configured in ble_manager_init) control the
+                    // pairing type (LESC, bonding, MITM). This just triggers the procedure.
+                    int sec_rc = ble_gap_security_initiate(event->connect.conn_handle);
+                    if (sec_rc == 0) {
+                        ESP_LOGI(TAG, "SMP pairing initiated (will generate LTK for ESP-NOW)");
+                    } else if (sec_rc == BLE_HS_EALREADY) {
+                        // Pairing already in progress (e.g., peer initiated)
+                        ESP_LOGI(TAG, "SMP pairing already in progress");
+                    } else {
+                        ESP_LOGW(TAG, "SMP pairing initiation failed; rc=%d (ESP-NOW will use unencrypted fallback)", sec_rc);
+                    }
+
                     // AD040: Reset version exchange state for new connection
                     firmware_version_exchanged = false;
                     firmware_versions_match_flag = true;  // Assume match until proven otherwise
