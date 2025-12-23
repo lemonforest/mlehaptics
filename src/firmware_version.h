@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 20  // Bug #43: Fix SMP race condition (CLIENT-only initiation)
+#define FIRMWARE_VERSION_PATCH 21  // Breathe interpolation + Quad Flash peer sync
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
