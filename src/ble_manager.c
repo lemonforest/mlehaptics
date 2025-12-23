@@ -315,6 +315,7 @@ typedef struct {
     bool notify_session_time_subscribed; /**< Client subscribed to Session Time notifications */
     bool notify_battery_subscribed;     /**< Client subscribed to Battery notifications */
     bool notify_client_battery_subscribed; /**< Client subscribed to Client Battery notifications */
+    bool notify_pattern_status_subscribed; /**< Bug #42: Client subscribed to Pattern Status notifications */
 } ble_advertising_state_t;
 
 static ble_advertising_state_t adv_state = {
@@ -325,7 +326,8 @@ static ble_advertising_state_t adv_state = {
     .notify_mode_subscribed = false,
     .notify_session_time_subscribed = false,
     .notify_battery_subscribed = false,
-    .notify_client_battery_subscribed = false
+    .notify_client_battery_subscribed = false,
+    .notify_pattern_status_subscribed = false  // Bug #42
 };
 
 // Settings dirty flag (thread-safe via char_data_mutex)
@@ -1886,7 +1888,22 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
                 }
             }
 
-            // TODO: Send notification to subscribed clients with updated pattern_status
+            // Bug #42: Send notification to subscribed clients with updated pattern_status
+            if (ble_is_app_connected() && adv_state.notify_pattern_status_subscribed) {
+                uint16_t val_handle;
+                if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_pattern_status.u, NULL, &val_handle) == 0) {
+                    struct os_mbuf *om = ble_hs_mbuf_from_flat(&pattern_status, sizeof(pattern_status));
+                    if (om != NULL) {
+                        int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                        if (rc == 0) {
+                            ESP_LOGI(TAG, "Pattern status notification sent: %u", pattern_status);
+                        } else {
+                            ESP_LOGW(TAG, "Pattern status notification failed: rc=%d", rc);
+                        }
+                    }
+                }
+            }
+
             return (err == ESP_OK) ? 0 : BLE_ATT_ERR_UNLIKELY;
         }
         return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
@@ -2808,6 +2825,9 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         peer_state.role = PEER_ROLE_SERVER;
                         ESP_LOGI(TAG, "SERVER role assigned (BLE MASTER)");
 
+                        // Bug #41 fix: Propagate role to role_manager for zone_config
+                        role_set(ROLE_SERVER);
+
                         // Phase 6f: SERVER initiates MTU exchange for larger beacon payload (28 bytes)
                         // Default MTU is 23 bytes (20 payload) - too small for beacons
                         // MTU exchange runs in parallel with GATT discovery
@@ -2829,6 +2849,9 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     } else {
                         peer_state.role = PEER_ROLE_CLIENT;
                         ESP_LOGI(TAG, "CLIENT role assigned (BLE SLAVE)");
+
+                        // Bug #41 fix: Propagate role to role_manager for zone_config
+                        role_set(ROLE_CLIENT);
 
                         // Phase 6f: CLIENT also initiates MTU exchange for bidirectional communication
                         ESP_LOGI(TAG, "CLIENT: Initiating MTU exchange for larger beacon payload");
@@ -2913,6 +2936,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     adv_state.notify_session_time_subscribed = false;
                     adv_state.notify_battery_subscribed = false;
                     adv_state.notify_client_battery_subscribed = false;
+                    adv_state.notify_pattern_status_subscribed = false;  // Bug #42
                 }
             } else {
                 ESP_LOGW(TAG, "BLE connection failed; status=%d (%s)",
@@ -3051,6 +3075,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 adv_state.notify_session_time_subscribed = false;
                 adv_state.notify_battery_subscribed = false;
                 adv_state.notify_client_battery_subscribed = false;
+                adv_state.notify_pattern_status_subscribed = false;  // Bug #42
 
                 // Small delay to allow BLE stack cleanup (Android compatibility)
                 vTaskDelay(pdMS_TO_TICKS(100));
@@ -3220,6 +3245,26 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                             int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
                             if (rc == 0) {
                                 ESP_LOGI(TAG, "Initial client battery level sent: %u%%", current_client_battery);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Bug #42: Pattern Status subscription handling
+            if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_pattern_status.u, NULL, &val_handle) == 0) {
+                if (event->subscribe.attr_handle == val_handle) {
+                    adv_state.notify_pattern_status_subscribed = event->subscribe.cur_notify;
+                    ESP_LOGI(TAG, "Pattern Status notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
+
+                    // Send initial value immediately on subscription
+                    if (event->subscribe.cur_notify) {
+                        uint8_t current_status = pattern_is_playing() ? 1 : 0;
+                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_status, sizeof(current_status));
+                        if (om != NULL) {
+                            int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                            if (rc == 0) {
+                                ESP_LOGI(TAG, "Initial pattern status sent: %u", current_status);
                             }
                         }
                     }

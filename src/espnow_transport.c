@@ -8,6 +8,7 @@
  */
 
 #include "espnow_transport.h"
+#include "role_manager.h"  // Bug #41: Role-aware TDM (CLIENT skips TDM)
 #include "esp_wifi.h"
 #include "esp_now.h"
 #include "esp_timer.h"
@@ -621,11 +622,18 @@ esp_err_t espnow_transport_send_coordination_tdm(const uint8_t *data, size_t len
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Wait for TDM safe window
-    uint32_t waited = espnow_transport_wait_for_tdm_safe();
-    if (waited > 0) {
-        ESP_LOGD(TAG, "TDM: Delayed %lu ms for safe window", (unsigned long)waited);
+    // Bug #41: Role-aware TDM scheduling
+    // - SERVER: Maintains BLE for PWA access, needs TDM to avoid BLE/ESP-NOW contention
+    // - CLIENT: BLE stopped after bootstrap (Bug #7), no contention → skip TDM wait
+    uint32_t waited = 0;
+    if (role_get_current() == ROLE_SERVER) {
+        // SERVER has BLE + ESP-NOW coexistence - wait for TDM safe window
+        waited = espnow_transport_wait_for_tdm_safe();
+        if (waited > 0) {
+            ESP_LOGD(TAG, "TDM: SERVER delayed %lu ms for safe window", (unsigned long)waited);
+        }
     }
+    // CLIENT: Send immediately (no BLE activity after bootstrap)
 
     // Build packet: [0xC0 marker][coordination message bytes]
     uint8_t pkt[ESPNOW_MAX_PAYLOAD];

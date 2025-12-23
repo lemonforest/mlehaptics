@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 14  // Bug #38: Fix asymmetry by enabling correction + preserve mode change epoch
+#define FIRMWARE_VERSION_PATCH 15  // Bug #41: Fix zone config (role propagation) + CLIENT TDM bypass
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
