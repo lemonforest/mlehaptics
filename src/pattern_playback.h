@@ -184,6 +184,46 @@ typedef enum {
     BUILTIN_PATTERN_COUNT               /**< Number of built-in patterns */
 } builtin_pattern_id_t;
 
+/**
+ * @brief Pattern catalog entry - maps pattern_id to human-readable info
+ *
+ * Single source of truth for pattern metadata. Used to:
+ * - Generate JSON for PWA discovery
+ * - Validate pattern IDs
+ * - Display pattern names in logs
+ */
+typedef struct {
+    builtin_pattern_id_t id;    /**< Pattern enum value */
+    uint8_t ble_cmd;            /**< BLE control command (id + 1) */
+    const char *name;           /**< Short display name */
+    const char *description;    /**< Brief description for PWA */
+} pattern_catalog_entry_t;
+
+/**
+ * @brief Get the pattern catalog (single source of truth)
+ * @return Pointer to static catalog array (BUILTIN_PATTERN_COUNT - 1 entries)
+ *
+ * Catalog excludes BUILTIN_PATTERN_NONE. Index 0 = ALTERNATING, etc.
+ */
+const pattern_catalog_entry_t* pattern_get_catalog(void);
+
+/**
+ * @brief Get pattern catalog size (number of valid patterns)
+ * @return Number of entries in catalog (BUILTIN_PATTERN_COUNT - 1)
+ */
+uint8_t pattern_get_catalog_size(void);
+
+/**
+ * @brief Generate JSON pattern list for PWA
+ * @param buffer Output buffer for JSON string
+ * @param buffer_size Size of output buffer
+ * @return Number of bytes written (excluding null terminator), or -1 on error
+ *
+ * Generates JSON array from pattern catalog, e.g.:
+ * [{"id":2,"name":"Alternating","desc":"Green bilateral"},...]
+ */
+int pattern_generate_json(char *buffer, size_t buffer_size);
+
 // ============================================================================
 // PUBLIC API
 // ============================================================================

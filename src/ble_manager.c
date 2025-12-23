@@ -1936,14 +1936,16 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
     // PWA reads once on connection to discover available patterns
     if (ble_uuid_cmp(uuid, &uuid_char_pattern_list.u) == 0) {
         if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-            // Static JSON - pattern IDs match Pattern Control write values
-            static const char pattern_list_json[] =
-                "[{\"id\":2,\"name\":\"Alternating\",\"desc\":\"Green bilateral\"},"
-                "{\"id\":3,\"name\":\"Emergency\",\"desc\":\"Red/blue wig-wag\"},"
-                "{\"id\":4,\"name\":\"Breathe\",\"desc\":\"Cyan pulse\"},"
-                "{\"id\":5,\"name\":\"Quad Flash\",\"desc\":\"SAE J845 red/blue/white\"}]";
+            // Generate JSON from pattern catalog (single source of truth)
+            // Buffer sized for ~80 bytes per pattern × max 8 patterns + overhead
+            static char pattern_list_json[700];
+            int json_len = pattern_generate_json(pattern_list_json, sizeof(pattern_list_json));
+            if (json_len < 0) {
+                ESP_LOGE(TAG, "Failed to generate pattern JSON");
+                return BLE_ATT_ERR_UNLIKELY;
+            }
 
-            int rc = os_mbuf_append(ctxt->om, pattern_list_json, strlen(pattern_list_json));
+            int rc = os_mbuf_append(ctxt->om, pattern_list_json, (uint16_t)json_len);
             return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         }
         return BLE_ATT_ERR_UNLIKELY;  // Read-only

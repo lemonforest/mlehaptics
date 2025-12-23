@@ -27,7 +27,79 @@ static playback_state_t playback_state = {0};
 static bool module_initialized = false;
 
 // ============================================================================
-// HARDCODED PATTERNS
+// PATTERN CATALOG (Single Source of Truth)
+// ============================================================================
+
+/**
+ * @brief Pattern catalog - maps enum IDs to human-readable metadata
+ *
+ * This is THE authoritative source for pattern information.
+ * Adding a new pattern requires adding an entry here.
+ * JSON generation and validation use this catalog automatically.
+ *
+ * Order must match builtin_pattern_id_t enum (excluding NONE and COUNT).
+ */
+static const pattern_catalog_entry_t s_pattern_catalog[] = {
+    { BUILTIN_PATTERN_ALTERNATING,    2, "Alternating", "Green bilateral" },
+    { BUILTIN_PATTERN_EMERGENCY,      3, "Emergency",   "Red/blue wig-wag" },
+    { BUILTIN_PATTERN_BREATHE,        4, "Breathe",     "Cyan pulse" },
+    { BUILTIN_PATTERN_EMERGENCY_QUAD, 5, "Quad Flash",  "SAE J845 red/blue/white" },
+};
+
+#define PATTERN_CATALOG_SIZE (sizeof(s_pattern_catalog) / sizeof(pattern_catalog_entry_t))
+
+// Compile-time check: catalog size must match enum count (minus NONE)
+_Static_assert(PATTERN_CATALOG_SIZE == BUILTIN_PATTERN_COUNT - 1,
+               "Pattern catalog size mismatch! Update s_pattern_catalog when adding patterns.");
+
+const pattern_catalog_entry_t* pattern_get_catalog(void) {
+    return s_pattern_catalog;
+}
+
+uint8_t pattern_get_catalog_size(void) {
+    return PATTERN_CATALOG_SIZE;
+}
+
+int pattern_generate_json(char *buffer, size_t buffer_size) {
+    if (buffer == NULL || buffer_size < 3) {
+        return -1;
+    }
+
+    int offset = 0;
+    int remaining = (int)buffer_size;
+
+    // Opening bracket
+    int written = snprintf(buffer + offset, remaining, "[");
+    if (written < 0 || written >= remaining) return -1;
+    offset += written;
+    remaining -= written;
+
+    // Generate entries from catalog
+    for (uint8_t i = 0; i < PATTERN_CATALOG_SIZE; i++) {
+        const pattern_catalog_entry_t *entry = &s_pattern_catalog[i];
+
+        // Add comma separator (except for first entry)
+        const char *separator = (i == 0) ? "" : ",";
+
+        written = snprintf(buffer + offset, remaining,
+                          "%s{\"id\":%d,\"name\":\"%s\",\"desc\":\"%s\"}",
+                          separator, entry->ble_cmd, entry->name, entry->description);
+
+        if (written < 0 || written >= remaining) return -1;
+        offset += written;
+        remaining -= written;
+    }
+
+    // Closing bracket
+    written = snprintf(buffer + offset, remaining, "]");
+    if (written < 0 || written >= remaining) return -1;
+    offset += written;
+
+    return offset;
+}
+
+// ============================================================================
+// HARDCODED PATTERNS (Segment Data)
 // ============================================================================
 
 /**
