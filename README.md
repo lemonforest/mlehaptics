@@ -2,7 +2,7 @@
 
 **Version:** v0.7.x (Phase 7 Development)
 **Last Updated:** 2025-12-23
-**Status:** Phase 7 In Progress (Scheduled Pattern Playback) | Phase 6 Complete (Bilateral Sync)
+**Status:** Phase 7 In Progress (P7.1 Scheduled Pattern Playback) | Phase 6 Complete (Bilateral Sync)
 **Project Phase:** Phase 7 (Patterns) | Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
@@ -23,7 +23,7 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - ✅ Phase 2 complete: NTP-style time synchronization (±30 μs over 90 minutes)
 - ✅ Phase 6 complete: Bilateral motor coordination with PTP-inspired sync protocol
 - ✅ GPIO remapping complete: H-bridge IN1 moved from GPIO20 to GPIO18 (eliminates crosstalk)
-- ⏳ Phase 7 next: AD047 - Scheduled Pattern Playback ("Lightbar Mode")
+- ⏳ Phase 7 in progress: P7.1 Scheduled Pattern Playback ("Lightbar Mode") - AD047
 
 **Key Features:**
 - **Hybrid BLE + ESP-NOW**: BLE for discovery/pairing, ESP-NOW for sub-millisecond peer coordination
@@ -536,9 +536,17 @@ Please maintain attribution when using or modifying this code or hardware design
 - ✅ **Emergency Shutdown**: Coordinated stop from either device within 50ms
 
 ### Phase 7: Scheduled Pattern Playback (In Progress - AD047)
-- ⏳ **Lightbar Mode**: Pre-buffered pattern execution for GPS-quality sync
-- ⏳ **Half-Cycle Boundaries**: Pattern changes only at safe transition points
-- ⏳ **RF Disruption Resilient**: Continues from local buffer during ESP-NOW gaps
+
+**Milestones:**
+- ⏳ **P7.1 Scheduled Pattern Playback**: Pattern catalog as SSOT, CLIENT interpolation, "Lightbar Mode"
+- ✅ **P7.2 Pattern Catalog Export**: JSON generation from SSOT catalog (`pattern_generate_json()`)
+- 📋 **P7.3 PWA Pattern Designer**: Custom pattern creation from web app
+- 📋 **P7.4 Legacy Mode Migration**: Replace reactive 0.5/1.0/1.5/2.0 Hz modes with pattern-based execution
+
+**Features:**
+- **Pre-buffered execution**: GPS-quality sync from local pattern buffer
+- **Step-boundary transitions**: Pattern changes occur at pattern step boundaries (inherently safe)
+- **RF disruption resilient**: Continues from local buffer during ESP-NOW gaps
 
 ### Phase 8: Advanced Haptic Research (Future)
 - **Dedicated haptic driver ICs**: DRV2605L family evaluation

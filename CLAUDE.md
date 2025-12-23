@@ -1,13 +1,15 @@
 # EMDR Bilateral Stimulation Device - Claude Code Reference
 
-**Version:** v0.3.0-beta.1 (Phase 2 Complete)
-**Last Updated:** 2025-11-21
-**Status:** Dual-Device Time Synchronization (Phase 2 - Production Ready ✅)
-**Project Phase:** Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing) | Phase 0.4 Complete (Single-Device)
+**Version:** v0.7.x (Phase 7 Development)
+**Last Updated:** 2025-12-23
+**Status:** Phase 7 In Progress (P7.1 Scheduled Pattern Playback) | Phase 6 Complete (Bilateral Sync)
+**Project Phase:** Phase 7 (Patterns) | Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 **Hardware:** Seeed XIAO ESP32-C6
 **Framework:** ESP-IDF v5.5.0 via PlatformIO
 
-> **Note:** Phase 2 time synchronization is complete and tested (90-minute stress test passed). Next milestone: Phase 3 - Command & Control for bilateral motor coordination.
+> **Architecture Note:** This system uses a **hybrid BLE + ESP-NOW architecture**. BLE handles device discovery, pairing, and mobile app communication. ESP-NOW handles all peer-to-peer coordination with ±100μs timing precision.
+
+> **Current Work:** P7.1 - Scheduled Pattern Playback ("Lightbar Mode") with step-boundary transitions.
 
 ---
 
@@ -1311,3 +1313,55 @@ A: Watchdog will trigger reset after 2000ms. Check serial logs for panic handler
    - [ ] CLAUDE.md version header updated (if version bumped)
 
 **Most Important:** The device must be reliable and safe for therapeutic use. When in doubt, ask before making changes that could affect safety or therapeutic effectiveness.
+
+### Milestone/Versioning Tracking Convention
+
+**Purpose:** Track work within project phases without confusion with phase numbers.
+
+**Format:** `P{phase}.{milestone}.{bugfix} - {Name}`
+
+**Example Structure (Phase 7):**
+
+| Identifier | Milestone Name | Description |
+|------------|----------------|-------------|
+| **P7.0** | Pattern Engine Foundation | Core pattern scheduling infrastructure |
+| **P7.1** | Scheduled Pattern Playback | Pattern catalog, sequencing, CLIENT interpolation |
+| **P7.1.1** | Bug: Pattern timing drift | Fix for accumulated timing errors |
+| **P7.1.2** | Bug: Interpolation edge case | Fix for boundary condition in Breathe pattern |
+| **P7.2** ✅ | Pattern Catalog Export | JSON generation via `pattern_generate_json()` |
+| **P7.3** | PWA Pattern Designer | Custom pattern creation from web app |
+| **P7.4** | Legacy Mode Migration | Replace reactive 0.5/1.0/1.5/2.0 Hz with pattern-based |
+
+> **Note:** Harmonic boundary calculations were originally planned but deemed unnecessary.
+> Pattern playback inherently provides clean transitions at step boundaries—no runtime calculation needed.
+> P7.2 completed: `pattern_catalog_entry_t` struct + `pattern_generate_json()` in [pattern_playback.h](src/pattern_playback.h).
+
+**Convention Rules:**
+
+1. **Project Phases** use full name: Phase 6, Phase 7, Phase 8
+2. **Subphase milestones** use prefix: P7.1, P7.2, P7.3
+3. **Bug fixes** add third digit: P7.1.1, P7.1.2
+4. **No confusion:** "P7.2" is obviously within Phase 7
+
+**Usage in Commits/Changelogs:**
+
+```markdown
+## Commits
+- [P7.1] Add pattern catalog with 5 therapeutic patterns
+- [P7.1.1] Fix: Pattern timing drift at low frequencies
+- [P7.2] ✅ Add JSON export for PWA pattern catalog (pattern_generate_json)
+
+## CHANGELOG.md
+### [v0.7.22] - P7.1 Scheduled Pattern Playback
+- Added: Pattern catalog as SSOT
+- Added: CLIENT-side interpolation for Breathe pattern
+
+### [v0.7.23] - P7.1.1 Bug Fix
+- Fixed: Pattern timing drift accumulation
+```
+
+**Benefits:**
+- Clear hierarchy (P7.2.1 obviously belongs to Phase 7, Milestone 2)
+- Bug tracking via third digit
+- Searchable (grep for `P7.1` finds all related work)
+- Maps directly to version sections in CHANGELOG
