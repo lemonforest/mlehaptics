@@ -351,6 +351,34 @@ This project follows JPL embedded systems standards:
 5. **Explicit error checking** - All ESP-IDF calls wrapped in ESP_ERROR_CHECK()
 6. **Defensive logging** - Comprehensive ESP_LOGI() for debugging
 
+### NO MAGIC NUMBERS (Single Source of Truth)
+
+**RULE:** Never hardcode comparison values, delays, thresholds, or ranges.
+
+- **ALWAYS** import and use named constants from the relevant header file
+- If a constant does not exist, **create it** in the central config/header before writing logic
+- **Single Source of Truth (SSOT)** is the primary architectural directive
+
+**Bad Examples:**
+```c
+if (control_cmd >= 2 && control_cmd <= 5) { ... }  // Magic numbers!
+vTaskDelay(pdMS_TO_TICKS(50));  // What is 50?
+if (battery_pct < 20) { ... }  // Why 20?
+```
+
+**Good Examples:**
+```c
+if (control_cmd >= 2 && control_cmd <= BUILTIN_PATTERN_COUNT) { ... }
+vTaskDelay(pdMS_TO_TICKS(MOTOR_TICK_INTERVAL_MS));
+if (battery_pct < BATTERY_LOW_WARNING_PCT) { ... }
+```
+
+**Why This Matters:**
+- Tutorial code uses magic numbers for brevity - production code must not
+- When values change, you only update ONE place
+- Compile-time assertions can catch mismatches (see `_Static_assert` usage)
+- Code becomes self-documenting
+
 ### FreeRTOS Task Architecture
 
 ```c
