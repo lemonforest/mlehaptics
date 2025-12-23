@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 21  // Breathe interpolation + Quad Flash peer sync
+#define FIRMWARE_VERSION_PATCH 22  // Config headers architecture (SSOT refactor)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED

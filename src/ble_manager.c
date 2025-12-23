@@ -19,6 +19,12 @@
 #include "pattern_playback.h" // AD047: Pattern playback control for Mode 5
 #include "espnow_transport.h" // AD048: ESP-NOW transport for low-latency time sync
 #include "esp_chip_info.h"    // AD048: Silicon revision for hardware info characteristic
+
+// Configuration headers (Single Source of Truth)
+#include "config/timing_config.h"
+#include "config/threshold_config.h"
+#include "config/ble_config.h"
+
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -733,9 +739,10 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 25-200 (0.25-2.0 Hz)
-    if (freq_val < 25 || freq_val > 200) {
-        ESP_LOGE(TAG, "GATT Write: Invalid frequency %u (range 25-200)", freq_val);
+    // AD032: Range validation (0.25-2.0 Hz) using threshold_config.h constants
+    if (freq_val < THRESHOLD_FREQ_MIN_CHZ || freq_val > THRESHOLD_FREQ_MAX_CHZ) {
+        ESP_LOGE(TAG, "GATT Write: Invalid frequency %u (range %d-%d)",
+                 freq_val, THRESHOLD_FREQ_MIN_CHZ, THRESHOLD_FREQ_MAX_CHZ);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -797,10 +804,11 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 10-100% (10% min ensures perception, 100% max = entire half-cycle)
+    // AD032: Range validation using threshold_config.h constants
     // For LED-only mode, set PWM intensity to 0% instead
-    if (duty_val < 10 || duty_val > 100) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 10-100)", duty_val);
+    if (duty_val < THRESHOLD_DUTY_MIN_PCT || duty_val > THRESHOLD_DUTY_MAX_PCT) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range %d-%d)",
+                 duty_val, THRESHOLD_DUTY_MIN_PCT, THRESHOLD_DUTY_MAX_PCT);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -1289,9 +1297,10 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 10-30%
-    if (value < 10 || value > 30) {
-        ESP_LOGE(TAG, "GATT Write: Invalid brightness %u%% (range 10-30)", value);
+    // AD032: Range validation using threshold_config.h constants
+    if (value < THRESHOLD_LED_BRIGHTNESS_MIN || value > THRESHOLD_LED_BRIGHTNESS_MAX) {
+        ESP_LOGE(TAG, "GATT Write: Invalid brightness %u%% (range %d-%d)",
+                 value, THRESHOLD_LED_BRIGHTNESS_MIN, THRESHOLD_LED_BRIGHTNESS_MAX);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 

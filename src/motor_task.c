@@ -51,17 +51,21 @@
 #include "pattern_playback.h"
 #include "zone_config.h"
 
+// Configuration headers (Single Source of Truth)
+#include "config/timing_config.h"
+#include "config/threshold_config.h"
+
 static const char *TAG = "MOTOR_TASK";
 
 // ============================================================================
-// TIMING CONSTANTS
+// TIMING CONSTANTS (mapped from timing_config.h for compatibility)
 // ============================================================================
 
-#define LED_INDICATION_TIME_MS  10000               // Back-EMF sampling window
-#define BACKEMF_SETTLE_MS       10                  // Back-EMF settle time
-#define MODE_CHECK_INTERVAL_MS  50                  // Check queue every 50ms (main branch baseline, instant button response)
-#define BATTERY_CHECK_INTERVAL_MS  60000            // Check battery every 60 seconds
-#define SESSION_TIME_NOTIFY_INTERVAL_MS 60000       // Notify session time every 60 seconds
+#define LED_INDICATION_TIME_MS          TIMING_LED_INDICATION_MS
+// Note: BACKEMF_SETTLE_MS defined in backemf.h (module owns its own constant)
+#define MODE_CHECK_INTERVAL_MS          TIMING_MODE_CHECK_INTERVAL_MS
+#define BATTERY_CHECK_INTERVAL_MS       TIMING_BATTERY_CHECK_INTERVAL_MS
+#define SESSION_TIME_NOTIFY_INTERVAL_MS TIMING_SESSION_NOTIFY_INTERVAL_MS
 
 // Tech Spike: Single-device drift baseline measurement
 // Enable continuous activation logging when NO peer is connected
@@ -183,7 +187,7 @@ static uint32_t notify_epoch_cycle_start_ms = 0;
 // Buffer accounts for BLE transmission latency + processing time + margin.
 // Phase 6l Fix: Increased from 500ms to 3000ms to account for handshake overhead
 // (beacon transmission ~50ms + CLIENT handshake ~500ms + CLIENT_READY ~50ms + margin)
-#define COORD_START_DELAY_MS 3000  // 3000ms buffer for coordination (was 500ms)
+#define COORD_START_DELAY_MS TIMING_COORD_START_DELAY_MS  // From timing_config.h
 
 // ============================================================================
 // CLIENT HARDWARE TIMER SYNCHRONIZATION (AD044)
@@ -455,8 +459,8 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
                 *pwm_intensity = mode5_pwm_intensity;
                 break;
             default:
-                *pwm_intensity = 75;  // Safe fallback (should never reach here)
-                ESP_LOGW(TAG, "Unknown mode %d, using fallback PWM intensity 75%%", mode);
+                *pwm_intensity = THRESHOLD_PWM_FALLBACK;  // Safe fallback (should never reach here)
+                ESP_LOGW(TAG, "Unknown mode %d, using fallback PWM intensity %d%%", mode, THRESHOLD_PWM_FALLBACK);
                 break;
         }
     }
@@ -1029,7 +1033,7 @@ void motor_task(void *pvParameters) {
 
                 // Periodic status log (every 5 seconds)
                 static uint32_t last_pairing_log_ms = 0;
-                if ((now - last_pairing_log_ms) >= 5000) {
+                if ((now - last_pairing_log_ms) >= THRESHOLD_PAIRING_LOG_INTERVAL_MS) {
                     ESP_LOGI(TAG, "Waiting for BLE pairing to complete...");
                     last_pairing_log_ms = now;
                 }
