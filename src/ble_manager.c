@@ -1940,7 +1940,8 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
             static const char pattern_list_json[] =
                 "[{\"id\":2,\"name\":\"Alternating\",\"desc\":\"Green bilateral\"},"
                 "{\"id\":3,\"name\":\"Emergency\",\"desc\":\"Red/blue wig-wag\"},"
-                "{\"id\":4,\"name\":\"Breathe\",\"desc\":\"Cyan pulse\"}]";
+                "{\"id\":4,\"name\":\"Breathe\",\"desc\":\"Cyan pulse\"},"
+                "{\"id\":5,\"name\":\"Quad Flash\",\"desc\":\"SAE J845 red/blue/white\"}]";
 
             int rc = os_mbuf_append(ctxt->om, pattern_list_json, strlen(pattern_list_json));
             return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
@@ -2795,21 +2796,6 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     peer_state.peer_conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
 
-                    // Bug #43 Fix: Initiate BLE SMP pairing to generate LTK for ESP-NOW encryption
-                    // Without this call, devices connect but never run Security Manager Protocol,
-                    // so no Long Term Key is generated and ESP-NOW falls back to unencrypted mode.
-                    // Note: ble_hs_cfg.sm_* settings (configured in ble_manager_init) control the
-                    // pairing type (LESC, bonding, MITM). This just triggers the procedure.
-                    int sec_rc = ble_gap_security_initiate(event->connect.conn_handle);
-                    if (sec_rc == 0) {
-                        ESP_LOGI(TAG, "SMP pairing initiated (will generate LTK for ESP-NOW)");
-                    } else if (sec_rc == BLE_HS_EALREADY) {
-                        // Pairing already in progress (e.g., peer initiated)
-                        ESP_LOGI(TAG, "SMP pairing already in progress");
-                    } else {
-                        ESP_LOGW(TAG, "SMP pairing initiation failed; rc=%d (ESP-NOW will use unencrypted fallback)", sec_rc);
-                    }
-
                     // AD040: Reset version exchange state for new connection
                     firmware_version_exchanged = false;
                     firmware_versions_match_flag = true;  // Assume match until proven otherwise
@@ -2882,6 +2868,21 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                                                                NULL);
                         if (disc_rc != 0) {
                             ESP_LOGE(TAG, "CLIENT: Failed to start service discovery; rc=%d", disc_rc);
+                        }
+
+                        // Bug #43 Fix: CLIENT initiates SMP pairing to generate LTK for ESP-NOW encryption
+                        // Only CLIENT initiates because:
+                        // 1. Only one side needs to initiate (peer will respond automatically)
+                        // 2. SERVER was failing with BLE_HS_EBUSY (rc=8) when both tried simultaneously
+                        // 3. CLIENT (BLE SLAVE) is less busy than SERVER (BLE MASTER) at this point
+                        // Note: ble_hs_cfg.sm_* settings control pairing type (LESC, bonding, MITM)
+                        int sec_rc = ble_gap_security_initiate(event->connect.conn_handle);
+                        if (sec_rc == 0) {
+                            ESP_LOGI(TAG, "CLIENT: SMP pairing initiated (will generate LTK for ESP-NOW)");
+                        } else if (sec_rc == BLE_HS_EALREADY) {
+                            ESP_LOGI(TAG, "CLIENT: SMP pairing already in progress (SERVER initiated)");
+                        } else {
+                            ESP_LOGW(TAG, "CLIENT: SMP pairing failed; rc=%d (ESP-NOW unencrypted fallback)", sec_rc);
                         }
                     }
 

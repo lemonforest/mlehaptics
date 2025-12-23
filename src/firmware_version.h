@@ -59,7 +59,7 @@
 #endif
 
 #ifndef FIRMWARE_VERSION_PATCH
-#define FIRMWARE_VERSION_PATCH 19  // Bug #43: SMP pairing + ESP-NOW channel=0 fix
+#define FIRMWARE_VERSION_PATCH 20  // Bug #43: Fix SMP race condition (CLIENT-only initiation)
 #endif
 
 #ifndef FIRMWARE_VERSION_CHECK_ENABLED
