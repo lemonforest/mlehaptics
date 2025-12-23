@@ -1518,8 +1518,9 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 // Start current pattern
                 pattern_start(ps->start_time_us);
                 ESP_LOGI(TAG, "Pattern started via sync");
-            } else if (ps->control_cmd >= 2 && ps->control_cmd <= 4) {
+            } else if (ps->control_cmd >= 2 && ps->control_cmd <= 5) {
                 // Load and start builtin pattern (BLE cmd 2→enum 1, cmd 3→enum 2, etc.)
+                // cmd 2=Alternating, 3=Emergency, 4=Breathe, 5=Quad Flash
                 builtin_pattern_id_t pattern_id = (builtin_pattern_id_t)(ps->control_cmd - 1);
                 if (pattern_id < BUILTIN_PATTERN_COUNT) {
                     pattern_load_builtin(pattern_id);

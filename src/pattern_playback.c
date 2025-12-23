@@ -412,6 +412,8 @@ esp_err_t pattern_execute_tick(uint64_t current_time_us) {
         return ESP_ERR_INVALID_STATE;
     }
 
+    // Store elapsed time for interpolation in pattern_get_current_outputs()
+    playback_state.elapsed_ms = elapsed_ms;
     playback_state.current_segment = seg_idx;
 
     // Get outputs and apply them
@@ -456,19 +458,60 @@ esp_err_t pattern_get_current_outputs(uint8_t *color, uint8_t *brightness, uint8
     const bilateral_segment_t *seg = &active_pattern.segments[seg_idx];
     device_zone_t zone = zone_config_get();
 
-    // Select outputs based on zone
+    // Get current segment's target values
+    uint8_t target_color, target_brightness, target_motor;
     if (zone == ZONE_LEFT) {
-        *color = seg->L_color;
-        *brightness = seg->L_brightness;
-        *motor = seg->L_motor;
+        target_color = seg->L_color;
+        target_brightness = seg->L_brightness;
+        target_motor = seg->L_motor;
     } else {
-        *color = seg->R_color;
-        *brightness = seg->R_brightness;
-        *motor = seg->R_motor;
+        target_color = seg->R_color;
+        target_brightness = seg->R_brightness;
+        target_motor = seg->R_motor;
     }
 
-    // TODO: Add interpolation between segments for smooth transitions
-    // For now, just return segment values directly
+    // Calculate transition duration (×4 scaling: 0-255 → 0-1020ms)
+    uint32_t transition_ms = (uint32_t)seg->transition_ms_x4 * 4;
+
+    // Check if we're within the transition window
+    uint32_t time_in_segment = playback_state.elapsed_ms - seg->time_offset_ms;
+
+    if (transition_ms > 0 && time_in_segment < transition_ms) {
+        // We're in the transition zone - interpolate from previous segment
+        uint8_t prev_brightness = 0;
+        uint8_t prev_motor = 0;
+        uint8_t prev_color = target_color;  // Color doesn't interpolate (discrete)
+
+        if (seg_idx > 0) {
+            // Get previous segment's values
+            const bilateral_segment_t *prev_seg = &active_pattern.segments[seg_idx - 1];
+            if (zone == ZONE_LEFT) {
+                prev_brightness = prev_seg->L_brightness;
+                prev_motor = prev_seg->L_motor;
+                prev_color = prev_seg->L_color;
+            } else {
+                prev_brightness = prev_seg->R_brightness;
+                prev_motor = prev_seg->R_motor;
+                prev_color = prev_seg->R_color;
+            }
+        }
+        // else: First segment, previous is assumed to be zeros
+
+        // Calculate progress (0-255)
+        uint8_t progress = (uint8_t)((time_in_segment * 255) / transition_ms);
+
+        // Interpolate brightness and motor
+        *brightness = interpolate(prev_brightness, target_brightness, progress);
+        *motor = interpolate(prev_motor, target_motor, progress);
+
+        // Color: use target if brightness increasing, prev if decreasing (smooth crossfade perception)
+        *color = (progress >= 128) ? target_color : prev_color;
+    } else {
+        // Past transition zone - use target values directly
+        *color = target_color;
+        *brightness = target_brightness;
+        *motor = target_motor;
+    }
 
     return ESP_OK;
 }

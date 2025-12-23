@@ -153,6 +153,7 @@ typedef struct {
  */
 typedef struct {
     uint64_t start_time_us;     /**< When pattern playback started (synchronized time) */
+    uint32_t elapsed_ms;        /**< Current elapsed time in pattern (for interpolation) */
     uint16_t current_segment;   /**< Currently executing segment index */
     uint16_t loop_count;        /**< Number of pattern loops completed */
     bool playing;               /**< Pattern is actively playing */
