@@ -10,6 +10,27 @@
  * Provides firmware versioning for ensuring both peer devices run identical builds.
  * Version information is automatically embedded at compile time from platformio.ini.
  *
+ * @section fv_ssot Single Source of Truth Architecture
+ *
+ * **IMPORTANT: platformio.ini is the authoritative source for version numbers.**
+ *
+ * This hybrid approach is a documented PlatformIO pattern:
+ *
+ * 1. **platformio.ini** (SSOT): Defines version via `-DFIRMWARE_VERSION_*` build flags
+ *    - Always wins when building with PlatformIO
+ *    - Update here FIRST when bumping version
+ *
+ * 2. **firmware_version.h** (Fallback): Provides `#ifndef` guarded defaults
+ *    - Used for direct ESP-IDF builds, testing, or IDE code completion
+ *    - Update here SECOND to keep in sync (for non-PlatformIO builds)
+ *
+ * The `#ifndef` guards ensure platformio.ini values always take precedence.
+ * This pattern avoids the full-rebuild problem of dynamic version scripts
+ * while maintaining compatibility with non-PlatformIO build systems.
+ *
+ * @see https://community.platformio.org/t/platformio-version-increment/13945
+ * @see https://docs.platformio.org/en/latest/projectconf/sections/env/options/build/build_flags.html
+ *
  * @section fv_arduino Arduino Developers: Why This Matters
  *
  * In Arduino, you typically don't worry about versioning - you just flash and go.
@@ -25,16 +46,16 @@
  * | Component | Meaning | Example |
  * |-----------|---------|---------|
  * | Major | Breaking protocol changes | 0 (pre-release) |
- * | Minor | Phase number | 6 (Phase 6 complete) |
- * | Patch | Bug fix number | 122 (122nd fix) |
- * | Build timestamp | Unique per compile | "Dec 14 2025 14:30:00" |
+ * | Minor | Phase number | 7 (Phase 7 complete) |
+ * | Patch | Bug fix number | 22 (22nd fix) |
+ * | Build timestamp | Unique per compile | "Dec 23 2025 14:30:00" |
  *
  * Two devices match if: major.minor.patch are identical (timestamp logged but not enforced).
  *
  * @see docs/adr/0040-firmware-version-checking.md
  *
- * @version 0.6.122
- * @date 2025-12-14
+ * @version 0.7.22
+ * @date 2025-12-23
  * @author Claude Code (Anthropic) - Sonnet 4, Sonnet 4.5, Opus 4.5
  */
 
