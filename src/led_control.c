@@ -11,6 +11,7 @@
  */
 
 #include "led_control.h"
+#include "cie_lut.h"
 #include "ble_manager.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
@@ -143,6 +144,11 @@ esp_err_t led_init(void) {
 }
 
 void led_enable(void) {
+    // Bug fix: NULL guard for mutex (prevents crash if led_init() not called)
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_enable: mutex is NULL - led_init() not called?");
+        return;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         if (!led_power_enabled) {
             gpio_set_level(GPIO_WS2812B_ENABLE, 0);  // P-MOSFET: LOW = enabled
@@ -154,6 +160,11 @@ void led_enable(void) {
 }
 
 void led_disable(void) {
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_disable: mutex is NULL");
+        return;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         if (led_power_enabled) {
             led_strip_clear(led_strip);  // Turn off LEDs before disabling power
@@ -180,6 +191,11 @@ esp_err_t led_set_palette(uint8_t index, uint8_t brightness) {
 }
 
 esp_err_t led_set_rgb(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_set_rgb: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return ESP_ERR_TIMEOUT;
@@ -217,6 +233,11 @@ esp_err_t led_set_individual(uint8_t led_index, uint8_t r, uint8_t g, uint8_t b,
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_set_individual: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return ESP_ERR_TIMEOUT;
@@ -245,6 +266,11 @@ esp_err_t led_set_individual(uint8_t led_index, uint8_t r, uint8_t g, uint8_t b,
 }
 
 void led_clear(void) {
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_clear: mutex is NULL");
+        return;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to take LED mutex");
         return;
@@ -256,6 +282,84 @@ void led_clear(void) {
     }
 
     xSemaphoreGive(led_mutex);
+}
+
+// ============================================================================
+// CIE 1931 PERCEPTUAL BRIGHTNESS FUNCTIONS
+// ============================================================================
+
+/**
+ * @brief Apply CIE 1931 perceptual brightness scaling to RGB color
+ * @param r Red component 0-255 (input)
+ * @param g Green component 0-255 (input)
+ * @param b Blue component 0-255 (input)
+ * @param brightness Perceived brightness percentage 0-100%
+ * @param out_r Output: Perceptually scaled red component
+ * @param out_g Output: Perceptually scaled green component
+ * @param out_b Output: Perceptually scaled blue component
+ *
+ * Uses CIE 1931 lightness function for smooth, "organic" fades.
+ * 50% perceived brightness = 18.4% actual PWM.
+ */
+static void apply_brightness_perceptual(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness,
+                                         uint8_t *out_r, uint8_t *out_g, uint8_t *out_b) {
+    // Clamp brightness to 0-100
+    if (brightness > 100) brightness = 100;
+
+    // Get CIE-corrected 8-bit value for brightness percentage
+    uint8_t cie_scale = cie_get_pwm_8bit(brightness);
+
+    // Scale RGB by CIE-corrected value (0-255)
+    *out_r = (uint8_t)(((uint16_t)r * cie_scale) / 255);
+    *out_g = (uint8_t)(((uint16_t)g * cie_scale) / 255);
+    *out_b = (uint8_t)(((uint16_t)b * cie_scale) / 255);
+}
+
+esp_err_t led_set_rgb_perceptual(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
+    // Bug fix: NULL guard for mutex (prevents crash if led_init() not called)
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_set_rgb_perceptual: mutex is NULL - led_init() not called?");
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to take LED mutex");
+        return ESP_ERR_TIMEOUT;
+    }
+
+    // Apply CIE 1931 perceptual brightness scaling
+    uint8_t r_scaled, g_scaled, b_scaled;
+    apply_brightness_perceptual(r, g, b, brightness, &r_scaled, &g_scaled, &b_scaled);
+
+    // Set LED color
+    esp_err_t ret = ESP_OK;
+    for (int i = 0; i < LED_COUNT; i++) {
+        esp_err_t result = led_strip_set_pixel(led_strip, i, r_scaled, g_scaled, b_scaled);
+        if (result != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set LED %d: %s", i, esp_err_to_name(result));
+            ret = result;
+        }
+    }
+
+    // Refresh to apply changes
+    if (ret == ESP_OK) {
+        ret = led_strip_refresh(led_strip);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to refresh LED strip: %s", esp_err_to_name(ret));
+        }
+    }
+
+    xSemaphoreGive(led_mutex);
+    return ret;
+}
+
+esp_err_t led_set_palette_perceptual(uint8_t index, uint8_t brightness) {
+    if (index >= 16) {
+        ESP_LOGE(TAG, "Invalid palette index: %d (max 15)", index);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const led_rgb_t *color = &led_color_palette[index];
+    return led_set_rgb_perceptual(color->r, color->g, color->b, brightness);
 }
 
 // ============================================================================
@@ -292,6 +396,11 @@ bool led_get_motor_ownership(void) {
 esp_err_t led_deinit(void) {
     ESP_LOGI(TAG, "Deinitializing LED control");
 
+    // Bug fix: NULL guard for mutex
+    if (led_mutex == NULL) {
+        ESP_LOGE(TAG, "led_deinit: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     if (xSemaphoreTake(led_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         // Clear and disable LEDs
         led_strip_clear(led_strip);

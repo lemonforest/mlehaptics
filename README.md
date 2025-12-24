@@ -1,15 +1,25 @@
 # EMDR Bilateral Stimulation Device
 
-**Version:** v0.6.122 (Phase 6 Complete)
-**Last Updated:** 2025-12-14
-**Status:** Phase 6 Complete (Bilateral Sync) | Ready for Phase 7 (AD047 - Scheduled Pattern Playback)
-**Project Phase:** Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
+**Version:** v0.7.x (Phase 7 Development)
+**Last Updated:** 2025-12-23
+**Status:** Phase 7 In Progress (P7.3 PWA Pattern Designer next) | P7.0-P7.2 Complete | Phase 6 Complete
+**Project Phase:** Phase 7 (Patterns) | Phase 6 Complete | Phase 2 Complete (Time Sync) | Phase 1c Complete (Pairing)
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
+
+> **Architecture Note:** This system uses a **hybrid BLE + ESP-NOW architecture**. BLE handles device discovery, pairing, and mobile app communication. ESP-NOW handles all peer-to-peer coordination with ±100μs timing precision. See [Connectionless Distributed Timing](docs/Connectionless_Distributed_Timing_Prior_Art.md) for the foundational techniques.
 
 ![EMDR Device in Hand](images/device-in-hand.jpg)
 
 Generated with assistance from **Claude Opus 4.5 (Anthropic)**
+
+## 🤖 Development Methodology
+
+This firmware was developed through guided AI iteration (Claude, Gemini, Grok), moving non-linearly between models and context windows. Cross-checking between sessions often surfaced insights that single-context iteration missed. The human role was direction, validation criteria, and "does this feel right" intuition—not code correction or complete domain expertise. AI contributed both implementation and domain research (protocol analysis, academic literature, patent landscape, algorithm selection).
+
+What you see is what the AI produced through iterative guidance.
+
+**Timing validation:** 240fps slow-motion capture on a consumer phone.
 
 ## 🎯 Project Overview
 
@@ -21,15 +31,29 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - ✅ Phase 2 complete: NTP-style time synchronization (±30 μs over 90 minutes)
 - ✅ Phase 6 complete: Bilateral motor coordination with PTP-inspired sync protocol
 - ✅ GPIO remapping complete: H-bridge IN1 moved from GPIO20 to GPIO18 (eliminates crosstalk)
-- ⏳ Phase 7 next: AD047 - Scheduled Pattern Playback ("Lightbar Mode")
+- ✅ Phase 7 P7.0-P7.2 complete: Pattern Engine, Scheduled Playback, Catalog Export (AD047)
+- ⏳ Phase 7 next: P7.3 PWA Pattern Designer, P7.4 Legacy Mode Migration
 
 **Key Features:**
+- **Hybrid BLE + ESP-NOW**: BLE for discovery/pairing, ESP-NOW for sub-millisecond peer coordination
 - **Configurable bilateral frequency**: 0.25-2 Hz (500-4000ms total cycle time)
 - **Precise half-cycle allocation**: Each device gets exactly 50% of total cycle
+- **Connectionless execution**: Devices sync once, then execute independently without coordination traffic
 - **JPL-compliant timing**: All delays use FreeRTOS vTaskDelay() (no busy-wait loops)
 - **Adaptive watchdog feeding**: Short cycles feed at end, long cycles feed mid-cycle + end (4-8x safety margin)
-- **Haptic effects support**: Short vibration pulses within half-cycle windows
 - **Open-source hardware**: Complete PCB designs, schematics, 3D-printable cases
+
+### 🚀 Architecture Evolution (v0.7)
+
+**v0.6 and earlier:** BLE maintained for peer-to-peer coordination throughout session. Time sync beacons sent via BLE GATT notifications. BLE connection required for bilateral motor coordination.
+
+**v0.7 (Current):** **BLE Bootstrap Model** - BLE used only for initial discovery, pairing, and key exchange (~10 seconds). After bootstrap:
+- Peer BLE connection **released** (frees radio for PWA)
+- ESP-NOW handles all ongoing coordination (beacons, mode changes, shutdown)
+- PWA can connect to SERVER device for real-time session control
+- ±100μs timing precision (vs ±10-50ms with BLE)
+
+This architectural shift improves timing precision by 100-500x and frees BLE radio resources for more responsive PWA communication.
 
 ## 🔌 Hardware Overview
 
@@ -402,8 +426,20 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 ### Web App
 - **[MLE Haptics PWA](https://lemonforest.github.io/mlehaptics-pwa/)**: Web Bluetooth control app for device configuration and monitoring
 
+### Research & Prior Art
+
+This project developed foundational techniques for **connectionless distributed timing**—a class of systems that achieve synchronized actuation across wireless nodes *without* real-time coordination traffic during operation. While we built an EMDR device, the architecture enables countless applications from emergency vehicle light bars to drone swarms.
+
+- **[Connectionless Distributed Timing: A Prior Art Publication](docs/Connectionless_Distributed_Timing_Prior_Art.md)**: Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
+
 ### Technical Reports
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
+
+### Protocol Specifications (UTLP/RFIP)
+- **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Layer Protocol - peer-to-peer time synchronization for embedded swarms
+- **[UTLP Technical Report v2](docs/UTLP_Technical_Report_v2.md)**: Detailed protocol analysis with stratum hierarchy and passive opportunistic adoption
+- **[RFIP Addendum](docs/UTLP_Addendum_Reference_Frame_Independent_Positioning.md)**: Reference-Frame Independent Positioning - spatial awareness without external reference frames
+- **[802.11mc FTM Reconnaissance](docs/802.11mc_FTM_Reconnaissance_Report.md)**: Fine Time Measurement research for ±1-2m ranging capability
 
 ### For Builders
 - **[hardware/README.md](hardware/README.md)**: PCB manufacturing, case printing, assembly instructions
@@ -411,7 +447,8 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 
 ### For Developers
 - **[docs/ai_context.md](docs/ai_context.md)**: Complete API contracts and rebuild instructions with JPL compliance
-- **[docs/adr/README.md](docs/adr/README.md)**: Architecture Decision Records (47 ADRs documenting design rationale)
+- **[docs/adr/README.md](docs/adr/README.md)**: Architecture Decision Records (48 ADRs documenting design rationale)
+- **[docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)**: Known bugs and limitations being tracked for resolution
 - **[docs/requirements_spec.md](docs/requirements_spec.md)**: Business requirements with development standards
 - **[CLAUDE.md](CLAUDE.md)**: Developer reference for AI-assisted workflow
 - **Doxygen docs**: Run `doxygen Doxyfile` for comprehensive API documentation
@@ -487,7 +524,7 @@ When using or modifying this project:
 - **Framework**: ESP-IDF v5.5.0 (Espressif Systems) - Verified October 20, 2025
 - **Human Engineering**: Requirements specification, safety validation, hardware design
 - **Project**: MLE Haptics - mlehaptics.org
-- **Generated**: 2025-09-18, Updated: 2025-11-19
+- **Generated**: 2025-09-18, Updated: 2025-12-23
 
 Please maintain attribution when using or modifying this code or hardware designs.
 
@@ -507,22 +544,31 @@ Please maintain attribution when using or modifying this code or hardware design
 - ✅ **Phase 1c Complete**: Battery-based role assignment via BLE Service Data (higher battery initiates as SERVER)
 
 ### Phase 2: NTP-Style Time Synchronization (Complete)
-- ✅ **Time Sync Protocol**: NTP-style beacon exchange achieving ±30 μs over 90 minutes
+- ✅ **Time Sync Protocol**: NTP-style beacon exchange via ESP-NOW achieving ±30 μs over 90 minutes
 - ✅ **Dual-Clock Architecture**: System clock untouched, synchronized time via API
 - ✅ **Quality Metrics**: 0-100% sync quality with automatic recovery from anomalies
-- ✅ **90-Minute Stress Test**: 271 beacons exchanged, 95% quality sustained
+- ✅ **90-Minute Stress Test**: 271 ESP-NOW beacons exchanged, 95% quality sustained
 
 ### Phase 6: Bilateral Motor Coordination (Complete)
+- ✅ **ESP-NOW Coordination**: Sub-millisecond peer sync (±100μs jitter vs BLE's ±10-50ms)
 - ✅ **PTP-Inspired Sync**: Pattern broadcast architecture (like emergency vehicle light bars)
-- ✅ **EMA Filter**: Dual-alpha design (30% fast-attack, 10% steady state)
 - ✅ **Motor Epoch**: Shared timing reference for independent device operation
 - ✅ **Non-overlapping Half-Cycles**: Each device gets exactly 50% of total cycle time
 - ✅ **Emergency Shutdown**: Coordinated stop from either device within 50ms
 
-### Phase 7: Scheduled Pattern Playback (Next - AD047)
-- ⏳ **Lightbar Mode**: Pre-buffered pattern execution for GPS-quality sync
-- ⏳ **Half-Cycle Boundaries**: Pattern changes only at safe transition points
-- ⏳ **RF Disruption Resilient**: Continues from local buffer during BLE glitches
+### Phase 7: Scheduled Pattern Playback (P7.0-P7.2 Complete - AD047)
+
+**Milestones:**
+- ✅ **P7.0 Pattern Engine Foundation**: Core pattern scheduling infrastructure
+- ✅ **P7.1 Scheduled Pattern Playback**: Pattern catalog as SSOT, CLIENT interpolation, "Lightbar Mode"
+- ✅ **P7.2 Pattern Catalog Export**: JSON generation from SSOT catalog (`pattern_generate_json()`)
+- ⏳ **P7.3 PWA Pattern Designer**: Custom pattern creation from web app
+- 📋 **P7.4 Legacy Mode Migration**: Replace reactive 0.5/1.0/1.5/2.0 Hz modes with pattern-based execution
+
+**Features:**
+- **Pre-buffered execution**: GPS-quality sync from local pattern buffer
+- **Step-boundary transitions**: Pattern changes occur at pattern step boundaries (inherently safe)
+- **RF disruption resilient**: Continues from local buffer during ESP-NOW gaps
 
 ### Phase 8: Advanced Haptic Research (Future)
 - **Dedicated haptic driver ICs**: DRV2605L family evaluation

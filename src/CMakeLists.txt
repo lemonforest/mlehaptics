@@ -33,6 +33,14 @@ idf_component_register(
         "command_protocol.c"
         "role_manager.c"
 
+        # Pattern Playback modules (AD047)
+        "zone_config.c"
+        "pattern_playback.c"
+
+        # UTLP Transport HAL and ESP-NOW implementation (AD048)
+        "utlp_transport.c"
+        "espnow_transport.c"
+
     INCLUDE_DIRS
         "."
 
@@ -51,6 +59,10 @@ idf_component_register(
 
         # Bluetooth
         bt              # NimBLE stack
+
+        # WiFi and ESP-NOW (AD048)
+        esp_wifi        # WiFi driver for ESP-NOW
+        esp_netif       # Network interface (required by esp_wifi)
 
         # Power management
         esp_pm

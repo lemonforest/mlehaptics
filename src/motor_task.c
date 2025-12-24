@@ -48,18 +48,25 @@
 #include "power_manager.h"
 #include "time_sync.h"
 #include "time_sync_task.h"
+#include "espnow_transport.h"  // Bug #104: RF link health monitoring
+#include "pattern_playback.h"
+#include "zone_config.h"
+
+// Configuration headers (Single Source of Truth)
+#include "config/timing_config.h"
+#include "config/threshold_config.h"
 
 static const char *TAG = "MOTOR_TASK";
 
 // ============================================================================
-// TIMING CONSTANTS
+// TIMING CONSTANTS (mapped from timing_config.h for compatibility)
 // ============================================================================
 
-#define LED_INDICATION_TIME_MS  10000               // Back-EMF sampling window
-#define BACKEMF_SETTLE_MS       10                  // Back-EMF settle time
-#define MODE_CHECK_INTERVAL_MS  50                  // Check queue every 50ms (main branch baseline, instant button response)
-#define BATTERY_CHECK_INTERVAL_MS  60000            // Check battery every 60 seconds
-#define SESSION_TIME_NOTIFY_INTERVAL_MS 60000       // Notify session time every 60 seconds
+#define LED_INDICATION_TIME_MS          TIMING_LED_INDICATION_MS
+// Note: BACKEMF_SETTLE_MS defined in backemf.h (module owns its own constant)
+#define MODE_CHECK_INTERVAL_MS          TIMING_MODE_CHECK_INTERVAL_MS
+#define BATTERY_CHECK_INTERVAL_MS       TIMING_BATTERY_CHECK_INTERVAL_MS
+#define SESSION_TIME_NOTIFY_INTERVAL_MS TIMING_SESSION_NOTIFY_INTERVAL_MS
 
 // Tech Spike: Single-device drift baseline measurement
 // Enable continuous activation logging when NO peer is connected
@@ -95,7 +102,8 @@ const mode_config_t modes[MODE_COUNT] = {
     {"1.0Hz@25%",  125,  375,  500},  // MODE_1HZ_25: 1.0Hz, 25% motor duty (period=1000ms)
     {"1.5Hz@25%",   84,  250,  333},  // MODE_15HZ_25: 1.5Hz, 25% motor duty (period=667ms)
     {"2.0Hz@25%",   63,  187,  250},  // MODE_2HZ_25: 2.0Hz, 25% motor duty (period=500ms)
-    {"Custom",     250,  250,  500}   // MODE_CUSTOM: Default 1.0Hz @ 50% motor duty
+    {"Custom",     250,  250,  500},  // MODE_CUSTOM: Default 1.0Hz @ 50% motor duty
+    {"Pattern",      0,    0,   10}   // MODE_PATTERN: Pattern playback (10ms tick rate)
 };
 
 // ============================================================================
@@ -160,6 +168,16 @@ static uint32_t client_inactive_cycle_count = 0;
 // (the antiphase was already pre-calculated and waited for in coordinated start)
 static bool client_skip_inactive_wait = false;
 
+// Bug #38 fix: SERVER skip epoch update after mode change
+// Bug #96 updates motor_epoch when server_cycle_count==0, but this conflicts with
+// Bug #36's aligned epoch calculation. After mode change, the aligned epoch is already
+// correct - don't overwrite it.
+static bool server_skip_epoch_update = false;
+
+// AD047: Pattern playback mode tracking
+// When true, pattern playback is active and we skip normal ACTIVE/INACTIVE states
+static bool pattern_mode_active = false;
+
 // Bug #90 fix: Epoch-anchored cycle start for notify path (file-scope for extern access)
 // Set by motor_task_notify_motor_started() when MOTOR_STARTED received during operation
 static uint32_t notify_epoch_cycle_start_ms = 0;
@@ -170,7 +188,7 @@ static uint32_t notify_epoch_cycle_start_ms = 0;
 // Buffer accounts for BLE transmission latency + processing time + margin.
 // Phase 6l Fix: Increased from 500ms to 3000ms to account for handshake overhead
 // (beacon transmission ~50ms + CLIENT handshake ~500ms + CLIENT_READY ~50ms + margin)
-#define COORD_START_DELAY_MS 3000  // 3000ms buffer for coordination (was 500ms)
+#define COORD_START_DELAY_MS TIMING_COORD_START_DELAY_MS  // From timing_config.h
 
 // ============================================================================
 // CLIENT HARDWARE TIMER SYNCHRONIZATION (AD044)
@@ -437,9 +455,13 @@ static void calculate_mode_timing(mode_t mode, uint32_t *motor_on_ms, uint32_t *
             case MODE_2HZ_25:
                 *pwm_intensity = ble_get_mode3_intensity();
                 break;
+            case MODE_PATTERN:
+                // Pattern mode uses mode5_pwm_intensity (set via motor_update_mode5_intensity)
+                *pwm_intensity = mode5_pwm_intensity;
+                break;
             default:
-                *pwm_intensity = 75;  // Safe fallback (should never reach here)
-                ESP_LOGW(TAG, "Unknown mode %d, using fallback PWM intensity 75%%", mode);
+                *pwm_intensity = THRESHOLD_PWM_FALLBACK;  // Safe fallback (should never reach here)
+                ESP_LOGW(TAG, "Unknown mode %d, using fallback PWM intensity %d%%", mode, THRESHOLD_PWM_FALLBACK);
                 break;
         }
     }
@@ -981,6 +1003,30 @@ void motor_task(void *pvParameters) {
                                     if (err == ESP_OK) {
                                         ESP_LOGI(TAG, "SERVER: MOTOR_STARTED notification sent (epoch=%llu, cycle=%lu)",
                                                  motor_epoch_us, motor_cycle_ms);
+
+                                        /* Bug #105: Release peer BLE connection after bootstrap complete
+                                         *
+                                         * Architecture: BLE is for bootstrap only, ESP-NOW for coordination.
+                                         * After MOTOR_STARTED sent, peer BLE serves no purpose and causes:
+                                         * - Spurious encryption events (status=13 BLE_SM_ERR_AUTHREQ)
+                                         * - Unnecessary RF contention during therapy
+                                         * - Confusion about parallel BLE traffic
+                                         *
+                                         * Brief delay ensures MOTOR_STARTED delivery before disconnect.
+                                         * CLIENT will receive disconnect event and can stop BLE entirely.
+                                         */
+                                        vTaskDelay(pdMS_TO_TICKS(200));  // Allow BLE message delivery
+
+                                        // Bug #105 diagnostic: Log ESP-NOW status before BLE release
+                                        bool espnow_ready = espnow_transport_is_ready();
+                                        ESP_LOGI(TAG, "SERVER: Releasing peer BLE (ESP-NOW ready=%d)", espnow_ready);
+
+                                        esp_err_t disc_err = ble_disconnect_peer(BLE_DISCONNECT_REASON_USER);
+                                        if (disc_err == ESP_OK) {
+                                            ESP_LOGI(TAG, "SERVER: Peer BLE released (bootstrap complete, ESP-NOW active)");
+                                        } else {
+                                            ESP_LOGD(TAG, "SERVER: Peer BLE disconnect: %s", esp_err_to_name(disc_err));
+                                        }
                                     } else {
                                         ESP_LOGW(TAG, "SERVER: Failed to send MOTOR_STARTED: %s", esp_err_to_name(err));
                                     }
@@ -1012,7 +1058,7 @@ void motor_task(void *pvParameters) {
 
                 // Periodic status log (every 5 seconds)
                 static uint32_t last_pairing_log_ms = 0;
-                if ((now - last_pairing_log_ms) >= 5000) {
+                if ((now - last_pairing_log_ms) >= THRESHOLD_PAIRING_LOG_INTERVAL_MS) {
                     ESP_LOGI(TAG, "Waiting for BLE pairing to complete...");
                     last_pairing_log_ms = now;
                 }
@@ -1053,7 +1099,8 @@ void motor_task(void *pvParameters) {
                         ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service (peer device)
 
                         // Phase 6: CLIENT sends battery to SERVER for PWA client_battery characteristic
-                        if (ble_get_peer_role() == PEER_ROLE_CLIENT && ble_is_peer_connected()) {
+                        // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+                        if (ble_get_peer_role() == PEER_ROLE_CLIENT && espnow_transport_is_ready()) {
                             coordination_message_t coord_msg = {
                                 .type = SYNC_MSG_CLIENT_BATTERY,
                                 .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
@@ -1083,6 +1130,9 @@ void motor_task(void *pvParameters) {
                         }
                     }
 
+                    // Bug #104: Log ESP-NOW link health with battery (every 60s)
+                    espnow_transport_log_link_health();
+
                     last_battery_check_ms = now;
                 }
 
@@ -1095,7 +1145,7 @@ void motor_task(void *pvParameters) {
                  * This prevents long-term drift or desynchronization during sessions.
                  */
                 static uint32_t lock_check_cycle_count = 0;
-                static bool last_lock_status = true;  // Assume locked initially
+                static bool last_lock_status = false;  // Don't assume locked initially
                 peer_role_t current_role = ble_get_peer_role();
 
                 if (current_role == PEER_ROLE_CLIENT) {
@@ -1190,8 +1240,32 @@ void motor_task(void *pvParameters) {
                                 uint64_t now_us;
 
                                 if (time_sync_get_time(&now_us) == ESP_OK) {
-                                    // Calculate future epochs (2 seconds from now for coordination)
-                                    uint64_t server_epoch_us = now_us + 2000000ULL;  // 2s buffer
+                                    // Bug #36: Align mode change to CURRENT motor cycle boundary
+                                    // Arbitrary epochs (now + 2s) caused ~100ms phase errors and asymmetry.
+                                    // Fix: Calculate next cycle boundary of current motor timing, then
+                                    // switch both devices at that aligned point.
+                                    uint64_t motor_epoch_us = 0;
+                                    uint32_t motor_cycle_ms = 0;
+                                    uint64_t server_epoch_us;
+
+                                    if (time_sync_get_motor_epoch(&motor_epoch_us, &motor_cycle_ms) == ESP_OK &&
+                                        motor_epoch_us > 0 && motor_cycle_ms > 0) {
+                                        // Calculate next cycle boundary of CURRENT motor cycle
+                                        uint64_t current_period_us = (uint64_t)motor_cycle_ms * 1000ULL;
+                                        uint64_t elapsed_us = now_us - motor_epoch_us;
+                                        uint64_t cycles_completed = elapsed_us / current_period_us;
+                                        // +2 cycles gives margin for message delivery
+                                        server_epoch_us = motor_epoch_us + ((cycles_completed + 2) * current_period_us);
+
+                                        ESP_LOGI(TAG, "SERVER: Mode change epoch aligned (boundary=%llu, cycles=%llu)",
+                                                 server_epoch_us, cycles_completed + 2);
+                                    } else {
+                                        // Fallback: no motor epoch available (shouldn't happen in normal flow)
+                                        server_epoch_us = now_us + 2000000ULL;  // 2s buffer
+                                        ESP_LOGW(TAG, "SERVER: No motor epoch for alignment, using arbitrary epoch");
+                                    }
+
+                                    // Client epoch: half a NEW cycle after server epoch for antiphase
                                     uint64_t half_cycle_us = ((uint64_t)new_cycle_ms * 1000ULL) / 2;
                                     uint64_t client_epoch_us = server_epoch_us + half_cycle_us;
 
@@ -1234,10 +1308,28 @@ void motor_task(void *pvParameters) {
                                     // Do NOT change current_mode here - wait for synchronized execution
                                 } else {
                                     // Standalone (no peer): Change mode immediately
+                                    mode_t old_mode = current_mode;
                                     current_mode = new_mode;
                                     ESP_LOGI(TAG, "Mode: %s (standalone)", modes[current_mode].name);
                                     // Bug #102: Notify PWA of mode change (standalone case)
                                     ble_update_mode(new_mode);
+
+                                    // AD047: Handle pattern mode transitions
+                                    if (MODE_IS_PATTERN(new_mode) && !MODE_IS_PATTERN(old_mode)) {
+                                        // Entering pattern mode: Load default pattern (BLE can override via Pattern Control)
+                                        pattern_playback_init();
+                                        pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
+                                        pattern_start(0);  // Start immediately
+                                        pattern_mode_active = true;
+                                        ble_update_pattern_status(1);  // Notify PWA: playing
+                                        ESP_LOGI(TAG, "Pattern playback started (standalone)");
+                                    } else if (!MODE_IS_PATTERN(new_mode) && MODE_IS_PATTERN(old_mode)) {
+                                        // Leaving pattern mode: Stop pattern
+                                        pattern_stop();
+                                        pattern_mode_active = false;
+                                        ble_update_pattern_status(0);  // Notify PWA: stopped
+                                        ESP_LOGI(TAG, "Pattern playback stopped (standalone)");
+                                    }
                                 }
                             }
                         }
@@ -1270,6 +1362,7 @@ void motor_task(void *pvParameters) {
                     if (time_sync_get_time(&current_time_us) == ESP_OK) {
                         if (current_time_us >= armed_epoch_us) {
                             // Epoch reached - execute synchronized mode change
+                            mode_t old_mode = current_mode;  // AD047: Save for pattern transition check
                             current_mode = armed_new_mode;
 
                             peer_role_t role = ble_get_peer_role();
@@ -1304,6 +1397,7 @@ void motor_task(void *pvParameters) {
                                 // Let ACTIVE use fresh esp_timer_get_time() for first cycle.
                                 // INACTIVE will set epoch-anchored timing for subsequent cycles.
                                 server_cycle_count = 0;  // Reset cycle count on mode change
+                                server_skip_epoch_update = true;  // Bug #38: Don't overwrite aligned epoch
                             } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
                                 // Bug #82 fix: CLIENT sets motor_epoch from proposal
                                 // Without this, CLIENT uses old epoch for antiphase calculation
@@ -1330,6 +1424,24 @@ void motor_task(void *pvParameters) {
                             // Bug #80 fix: Reset CLIENT cycle counter on mode change
                             // (Prevents cycle divergence in activation reports)
                             client_inactive_cycle_count = 0;
+
+                            // AD047: Handle pattern mode transitions (synchronized)
+                            if (MODE_IS_PATTERN(armed_new_mode) && !MODE_IS_PATTERN(old_mode)) {
+                                // Entering pattern mode: Load default pattern (BLE can override via Pattern Control)
+                                pattern_playback_init();
+                                pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
+                                // Start at synchronized epoch time for bilateral coordination
+                                pattern_start(current_time_us);
+                                pattern_mode_active = true;
+                                ble_update_pattern_status(1);  // Notify PWA: playing
+                                ESP_LOGI(TAG, "%s: Pattern playback started (synchronized)", role_str);
+                            } else if (!MODE_IS_PATTERN(armed_new_mode) && MODE_IS_PATTERN(old_mode)) {
+                                // Leaving pattern mode: Stop pattern
+                                pattern_stop();
+                                pattern_mode_active = false;
+                                ble_update_pattern_status(0);  // Notify PWA: stopped
+                                ESP_LOGI(TAG, "%s: Pattern playback stopped (synchronized)", role_str);
+                            }
 
                             // Disarm mode change
                             mode_change_armed = false;
@@ -1383,10 +1495,9 @@ void motor_task(void *pvParameters) {
                                 server_epoch_cycle_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
                                 server_cycle_count = 0;  // Reset cycle count on frequency change
 
-                                // Send immediate beacon so CLIENT can sync right away
-                                if (ble_send_time_sync_beacon() == ESP_OK) {
-                                    ESP_LOGI(TAG, "SERVER: Immediate beacon sent for frequency change");
-                                }
+                                /* UTLP Refactor: Immediate beacon REMOVED
+                                 * Epoch delivery via SYNC_MSG_MOTOR_STARTED (below).
+                                 * Time layer handles beacons on fixed schedule. */
 
                                 // Bug #32 fix: Send motor epoch to CLIENT immediately
                                 coordination_message_t motor_started_msg = {
@@ -1487,6 +1598,47 @@ void motor_task(void *pvParameters) {
                     ESP_LOGI(TAG, "Beacon BEMF logging complete (10s window ended)");
                 }
 
+                // ================================================================
+                // AD047: PATTERN PLAYBACK MODE
+                // ================================================================
+                // When in pattern mode, execute pattern tick and stay in CHECK_MESSAGES
+                // (skip normal ACTIVE/INACTIVE state transitions)
+                //
+                // Bug #103 fix: Check pattern_is_playing() BEFORE executing tick.
+                // Pattern can be stopped externally via sync (time_sync_task.c) which
+                // calls pattern_stop() but does NOT change current_mode. If we don't
+                // check, motor task gets stuck in dead loop calling pattern_execute_tick()
+                // which returns ESP_ERR_INVALID_STATE forever.
+                if (MODE_IS_PATTERN(current_mode) && pattern_is_playing()) {
+                    // Pattern mode: Execute pattern tick with synchronized time
+                    uint64_t sync_time_us;
+                    if (time_sync_get_time(&sync_time_us) == ESP_OK) {
+                        // Execute pattern tick (controls LED and motor based on pattern timeline)
+                        esp_err_t tick_err = pattern_execute_tick(sync_time_us);
+                        if (tick_err == ESP_ERR_NOT_FOUND) {
+                            // Pattern complete (non-looping) - stop pattern and stay in pattern mode
+                            pattern_stop();
+                            ble_update_pattern_status(0);  // Notify PWA: stopped
+                            ESP_LOGI(TAG, "Pattern playback complete");
+                        } else if (tick_err != ESP_OK) {
+                            ESP_LOGW(TAG, "Pattern tick error: %s", esp_err_to_name(tick_err));
+                        }
+                    } else {
+                        // No sync time available - use local time
+                        uint64_t local_time_us = esp_timer_get_time();
+                        pattern_execute_tick(local_time_us);
+                    }
+
+                    // Stay in CHECK_MESSAGES, delay 10ms for pattern tick rate
+                    vTaskDelay(pdMS_TO_TICKS(10));
+                    break;  // Skip normal state transitions
+                } else if (MODE_IS_PATTERN(current_mode) && !pattern_is_playing()) {
+                    // Bug #103: Pattern mode but pattern stopped externally (via sync)
+                    // Fall through to normal motor control using Mode 5 timing
+                    // This allows bilateral alternation to continue even when pattern stopped
+                    ESP_LOGI(TAG, "Pattern stopped externally - using Mode 5 timing for bilateral alternation");
+                }
+
                 // AD045: Synchronized Independent Operation
                 // CLIENT and SERVER use different state machine initialization
                 peer_role_t role = ble_get_peer_role();
@@ -1559,17 +1711,27 @@ void motor_task(void *pvParameters) {
                 }
 
                 // Bug #96 fix: Update motor_epoch when SERVER's first cycle actually starts
-                // After mode change, motor_epoch is set to PROPOSED time (500ms before execution).
+                // After initial pairing, motor_epoch is set to PROPOSED time.
                 // Bug #94b correctly uses fresh time for first cycle, but INACTIVE calculates
-                // next cycle targets from motor_epoch. If motor_epoch is 500ms in the past,
+                // next cycle targets from motor_epoch. If motor_epoch is in the past,
                 // the calculated target for cycle 2 is already past when we reach it.
                 // Fix: When SERVER's first cycle starts (server_cycle_count==0), update
                 // motor_epoch to actual cycle_start_ms so INACTIVE calculations are correct.
+                //
+                // Bug #38 fix: DON'T update epoch after MODE CHANGE - the aligned epoch is correct!
+                // Only update after initial pairing (when server_skip_epoch_update is false).
                 if (active_role == PEER_ROLE_SERVER && server_cycle_count == 0) {
-                    uint64_t actual_epoch_us = (uint64_t)cycle_start_ms * 1000ULL;
-                    uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
-                    time_sync_set_motor_epoch(actual_epoch_us, cycle_ms);
-                    ESP_LOGI(TAG, "Bug #96: SERVER motor_epoch updated to actual start %lu ms", cycle_start_ms);
+                    if (server_skip_epoch_update) {
+                        // Mode change just happened - keep the aligned epoch from Bug #36
+                        ESP_LOGI(TAG, "Bug #38: Skipping epoch update (mode change aligned epoch preserved)");
+                        server_skip_epoch_update = false;  // Clear flag for next time
+                    } else {
+                        // Initial pairing - update to actual start time
+                        uint64_t actual_epoch_us = (uint64_t)cycle_start_ms * 1000ULL;
+                        uint32_t cycle_ms = motor_on_ms + active_coast_ms + inactive_ms;
+                        time_sync_set_motor_epoch(actual_epoch_us, cycle_ms);
+                        ESP_LOGI(TAG, "Bug #96: SERVER motor_epoch updated to actual start %lu ms", cycle_start_ms);
+                    }
                 }
 
                 // AD045: Motor epoch is set once at coordinated start, not updated every cycle
@@ -1888,23 +2050,40 @@ void motor_task(void *pvParameters) {
 
                         // IEEE 1588 REV_PROBE: Send every 10 cycles (offset by 5 from SYNC_FB)
                         // This enables bidirectional path asymmetry detection
+                        // Bug #39: Added retry logic for ESP-NOW send failures
                         if ((client_inactive_cycle_count + 5) % 10 == 0) {
                             static uint32_t rev_probe_sequence = 0;
-                            uint64_t t1_prime = esp_timer_get_time();  // T1': CLIENT send time
+                            #define REV_PROBE_MAX_RETRIES 3
+                            #define REV_PROBE_RETRY_DELAY_MS 5
 
-                            coordination_message_t probe = {
-                                .type = SYNC_MSG_REVERSE_PROBE,
-                                .timestamp_ms = (uint32_t)(t1_prime / 1000),
-                                .payload.reverse_probe = {
-                                    .client_send_time_us = t1_prime,
-                                    .probe_sequence = rev_probe_sequence
+                            esp_err_t send_err = ESP_FAIL;
+                            uint64_t t1_prime = 0;
+
+                            for (int retry = 0; retry < REV_PROBE_MAX_RETRIES && send_err != ESP_OK; retry++) {
+                                if (retry > 0) {
+                                    vTaskDelay(pdMS_TO_TICKS(REV_PROBE_RETRY_DELAY_MS));
                                 }
-                            };
 
-                            esp_err_t send_err = ble_send_coordination_message(&probe);
+                                // Record T1' at EACH send attempt (accurate timing)
+                                t1_prime = esp_timer_get_time();
+
+                                coordination_message_t probe = {
+                                    .type = SYNC_MSG_REVERSE_PROBE,
+                                    .timestamp_ms = (uint32_t)(t1_prime / 1000),
+                                    .payload.reverse_probe = {
+                                        .client_send_time_us = t1_prime,
+                                        .probe_sequence = rev_probe_sequence
+                                    }
+                                };
+
+                                send_err = ble_send_coordination_message(&probe);
+                            }
+
                             if (send_err == ESP_OK) {
                                 ESP_LOGI(TAG, "CLIENT: REV_PROBE sent seq=%lu", (unsigned long)rev_probe_sequence);
                                 rev_probe_sequence++;
+                            } else {
+                                ESP_LOGW(TAG, "CLIENT: REV_PROBE failed after %d retries", REV_PROBE_MAX_RETRIES);
                             }
                         }
 

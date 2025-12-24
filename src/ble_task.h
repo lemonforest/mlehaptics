@@ -6,7 +6,7 @@
  * - BLE advertising lifecycle (start, timeout, stop)
  * - BLE pairing/bonding security (Phase 1b.3)
  * - Message queue for BLE re-enable and shutdown commands
- * - Advertising timeout enforcement (5 minutes)
+ * - Advertising timeout enforcement (90 minutes = max session)
  * - Pairing timeout enforcement (30 seconds)
  * - State transitions based on connection events
  *
@@ -67,7 +67,7 @@ typedef enum {
  *
  * Main BLE control loop implementing 5-state machine (Phase 1b.3):
  * 1. IDLE: Wait for MSG_BLE_REENABLE (1-2s button hold)
- * 2. ADVERTISING: Monitor connection and 5-minute timeout
+ * 2. ADVERTISING: Monitor connection and 90-minute timeout
  * 3. PAIRING: Wait for user confirmation, enforce 30-second timeout (Phase 1b.3)
  * 4. CONNECTED: Monitor disconnection
  * 5. SHUTDOWN: Exit cleanly
@@ -77,7 +77,7 @@ typedef enum {
  * - ADVERTISING → PAIRING: Peer connection established, pairing initiated (Phase 1b.3)
  * - PAIRING → CONNECTED: Pairing successful, bonding complete
  * - PAIRING → IDLE: Pairing timeout (30s) or failure
- * - ADVERTISING → IDLE: 5-minute timeout expired (no connection)
+ * - ADVERTISING → IDLE: 90-minute timeout expired (no connection)
  * - CONNECTED → ADVERTISING: Client disconnected (GAP event restarts advertising)
  * - CONNECTED → IDLE: Client disconnected but advertising failed to restart
  * - Any state → SHUTDOWN: MSG_EMERGENCY_SHUTDOWN received

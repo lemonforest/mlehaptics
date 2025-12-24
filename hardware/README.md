@@ -364,6 +364,7 @@ Hardware LEDs (not GPIO-controlled):
 - **Material variants:** Supports both opaque and translucent case builds
 - **Variant options:** Standard (with LED/pin access) or CLRMOD (clean, no access holes)
 - **Phase 1 design:** Discrete MOSFET PCB compatibility
+- **PCB mount reinforcement:** PCB post standoff reinforced to case side wall (December 2025). Drop testing with clear resin prints revealed crack risk at the single PCB mount post. The standoff now has added support ribs connecting it to the enclosure wall for improved impact resistance.
 
 ## Hardware Issue Resolution
 

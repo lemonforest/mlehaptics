@@ -16,6 +16,15 @@
 #include "time_sync.h"      // Phase 2: Time synchronization (AD039)
 #include "time_sync_task.h" // Phase 2: Time sync task integration
 #include "firmware_version.h" // AD040: Firmware version enforcement
+#include "pattern_playback.h" // AD047: Pattern playback control for Mode 5
+#include "espnow_transport.h" // AD048: ESP-NOW transport for low-latency time sync
+#include "esp_chip_info.h"    // AD048: Silicon revision for hardware info characteristic
+
+// Configuration headers (Single Source of Truth)
+#include "config/timing_config.h"
+#include "config/threshold_config.h"
+#include "config/ble_config.h"
+
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -182,6 +191,40 @@ static const ble_uuid128_t uuid_char_peer_firmware = BLE_UUID128_INIT(
     0x13, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
     0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
 
+// Hardware Info Group (AD048: bytes 13-14 = 0x02 0x15/0x16)
+// Exposes silicon revision for 802.11mc FTM capability discovery
+static const ble_uuid128_t uuid_char_local_hardware = BLE_UUID128_INIT(
+    0x15, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_peer_hardware = BLE_UUID128_INIT(
+    0x16, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+// Time Beacon Group (AD047/UTLP: bytes 13-14 = 0x02 0x14)
+// UTLP semantics: devices passively listen for time beacons from any source
+static const ble_uuid128_t uuid_char_time_beacon = BLE_UUID128_INIT(
+    0x14, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+// Pattern Control Group (AD047: bytes 13-14 = 0x02 0x17/0x18/0x19)
+// Mode 5 pattern playback control for lightbar/bilateral patterns
+static const ble_uuid128_t uuid_char_pattern_control = BLE_UUID128_INIT(
+    0x17, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_pattern_data = BLE_UUID128_INIT(
+    0x18, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_pattern_status = BLE_UUID128_INIT(
+    0x19, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
+static const ble_uuid128_t uuid_char_pattern_list = BLE_UUID128_INIT(
+    0x1a, 0x02, 0xe7, 0xe5, 0x7d, 0x26, 0x88, 0x9e,
+    0x0a, 0x4f, 0x29, 0x98, 0xbe, 0xe9, 0xca, 0x4b);
+
 // ============================================================================
 // UUID-SWITCHING CONFIGURATION (Phase 1b.3)
 // ============================================================================
@@ -278,6 +321,7 @@ typedef struct {
     bool notify_session_time_subscribed; /**< Client subscribed to Session Time notifications */
     bool notify_battery_subscribed;     /**< Client subscribed to Battery notifications */
     bool notify_client_battery_subscribed; /**< Client subscribed to Client Battery notifications */
+    bool notify_pattern_status_subscribed; /**< Bug #42: Client subscribed to Pattern Status notifications */
 } ble_advertising_state_t;
 
 static ble_advertising_state_t adv_state = {
@@ -288,7 +332,8 @@ static ble_advertising_state_t adv_state = {
     .notify_mode_subscribed = false,
     .notify_session_time_subscribed = false,
     .notify_battery_subscribed = false,
-    .notify_client_battery_subscribed = false
+    .notify_client_battery_subscribed = false,
+    .notify_pattern_status_subscribed = false  // Bug #42
 };
 
 // Settings dirty flag (thread-safe via char_data_mutex)
@@ -305,6 +350,16 @@ static uint32_t freq_change_timestamp_ms = 0;
 static char local_firmware_version_str[32] = "";   // Initialized in ble_manager_init()
 static char peer_firmware_version_str[32] = "";    // Set by ble_set_peer_firmware_version()
 static bool firmware_versions_match_flag = true;   // AD040: Assume match until proven otherwise
+static bool firmware_version_exchanged = false;    // AD040: Set true when SYNC_MSG_FIRMWARE_VERSION processed
+
+// AD048: Hardware info strings (silicon revision, 802.11mc FTM capability)
+// Format: "ESP32-C6 v0.2 (FTM:full)" or "ESP32-C6 v0.1 (FTM:resp-only)"
+static char local_hardware_info_str[48] = "";      // Initialized in ble_manager_init()
+static char peer_hardware_info_str[48] = "";       // Set by ble_set_peer_hardware_info()
+
+// AD047: Pattern status for Mode 5 pattern playback
+// 0=stopped, 1=playing, 2=error
+static uint8_t pattern_status = 0;
 
 // ============================================================================
 // BLE CONNECTION PARAMETERS (Phase 6p - Long Session Support)
@@ -356,10 +411,6 @@ static SemaphoreHandle_t time_sync_beacon_mutex = NULL;
 // - SERVER (BLE_GAP_ROLE_SLAVE): Set during GATT registration (gatt_svr_register_cb)
 // - CLIENT (BLE_GAP_ROLE_MASTER): Set during GATT discovery (gattc_on_chr_disc)
 static uint16_t g_time_sync_char_handle = 0;
-
-// CLIENT-specific: Handle for peer's time sync characteristic (discovered via GATT client)
-// Only used when we are CLIENT role (initiated connection to SERVER peer)
-static uint16_t g_peer_time_sync_char_handle = 0;
 
 // ============================================================================
 // COORDINATION STATE (Phase 3 - Hybrid Architecture)
@@ -644,8 +695,9 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
 
     ble_callback_mode_changed((mode_t)mode_val);
 
-    // Phase 3: Sync mode change to peer device (PWA-triggered mode changes)
-    if (ble_is_peer_connected()) {
+    // Bug #105: Sync mode change to peer device via ESP-NOW (PWA-triggered mode changes)
+    // After BLE peer disconnect, coordination uses ESP-NOW exclusively
+    if (espnow_transport_is_ready()) {
         coordination_message_t coord_msg = {
             .type = SYNC_MSG_MODE_CHANGE,
             .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
@@ -653,7 +705,7 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
         };
         esp_err_t err = ble_send_coordination_message(&coord_msg);
         if (err == ESP_OK) {
-            ESP_LOGI(TAG, "Mode change synced to peer: MODE_%u", mode_val);
+            ESP_LOGI(TAG, "Mode change synced to peer via ESP-NOW: MODE_%u", mode_val);
         } else {
             ESP_LOGW(TAG, "Failed to sync mode change to peer: %s", esp_err_to_name(err));
         }
@@ -688,9 +740,10 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 25-200 (0.25-2.0 Hz)
-    if (freq_val < 25 || freq_val > 200) {
-        ESP_LOGE(TAG, "GATT Write: Invalid frequency %u (range 25-200)", freq_val);
+    // AD032: Range validation (0.25-2.0 Hz) using threshold_config.h constants
+    if (freq_val < THRESHOLD_FREQ_MIN_CHZ || freq_val > THRESHOLD_FREQ_MAX_CHZ) {
+        ESP_LOGE(TAG, "GATT Write: Invalid frequency %u (range %d-%d)",
+                 freq_val, THRESHOLD_FREQ_MIN_CHZ, THRESHOLD_FREQ_MAX_CHZ);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -717,7 +770,8 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
     // triggering mode change protocol for each slider position.
     // time_sync_task checks this flag and triggers mode change after 300ms idle.
     // Only applies when we're in Mode 4 (Custom) AND peer is connected.
-    if (ble_get_current_mode() == MODE_CUSTOM && ble_is_peer_connected()) {
+    // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+    if (ble_get_current_mode() == MODE_CUSTOM && espnow_transport_is_ready()) {
         freq_change_pending = true;
         freq_change_timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
         ESP_LOGI(TAG, "Frequency change pending (debounce started)");
@@ -752,10 +806,11 @@ static int gatt_char_custom_duty_write(uint16_t conn_handle, uint16_t attr_handl
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 10-100% (10% min ensures perception, 100% max = entire half-cycle)
+    // AD032: Range validation using threshold_config.h constants
     // For LED-only mode, set PWM intensity to 0% instead
-    if (duty_val < 10 || duty_val > 100) {
-        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range 10-100)", duty_val);
+    if (duty_val < THRESHOLD_DUTY_MIN_PCT || duty_val > THRESHOLD_DUTY_MAX_PCT) {
+        ESP_LOGE(TAG, "GATT Write: Invalid duty %u%% (range %d-%d)",
+                 duty_val, THRESHOLD_DUTY_MIN_PCT, THRESHOLD_DUTY_MAX_PCT);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -1244,9 +1299,10 @@ static int gatt_char_led_brightness_write(uint16_t conn_handle, uint16_t attr_ha
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // AD032: Range 10-30%
-    if (value < 10 || value > 30) {
-        ESP_LOGE(TAG, "GATT Write: Invalid brightness %u%% (range 10-30)", value);
+    // AD032: Range validation using threshold_config.h constants
+    if (value < THRESHOLD_LED_BRIGHTNESS_MIN || value > THRESHOLD_LED_BRIGHTNESS_MAX) {
+        ESP_LOGE(TAG, "GATT Write: Invalid brightness %u%% (range %d-%d)",
+                 value, THRESHOLD_LED_BRIGHTNESS_MIN, THRESHOLD_LED_BRIGHTNESS_MAX);
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
@@ -1375,13 +1431,32 @@ static int gatt_char_local_firmware_read(uint16_t conn_handle, uint16_t attr_han
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-// Peer Firmware Version - Read (AD032: TODO AD040 for peer version exchange)
+// Peer Firmware Version - Read (AD040: Peer version exchanged via coordination message)
 static int gatt_char_peer_firmware_read(uint16_t conn_handle, uint16_t attr_handle,
                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
     ESP_LOGD(TAG, "GATT Read: Peer Firmware = %s",
              peer_firmware_version_str[0] ? peer_firmware_version_str : "(none)");
     int rc = os_mbuf_append(ctxt->om, peer_firmware_version_str,
                             strlen(peer_firmware_version_str));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Local Hardware Info - Read (AD048: silicon revision + 802.11mc FTM capability)
+static int gatt_char_local_hardware_read(uint16_t conn_handle, uint16_t attr_handle,
+                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    ESP_LOGD(TAG, "GATT Read: Local Hardware = %s", local_hardware_info_str);
+    int rc = os_mbuf_append(ctxt->om, local_hardware_info_str,
+                            strlen(local_hardware_info_str));
+    return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+}
+
+// Peer Hardware Info - Read (AD048: populated after peer connection)
+static int gatt_char_peer_hardware_read(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    ESP_LOGD(TAG, "GATT Read: Peer Hardware = %s",
+             peer_hardware_info_str[0] ? peer_hardware_info_str : "(none)");
+    int rc = os_mbuf_append(ctxt->om, peer_hardware_info_str,
+                            strlen(peer_hardware_info_str));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
@@ -1513,14 +1588,14 @@ static int gatt_bilateral_time_sync_write(uint16_t conn_handle, uint16_t attr_ha
     // Get receive timestamp ASAP for accuracy (Phase 6r: One-way timestamp protocol)
     uint64_t receive_time_us = esp_timer_get_time();
 
-    // Forward beacon to time_sync_task for processing
-    esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
+    // Forward beacon to time_sync_task for processing (AD048: mark as BLE transport)
+    esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us, BEACON_TRANSPORT_BLE);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send beacon to time_sync_task: %s", esp_err_to_name(err));
         return BLE_ATT_ERR_UNLIKELY;
     }
 
-    ESP_LOGD(TAG, "Time sync beacon forwarded to task (seq: %u)", beacon.sequence);
+    ESP_LOGD(TAG, "Time sync beacon forwarded to task via BLE (seq: %u)", beacon.sequence);
 
     return 0;
 }
@@ -1669,6 +1744,50 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
         return gatt_char_peer_firmware_read(conn_handle, attr_handle, ctxt, arg);
     }
 
+    // Hardware Info Group (AD048: read-only, silicon revision + 802.11mc FTM capability)
+    if (ble_uuid_cmp(uuid, &uuid_char_local_hardware.u) == 0) {
+        return gatt_char_local_hardware_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    if (ble_uuid_cmp(uuid, &uuid_char_peer_hardware.u) == 0) {
+        return gatt_char_peer_hardware_read(conn_handle, attr_handle, ctxt, arg);
+    }
+
+    // Time Beacon (AD047/UTLP: passive opportunistic time adoption)
+    // PWA broadcasts time beacons; device passively listens and adopts
+    if (ble_uuid_cmp(uuid, &uuid_char_time_beacon.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            // Parse time beacon (14 bytes): stratum, quality, utc_time_us, uncertainty_us
+            uint16_t om_len = OS_MBUF_PKTLEN(ctxt->om);
+            if (om_len != sizeof(pwa_time_inject_t)) {
+                ESP_LOGW(TAG, "Time beacon: invalid size %u (expected %u)",
+                         om_len, (unsigned)sizeof(pwa_time_inject_t));
+                return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            }
+
+            pwa_time_inject_t beacon;
+            int rc = ble_hs_mbuf_to_flat(ctxt->om, &beacon, sizeof(beacon), NULL);
+            if (rc != 0) {
+                ESP_LOGE(TAG, "Time beacon: mbuf parse failed: %d", rc);
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            // Log and adopt (UTLP: always adopt from external source)
+            ESP_LOGI(TAG, "Time beacon received: stratum=%u quality=%u time=%llu us uncertainty=%d us",
+                     beacon.stratum, beacon.quality,
+                     (unsigned long long)beacon.utc_time_us, (int)beacon.uncertainty_us);
+
+            esp_err_t err = time_sync_inject_pwa_time(&beacon);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "Time beacon adoption failed: %s", esp_err_to_name(err));
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            return 0;  // Success
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
+    }
+
     // Bilateral Control Service characteristics (Phase 1b)
     if (ble_uuid_cmp(uuid, &uuid_bilateral_battery.u) == 0) {
         return gatt_bilateral_battery_read(conn_handle, attr_handle, ctxt, arg);
@@ -1697,6 +1816,151 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
             return gatt_bilateral_coordination_write(conn_handle, attr_handle, ctxt, arg);
         }
         return BLE_ATT_ERR_UNLIKELY;  // No READ support
+    }
+
+    // ========================================================================
+    // AD047: Pattern Control Group (Mode 5 lightbar/bilateral patterns)
+    // ========================================================================
+
+    // Pattern Control (0x0217) - Write-only: 0=stop, 1=start, 2+=select builtin pattern
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_control.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            uint16_t len = OS_MBUF_PKTLEN(ctxt->om);
+            if (len < 1) {
+                ESP_LOGW(TAG, "Pattern control: empty write");
+                return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+            }
+
+            uint8_t control_cmd;
+            int rc = ble_hs_mbuf_to_flat(ctxt->om, &control_cmd, sizeof(control_cmd), NULL);
+            if (rc != 0) {
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            esp_err_t err = ESP_OK;
+
+            switch (control_cmd) {
+                case 0:  // Stop pattern
+                    ESP_LOGI(TAG, "Pattern control: STOP");
+                    err = pattern_stop();
+                    pattern_status = 0;  // Stopped
+                    break;
+
+                case 1:  // Start pattern (using loaded pattern)
+                    ESP_LOGI(TAG, "Pattern control: START");
+                    err = pattern_start(0);  // 0 = start immediately
+                    if (err == ESP_OK) {
+                        pattern_status = 1;  // Playing
+                    } else {
+                        ESP_LOGW(TAG, "Pattern start failed: %s", esp_err_to_name(err));
+                        pattern_status = 2;  // Error
+                    }
+                    break;
+
+                default:  // 2+ = Load and start builtin pattern
+                    {
+                        builtin_pattern_id_t pattern_id = (builtin_pattern_id_t)(control_cmd - 1);
+                        ESP_LOGI(TAG, "Pattern control: LOAD builtin %d", pattern_id);
+
+                        err = pattern_load_builtin(pattern_id);
+                        if (err == ESP_OK) {
+                            err = pattern_start(0);  // Start immediately after load
+                            pattern_status = (err == ESP_OK) ? 1 : 2;
+                        } else {
+                            ESP_LOGW(TAG, "Pattern load failed: %s", esp_err_to_name(err));
+                            pattern_status = 2;  // Error
+                        }
+                    }
+                    break;
+            }
+
+            // Sync pattern selection to peer device (if connected)
+            // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+            if (err == ESP_OK && espnow_transport_is_ready()) {
+                // Get synchronized start time for bilateral coordination
+                uint64_t start_time_us = 0;
+                time_sync_get_time(&start_time_us);
+
+                // Send pattern change to peer with same start time
+                coordination_message_t coord_msg = {
+                    .type = SYNC_MSG_PATTERN_CHANGE,
+                    .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+                    .payload.pattern_sync = {
+                        .control_cmd = control_cmd,
+                        .start_time_us = start_time_us
+                    }
+                };
+
+                esp_err_t send_err = ble_send_coordination_message(&coord_msg);
+                if (send_err == ESP_OK) {
+                    ESP_LOGI(TAG, "Pattern sync sent to peer: cmd=%d, start=%llu",
+                             control_cmd, (unsigned long long)start_time_us);
+                } else {
+                    ESP_LOGW(TAG, "Failed to send pattern sync to peer: %s", esp_err_to_name(send_err));
+                }
+            }
+
+            // Bug #42: Send notification to subscribed clients with updated pattern_status
+            if (ble_is_app_connected() && adv_state.notify_pattern_status_subscribed) {
+                uint16_t val_handle;
+                if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_pattern_status.u, NULL, &val_handle) == 0) {
+                    struct os_mbuf *om = ble_hs_mbuf_from_flat(&pattern_status, sizeof(pattern_status));
+                    if (om != NULL) {
+                        int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                        if (rc == 0) {
+                            ESP_LOGI(TAG, "Pattern status notification sent: %u", pattern_status);
+                        } else {
+                            ESP_LOGW(TAG, "Pattern status notification failed: rc=%d", rc);
+                        }
+                    }
+                }
+            }
+
+            return (err == ESP_OK) ? 0 : BLE_ATT_ERR_UNLIKELY;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
+    }
+
+    // Pattern Data (0x0218) - Write-only: chunked pattern data (future)
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_data.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            // Future: Implement chunked pattern transfer from PWA
+            // For now, return "not supported" since we only use builtin patterns
+            ESP_LOGW(TAG, "Pattern data write: NOT YET IMPLEMENTED (use builtin patterns)");
+            return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Write-only characteristic
+    }
+
+    // Pattern Status (0x0219) - Read + Notify: 0=stopped, 1=playing, 2=error
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_status.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            // Update status from actual playback state
+            pattern_status = pattern_is_playing() ? 1 : 0;
+
+            int rc = os_mbuf_append(ctxt->om, &pattern_status, sizeof(pattern_status));
+            return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Read+Notify only, no write
+    }
+
+    // Pattern List (0x021A) - Read-only: JSON list of available patterns
+    // PWA reads once on connection to discover available patterns
+    if (ble_uuid_cmp(uuid, &uuid_char_pattern_list.u) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            // Generate JSON from pattern catalog (single source of truth)
+            // Buffer sized for ~80 bytes per pattern × max 8 patterns + overhead
+            static char pattern_list_json[700];
+            int json_len = pattern_generate_json(pattern_list_json, sizeof(pattern_list_json));
+            if (json_len < 0) {
+                ESP_LOGE(TAG, "Failed to generate pattern JSON");
+                return BLE_ATT_ERR_UNLIKELY;
+            }
+
+            int rc = os_mbuf_append(ctxt->om, pattern_list_json, (uint16_t)json_len);
+            return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+        }
+        return BLE_ATT_ERR_UNLIKELY;  // Read-only
     }
 
     // Unknown characteristic
@@ -1864,6 +2128,44 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .access_cb = gatt_svr_chr_access,
                 .flags = BLE_GATT_CHR_F_READ,
             },
+            // Hardware Info Group (AD048: silicon revision + 802.11mc FTM capability)
+            {
+                .uuid = &uuid_char_local_hardware.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            {
+                .uuid = &uuid_char_peer_hardware.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,
+            },
+            // Time Beacon Group (AD047/UTLP: passive opportunistic adoption)
+            {
+                .uuid = &uuid_char_time_beacon.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: PWA broadcasts time beacons
+            },
+            // Pattern Control Group (AD047: Mode 5 lightbar/bilateral patterns)
+            {
+                .uuid = &uuid_char_pattern_control.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: 0=stop, 1=start, 2+=select builtin
+            },
+            {
+                .uuid = &uuid_char_pattern_data.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_WRITE,  // Write-only: chunked pattern data (future)
+            },
+            {
+                .uuid = &uuid_char_pattern_status.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,  // Read + Notify: 0=stopped, 1=playing, 2=error
+            },
+            {
+                .uuid = &uuid_char_pattern_list.u,
+                .access_cb = gatt_svr_chr_access,
+                .flags = BLE_GATT_CHR_F_READ,  // Read-only: JSON list of available patterns
+            },
             {
                 0, // No more characteristics
             }
@@ -2017,10 +2319,9 @@ static int gattc_on_cccd_write(uint16_t conn_handle,
         esp_err_t reconnect_rc = time_sync_on_reconnection(sync_role);
         if (reconnect_rc != ESP_OK) {
             ESP_LOGW(TAG, "time_sync_on_reconnection failed; rc=%d", reconnect_rc);
-        } else {
-            ESP_LOGI(TAG, "Time sync initialized successfully (role: %s)",
-                     (sync_role == TIME_SYNC_ROLE_SERVER) ? "SERVER" : "CLIENT");
         }
+        // Note: time_sync_on_reconnection returns ESP_OK on initial connection too
+        // (before time_sync_init called), so we don't log "initialized" here
     } else {
         ESP_LOGE(TAG, "CLIENT: Failed to write CCCD; status=%d", error->status);
     }
@@ -2108,29 +2409,8 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
         return 0;
     }
 
-    // Compare UUID with time sync characteristic
-    if (ble_uuid_cmp(&chr->uuid.u, &uuid_bilateral_time_sync.u) == 0) {
-        ESP_LOGI(TAG, "CLIENT: Found time sync characteristic; val_handle=%u", chr->val_handle);
-
-        // Store handle for notification reception
-        g_peer_time_sync_char_handle = chr->val_handle;
-
-        // Write directly to CCCD (standard location is val_handle + 1)
-        // This avoids descriptor discovery which has handle range issues
-        uint16_t cccd_handle = chr->val_handle + 1;
-        uint16_t notify_enable = 1;  // 0x0001 = notifications enabled
-
-        int rc = ble_gattc_write_flat(conn_handle, cccd_handle,
-                                       &notify_enable, sizeof(notify_enable),
-                                       gattc_on_cccd_write, NULL);
-        if (rc != 0) {
-            ESP_LOGE(TAG, "CLIENT: Failed to write CCCD at handle %u; rc=%d", cccd_handle, rc);
-        } else {
-            ESP_LOGI(TAG, "CLIENT: CCCD write initiated at handle %u (enabling notifications)", cccd_handle);
-        }
-    }
-
     // Compare UUID with coordination characteristic (Phase 3 - Hybrid Architecture)
+    // Note: Time sync CCCD subscription removed (v0.7.10) - beacons now via ESP-NOW
     if (ble_uuid_cmp(&chr->uuid.u, &uuid_bilateral_coordination.u) == 0) {
         ESP_LOGI(TAG, "CLIENT: Found coordination characteristic; val_handle=%u", chr->val_handle);
 
@@ -2157,6 +2437,20 @@ static int gattc_on_chr_disc(uint16_t conn_handle,
         esp_err_t fw_err = ble_send_firmware_version_to_peer();
         if (fw_err != ESP_OK) {
             ESP_LOGW(TAG, "AD040: Firmware version send failed: %s", esp_err_to_name(fw_err));
+        }
+
+        // AD048: Send hardware info (silicon revision, FTM capability) alongside firmware version
+        esp_err_t hw_err = ble_send_hardware_info_to_peer();
+        if (hw_err != ESP_OK) {
+            ESP_LOGW(TAG, "AD048: Hardware info send failed: %s", esp_err_to_name(hw_err));
+        }
+
+        // AD048: Send WiFi MAC for ESP-NOW transport setup (if ESP-NOW initialized)
+        if (espnow_transport_get_state() != ESPNOW_STATE_UNINITIALIZED) {
+            esp_err_t mac_err = ble_send_wifi_mac_to_peer();
+            if (mac_err != ESP_OK) {
+                ESP_LOGW(TAG, "AD048: WiFi MAC send failed: %s", esp_err_to_name(mac_err));
+            }
         }
     }
 
@@ -2516,6 +2810,10 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     peer_state.peer_conn_handle = event->connect.conn_handle;
                     ESP_LOGI(TAG, "Peer device connected; conn_handle=%d", event->connect.conn_handle);
 
+                    // AD040: Reset version exchange state for new connection
+                    firmware_version_exchanged = false;
+                    firmware_versions_match_flag = true;  // Assume match until proven otherwise
+
                     // CRITICAL: Stop scanning immediately to prevent connection race conditions
                     // This prevents scan callback from discovering and trying to connect to other devices
                     // while we're processing incoming connections (Bug #11 - Windows PC PWA misidentification)
@@ -2542,6 +2840,9 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         peer_state.role = PEER_ROLE_SERVER;
                         ESP_LOGI(TAG, "SERVER role assigned (BLE MASTER)");
 
+                        // Bug #41 fix: Propagate role to role_manager for zone_config
+                        role_set(ROLE_SERVER);
+
                         // Phase 6f: SERVER initiates MTU exchange for larger beacon payload (28 bytes)
                         // Default MTU is 23 bytes (20 payload) - too small for beacons
                         // MTU exchange runs in parallel with GATT discovery
@@ -2564,6 +2865,9 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                         peer_state.role = PEER_ROLE_CLIENT;
                         ESP_LOGI(TAG, "CLIENT role assigned (BLE SLAVE)");
 
+                        // Bug #41 fix: Propagate role to role_manager for zone_config
+                        role_set(ROLE_CLIENT);
+
                         // Phase 6f: CLIENT also initiates MTU exchange for bidirectional communication
                         ESP_LOGI(TAG, "CLIENT: Initiating MTU exchange for larger beacon payload");
                         int mtu_rc = ble_gattc_exchange_mtu(event->connect.conn_handle, NULL, NULL);
@@ -2578,6 +2882,21 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                                                                NULL);
                         if (disc_rc != 0) {
                             ESP_LOGE(TAG, "CLIENT: Failed to start service discovery; rc=%d", disc_rc);
+                        }
+
+                        // Bug #43 Fix: CLIENT initiates SMP pairing to generate LTK for ESP-NOW encryption
+                        // Only CLIENT initiates because:
+                        // 1. Only one side needs to initiate (peer will respond automatically)
+                        // 2. SERVER was failing with BLE_HS_EBUSY (rc=8) when both tried simultaneously
+                        // 3. CLIENT (BLE SLAVE) is less busy than SERVER (BLE MASTER) at this point
+                        // Note: ble_hs_cfg.sm_* settings control pairing type (LESC, bonding, MITM)
+                        int sec_rc = ble_gap_security_initiate(event->connect.conn_handle);
+                        if (sec_rc == 0) {
+                            ESP_LOGI(TAG, "CLIENT: SMP pairing initiated (will generate LTK for ESP-NOW)");
+                        } else if (sec_rc == BLE_HS_EALREADY) {
+                            ESP_LOGI(TAG, "CLIENT: SMP pairing already in progress (SERVER initiated)");
+                        } else {
+                            ESP_LOGW(TAG, "CLIENT: SMP pairing failed; rc=%d (ESP-NOW unencrypted fallback)", sec_rc);
                         }
                     }
 
@@ -2647,6 +2966,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     adv_state.notify_session_time_subscribed = false;
                     adv_state.notify_battery_subscribed = false;
                     adv_state.notify_client_battery_subscribed = false;
+                    adv_state.notify_pattern_status_subscribed = false;  // Bug #42
                 }
             } else {
                 ESP_LOGW(TAG, "BLE connection failed; status=%d (%s)",
@@ -2731,11 +3051,24 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 g_config_service_found = false;
                 g_discovery_conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
+                /* Bug #105: Capture ESP-NOW status BEFORE disconnection notification
+                 *
+                 * CRITICAL: time_sync_task_send_disconnection() eventually calls
+                 * espnow_clear_peer(), so we must capture status NOW.
+                 */
+                bool bootstrap_complete = espnow_transport_is_ready();
+                peer_role_t saved_role = peer_state.role;
+
+                ESP_LOGI(TAG, "Bug #105: bootstrap_complete=%d (ESP-NOW %s), role=%s",
+                         bootstrap_complete, bootstrap_complete ? "ready" : "not ready",
+                         saved_role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT");
+
                 // Phase 2: Notify time_sync_task of peer disconnection (AD039)
+                // Bug #105: Pass bootstrap_complete to preserve ESP-NOW peer
                 if (TIME_SYNC_IS_INITIALIZED()) {
-                    esp_err_t err = time_sync_task_send_disconnection();
+                    esp_err_t err = time_sync_task_send_disconnection(bootstrap_complete);
                     if (err == ESP_OK) {
-                        ESP_LOGI(TAG, "Time sync disconnection notification sent");
+                        ESP_LOGI(TAG, "Time sync disconnection sent (preserve_espnow=%d)", bootstrap_complete);
                     } else {
                         ESP_LOGW(TAG, "Failed to send time sync disconnection: %s",
                                  esp_err_to_name(err));
@@ -2749,30 +3082,77 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 // Solution: 2-second delay prevents immediate retry errors
                 vTaskDelay(pdMS_TO_TICKS(2000));
 
-                // CRITICAL FIX (Phase 6m): Stop advertising first, then restart for peer rediscovery
-                // After Phase 1b.2, SERVER continues advertising after peer connection (for mobile app).
-                // When peer disconnects, advertising might still be active → must stop first before restart.
-                // Stop advertising if active (ignore errors - advertising might already be stopped)
-                if (ble_gap_adv_active()) {
-                    ble_gap_adv_stop();
-                    ESP_LOGI(TAG, "Stopped existing advertising before restart");
-                }
+                /* Bug #105: Distinguish bootstrap-complete vs unexpected disconnect
+                 *
+                 * Bootstrap complete (ESP-NOW ready):
+                 * - SERVER: Restart advertising ONLY for PWA (no scanning, peer uses ESP-NOW)
+                 * - CLIENT: Stop BLE entirely (no advertising, no scanning)
+                 *
+                 * Unexpected disconnect (ESP-NOW not ready):
+                 * - Both: Restart advertising + scanning for peer rediscovery
+                 */
 
-                // Now restart advertising + scanning for peer rediscovery
-                rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                                       &adv_params, ble_gap_event, NULL);
-                if (rc == 0) {
-                    adv_state.advertising_active = true;
-                    adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                    ESP_LOGI(TAG, "Advertising restarted after peer disconnect");
+                if (bootstrap_complete) {
+                    // Bootstrap complete - peer BLE released intentionally
+                    ESP_LOGI(TAG, "Peer BLE released (bootstrap complete, ESP-NOW active)");
 
-                    // Resume scanning for peer rediscovery
-                    ble_start_scanning();
-                    ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
+                    if (saved_role == PEER_ROLE_SERVER) {
+                        // SERVER: Restart advertising for PWA access only
+                        if (ble_gap_adv_active()) {
+                            ble_gap_adv_stop();
+                        }
+                        rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                               &adv_params, ble_gap_event, NULL);
+                        if (rc == 0) {
+                            adv_state.advertising_active = true;
+                            adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                            ESP_LOGI(TAG, "SERVER: Advertising for PWA (peer uses ESP-NOW)");
+                        }
+                        // No scanning - peer coordination via ESP-NOW
+                    } else {
+                        // CLIENT: Stop BLE entirely - ESP-NOW is only transport now
+                        bool was_advertising = ble_gap_adv_active();
+                        bool was_scanning = ble_gap_disc_active();
+
+                        if (was_advertising) {
+                            ble_gap_adv_stop();
+                            adv_state.advertising_active = false;
+                        }
+                        ble_stop_scanning();
+
+                        // Bug #105 diagnostic: Verify BLE stack state after release
+                        bool adv_now = ble_gap_adv_active();
+                        bool scan_now = ble_gap_disc_active();
+                        ESP_LOGI(TAG, "CLIENT: BLE stopped (ESP-NOW only mode)");
+                        ESP_LOGI(TAG, "CLIENT BLE release: adv=%d->%d, scan=%d->%d, conn=%d",
+                                 was_advertising, adv_now, was_scanning, scan_now,
+                                 peer_state.peer_conn_handle != BLE_HS_CONN_HANDLE_NONE);
+                    }
                 } else {
-                    ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
-                    // Sync flag with actual NimBLE state
-                    adv_state.advertising_active = ble_gap_adv_active();
+                    // Unexpected disconnect - restart for peer rediscovery
+                    ESP_LOGI(TAG, "Unexpected peer disconnect - restarting for rediscovery");
+
+                    // CRITICAL FIX (Phase 6m): Stop advertising first, then restart
+                    if (ble_gap_adv_active()) {
+                        ble_gap_adv_stop();
+                        ESP_LOGI(TAG, "Stopped existing advertising before restart");
+                    }
+
+                    // Restart advertising + scanning for peer rediscovery
+                    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                           &adv_params, ble_gap_event, NULL);
+                    if (rc == 0) {
+                        adv_state.advertising_active = true;
+                        adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                        ESP_LOGI(TAG, "Advertising restarted after peer disconnect");
+
+                        // Resume scanning for peer rediscovery
+                        ble_start_scanning();
+                        ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
+                    } else {
+                        ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
+                        adv_state.advertising_active = ble_gap_adv_active();
+                    }
                 }
             }
 
@@ -2785,6 +3165,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 adv_state.notify_session_time_subscribed = false;
                 adv_state.notify_battery_subscribed = false;
                 adv_state.notify_client_battery_subscribed = false;
+                adv_state.notify_pattern_status_subscribed = false;  // Bug #42
 
                 // Small delay to allow BLE stack cleanup (Android compatibility)
                 vTaskDelay(pdMS_TO_TICKS(100));
@@ -2959,6 +3340,26 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                     }
                 }
             }
+
+            // Bug #42: Pattern Status subscription handling
+            if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_pattern_status.u, NULL, &val_handle) == 0) {
+                if (event->subscribe.attr_handle == val_handle) {
+                    adv_state.notify_pattern_status_subscribed = event->subscribe.cur_notify;
+                    ESP_LOGI(TAG, "Pattern Status notifications %s", event->subscribe.cur_notify ? "enabled" : "disabled");
+
+                    // Send initial value immediately on subscription
+                    if (event->subscribe.cur_notify) {
+                        uint8_t current_status = pattern_is_playing() ? 1 : 0;
+                        struct os_mbuf *om = ble_hs_mbuf_from_flat(&current_status, sizeof(current_status));
+                        if (om != NULL) {
+                            int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                            if (rc == 0) {
+                                ESP_LOGI(TAG, "Initial pattern status sent: %u", current_status);
+                            }
+                        }
+                    }
+                }
+            }
             break;
 
         case BLE_GAP_EVENT_NOTIFY_RX: {
@@ -3077,52 +3478,10 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 break;
             }
 
-            // Verify this is the time sync characteristic
-            // Check both SERVER handle (our own GATT service) and CLIENT handle (discovered from peer)
-            bool is_server_handle = (event->notify_rx.attr_handle == g_time_sync_char_handle);
-            bool is_client_handle = (event->notify_rx.attr_handle == g_peer_time_sync_char_handle);
-
-            if (!is_server_handle && !is_client_handle) {
-                // Not time sync characteristic - ignore
-                ESP_LOGD(TAG, "Notification from unknown characteristic handle=%u (expected server=%u or client=%u)",
-                         event->notify_rx.attr_handle,
-                         g_time_sync_char_handle,
-                         g_peer_time_sync_char_handle);
-                break;
-            }
-
-            // Capture receive timestamp IMMEDIATELY (critical for timing accuracy)
-            // OPTIMIZATION: Capture before mbuf extraction to minimize timing error
-            // mbuf extraction adds 0.1-1ms delay - capturing afterwards introduces error
-            uint64_t receive_time_us = esp_timer_get_time();
-
-            // Extract beacon from mbuf
-            time_sync_beacon_t beacon = {0};  // Zero-init to detect truncation
-            uint16_t actual_len = 0;
-            int copy_rc = ble_hs_mbuf_to_flat(event->notify_rx.om,
-                                               &beacon,
-                                               sizeof(beacon),
-                                               &actual_len);
-            if (copy_rc != 0) {
-                ESP_LOGE(TAG, "Failed to extract beacon from notification: rc=%d", copy_rc);
-                break;
-            }
-
-            // Debug: Check for payload truncation
-            if (actual_len != sizeof(beacon)) {
-                ESP_LOGW(TAG, "Beacon truncated: received %u bytes, expected %u bytes",
-                         actual_len, (unsigned)sizeof(beacon));
-            }
-
-            // Forward beacon to time_sync_task for processing
-            esp_err_t err = time_sync_task_send_beacon(&beacon, receive_time_us);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to queue beacon to time_sync_task: %s", esp_err_to_name(err));
-            } else {
-                ESP_LOGD(TAG, "Beacon notification queued (seq=%u, server_time=%llu μs)",
-                         beacon.sequence, beacon.server_time_us);
-            }
-
+            // Note: Time sync beacon handler removed (v0.7.10) - beacons now via ESP-NOW
+            // Unhandled notification - log for debugging
+            ESP_LOGD(TAG, "Notification from unknown characteristic handle=%u",
+                     event->notify_rx.attr_handle);
             break;
         }
 
@@ -3644,6 +4003,37 @@ esp_err_t ble_manager_init(uint8_t initial_battery_pct) {
              FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH,
              __DATE__);
     ESP_LOGI(TAG, "Firmware version: %s", local_firmware_version_str);
+
+    // AD048: Initialize hardware info string (silicon revision + 802.11mc FTM capability)
+    {
+        esp_chip_info_t chip_info;
+        esp_chip_info(&chip_info);
+
+        const char *model_name = "Unknown";
+        switch (chip_info.model) {
+            case CHIP_ESP32:   model_name = "ESP32"; break;
+            case CHIP_ESP32S2: model_name = "ESP32-S2"; break;
+            case CHIP_ESP32S3: model_name = "ESP32-S3"; break;
+            case CHIP_ESP32C3: model_name = "ESP32-C3"; break;
+            case CHIP_ESP32C6: model_name = "ESP32-C6"; break;
+            case CHIP_ESP32H2: model_name = "ESP32-H2"; break;
+            default: break;
+        }
+
+        uint8_t rev_major = (chip_info.revision >> 8) & 0xFF;
+        uint8_t rev_minor = chip_info.revision & 0xFF;
+
+        // Determine FTM capability string
+        const char *ftm_cap = "";
+        if (chip_info.model == CHIP_ESP32C6) {
+            bool ftm_full = (rev_major > 0) || (rev_major == 0 && rev_minor >= 2);
+            ftm_cap = ftm_full ? " FTM:full" : " FTM:resp";
+        }
+
+        snprintf(local_hardware_info_str, sizeof(local_hardware_info_str),
+                 "%s v%d.%d%s", model_name, rev_major, rev_minor, ftm_cap);
+        ESP_LOGI(TAG, "Hardware info: %s", local_hardware_info_str);
+    }
 
     // Create mutexes
     char_data_mutex = xSemaphoreCreateMutex();
@@ -4421,6 +4811,22 @@ uint16_t ble_get_app_conn_handle(void) {
     return adv_state.conn_handle;
 }
 
+esp_err_t ble_disconnect_peer(uint8_t reason) {
+    uint16_t handle = peer_state.peer_conn_handle;
+    if (handle == BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGW(TAG, "ble_disconnect_peer: No peer connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGI(TAG, "Disconnecting peer (handle=%d, reason=0x%02X)", handle, reason);
+    int rc = ble_gap_terminate(handle, reason);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "ble_gap_terminate failed: rc=%d", rc);
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
 void ble_update_battery_level(uint8_t percentage) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -4560,6 +4966,81 @@ void ble_update_bilateral_battery_level(uint8_t percentage) {
     }
 }
 
+// ============================================================================
+// AD048: LTK-BASED ESP-NOW KEY DERIVATION
+// ============================================================================
+
+esp_err_t ble_get_peer_ltk(uint8_t ltk_out[16]) {
+    if (ltk_out == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    // Must have peer connected
+    if (!ble_is_peer_connected()) {
+        ESP_LOGD(TAG, "ble_get_peer_ltk: No peer connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Get peer address from connection state
+    if (!peer_state.peer_discovered) {
+        ESP_LOGW(TAG, "ble_get_peer_ltk: Peer discovered flag not set");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Read LTK from NimBLE bond store
+    // Use OUR_SEC because we want our local copy of the encryption keys
+    // The LTK is the same on both devices after pairing
+    union ble_store_key key;
+    union ble_store_value value;
+
+    memset(&key, 0, sizeof(key));
+    key.sec.peer_addr = peer_state.peer_addr;
+
+    int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
+    if (rc != 0) {
+        ESP_LOGD(TAG, "ble_get_peer_ltk: ble_store_read failed (rc=%d)", rc);
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // Check if LTK is present
+    if (!value.sec.ltk_present) {
+        ESP_LOGW(TAG, "ble_get_peer_ltk: LTK not present in bond data");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // Copy LTK to output
+    memcpy(ltk_out, value.sec.ltk, 16);
+
+    ESP_LOGI(TAG, "AD048: Retrieved peer LTK [%02X%02X...%02X%02X]",
+             ltk_out[0], ltk_out[1], ltk_out[14], ltk_out[15]);
+
+    return ESP_OK;
+}
+
+bool ble_peer_ltk_available(void) {
+    if (!ble_is_peer_connected()) {
+        return false;
+    }
+
+    if (!peer_state.peer_discovered) {
+        return false;
+    }
+
+    // Check if we can read LTK from store
+    union ble_store_key key;
+    union ble_store_value value;
+
+    memset(&key, 0, sizeof(key));
+    key.sec.peer_addr = peer_state.peer_addr;
+
+    int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
+    if (rc != 0) {
+        return false;
+    }
+
+    return value.sec.ltk_present;
+}
+
 /**
  * @brief Send time sync beacon to peer device (SERVER only)
  *
@@ -4580,10 +5061,11 @@ esp_err_t ble_send_time_sync_beacon(void) {
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Check if peer is connected
-    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
-    if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        ESP_LOGD(TAG, "Cannot send sync beacon: peer not connected");
+    // Bug #105: Check ESP-NOW readiness FIRST
+    // After bootstrap, BLE peer is intentionally disconnected but ESP-NOW remains active.
+    // UTLP Design: Time beacons use ESP-NOW broadcast ONLY - no BLE dependency.
+    if (!espnow_transport_is_ready()) {
+        ESP_LOGD(TAG, "ESP-NOW not ready - beacon skipped");
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -4597,12 +5079,6 @@ esp_err_t ble_send_time_sync_beacon(void) {
 
     // Phase 6r (AD043): No RTT measurement - CLIENT uses one-way timestamp with filter
 
-    // Check characteristic handle first (before mutex)
-    if (g_time_sync_char_handle == 0) {
-        ESP_LOGW(TAG, "Time sync characteristic handle not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
-
     // Hold mutex through entire critical section (update + send) for atomicity
     // This prevents GATT reads from getting stale data between update and send
     if (xSemaphoreTake(time_sync_beacon_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -4615,26 +5091,18 @@ esp_err_t ble_send_time_sync_beacon(void) {
     // Original T1 was set in time_sync_generate_beacon() ~1-50ms earlier.
     time_sync_finalize_beacon_timestamp(&beacon);
 
-    // Send notification to peer (while holding mutex)
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(&beacon, sizeof(beacon));
-    if (om == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate mbuf for sync beacon");
+    esp_err_t espnow_err = espnow_transport_send_beacon(&beacon);
+    if (espnow_err != ESP_OK) {
+        ESP_LOGE(TAG, "ESP-NOW beacon broadcast failed: %s", esp_err_to_name(espnow_err));
         xSemaphoreGive(time_sync_beacon_mutex);
-        return ESP_ERR_NO_MEM;
-    }
-
-    int rc = ble_gatts_notify_custom(peer_conn_handle, g_time_sync_char_handle, om);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to send sync beacon notification: rc=%d", rc);
-        xSemaphoreGive(time_sync_beacon_mutex);
-        return ESP_FAIL;
+        return espnow_err;
     }
 
     // Only update global after successful send (while still holding mutex)
     g_time_sync_beacon = beacon;
 
-    // Debug: Log beacon size and checksum for truncation diagnosis
-    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X",
+    // Debug: Log beacon size and checksum
+    ESP_LOGI(TAG, "Beacon sent: %u bytes, seq=%u, checksum=0x%04X [ESP-NOW]",
              (unsigned)sizeof(beacon), beacon.sequence, beacon.checksum);
     xSemaphoreGive(time_sync_beacon_mutex);
 
@@ -4661,37 +5129,124 @@ void ble_set_coordination_mode(coordination_mode_t mode) {
     }
 }
 
+/**
+ * @brief Check if message type needs TDM scheduling
+ *
+ * Time-critical messages (PTP handshake, asymmetry probes) need TDM scheduling
+ * to avoid BLE connection event contention. Other messages can send immediately.
+ *
+ * @param type Message type
+ * @return true if TDM scheduling required
+ */
+static bool is_tdm_required_msg_type(sync_message_type_t type) {
+    switch (type) {
+        case SYNC_MSG_TIME_REQUEST:           // PTP handshake CLIENT→SERVER
+        case SYNC_MSG_TIME_RESPONSE:          // PTP handshake SERVER→CLIENT
+        case SYNC_MSG_REVERSE_PROBE:          // Asymmetry CLIENT→SERVER
+        case SYNC_MSG_REVERSE_PROBE_RESPONSE: // Asymmetry SERVER→CLIENT
+        case SYNC_MSG_PHASE_QUERY:            // Phase coherence query
+        case SYNC_MSG_PHASE_RESPONSE:         // Phase coherence response
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * @brief Check if message type is a bootstrap message (must use BLE)
+ *
+ * Bootstrap messages are needed to ESTABLISH ESP-NOW peer configuration.
+ * They must go over BLE because ESP-NOW peer isn't configured yet.
+ *
+ * @param type Message type
+ * @return true if bootstrap message (must use BLE)
+ */
+static bool is_bootstrap_msg_type(sync_message_type_t type) {
+    switch (type) {
+        case SYNC_MSG_FIRMWARE_VERSION:       // AD040: Version exchange
+        case SYNC_MSG_HARDWARE_INFO:          // AD048: Hardware info
+        case SYNC_MSG_WIFI_MAC:               // AD048: WiFi MAC for ESP-NOW peer config
+        case SYNC_MSG_ESPNOW_KEY_EXCHANGE:    // AD048: HKDF key derivation
+        // Bug #35: Critical coordination messages need reliable BLE delivery
+        // ESP-NOW fails intermittently during BLE coexistence, causing CLIENT_READY
+        // and MOTOR_STARTED to be lost. Route these via BLE for reliable setup.
+        case SYNC_MSG_CLIENT_READY:           // CLIENT→SERVER: handshake complete
+        case SYNC_MSG_MOTOR_STARTED:          // SERVER→CLIENT: motor epoch notification
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * @brief Send coordination message to peer device
+ *
+ * AD048 Phase 7: Peer coordination uses ESP-NOW after bootstrap. BLE is used for:
+ * - Bootstrap messages (firmware version, hardware info, WiFi MAC, key exchange)
+ * - PWA ↔ SERVER communication
+ *
+ * @param msg Coordination message to send
+ * @return ESP_OK on success, error code on failure
+ */
 esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
     if (msg == NULL) {
         ESP_LOGE(TAG, "NULL coordination message");
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Check if peer is connected
-    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
-    if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        ESP_LOGD(TAG, "Cannot send coordination message: peer not connected");
+    // Bootstrap messages MUST use BLE (ESP-NOW peer not configured yet)
+    if (is_bootstrap_msg_type(msg->type)) {
+        // Check if peer is connected via BLE
+        uint16_t peer_conn_handle = ble_get_peer_conn_handle();
+        if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            ESP_LOGD(TAG, "Cannot send bootstrap message: peer not connected");
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        // Check peer's coordination characteristic handle
+        if (g_peer_coordination_char_handle == 0) {
+            ESP_LOGW(TAG, "Peer coordination handle not discovered yet");
+            return ESP_ERR_INVALID_STATE;
+        }
+
+        // Send via BLE GATT write (bootstrap path)
+        int rc = ble_gattc_write_no_rsp_flat(peer_conn_handle, g_peer_coordination_char_handle,
+                                              msg, sizeof(coordination_message_t));
+        if (rc != 0) {
+            ESP_LOGE(TAG, "Failed to write bootstrap message to peer: rc=%d", rc);
+            return ESP_FAIL;
+        }
+
+        ESP_LOGD(TAG, "Bootstrap msg sent via BLE: type=%d", msg->type);
+        return ESP_OK;
+    }
+
+    // Non-bootstrap messages use ESP-NOW
+    if (!espnow_transport_is_ready()) {
+        ESP_LOGW(TAG, "ESP-NOW not ready - coordination msg skipped: type=%d", msg->type);
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Check peer's coordination characteristic handle (discovered during GATT service discovery)
-    if (g_peer_coordination_char_handle == 0) {
-        ESP_LOGW(TAG, "Peer coordination characteristic handle not discovered yet");
-        return ESP_ERR_INVALID_STATE;
+    esp_err_t ret;
+    if (is_tdm_required_msg_type(msg->type)) {
+        // Time-critical: Use TDM-scheduled send to avoid BLE contention
+        ret = espnow_transport_send_coordination_tdm(
+            (const uint8_t *)msg, sizeof(coordination_message_t));
+    } else {
+        // Non-time-critical: Send immediately via ESP-NOW
+        ret = espnow_transport_send_coordination(
+            (const uint8_t *)msg, sizeof(coordination_message_t));
     }
 
-    // Write to peer's coordination characteristic (triggers their gatt_bilateral_coordination_write callback)
-    // Use write-without-response for fire-and-forget delivery (no ACK waiting)
-    int rc = ble_gattc_write_no_rsp_flat(peer_conn_handle, g_peer_coordination_char_handle,
-                                          msg, sizeof(coordination_message_t));
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Failed to write coordination message to peer: rc=%d", rc);
-        return ESP_FAIL;
+    if (ret == ESP_OK) {
+        ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW: type=%d%s",
+                 msg->type, is_tdm_required_msg_type(msg->type) ? " [TDM]" : "");
+    } else {
+        ESP_LOGE(TAG, "ESP-NOW coordination send failed: type=%d, err=%s",
+                 msg->type, esp_err_to_name(ret));
     }
 
-    ESP_LOGD(TAG, "Coordination message written to peer: type=%d, timestamp=%lu",
-             msg->type, (unsigned long)msg->timestamp_ms);
-    return ESP_OK;
+    return ret;
 }
 
 /**
@@ -4703,8 +5258,8 @@ esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
  * Prevents infinite sync loops (write callbacks call this, but update functions don't).
  */
 static esp_err_t sync_settings_to_peer(void) {
-    // Only sync if peer is connected
-    if (!ble_is_peer_connected()) {
+    // Only sync if peer is connected (Bug #105: Use ESP-NOW check)
+    if (!espnow_transport_is_ready()) {
         return ESP_OK;  // Silently succeed if no peer
     }
 
@@ -5070,6 +5625,28 @@ void ble_update_mode(mode_t mode) {
     }
 }
 
+void ble_update_pattern_status(uint8_t status) {
+    // Update static pattern_status and send BLE notification
+    // Called by motor_task when entering/leaving pattern mode
+    pattern_status = status;  // Direct assignment (atomic for uint8_t)
+
+    // Send notification if client subscribed
+    if (ble_is_app_connected() && adv_state.notify_pattern_status_subscribed) {
+        uint16_t val_handle;
+        if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_pattern_status.u, NULL, &val_handle) == 0) {
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(&pattern_status, sizeof(pattern_status));
+            if (om != NULL) {
+                int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                if (rc != 0) {
+                    ESP_LOGD(TAG, "Pattern status notify failed: rc=%d", rc);
+                } else {
+                    ESP_LOGI(TAG, "Pattern status notification sent: %u", pattern_status);
+                }
+            }
+        }
+    }
+}
+
 mode_t ble_get_current_mode(void) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -5349,12 +5926,127 @@ bool ble_firmware_versions_match(void) {
     return firmware_versions_match_flag;
 }
 
+bool ble_firmware_version_exchanged(void) {
+    return firmware_version_exchanged;
+}
+
 /**
  * @brief Internal function to update version match flag (called from time_sync_task)
  * @param match true if versions match, false otherwise
  */
 void ble_set_firmware_version_match(bool match) {
     firmware_versions_match_flag = match;
+    firmware_version_exchanged = true;  // Mark that exchange completed
+}
+
+// ============================================================================
+// AD048: HARDWARE INFO EXCHANGE
+// ============================================================================
+
+esp_err_t ble_send_hardware_info_to_peer(void) {
+    // Check if peer is connected
+    if (!ble_is_peer_connected()) {
+        ESP_LOGD(TAG, "AD048: Cannot send hardware info - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Build coordination message with local hardware info
+    coordination_message_t msg = {
+        .type = SYNC_MSG_HARDWARE_INFO,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+    snprintf(msg.payload.hardware_info.info_str,
+             sizeof(msg.payload.hardware_info.info_str),
+             "%s", local_hardware_info_str);
+
+    // Send via coordination channel
+    esp_err_t err = ble_send_coordination_message(&msg);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "AD048: Sent hardware info to peer: %s", local_hardware_info_str);
+    } else {
+        ESP_LOGW(TAG, "AD048: Failed to send hardware info: %s", esp_err_to_name(err));
+    }
+
+    return err;
+}
+
+void ble_set_peer_hardware_info(const char *hardware_str) {
+    if (hardware_str == NULL) {
+        return;
+    }
+
+    // Thread-safe update (mutex not strictly needed for simple string copy,
+    // but keeping consistent with other char_data access patterns)
+    if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        snprintf(peer_hardware_info_str, sizeof(peer_hardware_info_str), "%s", hardware_str);
+        xSemaphoreGive(char_data_mutex);
+        ESP_LOGD(TAG, "AD048: Peer hardware info set: %s", peer_hardware_info_str);
+    } else {
+        ESP_LOGW(TAG, "AD048: Mutex timeout setting peer hardware info");
+    }
+}
+
+const char* ble_get_local_hardware_info(void) {
+    return local_hardware_info_str;
+}
+
+esp_err_t ble_send_wifi_mac_to_peer(void) {
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "AD048: Cannot send WiFi MAC - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    coordination_message_t msg = {
+        .type = SYNC_MSG_WIFI_MAC,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+
+    // Get local WiFi MAC address for ESP-NOW
+    esp_err_t err = espnow_transport_get_local_mac(msg.payload.wifi_mac.mac);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "AD048: Failed to get WiFi MAC: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    ESP_LOGI(TAG, "AD048: Sending WiFi MAC to peer: %02X:%02X:%02X:%02X:%02X:%02X",
+             msg.payload.wifi_mac.mac[0], msg.payload.wifi_mac.mac[1],
+             msg.payload.wifi_mac.mac[2], msg.payload.wifi_mac.mac[3],
+             msg.payload.wifi_mac.mac[4], msg.payload.wifi_mac.mac[5]);
+
+    err = ble_send_coordination_message(&msg);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "AD048: Failed to send WiFi MAC: %s", esp_err_to_name(err));
+    }
+
+    return err;
+}
+
+esp_err_t ble_send_espnow_key_exchange(const uint8_t nonce[8], const uint8_t server_mac[6]) {
+    if (!ble_is_peer_connected()) {
+        ESP_LOGW(TAG, "AD048: Cannot send key exchange - peer not connected");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    coordination_message_t msg = {
+        .type = SYNC_MSG_ESPNOW_KEY_EXCHANGE,
+        .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
+    };
+
+    // Copy nonce and server MAC to payload
+    memcpy(msg.payload.espnow_key.nonce, nonce, 8);
+    memcpy(msg.payload.espnow_key.server_mac, server_mac, 6);
+
+    ESP_LOGI(TAG, "AD048: Sending ESP-NOW key exchange to CLIENT");
+    ESP_LOGI(TAG, "  Nonce: %02X%02X%02X%02X%02X%02X%02X%02X",
+             nonce[0], nonce[1], nonce[2], nonce[3],
+             nonce[4], nonce[5], nonce[6], nonce[7]);
+
+    esp_err_t err = ble_send_coordination_message(&msg);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "AD048: Failed to send key exchange: %s", esp_err_to_name(err));
+    }
+
+    return err;
 }
 
 esp_err_t ble_manager_deinit(void) {

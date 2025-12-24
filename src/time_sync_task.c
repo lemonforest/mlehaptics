@@ -22,11 +22,15 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_task_wdt.h"
+#include "esp_random.h"        // AD048: Hardware RNG for nonce generation
 #include "ble_manager.h"
 #include "firmware_version.h"  // AD040: Firmware version checking
 #include "status_led.h"        // AD040: Version mismatch LED pattern
 #include "motor_task.h"        // Phase 2: Beacon-triggered back-EMF logging
 #include "button_task.h"       // Phase 3: Queue externs for coordination forwarding
+#include "pattern_playback.h"  // AD047: Pattern sync between devices
+#include "espnow_transport.h"  // AD048: ESP-NOW transport for low-latency beacons
+#include <string.h>            // AD048: memcpy, memset for MAC/key handling
 
 static const char *TAG = "TIME_SYNC_TASK";
 
@@ -49,10 +53,67 @@ static volatile bool client_ready_received = false;
 /** @brief Bug #11 fix: Buffer CLIENT_READY if received before time_sync initialized */
 static volatile bool client_ready_buffered = false;
 
+/** @brief AD048: Last processed beacon sequence for deduplication (ESP-NOW + BLE) */
+static uint8_t last_processed_beacon_seq = 255;  // Init to unlikely value
+
+#if TDM_TECH_SPIKE_ENABLED
+/*******************************************************************************
+ * TDM TECH SPIKE - Results (December 2025)
+ *
+ * KEY FINDING: ~74ms consistent latency bias, outliers inflate stddev to ~150ms.
+ * Mean converges as sample count increases - this is useful!
+ * Next step: Add histogram to measure % of packets within ±30ms of mean.
+ * See time_sync.h for full analysis.
+ ******************************************************************************/
+
+/** @brief Last beacon receive timestamp (microseconds) */
+static int64_t tdm_last_receive_us = 0;
+
+/** @brief Jitter measurement sample count */
+static uint32_t tdm_jitter_count = 0;
+
+/** @brief Sum of jitter values (for mean calculation) */
+static int64_t tdm_jitter_sum_us = 0;
+
+/** @brief Sum of squared jitter values (for stddev calculation) */
+static int64_t tdm_jitter_sum_sq = 0;
+
+/** @brief Minimum jitter observed (microseconds) */
+static int64_t tdm_jitter_min_us = INT64_MAX;
+
+/** @brief Maximum jitter observed (microseconds) */
+static int64_t tdm_jitter_max_us = INT64_MIN;
+
+/** @brief Log stats every N samples */
+#define TDM_JITTER_LOG_INTERVAL  10
+#endif /* TDM_TECH_SPIKE_ENABLED */
+
 /** @brief Bug #28 fix: Buffer TIME_REQUEST if received before time_sync initialized */
 static volatile bool time_request_buffered = false;
 static volatile uint64_t buffered_t1_us = 0;
 static volatile uint64_t buffered_t2_us = 0;
+
+/*******************************************************************************
+ * AD048: ESP-NOW LTK-BASED KEY DERIVATION STATE
+ *
+ * Storage for peer WiFi MAC during key derivation.
+ * Flow (simplified with LTK-based derivation):
+ * 1. BLE pairing completes - LTK available in bond store (128-bit entropy)
+ * 2. Both devices exchange WIFI_MAC messages via BLE
+ * 3. Each device independently derives: HKDF(LTK || server_mac || client_mac)
+ * 4. Both configure encrypted ESP-NOW peer - no additional message needed
+ *
+ * Security advantage: 128-bit entropy from BLE LTK (vs 64-bit from nonce)
+ ******************************************************************************/
+
+/** @brief Stored peer WiFi MAC for key derivation */
+static uint8_t peer_wifi_mac[6] = {0};
+
+/** @brief Flag indicating peer MAC has been received */
+static bool peer_wifi_mac_received = false;
+
+/** @brief Flag indicating key exchange is complete (encrypted ESP-NOW ready) */
+static bool espnow_key_exchange_complete = false;
 
 /*******************************************************************************
  * PRIVATE FUNCTION DECLARATIONS
@@ -60,10 +121,12 @@ static volatile uint64_t buffered_t2_us = 0;
 
 static void time_sync_task(void *arg);
 static void handle_init_message(const time_sync_message_t *msg);
-static void handle_disconnection_message(void);
+static void handle_disconnection_message(const time_sync_message_t *msg);
 static void handle_beacon_message(const time_sync_message_t *msg);
 static void handle_coordination_message(const time_sync_message_t *msg);
 static void perform_periodic_update(void);
+static void espnow_beacon_recv_callback(const time_sync_beacon_t *beacon, uint64_t rx_time_us);
+static void espnow_coordination_recv_callback(const uint8_t *data, size_t len, uint64_t rx_time_us);
 
 /*******************************************************************************
  * PUBLIC API IMPLEMENTATION
@@ -98,6 +161,12 @@ esp_err_t time_sync_task_init(void)
     ESP_LOGI(TAG, "Time sync task created (priority=%d, stack=%d bytes)",
              TIME_SYNC_TASK_PRIORITY, TIME_SYNC_TASK_STACK_SIZE);
 
+    // AD048: Register ESP-NOW callbacks for low-latency delivery
+    // Callbacks run in WiFi task context and queue to time_sync_task
+    espnow_transport_register_callback(espnow_beacon_recv_callback);
+    espnow_transport_register_coordination_callback(espnow_coordination_recv_callback);
+    ESP_LOGI(TAG, "AD048: ESP-NOW beacon + coordination callbacks registered");
+
     return ESP_OK;
 }
 
@@ -123,7 +192,7 @@ esp_err_t time_sync_task_send_init(time_sync_role_t role)
     return ESP_OK;
 }
 
-esp_err_t time_sync_task_send_disconnection(void)
+esp_err_t time_sync_task_send_disconnection(bool preserve_espnow)
 {
     if (time_sync_queue == NULL) {
         ESP_LOGE(TAG, "Time sync queue not initialized");
@@ -131,7 +200,8 @@ esp_err_t time_sync_task_send_disconnection(void)
     }
 
     time_sync_message_t msg = {
-        .type = TIME_SYNC_MSG_DISCONNECTION
+        .type = TIME_SYNC_MSG_DISCONNECTION,
+        .data.disconnection.preserve_espnow = preserve_espnow
     };
 
     if (xQueueSend(time_sync_queue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
@@ -142,7 +212,7 @@ esp_err_t time_sync_task_send_disconnection(void)
     return ESP_OK;
 }
 
-esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t receive_time_us)
+esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t receive_time_us, uint8_t transport)
 {
     if (beacon == NULL) {
         ESP_LOGE(TAG, "Beacon pointer is NULL");
@@ -158,7 +228,8 @@ esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t 
         .type = TIME_SYNC_MSG_BEACON_RECEIVED,
         .data.beacon = {
             .beacon = *beacon,
-            .receive_time_us = receive_time_us
+            .receive_time_us = receive_time_us,
+            .transport = transport
         }
     };
 
@@ -255,7 +326,7 @@ static void time_sync_task(void *arg)
                     break;
 
                 case TIME_SYNC_MSG_DISCONNECTION:
-                    handle_disconnection_message();
+                    handle_disconnection_message(&msg);
                     break;
 
                 case TIME_SYNC_MSG_BEACON_RECEIVED:
@@ -267,29 +338,15 @@ static void time_sync_task(void *arg)
                     break;
 
                 case TIME_SYNC_MSG_TRIGGER_BEACONS:
-                    /* Bug #62 fix: Send ONE beacon for epoch delivery
+                    /* UTLP Refactor: Mode-change beacons REMOVED
                      *
-                     * Original Bug #57: Beacons delayed during mode change.
-                     * Failed fix #57/58: Beacon blasting caused spam (100+ beacons).
+                     * Mode changes use SYNC_MSG_MOTOR_STARTED for epoch delivery.
+                     * Beacons are now handled by the time layer on a fixed schedule,
+                     * not triggered by application events.
                      *
-                     * Root cause: Beacon blasting doesn't help EMA convergence.
-                     * CLIENT only needs ONE beacon to get the new motor_epoch.
-                     * EMA converges over TIME, not rapid samples.
-                     *
-                     * Fix: Send single beacon immediately, let normal interval
-                     * handle subsequent syncs.
+                     * See: UTLP architecture - time handles time, application handles application.
                      */
-                    if (TIME_SYNC_IS_SERVER()) {
-                        ESP_LOGI(TAG, "Mode change: Sending single beacon for epoch delivery");
-                        esp_err_t err = ble_send_time_sync_beacon();
-                        if (err != ESP_OK) {
-                            if (err == ESP_ERR_INVALID_STATE) {
-                                ESP_LOGI(TAG, "Cannot send beacon: peer not connected");
-                            } else {
-                                ESP_LOGW(TAG, "Failed to send beacon: %s", esp_err_to_name(err));
-                            }
-                        }
-                    }
+                    ESP_LOGD(TAG, "TRIGGER_BEACONS ignored (UTLP refactor - use MOTOR_STARTED for epoch)");
                     break;
 
                 case TIME_SYNC_MSG_SHUTDOWN:
@@ -457,9 +514,36 @@ static void handle_init_message(const time_sync_message_t *msg)
     next_update_time = xTaskGetTickCount() + pdMS_TO_TICKS(time_sync_get_interval_ms());
 }
 
-static void handle_disconnection_message(void)
+static void handle_disconnection_message(const time_sync_message_t *msg)
 {
-    ESP_LOGI(TAG, "Peer disconnected, freezing time sync state");
+    bool preserve_espnow = msg->data.disconnection.preserve_espnow;
+
+    ESP_LOGI(TAG, "Peer disconnected, freezing time sync state (preserve_espnow=%d)", preserve_espnow);
+
+    // AD048: Reset deduplication state so we don't skip first beacon after reconnect
+    last_processed_beacon_seq = 255;
+
+    // AD048: Reset key exchange state for new session on reconnect
+    peer_wifi_mac_received = false;
+    espnow_key_exchange_complete = false;
+    memset(peer_wifi_mac, 0, sizeof(peer_wifi_mac));
+
+    /* Bug #105: Conditional ESP-NOW peer clearing
+     *
+     * preserve_espnow=true (bootstrap complete):
+     *   - Intentional BLE disconnect after MOTOR_STARTED
+     *   - Keep ESP-NOW peer for continued coordination
+     *   - ESP-NOW is now the ONLY transport for peer coordination
+     *
+     * preserve_espnow=false (unexpected disconnect):
+     *   - Connection lost during bootstrap
+     *   - Clear ESP-NOW peer, will be reconfigured on reconnect
+     */
+    if (!preserve_espnow) {
+        espnow_transport_clear_peer();
+    } else {
+        ESP_LOGI(TAG, "ESP-NOW peer preserved (bootstrap complete, coordination continues)");
+    }
 
     esp_err_t err = time_sync_on_disconnection();
     if (err == ESP_OK) {
@@ -481,6 +565,17 @@ static void handle_beacon_message(const time_sync_message_t *msg)
      * No need to send T2/T3 back to SERVER (eliminates RTT measurement overhead).
      */
 
+    /* AD048: Deduplicate - ESP-NOW arrives first (~100μs latency), BLE arrives
+     * ~50-70ms later with same sequence number. Skip duplicates to prevent
+     * BLE's higher latency from polluting the EMA filter. First-wins strategy. */
+    uint8_t seq = msg->data.beacon.beacon.sequence;
+    if (seq == last_processed_beacon_seq) {
+        const char *transport_str = (msg->data.beacon.transport == BEACON_TRANSPORT_ESPNOW) ? "ESP-NOW" : "BLE";
+        ESP_LOGD(TAG, "AD048: Skipping duplicate seq=%u [%s] (already processed)", seq, transport_str);
+        return;
+    }
+    last_processed_beacon_seq = seq;
+
     // Process beacon (CLIENT only)
     esp_err_t err = time_sync_process_beacon(&msg->data.beacon.beacon,
                                               msg->data.beacon.receive_time_us);
@@ -492,17 +587,139 @@ static void handle_beacon_message(const time_sync_message_t *msg)
 
         if (time_sync_get_clock_offset(&clock_offset_us) == ESP_OK &&
             time_sync_get_quality(&quality) == ESP_OK) {
-            ESP_LOGI(TAG, "Sync beacon received: seq=%u, offset=%lld μs, drift=%ld μs, quality=%u%%",
+            const char *transport_str = (msg->data.beacon.transport == BEACON_TRANSPORT_ESPNOW) ? "ESP-NOW" : "BLE";
+            ESP_LOGI(TAG, "Sync beacon received [%s]: seq=%u, offset=%lld μs, drift=%ld μs, quality=%u%%",
+                     transport_str,
                      msg->data.beacon.beacon.sequence,
                      clock_offset_us,         // Actual offset (CLIENT - SERVER)
                      quality.avg_drift_us,    // Drift (average offset change)
                      quality.quality_score);
         }
 
+#if TDM_TECH_SPIKE_ENABLED
+        /* TDM jitter measurement: ~74ms consistent bias, outliers inflate stddev.
+         * TODO: Add histogram buckets to measure distribution. */
+        {
+            int64_t receive_us = msg->data.beacon.receive_time_us;
+
+            if (tdm_last_receive_us != 0) {
+                /* Calculate inter-beacon interval and jitter */
+                int64_t actual_interval_us = receive_us - tdm_last_receive_us;
+                int64_t expected_interval_us = (int64_t)TDM_INTERVAL_MS * 1000;
+                int64_t jitter_us = actual_interval_us - expected_interval_us;
+
+                /* Update running statistics */
+                tdm_jitter_count++;
+                tdm_jitter_sum_us += jitter_us;
+                tdm_jitter_sum_sq += (jitter_us * jitter_us);
+
+                if (jitter_us < tdm_jitter_min_us) {
+                    tdm_jitter_min_us = jitter_us;
+                }
+                if (jitter_us > tdm_jitter_max_us) {
+                    tdm_jitter_max_us = jitter_us;
+                }
+
+                /* Log statistics every N samples */
+                if (tdm_jitter_count % TDM_JITTER_LOG_INTERVAL == 0) {
+                    int64_t mean_us = tdm_jitter_sum_us / (int64_t)tdm_jitter_count;
+                    /* Variance = E[X²] - E[X]² */
+                    int64_t mean_sq = tdm_jitter_sum_sq / (int64_t)tdm_jitter_count;
+                    int64_t variance = mean_sq - (mean_us * mean_us);
+                    /* Approximate sqrt for stddev (integer math) */
+                    int64_t stddev_us = 0;
+                    if (variance > 0) {
+                        /* Newton-Raphson integer sqrt approximation */
+                        stddev_us = variance;
+                        int64_t x = variance;
+                        while (x > stddev_us / x) {
+                            x = (x + variance / x) / 2;
+                        }
+                        stddev_us = x;
+                    }
+
+                    ESP_LOGI(TAG, "TDM Jitter [n=%lu]: mean=%lld μs, stddev=%lld μs, min=%lld, max=%lld",
+                             (unsigned long)tdm_jitter_count,
+                             mean_us, stddev_us,
+                             tdm_jitter_min_us, tdm_jitter_max_us);
+                }
+            }
+
+            tdm_last_receive_us = receive_us;
+        }
+#endif /* TDM_TECH_SPIKE_ENABLED */
+
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     } else {
         ESP_LOGW(TAG, "Failed to process beacon: %s", esp_err_to_name(err));
     }
+}
+
+/**
+ * @brief ESP-NOW beacon receive callback (AD048)
+ *
+ * This callback runs in WiFi task context when an ESP-NOW beacon is received.
+ * It queues the beacon to time_sync_task for processing (same path as BLE beacons).
+ *
+ * Benefits of ESP-NOW:
+ * - Sub-millisecond latency (~100μs jitter vs BLE's ~50ms)
+ * - Connectionless, fires-and-forgets (no ACK overhead)
+ * - Runs alongside BLE for redundancy
+ *
+ * @param beacon   Pointer to received beacon data
+ * @param rx_time_us  Hardware timestamp when beacon was received
+ */
+static void espnow_beacon_recv_callback(const time_sync_beacon_t *beacon, uint64_t rx_time_us)
+{
+    // Queue beacon to time_sync_task with ESP-NOW transport marker
+    esp_err_t err = time_sync_task_send_beacon(beacon, rx_time_us, BEACON_TRANSPORT_ESPNOW);
+
+    if (err == ESP_OK) {
+        ESP_LOGD(TAG, "AD048: ESP-NOW beacon queued (seq=%u, rx=%llu μs)",
+                 beacon->sequence, rx_time_us);
+    } else {
+        // Queue full or other error - beacon dropped (not critical, next one will arrive)
+        ESP_LOGW(TAG, "AD048: Failed to queue ESP-NOW beacon: %s", esp_err_to_name(err));
+    }
+}
+
+/**
+ * @brief ESP-NOW coordination message receive callback
+ *
+ * Receives time-critical coordination messages (PTP handshake, asymmetry probes)
+ * via ESP-NOW instead of BLE for sub-ms latency.
+ *
+ * Called from WiFi task context - keep it fast!
+ *
+ * @param data       Raw coordination message bytes
+ * @param len        Length of message data
+ * @param rx_time_us Hardware timestamp when message was received
+ */
+static void espnow_coordination_recv_callback(const uint8_t *data, size_t len, uint64_t rx_time_us)
+{
+    // Validate message size
+    if (len != sizeof(coordination_message_t)) {
+        ESP_LOGW(TAG, "AD048: Invalid coordination message size: %zu (expected %zu)",
+                 len, sizeof(coordination_message_t));
+        return;
+    }
+
+    // Cast to coordination message
+    const coordination_message_t *coord = (const coordination_message_t *)data;
+
+    // Queue to time_sync_task for processing
+    esp_err_t err = time_sync_task_send_coordination(coord);
+
+    if (err == ESP_OK) {
+        ESP_LOGD(TAG, "AD048: ESP-NOW coordination msg queued (type=%d, rx=%llu μs)",
+                 coord->type, rx_time_us);
+    } else {
+        ESP_LOGW(TAG, "AD048: Failed to queue ESP-NOW coordination: %s", esp_err_to_name(err));
+    }
+
+    // Note: rx_time_us is available here for future timestamp injection if needed
+    // Currently, PTP messages carry their own timestamps in the payload
+    (void)rx_time_us;
 }
 
 /**
@@ -551,14 +768,13 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                          esp_err_to_name(reset_err));
             }
 
-            /* Trigger forced beacons for fast convergence (SERVER only)
-             * Send 3 immediate beacons at 500ms intervals to help CLIENT
-             * filter adapt quickly to the new motor epoch timing */
-            esp_err_t beacon_err = time_sync_trigger_forced_beacons();
-            if (beacon_err != ESP_OK) {
-                /* This is expected on CLIENT (not an error) */
-                ESP_LOGD(TAG, "Forced beacons not triggered (CLIENT role or not initialized)");
-            }
+            /* UTLP Refactor: Mode-change beacons REMOVED
+             *
+             * Mode changes deliver epoch via SYNC_MSG_MOTOR_STARTED message,
+             * not via forced beacons. Time layer handles timing on fixed schedule.
+             *
+             * See: UTLP architecture - time handles time, application handles application.
+             */
             break;
         }
 
@@ -756,20 +972,10 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             if (err == ESP_OK) {
                 ESP_LOGI(TAG, "TIME_RESPONSE sent: T1=%llu, T2=%llu, T3=%llu, epoch=%llu, cycle=%lu",
                          t1_client_send, t2_server_recv, t3_server_send, motor_epoch, motor_cycle);
-
-                /* Phase 6t: Trigger forced beacon burst for fast lock acquisition
-                 * Send 5 beacons at 200ms intervals to enable lock in ~1 second
-                 * (vs 5+ seconds with normal beacon interval)
-                 *
-                 * Research basis: IEEE/Bluetooth SIG papers show 50-100ms lock
-                 * achievable for biomedical BLE sensors with rapid beacon bursts.
+                /* UTLP Refactor: Beacon burst REMOVED
+                 * Time sync now relies on fixed-interval beacons, not event-triggered bursts.
+                 * Handshake provides epoch via TIME_RESPONSE.motor_epoch_us field.
                  */
-                esp_err_t beacon_err = time_sync_trigger_forced_beacons();
-                if (beacon_err == ESP_OK) {
-                    ESP_LOGI(TAG, "Fast lock beacon burst triggered (5 beacons @ 200ms intervals)");
-                } else {
-                    ESP_LOGW(TAG, "Failed to trigger beacon burst: %s", esp_err_to_name(beacon_err));
-                }
             } else {
                 ESP_LOGW(TAG, "Failed to send TIME_RESPONSE: %s", esp_err_to_name(err));
             }
@@ -835,14 +1041,15 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             ESP_LOGI(TAG, "CLIENT: Mode change proposal received (mode=%s, server_epoch=%llu, client_epoch=%llu)",
                      modes[proposal->new_mode].name, proposal->server_epoch_us, proposal->client_epoch_us);
 
-            // Validate that epochs are in the future
-            uint64_t current_time_us;
-            if (time_sync_get_time(&current_time_us) != ESP_OK) {
-                ESP_LOGW(TAG, "CLIENT: Cannot validate proposal - time sync not available");
-                break;
-            }
+            // Validate that epochs are in the future (if time sync is available)
+            uint64_t current_time_us = 0;
+            bool time_sync_available = (time_sync_get_time(&current_time_us) == ESP_OK);
 
-            if (proposal->client_epoch_us <= current_time_us) {
+            if (!time_sync_available) {
+                // Time sync not ready yet - accept proposal without validation
+                // This can happen when ESP-NOW delivers message before initialization completes
+                ESP_LOGW(TAG, "CLIENT: Time sync not available - accepting proposal without validation");
+            } else if (proposal->client_epoch_us <= current_time_us) {
                 ESP_LOGW(TAG, "CLIENT: Proposal rejected - epoch already passed (current=%llu, client_epoch=%llu)",
                          current_time_us, proposal->client_epoch_us);
                 break;
@@ -1044,22 +1251,42 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                      (unsigned long long)t2_prime_us);
 
             // Send response with T2', T3' - T3' recorded right before BLE send
-            uint64_t t3_prime_us = esp_timer_get_time();  // T3': As close to BLE send as possible
+            // Bug #39: Added retry logic for ESP-NOW send failures
+            #define REV_PROBE_RESP_MAX_RETRIES 3
+            #define REV_PROBE_RESP_RETRY_DELAY_MS 5
 
-            coordination_message_t response = {
-                .type = SYNC_MSG_REVERSE_PROBE_RESPONSE,
-                .timestamp_ms = (uint32_t)(t3_prime_us / 1000),
-                .payload.reverse_probe_response = {
-                    .client_send_time_us = probe->client_send_time_us,  // Echo T1'
-                    .server_recv_time_us = t2_prime_us,                 // T2'
-                    .server_send_time_us = t3_prime_us,                 // T3'
-                    .probe_sequence = probe->probe_sequence             // Echo sequence
+            esp_err_t send_err = ESP_FAIL;
+            uint64_t t3_prime_us = 0;
+
+            for (int retry = 0; retry < REV_PROBE_RESP_MAX_RETRIES && send_err != ESP_OK; retry++) {
+                if (retry > 0) {
+                    vTaskDelay(pdMS_TO_TICKS(REV_PROBE_RESP_RETRY_DELAY_MS));
                 }
-            };
 
-            esp_err_t err = ble_send_coordination_message(&response);
-            if (err != ESP_OK) {
-                ESP_LOGW(TAG, "[REV_PROBE] Failed to send response: %s", esp_err_to_name(err));
+                // T3': Record as close to BLE send as possible - EACH retry attempt
+                t3_prime_us = esp_timer_get_time();
+
+                coordination_message_t response = {
+                    .type = SYNC_MSG_REVERSE_PROBE_RESPONSE,
+                    .timestamp_ms = (uint32_t)(t3_prime_us / 1000),
+                    .payload.reverse_probe_response = {
+                        .client_send_time_us = probe->client_send_time_us,  // Echo T1'
+                        .server_recv_time_us = t2_prime_us,                 // T2'
+                        .server_send_time_us = t3_prime_us,                 // T3'
+                        .probe_sequence = probe->probe_sequence             // Echo sequence
+                    }
+                };
+
+                send_err = ble_send_coordination_message(&response);
+            }
+
+            if (send_err == ESP_OK) {
+                ESP_LOGI(TAG, "[REV_PROBE] Response sent seq=%lu T3'=%llu",
+                         (unsigned long)probe->probe_sequence,
+                         (unsigned long long)t3_prime_us);
+            } else {
+                ESP_LOGW(TAG, "[REV_PROBE] Response failed after %d retries: %s",
+                         REV_PROBE_RESP_MAX_RETRIES, esp_err_to_name(send_err));
             }
             break;
         }
@@ -1168,11 +1395,160 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 ESP_LOGW(TAG, "  Local: v%d.%d.%d built %s %s",
                          local_version.major, local_version.minor, local_version.patch,
                          local_version.build_date, local_version.build_time);
-                // Show yellow warning pattern - connection allowed but versions differ
+
+                // AD040: Enforce version matching if enabled
+                // Note: firmware_versions_match() already checked both check_enabled flags
+                // If we got here with !match, enforcement is requested
+                ESP_LOGE(TAG, "AD040: Version mismatch - rejecting peer, will resume scanning");
                 status_led_pattern(STATUS_PATTERN_VERSION_MISMATCH);
+
+                // Disconnect immediately - BLE_TASK will see version mismatch and resume scanning
+                ble_disconnect_peer(BLE_DISCONNECT_REASON_USER);
             }
             // Note: Do NOT respond here - both sides send once after GATT discovery.
             // Responding would cause an infinite ping-pong loop.
+            break;
+        }
+
+        case SYNC_MSG_HARDWARE_INFO: {
+            // AD048: Peer sent their hardware info (silicon revision, FTM capability)
+            const hardware_info_t *peer_hw = &coord->payload.hardware_info;
+
+            // Store for BLE characteristic reads
+            ble_set_peer_hardware_info(peer_hw->info_str);
+
+            ESP_LOGI(TAG, "AD048: Peer hardware: %s", peer_hw->info_str);
+
+            // Note: Do NOT respond here - both sides send once after GATT discovery.
+            break;
+        }
+
+        case SYNC_MSG_WIFI_MAC: {
+            // AD048: Peer sent their WiFi MAC for ESP-NOW transport
+            // LTK-based key derivation: Both devices derive independently after pairing
+            const wifi_mac_payload_t *wifi_mac = &coord->payload.wifi_mac;
+
+            ESP_LOGI(TAG, "AD048: Received peer WiFi MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+                     wifi_mac->mac[0], wifi_mac->mac[1], wifi_mac->mac[2],
+                     wifi_mac->mac[3], wifi_mac->mac[4], wifi_mac->mac[5]);
+
+            // Store peer MAC for key derivation
+            memcpy(peer_wifi_mac, wifi_mac->mac, 6);
+            peer_wifi_mac_received = true;
+
+            // LTK-based derivation: Both SERVER and CLIENT derive independently
+            // after BLE pairing completes. No message exchange needed.
+            ESP_LOGI(TAG, "AD048: %s initiating LTK-based key derivation",
+                     TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
+
+            // Get our own WiFi MAC
+            uint8_t local_mac[6];
+            esp_err_t err = espnow_transport_get_local_mac(local_mac);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "AD048: Failed to get local WiFi MAC: %s", esp_err_to_name(err));
+                break;
+            }
+
+            // Retrieve LTK from BLE bond store (captured during pairing)
+            uint8_t ltk[16];
+            err = ble_get_peer_ltk(ltk);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "AD048: LTK not available (pairing may not be complete)");
+                // Configure unencrypted peer as fallback
+                err = espnow_transport_set_peer(wifi_mac->mac);
+                if (err == ESP_OK) {
+                    ESP_LOGI(TAG, "AD048: Configured unencrypted ESP-NOW peer (LTK unavailable)");
+                }
+                break;
+            }
+
+            // Derive LMK using HKDF: LTK || server_mac || client_mac
+            // Server MAC is always first for consistent ordering on both devices
+            uint8_t lmk[ESPNOW_KEY_SIZE];
+            if (TIME_SYNC_IS_SERVER()) {
+                // SERVER: local_mac is server_mac, peer_wifi_mac is client_mac
+                err = espnow_transport_derive_key_from_ltk(
+                    ltk,              // LTK provides 128-bit entropy
+                    local_mac,        // SERVER MAC (this device)
+                    peer_wifi_mac,    // CLIENT MAC (peer device)
+                    lmk
+                );
+            } else {
+                // CLIENT: peer_wifi_mac is server_mac, local_mac is client_mac
+                err = espnow_transport_derive_key_from_ltk(
+                    ltk,              // LTK provides 128-bit entropy
+                    peer_wifi_mac,    // SERVER MAC (peer device)
+                    local_mac,        // CLIENT MAC (this device)
+                    lmk
+                );
+            }
+
+            // Clear LTK from RAM immediately after use
+            memset(ltk, 0, sizeof(ltk));
+
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "AD048: HKDF key derivation failed: %s", esp_err_to_name(err));
+                break;
+            }
+
+            // Configure encrypted ESP-NOW peer
+            err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
+
+            // Clear LMK from RAM
+            memset(lmk, 0, sizeof(lmk));
+
+            if (err == ESP_OK) {
+                ESP_LOGI(TAG, "AD048: %s configured encrypted ESP-NOW peer (LTK-derived)",
+                         TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
+                espnow_key_exchange_complete = true;
+            } else {
+                ESP_LOGE(TAG, "AD048: Failed to configure encrypted peer: %s", esp_err_to_name(err));
+            }
+            break;
+        }
+
+        case SYNC_MSG_ESPNOW_KEY_EXCHANGE: {
+            // DEPRECATED: Nonce-based key exchange (legacy, kept for backwards compatibility)
+            // New firmware uses LTK-based derivation in SYNC_MSG_WIFI_MAC handler above
+            ESP_LOGW(TAG, "AD048: Received legacy ESPNOW_KEY_EXCHANGE (deprecated - using LTK-based derivation)");
+            // Ignore - key was already derived using LTK when WIFI_MAC was received
+            break;
+        }
+
+        // SYNC_MSG_PHASE_QUERY and SYNC_MSG_PHASE_RESPONSE: REMOVED (v0.7.14)
+        // Phase Query was diagnostic-only and used a stale RTT value. The asymmetry
+        // correction via REV_PROBE is the actual fix for phase coherency issues.
+
+        case SYNC_MSG_PATTERN_CHANGE: {
+            // AD047: Handle pattern selection sync from SERVER (peer relay)
+            const pattern_sync_t *ps = &coord->payload.pattern_sync;
+
+            ESP_LOGI(TAG, "Pattern sync received: cmd=%d, start_time=%llu",
+                     ps->control_cmd, (unsigned long long)ps->start_time_us);
+
+            // Execute pattern command (same logic as BLE Pattern Control)
+            if (ps->control_cmd == 0) {
+                // Stop pattern
+                pattern_stop();
+                ESP_LOGI(TAG, "Pattern stopped via sync");
+            } else if (ps->control_cmd == 1) {
+                // Start current pattern
+                pattern_start(ps->start_time_us);
+                ESP_LOGI(TAG, "Pattern started via sync");
+            } else if (ps->control_cmd >= 2 && ps->control_cmd <= BUILTIN_PATTERN_COUNT) {
+                // Load and start builtin pattern (BLE cmd 2→enum 1, cmd 3→enum 2, etc.)
+                // Uses BUILTIN_PATTERN_COUNT as single source of truth for valid range
+                builtin_pattern_id_t pattern_id = (builtin_pattern_id_t)(ps->control_cmd - 1);
+                if (pattern_id < BUILTIN_PATTERN_COUNT) {
+                    pattern_load_builtin(pattern_id);
+                    pattern_start(ps->start_time_us);
+                    ESP_LOGI(TAG, "Pattern %d loaded and started via sync", pattern_id);
+                } else {
+                    ESP_LOGW(TAG, "Invalid pattern ID: %d", pattern_id);
+                }
+            } else {
+                ESP_LOGW(TAG, "Unknown pattern control command: %d", ps->control_cmd);
+            }
             break;
         }
 
@@ -1245,6 +1621,10 @@ static void perform_periodic_update(void)
 
         // Note: BEMF logging now uses independent 60s timer in motor_task (not beacon-triggered)
     }
+
+    // Phase Query: REMOVED (v0.7.14)
+    // Phase Query was diagnostic-only and used a stale RTT value (from initial handshake).
+    // The asymmetry correction via REV_PROBE is the actual fix for phase coherency.
 }
 
 /*******************************************************************************

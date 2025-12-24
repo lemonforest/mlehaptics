@@ -55,3 +55,6 @@ temp_*.c
 
 # serial logs
 serial_log*.txt
+
+# freecad backup
+*.FCBak

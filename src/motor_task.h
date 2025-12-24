@@ -92,6 +92,7 @@ extern "C" {
  *
  * Modes 0-3 are predefined EMDR patterns (bilateral alternation frequencies)
  * Mode 4 (MODE_CUSTOM) is configurable via BLE GATT characteristics
+ * Mode 5 (MODE_PATTERN) uses pattern playback for lightbar showcase
  *
  * NOTE: Frequencies refer to BILATERAL alternation rate (dual-device mode)
  * - "1.0Hz" = 1 complete left-right alternation per second
@@ -103,8 +104,16 @@ typedef enum {
     MODE_15HZ_25,     /**< 1.5Hz bilateral @ 25% duty (167ms ON, 500ms coast) */
     MODE_2HZ_25,      /**< 2.0Hz bilateral @ 25% duty (125ms ON, 375ms coast) */
     MODE_CUSTOM,      /**< Mode 4: Custom frequency/duty (BLE configurable) */
+    MODE_PATTERN,     /**< Mode 5: Pattern playback (lightbar showcase, AD047) */
     MODE_COUNT        /**< Total number of modes */
 } mode_t;
+
+/**
+ * @brief Check if mode uses pattern playback
+ * @param mode Mode to check
+ * @return true if mode uses pattern_execute_tick(), false for reactive timing
+ */
+#define MODE_IS_PATTERN(mode) ((mode) >= MODE_PATTERN)
 
 /**
  * @brief Mode configuration structure

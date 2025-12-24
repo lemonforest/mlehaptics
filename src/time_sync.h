@@ -85,10 +85,36 @@ extern "C" {
 #define TIME_SYNC_MIN_ASYMMETRY_SAMPLES (3U)    // Need 3 valid samples for reliable EMA
 
 /** @brief Maximum RTT for asymmetry sample to be valid (microseconds) */
-#define TIME_SYNC_ASYMMETRY_RTT_MAX_US  (80000U) // 80ms - reject congested samples
+#define TIME_SYNC_ASYMMETRY_RTT_MAX_US  (250000U) // 250ms - BLE GATT RTT is 100-200ms typical
 
 /** @brief Sync interval step size for exponential backoff */
 #define TIME_SYNC_INTERVAL_STEP_MS  (10000U)    // 10 second increments
+
+// ============================================================================
+// TDM TECH SPIKE - Results (December 2025)
+// ============================================================================
+//
+// FINDINGS: BLE stack has consistent ~74ms latency bias with occasional outliers
+//
+// Measured jitter with fixed 1000ms beacon interval (n=790+ samples):
+//   - Mean:   ~74 ms late - CONSISTENT (converges as samples increase)
+//   - Stddev: ~150 ms - inflated by outliers
+//   - Min:    -50 ms (rare early packet)
+//   - Max:    1.05 seconds late (occasional massive delay)
+//
+// KEY INSIGHT: Mean is stable! The high stddev is from rare outliers.
+// If 95% of packets are within ±30ms of the 74ms mean, TDM could work with:
+//   1. Bias compensation: Expect beacon at T + 1000ms + 74ms = 1074ms
+//   2. Outlier filtering: Reject packets outside ±100ms window
+//   3. Graceful degradation: Fall back to Phase Query when outliers detected
+//
+// CURRENT STATUS: Disabled pending outlier analysis
+// TODO: Add histogram tracking to measure actual distribution
+//
+#define TDM_TECH_SPIKE_ENABLED      (0U)        // Disabled - needs outlier filtering
+
+/** @brief TDM fixed beacon interval - kept for code compilation */
+#define TDM_INTERVAL_MS             (1000U)     // Unused when disabled
 
 /** @brief Drift threshold for resync (microseconds) */
 #define TIME_SYNC_DRIFT_THRESHOLD_US (50000U)   // 50ms (half of ±100ms spec)
@@ -138,6 +164,37 @@ extern "C" {
 #define TIME_FILTER_CONVERGENCE_THRESHOLD_US (50U)  // 50µs stability over 4 beacons
 
 /*******************************************************************************
+ * UTLP PHASE 1: MDPS + KALMAN FILTER CONSTANTS (UTLP_Technical_Supplement_S1)
+ ******************************************************************************/
+
+/** @brief MDPS: Ring buffer size for RTT history (must be power of 2 for efficiency) */
+#define MDPS_RING_SIZE          (16U)
+
+/** @brief MDPS: Percentile for minimum delay selection (10th percentile = position 1-2 of 16) */
+#define MDPS_PERCENTILE_IDX     (1U)    // Use 2nd lowest RTT (10th percentile of 16 samples)
+
+/** @brief MDPS: Minimum samples before MDPS is active (use EMA until then) */
+#define MDPS_MIN_SAMPLES        (4U)
+
+/** @brief Kalman: Process noise for offset (microseconds^2 per second) */
+#define KALMAN_Q_OFFSET         (100.0f)    // 10 µs/s standard deviation
+
+/** @brief Kalman: Process noise for drift rate (ppm^2 per second) */
+#define KALMAN_Q_DRIFT          (0.01f)     // 0.1 ppm/s standard deviation
+
+/** @brief Kalman: Initial measurement noise (microseconds^2) - conservative */
+#define KALMAN_R_INITIAL        (10000.0f)  // 100 µs standard deviation initially
+
+/** @brief Kalman: Minimum measurement noise (microseconds^2) */
+#define KALMAN_R_MIN            (100.0f)    // 10 µs floor
+
+/** @brief Kalman: Initial covariance for offset (microseconds^2) */
+#define KALMAN_P_OFFSET_INIT    (1000000.0f) // 1000 µs uncertainty initially
+
+/** @brief Kalman: Initial covariance for drift (ppm^2) */
+#define KALMAN_P_DRIFT_INIT     (1.0f)      // 1 ppm uncertainty initially
+
+/*******************************************************************************
  * TYPE DEFINITIONS
  ******************************************************************************/
 
@@ -145,13 +202,59 @@ extern "C" {
  * @brief Phase 6r: Time sample for ring buffer (AD043)
  *
  * Stores individual beacon measurements for debugging and outlier detection.
+ * UTLP Phase 1: Added RTT for MDPS minimum delay selection.
  */
 typedef struct {
     int64_t  raw_offset_us;      /**< Raw offset measurement (rx_time - server_time) */
     uint64_t timestamp_us;       /**< When this sample was taken */
+    uint32_t rtt_us;             /**< Round-trip time for this sample (UTLP MDPS) */
     uint8_t  sequence;           /**< Beacon sequence number */
     bool     outlier;            /**< True if rejected as outlier (>200ms deviation) */
 } time_sample_t;
+
+/**
+ * @brief UTLP Phase 1: Two-State Kalman Filter (offset + drift)
+ *
+ * Joint estimation of clock offset and drift rate per UTLP_Technical_Supplement_S1.
+ * State vector: [offset_us, drift_ppm]
+ * Covariance matrix: 2x2 (P[0][0]=offset variance, P[1][1]=drift variance)
+ *
+ * JPL Rule 1: Static allocation, no dynamic memory.
+ */
+typedef struct {
+    /* State estimates */
+    float offset_us;             /**< Estimated clock offset (microseconds) */
+    float drift_ppm;             /**< Estimated drift rate (parts per million) */
+
+    /* 2x2 Covariance matrix (symmetric, store upper triangle) */
+    float P[2][2];               /**< P[0][0]=offset var, P[1][1]=drift var, P[0][1]=cross */
+
+    /* Measurement noise (adaptive based on RTT variance) */
+    float R;                     /**< Current measurement noise variance (µs²) */
+
+    /* Timing for prediction step */
+    uint64_t last_update_us;     /**< Timestamp of last Kalman update */
+
+    /* Status */
+    bool initialized;            /**< True after first measurement */
+} kalman_state_t;
+
+/**
+ * @brief UTLP Phase 1: MDPS (Minimum Delay Packet Selection) state
+ *
+ * Maintains sorted RTT history to select 10th percentile samples.
+ * Per UTLP spec, minimum-delay packets have least queueing delay,
+ * giving most accurate offset measurements.
+ *
+ * JPL Rule 1: Fixed-size ring buffer, no dynamic allocation.
+ */
+typedef struct {
+    uint32_t rtt_history[MDPS_RING_SIZE];  /**< Ring buffer of RTT values */
+    int64_t  offset_history[MDPS_RING_SIZE]; /**< Corresponding offset values */
+    uint8_t  head;                          /**< Next write index */
+    uint8_t  count;                         /**< Number of valid samples (0-16) */
+    uint32_t min_rtt_us;                    /**< Current 10th percentile RTT */
+} mdps_state_t;
 
 /**
  * @brief Phase 6r: EMA filter state (AD043 - Filtered Time Sync)
@@ -278,6 +381,10 @@ typedef struct {
     int64_t  asymmetry_us;           /**< EMA-filtered path asymmetry (fwd + rev offset) */
     uint32_t asymmetry_sample_count; /**< Number of valid asymmetry samples received */
     bool     asymmetry_valid;        /**< True after MIN_ASYMMETRY_SAMPLES collected */
+
+    /* UTLP Phase 1: MDPS + Kalman Filter (UTLP_Technical_Supplement_S1) */
+    mdps_state_t   mdps;             /**< Minimum Delay Packet Selection state */
+    kalman_state_t kalman;           /**< Two-state Kalman filter (offset + drift) */
 } time_sync_state_t;
 
 /**
@@ -308,6 +415,60 @@ typedef struct __attribute__((packed)) {
     uint8_t  sequence;               /**< Sequence number (for ordering) */
     uint16_t checksum;               /**< CRC-16 for integrity */
 } time_sync_beacon_t;
+
+/*******************************************************************************
+ * UTLP INTEGRATION STRUCTURES (AD047)
+ ******************************************************************************/
+
+/** @brief UTLP magic bytes for beacon v2 detection */
+#define UTLP_MAGIC_BYTE_0       (0xFEU)
+#define UTLP_MAGIC_BYTE_1       (0xFEU)
+
+/** @brief UTLP stratum values */
+#define UTLP_STRATUM_GPS        (0U)    /**< GPS/atomic time source */
+#define UTLP_STRATUM_PHONE      (1U)    /**< Phone network time (cellular/NTP) */
+#define UTLP_STRATUM_PEER_1     (2U)    /**< One hop from phone */
+#define UTLP_STRATUM_PEER_ONLY  (255U)  /**< No external time source */
+
+/**
+ * @brief UTLP-enhanced time sync beacon (v2)
+ *
+ * Extends time_sync_beacon_t with UTLP stratum and quality fields for:
+ * - Time source hierarchy (GPS > phone > peer)
+ * - Battery-based quality metric (Swarm Rule for leader election)
+ *
+ * Backward compatibility: v1 beacons start with server_time_us (8 bytes).
+ * v2 beacons start with magic bytes 0xFE, 0xFE - detect by checking first 2 bytes.
+ *
+ * @see docs/UTLP_Specification.md
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  magic[2];               /**< UTLP identifier: 0xFE, 0xFE */
+    uint8_t  stratum;                /**< Time source stratum (0=GPS, 1=phone, 255=peer-only) */
+    uint8_t  quality;                /**< Battery level 0-100 (Swarm Rule) */
+    uint64_t server_time_us;         /**< SERVER's current time (microseconds) */
+    uint64_t motor_epoch_us;         /**< Pattern start time */
+    uint32_t motor_cycle_ms;         /**< Pattern period */
+    uint8_t  mode_id;                /**< Mode identifier (0-6) */
+    uint8_t  sequence;               /**< Sequence number (for ordering) */
+    uint16_t checksum;               /**< CRC-16 for integrity */
+} time_sync_beacon_v2_t;             /**< 29 bytes total */
+
+/**
+ * @brief PWA time injection structure
+ *
+ * Allows PWA to inject GPS/cellular time into devices for improved sync accuracy.
+ * The device ALWAYS adopts this time (no stratum comparison) because we only need
+ * devices to agree on "when seconds change", not absolute UTC correctness.
+ *
+ * @see docs/bilateral_pattern_playback_architecture.md
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  stratum;                /**< Source stratum: 0=GPS, 1=network time */
+    uint8_t  quality;                /**< Signal quality 0-100 (GPS accuracy indicator) */
+    uint64_t utc_time_us;            /**< Microseconds since Unix epoch (1970-01-01) */
+    int32_t  uncertainty_us;         /**< Estimated uncertainty (± microseconds) */
+} pwa_time_inject_t;                 /**< 14 bytes total */
 
 /*******************************************************************************
  * PUBLIC API FUNCTIONS
@@ -667,6 +828,68 @@ esp_err_t time_sync_set_motor_epoch(uint64_t epoch_us, uint32_t cycle_ms);
 esp_err_t time_sync_get_motor_epoch(uint64_t *epoch_us, uint32_t *cycle_ms);
 
 /*******************************************************************************
+ * PWA TIME INJECTION API (AD047 - UTLP Integration)
+ ******************************************************************************/
+
+/**
+ * @brief Inject external time reference from PWA
+ *
+ * Allows PWA to provide GPS or cellular network time to improve device sync.
+ * The device ALWAYS adopts this time regardless of current stratum - we don't
+ * care about absolute UTC correctness, only that devices agree on "when seconds
+ * change".
+ *
+ * @par Time Adoption Philosophy
+ * Traditional NTP rejects time jumps to prevent security issues. Our use case
+ * is different:
+ * - We need bilateral sync, not wall-clock accuracy
+ * - Rejecting "worse" time could lock us to spoofed high timestamps
+ * - Always accepting allows recovery from any state
+ *
+ * @par When to Call
+ * PWA should inject time:
+ * - At session start (before pattern playback begins)
+ * - After GPS fix obtained on mobile device
+ * - Periodically if high-precision sync is required
+ *
+ * @param[in] inject Pointer to time injection structure
+ * @return ESP_OK on success, time adopted
+ * @return ESP_ERR_INVALID_ARG if inject is NULL
+ * @return ESP_ERR_INVALID_STATE if module not initialized
+ *
+ * @see pwa_time_inject_t for structure details
+ * @see docs/bilateral_pattern_playback_architecture.md
+ */
+esp_err_t time_sync_inject_pwa_time(const pwa_time_inject_t *inject);
+
+/**
+ * @brief Get current UTLP stratum level
+ *
+ * Returns the current time source stratum:
+ * - 0: GPS time (highest quality)
+ * - 1: Phone/cellular time (from PWA injection)
+ * - 2+: Peer-derived time (each hop increments)
+ * - 255: No external time source (peer-only sync)
+ *
+ * @return Current stratum value
+ */
+uint8_t time_sync_get_stratum(void);
+
+/**
+ * @brief Get current UTLP quality value
+ *
+ * Returns battery percentage as quality metric (Swarm Rule).
+ * Higher quality devices are preferred as time sources.
+ *
+ * @note Named `utlp_quality` to avoid conflict with existing
+ *       `time_sync_get_quality(time_sync_quality_t*)` which returns
+ *       sync accuracy metrics.
+ *
+ * @return Quality value 0-100 (battery percentage)
+ */
+uint8_t time_sync_get_utlp_quality(void);
+
+/*******************************************************************************
  * NTP-STYLE HANDSHAKE API (Phase 6k - Precision Bootstrap)
  ******************************************************************************/
 
@@ -746,18 +969,10 @@ esp_err_t time_sync_process_handshake_response(uint64_t t1_us, uint64_t t2_us,
  */
 esp_err_t time_sync_set_motor_epoch_from_handshake(uint64_t epoch_us, uint32_t cycle_ms);
 
-/**
- * @brief Trigger forced beacons for fast convergence (SERVER only)
- *
- * Forces 3 immediate beacons at 500ms intervals for fast time sync convergence
- * after mode changes. After 3 beacons, returns to adaptive interval.
- *
- * Call this on SERVER when mode changes to help CLIENT filter adapt quickly.
- *
- * @return ESP_OK on success
- * @return ESP_ERR_INVALID_STATE if not initialized or not SERVER role
+/* REMOVED: time_sync_trigger_forced_beacons() - UTLP Refactor
+ * Mode-change beacons eliminated. Epoch delivery via SYNC_MSG_MOTOR_STARTED.
+ * Time layer handles beacons on fixed schedule, not application events.
  */
-esp_err_t time_sync_trigger_forced_beacons(void);
 
 /**
  * @brief Reset EMA filter to fast-attack mode (for mode changes)
@@ -848,9 +1063,17 @@ esp_err_t time_sync_update_from_paired_timestamps(
 /** @brief Check if time sync is initialized */
 #define TIME_SYNC_IS_INITIALIZED() (time_sync_get_state() != SYNC_STATE_INIT)
 
-/** @brief Check if time sync is active (connected and synced) */
+/** @brief Check if time sync is active (synced, drift detected, or disconnected with valid epoch)
+ *
+ * Bug #105 / Phase 6r: Include SYNC_STATE_DISCONNECTED because:
+ * - Motor epoch and drift rate are PRESERVED during disconnect
+ * - ESP-NOW beacons continue flowing (not dependent on BLE peer)
+ * - Coordination should continue during brief BLE disconnects
+ * - This enables mode change coordination after BLE peer disconnect
+ */
 #define TIME_SYNC_IS_ACTIVE() ((time_sync_get_state() == SYNC_STATE_SYNCED) || \
-                                (time_sync_get_state() == SYNC_STATE_DRIFT_DETECTED))
+                                (time_sync_get_state() == SYNC_STATE_DRIFT_DETECTED) || \
+                                (time_sync_get_state() == SYNC_STATE_DISCONNECTED))
 
 /** @brief Check if device is SERVER */
 #define TIME_SYNC_IS_SERVER() (time_sync_get_role() == TIME_SYNC_ROLE_SERVER)

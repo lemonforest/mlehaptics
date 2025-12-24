@@ -71,6 +71,11 @@ esp_err_t role_manager_deinit(void) {
 
 device_role_t role_determine_by_battery(uint8_t local_battery, uint8_t peer_battery,
                                          const uint8_t local_mac[6], const uint8_t peer_mac[6]) {
+    // Bug #104: NULL guard for mutex (prevents crash if role_manager_init() not called)
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "role_determine_by_battery: mutex is NULL - role_manager_init() not called?");
+        return ROLE_UNDETERMINED;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in role_determine_by_battery - possible deadlock");
@@ -114,6 +119,11 @@ device_role_t role_determine_by_battery(uint8_t local_battery, uint8_t peer_batt
 }
 
 device_role_t role_get_current(void) {
+    // Bug #104: NULL guard for mutex (prevents crash if role_manager_init() not called)
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "role_get_current: mutex is NULL - role_manager_init() not called?");
+        return ROLE_UNDETERMINED;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in role_get_current - possible deadlock");
@@ -125,6 +135,11 @@ device_role_t role_get_current(void) {
 }
 
 esp_err_t role_set(device_role_t role) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "role_set: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in role_set - possible deadlock");
@@ -143,6 +158,11 @@ esp_err_t role_set(device_role_t role) {
 
 bool role_should_become_server(uint32_t disconnect_duration_ms) {
     if (disconnect_duration_ms >= ROLE_SURVIVOR_TIMEOUT_MS) {
+        // Bug #104: NULL guard for mutex
+        if (g_state_mutex == NULL) {
+            ESP_LOGE(TAG, "role_should_become_server: mutex is NULL");
+            return false;
+        }
         // JPL compliance: Bounded mutex wait with timeout error handling
         if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
             ESP_LOGE(TAG, "Mutex timeout in role_should_become_server - possible deadlock");
@@ -169,6 +189,11 @@ esp_err_t fallback_start(const fallback_state_t *established_params) {
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "fallback_start: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in fallback_start - possible deadlock");
@@ -199,6 +224,11 @@ esp_err_t fallback_start(const fallback_state_t *established_params) {
 }
 
 fallback_phase_t fallback_update_phase(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "fallback_update_phase: mutex is NULL");
+        return FALLBACK_NONE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in fallback_update_phase - possible deadlock");
@@ -233,6 +263,11 @@ fallback_phase_t fallback_update_phase(void) {
 }
 
 fallback_phase_t fallback_get_phase(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "fallback_get_phase: mutex is NULL");
+        return FALLBACK_NONE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in fallback_get_phase - possible deadlock");
@@ -249,6 +284,11 @@ const fallback_state_t* fallback_get_state(void) {
 }
 
 esp_err_t fallback_stop(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "fallback_stop: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in fallback_stop - possible deadlock");
@@ -266,6 +306,11 @@ esp_err_t fallback_stop(void) {
 }
 
 bool fallback_should_reconnect(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "fallback_should_reconnect: mutex is NULL");
+        return false;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in fallback_should_reconnect - possible deadlock");
@@ -287,6 +332,11 @@ bool fallback_should_reconnect(void) {
 }
 
 void fallback_mark_reconnect_attempt(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "fallback_mark_reconnect_attempt: mutex is NULL");
+        return;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in fallback_mark_reconnect_attempt - possible deadlock");
@@ -302,6 +352,11 @@ void fallback_mark_reconnect_attempt(void) {
 // ============================================================================
 
 esp_err_t connection_state_set(connection_state_t state) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "connection_state_set: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in connection_state_set - possible deadlock");
@@ -320,6 +375,11 @@ esp_err_t connection_state_set(connection_state_t state) {
 }
 
 connection_state_t connection_state_get(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "connection_state_get: mutex is NULL");
+        return CONN_STATE_IDLE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in connection_state_get - possible deadlock");
@@ -339,6 +399,11 @@ bool connection_is_active(void) {
 // ============================================================================
 
 esp_err_t session_start(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "session_start: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in session_start - possible deadlock");
@@ -355,6 +420,11 @@ esp_err_t session_start(void) {
 }
 
 bool session_should_end(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "session_should_end: mutex is NULL");
+        return false;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in session_should_end - possible deadlock");
@@ -382,6 +452,11 @@ bool session_should_end(void) {
 }
 
 uint32_t session_get_elapsed_ms(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "session_get_elapsed_ms: mutex is NULL");
+        return 0;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in session_get_elapsed_ms - possible deadlock");
@@ -399,6 +474,11 @@ uint32_t session_get_elapsed_ms(void) {
 }
 
 esp_err_t session_end(void) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "session_end: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in session_end - possible deadlock");
@@ -438,6 +518,11 @@ const char* fallback_phase_to_string(fallback_phase_t phase) {
 }
 
 void role_log_status(const char *tag) {
+    // Bug #104: NULL guard for mutex
+    if (g_state_mutex == NULL) {
+        ESP_LOGE(TAG, "role_log_status: mutex is NULL");
+        return;
+    }
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in role_log_status - possible deadlock");

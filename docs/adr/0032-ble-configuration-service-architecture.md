@@ -1,6 +1,6 @@
 # 0032: BLE Configuration Service Architecture
 
-**Date:** 2025-11-11 (Updated 2025-12-02: Added Firmware Version characteristics for version matching)
+**Date:** 2025-11-11 (Updated 2025-12-17: Added Time Beacon + Hardware Info characteristics for UTLP/AD048)
 **Phase:** Phase 1b
 **Status:** Approved
 **Type:** Architecture
@@ -60,13 +60,13 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - **XX byte** (service type): `01` = Bilateral Control (AD030), `02` = Configuration Service (AD032)
 - **YY byte** (characteristic ID): `00` = service UUID, `01-11` = characteristics
 
-### Characteristics (19 Total)
+### Characteristics (26 Total)
 
 **MOTOR CONTROL GROUP (8 characteristics):**
 
 | UUID | Name | Type | Access | Range/Values | Purpose |
 |------|------|------|--------|--------------|---------|
-| `...0201` | Mode | uint8 | R/W/Notify | 0-4 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM |
+| `...0201` | Mode | uint8 | R/W/Notify | 0-5 | MODE_05HZ_25, MODE_1HZ_25, MODE_15HZ_25, MODE_2HZ_25, MODE_CUSTOM, MODE_PATTERN* |
 | `...0202` | Custom Frequency | uint16 | R/W | 25-200 | Hz × 100 (0.25-2.0 Hz research range) |
 | `...0203` | Custom Duty Cycle | uint8 | R/W | 10-100% | Half-cycle duty (100% = entire half-cycle) |
 | `...0204` | Mode 4 PWM Intensity | uint8 | R/W | 0, 30-80% | Mode 4 (Custom) motor strength (0% = LED-only) |
@@ -74,6 +74,8 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 | `...020F` | Mode 1 PWM Intensity | uint8 | R/W | 50-80% | Mode 1 (1.0Hz) motor strength |
 | `...0210` | Mode 2 PWM Intensity | uint8 | R/W | 70-90% | Mode 2 (1.5Hz) motor strength |
 | `...0211` | Mode 3 PWM Intensity | uint8 | R/W | 70-90% | Mode 3 (2.0Hz) motor strength |
+
+*\*MODE_PATTERN (5): Experimental pattern playback mode. Not accessible via button cycling. PWA should hide behind "advanced features" toggle. See [Mode 5: Pattern Playback](#mode-5-pattern-playback-ad047---experimental) section below.*
 
 **LED CONTROL GROUP (5 characteristics):**
 
@@ -100,6 +102,154 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 |------|------|------|--------|--------------|---------|
 | `...0212` | Local Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Local device firmware version with build timestamp |
 | `...0213` | Peer Firmware Version | string(32) | R | "v0.6.47 (Dec 2 2025 15:30:45)" | Peer device firmware version (dual-device mode, empty if no peer) |
+
+**TIME SYNCHRONIZATION GROUP (1 characteristic) - AD047/UTLP:**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0214` | Time Beacon | struct(14) | W | See below | UTLP time beacon for opportunistic adoption |
+
+**Time Beacon Structure (14 bytes, packed):**
+```c
+typedef struct __attribute__((packed)) {
+    uint8_t  stratum;         // 0=GPS, 1=network/cellular, 2+=peer-derived, 255=no external source
+    uint8_t  quality;         // Signal quality 0-100 (GPS accuracy or battery for peers)
+    uint64_t utc_time_us;     // Microseconds since Unix epoch (1970-01-01)
+    int32_t  uncertainty_us;  // Estimated uncertainty (± microseconds)
+} time_beacon_t;              // 14 bytes
+```
+
+### Time Beacon UTLP Semantics
+
+**Philosophy: Passive Opportunistic Adoption**
+
+The Time Beacon characteristic implements UTLP (Universal Time Layer Protocol) semantics within our BLE channel:
+
+1. **Devices passively listen** - The characteristic is write-only; devices don't request time, they simply accept beacons when sources send them.
+
+2. **Sources broadcast opportunistically** - PWAs, phones, or any connected source with GPS/cellular time can write beacons periodically. From the source's perspective, it's "broadcasting" time into our closed BLE channel.
+
+3. **Stratum-based adoption** - Devices adopt time from lower stratum sources:
+   - Stratum 0: GPS time (atomic clock accuracy)
+   - Stratum 1: Phone/cellular network time
+   - Stratum 2+: Peer-derived time (each hop increments)
+   - Stratum 255: No external source (internal clock only)
+
+4. **Quality as tiebreaker** - When stratums are equal, higher quality wins (battery level for peers, signal strength for GPS).
+
+**Why "Beacon" not "Inject":**
+- "Inject" implies device-initiated request/response
+- "Beacon" emphasizes source-initiated broadcast semantics
+- Devices are passive listeners that opportunistically benefit from any time source
+
+**PWA Beacon Behavior:**
+```javascript
+// PWA broadcasts time beacons periodically while connected
+setInterval(async () => {
+    const gpsTime = await navigator.geolocation.getCurrentPosition();
+    const beacon = {
+        stratum: 0,  // GPS source
+        quality: 100,
+        utc_time_us: BigInt(gpsTime.timestamp) * 1000n,
+        uncertainty_us: 1000  // ±1ms typical GPS
+    };
+    await characteristic.writeValue(encodeBeacon(beacon));
+}, 1000);  // Every second
+```
+
+**Device Reception:**
+- Always adopts received time (no stratum comparison needed for single-source)
+- Updates internal stratum to match source
+- SERVER propagates to CLIENT via time sync beacon
+- Both devices now share GPS-quality synchronized time
+
+**Rationale: "Closed Channel Broadcast"**
+- BLE provides authenticated, encrypted channel (not open RF broadcast)
+- But semantics remain broadcast-style: sources send, devices listen
+- UTLP's opportunistic adoption works identically - just over BLE instead of WiFi/ESP-NOW
+
+**HARDWARE INFO GROUP (2 characteristics) - AD048:**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0215` | Local Hardware Info | string(48) | R | "ESP32-C6 v0.2 FTM:full" | Local device silicon revision and 802.11mc FTM capability |
+| `...0216` | Peer Hardware Info | string(48) | R | "ESP32-C6 v0.2 FTM:full" | Peer device hardware info (dual-device mode, empty if no peer) |
+
+**Hardware Info String Format:**
+```
+<model> v<major>.<minor> [FTM:full|FTM:resp]
+```
+
+**Examples:**
+- `"ESP32-C6 v0.2 FTM:full"` - Silicon revision v0.2+, 802.11mc FTM Initiator + Responder supported
+- `"ESP32-C6 v0.1 FTM:resp"` - Silicon revision v0.1, only FTM Responder (errata WIFI-9686)
+- `"ESP32-C3 v0.4"` - Non-C6 chip, no FTM capability
+
+**Purpose:**
+- PWA can discover 802.11mc FTM capability without terminal output
+- Enables adaptive transport layer decisions (ESP-NOW fallback threshold adjustment)
+- Silicon revision affects range/timing capabilities
+- Peer hardware info useful for diagnosing bilateral sync issues
+
+**Data Flow:**
+```
+LOCAL Device                                     PWA
+     |                                            |
+     |<-- GATT read (local_hardware_info) --------|
+     |                                            |
+     |-- "ESP32-C6 v0.2 FTM:full" --------------->|
+     |                                            |
+     |<-- GATT read (peer_hardware_info) ---------|
+     |                                            |
+     |-- "ESP32-C6 v0.2 FTM:full" --------------->|
+     |   (or "" if no peer connected)             |
+```
+
+**PATTERN CONTROL GROUP (4 characteristics) - AD047:**
+
+| UUID | Name | Type | Access | Range/Values | Purpose |
+|------|------|------|--------|--------------|---------|
+| `...0217` | Pattern Control | uint8 | W | 0-255 | 0=stop, 1=start, 2+=select builtin pattern ID |
+| `...0218` | Pattern Data | bytes | W | max 512 | Chunked transfer for custom patterns (future) |
+| `...0219` | Pattern Status | uint8 | R/Notify | 0-2 | 0=stopped, 1=playing, 2=error |
+| `...021A` | Pattern List | JSON | R | ~150 bytes | Array of available patterns with id, name, desc |
+
+**Pattern Control Commands:**
+```c
+// Write values to Pattern Control characteristic:
+// 0 = pattern_stop() - Stop current pattern
+// 1 = pattern_start(now) - Start/resume current pattern
+// 2 = pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING) + start  (green bilateral)
+// 3 = pattern_load_builtin(BUILTIN_PATTERN_EMERGENCY) + start    (red/blue wig-wag)
+// 4 = pattern_load_builtin(BUILTIN_PATTERN_BREATHE) + start      (cyan pulse)
+// 5+ = Reserved for additional builtin patterns
+```
+
+**Pattern List JSON Format:**
+```json
+[
+  {"id":2,"name":"Alternating","desc":"Green bilateral"},
+  {"id":3,"name":"Emergency","desc":"Red/blue wig-wag"},
+  {"id":4,"name":"Breathe","desc":"Cyan pulse"}
+]
+```
+- `id`: Pattern Control write value to load this pattern
+- `name`: Short display name for UI
+- `desc`: Brief description
+
+**Usage Flow:**
+1. PWA reads Pattern List (`0x021A`) on connection to discover available patterns
+2. PWA writes Mode=5 (`0x0201`) to enter pattern mode
+3. PWA writes Pattern Control=2 (`0x0217`) to load and start alternating pattern
+4. Device executes pattern via `pattern_execute_tick()`
+5. PWA can read Pattern Status (`0x0219`) to monitor playback
+6. PWA writes Pattern Control=0 to stop
+
+**Pattern Data (Future):**
+- Chunked transfer protocol for custom pattern segments
+- First byte = sequence number, remaining = payload
+- PWA sends complete pattern definition before starting
+- Not implemented in initial release (builtin patterns only)
 
 ### Per-Mode PWM Intensity Rationale
 
@@ -129,6 +279,61 @@ Implement comprehensive BLE Configuration Service using production UUIDs with lo
 - Higher frequencies maintain therapeutic effectiveness at shorter duty cycles
 - Each mode feels "right" out of the box
 - PWM tuning per-mode enables frequency-dependent perceptual compensation
+
+### Mode 5: Pattern Playback (AD047 - Experimental)
+
+**Mode 5 (`MODE_PATTERN`)** is a pattern playback mode designed for:
+- "Lightbar" visual showcase patterns (police light, emergency vehicle effects)
+- Pre-buffered bilateral patterns with microsecond-precision scheduling
+- Research into synchronized LED+motor sequences
+
+**Current Implementation Status:**
+- ✅ Pattern playback infrastructure implemented (`src/pattern_playback.c`)
+- ✅ Zone configuration (SERVER=RIGHT, CLIENT=LEFT)
+- ✅ 10ms tick-based execution via `vTaskDelay()`
+- ⏳ GPTimer ISR upgrade pending (Phase A6 - ±30μs precision for lightbar sync)
+
+**UI Gating Recommendation:**
+
+> **PWA Developers:** Mode 5 should be **hidden by default** in production PWA builds using your existing "advanced features" toggle. This ensures therapy test units used in clinical settings aren't interrupted by experimental pattern modes.
+>
+> Pattern mode is intended as a **development testbed** for validating synchronized bilateral playback before potentially expanding to therapy-specific patterns in future phases.
+
+**Why Mode 5 is Button-Gated:**
+```c
+// button_task.c - Mode cycling intentionally skips MODE_PATTERN
+case MODE_CUSTOM:   return MODE_05HZ_25;  // Wraps back, skips MODE_PATTERN
+```
+
+- Modes 0-4 are production therapy modes (validated, clinical-ready)
+- Mode 5 is accessible ONLY via BLE characteristic write (not button cycling)
+- This prevents accidental entry during therapy sessions
+- PWA can expose Mode 5 in developer/research builds
+
+**Pattern Mode Parameters:**
+- Pattern data loaded via separate BLE transfer (not Mode characteristic)
+- Mode 5 PWM intensity: Controlled per-segment in pattern data
+- LED colors: Controlled per-segment in pattern data (overrides LED settings)
+- Timing: Currently 10ms resolution, upgradeable to ±30μs with GPTimer
+
+**GPTimer Upgrade Path (Phase A6):**
+
+When lightbar-quality visual synchronization is needed (±30μs across devices), upgrade from `vTaskDelay()` to hardware GPTimer ISR:
+
+```ini
+# Required sdkconfig additions for microsecond precision:
+CONFIG_GPTIMER_ISR_HANDLER_IN_IRAM=y   # Already set
+CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM=y     # ADD - prevents flash cache stalls
+CONFIG_GPTIMER_ISR_CACHE_SAFE=y        # ADD - critical for timing consistency
+```
+
+| Timing Method | Resolution | Use Case |
+|---------------|------------|----------|
+| `vTaskDelay()` | ~1-10ms | Modes 0-4 therapy (current) |
+| `esp_timer` | ~50μs | Soft real-time (current Mode 5) |
+| **GPTimer ISR** | ~12.5ns | Hard real-time lightbar sync (future) |
+
+**Rationale for Deferred GPTimer:** Current 10ms polling is adequate for Mode 5 development/testing. GPTimer upgrade only needed when sub-millisecond visual synchronization becomes a requirement (lightbar showcase mode).
 
 ### LED Color Control Architecture
 
@@ -377,18 +582,19 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
 - ✅ **Production UUIDs:** No test UUID migration complexity
 - ✅ **Clear Separation:** Configuration (AD032) vs Bilateral Control (AD030)
-- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2) = 19 characteristics
+- ✅ **Logical Grouping:** Motor (8), LED (5), Status (4), Firmware (2), Time (1), Hardware (2), Pattern (4) = 26 characteristics
 - ✅ **RGB Flexibility:** Palette presets AND custom color wheel support
 - ✅ **Session Control:** Configurable duration (20-90 min) + real-time elapsed monitoring
 - ✅ **Research Platform:** Full 0.25-2 Hz, 10-100% duty, 0-80% PWM (0%=LED-only)
 - ✅ **User Comfort:** 10-30% LED brightness prevents eye strain
 - ✅ **Persistent Preferences:** NVS saves user settings across power cycles
 - ✅ **Firmware Version Verification:** PWA can verify both devices run matching firmware builds
+- ✅ **Hardware Discovery:** PWA can discover silicon revision and 802.11mc FTM capability (AD048)
 - ✅ **Future-Proof:** Architecture supports bilateral implementation without changes
 
 ### Drawbacks
 
-- 19 characteristics increase BLE stack memory usage
+- 25 characteristics increase BLE stack memory usage
 - NVS persistence adds flash wear (mitigated by write-on-change only)
 - Two LED color modes add configuration complexity
 - Mobile app must implement both palette and custom RGB UIs
@@ -454,6 +660,8 @@ rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 - AD030: Bilateral Control Service - Separate service for device-to-device communication
 - AD031: Research Platform Extensions - Defines extended parameter ranges
 - AD033: LED Color Palette Standard - Defines 16-color palette for palette mode
+- AD047: Scheduled Pattern Playback - Time Beacon characteristic for UTLP integration
+- AD048: ESP-NOW Adaptive Transport and Hardware Acceleration - Hardware Info characteristics for 802.11mc FTM discovery
 
 ---
 
@@ -518,4 +726,4 @@ Git commit: TBD (migration commit)
 ---
 
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser Project)
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-12-18

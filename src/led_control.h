@@ -201,6 +201,34 @@ void led_clear(void);
 void led_update_from_ble(void);
 
 /**
+ * @brief Set LED color with perceptual (CIE 1931) brightness
+ * @param r Red component 0-255
+ * @param g Green component 0-255
+ * @param b Blue component 0-255
+ * @param brightness Perceived brightness percentage 0-100%
+ * @return ESP_OK on success, error code on failure
+ *
+ * Uses CIE 1931 lightness function for smooth, "organic" fades:
+ * - 50% perceived brightness = 18.4% actual PWM
+ * - Human eye sees uniform brightness steps
+ *
+ * Recommended for pattern playback transitions.
+ *
+ * Thread-safe: Can be called from any task
+ */
+esp_err_t led_set_rgb_perceptual(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness);
+
+/**
+ * @brief Set LED from palette with perceptual brightness
+ * @param index Palette index 0-15
+ * @param brightness Perceived brightness percentage 0-100%
+ * @return ESP_OK on success, error code on failure
+ *
+ * Same as led_set_palette but uses CIE 1931 perceptual dimming.
+ */
+esp_err_t led_set_palette_perceptual(uint8_t index, uint8_t brightness);
+
+/**
  * @brief Deinitialize LED subsystem
  * @return ESP_OK on success, error code on failure
  *

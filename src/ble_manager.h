@@ -83,7 +83,10 @@ extern "C" {
 // ============================================================================
 
 #define BLE_DEVICE_NAME         "EMDR_Pulser"   /**< Base device name */
-#define BLE_ADV_TIMEOUT_MS      300000          /**< 5-minute advertising timeout */
+#define BLE_ADV_TIMEOUT_MS      5400000         /**< 90-min timeout (= max session) */
+
+/** @brief BLE disconnect reason for user-initiated termination (from NimBLE) */
+#define BLE_DISCONNECT_REASON_USER  0x13        /**< Remote user terminated connection */
 
 /**
  * @brief BLE advertising parameters
@@ -335,6 +338,15 @@ const char* ble_get_connection_type_str(void);
 uint16_t ble_get_peer_conn_handle(void);
 
 /**
+ * @brief Disconnect peer device
+ * @param reason BLE disconnect reason (e.g., BLE_ERR_REM_USER_CONN_TERM)
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE if not connected
+ *
+ * Used by time_sync_task for firmware version mismatch enforcement (AD040)
+ */
+esp_err_t ble_disconnect_peer(uint8_t reason);
+
+/**
  * @brief Get mobile app connection handle
  * @return Mobile app connection handle, or BLE_HS_CONN_HANDLE_NONE (0xFFFF) if not connected
  *
@@ -451,7 +463,13 @@ typedef enum {
     SYNC_MSG_ACTIVATION_REPORT,    /**< PTP-style: CLIENT→SERVER activation timing for drift verification */
     SYNC_MSG_REVERSE_PROBE,        /**< IEEE 1588 bidirectional: CLIENT→SERVER with T1' timestamp */
     SYNC_MSG_REVERSE_PROBE_RESPONSE, /**< IEEE 1588 bidirectional: SERVER→CLIENT with T2', T3' timestamps */
-    SYNC_MSG_FIRMWARE_VERSION = 0x10 /**< AD040: One-time firmware version exchange after MTU */
+    SYNC_MSG_FIRMWARE_VERSION = 0x10, /**< AD040: One-time firmware version exchange after MTU */
+    SYNC_MSG_HARDWARE_INFO = 0x11,   /**< AD048: One-time hardware info exchange (silicon rev, FTM capability) */
+    SYNC_MSG_PHASE_QUERY = 0x12,     /**< Phase coherence query - "how long until your next active?" */
+    SYNC_MSG_PHASE_RESPONSE = 0x13,  /**< Phase coherence response - ms until next ACTIVE state */
+    SYNC_MSG_PATTERN_CHANGE = 0x14,  /**< AD047: Pattern selection sync (builtin_pattern_id + start_time) */
+    SYNC_MSG_WIFI_MAC = 0x15,        /**< AD048: WiFi MAC for ESP-NOW transport (6 bytes) */
+    SYNC_MSG_ESPNOW_KEY_EXCHANGE = 0x16  /**< AD048: ESP-NOW key exchange (nonce + MAC for HKDF) */
 } sync_message_type_t;
 
 /**
@@ -546,6 +564,17 @@ typedef struct __attribute__((packed)) {
 } motor_started_t;
 
 /**
+ * @brief Pattern sync payload for SYNC_MSG_PATTERN_CHANGE (AD047)
+ *
+ * Sent from SERVER to CLIENT when PWA changes pattern selection.
+ * Enables synchronized pattern playback across both devices.
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  control_cmd;          /**< Pattern control: 0=stop, 1=start, 2+=load builtin */
+    uint64_t start_time_us;        /**< Synchronized start time for bilateral coordination */
+} pattern_sync_t;
+
+/**
  * @brief Activation report payload for SYNC_MSG_ACTIVATION_REPORT
  *
  * PTP-style synchronization error feedback: CLIENT reports its activation
@@ -611,6 +640,59 @@ typedef struct __attribute__((packed)) {
 } reverse_probe_response_t;
 
 /**
+ * @brief Hardware info payload for SYNC_MSG_HARDWARE_INFO (AD048)
+ *
+ * Contains silicon revision and 802.11mc FTM capability string.
+ * Format: "ESP32-C6 v0.2 FTM:full" or "ESP32-C6 v0.1 FTM:resp-only"
+ */
+typedef struct __attribute__((packed)) {
+    char info_str[48];  /**< Hardware info string (null-terminated) */
+} hardware_info_t;
+
+/**
+ * @brief Phase coherence response payload for SYNC_MSG_PHASE_RESPONSE
+ *
+ * Direct position-based phase measurement for antiphase verification.
+ * For perfect antiphase: peer_pos_in_cycle == (my_pos_in_cycle + half_cycle) % cycle
+ *
+ * Previous approach (ms_to_active vs ms_to_inactive) was broken:
+ * - Only valid when devices in opposite states
+ * - Gave huge errors (±1500ms) when both in same state
+ *
+ * New approach: Exchange pos_in_cycle directly for simple comparison.
+ */
+typedef struct __attribute__((packed)) {
+    uint32_t ms_to_active;    /**< Milliseconds until responder's next ACTIVE state */
+    uint32_t pos_in_cycle_ms; /**< Current position in cycle (0 to cycle_ms-1) */
+    uint32_t current_cycle;   /**< Current cycle number (for correlation/debugging) */
+    uint8_t current_state;    /**< Responder's current state (0=INACTIVE, 1=ACTIVE) */
+} phase_response_t;
+
+/**
+ * @brief WiFi MAC payload for SYNC_MSG_WIFI_MAC (AD048)
+ *
+ * Contains WiFi STA MAC address for ESP-NOW peer configuration.
+ * Exchanged once after BLE connection establishment.
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t mac[6];                /**< WiFi STA MAC address */
+} wifi_mac_payload_t;
+
+/**
+ * @brief ESP-NOW key exchange payload for SYNC_MSG_ESPNOW_KEY_EXCHANGE (AD048)
+ *
+ * SERVER sends this to CLIENT during bootstrap to establish shared encryption key.
+ * Both devices use HKDF-SHA256 to derive identical LMK from:
+ * - Server MAC (from this payload)
+ * - Client MAC (known locally)
+ * - Random nonce (from this payload)
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t nonce[8];              /**< Server-generated random nonce (UTLP_NONCE_SIZE) */
+    uint8_t server_mac[6];         /**< Server's WiFi MAC for verification */
+} espnow_key_exchange_payload_t;
+
+/**
  * @brief Coordination message structure (Phase 3)
  *
  * Unified message format for all peer-to-peer coordination
@@ -633,7 +715,12 @@ typedef struct __attribute__((packed)) {
         reverse_probe_t reverse_probe;       /**< REVERSE_PROBE: CLIENT→SERVER bidirectional timing */
         reverse_probe_response_t reverse_probe_response; /**< REVERSE_PROBE_RESPONSE: SERVER→CLIENT response */
         firmware_version_t firmware_version; /**< FIRMWARE_VERSION: AD040 one-time version exchange */
-        // MODE_CHANGE_ACK, SHUTDOWN and START_ADVERTISING have no payload
+        hardware_info_t hardware_info;       /**< HARDWARE_INFO: AD048 one-time hardware info exchange */
+        phase_response_t phase_response;     /**< PHASE_RESPONSE: Direct phase coherence measurement */
+        pattern_sync_t pattern_sync;         /**< PATTERN_CHANGE: AD047 pattern selection sync */
+        wifi_mac_payload_t wifi_mac;         /**< WIFI_MAC: AD048 ESP-NOW peer address */
+        espnow_key_exchange_payload_t espnow_key; /**< ESPNOW_KEY_EXCHANGE: AD048 HKDF key derivation */
+        // MODE_CHANGE_ACK, SHUTDOWN, START_ADVERTISING, and PHASE_QUERY have no payload
     } payload;
 } coordination_message_t;
 
@@ -940,6 +1027,16 @@ esp_err_t ble_update_led_brightness(uint8_t brightness_pct);
 esp_err_t ble_update_session_duration(uint32_t duration_sec);
 
 /**
+ * @brief Update pattern status and notify PWA
+ * @param status Pattern status: 0=stopped, 1=playing, 2=error
+ *
+ * Thread-safe update of pattern_status characteristic.
+ * Triggers BLE notification if PWA client subscribed.
+ * Called by motor_task when entering/leaving pattern mode.
+ */
+void ble_update_pattern_status(uint8_t status);
+
+/**
  * @brief Log BLE diagnostics (RX queue, HCI buffers, connection stats)
  *
  * Logs diagnostic information to help identify BLE notification buffering issues:
@@ -989,13 +1086,115 @@ void ble_set_peer_firmware_version(const char *version_str);
 bool ble_firmware_versions_match(void);
 
 /**
+ * @brief Check if firmware version exchange has completed (AD040)
+ * @return true if peer firmware version has been received and processed
+ *
+ * Used by ble_task to wait for version exchange before declaring pairing success.
+ * Prevents false "pairing complete" when version mismatch will cause disconnect.
+ */
+bool ble_firmware_version_exchanged(void);
+
+/**
  * @brief Set firmware version match flag (AD040)
  * @param match true if versions match, false otherwise
  *
  * Called by time_sync_task when SYNC_MSG_FIRMWARE_VERSION is received
- * after comparing local and peer versions.
+ * after comparing local and peer versions. Also sets version_exchanged=true.
  */
 void ble_set_firmware_version_match(bool match);
+
+/**
+ * @brief Send local hardware info to connected peer (AD048)
+ * @return ESP_OK on success
+ * @return ESP_ERR_INVALID_STATE if peer not connected
+ * @return ESP_FAIL if send failed
+ *
+ * Called alongside firmware version after GATT discovery completes.
+ * Both SERVER and CLIENT call this after their MTU negotiation completes.
+ * The peer handles the received info in time_sync_task via SYNC_MSG_HARDWARE_INFO.
+ */
+esp_err_t ble_send_hardware_info_to_peer(void);
+
+/**
+ * @brief Send WiFi MAC address to peer for ESP-NOW (AD048)
+ * @return ESP_OK on success
+ *
+ * Sends local WiFi STA MAC address to peer device.
+ * Called after BLE peer connection established.
+ * The peer uses this to configure ESP-NOW unicast.
+ */
+esp_err_t ble_send_wifi_mac_to_peer(void);
+
+/**
+ * @brief Send ESP-NOW key exchange message to peer (AD048)
+ *
+ * SERVER calls this after receiving CLIENT's WiFi MAC.
+ * Sends nonce and SERVER's MAC for HKDF key derivation.
+ * CLIENT uses this to derive the shared LMK.
+ *
+ * @param nonce   8-byte random nonce generated by SERVER
+ * @param server_mac  6-byte SERVER's WiFi STA MAC address
+ * @return ESP_OK on success
+ */
+esp_err_t ble_send_espnow_key_exchange(const uint8_t nonce[8], const uint8_t server_mac[6]);
+
+/**
+ * @brief Set peer hardware info string (AD048)
+ * @param hardware_str Hardware string to store (e.g., "ESP32-C6 v0.2 FTM:full")
+ *
+ * Called by time_sync_task when peer hardware info is received.
+ * Updates the peer_hardware_info_str for BLE characteristic reads.
+ *
+ * Thread-safe: Uses internal mutex
+ */
+void ble_set_peer_hardware_info(const char *hardware_str);
+
+/**
+ * @brief Get local hardware info string (AD048)
+ * @return const char* Hardware string (e.g., "ESP32-C6 v0.2 FTM:full")
+ *
+ * Returns the local device's silicon revision and 802.11mc FTM capability.
+ * Initialized at startup in ble_manager_init().
+ */
+const char* ble_get_local_hardware_info(void);
+
+// ============================================================================
+// AD048: LTK-BASED ESP-NOW KEY DERIVATION
+// ============================================================================
+
+/**
+ * @brief Get peer's Long Term Key (LTK) for ESP-NOW key derivation
+ *
+ * Retrieves the LTK from NimBLE's bond store after BLE pairing completes.
+ * Used by time_sync_task to derive ESP-NOW session key via HKDF.
+ *
+ * Security notes:
+ * - LTK is 128-bit (16 bytes) of cryptographic-quality entropy
+ * - Both devices have identical LTK after SMP pairing
+ * - Works in both NVS-persistent and RAM-only (test) builds
+ * - LTK is ephemeral in RAM - not persisted beyond session
+ *
+ * @param[out] ltk_out Buffer to store 16-byte LTK
+ * @return ESP_OK if LTK retrieved successfully
+ * @return ESP_ERR_NOT_FOUND if no bonded peer or LTK not available
+ * @return ESP_ERR_INVALID_ARG if ltk_out is NULL
+ * @return ESP_ERR_INVALID_STATE if peer not connected
+ *
+ * @see espnow_transport_derive_key_from_ltk()
+ */
+esp_err_t ble_get_peer_ltk(uint8_t ltk_out[16]);
+
+/**
+ * @brief Check if peer is bonded with LTK available
+ *
+ * Returns true if peer connection is encrypted and LTK is available
+ * for ESP-NOW key derivation. Called by time_sync_task to determine
+ * when to trigger key derivation.
+ *
+ * @return true if LTK is available for key derivation
+ * @return false if not bonded or LTK not yet available
+ */
+bool ble_peer_ltk_available(void);
 
 // ============================================================================
 // EXTERNAL CALLBACKS (implemented by time_sync_task)

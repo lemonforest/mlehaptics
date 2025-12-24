@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.28] - 2025-12-23
+
+### Changed
+
+- **BLE Advertising Timeout Extended to 90 Minutes**: Prevents session disruption during therapy
+  - **Problem**: 5-minute timeout caused PWA to lose connection mid-session when therapist needed to adjust settings
+  - **Solution**: Timeout now matches max session duration (90 minutes) so advertising never expires during active therapy
+  - **Future**: Will be programmable via PWA and saved to NVS
+  - Files: [ble_config.h](src/config/ble_config.h), [ble_manager.h](src/ble_manager.h), [timing_config.h](src/config/timing_config.h), [ble_task.c](src/ble_task.c), [ble_task.h](src/ble_task.h)
+
+- **ESP-NOW Retry Window Increased for Shutdown Reliability**: Emergency shutdown coordination now more robust
+  - **Problem**: ESP-NOW send failures during shutdown left peer device running (recovered after 500-700ms)
+  - **Solution**: Increased retry window from 125ms (5×25ms) to 750ms (10×75ms) to span recovery period
+  - Files: [espnow_transport.h](src/espnow_transport.h)
+
+## [v0.7.27] - 2025-12-23
+
+### Fixed
+
+- **PWA Pattern Status UI Sync**: Pattern mode now correctly notifies PWA when pattern starts automatically on mode change
+  - Added `ble_update_pattern_status()` function to send BLE notifications when pattern state changes
+  - Called from motor_task.c at all pattern start/stop points: standalone mode, synchronized mode, pattern complete
+  - Previously: PWA showed pattern "stopped" even when pattern was playing after mode change
+  - Now: PWA UI updates immediately when entering Pattern mode via button or BLE mode change
+  - Files: [ble_manager.c:5628-5648](src/ble_manager.c#L5628-L5648), [motor_task.c:1324,1330,1436,1442,1621](src/motor_task.c)
+
 ### Documentation
 
 **Doxygen Quality Improvements for Arduino Developer Accessibility**:
@@ -38,6 +64,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Last Updated date to 2025-12-14
 
 ### Added
+
+**AD048: ESP-NOW Key Exchange with HKDF Session Key Derivation (v0.6.135)**:
+- **Purpose**: Secure peer-to-peer ESP-NOW channel for sub-millisecond time sync beacons
+- **Architecture**: BLE Bootstrap Model - BLE used only for trust establishment, then released
+  - Peer BLE connection established for key exchange
+  - SERVER generates 8-byte hardware RNG nonce
+  - Both devices derive identical 16-byte LMK via HKDF-SHA256
+  - ESP-NOW peer configured with encrypted channel
+  - BLE peer connection released (PWA keeps BLE for phone interface)
+- **Key Exchange Flow**:
+  1. Both devices exchange WiFi STA MAC via `SYNC_MSG_WIFI_MAC`
+  2. SERVER generates nonce, sends `SYNC_MSG_ESPNOW_KEY_EXCHANGE` via BLE
+  3. Both devices compute: `HKDF-SHA256(salt=nonce, ikm=server_mac||client_mac, info="ESPNOW_LMK")`
+  4. Both configure ESP-NOW peer with derived key
+- **UTLP Transport HAL**: Platform-agnostic transport abstraction
+  - `utlp_transport.h/.c` - Universal interface for transport implementations
+  - `espnow_transport.h/.c` - ESP-NOW implementation for ESP32
+  - Future: Nordic Enhanced ShockBurst, IEEE 802.15.4, etc.
+- **Security Features**:
+  - HKDF-SHA256 via mbedTLS hardware accelerator
+  - ESP-NOW AES-CCM encryption with derived LMK
+  - Session nonce prevents replay across power cycles
+- **Files Added**:
+  - `src/utlp_transport.h` - Transport HAL interface
+  - `src/utlp_transport.c` - HAL implementation
+  - `src/espnow_transport.h` - ESP-NOW transport API
+  - `src/espnow_transport.c` - ESP-NOW implementation with HKDF
+- **Files Modified**:
+  - `src/ble_manager.h` - Add `SYNC_MSG_ESPNOW_KEY_EXCHANGE`, `espnow_key_exchange_t` struct
+  - `src/ble_manager.c` - Add `ble_send_espnow_key_exchange()` function
+  - `src/time_sync_task.c` - Handle key exchange messages, configure encrypted peer
+  - `sdkconfig.xiao_esp32c6*` - Enable `CONFIG_MBEDTLS_HKDF_C=y`
+  - `docs/adr/0048-espnow-adaptive-transport-hardware-acceleration.md` - Updated with BLE Bootstrap Model
+- **Status**: Infrastructure complete, hardware testing pending
+
+**TDM Tech Spike - Results (v0.6.132)**:
+- **Purpose**: Validate TDM timing model for BLE stack jitter measurement
+- **KEY FINDING**: BLE stack has consistent ~74ms latency bias
+  - **Mean**: ~74ms late - STABLE (converges over 790+ samples)
+  - **Stddev**: ~150ms - inflated by rare outliers
+  - **Min**: -50ms (rare early packet), **Max**: 1.05s late (occasional massive delay)
+- **Insight**: High stddev is from outliers, NOT random jitter
+  - Mean converges: 83ms→76ms→74ms as sample count increases
+  - If 95% of packets are within ±30ms of mean, TDM could work with:
+    1. Bias compensation (expect arrival at T + 1074ms)
+    2. Outlier filtering (reject packets outside ±100ms window)
+    3. Graceful degradation to Phase Query on outlier detection
+- **Current Status**: Disabled pending histogram analysis to measure distribution
+- **TODO**: Add bucket tracking to count packets in ±10ms, ±30ms, ±50ms ranges
+- **Files Modified**:
+  - `src/time_sync.h` - TDM constants with analysis notes
+  - `src/time_sync.c` - Guarded code
+  - `src/time_sync_task.c` - Jitter measurement code
+  - `src/firmware_version.h` - Bump to v0.6.132
+
+**Phase Coherence Query Protocol (v0.6.130)**:
+- **Purpose**: Direct antiphase validation without NTP-style timestamp exchange
+- **Core Concept**: Device A asks "how long until your next ACTIVE?", compares to own time-to-inactive
+  - If antiphase is correct: peer's time_to_active == my time_to_inactive
+  - RTT cancels out: transmission delay affects both sides equally
+- **Implementation**: Logging-only diagnostic tool (no corrections applied yet)
+  - CLIENT sends SYNC_MSG_PHASE_QUERY (0x12) every 10 seconds when motor running
+  - SERVER responds with SYNC_MSG_PHASE_RESPONSE (0x13) containing ms_to_active, current_cycle, current_state
+  - CLIENT compares peer's ms_to_active with own ms_to_inactive, logs phase error
+  - Threshold: >10ms error logged as WARNING, ≤10ms logged as INFO
+- **New Message Types**:
+  - `SYNC_MSG_PHASE_QUERY = 0x12` - Phase coherence query
+  - `SYNC_MSG_PHASE_RESPONSE = 0x13` - Response with timing data
+- **New Payload Structure**: `phase_response_t` (ms_to_active, current_cycle, current_state)
+- **Files Modified**:
+  - `src/ble_manager.h` - Add message types and payload struct
+  - `src/time_sync_task.c` - Handle query/response, add periodic 10s trigger for CLIENT
+  - `src/firmware_version.h` - Bump to v0.6.130
 
 **AD040: Peer Firmware Version Exchange (v0.6.124)**:
 - **Purpose**: Ensure both peer devices run identical firmware builds for reliable bilateral coordination
@@ -115,6 +214,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/motor_task.c` - Epoch change detection, cycle counter reset
   - `src/motor_task.h` - Added `motor_get_duty_percent()` API
   - `src/time_sync_task.c` - Enhanced SYNC_FB handler with elapsed time
+
+### Changed
+
+**UTLP Refactor: Remove Mode-Change Beacon Triggers (v0.6.131)**:
+- **Purpose**: Decouple time handling from application events - time layer handles timing on fixed schedule
+- **Core Change**: Mode changes no longer trigger beacon bursts; epoch delivery via SYNC_MSG_MOTOR_STARTED
+- **Removed Code**:
+  - `time_sync_trigger_forced_beacons()` function (time_sync.c) - replaced with removal comment
+  - TIME_SYNC_MSG_TRIGGER_BEACONS handler action (time_sync_task.c) - now just logs and breaks
+  - Beacon burst trigger in TIME_RESPONSE handler (time_sync_task.c)
+  - Beacon call in SYNC_MSG_MODE_CHANGE handler (time_sync_task.c)
+  - Immediate beacon on frequency change (motor_task.c) - MOTOR_STARTED delivers epoch
+- **Header Cleanup**: Removed function declaration from time_sync.h
+- **Rationale**: Moving to pre-buffered playback architecture means mode changes don't need timing improvements
+- **Key Insight**: SYNC_MSG_MOTOR_STARTED is the authoritative epoch delivery mechanism
+- **Files Modified**:
+  - `src/time_sync.c` - Remove time_sync_trigger_forced_beacons() function
+  - `src/time_sync.h` - Remove function declaration
+  - `src/time_sync_task.c` - Remove beacon triggers from handlers
+  - `src/motor_task.c` - Remove immediate beacon on frequency change
+  - `src/firmware_version.h` - Bump to v0.6.131
 
 ### Infrastructure
 

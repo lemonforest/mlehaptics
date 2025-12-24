@@ -163,6 +163,12 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
         return ESP_ERR_INVALID_STATE;
     }
 
+    // Bug fix: NULL guard for mutex (prevents crash if mutex creation failed)
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_set_forward: mutex is NULL");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in motor_set_forward - possible deadlock");
@@ -223,6 +229,12 @@ esp_err_t motor_set_forward(uint8_t intensity_percent, bool verbose_logging) {
 esp_err_t motor_set_reverse(uint8_t intensity_percent, bool verbose_logging) {
     if (!motor_initialized) {
         ESP_LOGE(TAG, "Motor not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Bug fix: NULL guard for mutex (prevents crash if mutex creation failed)
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_set_reverse: mutex is NULL");
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -289,6 +301,12 @@ void motor_coast(bool verbose_logging) {
         return;
     }
 
+    // Bug fix: NULL guard for mutex (prevents crash if mutex creation failed)
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_coast: mutex is NULL");
+        return;
+    }
+
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGE(TAG, "Mutex timeout in motor_coast - possible deadlock");
@@ -312,6 +330,11 @@ void motor_coast(bool verbose_logging) {
 }
 
 uint8_t motor_get_intensity(void) {
+    // Bug fix: NULL guard for mutex
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_get_intensity: mutex is NULL");
+        return MOTOR_PWM_DEFAULT;  // Return safe default value
+    }
     uint8_t intensity;
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -324,6 +347,11 @@ uint8_t motor_get_intensity(void) {
 }
 
 bool motor_is_coasting(void) {
+    // Bug fix: NULL guard for mutex
+    if (motor_mutex == NULL) {
+        ESP_LOGE(TAG, "motor_is_coasting: mutex is NULL");
+        return true;  // Return safe default (assume coasting if uncertain)
+    }
     bool coasting;
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(motor_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {

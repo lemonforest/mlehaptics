@@ -78,12 +78,18 @@ typedef struct {
         struct {
             time_sync_beacon_t beacon;      /**< Beacon data */
             uint64_t receive_time_us;       /**< Timestamp when received */
+            uint8_t transport;              /**< 0=BLE, 1=ESP-NOW (AD048) */
         } beacon;
 
         /** Data for TIME_SYNC_MSG_COORDINATION (Phase 3) */
         struct {
             coordination_message_t msg;     /**< Coordination message from peer */
         } coordination;
+
+        /** Data for TIME_SYNC_MSG_DISCONNECTION (Bug #105) */
+        struct {
+            bool preserve_espnow;           /**< true = bootstrap complete, keep ESP-NOW peer */
+        } disconnection;
     } data;
 } time_sync_message_t;
 
@@ -120,24 +126,36 @@ esp_err_t time_sync_task_send_init(time_sync_role_t role);
  * Called by BLE manager when peer connection drops.
  * Time sync will freeze current state and continue with last known offset.
  *
+ * Bug #105: If preserve_espnow is true (bootstrap complete), ESP-NOW peer
+ * is kept configured for continued coordination. Only cleared on unexpected
+ * disconnects where re-pairing is needed.
+ *
+ * @param preserve_espnow true if bootstrap complete (keep ESP-NOW), false to clear
  * @return ESP_OK on success
  * @return ESP_FAIL if queue send fails
  */
-esp_err_t time_sync_task_send_disconnection(void);
+esp_err_t time_sync_task_send_disconnection(bool preserve_espnow);
+
+/**
+ * @brief Beacon transport types (AD048)
+ */
+#define BEACON_TRANSPORT_BLE      0   /**< Beacon received via BLE GATT notify */
+#define BEACON_TRANSPORT_ESPNOW   1   /**< Beacon received via ESP-NOW (low latency) */
 
 /**
  * @brief Send received beacon to time sync task (CLIENT only)
  *
- * Called by BLE manager when sync beacon received from SERVER.
+ * Called by BLE manager or ESP-NOW when sync beacon received from SERVER.
  * Time sync task will process beacon and update clock offset.
  *
  * @param beacon Pointer to received beacon data
  * @param receive_time_us Timestamp when beacon was received
+ * @param transport Transport type (BEACON_TRANSPORT_BLE or BEACON_TRANSPORT_ESPNOW)
  * @return ESP_OK on success
  * @return ESP_ERR_INVALID_ARG if beacon is NULL
  * @return ESP_FAIL if queue send fails
  */
-esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t receive_time_us);
+esp_err_t time_sync_task_send_beacon(const time_sync_beacon_t *beacon, uint64_t receive_time_us, uint8_t transport);
 
 /**
  * @brief Send coordination message to time sync task (Phase 3)
