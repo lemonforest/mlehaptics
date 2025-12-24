@@ -1027,6 +1027,16 @@ esp_err_t ble_update_led_brightness(uint8_t brightness_pct);
 esp_err_t ble_update_session_duration(uint32_t duration_sec);
 
 /**
+ * @brief Update pattern status and notify PWA
+ * @param status Pattern status: 0=stopped, 1=playing, 2=error
+ *
+ * Thread-safe update of pattern_status characteristic.
+ * Triggers BLE notification if PWA client subscribed.
+ * Called by motor_task when entering/leaving pattern mode.
+ */
+void ble_update_pattern_status(uint8_t status);
+
+/**
  * @brief Log BLE diagnostics (RX queue, HCI buffers, connection stats)
  *
  * Logs diagnostic information to help identify BLE notification buffering issues:

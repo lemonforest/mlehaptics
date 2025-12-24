@@ -1413,8 +1413,13 @@ esp_err_t time_sync_get_motor_epoch(uint64_t *epoch_us, uint32_t *cycle_ms)
      *
      * Solution: Automatically invalidate motor epoch after 2-minute disconnect
      * to prevent unbounded drift. Motor coordination stops gracefully.
+     *
+     * Bug #105: Only apply to CLIENT - SERVER is the epoch authority and sets
+     * its own epoch. After BLE disconnect (Bug #105), SERVER enters DISCONNECTED
+     * state but should retain its epoch indefinitely.
      */
-    if (g_time_sync_state.state == SYNC_STATE_DISCONNECTED) {
+    if (g_time_sync_state.state == SYNC_STATE_DISCONNECTED &&
+        g_time_sync_state.role == TIME_SYNC_ROLE_CLIENT) {
         uint64_t now_us = esp_timer_get_time();
         uint32_t now_ms = (uint32_t)(now_us / 1000);
         uint32_t disconnect_duration_ms = now_ms - g_time_sync_state.last_sync_ms;

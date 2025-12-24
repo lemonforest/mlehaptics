@@ -5625,6 +5625,28 @@ void ble_update_mode(mode_t mode) {
     }
 }
 
+void ble_update_pattern_status(uint8_t status) {
+    // Update static pattern_status and send BLE notification
+    // Called by motor_task when entering/leaving pattern mode
+    pattern_status = status;  // Direct assignment (atomic for uint8_t)
+
+    // Send notification if client subscribed
+    if (ble_is_app_connected() && adv_state.notify_pattern_status_subscribed) {
+        uint16_t val_handle;
+        if (ble_gatts_find_chr(&uuid_config_service.u, &uuid_char_pattern_status.u, NULL, &val_handle) == 0) {
+            struct os_mbuf *om = ble_hs_mbuf_from_flat(&pattern_status, sizeof(pattern_status));
+            if (om != NULL) {
+                int rc = ble_gatts_notify_custom(adv_state.conn_handle, val_handle, om);
+                if (rc != 0) {
+                    ESP_LOGD(TAG, "Pattern status notify failed: rc=%d", rc);
+                } else {
+                    ESP_LOGI(TAG, "Pattern status notification sent: %u", pattern_status);
+                }
+            }
+        }
+    }
+}
+
 mode_t ble_get_current_mode(void) {
     // JPL compliance: Bounded mutex wait with timeout error handling
     if (xSemaphoreTake(char_data_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {

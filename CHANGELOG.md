@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.27] - 2025-12-23
+
+### Fixed
+
+- **PWA Pattern Status UI Sync**: Pattern mode now correctly notifies PWA when pattern starts automatically on mode change
+  - Added `ble_update_pattern_status()` function to send BLE notifications when pattern state changes
+  - Called from motor_task.c at all pattern start/stop points: standalone mode, synchronized mode, pattern complete
+  - Previously: PWA showed pattern "stopped" even when pattern was playing after mode change
+  - Now: PWA UI updates immediately when entering Pattern mode via button or BLE mode change
+  - Files: [ble_manager.c:5628-5648](src/ble_manager.c#L5628-L5648), [motor_task.c:1324,1330,1436,1442,1621](src/motor_task.c)
+
 ### Documentation
 
 **Doxygen Quality Improvements for Arduino Developer Accessibility**:

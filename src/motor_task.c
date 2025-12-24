@@ -1145,7 +1145,7 @@ void motor_task(void *pvParameters) {
                  * This prevents long-term drift or desynchronization during sessions.
                  */
                 static uint32_t lock_check_cycle_count = 0;
-                static bool last_lock_status = true;  // Assume locked initially
+                static bool last_lock_status = false;  // Don't assume locked initially
                 peer_role_t current_role = ble_get_peer_role();
 
                 if (current_role == PEER_ROLE_CLIENT) {
@@ -1321,11 +1321,13 @@ void motor_task(void *pvParameters) {
                                         pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
                                         pattern_start(0);  // Start immediately
                                         pattern_mode_active = true;
+                                        ble_update_pattern_status(1);  // Notify PWA: playing
                                         ESP_LOGI(TAG, "Pattern playback started (standalone)");
                                     } else if (!MODE_IS_PATTERN(new_mode) && MODE_IS_PATTERN(old_mode)) {
                                         // Leaving pattern mode: Stop pattern
                                         pattern_stop();
                                         pattern_mode_active = false;
+                                        ble_update_pattern_status(0);  // Notify PWA: stopped
                                         ESP_LOGI(TAG, "Pattern playback stopped (standalone)");
                                     }
                                 }
@@ -1431,11 +1433,13 @@ void motor_task(void *pvParameters) {
                                 // Start at synchronized epoch time for bilateral coordination
                                 pattern_start(current_time_us);
                                 pattern_mode_active = true;
+                                ble_update_pattern_status(1);  // Notify PWA: playing
                                 ESP_LOGI(TAG, "%s: Pattern playback started (synchronized)", role_str);
                             } else if (!MODE_IS_PATTERN(armed_new_mode) && MODE_IS_PATTERN(old_mode)) {
                                 // Leaving pattern mode: Stop pattern
                                 pattern_stop();
                                 pattern_mode_active = false;
+                                ble_update_pattern_status(0);  // Notify PWA: stopped
                                 ESP_LOGI(TAG, "%s: Pattern playback stopped (synchronized)", role_str);
                             }
 
@@ -1614,6 +1618,7 @@ void motor_task(void *pvParameters) {
                         if (tick_err == ESP_ERR_NOT_FOUND) {
                             // Pattern complete (non-looping) - stop pattern and stay in pattern mode
                             pattern_stop();
+                            ble_update_pattern_status(0);  // Notify PWA: stopped
                             ESP_LOGI(TAG, "Pattern playback complete");
                         } else if (tick_err != ESP_OK) {
                             ESP_LOGW(TAG, "Pattern tick error: %s", esp_err_to_name(tick_err));

@@ -60,6 +60,7 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD046](0046-ptp-observation-mode-integration.md) | PTP Observation Mode Integration | ⏳ Proposed | Phase 6v | 2025-12-12 |
 | [AD047](0047-scheduled-pattern-playback.md) | Scheduled Pattern Playback Architecture | ⏳ Proposed | Phase 7 | 2025-12-13 |
 | [AD048](0048-espnow-adaptive-transport-hardware-acceleration.md) | ESP-NOW Adaptive Transport and Hardware Acceleration | 🔬 Research | Phase 7+ | 2025-12-17 |
+| [AD049](0049-csi-phase-motion-detection-exploration.md) | CSI Phase-Based Motion Detection Exploration | 🔬 Exploratory | Phase 8+ | 2025-12-23 |
 
 ---
 
