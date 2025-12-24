@@ -78,8 +78,13 @@ extern "C" {
 /** @brief Minimum sync interval (milliseconds) - fast startup (Phase 6r) */
 #define TIME_SYNC_INTERVAL_MIN_MS   (1000U)     // 1 second (10× faster convergence)
 
-/** @brief Maximum sync interval (milliseconds) - steady state */
-#define TIME_SYNC_INTERVAL_MAX_MS   (60000U)    // 60 seconds
+/** @brief Maximum sync interval (milliseconds) - steady state
+ *
+ * Pattern mode requires less frequent beacons since patterns use absolute
+ * synchronized time (no continuous phase checking like reactive mode).
+ * 20 minutes allows ~3 beacons during a typical therapy session.
+ */
+#define TIME_SYNC_INTERVAL_MAX_MS   (1200000U)  // 20 minutes
 
 /** @brief Minimum asymmetry samples before applying correction (v0.6.97) */
 #define TIME_SYNC_MIN_ASYMMETRY_SAMPLES (3U)    // Need 3 valid samples for reliable EMA

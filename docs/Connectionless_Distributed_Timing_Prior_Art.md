@@ -293,6 +293,186 @@ RFIP using 802.11mc ranging provides position but not orientation. Adding a 6-ax
 
 **Design tradeoff**: For bilateral EMDR devices (stationary during use, only 2 nodes, known left/right assignment), IMU is unnecessary cost. For mobile swarms doing search patterns, IMU becomes valuable. The architecture supports both—IMU data feeds into the same RFIP coordinate system when available.
 
+### 4.5 SMSP (Synchronized Multimodal Score Protocol)
+
+While UTLP provides *when* and RFIP provides *where*, SMSP defines *what*: the format for describing synchronized actuator behavior across any number of channels and modalities.
+
+#### 4.5.1 The Three-Layer Architecture
+
+SMSP separates human intent from machine execution:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  DECLARATIVE LAYER (Human Intent)                           │
+│  "Alternate left/right at 1Hz with 50% duty cycle"          │
+│  "SAE J845 Quad Flash pattern"                              │
+│  "Binary star wobble with golden ratio orbit"               │
+├─────────────────────────────────────────────────────────────┤
+│  COMPILER LAYER (PWA / Configuration Tool)                  │
+│  Transforms intent into timeline of discrete events         │
+│  Validates parameters, calculates phase offsets             │
+├─────────────────────────────────────────────────────────────┤
+│  IMPERATIVE LAYER (Score + Playback Engine)                 │
+│  Sequence of: "At time T, set channel C to state S"         │
+│  Engine only knows: current time, current segment, outputs  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+This separation means:
+- **Firmware stays simple**: The playback engine is "dumb"—it reads the timeline, interpolates between keyframes, sets outputs. No waveform math, no frequency calculation.
+- **Complexity lives in the compiler**: The PWA or configuration tool can be updated without touching firmware.
+- **Advanced users can bypass**: Raw timelines can be authored directly for patterns the compiler doesn't anticipate.
+
+#### 4.5.2 The Score Line Primitive
+
+The fundamental unit is a **score line**: a specification of actuator state at a point in time.
+
+```c
+typedef struct {
+    uint32_t time_offset_ms;    // When (relative to score start or previous segment)
+    uint16_t transition_ms;     // Interpolation duration to reach this state
+    uint8_t  flags;             // EASE_IN, EASE_OUT, SYNC_POINT, etc.
+    uint8_t  waveform;          // CONSTANT, SINE, RAMP, PULSE (for audio/haptic)
+    
+    // Per-channel state (example: bilateral device)
+    uint8_t  L_r, L_g, L_b;     // Left LED RGB (0-255)
+    uint8_t  L_brightness;      // Left LED master brightness
+    uint8_t  L_motor;           // Left haptic intensity
+    uint8_t  R_r, R_g, R_b;     // Right LED RGB
+    uint8_t  R_brightness;      // Right LED master brightness
+    uint8_t  R_motor;           // Right haptic intensity
+    
+    // Audio channels (if present)
+    uint16_t L_audio_freq_hz;   // Left audio frequency (synthesized, not sampled)
+    uint8_t  L_audio_amplitude; // Left audio amplitude
+    uint16_t R_audio_freq_hz;   // Right audio frequency
+    uint8_t  R_audio_amplitude; // Right audio amplitude
+} score_line_t;
+
+typedef struct {
+    uint8_t       line_count;
+    uint8_t       loop_point;     // Which line to jump to on completion (0xFF = stop)
+    uint8_t       pattern_class;  // BILATERAL, EMERGENCY, SWARM, CUSTOM
+    score_line_t  lines[];
+} score_t;
+```
+
+The structure above is illustrative; implementations may optimize for their specific channel configuration. The key properties are:
+
+1. **Time-indexed**: Each line specifies *when*, not *what frequency*—frequency is implicit in line spacing
+2. **Transition-aware**: Interpolation duration is explicit, enabling smooth crossfades
+3. **Modality-agnostic**: LED, haptic, audio are parallel channels in the same timeline
+4. **Zone-agnostic**: Score describes one node's behavior; zone assignment determines which score (or score variant) each node plays
+
+#### 4.5.3 Pattern Classification
+
+Scores carry metadata indicating their pattern class:
+
+```c
+typedef enum {
+    PATTERN_BILATERAL,      // Antiphase pair, therapeutic applications
+    PATTERN_EMERGENCY,      // SAE J845 compliant, warning applications
+    PATTERN_SWARM_SYNC,     // In-phase coherence, mutual visibility
+    PATTERN_PURSUIT,        // Sequential activation around geometry
+    PATTERN_BINARY_ORBIT,   // Wobble + rotation composite
+    PATTERN_CUSTOM          // Raw timeline, no assumptions
+} pattern_class_t;
+```
+
+Classification enables:
+- UI hints ("this is a bilateral pattern, show left/right preview")
+- Validation ("emergency patterns must meet SAE J845 timing")
+- Optimization ("bilateral patterns can use simpler zone logic")
+
+#### 4.5.4 Scale Invariance
+
+The same score format applies regardless of physical scale:
+
+| Scale | Zones Are | Transport | Example |
+|-------|-----------|-----------|---------|
+| **PCB** | GPIO pins | Direct register write | RGB LEDs on one board |
+| **Device** | Peer MAC addresses | ESP-NOW | Bilateral handhelds |
+| **Room** | Node positions | ESP-NOW / WiFi | Warning light array |
+| **Field** | Drone IDs | ESP-NOW / custom RF | Search and rescue swarm |
+
+A score written for three LEDs on a PCB plays identically on three drones 100 meters apart. The playback engine doesn't know or care about physical spacing—it only knows time and channels.
+
+#### 4.5.5 Transport Agnosticism
+
+SMSP defines the score format, not the delivery mechanism:
+
+- **ESP-NOW**: Peer-to-peer wireless, used during configuration phase
+- **BLE**: Alternative transport for PWA-to-device score upload
+- **Wired bus**: UART/I2C/SPI for conductor-to-node in fixed installations
+- **Flash at build time**: Score baked into firmware for dedicated-function devices
+
+The protocol is complete when a node possesses:
+1. A score (however delivered)
+2. A time reference (however synchronized via UTLP)
+3. Knowledge of its zone (however assigned, potentially via RFIP ranging)
+
+#### 4.5.6 Minimal Engine Requirements
+
+The playback engine requires only:
+
+```c
+while (running) {
+    uint32_t now = get_synchronized_time_ms();
+    
+    if (now >= current_segment->time_offset_ms + transition_end) {
+        advance_to_next_segment();
+    }
+    
+    float progress = calculate_eased_progress(now, current_segment);
+    
+    for (each channel) {
+        output[channel] = interpolate(
+            previous_state[channel],
+            current_segment->state[channel],
+            progress
+        );
+    }
+    
+    apply_outputs();
+}
+```
+
+This runs on an 8-bit microcontroller. An ATtiny85 ($0.50) can execute SMSP scores; the ESP32-C6 ($5) is only required for wireless bootstrap and UTLP time synchronization. For wired or pre-configured deployments, a "smart" conductor node handles sync while "dumb" nodes only play scores.
+
+#### 4.5.7 Relationship to Existing Standards
+
+| Standard | What It Does | SMSP Difference |
+|----------|--------------|-----------------|
+| **DMX512** | 512 channels, wired, master broadcasts continuously | SMSP: score uploaded once, nodes execute independently |
+| **MIDI** | Note events, primarily musical timing | SMSP: continuous interpolated states, sub-millisecond sync |
+| **SMPTE** | Timecode for film sync, devices chase master | SMSP: devices agree on time then execute autonomously |
+| **OSC** | Real-time control messages over network | SMSP: score is complete before execution, no runtime traffic |
+| **Art-Net** | DMX over Ethernet, still continuous broadcast | SMSP: connectionless during execution |
+
+SMSP combines:
+- DMX's channel abstraction
+- MIDI's event timing
+- SMPTE's frame accuracy
+- OSC's flexibility
+
+...while eliminating:
+- Continuous network traffic during execution
+- Central controller as single point of failure
+- Wired infrastructure requirements
+- Per-node cost barriers (runs on $0.50 MCU)
+
+#### 4.5.8 The Protocol Family
+
+UTLP, RFIP, and SMSP together form a complete primitive for distributed synchronized actuation:
+
+| Protocol | Question | Answer |
+|----------|----------|--------|
+| **UTLP** | When is it? | Synchronized time across all nodes |
+| **RFIP** | Where am I? | Relative position from peer ranging |
+| **SMSP** | What do I do? | Score-based multimodal actuation |
+
+Any node with answers to these three questions can participate in coordinated behavior without ongoing communication during execution.
+
 ---
 
 ## 5. Applications: The Primitive Enables Many Things
@@ -458,6 +638,69 @@ All these applications share the same structure:
 ```
 
 The primitive doesn't care whether it's vibrating a therapy device, flashing a warning light, triggering a pyrotechnic, or sampling a sensor. It only cares that distributed nodes agree on time and plan.
+
+### 5.8 Distributed Wave Beamforming
+
+**The Physics**: Beamforming is not about creating more energy—it redistributes energy spatially. By altering the timing (phase) of multiple emitters, waves arrive at a target point in sync (constructive interference) while arriving out of sync elsewhere (destructive interference). The "beam" is a region of reinforcement.
+
+**The Timing Relationship**: Beamforming requires phase coherence—emitters synchronized to a fraction of the wave period. The fraction determines beam quality; typically <10% of period for useful steering.
+
+| Domain | Wavelength | Period | Required Sync | ESP32 Capable? |
+|--------|-----------|--------|---------------|----------------|
+| Acoustic 1kHz | 34 cm | 1 ms | ~100 μs | ✓ |
+| Ultrasonic 40kHz | 8.5 mm | 25 μs | ~2.5 μs | Marginal |
+| RF 2.4GHz | 12.5 cm | 0.4 ns | ~40 ps | ✗ |
+| Optical 600THz | 500 nm | 1.7 fs | ~170 as | ✗ |
+
+**The Architecture Is Domain-Invariant**: UTLP's ±30μs synchronization is 3% of a 1ms acoustic period—sufficient for beam steering. The same architecture with picosecond-capable hardware (FPGA, SDR) addresses RF. **The protocol doesn't change; only the clock determines the applicable domain.**
+
+**RFIP Feeds the Math**: Beam steering requires knowing inter-node distances. For a linear array steering to angle θ with node spacing d:
+
+```
+delay_n = (n × d × sin(θ)) / v
+
+Where:
+  n = node index (0, 1, 2...)
+  d = inter-node spacing (from RFIP ranging)
+  θ = target steering angle
+  v = wave velocity (343 m/s for sound, 3×10⁸ m/s for RF)
+```
+
+RFIP's peer ranging provides d directly. No pre-surveyed array geometry required—the swarm measures itself.
+
+**SMSP Carries the Phase Offsets**: Beam steering compiles to per-node time delays in the score:
+
+```c
+// PWA/Compiler calculates offsets for 45° steering, 10cm spacing
+// delay_n = (n × 0.10m × sin(45°)) / 343 m/s
+// Node 0: 0 μs, Node 1: 206 μs, Node 2: 412 μs, Node 3: 618 μs
+
+score_line_t beam_45deg[] = {
+    { .zone = 0, .time_offset_ms = 0,   .L_audio_freq_hz = 1000 },
+    { .zone = 1, .time_offset_ms = 0,   .start_delay_us = 206, .L_audio_freq_hz = 1000 },
+    { .zone = 2, .time_offset_ms = 0,   .start_delay_us = 412, .L_audio_freq_hz = 1000 },
+    { .zone = 3, .time_offset_ms = 0,   .start_delay_us = 618, .L_audio_freq_hz = 1000 },
+};
+```
+
+The nodes execute independently. The beam emerges from synchronized phase relationships.
+
+**Dynamic Steering**: Changing beam direction requires only a new score. The execution model is unchanged—nodes receive updated phase offsets, execute locally, new beam direction emerges. No architectural changes for scanning, tracking, or multi-beam patterns.
+
+**Enclosure Effects as Radome Simulation**: In the reference implementation, speakers are mounted inside plastic enclosures (EMDR handles). The enclosure modifies acoustic response—internal reflections, phase distortion, directivity changes. This is not a limitation; it's a **high-fidelity simulation of radome interaction** in real RF systems. Putting radar inside an aircraft nose cone creates identical phenomena: antenna detuning, boresight error, sidelobe distortion. The acoustic prototype exercises the same compensation algorithms needed for aerospace deployment.
+
+**Application Domains** (architecture identical, timing hardware varies):
+
+| Application | Domain | Hardware | Status |
+|-------------|--------|----------|--------|
+| Directional alerts | Acoustic | ESP32 + speaker | Achievable now |
+| Parametric audio | Ultrasonic | ESP32 + transducer array | Marginal now |
+| Sonar/echolocation | Ultrasonic | ESP32 + transducer | Marginal now |
+| Directed comms | RF | FPGA/SDR | Architecture ready |
+| Synthetic aperture | RF | FPGA/SDR | Architecture ready |
+| Jamming/nulling | RF | FPGA/SDR | Architecture ready |
+
+**The Validation Path**: Acoustic beamforming with ESP32 proves the distributed control logic at human-observable timescales. The architecture is identical for RF—only the timing hardware changes. Successfully steering a 1kHz acoustic beam validates that the UTLP/RFIP/SMSP stack can steer a 2.4GHz RF beam when instantiated on appropriate silicon.
 
 ---
 
@@ -648,6 +891,48 @@ This document establishes prior art for the following techniques, ensuring they 
 
 32. **Connection-oriented sync bootstrapping connectionless execution**: Using PTP/NTP-style timestamp exchange over connection-oriented transports (BLE, WiFi, etc.) to establish a persistent time reference that outlives the connection—the sync method is scaffolding, removed after use, while the time agreement enables indefinite connectionless coordination
 
+### 9.6 Score Protocol Techniques (SMSP)
+
+33. **Three-layer score architecture**: Separating declarative intent (human-readable parameters), compiler layer (PWA/tool transforming intent to timeline), and imperative execution (dumb engine playing time-indexed events)
+
+34. **Time-indexed score format**: Defining actuator state at absolute/relative timestamps rather than frequencies—frequency becomes implicit in timeline spacing, eliminating runtime waveform calculation
+
+35. **Transition-aware keyframes**: Score lines include interpolation duration and easing specification, enabling smooth crossfades as first-class operations rather than engine complexity
+
+36. **Multimodal channel abstraction**: LED RGB, brightness, haptic intensity, audio frequency/amplitude as parallel channels in unified timeline—modality is a channel property, not a protocol distinction
+
+37. **Pattern classification metadata**: Score-level enum (BILATERAL, EMERGENCY, SWARM_SYNC, PURSUIT, CUSTOM) enabling UI hints, validation rules, and zone logic optimization without parsing the timeline
+
+38. **Scale-invariant score execution**: Identical score format from PCB-mounted LEDs (zones = GPIO pins) to field-deployed swarms (zones = node IDs)—playback engine unaware of physical scale
+
+39. **Transport-agnostic score delivery**: Score format independent of delivery mechanism (ESP-NOW, BLE, wired bus, flash-at-build-time)—protocol complete when node has score + time + zone
+
+40. **8-bit capable score engine**: Playback loop (time check → segment advance → interpolate → output) simple enough for ATtiny-class MCUs; wireless sync capability determines cost, not execution capability
+
+41. **Conductor/performer topology**: Single "smart" node handles UTLP sync and score distribution; multiple "dumb" nodes execute scores with minimal hardware—enables $0.50 per additional node in wired deployments
+
+42. **Synthesized audio as score channel**: Audio frequency and amplitude as score parameters for real-time synthesis (no sample storage), enabling binaural/bilateral audio patterns with same connectionless execution model
+
+### 9.7 Wave Domain Techniques (Beamforming)
+
+43. **Distributed beamforming via connectionless phase coordination**: Nodes with synchronized time and known geometry execute scores containing per-node phase offsets, enabling steered wave emission without real-time coordination during transmission
+
+44. **Domain-invariant phased array architecture**: Same UTLP/RFIP/SMSP stack applies from acoustic (ms periods, MCU-achievable) to RF (ns periods, FPGA-required)—architecture unchanged, timing precision determines applicable domain
+
+45. **Swarm geometry feeding beam steering calculations**: RFIP-derived inter-node distances as direct input to phase offset computation (delay = n×d×sin(θ)/v), eliminating pre-surveyed array geometry requirements
+
+46. **Phase offset as SMSP score parameter**: Beam steering angles compiled to per-node microsecond delays, distributed as standard score timing, executed via normal connectionless playback
+
+47. **Dynamic beam steering via score update**: Changing target bearing requires only new score distribution, not architectural modification—same connectionless execution model for fixed, scanning, or tracking beams
+
+48. **Acoustic validation of RF-applicable architecture**: Proving distributed phase coordination at human-observable timescales (kHz acoustic) to validate control logic for RF timescales (GHz)—architecture identical, only clock hardware differs
+
+49. **Enclosure acoustic effects as radome simulation**: Structural acoustic non-idealities (phase distortion, directivity modification, internal reflections) modeling RF antenna detuning, body shadowing, and boresight error in aerospace deployments
+
+### 9.8 Implementation Philosophy
+
+50. **Score generation method independence**: Score authoring by any means—manual, algorithmic, AI/LLM-assisted, or real-time sensor-driven compilation—is implementation detail; the protocol and execution model are the contribution, not the generation method
+
 ---
 
 ## 10. Conclusion
@@ -671,6 +956,8 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 | 1.4 | 2025-12-23 | Rewrote Section 1 to reflect actual development history: pattern playback existed from day one, BLE worked, ESP-NOW chosen because hardware was available and it's better; added power efficiency rationale |
 | 1.5 | 2025-12-23 | Added BLE sync implementation details: PTP-style with NTP timestamps, ~2 minute convergence validated via serial logs; reframed prior art claim to capture the actual contribution (connection as scaffolding for persistent time reference) |
 | 1.6 | 2025-12-23 | Added IMU-augmented positioning option, hardware cost breakdown |
+| 1.7 | 2025-12-24 | Added SMSP (Synchronized Multimodal Score Protocol) as Section 4.5—defines score format, three-layer architecture (declarative/compiler/imperative), scale and transport invariance; added 10 SMSP-specific prior art claims (33-42) |
+| 1.8 | 2025-12-24 | Added distributed wave beamforming (Section 5.8)—acoustic demo proving domain-invariant phased array architecture; RFIP geometry feeding phase offset math; enclosure effects as radome simulation; 8 new prior art claims (43-50) covering beamforming and generation method independence |
 
 ---
 
@@ -683,6 +970,7 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 4. Advanced Architectural Analysis: Bilateral Pattern Playback Systems, mlehaptics Project, December 2025
 5. Emergency Vehicle Light Sync: Proven Architectures for ESP32 Adaptation, mlehaptics Project, December 2025
 6. 802.11mc FTM Reconnaissance Report, mlehaptics Project, December 2025
+7. Technical Note: Distributed Acoustic Beamforming ("The Slow-Motion Death Star"), mlehaptics Project, December 2025
 
 ### Standards
 7. SAE J845: Optical Warning Devices for Authorized Emergency, Maintenance, and Service Vehicles
@@ -708,7 +996,9 @@ This work emerged from collaborative development combining human domain expertis
 
 - **Steve (mlehaptics)**: Architecture design, hardware implementation, "Time as Public Utility" philosophy, Glass Wall architecture, validation methodology, therapeutic domain expertise
 
-- **Claude (Anthropic)**: Literature survey, protocol analysis, documentation compilation, prior art framing, application brainstorming
+- **Claude (Anthropic)**: Literature survey, protocol analysis, documentation compilation, prior art framing, SMSP formalization, application brainstorming
+
+- **Gemini (Google)**: Acoustic beamforming connection—recognizing that UTLP's timing precision enables phased array demonstrations at acoustic wavelengths
 
 ---
 

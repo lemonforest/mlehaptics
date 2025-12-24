@@ -1476,12 +1476,11 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             uint8_t ltk[16];
             err = ble_get_peer_ltk(ltk);
             if (err != ESP_OK) {
-                // Bug #108: LTK not available yet - defer derivation until SMP completes
+                // Bug #108: LTK not available yet - defer key derivation
                 // WIFI_MAC arrives during GATT discovery, but LTK isn't stored until
                 // BLE_GAP_EVENT_ENC_CHANGE fires with status=0 (~0.5-1s later)
                 ESP_LOGW(TAG, "Bug #108: LTK not available yet, deferring key derivation");
                 pending_ltk_derivation = true;
-                // Do NOT fall back to unencrypted - wait for time_sync_on_ltk_available()
                 break;
             }
 

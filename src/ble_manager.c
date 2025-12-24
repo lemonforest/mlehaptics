@@ -3485,6 +3485,67 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
             break;
         }
 
+        case BLE_GAP_EVENT_PASSKEY_ACTION: {
+            // Bug #111: SMP pairing requires passkey confirmation for MITM protection
+            // With sm_io_cap=BLE_SM_IO_CAP_KEYBOARD_DISP and sm_mitm=1, both devices
+            // have keyboard+display, so NimBLE selects numeric comparison pairing.
+            // Without this handler, pairing times out after 30 seconds (status=13).
+            //
+            // For peer-to-peer pairing, we auto-accept since both devices are ours.
+            ESP_LOGI(TAG, "Bug #111: Passkey action event; conn_handle=%d, action=%d",
+                     event->passkey.conn_handle, event->passkey.params.action);
+
+            struct ble_sm_io pkey = {0};
+            pkey.action = event->passkey.params.action;
+
+            switch (event->passkey.params.action) {
+                case BLE_SM_IOACT_NUMCMP:
+                    // Numeric comparison - both devices show same number, user confirms
+                    // Auto-accept for peer pairing (both devices are ours)
+                    ESP_LOGI(TAG, "Bug #111: Numeric comparison: %lu - AUTO-ACCEPTING",
+                             (unsigned long)event->passkey.params.numcmp);
+                    pkey.numcmp_accept = 1;  // Accept the pairing
+                    break;
+
+                case BLE_SM_IOACT_DISP:
+                    // Display passkey - we generate and display, peer enters
+                    // Generate a fixed passkey for peer-to-peer (no user present)
+                    pkey.passkey = 123456;  // Fixed passkey for peer pairing
+                    ESP_LOGI(TAG, "Bug #111: Displaying passkey: %lu", (unsigned long)pkey.passkey);
+                    break;
+
+                case BLE_SM_IOACT_INPUT:
+                    // Input passkey - peer displays, we enter
+                    // Use same fixed passkey (both devices use same code)
+                    pkey.passkey = 123456;
+                    ESP_LOGI(TAG, "Bug #111: Inputting passkey: %lu", (unsigned long)pkey.passkey);
+                    break;
+
+                case BLE_SM_IOACT_NONE:
+                    // Just Works - no user interaction needed
+                    ESP_LOGI(TAG, "Bug #111: Just Works pairing (no action required)");
+                    break;
+
+                case BLE_SM_IOACT_OOB:
+                    // Out-of-band - not supported for peer pairing
+                    ESP_LOGW(TAG, "Bug #111: OOB pairing not supported");
+                    break;
+
+                default:
+                    ESP_LOGW(TAG, "Bug #111: Unknown passkey action: %d", event->passkey.params.action);
+                    break;
+            }
+
+            // Inject the passkey/confirmation response
+            int rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
+            if (rc != 0) {
+                ESP_LOGE(TAG, "Bug #111: ble_sm_inject_io failed; rc=%d", rc);
+            } else {
+                ESP_LOGI(TAG, "Bug #111: Passkey response injected successfully");
+            }
+            break;
+        }
+
         case BLE_GAP_EVENT_ENC_CHANGE: {
             // Encryption state changed (pairing started or completed)
             ESP_LOGI(TAG, "BLE encryption change; conn_handle=%d, status=%d",
