@@ -226,58 +226,46 @@ FTM measurements are weighted 900× higher than BLE measurements.
 
 **Key finding:** Energy per packet is similar, but ESP-NOW has 100× lower latency jitter—critical for sub-30μs sync.
 
-### 3.2 Time-Division Multiplexing (PWA + Peer Coexistence)
+### 3.2 Radio Coexistence (PWA + Peer)
 
-**Design Evolution:** The original TDM concept assumed continuous BLE connection between *peer devices* alongside ESP-NOW. The implemented "BLE Bootstrap Model" (Section 3.5) releases peer BLE after key exchange, making peer TDM unnecessary.
+**Design Evolution:** Early designs explored Time-Division Multiplexing (TDM) to coordinate BLE and ESP-NOW transmissions. Testing revealed that active TDM scheduling actually *increased* timing jitter rather than reducing it. The implemented architecture relies on ESP-IDF's hardware coexistence arbitrator instead.
 
-**Remaining TDM use case:** PWA (phone app) BLE connection coexists with peer ESP-NOW traffic. The phone provides user interface, pattern uploads, and optional GPS time injection while peers exchange sub-millisecond time sync beacons.
+**Current Architecture:**
 
 ```
 PWA ← BLE → SERVER ←─ ESP-NOW ─→ CLIENT
               │
-              └── Single 2.4GHz radio handles both
+              └── Single 2.4GHz radio, managed by ESP-IDF coex arbitrator
 ```
 
-BLE and ESP-NOW share ESP32-C6's single 2.4GHz radio. Coordinate ESP-NOW transmissions around PWA BLE connection events:
+BLE and ESP-NOW share ESP32-C6's single 2.4GHz radio. ESP-IDF's coexistence arbitrator handles contention automatically with the following properties:
 
-```
-BLE Connection Interval = 100ms (typical for PWA)
+- **ESP-NOW priority:** Time-critical beacons given higher priority
+- **BLE connection events:** ~1-3ms every connection interval (typically 50-100ms)
+- **Observed jitter:** ±100μs for ESP-NOW when PWA connected
 
-Timeline:
-────┬─────────────────────────────────────────────────┬────
-    │◄───────────────── 100ms ───────────────────────►│
-    ▲                                                 ▲
- BLE Event                                        BLE Event
- (~3ms)                                            (~3ms)
+**Why TDM Was Abandoned:**
 
-    ├──► AVOID (3ms)                         AVOID ◄──┤
+1. **Added complexity without benefit:** TDM requires tracking BLE connection anchor points and scheduling ESP-NOW around them. ESP-IDF's coex arbitrator already does this in hardware.
 
-         │◄────────── ~94ms SAFE FOR ESP-NOW ────────►│
-```
+2. **Introduced timing jitter:** Waiting for "safe windows" added variable delays (up to 25ms per-packet). The coex arbitrator's automatic arbitration produces lower and more consistent latency.
+
+3. **BLE anchor tracking unreliable:** Connection parameters can change dynamically, making anchor prediction error-prone.
+
+**Retained TDM Infrastructure:**
+
+The `espnow_transport.h` header retains TDM constants and APIs for future exploration:
 
 ```c
-static int64_t ble_anchor_us;
-static uint32_t ble_interval_us;
+#define ESPNOW_TDM_BLE_INTERVAL_MS  (50U)   // Theoretical BLE interval
+#define ESPNOW_TDM_SAFE_OFFSET_MS   (25U)   // Midpoint offset
+#define ESPNOW_TDM_SAFE_WINDOW_MS   (20U)   // Safe window duration
 
-int64_t next_ble_event(void) {
-    int64_t now = esp_timer_get_time();
-    int64_t elapsed = now - ble_anchor_us;
-    return ble_anchor_us + ((elapsed / ble_interval_us) + 1) * ble_interval_us;
-}
-
-bool is_safe_for_espnow(void) {
-    if (!pwa_connected) return true;  // No PWA = no contention
-
-    int64_t now = esp_timer_get_time();
-    int64_t margin = 3000;  // 3ms safety
-    int64_t to_next = next_ble_event() - now;
-    int64_t from_prev = ble_interval_us - to_next;
-
-    return (to_next > margin) && (from_prev > margin);
-}
+bool espnow_transport_is_tdm_safe(void);    // Not called in production
+uint32_t espnow_transport_wait_for_tdm_safe(void);  // Not called in production
 ```
 
-**Implementation note:** Current firmware does not implement active TDM scheduling. ESP-IDF's coexistence arbitrator handles contention automatically. TDM becomes beneficial if PWA traffic causes observable ESP-NOW jitter (>1ms).
+These remain for potential future use if PWA traffic causes observable ESP-NOW jitter (>1ms), but current testing shows the coex arbitrator is sufficient.
 
 ### 3.3 Recommended Transport Allocation
 
@@ -871,7 +859,7 @@ This supplement establishes additional prior art for:
 ### 6.2 Transport Architecture
 5. **BLE Bootstrap Model**: BLE for trust establishment only, released after key exchange
 6. **Transport HAL abstraction**: Platform-agnostic interface for sync transports
-7. **PWA+ESP-NOW TDM**: Time-division multiplexing for phone BLE + peer ESP-NOW coexistence
+7. **Hardware coexistence over TDM**: ESP-IDF's coex arbitrator outperforms manual time-division multiplexing
 8. **Transport lifecycle phases**: Bootstrap (BLE) → Operational (ESP-NOW) separation
 
 ### 6.3 Security Models
