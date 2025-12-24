@@ -5319,6 +5319,23 @@ static esp_err_t sync_settings_to_peer(void) {
 }
 
 // ============================================================================
+// BUG #107: SESSION DURATION MISMATCH FIX - PUBLIC SETTINGS SYNC API
+// ============================================================================
+// Called by time_sync_task.c after ESP-NOW key exchange to ensure CLIENT
+// has identical settings to SERVER (especially session_duration).
+
+esp_err_t ble_sync_all_settings_to_peer(void) {
+    // Only SERVER should call this function
+    if (!TIME_SYNC_IS_SERVER()) {
+        ESP_LOGW(TAG, "Bug #107: ble_sync_all_settings_to_peer() called by non-SERVER");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    ESP_LOGI(TAG, "Bug #107: SERVER syncing all settings to CLIENT at bootstrap");
+    return sync_settings_to_peer();
+}
+
+// ============================================================================
 // COORDINATION SETTINGS UPDATE API (Phase 3 - Internal Use Only)
 // ============================================================================
 // These functions update char_data WITHOUT triggering sync_settings_to_peer()

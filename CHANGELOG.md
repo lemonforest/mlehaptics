@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Bug #107: Session Duration Mismatch Between Paired Devices**: SERVER now syncs all NVS settings to CLIENT at bootstrap
+  - **Problem**: CLIENT continued running 85+ minutes after SERVER slept because devices had different session durations in NVS
+  - **Root Cause**: Each device loads session_duration from its own NVS on boot; if USER only configured SERVER via PWA, CLIENT keeps its default/old value
+  - **Solution**: SERVER sends all settings (including session_duration) to CLIENT immediately after ESP-NOW key exchange completes
+  - **New API**: `ble_sync_all_settings_to_peer()` in ble_manager.h - public wrapper for settings sync
+  - **Trigger Location**: time_sync_task.c after `espnow_key_exchange_complete = true` (line 1524)
+  - Files: [ble_manager.h](src/ble_manager.h), [ble_manager.c:5327-5336](src/ble_manager.c#L5327-L5336), [time_sync_task.c:1520-1530](src/time_sync_task.c#L1520-L1530)
+
 ## [v0.7.29] - 2025-12-24
 
 ### Added

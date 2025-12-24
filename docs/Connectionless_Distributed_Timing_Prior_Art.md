@@ -335,6 +335,20 @@ The connectionless timing architecture is not a product—it's a **distributed r
 - Pattern coverage emerges from spatial awareness: "I'm north of you, I'll search north"
 - Works where GPS fails: rubble attenuation, canyon walls, dense canopy, caves
 
+**Swarm Form Factors**: Coordinated node networks are not limited to mobile robots. The architecture covers three instantiation categories:
+
+| Form Factor | Locomotion | Platform | Example |
+|-------------|------------|----------|---------|
+| **Wearable swarm** | Person provides | Body-mounted | Bilateral EMDR pulsers, rescue worker trackers |
+| **Fixed swarm** | None | Stationary | Warning lights on poles, building evacuation beacons |
+| **Mobile swarm** | Self-propelled | Autonomous | Aerial drones, ground robots, autonomous vehicles |
+
+All three share the same timing and coordination architecture—UTLP synchronization, pattern scripts, peer ranging. Locomotion is simply another actuator channel: some nodes have it, some don't.
+
+**Terminology note**: The distinction is *agency*, not form factor. A *drone* is an independent agent acting on your behalf. A *wearable* extends the person wearing it—the person remains the agent. Both participate identically in swarm coordination.
+
+The architecture requires only: radio and time sync participation. Nodes may be stationary, worn, or mobile.
+
 **Building Evacuation Systems**
 - Synchronized directional lighting across floors
 - Wave patterns indicating egress direction

@@ -1516,6 +1516,18 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 ESP_LOGI(TAG, "AD048: %s configured encrypted ESP-NOW peer (LTK-derived)",
                          TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
                 espnow_key_exchange_complete = true;
+
+                // Bug #107: SERVER syncs all NVS settings to CLIENT at bootstrap
+                // This ensures CLIENT has same session_duration, preventing CLIENT
+                // from running longer than SERVER if they have different NVS values.
+                if (TIME_SYNC_IS_SERVER()) {
+                    esp_err_t sync_err = ble_sync_all_settings_to_peer();
+                    if (sync_err == ESP_OK) {
+                        ESP_LOGI(TAG, "Bug #107: Settings synced to CLIENT at bootstrap");
+                    } else {
+                        ESP_LOGW(TAG, "Bug #107: Failed to sync settings: %s", esp_err_to_name(sync_err));
+                    }
+                }
             } else {
                 ESP_LOGE(TAG, "AD048: Failed to configure encrypted peer: %s", esp_err_to_name(err));
             }

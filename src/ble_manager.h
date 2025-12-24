@@ -984,6 +984,21 @@ esp_err_t ble_manager_deinit(void);
 esp_err_t ble_send_coordination_message(const coordination_message_t *msg);
 
 /**
+ * @brief Sync all NVS settings from SERVER to CLIENT at bootstrap
+ * @return ESP_OK on success, error code on failure
+ *
+ * Bug #107: SESSION DURATION MISMATCH FIX
+ * Called by time_sync_task.c after ESP-NOW key exchange completes.
+ * SERVER sends all current settings (frequency, duty, intensities, LED,
+ * session_duration) to CLIENT so both devices have identical configuration.
+ * This prevents CLIENT from running longer than SERVER due to different
+ * NVS-stored session durations.
+ *
+ * Only SERVER should call this function.
+ */
+esp_err_t ble_sync_all_settings_to_peer(void);
+
+/**
  * @brief Get current coordination mode (Phase 3)
  * @return Current coordination mode (STANDALONE/SERVER/CLIENT/FALLBACK)
  *
