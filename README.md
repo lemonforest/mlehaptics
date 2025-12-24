@@ -13,6 +13,14 @@
 
 Generated with assistance from **Claude Opus 4.5 (Anthropic)**
 
+## 🤖 Development Methodology
+
+This firmware was developed through guided AI iteration (Claude, Gemini, Grok), moving non-linearly between models and context windows. Cross-checking between sessions often surfaced insights that single-context iteration missed. The human role was direction, validation criteria, and "does this feel right" intuition—not code correction or complete domain expertise. AI contributed both implementation and domain research (protocol analysis, academic literature, patent landscape, algorithm selection).
+
+What you see is what the AI produced through iterative guidance.
+
+**Timing validation:** 240fps slow-motion capture on a consumer phone.
+
 ## 🎯 Project Overview
 
 This project implements a two-device bilateral stimulation system for EMDR (Eye Movement Desensitization and Reprocessing) therapy. Two identical ESP32-C6 devices automatically discover and pair with each other, then provide synchronized alternating stimulation patterns with safety-critical non-overlapping timing. The system uses professional ERM (Eccentric Rotating Mass) motors for tactile stimulation with H-bridge bidirectional control, and includes a WS2812B RGB LED for dual-modality stimulation.

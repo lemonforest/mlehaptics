@@ -121,7 +121,7 @@ static bool espnow_key_exchange_complete = false;
 
 static void time_sync_task(void *arg);
 static void handle_init_message(const time_sync_message_t *msg);
-static void handle_disconnection_message(void);
+static void handle_disconnection_message(const time_sync_message_t *msg);
 static void handle_beacon_message(const time_sync_message_t *msg);
 static void handle_coordination_message(const time_sync_message_t *msg);
 static void perform_periodic_update(void);
@@ -192,7 +192,7 @@ esp_err_t time_sync_task_send_init(time_sync_role_t role)
     return ESP_OK;
 }
 
-esp_err_t time_sync_task_send_disconnection(void)
+esp_err_t time_sync_task_send_disconnection(bool preserve_espnow)
 {
     if (time_sync_queue == NULL) {
         ESP_LOGE(TAG, "Time sync queue not initialized");
@@ -200,7 +200,8 @@ esp_err_t time_sync_task_send_disconnection(void)
     }
 
     time_sync_message_t msg = {
-        .type = TIME_SYNC_MSG_DISCONNECTION
+        .type = TIME_SYNC_MSG_DISCONNECTION,
+        .data.disconnection.preserve_espnow = preserve_espnow
     };
 
     if (xQueueSend(time_sync_queue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
@@ -325,7 +326,7 @@ static void time_sync_task(void *arg)
                     break;
 
                 case TIME_SYNC_MSG_DISCONNECTION:
-                    handle_disconnection_message();
+                    handle_disconnection_message(&msg);
                     break;
 
                 case TIME_SYNC_MSG_BEACON_RECEIVED:
@@ -513,9 +514,11 @@ static void handle_init_message(const time_sync_message_t *msg)
     next_update_time = xTaskGetTickCount() + pdMS_TO_TICKS(time_sync_get_interval_ms());
 }
 
-static void handle_disconnection_message(void)
+static void handle_disconnection_message(const time_sync_message_t *msg)
 {
-    ESP_LOGI(TAG, "Peer disconnected, freezing time sync state");
+    bool preserve_espnow = msg->data.disconnection.preserve_espnow;
+
+    ESP_LOGI(TAG, "Peer disconnected, freezing time sync state (preserve_espnow=%d)", preserve_espnow);
 
     // AD048: Reset deduplication state so we don't skip first beacon after reconnect
     last_processed_beacon_seq = 255;
@@ -525,8 +528,22 @@ static void handle_disconnection_message(void)
     espnow_key_exchange_complete = false;
     memset(peer_wifi_mac, 0, sizeof(peer_wifi_mac));
 
-    // Clear ESP-NOW peer (will be reconfigured on reconnect)
-    espnow_transport_clear_peer();
+    /* Bug #105: Conditional ESP-NOW peer clearing
+     *
+     * preserve_espnow=true (bootstrap complete):
+     *   - Intentional BLE disconnect after MOTOR_STARTED
+     *   - Keep ESP-NOW peer for continued coordination
+     *   - ESP-NOW is now the ONLY transport for peer coordination
+     *
+     * preserve_espnow=false (unexpected disconnect):
+     *   - Connection lost during bootstrap
+     *   - Clear ESP-NOW peer, will be reconfigured on reconnect
+     */
+    if (!preserve_espnow) {
+        espnow_transport_clear_peer();
+    } else {
+        ESP_LOGI(TAG, "ESP-NOW peer preserved (bootstrap complete, coordination continues)");
+    }
 
     esp_err_t err = time_sync_on_disconnection();
     if (err == ESP_OK) {

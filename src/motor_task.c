@@ -48,6 +48,7 @@
 #include "power_manager.h"
 #include "time_sync.h"
 #include "time_sync_task.h"
+#include "espnow_transport.h"  // Bug #104: RF link health monitoring
 #include "pattern_playback.h"
 #include "zone_config.h"
 
@@ -1002,6 +1003,30 @@ void motor_task(void *pvParameters) {
                                     if (err == ESP_OK) {
                                         ESP_LOGI(TAG, "SERVER: MOTOR_STARTED notification sent (epoch=%llu, cycle=%lu)",
                                                  motor_epoch_us, motor_cycle_ms);
+
+                                        /* Bug #105: Release peer BLE connection after bootstrap complete
+                                         *
+                                         * Architecture: BLE is for bootstrap only, ESP-NOW for coordination.
+                                         * After MOTOR_STARTED sent, peer BLE serves no purpose and causes:
+                                         * - Spurious encryption events (status=13 BLE_SM_ERR_AUTHREQ)
+                                         * - Unnecessary RF contention during therapy
+                                         * - Confusion about parallel BLE traffic
+                                         *
+                                         * Brief delay ensures MOTOR_STARTED delivery before disconnect.
+                                         * CLIENT will receive disconnect event and can stop BLE entirely.
+                                         */
+                                        vTaskDelay(pdMS_TO_TICKS(200));  // Allow BLE message delivery
+
+                                        // Bug #105 diagnostic: Log ESP-NOW status before BLE release
+                                        bool espnow_ready = espnow_transport_is_ready();
+                                        ESP_LOGI(TAG, "SERVER: Releasing peer BLE (ESP-NOW ready=%d)", espnow_ready);
+
+                                        esp_err_t disc_err = ble_disconnect_peer(BLE_DISCONNECT_REASON_USER);
+                                        if (disc_err == ESP_OK) {
+                                            ESP_LOGI(TAG, "SERVER: Peer BLE released (bootstrap complete, ESP-NOW active)");
+                                        } else {
+                                            ESP_LOGD(TAG, "SERVER: Peer BLE disconnect: %s", esp_err_to_name(disc_err));
+                                        }
                                     } else {
                                         ESP_LOGW(TAG, "SERVER: Failed to send MOTOR_STARTED: %s", esp_err_to_name(err));
                                     }
@@ -1074,7 +1099,8 @@ void motor_task(void *pvParameters) {
                         ble_update_bilateral_battery_level((uint8_t)battery_pct); // Bilateral Control Service (peer device)
 
                         // Phase 6: CLIENT sends battery to SERVER for PWA client_battery characteristic
-                        if (ble_get_peer_role() == PEER_ROLE_CLIENT && ble_is_peer_connected()) {
+                        // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+                        if (ble_get_peer_role() == PEER_ROLE_CLIENT && espnow_transport_is_ready()) {
                             coordination_message_t coord_msg = {
                                 .type = SYNC_MSG_CLIENT_BATTERY,
                                 .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000),
@@ -1103,6 +1129,9 @@ void motor_task(void *pvParameters) {
                             ESP_LOGI(TAG, "Battery: %.2fV [%d%%] | BLE: %s", battery_v, battery_pct, ble_get_connection_type_str());
                         }
                     }
+
+                    // Bug #104: Log ESP-NOW link health with battery (every 60s)
+                    espnow_transport_log_link_health();
 
                     last_battery_check_ms = now;
                 }

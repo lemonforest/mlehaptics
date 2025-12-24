@@ -85,6 +85,11 @@ typedef struct {
         struct {
             coordination_message_t msg;     /**< Coordination message from peer */
         } coordination;
+
+        /** Data for TIME_SYNC_MSG_DISCONNECTION (Bug #105) */
+        struct {
+            bool preserve_espnow;           /**< true = bootstrap complete, keep ESP-NOW peer */
+        } disconnection;
     } data;
 } time_sync_message_t;
 
@@ -121,10 +126,15 @@ esp_err_t time_sync_task_send_init(time_sync_role_t role);
  * Called by BLE manager when peer connection drops.
  * Time sync will freeze current state and continue with last known offset.
  *
+ * Bug #105: If preserve_espnow is true (bootstrap complete), ESP-NOW peer
+ * is kept configured for continued coordination. Only cleared on unexpected
+ * disconnects where re-pairing is needed.
+ *
+ * @param preserve_espnow true if bootstrap complete (keep ESP-NOW), false to clear
  * @return ESP_OK on success
  * @return ESP_FAIL if queue send fails
  */
-esp_err_t time_sync_task_send_disconnection(void);
+esp_err_t time_sync_task_send_disconnection(bool preserve_espnow);
 
 /**
  * @brief Beacon transport types (AD048)

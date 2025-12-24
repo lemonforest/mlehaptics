@@ -1063,9 +1063,17 @@ esp_err_t time_sync_update_from_paired_timestamps(
 /** @brief Check if time sync is initialized */
 #define TIME_SYNC_IS_INITIALIZED() (time_sync_get_state() != SYNC_STATE_INIT)
 
-/** @brief Check if time sync is active (connected and synced) */
+/** @brief Check if time sync is active (synced, drift detected, or disconnected with valid epoch)
+ *
+ * Bug #105 / Phase 6r: Include SYNC_STATE_DISCONNECTED because:
+ * - Motor epoch and drift rate are PRESERVED during disconnect
+ * - ESP-NOW beacons continue flowing (not dependent on BLE peer)
+ * - Coordination should continue during brief BLE disconnects
+ * - This enables mode change coordination after BLE peer disconnect
+ */
 #define TIME_SYNC_IS_ACTIVE() ((time_sync_get_state() == SYNC_STATE_SYNCED) || \
-                                (time_sync_get_state() == SYNC_STATE_DRIFT_DETECTED))
+                                (time_sync_get_state() == SYNC_STATE_DRIFT_DETECTED) || \
+                                (time_sync_get_state() == SYNC_STATE_DISCONNECTED))
 
 /** @brief Check if device is SERVER */
 #define TIME_SYNC_IS_SERVER() (time_sync_get_role() == TIME_SYNC_ROLE_SERVER)

@@ -1,6 +1,6 @@
 # Connectionless Distributed Timing: A Prior Art Publication
 
-**Synchronized Actuation Without Real-Time Coordination**
+**Changing the Conditions of the FLP Impossibility Test**
 
 *mlehaptics Project — Defensive Publication — December 2025*
 
@@ -14,7 +14,7 @@
 
 This document establishes prior art for a class of distributed embedded systems that achieve synchronized actuation across independent wireless nodes *without* real-time coordination traffic during operation. The core insight: when devices share a time reference and a script describing future actions, they can execute in perfect synchronization without exchanging messages during the timing-critical phase.
 
-We document the journey from attempting to solve BLE (Bluetooth Low Energy) stack timing jitter to recognizing that the constraint itself was artificial. By separating *configuration* (which requires bidirectional communication) from *execution* (which does not), we achieve sub-millisecond synchronization using commodity microcontrollers and standard RF protocols.
+Development began with single-device pattern playback—deterministic, timer-driven actuation. Adding wireless pairing revealed that networked devices needed only to agree on time offset; the pattern architecture already supported connectionless operation. BLE worked. ESP-NOW worked better. By separating *configuration* (which requires bidirectional communication) from *execution* (which does not), we achieve sub-millisecond synchronization using commodity microcontrollers and standard RF protocols.
 
 This architecture was validated using SAE J845-compliant emergency lighting patterns (Quad Flash) captured at 240fps, demonstrating zero perceptible overlap between alternating signals—precision sufficient for therapeutic bilateral stimulation, emergency vehicle warning systems, and distributed swarm coordination. Reference implementation runs on commodity ESP32-C6 hardware with a bill of materials under $15 per node.
 
@@ -22,17 +22,19 @@ This work is published as open-source prior art to ensure these techniques remai
 
 ---
 
-## 1. Introduction: The Constraint That Wasn't
+## 1. Introduction: The Solution Was Already There
 
-### 1.1 The Original Problem
+### 1.1 The Development Path
 
-The mlehaptics project began with a straightforward goal: create a wireless bilateral EMDR (Eye Movement Desensitization and Reprocessing) therapy device using two handheld units that produce alternating haptic/visual stimulation. The therapeutic requirement: maintain antiphase timing such that when the left device is active, the right is inactive, and vice versa—with sufficient precision that a patient never perceives simultaneous activation.
+The mlehaptics project began with a single device: one ESP32-C6 running a bilateral stimulation pattern—alternating haptic and visual pulses at configurable rates. The pattern playback was deterministic from the start, driven by a local timer.
 
-The initial assumption was that this required BLE communication between the devices during operation. One device would signal "I'm activating now" and the other would respond. This assumption led to months of engineering effort attempting to compensate for BLE stack latency and jitter.
+When we added networking to create a wireless pair, the implementation was straightforward: the client runs the same pattern as the server, but in antiphase. Both devices execute the same script; they just need to agree on timing offset. BLE provided the communication channel, and it worked.
 
-### 1.2 The Stack Jitter Problem
+But we had questions. The ESP32-C6 has both BLE and WiFi radios. Could we do better with ESP-NOW? How tight could the synchronization actually get? What were the limits?
 
-BLE on ESP32-class microcontrollers presents a fundamental timing challenge. When a packet arrives at the RF frontend, the following processing chain executes before application code learns of the event:
+### 1.2 The Stack Jitter Investigation
+
+Investigating BLE timing led us deep into the ESP32's radio stack:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -42,7 +44,7 @@ BLE on ESP32-class microcontrollers presents a fundamental timing challenge. Whe
 ├─────────────────────────────────────────────────────────────┤
 │  VHCI Transport (RAM buffer exchange)                       │
 ├─────────────────────────────────────────────────────────────┤
-│  NimBLE/Bluedroid Host Task (FreeRTOS context switch)       │
+│  NimBLE Host Task (FreeRTOS context switch)                 │
 ├─────────────────────────────────────────────────────────────┤
 │  L2CAP → ATT → GATT parsing                                 │
 ├─────────────────────────────────────────────────────────────┤
@@ -50,29 +52,27 @@ BLE on ESP32-class microcontrollers presents a fundamental timing challenge. Whe
 └─────────────────────────────────────────────────────────────┘
 ```
 
-The latency from RF event to application callback varies by 1-50ms depending on system state: FreeRTOS scheduling, other BLE operations in progress, WiFi coexistence, flash operations. This jitter is not RF propagation (nanoseconds across a room) but *software processing time*—and it's largely invisible to the application layer.
+The latency from RF event to application callback varies by 1-50ms depending on system state: FreeRTOS scheduling, other BLE operations in progress, WiFi coexistence, flash operations. This jitter is not RF propagation (nanoseconds across a room) but *software processing time*.
 
-### 1.3 The Irony
+### 1.3 The Realization
 
-The BLE radio *has* precise timing. It must—frequency hopping requires sub-microsecond coordination or packets land on wrong channels. Both devices in a BLE connection are already synchronized to a shared anchor point. The peripheral knows *exactly* when the central will transmit.
+The investigation revealed something we hadn't fully appreciated: **we already had a connectionless architecture**. Both devices possessed the same pattern. They just needed to agree on time. The pattern playback we'd built for a single device was already the solution—we just hadn't recognized it as such.
 
-This synchronization exists inside the controller. It's simply not exposed to the application.
+BLE worked. We implemented PTP-style synchronization using NTP timestamps over BLE GATT, calculating clock asymmetry from round-trip measurements. Validation against wall-clock serial logs confirmed the algorithm reached coherence—but it took approximately 2 minutes to converge to stable sub-millisecond sync due to BLE's jitter distribution.
 
-We spent considerable effort trying to measure and compensate for jitter we couldn't directly observe, because the abstraction hid the precision we needed.
+ESP-NOW could work better:
+- **Faster convergence**: Seconds instead of minutes (lower jitter means fewer samples needed)
+- **Lower steady-state jitter**: ±100μs vs ±10-50ms for time synchronization
+- **Power efficiency**: Truly connectionless operation means radio silence when nothing changes
+- **No connection to drop**: Pattern continues even if sync beacon is missed
 
-### 1.4 The Reframe
+The therapeutic requirement (sub-40ms precision) was easily met by BLE after convergence. But since the hardware supported ESP-NOW at no additional cost, why not use the better tool?
 
-The breakthrough came from questioning the original assumption. The user requirement was:
+### 1.4 The Generalization
 
-> "I want Bluetooth"
+Once we recognized that "pattern playback with time agreement" was the core primitive, applications beyond bilateral stimulation became obvious. Any scenario where multiple devices need to act in coordination—emergency lighting, swarm robotics, sensor arrays—fits the same pattern:
 
-What this actually meant:
-
-> "I want to configure these devices from my phone"
-
-These are not the same thing. The phone needs bidirectional BLE communication during *setup*. The devices themselves, during *operation*, need only to execute a shared plan.
-
-**The devices don't need to talk to each other. They need to agree on what time it is and what they're going to do.**
+**Devices don't need to talk to each other during operation. They need to agree on time and script.**
 
 ---
 
@@ -92,13 +92,13 @@ The architecture cleanly separates three phases:
 
 During execution, devices do not coordinate. Each device:
 1. Knows what time it is (via prior UTLP synchronization)
-2. Knows what script to play (uploaded during configuration)
+2. Knows what script to play (preloaded in firmware or uploaded during configuration)
 3. Knows its zone/role (assigned during configuration)
 4. Executes locally with no network dependency
 
 ### 2.2 Script-Based Execution
 
-A "script" is a deterministic sequence of timed events that both devices possess. The simplest script for bilateral stimulation:
+A "script" is a deterministic sequence of timed events that both devices possess. The simplest script for bilateral stimulation (illustrative pseudocode—the reference implementation uses richer structures for pattern playback):
 
 ```c
 typedef struct {
@@ -144,6 +144,8 @@ The architecture uses both:
 2. **ESP-NOW** carries operational traffic (sync beacons, monitoring)
 3. **Shared key material** derived from BLE pairing secures ESP-NOW
 
+Key derivation concept (illustrative—reference implementation wraps this in a transport API):
+
 ```c
 // Key derivation: BLE provides the secret, MACs provide binding
 esp_err_t derive_espnow_key(
@@ -178,7 +180,7 @@ This gives the security properties of BLE pairing (encrypted key exchange, MITM 
 
 ### 3.1 The Standard
 
-SAE J845 defines flash patterns for emergency vehicle warning lights. The Quad Flash pattern (four rapid flashes followed by a pause) has strict timing requirements for visibility and seizure safety. If two devices executing alternating Quad Flash patterns show any overlap, the pattern is broken.
+SAE J845 defines flash patterns for emergency vehicle warning lights, with strict timing requirements for visibility and seizure safety. This validation used a tri-color variant: red and blue channels alternating in antiphase (like opposing lightbar sections), plus a shared white channel flashing in-phase on both devices. If alternating signals overlap or synchronized signals desynchronize, the pattern fails.
 
 ### 3.2 The Test
 
@@ -197,19 +199,21 @@ This dual-pattern test validates both capabilities simultaneously:
 1. **Antiphase coordination**: Red and blue never overlap (bilateral stimulation requirement)
 2. **In-phase coordination**: White LEDs fire together (swarm coherence requirement)
 
-Validation method: 240fps slow-motion video capture (4.17ms per frame). At this frame rate, any timing error would be visible as either red/blue overlap or white desynchronization.
+Validation method: 240fps slow-motion video capture (4.17ms per frame). At this frame rate, any timing error would be visible as white desynchronization or glitches during frequency transitions.
 
 ### 3.3 The Result
 
-**Zero frames showed red/blue overlap. Zero frames showed white desynchronization.** 
+**Zero frames showed white desynchronization. Zero visible glitches during frequency transitions.**
 
-The devices maintained clean alternation on zone-assigned channels while simultaneously maintaining lock on the shared white channel—across the entire test duration, with timing precision well within one frame (4.17ms).
+Note: Red/blue "overlap" isn't a meaningful metric here—they're on separate devices and physically cannot overlap. Bilateral synchronization quality is validated separately using a 100% duty cycle alternating pattern where each device is illuminated for its entire phase; any timing error appears as simultaneous illumination or gaps.
 
-This is approximately 10x better than the therapeutic requirement for EMDR bilateral stimulation (~40ms perceptual threshold), and validates that:
-1. Connectionless execution achieves sufficient precision for demanding timing applications
-2. Commodity ESP32 hardware with standard protocols can meet professional emergency lighting standards
-3. The architecture supports both antiphase (bilateral) and in-phase (swarm) coordination simultaneously
-4. Zone assignment works correctly—identical firmware, different runtime behavior
+The quad flash validation reveals something more subtle: **smooth step-boundary transitions**. When the pattern changes frequency mid-execution, both devices transition cleanly at step boundaries with no visible discontinuity. At 240fps (4.17ms per frame), frequency changes appear instantaneous.
+
+This validates:
+1. **Step-boundary architecture works**: Pattern changes execute at deterministic boundaries, not arbitrary moments
+2. **Frequency transitions appear instant**: Mode changes in therapeutic applications (EMDR bilateral stimulation) can switch speeds without perceptible glitches
+3. **In-phase coordination is precise**: White channel lock across devices confirms sub-frame synchronization
+4. **Zone assignment works correctly**: Identical firmware, different runtime behavior based on role
 
 ---
 
@@ -512,7 +516,8 @@ We chose the connectionless RF path deliberately, not because BLE timing was imp
 1. **Connectionless eliminates a failure mode**: No connection to drop during therapy
 2. **Lower latency jitter**: ESP-NOW's ~100μs jitter vs BLE's ~10-50ms simplifies the timing stack
 3. **Independence during execution**: Devices don't need to maintain a link while operating
-4. **Phone compatibility preserved**: BLE handles the user-facing interface; ESP-NOW handles peer coordination
+4. **Power efficiency**: When everyone has the same script, radio silence until something changes
+5. **Phone compatibility preserved**: BLE handles the user-facing interface; ESP-NOW handles peer coordination
 
 The architecture uses BLE for what it's good at (phone pairing, trust establishment) and ESP-NOW for what it's good at (low-jitter peer communication).
 
@@ -625,7 +630,9 @@ This document establishes prior art for the following techniques, ensuring they 
 
 30. **Distributed IMU from ranging geometry**: 3+ nodes with peer ranging provide 6-DOF swarm orientation (translation, rotation, scale) without per-node inertial sensors—the swarm's geometry is itself an inertial reference
 
-30. **IMU-augmented peer ranging**: Combining 802.11mc FTM with inertial measurement for reflection ambiguity resolution, dead reckoning between ranging updates, and orientation awareness in mobile swarms
+31. **IMU-augmented peer ranging**: Combining 802.11mc FTM with per-node inertial measurement for reflection ambiguity resolution, dead reckoning between ranging updates, and orientation awareness in mobile swarms
+
+32. **Connection-oriented sync bootstrapping connectionless execution**: Using PTP/NTP-style timestamp exchange over connection-oriented transports (BLE, WiFi, etc.) to establish a persistent time reference that outlives the connection—the sync method is scaffolding, removed after use, while the time agreement enables indefinite connectionless coordination
 
 ---
 
@@ -633,7 +640,7 @@ This document establishes prior art for the following techniques, ensuring they 
 
 The connectionless distributed timing architecture demonstrates that many coordination problems have simpler solutions than traditionally assumed. By separating configuration from execution, and by treating synchronized time as foundational rather than incidental, we eliminate entire categories of complexity.
 
-The techniques documented here are not limited by technology—the hardware has existed for years. They were limited by assumptions: that coordination requires communication, that BLE timing is "good enough" (or "hopeless"), that GPS is the only path to precision.
+The techniques documented here are not limited by technology—the hardware has existed for years. They were limited by recognition: that pattern playback is already connectionless, that BLE and ESP-NOW can coexist with each handling what it does best, that the "$5 saved per node is another node in the swarm."
 
 By publishing this work as prior art, we ensure these techniques remain freely available. Technology that assumes cooperation rather than extraction.
 
@@ -647,6 +654,8 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 | 1.1 | 2025-12-23 | Added defense-in-depth security architecture, HKDF selection rationale, multi-layer replay protection, threat-proportional design philosophy; clarified BLE Bootstrap Model with peer release |
 | 1.2 | 2025-12-23 | Added GPS-denied search and rescue with self-mapping patterns |
 | 1.3 | 2025-12-23 | Added distributed IMU from ranging geometry—swarm orientation without per-node inertial sensors |
+| 1.4 | 2025-12-23 | Rewrote Section 1 to reflect actual development history: pattern playback existed from day one, BLE worked, ESP-NOW chosen because hardware was available and it's better; added power efficiency rationale |
+| 1.5 | 2025-12-23 | Added BLE sync implementation details: PTP-style with NTP timestamps, ~2 minute convergence validated via serial logs; reframed prior art claim to capture the actual contribution (connection as scaffolding for persistent time reference) |
 | 1.3 | 2025-12-23 | Added IMU-augmented positioning option, hardware cost breakdown |
 
 ---
@@ -675,6 +684,7 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 13. ESP-IDF Programming Guide: Wi-Fi Driver, Espressif Systems
 14. M. Fischer, N. Lynch, M. Paterson. "Impossibility of Distributed Consensus with One Faulty Process." JACM 1985
 15. M. Shapiro et al. "Conflict-free Replicated Data Types." SSS 2011
+16. N. Meyer (dir.), "Star Trek II: The Wrath of Khan," Paramount Pictures, 1982. (Kobayashi Maru scenario: the insight that "unwinnable" tests can be beaten by changing their preconditions—see [14])
 
 ---
 

@@ -47,6 +47,10 @@ static struct {
     espnow_coordination_callback_t coordination_callback;
     espnow_metrics_t metrics;
     bool wifi_initialized;
+    // Bug #104: RF breakdown diagnostics
+    uint32_t consecutive_send_failures;    // Reset to 0 on success callback
+    uint64_t last_send_success_us;         // Timestamp of last successful send
+    uint64_t last_recv_us;                 // Timestamp of last received packet
 } s_espnow = {
     .state = ESPNOW_STATE_UNINITIALIZED,
     .peer_configured = false,
@@ -54,7 +58,10 @@ static struct {
     .encryption_enabled = false,
     .beacon_callback = NULL,
     .coordination_callback = NULL,
-    .wifi_initialized = false
+    .wifi_initialized = false,
+    .consecutive_send_failures = 0,
+    .last_send_success_us = 0,
+    .last_recv_us = 0
 };
 
 // ============================================================================
@@ -116,6 +123,8 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
                      s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
             return;
         }
+        // Bug #104: Track last receive from peer for RF health monitoring
+        s_espnow.last_recv_us = rx_time_us;
     }
 
     // Route based on packet type
@@ -164,20 +173,64 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
  */
 static void espnow_send_cb(const wifi_tx_info_t *tx_info, esp_now_send_status_t status)
 {
+    uint64_t now_us = esp_timer_get_time();
+
     if (status == ESP_NOW_SEND_SUCCESS) {
+        // Bug #104: Track successful sends for RF health monitoring
+        if (s_espnow.consecutive_send_failures > 0) {
+            uint32_t silence_ms = (uint32_t)((now_us - s_espnow.last_send_success_us) / 1000);
+            ESP_LOGI(TAG, "ESP-NOW recovered after %lu failures (%lu ms silence)",
+                     s_espnow.consecutive_send_failures, silence_ms);
+        }
+        s_espnow.consecutive_send_failures = 0;
+        s_espnow.last_send_success_us = now_us;
         ESP_LOGD(TAG, "ESP-NOW send success");
     } else {
-        // Bug #43 diagnostic: Log detailed channel and WiFi state info
+        // Bug #104: Enhanced failure tracking for RF breakdown diagnosis
+        s_espnow.consecutive_send_failures++;
+        s_espnow.metrics.send_failures++;
+
+        // Calculate time since last success
+        uint32_t since_success_ms = 0;
+        if (s_espnow.last_send_success_us > 0) {
+            since_success_ms = (uint32_t)((now_us - s_espnow.last_send_success_us) / 1000);
+        }
+
+        // Calculate time since last receive
+        uint32_t since_recv_ms = 0;
+        if (s_espnow.last_recv_us > 0) {
+            since_recv_ms = (uint32_t)((now_us - s_espnow.last_recv_us) / 1000);
+        }
+
+        // Get WiFi state for diagnostics
         uint8_t primary_chan = 0;
         wifi_second_chan_t second_chan;
         wifi_mode_t mode;
         esp_wifi_get_channel(&primary_chan, &second_chan);
         esp_wifi_get_mode(&mode);
-        ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, mode=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
-                 primary_chan, mode,
-                 s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
-                 s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
-        s_espnow.metrics.send_failures++;
+
+        // Log at different levels based on severity
+        if (s_espnow.consecutive_send_failures >= 5) {
+            // RF breakdown - escalate to ERROR
+            ESP_LOGE(TAG, "ESP-NOW RF BREAKDOWN: %lu consecutive failures, "
+                     "last_send=%lums ago, last_recv=%lums ago (ch=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
+                     s_espnow.consecutive_send_failures,
+                     since_success_ms, since_recv_ms, primary_chan,
+                     s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
+                     s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
+        } else if (s_espnow.consecutive_send_failures >= 2) {
+            // Multiple failures - detailed warning
+            ESP_LOGW(TAG, "ESP-NOW send failed #%lu (ch=%d, since_send=%lums, since_recv=%lums, peer=%02X:..:%02X)",
+                     s_espnow.consecutive_send_failures, primary_chan,
+                     since_success_ms, since_recv_ms,
+                     s_espnow.peer_mac[0], s_espnow.peer_mac[5]);
+        } else {
+            // First failure - basic warning
+            ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, mode=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
+                     primary_chan, mode,
+                     s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
+                     s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
+        }
     }
 }
 
@@ -534,6 +587,48 @@ void espnow_transport_log_jitter_stats(void)
     ESP_LOGI(TAG, "  Received:    %lu beacons", s_espnow.metrics.beacons_received);
     ESP_LOGI(TAG, "  Failures:    %lu", s_espnow.metrics.send_failures);
     ESP_LOGI(TAG, "═══════════════════════════════════════════════════");
+}
+
+void espnow_transport_log_link_health(void)
+{
+    uint64_t now_us = esp_timer_get_time();
+
+    // Calculate time since last events
+    uint32_t since_send_ms = 0;
+    uint32_t since_recv_ms = 0;
+    if (s_espnow.last_send_success_us > 0) {
+        since_send_ms = (uint32_t)((now_us - s_espnow.last_send_success_us) / 1000);
+    }
+    if (s_espnow.last_recv_us > 0) {
+        since_recv_ms = (uint32_t)((now_us - s_espnow.last_recv_us) / 1000);
+    }
+
+    // Get WiFi state
+    uint8_t primary_chan = 0;
+    wifi_second_chan_t second_chan;
+    esp_wifi_get_channel(&primary_chan, &second_chan);
+
+    // Determine link status
+    const char *status;
+    if (!s_espnow.peer_configured) {
+        status = "NO PEER";
+    } else if (s_espnow.consecutive_send_failures >= 10) {
+        status = "BREAKDOWN";
+    } else if (s_espnow.consecutive_send_failures >= 5) {
+        status = "DEGRADED";
+    } else if (s_espnow.consecutive_send_failures >= 2) {
+        status = "UNSTABLE";
+    } else {
+        status = "OK";
+    }
+
+    ESP_LOGI(TAG, "ESP-NOW Link: %s | consec_fail=%lu | last_send=%lums | last_recv=%lums | ch=%d | total_fail=%lu",
+             status,
+             s_espnow.consecutive_send_failures,
+             since_send_ms,
+             since_recv_ms,
+             primary_chan,
+             s_espnow.metrics.send_failures);
 }
 
 bool espnow_transport_is_ready(void)

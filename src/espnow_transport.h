@@ -45,9 +45,9 @@ extern "C" {
 /** @brief ESP-NOW max payload (250 bytes) - beacon is only 25 bytes */
 #define ESPNOW_MAX_PAYLOAD          (250U)
 
-/** @brief Coordination message retry configuration (Bug #43) */
-#define ESPNOW_COORD_MAX_RETRIES    (3U)    /**< Max retry attempts for coordination messages */
-#define ESPNOW_COORD_RETRY_DELAY_MS (10U)   /**< Delay between retries (ms) */
+/** @brief Coordination message retry configuration (Bug #43, improved Bug #105) */
+#define ESPNOW_COORD_MAX_RETRIES    (5U)    /**< Max retry attempts for coordination messages */
+#define ESPNOW_COORD_RETRY_DELAY_MS (25U)   /**< Delay between retries (ms) - max 125ms total */
 
 /** @brief Jitter measurement window size */
 #define ESPNOW_JITTER_WINDOW_SIZE   (32U)
@@ -265,6 +265,21 @@ const espnow_metrics_t* espnow_transport_get_metrics(void);
  * Logs mean jitter, stddev, and sample count for analysis.
  */
 void espnow_transport_log_jitter_stats(void);
+
+/**
+ * @brief Log ESP-NOW RF link health status
+ *
+ * Bug #104: Provides comprehensive RF link diagnostics including:
+ * - Link status (OK, UNSTABLE, DEGRADED, BREAKDOWN, NO PEER)
+ * - Consecutive send failure count
+ * - Time since last successful send
+ * - Time since last received packet
+ * - WiFi channel
+ * - Total failure count
+ *
+ * Call periodically (e.g., every 30s) or after detecting RF issues.
+ */
+void espnow_transport_log_link_health(void);
 
 /**
  * @brief Check if ESP-NOW transport is ready for beacons

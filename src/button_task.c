@@ -13,6 +13,7 @@
 #include "button_task.h"
 #include "motor_task.h"
 #include "ble_manager.h"
+#include "espnow_transport.h"  // Bug #105: ESP-NOW check for mode change coordination
 #include "battery_monitor.h"
 #include "nvs_manager.h"
 #include "led_control.h"
@@ -204,8 +205,9 @@ void button_task(void *pvParameters) {
                     // Notify BLE clients of mode change (mobile app sync)
                     ble_update_mode(next_mode);
 
-                    // Phase 3: Sync mode change to peer device
-                    if (ble_is_peer_connected()) {
+                    // Bug #105: Sync mode change to peer device via ESP-NOW
+                    // After BLE peer disconnect, coordination uses ESP-NOW exclusively
+                    if (espnow_transport_is_ready()) {
                         coordination_message_t coord_msg = {
                             .type = SYNC_MSG_MODE_CHANGE,
                             .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
@@ -213,7 +215,7 @@ void button_task(void *pvParameters) {
                         };
                         esp_err_t err = ble_send_coordination_message(&coord_msg);
                         if (err == ESP_OK) {
-                            ESP_LOGI(TAG, "Mode change synced to peer: MODE_%d", next_mode);
+                            ESP_LOGI(TAG, "Mode change synced to peer via ESP-NOW: MODE_%d", next_mode);
                         } else {
                             ESP_LOGW(TAG, "Failed to sync mode change to peer: %s", esp_err_to_name(err));
                         }
@@ -250,8 +252,9 @@ void button_task(void *pvParameters) {
                         status_led_on();
 
                         // Phase 3: Check if this is CLIENT requesting SERVER to advertise
+                        // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
                         peer_role_t role = ble_get_peer_role();
-                        if (role == PEER_ROLE_CLIENT && ble_is_peer_connected()) {
+                        if (role == PEER_ROLE_CLIENT && espnow_transport_is_ready()) {
                             // CLIENT: Send coordination message to SERVER
                             ESP_LOGI(TAG, "CLIENT requesting SERVER to start advertising");
                             coordination_message_t coord_msg = {
@@ -290,7 +293,8 @@ void button_task(void *pvParameters) {
                     ESP_LOGI(TAG, "Button held ≥5s, emergency shutdown triggered");
 
                     // Phase 3: Send coordinated shutdown to peer device FIRST (before shutting down BLE!)
-                    if (ble_is_peer_connected()) {
+                    // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+                    if (espnow_transport_is_ready()) {
                         coordination_message_t coord_msg = {
                             .type = SYNC_MSG_SHUTDOWN,
                             .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),

@@ -695,8 +695,9 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
 
     ble_callback_mode_changed((mode_t)mode_val);
 
-    // Phase 3: Sync mode change to peer device (PWA-triggered mode changes)
-    if (ble_is_peer_connected()) {
+    // Bug #105: Sync mode change to peer device via ESP-NOW (PWA-triggered mode changes)
+    // After BLE peer disconnect, coordination uses ESP-NOW exclusively
+    if (espnow_transport_is_ready()) {
         coordination_message_t coord_msg = {
             .type = SYNC_MSG_MODE_CHANGE,
             .timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000ULL),
@@ -704,7 +705,7 @@ static int gatt_char_mode_write(uint16_t conn_handle, uint16_t attr_handle,
         };
         esp_err_t err = ble_send_coordination_message(&coord_msg);
         if (err == ESP_OK) {
-            ESP_LOGI(TAG, "Mode change synced to peer: MODE_%u", mode_val);
+            ESP_LOGI(TAG, "Mode change synced to peer via ESP-NOW: MODE_%u", mode_val);
         } else {
             ESP_LOGW(TAG, "Failed to sync mode change to peer: %s", esp_err_to_name(err));
         }
@@ -769,7 +770,8 @@ static int gatt_char_custom_freq_write(uint16_t conn_handle, uint16_t attr_handl
     // triggering mode change protocol for each slider position.
     // time_sync_task checks this flag and triggers mode change after 300ms idle.
     // Only applies when we're in Mode 4 (Custom) AND peer is connected.
-    if (ble_get_current_mode() == MODE_CUSTOM && ble_is_peer_connected()) {
+    // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+    if (ble_get_current_mode() == MODE_CUSTOM && espnow_transport_is_ready()) {
         freq_change_pending = true;
         freq_change_timestamp_ms = (uint32_t)(esp_timer_get_time() / 1000);
         ESP_LOGI(TAG, "Frequency change pending (debounce started)");
@@ -1873,7 +1875,8 @@ static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
             }
 
             // Sync pattern selection to peer device (if connected)
-            if (err == ESP_OK && ble_is_peer_connected()) {
+            // Bug #105: Use ESP-NOW check (BLE disconnected after bootstrap)
+            if (err == ESP_OK && espnow_transport_is_ready()) {
                 // Get synchronized start time for bilateral coordination
                 uint64_t start_time_us = 0;
                 time_sync_get_time(&start_time_us);
@@ -3048,11 +3051,24 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 g_config_service_found = false;
                 g_discovery_conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
+                /* Bug #105: Capture ESP-NOW status BEFORE disconnection notification
+                 *
+                 * CRITICAL: time_sync_task_send_disconnection() eventually calls
+                 * espnow_clear_peer(), so we must capture status NOW.
+                 */
+                bool bootstrap_complete = espnow_transport_is_ready();
+                peer_role_t saved_role = peer_state.role;
+
+                ESP_LOGI(TAG, "Bug #105: bootstrap_complete=%d (ESP-NOW %s), role=%s",
+                         bootstrap_complete, bootstrap_complete ? "ready" : "not ready",
+                         saved_role == PEER_ROLE_SERVER ? "SERVER" : "CLIENT");
+
                 // Phase 2: Notify time_sync_task of peer disconnection (AD039)
+                // Bug #105: Pass bootstrap_complete to preserve ESP-NOW peer
                 if (TIME_SYNC_IS_INITIALIZED()) {
-                    esp_err_t err = time_sync_task_send_disconnection();
+                    esp_err_t err = time_sync_task_send_disconnection(bootstrap_complete);
                     if (err == ESP_OK) {
-                        ESP_LOGI(TAG, "Time sync disconnection notification sent");
+                        ESP_LOGI(TAG, "Time sync disconnection sent (preserve_espnow=%d)", bootstrap_complete);
                     } else {
                         ESP_LOGW(TAG, "Failed to send time sync disconnection: %s",
                                  esp_err_to_name(err));
@@ -3066,30 +3082,77 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 // Solution: 2-second delay prevents immediate retry errors
                 vTaskDelay(pdMS_TO_TICKS(2000));
 
-                // CRITICAL FIX (Phase 6m): Stop advertising first, then restart for peer rediscovery
-                // After Phase 1b.2, SERVER continues advertising after peer connection (for mobile app).
-                // When peer disconnects, advertising might still be active → must stop first before restart.
-                // Stop advertising if active (ignore errors - advertising might already be stopped)
-                if (ble_gap_adv_active()) {
-                    ble_gap_adv_stop();
-                    ESP_LOGI(TAG, "Stopped existing advertising before restart");
-                }
+                /* Bug #105: Distinguish bootstrap-complete vs unexpected disconnect
+                 *
+                 * Bootstrap complete (ESP-NOW ready):
+                 * - SERVER: Restart advertising ONLY for PWA (no scanning, peer uses ESP-NOW)
+                 * - CLIENT: Stop BLE entirely (no advertising, no scanning)
+                 *
+                 * Unexpected disconnect (ESP-NOW not ready):
+                 * - Both: Restart advertising + scanning for peer rediscovery
+                 */
 
-                // Now restart advertising + scanning for peer rediscovery
-                rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
-                                       &adv_params, ble_gap_event, NULL);
-                if (rc == 0) {
-                    adv_state.advertising_active = true;
-                    adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
-                    ESP_LOGI(TAG, "Advertising restarted after peer disconnect");
+                if (bootstrap_complete) {
+                    // Bootstrap complete - peer BLE released intentionally
+                    ESP_LOGI(TAG, "Peer BLE released (bootstrap complete, ESP-NOW active)");
 
-                    // Resume scanning for peer rediscovery
-                    ble_start_scanning();
-                    ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
+                    if (saved_role == PEER_ROLE_SERVER) {
+                        // SERVER: Restart advertising for PWA access only
+                        if (ble_gap_adv_active()) {
+                            ble_gap_adv_stop();
+                        }
+                        rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                               &adv_params, ble_gap_event, NULL);
+                        if (rc == 0) {
+                            adv_state.advertising_active = true;
+                            adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                            ESP_LOGI(TAG, "SERVER: Advertising for PWA (peer uses ESP-NOW)");
+                        }
+                        // No scanning - peer coordination via ESP-NOW
+                    } else {
+                        // CLIENT: Stop BLE entirely - ESP-NOW is only transport now
+                        bool was_advertising = ble_gap_adv_active();
+                        bool was_scanning = ble_gap_disc_active();
+
+                        if (was_advertising) {
+                            ble_gap_adv_stop();
+                            adv_state.advertising_active = false;
+                        }
+                        ble_stop_scanning();
+
+                        // Bug #105 diagnostic: Verify BLE stack state after release
+                        bool adv_now = ble_gap_adv_active();
+                        bool scan_now = ble_gap_disc_active();
+                        ESP_LOGI(TAG, "CLIENT: BLE stopped (ESP-NOW only mode)");
+                        ESP_LOGI(TAG, "CLIENT BLE release: adv=%d->%d, scan=%d->%d, conn=%d",
+                                 was_advertising, adv_now, was_scanning, scan_now,
+                                 peer_state.peer_conn_handle != BLE_HS_CONN_HANDLE_NONE);
+                    }
                 } else {
-                    ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
-                    // Sync flag with actual NimBLE state
-                    adv_state.advertising_active = ble_gap_adv_active();
+                    // Unexpected disconnect - restart for peer rediscovery
+                    ESP_LOGI(TAG, "Unexpected peer disconnect - restarting for rediscovery");
+
+                    // CRITICAL FIX (Phase 6m): Stop advertising first, then restart
+                    if (ble_gap_adv_active()) {
+                        ble_gap_adv_stop();
+                        ESP_LOGI(TAG, "Stopped existing advertising before restart");
+                    }
+
+                    // Restart advertising + scanning for peer rediscovery
+                    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                                           &adv_params, ble_gap_event, NULL);
+                    if (rc == 0) {
+                        adv_state.advertising_active = true;
+                        adv_state.advertising_start_ms = (uint32_t)(esp_timer_get_time() / 1000);
+                        ESP_LOGI(TAG, "Advertising restarted after peer disconnect");
+
+                        // Resume scanning for peer rediscovery
+                        ble_start_scanning();
+                        ESP_LOGI(TAG, "Scanning restarted for peer rediscovery");
+                    } else {
+                        ESP_LOGE(TAG, "Failed to restart advertising after peer disconnect; rc=%d", rc);
+                        adv_state.advertising_active = ble_gap_adv_active();
+                    }
                 }
             }
 
@@ -4998,10 +5061,11 @@ esp_err_t ble_send_time_sync_beacon(void) {
         return ESP_ERR_INVALID_STATE;
     }
 
-    // Check if peer is connected
-    uint16_t peer_conn_handle = ble_get_peer_conn_handle();
-    if (peer_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        ESP_LOGD(TAG, "Cannot send sync beacon: peer not connected");
+    // Bug #105: Check ESP-NOW readiness FIRST
+    // After bootstrap, BLE peer is intentionally disconnected but ESP-NOW remains active.
+    // UTLP Design: Time beacons use ESP-NOW broadcast ONLY - no BLE dependency.
+    if (!espnow_transport_is_ready()) {
+        ESP_LOGD(TAG, "ESP-NOW not ready - beacon skipped");
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -5015,12 +5079,6 @@ esp_err_t ble_send_time_sync_beacon(void) {
 
     // Phase 6r (AD043): No RTT measurement - CLIENT uses one-way timestamp with filter
 
-    // Check characteristic handle first (before mutex)
-    if (g_time_sync_char_handle == 0) {
-        ESP_LOGW(TAG, "Time sync characteristic handle not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
-
     // Hold mutex through entire critical section (update + send) for atomicity
     // This prevents GATT reads from getting stale data between update and send
     if (xSemaphoreTake(time_sync_beacon_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -5032,15 +5090,6 @@ esp_err_t ble_send_time_sync_beacon(void) {
     // This minimizes the gap between timestamp recording and actual RF transmission.
     // Original T1 was set in time_sync_generate_beacon() ~1-50ms earlier.
     time_sync_finalize_beacon_timestamp(&beacon);
-
-    // UTLP Design: Time beacons use ESP-NOW broadcast ONLY
-    // "Shout the time, don't care who hears" - no BLE fallback for timing
-    // Broadcast eliminates ACK contention and always succeeds
-    if (!espnow_transport_is_ready()) {
-        ESP_LOGW(TAG, "ESP-NOW not ready - beacon skipped (UTLP: no BLE fallback for time)");
-        xSemaphoreGive(time_sync_beacon_mutex);
-        return ESP_ERR_INVALID_STATE;
-    }
 
     esp_err_t espnow_err = espnow_transport_send_beacon(&beacon);
     if (espnow_err != ESP_OK) {
@@ -5209,8 +5258,8 @@ esp_err_t ble_send_coordination_message(const coordination_message_t *msg) {
  * Prevents infinite sync loops (write callbacks call this, but update functions don't).
  */
 static esp_err_t sync_settings_to_peer(void) {
-    // Only sync if peer is connected
-    if (!ble_is_peer_connected()) {
+    // Only sync if peer is connected (Bug #105: Use ESP-NOW check)
+    if (!espnow_transport_is_ready()) {
         return ESP_OK;  // Silently succeed if no peer
     }
 
