@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **P7.4: Legacy Modes as Patterns**: Modes 0-3 now available as LED-only bilateral patterns
+  - **Pattern IDs**: 4 new patterns at top of catalog (BLE commands 2-5)
+  - **Timing**: Matches reactive mode timing exactly (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty)
+  - **Colors**: Mode-specific colors (Red, Green, Blue, Yellow via palette indices 0, 4, 8, 2)
+  - **Brightness**: 20% (therapeutic level, not showcase brightness)
+  - **Structure**: Bilateral alternation with LEFT then RIGHT activation per cycle
+  - **Motor**: LED-only for now (motor=0), motor control to be added later
+  - **BLE Command Mapping**: 2-5=legacy modes, 6=Alternating, 7=Breathe, 8-9=Emergency
+  - Files: [pattern_playback.h](src/pattern_playback.h), [pattern_playback.c](src/pattern_playback.c)
+
 ### Fixed
 
 - **Bug #108: ESP-NOW Falls Back to Unencrypted Due to SMP Timing**: Deferred LTK derivation until pairing completes
