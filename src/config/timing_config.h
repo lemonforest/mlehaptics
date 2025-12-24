@@ -156,10 +156,11 @@ extern "C" {
 /**
  * @brief BLE advertising timeout (ms)
  *
- * Maximum duration before advertising times out (5 minutes).
- * Prevents indefinite advertising if no connection made.
+ * Maximum duration before advertising times out.
+ * Default: 90 minutes = max session duration.
+ * Ensures advertising never times out during therapy.
  */
-#define TIMING_BLE_ADV_TIMEOUT_MS       300000
+#define TIMING_BLE_ADV_TIMEOUT_MS       5400000
 
 // ============================================================================
 // BUTTON TIMING

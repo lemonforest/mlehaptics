@@ -58,7 +58,7 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD044](0044-non-blocking-motor-timing.md) | CLIENT Hardware Timer Synchronization | ✅ Accepted | Phase 6 | 2025-12-03 |
 | [AD045](0045-synchronized-independent-bilateral-operation.md) | Synchronized Independent Bilateral Operation | ⏳ Proposed | Phase 6u | 2025-12-08 |
 | [AD046](0046-ptp-observation-mode-integration.md) | PTP Observation Mode Integration | ⏳ Proposed | Phase 6v | 2025-12-12 |
-| [AD047](0047-scheduled-pattern-playback.md) | Scheduled Pattern Playback Architecture | ⏳ Proposed | Phase 7 | 2025-12-13 |
+| [AD047](0047-scheduled-pattern-playback.md) | Scheduled Pattern Playback Architecture | ✅ Implemented | Phase 7 | 2025-12-13 |
 | [AD048](0048-espnow-adaptive-transport-hardware-acceleration.md) | ESP-NOW Adaptive Transport and Hardware Acceleration | 🔬 Research | Phase 7+ | 2025-12-17 |
 | [AD049](0049-csi-phase-motion-detection-exploration.md) | CSI Phase-Based Motion Detection Exploration | 🔬 Exploratory | Phase 8+ | 2025-12-23 |
 
@@ -129,11 +129,12 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - Passive monitoring for edge cases
 - ±6 μs precision over 20 minutes
 
-### Phase 7: Scheduled Pattern Playback (Next - AD047)
-- Pre-buffered pattern execution
-- Half-cycle boundary transitions
-- RF disruption resilient operation
-- "Lightbar Mode" for GPS-quality sync
+### Phase 7: Scheduled Pattern Playback (P7.0-P7.2 Complete - AD047)
+- ✅ P7.0 Pattern Engine Foundation
+- ✅ P7.1 Scheduled Pattern Playback (catalog, interpolation, "Lightbar Mode")
+- ✅ P7.2 Pattern Catalog Export (`pattern_generate_json()`)
+- ⏳ P7.3 PWA Pattern Designer
+- 📋 P7.4 Legacy Mode Migration
 
 ### Phase 7+: ESP-NOW and Hardware Acceleration (Research - AD048)
 - ESP-NOW as adaptive BLE fallback for extended range
@@ -255,12 +256,12 @@ _(To be populated with decision dependency visualization)_
 
 ## Statistics
 
-- **Total Decisions:** 48
+- **Total Decisions:** 49
 - **Accepted:** 31 (AD001-007, AD009-013, AD015-024, AD027-032, AD044)
-- **Implemented:** 4 (AD035, AD038, AD041, AD042)
+- **Implemented:** 5 (AD035, AD038, AD041, AD042, AD047)
 - **Approved:** 5 (AD033, AD034, AD036, AD040, AD043)
-- **Proposed:** 3 (AD045, AD046, AD047)
-- **Research:** 1 (AD048)
+- **Proposed:** 2 (AD045, AD046)
+- **Research/Exploratory:** 2 (AD048, AD049)
 - **Superseded:** 4 (AD008, AD026, AD037, AD039)
 - **Partially Superseded:** 2 (AD010 - MAC delay only, AD028 - motor control only)
 - **Deprecated:** 0
@@ -269,7 +270,7 @@ _(To be populated with decision dependency visualization)_
 
 ## Maintenance
 
-**Last Updated:** 2025-12-17
+**Last Updated:** 2025-12-23
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)

@@ -45,9 +45,12 @@ extern "C" {
 /** @brief ESP-NOW max payload (250 bytes) - beacon is only 25 bytes */
 #define ESPNOW_MAX_PAYLOAD          (250U)
 
-/** @brief Coordination message retry configuration (Bug #43, improved Bug #105) */
-#define ESPNOW_COORD_MAX_RETRIES    (5U)    /**< Max retry attempts for coordination messages */
-#define ESPNOW_COORD_RETRY_DELAY_MS (25U)   /**< Delay between retries (ms) - max 125ms total */
+/** @brief Coordination message retry configuration (Bug #43, improved Bug #105)
+ * Emergency shutdown needs larger window - ESP-NOW can take 500-700ms to recover
+ * from channel contention during BLE activity.
+ */
+#define ESPNOW_COORD_MAX_RETRIES    (10U)   /**< Max retry attempts for coordination messages */
+#define ESPNOW_COORD_RETRY_DELAY_MS (75U)   /**< Delay between retries (ms) - max 750ms total */
 
 /** @brief Jitter measurement window size */
 #define ESPNOW_JITTER_WINDOW_SIZE   (32U)

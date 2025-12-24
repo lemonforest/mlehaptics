@@ -212,7 +212,7 @@ void ble_task(void *pvParameters) {
                     break;
                 }
 
-                // Check advertising timeout (5 minutes = 300000ms)
+                // Check advertising timeout (90 minutes = max session duration)
                 // Skip timeout if mobile app is connected (Configuration Service active)
                 if (ble_is_advertising()) {
                     // Don't timeout if mobile app is using Configuration Service
@@ -225,7 +225,7 @@ void ble_task(void *pvParameters) {
                         uint32_t elapsed = ble_get_advertising_elapsed_ms();
 
                         if (elapsed >= BLE_ADV_TIMEOUT_MS) {
-                            ESP_LOGI(TAG, "Advertising timeout (5 minutes)");
+                            ESP_LOGI(TAG, "Advertising timeout (90 minutes)");
                             ble_stop_scanning();  // Phase 1a: Stop scanning on timeout
                             ble_stop_advertising();
                             ESP_LOGI(TAG, "State: ADVERTISING → IDLE");
@@ -314,7 +314,7 @@ void ble_task(void *pvParameters) {
                     if (ble_get_peer_role() == PEER_ROLE_SERVER) {
                         if (!ble_is_advertising()) {
                             ble_start_advertising();
-                            ESP_LOGI(TAG, "SERVER: Advertising restarted for mobile app access (5 min timeout)");
+                            ESP_LOGI(TAG, "SERVER: Advertising restarted for mobile app access");
                         }
                     } else {
                         ESP_LOGI(TAG, "CLIENT: No advertising (peer connection only)");

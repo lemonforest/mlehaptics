@@ -35,9 +35,11 @@ extern "C" {
  * @brief Advertising timeout duration (ms)
  *
  * Maximum time to advertise before timing out.
- * 5 minutes = 300000ms
+ * Default: 90 minutes (5400000ms) = max session duration
+ * Ensures advertising never times out during active therapy sessions.
+ * Future: Programmable via PWA, saved to NVS.
  */
-#define BLE_ADV_TIMEOUT_MS              300000
+#define BLE_ADV_TIMEOUT_MS              5400000
 
 /**
  * @brief Minimum advertising interval (BLE units)

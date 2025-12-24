@@ -83,7 +83,7 @@ extern "C" {
 // ============================================================================
 
 #define BLE_DEVICE_NAME         "EMDR_Pulser"   /**< Base device name */
-#define BLE_ADV_TIMEOUT_MS      300000          /**< 5-minute advertising timeout */
+#define BLE_ADV_TIMEOUT_MS      5400000         /**< 90-min timeout (= max session) */
 
 /** @brief BLE disconnect reason for user-initiated termination (from NimBLE) */
 #define BLE_DISCONNECT_REASON_USER  0x13        /**< Remote user terminated connection */

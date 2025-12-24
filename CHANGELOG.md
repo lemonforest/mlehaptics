@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.28] - 2025-12-23
+
+### Changed
+
+- **BLE Advertising Timeout Extended to 90 Minutes**: Prevents session disruption during therapy
+  - **Problem**: 5-minute timeout caused PWA to lose connection mid-session when therapist needed to adjust settings
+  - **Solution**: Timeout now matches max session duration (90 minutes) so advertising never expires during active therapy
+  - **Future**: Will be programmable via PWA and saved to NVS
+  - Files: [ble_config.h](src/config/ble_config.h), [ble_manager.h](src/ble_manager.h), [timing_config.h](src/config/timing_config.h), [ble_task.c](src/ble_task.c), [ble_task.h](src/ble_task.h)
+
+- **ESP-NOW Retry Window Increased for Shutdown Reliability**: Emergency shutdown coordination now more robust
+  - **Problem**: ESP-NOW send failures during shutdown left peer device running (recovered after 500-700ms)
+  - **Solution**: Increased retry window from 125ms (5×25ms) to 750ms (10×75ms) to span recovery period
+  - Files: [espnow_transport.h](src/espnow_transport.h)
+
 ## [v0.7.27] - 2025-12-23
 
 ### Fixed
