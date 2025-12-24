@@ -53,7 +53,7 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - PWA can connect to SERVER device for real-time session control
 - ±100μs timing precision (vs ±10-50ms with BLE)
 
-This architectural shift enables simultaneous PWA control + peer coordination, which was impossible when BLE was dedicated to peer communication.
+This architectural shift improves timing precision by 100-500x and frees BLE radio resources for more responsive PWA communication.
 
 ## 🔌 Hardware Overview
 
