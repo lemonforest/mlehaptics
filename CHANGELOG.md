@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.29] - 2025-12-24
+
+### Added
+
+- **Bug #106: ESP-NOW Unidirectional TX Failure Diagnostics**: Comprehensive debugging for TX-only failures
+  - **Problem**: 90-minute session showed 605+ consecutive ESP-NOW send failures on CLIENT while RX worked fine
+  - **New Diagnostics**:
+    - `ESP_ERR_ESPNOW_NO_MEM` buffer-full tracking (`no_mem_errors` counter)
+    - Concurrent send detection (`send_in_progress` flag)
+    - LMK encryption key fingerprint logging (first 4 bytes for verification)
+    - Callback failure counter separate from send failures
+    - Enhanced RF BREAKDOWN logging with full state dump
+  - **Recovery Mechanism**: Auto peer re-registration after 50 consecutive callback failures
+  - **Periodic Diagnostics**: Full state dump when link enters BREAKDOWN state (10+ failures)
+  - **Message Size Diagnostics**: Invalid coordination message now logs first 5 bytes and parsed type/timestamp
+  - Files: [espnow_transport.c](src/espnow_transport.c), [espnow_transport.h](src/espnow_transport.h), [time_sync_task.c](src/time_sync_task.c)
+
+### Infrastructure
+
+- **New API**: `espnow_transport_dump_diagnostics()` for on-demand ESP-NOW state inspection
+- **Enhanced Link Health**: Now includes `no_mem` error count in periodic log output
+
 ## [v0.7.28] - 2025-12-23
 
 ### Changed

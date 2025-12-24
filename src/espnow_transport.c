@@ -51,6 +51,12 @@ static struct {
     uint32_t consecutive_send_failures;    // Reset to 0 on success callback
     uint64_t last_send_success_us;         // Timestamp of last successful send
     uint64_t last_recv_us;                 // Timestamp of last received packet
+    // Bug #106: Enhanced diagnostics for unidirectional TX failure
+    uint32_t no_mem_errors;                // ESP_ERR_ESPNOW_NO_MEM count (buffer full)
+    uint32_t callback_failures;            // Send callback reported failures
+    uint32_t peer_re_registrations;        // Times we've re-registered peer as recovery
+    uint8_t lmk_fingerprint[4];            // First 4 bytes of LMK for verification
+    bool send_in_progress;                 // Flag to detect concurrent sends
 } s_espnow = {
     .state = ESPNOW_STATE_UNINITIALIZED,
     .peer_configured = false,
@@ -61,7 +67,12 @@ static struct {
     .wifi_initialized = false,
     .consecutive_send_failures = 0,
     .last_send_success_us = 0,
-    .last_recv_us = 0
+    .last_recv_us = 0,
+    .no_mem_errors = 0,
+    .callback_failures = 0,
+    .peer_re_registrations = 0,
+    .lmk_fingerprint = {0},
+    .send_in_progress = false
 };
 
 // ============================================================================
@@ -170,24 +181,37 @@ static void espnow_recv_cb(const esp_now_recv_info_t *recv_info,
  * @brief ESP-NOW send callback (confirms transmission)
  *
  * Note: ESP-IDF v5.5.0 changed the callback signature to use wifi_tx_info_t
+ *
+ * Bug #106: Enhanced diagnostics for unidirectional TX failure investigation.
+ * Web research indicates:
+ * - ESP_NOW_SEND_FAIL means MAC-layer ACK wasn't received from peer
+ * - esp_now_send() usually returns ESP_OK even when callback will fail
+ * - Recovery may require re-registering peer after many consecutive failures
+ *
+ * Sources:
+ * - https://esp32.com/viewtopic.php?t=40459
+ * - https://www.esp32.com/viewtopic.php?t=34243
  */
 static void espnow_send_cb(const wifi_tx_info_t *tx_info, esp_now_send_status_t status)
 {
     uint64_t now_us = esp_timer_get_time();
+    s_espnow.send_in_progress = false;  // Clear concurrent send flag
 
     if (status == ESP_NOW_SEND_SUCCESS) {
         // Bug #104: Track successful sends for RF health monitoring
         if (s_espnow.consecutive_send_failures > 0) {
             uint32_t silence_ms = (uint32_t)((now_us - s_espnow.last_send_success_us) / 1000);
-            ESP_LOGI(TAG, "ESP-NOW recovered after %lu failures (%lu ms silence)",
-                     s_espnow.consecutive_send_failures, silence_ms);
+            ESP_LOGI(TAG, "ESP-NOW recovered after %lu failures (%lu ms silence, cb_fails=%lu, no_mem=%lu)",
+                     s_espnow.consecutive_send_failures, silence_ms,
+                     s_espnow.callback_failures, s_espnow.no_mem_errors);
         }
         s_espnow.consecutive_send_failures = 0;
         s_espnow.last_send_success_us = now_us;
         ESP_LOGD(TAG, "ESP-NOW send success");
     } else {
-        // Bug #104: Enhanced failure tracking for RF breakdown diagnosis
+        // Bug #104/106: Enhanced failure tracking for RF breakdown diagnosis
         s_espnow.consecutive_send_failures++;
+        s_espnow.callback_failures++;
         s_espnow.metrics.send_failures++;
 
         // Calculate time since last success
@@ -211,23 +235,29 @@ static void espnow_send_cb(const wifi_tx_info_t *tx_info, esp_now_send_status_t 
 
         // Log at different levels based on severity
         if (s_espnow.consecutive_send_failures >= 5) {
-            // RF breakdown - escalate to ERROR
+            // RF breakdown - escalate to ERROR with full diagnostics
             ESP_LOGE(TAG, "ESP-NOW RF BREAKDOWN: %lu consecutive failures, "
-                     "last_send=%lums ago, last_recv=%lums ago (ch=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
+                     "last_send=%lums ago, last_recv=%lums ago",
                      s_espnow.consecutive_send_failures,
-                     since_success_ms, since_recv_ms, primary_chan,
+                     since_success_ms, since_recv_ms);
+            ESP_LOGE(TAG, "  Diag: ch=%d, enc=%d, no_mem=%lu, cb_fail=%lu, re_reg=%lu, LMK=[%02X%02X%02X%02X]",
+                     primary_chan, s_espnow.encryption_enabled,
+                     s_espnow.no_mem_errors, s_espnow.callback_failures,
+                     s_espnow.peer_re_registrations,
+                     s_espnow.lmk_fingerprint[0], s_espnow.lmk_fingerprint[1],
+                     s_espnow.lmk_fingerprint[2], s_espnow.lmk_fingerprint[3]);
+            ESP_LOGE(TAG, "  Peer: %02X:%02X:%02X:%02X:%02X:%02X",
                      s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
                      s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
         } else if (s_espnow.consecutive_send_failures >= 2) {
             // Multiple failures - detailed warning
-            ESP_LOGW(TAG, "ESP-NOW send failed #%lu (ch=%d, since_send=%lums, since_recv=%lums, peer=%02X:..:%02X)",
+            ESP_LOGW(TAG, "ESP-NOW send failed #%lu (ch=%d, enc=%d, since_send=%lums, since_recv=%lums)",
                      s_espnow.consecutive_send_failures, primary_chan,
-                     since_success_ms, since_recv_ms,
-                     s_espnow.peer_mac[0], s_espnow.peer_mac[5]);
+                     s_espnow.encryption_enabled, since_success_ms, since_recv_ms);
         } else {
             // First failure - basic warning
-            ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, mode=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
-                     primary_chan, mode,
+            ESP_LOGW(TAG, "ESP-NOW send failed (channel=%d, mode=%d, enc=%d, peer=%02X:%02X:%02X:%02X:%02X:%02X)",
+                     primary_chan, mode, s_espnow.encryption_enabled,
                      s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
                      s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
         }
@@ -622,13 +652,21 @@ void espnow_transport_log_link_health(void)
         status = "OK";
     }
 
-    ESP_LOGI(TAG, "ESP-NOW Link: %s | consec_fail=%lu | last_send=%lums | last_recv=%lums | ch=%d | total_fail=%lu",
+    // Bug #106: Enhanced link health with new diagnostics
+    ESP_LOGI(TAG, "ESP-NOW Link: %s | consec_fail=%lu | last_send=%lums | last_recv=%lums | ch=%d | total_fail=%lu | no_mem=%lu",
              status,
              s_espnow.consecutive_send_failures,
              since_send_ms,
              since_recv_ms,
              primary_chan,
-             s_espnow.metrics.send_failures);
+             s_espnow.metrics.send_failures,
+             s_espnow.no_mem_errors);
+
+    // Bug #106: Dump full diagnostics if link is in breakdown state
+    // This helps capture state when issues occur
+    if (s_espnow.consecutive_send_failures >= 10) {
+        espnow_transport_dump_diagnostics();
+    }
 }
 
 bool espnow_transport_is_ready(void)
@@ -648,6 +686,52 @@ esp_err_t espnow_transport_register_coordination_callback(espnow_coordination_ca
     return ESP_OK;
 }
 
+/**
+ * @brief Attempt peer re-registration as recovery for persistent TX failures
+ *
+ * Bug #106: Web research suggests re-registering peer may recover from
+ * stuck ESP-NOW state. Only called after many consecutive failures.
+ */
+static void attempt_peer_recovery(void)
+{
+    if (!s_espnow.peer_configured) {
+        return;
+    }
+
+    ESP_LOGW(TAG, "Bug #106: Attempting peer re-registration recovery...");
+
+    // Save current peer info
+    uint8_t saved_mac[6];
+    memcpy(saved_mac, s_espnow.peer_mac, 6);
+    bool was_encrypted = s_espnow.encryption_enabled;
+
+    // Delete and re-add peer
+    esp_err_t del_ret = esp_now_del_peer(s_espnow.peer_mac);
+    if (del_ret != ESP_OK) {
+        ESP_LOGW(TAG, "Peer delete failed: %s", esp_err_to_name(del_ret));
+    }
+
+    // Brief delay for state cleanup
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    // Re-add peer (without encryption for now - simpler recovery)
+    esp_now_peer_info_t peer_info = {0};
+    memcpy(peer_info.peer_addr, saved_mac, 6);
+    peer_info.channel = 0;  // Use current WiFi channel
+    peer_info.ifidx = WIFI_IF_STA;
+    peer_info.encrypt = false;  // Disable encryption for recovery test
+
+    esp_err_t add_ret = esp_now_add_peer(&peer_info);
+    if (add_ret == ESP_OK) {
+        s_espnow.peer_re_registrations++;
+        s_espnow.encryption_enabled = false;
+        ESP_LOGI(TAG, "Bug #106: Peer re-registered (re_reg=%lu, was_enc=%d)",
+                 s_espnow.peer_re_registrations, was_encrypted);
+    } else {
+        ESP_LOGE(TAG, "Bug #106: Peer re-registration failed: %s", esp_err_to_name(add_ret));
+    }
+}
+
 esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
 {
     if (data == NULL || len == 0) {
@@ -657,6 +741,11 @@ esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
     if (!s_espnow.peer_configured) {
         ESP_LOGW(TAG, "Cannot send coordination: no peer configured");
         return ESP_ERR_INVALID_STATE;
+    }
+
+    // Bug #106: Detect concurrent sends (potential cause of buffer issues)
+    if (s_espnow.send_in_progress) {
+        ESP_LOGW(TAG, "Bug #106: Concurrent ESP-NOW send detected!");
     }
 
     // Build packet: [0xC0 marker][coordination message bytes]
@@ -672,6 +761,7 @@ esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
     memcpy(pkt + 1, data, len);
 
     // Bug #43: Retry logic for ESP-NOW send failures
+    // Bug #106: Enhanced error tracking
     esp_err_t ret = ESP_FAIL;
     for (uint8_t retry = 0; retry < ESPNOW_COORD_MAX_RETRIES; retry++) {
         if (retry > 0) {
@@ -679,17 +769,40 @@ esp_err_t espnow_transport_send_coordination(const uint8_t *data, size_t len)
             ESP_LOGD(TAG, "ESP-NOW coordination retry %u/%u", retry + 1, ESPNOW_COORD_MAX_RETRIES);
         }
 
+        s_espnow.send_in_progress = true;
         ret = esp_now_send(s_espnow.peer_mac, pkt, len + 1);
+
+        // Bug #106: Track specific error codes
+        if (ret == ESP_ERR_ESPNOW_NO_MEM) {
+            s_espnow.no_mem_errors++;
+            ESP_LOGW(TAG, "Bug #106: ESP_ERR_ESPNOW_NO_MEM (buffer full) - count=%lu",
+                     s_espnow.no_mem_errors);
+            // Extra delay for buffer to drain
+            vTaskDelay(pdMS_TO_TICKS(50));
+        } else if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Bug #106: esp_now_send error: %s (0x%x)",
+                     esp_err_to_name(ret), ret);
+            s_espnow.send_in_progress = false;
+        }
+
         if (ret == ESP_OK) {
-            break;  // Success
+            break;  // Queued successfully (callback will confirm delivery)
         }
     }
 
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "ESP-NOW coordination send failed after %u retries: %s",
-                 ESPNOW_COORD_MAX_RETRIES, esp_err_to_name(ret));
+        s_espnow.send_in_progress = false;
+        ESP_LOGE(TAG, "ESP-NOW coordination send failed after %u retries: %s (no_mem=%lu)",
+                 ESPNOW_COORD_MAX_RETRIES, esp_err_to_name(ret), s_espnow.no_mem_errors);
         s_espnow.metrics.send_failures++;
         return ESP_FAIL;
+    }
+
+    // Bug #106: Attempt recovery after many consecutive callback failures
+    // Note: This runs AFTER a successful esp_now_send() but many callback failures
+    if (s_espnow.consecutive_send_failures >= 50 &&
+        (s_espnow.consecutive_send_failures % 50) == 0) {
+        attempt_peer_recovery();
     }
 
     ESP_LOGD(TAG, "Coordination msg sent via ESP-NOW (%zu bytes)", len);
@@ -1005,14 +1118,20 @@ esp_err_t espnow_transport_set_peer_encrypted(
     s_espnow.encryption_enabled = true;
     s_espnow.state = ESPNOW_STATE_PEER_SET;
 
+    // Bug #106: Store LMK fingerprint for diagnostics (first 4 bytes)
+    // Both devices should log identical fingerprints if keys match
+    memcpy(s_espnow.lmk_fingerprint, lmk, 4);
+
     // Log current WiFi channel for diagnostics
     uint8_t current_chan = 0;
     wifi_second_chan_t second_chan;
     esp_wifi_get_channel(&current_chan, &second_chan);
-    ESP_LOGI(TAG, "Encrypted peer configured: %02X:%02X:%02X:%02X:%02X:%02X (peer_channel=0 [current], wifi_channel=%d)",
+    ESP_LOGI(TAG, "Encrypted peer configured: %02X:%02X:%02X:%02X:%02X:%02X (ch=%d, LMK=[%02X%02X%02X%02X])",
              peer_mac[0], peer_mac[1], peer_mac[2],
              peer_mac[3], peer_mac[4], peer_mac[5],
-             current_chan);
+             current_chan,
+             s_espnow.lmk_fingerprint[0], s_espnow.lmk_fingerprint[1],
+             s_espnow.lmk_fingerprint[2], s_espnow.lmk_fingerprint[3]);
 
     return ESP_OK;
 }
@@ -1020,4 +1139,50 @@ esp_err_t espnow_transport_set_peer_encrypted(
 bool espnow_transport_is_encrypted(void)
 {
     return s_espnow.peer_configured && s_espnow.encryption_enabled;
+}
+
+void espnow_transport_dump_diagnostics(void)
+{
+    uint64_t now_us = esp_timer_get_time();
+
+    // Calculate time since last success/receive
+    uint32_t since_success_ms = 0;
+    uint32_t since_recv_ms = 0;
+    if (s_espnow.last_send_success_us > 0) {
+        since_success_ms = (uint32_t)((now_us - s_espnow.last_send_success_us) / 1000);
+    }
+    if (s_espnow.last_recv_us > 0) {
+        since_recv_ms = (uint32_t)((now_us - s_espnow.last_recv_us) / 1000);
+    }
+
+    // Get WiFi state
+    uint8_t primary_chan = 0;
+    wifi_second_chan_t second_chan;
+    wifi_mode_t mode;
+    esp_wifi_get_channel(&primary_chan, &second_chan);
+    esp_wifi_get_mode(&mode);
+
+    ESP_LOGI(TAG, "=== Bug #106: ESP-NOW Diagnostics ===");
+    ESP_LOGI(TAG, "State: %d, WiFi: mode=%d ch=%d, Peer: %s enc=%d",
+             s_espnow.state, mode, primary_chan,
+             s_espnow.peer_configured ? "YES" : "NO",
+             s_espnow.encryption_enabled);
+    ESP_LOGI(TAG, "Peer MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+             s_espnow.peer_mac[0], s_espnow.peer_mac[1], s_espnow.peer_mac[2],
+             s_espnow.peer_mac[3], s_espnow.peer_mac[4], s_espnow.peer_mac[5]);
+    ESP_LOGI(TAG, "LMK fingerprint: [%02X%02X%02X%02X]",
+             s_espnow.lmk_fingerprint[0], s_espnow.lmk_fingerprint[1],
+             s_espnow.lmk_fingerprint[2], s_espnow.lmk_fingerprint[3]);
+    ESP_LOGI(TAG, "TX: consec_fail=%lu, cb_fail=%lu, no_mem=%lu, re_reg=%lu",
+             s_espnow.consecutive_send_failures,
+             s_espnow.callback_failures,
+             s_espnow.no_mem_errors,
+             s_espnow.peer_re_registrations);
+    ESP_LOGI(TAG, "Timing: last_send=%lums ago, last_recv=%lums ago",
+             since_success_ms, since_recv_ms);
+    ESP_LOGI(TAG, "Metrics: beacons_sent=%lu, beacons_recv=%lu, fail=%lu",
+             s_espnow.metrics.beacons_sent,
+             s_espnow.metrics.beacons_received,
+             s_espnow.metrics.send_failures);
+    ESP_LOGI(TAG, "=== End Diagnostics ===");
 }

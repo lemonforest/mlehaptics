@@ -699,8 +699,23 @@ static void espnow_coordination_recv_callback(const uint8_t *data, size_t len, u
 {
     // Validate message size
     if (len != sizeof(coordination_message_t)) {
-        ESP_LOGW(TAG, "AD048: Invalid coordination message size: %zu (expected %zu)",
-                 len, sizeof(coordination_message_t));
+        // Bug #106: Enhanced diagnostics for size mismatch
+        // Log first bytes to help identify what message type this is
+        if (data != NULL && len >= 5) {
+            // Attempt to interpret as coordination_message_t header
+            // type (1 byte) + timestamp (4 bytes) = 5 byte minimum
+            uint8_t msg_type = data[0];
+            uint32_t timestamp = 0;
+            memcpy(&timestamp, &data[1], sizeof(timestamp));
+            ESP_LOGW(TAG, "AD048: Invalid coordination message size: %zu (expected %zu) "
+                     "- type=%u, ts=%lu, first_bytes=[%02X %02X %02X %02X %02X]",
+                     len, sizeof(coordination_message_t),
+                     msg_type, (unsigned long)timestamp,
+                     data[0], data[1], data[2], data[3], data[4]);
+        } else {
+            ESP_LOGW(TAG, "AD048: Invalid coordination message size: %zu (expected %zu)",
+                     len, sizeof(coordination_message_t));
+        }
         return;
     }
 
