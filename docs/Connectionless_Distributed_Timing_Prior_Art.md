@@ -670,7 +670,7 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 | 1.3 | 2025-12-23 | Added distributed IMU from ranging geometry—swarm orientation without per-node inertial sensors |
 | 1.4 | 2025-12-23 | Rewrote Section 1 to reflect actual development history: pattern playback existed from day one, BLE worked, ESP-NOW chosen because hardware was available and it's better; added power efficiency rationale |
 | 1.5 | 2025-12-23 | Added BLE sync implementation details: PTP-style with NTP timestamps, ~2 minute convergence validated via serial logs; reframed prior art claim to capture the actual contribution (connection as scaffolding for persistent time reference) |
-| 1.3 | 2025-12-23 | Added IMU-augmented positioning option, hardware cost breakdown |
+| 1.6 | 2025-12-23 | Added IMU-augmented positioning option, hardware cost breakdown |
 
 ---
 
