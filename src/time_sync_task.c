@@ -115,6 +115,14 @@ static bool peer_wifi_mac_received = false;
 /** @brief Flag indicating key exchange is complete (encrypted ESP-NOW ready) */
 static bool espnow_key_exchange_complete = false;
 
+/** @brief Bug #108: Flag indicating LTK derivation is pending (waiting for SMP pairing)
+ *
+ * Set when WIFI_MAC is received but ble_get_peer_ltk() fails because SMP
+ * pairing hasn't completed yet. Cleared when time_sync_on_ltk_available()
+ * successfully completes the deferred derivation.
+ */
+static bool pending_ltk_derivation = false;
+
 /*******************************************************************************
  * PRIVATE FUNCTION DECLARATIONS
  ******************************************************************************/
@@ -1468,12 +1476,12 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             uint8_t ltk[16];
             err = ble_get_peer_ltk(ltk);
             if (err != ESP_OK) {
-                ESP_LOGW(TAG, "AD048: LTK not available (pairing may not be complete)");
-                // Configure unencrypted peer as fallback
-                err = espnow_transport_set_peer(wifi_mac->mac);
-                if (err == ESP_OK) {
-                    ESP_LOGI(TAG, "AD048: Configured unencrypted ESP-NOW peer (LTK unavailable)");
-                }
+                // Bug #108: LTK not available yet - defer derivation until SMP completes
+                // WIFI_MAC arrives during GATT discovery, but LTK isn't stored until
+                // BLE_GAP_EVENT_ENC_CHANGE fires with status=0 (~0.5-1s later)
+                ESP_LOGW(TAG, "Bug #108: LTK not available yet, deferring key derivation");
+                pending_ltk_derivation = true;
+                // Do NOT fall back to unencrypted - wait for time_sync_on_ltk_available()
                 break;
             }
 
@@ -1679,4 +1687,115 @@ void time_sync_reset_client_ready(void)
     client_ready_received = false;
     client_ready_buffered = false;  // Bug #11 fix: Also clear buffer flag
     time_request_buffered = false;  // Bug #28 fix: Also clear TIME_REQUEST buffer flag
+}
+
+/*******************************************************************************
+ * BUG #108: DEFERRED LTK KEY DERIVATION
+ ******************************************************************************/
+
+/**
+ * @brief Complete deferred LTK-based key derivation (Bug #108 fix)
+ *
+ * Called by ble_manager.c when BLE_GAP_EVENT_ENC_CHANGE fires with status=0.
+ * If WIFI_MAC was received before LTK was ready, this completes the derivation.
+ */
+esp_err_t time_sync_on_ltk_available(void)
+{
+    // Check if we have a pending derivation
+    if (!pending_ltk_derivation) {
+        ESP_LOGD(TAG, "Bug #108: No pending LTK derivation");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // Verify we have the peer MAC
+    if (!peer_wifi_mac_received) {
+        ESP_LOGE(TAG, "Bug #108: pending_ltk_derivation set but no peer MAC!");
+        pending_ltk_derivation = false;
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Bug #108: LTK now available, completing deferred key derivation");
+
+    // Get our own WiFi MAC
+    uint8_t local_mac[6];
+    esp_err_t err = espnow_transport_get_local_mac(local_mac);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bug #108: Failed to get local WiFi MAC: %s", esp_err_to_name(err));
+        pending_ltk_derivation = false;
+        return ESP_FAIL;
+    }
+
+    // Retrieve LTK from BLE bond store (should be available now!)
+    uint8_t ltk[16];
+    err = ble_get_peer_ltk(ltk);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bug #108: LTK still not available after ENC_CHANGE: %s", esp_err_to_name(err));
+        pending_ltk_derivation = false;
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Bug #108: LTK retrieved, deriving ESP-NOW key for peer %02X:%02X:%02X:%02X:%02X:%02X",
+             peer_wifi_mac[0], peer_wifi_mac[1], peer_wifi_mac[2],
+             peer_wifi_mac[3], peer_wifi_mac[4], peer_wifi_mac[5]);
+
+    // Derive LMK using HKDF: LTK || server_mac || client_mac
+    // Server MAC is always first for consistent ordering on both devices
+    uint8_t lmk[ESPNOW_KEY_SIZE];
+    if (TIME_SYNC_IS_SERVER()) {
+        // SERVER: local_mac is server_mac, peer_wifi_mac is client_mac
+        err = espnow_transport_derive_key_from_ltk(
+            ltk,              // LTK provides 128-bit entropy
+            local_mac,        // SERVER MAC (this device)
+            peer_wifi_mac,    // CLIENT MAC (peer device)
+            lmk
+        );
+    } else {
+        // CLIENT: peer_wifi_mac is server_mac, local_mac is client_mac
+        err = espnow_transport_derive_key_from_ltk(
+            ltk,              // LTK provides 128-bit entropy
+            peer_wifi_mac,    // SERVER MAC (peer device)
+            local_mac,        // CLIENT MAC (this device)
+            lmk
+        );
+    }
+
+    // Clear LTK from RAM immediately after use
+    memset(ltk, 0, sizeof(ltk));
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bug #108: HKDF key derivation failed: %s", esp_err_to_name(err));
+        pending_ltk_derivation = false;
+        return ESP_FAIL;
+    }
+
+    // Configure encrypted ESP-NOW peer
+    err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
+
+    // Clear LMK from RAM
+    memset(lmk, 0, sizeof(lmk));
+
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Bug #108: %s configured encrypted ESP-NOW peer (deferred LTK derivation)",
+                 TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
+        espnow_key_exchange_complete = true;
+        pending_ltk_derivation = false;
+
+        // Bug #107: SERVER syncs all NVS settings to CLIENT at bootstrap
+        // This ensures CLIENT has same session_duration, preventing CLIENT
+        // from running longer than SERVER if they have different NVS values.
+        if (TIME_SYNC_IS_SERVER()) {
+            esp_err_t sync_err = ble_sync_all_settings_to_peer();
+            if (sync_err == ESP_OK) {
+                ESP_LOGI(TAG, "Bug #107: Settings synced to CLIENT at bootstrap");
+            } else {
+                ESP_LOGW(TAG, "Bug #107: Failed to sync settings: %s", esp_err_to_name(sync_err));
+            }
+        }
+
+        return ESP_OK;
+    } else {
+        ESP_LOGE(TAG, "Bug #108: Failed to configure encrypted peer: %s", esp_err_to_name(err));
+        pending_ltk_derivation = false;
+        return ESP_FAIL;
+    }
 }

@@ -3511,6 +3511,18 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 pairing_conn_handle = BLE_HS_CONN_HANDLE_NONE;
                 ESP_LOGI(TAG, "PEER pairing completed successfully");
 
+                // Bug #108: LTK is now available - complete deferred key derivation if pending
+                // WIFI_MAC may have arrived during GATT discovery before LTK was stored
+                esp_err_t ltk_err = time_sync_on_ltk_available();
+                if (ltk_err == ESP_OK) {
+                    ESP_LOGI(TAG, "Bug #108: Deferred LTK derivation completed");
+                } else if (ltk_err == ESP_ERR_NOT_FOUND) {
+                    // No pending derivation - WIFI_MAC either hasn't arrived or LTK was already available
+                    ESP_LOGD(TAG, "Bug #108: No pending LTK derivation (normal if WIFI_MAC not yet received)");
+                } else {
+                    ESP_LOGW(TAG, "Bug #108: Deferred LTK derivation failed: %s", esp_err_to_name(ltk_err));
+                }
+
                 // Send success message to motor_task (Phase 1b.3)
                 extern QueueHandle_t ble_to_motor_queue;
                 if (ble_to_motor_queue != NULL) {

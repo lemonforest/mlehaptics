@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bug #108: ESP-NOW Falls Back to Unencrypted Due to SMP Timing**: Deferred LTK derivation until pairing completes
+  - **Problem**: Both devices logged "LTK not available (pairing may not be complete)" and fell back to unencrypted ESP-NOW
+  - **Root Cause**: WIFI_MAC is sent during GATT discovery (~0.8s after connect), but LTK isn't stored until BLE_GAP_EVENT_ENC_CHANGE fires (~1.5s after connect)
+  - **Previous Behavior**: Immediate fallback to unencrypted ESP-NOW when `ble_get_peer_ltk()` failed
+  - **Solution**: Buffer pending LTK derivation, complete it when `BLE_GAP_EVENT_ENC_CHANGE` status=0
+  - **New API**: `time_sync_on_ltk_available()` - called by ble_manager.c when SMP pairing completes
+  - **New State**: `pending_ltk_derivation` flag tracks deferred derivation
+  - Files: [time_sync_task.h](src/time_sync_task.h), [time_sync_task.c:1478-1485,1692-1801](src/time_sync_task.c), [ble_manager.c:3514-3524](src/ble_manager.c)
+
 - **Bug #107: Session Duration Mismatch Between Paired Devices**: SERVER now syncs all NVS settings to CLIENT at bootstrap
   - **Problem**: CLIENT continued running 85+ minutes after SERVER slept because devices had different session durations in NVS
   - **Root Cause**: Each device loads session_duration from its own NVS on boot; if USER only configured SERVER via PWA, CLIENT keeps its default/old value
