@@ -43,6 +43,18 @@ This project implements a two-device bilateral stimulation system for EMDR (Eye 
 - **Adaptive watchdog feeding**: Short cycles feed at end, long cycles feed mid-cycle + end (4-8x safety margin)
 - **Open-source hardware**: Complete PCB designs, schematics, 3D-printable cases
 
+### 🚀 Architecture Evolution (v0.7)
+
+**v0.6 and earlier:** BLE maintained for peer-to-peer coordination throughout session. Time sync beacons sent via BLE GATT notifications. BLE connection required for bilateral motor coordination.
+
+**v0.7 (Current):** **BLE Bootstrap Model** - BLE used only for initial discovery, pairing, and key exchange (~10 seconds). After bootstrap:
+- Peer BLE connection **released** (frees radio for PWA)
+- ESP-NOW handles all ongoing coordination (beacons, mode changes, shutdown)
+- PWA can connect to SERVER device for real-time session control
+- ±100μs timing precision (vs ±10-50ms with BLE)
+
+This architectural shift enables simultaneous PWA control + peer coordination, which was impossible when BLE was dedicated to peer communication.
+
 ## 🔌 Hardware Overview
 
 ### Physical Device
