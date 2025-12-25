@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bug #111: SMP Pairing Times Out After 30 Seconds**: Added passkey handler for numeric comparison
+  - **Problem**: Pairing timed out (status=13) because numeric comparison required passkey confirmation
+  - **Root Cause**: `sm_io_cap=KEYBOARD_DISP` + `sm_mitm=1` triggers numeric comparison, but no `BLE_GAP_EVENT_PASSKEY_ACTION` handler existed
+  - **Solution**: Added passkey handler that auto-accepts numeric comparison for peer-to-peer pairing
+  - **Handler Actions**: NUMCMP auto-accept, DISP/INPUT use static passkey 123456
+  - Files: [ble_manager.c:3488-3546](src/ble_manager.c#L3488-L3546)
+
 - **Bug #108: ESP-NOW Falls Back to Unencrypted Due to SMP Timing**: Deferred LTK derivation until pairing completes
   - **Problem**: Both devices logged "LTK not available (pairing may not be complete)" and fell back to unencrypted ESP-NOW
   - **Root Cause**: WIFI_MAC is sent during GATT discovery (~0.8s after connect), but LTK isn't stored until BLE_GAP_EVENT_ENC_CHANGE fires (~1.5s after connect)
