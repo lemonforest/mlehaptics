@@ -426,6 +426,14 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 ### Web App
 - **[MLE Haptics PWA](https://lemonforest.github.io/mlehaptics-pwa/)**: Web Bluetooth control app for device configuration and monitoring
 
+### Clinical Research & Evidence Base
+
+This device operates within evidence-based EMDR bilateral stimulation parameters. We've compiled comprehensive research documentation to inform both clinical use and device development:
+
+- **[EMDR Bilateral Stimulation: Evidence-Based Parameters](docs/EMDR_bilateral_stimulation_Evidence-based_parameters_for_clinical_practice.md)**: Comprehensive review of EMDRIA guidelines, frequency ranges (0.5–2 Hz standard), modality comparisons (eye movements d=0.41–0.91), brainwave entrainment research, emerging applications, contraindications, and commercial device specifications. Includes phone-sized quick reference and poster-sized infographic datasets.
+
+- **[The Slow Frequency Research Frontier](docs/EMDR_Slow_BLS_Research_Frontier.md)**: Addendum exploring sub-0.5 Hz bilateral stimulation—an undefined research gap. Documents theoretical rationale for slow BLS including cardiac coherence alignment (0.1 Hz), breathing synchronization (0.25 Hz), and infraslow brain oscillations. Proposes frequency taxonomy: Standard (0.5–2 Hz), Deep Resourcing (0.25–0.5 Hz), Cardiac Coherence (0.08–0.12 Hz), and Infraslow Exploration (0.01–0.08 Hz).
+
 ### Research & Prior Art
 
 This project developed foundational techniques for **connectionless distributed timing**—a class of systems that achieve synchronized actuation across wireless nodes *without* real-time coordination traffic during operation. While we built an EMDR device, the architecture enables countless applications from emergency vehicle light bars to drone swarms.

@@ -34,6 +34,8 @@ source_map = {
     "single_device_ble_gatt_test": "../test/single_device_ble_gatt_test.c",
     "minimal_ble_test": "../test/minimal_ble_test.c",
     "minimal_wifi_test": "../test/minimal_wifi_test.c",
+    "minimal_smp_test": "../test/minimal_smp_test.c",
+    "secure_smp_pairing": "../examples/smp_pairing/secure_smp_pairing.c",
     # Add future test environments here
 }
 
