@@ -704,6 +704,90 @@ The nodes execute independently. The beam emerges from synchronized phase relati
 
 **The Validation Path**: Acoustic beamforming with ESP32 proves the distributed control logic at human-observable timescales. The architecture is identical for RF—only the timing hardware changes. Successfully steering a 1kHz acoustic beam validates that the UTLP/RFIP/SMSP stack can steer a 2.4GHz RF beam when instantiated on appropriate silicon.
 
+### 5.9 Dynamic Aperture Beamforming (Time-Varying Geometry)
+
+The beamforming architecture extends naturally to arrays where node positions change over time—a "breathing" or "waving" aperture. Rather than a limitation, dynamic geometry becomes a feature when RFIP continuously tracks actual positions.
+
+**The Rigid Array Limitation**: Traditional phased arrays use electronic phase shifters that delay signals by fractions of a wavelength. This works for single-frequency continuous wave transmission but causes **beam squint** for wideband or pulsed signals—different frequencies steer to different angles, smearing the beam.
+
+**True Time Delay via Physical Displacement**: When array elements physically move, all frequencies experience identical delay (distance / speed of propagation). A 1cm physical displacement delays RF and acoustic signals equally across all frequency components. For pulsed energy applications (HPM weapons, impulse radar, EMP), physical displacement enables perfect pulse focusing that electronic phasing cannot achieve.
+
+**Dynamic Array Advantages**:
+
+| Property | Rigid Array | Dynamic Array |
+|----------|-------------|---------------|
+| Bandwidth | Limited (beam squint) | Wideband (true time delay) |
+| Sidelobe structure | Fixed (exploitable) | Time-averaged (smeared, harder to exploit) |
+| Null locations | Fixed (jamming vulnerability) | Moving (resilient to static jammers) |
+| Synthetic aperture | Requires platform motion | Inherent from element motion |
+| Failure mode | Geometry collapse | Graceful degradation |
+| Countermeasure resistance | Predictable | Non-reciprocal (array state changes between TX and RX) |
+
+**Mechanical Wave as Beam Scanner**: A traveling mechanical wave across the array physically tilts the effective aperture, sweeping the beam without electronic phase control. The scan rate equals the mechanical wave velocity divided by array length. With UTLP synchronization, the mechanical wave phase is deterministic—beam position at any instant is calculable.
+
+**Non-Reciprocal Transmission**: As the array deforms, element velocities create Doppler shifts that encode transmission angle into signal frequency. More importantly, the array geometry at transmission time differs from geometry when a countermeasure signal returns. The reciprocal path no longer exists—the array has moved. This provides inherent jamming resistance without cryptographic complexity.
+
+**RFIP Enables Dynamic Beamforming**: Without real-time geometry knowledge, a deforming array produces incoherent noise. With RFIP tracking actual positions and UTLP ensuring time alignment, deformation becomes a controllable parameter. The phase offset calculation simply updates continuously:
+
+```
+// Static array (calculate once)
+phase_offset[n] = (n × d × sin(θ)) / λ
+
+// Dynamic array (continuous update)
+phase_offset[n](t) = (position[n](t) · target_vector) / λ
+// where position[n](t) comes from RFIP
+```
+
+**Physical Implementations Across Scale**:
+
+| Scale | Implementation | Geometry Sensing | Application |
+|-------|---------------|------------------|-------------|
+| Planetary (AU) | Spacecraft constellation | Light-time ranging | Deep space arrays |
+| Field (km) | Drone swarm | RFIP peer ranging | Distributed radar/comms |
+| Array (m) | Cargo net with nodes | RFIP peer ranging | Tactical beamforming |
+| Panel (cm) | Tensioned membrane | Encoders, strain gauges | Vehicle-mounted arrays |
+| Radome (mm) | Piezoelectric surface | MEMS position sensing | Aircraft/missile seekers |
+| MEMS (μm) | Micromirror array | Capacitive sensing | Integrated photonics |
+| Nano (nm) | Metamaterial elements | Designed response | Optical phased arrays |
+
+**Scale Invariance to Integrated Devices**: The dynamic aperture architecture does not require physically separate nodes. A single integrated device with a mechanically actuated surface—piezoelectric membrane, MEMS mirror array, tensioned mesh—implements identical principles:
+
+- "Swarm" generalizes to "distributed actuation points"
+- RFIP generalizes to "geometry sensing" (encoders, strain gauges, capacitive sensing)
+- UTLP reduces to a shared clock (trivial on a single PCB)
+- SMSP becomes embedded firmware controlling surface shape
+
+**The Architecture Spans All Scales**:
+
+```
+Solar system ←──────────────────────────────────────────────→ Nanoscale
+(light-hours)                                                  (nm)
+     │                                                           │
+     ├─ Deep space antenna arrays (spacecraft swarms)            │
+     ├─ Planetary defense coordination                           │
+     ├─ Ground-based distributed radar                           │
+     ├─ Tactical drone swarms                                    │
+     ├─ Vehicle-mounted conformal arrays                         │
+     ├─ Smart radome surfaces                                    │
+     ├─ MEMS acoustic/RF arrays                                  │
+     └─ Optical metamaterial phased arrays ─────────────────────┘
+
+Same architecture: time sync + geometry knowledge + coordinated actuation
+Only the implementation scale changes.
+```
+
+**Active Radome Applications**: A mechanically actuated radome surface provides:
+- Real-time correction for radome-induced beam distortion
+- Additional beam steering capability beyond the antenna
+- Conformal integration with vehicle surfaces
+- Reduced RCS through dynamic surface shaping
+
+**Space-Time Modulated Metasurfaces**: The architecture describes what the metamaterials community calls "space-time modulated metasurfaces"—but implemented via distributed coordination rather than centralized control. The time modulation (mechanical wave) combined with spatial distribution (node positions) creates effects impossible with static arrays:
+- Frequency conversion (Doppler from motion)
+- Non-reciprocal propagation (geometry changes between TX and RX)
+- Wideband operation (true time delay)
+- Adaptive nulling (sidelobes move)
+
 ---
 
 ## 6. Industry Context: How Professionals Solved This (And Its Limitations)
@@ -935,6 +1019,28 @@ This document establishes prior art for the following techniques, ensuring they 
 
 50. **Score generation method independence**: Score authoring by any means—manual, algorithmic, AI/LLM-assisted, or real-time sensor-driven compilation—is implementation detail; the protocol and execution model are the contribution, not the generation method
 
+### 9.9 Dynamic Aperture Techniques (Time-Varying Geometry)
+
+51. **Dynamic aperture beamforming via synchronized geometry change**: Swarm nodes on flexible/deformable substrate where RFIP provides continuous geometry updates enabling coherent beamforming despite time-varying node positions
+
+52. **True time delay beamforming via mechanical displacement**: Physical node motion providing frequency-independent signal delay, enabling wideband/pulsed beam focusing without beam squint—all frequencies experience identical delay from physical path length change
+
+53. **Mechanical wave beam scanning**: Traveling wave across swarm array physically steering beam direction without electronic phase control, scan rate determined by mechanical wave velocity, UTLP ensuring deterministic wave phase
+
+54. **Phase-coherent mechanical and electromagnetic waves**: UTLP synchronization ensuring deterministic phase relationship between array mechanical deformation and RF/acoustic emission—the mechanical wave becomes part of the modulation scheme
+
+55. **Non-reciprocal array via time-varying geometry**: Doppler encoding of transmission angle into signal frequency, where array state change between transmission and potential countermeasure arrival breaks reciprocal path—inherent jamming resistance without cryptographic complexity
+
+56. **Synthetic aperture from element motion**: Array elements tracing paths over time synthesize larger effective aperture without platform motion—SAR-like resolution enhancement from mechanical wave displacement
+
+57. **Integrated dynamic aperture device**: Single physical device with distributed actuation points (piezoelectric membrane, MEMS mirror array, tensioned mesh) implementing coordinated true-time-delay beamforming via embedded geometry sensing and synchronized actuation
+
+58. **Active radome beam compensation**: Mechanically actuated radome surface providing real-time correction for radome-induced beam distortion plus additional beam steering capability beyond the antenna element
+
+59. **Scale-invariant aperture architecture**: Same coordination model (time sync, geometry knowledge, score-based actuation) spanning from distributed field swarms (km scale) to integrated MEMS surfaces (μm scale) to optical metamaterials (nm scale)—"swarm" generalizes to "distributed actuation points," "RFIP" generalizes to "geometry sensing"
+
+60. **Space-time modulated metasurface via distributed coordination**: Implementing space-time modulated metasurface effects (frequency conversion, non-reciprocal propagation, wideband operation) through connectionless swarm coordination rather than centralized control
+
 ---
 
 ## 10. Conclusion
@@ -961,6 +1067,7 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 | 1.7 | 2025-12-24 | Added SMSP (Synchronized Multimodal Score Protocol) as Section 4.5—defines score format, three-layer architecture (declarative/compiler/imperative), scale and transport invariance; added 10 SMSP-specific prior art claims (33-42) |
 | 1.8 | 2025-12-24 | Added distributed wave beamforming (Section 5.8)—acoustic demo proving domain-invariant phased array architecture; RFIP geometry feeding phase offset math; enclosure effects as radome simulation; 8 new prior art claims (43-50) covering beamforming and generation method independence |
 | 1.9 | 2025-12-25 | Added reference to `examples/smp_pairing/` in Section 2.4—working proof of BLE bootstrap phase with critical `ble_store_config_init()` discovery |
+| 2.0 | 2025-12-25 | Added dynamic aperture beamforming (Section 5.9)—time-varying geometry, true time delay via physical displacement, mechanical wave beam scanning, non-reciprocal arrays, scale invariance from solar system to nanoscale; 10 new prior art claims (51-60) covering space-time modulated metasurfaces and integrated dynamic aperture devices |
 
 ---
 
