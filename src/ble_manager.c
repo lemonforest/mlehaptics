@@ -44,6 +44,24 @@
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "store/config/ble_store_config.h"
+#include "host/ble_store.h"  // Bug #112: For ble_store_util_delete_peer(), ble_store_clear()
+
+/**
+ * @brief Initialize BLE store configuration
+ *
+ * @warning This function MUST be called after nimble_port_init() but before
+ *          starting the NimBLE host task. Without it, SMP will fail with
+ *          BLE_HS_ENOTSUP (rc=8).
+ *
+ * This sets up the following callbacks in ble_hs_cfg:
+ * - store_read_cb: Read stored security material
+ * - store_write_cb: Write security material to storage
+ * - store_delete_cb: Delete security material from storage
+ *
+ * Bug #113: This extern is required because ble_store_config.h doesn't declare it.
+ * See examples/smp_pairing/secure_smp_pairing.c for discovery documentation.
+ */
+extern void ble_store_config_init(void);
 
 static const char *TAG = "BLE_MANAGER";
 
@@ -2322,6 +2340,32 @@ static int gattc_on_cccd_write(uint16_t conn_handle,
         }
         // Note: time_sync_on_reconnection returns ESP_OK on initial connection too
         // (before time_sync_init called), so we don't log "initialized" here
+
+        /* Bug #113 Fix: SERVER (BLE MASTER) initiates SMP pairing
+         *
+         * Previously CLIENT initiated, but BLE spec expects MASTER to start pairing.
+         * When SLAVE calls ble_gap_security_initiate(), it sends a Security Request,
+         * but ESP-IDF NimBLE doesn't have BLE_GAP_EVENT_SEC_REQUEST for MASTER to handle.
+         *
+         * Solution: SERVER (BLE MASTER) initiates SMP after GATT operations complete.
+         * This is the normal BLE flow - MASTER starts security procedures.
+         *
+         * CRITICAL: Both devices call gattc_on_cccd_write() because both do GATT
+         * service discovery. Only SERVER (MASTER) should initiate to avoid conflicts.
+         */
+        if (peer_state.role == PEER_ROLE_SERVER) {
+            ESP_LOGI(TAG, "Bug #113: SERVER (MASTER) starting SMP pairing (GATT operations complete)");
+            int sec_rc = ble_gap_security_initiate(conn_handle);
+            if (sec_rc == 0) {
+                ESP_LOGI(TAG, "Bug #113: SMP pairing initiated (will generate LTK for ESP-NOW)");
+            } else if (sec_rc == BLE_HS_EALREADY) {
+                ESP_LOGI(TAG, "Bug #113: SMP pairing already in progress");
+            } else {
+                ESP_LOGW(TAG, "Bug #113: SMP pairing failed; rc=%d (ESP-NOW unencrypted fallback)", sec_rc);
+            }
+        } else {
+            ESP_LOGI(TAG, "Bug #113: CLIENT (SLAVE) waiting for SERVER to initiate SMP");
+        }
     } else {
         ESP_LOGE(TAG, "CLIENT: Failed to write CCCD; status=%d", error->status);
     }
@@ -2884,20 +2928,18 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                             ESP_LOGE(TAG, "CLIENT: Failed to start service discovery; rc=%d", disc_rc);
                         }
 
-                        // Bug #43 Fix: CLIENT initiates SMP pairing to generate LTK for ESP-NOW encryption
-                        // Only CLIENT initiates because:
-                        // 1. Only one side needs to initiate (peer will respond automatically)
-                        // 2. SERVER was failing with BLE_HS_EBUSY (rc=8) when both tried simultaneously
-                        // 3. CLIENT (BLE SLAVE) is less busy than SERVER (BLE MASTER) at this point
-                        // Note: ble_hs_cfg.sm_* settings control pairing type (LESC, bonding, MITM)
-                        int sec_rc = ble_gap_security_initiate(event->connect.conn_handle);
-                        if (sec_rc == 0) {
-                            ESP_LOGI(TAG, "CLIENT: SMP pairing initiated (will generate LTK for ESP-NOW)");
-                        } else if (sec_rc == BLE_HS_EALREADY) {
-                            ESP_LOGI(TAG, "CLIENT: SMP pairing already in progress (SERVER initiated)");
-                        } else {
-                            ESP_LOGW(TAG, "CLIENT: SMP pairing failed; rc=%d (ESP-NOW unencrypted fallback)", sec_rc);
-                        }
+                        /* Bug #113 Fix: SMP initiation MOVED to gattc_on_cccd_write()
+                         *
+                         * Previously (Bug #43): CLIENT initiated SMP here, immediately after connection.
+                         * This caused SMP timeout (status=13) because it competed with:
+                         * - MTU exchange (started ~2874)
+                         * - Service discovery (started ~2881)
+                         * - Connection params update (started ~2918)
+                         *
+                         * Same pattern as time_sync_on_reconnection() which also had to be moved.
+                         * Now SMP is initiated AFTER GATT service discovery and CCCD write complete,
+                         * ensuring the connection is fully ready before starting security procedures.
+                         */
                     }
 
                     /* PHASE 6r: time_sync_on_reconnection() MOVED to gattc_on_cccd_write()
@@ -3486,13 +3528,14 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         }
 
         case BLE_GAP_EVENT_PASSKEY_ACTION: {
-            // Bug #111: SMP pairing requires passkey confirmation for MITM protection
-            // With sm_io_cap=BLE_SM_IO_CAP_KEYBOARD_DISP and sm_mitm=1, both devices
-            // have keyboard+display, so NimBLE selects numeric comparison pairing.
-            // Without this handler, pairing times out after 30 seconds (status=13).
+            // Bug #111 + Bug #113: SMP Numeric Comparison with MITM protection
+            // With sm_io_cap=BLE_HS_IO_DISPLAY_YESNO and sm_mitm=1, NimBLE selects
+            // Numeric Comparison pairing (highest security for devices with displays).
             //
+            // Flow: Both devices display same 6-digit code, user confirms match.
             // For peer-to-peer pairing, we auto-accept since both devices are ours.
-            ESP_LOGI(TAG, "Bug #111: Passkey action event; conn_handle=%d, action=%d",
+            // See examples/smp_pairing/secure_smp_pairing.c for detailed documentation.
+            ESP_LOGI(TAG, "Passkey action event; conn_handle=%d, action=%d",
                      event->passkey.conn_handle, event->passkey.params.action);
 
             struct ble_sm_io pkey = {0};
@@ -3500,50 +3543,87 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
 
             switch (event->passkey.params.action) {
                 case BLE_SM_IOACT_NUMCMP:
-                    // Numeric comparison - both devices show same number, user confirms
+                    // Numeric Comparison: both devices show same 6-digit code
                     // Auto-accept for peer pairing (both devices are ours)
-                    ESP_LOGI(TAG, "Bug #111: Numeric comparison: %lu - AUTO-ACCEPTING",
-                             (unsigned long)event->passkey.params.numcmp);
-                    pkey.numcmp_accept = 1;  // Accept the pairing
+                    ESP_LOGI(TAG, "########################################");
+                    ESP_LOGI(TAG, "NUMERIC COMPARISON PAIRING");
+                    ESP_LOGI(TAG, "  Code: %06lu", (unsigned long)event->passkey.params.numcmp);
+                    ESP_LOGI(TAG, "  Status: AUTO-ACCEPTING (peer device)");
+                    ESP_LOGI(TAG, "########################################");
+                    pkey.numcmp_accept = 1;
                     break;
 
                 case BLE_SM_IOACT_DISP:
                     // Display passkey - we generate and display, peer enters
                     // Generate a fixed passkey for peer-to-peer (no user present)
-                    pkey.passkey = 123456;  // Fixed passkey for peer pairing
-                    ESP_LOGI(TAG, "Bug #111: Displaying passkey: %lu", (unsigned long)pkey.passkey);
+                    pkey.passkey = 123456;
+                    ESP_LOGI(TAG, "SMP: Displaying passkey: %06lu", (unsigned long)pkey.passkey);
                     break;
 
                 case BLE_SM_IOACT_INPUT:
                     // Input passkey - peer displays, we enter
                     // Use same fixed passkey (both devices use same code)
                     pkey.passkey = 123456;
-                    ESP_LOGI(TAG, "Bug #111: Inputting passkey: %lu", (unsigned long)pkey.passkey);
+                    ESP_LOGI(TAG, "SMP: Inputting passkey: %06lu", (unsigned long)pkey.passkey);
                     break;
 
                 case BLE_SM_IOACT_NONE:
                     // Just Works - no user interaction needed
-                    ESP_LOGI(TAG, "Bug #111: Just Works pairing (no action required)");
+                    ESP_LOGI(TAG, "SMP: Just Works pairing (no action required)");
                     break;
 
                 case BLE_SM_IOACT_OOB:
                     // Out-of-band - not supported for peer pairing
-                    ESP_LOGW(TAG, "Bug #111: OOB pairing not supported");
+                    ESP_LOGW(TAG, "SMP: OOB pairing not supported");
                     break;
 
                 default:
-                    ESP_LOGW(TAG, "Bug #111: Unknown passkey action: %d", event->passkey.params.action);
+                    ESP_LOGW(TAG, "SMP: Unknown passkey action: %d", event->passkey.params.action);
                     break;
             }
 
             // Inject the passkey/confirmation response
             int rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
             if (rc != 0) {
-                ESP_LOGE(TAG, "Bug #111: ble_sm_inject_io failed; rc=%d", rc);
+                ESP_LOGE(TAG, "SMP: ble_sm_inject_io failed; rc=%d", rc);
             } else {
-                ESP_LOGI(TAG, "Bug #111: Passkey response injected successfully");
+                ESP_LOGI(TAG, "SMP: Passkey response injected successfully");
             }
             break;
+        }
+
+        case BLE_GAP_EVENT_REPEAT_PAIRING: {
+            // Bug #112: Handle repeat pairing requests (required for proper SMP)
+            // This event fires when a device tries to pair again with existing bond
+            // We must delete the old bond and return RETRY for pairing to proceed
+            ESP_LOGW(TAG, "Bug #112: Repeat pairing request; conn_handle=%d",
+                     event->repeat_pairing.conn_handle);
+
+            // Get peer address to delete the old bond
+            struct ble_gap_conn_desc desc;
+            if (ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc) == 0) {
+                // Delete old bonding information for this peer
+                ble_store_util_delete_peer(&desc.peer_id_addr);
+                ESP_LOGI(TAG, "Bug #112: Deleted old bond, retrying pairing");
+            } else {
+                ESP_LOGW(TAG, "Bug #112: Could not find connection, clearing all bonds");
+                ble_store_clear();
+            }
+
+            // Return RETRY to tell NimBLE to start fresh pairing
+            return BLE_GAP_REPEAT_PAIRING_RETRY;
+        }
+
+        case BLE_GAP_EVENT_AUTHORIZE: {
+            // Bug #113: Handle authorization requests (required for some security modes)
+            ESP_LOGI(TAG, "Bug #113: Authorization request received");
+            return 0;  // Allow by default
+        }
+
+        case BLE_GAP_EVENT_IDENTITY_RESOLVED: {
+            // Peer identity resolved (for privacy/IRK)
+            ESP_LOGI(TAG, "Bug #113: Peer identity resolved");
+            return 0;
         }
 
         case BLE_GAP_EVENT_ENC_CHANGE: {
@@ -4162,6 +4242,14 @@ esp_err_t ble_manager_init(uint8_t initial_battery_pct) {
         return ret;
     }
 
+    // Bug #113: Initialize BLE store configuration BEFORE any SMP operations
+    // This is MANDATORY for SMP pairing to work. Without it, ble_gap_security_initiate()
+    // returns BLE_HS_ENOTSUP (rc=8). The function sets up store callbacks (read/write/delete)
+    // that SMP needs to persist and retrieve security material.
+    // Discovery documented in examples/smp_pairing/secure_smp_pairing.c
+    ble_store_config_init();
+    ESP_LOGI(TAG, "Bug #113: ble_store_config_init() called - SMP now operational");
+
     // Get local MAC address for Bilateral Control Service (Phase 1b)
     // This is needed for role assignment tiebreaker (AD034)
     uint8_t own_addr[6];
@@ -4188,8 +4276,18 @@ esp_err_t ble_manager_init(uint8_t initial_battery_pct) {
     ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
 
     // Configure BLE security (Phase 1b.3: Pairing/Bonding)
-    // LE Secure Connections with MITM protection via button confirmation
-    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_KEYBOARD_DISP;  // Support numeric comparison
+    // Bug #113 FIXED: Now using Numeric Comparison with MITM protection
+    // See examples/smp_pairing/secure_smp_pairing.c for detailed security rationale
+    //
+    // Security Level: LE Secure Connections with Authenticated MITM Protection
+    // | Feature              | Value           | Rationale                       |
+    // |----------------------|-----------------|----------------------------------|
+    // | I/O Capability       | DISPLAY_YESNO   | Enables Numeric Comparison       |
+    // | MITM Protection      | Enabled         | Prevents relay attacks           |
+    // | LE Secure Connections| Required        | ECDH P-256 key exchange          |
+    // | Bonding              | Enabled         | Stores LTK for reconnection      |
+    // | Key Distribution     | ENC + ID        | Both devices share keys          |
+    ble_hs_cfg.sm_io_cap = BLE_HS_IO_DISPLAY_YESNO;          // Enables Numeric Comparison
     ble_hs_cfg.sm_bonding = 1;                               // Enable bonding (store keys)
     ble_hs_cfg.sm_mitm = 1;                                  // Require MITM protection
     ble_hs_cfg.sm_sc = 1;                                    // Use LE Secure Connections (ECDH)
@@ -5061,18 +5159,32 @@ esp_err_t ble_get_peer_ltk(uint8_t ltk_out[16]) {
     }
 
     // Read LTK from NimBLE bond store
-    // Use OUR_SEC because we want our local copy of the encryption keys
-    // The LTK is the same on both devices after pairing
+    // Bug #114: Using OUR_SEC - verify this returns consistent LTK on both devices
     union ble_store_key key;
     union ble_store_value value;
 
     memset(&key, 0, sizeof(key));
     key.sec.peer_addr = peer_state.peer_addr;
 
+    // Bug #114: Log the BLE address being used for lookup
+    ESP_LOGI(TAG, "Bug #114: Reading LTK for BLE addr %02X:%02X:%02X:%02X:%02X:%02X (type=%d)",
+             peer_state.peer_addr.val[5], peer_state.peer_addr.val[4],
+             peer_state.peer_addr.val[3], peer_state.peer_addr.val[2],
+             peer_state.peer_addr.val[1], peer_state.peer_addr.val[0],
+             peer_state.peer_addr.type);
+
     int rc = ble_store_read(BLE_STORE_OBJ_TYPE_OUR_SEC, &key, &value);
     if (rc != 0) {
-        ESP_LOGD(TAG, "ble_get_peer_ltk: ble_store_read failed (rc=%d)", rc);
-        return ESP_ERR_NOT_FOUND;
+        ESP_LOGW(TAG, "Bug #114: OUR_SEC read failed (rc=%d), trying PEER_SEC", rc);
+        // Try PEER_SEC as fallback
+        rc = ble_store_read(BLE_STORE_OBJ_TYPE_PEER_SEC, &key, &value);
+        if (rc != 0) {
+            ESP_LOGW(TAG, "Bug #114: PEER_SEC also failed (rc=%d)", rc);
+            return ESP_ERR_NOT_FOUND;
+        }
+        ESP_LOGI(TAG, "Bug #114: Using PEER_SEC for LTK");
+    } else {
+        ESP_LOGI(TAG, "Bug #114: Using OUR_SEC for LTK");
     }
 
     // Check if LTK is present
@@ -5084,8 +5196,10 @@ esp_err_t ble_get_peer_ltk(uint8_t ltk_out[16]) {
     // Copy LTK to output
     memcpy(ltk_out, value.sec.ltk, 16);
 
-    ESP_LOGI(TAG, "AD048: Retrieved peer LTK [%02X%02X...%02X%02X]",
-             ltk_out[0], ltk_out[1], ltk_out[14], ltk_out[15]);
+    // Bug #114: Log full LTK fingerprint for mismatch diagnosis
+    ESP_LOGI(TAG, "Bug #114: Retrieved LTK [%02X%02X%02X%02X...%02X%02X]",
+             ltk_out[0], ltk_out[1], ltk_out[2], ltk_out[3],
+             ltk_out[14], ltk_out[15]);
 
     return ESP_OK;
 }

@@ -21,6 +21,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Bug #114: LMK Mismatch Between Paired Devices**: Use BLE role for key derivation
+  - **Problem**: CLIENT could receive ESP-NOW messages from SERVER but couldn't send back (asymmetric encryption)
+  - **Root Cause**: `TIME_SYNC_IS_SERVER()` returns false on BOTH devices when WIFI_MAC arrives during GATT discovery, because time_sync role isn't set until later
+  - **Impact**: Both devices derived LMK as if they were CLIENT, reversing MAC ordering in HKDF on one device
+  - **Solution**: Use `ble_get_peer_role()` (set at connection time) instead of `TIME_SYNC_IS_SERVER()` (set later)
+  - **Locations Fixed**: WIFI_MAC handler + deferred derivation handler (`time_sync_on_ltk_available`)
+  - Files: [time_sync_task.c](src/time_sync_task.c)
+
+- **Bug #113: SMP Pairing Fails with rc=8 (BLE_HS_ENOTSUP)**: Multiple root causes identified and fixed
+  - **Problem**: SMP pairing failed immediately with rc=8, preventing LTK generation for encrypted ESP-NOW
+  - **Root Cause 1**: Missing `ble_store_config_init()` - NimBLE store callbacks weren't configured
+  - **Root Cause 2**: CLIENT initiating SMP competed with ongoing GATT discovery
+  - **Root Cause 3**: No `BLE_GAP_EVENT_REPEAT_PAIRING` handler for re-pairing scenarios
+  - **Solution**:
+    1. Added `ble_store_config_init()` call after `nimble_port_init()`
+    2. Moved SMP initiation to SERVER after GATT operations complete (in `gattc_on_cccd_write`)
+    3. Added repeat pairing handler that deletes old bonds and retries
+  - **Timing Constants**: Added SMP timing constants to ble_config.h (stabilization delays)
+  - Files: [ble_manager.c](src/ble_manager.c), [ble_config.h](src/config/ble_config.h)
+
+- **Bug #112: Repeat Pairing Requests Not Handled**: Added `BLE_GAP_EVENT_REPEAT_PAIRING` handler
+  - **Problem**: Re-pairing attempts failed silently when old bonds existed
+  - **Solution**: Delete old bond and return `BLE_GAP_REPEAT_PAIRING_RETRY` to restart pairing fresh
+  - Files: [ble_manager.c](src/ble_manager.c)
+
 - **Bug #111: SMP Pairing Times Out After 30 Seconds**: Added passkey handler for numeric comparison
   - **Problem**: Pairing timed out (status=13) because numeric comparison required passkey confirmation
   - **Root Cause**: `sm_io_cap=KEYBOARD_DISP` + `sm_mitm=1` triggers numeric comparison, but no `BLE_GAP_EVENT_PASSKEY_ACTION` handler existed

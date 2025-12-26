@@ -1484,10 +1484,32 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 break;
             }
 
+            // Bug #114 FIX: Use BLE role instead of time_sync role
+            // Time_sync role isn't set yet when WIFI_MAC arrives during GATT discovery.
+            // BLE role (ble_get_peer_role()) is set at connection time, BEFORE GATT discovery.
+            // PEER_ROLE_SERVER = we accepted connection = we are SERVER
+            // PEER_ROLE_CLIENT = we initiated connection = we are CLIENT
+            peer_role_t ble_role = ble_get_peer_role();
+            bool is_server = (ble_role == PEER_ROLE_SERVER);
+
+            // Bug #114: Diagnostic logging for LMK mismatch investigation
+            ESP_LOGI(TAG, "Bug #114: LTK fingerprint: [%02X%02X%02X%02X]",
+                     ltk[0], ltk[1], ltk[2], ltk[3]);
+            ESP_LOGI(TAG, "Bug #114: local_mac: %02X:%02X:%02X:%02X:%02X:%02X",
+                     local_mac[0], local_mac[1], local_mac[2],
+                     local_mac[3], local_mac[4], local_mac[5]);
+            ESP_LOGI(TAG, "Bug #114: peer_wifi_mac: %02X:%02X:%02X:%02X:%02X:%02X",
+                     peer_wifi_mac[0], peer_wifi_mac[1], peer_wifi_mac[2],
+                     peer_wifi_mac[3], peer_wifi_mac[4], peer_wifi_mac[5]);
+            ESP_LOGI(TAG, "Bug #114: BLE Role: %s (ble_get_peer_role=%d, time_sync=%s)",
+                     is_server ? "SERVER" : "CLIENT",
+                     ble_role,
+                     TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
+
             // Derive LMK using HKDF: LTK || server_mac || client_mac
             // Server MAC is always first for consistent ordering on both devices
             uint8_t lmk[ESPNOW_KEY_SIZE];
-            if (TIME_SYNC_IS_SERVER()) {
+            if (is_server) {
                 // SERVER: local_mac is server_mac, peer_wifi_mac is client_mac
                 err = espnow_transport_derive_key_from_ltk(
                     ltk,              // LTK provides 128-bit entropy
@@ -1521,13 +1543,14 @@ static void handle_coordination_message(const time_sync_message_t *msg)
 
             if (err == ESP_OK) {
                 ESP_LOGI(TAG, "AD048: %s configured encrypted ESP-NOW peer (LTK-derived)",
-                         TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
+                         is_server ? "SERVER" : "CLIENT");
                 espnow_key_exchange_complete = true;
 
                 // Bug #107: SERVER syncs all NVS settings to CLIENT at bootstrap
                 // This ensures CLIENT has same session_duration, preventing CLIENT
                 // from running longer than SERVER if they have different NVS values.
-                if (TIME_SYNC_IS_SERVER()) {
+                // Bug #114: Use is_server (from BLE role) instead of TIME_SYNC_IS_SERVER()
+                if (is_server) {
                     esp_err_t sync_err = ble_sync_all_settings_to_peer();
                     if (sync_err == ESP_OK) {
                         ESP_LOGI(TAG, "Bug #107: Settings synced to CLIENT at bootstrap");
@@ -1733,14 +1756,29 @@ esp_err_t time_sync_on_ltk_available(void)
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Bug #108: LTK retrieved, deriving ESP-NOW key for peer %02X:%02X:%02X:%02X:%02X:%02X",
+    // Bug #114 FIX: Use BLE role instead of time_sync role
+    // Time_sync role might not be set yet. BLE role is always correct.
+    peer_role_t ble_role = ble_get_peer_role();
+    bool is_server = (ble_role == PEER_ROLE_SERVER);
+
+    // Bug #114: Diagnostic logging for LMK mismatch investigation
+    ESP_LOGI(TAG, "Bug #114: LTK fingerprint: [%02X%02X%02X%02X]",
+             ltk[0], ltk[1], ltk[2], ltk[3]);
+    ESP_LOGI(TAG, "Bug #114: local_mac: %02X:%02X:%02X:%02X:%02X:%02X",
+             local_mac[0], local_mac[1], local_mac[2],
+             local_mac[3], local_mac[4], local_mac[5]);
+    ESP_LOGI(TAG, "Bug #114: peer_wifi_mac: %02X:%02X:%02X:%02X:%02X:%02X",
              peer_wifi_mac[0], peer_wifi_mac[1], peer_wifi_mac[2],
              peer_wifi_mac[3], peer_wifi_mac[4], peer_wifi_mac[5]);
+    ESP_LOGI(TAG, "Bug #114: BLE Role: %s (ble_get_peer_role=%d, time_sync=%s)",
+             is_server ? "SERVER" : "CLIENT",
+             ble_role,
+             TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
 
     // Derive LMK using HKDF: LTK || server_mac || client_mac
     // Server MAC is always first for consistent ordering on both devices
     uint8_t lmk[ESPNOW_KEY_SIZE];
-    if (TIME_SYNC_IS_SERVER()) {
+    if (is_server) {
         // SERVER: local_mac is server_mac, peer_wifi_mac is client_mac
         err = espnow_transport_derive_key_from_ltk(
             ltk,              // LTK provides 128-bit entropy
@@ -1775,14 +1813,15 @@ esp_err_t time_sync_on_ltk_available(void)
 
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Bug #108: %s configured encrypted ESP-NOW peer (deferred LTK derivation)",
-                 TIME_SYNC_IS_SERVER() ? "SERVER" : "CLIENT");
+                 is_server ? "SERVER" : "CLIENT");
         espnow_key_exchange_complete = true;
         pending_ltk_derivation = false;
 
         // Bug #107: SERVER syncs all NVS settings to CLIENT at bootstrap
         // This ensures CLIENT has same session_duration, preventing CLIENT
         // from running longer than SERVER if they have different NVS values.
-        if (TIME_SYNC_IS_SERVER()) {
+        // Bug #114: Use is_server (from BLE role) instead of TIME_SYNC_IS_SERVER()
+        if (is_server) {
             esp_err_t sync_err = ble_sync_all_settings_to_peer();
             if (sync_err == ESP_OK) {
                 ESP_LOGI(TAG, "Bug #107: Settings synced to CLIENT at bootstrap");
