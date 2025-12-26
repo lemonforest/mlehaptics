@@ -174,6 +174,8 @@ esp_err_t derive_espnow_key(
 
 This gives the security properties of BLE pairing (encrypted key exchange, MITM protection) with the timing properties of ESP-NOW (low-jitter delivery). Peer BLE connection is released after key exchange—the operational phase uses ESP-NOW exclusively for peer traffic.
 
+**Reference implementation**: The BLE pairing phase (SMP with Numeric Comparison, MITM protection, LTK derivation) is demonstrated in `examples/smp_pairing/`. Critical discovery: NimBLE requires `ble_store_config_init()` before host sync for SMP to function—this is not documented in ESP-IDF or NimBLE references. Tagged as `examples/secure-smp-pairing` for discoverability.
+
 ---
 
 ## 3. Validation: SAE J845 Quad Flash
@@ -958,6 +960,7 @@ By publishing this work as prior art, we ensure these techniques remain freely a
 | 1.6 | 2025-12-23 | Added IMU-augmented positioning option, hardware cost breakdown |
 | 1.7 | 2025-12-24 | Added SMSP (Synchronized Multimodal Score Protocol) as Section 4.5—defines score format, three-layer architecture (declarative/compiler/imperative), scale and transport invariance; added 10 SMSP-specific prior art claims (33-42) |
 | 1.8 | 2025-12-24 | Added distributed wave beamforming (Section 5.8)—acoustic demo proving domain-invariant phased array architecture; RFIP geometry feeding phase offset math; enclosure effects as radome simulation; 8 new prior art claims (43-50) covering beamforming and generation method independence |
+| 1.9 | 2025-12-25 | Added reference to `examples/smp_pairing/` in Section 2.4—working proof of BLE bootstrap phase with critical `ble_store_config_init()` discovery |
 
 ---
 
