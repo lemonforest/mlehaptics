@@ -438,7 +438,9 @@ This device operates within evidence-based EMDR bilateral stimulation parameters
 
 This project developed foundational techniques for **connectionless distributed timing**—a class of systems that achieve synchronized actuation across wireless nodes *without* real-time coordination traffic during operation. While we built an EMDR device, the architecture enables countless applications from emergency vehicle light bars to drone swarms.
 
-- **[Connectionless Distributed Timing: A Prior Art Publication](docs/Connectionless_Distributed_Timing_Prior_Art.md)**: Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
+- **[Connectionless Distributed Timing: A Prior Art Publication](docs/Connectionless_Distributed_Timing_Prior_Art_v3.2.md)**: Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
+
+- **[Distributed Acoustic Sensing: A Project Lab Manual](docs/Distributed_Acoustic_Sensing_Lab_Manual_v2.md)**: Educational guide for students, hobbyists, and researchers exploring distributed acoustic sensing with synchronized wireless nodes. Scales from weekend science project to operational weather sensing (infrasound, wind mapping, tornado detection).
 
 ### Technical Reports
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
