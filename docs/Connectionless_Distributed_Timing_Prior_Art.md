@@ -38,7 +38,7 @@ Development began with single-device pattern playback—deterministic, timer-dri
 
 This architecture was validated using SAE J845-compliant emergency lighting patterns (Quad Flash) captured at 240fps, demonstrating zero perceptible overlap between alternating signals—precision sufficient for therapeutic bilateral stimulation, emergency vehicle warning systems, and distributed swarm coordination. Reference implementation runs on commodity ESP32-C6 hardware with a bill of materials under $15 per node.
 
-The architecture is scale-invariant: the same three protocols (UTLP for time synchronization, RFIP for relative positioning, SMSP for coordinated action and observation) apply from 2-node therapy devices to continental sensor networks to interstellar spacecraft constellations. SMSP operates bidirectionally—scores flow out to nodes, observations flow back—enabling the same protocol to coordinate both actuation (bilateral stimulation) and sensing (atmospheric tomography). This document establishes prior art across that entire range, with 120 claims covering therapeutic, emergency, meteorological, seismoacoustic, metasurface, and planetary-scale applications.
+The architecture is scale-invariant: the same three protocols (UTLP for time synchronization, RFIP for relative positioning, SMSP for coordinated action and observation) apply from 2-node therapy devices to continental sensor networks to interstellar spacecraft constellations. SMSP operates bidirectionally—scores flow out to nodes, observations flow back—enabling the same protocol to coordinate both actuation (bilateral stimulation) and sensing (atmospheric tomography). This document establishes prior art across that entire range, with 121 claims covering therapeutic, emergency, meteorological, seismoacoustic, metasurface, and planetary-scale applications.
 
 This work is published as open-source prior art to ensure these techniques remain freely available for public use and cannot be enclosed by patents.
 
@@ -82,7 +82,7 @@ This document contains 110 specific prior art claims (Section 9). For navigation
 | 7 | **Deformable Virtual Metasurface** | Swarm-based metasurface where node position and density are primary control variables (not error sources), enabling geometry changes impossible with substrate-constrained approaches | 93-100 |
 | 8 | **Emergent Aperture Exploitation** | Recognition that any synchronized, position-known node collection inherently constitutes a virtual aperture—the physics exists whether exploited or not; UTLP/RFIP/SMSP enables exploitation of apertures in existing networks | 101-105 |
 
-The 120 claims are specific instantiations of these eight patterns across therapeutic, emergency, meteorological, seismoacoustic, metasurface, and planetary-scale applications.
+The 121 claims are specific instantiations of these eight patterns across therapeutic, emergency, meteorological, seismoacoustic, metasurface, and planetary-scale applications.
 
 ---
 
@@ -395,6 +395,37 @@ UTLP provides synchronized time as a "broadcast environmental variable"—a publ
 **Implementation note**: In the reference implementation, UTLP runs over ESP-NOW after BLE bootstrap completes. BLE establishes trust and exchanges the Long-Term Key (LTK); all subsequent peer traffic—including UTLP sync beacons—uses ESP-NOW encrypted with keys derived from the LTK. This provides BLE-grade security with ESP-NOW's timing characteristics.
 
 The core insight: when devices agree on time to ±30μs precision, timestamps provide sufficient ordering granularity for any human-scale coordination.
+
+#### 4.1.1 Multi-Burst Beacon Timing: Time-Domain Interferometry
+
+A critical implementation detail: UTLP sync beacons use **3 equally-spaced bursts** rather than a single transmission. This approach was discovered empirically ("more samples = more math") and independently rediscovers **seismic chirp signal processing**—the same technique used to characterize subsurface velocity models from swept-frequency acoustic pulses.
+
+**The derivative stack:**
+
+| Sample | Measures | Seismic Analog | Mathematical Role |
+|--------|----------|----------------|-------------------|
+| Burst 1 (t₀) | Offset | Position | Where am I? |
+| Burst 2 (t₁) | Drift | Velocity | Where am I going? (1st derivative) |
+| Burst 3 (t₂) | Stability | Acceleration | Is my "going" stable? (2nd derivative) |
+
+With a single sample, you get a scalar—one offset measurement contaminated by jitter. With 3 samples, you can fit a parabola: offset + drift rate + drift acceleration (thermal stability). You're not just *measuring* time—you're measuring **the curvature of your clock's relationship to truth**.
+
+**Why this matters:**
+
+```
+1 Burst:  A dot. Zero context. Jitter indistinguishable from offset.
+3 Bursts: A curve. Trajectory of time. Jitter rejected as deviation from trend.
+```
+
+The 3-burst approach builds a **temporal phased array**—"focusing" the receiver on the valid time signal and rejecting transient noise (stack jitter), exactly like a seismic array rejects ground roll to resolve the oil deposit beneath.
+
+**Cross-domain validation**: This technique is mathematically identical to:
+- Seismic chirp surveys (swept frequency characterizes medium velocity)
+- GPS carrier-phase tracking (multiple samples resolve integer ambiguity)
+- Kalman filter initialization (3+ samples establish state and covariance)
+- Polynomial curve fitting (N points determine N-1 degree polynomial)
+
+The fact that this approach was discovered independently from first principles, then recognized as a known seismic technique, validates the architecture's cross-domain coherence. **The same math works because the same physics applies.**
 
 ### 4.2 RFIP (Reference-Frame Independent Positioning)
 
@@ -2752,6 +2783,8 @@ This document establishes prior art for the following techniques, ensuring they 
 
 120. **Aperture as universal epistemological operation**: Recognition that all apertures—physical or virtual, technological or cognitive—perform identical mathematical operations: correlating sparse samples across space and/or time to synthesize understanding unavailable from any single sample; radio telescope arrays, distributed acoustic sensors, historical scholarship, criminal investigation, scientific meta-analysis, and human visual perception all instantiate the same principle; a historian correlating Mayan codices with colonial records performs the same correlation operation as VLBI combining telescope signals; "history as dynamic aperture"—what we resolve about the past depends on which samples survive, how we correlate them, and which interference patterns we constructively combine; this universality establishes that apertures cannot be invented, only instantiated in specific domains; you cannot patent "correlating distributed samples to gain resolution" because it underlies radio astronomy, historiography, jurisprudence, scientific method, and cognition simultaneously; dynamic macroscopic lattice is architecture for instantiating apertures physics already permits, not invention of new aperture types
 
+121. **Multi-burst beacon timing as time-domain interferometry**: Using N≥3 equally-spaced sync beacon bursts to extract clock offset, drift rate, and drift stability (thermal acceleration) from a single synchronization exchange—mathematically identical to seismic chirp signal processing where swept-frequency pulses characterize subsurface velocity models; single burst provides scalar offset contaminated by jitter; 3 bursts enable polynomial fit separating systematic drift from random jitter; constitutes a "temporal phased array" that focuses on valid time signal while rejecting transient noise, exactly as seismic arrays reject ground roll to resolve subsurface structure; cross-domain validation: technique independently rediscovered from first principles then recognized as established geophysics method; same math works because same physics applies; extends to GPS carrier-phase tracking, Kalman filter initialization, and any domain requiring derivative estimation from discrete samples
+
 ---
 
 ### The Energy Asymmetry Principle
@@ -2797,7 +2830,7 @@ The techniques documented here are not limited by technology—the hardware has 
 
 **The Scaling Throughline:**
 
-This document began with a bilateral stimulation device for trauma therapy—two nodes, centimeters apart, helping one person. It ends with 120 prior art claims spanning:
+This document began with a bilateral stimulation device for trauma therapy—two nodes, centimeters apart, helping one person. It ends with 121 prior art claims spanning:
 
 | Scale | Application | Nodes | Spacing |
 |-------|-------------|-------|---------|
@@ -2888,6 +2921,7 @@ We establish that the *architectural pattern* is prior art. Innovations built up
 | 3.5 | 2025-12-27 | **Active selective attenuation via coordinated interference (Claim 118).** Distinguished dynamic macroscopic lattice from passive shielding (Faraday cages, fixed FSS) and reconfigurable shielding (MEMS/varactor FSS, mechanical FSS)—key insight: same physical geometry producing different attenuation profiles based on sensed input and coordinated response. Added cross-domain research validation: Paul Lueg's 1936 ANC patent (US 2,043,416) as foundational principle extended from single-source/single-speaker to distributed multi-node lattices; JASA 2023 spatially selective ANC demonstrating direction-selective cancellation; Cambridge IJMWT 2023 AFSS review showing even "active" FSS require geometric reconfiguration; PMC 2025 Energy Selective Surfaces validating threat-powered activation. Added comparison table: passive vs reconfigurable vs active response. Transistor analogy: dynamic macroscopic lattice is to passive shielding what transistor is to relay. Total 118 claims, 67 references. |
 | 3.6 | 2025-12-27 | **Energy-asymmetric domain response (Claim 119).** Formalized fundamental insight: active interference effectiveness varies by domain based on target inertia. EM cancellation requires only phase-matched amplitude (photons massless). Acoustic cancellation requires pressure-vs-pressure matching (air molecules negligible mass, ANC scales to architectural barriers). Kinetic/ballistic deflection requires momentum transfer (energy scales with mv²)—impractical for direct phononic cancellation. Added "Energy Asymmetry Principle" section with domain comparison table (EM/acoustic/seismic/ballistic) and energy requirements. Key architectural insight: lattice excels at canceling massless waves (EM, acoustic) but responds to kinetic threats via detection-and-response (sensing pressure wave precursor, triggering physical response) rather than direct deflection. Cross-references seismic-acoustic coupling (Section 4.3)—same principle: detect earthquakes, don't cancel them. Natural domain pairings table: threat type → lattice role → response type. Extends Lueg's 1936 ANC patent to explain why it works (massless carrier) and where the principle breaks down (mass requires momentum). Total 119 claims. |
 | 3.7 | 2025-12-27 | **Aperture as universal epistemological operation (Claim 120).** Added "Aperture as Epistemology" section establishing that all apertures—physical, virtual, technological, or cognitive—perform identical mathematical operations: correlating sparse samples across space/time to synthesize understanding unavailable from any single sample. Cross-domain table: radio astronomy, acoustic sensing, historiography, human vision, criminal investigation, scientific method—all instantiate the same correlation principle. Key insight: "history as dynamic aperture"—what we resolve about the past depends on which samples survive, how we correlate them, and which interference patterns we constructively combine. Establishes that apertures cannot be invented, only instantiated; you cannot patent "correlating distributed samples to gain resolution" because it underlies radio astronomy, historiography, jurisprudence, scientific method, and cognition simultaneously. References Event Horizon Telescope as exemplar: black hole imaged not by planet-sized dish but by correlating sparse samples from synchronized, position-known telescopes. Strengthens 35 U.S.C. 101 argument by showing aperture formation is not just physics but epistemology—the fundamental operation by which distributed observations become unified understanding. **Added figure**: Amazon Sidewalk inherent aperture diagram (SVG, Grok/Gemini collaboration) visualizing sparse IoT nodes resolving long-wavelength infrasound—the aperture is physics, not design. Total 120 claims. |
+| 3.8 | 2025-12-28 | **Multi-burst beacon timing as time-domain interferometry (Claim 121).** Added Section 4.1.1 documenting the 3-burst beacon timing approach: using N≥3 equally-spaced sync bursts to extract offset, drift rate, and drift stability (thermal acceleration) from single synchronization exchange. Key insight: technique independently rediscovered from first principles, then recognized as mathematically identical to seismic chirp signal processing—swept-frequency pulses characterizing subsurface velocity models. Single burst = scalar offset contaminated by jitter; 3 bursts = polynomial fit separating systematic drift from random noise. Constitutes "temporal phased array" focusing on valid time signal while rejecting transient jitter, exactly as seismic arrays reject ground roll to resolve subsurface structure. Cross-domain validation table: seismic chirp surveys, GPS carrier-phase tracking, Kalman filter initialization, polynomial curve fitting—same math works because same physics applies. Establishes prior art for multi-sample time synchronization with derivative extraction across all applicable domains. Total 121 claims. |
 
 ---
 

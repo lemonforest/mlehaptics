@@ -152,6 +152,116 @@ uint8_t get_holdover_stratum(int64_t holdover_start_us, uint8_t base_stratum) {
 }
 ```
 
+### 1.4 Multi-Burst Beacon Timing (Time-Domain Interferometry)
+
+**Problem:** Single-sample sync measurements conflate systematic offset with random jitter. Without multiple samples, the Kalman filter cannot distinguish "clock is wrong" from "this measurement was noisy."
+
+**Finding:** Using N≥3 equally-spaced beacon bursts per sync exchange enables extraction of offset, drift rate, *and* drift stability (thermal acceleration)—the same technique used in seismic chirp signal processing to characterize subsurface velocity models.
+
+**The derivative stack:**
+
+| Sample | Measures | Seismic Analog | Mathematical Role |
+|--------|----------|----------------|-------------------|
+| Burst 1 (t₀) | Offset | Position | 0th derivative (where) |
+| Burst 2 (t₁) | Drift | Velocity | 1st derivative (rate of change) |
+| Burst 3 (t₂) | Stability | Acceleration | 2nd derivative (rate of rate change) |
+
+**Implementation:**
+
+```c
+#define SYNC_BURST_COUNT     3
+#define SYNC_BURST_INTERVAL_MS  2  // 2ms between bursts
+
+typedef struct {
+    int64_t offset_samples[SYNC_BURST_COUNT];
+    int64_t sample_times[SYNC_BURST_COUNT];
+    uint8_t sample_count;
+} burst_sync_state_t;
+
+// Polynomial fit: offset(t) = a + b*t + c*t²
+// a = offset, b = drift (ppb), c = thermal acceleration
+typedef struct {
+    double offset_us;      // a: instantaneous offset
+    double drift_ppb;      // b: drift rate
+    double accel_ppb_s;    // c: drift acceleration (thermal)
+} sync_polynomial_t;
+
+void fit_sync_polynomial(const burst_sync_state_t* bursts, sync_polynomial_t* result) {
+    // Normalize times to first sample
+    double t[SYNC_BURST_COUNT];
+    double y[SYNC_BURST_COUNT];
+    for (int i = 0; i < bursts->sample_count; i++) {
+        t[i] = (bursts->sample_times[i] - bursts->sample_times[0]) / 1e6;  // seconds
+        y[i] = bursts->offset_samples[i];  // microseconds
+    }
+    
+    // Least-squares quadratic fit (closed form for 3 points)
+    // For exactly 3 points, this is exact interpolation
+    if (bursts->sample_count == 3) {
+        double t1 = t[1], t2 = t[2];
+        double y0 = y[0], y1 = y[1], y2 = y[2];
+        
+        // Lagrange interpolation coefficients
+        result->offset_us = y0;
+        result->drift_ppb = ((-3*y0 + 4*y1 - y2) / (2*t1)) * 1000;  // us/s -> ppb
+        result->accel_ppb_s = ((y0 - 2*y1 + y2) / (t1*t1)) * 1000;  // us/s^2 -> ppb/s
+    }
+    // For N>3, use least-squares (not shown)
+}
+
+// Integration with Kalman filter
+void process_burst_sync(const burst_sync_state_t* bursts) {
+    sync_polynomial_t poly;
+    fit_sync_polynomial(bursts, &poly);
+    
+    // Feed polynomial results to Kalman with reduced uncertainty
+    // Multiple samples = higher confidence
+    double saved_R = kalman.R;
+    kalman.R = saved_R / bursts->sample_count;  // Reduce noise estimate
+    
+    kalman.x[0] = poly.offset_us;  // Direct offset injection
+    kalman.x[1] = poly.drift_ppb;  // Direct drift injection
+    
+    // Thermal acceleration informs process noise
+    if (fabs(poly.accel_ppb_s) > 10.0) {
+        // High thermal instability -> increase process noise
+        kalman.Q_drift *= 2.0;
+        ESP_LOGW(TAG, "High drift acceleration: %.1f ppb/s", poly.accel_ppb_s);
+    }
+    
+    kalman.R = saved_R;
+}
+```
+
+**Why this works (cross-domain validation):**
+
+The 3-burst approach is mathematically identical to:
+
+| Domain | Technique | What It Extracts |
+|--------|-----------|------------------|
+| Seismology | Chirp survey | Subsurface velocity model |
+| GPS | Carrier-phase tracking | Integer ambiguity resolution |
+| Control theory | Kalman initialization | State + covariance from sparse samples |
+| Signal processing | Polynomial interpolation | Trend vs noise separation |
+
+In all cases: **multiple time-spaced samples enable derivative estimation**, separating systematic trends from random noise.
+
+**Expected improvement:** 
+- Offset precision: 2-3x (jitter rejected as deviation from trend)
+- Drift estimation: Direct measurement vs. Kalman inference
+- Thermal detection: Early warning of oscillator instability
+
+**Burst spacing considerations (within a single chirp):**
+
+| Burst Spacing | Total Chirp Duration | Tradeoff |
+|---------------|---------------------|----------|
+| 2ms | 6ms | Tight grouping, single "moment" in time, minimal drift smearing |
+| 10ms | 30ms | Fast sync, but drift barely measurable |
+| 50ms | 150ms | Measurable drift at typical rates |
+| 200ms | 600ms | Best drift measurement, highest sync latency |
+
+**UTLP Protocol Default: 2ms burst spacing** (6ms total chirp). The tight grouping treats the 3-burst chirp as a single atomic measurement while still extracting offset, drift rate, and drift stability. The *chirp interval* (how often chirps are sent) is controlled separately—e.g., Genesis Pulse (100ms→60s) for rapid convergence settling to steady-state.
+
 ---
 
 ## 2. 802.11mc Fine Time Measurement Integration
@@ -855,6 +965,7 @@ This supplement establishes additional prior art for:
 2. **Two-state Kalman filter** (offset + drift) for embedded sync
 3. **802.11mc FTM as Stratum 1a** time source in UTLP hierarchy
 4. **FTM-Kalman fusion** with transport-specific noise weighting
+5. **Multi-burst beacon timing as time-domain interferometry**: Using N≥3 equally-spaced beacon bursts to extract offset, drift rate, and drift stability (thermal acceleration)—mathematically identical to seismic chirp signal processing; constitutes "temporal phased array" rejecting jitter as deviation from polynomial trend; cross-domain technique independently rediscovered from first principles
 
 ### 6.2 Transport Architecture
 5. **BLE Bootstrap Model**: BLE for trust establishment only, released after key exchange

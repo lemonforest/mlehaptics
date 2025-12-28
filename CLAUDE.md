@@ -224,6 +224,12 @@ Phase 6r implements conditional clearing of time sync state to allow CLIENT devi
 
 This is an open-source EMDR (Eye Movement Desensitization and Reprocessing) bilateral stimulation device designed for therapeutic applications. The device uses dual wireless ESP32-C6 microcontrollers with ERM motors for bilateral tactile stimulation.
 
+> **Core Innovation: UTLP (Universal Time Lord Protocol)**
+>
+> This project is fundamentally building an **Implicit Synchronization / Physics-Based Coordination protocol** that happens to power an EMDR device. UTLP is a transport-agnostic, connectionless time synchronization protocol that enables distributed devices to share a common "atomic time" reference without pairing or handshaking. The EMDR bilateral stimulation is just one application—UTLP's seismic chirp pattern (3-burst beacons for offset/drift/stability extraction) and Genesis Node architecture are designed for general distributed coordination problems.
+>
+> See: [examples/utlp_skeleton/](examples/utlp_skeleton/) for the reference implementation, [docs/UTLP_Specification.md](docs/UTLP_Specification.md) for the protocol spec.
+
 **Key Goals:**
 - 20+ minute therapeutic sessions with precise bilateral alternation (0.5-2 Hz)
 - Open-source research platform for studying motor duty cycle effects
