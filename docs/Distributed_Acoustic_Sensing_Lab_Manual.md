@@ -690,13 +690,13 @@ Don't filter out trains and aircraft—log them, characterize them, learn what t
 
 Traditional rosettes use straight arms radiating outward. The purpose is *spatial averaging*—sample different locations to cancel incoherent wind noise. But this design choice has a hidden assumption: all path lengths should be similar so signals arrive at the sensor simultaneously.
 
-What if we invert this? Instead of spatial separation with matched delays, use **spatial clustering with intentional delay differences**. All inlets sample the same location, but each arm has a different path length. The sensor receives multiple time-delayed copies of the same signal.
+What if we invert this? Instead of minimizing delay differences, **use intentional delay differences for signal validation**. All arms originate from a central sensor, spiral outward together, but terminate at different radii. The sensor receives multiple time-delayed copies of the same acoustic event.
 
 **Why this matters:**
 
-Real acoustic signals are spatially coherent—the same pressure wave arrives at clustered inlets simultaneously, then travels through different-length tubes, creating predictable delayed copies at the sensor.
+Real acoustic signals are spatially coherent—the pressure wave crosses the entire spiral, exciting all four hoses. Each hose delivers that signal to the sensor at a different delay based on its length.
 
-Wind turbulence is spatially *and* temporally incoherent—even at the same location, the pressure fluctuations don't repeat themselves. Delayed copies don't correlate.
+Wind turbulence is spatially *and* temporally incoherent—pressure fluctuations at one point on the spiral don't correlate with fluctuations elsewhere. The four delayed signals don't match.
 
 **Autocorrelation separates them:**
 - Acoustic event → peaks at known delay intervals τ₁, τ₂, τ₃, τ₄
@@ -713,52 +713,186 @@ This is signal validation built into the physical hardware.
 
 ---
 
-**Implementation: Spiral arms covering the same area**
+**A deeper insight: Rosettes are resonant structures (and the field knows it)**
 
-Instead of straight 6m arms radiating outward (18m diameter footprint), use spiral arms that stay within a compact area:
+The standard explanation of rosettes focuses on spatial averaging—distributed inlets sample different locations, wind noise cancels, coherent signals sum. But there's more going on.
+
+Every hose in a rosette is a transmission line with:
+- Propagation delay (sound takes time to travel the length)
+- Standing wave resonances (characteristic frequencies based on length)
+- Frequency-dependent phase shift
+- Impedance discontinuities at junctions
+
+The infrasound community KNOWS this. Hedlin & Alcoverro (2005) published "The use of impedance matching capillaries for reducing resonance in rosette infrasonic spatial filters." They add capillaries specifically to SUPPRESS resonant behavior. The field treats these properties as contamination to be eliminated.
+
+**Rosettes vs domes—two different paradigms:**
+
+| Property | Dome | Rosette |
+|----------|------|---------|
+| Mechanism | Pressure averaging at boundary | Pressure collection + transmission |
+| Transmission line? | No | Yes (every hose) |
+| What sensor sees | Spatially averaged P(t) | Sum of delayed/filtered P(t) |
+| Waveform fidelity | High ("transparent") | Altered (transfer function applied) |
+| Resonance | Minimal | Present (usually damped/suppressed) |
+
+Noble et al. (2014) explicitly advertise domes as working "without amplitude- and phase-altering properties." They're saying the quiet part out loud: rosettes alter amplitude and phase, and that's considered a problem.
+
+**We're flipping this:**
+
+Those amplitude and phase alterations aren't noise—they're information. The field has spent decades trying to make rosettes behave like transparent spatial averagers. What if you instead characterized the transfer function and used it?
+
+A sealed organ pipe has clear resonance: f = c/4L, high Q. A porous hose is different—pressure enters along the entire length, creating a distributed, lossy transmission line with damped resonances. But it's still a resonant structure. The porosity adds loss and complexity, but doesn't eliminate the fundamental physics.
+
+**What nobody seems to have done:**
+
+1. Measured the actual transfer function of porous hoses (amplitude + phase vs frequency)
+2. Asked whether that transfer function contains usable information
+3. Designed hose geometry to CREATE a desired transfer function rather than minimize it
+
+**Student experiment—genuinely novel:**
+
+Measure the impulse response of a single porous hose. Pop a balloon at the far end, record at the sensor end. Do you see:
+- Simple delay? (pure transmission line)
+- Ringing? (resonant modes)
+- Dispersion? (frequency-dependent velocity)
+
+Compare hoses of different lengths. Does the transfer function scale predictably?
+
+If yes, you've characterized an acoustic component the field has been ignoring. If the relationship is predictable, you can exploit it rather than suppress it.
+
+---
+
+**Implementation: Interleaved Archimedean Spiral**
+
+All four arms originate from a central sensor and spiral outward together, like threads of a multi-start screw. Each arm is a continuous porous hose, sensing along its entire length while maintaining ground contact.
 
 ```
-TRADITIONAL ROSETTE                    SPIRAL DELAY ROSETTE
-(spatial averaging)                    (temporal validation)
+SINGLE ARM SPIRAL PATH (showing shape):
 
-         inlet                              ╭──inlet──╮
-           │                                │ ╭─────╮ │
-    inlet──┼──inlet                         │ │ ╭─╮ │ │
-           │                                │ │ │●│ │ │  ← sensor at center
-         inlet                              │ │ ╰─╯ │ │
-                                            │ ╰─────╯ │
-  All arms: ~6m, same delay                 ╰─────────╯
-  Footprint: ~18m diameter
-                                       Arms: 3m, 6m, 9m, 12m (different delays)
-                                       Footprint: ~4m diameter
-                                       All inlets at perimeter (same location)
+                    ╭───────────╮
+                ╭───╯           │
+            ╭───╯               │
+        ╭───╯                   │
+    ╭───╯                       │
+    │           ╭───────╮       │
+    │       ╭───╯       │       │
+    │   ╭───╯           │       │
+    │   │       ╭───╮   │       │
+    │   │   ╭───╯   │   │       │
+    │   │   │   ●───╯   │       │
+    │   │   ╰───────────╯       │
+    │   ╰───────────────────────╯
+    ╰─────────────────────────────→ terminates
+
+4 arms follow this same path, side by side on the ground.
+
+Note: Non-smooth characteristics are ASCII art artifacts.
+      Actual hoses follow smooth Archimedean spiral curves.
 ```
 
-**Key geometry**: All inlets clustered together at the outer edge. Each arm spirals inward with a different number of turns before reaching the central sensor.
+**Physical layout:** All four hoses originate from the central sensor and spiral outward together, running side-by-side like lanes on a curved track. The hoses are flat on the ground for their entire length—no crossings, no overlaps. Each arm terminates at a different radius.
 
-| Arm | Spiral turns | Path length | Delay (at ~340 m/s) |
-|-----|--------------|-------------|---------------------|
-| 1 | 0.5 | 3m | ~9ms |
-| 2 | 1.0 | 6m | ~18ms |
-| 3 | 1.5 | 9m | ~26ms |
-| 4 | 2.0 | 12m | ~35ms |
-
-For a 1 Hz infrasound signal (1000ms period), these delays are small fractions of a cycle—the signal shape is preserved, just time-shifted.
-
-**What the sensor sees:**
-
-For a single acoustic impulse arriving at the clustered inlets:
 ```
-Time:    0ms        9ms        18ms        26ms        35ms
-          │          │          │           │           │
-Signal:   ▀          ▀          ▀           ▀           ▀
-         inlet    Arm 1      Arm 2       Arm 3       Arm 4
-        (direct)  arrives    arrives     arrives     arrives
+CROSS-SECTION (cutting perpendicular to spiral at any point):
+
+Looking along the direction the hoses run:
+
+       ┌──┐ ┌──┐ ┌──┐ ┌──┐
+       │p1│ │p2│ │p3│ │p4│   ← 4 hoses flat, side by side
+       └──┘ └──┘ └──┘ └──┘
+════════════════════════════════
+            ground
 ```
 
-Autocorrelation of this signal shows peaks at 9ms, 18ms, 26ms, 35ms intervals—confirming a real acoustic event.
+```
+TERMINATION POINTS (schematic, not to scale):
 
-For continuous wind noise, no such pattern emerges.
+                    ② p2 (1n)
+                    
+                    
+                    
+   ③ p3 (3n)        ●         ① p1 (4n)
+                    
+                    
+                    
+                    ④ p4 (2n)
+
+Optimized arrangement: [4n, 1n, 3n, 2n] at positions [0°, 90°, 180°, 270°]
+```
+
+---
+
+**The Naive Arrangement (and why it's suboptimal)**
+
+The obvious approach: assign arm positions by length, either inside-out or outside-in.
+
+**Naive arrangement: [1n, 2n, 3n, 4n] at positions [0°, 90°, 180°, 270°]**
+
+| Radius | Active arms | Angular positions |
+|--------|-------------|-------------------|
+| 0–1n | All 4 | 0°, 90°, 180°, 270° |
+| 1n–2n | 3 remain | 90°, 180°, 270° |
+| 2n–3n | 2 remain | 180°, 270° — **90° apart** |
+| 3n–4n | 1 remains | 270° only |
+
+**Problem 1: Spatial bias.** When you're down to 2 arms, they're only 90° apart. Half the sensing area is blind.
+
+**Problem 2: Acoustic crosstalk.** Adjacent arms in the spiral can couple acoustically (vibration through ground, proximity effects). With naive ordering, adjacent arms have similar delays:
+
+```
+Adjacent pairs:     Delay difference:
+p1 ↔ p2            |1n - 2n| = 1n
+p2 ↔ p3            |2n - 3n| = 1n
+p3 ↔ p4            |3n - 4n| = 1n
+p4 ↔ p1            |4n - 1n| = 3n
+```
+
+Three of four adjacent pairs have Δτ = 1n. If crosstalk occurs, it creates false correlation peaks at exactly the delays you're looking for. You can't distinguish crosstalk from real signal.
+
+---
+
+**The Optimized Arrangement: [4n, 1n, 3n, 2n]**
+
+Shuffle the lengths so that:
+- Physically adjacent arms have maximally different delays (crosstalk rejection)
+- The last two surviving arms are opposite each other (spatial coverage)
+
+**Optimized: [4n, 1n, 3n, 2n] at positions [0°, 90°, 180°, 270°]**
+
+| Radius | Active arms | Angular positions |
+|--------|-------------|-------------------|
+| 0–1n | All 4 | 0°, 90°, 180°, 270° |
+| 1n–2n | 3 remain | 0°, 180°, 270° |
+| 2n–3n | 2 remain | 0°, 180° — **180° apart** ✓ |
+| 3n–4n | 1 remains | 0° only |
+
+**Spatial improvement:** The final two arms are on opposite sides. Full coverage until the very end.
+
+**Crosstalk improvement:**
+
+```
+Adjacent pairs:     Delay difference:
+p1 ↔ p2            |4n - 1n| = 3n  ← maximum possible
+p2 ↔ p3            |1n - 3n| = 2n
+p3 ↔ p4            |3n - 2n| = 1n
+p4 ↔ p1            |2n - 4n| = 2n
+```
+
+Only one adjacent pair has Δτ = 1n. The strongest coupling path (p1↔p2, the arms that coexist longest) has maximum delay difference. Any crosstalk lands away from your expected correlation peaks.
+
+---
+
+**Comparison Summary**
+
+| Metric | Naive [1n,2n,3n,4n] | Optimized [4n,1n,3n,2n] |
+|--------|---------------------|-------------------------|
+| 2-arm angular spread | 90° | **180°** |
+| Adjacent pairs with Δτ = 1n | 3 of 4 | **1 of 4** |
+| Max adjacent Δτ | 3n | 3n |
+| Avg adjacent Δτ | 1.5n | **2.0n** |
+| Crosstalk confusion risk | High | **Low** |
+
+This is the same principle as twisted-pair wiring (568B): you interleave the pairs so that adjacent wires have maximally different signals. Coupling between adjacent wires becomes common-mode noise rather than signal corruption.
 
 ---
 
@@ -766,52 +900,30 @@ For continuous wind noise, no such pattern emerges.
 
 1. **Same materials**: Soaker hose or pipe, same as traditional rosettes
 2. **Same sensor**: Single microbarometer or pressure sensor at center
-3. **Same footprint or smaller**: Spiral packing is more compact than radiating arms
+3. **Compact footprint**: Spiral packing uses less space than radiating arms
 4. **Added capability**: Signal validation via autocorrelation, not just noise reduction
 5. **Incremental change**: You're modifying geometry, not adding new components
-
-Students who've built a traditional rosette can modify it: keep the inlet cluster, coil the arms instead of radiating them outward. Compare the two configurations. Does autocorrelation reveal structure in the spiral version that's absent in the traditional version?
 
 ---
 
 **Advanced extension: Add a porous dome**
 
-Once the spiral delay concept is validated, you can add a porous fabric dome over the sensor:
-
-```
-                    inlet cluster
-                         ↓
-    ══════════════════○○○○══════════════
-                     ////  porous hose (outside dome)
-      ╭─────────────////─────────────╮
-      │            ════              │  solid tube (inside dome)
-      │           sensor●            │
-      │      (receives both          │
-      │    dome + delayed rosette)   │
-      ╰──────────────────────────────╯
-              porous dome fabric
-```
-
-Now the sensor receives:
-- Direct dome pressure (immediate, waveform-preserving)
-- Delayed rosette copies (9ms, 18ms, 26ms, 35ms later)
-
-This gives you both wind noise reduction (dome) and signal validation (delays). The dome becomes your "reference channel" for comparing against the delayed copies.
+Once the spiral delay concept is validated, you can add a porous fabric dome over the central sensor. The dome provides wind noise reduction with waveform fidelity, while the spiral arms provide delayed copies for validation. The dome signal becomes your "reference channel" for comparing against the delayed rosette copies.
 
 ---
 
-**Open questions for both configurations:**
+**Open questions:**
 
-- Is there an optimal spiral geometry (tight vs loose, single-layer vs stacked)?
+- What's the optimal value of n (base path length) for infrasound frequencies?
 - At what frequencies does tube dispersion smear the delayed copies too much to be useful?
-- For the dome version: does dome-scattered turbulence entering nearby inlets create new problems?
-- What's the minimum delay separation needed to resolve distinct arrivals at infrasound frequencies?
+- How much crosstalk actually occurs between adjacent ground-coupled hoses?
+- What's the minimum delay separation needed to resolve distinct arrivals?
+
+**Student exercise:** Build both arrangements. Compare autocorrelation plots. Does the naive arrangement show spurious peaks at 1n intervals? Does the optimized arrangement clean them up?
 
 **If you try this:**
 
-The physics is sound—spiral delay lines work in medical imaging, autocorrelation works in infrasound. The question is whether the specific combination works for wind noise discrimination in the infrasound regime, and whether practical issues (tube losses, dispersion) are manageable.
-
-Start simple: build a spiral-arm rosette without a dome, compare autocorrelation to a traditional straight-arm rosette. If the spiral version shows structure the traditional version doesn't, you've validated the core concept. Then consider adding the dome.
+The physics is sound—spiral delay lines work in medical imaging, autocorrelation works in infrasound. The question is whether the specific combination works for wind noise discrimination in the infrasound regime.
 
 Document everything. If it works, you've bridged two fields that haven't talked to each other. If it doesn't work, documenting *why* it fails is equally valuable. Either way, it's publishable.
 
