@@ -1,4 +1,4 @@
-# Universal Time Layer Protocol
+# Universal Time Lord Protocol
 
 **Transport-Agnostic Time Synchronization for Distributed Embedded Systems**
 
@@ -12,7 +12,7 @@
 
 ## Abstract
 
-This document specifies the Universal Time Layer Protocol (UTLP), a transport-agnostic time synchronization architecture enabling distributed determinism on resource-constrained wireless embedded systems. The protocol achieves ±30μs synchronization precision over 90-minute sessions using commodity ESP32-C6 microcontrollers, enabling coordinated behavior across independent nodes without consensus algorithms, persistent storage, or continuous communication.
+This document specifies the Universal Time Lord Protocol (UTLP), a transport-agnostic time synchronization architecture enabling distributed determinism on resource-constrained wireless embedded systems. The protocol achieves ±30μs synchronization precision over 90-minute sessions using commodity ESP32-C6 microcontrollers, enabling coordinated behavior across independent nodes without consensus algorithms, persistent storage, or continuous communication.
 
 UTLP treats synchronized time as a *broadcast environmental variable*—a public utility that any device can consume without pairing, encryption, or application-specific logic. This "Glass Wall" architecture strictly separates the time stack (public, unencrypted) from the application stack (private, encrypted), enabling disparate devices to share high-precision timing while maintaining data privacy.
 
@@ -331,7 +331,7 @@ This work is published as **open-source prior art** under permissive license. Th
 
 ## 12. Conclusion
 
-The Universal Time Layer Protocol demonstrates that distributed determinism is achievable on resource-constrained embedded systems without consensus algorithms, persistent storage, or continuous coordination. The key insight: when time synchronization is precise enough (±30μs), it collapses the distributed systems problem—ordering, versioning, and coordination derive as consequences of time agreement.
+The Universal Time Lord Protocol demonstrates that distributed determinism is achievable on resource-constrained embedded systems without consensus algorithms, persistent storage, or continuous coordination. The key insight: when time synchronization is precise enough (±30μs), it collapses the distributed systems problem—ordering, versioning, and coordination derive as consequences of time agreement.
 
 By treating time as a public utility—a broadcast environmental variable available to any device without pairing or authentication—UTLP enables a new class of applications where timing precision is shared freely while application data remains private. The Glass Wall architecture ensures this openness does not compromise security.
 

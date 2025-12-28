@@ -61,6 +61,7 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 | [AD047](0047-scheduled-pattern-playback.md) | Scheduled Pattern Playback Architecture | ✅ Implemented | Phase 7 | 2025-12-13 |
 | [AD048](0048-espnow-adaptive-transport-hardware-acceleration.md) | ESP-NOW Adaptive Transport and Hardware Acceleration | 🔬 Research | Phase 7+ | 2025-12-17 |
 | [AD049](0049-csi-phase-motion-detection-exploration.md) | CSI Phase-Based Motion Detection Exploration | 🔬 Exploratory | Phase 8+ | 2025-12-23 |
+| [AD050](0050-utlp-module-extraction.md) | UTLP Module Extraction | ⏳ Proposed | Phase 8 | 2025-12-24 |
 
 ---
 
@@ -141,6 +142,13 @@ This directory contains all Architecture Decision Records for the EMDR Bilateral
 - 802.11mc FTM coexistence for ranging
 - AES/SHA/ECC hardware accelerator utilization
 - Transport abstraction layer design
+
+### Phase 8: Architecture Refinement
+- AD049: CSI Phase-Based Motion Detection (Exploratory)
+- AD050: UTLP Module Extraction (Proposed)
+  - Clean separation: Time = unencrypted (public), Application = encrypted
+  - Transport-agnostic API for portability
+  - Reference implementation for prior art documentation
 
 ---
 
@@ -256,11 +264,11 @@ _(To be populated with decision dependency visualization)_
 
 ## Statistics
 
-- **Total Decisions:** 49
+- **Total Decisions:** 50
 - **Accepted:** 31 (AD001-007, AD009-013, AD015-024, AD027-032, AD044)
 - **Implemented:** 5 (AD035, AD038, AD041, AD042, AD047)
 - **Approved:** 5 (AD033, AD034, AD036, AD040, AD043)
-- **Proposed:** 2 (AD045, AD046)
+- **Proposed:** 3 (AD045, AD046, AD050)
 - **Research/Exploratory:** 2 (AD048, AD049)
 - **Superseded:** 4 (AD008, AD026, AD037, AD039)
 - **Partially Superseded:** 2 (AD010 - MAC delay only, AD028 - motor control only)
@@ -270,7 +278,7 @@ _(To be populated with decision dependency visualization)_
 
 ## Maintenance
 
-**Last Updated:** 2025-12-23
+**Last Updated:** 2025-12-24
 **Maintained By:** Project team + Claude Code AI
 **Review Frequency:** Quarterly or when adding new decisions
 **Template Version:** MADR 4.0.0 (Customized for EMDR Pulser)

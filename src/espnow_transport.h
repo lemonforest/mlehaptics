@@ -470,6 +470,17 @@ esp_err_t espnow_transport_set_peer_encrypted(
  */
 bool espnow_transport_is_encrypted(void);
 
+/**
+ * @brief Dump ESP-NOW diagnostic information to log
+ *
+ * Bug #106: Comprehensive diagnostic dump for debugging TX failures.
+ * Logs: state, WiFi channel, peer config, encryption status,
+ * LMK fingerprint, failure counters, timing info.
+ *
+ * Call periodically (e.g., every 60s) or when issues detected.
+ */
+void espnow_transport_dump_diagnostics(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,10 +1,10 @@
-#Universal Time Layer Protocol (UTLP)**Status:** Draft / Experimental
+#Universal Time Lord Protocol (UTLP)**Status:** Draft / Experimental
 **Maintainer:** MLE Haptics Project
 
 > **"Time is a Public Utility."**
 
 ##1. Abstract
-The Universal Time Layer Protocol (UTLP) is an open, unencrypted, and application-agnostic protocol for distributed time synchronization over BLE (Bluetooth Low Energy) Mesh.
+The Universal Time Lord Protocol (UTLP) is an open, unencrypted, application-agnostic, and **transport-agnostic** protocol for distributed time synchronization. While this specification uses BLE Mesh as the reference transport, UTLP operates identically over ESP-NOW, LoRa, or any broadcast-capable medium.
 
 Unlike traditional synchronization methods that couple timing with application data (requiring pairing, encryption, and specific app logic), UTLP treats time as a **broadcast environmental variable**. It allows disparate devices—from medical wearables to municipal infrastructure—to share a single, high-precision "Source of Truth" without exchanging private data.
 
@@ -85,3 +85,17 @@ UTLP effectively creates a **Shared Hallucination**.
 * **Spoofing:** A bad actor *can* broadcast a fake time (e.g., "The year is 2050").
 * **Impact:** All listening devices will agree it is 2050.
 * **Safety:** Since haptic/therapeutic patterns rely on **relative timing** (Intervals), the absolute time error is irrelevant to physical safety. The "Left" and "Right" units remain perfectly synchronized to the spoofed clock.
+
+---
+
+##7. Name Evolution Note
+
+The synchronization primitive was initially named "Universal Time Layer Protocol" (UTLP). Upon recognizing its role as the authoritative arbiter of shared temporal reality across independent nodes — establishing, maintaining, and enforcing coherence where none is guaranteed by the medium — the name was updated to **Universal Time Lord Protocol**.
+
+This change reflects two key insights:
+
+1. **Functional mastery:** The protocol does not merely transport or layer time — it *commands* it, serving as the single source of temporal truth that all nodes obey.
+
+2. **Genesis from one:** Time cannot wait for pairwise agreement or quorum. A distributed timeline must be born of one — a single genesis node declares the epoch and propagates the reference. Late-joining nodes synchronize to this unilateral declaration without requiring mutual negotiation at birth. The "Time Lord" designation emphasizes this asymmetric origin: one entity establishes the timeline, and the swarm emerges from that singular act.
+
+> *The name is functional, not fictional — though the cultural resonance is acknowledged with appreciation.*

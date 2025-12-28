@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **P7.4: Legacy Modes as Patterns**: Modes 0-3 now available as LED-only bilateral patterns
+  - **Pattern IDs**: 4 new patterns at top of catalog (BLE commands 2-5)
+  - **Timing**: Matches reactive mode timing exactly (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty)
+  - **Colors**: Mode-specific colors (Red, Green, Blue, Yellow via palette indices 0, 4, 8, 2)
+  - **Brightness**: 20% (therapeutic level, not showcase brightness)
+  - **Structure**: Bilateral alternation with LEFT then RIGHT activation per cycle
+  - **Motor**: LED-only for now (motor=0), motor control to be added later
+  - **BLE Command Mapping**: 2-5=legacy modes, 6=Alternating, 7=Breathe, 8-9=Emergency
+  - Files: [pattern_playback.h](src/pattern_playback.h), [pattern_playback.c](src/pattern_playback.c)
+
+### Fixed
+
+- **Bug #114: LMK Mismatch Between Paired Devices**: Use BLE role for key derivation
+  - **Problem**: CLIENT could receive ESP-NOW messages from SERVER but couldn't send back (asymmetric encryption)
+  - **Root Cause**: `TIME_SYNC_IS_SERVER()` returns false on BOTH devices when WIFI_MAC arrives during GATT discovery, because time_sync role isn't set until later
+  - **Impact**: Both devices derived LMK as if they were CLIENT, reversing MAC ordering in HKDF on one device
+  - **Solution**: Use `ble_get_peer_role()` (set at connection time) instead of `TIME_SYNC_IS_SERVER()` (set later)
+  - **Locations Fixed**: WIFI_MAC handler + deferred derivation handler (`time_sync_on_ltk_available`)
+  - Files: [time_sync_task.c](src/time_sync_task.c)
+
+- **Bug #113: SMP Pairing Fails with rc=8 (BLE_HS_ENOTSUP)**: Multiple root causes identified and fixed
+  - **Problem**: SMP pairing failed immediately with rc=8, preventing LTK generation for encrypted ESP-NOW
+  - **Root Cause 1**: Missing `ble_store_config_init()` - NimBLE store callbacks weren't configured
+  - **Root Cause 2**: CLIENT initiating SMP competed with ongoing GATT discovery
+  - **Root Cause 3**: No `BLE_GAP_EVENT_REPEAT_PAIRING` handler for re-pairing scenarios
+  - **Solution**:
+    1. Added `ble_store_config_init()` call after `nimble_port_init()`
+    2. Moved SMP initiation to SERVER after GATT operations complete (in `gattc_on_cccd_write`)
+    3. Added repeat pairing handler that deletes old bonds and retries
+  - **Timing Constants**: Added SMP timing constants to ble_config.h (stabilization delays)
+  - Files: [ble_manager.c](src/ble_manager.c), [ble_config.h](src/config/ble_config.h)
+
+- **Bug #112: Repeat Pairing Requests Not Handled**: Added `BLE_GAP_EVENT_REPEAT_PAIRING` handler
+  - **Problem**: Re-pairing attempts failed silently when old bonds existed
+  - **Solution**: Delete old bond and return `BLE_GAP_REPEAT_PAIRING_RETRY` to restart pairing fresh
+  - Files: [ble_manager.c](src/ble_manager.c)
+
+- **Bug #111: SMP Pairing Times Out After 30 Seconds**: Added passkey handler for numeric comparison
+  - **Problem**: Pairing timed out (status=13) because numeric comparison required passkey confirmation
+  - **Root Cause**: `sm_io_cap=KEYBOARD_DISP` + `sm_mitm=1` triggers numeric comparison, but no `BLE_GAP_EVENT_PASSKEY_ACTION` handler existed
+  - **Solution**: Added passkey handler that auto-accepts numeric comparison for peer-to-peer pairing
+  - **Handler Actions**: NUMCMP auto-accept, DISP/INPUT use static passkey 123456
+  - Files: [ble_manager.c:3488-3546](src/ble_manager.c#L3488-L3546)
+
+- **Bug #108: ESP-NOW Falls Back to Unencrypted Due to SMP Timing**: Deferred LTK derivation until pairing completes
+  - **Problem**: Both devices logged "LTK not available (pairing may not be complete)" and fell back to unencrypted ESP-NOW
+  - **Root Cause**: WIFI_MAC is sent during GATT discovery (~0.8s after connect), but LTK isn't stored until BLE_GAP_EVENT_ENC_CHANGE fires (~1.5s after connect)
+  - **Previous Behavior**: Immediate fallback to unencrypted ESP-NOW when `ble_get_peer_ltk()` failed
+  - **Solution**: Buffer pending LTK derivation, complete it when `BLE_GAP_EVENT_ENC_CHANGE` status=0
+  - **New API**: `time_sync_on_ltk_available()` - called by ble_manager.c when SMP pairing completes
+  - **New State**: `pending_ltk_derivation` flag tracks deferred derivation
+  - Files: [time_sync_task.h](src/time_sync_task.h), [time_sync_task.c:1478-1485,1692-1801](src/time_sync_task.c), [ble_manager.c:3514-3524](src/ble_manager.c)
+
+- **Bug #107: Session Duration Mismatch Between Paired Devices**: SERVER now syncs all NVS settings to CLIENT at bootstrap
+  - **Problem**: CLIENT continued running 85+ minutes after SERVER slept because devices had different session durations in NVS
+  - **Root Cause**: Each device loads session_duration from its own NVS on boot; if USER only configured SERVER via PWA, CLIENT keeps its default/old value
+  - **Solution**: SERVER sends all settings (including session_duration) to CLIENT immediately after ESP-NOW key exchange completes
+  - **New API**: `ble_sync_all_settings_to_peer()` in ble_manager.h - public wrapper for settings sync
+  - **Trigger Location**: time_sync_task.c after `espnow_key_exchange_complete = true` (line 1524)
+  - Files: [ble_manager.h](src/ble_manager.h), [ble_manager.c:5327-5336](src/ble_manager.c#L5327-L5336), [time_sync_task.c:1520-1530](src/time_sync_task.c#L1520-L1530)
+
+## [v0.7.29] - 2025-12-24
+
+### Added
+
+- **Bug #106: ESP-NOW Unidirectional TX Failure Diagnostics**: Comprehensive debugging for TX-only failures
+  - **Problem**: 90-minute session showed 605+ consecutive ESP-NOW send failures on CLIENT while RX worked fine
+  - **New Diagnostics**:
+    - `ESP_ERR_ESPNOW_NO_MEM` buffer-full tracking (`no_mem_errors` counter)
+    - Concurrent send detection (`send_in_progress` flag)
+    - LMK encryption key fingerprint logging (first 4 bytes for verification)
+    - Callback failure counter separate from send failures
+    - Enhanced RF BREAKDOWN logging with full state dump
+  - **Recovery Mechanism**: Auto peer re-registration after 50 consecutive callback failures
+  - **Periodic Diagnostics**: Full state dump when link enters BREAKDOWN state (10+ failures)
+  - **Message Size Diagnostics**: Invalid coordination message now logs first 5 bytes and parsed type/timestamp
+  - Files: [espnow_transport.c](src/espnow_transport.c), [espnow_transport.h](src/espnow_transport.h), [time_sync_task.c](src/time_sync_task.c)
+
+### Infrastructure
+
+- **New API**: `espnow_transport_dump_diagnostics()` for on-demand ESP-NOW state inspection
+- **Enhanced Link Health**: Now includes `no_mem` error count in periodic log output
+
 ## [v0.7.28] - 2025-12-23
 
 ### Changed

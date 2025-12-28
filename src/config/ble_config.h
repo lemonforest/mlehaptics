@@ -140,6 +140,34 @@ extern "C" {
 #define BLE_5SEC_BOUNDARY_TOLERANCE_MS  600
 
 // ============================================================================
+// SMP PAIRING TIMING (Bug #113 discoveries)
+// ============================================================================
+
+/**
+ * @brief Delay after connection before MTU exchange (ms)
+ *
+ * Allows BLE link to stabilize before stressing with procedures.
+ * Per secure_smp_pairing example testing.
+ */
+#define BLE_SMP_CONNECT_STABILIZE_MS    200
+
+/**
+ * @brief Delay before initiating SMP after prerequisites met (ms)
+ *
+ * Small safety margin for internal state settling.
+ * Per secure_smp_pairing example testing.
+ */
+#define BLE_SMP_PRE_INITIATE_MS         50
+
+/**
+ * @brief Delay between GAP disc_cancel and connect (ms)
+ *
+ * Prevents race condition in BLE controller state machine.
+ * Per secure_smp_pairing example testing.
+ */
+#define BLE_SMP_DISC_TO_CONNECT_MS      100
+
+// ============================================================================
 // SERVICE DATA ADVERTISING
 // ============================================================================
 

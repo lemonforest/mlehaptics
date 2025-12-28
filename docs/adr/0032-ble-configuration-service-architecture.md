@@ -123,7 +123,7 @@ typedef struct __attribute__((packed)) {
 
 **Philosophy: Passive Opportunistic Adoption**
 
-The Time Beacon characteristic implements UTLP (Universal Time Layer Protocol) semantics within our BLE channel:
+The Time Beacon characteristic implements UTLP (Universal Time Lord Protocol) semantics within our BLE channel:
 
 1. **Devices passively listen** - The characteristic is write-only; devices don't request time, they simply accept beacons when sources send them.
 

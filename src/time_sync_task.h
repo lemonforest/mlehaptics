@@ -211,6 +211,25 @@ void time_sync_reset_client_ready(void);
  */
 esp_err_t time_sync_task_trigger_beacons(void);
 
+/**
+ * @brief Notify time_sync that LTK is now available (Bug #108 fix)
+ *
+ * Called by ble_manager.c when BLE_GAP_EVENT_ENC_CHANGE fires with status=0,
+ * indicating SMP pairing is complete and LTK is available in the bond store.
+ *
+ * If WIFI_MAC was received before LTK was ready, this function will complete
+ * the deferred LTK-based key derivation and configure encrypted ESP-NOW.
+ *
+ * Bug #108: WIFI_MAC arrives during GATT discovery, but LTK isn't available
+ * until SMP pairing completes ~0.5-1s later. Without this deferred processing,
+ * both devices fall back to unencrypted ESP-NOW.
+ *
+ * @return ESP_OK if LTK derivation completed or wasn't needed
+ * @return ESP_ERR_NOT_FOUND if no pending WIFI_MAC to process
+ * @return ESP_FAIL if derivation or peer configuration failed
+ */
+esp_err_t time_sync_on_ltk_available(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,7 +2,7 @@
 
 ## Reference-Frame Independent Positioning (RFIP)
 
-**Universal Time Layer Protocol Extension**
+**Universal Time Lord Protocol Extension**
 
 *mlehaptics Project — December 17, 2025*
 
@@ -12,7 +12,7 @@
 
 ## Abstract
 
-This addendum documents an emergent architectural capability of the Universal Time Layer Protocol (UTLP) when combined with 802.11mc Fine Time Measurement (FTM) or equivalent ranging technologies: **Reference-Frame Independent Positioning (RFIP)**. Unlike traditional positioning systems that locate devices relative to a fixed Earth-centered reference frame, RFIP establishes spatial relationships between swarm members without requiring any external reference. The coordinate system emerges from the swarm itself, making it operational in environments where GPS is unavailable, impractical, or physically meaningless—including moving vehicles, underground facilities, underwater, and extraterrestrial environments.
+This addendum documents an emergent architectural capability of the Universal Time Lord Protocol (UTLP) when combined with 802.11mc Fine Time Measurement (FTM) or equivalent ranging technologies: **Reference-Frame Independent Positioning (RFIP)**. Unlike traditional positioning systems that locate devices relative to a fixed Earth-centered reference frame, RFIP establishes spatial relationships between swarm members without requiring any external reference. The coordinate system emerges from the swarm itself, making it operational in environments where GPS is unavailable, impractical, or physically meaningless—including moving vehicles, underground facilities, underwater, and extraterrestrial environments.
 
 ---
 

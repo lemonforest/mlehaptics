@@ -40,10 +40,16 @@ static bool module_initialized = false;
  * Order must match builtin_pattern_id_t enum (excluding NONE and COUNT).
  */
 static const pattern_catalog_entry_t s_pattern_catalog[] = {
-    { BUILTIN_PATTERN_ALTERNATING,    2, "Alternating", "Green bilateral" },
-    { BUILTIN_PATTERN_EMERGENCY,      3, "Emergency",   "Red/blue wig-wag" },
-    { BUILTIN_PATTERN_BREATHE,        4, "Breathe",     "Cyan pulse" },
-    { BUILTIN_PATTERN_EMERGENCY_QUAD, 5, "Quad Flash",  "SAE J845 red/blue/white" },
+    // P7.4: Legacy modes as patterns (LED-only, 25% duty bilateral)
+    { BUILTIN_PATTERN_MODE_05HZ,      2, "0.5Hz",       "Red 0.5Hz@25%" },
+    { BUILTIN_PATTERN_MODE_1HZ,       3, "1.0Hz",       "Green 1.0Hz@25%" },
+    { BUILTIN_PATTERN_MODE_15HZ,      4, "1.5Hz",       "Blue 1.5Hz@25%" },
+    { BUILTIN_PATTERN_MODE_2HZ,       5, "2.0Hz",       "Yellow 2.0Hz@25%" },
+    // Showcase patterns
+    { BUILTIN_PATTERN_ALTERNATING,    6, "Alternating", "Green bilateral 1Hz@50%" },
+    { BUILTIN_PATTERN_BREATHE,        7, "Breathe",     "Cyan pulse" },
+    { BUILTIN_PATTERN_EMERGENCY,      8, "Emergency",   "Red/blue wig-wag" },
+    { BUILTIN_PATTERN_EMERGENCY_QUAD, 9, "Quad Flash",  "SAE J845 red/blue/white" },
 };
 
 #define PATTERN_CATALOG_SIZE (sizeof(s_pattern_catalog) / sizeof(pattern_catalog_entry_t))
@@ -100,6 +106,82 @@ int pattern_generate_json(char *buffer, size_t buffer_size) {
 
 // ============================================================================
 // HARDCODED PATTERNS (Segment Data)
+// ============================================================================
+
+// ============================================================================
+// P7.4 LEGACY MODE PATTERNS (LED-only, 25% duty bilateral alternation)
+// ============================================================================
+
+/**
+ * @brief Mode 0 pattern - 0.5Hz @ 25% duty, RED bilateral
+ *
+ * Period: 2000ms (0.5Hz), 25% duty = 250ms active per side
+ * Color: Red (palette index 0)
+ * Pattern: LEFT on 250ms, off 750ms, RIGHT on 250ms, off 750ms
+ */
+static const bilateral_segment_t mode_05hz_pattern_segments[] = {
+    // time_offset, transition, flags, waveform, L_color, L_bright, L_motor, R_color, R_bright, R_motor
+    {    0,  10, 0, 0,   0,  20, 0,   0,   0, 0 },  // LEFT=RED on, RIGHT off
+    {  250,  10, 0, 0,   0,   0, 0,   0,   0, 0 },  // LEFT off, RIGHT off
+    { 1000,  10, 0, 0,   0,   0, 0,   0,  20, 0 },  // LEFT off, RIGHT=RED on
+    { 1250,  10, 0, 0,   0,   0, 0,   0,   0, 0 },  // LEFT off, RIGHT off
+    { 2000,   0, 0, 0,   0,   0, 0,   0,   0, 0 },  // Loop point
+};
+#define MODE_05HZ_PATTERN_COUNT (sizeof(mode_05hz_pattern_segments) / sizeof(bilateral_segment_t))
+
+/**
+ * @brief Mode 1 pattern - 1.0Hz @ 25% duty, GREEN bilateral
+ *
+ * Period: 1000ms (1.0Hz), 25% duty = 125ms active per side
+ * Color: Green (palette index 4)
+ * Pattern: LEFT on 125ms, off 375ms, RIGHT on 125ms, off 375ms
+ */
+static const bilateral_segment_t mode_1hz_pattern_segments[] = {
+    // time_offset, transition, flags, waveform, L_color, L_bright, L_motor, R_color, R_bright, R_motor
+    {    0,   5, 0, 0,   4,  20, 0,   4,   0, 0 },  // LEFT=GREEN on, RIGHT off
+    {  125,   5, 0, 0,   4,   0, 0,   4,   0, 0 },  // LEFT off, RIGHT off
+    {  500,   5, 0, 0,   4,   0, 0,   4,  20, 0 },  // LEFT off, RIGHT=GREEN on
+    {  625,   5, 0, 0,   4,   0, 0,   4,   0, 0 },  // LEFT off, RIGHT off
+    { 1000,   0, 0, 0,   0,   0, 0,   0,   0, 0 },  // Loop point
+};
+#define MODE_1HZ_PATTERN_COUNT (sizeof(mode_1hz_pattern_segments) / sizeof(bilateral_segment_t))
+
+/**
+ * @brief Mode 2 pattern - 1.5Hz @ 25% duty, BLUE bilateral
+ *
+ * Period: 667ms (1.5Hz), 25% duty = 83ms active per side
+ * Color: Blue (palette index 8)
+ * Pattern: LEFT on 83ms, off 250ms, RIGHT on 83ms, off 251ms
+ */
+static const bilateral_segment_t mode_15hz_pattern_segments[] = {
+    // time_offset, transition, flags, waveform, L_color, L_bright, L_motor, R_color, R_bright, R_motor
+    {    0,   3, 0, 0,   8,  20, 0,   8,   0, 0 },  // LEFT=BLUE on, RIGHT off
+    {   83,   3, 0, 0,   8,   0, 0,   8,   0, 0 },  // LEFT off, RIGHT off
+    {  333,   3, 0, 0,   8,   0, 0,   8,  20, 0 },  // LEFT off, RIGHT=BLUE on
+    {  416,   3, 0, 0,   8,   0, 0,   8,   0, 0 },  // LEFT off, RIGHT off
+    {  667,   0, 0, 0,   0,   0, 0,   0,   0, 0 },  // Loop point
+};
+#define MODE_15HZ_PATTERN_COUNT (sizeof(mode_15hz_pattern_segments) / sizeof(bilateral_segment_t))
+
+/**
+ * @brief Mode 3 pattern - 2.0Hz @ 25% duty, YELLOW bilateral
+ *
+ * Period: 500ms (2.0Hz), 25% duty = 63ms active per side
+ * Color: Yellow (palette index 2)
+ * Pattern: LEFT on 63ms, off 187ms, RIGHT on 63ms, off 187ms
+ */
+static const bilateral_segment_t mode_2hz_pattern_segments[] = {
+    // time_offset, transition, flags, waveform, L_color, L_bright, L_motor, R_color, R_bright, R_motor
+    {    0,   2, 0, 0,   2,  20, 0,   2,   0, 0 },  // LEFT=YELLOW on, RIGHT off
+    {   63,   2, 0, 0,   2,   0, 0,   2,   0, 0 },  // LEFT off, RIGHT off
+    {  250,   2, 0, 0,   2,   0, 0,   2,  20, 0 },  // LEFT off, RIGHT=YELLOW on
+    {  313,   2, 0, 0,   2,   0, 0,   2,   0, 0 },  // LEFT off, RIGHT off
+    {  500,   0, 0, 0,   0,   0, 0,   0,   0, 0 },  // Loop point
+};
+#define MODE_2HZ_PATTERN_COUNT (sizeof(mode_2hz_pattern_segments) / sizeof(bilateral_segment_t))
+
+// ============================================================================
+// SHOWCASE PATTERNS
 // ============================================================================
 
 /**
@@ -296,12 +378,32 @@ esp_err_t pattern_load_builtin(builtin_pattern_id_t pattern_id) {
     const char *pattern_name = "unknown";
 
     switch (pattern_id) {
-        case BUILTIN_PATTERN_EMERGENCY:
-            src_segments = emergency_pattern_segments;
-            segment_count = EMERGENCY_PATTERN_COUNT;
-            pattern_name = "emergency";
+        // P7.4: Legacy mode patterns (LED-only, 25% duty)
+        case BUILTIN_PATTERN_MODE_05HZ:
+            src_segments = mode_05hz_pattern_segments;
+            segment_count = MODE_05HZ_PATTERN_COUNT;
+            pattern_name = "0.5Hz@25%";
             break;
 
+        case BUILTIN_PATTERN_MODE_1HZ:
+            src_segments = mode_1hz_pattern_segments;
+            segment_count = MODE_1HZ_PATTERN_COUNT;
+            pattern_name = "1.0Hz@25%";
+            break;
+
+        case BUILTIN_PATTERN_MODE_15HZ:
+            src_segments = mode_15hz_pattern_segments;
+            segment_count = MODE_15HZ_PATTERN_COUNT;
+            pattern_name = "1.5Hz@25%";
+            break;
+
+        case BUILTIN_PATTERN_MODE_2HZ:
+            src_segments = mode_2hz_pattern_segments;
+            segment_count = MODE_2HZ_PATTERN_COUNT;
+            pattern_name = "2.0Hz@25%";
+            break;
+
+        // Showcase patterns
         case BUILTIN_PATTERN_ALTERNATING:
             src_segments = alternating_pattern_segments;
             segment_count = ALTERNATING_PATTERN_COUNT;
@@ -312,6 +414,12 @@ esp_err_t pattern_load_builtin(builtin_pattern_id_t pattern_id) {
             src_segments = breathe_pattern_segments;
             segment_count = BREATHE_PATTERN_COUNT;
             pattern_name = "breathe";
+            break;
+
+        case BUILTIN_PATTERN_EMERGENCY:
+            src_segments = emergency_pattern_segments;
+            segment_count = EMERGENCY_PATTERN_COUNT;
+            pattern_name = "emergency";
             break;
 
         case BUILTIN_PATTERN_EMERGENCY_QUAD:

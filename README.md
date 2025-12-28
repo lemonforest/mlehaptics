@@ -426,17 +426,27 @@ ESP-IDF framework delegates all compilation to CMake, which reads `src/CMakeList
 ### Web App
 - **[MLE Haptics PWA](https://lemonforest.github.io/mlehaptics-pwa/)**: Web Bluetooth control app for device configuration and monitoring
 
+### Clinical Research & Evidence Base
+
+This device operates within evidence-based EMDR bilateral stimulation parameters. We've compiled comprehensive research documentation to inform both clinical use and device development:
+
+- **[EMDR Bilateral Stimulation: Evidence-Based Parameters](docs/EMDR_bilateral_stimulation_Evidence-based_parameters_for_clinical_practice.md)**: Comprehensive review of EMDRIA guidelines, frequency ranges (0.5–2 Hz standard), modality comparisons (eye movements d=0.41–0.91), brainwave entrainment research, emerging applications, contraindications, and commercial device specifications. Includes phone-sized quick reference and poster-sized infographic datasets.
+
+- **[The Slow Frequency Research Frontier](docs/EMDR_Slow_BLS_Research_Frontier.md)**: Addendum exploring sub-0.5 Hz bilateral stimulation—an undefined research gap. Documents theoretical rationale for slow BLS including cardiac coherence alignment (0.1 Hz), breathing synchronization (0.25 Hz), and infraslow brain oscillations. Proposes frequency taxonomy: Standard (0.5–2 Hz), Deep Resourcing (0.25–0.5 Hz), Cardiac Coherence (0.08–0.12 Hz), and Infraslow Exploration (0.01–0.08 Hz).
+
 ### Research & Prior Art
 
 This project developed foundational techniques for **connectionless distributed timing**—a class of systems that achieve synchronized actuation across wireless nodes *without* real-time coordination traffic during operation. While we built an EMDR device, the architecture enables countless applications from emergency vehicle light bars to drone swarms.
 
 - **[Connectionless Distributed Timing: A Prior Art Publication](docs/Connectionless_Distributed_Timing_Prior_Art.md)**: Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
 
+- **[Distributed Acoustic Sensing: A Project Lab Manual](docs/Distributed_Acoustic_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed acoustic sensing with synchronized wireless nodes. Scales from weekend science project to operational weather sensing (infrasound, wind mapping, tornado detection).
+
 ### Technical Reports
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
 
 ### Protocol Specifications (UTLP/RFIP)
-- **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Layer Protocol - peer-to-peer time synchronization for embedded swarms
+- **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Lord Protocol - peer-to-peer time synchronization for embedded swarms
 - **[UTLP Technical Report v2](docs/UTLP_Technical_Report_v2.md)**: Detailed protocol analysis with stratum hierarchy and passive opportunistic adoption
 - **[RFIP Addendum](docs/UTLP_Addendum_Reference_Frame_Independent_Positioning.md)**: Reference-Frame Independent Positioning - spatial awareness without external reference frames
 - **[802.11mc FTM Reconnaissance](docs/802.11mc_FTM_Reconnaissance_Report.md)**: Fine Time Measurement research for ±1-2m ranging capability

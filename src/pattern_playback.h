@@ -167,20 +167,33 @@ typedef struct {
 /**
  * @brief Built-in pattern IDs (hardcoded patterns)
  *
+ * P7.4 Migration: Legacy modes (0-3) are now pattern-based at the TOP of the list.
+ * This allows seamless migration from reactive to scheduled playback.
+ *
  * Order matches BLE Pattern Control API (AD047):
- * - control_cmd 2 = ALTERNATING (green bilateral, therapy)
- * - control_cmd 3 = EMERGENCY (red/blue wig-wag, lightbar demo)
- * - control_cmd 4 = BREATHE (cyan pulse, calming)
- * - control_cmd 5 = EMERGENCY_QUAD (red/blue/white quad flash, SAE J845 style)
+ * - control_cmd 2 = MODE_05HZ (red, 0.5Hz@25% bilateral)
+ * - control_cmd 3 = MODE_1HZ (green, 1.0Hz@25% bilateral)
+ * - control_cmd 4 = MODE_15HZ (blue, 1.5Hz@25% bilateral)
+ * - control_cmd 5 = MODE_2HZ (yellow, 2.0Hz@25% bilateral)
+ * - control_cmd 6 = ALTERNATING (green bilateral, therapy - 1Hz@50%)
+ * - control_cmd 7 = BREATHE (cyan pulse, calming)
+ * - control_cmd 8 = EMERGENCY (red/blue wig-wag, lightbar demo)
+ * - control_cmd 9 = EMERGENCY_QUAD (red/blue/white quad flash, SAE J845 style)
  *
  * Formula: pattern_id = control_cmd - 1
  */
 typedef enum {
     BUILTIN_PATTERN_NONE = 0,           /**< No pattern loaded */
-    BUILTIN_PATTERN_ALTERNATING,        /**< Simple left/right alternation (BLE: 2) */
-    BUILTIN_PATTERN_EMERGENCY,          /**< Red/blue emergency lights (BLE: 3) */
-    BUILTIN_PATTERN_BREATHE,            /**< Slow breathing pulse (BLE: 4) */
-    BUILTIN_PATTERN_EMERGENCY_QUAD,     /**< Red/blue/white quad flash (BLE: 5) */
+    // Legacy modes (P7.4) - LED-only bilateral patterns matching reactive modes
+    BUILTIN_PATTERN_MODE_05HZ,          /**< 0.5Hz@25% RED bilateral (BLE: 2) */
+    BUILTIN_PATTERN_MODE_1HZ,           /**< 1.0Hz@25% GREEN bilateral (BLE: 3) */
+    BUILTIN_PATTERN_MODE_15HZ,          /**< 1.5Hz@25% BLUE bilateral (BLE: 4) */
+    BUILTIN_PATTERN_MODE_2HZ,           /**< 2.0Hz@25% YELLOW bilateral (BLE: 5) */
+    // Showcase patterns
+    BUILTIN_PATTERN_ALTERNATING,        /**< Simple left/right alternation (BLE: 6) */
+    BUILTIN_PATTERN_BREATHE,            /**< Slow breathing pulse (BLE: 7) */
+    BUILTIN_PATTERN_EMERGENCY,          /**< Red/blue emergency lights (BLE: 8) */
+    BUILTIN_PATTERN_EMERGENCY_QUAD,     /**< Red/blue/white quad flash (BLE: 9) */
     BUILTIN_PATTERN_COUNT               /**< Number of built-in patterns */
 } builtin_pattern_id_t;
 
