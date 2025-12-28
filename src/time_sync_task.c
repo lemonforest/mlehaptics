@@ -35,6 +35,33 @@
 static const char *TAG = "TIME_SYNC_TASK";
 
 /*******************************************************************************
+ * SECURE MEMORY CLEARING
+ *
+ * Compiler optimization can elide memset() when the buffer isn't used afterward.
+ * For security-sensitive data (LTK, LMK), we need guaranteed clearing.
+ *
+ * This uses the volatile function pointer idiom: the compiler cannot prove
+ * the function pointer won't change, so it must emit the actual call.
+ ******************************************************************************/
+
+/** @brief Volatile pointer to memset, prevents compiler from eliding the call */
+static void *(*volatile secure_memset_ptr)(void *, int, size_t) = memset;
+
+/**
+ * @brief Securely zero memory (cannot be optimized away)
+ *
+ * Use this instead of memset() for clearing sensitive cryptographic material
+ * like LTKs and LMKs after use.
+ *
+ * @param ptr  Pointer to memory to clear
+ * @param len  Number of bytes to clear
+ */
+static void secure_memzero(void *ptr, size_t len)
+{
+    secure_memset_ptr(ptr, 0, len);
+}
+
+/*******************************************************************************
  * PRIVATE VARIABLES
  ******************************************************************************/
 
@@ -1527,8 +1554,8 @@ static void handle_coordination_message(const time_sync_message_t *msg)
                 );
             }
 
-            // Clear LTK from RAM immediately after use
-            memset(ltk, 0, sizeof(ltk));
+            // Clear LTK from RAM immediately after use (secure - cannot be optimized away)
+            secure_memzero(ltk, sizeof(ltk));
 
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "AD048: HKDF key derivation failed: %s", esp_err_to_name(err));
@@ -1538,8 +1565,8 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             // Configure encrypted ESP-NOW peer
             err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
 
-            // Clear LMK from RAM
-            memset(lmk, 0, sizeof(lmk));
+            // Clear LMK from RAM (secure - cannot be optimized away)
+            secure_memzero(lmk, sizeof(lmk));
 
             if (err == ESP_OK) {
                 ESP_LOGI(TAG, "AD048: %s configured encrypted ESP-NOW peer (LTK-derived)",
@@ -1796,8 +1823,8 @@ esp_err_t time_sync_on_ltk_available(void)
         );
     }
 
-    // Clear LTK from RAM immediately after use
-    memset(ltk, 0, sizeof(ltk));
+    // Clear LTK from RAM immediately after use (secure - cannot be optimized away)
+    secure_memzero(ltk, sizeof(ltk));
 
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Bug #108: HKDF key derivation failed: %s", esp_err_to_name(err));
@@ -1808,8 +1835,8 @@ esp_err_t time_sync_on_ltk_available(void)
     // Configure encrypted ESP-NOW peer
     err = espnow_transport_set_peer_encrypted(peer_wifi_mac, lmk);
 
-    // Clear LMK from RAM
-    memset(lmk, 0, sizeof(lmk));
+    // Clear LMK from RAM (secure - cannot be optimized away)
+    secure_memzero(lmk, sizeof(lmk));
 
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Bug #108: %s configured encrypted ESP-NOW peer (deferred LTK derivation)",
