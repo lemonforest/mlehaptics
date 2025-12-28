@@ -36,6 +36,7 @@ source_map = {
     "minimal_wifi_test": "../test/minimal_wifi_test.c",
     "minimal_smp_test": "../test/minimal_smp_test.c",
     "secure_smp_pairing": "../examples/smp_pairing/secure_smp_pairing.c",
+    "minimal_espnow_test": "../test/minimal_espnow_test.c",
     # Add future test environments here
 }
 

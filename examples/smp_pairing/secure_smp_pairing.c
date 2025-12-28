@@ -69,6 +69,44 @@
  *    Set CONFIG_BT_NIMBLE_NVS_PERSIST=n in sdkconfig to prevent "zombie bonds"
  *    from causing pairing conflicts across reboots during development.
  *
+ * @section DESIGN_RATIONALE Why Dynamic Keys and Channels?
+ *
+ * **"We could have just hardcoded it, but..."**
+ *
+ * This example derives both the ESP-NOW encryption key (LMK) and WiFi channel
+ * from the SMP-negotiated LTK. A simpler approach would be to hardcode both:
+ *
+ * @code{.c}
+ * // The "easy" way (DON'T DO THIS in production):
+ * static const uint8_t HARDCODED_LMK[16] = {0x01, 0x02, ...};
+ * #define HARDCODED_CHANNEL 6
+ * @endcode
+ *
+ * We chose dynamic derivation because:
+ *
+ * 1. **Security**: Hardcoded keys are trivially extracted from firmware binaries.
+ *    Anyone with a flash dump owns your entire fleet. Dynamic keys are unique
+ *    per pairing session and never stored in firmware.
+ *
+ * 2. **Zero Configuration**: Devices don't need to agree on anything in advance.
+ *    The SMP handshake establishes a shared secret; everything else derives from it.
+ *
+ * 3. **Minimal Additional Complexity**: Once you have SMP working, adding HKDF
+ *    key derivation is ~10 lines of code. Channel derivation is literally:
+ *    `channel = (LMK[0] % 11) + 1`
+ *
+ * 4. **Future Flexibility**: This pattern enables deterministic channel hopping
+ *    for interference avoidance. Both devices can independently compute the next
+ *    channel from shared state without coordination traffic:
+ *    `next_channel = ((LMK[0] + sequence_number) % 11) + 1`
+ *
+ * 5. **Educational Value**: If you understand how to derive keys and channels
+ *    from a shared secret, you understand the foundation of most secure protocols.
+ *
+ * **The Lesson**: When a shared secret already exists (LTK from SMP), use it!
+ * Deriving additional material costs almost nothing and provides significant
+ * security and flexibility benefits over hardcoded values.
+ *
  * @section USAGE
  *
  * 1. Flash this firmware to two ESP32-C6 devices
@@ -79,6 +117,28 @@
  *    - In production: User confirms match on both devices
  *    - In this example: Auto-confirmed for testing (see PASSKEY_ACTION handler)
  * 5. Success: "SMP PAIRING SUCCESS! Connection encrypted"
+ *
+ * @section LIMITATIONS
+ *
+ * **This example does NOT handle reconnection scenarios.**
+ *
+ * If one device reboots while the other continues running, ESP-NOW TX will
+ * fail with status=1 (no ACK). This is expected behavior because:
+ *
+ * 1. Each SMP pairing generates a NEW random LTK
+ * 2. The LMK (ESP-NOW encryption key) is derived from the LTK
+ * 3. The WiFi channel is derived from the LMK
+ * 4. After reboot, the rebooted device has a different LTK/LMK/channel
+ * 5. The other device is still trying to reach the old peer configuration
+ *
+ * **To restore communication:** Reboot BOTH devices so they re-pair together.
+ *
+ * A production system would need:
+ * - NVS persistence of LTK (CONFIG_BT_NIMBLE_NVS_PERSIST=y)
+ * - Reconnection logic using stored bonds
+ * - ESP-NOW peer re-synchronization after BLE reconnect
+ *
+ * These features are beyond the scope of this pairing demonstration.
  *
  * @section BUILD
  *
@@ -156,6 +216,89 @@
  * 4. `loop()` runs automatically; no need for `while(1)` + `vTaskDelay()`
  * 5. MAC tie-breaker: Use `NimBLEDevice::getAddress()` to get local address
  *
+ * **CRITICAL: ESP-NOW After BLE (Bug #115 Lessons)**
+ *
+ * If you want to use ESP-NOW after BLE pairing completes, you MUST follow this
+ * sequence. We learned this the hard way - ESP-NOW TX fails with status=1 (no ACK)
+ * if you don't properly hand off the radio from BLE to WiFi.
+ *
+ * The Problem:
+ * - ESP32-C6 shares a single 2.4GHz radio between BLE and WiFi
+ * - After BLE pairing, the radio coexistence arbiter is still configured for BLE
+ * - Simply calling `NimBLEDevice::deinit()` leaves the radio in a "zombie" state
+ * - ESP-NOW packets are sent but never acknowledged (status=1)
+ *
+ * The Solution ("Clean Slate" Handoff):
+ * @code{.cpp}
+ * void transitionToEspNow() {
+ *     // Step 1: Disconnect BLE gracefully
+ *     if (pClient && pClient->isConnected()) {
+ *         pClient->disconnect();
+ *         delay(200);  // Wait for disconnect to process
+ *     }
+ *
+ *     // Step 2: Deinitialize NimBLE completely
+ *     NimBLEDevice::deinit(true);  // true = release memory
+ *     delay(100);
+ *
+ *     // Step 3: THE KEY FIX - Restart WiFi to reset radio PHY
+ *     // This clears lingering BLE coexistence configuration!
+ *     WiFi.mode(WIFI_OFF);
+ *     delay(100);
+ *     WiFi.mode(WIFI_STA);
+ *
+ *     // Step 4: Now ESP-NOW will work reliably
+ *     if (esp_now_init() != ESP_OK) {
+ *         Serial.println("ESP-NOW init failed!");
+ *         return;
+ *     }
+ *
+ *     // Step 5: Set channel and add peer
+ *     esp_wifi_set_channel(yourDerivedChannel, WIFI_SECOND_CHAN_NONE);
+ *     // ... add peer with encryption ...
+ * }
+ * @endcode
+ *
+ * **Accessing LTK for ESP-NOW Encryption (Arduino):**
+ *
+ * After successful SMP pairing, you need to extract the LTK to derive an ESP-NOW
+ * encryption key. In NimBLE-Arduino, access it via the connection info:
+ *
+ * @code{.cpp}
+ * void onAuthenticationComplete(NimBLEConnInfo& connInfo) {
+ *     if (connInfo.isEncrypted()) {
+ *         // Get peer address for key derivation
+ *         NimBLEAddress peerAddr = connInfo.getAddress();
+ *
+ *         // For LTK access, you may need to use low-level NimBLE APIs:
+ *         // ble_store_read_our_sec() or implement a store callback
+ *         // See NimBLE-Arduino advanced examples
+ *
+ *         // Derive ESP-NOW LMK from LTK using HKDF or similar
+ *         // IMPORTANT: Use consistent role ordering (SERVER MAC, CLIENT MAC)
+ *         // to ensure both devices derive the same key!
+ *     }
+ * }
+ * @endcode
+ *
+ * **Common Arduino Pitfalls:**
+ *
+ * 1. **"ESP-NOW works once then fails"**
+ *    - Cause: Didn't restart WiFi after BLE deinit
+ *    - Fix: Call `WiFi.mode(WIFI_OFF)` then `WiFi.mode(WIFI_STA)` before esp_now_init()
+ *
+ * 2. **"Devices pair but ESP-NOW packets aren't received"**
+ *    - Cause: Devices on different WiFi channels
+ *    - Fix: Derive channel deterministically from shared secret (e.g., `LMK[0] % 11 + 1`)
+ *
+ * 3. **"ESP-NOW encryption fails"**
+ *    - Cause: LMK derived with different role ordering on each device
+ *    - Fix: Always use `HKDF(LTK || SERVER_MAC || CLIENT_MAC)` - sort MACs by role, not by device
+ *
+ * 4. **"One device reboots, now nothing works"**
+ *    - Cause: New pairing = new LTK = new LMK = new channel
+ *    - Fix: Expected! Reboot BOTH devices. For production, persist LTK in NVS.
+ *
  * **Complete Arduino Skeleton:**
  * @code{.cpp}
  * #include <NimBLEDevice.h>
@@ -202,6 +345,16 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "store/config/ble_store_config.h"
+
+/* ESP-NOW and WiFi Includes */
+#include "esp_wifi.h"
+#include "esp_now.h"
+#include "esp_mac.h"
+#include "mbedtls/hkdf.h"
+#include "mbedtls/md.h"
+
+/* BT Controller Includes (for full deinit) */
+#include "esp_bt.h"
 
 /*============================================================================
  * COMPILE-TIME ASSERTIONS
@@ -265,6 +418,63 @@ static const char *TAG = "SECURE_SMP";
  * @note Periodic status log for debugging
  */
 #define STATUS_REPORT_INTERVAL_MS   5000
+
+/*============================================================================
+ * ESP-NOW CONSTANTS
+ *==========================================================================*/
+
+/** @brief ESP-NOW encryption key size */
+#define ESPNOW_KEY_SIZE          16
+
+/** @brief LTK size from BLE SMP */
+#define ESPNOW_LTK_SIZE          16
+
+/** @brief ESP-NOW data exchange interval (milliseconds) */
+#define ESPNOW_EXCHANGE_INTERVAL_MS  3000
+
+/** @brief HKDF info string for LMK derivation */
+static const char *HKDF_INFO = "EMDR-ESP-NOW-LMK-v2";
+
+/**
+ * @brief Derive WiFi channel from LMK (1-11 for US compatibility)
+ *
+ * Both devices compute the same channel because they have the same LMK.
+ * Using channels 1-11 for broadest regional compatibility.
+ */
+#define DERIVE_WIFI_CHANNEL(lmk) (((lmk)[0] % 11) + 1)
+
+/*============================================================================
+ * ESP-NOW STATE
+ *==========================================================================*/
+
+/** @brief Local WiFi MAC address for ESP-NOW */
+static uint8_t local_wifi_mac[6];
+
+/** @brief Peer WiFi MAC address for ESP-NOW */
+static uint8_t peer_wifi_mac[6];
+
+/** @brief Derived LMK for ESP-NOW encryption */
+static uint8_t espnow_lmk[ESPNOW_KEY_SIZE];
+
+/** @brief True if ESP-NOW is initialized and peer added */
+static bool espnow_ready = false;
+
+/** @brief True if BLE was intentionally disabled for coex test - don't restart */
+static bool coex_ble_disabled = false;
+
+/**
+ * @brief Deferred deinit flag - prevents "Task Suicide" deadlock
+ *
+ * Bug #115 Fix: We cannot call nimble_port_stop() from inside a NimBLE callback
+ * because that callback runs in the NimBLE Host Task. Calling stop() would try
+ * to terminate the very task that's currently executing, causing a deadlock.
+ *
+ * Solution: Set this flag in the callback, check it in app_main() loop.
+ */
+static volatile bool should_deinit_ble = false;
+
+/** @brief Message counter for debugging */
+static uint32_t espnow_msg_counter = 0;
 
 /*============================================================================
  * FORWARD DECLARATIONS
@@ -355,6 +565,553 @@ static bool address_is_lower(const uint8_t *peer)
         }
     }
     return false;  /* Equal - shouldn't happen with unique MACs */
+}
+
+/*============================================================================
+ * ESP-NOW CALLBACKS
+ *==========================================================================*/
+
+/**
+ * @brief ESP-NOW send callback
+ *
+ * @note ESP-IDF v5.5+ changed the callback signature from (const uint8_t *mac_addr, ...)
+ *       to (const wifi_tx_info_t *tx_info, ...). The MAC is in tx_info->des_addr.
+ */
+static void espnow_send_cb(const wifi_tx_info_t *tx_info, esp_now_send_status_t status)
+{
+    const uint8_t *mac_addr = tx_info->des_addr;
+    if (status == ESP_NOW_SEND_SUCCESS) {
+        ESP_LOGI(TAG, "ESP-NOW TX SUCCESS to %02x:%02x:%02x:%02x:%02x:%02x",
+                 mac_addr[0], mac_addr[1], mac_addr[2],
+                 mac_addr[3], mac_addr[4], mac_addr[5]);
+    } else {
+        ESP_LOGE(TAG, "ESP-NOW TX FAILED to %02x:%02x:%02x:%02x:%02x:%02x (status=%d)",
+                 mac_addr[0], mac_addr[1], mac_addr[2],
+                 mac_addr[3], mac_addr[4], mac_addr[5], status);
+    }
+}
+
+/**
+ * @brief ESP-NOW receive callback
+ */
+static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len)
+{
+    const uint8_t *mac = recv_info->src_addr;
+    ESP_LOGI(TAG, "ESP-NOW RX from %02x:%02x:%02x:%02x:%02x:%02x: len=%d",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], len);
+
+    if (len > 0 && len < 256) {
+        ESP_LOGI(TAG, "  Data: %.*s", len, (const char *)data);
+    }
+}
+
+/*============================================================================
+ * HKDF KEY DERIVATION
+ *==========================================================================*/
+
+/**
+ * @brief Derive LMK from LTK using HKDF-SHA256
+ *
+ * Creates a deterministic ESP-NOW Local Master Key from the BLE SMP Long-Term Key.
+ * Both devices derive the same LMK because they use the same input material.
+ *
+ * @param ltk The 16-byte LTK from BLE SMP pairing
+ * @param server_mac The SERVER's WiFi MAC address (always first in IKM)
+ * @param client_mac The CLIENT's WiFi MAC address (always second in IKM)
+ * @param lmk_out Output buffer for derived 16-byte LMK
+ * @return ESP_OK on success, error code on failure
+ */
+static esp_err_t derive_lmk_from_ltk(
+    const uint8_t ltk[ESPNOW_LTK_SIZE],
+    const uint8_t server_mac[6],
+    const uint8_t client_mac[6],
+    uint8_t lmk_out[ESPNOW_KEY_SIZE])
+{
+    /* IKM = LTK || SERVER_MAC || CLIENT_MAC (28 bytes) */
+    uint8_t ikm[28];
+    memcpy(ikm, ltk, ESPNOW_LTK_SIZE);
+    memcpy(ikm + 16, server_mac, 6);
+    memcpy(ikm + 22, client_mac, 6);
+
+    ESP_LOGI(TAG, "HKDF IKM: LTK=%02x%02x..%02x%02x SERVER=%02x:%02x:..:%02x CLIENT=%02x:%02x:..:%02x",
+             ltk[0], ltk[1], ltk[14], ltk[15],
+             server_mac[0], server_mac[1], server_mac[5],
+             client_mac[0], client_mac[1], client_mac[5]);
+
+    /* HKDF-SHA256 with info string */
+    int ret = mbedtls_hkdf(
+        mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
+        NULL, 0,  /* No salt */
+        ikm, sizeof(ikm),
+        (const uint8_t *)HKDF_INFO, strlen(HKDF_INFO),
+        lmk_out, ESPNOW_KEY_SIZE);
+
+    if (ret != 0) {
+        ESP_LOGE(TAG, "HKDF failed: ret=%d", ret);
+        return ESP_FAIL;
+    }
+
+    /* Log derived LMK fingerprint */
+    uint32_t fingerprint = (lmk_out[0] << 24) | (lmk_out[1] << 16) |
+                           (lmk_out[2] << 8) | lmk_out[3];
+    ESP_LOGI(TAG, "Derived LMK fingerprint: [%08lX]", (unsigned long)fingerprint);
+
+    return ESP_OK;
+}
+
+/*============================================================================
+ * WIFI & ESP-NOW INITIALIZATION
+ *==========================================================================*/
+
+/**
+ * @brief Initialize WiFi for ESP-NOW
+ */
+static esp_err_t init_wifi_for_espnow(void)
+{
+    ESP_LOGI(TAG, "Initializing WiFi for ESP-NOW...");
+
+    esp_err_t ret = esp_netif_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_netif_init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = esp_event_loop_create_default();
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "esp_event_loop_create_default failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ret = esp_wifi_init(&cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_mode failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = esp_wifi_start();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_start failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    /* Get our WiFi MAC address */
+    ret = esp_read_mac(local_wifi_mac, ESP_MAC_WIFI_STA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_read_mac failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "WiFi initialized. Local MAC: %02x:%02x:%02x:%02x:%02x:%02x",
+             local_wifi_mac[0], local_wifi_mac[1], local_wifi_mac[2],
+             local_wifi_mac[3], local_wifi_mac[4], local_wifi_mac[5]);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief Initialize ESP-NOW subsystem
+ */
+static esp_err_t init_espnow(void)
+{
+    ESP_LOGI(TAG, "Initializing ESP-NOW...");
+
+    esp_err_t ret = esp_now_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = esp_now_register_send_cb(espnow_send_cb);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_register_send_cb failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = esp_now_register_recv_cb(espnow_recv_cb);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_register_recv_cb failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "ESP-NOW initialized");
+    return ESP_OK;
+}
+
+/*============================================================================
+ * ESP-NOW SETUP AFTER PAIRING
+ *==========================================================================*/
+
+/**
+ * @brief Setup ESP-NOW encryption after SMP pairing completes
+ *
+ * This function:
+ * 1. Retrieves the LTK from NimBLE's security store
+ * 2. Derives the LMK using HKDF with role-ordered MAC addresses
+ * 3. Sets WiFi to LMK-derived channel
+ * 4. Sets PMK and adds the peer with encrypted LMK
+ *
+ * @return ESP_OK on success, error code on failure
+ */
+static esp_err_t setup_espnow_after_pairing(void)
+{
+    ESP_LOGI(TAG, "========================================");
+    ESP_LOGI(TAG, "Setting up ESP-NOW after SMP pairing...");
+    ESP_LOGI(TAG, "========================================");
+
+    /* Step 1: Get peer's BLE address from connection descriptor */
+    struct ble_gap_conn_desc desc;
+    int rc = ble_gap_conn_find(conn_handle, &desc);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to find connection descriptor; rc=%d", rc);
+        return ESP_FAIL;
+    }
+
+    /* Step 2: Convert BLE address to WiFi MAC
+     *
+     * TWO CRITICAL CONVERSIONS NEEDED:
+     *
+     * 1. BYTE ORDER: NimBLE stores addresses in little-endian (LSB first),
+     *    but ESP-NOW uses big-endian (MSB first, standard display order).
+     *
+     * 2. MAC OFFSET: ESP32-C6 uses different MACs for WiFi and BLE:
+     *    - WiFi STA MAC = Base MAC
+     *    - BLE MAC = Base MAC + 2 (last byte)
+     *    So to get WiFi MAC from BLE MAC: subtract 2 from last byte.
+     */
+
+    /* Reverse byte order: NimBLE little-endian → ESP-NOW big-endian */
+    for (int i = 0; i < 6; i++) {
+        peer_wifi_mac[i] = desc.peer_id_addr.val[5 - i];
+    }
+
+    ESP_LOGI(TAG, "Peer BLE MAC (from NimBLE, reversed): %02x:%02x:%02x:%02x:%02x:%02x",
+             peer_wifi_mac[0], peer_wifi_mac[1], peer_wifi_mac[2],
+             peer_wifi_mac[3], peer_wifi_mac[4], peer_wifi_mac[5]);
+
+    /* Convert BLE MAC to WiFi MAC: subtract 2 from last byte */
+    peer_wifi_mac[5] -= 2;
+
+    ESP_LOGI(TAG, "Peer WiFi MAC (BLE-2): %02x:%02x:%02x:%02x:%02x:%02x",
+             peer_wifi_mac[0], peer_wifi_mac[1], peer_wifi_mac[2],
+             peer_wifi_mac[3], peer_wifi_mac[4], peer_wifi_mac[5]);
+
+    /* Step 3: Retrieve LTK from NimBLE store */
+    struct ble_store_key_sec key_sec;
+    struct ble_store_value_sec value;
+
+    memset(&key_sec, 0, sizeof(key_sec));
+    key_sec.peer_addr = desc.peer_id_addr;
+    key_sec.idx = 0;
+
+    rc = ble_store_read_peer_sec(&key_sec, &value);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Failed to read peer security info; rc=%d", rc);
+        return ESP_FAIL;
+    }
+
+    if (!value.ltk_present) {
+        ESP_LOGE(TAG, "No LTK present in security store!");
+        return ESP_FAIL;
+    }
+
+    /* Log LTK fingerprint for debugging */
+    uint32_t ltk_fp = (value.ltk[0] << 24) | (value.ltk[1] << 16) |
+                      (value.ltk[2] << 8) | value.ltk[3];
+    ESP_LOGI(TAG, "LTK fingerprint: [%08lX]", (unsigned long)ltk_fp);
+
+    /* Step 4: Determine role for key derivation
+     * IMPORTANT: is_master refers to BLE role (MASTER = connection initiator)
+     * BLE SLAVE = SERVER (accepted connection)
+     * BLE MASTER = CLIENT (initiated connection)
+     */
+    bool we_are_server = !is_master;  /* BLE SLAVE = logical SERVER */
+
+    ESP_LOGI(TAG, "Role for key derivation: %s", we_are_server ? "SERVER" : "CLIENT");
+
+    esp_err_t err;
+    if (we_are_server) {
+        /* We are SERVER: our MAC is first (server_mac), peer is second (client_mac) */
+        err = derive_lmk_from_ltk(value.ltk, local_wifi_mac, peer_wifi_mac, espnow_lmk);
+    } else {
+        /* We are CLIENT: peer MAC is first (server_mac), our is second (client_mac) */
+        err = derive_lmk_from_ltk(value.ltk, peer_wifi_mac, local_wifi_mac, espnow_lmk);
+    }
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "LMK derivation failed");
+        return err;
+    }
+
+    /* Step 5: Derive WiFi channel from LMK */
+#if defined(TEST_ESPNOW_NO_ENCRYPTION) && TEST_ESPNOW_NO_ENCRYPTION
+    /* DIAGNOSTIC: Use fixed channel to rule out channel mismatch */
+    uint8_t derived_channel = 1;
+    ESP_LOGW(TAG, "[TEST] Using FIXED WiFi channel: %d (ignoring LMK derivation)", derived_channel);
+#else
+    uint8_t derived_channel = DERIVE_WIFI_CHANNEL(espnow_lmk);
+    ESP_LOGI(TAG, "Derived WiFi channel from LMK: %d (LMK[0]=0x%02x)",
+             derived_channel, espnow_lmk[0]);
+#endif
+
+    /* Step 6: Set WiFi to derived channel */
+    err = esp_wifi_set_channel(derived_channel, WIFI_SECOND_CHAN_NONE);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_channel(%d) failed: %s", derived_channel, esp_err_to_name(err));
+        return err;
+    }
+
+    /* Step 7: Set PMK (Primary Master Key) for ESP-NOW encryption
+     * CRITICAL: PMK must be set BEFORE adding encrypted peers.
+     */
+    err = esp_now_set_pmk(espnow_lmk);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_set_pmk failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    ESP_LOGI(TAG, "PMK set (using derived LMK)");
+
+    /* Step 8: Remove existing peer if present */
+    esp_now_del_peer(peer_wifi_mac);
+
+    /* Step 9: Add peer with encryption */
+    esp_now_peer_info_t peer_info = {0};
+    memcpy(peer_info.peer_addr, peer_wifi_mac, 6);
+    peer_info.channel = derived_channel;
+    peer_info.ifidx = WIFI_IF_STA;
+
+#if defined(TEST_ESPNOW_NO_ENCRYPTION) && TEST_ESPNOW_NO_ENCRYPTION
+    /* DIAGNOSTIC: Test ESP-NOW WITHOUT encryption to isolate key issues */
+    peer_info.encrypt = false;
+    ESP_LOGW(TAG, "[TEST] ESP-NOW encryption DISABLED for debugging");
+#else
+    peer_info.encrypt = true;
+    memcpy(peer_info.lmk, espnow_lmk, ESPNOW_KEY_SIZE);
+#endif
+
+    err = esp_now_add_peer(&peer_info);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_add_peer failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    ESP_LOGI(TAG, "========================================");
+#if defined(TEST_ESPNOW_NO_ENCRYPTION) && TEST_ESPNOW_NO_ENCRYPTION
+    ESP_LOGW(TAG, "[TEST] ESP-NOW peer added WITHOUT encryption!");
+    ESP_LOGI(TAG, "  Role: %s", we_are_server ? "SERVER" : "CLIENT");
+    ESP_LOGW(TAG, "  Channel: %d (FIXED for testing)", derived_channel);
+#else
+    ESP_LOGI(TAG, "ESP-NOW peer added with encryption!");
+    ESP_LOGI(TAG, "  Role: %s", we_are_server ? "SERVER" : "CLIENT");
+    ESP_LOGI(TAG, "  Channel: %d (derived from LMK)", derived_channel);
+#endif
+    ESP_LOGI(TAG, "  Peer: %02x:%02x:%02x:%02x:%02x:%02x",
+             peer_wifi_mac[0], peer_wifi_mac[1], peer_wifi_mac[2],
+             peer_wifi_mac[3], peer_wifi_mac[4], peer_wifi_mac[5]);
+    ESP_LOGI(TAG, "========================================");
+
+    espnow_ready = true;
+    return ESP_OK;
+}
+
+/*============================================================================
+ * FULL NIMBLE DEINIT (Bug #115 Fix)
+ *==========================================================================*/
+
+#if defined(COEX_TEST_DEINIT_BLE) && COEX_TEST_DEINIT_BLE
+/**
+ * @brief Re-install ESP-NOW peer after WiFi restart
+ *
+ * WiFi restart clears all ESP-NOW peers, so we must re-add them.
+ *
+ * @return ESP_OK on success, error code on failure
+ */
+static esp_err_t reinstall_espnow_peer(void)
+{
+    esp_now_peer_info_t peer_info = {0};
+    memcpy(peer_info.peer_addr, peer_wifi_mac, 6);
+    peer_info.channel = DERIVE_WIFI_CHANNEL(espnow_lmk);
+    peer_info.ifidx = WIFI_IF_STA;
+    peer_info.encrypt = true;
+    memcpy(peer_info.lmk, espnow_lmk, ESPNOW_KEY_SIZE);
+
+    /* Remove existing peer if present (might fail, that's OK) */
+    esp_now_del_peer(peer_wifi_mac);
+
+    esp_err_t ret = esp_now_add_peer(&peer_info);
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "ESP-NOW peer reinstalled on channel %d", peer_info.channel);
+        /* Set PMK to be compliant */
+        esp_now_set_pmk(espnow_lmk);
+        espnow_ready = true;
+    } else {
+        ESP_LOGE(TAG, "Failed to reinstall ESP-NOW peer: %s", esp_err_to_name(ret));
+        espnow_ready = false;
+    }
+    return ret;
+}
+
+/**
+ * @brief Fully deinitialize NimBLE and restart WiFi for clean radio handoff
+ *
+ * Bug #115 Analysis: ESP-NOW TX fails with status=1 (no ACK) even after BLE shutdown.
+ *
+ * Root causes identified:
+ * 1. Double deinit error: nimble_port_deinit() already shuts down the BT controller
+ *    on ESP32-C6, so calling esp_bt_controller_disable() afterwards fails with
+ *    "invalid controller state"
+ * 2. "Zombie" radio state: The WiFi PHY coexistence arbiter doesn't properly release
+ *    the radio after BT controller is unloaded. The hardware may still be configured
+ *    for BLE hop channels instead of the WiFi channel we set.
+ *
+ * Solution: "Clean Slate" Handoff
+ * 1. Stop NimBLE (let nimble_port_deinit handle controller shutdown)
+ * 2. Only check controller state, don't force disable if already off
+ * 3. RESTART WiFi driver (esp_wifi_stop + esp_wifi_start) to reset PHY
+ * 4. Re-initialize ESP-NOW (required after WiFi stop)
+ * 5. Re-add peer with encryption on the derived channel
+ *
+ * @note This is a one-way operation - BLE cannot be restarted after this.
+ *       Use only when BLE is no longer needed (e.g., peer-to-peer ESP-NOW mode).
+ *
+ * @return ESP_OK on success, error code on failure
+ */
+static esp_err_t deinit_nimble_for_espnow(void)
+{
+    int rc;
+    esp_err_t ret;
+
+    ESP_LOGW(TAG, "########################################");
+    ESP_LOGW(TAG, ">> STARTING RADIO HANDOFF (BLE -> WIFI)");
+    ESP_LOGW(TAG, "########################################");
+
+    /* Step 1: Stop all BLE traffic */
+    ESP_LOGI(TAG, "[HANDOFF] Step 1: Stopping BLE advertising and scanning...");
+    ble_gap_adv_stop();
+    ble_gap_disc_cancel();
+
+    /* Step 2: Terminate BLE connection if active */
+    if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+        ESP_LOGI(TAG, "[HANDOFF] Step 2: Terminating BLE connection (handle=%d)...", conn_handle);
+        rc = ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        if (rc != 0 && rc != BLE_HS_ENOTCONN) {
+            ESP_LOGW(TAG, "[HANDOFF] ble_gap_terminate returned rc=%d (continuing)", rc);
+        }
+        /* Wait for disconnect event to process */
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+
+    /* Step 3: Stop NimBLE host - signals the host task to exit */
+    ESP_LOGI(TAG, "[HANDOFF] Step 3: Stopping NimBLE host...");
+    rc = nimble_port_stop();
+    if (rc == 0) {
+        /* Give host task time to exit cleanly */
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        /* Step 4: Deinitialize NimBLE port
+         * NOTE: On ESP32-C6, this internally shuts down the BT controller */
+        ESP_LOGI(TAG, "[HANDOFF] Step 4: Deinitializing NimBLE port...");
+        ret = nimble_port_deinit();
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "[HANDOFF] nimble_port_deinit: %s (may be OK)", esp_err_to_name(ret));
+        } else {
+            ESP_LOGI(TAG, "[HANDOFF] NimBLE deinitialized successfully");
+        }
+    } else {
+        ESP_LOGE(TAG, "[HANDOFF] nimble_port_stop failed; rc=%d", rc);
+    }
+
+    /* Step 5: Check controller state - only disable if still enabled
+     * This avoids the "invalid controller state" error from double-deinit */
+    ESP_LOGI(TAG, "[HANDOFF] Step 5: Checking BT controller state...");
+    esp_bt_controller_status_t bt_status = esp_bt_controller_get_status();
+    if (bt_status == ESP_BT_CONTROLLER_STATUS_ENABLED) {
+        ESP_LOGW(TAG, "[HANDOFF] Controller still enabled, forcing disable...");
+        esp_bt_controller_disable();
+        esp_bt_controller_deinit();
+    } else if (bt_status == ESP_BT_CONTROLLER_STATUS_INITED) {
+        ESP_LOGI(TAG, "[HANDOFF] Controller inited but not enabled, deiniting...");
+        esp_bt_controller_deinit();
+    } else {
+        ESP_LOGI(TAG, "[HANDOFF] Controller already idle (status=%d)", bt_status);
+    }
+
+    /* Step 6: THE KEY FIX - Restart WiFi to reset the Radio PHY
+     * This clears any lingering BLE coexistence configuration in the hardware */
+    ESP_LOGW(TAG, "[HANDOFF] Step 6: RESTARTING WiFi to reset radio PHY...");
+    ret = esp_wifi_stop();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "[HANDOFF] esp_wifi_stop: %s", esp_err_to_name(ret));
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100));  /* Short breath for hardware to settle */
+
+    ret = esp_wifi_start();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "[HANDOFF] esp_wifi_start FAILED: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ESP_LOGI(TAG, "[HANDOFF] WiFi restarted successfully");
+
+    /* Step 7: Re-initialize ESP-NOW (required after WiFi stop) */
+    ESP_LOGI(TAG, "[HANDOFF] Step 7: Re-initializing ESP-NOW...");
+    ret = esp_now_init();
+    if (ret != ESP_OK && ret != ESP_ERR_ESPNOW_EXIST) {
+        ESP_LOGE(TAG, "[HANDOFF] esp_now_init FAILED: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    esp_now_register_send_cb(espnow_send_cb);
+    esp_now_register_recv_cb(espnow_recv_cb);
+
+    /* Step 8: Set WiFi channel and reinstall encrypted peer */
+    uint8_t derived_channel = DERIVE_WIFI_CHANNEL(espnow_lmk);
+    ESP_LOGI(TAG, "[HANDOFF] Step 8: Setting WiFi channel to %d...", derived_channel);
+    ret = esp_wifi_set_channel(derived_channel, WIFI_SECOND_CHAN_NONE);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "[HANDOFF] esp_wifi_set_channel FAILED: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    /* Step 9: Reinstall encrypted peer */
+    ESP_LOGI(TAG, "[HANDOFF] Step 9: Reinstalling ESP-NOW peer...");
+    ret = reinstall_espnow_peer();
+
+    ESP_LOGW(TAG, "########################################");
+    ESP_LOGW(TAG, "<< HANDOFF COMPLETE - RADIO CLEAN");
+    ESP_LOGW(TAG, "   WiFi restarted, ESP-NOW ready");
+    ESP_LOGW(TAG, "   Channel: %d", derived_channel);
+    ESP_LOGW(TAG, "########################################");
+
+    return ret;
+}
+#endif /* COEX_TEST_DEINIT_BLE */
+
+/**
+ * @brief Send a test message via ESP-NOW
+ */
+static void send_espnow_test_message(void)
+{
+    if (!espnow_ready) {
+        return;
+    }
+
+    char msg[64];
+    snprintf(msg, sizeof(msg), "%s #%lu",
+             is_master ? "CLIENT" : "SERVER",
+             (unsigned long)++espnow_msg_counter);
+
+    ESP_LOGI(TAG, "Sending ESP-NOW: '%s'", msg);
+
+    esp_err_t ret = esp_now_send(peer_wifi_mac, (const uint8_t *)msg, strlen(msg));
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_send failed: %s", esp_err_to_name(ret));
+    }
 }
 
 /*============================================================================
@@ -713,6 +1470,13 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg)
         conn_update_done = false;
         is_encrypted = false;
 
+        /* Check if BLE was intentionally disabled for coex test */
+        if (coex_ble_disabled) {
+            ESP_LOGW(TAG, "[COEX_TEST] BLE disabled - NOT restarting advertising/scanning");
+            ESP_LOGW(TAG, "[COEX_TEST] ESP-NOW should now work in isolation!");
+            return 0;
+        }
+
         /* Restart advertising and scanning */
         start_advertising();
         start_scanning();
@@ -825,6 +1589,61 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg)
             ESP_LOGI(TAG, "  Connection is now ENCRYPTED");
             ESP_LOGI(TAG, "  MITM protection: ACTIVE");
             ESP_LOGI(TAG, "  LTK available for ESP-NOW encryption!");
+
+            /* COEXISTENCE FIX: Let BLE connection stabilize before ESP-NOW
+             * The BLE connection has just been encrypted and may be busy
+             * with post-pairing housekeeping. Give it time to settle.
+             */
+            ESP_LOGI(TAG, "  Waiting 500ms for BLE to stabilize...");
+            vTaskDelay(pdMS_TO_TICKS(500));
+
+            /* Setup ESP-NOW with derived encryption key */
+            esp_err_t espnow_ret = setup_espnow_after_pairing();
+            if (espnow_ret == ESP_OK) {
+                ESP_LOGI(TAG, "  ESP-NOW ready for bidirectional exchange!");
+
+#if defined(COEX_TEST_DEINIT_BLE) && COEX_TEST_DEINIT_BLE
+                /* Bug #115 FIX: Fully deinitialize NimBLE to free radio for ESP-NOW
+                 *
+                 * Testing showed that even after BLE disconnect, the BT controller
+                 * remains active and interferes with ESP-NOW TX (status=1, no ACK).
+                 *
+                 * Solution: Completely shut down NimBLE after extracting LTK for
+                 * ESP-NOW encryption. This is a one-way operation - BLE cannot be
+                 * used again until device restart.
+                 *
+                 * CRITICAL: We cannot call deinit_nimble_for_espnow() directly here!
+                 * This callback runs in the NimBLE Host Task context. Calling
+                 * nimble_port_stop() from here would cause "Task Suicide" - the task
+                 * waiting for itself to exit = deadlock.
+                 *
+                 * Instead, we set a flag and let app_main() loop handle the deinit.
+                 */
+                ESP_LOGW(TAG, "  [COEX_TEST] Flagging BLE for safe deferred deinit...");
+                coex_ble_disabled = true;
+                should_deinit_ble = true;  /* Main loop will execute the deinit */
+
+#elif defined(COEX_TEST_DISCONNECT_BLE) && COEX_TEST_DISCONNECT_BLE
+                /* COEXISTENCE DIAGNOSTIC: Disconnect BLE to free radio for ESP-NOW
+                 *
+                 * If ESP-NOW works after this disconnect, the issue is radio contention
+                 * between BLE (30ms connection interval) and ESP-NOW.
+                 *
+                 * NOTE: This test showed ESP-NOW still fails after disconnect because
+                 * the BT controller remains active. Use COEX_TEST_DEINIT_BLE instead.
+                 */
+                ESP_LOGW(TAG, "  [COEX_TEST] Disconnecting BLE to free radio...");
+                vTaskDelay(pdMS_TO_TICKS(100));  /* Brief delay before disconnect */
+
+                /* Set flag BEFORE disconnect to prevent reconnection loop */
+                coex_ble_disabled = true;
+                ESP_LOGW(TAG, "  [COEX_TEST] coex_ble_disabled=true - BLE will NOT restart");
+
+                ble_gap_terminate(conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+#endif
+            } else {
+                ESP_LOGE(TAG, "  ESP-NOW setup failed!");
+            }
         } else {
             is_encrypted = false;
             ESP_LOGE(TAG, "  *** SMP PAIRING FAILED! ***");
@@ -1098,6 +1917,20 @@ void app_main(void)
     ESP_LOGI(TAG, "NVS initialized");
 
     /*========================================================================
+     * WIFI & ESP-NOW INITIALIZATION
+     *======================================================================*/
+
+    ret = init_wifi_for_espnow();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi init failed - continuing without ESP-NOW");
+    } else {
+        ret = init_espnow();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "ESP-NOW init failed");
+        }
+    }
+
+    /*========================================================================
      * NIMBLE INITIALIZATION
      *======================================================================*/
 
@@ -1221,23 +2054,61 @@ void app_main(void)
      * MAIN LOOP
      *======================================================================*/
 
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(STATUS_REPORT_INTERVAL_MS));
+    uint32_t loop_counter = 0;
+    /*
+     * Use faster tick (100ms) to catch the deinit flag quickly.
+     * Adjust intervals accordingly (multiply by 10 for same real-time intervals).
+     */
+    const uint32_t status_interval = (STATUS_REPORT_INTERVAL_MS / 100);  /* 50 ticks = 5 seconds */
+    const uint32_t espnow_interval = (ESPNOW_EXCHANGE_INTERVAL_MS / 100); /* 30 ticks = 3 seconds */
 
-        /* Determine encryption status string */
-        const char *enc_status;
-        if (is_encrypted) {
-            enc_status = "yes";
-        } else if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
-            enc_status = "pending";
-        } else {
-            enc_status = "no";
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(100));  /* 100ms tick for responsive flag checking */
+        loop_counter++;
+
+        /*==================================================================
+         * BUG #115 FIX: Deferred NimBLE Deinit (Safe - runs in main task)
+         *
+         * The should_deinit_ble flag is set by gap_event_handler after
+         * ESP-NOW setup completes. We execute the deinit HERE because
+         * this runs in the main task, not the NimBLE host task.
+         *
+         * Calling nimble_port_stop() from inside a NimBLE callback would
+         * cause "Task Suicide" - the task waiting for itself to exit.
+         *================================================================*/
+        if (should_deinit_ble) {
+            should_deinit_ble = false;  /* Clear flag immediately */
+            ESP_LOGW(TAG, "Executing deferred NimBLE deinit from main loop...");
+            esp_err_t handoff_ret = deinit_nimble_for_espnow();
+            if (handoff_ret != ESP_OK) {
+                ESP_LOGE(TAG, "Radio handoff failed: %s", esp_err_to_name(handoff_ret));
+            }
+            /* Channel and peer are now handled inside deinit_nimble_for_espnow() */
         }
 
-        ESP_LOGI(TAG, "Status: conn=%d, master=%s, peer_found=%s, encrypted=%s",
-                 conn_handle,
-                 is_master ? "yes" : "no",
-                 peer_discovered ? "yes" : "no",
-                 enc_status);
+        /* Send ESP-NOW message every ESPNOW_EXCHANGE_INTERVAL_MS */
+        if (espnow_ready && (loop_counter % espnow_interval) == 0) {
+            send_espnow_test_message();
+        }
+
+        /* Status report every STATUS_REPORT_INTERVAL_MS */
+        if ((loop_counter % status_interval) == 0) {
+            /* Determine encryption status string */
+            const char *enc_status;
+            if (is_encrypted) {
+                enc_status = "yes";
+            } else if (conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+                enc_status = "pending";
+            } else {
+                enc_status = "no";
+            }
+
+            ESP_LOGI(TAG, "Status: conn=%d, master=%s, peer_found=%s, encrypted=%s, espnow=%s",
+                     conn_handle,
+                     is_master ? "yes" : "no",
+                     peer_discovered ? "yes" : "no",
+                     enc_status,
+                     espnow_ready ? "ready" : "not_ready");
+        }
     }
 }
