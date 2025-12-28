@@ -446,7 +446,7 @@ This project developed foundational techniques for **connectionless distributed 
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
 
 ### Protocol Specifications (UTLP/RFIP)
-- **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Layer Protocol - peer-to-peer time synchronization for embedded swarms
+- **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Lord Protocol - peer-to-peer time synchronization for embedded swarms
 - **[UTLP Technical Report v2](docs/UTLP_Technical_Report_v2.md)**: Detailed protocol analysis with stratum hierarchy and passive opportunistic adoption
 - **[RFIP Addendum](docs/UTLP_Addendum_Reference_Frame_Independent_Positioning.md)**: Reference-Frame Independent Positioning - spatial awareness without external reference frames
 - **[802.11mc FTM Reconnaissance](docs/802.11mc_FTM_Reconnaissance_Report.md)**: Fine Time Measurement research for ±1-2m ranging capability

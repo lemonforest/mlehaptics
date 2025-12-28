@@ -99,7 +99,7 @@ For 1 Hz infrasound (λ = 340m), you need D > 1 km for useful direction finding.
 
 This project uses three foundational protocols documented in the parent prior art publication:
 
-**UTLP (Universal Time Layer Protocol):** Establishes synchronized time across all nodes. When nodes agree on "what time is it" to within ~1 millisecond, they can correlate measurements and perform coherent signal processing. (ESP-NOW can achieve tighter sync under ideal conditions, but ~1ms is a realistic expectation for student builds and is sufficient for all experiments in this manual.)
+**UTLP (Universal Time Lord Protocol):** Establishes synchronized time across all nodes. When nodes agree on "what time is it" to within ~1 millisecond, they can correlate measurements and perform coherent signal processing. (ESP-NOW can achieve tighter sync under ideal conditions, but ~1ms is a realistic expectation for student builds and is sufficient for all experiments in this manual.)
 
 **RFIP (Reference-Frame Independent Positioning):** Establishes relative positions between nodes. Nodes don't need to know where they are on Earth—they need to know where they are relative to each other.
 

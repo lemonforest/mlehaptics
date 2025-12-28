@@ -11,7 +11,7 @@
 
 In the context of time synchronization protocol implementation,
 facing the need for a clean, portable reference implementation,
-we decided to extract UTLP (Universal Time-Lite Protocol) into a standalone module (`utlp.c/h`),
+we decided to extract UTLP (Universal Time Lord Protocol) into a standalone module (`utlp.c/h`),
 and neglected keeping time sync tightly coupled to application code,
 to achieve portability across ESP-IDF projects and clear security boundaries,
 accepting that minor refactoring is required to separate protocol from application concerns.
@@ -76,7 +76,7 @@ The project's `docs/Connectionless_Distributed_Timing_Prior_Art.md` provides ext
 
 ## Decision
 
-We will extract the Universal Time-Lite Protocol (UTLP) into a standalone module pair:
+We will extract the Universal Time Lord Protocol (UTLP) into a standalone module pair:
 
 ### Layer Separation
 
@@ -97,7 +97,7 @@ espnow_transport.c    ← Just transport: send/receive bytes
 ### UTLP Public API (Proposed)
 
 ```c
-// utlp.h - Universal Time-Lite Protocol
+// utlp.h - Universal Time Lord Protocol
 
 // Beacon structure (transport-agnostic)
 typedef struct __attribute__((packed)) {

@@ -383,7 +383,7 @@ This validates:
 
 The connectionless architecture builds on two protocol specifications documented separately:
 
-### 4.1 UTLP (Universal Time Layer Protocol)
+### 4.1 UTLP (Universal Time Lord Protocol)
 
 UTLP provides synchronized time as a "broadcast environmental variable"—a public utility that any device can consume without pairing or authentication. Key features:
 
