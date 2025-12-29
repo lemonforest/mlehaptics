@@ -11,7 +11,11 @@
  * 3. Time-Indexed: LED state derived from atomic time, not delays
  * 4. No Malloc: All memory statically allocated
  *
- * @version 2.0.0 - Simplified Genesis Node
+ * PLATFORM SUPPORT:
+ * - ESP32-C6: Full floating-point support
+ * - C64 (cc65): Integer-only (no FPU, no float emulation)
+ *
+ * @version 2.1.0 - Added cc65/C64 platform support
  * @date 2025-12-28
  */
 
@@ -20,6 +24,246 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+/*============================================================================
+ * PLATFORM DETECTION - Floating Point Support
+ *
+ * cc65 (C64, Apple II, NES, etc.) has NO floating point support.
+ * We use integer types for phase/duty on these platforms:
+ *   - phase: 0-36000 (degrees × 100, so 180.00° = 18000)
+ *   - duty:  0-10000 (percent × 100, so 50.00% = 5000)
+ *==========================================================================*/
+
+/*============================================================================
+ * THE CHAMELEON TIME STRUCTURE
+ *
+ * This is the "Grand Unified Theory" of the UTLP architecture.
+ * The fundamental nature of time changes based on the hardware:
+ *
+ *   ESP32: Native uint64_t - fast hardware math
+ *   C64:   Segmented struct - manual control for 8-bit ALU
+ *
+ * The skeleton code uses abstract macros (UTLP_GET_PHASE, UTLP_DIFF_US)
+ * that adapt to the hardware automatically. The code runs on BOTH chips
+ * without changing the logic.
+ *==========================================================================*/
+
+#ifdef __CC65__
+    /*=========================================================================
+     * COMMODORE 64 MODE - Extended 64-bit Support
+     *
+     * cc65 supports 64-bit integers via "long long" extension when compiled
+     * with --standard cc65 flag, but C89 stdint.h doesn't define uint64_t.
+     * We define them explicitly here.
+     *
+     * PERFORMANCE NOTE: 64-bit math on 6502 is SLOW (~50 ASM instructions
+     * per operation) but CORRECT. We use optimized 32-bit paths where
+     * possible via the "Magic Remainder" trick for phase calculations.
+     *========================================================================*/
+
+    /*
+     * cc65 supports 64-bit via "long long" but C89 headers don't define uint64_t.
+     * Define them explicitly for cc65.
+     */
+    typedef unsigned long long uint64_t;
+    typedef signed long long int64_t;
+
+    /* cc65: No floating point - use fixed-point integers */
+    typedef uint16_t utlp_float_t;
+    #define UTLP_NO_FLOAT 1
+    #define UTLP_PHASE(deg)  ((uint16_t)((deg) * 100))   /* 180.0 -> 18000 */
+    #define UTLP_DUTY(pct)   ((uint16_t)((pct) * 100))   /* 50.0 -> 5000 */
+
+    /*=========================================================================
+     * THE UNION-CASCADE TIME STRUCTURE
+     *
+     * 64-bits of time, viewed two ways:
+     *   1. 'words': 4× 16-bit chunks for fast ripple-carry incrementing
+     *   2. 'dwords': 2× 32-bit chunks for the "Magic Remainder" phase math
+     *
+     * This is the NATIVE LANGUAGE of the 6502:
+     *   - 16-bit is the natural address width (zero-page indirect)
+     *   - Ripple carry: 8-bit ALU chains naturally through 16-bit pairs
+     *   - Zero-cost view switching (compiler just reads memory differently)
+     *========================================================================*/
+
+    typedef union {
+        /* View as 16-bit Cascades (Fastest for counting) */
+        struct {
+            uint16_t w0;  /**< 0..65ms */
+            uint16_t w1;  /**< 65ms..71min */
+            uint16_t w2;  /**< 71min..8yrs */
+            uint16_t w3;  /**< 8yrs..584kyrs */
+        } words;
+
+        /* View as 32-bit Chunks (Fastest for Phase Math) */
+        struct {
+            uint32_t lo;  /**< The "Standard" 32-bit clock */
+            uint32_t hi;  /**< The "Epoch" */
+        } dwords;
+    } utlp_time_t;
+
+    /** @brief Zero-initialize a time value */
+    #define UTLP_TIME_ZERO  { { 0, 0, 0, 0 } }
+
+    /** @brief Standard blink period in microseconds */
+    #define UTLP_BLINK_PERIOD_US    1000000UL
+
+    /** @brief Magic constant: 2^32 mod 1,000,000 = 296 */
+    #define MAGIC_EPOCH_REM         296UL
+
+    /*=========================================================================
+     * THE PHYSICS MACROS - The "Ripple Magic"
+     *
+     * These macros use the union's multiple views for optimal 6502 code:
+     *   - dwords.lo: Low 32 bits for phase math
+     *   - dwords.hi: High 32 bits (epoch)
+     *   - words.w0..w3: For ripple carry and lazy comparison
+     *========================================================================*/
+
+    /**
+     * @brief Get phase position (modulo) using Magic Remainder trick
+     *
+     * THE MATH:
+     *   Time = (Hi * 2^32) + Lo
+     *   2^32 mod 1,000,000 = 296
+     *   Phase = ((dwords.hi * 296) + (dwords.lo % 1M)) % 1M
+     *
+     * This gives ~200 cycle phase calc instead of ~3000 cycles!
+     */
+    #define UTLP_GET_PHASE(t, period_us) \
+        ( ((period_us) == UTLP_BLINK_PERIOD_US) ? \
+          ((((uint32_t)(t).dwords.hi * MAGIC_EPOCH_REM) + ((t).dwords.lo % UTLP_BLINK_PERIOD_US)) % UTLP_BLINK_PERIOD_US) : \
+          ((t).dwords.lo % (period_us)) )
+
+    /**
+     * @brief Get time difference (fast 32-bit path)
+     * Uses dwords.lo for fast 32-bit subtraction.
+     * Valid for differences < 71 minutes.
+     */
+    #define UTLP_DIFF_US(now, last)     ((int32_t)((now).dwords.lo - (last).dwords.lo))
+
+    /**
+     * @brief Add microseconds to time (Manual Ripple Carry)
+     *
+     * This is where the 4× uint16_t shines.
+     * We add to w0. If it wraps, we tick w1, etc.
+     * This avoids loading 64-bits into registers for a simple add.
+     */
+    #define UTLP_ADD_US(t, us) do { \
+        uint16_t _prev = (t).words.w0; \
+        (t).words.w0 += (uint16_t)(us); \
+        if ((t).words.w0 < _prev) { \
+            if (++(t).words.w1 == 0) { \
+                if (++(t).words.w2 == 0) { \
+                    (t).words.w3++; \
+                } \
+            } \
+        } \
+    } while(0)
+
+    /** @brief Get low 32 bits (for compatibility) */
+    #define UTLP_TIME_LOW32(t)          ((t).dwords.lo)
+
+    /** @brief Alias for compatibility with skeleton code */
+    #define UTLP_TIME_DIFF(a, b)        UTLP_DIFF_US(a, b)
+
+    /**
+     * @brief Compare times for less-than (LAZY COMPARISON)
+     *
+     * The 6502 Pro Move: Compare from MSB (w3) first.
+     * If unequal, we're done! No need to check lower words.
+     * This is MUCH faster than comparing all 64 bits.
+     */
+    #define UTLP_TIME_LT(a, b) \
+        ( ((a).words.w3 != (b).words.w3) ? ((a).words.w3 < (b).words.w3) : \
+          ((a).words.w2 != (b).words.w2) ? ((a).words.w2 < (b).words.w2) : \
+          ((a).words.w1 != (b).words.w1) ? ((a).words.w1 < (b).words.w1) : \
+          ((a).words.w0 < (b).words.w0) )
+
+    /** @brief Compare times for greater-or-equal */
+    #define UTLP_TIME_GE(a, b)          (!UTLP_TIME_LT(a, b))
+
+    /**
+     * @brief Create time from uint64_t (for receiving 64-bit beacons)
+     *
+     * On C64, we use a helper function to split the 64-bit value
+     * into our union structure. cc65's 64-bit support handles this.
+     */
+    static utlp_time_t utlp_time_from_u64(uint64_t raw)
+    {
+        utlp_time_t t;
+        t.dwords.lo = (uint32_t)raw;
+        t.dwords.hi = (uint32_t)(raw >> 32);
+        return t;
+    }
+    #define UTLP_TIME_FROM_U64(raw)     utlp_time_from_u64(raw)
+
+    /**
+     * @brief Convert time to uint64_t (for sending beacons)
+     *
+     * Reconstructs 64-bit value from our union for transmission.
+     */
+    #define UTLP_TIME_TO_U64(t) \
+        ((uint64_t)(t).dwords.lo | ((uint64_t)(t).dwords.hi << 32))
+
+    /** @brief Use cascaded time on C64 */
+    #define UTLP_CASCADED_TIME 1
+
+#else
+    /*=========================================================================
+     * ESP32 MODE - The "Atomic" Time
+     *
+     * Modern CPUs have native 64-bit math. We use it directly.
+     * No tricks needed - the hardware is fast enough.
+     *========================================================================*/
+
+    /* Normal platforms: Use native float */
+    typedef float utlp_float_t;
+    #define UTLP_NO_FLOAT 0
+    #define UTLP_PHASE(deg)  (deg)
+    #define UTLP_DUTY(pct)   (pct)
+
+    /** @brief Native 64-bit time type */
+    typedef uint64_t utlp_time_t;
+
+    /** @brief Zero-initialize a time value */
+    #define UTLP_TIME_ZERO          ((utlp_time_t)0)
+
+    /** @brief Standard blink period in microseconds */
+    #define UTLP_BLINK_PERIOD_US    1000000UL
+
+    /** @brief Get phase position (native modulo) */
+    #define UTLP_GET_PHASE(t, p)    ((uint32_t)((t) % (p)))
+
+    /** @brief Get time difference (native subtraction) */
+    #define UTLP_DIFF_US(now, last) ((int64_t)((now) - (last)))
+
+    /** @brief Alias for compatibility */
+    #define UTLP_TIME_DIFF(a, b)    UTLP_DIFF_US(a, b)
+
+    /** @brief Add microseconds (native addition) */
+    #define UTLP_ADD_US(t, us)      ((t) += (us))
+
+    /** @brief Get low 32 bits (for compatibility) */
+    #define UTLP_TIME_LOW32(t)      ((uint32_t)(t))
+
+    /** @brief Compare times for less-than */
+    #define UTLP_TIME_LT(a, b)      ((a) < (b))
+
+    /** @brief Compare times for greater-or-equal */
+    #define UTLP_TIME_GE(a, b)      ((a) >= (b))
+
+    /** @brief Create time from uint64_t (no-op on native) */
+    #define UTLP_TIME_FROM_U64(raw) (raw)
+
+    /** @brief Convert time to uint64_t (no-op on native) */
+    #define UTLP_TIME_TO_U64(t)     (t)
+
+    /** @brief Use native 64-bit time on ESP32 */
+    #define UTLP_SEGMENTED_TIME 0
+
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -158,7 +402,7 @@ bool utlp_hal_rx_wait(utlp_packet_t *out_packet, uint32_t timeout_ms);
  * THE MAGIC FUNCTION: Sets PWM with phase relative to atomic time.
  *
  * For LED blinking at 1Hz:
- *   utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1, 0.0, 50.0);
+ *   utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1, UTLP_PHASE(0), UTLP_DUTY(50));
  *
  * Two synchronized nodes with 180° phase offset = perfect alternation:
  *   Node A: phase=0°   → LED ON during first half of cycle
@@ -166,11 +410,11 @@ bool utlp_hal_rx_wait(utlp_packet_t *out_packet, uint32_t timeout_ms);
  *
  * @param channel UTLP_ACTUATOR_MAIN (GPIO15)
  * @param frequency_hz Cycle frequency (e.g., 1Hz for blinking)
- * @param phase_deg Phase offset (0-360) relative to atomic time
- * @param duty_pct Duty cycle / brightness (0-100)
+ * @param phase_deg Phase offset: float on ESP32, fixed-point on C64 (0-36000 = 0-360°)
+ * @param duty_pct Duty cycle: float on ESP32, fixed-point on C64 (0-10000 = 0-100%)
  */
 void utlp_hal_set_actuator_phase(int channel, uint32_t frequency_hz,
-                                  float phase_deg, float duty_pct);
+                                  utlp_float_t phase_deg, utlp_float_t duty_pct);
 
 /**
  * @brief Stop actuator output
@@ -178,6 +422,56 @@ void utlp_hal_set_actuator_phase(int channel, uint32_t frequency_hz,
  * @param channel Channel to stop
  */
 void utlp_hal_actuator_stop(int channel);
+
+/*============================================================================
+ * LOGGING API - Platform-Agnostic
+ *
+ * Abstraction layer for logging. Maps to:
+ *   - ESP-IDF: esp_log_writev()
+ *   - Arduino: Serial.printf()
+ *   - Linux: printf()
+ *==========================================================================*/
+
+/**
+ * @brief Log informational message
+ *
+ * @param tag Module identifier for filtering
+ * @param format printf-style format string
+ */
+void utlp_hal_log_info(const char *tag, const char *format, ...);
+
+/**
+ * @brief Log error message
+ *
+ * @param tag Module identifier for filtering
+ * @param format printf-style format string
+ */
+void utlp_hal_log_error(const char *tag, const char *format, ...);
+
+/**
+ * @brief Log warning message
+ *
+ * @param tag Module identifier for filtering
+ * @param format printf-style format string
+ */
+void utlp_hal_log_warn(const char *tag, const char *format, ...);
+
+/*============================================================================
+ * APPLICATION ENTRY POINT
+ *
+ * Call from platform-specific main (app_main, main, setup/loop).
+ * This keeps utlp_skeleton.c platform-agnostic.
+ *==========================================================================*/
+
+/**
+ * @brief UTLP application entry point
+ *
+ * Call this from your platform's main function:
+ *   - ESP-IDF: void app_main(void) { utlp_app_run(); }
+ *   - Arduino: void setup() { utlp_app_run(); }
+ *   - Linux:   int main() { utlp_app_run(); return 0; }
+ */
+void utlp_app_run(void);
 
 #ifdef __cplusplus
 }

@@ -25,8 +25,8 @@
 
 #include <string.h>
 #include <stdio.h>
-#include "esp_log.h"
 
+/* Tag for logging (passed to HAL log functions) */
 static const char *TAG = "UTLP";
 
 /*============================================================================
@@ -100,7 +100,7 @@ static aatr_state_t g_aatr = {
 };
 
 static uint8_t g_local_mac[UTLP_MAC_SIZE];
-static uint64_t g_last_beacon_us = 0;
+static utlp_time_t g_last_beacon_time = UTLP_TIME_ZERO;
 static bool g_led_state = false;
 
 /*============================================================================
@@ -127,6 +127,15 @@ typedef struct {
 } chirp_accumulator_t;
 
 /** @brief Polynomial fit results from chirp analysis */
+/*============================================================================
+ * DRIFT STATISTICS (Requires floating-point - disabled on C64)
+ *
+ * These structures and functions require double/float for polynomial fitting.
+ * On cc65 (C64), drift stats are disabled - sync still works, just no stats.
+ *==========================================================================*/
+
+#if !UTLP_NO_FLOAT
+
 typedef struct {
     double offset_us;           /* a: instantaneous offset in microseconds */
     double drift_ppb;           /* b: drift rate in parts-per-billion */
@@ -151,7 +160,6 @@ typedef struct {
     uint32_t chirps_analyzed;       /* Count of chirps analyzed */
 } drift_stats_t;
 
-static chirp_accumulator_t g_chirp_acc = {0};
 static drift_stats_t g_drift_stats = {0};
 
 /* Genesis-pulse logging intervals */
@@ -162,13 +170,25 @@ static drift_stats_t g_drift_stats = {0};
 /* Exponential moving average alpha (0.1 = 10% new, 90% old) */
 #define EMA_ALPHA  0.1
 
+#endif /* !UTLP_NO_FLOAT */
+
+static chirp_accumulator_t g_chirp_acc = {0};
+
 /*============================================================================
  * HELPERS
  *==========================================================================*/
 
-static uint64_t get_atomic_time(void)
+/**
+ * @brief Get atomic time as utlp_time_t
+ *
+ * Adds time offset to local time and returns as platform-appropriate type.
+ * On ESP32: Simple uint64_t addition
+ * On C64: Converts to segmented time struct
+ */
+static utlp_time_t get_atomic_time(void)
 {
-    return utlp_hal_get_micros() + g_aatr.time_offset;
+    uint64_t raw = utlp_hal_get_micros() + g_aatr.time_offset;
+    return UTLP_TIME_FROM_U64(raw);
 }
 
 /**
@@ -198,7 +218,7 @@ static int compare_mac(const uint8_t *a, const uint8_t *b)
 }
 
 /*============================================================================
- * SEISMIC CHIRP POLYNOMIAL FITTING
+ * SEISMIC CHIRP POLYNOMIAL FITTING (Requires floating-point)
  *
  * Given 3 RX timestamps from a chirp with known 2ms TX spacing:
  *   Expected: rx[0], rx[0]+2000, rx[0]+4000 (microseconds)
@@ -212,7 +232,12 @@ static int compare_mac(const uint8_t *a, const uint8_t *b)
  *
  *   drift_ppb = delta_1 / 0.002s * 1e9  // deviation per second in ppb
  *   accel = (delta_2 - 2*delta_1) / (0.002s)^2  // 2nd derivative
+ *
+ * NOTE: Disabled on C64 (cc65) - no floating-point support.
+ *       Time sync still works, just without drift statistics.
  *==========================================================================*/
+
+#if !UTLP_NO_FLOAT
 
 /**
  * @brief Analyze a complete 3-burst chirp and extract drift metrics
@@ -344,23 +369,25 @@ static void log_drift_stats_if_due(uint64_t uptime_us)
      *           avg: offset=+1200us drift=+480ppb accel=+8ppb/s
      *           range: drift=[+450..+520]ppb
      */
-    ESP_LOGI(TAG, "════════════════════════════════════════════════════════");
-    ESP_LOGI(TAG, "[DRIFT STATS] Chirps analyzed: %lu (uptime: %llus)",
+    utlp_hal_log_info(TAG, "════════════════════════════════════════════════════════");
+    utlp_hal_log_info(TAG, "[DRIFT STATS] Chirps analyzed: %lu (uptime: %llus)",
              (unsigned long)g_drift_stats.chirps_analyzed,
              (unsigned long long)(uptime_us / 1000000));
-    ESP_LOGI(TAG, "  LAST: offset=%+.0fus | drift=%+.0fppb | accel=%+.1fppb/s",
+    utlp_hal_log_info(TAG, "  LAST: offset=%+.0fus | drift=%+.0fppb | accel=%+.1fppb/s",
              g_drift_stats.last_poly.offset_us,
              g_drift_stats.last_poly.drift_ppb,
              g_drift_stats.last_poly.accel_ppb_s);
-    ESP_LOGI(TAG, "  AVG:  offset=%+.0fus | drift=%+.0fppb | accel=%+.1fppb/s",
+    utlp_hal_log_info(TAG, "  AVG:  offset=%+.0fus | drift=%+.0fppb | accel=%+.1fppb/s",
              g_drift_stats.avg_offset_us,
              g_drift_stats.avg_drift_ppb,
              g_drift_stats.avg_accel_ppb_s);
-    ESP_LOGI(TAG, "  RANGE: drift=[%+.0f..%+.0f]ppb",
+    utlp_hal_log_info(TAG, "  RANGE: drift=[%+.0f..%+.0f]ppb",
              g_drift_stats.min_drift_ppb,
              g_drift_stats.max_drift_ppb);
-    ESP_LOGI(TAG, "════════════════════════════════════════════════════════");
+    utlp_hal_log_info(TAG, "════════════════════════════════════════════════════════");
 }
+
+#endif /* !UTLP_NO_FLOAT - End of drift statistics section */
 
 /*============================================================================
  * BEACON PROTOCOL
@@ -477,13 +504,15 @@ static void process_beacon(const utlp_packet_t *pkt)
      * 2. Extract drift/stability from polynomial fit
      */
     if (g_chirp_acc.valid && g_chirp_acc.bursts_received == CHIRP_BURST_COUNT) {
-        /* Run polynomial fitting */
+#if !UTLP_NO_FLOAT
+        /* Run polynomial fitting (requires floating-point) */
         sync_polynomial_t poly;
         fit_chirp_polynomial(&g_chirp_acc, &poly);
 
         if (poly.valid) {
             update_drift_stats(&poly);
         }
+#endif
 
         /* Mark as processed (don't re-process same chirp) */
         g_chirp_acc.valid = false;
@@ -511,13 +540,13 @@ static void process_beacon(const utlp_packet_t *pkt)
     if (remote_stratum < g_aatr.stratum) {
         /* They have better stratum - adopt unconditionally */
         should_adopt = true;
-        ESP_LOGI(TAG, "Better stratum: %d < %d", remote_stratum, g_aatr.stratum);
+        utlp_hal_log_info(TAG, "Better stratum: %d < %d", remote_stratum, g_aatr.stratum);
     }
     else if (remote_stratum == g_aatr.stratum) {
         /* Same stratum - lower MAC wins */
         if (compare_mac(pkt->mac, g_local_mac) < 0) {
             should_adopt = true;
-            ESP_LOGI(TAG, "Same stratum, lower MAC wins");
+            utlp_hal_log_info(TAG, "Same stratum, lower MAC wins");
         }
     }
 
@@ -542,7 +571,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         /* Update HAL offset */
         utlp_hal_set_time_offset(new_offset);
 
-        ESP_LOGI(TAG, "SYNCED: stratum=%d, offset=%+lld us",
+        utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us",
                  g_aatr.stratum, (long long)new_offset);
     }
 }
@@ -553,19 +582,27 @@ static void process_beacon(const utlp_packet_t *pkt)
  * The LED state is CALCULATED from atomic time, not TOGGLED by delays.
  * This is the key insight for drift-proof synchronization.
  *
- * cycle_position = atomic_time % BLINK_PERIOD_US
+ * cycle_position = UTLP_GET_PHASE(atomic_time, BLINK_PERIOD_US)
  * LED ON if cycle_position < (BLINK_PERIOD_US / 2)
  *
  * All nodes with the same atomic time will have their LEDs in sync!
+ *
+ * C64 OPTIMIZATION:
+ *   Uses UTLP_GET_PHASE() which applies the "Magic Remainder" trick
+ *   to avoid expensive 64-bit modulo operations.
  *==========================================================================*/
 
-static void run_physics(uint64_t atomic_now)
+static void run_physics(utlp_time_t atomic_now)
 {
+    uint32_t cycle_pos;
+    bool should_be_on;
+
     /* Calculate where we are in the 1-second blink cycle */
-    uint64_t cycle_pos = atomic_now % BLINK_PERIOD_US;
+    /* C64: Uses magic remainder trick for phase calculation */
+    cycle_pos = UTLP_GET_PHASE(atomic_now, BLINK_PERIOD_US);
 
     /* 50% duty: ON for first half, OFF for second half */
-    bool should_be_on = (cycle_pos < (BLINK_PERIOD_US / 2));
+    should_be_on = (cycle_pos < (BLINK_PERIOD_US / 2));
 
     /* Only update if state changed (reduces log spam) */
     if (should_be_on != g_led_state) {
@@ -577,45 +614,65 @@ static void run_physics(uint64_t atomic_now)
          * The HAL handles GPIO15 active-low polarity.
          */
         if (g_led_state) {
-            utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, 0, 100.0);
+            utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, UTLP_PHASE(0), UTLP_DUTY(100));
         } else {
-            utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, 0, 0.0);
+            utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, UTLP_PHASE(0), UTLP_DUTY(0));
         }
 
         /* Log state changes (every 500ms at 1Hz) */
-        ESP_LOGI(TAG, "[LED] %s @ atomic=%llu us (stratum %d)",
+        utlp_hal_log_info(TAG, "[LED] %s @ phase=%lu us (stratum %d)",
                  g_led_state ? "ON " : "OFF",
-                 (unsigned long long)atomic_now,
+                 (unsigned long)cycle_pos,
                  g_aatr.stratum);
     }
 }
 
 /*============================================================================
- * MAIN
+ * APPLICATION ENTRY POINT
+ *
+ * This function is called from the platform-specific entry point.
+ * For ESP32: utlp_main_esp32c6.c contains app_main() which calls this.
+ * For Arduino: setup() would call this.
+ * For Linux: main() would call this.
  *==========================================================================*/
 
-void app_main(void)
+void utlp_app_run(void)
 {
+    /*
+     * C89 COMPATIBILITY: All variables declared at function start.
+     * This ensures the code compiles on cc65 (C64) and other C89 compilers.
+     *
+     * utlp_time_t: Platform-specific time type
+     *   - ESP32: uint64_t (native)
+     *   - C64: union { bytes[8], words[4], dwords[2] } for fast math
+     */
+    utlp_packet_t pkt;
+    utlp_time_t now;
+    uint64_t uptime_raw;              /* Raw 64-bit for HAL interface */
+    uint32_t beacon_interval;         /* Interval fits in 32-bit (max 60s) */
+    int32_t time_since_beacon;        /* Time diff for beacon check */
+    static uint32_t last_logged_interval = 0;
+
     /* Initialize HAL */
     utlp_hal_init();
 
     /* Get our MAC */
     utlp_hal_get_mac(g_local_mac);
 
-    ESP_LOGI(TAG, "========================================");
-    ESP_LOGI(TAG, "UTLP GENESIS NODE");
-    ESP_LOGI(TAG, "\"Time is born of one.\"");
-    ESP_LOGI(TAG, "========================================");
-    ESP_LOGI(TAG, "MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+    utlp_hal_log_info(TAG, "========================================");
+    utlp_hal_log_info(TAG, "UTLP GENESIS NODE");
+    utlp_hal_log_info(TAG, "\"Time is born of one.\"");
+    utlp_hal_log_info(TAG, "========================================");
+    utlp_hal_log_info(TAG, "MAC: %02X:%02X:%02X:%02X:%02X:%02X",
              g_local_mac[0], g_local_mac[1], g_local_mac[2],
              g_local_mac[3], g_local_mac[4], g_local_mac[5]);
-    ESP_LOGI(TAG, "Stratum: %d (GENESIS)", g_aatr.stratum);
-    ESP_LOGI(TAG, "Beacon: Seismic Chirp (3-burst @ 2ms spacing)");
-    ESP_LOGI(TAG, "Interval: Genesis Pulse (100ms→500ms→1s→10s→60s)");
-    ESP_LOGI(TAG, "Blink period: %d ms", BLINK_PERIOD_US / 1000);
-    ESP_LOGI(TAG, "Drift Analysis: Enabled (polynomial fit)");
-    ESP_LOGI(TAG, "Stats Log: 1s (first 10s) → 30s (steady state)");
-    ESP_LOGI(TAG, "========================================");
+    utlp_hal_log_info(TAG, "Stratum: %d (GENESIS)", g_aatr.stratum);
+    utlp_hal_log_info(TAG, "Beacon: Seismic Chirp (3-burst @ 2ms spacing)");
+    utlp_hal_log_info(TAG, "Interval: Genesis Pulse (100ms→500ms→1s→10s→60s)");
+    utlp_hal_log_info(TAG, "Blink period: %d ms", BLINK_PERIOD_US / 1000);
+    utlp_hal_log_info(TAG, "Drift Analysis: Enabled (polynomial fit)");
+    utlp_hal_log_info(TAG, "Stats Log: 1s (first 10s) → 30s (steady state)");
+    utlp_hal_log_info(TAG, "========================================");
 
     /*
      * GENESIS PRINCIPLE: Start immediately.
@@ -629,7 +686,6 @@ void app_main(void)
          * The semaphore-based rx_wait eliminates polling delay.
          * When a packet arrives, we wake immediately (<100us).
          */
-        utlp_packet_t pkt;
         if (utlp_hal_rx_wait(&pkt, 10)) {
             process_beacon(&pkt);
 
@@ -639,8 +695,8 @@ void app_main(void)
             }
         }
 
-        uint64_t now = get_atomic_time();
-        uint64_t uptime = utlp_hal_get_micros();  /* Raw uptime for genesis pulse */
+        now = get_atomic_time();
+        uptime_raw = utlp_hal_get_micros();  /* Raw uptime for genesis pulse */
 
         /*
          * 2. TRANSMIT: Send seismic chirp at dynamic intervals (Genesis Pulse)
@@ -648,18 +704,21 @@ void app_main(void)
          * Each chirp is 3 bursts spaced 2ms apart (6ms total).
          * Interval decreases as node ages:
          *   Genesis burst → Fast convergence → Settling → Steady state
+         *
+         * C64 OPTIMIZATION: Use UTLP_TIME_DIFF for time comparison.
+         * This uses only the low 32 bits (~71 min range - plenty for beacons).
          */
-        uint64_t beacon_interval = get_beacon_interval_us(uptime);
-        if ((now - g_last_beacon_us) >= beacon_interval) {
+        beacon_interval = (uint32_t)get_beacon_interval_us(uptime_raw);
+        time_since_beacon = UTLP_DIFF_US(now, g_last_beacon_time);
+        if (time_since_beacon >= (int32_t)beacon_interval) {
             send_chirp();
-            g_last_beacon_us = now;
+            g_last_beacon_time = now;
 
             /* Log phase transitions (helpful for debugging) */
-            static uint64_t last_logged_interval = 0;
             if (beacon_interval != last_logged_interval) {
-                ESP_LOGI(TAG, "Beacon interval: %llu ms (uptime %llus)",
-                         (unsigned long long)(beacon_interval / 1000),
-                         (unsigned long long)(uptime / 1000000));
+                utlp_hal_log_info(TAG, "Beacon interval: %lu ms (uptime %lus)",
+                         (unsigned long)(beacon_interval / 1000),
+                         (unsigned long)(uptime_raw / 1000000));
                 last_logged_interval = beacon_interval;
             }
         }
@@ -679,8 +738,11 @@ void app_main(void)
          * After 10s: Log every 30s (steady-state monitoring)
          *
          * Shows offset, drift (ppb), and acceleration from polynomial fit.
+         * (Disabled on C64 - no floating-point support)
          */
-        log_drift_stats_if_due(uptime);
+#if !UTLP_NO_FLOAT
+        log_drift_stats_if_due(uptime_raw);
+#endif
 
         /*
          * No explicit yield needed - rx_wait handles it.

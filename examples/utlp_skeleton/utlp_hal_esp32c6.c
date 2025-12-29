@@ -342,7 +342,7 @@ bool utlp_hal_rx_wait(utlp_packet_t *out_packet, uint32_t timeout_ms)
 }
 
 void utlp_hal_set_actuator_phase(int channel, uint32_t frequency_hz,
-                                  float phase_deg, float duty_pct)
+                                  utlp_float_t phase_deg, utlp_float_t duty_pct)
 {
     if (channel != UTLP_ACTUATOR_MAIN) {
         return;
@@ -404,4 +404,37 @@ void utlp_hal_actuator_stop(int channel)
     if (channel == UTLP_ACTUATOR_MAIN) {
         mcpwm_comparator_set_compare_value(g_mcpwm_comparator, 0);
     }
+}
+
+/*============================================================================
+ * LOGGING API IMPLEMENTATION
+ *
+ * Maps platform-agnostic logging to ESP-IDF esp_log.
+ * These functions are called from utlp_skeleton.c which has no ESP dependencies.
+ *==========================================================================*/
+
+#include <stdarg.h>
+
+void utlp_hal_log_info(const char *tag, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    esp_log_writev(ESP_LOG_INFO, tag, format, args);
+    va_end(args);
+}
+
+void utlp_hal_log_error(const char *tag, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    esp_log_writev(ESP_LOG_ERROR, tag, format, args);
+    va_end(args);
+}
+
+void utlp_hal_log_warn(const char *tag, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    esp_log_writev(ESP_LOG_WARN, tag, format, args);
+    va_end(args);
 }
