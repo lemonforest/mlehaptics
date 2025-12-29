@@ -1063,12 +1063,17 @@ This supplement establishes additional prior art for:
 19. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
 20. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
 
-### 8.8 Spectral Duty Cycle Coordination (S2.5)
+### 8.8 Spectral Duty Cycle Coordination (S2.6)
 21. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
 22. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
 23. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
 24. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
 25. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
+
+### 8.9 Technosignature Generation (S2.7)
+26. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
+27. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
+28. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
 
 ---
 
@@ -1103,6 +1108,9 @@ This supplement establishes additional prior art for:
 | Light pollution | Spectral noise floor | Random uncorrelated light from distributed sources |
 | Dark window | Spectral duty cycle | Scheduled period of coordinated darkness |
 | Dimmer switch | Phase coordination | Hemispheric-scale synchronized light control |
+| Noise | Shimmer | Random uncorrelated planetary emissions (Type 0) |
+| Signal | Heartbeat | Synchronized planetary emissions (Type I) |
+| Health check | Liveness probe | Civilization status via signal persistence |
 
 ---
 
@@ -1445,8 +1453,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.6*
+*Document version: S2.7*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.6 adds Section 8.8 "Spectral Duty Cycle Coordination" with claims 21-25 covering hemispheric-scale aviation light synchronization for astronomical observation ("Planetary Dimmer Switch" pattern); extends prior art from therapeutic devices through planetary infrastructure coordination*
+*Revision notes: S2.7 adds Section 8.9 "Technosignature Generation" with claims 26-28 covering planetary-scale coordination as observable Kardashev Phase Transition marker and civilization liveness probe; total 28 prior art extension claims*
