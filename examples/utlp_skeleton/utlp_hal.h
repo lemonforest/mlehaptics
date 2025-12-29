@@ -50,23 +50,19 @@
 
 #ifdef __CC65__
     /*=========================================================================
-     * COMMODORE 64 MODE - Extended 64-bit Support
+     * COMMODORE 64 MODE - No 64-bit Support
      *
-     * cc65 supports 64-bit integers via "long long" extension when compiled
-     * with --standard cc65 flag, but C89 stdint.h doesn't define uint64_t.
-     * We define them explicitly here.
+     * CRITICAL: cc65 does NOT support 'long long' (64-bit integers).
+     * The largest integer type is 'long' (32-bit).
      *
-     * PERFORMANCE NOTE: 64-bit math on 6502 is SLOW (~50 ASM instructions
-     * per operation) but CORRECT. We use optimized 32-bit paths where
-     * possible via the "Magic Remainder" trick for phase calculations.
+     * We work around this by:
+     *   1. Using a union { words[4], dwords[2] } for time storage
+     *   2. Never doing 64-bit math - only 32-bit with ripple carry
+     *   3. HAL functions return utlp_time_t instead of uint64_t
      *========================================================================*/
 
-    /*
-     * cc65 supports 64-bit via "long long" but C89 headers don't define uint64_t.
-     * Define them explicitly for cc65.
-     */
-    typedef unsigned long long uint64_t;
-    typedef signed long long int64_t;
+    /** @brief C64 has NO 64-bit types - must use utlp_time_t everywhere */
+    #define UTLP_NO_64BIT 1
 
     /* cc65: No floating point - use fixed-point integers */
     typedef uint16_t utlp_float_t;
@@ -185,27 +181,47 @@
     #define UTLP_TIME_GE(a, b)          (!UTLP_TIME_LT(a, b))
 
     /**
-     * @brief Create time from uint64_t (for receiving 64-bit beacons)
+     * @brief Create time from bytes (for receiving beacons)
      *
-     * On C64, we use a helper function to split the 64-bit value
-     * into our union structure. cc65's 64-bit support handles this.
+     * Beacons are sent as 8 bytes (little-endian).
+     * We copy directly into our union's dwords view.
      */
-    static utlp_time_t utlp_time_from_u64(uint64_t raw)
+    static utlp_time_t utlp_time_from_bytes(const uint8_t *bytes)
     {
         utlp_time_t t;
-        t.dwords.lo = (uint32_t)raw;
-        t.dwords.hi = (uint32_t)(raw >> 32);
+        /* Little-endian: bytes 0-3 = lo, bytes 4-7 = hi */
+        t.dwords.lo = (uint32_t)bytes[0] |
+                      ((uint32_t)bytes[1] << 8) |
+                      ((uint32_t)bytes[2] << 16) |
+                      ((uint32_t)bytes[3] << 24);
+        t.dwords.hi = (uint32_t)bytes[4] |
+                      ((uint32_t)bytes[5] << 8) |
+                      ((uint32_t)bytes[6] << 16) |
+                      ((uint32_t)bytes[7] << 24);
         return t;
     }
-    #define UTLP_TIME_FROM_U64(raw)     utlp_time_from_u64(raw)
+    #define UTLP_TIME_FROM_BYTES(ptr)   utlp_time_from_bytes(ptr)
 
     /**
-     * @brief Convert time to uint64_t (for sending beacons)
+     * @brief Write time to bytes (for sending beacons)
      *
-     * Reconstructs 64-bit value from our union for transmission.
+     * Writes 8 bytes in little-endian format.
      */
-    #define UTLP_TIME_TO_U64(t) \
-        ((uint64_t)(t).dwords.lo | ((uint64_t)(t).dwords.hi << 32))
+    static void utlp_time_to_bytes(utlp_time_t t, uint8_t *bytes)
+    {
+        bytes[0] = (uint8_t)(t.dwords.lo);
+        bytes[1] = (uint8_t)(t.dwords.lo >> 8);
+        bytes[2] = (uint8_t)(t.dwords.lo >> 16);
+        bytes[3] = (uint8_t)(t.dwords.lo >> 24);
+        bytes[4] = (uint8_t)(t.dwords.hi);
+        bytes[5] = (uint8_t)(t.dwords.hi >> 8);
+        bytes[6] = (uint8_t)(t.dwords.hi >> 16);
+        bytes[7] = (uint8_t)(t.dwords.hi >> 24);
+    }
+    #define UTLP_TIME_TO_BYTES(t, ptr)  utlp_time_to_bytes(t, ptr)
+
+    /** @brief Size of serialized time in bytes */
+    #define UTLP_TIME_SERIAL_SIZE       8
 
     /** @brief Use cascaded time on C64 */
     #define UTLP_CASCADED_TIME 1
@@ -260,6 +276,40 @@
     /** @brief Convert time to uint64_t (no-op on native) */
     #define UTLP_TIME_TO_U64(t)     (t)
 
+    /** @brief Create time from bytes (for API compatibility with C64) */
+    static inline utlp_time_t utlp_time_from_bytes_esp32(const uint8_t *bytes)
+    {
+        return (utlp_time_t)bytes[0] |
+               ((utlp_time_t)bytes[1] << 8) |
+               ((utlp_time_t)bytes[2] << 16) |
+               ((utlp_time_t)bytes[3] << 24) |
+               ((utlp_time_t)bytes[4] << 32) |
+               ((utlp_time_t)bytes[5] << 40) |
+               ((utlp_time_t)bytes[6] << 48) |
+               ((utlp_time_t)bytes[7] << 56);
+    }
+    #define UTLP_TIME_FROM_BYTES(ptr)   utlp_time_from_bytes_esp32(ptr)
+
+    /** @brief Write time to bytes (for API compatibility with C64) */
+    static inline void utlp_time_to_bytes_esp32(utlp_time_t t, uint8_t *bytes)
+    {
+        bytes[0] = (uint8_t)(t);
+        bytes[1] = (uint8_t)(t >> 8);
+        bytes[2] = (uint8_t)(t >> 16);
+        bytes[3] = (uint8_t)(t >> 24);
+        bytes[4] = (uint8_t)(t >> 32);
+        bytes[5] = (uint8_t)(t >> 40);
+        bytes[6] = (uint8_t)(t >> 48);
+        bytes[7] = (uint8_t)(t >> 56);
+    }
+    #define UTLP_TIME_TO_BYTES(t, ptr)  utlp_time_to_bytes_esp32(t, ptr)
+
+    /** @brief Size of serialized time in bytes */
+    #define UTLP_TIME_SERIAL_SIZE       8
+
+    /** @brief ESP32 supports 64-bit types */
+    #define UTLP_NO_64BIT 0
+
     /** @brief Use native 64-bit time on ESP32 */
     #define UTLP_SEGMENTED_TIME 0
 
@@ -289,9 +339,15 @@ extern "C" {
  * @brief Received packet structure
  *
  * Contains hardware-timestamped arrival time for precise offset computation.
+ * On C64: rx_timestamp stored as utlp_time_t (union)
+ * On ESP32: rx_timestamp stored as uint64_t (native)
  */
 typedef struct {
-    uint64_t rx_timestamp_us;           /**< HW timestamp of arrival */
+#if UTLP_NO_64BIT
+    utlp_time_t rx_timestamp;           /**< HW timestamp of arrival (union) */
+#else
+    uint64_t rx_timestamp_us;           /**< HW timestamp of arrival (uint64) */
+#endif
     uint8_t  payload[UTLP_MAX_PAYLOAD]; /**< Packet payload data */
     size_t   len;                       /**< Payload length in bytes */
     int8_t   rssi;                      /**< Received signal strength */
@@ -311,25 +367,35 @@ typedef struct {
 void utlp_hal_init(void);
 
 /**
- * @brief Get raw local monotonic time in microseconds
+ * @brief Get raw local monotonic time
  *
  * This is the uncorrected hardware timer value.
+ * On C64: Returns utlp_time_t (union)
+ * On ESP32: Returns uint64_t (native)
  *
- * @return Local time in microseconds since boot
+ * @return Local time since boot
  */
+#if UTLP_NO_64BIT
+utlp_time_t utlp_hal_get_time(void);
+#else
 uint64_t utlp_hal_get_micros(void);
+#endif
 
 /**
- * @brief Get synchronized atomic time in microseconds
+ * @brief Get synchronized atomic time
  *
  * Returns: local_time + time_offset
  *
  * This is the "truth" that all physics calculations use.
  * Genesis node starts with offset=0 (local time IS atomic time).
  *
- * @return Synchronized time in microseconds
+ * @return Synchronized time
  */
+#if UTLP_NO_64BIT
+utlp_time_t utlp_hal_get_atomic_time(void);
+#else
 uint64_t utlp_hal_get_atomic_time_us(void);
+#endif
 
 /**
  * @brief Set the global time offset for synchronization
@@ -337,9 +403,13 @@ uint64_t utlp_hal_get_atomic_time_us(void);
  * Called when adopting time from a better stratum source.
  * Genesis node never calls this (offset stays 0).
  *
- * @param offset_us Offset to add to local time
+ * @param offset_us Offset to add to local time (32-bit on C64)
  */
+#if UTLP_NO_64BIT
+void utlp_hal_set_time_offset(int32_t offset_us);
+#else
 void utlp_hal_set_time_offset(int64_t offset_us);
+#endif
 
 /**
  * @brief Yield to RTOS scheduler
