@@ -1,14 +1,19 @@
 /**
  * @file utlp_hal_esp32c6.c
- * @brief ESP32-C6 HAL Implementation - Genesis Node
+ * @brief ESP32 HAL Implementation - Genesis Node
  *
  * Minimal implementation for UTLP time synchronization demonstration.
- * Single actuator (GPIO15 LED) driven by MCPWM for phase-aligned output.
+ * Single actuator (LED) driven by MCPWM for phase-aligned output.
  *
- * GPIO15 NOTE: Active LOW on XIAO ESP32-C6 (0=ON, 1=OFF)
- * MCPWM is configured to invert output to match this polarity.
+ * BOARD CONFIGURATION (via build flags):
+ *   -DACTUATOR_GPIO=15        GPIO for LED (default: 15 for XIAO ESP32-C6)
+ *   -DACTUATOR_ACTIVE_LOW=1   LED polarity (default: 1 = active LOW)
  *
- * @version 2.0.0 - Simplified Genesis Node
+ * Examples:
+ *   XIAO ESP32-C6: GPIO15, active LOW  (defaults)
+ *   ESP32 DevKit:  GPIO2,  active HIGH (-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0)
+ *
+ * @version 2.1.0 - Added board-agnostic LED polarity support
  * @date 2025-12-28
  */
 
@@ -30,9 +35,19 @@ static const char *TAG = "UTLP_HAL";
 
 /*============================================================================
  * CONFIGURATION
+ *
+ * Board-agnostic defaults - override via build flags:
+ *   -DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0   (ESP32 DevKit v1)
  *==========================================================================*/
 
-#define ACTUATOR_GPIO           15      /* led_builtin (Active LOW) */
+#ifndef ACTUATOR_GPIO
+#define ACTUATOR_GPIO           15      /* Default: XIAO ESP32-C6 led_builtin */
+#endif
+
+#ifndef ACTUATOR_ACTIVE_LOW
+#define ACTUATOR_ACTIVE_LOW     1       /* Default: XIAO is active LOW */
+#endif
+
 #define MCPWM_RESOLUTION_HZ     1000000 /* 1MHz = 1us resolution */
 #define DEFAULT_WIFI_CHANNEL    1
 #define RX_QUEUE_DEPTH          10
@@ -129,10 +144,13 @@ static void espnow_send_cb(const wifi_tx_info_t *tx_info,
 }
 
 /*============================================================================
- * MCPWM INITIALIZATION - GPIO15 LED
+ * MCPWM INITIALIZATION - LED Actuator
  *
- * GPIO15 is Active LOW on XIAO ESP32-C6.
- * We configure MCPWM to output LOW (LED ON) during the duty cycle portion.
+ * Polarity is board-dependent:
+ *   - XIAO ESP32-C6 (GPIO15): Active LOW  (0=ON, 1=OFF)
+ *   - ESP32 DevKit  (GPIO2):  Active HIGH (1=ON, 0=OFF)
+ *
+ * The polarity is configured via ACTUATOR_ACTIVE_LOW define.
  *==========================================================================*/
 
 static void init_mcpwm_led(void)
@@ -181,24 +199,20 @@ static void init_mcpwm_led(void)
     ESP_ERROR_CHECK(mcpwm_new_generator(g_mcpwm_operator, &gen_cfg, &g_mcpwm_generator));
 
     /*
-     * GPIO15 is ACTIVE LOW: 0=ON, 1=OFF
+     * POLARITY CONFIGURATION:
      *
      * For intuitive duty cycle (duty=100% means LED ON):
-     * - Start HIGH (LED OFF)
-     * - Go LOW (LED ON) when counter matches comparator
-     * - Go HIGH (LED OFF) when counter wraps to zero
      *
-     * Wait, that's inverted. Let me think...
+     * Active LOW (XIAO ESP32-C6):  0=ON, 1=OFF
+     *   - LOW at timer zero (LED ON at start)
+     *   - HIGH at compare (LED OFF after duty%)
      *
-     * Standard PWM: HIGH at zero, LOW at compare
-     * For active-low LED with duty=50%:
-     *   - Counter 0..499999: HIGH (LED OFF)
-     *   - Counter 500000..999999: LOW (LED ON)
-     *   Result: LED ON for second half = 50% duty
-     *
-     * But we want duty=50% to mean "ON for 50% of cycle from START"
-     * So invert: LOW at zero (LED ON), HIGH at compare (LED OFF)
+     * Active HIGH (ESP32 DevKit): 1=ON, 0=OFF
+     *   - HIGH at timer zero (LED ON at start)
+     *   - LOW at compare (LED OFF after duty%)
      */
+#if ACTUATOR_ACTIVE_LOW
+    /* Active LOW: LOW=ON, HIGH=OFF */
     ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(
         g_mcpwm_generator,
         MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,
@@ -210,6 +224,20 @@ static void init_mcpwm_led(void)
         MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,
                                        g_mcpwm_comparator,
                                        MCPWM_GEN_ACTION_HIGH)));  /* LED OFF at compare */
+#else
+    /* Active HIGH: HIGH=ON, LOW=OFF */
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(
+        g_mcpwm_generator,
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,
+                                     MCPWM_TIMER_EVENT_EMPTY,
+                                     MCPWM_GEN_ACTION_HIGH)));  /* LED ON at start */
+
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(
+        g_mcpwm_generator,
+        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,
+                                       g_mcpwm_comparator,
+                                       MCPWM_GEN_ACTION_LOW)));  /* LED OFF at compare */
+#endif
 
     /* Enable and start */
     ESP_ERROR_CHECK(mcpwm_timer_enable(g_mcpwm_timer));
@@ -218,7 +246,8 @@ static void init_mcpwm_led(void)
     /* Start with LED OFF (compare=0 means immediate switch to HIGH) */
     mcpwm_comparator_set_compare_value(g_mcpwm_comparator, 0);
 
-    ESP_LOGI(TAG, "MCPWM initialized: GPIO%d, 1MHz resolution", ACTUATOR_GPIO);
+    ESP_LOGI(TAG, "MCPWM initialized: GPIO%d, %s, 1MHz resolution",
+             ACTUATOR_GPIO, ACTUATOR_ACTIVE_LOW ? "active LOW" : "active HIGH");
 }
 
 /*============================================================================

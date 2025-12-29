@@ -38,6 +38,7 @@ source_map = {
     "secure_smp_pairing": "../examples/smp_pairing/secure_smp_pairing.c",
     "minimal_espnow_test": "../test/minimal_espnow_test.c",
     "utlp_skeleton": "../examples/utlp_skeleton/utlp_skeleton.c",
+    "utlp_skeleton_devkit": "../examples/utlp_skeleton/utlp_skeleton.c",
     # Add future test environments here
 }
 
@@ -208,7 +209,7 @@ idf_component_register(
 cmake_path = os.path.join(env["PROJECT_DIR"], "src", "CMakeLists.txt")
 
 # Define which environments use UTLP HAL architecture (multi-file)
-UTLP_BUILDS = ["utlp_skeleton"]
+UTLP_BUILDS = ["utlp_skeleton", "utlp_skeleton_devkit"]
 
 # Generate appropriate CMakeLists.txt based on build type
 if build_env in MODULAR_BUILDS:

@@ -8,8 +8,11 @@ connectionless distributed time synchronization.
 ## Quick Start
 
 ```bash
-# Build and flash (both devices)
+# Build and flash for XIAO ESP32-C6 (default)
 pio run -e utlp_skeleton -t upload
+
+# Build and flash for ESP32 DevKit v1
+pio run -e utlp_skeleton_devkit -t upload
 
 # Monitor serial output
 pio device monitor
@@ -17,6 +20,26 @@ pio device monitor
 
 **Important:** Reset both devices simultaneously for best results.
 See [Known Limitations](#known-limitations) below.
+
+## Board Configuration
+
+The HAL supports multiple ESP32 boards via build flags:
+
+| Board | Environment | GPIO | Polarity | Build Flags |
+|-------|-------------|------|----------|-------------|
+| XIAO ESP32-C6 | `utlp_skeleton` | 15 | Active LOW | *(defaults)* |
+| ESP32 DevKit v1 | `utlp_skeleton_devkit` | 2 | Active HIGH | `-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0` |
+
+For custom boards, add to `platformio.ini`:
+```ini
+[env:my_board]
+platform = espressif32
+board = my_board_id
+framework = espidf
+build_flags =
+    -DACTUATOR_GPIO=13           ; Your LED GPIO
+    -DACTUATOR_ACTIVE_LOW=0      ; 1=active LOW, 0=active HIGH
+```
 
 ## The Genesis Principle
 
@@ -294,11 +317,14 @@ bool utlp_hal_rx_poll(utlp_packet_t *out);                       // Non-blocking
 ### Actuator Functions
 
 ```c
-// GPIO15 LED (active LOW on XIAO ESP32-C6)
+// LED actuator (polarity handled by HAL - just specify duty%)
 void utlp_hal_set_actuator_phase(int channel, uint32_t freq_hz,
                                   float phase_deg, float duty_pct);
 void utlp_hal_actuator_stop(int channel);
 ```
+
+**Note:** The HAL abstracts LED polarity. Application code just uses duty percentage
+(100% = ON, 0% = OFF) regardless of whether the LED is active HIGH or LOW.
 
 ### Logging Functions
 

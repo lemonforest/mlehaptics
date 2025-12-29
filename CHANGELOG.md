@@ -81,6 +81,10 @@ They are **not** the main EMDR firmware but supporting documentation and referen
   - **Genesis Pulse**: Dynamic beacon interval (100ms → 500ms → 1s → 10s → 60s)
   - **Time-Indexed Physics**: LED state calculated from atomic time (drift-proof sync)
   - HAL abstraction layer enables porting to any platform without touching application code
+  - **Board-Agnostic LED Polarity**: Build flags for active HIGH/LOW LED control
+    - XIAO ESP32-C6: GPIO15, active LOW (default)
+    - ESP32 DevKit v1: GPIO2, active HIGH (`-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0`)
+    - New PlatformIO environment: `utlp_skeleton_devkit`
   - Files: [utlp_skeleton.c](examples/utlp_skeleton/utlp_skeleton.c), [utlp_hal.h](examples/utlp_skeleton/utlp_hal.h), [utlp_hal_esp32c6.c](examples/utlp_skeleton/utlp_hal_esp32c6.c)
 
 - **UTLP C64 HAL** (`examples/utlp_c64/`)
