@@ -4,6 +4,10 @@
 
 > *"If UTLP can synchronize a 1MHz 6502 from 1982, it truly deserves the title Universal."*
 
+![UTLP running on C64 in VICE emulator](utlp_c64_VICE.png)
+
+*UTLP Genesis Node running on a Commodore 64 in VICE. The border blinks steadily at 1Hz while the Genesis Pulse beacon intervals progress from 100ms to 60s.*
+
 ## The Magic
 
 The same `utlp_skeleton.c` that runs on ESP32-C6 compiles for C64 with **automatic C99→C89 transformation**:

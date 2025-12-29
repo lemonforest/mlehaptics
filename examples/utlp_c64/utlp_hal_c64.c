@@ -59,7 +59,8 @@
 #define VIC_BORDER      0xD020  /* Border color */
 #define VIC_BGCOLOR     0xD021  /* Background color */
 
-/* C64 colors */
+/* C64 colors - use cc65's definitions from c64.h if available */
+#ifndef COLOR_BLACK
 #define COLOR_BLACK     0
 #define COLOR_WHITE     1
 #define COLOR_RED       2
@@ -68,6 +69,7 @@
 #define COLOR_GREEN     5
 #define COLOR_BLUE      6
 #define COLOR_YELLOW    7
+#endif
 
 /*============================================================================
  * MODULE STATE
@@ -112,8 +114,8 @@ static void init_timer(void)
     POKE(CIA1_TA_HI, 0xFF);         /* Latch high = $FF */
     POKE(CIA1_CRA, 0x11);           /* Force load, start continuous */
 
-    /* Clear state */
-    g_system_time = (utlp_time_t)UTLP_TIME_ZERO;
+    /* Clear state - memset for C89 compatibility (no compound literal assign) */
+    memset(&g_system_time, 0, sizeof(g_system_time));
     g_last_timer_a = 0;
 }
 
@@ -126,15 +128,17 @@ void utlp_hal_init(void)
     /* Clear screen and show initialization message */
     clrscr();
     textcolor(COLOR_CYAN);
-    cprintf("UTLP HAL C64 INITIALIZING...\r\n\r\n");
+    cprintf("UTLP HAL C64 v1.0\r\n");
+    textcolor(COLOR_WHITE);
+    cprintf("CIA Timer: 1MHz\r\n");
+    cprintf("Actuator: Border color\r\n");
+    cprintf("\r\n");
 
     /* Initialize timer for microsecond counting */
     init_timer();
 
     /* Set border to black initially */
     POKE(VIC_BORDER, COLOR_BLACK);
-
-    textcolor(COLOR_WHITE);
 }
 
 /**
@@ -182,43 +186,44 @@ static void update_clock(void)
 }
 
 /**
- * @brief Get current time as utlp_time_t
+ * @brief Get current time via output pointer
  *
- * Returns the full 64-bit union value (cc65 handles struct copy).
- * The union is the "native language" of the 6502 - no 64-bit math needed.
+ * cc65 LIMITATION: Cannot return structs > 4 bytes by value.
+ * Uses output pointer instead.
+ *
+ * @param out Pointer to utlp_time_t to fill with current time
  */
-utlp_time_t utlp_hal_get_time(void)
+void utlp_hal_get_time_ptr(utlp_time_t *out)
 {
     update_clock();
-    return g_system_time;
+    *out = g_system_time;
 }
 
 /**
- * @brief Get atomic time (local time + offset)
+ * @brief Get atomic time (local time + offset) via output pointer
  *
- * Returns synchronized time as utlp_time_t.
+ * cc65 LIMITATION: Cannot return structs > 4 bytes by value.
  * Offset is applied to low 32-bits only (sufficient for ~71 min range).
+ *
+ * @param out Pointer to utlp_time_t to fill with atomic time
  */
-utlp_time_t utlp_hal_get_atomic_time(void)
+void utlp_hal_get_atomic_time_ptr(utlp_time_t *out)
 {
-    utlp_time_t result;
     uint32_t old_lo;
 
     update_clock();
-    result = g_system_time;
+    *out = g_system_time;
 
     /* Add 32-bit offset to low dword */
-    old_lo = result.dwords.lo;
-    result.dwords.lo += g_time_offset_us;
+    old_lo = out->dwords.lo;
+    out->dwords.lo += g_time_offset_us;
 
     /* Handle carry to high dword */
-    if ((g_time_offset_us > 0) && (result.dwords.lo < old_lo)) {
-        result.dwords.hi++;
-    } else if ((g_time_offset_us < 0) && (result.dwords.lo > old_lo)) {
-        result.dwords.hi--;
+    if ((g_time_offset_us > 0) && (out->dwords.lo < old_lo)) {
+        out->dwords.hi++;
+    } else if ((g_time_offset_us < 0) && (out->dwords.lo > old_lo)) {
+        out->dwords.hi--;
     }
-
-    return result;
 }
 
 void utlp_hal_set_time_offset(int32_t offset_us)
@@ -294,16 +299,17 @@ bool utlp_hal_rx_wait(utlp_packet_t *out_packet, uint32_t timeout_ms)
      * This keeps the main loop running at reasonable speed.
      * Uses only low 32 bits (71 min range - plenty for timeout).
      */
-    now_time = utlp_hal_get_time();
+    utlp_hal_get_time_ptr(&now_time);
     target = now_time.dwords.lo + (timeout_ms * 1000);
 
-    while (utlp_hal_get_time().dwords.lo < target) {
+    do {
         /* Check for keyboard interrupt (STOP key) */
         if (kbhit()) {
             cgetc();  /* Consume key */
             break;
         }
-    }
+        utlp_hal_get_time_ptr(&now_time);
+    } while (now_time.dwords.lo < target);
 
     return false;
 }
@@ -377,6 +383,7 @@ static void print_formatted(const char *format, va_list args)
 {
     const char *p = format;
     char c;
+    int is_long;  /* Track 'l' modifier */
 
     while ((c = *p++) != '\0') {
         if (c != '%') {
@@ -396,7 +403,9 @@ static void print_formatted(const char *format, va_list args)
         }
 
         /* Handle length modifiers */
+        is_long = 0;
         if (c == 'l') {
+            is_long = 1;
             c = *p++;
             if (c == 'l') c = *p++;  /* Skip second 'l' for %lld/%llu */
         }
@@ -408,22 +417,39 @@ static void print_formatted(const char *format, va_list args)
                 break;
             }
             case 'd':
-            case 'i': {
-                long val = va_arg(args, long);
-                cprintf("%ld", val);
+            case 'i':
+                /*
+                 * cc65 varargs: Small types promoted to int (16-bit).
+                 * %d  = int (16-bit)
+                 * %ld = long (32-bit)
+                 */
+                if (is_long) {
+                    long val = va_arg(args, long);
+                    cprintf("%ld", val);
+                } else {
+                    int val = va_arg(args, int);
+                    cprintf("%d", val);
+                }
                 break;
-            }
-            case 'u': {
-                unsigned long val = va_arg(args, unsigned long);
-                cprintf("%lu", val);
+            case 'u':
+                if (is_long) {
+                    unsigned long val = va_arg(args, unsigned long);
+                    cprintf("%lu", val);
+                } else {
+                    unsigned val = va_arg(args, unsigned);
+                    cprintf("%u", val);
+                }
                 break;
-            }
             case 'x':
-            case 'X': {
-                unsigned long val = va_arg(args, unsigned long);
-                cprintf("%lx", val);
+            case 'X':
+                if (is_long) {
+                    unsigned long val = va_arg(args, unsigned long);
+                    cprintf("%lx", val);
+                } else {
+                    unsigned val = va_arg(args, unsigned);
+                    cprintf("%x", val);
+                }
                 break;
-            }
             case '%':
                 cputc('%');
                 break;
@@ -439,8 +465,11 @@ void utlp_hal_log_info(const char *tag, const char *format, ...)
 {
     va_list args;
 
+    (void)tag;  /* C64: Skip tag to save columns */
+
     textcolor(COLOR_GREEN);
-    cprintf("I (%s) ", tag);
+    cputc('I');
+    cputc(':');
     textcolor(COLOR_WHITE);
 
     va_start(args, format);
@@ -454,8 +483,11 @@ void utlp_hal_log_error(const char *tag, const char *format, ...)
 {
     va_list args;
 
+    (void)tag;  /* C64: Skip tag to save columns */
+
     textcolor(COLOR_RED);
-    cprintf("E (%s) ", tag);
+    cputc('E');
+    cputc(':');
     textcolor(COLOR_WHITE);
 
     va_start(args, format);
@@ -469,8 +501,11 @@ void utlp_hal_log_warn(const char *tag, const char *format, ...)
 {
     va_list args;
 
+    (void)tag;  /* C64: Skip tag to save columns */
+
     textcolor(COLOR_YELLOW);
-    cprintf("W (%s) ", tag);
+    cputc('W');
+    cputc(':');
     textcolor(COLOR_WHITE);
 
     va_start(args, format);

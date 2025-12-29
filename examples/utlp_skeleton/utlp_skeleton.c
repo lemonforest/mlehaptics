@@ -183,21 +183,16 @@ static chirp_accumulator_t g_chirp_acc = {0};
  *==========================================================================*/
 
 /**
- * @brief Get atomic time as utlp_time_t
+ * @brief Get atomic time into output variable
  *
- * Adds time offset to local time and returns as platform-appropriate type.
- * On ESP32: Simple uint64_t addition via HAL
- * On C64: HAL returns utlp_time_t directly (offset added internally)
+ * Uses pointer-based API for cc65 compatibility (cannot return 8-byte structs).
+ * The UTLP_HAL_GET_ATOMIC_TIME macro handles platform differences.
+ *
+ * @param out Pointer to utlp_time_t to fill with current atomic time
  */
-static utlp_time_t get_atomic_time(void)
+static void get_atomic_time(utlp_time_t *out)
 {
-#if UTLP_NO_64BIT
-    /* C64: HAL returns utlp_time_t with offset already applied */
-    return utlp_hal_get_atomic_time();
-#else
-    /* ESP32: HAL returns uint64_t, which IS utlp_time_t */
-    return utlp_hal_get_atomic_time_us();
-#endif
+    UTLP_HAL_GET_ATOMIC_TIME(out);
 }
 
 /**
@@ -445,14 +440,15 @@ static void send_chirp(void)
      * The 2ms spacing is the known reference - receiver compares
      * expected spacing vs observed spacing to detect drift.
      */
-    utlp_time_t chirp_epoch = get_atomic_time();
+    utlp_time_t chirp_epoch;
+    get_atomic_time(&chirp_epoch);
 
     for (burst = 0; burst < CHIRP_BURST_COUNT; burst++) {
         payload[0] = g_aatr.stratum;
         payload[1] = burst;  /* Burst index: 0, 1, 2 */
 
-        /* Serialize timestamp using platform-agnostic byte interface */
-        UTLP_TIME_TO_BYTES(chirp_epoch, &payload[2]);
+        /* Serialize timestamp using platform-agnostic byte interface (pointer-based for cc65) */
+        UTLP_TIME_TO_BYTES_FROM(&chirp_epoch, &payload[2]);
 
         utlp_hal_tx_packet(NULL, payload, 10);  /* Broadcast */
 
@@ -465,10 +461,13 @@ static void send_chirp(void)
              */
 #if UTLP_NO_64BIT
             /* C64: Use 32-bit lo dword (71 min range, plenty for 2ms) */
-            wait_start = utlp_hal_get_time();
+            UTLP_HAL_GET_TIME(&wait_start);
             wait_until_lo = wait_start.dwords.lo + CHIRP_BURST_SPACING_US;
-            while (utlp_hal_get_time().dwords.lo < wait_until_lo) {
-                /* Tight spin for 2ms */
+            {
+                utlp_time_t wait_now;
+                do {
+                    UTLP_HAL_GET_TIME(&wait_now);
+                } while (wait_now.dwords.lo < wait_until_lo);
             }
 #else
             /* ESP32: Native 64-bit */
@@ -488,7 +487,7 @@ static void process_beacon(const utlp_packet_t *pkt)
     utlp_time_t remote_tx_time;
     bool is_new_chirp;
     bool should_adopt;
-    int64_t new_offset;
+    int32_t new_offset;     /* 32-bit offset (±35 min range, sufficient for sync) */
 
     if (pkt->len < 10) {
         return;  /* Invalid chirp burst */
@@ -497,8 +496,8 @@ static void process_beacon(const utlp_packet_t *pkt)
     remote_stratum = pkt->payload[0];
     burst_index = pkt->payload[1];
 
-    /* Deserialize timestamp using platform-agnostic byte interface */
-    remote_tx_time = UTLP_TIME_FROM_BYTES(&pkt->payload[2]);
+    /* Deserialize timestamp using platform-agnostic byte interface (pointer-based for cc65) */
+    UTLP_TIME_FROM_BYTES_TO(&pkt->payload[2], &remote_tx_time);
 
     /* Validate burst index */
     if (burst_index >= CHIRP_BURST_COUNT) {
@@ -587,13 +586,21 @@ static void process_beacon(const utlp_packet_t *pkt)
     if (remote_stratum < g_aatr.stratum) {
         /* They have better stratum - adopt unconditionally */
         should_adopt = true;
+#if UTLP_NO_64BIT
+        utlp_hal_log_info(TAG, "Better: S%d<S%d", remote_stratum, g_aatr.stratum);
+#else
         utlp_hal_log_info(TAG, "Better stratum: %d < %d", remote_stratum, g_aatr.stratum);
+#endif
     }
     else if (remote_stratum == g_aatr.stratum) {
         /* Same stratum - lower MAC wins */
         if (compare_mac(pkt->mac, g_local_mac) < 0) {
             should_adopt = true;
+#if UTLP_NO_64BIT
+            utlp_hal_log_info(TAG, "Same S, low MAC wins");
+#else
             utlp_hal_log_info(TAG, "Same stratum, lower MAC wins");
+#endif
         }
     }
 
@@ -612,24 +619,32 @@ static void process_beacon(const utlp_packet_t *pkt)
          * C64 NOTE: Offset calculation uses only low 32 bits.
          * This limits sync accuracy to ~71 minute windows, which is
          * sufficient for real-time synchronization (drift re-sync often).
+         *
+         * BOTH platforms now use 32-bit offset (int32_t) for simplicity.
+         * The ±35 minute range is far more than needed for real-time sync.
          */
 #if UTLP_NO_64BIT
-        /* C64: 32-bit offset (±35 minute range) */
+        /* C64: 32-bit offset using union fields */
         new_offset = (int32_t)(remote_tx_time.dwords.lo - pkt->rx_timestamp.dwords.lo);
 #else
-        /* ESP32: Full 64-bit offset */
-        new_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
+        /* ESP32: 32-bit offset (truncated from 64-bit) */
+        new_offset = (int32_t)((int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us);
 #endif
 
         g_aatr.stratum = remote_stratum + 1;  /* I'm one hop from source */
-        g_aatr.time_offset = (int32_t)new_offset;  /* Truncate for storage */
+        g_aatr.time_offset = new_offset;
         memcpy(g_aatr.best_master_mac, pkt->mac, UTLP_MAC_SIZE);
 
         /* Update HAL offset */
         utlp_hal_set_time_offset((int32_t)new_offset);
 
+#if UTLP_NO_64BIT
+        utlp_hal_log_info(TAG, "SYNC S%d ofs=%+ld",
+                 g_aatr.stratum, (long)new_offset);
+#else
         utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+ld us",
                  g_aatr.stratum, (long)new_offset);
+#endif
     }
 }
 
@@ -649,14 +664,14 @@ static void process_beacon(const utlp_packet_t *pkt)
  *   to avoid expensive 64-bit modulo operations.
  *==========================================================================*/
 
-static void run_physics(utlp_time_t atomic_now)
+static void run_physics(const utlp_time_t *atomic_now)
 {
     uint32_t cycle_pos;
     bool should_be_on;
 
     /* Calculate where we are in the 1-second blink cycle */
     /* C64: Uses magic remainder trick for phase calculation */
-    cycle_pos = UTLP_GET_PHASE(atomic_now, BLINK_PERIOD_US);
+    cycle_pos = UTLP_GET_PHASE(*atomic_now, BLINK_PERIOD_US);
 
     /* 50% duty: ON for first half, OFF for second half */
     should_be_on = (cycle_pos < (BLINK_PERIOD_US / 2));
@@ -677,10 +692,13 @@ static void run_physics(utlp_time_t atomic_now)
         }
 
         /* Log state changes (every 500ms at 1Hz) */
+        /* C64: Disable - cprintf too slow, disrupts timing loop */
+#if !UTLP_NO_64BIT
         utlp_hal_log_info(TAG, "[LED] %s @ phase=%lu us (stratum %d)",
                  g_led_state ? "ON " : "OFF",
                  (unsigned long)cycle_pos,
                  g_aatr.stratum);
+#endif
     }
 }
 
@@ -717,6 +735,28 @@ void utlp_app_run(void)
     /* Get our MAC */
     utlp_hal_get_mac(g_local_mac);
 
+    /*
+     * STARTUP BANNER
+     *
+     * C64: 40-column display, "I (UTLP) " = 10 chars prefix
+     *      Only ~30 chars available per line
+     * ESP32: 80+ columns, full descriptive messages
+     */
+#if UTLP_NO_64BIT
+    /* C64: Compact 40-column format */
+    utlp_hal_log_info(TAG, "==============================");
+    utlp_hal_log_info(TAG, "UTLP GENESIS NODE");
+    utlp_hal_log_info(TAG, "==============================");
+    utlp_hal_log_info(TAG, "MAC:%02X%02X%02X%02X%02X%02X",
+             g_local_mac[0], g_local_mac[1], g_local_mac[2],
+             g_local_mac[3], g_local_mac[4], g_local_mac[5]);
+    utlp_hal_log_info(TAG, "Stratum: %d", g_aatr.stratum);
+    utlp_hal_log_info(TAG, "Beacon: 3-burst chirp");
+    utlp_hal_log_info(TAG, "Blink: %lu ms", (unsigned long)(BLINK_PERIOD_US / 1000));
+    utlp_hal_log_info(TAG, "Drift Stats: N/A (no FPU)");
+    utlp_hal_log_info(TAG, "==============================");
+#else
+    /* ESP32: Full 80-column format */
     utlp_hal_log_info(TAG, "========================================");
     utlp_hal_log_info(TAG, "UTLP GENESIS NODE");
     utlp_hal_log_info(TAG, "\"Time is born of one.\"");
@@ -726,11 +766,12 @@ void utlp_app_run(void)
              g_local_mac[3], g_local_mac[4], g_local_mac[5]);
     utlp_hal_log_info(TAG, "Stratum: %d (GENESIS)", g_aatr.stratum);
     utlp_hal_log_info(TAG, "Beacon: Seismic Chirp (3-burst @ 2ms spacing)");
-    utlp_hal_log_info(TAG, "Interval: Genesis Pulse (100ms→500ms→1s→10s→60s)");
+    utlp_hal_log_info(TAG, "Interval: Genesis Pulse (100ms->500ms->1s->10s->60s)");
     utlp_hal_log_info(TAG, "Blink period: %d ms", BLINK_PERIOD_US / 1000);
     utlp_hal_log_info(TAG, "Drift Analysis: Enabled (polynomial fit)");
-    utlp_hal_log_info(TAG, "Stats Log: 1s (first 10s) → 30s (steady state)");
+    utlp_hal_log_info(TAG, "Stats Log: 1s (first 10s) -> 30s (steady state)");
     utlp_hal_log_info(TAG, "========================================");
+#endif
 
     /*
      * GENESIS PRINCIPLE: Start immediately.
@@ -753,14 +794,13 @@ void utlp_app_run(void)
             }
         }
 
-        now = get_atomic_time();
+        get_atomic_time(&now);
 
         /* Get raw uptime for genesis pulse intervals */
+        UTLP_HAL_GET_TIME(&uptime_full);
 #if UTLP_NO_64BIT
-        uptime_full = utlp_hal_get_time();
         uptime_lo = uptime_full.dwords.lo;
 #else
-        uptime_full = utlp_hal_get_micros();
         uptime_lo = (uint32_t)uptime_full;
 #endif
 
@@ -782,9 +822,16 @@ void utlp_app_run(void)
 
             /* Log phase transitions (helpful for debugging) */
             if (beacon_interval != last_logged_interval) {
+#if UTLP_NO_64BIT
+                /* C64: Compact format for 40-column */
+                utlp_hal_log_info(TAG, "Bcn: %lums @%lus",
+                         (unsigned long)(beacon_interval / 1000),
+                         (unsigned long)(uptime_lo / 1000000));
+#else
                 utlp_hal_log_info(TAG, "Beacon interval: %lu ms (uptime %lus)",
                          (unsigned long)(beacon_interval / 1000),
                          (unsigned long)(uptime_lo / 1000000));
+#endif
                 last_logged_interval = beacon_interval;
             }
         }
@@ -795,7 +842,7 @@ void utlp_app_run(void)
          * This is TIME-INDEXED: we calculate what state SHOULD be
          * based on current time, not based on elapsed time since last change.
          */
-        run_physics(now);
+        run_physics(&now);
 
         /*
          * 4. DRIFT STATS: Log seismic chirp analysis (genesis-pulse style)

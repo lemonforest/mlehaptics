@@ -187,45 +187,68 @@
          (a).words.w1 == (b).words.w1 && \
          (a).words.w0 == (b).words.w0)
 
+    /*=========================================================================
+     * BYTE SERIALIZATION (Pointer-Based for cc65)
+     *
+     * cc65 LIMITATION: Cannot pass/return structs > 4 bytes by value.
+     * All 8-byte utlp_time_t operations use pointers.
+     *========================================================================*/
+
     /**
      * @brief Create time from bytes (for receiving beacons)
      *
      * Beacons are sent as 8 bytes (little-endian).
      * We copy directly into our union's dwords view.
+     *
+     * @param bytes Input: 8 bytes to deserialize
+     * @param out   Output: Pointer to utlp_time_t to fill
      */
-    static utlp_time_t utlp_time_from_bytes(const uint8_t *bytes)
+    static void utlp_time_from_bytes_ptr(const uint8_t *bytes, utlp_time_t *out)
     {
-        utlp_time_t t;
         /* Little-endian: bytes 0-3 = lo, bytes 4-7 = hi */
-        t.dwords.lo = (uint32_t)bytes[0] |
-                      ((uint32_t)bytes[1] << 8) |
-                      ((uint32_t)bytes[2] << 16) |
-                      ((uint32_t)bytes[3] << 24);
-        t.dwords.hi = (uint32_t)bytes[4] |
-                      ((uint32_t)bytes[5] << 8) |
-                      ((uint32_t)bytes[6] << 16) |
-                      ((uint32_t)bytes[7] << 24);
-        return t;
+        out->dwords.lo = (uint32_t)bytes[0] |
+                         ((uint32_t)bytes[1] << 8) |
+                         ((uint32_t)bytes[2] << 16) |
+                         ((uint32_t)bytes[3] << 24);
+        out->dwords.hi = (uint32_t)bytes[4] |
+                         ((uint32_t)bytes[5] << 8) |
+                         ((uint32_t)bytes[6] << 16) |
+                         ((uint32_t)bytes[7] << 24);
     }
-    #define UTLP_TIME_FROM_BYTES(ptr)   utlp_time_from_bytes(ptr)
+
+    /**
+     * @brief Macro wrapper for byte deserialization
+     *
+     * Usage: utlp_time_t t; UTLP_TIME_FROM_BYTES_TO(&bytes[0], &t);
+     */
+    #define UTLP_TIME_FROM_BYTES_TO(ptr, out)  utlp_time_from_bytes_ptr(ptr, out)
 
     /**
      * @brief Write time to bytes (for sending beacons)
      *
      * Writes 8 bytes in little-endian format.
+     *
+     * @param t     Pointer to time value to serialize
+     * @param bytes Output: 8 bytes to write
      */
-    static void utlp_time_to_bytes(utlp_time_t t, uint8_t *bytes)
+    static void utlp_time_to_bytes_ptr(const utlp_time_t *t, uint8_t *bytes)
     {
-        bytes[0] = (uint8_t)(t.dwords.lo);
-        bytes[1] = (uint8_t)(t.dwords.lo >> 8);
-        bytes[2] = (uint8_t)(t.dwords.lo >> 16);
-        bytes[3] = (uint8_t)(t.dwords.lo >> 24);
-        bytes[4] = (uint8_t)(t.dwords.hi);
-        bytes[5] = (uint8_t)(t.dwords.hi >> 8);
-        bytes[6] = (uint8_t)(t.dwords.hi >> 16);
-        bytes[7] = (uint8_t)(t.dwords.hi >> 24);
+        bytes[0] = (uint8_t)(t->dwords.lo);
+        bytes[1] = (uint8_t)(t->dwords.lo >> 8);
+        bytes[2] = (uint8_t)(t->dwords.lo >> 16);
+        bytes[3] = (uint8_t)(t->dwords.lo >> 24);
+        bytes[4] = (uint8_t)(t->dwords.hi);
+        bytes[5] = (uint8_t)(t->dwords.hi >> 8);
+        bytes[6] = (uint8_t)(t->dwords.hi >> 16);
+        bytes[7] = (uint8_t)(t->dwords.hi >> 24);
     }
-    #define UTLP_TIME_TO_BYTES(t, ptr)  utlp_time_to_bytes(t, ptr)
+
+    /**
+     * @brief Macro wrapper for byte serialization
+     *
+     * Usage: UTLP_TIME_TO_BYTES_FROM(&t, &bytes[0]);
+     */
+    #define UTLP_TIME_TO_BYTES_FROM(t_ptr, bytes)  utlp_time_to_bytes_ptr(t_ptr, bytes)
 
     /** @brief Size of serialized time in bytes */
     #define UTLP_TIME_SERIAL_SIZE       8
@@ -300,6 +323,9 @@
     }
     #define UTLP_TIME_FROM_BYTES(ptr)   utlp_time_from_bytes_esp32(ptr)
 
+    /** @brief Pointer-based byte deserialization (for API compatibility with C64) */
+    #define UTLP_TIME_FROM_BYTES_TO(ptr, out)  (*(out) = utlp_time_from_bytes_esp32(ptr))
+
     /** @brief Write time to bytes (for API compatibility with C64) */
     static inline void utlp_time_to_bytes_esp32(utlp_time_t t, uint8_t *bytes)
     {
@@ -313,6 +339,9 @@
         bytes[7] = (uint8_t)(t >> 56);
     }
     #define UTLP_TIME_TO_BYTES(t, ptr)  utlp_time_to_bytes_esp32(t, ptr)
+
+    /** @brief Pointer-based byte serialization (for API compatibility with C64) */
+    #define UTLP_TIME_TO_BYTES_FROM(t_ptr, bytes)  utlp_time_to_bytes_esp32(*(t_ptr), bytes)
 
     /** @brief Size of serialized time in bytes */
     #define UTLP_TIME_SERIAL_SIZE       8
@@ -380,15 +409,21 @@ void utlp_hal_init(void);
  * @brief Get raw local monotonic time
  *
  * This is the uncorrected hardware timer value.
- * On C64: Returns utlp_time_t (union)
- * On ESP32: Returns uint64_t (native)
  *
- * @return Local time since boot
+ * C64 LIMITATION: cc65 cannot return structs > 4 bytes by value.
+ * On C64: Takes output pointer, returns void
+ * On ESP32: Returns uint64_t directly
  */
 #if UTLP_NO_64BIT
-utlp_time_t utlp_hal_get_time(void);
+void utlp_hal_get_time_ptr(utlp_time_t *out);
+
+/** @brief Wrapper macro - fills output variable */
+#define UTLP_HAL_GET_TIME(out_ptr)  utlp_hal_get_time_ptr(out_ptr)
 #else
 uint64_t utlp_hal_get_micros(void);
+
+/** @brief Wrapper macro - assigns to output variable */
+#define UTLP_HAL_GET_TIME(out_ptr)  (*(out_ptr) = utlp_hal_get_micros())
 #endif
 
 /**
@@ -399,12 +434,20 @@ uint64_t utlp_hal_get_micros(void);
  * This is the "truth" that all physics calculations use.
  * Genesis node starts with offset=0 (local time IS atomic time).
  *
- * @return Synchronized time
+ * C64 LIMITATION: cc65 cannot return structs > 4 bytes by value.
+ * On C64: Takes output pointer, returns void
+ * On ESP32: Returns uint64_t directly
  */
 #if UTLP_NO_64BIT
-utlp_time_t utlp_hal_get_atomic_time(void);
+void utlp_hal_get_atomic_time_ptr(utlp_time_t *out);
+
+/** @brief Wrapper macro - fills output variable */
+#define UTLP_HAL_GET_ATOMIC_TIME(out_ptr)  utlp_hal_get_atomic_time_ptr(out_ptr)
 #else
 uint64_t utlp_hal_get_atomic_time_us(void);
+
+/** @brief Wrapper macro - assigns to output variable */
+#define UTLP_HAL_GET_ATOMIC_TIME(out_ptr)  (*(out_ptr) = utlp_hal_get_atomic_time_us())
 #endif
 
 /**

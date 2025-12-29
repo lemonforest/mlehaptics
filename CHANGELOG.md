@@ -70,6 +70,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Trigger Location**: time_sync_task.c after `espnow_key_exchange_complete = true` (line 1524)
   - Files: [ble_manager.h](src/ble_manager.h), [ble_manager.c:5327-5336](src/ble_manager.c#L5327-L5336), [time_sync_task.c:1520-1530](src/time_sync_task.c#L1520-L1530)
 
+### Examples
+
+These standalone examples demonstrate protocol building blocks and prove cross-platform portability.
+They are **not** the main EMDR firmware but supporting documentation and reference implementations.
+
+- **UTLP Genesis Node Skeleton** (`examples/utlp_skeleton/`)
+  - Reference implementation of Universal Time Lord Protocol in platform-agnostic C
+  - **Seismic Chirp**: 3-burst beacon pattern (2ms spacing) for offset/drift/stability extraction
+  - **Genesis Pulse**: Dynamic beacon interval (100ms → 500ms → 1s → 10s → 60s)
+  - **Time-Indexed Physics**: LED state calculated from atomic time (drift-proof sync)
+  - HAL abstraction layer enables porting to any platform without touching application code
+  - Files: [utlp_skeleton.c](examples/utlp_skeleton/utlp_skeleton.c), [utlp_hal.h](examples/utlp_skeleton/utlp_hal.h), [utlp_hal_esp32c6.c](examples/utlp_skeleton/utlp_hal_esp32c6.c)
+
+- **UTLP C64 HAL** (`examples/utlp_c64/`)
+  - Commodore 64 port proving UTLP is truly universal ("If it syncs a 1MHz 6502 from 1982...")
+  - **Union-Cascade Time**: 4×uint16_t structure for 64-bit math on 8-bit CPU via ripple-carry
+  - **C99→C89 Transform**: Automatic conversion at build time for cc65 compatibility
+  - **40-Column Display**: Compact log format (`I:` prefix) for C64's screen width
+  - **Border Color Sync**: VIC-II border blinks at 1Hz (visual sync confirmation)
+  - **Fixed varargs bug**: cc65 promotes small types to `int` (16-bit), not `long` (32-bit)
+  - Files: [utlp_hal_c64.c](examples/utlp_c64/utlp_hal_c64.c), [c89_transform.py](examples/utlp_c64/c89_transform.py), [README.md](examples/utlp_c64/README.md)
+
+- **Secure SMP Pairing** (`examples/smp_pairing/`)
+  - High-security BLE pairing with Numeric Comparison + MITM protection
+  - Documents Bug #113 root cause: missing `ble_store_config_init()` call
+  - **MAC Address Tie-Breaker**: Deterministic connection initiation (lower MAC wins)
+  - **Stabilization Delays**: Required settling time between BLE operations
+  - **Arduino Porting Guide**: NimBLE-Arduino equivalent code for each ESP-IDF pattern
+  - Files: [secure_smp_pairing.c](examples/smp_pairing/secure_smp_pairing.c), [README.md](examples/smp_pairing/README.md)
+
 ## [v0.7.29] - 2025-12-24
 
 ### Added
