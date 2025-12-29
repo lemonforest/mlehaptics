@@ -1,0 +1,1460 @@
+# UTLP Technical Report — Supplement S2
+
+## Biological Governance: Immune System Architecture for Distributed Time Synchronization
+
+*mlehaptics Project — December 2025*
+
+**Parent Document:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265)
+
+---
+
+## Scope
+
+This supplement extends the UTLP Technical Report v2.0 and Prior Art Publication with a governance model derived from biological immune systems rather than political leadership structures. The key insight: silicon cannot feel shame, fear, or ambition—therefore governance models based on punishment, voting, or leadership hierarchies are category errors.
+
+**Prerequisites:** UTLP Technical Report v2.0, Prior Art Publication (DOI: [10.5281/zenodo.18078265](https://doi.org/10.5281/zenodo.18078265))
+
+**What this document adds:**
+- Immune system governance model for UTLP swarms
+- Fault isolation via statistical filtering (not prosecution)
+- Endosymbiotic integration strategy for legacy time sources
+- Speciation via encryption for swarm isolation
+- Emergence-aware architecture design principles
+
+---
+
+## Prior Art Acknowledgment
+
+This supplement documents novel application of established concepts:
+
+| Concept | Prior Art | What's Novel Here |
+|---------|-----------|-------------------|
+| Artificial Immune Systems | Timmis et al. (2011-2016), AAPD model (2024) | Application to time sync protocols specifically |
+| Byzantine Fault Tolerance | Castro & Liskov PBFT (1999) | Connectionless variant without consensus rounds |
+| Outlier rejection in WSN | RBS protocol, Kalman robustification | Integration with stratum hierarchy |
+| Bio-inspired computing | ACM design patterns (2006) | Specific UTLP/RFIP/SMSP instantiation |
+
+The contribution is the specific combination and application to connectionless distributed timing.
+
+---
+
+# Part I: The Category Error
+
+## 1. Political vs. Biological Governance
+
+### 1.1 Why Human Leadership Models Fail for Silicon
+
+Human governance evolved to manage entities with:
+- **Free will**: Can choose to comply or defect
+- **Fear of consequences**: Jail, fines, social exclusion
+- **Ambition**: Desire for power, resources, status
+- **Shame**: Social pressure enforces norms
+
+Silicon nodes have none of these. A misbehaving node isn't a criminal making a choice—it's a malfunction. Trying to "punish" it is meaningless.
+
+### 1.2 The Correct Model: Immune System
+
+| Political Model (Wrong) | Biological Model (Right) |
+|------------------------|-------------------------|
+| Leader election | Reference node selection via quality metrics |
+| Laws and punishment | Protocol compliance and filtering |
+| Taxes and citizenship | Energy cost and beacon broadcast |
+| Criminal prosecution | Apoptosis (shutdown) or encapsulation (ignore) |
+| Democratic voting | Median consensus (statistical physics) |
+| Investigation and trial | Outlier detection and isolation |
+
+**Key insight**: You don't "reprimand" a node broadcasting wrong time. You ignore it mathematically. The network isolates the infection not out of malice, but out of **statistical hygiene**.
+
+---
+
+## 2. Immune System Primitives for UTLP
+
+### 2.1 The Cell Analogy
+
+| Biological | UTLP Equivalent | Function |
+|------------|-----------------|----------|
+| Healthy cell | Compliant node | Follows protocol, broadcasts "self" markers |
+| Cancer cell | Misbehaving node | Wrong timestamps, excessive traffic, protocol violations |
+| Antibody | Quality metrics | drift_rate, jitter, uptime, stratum |
+| Antigen | Bad time signal | Outlier timestamp, spoofed beacon |
+| Apoptosis | Demotion/ignore | Node ceases to be reference point |
+| Granuloma | Encapsulation | Bad actor's signals filtered, not propagated |
+
+### 2.1.1 Encapsulation vs. Apoptosis: A Critical Distinction
+
+**Why this matters for implementation:**
+
+| Mechanism | Biological Definition | Silicon Reality | When It Applies |
+|-----------|----------------------|-----------------|-----------------|
+| **Apoptosis** | Programmed cell death—the cell kills *itself* | Node detects own fault, self-terminates | Watchdog reset, self-detected corruption |
+| **Encapsulation** | Granuloma formation—wall off infection | Network ignores bad node; node keeps broadcasting | Chronic bad actor, firmware corruption |
+
+**Key insight:** A silicon node running corrupt firmware has no conscience—it cannot recognize its own corruption. True apoptosis requires self-awareness that malicious or broken nodes typically lack.
+
+What UTLP actually implements is **encapsulation**: healthy nodes build a wall of "ignore" around the bad actor. The bad node keeps screaming forever; we simply stop listening. This mirrors tuberculosis granulomas, where bacteria survive indefinitely inside walled-off structures—the infection is *contained*, not *eliminated*.
+
+**True apoptosis in UTLP would require:**
+```c
+// Self-awareness checks (rare in practice)
+void self_health_check(void) {
+    // Watchdog detecting own instability
+    if (my_jitter_us > SELF_JITTER_THRESHOLD) {
+        ESP_LOGW(TAG, "Self-detected instability, voluntary demotion");
+        set_stratum(254);  // Apoptosis: I am removing myself
+    }
+    
+    // Firmware integrity check
+    if (!verify_firmware_crc()) {
+        ESP_LOGE(TAG, "Firmware corruption detected, entering safe mode");
+        enter_safe_mode();  // True programmed death
+    }
+}
+```
+
+**The mental model shift:** You aren't trying to *stop* the bad node (apoptosis). You are trying to *insulate* healthy nodes from it (encapsulation).
+
+### 2.2 Implementation: Immune Response in C
+
+```c
+// Immune-inspired time source selection
+typedef struct {
+    uint8_t  peer_mac[6];
+    uint8_t  stratum;
+    int32_t  drift_ppb;
+    uint32_t jitter_us;
+    uint32_t uptime_s;
+    uint8_t  violations;      // Protocol violation count
+    uint8_t  health_score;    // 0-255, calculated below
+} peer_health_t;
+
+// Calculate "health score" - biological fitness metric
+uint8_t calculate_health_score(const peer_health_t* peer) {
+    uint8_t score = 255;
+    
+    // Penalize high drift (metabolic instability)
+    if (abs(peer->drift_ppb) > 1000) score -= 50;
+    if (abs(peer->drift_ppb) > 5000) score -= 100;
+    
+    // Penalize high jitter (unreliable signaling)
+    if (peer->jitter_us > 100) score -= 30;
+    if (peer->jitter_us > 500) score -= 70;
+    
+    // Reward uptime (proven survival)
+    if (peer->uptime_s > 3600) score += 20;
+    if (peer->uptime_s > 86400) score += 30;
+    
+    // Penalize protocol violations (foreign behavior)
+    score -= peer->violations * 25;
+    
+    // Stratum penalty (distance from truth)
+    score -= peer->stratum * 10;
+    
+    return score;
+}
+
+// Immune response: select healthiest time source
+peer_health_t* select_time_source(peer_health_t* peers, uint8_t count) {
+    peer_health_t* best = NULL;
+    uint8_t best_score = 0;
+    
+    for (uint8_t i = 0; i < count; i++) {
+        // Apoptosis: ignore nodes below health threshold
+        if (peers[i].health_score < 50) continue;
+        
+        if (peers[i].health_score > best_score) {
+            best_score = peers[i].health_score;
+            best = &peers[i];
+        }
+    }
+    
+    return best;  // NULL if no healthy sources
+}
+```
+
+### 2.3 Bad Actor Response: Statistical Filtering
+
+```c
+// Median-based outlier rejection (immune filtering)
+#define MAX_TIME_SOURCES 16
+
+int64_t get_consensus_time(int64_t* times, uint8_t count) {
+    if (count == 0) return esp_timer_get_time();  // Free-running fallback
+    if (count == 1) return times[0];              // Single source, trust it
+    
+    // Sort for median calculation
+    qsort(times, count, sizeof(int64_t), compare_int64);
+    
+    // Median is the "immune consensus"
+    int64_t median;
+    if (count % 2 == 0) {
+        median = (times[count/2 - 1] + times[count/2]) / 2;
+    } else {
+        median = times[count/2];
+    }
+    
+    // Log outliers (but don't prosecute—just observe)
+    for (uint8_t i = 0; i < count; i++) {
+        int64_t deviation = llabs(times[i] - median);
+        if (deviation > 10000) {  // >10ms deviation
+            ESP_LOGW(TAG, "Outlier detected: %lld us from consensus", deviation);
+            // The outlier is simply not used. No punishment. No trial.
+            // It screams into the void.
+        }
+    }
+    
+    return median;
+}
+```
+
+**The key insight**: 
+```
+10 nodes say "12:00:00.000"
+1 node says  "14:00:00.000"
+
+Political response: "Who is lying? Let's investigate."
+Immune response:   "Median is 12:00. The 14:00 signal is noise. Filtered."
+```
+
+The bad actor has no power because **consensus physics** renders it inert.
+
+### 2.4 Active Defense: The Antibody Response
+
+The passive immune response (Section 2.3) ignores bad actors. But real immune systems are **active**—they release antibodies to neutralize threats. UTLP needs an equivalent: **Defensive Beaconing**.
+
+**Problem**: Passive filtering works when the swarm is established. But during bootstrap or when a loud Rookie enters, passive filtering can cause "Split Brain"—half the room syncs to the wrong source before the median stabilizes.
+
+**Solution**: Senior nodes actively correct Rookies.
+
+```c
+// Active immune response: Defensive Chirp
+typedef struct {
+    uint8_t  type;              // MSG_TYPE_CORRECTION
+    uint8_t  target_mac[6];     // Who needs correcting
+    int64_t  correct_time;      // The truth
+    uint8_t  authority;         // My stratum + quality
+} correction_pulse_t;
+
+// Detect and respond to conflicting time broadcasts
+void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
+    int64_t my_time = get_utlp_time();
+    int64_t their_time = beacon->timestamp;
+    int64_t deviation = llabs(my_time - their_time);
+    
+    // Is this a significant disagreement?
+    if (deviation > 1000) {  // >1ms disagreement
+        
+        // Am I more authoritative?
+        bool i_am_senior = (my_stratum < beacon->stratum) ||
+                          (my_stratum == beacon->stratum && 
+                           my_quality > beacon->quality);
+        
+        if (i_am_senior && beacon->stratum > 1) {
+            // Rookie is broadcasting bad time. Release antibodies.
+            ESP_LOGW(TAG, "Rookie %02X:%02X broadcasting %lldms off, correcting",
+                     beacon->mac[4], beacon->mac[5], deviation/1000);
+            
+            // Defensive Chirp: immediate correction broadcast
+            correction_pulse_t pulse = {
+                .type = MSG_TYPE_CORRECTION,
+                .correct_time = my_time,
+                .authority = (my_stratum << 4) | (my_quality & 0x0F)
+            };
+            memcpy(pulse.target_mac, beacon->mac, 6);
+            
+            // Broadcast correction - forces Rookie to recalculate
+            esp_now_send(BROADCAST_ADDR, &pulse, sizeof(pulse));
+            
+            // Increase beacon rate temporarily (immune response escalation)
+            set_beacon_interval_ms(100);  // 10Hz for 5 seconds
+            schedule_beacon_rate_restore(5000);
+        }
+    }
+}
+
+// Rookie behavior: accept correction from Senior
+void on_correction_received(const correction_pulse_t* pulse) {
+    // Is this correction for me?
+    if (memcmp(pulse->target_mac, my_mac, 6) != 0) return;
+    
+    // Is the corrector more authoritative?
+    uint8_t their_stratum = pulse->authority >> 4;
+    if (their_stratum < my_stratum) {
+        // Accept correction. I was wrong.
+        apply_time_correction(pulse->correct_time);
+        ESP_LOGI(TAG, "Accepted correction from Stratum %d", their_stratum);
+    }
+}
+```
+
+**The Biology**:
+- **Passive immunity** = Median filtering (ignore the infection)
+- **Active immunity** = Defensive chirp (kill the infection)
+- **Immune escalation** = Increased beacon rate (inflammation response)
+
+This prevents "Split Brain" scenarios where half the swarm drifts before passive consensus stabilizes.
+
+### 2.4.1 Immune Checkpoint: Cytokine Storm Prevention
+
+**The Danger:** What if two Senior nodes disagree?
+
+```
+Node A (Senior, Stratum 1) believes time is 12:00:00.000
+Node B (Senior, Stratum 1) believes time is 12:00:00.050
+
+Node A fires Defensive Chirp at Node B → 
+Node B interprets this as attack, fires back → 
+Both escalate to 10Hz → 
+RF spectrum flooded, batteries drained → 
+Healthy swarm dies from "friendly fire"
+```
+
+This is a **Cytokine Storm**—the immune system killing the host.
+
+**The Biological Solution:** Real immune systems have checkpoint molecules (PD-1, CTLA-4, TIM-3) that induce **T-cell exhaustion** to prevent runaway inflammation. Exhaustion is *protective*.
+
+**UTLP Implementation:** Token bucket algorithm for defensive budget.
+
+```c
+// Immune checkpoint: Prevents cytokine storm via token bucket
+typedef struct {
+    uint8_t  tokens;           // Current defensive budget
+    uint8_t  max_tokens;       // Bucket capacity
+    uint32_t refill_rate_ms;   // Time to add one token
+    uint32_t last_refill_ms;   // Last refill timestamp
+    bool     in_anergy;        // Exhaustion state (PD-1 engaged)
+} immune_checkpoint_t;
+
+#define DEFENSIVE_BUDGET_MAX     5      // Max 5 chirps before exhaustion
+#define DEFENSIVE_REFILL_MS      12000  // 1 token per 12 seconds
+#define ANERGY_RECOVERY_TOKENS   3      // Exit anergy when 3 tokens restored
+
+static immune_checkpoint_t checkpoint = {
+    .tokens = DEFENSIVE_BUDGET_MAX,
+    .max_tokens = DEFENSIVE_BUDGET_MAX,
+    .refill_rate_ms = DEFENSIVE_REFILL_MS,
+    .in_anergy = false
+};
+
+// Refill tokens over time (healing)
+void checkpoint_tick(void) {
+    uint32_t now = millis();
+    uint32_t elapsed = now - checkpoint.last_refill_ms;
+    
+    if (elapsed >= checkpoint.refill_rate_ms) {
+        uint8_t new_tokens = elapsed / checkpoint.refill_rate_ms;
+        checkpoint.tokens = MIN(checkpoint.tokens + new_tokens, 
+                                checkpoint.max_tokens);
+        checkpoint.last_refill_ms = now;
+        
+        // Exit anergy if tokens restored
+        if (checkpoint.in_anergy && 
+            checkpoint.tokens >= ANERGY_RECOVERY_TOKENS) {
+            checkpoint.in_anergy = false;
+            ESP_LOGI(TAG, "Exiting anergy, defensive capacity restored");
+        }
+    }
+}
+
+// Attempt to fire defensive chirp (returns false if budget exhausted)
+bool can_fire_defensive_chirp(void) {
+    checkpoint_tick();  // Update tokens
+    
+    if (checkpoint.in_anergy) {
+        return false;  // PD-1 engaged: no response
+    }
+    
+    if (checkpoint.tokens > 0) {
+        checkpoint.tokens--;
+        
+        if (checkpoint.tokens == 0) {
+            // Enter anergy: either chronic infection or I AM the problem
+            checkpoint.in_anergy = true;
+            ESP_LOGW(TAG, "Defensive budget exhausted. Entering anergy. "
+                     "Possible: chronic infection, or self-disagreement.");
+        }
+        return true;
+    }
+    
+    return false;
+}
+```
+
+**Modified Defensive Response with Checkpoint:**
+
+```c
+void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
+    // ... existing deviation detection ...
+    
+    if (i_am_senior && beacon->stratum > 1 && deviation > 1000) {
+        
+        // CHECKPOINT: Do I have budget to respond?
+        if (!can_fire_defensive_chirp()) {
+            ESP_LOGW(TAG, "Defensive budget exhausted, staying silent");
+            return;  // PD-1 checkpoint engaged
+        }
+        
+        // Fire with fever response for maximum reach
+        send_correction_pulse_with_fever(&pulse);
+    }
+}
+```
+
+### 2.4.2 Fever Response: Physical Truth Dominance
+
+Biological fever makes the environment hostile to pathogens. UTLP equivalent: send corrections at **lowest data rate** for maximum range and penetration.
+
+```c
+// Fever response: Maximum reach for truth
+void send_correction_pulse_with_fever(const correction_pulse_t* pulse) {
+    // Save current PHY rate
+    wifi_phy_rate_t original_rate = get_espnow_phy_rate();
+    
+    // Switch to lowest rate = longest range, highest penetration
+    // 1 Mbps DSSS: maximum coding gain, best multipath resistance
+    set_espnow_phy_rate(WIFI_PHY_RATE_1M_L);
+    
+    // Maximum transmission power
+    esp_wifi_set_max_tx_power(84);  // 21 dBm
+    
+    // Send correction
+    esp_now_send(BROADCAST_ADDR, pulse, sizeof(*pulse));
+    
+    // Restore normal rate
+    set_espnow_phy_rate(original_rate);
+    
+    ESP_LOGI(TAG, "Fever response: correction at 1Mbps/21dBm");
+}
+```
+
+**The Physics:** 1 Mbps DSSS has ~8dB more link budget than 54 Mbps OFDM. Truth physically overpowers lies.
+
+**Biology Mapping:**
+
+| Token Bucket | Immune System | UTLP Behavior |
+|--------------|---------------|---------------|
+| Token | T-cell with effector capacity | One defensive chirp allowed |
+| Bucket capacity | Naive T-cell pool | 5 chirps max |
+| Refill rate | T-cell regeneration | 1 token per 12 seconds |
+| Bucket empty | T-cell exhaustion | Enter anergy (silence) |
+| Anergy state | PD-1 checkpoint engaged | Stop responding, assume self-error |
+| Fever | Hostile environment | Low data rate, max power |
+
+---
+
+# Part II: Endosymbiosis Strategy
+
+## 3. Integration with Legacy Time Sources
+
+### 3.1 The Mitochondrial Model
+
+Mitochondria were once independent bacteria. They didn't fight host cells—they entered, offered a metabolic upgrade (ATP), and became indispensable.
+
+UTLP should not fight GPS/NTP. It should **ingest** them:
+
+```c
+// Endosymbiotic time source hierarchy
+typedef enum {
+    TIME_SOURCE_GPS,        // The "Old God" - distant but authoritative
+    TIME_SOURCE_NTP,        // The "Temple" - infrastructure-dependent
+    TIME_SOURCE_FTM,        // The "Local Oracle" - 802.11mc
+    TIME_SOURCE_ESPNOW,     // The "Peer Network" - swarm-derived
+    TIME_SOURCE_FREE,       // The "Self" - crystal oscillator
+} time_source_t;
+
+// Endosymbiosis: consume higher sources when available
+void update_time_source(void) {
+    if (gps_available()) {
+        // GPS is the ultimate authority—consume it
+        set_stratum(0);
+        sync_from_gps();
+        // But deliver via UTLP! We become the delivery mechanism.
+    }
+    else if (ntp_available()) {
+        // NTP available—consume and re-broadcast
+        set_stratum(1);
+        sync_from_ntp();
+        // The network sees UTLP, not NTP. We're the membrane.
+    }
+    else if (ftm_peer_available()) {
+        set_stratum(1);  // FTM is high quality
+        sync_from_ftm();
+    }
+    else if (espnow_peer_available()) {
+        set_stratum(peer_stratum + 1);
+        sync_from_espnow();
+    }
+    else {
+        // Free-running: we ARE the time source
+        // A Genesis Node must have the Confidence of a King
+        if (is_oscillator_stable() && get_uptime_s() > 60) {
+            set_stratum(1);   // Local Truth - I am the reference
+        } else {
+            set_stratum(15);  // Holdover - warming up, don't trust fully
+        }
+    }
+    
+    // Always broadcast UTLP regardless of source
+    broadcast_utlp_beacon();
+}
+```
+
+### 3.3 The Stratum Hierarchy (Corrected)
+
+| Stratum | Source | Authority | Notes |
+|---------|--------|-----------|-------|
+| 0 | GPS/Atomic | Divine Truth | External, absolute reference |
+| 1 | NTP from Stratum 0, FTM, or **Stable Free-Running Genesis** | Local Truth | The Genesis Node must have the Confidence of a King |
+| 2-14 | Derived from Stratum N-1 | Inherited Truth | Each hop degrades by 1 |
+| 15 | Holdover / Warming Up | Provisional | "I'm getting stable, but don't fully trust me yet" |
+| 254 | Degraded / Lost Sync | Emergency | "I was synced but lost my source" |
+| 255 | Unsynced Rookie | No Authority | "I just booted, ignore my timestamps" |
+
+**Critical Insight**: A Genesis Node that declares Stratum 254 will be ignored. If you are the only time source in the room and your oscillator has stabilized (>60s warmup), you **are** Stratum 1. Own it.
+
+### 3.2 The Strategy: "Eat the Old Gods"
+
+**Phase 1 (Parasite)**: UTLP dongles on existing networks translate NTP to UTLP.
+
+**Phase 2 (Symbiont)**: Device makers realize they can delete NTP code and just listen to UTLP "background radiation."
+
+**Phase 3 (Organelle)**: UTLP becomes default. GPS/NTP are only used by "Genesis Nodes" to seed the swarm.
+
+You don't need to kill God to build a flashlight. Just build the flashlight. The darkness will do the rest.
+
+---
+
+# Part III: Speciation via Encryption
+
+## 4. Genetic Barriers for Swarm Isolation
+
+### 4.1 The Problem
+
+A medical device swarm shouldn't sync to a party decoration swarm. Without isolation:
+- Cross-contamination of timing
+- Unintended coordination
+- Security vulnerabilities
+
+### 4.2 Encryption Keys as DNA
+
+```c
+// Species identification via encryption
+typedef struct {
+    uint8_t species_key[16];    // The "DNA" - PMK for ESP-NOW
+    uint8_t species_id[4];      // Short identifier (OUI-like)
+    bool    accept_foreign;     // Allow cross-species sync?
+} swarm_species_t;
+
+// Species check before accepting time
+bool is_same_species(const uint8_t* incoming_species_id) {
+    if (my_species.accept_foreign) return true;
+    return memcmp(my_species.species_id, incoming_species_id, 4) == 0;
+}
+
+// Encrypted beacon: only same-species can decode
+void broadcast_species_beacon(void) {
+    utlp_beacon_t beacon = {
+        .timestamp = get_utlp_time(),
+        .stratum = my_stratum,
+        .species_id = my_species.species_id,
+        // ... other fields
+    };
+    
+    // ESP-NOW hardware encryption with species key
+    esp_now_send_encrypted(BROADCAST_ADDR, &beacon, sizeof(beacon));
+    // Foreign species see encrypted garbage. We're invisible to them.
+}
+```
+
+### 4.3 Species Hierarchy
+
+| Species Type | Encryption | Accept Foreign | Use Case |
+|--------------|------------|----------------|----------|
+| Public (Bacteria) | None | Yes | General time broadcast, discovery |
+| Private (Organism) | PMK | No | Medical devices, secure installations |
+| Hybrid (Membrane) | PMK | Gateway only | Bridge between public and private |
+
+---
+
+# Part IV: Emergence-Aware Design
+
+## 5. Gardening vs. Engineering
+
+### 5.1 The Observation
+
+As the swarm grows, individual packet logs become noise (micro-state), but collective behavior becomes meaningful (macro-state):
+
+| Scale | Observable | Meaning |
+|-------|------------|---------|
+| 1 packet | Timestamp, RTT, jitter | Debugging data |
+| 100 packets | Distribution shape | Transport quality |
+| 1000 packets | Drift trend | Oscillator health |
+| Swarm behavior | Synchrony, shimmer, healing | System health |
+
+### 5.2 Design Principle: Macro-State Observation
+
+```c
+// Micro-state: useless at scale
+typedef struct {
+    int64_t timestamp;
+    int32_t rtt_us;
+    int32_t offset_us;
+} packet_log_t;  // This becomes noise
+
+// Macro-state: meaningful at scale  
+typedef struct {
+    float   sync_quality;      // 0.0-1.0, derived from jitter distribution
+    float   swarm_coherence;   // How tightly coupled are we?
+    uint8_t healthy_peers;     // Count of peers above health threshold
+    bool    healing_in_progress;  // Did we just lose/regain a peer?
+} swarm_health_t;  // This is what matters
+
+// The gardener's view
+void report_swarm_health(void) {
+    swarm_health_t health = calculate_swarm_health();
+    
+    // Don't report packets. Report behavior.
+    ESP_LOGI(TAG, "Swarm: %.0f%% sync, %d healthy peers, coherence %.2f",
+             health.sync_quality * 100,
+             health.healthy_peers,
+             health.swarm_coherence);
+    
+    // Questions to answer:
+    // - Does the light shimmer like a continuous wave? (sync_quality > 0.95)
+    // - Does the swarm heal when master unplugged? (healing detected)
+    // - Are nodes drifting apart? (coherence dropping)
+}
+```
+
+### 5.3 The Role Transition
+
+| Phase | Your Role | What You Do |
+|-------|-----------|-------------|
+| Design | Architect | Write the DNA (firmware) |
+| Bootstrap | Engineer | Flash, configure, debug |
+| Maturity | Gardener | Observe behavior, prune outliers |
+| Scale | Observer | Watch macro-state, trust the swarm |
+
+---
+
+# Part V: Physics as Security
+
+## 6. "The Bouncer is Physics"
+
+### 6.1 Why Remote Attacks Are Hard
+
+In traditional networks, a bad actor in Russia can attack a server in Kansas because they share a **logical connection**.
+
+In UTLP, attacking the swarm requires **physical presence**:
+
+```
+To corrupt UTLP time:
+1. Must transmit RF in the swarm's physical space
+2. Must overpower legitimate signals (+20dBm within meters)
+3. Must sustain attack (single packet filtered as outlier)
+4. Must evade spatial consensus from multiple peers
+
+Cost: Deploy hardware. Be physically present. Stay there.
+Benefit: Disrupt one swarm in one location.
+
+This is a terrible ROI for attackers.
+```
+
+### 6.2 Quorum Sensing
+
+In biology, **Quorum Sensing** is the mechanism by which bacteria coordinate collective behavior—they wait until autoinducer concentration reaches a threshold before activating "virulence" genes. A lone bacterium stays silent; only with critical mass does the colony act.
+
+**UTLP Equivalent:** A Senior node should not fire Defensive Chirps unless it has **quorum**—enough healthy peers to validate its truth claim. This prevents the "Crazy Old Man" scenario where an isolated Senior attacks a valid, larger swarm.
+
+```c
+// Quorum sensing: "Who else hears this guy?" + "Do I have critical mass?"
+// More practical than bearing (AoA requires antenna arrays, fails with multipath)
+
+#define QUORUM_THRESHOLD 3  // Minimum healthy peers to validate truth claim
+
+typedef struct {
+    uint8_t  sender_mac[6];
+    int64_t  time_claim;
+    int8_t   rssi;
+} heard_beacon_t;
+
+typedef struct {
+    uint8_t  reporter_mac[6];
+    uint8_t  heard_mac[6];
+    int8_t   rssi_at_reporter;
+} neighbor_report_t;
+
+#define NEIGHBOR_REPORT_TIMEOUT_MS 500
+
+// Count healthy peers for quorum check
+uint8_t count_healthy_peers(void) {
+    uint8_t count = 0;
+    for (int i = 0; i < peer_count; i++) {
+        if (peers[i].health_score > HEALTH_THRESHOLD_GOOD) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Check if we have quorum to act authoritatively
+bool have_quorum(void) {
+    uint8_t healthy_peers = count_healthy_peers();
+    if (healthy_peers < QUORUM_THRESHOLD) {
+        ESP_LOGW(TAG, "Below quorum (%d < %d), staying silent. "
+                 "I may be the outlier.", healthy_peers, QUORUM_THRESHOLD);
+        return false;
+    }
+    return true;
+}
+
+// Each node periodically reports what it hears
+void broadcast_neighbor_report(void) {
+    for (int i = 0; i < heard_beacon_count; i++) {
+        neighbor_report_t report = {
+            .rssi_at_reporter = heard_beacons[i].rssi
+        };
+        memcpy(report.reporter_mac, my_mac, 6);
+        memcpy(report.heard_mac, heard_beacons[i].sender_mac, 6);
+        
+        esp_now_send(BROADCAST_ADDR, &report, sizeof(report));
+    }
+}
+
+// Validate sender using quorum sensing (neighbor consensus)
+bool validate_via_quorum_sensing(const uint8_t* sender_mac) {
+    // Collect: who else heard this sender?
+    uint8_t neighbors_who_heard = 0;
+    uint8_t neighbors_who_didnt = 0;
+    int8_t  max_rssi_delta = 0;
+    
+    for (int i = 0; i < neighbor_report_count; i++) {
+        if (memcmp(neighbor_reports[i].heard_mac, sender_mac, 6) == 0) {
+            neighbors_who_heard++;
+        } else {
+            // This neighbor didn't report hearing the sender
+            neighbors_who_didnt++;
+        }
+    }
+    
+    // Suspicion heuristics:
+    
+    // 1. Highly directional: I hear them loud, but nobody else does
+    if (neighbors_who_heard == 0 && neighbors_who_didnt > 2) {
+        ESP_LOGW(TAG, "Spatial anomaly: only I hear %02X:%02X (directional beam?)",
+                 sender_mac[4], sender_mac[5]);
+        return false;
+    }
+    
+    // 2. Inconsistent RSSI: signal strength doesn't decay with distance
+    //    (would require knowing neighbor positions via RFIP)
+    if (max_rssi_delta > 30 && neighbors_who_heard > 2) {
+        // Someone 2m away hears them at -40dBm, someone 3m away at -70dBm
+        // Normal propagation doesn't do this
+        ESP_LOGW(TAG, "RSSI anomaly: inconsistent signal decay");
+        return false;
+    }
+    
+    // 3. Ghost node: everyone hears them but nobody has them as neighbor
+    //    (could be replay attack from outside the room)
+    
+    return true;
+}
+```
+
+**Integrated Defensive Response with Quorum + Checkpoint:**
+
+```c
+void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
+    // ... existing deviation detection ...
+    
+    if (i_am_senior && beacon->stratum > 1 && deviation > 1000) {
+        
+        // QUORUM SENSING: Do I have critical mass?
+        if (!have_quorum()) {
+            return;  // "Crazy Old Man" prevention
+        }
+        
+        // IMMUNE CHECKPOINT: Do I have budget?
+        if (!can_fire_defensive_chirp()) {
+            return;  // PD-1 engaged
+        }
+        
+        // Fire with confidence: I have both quorum and budget
+        send_correction_pulse_with_fever(&pulse);
+    }
+}
+```
+
+**Why Quorum Sensing, Not Just Neighbor Density:**
+
+| Approach | Requires | Indoor Performance |
+|----------|----------|-------------------|
+| Angle of Arrival (AoA) | Multi-antenna array | Garbage (multipath reflections) |
+| Time Difference of Arrival | Multiple sync'd receivers | Requires infrastructure |
+| **Quorum Sensing** | Peer health scores + RSSI | Works with multipath |
+
+**The Biological Insight**: Just as bacteria wait for autoinducer concentration to reach threshold before activating virulence, UTLP nodes wait for **quorum** before asserting truth. A lone Senior stays silent because it lacks the "wisdom of crowds" to validate its claim.
+
+- If Node A hears the attacker loudly, but Node B (2 meters away) doesn't hear them at all → suspicious (highly directional beam or spoofed MAC)
+- If everyone hears them with consistent RSSI decay → physically present
+- If only one node hears them → either edge of swarm or directional attack
+
+This leverages the swarm's spatial distribution as a **distributed antenna array** without requiring actual antenna hardware.
+
+---
+
+# Part VI: Implementation Roadmap
+
+## 7. Phased Integration into UTLP Stack
+
+### Phase 1: Basic Immune Response (Current Target)
+- [ ] Health score calculation for peers
+- [ ] Median-based outlier rejection
+- [ ] Stratum-based source selection
+- [ ] Protocol violation counting
+
+### Phase 2: Endosymbiosis
+- [ ] GPS/NTP ingestion when available
+- [ ] Seamless stratum adjustment
+- [ ] Beacon format includes source type
+
+### Phase 3: Speciation
+- [ ] ESP-NOW encryption with species key
+- [ ] Species ID in beacon header
+- [ ] Gateway nodes for cross-species bridging
+
+### Phase 4: Emergence Observation
+- [ ] Swarm health metrics calculation
+- [ ] Macro-state logging (not packet logs)
+- [ ] Coherence monitoring
+
+---
+
+# Part VII: The Metabolic Ledger
+
+## The Final Evolution: From Political Authority to Biological History
+
+The previous sections still contained a vestige of political thinking: **Stratum as Authority**. A node claiming "Stratum 1" was implicitly trusted more than "Stratum 2"—this is credential-based trust, the digital equivalent of "trust me, I have a badge."
+
+**The Problem:** Badges can be forged, stolen, or outdated.
+
+**The Biological Reality:** Organisms don't trust based on claimed rank. They trust based on **pattern matching** and **interaction history**:
+- "This shape near me has been helpful 50 times"
+- "This shape attacked me once—never trust again"
+- "Unknown shape—observe cautiously"
+
+This section replaces credential-based trust with **experiential trust**: the Metabolic Ledger.
+
+## 7.1 The Relativity of Truth Problem
+
+**Claude's initial proposal** compared incoming timestamps to "my clock":
+```c
+if (their_time ≈ my_time) trust++;
+```
+
+**Gemini identified the flaw:** What if MY clock is drifting?
+
+```
+Scenario:
+- Node A (GPS-synced) says "12:00:00.000"
+- Node B (Rubidium) says "12:00:00.001"  
+- I (drifting badly) think it's "12:00:05.000"
+
+Old Logic: I penalize A and B for disagreeing with me → Catastrophic
+New Logic: A and B agree with EACH OTHER → I am the outlier → I correct myself
+```
+
+**The Fix:** Trust is derived from **"His Clock vs. The Crowd"**, not "His Clock vs. My Clock."
+
+## 7.2 Silicon Dunbar's Number
+
+Biology has billions of neurons. Your ESP32 has 512KB RAM. Your C64 has 64KB.
+
+We cannot track complex histograms for every MAC address that drives by. We implement a **bounded "Friend List"**:
+
+| Slot Type | Count | Purpose |
+|-----------|-------|---------|
+| High Trust | 8 | Established peers with proven history |
+| Probationary | 4 | New arrivals under observation |
+| Stranger | ∞ | Ignored until slot opens |
+
+**Eviction Policy (Memory B Cell Pattern):** If a Probationary peer outperforms a High Trust peer, they swap. Lowest health + **fewest interactions** = first evicted. This protects "old friends"—a GPS node with 10,000 interactions that went silent for maintenance is more valuable than a new peer with 5 interactions. The immune system doesn't forget chickenpox just because it hasn't seen it recently.
+
+## 7.3 The Metabolic Ledger Data Structure
+
+```c
+/* Silicon Dunbar's Number */
+#define UTLP_TRUST_MAX_PEERS    12
+
+/* Trust Thresholds (0-255) */
+#define UTLP_TRUST_MAX          255
+#define UTLP_TRUST_MIN_VOTE     50   /* Minimum to participate in consensus */
+#define UTLP_TRUST_SYNC_THRESH  100  /* Minimum to be chosen as sync source */
+#define UTLP_TRUST_STARTUP      80   /* Probationary score for strangers */
+
+/* Metabolic Costs - Asymmetric (negativity bias) */
+#define UTLP_COST_LYING         50   /* Penalty: disagrees with consensus */
+#define UTLP_COST_DRIFTING      10   /* Penalty: high variance */
+#define UTLP_REWARD_TRUTH       2    /* Reward: slow trust building */
+
+typedef struct {
+    uint8_t  mac[6];
+    
+    /* THE METABOLIC LEDGER */
+    uint8_t  health_score;      /* 0-255: The "Credit Score" */
+    uint16_t interactions;      /* Observation count (familiarity) */
+    
+    /* BEHAVIORAL FINGERPRINT */
+    int32_t  last_offset_us;    /* What they claimed last time */
+    uint32_t last_seen_ms;      /* For LRU eviction */
+    uint8_t  consecutive_hits;  /* Consistency counter */
+    uint8_t  stratum_claim;     /* Metadata only—NOT authority */
+    
+} utlp_peer_ledger_t;
+```
+
+**Key Insight:** `stratum_claim` is metadata, not authority. A healthy Stratum 2 beats a sick Stratum 1.
+
+## 7.4 Consensus-Relative Judgement
+
+The immune system's "self vs. non-self" check, but for time:
+
+```c
+void update_peer_health(utlp_peer_ledger_t* peer, 
+                        int64_t incoming_time, 
+                        int64_t swarm_median) {
+    
+    /* THE JUDGEMENT: Compare to GROUP CONSENSUS, not to self */
+    int64_t deviation = llabs(incoming_time - swarm_median);
+    
+    if (deviation < 2000) {  /* Within 2ms of consensus */
+        /* Reward: Trust grows SLOWLY (hard to earn) */
+        if (peer->health_score < UTLP_TRUST_MAX) {
+            peer->health_score += UTLP_REWARD_TRUTH;
+        }
+        peer->consecutive_hits++;
+    } 
+    else {
+        /* Penalty: Trust falls FAST (easy to lose) */
+        /* Negativity bias - biological! One betrayal > 25 kindnesses */
+        uint8_t penalty = (deviation > 100000) ? 
+                          UTLP_COST_LYING : UTLP_COST_DRIFTING;
+        
+        if (peer->health_score > penalty) {
+            peer->health_score -= penalty;
+        } else {
+            peer->health_score = 0;  /* Untrusted */
+        }
+        peer->consecutive_hits = 0;
+    }
+    
+    peer->interactions++;
+}
+```
+
+**The Asymmetry:** Trust grows at +2/observation but falls at -10 to -50. This matches biological negativity bias—one predator attack matters more than 25 peaceful encounters.
+
+## 7.5 Survival of the Fittest Selection
+
+```c
+utlp_peer_ledger_t* select_biological_source(void) {
+    utlp_peer_ledger_t* best = NULL;
+    uint32_t highest_score = 0;
+    
+    for (int i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        utlp_peer_ledger_t* p = &g_peers[i];
+        
+        /* Filter: Must meet minimum trust threshold */
+        if (p->health_score < UTLP_TRUST_SYNC_THRESH) continue;
+        
+        /* FORMULA: Health is 90%, Stratum is 10% */
+        /* A healthy Stratum 2 beats a sick Stratum 1 */
+        uint32_t composite = (p->health_score * 10) + (16 - p->stratum_claim);
+        
+        if (composite > highest_score) {
+            highest_score = composite;
+            best = p;
+        }
+    }
+    return best;
+}
+```
+
+**The Formula:** `Score = (Health × 10) + (16 - Stratum)`
+
+| Peer | Health | Stratum | Score |
+|------|--------|---------|-------|
+| GPS Node (healthy) | 250 | 1 | 2500 + 15 = **2515** |
+| GPS Node (sick) | 80 | 1 | 800 + 15 = **815** |
+| Crystal (healthy) | 200 | 2 | 2000 + 14 = **2014** |
+
+The healthy crystal beats the sick GPS. **Performance over credential.**
+
+## 7.6 The Credit Score of Time
+
+We have evolved from **Feudalism** (Stratum = Rank) to **Credit** (Health = Score):
+
+| State | Credit Score | Privileges |
+|-------|--------------|------------|
+| New Node | 80 (Probationary) | Can listen, cannot lead |
+| Established | 150-200 | Eligible for sync source |
+| Elder | 250+ | Preferred source, survives eviction |
+| Defaulting | <100 | Ignored for sync, eviction candidate |
+| Untrusted | 0 | Encapsulated (walled off) |
+
+**Rebuilding Trust:** A defaulting node must accumulate ~25 consecutive good observations to return to sync eligibility. Bankruptcy has consequences.
+
+## 7.7 What This Achieves
+
+**Predictable but Autonomous:**
+- *Predictable:* "If I introduce a high-quality GPS clock, the swarm will adopt it after ~30 seconds of observation"
+- *Predictable:* "If I introduce a spoofer, the swarm will isolate it within 5-10 seconds"
+- *Autonomous:* Even if you program a node to broadcast `Stratum: 0` (The King), the swarm ignores it if timing is erratic
+
+**Immune to Political Creep:**
+Physics (consensus) is the only voter. Credentials confer no privilege without performance.
+
+## 7.8 Reference Implementation
+
+The complete `utlp_trust.h` and `utlp_trust.c` implementation is provided in Appendix C. Key features:
+- C89 compliant (works on C64)
+- No dynamic allocation (static peer array)
+- LRU eviction with health-weighted priority
+- Median consensus calculation via qsort
+- HAL-abstracted for cross-platform use
+
+---
+
+## 8. Prior Art Extensions
+
+This supplement establishes additional prior art for:
+
+### 8.1 Biological Governance for Time Sync
+1. **Immune system governance model**: Treating misbehaving nodes as infections (filter/isolate) rather than criminals (prosecute)—reputation calculated from objective metrics, not peer judgment
+2. **Statistical hygiene via median consensus**: Bad actors rendered inert through physics, not protocol enforcement
+3. **Health score as biological fitness**: Multi-factor quality metric determining node survival in swarm
+4. **Active immune response (Defensive Beaconing)**: Senior nodes actively correct Rookies broadcasting conflicting time—prevents "Split Brain" during bootstrap; immune escalation via increased beacon rate mirrors biological inflammation response
+5. **Encapsulation vs. Apoptosis distinction**: Bad nodes encapsulated (network ignore) not killed (apoptosis)—silicon has no conscience for self-termination; infection contained but not eliminated, matching TB granuloma biology
+
+### 8.2 Endosymbiotic Integration
+6. **GPS/NTP ingestion strategy**: Consuming legacy time sources rather than competing—becoming delivery mechanism for "old gods"
+7. **Stratum as metabolic distance**: Hierarchy reflecting distance from truth, not authority
+
+### 8.3 Speciation Architecture  
+8. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK—"born of one" clusters with genetic identity
+9. **Species barrier for swarm isolation**: Medical device swarm immune to party decoration swarm
+
+### 8.4 Emergence-Aware Design
+10. **Macro-state observation principle**: Explicit design for swarm health observation, not packet inspection
+11. **Gardening vs engineering paradigm**: Role transition from architect to observer as swarm matures
+
+### 8.5 Physics-Based Security
+12. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
+13. **Quorum sensing for validation consensus**: Defensive beaconing requires minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Senior attacks valid swarm
+
+### 8.6 Immune Checkpoints (S2.3)
+14. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Senior nodes disagree; maps T-cell exhaustion to silicon
+15. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
+16. **Fever response via PHY rate modulation**: Correction pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
+
+### 8.7 Metabolic Ledger (S2.4)
+17. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
+18. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
+19. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
+20. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
+
+### 8.8 Spectral Duty Cycle Coordination (S2.6)
+21. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
+22. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
+23. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
+24. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
+25. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
+
+### 8.9 Technosignature Generation (S2.7)
+26. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
+27. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
+28. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
+
+---
+
+## Appendix A: Terminology Mapping
+
+| Old (Political) | New (Biological) | Meaning |
+|-----------------|------------------|---------|
+| Leader | Reference node | Source of time truth |
+| Election | Selection | Quality-metric-based choice |
+| Voting | Median consensus | Statistical agreement |
+| Law | Protocol | Expected behavior |
+| Crime | Malfunction | Deviation from protocol |
+| Punishment | Apoptosis/filtering | Removal from consideration |
+| Citizen | Member | Node in swarm |
+| Tax | Beacon cost | Energy to participate |
+| Immigrant | Foreign species | Different encryption key |
+| Border | Species barrier | Key-based isolation |
+| Escalation | Inflammation | Increased beacon rate |
+| Runaway escalation | Cytokine storm | Two Seniors flooding RF |
+| Rate limiting | T-cell exhaustion | Defensive budget depletion |
+| Cooldown | Anergy | Non-responsive state after exhaustion |
+| Validation | Quorum sensing | Waiting for peer consensus before acting |
+| Maximum force | Fever response | Low data rate for maximum reach |
+| Isolation | Encapsulation | Walling off bad actor (not killing) |
+| Authority | Credential | Claimed rank (now just metadata) |
+| Reputation | Health score | Accumulated trust from observation |
+| Credit check | Consensus comparison | Judging against the crowd |
+| Bankruptcy | Health = 0 | Untrusted, must rebuild |
+| Friend list | Peer ledger | Bounded memory of known peers |
+| Stranger | Untracked MAC | Not in ledger, ignored |
+| Long-term memory | Memory B Cell | High-interaction peer preserved during eviction |
+| Light pollution | Spectral noise floor | Random uncorrelated light from distributed sources |
+| Dark window | Spectral duty cycle | Scheduled period of coordinated darkness |
+| Dimmer switch | Phase coordination | Hemispheric-scale synchronized light control |
+| Noise | Shimmer | Random uncorrelated planetary emissions (Type 0) |
+| Signal | Heartbeat | Synchronized planetary emissions (Type I) |
+| Health check | Liveness probe | Civilization status via signal persistence |
+
+---
+
+## Appendix B: References
+
+### Biological Inspiration
+- Timmis, J. et al. (2016). "An immune-inspired swarm aggregation algorithm for self-healing swarm robotic systems." Biosystems.
+- Cohen, I.R. & Efroni, S. (2019). "The Immune System Computes the State of the Body." Frontiers in Immunology.
+- Ismail, A.R. (2011). "Immune-inspired self-healing swarm robotic systems." PhD thesis, University of York.
+
+### Distributed Systems
+- Castro, M. & Liskov, B. (1999). "Practical Byzantine Fault Tolerance." OSDI.
+- Babaoglu, O. et al. (2006). "Design patterns from biology for distributed computing." ACM TAAS.
+
+### Time Synchronization
+- Mills, D.L. (1991). "Internet time synchronization: the network time protocol." IEEE Trans. Comm.
+- Elson, J. et al. (2002). "Fine-grained network time synchronization using reference broadcasts." OSDI.
+
+---
+
+## Appendix C: Metabolic Ledger Reference Implementation
+
+### C.1 Header File (utlp_trust.h)
+
+```c
+/**
+ * @file utlp_trust.h
+ * @brief The Metabolic Ledger - Biological Reputation System
+ *
+ * Replaces "Political Authority" (Stratum) with "Biological Health" (Trust).
+ * Tracks peer behavior over time to filter bad actors via consensus.
+ *
+ * @version 1.0.0
+ * @date 2025-12
+ */
+
+#ifndef _UTLP_TRUST_H_
+#define _UTLP_TRUST_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*============================================================================
+ * CONFIGURATION
+ *==========================================================================*/
+
+/* Silicon Dunbar's Number: How many peers can we remember? */
+#define UTLP_TRUST_MAX_PEERS    12
+
+/* Trust Thresholds (0-255) */
+#define UTLP_TRUST_MAX          255
+#define UTLP_TRUST_MIN_VOTE     50   /* Minimum health to vote in consensus */
+#define UTLP_TRUST_SYNC_THRESH  100  /* Minimum health to be sync source */
+#define UTLP_TRUST_STARTUP      80   /* Probationary score for new nodes */
+
+/* Metabolic Costs - Asymmetric (biological negativity bias) */
+#define UTLP_COST_LYING         50   /* Penalty for disagreeing with consensus */
+#define UTLP_COST_DRIFTING      10   /* Penalty for high variance */
+#define UTLP_REWARD_TRUTH       2    /* Slow trust building (Hebbian) */
+
+/*============================================================================
+ * TYPES
+ *==========================================================================*/
+
+typedef struct {
+    uint8_t  mac[6];
+    
+    /* THE METABOLIC LEDGER */
+    uint8_t  health_score;      /* 0-255: The "Credit Score" */
+    uint16_t interactions;      /* Count of observations (familiarity) */
+    
+    /* BEHAVIORAL FINGERPRINT */
+    int32_t  last_offset_us;    /* The offset they claimed last time */
+    uint32_t last_seen_ms;      /* For LRU eviction */
+    uint8_t  consecutive_hits;  /* Consistency counter */
+    uint8_t  stratum_claim;     /* Metadata only (NOT authority) */
+    
+} utlp_peer_ledger_t;
+
+/*============================================================================
+ * API
+ *==========================================================================*/
+
+/** @brief Initialize the trust system */
+void utlp_trust_init(void);
+
+/** @brief Record an observation of a peer
+ *  @param mac Sender's MAC address
+ *  @param offset_us Calculated offset (remote - local)
+ *  @param stratum The stratum they claim
+ */
+void utlp_trust_record_observation(const uint8_t *mac, 
+                                   int32_t offset_us, 
+                                   uint8_t stratum);
+
+/** @brief Get the Swarm Consensus Offset
+ *  @param[out] out_consensus The calculated median offset
+ *  @return true if consensus exists (enough healthy peers)
+ */
+bool utlp_trust_get_consensus(int32_t *out_consensus);
+
+/** @brief Select the best sync source (Survival of the Fittest)
+ *  @return Pointer to best peer, or NULL if none trustworthy
+ */
+utlp_peer_ledger_t* utlp_trust_select_best_peer(void);
+
+/** @brief Log current Ledger state for debugging */
+void utlp_trust_log_status(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _UTLP_TRUST_H_ */
+```
+
+### C.2 Implementation File (utlp_trust.c)
+
+```c
+/**
+ * @file utlp_trust.c
+ * @brief The Metabolic Ledger Implementation
+ * "Trust is not declared. It is accumulated."
+ */
+
+#include "utlp_trust.h"
+#include "utlp_hal.h"  /* For utlp_hal_get_micros() */
+#include <string.h>
+#include <stdlib.h>
+
+/* The Ledger: Static allocation for predictability */
+static utlp_peer_ledger_t g_peers[UTLP_TRUST_MAX_PEERS];
+
+/*============================================================================
+ * INTERNAL HELPERS
+ *==========================================================================*/
+
+static void clear_peer(utlp_peer_ledger_t *p) {
+    memset(p, 0, sizeof(utlp_peer_ledger_t));
+}
+
+static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac, 
+                                          uint32_t current_ms) {
+    int i;
+    utlp_peer_ledger_t *oldest = &g_peers[0];
+    utlp_peer_ledger_t *empty = NULL;
+
+    /* 1. Try to find existing peer */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (memcmp(g_peers[i].mac, mac, 6) == 0 && 
+            g_peers[i].interactions > 0) {
+            return &g_peers[i];
+        }
+        if (g_peers[i].interactions == 0) {
+            empty = &g_peers[i];
+        }
+        /* Track eviction candidate: lowest health first, then FEWEST interactions
+         * (Memory B Cell pattern: protect elders, evict rookies) */
+        if (g_peers[i].health_score < oldest->health_score) {
+            oldest = &g_peers[i];
+        } else if (g_peers[i].health_score == oldest->health_score) {
+            /* Tie-breaker: Evict the ROOKIE (fewer interactions)
+             * A GPS node with 10,000 interactions that went silent
+             * is more valuable than a new peer with 5 interactions */
+            if (g_peers[i].interactions < oldest->interactions) {
+                oldest = &g_peers[i];
+            }
+        }
+    }
+
+    /* 2. Use empty slot if available */
+    if (empty) {
+        clear_peer(empty);
+        return empty;
+    }
+
+    /* 3. Eviction: Only evict weak peers for strangers */
+    if (oldest->health_score < UTLP_TRUST_SYNC_THRESH) {
+        clear_peer(oldest);
+        return oldest;
+    }
+
+    /* Table full of healthy peers. Stranger ignored. */
+    return NULL;
+}
+
+static int compare_int32(const void *a, const void *b) {
+    int32_t va = *(const int32_t*)a;
+    int32_t vb = *(const int32_t*)b;
+    return (va > vb) - (va < vb);
+}
+
+/*============================================================================
+ * PUBLIC API
+ *==========================================================================*/
+
+void utlp_trust_init(void) {
+    int i;
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        clear_peer(&g_peers[i]);
+    }
+}
+
+bool utlp_trust_get_consensus(int32_t *out_consensus) {
+    int32_t votes[UTLP_TRUST_MAX_PEERS];
+    int count = 0;
+    int i;
+    
+    /* Collect votes from HEALTHY peers only */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 && 
+            g_peers[i].health_score >= UTLP_TRUST_MIN_VOTE) {
+            votes[count++] = g_peers[i].last_offset_us;
+        }
+    }
+
+    if (count == 0) return false;
+
+    /* Sort to find median */
+    qsort(votes, count, sizeof(int32_t), compare_int32);
+
+    /* Median selection */
+    if (count % 2 == 1) {
+        *out_consensus = votes[count / 2];
+    } else {
+        *out_consensus = (votes[count/2 - 1] + votes[count/2]) / 2;
+    }
+
+    return true;
+}
+
+void utlp_trust_record_observation(const uint8_t *mac, 
+                                   int32_t offset_us, 
+                                   uint8_t stratum) {
+    uint32_t current_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
+    utlp_peer_ledger_t *p = get_peer_entry(mac, current_ms);
+    int32_t consensus = 0;
+    bool has_consensus;
+    int32_t deviation;
+
+    if (!p) return; /* Table full, stranger ignored */
+
+    /* New peer initialization */
+    if (p->interactions == 0) {
+        memcpy(p->mac, mac, 6);
+        p->health_score = UTLP_TRUST_STARTUP;
+        p->interactions = 1;
+        p->last_offset_us = offset_us;
+        p->last_seen_ms = current_ms;
+        p->stratum_claim = stratum;
+        return;
+    }
+
+    /* Update metadata */
+    p->last_seen_ms = current_ms;
+    p->stratum_claim = stratum;
+    
+    /* THE JUDGEMENT: Compare to Swarm Consensus, not to self */
+    has_consensus = utlp_trust_get_consensus(&consensus);
+    
+    if (!has_consensus) {
+        /* No consensus. Check self-consistency (jitter) */
+        deviation = abs(p->last_offset_us - offset_us);
+        if (deviation < 2000) {
+            if (p->health_score < UTLP_TRUST_MAX) p->health_score++;
+        } else {
+            if (p->health_score > 0) p->health_score--;
+        }
+    } else {
+        /* CONSENSUS EXISTS: Judge against the Crowd */
+        deviation = abs(offset_us - consensus);
+
+        if (deviation < 2000) {
+            /* Hebbian Reward: Trust grows slowly */
+            if (p->health_score <= (UTLP_TRUST_MAX - UTLP_REWARD_TRUTH)) {
+                p->health_score += UTLP_REWARD_TRUTH;
+            } else {
+                p->health_score = UTLP_TRUST_MAX;
+            }
+            p->consecutive_hits++;
+        } else {
+            /* Penalty: Trust falls fast (negativity bias) */
+            uint8_t penalty = (deviation > 100000) ? 
+                              UTLP_COST_LYING : UTLP_COST_DRIFTING;
+            
+            if (p->health_score > penalty) {
+                p->health_score -= penalty;
+            } else {
+                p->health_score = 0;
+            }
+            p->consecutive_hits = 0;
+        }
+    }
+
+    p->last_offset_us = offset_us;
+    if (p->interactions < 65000) p->interactions++;
+}
+
+utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
+    int i;
+    utlp_peer_ledger_t *best = NULL;
+    uint32_t best_score = 0;
+    
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        utlp_peer_ledger_t *p = &g_peers[i];
+        uint32_t composite;
+
+        if (p->interactions == 0) continue;
+        if (p->health_score < UTLP_TRUST_SYNC_THRESH) continue;
+
+        /* FORMULA: Health (90%) + Stratum hint (10%) */
+        composite = ((uint32_t)p->health_score * 10);
+        if (p->stratum_claim < 16) {
+            composite += (16 - p->stratum_claim);
+        }
+
+        if (composite > best_score) {
+            best_score = composite;
+            best = p;
+        }
+    }
+
+    return best;
+}
+```
+
+---
+
+## Acknowledgments
+
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, and the Memory B Cell eviction pattern.
+
+While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
+
+**Author:** Steve (mlehaptics Project)
+
+---
+
+*Document version: S2.7*
+*Last updated: December 2025*
+*Status: Implementation specification for UTLP biological governance model*
+*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
+*Revision notes: S2.7 adds Section 8.9 "Technosignature Generation" with claims 26-28 covering planetary-scale coordination as observable Kardashev Phase Transition marker and civilization liveness probe; total 28 prior art extension claims*

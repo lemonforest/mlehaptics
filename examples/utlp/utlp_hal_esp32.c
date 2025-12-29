@@ -1,6 +1,6 @@
 /**
- * @file utlp_hal_esp32c6.c
- * @brief ESP32 HAL Implementation - Genesis Node
+ * @file utlp_hal_esp32.c
+ * @brief ESP32 HAL Implementation - UTLP v2 Frontier Algorithm
  *
  * Minimal implementation for UTLP time synchronization demonstration.
  * Single actuator (LED) driven by MCPWM for phase-aligned output.
@@ -13,8 +13,8 @@
  *   XIAO ESP32-C6: GPIO15, active LOW  (defaults)
  *   ESP32 DevKit:  GPIO2,  active HIGH (-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0)
  *
- * @version 2.1.0 - Added board-agnostic LED polarity support
- * @date 2025-12-28
+ * @version 2.2.0 - ESP32-focused (forked from skeleton)
+ * @date 2025-12-29
  */
 
 #include "utlp_hal.h"
@@ -166,7 +166,7 @@ static void init_mcpwm_led(void)
      *   - 100Hz  = 10,000 ticks (OK)
      *   - 1kHz   = 1,000 ticks (OK - our default)
      *
-     * The skeleton uses time-indexed LED control and calls
+     * UTLP uses time-indexed LED control and calls
      * set_actuator_phase() with freq=1000Hz, so 1kHz default works.
      */
     uint32_t default_period = MCPWM_RESOLUTION_HZ / 1000;  /* 1kHz = 1000 ticks */
@@ -192,7 +192,7 @@ static void init_mcpwm_led(void)
     };
     ESP_ERROR_CHECK(mcpwm_new_comparator(g_mcpwm_operator, &cmp_cfg, &g_mcpwm_comparator));
 
-    /* Generator on GPIO15 */
+    /* Generator on actuator GPIO */
     mcpwm_generator_config_t gen_cfg = {
         .gen_gpio_num = ACTUATOR_GPIO,
     };
@@ -297,7 +297,7 @@ static void init_wifi_espnow(void)
 void utlp_hal_init(void)
 {
     ESP_LOGI(TAG, "========================================");
-    ESP_LOGI(TAG, "UTLP HAL - Genesis Node (ESP32-C6)");
+    ESP_LOGI(TAG, "UTLP HAL v2 - Frontier Algorithm");
     ESP_LOGI(TAG, "========================================");
 
     /* NVS (required for WiFi) */
@@ -417,7 +417,7 @@ void utlp_hal_set_actuator_phase(int channel, uint32_t frequency_hz,
      * the PWM cycle to align with atomic time boundaries.
      *
      * Simple approach for now: Just set duty. The time-indexed logic
-     * in the skeleton will call this function with appropriate duty
+     * will call this function with appropriate duty
      * (100% or 0%) at the right times based on atomic time modulo.
      *
      * True hardware phase sync would require syncing the MCPWM counter
@@ -439,7 +439,7 @@ void utlp_hal_actuator_stop(int channel)
  * LOGGING API IMPLEMENTATION
  *
  * Maps platform-agnostic logging to ESP-IDF esp_log.
- * These functions are called from utlp_skeleton.c which has no ESP dependencies.
+ * These functions are called from utlp.c which has no ESP dependencies.
  *==========================================================================*/
 
 #include <stdarg.h>

@@ -1,18 +1,35 @@
-# UTLP Genesis Node Skeleton
+# UTLP v2 - Frontier Algorithm
 
-**Universal Time Lord Protocol** - A minimal implementation demonstrating
-connectionless distributed time synchronization.
+**Universal Time Lord Protocol** - ESP32-focused implementation demonstrating
+connectionless distributed time synchronization with **topology-aware election**.
 
 > *"Time is born of one."* — UTLP Specification, Section 7
+
+## Overview
+
+This is the production ESP32 implementation of UTLP v2, featuring the full
+Frontier Algorithm for topology-aware Genesis election. Forked from
+`utlp_skeleton` for focused ESP32 development without cross-platform constraints.
+
+**For cross-platform/educational use:** See `examples/utlp_skeleton/` which
+maintains C64/8-bit compatibility.
+
+## Key Features (Frontier Algorithm)
+
+- **Score-based election:** Higher genesis_score wins (not lower MAC)
+- **Layered Provider Model:** Genesis → Providers → Consumers
+- **Smart Interval:** Promotion Pulse + Echo Rule for relays
+- **Multi-hop support:** Providers extend range to edge nodes
+- **Native 64-bit:** Full uint64_t support, no workarounds
 
 ## Quick Start
 
 ```bash
 # Build and flash for XIAO ESP32-C6 (default)
-pio run -e utlp_skeleton -t upload
+pio run -e utlp_xiao_esp32c6 -t upload
 
 # Build and flash for ESP32 DevKit v1
-pio run -e utlp_skeleton_devkit -t upload
+pio run -e utlp_esp32_devkit -t upload
 
 # Monitor serial output
 pio device monitor
@@ -27,8 +44,8 @@ The HAL supports multiple ESP32 boards via build flags:
 
 | Board | Environment | GPIO | Polarity | Build Flags |
 |-------|-------------|------|----------|-------------|
-| XIAO ESP32-C6 | `utlp_skeleton` | 15 | Active LOW | *(defaults)* |
-| ESP32 DevKit v1 | `utlp_skeleton_devkit` | 2 | Active HIGH | `-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0` |
+| XIAO ESP32-C6 | `utlp_xiao_esp32c6` | 15 | Active LOW | *(defaults)* |
+| ESP32 DevKit v1 | `utlp_esp32_devkit` | 2 | Active HIGH | `-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0` |
 
 For custom boards, add to `platformio.ini`:
 ```ini
@@ -53,13 +70,76 @@ Boot → I AM the Atomic Clock (stratum 1) → LED blinks immediately
     Beacon received from better stratum?
          ↓
     YES → Adopt their time, become Follower (stratum 2)
-    NO  → Continue as Genesis (stratum 1)
+         ↓
+    Same stratum? → Higher genesis_score wins (topology-aware)
+         ↓
+    Same score? → Lower MAC wins (tie-breaker)
 ```
 
 **Why this matters:**
 - Single device works standalone (no peer required)
 - Late-joining nodes adopt from existing swarm
 - Simple, robust, zero negotiation
+- Better-positioned nodes win (not just oldest)
+
+## Frontier Algorithm (Score-Based Election)
+
+The original UTLP used MAC address as the tie-breaker. This is **topology-blind**:
+an old device with a low MAC might be poorly positioned (behind walls, at the edge).
+
+**Frontier Algorithm v2** uses a **genesis_score** (0-255) based on:
+
+| Component | Points | What It Measures |
+|-----------|--------|------------------|
+| Neighbor count | 0-100 | Central position (more peers = better relay) |
+| Average RSSI | 0-100 | Signal strength (louder = better coverage) |
+| Drift stability | 0-55 | Clock quality (lower drift = better source) |
+
+**Election Logic:**
+1. Lower stratum always wins
+2. Same stratum: **higher score** wins (topology-aware)
+3. Same score: lower MAC wins (deterministic tie-breaker)
+
+## Layered Provider Model
+
+Not all nodes relay time. This saves bandwidth and prevents drift amplification.
+
+```
+Genesis (S1) ─────── Always chirps (source of truth) ──────────────────
+                              │
+                              ▼
+         ┌─────────────────────────────────────────────┐
+         │  HIGH-SCORE S2 = "Providers"                │
+         │  - At network edge (weak master signal)     │ → ALSO chirp
+         │  - Above RELAY_THRESHOLD (score > 128)      │   (extend range)
+         └─────────────────────────────────────────────┘
+                              │
+                              ▼
+         ┌─────────────────────────────────────────────┐
+         │  LOW-SCORE S2 = "Consumers"                 │
+         │  - Strong master signal (interior node)     │ → SILENT
+         │  - Below RELAY_THRESHOLD (score ≤ 128)      │   (just sync)
+         └─────────────────────────────────────────────┘
+```
+
+**Frontier Detection:** A node at the edge (weak master RSSI < -70 dBm) with
+high score becomes a Provider to extend coverage to devices that can't hear Genesis.
+
+## Smart Interval (Echo Rule)
+
+**Problem:** A relay cannot chirp faster than it gets corrected. If Genesis
+chirps every 60s, a Provider chirping every 10s would amplify drift errors.
+
+**Solution:** Providers use smart interval logic:
+
+| Role | Interval | Logic |
+|------|----------|-------|
+| Genesis | Genesis Pulse | 100ms→500ms→1s→10s→60s over time |
+| New Provider | Promotion Pulse | 1s for 10 seconds (announce presence) |
+| Steady Provider | Echo Rule | 60s + MAC-based jitter (match master) |
+
+**Jitter:** Each Provider offsets by `MAC[5] × 100ms` (0-25.5s) to prevent
+collision when multiple Providers transmit near the same 60s boundary.
 
 ## Genesis Pulse (Dynamic Beacon Interval)
 
@@ -83,7 +163,7 @@ then settle to steady-state:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              Application Layer (utlp_skeleton.c)            │
+│                  Application Layer (utlp.c)                 │
 │                                                              │
 │    Boot as Genesis (stratum 1) → Blink LED immediately      │
 │    Listen for beacons → Adopt better stratum if found       │
@@ -95,13 +175,13 @@ then settle to steady-state:
 │                                                              │
 │    Time:     get_micros(), set_time_offset()                │
 │    Radio:    tx_packet(), rx_wait(), rx_poll()              │
-│    Actuator: set_actuator_phase() [GPIO15 LED]              │
+│    Actuator: set_actuator_phase() [GPIO LED]                │
 ├─────────────────────────────────────────────────────────────┤
-│        ESP32-C6 Implementation (utlp_hal_esp32c6.c)         │
+│           ESP32 Implementation (utlp_hal_esp32.c)           │
 │                                                              │
 │   ┌─────────┬─────────┬─────────┬─────────┐                 │
 │   │ ESP-NOW │  MCPWM  │ Timer   │Semaphore│                 │
-│   │ (radio) │(GPIO15) │ (time)  │  (RX)   │                 │
+│   │ (radio) │  (LED)  │ (time)  │  (RX)   │                 │
 │   └─────────┴─────────┴─────────┴─────────┘                 │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -129,39 +209,27 @@ the **known reference signal** — like a seismic sweep with known frequency.
 timestamps would mix sender and receiver drift — same timestamp isolates
 receiver drift against the known reference.
 
-**Why 2ms spacing?** Tight grouping (6ms total chirp) represents a single
-"moment" in time, minimizing drift smearing within the measurement window.
-
 See: `UTLP_Technical_Supplement_S1.md` Section 1.4
 
-## Beacon Protocol
+## Beacon Protocol (v2)
 
-10-byte seismic chirp burst (one-way, no reply needed):
+11-byte seismic chirp burst (one-way, no reply needed):
 
 ```
-┌──────────┬─────────────────────────────────────────────┐
-│ Byte 0   │ Stratum (1 = Genesis)                       │
-├──────────┼─────────────────────────────────────────────┤
-│ Byte 1   │ Burst index (0, 1, or 2)                    │
-├──────────┼─────────────────────────────────────────────┤
-│ Bytes 2-9│ Chirp epoch (SAME timestamp in all 3 bursts)│
-└──────────┴─────────────────────────────────────────────┘
+┌───────────┬─────────────────────────────────────────────┐
+│ Byte 0    │ Stratum (1 = Genesis, 2 = Follower, etc.)   │
+├───────────┼─────────────────────────────────────────────┤
+│ Byte 1    │ Burst index (0, 1, or 2)                    │
+├───────────┼─────────────────────────────────────────────┤
+│ Byte 2    │ Genesis score (0-255, higher = better)      │
+├───────────┼─────────────────────────────────────────────┤
+│ Bytes 3-10│ Chirp epoch (SAME timestamp in all 3 bursts)│
+└───────────┴─────────────────────────────────────────────┘
 ```
 
 **Critical:** All 3 bursts carry the **same** timestamp (captured once at chirp start).
 The 2ms burst spacing is the **known reference**. Receiver compares expected vs.
 observed spacing to detect clock drift.
-
-**Receiver behavior:** Only burst 0 is used for synchronization (offset).
-Bursts 1 and 2 enable future drift/stability extraction via polynomial fitting.
-
-**Sync Math (one-way timing):**
-```
-offset = remote_tx_time - local_rx_time
-atomic_time = local_time + offset
-```
-
-For short-range ESP-NOW (same room), flight time ≈ 0.
 
 ## Time-Indexed LED Control
 
@@ -175,94 +243,42 @@ bool led_on = (cycle_pos < BLINK_PERIOD_US / 2);     // 50% duty
 **Why this is drift-proof:** Every node with the same atomic_time
 will calculate the same LED state. No drift accumulation.
 
-## Drift Analysis (Polynomial Fitting)
-
-When a Follower receives all 3 bursts of a seismic chirp, it performs
-polynomial fitting to extract drift metrics:
-
-```
-offset(t) = a + b*t + c*t²
-
-Where:
-  a = instantaneous offset (microseconds)
-  b = drift rate (parts-per-billion, PPB)
-  c = drift acceleration (PPB/second, thermal instability)
-```
-
-**How drift is calculated:**
-
-The 3 bursts should arrive exactly 2ms apart. Any deviation from 2ms
-spacing indicates local clock drift:
-
-```
-Expected:  rx[0], rx[0]+2000us, rx[0]+4000us
-Actual:    rx[0], rx[1], rx[2]
-Delta:     0, (rx[1]-rx[0])-2000, (rx[2]-rx[1])-2000
-
-Drift (PPB) = delta_01 / 0.002s * 1000
-Accel (PPB/s) = (delta_12 - delta_01) / 0.002s * 1000
-```
-
-**Genesis-Pulse Logging:**
-
-| Uptime | Log Interval | Purpose |
-|--------|--------------|---------|
-| 0-10s | 1 second | Fast feedback during convergence |
-| 10s+ | 30 seconds | Steady-state monitoring |
-
-**Example drift stats output:**
-
-```
-I (XXX) UTLP: ════════════════════════════════════════════════════════
-I (XXX) UTLP: [DRIFT STATS] Chirps analyzed: 5 (uptime: 3s)
-I (XXX) UTLP:   LAST: offset=+1234us | drift=+500ppb | accel=+10.5ppb/s
-I (XXX) UTLP:   AVG:  offset=+1200us | drift=+480ppb | accel=+8.2ppb/s
-I (XXX) UTLP:   RANGE: drift=[+450..+520]ppb
-I (XXX) UTLP: ════════════════════════════════════════════════════════
-```
-
-**Interpretation:**
-- **offset**: How far local clock is from master (applies to all bursts)
-- **drift**: Local clock speed error (+500 PPB = running 0.0005% fast)
-- **accel**: Drift rate changing (thermal instability indicator)
-- **Typical crystal**: ±20 ppm = ±20,000 ppb
-
 ## Expected Serial Output
 
 ```
 I (552) UTLP: ========================================
-I (562) UTLP: UTLP GENESIS NODE
+I (562) UTLP: UTLP GENESIS NODE v2 - Frontier Algorithm
 I (562) UTLP: "Time is born of one."
 I (572) UTLP: ========================================
 I (572) UTLP: MAC: 10:51:DB:1C:B3:08
 I (582) UTLP: Stratum: 1 (GENESIS)
-I (582) UTLP: Beacon: Seismic Chirp (3-burst @ 2ms spacing)
-I (592) UTLP: Interval: Genesis Pulse (100ms→500ms→1s→10s→60s)
+I (582) UTLP: Beacon: 11-byte Seismic Chirp (3-burst @ 2ms)
+I (592) UTLP: Election: Score-based (higher score wins)
+I (592) UTLP: Relay: Frontier detection (edge nodes = Providers)
+I (602) UTLP: Interval: Genesis Pulse / Promotion Pulse / Echo Rule
 I (602) UTLP: Blink period: 1000 ms
-I (602) UTLP: Drift Analysis: Enabled (polynomial fit)
-I (612) UTLP: Stats Log: 1s (first 10s) → 30s (steady state)
+I (612) UTLP: Drift Analysis: Enabled (polynomial fit)
 I (612) UTLP: ========================================
-I (XXX) UTLP: Beacon interval: 100 ms (uptime 0s)
-I (XXX) UTLP: [LED] ON  @ atomic=500000 us (stratum 1)
-I (XXX) UTLP: [LED] OFF @ atomic=1000000 us (stratum 1)
-I (XXX) UTLP: Beacon interval: 500 ms (uptime 1s)
+I (XXX) UTLP: Beacon interval: 100 ms (uptime 0s, role=Genesis)
+I (XXX) UTLP: [LED] ON  @ phase=500000 us (stratum 1)
+I (XXX) UTLP: [LED] OFF @ phase=0 us (stratum 1)
+I (XXX) UTLP: Beacon interval: 500 ms (uptime 1s, role=Genesis)
 ...
-I (XXX) UTLP: SYNCED: stratum=2, offset=+1234 us  ← Adopted from peer
-I (XXX) UTLP: ════════════════════════════════════════════════════════
-I (XXX) UTLP: [DRIFT STATS] Chirps analyzed: 5 (uptime: 1s)
-I (XXX) UTLP:   LAST: offset=+1234us | drift=+500ppb | accel=+10.5ppb/s
-I (XXX) UTLP:   AVG:  offset=+1234us | drift=+500ppb | accel=+10.5ppb/s
-I (XXX) UTLP:   RANGE: drift=[+500..+500]ppb
-I (XXX) UTLP: ════════════════════════════════════════════════════════
+I (XXX) UTLP: Same stratum, higher score wins (180 > 120)
+I (XXX) UTLP: SYNCED: stratum=2, offset=+1234 us
+I (XXX) UTLP: Stratum changed: 1 -> 2 (provider=YES)
+I (XXX) UTLP: Beacon interval: 1000 ms (uptime 5s, role=Provider)
+...
+I (XXX) UTLP: Beacon interval: 60000 ms (uptime 15s, role=Provider)
 ```
 
 ## Known Limitations
 
 ### No Automatic Failover (Matrix-Style Takeover)
 
-This skeleton does **not** implement automatic leader re-election when the
-Genesis node goes offline. If you reset the Genesis node (lowest MAC) while
-the Follower is still running:
+This implementation does **not** implement automatic leader re-election when the
+Genesis node goes offline. If you reset the Genesis node while a Follower
+is still running:
 
 - Follower continues using stale offset
 - LEDs will drift out of sync
@@ -271,29 +287,21 @@ the Follower is still running:
 Future work may add timeout-based re-election where Followers detect
 Genesis absence and promote themselves.
 
-### No Stratum Relay
-
-Currently only supports stratum 0 (GPS), 1 (Genesis), and 2 (Follower).
-Multi-hop relay (stratum 3+) is not implemented.
-
 ## Files
 
 | File | Description |
 |------|-------------|
-| `utlp_skeleton.c` | Genesis Node application (platform-agnostic pure C) |
+| `utlp.c` | Genesis Node application (platform-agnostic pure C) |
 | `utlp_hal.h` | HAL interface contract (time, radio, actuator, logging) |
-| `utlp_hal_esp32c6.c` | ESP32-C6 HAL implementation (ESP-NOW, MCPWM, esp_log) |
-| `utlp_main_esp32c6.c` | Platform entry point (contains `app_main()`) |
+| `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM, esp_log) |
+| `utlp_main_esp32.c` | Platform entry point (contains `app_main()`) |
 | `README.md` | This documentation |
 
 ### Architecture Note
 
-`utlp_skeleton.c` contains **0% platform-specific code**. All ESP-IDF dependencies
-are isolated in the HAL files. To port UTLP to another platform:
-
-1. Create `utlp_hal_<platform>.c` implementing all functions in `utlp_hal.h`
-2. Create `utlp_main_<platform>.c` with platform entry point calling `utlp_app_run()`
-3. `utlp_skeleton.c` requires **no changes**
+`utlp.c` contains **0% platform-specific code**. All ESP-IDF dependencies
+are isolated in the HAL files. The application code uses native 64-bit types
+and C99 features without cross-platform constraints.
 
 ## HAL API Reference
 
@@ -329,7 +337,7 @@ void utlp_hal_actuator_stop(int channel);
 ### Logging Functions
 
 ```c
-// Platform-agnostic logging (maps to ESP_LOGI, Serial.print, printf)
+// Platform-agnostic logging (maps to ESP_LOGI)
 void utlp_hal_log_info(const char *tag, const char *format, ...);
 void utlp_hal_log_error(const char *tag, const char *format, ...);
 void utlp_hal_log_warn(const char *tag, const char *format, ...);
@@ -338,30 +346,22 @@ void utlp_hal_log_warn(const char *tag, const char *format, ...);
 ### Application Entry
 
 ```c
-// Called from platform-specific main (app_main, setup, main)
+// Called from platform-specific main (app_main)
 void utlp_app_run(void);
 ```
-
-## Porting to Other Platforms
-
-1. Create `utlp_hal_<platform>.c` implementing all functions in `utlp_hal.h`
-2. Create `utlp_main_<platform>.c` with entry point calling `utlp_app_run()`
-3. Map logging to platform equivalent (Serial.print, printf, etc.)
-4. Replace ESP-NOW with platform-specific radio (LoRa, BLE, etc.)
-5. Replace MCPWM with platform-specific PWM/GPIO
-6. Application code (`utlp_skeleton.c`) requires **no changes**
 
 ## Related Documentation
 
 - `docs/UTLP_Specification.md` - Full protocol specification
 - `docs/Connectionless_Distributed_Timing_Prior_Art.md` - Research foundation
+- `examples/utlp_skeleton/` - Cross-platform reference implementation
 
 ## Future Work
 
 - **Automatic failover:** Timeout-based re-election when Genesis goes offline
-- **Stratum relay:** Multi-hop mesh (stratum 3+)
 - **GPS stratum-0:** External time reference integration
 - **Drift compensation:** Use tracked drift rate for active clock correction
+- **Panic Response:** Stratum 255 "Help!" signal for rescue chirps
 
 ## License
 

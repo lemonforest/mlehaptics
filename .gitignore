@@ -58,3 +58,8 @@ serial_log*.txt
 
 # freecad backup
 *.FCBak
+
+
+
+
+src/CMakeLists.txt
