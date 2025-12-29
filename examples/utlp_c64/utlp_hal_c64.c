@@ -182,26 +182,48 @@ static void update_clock(void)
 }
 
 /**
- * @brief Get current time in microseconds
+ * @brief Get current time as utlp_time_t
  *
- * Returns the full 64-bit union value (cc65 handles the copy).
- * For ESP32 interop, we can convert via UTLP_TIME_TO_U64().
+ * Returns the full 64-bit union value (cc65 handles struct copy).
+ * The union is the "native language" of the 6502 - no 64-bit math needed.
  */
-uint64_t utlp_hal_get_micros(void)
+utlp_time_t utlp_hal_get_time(void)
 {
     update_clock();
-    return UTLP_TIME_TO_U64(g_system_time);
+    return g_system_time;
 }
 
-uint64_t utlp_hal_get_atomic_time_us(void)
+/**
+ * @brief Get atomic time (local time + offset)
+ *
+ * Returns synchronized time as utlp_time_t.
+ * Offset is applied to low 32-bits only (sufficient for ~71 min range).
+ */
+utlp_time_t utlp_hal_get_atomic_time(void)
 {
-    return utlp_hal_get_micros() + (int64_t)g_time_offset_us;
+    utlp_time_t result;
+    uint32_t old_lo;
+
+    update_clock();
+    result = g_system_time;
+
+    /* Add 32-bit offset to low dword */
+    old_lo = result.dwords.lo;
+    result.dwords.lo += g_time_offset_us;
+
+    /* Handle carry to high dword */
+    if ((g_time_offset_us > 0) && (result.dwords.lo < old_lo)) {
+        result.dwords.hi++;
+    } else if ((g_time_offset_us < 0) && (result.dwords.lo > old_lo)) {
+        result.dwords.hi--;
+    }
+
+    return result;
 }
 
-void utlp_hal_set_time_offset(int64_t offset_us)
+void utlp_hal_set_time_offset(int32_t offset_us)
 {
-    /* Truncate to 32-bit for C64 (sufficient for ~71 minutes) */
-    g_time_offset_us = (int32_t)offset_us;
+    g_time_offset_us = offset_us;
 }
 
 void utlp_hal_yield(void)
@@ -263,18 +285,19 @@ bool utlp_hal_rx_wait(utlp_packet_t *out_packet, uint32_t timeout_ms)
      * For simplicity, use a loop-based delay.
      */
     uint32_t target;
-    uint64_t now;
+    utlp_time_t now_time;
 
     (void)out_packet;
 
     /*
      * Simplified delay: check timer for elapsed time.
      * This keeps the main loop running at reasonable speed.
+     * Uses only low 32 bits (71 min range - plenty for timeout).
      */
-    now = utlp_hal_get_micros();
-    target = (uint32_t)now + (timeout_ms * 1000);
+    now_time = utlp_hal_get_time();
+    target = now_time.dwords.lo + (timeout_ms * 1000);
 
-    while ((uint32_t)utlp_hal_get_micros() < target) {
+    while (utlp_hal_get_time().dwords.lo < target) {
         /* Check for keyboard interrupt (STOP key) */
         if (kbhit()) {
             cgetc();  /* Consume key */

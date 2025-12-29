@@ -15,7 +15,8 @@ setlocal enabledelayedexpansion
 REM Configuration
 set TARGET=utlp_c64.prg
 set CC=cl65
-REM --standard cc65 enables 64-bit types (uint64_t, int64_t)
+REM --standard cc65 enables extended features (relaxed C89 mode)
+REM NOTE: cc65 does NOT support 64-bit types - we use utlp_time_t union instead
 set CFLAGS=-t c64 -O -Oi -Or --standard cc65 -I. -I..\utlp_skeleton
 set VICE=x64sc
 

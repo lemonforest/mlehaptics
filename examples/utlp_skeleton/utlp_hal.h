@@ -180,6 +180,13 @@
     /** @brief Compare times for greater-or-equal */
     #define UTLP_TIME_GE(a, b)          (!UTLP_TIME_LT(a, b))
 
+    /** @brief Compare times for equality */
+    #define UTLP_TIME_EQ(a, b) \
+        ((a).words.w3 == (b).words.w3 && \
+         (a).words.w2 == (b).words.w2 && \
+         (a).words.w1 == (b).words.w1 && \
+         (a).words.w0 == (b).words.w0)
+
     /**
      * @brief Create time from bytes (for receiving beacons)
      *
@@ -269,6 +276,9 @@
 
     /** @brief Compare times for greater-or-equal */
     #define UTLP_TIME_GE(a, b)      ((a) >= (b))
+
+    /** @brief Compare times for equality */
+    #define UTLP_TIME_EQ(a, b)      ((a) == (b))
 
     /** @brief Create time from uint64_t (no-op on native) */
     #define UTLP_TIME_FROM_U64(raw) (raw)
