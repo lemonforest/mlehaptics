@@ -63,4 +63,3 @@ serial_log*.txt
 
 
 src/CMakeLists.txt
-dependencies.lock
