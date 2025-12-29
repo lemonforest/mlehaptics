@@ -7,11 +7,14 @@
 
 idf_component_register(
     SRCS
-        # UTLP Application Layer (protocol-agnostic physics)
+        # UTLP Application Layer (platform-agnostic pure C)
         "../examples/utlp_skeleton/utlp_skeleton.c"
 
         # UTLP HAL Implementation (ESP32-C6 specific)
         "../examples/utlp_skeleton/utlp_hal_esp32c6.c"
+
+        # Platform Entry Point (contains app_main)
+        "../examples/utlp_skeleton/utlp_main_esp32c6.c"
 
     INCLUDE_DIRS
         "."

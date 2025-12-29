@@ -257,10 +257,20 @@ Multi-hop relay (stratum 3+) is not implemented.
 
 | File | Description |
 |------|-------------|
-| `utlp_skeleton.c` | Genesis Node application (~290 lines) |
-| `utlp_hal.h` | HAL interface contract (~185 lines) |
-| `utlp_hal_esp32c6.c` | ESP32-C6 implementation (~400 lines) |
+| `utlp_skeleton.c` | Genesis Node application (platform-agnostic pure C) |
+| `utlp_hal.h` | HAL interface contract (time, radio, actuator, logging) |
+| `utlp_hal_esp32c6.c` | ESP32-C6 HAL implementation (ESP-NOW, MCPWM, esp_log) |
+| `utlp_main_esp32c6.c` | Platform entry point (contains `app_main()`) |
 | `README.md` | This documentation |
+
+### Architecture Note
+
+`utlp_skeleton.c` contains **0% platform-specific code**. All ESP-IDF dependencies
+are isolated in the HAL files. To port UTLP to another platform:
+
+1. Create `utlp_hal_<platform>.c` implementing all functions in `utlp_hal.h`
+2. Create `utlp_main_<platform>.c` with platform entry point calling `utlp_app_run()`
+3. `utlp_skeleton.c` requires **no changes**
 
 ## HAL API Reference
 
@@ -290,12 +300,30 @@ void utlp_hal_set_actuator_phase(int channel, uint32_t freq_hz,
 void utlp_hal_actuator_stop(int channel);
 ```
 
+### Logging Functions
+
+```c
+// Platform-agnostic logging (maps to ESP_LOGI, Serial.print, printf)
+void utlp_hal_log_info(const char *tag, const char *format, ...);
+void utlp_hal_log_error(const char *tag, const char *format, ...);
+void utlp_hal_log_warn(const char *tag, const char *format, ...);
+```
+
+### Application Entry
+
+```c
+// Called from platform-specific main (app_main, setup, main)
+void utlp_app_run(void);
+```
+
 ## Porting to Other Platforms
 
 1. Create `utlp_hal_<platform>.c` implementing all functions in `utlp_hal.h`
-2. Replace ESP-NOW with platform-specific radio (LoRa, BLE, etc.)
-3. Replace MCPWM with platform-specific PWM/GPIO
-4. Application code (`utlp_skeleton.c`) remains **unchanged**
+2. Create `utlp_main_<platform>.c` with entry point calling `utlp_app_run()`
+3. Map logging to platform equivalent (Serial.print, printf, etc.)
+4. Replace ESP-NOW with platform-specific radio (LoRa, BLE, etc.)
+5. Replace MCPWM with platform-specific PWM/GPIO
+6. Application code (`utlp_skeleton.c`) requires **no changes**
 
 ## Related Documentation
 
