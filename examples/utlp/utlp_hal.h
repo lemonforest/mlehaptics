@@ -154,6 +154,60 @@ void utlp_hal_set_time_offset(int64_t offset_us);
 void utlp_hal_yield(void);
 
 /*============================================================================
+ * SYNCHRONIZATION API
+ *
+ * Semaphore primitives for thread-safe communication.
+ * Abstracts FreeRTOS (or other RTOS) semaphore implementation.
+ *==========================================================================*/
+
+/**
+ * @brief Opaque semaphore handle
+ *
+ * Platform-specific implementation hidden behind void pointer.
+ * ESP32: Maps to SemaphoreHandle_t
+ */
+typedef void* utlp_hal_semaphore_t;
+
+/**
+ * @brief Create a counting semaphore
+ *
+ * @param max_count   Maximum count value (1 for binary semaphore)
+ * @param initial     Initial count value
+ * @return Semaphore handle, or NULL on failure
+ */
+utlp_hal_semaphore_t utlp_hal_semaphore_create(uint32_t max_count, uint32_t initial);
+
+/**
+ * @brief Take (acquire) a semaphore
+ *
+ * Blocks until semaphore is available or timeout expires.
+ *
+ * @param sem        Semaphore handle
+ * @param timeout_ms Maximum time to wait (0 = no wait, UINT32_MAX = forever)
+ * @return true if semaphore acquired, false on timeout
+ */
+bool utlp_hal_semaphore_take(utlp_hal_semaphore_t sem, uint32_t timeout_ms);
+
+/**
+ * @brief Give (release) a semaphore
+ *
+ * Increments the semaphore count, potentially unblocking waiting tasks.
+ *
+ * @param sem Semaphore handle
+ */
+void utlp_hal_semaphore_give(utlp_hal_semaphore_t sem);
+
+/**
+ * @brief Delete a semaphore
+ *
+ * Frees resources associated with the semaphore.
+ * Behavior is undefined if tasks are waiting on the semaphore.
+ *
+ * @param sem Semaphore handle
+ */
+void utlp_hal_semaphore_delete(utlp_hal_semaphore_t sem);
+
+/*============================================================================
  * RADIO API
  *==========================================================================*/
 
