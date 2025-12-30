@@ -437,15 +437,15 @@ void utlp_trust_log_status(void) {
 }
 
 /**
- * @brief Check if I have quorum for defensive action
+ * @brief Check if I have quorum for entrainment action
  *
  * Quorum Sensing (S2 Section 6.2): Like bacteria waiting for autoinducer
  * concentration before turning virulent, nodes must verify they have
- * crowd support before attacking perceived bad actors.
+ * crowd support before entraining perceived bad actors.
  *
- * This prevents the "Crazy Old Man" scenario where an isolated Senior
- * node drifts, thinks the healthy swarm is wrong, and burns its defensive
- * budget attacking valid packets.
+ * This prevents the "Crazy Old Man" scenario where an isolated Mature
+ * node drifts, thinks the healthy swarm is wrong, and burns its entrainment
+ * budget entraining valid packets.
  *
  * @param my_offset    My current time offset in microseconds
  * @param threshold_us Maximum deviation to count as "agreement"
@@ -476,7 +476,7 @@ bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us) {
      * - Alone (no swarm yet)
      * - The outlier (I drifted, not them)
      *
-     * Either way, I should NOT fire defensive chirps.
+     * Either way, I should NOT fire entrainment pulses.
      */
     return (agreeing_peers >= 2);
 }

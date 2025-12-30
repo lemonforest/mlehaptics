@@ -38,7 +38,7 @@
  *   matters more than 25 peaceful encounters.
  *
  * - **Silicon Dunbar's Number**: Bounded peer tracking (12 slots) with
- *   health-weighted eviction. Protects "old friends" over "rookies".
+ *   health-weighted eviction. Protects "old friends" over "juveniles".
  *
  * - **Median Consensus**: Byzantine-resistant voting where a single liar
  *   cannot corrupt the swarm's perception of time.
@@ -287,14 +287,14 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void);
 void utlp_trust_log_status(void);
 
 /**
- * @brief Check if I have quorum for defensive action
+ * @brief Check if I have quorum for entrainment action
  *
  * Quorum Sensing (S2 Section 6.2): Like bacteria waiting for autoinducer
  * concentration before turning virulent, nodes must verify they have
- * crowd support before attacking perceived bad actors.
+ * crowd support before entraining perceived bad actors.
  *
- * This prevents the "Crazy Old Man" scenario where an isolated Senior
- * node drifts, thinks the healthy swarm is wrong, and burns its defensive
+ * This prevents the "Crazy Old Man" scenario where an isolated Mature
+ * node drifts, thinks the healthy swarm is wrong, and burns its entrainment
  * budget attacking valid packets.
  *
  * @param my_offset    My current time offset in microseconds
