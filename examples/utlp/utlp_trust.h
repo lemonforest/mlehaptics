@@ -7,6 +7,23 @@
  * Google Gemini (December 2025), implementing the Biological Governance
  * model described in UTLP Technical Supplement S2.
  *
+ * @section philosophy Philosophy: Governance Without Politics
+ *
+ * Traditional distributed systems use **political governance**: elections,
+ * leaders, quorums, voting. These models assume rational actors making
+ * deliberate choices. They break when nodes misbehave, lie, or drift.
+ *
+ * This module implements **biological governance**: no leaders, no elections,
+ * no votes. Trust emerges from observation. Authority is earned through
+ * demonstrated reliability, not declared through protocol messages.
+ *
+ * > "Trust is not declared. It is accumulated."
+ * > — UTLP Technical Supplement S2
+ *
+ * This is an **experiment in post-human coordination**. We are testing
+ * whether immune system principles can govern distributed systems more
+ * robustly than political metaphors borrowed from human institutions.
+ *
  * @section overview Overview
  * The Metabolic Ledger implements an immune-system-inspired trust model
  * for distributed time synchronization. Peers earn trust through consistent
@@ -25,6 +42,18 @@
  *
  * - **Median Consensus**: Byzantine-resistant voting where a single liar
  *   cannot corrupt the swarm's perception of time.
+ *
+ * @section experiment The Experiment
+ *
+ * We hypothesize that biological governance will:
+ * 1. **Self-heal** from Byzantine failures without central coordination
+ * 2. **Resist Sybil attacks** through earned-trust barriers
+ * 3. **Adapt** to changing network conditions without reconfiguration
+ * 4. **Fail gracefully** under attack rather than catastrophically
+ *
+ * To falsify this hypothesis, observe the statistical logging output.
+ * If the swarm cannot converge, or if attackers can corrupt consensus,
+ * the experiment has failed. The logs will show it.
  *
  * @section usage Usage
  * @code
@@ -256,6 +285,35 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void);
  * interaction count. Also shows whether consensus exists.
  */
 void utlp_trust_log_status(void);
+
+/**
+ * @brief Check if I have quorum for defensive action
+ *
+ * Quorum Sensing (S2 Section 6.2): Like bacteria waiting for autoinducer
+ * concentration before turning virulent, nodes must verify they have
+ * crowd support before attacking perceived bad actors.
+ *
+ * This prevents the "Crazy Old Man" scenario where an isolated Senior
+ * node drifts, thinks the healthy swarm is wrong, and burns its defensive
+ * budget attacking valid packets.
+ *
+ * @param my_offset    My current time offset in microseconds
+ * @param threshold_us Maximum deviation to count as "agreement" (typically 2000us)
+ * @return true if >= 2 healthy peers agree with me within threshold
+ * @return false if I am alone or disagreeing with the crowd
+ */
+bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us);
+
+/**
+ * @brief Look up a peer's health score
+ *
+ * Returns the current health score for a specific peer, or 0 if
+ * the peer is not in the Ledger.
+ *
+ * @param mac Peer's 6-byte MAC address
+ * @return Health score (0-255), or 0 if peer not found
+ */
+uint8_t utlp_trust_get_peer_health(const uint8_t *mac);
 
 #ifdef __cplusplus
 }

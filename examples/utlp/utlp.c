@@ -1,33 +1,91 @@
 /**
  * @file utlp.c
- * @brief UTLP v2 - Frontier Algorithm (ESP32)
+ * @brief UTLP v2 - Biological Governance for Distributed Time
  *
- * "Time cannot wait for pairwise agreement or quorum. A distributed timeline
- * must be born of one — a single genesis node declares the epoch and propagates
- * the reference." — UTLP Specification, Section 7
+ * @section manifesto Manifesto: Beyond Human Governance Models
  *
- * GENESIS LOGIC:
+ * For decades, distributed systems have borrowed from human politics:
+ * - **Elections** (Raft, Paxos) - nodes vote for leaders
+ * - **Quorums** (BFT) - majority agreement required for action
+ * - **Hierarchies** (NTP) - stratum levels assign authority
+ *
+ * These work, but they encode human assumptions: that coordination requires
+ * conscious agreement, that authority must be explicitly granted, that
+ * misbehavior requires deliberate exclusion.
+ *
+ * This code asks: **what if we governed like cells, not like congresses?**
+ *
+ * @section biology The Biological Model
+ *
+ * Your body coordinates 37 trillion cells without elections. It uses:
+ * - **Hebbian Learning**: "Neurons that fire together, wire together"
+ * - **Immune Checkpoints**: Self-limiting responses prevent autoimmunity
+ * - **Quorum Sensing**: Bacteria wait for critical mass before acting
+ * - **Dominance Hierarchies**: Static traits resolve ties (no negotiation)
+ *
+ * This module implements all four. The result is a distributed system that:
+ * - Has no leader (any node can be "Genesis")
+ * - Holds no votes (trust accumulates through observation)
+ * - Requires no coordinator (consensus emerges from local interactions)
+ * - Heals without intervention (bad actors lose trust, good actors gain it)
+ *
+ * @section experiment The Experiment
+ *
+ * We are testing whether biological governance outperforms political governance
+ * for distributed time synchronization. Success metrics:
+ *
+ * 1. **Convergence**: Does the swarm agree on time within 2ms?
+ * 2. **Resilience**: Can a Byzantine node corrupt consensus?
+ * 3. **Stability**: Does trust correctly identify reliable peers?
+ * 4. **Efficiency**: How many beacons to reach steady state?
+ *
+ * The statistical logging system (planned) will answer these questions.
+ * We will debug by observing distributions, not individual samples.
+ *
+ * @section refs References
+ *
+ * - UTLP Specification: docs/UTLP_Specification.md
+ * - Technical Supplement S1: docs/UTLP_Technical_Supplement_S1.md (Precision)
+ * - Technical Supplement S2: docs/UTLP_Technical_Supplement_S2.md (Governance)
+ * - Prior Art: docs/Connectionless_Distributed_Timing_Prior_Art.md
+ *
+ * @section quote
+ * > "Time cannot wait for pairwise agreement or quorum. A distributed timeline
+ * > must be born of one — a single genesis node declares the epoch and
+ * > propagates the reference."
+ * > — UTLP Specification, Section 7
+ *
+ * @section impl Implementation Notes
+ *
+ * **GENESIS LOGIC:**
  * 1. Boot → I AM the Atomic Clock (stratum 1)
  * 2. Start blinking immediately (no waiting for peers)
  * 3. If I hear a better stratum → adopt their time
  * 4. Same stratum: HIGHER genesis_score wins (topology-aware)
  * 5. Same score: lower MAC wins (tie-breaker)
  *
- * FRONTIER ALGORITHM (v2.0):
- * - Score-based election: neighbors, RSSI, drift stability → higher score wins
- * - Layered Provider Model: Genesis→Providers→Consumers (not all nodes relay)
- * - Smart Interval: Genesis Pulse / Promotion Pulse / Echo Rule
+ * **BIOLOGICAL GOVERNANCE (v3.0):**
+ * - Metabolic Ledger: Trust accumulated through observation, not declaration
+ * - Innate Immunity: Stratum-based bootstrap when ledger is empty
+ * - Adaptive Immunity: Health-based selection after observations accumulate
+ * - Active Immunity: Defensive chirps with dual constraints (budget + quorum)
+ * - Dominance Hierarchy: MAC-based tie-breaker prevents "Polite Crash"
  *
- * TIME-INDEXED EXECUTION:
+ * **TIME-INDEXED EXECUTION:**
  * LED state is calculated from atomic time, not toggled by delays.
  * `(atomic_time % 1_000_000) < 500_000` = LED ON
  * This is drift-proof because we recalculate every tick.
  *
- * @version 3.0.0 - Frontier Algorithm (topology-aware election)
+ * @version 3.0.0 - Biological Governance (replaces Frontier Algorithm)
  * @date 2025-12-29
+ *
+ * @copyright
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "utlp_hal.h"
+#include "utlp_trust.h"
+#include "utlp_immune.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -82,30 +140,45 @@ static const char *TAG = "UTLP";
 #define CHIRP_BURST_COUNT       3
 #define CHIRP_BURST_SPACING_US  2000        /* 2ms between bursts = 6ms total */
 
-/** @brief Stratum levels (NTP-style) */
+/** @brief Stratum levels (NTP-style, biological terminology)
+ *
+ * ORIGIN = Self-declared time source (not "master" - biological, not political)
+ * Stratum represents "distance from truth" - lower = closer to reference
+ */
 #define STRATUM_GPS             0           /* External GPS/atomic reference */
-#define STRATUM_GENESIS         1           /* Self-declared master */
-#define STRATUM_FOLLOWER        2           /* Synced to another node */
+#define STRATUM_ORIGIN          1           /* Self-declared time source */
+#define STRATUM_SYNCED          2           /* Synced to another node */
 
 /*============================================================================
  * STATE
  *==========================================================================*/
 
 typedef struct {
-    uint8_t  stratum;           /* My stratum level */
+    uint8_t  stratum;           /* My stratum level (distance from truth) */
     int32_t  time_offset;       /* Local + offset = atomic time (±35 min range) */
-    uint8_t  best_master_mac[6];/* MAC of best time source */
+    uint8_t  best_source_mac[6];/* MAC of best time source (biological, not "master") */
 } aatr_state_t;
 
 static aatr_state_t g_aatr = {
-    .stratum = STRATUM_GENESIS,  /* DEFAULT: I am the time lord */
+    .stratum = STRATUM_ORIGIN,  /* DEFAULT: I am the time source */
     .time_offset = 0,
-    .best_master_mac = {0}
+    .best_source_mac = {0}
 };
 
 static uint8_t g_local_mac[UTLP_MAC_SIZE];
 static uint64_t g_last_beacon_time = 0;
 static bool g_led_state = false;
+
+/**
+ * @brief Self-demotion vote counter for Origin nodes (S2 self-awareness)
+ *
+ * When an Origin node sees a healthier peer with a dominant MAC address,
+ * it accumulates votes to voluntarily demote itself. This prevents the
+ * "Polite Crash" where two healthy Origin nodes both try to demote.
+ *
+ * Uses dominance hierarchy tie-breaker: lower MAC = dominant (holds ground)
+ */
+static uint8_t g_self_demotion_votes = 0;
 
 /*============================================================================
  * SEISMIC CHIRP ANALYSIS - Polynomial Fitting for Drift Extraction
@@ -167,9 +240,9 @@ static chirp_accumulator_t g_chirp_acc = {0};
  *
  * Track peers to calculate genesis_score for topology-aware election.
  * This enables:
- *   1. Score-based Genesis election (higher score wins, not lower MAC)
+ *   1. Score-based source selection (higher score wins, not lower MAC)
  *   2. Frontier relay decision (edge nodes become Providers)
- *   3. Smart interval logic (Providers echo master's 60s interval)
+ *   3. Smart interval logic (Providers echo source's 60s interval)
  *==========================================================================*/
 
 /** @brief Maximum neighbors to track */
@@ -199,7 +272,7 @@ typedef struct {
 typedef struct {
     neighbor_t neighbors[MAX_NEIGHBORS];
     uint8_t    peer_count;          /* Number of valid neighbors */
-    int8_t     master_rssi;         /* RSSI to my time source */
+    int8_t     source_rssi;         /* RSSI to my time source */
     uint8_t    providers_nearby;    /* Count of neighbors with score > RELAY_THRESHOLD */
     uint8_t    my_score;            /* My genesis score (0-255) */
 } neighborhood_t;
@@ -211,6 +284,15 @@ static uint64_t g_last_stratum_change = 0;
 
 /** @brief Am I currently a Provider (relay)? */
 static bool g_is_provider = false;
+
+/*============================================================================
+ * FORWARD DECLARATIONS
+ *==========================================================================*/
+
+/* Active Immunity: Defensive response with dual constraints (defined later) */
+static void evaluate_defensive_response(const uint8_t *peer_mac,
+                                        uint8_t peer_health,
+                                        int32_t deviation_us);
 
 /*============================================================================
  * HELPERS
@@ -320,8 +402,8 @@ static void expire_neighbors(uint32_t now_lo)
         }
 
         /* Track master RSSI */
-        if (compare_mac(g_hood.neighbors[i].mac, g_aatr.best_master_mac) == 0) {
-            g_hood.master_rssi = g_hood.neighbors[i].rssi;
+        if (compare_mac(g_hood.neighbors[i].mac, g_aatr.best_source_mac) == 0) {
+            g_hood.source_rssi = g_hood.neighbors[i].rssi;
         }
     }
 }
@@ -413,17 +495,17 @@ static uint8_t calculate_genesis_score(void)
 static bool should_relay(void)
 {
     /* Genesis always chirps */
-    if (g_aatr.stratum == STRATUM_GENESIS) {
+    if (g_aatr.stratum == STRATUM_ORIGIN) {
         return true;
     }
 
     /* Frontier Rule: At edge with high score? */
-    if (g_hood.master_rssi < RSSI_FRONTIER && g_hood.my_score > RELAY_THRESHOLD) {
+    if (g_hood.source_rssi < RSSI_FRONTIER && g_hood.my_score > RELAY_THRESHOLD) {
         return true;
     }
 
     /* Interior Rule: Strong signal or already covered? */
-    if (g_hood.master_rssi > RSSI_EXCELLENT || g_hood.providers_nearby >= 2) {
+    if (g_hood.source_rssi > RSSI_EXCELLENT || g_hood.providers_nearby >= 2) {
         return false;
     }
 
@@ -466,7 +548,7 @@ static bool should_relay(void)
 static uint32_t get_smart_interval(uint32_t uptime_us)
 {
     /* Genesis uses standard Genesis Pulse */
-    if (g_aatr.stratum == STRATUM_GENESIS) {
+    if (g_aatr.stratum == STRATUM_ORIGIN) {
         return get_beacon_interval_us(uptime_us);
     }
 
@@ -697,7 +779,6 @@ static void process_beacon(const utlp_packet_t *pkt)
     int32_t new_offset;
     uint32_t now_lo;
     uint8_t old_stratum;
-    uint8_t my_score;
 
     if (pkt->len < UTLP_BEACON_SIZE) {
         return;
@@ -712,6 +793,30 @@ static void process_beacon(const utlp_packet_t *pkt)
     now_lo = (uint32_t)pkt->rx_timestamp_us;
     update_neighbor(pkt->mac, remote_stratum, remote_score, pkt->rssi, now_lo);
     expire_neighbors(now_lo);
+
+    /*
+     * METABOLIC LEDGER: Record observation for trust/health tracking
+     *
+     * Record the observation, then evaluate if defensive response is warranted.
+     * The dual constraint system (token bucket + quorum) prevents RF pollution.
+     */
+    {
+        int32_t observed_offset = (int32_t)((int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us);
+        utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
+
+        /*
+         * ACTIVE IMMUNITY: Evaluate defensive response
+         *
+         * Compute deviation: How far is their claimed time from MY atomic time?
+         * deviation = their_tx_time - my_atomic_time_at_rx
+         *           = remote_tx_time - (rx_timestamp + my_offset)
+         */
+        int32_t my_atomic_at_rx = (int32_t)(pkt->rx_timestamp_us) + g_aatr.time_offset;
+        int32_t deviation_us = (int32_t)remote_tx_time - my_atomic_at_rx;
+        uint8_t peer_health = utlp_trust_get_peer_health(pkt->mac);
+
+        evaluate_defensive_response(pkt->mac, peer_health, deviation_us);
+    }
 
     /* Validate burst index */
     if (burst_index >= CHIRP_BURST_COUNT) {
@@ -751,29 +856,45 @@ static void process_beacon(const utlp_packet_t *pkt)
         return;
     }
 
-    /* Frontier election logic */
+    /*
+     * BIOLOGICAL SOURCE SELECTION (S2 Governance Model)
+     *
+     * Replaces political "Frontier election" with health-based selection.
+     * Trust is not declared - it is accumulated through observation.
+     */
     should_adopt = false;
 
-    if (remote_stratum < g_aatr.stratum) {
-        should_adopt = true;
-        utlp_hal_log_info(TAG, "Better stratum: %d < %d", remote_stratum, g_aatr.stratum);
-    }
-    else if (remote_stratum == g_aatr.stratum) {
-        my_score = g_hood.my_score;
-        if (my_score == 0) {
-            my_score = calculate_genesis_score();
-        }
+    {
+        /* Get health-based recommendation from Metabolic Ledger */
+        utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
 
-        if (remote_score > my_score) {
+        if (best && memcmp(best->mac, pkt->mac, 6) == 0) {
+            /*
+             * ADAPTIVE IMMUNITY: This sender is our most trusted peer.
+             * Health (experiential) beats stratum (credential).
+             * A reliable Stratum-2 peer beats an unreliable Stratum-1 peer.
+             */
             should_adopt = true;
-            utlp_hal_log_info(TAG, "Same stratum, higher score wins (%d > %d)", remote_score, my_score);
+            utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X (health=%d, stratum=%d)",
+                              pkt->mac[5], best->health_score, remote_stratum);
         }
-        else if (remote_score == my_score) {
-            if (compare_mac(pkt->mac, g_local_mac) < 0) {
-                should_adopt = true;
-                utlp_hal_log_info(TAG, "Same score, lower MAC wins");
-            }
+        else if (!best && remote_stratum < g_aatr.stratum) {
+            /*
+             * INNATE IMMUNITY (S2 Bootstrap)
+             *
+             * The Ledger is empty - no memory cells exist yet.
+             * Like a newborn's innate immune system, we provisionally trust
+             * signals that "look healthy" (low stratum = proper MHC markers).
+             *
+             * This is not blind trust - we will watch closely and build
+             * adaptive immunity (Ledger entries) from this interaction.
+             */
+            should_adopt = true;
+            utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d (ledger empty)",
+                              remote_stratum);
         }
+        /* If best exists but is not this sender, OR no best and stratum not better:
+         * Do not adopt. Trust the established relationships. */
     }
 
     if (should_adopt) {
@@ -782,7 +903,7 @@ static void process_beacon(const utlp_packet_t *pkt)
 
         g_aatr.stratum = remote_stratum + 1;
         g_aatr.time_offset = new_offset;
-        memcpy(g_aatr.best_master_mac, pkt->mac, UTLP_MAC_SIZE);
+        memcpy(g_aatr.best_source_mac, pkt->mac, UTLP_MAC_SIZE);
 
         /* Track stratum changes for Promotion Pulse */
         if (g_aatr.stratum != old_stratum) {
@@ -796,6 +917,154 @@ static void process_beacon(const utlp_packet_t *pkt)
         utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+ld us",
                  g_aatr.stratum, (long)new_offset);
     }
+
+    /*
+     * ORIGIN SELF-AWARENESS (S2 Biological Governance)
+     *
+     * Genesis/Origin nodes should be able to recognize when they should
+     * step down. This prevents stale or inferior time sources from
+     * persisting as Origin when better sources exist.
+     *
+     * Uses DOMINANCE HIERARCHY TIE-BREAKER to prevent "Polite Crash":
+     * - Lower MAC address = dominant (holds ground)
+     * - Higher MAC address = submissive (steps down)
+     */
+    if (g_aatr.stratum == STRATUM_ORIGIN) {
+        utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
+
+        if (best && best->health_score > 200) {
+            /*
+             * A very healthy peer exists. Should I step down?
+             *
+             * DOMINANCE HIERARCHY: Two healthy Origin nodes don't both leave.
+             * Like wolves sizing each other up, one must submit based on
+             * a static trait (MAC address serves as the "size" equivalent).
+             */
+            bool they_are_dominant = (compare_mac(best->mac, g_local_mac) < 0);
+
+            if (they_are_dominant) {
+                utlp_hal_log_warn(TAG, "Origin self-awareness: Dominant peer %02X detected (health=%d)",
+                                  best->mac[5], best->health_score);
+                g_self_demotion_votes++;
+
+                if (g_self_demotion_votes > 3) {
+                    /* Voluntary submission: step down gracefully */
+                    g_aatr.stratum = STRATUM_ORIGIN + 1;
+                    g_self_demotion_votes = 0;
+                    g_last_stratum_change = utlp_hal_get_micros();
+                    utlp_hal_log_info(TAG, "Voluntary demotion: Better Origin exists");
+                }
+            } else {
+                /* I am dominant - hold my ground, reset vote count */
+                g_self_demotion_votes = 0;
+            }
+        }
+    }
+}
+
+/*============================================================================
+ * ACTIVE IMMUNITY - DEFENSIVE CHIRP (S2 Section 2.4)
+ *
+ * When we detect a significantly wrong beacon from a rookie (low-health peer),
+ * we may fire a "correction chirp" to help the swarm stay synchronized.
+ *
+ * DUAL CONSTRAINT SYSTEM:
+ *   1. Internal: Token bucket (prevents cytokine storm / RF pollution)
+ *   2. External: Quorum sensing (prevents Crazy Old Man attacking valid peers)
+ *
+ * Both constraints must be satisfied before firing defensively.
+ *==========================================================================*/
+
+/** @brief Deviation thresholds for classifying peer timing quality */
+#define DEFENSIVE_THRESHOLD_DRIFTING_US     2000    /* 2ms = drifting */
+#define DEFENSIVE_THRESHOLD_LYING_US       100000   /* 100ms = lying */
+
+/** @brief Minimum health to be considered for defensive action (rookies only) */
+#define DEFENSIVE_TARGET_MAX_HEALTH         80      /* Only correct rookies */
+
+/** @brief Quorum threshold for agreement check */
+#define DEFENSIVE_QUORUM_THRESHOLD_US       2000    /* 2ms agreement window */
+
+/**
+ * @brief Evaluate and potentially fire a defensive chirp
+ *
+ * Called when we detect a peer with significantly wrong timing.
+ * Uses dual constraint system to prevent both RF pollution (token bucket)
+ * and the "Crazy Old Man" scenario (quorum sensing).
+ *
+ * @param peer_mac      MAC of the drifting/lying peer
+ * @param peer_health   Health score of the peer (from Ledger)
+ * @param deviation_us  How far off their timing was (absolute value)
+ */
+static void evaluate_defensive_response(const uint8_t *peer_mac,
+                                        uint8_t peer_health,
+                                        int32_t deviation_us)
+{
+    /*
+     * TARGETING: Only correct "rookies" (low-health peers)
+     *
+     * High-health peers have earned trust through observation.
+     * If they're reporting different timing, maybe WE are the problem.
+     */
+    if (peer_health > DEFENSIVE_TARGET_MAX_HEALTH) {
+        return;  /* Trusted peer - defer to their experience */
+    }
+
+    /*
+     * SEVERITY: Only respond to significant deviations
+     */
+    int32_t abs_deviation = deviation_us;
+    if (abs_deviation < 0) abs_deviation = -abs_deviation;
+
+    if (abs_deviation < DEFENSIVE_THRESHOLD_DRIFTING_US) {
+        return;  /* Within tolerance - no action needed */
+    }
+
+    /*
+     * DUAL CONSTRAINT SYSTEM (S2 Active Immunity)
+     *
+     * Like real immune systems, we need BOTH:
+     * 1. Internal capacity (T-cells/tokens)
+     * 2. External validation (quorum sensing)
+     *
+     * This prevents the "Crazy Old Man" attacking the healthy swarm.
+     */
+
+    /* Constraint 1: INTERNAL CHECK - Do I have budget? (Token Bucket) */
+    if (!utlp_immune_can_defend()) {
+        utlp_hal_log_warn(TAG, "Defensive: Budget exhausted (anergy) - %02X escapes correction",
+                          peer_mac[5]);
+        return;
+    }
+
+    /* Constraint 2: EXTERNAL CHECK - Do I have crowd support? (Quorum Sensing) */
+    if (!utlp_trust_has_quorum(g_aatr.time_offset, DEFENSIVE_QUORUM_THRESHOLD_US)) {
+        utlp_hal_log_warn(TAG, "Defensive: No quorum - I may be the outlier, not %02X",
+                          peer_mac[5]);
+        return;  /* Don't attack! I might be wrong! */
+    }
+
+    /*
+     * BOTH CONSTRAINTS SATISFIED - Fire defensive chirp
+     *
+     * This is a "fever response" - temporarily increase beacon rate
+     * to help the drifting peer correct. The chirp contains our
+     * atomic time, which they can use to resync.
+     */
+    if (abs_deviation >= DEFENSIVE_THRESHOLD_LYING_US) {
+        utlp_hal_log_info(TAG, "DEFENSIVE [LYING]: Correcting rookie %02X (dev=%+ldus, health=%d)",
+                          peer_mac[5], (long)deviation_us, peer_health);
+    } else {
+        utlp_hal_log_info(TAG, "DEFENSIVE [DRIFT]: Correcting rookie %02X (dev=%+ldus, health=%d)",
+                          peer_mac[5], (long)deviation_us, peer_health);
+    }
+
+    /* Send correction chirp */
+    send_chirp();
+
+    /* Log immune budget status */
+    utlp_hal_log_info(TAG, "  Immune budget: %d/%d tokens remaining",
+                      utlp_immune_get_tokens(), UTLP_IMMUNE_BUDGET_MAX);
 }
 
 /*============================================================================
@@ -839,6 +1108,12 @@ void utlp_app_run(void)
 
     /* Initialize HAL */
     utlp_hal_init();
+
+    /* Initialize Metabolic Ledger (Biological Governance) */
+    utlp_trust_init();
+
+    /* Initialize Immune Checkpoint (Active Immunity - S2 Section 2.4) */
+    utlp_immune_init();
 
     /* Get our MAC */
     utlp_hal_get_mac(g_local_mac);
@@ -888,7 +1163,7 @@ void utlp_app_run(void)
                     utlp_hal_log_info(TAG, "Beacon interval: %lu ms (uptime %lus, role=%s)",
                              (unsigned long)(beacon_interval / 1000),
                              (unsigned long)(uptime_lo / 1000000),
-                             (g_aatr.stratum == STRATUM_GENESIS) ? "Genesis" : "Provider");
+                             (g_aatr.stratum == STRATUM_ORIGIN) ? "Origin" : "Provider");
                     last_logged_interval = beacon_interval;
                 }
             }
@@ -899,5 +1174,22 @@ void utlp_app_run(void)
 
         /* 4. DRIFT STATS */
         log_drift_stats_if_due(uptime);
+
+        /* 5. METABOLIC LEDGER STATUS (same intervals as drift stats)
+         *
+         * Phase 1: Passive observation - log trust data to verify
+         * the Ledger is populating correctly before Phase 2 activation.
+         */
+        {
+            static uint64_t last_trust_log_us = 0;
+            uint64_t log_interval = (uptime < STATS_LOG_FAST_END_US)
+                ? STATS_LOG_INTERVAL_FAST_US
+                : STATS_LOG_INTERVAL_SLOW_US;
+
+            if ((uptime - last_trust_log_us) >= log_interval) {
+                last_trust_log_us = uptime;
+                utlp_trust_log_status();
+            }
+        }
     }
 }

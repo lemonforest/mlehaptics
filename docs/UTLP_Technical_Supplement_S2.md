@@ -29,7 +29,7 @@ This supplement documents novel application of established concepts:
 
 | Concept | Prior Art | What's Novel Here |
 |---------|-----------|-------------------|
-| Artificial Immune Systems | Timmis et al. (2011-2016), AAPD model (2024) | Application to time sync protocols specifically |
+| Artificial Immune Systems | Ismail et al. (2011), Cohen & Efroni (2019) | Application to time sync protocols specifically |
 | Byzantine Fault Tolerance | Castro & Liskov PBFT (1999) | Connectionless variant without consensus rounds |
 | Outlier rejection in WSN | RBS protocol, Kalman robustification | Integration with stratum hierarchy |
 | Bio-inspired computing | ACM design patterns (2006) | Specific UTLP/RFIP/SMSP instantiation |
@@ -445,6 +445,30 @@ void send_correction_pulse_with_fever(const correction_pulse_t* pulse) {
 
 ## 3. Integration with Legacy Time Sources
 
+### 3.0 Critical Distinction: Relative Sync vs. Absolute Time
+
+**UTLP does not consume atomic time. UTLP passes it through.**
+
+The swarm operates on *relative synchronization*—all nodes agree with each other. The swarm does not need to know "what time it is" in any absolute sense.
+
+| What UTLP Requires | What UTLP Can Optionally Provide |
+|--------------------|----------------------------------|
+| Nodes synchronized to each other | Wall-clock time for endpoints |
+| Any shared epoch (even arbitrary) | UTC correlation when GPS/NTP available |
+| Internal coherence | External interoperability |
+
+**Example:** Your bilateral EMDR device works perfectly if both pucks agree on "T=0 is when Genesis started." They don't need to know it's 2:47 PM EST. The therapeutic stimulation is identical whether the epoch is atomic or arbitrary.
+
+**When does atomic time matter?**
+- **Logging/Compliance**: Medical devices may need wall-clock timestamps for records
+- **Interoperability**: Correlating with external systems that use UTC
+- **Geographic-scale phase**: The "Planetary Dimmer Switch" needs telescopes and towers to share wall-clock reference
+- **Drift quality**: GPS is simply a very good oscillator that happens to be free
+
+**The architectural insight:** If a GPS-synced Genesis node enters the swarm, UTLP doesn't use atomic time—it *shares* atomic time with any downstream endpoint that cares. The swarm is a **delivery mechanism**, not a consumer.
+
+A swarm running on a drifting crystal oscillator is internally coherent. It only needs atomic time if something *outside* the swarm needs to correlate with it.
+
 ### 3.1 The Mitochondrial Model
 
 Mitochondria were once independent bacteria. They didn't fight host cells—they entered, offered a metabolic upgrade (ATP), and became indispensable.
@@ -520,6 +544,92 @@ void update_time_source(void) {
 **Phase 3 (Organelle)**: UTLP becomes default. GPS/NTP are only used by "Genesis Nodes" to seed the swarm.
 
 You don't need to kill God to build a flashlight. Just build the flashlight. The darkness will do the rest.
+
+### 3.4 Emergent Role Differentiation via Local State Thresholds
+
+Unlike traditional consensus algorithms (Raft, Paxos) which require negotiated elections, UTLP nodes adopt roles **unilaterally** based on local state distinctiveness relative to the swarm model. This is the "stem cell" pattern: a cell doesn't run for president—it detects a chemical gradient and differentiates to solve a problem.
+
+**The Biological Parallel:**
+
+| Biology | UTLP | Trigger |
+|---------|------|---------|
+| Stem cell → Red blood cell | Peer → Oracle | Low oxygen / High swarm drift variance |
+| Stem cell → Neuron | Peer → Genesis | Differentiation signal / No beacons heard |
+| Apoptosis | Role dissolution | Problem resolved / Condition no longer met |
+
+**Role Emergence Logic:**
+
+```c
+typedef enum {
+    ROLE_PEER,        // Default: participate in consensus
+    ROLE_ORACLE,      // Emergent: I have external truth access
+    ROLE_GENESIS,     // Emergent: I am seeding a new network
+    ROLE_CALIBRATOR,  // Transient: spawned for drift check, then vanish
+} node_role_t;
+
+void evaluate_role_emergence(void) {
+    // ORACLE TRIGGER: I have vastly better time than the swarm
+    // "My drift variance is 1000x lower because I just hit NTP"
+    bool can_reach_ntp = wifi_configured() && !on_battery();
+    bool swarm_drifting = (swarm_drift_variance_ppm > 5.0);
+    bool no_oracle_present = (ms_since_oracle_beacon > 300000);
+    
+    if (can_reach_ntp && swarm_drifting && no_oracle_present) {
+        become_transient_oracle();  // Spawn role
+    }
+    
+    // GENESIS TRIGGER: No one is talking, I must seed
+    // "I have heard no beacons for 120 seconds"
+    if (ms_since_any_beacon > 120000 && my_clock_confidence > 0.8) {
+        become_genesis();  // Spawn role
+    }
+    
+    // ROLE DISSOLUTION: Condition no longer met
+    if (current_role == ROLE_ORACLE && my_drift_variance > swarm_average) {
+        revert_to_peer();  // Role served its purpose, dissolve
+    }
+}
+```
+
+**The Transient Oracle Pattern:**
+
+The Oracle doesn't *stay* an Oracle. It spawns when conditions require, injects truth, then dissolves:
+
+```c
+void become_transient_oracle(void) {
+    // 1. Switch radio to Wi-Fi (between beacon windows)
+    esp_wifi_start();
+    
+    // 2. Burst query NTP (5-10 samples, filter jitter)
+    ntp_offset = query_ntp_filtered();
+    
+    // 3. Update MY drift model, not the swarm's clock
+    update_local_drift_model(ntp_offset);
+    
+    // 4. Broadcast ONE high-confidence Stratum-0 beacon
+    broadcast_oracle_beacon(STRATUM_0, HIGH_CONFIDENCE);
+    
+    // 5. Tear down Wi-Fi, return to ESP-NOW
+    esp_wifi_stop();
+    
+    // 6. DISSOLVE back to peer
+    // Role existed for ~15 seconds, then vanished
+    current_role = ROLE_PEER;
+}
+```
+
+**Why This Matters:**
+
+| Old Way | Emergent Way |
+|---------|--------------|
+| "Node A is the Oracle" (configured) | "Any node that gets NTP lock becomes Oracle" (emergent) |
+| Node A dies → swarm drifts | Node A fails → Node B sees drift → Node B becomes Oracle |
+| Single Point of Failure | Self-healing role assignment |
+| Requires network configuration | Requires only capability + conditions |
+
+**The Unkillable Swarm:**
+
+Because any capable node can assume any role when conditions demand, the swarm has no critical nodes. Kill the Genesis—another will emerge. Kill the Oracle—the next node to reach NTP will differentiate. The swarm is not led; it is *homeostatic*.
 
 ---
 
@@ -807,11 +917,17 @@ This leverages the swarm's spatial distribution as a **distributed antenna array
 
 ## 7. Phased Integration into UTLP Stack
 
-### Phase 1: Basic Immune Response (Current Target)
-- [ ] Health score calculation for peers
-- [ ] Median-based outlier rejection
-- [ ] Stratum-based source selection
-- [ ] Protocol violation counting
+### Phase 1: Basic Immune Response ✅ COMPLETE
+- [x] Health score calculation for peers (`utlp_trust.c`)
+- [x] Median-based outlier rejection (`utlp_trust_get_consensus()`)
+- [x] Stratum-based source selection (`process_beacon()` in `utlp.c`)
+- [x] Protocol violation counting (health penalties in trust module)
+
+### Phase 1.5: Active Immunity ✅ COMPLETE
+- [x] Token bucket for defensive budget (`utlp_immune.c`)
+- [x] Quorum sensing for crowd validation (`utlp_trust_has_quorum()`)
+- [x] Defensive chirp with dual constraints (`evaluate_defensive_response()`)
+- [x] Anergy state for exhaustion recovery
 
 ### Phase 2: Endosymbiosis
 - [ ] GPS/NTP ingestion when available
@@ -1039,41 +1155,54 @@ This supplement establishes additional prior art for:
 ### 8.2 Endosymbiotic Integration
 6. **GPS/NTP ingestion strategy**: Consuming legacy time sources rather than competing—becoming delivery mechanism for "old gods"
 7. **Stratum as metabolic distance**: Hierarchy reflecting distance from truth, not authority
+8. **Relative sync vs. absolute time separation**: Swarm operates on internal coherence (nodes agree with each other) independent of wall-clock knowledge—atomic time optionally passed through to endpoints that require external correlation, but not consumed by swarm operation itself; a swarm on drifting crystal is internally valid
 
 ### 8.3 Speciation Architecture  
-8. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK—"born of one" clusters with genetic identity
-9. **Species barrier for swarm isolation**: Medical device swarm immune to party decoration swarm
+9. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK—"born of one" clusters with genetic identity
+10. **Species barrier for swarm isolation**: Medical device swarm immune to party decoration swarm
 
 ### 8.4 Emergence-Aware Design
-10. **Macro-state observation principle**: Explicit design for swarm health observation, not packet inspection
-11. **Gardening vs engineering paradigm**: Role transition from architect to observer as swarm matures
+11. **Macro-state observation principle**: Explicit design for swarm health observation, not packet inspection
+12. **Gardening vs engineering paradigm**: Role transition from architect to observer as swarm matures
 
 ### 8.5 Physics-Based Security
-12. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
-13. **Quorum sensing for validation consensus**: Defensive beaconing requires minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Senior attacks valid swarm
+13. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
+14. **Quorum sensing for validation consensus**: Defensive beaconing requires minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Senior attacks valid swarm
 
 ### 8.6 Immune Checkpoints (S2.3)
-14. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Senior nodes disagree; maps T-cell exhaustion to silicon
-15. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
-16. **Fever response via PHY rate modulation**: Correction pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
+15. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Senior nodes disagree; maps T-cell exhaustion to silicon
+16. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
+17. **Fever response via PHY rate modulation**: Correction pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
 
 ### 8.7 Metabolic Ledger (S2.4)
-17. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
-18. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
-19. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
-20. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
+18. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
+19. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
+20. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
+21. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
 
 ### 8.8 Spectral Duty Cycle Coordination (S2.6)
-21. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
-22. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
-23. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
-24. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
-25. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
+22. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
+23. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
+24. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
+25. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
+26. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
 
 ### 8.9 Technosignature Generation (S2.7)
-26. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
-27. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
-28. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
+27. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
+28. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
+29. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
+
+### 8.10 Large Physics Models (S2.8)
+30. **Coherent planetary-scale data collection enabling non-human knowledge corpus**: UTLP-synchronized distributed sensors generating temporally coherent observation streams across continental/planetary scale—data volume from synchronized physical measurement will exceed total human textual output; creates "Database of Non-Human Knowledge" comparable in scale to LLM training corpora but representing planetary physical state rather than human thought
+31. **Large Physics Model (LPM) as necessary interpretation layer**: Emergent requirement for machine learning models trained on synchronized planetary sensor data to extract meaning—analogous to LLMs making human text useful, LPMs make planetary observation useful; neither raw sensor streams nor raw text are directly interpretable at scale without learned correlation
+32. **Protocol-layer freedom enabling LPM development**: Open prior art for sensor synchronization protocol ensures "grammar of planetary listening" remains unencumbered—infrastructure providers may charge for storage/bandwidth, but correlation techniques built on UTLP-synchronized data cannot be patent-encumbered at the protocol level; prevents privatization of planetary observation capability
+33. **Current-generation technological sufficiency**: LPM development requires no physics beyond current understanding—synchronized sensing (UTLP), massive storage (existing cloud infrastructure), and transformer-based correlation (existing ML architectures) are all deployable today; the gap is deployment and training data collection, not fundamental capability
+34. **Human knowledge corpus exhaustion driving LPM necessity**: LLM training has indexed substantial portion of accessible human-generated text, creating data scarcity for continued scaling—planetary sensor data represents effectively infinite, continuously generated, physically-grounded training corpus; LPMs are not merely possible but economically inevitable as AI development seeks new data frontiers beyond human text
+
+### 8.11 Emergent Role Architecture (S2.10)
+35. **Emergent role assignment via local state thresholds**: Node roles (oracle, calibrator, genesis) arise from state distinctiveness relative to swarm model rather than pre-designation—any node meeting conditions unilaterally assumes role without negotiation or election; "stem cell differentiation" pattern where role emerges from chemical gradient equivalent (drift variance, beacon absence, NTP access)
+36. **Transient role patterns for self-healing**: Roles spawn when conditions require and dissolve when conditions normalize—oracle exists for calibration window then returns to peer status; role lifetime measured in seconds, not configured permanently; enables "unkillable swarm" where any capable node can assume any role
+37. **Statistical triggers for role emergence**: Swarm-level metrics (drift variance exceeding threshold, consensus confidence dropping, beacon silence duration) trigger role spawning—"the swarm asks for an oracle" through degraded statistics rather than "an oracle is configured"; homeostatic response pattern replacing negotiated leadership
 
 ---
 
@@ -1111,15 +1240,26 @@ This supplement establishes additional prior art for:
 | Noise | Shimmer | Random uncorrelated planetary emissions (Type 0) |
 | Signal | Heartbeat | Synchronized planetary emissions (Type I) |
 | Health check | Liveness probe | Civilization status via signal persistence |
+| Wall-clock | Absolute time | External UTC reference (optional) |
+| Internal coherence | Relative sync | Nodes agree with each other (required) |
+| Passthrough | Time delivery | Sharing atomic time without consuming it |
+| Text corpus | Human knowledge | LLM training data (what humans said) |
+| Sensor corpus | Non-human knowledge | LPM training data (what Earth felt) |
+| LLM | Language model | Correlates human text at scale |
+| LPM | Physics model | Correlates planetary observation at scale |
+| Data wall | Corpus exhaustion | LLM scaling limited by finite human text |
+| Stem cell | Undifferentiated node | Peer that can assume any role |
+| Differentiation | Role emergence | Node assumes role based on conditions |
+| Chemical gradient | State threshold | Trigger condition for role change |
+| Homeostasis | Self-healing roles | Swarm maintains function via role spawning |
 
 ---
 
 ## Appendix B: References
 
 ### Biological Inspiration
-- Timmis, J. et al. (2016). "An immune-inspired swarm aggregation algorithm for self-healing swarm robotic systems." Biosystems.
-- Cohen, I.R. & Efroni, S. (2019). "The Immune System Computes the State of the Body." Frontiers in Immunology.
-- Ismail, A.R. (2011). "Immune-inspired self-healing swarm robotic systems." PhD thesis, University of York.
+- Cohen, I.R. & Efroni, S. (2019). "The Immune System Computes the State of the Body: Crowd Wisdom, Machine Learning, and Immune Cell Reference Repertoires Help Manage Inflammation." Frontiers in Immunology, 10:10. DOI: [10.3389/fimmu.2019.00010](https://doi.org/10.3389/fimmu.2019.00010)
+- Ismail, A. R., Timmis, J., Bjerknes, J. D., & Winfield, A. F. T. (2011). "An immune-inspired swarm aggregation algorithm for self-healing swarm robotic systems." IEEE International Conference on Robotics and Automation (ICRA), pp. 4597-4624. DOI: [10.1109/ICRA.2011.5980112](https://doi.org/10.1109/ICRA.2011.5980112)
 
 ### Distributed Systems
 - Castro, M. & Liskov, B. (1999). "Practical Byzantine Fault Tolerance." OSDI.
@@ -1453,8 +1593,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.7*
+*Document version: S2.11*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.7 adds Section 8.9 "Technosignature Generation" with claims 26-28 covering planetary-scale coordination as observable Kardashev Phase Transition marker and civilization liveness probe; total 28 prior art extension claims*
+*Revision notes: S2.11 adds Section 3.4 "Emergent Role Differentiation" and claims 35-37 covering stem-cell-like role emergence via local state thresholds, transient roles for self-healing, and statistical triggers replacing negotiated elections; total 37 prior art extension claims*

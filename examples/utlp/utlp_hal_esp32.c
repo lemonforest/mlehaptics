@@ -467,3 +467,58 @@ void utlp_hal_log_warn(const char *tag, const char *format, ...)
     esp_log_writev(ESP_LOG_WARN, tag, format, args);
     va_end(args);
 }
+
+/*============================================================================
+ * SEMAPHORE API IMPLEMENTATION
+ *
+ * Abstracts FreeRTOS semaphore operations for platform independence.
+ * Uses dynamic allocation for flexibility (counting semaphores).
+ *==========================================================================*/
+
+utlp_hal_semaphore_t utlp_hal_semaphore_create(uint32_t max_count, uint32_t initial)
+{
+    SemaphoreHandle_t sem;
+
+    if (max_count == 1) {
+        /* Binary semaphore */
+        sem = xSemaphoreCreateBinary();
+        if (sem && initial > 0) {
+            xSemaphoreGive(sem);
+        }
+    } else {
+        /* Counting semaphore */
+        sem = xSemaphoreCreateCounting(max_count, initial);
+    }
+
+    return (utlp_hal_semaphore_t)sem;
+}
+
+bool utlp_hal_semaphore_take(utlp_hal_semaphore_t sem, uint32_t timeout_ms)
+{
+    if (!sem) {
+        return false;
+    }
+
+    TickType_t ticks;
+    if (timeout_ms == UINT32_MAX) {
+        ticks = portMAX_DELAY;
+    } else {
+        ticks = pdMS_TO_TICKS(timeout_ms);
+    }
+
+    return (xSemaphoreTake((SemaphoreHandle_t)sem, ticks) == pdTRUE);
+}
+
+void utlp_hal_semaphore_give(utlp_hal_semaphore_t sem)
+{
+    if (sem) {
+        xSemaphoreGive((SemaphoreHandle_t)sem);
+    }
+}
+
+void utlp_hal_semaphore_delete(utlp_hal_semaphore_t sem)
+{
+    if (sem) {
+        vSemaphoreDelete((SemaphoreHandle_t)sem);
+    }
+}
