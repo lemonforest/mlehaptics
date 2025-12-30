@@ -30,7 +30,7 @@
  *
  * @section dual_constraint The Dual Constraint System
  *
- * Before firing a defensive chirp, a node must pass TWO independent checks:
+ * Before firing an entrainment pulse, a node must pass TWO independent checks:
  *
  * 1. **Internal Constraint (This Module)**: Do I have tokens left?
  *    - Prevents RF pollution from a single aggressive node
@@ -47,15 +47,15 @@
  * @section analogy Biological Analogy
  * Real immune systems have checkpoint molecules (PD-1, CTLA-4, TIM-3) that
  * induce T-cell exhaustion to prevent runaway inflammation. The token bucket
- * serves the same purpose: limiting defensive responses to prevent a node
- * from flooding the RF spectrum with correction chirps.
+ * serves the same purpose: limiting entrainment responses to prevent a node
+ * from flooding the RF spectrum with entrainment pulses.
  *
  * @section usage Usage
  * @code
- * // Before firing a defensive chirp:
+ * // Before firing an entrainment pulse:
  * if (utlp_immune_can_defend()) {
- *     // Token consumed, fire defensive chirp
- *     send_correction();
+ *     // Token consumed, fire entrainment pulse
+ *     send_entrainment();
  * } else {
  *     // Anergy state - either I'm exhausted or I might be the problem
  * }
@@ -65,8 +65,8 @@
  * @endcode
  *
  * @section config Configuration
- * - DEFENSIVE_BUDGET_MAX: 5 tokens (max chirps before exhaustion)
- * - DEFENSIVE_REFILL_MS: 12000ms (1 token per 12 seconds)
+ * - ENTRAINMENT_BUDGET_MAX: 5 tokens (max pulses before exhaustion)
+ * - ENTRAINMENT_REFILL_MS: 12000ms (1 token per 12 seconds)
  * - ANERGY_RECOVERY_TOKENS: 3 (exit anergy when 3 tokens restored)
  *
  * @see docs/UTLP_Technical_Supplement_S2.md - Section 2.4.1
@@ -92,9 +92,9 @@ extern "C" {
  *==========================================================================*/
 
 /**
- * @brief Maximum defensive tokens (bucket capacity)
+ * @brief Maximum entrainment tokens (bucket capacity)
  *
- * 5 chirps before exhaustion. Prevents rapid-fire corrections.
+ * 5 pulses before exhaustion. Prevents rapid-fire entrainment.
  */
 #define UTLP_IMMUNE_BUDGET_MAX          5
 
@@ -108,7 +108,7 @@ extern "C" {
 /**
  * @brief Tokens required to exit anergy state
  *
- * Must recover 3 tokens before resuming defensive actions.
+ * Must recover 3 tokens before resuming entrainment actions.
  * Provides hysteresis to prevent rapid on/off cycling.
  */
 #define UTLP_IMMUNE_ANERGY_RECOVERY     3
@@ -126,9 +126,9 @@ extern "C" {
 void utlp_immune_init(void);
 
 /**
- * @brief Attempt to fire a defensive action
+ * @brief Attempt to fire an entrainment action
  *
- * Checks if we have defensive budget available:
+ * Checks if we have entrainment budget available:
  * - If in anergy state, returns false (PD-1 engaged)
  * - If tokens available, consumes one and returns true
  * - If last token consumed, enters anergy state
@@ -152,11 +152,11 @@ void utlp_immune_tick(void);
  * @brief Check if currently in anergy state
  *
  * Anergy = T-cell exhaustion. The node has fired too many
- * defensive chirps and is now silent, possibly because:
+ * entrainment pulses and is now silent, possibly because:
  * - Chronic infection (persistent bad actor)
  * - Self-disagreement (I am the problem)
  *
- * @return true if in anergy (defensive actions blocked)
+ * @return true if in anergy (entrainment actions blocked)
  */
 bool utlp_immune_is_anergic(void);
 

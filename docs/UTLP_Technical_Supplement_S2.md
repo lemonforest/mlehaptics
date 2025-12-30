@@ -65,6 +65,37 @@ Silicon nodes have none of these. A misbehaving node isn't a criminal making a c
 
 **Key insight**: You don't "reprimand" a node broadcasting wrong time. You ignore it mathematically. The network isolates the infection not out of malice, but out of **statistical hygiene**.
 
+### 1.3 Borders as Conflict vs. Borders as Ecosystem
+
+Open a political map. Start reading nation names. Notice what borders represent: **regions of historical conflict**. The DMZ, Kashmir, the West Bank—these are scars where two authorities claim the same space. Political borders are lines of absolute authority where disagreement means war.
+
+Now open an ecological map. Look at where forest meets meadow, where ocean meets shore. These borders are called **ecotones**—and they are often the most diverse, productive parts of the landscape. Species from both biomes coexist, interbreed, and create hybrid vigor.
+
+**The architectural insight:**
+
+| Political Border | Biological Border (Ecotone) |
+|------------------|----------------------------|
+| Line of absolute authority | Gradient of transition |
+| Disagreement → conflict | Disagreement → diversity |
+| Two kings cannot coexist | Two populations intermingle |
+| "Split Brain" = network fracture | "Hybrid Zone" = network healing |
+| Borders are where data dies | Borders are where adaptation thrives |
+
+**In UTLP terms:**
+
+If Node A (France) thinks it is the time authority and Node B (Germany) thinks *it* is the time authority, the political model produces war: a Cytokine Storm where both flood the RF spectrum trying to dominate. The border becomes a kill zone.
+
+In the biological model, the "border" between two drifting populations is a **Hybrid Zone** populated by **Bridge Nodes**. These nodes don't fight—they *entrain*. They pull both populations toward a shared median. The border becomes a region of healing, preventing allopatric speciation by maintaining genetic (timing) flow.
+
+**Endosymbiosis is the ultimate border dissolution:**
+
+| Stance | Approach |
+|--------|----------|
+| Political | "My protocol is better than NTP. I declare war. I will replace NTP." |
+| Biological | "NTP is a useful mitochondrion. I will swallow it and use its ATP (time) to power my cells." |
+
+You aren't drawing new lines on the map. You're building an organism that thrives *regardless* of where lines are drawn. Standardization (political) is less robust than adaptation (biological).
+
 ---
 
 ## 2. Immune System Primitives for UTLP
@@ -1612,6 +1643,7 @@ This supplement establishes additional prior art for:
 43. **Allopatric speciation via drift isolation**: Nodes with identical encryption keys (same species DNA) can become timing-incompatible through extended isolation without sync events—same "genetics" but reproductively isolated; natural failure mode, not bug
 44. **Bridge nodes as gene flow mechanism**: Nodes in timing "hybrid zones" capable of syncing with diverging populations prevent complete speciation by maintaining connectivity—bridge nodes can actively work toward population reunification through targeted beacon behavior
 45. **Speciation threshold as configurable species boundary**: Maximum timing distance beyond which sync is not attempted, defining species boundary in timing space—allows tuning of isolation tolerance for different deployment scenarios (tight sync vs. loose federation)
+46. **Ecotone model replacing political border model**: Boundaries between timing populations treated as productive transition zones (ecotones) rather than conflict zones—political borders are where data dies (Split Brain), biological borders are where adaptation thrives (Hybrid Zones); architectural rejection of "two kings cannot coexist" in favor of "two populations intermingle"
 
 ---
 
@@ -1629,6 +1661,10 @@ This supplement establishes additional prior art for:
 | Tax | Beacon cost | Energy to participate |
 | Immigrant | Foreign species | Different encryption key |
 | Border | Species barrier | Key-based isolation |
+| Conflict zone | Political border | Where two authorities clash |
+| Transition zone | Ecotone | Where two populations intermingle productively |
+| War | Split Brain | Network fracture from authority conflict |
+| Healing | Hybrid zone | Gradient region preventing speciation |
 | Escalation | Inflammation | Increased beacon rate |
 | Runaway escalation | Cytokine storm | Two Mature nodes flooding RF |
 | Rate limiting | T-cell exhaustion | Defensive budget depletion |
@@ -2017,8 +2053,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.16*
+*Document version: S2.17*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.16 updates roadmap with actual implementation progress—Phase 1 (Basic Immune Response) and Phase 1.5 (Active Immunity) complete, Phase 7 (Emergence Observation) in progress; references actual codebase artifacts (utlp_trust.c, utlp_immune.c, utlp_coherence_t); total 45 prior art extension claims*
+*Revision notes: S2.17 adds Section 1.3 "Borders as Conflict vs. Borders as Ecosystem" contrasting political borders (conflict zones) with biological borders (ecotones); claim 46 on ecotone model; total 46 prior art extension claims*

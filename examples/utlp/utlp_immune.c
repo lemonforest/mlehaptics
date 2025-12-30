@@ -2,15 +2,15 @@
  * @file utlp_immune.c
  * @brief Immune Checkpoint System Implementation
  *
- * Implements token bucket rate limiting for defensive chirps,
- * preventing cytokine storm (runaway defensive wars).
+ * Implements token bucket rate limiting for entrainment pulses,
+ * preventing cytokine storm (runaway entrainment wars).
  *
  * @section biology Biological Mapping
  *
  * | Token Bucket      | Immune System            | UTLP Behavior           |
  * |-------------------|--------------------------|-------------------------|
- * | Token             | T-cell with capacity     | One defensive chirp     |
- * | Bucket capacity   | Naive T-cell pool        | 5 chirps max            |
+ * | Token             | T-cell with capacity     | One entrainment pulse   |
+ * | Bucket capacity   | Naive T-cell pool        | 5 pulses max            |
  * | Refill rate       | T-cell regeneration      | 1 token per 12 seconds  |
  * | Bucket empty      | T-cell exhaustion        | Enter anergy (silence)  |
  * | Anergy state      | PD-1 checkpoint engaged  | Stop responding         |
@@ -37,11 +37,11 @@ static const char *TAG = "IMMUNE";
 /**
  * @brief Immune checkpoint state
  *
- * Tracks defensive budget and anergy state.
+ * Tracks entrainment budget and anergy state.
  * Static allocation - no malloc.
  */
 typedef struct {
-    uint8_t  tokens;            /**< Current defensive budget */
+    uint8_t  tokens;            /**< Current entrainment budget */
     uint32_t last_refill_ms;    /**< Last refill timestamp */
     bool     in_anergy;         /**< Exhaustion state (PD-1 engaged) */
 } immune_state_t;
@@ -98,7 +98,7 @@ void utlp_immune_tick(void) {
         if (g_immune.in_anergy &&
             g_immune.tokens >= UTLP_IMMUNE_ANERGY_RECOVERY) {
             g_immune.in_anergy = false;
-            utlp_hal_log_info(TAG, "Exiting anergy, defensive capacity restored (%d tokens)",
+            utlp_hal_log_info(TAG, "Exiting anergy, entrainment capacity restored (%d tokens)",
                               g_immune.tokens);
         }
     }
@@ -120,7 +120,7 @@ bool utlp_immune_can_defend(void) {
         /* Last token consumed? Enter anergy */
         if (g_immune.tokens == 0) {
             g_immune.in_anergy = true;
-            utlp_hal_log_warn(TAG, "Defensive budget exhausted. Entering anergy. "
+            utlp_hal_log_warn(TAG, "Entrainment budget exhausted. Entering anergy. "
                               "Possible: chronic infection, or self-disagreement.");
         }
 

@@ -55,6 +55,35 @@
  * > propagates the reference."
  * > — UTLP Specification, Section 7
  *
+ * @section genesis The Genesis Philosophy: A Swarm is Born of One
+ *
+ * A UTLP swarm must be able to bootstrap from a single device in an uninhabited
+ * zone. The first device doesn't NEED peers - it IS the atomic clock. When a
+ * second device arrives, it should recognize "there's an established Genesis
+ * here" and defer.
+ *
+ * This matters because UTLP is NOT the primary job of any device. A new TV gets
+ * turned on, used for 3 days until the novelty wears off, then sits idle. NOW
+ * UTLP awakens - but it cannot change how the application layer does its work.
+ * UTLP is opportunistic background coordination.
+ *
+ * @section food GPS/NTP as Delicious Food
+ *
+ * External time sources (GPS, NTP) are NOT requirements - they are resources.
+ * Think of them as "delicious food that is rare":
+ *
+ * - We don't NEED them to operate (a swarm can self-sync without external time)
+ * - We don't carry them for ourselves (our local oscillator works fine)
+ * - We carry them because they're YUMMY to share
+ * - Distributing accurate time costs us almost nothing
+ * - But it attracts other devices to participate in our swarm
+ *
+ * GPS/NTP is honey that draws bees to the hive. A device with an NTP connection
+ * becomes a time benefactor - other devices want to sync with it, which grows
+ * the swarm. The benefactor gains redundancy and resilience in return.
+ *
+ * > "It costs us very little but distributing it has a high reward potential"
+ *
  * @section impl Implementation Notes
  *
  * **GENESIS LOGIC:**
@@ -66,10 +95,10 @@
  *
  * **BIOLOGICAL GOVERNANCE (v3.0):**
  * - Metabolic Ledger: Trust accumulated through observation, not declaration
- * - Innate Immunity: Stratum-based bootstrap when ledger is empty
+ * - Innate Immunity: Stratum + MAC tie-breaker for instant bootstrap (no waiting)
  * - Adaptive Immunity: Health-based selection after observations accumulate
- * - Active Immunity: Defensive chirps with dual constraints (budget + quorum)
- * - Dominance Hierarchy: MAC-based tie-breaker prevents "Polite Crash"
+ * - Active Immunity: Entrainment pulses with dual constraints (budget + quorum)
+ * - Dominance Hierarchy: Lower MAC = dominant (prevents "Polite Crash")
  *
  * **TIME-INDEXED EXECUTION:**
  * LED state is calculated from atomic time, not toggled by delays.
@@ -289,10 +318,10 @@ static bool g_is_provider = false;
  * FORWARD DECLARATIONS
  *==========================================================================*/
 
-/* Active Immunity: Defensive response with dual constraints (defined later) */
-static void evaluate_defensive_response(const uint8_t *peer_mac,
-                                        uint8_t peer_health,
-                                        int32_t deviation_us);
+/* Active Immunity: Entrainment response with dual constraints (defined later) */
+static void evaluate_entrainment_response(const uint8_t *peer_mac,
+                                          uint8_t peer_health,
+                                          int32_t deviation_us);
 
 /*============================================================================
  * HELPERS
@@ -797,7 +826,7 @@ static void process_beacon(const utlp_packet_t *pkt)
     /*
      * METABOLIC LEDGER: Record observation for trust/health tracking
      *
-     * Record the observation, then evaluate if defensive response is warranted.
+     * Record the observation, then evaluate if entrainment response is warranted.
      * The dual constraint system (token bucket + quorum) prevents RF pollution.
      */
     {
@@ -805,7 +834,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
 
         /*
-         * ACTIVE IMMUNITY: Evaluate defensive response
+         * ACTIVE IMMUNITY: Evaluate entrainment response
          *
          * Compute deviation: How far is their claimed time from MY atomic time?
          * deviation = their_tx_time - my_atomic_time_at_rx
@@ -815,7 +844,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         int32_t deviation_us = (int32_t)remote_tx_time - my_atomic_at_rx;
         uint8_t peer_health = utlp_trust_get_peer_health(pkt->mac);
 
-        evaluate_defensive_response(pkt->mac, peer_health, deviation_us);
+        evaluate_entrainment_response(pkt->mac, peer_health, deviation_us);
     }
 
     /* Validate burst index */
@@ -880,7 +909,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         }
         else if (!best && remote_stratum < g_aatr.stratum) {
             /*
-             * INNATE IMMUNITY (S2 Bootstrap)
+             * INNATE IMMUNITY (S2 Bootstrap) - Better Stratum
              *
              * The Ledger is empty - no memory cells exist yet.
              * Like a newborn's innate immune system, we provisionally trust
@@ -892,6 +921,35 @@ static void process_beacon(const utlp_packet_t *pkt)
             should_adopt = true;
             utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d (ledger empty)",
                               remote_stratum);
+        }
+        else if (!best && remote_stratum == g_aatr.stratum) {
+            /*
+             * INNATE IMMUNITY (S2 Bootstrap) - Same Stratum MAC Tie-Breaker
+             *
+             * THE GENESIS PROBLEM: Two devices boot as Genesis (Stratum 1).
+             * Both think they ARE the atomic clock. Without this check, they
+             * would wait 80+ seconds for Adaptive Immunity to resolve the tie.
+             *
+             * A swarm must be able to be born of one. The first device IS the
+             * atomic clock. When the second arrives, it should recognize
+             * "there's an established Genesis here" and defer IMMEDIATELY.
+             *
+             * DOMINANCE HIERARCHY: Lower MAC address = dominant.
+             * Like two wolves meeting, one must submit based on a static trait.
+             * No negotiation, no voting, no waiting. Physics decides.
+             *
+             * This prevents the "Mutual Distrust Spiral" where two Genesis nodes
+             * with different clocks penalize each other into oblivion before
+             * either can earn enough trust to form consensus.
+             */
+            bool they_are_dominant = (compare_mac(pkt->mac, g_local_mac) < 0);
+
+            if (they_are_dominant) {
+                should_adopt = true;
+                utlp_hal_log_info(TAG, "INNATE: Same-stratum dominance - peer %02X has lower MAC, deferring",
+                                  pkt->mac[5]);
+            }
+            /* If I am dominant (lower MAC), I hold ground - do not adopt */
         }
         /* If best exists but is not this sender, OR no best and stratum not better:
          * Do not adopt. Trust the established relationships. */
@@ -963,30 +1021,30 @@ static void process_beacon(const utlp_packet_t *pkt)
 }
 
 /*============================================================================
- * ACTIVE IMMUNITY - DEFENSIVE CHIRP (S2 Section 2.4)
+ * ACTIVE IMMUNITY - ENTRAINMENT (S2 Section 2.4)
  *
- * When we detect a significantly wrong beacon from a rookie (low-health peer),
- * we may fire a "correction chirp" to help the swarm stay synchronized.
+ * When we detect a significantly wrong beacon from a juvenile (low-health peer),
+ * we may fire an "entrainment pulse" to pull the swarm into synchronization.
  *
  * DUAL CONSTRAINT SYSTEM:
  *   1. Internal: Token bucket (prevents cytokine storm / RF pollution)
  *   2. External: Quorum sensing (prevents Crazy Old Man attacking valid peers)
  *
- * Both constraints must be satisfied before firing defensively.
+ * Both constraints must be satisfied before firing entrainment.
  *==========================================================================*/
 
 /** @brief Deviation thresholds for classifying peer timing quality */
-#define DEFENSIVE_THRESHOLD_DRIFTING_US     2000    /* 2ms = drifting */
-#define DEFENSIVE_THRESHOLD_LYING_US       100000   /* 100ms = lying */
+#define ENTRAINMENT_THRESHOLD_DRIFTING_US     2000    /* 2ms = drifting */
+#define ENTRAINMENT_THRESHOLD_LYING_US       100000   /* 100ms = lying */
 
-/** @brief Minimum health to be considered for defensive action (rookies only) */
-#define DEFENSIVE_TARGET_MAX_HEALTH         80      /* Only correct rookies */
+/** @brief Minimum health to be considered for entrainment (juveniles only) */
+#define ENTRAINMENT_TARGET_MAX_HEALTH         80      /* Only entrain juveniles */
 
 /** @brief Quorum threshold for agreement check */
-#define DEFENSIVE_QUORUM_THRESHOLD_US       2000    /* 2ms agreement window */
+#define ENTRAINMENT_QUORUM_THRESHOLD_US       2000    /* 2ms agreement window */
 
 /**
- * @brief Evaluate and potentially fire a defensive chirp
+ * @brief Evaluate and potentially fire an entrainment pulse
  *
  * Called when we detect a peer with significantly wrong timing.
  * Uses dual constraint system to prevent both RF pollution (token bucket)
@@ -996,17 +1054,17 @@ static void process_beacon(const utlp_packet_t *pkt)
  * @param peer_health   Health score of the peer (from Ledger)
  * @param deviation_us  How far off their timing was (absolute value)
  */
-static void evaluate_defensive_response(const uint8_t *peer_mac,
+static void evaluate_entrainment_response(const uint8_t *peer_mac,
                                         uint8_t peer_health,
                                         int32_t deviation_us)
 {
     /*
-     * TARGETING: Only correct "rookies" (low-health peers)
+     * TARGETING: Only entrain "juveniles" (low-health peers)
      *
      * High-health peers have earned trust through observation.
      * If they're reporting different timing, maybe WE are the problem.
      */
-    if (peer_health > DEFENSIVE_TARGET_MAX_HEALTH) {
+    if (peer_health > ENTRAINMENT_TARGET_MAX_HEALTH) {
         return;  /* Trusted peer - defer to their experience */
     }
 
@@ -1016,7 +1074,7 @@ static void evaluate_defensive_response(const uint8_t *peer_mac,
     int32_t abs_deviation = deviation_us;
     if (abs_deviation < 0) abs_deviation = -abs_deviation;
 
-    if (abs_deviation < DEFENSIVE_THRESHOLD_DRIFTING_US) {
+    if (abs_deviation < ENTRAINMENT_THRESHOLD_DRIFTING_US) {
         return;  /* Within tolerance - no action needed */
     }
 
@@ -1032,38 +1090,38 @@ static void evaluate_defensive_response(const uint8_t *peer_mac,
 
     /* Constraint 1: INTERNAL CHECK - Do I have budget? (Token Bucket) */
     if (!utlp_immune_can_defend()) {
-        utlp_hal_log_warn(TAG, "Defensive: Budget exhausted (anergy) - %02X escapes correction",
+        utlp_hal_log_warn(TAG, "Entrainment: Budget exhausted (anergy) - %02X escapes",
                           peer_mac[5]);
         return;
     }
 
     /* Constraint 2: EXTERNAL CHECK - Do I have crowd support? (Quorum Sensing) */
-    if (!utlp_trust_has_quorum(g_aatr.time_offset, DEFENSIVE_QUORUM_THRESHOLD_US)) {
-        utlp_hal_log_warn(TAG, "Defensive: No quorum - I may be the outlier, not %02X",
+    if (!utlp_trust_has_quorum(g_aatr.time_offset, ENTRAINMENT_QUORUM_THRESHOLD_US)) {
+        utlp_hal_log_warn(TAG, "Entrainment: No quorum - I may be the outlier, not %02X",
                           peer_mac[5]);
         return;  /* Don't attack! I might be wrong! */
     }
 
     /*
-     * BOTH CONSTRAINTS SATISFIED - Fire defensive chirp
+     * BOTH CONSTRAINTS SATISFIED - Fire entrainment pulse
      *
      * This is a "fever response" - temporarily increase beacon rate
-     * to help the drifting peer correct. The chirp contains our
-     * atomic time, which they can use to resync.
+     * to pull the drifting peer into sync. The pulse contains our
+     * atomic time, which they can use to entrain.
      */
-    if (abs_deviation >= DEFENSIVE_THRESHOLD_LYING_US) {
-        utlp_hal_log_info(TAG, "DEFENSIVE [LYING]: Correcting rookie %02X (dev=%+ldus, health=%d)",
+    if (abs_deviation >= ENTRAINMENT_THRESHOLD_LYING_US) {
+        utlp_hal_log_info(TAG, "ENTRAINMENT [LYING]: Entraining juvenile %02X (dev=%+ldus, health=%d)",
                           peer_mac[5], (long)deviation_us, peer_health);
     } else {
-        utlp_hal_log_info(TAG, "DEFENSIVE [DRIFT]: Correcting rookie %02X (dev=%+ldus, health=%d)",
+        utlp_hal_log_info(TAG, "ENTRAINMENT [DRIFT]: Entraining juvenile %02X (dev=%+ldus, health=%d)",
                           peer_mac[5], (long)deviation_us, peer_health);
     }
 
-    /* Send correction chirp */
+    /* Send entrainment pulse */
     send_chirp();
 
-    /* Log immune budget status */
-    utlp_hal_log_info(TAG, "  Immune budget: %d/%d tokens remaining",
+    /* Log entrainment budget status */
+    utlp_hal_log_info(TAG, "  Entrainment budget: %d/%d tokens remaining",
                       utlp_immune_get_tokens(), UTLP_IMMUNE_BUDGET_MAX);
 }
 
