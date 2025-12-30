@@ -435,3 +435,72 @@ void utlp_trust_log_status(void) {
         }
     }
 }
+
+/**
+ * @brief Check if I have quorum for defensive action
+ *
+ * Quorum Sensing (S2 Section 6.2): Like bacteria waiting for autoinducer
+ * concentration before turning virulent, nodes must verify they have
+ * crowd support before attacking perceived bad actors.
+ *
+ * This prevents the "Crazy Old Man" scenario where an isolated Senior
+ * node drifts, thinks the healthy swarm is wrong, and burns its defensive
+ * budget attacking valid packets.
+ *
+ * @param my_offset    My current time offset in microseconds
+ * @param threshold_us Maximum deviation to count as "agreement"
+ * @return true if >= 2 healthy peers agree with me within threshold
+ */
+bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us) {
+    int i;
+    int agreeing_peers = 0;
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        /* Skip empty slots */
+        if (g_peers[i].interactions == 0) continue;
+
+        /* Skip unhealthy peers - they don't count for quorum */
+        if (g_peers[i].health_score < UTLP_TRUST_MIN_VOTE) continue;
+
+        /* Does this healthy peer agree with me? */
+        int32_t deviation = abs(g_peers[i].last_offset_us - my_offset);
+        if (deviation < threshold_us) {
+            agreeing_peers++;
+        }
+    }
+
+    /*
+     * Quorum = at least 2 healthy peers agree with me.
+     *
+     * If I have 0-1 agreeing peers, I may be:
+     * - Alone (no swarm yet)
+     * - The outlier (I drifted, not them)
+     *
+     * Either way, I should NOT fire defensive chirps.
+     */
+    return (agreeing_peers >= 2);
+}
+
+/**
+ * @brief Look up a peer's health score
+ *
+ * Searches the Metabolic Ledger for a specific peer by MAC address.
+ * Returns their current health score, or 0 if the peer is not tracked.
+ *
+ * @param mac Peer's 6-byte MAC address
+ * @return Health score (0-255), or 0 if peer not found
+ */
+uint8_t utlp_trust_get_peer_health(const uint8_t *mac) {
+    int i;
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions == 0) continue;
+
+        if (memcmp(g_peers[i].mac, mac, 6) == 0) {
+            return g_peers[i].health_score;
+        }
+    }
+
+    /* Peer not in Ledger - treat as unknown (lowest trust) */
+    return 0;
+}

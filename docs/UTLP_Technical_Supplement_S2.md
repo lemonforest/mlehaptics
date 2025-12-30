@@ -445,6 +445,30 @@ void send_correction_pulse_with_fever(const correction_pulse_t* pulse) {
 
 ## 3. Integration with Legacy Time Sources
 
+### 3.0 Critical Distinction: Relative Sync vs. Absolute Time
+
+**UTLP does not consume atomic time. UTLP passes it through.**
+
+The swarm operates on *relative synchronization*—all nodes agree with each other. The swarm does not need to know "what time it is" in any absolute sense.
+
+| What UTLP Requires | What UTLP Can Optionally Provide |
+|--------------------|----------------------------------|
+| Nodes synchronized to each other | Wall-clock time for endpoints |
+| Any shared epoch (even arbitrary) | UTC correlation when GPS/NTP available |
+| Internal coherence | External interoperability |
+
+**Example:** Your bilateral EMDR device works perfectly if both pucks agree on "T=0 is when Genesis started." They don't need to know it's 2:47 PM EST. The therapeutic stimulation is identical whether the epoch is atomic or arbitrary.
+
+**When does atomic time matter?**
+- **Logging/Compliance**: Medical devices may need wall-clock timestamps for records
+- **Interoperability**: Correlating with external systems that use UTC
+- **Geographic-scale phase**: The "Planetary Dimmer Switch" needs telescopes and towers to share wall-clock reference
+- **Drift quality**: GPS is simply a very good oscillator that happens to be free
+
+**The architectural insight:** If a GPS-synced Genesis node enters the swarm, UTLP doesn't use atomic time—it *shares* atomic time with any downstream endpoint that cares. The swarm is a **delivery mechanism**, not a consumer.
+
+A swarm running on a drifting crystal oscillator is internally coherent. It only needs atomic time if something *outside* the swarm needs to correlate with it.
+
 ### 3.1 The Mitochondrial Model
 
 Mitochondria were once independent bacteria. They didn't fight host cells—they entered, offered a metabolic upgrade (ATP), and became indispensable.
@@ -1039,41 +1063,49 @@ This supplement establishes additional prior art for:
 ### 8.2 Endosymbiotic Integration
 6. **GPS/NTP ingestion strategy**: Consuming legacy time sources rather than competing—becoming delivery mechanism for "old gods"
 7. **Stratum as metabolic distance**: Hierarchy reflecting distance from truth, not authority
+8. **Relative sync vs. absolute time separation**: Swarm operates on internal coherence (nodes agree with each other) independent of wall-clock knowledge—atomic time optionally passed through to endpoints that require external correlation, but not consumed by swarm operation itself; a swarm on drifting crystal is internally valid
 
 ### 8.3 Speciation Architecture  
-8. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK—"born of one" clusters with genetic identity
-9. **Species barrier for swarm isolation**: Medical device swarm immune to party decoration swarm
+9. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK—"born of one" clusters with genetic identity
+10. **Species barrier for swarm isolation**: Medical device swarm immune to party decoration swarm
 
 ### 8.4 Emergence-Aware Design
-10. **Macro-state observation principle**: Explicit design for swarm health observation, not packet inspection
-11. **Gardening vs engineering paradigm**: Role transition from architect to observer as swarm matures
+11. **Macro-state observation principle**: Explicit design for swarm health observation, not packet inspection
+12. **Gardening vs engineering paradigm**: Role transition from architect to observer as swarm matures
 
 ### 8.5 Physics-Based Security
-12. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
-13. **Quorum sensing for validation consensus**: Defensive beaconing requires minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Senior attacks valid swarm
+13. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
+14. **Quorum sensing for validation consensus**: Defensive beaconing requires minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Senior attacks valid swarm
 
 ### 8.6 Immune Checkpoints (S2.3)
-14. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Senior nodes disagree; maps T-cell exhaustion to silicon
-15. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
-16. **Fever response via PHY rate modulation**: Correction pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
+15. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Senior nodes disagree; maps T-cell exhaustion to silicon
+16. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
+17. **Fever response via PHY rate modulation**: Correction pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
 
 ### 8.7 Metabolic Ledger (S2.4)
-17. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
-18. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
-19. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
-20. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
+18. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
+19. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
+20. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
+21. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
 
 ### 8.8 Spectral Duty Cycle Coordination (S2.6)
-21. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
-22. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
-23. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
-24. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
-25. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
+22. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
+23. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
+24. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
+25. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
+26. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
 
 ### 8.9 Technosignature Generation (S2.7)
-26. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
-27. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
-28. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
+27. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
+28. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
+29. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
+
+### 8.10 Large Physics Models (S2.8)
+30. **Coherent planetary-scale data collection enabling non-human knowledge corpus**: UTLP-synchronized distributed sensors generating temporally coherent observation streams across continental/planetary scale—data volume from synchronized physical measurement will exceed total human textual output; creates "Database of Non-Human Knowledge" comparable in scale to LLM training corpora but representing planetary physical state rather than human thought
+31. **Large Physics Model (LPM) as necessary interpretation layer**: Emergent requirement for machine learning models trained on synchronized planetary sensor data to extract meaning—analogous to LLMs making human text useful, LPMs make planetary observation useful; neither raw sensor streams nor raw text are directly interpretable at scale without learned correlation
+32. **Protocol-layer freedom enabling LPM development**: Open prior art for sensor synchronization protocol ensures "grammar of planetary listening" remains unencumbered—infrastructure providers may charge for storage/bandwidth, but correlation techniques built on UTLP-synchronized data cannot be patent-encumbered at the protocol level; prevents privatization of planetary observation capability
+33. **Current-generation technological sufficiency**: LPM development requires no physics beyond current understanding—synchronized sensing (UTLP), massive storage (existing cloud infrastructure), and transformer-based correlation (existing ML architectures) are all deployable today; the gap is deployment and training data collection, not fundamental capability
+34. **Human knowledge corpus exhaustion driving LPM necessity**: LLM training has indexed substantial portion of accessible human-generated text, creating data scarcity for continued scaling—planetary sensor data represents effectively infinite, continuously generated, physically-grounded training corpus; LPMs are not merely possible but economically inevitable as AI development seeks new data frontiers beyond human text
 
 ---
 
@@ -1111,6 +1143,14 @@ This supplement establishes additional prior art for:
 | Noise | Shimmer | Random uncorrelated planetary emissions (Type 0) |
 | Signal | Heartbeat | Synchronized planetary emissions (Type I) |
 | Health check | Liveness probe | Civilization status via signal persistence |
+| Wall-clock | Absolute time | External UTC reference (optional) |
+| Internal coherence | Relative sync | Nodes agree with each other (required) |
+| Passthrough | Time delivery | Sharing atomic time without consuming it |
+| Text corpus | Human knowledge | LLM training data (what humans said) |
+| Sensor corpus | Non-human knowledge | LPM training data (what Earth felt) |
+| LLM | Language model | Correlates human text at scale |
+| LPM | Physics model | Correlates planetary observation at scale |
+| Data wall | Corpus exhaustion | LLM scaling limited by finite human text |
 
 ---
 
@@ -1453,8 +1493,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.7*
+*Document version: S2.10*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.7 adds Section 8.9 "Technosignature Generation" with claims 26-28 covering planetary-scale coordination as observable Kardashev Phase Transition marker and civilization liveness probe; total 28 prior art extension claims*
+*Revision notes: S2.10 adds claim 34 on human knowledge corpus exhaustion driving LPM necessity—planetary sensor data as next frontier for AI scaling; total 34 prior art extension claims*
