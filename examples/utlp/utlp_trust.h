@@ -315,6 +315,52 @@ bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us);
  */
 uint8_t utlp_trust_get_peer_health(const uint8_t *mac);
 
+/*============================================================================
+ * PHASE 4: COHERENCE MONITORING (S2 Section 7)
+ *
+ * "We will debug by observing distributions, not individual samples."
+ *
+ * These functions provide swarm-level health metrics for detecting
+ * when the network is losing coherence (sync loss, Byzantine attack,
+ * partition, etc.)
+ *==========================================================================*/
+
+/**
+ * @brief Swarm coherence metrics snapshot
+ *
+ * Captures the current state of swarm synchronization quality.
+ * Used for macro-state logging and coherence alerts.
+ */
+typedef struct {
+    uint8_t  healthy_peers;      /**< Peers with health >= SYNC_THRESH */
+    uint8_t  agreeing_peers;     /**< Healthy peers within ±2ms of consensus */
+    uint8_t  coherence_pct;      /**< Agreement rate: 100 * agreeing / healthy */
+    int32_t  consensus_us;       /**< Current median consensus offset */
+    int32_t  drift_spread_us;    /**< Max - min offset among healthy peers */
+    uint32_t last_coherent_ms;   /**< Time since all healthy agreed (0 = now) */
+    bool     is_coherent;        /**< True if coherence >= 80% */
+} utlp_coherence_t;
+
+/**
+ * @brief Get current swarm coherence metrics
+ *
+ * Calculates coherence by comparing healthy peer offsets to consensus.
+ * A coherent swarm has >= 80% of healthy peers within ±2ms.
+ *
+ * @param[out] out Coherence metrics snapshot
+ */
+void utlp_trust_get_coherence(utlp_coherence_t *out);
+
+/**
+ * @brief Log coherence metrics (macro-state logging)
+ *
+ * Outputs a single-line summary of swarm health:
+ *   COHERENCE: 100% (3/3 agree) | spread=450us | consensus=-120us
+ *
+ * Call this periodically (every 10-60s) for Phase 4 observability.
+ */
+void utlp_trust_log_coherence(void);
+
 #ifdef __cplusplus
 }
 #endif

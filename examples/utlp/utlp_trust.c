@@ -504,3 +504,119 @@ uint8_t utlp_trust_get_peer_health(const uint8_t *mac) {
     /* Peer not in Ledger - treat as unknown (lowest trust) */
     return 0;
 }
+
+/*============================================================================
+ * PHASE 4: COHERENCE MONITORING
+ *
+ * Swarm-level health metrics for detecting sync loss.
+ * "We will debug by observing distributions, not individual samples."
+ *==========================================================================*/
+
+/** @brief Threshold for "agreement" with consensus (2ms) */
+#define COHERENCE_AGREEMENT_THRESHOLD_US    2000
+
+/** @brief Minimum coherence percentage to be considered "coherent" */
+#define COHERENCE_MIN_PERCENT               80
+
+/** @brief Track last time swarm was fully coherent */
+static uint32_t g_last_coherent_ms = 0;
+
+/**
+ * @brief Get current swarm coherence metrics
+ */
+void utlp_trust_get_coherence(utlp_coherence_t *out) {
+    int i;
+    int32_t consensus = 0;
+    int32_t min_offset = INT32_MAX;
+    int32_t max_offset = INT32_MIN;
+    uint8_t healthy_count = 0;
+    uint8_t agreeing_count = 0;
+    uint32_t now_ms;
+
+    /* Initialize output */
+    memset(out, 0, sizeof(*out));
+
+    /* First, get consensus (need it to measure agreement) */
+    if (!utlp_trust_get_consensus(&consensus)) {
+        /* No consensus available - no healthy peers */
+        out->is_coherent = false;
+        return;
+    }
+    out->consensus_us = consensus;
+
+    /* Count healthy peers and measure spread */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions == 0) continue;
+        if (g_peers[i].health_score < UTLP_TRUST_SYNC_THRESH) continue;
+
+        healthy_count++;
+
+        /* Track min/max for spread calculation */
+        if (g_peers[i].last_offset_us < min_offset) {
+            min_offset = g_peers[i].last_offset_us;
+        }
+        if (g_peers[i].last_offset_us > max_offset) {
+            max_offset = g_peers[i].last_offset_us;
+        }
+
+        /* Check if this peer agrees with consensus */
+        int32_t deviation = g_peers[i].last_offset_us - consensus;
+        if (deviation < 0) deviation = -deviation;
+        if (deviation < COHERENCE_AGREEMENT_THRESHOLD_US) {
+            agreeing_count++;
+        }
+    }
+
+    out->healthy_peers = healthy_count;
+    out->agreeing_peers = agreeing_count;
+
+    /* Calculate spread (only valid if we have peers) */
+    if (healthy_count > 0 && min_offset != INT32_MAX) {
+        out->drift_spread_us = max_offset - min_offset;
+    }
+
+    /* Calculate coherence percentage */
+    if (healthy_count > 0) {
+        out->coherence_pct = (uint8_t)((100 * agreeing_count) / healthy_count);
+    }
+
+    /* Determine if coherent (>= 80% agreement) */
+    out->is_coherent = (out->coherence_pct >= COHERENCE_MIN_PERCENT);
+
+    /* Track time since last coherent state */
+    now_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
+    if (out->is_coherent) {
+        g_last_coherent_ms = now_ms;
+        out->last_coherent_ms = 0;  /* Coherent now */
+    } else {
+        if (g_last_coherent_ms == 0) {
+            /* Never been coherent */
+            out->last_coherent_ms = now_ms;
+        } else {
+            out->last_coherent_ms = now_ms - g_last_coherent_ms;
+        }
+    }
+}
+
+/**
+ * @brief Log coherence metrics (macro-state logging)
+ */
+void utlp_trust_log_coherence(void) {
+    utlp_coherence_t c;
+    utlp_trust_get_coherence(&c);
+
+    if (c.healthy_peers == 0) {
+        utlp_hal_log_info(TAG, "COHERENCE: No healthy peers (swarm empty)");
+        return;
+    }
+
+    if (c.is_coherent) {
+        utlp_hal_log_info(TAG, "COHERENCE: %d%% (%d/%d agree) | spread=%ldus | consensus=%+ldus",
+                          c.coherence_pct, c.agreeing_peers, c.healthy_peers,
+                          (long)c.drift_spread_us, (long)c.consensus_us);
+    } else {
+        utlp_hal_log_warn(TAG, "COHERENCE LOST: %d%% (%d/%d agree) | spread=%ldus | drift=%lums",
+                          c.coherence_pct, c.agreeing_peers, c.healthy_peers,
+                          (long)c.drift_spread_us, (unsigned long)c.last_coherent_ms);
+    }
+}
