@@ -86,7 +86,7 @@ Silicon nodes have none of these. A misbehaving node isn't a criminal making a c
 
 | Mechanism | Biological Definition | Silicon Reality | When It Applies |
 |-----------|----------------------|-----------------|-----------------|
-| **Apoptosis** | Programmed cell death—the cell kills *itself* | Node detects own fault, self-terminates | Watchdog reset, self-detected corruption |
+| **Apoptosis** | Programmed cell death—the cell kills *itself* | Node detects own fault, self-terminates | Self-detected corruption, apoptosis trigger |
 | **Encapsulation** | Granuloma formation—wall off infection | Network ignores bad node; node keeps broadcasting | Chronic bad actor, firmware corruption |
 
 **Key insight:** A silicon node running corrupt firmware has no conscience—it cannot recognize its own corruption. True apoptosis requires self-awareness that malicious or broken nodes typically lack.
@@ -97,7 +97,7 @@ What UTLP actually implements is **encapsulation**: healthy nodes build a wall o
 ```c
 // Self-awareness checks (rare in practice)
 void self_health_check(void) {
-    // Watchdog detecting own instability
+    // Detecting own instability → apoptosis trigger
     if (my_jitter_us > SELF_JITTER_THRESHOLD) {
         ESP_LOGW(TAG, "Self-detected instability, voluntary demotion");
         set_stratum(254);  // Apoptosis: I am removing myself
@@ -105,8 +105,8 @@ void self_health_check(void) {
     
     // Firmware integrity check
     if (!verify_firmware_crc()) {
-        ESP_LOGE(TAG, "Firmware corruption detected, entering safe mode");
-        enter_safe_mode();  // True programmed death
+        ESP_LOGE(TAG, "Firmware corruption detected, triggering apoptosis");
+        trigger_apoptosis();  // True programmed death—reborn clean
     }
 }
 ```
@@ -221,18 +221,19 @@ The bad actor has no power because **consensus physics** renders it inert.
 
 The passive immune response (Section 2.3) ignores bad actors. But real immune systems are **active**—they release antibodies to neutralize threats. UTLP needs an equivalent: **Defensive Beaconing**.
 
-**Problem**: Passive filtering works when the swarm is established. But during bootstrap or when a loud Rookie enters, passive filtering can cause "Split Brain"—half the room syncs to the wrong source before the median stabilizes.
+**Problem**: Passive filtering works when the swarm is established. But during bootstrap or when a loud Juvenile enters, passive filtering can cause "Split Brain"—half the room syncs to the wrong source before the median stabilizes.
 
-**Solution**: Senior nodes actively correct Rookies.
+**Solution**: Mature nodes actively entrain Juveniles.
 
 ```c
-// Active immune response: Defensive Chirp
+// Active immune response: Entrainment Pulse
+// (Fireflies don't "correct" each other; they "entrain" each other)
 typedef struct {
-    uint8_t  type;              // MSG_TYPE_CORRECTION
-    uint8_t  target_mac[6];     // Who needs correcting
-    int64_t  correct_time;      // The truth
+    uint8_t  type;              // MSG_TYPE_ENTRAINMENT
+    uint8_t  target_mac[6];     // Who needs entraining
+    int64_t  reference_time;    // The shared truth
     uint8_t  authority;         // My stratum + quality
-} correction_pulse_t;
+} entrainment_signal_t;
 
 // Detect and respond to conflicting time broadcasts
 void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
@@ -244,24 +245,24 @@ void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
     if (deviation > 1000) {  // >1ms disagreement
         
         // Am I more authoritative?
-        bool i_am_senior = (my_stratum < beacon->stratum) ||
+        bool i_am_mature = (my_stratum < beacon->stratum) ||
                           (my_stratum == beacon->stratum && 
                            my_quality > beacon->quality);
         
-        if (i_am_senior && beacon->stratum > 1) {
-            // Rookie is broadcasting bad time. Release antibodies.
-            ESP_LOGW(TAG, "Rookie %02X:%02X broadcasting %lldms off, correcting",
+        if (i_am_mature && beacon->stratum > 1) {
+            // Juvenile is broadcasting divergent time. Release entrainment signal.
+            ESP_LOGW(TAG, "Juvenile %02X:%02X broadcasting %lldms off, entraining",
                      beacon->mac[4], beacon->mac[5], deviation/1000);
             
-            // Defensive Chirp: immediate correction broadcast
-            correction_pulse_t pulse = {
-                .type = MSG_TYPE_CORRECTION,
-                .correct_time = my_time,
+            // Entrainment Pulse: immediate broadcast
+            entrainment_signal_t pulse = {
+                .type = MSG_TYPE_ENTRAINMENT,
+                .reference_time = my_time,
                 .authority = (my_stratum << 4) | (my_quality & 0x0F)
             };
             memcpy(pulse.target_mac, beacon->mac, 6);
             
-            // Broadcast correction - forces Rookie to recalculate
+            // Broadcast entrainment - pulls Juvenile toward consensus
             esp_now_send(BROADCAST_ADDR, &pulse, sizeof(pulse));
             
             // Increase beacon rate temporarily (immune response escalation)
@@ -271,37 +272,37 @@ void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
     }
 }
 
-// Rookie behavior: accept correction from Senior
-void on_correction_received(const correction_pulse_t* pulse) {
-    // Is this correction for me?
+// Juvenile behavior: accept entrainment from Mature
+void on_entrainment_received(const entrainment_signal_t* pulse) {
+    // Is this entrainment for me?
     if (memcmp(pulse->target_mac, my_mac, 6) != 0) return;
     
-    // Is the corrector more authoritative?
+    // Is the entrainer more authoritative?
     uint8_t their_stratum = pulse->authority >> 4;
     if (their_stratum < my_stratum) {
-        // Accept correction. I was wrong.
-        apply_time_correction(pulse->correct_time);
-        ESP_LOGI(TAG, "Accepted correction from Stratum %d", their_stratum);
+        // Accept entrainment. Synchronize to the swarm.
+        apply_time_entrainment(pulse->reference_time);
+        ESP_LOGI(TAG, "Entrained by Stratum %d", their_stratum);
     }
 }
 ```
 
 **The Biology**:
 - **Passive immunity** = Median filtering (ignore the infection)
-- **Active immunity** = Defensive chirp (kill the infection)
+- **Active immunity** = Entrainment pulse (neutralize the divergence)
 - **Immune escalation** = Increased beacon rate (inflammation response)
 
 This prevents "Split Brain" scenarios where half the swarm drifts before passive consensus stabilizes.
 
 ### 2.4.1 Immune Checkpoint: Cytokine Storm Prevention
 
-**The Danger:** What if two Senior nodes disagree?
+**The Danger:** What if two Mature nodes disagree?
 
 ```
-Node A (Senior, Stratum 1) believes time is 12:00:00.000
-Node B (Senior, Stratum 1) believes time is 12:00:00.050
+Node A (Mature, Stratum 1) believes time is 12:00:00.000
+Node B (Mature, Stratum 1) believes time is 12:00:00.050
 
-Node A fires Defensive Chirp at Node B → 
+Node A fires Entrainment Pulse at Node B → 
 Node B interprets this as attack, fires back → 
 Both escalate to 10Hz → 
 RF spectrum flooded, batteries drained → 
@@ -355,8 +356,8 @@ void checkpoint_tick(void) {
     }
 }
 
-// Attempt to fire defensive chirp (returns false if budget exhausted)
-bool can_fire_defensive_chirp(void) {
+// Attempt to fire entrainment pulse (returns false if budget exhausted)
+bool can_fire_entrainment_pulse(void) {
     checkpoint_tick();  // Update tokens
     
     if (checkpoint.in_anergy) {
@@ -385,27 +386,27 @@ bool can_fire_defensive_chirp(void) {
 void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
     // ... existing deviation detection ...
     
-    if (i_am_senior && beacon->stratum > 1 && deviation > 1000) {
+    if (i_am_mature && beacon->stratum > 1 && deviation > 1000) {
         
         // CHECKPOINT: Do I have budget to respond?
-        if (!can_fire_defensive_chirp()) {
+        if (!can_fire_entrainment_pulse()) {
             ESP_LOGW(TAG, "Defensive budget exhausted, staying silent");
             return;  // PD-1 checkpoint engaged
         }
         
         // Fire with fever response for maximum reach
-        send_correction_pulse_with_fever(&pulse);
+        send_entrainment_pulse_with_fever(&pulse);
     }
 }
 ```
 
 ### 2.4.2 Fever Response: Physical Truth Dominance
 
-Biological fever makes the environment hostile to pathogens. UTLP equivalent: send corrections at **lowest data rate** for maximum range and penetration.
+Biological fever makes the environment hostile to pathogens. UTLP equivalent: send entrainment pulses at **lowest data rate** for maximum range and penetration.
 
 ```c
 // Fever response: Maximum reach for truth
-void send_correction_pulse_with_fever(const correction_pulse_t* pulse) {
+void send_entrainment_pulse_with_fever(const entrainment_signal_t* pulse) {
     // Save current PHY rate
     wifi_phy_rate_t original_rate = get_espnow_phy_rate();
     
@@ -416,13 +417,13 @@ void send_correction_pulse_with_fever(const correction_pulse_t* pulse) {
     // Maximum transmission power
     esp_wifi_set_max_tx_power(84);  // 21 dBm
     
-    // Send correction
+    // Send entrainment pulse
     esp_now_send(BROADCAST_ADDR, pulse, sizeof(*pulse));
     
     // Restore normal rate
     set_espnow_phy_rate(original_rate);
     
-    ESP_LOGI(TAG, "Fever response: correction at 1Mbps/21dBm");
+    ESP_LOGI(TAG, "Fever response: entrainment at 1Mbps/21dBm");
 }
 ```
 
@@ -531,7 +532,7 @@ void update_time_source(void) {
 | 2-14 | Derived from Stratum N-1 | Inherited Truth | Each hop degrades by 1 |
 | 15 | Holdover / Warming Up | Provisional | "I'm getting stable, but don't fully trust me yet" |
 | 254 | Degraded / Lost Sync | Emergency | "I was synced but lost my source" |
-| 255 | Unsynced Rookie | No Authority | "I just booted, ignore my timestamps" |
+| 255 | Unsynced Juvenile | No Authority | "I just germinated, ignore my timestamps" |
 
 **Critical Insight**: A Genesis Node that declares Stratum 254 will be ignored. If you are the only time source in the room and your oscillator has stabilized (>60s warmup), you **are** Stratum 1. Own it.
 
@@ -829,6 +830,178 @@ UTLP participation is not all-or-nothing. Devices drift in and out of the swarm 
 
 This enables **opportunistic mesh**: every WiFi-capable device is a *potential* UTLP node, contributing to planetary time coherence in the gaps between its primary function.
 
+### 3.6 Timing Divergence as Genetic Distance
+
+> **Note on Theoretical Framing:** This section extends biological analogies into exploratory territory. While grounded in established concepts from population genetics and artificial immune systems (Ismail et al. 2011, Cohen & Efroni 2019), the application of genetic distance metrics to timing synchronization is novel and intentionally treads a dimly lit path. We present this as a generative framework for discovery, not settled theory. The value lies in the architectural patterns it suggests, which can be validated empirically regardless of whether the biological metaphor holds perfectly.
+
+**The Core Insight:**
+
+Even with the same encryption key (same "species"), nodes can undergo **allopatric speciation** if they drift apart long enough without synchronization. They're genetically compatible (same key) but reproductively isolated (can't agree on time).
+
+| Biology | UTLP |
+|---------|------|
+| Genetic variation within species | Small timing errors (can still sync) |
+| Genetic drift over generations | Clock drift over time without sync |
+| Speciation threshold | Timing divergence too large to reconcile |
+| Gene flow (prevents speciation) | Sync events (prevent timing divergence) |
+| Hybrid zones | Nodes at edge of timing compatibility |
+| Genetic distance metric | Timing error magnitude |
+| Mutation rate | Crystal drift rate (ppm) |
+
+**Genetic Distance Calculation:**
+
+```c
+typedef struct {
+    int64_t  timing_offset_us;      // "Genetic distance" from swarm median
+    uint32_t generations_isolated;   // Beacon cycles since last sync
+    float    mutation_rate_ppm;       // Crystal imperfection as biological property
+    uint8_t  compatibility_score;    // Can we still interbreed?
+} genetic_profile_t;
+
+// Speciation threshold - beyond this, nodes can't meaningfully sync
+#define SPECIATION_THRESHOLD_US  1000000  // 1 second = too far gone
+#define DRIFT_WARNING_US         500000   // 500ms = populations diverging
+
+// Genetic distance as timing compatibility
+uint8_t calculate_compatibility(const genetic_profile_t* self,
+                                 const genetic_profile_t* peer) {
+    int64_t distance = llabs(self->timing_offset_us - peer->timing_offset_us);
+    
+    if (distance > SPECIATION_THRESHOLD_US) {
+        return 0;  // Speciated - can't sync
+    }
+    
+    // Linear compatibility falloff
+    return (uint8_t)(255 * (SPECIATION_THRESHOLD_US - distance) 
+                         / SPECIATION_THRESHOLD_US);
+}
+```
+
+**Species Relation Classification:**
+
+```c
+typedef enum {
+    RELATION_SAME_SPECIES,      // Same key, compatible timing
+    RELATION_DRIFTING,          // Same key, timing diverging (warning)
+    RELATION_SPECIATED,         // Same key, but timing incompatible
+    RELATION_FOREIGN_SPECIES,   // Different encryption key entirely
+} species_relation_t;
+
+species_relation_t classify_peer(const utlp_beacon_t* beacon) {
+    // First check: genetic identity (encryption key)
+    if (!key_matches(beacon)) {
+        return RELATION_FOREIGN_SPECIES;
+    }
+    
+    // Second check: timing compatibility (genetic distance)
+    int64_t timing_distance = calculate_timing_distance(beacon);
+    
+    if (timing_distance > SPECIATION_THRESHOLD_US) {
+        return RELATION_SPECIATED;  // Same species DNA, but isolated too long
+    }
+    
+    if (timing_distance > DRIFT_WARNING_US) {
+        return RELATION_DRIFTING;  // Warning: populations diverging
+    }
+    
+    return RELATION_SAME_SPECIES;
+}
+```
+
+**Hybrid Zones and Bridge Nodes:**
+
+When populations drift apart, nodes in the overlap region can act as **gene flow mechanisms**, preventing complete speciation:
+
+```
+Timing Space (genetic distance)
+    
+    Population A          Hybrid Zone         Population B
+    [○ ○ ○ ○]              [◐ ◐]              [● ● ● ●]
+    |<-- 200μs -->|<----- 400μs ----->|<-- 300μs -->|
+    
+    ○ = In sync with A's median
+    ● = In sync with B's median  
+    ◐ = Bridge nodes (can reach both)
+    
+    If hybrid zone collapses → speciation complete
+    If bridge nodes sync both populations → reunification
+```
+
+```c
+typedef struct {
+    bool     can_reach_population_a;
+    bool     can_reach_population_b;
+    int64_t  offset_to_a;
+    int64_t  offset_to_b;
+    uint8_t  bridge_health;  // How effectively am I preventing speciation?
+} bridge_node_t;
+
+// Detect if I'm in a hybrid zone
+bool am_i_bridge_node(void) {
+    int pop_a_peers = count_peers_in_timing_range(RANGE_A_MIN, RANGE_A_MAX);
+    int pop_b_peers = count_peers_in_timing_range(RANGE_B_MIN, RANGE_B_MAX);
+    
+    // I can sync with populations that can't sync with each other
+    // I am the gene flow preventing speciation
+    return (pop_a_peers > 0 && 
+            pop_b_peers > 0 &&
+            !populations_can_sync_directly());
+}
+
+// Bridge node behavior: actively work to reunify diverging populations
+void bridge_node_duty(void) {
+    // Calculate midpoint between populations
+    int64_t midpoint = (population_a_median + population_b_median) / 2;
+    
+    // Broadcast at elevated rate to pull both populations toward center
+    if (am_i_bridge_node()) {
+        g_beacon_interval_ms /= 2;  // Increase beacon rate
+        g_beacon_offset_target = midpoint;  // Aim for reunification
+    }
+}
+```
+
+**Speciation Event Detection:**
+
+```c
+typedef struct {
+    uint32_t timestamp_ms;
+    uint8_t  population_a_count;
+    uint8_t  population_b_count;
+    int64_t  genetic_distance_us;
+    bool     speciation_complete;
+} speciation_event_t;
+
+void monitor_population_genetics(void) {
+    int64_t max_timing_spread = calculate_swarm_timing_spread();
+    
+    if (max_timing_spread > SPECIATION_THRESHOLD_US) {
+        // We have speciated - two populations can no longer interbreed
+        speciation_event_t event = {
+            .timestamp_ms = utlp_hal_get_millis(),
+            .genetic_distance_us = max_timing_spread,
+            .speciation_complete = true,
+        };
+        
+        log_speciation_event(&event);
+        
+        // Optionally: choose a population and abandon the other
+        // Or: become a bridge node and attempt reunification
+    }
+}
+```
+
+**Why This Matters:**
+
+This framing provides:
+
+- **Diagnostic vocabulary**: "These nodes have speciated" is more informative than "sync failed"
+- **Predictive power**: Watching "genetic distance" lets you predict imminent speciation
+- **Recovery strategies**: Bridge nodes, hybrid zones, and gene flow suggest reunification mechanisms
+- **Natural failure modes**: Speciation isn't a bug—it's what happens when isolation exceeds tolerance
+
+The swarm doesn't just "break" when nodes drift too far apart. It **speciates**—a natural, predictable, and potentially reversible process.
+
 ---
 
 # Part III: Speciation via Encryption
@@ -938,7 +1111,7 @@ void report_swarm_health(void) {
 | Phase | Your Role | What You Do |
 |-------|-----------|-------------|
 | Design | Architect | Write the DNA (firmware) |
-| Bootstrap | Engineer | Flash, configure, debug |
+| Bootstrap | Inoculator | Seed DNA, germinate, nurture |
 | Maturity | Gardener | Observe behavior, prune outliers |
 | Scale | Observer | Watch macro-state, trust the swarm |
 
@@ -971,7 +1144,7 @@ This is a terrible ROI for attackers.
 
 In biology, **Quorum Sensing** is the mechanism by which bacteria coordinate collective behavior—they wait until autoinducer concentration reaches a threshold before activating "virulence" genes. A lone bacterium stays silent; only with critical mass does the colony act.
 
-**UTLP Equivalent:** A Senior node should not fire Defensive Chirps unless it has **quorum**—enough healthy peers to validate its truth claim. This prevents the "Crazy Old Man" scenario where an isolated Senior attacks a valid, larger swarm.
+**UTLP Equivalent:** A Mature node should not fire Entrainment Pulses unless it has **quorum**—enough healthy peers to validate its truth claim. This prevents the "Crazy Old Man" scenario where an isolated Mature node attacks a valid, larger swarm.
 
 ```c
 // Quorum sensing: "Who else hears this guy?" + "Do I have critical mass?"
@@ -1075,7 +1248,7 @@ bool validate_via_quorum_sensing(const uint8_t* sender_mac) {
 void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
     // ... existing deviation detection ...
     
-    if (i_am_senior && beacon->stratum > 1 && deviation > 1000) {
+    if (i_am_mature && beacon->stratum > 1 && deviation > 1000) {
         
         // QUORUM SENSING: Do I have critical mass?
         if (!have_quorum()) {
@@ -1083,12 +1256,12 @@ void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
         }
         
         // IMMUNE CHECKPOINT: Do I have budget?
-        if (!can_fire_defensive_chirp()) {
+        if (!can_fire_entrainment_pulse()) {
             return;  // PD-1 engaged
         }
         
         // Fire with confidence: I have both quorum and budget
-        send_correction_pulse_with_fever(&pulse);
+        send_entrainment_pulse_with_fever(&pulse);
     }
 }
 ```
@@ -1101,7 +1274,7 @@ void on_time_beacon_received(const utlp_beacon_t* beacon, int8_t rssi) {
 | Time Difference of Arrival | Multiple sync'd receivers | Requires infrastructure |
 | **Quorum Sensing** | Peer health scores + RSSI | Works with multipath |
 
-**The Biological Insight**: Just as bacteria wait for autoinducer concentration to reach threshold before activating virulence, UTLP nodes wait for **quorum** before asserting truth. A lone Senior stays silent because it lacks the "wisdom of crowds" to validate its claim.
+**The Biological Insight**: Just as bacteria wait for autoinducer concentration to reach threshold before activating virulence, UTLP nodes wait for **quorum** before asserting truth. A lone Mature node stays silent because it lacks the "wisdom of crowds" to validate its claim.
 
 - If Node A hears the attacker loudly, but Node B (2 meters away) doesn't hear them at all → suspicious (highly directional beam or spoofed MAC)
 - If everyone hears them with consistent RSSI decay → physically present
@@ -1124,23 +1297,49 @@ This leverages the swarm's spatial distribution as a **distributed antenna array
 ### Phase 1.5: Active Immunity ✅ COMPLETE
 - [x] Token bucket for defensive budget (`utlp_immune.c`)
 - [x] Quorum sensing for crowd validation (`utlp_trust_has_quorum()`)
-- [x] Defensive chirp with dual constraints (`evaluate_defensive_response()`)
+- [x] Entrainment pulse with dual constraints (`evaluate_defensive_response()`)
 - [x] Anergy state for exhaustion recovery
 
 ### Phase 2: Endosymbiosis
 - [ ] GPS/NTP ingestion when available
 - [ ] Seamless stratum adjustment
 - [ ] Beacon format includes source type
+- [ ] Relative sync vs. absolute time separation
 
-### Phase 3: Speciation
+### Phase 3: Emergent Role Differentiation (Self-Healing)
+- [ ] Oracle role emergence via state thresholds
+- [ ] Genesis role for network seeding
+- [ ] Transient role lifecycle (spawn → serve → dissolve)
+- [ ] Statistical triggers for role spawning
+
+### Phase 4: Application-Layer Dormancy (Opportunistic Mesh)
+- [ ] `utlp_request_dormancy()` / `utlp_request_wake()` API
+- [ ] State preservation during sleep (drift model, peer ledger)
+- [ ] Dormancy beacon for swarm awareness
+- [ ] Degraded re-entry with stratum penalty
+
+### Phase 5: Speciation Architecture (Isolation)
 - [ ] ESP-NOW encryption with species key
 - [ ] Species ID in beacon header
 - [ ] Gateway nodes for cross-species bridging
 
-### Phase 4: Emergence Observation (IN PROGRESS)
+### Phase 6: Genetic Distance Monitoring (Population Health)
+- [ ] Timing divergence as compatibility metric
+- [ ] Speciation threshold detection
+- [ ] Bridge node identification and behavior
+- [ ] Population reunification strategies
+
+### Phase 7: Emergence Observation 🔄 IN PROGRESS
 - [x] Swarm health metrics calculation (`utlp_coherence_t` struct)
 - [x] Macro-state logging (`utlp_trust_log_coherence()`)
 - [x] Coherence monitoring (`utlp_trust_get_coherence()`)
+- [ ] Speciation event logging
+
+### Phase 8: Planetary Scale Readiness (Future)
+- [ ] Sensor data timestamp coherence for LPM training
+- [ ] Cross-swarm federation patterns
+- [ ] Technosignature-aware duty cycle coordination
+- [ ] Protocol documentation for open ecosystem
 
 ---
 
@@ -1347,7 +1546,7 @@ This supplement establishes additional prior art for:
 1. **Immune system governance model**: Treating misbehaving nodes as infections (filter/isolate) rather than criminals (prosecute)—reputation calculated from objective metrics, not peer judgment
 2. **Statistical hygiene via median consensus**: Bad actors rendered inert through physics, not protocol enforcement
 3. **Health score as biological fitness**: Multi-factor quality metric determining node survival in swarm
-4. **Active immune response (Defensive Beaconing)**: Senior nodes actively correct Rookies broadcasting conflicting time—prevents "Split Brain" during bootstrap; immune escalation via increased beacon rate mirrors biological inflammation response
+4. **Active immune response (Entrainment Pulses)**: Mature nodes actively entrain Juveniles broadcasting divergent time—prevents "Split Brain" during bootstrap; immune escalation via increased beacon rate mirrors biological inflammation response
 5. **Encapsulation vs. Apoptosis distinction**: Bad nodes encapsulated (network ignore) not killed (apoptosis)—silicon has no conscience for self-termination; infection contained but not eliminated, matching TB granuloma biology
 
 ### 8.2 Endosymbiotic Integration
@@ -1365,17 +1564,17 @@ This supplement establishes additional prior art for:
 
 ### 8.5 Physics-Based Security
 13. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
-14. **Quorum sensing for validation consensus**: Defensive beaconing requires minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Senior attacks valid swarm
+14. **Quorum sensing for validation consensus**: Entrainment pulses require minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Mature node attacks valid swarm
 
 ### 8.6 Immune Checkpoints (S2.3)
-15. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Senior nodes disagree; maps T-cell exhaustion to silicon
+15. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Mature nodes disagree; maps T-cell exhaustion to silicon
 16. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
-17. **Fever response via PHY rate modulation**: Correction pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
+17. **Fever response via PHY rate modulation**: Entrainment pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
 
 ### 8.7 Metabolic Ledger (S2.4)
 18. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
 19. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
-20. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "rookies" (low-interaction peers actively talking); matches biological long-term immunity preservation
+20. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "juveniles" (low-interaction peers actively talking); matches biological long-term immunity preservation
 21. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
 
 ### 8.8 Spectral Duty Cycle Coordination (S2.6)
@@ -1408,6 +1607,12 @@ This supplement establishes additional prior art for:
 40. **Degraded re-entry after dormancy**: Waking nodes re-enter swarm at penalized stratum with low confidence flag—must re-earn trust through successful syncs before resuming full participation; prevents stale clocks from corrupting swarm after extended sleep
 41. **Opportunistic mesh via dormancy cycling**: Every WiFi/BLE-capable device becomes potential UTLP node contributing to time coherence in idle gaps between primary function—planetary swarm membership emerges from aggregate idle time across billions of devices, each participating opportunistically
 
+### 8.13 Timing Divergence as Genetic Distance (S2.12)
+42. **Timing divergence as genetic distance metric**: Magnitude of timing error between nodes treated as measure of "genetic compatibility"—nodes with small timing differences can sync (same species), large differences cannot (speciated); provides diagnostic vocabulary and predictive framework for sync failures
+43. **Allopatric speciation via drift isolation**: Nodes with identical encryption keys (same species DNA) can become timing-incompatible through extended isolation without sync events—same "genetics" but reproductively isolated; natural failure mode, not bug
+44. **Bridge nodes as gene flow mechanism**: Nodes in timing "hybrid zones" capable of syncing with diverging populations prevent complete speciation by maintaining connectivity—bridge nodes can actively work toward population reunification through targeted beacon behavior
+45. **Speciation threshold as configurable species boundary**: Maximum timing distance beyond which sync is not attempted, defining species boundary in timing space—allows tuning of isolation tolerance for different deployment scenarios (tight sync vs. loose federation)
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -1425,7 +1630,7 @@ This supplement establishes additional prior art for:
 | Immigrant | Foreign species | Different encryption key |
 | Border | Species barrier | Key-based isolation |
 | Escalation | Inflammation | Increased beacon rate |
-| Runaway escalation | Cytokine storm | Two Seniors flooding RF |
+| Runaway escalation | Cytokine storm | Two Mature nodes flooding RF |
 | Rate limiting | T-cell exhaustion | Defensive budget depletion |
 | Cooldown | Anergy | Non-responsive state after exhaustion |
 | Validation | Quorum sensing | Waiting for peer consensus before acting |
@@ -1460,6 +1665,17 @@ This supplement establishes additional prior art for:
 | Torpor | Yielding | Transitioning to dormant state |
 | Arousal | Waking | Re-entering swarm after dormancy |
 | Opportunistic mesh | Idle participation | Swarm membership in gaps between primary function |
+| Genetic distance | Timing divergence | Magnitude of timing error between nodes |
+| Allopatric speciation | Drift isolation | Same key but timing-incompatible due to isolation |
+| Gene flow | Sync events | Prevent timing divergence through periodic sync |
+| Hybrid zone | Timing overlap | Region where diverging populations can still sync |
+| Bridge node | Gene flow mechanism | Node that can sync with both diverging populations |
+| Correction | Entrainment | Fireflies don't correct; they entrain |
+| Rookie | Juvenile | Undifferentiated, learning node |
+| Senior | Mature | Fully differentiated, defense-capable |
+| Watchdog reset | Apoptosis trigger | Self-detected corruption → rebirth |
+| Flash firmware | Seed DNA | Initial programming |
+| Reboot | Germination | Node coming to life |
 
 ---
 
@@ -1620,11 +1836,11 @@ static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac,
             empty = &g_peers[i];
         }
         /* Track eviction candidate: lowest health first, then FEWEST interactions
-         * (Memory B Cell pattern: protect elders, evict rookies) */
+         * (Memory B Cell pattern: protect elders, evict juveniles) */
         if (g_peers[i].health_score < oldest->health_score) {
             oldest = &g_peers[i];
         } else if (g_peers[i].health_score == oldest->health_score) {
-            /* Tie-breaker: Evict the ROOKIE (fewer interactions)
+            /* Tie-breaker: Evict the JUVENILE (fewer interactions)
              * A GPS node with 10,000 interactions that went silent
              * is more valuable than a new peer with 5 interactions */
             if (g_peers[i].interactions < oldest->interactions) {
@@ -1801,8 +2017,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.12*
+*Document version: S2.16*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.12 adds Section 3.5 "Application-Layer Dormancy Control" with hibernation API for opportunistic swarm participation, and claims 38-41 covering dormancy patterns, state preservation, degraded re-entry, and opportunistic mesh; total 41 prior art extension claims*
+*Revision notes: S2.16 updates roadmap with actual implementation progress—Phase 1 (Basic Immune Response) and Phase 1.5 (Active Immunity) complete, Phase 7 (Emergence Observation) in progress; references actual codebase artifacts (utlp_trust.c, utlp_immune.c, utlp_coherence_t); total 45 prior art extension claims*
