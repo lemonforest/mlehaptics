@@ -1189,6 +1189,7 @@ void utlp_app_run(void)
             if ((uptime - last_trust_log_us) >= log_interval) {
                 last_trust_log_us = uptime;
                 utlp_trust_log_status();
+                utlp_trust_log_coherence();  /* Phase 4: Macro-state logging */
             }
         }
     }

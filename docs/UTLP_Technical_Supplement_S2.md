@@ -631,6 +631,204 @@ void become_transient_oracle(void) {
 
 Because any capable node can assume any role when conditions demand, the swarm has no critical nodes. Kill the Genesis—another will emerge. Kill the Oracle—the next node to reach NTP will differentiate. The swarm is not led; it is *homeostatic*.
 
+### 3.5 Application-Layer Dormancy Control
+
+Real devices have primary functions. An Echo speaker streams music. A smart TV plays video. A thermostat controls HVAC. UTLP participation is **opportunistic**—the swarm member role is assumed when the application layer yields the radio, and suspended when the application needs it.
+
+**The Biological Analogy: Hibernation**
+
+A hibernating bear isn't dead—it's dormant. Metabolism drops, activity ceases, but the organism persists and can resume. UTLP nodes do the same:
+
+| State | Radio | Swarm Participation | Application |
+|-------|-------|---------------------|-------------|
+| Active | UTLP owns | Full member | Yielded |
+| Dormant | App owns | Suspended | Active |
+| Waking | Transitioning | Re-entering | Completing |
+
+**The API Contract:**
+
+```c
+typedef enum {
+    UTLP_YIELD_IMMEDIATE,     // Drop now, app is urgent
+    UTLP_YIELD_GRACEFUL,      // Finish current beacon window, then yield
+    UTLP_YIELD_AFTER_SYNC,    // Complete next sync cycle, then yield
+} utlp_yield_mode_t;
+
+typedef struct {
+    uint32_t expected_duration_ms;  // Hint: how long will app need radio?
+    bool     broadcast_dormant;     // Should we tell the swarm we're sleeping?
+    uint8_t  wake_priority;         // How urgently to reclaim on wake
+} utlp_dormancy_params_t;
+
+/**
+ * @brief Application requests UTLP to yield the radio
+ * 
+ * UTLP will:
+ * 1. Optionally broadcast "going dormant" beacon
+ * 2. Save state (drift model, peer ledger, current offset)
+ * 3. Release radio resource
+ * 4. Return control to application
+ * 
+ * @param mode How urgently to yield
+ * @param params Dormancy parameters (duration hint, etc.)
+ * @return Time until radio is available (0 if immediate)
+ */
+uint32_t utlp_request_dormancy(utlp_yield_mode_t mode, 
+                                const utlp_dormancy_params_t* params);
+
+/**
+ * @brief Application releases radio back to UTLP
+ * 
+ * UTLP will:
+ * 1. Reclaim radio resource
+ * 2. Restore saved state
+ * 3. Apply drift correction for time spent dormant
+ * 4. Broadcast "waking" beacon at degraded stratum
+ * 5. Re-enter swarm consensus
+ */
+void utlp_request_wake(void);
+
+/**
+ * @brief Query current dormancy state
+ */
+typedef enum {
+    UTLP_STATE_ACTIVE,        // Full participation
+    UTLP_STATE_YIELDING,      // Transitioning to dormant
+    UTLP_STATE_DORMANT,       // Radio released to app
+    UTLP_STATE_WAKING,        // Re-entering swarm
+} utlp_state_t;
+
+utlp_state_t utlp_get_state(void);
+```
+
+**Dormancy Behavior:**
+
+```c
+void utlp_enter_dormancy(const utlp_dormancy_params_t* params) {
+    // 1. Save state for later restoration
+    dormancy_state.saved_offset = g_current_offset;
+    dormancy_state.saved_drift_model = g_drift_model;
+    dormancy_state.saved_peer_ledger = g_peer_ledger;
+    dormancy_state.sleep_start_us = utlp_hal_get_micros();
+    dormancy_state.expected_duration = params->expected_duration_ms;
+    
+    // 2. Optionally notify swarm (lets peers know we're not dead)
+    if (params->broadcast_dormant) {
+        utlp_beacon_t dormant_beacon = {
+            .type = BEACON_DORMANT,
+            .expected_return_ms = params->expected_duration_ms,
+        };
+        broadcast_beacon(&dormant_beacon);
+    }
+    
+    // 3. Release radio
+    esp_now_deinit();
+    g_state = UTLP_STATE_DORMANT;
+    
+    // 4. App now owns the radio
+}
+
+void utlp_exit_dormancy(void) {
+    // 1. Calculate how long we were asleep
+    uint64_t sleep_duration_us = utlp_hal_get_micros() - dormancy_state.sleep_start_us;
+    
+    // 2. Apply drift correction (we kept counting but didn't sync)
+    int64_t expected_drift = (sleep_duration_us * dormancy_state.saved_drift_model.ppm) / 1000000;
+    g_current_offset = dormancy_state.saved_offset + expected_drift;
+    
+    // 3. Restore peer ledger (but mark all peers as "stale")
+    g_peer_ledger = dormancy_state.saved_peer_ledger;
+    mark_all_peers_stale();
+    
+    // 4. Reclaim radio
+    esp_now_init();
+    
+    // 5. Re-enter swarm at DEGRADED stratum (we've been asleep)
+    g_stratum = MIN(g_stratum + 2, STRATUM_MAX);  // Penalize for absence
+    
+    // 6. Broadcast wake beacon
+    utlp_beacon_t wake_beacon = {
+        .type = BEACON_WAKING,
+        .sleep_duration_ms = sleep_duration_us / 1000,
+        .confidence = CONFIDENCE_LOW,  // We're uncertain after sleep
+    };
+    broadcast_beacon(&wake_beacon);
+    
+    g_state = UTLP_STATE_WAKING;
+    // Will return to ACTIVE after first successful sync
+}
+```
+
+**Swarm Handling of Dormant Peers:**
+
+```c
+void on_dormant_beacon(const utlp_beacon_t* beacon, const uint8_t* mac) {
+    utlp_peer_ledger_t* peer = find_peer(mac);
+    if (!peer) return;
+    
+    // Don't evict sleeping friends (Memory B Cell pattern)
+    peer->state = PEER_STATE_DORMANT;
+    peer->expected_wake_ms = utlp_hal_get_millis() + beacon->expected_return_ms;
+    
+    // Dormant peers don't vote in consensus, but aren't forgotten
+    // They keep their health score (they're not misbehaving, just sleeping)
+}
+
+void on_wake_beacon(const utlp_beacon_t* beacon, const uint8_t* mac) {
+    utlp_peer_ledger_t* peer = find_peer(mac);
+    if (!peer) return;
+    
+    peer->state = PEER_STATE_PROBATIONARY;  // Must re-earn full trust
+    peer->health_score = MIN(peer->health_score, UTLP_TRUST_STARTUP);
+    
+    // But they keep their interaction history (we remember them)
+}
+```
+
+**Usage Pattern (Echo Speaker Example):**
+
+```c
+// Echo is idle, participating in swarm
+// ...beaconing, syncing, being a good swarm member...
+
+// User says "Alexa, play music"
+void on_music_request(void) {
+    // Need WiFi for streaming
+    utlp_dormancy_params_t params = {
+        .expected_duration_ms = 3600000,  // Hint: probably an hour
+        .broadcast_dormant = true,        // Tell the swarm
+        .wake_priority = WAKE_LAZY,       // No rush to return
+    };
+    
+    utlp_request_dormancy(UTLP_YIELD_GRACEFUL, &params);
+    
+    // Now we own the radio
+    wifi_start();
+    stream_music();
+}
+
+// Music stops, user walks away
+void on_idle_timeout(void) {
+    wifi_stop();
+    
+    // Return to swarm
+    utlp_request_wake();
+    
+    // Back to being a swarm member
+}
+```
+
+**The Key Insight:**
+
+UTLP participation is not all-or-nothing. Devices drift in and out of the swarm based on their primary function's needs. The swarm treats this as **hibernation, not death**:
+
+- Dormant peers keep their reputation (health score preserved)
+- Dormant peers keep their history (interaction count preserved)
+- Waking peers start at degraded confidence (must re-sync)
+- The swarm is resilient to members sleeping and waking
+
+This enables **opportunistic mesh**: every WiFi-capable device is a *potential* UTLP node, contributing to planetary time coherence in the gaps between its primary function.
+
 ---
 
 # Part III: Speciation via Encryption
@@ -939,10 +1137,10 @@ This leverages the swarm's spatial distribution as a **distributed antenna array
 - [ ] Species ID in beacon header
 - [ ] Gateway nodes for cross-species bridging
 
-### Phase 4: Emergence Observation
-- [ ] Swarm health metrics calculation
-- [ ] Macro-state logging (not packet logs)
-- [ ] Coherence monitoring
+### Phase 4: Emergence Observation (IN PROGRESS)
+- [x] Swarm health metrics calculation (`utlp_coherence_t` struct)
+- [x] Macro-state logging (`utlp_trust_log_coherence()`)
+- [x] Coherence monitoring (`utlp_trust_get_coherence()`)
 
 ---
 
@@ -1204,6 +1402,12 @@ This supplement establishes additional prior art for:
 36. **Transient role patterns for self-healing**: Roles spawn when conditions require and dissolve when conditions normalize—oracle exists for calibration window then returns to peer status; role lifetime measured in seconds, not configured permanently; enables "unkillable swarm" where any capable node can assume any role
 37. **Statistical triggers for role emergence**: Swarm-level metrics (drift variance exceeding threshold, consensus confidence dropping, beacon silence duration) trigger role spawning—"the swarm asks for an oracle" through degraded statistics rather than "an oracle is configured"; homeostatic response pattern replacing negotiated leadership
 
+### 8.12 Application-Layer Dormancy (S2.11)
+38. **Hibernation pattern for opportunistic swarm participation**: Formal API for application layer to request UTLP yield radio resource, with state preservation (drift model, peer ledger, offset) enabling seamless resume—swarm participation is opportunistic between primary device functions, not mandatory continuous operation
+39. **Dormancy beacon for swarm awareness**: Optional broadcast announcing sleep with expected duration hint—allows swarm to distinguish "sleeping friend" from "dead node"; dormant peers retain health score and interaction history (Memory B Cell preservation during hibernation)
+40. **Degraded re-entry after dormancy**: Waking nodes re-enter swarm at penalized stratum with low confidence flag—must re-earn trust through successful syncs before resuming full participation; prevents stale clocks from corrupting swarm after extended sleep
+41. **Opportunistic mesh via dormancy cycling**: Every WiFi/BLE-capable device becomes potential UTLP node contributing to time coherence in idle gaps between primary function—planetary swarm membership emerges from aggregate idle time across billions of devices, each participating opportunistically
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -1252,6 +1456,10 @@ This supplement establishes additional prior art for:
 | Differentiation | Role emergence | Node assumes role based on conditions |
 | Chemical gradient | State threshold | Trigger condition for role change |
 | Homeostasis | Self-healing roles | Swarm maintains function via role spawning |
+| Hibernation | Dormancy | Node yields radio, preserves state |
+| Torpor | Yielding | Transitioning to dormant state |
+| Arousal | Waking | Re-entering swarm after dormancy |
+| Opportunistic mesh | Idle participation | Swarm membership in gaps between primary function |
 
 ---
 
@@ -1593,8 +1801,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.11*
+*Document version: S2.12*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.11 adds Section 3.4 "Emergent Role Differentiation" and claims 35-37 covering stem-cell-like role emergence via local state thresholds, transient roles for self-healing, and statistical triggers replacing negotiated elections; total 37 prior art extension claims*
+*Revision notes: S2.12 adds Section 3.5 "Application-Layer Dormancy Control" with hibernation API for opportunistic swarm participation, and claims 38-41 covering dormancy patterns, state preservation, degraded re-entry, and opportunistic mesh; total 41 prior art extension claims*
