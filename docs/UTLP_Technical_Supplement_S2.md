@@ -23,6 +23,39 @@ This supplement extends the UTLP Technical Report v2.0 and Prior Art Publication
 
 ---
 
+## Nomenclature: The Time Lord Universe
+
+The mlehaptics protocol suite adopts a coherent nomenclature inspired by temporal mechanics:
+
+| Acronym | Expansion | Function |
+|---------|-----------|----------|
+| **UTLP** | Universal Time Lord Protocol | Time synchronization—*when* things happen |
+| **RFIP** | RF Indoor Positioning | Spatial positioning—*where* things are |
+| **SMSP** | Synchronized Multi-modal Stimulation Protocol | Coordinated actuation—*what* happens together |
+| **TARDIS** | **T**emporal **A**nd **R**elative **D**istribution **I**n **S**warms | UTLP + RFIP combined: time and space |
+
+**The Complete Picture:**
+
+```
+TARDIS = UTLP + RFIP
+         (Time)  (Space)
+         
+"Temporal And Relative Distribution In Swarms"
+```
+
+**Supporting Concepts:**
+
+| Term | Meaning |
+|------|---------|
+| **Time Lord** | A Genesis/Reference node that anchors the timeline |
+| **The Loom** | State machine that weaves Time Lords from entropy |
+| **Regeneration** | Fault tolerance—same role, new hardware vessel |
+| **Web of Time** | The coherent beacon sequence maintained by the swarm |
+
+A swarm implementing TARDIS knows both *when* it is and *where* it is—the two coordinates necessary for coherent distributed action.
+
+---
+
 ## Prior Art Acknowledgment
 
 This supplement documents novel application of established concepts:
@@ -32,7 +65,7 @@ This supplement documents novel application of established concepts:
 | Artificial Immune Systems | Ismail et al. (2011), Cohen & Efroni (2019) | Application to time sync protocols specifically |
 | Byzantine Fault Tolerance | Castro & Liskov PBFT (1999) | Connectionless variant without consensus rounds |
 | Outlier rejection in WSN | RBS protocol, Kalman robustification | Integration with stratum hierarchy |
-| Bio-inspired computing | ACM design patterns (2006) | Specific UTLP/RFIP/SMSP instantiation |
+| Bio-inspired computing | ACM design patterns (2006) | Specific UTLP/RFIP/SMSP (TARDIS) instantiation |
 
 The contribution is the specific combination and application to connectionless distributed timing.
 
@@ -149,11 +182,11 @@ void self_health_check(void) {
 ```c
 // Immune-inspired time source selection
 typedef struct {
-    uint8_t  peer_mac[6];
-    uint8_t  stratum;
     int32_t  drift_ppb;
     uint32_t jitter_us;
     uint32_t uptime_s;
+    uint8_t  peer_mac[6];
+    uint8_t  stratum;
     uint8_t  violations;      // Protocol violation count
     uint8_t  health_score;    // 0-255, calculated below
 } peer_health_t;
@@ -260,9 +293,9 @@ The passive immune response (Section 2.3) ignores bad actors. But real immune sy
 // Active immune response: Entrainment Pulse
 // (Fireflies don't "correct" each other; they "entrain" each other)
 typedef struct {
-    uint8_t  type;              // MSG_TYPE_ENTRAINMENT
-    uint8_t  target_mac[6];     // Who needs entraining
     int64_t  reference_time;    // The shared truth
+    uint8_t  target_mac[6];     // Who needs entraining
+    uint8_t  type;              // MSG_TYPE_ENTRAINMENT
     uint8_t  authority;         // My stratum + quality
 } entrainment_signal_t;
 
@@ -349,10 +382,10 @@ This is a **Cytokine Storm**—the immune system killing the host.
 ```c
 // Immune checkpoint: Prevents cytokine storm via token bucket
 typedef struct {
-    uint8_t  tokens;           // Current defensive budget
-    uint8_t  max_tokens;       // Bucket capacity
     uint32_t refill_rate_ms;   // Time to add one token
     uint32_t last_refill_ms;   // Last refill timestamp
+    uint8_t  tokens;           // Current defensive budget
+    uint8_t  max_tokens;       // Bucket capacity
     bool     in_anergy;        // Exhaustion state (PD-1 engaged)
 } immune_checkpoint_t;
 
@@ -595,7 +628,7 @@ Unlike traditional consensus algorithms (Raft, Paxos) which require negotiated e
 typedef enum {
     ROLE_PEER,        // Default: participate in consensus
     ROLE_ORACLE,      // Emergent: I have external truth access
-    ROLE_GENESIS,     // Emergent: I am seeding a new network
+    ROLE_TIME_LORD,   // Emergent: I am the anchor of the timeline (formerly GENESIS)
     ROLE_CALIBRATOR,  // Transient: spawned for drift check, then vanish
 } node_role_t;
 
@@ -610,10 +643,10 @@ void evaluate_role_emergence(void) {
         become_transient_oracle();  // Spawn role
     }
     
-    // GENESIS TRIGGER: No one is talking, I must seed
+    // TIME LORD TRIGGER: No one is talking, I must anchor the timeline
     // "I have heard no beacons for 120 seconds"
     if (ms_since_any_beacon > 120000 && my_clock_confidence > 0.8) {
-        become_genesis();  // Spawn role
+        loom_weave_timelord();  // The Loom activates
     }
     
     // ROLE DISSOLUTION: Condition no longer met
@@ -662,6 +695,159 @@ void become_transient_oracle(void) {
 **The Unkillable Swarm:**
 
 Because any capable node can assume any role when conditions demand, the swarm has no critical nodes. Kill the Genesis—another will emerge. Kill the Oracle—the next node to reach NTP will differentiate. The swarm is not led; it is *homeostatic*.
+
+### 3.4.1 The Loom: Weaving Time Lords from Entropy
+
+The biological model has one apparent gap: **reproduction**. Cells divide. Organisms reproduce. How do UTLP nodes "reproduce" roles?
+
+The answer comes from an unexpected source. In certain science fiction, Time Lords are not born biologically—they are **loomed** (woven from genetic material by a machine). This provides the perfect metaphor: Genesis Nodes are not elected politically; they are *loomed from the chaotic state of the network*.
+
+**The Loom = The State Machine that weaves order from entropy.**
+
+In political systems, leaders are chosen via **Election** (Paxos, Raft). This presumes a stable population capable of voting. In UTLP, authorities are created via **Looming**. This presumes a chaotic environment where order must be manufactured from raw entropy.
+
+| Concept | Political Equivalent | UTLP Loom Equivalent |
+|---------|---------------------|----------------------|
+| **Origin** | Candidate announces run | Entropy exceeds threshold |
+| **Process** | Campaign and Voting | Oscillator stabilization (Weaving) |
+| **Result** | President Elected | Time Lord Manifests (Stratum 1) |
+| **Failure** | Impeachment/Coup | Regeneration (New node assumes role) |
+
+### 3.4.2 The Loom State Machine
+
+The Loom manages the transition from "Chaos" to "Anchor." It solves the "Chicken and Egg" problem of network bootstrapping by treating the Time Lord role as a **transient state of matter** rather than a permanent identity.
+
+```c
+// The Loom: A State Machine for Emergent Authority
+typedef enum {
+    LOOM_STATE_DORMANT,     // Passive listener (Peer)
+    LOOM_STATE_WEAVING,     // Stabilizing local oscillator (Warmup)
+    LOOM_STATE_ANCHOR,      // Manifested Time Lord (Stratum 1)
+    LOOM_STATE_DISSOLVING   // Another Anchor found, demoting self
+} loom_state_t;
+
+typedef struct {
+    uint32_t silence_duration;  // Time since last valid beacon
+    uint32_t weave_start_ms;    // When we started trying to stabilize
+    float    local_entropy;     // Internal oscillator jitter
+    float    swarm_entropy;     // Variance of peer beacons
+    loom_state_t state;
+} loom_context_t;
+
+#define TIMELINE_FRAY_THRESHOLD_MS  120000  // 2 minutes silence = frayed
+#define STABILITY_REQUIREMENT       5.0f    // Max acceptable local entropy
+#define WARMUP_PERIOD_MS            10000   // 10 seconds to prove stability
+
+// The Loom Logic: Run every tick
+void loom_process_tick(loom_context_t* loom) {
+    
+    // 1. Monitor the Environment
+    bool timeline_frayed = (loom->silence_duration > TIMELINE_FRAY_THRESHOLD_MS);
+    
+    switch (loom->state) {
+        
+        case LOOM_STATE_DORMANT:
+            // Condition: The web is broken, and I am stable enough to fix it
+            if (timeline_frayed && loom->local_entropy < STABILITY_REQUIREMENT) {
+                ESP_LOGI(TAG, "Loom: Timeline frayed. Calculating weave potential...");
+                loom->state = LOOM_STATE_WEAVING;
+                loom->weave_start_ms = millis();
+            }
+            break;
+
+        case LOOM_STATE_WEAVING:
+            // The "Looming" Phase: Attempting to hold Stratum 1 stability
+            // This is not an election. It is a physics test.
+            if (millis() - loom->weave_start_ms > WARMUP_PERIOD_MS) {
+                if (loom->local_entropy < STABILITY_REQUIREMENT) {
+                    // Success: I have woven a stable timeline
+                    ESP_LOGI(TAG, "Loom: Weave complete. Manifesting Time Lord.");
+                    loom->state = LOOM_STATE_ANCHOR;
+                    set_stratum(1);  // I am the Anchor
+                } else {
+                    // Failed: My crystal is too noisy to be King
+                    ESP_LOGW(TAG, "Loom: Weave failed. Crystal unstable. Returning to Dormant.");
+                    loom->state = LOOM_STATE_DORMANT;
+                }
+            }
+            // Abort if timeline heals during weave (someone else manifested)
+            if (!timeline_frayed) {
+                ESP_LOGI(TAG, "Loom: Timeline healed during weave. Aborting.");
+                loom->state = LOOM_STATE_DORMANT;
+            }
+            break;
+
+        case LOOM_STATE_ANCHOR:
+            // I am the Time Lord. I maintain the timeline.
+            broadcast_beacon(STRATUM_1);
+            
+            // Regeneration Trigger: If I become unstable, I must abdicate
+            if (loom->local_entropy > STABILITY_REQUIREMENT) {
+                ESP_LOGW(TAG, "Loom: Anchor unstable. Triggering Regeneration.");
+                loom->state = LOOM_STATE_DISSOLVING;
+            }
+            
+            // Competition: If I hear a better Time Lord, I yield
+            if (heard_better_anchor()) {
+                ESP_LOGI(TAG, "Loom: Stronger Anchor detected. Dissolving.");
+                loom->state = LOOM_STATE_DISSOLVING;
+            }
+            break;
+
+        case LOOM_STATE_DISSOLVING:
+            set_stratum(STRATUM_PEER);  // Demote
+            loom->state = LOOM_STATE_DORMANT;
+            ESP_LOGI(TAG, "Loom: Dissolved. Returned to peer state.");
+            break;
+    }
+}
+```
+
+### 3.4.3 Regeneration (Fault Tolerance)
+
+In the lore, regeneration allows the Time Lord to survive death by changing every cell in their body. In UTLP, **Regeneration** allows the Swarm to survive the death of the Genesis Node.
+
+When a Time Lord node dies (battery fails, unplugged, destroyed):
+
+1. **Silence:** The swarm detects `silence_duration` increasing
+2. **Entropy:** Without the anchor, peer clocks begin to drift apart (`swarm_entropy` rises)
+3. **The Loom Activates:** Multiple nodes enter `LOOM_STATE_WEAVING`
+4. **First to Stabilize:** The node with the best crystal and lowest entropy completes the weave first
+5. **Manifestation:** A new Time Lord appears. The role is identical; the MAC address is different
+
+```c
+// Regeneration is automatic - no special code needed
+// The state machine handles it:
+//   1. Old Time Lord dies → stops broadcasting
+//   2. All nodes see silence_duration increase
+//   3. Nodes with good crystals enter WEAVING state
+//   4. First to complete warmup becomes new Time Lord
+//   5. Others see timeline healed, abort their weave
+```
+
+The "Identity" of the swarm (the timeline) survives; the "Vessel" (the node) is discarded.
+
+**Why "Looming" is Distinct:**
+
+| Mechanism | Model | Problem |
+|-----------|-------|---------|
+| Election (Paxos/Raft) | Political | Requires negotiation, quorum, rounds |
+| Hard-coding (Master/Slave) | Static | Single point of failure, no adaptation |
+| **Looming** | Emergent | Spontaneous generation from environmental entropy |
+
+The Time Lord is not elected by its peers. It is **woven by the necessity of the moment**. This is "Algorithmic Looming"—the spontaneous generation of authority structures based on environmental entropy.
+
+**The Completed Biological Model:**
+
+| Biological Process | UTLP Equivalent |
+|--------------------|-----------------|
+| Cellular metabolism | Beacon processing |
+| Immune response | Outlier rejection, entrainment |
+| Hibernation | Dormancy API |
+| Speciation | Timing divergence / key isolation |
+| **Reproduction** | **Looming** (weaving new Time Lords from entropy) |
+
+The Loom closes the gap. UTLP nodes don't reproduce sexually or through cell division—they reproduce *roles* through algorithmic necessity. When the swarm needs a Time Lord, one is woven.
 
 ### 3.5 Application-Layer Dormancy Control
 
@@ -960,11 +1146,11 @@ Timing Space (genetic distance)
 
 ```c
 typedef struct {
-    bool     can_reach_population_a;
-    bool     can_reach_population_b;
     int64_t  offset_to_a;
     int64_t  offset_to_b;
     uint8_t  bridge_health;  // How effectively am I preventing speciation?
+    bool     can_reach_population_a;
+    bool     can_reach_population_b;
 } bridge_node_t;
 
 // Detect if I'm in a hybrid zone
@@ -996,10 +1182,10 @@ void bridge_node_duty(void) {
 
 ```c
 typedef struct {
+    int64_t  genetic_distance_us;
     uint32_t timestamp_ms;
     uint8_t  population_a_count;
     uint8_t  population_b_count;
-    int64_t  genetic_distance_us;
     bool     speciation_complete;
 } speciation_event_t;
 
@@ -1184,8 +1370,8 @@ In biology, **Quorum Sensing** is the mechanism by which bacteria coordinate col
 #define QUORUM_THRESHOLD 3  // Minimum healthy peers to validate truth claim
 
 typedef struct {
-    uint8_t  sender_mac[6];
     int64_t  time_claim;
+    uint8_t  sender_mac[6];
     int8_t   rssi;
 } heard_beacon_t;
 
@@ -1442,15 +1628,15 @@ We cannot track complex histograms for every MAC address that drives by. We impl
 #define UTLP_REWARD_TRUTH       2    /* Reward: slow trust building */
 
 typedef struct {
-    uint8_t  mac[6];
-    
-    /* THE METABOLIC LEDGER */
-    uint8_t  health_score;      /* 0-255: The "Credit Score" */
-    uint16_t interactions;      /* Observation count (familiarity) */
-    
     /* BEHAVIORAL FINGERPRINT */
     int32_t  last_offset_us;    /* What they claimed last time */
     uint32_t last_seen_ms;      /* For LRU eviction */
+    
+    /* THE METABOLIC LEDGER */
+    uint16_t interactions;      /* Observation count (familiarity) */
+    
+    uint8_t  mac[6];
+    uint8_t  health_score;      /* 0-255: The "Credit Score" */
     uint8_t  consecutive_hits;  /* Consistency counter */
     uint8_t  stratum_claim;     /* Metadata only—NOT authority */
     
@@ -1631,19 +1817,23 @@ This supplement establishes additional prior art for:
 35. **Emergent role assignment via local state thresholds**: Node roles (oracle, calibrator, genesis) arise from state distinctiveness relative to swarm model rather than pre-designation—any node meeting conditions unilaterally assumes role without negotiation or election; "stem cell differentiation" pattern where role emerges from chemical gradient equivalent (drift variance, beacon absence, NTP access)
 36. **Transient role patterns for self-healing**: Roles spawn when conditions require and dissolve when conditions normalize—oracle exists for calibration window then returns to peer status; role lifetime measured in seconds, not configured permanently; enables "unkillable swarm" where any capable node can assume any role
 37. **Statistical triggers for role emergence**: Swarm-level metrics (drift variance exceeding threshold, consensus confidence dropping, beacon silence duration) trigger role spawning—"the swarm asks for an oracle" through degraded statistics rather than "an oracle is configured"; homeostatic response pattern replacing negotiated leadership
+38. **Algorithmic Looming for role reproduction**: Time Lord (Genesis) nodes woven from environmental entropy rather than elected or configured—state machine monitors swarm chaos (drift variance) and timeline integrity (beacon silence) to spontaneously generate authority structures; "The Loom weaves a Time Lord when the fabric frays"
+39. **Regeneration pattern for fault-tolerant role continuity**: When Time Lord fails (battery, crash, destruction), swarm detects absence and Loom activates in different node—same role, new vessel; role "regenerates" into new hardware without election or negotiation; continuous timeline despite hardware mortality
+40. **Weaving phase as physics test**: Candidate Time Lords must pass warmup period proving oscillator stability before manifesting—not a vote or negotiation but a thermodynamic qualification; nodes with noisy crystals fail weave and return to peer state; authority emerges from physical capability, not political process
 
 ### 8.12 Application-Layer Dormancy (S2.11)
-38. **Hibernation pattern for opportunistic swarm participation**: Formal API for application layer to request UTLP yield radio resource, with state preservation (drift model, peer ledger, offset) enabling seamless resume—swarm participation is opportunistic between primary device functions, not mandatory continuous operation
-39. **Dormancy beacon for swarm awareness**: Optional broadcast announcing sleep with expected duration hint—allows swarm to distinguish "sleeping friend" from "dead node"; dormant peers retain health score and interaction history (Memory B Cell preservation during hibernation)
-40. **Degraded re-entry after dormancy**: Waking nodes re-enter swarm at penalized stratum with low confidence flag—must re-earn trust through successful syncs before resuming full participation; prevents stale clocks from corrupting swarm after extended sleep
-41. **Opportunistic mesh via dormancy cycling**: Every WiFi/BLE-capable device becomes potential UTLP node contributing to time coherence in idle gaps between primary function—planetary swarm membership emerges from aggregate idle time across billions of devices, each participating opportunistically
+41. **Hibernation pattern for opportunistic swarm participation**: Formal API for application layer to request UTLP yield radio resource, with state preservation (drift model, peer ledger, offset) enabling seamless resume—swarm participation is opportunistic between primary device functions, not mandatory continuous operation
+42. **Dormancy beacon for swarm awareness**: Optional broadcast announcing sleep with expected duration hint—allows swarm to distinguish "sleeping friend" from "dead node"; dormant peers retain health score and interaction history (Memory B Cell preservation during hibernation)
+43. **Degraded re-entry after dormancy**: Waking nodes re-enter swarm at penalized stratum with low confidence flag—must re-earn trust through successful syncs before resuming full participation; prevents stale clocks from corrupting swarm after extended sleep
+44. **Opportunistic mesh via dormancy cycling**: Every WiFi/BLE-capable device becomes potential UTLP node contributing to time coherence in idle gaps between primary function—planetary swarm membership emerges from aggregate idle time across billions of devices, each participating opportunistically
 
 ### 8.13 Timing Divergence as Genetic Distance (S2.12)
-42. **Timing divergence as genetic distance metric**: Magnitude of timing error between nodes treated as measure of "genetic compatibility"—nodes with small timing differences can sync (same species), large differences cannot (speciated); provides diagnostic vocabulary and predictive framework for sync failures
-43. **Allopatric speciation via drift isolation**: Nodes with identical encryption keys (same species DNA) can become timing-incompatible through extended isolation without sync events—same "genetics" but reproductively isolated; natural failure mode, not bug
-44. **Bridge nodes as gene flow mechanism**: Nodes in timing "hybrid zones" capable of syncing with diverging populations prevent complete speciation by maintaining connectivity—bridge nodes can actively work toward population reunification through targeted beacon behavior
-45. **Speciation threshold as configurable species boundary**: Maximum timing distance beyond which sync is not attempted, defining species boundary in timing space—allows tuning of isolation tolerance for different deployment scenarios (tight sync vs. loose federation)
-46. **Ecotone model replacing political border model**: Boundaries between timing populations treated as productive transition zones (ecotones) rather than conflict zones—political borders are where data dies (Split Brain), biological borders are where adaptation thrives (Hybrid Zones); architectural rejection of "two kings cannot coexist" in favor of "two populations intermingle"
+45. **Timing divergence as genetic distance metric**: Magnitude of timing error between nodes treated as measure of "genetic compatibility"—nodes with small timing differences can sync (same species), large differences cannot (speciated); provides diagnostic vocabulary and predictive framework for sync failures
+46. **Allopatric speciation via drift isolation**: Nodes with identical encryption keys (same species DNA) can become timing-incompatible through extended isolation without sync events—same "genetics" but reproductively isolated; natural failure mode, not bug
+47. **Bridge nodes as gene flow mechanism**: Nodes in timing "hybrid zones" capable of syncing with diverging populations prevent complete speciation by maintaining connectivity—bridge nodes can actively work toward population reunification through targeted beacon behavior
+48. **Speciation threshold as configurable species boundary**: Maximum timing distance beyond which sync is not attempted, defining species boundary in timing space—allows tuning of isolation tolerance for different deployment scenarios (tight sync vs. loose federation)
+49. **Ecotone model replacing political border model**: Boundaries between timing populations treated as productive transition zones (ecotones) rather than conflict zones—political borders are where data dies (Split Brain), biological borders are where adaptation thrives (Hybrid Zones); architectural rejection of "two kings cannot coexist" in favor of "two populations intermingle"
+50. **TARDIS architecture (Temporal And Relative Distribution In Swarms)**: Combined UTLP (time) and RFIP (space) protocols providing swarm nodes with both temporal and spatial coordinates—enables coherent distributed action requiring knowledge of both *when* and *where*; complete situational awareness for connectionless coordination
 
 ---
 
@@ -1712,6 +1902,12 @@ This supplement establishes additional prior art for:
 | Watchdog reset | Apoptosis trigger | Self-detected corruption → rebirth |
 | Flash firmware | Seed DNA | Initial programming |
 | Reboot | Germination | Node coming to life |
+| Election | Looming | Weaving authority from entropy |
+| Leader spawn | Time Lord creation | Role woven by necessity |
+| Failover | Regeneration | Same role, new vessel |
+| Chaos | Entropy | Swarm drift variance |
+| Timeline | Web of Time | Coherent beacon sequence |
+| Time + Space | TARDIS | UTLP + RFIP combined architecture |
 
 ---
 
@@ -1780,15 +1976,15 @@ extern "C" {
  *==========================================================================*/
 
 typedef struct {
-    uint8_t  mac[6];
-    
-    /* THE METABOLIC LEDGER */
-    uint8_t  health_score;      /* 0-255: The "Credit Score" */
-    uint16_t interactions;      /* Count of observations (familiarity) */
-    
     /* BEHAVIORAL FINGERPRINT */
     int32_t  last_offset_us;    /* The offset they claimed last time */
     uint32_t last_seen_ms;      /* For LRU eviction */
+    
+    /* THE METABOLIC LEDGER */
+    uint16_t interactions;      /* Count of observations (familiarity) */
+    
+    uint8_t  mac[6];
+    uint8_t  health_score;      /* 0-255: The "Credit Score" */
     uint8_t  consecutive_hits;  /* Consistency counter */
     uint8_t  stratum_claim;     /* Metadata only (NOT authority) */
     
@@ -2045,7 +2241,7 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
 
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, and the Memory B Cell eviction pattern.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, and the formal Loom state machine architecture for emergent authority.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -2053,8 +2249,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.17*
+*Document version: S2.20*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.17 adds Section 1.3 "Borders as Conflict vs. Borders as Ecosystem" contrasting political borders (conflict zones) with biological borders (ecotones); claim 46 on ecotone model; total 46 prior art extension claims*
+*Revision notes: S2.20 formalizes Loom as complete state machine (DORMANT→WEAVING→ANCHOR→DISSOLVING) with explicit warmup period, stability requirements, and competition handling; adds Sections 3.4.2-3.4.3; claim 40 on weaving phase as physics test; total 50 prior art extension claims*

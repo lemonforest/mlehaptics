@@ -924,7 +924,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         }
         else if (!best && remote_stratum == g_aatr.stratum) {
             /*
-             * INNATE IMMUNITY (S2 Bootstrap) - Same Stratum MAC Tie-Breaker
+             * INNATE IMMUNITY (S2 Bootstrap) - Same Stratum "First Born Wins"
              *
              * THE GENESIS PROBLEM: Two devices boot as Genesis (Stratum 1).
              * Both think they ARE the atomic clock. Without this check, they
@@ -934,22 +934,29 @@ static void process_beacon(const utlp_packet_t *pkt)
              * atomic clock. When the second arrives, it should recognize
              * "there's an established Genesis here" and defer IMMEDIATELY.
              *
-             * DOMINANCE HIERARCHY: Lower MAC address = dominant.
-             * Like two wolves meeting, one must submit based on a static trait.
-             * No negotiation, no voting, no waiting. Physics decides.
+             * TIE-BREAKER: Oldest atomic time wins.
              *
-             * This prevents the "Mutual Distrust Spiral" where two Genesis nodes
-             * with different clocks penalize each other into oblivion before
-             * either can earn enough trust to form consensus.
+             * Compare the peer's TX timestamp (their atomic time) with our
+             * atomic time at reception. Higher value = been running longer.
+             * The device that booted first has accumulated more atomic time.
+             *
+             * This is philosophically correct: "the swarm is born of one,
+             * so the first one should be the one." The elder establishes
+             * the timeline; the newcomer joins it.
+             *
+             * NOTE: This is easily spoofable (just claim a high TX time).
+             * For production, consider MAC fallback or cryptographic proof.
+             * For testing, this matches the "first boot = Genesis" expectation.
              */
-            bool they_are_dominant = (compare_mac(pkt->mac, g_local_mac) < 0);
+            int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
+            bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
 
-            if (they_are_dominant) {
+            if (they_are_elder) {
                 should_adopt = true;
-                utlp_hal_log_info(TAG, "INNATE: Same-stratum dominance - peer %02X has lower MAC, deferring",
-                                  pkt->mac[5]);
+                utlp_hal_log_info(TAG, "INNATE: Same-stratum elder - peer %02X atomic time %lld > mine %lld, deferring",
+                                  pkt->mac[5], (long long)remote_tx_time, (long long)my_atomic_at_rx);
             }
-            /* If I am dominant (lower MAC), I hold ground - do not adopt */
+            /* If I am elder (higher atomic time), I hold ground - do not adopt */
         }
         /* If best exists but is not this sender, OR no best and stratum not better:
          * Do not adopt. Trust the established relationships. */
@@ -979,13 +986,17 @@ static void process_beacon(const utlp_packet_t *pkt)
     /*
      * ORIGIN SELF-AWARENESS (S2 Biological Governance)
      *
-     * Genesis/Origin nodes should be able to recognize when they should
-     * step down. This prevents stale or inferior time sources from
-     * persisting as Origin when better sources exist.
+     * Time Lord (Genesis/Origin) nodes should recognize when to step down.
+     * This prevents stale or inferior time sources from persisting as
+     * Origin when better sources exist.
      *
-     * Uses DOMINANCE HIERARCHY TIE-BREAKER to prevent "Polite Crash":
-     * - Lower MAC address = dominant (holds ground)
-     * - Higher MAC address = submissive (steps down)
+     * NOTE: This uses MAC tie-breaker (not atomic time) because:
+     * 1. The Metabolic Ledger doesn't store absolute atomic times
+     * 2. This triggers for ESTABLISHED peers (health > 200), not newcomers
+     * 3. MAC is a stable fallback for late-stage role resolution
+     *
+     * For BOOTSTRAP (newcomers), see Innate Immunity above which uses
+     * atomic time ("first born wins") for philosophically correct behavior.
      */
     if (g_aatr.stratum == STRATUM_ORIGIN) {
         utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
@@ -997,6 +1008,8 @@ static void process_beacon(const utlp_packet_t *pkt)
              * DOMINANCE HIERARCHY: Two healthy Origin nodes don't both leave.
              * Like wolves sizing each other up, one must submit based on
              * a static trait (MAC address serves as the "size" equivalent).
+             *
+             * Lower MAC = dominant (holds ground as Time Lord)
              */
             bool they_are_dominant = (compare_mac(best->mac, g_local_mac) < 0);
 
