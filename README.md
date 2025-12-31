@@ -442,6 +442,10 @@ This project developed foundational techniques for **connectionless distributed 
 
 - **[Distributed Acoustic Sensing: A Project Lab Manual](docs/Distributed_Acoustic_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed acoustic sensing with synchronized wireless nodes. Scales from weekend science project to operational weather sensing (infrasound, wind mapping, tornado detection).
 
+### AI Collaboration & Methodology
+
+- **[Integrative Capacity as a Trackable Metric](docs/Integrative_Capacity_AI_Synthesis_Alignment.md)**: Meta-observation on AI alignment—proposes **Semantic Tension Span (STS)** as a metric for measuring AI synthesis vs retrieval. Uses the mlehaptics corpus (this project) as a labeled dataset of verified cross-domain isomorphisms: immunology→firmware, geophysics→packet radio, thermodynamics→governance. Argues that RLHF suppresses high-tension bridges as "hallucination" when they should be validated by functional stability (does the code compile? does the state machine execute?).
+
 ### Technical Reports
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
 
@@ -449,6 +453,7 @@ This project developed foundational techniques for **connectionless distributed 
 - **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Lord Protocol - peer-to-peer time synchronization for embedded swarms
 - **[UTLP Technical Report v2](docs/UTLP_Technical_Report_v2.md)**: Detailed protocol analysis with stratum hierarchy and passive opportunistic adoption
 - **[UTLP Technical Supplement S2](docs/UTLP_Technical_Supplement_S2.md)**: Biological Governance - Immune system architecture for distributed time synchronization (fault isolation via statistical filtering, endosymbiotic integration, speciation via encryption)
+- **[UTLP Executive Summary](docs/UTLP_Executive_Summary.md)**: Hardware engineer's build guide - critical numbers, beacon format, genesis election rules, and essential code patterns for implementing UTLP from scratch
 - **[RFIP Addendum](docs/UTLP_Addendum_Reference_Frame_Independent_Positioning.md)**: Reference-Frame Independent Positioning - spatial awareness without external reference frames
 - **[802.11mc FTM Reconnaissance](docs/802.11mc_FTM_Reconnaissance_Report.md)**: Fine Time Measurement research for ±1-2m ranging capability
 
