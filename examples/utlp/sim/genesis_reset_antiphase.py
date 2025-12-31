@@ -690,6 +690,142 @@ def run_promoted_genesis_scenario():
     return sim
 
 
+def run_twin_cities_scenario():
+    """
+    The "Romeo and Juliet" / "Twin Cities Merge" Scenario
+
+    Two isolated swarms, each thinking they are Genesis, suddenly can hear
+    each other. Tests "First Born Wins" tie-breaker at scale.
+
+    Inspired by Gemini's simulation of swarm merge behavior.
+    """
+    print("\n" + "="*70)
+    print("SCENARIO: Twin Cities Merge (Romeo and Juliet)")
+    print("="*70)
+    print("""
+    Setup:
+    - Swarm A (Montague): 3 nodes, Genesis at T=1,000,000us
+    - Swarm B (Capulet):  3 nodes, Genesis at T=1,500,000us (500ms older)
+    - Swarms are isolated for "1 year" (simulated)
+    - Then: A bridge node "Romeo" can hear both swarms
+
+    Question: Does Romeo flip-flop? Does one swarm absorb the other?
+
+    Expected: Capulet wins (older atomic time). Montague demotes.
+    """)
+
+    sim = UTLPSimulator(seed=31415)
+
+    # Create Swarm A (Montague) - 3 nodes
+    montague_a = sim.add_node("AA:01", drift_ppm=2.0)
+    montague_a.stratum = 1
+    montague_a.state = NodeState.GENESIS
+    montague_a.local_clock_us = 1_000_000
+    montague_a.atomic_time_us = 1_000_000
+
+    montague_b = sim.add_node("AA:02", drift_ppm=-1.0)
+    montague_c = sim.add_node("AA:03", drift_ppm=1.5)
+
+    # Create Swarm B (Capulet) - 3 nodes with 500ms head start
+    capulet_a = sim.add_node("BB:01", drift_ppm=3.0)
+    capulet_a.stratum = 1
+    capulet_a.state = NodeState.GENESIS
+    capulet_a.local_clock_us = 1_500_000  # 500ms older
+    capulet_a.atomic_time_us = 1_500_000
+
+    capulet_b = sim.add_node("BB:02", drift_ppm=-2.0)
+    capulet_c = sim.add_node("BB:03", drift_ppm=0.5)
+
+    # Initially, swarms are isolated (don't see each other's beacons)
+    # Simulate by running each swarm separately
+
+    print("\n[1] Running isolated swarms for 60s...")
+
+    # Run Montague swarm alone
+    for node in sim.nodes:
+        if node.mac.startswith("BB"):
+            node.is_online = False
+
+    for _ in range(30):
+        sim.tick(1_000_000)
+
+    # Run Capulet swarm alone
+    for node in sim.nodes:
+        if node.mac.startswith("AA"):
+            node.is_online = False
+        if node.mac.startswith("BB"):
+            node.is_online = True
+
+    for _ in range(30):
+        sim.tick(1_000_000)
+
+    # Bring everyone back online
+    for node in sim.nodes:
+        node.is_online = True
+
+    print("\n[2] Swarms can now see each other...")
+    sim.print_status()
+
+    # Run with all nodes visible
+    print("\n[3] Running merged swarms for 60s...")
+    for i in range(60):
+        sim.tick(1_000_000)
+        if i % 15 == 0:
+            strata = {n.mac: n.stratum for n in sim.nodes}
+            print(f"  T={sim.tick_count}: {strata}")
+
+    sim.print_status()
+
+    # Analysis
+    print("\n" + "="*70)
+    print("TWIN CITIES MERGE ANALYSIS")
+    print("="*70)
+
+    # Count Genesis nodes
+    genesis_nodes = [n for n in sim.nodes if n.stratum == 1]
+    montague_gen = [n for n in genesis_nodes if n.mac.startswith("AA")]
+    capulet_gen = [n for n in genesis_nodes if n.mac.startswith("BB")]
+
+    print(f"\nGenesis nodes: {len(genesis_nodes)}")
+    print(f"  Montague (AA): {len(montague_gen)}")
+    print(f"  Capulet (BB):  {len(capulet_gen)}")
+
+    if len(genesis_nodes) == 1:
+        winner = genesis_nodes[0]
+        if winner.mac.startswith("BB"):
+            print("\n[OK] Capulet (older swarm) won - as expected!")
+            print("    'First Born Wins' correctly selected the elder timeline.")
+        else:
+            print("\n[!] WARNING: Montague won despite being younger!")
+    elif len(genesis_nodes) > 1:
+        print("\n[!] SPLIT BRAIN: Multiple Genesis nodes!")
+        print("    The swarms failed to merge properly.")
+    else:
+        print("\n[?] NO GENESIS - unexpected state")
+
+    # Check final coherence
+    atomic_times = {n.mac: n.atomic_time_us for n in sim.nodes}
+    offsets = list(atomic_times.values())
+    spread = max(offsets) - min(offsets)
+
+    print(f"\nFinal atomic time spread: {spread}us ({spread/1000:.1f}ms)")
+
+    if spread < 100_000:  # 100ms
+        print("[OK] Swarms successfully merged (spread < 100ms)")
+    else:
+        print("[!] Swarms NOT fully merged - significant offset remains")
+
+    # Key log entries
+    print("\n" + "-"*70)
+    print("KEY LOG ENTRIES:")
+    interesting = [e for e in sim.log if any(k in e for k in
+                   ["FIRST_BORN", "INNATE", "elder", "AA:01", "BB:01"])]
+    for entry in interesting[-25:]:
+        print(entry)
+
+    return sim
+
+
 if __name__ == "__main__":
     # Run main scenario (without B promoting)
     print("SCENARIO 1: Simple Genesis Reset")
@@ -698,6 +834,9 @@ if __name__ == "__main__":
 
     # Run promoted scenario (B becomes Genesis)
     run_promoted_genesis_scenario()
+
+    # Run Twin Cities merge scenario
+    run_twin_cities_scenario()
 
     # Run parameter sweep
     print("\n\n")

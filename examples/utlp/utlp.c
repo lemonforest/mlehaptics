@@ -184,7 +184,7 @@ static const char *TAG = "UTLP";
 
 typedef struct {
     uint8_t  stratum;           /* My stratum level (distance from truth) */
-    int32_t  time_offset;       /* Local + offset = atomic time (±35 min range) */
+    int64_t  time_offset;       /* Local + offset = atomic time (±292,471 years range) */
     uint8_t  best_source_mac[6];/* MAC of best time source (biological, not "master") */
 } aatr_state_t;
 
@@ -805,7 +805,7 @@ static void process_beacon(const utlp_packet_t *pkt)
     uint64_t remote_tx_time;
     bool is_new_chirp;
     bool should_adopt;
-    int32_t new_offset;
+    int64_t new_offset;       /* Must be 64-bit to handle runtimes > 35 minutes */
     uint32_t now_lo;
     uint8_t old_stratum;
 
@@ -830,6 +830,10 @@ static void process_beacon(const utlp_packet_t *pkt)
      * The dual constraint system (token bucket + quorum) prevents RF pollution.
      */
     {
+        /*
+         * NOTE: observed_offset for trust stays int32_t (peer offsets are relative,
+         * typically small). The overflow risk is in absolute atomic time comparisons.
+         */
         int32_t observed_offset = (int32_t)((int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us);
         utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
 
@@ -839,12 +843,15 @@ static void process_beacon(const utlp_packet_t *pkt)
          * Compute deviation: How far is their claimed time from MY atomic time?
          * deviation = their_tx_time - my_atomic_time_at_rx
          *           = remote_tx_time - (rx_timestamp + my_offset)
+         *
+         * my_atomic_at_rx MUST be 64-bit to avoid overflow after 35 minutes.
          */
-        int32_t my_atomic_at_rx = (int32_t)(pkt->rx_timestamp_us) + g_aatr.time_offset;
-        int32_t deviation_us = (int32_t)remote_tx_time - my_atomic_at_rx;
+        int64_t my_atomic_at_rx = (int64_t)pkt->rx_timestamp_us + g_aatr.time_offset;
+        int64_t deviation_us = (int64_t)remote_tx_time - my_atomic_at_rx;
         uint8_t peer_health = utlp_trust_get_peer_health(pkt->mac);
 
-        evaluate_entrainment_response(pkt->mac, peer_health, deviation_us);
+        /* Cast to int32_t for entrainment (deviation > 35 min = definitely wrong) */
+        evaluate_entrainment_response(pkt->mac, peer_health, (int32_t)deviation_us);
     }
 
     /* Validate burst index */
@@ -964,7 +971,7 @@ static void process_beacon(const utlp_packet_t *pkt)
 
     if (should_adopt) {
         old_stratum = g_aatr.stratum;
-        new_offset = (int32_t)((int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us);
+        new_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
 
         g_aatr.stratum = remote_stratum + 1;
         g_aatr.time_offset = new_offset;
@@ -979,8 +986,8 @@ static void process_beacon(const utlp_packet_t *pkt)
         }
 
         utlp_hal_set_time_offset(new_offset);
-        utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+ld us",
-                 g_aatr.stratum, (long)new_offset);
+        utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us",
+                 g_aatr.stratum, (long long)new_offset);
     }
 
     /*
