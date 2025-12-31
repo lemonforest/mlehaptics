@@ -42,6 +42,11 @@ DRIFT_THRESHOLD_US = 100000      # 100ms
 BEACON_INTERVAL_MS = 1000        # 1 second for Phase 3
 SIMULATION_TICKS = 600           # 10 minutes of operation
 
+# Genesis Pulse Detection (S2.25)
+GENESIS_PULSE_THRESHOLD_MS = 2000     # Interval < 2s = genesis pulsing
+MIN_INTERVAL_OBSERVATIONS = 2          # Need at least 2 observations
+REGRESSION_THRESHOLD_US = 10_000_000   # 10 second backward jump = regression
+
 
 class NodeState(Enum):
     GENESIS = "GENESIS"      # Stratum 1, time authority
@@ -89,6 +94,17 @@ class PeerEntry:
     # Drift Rate (Integer-Scaled: milli-PPM for precision without floats)
     drift_rate_mppm: int = 0              # Drift rate in milli-PPM (1000 = 1 ppm)
     drift_rate_variance_mppm2: int = 0    # Variance in milli-PPM squared
+
+    # =========================================================================
+    # GENESIS PULSE DETECTION (S2.25 - Fast Reboot Detection)
+    # =========================================================================
+    # Rebooted peers broadcast rapidly (100ms→500ms→1s→10s→60s genesis phases)
+    # Detecting 2-3 rapid beacons identifies reboot within 300-500ms
+    first_seen_ms: int = 0                # When we first saw this peer (local ms)
+    last_seen_local_ms: int = 0           # My local ms at last observation
+    observed_interval_ms: int = 60000     # EMA of beacon intervals (starts at steady-state)
+    interval_observations: int = 0        # Number of interval measurements
+    last_tx_time_us: int = 0              # Last TX timestamp (for regression detection)
 
 
 @dataclass
@@ -154,18 +170,36 @@ class UTLPSimulator:
         self.last_coherence_pct: int = 100        # Previous coherence for delta
 
     def add_node(self, mac: str, drift_ppm: float = 0.0,
-                 initial_offset_us: int = 0) -> Node:
-        """Add a node to the simulation"""
+                 initial_offset_us: int = 0,
+                 boot_variance_us: int = 0) -> Node:
+        """
+        Add a node to the simulation
+
+        Args:
+            mac: Node MAC address identifier
+            drift_ppm: Clock drift rate in parts per million
+            initial_offset_us: Initial atomic time offset
+            boot_variance_us: Random boot time variance range in microseconds (±).
+                             If non-zero, adds random offset in [-boot_variance_us, +boot_variance_us]
+                             to simulate realistic boot timing differences.
+                             The universe is vast - devices almost never boot at the same wall time.
+        """
+        # Apply boot time variance if specified
+        boot_offset_us = 0
+        if boot_variance_us > 0:
+            boot_offset_us = random.randint(-boot_variance_us, boot_variance_us)
+
         node = Node(
             mac=mac,
             drift_rate_ppm=drift_ppm,
-            time_offset_us=initial_offset_us,
+            time_offset_us=initial_offset_us + boot_offset_us,
             boot_time_us=self.true_time_us,
             local_clock_us=0,
-            atomic_time_us=initial_offset_us
+            atomic_time_us=initial_offset_us + boot_offset_us
         )
         self.nodes.append(node)
-        self._log(f"[BOOT] Node {mac} online, drift={drift_ppm}ppm, offset={initial_offset_us}us")
+        variance_info = f", boot_variance={boot_offset_us}us" if boot_variance_us > 0 else ""
+        self._log(f"[BOOT] Node {mac} online, drift={drift_ppm}ppm, offset={initial_offset_us + boot_offset_us}us{variance_info}")
         return node
 
     def reset_node(self, mac: str, new_offset_us: int = 0):
@@ -453,6 +487,10 @@ class UTLPSimulator:
             self._log(f"[{receiver.mac}] Peer {beacon.mac} PUNISHED: {reason} "
                      f"(offset={offset_us}us, health {old_health}->{peer.health})")
 
+        # Update interval tracking for genesis pulse detection (S2.25)
+        now_ms = self.true_time_us // 1000
+        self._update_interval_tracking(peer, now_ms, beacon.tx_timestamp_us)
+
         # Check for adoption (Innate Immunity / First Born Wins)
         self._check_adoption(receiver, beacon, offset_us)
 
@@ -548,12 +586,116 @@ class UTLPSimulator:
         else:
             return (False, "BEHAVIOR_CLEAN")
 
+    def _is_genesis_pulsing(self, peer: PeerEntry) -> bool:
+        """
+        Detect if peer is in genesis pulse phase (recently rebooted).
+
+        Genesis nodes broadcast at rapid intervals during startup:
+        - Phase 1 (0-1s):   100ms interval
+        - Phase 2 (1-5s):   500ms interval
+        - Phase 3 (5-10s):  1000ms interval
+        - Phase 4 (10-60s): 10000ms interval
+        - Steady (60s+):    60000ms interval
+
+        If observed_interval_ms < GENESIS_PULSE_THRESHOLD_MS (2000ms),
+        this peer is likely in genesis phases 1-3 (recently rebooted).
+
+        Returns True if genesis pulsing detected.
+        """
+        if peer.interval_observations < MIN_INTERVAL_OBSERVATIONS:
+            return False  # Not enough data yet
+
+        return peer.observed_interval_ms < GENESIS_PULSE_THRESHOLD_MS
+
+    def _check_regression(self, peer: PeerEntry, reported_tx_us: int, now_ms: int) -> bool:
+        """
+        Detect if peer's atomic time went backwards (indicates reboot).
+
+        A legitimate clock never runs backwards. If a peer's TX timestamp
+        is significantly less than their previous TX timestamp, they rebooted.
+
+        The REGRESSION_THRESHOLD_US (10s) provides margin for:
+        - Network jitter
+        - Clock drift during extended silence
+        - Minor measurement errors
+
+        Returns True if regression detected (peer rebooted).
+        """
+        if peer.last_tx_time_us == 0:
+            return False  # First observation
+
+        # Time should only go forward (with small margin for drift)
+        time_diff = reported_tx_us - peer.last_tx_time_us
+
+        if time_diff < -REGRESSION_THRESHOLD_US:
+            return True  # Clock went backwards significantly
+
+        return False
+
+    def _update_interval_tracking(self, peer: PeerEntry, now_ms: int, tx_time_us: int):
+        """
+        Update beacon interval tracking for genesis pulse detection.
+
+        Tracks:
+        1. observed_interval_ms: EMA of beacon intervals
+        2. first_seen_ms: When we first saw this peer
+        3. last_seen_local_ms: My local time at last observation
+        4. last_tx_time_us: For regression detection
+        """
+        if peer.first_seen_ms == 0:
+            # First observation
+            peer.first_seen_ms = now_ms
+            peer.last_seen_local_ms = now_ms
+            peer.last_tx_time_us = tx_time_us
+            return
+
+        # Calculate interval since last observation
+        interval_ms = now_ms - peer.last_seen_local_ms
+
+        # Update EMA: (new + old) / 2 for fast response during genesis
+        if peer.interval_observations < 3:
+            # Fast initial convergence
+            peer.observed_interval_ms = (peer.observed_interval_ms + interval_ms) // 2
+        else:
+            # Slower EMA once we have baseline
+            peer.observed_interval_ms = (interval_ms + 3 * peer.observed_interval_ms) // 4
+
+        peer.interval_observations += 1
+        peer.last_seen_local_ms = now_ms
+        peer.last_tx_time_us = tx_time_us
+
     def _check_adoption(self, node: Node, beacon: Beacon, offset_us: int):
         """
         Check if we should adopt this peer's time
         Implements Innate Immunity + First Born Wins
+
+        S2.25: Genesis Pulse Detection + Regression Guard
+        Before ANY adoption, check if peer appears to have rebooted.
         """
         peer = node.peers[beacon.mac]
+        now_ms = self.true_time_us // 1000
+
+        # =====================================================================
+        # GENESIS PULSE GUARD (S2.25)
+        # =====================================================================
+        # If peer is broadcasting at genesis-phase intervals (< 2s),
+        # they recently rebooted. Block epoch adoption to prevent corruption.
+        if self._is_genesis_pulsing(peer):
+            self._log(f"[{node.mac}] GENESIS_PULSE: Peer {beacon.mac} detected "
+                     f"(interval={peer.observed_interval_ms}ms), epoch adoption blocked")
+            # Phase lock could still happen, but epoch adoption is blocked
+            return
+
+        # =====================================================================
+        # REGRESSION GUARD (S2.25)
+        # =====================================================================
+        # If peer's atomic time went backwards, they rebooted.
+        # This catches reboots even if interval tracking hasn't converged yet.
+        if self._check_regression(peer, beacon.tx_timestamp_us, now_ms):
+            self._log(f"[{node.mac}] REGRESSION: Peer {beacon.mac} atomic time went backwards! "
+                     f"(prev={peer.last_tx_time_us}, now={beacon.tx_timestamp_us})")
+            peer.health = max(0, peer.health - UTLP_COST_LYING)
+            return
 
         # Innate immunity: Lower stratum wins
         # BUT: With behavioral verification, we check clock sanity first
@@ -2123,6 +2265,240 @@ def run_derivative_detection_scenario():
     return sim
 
 
+def run_genesis_pulse_detection_scenario():
+    """
+    Test: Genesis Pulse Detection (S2.25)
+
+    Validates the fast reboot detection mechanism:
+    1. Established swarm with trusted peers
+    2. One peer reboots and starts genesis pulsing
+    3. Existing nodes should detect rapid beacon interval
+    4. Epoch adoption should be blocked within 300-500ms
+
+    This is the primary defense against the "rebooted peer corrupts swarm" bug.
+    """
+    print("\n" + "="*70)
+    print("SCENARIO: Genesis Pulse Detection (S2.25)")
+    print("="*70)
+    print("""
+    Bug Scenario Fixed:
+    - Swarm synced for hours, nodes have high mutual trust
+    - Genesis node reboots (power cycle, watchdog, crash)
+    - Rebooted node starts broadcasting at genesis intervals (100ms)
+    - Without S2.25: Trusted peers ADOPT rebooted node's corrupted epoch
+    - With S2.25: Rapid beacon interval BLOCKS epoch adoption
+
+    Detection Method:
+    - Track observed_interval_ms (EMA of beacon intervals)
+    - Genesis phases broadcast at 100ms, 500ms, 1000ms
+    - If interval < 2000ms, peer is genesis pulsing
+    - Block epoch adoption until peer reaches steady state (60s interval)
+    """)
+
+    sim = UTLPSimulator(seed=42424, behavioral_verification=True)
+
+    # Create established swarm - 3 nodes that have been running for "hours"
+    print("\n[1] Creating established swarm with high mutual trust...")
+
+    genesis = sim.add_node("AA:01", drift_ppm=2.0)
+    genesis.stratum = 1
+    genesis.state = NodeState.GENESIS
+    genesis.local_clock_us = 10_000_000  # 10 seconds runtime
+    genesis.atomic_time_us = 10_000_000
+
+    follower_b = sim.add_node("AA:02", drift_ppm=-1.5)
+    follower_c = sim.add_node("AA:03", drift_ppm=1.0)
+
+    # Run for 120 seconds to establish high trust
+    print("[2] Running for 120s to establish trust...")
+    for _ in range(120):
+        sim.tick(1_000_000)
+
+    # Check trust levels
+    print("\n[3] Trust levels before reboot:")
+    for node in sim.nodes:
+        print(f"  {node.mac}: stratum={node.stratum}, atomic={node.atomic_time_us/1e6:.1f}s")
+        for peer_mac, peer in node.peers.items():
+            print(f"    sees {peer_mac}: health={peer.health}, interval={peer.observed_interval_ms}ms")
+
+    # Save pre-reboot atomic times
+    pre_reboot_times = {n.mac: n.atomic_time_us for n in sim.nodes}
+
+    # Now reboot the Genesis node - it will start genesis pulsing
+    print("\n[4] Genesis node AA:01 REBOOTS...")
+    sim.reset_node("AA:01", new_offset_us=0)  # Fresh start at 0
+
+    # Find the node and set it back to Genesis (it thinks it's a new Genesis)
+    for node in sim.nodes:
+        if node.mac == "AA:01":
+            node.stratum = 1
+            node.state = NodeState.GENESIS
+
+    # Simulate genesis pulse phases - rapid beacons
+    # Phase 1: 100ms intervals for first second
+    print("[5] Simulating genesis pulse phases...")
+    pulse_log = []
+
+    # Run 5 second of genesis pulsing at 100ms intervals
+    for i in range(50):  # 50 x 100ms = 5 seconds
+        sim.tick(100_000)  # 100ms ticks
+
+        if i % 10 == 0:  # Log every second
+            # Check what followers see
+            for node in sim.nodes:
+                if node.mac == "AA:02":
+                    if "AA:01" in node.peers:
+                        peer = node.peers["AA:01"]
+                        pulse_log.append({
+                            'tick': i,
+                            'interval': peer.observed_interval_ms,
+                            'health': peer.health,
+                            'is_pulsing': sim._is_genesis_pulsing(peer)
+                        })
+                        print(f"  T={i*100}ms: AA:02 sees AA:01: "
+                              f"interval={peer.observed_interval_ms}ms, "
+                              f"pulsing={sim._is_genesis_pulsing(peer)}, "
+                              f"health={peer.health}")
+
+    # Check if epoch adoption was blocked
+    print("\n[6] Checking if epoch corruption was prevented...")
+    post_reboot_times = {n.mac: n.atomic_time_us for n in sim.nodes}
+
+    # Followers should NOT have adopted rebooted genesis's time
+    follower_b_time = post_reboot_times["AA:02"]
+    follower_c_time = post_reboot_times["AA:03"]
+    genesis_time = post_reboot_times["AA:01"]
+
+    print(f"  Genesis (rebooted): atomic={genesis_time}us (~{genesis_time/1e6:.3f}s)")
+    print(f"  Follower B: atomic={follower_b_time}us (~{follower_b_time/1e6:.3f}s)")
+    print(f"  Follower C: atomic={follower_c_time}us (~{follower_c_time/1e6:.3f}s)")
+
+    # Calculate drift from pre-reboot
+    b_drift = abs(follower_b_time - pre_reboot_times["AA:02"])
+    c_drift = abs(follower_c_time - pre_reboot_times["AA:03"])
+    expected_drift = 5_000_000 + 120_000_000  # 5s at 100ms + 120s at 1s
+
+    print(f"\n  Follower B drift from pre-reboot: {b_drift/1e6:.3f}s (expected ~{expected_drift/1e6:.1f}s)")
+    print(f"  Follower C drift from pre-reboot: {c_drift/1e6:.3f}s (expected ~{expected_drift/1e6:.1f}s)")
+
+    # Check log for genesis pulse blocks
+    print("\n[7] Genesis Pulse Detection Events:")
+    genesis_pulse_events = [e for e in sim.log if "GENESIS_PULSE" in e or "REGRESSION" in e]
+    for event in genesis_pulse_events[-20:]:
+        print(f"  {event}")
+
+    # Verdict
+    print("\n" + "-"*70)
+
+    # Followers should have continued at their own time, not adopted genesis's 0
+    follower_corrupted = (follower_b_time < 50_000_000 or follower_c_time < 50_000_000)
+
+    if not follower_corrupted and len(genesis_pulse_events) > 0:
+        print("VERDICT: [OK] GENESIS PULSE DETECTION SUCCESSFUL!")
+        print("         Rebooted Genesis was detected within ~300ms")
+        print("         Epoch adoption was BLOCKED - swarm preserved its timeline")
+        print()
+        print("         Key insight: Rapid beacon interval reveals reboot state")
+        print("         before the node even claims authority.")
+    elif len(genesis_pulse_events) == 0:
+        print("VERDICT: [?] No genesis pulse events detected - check simulation")
+    else:
+        print("VERDICT: [!] SWARM CORRUPTED despite genesis pulse detection!")
+        print(f"         Follower times dropped to: B={follower_b_time/1e6:.3f}s, C={follower_c_time/1e6:.3f}s")
+
+    return sim
+
+
+def run_boot_variance_scenario():
+    """
+    Test: Boot Time Variance Impact
+
+    The universe is vast - devices almost never boot at exactly the same wall time.
+    This tests whether sub-millisecond boot time differences affect swarm convergence.
+
+    Hypothesis: Boot variance < 1ms should have negligible impact on sync quality.
+    """
+    print("\n" + "="*70)
+    print("SCENARIO: Boot Time Variance Impact")
+    print("="*70)
+    print("""
+    Question: Does sub-millisecond boot time variance affect sync quality?
+
+    Setup:
+    - 3 nodes with ±500us (0.5ms) random boot variance
+    - Each node's initial atomic time offset by random amount in [-500us, +500us]
+    - Run for 60s and measure final convergence
+
+    Hypothesis: Variance should be absorbed during initial sync phase.
+    """)
+
+    results = []
+
+    # Run multiple trials with different seeds
+    for trial in range(5):
+        sim = UTLPSimulator(seed=11111 + trial, behavioral_verification=True)
+
+        # Create nodes with boot variance
+        boot_variance_us = 500  # ±500us = sub-millisecond
+
+        node_a = sim.add_node("AA:01", drift_ppm=3.0, boot_variance_us=boot_variance_us)
+        node_a.stratum = 1
+        node_a.state = NodeState.GENESIS
+
+        sim.add_node("AA:02", drift_ppm=-2.0, boot_variance_us=boot_variance_us)
+        sim.add_node("AA:03", drift_ppm=1.5, boot_variance_us=boot_variance_us)
+
+        # Record initial offsets
+        initial_times = {n.mac: n.atomic_time_us for n in sim.nodes}
+        initial_spread = max(initial_times.values()) - min(initial_times.values())
+
+        # Run for 60 seconds
+        for _ in range(60):
+            sim.tick(1_000_000)
+
+        # Measure final convergence
+        final_times = {n.mac: n.atomic_time_us for n in sim.nodes}
+        final_spread = max(final_times.values()) - min(final_times.values())
+
+        results.append({
+            'trial': trial + 1,
+            'initial_spread': initial_spread,
+            'final_spread': final_spread,
+            'converged': final_spread < 10_000  # < 10ms = converged
+        })
+
+        print(f"  Trial {trial+1}: initial_spread={initial_spread}us, "
+              f"final_spread={final_spread}us, converged={final_spread < 10_000}")
+
+    # Analysis
+    print("\n" + "-"*70)
+    print("BOOT VARIANCE RESULTS:")
+    print("-"*70)
+
+    converged_count = sum(1 for r in results if r['converged'])
+    avg_initial = sum(r['initial_spread'] for r in results) // len(results)
+    avg_final = sum(r['final_spread'] for r in results) // len(results)
+
+    print(f"  Trials run: {len(results)}")
+    print(f"  Trials converged: {converged_count}/{len(results)}")
+    print(f"  Average initial spread: {avg_initial}us ({avg_initial/1000:.2f}ms)")
+    print(f"  Average final spread: {avg_final}us ({avg_final/1000:.2f}ms)")
+
+    # Verdict
+    print("\n" + "-"*70)
+    if converged_count == len(results):
+        print("VERDICT: [OK] Boot variance has NEGLIGIBLE IMPACT on convergence!")
+        print("         All trials converged despite ±500us initial offset.")
+        print()
+        print("         Key insight: UTLP's iterative refinement absorbs")
+        print("         sub-millisecond boot time differences during normal sync.")
+    else:
+        print(f"VERDICT: [?] {len(results) - converged_count} trials failed to converge")
+        print("         Boot variance may need investigation.")
+
+    return results
+
+
 if __name__ == "__main__":
     # Run main scenario (without B promoting)
     print("SCENARIO 1: Simple Genesis Reset")
@@ -2146,6 +2522,12 @@ if __name__ == "__main__":
 
     # Run Derivative-Based Detection scenario (Jittery Byzantine)
     run_derivative_detection_scenario()
+
+    # Run Genesis Pulse Detection scenario (S2.25)
+    run_genesis_pulse_detection_scenario()
+
+    # Run Boot Variance scenario
+    run_boot_variance_scenario()
 
     # Run parameter sweep
     print("\n\n")

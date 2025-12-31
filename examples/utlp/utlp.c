@@ -835,7 +835,11 @@ static void process_beacon(const utlp_packet_t *pkt)
          * typically small). The overflow risk is in absolute atomic time comparisons.
          */
         int32_t observed_offset = (int32_t)((int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us);
+        uint32_t now_ms_for_tracking = (uint32_t)(pkt->rx_timestamp_us / 1000);
         utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
+
+        /* Update TX time tracking for genesis pulse and regression detection (S2.24) */
+        utlp_trust_update_tx_tracking(pkt->mac, (int64_t)remote_tx_time, now_ms_for_tracking);
 
         /*
          * ACTIVE IMMUNITY: Evaluate entrainment response
@@ -903,16 +907,53 @@ static void process_beacon(const utlp_packet_t *pkt)
     {
         /* Get health-based recommendation from Metabolic Ledger */
         utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
+        uint32_t now_ms = (uint32_t)(pkt->rx_timestamp_us / 1000);
 
         if (best && memcmp(best->mac, pkt->mac, 6) == 0) {
             /*
              * ADAPTIVE IMMUNITY: This sender is our most trusted peer.
              * Health (experiential) beats stratum (credential).
              * A reliable Stratum-2 peer beats an unreliable Stratum-1 peer.
+             *
+             * HOWEVER: Past trust persists across peer reboots (S2.24 bug).
+             * A peer that was trusted at health=150 before rebooting still
+             * has health=150. We must check for:
+             * 1. Genesis pulse (rapid beacon intervals = recently rebooted)
+             * 2. Atomic time regression (TX time went backwards = rebooted)
              */
-            should_adopt = true;
-            utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X (health=%d, stratum=%d)",
-                              pkt->mac[5], best->health_score, remote_stratum);
+
+            /* Check 1: Genesis Pulse Detection (S2.24)
+             * If peer is broadcasting at genesis intervals (100-1000ms), they
+             * have likely just rebooted. Block epoch adoption, but allow
+             * phase entrainment once they stabilize.
+             */
+            if (utlp_trust_is_genesis_pulsing(best)) {
+                utlp_hal_log_warn(TAG, "GENESIS PULSE: Peer %02X detected (interval=%dms), epoch adoption blocked",
+                                  pkt->mac[5], best->observed_interval_ms);
+                should_adopt = false;
+                /* Don't punish - they're legitimately rebooting, not lying */
+            }
+            /* Check 2: Atomic Time Regression
+             * If peer's reported TX time is behind their expected time,
+             * their atomic time went backwards - they rebooted.
+             */
+            else if (utlp_trust_check_regression(best, (int64_t)remote_tx_time, now_ms)) {
+                utlp_hal_log_warn(TAG, "REGRESSION: Peer %02X atomic time went backwards! Epoch adoption blocked.",
+                                  pkt->mac[5]);
+                should_adopt = false;
+                /* Punish for regression - this is unexpected behavior */
+                if (best->health_score > UTLP_COST_LYING) {
+                    best->health_score -= UTLP_COST_LYING;
+                } else {
+                    best->health_score = 0;
+                }
+            }
+            else {
+                /* All checks passed - safe to adopt epoch */
+                should_adopt = true;
+                utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X (health=%d, stratum=%d)",
+                                  pkt->mac[5], best->health_score, remote_stratum);
+            }
         }
         else if (!best && remote_stratum < g_aatr.stratum) {
             /*

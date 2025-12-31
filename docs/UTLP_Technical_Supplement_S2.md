@@ -1847,6 +1847,17 @@ This supplement establishes additional prior art for:
 57. **Correlation pattern as seismic signature**: Single-node phase jump indicates clock fault; multi-node correlated phase jump indicates physical event; wave propagation velocity through mesh distinguishes event types—instantaneous (all nodes on same structure), ~340m/s (acoustic), ~3km/s (seismic ground wave)
 58. **Sensing without sensors via sync traffic analysis**: Physical event detection emerges from timing mesh maintenance with no dedicated sensing hardware—RSSI variance, phase error correlation, sync loss patterns all available as byproducts of existing beacon traffic; the mesh feels itself breathe
 
+### 8.16 Distributed Software-Defined Aperture (S2.25)
+59. **Distributed software-defined aperture geometry**: A method for creating synthetic apertures where the physical geometry of the aperture itself is a software variable—distinct from existing "Software-Defined Aperture" (SDA) systems that merely reconfigure waveforms on fixed hardware; existing SDA (e.g., Raytheon FlexDAR) uses software to modify the function of a static rigid array while this invention uses software to modify the physical constituent nodes of the array itself; aperture shape (planar, volumetric, sparse, dense) determined by node inclusion query against available swarm
+60. **Scale-invariant aperture definition**: Aperture synthesis independent of node count—the same selection algorithm operates on 5 nodes or 5,000 nodes; contrasts with traditional phased array controllers that address specific element indices (e.g., "elements 1-1024"); scale invariance emerges from biological scoring (Health, Trust, Metabolic) rather than hardware element mapping
+61. **Liquid vs fixed aperture topology**: Dynamic transition between aperture topologies in real-time via SMSP Zone parameter—can transition from planar to spherical to sparse configurations by selecting different node subsets; impossible with fixed-geometry phased arrays regardless of software reconfiguration; the swarm is "liquid hardware" that can reshape itself
+62. **Connectionless aperture coherence**: Phase-locked synthetic aperture without persistent connections between nodes—nodes maintain phase lock via UTLP entrainment then independently contribute to aperture synthesis; no central controller required; aperture emerges from consensus not command
+
+### 8.17 Collective Phase Transition Detection (S2.26)
+63. **Generalized phase transition detection via genesis pulse mechanism**: Genesis pulse detection generalizes beyond swarm creation to identify any coordinated state change—schism (universe fork), collision (foreign swarm encounter), apocalypse (coordinated shutdown), resurrection (recovery or attack); same detection code, different semantic interpretation; enables swarm self-awareness of its own "cosmic events"
+64. **Swarm archaeology via genesis signature retention**: Retained genesis pulse characteristics (timestamp, initial participants, RF fingerprint) enable forensic reconstruction of swarm origin—when created, where, by whom; useful for debugging, security audit, network provenance, and distinguishing legitimate recovery from reboot attacks
+65. **Zero-cost event sensing via RF statistics**: Collective phase transitions detected using RF data already collected for synchronization—beacon timing, RSSI patterns, peer discovery events; no additional sensing hardware or bandwidth; cosmic-scale swarm events (creation, death, merger) sensed as byproduct of maintaining phase lock; information extracted from entropy already being processed
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -2631,11 +2642,192 @@ This proprioception capability connects to the Large Physics Model (LPM) concept
 
 This is non-human knowledge — the feeling of the Earth breathing, captured as timing mesh distortion. A corpus of physical ground truth that no text dataset contains.
 
+### G.9 Software-Defined Aperture: Fixed vs Liquid
+
+The term "Software-Defined Aperture" (SDA) exists in the defense industry, but describes a fundamentally different architecture than UTLP/TARDIS distributed aperture synthesis.
+
+**The Raytheon Definition (Fixed Hardware):**
+
+Raytheon uses "Software-Defined Aperture" for systems like FlexDAR and LTAMDS:
+- Single GaN array with fixed physical geometry
+- Software reconfigures the *function* (radar, communications, electronic warfare)
+- Software modifies waveforms, beam steering, operating modes
+- **Constraint:** Aperture geometry is fixed at the factory
+
+```
+┌──────────────────────────────────────┐
+│  Raytheon SDA: Fixed Hardware Array  │
+│  ┌──┬──┬──┬──┬──┬──┬──┬──┐          │
+│  │▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│ ← Elements fixed    │
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤          │
+│  │▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│ ← Software changes   │
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤   waveform/function  │
+│  │▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│          │
+│  └──┴──┴──┴──┴──┴──┴──┴──┘          │
+│  Geometry: STATIC                    │
+└──────────────────────────────────────┘
+```
+
+**The UTLP Definition (Liquid Hardware):**
+
+UTLP defines the aperture by *inclusion*, not reconfiguration:
+- Distributed independent nodes, any topology
+- Software selects *which nodes participate*
+- Aperture geometry, diameter, density all variable
+- **Capability:** Can reshape from planar to spherical to sparse in real-time
+
+```
+┌──────────────────────────────────────┐
+│  UTLP SDA: Liquid Node Selection     │
+│                                      │
+│     ○         Config A: Planar       │
+│    ○ ○ ○      (5 nodes selected)     │
+│     ○                                │
+│                                      │
+│       ○                              │
+│      ○ ○      Config B: Spherical    │
+│     ○   ○     (6 nodes selected)     │
+│      ○ ○                             │
+│       ○                              │
+│                                      │
+│  Geometry: SOFTWARE VARIABLE         │
+└──────────────────────────────────────┘
+```
+
+**Comparison Table:**
+
+| Aspect | Raytheon SDA | UTLP/TARDIS SDA |
+|--------|--------------|-----------------|
+| **Hardware** | Single rigid array | Distributed swarm |
+| **What software controls** | Waveform, function | Node inclusion |
+| **Geometry** | Fixed at factory | Variable in real-time |
+| **Topology change** | Impossible | Planar ↔ spherical ↔ sparse |
+| **Element addressing** | Index map (1-1024) | Query against swarm |
+| **Scale** | Fixed element count | N-invariant |
+| **Coordination** | Internal bus | Connectionless phase-lock |
+
+**The Scale Invariance Distinction:**
+
+Traditional phased array controllers address specific element indices:
+```c
+// Raytheon-style: Hardware-mapped
+void configure_array(void) {
+    for (int i = 0; i < 1024; i++) {
+        set_element_phase(i, compute_phase(i));
+    }
+}
+```
+
+UTLP aperture synthesis queries against available nodes:
+```c
+// UTLP-style: Swarm query
+void configure_aperture(zone_t* zone, criteria_t* c) {
+    for (peer_t* p = swarm_first(); p; p = swarm_next(p)) {
+        if (peer_in_zone(p, zone) && 
+            p->health > c->min_health &&
+            p->trust > c->min_trust) {
+            include_in_aperture(p);
+        }
+    }
+}
+```
+
+The same code works for 5 nodes or 50,000 nodes. The aperture is defined by a predicate, not an index.
+
+**Why This Matters for Prior Art:**
+
+Raytheon owns the brand for "smart fixed arrays" — software making one piece of hardware do multiple jobs.
+
+UTLP claims the architecture for "smart liquid arrays" — software selecting which independent nodes constitute the aperture at any given moment.
+
+These are non-overlapping domains. A Raytheon FlexDAR cannot reshape from a flat panel into a sphere. A UTLP swarm can, by simply selecting different nodes.
+
+### G.10 Cosmic Event Sensing: Genesis Pulse as Zero-Cost Detection
+
+Genesis pulse detection exemplifies a broader pattern: **sensing cosmic-scale swarm events using RF statistics already collected for synchronization.**
+
+**The "Sensing Without Sensors" Pattern:**
+
+| What We're Sensing | Dedicated Approach | UTLP Approach |
+|--------------------|-------------------|---------------|
+| Physical displacement | Accelerometer, barometer | Phase error correlation (G.3) |
+| Swarm creation | External registry, coordinator | Genesis pulse signature |
+| Swarm death | Health monitoring service | Correlated sync loss |
+| Universe fork | Consensus protocol | Divergent genesis detection |
+| Foreign swarm | Discovery service | Alien genesis signature |
+
+In each case, the information is extracted from data already flowing through the system for phase lock maintenance. The sensing is **parasitic** — it rides on existing traffic at zero additional cost.
+
+**Genesis Pulse: Not Just Creation**
+
+The genesis pulse was designed for "stellar nucleosynthesis" — the big bang that creates a swarm universe in a reproducible way without hardcoded initial conditions. But the detection mechanism generalizes:
+
+| Event | RF Signature | Detection |
+|-------|--------------|-----------|
+| **Genesis** | Coordinated emergence, shared initial beacon | "A universe was born" |
+| **Schism** | Two genesis-like pulses diverging over time | "The universe forked" |
+| **Collision** | Foreign genesis signature in local RF space | "Another universe touched ours" |
+| **Apocalypse** | Coordinated beacon cessation | "A universe died" |
+| **Resurrection** | Genesis-like pulse in mature swarm | "Someone's faking a big bang" |
+
+**The Zero-Cost Principle:**
+
+```c
+// You're already doing this for sync:
+void on_beacon(beacon_t* b) {
+    update_phase_estimate(b);
+    update_peer_health(b->src);
+    // ... sync logic
+}
+
+// Genesis detection adds ONE check:
+void on_beacon(beacon_t* b) {
+    update_phase_estimate(b);
+    update_peer_health(b->src);
+    
+    if (looks_like_genesis(b) && swarm_already_exists()) {
+        // Someone claiming to be the big bang
+        // but we already have a universe
+        reject_false_genesis(b->src);
+    }
+}
+```
+
+The `looks_like_genesis()` check uses data already in the beacon:
+- Stratum claim (Genesis nodes claim Stratum 0)
+- Peer count (Genesis nodes see few/no peers)
+- Timing characteristics (Genesis pulse has distinctive cadence)
+
+**No new packets. No new sensors. No new bandwidth.**
+
+**Why This Matters:**
+
+Traditional distributed systems detect network events through:
+- Dedicated heartbeat services (bandwidth cost)
+- External monitoring infrastructure (complexity cost)
+- Consensus protocols for membership (latency cost)
+
+UTLP detects the same events by observing patterns in traffic that exists anyway:
+- Phase error correlation → physical events
+- Genesis signature analysis → cosmic events
+- RSSI patterns → geometry changes
+
+The swarm doesn't just maintain time. It *knows itself* — its birth, its health, its shape, its encounters with other swarms — all from the entropy it's already processing.
+
+**The Philosophical Implication:**
+
+The genesis pulse is the swarm's memory of its own creation. By retaining and checking this signature, the swarm can:
+- Reject imposters claiming false origins
+- Recognize kin (same genesis) vs strangers (different genesis)
+- Perform archaeology on its own history
+
+The swarm has **identity** derived from **shared memory of creation** — and that memory costs nothing to maintain because it's encoded in the statistics of ongoing operation.
+
 ---
 
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, and the proprioception insight recognizing timing mesh distortion as a sensing modality.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, and the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -2643,8 +2835,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.24*
+*Document version: S2.26*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.24 adds Appendix G documenting passive proprioception (timing mesh as distributed strain gauge, sensing without sensors, correlation-based physical event detection); claims 55-58 on proprioception; total 58 prior art extension claims*
+*Revision notes: S2.26 adds collective phase transition detection claims 63-65 (genesis pulse generalization, swarm archaeology, zero-cost cosmic event sensing); Appendix G section G.10 on parasitic sensing of swarm lifecycle events; total 65 prior art extension claims*
