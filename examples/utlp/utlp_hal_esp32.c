@@ -49,8 +49,52 @@ static const char *TAG = "UTLP_HAL";
 #endif
 
 #define MCPWM_RESOLUTION_HZ     1000000 /* 1MHz = 1us resolution */
-#define DEFAULT_WIFI_CHANNEL    1
 #define RX_QUEUE_DEPTH          10
+
+/*============================================================================
+ * CHANNEL CHIRALITY (S2.31 - Frequency-Dependent Selection)
+ *
+ * WiFi non-overlapping channels [1, 6, 11] map to a chirality space analogous
+ * to snail shell coiling direction (dextral vs sinistral). Channel 6 is the
+ * geometric center—the "Golden Path" where all nodes bootstrap and strangers
+ * meet. This is not configuration but mathematical necessity: channel 6 is
+ * the only channel equidistant from both divergence options.
+ *
+ * Under congestion ("predation pressure"), nodes diverge to channels 1 or 11:
+ * - Channel 1: "Left-coiling" sinistral population
+ * - Channel 11: "Right-coiling" sinistral population
+ * - Channel 6: Dextral majority / hybrid zone (bridge nodes)
+ *
+ * Bridge nodes on channel 6 maintain timing coherence ("gene flow") between
+ * divergent populations. Channel 1 and channel 11 nodes sync through the
+ * golden path, not directly—preventing complete speciation while allowing
+ * channel-local optimization.
+ *
+ * Prior Art: Claims 78-80 in Technical Supplement S2.31
+ *
+ * @see UTLP_Technical_Supplement_S2.md Section 8.22
+ *==========================================================================*/
+
+/**
+ * @brief Default WiFi channel (Golden Path)
+ *
+ * Channel 6 is the deterministic rendezvous point for all UTLP swarms.
+ * Mathematical justification: only channel equidistant from divergence
+ * options [1, 11]. All nodes bootstrap here; divergence occurs under
+ * congestion pressure via utlp_chirality_select_divergent_channel().
+ */
+#define DEFAULT_WIFI_CHANNEL    6
+
+/**
+ * @brief Non-overlapping WiFi channels for chirality divergence
+ *
+ * In 2.4GHz WiFi, only channels 1, 6, and 11 are non-overlapping.
+ * Channel 6 is the center (golden path), while 1 and 11 are the
+ * sinistral divergence options.
+ */
+#define WIFI_CHANNEL_SINISTRAL_LEFT   1   /**< Left-coiling divergence */
+#define WIFI_CHANNEL_GOLDEN_PATH      6   /**< Dextral majority (default) */
+#define WIFI_CHANNEL_SINISTRAL_RIGHT  11  /**< Right-coiling divergence */
 
 /*============================================================================
  * STATE (Static Allocation)
@@ -521,4 +565,84 @@ void utlp_hal_semaphore_delete(utlp_hal_semaphore_t sem)
     if (sem) {
         vSemaphoreDelete((SemaphoreHandle_t)sem);
     }
+}
+
+/*============================================================================
+ * CHANNEL CHIRALITY API (STUB - S2.31)
+ *
+ * These functions implement frequency-dependent selection for WiFi channels.
+ * Currently stubbed - always returns golden path (channel 6).
+ *
+ * Future implementation will:
+ * - Measure channel congestion via beacon density / collision rate
+ * - Select divergent channel via deterministic function (MAC % 2)
+ * - Detect bridge node status via multi-population hearing
+ *
+ * @see Technical Supplement S2.31, Claims 78-80
+ *==========================================================================*/
+
+/**
+ * @brief Detect channel congestion level
+ *
+ * STUB: Always returns 0 (no congestion detected).
+ *
+ * Future implementation will measure:
+ * - Beacon density (beacons/second on current channel)
+ * - Collision rate (failed transmissions / total attempts)
+ * - RSSI noise floor changes
+ *
+ * @return Congestion level 0-100 (0 = no congestion, 100 = saturated)
+ */
+uint8_t utlp_chirality_detect_congestion(void)
+{
+    /* STUB: No congestion detection implemented */
+    return 0;
+}
+
+/**
+ * @brief Select divergent channel under congestion pressure
+ *
+ * STUB: Always returns current channel (no divergence).
+ *
+ * Future implementation will:
+ * - Check congestion threshold
+ * - Select left (1) or right (11) based on MAC % 2
+ * - Return WIFI_CHANNEL_GOLDEN_PATH if not under pressure
+ *
+ * @return Selected channel (1, 6, or 11)
+ */
+uint8_t utlp_chirality_select_divergent_channel(void)
+{
+    /* STUB: Always stay on golden path */
+    return WIFI_CHANNEL_GOLDEN_PATH;
+}
+
+/**
+ * @brief Check if this node is a bridge node (hybrid zone)
+ *
+ * STUB: Always returns false.
+ *
+ * Future implementation will detect if we can hear nodes on:
+ * - Channel 6 (golden path) AND channel 1, OR
+ * - Channel 6 (golden path) AND channel 11, OR
+ * - All three channels (super-bridge)
+ *
+ * Bridge nodes maintain timing coherence between divergent populations.
+ *
+ * @return true if this node bridges multiple channel populations
+ */
+bool utlp_chirality_is_bridge_node(void)
+{
+    /* STUB: Never a bridge (single-channel operation) */
+    return false;
+}
+
+/**
+ * @brief Get current operating channel
+ *
+ * @return Current WiFi channel (1, 6, or 11)
+ */
+uint8_t utlp_chirality_get_current_channel(void)
+{
+    return DEFAULT_WIFI_CHANNEL;
 }

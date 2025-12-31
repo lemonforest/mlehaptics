@@ -443,6 +443,80 @@ void utlp_app_run(void);
 - **GPS stratum-0:** External time reference integration
 - **Drift compensation:** Use tracked drift rate for active clock correction
 - **Panic Response:** Stratum 255 "Help!" signal for rescue chirps
+- **Channel chirality:** Dynamic channel divergence under congestion pressure
+
+## Channel Chirality (S2.31)
+
+**Why Channel 6 is the Default — The Golden Path**
+
+UTLP uses WiFi channel 6 as the deterministic rendezvous point for all swarms.
+This is not configuration but **mathematical necessity**: channel 6 is the only
+non-overlapping channel equidistant from both divergence options.
+
+```
+WiFi Non-Overlapping Channels:
+     [1]-------[6]-------[11]
+      ↑         ↑         ↑
+   Sinistral  Golden   Sinistral
+   (left)     Path     (right)
+```
+
+### The Biological Analogy: Snail Chirality
+
+In snail populations, most individuals are **dextral** (right-coiling). However,
+a minority are **sinistral** (left-coiling). This matters for survival:
+
+- Predatory snakes evolved jaws optimized for the dextral majority
+- Sinistral snails are "incompatible" with snake jaw mechanics
+- The "wrong" spiral becomes the survival advantage under predation
+
+UTLP applies this principle to WiFi channels:
+
+| Biological | WiFi | Role |
+|-----------|------|------|
+| Dextral majority | Channel 6 | Where strangers meet, swarms coalesce |
+| Sinistral left | Channel 1 | Divergence under congestion pressure |
+| Sinistral right | Channel 11 | Divergence under congestion pressure |
+| Predation pressure | WiFi congestion | Forces divergence to survive |
+
+### Why Not Channel 1 or 11?
+
+- **Channel 1**: Not equidistant — can only diverge right (to 6, then 11)
+- **Channel 11**: Not equidistant — can only diverge left (to 6, then 1)
+- **Channel 6**: Equidistant — can diverge left OR right symmetrically
+
+This symmetry is crucial for deterministic behavior. If a node on channel 6
+needs to escape congestion, it can choose left or right based on a simple
+deterministic function (e.g., `MAC % 2`). A node starting on channel 1 would
+be biased toward right-only divergence.
+
+### Bridge Nodes: Hybrid Zones
+
+Nodes that maintain presence on channel 6 serve as **bridge nodes**:
+- They hear both channel-1 and channel-11 populations
+- They propagate timing coherence ("gene flow") between populations
+- Divergent populations sync **through the golden path**, not directly
+
+This prevents complete speciation while allowing channel-local optimization.
+The bridge role emerges naturally from topology — nodes that happen to hear
+multiple populations become bridges without explicit assignment.
+
+### Implementation Status: Stub
+
+Channel chirality is currently stubbed. The HAL defines the channel constants:
+
+```c
+#define WIFI_CHANNEL_SINISTRAL_LEFT   1   // Left-coiling divergence
+#define WIFI_CHANNEL_GOLDEN_PATH      6   // Dextral majority (default)
+#define WIFI_CHANNEL_SINISTRAL_RIGHT  11  // Right-coiling divergence
+```
+
+Future work will add:
+- `utlp_chirality_detect_congestion()` — Measure channel saturation
+- `utlp_chirality_select_divergent_channel()` — Deterministic left/right choice
+- `utlp_chirality_is_bridge_node()` — Detect multi-population hearing
+
+**Prior Art:** Claims 78-80 in Technical Supplement S2.31
 
 ## Academic Cross-References
 
@@ -475,6 +549,12 @@ The biological governance model draws from multiple domains:
 - **Dunbar's Number** (Dunbar, 1992): Journal of Human Evolution
   - Cognitive limit on social group size
   - Our "Silicon Dunbar" = 12 peer slots
+
+### Evolutionary Biology
+- **Snail Chirality** (Hoso et al., 2010): Nature Communications
+  - Frequency-dependent selection in sinistral vs dextral populations
+  - "Wrong" chirality survives specialized predators (snake jaw asymmetry)
+  - Applied to WiFi channel divergence under congestion pressure
 
 ## License
 
