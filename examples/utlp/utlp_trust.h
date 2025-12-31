@@ -43,6 +43,72 @@
  * - **Median Consensus**: Byzantine-resistant voting where a single liar
  *   cannot corrupt the swarm's perception of time.
  *
+ * @section algorithms Algorithm Cross-References
+ *
+ * This module draws from multiple domains:
+ *
+ * @subsection algo_hebbian Hebbian Learning (Neuroscience, 1949)
+ * Donald Hebb's postulate: "Cells that fire together, wire together."
+ * When peers consistently agree with consensus, their synaptic connection
+ * (health score) strengthens. This is **Long-Term Potentiation (LTP)** in
+ * silicon form. The +2 reward implements associative learning where
+ * temporal correlation drives trust accumulation.
+ *
+ * @par Academic Reference:
+ * Hebb, D.O. (1949). "The Organization of Behavior: A Neuropsychological Theory"
+ *
+ * @subsection algo_median Median Filtering (Signal Processing)
+ * The consensus mechanism uses median instead of mean because median is
+ * robust to outliers. In a population of N voters, an attacker must corrupt
+ * >50% to shift the median. This is the same property exploited by
+ * **median filters** in image processing to remove salt-and-pepper noise.
+ *
+ * @par Byzantine Resistance:
+ * With 2f+1 honest nodes, median consensus tolerates f Byzantine liars.
+ * A single attacker claiming offset=+∞ cannot move the median.
+ *
+ * @par Academic Reference:
+ * Lamport, L., Shostak, R., Pease, M. (1982). "The Byzantine Generals Problem"
+ *
+ * @subsection algo_asymmetric Asymmetric Cost Functions (Decision Theory)
+ * The 25:1 penalty ratio (-50 for lying vs +2 for truth) implements
+ * **asymmetric loss functions** from statistical decision theory. In
+ * adversarial environments, false negatives (trusting a liar) are more
+ * costly than false positives (distrusting an honest peer). This mirrors
+ * **Prospect Theory**: losses loom larger than gains.
+ *
+ * @par Biological Analog:
+ * One predator encounter teaches more than 25 peaceful grazing sessions.
+ * The amygdala (fear memory) uses similar asymmetric learning rates.
+ *
+ * @par Academic Reference:
+ * Kahneman, D., Tversky, A. (1979). "Prospect Theory: An Analysis of Decision under Risk"
+ *
+ * @subsection algo_dunbar Dunbar's Number (Anthropology, 1992)
+ * Robin Dunbar found that primate neocortex size correlates with social
+ * group size (~150 for humans). Our "Silicon Dunbar's Number" of 12 peers
+ * is deliberately small to:
+ * - Fit in embedded memory (288 bytes)
+ * - Force prioritization (can't track everyone)
+ * - Enable health-weighted eviction (protect proven friends)
+ *
+ * @par LRU with Health Weighting:
+ * Unlike pure LRU caches, we bias eviction toward low-health peers.
+ * "Don't kill a healthy friend for a stranger."
+ *
+ * @par Academic Reference:
+ * Dunbar, R.I.M. (1992). "Neocortex size as a constraint on group size in primates"
+ *
+ * @subsection algo_ema Exponential Moving Average (Statistics)
+ * Health velocity and coherence velocity use EMA with α=0.1:
+ * @code
+ * new_value = α × sample + (1-α) × old_value
+ * @endcode
+ * This provides smooth tracking with ~10-sample half-life. In integer form:
+ * @code
+ * new_value = (sample + 9 × old_value) / 10
+ * @endcode
+ *
  * @section experiment The Experiment
  *
  * We hypothesize that biological governance will:
@@ -179,6 +245,44 @@ extern "C" {
 
 /** @} */ /* trust_dynamics */
 
+/**
+ * @defgroup genesis_detection Genesis Pulse Detection (S2.24)
+ *
+ * Fast detection of rebooted peers via beacon interval tracking.
+ * Prevents epoch adoption from freshly-rebooted nodes with stale trust.
+ * @{
+ */
+
+/**
+ * @brief Beacon interval threshold for genesis pulse detection
+ *
+ * If a peer's observed beacon interval is below this threshold, they are
+ * likely in genesis pulse phase (recently rebooted). Genesis phases 1-3
+ * use intervals of 100ms, 500ms, and 1000ms respectively.
+ *
+ * 2000ms allows detection within the first 3-5 beacons (~300-500ms).
+ */
+#define UTLP_GENESIS_PULSE_THRESHOLD_MS  2000
+
+/**
+ * @brief Atomic time regression threshold for reboot detection
+ *
+ * If a peer's reported TX time is more than this amount BEHIND their
+ * expected time, they have rebooted. 10ms provides margin for jitter.
+ *
+ * Expected time = last_tx_time + elapsed * (1 + drift_rate)
+ */
+#define UTLP_REGRESSION_THRESHOLD_US     10000000  /* 10 seconds */
+
+/**
+ * @brief Minimum observations before trusting interval estimate
+ *
+ * Need at least 2 observations to compute an interval.
+ */
+#define UTLP_MIN_INTERVAL_OBSERVATIONS   2
+
+/** @} */ /* genesis_detection */
+
 /*============================================================================
  * HAL COMPATIBILITY
  *
@@ -210,15 +314,36 @@ uint64_t utlp_hal_get_micros(void);
  * and last known timing offset.
  *
  * @note Static allocation - no malloc. Array of UTLP_TRUST_MAX_PEERS entries.
+ *
+ * @section genesis_detection Genesis Pulse Detection (S2.24)
+ * The first_seen_ms and observed_interval_ms fields enable fast detection
+ * of rebooted peers. A peer broadcasting at genesis intervals (100-500ms)
+ * can be identified within 300-500ms, preventing epoch adoption from
+ * freshly-rebooted nodes that retain high trust from previous sessions.
+ *
+ * @section regression_detection Atomic Time Regression Detection
+ * The last_tx_time_us field tracks the peer's last transmitted atomic time.
+ * If a peer's atomic time goes backwards (regression), it indicates a reboot
+ * and triggers trust penalty + epoch adoption block.
  */
 typedef struct {
+    /* 8-byte fields first */
+    int64_t  last_tx_time_us;   /**< Last TX timestamp from peer (regression check) */
+
+    /* 4-byte fields */
+    uint32_t last_seen_ms;      /**< Timestamp of last observation (LRU tracking) */
+    uint32_t first_seen_ms;     /**< When we first observed this peer (reboot detection) */
+    int32_t  last_offset_us;    /**< Last reported time offset in microseconds */
+
+    /* 2-byte fields */
+    uint16_t interactions;      /**< Total observation count (caps at 65000) */
+    uint16_t consecutive_hits;  /**< Consecutive agreements with consensus */
+    uint16_t observed_interval_ms; /**< EMA of beacon intervals from this peer */
+
+    /* 1-byte fields and arrays */
     uint8_t  mac[6];            /**< Peer MAC address (identity) */
     uint8_t  health_score;      /**< Trust level 0-255 (higher = more trusted) */
     uint8_t  stratum_claim;     /**< Last claimed stratum (1=Genesis, 2=Follower) */
-    uint16_t interactions;      /**< Total observation count (caps at 65000) */
-    uint16_t consecutive_hits;  /**< Consecutive agreements with consensus */
-    uint32_t last_seen_ms;      /**< Timestamp of last observation (LRU tracking) */
-    int32_t  last_offset_us;    /**< Last reported time offset in microseconds */
 } utlp_peer_ledger_t;
 
 /*============================================================================
@@ -316,6 +441,72 @@ bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us);
 uint8_t utlp_trust_get_peer_health(const uint8_t *mac);
 
 /*============================================================================
+ * GENESIS PULSE DETECTION (S2.24)
+ *
+ * Fast detection of rebooted peers via beacon interval tracking.
+ * Prevents epoch adoption from freshly-rebooted nodes with stale trust.
+ *==========================================================================*/
+
+/**
+ * @brief Check if a peer is currently in genesis pulse phase
+ *
+ * A peer is considered "genesis pulsing" if their observed beacon interval
+ * is below UTLP_GENESIS_PULSE_THRESHOLD_MS (2000ms). This indicates they
+ * are in genesis phases 1-3 (100ms, 500ms, 1000ms intervals) and have
+ * likely just rebooted.
+ *
+ * Use this to block epoch adoption from rebooted peers while still
+ * allowing phase entrainment once they stabilize.
+ *
+ * @param peer Pointer to peer ledger entry
+ * @return true if peer appears to be in genesis pulse phase
+ * @return false if peer is at steady-state beacon interval or unknown
+ */
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer);
+
+/**
+ * @brief Check if a peer's atomic time shows regression (reboot indicator)
+ *
+ * Compares the peer's reported TX time against their expected time
+ * (last_tx_time + elapsed). If regression exceeds UTLP_REGRESSION_THRESHOLD_US,
+ * the peer has likely rebooted.
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param reported_tx   TX timestamp from current beacon
+ * @param now_ms        Current local time in milliseconds
+ * @return true if atomic time regression detected (peer rebooted)
+ * @return false if time is progressing normally
+ */
+bool utlp_trust_check_regression(const utlp_peer_ledger_t *peer,
+                                  int64_t reported_tx,
+                                  uint32_t now_ms);
+
+/**
+ * @brief Update a peer's TX time tracking after receiving beacon
+ *
+ * Call this after processing a beacon to update the peer's last_tx_time_us
+ * for future regression checks. Also updates first_seen_ms if this is a
+ * new peer (detected reboot clears this).
+ *
+ * @param mac         Peer's 6-byte MAC address
+ * @param tx_time_us  TX timestamp from current beacon
+ * @param now_ms      Current local time in milliseconds
+ */
+void utlp_trust_update_tx_tracking(const uint8_t *mac,
+                                    int64_t tx_time_us,
+                                    uint32_t now_ms);
+
+/**
+ * @brief Get a peer's ledger entry by MAC address
+ *
+ * Returns pointer to the peer's ledger entry if found.
+ *
+ * @param mac Peer's 6-byte MAC address
+ * @return Pointer to peer entry, or NULL if not found
+ */
+utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac);
+
+/*============================================================================
  * PHASE 4: COHERENCE MONITORING (S2 Section 7)
  *
  * "We will debug by observing distributions, not individual samples."
@@ -332,12 +523,14 @@ uint8_t utlp_trust_get_peer_health(const uint8_t *mac);
  * Used for macro-state logging and coherence alerts.
  */
 typedef struct {
-    uint8_t  healthy_peers;      /**< Peers with health >= SYNC_THRESH */
-    uint8_t  agreeing_peers;     /**< Healthy peers within ±2ms of consensus */
-    uint8_t  coherence_pct;      /**< Agreement rate: 100 * agreeing / healthy */
+    /* 4-byte fields first */
     int32_t  consensus_us;       /**< Current median consensus offset */
     int32_t  drift_spread_us;    /**< Max - min offset among healthy peers */
     uint32_t last_coherent_ms;   /**< Time since all healthy agreed (0 = now) */
+    /* 1-byte fields */
+    uint8_t  healthy_peers;      /**< Peers with health >= SYNC_THRESH */
+    uint8_t  agreeing_peers;     /**< Healthy peers within ±2ms of consensus */
+    uint8_t  coherence_pct;      /**< Agreement rate: 100 * agreeing / healthy */
     bool     is_coherent;        /**< True if coherence >= 80% */
 } utlp_coherence_t;
 

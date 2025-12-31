@@ -41,8 +41,10 @@ static const char *TAG = "IMMUNE";
  * Static allocation - no malloc.
  */
 typedef struct {
-    uint8_t  tokens;            /**< Current entrainment budget */
+    /* 4-byte fields first */
     uint32_t last_refill_ms;    /**< Last refill timestamp */
+    /* 1-byte fields */
+    uint8_t  tokens;            /**< Current entrainment budget */
     bool     in_anergy;         /**< Exhaustion state (PD-1 engaged) */
 } immune_state_t;
 

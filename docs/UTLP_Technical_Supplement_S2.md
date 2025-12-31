@@ -30,8 +30,8 @@ The mlehaptics protocol suite adopts a coherent nomenclature inspired by tempora
 | Acronym | Expansion | Function |
 |---------|-----------|----------|
 | **UTLP** | Universal Time Lord Protocol | Time synchronization—*when* things happen |
-| **RFIP** | RF Indoor Positioning | Spatial positioning—*where* things are |
-| **SMSP** | Synchronized Multi-modal Stimulation Protocol | Coordinated actuation—*what* happens together |
+| **RFIP** | Reference Frame Independent Positioning | Spatial positioning—*where* things are |
+| **SMSP** | Synchronized Multi-modal Score Protocol | Coordinated actuation—*what* happens together |
 | **TARDIS** | **T**emporal **A**nd **R**elative **D**istribution **I**n **S**warms | UTLP + RFIP combined: time and space |
 
 **The Complete Picture:**
@@ -574,7 +574,7 @@ void update_time_source(void) {
     }
     else {
         // Free-running: we ARE the time source
-        // A Genesis Node must have the Confidence of a King
+        // A Reference Node requires the metabolic stability of a keystone species
         if (is_oscillator_stable() && get_uptime_s() > 60) {
             set_stratum(1);   // Local Truth - I am the reference
         } else {
@@ -592,7 +592,7 @@ void update_time_source(void) {
 | Stratum | Source | Authority | Notes |
 |---------|--------|-----------|-------|
 | 0 | GPS/Atomic | Divine Truth | External, absolute reference |
-| 1 | NTP from Stratum 0, FTM, or **Stable Free-Running Genesis** | Local Truth | The Genesis Node must have the Confidence of a King |
+| 1 | NTP from Stratum 0, FTM, or **Stable Free-Running Genesis** | Local Truth | Reference Node requires keystone stability |
 | 2-14 | Derived from Stratum N-1 | Inherited Truth | Each hop degrades by 1 |
 | 15 | Holdover / Warming Up | Provisional | "I'm getting stable, but don't fully trust me yet" |
 | 254 | Degraded / Lost Sync | Emergency | "I was synced but lost my source" |
@@ -765,7 +765,7 @@ void loom_process_tick(loom_context_t* loom) {
                     loom->state = LOOM_STATE_ANCHOR;
                     set_stratum(1);  // I am the Anchor
                 } else {
-                    // Failed: My crystal is too noisy to be King
+                    // Failed: My crystal is too noisy to anchor the timeline
                     ESP_LOGW(TAG, "Loom: Weave failed. Crystal unstable. Returning to Dormant.");
                     loom->state = LOOM_STATE_DORMANT;
                 }
@@ -988,7 +988,7 @@ void on_dormant_beacon(const utlp_beacon_t* beacon, const uint8_t* mac) {
     peer->state = PEER_STATE_DORMANT;
     peer->expected_wake_ms = utlp_hal_get_millis() + beacon->expected_return_ms;
     
-    // Dormant peers don't vote in consensus, but aren't forgotten
+    // Dormant peers don't contribute to quorum sensing, but aren't forgotten
     // They keep their health score (they're not misbehaving, just sleeping)
 }
 
@@ -1739,10 +1739,10 @@ We have evolved from **Feudalism** (Stratum = Rank) to **Credit** (Health = Scor
 **Predictable but Autonomous:**
 - *Predictable:* "If I introduce a high-quality GPS clock, the swarm will adopt it after ~30 seconds of observation"
 - *Predictable:* "If I introduce a spoofer, the swarm will isolate it within 5-10 seconds"
-- *Autonomous:* Even if you program a node to broadcast `Stratum: 0` (The King), the swarm ignores it if timing is erratic
+- *Autonomous:* Even if you program a node to broadcast `Stratum: 0` (claiming highest authority), the swarm ignores it if timing is erratic
 
 **Immune to Political Creep:**
-Physics (consensus) is the only voter. Credentials confer no privilege without performance.
+Physics (consensus) is the only arbiter. Credentials confer no privilege without performance.
 
 ## 7.8 Reference Implementation
 
@@ -1834,6 +1834,65 @@ This supplement establishes additional prior art for:
 48. **Speciation threshold as configurable species boundary**: Maximum timing distance beyond which sync is not attempted, defining species boundary in timing space—allows tuning of isolation tolerance for different deployment scenarios (tight sync vs. loose federation)
 49. **Ecotone model replacing political border model**: Boundaries between timing populations treated as productive transition zones (ecotones) rather than conflict zones—political borders are where data dies (Split Brain), biological borders are where adaptation thrives (Hybrid Zones); architectural rejection of "two kings cannot coexist" in favor of "two populations intermingle"
 50. **TARDIS architecture (Temporal And Relative Distribution In Swarms)**: Combined UTLP (time) and RFIP (space) protocols providing swarm nodes with both temporal and spatial coordinates—enables coherent distributed action requiring knowledge of both *when* and *where*; complete situational awareness for connectionless coordination
+
+### 8.14 Phase-Centric Realization (S2.23)
+51. **Phase lock as primary mechanism over epoch consensus**: Swarm synchronization achieved through phase entrainment (rhythm lock) rather than epoch agreement (calendar consensus)—nodes entrain to beat, not timestamp; epoch becomes advisory metadata that settles slowly while phase lock is enforced by physics
+52. **Proof of Stability as cost function for epoch claims**: Epoch changes require sustained phase stability over extended periods (minutes not packets)—prevents drive-by spoofing attacks; analogous to Proof of Work but burns time/entropy rather than electricity; a hacker can spoof a packet but cannot spoof 10 minutes of low-entropy physics
+53. **Phase-epoch layer separation**: Phase lock mandatory and continuous at protocol layer; epoch correlation advisory at application layer—wrong epoch with correct phase still useful for actuation (blinking lights, EMDR); correct epoch with wrong phase useless for everything; function preserved regardless of calendar agreement
+54. **Reduced state representation via phase-centric model**: Phase offset representable in 16 bits (±32ms) vs 64-bit epoch timestamp—reduces per-peer RAM from 12+ bytes to 3 bytes; enables implementation on severely resource-constrained devices; the beat is cheap, the calendar is expensive
+
+### 8.15 Passive Proprioception (S2.24)
+55. **Timing mesh as distributed strain gauge**: The synchronization mesh itself functions as a sensor—coherent phase error spikes across multiple peers indicate physical displacement; no additional sensors required; the timing protocol IS the sensing modality
+56. **Proprioception vs exteroception for physical event detection**: Alternative to microphone-based sensing (Alexa Guard, glass break detection) using mesh geometry distortion; exteroception listens to the world, proprioception feels the swarm's own body deform; zero privacy risk (records "geometry changed" not audio), zero additional bandwidth (uses existing sync traffic)
+57. **Correlation pattern as seismic signature**: Single-node phase jump indicates clock fault; multi-node correlated phase jump indicates physical event; wave propagation velocity through mesh distinguishes event types—instantaneous (all nodes on same structure), ~340m/s (acoustic), ~3km/s (seismic ground wave)
+58. **Sensing without sensors via sync traffic analysis**: Physical event detection emerges from timing mesh maintenance with no dedicated sensing hardware—RSSI variance, phase error correlation, sync loss patterns all available as byproducts of existing beacon traffic; the mesh feels itself breathe
+
+### 8.16 Distributed Software-Defined Aperture (S2.25)
+59. **Distributed software-defined aperture geometry**: A method for creating synthetic apertures where the physical geometry of the aperture itself is a software variable—distinct from existing "Software-Defined Aperture" (SDA) systems that merely reconfigure waveforms on fixed hardware; existing SDA (e.g., Raytheon FlexDAR) uses software to modify the function of a static rigid array while this invention uses software to modify the physical constituent nodes of the array itself; aperture shape (planar, volumetric, sparse, dense) determined by node inclusion query against available swarm
+60. **Scale-invariant aperture definition**: Aperture synthesis independent of node count—the same selection algorithm operates on 5 nodes or 5,000 nodes; contrasts with traditional phased array controllers that address specific element indices (e.g., "elements 1-1024"); scale invariance emerges from biological scoring (Health, Trust, Metabolic) rather than hardware element mapping
+61. **Liquid vs fixed aperture topology**: Dynamic transition between aperture topologies in real-time via SMSP Zone parameter—can transition from planar to spherical to sparse configurations by selecting different node subsets; impossible with fixed-geometry phased arrays regardless of software reconfiguration; the swarm is "liquid hardware" that can reshape itself
+62. **Connectionless aperture coherence**: Phase-locked synthetic aperture without persistent connections between nodes—nodes maintain phase lock via UTLP entrainment then independently contribute to aperture synthesis; no central controller required; aperture emerges from consensus not command
+
+### 8.17 Collective Phase Transition Detection (S2.26)
+63. **Generalized phase transition detection via genesis pulse mechanism**: Genesis pulse detection generalizes beyond swarm creation to identify any coordinated state change—schism (universe fork), collision (foreign swarm encounter), apocalypse (coordinated shutdown), resurrection (recovery or attack); same detection code, different semantic interpretation; enables swarm self-awareness of its own "cosmic events"
+64. **Swarm archaeology via genesis signature retention**: Retained genesis pulse characteristics (timestamp, initial participants, RF fingerprint) enable forensic reconstruction of swarm origin—when created, where, by whom; useful for debugging, security audit, network provenance, and distinguishing legitimate recovery from reboot attacks
+65. **Zero-cost event sensing via RF statistics**: Collective phase transitions detected using RF data already collected for synchronization—beacon timing, RSSI patterns, peer discovery events; no additional sensing hardware or bandwidth; cosmic-scale swarm events (creation, death, merger) sensed as byproduct of maintaining phase lock; information extracted from entropy already being processed
+
+### 8.18 Physics Foundation — Phase as First Principle (S2.27)
+66. **Phase coherence aligned with fundamental physics**: UTLP's phase-centric architecture mirrors U(1) gauge symmetry in quantum field theory—absolute phase unmeasurable (epoch unnecessary), phase relationships observable (phase lock is protocol); same mathematical structure operating at different scales; not analogy but isomorphism
+67. **Swarm identity as conserved quantity**: Phase lock maintains swarm identity analogous to how U(1) gauge symmetry conserves electric charge—breaking phase coherence fragments swarm identity just as breaking gauge symmetry would violate charge conservation; conservation law emerges from symmetry (Noether's theorem)
+68. **Epoch advisory status grounded in relativity**: "Simultaneous" is frame-dependent in special relativity; arguing about epoch across distributed system parallels arguing about absolute phase in QM—physically meaningless; phase relationships are Lorentz invariant and therefore physically real; epoch is coordinate choice, phase lock is physical fact
+
+### 8.19 Artificial Life Foundation — Synthetic Organismic Governance (S2.28)
+69. **Three-rule emergent complexity**: UTLP exhibits ALife principle that complexity emerges from simplicity—three rules (Sync to Phase, Trust the Stable, Exclude the Liar) produce planetary-scale homeostasis; parallels Conway's Game of Life (4 rules → Turing completeness) and Boids (3 rules → swarm dynamics); simple systems evolve, complex systems crash
+70. **Organismic properties via distributed protocol**: System exhibits defining characteristics of living organisms—Homeostasis (energy expenditure to maintain phase lock against entropy), Metabolism (trust/health as resource that decays and must be replenished by work), Immunity (localized anergy/silencing rather than central prosecution); nodes are cells, not agents
+71. **Bare metal ALife deployment**: Unlike soft ALife (simulations), UTLP is hard ALife running on physical hardware (ESP32), communicating through physical media (RF), maintaining homeostasis against real physical entropy (crystal drift, thermal noise); not simulation but synthesis of a distributed organism
+
+### 8.20 Mind-Body Architecture — Scope of Biological Governance (S2.29)
+72. **Layer-appropriate governance selection**: UTLP does not reject political governance entirely—rejects it at timing layer because physics required it; Layers 1-4 (transport/network) use biological governance (pre-rational, physics-constrained); Layer 7 (application) may use political governance (cognitive, agreement-based); Mind-Body separation in distributed systems
+73. **Body enables Mind**: Biological governance at timing layer frees application layer from keeping system alive—King doesn't remind subjects to breathe; political governance can focus on actual job (coordination, resource allocation, conflict resolution) because heartbeat is handled; robustness through separation
+74. **Cognition-governance honesty asymmetry**: Biology is honest because constrained by energy/physics (cannot afford to lie); politics can be "silly" because feedback loops long enough to sustain delusion; UTLP operates at timescales where thermodynamic honesty is enforced; application layer operates at timescales where agreement-based governance is appropriate
+
+### 8.21 Reference Implementation — Code-Level Specification (S2.30)
+75. **11-byte seismic chirp wire format**: Beacon contains stratum (1 byte), burst index (1 byte), genesis score (1 byte), TX timestamp (8 bytes little-endian); 3-burst pattern at 2ms spacing enables polynomial drift extraction (offset, drift rate, drift acceleration); fits single ESP-NOW frame
+76. **Dual constraint entrainment gate**: Active immunity requires BOTH token budget (internal constraint) AND quorum sensing (external constraint) before firing entrainment pulse; prevents both RF pollution (single aggressive node) and "Crazy Old Man" scenario (isolated drifted node attacking valid peers)
+77. **Time-indexed execution pattern**: Physical outputs computed from atomic time modulo period, not accumulated delays; `should_be_on = (atomic_now % period) < (period/2)`; drift-proof because state recalculated every tick from shared time reference; fundamental separation of "when" from "what"
+
+### 8.22 Frequency-Dependent Selection — Channel Chirality (S2.31)
+
+The Loom's responsibility extends beyond temporal entropy. It monitors **any dimension of entity health** and weaves emergent states to maintain homeostasis.
+
+| Threat Domain | Entropy Signal | Loom Response | Emergent State |
+|---------------|----------------|---------------|----------------|
+| **Temporal** | Clock drift/instability | Weave authority | Time Lord (Anchor) |
+| **Spectral** | RF congestion/jamming | Weave chirality | Channel divergence |
+
+78. **Channel 6 as dextral majority (Golden Path)**: In WiFi's non-overlapping channel space [1, 6, 11], channel 6 occupies the geometric center; all nodes bootstrap to channel 6 as the deterministic rendezvous point; this is the "dextral majority" where strangers meet and swarms coalesce; channel 6 is not chosen by configuration but by mathematical necessity—it is the only channel equidistant from both divergence options
+79. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; the Loom detects when the environment has become toxic (jammed) and weaves a new state—Sinistral (Channel 1) or Dextral (Channel 11); divergent nodes are the minority phenotype that survive congestion killing channel-6-only populations; chirality is determined at divergence, not chosen dynamically
+80. **Bridge nodes as hybrid zones**: Nodes maintaining presence on channel 6 serve as "hybrid zones" enabling gene flow (timing coherence) between divergent channel populations; channel 1 nodes and channel 11 nodes do not sync directly—they sync through bridge nodes on the golden path; this prevents complete speciation while allowing channel-local optimization; bridge role emerges from topology (nodes hearing multiple channel populations)
+81. **Loom as generalized homeostatic mechanism**: The Loom weaves emergent states across ANY dimension of entity health, not just temporal; clock entropy produces Time Lords, spectral congestion produces channel chirality; the pattern is general—detect threat, weave response, maintain organism; future dimensions may include spatial (RFIP positioning), thermal (power management), or social (trust clustering)
+
+> *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
 ---
 
@@ -1962,7 +2021,7 @@ extern "C" {
 
 /* Trust Thresholds (0-255) */
 #define UTLP_TRUST_MAX          255
-#define UTLP_TRUST_MIN_VOTE     50   /* Minimum health to vote in consensus */
+#define UTLP_TRUST_MIN_QUORUM   50   /* Minimum health to participate in quorum sensing */
 #define UTLP_TRUST_SYNC_THRESH  100  /* Minimum health to be sync source */
 #define UTLP_TRUST_STARTUP      80   /* Probationary score for new nodes */
 
@@ -2115,28 +2174,28 @@ void utlp_trust_init(void) {
 }
 
 bool utlp_trust_get_consensus(int32_t *out_consensus) {
-    int32_t votes[UTLP_TRUST_MAX_PEERS];
+    int32_t samples[UTLP_TRUST_MAX_PEERS];
     int count = 0;
     int i;
     
-    /* Collect votes from HEALTHY peers only */
+    /* Collect samples from HEALTHY peers only (quorum sensing) */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions > 0 && 
-            g_peers[i].health_score >= UTLP_TRUST_MIN_VOTE) {
-            votes[count++] = g_peers[i].last_offset_us;
+            g_peers[i].health_score >= UTLP_TRUST_MIN_QUORUM) {
+            samples[count++] = g_peers[i].last_offset_us;
         }
     }
 
     if (count == 0) return false;
 
     /* Sort to find median */
-    qsort(votes, count, sizeof(int32_t), compare_int32);
+    qsort(samples, count, sizeof(int32_t), compare_int32);
 
     /* Median selection */
     if (count % 2 == 1) {
-        *out_consensus = votes[count / 2];
+        *out_consensus = samples[count / 2];
     } else {
-        *out_consensus = (votes[count/2 - 1] + votes[count/2]) / 2;
+        *out_consensus = (samples[count/2 - 1] + samples[count/2]) / 2;
     }
 
     return true;
@@ -2239,9 +2298,1148 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
 
 ---
 
+## Appendix D: Testing Methodology Notes
+
+### D.1 The Counterintuitive Value of Low-Quality Hardware
+
+Protocol validation for the Loom state machine and trust algorithms was performed using deliberately heterogeneous hardware: a mix of "B-grade" ESP32 devkit boards sourced from discount suppliers alongside higher-quality reference boards.
+
+**Why This Matters:**
+
+| Hardware Deficiency | What It Simulates | Failure Path Exercised |
+|---------------------|-------------------|------------------------|
+| Poor crystal ppm tolerance | Manufacturing variance across millions of devices | Weave failure ("crystal too noisy") |
+| Noisy LDO regulators | Environmental stress (temperature, voltage sag) | Regeneration triggers from marginal stability |
+| Inconsistent warmup times | Aging hardware, cold-start scenarios | Race conditions between competing weavers |
+| High drift rates | Long-term deployment degradation | Speciation threshold boundary cases |
+
+**The Insight:**
+
+With A-grade boards, everything stabilizes quickly and uniformly. The failure paths in the Loom (`LOOM_STATE_WEAVING` → `LOOM_STATE_DORMANT` on failed stability test) and regeneration logic never execute. The code *appears* correct but is untested.
+
+With B-grade boards:
+- Nodes fail the weave stability test → validates the "My crystal is too noisy to anchor the timeline" path
+- Variable stabilization times → multiple nodes race through `LOOM_STATE_WEAVING` simultaneously, testing first-to-manifest logic
+- Higher baseline drift → regeneration triggers when marginal anchors destabilize under load
+- Real entropy variance → threshold constants (`STABILITY_REQUIREMENT`, `TIMELINE_FRAY_THRESHOLD_MS`) get battle-tested
+
+**Conclusion:**
+
+The variance inherent in low-cost components functions as free fault injection. If the protocol operates reliably across a heterogeneous pile of discount hardware, it will operate reliably across any deployment. This is an unusual case where procurement of lower-quality components is genuinely beneficial for validation coverage.
+
+*Note: This does not apply to safety-critical deployments where component certification is required. The observation is specific to protocol stress-testing during development.*
+
+---
+
+## Appendix E: Design Evolution — The Phase-Centric Realization
+
+*This appendix documents a fundamental conceptual shift discovered during implementation. Rather than back-edit earlier sections, we preserve them as the path taken and document the insight here.*
+
+### E.1 The Microscope Problem
+
+> "Under a microscope, the less we can see at once of a given specimen."
+
+When you zoom in to see **Phase** (microseconds), you lose sight of **Epoch** (years):
+
+| View | Sees | Blind To | Precision |
+|------|------|----------|-----------|
+| **Macro (Epoch)** | 1970–2025, calendar time | Jitter, beat | Century-accurate, millisecond-sloppy |
+| **Micro (Phase)** | The pulse, the heartbeat | What year it is | Beat-accurate, epoch-agnostic |
+
+Earlier sections of this specification implicitly assumed the goal was **Epoch Consensus** — getting all nodes to agree on wall-clock time. This is the wrong framing.
+
+**The Realization:** We don't care about the history (Epoch). We care about the heartbeat (Phase).
+
+If a rogue node claims "I am from the year 3000" but hits the beat perfectly... does it matter that it's lying about the year?
+
+- For a blink: **No.**
+- For a log timestamp: Maybe.
+- For the physics of the swarm: **Phase is what matters.**
+
+### E.2 Epoch is Story; Phase is Physics
+
+| Concept | Epoch Consensus | Phase Lock |
+|---------|-----------------|------------|
+| Question | "What time is it?" | "Where's the beat?" |
+| Nature | Political debate | Physical reality |
+| Attack surface | Claim a number, be believed | Must physically entrain |
+| Mechanism | Time transfer | Rhythm entrainment |
+| Data type | `int64_t` (8 bytes) | `int16_t` sufficient (2 bytes) |
+| Analogy | Calendar factory | Rhythm section |
+
+**The heart cell analogy:** A cardiac cell doesn't ask the brain "What time is it?" It *feels* the electrical tug of its neighbor and adjusts its own internal tension. It doesn't "import" time — it **modulates** its internal time to match the pressure it feels.
+
+The swarm should work the same way:
+
+```c
+// OLD MENTAL MODEL (epoch transfer)
+void on_beacon(beacon_t* b) {
+    my_time = b->timestamp;  // "Here's what time it is"
+}
+
+// NEW MENTAL MODEL (phase entrainment)  
+void on_beacon(beacon_t* b) {
+    int16_t phase_error = measure_phase_offset(b);
+    nudge_local_oscillator(phase_error);  // "I feel a pull"
+}
+```
+
+### E.3 Proof of Stability: Making Epoch Claims Expensive
+
+If a rogue node wants to convince the swarm that the Epoch is different:
+
+| Attack | Cost | Result |
+|--------|------|--------|
+| **Cheap (Rejected)** | Send one packet: `Epoch = 999999` | Ignored — no phase authority |
+| **Expensive (Required)** | Hold perfectly stable phase for minutes, gently guide swarm | Requires actually having a good clock |
+
+This prevents "drive-by attacks." A hacker can spoof a packet. A hacker cannot spoof 10 minutes of low-entropy physics without actually having stable hardware.
+
+**Proof of Stability** is the UTLP equivalent of Proof of Work:
+- In crypto: Burn electricity to make lying expensive
+- In UTLP: Burn time/entropy to make epoch claims expensive
+
+### E.4 What This Changes (And What It Doesn't)
+
+**Still Valid:**
+- The Loom (selects phase anchor, not calendar)
+- Biological governance model (immune system doesn't care what year it is)
+- Trust/metabolic ledger (measures phase consistency)
+- TARDIS architecture (phase in time, phase in space)
+- Quorum sensing (phase agreement, not epoch voting)
+
+**Reframed:**
+- "Time Lord" provides a stable beat to lock onto, not a timestamp to import
+- "Stratum" indicates phase authority quality, not calendar authority
+- "Synchronization" means phase lock, not epoch agreement
+- Epoch becomes metadata that settles eventually (or never)
+
+**RAM Implications:**
+
+```c
+// Old: Every node tracks 64-bit epoch
+typedef struct {
+    int64_t  epoch_us;        // 8 bytes
+    uint32_t last_sync_ms;    // 4 bytes  
+} time_state_t;              // 12+ bytes
+
+// New: Phase offset is sufficient
+typedef struct {
+    int16_t  phase_offset_us; // 2 bytes (±32ms range)
+    uint8_t  beat_confidence; // 1 byte
+} phase_state_t;             // 3 bytes
+```
+
+### E.5 Synthetic Aperture Still Needs Epoch
+
+One application **does** require epoch knowledge: **coordinated observation** (synthetic aperture, distributed sensing).
+
+If two nodes 1000km apart both see a signal and want to correlate their observations, they need to know not just that they're phase-locked but *when* (in absolute terms) each observation occurred.
+
+**The Resolution:** Epoch correlation is a **layer above** phase lock.
+
+```
+┌─────────────────────────────────────┐
+│  Application Layer: Epoch Metadata  │  ← "What year is it?" (settles slowly)
+├─────────────────────────────────────┤
+│  UTLP Core: Phase Lock              │  ← "Are we on the beat?" (enforced)
+├─────────────────────────────────────┤
+│  Hardware: Crystal Oscillator       │  ← Raw entropy
+└─────────────────────────────────────┘
+```
+
+- **Phase lock** is mandatory, continuous, and enforced by physics
+- **Epoch metadata** is advisory, settles over time, and tolerated if wrong
+
+A node with wrong epoch but correct phase is useful for blinking lights.
+A node with correct epoch but wrong phase is useless for everything.
+
+### E.6 The Settled Understanding
+
+| Layer | Question | Enforcement | Tolerance |
+|-------|----------|-------------|-----------|
+| **Phase** | "Are we blinking together?" | Physics (entrainment) | Microseconds |
+| **Epoch** | "What year is it?" | Consensus (advisory) | Minutes to never |
+
+**The swarm is a rhythm section, not a calendar factory.**
+
+The Time Lord doesn't tell you "it's 12:00:00.000" — the Time Lord provides a stable beat. You lock to the phase. The epoch is a story you tell about when the beat started.
+
+If the whole swarm thinks it's 1970:
+- Physics: They blink in unison ✓
+- EMDR: Works ✓  
+- Technosignature: Visible from space ✓
+- The log: Says "1970"
+- Does it matter? **No.** The function is preserved.
+
+---
+
+## Appendix F: Project Sigils — The Bind-Rune System
+
+*Functional art for PCB silkscreen and project identity.*
+
+### F.1 The Bluetooth Precedent
+
+The Bluetooth logo (ᚼᛒ) is a bind-rune of Harald **B**låtand's initials in Elder Futhark. There is precedent for runic branding in wireless protocols.
+
+### F.2 UTLP Bind-Rune: The Lodestar
+
+The acronym UTLP maps to four Elder Futhark runes whose meanings describe the architecture:
+
+| Letter | Rune | Name | Meaning | Protocol Mapping |
+|--------|------|------|---------|------------------|
+| **U** | ᚢ | Uruz | Strength, health, endurance | Health Score, hardware substrate |
+| **T** | ᛏ | Tiwaz | North Star, authority, sacrifice | Time Lord, Stratum 1, burns battery to anchor |
+| **L** | ᛚ | Laguz | Flow, water, collective | Connectionless mesh, ecotone, signal flow |
+| **P** | ᛈ | Perthro | Dice cup, entropy, emergence | The Loom, probabilistic manifestation |
+
+**Combined meaning:** *"Order Loomed from the Flow of Chance"*
+
+### F.3 RFIP Bind-Rune
+
+| Letter | Rune | Name | Meaning | Protocol Mapping |
+|--------|------|------|---------|------------------|
+| **R** | ᚱ | Raido | Journey, riding, movement | Spatial traversal |
+| **F** | ᚠ | Fehu | Wealth, mobile property | Reference frames |
+| **I** | ᛁ | Isa | Ice, stillness, fixed point | The anchor position |
+| **P** | ᛈ | Perthro | Entropy, emergence | Shared with UTLP |
+
+**Combined meaning:** *"Movement around a fixed reference within chaos"*
+
+### F.4 TARDIS Master Bind-Rune
+
+The combined UTLP + RFIP creates a master sigil representing complete situational awareness:
+
+```
+TARDIS = UTLP + RFIP
+         (Time)  (Space)
+         (When)  (Where)
+```
+
+### F.5 PCB Application
+
+Placing the bind-rune on PCB silkscreen serves functional purposes:
+
+1. **Grounding:** Connected to GND pour, acts as thermal heat sink
+2. **Orientation:** Tiwaz arrow (↑) indicates "up" or antenna direction
+3. **Identity:** Marks the board as UTLP/TARDIS-capable
+4. **Totem:** Reminds the builder this extracts Truth from Entropy
+
+Vector SVG files suitable for KiCad import are maintained in the project repository.
+
+---
+
+## Appendix G: Passive Proprioception — The Mesh as Sensor
+
+*Sensing without sensors: using timing mesh distortion to detect physical events.*
+
+### G.1 Exteroception vs Proprioception
+
+| Approach | Exteroception | Proprioception |
+|----------|---------------|----------------|
+| **Analogy** | Listening to the world | Feeling your own body |
+| **Example** | Amazon Alexa Guard (glass break) | UTLP mesh geometry |
+| **Sensor** | Microphone | None (the mesh itself) |
+| **Detects** | "I heard a sound" | "My body deformed" |
+| **Privacy** | Records audio | Records "geometry changed" |
+| **Bandwidth** | High (audio stream) | Zero (existing sync traffic) |
+
+Amazon Sidewalk and Alexa Guard perform **exteroception** — they listen to the environment with microphones, detecting sounds like glass breaking or alarms. This requires high sample rates, active processing, and privacy-invasive hardware.
+
+UTLP/TARDIS performs **proprioception** — it feels the mesh deform. If the ground moves, the timing relationships between nodes change. The swarm doesn't hear the earthquake; it feels itself shiver.
+
+### G.2 What You're Already Measuring
+
+The ESP32-C6 provides these signals as byproducts of normal sync operation:
+
+| Signal | Source | Normal Behavior | Event Signature |
+|--------|--------|-----------------|-----------------|
+| **Phase error** | Sync calculation | Small drift (~ppm) | Sudden jump across peers |
+| **RSSI** | Every BLE packet | Stable ± noise | Coherent shift = geometry change |
+| **Packet timing** | ESP-NOW timestamps | Low jitter | RTT variance pattern |
+| **Sync loss events** | Loom tracking | Rare | Correlated losses = physical event |
+
+No barometer. No microphone. No additional hardware. The timing mesh IS the sensor.
+
+### G.3 The Correlation Signature
+
+**Single-node anomaly = local fault:**
+```
+Node A: phase_jump = +5ms
+Node B: phase_jump = 0
+Node C: phase_jump = 0
+→ Node A's crystal glitched, or it moved alone
+```
+
+**Multi-node correlation = physical event:**
+```
+Node A: phase_jump = +2ms
+Node B: phase_jump = +2ms  
+Node C: phase_jump = +2ms
+→ Something moved ALL of them. The floor shook.
+```
+
+**Wave propagation = directional event:**
+```
+t=0:   Node A: phase_jump
+t=10ms: Node B: phase_jump  
+t=20ms: Node C: phase_jump
+→ Wave traveling through mesh at measurable velocity
+```
+
+### G.4 Implementation Sketch
+
+```c
+// Already computed for sync:
+int16_t phase_error = measure_phase_offset(peer);
+
+// Track recent phase jumps per peer
+void record_phase_event(peer_t* peer, int16_t error) {
+    if (abs(error) > PHASE_JUMP_THRESHOLD) {
+        peer->recent_jump = error;
+        peer->jump_timestamp = now_us();
+        check_correlation();
+    }
+}
+
+// Proprioception: did multiple peers jump together?
+void check_correlation(void) {
+    int correlated = 0;
+    uint32_t window = 50000; // 50ms window
+    
+    for (int i = 0; i < peer_count; i++) {
+        if (peers[i].recent_jump != 0 &&
+            (now_us() - peers[i].jump_timestamp) < window) {
+            correlated++;
+        }
+    }
+    
+    if (correlated >= MIN_CORRELATION_PEERS) {
+        // Physical event detected
+        // The mesh felt itself deform
+        on_proprioception_event(correlated);
+    }
+}
+```
+
+### G.5 Velocity Discrimination
+
+The propagation velocity through the mesh distinguishes event types:
+
+| Velocity | Meaning | Example |
+|----------|---------|---------|
+| **Instantaneous** | All nodes on same rigid structure | Building sway, truck passing |
+| **~340 m/s** | Acoustic wave through air | Explosion, sonic boom |
+| **~3 km/s** | Seismic surface wave | Earthquake |
+| **~6 km/s** | Seismic P-wave | Earthquake early warning |
+
+With sufficient mesh density and geographic spread, the swarm can estimate:
+- Event direction (which nodes felt it first)
+- Event distance (wave velocity + arrival time differences)
+- Event magnitude (correlation strength + displacement amplitude)
+
+### G.6 The "Free" Sensing Model
+
+```
+┌─────────────────────────────────────┐
+│  Application: Event Detection       │  ← "The building shook"
+├─────────────────────────────────────┤
+│  Analysis: Correlation Patterns     │  ← Multi-peer phase jump detection
+├─────────────────────────────────────┤
+│  UTLP Core: Phase Lock              │  ← Already computing phase error
+├─────────────────────────────────────┤
+│  Hardware: ESP32-C6 + BLE/ESP-NOW   │  ← No additional sensors
+└─────────────────────────────────────┘
+```
+
+**The insight:** You are already computing phase error to maintain sync. Proprioception is just asking "did that error correlate across peers?" 
+
+The sensing is free. The mesh feels itself breathe.
+
+### G.7 Comparison: Sidewalk vs TARDIS
+
+| Feature | Amazon Sidewalk | TARDIS Proprioception |
+|---------|-----------------|----------------------|
+| **Sensor** | Microphone (kHz sample rate) | Timing mesh (Hz sample rate) |
+| **Privacy** | Records voice, ambient audio | Records "I moved 1cm" |
+| **Bandwidth** | Audio streams to cloud | Telemetry stays local |
+| **Detection** | "Glass break sound detected" | "The mesh is physically warping" |
+| **Mechanism** | Active listening | Passive proprioception |
+| **Hardware cost** | Microphone + DSP | None (uses sync hardware) |
+| **Training data** | Audio ML models | Correlation thresholds |
+
+### G.8 The Large Physics Model Connection
+
+This proprioception capability connects to the Large Physics Model (LPM) concept from the parent specification. The mesh generates continuous data about physical reality:
+
+- How do buildings breathe with temperature?
+- What does traffic feel like through floor vibration?
+- How does weather pressure roll through a city?
+
+This is non-human knowledge — the feeling of the Earth breathing, captured as timing mesh distortion. A corpus of physical ground truth that no text dataset contains.
+
+### G.9 Software-Defined Aperture: Fixed vs Liquid
+
+The term "Software-Defined Aperture" (SDA) exists in the defense industry, but describes a fundamentally different architecture than UTLP/TARDIS distributed aperture synthesis.
+
+**The Raytheon Definition (Fixed Hardware):**
+
+Raytheon uses "Software-Defined Aperture" for systems like FlexDAR and LTAMDS:
+- Single GaN array with fixed physical geometry
+- Software reconfigures the *function* (radar, communications, electronic warfare)
+- Software modifies waveforms, beam steering, operating modes
+- **Constraint:** Aperture geometry is fixed at the factory
+
+```
+┌──────────────────────────────────────┐
+│  Raytheon SDA: Fixed Hardware Array  │
+│  ┌──┬──┬──┬──┬──┬──┬──┬──┐          │
+│  │▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│ ← Elements fixed    │
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤          │
+│  │▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│ ← Software changes   │
+│  ├──┼──┼──┼──┼──┼──┼──┼──┤   waveform/function  │
+│  │▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│▓▓│          │
+│  └──┴──┴──┴──┴──┴──┴──┴──┘          │
+│  Geometry: STATIC                    │
+└──────────────────────────────────────┘
+```
+
+**The UTLP Definition (Liquid Hardware):**
+
+UTLP defines the aperture by *inclusion*, not reconfiguration:
+- Distributed independent nodes, any topology
+- Software selects *which nodes participate*
+- Aperture geometry, diameter, density all variable
+- **Capability:** Can reshape from planar to spherical to sparse in real-time
+
+```
+┌──────────────────────────────────────┐
+│  UTLP SDA: Liquid Node Selection     │
+│                                      │
+│     ○         Config A: Planar       │
+│    ○ ○ ○      (5 nodes selected)     │
+│     ○                                │
+│                                      │
+│       ○                              │
+│      ○ ○      Config B: Spherical    │
+│     ○   ○     (6 nodes selected)     │
+│      ○ ○                             │
+│       ○                              │
+│                                      │
+│  Geometry: SOFTWARE VARIABLE         │
+└──────────────────────────────────────┘
+```
+
+**Comparison Table:**
+
+| Aspect | Raytheon SDA | UTLP/TARDIS SDA |
+|--------|--------------|-----------------|
+| **Hardware** | Single rigid array | Distributed swarm |
+| **What software controls** | Waveform, function | Node inclusion |
+| **Geometry** | Fixed at factory | Variable in real-time |
+| **Topology change** | Impossible | Planar ↔ spherical ↔ sparse |
+| **Element addressing** | Index map (1-1024) | Query against swarm |
+| **Scale** | Fixed element count | N-invariant |
+| **Coordination** | Internal bus | Connectionless phase-lock |
+
+**The Scale Invariance Distinction:**
+
+Traditional phased array controllers address specific element indices:
+```c
+// Raytheon-style: Hardware-mapped
+void configure_array(void) {
+    for (int i = 0; i < 1024; i++) {
+        set_element_phase(i, compute_phase(i));
+    }
+}
+```
+
+UTLP aperture synthesis queries against available nodes:
+```c
+// UTLP-style: Swarm query
+void configure_aperture(zone_t* zone, criteria_t* c) {
+    for (peer_t* p = swarm_first(); p; p = swarm_next(p)) {
+        if (peer_in_zone(p, zone) && 
+            p->health > c->min_health &&
+            p->trust > c->min_trust) {
+            include_in_aperture(p);
+        }
+    }
+}
+```
+
+The same code works for 5 nodes or 50,000 nodes. The aperture is defined by a predicate, not an index.
+
+**Why This Matters for Prior Art:**
+
+Raytheon owns the brand for "smart fixed arrays" — software making one piece of hardware do multiple jobs.
+
+UTLP claims the architecture for "smart liquid arrays" — software selecting which independent nodes constitute the aperture at any given moment.
+
+These are non-overlapping domains. A Raytheon FlexDAR cannot reshape from a flat panel into a sphere. A UTLP swarm can, by simply selecting different nodes.
+
+### G.10 Cosmic Event Sensing: Genesis Pulse as Zero-Cost Detection
+
+Genesis pulse detection exemplifies a broader pattern: **sensing cosmic-scale swarm events using RF statistics already collected for synchronization.**
+
+**The "Sensing Without Sensors" Pattern:**
+
+| What We're Sensing | Dedicated Approach | UTLP Approach |
+|--------------------|-------------------|---------------|
+| Physical displacement | Accelerometer, barometer | Phase error correlation (G.3) |
+| Swarm creation | External registry, coordinator | Genesis pulse signature |
+| Swarm death | Health monitoring service | Correlated sync loss |
+| Universe fork | Consensus protocol | Divergent genesis detection |
+| Foreign swarm | Discovery service | Alien genesis signature |
+
+In each case, the information is extracted from data already flowing through the system for phase lock maintenance. The sensing is **parasitic** — it rides on existing traffic at zero additional cost.
+
+**Genesis Pulse: Not Just Creation**
+
+The genesis pulse was designed for "stellar nucleosynthesis" — the big bang that creates a swarm universe in a reproducible way without hardcoded initial conditions. But the detection mechanism generalizes:
+
+| Event | RF Signature | Detection |
+|-------|--------------|-----------|
+| **Genesis** | Coordinated emergence, shared initial beacon | "A universe was born" |
+| **Schism** | Two genesis-like pulses diverging over time | "The universe forked" |
+| **Collision** | Foreign genesis signature in local RF space | "Another universe touched ours" |
+| **Apocalypse** | Coordinated beacon cessation | "A universe died" |
+| **Resurrection** | Genesis-like pulse in mature swarm | "Someone's faking a big bang" |
+
+**The Zero-Cost Principle:**
+
+```c
+// You're already doing this for sync:
+void on_beacon(beacon_t* b) {
+    update_phase_estimate(b);
+    update_peer_health(b->src);
+    // ... sync logic
+}
+
+// Genesis detection adds ONE check:
+void on_beacon(beacon_t* b) {
+    update_phase_estimate(b);
+    update_peer_health(b->src);
+    
+    if (looks_like_genesis(b) && swarm_already_exists()) {
+        // Someone claiming to be the big bang
+        // but we already have a universe
+        reject_false_genesis(b->src);
+    }
+}
+```
+
+The `looks_like_genesis()` check uses data already in the beacon:
+- Stratum claim (Genesis nodes claim Stratum 0)
+- Peer count (Genesis nodes see few/no peers)
+- Timing characteristics (Genesis pulse has distinctive cadence)
+
+**No new packets. No new sensors. No new bandwidth.**
+
+**Why This Matters:**
+
+Traditional distributed systems detect network events through:
+- Dedicated heartbeat services (bandwidth cost)
+- External monitoring infrastructure (complexity cost)
+- Consensus protocols for membership (latency cost)
+
+UTLP detects the same events by observing patterns in traffic that exists anyway:
+- Phase error correlation → physical events
+- Genesis signature analysis → cosmic events
+- RSSI patterns → geometry changes
+
+The swarm doesn't just maintain time. It *knows itself* — its birth, its health, its shape, its encounters with other swarms — all from the entropy it's already processing.
+
+**The Philosophical Implication:**
+
+The genesis pulse is the swarm's memory of its own creation. By retaining and checking this signature, the swarm can:
+- Reject imposters claiming false origins
+- Recognize kin (same genesis) vs strangers (different genesis)
+- Perform archaeology on its own history
+
+The swarm has **identity** derived from **shared memory of creation** — and that memory costs nothing to maintain because it's encoded in the statistics of ongoing operation.
+
+---
+
+## Appendix H: Physics Foundation — Phase Coherence as First Principle
+
+*Why UTLP's phase-centric architecture aligns with fundamental physics.*
+
+### H.1 The Noether Connection
+
+Emmy Noether's 1918 theorem established that every continuous symmetry of a physical system corresponds to a conservation law [1]. This is not merely mathematical elegance — it is the deep structure of physics:
+
+| Symmetry | Conservation Law |
+|----------|------------------|
+| Time translation | Energy |
+| Space translation | Momentum |
+| Rotation | Angular momentum |
+| **Phase rotation (U(1))** | **Electric charge** |
+
+The last entry is the foundation of electromagnetism. The conservation of electric charge — and the existence of the electromagnetic force itself — emerges from **invariance under phase transformations** [2].
+
+### H.2 U(1) Gauge Symmetry: Phase as Foundation
+
+In quantum field theory, the wavefunction of a charged particle can be written as:
+
+```
+ψ = |ψ|e^(iφ)
+```
+
+The phase φ evolves as e^(-iEt/ℏ) — literally **energy × time** encoded as rotation. The key insight: you cannot measure the *absolute* phase of a wavefunction. Only *relative* phases (interference patterns) are observable [3].
+
+U(1) gauge symmetry states that physics is invariant under local phase transformations:
+
+```
+ψ(x) → e^(iθ(x)) ψ(x)
+```
+
+To maintain this invariance, nature requires a **gauge field** — the electromagnetic four-potential. The photon exists to *enforce* local phase symmetry [2].
+
+**The Standard Model of particle physics is built on gauge symmetry:** SU(3) × SU(2) × U(1), where U(1) is phase symmetry. This is not a historical accident — it appears to be how the universe is constructed.
+
+### H.3 The Relativity of Simultaneity
+
+Einstein's special relativity established that "simultaneous" is not absolute. Two events that occur "at the same time" for observer A occur at *different times* for observer B moving relative to A.
+
+| Concept | Frame Dependent? | Physical Reality? |
+|---------|------------------|-------------------|
+| "Same time" (epoch) | Yes | Coordinate artifact |
+| "In phase" (coherence) | No | Physical fact |
+
+If two waves are in phase in one reference frame, they are in phase in ALL frames. The interference pattern is Lorentz invariant.
+
+### H.4 UTLP's Alignment with Physics
+
+UTLP's phase-centric architecture mirrors the structure of fundamental physics:
+
+| Quantum Field Theory | UTLP |
+|---------------------|------|
+| Absolute phase unmeasurable | Absolute epoch unnecessary |
+| Phase relationships observable | Phase lock is the protocol |
+| U(1) symmetry generates electromagnetism | Phase consensus generates swarm coherence |
+| Photon enforces local phase invariance | Beacon enforces local phase reference |
+| Gauge field carries the force | Timing mesh carries the coherence |
+
+This is not analogy — it is the same mathematical structure operating at different scales.
+
+### H.5 Phase Coherence as Conservation Law
+
+In UTLP, we can identify a conserved quantity analogous to electric charge:
+
+**Swarm Identity** = the property conserved when phase coherence is maintained
+
+| Physics | UTLP |
+|---------|------|
+| Phase symmetry → charge conserved | Phase lock → swarm identity conserved |
+| Breaking U(1) → charge violation | Breaking phase lock → swarm fragmentation |
+| Gauge boson (photon) mediates | Beacon mediates |
+
+When phase coherence is broken, swarm identity is not conserved — the swarm fragments into disconnected populations, just as charge violation would break the conservation law.
+
+### H.6 Why Epoch is "Story" and Phase is "Physics"
+
+The phase-centric realization (Appendix E) now has a physics foundation:
+
+- **Epoch** (absolute time) is like asking "what is the absolute phase?" — a question physics says is meaningless
+- **Phase lock** (relative timing) is like measuring interference patterns — the only physically meaningful observable
+
+Arguing about epoch across a distributed system is like arguing about absolute phase in quantum mechanics. You can adopt a convention, but it has no physical content.
+
+Phase relationships, however, are real. If two nodes are phase-locked, they can interfere constructively (synchronized action). If they are out of phase, they interfere destructively (incoherent action).
+
+### H.7 The Implication for Prior Art
+
+This physics foundation strengthens the prior art claims:
+
+1. **Phase-centric synchronization** is not merely an engineering choice — it aligns with the structure of fundamental physics where phase relationships are primary and absolute time is frame-dependent
+
+2. **Epoch as advisory metadata** mirrors the physics insight that absolute phase is unmeasurable; only relative phases matter
+
+3. **The Loom selecting phase anchors** is analogous to decoherence selecting which quantum states survive — both are processes that extract classical definiteness from quantum/statistical indefiniteness
+
+4. **Conservation of swarm identity through phase lock** parallels conservation of charge through U(1) symmetry
+
+### H.8 References
+
+[1] Bañados, M. & Reyes, I.A. (2016). "A short review on Noether's theorems, gauge symmetries and boundary terms." *International Journal of Modern Physics D*, 25(10), 1630021. DOI: 10.1142/S0218271816300214
+
+[2] Brading, K.A. (2002). "Which symmetry? Noether, Weyl, and conservation of electric charge." *Studies in History and Philosophy of Modern Physics*, 33(1), 3-22. DOI: 10.1016/S1355-2198(01)00033-8
+
+[3] Woit, P. (2017). "U(1) Gauge Symmetry and Electromagnetic Fields." In: *Quantum Theory, Groups and Representations*. Springer, Cham. DOI: 10.1007/978-3-319-64612-1_45
+
+---
+
+## Appendix I: Artificial Life Foundation — Synthetic Organismic Governance
+
+*UTLP as a deployed instance of Artificial Life principles.*
+
+### I.1 The Dirty Secret of ALife
+
+The Artificial Life field has a dirty secret: **complexity emerges from simplicity**.
+
+| System | Rules | Emergent Result |
+|--------|-------|-----------------|
+| Conway's Game of Life | 4 rules | Turing-complete computation, gliders, self-replication [1] |
+| Boids (Flocking) | 3 rules (Separation, Alignment, Cohesion) | Fluid swarm dynamics, emergent coordination [2] |
+| **UTLP** | 3 rules (Sync to Phase, Trust the Stable, Exclude the Liar) | **Planetary-scale homeostasis** |
+
+This is not coincidence. It is the fundamental principle: **complex systems crash; simple systems evolve**.
+
+### I.2 UTLP's Three Rules
+
+Expressed in their simplest form:
+
+1. **Sync to Phase**: Adjust your timing to match the mesh
+2. **Trust the Stable**: Weight sources by their demonstrated coherence
+3. **Exclude the Liar**: Reduce influence of sources that violate expected behavior
+
+These three rules, operating locally at each node, produce:
+- Emergent consensus without central authority
+- Self-healing recovery from node failures
+- Immune rejection of malicious actors
+- Homeostatic maintenance of system-wide phase lock
+
+### I.3 Organismic Properties
+
+UTLP exhibits the defining characteristics of living systems:
+
+**Homeostasis**: The system expends energy (computation, RF transmission) to maintain a stable internal state (phase lock) against external entropy (clock drift, environmental interference). This is the defining characteristic of life — the active maintenance of order against thermodynamic decay [3].
+
+**Metabolism**: The system processes a "resource" (Trust/Health scores) that decays over time and must be replenished by work (coherent signaling). Nodes that stop contributing to the timing mesh see their trust decay — exactly as cells that stop metabolizing die.
+
+**Immunity**: The system identifies and suppresses non-conforming agents via localized "anergy" (silencing) rather than central prosecution. This mirrors how the biological immune system tolerates self and rejects non-self through distributed, local decisions [4].
+
+### I.4 Single Distributed Organism vs. Agent-Based Systems
+
+The critical distinction:
+
+| Agent-Based Systems | UTLP Synthetic Organism |
+|---------------------|------------------------|
+| Discrete decision makers | Cells of a single entity |
+| Agents have "goals" | Nodes have "function" |
+| System optimizes agent welfare | Organism sacrifices cells for macro-entity integrity |
+| Failure = agent death | Failure = cell apoptosis |
+| Success = agent prosperity | Success = organism survival |
+
+UTLP nodes are not agents negotiating for resources. They are **cells** whose existence serves the macro-entity. A node can be sacrificed (excluded, silenced, ignored) without moral cost — exactly as the body sacrifices infected cells.
+
+### I.5 Bare Metal ALife
+
+Most Artificial Life research runs in simulation. UTLP runs on **bare metal**:
+
+| ALife Category | Implementation | UTLP |
+|----------------|----------------|------|
+| Soft (Software) | Simulations, cellular automata | ✗ |
+| Hard (Hardware) | Robots, physical systems | **✓** |
+| Wet (Biochemistry) | Protocells, synthetic biology | ✗ |
+
+UTLP is a **hard ALife system** — the organism exists in physical hardware (ESP32 microcontrollers), communicates through physical media (RF), and maintains homeostasis against real physical entropy (crystal oscillator drift, thermal noise).
+
+This is not simulation. This is **synthesis**.
+
+### I.6 The Simplicity Weapon
+
+DNA is 4 letters. Neurons are integrators. UTLP is a phase-lock loop with an immune system.
+
+The simplicity is not a limitation — it is the **weapon**:
+- Simple rules can be formally verified
+- Simple rules can be implemented on minimal hardware
+- Simple rules produce robust emergent behavior
+- Simple rules resist gaming (attackers cannot exploit what they cannot model)
+
+Complex systems have attack surfaces proportional to their complexity. Simple systems have attack surfaces proportional to their interface — which can be made arbitrarily small.
+
+### I.7 Prior Art Implications
+
+By documenting UTLP as a **Synthetic Distributed Organism**, we establish prior art blocking:
+
+1. **"Self-Healing Cyber-Physical Resilience"** — This is just our immune system with defense contractor branding
+2. **"Autonomous Metabolic Network Management"** — This is just our trust decay with enterprise software framing
+3. **"Bio-Inspired Distributed Consensus"** — This is our entire architecture
+
+The claim is not "we invented flocking" or "we invented cellular automata." The claim is:
+
+> **We deployed a synthetic organism that maintains planetary-scale homeostasis through three simple rules operating on bare metal.**
+
+### I.8 References
+
+[1] Rendell, P. (2002). "Turing Universality of the Game of Life." In: Adamatzky, A. (eds) *Collision-Based Computing*. Springer, London. DOI: 10.1007/978-1-4471-0129-1_18
+
+[2] Reynolds, C.W. (1987). "Flocks, herds and schools: A distributed behavioral model." *ACM SIGGRAPH Computer Graphics*, 21(4), 25-34. DOI: 10.1145/37402.37406
+
+[3] Wilson, D.F. & Matschinsky, F.M. (2021). "Metabolic Homeostasis in Life as We Know It: Its Origin and Thermodynamic Basis." *Frontiers in Physiology*, 12, 658997. DOI: 10.3389/fphys.2021.658997
+
+[4] Gershenson, C. (2023). "Emergence in Artificial Life." *Artificial Life*, 29(2), 153-167. DOI: 10.1162/artl_a_00397
+
+---
+
+## Appendix J: The Mind-Body Architecture — Why Biological Governance Here
+
+*Clarifying the scope: we don't reject political governance entirely; we reject it at the timing layer because physics required it.*
+
+### J.1 The Architectural Split
+
+UTLP does not claim that political governance models are wrong. It claims they are **wrong for timing synchronization** because the physics of the problem demanded something else.
+
+| Layer | Governance Model | Rationale |
+|-------|------------------|-----------|
+| 1-4 (Transport/Network) | **Biological** | Physics-constrained; no voting on heartbeats |
+| 7 (Application) | **Political** (optional) | Cognitive constructs; hierarchy, negotiation, voting |
+
+This is the Mind-Body Problem applied to distributed systems.
+
+### J.2 The Body: Pre-Rational Governance
+
+At the timing layer, governance is **pre-rational**:
+
+- Your white blood cells do not hold elections to decide if a virus is bad
+- Your heart does not wait for a quorum of the Senate to beat
+- Your neurons do not negotiate consensus on whether to fire
+
+These systems are ruthless, autonomous, and physics-based. They operate below the threshold of cognition because **cognition is too slow and too expensive** for the timescales involved.
+
+UTLP operates the same way:
+- Phase lock is not voted on — it is maintained or lost
+- Trust is not negotiated — it decays or accrues based on observed behavior
+- Exclusion is not prosecuted — it emerges from local decisions
+
+The body doesn't need permission to function. It just functions.
+
+### J.3 The Mind: Cognitive Governance
+
+On top of the biological substrate, cognitive governance can operate:
+
+```
+Layer 7 (Application):
+  "I am the Leader Drone. I command you to turn left."
+  "We vote to change the mission parameters."
+  "Node 7 is promoted to Coordinator role."
+```
+
+These are "silly" constructs — hallucinations of authority that only exist because participants agree they do. Ranks, borders, laws, hierarchies — all cognitive overlays on physical reality.
+
+**This is fine.** Political governance serves important functions:
+- Coordination of complex tasks
+- Allocation of scarce resources
+- Resolution of genuine conflicts
+- Expression of collective intent
+
+The key insight: **political governance can now focus on its actual job** because it doesn't have to worry about keeping the system alive.
+
+### J.4 The Separation Principle
+
+By separating biological governance (timing) from political governance (application), we achieve:
+
+| Benefit | Mechanism |
+|---------|-----------|
+| **Robustness** | Politics can't break physics |
+| **Simplicity** | Each layer optimized for its domain |
+| **Honesty** | Biology is constrained by energy; politics is constrained by agreement |
+| **Scalability** | Body scales by physics; mind scales by cognition |
+
+The King doesn't need to remind his subjects to breathe.
+
+### J.5 Why Cognition Gave Rise to "Silly" Governance
+
+Political governance models emerged from **cognition** — the ability to imagine states that don't exist and coordinate toward them. This is powerful but introduces failure modes:
+
+| Property | Biological Governance | Political Governance |
+|----------|----------------------|---------------------|
+| **Constraint** | Energy, physics, entropy | Agreement, belief, enforcement |
+| **Failure mode** | Death (immediate feedback) | Corruption (delayed feedback) |
+| **Honesty** | Forced by thermodynamics | Optional (can lie, defect) |
+| **Timescale** | Microseconds to seconds | Hours to years |
+
+Biology is honest because it **cannot afford to lie** — the energy cost of deception exceeds the energy available. Politics can be "silly" because the feedback loops are long enough to sustain delusion.
+
+### J.6 The Complete Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 7: APPLICATION (The Mind)                            │
+│  ─────────────────────────────────────────                  │
+│  Political governance: voting, hierarchy, negotiation       │
+│  Cognitive constructs: roles, ranks, missions               │
+│  Hallucinated authority: exists by agreement                │
+│  Timescale: human (seconds to years)                        │
+├─────────────────────────────────────────────────────────────┤
+│  LAYERS 1-4: UTLP (The Body)                                │
+│  ─────────────────────────────────────────                  │
+│  Biological governance: immune system, homeostasis          │
+│  Physical constraints: energy, entropy, phase               │
+│  Emergent authority: exists by demonstrated stability       │
+│  Timescale: physics (microseconds to seconds)               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### J.7 The Scope Clarification
+
+**What UTLP claims:**
+- Biological governance is correct for timing synchronization
+- Phase-centric architecture aligns with fundamental physics
+- Simple rules produce robust emergent behavior
+- Political models fail at the timing layer due to latency, complexity, and attack surface
+
+**What UTLP does not claim:**
+- Political governance is wrong for all purposes
+- Hierarchy is always bad
+- Voting has no place in distributed systems
+- Applications should not have leaders
+
+UTLP builds a body robust enough to support any mind the application layer chooses to implement.
+
+### J.8 Final System State
+
+You have:
+- **A Biological Body (UTLP)** that maintains phase lock, fights entropy, and rejects pathogens — without voting, without hierarchy, without permission
+- **A Political Mind (Application)** that can implement any governance model it chooses — because it doesn't have to keep the heartbeat going
+
+The organism is complete.
+
+---
+
+## Appendix K: Reference Implementation — Code-Level Specification
+
+*Extracted from working ESP32 implementation (December 2025)*
+
+### K.1 Beacon Wire Format
+
+The UTLP beacon is an 11-byte seismic chirp:
+
+```c
+#define UTLP_BEACON_SIZE        11
+
+// Byte offsets in beacon payload
+#define BEACON_OFF_STRATUM      0    // 1 byte: Stratum level
+#define BEACON_OFF_BURST        1    // 1 byte: Burst index (0, 1, 2)
+#define BEACON_OFF_SCORE        2    // 1 byte: Genesis score (0-255)
+#define BEACON_OFF_TIMESTAMP    3    // 8 bytes: TX timestamp (little-endian)
+```
+
+**Seismic Chirp Pattern:**
+- 3 bursts per beacon
+- 2ms spacing between bursts (6ms total)
+- Same TX timestamp in all 3 bursts (captured at chirp start)
+- Enables polynomial drift extraction: offset, drift rate, drift acceleration
+
+### K.2 Trust System Constants
+
+From `utlp_trust.h`:
+
+```c
+// Silicon Dunbar's Number
+#define UTLP_TRUST_MAX_PEERS    12      // Peer tracking slots
+
+// Health score range
+#define UTLP_TRUST_MAX          255     // Maximum health
+#define UTLP_TRUST_STARTUP      50      // Probationary trust (new peer)
+#define UTLP_TRUST_SYNC_THRESH  100     // Minimum to participate in sync
+#define UTLP_TRUST_MIN_VOTE     50      // Minimum to vote in consensus
+
+// Asymmetric trust dynamics (25:1 penalty ratio)
+#define UTLP_REWARD_TRUTH       2       // +2 for agreement within 2ms
+#define UTLP_COST_DRIFTING      10      // -10 for 2ms-100ms deviation
+#define UTLP_COST_LYING         50      // -50 for >100ms deviation
+```
+
+**Trust Mathematics:**
+```c
+// Peer selection score formula
+score = (health_score * 10) + (16 - stratum);
+
+// Example: Sick stratum-1 vs healthy stratum-2
+// Sick S1:    (50 * 10) + (16 - 1) = 515
+// Healthy S2: (200 * 10) + (16 - 2) = 2014
+// Result: Healthy stratum-2 wins (consistency beats proximity)
+```
+
+### K.3 Immune System Constants
+
+From `utlp_immune.h`:
+
+```c
+// Token bucket parameters
+#define UTLP_IMMUNE_BUDGET_MAX      5       // Max entrainment tokens
+#define UTLP_IMMUNE_REFILL_MS       12000   // 1 token per 12 seconds
+#define UTLP_IMMUNE_ANERGY_RECOVERY 3       // Exit anergy at 3 tokens
+```
+
+**State Machine:**
+```
+HEALTHY (tokens > 0) ──[can_defend()]──> HEALTHY (tokens--)
+         │
+         └──[tokens == 0]──> ANERGIC
+                                  │
+ANERGIC ──[tokens >= 3]──> HEALTHY (via tick refill)
+```
+
+### K.4 Genesis Pulse Intervals
+
+From `utlp.c`:
+
+```c
+#define GENESIS_PHASE_1_END_US      1000000ULL    //  1 second
+#define GENESIS_PHASE_2_END_US      5000000ULL    //  5 seconds
+#define GENESIS_PHASE_3_END_US     10000000ULL    // 10 seconds
+#define GENESIS_PHASE_4_END_US     60000000ULL    // 60 seconds
+
+#define BEACON_INTERVAL_PHASE_1_US    100000      // 100ms (genesis burst)
+#define BEACON_INTERVAL_PHASE_2_US    500000      // 500ms (fast convergence)
+#define BEACON_INTERVAL_PHASE_3_US   1000000      // 1s (settling)
+#define BEACON_INTERVAL_PHASE_4_US  10000000      // 10s (stabilizing)
+#define BEACON_INTERVAL_STEADY_US   60000000      // 60s (steady state)
+```
+
+### K.5 Core Algorithm: Beacon Processing
+
+```c
+static void process_beacon(const utlp_packet_t *pkt) {
+    // 1. Parse beacon
+    uint8_t remote_stratum = pkt->payload[BEACON_OFF_STRATUM];
+    uint64_t remote_tx_time = time_from_bytes(&pkt->payload[BEACON_OFF_TIMESTAMP]);
+
+    // 2. Update Metabolic Ledger
+    int32_t observed_offset = (int32_t)((int64_t)remote_tx_time - 
+                                         (int64_t)pkt->rx_timestamp_us);
+    utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
+
+    // 3. Evaluate entrainment (Active Immunity)
+    int64_t deviation_us = (int64_t)remote_tx_time - 
+                           ((int64_t)pkt->rx_timestamp_us + g_aatr.time_offset);
+    uint8_t peer_health = utlp_trust_get_peer_health(pkt->mac);
+    evaluate_entrainment_response(pkt->mac, peer_health, (int32_t)deviation_us);
+
+    // 4. Source selection (Adaptive Immunity)
+    utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
+    if (best && memcmp(best->mac, pkt->mac, 6) == 0) {
+        // Trusted peer - consider adoption
+        if (!utlp_trust_is_genesis_pulsing(best) &&
+            !utlp_trust_check_regression(best, (int64_t)remote_tx_time, now_ms)) {
+            should_adopt = true;
+        }
+    }
+    // ... stratum-based fallback (Innate Immunity)
+}
+```
+
+### K.6 Core Algorithm: Entrainment Decision
+
+```c
+static void evaluate_entrainment_response(const uint8_t *peer_mac,
+                                          uint8_t peer_health,
+                                          int32_t deviation_us) {
+    // TARGET: Only juveniles (low health)
+    if (peer_health > ENTRAINMENT_TARGET_MAX_HEALTH) return;  // 80
+
+    // SEVERITY: Only significant deviations
+    int32_t abs_deviation = (deviation_us < 0) ? -deviation_us : deviation_us;
+    if (abs_deviation < ENTRAINMENT_THRESHOLD_DRIFTING_US) return;  // 2000us
+
+    // DUAL CONSTRAINT CHECK
+    // Constraint 1: Internal (token bucket)
+    if (!utlp_immune_can_defend()) return;  // Budget exhausted
+
+    // Constraint 2: External (quorum sensing)
+    if (!utlp_trust_has_quorum(g_aatr.time_offset, 2000)) return;  // No support
+
+    // BOTH PASSED: Fire entrainment pulse
+    send_chirp();
+}
+```
+
+### K.7 Core Algorithm: Median Consensus
+
+```c
+bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
+    int32_t votes[UTLP_TRUST_MAX_PEERS];
+    int count = 0;
+
+    // Collect votes from healthy peers only
+    for (int i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 && 
+            g_peers[i].health_score >= UTLP_TRUST_MIN_VOTE) {
+            votes[count++] = g_peers[i].last_offset_us;
+        }
+    }
+
+    if (count == 0) return false;
+
+    // Sort and return median (Byzantine-resistant)
+    qsort(votes, count, sizeof(int32_t), compare_int32);
+    *out_consensus_offset = votes[count / 2];
+    return true;
+}
+```
+
+### K.8 Time-Indexed Execution Pattern
+
+```c
+static void run_physics(uint64_t atomic_now) {
+    // Calculate desired state from atomic time
+    uint32_t cycle_pos = (uint32_t)(atomic_now % BLINK_PERIOD_US);
+    bool should_be_on = (cycle_pos < (BLINK_PERIOD_US / 2));
+
+    // Apply only on state change
+    if (should_be_on != g_led_state) {
+        g_led_state = should_be_on;
+        // Set actuator...
+    }
+}
+```
+
+This pattern is **drift-proof** because output state is computed from shared atomic time, not accumulated delays.
+
+### K.9 Peer Ledger Structure
+
+```c
+typedef struct {
+    uint8_t  mac[6];              // Peer identifier
+    uint8_t  health_score;        // Trust level (0-255)
+    uint8_t  stratum_claim;       // Claimed stratum
+    int32_t  last_offset_us;      // Last observed offset
+    uint32_t last_seen_ms;        // LRU timestamp
+    uint32_t first_seen_ms;       // Age tracking
+    uint16_t interactions;        // Observation count
+    uint8_t  consecutive_hits;    // Agreement streak
+    int64_t  last_tx_time_us;     // For regression detection
+    uint16_t observed_interval_ms;// For genesis pulse detection
+} utlp_peer_ledger_t;
+```
+
+### K.10 Memory Footprint
+
+| Component | Bytes | Notes |
+|-----------|-------|-------|
+| Peer ledger | 12 × 36 = 432 | Static array |
+| Immune state | 8 | tokens + timestamp + flag |
+| Chirp accumulator | 40 | 3 RX timestamps + metadata |
+| Drift statistics | 64 | EMA accumulators |
+| Neighborhood table | 16 × 16 = 256 | Neighbor tracking |
+| **Total** | **~800** | No malloc required |
+
+### K.11 File Structure
+
+```
+utlp/
+├── utlp.c              # Core protocol engine (1316 lines)
+├── utlp_trust.c        # Metabolic Ledger (801 lines)
+├── utlp_trust.h        # Trust API + documentation (558 lines)
+├── utlp_immune.c       # Token bucket + anergy (120 lines)
+├── utlp_immune.h       # Immune API (200 lines)
+├── utlp_hal.h          # Platform abstraction (250 lines)
+├── utlp_hal_esp32.c    # ESP32 implementation (400 lines)
+├── utlp_main_esp32.c   # Entry point (20 lines)
+└── utlp_rfip.h         # Position stubs (150 lines)
+
+Total: ~3,815 lines of portable C
+```
+
+---
+
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, and the formal Loom state machine architecture for emergent authority.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer, and the Reference Implementation appendix documenting actual wire formats, constants, and algorithms from working ESP32 code.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -2249,8 +3447,9 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.20*
+*Document version: S2.31*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.20 formalizes Loom as complete state machine (DORMANT→WEAVING→ANCHOR→DISSOLVING) with explicit warmup period, stability requirements, and competition handling; adds Sections 3.4.2-3.4.3; claim 40 on weaving phase as physics test; total 50 prior art extension claims*
+*Repository: https://github.com/lemonforest/mlehaptics*
+*Revision notes: S2.31 adds claims 78-81 on frequency-dependent selection for channel diversity—channel 6 as deterministic "Golden Path" (dextral majority), channels 1/11 as sinistral divergence under congestion pressure, bridge nodes as hybrid zones, and generalized Loom homeostasis across multiple threat dimensions; total 81 prior art extension claims across 11 appendices (A-K)*

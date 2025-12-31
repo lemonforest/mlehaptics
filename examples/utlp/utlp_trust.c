@@ -620,3 +620,181 @@ void utlp_trust_log_coherence(void) {
                           (long)c.drift_spread_us, (unsigned long)c.last_coherent_ms);
     }
 }
+
+/*============================================================================
+ * GENESIS PULSE DETECTION (S2.24)
+ *
+ * Fast detection of rebooted peers via beacon interval tracking.
+ * Prevents epoch adoption from freshly-rebooted nodes with stale trust.
+ *
+ * The Problem: Past trust persists in the Metabolic Ledger across peer reboots.
+ * A peer that was trusted at health=150 before rebooting still has health=150.
+ * When it sends genesis beacons (atomic time ~100ms), we must NOT adopt
+ * its epoch - that would corrupt our established timeline.
+ *
+ * The Solution: Two-pronged detection:
+ * 1. Interval tracking: Genesis phases use 100-1000ms intervals (vs 60s steady)
+ * 2. Regression check: Rebooted peer's atomic time goes backwards
+ *
+ * Defense: Block epoch adoption, but allow phase entrainment once they
+ * stabilize. "Proof of Stability" required for epoch authority.
+ *==========================================================================*/
+
+/**
+ * @brief Check if a peer is currently in genesis pulse phase
+ *
+ * Genesis pulse detection works by observing beacon intervals:
+ * - Phase 1: 100ms (0-1s uptime)
+ * - Phase 2: 500ms (1-5s uptime)
+ * - Phase 3: 1000ms (5-10s uptime)
+ * - Phase 4: 10000ms (10-60s uptime)
+ * - Steady: 60000ms (60s+ uptime)
+ *
+ * If observed_interval_ms < 2000, peer is likely in genesis phases 1-3.
+ *
+ * @param peer Pointer to peer ledger entry
+ * @return true if peer appears to be in genesis pulse phase
+ */
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer) {
+    if (!peer) return false;
+
+    /* Need at least 2 observations to have a valid interval estimate */
+    if (peer->interactions < UTLP_MIN_INTERVAL_OBSERVATIONS) {
+        return false;  /* Unknown, assume not genesis pulsing */
+    }
+
+    /* Genesis pulsing if observed interval is below threshold */
+    return (peer->observed_interval_ms > 0 &&
+            peer->observed_interval_ms < UTLP_GENESIS_PULSE_THRESHOLD_MS);
+}
+
+/**
+ * @brief Check if a peer's atomic time shows regression (reboot indicator)
+ *
+ * Atomic time should always increase monotonically. If a peer's reported
+ * TX time is significantly behind their expected time (based on last known
+ * TX + elapsed time), they have rebooted.
+ *
+ * @par Expected Time Calculation:
+ * @code
+ * expected = last_tx_time + (now_ms - last_seen_ms) * 1000
+ * // (ms to us conversion, assuming 1x drift rate)
+ * @endcode
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param reported_tx   TX timestamp from current beacon (microseconds)
+ * @param now_ms        Current local time in milliseconds
+ * @return true if atomic time regression detected (peer rebooted)
+ */
+bool utlp_trust_check_regression(const utlp_peer_ledger_t *peer,
+                                  int64_t reported_tx,
+                                  uint32_t now_ms) {
+    int64_t elapsed_us;
+    int64_t expected_tx;
+
+    if (!peer) return false;
+
+    /* Need previous TX time to check for regression */
+    if (peer->last_tx_time_us == 0) {
+        return false;  /* First observation, no regression possible */
+    }
+
+    /* Calculate expected TX time (last TX + elapsed time) */
+    elapsed_us = (int64_t)(now_ms - peer->last_seen_ms) * 1000;
+    expected_tx = peer->last_tx_time_us + elapsed_us;
+
+    /*
+     * Check for regression: Is reported TX significantly behind expected?
+     *
+     * We use a generous threshold (10 seconds) to avoid false positives
+     * from jitter or network delays. A reboot causes regression of
+     * millions of microseconds (the peer's entire uptime), so 10s is
+     * conservative enough to catch real reboots without false alarms.
+     */
+    if (reported_tx < (expected_tx - (int64_t)UTLP_REGRESSION_THRESHOLD_US)) {
+        return true;  /* Regression detected - peer rebooted! */
+    }
+
+    return false;
+}
+
+/**
+ * @brief Update a peer's TX time tracking after receiving beacon
+ *
+ * This updates the interval estimate (EMA) and TX time tracking for
+ * future genesis pulse and regression detection.
+ *
+ * @par Interval Tracking:
+ * Uses exponential moving average (EMA) with simple formula:
+ * @code
+ * new_interval = (old_interval + observed_interval) / 2
+ * @endcode
+ *
+ * This provides ~3-sample smoothing, enough to detect genesis pulse
+ * within 300-500ms while avoiding single-observation noise.
+ *
+ * @param mac         Peer's 6-byte MAC address
+ * @param tx_time_us  TX timestamp from current beacon
+ * @param now_ms      Current local time in milliseconds
+ */
+void utlp_trust_update_tx_tracking(const uint8_t *mac,
+                                    int64_t tx_time_us,
+                                    uint32_t now_ms) {
+    int i;
+    utlp_peer_ledger_t *peer = NULL;
+
+    /* Find peer in ledger */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 &&
+            memcmp(g_peers[i].mac, mac, 6) == 0) {
+            peer = &g_peers[i];
+            break;
+        }
+    }
+
+    if (!peer) return;  /* Peer not found */
+
+    /* Update interval estimate if we have a previous observation */
+    if (peer->last_seen_ms > 0) {
+        uint32_t observed_interval = now_ms - peer->last_seen_ms;
+
+        if (peer->observed_interval_ms == 0) {
+            /* First interval observation */
+            peer->observed_interval_ms = (uint16_t)observed_interval;
+        } else {
+            /* EMA: new = (old + observed) / 2 */
+            peer->observed_interval_ms =
+                (peer->observed_interval_ms + (uint16_t)observed_interval) / 2;
+        }
+    }
+
+    /* Update first_seen_ms if this is a fresh entry */
+    if (peer->first_seen_ms == 0) {
+        peer->first_seen_ms = now_ms;
+    }
+
+    /* Update TX time tracking for regression detection */
+    peer->last_tx_time_us = tx_time_us;
+}
+
+/**
+ * @brief Get a peer's ledger entry by MAC address
+ *
+ * Public accessor for peer ledger entries. Used by utlp.c to access
+ * genesis pulse detection fields.
+ *
+ * @param mac Peer's 6-byte MAC address
+ * @return Pointer to peer entry, or NULL if not found
+ */
+utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac) {
+    int i;
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 &&
+            memcmp(g_peers[i].mac, mac, 6) == 0) {
+            return &g_peers[i];
+        }
+    }
+
+    return NULL;
+}
