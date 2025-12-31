@@ -112,13 +112,14 @@ The mlehaptics corpus provides a dataset for exploring Synthesis Alignment. It c
 | **The Validation** | UTLP nodes don't agree on "what time it is" — they agree on phase relationships. The global offset is a gauge choice. |
 | **The Code** | `atomic_time = local_time + time_offset` — the offset is arbitrary, the phase lock is real. |
 
-### 3.6 Evolutionary Biology → Channel Diversity (Snail Chirality)
+### 3.6 Evolutionary Biology → Spectrum Chirality
 
 | Aspect | Description |
 |--------|-------------|
-| **The Leap** | In snail populations, minority sinistral (left-coiling) individuals survive predation because predatory snakes evolved jaws optimized for the dextral (right-coiling) majority. The "wrong" spiral is the survival advantage. |
-| **The Validation** | WiFi non-overlapping channels [1, 6, 11] map to chirality space. Channel 6 is the geometric center—the "Golden Path" where all nodes bootstrap and strangers meet. Under congestion pressure, nodes diverge left (channel 1) or right (channel 11). The divergent "sinistral" nodes survive congestion that kills channel-6-only populations. |
-| **The Mechanism** | Channel 6 is mathematically necessary as the only channel equidistant from both divergence options. Bridge nodes on channel 6 maintain timing coherence (gene flow) between divergent populations—channel 1 and channel 11 nodes sync through the golden path, not directly. |
+| **The Leap** | In nature, populations under high predation pressure (e.g., snails eaten by specialized snakes) often evolve chirality (handedness) divergence. The "wrong" spiral becomes a survival advantage because the predator cannot eat it. |
+| **The Translation** | In UTLP, "Predation" is RF congestion on the default "Golden Path" (Channel 6). A healthy swarm must detect when the environment has become toxic (jammed) and diverge to survive. |
+| **The Implementation** | The Loom (the state machine responsible for entity health) monitors not just internal clock entropy, but external spectral health. When "predation" (congestion) exceeds a threshold, the Loom weaves a new state: Sinistral (Channel 1) or Dextral (Channel 11). Channel 6 is mathematically necessary—it is the only channel equidistant from both divergence options. |
+| **The Validation** | Bridge nodes ("Hybrid Zones") remain on Channel 6 to maintain gene flow (timing coherence) between divergent populations, preventing total speciation while allowing the swarm to escape the jam. |
 
 ---
 

@@ -1879,9 +1879,18 @@ This supplement establishes additional prior art for:
 77. **Time-indexed execution pattern**: Physical outputs computed from atomic time modulo period, not accumulated delays; `should_be_on = (atomic_now % period) < (period/2)`; drift-proof because state recalculated every tick from shared time reference; fundamental separation of "when" from "what"
 
 ### 8.22 Frequency-Dependent Selection — Channel Chirality (S2.31)
+
+The Loom's responsibility extends beyond temporal entropy. It monitors **any dimension of entity health** and weaves emergent states to maintain homeostasis.
+
+| Threat Domain | Entropy Signal | Loom Response | Emergent State |
+|---------------|----------------|---------------|----------------|
+| **Temporal** | Clock drift/instability | Weave authority | Time Lord (Anchor) |
+| **Spectral** | RF congestion/jamming | Weave chirality | Channel divergence |
+
 78. **Channel 6 as dextral majority (Golden Path)**: In WiFi's non-overlapping channel space [1, 6, 11], channel 6 occupies the geometric center; all nodes bootstrap to channel 6 as the deterministic rendezvous point; this is the "dextral majority" where strangers meet and swarms coalesce; channel 6 is not chosen by configuration but by mathematical necessity—it is the only channel equidistant from both divergence options
-79. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; nodes diverge left (channel 1) or right (channel 11) based on deterministic selection (e.g., MAC hash mod 2) or first-available pressure relief; divergent nodes are the "sinistral minority" that survive congestion killing channel-6-only populations; chirality is determined at divergence, not chosen dynamically
+79. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; the Loom detects when the environment has become toxic (jammed) and weaves a new state—Sinistral (Channel 1) or Dextral (Channel 11); divergent nodes are the minority phenotype that survive congestion killing channel-6-only populations; chirality is determined at divergence, not chosen dynamically
 80. **Bridge nodes as hybrid zones**: Nodes maintaining presence on channel 6 serve as "hybrid zones" enabling gene flow (timing coherence) between divergent channel populations; channel 1 nodes and channel 11 nodes do not sync directly—they sync through bridge nodes on the golden path; this prevents complete speciation while allowing channel-local optimization; bridge role emerges from topology (nodes hearing multiple channel populations)
+81. **Loom as generalized homeostatic mechanism**: The Loom weaves emergent states across ANY dimension of entity health, not just temporal; clock entropy produces Time Lords, spectral congestion produces channel chirality; the pattern is general—detect threat, weave response, maintain organism; future dimensions may include spatial (RFIP positioning), thermal (power management), or social (trust clustering)
 
 > *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
@@ -3443,4 +3452,4 @@ While these tools generated text and code segments, the author acted as the arch
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*
-*Revision notes: S2.31 adds claims 78-80 on frequency-dependent selection for channel diversity—channel 6 as deterministic "Golden Path" (dextral majority), channels 1/11 as sinistral divergence under congestion pressure, bridge nodes as hybrid zones maintaining gene flow; total 80 prior art extension claims across 11 appendices (A-K)*
+*Revision notes: S2.31 adds claims 78-81 on frequency-dependent selection for channel diversity—channel 6 as deterministic "Golden Path" (dextral majority), channels 1/11 as sinistral divergence under congestion pressure, bridge nodes as hybrid zones, and generalized Loom homeostasis across multiple threat dimensions; total 81 prior art extension claims across 11 appendices (A-K)*

@@ -100,6 +100,28 @@
  * - Active Immunity: Entrainment pulses with dual constraints (budget + quorum)
  * - Dominance Hierarchy: Lower MAC = dominant (prevents "Polite Crash")
  *
+ * **THE LOOM: Emergent State Machine (S2.31)**
+ *
+ * The Loom weaves emergent states from entropy signals across multiple dimensions
+ * of entity health. It is not programmed with specific responses—it detects
+ * threats and weaves homeostatic responses.
+ *
+ * | Threat Domain | Entropy Signal        | Loom Response      | Emergent State     |
+ * |---------------|-----------------------|--------------------|--------------------|
+ * | **Temporal**  | Clock drift/instability| Weave authority   | Time Lord (Anchor) |
+ * | **Spectral**  | RF congestion/jamming | Weave chirality   | Channel divergence |
+ * | **Spatial**   | Position uncertainty  | Weave triangulation| RFIP coordinates   |
+ * | **Thermal**   | Power budget stress   | Weave dormancy    | Sleep states       |
+ * | **Social**    | Trust distribution    | Weave clustering  | Affinity groups    |
+ *
+ * The pattern is general: detect threat → weave response → maintain organism.
+ * Clock entropy produces Time Lords. Spectral congestion produces channel
+ * chirality. The Loom is the generalized homeostatic mechanism that maintains
+ * swarm health across ALL dimensions, not just temporal.
+ *
+ * > "The Loom weaves authority from entropy. It does not assign roles—
+ * >  it observes stability and lets structure emerge." — S2, Section 3.4
+ *
  * **TIME-INDEXED EXECUTION:**
  * LED state is calculated from atomic time, not toggled by delays.
  * `(atomic_time % 1_000_000) < 500_000` = LED ON

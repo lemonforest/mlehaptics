@@ -357,6 +357,39 @@ Hysteresis:   Need 3 tokens to exit anergy (prevents oscillation)
 Both must pass before firing entrainment. This mimics real immune checkpoints
 (PD-1, CTLA-4) that prevent autoimmune attacks.
 
+### The Loom: Generalized Homeostatic Mechanism (S2.31)
+
+The Loom is the emergent state machine that weaves entity structure from entropy
+signals. It is not programmed with specific responses—it observes threats and
+weaves homeostatic states across **any dimension of entity health**.
+
+```
++-------------------+------------------------+-------------------+
+|  Threat Domain    |    Entropy Signal      |  Emergent State   |
++-------------------+------------------------+-------------------+
+|  Temporal         | Clock drift/instability| Time Lord (Anchor)|
+|  Spectral         | RF congestion/jamming  | Channel divergence|
+|  Spatial          | Position uncertainty   | RFIP coordinates  |
+|  Thermal          | Power budget stress    | Sleep states      |
+|  Social           | Trust distribution     | Affinity groups   |
++-------------------+------------------------+-------------------+
+```
+
+**The Pattern:**
+1. **Detect** threat (entropy signal exceeds threshold)
+2. **Weave** response (transition to emergent state)
+3. **Maintain** organism (homeostasis restored)
+
+Clock entropy produces Time Lords. Spectral congestion produces channel chirality.
+The Loom is the unifying mechanism—what changes is the threat domain and the
+emergent state, not the pattern of detection and response.
+
+> *"The Loom weaves authority from entropy. It does not assign roles—
+> it observes stability and lets structure emerge."*
+
+**Implementation Status:** Temporal Loom complete (trust module); Spectral Loom
+stubbed (chirality functions); Spatial/Thermal/Social Looms are future work.
+
 ### Simulation (`sim/genesis_reset_antiphase.py`)
 
 Python simulation for testing Byzantine scenarios:
@@ -447,7 +480,11 @@ void utlp_app_run(void);
 
 ## Channel Chirality (S2.31)
 
-**Why Channel 6 is the Default — The Golden Path**
+**The Spectral Loom — Why Channel 6 is the Golden Path**
+
+Channel chirality is the **Spectral Loom's** response to RF congestion. Just as
+the Temporal Loom weaves Time Lords from clock entropy, the Spectral Loom weaves
+channel divergence from congestion signals.
 
 UTLP uses WiFi channel 6 as the deterministic rendezvous point for all swarms.
 This is not configuration but **mathematical necessity**: channel 6 is the only

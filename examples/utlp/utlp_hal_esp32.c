@@ -570,7 +570,17 @@ void utlp_hal_semaphore_delete(utlp_hal_semaphore_t sem)
 /*============================================================================
  * CHANNEL CHIRALITY API (STUB - S2.31)
  *
- * These functions implement frequency-dependent selection for WiFi channels.
+ * The Spectral Loom: Weaving channel divergence from congestion entropy.
+ *
+ * Just as the Temporal Loom (utlp_trust.c) weaves Time Lords from clock
+ * entropy, this API implements the Spectral Loom—detecting RF congestion
+ * ("predation pressure") and weaving emergent chirality (channel divergence).
+ *
+ * | Loom Type  | Entropy Signal     | Emergent State     | Implementation |
+ * |------------|--------------------|--------------------|----------------|
+ * | Temporal   | Clock instability  | Time Lord (Anchor) | utlp_trust.c   |
+ * | Spectral   | RF congestion      | Channel divergence | THIS FILE      |
+ *
  * Currently stubbed - always returns golden path (channel 6).
  *
  * Future implementation will:
@@ -578,7 +588,7 @@ void utlp_hal_semaphore_delete(utlp_hal_semaphore_t sem)
  * - Select divergent channel via deterministic function (MAC % 2)
  * - Detect bridge node status via multi-population hearing
  *
- * @see Technical Supplement S2.31, Claims 78-80
+ * @see Technical Supplement S2.31, Claims 78-81
  *==========================================================================*/
 
 /**
