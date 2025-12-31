@@ -1,15 +1,50 @@
-# UTLP v2 - Frontier Algorithm
+# UTLP v2 - Biological Governance for Distributed Time
 
 **Universal Time Lord Protocol** - ESP32-focused implementation demonstrating
-connectionless distributed time synchronization with **topology-aware election**.
+connectionless distributed time synchronization using **biological governance**
+instead of political consensus.
 
 > *"Time is born of one."* — UTLP Specification, Section 7
+>
+> *"Trust is not declared. It is accumulated."* — Technical Supplement S2
+
+## The Radical Idea
+
+Traditional distributed systems borrow from human politics:
+- **Raft/Paxos**: Nodes vote to elect leaders
+- **BFT**: Majority quorum decides truth
+- **NTP**: Hierarchical strata assign authority
+
+UTLP asks: **What if we governed like cells, not congresses?**
+
+Your body coordinates 37 trillion cells without elections. It uses:
+- **Hebbian Learning**: Neurons that fire together, wire together
+- **Immune Checkpoints**: T-cell exhaustion prevents autoimmune attacks
+- **Quorum Sensing**: Bacteria wait for critical mass before acting
+- **Median Consensus**: Single liars cannot corrupt population health
+
+This implementation translates those principles into working embedded C.
+
+## Learning Path
+
+If you're new to this codebase, read in this order:
+
+| Order | File | What You'll Learn |
+|-------|------|-------------------|
+| 1 | `utlp.c` (header comments) | The manifesto - why biology beats politics |
+| 2 | `utlp_trust.h` | Hebbian learning, median consensus, Dunbar's Number |
+| 3 | `utlp_immune.h` | T-cell exhaustion, quorum sensing, cytokine storms |
+| 4 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
+| 5 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
+
+Each file includes academic references and biological analogies.
 
 ## Overview
 
 This is the production ESP32 implementation of UTLP v2, featuring the full
-Frontier Algorithm for topology-aware Genesis election. Forked from
-`utlp_skeleton` for focused ESP32 development without cross-platform constraints.
+Frontier Algorithm for topology-aware Genesis election and Biological Governance
+for Byzantine-resistant trust. Forked from `utlp_skeleton` for focused ESP32
+development without cross-platform constraints.
 
 **For cross-platform/educational use:** See `examples/utlp_skeleton/` which
 maintains C64/8-bit compatibility.
@@ -287,15 +322,61 @@ is still running:
 Future work may add timeout-based re-election where Followers detect
 Genesis absence and promote themselves.
 
+## Biological Governance Modules
+
+### The Metabolic Ledger (`utlp_trust.h/c`)
+
+The trust module implements **Hebbian learning** for distributed systems:
+
+```
+Peers agreeing with consensus → health increases (+2)
+Peers drifting (2-100ms off) → health decreases (-10)
+Peers lying (>100ms off)     → health decreases (-50)
+```
+
+**Key Algorithms:**
+- **Median Consensus**: Byzantine-resistant - single liar can't corrupt result
+- **Asymmetric Cost**: 25:1 penalty ratio (one predator > 25 peaceful encounters)
+- **Silicon Dunbar's Number**: Only 12 peer slots (forces prioritization)
+- **Health-Weighted Eviction**: "Don't kill a healthy friend for a stranger"
+
+### Immune Checkpoint System (`utlp_immune.h/c`)
+
+The immune module prevents **cytokine storms** (RF pollution):
+
+```
+Token Bucket: 5 entrainment pulses max before exhaustion
+Anergy State: Forced silence when depleted (T-cell exhaustion)
+Hysteresis:   Need 3 tokens to exit anergy (prevents oscillation)
+```
+
+**Dual Constraint System:**
+1. **Internal Check**: Do I have tokens? (prevents RF spam)
+2. **External Check**: Do 2+ peers agree with me? (prevents "Crazy Old Man")
+
+Both must pass before firing entrainment. This mimics real immune checkpoints
+(PD-1, CTLA-4) that prevent autoimmune attacks.
+
+### Simulation (`sim/genesis_reset_antiphase.py`)
+
+Python simulation for testing Byzantine scenarios:
+- Rogue Genesis attacks (ancient epoch claims)
+- Web of Time merge (two swarms meeting)
+- Derivative-based detection (jitter variance analysis)
+
 ## Files
 
 | File | Description |
 |------|-------------|
-| `utlp.c` | Genesis Node application (platform-agnostic pure C) |
-| `utlp_hal.h` | HAL interface contract (time, radio, actuator, logging) |
-| `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM, esp_log) |
-| `utlp_main_esp32.c` | Platform entry point (contains `app_main()`) |
-| `README.md` | This documentation |
+| `utlp.c` | Main protocol with Biological Governance |
+| `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, median consensus) |
+| `utlp_immune.h/c` | Immune Checkpoint (token bucket, anergy) |
+| `utlp_hal.h` | HAL interface contract (time, radio, actuator) |
+| `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM) |
+| `utlp_rfip.h` | Reference Frame Independent Positioning (stub) |
+| `utlp_main_esp32.c` | Platform entry point (`app_main()`) |
+| `sim/genesis_reset_antiphase.py` | Python simulation for Byzantine testing |
+| `sim/SIMULATION_RESULTS.md` | Detailed simulation analysis |
 
 ### Architecture Note
 
@@ -363,8 +444,44 @@ void utlp_app_run(void);
 - **Drift compensation:** Use tracked drift rate for active clock correction
 - **Panic Response:** Stratum 255 "Help!" signal for rescue chirps
 
+## Academic Cross-References
+
+The biological governance model draws from multiple domains:
+
+### Neuroscience
+- **Hebbian Learning** (Hebb, 1949): "The Organization of Behavior"
+  - Trust accumulation mimics Long-Term Potentiation (LTP)
+  - Temporal correlation drives synaptic strength
+
+### Immunology
+- **T-Cell Exhaustion** (Wherry, 2011): Nature Immunology 12(6):492-499
+  - Token depletion → anergy (PD-1 pathway analog)
+  - Hysteresis recovery mimics CD28 re-engagement
+- **Quorum Sensing** (Waters & Bassler, 2005): Annual Review of Cell Biology
+  - Autoinducer threshold → collective action
+
+### Decision Theory
+- **Prospect Theory** (Kahneman & Tversky, 1979): Econometrica
+  - Asymmetric loss functions (25:1 penalty ratio)
+  - Losses loom larger than gains
+
+### Distributed Systems
+- **Byzantine Generals** (Lamport et al., 1982): ACM TOPLAS
+  - Median consensus for fault tolerance
+- **Token Bucket** (Turner, 1986): IEEE Communications
+  - Rate limiting for traffic shaping
+
+### Anthropology
+- **Dunbar's Number** (Dunbar, 1992): Journal of Human Evolution
+  - Cognitive limit on social group size
+  - Our "Silicon Dunbar" = 12 peer slots
+
 ## License
 
 This example is part of the EMDR Bilateral Stimulation Device project.
 - Software: GPL v3
 - Hardware: CERN-OHL-S v2
+
+---
+
+*"What if coordination emerged from physics, not negotiation?"*

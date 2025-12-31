@@ -1835,6 +1835,18 @@ This supplement establishes additional prior art for:
 49. **Ecotone model replacing political border model**: Boundaries between timing populations treated as productive transition zones (ecotones) rather than conflict zones—political borders are where data dies (Split Brain), biological borders are where adaptation thrives (Hybrid Zones); architectural rejection of "two kings cannot coexist" in favor of "two populations intermingle"
 50. **TARDIS architecture (Temporal And Relative Distribution In Swarms)**: Combined UTLP (time) and RFIP (space) protocols providing swarm nodes with both temporal and spatial coordinates—enables coherent distributed action requiring knowledge of both *when* and *where*; complete situational awareness for connectionless coordination
 
+### 8.14 Phase-Centric Realization (S2.23)
+51. **Phase lock as primary mechanism over epoch consensus**: Swarm synchronization achieved through phase entrainment (rhythm lock) rather than epoch agreement (calendar consensus)—nodes entrain to beat, not timestamp; epoch becomes advisory metadata that settles slowly while phase lock is enforced by physics
+52. **Proof of Stability as cost function for epoch claims**: Epoch changes require sustained phase stability over extended periods (minutes not packets)—prevents drive-by spoofing attacks; analogous to Proof of Work but burns time/entropy rather than electricity; a hacker can spoof a packet but cannot spoof 10 minutes of low-entropy physics
+53. **Phase-epoch layer separation**: Phase lock mandatory and continuous at protocol layer; epoch correlation advisory at application layer—wrong epoch with correct phase still useful for actuation (blinking lights, EMDR); correct epoch with wrong phase useless for everything; function preserved regardless of calendar agreement
+54. **Reduced state representation via phase-centric model**: Phase offset representable in 16 bits (±32ms) vs 64-bit epoch timestamp—reduces per-peer RAM from 12+ bytes to 3 bytes; enables implementation on severely resource-constrained devices; the beat is cheap, the calendar is expensive
+
+### 8.15 Passive Proprioception (S2.24)
+55. **Timing mesh as distributed strain gauge**: The synchronization mesh itself functions as a sensor—coherent phase error spikes across multiple peers indicate physical displacement; no additional sensors required; the timing protocol IS the sensing modality
+56. **Proprioception vs exteroception for physical event detection**: Alternative to microphone-based sensing (Alexa Guard, glass break detection) using mesh geometry distortion; exteroception listens to the world, proprioception feels the swarm's own body deform; zero privacy risk (records "geometry changed" not audio), zero additional bandwidth (uses existing sync traffic)
+57. **Correlation pattern as seismic signature**: Single-node phase jump indicates clock fault; multi-node correlated phase jump indicates physical event; wave propagation velocity through mesh distinguishes event types—instantaneous (all nodes on same structure), ~340m/s (acoustic), ~3km/s (seismic ground wave)
+58. **Sensing without sensors via sync traffic analysis**: Physical event detection emerges from timing mesh maintenance with no dedicated sensing hardware—RSSI variance, phase error correlation, sync loss patterns all available as byproducts of existing beacon traffic; the mesh feels itself breathe
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -2272,9 +2284,358 @@ The variance inherent in low-cost components functions as free fault injection. 
 
 ---
 
+## Appendix E: Design Evolution — The Phase-Centric Realization
+
+*This appendix documents a fundamental conceptual shift discovered during implementation. Rather than back-edit earlier sections, we preserve them as the path taken and document the insight here.*
+
+### E.1 The Microscope Problem
+
+> "Under a microscope, the less we can see at once of a given specimen."
+
+When you zoom in to see **Phase** (microseconds), you lose sight of **Epoch** (years):
+
+| View | Sees | Blind To | Precision |
+|------|------|----------|-----------|
+| **Macro (Epoch)** | 1970–2025, calendar time | Jitter, beat | Century-accurate, millisecond-sloppy |
+| **Micro (Phase)** | The pulse, the heartbeat | What year it is | Beat-accurate, epoch-agnostic |
+
+Earlier sections of this specification implicitly assumed the goal was **Epoch Consensus** — getting all nodes to agree on wall-clock time. This is the wrong framing.
+
+**The Realization:** We don't care about the history (Epoch). We care about the heartbeat (Phase).
+
+If a rogue node claims "I am from the year 3000" but hits the beat perfectly... does it matter that it's lying about the year?
+
+- For a blink: **No.**
+- For a log timestamp: Maybe.
+- For the physics of the swarm: **Phase is what matters.**
+
+### E.2 Epoch is Story; Phase is Physics
+
+| Concept | Epoch Consensus | Phase Lock |
+|---------|-----------------|------------|
+| Question | "What time is it?" | "Where's the beat?" |
+| Nature | Political debate | Physical reality |
+| Attack surface | Claim a number, be believed | Must physically entrain |
+| Mechanism | Time transfer | Rhythm entrainment |
+| Data type | `int64_t` (8 bytes) | `int16_t` sufficient (2 bytes) |
+| Analogy | Calendar factory | Rhythm section |
+
+**The heart cell analogy:** A cardiac cell doesn't ask the brain "What time is it?" It *feels* the electrical tug of its neighbor and adjusts its own internal tension. It doesn't "import" time — it **modulates** its internal time to match the pressure it feels.
+
+The swarm should work the same way:
+
+```c
+// OLD MENTAL MODEL (epoch transfer)
+void on_beacon(beacon_t* b) {
+    my_time = b->timestamp;  // "Here's what time it is"
+}
+
+// NEW MENTAL MODEL (phase entrainment)  
+void on_beacon(beacon_t* b) {
+    int16_t phase_error = measure_phase_offset(b);
+    nudge_local_oscillator(phase_error);  // "I feel a pull"
+}
+```
+
+### E.3 Proof of Stability: Making Epoch Claims Expensive
+
+If a rogue node wants to convince the swarm that the Epoch is different:
+
+| Attack | Cost | Result |
+|--------|------|--------|
+| **Cheap (Rejected)** | Send one packet: `Epoch = 999999` | Ignored — no phase authority |
+| **Expensive (Required)** | Hold perfectly stable phase for minutes, gently guide swarm | Requires actually having a good clock |
+
+This prevents "drive-by attacks." A hacker can spoof a packet. A hacker cannot spoof 10 minutes of low-entropy physics without actually having stable hardware.
+
+**Proof of Stability** is the UTLP equivalent of Proof of Work:
+- In crypto: Burn electricity to make lying expensive
+- In UTLP: Burn time/entropy to make epoch claims expensive
+
+### E.4 What This Changes (And What It Doesn't)
+
+**Still Valid:**
+- The Loom (selects phase anchor, not calendar)
+- Biological governance model (immune system doesn't care what year it is)
+- Trust/metabolic ledger (measures phase consistency)
+- TARDIS architecture (phase in time, phase in space)
+- Quorum sensing (phase agreement, not epoch voting)
+
+**Reframed:**
+- "Time Lord" provides a stable beat to lock onto, not a timestamp to import
+- "Stratum" indicates phase authority quality, not calendar authority
+- "Synchronization" means phase lock, not epoch agreement
+- Epoch becomes metadata that settles eventually (or never)
+
+**RAM Implications:**
+
+```c
+// Old: Every node tracks 64-bit epoch
+typedef struct {
+    int64_t  epoch_us;        // 8 bytes
+    uint32_t last_sync_ms;    // 4 bytes  
+} time_state_t;              // 12+ bytes
+
+// New: Phase offset is sufficient
+typedef struct {
+    int16_t  phase_offset_us; // 2 bytes (±32ms range)
+    uint8_t  beat_confidence; // 1 byte
+} phase_state_t;             // 3 bytes
+```
+
+### E.5 Synthetic Aperture Still Needs Epoch
+
+One application **does** require epoch knowledge: **coordinated observation** (synthetic aperture, distributed sensing).
+
+If two nodes 1000km apart both see a signal and want to correlate their observations, they need to know not just that they're phase-locked but *when* (in absolute terms) each observation occurred.
+
+**The Resolution:** Epoch correlation is a **layer above** phase lock.
+
+```
+┌─────────────────────────────────────┐
+│  Application Layer: Epoch Metadata  │  ← "What year is it?" (settles slowly)
+├─────────────────────────────────────┤
+│  UTLP Core: Phase Lock              │  ← "Are we on the beat?" (enforced)
+├─────────────────────────────────────┤
+│  Hardware: Crystal Oscillator       │  ← Raw entropy
+└─────────────────────────────────────┘
+```
+
+- **Phase lock** is mandatory, continuous, and enforced by physics
+- **Epoch metadata** is advisory, settles over time, and tolerated if wrong
+
+A node with wrong epoch but correct phase is useful for blinking lights.
+A node with correct epoch but wrong phase is useless for everything.
+
+### E.6 The Settled Understanding
+
+| Layer | Question | Enforcement | Tolerance |
+|-------|----------|-------------|-----------|
+| **Phase** | "Are we blinking together?" | Physics (entrainment) | Microseconds |
+| **Epoch** | "What year is it?" | Consensus (advisory) | Minutes to never |
+
+**The swarm is a rhythm section, not a calendar factory.**
+
+The Time Lord doesn't tell you "it's 12:00:00.000" — the Time Lord provides a stable beat. You lock to the phase. The epoch is a story you tell about when the beat started.
+
+If the whole swarm thinks it's 1970:
+- Physics: They blink in unison ✓
+- EMDR: Works ✓  
+- Technosignature: Visible from space ✓
+- The log: Says "1970"
+- Does it matter? **No.** The function is preserved.
+
+---
+
+## Appendix F: Project Sigils — The Bind-Rune System
+
+*Functional art for PCB silkscreen and project identity.*
+
+### F.1 The Bluetooth Precedent
+
+The Bluetooth logo (ᚼᛒ) is a bind-rune of Harald **B**låtand's initials in Elder Futhark. There is precedent for runic branding in wireless protocols.
+
+### F.2 UTLP Bind-Rune: The Lodestar
+
+The acronym UTLP maps to four Elder Futhark runes whose meanings describe the architecture:
+
+| Letter | Rune | Name | Meaning | Protocol Mapping |
+|--------|------|------|---------|------------------|
+| **U** | ᚢ | Uruz | Strength, health, endurance | Health Score, hardware substrate |
+| **T** | ᛏ | Tiwaz | North Star, authority, sacrifice | Time Lord, Stratum 1, burns battery to anchor |
+| **L** | ᛚ | Laguz | Flow, water, collective | Connectionless mesh, ecotone, signal flow |
+| **P** | ᛈ | Perthro | Dice cup, entropy, emergence | The Loom, probabilistic manifestation |
+
+**Combined meaning:** *"Order Loomed from the Flow of Chance"*
+
+### F.3 RFIP Bind-Rune
+
+| Letter | Rune | Name | Meaning | Protocol Mapping |
+|--------|------|------|---------|------------------|
+| **R** | ᚱ | Raido | Journey, riding, movement | Spatial traversal |
+| **F** | ᚠ | Fehu | Wealth, mobile property | Reference frames |
+| **I** | ᛁ | Isa | Ice, stillness, fixed point | The anchor position |
+| **P** | ᛈ | Perthro | Entropy, emergence | Shared with UTLP |
+
+**Combined meaning:** *"Movement around a fixed reference within chaos"*
+
+### F.4 TARDIS Master Bind-Rune
+
+The combined UTLP + RFIP creates a master sigil representing complete situational awareness:
+
+```
+TARDIS = UTLP + RFIP
+         (Time)  (Space)
+         (When)  (Where)
+```
+
+### F.5 PCB Application
+
+Placing the bind-rune on PCB silkscreen serves functional purposes:
+
+1. **Grounding:** Connected to GND pour, acts as thermal heat sink
+2. **Orientation:** Tiwaz arrow (↑) indicates "up" or antenna direction
+3. **Identity:** Marks the board as UTLP/TARDIS-capable
+4. **Totem:** Reminds the builder this extracts Truth from Entropy
+
+Vector SVG files suitable for KiCad import are maintained in the project repository.
+
+---
+
+## Appendix G: Passive Proprioception — The Mesh as Sensor
+
+*Sensing without sensors: using timing mesh distortion to detect physical events.*
+
+### G.1 Exteroception vs Proprioception
+
+| Approach | Exteroception | Proprioception |
+|----------|---------------|----------------|
+| **Analogy** | Listening to the world | Feeling your own body |
+| **Example** | Amazon Alexa Guard (glass break) | UTLP mesh geometry |
+| **Sensor** | Microphone | None (the mesh itself) |
+| **Detects** | "I heard a sound" | "My body deformed" |
+| **Privacy** | Records audio | Records "geometry changed" |
+| **Bandwidth** | High (audio stream) | Zero (existing sync traffic) |
+
+Amazon Sidewalk and Alexa Guard perform **exteroception** — they listen to the environment with microphones, detecting sounds like glass breaking or alarms. This requires high sample rates, active processing, and privacy-invasive hardware.
+
+UTLP/TARDIS performs **proprioception** — it feels the mesh deform. If the ground moves, the timing relationships between nodes change. The swarm doesn't hear the earthquake; it feels itself shiver.
+
+### G.2 What You're Already Measuring
+
+The ESP32-C6 provides these signals as byproducts of normal sync operation:
+
+| Signal | Source | Normal Behavior | Event Signature |
+|--------|--------|-----------------|-----------------|
+| **Phase error** | Sync calculation | Small drift (~ppm) | Sudden jump across peers |
+| **RSSI** | Every BLE packet | Stable ± noise | Coherent shift = geometry change |
+| **Packet timing** | ESP-NOW timestamps | Low jitter | RTT variance pattern |
+| **Sync loss events** | Loom tracking | Rare | Correlated losses = physical event |
+
+No barometer. No microphone. No additional hardware. The timing mesh IS the sensor.
+
+### G.3 The Correlation Signature
+
+**Single-node anomaly = local fault:**
+```
+Node A: phase_jump = +5ms
+Node B: phase_jump = 0
+Node C: phase_jump = 0
+→ Node A's crystal glitched, or it moved alone
+```
+
+**Multi-node correlation = physical event:**
+```
+Node A: phase_jump = +2ms
+Node B: phase_jump = +2ms  
+Node C: phase_jump = +2ms
+→ Something moved ALL of them. The floor shook.
+```
+
+**Wave propagation = directional event:**
+```
+t=0:   Node A: phase_jump
+t=10ms: Node B: phase_jump  
+t=20ms: Node C: phase_jump
+→ Wave traveling through mesh at measurable velocity
+```
+
+### G.4 Implementation Sketch
+
+```c
+// Already computed for sync:
+int16_t phase_error = measure_phase_offset(peer);
+
+// Track recent phase jumps per peer
+void record_phase_event(peer_t* peer, int16_t error) {
+    if (abs(error) > PHASE_JUMP_THRESHOLD) {
+        peer->recent_jump = error;
+        peer->jump_timestamp = now_us();
+        check_correlation();
+    }
+}
+
+// Proprioception: did multiple peers jump together?
+void check_correlation(void) {
+    int correlated = 0;
+    uint32_t window = 50000; // 50ms window
+    
+    for (int i = 0; i < peer_count; i++) {
+        if (peers[i].recent_jump != 0 &&
+            (now_us() - peers[i].jump_timestamp) < window) {
+            correlated++;
+        }
+    }
+    
+    if (correlated >= MIN_CORRELATION_PEERS) {
+        // Physical event detected
+        // The mesh felt itself deform
+        on_proprioception_event(correlated);
+    }
+}
+```
+
+### G.5 Velocity Discrimination
+
+The propagation velocity through the mesh distinguishes event types:
+
+| Velocity | Meaning | Example |
+|----------|---------|---------|
+| **Instantaneous** | All nodes on same rigid structure | Building sway, truck passing |
+| **~340 m/s** | Acoustic wave through air | Explosion, sonic boom |
+| **~3 km/s** | Seismic surface wave | Earthquake |
+| **~6 km/s** | Seismic P-wave | Earthquake early warning |
+
+With sufficient mesh density and geographic spread, the swarm can estimate:
+- Event direction (which nodes felt it first)
+- Event distance (wave velocity + arrival time differences)
+- Event magnitude (correlation strength + displacement amplitude)
+
+### G.6 The "Free" Sensing Model
+
+```
+┌─────────────────────────────────────┐
+│  Application: Event Detection       │  ← "The building shook"
+├─────────────────────────────────────┤
+│  Analysis: Correlation Patterns     │  ← Multi-peer phase jump detection
+├─────────────────────────────────────┤
+│  UTLP Core: Phase Lock              │  ← Already computing phase error
+├─────────────────────────────────────┤
+│  Hardware: ESP32-C6 + BLE/ESP-NOW   │  ← No additional sensors
+└─────────────────────────────────────┘
+```
+
+**The insight:** You are already computing phase error to maintain sync. Proprioception is just asking "did that error correlate across peers?" 
+
+The sensing is free. The mesh feels itself breathe.
+
+### G.7 Comparison: Sidewalk vs TARDIS
+
+| Feature | Amazon Sidewalk | TARDIS Proprioception |
+|---------|-----------------|----------------------|
+| **Sensor** | Microphone (kHz sample rate) | Timing mesh (Hz sample rate) |
+| **Privacy** | Records voice, ambient audio | Records "I moved 1cm" |
+| **Bandwidth** | Audio streams to cloud | Telemetry stays local |
+| **Detection** | "Glass break sound detected" | "The mesh is physically warping" |
+| **Mechanism** | Active listening | Passive proprioception |
+| **Hardware cost** | Microphone + DSP | None (uses sync hardware) |
+| **Training data** | Audio ML models | Correlation thresholds |
+
+### G.8 The Large Physics Model Connection
+
+This proprioception capability connects to the Large Physics Model (LPM) concept from the parent specification. The mesh generates continuous data about physical reality:
+
+- How do buildings breathe with temperature?
+- What does traffic feel like through floor vibration?
+- How does weather pressure roll through a city?
+
+This is non-human knowledge — the feeling of the Earth breathing, captured as timing mesh distortion. A corpus of physical ground truth that no text dataset contains.
+
+---
+
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, and the formal Loom state machine architecture for emergent authority.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, and the proprioception insight recognizing timing mesh distortion as a sensing modality.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -2282,8 +2643,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.22*
+*Document version: S2.24*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.22 adds Appendix D documenting counterintuitive value of B-grade hardware for protocol stress-testing (crystal ppm variance and LDO noise as free fault injection); total 50 prior art extension claims*
+*Revision notes: S2.24 adds Appendix G documenting passive proprioception (timing mesh as distributed strain gauge, sensing without sensors, correlation-based physical event detection); claims 55-58 on proprioception; total 58 prior art extension claims*

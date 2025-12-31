@@ -2,17 +2,98 @@
  * @file utlp_hal.h
  * @brief Hardware Abstraction Layer - Universal Time Lord Protocol
  *
- * ESP32-focused HAL for UTLP v2 with Frontier Algorithm.
- * Single actuator (GPIO15 LED) driven by MCPWM for phase-aligned output.
+ * @section overview Overview
  *
- * DESIGN PHILOSOPHY:
- * 1. Genesis First: Device works alone, peers are optional
- * 2. Single Actuator: GPIO15 LED shows sync visually
- * 3. Time-Indexed: LED state derived from atomic time, not delays
- * 4. No Malloc: All memory statically allocated
+ * This HAL abstracts hardware-specific operations for UTLP, enabling the
+ * protocol to run on different platforms (ESP32, C64, future targets).
+ * The ESP32 implementation uses ESP-NOW for radio and MCPWM for actuators.
+ *
+ * @section philosophy Design Philosophy
+ *
+ * @subsection philosophy_genesis 1. Genesis First
+ * A UTLP device works alone. Peers are optional enhancements, not requirements.
+ * The first device in a zone IS the atomic clock - it doesn't need permission.
+ *
+ * @subsection philosophy_physics 2. Time-Indexed Execution
+ * Physical outputs (LEDs, motors) are calculated from atomic time, not toggled
+ * by delays. Instead of:
+ * @code
+ * led_on();
+ * delay(500);
+ * led_off();
+ * @endcode
+ * We use:
+ * @code
+ * bool should_be_on = (atomic_time % 1000000) < 500000;
+ * set_led(should_be_on);
+ * @endcode
+ * This is **drift-proof** because we recalculate state every tick.
+ *
+ * @subsection philosophy_malloc 3. No Dynamic Allocation
+ * All memory is statically allocated. No malloc, no free, no fragmentation.
+ * This enables:
+ * - Predictable memory usage (important for embedded systems)
+ * - No memory leaks (can't leak what you don't allocate)
+ * - Easier security analysis (no heap corruption vulnerabilities)
+ *
+ * @subsection philosophy_hal 4. Platform Abstraction
+ * The HAL hides platform differences behind a clean API:
+ * - ESP32: Uses esp_timer_get_time(), ESP-NOW, MCPWM
+ * - C64: Uses CIA timer, custom radio, PWM via VIC-II tricks
+ * - Future: STM32, nRF52, etc.
+ *
+ * @section timing Timing Architecture
+ *
+ * UTLP distinguishes between two time domains:
+ *
+ * @subsection timing_local Local Time (utlp_hal_get_micros)
+ * The raw hardware timer value. Monotonically increasing, never modified.
+ * This is the "ground truth" for the local oscillator.
+ *
+ * @subsection timing_atomic Atomic Time (utlp_hal_get_atomic_time_us)
+ * Local time + time_offset. This is the "swarm truth" - what all nodes
+ * agree is the current time. Genesis node has offset=0; followers have
+ * offset calculated from beacon exchange.
+ *
+ * @par Formula:
+ * @code
+ * atomic_time = local_time + time_offset
+ * @endcode
+ *
+ * @par Why Dual Clocks?
+ * We never modify the system clock. This avoids:
+ * - Watchdog timer confusion
+ * - Timestamp discontinuities
+ * - Scheduler timing issues
+ *
+ * @section radio Radio Architecture
+ *
+ * UTLP uses connectionless broadcast for all communication:
+ * - No pairing, no handshaking, no connection state
+ * - Every beacon is a broadcast (NULL destination MAC)
+ * - Hardware timestamps captured at RX for precision
+ *
+ * @par Why Connectionless?
+ * Connections require state. State requires memory. Memory runs out.
+ * A device with 1000 peers would need 1000 connection structures.
+ * With connectionless broadcast, a device can hear from unlimited peers
+ * using fixed memory (the Metabolic Ledger's 12 slots).
+ *
+ * @section implementations Platform Implementations
+ *
+ * | Platform | Timer Source      | Radio      | Actuator    |
+ * |----------|-------------------|------------|-------------|
+ * | ESP32    | esp_timer (64-bit)| ESP-NOW    | MCPWM/LEDC  |
+ * | C64      | CIA + extension   | Custom RF  | VIC-II      |
+ * | Skeleton | Abstract (union)  | Abstract   | Abstract    |
+ *
+ * @see examples/utlp_skeleton/ for the platform-agnostic reference
  *
  * @version 2.2.0 - ESP32-focused (forked from skeleton)
  * @date 2025-12-29
+ *
+ * @copyright
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #pragma once

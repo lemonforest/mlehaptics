@@ -43,6 +43,72 @@
  * - **Median Consensus**: Byzantine-resistant voting where a single liar
  *   cannot corrupt the swarm's perception of time.
  *
+ * @section algorithms Algorithm Cross-References
+ *
+ * This module draws from multiple domains:
+ *
+ * @subsection algo_hebbian Hebbian Learning (Neuroscience, 1949)
+ * Donald Hebb's postulate: "Cells that fire together, wire together."
+ * When peers consistently agree with consensus, their synaptic connection
+ * (health score) strengthens. This is **Long-Term Potentiation (LTP)** in
+ * silicon form. The +2 reward implements associative learning where
+ * temporal correlation drives trust accumulation.
+ *
+ * @par Academic Reference:
+ * Hebb, D.O. (1949). "The Organization of Behavior: A Neuropsychological Theory"
+ *
+ * @subsection algo_median Median Filtering (Signal Processing)
+ * The consensus mechanism uses median instead of mean because median is
+ * robust to outliers. In a population of N voters, an attacker must corrupt
+ * >50% to shift the median. This is the same property exploited by
+ * **median filters** in image processing to remove salt-and-pepper noise.
+ *
+ * @par Byzantine Resistance:
+ * With 2f+1 honest nodes, median consensus tolerates f Byzantine liars.
+ * A single attacker claiming offset=+∞ cannot move the median.
+ *
+ * @par Academic Reference:
+ * Lamport, L., Shostak, R., Pease, M. (1982). "The Byzantine Generals Problem"
+ *
+ * @subsection algo_asymmetric Asymmetric Cost Functions (Decision Theory)
+ * The 25:1 penalty ratio (-50 for lying vs +2 for truth) implements
+ * **asymmetric loss functions** from statistical decision theory. In
+ * adversarial environments, false negatives (trusting a liar) are more
+ * costly than false positives (distrusting an honest peer). This mirrors
+ * **Prospect Theory**: losses loom larger than gains.
+ *
+ * @par Biological Analog:
+ * One predator encounter teaches more than 25 peaceful grazing sessions.
+ * The amygdala (fear memory) uses similar asymmetric learning rates.
+ *
+ * @par Academic Reference:
+ * Kahneman, D., Tversky, A. (1979). "Prospect Theory: An Analysis of Decision under Risk"
+ *
+ * @subsection algo_dunbar Dunbar's Number (Anthropology, 1992)
+ * Robin Dunbar found that primate neocortex size correlates with social
+ * group size (~150 for humans). Our "Silicon Dunbar's Number" of 12 peers
+ * is deliberately small to:
+ * - Fit in embedded memory (288 bytes)
+ * - Force prioritization (can't track everyone)
+ * - Enable health-weighted eviction (protect proven friends)
+ *
+ * @par LRU with Health Weighting:
+ * Unlike pure LRU caches, we bias eviction toward low-health peers.
+ * "Don't kill a healthy friend for a stranger."
+ *
+ * @par Academic Reference:
+ * Dunbar, R.I.M. (1992). "Neocortex size as a constraint on group size in primates"
+ *
+ * @subsection algo_ema Exponential Moving Average (Statistics)
+ * Health velocity and coherence velocity use EMA with α=0.1:
+ * @code
+ * new_value = α × sample + (1-α) × old_value
+ * @endcode
+ * This provides smooth tracking with ~10-sample half-life. In integer form:
+ * @code
+ * new_value = (sample + 9 × old_value) / 10
+ * @endcode
+ *
  * @section experiment The Experiment
  *
  * We hypothesize that biological governance will:
