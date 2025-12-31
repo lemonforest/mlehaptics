@@ -1868,6 +1868,11 @@ This supplement establishes additional prior art for:
 70. **Organismic properties via distributed protocol**: System exhibits defining characteristics of living organisms—Homeostasis (energy expenditure to maintain phase lock against entropy), Metabolism (trust/health as resource that decays and must be replenished by work), Immunity (localized anergy/silencing rather than central prosecution); nodes are cells, not agents
 71. **Bare metal ALife deployment**: Unlike soft ALife (simulations), UTLP is hard ALife running on physical hardware (ESP32), communicating through physical media (RF), maintaining homeostasis against real physical entropy (crystal drift, thermal noise); not simulation but synthesis of a distributed organism
 
+### 8.20 Mind-Body Architecture — Scope of Biological Governance (S2.29)
+72. **Layer-appropriate governance selection**: UTLP does not reject political governance entirely—rejects it at timing layer because physics required it; Layers 1-4 (transport/network) use biological governance (pre-rational, physics-constrained); Layer 7 (application) may use political governance (cognitive, agreement-based); Mind-Body separation in distributed systems
+73. **Body enables Mind**: Biological governance at timing layer frees application layer from keeping system alive—King doesn't remind subjects to breathe; political governance can focus on actual job (coordination, resource allocation, conflict resolution) because heartbeat is handled; robustness through separation
+74. **Cognition-governance honesty asymmetry**: Biology is honest because constrained by energy/physics (cannot afford to lie); politics can be "silly" because feedback loops long enough to sustain delusion; UTLP operates at timescales where thermodynamic honesty is enforced; application layer operates at timescales where agreement-based governance is appropriate
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -3048,9 +3053,134 @@ The claim is not "we invented flocking" or "we invented cellular automata." The 
 
 ---
 
+## Appendix J: The Mind-Body Architecture — Why Biological Governance Here
+
+*Clarifying the scope: we don't reject political governance entirely; we reject it at the timing layer because physics required it.*
+
+### J.1 The Architectural Split
+
+UTLP does not claim that political governance models are wrong. It claims they are **wrong for timing synchronization** because the physics of the problem demanded something else.
+
+| Layer | Governance Model | Rationale |
+|-------|------------------|-----------|
+| 1-4 (Transport/Network) | **Biological** | Physics-constrained; no voting on heartbeats |
+| 7 (Application) | **Political** (optional) | Cognitive constructs; hierarchy, negotiation, voting |
+
+This is the Mind-Body Problem applied to distributed systems.
+
+### J.2 The Body: Pre-Rational Governance
+
+At the timing layer, governance is **pre-rational**:
+
+- Your white blood cells do not hold elections to decide if a virus is bad
+- Your heart does not wait for a quorum of the Senate to beat
+- Your neurons do not negotiate consensus on whether to fire
+
+These systems are ruthless, autonomous, and physics-based. They operate below the threshold of cognition because **cognition is too slow and too expensive** for the timescales involved.
+
+UTLP operates the same way:
+- Phase lock is not voted on — it is maintained or lost
+- Trust is not negotiated — it decays or accrues based on observed behavior
+- Exclusion is not prosecuted — it emerges from local decisions
+
+The body doesn't need permission to function. It just functions.
+
+### J.3 The Mind: Cognitive Governance
+
+On top of the biological substrate, cognitive governance can operate:
+
+```
+Layer 7 (Application):
+  "I am the Leader Drone. I command you to turn left."
+  "We vote to change the mission parameters."
+  "Node 7 is promoted to Coordinator role."
+```
+
+These are "silly" constructs — hallucinations of authority that only exist because participants agree they do. Ranks, borders, laws, hierarchies — all cognitive overlays on physical reality.
+
+**This is fine.** Political governance serves important functions:
+- Coordination of complex tasks
+- Allocation of scarce resources
+- Resolution of genuine conflicts
+- Expression of collective intent
+
+The key insight: **political governance can now focus on its actual job** because it doesn't have to worry about keeping the system alive.
+
+### J.4 The Separation Principle
+
+By separating biological governance (timing) from political governance (application), we achieve:
+
+| Benefit | Mechanism |
+|---------|-----------|
+| **Robustness** | Politics can't break physics |
+| **Simplicity** | Each layer optimized for its domain |
+| **Honesty** | Biology is constrained by energy; politics is constrained by agreement |
+| **Scalability** | Body scales by physics; mind scales by cognition |
+
+The King doesn't need to remind his subjects to breathe.
+
+### J.5 Why Cognition Gave Rise to "Silly" Governance
+
+Political governance models emerged from **cognition** — the ability to imagine states that don't exist and coordinate toward them. This is powerful but introduces failure modes:
+
+| Property | Biological Governance | Political Governance |
+|----------|----------------------|---------------------|
+| **Constraint** | Energy, physics, entropy | Agreement, belief, enforcement |
+| **Failure mode** | Death (immediate feedback) | Corruption (delayed feedback) |
+| **Honesty** | Forced by thermodynamics | Optional (can lie, defect) |
+| **Timescale** | Microseconds to seconds | Hours to years |
+
+Biology is honest because it **cannot afford to lie** — the energy cost of deception exceeds the energy available. Politics can be "silly" because the feedback loops are long enough to sustain delusion.
+
+### J.6 The Complete Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 7: APPLICATION (The Mind)                            │
+│  ─────────────────────────────────────────                  │
+│  Political governance: voting, hierarchy, negotiation       │
+│  Cognitive constructs: roles, ranks, missions               │
+│  Hallucinated authority: exists by agreement                │
+│  Timescale: human (seconds to years)                        │
+├─────────────────────────────────────────────────────────────┤
+│  LAYERS 1-4: UTLP (The Body)                                │
+│  ─────────────────────────────────────────                  │
+│  Biological governance: immune system, homeostasis          │
+│  Physical constraints: energy, entropy, phase               │
+│  Emergent authority: exists by demonstrated stability       │
+│  Timescale: physics (microseconds to seconds)               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### J.7 The Scope Clarification
+
+**What UTLP claims:**
+- Biological governance is correct for timing synchronization
+- Phase-centric architecture aligns with fundamental physics
+- Simple rules produce robust emergent behavior
+- Political models fail at the timing layer due to latency, complexity, and attack surface
+
+**What UTLP does not claim:**
+- Political governance is wrong for all purposes
+- Hierarchy is always bad
+- Voting has no place in distributed systems
+- Applications should not have leaders
+
+UTLP builds a body robust enough to support any mind the application layer chooses to implement.
+
+### J.8 Final System State
+
+You have:
+- **A Biological Body (UTLP)** that maintains phase lock, fights entropy, and rejects pathogens — without voting, without hierarchy, without permission
+- **A Political Mind (Application)** that can implement any governance model it chooses — because it doesn't have to keep the heartbeat going
+
+The organism is complete.
+
+---
+
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, and the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, and the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -3058,8 +3188,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.28*
+*Document version: S2.29*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.28 adds Appendix I documenting Artificial Life foundation (Conway, Boids, organismic properties with DOI citations); claims 69-71 on synthetic organismic governance; total 71 prior art extension claims*
+*Revision notes: S2.29 adds Appendix J documenting Mind-Body architecture (layer-appropriate governance, scope clarification); claims 72-74 on biological vs political governance separation; total 74 prior art extension claims across 10 appendices (A-J)*
