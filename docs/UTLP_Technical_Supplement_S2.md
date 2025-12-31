@@ -30,8 +30,8 @@ The mlehaptics protocol suite adopts a coherent nomenclature inspired by tempora
 | Acronym | Expansion | Function |
 |---------|-----------|----------|
 | **UTLP** | Universal Time Lord Protocol | Time synchronization—*when* things happen |
-| **RFIP** | RF Indoor Positioning | Spatial positioning—*where* things are |
-| **SMSP** | Synchronized Multi-modal Stimulation Protocol | Coordinated actuation—*what* happens together |
+| **RFIP** | Reference Frame Independent Positioning | Spatial positioning—*where* things are |
+| **SMSP** | Synchronized Multi-modal Score Protocol | Coordinated actuation—*what* happens together |
 | **TARDIS** | **T**emporal **A**nd **R**elative **D**istribution **I**n **S**warms | UTLP + RFIP combined: time and space |
 
 **The Complete Picture:**
@@ -574,7 +574,7 @@ void update_time_source(void) {
     }
     else {
         // Free-running: we ARE the time source
-        // A Genesis Node must have the Confidence of a King
+        // A Reference Node requires the metabolic stability of a keystone species
         if (is_oscillator_stable() && get_uptime_s() > 60) {
             set_stratum(1);   // Local Truth - I am the reference
         } else {
@@ -592,7 +592,7 @@ void update_time_source(void) {
 | Stratum | Source | Authority | Notes |
 |---------|--------|-----------|-------|
 | 0 | GPS/Atomic | Divine Truth | External, absolute reference |
-| 1 | NTP from Stratum 0, FTM, or **Stable Free-Running Genesis** | Local Truth | The Genesis Node must have the Confidence of a King |
+| 1 | NTP from Stratum 0, FTM, or **Stable Free-Running Genesis** | Local Truth | Reference Node requires keystone stability |
 | 2-14 | Derived from Stratum N-1 | Inherited Truth | Each hop degrades by 1 |
 | 15 | Holdover / Warming Up | Provisional | "I'm getting stable, but don't fully trust me yet" |
 | 254 | Degraded / Lost Sync | Emergency | "I was synced but lost my source" |
@@ -765,7 +765,7 @@ void loom_process_tick(loom_context_t* loom) {
                     loom->state = LOOM_STATE_ANCHOR;
                     set_stratum(1);  // I am the Anchor
                 } else {
-                    // Failed: My crystal is too noisy to be King
+                    // Failed: My crystal is too noisy to anchor the timeline
                     ESP_LOGW(TAG, "Loom: Weave failed. Crystal unstable. Returning to Dormant.");
                     loom->state = LOOM_STATE_DORMANT;
                 }
@@ -988,7 +988,7 @@ void on_dormant_beacon(const utlp_beacon_t* beacon, const uint8_t* mac) {
     peer->state = PEER_STATE_DORMANT;
     peer->expected_wake_ms = utlp_hal_get_millis() + beacon->expected_return_ms;
     
-    // Dormant peers don't vote in consensus, but aren't forgotten
+    // Dormant peers don't contribute to quorum sensing, but aren't forgotten
     // They keep their health score (they're not misbehaving, just sleeping)
 }
 
@@ -1739,10 +1739,10 @@ We have evolved from **Feudalism** (Stratum = Rank) to **Credit** (Health = Scor
 **Predictable but Autonomous:**
 - *Predictable:* "If I introduce a high-quality GPS clock, the swarm will adopt it after ~30 seconds of observation"
 - *Predictable:* "If I introduce a spoofer, the swarm will isolate it within 5-10 seconds"
-- *Autonomous:* Even if you program a node to broadcast `Stratum: 0` (The King), the swarm ignores it if timing is erratic
+- *Autonomous:* Even if you program a node to broadcast `Stratum: 0` (claiming highest authority), the swarm ignores it if timing is erratic
 
 **Immune to Political Creep:**
-Physics (consensus) is the only voter. Credentials confer no privilege without performance.
+Physics (consensus) is the only arbiter. Credentials confer no privilege without performance.
 
 ## 7.8 Reference Implementation
 
@@ -1962,7 +1962,7 @@ extern "C" {
 
 /* Trust Thresholds (0-255) */
 #define UTLP_TRUST_MAX          255
-#define UTLP_TRUST_MIN_VOTE     50   /* Minimum health to vote in consensus */
+#define UTLP_TRUST_MIN_QUORUM   50   /* Minimum health to participate in quorum sensing */
 #define UTLP_TRUST_SYNC_THRESH  100  /* Minimum health to be sync source */
 #define UTLP_TRUST_STARTUP      80   /* Probationary score for new nodes */
 
@@ -2115,28 +2115,28 @@ void utlp_trust_init(void) {
 }
 
 bool utlp_trust_get_consensus(int32_t *out_consensus) {
-    int32_t votes[UTLP_TRUST_MAX_PEERS];
+    int32_t samples[UTLP_TRUST_MAX_PEERS];
     int count = 0;
     int i;
     
-    /* Collect votes from HEALTHY peers only */
+    /* Collect samples from HEALTHY peers only (quorum sensing) */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions > 0 && 
-            g_peers[i].health_score >= UTLP_TRUST_MIN_VOTE) {
-            votes[count++] = g_peers[i].last_offset_us;
+            g_peers[i].health_score >= UTLP_TRUST_MIN_QUORUM) {
+            samples[count++] = g_peers[i].last_offset_us;
         }
     }
 
     if (count == 0) return false;
 
     /* Sort to find median */
-    qsort(votes, count, sizeof(int32_t), compare_int32);
+    qsort(samples, count, sizeof(int32_t), compare_int32);
 
     /* Median selection */
     if (count % 2 == 1) {
-        *out_consensus = votes[count / 2];
+        *out_consensus = samples[count / 2];
     } else {
-        *out_consensus = (votes[count/2 - 1] + votes[count/2]) / 2;
+        *out_consensus = (samples[count/2 - 1] + samples[count/2]) / 2;
     }
 
     return true;
@@ -2239,6 +2239,39 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
 
 ---
 
+## Appendix D: Testing Methodology Notes
+
+### D.1 The Counterintuitive Value of Low-Quality Hardware
+
+Protocol validation for the Loom state machine and trust algorithms was performed using deliberately heterogeneous hardware: a mix of "B-grade" ESP32 devkit boards sourced from discount suppliers alongside higher-quality reference boards.
+
+**Why This Matters:**
+
+| Hardware Deficiency | What It Simulates | Failure Path Exercised |
+|---------------------|-------------------|------------------------|
+| Poor crystal ppm tolerance | Manufacturing variance across millions of devices | Weave failure ("crystal too noisy") |
+| Noisy LDO regulators | Environmental stress (temperature, voltage sag) | Regeneration triggers from marginal stability |
+| Inconsistent warmup times | Aging hardware, cold-start scenarios | Race conditions between competing weavers |
+| High drift rates | Long-term deployment degradation | Speciation threshold boundary cases |
+
+**The Insight:**
+
+With A-grade boards, everything stabilizes quickly and uniformly. The failure paths in the Loom (`LOOM_STATE_WEAVING` → `LOOM_STATE_DORMANT` on failed stability test) and regeneration logic never execute. The code *appears* correct but is untested.
+
+With B-grade boards:
+- Nodes fail the weave stability test → validates the "My crystal is too noisy to anchor the timeline" path
+- Variable stabilization times → multiple nodes race through `LOOM_STATE_WEAVING` simultaneously, testing first-to-manifest logic
+- Higher baseline drift → regeneration triggers when marginal anchors destabilize under load
+- Real entropy variance → threshold constants (`STABILITY_REQUIREMENT`, `TIMELINE_FRAY_THRESHOLD_MS`) get battle-tested
+
+**Conclusion:**
+
+The variance inherent in low-cost components functions as free fault injection. If the protocol operates reliably across a heterogeneous pile of discount hardware, it will operate reliably across any deployment. This is an unusual case where procurement of lower-quality components is genuinely beneficial for validation coverage.
+
+*Note: This does not apply to safety-critical deployments where component certification is required. The observation is specific to protocol stress-testing during development.*
+
+---
+
 ## Acknowledgments
 
 The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, and the formal Loom state machine architecture for emergent authority.
@@ -2249,8 +2282,8 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.20*
+*Document version: S2.22*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.20 formalizes Loom as complete state machine (DORMANT→WEAVING→ANCHOR→DISSOLVING) with explicit warmup period, stability requirements, and competition handling; adds Sections 3.4.2-3.4.3; claim 40 on weaving phase as physics test; total 50 prior art extension claims*
+*Revision notes: S2.22 adds Appendix D documenting counterintuitive value of B-grade hardware for protocol stress-testing (crystal ppm variance and LDO noise as free fault injection); total 50 prior art extension claims*
