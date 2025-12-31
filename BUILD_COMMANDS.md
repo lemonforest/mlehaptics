@@ -39,6 +39,20 @@
 | `minimal_ble_test` | **BLE Diagnostic** - NimBLE advertising + scanning with RSSI for RF testing | `pio run -e minimal_ble_test -t upload && pio device monitor` |
 | `minimal_wifi_test` | **WiFi Diagnostic** - 2.4GHz radio hardware validation (same radio as BLE) | `pio run -e minimal_wifi_test -t upload && pio device monitor` |
 
+### UTLP Protocol Development Environments
+
+| Environment | Purpose | Command |
+|-------------|---------|---------|
+| `utlp_esp32_devkit` | **ESP32 DevKit V1** - Full UTLP v2 with biological governance (Metabolic Ledger, Immune Checkpoint) | `pio run -e utlp_esp32_devkit -t upload && pio device monitor` |
+| `utlp_xiao_esp32c6` | **XIAO ESP32-C6** - UTLP v2 on project's primary hardware target | `pio run -e utlp_xiao_esp32c6 -t upload && pio device monitor` |
+| `utlp_skeleton` | **Native Simulator** - Cross-platform UTLP reference implementation (C64-compatible minimal) | `pio run -e utlp_skeleton` |
+| `utlp_skeleton_devkit` | **DevKit Skeleton** - Minimal UTLP skeleton running on ESP32 DevKit V1 | `pio run -e utlp_skeleton_devkit -t upload && pio device monitor` |
+
+**UTLP Documentation:**
+- Protocol Spec: `docs/UTLP_Specification.md`
+- Technical Supplement S2 (Biological Governance): `docs/UTLP_Technical_Supplement_S2.md`
+- Prior Art (163+ claims): `docs/Connectionless_Distributed_Timing_Prior_Art.md`
+
 ---
 
 ## Common Commands

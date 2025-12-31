@@ -1873,6 +1873,11 @@ This supplement establishes additional prior art for:
 73. **Body enables Mind**: Biological governance at timing layer frees application layer from keeping system alive—King doesn't remind subjects to breathe; political governance can focus on actual job (coordination, resource allocation, conflict resolution) because heartbeat is handled; robustness through separation
 74. **Cognition-governance honesty asymmetry**: Biology is honest because constrained by energy/physics (cannot afford to lie); politics can be "silly" because feedback loops long enough to sustain delusion; UTLP operates at timescales where thermodynamic honesty is enforced; application layer operates at timescales where agreement-based governance is appropriate
 
+### 8.21 Reference Implementation — Code-Level Specification (S2.30)
+75. **11-byte seismic chirp wire format**: Beacon contains stratum (1 byte), burst index (1 byte), genesis score (1 byte), TX timestamp (8 bytes little-endian); 3-burst pattern at 2ms spacing enables polynomial drift extraction (offset, drift rate, drift acceleration); fits single ESP-NOW frame
+76. **Dual constraint entrainment gate**: Active immunity requires BOTH token budget (internal constraint) AND quorum sensing (external constraint) before firing entrainment pulse; prevents both RF pollution (single aggressive node) and "Crazy Old Man" scenario (isolated drifted node attacking valid peers)
+77. **Time-indexed execution pattern**: Physical outputs computed from atomic time modulo period, not accumulated delays; `should_be_on = (atomic_now % period) < (period/2)`; drift-proof because state recalculated every tick from shared time reference; fundamental separation of "when" from "what"
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -3178,9 +3183,247 @@ The organism is complete.
 
 ---
 
+## Appendix K: Reference Implementation — Code-Level Specification
+
+*Extracted from working ESP32 implementation (December 2025)*
+
+### K.1 Beacon Wire Format
+
+The UTLP beacon is an 11-byte seismic chirp:
+
+```c
+#define UTLP_BEACON_SIZE        11
+
+// Byte offsets in beacon payload
+#define BEACON_OFF_STRATUM      0    // 1 byte: Stratum level
+#define BEACON_OFF_BURST        1    // 1 byte: Burst index (0, 1, 2)
+#define BEACON_OFF_SCORE        2    // 1 byte: Genesis score (0-255)
+#define BEACON_OFF_TIMESTAMP    3    // 8 bytes: TX timestamp (little-endian)
+```
+
+**Seismic Chirp Pattern:**
+- 3 bursts per beacon
+- 2ms spacing between bursts (6ms total)
+- Same TX timestamp in all 3 bursts (captured at chirp start)
+- Enables polynomial drift extraction: offset, drift rate, drift acceleration
+
+### K.2 Trust System Constants
+
+From `utlp_trust.h`:
+
+```c
+// Silicon Dunbar's Number
+#define UTLP_TRUST_MAX_PEERS    12      // Peer tracking slots
+
+// Health score range
+#define UTLP_TRUST_MAX          255     // Maximum health
+#define UTLP_TRUST_STARTUP      50      // Probationary trust (new peer)
+#define UTLP_TRUST_SYNC_THRESH  100     // Minimum to participate in sync
+#define UTLP_TRUST_MIN_VOTE     50      // Minimum to vote in consensus
+
+// Asymmetric trust dynamics (25:1 penalty ratio)
+#define UTLP_REWARD_TRUTH       2       // +2 for agreement within 2ms
+#define UTLP_COST_DRIFTING      10      // -10 for 2ms-100ms deviation
+#define UTLP_COST_LYING         50      // -50 for >100ms deviation
+```
+
+**Trust Mathematics:**
+```c
+// Peer selection score formula
+score = (health_score * 10) + (16 - stratum);
+
+// Example: Sick stratum-1 vs healthy stratum-2
+// Sick S1:    (50 * 10) + (16 - 1) = 515
+// Healthy S2: (200 * 10) + (16 - 2) = 2014
+// Result: Healthy stratum-2 wins (consistency beats proximity)
+```
+
+### K.3 Immune System Constants
+
+From `utlp_immune.h`:
+
+```c
+// Token bucket parameters
+#define UTLP_IMMUNE_BUDGET_MAX      5       // Max entrainment tokens
+#define UTLP_IMMUNE_REFILL_MS       12000   // 1 token per 12 seconds
+#define UTLP_IMMUNE_ANERGY_RECOVERY 3       // Exit anergy at 3 tokens
+```
+
+**State Machine:**
+```
+HEALTHY (tokens > 0) ──[can_defend()]──> HEALTHY (tokens--)
+         │
+         └──[tokens == 0]──> ANERGIC
+                                  │
+ANERGIC ──[tokens >= 3]──> HEALTHY (via tick refill)
+```
+
+### K.4 Genesis Pulse Intervals
+
+From `utlp.c`:
+
+```c
+#define GENESIS_PHASE_1_END_US      1000000ULL    //  1 second
+#define GENESIS_PHASE_2_END_US      5000000ULL    //  5 seconds
+#define GENESIS_PHASE_3_END_US     10000000ULL    // 10 seconds
+#define GENESIS_PHASE_4_END_US     60000000ULL    // 60 seconds
+
+#define BEACON_INTERVAL_PHASE_1_US    100000      // 100ms (genesis burst)
+#define BEACON_INTERVAL_PHASE_2_US    500000      // 500ms (fast convergence)
+#define BEACON_INTERVAL_PHASE_3_US   1000000      // 1s (settling)
+#define BEACON_INTERVAL_PHASE_4_US  10000000      // 10s (stabilizing)
+#define BEACON_INTERVAL_STEADY_US   60000000      // 60s (steady state)
+```
+
+### K.5 Core Algorithm: Beacon Processing
+
+```c
+static void process_beacon(const utlp_packet_t *pkt) {
+    // 1. Parse beacon
+    uint8_t remote_stratum = pkt->payload[BEACON_OFF_STRATUM];
+    uint64_t remote_tx_time = time_from_bytes(&pkt->payload[BEACON_OFF_TIMESTAMP]);
+
+    // 2. Update Metabolic Ledger
+    int32_t observed_offset = (int32_t)((int64_t)remote_tx_time - 
+                                         (int64_t)pkt->rx_timestamp_us);
+    utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
+
+    // 3. Evaluate entrainment (Active Immunity)
+    int64_t deviation_us = (int64_t)remote_tx_time - 
+                           ((int64_t)pkt->rx_timestamp_us + g_aatr.time_offset);
+    uint8_t peer_health = utlp_trust_get_peer_health(pkt->mac);
+    evaluate_entrainment_response(pkt->mac, peer_health, (int32_t)deviation_us);
+
+    // 4. Source selection (Adaptive Immunity)
+    utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
+    if (best && memcmp(best->mac, pkt->mac, 6) == 0) {
+        // Trusted peer - consider adoption
+        if (!utlp_trust_is_genesis_pulsing(best) &&
+            !utlp_trust_check_regression(best, (int64_t)remote_tx_time, now_ms)) {
+            should_adopt = true;
+        }
+    }
+    // ... stratum-based fallback (Innate Immunity)
+}
+```
+
+### K.6 Core Algorithm: Entrainment Decision
+
+```c
+static void evaluate_entrainment_response(const uint8_t *peer_mac,
+                                          uint8_t peer_health,
+                                          int32_t deviation_us) {
+    // TARGET: Only juveniles (low health)
+    if (peer_health > ENTRAINMENT_TARGET_MAX_HEALTH) return;  // 80
+
+    // SEVERITY: Only significant deviations
+    int32_t abs_deviation = (deviation_us < 0) ? -deviation_us : deviation_us;
+    if (abs_deviation < ENTRAINMENT_THRESHOLD_DRIFTING_US) return;  // 2000us
+
+    // DUAL CONSTRAINT CHECK
+    // Constraint 1: Internal (token bucket)
+    if (!utlp_immune_can_defend()) return;  // Budget exhausted
+
+    // Constraint 2: External (quorum sensing)
+    if (!utlp_trust_has_quorum(g_aatr.time_offset, 2000)) return;  // No support
+
+    // BOTH PASSED: Fire entrainment pulse
+    send_chirp();
+}
+```
+
+### K.7 Core Algorithm: Median Consensus
+
+```c
+bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
+    int32_t votes[UTLP_TRUST_MAX_PEERS];
+    int count = 0;
+
+    // Collect votes from healthy peers only
+    for (int i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 && 
+            g_peers[i].health_score >= UTLP_TRUST_MIN_VOTE) {
+            votes[count++] = g_peers[i].last_offset_us;
+        }
+    }
+
+    if (count == 0) return false;
+
+    // Sort and return median (Byzantine-resistant)
+    qsort(votes, count, sizeof(int32_t), compare_int32);
+    *out_consensus_offset = votes[count / 2];
+    return true;
+}
+```
+
+### K.8 Time-Indexed Execution Pattern
+
+```c
+static void run_physics(uint64_t atomic_now) {
+    // Calculate desired state from atomic time
+    uint32_t cycle_pos = (uint32_t)(atomic_now % BLINK_PERIOD_US);
+    bool should_be_on = (cycle_pos < (BLINK_PERIOD_US / 2));
+
+    // Apply only on state change
+    if (should_be_on != g_led_state) {
+        g_led_state = should_be_on;
+        // Set actuator...
+    }
+}
+```
+
+This pattern is **drift-proof** because output state is computed from shared atomic time, not accumulated delays.
+
+### K.9 Peer Ledger Structure
+
+```c
+typedef struct {
+    uint8_t  mac[6];              // Peer identifier
+    uint8_t  health_score;        // Trust level (0-255)
+    uint8_t  stratum_claim;       // Claimed stratum
+    int32_t  last_offset_us;      // Last observed offset
+    uint32_t last_seen_ms;        // LRU timestamp
+    uint32_t first_seen_ms;       // Age tracking
+    uint16_t interactions;        // Observation count
+    uint8_t  consecutive_hits;    // Agreement streak
+    int64_t  last_tx_time_us;     // For regression detection
+    uint16_t observed_interval_ms;// For genesis pulse detection
+} utlp_peer_ledger_t;
+```
+
+### K.10 Memory Footprint
+
+| Component | Bytes | Notes |
+|-----------|-------|-------|
+| Peer ledger | 12 × 36 = 432 | Static array |
+| Immune state | 8 | tokens + timestamp + flag |
+| Chirp accumulator | 40 | 3 RX timestamps + metadata |
+| Drift statistics | 64 | EMA accumulators |
+| Neighborhood table | 16 × 16 = 256 | Neighbor tracking |
+| **Total** | **~800** | No malloc required |
+
+### K.11 File Structure
+
+```
+utlp/
+├── utlp.c              # Core protocol engine (1316 lines)
+├── utlp_trust.c        # Metabolic Ledger (801 lines)
+├── utlp_trust.h        # Trust API + documentation (558 lines)
+├── utlp_immune.c       # Token bucket + anergy (120 lines)
+├── utlp_immune.h       # Immune API (200 lines)
+├── utlp_hal.h          # Platform abstraction (250 lines)
+├── utlp_hal_esp32.c    # ESP32 implementation (400 lines)
+├── utlp_main_esp32.c   # Entry point (20 lines)
+└── utlp_rfip.h         # Position stubs (150 lines)
+
+Total: ~3,815 lines of portable C
+```
+
+---
+
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, and the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer, and the Reference Implementation appendix documenting actual wire formats, constants, and algorithms from working ESP32 code.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -3188,8 +3431,9 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.29*
+*Document version: S2.30*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Revision notes: S2.29 adds Appendix J documenting Mind-Body architecture (layer-appropriate governance, scope clarification); claims 72-74 on biological vs political governance separation; total 74 prior art extension claims across 10 appendices (A-J)*
+*Repository: https://github.com/lemonforest/mlehaptics*
+*Revision notes: S2.30 adds Appendix K documenting Reference Implementation with actual code excerpts (wire format, constants, core algorithms); claims 75-77 on seismic chirp format, dual constraint gate, time-indexed execution; total 77 prior art extension claims across 11 appendices (A-K)*

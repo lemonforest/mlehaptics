@@ -523,12 +523,14 @@ utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac);
  * Used for macro-state logging and coherence alerts.
  */
 typedef struct {
-    uint8_t  healthy_peers;      /**< Peers with health >= SYNC_THRESH */
-    uint8_t  agreeing_peers;     /**< Healthy peers within ±2ms of consensus */
-    uint8_t  coherence_pct;      /**< Agreement rate: 100 * agreeing / healthy */
+    /* 4-byte fields first */
     int32_t  consensus_us;       /**< Current median consensus offset */
     int32_t  drift_spread_us;    /**< Max - min offset among healthy peers */
     uint32_t last_coherent_ms;   /**< Time since all healthy agreed (0 = now) */
+    /* 1-byte fields */
+    uint8_t  healthy_peers;      /**< Peers with health >= SYNC_THRESH */
+    uint8_t  agreeing_peers;     /**< Healthy peers within ±2ms of consensus */
+    uint8_t  coherence_pct;      /**< Agreement rate: 100 * agreeing / healthy */
     bool     is_coherent;        /**< True if coherence >= 80% */
 } utlp_coherence_t;
 

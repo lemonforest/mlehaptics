@@ -183,9 +183,11 @@ static const char *TAG = "UTLP";
  *==========================================================================*/
 
 typedef struct {
-    uint8_t  stratum;           /* My stratum level (distance from truth) */
+    /* 8-byte fields first */
     int64_t  time_offset;       /* Local + offset = atomic time (±292,471 years range) */
+    /* 1-byte fields and arrays */
     uint8_t  best_source_mac[6];/* MAC of best time source (biological, not "master") */
+    uint8_t  stratum;           /* My stratum level (distance from truth) */
 } aatr_state_t;
 
 static aatr_state_t g_aatr = {
@@ -289,11 +291,13 @@ static chirp_accumulator_t g_chirp_acc = {0};
 
 /** @brief Individual neighbor record */
 typedef struct {
+    /* 4-byte fields first */
+    uint32_t last_seen_us;          /* Low 32 bits of atomic time when last heard */
+    /* 1-byte fields and arrays */
     uint8_t  mac[UTLP_MAC_SIZE];    /* Neighbor's MAC address */
     uint8_t  stratum;               /* Their stratum level */
     uint8_t  score;                 /* Their genesis score (from beacon) */
     int8_t   rssi;                  /* Signal strength to them */
-    uint32_t last_seen_us;          /* Low 32 bits of atomic time when last heard */
     bool     valid;                 /* Slot in use? */
 } neighbor_t;
 

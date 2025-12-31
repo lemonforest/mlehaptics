@@ -73,10 +73,12 @@ extern "C" {
  * a confidence metric based on measurement quality.
  */
 typedef struct {
-    uint8_t  peer_mac[6];       /**< Peer's MAC address */
+    /* 4-byte fields first */
     int32_t  range_cm;          /**< Estimated range in centimeters */
-    uint8_t  confidence;        /**< Confidence level 0-100% */
     uint32_t last_update_ms;    /**< Timestamp of last measurement */
+    /* 1-byte fields and arrays */
+    uint8_t  peer_mac[6];       /**< Peer's MAC address */
+    uint8_t  confidence;        /**< Confidence level 0-100% */
 } utlp_rfip_range_t;
 
 /**
