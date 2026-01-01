@@ -243,6 +243,6 @@ The first device IS the atomic clock. Peers are optional enhancements, not requi
 ---
 
 *Document version: 1.0*
-*Parent: UTLP Technical Supplement S2.30*
+*Parent: UTLP Technical Supplement S2.32*
 *Implementation: ESP32-C6 / ESP-NOW*
 *Repository: https://github.com/lemonforest/mlehaptics/tree/main/examples/utlp*
