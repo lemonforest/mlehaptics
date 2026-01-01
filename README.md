@@ -440,7 +440,7 @@ This project developed foundational techniques for **connectionless distributed 
 
 - **[Connectionless Distributed Timing: A Prior Art Publication](docs/Connectionless_Distributed_Timing_Prior_Art.md)** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265): Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
 
-- **[Distributed Acoustic Sensing: A Project Lab Manual](docs/Distributed_Acoustic_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed acoustic sensing with synchronized wireless nodes. Scales from weekend science project to operational weather sensing (infrasound, wind mapping, tornado detection).
+- **[Distributed Sensing: A Project Lab Manual](docs/Distributed_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed sensing with synchronized wireless nodes. Covers acoustic beamforming, wind mapping, infrasound detection, mmWave radar for building occupancy/safety, and emergency response applications. Scales from weekend science project to operational systems.
 
 ### AI Collaboration & Methodology
 
