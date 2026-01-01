@@ -6,8 +6,6 @@
 
 **Parent Document:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265)
 
-**DOI:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18111583.svg)](https://doi.org/10.5281/zenodo.18111583)
-
 ---
 
 ## Scope
@@ -1890,9 +1888,11 @@ The Loom's responsibility extends beyond temporal entropy. It monitors **any dim
 | **Spectral** | RF congestion/jamming | Weave chirality | Channel divergence |
 
 78. **Channel 6 as dextral majority (Golden Path)**: In WiFi's non-overlapping channel space [1, 6, 11], channel 6 occupies the geometric center; all nodes bootstrap to channel 6 as the deterministic rendezvous point; this is the "dextral majority" where strangers meet and swarms coalesce; channel 6 is not chosen by configuration but by mathematical necessity—it is the only channel equidistant from both divergence options
-79. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; the Loom detects when the environment has become toxic (jammed) and weaves a new state—Sinistral (Channel 1) or Dextral (Channel 11); divergent nodes are the minority phenotype that survive congestion killing channel-6-only populations; chirality is determined at divergence, not chosen dynamically
-80. **Bridge nodes as hybrid zones**: Nodes maintaining presence on channel 6 serve as "hybrid zones" enabling gene flow (timing coherence) between divergent channel populations; channel 1 nodes and channel 11 nodes do not sync directly—they sync through bridge nodes on the golden path; this prevents complete speciation while allowing channel-local optimization; bridge role emerges from topology (nodes hearing multiple channel populations)
+79. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; the Loom detects when the environment has become toxic (jammed) and weaves a new phenotype—Sinistral (Channel 1) or Dextral (Channel 11); divergent nodes survive congestion that kills channel-6-only populations
+80. **Bridge nodes maintain swarm unity**: Nodes present on channel 6 enable communication between channel 1 and channel 11 populations; divergent nodes sync through the golden path, not directly with each other
 81. **Loom as generalized homeostatic mechanism**: The Loom weaves emergent states across ANY dimension of entity health, not just temporal; clock entropy produces Time Lords, spectral congestion produces channel chirality; the pattern is general—detect threat, weave response, maintain organism; future dimensions may include spatial (RFIP positioning), thermal (power management), or social (trust clustering)
+82. **MHC as biological encryption (500 million year prior art)**: Major Histocompatibility Complex is not *analogous* to encryption—it IS encryption; biology invented key-based authentication where shared secrets determine recognition, non-matching keys render signals invisible (not hostile), and the boundary defines "who can process this signal"; digital encryption reinvented the same primitive in the 1970s; same math, different substrate (protein folding vs. prime factorization); UTLP encryption keys are self-markers identical in function to MHC Class I surface proteins; this is not borrowing from biology but recognizing structural identity across domains
+83. **Synthesis observation — bidirectional recognition requires human prompting**: During collaborative development, the AI (Claude) naturally mapped UTLP encryption → MHC analogy but framed it as "technology borrowing from biology"; only when prompted to reverse the view did the deeper recognition emerge—that MHC IS encryption and the mapping is bidirectional; this illustrates that AI synthesis may find cross-domain connections but default to unidirectional framing; human architect role includes prompting for structural symmetry
 
 > *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
@@ -2517,6 +2517,10 @@ TARDIS = UTLP + RFIP
          (Time)  (Space)
          (When)  (Where)
 ```
+
+![TARDIS Bind-Rune](images/TARDIS_bind-rune.png)
+
+*The TARDIS bind-rune: Tiwaz (↑) for temporal authority pointing upward, inverted below for spatial grounding. The central crossing represents the convergence of time and space coordinates in a single swarm entity.*
 
 ### F.5 PCB Application
 
@@ -3449,9 +3453,9 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.31*
+*Document version: S2.32*
 *Last updated: December 2025*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*
-*Revision notes: S2.31 adds claims 78-81 on frequency-dependent selection for channel diversity—channel 6 as deterministic "Golden Path" (dextral majority), channels 1/11 as sinistral divergence under congestion pressure, bridge nodes as hybrid zones, and generalized Loom homeostasis across multiple threat dimensions; total 81 prior art extension claims across 11 appendices (A-K)*
+*Revision notes: S2.32 adds claims 82-83 on MHC as biological encryption (500M year prior art for key-based authentication) and synthesis observation documenting that AI found cross-domain connection but required human prompting for bidirectional recognition; total 83 prior art extension claims across 11 appendices (A-K)*
