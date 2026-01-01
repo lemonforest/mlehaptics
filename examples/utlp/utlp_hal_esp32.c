@@ -18,6 +18,7 @@
  */
 
 #include "utlp_hal.h"
+#include "rfip_hal.h"
 
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -162,6 +163,9 @@ static void espnow_recv_cb(const esp_now_recv_info_t *info,
     if (len > UTLP_MAX_PAYLOAD) {
         return;
     }
+
+    /* Record RSSI observation for RFIP spatial awareness */
+    rfip_record_observation(info->src_addr, info->rx_ctrl->rssi, (int64_t)rx_time);
 
     utlp_packet_t pkt = {
         .rx_timestamp_us = rx_time,

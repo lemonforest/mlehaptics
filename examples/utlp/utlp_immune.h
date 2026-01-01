@@ -159,6 +159,19 @@ extern "C" {
 #endif
 
 /*============================================================================
+ * STRUCT PACKING CONVENTION (Memory Alignment Optimization)
+ *
+ * Always order struct fields from largest to smallest alignment:
+ *   1. 8-byte fields first (int64_t, uint64_t, double, pointers on 64-bit)
+ *   2. 4-byte fields (int32_t, uint32_t, float)
+ *   3. 2-byte fields (int16_t, uint16_t)
+ *   4. 1-byte fields and arrays (uint8_t, bool, char[])
+ *
+ * This minimizes padding bytes inserted by the compiler for alignment.
+ * See utlp_trust.h for detailed example.
+ *==========================================================================*/
+
+/*============================================================================
  * CONFIGURATION
  *==========================================================================*/
 

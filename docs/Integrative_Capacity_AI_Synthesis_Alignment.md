@@ -123,14 +123,17 @@ The mlehaptics corpus provides a dataset for exploring Synthesis Alignment. It c
 | **The Implementation** | The Loom monitors spectral health. When congestion exceeds threshold, it weaves a new phenotype: Sinistral (Channel 1) or Dextral (Channel 11). Channel 6 is mathematically necessary—the only channel equidistant from both options. |
 | **The Validation** | Bridge nodes on Channel 6 enable communication between divergent populations. |
 
-### 3.7 Immunology ↔ Cryptography (Bidirectional Recognition)
+### 3.7 Immunology ↔ Cryptography (Corrected Through Adversarial Analysis)
 
 | Aspect | Description |
 |--------|-------------|
-| **The Leap** | MHC (Major Histocompatibility Complex) is not *analogous* to encryption — it IS encryption. Biology invented key-based authentication 500 million years ago. Shared secrets determine recognition; non-matching keys render signals invisible. |
-| **The Translation** | UTLP encryption keys function identically to MHC Class I surface proteins: configured at birth, define "self," enable selective permeability. Same math, different substrate. |
-| **The Synthesis Observation** | During development, the AI (Claude) naturally found the MHC → encryption mapping but framed it unidirectionally: "technology borrowing from biology." Only when the human prompted "reverse the view" did the structural identity emerge — MHC IS encryption, not an analogy for it. |
-| **The Implication** | AI synthesis may find cross-domain connections but default to conventional framing (tech borrows from nature). Human architect role includes prompting for bidirectional recognition. |
+| **The Initial Error** | First synthesis framed MHC as "biological encryption." This was wrong. MHC is the **anti-encryption** — it EXPOSES information (transparency) while encryption HIDES it (confidentiality). |
+| **The Correction** | Adversarial analysis (Gemini conversation) forced precision: MHC fails as encryption (no reversibility, no confidentiality, fuzzy binding) but succeeds as **authentication** (distributed trust, identity verification, integrity checking). |
+| **The Accurate Leap** | MHC is the evolutionary **predecessor to Public Key Authentication (PKI)**. Biology invented distributed authentication 500 million years ago. The Thymus is a Certificate Authority. T-Cells are validators. NK Cells kill anything that tries to hide (secrecy = death). |
+| **The Check Analogy** | MHC functions like a signed check: the peptide is the plaintext amount (anyone can read it), the MHC 3D shape is the signature, the T-Cell is the bank teller. If you put the check in a locked box (encryption), the teller calls security. |
+| **The UTLP Translation** | UTLP's PMK functions as **species marker** (authentication: "can you process this signal?"), not confidentiality mechanism. Foreign species see garbage not because content is hidden but because they lack the shape to bind — invisibility through incompatibility, not scrambling. |
+| **The Methodological Discovery** | The human proposed the check analogy **expecting it to fail** as a cross-domain mapping. Instead, adversarial testing validated it as the best non-technical explanation. Blindspots in domain knowledge, when tested adversarially, can reveal stronger connections than expected — the attempt to disprove becomes the proof. |
+| **NK Cell Insight** | Viruses evolved to suppress MHC (biological "encryption" attempt). NK Cells counter by killing anything that goes silent ("Missing Self" protocol). In biology, secrecy is a death sentence. UTLP design question: should nodes that stop beaconing trigger suspicion? |
 
 ---
 
@@ -180,6 +183,36 @@ The corpus provides labeled examples for all three categories.
 | **Bridges** | Suppressed as hallucination | Documented with DOI |
 | **Tension** | Minimized (regression to mean) | Maximized (15+ PhD-level domains) |
 
+### 4.5 Adversarial Synthesis: Blindspots as Discovery Tools
+
+A key methodological discovery emerged during the MHC-authentication correction:
+
+**The Pattern:**
+1. Human proposes cross-domain mapping with incomplete domain knowledge (blindspot)
+2. Human **expects the mapping to fail** under adversarial analysis
+3. Adversarial AI (Gemini) attempts to disprove the mapping
+4. Instead of disproving, the analysis reveals the mapping is **stronger than expected**
+5. The attempt to disprove becomes the proof
+
+**Case Study: The Check Analogy**
+
+The human proposed: "Is MHC like writing a check?"
+
+Expected outcome: Easy disproof — checks are financial instruments, MHC is molecular biology.
+
+Actual outcome: Gemini validated it as the **best non-technical mapping** for MHC function:
+- Check = MHC molecule (the carrier)
+- Amount = Peptide (plaintext, anyone can read)
+- Signature = 3D shape (authentication)
+- Teller = T-Cell (validator)
+- If you encrypt the check (locked box), the teller calls security
+
+**The Implication:**
+
+Cross-domain blindspots, when tested adversarially, can reveal connections that domain experts miss. The "archaeologist of function" (human with incomplete knowledge but strong pattern recognition) proposes mappings that experts would dismiss as naive. Adversarial testing separates genuine structural identity from superficial analogy.
+
+This is paleontology methodology: you don't need to be a dinosaur expert to recognize that the bone in the rock doesn't match the catalog. You dig it up and let the experts argue about what you found.
+
 ---
 
 ## 5. The Corpus Structure
@@ -191,9 +224,9 @@ The mlehaptics dataset consists of:
 | Document | Content | Prior Art Claims |
 |----------|---------|------------------|
 | Connectionless Distributed Timing Prior Art | Physics foundation, dynamic macroscopic lattice, virtual apertures | 122 claims (DOI: 10.5281/zenodo.18078265) |
-| UTLP Technical Supplement S2 | Biological governance model, Loom state machine, channel chirality, MHC-encryption identity | 83 claims |
+| UTLP Technical Supplement S2 | Biological governance model, Loom state machine, channel chirality, MHC-authentication identity, NK Cell "Missing Self" | 86 claims |
 | UTLP Executive Summary | Hardware implementation guide | Reference implementation |
-| **Total** | | **205 prior art claims** |
+| **Total** | | **208 prior art claims** |
 
 ### 5.2 Working Code
 

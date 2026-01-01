@@ -388,7 +388,69 @@ emergent state, not the pattern of detection and response.
 > it observes stability and lets structure emerge."*
 
 **Implementation Status:** Temporal Loom complete (trust module); Spectral Loom
-stubbed (chirality functions); Spatial/Thermal/Social Looms are future work.
+stubbed (chirality functions); **Spatial Loom in progress** (RFIP HAL layer);
+Thermal/Social Looms are future work.
+
+### The Spatial Loom (RFIP)
+
+The **Spatial Loom** weaves position from observation entropy. Just as the
+Temporal Loom produces Time Lords from clock stability, the Spatial Loom
+produces position estimates from ranging observations.
+
+**RFIP (Reference Frame Independent Positioning)** is the spatial threat domain:
+
+```
++-------------------+------------------------+-------------------+
+|  Threat Domain    |    Entropy Signal      |  Emergent State   |
++-------------------+------------------------+-------------------+
+|  Temporal         | Clock drift/instability| Time Lord (Anchor)|
+|  Spectral         | RF congestion/jamming  | Channel divergence|
+|  **Spatial**      | Position uncertainty   | RFIP coordinates  |
++-------------------+------------------------+-------------------+
+```
+
+#### Data Hierarchy (Build from Always-Available)
+
+| Layer | Source | Precision | Always Available | Status |
+|-------|--------|-----------|------------------|--------|
+| 0 | **RSSI** | ~3-5m | ✓ | Phase 1 |
+| 1 | **RSSI differential** | ~1-3m | ✓ | Phase 1 |
+| 2 | **TDoA from UTLP beacons** | ~30cm | ✓ | Phase 3 |
+| 3 | **CSI** | ~50cm-1m | ✓ (ESP32) | Phase 2 |
+| 4 | **Multipath signatures** | Fingerprint | ✓ (learned) | Phase 6 |
+| 5 | **802.11mc FTM** | ~10-50cm | Platform-dependent | Phase 4 |
+| 6 | **UWB (DW3000)** | ~10cm | Add-on | Phase 5 |
+
+**Philosophy:** Build from always-available sources (RSSI, CSI, TDoA). Let
+802.11mc/UWB calibrate and enhance, not replace.
+
+#### The "Chaos Monkey" Principle
+
+ESP32 DevKit V1 has **NO FTM support**. It serves as the "Chaos Monkey":
+if RFIP works on DevKit V1 using only RSSI/CSI/TDoA, the core algorithm
+is sound. FTM then becomes calibration, not foundation.
+
+#### Silicon Revision Detection
+
+ESP32-C6 has known errata for FTM:
+- **ECO0/ECO1 (v0.0-0.1):** FTM initiator broken (T3 timestamp errata)
+- **ECO2+ (v0.2+):** FTM initiator FIXED
+
+The HAL queries silicon revision at boot and advertises accurate capabilities.
+XIAO ESP32-C6 ships with ECO2 silicon (verified).
+
+#### Deviations from RFIP Tech Spec
+
+Items implemented but not yet in `docs/RFIP_Technical_Specification.md`:
+
+| Deviation | Description | Priority |
+|-----------|-------------|----------|
+| **Time Sync Extraction** | NTP-style offset from FTM T1-T4 timestamps | HIGH |
+| **FTM Session Structures** | Detailed `rfip_ftm_measurement_t` with T1-T4 ps | MEDIUM |
+| **Metrics Structure** | `rfip_metrics_t` for data logging | MEDIUM |
+
+**See:** `rfip_hal.h` for structures, `docs/RFIP_Technical_Specification.md`
+for master spec.
 
 ### Simulation (`sim/genesis_reset_antiphase.py`)
 
@@ -406,7 +468,9 @@ Python simulation for testing Byzantine scenarios:
 | `utlp_immune.h/c` | Immune Checkpoint (token bucket, anergy) |
 | `utlp_hal.h` | HAL interface contract (time, radio, actuator) |
 | `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM) |
-| `utlp_rfip.h` | Reference Frame Independent Positioning (stub) |
+| `utlp_rfip.h` | RFIP types and stub API (ranges, anchors, positions) |
+| `rfip_hal.h` | **RFIP HAL** (capability detection, observation types) |
+| `rfip_hal.c` | RFIP HAL implementation (runtime silicon detection) |
 | `utlp_main_esp32.c` | Platform entry point (`app_main()`) |
 | `sim/genesis_reset_antiphase.py` | Python simulation for Byzantine testing |
 | `sim/SIMULATION_RESULTS.md` | Detailed simulation analysis |
@@ -472,11 +536,22 @@ void utlp_app_run(void);
 
 ## Future Work
 
+### Temporal Loom
 - **Automatic failover:** Timeout-based re-election when Genesis goes offline
 - **GPS stratum-0:** External time reference integration
 - **Drift compensation:** Use tracked drift rate for active clock correction
 - **Panic Response:** Stratum 255 "Help!" signal for rescue chirps
+
+### Spectral Loom
 - **Channel chirality:** Dynamic channel divergence under congestion pressure
+
+### Spatial Loom (RFIP)
+- **CSI integration:** Subcarrier-level ranging and motion detection (Phase 2)
+- **TDoA from UTLP beacons:** Position from arrival time differences (Phase 3)
+- **802.11mc FTM:** High-precision ranging as calibration layer (Phase 4)
+- **UWB integration:** DW3000 for centimeter-level ranging (Phase 5)
+- **RF Tomography:** Mesh as distributed radar for presence detection (Phase 6)
+- **Multipath fingerprinting:** Location recognition from RF signatures (Phase 6)
 
 ## Channel Chirality (S2.31)
 

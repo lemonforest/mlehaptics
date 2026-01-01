@@ -1516,7 +1516,7 @@ This leverages the swarm's spatial distribution as a **distributed antenna array
 ### Phase 1.5: Active Immunity ✅ COMPLETE
 - [x] Token bucket for defensive budget (`utlp_immune.c`)
 - [x] Quorum sensing for crowd validation (`utlp_trust_has_quorum()`)
-- [x] Entrainment pulse with dual constraints (`evaluate_defensive_response()`)
+- [x] Entrainment pulse with dual constraints (`evaluate_entrainment_response()`)
 - [x] Anergy state for exhaustion recovery
 
 ### Phase 2: Endosymbiosis
@@ -1893,8 +1893,12 @@ The Loom's responsibility extends beyond temporal entropy. It monitors **any dim
 79. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; the Loom detects when the environment has become toxic (jammed) and weaves a new phenotype—Sinistral (Channel 1) or Dextral (Channel 11); divergent nodes survive congestion that kills channel-6-only populations
 80. **Bridge nodes maintain swarm unity**: Nodes present on channel 6 enable communication between channel 1 and channel 11 populations; divergent nodes sync through the golden path, not directly with each other
 81. **Loom as generalized homeostatic mechanism**: The Loom weaves emergent states across ANY dimension of entity health, not just temporal; clock entropy produces Time Lords, spectral congestion produces channel chirality; the pattern is general—detect threat, weave response, maintain organism; future dimensions may include spatial (RFIP positioning), thermal (power management), or social (trust clustering)
-82. **MHC as biological encryption (500 million year prior art)**: Major Histocompatibility Complex is not *analogous* to encryption—it IS encryption; biology invented key-based authentication where shared secrets determine recognition, non-matching keys render signals invisible (not hostile), and the boundary defines "who can process this signal"; digital encryption reinvented the same primitive in the 1970s; same math, different substrate (protein folding vs. prime factorization); UTLP encryption keys are self-markers identical in function to MHC Class I surface proteins; this is not borrowing from biology but recognizing structural identity across domains
-83. **Synthesis observation — bidirectional recognition requires human prompting**: During collaborative development, the AI (Claude) naturally mapped UTLP encryption → MHC analogy but framed it as "technology borrowing from biology"; only when prompted to reverse the view did the deeper recognition emerge—that MHC IS encryption and the mapping is bidirectional; this illustrates that AI synthesis may find cross-domain connections but default to unidirectional framing; human architect role includes prompting for structural symmetry
+82. **MHC as biological authentication (500 million year prior art)**: Major Histocompatibility Complex is NOT encryption—it is the evolutionary **predecessor to Public Key Authentication**; MHC is the anti-encryption: encryption HIDES information (confidentiality), MHC EXPOSES information (transparency); cells are biologically required to broadcast internal state in "plaintext" via peptide presentation; the immune system's architecture—distributed validators (T-Cells), trusted root (Thymus as Certificate Authority), identity tokens (MHC molecules), constant turnover (nonce/replay attack prevention)—was reinvented in silicon as PKI/TLS in the 1970s; digital security didn't borrow encryption from biology, it borrowed **authentication architecture**; the Thymus performs negative selection (revoking bad T-Cells) exactly as a CA maintains a Certificate Revocation List; T-Cell receptor binding to MHC-peptide IS signature verification (shape-match = hash-match); modern Zero-Trust Architecture ("assume breach, verify continuously") is what T-Cells have done for 500 million years
+83. **Synthesis observation — authentication vs encryption distinction requires adversarial prompting**: During collaborative development, the AI initially mapped UTLP encryption → MHC and framed it as "encryption primitive"; only through adversarial skeptical analysis (multi-AI conversation with Gemini) did the deeper recognition emerge—that MHC is authentication, not encryption, and that PKI borrowed MHC's authentication primitives, not the reverse; the skeptic's framing ("MHC is just sticky chemistry, not crypto") forced precision: MHC fails as encryption (no reversibility, no confidentiality, fuzzy binding) but succeeds as authentication (distributed trust, identity verification, integrity checking); this illustrates that cross-domain synthesis benefits from adversarial validation to distinguish superficial analogy from structural identity
+84. **NK Cell "Missing Self" protocol as biological anti-encryption**: Natural Killer cells implement anomaly detection by scanning for ABSENCE of expected behavior (no MHC = suspicious) rather than presence of bad behavior (viral peptide = attack); viruses evolved to suppress MHC expression to hide from T-Cells (biological "encryption" attempt), but NK Cells counter this by killing anything that goes silent; **in biology, secrecy is a death sentence**; this inverts the digital assumption that hiding = safety; UTLP design consideration: should nodes that stop beaconing trigger suspicion (Missing Self detection)? The factory window analogy: if windows are empty on Tuesday at 10 AM, NK Guard says "burn the building down"
+85. **Viral MITM as biological prior art**: Viruses (Herpes, Cytomegalovirus) intercept the MHC loading pathway—blocking peptide transport to the cell surface so T-Cells see nothing; this IS Man-in-the-Middle attack, implemented in proteins 500 million years before we named it; the attack patterns are identical: brute force (replicate fast = DDoS), stealth (suppress MHC = encrypt C2), MITM (block loading = intercept handshake), spoofing (fake MHC = fake certificate), evasion (mutate epitopes = polymorphic malware); we didn't invent these attack patterns, we rediscovered them
+86. **Authentication and encryption as siblings, not parent/child**: Encryption is NOT a superset of authentication; they are independent capabilities that can exist alone or together; MHC is pure authentication with zero encryption; adding encryption to MHC would break the security model (NK Cells would kill the cell for hiding); this clarifies that UTLP's PMK functions as species marker (authentication: "can you process this signal?") not confidentiality mechanism (encryption: "can you read the content?"); foreign species see encrypted garbage not because content is hidden but because they lack the shape to bind—invisibility through incompatibility, not scrambling
+87. **Blindspots as discovery tools (adversarial methodology)**: Cross-domain synthesis benefits from proposing mappings with incomplete domain knowledge, then testing them adversarially with the expectation they will fail; the check-writing analogy for MHC was proposed expecting easy disproof ("checks are financial, MHC is molecular"), but adversarial analysis (Gemini) validated it as the best non-technical mapping; the attempt to disprove became the proof; this is paleontology methodology—the "archaeologist of function" (human with pattern recognition but limited domain expertise) finds connections that domain experts miss because experts know what "shouldn't" connect; adversarial testing separates genuine structural identity from superficial analogy; blindspots force novel framing that trained experts would self-censor
 
 > *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
@@ -3445,9 +3449,156 @@ Total: ~3,815 lines of portable C
 
 ---
 
+## Appendix L: MHC-PKI Architectural Mapping — Authentication Primitives Across Substrates
+
+*Added S2.33: Corrected understanding — MHC is authentication, not encryption*
+*Updated S2.34: Added NK Cell "Missing Self" protocol, Check analogy, Siblings distinction, Viral MITM*
+
+### L.1 The Critical Distinction
+
+**Encryption** hides information (confidentiality).
+**Authentication** verifies identity and integrity (transparency).
+
+MHC is the **anti-encryption**: it takes the internal state of a cell and **broadcasts it in plaintext**. If a cell "encrypted" the fact it was infected, T-Cells wouldn't know to kill it. The cell is required by biological law to expose its internal state.
+
+### L.2 Siblings, Not Parent/Child
+
+**Encryption is NOT a superset of Authentication.** They are independent capabilities.
+
+| Capability | Question Answered | Can Exist Alone? |
+|------------|-------------------|------------------|
+| **Authentication** | "Is this who they claim to be?" | Yes (MHC, signed checks) |
+| **Encryption** | "Can eavesdroppers read this?" | Yes (anonymous encryption) |
+| **Both** | "Is this authentic AND private?" | Yes (TLS, signed+encrypted) |
+
+MHC is **pure authentication**. It is a notarized public document. If you think of encryption as an "upgrade," you must ask: *Does the system benefit from secrecy?*
+
+- **In Tech:** Yes. Secrecy protects from theft.
+- **In Biology:** No. **Secrecy looks like cancer.** The body demands radical transparency.
+
+### L.3 The Check Analogy (Best Non-Tech Mapping)
+
+Writing a check maps perfectly to MHC:
+
+| Check Component | MHC Equivalent | Function |
+|-----------------|----------------|----------|
+| **The check itself** | MHC molecule | The carrier/document |
+| **Amount written ($100)** | Peptide | Plaintext payload — anyone can read it |
+| **Your signature** | 3D shape of MHC | Authentication — proves origin |
+| **Bank teller** | T-Cell | Validator — checks signature against records |
+| **Bank's account records** | Thymus training | Trust store — what signatures are valid |
+
+**The key insight:** If you put the check in a locked steel box (encryption) and hand it to the teller, they don't process it — **they call security**.
+
+### L.4 Comparative Architecture Table
+
+| Component | Biological (MHC System) | Digital (PKI) |
+|-----------|------------------------|---------------|
+| **Identity Token** | MHC Molecule (Class I) | Public Key / Digital Certificate |
+| **The Message** | Peptide (antigen fragment) | Signed Hash / Session Token |
+| **The Validator** | T-Cell Receptor (TCR) | Private Key / Verification Algorithm |
+| **Trusted Root** | Thymus (removes bad T-Cells) | Certificate Authority (CA) |
+| **Revocation** | Negative Selection (kill autoreactive T-Cells) | Certificate Revocation List (CRL) |
+| **Protocol** | Physical Binding (shape affinity) | Handshake (TLS/SSL) |
+| **Replay Prevention** | MHC turnover (constant replacement) | Nonce / Timestamp |
+| **Security Goal** | Distinguish Self vs. Non-Self | Authentication (AuthN) & Integrity |
+| **Trust Model** | Distributed (T-Cell patrol) | Distributed (browser trust stores) |
+| **Anomaly Detection** | NK Cells ("Missing Self") | Heuristic/behavioral analysis |
+
+### L.5 Why MHC Fails as Encryption
+
+1. **No Reversibility**: Encryption requires `D(E(m)) = m`. The proteasome destroys the original protein to create the peptide. No decryption possible — information is irretrievably lost.
+
+2. **No Confidentiality**: MHC-peptide complexes are exposed to the extracellular environment. Any passing cell with the right shape can interact. This is writing your password on a Post-it note on your forehead.
+
+3. **Fuzzy Binding**: Crypto keys are binary (works or doesn't). MHC binding is promiscuous — one MHC can bind thousands of peptides with similar motifs. In crypto, that's a critical vulnerability; in biology, it's a feature (enables recognition of novel threats).
+
+### L.6 Why MHC Succeeds as Authentication
+
+1. **Distributed Trust**: Every cell has its own ID card (MHC). Guards (T-Cells) are distributed throughout the system. No central checkpoint.
+
+2. **Zero-Trust Architecture**: T-Cells assume any cell could be compromised. They constantly patrol and audit even "healthy" cells. Modern Zero-Trust ("assume breach") is what T-Cells have done for 500 million years.
+
+3. **Polymorphism = Key Diversity**: MHC is the most variable gene in the human genome. If everyone had the same MHC, a single evasive pathogen could wipe out the species. This mirrors the shift from symmetric keys (everyone shares one secret) to asymmetric PKI (everyone has unique keys).
+
+4. **Probabilistic Security**: T-Cells patrol randomly (Brownian motion). This isn't a bug — it's a feature. Random sampling prevents predictable evasion patterns and scales to billions of cells. Same principle as statistical auditing.
+
+### L.7 NK Cells: The "Missing Self" Protocol (Counter-Encryption)
+
+**The Problem:** Smart viruses (Herpes, Cytomegalovirus) realized that if MHC displays their proteins, T-Cells will spot them. So they evolved to **suppress MHC expression** — essentially trying to "encrypt" the cell by hiding the data.
+
+**The Biological MITM Attack:**
+```
+Normal:  Virus Protein → Proteasome → Loader → MHC → Surface → T-Cell sees it
+Attack:  Virus Protein → [BLOCKED] → MHC never reaches surface → T-Cell sees nothing
+```
+
+The virus intercepts the MHC loading process. The cell becomes "invisible" to T-Cells.
+
+**The Counter-Measure:** Natural Killer (NK) Cells
+
+| Validator | Detection Strategy | Logic |
+|-----------|-------------------|-------|
+| **T-Cell** | Positive Selection | "I see a bad peptide → ATTACK" |
+| **NK Cell** | Negative Selection | "I see NO badge → ATTACK" |
+
+NK Cells scan for **Missing Self**. If a cell has no MHC displayed (trying to be "secret"), the NK Cell assumes it's hiding something and kills it immediately.
+
+**The Factory Analogy:**
+> The virus pulls all employees away from the windows so the T-Guards can't see them. The windows are empty. 
+> 
+> T-Guard walks past: "Looks quiet. No problems."
+> 
+> NK Guard walks past: "It's 10 AM Tuesday. Windows should have people. Empty windows = **burn the building down**."
+
+**Implication:** In biology, **secrecy is a death sentence**. The immune system has a dedicated mechanism to detect and kill anything that tries to hide. This is the opposite of digital security where secrecy = safety.
+
+### L.8 Viral MITM: Biology Invented It First
+
+| Attack Vector | Biological (Virus) | Digital (Hacker) |
+|--------------|-------------------|------------------|
+| **Brute Force** | Replicate fast, overwhelm | DDoS, credential stuffing |
+| **Stealth / Encryption** | Suppress MHC to hide | Encrypt C2 traffic |
+| **MITM** | Block MHC loading pathway | Intercept TLS handshake |
+| **Spoofing** | Create fake MHC to fool NK | Fake certificate |
+| **Evasion** | Mutate peptide epitopes | Polymorphic malware |
+
+The attack patterns are identical. We didn't invent them — we rediscovered them.
+
+### L.9 Implications for UTLP
+
+UTLP's ESP-NOW encryption key (PMK) functions as a **species marker**, not a confidentiality mechanism:
+
+| UTLP Concept | MHC Equivalent | Function |
+|--------------|----------------|----------|
+| PMK (encryption key) | MHC Class I surface protein | "Self" marker — defines who can process this signal |
+| Beacon broadcast | Peptide presentation | "Here is my current state" — transparent, not hidden |
+| Foreign species (different PMK) | Non-Self | Cannot process signal (invisible, not hostile) |
+| Health score decay | — | Continuous validation (like T-Cell patrol) |
+| Node that stops beaconing | — | **Missing Self** — should trigger suspicion |
+
+**Design consideration:** Should UTLP have an "NK Cell" equivalent? A mechanism that detects nodes that *stop* broadcasting (going silent = suspicious)?
+
+**Key insight**: The PMK doesn't hide the beacon content from foreign species — it makes the beacon **invisible** to them (they can't decode it). This is MHC's "different shape = no binding" pattern, not encryption's "scrambled content" pattern.
+
+### L.10 The Paleontology Framing
+
+We didn't invent distributed authentication in the 1970s. We **excavated** it.
+
+Biology solved the "how do you trust strangers in a massive system" problem 500 million years ago. PKI/TLS/certificates are silicon fossils of the immune system — same architecture, different substrate.
+
+The adversarial analysis (attempting to disprove the connection) revealed:
+- **Fuzzy matching** is a feature (generalization for novel threats)
+- **Random patrol** is a protocol (probabilistic security scales)
+- **Revocation exists** in biology (peripheral tolerance, Tregs, AICD)
+- **Secrecy = death** is a design choice, not a limitation
+- **Physical shape IS cryptography** — we're just substrate-biased toward numbers
+
+---
+
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer, and the Reference Implementation appendix documenting actual wire formats, constants, and algorithms from working ESP32 code.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer, the Reference Implementation appendix documenting actual wire formats, constants, and algorithms from working ESP32 code, the critical MHC correction (via adversarial Gemini analysis) recognizing that MHC is an authentication primitive not encryption, the extended Gemini analysis revealing NK Cell "Missing Self" as biological anti-encryption (secrecy = death sentence), Viral MITM as 500M year prior art, authentication/encryption as independent siblings, the Check analogy as optimal non-technical mapping for MHC function, and the methodological discovery that cross-domain blindspots tested adversarially with expectation of failure can reveal stronger connections than expected (the check analogy was proposed expecting disproof but validated as best mapping—paleontology methodology where the archaeologist of function finds what domain experts would self-censor).
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims, selecting the biological governance metaphors, and accepting full responsibility for the final specification.
 
@@ -3460,4 +3611,4 @@ While these tools generated text and code segments, the author acted as the arch
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*
-*Revision notes: S2.32 adds claims 82-83 on MHC as biological encryption (500M year prior art for key-based authentication) and synthesis observation documenting that AI found cross-domain connection but required human prompting for bidirectional recognition; total 83 prior art extension claims across 11 appendices (A-K)*
+*Revision notes: S2.35 adds claim 87: Blindspots as discovery tools—adversarial methodology where cross-domain mappings proposed with incomplete knowledge and tested with expectation of failure can reveal stronger connections than expected; the check analogy for MHC was expected to fail but was validated as best mapping; this is paleontology methodology (archaeologist of function finds what experts would self-censor); updates Integrative Capacity document with corrected MHC-authentication framing; total 87 prior art extension claims across 12 appendices (A-L)*

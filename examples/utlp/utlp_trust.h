@@ -304,6 +304,28 @@ uint64_t utlp_hal_get_micros(void);
 
 /*============================================================================
  * DATA STRUCTURES
+ *
+ * STRUCT PACKING CONVENTION (Memory Alignment Optimization):
+ * Always order struct fields from largest to smallest alignment:
+ *   1. 8-byte fields first (int64_t, uint64_t, double, pointers on 64-bit)
+ *   2. 4-byte fields (int32_t, uint32_t, float)
+ *   3. 2-byte fields (int16_t, uint16_t)
+ *   4. 1-byte fields and arrays (uint8_t, bool, char[])
+ *
+ * This minimizes padding bytes inserted by the compiler for alignment,
+ * reducing memory footprint on embedded systems.
+ *
+ * Example - BAD (15 bytes + 5 padding = 20 bytes):
+ *   uint8_t  a;     // 1 byte + 7 padding
+ *   uint64_t b;     // 8 bytes
+ *   uint8_t  c;     // 1 byte + 3 padding
+ *   uint32_t d;     // 4 bytes
+ *
+ * Example - GOOD (15 bytes + 1 padding = 16 bytes):
+ *   uint64_t b;     // 8 bytes
+ *   uint32_t d;     // 4 bytes
+ *   uint8_t  a;     // 1 byte
+ *   uint8_t  c;     // 1 byte + 2 padding (at end, unavoidable)
  *==========================================================================*/
 
 /**
