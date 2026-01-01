@@ -6,7 +6,7 @@
 
 **Parent Document:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265)
 
-**DOI:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18112882.svg)](https://doi.org/10.5281/zenodo.18112882)
+**DOI:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18120833.svg)](https://doi.org/10.5281/zenodo.18120833)
 
 ---
 
