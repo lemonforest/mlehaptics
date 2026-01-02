@@ -1911,6 +1911,28 @@ The Loom's responsibility extends beyond temporal entropy. It monitors **any dim
 95. **Passive Proprioception extended to geological sensing**: Technical Supplement S2 defines Passive Proprioception as sensing via timing mesh distortion; **extension**: the same principle applies to geological/structural monitoring; seismic waves traveling at 3 km/s through ground create measurable timing perturbations in the UTLP mesh; a distributed mesh becomes a seismic wavefront imager without dedicated seismometers; **applications**: bridge structural monitoring (settlement, strain), landslide early warning (slope creep), building foundation monitoring, infrastructure health (dams, tunnels), seismic wavefront imaging; this extends "breathing detection" (Part 9 building safety) to "Earth breathing detection"
 96. **Adversarial refinement as claim strengthening (Red Team methodology)**: The structural/geological monitoring claims were refined through explicit adversarial process; **Round 1**: attacks on "rain kills 60 GHz links" were invalid—attacked wrong layer (mmWave is sensor, not link); **Round 2**: attacks on "bandwidth mismatch" were invalid—UTLP doesn't carry sensor payload; **Round 3**: attacks on "UTLP can't carry radar data" were category errors ("NTP is broken because it can't carry 4K video"); **valid attacks that survived**: thermal transients from duty cycling, dielectric shift from rain, surface noise vs. deep signal; these led to honest scope limitation (seismology yes, geodesy no); **methodology lesson**: clarifying architecture defeats structural attacks; valid attacks lead to scope limitations that strengthen final claim; "works for X, not Y" is stronger than "works for everything"; the claim is defensible because it survived adversarial refinement, not because it was never attacked
 
+### 8.25 Planetary Stethoscope: Subsea Cable Sensing (S2.43)
+
+Core thesis: Utilizing Voltage Compliance Spectroscopy and Common-Mode Rejection to harvest planetary signals from subsea power feeds. Subsea fiber optic cables are typically viewed as data pipes (photons), but their power conductors (copper) form ~6,000 km conductive loops. By treating the Power Feed Equipment (PFE) as a high-precision sensor, we can extract geophysical data.
+
+97. **Parasitic Planetary Sensing via Voltage Spectroscopy**: A method for monitoring geophysical events by analyzing the Voltage Compliance Noise of Constant-Current Subsea Power Feeds, distinguishing this from traditional current monitoring or direct acoustic sensing. Because Power Feed Equipment (PFE) maintains constant current (I), load changes manifest as fluctuations in the Voltage (V) required to maintain that current—the "noise" becomes the signal.
+
+98. **Differential Space-Veto Tsunami Warning**: A system for identifying tsunami magnetic precursors (Bz) that mathematically subtracts ionospheric space weather signals (derived from satellite or land-based reference magnetometers) to prevent false positives. Signal_Cable (High) + Signal_Satellite (Low) = Tsunami (Alarm); Signal_Cable (High) + Signal_Satellite (High) = Solar Storm (Ignore). Enables speed-of-light detection of water column movement.
+
+99. **Tidally De-Convolved AMOC Monitoring (Ocean Dynamo)**: A method for isolating the motional induction voltage of the Gulf Stream/Atlantic Meridional Overturning Circulation by using known gravitational tidal phases as a "Lock-In Amplifier" reference—correlating voltage baseline against lunar tidal phases isolates the DC offset (steady-state transport) from AC noise (tides).
+
+100. **Traffic Mapping via Voltage Phase Reflectometry**: A method for spatially resolving internet traffic density by measuring the phase delay of the voltage compliance response in the power feed. By performing Frequency Domain Reflectometry (FDR) on PFE voltage ripple—injecting a pilot tone and measuring phase lag of compliance response—the system resolves which repeater segments experience high packet-switching loads.
+
+101. **Global Temperature via Schumann Resonance Reception**: A method for utilizing subsea cable loops as receivers for Global Electric Circuit (GEC) standing waves, enabling planetary-scale temperature monitoring through the Earth-ionosphere waveguide.
+
+102. **Bio-Mechanical Jitter Detection (Indirect Biophony)**: A method for inferring ocean ecosystem health by monitoring Intermodulation Distortion (IMD) on the power line caused by mechanical vibration of repeaters in high-noise biological environments. Direct acoustic monitoring fails due to cable capacitance low-pass filtering; instead, aggregate acoustic pressure physically vibrates repeater casings at ELF frequencies, modulating amplifier PSRR. Cessation of this "mechanical jitter" indicates ecosystem collapse ("Dead Zone" detection).
+
+103. **Triboelectric Predator Indexing**: A method for tracking large marine life interactions (sharks, whales) by counting ULF triboelectric voltage spikes generated by physical impact with cable insulation. Sharks investigating cables via electroreception create piezoelectric transients distinct from other noise sources—apex predator density indexed by "triboelectric thump" count.
+
+### 8.26 Methodology Note: Purple Teaming
+
+**Note (not a claim):** This project uses **Purple Teaming** (established cybersecurity methodology) for AI-assisted design review. Purple Team = Red Team (find flaws) + Blue Team (propose fixes) operating simultaneously. Unlike Red Team alone which outputs binary pass/fail, Purple Team requires each objection to include a physics-compliant alternative. This is not novel—it is standard practice adopted for AI collaboration. The term and methodology predate this work. Always request Purple Team when seeking actionable improvement; Red Team alone demolishes without rebuilding.
+
 > *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
 ---
@@ -3727,7 +3749,7 @@ Reverse the mapping:
 
 | Forward (A → B) | Reverse (B → A) | Conclusion |
 |-----------------|-----------------|------------|
-| "MHC is like Encryption" | "Encryption is a subset of Authentication. MHC is pure Authentication." | Biology invented PKI, not Encryption |
+| "MHC is like Encryption" | "Authentication and encryption are independent siblings; MHC is pure Authentication (zero encryption)." | Biology invented PKI, not Encryption |
 | "Firefly sync is like UTLP" | "UTLP implements firefly pulse-coupling with substrate adaptations" | 100M year prior art for distributed timing |
 
 **The Heuristic: Superficial Analogy vs. Structural Isomorphism**
@@ -4080,9 +4102,9 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.41*
+*Document version: S2.43*
 *Last updated: January 2026*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*
-*Revision notes: S2.41 adds claims 92-95: Ground-based distributed InSAR via consumer hardware (same math as $500M satellites, $50-100/node, valid for seismology not geodesy); Multi-scale interferometry system of systems (2.4 GHz timing mesh + 60 GHz phase sensing, critical layer separation "UTLP is heartbeat not blood"); Passive Proprioception extended to geological sensing (seismic wavefront imaging via timing mesh distortion); Adversarial refinement methodology (Red Team process documented—clarifying architecture defeats structural attacks, valid attacks led to honest scope limitation, "works for X not Y" stronger than overclaiming); adds Lab Manual sections 9.16-9.17 with structural monitoring implementation and worked Red Team example; total 96 prior art extension claims across 12 appendices (A-L)*
+*Revision notes: S2.43 adds claims 97-103 (Planetary Stethoscope: Subsea Cable Sensing—voltage compliance spectroscopy, space-veto tsunami warning, tidally de-convolved AMOC monitoring, traffic mapping via FDR, Schumann resonance reception, bio-mechanical jitter detection, triboelectric predator indexing) plus Purple Teaming methodology note; S2.42 corrects erroneous statement "Encryption is a subset of Authentication" to "Authentication and encryption are independent siblings" (aligning with Claim 87); S2.41 adds claims 92-95: Ground-based distributed InSAR via consumer hardware (same math as $500M satellites, $50-100/node, valid for seismology not geodesy); Multi-scale interferometry system of systems (2.4 GHz timing mesh + 60 GHz phase sensing, critical layer separation "UTLP is heartbeat not blood"); Passive Proprioception extended to geological sensing (seismic wavefront imaging via timing mesh distortion); Adversarial refinement methodology (Red Team process documented—clarifying architecture defeats structural attacks, valid attacks led to honest scope limitation, "works for X not Y" stronger than overclaiming); adds Lab Manual sections 9.16-9.17 with structural monitoring implementation and worked Red Team example; total 103 prior art extension claims across 12 appendices (A-L)*
