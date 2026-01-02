@@ -1,8 +1,8 @@
-# UTLP Statistical Simulation: Genesis Reset + Antiphase Lock
+# UTLP Statistical Simulation: Genesis Reset + Phase Coherence
 
 ## Summary
 
-This simulation explores what happens when a Genesis node resets and returns with a phase offset, potentially causing "antiphase lock" where bilateral stimulation motors fire simultaneously instead of alternating.
+This simulation explores what happens when a Genesis node resets and returns with a phase offset, potentially causing the swarm to lose **coherence** (zero-offset phase lock).
 
 **Key Finding:** The protocol is **resilient** to this attack vector, but only if a replacement Genesis is promoted during the outage.
 
@@ -79,13 +79,13 @@ With these values, a returning Genesis will always encounter a promoted replacem
 
 ---
 
-## The Antiphase Lock Vector
+## The Phase Offset Attack Vector
 
 **Attack Pattern:**
 1. Attacker controls Genesis node
-2. Attacker resets Genesis with crafted offset (e.g., 500ms for 1Hz → antiphase)
+2. Attacker resets Genesis with crafted offset (e.g., 500ms for 1Hz cycle)
 3. If no replacement Genesis exists, swarm adopts corrupted time
-4. Bilateral stimulation fires both sides simultaneously
+4. Swarm loses coherence - nodes operate with phase offset
 
 **Mitigation (already implemented):**
 - "First Born Wins" rejects nodes with younger atomic times
@@ -106,7 +106,7 @@ All initial offsets converge to <10μs final offset:
 | 0ms | 8μs | Best case |
 | 50ms | 8μs | Small drift |
 | 250ms | 8μs | Quarter phase |
-| 500ms | 8μs | Antiphase |
+| 500ms | 8μs | Half phase |
 | 750ms | 8μs | 3/4 phase |
 | 1000ms | 8μs | Full cycle |
 
@@ -134,7 +134,7 @@ For extra protection, could embed boot count or NVS counter in atomic time to ma
 
 1. **Basic convergence:** Two nodes, different boot times, verify they sync
 2. **Genesis reset:** 3 nodes, reset Genesis, verify promoted Genesis wins
-3. **Antiphase injection:** Reset Genesis with known offset, verify rejection
+3. **Phase offset injection:** Reset Genesis with known offset, verify rejection
 4. **Holdover promotion:** Remove Genesis, verify follower promotes after timeout
 
 ---
@@ -306,7 +306,7 @@ if (peer_atomic_rate > 1.1 || peer_atomic_rate < 0.9) {
 
 | Attack | Difficulty | Impact | Current Defense |
 |--------|------------|--------|-----------------|
-| Genesis reset (500ms offset) | Easy | Antiphase lock | "First Born Wins" (if promoted) |
+| Genesis reset (500ms offset) | Easy | Phase offset | "First Born Wins" (if promoted) |
 | Rogue Genesis (fake age) | Easy | Swarm corruption | **NONE** |
 | Sybil attack (many rogues) | Medium | Consensus hijack | Metabolic Ledger (partial) |
 
@@ -624,7 +624,7 @@ Total atomic time spread: 5us (0.0ms) <- PERFECT!
 
 | Attack | Difficulty | Impact | Current Defense | Status |
 |--------|------------|--------|-----------------|--------|
-| Genesis reset (500ms) | Easy | Antiphase lock | "First Born Wins" (if promoted) | [OK] Works |
+| Genesis reset (500ms) | Easy | Phase offset | "First Born Wins" (if promoted) | [OK] Works |
 | Rogue Genesis (fake age) | Easy | Swarm corruption | Behavioral verification + INNATE path | **[OK] FIXED** |
 | Sybil attack (many rogues) | Medium | Consensus hijack | Metabolic Ledger + behavioral | Partial |
 | Epoch collision (swarm merge) | Certain | Split brain | Epoch merge protocol | **[OK] FIXED** |

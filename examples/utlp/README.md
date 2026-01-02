@@ -452,9 +452,10 @@ Items implemented but not yet in `docs/RFIP_Technical_Specification.md`:
 **See:** `rfip_hal.h` for structures, `docs/RFIP_Technical_Specification.md`
 for master spec.
 
-### Simulation (`sim/genesis_reset_antiphase.py`)
+### Simulation (`sim/genesis_reset_coherence.py`)
 
-Python simulation for testing Byzantine scenarios:
+Python simulation for testing phase coherence and Byzantine scenarios:
+- Genesis reset and phase coherence recovery
 - Rogue Genesis attacks (ancient epoch claims)
 - Web of Time merge (two swarms meeting)
 - Derivative-based detection (jitter variance analysis)
@@ -472,7 +473,7 @@ Python simulation for testing Byzantine scenarios:
 | `rfip_hal.h` | **RFIP HAL** (capability detection, observation types) |
 | `rfip_hal.c` | RFIP HAL implementation (runtime silicon detection) |
 | `utlp_main_esp32.c` | Platform entry point (`app_main()`) |
-| `sim/genesis_reset_antiphase.py` | Python simulation for Byzantine testing |
+| `sim/genesis_reset_coherence.py` | Python simulation for coherence + Byzantine testing |
 | `sim/SIMULATION_RESULTS.md` | Detailed simulation analysis |
 
 ### Architecture Note

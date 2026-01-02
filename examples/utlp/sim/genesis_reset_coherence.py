@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-UTLP Statistical Simulation: Genesis Reset + Antiphase Lock
+UTLP Statistical Simulation: Genesis Reset + Phase Coherence
 
 Scenario:
 1. 3-node swarm (Genesis A, Followers B, C) synced for hours
 2. Genesis A resets (power cycle, watchdog, crash)
 3. B and C drift slightly during A's downtime (~50ms)
 4. A comes back online and attempts to rejoin
-5. Question: Can A lock back in ANTIPHASE (180° offset)?
+5. Question: Can swarm achieve COHERENCE (zero-offset phase lock)?
 
 This simulates the Metabolic Ledger trust dynamics and "First Born Wins"
 tie-breaker to explore edge cases in swarm recovery.
@@ -941,10 +941,10 @@ class UTLPSimulator:
 
 def run_genesis_reset_scenario():
     """
-    Main simulation: Genesis reset + antiphase lock scenario
+    Main simulation: Genesis reset + phase coherence scenario
     """
     print("="*70)
-    print("UTLP SIMULATION: Genesis Reset + Antiphase Lock")
+    print("UTLP SIMULATION: Genesis Reset + Phase Coherence")
     print("="*70)
 
     sim = UTLPSimulator(seed=12345)
@@ -986,10 +986,10 @@ def run_genesis_reset_scenario():
 
     sim.print_status()
 
-    # Phase 3: Genesis comes back with ANTIPHASE offset
+    # Phase 3: Genesis comes back with offset
     # Simulating: A's new clock starts at 0, but we add 500ms offset
-    # to simulate being "half a cycle" out of phase
-    print("\n[PHASE 3] Genesis AA:01 reboots with 500ms (antiphase) offset...")
+    # to test whether swarm can recover coherence
+    print("\n[PHASE 3] Genesis AA:01 reboots with 500ms offset...")
 
     # Reset A with 500,000us offset (500ms = half of 1Hz cycle)
     sim.reset_node("AA:01", new_offset_us=500_000)
@@ -1035,7 +1035,7 @@ def run_genesis_reset_scenario():
             offset = atomic_times[macs[i]] - atomic_times[macs[j]]
             print(f"  {macs[i]} - {macs[j]}: {offset:+d}us ({offset/1000:+.1f}ms)")
 
-    # Check for antiphase condition (>250ms offset on a 1Hz cycle)
+    # Check for phase offset (>250ms indicates poor coherence on a 1Hz cycle)
     max_offset = 0
     for i in range(len(macs)):
         for j in range(i+1, len(macs)):
@@ -1045,9 +1045,8 @@ def run_genesis_reset_scenario():
     print(f"\nMaximum offset: {max_offset}us ({max_offset/1000:.1f}ms)")
 
     if max_offset > 250_000:  # 250ms = quarter phase
-        print("[!] WARNING: Swarm may be in ANTIPHASE condition!")
-        print("    For 1Hz bilateral stimulation, this could cause")
-        print("    both motors to fire simultaneously instead of alternating.")
+        print("[!] WARNING: Swarm has poor COHERENCE!")
+        print("    Significant phase offset detected between nodes.")
     else:
         print("[OK] Swarm appears to be in phase (offset < 250ms)")
 
@@ -1073,7 +1072,7 @@ def run_multiple_scenarios():
         ("No offset (best case)", 0),
         ("50ms offset (small)", 50_000),
         ("250ms offset (quarter phase)", 250_000),
-        ("500ms offset (antiphase)", 500_000),
+        ("500ms offset (half phase)", 500_000),
         ("750ms offset (3/4 phase)", 750_000),
         ("1000ms offset (full cycle)", 1_000_000),
     ]
@@ -1211,7 +1210,7 @@ def run_promoted_genesis_scenario():
     sim.print_status()
 
     # Now A comes back with 500ms offset
-    print("\n[5] A reboots with 500ms (antiphase) offset...")
+    print("\n[5] A reboots with 500ms offset...")
     sim.reset_node("AA:01", new_offset_us=500_000)
     sim.set_node_online("AA:01")
 
@@ -1270,9 +1269,9 @@ def run_promoted_genesis_scenario():
     print(f"\nFinal max offset: {max_offset}us ({max_offset/1000:.1f}ms)")
 
     if max_offset > 100_000:  # 100ms
-        print("[!] ANTIPHASE LOCK DETECTED - Swarm is out of sync!")
+        print("[!] POOR COHERENCE - Swarm is out of sync!")
     else:
-        print("[OK] Swarm is synchronized (offset < 100ms)")
+        print("[OK] Swarm achieved COHERENCE (offset < 100ms)")
 
     # Key log entries
     print("\n" + "-"*70)
@@ -1292,7 +1291,7 @@ def run_rogue_genesis_scenario():
     A malicious or broken node that:
     1. Claims ancient atomic time (been running for "years")
     2. Refuses to demote from stratum 1, ever
-    3. Broadcasts corrupted time (500ms antiphase offset)
+    3. Broadcasts corrupted time (500ms phase offset)
 
     This tests whether the Metabolic Ledger can isolate a Byzantine actor
     even when it claims elder status.
@@ -1344,7 +1343,7 @@ def run_rogue_genesis_scenario():
 
     # Rogue claims ancient time - 1 trillion microseconds (~11.5 days)
     # This is way older than the healthy swarm
-    rogue.local_clock_us = 500_000  # 500ms offset (antiphase!)
+    rogue.local_clock_us = 500_000  # 500ms offset (disrupts coherence)
     rogue.atomic_time_us = 999_999_999_999  # Claims ancient epoch
 
     # Override the rogue's tick to NEVER demote

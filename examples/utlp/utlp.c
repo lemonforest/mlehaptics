@@ -137,6 +137,10 @@
 #include "utlp_hal.h"
 #include "utlp_trust.h"
 #include "utlp_immune.h"
+#include "utlp_smsp.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -220,7 +224,7 @@ static aatr_state_t g_aatr = {
 
 static uint8_t g_local_mac[UTLP_MAC_SIZE];
 static uint64_t g_last_beacon_time = 0;
-static bool g_led_state = false;
+static bool g_smsp_notified = false;  /* SMSP sync notification sent */
 
 /**
  * @brief Self-demotion vote counter for Origin nodes (S2 self-awareness)
@@ -1055,6 +1059,12 @@ static void process_beacon(const utlp_packet_t *pkt)
         utlp_hal_set_time_offset(new_offset);
         utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us",
                  g_aatr.stratum, (long long)new_offset);
+
+        /* Notify SMSP that atomic time is now valid (first sync only) */
+        if (!g_smsp_notified) {
+            smsp_notify_sync_ready();
+            g_smsp_notified = true;
+        }
     }
 
     /*
@@ -1213,28 +1223,22 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
 }
 
 /*============================================================================
- * PHYSICS - TIME-INDEXED LED CONTROL
+ * PHYSICS - Stub (LED control moved to SMSP task)
+ *
+ * Prior to SMSP, this function contained time-indexed LED control logic.
+ * LED actuation is now handled by the SMSP task (utlp_smsp.c) which:
+ *   1. Waits for UTLP sync before starting
+ *   2. Uses atomic time from utlp_hal_get_atomic_time_us()
+ *   3. Executes score-based patterns (not hardcoded physics)
+ *
+ * This stub remains for backward compatibility and potential future use
+ * (e.g., motor control, sensor sampling at specific atomic times).
  *==========================================================================*/
 
 static void run_physics(uint64_t atomic_now)
 {
-    uint32_t cycle_pos = (uint32_t)(atomic_now % BLINK_PERIOD_US);
-    bool should_be_on = (cycle_pos < (BLINK_PERIOD_US / 2));
-
-    if (should_be_on != g_led_state) {
-        g_led_state = should_be_on;
-
-        if (g_led_state) {
-            utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, 0.0f, 100.0f);
-        } else {
-            utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, 0.0f, 0.0f);
-        }
-
-        utlp_hal_log_info(TAG, "[LED] %s @ phase=%lu us (stratum %d)",
-                 g_led_state ? "ON " : "OFF",
-                 (unsigned long)cycle_pos,
-                 g_aatr.stratum);
-    }
+    /* LED control moved to SMSP task - see utlp_smsp.c */
+    (void)atomic_now;
 }
 
 /*============================================================================
@@ -1260,12 +1264,29 @@ void utlp_app_run(void)
     /* Initialize Immune Checkpoint (Active Immunity - S2 Section 2.4) */
     utlp_immune_init();
 
+    /* Initialize SMSP (Synchronized Multimodal Score Protocol) */
+    smsp_init();
+
+    /* Create SMSP task (waits for sync before starting playback) */
+    xTaskCreate(smsp_task, "SMSP", SMSP_TASK_STACK_SIZE, NULL, SMSP_TASK_PRIORITY, NULL);
+
+    /*
+     * GENESIS BOOTSTRAP: If we're stratum 1 (Genesis), our local time IS
+     * the atomic clock. Notify SMSP immediately - no external sync needed.
+     * Followers will wait for beacon adoption to trigger sync.
+     */
+    if (g_aatr.stratum == STRATUM_ORIGIN) {
+        smsp_notify_sync_ready();
+        g_smsp_notified = true;
+        utlp_hal_log_info(TAG, "Genesis: SMSP unlocked (no external sync needed)");
+    }
+
     /* Get our MAC */
     utlp_hal_get_mac(g_local_mac);
 
     /* Startup banner */
     utlp_hal_log_info(TAG, "========================================");
-    utlp_hal_log_info(TAG, "UTLP v2 - Frontier Algorithm");
+    utlp_hal_log_info(TAG, "UTLP v3 - Biological Governance + SMSP");
     utlp_hal_log_info(TAG, "\"Time is born of one.\"");
     utlp_hal_log_info(TAG, "========================================");
     utlp_hal_log_info(TAG, "MAC: %02X:%02X:%02X:%02X:%02X:%02X",
@@ -1273,10 +1294,10 @@ void utlp_app_run(void)
              g_local_mac[3], g_local_mac[4], g_local_mac[5]);
     utlp_hal_log_info(TAG, "Stratum: %d (GENESIS)", g_aatr.stratum);
     utlp_hal_log_info(TAG, "Beacon: 11-byte Seismic Chirp (3-burst @ 2ms)");
-    utlp_hal_log_info(TAG, "Election: Score-based (higher score wins)");
+    utlp_hal_log_info(TAG, "Trust: Metabolic Ledger (Adaptive Immunity)");
     utlp_hal_log_info(TAG, "Relay: Frontier detection (edge nodes = Providers)");
     utlp_hal_log_info(TAG, "Interval: Genesis Pulse / Promotion Pulse / Echo Rule");
-    utlp_hal_log_info(TAG, "Blink period: %d ms", BLINK_PERIOD_US / 1000);
+    utlp_hal_log_info(TAG, "SMSP: Score-based LED (pattern=%s)", smsp_get_pattern_name());
     utlp_hal_log_info(TAG, "Drift Analysis: Enabled (polynomial fit)");
     utlp_hal_log_info(TAG, "========================================");
 
