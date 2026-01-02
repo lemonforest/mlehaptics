@@ -1,8 +1,11 @@
-# UTLP v2 - Biological Governance for Distributed Time
+# UTLP v3 - Biological Governance for Distributed Time
 
 **Universal Time Lord Protocol** - ESP32-focused implementation demonstrating
 connectionless distributed time synchronization using **biological governance**
 instead of political consensus.
+
+> **v3 Features:** Servo-Locked Phase Correction (S2 Claim 55), Genesis Reset
+> Detection, SMSP Application Layer, Centralized Configuration (SSOT).
 
 > *"Time is born of one."* — UTLP Specification, Section 7
 >
@@ -31,31 +34,41 @@ If you're new to this codebase, read in this order:
 
 | Order | File | What You'll Learn |
 |-------|------|-------------------|
-| 1 | `utlp.c` (header comments) | The manifesto - why biology beats politics |
-| 2 | `utlp_trust.h` | Hebbian learning, median consensus, Dunbar's Number |
-| 3 | `utlp_immune.h` | T-cell exhaustion, quorum sensing, cytokine storms |
-| 4 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
-| 5 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
+| 1 | `utlp_config.h` | All tunable parameters (SSOT - Single Source of Truth) |
+| 2 | `utlp.c` (header comments) | The manifesto - why biology beats politics |
+| 3 | `utlp_trust.h` | Hebbian learning, median consensus, Dunbar's Number |
+| 4 | `utlp_immune.h` | T-cell exhaustion, quorum sensing, cytokine storms |
+| 5 | `utlp_smsp.h` | Score-driven actuation (Protocol Trinity: when/where/what) |
+| 6 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
+| 7 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
 
 Each file includes academic references and biological analogies.
 
 ## Overview
 
-This is the production ESP32 implementation of UTLP v2, featuring the full
-Frontier Algorithm for topology-aware Genesis election and Biological Governance
-for Byzantine-resistant trust. Forked from `utlp_skeleton` for focused ESP32
-development without cross-platform constraints.
+This is the production ESP32 implementation of UTLP v3, featuring the full
+Frontier Algorithm for topology-aware Genesis election, Biological Governance
+for Byzantine-resistant trust, and the Protocol Trinity (UTLP/RFIP/SMSP).
+Forked from `utlp_skeleton` for focused ESP32 development without cross-platform
+constraints.
 
 **For cross-platform/educational use:** See `examples/utlp_skeleton/` which
 maintains C64/8-bit compatibility.
 
-## Key Features (Frontier Algorithm)
+## Key Features
 
+### Frontier Algorithm (v2)
 - **Score-based election:** Higher genesis_score wins (not lower MAC)
 - **Layered Provider Model:** Genesis → Providers → Consumers
 - **Smart Interval:** Promotion Pulse + Echo Rule for relays
 - **Multi-hop support:** Providers extend range to edge nodes
 - **Native 64-bit:** Full uint64_t support, no workarounds
+
+### Biological Governance (v3)
+- **Servo-Locked Phase Correction:** Frequency slewing, not instant jumps (S2 Claim 55)
+- **Genesis Reset Detection:** Blocks adoption of reset peer's stale epoch
+- **SMSP Application Layer:** Score-driven actuation (Protocol Trinity)
+- **Centralized Config:** All constants in `utlp_config.h` (SSOT)
 
 ## Quick Start
 
@@ -75,14 +88,16 @@ See [Known Limitations](#known-limitations) below.
 
 ## Board Configuration
 
-The HAL supports multiple ESP32 boards via build flags:
+The HAL supports multiple boards via build flags:
+
+### ESP32 Boards
 
 | Board | Environment | GPIO | Polarity | Build Flags |
 |-------|-------------|------|----------|-------------|
 | XIAO ESP32-C6 | `utlp_xiao_esp32c6` | 15 | Active LOW | *(defaults)* |
 | ESP32 DevKit v1 | `utlp_esp32_devkit` | 2 | Active HIGH | `-DACTUATOR_GPIO=2 -DACTUATOR_ACTIVE_LOW=0` |
 
-For custom boards, add to `platformio.ini`:
+For custom ESP32 boards, add to `platformio.ini`:
 ```ini
 [env:my_board]
 platform = espressif32
@@ -92,6 +107,120 @@ build_flags =
     -DACTUATOR_GPIO=13           ; Your LED GPIO
     -DACTUATOR_ACTIVE_LOW=0      ; 1=active LOW, 0=active HIGH
 ```
+
+### Seeed XIAO MG24 (802.15.4 - Planned)
+
+The XIAO MG24 (EFR32MG24B220F1536IM48-B) provides hardware-scheduled TX
+for ±1µs seismic chirp precision via Silicon Labs RAIL API. This is a
+planned platform with HAL work in progress.
+
+#### Hardware Specifications
+
+| Specification | Value |
+|---------------|-------|
+| MCU | ARM Cortex-M33 @ 78 MHz |
+| Flash | 1536 KB |
+| RAM | 256 KB |
+| Radio | 802.15.4 + BLE 5.3 |
+| RX Sensitivity | -106.4 dBm |
+| TX Power | +19.5 dBm max |
+| Address | 8-byte EUI-64 (factory-programmed) |
+
+#### Development Options
+
+**Option 1: Simplicity Studio 6 (Gecko SDK) - Recommended for RAIL**
+
+For hardware-precise scheduled TX, use Silicon Labs' native toolchain:
+
+1. **Install Simplicity Studio 6**
+   - Download from [Silicon Labs](https://www.silabs.com/developers/simplicity-studio)
+   - Install Gecko SDK 4.x during setup
+
+2. **Create RAIL Project**
+   ```
+   File → New → Silicon Labs Project Wizard
+   → Select "EFR32MG24B220F1536IM48" as target
+   → Choose "RAIL - RAILtest" or "Empty C Project"
+   → Add RAIL component
+   ```
+
+3. **Configure Radio (Radio Configurator)**
+   - Open `.radioconf` file in project
+   - Select "IEEE 802.15.4 OQPSK 250 kbps"
+   - Set channel to 15 (~2.425 GHz, golden path for interop with WiFi Ch 6)
+   - Configure TX power (+10 dBm default, up to +19.5 dBm)
+
+4. **Key RAIL APIs for UTLP**
+   ```c
+   // Immediate transmission (spin-wait equivalent)
+   RAIL_StartTx(rail_handle, channel, RAIL_TX_OPTIONS_DEFAULT, NULL);
+
+   // Scheduled transmission (hardware-precise timing)
+   RAIL_ScheduleTxConfig_t config = {
+       .when = absolute_time_us,
+       .mode = RAIL_TIME_ABSOLUTE,
+       .txDuringRx = RAIL_SCHEDULED_TX_DURING_RX_POSTPONE_TX
+   };
+   RAIL_StartScheduledTx(rail_handle, channel, RAIL_TX_OPTIONS_DEFAULT, &config, NULL);
+   ```
+
+5. **Documentation**
+   - [RAIL API Reference](https://docs.silabs.com/rail/latest/)
+   - [AN1253: Radio Configurator Guide](https://www.silabs.com/documents/public/application-notes/an1253-efr32-radio-configurator-guide-for-ssv5.pdf)
+   - [XIAO MG24 Wiki](https://wiki.seeedstudio.com/xiao_mg24_getting_started/)
+
+**Option 2: Zephyr RTOS**
+
+For RTOS features and portability, use Zephyr's IEEE 802.15.4 driver:
+
+1. **Set up Zephyr environment**
+   ```bash
+   west init ~/zephyrproject
+   cd ~/zephyrproject
+   west update
+   ```
+
+2. **Build for XIAO MG24**
+   ```bash
+   west build -b xiao_mg24 samples/net/sockets/echo_server -- \
+       -DCONFIG_IEEE802154=y \
+       -DCONFIG_IEEE802154_DRIVER=y
+   ```
+
+3. **Key Zephyr APIs for UTLP**
+   ```c
+   #include <zephyr/net/ieee802154_radio.h>
+
+   // Immediate transmission
+   ieee802154_radio_api->tx(dev, IEEE802154_TX_MODE_DIRECT, pkt, ...);
+
+   // Scheduled transmission (if driver supports)
+   ieee802154_radio_api->tx(dev, IEEE802154_TX_MODE_TXTIME, pkt, ...);
+   ```
+
+4. **Note:** Zephyr's IEEE 802.15.4 TX_MODE_TXTIME support varies by driver.
+   Check driver capabilities before relying on scheduled TX.
+
+#### 802.15.4 Channel Mapping
+
+| 802.15.4 Channel | Center Freq | WiFi Overlap | Notes |
+|------------------|-------------|--------------|-------|
+| 11 | 2.405 GHz | Ch 1 | |
+| **15** | **2.425 GHz** | **Ch 6** | **Golden Path** |
+| 20 | 2.450 GHz | Ch 6-7 | |
+| 26 | 2.480 GHz | Ch 11 | |
+
+**Recommended:** Channel 15 (near WiFi Ch 6 "golden path" for UTLP chirality)
+
+#### Interoperability Note
+
+MG24 (802.15.4) and ESP32 (ESP-NOW/WiFi) use different physical layers:
+- **MG24 swarm:** 802.15.4 devices sync with each other
+- **ESP32 swarm:** ESP-NOW devices sync with each other
+- **Bridge:** ESP32-C6 has both WiFi and Thread, enabling future bridging
+
+The HAL's transport-agnostic address abstraction (`utlp_addr_t`) enables
+the protocol layer to work identically across both transports.
 
 ## The Genesis Principle
 
@@ -194,21 +323,81 @@ then settle to steady-state:
 2. Hospitable environment for late-joining nodes
 3. Low steady-state overhead
 
+## Servo-Locked Phase Correction (S2 Claim 55)
+
+Standard firefly synchronization applies phase corrections **instantly**:
+```c
+// Standard firefly: phase step (discontinuity)
+local_time += offset;
+```
+
+This creates **spectral splatter** — the sudden jump corrupts coherent aperture
+integration. For coherent beamforming applications, transient behavior matters.
+
+UTLP v3 uses **frequency slewing** instead:
+```c
+// UTLP servo-lock: frequency slew (smooth)
+drift_correction_ppb = offset * 1e9 / T_convergence;
+// Clock speeds up/slows down rather than jumping
+```
+
+| Aspect | Standard Firefly | UTLP Servo-Lock |
+|--------|-----------------|-----------------|
+| Phase adjustment | Instantaneous Δφ | Frequency slewing Δf |
+| Convergence window | N/A (instant) | 500ms (configurable) |
+| Output type | Discrete flash | Continuous wave |
+| Transient behavior | Phase jump | Spectral purity maintained |
+
+**10-Second Exception:** During the genesis pulse (first 10 seconds), instant
+jumps ARE allowed. This enables fast initial synchronization. After 10 seconds,
+all corrections use frequency slewing.
+
+**Configuration:** See `UTLP_SERVO_*` constants in `utlp_config.h`.
+
+## Genesis Reset Detection
+
+When a Genesis node resets during testing, it may broadcast a newer epoch that
+would corrupt followers' timing. UTLP v3 detects this by checking for
+**suspiciously large forward jumps**:
+
+```c
+// Reject beacons that jump forward more than MAX_FORWARD_JUMP (1 second)
+if (peer_atomic_time > local_atomic_time + UTLP_MAX_FORWARD_JUMP_US) {
+    // This looks like a reset Genesis with stale epoch
+    // Block adoption, log warning
+}
+```
+
+This prevents a single reset node from disrupting an established swarm.
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  Application Layer (utlp.c)                 │
+│                    Protocol Trinity                          │
 │                                                              │
-│    Boot as Genesis (stratum 1) → Blink LED immediately      │
-│    Listen for beacons → Adopt better stratum if found       │
-│    Time-indexed physics: LED state = f(atomic_time)         │
+│    UTLP = "when" (time sync, beacons, trust)                │
+│    RFIP = "where" (positioning, ranging, anchors)           │
+│    SMSP = "what" (score-driven actuation, patterns)         │
+├─────────────────────────────────────────────────────────────┤
+│              Protocol Layer (utlp.c + utlp_trust.c)         │
 │                                                              │
-│    get_atomic_time() = local_time + offset                  │
+│    Boot as Genesis (stratum 1) → Notify SMSP when synced    │
+│    Listen for beacons → Servo-lock to better stratum        │
+│    Biological Governance: Metabolic Ledger, Immune Checks   │
+│                                                              │
+│    get_atomic_time() = local_time + offset + drift_corr     │
+├─────────────────────────────────────────────────────────────┤
+│              Application Layer (utlp_smsp.c)                │
+│                                                              │
+│    Wait for sync_ready semaphore from protocol layer        │
+│    Load pattern (BLINK_1HZ, BREATHE, EMERGENCY)             │
+│    Execute score lines at atomic time with interpolation    │
+│    Calls: utlp_hal_get_atomic_time_us(), set_actuator()     │
 ├─────────────────────────────────────────────────────────────┤
 │             Hardware Abstraction Layer (utlp_hal.h)         │
 │                                                              │
-│    Time:     get_micros(), set_time_offset()                │
+│    Time:     get_micros(), get_atomic_time_us()             │
 │    Radio:    tx_packet(), rx_wait(), rx_poll()              │
 │    Actuator: set_actuator_phase() [GPIO LED]                │
 ├─────────────────────────────────────────────────────────────┤
@@ -266,7 +455,10 @@ See: `UTLP_Technical_Supplement_S1.md` Section 1.4
 The 2ms burst spacing is the **known reference**. Receiver compares expected vs.
 observed spacing to detect clock drift.
 
-## Time-Indexed LED Control
+## Time-Indexed LED Control (Legacy)
+
+> **Note:** In v3, LED control moved to SMSP application layer.
+> This section describes the underlying principle.
 
 The LED state is **calculated** from atomic time, not **toggled** by delays:
 
@@ -278,11 +470,73 @@ bool led_on = (cycle_pos < BLINK_PERIOD_US / 2);     // 50% duty
 **Why this is drift-proof:** Every node with the same atomic_time
 will calculate the same LED state. No drift accumulation.
 
+## SMSP - Synchronized Multimodal Score Protocol
+
+SMSP is the "what" layer of the Protocol Trinity. It implements score-driven
+actuator control using atomic time from UTLP.
+
+### Pattern Playback Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  UTLP PROTOCOL LAYER (utlp.c)                               │
+│  - Beacons, trust, stratum                                  │
+│  - Calls smsp_notify_sync_ready() once synced               │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ sync semaphore
+                           ↓
+┌─────────────────────────────────────────────────────────────┐
+│  SMSP APPLICATION LAYER (utlp_smsp.c)                       │
+│  - FreeRTOS task: smsp_task()                               │
+│  - Pattern execution engine                                  │
+│  - Interpolation between score lines                        │
+│  - Calls utlp_hal_get_atomic_time_us() each tick            │
+│  - Calls utlp_hal_set_actuator_phase() for LED              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Built-in Patterns
+
+| Pattern | Description | Duration |
+|---------|-------------|----------|
+| `BLINK_1HZ` | Simple 1Hz square wave (matches legacy `run_physics`) | 1s loop |
+| `BREATHE` | Smooth 2-second fade in/out (demonstrates interpolation) | 2s loop |
+| `EMERGENCY` | SAE J845 emergency vehicle flash pattern | 1s loop |
+
+### Score Line Format
+
+Each score line specifies an actuator state at a point in time:
+
+```c
+typedef struct __attribute__((packed)) {
+    uint32_t time_offset_us;      // When to execute (relative to pattern start)
+    uint16_t transition_ms_x4;    // Fade duration (×4 scaling = 0-1020ms)
+    uint8_t  actuator_id;         // UTLP_ACTUATOR_MAIN (0)
+    uint8_t  duty_pct;            // Duty cycle 0-100
+    uint8_t  frequency_hz_div10;  // Frequency / 10 (0 = DC)
+    uint8_t  flags;               // Interpolation + sync flags
+} smsp_score_line_t;              // 10 bytes
+```
+
+### API
+
+```c
+void smsp_init(void);                          // Initialize subsystem
+void smsp_notify_sync_ready(void);             // Called by utlp.c after sync
+int  smsp_load_builtin(smsp_builtin_pattern_t id);
+int  smsp_start(uint64_t start_time_us);       // 0 = "now"
+int  smsp_stop(void);
+bool smsp_is_playing(void);
+void smsp_task(void *pvParameters);            // FreeRTOS task entry
+```
+
+**Reference:** `src/pattern_playback.h` (production SMSP with bilateral zones)
+
 ## Expected Serial Output
 
 ```
 I (552) UTLP: ========================================
-I (562) UTLP: UTLP GENESIS NODE v2 - Frontier Algorithm
+I (562) UTLP: UTLP GENESIS NODE v3 - Biological Governance
 I (562) UTLP: "Time is born of one."
 I (572) UTLP: ========================================
 I (572) UTLP: MAC: 10:51:DB:1C:B3:08
@@ -291,19 +545,25 @@ I (582) UTLP: Beacon: 11-byte Seismic Chirp (3-burst @ 2ms)
 I (592) UTLP: Election: Score-based (higher score wins)
 I (592) UTLP: Relay: Frontier detection (edge nodes = Providers)
 I (602) UTLP: Interval: Genesis Pulse / Promotion Pulse / Echo Rule
-I (602) UTLP: Blink period: 1000 ms
+I (602) UTLP: Servo-Lock: 500ms convergence, ±100ppm max
+I (612) UTLP: Blink period: 1000 ms
 I (612) UTLP: Drift Analysis: Enabled (polynomial fit)
 I (612) UTLP: ========================================
 I (XXX) UTLP: Beacon interval: 100 ms (uptime 0s, role=Genesis)
+I (XXX) SMSP: Waiting for sync...
 I (XXX) UTLP: [LED] ON  @ phase=500000 us (stratum 1)
 I (XXX) UTLP: [LED] OFF @ phase=0 us (stratum 1)
 I (XXX) UTLP: Beacon interval: 500 ms (uptime 1s, role=Genesis)
 ...
 I (XXX) UTLP: Same stratum, higher score wins (180 > 120)
+I (XXX) UTLP: Servo: genesis phase (instant jump allowed)
 I (XXX) UTLP: SYNCED: stratum=2, offset=+1234 us
 I (XXX) UTLP: Stratum changed: 1 -> 2 (provider=YES)
+I (XXX) SMSP: Sync ready, loading BLINK_1HZ pattern
+I (XXX) SMSP: Playing BLINK_1HZ (looping)
 I (XXX) UTLP: Beacon interval: 1000 ms (uptime 5s, role=Provider)
 ...
+I (XXX) UTLP: Servo: slewing offset +42us at 84000 ppb
 I (XXX) UTLP: Beacon interval: 60000 ms (uptime 15s, role=Provider)
 ```
 
@@ -464,7 +724,9 @@ Python simulation for testing phase coherence and Byzantine scenarios:
 
 | File | Description |
 |------|-------------|
-| `utlp.c` | Main protocol with Biological Governance |
+| `utlp_config.h` | **Centralized configuration (SSOT)** - all tunable constants |
+| `utlp.c` | Protocol layer with servo-lock and genesis reset detection |
+| `utlp_smsp.h/c` | **SMSP** - score-driven pattern playback (Protocol Trinity "what") |
 | `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, median consensus) |
 | `utlp_immune.h/c` | Immune Checkpoint (token bucket, anergy) |
 | `utlp_hal.h` | HAL interface contract (time, radio, actuator) |
@@ -532,7 +794,9 @@ void utlp_app_run(void);
 ## Related Documentation
 
 - `docs/UTLP_Specification.md` - Full protocol specification
-- `docs/Connectionless_Distributed_Timing_Prior_Art.md` - Research foundation
+- `docs/Connectionless_Distributed_Timing_Prior_Art.md` - Research foundation (122 claims)
+- `docs/UTLP_Technical_Supplement_S2.md` - Biological Governance (100+ claims)
+- `src/pattern_playback.h` - Production SMSP with bilateral zones
 - `examples/utlp_skeleton/` - Cross-platform reference implementation
 
 ## Future Work
@@ -540,7 +804,7 @@ void utlp_app_run(void);
 ### Temporal Loom
 - **Automatic failover:** Timeout-based re-election when Genesis goes offline
 - **GPS stratum-0:** External time reference integration
-- **Drift compensation:** Use tracked drift rate for active clock correction
+- ~~**Drift compensation:** Use tracked drift rate for active clock correction~~ ✅ **v3: Servo-lock implemented**
 - **Panic Response:** Stratum 255 "Help!" signal for rescue chirps
 
 ### Spectral Loom

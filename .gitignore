@@ -16,6 +16,7 @@ sdkconfig.defaults
 
 # ESP-IDF Component Manager
 managed_components/
+dependencies.lock
 
 # Editor files
 *.swp

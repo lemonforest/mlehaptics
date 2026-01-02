@@ -1,6 +1,6 @@
 /**
  * @file utlp.c
- * @brief UTLP v2 - Biological Governance for Distributed Time
+ * @brief UTLP v3 - Biological Governance for Distributed Time
  *
  * @section manifesto Manifesto: Beyond Human Governance Models
  *
@@ -122,18 +122,37 @@
  * > "The Loom weaves authority from entropy. It does not assign roles—
  * >  it observes stability and lets structure emerge." — S2, Section 3.4
  *
+ * **SERVO-LOCKED PHASE CORRECTION (v3.0, S2 Claim 55):**
+ *
+ * Standard firefly applies Δφ instantly (phase jump). UTLP v3 uses frequency
+ * slewing (Δf = Δφ / T_convergence) to maintain spectral purity for coherent
+ * beamforming applications. The transient matters for wave coherence.
+ *
+ * - **10-Second Exception:** During genesis pulse, instant jumps allowed
+ * - **After 10s:** All corrections use 500ms frequency slewing
+ * - **Deadband:** Corrections < 100μs ignored (avoids oscillation)
+ * - **Genesis Reset Detection:** Forward jumps > 1s blocked as stale epochs
+ *
+ * Configuration: See UTLP_SERVO_* constants in utlp_config.h
+ *
  * **TIME-INDEXED EXECUTION:**
  * LED state is calculated from atomic time, not toggled by delays.
  * `(atomic_time % 1_000_000) < 500_000` = LED ON
  * This is drift-proof because we recalculate every tick.
  *
- * @version 3.0.0 - Biological Governance (replaces Frontier Algorithm)
- * @date 2025-12-29
+ * **SMSP APPLICATION LAYER (v3.0):**
+ * LED actuation moved from protocol layer to SMSP task (utlp_smsp.c).
+ * Protocol calls smsp_notify_sync_ready() after first beacon adoption.
+ * SMSP then takes over actuator control using score-driven patterns.
+ *
+ * @version 3.1.0 - Servo-Lock + SMSP (builds on Biological Governance)
+ * @date 2026-01-02
  *
  * @copyright
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "utlp_config.h"  /* SSOT for all configuration constants */
 #include "utlp_hal.h"
 #include "utlp_trust.h"
 #include "utlp_immune.h"
@@ -149,60 +168,34 @@
 static const char *TAG = "UTLP";
 
 /*============================================================================
- * CONFIGURATION
+ * CONFIGURATION - Import from utlp_config.h
+ *
+ * All tunable parameters are now centralized in utlp_config.h for SSOT.
+ * Local aliases for backward compatibility with existing code.
  *==========================================================================*/
 
-/**
- * GENESIS PULSE - Dynamic Beacon Interval
- *
- * Like a star beginning fusion, time broadcasts are rapid at genesis
- * then settle to steady-state. This provides:
- *   1. Fast initial sync (new swarm converges quickly)
- *   2. Hospitable environment for late-joining nodes
- *   3. Low steady-state overhead
- *
- * Timeline:
- *   0-1s:    100ms  (genesis burst - 10 beacons/sec)
- *   1-5s:    500ms  (fast convergence)
- *   5-10s:   1000ms (settling)
- *   10-60s:  10s    (stabilizing)
- *   60s+:    60s    (steady state)
- */
-#define GENESIS_PHASE_1_END_US      1000000ULL      /*  1 second */
-#define GENESIS_PHASE_2_END_US      5000000ULL      /*  5 seconds */
-#define GENESIS_PHASE_3_END_US     10000000ULL      /* 10 seconds */
-#define GENESIS_PHASE_4_END_US     60000000ULL      /* 60 seconds */
+/* Genesis Pulse timing (from utlp_config.h) */
+#define GENESIS_PHASE_1_END_US      UTLP_GENESIS_PHASE_1_END_US
+#define GENESIS_PHASE_2_END_US      UTLP_GENESIS_PHASE_2_END_US
+#define GENESIS_PHASE_3_END_US      UTLP_GENESIS_PHASE_3_END_US
+#define GENESIS_PHASE_4_END_US      UTLP_GENESIS_PHASE_4_END_US
 
-#define BEACON_INTERVAL_PHASE_1_US    100000        /* 100ms */
-#define BEACON_INTERVAL_PHASE_2_US    500000        /* 500ms */
-#define BEACON_INTERVAL_PHASE_3_US   1000000        /* 1s */
-#define BEACON_INTERVAL_PHASE_4_US  10000000        /* 10s */
-#define BEACON_INTERVAL_STEADY_US   60000000        /* 60s */
+#define BEACON_INTERVAL_PHASE_1_US  UTLP_BEACON_INTERVAL_PHASE_1_US
+#define BEACON_INTERVAL_PHASE_2_US  UTLP_BEACON_INTERVAL_PHASE_2_US
+#define BEACON_INTERVAL_PHASE_3_US  UTLP_BEACON_INTERVAL_PHASE_3_US
+#define BEACON_INTERVAL_PHASE_4_US  UTLP_BEACON_INTERVAL_PHASE_4_US
+#define BEACON_INTERVAL_STEADY_US   UTLP_BEACON_INTERVAL_STEADY_US
 
-#define BLINK_PERIOD_US         1000000     /* 1Hz blink (1 second cycle) */
+#define BLINK_PERIOD_US             UTLP_BLINK_PERIOD_US
 
-/*============================================================================
- * SEISMIC CHIRP - Time-Domain Interferometry
- *
- * Every beacon is a 3-burst "seismic chirp". This enables extraction of:
- *   - Burst 0 (t₀): Offset (position) - 0th derivative
- *   - Burst 1 (t₁): Drift (velocity) - 1st derivative
- *   - Burst 2 (t₂): Stability (acceleration) - 2nd derivative
- *
- * Tight spacing (2ms) keeps the chirp as a single "moment" in time,
- * minimizing drift smearing within the measurement window.
- *==========================================================================*/
-#define CHIRP_BURST_COUNT       3
-#define CHIRP_BURST_SPACING_US  2000        /* 2ms between bursts = 6ms total */
+/* Seismic Chirp (from utlp_config.h) */
+#define CHIRP_BURST_COUNT           UTLP_CHIRP_BURST_COUNT
+#define CHIRP_BURST_SPACING_US      UTLP_CHIRP_BURST_SPACING_US
 
-/** @brief Stratum levels (NTP-style, biological terminology)
- *
- * ORIGIN = Self-declared time source (not "master" - biological, not political)
- * Stratum represents "distance from truth" - lower = closer to reference
- */
-#define STRATUM_GPS             0           /* External GPS/atomic reference */
-#define STRATUM_ORIGIN          1           /* Self-declared time source */
-#define STRATUM_SYNCED          2           /* Synced to another node */
+/* Stratum levels (from utlp_config.h) */
+#define STRATUM_GPS                 UTLP_STRATUM_GPS
+#define STRATUM_ORIGIN              UTLP_STRATUM_ORIGIN
+#define STRATUM_SYNCED              UTLP_STRATUM_SYNCED
 
 /*============================================================================
  * STATE
@@ -282,15 +275,52 @@ typedef struct {
 
 static drift_stats_t g_drift_stats = {0};
 
-/* Genesis-pulse logging intervals */
-#define STATS_LOG_INTERVAL_FAST_US    1000000ULL   /* 1s for first 10s */
-#define STATS_LOG_INTERVAL_SLOW_US   30000000ULL   /* 30s after 10s */
-#define STATS_LOG_FAST_END_US        10000000ULL   /* 10s threshold */
-
-/* Exponential moving average alpha (0.1 = 10% new, 90% old) */
-#define EMA_ALPHA  0.1
+/* Stats logging config (from utlp_config.h) */
+#define STATS_LOG_INTERVAL_FAST_US    UTLP_STATS_LOG_FAST_US
+#define STATS_LOG_INTERVAL_SLOW_US    UTLP_STATS_LOG_SLOW_US
+#define STATS_LOG_FAST_END_US         UTLP_STATS_FAST_END_US
+#define EMA_ALPHA                     UTLP_EMA_ALPHA
 
 static chirp_accumulator_t g_chirp_acc = {0};
+
+/*============================================================================
+ * SERVO-LOCKED PHASE CORRECTION (S2 Claim 55)
+ *
+ * Implements frequency slewing instead of instant phase jumps.
+ *
+ * Standard Firefly (Peskin/Kuramoto): Δφ applied instantly at beacon reception
+ * UTLP Servo-Lock: Δf = Δφ/T_convergence applied over configurable window
+ *
+ * This preserves continuous waveform integrity for coherent beamforming:
+ * - Phase jumps create spectral splatter (wideband noise burst)
+ * - Frequency slewing maintains spectral purity throughout correction
+ *
+ * EXCEPTION: During genesis phase (first 10s), jumps are allowed for fast sync.
+ *==========================================================================*/
+
+/** @brief Servo-lock state for gradual phase correction */
+typedef struct {
+    /* 8-byte fields first */
+    int64_t  target_offset;          /**< Target time offset we're slewing toward */
+    int64_t  current_offset;         /**< Current applied time offset */
+    uint64_t slew_start_time_us;     /**< When we started slewing */
+
+    /* 4-byte fields */
+    int32_t  drift_correction_ppb;   /**< Current frequency adjustment (ppb) */
+
+    /* 1-byte fields */
+    bool     slewing_active;         /**< True if currently slewing toward target */
+    bool     genesis_jumps_allowed;  /**< True during first 10s (instant jumps OK) */
+} servo_lock_state_t;
+
+static servo_lock_state_t g_servo = {
+    .target_offset = 0,
+    .current_offset = 0,
+    .slew_start_time_us = 0,
+    .drift_correction_ppb = 0,
+    .slewing_active = false,
+    .genesis_jumps_allowed = true,   /* Jumps allowed at boot */
+};
 
 /*============================================================================
  * FRONTIER ALGORITHM - Neighborhood Awareness
@@ -302,18 +332,12 @@ static chirp_accumulator_t g_chirp_acc = {0};
  *   3. Smart interval logic (Providers echo source's 60s interval)
  *==========================================================================*/
 
-/** @brief Maximum neighbors to track */
-#define MAX_NEIGHBORS           16
-
-/** @brief Relay threshold - score above this = Provider (relay time to others) */
-#define RELAY_THRESHOLD         128
-
-/** @brief RSSI thresholds for frontier detection */
-#define RSSI_EXCELLENT          (-50)   /* Strong signal, interior node */
-#define RSSI_FRONTIER           (-70)   /* Weak signal, edge node */
-
-/** @brief Neighbor timeout in microseconds (5 seconds) */
-#define NEIGHBOR_TIMEOUT_US     5000000ULL
+/* Neighborhood config (from utlp_config.h) */
+#define MAX_NEIGHBORS           UTLP_MAX_NEIGHBORS
+#define RELAY_THRESHOLD         UTLP_RELAY_THRESHOLD
+#define RSSI_EXCELLENT          UTLP_RSSI_EXCELLENT
+#define RSSI_FRONTIER           UTLP_RSSI_FRONTIER
+#define NEIGHBOR_TIMEOUT_US     UTLP_NEIGHBOR_TIMEOUT_US
 
 /** @brief Individual neighbor record */
 typedef struct {
@@ -383,6 +407,177 @@ static uint32_t get_beacon_interval_us(uint32_t uptime_us)
 static int compare_mac(const uint8_t *a, const uint8_t *b)
 {
     return memcmp(a, b, UTLP_MAC_SIZE);
+}
+
+/*============================================================================
+ * SERVO-LOCKED PHASE CORRECTION - Helper Functions (S2 Claim 55)
+ *
+ * These functions implement firefly-style synchronization with frequency
+ * slewing instead of phase jumps. The key difference:
+ *
+ * Standard Firefly:  local_time += offset;           // Discontinuity
+ * UTLP Servo-Lock:   drift_correction_ppb = offset * 1e9 / T_convergence;
+ *                    // Clock speeds up/slows down rather than jumping
+ *==========================================================================*/
+
+/**
+ * @brief Check if we're still in genesis phase (instant jumps allowed)
+ *
+ * During the first UTLP_SERVO_JUMP_ALLOWED_UNTIL_US (10s), instant phase
+ * jumps are allowed for fast initial synchronization. After that, all
+ * corrections use frequency slewing to maintain spectral purity.
+ *
+ * @param uptime_us Current uptime in microseconds
+ * @return true if instant jumps are allowed, false if slewing required
+ */
+static bool servo_jumps_allowed(uint64_t uptime_us)
+{
+    return uptime_us < UTLP_SERVO_JUMP_ALLOWED_UNTIL_US;
+}
+
+/**
+ * @brief Apply a time offset correction using servo-lock (slewing)
+ *
+ * Implements S2 Claim 55: Servo-locked phase correction.
+ *
+ * If jumps are allowed (genesis phase), applies offset instantly.
+ * Otherwise, calculates a drift correction rate to slew toward target.
+ *
+ * @param new_offset     Target time offset to reach
+ * @param uptime_us      Current uptime (for genesis check)
+ * @return true if jump was applied, false if slewing started
+ */
+static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
+{
+    int64_t phase_error = new_offset - g_servo.current_offset;
+    int64_t abs_error = (phase_error < 0) ? -phase_error : phase_error;
+
+    /* Check if error is within deadband (noise floor) */
+    if (abs_error < UTLP_SERVO_DEADBAND_US) {
+        /* Already at target - no correction needed */
+        g_servo.slewing_active = false;
+        return false;
+    }
+
+    /* Genesis phase: instant jumps allowed for fast initial sync */
+    if (servo_jumps_allowed(uptime_us)) {
+        g_servo.current_offset = new_offset;
+        g_servo.target_offset = new_offset;
+        g_servo.slewing_active = false;
+        g_servo.drift_correction_ppb = 0;
+
+        /* Apply to HAL immediately */
+        utlp_hal_set_time_offset(new_offset);
+
+        utlp_hal_log_info(TAG, "SERVO: Genesis jump applied, offset=%+lld us",
+                          (long long)new_offset);
+        return true;
+    }
+
+    /* Post-genesis: use frequency slewing */
+    g_servo.target_offset = new_offset;
+    g_servo.slew_start_time_us = uptime_us;
+    g_servo.slewing_active = true;
+
+    /*
+     * Calculate drift correction rate: Δf = Δφ / T_convergence
+     *
+     * Example: 10ms phase error, 500ms convergence window
+     *   drift_correction = 10,000us / 500,000us * 1e9 = 20,000 ppb
+     *
+     * ppb = parts per billion = microseconds per second adjustment
+     */
+    int64_t drift_ppb = (phase_error * 1000000LL) / UTLP_SERVO_CONVERGENCE_US;
+
+    /* Clamp to maximum slew rate */
+    if (drift_ppb > UTLP_SERVO_MAX_DRIFT_PPB) {
+        drift_ppb = UTLP_SERVO_MAX_DRIFT_PPB;
+    } else if (drift_ppb < -UTLP_SERVO_MAX_DRIFT_PPB) {
+        drift_ppb = -UTLP_SERVO_MAX_DRIFT_PPB;
+    }
+
+    g_servo.drift_correction_ppb = (int32_t)drift_ppb;
+
+    utlp_hal_log_info(TAG, "SERVO: Slewing toward offset=%+lld us (error=%+lld us, drift=%+ld ppb)",
+                      (long long)new_offset, (long long)phase_error,
+                      (long)g_servo.drift_correction_ppb);
+
+    return false;  /* Slewing, not jumping */
+}
+
+/**
+ * @brief Tick the servo-lock loop (called periodically from main loop)
+ *
+ * When slewing is active, this function updates the current offset
+ * toward the target using the calculated drift correction rate.
+ *
+ * @param now_us Current time in microseconds
+ */
+static void servo_tick(uint64_t now_us)
+{
+    if (!g_servo.slewing_active) {
+        return;
+    }
+
+    /* Calculate elapsed time since slew started */
+    uint64_t elapsed_us = now_us - g_servo.slew_start_time_us;
+
+    /* Calculate how much offset we should have accumulated */
+    int64_t expected_correction = (g_servo.drift_correction_ppb * (int64_t)elapsed_us) / 1000000LL;
+
+    /* Calculate new offset */
+    int64_t new_offset = g_servo.current_offset + expected_correction;
+
+    /* Check if we've reached or passed the target */
+    int64_t remaining = g_servo.target_offset - new_offset;
+    int64_t abs_remaining = (remaining < 0) ? -remaining : remaining;
+
+    if (abs_remaining < UTLP_SERVO_DEADBAND_US ||
+        elapsed_us >= UTLP_SERVO_CONVERGENCE_US) {
+        /* Converged - snap to target and stop slewing */
+        g_servo.current_offset = g_servo.target_offset;
+        g_servo.slewing_active = false;
+        g_servo.drift_correction_ppb = 0;
+
+        utlp_hal_set_time_offset(g_servo.current_offset);
+        utlp_hal_log_info(TAG, "SERVO: Converged to offset=%+lld us",
+                          (long long)g_servo.current_offset);
+    } else {
+        /* Still slewing - apply interpolated offset */
+        g_servo.current_offset = new_offset;
+        utlp_hal_set_time_offset(g_servo.current_offset);
+    }
+}
+
+/**
+ * @brief Check if a forward time jump indicates a genesis reset
+ *
+ * When a peer's atomic time suddenly jumps forward beyond expected drift,
+ * it indicates they may have rebooted with a newer epoch. We should NOT
+ * adopt their epoch, but can entrain to their phase after verification.
+ *
+ * @param old_tx_time    Last known TX time from this peer
+ * @param new_tx_time    Current TX time from beacon
+ * @param elapsed_ms     Milliseconds since last beacon
+ * @return true if forward jump exceeds threshold (genesis reset detected)
+ */
+static bool servo_detect_genesis_reset(int64_t old_tx_time, int64_t new_tx_time,
+                                        uint32_t elapsed_ms)
+{
+    /* Calculate expected time based on elapsed time + reasonable drift */
+    int64_t expected_time = old_tx_time + (elapsed_ms * 1000LL);
+
+    /* How much did they jump forward? */
+    int64_t forward_jump = new_tx_time - expected_time;
+
+    /* If they jumped forward more than threshold, it's a reset */
+    if (forward_jump > (int64_t)UTLP_MAX_FORWARD_JUMP_US) {
+        utlp_hal_log_warn(TAG, "GENESIS RESET: Peer jumped forward %lld us (max=%d)",
+                          (long long)forward_jump, UTLP_MAX_FORWARD_JUMP_US);
+        return true;
+    }
+
+    return false;
 }
 
 /*============================================================================
@@ -756,6 +951,25 @@ static void log_drift_stats_if_due(uint64_t uptime_us)
  *   1. Lower stratum always wins
  *   2. Same stratum: higher genesis_score wins
  *   3. Same score: lower MAC wins (tie-breaker preserved)
+ *
+ * TX MODE SELECTION (HAL Pattern - S2.42):
+ *
+ * Following Silicon Labs RAIL API precedent (RAIL_StartTx vs RAIL_StartScheduledTx),
+ * UTLP provides two chirp transmission modes:
+ *
+ * | Function             | Behavior | Use Case |
+ * |----------------------|----------|----------|
+ * | send_chirp()         | Prefers hardware scheduling if available | Default - max precision |
+ * | send_chirp_immediate() | Always spin-wait, bypasses scheduling | Emergency, entrainment |
+ *
+ * Rationale for dual modes:
+ * - Scheduled TX achieves ±1µs precision but requires upfront commitment
+ * - Immediate TX allows reactive transmission (e.g., entrainment pulses)
+ * - Some scenarios need determinism (seismic chirp), others need responsiveness
+ *
+ * @see Silicon Labs RAIL API: RAIL_StartTx() vs RAIL_StartScheduledTx()
+ * @see Zephyr IEEE 802.15.4: IEEE802154_TX_MODE_TXTIME vs immediate
+ * @see SAE 2024-01-2989: Time-controlled hardware access patterns
  *==========================================================================*/
 
 /** @brief Beacon size in bytes */
@@ -794,9 +1008,37 @@ static uint64_t time_from_bytes(const uint8_t *bytes)
 }
 
 /**
- * @brief Send seismic chirp (3-burst beacon pattern)
+ * @brief Build beacon payload for a single burst
+ *
+ * @param[out] payload     Buffer to fill (UTLP_BEACON_SIZE bytes)
+ * @param      chirp_epoch Timestamp for all bursts in this chirp
+ * @param      burst_index Index of this burst (0, 1, or 2)
+ * @param      score       Genesis score to embed
  */
-static void send_chirp(void)
+static void build_beacon_payload(uint8_t *payload, uint64_t chirp_epoch,
+                                  uint8_t burst_index, uint8_t score)
+{
+    payload[BEACON_OFF_STRATUM] = g_aatr.stratum;
+    payload[BEACON_OFF_BURST] = burst_index;
+    payload[BEACON_OFF_SCORE] = score;
+    time_to_bytes(chirp_epoch, &payload[BEACON_OFF_TIMESTAMP]);
+}
+
+/**
+ * @brief Send seismic chirp using spin-wait timing (immediate mode)
+ *
+ * Always uses spin-wait between bursts regardless of platform capabilities.
+ * Use this for reactive transmissions where scheduling is inappropriate:
+ * - Entrainment pulses (immediate response to drifting peer)
+ * - Emergency beacons
+ * - Debugging (predictable timing without scheduler involvement)
+ *
+ * Achieves ±100µs precision on ESP32, ±10µs on MG24 bare metal.
+ *
+ * @note Analogous to RAIL_StartTx() in Silicon Labs RAIL API
+ * @see send_chirp() for the scheduling-preferred variant
+ */
+static void send_chirp_immediate(void)
 {
     uint8_t payload[UTLP_BEACON_SIZE];
     uint8_t my_score;
@@ -809,11 +1051,7 @@ static void send_chirp(void)
     my_score = calculate_genesis_score();
 
     for (uint8_t burst = 0; burst < CHIRP_BURST_COUNT; burst++) {
-        payload[BEACON_OFF_STRATUM] = g_aatr.stratum;
-        payload[BEACON_OFF_BURST] = burst;
-        payload[BEACON_OFF_SCORE] = my_score;
-
-        time_to_bytes(chirp_epoch, &payload[BEACON_OFF_TIMESTAMP]);
+        build_beacon_payload(payload, chirp_epoch, burst, my_score);
 
         utlp_hal_tx_packet(NULL, payload, UTLP_BEACON_SIZE);
 
@@ -821,9 +1059,79 @@ static void send_chirp(void)
         if (burst < CHIRP_BURST_COUNT - 1) {
             wait_until = utlp_hal_get_micros() + CHIRP_BURST_SPACING_US;
             while (utlp_hal_get_micros() < wait_until) {
-                /* Tight spin for 2ms */
+                /* Tight spin for 2ms - yields would add jitter */
             }
         }
+    }
+}
+
+/**
+ * @brief Send seismic chirp with optimal timing (default mode)
+ *
+ * Prefers hardware TX scheduling when available (MG24 RAIL), falling back
+ * to spin-wait on platforms without scheduling support (ESP32).
+ *
+ * Scheduled TX achieves ±1µs precision by queueing all 3 bursts upfront
+ * with absolute timestamps. The radio hardware handles the timing,
+ * eliminating software jitter from RTOS scheduling.
+ *
+ * Use this as the default for:
+ * - Regular beacon transmission (Genesis Pulse, Echo Rule)
+ * - Any chirp where maximum timing precision matters
+ *
+ * Use send_chirp_immediate() instead when:
+ * - Reactive transmission needed (entrainment pulses)
+ * - Hardware scheduling would introduce unacceptable latency
+ * - Debugging timing behavior
+ *
+ * @note Analogous to RAIL_StartScheduledTx() in Silicon Labs RAIL API
+ * @see send_chirp_immediate() for the spin-wait variant
+ */
+static void send_chirp(void)
+{
+    uint8_t my_score;
+    uint64_t chirp_epoch;
+
+    /* Capture timestamp ONCE at chirp start */
+    chirp_epoch = get_atomic_time();
+
+    /* Calculate my genesis score */
+    my_score = calculate_genesis_score();
+
+    /*
+     * TX Mode Selection (following RAIL API pattern):
+     *
+     * If platform supports hardware TX scheduling (MG24 RAIL), schedule
+     * all 3 bursts upfront for ±1µs precision. Otherwise, fall back to
+     * spin-wait with ±100µs precision.
+     */
+    if (utlp_hal_has_scheduled_tx()) {
+        /*
+         * SCHEDULED TX PATH (MG24 RAIL, future platforms)
+         *
+         * Queue all 3 bursts atomically with absolute timestamps.
+         * Hardware handles inter-burst timing with µs precision.
+         */
+        utlp_scheduled_tx_t bursts[CHIRP_BURST_COUNT];
+        uint64_t now = utlp_hal_get_micros();
+
+        for (uint8_t i = 0; i < CHIRP_BURST_COUNT; i++) {
+            bursts[i].tx_time_us = now + (i * CHIRP_BURST_SPACING_US);
+            bursts[i].len = UTLP_BEACON_SIZE;
+            build_beacon_payload(bursts[i].payload, chirp_epoch, i, my_score);
+        }
+
+        if (!utlp_hal_tx_schedule(bursts, CHIRP_BURST_COUNT)) {
+            utlp_hal_log_warn(TAG, "Scheduled TX failed, falling back to immediate");
+            send_chirp_immediate();
+        }
+    } else {
+        /*
+         * IMMEDIATE TX PATH (ESP32, fallback)
+         *
+         * Spin-wait between bursts. Less precise but universally available.
+         */
+        send_chirp_immediate();
     }
 }
 
@@ -1044,8 +1352,31 @@ static void process_beacon(const utlp_packet_t *pkt)
         old_stratum = g_aatr.stratum;
         new_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
 
+        /*
+         * GENESIS RESET DETECTION (S2 Section 8.24)
+         *
+         * Check if peer's atomic time jumped forward unexpectedly.
+         * This indicates they may have reset with a newer epoch.
+         *
+         * If detected:
+         * - Block epoch adoption (don't trust their new timeline)
+         * - Allow phase entrainment after they stabilize
+         */
+        utlp_peer_ledger_t *peer = utlp_trust_get_peer(pkt->mac);
+        if (peer && peer->last_tx_time_us > 0) {
+            uint32_t now_ms = (uint32_t)(pkt->rx_timestamp_us / 1000);
+            uint32_t elapsed_ms = now_ms - peer->last_seen_ms;
+
+            if (servo_detect_genesis_reset(peer->last_tx_time_us, remote_tx_time, elapsed_ms)) {
+                utlp_hal_log_warn(TAG, "GENESIS RESET blocked: Peer %02X jumped to newer epoch",
+                                  pkt->mac[5]);
+                /* Don't adopt their new epoch, but don't punish either */
+                /* They'll stabilize and we can entrain later */
+                goto skip_adoption;
+            }
+        }
+
         g_aatr.stratum = remote_stratum + 1;
-        g_aatr.time_offset = new_offset;
         memcpy(g_aatr.best_source_mac, pkt->mac, UTLP_MAC_SIZE);
 
         /* Track stratum changes for Promotion Pulse */
@@ -1056,9 +1387,26 @@ static void process_beacon(const utlp_packet_t *pkt)
                      old_stratum, g_aatr.stratum, g_is_provider ? "YES" : "NO");
         }
 
-        utlp_hal_set_time_offset(new_offset);
-        utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us",
-                 g_aatr.stratum, (long long)new_offset);
+        /*
+         * SERVO-LOCKED PHASE CORRECTION (S2 Claim 55)
+         *
+         * Use frequency slewing instead of instant phase jumps.
+         * During genesis phase (first 10s): instant jumps allowed for fast sync.
+         * After genesis: slew toward target to maintain spectral purity.
+         *
+         * This replaces the direct assignment:
+         *   g_aatr.time_offset = new_offset;
+         *   utlp_hal_set_time_offset(new_offset);
+         */
+        uint64_t uptime_us = utlp_hal_get_micros();
+        bool jumped = servo_apply_offset(new_offset, uptime_us);
+
+        /* Update internal state to track the target (servo handles HAL) */
+        g_aatr.time_offset = jumped ? new_offset : g_servo.target_offset;
+
+        utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us (%s)",
+                 g_aatr.stratum, (long long)new_offset,
+                 jumped ? "jumped" : "slewing");
 
         /* Notify SMSP that atomic time is now valid (first sync only) */
         if (!g_smsp_notified) {
@@ -1066,6 +1414,7 @@ static void process_beacon(const utlp_packet_t *pkt)
             g_smsp_notified = true;
         }
     }
+skip_adoption:
 
     /*
      * ORIGIN SELF-AWARENESS (S2 Biological Governance)
@@ -1205,6 +1554,11 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
      * This is a "fever response" - temporarily increase beacon rate
      * to pull the drifting peer into sync. The pulse contains our
      * atomic time, which they can use to entrain.
+     *
+     * Use send_chirp_immediate() because:
+     * 1. Entrainment is REACTIVE - we need to respond NOW
+     * 2. Scheduling adds latency (queue + wait for scheduled time)
+     * 3. Precision matters less than timeliness for entrainment
      */
     if (abs_deviation >= ENTRAINMENT_THRESHOLD_LYING_US) {
         utlp_hal_log_info(TAG, "ENTRAINMENT [LYING]: Entraining juvenile %02X (dev=%+ldus, health=%d)",
@@ -1214,8 +1568,8 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
                           peer_mac[5], (long)deviation_us, peer_health);
     }
 
-    /* Send entrainment pulse */
-    send_chirp();
+    /* Send entrainment pulse (immediate mode - reactive response) */
+    send_chirp_immediate();
 
     /* Log entrainment budget status */
     utlp_hal_log_info(TAG, "  Entrainment budget: %d/%d tokens remaining",
@@ -1297,6 +1651,7 @@ void utlp_app_run(void)
     utlp_hal_log_info(TAG, "Trust: Metabolic Ledger (Adaptive Immunity)");
     utlp_hal_log_info(TAG, "Relay: Frontier detection (edge nodes = Providers)");
     utlp_hal_log_info(TAG, "Interval: Genesis Pulse / Promotion Pulse / Echo Rule");
+    utlp_hal_log_info(TAG, "Servo-Lock: Claim 55 (slewing after 10s, jumps during genesis)");
     utlp_hal_log_info(TAG, "SMSP: Score-based LED (pattern=%s)", smsp_get_pattern_name());
     utlp_hal_log_info(TAG, "Drift Analysis: Enabled (polynomial fit)");
     utlp_hal_log_info(TAG, "========================================");
@@ -1335,13 +1690,22 @@ void utlp_app_run(void)
             }
         }
 
-        /* 3. PHYSICS */
+        /* 3. SERVO-LOCK (S2 Claim 55)
+         *
+         * Tick the servo-lock loop to apply gradual phase corrections.
+         * This implements firefly synchronization with frequency slewing
+         * instead of phase jumps, maintaining spectral purity for
+         * coherent beamforming applications.
+         */
+        servo_tick(uptime);
+
+        /* 4. PHYSICS */
         run_physics(now);
 
-        /* 4. DRIFT STATS */
+        /* 5. DRIFT STATS */
         log_drift_stats_if_due(uptime);
 
-        /* 5. METABOLIC LEDGER STATUS (same intervals as drift stats)
+        /* 6. METABOLIC LEDGER STATUS (same intervals as drift stats)
          *
          * Phase 1: Passive observation - log trust data to verify
          * the Ledger is populating correctly before Phase 2 activation.

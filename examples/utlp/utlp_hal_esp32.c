@@ -21,6 +21,7 @@
 #include "rfip_hal.h"
 
 #include <string.h>
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -172,7 +173,9 @@ static void espnow_recv_cb(const esp_now_recv_info_t *info,
         .len = len,
         .rssi = info->rx_ctrl->rssi
     };
-    memcpy(pkt.mac, info->src_addr, UTLP_MAC_SIZE);
+    /* Populate src_addr (union overlays with mac[]) */
+    memcpy(pkt.src_addr.addr, info->src_addr, UTLP_MAC_SIZE);
+    pkt.src_addr.len = UTLP_MAC_SIZE;
     memcpy(pkt.payload, data, len);
 
     if (rx_queue_push(&pkt)) {
@@ -391,6 +394,97 @@ void utlp_hal_yield(void)
 void utlp_hal_get_mac(uint8_t *mac)
 {
     memcpy(mac, g_local_mac, UTLP_MAC_SIZE);
+}
+
+/*============================================================================
+ * ADDRESS OPERATIONS (Transport-Agnostic)
+ *
+ * ESP32 uses 6-byte MAC addresses. These functions wrap the MAC in the
+ * transport-agnostic utlp_addr_t structure for protocol layer compatibility.
+ *==========================================================================*/
+
+void utlp_hal_get_addr(utlp_addr_t *addr)
+{
+    addr->len = UTLP_MAC_SIZE;
+    memcpy(addr->addr, g_local_mac, UTLP_MAC_SIZE);
+}
+
+bool utlp_hal_addr_equal(const utlp_addr_t *a, const utlp_addr_t *b)
+{
+    if (a->len != b->len) {
+        return false;  /* Different address types are never equal */
+    }
+    return memcmp(a->addr, b->addr, a->len) == 0;
+}
+
+void utlp_hal_addr_to_string(const utlp_addr_t *addr, char *buf, size_t buf_len)
+{
+    if (buf_len < 3 * addr->len) {
+        /* Not enough space even for minimal output */
+        if (buf_len > 0) {
+            buf[0] = '\0';
+        }
+        return;
+    }
+
+    size_t pos = 0;
+    for (uint8_t i = 0; i < addr->len && pos + 3 < buf_len; i++) {
+        if (i > 0) {
+            buf[pos++] = ':';
+        }
+        pos += snprintf(buf + pos, buf_len - pos, "%02X", addr->addr[i]);
+    }
+}
+
+uint32_t utlp_hal_addr_hash(const utlp_addr_t *addr)
+{
+    /* DJB2 hash - simple and effective for small data */
+    uint32_t hash = 5381;
+    for (uint8_t i = 0; i < addr->len; i++) {
+        hash = ((hash << 5) + hash) + addr->addr[i];  /* hash * 33 + byte */
+    }
+    return hash;
+}
+
+/*============================================================================
+ * SCHEDULED TX (Fallback Implementation)
+ *
+ * ESP32 ESP-NOW does not support hardware-scheduled transmission.
+ * This fallback uses spin-wait between packets, achieving ~±100µs precision.
+ * MG24 RAIL will provide true hardware scheduling with ±1µs precision.
+ *==========================================================================*/
+
+bool utlp_hal_has_scheduled_tx(void)
+{
+    return false;  /* ESP32 uses spin-wait fallback */
+}
+
+bool utlp_hal_tx_schedule(const utlp_scheduled_tx_t *packets, size_t count)
+{
+    for (size_t i = 0; i < count; i++) {
+        /* Wait until scheduled time (spin-wait) */
+        while (utlp_hal_get_micros() < packets[i].tx_time_us) {
+            /* Spin - yields would add jitter */
+        }
+        if (!utlp_hal_tx_packet(NULL, packets[i].payload, packets[i].len)) {
+            return false;  /* TX failed */
+        }
+    }
+    return true;
+}
+
+/*============================================================================
+ * PLATFORM CAPABILITY DISCOVERY
+ *==========================================================================*/
+
+void utlp_hal_get_caps(utlp_hal_caps_t *caps)
+{
+    caps->has_scheduled_tx = false;       /* Spin-wait fallback */
+    caps->has_hw_timestamp = true;        /* ESP-NOW provides RX timestamps */
+    caps->addr_size = UTLP_MAC_SIZE;      /* 6-byte MAC */
+    caps->max_payload = UTLP_MAX_PAYLOAD; /* 200 bytes */
+    caps->tx_power_dbm = 20;              /* ESP32 default ~20 dBm */
+    caps->channel = DEFAULT_WIFI_CHANNEL; /* Channel 6 (golden path) */
 }
 
 bool utlp_hal_tx_packet(const uint8_t *peer_mac, const uint8_t *data, size_t len)
