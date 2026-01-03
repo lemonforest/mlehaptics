@@ -169,6 +169,7 @@
 #include "utlp_smsp.h"
 #include "utlp_loom.h"   /* Emergent Time Lord state machine (Phase 9) */
 #include "utlp_arbor.h"  /* Per-arbor dormancy API (Phase 9) */
+#include "utlp_phase.h"  /* Hardware Phase Locked Atomic Coherency (HPLAC) */
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -657,8 +658,17 @@ static void engine_timer_callback(void *arg)
 
     uint64_t uptime = utlp_hal_get_micros();
 
-    /* 1. Update drift model (always runs, even when transport yielded) */
-    servo_tick(uptime);
+    /* 1. Update phase engine (HPLAC - Physics First!)
+     *
+     * The phase engine now owns timing via MCPWM hardware timer.
+     * This tick handles state transitions (COLD→LOCKED→RECOVERY)
+     * and quality metric updates.
+     *
+     * Note: servo_tick() remains for legacy software-based timing
+     * until phase engine is fully integrated.
+     */
+    utlp_phase_tick(uptime);
+    servo_tick(uptime);  /* Legacy: will be removed after validation */
 
     /* 2. Tick Loom state machine for per-arbor Time Lord promotion
      * The Loom detects silence on each arbor and promotes to Time Lord
@@ -1393,6 +1403,26 @@ static void process_beacon(const utlp_packet_t *pkt)
     }
 
     /*
+     * HARDWARE PHASE ENGINE (HPLAC - Physics First!)
+     *
+     * Notify the phase engine of this beacon. The phase engine tracks
+     * phase errors and decides whether to use hard sync (Cold Start) or
+     * soft slew (Locked/Recovery) based on its internal state machine.
+     *
+     * This runs in PARALLEL with the legacy servo_apply_offset system
+     * during the transition period. Once validated, servo_apply_offset
+     * will be removed.
+     *
+     * Conversion: TX time (µs) → phase ticks (0-49999)
+     *   peer_phase_ticks = (remote_tx_time % CYCLE_US) / TICK_US
+     */
+    {
+        uint32_t peer_phase_ticks = (uint32_t)((remote_tx_time % UTLP_PHASE_CYCLE_US) /
+                                               UTLP_PHASE_TICK_US);
+        utlp_phase_on_beacon(peer_phase_ticks, pkt->rx_timestamp_us);
+    }
+
+    /*
      * BIOLOGICAL SOURCE SELECTION (S2 Governance Model)
      *
      * Replaces political "Frontier election" with health-based selection.
@@ -1779,6 +1809,20 @@ void utlp_app_run(void)
     uint32_t beacon_interval;
     int32_t time_since_beacon;
     static uint32_t last_logged_interval = 0;
+
+    /* Initialize MCPWM Phase Engine (HPLAC - Physics First!)
+     *
+     * The phase engine MUST be initialized first because it owns the
+     * hardware timer that defines atomic time. All subsequent subsystems
+     * derive their timing from this single source of truth.
+     *
+     * "Physics First: Hardware defines time, not software."
+     */
+    esp_err_t phase_ret = utlp_phase_init();
+    if (phase_ret != ESP_OK) {
+        utlp_hal_log_error(TAG, "Phase engine init failed! Falling back to software timing.");
+        /* Continue with legacy software-based timing */
+    }
 
     /* Initialize transport layer (handles staggered startup for multi-arbor)
      *

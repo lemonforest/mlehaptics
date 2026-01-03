@@ -243,6 +243,9 @@ idf_component_register(
         # Loom State Machine - Emergent Time Lord (Phase 9)
         "../examples/utlp/utlp_loom.c"
 
+        # Hardware Phase Engine - MCPWM-Based Atomic Coherency (HPLAC)
+        "../examples/utlp/utlp_phase.c"
+
         # UTLP HAL Implementation (ESP32 specific)
         "../examples/utlp/utlp_hal_esp32.c"
 

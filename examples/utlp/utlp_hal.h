@@ -51,14 +51,22 @@
  * This is the "ground truth" for the local oscillator.
  *
  * @subsection timing_atomic Atomic Time (utlp_hal_get_atomic_time_us)
- * Local time + time_offset. This is the "swarm truth" - what all nodes
- * agree is the current time. Genesis node has offset=0; followers have
- * offset calculated from beacon exchange.
+ * The "swarm truth" - what all nodes agree is the current time.
  *
- * @par Formula:
- * @code
- * atomic_time = local_time + time_offset
- * @endcode
+ * **Implementation Options:**
+ *
+ * 1. **Software-based (Legacy):** `atomic_time = local_time + time_offset`
+ *    - Genesis node has offset=0; followers calculate from beacon exchange
+ *    - Simple, works on any platform
+ *
+ * 2. **HPLAC (Hardware Phase Locked Atomic Coherency):**
+ *    - Atomic time derived from MCPWM hardware timer
+ *    - `atomic_time = (cycle_count × 1000000) + (ticks × 20) + epoch_offset`
+ *    - Single-register atomic phase: 50kHz × 50000 = 1 second cycle
+ *    - See utlp_phase.h for full API
+ *
+ * @par Philosophy:
+ * "Physics First: Hardware defines time, not software."
  *
  * @par Why Dual Clocks?
  * We never modify the system clock. This avoids:

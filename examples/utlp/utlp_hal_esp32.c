@@ -18,6 +18,7 @@
  */
 
 #include "utlp_hal.h"
+#include "utlp_phase.h"  /* HPLAC: Hardware Phase Engine for atomic time */
 #include "rfip_hal.h"
 
 #include <string.h>
@@ -378,6 +379,20 @@ uint64_t utlp_hal_get_micros(void)
 
 uint64_t utlp_hal_get_atomic_time_us(void)
 {
+    /*
+     * HPLAC: Delegate to Hardware Phase Engine
+     *
+     * "Physics First: Hardware defines time, not software."
+     *
+     * The phase engine owns atomic time via MCPWM hardware timer.
+     * If not initialized, fall back to legacy software offset.
+     */
+    if (utlp_phase_is_synchronized() || utlp_phase_get_cycle_count() > 0) {
+        /* Phase engine is running - use hardware-derived time */
+        return utlp_phase_get_atomic_time_us();
+    }
+
+    /* Fallback: Legacy software-based offset (before phase engine init) */
     return esp_timer_get_time() + g_time_offset_us;
 }
 

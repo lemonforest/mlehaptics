@@ -7,7 +7,8 @@ instead of political consensus.
 > **v3 Features:** Multi-Arbor Transport Architecture (ESP-NOW + 802.15.4),
 > Servo-Locked Phase Correction (S2 Claim 55), Genesis Reset Detection,
 > SMSP Application Layer, Centralized Configuration (SSOT),
-> **Phase 9: The Loom** (Emergent Time Lord, Per-Arbor Genesis Pulse).
+> **Phase 9: The Loom** (Emergent Time Lord, Per-Arbor Genesis Pulse),
+> **HPLAC: Hardware Phase Locked Atomic Coherency** (MCPWM-based phase engine).
 
 > **Transport Support:** ESP-NOW (WiFi broadcast) + IEEE 802.15.4 (raw MAC frames).
 > Staggered startup enables testing pure 802.15.4 sync before WiFi joins.
@@ -43,11 +44,12 @@ If you're new to this codebase, read in this order:
 | 2 | `utlp.c` (header comments) | The manifesto - why biology beats politics |
 | 3 | `utlp_trust.h` | Hebbian learning, median consensus, Dunbar's Number |
 | 4 | `utlp_immune.h` | T-cell exhaustion, quorum sensing, cytokine storms |
-| 5 | `utlp_loom.h` | **NEW:** Emergent Time Lord authority (Phase 9) |
-| 6 | `utlp_transport.h` | Multi-arbor architecture (ESP-NOW + 802.15.4) |
-| 7 | `utlp_smsp.h` | Score-driven actuation (Protocol Trinity: when/where/what) |
-| 8 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
-| 9 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
+| 5 | `utlp_loom.h` | Emergent Time Lord authority (Phase 9) |
+| 6 | `utlp_phase.h` | **NEW:** Hardware Phase Engine (MCPWM atomic coherency) |
+| 7 | `utlp_transport.h` | Multi-arbor architecture (ESP-NOW + 802.15.4) |
+| 8 | `utlp_smsp.h` | Score-driven actuation (Protocol Trinity: when/where/what) |
+| 9 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
+| 10 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
 
 Each file includes academic references and biological analogies.
 
@@ -426,10 +428,10 @@ This prevents a single reset node from disrupting an established swarm.
 ├─────────────────────────────────────────────────────────────┤
 │           ESP32 Implementation (utlp_hal_esp32.c)           │
 │                                                              │
-│   ┌─────────┬─────────┬─────────┬─────────┐                 │
-│   │ ESP-NOW │  MCPWM  │ Timer   │Semaphore│                 │
-│   │ (radio) │  (LED)  │ (time)  │  (RX)   │                 │
-│   └─────────┴─────────┴─────────┴─────────┘                 │
+│   ┌─────────┬─────────────┬─────────┬─────────┐             │
+│   │ ESP-NOW │ MCPWM Phase │ Timer   │Semaphore│             │
+│   │ (radio) │  (HPLAC)    │ (time)  │  (RX)   │             │
+│   └─────────┴─────────────┴─────────┴─────────┘             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -821,6 +823,7 @@ Python simulation for testing phase coherence and Byzantine scenarios:
 | `utlp_transport.h/c` | **Multi-Arbor Transport Manager** (ESP-NOW + 802.15.4) |
 | `utlp_arbor.h/c` | Per-transport selective dormancy API |
 | `utlp_loom.h/c` | **The Loom** - Emergent Time Lord state machine (Phase 9) |
+| `utlp_phase.h/c` | **HPLAC** - Hardware Phase Locked Atomic Coherency (MCPWM) |
 | `utlp_hal.h` | HAL interface contract (time, radio, actuator) |
 | `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM) |
 | `utlp_hal_802154.h` | 802.15.4 HAL interface (raw MAC, FCF 0x8841) |
@@ -1039,6 +1042,76 @@ Genesis Pulse. This prevents "phantom arbor" reintegration bugs.
 - `utlp_trust.c` - Per-arbor health arrays
 
 **Prior Art:** Claims 35-41 (Emergent Role Differentiation, Dormancy Control)
+
+### HPLAC: Hardware Phase Locked Atomic Coherency (`utlp_phase.h/c`)
+
+**"Physics First: Hardware defines time, not software."**
+
+HPLAC replaces software-based time offset tracking with a hardware-driven MCPWM
+timer that IS the source of phase truth. The ESP32 MCPWM peripheral runs at 50kHz,
+providing 20µs granularity (0.0072°) over a full 1-second phase cycle.
+
+```
+Timer Count:  0 ─────────────────────────────────────► 49,999 (1s)
+              │                                           │
+              │  ← Single hardware SYNC resets here →     │
+              │                                           │
+Full Phase:   0° ────────────────────────────────────► 360°
+              │                                           │
+              │         ONE REGISTER = ONE CYCLE          │
+              │    (True atomic coherency - no sub-cycles) │
+              └───────────────────────────────────────────┘
+```
+
+**Key Features:**
+
+| Feature | Description |
+|---------|-------------|
+| **Single-Register Phase** | 50kHz × 50000 ticks = 1 second in one hardware register |
+| **Hard Sync (Cold Start)** | MCPWM soft sync instantly jams phase during first 5s |
+| **Soft Slew (Locked)** | Period bending for spectral purity after lock |
+| **Variable Gain PLL** | COLD → LOCKED → RECOVERY state machine |
+| **Critical Sections** | Prevents execution jitter, torn reads, sticky slew |
+
+**Phase Engine State Machine:**
+
+```
+            ┌───────────────────────────────────┐
+            │                                   │
+   Boot     ▼                                   │ (error > threshold)
+  ───────► COLD ─────────────────────────────►  │
+            │                                   │
+            │ (uptime > 5s)                     │
+            ▼                                   │
+         LOCKED ◄───────────────────────────────┤
+            │                                   │
+            │ (error > threshold)               │
+            ▼                                   │
+        RECOVERY ───────────────────────────────┘
+            │      (error < threshold/2)
+            │
+            └──► LOCKED (hysteresis)
+```
+
+**Atomicity Guarantees (Purple Team Fixes):**
+
+1. **Execution Jitter Prevention**: Hard sync wrapped in `portENTER_CRITICAL()`
+2. **Torn Read Prevention**: 64-bit `cycle_count` getters use critical sections
+3. **Sticky Slew Prevention**: Hard sync resets period to nominal
+
+**API:**
+
+```c
+esp_err_t utlp_phase_init(void);              // Initialize MCPWM timer
+uint32_t  utlp_phase_get_ticks(void);         // Current phase (0-49999)
+uint64_t  utlp_phase_get_cycle_count(void);   // Full cycles since init
+esp_err_t utlp_phase_hard_sync(uint32_t t);   // Instant phase jam (cold)
+esp_err_t utlp_phase_slew(int32_t error);     // Frequency bend (locked)
+esp_err_t utlp_phase_on_beacon(uint32_t p, uint64_t rx); // High-level entry
+uint64_t  utlp_phase_get_atomic_time_us(void); // Replaces HAL version
+```
+
+**Prior Art:** Claim 55 (Servo-Locked Phase Correction) in Technical Supplement S2
 
 ## Channel Chirality (S2.31)
 

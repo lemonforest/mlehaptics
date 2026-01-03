@@ -332,6 +332,67 @@ extern "C" {
 /** @} */ /* stratum */
 
 /*============================================================================
+ * MCPWM PHASE ENGINE - Hardware-Based Atomic Coherency (HPLAC)
+ *
+ * "Physics First: Hardware defines time, not software."
+ *
+ * SINGLE-REGISTER Atomic Phase Strategy:
+ * - ESP32-C6 MCPWM has 16-bit counter (max 65535)
+ * - At 50kHz, 50000 ticks = 1.0 second (fits in 16-bit!)
+ * - CRITICAL: Single hardware SYNC resets ENTIRE phase cycle
+ * - No sub-cycles, no ISR overhead - true atomic phase lock
+ *
+ * Phase granularity: 20µs = 0.0072° (well within 2ms coherence threshold)
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Claim 55 (Servo-Locked Phase Correction)
+ *==========================================================================*/
+
+/** @defgroup phase_engine MCPWM Phase Engine
+ * @{
+ */
+
+/** @brief Timer resolution (50kHz = 20µs/tick for full cycle in 16-bit) */
+#define UTLP_PHASE_TIMER_RESOLUTION_HZ   50000UL     /* 50 kHz */
+
+/** @brief Full phase cycle in ticks (fits in 16-bit counter) */
+#define UTLP_PHASE_PERIOD_TICKS          50000UL     /* 50000 × 20µs = 1s */
+
+/** @brief Full phase cycle period in microseconds (matches UTLP_BLINK_PERIOD_US) */
+#define UTLP_PHASE_CYCLE_US              1000000UL   /* 1 second */
+
+/** @brief Tick duration in microseconds (derived) */
+#define UTLP_PHASE_TICK_US               (UTLP_PHASE_CYCLE_US / UTLP_PHASE_PERIOD_TICKS)  /* 20µs */
+
+/** @brief Phase granularity: 20µs = 0.0072° (scaled by 1000 for integer math) */
+#define UTLP_PHASE_DEGREES_PER_TICK_X1000  ((360UL * 1000) / UTLP_PHASE_PERIOD_TICKS)  /* 7.2 */
+
+/** @brief Maximum period adjustment for soft slew (PPM) */
+#define UTLP_PHASE_SLEW_MAX_PPM          5000UL      /* 0.5% max period bend */
+
+/** @brief Maximum period adjustment in ticks (derived) */
+#define UTLP_PHASE_SLEW_MAX_TICKS        ((UTLP_PHASE_PERIOD_TICKS * UTLP_PHASE_SLEW_MAX_PPM) / 1000000UL)  /* 250 */
+
+/** @brief Phase deadband (ticks) - errors below this ignored */
+#define UTLP_PHASE_DEADBAND_TICKS        5UL         /* 5 ticks = 100µs */
+
+/** @brief Cold start threshold (inherited from servo config) */
+#define UTLP_PHASE_COLD_START_US         UTLP_SERVO_COLD_START_US
+
+/** @brief Convergence window for soft slew (inherited) */
+#define UTLP_PHASE_CONVERGENCE_US        UTLP_SERVO_CONVERGENCE_US
+
+/** @brief Convergence window in ticks (derived) */
+#define UTLP_PHASE_CONVERGENCE_TICKS     (UTLP_PHASE_CONVERGENCE_US / UTLP_PHASE_TICK_US)  /* 25000 */
+
+/** @brief MCPWM group for phase engine */
+#define UTLP_PHASE_MCPWM_GROUP           0
+
+/** @brief MCPWM timer index for phase engine */
+#define UTLP_PHASE_MCPWM_TIMER           0
+
+/** @} */ /* phase_engine */
+
+/*============================================================================
  * APPLICATION LAYER
  *==========================================================================*/
 
