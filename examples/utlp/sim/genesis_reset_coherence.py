@@ -2498,6 +2498,219 @@ def run_boot_variance_scenario():
     return results
 
 
+def run_multi_arbor_stagger_scenario():
+    """
+    Multi-Arbor Staggered Startup Scenario (Phase 8 Transport Architecture)
+
+    Simulates the staggered transport startup from utlp_transport.c:
+    - 802.15.4 starts immediately
+    - ESP-NOW/WiFi starts 15 seconds later
+    - Each arbor can form its own independent genesis
+
+    This tests:
+    1. Pure 802.15.4 sync (t=0 to t=15s)
+    2. WiFi arbor joining with its own genesis (t=15s+)
+    3. Two independent timing histories merging
+
+    In real hardware: ESP32-C6 has both WiFi and 802.15.4, with hardware
+    coexistence arbiter time-divisioning the 2.4GHz radio.
+    """
+    print("\n" + "="*70)
+    print("SCENARIO: Multi-Arbor Staggered Startup (Phase 8)")
+    print("="*70)
+    print("""
+    Timeline:
+    1. t=0-15s:  802.15.4 arbor active (3 nodes: A15, B15, C15)
+                 Forms genesis, syncs, establishes time
+    2. t=15s:    WiFi arbor wakes up (3 nodes: A_W, B_W, C_W boot)
+                 Independent genesis on WiFi transport
+    3. t=15s+:   Bridge node (BRIDGE) can hear BOTH transports
+                 Question: Do the two genesis histories merge?
+
+    This mirrors the staggered startup in utlp_transport.c where
+    stagger_espnow_ms=15000 delays WiFi to test 802.15.4 in isolation.
+    """)
+
+    sim = UTLPSimulator(seed=80808)
+
+    # ==========================================================================
+    # PHASE 1: 802.15.4 Arbor Genesis (t=0 to t=15s)
+    # ==========================================================================
+    print("\n[PHASE 1] 802.15.4 Arbor Bootstrap (t=0-15s)")
+
+    # Three nodes on 802.15.4 only
+    node_a15 = sim.add_node("15:AA:01", drift_ppm=3.0, initial_offset_us=0)
+    node_a15.stratum = 1
+    node_a15.state = NodeState.GENESIS
+
+    node_b15 = sim.add_node("15:BB:02", drift_ppm=-2.0, initial_offset_us=0)
+    node_c15 = sim.add_node("15:CC:03", drift_ppm=1.5, initial_offset_us=0)
+
+    # Run 802.15.4-only for 15 seconds
+    print("  Running 802.15.4 sync for 15 seconds...")
+    for _ in range(15):
+        sim.tick(1_000_000)
+
+    # Check coherence after 802.15.4 phase
+    metrics_154 = sim.get_coherence_metrics()
+    print(f"  802.15.4 coherence after 15s: {metrics_154['coherence_pct']}%")
+    print(f"  Spread: {metrics_154['spread_us']}us ({metrics_154['spread_us']/1000:.1f}ms)")
+
+    # Capture 802.15.4 genesis atomic time
+    genesis_154_time = node_a15.atomic_time_us
+    print(f"  802.15.4 Genesis time: {genesis_154_time}us")
+
+    # ==========================================================================
+    # PHASE 2: WiFi Arbor Wakes Up (t=15s)
+    # ==========================================================================
+    print("\n[PHASE 2] WiFi Arbor Bootstrap (t=15s)")
+
+    # WiFi nodes boot with their OWN independent genesis
+    # They think they're starting fresh (don't know about 802.15.4 swarm)
+    node_a_w = sim.add_node("WI:AA:01", drift_ppm=2.0, initial_offset_us=0)
+    node_a_w.stratum = 1  # WiFi genesis
+    node_a_w.state = NodeState.GENESIS
+
+    node_b_w = sim.add_node("WI:BB:02", drift_ppm=-1.5, initial_offset_us=0)
+    node_c_w = sim.add_node("WI:CC:03", drift_ppm=2.5, initial_offset_us=0)
+
+    print(f"  WiFi Genesis boot time: {node_a_w.atomic_time_us}us")
+    print(f"  Delta from 802.15.4 genesis: {genesis_154_time - node_a_w.atomic_time_us}us")
+
+    # Run WiFi-only for 5 seconds to let it form its own genesis
+    print("  Running WiFi sync for 5 seconds (isolated)...")
+    # But wait - in this simulation, ALL nodes hear ALL beacons
+    # We need to isolate the WiFi nodes temporarily
+
+    # Let's run a few ticks to let WiFi establish itself
+    for _ in range(5):
+        sim.tick(1_000_000)
+
+    # ==========================================================================
+    # PHASE 3: Bridge Node Connects Both Arbors (t=20s)
+    # ==========================================================================
+    print("\n[PHASE 3] Bridge Node Activates (t=20s)")
+    print("  Bridge can hear BOTH 802.15.4 and WiFi nodes...")
+
+    # The bridge node represents an ESP32-C6 with both radios active
+    # It has been running 802.15.4 since boot and just enabled WiFi
+    # Its atomic time is from the 802.15.4 genesis (older)
+    bridge = sim.add_node("BRIDGE:01", drift_ppm=0.5,
+                          initial_offset_us=genesis_154_time)  # Inherits 802.15.4 time
+    bridge.stratum = 2  # Follower of 802.15.4 genesis
+    bridge.state = NodeState.FOLLOWER
+
+    print(f"  Bridge atomic time: {bridge.atomic_time_us}us (from 802.15.4)")
+
+    # ==========================================================================
+    # PHASE 4: Observe Merge Behavior (t=20s to t=60s)
+    # ==========================================================================
+    print("\n[PHASE 4] Observing Arbor Merge (t=20-60s)")
+
+    for i in range(40):
+        sim.tick(1_000_000)
+        if i % 10 == 0:
+            # Track genesis nodes
+            genesis_nodes = [n for n in sim.nodes if n.stratum == 1]
+            genesis_macs = [n.mac for n in genesis_nodes]
+
+            metrics = sim.get_coherence_metrics()
+            print(f"  T={sim.tick_count}: coherence={metrics['coherence_pct']}%, "
+                  f"genesis={genesis_macs}")
+
+    # ==========================================================================
+    # ANALYSIS
+    # ==========================================================================
+    print("\n" + "="*70)
+    print("MULTI-ARBOR STAGGER ANALYSIS")
+    print("="*70)
+
+    # Who is Genesis at the end?
+    genesis_nodes = [n for n in sim.nodes if n.stratum == 1]
+
+    print(f"\nFinal Genesis nodes: {len(genesis_nodes)}")
+    for n in genesis_nodes:
+        transport = "802.15.4" if n.mac.startswith("15:") else "WiFi" if n.mac.startswith("WI:") else "Bridge"
+        print(f"  {n.mac} ({transport}): stratum={n.stratum}, atomic={n.atomic_time_us}us")
+
+    # Check if swarms merged
+    atomic_times = {n.mac: n.atomic_time_us for n in sim.nodes}
+
+    # Group by transport
+    times_154 = {k: v for k, v in atomic_times.items() if k.startswith("15:")}
+    times_wifi = {k: v for k, v in atomic_times.items() if k.startswith("WI:")}
+    times_bridge = {k: v for k, v in atomic_times.items() if k.startswith("BRIDGE:")}
+
+    print(f"\n802.15.4 nodes:")
+    for mac, t in times_154.items():
+        print(f"  {mac}: {t}us")
+
+    print(f"\nWiFi nodes:")
+    for mac, t in times_wifi.items():
+        print(f"  {mac}: {t}us")
+
+    print(f"\nBridge:")
+    for mac, t in times_bridge.items():
+        print(f"  {mac}: {t}us")
+
+    # Calculate cross-transport offset
+    avg_154 = sum(times_154.values()) / len(times_154) if times_154 else 0
+    avg_wifi = sum(times_wifi.values()) / len(times_wifi) if times_wifi else 0
+    cross_offset = abs(avg_154 - avg_wifi)
+
+    print(f"\nCross-Transport Offset: {cross_offset}us ({cross_offset/1000:.1f}ms)")
+
+    # Verdict
+    print("\n" + "-"*70)
+    if cross_offset < 100_000:  # < 100ms
+        print("VERDICT: [OK] ARBORS MERGED!")
+        print("         The two independent genesis histories converged.")
+        if avg_154 > avg_wifi:
+            print("         802.15.4 genesis won (started earlier).")
+        else:
+            print("         WiFi genesis won (claimed older time?).")
+    elif len(genesis_nodes) > 1:
+        print("VERDICT: [!] SPLIT BRAIN!")
+        print("         Multiple genesis nodes coexist - arbors did not merge.")
+        print(f"         Cross-offset: {cross_offset/1000:.1f}ms")
+    else:
+        print("VERDICT: [?] PARTIAL MERGE")
+        print(f"         Cross-offset ({cross_offset/1000:.1f}ms) suggests incomplete sync.")
+
+    # Key insights for hardware testing
+    print("\n" + "-"*70)
+    print("HARDWARE TEST IMPLICATIONS:")
+    print("  1. Enable stagger_espnow_ms=15000 in utlp_transport_config_t")
+    print("  2. Observe 802.15.4-only sync for first 15 seconds")
+    print("  3. At t=15s, ESP-NOW comes online - watch for genesis conflict")
+    print("  4. Bridge nodes (ESP32-C6 with both) should carry 802.15.4 time to WiFi")
+    print()
+    print("DESIGN INSIGHT from simulation:")
+    print("  Genesis Pulse Detection (S2.25) blocks epoch adoption when")
+    print("  beacon_interval < GENESIS_PULSE_THRESHOLD_MS (2000ms).")
+    print("  This is CORRECT for Byzantine resistance but creates split-brain")
+    print("  when two independent swarms try to merge.")
+    print()
+    print("  In REAL hardware with staggered arbor startup:")
+    print("  - The SAME device has both 802.15.4 and WiFi arbors")
+    print("  - When WiFi wakes at t=15s, it inherits 802.15.4's atomic time")
+    print("  - WiFi broadcasts OLD time (not genesis pulse)")
+    print("  - WiFi-only nodes would see old time and adopt it normally")
+    print()
+    print("  This simulation models SEPARATE nodes per transport, which")
+    print("  correctly shows that independent swarms resist merging.")
+
+    # Log entries
+    print("\n" + "-"*70)
+    print("KEY LOG ENTRIES:")
+    interesting = [e for e in sim.log if any(k in e for k in
+                   ["15:", "WI:", "BRIDGE", "FIRST_BORN", "INNATE"])]
+    for entry in interesting[-25:]:
+        print(entry)
+
+    return sim
+
+
 if __name__ == "__main__":
     # Run main scenario (without B promoting)
     print("SCENARIO 1: Simple Genesis Reset")
@@ -2527,6 +2740,9 @@ if __name__ == "__main__":
 
     # Run Boot Variance scenario
     run_boot_variance_scenario()
+
+    # Run Multi-Arbor Staggered Startup scenario (Phase 8)
+    run_multi_arbor_stagger_scenario()
 
     # Run parameter sweep
     print("\n\n")

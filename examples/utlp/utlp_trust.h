@@ -182,6 +182,22 @@ extern "C" {
 #define UTLP_TRUST_MAX_PEERS    12
 
 /**
+ * @brief Number of transport arbors (Blood-Brain Barrier)
+ *
+ * Phase 9: Per-arbor trust tracking. Each peer has independent health
+ * scores for each transport to prevent cross-contamination of reputation.
+ *
+ * A peer that is healthy on 802.15.4 but jittery on WiFi should not have
+ * its WiFi misbehavior pollute its 15.4 reputation.
+ *
+ * Matches UTLP_ARBOR_COUNT from utlp_arbor.h:
+ *   0 = WiFi (ESP-NOW)
+ *   1 = 802.15.4
+ *   2 = BLE
+ */
+#define UTLP_MAX_ARBORS         3
+
+/**
  * @brief Maximum health score (0-255 range)
  *
  * Full trust requires ~125 consecutive agreements from startup.
@@ -337,6 +353,19 @@ uint64_t utlp_hal_get_micros(void);
  *
  * @note Static allocation - no malloc. Array of UTLP_TRUST_MAX_PEERS entries.
  *
+ * @section blood_brain_barrier Blood-Brain Barrier (Phase 9)
+ *
+ * Trust is tracked **per-arbor** (per-transport), not globally per-peer.
+ * A peer healthy on 802.15.4 but jittery on WiFi should have independent
+ * reputation on each transport. This prevents cross-contamination:
+ *
+ * | Scenario | Old (Global) | New (Per-Arbor) |
+ * |----------|--------------|-----------------|
+ * | WiFi jitter | Peer loses all trust | Only WiFi trust degrades |
+ * | 15.4 failure | Full reputation wipe | 15.4 isolated, WiFi OK |
+ *
+ * Arrays indexed by arbor_id: [0]=WiFi, [1]=15.4, [2]=BLE
+ *
  * @section genesis_detection Genesis Pulse Detection (S2.24)
  * The first_seen_ms and observed_interval_ms fields enable fast detection
  * of rebooted peers. A peer broadcasting at genesis intervals (100-500ms)
@@ -347,15 +376,21 @@ uint64_t utlp_hal_get_micros(void);
  * The last_tx_time_us field tracks the peer's last transmitted atomic time.
  * If a peer's atomic time goes backwards (regression), it indicates a reboot
  * and triggers trust penalty + epoch adoption block.
+ *
+ * @section packing Memory Layout (Packed)
+ * Uses __attribute__((packed)) for consistent layout across platforms.
+ * _Static_assert verifies expected size (important for NVS serialization).
  */
-typedef struct {
+typedef struct __attribute__((packed)) {
     /* 8-byte fields first */
     int64_t  last_tx_time_us;   /**< Last TX timestamp from peer (regression check) */
 
-    /* 4-byte fields */
-    uint32_t last_seen_ms;      /**< Timestamp of last observation (LRU tracking) */
+    /* 4-byte array fields (per-arbor) */
+    uint32_t last_seen_ms[UTLP_MAX_ARBORS];   /**< Per-arbor last seen (LRU) */
+    int32_t  last_offset_us[UTLP_MAX_ARBORS]; /**< Per-arbor timing offset */
+
+    /* 4-byte scalar field */
     uint32_t first_seen_ms;     /**< When we first observed this peer (reboot detection) */
-    int32_t  last_offset_us;    /**< Last reported time offset in microseconds */
 
     /* 2-byte fields */
     uint16_t interactions;      /**< Total observation count (caps at 65000) */
@@ -364,9 +399,27 @@ typedef struct {
 
     /* 1-byte fields and arrays */
     uint8_t  mac[6];            /**< Peer MAC address (identity) */
-    uint8_t  health_score;      /**< Trust level 0-255 (higher = more trusted) */
+    uint8_t  health_score[UTLP_MAX_ARBORS]; /**< Per-arbor trust 0-255 */
     uint8_t  stratum_claim;     /**< Last claimed stratum (1=Genesis, 2=Follower) */
 } utlp_peer_ledger_t;
+
+/**
+ * @brief Verify ledger struct packing
+ *
+ * Expected layout (packed):
+ *   int64_t last_tx_time_us:         8 bytes
+ *   uint32_t last_seen_ms[3]:       12 bytes
+ *   int32_t last_offset_us[3]:      12 bytes
+ *   uint32_t first_seen_ms:          4 bytes
+ *   uint16_t interactions:           2 bytes
+ *   uint16_t consecutive_hits:       2 bytes
+ *   uint16_t observed_interval_ms:   2 bytes
+ *   uint8_t mac[6]:                  6 bytes
+ *   uint8_t health_score[3]:         3 bytes
+ *   uint8_t stratum_claim:           1 byte
+ *   TOTAL:                          52 bytes
+ */
+_Static_assert(sizeof(utlp_peer_ledger_t) == 52, "Ledger struct packing incorrect");
 
 /*============================================================================
  * PUBLIC API
@@ -396,8 +449,45 @@ void utlp_trust_init(void);
  * @param mac        Peer's 6-byte MAC address
  * @param offset_us  Reported time offset in microseconds
  * @param stratum    Peer's claimed stratum level
+ *
+ * @deprecated Use utlp_trust_record_observation_arbor() for per-arbor tracking.
+ *             This function assumes UTLP_ARBOR_WIFI (arbor 0) for backward compat.
  */
 void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_t stratum);
+
+/**
+ * @brief Record a timing observation with arbor context (Blood-Brain Barrier)
+ *
+ * Phase 9: Per-arbor trust tracking. Records the observation only against
+ * the specific transport that received the packet, preventing WiFi jitter
+ * from polluting 802.15.4 reputation (or vice versa).
+ *
+ * @param mac        Peer's 6-byte MAC address
+ * @param offset_us  Reported time offset in microseconds
+ * @param stratum    Peer's claimed stratum level
+ * @param arbor_id   Transport that received this packet (0=WiFi, 1=154, 2=BLE)
+ */
+void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
+                                          uint8_t stratum, uint8_t arbor_id);
+
+/**
+ * @brief Get health score for a specific arbor (Blood-Brain Barrier)
+ *
+ * @param mac        Peer's 6-byte MAC address
+ * @param arbor_id   Transport to query (0=WiFi, 1=154, 2=BLE)
+ * @return Health score 0-255, or 0 if peer not found
+ */
+uint8_t utlp_trust_get_health_arbor(const uint8_t *mac, uint8_t arbor_id);
+
+/**
+ * @brief Snapshot per-arbor ledger state for dormancy
+ *
+ * Called before arbor yield to preserve reputation snapshot.
+ * Allows comparison on wake to detect anomalies.
+ *
+ * @param arbor_id   Transport being yielded
+ */
+void utlp_trust_snapshot_arbor(uint8_t arbor_id);
 
 /**
  * @brief Get median consensus offset from healthy peers

@@ -122,16 +122,25 @@
  * > "The Loom weaves authority from entropy. It does not assign roles—
  * >  it observes stability and lets structure emerge." — S2, Section 3.4
  *
- * **SERVO-LOCKED PHASE CORRECTION (v3.0, S2 Claim 55):**
+ * **VARIABLE GAIN PLL (v3.1, S2 Claim 55):**
  *
- * Standard firefly applies Δφ instantly (phase jump). UTLP v3 uses frequency
- * slewing (Δf = Δφ / T_convergence) to maintain spectral purity for coherent
- * beamforming applications. The transient matters for wave coherence.
+ * Standard firefly applies Δφ instantly (phase jump). UTLP v3.1 uses frequency
+ * slewing with variable gain based on error magnitude:
  *
- * - **10-Second Exception:** During genesis pulse, instant jumps allowed
- * - **After 10s:** All corrections use 500ms frequency slewing
+ * - **COLD START (<5s):** Hard jumps allowed ("snap to grid")
+ * - **LOCKED (<10ms error):** Slow slew at 200 ppm (spectral purity)
+ * - **RECOVERY (≥10ms error):** Fast slew at 5000 ppm ("warp drive")
+ *
+ * This preserves continuous waveform integrity for coherent beamforming.
+ * Hard phase jumps create spectral splatter; frequency slewing maintains
+ * spectral purity while still correcting.
+ *
  * - **Deadband:** Corrections < 100μs ignored (avoids oscillation)
  * - **Genesis Reset Detection:** Forward jumps > 1s blocked as stale epochs
+ *
+ * **ENGINE TIMER (v3.1):**
+ * 10Hz independent timer keeps drift model ticking even when transports
+ * are yielded to the application layer. Critical for Arbor architecture.
  *
  * Configuration: See UTLP_SERVO_* constants in utlp_config.h
  *
@@ -145,7 +154,7 @@
  * Protocol calls smsp_notify_sync_ready() after first beacon adoption.
  * SMSP then takes over actuator control using score-driven patterns.
  *
- * @version 3.1.0 - Servo-Lock + SMSP (builds on Biological Governance)
+ * @version 3.2.0 - Variable Gain PLL + Engine Timer (Phase 9 Biological Architecture)
  * @date 2026-01-02
  *
  * @copyright
@@ -154,12 +163,16 @@
 
 #include "utlp_config.h"  /* SSOT for all configuration constants */
 #include "utlp_hal.h"
+#include "utlp_transport.h"  /* Multi-transport layer (Phase 8) */
 #include "utlp_trust.h"
 #include "utlp_immune.h"
 #include "utlp_smsp.h"
+#include "utlp_loom.h"   /* Emergent Time Lord state machine (Phase 9) */
+#include "utlp_arbor.h"  /* Per-arbor dormancy API (Phase 9) */
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_timer.h"  /* Engine Timer for independent 10Hz tick */
 
 #include <string.h>
 #include <stdio.h>
@@ -421,31 +434,54 @@ static int compare_mac(const uint8_t *a, const uint8_t *b)
  *==========================================================================*/
 
 /**
- * @brief Check if we're still in genesis phase (instant jumps allowed)
+ * @brief Check if we're in Cold Start phase (phase jumps allowed)
  *
- * During the first UTLP_SERVO_JUMP_ALLOWED_UNTIL_US (10s), instant phase
- * jumps are allowed for fast initial synchronization. After that, all
- * corrections use frequency slewing to maintain spectral purity.
+ * Variable Gain PLL State 1: COLD START
+ *
+ * During the first 5 seconds after boot (UTLP_SERVO_COLD_START_US),
+ * instant phase jumps are allowed for fast initial synchronization
+ * ("snap to grid"). No coherence has been established yet, so
+ * teleporting to the correct time is acceptable.
+ *
+ * After Cold Start ends, the system transitions to LOCKED or RECOVERY
+ * states which use frequency slewing instead of hard jumps.
  *
  * @param uptime_us Current uptime in microseconds
- * @return true if instant jumps are allowed, false if slewing required
+ * @return true if in Cold Start (jumps allowed), false if slewing required
  */
 static bool servo_jumps_allowed(uint64_t uptime_us)
 {
-    return uptime_us < UTLP_SERVO_JUMP_ALLOWED_UNTIL_US;
+    return uptime_us < UTLP_SERVO_COLD_START_US;
 }
 
 /**
- * @brief Apply a time offset correction using servo-lock (slewing)
+ * @brief Apply a time offset correction using Variable Gain PLL
  *
  * Implements S2 Claim 55: Servo-locked phase correction.
  *
- * If jumps are allowed (genesis phase), applies offset instantly.
- * Otherwise, calculates a drift correction rate to slew toward target.
+ * THREE-STATE VARIABLE GAIN PLL:
+ *
+ *   1. COLD START (uptime < 5s):
+ *      - Hard jumps allowed for fast initial sync ("snap to grid")
+ *      - No coherence established yet, teleport is acceptable
+ *
+ *   2. LOCKED (error < 10ms):
+ *      - Slow slew at 200 ppm (0.02% speed change)
+ *      - Maintains spectral purity for coherent beamforming
+ *      - Gentle cruise mode for small corrections
+ *
+ *   3. RECOVERY (error >= 10ms):
+ *      - Fast slew at 5000 ppm (0.5% speed change)
+ *      - Aggressive catch-up without hard jumping
+ *      - "Warp drive" mode after disturbance or reconnection
+ *
+ * The key insight is that hard phase jumps create spectral splatter
+ * (wideband noise bursts) that corrupt coherent aperture integration.
+ * Frequency slewing maintains spectral purity while still correcting.
  *
  * @param new_offset     Target time offset to reach
- * @param uptime_us      Current uptime (for genesis check)
- * @return true if jump was applied, false if slewing started
+ * @param uptime_us      Current uptime (for Cold Start check)
+ * @return true if jump was applied (Cold Start only), false if slewing
  */
 static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
 {
@@ -474,10 +510,39 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
         return true;
     }
 
-    /* Post-genesis: use frequency slewing */
+    /*
+     * VARIABLE GAIN PLL (S2 Claim 55: Servo-Locked Phase Correction)
+     *
+     * Three states based on error magnitude:
+     *   1. COLD START (< 5s):  Hard jump allowed (handled above)
+     *   2. LOCKED (error < 10ms): Slow slew at 200 ppm (spectral purity)
+     *   3. RECOVERY (error >= 10ms): Fast slew at 5000 ppm (catch-up mode)
+     *
+     * This replaces hard jumps with frequency slewing while maintaining
+     * continuous waveform integrity for coherent beamforming applications.
+     */
     g_servo.target_offset = new_offset;
     g_servo.slew_start_time_us = uptime_us;
     g_servo.slewing_active = true;
+
+    /*
+     * Select slew rate based on error magnitude (Variable Gain)
+     *
+     * LOCKED state: Small errors use gentle slew to maintain spectral purity
+     * RECOVERY state: Large errors use aggressive slew to catch up without jumping
+     */
+    int64_t max_slew_ppb;
+    const char *state_name;
+
+    if (abs_error < UTLP_SERVO_LOCKED_THRESHOLD_US) {
+        /* LOCKED: Small error - gentle cruise */
+        max_slew_ppb = UTLP_SERVO_MAX_SLEW_PPB_LOCKED;
+        state_name = "LOCKED";
+    } else {
+        /* RECOVERY: Large error - engage "warp drive" */
+        max_slew_ppb = UTLP_SERVO_MAX_SLEW_PPB_RECOVERY;
+        state_name = "RECOVERY";
+    }
 
     /*
      * Calculate drift correction rate: Δf = Δφ / T_convergence
@@ -489,18 +554,18 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
      */
     int64_t drift_ppb = (phase_error * 1000000LL) / UTLP_SERVO_CONVERGENCE_US;
 
-    /* Clamp to maximum slew rate */
-    if (drift_ppb > UTLP_SERVO_MAX_DRIFT_PPB) {
-        drift_ppb = UTLP_SERVO_MAX_DRIFT_PPB;
-    } else if (drift_ppb < -UTLP_SERVO_MAX_DRIFT_PPB) {
-        drift_ppb = -UTLP_SERVO_MAX_DRIFT_PPB;
+    /* Clamp to state-specific maximum slew rate */
+    if (drift_ppb > max_slew_ppb) {
+        drift_ppb = max_slew_ppb;
+    } else if (drift_ppb < -max_slew_ppb) {
+        drift_ppb = -max_slew_ppb;
     }
 
     g_servo.drift_correction_ppb = (int32_t)drift_ppb;
 
-    utlp_hal_log_info(TAG, "SERVO: Slewing toward offset=%+lld us (error=%+lld us, drift=%+ld ppb)",
-                      (long long)new_offset, (long long)phase_error,
-                      (long)g_servo.drift_correction_ppb);
+    utlp_hal_log_info(TAG, "SERVO[%s]: Slewing offset=%+lld us (error=%+lld us, drift=%+ld ppb, max=%lld ppb)",
+                      state_name, (long long)new_offset, (long long)phase_error,
+                      (long)g_servo.drift_correction_ppb, (long long)max_slew_ppb);
 
     return false;  /* Slewing, not jumping */
 }
@@ -547,6 +612,95 @@ static void servo_tick(uint64_t now_us)
         g_servo.current_offset = new_offset;
         utlp_hal_set_time_offset(g_servo.current_offset);
     }
+}
+
+/*============================================================================
+ * ENGINE TIMER - Independent 10Hz Tick for Drift Model Maintenance
+ *
+ * The Engine Timer runs independently of the packet handler to ensure the
+ * drift model keeps ticking even when transports are yielded. This is
+ * critical for the Arbor architecture where transports can be independently
+ * hibernated by the application layer.
+ *
+ * PROBLEM SOLVED:
+ *   When arbor is yielded → utlp_hal_rx_wait() never returns →
+ *   servo_tick() never runs → drift model freezes → time drifts away
+ *
+ * SOLUTION:
+ *   10Hz timer runs independently, calls servo_tick() every 100ms.
+ *   Even when all transports are dormant, the internal clock model is
+ *   maintained based on last-known drift rate.
+ *
+ * FUTURE INTEGRATION:
+ *   This timer will also call the Loom state machine (utlp_loom_tick)
+ *   to detect per-arbor timeline fray and trigger emergent Time Lord
+ *   promotion.
+ *==========================================================================*/
+
+/** @brief Engine Timer interval (100ms = 10Hz) */
+#define ENGINE_TICK_INTERVAL_US      100000
+
+/** @brief Engine Timer handle */
+static esp_timer_handle_t s_engine_timer = NULL;
+
+/**
+ * @brief Engine Timer callback - called every 100ms
+ *
+ * This callback runs from esp_timer context (high priority).
+ * It must be fast and non-blocking.
+ *
+ * @param arg Unused
+ */
+static void engine_timer_callback(void *arg)
+{
+    (void)arg;
+
+    uint64_t uptime = utlp_hal_get_micros();
+
+    /* 1. Update drift model (always runs, even when transport yielded) */
+    servo_tick(uptime);
+
+    /* 2. Tick Loom state machine for per-arbor Time Lord promotion
+     * The Loom detects silence on each arbor and promotes to Time Lord
+     * when no beacons are received for 2 minutes.
+     */
+    utlp_loom_tick();
+}
+
+/**
+ * @brief Initialize the Engine Timer
+ *
+ * Creates and starts a periodic timer that ticks at 10Hz to maintain
+ * the drift model independently of packet reception.
+ *
+ * @return ESP_OK on success
+ */
+static esp_err_t engine_timer_init(void)
+{
+    esp_timer_create_args_t args = {
+        .callback = engine_timer_callback,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "utlp_engine",
+        .skip_unhandled_events = true,
+    };
+
+    esp_err_t ret = esp_timer_create(&args, &s_engine_timer);
+    if (ret != ESP_OK) {
+        utlp_hal_log_error(TAG, "ENGINE: Failed to create timer (err=%d)", ret);
+        return ret;
+    }
+
+    ret = esp_timer_start_periodic(s_engine_timer, ENGINE_TICK_INTERVAL_US);
+    if (ret != ESP_OK) {
+        utlp_hal_log_error(TAG, "ENGINE: Failed to start timer (err=%d)", ret);
+        esp_timer_delete(s_engine_timer);
+        s_engine_timer = NULL;
+        return ret;
+    }
+
+    utlp_hal_log_info(TAG, "ENGINE: 10Hz timer started (drift model always ticking)");
+    return ESP_OK;
 }
 
 /**
@@ -1179,6 +1333,10 @@ static void process_beacon(const utlp_packet_t *pkt)
         /* Update TX time tracking for genesis pulse and regression detection (S2.24) */
         utlp_trust_update_tx_tracking(pkt->mac, (int64_t)remote_tx_time, now_ms_for_tracking);
 
+        /* Notify Loom that a beacon was received on this arbor
+         * This resets the silence timer and may abort WEAVING or trigger DISSOLVING */
+        utlp_loom_beacon_received(pkt->arbor_id, remote_stratum, remote_tx_time);
+
         /*
          * ACTIVE IMMUNITY: Evaluate entrainment response
          *
@@ -1279,18 +1437,22 @@ static void process_beacon(const utlp_packet_t *pkt)
                 utlp_hal_log_warn(TAG, "REGRESSION: Peer %02X atomic time went backwards! Epoch adoption blocked.",
                                   pkt->mac[5]);
                 should_adopt = false;
-                /* Punish for regression - this is unexpected behavior */
-                if (best->health_score > UTLP_COST_LYING) {
-                    best->health_score -= UTLP_COST_LYING;
-                } else {
-                    best->health_score = 0;
+                /* Punish for regression - this is unexpected behavior
+                 * Apply penalty to all arbors (peer rebooted, affects all transports) */
+                int arbor_idx;
+                for (arbor_idx = 0; arbor_idx < UTLP_MAX_ARBORS; arbor_idx++) {
+                    if (best->health_score[arbor_idx] > UTLP_COST_LYING) {
+                        best->health_score[arbor_idx] -= UTLP_COST_LYING;
+                    } else {
+                        best->health_score[arbor_idx] = 0;
+                    }
                 }
             }
             else {
                 /* All checks passed - safe to adopt epoch */
                 should_adopt = true;
                 utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X (health=%d, stratum=%d)",
-                                  pkt->mac[5], best->health_score, remote_stratum);
+                                  pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
             }
         }
         else if (!best && remote_stratum < g_aatr.stratum) {
@@ -1365,7 +1527,15 @@ static void process_beacon(const utlp_packet_t *pkt)
         utlp_peer_ledger_t *peer = utlp_trust_get_peer(pkt->mac);
         if (peer && peer->last_tx_time_us > 0) {
             uint32_t now_ms = (uint32_t)(pkt->rx_timestamp_us / 1000);
-            uint32_t elapsed_ms = now_ms - peer->last_seen_ms;
+            /* Get aggregate (most recent) last_seen across all arbors */
+            uint32_t agg_last_seen = 0;
+            int arbor_i;
+            for (arbor_i = 0; arbor_i < UTLP_MAX_ARBORS; arbor_i++) {
+                if (peer->last_seen_ms[arbor_i] > agg_last_seen) {
+                    agg_last_seen = peer->last_seen_ms[arbor_i];
+                }
+            }
+            uint32_t elapsed_ms = now_ms - agg_last_seen;
 
             if (servo_detect_genesis_reset(peer->last_tx_time_us, remote_tx_time, elapsed_ms)) {
                 utlp_hal_log_warn(TAG, "GENESIS RESET blocked: Peer %02X jumped to newer epoch",
@@ -1433,8 +1603,9 @@ skip_adoption:
      */
     if (g_aatr.stratum == STRATUM_ORIGIN) {
         utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
+        uint8_t best_health = best ? utlp_trust_get_peer_health(best->mac) : 0;
 
-        if (best && best->health_score > 200) {
+        if (best && best_health > 200) {
             /*
              * A very healthy peer exists. Should I step down?
              *
@@ -1448,7 +1619,7 @@ skip_adoption:
 
             if (they_are_dominant) {
                 utlp_hal_log_warn(TAG, "Origin self-awareness: Dominant peer %02X detected (health=%d)",
-                                  best->mac[5], best->health_score);
+                                  best->mac[5], best_health);
                 g_self_demotion_votes++;
 
                 if (g_self_demotion_votes > 3) {
@@ -1609,8 +1780,19 @@ void utlp_app_run(void)
     int32_t time_since_beacon;
     static uint32_t last_logged_interval = 0;
 
-    /* Initialize HAL */
-    utlp_hal_init();
+    /* Initialize transport layer (handles staggered startup for multi-arbor)
+     *
+     * On ESP32-C6 with both ESP-NOW and 802.15.4:
+     * - 802.15.4 starts immediately (better timing)
+     * - ESP-NOW delayed by 15 seconds (stagger_espnow_ms)
+     *
+     * This enables testing of pure 802.15.4 sync before WiFi joins.
+     * Pass NULL for auto-detect with default stagger configuration.
+     */
+    if (!utlp_transport_init(NULL)) {
+        utlp_hal_log_error(TAG, "Transport init failed! Falling back to HAL only.");
+        utlp_hal_init();  /* Fallback to direct HAL init */
+    }
 
     /* Initialize Metabolic Ledger (Biological Governance) */
     utlp_trust_init();
@@ -1623,6 +1805,24 @@ void utlp_app_run(void)
 
     /* Create SMSP task (waits for sync before starting playback) */
     xTaskCreate(smsp_task, "SMSP", SMSP_TASK_STACK_SIZE, NULL, SMSP_TASK_PRIORITY, NULL);
+
+    /* Initialize Engine Timer (10Hz independent drift model tick)
+     *
+     * This timer runs servo_tick() independently of packet reception,
+     * ensuring the drift model stays updated even when transports are
+     * yielded to the application layer. Critical for Arbor architecture.
+     */
+    engine_timer_init();
+
+    /* Initialize Arbor subsystem (per-transport dormancy tracking) */
+    utlp_arbor_init();
+
+    /* Initialize Loom state machine (emergent Time Lord promotion)
+     *
+     * The Loom detects silence on each arbor and triggers Time Lord
+     * promotion when no beacons are received for 2 minutes.
+     */
+    utlp_loom_init();
 
     /*
      * GENESIS BOOTSTRAP: If we're stratum 1 (Genesis), our local time IS
@@ -1651,7 +1851,8 @@ void utlp_app_run(void)
     utlp_hal_log_info(TAG, "Trust: Metabolic Ledger (Adaptive Immunity)");
     utlp_hal_log_info(TAG, "Relay: Frontier detection (edge nodes = Providers)");
     utlp_hal_log_info(TAG, "Interval: Genesis Pulse / Promotion Pulse / Echo Rule");
-    utlp_hal_log_info(TAG, "Servo-Lock: Claim 55 (slewing after 10s, jumps during genesis)");
+    utlp_hal_log_info(TAG, "Servo-Lock: Variable Gain PLL (Cold/Locked/Recovery @ 5s/10ms)");
+    utlp_hal_log_info(TAG, "Engine: 10Hz independent tick (drift model always running)");
     utlp_hal_log_info(TAG, "SMSP: Score-based LED (pattern=%s)", smsp_get_pattern_name());
     utlp_hal_log_info(TAG, "Drift Analysis: Enabled (polynomial fit)");
     utlp_hal_log_info(TAG, "========================================");
@@ -1671,7 +1872,33 @@ void utlp_app_run(void)
         uptime = utlp_hal_get_micros();
         uptime_lo = (uint32_t)uptime;
 
-        /* 2. TRANSMIT (if Genesis or Provider) */
+        /* 2. GENESIS PULSE (Loom-triggered Time Lord announcement)
+         *
+         * The Loom schedules Genesis Pulses when:
+         * - An arbor transitions to ANCHOR (automatic Time Lord promotion)
+         * - An arbor wakes from dormancy (mandatory announcement)
+         *
+         * Genesis Pulse uses stratum from the Loom and sends immediately.
+         */
+        if (utlp_loom_consume_genesis_request()) {
+            uint8_t genesis_stratum = utlp_loom_get_genesis_stratum();
+            if (genesis_stratum != 0xFF) {
+                /* Temporarily override stratum for Genesis chirp */
+                uint8_t saved_stratum = g_aatr.stratum;
+                g_aatr.stratum = genesis_stratum;
+
+                send_chirp();
+                g_last_beacon_time = now;
+
+                utlp_hal_log_info(TAG, "=== GENESIS PULSE (stratum=%d) ===",
+                                  genesis_stratum);
+
+                /* Restore stratum (will be updated by normal processing) */
+                g_aatr.stratum = saved_stratum;
+            }
+        }
+
+        /* 3. TRANSMIT (if Genesis or Provider) */
         if (should_relay()) {
             beacon_interval = get_smart_interval(uptime_lo);
             time_since_beacon = (int32_t)(now - g_last_beacon_time);
@@ -1690,7 +1917,7 @@ void utlp_app_run(void)
             }
         }
 
-        /* 3. SERVO-LOCK (S2 Claim 55)
+        /* 4. SERVO-LOCK (S2 Claim 55)
          *
          * Tick the servo-lock loop to apply gradual phase corrections.
          * This implements firefly synchronization with frequency slewing
@@ -1699,13 +1926,13 @@ void utlp_app_run(void)
          */
         servo_tick(uptime);
 
-        /* 4. PHYSICS */
+        /* 5. PHYSICS */
         run_physics(now);
 
-        /* 5. DRIFT STATS */
+        /* 6. DRIFT STATS */
         log_drift_stats_if_due(uptime);
 
-        /* 6. METABOLIC LEDGER STATUS (same intervals as drift stats)
+        /* 7. METABOLIC LEDGER STATUS (same intervals as drift stats)
          *
          * Phase 1: Passive observation - log trust data to verify
          * the Ledger is populating correctly before Phase 2 activation.

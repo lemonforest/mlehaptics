@@ -257,12 +257,26 @@ typedef struct {
  * @note Anonymous union provides backward compatibility:
  *       - pkt->mac[i] works for legacy code (first 6 bytes)
  *       - pkt->src_addr is preferred for new code (transport-agnostic)
+ *
+ * @section arbor_id Arbor ID (Phase 9 - Blood-Brain Barrier)
+ *
+ * The arbor_id field identifies which transport received this packet:
+ *   - 0 = UTLP_ARBOR_WIFI (ESP-NOW)
+ *   - 1 = UTLP_ARBOR_154 (IEEE 802.15.4)
+ *   - 2 = UTLP_ARBOR_BLE (Bluetooth LE)
+ *
+ * This enables per-arbor trust tracking in the Metabolic Ledger (Blood-Brain
+ * Barrier). A peer that is healthy on 802.15.4 but jittery on WiFi should
+ * have independent health scores for each transport.
+ *
+ * @see utlp_arbor.h for utlp_arbor_id_t enum definition
  */
 typedef struct {
     uint64_t rx_timestamp_us;           /**< HW timestamp of arrival */
     uint8_t  payload[UTLP_MAX_PAYLOAD]; /**< Packet payload data */
     size_t   len;                       /**< Payload length in bytes */
     int8_t   rssi;                      /**< Received signal strength */
+    uint8_t  arbor_id;                  /**< Transport that received this (0=WiFi, 1=154, 2=BLE) */
     union {
         uint8_t     mac[UTLP_MAC_SIZE]; /**< @deprecated Use src_addr */
         utlp_addr_t src_addr;           /**< Sender's address (preferred) */

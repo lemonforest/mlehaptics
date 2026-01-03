@@ -134,12 +134,45 @@ extern "C" {
 /**
  * @brief Time after boot when phase jumps are allowed (microseconds)
  *
- * During genesis pulse, we allow instant phase jumps for fast initial sync.
- * After this time, all corrections use frequency slewing.
+ * During "Cold Start" phase, we allow instant phase jumps for fast initial sync.
+ * After this time, all corrections use Variable Gain PLL slewing.
  *
- * Matches GENESIS_PHASE_3_END_US (10 seconds).
+ * Part of Variable Gain PLL (Claim 55 compliance):
+ *   - Cold Start (< 5s): Hard jumps allowed ("snap to grid")
+ *   - Locked (error < 10ms): Slow slew at 200 ppm
+ *   - Recovery (error > 10ms): Fast slew at 5000 ppm
  */
-#define UTLP_SERVO_JUMP_ALLOWED_UNTIL_US 10000000ULL     /* 10 seconds */
+#define UTLP_SERVO_COLD_START_US         5000000ULL      /* 5 seconds */
+
+/**
+ * @brief Error threshold between Locked and Recovery states (microseconds)
+ *
+ * Variable Gain PLL state selection:
+ *   - Error < threshold: LOCKED state (gentle slew)
+ *   - Error >= threshold: RECOVERY state (fast catch-up)
+ */
+#define UTLP_SERVO_LOCKED_THRESHOLD_US   10000           /* 10ms */
+
+/**
+ * @brief Maximum slew rate in LOCKED state (ppb)
+ *
+ * Gentle nudge for small errors. Maintains spectral purity.
+ * 200 ppm = 200,000 ppb = 0.02% clock speed adjustment
+ */
+#define UTLP_SERVO_MAX_SLEW_PPB_LOCKED   200000          /* 200 ppm */
+
+/**
+ * @brief Maximum slew rate in RECOVERY state (ppb)
+ *
+ * Fast catch-up for large errors without hard jumping.
+ * 5000 ppm = 5,000,000 ppb = 0.5% clock speed adjustment
+ */
+#define UTLP_SERVO_MAX_SLEW_PPB_RECOVERY 5000000         /* 5000 ppm */
+
+/**
+ * @brief [DEPRECATED] Legacy constant - use UTLP_SERVO_COLD_START_US
+ */
+#define UTLP_SERVO_JUMP_ALLOWED_UNTIL_US UTLP_SERVO_COLD_START_US
 
 /**
  * @brief Servo-lock update tick interval (microseconds)

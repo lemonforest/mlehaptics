@@ -1,11 +1,16 @@
 # UTLP v3 - Biological Governance for Distributed Time
 
-**Universal Time Lord Protocol** - ESP32-focused implementation demonstrating
+**Universal Time Lord Protocol** - Multi-transport implementation demonstrating
 connectionless distributed time synchronization using **biological governance**
 instead of political consensus.
 
-> **v3 Features:** Servo-Locked Phase Correction (S2 Claim 55), Genesis Reset
-> Detection, SMSP Application Layer, Centralized Configuration (SSOT).
+> **v3 Features:** Multi-Arbor Transport Architecture (ESP-NOW + 802.15.4),
+> Servo-Locked Phase Correction (S2 Claim 55), Genesis Reset Detection,
+> SMSP Application Layer, Centralized Configuration (SSOT),
+> **Phase 9: The Loom** (Emergent Time Lord, Per-Arbor Genesis Pulse).
+
+> **Transport Support:** ESP-NOW (WiFi broadcast) + IEEE 802.15.4 (raw MAC frames).
+> Staggered startup enables testing pure 802.15.4 sync before WiFi joins.
 
 > *"Time is born of one."* — UTLP Specification, Section 7
 >
@@ -38,9 +43,11 @@ If you're new to this codebase, read in this order:
 | 2 | `utlp.c` (header comments) | The manifesto - why biology beats politics |
 | 3 | `utlp_trust.h` | Hebbian learning, median consensus, Dunbar's Number |
 | 4 | `utlp_immune.h` | T-cell exhaustion, quorum sensing, cytokine storms |
-| 5 | `utlp_smsp.h` | Score-driven actuation (Protocol Trinity: when/where/what) |
-| 6 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
-| 7 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
+| 5 | `utlp_loom.h` | **NEW:** Emergent Time Lord authority (Phase 9) |
+| 6 | `utlp_transport.h` | Multi-arbor architecture (ESP-NOW + 802.15.4) |
+| 7 | `utlp_smsp.h` | Score-driven actuation (Protocol Trinity: when/where/what) |
+| 8 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
+| 9 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
 
 Each file includes academic references and biological analogies.
 
@@ -395,6 +402,22 @@ This prevents a single reset node from disrupting an established swarm.
 │    Execute score lines at atomic time with interpolation    │
 │    Calls: utlp_hal_get_atomic_time_us(), set_actuator()     │
 ├─────────────────────────────────────────────────────────────┤
+│          Transport Manager (utlp_transport.c)               │
+│                                                              │
+│    Multi-Arbor Architecture: ESP-NOW + 802.15.4 + BLE       │
+│    Staggered Startup: 802.15.4 first, ESP-NOW after 15s     │
+│    TX Mode: ALL, PRIMARY, or BEST (prefers 802.15.4)        │
+│    Per-Transport Dormancy: Selective arbor sleep/wake       │
+│                                                              │
+│    ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│    │   ESP-NOW    │  │  802.15.4    │  │     BLE      │     │
+│    │    Arbor     │  │    Arbor     │  │    Arbor     │     │
+│    └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
+│           │                 │                 │              │
+│    ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐     │
+│    │utlp_hal_esp32│  │utlp_hal_154  │  │ (future)     │     │
+│    └──────────────┘  └──────────────┘  └──────────────┘     │
+├─────────────────────────────────────────────────────────────┤
 │             Hardware Abstraction Layer (utlp_hal.h)         │
 │                                                              │
 │    Time:     get_micros(), get_atomic_time_us()             │
@@ -409,6 +432,72 @@ This prevents a single reset node from disrupting an established swarm.
 │   └─────────┴─────────┴─────────┴─────────┘                 │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Multi-Arbor Transport Architecture
+
+UTLP v3 supports multiple radio transports simultaneously. Each transport is an
+**arbor** (sensory branch) feeding the central **soma** (unified atomic time).
+
+### Supported Transports
+
+| Transport | Status | Timing | Use Case |
+|-----------|--------|--------|----------|
+| **ESP-NOW** | ✅ Production | ~100µs jitter | WiFi-based, longer range |
+| **802.15.4** | ✅ Production | ~10µs jitter | Better timing, cross-vendor |
+| **BLE** | 🔄 Planned | TBD | Low power, beacons |
+
+### Staggered Startup (Testing Feature)
+
+When both 802.15.4 and ESP-NOW are available, the transport manager can delay
+WiFi startup to enable isolated testing:
+
+```c
+// Default: 802.15.4 starts immediately, ESP-NOW delayed 15 seconds
+utlp_transport_config_t cfg = UTLP_TRANSPORT_CONFIG_DEFAULT();
+utlp_transport_init(&cfg);
+
+// Immediate: Both start together (production mode)
+utlp_transport_config_t cfg = UTLP_TRANSPORT_CONFIG_IMMEDIATE();
+utlp_transport_init(&cfg);
+```
+
+**Test Scenarios Enabled:**
+1. **t=0 to t=15s:** Pure 802.15.4 sync (observe genesis election, measure jitter)
+2. **t=15s:** WiFi arbor joins (observe arbor merge behavior)
+3. **t>15s:** Steady state (both transports active, verify TX routing)
+
+### TX Mode Options
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `UTLP_TX_MODE_ALL` | Broadcast on ALL enabled transports | Maximum redundancy |
+| `UTLP_TX_MODE_PRIMARY` | TX on first available only | Minimum RF |
+| `UTLP_TX_MODE_BEST` | TX on best transport (802.15.4 > ESP-NOW) | Optimal timing |
+
+### Per-Transport Dormancy
+
+The arbor system enables selective sleep of individual transports:
+
+```c
+// Silence WiFi to prove 802.15.4 can maintain Hard-PLL
+utlp_transport_yield(UTLP_TRANSPORT_ESPNOW);
+
+// Wake WiFi after testing
+utlp_transport_wake(UTLP_TRANSPORT_ESPNOW);
+```
+
+**Degraded Re-Entry:** Waking arbors enter at elevated stratum until they
+re-verify phase against the soma's internal clock. This prevents "phantom arbor"
+attacks where stale timing data could corrupt the swarm.
+
+### Files
+
+| File | Description |
+|------|-------------|
+| `utlp_transport.h` | Transport management API |
+| `utlp_transport.c` | Multi-arbor implementation (~700 lines) |
+| `utlp_arbor.h` | Per-transport dormancy API |
+| `utlp_hal_802154.h` | 802.15.4 HAL interface |
 
 ## Seismic Chirp (3-Burst Beacon Pattern)
 
@@ -729,13 +818,17 @@ Python simulation for testing phase coherence and Byzantine scenarios:
 | `utlp_smsp.h/c` | **SMSP** - score-driven pattern playback (Protocol Trinity "what") |
 | `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, median consensus) |
 | `utlp_immune.h/c` | Immune Checkpoint (token bucket, anergy) |
+| `utlp_transport.h/c` | **Multi-Arbor Transport Manager** (ESP-NOW + 802.15.4) |
+| `utlp_arbor.h/c` | Per-transport selective dormancy API |
+| `utlp_loom.h/c` | **The Loom** - Emergent Time Lord state machine (Phase 9) |
 | `utlp_hal.h` | HAL interface contract (time, radio, actuator) |
 | `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM) |
+| `utlp_hal_802154.h` | 802.15.4 HAL interface (raw MAC, FCF 0x8841) |
 | `utlp_rfip.h` | RFIP types and stub API (ranges, anchors, positions) |
 | `rfip_hal.h` | **RFIP HAL** (capability detection, observation types) |
 | `rfip_hal.c` | RFIP HAL implementation (runtime silicon detection) |
 | `utlp_main_esp32.c` | Platform entry point (`app_main()`) |
-| `sim/genesis_reset_coherence.py` | Python simulation for coherence + Byzantine testing |
+| `sim/genesis_reset_coherence.py` | Python simulation for coherence + Byzantine + multi-arbor testing |
 | `sim/SIMULATION_RESULTS.md` | Detailed simulation analysis |
 
 ### Architecture Note
@@ -817,6 +910,135 @@ void utlp_app_run(void);
 - **UWB integration:** DW3000 for centimeter-level ranging (Phase 5)
 - **RF Tomography:** Mesh as distributed radar for presence detection (Phase 6)
 - **Multipath fingerprinting:** Location recognition from RF signatures (Phase 6)
+
+### Multi-Arbor Architecture (Phase 8) ✅ IMPLEMENTED
+
+Cross-manufacturer 802.15.4 timing mesh using raw IEEE MAC Data Frames.
+
+**Key Discovery:** All three target platforms have TRUE hardware-scheduled TX:
+
+| Platform | API | Jitter | Method |
+|----------|-----|--------|--------|
+| **ESP32-C6** | `esp_ieee802154_transmit_at()` | ~1µs | Radio timer |
+| **MG24 (RAIL)** | `RAIL_StartScheduledTx()` | ~0.1µs | Radio timer |
+| **nRF52840** | `nrf_802154_transmit_raw_at()` | ~0.1µs | TIMER + PPI |
+
+**Files:**
+- `utlp_hal_802154.h` - 802.15.4 HAL interface (FCF 0x8841, PAN ID 0xCAFE)
+- `utlp_hal_esp32c6_154.c` - ESP32-C6 implementation with hardware TX
+- `utlp_hal_mg24_154.c` - MG24 RAIL stub
+- `utlp_hal_nrf52840_154.c` - nRF52840 stub
+- `utlp_arbor.h/c` - Per-transport selective dormancy
+
+**Build:**
+```bash
+pio run -e utlp_esp32c6_154 -t upload && pio device monitor
+```
+
+**Prior Art:** Claims 237-247 (see `PRIOR_ART_DRAFT.md`)
+
+### Phase 9: Biological Architecture Upgrade ✅ IMPLEMENTED
+
+Phase 9 completes the biological governance architecture with independent engine
+timing, per-arbor health tracking, and the Loom state machine for emergent
+Time Lord authority.
+
+#### The Loom: Emergent Time Lord Authority (`utlp_loom.h/c`)
+
+When no beacons are received for 2 minutes (timeline "frays"), the Loom begins
+"weaving" a new temporal thread, promoting the node to Time Lord (ANCHOR state).
+
+**State Machine:**
+```
+                    ┌──────────────────┐
+                    │                  │
+         (silence)  ▼                  │ (better beacon)
+    ┌─────────> DORMANT ◄──────────────┤
+    │              │                   │
+    │   (2 min silence on arbor)       │
+    │              ▼                   │
+    │          WEAVING ────────────────┘
+    │              │    (10s warmup complete)
+    │              ▼
+    └────────── ANCHOR ──────────────┐
+                   │                  │
+                   │ (better beacon)  │
+                   ▼                  │
+               DISSOLVING ────────────┘
+```
+
+**Per-Arbor Independence:** Each arbor (WiFi, 802.15.4, BLE) has its own Loom
+state. A device can be Time Lord on one transport while following on another.
+
+**Genesis Pulse Integration:** When the Loom promotes an arbor to ANCHOR, or
+when an arbor wakes from dormancy, it requests a Genesis Pulse. The main loop
+consumes these requests and broadcasts the 3-burst seismic chirp.
+
+#### Engine Timer (10Hz Independent Tick)
+
+The UTLP engine now runs on an independent 10Hz timer (`esp_timer`), not just
+when packets arrive. This ensures:
+
+- **Drift model updates** even when transport is yielded
+- **Loom tick** runs continuously for silence detection
+- **Genesis Pulse scheduling** independent of RX events
+
+```c
+static void engine_tick_callback(void* arg) {
+    utlp_clock_update_model();  // Always runs
+    if (!utlp_is_fully_dormant()) {
+        utlp_loom_tick();       // Detect timeline fray
+    }
+}
+```
+
+#### Variable Gain PLL (Claim 55 Compliance)
+
+Three-state phase correction replaces hard jumps after cold start:
+
+| State | Condition | Behavior | Rationale |
+|-------|-----------|----------|-----------|
+| **Cold Start** | Uptime < 5s | Hard jump | "Snap to grid" quickly |
+| **Locked** | Error < 10ms | Slow slew (200 ppm) | Spectral purity |
+| **Recovery** | Error > 10ms | Fast slew (5000 ppm) | Catch up smoothly |
+
+This implements S2 Claim 55 (Servo-Locked Phase Correction) - frequency slewing
+instead of phase discontinuities for coherent beamforming compatibility.
+
+#### Per-Arbor Health Tracking (Blood-Brain Barrier)
+
+The trust system now tracks peer health **per-arbor**, not globally:
+
+```c
+typedef struct __attribute__((packed)) {
+    uint32_t last_seen_ms[UTLP_MAX_ARBORS];      // Per-arbor timestamps
+    int32_t  last_offset_us[UTLP_MAX_ARBORS];    // Per-arbor timing
+    uint8_t  health_score[UTLP_MAX_ARBORS];      // Per-arbor reputation
+    // ...
+} utlp_peer_ledger_t;
+```
+
+**Benefit:** A peer that's jittery on WiFi doesn't pollute their 802.15.4
+reputation. Each arbor is an isolated "sensory branch."
+
+#### Airlock Integration (Yield/Wake)
+
+The arbor yield/wake API now integrates with the Loom:
+
+- `utlp_arbor_yield()` pauses the Loom for that arbor (no false silence detection)
+- `utlp_arbor_wake()` resumes the Loom AND requests Genesis Pulse (mandatory)
+
+**Mandatory Genesis Pulse on Wake:** App-layer yield is invisible to the UTLP
+engine. When an arbor resumes, it MUST announce "I'm back" to the swarm via
+Genesis Pulse. This prevents "phantom arbor" reintegration bugs.
+
+**Files:**
+- `utlp_loom.h/c` - Loom state machine + Genesis Pulse API
+- `utlp.c` - Engine timer, Genesis Pulse consumption in main loop
+- `utlp_arbor.c` - Loom pause/resume integration
+- `utlp_trust.c` - Per-arbor health arrays
+
+**Prior Art:** Claims 35-41 (Emergent Role Differentiation, Dormancy Control)
 
 ## Channel Chirality (S2.31)
 
