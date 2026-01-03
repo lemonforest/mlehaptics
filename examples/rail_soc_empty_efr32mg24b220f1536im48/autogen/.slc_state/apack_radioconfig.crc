@@ -1,0 +1,24 @@
+{
+  "generatedFiles" : [ "rail_config.c", "rail_config.h", "radioconf_generation_log.json" ],
+  "apackName" : "apack_radioConfig",
+  "equality" : {
+    "sdkId" : "com.silabs.sdk.stack.sisdk:2025.6.2",
+    "generatorIds" : [ "visual-studio-code" ],
+    "fileStates" : {
+      "config\\rail\\radio_settings.radioconf" : {
+        "hash" : 1364113750,
+        "exists" : true
+      }
+    },
+    "acTrackedFile" : {
+      "apack.info" : {
+        "hash" : -1281438438,
+        "exists" : true
+      }
+    },
+    "generateArgs" : {
+      "partOpn" : "efr32mg24b220f1536im48",
+      "boards" : "none"
+    }
+  }
+}
