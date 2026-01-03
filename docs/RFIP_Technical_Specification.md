@@ -6,11 +6,11 @@
 
 ---
 
-*Document version: Draft 0.1*
-*Last updated: December 2025*
-*Status: Initial specification draft*
+*Document version: Draft 0.2*
+*Last updated: January 2026*
+*Status: Implementation specification with IMU integration*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
-*Related: UTLP Technical Supplement S2*
+*Related: UTLP Technical Supplement S2.44*
 *Repository: https://github.com/lemonforest/mlehaptics*
 
 ---
@@ -541,13 +541,174 @@ typedef struct {
 - [ ] TinyML for on-device inference
 - [ ] Adaptive model selection
 
+### 6.7 Phase 7: IMU Integration
+
+IMU integration follows the **Arbor Architecture** (yield-pattern): the application layer owns IMU hardware while the protocol layer requests state at coherence boundaries.
+
+#### 6.7.1 Design Philosophy
+
+Traditional sensor fusion engines own the IMU and run continuous processing. RFIP inverts this:
+
+```
+Traditional:                    Arbor (RFIP):
+┌─────────────────┐             ┌─────────────────┐
+│  Sensor Fusion  │ ← owns IMU  │   Application   │ ← owns IMU
+│     Engine      │             │  (runs filter)  │
+├─────────────────┤             ├─────────────────┤
+│  Application    │ ← consumes  │     RFIP        │ ← requests
+│   (passive)     │   output    │ (at coherence)  │   snapshot
+└─────────────────┘             └─────────────────┘
+
+Benefits:
+- Application controls power budget (can suspend IMU)
+- Protocol sees only derived state, not raw samples
+- Works with any fusion algorithm (Madgwick, Mahony, EKF)
+- No IMU = no problem (RFIP operates without it)
+```
+
+#### 6.7.2 Provider Callback Interface
+
+```c
+/**
+ * IMU state at a coherence boundary.
+ * Packed heavy-first: int64 → structs → float → uint8 → bool
+ */
+typedef struct {
+    int64_t  timestamp_us;              // UTLP atomic time
+    
+    // Orientation (body → world quaternion)
+    struct { float w, x, y, z; } orientation;  // 16 bytes
+    
+    // Angular velocity (body frame, rad/s)
+    struct { float x, y, z; } angular_velocity;  // 12 bytes
+    
+    // Angular acceleration (computed, rad/s²)
+    struct { float x, y, z; } angular_accel;     // 12 bytes
+    
+    // Linear acceleration (gravity-compensated, m/s²)
+    struct { float x, y, z; } linear_accel;      // 12 bytes
+    
+    float    motion_magnitude_mg;       // RMS deviation from 1g
+    uint8_t  motion_confidence;         // 0=moving, 255=stationary
+    uint8_t  orientation_confidence;    // Quality metric
+    bool     disturbance_flag;          // High-g event detected
+    uint8_t  _pad[5];                   // Explicit padding
+} rfip_imu_state_t;  // 72 bytes
+
+/**
+ * Callback type: Application provides this, RFIP calls it.
+ * Returns true if state is valid, false if IMU unavailable.
+ */
+typedef bool (*rfip_imu_provider_fn)(rfip_imu_state_t *state);
+
+/**
+ * Register IMU provider with RFIP.
+ * Pass NULL to disable IMU integration.
+ */
+void rfip_set_imu_provider(rfip_imu_provider_fn provider);
+```
+
+#### 6.7.3 Beacon-Propagated Motion State
+
+Compact motion state propagated in UTLP beacons (4 bytes):
+
+```c
+typedef struct {
+    uint8_t motion_confidence;      // 0-255: 255=stationary
+    uint8_t orientation_confidence; // 0-255
+    uint8_t flags;                  // Bit 0: disturbance active
+    uint8_t _reserved;
+} rfip_imu_beacon_t;
+```
+
+Receivers apply motion confidence to weight ranging observations:
+
+```c
+// At receiver: adjust confidence based on transmitter motion
+float adjusted_confidence = 
+    rf_confidence * (float)beacon.motion_confidence / 255.0f;
+```
+
+#### 6.7.4 Cross-Sensor Disturbance Blanking
+
+When IMU detects shock (|accel| deviates significantly from 1g), RF observations are penalized:
+
+```c
+#define DISTURBANCE_THRESHOLD_MG  2000   // 2g
+#define DISTURBANCE_HOLDOFF_MS    150    // Settling time
+
+void rfip_check_disturbance(const rfip_imu_state_t *imu,
+                            rfip_observation_t *obs,
+                            int64_t now_us) {
+    static int64_t holdoff_end_us = 0;
+    
+    if (imu->disturbance_flag || imu->motion_magnitude_mg > DISTURBANCE_THRESHOLD_MG) {
+        holdoff_end_us = now_us + DISTURBANCE_HOLDOFF_MS * 1000;
+    }
+    
+    if (now_us < holdoff_end_us) {
+        // Progressive decay: severe early, moderate late
+        int64_t elapsed = now_us - (holdoff_end_us - DISTURBANCE_HOLDOFF_MS * 1000);
+        int64_t quarter = DISTURBANCE_HOLDOFF_MS * 1000 / 4;
+        
+        if (elapsed < quarter)
+            obs->confidence /= 8;
+        else if (elapsed < 2 * quarter)
+            obs->confidence /= 4;
+        else
+            obs->confidence /= 2;
+    }
+}
+```
+
+#### 6.7.5 Emergent Anchor Topology
+
+Stationary nodes automatically become temporary RFIP anchors:
+
+```c
+typedef enum {
+    ANCHOR_ROLE_MOBILE,
+    ANCHOR_ROLE_SETTLING,    // motion_conf high, waiting for stability
+    ANCHOR_ROLE_STATIONARY,
+    ANCHOR_ROLE_ANCHOR,      // Ready to serve as reference
+} anchor_role_t;
+
+typedef struct {
+    anchor_role_t role;
+    int64_t role_entered_us;
+    uint16_t stationary_threshold;    // Default: 200
+    uint32_t settling_duration_ms;    // Default: 2000
+    uint32_t anchor_holdoff_ms;       // Default: 5000
+} anchor_promotion_state_t;
+```
+
+State machine: `MOBILE → SETTLING → STATIONARY → ANCHOR`
+
+Any motion detection reverts to `MOBILE`. This creates self-organizing spatial references—nodes that happen to be still become anchors, nodes that move become rovers.
+
+#### 6.7.6 RF-Derived Heading for 6-Axis IMUs
+
+6-axis IMUs (accelerometer + gyroscope, no magnetometer) cannot determine absolute heading. RFIP provides this via RF bearing observations:
+
+```
+When device rotates:
+  Δψ_imu = Gyro-integrated yaw change
+  Δθ_rf  = Change in RF bearing to anchor
+
+If anchor didn't move:
+  Systematic difference = body→world misalignment
+  yaw_offset = mean(Δθ_rf - Δψ_imu)
+```
+
+This eliminates the need for magnetometer (susceptible to interference) in many applications.
+
 ---
 
 ## 7. Prior Art Extension Claims
 
-*Claims to be added after implementation validates concepts.*
+*Core positioning claims documented here. Full RFIP/IMU integration claims (98-106) documented in Prior Art Publication v3.3 Section 9.18 and UTLP Technical Supplement S2.44 Section 8.27.*
 
-### 7.1 Preliminary Claims
+### 7.1 Preliminary Claims (RFIP Core)
 
 1. **UTLP-enabled TDoA without infrastructure**: Using UTLP time synchronization to enable Time Difference of Arrival positioning without dedicated timing infrastructure; every synchronized node is a potential ranging anchor
 2. **Layered observation fusion with graceful degradation**: Position estimation that uses all available observations (RSSI, CSI, TDoA, FTM, UWB) with automatic fallback when higher-precision sources unavailable
@@ -574,8 +735,13 @@ typedef struct {
 - Qorvo DWM3000 Datasheet
 
 ### 8.4 Related Documents
-- Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)
-- UTLP Technical Supplement S2
+- Connectionless Distributed Timing Prior Art v3.3 (DOI: 10.5281/zenodo.18078265)
+- UTLP Technical Supplement S2.44 (DOI: 10.5281/zenodo.18120833)
+
+### 8.5 IMU/Sensor Fusion References
+- Madgwick, S.O.H., "An efficient orientation filter for inertial and inertial/magnetic sensor arrays" (2010)
+- Mahony, R. et al., "Nonlinear Complementary Filters on the Special Orthogonal Group" (2008)
+- Hamilton, W.R. (1843) / Kuipers, J., "Quaternions and Rotation Sequences"
 
 ---
 
@@ -583,6 +749,8 @@ typedef struct {
 
 ---
 
-*Document version: Draft 0.1*
-*Status: Initial specification for review*
+*Document version: Draft 0.2*
+*Last updated: January 2026*
+*Status: Implementation specification with IMU integration*
+*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*

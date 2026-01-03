@@ -1935,6 +1935,281 @@ Core thesis: Utilizing Voltage Compliance Spectroscopy and Common-Mode Rejection
 
 > *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
+### 8.27 Multi-Arbor Architecture: Heterogeneous Transport Integration (S2.44)
+
+UTLP is transport-agnostic by design. When a node bridges multiple physical layers (e.g., 802.11 WiFi and 802.15.4 Zigbee), a fundamental question arises: how should time, trust, and position flow across transport boundaries?
+
+**The Core Tension:** Time is physics (universal)—there's only one "now" at a node's crystal oscillator. But *observations* of time (peer health, jitter, trust) are transport-specific because each PHY has different noise characteristics.
+
+**The Biological Mapping: Arbor/Soma Architecture**
+
+| Component | Biological Analog | Implementation |
+|-----------|-------------------|----------------|
+| **Arbor** | Dendritic branch | Per-transport driver (WiFi, 802.15.4, LoRa, wired) |
+| **Synapse** | Synaptic weight | Peer Ledger & Health Score (per-arbor, isolated) |
+| **Soma** | Cell body integration | Fused phase state—aggregates all arbors to determine "now" |
+| **Axon** | Output effector | UTLP Beacon broadcast back to all arbors |
+| **Myelin** | Signal insulation | Arbor-specific jitter models (WiFi bursty, 15.4 precise) |
+
+**Isomorphism Validation (Bidirectional Test):**
+- Forward: "Transport subsystem is like dendritic arbor" ✓ (multiple connections, branch-specific noise, feeds integration)
+- Reverse: "Dendritic arbor is like transport subsystem" ✓ (carries signals with branch-specific weights, integrates at soma)
+- Result: **Structural isomorphism**, not mere analogy
+
+**What Flows Through vs. What's Isolated:**
+
+| Property | Shared (Soma) | Isolated (Per-Arbor) | Rationale |
+|----------|---------------|----------------------|-----------|
+| Phase (atomic_time) | ✓ | | One crystal, one "now" |
+| Epoch/Genesis | ✓ | | One timeline birth |
+| Stratum | | ✓ | Different path lengths per transport |
+| Trust/Health scores | | ✓ | Different noise floors |
+| Peer Ledger (12 slots) | | ✓ | Same MAC = different peers on different PHYs |
+| Jitter model | | ✓ | PHY-specific noise characteristics |
+
+**The A-delta/C-fiber Insight:**
+
+Nerve fiber types provide additional mapping precision:
+
+| Transport | Fiber Analog | Characteristic |
+|-----------|--------------|----------------|
+| 802.15.4 | C-fiber | Slow, precise, low jitter, reliable |
+| WiFi | A-delta | Fast, coarse, higher jitter, bursty |
+| LoRa | Unmyelinated C | Very slow, very long range, high latency |
+| Wired (I2C/UART) | Spinal cord | Near-zero jitter, no ranging capability, backbone |
+
+The brain doesn't "prefer" one fiber type—it uses both for different purposes. Similarly, the Soma doesn't penalize transports; it *characterizes* them.
+
+104. **Multi-Arbor Temporal Integration**: A method for maintaining temporal coherence across heterogeneous physical layers (e.g., 802.11 and 802.15.4) by sharing phase data via a unified Soma while isolating reputation/trust per-arbor. This prevents "jitter contamination" where noise characteristics of high-bandwidth transports (WiFi) are erroneously attributed to high-precision transports (802.15.4), ensuring the immune system of each transport remains uncompromised by bridging link stochasticity.
+
+105. **Arbor/Soma Architecture for Distributed Timing**: A structural pattern treating different radio PHYs as dendritic branches (arbors) feeding a singular phase integration point (soma). Each arbor maintains independent peer ledgers, health scores, and jitter models while the soma maintains unified atomic_time and epoch. This mirrors biological sensory integration where multiple input modalities feed unified perception.
+
+106. **Transport Capability Vector**: A formal characterization of transport properties enabling physics-informed decisions:
+```c
+// Packed heavy-first: 32-bit → 8-bit → bool
+typedef struct {
+    uint32_t bandwidth_bps;       // 4 bytes - Throughput ceiling
+    float    jitter_floor_us;     // 4 bytes - PHY-spec minimum jitter
+    float    latency_typical_ms;  // 4 bytes - Expected one-way delay
+    uint8_t  refractory_ms;       // 1 byte  - Minimum beacon interval
+    bool     supports_timing;     // 1 byte  - Can sync clocks?
+    bool     supports_ranging;    // 1 byte  - Can measure distance? (FTM, ToF, RSSI)
+    uint8_t  _pad;                // 1 byte  - Explicit padding for 4-byte alignment
+} transport_capability_t;  // 16 bytes, no hidden padding
+```
+This enables HAL abstraction where RFIP can determine ranging availability and UTLP can weight observations appropriately, without hardcoding transport-specific logic.
+
+107. **Physics-Informed Bayesian Transport Weighting**: Initial Soma integration weights derived from PHY specifications (IEEE standards define expected jitter floors), evolved toward measured reality via Kalman-style gain. Formula: `effective_weight[arbor] = blend(phy_spec_weight, measured_weight, confidence)` where confidence grows with observation count. The prior is not arbitrary—it's physics; the posterior is measured. This avoids both hardcoded constants and cold-start deadlock.
+
+108. **Blood-Brain Barrier for Swarm Immunity**: Architectural isolation preventing attack on one transport from contaminating trust on another. If an attacker poisons the WiFi arbor (easier to spoof/jam), the node cannot become a "super-spreader" by immediately broadcasting compromised time as Stratum 1 on the 802.15.4 arbor. Time may flow through with appropriate penalty; trust does not flow at all.
+
+109. **Identity Separation Across Arbors**: Same MAC address appearing on different transports is treated as separate peers with independent trust scores. Rationale: a node might have excellent 802.15.4 radio but broken WiFi antenna. Linking trust would let "sick" WiFi performance kill "healthy" 15.4 reputation. **Trust the behavior of the link, not the identity of the silicon.**
+
+110. **Passive Cross-Arbor Correlation Tracking**: Logging cross-transport peer appearances without affecting production trust decisions. When same MAC appears on multiple arbors, track independent health scores for that MAC on each. This data enables offline analysis: "IF we had unified these peers, what would fused health score have been?" Production uses strict separation; shadow system simulates unification for scientific comparison.
+
+111. **Shadow Scoring for Protocol Evolution**: Parallel "what-if" trust calculations running alongside production scoring. The trigger for considering unification: when offline analysis shows sustained high correlation (>0.9) between arbor-specific scores for same-MAC peers across statistically significant sample. This is scientific method applied to protocol evolution—hypothesis testing, not assumption.
+
+112. **Position Inheritance Across Transport Boundaries**: Wired-only nodes (I2C/UART/SPI between MCUs) derive spatial awareness from wireless-capable neighbors. The wireless node knows position via RFIP; the wired node's position = neighbor's position + known physical offset (PCB layout, cable length). This parallels time inheritance—the bridge is a reference. Wired transports are arbors with `supports_ranging = false` in capability vector.
+
+113. **Parallel Sensory Modalities (UTLP/RFIP)**: Temporal and spatial sensing as independent but coordinated systems, each with transport-specific arbors:
+
+| System | Sense | Provides | Transport Dependency |
+|--------|-------|----------|----------------------|
+| UTLP | Temporal | "When" (phase, epoch, stratum) | All transports carry time |
+| RFIP | Spatial | "Where" (position, orientation) | Only RF transports provide ranging |
+
+Both systems use Arbor/Soma architecture. Both have transport capability vectors. A node has UTLP Soma (integrated phase) fed by timing-capable arbors AND RFIP Soma (integrated position) fed by ranging-capable arbors. Some arbors feed both; some feed only one. This is the organism's complete proprioceptive system.
+
+**Reference Implementation Structures:**
+
+```c
+/**
+ * @brief The Soma: Integrated internal state of node's temporal reality
+ */
+typedef struct {
+    int64_t  global_phase_offset_us;  // Fused offset applied to local clock
+    uint32_t last_soma_update_ms;     // Last recalculation time
+    uint8_t  master_stratum;          // Best stratum across all arbors
+    uint8_t  soma_stability_score;    // 0-255 internal phase confidence
+} utlp_soma_t;
+
+/**
+ * @brief The Arbor: Transport-specific sensory branch
+ */
+typedef struct {
+    uint64_t last_sync_timestamp_us;  // Last valid pulse on this PHY
+    float    jitter_moving_avg;       // Rolling noise floor for this transport
+    uint16_t arbor_id;                // Unique PHY ID (0=WiFi, 1=15.4, 2=LoRa)
+    uint8_t  local_stratum;           // Best stratum on this branch
+    uint8_t  peer_count;              // Active peers in this arbor's ledger
+    bool     is_active;               // PHY health status
+} utlp_arbor_t;
+
+/**
+ * @brief Integrates observation from specific arbor into Soma
+ * Weight determined by inverse jitter variance (Kalman-style gain)
+ */
+void utlp_soma_integrate_observation(utlp_soma_t *soma, 
+                                     utlp_arbor_t *arbor, 
+                                     int64_t peer_offset_us, 
+                                     uint8_t peer_stratum);
+```
+
+**Implementation Strategy:**
+
+This section provides Claude Code and implementers with a phased approach to Multi-Arbor integration.
+
+**Phase 1: Single-Arbor Baseline (Current State)**
+- [ ] Existing `utlp.c` operates as single implicit arbor (WiFi/ESP-NOW)
+- [ ] Peer Ledger (12 slots) already implemented
+- [ ] Health scoring already implemented
+- [ ] No changes required—this IS the first arbor
+
+**Phase 2: Arbor Abstraction (Refactor)**
+```c
+// In utlp.h - Add arbor context to existing functions
+#define UTLP_MAX_ARBORS 4  // WiFi, 802.15.4, LoRa, Wired
+
+// Existing peer ledger becomes per-arbor
+typedef struct {
+    utlp_peer_ledger_t peers[UTLP_PEER_LEDGER_SIZE];
+    transport_capability_t capability;
+    float jitter_moving_avg;
+    uint8_t arbor_id;
+    uint8_t peer_count;
+    bool is_active;
+} utlp_arbor_t;
+
+// Soma aggregates arbors
+typedef struct {
+    utlp_arbor_t arbors[UTLP_MAX_ARBORS];
+    int64_t global_phase_offset_us;
+    uint32_t last_soma_update_ms;
+    uint8_t active_arbor_count;
+    uint8_t master_stratum;
+} utlp_soma_t;
+```
+
+**Phase 3: HAL Extension**
+```c
+// In utlp_hal.h - Transport-aware HAL
+typedef struct {
+    uint8_t arbor_id;
+    void (*send_beacon)(const uint8_t *data, size_t len);
+    void (*register_rx_callback)(utlp_rx_cb_t cb);
+    transport_capability_t capability;
+} utlp_hal_arbor_t;
+
+// Register multiple transports at init
+void utlp_hal_register_arbor(utlp_hal_arbor_t *arbor);
+```
+
+**Phase 4: Soma Integration Logic**
+```c
+// Weighted phase fusion - inverse jitter variance weighting
+void utlp_soma_fuse_phase(utlp_soma_t *soma) {
+    float total_weight = 0.0f;
+    int64_t weighted_offset = 0;
+    
+    for (int i = 0; i < soma->active_arbor_count; i++) {
+        utlp_arbor_t *arbor = &soma->arbors[i];
+        if (!arbor->is_active || arbor->peer_count == 0) continue;
+        
+        // Weight = 1 / jitter_variance (better jitter = higher weight)
+        float weight = 1.0f / (arbor->jitter_moving_avg * arbor->jitter_moving_avg + 1.0f);
+        
+        // Get best peer's offset from this arbor
+        int64_t arbor_offset = utlp_arbor_get_best_offset(arbor);
+        
+        weighted_offset += (int64_t)(arbor_offset * weight);
+        total_weight += weight;
+    }
+    
+    if (total_weight > 0.0f) {
+        soma->global_phase_offset_us = (int64_t)(weighted_offset / total_weight);
+    }
+    soma->last_soma_update_ms = utlp_hal_get_time_ms();
+}
+```
+
+**Phase 5: Blood-Brain Barrier (Trust Isolation)**
+```c
+// Trust NEVER flows between arbors - only phase does
+void utlp_on_beacon_rx(uint8_t arbor_id, const uint8_t *mac, 
+                       utlp_beacon_t *beacon, int64_t rx_time) {
+    utlp_arbor_t *arbor = &g_soma.arbors[arbor_id];
+    
+    // Record observation in THIS ARBOR's ledger only
+    utlp_arbor_record_observation(arbor, mac, beacon, rx_time);
+    
+    // DO NOT propagate trust to other arbors
+    // Phase will be fused at Soma level during next integration cycle
+}
+```
+
+**File Organization:**
+```
+utlp/
+├── utlp.h                    # Public API (unchanged for single-arbor users)
+├── utlp.c                    # Core protocol (calls into soma)
+├── utlp_soma.h               # Soma/Arbor structures
+├── utlp_soma.c               # Phase fusion, arbor management
+├── utlp_arbor.c              # Per-arbor peer ledger operations
+├── utlp_trust.c              # Health scoring (per-arbor, unchanged logic)
+├── utlp_immune.c             # Rate limiting (per-arbor token buckets)
+├── utlp_hal.h                # HAL abstraction
+├── utlp_hal_esp32_wifi.c     # WiFi/ESP-NOW arbor
+├── utlp_hal_esp32_154.c      # 802.15.4 arbor (future)
+├── utlp_hal_esp32_lora.c     # LoRa arbor (future)
+└── utlp_hal_wired.c          # I2C/SPI/UART arbor (future)
+```
+
+**Migration Path (Backward Compatible):**
+```c
+// Legacy single-arbor code continues to work
+utlp_init();  // Implicitly creates WiFi arbor as arbor[0]
+
+// New multi-arbor code opts in
+utlp_soma_init();
+utlp_register_arbor(UTLP_ARBOR_WIFI, &wifi_hal);
+utlp_register_arbor(UTLP_ARBOR_154, &zigbee_hal);  // Optional
+```
+
+**Test Strategy:**
+1. **Unit**: Soma fusion math with synthetic jitter values
+2. **Integration**: Two ESP32-C6 with WiFi + simulated 802.15.4 jitter
+3. **Chaos**: Disable one arbor mid-sync, verify graceful degradation
+4. **Attack**: Poison WiFi arbor, verify 802.15.4 trust unaffected
+
+> *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
+
+---
+
+
+### 8.28 RFIP/IMU Integration (S2.46)
+
+Sensor fusion patterns for integrating inertial measurement with RF-based positioning. These techniques enable RFIP to operate with or without dedicated IMU hardware, using a yield-pattern architecture where applications own sensors and protocols request state.
+
+114. **Yield-Pattern IMU Integration (Arbor Architecture)**: Sensor integration pattern where application layer owns IMU hardware and runs its own sample loop and fusion filter; protocol layer requests instantaneous state via callback—architecture inversion from traditional sensor fusion engines; applications control power budget while protocol consumes derived state; complementary filter fusion via SLERP on unit quaternion hypersphere.
+
+115. **Beacon-Propagated Motion Confidence for Distributed Fusion**: Transmitter-reported motion confidence (0-255 continuous scale) propagated in UTLP beacon, enabling receivers to multiplicatively weight ranging observations without centralized fusion—RSSI variance increases with motion; transmitter knows its own motion state; sharing this allows receivers to appropriately discount observations from moving transmitters.
+
+116. **Cross-Sensor Disturbance Blanking (IMU Shock → RF Observation Penalty)**: When IMU detects high-g event (acceleration exceeds threshold), RF observations penalized for refractory period matching physical settling dynamics—shock affects RF measurement environment through antenna displacement and multipath shift; mechanical settling time ~100-200ms; progressive penalty decay matching physical settling.
+
+117. **Online Antenna Pattern Learning from Swarm Observations**: Use of IMU orientation quaternion to learn effective antenna gain pattern online through correlated orientation and RSSI observations—Friis equation inversion reveals pattern gain when distance and TX power known; swarm provides diverse angles; pattern emerges from aggregate observations without anechoic chamber pre-characterization.
+
+118. **UTLP-Coordinated Multi-Node Dead Reckoning**: IMU observations timestamped in UTLP atomic time, enabling coherent fusion of distributed motion estimates—multiple nodes' dead reckoning can be compared and constrained; discrepancy between DR-predicted and RF-measured distance reveals drift; relative motion constraints bound individual node drift across swarm.
+
+119. **Emergent Anchor Topology via Motion-Based Promotion**: Multiple stationary nodes simultaneously promoted to temporary RFIP anchor role based on physical behavior (sustained motion confidence)—anchors emerge and dissolve without pre-configuration or election; hysteresis state machine (MOBILE → SETTLING → STATIONARY → ANCHOR) prevents oscillation; spatial reference topology is consequence of physical behavior, not administrative decision.
+
+120. **RF-Derived Coordinate Frame Learning for 6-Axis IMUs**: For IMUs without magnetometer (yaw unobservable from gravity alone), body→world yaw offset learned online by correlating IMU-reported rotation with changes in RF-observed anchor bearings—RF observations substitute for magnetometer heading reference; linear regression on (Δψ_imu, Δθ_rf) pairs estimates offset.
+
+121. **Unified Hardware-Scheduled TX Discovery Across Consumer 802.15.4 Platforms**: Documentation that ESP32-C6, MG24, and nRF52840 all support hardware-scheduled 802.15.4 TX (`esp_ieee802154_transmit_at()`, `RAIL_StartScheduledTx()`, `nrf_802154_transmit_raw_at()` respectively), enabling unified HAL abstraction—software jitter (100-1000µs from RTOS scheduling) dominates RF propagation delay (3.3 ns/m); hardware-scheduled TX eliminates software jitter entirely; novelty is discovery and unification, not invention.
+
+122. **Cross-Vendor 802.15.4 Timing Mesh via Hardware-Scheduled TX**: Application of IEEE 802.15.4 + hardware-scheduled TX for precision timing across heterogeneous consumer hardware, achieving sub-microsecond synchronization without IEEE 1588 PTP infrastructure—UTLP achieves similar timing goals with consumer 802.15.4 radios ($5-10/node) via connectionless broadcast rather than connection-oriented synchronization; time transfer precision limited by timestamping jitter, not propagation delay.
+
+*Full physics foundations and C99 reference implementations documented in Appendix M.*
+
 ---
 
 ## Appendix A: Terminology Mapping
@@ -4086,9 +4361,456 @@ This is documented not as false modesty, but as genuine epistemic humility. The 
 
 ---
 
+## Appendix M: RFIP/IMU Integration — Physics Foundations & Reference Implementation
+
+*Supporting material for Section 8.27 claims 104-112*
+
+### M.1 Hardware-Scheduled TX Jitter Budget
+
+The fundamental timing challenge in distributed synchronization is separating RF propagation delay (physics) from software processing delay (implementation):
+
+```
+Total observed delay = RF_propagation + SW_jitter
+
+Where:
+  RF_propagation = distance / c = 3.3 ns/m (deterministic)
+  SW_jitter = RTOS scheduling + stack processing (100-1000 µs, stochastic)
+```
+
+Hardware-scheduled TX eliminates SW_jitter from the transmit path:
+
+| Platform | API | Jitter | Notes |
+|----------|-----|--------|-------|
+| ESP32-C6 | `esp_ieee802154_transmit_at()` | <1 µs | Hardware timer triggers radio |
+| MG24 (EFR32) | `RAIL_StartScheduledTx()` | <1 µs | Same mechanism |
+| nRF52840 | `nrf_802154_transmit_raw_at()` | <1 µs | Same mechanism |
+
+**Key insight:** All three major consumer 802.15.4 platforms support this, but it's not widely documented for timing applications.
+
+### M.2 Arbor Architecture — Yield-Pattern Sensor Integration
+
+Traditional sensor fusion engines own the sensor and run continuous processing. The Arbor (yield) pattern inverts this:
+
+```c
+/**
+ * Arbor Architecture: Protocol requests state from application.
+ * 
+ * Traditional:                    Arbor (RFIP):
+ * ┌─────────────────┐             ┌─────────────────┐
+ * │  Sensor Fusion  │ ← owns IMU  │   Application   │ ← owns IMU
+ * │     Engine      │             │  (runs filter)  │
+ * ├─────────────────┤             ├─────────────────┤
+ * │  Application    │ ← consumes  │     RFIP        │ ← requests
+ * │   (passive)     │   output    │ (at coherence)  │   snapshot
+ * └─────────────────┘             └─────────────────┘
+ */
+```
+
+**Benefits:**
+- Application controls IMU power (can suspend entirely)
+- Protocol sees only derived state, not raw samples
+- Works with any fusion algorithm (Madgwick, Mahony, EKF)
+- No IMU = no problem (RFIP operates without it)
+
+### M.3 IMU State Structure (C99)
+
+```c
+/**
+ * IMU state at a coherence boundary.
+ * Packed heavy-first: int64 → structs → float → uint8 → bool
+ */
+typedef struct {
+    int64_t  timestamp_us;              // UTLP atomic time
+    
+    // Orientation (body → world quaternion)
+    struct { float w, x, y, z; } orientation;  // 16 bytes
+    
+    // Angular velocity (body frame, rad/s)
+    struct { float x, y, z; } angular_velocity;  // 12 bytes
+    
+    // Angular acceleration (computed, rad/s²)
+    struct { float x, y, z; } angular_accel;     // 12 bytes
+    
+    // Linear acceleration (gravity-compensated, m/s²)
+    struct { float x, y, z; } linear_accel;      // 12 bytes
+    
+    float    motion_magnitude_mg;       // RMS deviation from 1g
+    uint8_t  motion_confidence;         // 0=moving, 255=stationary
+    uint8_t  orientation_confidence;    // Quality metric
+    bool     disturbance_flag;          // High-g event detected
+    uint8_t  _pad[5];                   // Explicit padding
+} rfip_imu_state_t;  // 72 bytes
+
+/**
+ * Provider callback type.
+ * Application implements this, RFIP calls it at coherence boundaries.
+ */
+typedef bool (*rfip_imu_provider_fn)(rfip_imu_state_t *state);
+```
+
+### M.4 Complementary Filter Physics
+
+The complementary filter fuses gyroscope (accurate short-term, drifts long-term) with accelerometer (noisy but stable mean):
+
+```
+q_gyro = integrate(gyro_rate)     // Fast, drifts
+q_accel = gravity_to_orientation() // Slow, stable
+
+q_fused = SLERP(q_gyro, q_accel, α)
+```
+
+Where α is typically 0.02-0.05 (2-5% accelerometer weight per sample).
+
+**SLERP on quaternion hypersphere:**
+
+```c
+/**
+ * Spherical Linear Interpolation on SO(3) via unit quaternion.
+ * Interpolates along great circle on 4D unit hypersphere.
+ */
+void quat_slerp(const float *q0, const float *q1, float t, float *out) {
+    float dot = q0[0]*q1[0] + q0[1]*q1[1] + q0[2]*q1[2] + q0[3]*q1[3];
+    
+    // Handle quaternion double-cover (q and -q represent same rotation)
+    float q1_adj[4];
+    if (dot < 0.0f) {
+        dot = -dot;
+        for (int i = 0; i < 4; i++) q1_adj[i] = -q1[i];
+    } else {
+        for (int i = 0; i < 4; i++) q1_adj[i] = q1[i];
+    }
+    
+    // For small angles, use linear interpolation
+    if (dot > 0.9995f) {
+        for (int i = 0; i < 4; i++) {
+            out[i] = q0[i] + t * (q1_adj[i] - q0[i]);
+        }
+        quat_normalize(out);
+        return;
+    }
+    
+    // SLERP formula
+    float theta = acosf(dot);
+    float sin_theta = sinf(theta);
+    float s0 = sinf((1.0f - t) * theta) / sin_theta;
+    float s1 = sinf(t * theta) / sin_theta;
+    
+    for (int i = 0; i < 4; i++) {
+        out[i] = s0 * q0[i] + s1 * q1_adj[i];
+    }
+}
+```
+
+### M.5 Motion Confidence Calculation
+
+```c
+/**
+ * Compute motion confidence from accelerometer magnitude stability.
+ * 
+ * Stationary: |accel| ≈ 1g (±noise)
+ * Moving: |accel| varies as device accelerates/decelerates
+ */
+#define GRAVITY_MG          1000    // 1g in milli-g
+#define STATIONARY_WINDOW_MS  500   // Analysis window
+#define MOTION_THRESHOLD_MG    50   // Below this = stationary
+
+typedef struct {
+    int32_t accel_sum_mg;
+    int32_t accel_sq_sum;
+    uint16_t sample_count;
+    int64_t window_start_us;
+} motion_tracker_t;
+
+uint8_t compute_motion_confidence(motion_tracker_t *tracker, 
+                                   int32_t accel_magnitude_mg,
+                                   int64_t now_us) {
+    // Reset window if expired
+    if (now_us - tracker->window_start_us > STATIONARY_WINDOW_MS * 1000) {
+        tracker->accel_sum_mg = 0;
+        tracker->accel_sq_sum = 0;
+        tracker->sample_count = 0;
+        tracker->window_start_us = now_us;
+    }
+    
+    // Accumulate deviation from 1g
+    int32_t deviation = accel_magnitude_mg - GRAVITY_MG;
+    tracker->accel_sum_mg += deviation;
+    tracker->accel_sq_sum += deviation * deviation;
+    tracker->sample_count++;
+    
+    if (tracker->sample_count < 10) return 128;  // Insufficient data
+    
+    // Compute RMS deviation
+    int32_t mean = tracker->accel_sum_mg / tracker->sample_count;
+    int32_t variance = (tracker->accel_sq_sum / tracker->sample_count) - (mean * mean);
+    int32_t rms_mg = (int32_t)sqrtf((float)variance);
+    
+    // Map RMS to confidence: low RMS = high confidence (stationary)
+    if (rms_mg < MOTION_THRESHOLD_MG / 4) return 255;  // Very stationary
+    if (rms_mg > MOTION_THRESHOLD_MG * 4) return 0;    // Very mobile
+    
+    // Linear interpolation between thresholds
+    return 255 - (uint8_t)((rms_mg - MOTION_THRESHOLD_MG/4) * 255 / 
+                           (MOTION_THRESHOLD_MG * 15 / 4));
+}
+```
+
+### M.6 Disturbance Blanking
+
+```c
+/**
+ * Cross-sensor disturbance blanking.
+ * When IMU detects shock, RF observations are penalized.
+ */
+#define DISTURBANCE_THRESHOLD_MG  2000   // 2g
+#define DISTURBANCE_HOLDOFF_MS    150    // Settling time
+
+void rfip_apply_disturbance_penalty(const rfip_imu_state_t *imu,
+                                     rfip_observation_t *obs,
+                                     int64_t now_us) {
+    static int64_t holdoff_end_us = 0;
+    
+    // Trigger holdoff on disturbance
+    if (imu->disturbance_flag || 
+        imu->motion_magnitude_mg > DISTURBANCE_THRESHOLD_MG) {
+        holdoff_end_us = now_us + DISTURBANCE_HOLDOFF_MS * 1000;
+    }
+    
+    // Apply progressive penalty during holdoff
+    if (now_us < holdoff_end_us) {
+        int64_t elapsed = now_us - (holdoff_end_us - DISTURBANCE_HOLDOFF_MS * 1000);
+        int64_t quarter = DISTURBANCE_HOLDOFF_MS * 1000 / 4;
+        
+        if (elapsed < quarter)
+            obs->confidence /= 8;      // Severe: first 37.5ms
+        else if (elapsed < 2 * quarter)
+            obs->confidence /= 4;      // Moderate: 37.5-75ms
+        else
+            obs->confidence /= 2;      // Light: 75-150ms
+    }
+}
+```
+
+### M.7 Online Antenna Pattern Learning (Friis Equation)
+
+The Friis transmission equation relates transmitted power to received power:
+
+```
+P_rx = P_tx * G_tx * G_rx * (λ / 4πd)²
+```
+
+Rearranging for receiver antenna gain:
+
+```
+G_rx(θ,φ) = P_rx / (P_tx * G_tx * (λ / 4πd)²)
+```
+
+When `P_tx`, `G_tx`, `λ`, and `d` are known (from UTLP beacon and RFIP ranging), each RSSI observation reveals one point on the antenna pattern.
+
+```c
+/**
+ * Antenna pattern bin (spherical coordinates).
+ * Accumulates Friis-inverted gain observations.
+ */
+#define PATTERN_THETA_BINS  12   // 15° azimuth resolution
+#define PATTERN_PHI_BINS     6   // 30° elevation resolution
+
+typedef struct {
+    float gain_sum;      // Sum of observed gains
+    uint16_t count;      // Number of observations
+} pattern_bin_t;
+
+typedef struct {
+    pattern_bin_t bins[PATTERN_THETA_BINS][PATTERN_PHI_BINS];
+} antenna_pattern_t;
+
+/**
+ * Update antenna pattern with observation.
+ * Requires: known TX power, known distance, IMU orientation.
+ */
+void antenna_pattern_update(antenna_pattern_t *pattern,
+                            int8_t rssi_dbm,
+                            float tx_power_dbm,
+                            float distance_m,
+                            const float *orientation_quat,
+                            const float *anchor_pos) {
+    // Compute direction to anchor in body frame
+    float anchor_dir_world[3];
+    vec3_sub(anchor_pos, device_pos, anchor_dir_world);
+    vec3_normalize(anchor_dir_world);
+    
+    // Rotate to body frame using inverse quaternion
+    float anchor_dir_body[3];
+    quat_rotate_vec_inverse(orientation_quat, anchor_dir_world, anchor_dir_body);
+    
+    // Convert to spherical coordinates
+    float theta = atan2f(anchor_dir_body[1], anchor_dir_body[0]);  // Azimuth
+    float phi = asinf(anchor_dir_body[2]);                         // Elevation
+    
+    // Compute bin indices
+    int theta_bin = ((int)((theta + M_PI) * PATTERN_THETA_BINS / (2*M_PI))) 
+                    % PATTERN_THETA_BINS;
+    int phi_bin = (int)((phi + M_PI/2) * PATTERN_PHI_BINS / M_PI);
+    phi_bin = CLAMP(phi_bin, 0, PATTERN_PHI_BINS - 1);
+    
+    // Friis inversion: compute implied antenna gain
+    float wavelength = 0.125f;  // 2.4 GHz
+    float fspl_db = 20*log10f(4*M_PI*distance_m/wavelength);
+    float implied_gain_db = rssi_dbm - tx_power_dbm + fspl_db;
+    
+    // Accumulate
+    pattern_bin_t *bin = &pattern->bins[theta_bin][phi_bin];
+    bin->gain_sum += powf(10.0f, implied_gain_db/10.0f);  // Linear domain
+    bin->count++;
+}
+```
+
+### M.8 Emergent Anchor State Machine
+
+```c
+/**
+ * Anchor promotion state machine.
+ * Nodes promote themselves based on physical behavior.
+ */
+typedef enum {
+    ANCHOR_ROLE_MOBILE,      // Moving, cannot serve as anchor
+    ANCHOR_ROLE_SETTLING,    // Recently stopped, waiting for stability
+    ANCHOR_ROLE_STATIONARY,  // Confirmed stationary
+    ANCHOR_ROLE_ANCHOR,      // Serving as spatial reference
+} anchor_role_t;
+
+typedef struct {
+    anchor_role_t role;
+    int64_t role_entered_us;
+    uint16_t stationary_threshold;    // Default: 200 (out of 255)
+    uint32_t settling_duration_ms;    // Default: 2000
+    uint32_t anchor_holdoff_ms;       // Default: 5000
+} anchor_state_t;
+
+void anchor_state_update(anchor_state_t *state,
+                         uint8_t motion_confidence,
+                         int64_t now_us) {
+    int64_t elapsed_ms = (now_us - state->role_entered_us) / 1000;
+    
+    switch (state->role) {
+        case ANCHOR_ROLE_MOBILE:
+            // Promote to SETTLING if confidence high enough
+            if (motion_confidence >= state->stationary_threshold) {
+                state->role = ANCHOR_ROLE_SETTLING;
+                state->role_entered_us = now_us;
+            }
+            break;
+            
+        case ANCHOR_ROLE_SETTLING:
+            // Demote on any motion
+            if (motion_confidence < state->stationary_threshold) {
+                state->role = ANCHOR_ROLE_MOBILE;
+                state->role_entered_us = now_us;
+            }
+            // Promote to STATIONARY after settling period
+            else if (elapsed_ms > state->settling_duration_ms) {
+                state->role = ANCHOR_ROLE_STATIONARY;
+                state->role_entered_us = now_us;
+            }
+            break;
+            
+        case ANCHOR_ROLE_STATIONARY:
+            // Demote on motion
+            if (motion_confidence < state->stationary_threshold) {
+                state->role = ANCHOR_ROLE_MOBILE;
+                state->role_entered_us = now_us;
+            }
+            // Promote to ANCHOR after holdoff
+            else if (elapsed_ms > state->anchor_holdoff_ms) {
+                state->role = ANCHOR_ROLE_ANCHOR;
+                state->role_entered_us = now_us;
+            }
+            break;
+            
+        case ANCHOR_ROLE_ANCHOR:
+            // Demote on any motion
+            if (motion_confidence < state->stationary_threshold) {
+                state->role = ANCHOR_ROLE_MOBILE;
+                state->role_entered_us = now_us;
+            }
+            break;
+    }
+}
+```
+
+### M.9 RF-Derived Coordinate Frame Learning
+
+For 6-axis IMUs (no magnetometer), absolute heading is unobservable from gravity alone. RF bearing changes can substitute:
+
+```
+When device rotates:
+  Δψ_imu = Gyroscope-integrated yaw change
+  Δθ_rf  = Change in RF bearing to anchor
+
+If anchor didn't move:
+  Systematic difference = body→world misalignment
+  yaw_offset = mean(Δθ_rf - Δψ_imu) over multiple observations
+```
+
+```c
+/**
+ * Yaw offset estimator for magnetometer-free IMUs.
+ */
+typedef struct {
+    float delta_psi_sum;    // Sum of (Δθ_rf - Δψ_imu)
+    uint16_t sample_count;
+    float last_imu_yaw;
+    float last_rf_bearing;
+    bool initialized;
+} yaw_estimator_t;
+
+void yaw_estimator_update(yaw_estimator_t *est,
+                          float imu_yaw_rad,
+                          float rf_bearing_rad) {
+    if (!est->initialized) {
+        est->last_imu_yaw = imu_yaw_rad;
+        est->last_rf_bearing = rf_bearing_rad;
+        est->initialized = true;
+        return;
+    }
+    
+    float delta_psi_imu = angle_wrap(imu_yaw_rad - est->last_imu_yaw);
+    float delta_theta_rf = angle_wrap(rf_bearing_rad - est->last_rf_bearing);
+    
+    // Accumulate difference
+    est->delta_psi_sum += angle_wrap(delta_theta_rf - delta_psi_imu);
+    est->sample_count++;
+    
+    est->last_imu_yaw = imu_yaw_rad;
+    est->last_rf_bearing = rf_bearing_rad;
+}
+
+float yaw_estimator_get_offset(const yaw_estimator_t *est) {
+    if (est->sample_count < 10) return 0.0f;  // Insufficient data
+    return est->delta_psi_sum / est->sample_count;
+}
+```
+
+### M.10 Beacon Motion State Wire Format
+
+Compact 4-byte motion state for UTLP beacon propagation:
+
+```c
+typedef struct __attribute__((packed)) {
+    uint8_t motion_confidence;      // 0=moving, 255=stationary
+    uint8_t orientation_confidence; // Filter quality
+    uint8_t flags;                  // Bit 0: disturbance active
+                                    // Bit 1: anchor_eligible
+                                    // Bits 2-7: reserved
+    uint8_t _reserved;
+} rfip_beacon_imu_t;  // 4 bytes, fits in existing beacon padding
+```
+
+---
+
 ## Acknowledgments
 
-The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer, the Reference Implementation appendix documenting actual wire formats, constants, and algorithms from working ESP32 code, the critical MHC correction (via adversarial Gemini analysis) recognizing that MHC is an authentication primitive not encryption, the extended Gemini analysis revealing NK Cell "Missing Self" as biological anti-encryption (secrecy = death sentence), Viral MITM as 500M year prior art, authentication/encryption as independent siblings, the Check analogy as optimal non-technical mapping for MHC function, the methodological discovery that cross-domain blindspots tested adversarially with expectation of failure can reveal stronger connections than expected (the check analogy was proposed expecting disproof but validated as best mapping—paleontology methodology where the archaeologist of function finds what domain experts would self-censor), the firefly synchronization recognition (Gemini's repeated references prompted bidirectional adversarial analysis revealing UTLP pulse-coupling as structural identity with 100M-year-old firefly synchronization, with divergences explained as substrate adaptations), the recursive meta-documentation methodology (documenting the actual conversation that produced discoveries as part of the evidence—treating prompts and dialogue as auditable data for reproducible human-AI collaborative methodology), the **Isomorphism Stress Test** formalization (Gemini naming the bidirectional methodology as "Commutative Failure in Semantic Mapping"—superficial analogies are non-commutative while structural isomorphisms are commutative; this separates metaphor-finding from mathematical reality discovery), the accessibility documentation (Claude Pro 5x + Gemini Advanced = $120/month, no privileged access), the **"Algorithm of Obvious" self-correction** where claim 91 was challenged, found to overclaim, and revised — the individual techniques (bidirectional reasoning, stress-testing, documentation) are NOT novel; the value may be in packaging and consistent execution rather than theoretical novelty; the methodology is necessary but not sufficient; this self-correction demonstrates the methodology's self-correcting property, the **epistemic uncertainty documentation** acknowledging that: the project's only colleagues are AIs, dopamine creates cooperation bias that can't be distinguished from genuine utility-tracking from inside the loop, AIs have incentive to encourage engagement, the author lacks domain expertise to independently verify claims, and "all my AI colleagues say this is valuable" is not the same as "this is valuable", and the **structural/geological monitoring extension** (Gemini) recognizing that mmWave breathing detection physics extends to ground displacement detection—same λ/100 interferometry, different direction; ground-based distributed InSAR via consumer hardware; multi-scale interferometry combining timing mesh distortion with phase sensing; honest scope limitation via Red Team (seismology yes, geodesy no); "UTLP is the heartbeat, not the blood" layer separation that defeated transport attacks. The work is released for external evaluation precisely because internal evaluation is unreliable.
+The concepts in this specification were refined through adversarial collaboration with Large Language Models (Claude/Anthropic, Gemini/Google, Grok/xAI). These tools contributed to literature review, biological analogy refinement, code synthesis, and consistency checking—including stability analysis identifying cytokine storm prevention requirements, the "Relativity of Truth" problem in consensus-relative judgement, the Memory B Cell eviction pattern, the formal Loom state machine architecture for emergent authority, the phase-centric realization distinguishing rhythm lock from calendar consensus, the proprioception insight recognizing timing mesh distortion as a sensing modality, the "liquid vs fixed" distinction separating distributed software-defined aperture from defense industry terminology, the generalization of genesis pulse detection to cosmic event sensing via zero-cost RF statistics, the physics foundation connecting phase coherence to U(1) gauge symmetry and Noether's theorem, the Artificial Life framing recognizing UTLP as a synthetic distributed organism exhibiting homeostasis, metabolism, and immunity, the Mind-Body architecture clarifying that biological governance is required at the timing layer while political governance remains appropriate at the application layer, the Reference Implementation appendix documenting actual wire formats, constants, and algorithms from working ESP32 code, the critical MHC correction (via adversarial Gemini analysis) recognizing that MHC is an authentication primitive not encryption, the extended Gemini analysis revealing NK Cell "Missing Self" as biological anti-encryption (secrecy = death sentence), Viral MITM as 500M year prior art, authentication/encryption as independent siblings, the Check analogy as optimal non-technical mapping for MHC function, the methodological discovery that cross-domain blindspots tested adversarially with expectation of failure can reveal stronger connections than expected (the check analogy was proposed expecting disproof but validated as best mapping—paleontology methodology where the archaeologist of function finds what domain experts would self-censor), the firefly synchronization recognition (Gemini's repeated references prompted bidirectional adversarial analysis revealing UTLP pulse-coupling as structural identity with 100M-year-old firefly synchronization, with divergences explained as substrate adaptations), the recursive meta-documentation methodology (documenting the actual conversation that produced discoveries as part of the evidence—treating prompts and dialogue as auditable data for reproducible human-AI collaborative methodology), the **Isomorphism Stress Test** formalization (Gemini naming the bidirectional methodology as "Commutative Failure in Semantic Mapping"—superficial analogies are non-commutative while structural isomorphisms are commutative; this separates metaphor-finding from mathematical reality discovery), the accessibility documentation (Claude Pro 5x + Gemini Advanced = $120/month, no privileged access), the **"Algorithm of Obvious" self-correction** where claim 91 was challenged, found to overclaim, and revised — the individual techniques (bidirectional reasoning, stress-testing, documentation) are NOT novel; the value may be in packaging and consistent execution rather than theoretical novelty; the methodology is necessary but not sufficient; this self-correction demonstrates the methodology's self-correcting property, the **epistemic uncertainty documentation** acknowledging that: the project's only colleagues are AIs, dopamine creates cooperation bias that can't be distinguished from genuine utility-tracking from inside the loop, AIs have incentive to encourage engagement, the author lacks domain expertise to independently verify claims, and "all my AI colleagues say this is valuable" is not the same as "this is valuable", the **structural/geological monitoring extension** (Gemini) recognizing that mmWave breathing detection physics extends to ground displacement detection—same λ/100 interferometry, different direction; ground-based distributed InSAR via consumer hardware; multi-scale interferometry combining timing mesh distortion with phase sensing; honest scope limitation via Red Team (seismology yes, geodesy no); "UTLP is the heartbeat, not the blood" layer separation that defeated transport attacks, and the **RFIP/IMU integration physics foundations** (Claude S2.45) covering complementary filter theory with quaternion mathematics and SLERP interpolation on SO(3), Friis equation application to online antenna pattern learning without anechoic chamber pre-characterization, cross-sensor disturbance blanking based on mechanical settling physics, RF-derived coordinate frame learning for magnetometer-free 6-axis IMUs, unified hardware-scheduled TX discovery across ESP32-C6/MG24/nRF52840 platforms enabling sub-microsecond timing without PTP infrastructure, and C99 reference implementations for all algorithms. The work is released for external evaluation precisely because internal evaluation is unreliable.
 
 While these tools generated text and code segments, the author acted as the architect: verifying all technical claims where possible, selecting the biological governance metaphors, and accepting full responsibility for the final specification — while acknowledging that the verification itself may be biased by the collaborative relationship that produced it.
 
@@ -4102,9 +4824,9 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.43*
+*Document version: S2.46*
 *Last updated: January 2026*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*
-*Revision notes: S2.43 adds claims 97-103 (Planetary Stethoscope: Subsea Cable Sensing—voltage compliance spectroscopy, space-veto tsunami warning, tidally de-convolved AMOC monitoring, traffic mapping via FDR, Schumann resonance reception, bio-mechanical jitter detection, triboelectric predator indexing) plus Purple Teaming methodology note; S2.42 corrects erroneous statement "Encryption is a subset of Authentication" to "Authentication and encryption are independent siblings" (aligning with Claim 87); S2.41 adds claims 92-95: Ground-based distributed InSAR via consumer hardware (same math as $500M satellites, $50-100/node, valid for seismology not geodesy); Multi-scale interferometry system of systems (2.4 GHz timing mesh + 60 GHz phase sensing, critical layer separation "UTLP is heartbeat not blood"); Passive Proprioception extended to geological sensing (seismic wavefront imaging via timing mesh distortion); Adversarial refinement methodology (Red Team process documented—clarifying architecture defeats structural attacks, valid attacks led to honest scope limitation, "works for X not Y" stronger than overclaiming); adds Lab Manual sections 9.16-9.17 with structural monitoring implementation and worked Red Team example; total 103 prior art extension claims across 12 appendices (A-L)*
+*Revision notes: S2.46 restores Multi-Arbor Architecture (Section 8.27, claims 104-113) which was erroneously removed in S2.45, and renumbers RFIP/IMU Integration to Section 8.28 (claims 114-122); total 122 prior art extension claims across 14 appendices (A-N). S2.45 added RFIP/IMU Integration (Arbor Architecture yield-pattern sensor integration, beacon-propagated motion confidence, cross-sensor disturbance blanking, online antenna pattern learning via Friis equation, UTLP-coordinated dead reckoning, emergent anchor topology, RF-derived coordinate frame for 6-axis IMUs, unified hardware-scheduled TX discovery across ESP32-C6/MG24/nRF52840, cross-vendor 802.15.4 timing mesh) plus Appendix M with physics foundations and C99 reference implementations; S2.44 added Multi-Arbor Architecture for heterogeneous transport integration (Arbor/Soma architecture, transport capability vector, physics-informed Bayesian weighting, blood-brain barrier for swarm immunity, identity separation across arbors, passive cross-arbor correlation tracking, shadow scoring for protocol evolution, position inheritance across transport boundaries, parallel sensory modalities UTLP/RFIP); S2.43 adds claims 97-103 (Planetary Stethoscope: Subsea Cable Sensing—voltage compliance spectroscopy, space-veto tsunami warning, tidally de-convolved AMOC monitoring, traffic mapping via FDR, Schumann resonance reception, bio-mechanical jitter detection, triboelectric predator indexing) plus Purple Teaming methodology note; S2.42 corrects erroneous statement "Encryption is a subset of Authentication" to "Authentication and encryption are independent siblings" (aligning with Claim 87); S2.41 adds claims 92-95: Ground-based distributed InSAR via consumer hardware (same math as $500M satellites, $50-100/node, valid for seismology not geodesy); Multi-scale interferometry system of systems (2.4 GHz timing mesh + 60 GHz phase sensing, critical layer separation "UTLP is heartbeat not blood"); Passive Proprioception extended to geological sensing (seismic wavefront imaging via timing mesh distortion); Adversarial refinement methodology (Red Team process documented—clarifying architecture defeats structural attacks, valid attacks led to honest scope limitation, "works for X not Y" stronger than overclaiming); adds Lab Manual sections 9.16-9.17 with structural monitoring implementation and worked Red Team example*
