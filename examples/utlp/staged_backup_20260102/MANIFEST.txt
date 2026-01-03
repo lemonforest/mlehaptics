@@ -1,0 +1,33 @@
+total 497
+drwxr-xr-x 1 sckir 197616     0 Jan  2 22:06 .
+drwxr-xr-x 1 sckir 197616     0 Jan  2 22:03 ..
+-rw-r--r-- 1 sckir 197616     0 Jan  2 22:06 MANIFEST.txt
+-rw-r--r-- 1 sckir 197616 10631 Jan  2 22:03 PRIOR_ART_DRAFT.md
+-rw-r--r-- 1 sckir 197616 46307 Jan  2 22:03 README.md
+-rw-r--r-- 1 sckir 197616 15862 Jan  2 22:03 rfip_hal.c
+-rw-r--r-- 1 sckir 197616 16081 Jan  2 22:03 rfip_hal.h
+-rw-r--r-- 1 sckir 197616 71117 Jan  2 22:03 utlp.c
+-rw-r--r-- 1 sckir 197616 16970 Jan  2 22:03 utlp_arbor.c
+-rw-r--r-- 1 sckir 197616 11264 Jan  2 22:03 utlp_arbor.h
+-rw-r--r-- 1 sckir 197616 11524 Jan  2 22:03 utlp_config.h
+-rw-r--r-- 1 sckir 197616 26350 Jan  2 22:03 utlp_hal.h
+-rw-r--r-- 1 sckir 197616 12305 Jan  2 22:03 utlp_hal_802154.h
+-rw-r--r-- 1 sckir 197616 25467 Jan  2 22:03 utlp_hal_esp32.c
+-rw-r--r-- 1 sckir 197616 25147 Jan  2 22:03 utlp_hal_esp32c6_154.c
+-rw-r--r-- 1 sckir 197616  7660 Jan  2 22:03 utlp_hal_mg24_154.c
+-rw-r--r-- 1 sckir 197616  7962 Jan  2 22:03 utlp_hal_nrf52840_154.c
+-rw-r--r-- 1 sckir 197616  4492 Jan  2 22:03 utlp_immune.c
+-rw-r--r-- 1 sckir 197616  9888 Jan  2 22:03 utlp_immune.h
+-rw-r--r-- 1 sckir 197616   591 Jan  2 22:03 utlp_main_esp32.c
+-rw-r--r-- 1 sckir 197616 12170 Jan  2 22:03 utlp_rfip.h
+-rw-r--r-- 1 sckir 197616 14050 Jan  2 22:03 utlp_smsp.c
+-rw-r--r-- 1 sckir 197616  9751 Jan  2 22:03 utlp_smsp.h
+-rw-r--r-- 1 sckir 197616 27368 Jan  2 22:03 utlp_transport.c
+-rw-r--r-- 1 sckir 197616 13556 Jan  2 22:03 utlp_transport.h
+-rw-r--r-- 1 sckir 197616 28228 Jan  2 22:03 utlp_trust.c
+-rw-r--r-- 1 sckir 197616 22028 Jan  2 22:03 utlp_trust.h
+
+=== BACKUP INFO ===
+Created: Fri, Jan  2, 2026 22:06:10
+Purpose: Phase 9 Biological Architecture Upgrade - Loom/Engine/Blood-Brain Barrier refactor
+Total files: 24
