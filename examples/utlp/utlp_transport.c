@@ -260,12 +260,9 @@ bool utlp_transport_init(const utlp_transport_config_t *config)
                 esp_timer_start_once(s_delayed_espnow_timer, delay_us);
                 s_espnow_pending = true;
 
-                ESP_LOGI(TAG, "┌─────────────────────────────────────────────┐");
-                ESP_LOGI(TAG, "│ STAGGERED STARTUP: 802.15.4 FIRST          │");
-                ESP_LOGI(TAG, "│ ESP-NOW delayed by %lu ms                   │",
+                ESP_LOGI(TAG, "=== STAGGERED STARTUP: 802.15.4 FIRST ===");
+                ESP_LOGI(TAG, "ESP-NOW delayed by %lu ms (pure 802.15.4 sync window)",
                          (unsigned long)s_config.stagger_espnow_ms);
-                ESP_LOGI(TAG, "│ Pure 802.15.4 sync window active           │");
-                ESP_LOGI(TAG, "└─────────────────────────────────────────────┘");
 
                 /* Still count as success - ESP-NOW is pending */
                 any_success = true;
@@ -338,10 +335,8 @@ static void delayed_espnow_timer_callback(void *arg)
 {
     (void)arg;
 
-    ESP_LOGI(TAG, "┌─────────────────────────────────────────────┐");
-    ESP_LOGI(TAG, "│ STAGGER COMPLETE: Enabling ESP-NOW          │");
-    ESP_LOGI(TAG, "│ WiFi arbor joining 802.15.4 swarm...        │");
-    ESP_LOGI(TAG, "└─────────────────────────────────────────────┘");
+    ESP_LOGI(TAG, "=== STAGGER COMPLETE: Enabling ESP-NOW ===");
+    ESP_LOGI(TAG, "WiFi arbor joining 802.15.4 swarm...");
 
     s_espnow_pending = false;
 

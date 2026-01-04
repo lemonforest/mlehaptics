@@ -31,6 +31,7 @@
 #include "esp_wifi.h"
 #include "esp_now.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "nvs_flash.h"
 #include "driver/mcpwm_prelude.h"
 
@@ -814,4 +815,61 @@ bool utlp_chirality_is_bridge_node(void)
 uint8_t utlp_chirality_get_current_channel(void)
 {
     return DEFAULT_WIFI_CHANNEL;
+}
+
+/*============================================================================
+ * TELEMETRY API - Physics and Status Data for Intron
+ *
+ * These functions provide data for the encrypted Intron payload.
+ * Stub implementations return safe placeholder values.
+ *==========================================================================*/
+
+/**
+ * @brief Get NTP wall-clock time (or random if stealth mode)
+ *
+ * @return NTP timestamp (microseconds since epoch) or random value
+ */
+uint64_t utlp_hal_get_ntp_time_utc(void)
+{
+    /*
+     * STUB: Return random value (stealth mode default).
+     *
+     * Real implementation should return actual NTP time if synced,
+     * or random value for stealth/privacy mode.
+     */
+    return (uint64_t)esp_random() | ((uint64_t)esp_random() << 32);
+}
+
+/**
+ * @brief Get current TX power setting
+ *
+ * @return TX power in dBm (-40 to +21 typical range)
+ */
+int8_t utlp_hal_get_tx_power_dbm(void)
+{
+    int8_t power = 0;
+    esp_wifi_get_max_tx_power(&power);
+    return power / 4;  /* ESP-IDF reports in 0.25dBm units */
+}
+
+/**
+ * @brief Get battery level scaled to 0-255
+ *
+ * @return Battery level (0=empty, 255=full) or 127 if not available
+ */
+uint8_t utlp_hal_get_battery_scaled(void)
+{
+    /* STUB: Return midpoint (battery monitoring not implemented) */
+    return 127;
+}
+
+/**
+ * @brief Get CPU load percentage
+ *
+ * @return CPU load (0-100%) or 0 if not available
+ */
+uint8_t utlp_hal_get_cpu_load(void)
+{
+    /* STUB: Return 0 (CPU monitoring not implemented) */
+    return 0;
 }

@@ -260,6 +260,22 @@ uint8_t utlp_phase_get_quality(void);
  */
 bool utlp_phase_is_synchronized(void);
 
+/**
+ * @brief Get current learned ISR latency (ILC diagnostic)
+ *
+ * Returns the current learned ISR latency in microseconds. This value
+ * represents how much the ISR fires late due to interrupt dispatch overhead.
+ *
+ * Use for debugging and performance tuning. Typical values:
+ * - Single Stack: ~5-20µs
+ * - Dual Stack (WiFi+BLE coexistence): ~40-80µs
+ *
+ * @return Learned ISR latency in microseconds
+ *
+ * @see UTLP_ILC_* constants in utlp_config.h
+ */
+uint32_t utlp_phase_get_isr_latency_us(void);
+
 /*============================================================================
  * BACKWARD COMPATIBILITY API
  *==========================================================================*/

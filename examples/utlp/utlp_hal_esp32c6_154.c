@@ -65,6 +65,7 @@
 
 #include "utlp_hal_802154.h"
 #include "utlp_hal.h"
+#include "utlp_config.h"
 
 #include <string.h>
 
@@ -156,6 +157,44 @@ static portMUX_TYPE s_sfd_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 /** @brief Sequence number for MAC frames */
 static uint8_t s_seq_num = 0;
+
+/*============================================================================
+ * PROPRIOCEPTION - Hardware-Assisted Latency Learning
+ *
+ * "The Body Learns Its Own Timing"
+ *
+ * These state variables implement the feedback loop that learns the optimal
+ * lead time for hardware-scheduled TX. See utlp_config.h for tuning constants.
+ *
+ * Thread safety:
+ * - g_learned_latency_us: Written from ISR, read from task. Volatile ensures
+ *   visibility. 32-bit reads are atomic on ESP32.
+ * - g_last_target_time_us: Written from task, read from ISR. Access pattern
+ *   is single-producer-single-consumer with embedded validity check.
+ *==========================================================================*/
+
+/**
+ * @brief Learned latency buffer (microseconds)
+ *
+ * Starts at conservative UTLP_LATENCY_INITIAL_US (50ms) and converges to
+ * the actual platform requirements through the learning loop.
+ *
+ * IRAM_ATTR: Accessed from tx_done_callback ISR.
+ */
+static volatile IRAM_ATTR uint32_t g_learned_latency_us = UTLP_LATENCY_INITIAL_US;
+
+/**
+ * @brief Target TX time for current pending transmission
+ *
+ * Set before calling esp_ieee802154_transmit_at(), read in tx_done_callback.
+ * Value 0 indicates "no pending transmission" (invalid/consumed).
+ *
+ * CRITICAL: This is 64-bit but callback math uses 32-bit cast for rollover safety.
+ * See tx_done_callback for the correct pattern.
+ *
+ * IRAM_ATTR: Accessed from tx_done_callback ISR.
+ */
+static volatile IRAM_ATTR uint64_t g_last_target_time_us = 0;
 
 /** @brief RX packet queue */
 static QueueHandle_t s_rx_queue = NULL;
@@ -368,16 +407,119 @@ static void IRAM_ATTR rx_done_callback(const uint8_t *frame, esp_ieee802154_fram
 }
 
 /**
- * @brief TX done callback
+ * @brief TX done callback - Proprioception Learning Loop
+ *
+ * This ISR implements the feedback loop that learns the optimal latency buffer
+ * for hardware-scheduled TX. By comparing the actual TX timestamp to our
+ * target, we adjust g_learned_latency_us to minimize timing error.
+ *
+ * CRITICAL DESIGN NOTES:
+ *
+ * 1. CALLBACK MATH SAFETY: The frame_info->timestamp is 32-bit (hardware timer).
+ *    Our g_last_target_time_us is 64-bit (esp_timer). To handle rollover correctly,
+ *    we cast both to 32-bit before subtraction:
+ *
+ *    WRONG: int64_t error = frame_info->timestamp - g_last_target_time_us;
+ *    RIGHT: int32_t error = (int32_t)(frame_info->timestamp - (uint32_t)g_last_target_time_us);
+ *
+ *    This ensures correct signed difference even when the 32-bit timer wraps.
+ *
+ * 2. LEARNING ALGORITHM:
+ *    - LATE (error > 0): We transmitted after target. Increase latency.
+ *    - ON-TIME (|error| < deadzone): Perfect. No change.
+ *    - EARLY (error < -deadzone): We transmitted before target. Decrease latency.
+ *
+ * 3. ASYMMETRIC LEARNING: We increase latency faster than we decrease it.
+ *    Late = bad (missed timing). Early = ok (we were ready).
+ *    This creates a stable floor at the minimum necessary latency.
+ *
+ * @param frame The transmitted frame buffer
+ * @param frame_info Contains timestamp of actual SFD transmission
+ * @param tx_done true if TX completed successfully
  */
 static void IRAM_ATTR tx_done_callback(const uint8_t *frame,
                                         esp_ieee802154_frame_info_t *frame_info,
                                         bool tx_done)
 {
-    /* TX complete - nothing to do for broadcast */
-    (void)frame;
-    (void)frame_info;
-    (void)tx_done;
+    (void)frame;  /* Unused - we don't need frame content */
+
+    /*
+     * PROPRIOCEPTION LEARNING LOOP
+     *
+     * Skip learning if:
+     * - TX failed (tx_done == false)
+     * - No frame_info (shouldn't happen, but defensive)
+     * - No pending target (g_last_target_time_us == 0)
+     */
+    if (!tx_done || frame_info == NULL) {
+        return;
+    }
+
+    /* Atomically read and clear target time (consume the pending target) */
+    uint64_t target = g_last_target_time_us;
+    if (target == 0) {
+        /* No pending scheduled TX, or already consumed */
+        return;
+    }
+    g_last_target_time_us = 0;  /* Mark as consumed */
+
+    /*
+     * CALLBACK MATH SAFETY - Handle 32-bit/64-bit rollover correctly
+     *
+     * frame_info->timestamp is 32-bit hardware timer
+     * target is 64-bit but we only care about low 32 bits for comparison
+     *
+     * Cast both to 32-bit BEFORE subtraction. The signed result correctly
+     * handles wraparound: if target=0xFFFFFFF0 and actual=0x00000010,
+     * (int32_t)(0x10 - 0xFFF0) = +32 (late), not -4294967264.
+     */
+    int32_t error_us = (int32_t)(frame_info->timestamp - (uint32_t)target);
+
+    /* Read current latency (32-bit read is atomic on ESP32) */
+    uint32_t current_latency = g_learned_latency_us;
+    uint32_t new_latency = current_latency;
+
+    if (error_us > (int32_t)UTLP_LATENCY_DEADZONE_US) {
+        /*
+         * LATE: TX happened after target time.
+         * We need MORE lead time. Increase latency buffer.
+         *
+         * Learning rate: add error/DIVISOR to prevent overshoot.
+         * Divisor of 16 means we correct ~6% of error per cycle.
+         */
+        uint32_t increase = (uint32_t)error_us / UTLP_LATENCY_LEARN_DIVISOR;
+        if (increase < 1) increase = 1;  /* Always move at least 1µs */
+
+        new_latency = current_latency + increase;
+
+        /* Clamp to maximum */
+        if (new_latency > UTLP_LATENCY_MAX_US) {
+            new_latency = UTLP_LATENCY_MAX_US;
+        }
+    }
+    else if (error_us < -(int32_t)UTLP_LATENCY_DEADZONE_US) {
+        /*
+         * EARLY: TX happened before target time.
+         * We have MORE lead time than needed. Slowly decrease.
+         *
+         * Decay is slow and capped to prevent oscillation.
+         * We can afford to be early; we cannot afford to be late.
+         */
+        uint32_t decrease = UTLP_LATENCY_DECAY_US;
+
+        /* Don't underflow below minimum */
+        if (current_latency > UTLP_LATENCY_MIN_US + decrease) {
+            new_latency = current_latency - decrease;
+        } else {
+            new_latency = UTLP_LATENCY_MIN_US;
+        }
+    }
+    /* else: Within deadzone - no change needed */
+
+    /* Write back if changed */
+    if (new_latency != current_latency) {
+        g_learned_latency_us = new_latency;
+    }
 }
 
 /*============================================================================
@@ -566,21 +708,61 @@ bool utlp_hal_154_tx_scheduled(uint64_t tx_time_us, const uint8_t *data, size_t 
     size_t frame_len = p - frame;
 
     /*
+     * PROPRIOCEPTION: Apply learned latency compensation
+     *
+     * The application provides tx_time_us (when we WANT to transmit).
+     * We add g_learned_latency_us to give the hardware enough lead time.
+     *
+     * The learning loop in tx_done_callback will adjust g_learned_latency_us
+     * based on actual vs. target timing until we converge to the minimum
+     * necessary buffer.
+     *
+     * CRITICAL: Store target time BEFORE calling transmit_at so the callback
+     * can compute the timing error.
+     */
+    uint64_t adjusted_time = tx_time_us + g_learned_latency_us;
+    g_last_target_time_us = adjusted_time;  /* For callback learning loop */
+
+    /*
      * PRIMARY: Hardware-scheduled TX via esp_ieee802154_transmit_at()
      *
      * This is the KEY DISCOVERY - ESP32-C6 has TRUE hardware scheduling!
      * The radio's internal timer triggers TX at the exact specified time.
      * Jitter: ~1µs (same as MG24 RAIL and nRF52840)
      */
-    uint32_t hw_time = (uint32_t)(tx_time_us & 0xFFFFFFFF);
+    uint32_t hw_time = (uint32_t)(adjusted_time & 0xFFFFFFFF);
     esp_err_t ret = esp_ieee802154_transmit_at(frame, frame_len, false, hw_time);
 
     if (ret == ESP_OK) {
         return true;
     }
 
-    /* If hardware scheduling fails (late or busy), log and try alternatives */
-    ESP_LOGW(TAG, "Hardware TX scheduling failed: %s", esp_err_to_name(ret));
+    /*
+     * DEATH SPIRAL PREVENTION
+     *
+     * If esp_ieee802154_transmit_at() fails, it usually means we're already
+     * past the target time (ESP_ERR_INVALID_STATE). This happens when:
+     *   - System is under heavy load
+     *   - g_learned_latency_us is too small
+     *   - Large scheduling jitter spike
+     *
+     * WITHOUT this fix: We fail, learning loop never runs (no callback),
+     * latency stays too small, next TX also fails -> death spiral.
+     *
+     * WITH this fix: Bump latency immediately. Next TX will have more
+     * lead time and should succeed, allowing learning to resume.
+     */
+    g_last_target_time_us = 0;  /* Clear - no callback expected for failed TX */
+
+    uint32_t current_lat = g_learned_latency_us;
+    uint32_t new_lat = current_lat + UTLP_LATENCY_DEATH_SPIRAL_BUMP_US;
+    if (new_lat > UTLP_LATENCY_MAX_US) {
+        new_lat = UTLP_LATENCY_MAX_US;
+    }
+    g_learned_latency_us = new_lat;
+
+    ESP_LOGW(TAG, "Hardware TX scheduling failed: %s (latency bumped %lu -> %lu µs)",
+             esp_err_to_name(ret), (unsigned long)current_lat, (unsigned long)new_lat);
 
 #if CONFIG_UTLP_HARDENED_ISR
     /* FALLBACK 1: Hardened ISR scheduling (~10µs jitter) */

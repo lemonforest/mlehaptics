@@ -331,15 +331,17 @@ bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
  * @brief Record a timing observation from a peer (backward compatible wrapper)
  *
  * @deprecated Use utlp_trust_record_observation_arbor() for per-arbor tracking.
- *             This function assumes UTLP_ARBOR_WIFI (arbor 0) for backward compat.
+ *             This function assumes UTLP_ARBOR_WIFI (arbor 0) for backward compat
+ *             and UTLP_RSSI_INVALID for RSSI (no spectral data).
  *
  * @param mac        Peer's 6-byte MAC address
  * @param offset_us  Reported time offset in microseconds
  * @param stratum    Peer's claimed stratum level (1=Genesis, 2=Follower, etc.)
  */
 void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_t stratum) {
-    /* Default to arbor 0 (WiFi) for backward compatibility */
-    utlp_trust_record_observation_arbor(mac, offset_us, stratum, 0);
+    /* Default to arbor 0 (WiFi), invalid RSSI, and 0 session_salt for backward compatibility.
+     * Session_salt 0 means "unknown session" - PT-6 salt change detection is skipped. */
+    utlp_trust_record_observation_arbor(mac, offset_us, stratum, 0, UTLP_RSSI_INVALID, 0);
 }
 
 /**
@@ -370,9 +372,16 @@ void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_
  * @param offset_us  Reported time offset in microseconds
  * @param stratum    Peer's claimed stratum level (1=Genesis, 2=Follower, etc.)
  * @param arbor_id   Transport that received this packet (0=WiFi, 1=154, 2=BLE)
+ * @param rssi       Received signal strength (dBm), or UTLP_RSSI_INVALID if unavailable
+ *
+ * @par Phase 11: Spectral Retina
+ * In addition to timing judgement, we store RSSI for each arbor and log
+ * spectral coherence when both WiFi and 802.15.4 have recent readings.
+ * This reveals environmental multipath ("Radio Color") for future confidence weighting.
  */
 void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
-                                          uint8_t stratum, uint8_t arbor_id) {
+                                          uint8_t stratum, uint8_t arbor_id,
+                                          int8_t rssi, uint16_t session_salt) {
     utlp_peer_ledger_t *p = get_peer_entry(mac);
     int32_t consensus = 0;
     bool has_consensus;
@@ -395,19 +404,101 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
             p->health_score[i] = UTLP_TRUST_STARTUP;
             p->last_seen_ms[i] = 0;
             p->last_offset_us[i] = 0;
+            /* Spectral Retina: Initialize RSSI tracking */
+            p->last_rssi[i] = UTLP_RSSI_INVALID;
+            p->rssi_timestamp_ms[i] = 0;
         }
         p->interactions = 1;
         p->last_offset_us[arbor_id] = offset_us;
         p->last_seen_ms[arbor_id] = current_ms;
         p->stratum_claim = stratum;
-        utlp_hal_log_info(TAG, "New Peer %02X:%02X (arbor=%d, health=%d)",
-                          mac[4], mac[5], arbor_id, p->health_score[arbor_id]);
+        p->first_seen_ms = current_ms;
+        /* PT-6: Initialize session_salt tracking (0 = never seen until now) */
+        p->last_session_salt = session_salt;
+        /* Spectral Retina: Store first RSSI reading if valid */
+        if (rssi != UTLP_RSSI_INVALID) {
+            p->last_rssi[arbor_id] = rssi;
+            p->rssi_timestamp_ms[arbor_id] = current_ms;
+        }
+        utlp_hal_log_info(TAG, "New Peer %02X:%02X (arbor=%d, health=%d, rssi=%d, salt=0x%04X)",
+                          mac[4], mac[5], arbor_id, p->health_score[arbor_id], rssi, session_salt);
         return;
     }
+
+    /*=========================================================================
+     * PT-6: SESSION CONTINUITY ENFORCEMENT ("Seniority Bankruptcy")
+     *
+     * "The Ghost has died. Long live the Ghost."
+     *
+     * If session_salt changed (same MAC, different salt), the peer rebooted.
+     * ALL accumulated political capital is forfeit. The peer must re-earn
+     * trust through consistent behavior, starting from ZERO (not STARTUP).
+     *
+     * WHY ZERO NOT STARTUP:
+     * - STARTUP (50) is "probationary" - benefit of the doubt
+     * - A rebooted high-trust peer could have been compromised/attacked
+     * - Zero trust forces re-validation before ANY influence
+     * - Genesis Guard will reject them until they earn >100 health
+     *
+     * DEFENSE IN DEPTH: This is the FASTEST detection method:
+     * - Genesis Pulse:    Needs 2+ beacons to detect interval < 2000ms
+     * - Time Regression:  Needs time to go backwards > 10s (slow)
+     * - Session Salt:     FIRST beacon after reboot triggers this
+     *========================================================================*/
+    if (p->last_session_salt != 0 && p->last_session_salt != session_salt) {
+        utlp_hal_log_warn(TAG, "*** SENIORITY BANKRUPTCY *** Peer %02X salt 0x%04X->0x%04X (REBOOT DETECTED)",
+                          mac[5], p->last_session_salt, session_salt);
+
+        /* WIPE: Reset seniority clock (tenure starts over) */
+        p->first_seen_ms = current_ms;
+
+        /* WIPE: Reset trust history across ALL arbors to ZERO (punitive, not probationary) */
+        for (i = 0; i < UTLP_MAX_ARBORS; i++) {
+            p->health_score[i] = 0;         /* Zero trust, not STARTUP */
+            p->last_seen_ms[i] = 0;
+            p->last_offset_us[i] = 0;
+            p->last_rssi[i] = UTLP_RSSI_INVALID;
+            p->rssi_timestamp_ms[i] = 0;
+        }
+
+        /* WIPE: Reset interaction counters */
+        p->interactions = 1;              /* This IS first valid observation in new life */
+        p->consecutive_hits = 0;
+        p->observed_interval_ms = 0;
+
+        /* WIPE: Force stratum re-evaluation (worst possible) */
+        p->stratum_claim = 255;
+
+        /* WIPE: Reset TX tracking for regression detection */
+        p->last_tx_time_us = 0;
+
+        /* Update to new salt and set initial values */
+        p->last_session_salt = session_salt;
+        p->last_seen_ms[arbor_id] = current_ms;
+        p->stratum_claim = stratum;
+        if (rssi != UTLP_RSSI_INVALID) {
+            p->last_rssi[arbor_id] = rssi;
+            p->rssi_timestamp_ms[arbor_id] = current_ms;
+        }
+
+        /* Log and return - peer starts fresh journey to trustworthiness */
+        utlp_hal_log_info(TAG, "Peer %02X reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
+                          mac[5], arbor_id, rssi, session_salt);
+        return;
+    }
+
+    /* Update session_salt tracking (same peer, same salt = continuous session) */
+    p->last_session_salt = session_salt;
 
     /* Update per-arbor metadata */
     p->last_seen_ms[arbor_id] = current_ms;
     p->stratum_claim = stratum;
+
+    /* Spectral Retina: Store RSSI for this arbor if valid */
+    if (rssi != UTLP_RSSI_INVALID) {
+        p->last_rssi[arbor_id] = rssi;
+        p->rssi_timestamp_ms[arbor_id] = current_ms;
+    }
 
     /* THE JUDGEMENT: Compare against Swarm Consensus
      * If no consensus exists (I am alone), we trust lightly based on self-consistency.
@@ -461,6 +552,11 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
     /* Update last known offset on THIS arbor AFTER judgement */
     p->last_offset_us[arbor_id] = offset_us;
     if (p->interactions < 65000) p->interactions++;
+
+    /* Spectral Retina: Log coherence when we have fresh RSSI from multiple arbors */
+    if (rssi != UTLP_RSSI_INVALID) {
+        utlp_trust_log_spectral_coherence(p, arbor_id, current_ms);
+    }
 }
 
 /**
@@ -1106,4 +1202,112 @@ uint8_t utlp_trust_get_best_stratum_arbor(utlp_arbor_id_t arbor_id)
     }
 
     return best;
+}
+
+/*============================================================================
+ * SPECTRAL RETINA (Phase 11)
+ *
+ * Multi-transport RSSI comparison reveals environmental "Radio Color" -
+ * how differently WiFi and 802.15.4 propagate through the same space.
+ *
+ * @par Why This Matters:
+ * - WiFi (2.4GHz, 20MHz BW) and 802.15.4 (2.4GHz, 2MHz BW) experience
+ *   different multipath fading profiles despite sharing the same band
+ * - Large RSSI delta (>10dB) indicates cluttered RF environment
+ * - Future: Could weight timing confidence by spectral coherence
+ *
+ * @par Output Classification:
+ * - CLEAR: Delta ≤ 10dB - Both transports see similar signal strength
+ * - CLUTTERED: Delta > 10dB - Multipath causing divergent propagation
+ *
+ * @see Claim 253: Polychromatic Architecture Foundation
+ *==========================================================================*/
+
+/**
+ * @brief Log spectral coherence between WiFi and 802.15.4 transports
+ *
+ * Called after RSSI update to compare signal strength across transports.
+ * Only logs when both WiFi and 802.15.4 have fresh RSSI readings.
+ *
+ * @par Example Output:
+ * @code
+ * RETINA: Peer 5c | WiFi:-45 15.4:-52 | Delta: 7 dB | CLEAR
+ * RETINA: Peer 5c | WiFi:-45 15.4:-68 | Delta: 23 dB | CLUTTERED
+ * @endcode
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param current_arbor Which transport just received an update
+ * @param now_ms        Current time in milliseconds
+ */
+void utlp_trust_log_spectral_coherence(const utlp_peer_ledger_t *peer,
+                                        uint8_t current_arbor, uint32_t now_ms)
+{
+    uint8_t other_arbor;
+    uint32_t other_age_ms;
+    int8_t current_rssi;
+    int8_t other_rssi;
+    int8_t delta;
+    const char *status;
+    const char *wifi_label;
+    const char *other_label;
+
+    if (!peer) return;
+    if (current_arbor >= UTLP_MAX_ARBORS) return;
+
+    /*
+     * Spectral Retina focuses on WiFi vs 802.15.4 comparison.
+     * BLE (arbor 2) is excluded for now since it uses different channels.
+     *
+     * If current arbor is WiFi (0), compare with 802.15.4 (1).
+     * If current arbor is 802.15.4 (1), compare with WiFi (0).
+     * If current arbor is BLE (2), skip spectral coherence logging.
+     */
+    if (current_arbor == UTLP_ARBOR_WIFI) {
+        other_arbor = UTLP_ARBOR_154;
+    } else if (current_arbor == UTLP_ARBOR_154) {
+        other_arbor = UTLP_ARBOR_WIFI;
+    } else {
+        return;  /* BLE - skip spectral coherence */
+    }
+
+    /* Check if other transport has recent RSSI (not stale) */
+    if (peer->rssi_timestamp_ms[other_arbor] == 0) {
+        return;  /* No reading from other transport yet */
+    }
+
+    other_age_ms = now_ms - peer->rssi_timestamp_ms[other_arbor];
+    if (other_age_ms > UTLP_RSSI_STALE_MS) {
+        return;  /* Other transport's RSSI is stale */
+    }
+
+    /* Check both RSSI values are valid */
+    current_rssi = peer->last_rssi[current_arbor];
+    other_rssi = peer->last_rssi[other_arbor];
+
+    if (current_rssi == UTLP_RSSI_INVALID || other_rssi == UTLP_RSSI_INVALID) {
+        return;  /* Invalid RSSI value */
+    }
+
+    /* Calculate delta (absolute difference) */
+    delta = current_rssi - other_rssi;
+    if (delta < 0) delta = -delta;  /* abs() for int8_t */
+
+    /* Classify environment */
+    status = (delta > UTLP_RSSI_DELTA_CLEAR) ? "CLUTTERED" : "CLEAR";
+
+    /* Format labels based on current arbor */
+    if (current_arbor == UTLP_ARBOR_WIFI) {
+        wifi_label = "WiFi";
+        other_label = "15.4";
+    } else {
+        wifi_label = "15.4";
+        other_label = "WiFi";
+    }
+
+    /* Log the spectral coherence reading */
+    utlp_hal_log_info("RETINA", "Peer %02X | %s:%d %s:%d | Delta: %d dB | %s",
+                      peer->mac[5],
+                      wifi_label, (int)current_rssi,
+                      other_label, (int)other_rssi,
+                      (int)delta, status);
 }

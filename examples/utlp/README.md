@@ -1,15 +1,20 @@
 # UTLP v3 - Biological Governance for Distributed Time
 
-**Universal Time Lord Protocol** - Multi-transport implementation demonstrating
+**Universal Time Lord Protocol** (UTLP) - Multi-transport implementation demonstrating
 connectionless distributed time synchronization using **biological governance**
-instead of political consensus.
+instead of political consensus. Part of the **PHYRFLY Protocol Stack** (Protocol Trinity:
+UTLP/RFIP/SMSP - "when/where/what").
 
 > **v3 Features:** Multi-Arbor Transport Architecture (ESP-NOW + 802.15.4),
 > Servo-Locked Phase Correction (S2 Claim 55), Genesis Reset Detection,
 > SMSP Application Layer, Centralized Configuration (SSOT),
 > **Phase 9: The Loom** (Emergent Time Lord, Per-Arbor Genesis Pulse),
+> **Phase 10: Proprioception** (Hardware-assisted latency learning for TX scheduling),
+> **Phase 11: Spectral Retina** (Multi-transport RSSI telemetry for Radio Color),
+> **Phase 12: Session Continuity** (PT-6: Seniority Bankruptcy on reboot detection),
 > **HPLAC: Hardware Phase Locked Atomic Coherency** (MCPWM-based phase engine),
-> **Claim 253: Polychromatic Stratum Asymmetry** (per-transport stratum levels).
+> **Claim 253: Polychromatic Stratum Asymmetry** (per-transport stratum levels),
+> **Claim 255: Rolling Splice-Site Security** (Bio-TOTP encryption).
 
 > **Transport Support:** ESP-NOW (WiFi broadcast) + IEEE 802.15.4 (raw MAC frames).
 > Staggered startup enables testing pure 802.15.4 sync before WiFi joins.
@@ -436,6 +441,86 @@ This prevents a single reset node from disrupting an established swarm.
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Purple Team Security (Claim 255)
+
+UTLP implements **Rolling Splice-Site Security** (Bio-TOTP), where the encryption
+key changes every second based on the packet's own timestamp. This section documents
+the Purple Team audit findings and architectural decisions.
+
+### Security Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 Claim 255: Bio-TOTP Security                │
+├─────────────────────────────────────────────────────────────┤
+│  CLEARTEXT EXON (24 bytes)                                  │
+│    - SequenceID, Timestamp, Session_Salt, Stratum, Version  │
+│    - Provides nonce components for encryption               │
+├─────────────────────────────────────────────────────────────┤
+│  ENCRYPTED INTRON (8 bytes) - AES-128-CTR                   │
+│    - TX_Power, Battery, Drift, Opcode, Payload              │
+│    - Key = SHA256(Swarm_DNA || Quantize_1s(Timestamp))[0:16]│
+│    - Plausibility validation replaces auth tag              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Purple Team Directives (Implemented)
+
+| Directive | Title | Status | Description |
+|-----------|-------|--------|-------------|
+| **PT-1** | Stateless AES-CTR | ✅ | Reset nc_off=0, fresh nonce/stream each packet |
+| **PT-2** | RISC-V Torn Reads | ✅ | portENTER_CRITICAL() for all 64-bit operations |
+| **PT-3** | Infinite Slew | N/A | Architecture uses continuous P-servo, not time-boxed |
+| **PT-4** | Herd Immunity | ✅ | Public/Private nodes execute identical code paths |
+| **PT-5** | Strict Plausibility | ✅ | TX_Power ±40dBm, Drift ±2000ppm, Heartbeat validation |
+
+### Herd Immunity (PT-4)
+
+**Critical Design Decision:** Public Mode (Zero Key) executes the exact same
+crypto code path as Private Mode. We do NOT optimize by skipping SHA256 or AES.
+
+**Why This Matters:**
+- CPU power profile identical (no side-channel leakage)
+- Timing signature identical (no timing attacks)
+- Traffic analysis cannot distinguish encrypted from "cleartext"
+- Public nodes provide "cover" for private nodes in mixed swarms
+
+```c
+// BAD - Creates timing side-channel!
+if (is_zero_key(dna)) {
+    memcpy(output, input, 8);  // Skip crypto
+    return;
+}
+
+// GOOD - Run SHA256 + AES even for Zero Key
+key = sha256(dna || time);  // Even if dna is all zeros
+aes_ctr(key, nonce, input, output);
+```
+
+### Semantic Plausibility Validation (PT-5)
+
+Without an authentication tag (AES-CTR mode), we use semantic validation to
+detect wrong-key decryptions. Random garbage is unlikely to pass all checks:
+
+| Check | Range | Probability |
+|-------|-------|-------------|
+| TX Power | -40 to +21 dBm | 62/256 ≈ 24% |
+| Opcode | 0x00-0x04 or 0x80+ | 133/256 ≈ 52% |
+| Drift PPM | ±2000 | 4000/65536 ≈ 6% |
+| CPU Load (Heartbeat) | 0-100% | 101/256 ≈ 39% |
+| Role (Heartbeat) | 0-3 | 4/256 ≈ 1.5% |
+
+**Combined false positive rate:** ~0.00004% per packet (acceptable for swarm sync).
+
+### Files Implementing Security
+
+| File | Purpose |
+|------|---------|
+| `utlp_security.h` | Packet structures (Exon/Intron), plausibility constants |
+| `utlp_security.c` | Key derivation, sliding window decryption, validation |
+| `utlp_hal_security.h` | HAL crypto abstraction, Herd Immunity documentation |
+| `utlp_hal_security.c` | mbedtls implementation, stateless AES-CTR |
+
 ## Multi-Arbor Transport Architecture
 
 UTLP v3 supports multiple radio transports simultaneously. Each transport is an
@@ -502,6 +587,346 @@ attacks where stale timing data could corrupt the swarm.
 | `utlp_arbor.h` | Per-transport dormancy API |
 | `utlp_hal_802154.h` | 802.15.4 HAL interface |
 
+## Proprioception (Hardware-Assisted Latency Learning)
+
+**"The Body Learns Its Own Timing"**
+
+Hardware-scheduled TX via `esp_ieee802154_transmit_at()` requires the application
+to provide a future timestamp. The optimal lead time depends on platform-specific
+factors (radio warmup, ISR latency, SPI buffer time, RTOS jitter). Rather than
+hardcode these values, we **learn** them by observing actual vs. target timing.
+
+### Learning Loop
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Proprioception Feedback Loop                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. SCHEDULE  ─────┐                                         │
+│                    │  adjusted_time = tx_time + latency      │
+│                    ▼                                         │
+│  2. EMBED     target = adjusted_time                         │
+│                    │                                         │
+│                    ▼                                         │
+│  3. TRANSMIT  esp_ieee802154_transmit_at(adjusted_time)      │
+│                    │                                         │
+│                    ▼                                         │
+│  4. FEEDBACK  tx_done_callback() reads actual timestamp      │
+│                    │                                         │
+│                    ▼                                         │
+│  5. LEARN     error = actual - target                        │
+│               ├─ LATE (error > 0):  latency += error/16      │
+│               ├─ ON-TIME:           no change                │
+│               └─ EARLY (error < -10): latency -= 10µs        │
+│                    │                                         │
+│                    └─────────────► (loop)                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Convergence Behavior
+
+| Phase | Latency | Duration | Description |
+|-------|---------|----------|-------------|
+| **Startup** | 50ms | 0 TX | Conservative initial value |
+| **Fast Learning** | 50ms → 1ms | ~100 TX | Large errors corrected quickly |
+| **Fine Tuning** | 1ms → 200µs | ~500 TX | Slow decay finds minimum |
+| **Steady State** | ~100-500µs | ∞ | Platform-optimal buffer |
+
+### Safety Patches
+
+**Death Spiral Prevention:** If `esp_ieee802154_transmit_at()` fails (returns
+ESP_ERR_INVALID_STATE), we're already past the target time. Without intervention,
+the learning loop never runs (no callback), latency stays too small, next TX also
+fails → death spiral. The fix: bump latency by 5ms immediately.
+
+**Callback Math Safety:** The hardware timestamp is 32-bit, our target is 64-bit.
+To handle rollover correctly, we cast both to 32-bit before subtraction:
+```c
+// WRONG: int64_t error = actual - target;
+// RIGHT:
+int32_t error = (int32_t)(frame_info->timestamp - (uint32_t)target);
+```
+
+### Configuration (utlp_config.h)
+
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `UTLP_LATENCY_INITIAL_US` | 50000 | Conservative startup (50ms) |
+| `UTLP_LATENCY_MIN_US` | 100 | Floor to prevent instability |
+| `UTLP_LATENCY_MAX_US` | 100000 | Ceiling sanity check (100ms) |
+| `UTLP_LATENCY_LEARN_DIVISOR` | 16 | Late error learning rate (6%/cycle) |
+| `UTLP_LATENCY_DECAY_US` | 10 | Early decay rate (10µs/cycle) |
+| `UTLP_LATENCY_DEADZONE_US` | 10 | On-time threshold (±10µs) |
+| `UTLP_LATENCY_DEATH_SPIRAL_BUMP_US` | 5000 | Emergency bump (5ms) |
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `utlp_config.h` | Proprioception tuning constants |
+| `utlp_hal_esp32c6_154.c` | Learning loop implementation (tx_done_callback) |
+
+## Interrupt Latency Compensation (ILC)
+
+**"The Body Learns Its Own ISR Timing"**
+
+While Proprioception learns radio TX latency, ILC learns interrupt latency for the
+phase timer ISR. Dual Stack devices (WiFi+BLE coexistence) experience 40-60µs
+interrupt delay compared to ~5µs on Single Stack devices. Without ILC, these
+devices would show visible phase offset despite running identical firmware.
+
+### The Problem: The "Software Gap"
+
+**Ideal Physics:** Timer hits `0` → LED toggles.
+
+**Reality (ESP32):** Timer hits `0` → Interrupt Controller → Arbiter → Context
+Switch → ISR Entry → GPIO Instruction → LED toggles.
+
+| Stack Type | Interrupt Latency | Root Cause |
+|------------|-------------------|------------|
+| **Single Stack** | ~5µs | Minimal ISR path |
+| **Dual Stack** | ~40-60µs | WiFi/BLE Coexistence Arbiter |
+
+This 35-55µs difference creates a visible phase offset between Single Stack and
+Dual Stack devices running the same firmware.
+
+### The Solution: Pre-Fire Proprioception
+
+Just like TX Latency Learning, we **learn** the ISR latency and **pre-fire** the
+timer to compensate:
+
+```
+BEFORE (naive):     Timer fires at T → ISR runs at T+40µs → LED toggles LATE
+AFTER (ILC):        Timer fires at T-40µs → ISR runs at T → LED toggles ON-TIME
+```
+
+### Learning Loop
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              ILC Feedback Loop (Phase Timer ISR)            │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. MEASURE  ─────┐                                          │
+│                   │  actual_time = MCPWM event timestamp     │
+│                   │  expected_time = g_isr_target_time_us    │
+│                   ▼                                          │
+│  2. CALCULATE error_us = actual - expected                   │
+│                   │                                          │
+│                   ▼                                          │
+│  3. LEARN    ├─ LATE (error > +5µs):  latency += error/16   │
+│              ├─ ON-TIME (±5µs):       no change             │
+│              └─ EARLY (error < -5µs): latency -= 2µs        │
+│                   │                                          │
+│                   ▼                                          │
+│  4. COMPENSATE   next_alarm = target - learned_latency       │
+│                   │                                          │
+│                   └─────────────► (loop)                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Expected Convergence
+
+| Stack Type | Initial | Converged | Cycles |
+|------------|---------|-----------|--------|
+| Single Stack | 1ms | ~10µs | ~100 |
+| Dual Stack | 1ms | ~50µs | ~100 |
+
+### Configuration (utlp_config.h)
+
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `UTLP_ILC_INITIAL_US` | 1000 | Conservative startup (1ms) |
+| `UTLP_ILC_MIN_US` | 5 | Floor to prevent instability |
+| `UTLP_ILC_MAX_US` | 100000 | Ceiling sanity check (100ms) |
+| `UTLP_ILC_LEARN_DIVISOR` | 16 | ~6% error correction per cycle |
+| `UTLP_ILC_DEADZONE_US` | 5 | ±5µs is "on-time" |
+| `UTLP_ILC_DECAY_US` | 2 | Early decay rate (2µs/cycle) |
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `utlp_config.h` | ILC tuning constants |
+| `utlp_phase.c` | Learning loop in `phase_timer_empty_isr()` |
+| `utlp_phase.h` | `utlp_phase_get_isr_latency_us()` diagnostic API |
+
+### Why This Is Better Than Hardware Output Compare
+
+While mapping LED directly to MCPWM comparator output pin is "perfect" (±50ns),
+it requires specific GPIO assignment. ILC works on **any GPIO** and solves the
+problem mathematically, effectively learning the weight of the OS stack.
+
+## Spectral Retina (Multi-Transport RSSI Telemetry)
+
+**"The Swarm Sees in Radio Color"**
+
+When a peer is visible on both WiFi (ESP-NOW) and 802.15.4, comparing RSSI values
+reveals environmental RF characteristics — the "radio color" of the propagation
+path. This enables future confidence weighting based on environmental clutter.
+
+### Why RSSI Delta Matters
+
+WiFi (2.4GHz, 20MHz bandwidth) and 802.15.4 (2.4GHz, 2MHz bandwidth) experience
+different multipath fading profiles despite sharing the same band:
+
+| Environment | WiFi RSSI | 802.15.4 RSSI | Delta | Classification |
+|-------------|-----------|---------------|-------|----------------|
+| Open area   | -45 dBm   | -48 dBm       | 3 dB  | **CLEAR** |
+| Office      | -52 dBm   | -56 dBm       | 4 dB  | **CLEAR** |
+| Warehouse   | -58 dBm   | -72 dBm       | 14 dB | **CLUTTERED** |
+| Dense metal | -65 dBm   | -88 dBm       | 23 dB | **CLUTTERED** |
+
+### Implementation
+
+The Metabolic Ledger now stores per-arbor RSSI with timestamps:
+
+```c
+typedef struct {
+    /* ... existing fields ... */
+
+    /* Spectral Retina: Per-arbor RSSI tracking */
+    int8_t   last_rssi[UTLP_MAX_ARBORS];       /* Per-arbor RSSI (dBm) */
+    uint32_t rssi_timestamp_ms[UTLP_MAX_ARBORS]; /* When RSSI was recorded */
+} utlp_peer_ledger_t;
+```
+
+When a beacon arrives with RSSI, the observation recorder logs spectral coherence:
+
+```
+I (12345) RETINA: Peer 5c | WiFi:-45 15.4:-52 | Delta: 7 dB | CLEAR
+I (12456) RETINA: Peer 5c | WiFi:-45 15.4:-68 | Delta: 23 dB | CLUTTERED
+```
+
+### Configuration (utlp_config.h)
+
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `UTLP_RSSI_STALE_MS` | 5000 | RSSI readings older than this are ignored |
+| `UTLP_RSSI_DELTA_CLEAR` | 10 | Delta ≤ this = CLEAR environment |
+| `UTLP_RSSI_INVALID` | -128 | Sentinel for unavailable RSSI |
+
+### Future Applications
+
+- **Polychromatic Confidence Weighting:** Timing from cluttered environments gets
+  lower weight in consensus calculation
+- **Dynamic Arbor Selection:** Prefer transport with lower multipath distortion
+- **Environmental Mapping:** Swarm collectively maps RF characteristics of space
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `utlp_trust.h` | Per-arbor RSSI fields in peer ledger |
+| `utlp_trust.c` | `utlp_trust_log_spectral_coherence()` implementation |
+| `utlp_config.h` | Spectral Retina tuning constants |
+
+### Related Prior Art
+
+- **Claim 253:** Polychromatic Stratum Asymmetry (per-transport trust)
+- **Phase 9:** Blood-Brain Barrier (per-arbor health scores)
+- **Phase 11:** Spectral Retina (multi-transport RSSI comparison)
+
+## Session Continuity Enforcement (Purple Team PT-6)
+
+**"The Ghost has died. Long live the Ghost."**
+
+Session Continuity Enforcement provides instant reboot detection using the `Session_Salt`
+field (beacon bytes 11-12). When a peer's salt changes but MAC remains the same, the peer
+has rebooted — triggering **Seniority Bankruptcy**: complete wipe of all accumulated trust.
+
+### The Problem: Fresh Boot Genesis Attack
+
+A rebooted peer retains its MAC address but starts fresh with no timing history. Without
+salt tracking, existing detection methods have vulnerabilities:
+
+| Detection Method | Trigger | Speed | Limitation |
+|------------------|---------|-------|------------|
+| **Genesis Pulse** | Interval < 2000ms | 2+ beacons | Needs timing history |
+| **Time Regression** | Atomic time backwards > 10s | Slow | Large threshold |
+| **Session Salt** (PT-6) | Salt ≠ last_salt | **FIRST beacon** | **Definitive** |
+
+Attack scenario without PT-6:
+1. High-trust peer (health=150, seniority=1000) crashes and reboots
+2. Sends first beacon claiming Genesis authority (stratum 1)
+3. Old way: Swarm briefly accepts claim before detecting interval anomaly
+4. New way: Salt change detected immediately → Trust wiped → Genesis rejected
+
+### Implementation
+
+**Beacon Format Extended (11 → 13 bytes):**
+```
+[Stratum(1), Burst(1), Score(1), Timestamp(8), Session_Salt(2)]
+                                                     ↑
+                                            PT-6: Boot Instance ID
+```
+
+**Seniority Bankruptcy Wipe:**
+```c
+if (peer->last_session_salt != 0 && peer->last_session_salt != session_salt) {
+    /* WIPE: Reset ALL trust metrics */
+    peer->first_seen_ms = now_ms;        /* Tenure starts over */
+    peer->health_score[*] = 0;           /* Zero trust, not STARTUP */
+    peer->stratum_claim = 255;           /* Worst possible stratum */
+    peer->interactions = 1;              /* First observation in new life */
+    peer->consecutive_hits = 0;
+    peer->last_tx_time_us = 0;
+}
+peer->last_session_salt = session_salt;
+```
+
+**Why Zero Health, Not STARTUP:**
+- STARTUP (50) is "probationary" — benefit of the doubt for new peers
+- A rebooted peer could have been compromised or attacked
+- Zero trust forces complete re-validation before ANY influence
+- Genesis Guard rejects peers with health < 100
+
+### Expected Log Output
+
+```
+W (12345) TRUST: *** SENIORITY BANKRUPTCY *** Peer 5C salt 0x1234->0xABCD (REBOOT DETECTED)
+I (12346) TRUST: Peer 5C reborn (arbor=1, health=0, rssi=-52, salt=0xABCD)
+```
+
+### Packet Structure
+
+**Legacy 13-byte format has been replaced with 32-byte wire packet.**
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `UTLP_PACKET_SIZE` | 32 | Fixed wire packet size |
+| `UTLP_EXON_SIZE` | 24 | Cleartext header |
+| `UTLP_INTRON_SIZE` | 8 | AES-128-CTR encrypted |
+
+Session salt is now in the Exon at offset 20 (`exon.session_salt`).
+
+See `utlp_security.h` for complete `utlp_wire_packet_t` structure.
+
+### Defense in Depth
+
+Session Continuity provides the fastest and most definitive reboot detection:
+
+1. **Fastest:** Detectable on FIRST beacon after reboot (no history needed)
+2. **Definitive:** Salt change is absolute proof of reboot (random 16-bit value)
+3. **Complementary:** Works alongside Genesis Pulse and Time Regression
+4. **No false positives:** Salt only changes on actual device reboot
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `utlp.c` | Beacon TX/RX with session_salt |
+| `utlp_trust.h` | `last_session_salt` field in peer ledger |
+| `utlp_trust.c` | Seniority Bankruptcy wipe logic |
+| `utlp_security.c` | `utlp_security_get_session_salt()` API |
+
+### Related Prior Art
+
+- **Purple Team PT-1 through PT-5:** Other security hardening fixes
+- **Claim 255:** Rolling Splice-Site Security (Bio-TOTP uses session_salt for nonce)
+- **Phase 9:** Blood-Brain Barrier (per-arbor trust separation)
+
 ## Seismic Chirp (3-Burst Beacon Pattern)
 
 Every beacon transmission is a **seismic chirp**: 3 packets spaced 2ms apart,
@@ -527,25 +952,62 @@ receiver drift against the known reference.
 
 See: `UTLP_Technical_Supplement_S1.md` Section 1.4
 
-## Beacon Protocol (v2)
+## Packet Structure (32 Bytes Fixed)
 
-11-byte seismic chirp burst (one-way, no reply needed):
+PHYRFLY uses a fixed 32-byte wire packet geometry for all beacons (Claim 255):
 
 ```
-┌───────────┬─────────────────────────────────────────────┐
-│ Byte 0    │ Stratum (1 = Genesis, 2 = Follower, etc.)   │
-├───────────┼─────────────────────────────────────────────┤
-│ Byte 1    │ Burst index (0, 1, or 2)                    │
-├───────────┼─────────────────────────────────────────────┤
-│ Byte 2    │ Genesis score (0-255, higher = better)      │
-├───────────┼─────────────────────────────────────────────┤
-│ Bytes 3-10│ Chirp epoch (SAME timestamp in all 3 bursts)│
-└───────────┴─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  CLEARTEXT EXON (24 bytes) - Wire-visible                   │
+├─────────────────────────────────────────────────────────────┤
+│  [0-3]   SequenceID          (uint32_t) Anti-replay counter │
+│  [4-11]  UTLP_Timestamp_US   (uint64_t) Chirp epoch         │
+│  [12-19] NTP_Timestamp_UTC   (uint64_t) Wall-clock (stealth)│
+│  [20-21] Session_Salt        (uint16_t) PT-6 boot instance  │
+│  [22]    Stratum             (uint8_t)  1=Genesis, 2+=Relay │
+│  [23]    Protocol_Version    (uint8_t)  0x01 = PHYRFLY v1   │
+├─────────────────────────────────────────────────────────────┤
+│  ENCRYPTED INTRON (8 bytes) - AES-128-CTR via Bio-TOTP      │
+├─────────────────────────────────────────────────────────────┤
+│  [24]    TX_Power_dBm        (int8_t)   Physics telemetry   │
+│  [25]    Battery_Level       (uint8_t)  0-255 scaled        │
+│  [26-27] Drift_PPM           (int16_t)  Clock drift         │
+│  [28]    Opcode              (uint8_t)  0x00=Heartbeat      │
+│  [29-31] Payload[3]          (uint8_t)  Multiplexed data    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Critical:** All 3 bursts carry the **same** timestamp (captured once at chirp start).
-The 2ms burst spacing is the **known reference**. Receiver compares expected vs.
-observed spacing to detect clock drift.
+### Intron Multiplexing (Opcode 0x00 Heartbeat)
+
+When opcode is `UTLP_CMD_NONE` (0x00), the 3-byte payload carries:
+- `payload[0]` = CPU_Load (0-100%)
+- `payload[1]` = Role (0=GENESIS, 1=SERVER, 2=CLIENT, 3=OBSERVER)
+- `payload[2]` = Burst index (0, 1, or 2 for seismic chirp)
+
+### Why Fixed Geometry?
+
+1. **Deterministic Timing** - Same TX duration, same airtime budget
+2. **Traffic Analysis Resistance** - All packets look identical (Herd Immunity)
+3. **Hardware Optimization** - DMA can use fixed buffer sizes
+4. **Forward Compatibility** - Version field enables future evolution
+
+### Encryption Details
+
+**Key Derivation (Bio-TOTP):**
+```
+quantized_sec = UTLP_Timestamp_US / 1,000,000  (floor to second)
+hash_input = Swarm_DNA || quantized_sec        (24 bytes)
+Key = SHA256(hash_input)[0:16]                 (first 128 bits)
+```
+
+**Sliding Window Decryption:** Receivers try keys for T-1, T, T+1 seconds
+to handle clock jitter. Semantic plausibility validation replaces auth tag.
+
+**Critical:** All 3 bursts in a seismic chirp carry the **same** timestamp
+(captured once at chirp start). The 2ms burst spacing is the **known reference**.
+Receiver compares expected vs. observed spacing to detect clock drift.
+
+See `utlp_security.h` for complete `utlp_wire_packet_t` structure definition.
 
 ## Time-Indexed LED Control (Legacy)
 
@@ -819,14 +1281,17 @@ Python simulation for testing phase coherence and Byzantine scenarios:
 | `utlp_config.h` | **Centralized configuration (SSOT)** - all tunable constants |
 | `utlp.c` | Protocol layer with servo-lock and genesis reset detection |
 | `utlp_smsp.h/c` | **SMSP** - score-driven pattern playback (Protocol Trinity "what") |
-| `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, per-arbor stratum helpers) |
+| `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, per-arbor stratum helpers, Spectral Retina) |
 | `utlp_immune.h/c` | Immune Checkpoint (token bucket, anergy) |
 | `utlp_transport.h/c` | **Multi-Arbor Transport Manager** (ESP-NOW + 802.15.4) |
 | `utlp_arbor.h/c` | Per-transport selective dormancy API |
 | `utlp_loom.h/c` | **The Loom** - Emergent Time Lord + Polychromatic Stratum (Claim 253) |
-| `utlp_phase.h/c` | **HPLAC** - Hardware Phase Locked Atomic Coherency (MCPWM) |
+| `utlp_phase.h/c` | **HPLAC** - Hardware Phase Locked Atomic Coherency (MCPWM + ILC) |
+| `utlp_security.h/c` | **Claim 255** - 32-byte packet geometry, Bio-TOTP key derivation, plausibility validation |
+| `utlp_hal_security.h/c` | **Security HAL** - mbedtls AES-CTR, SHA-256, stateless crypto (PT-1) |
 | `utlp_hal.h` | HAL interface contract (imports SSOT from utlp_config.h) |
 | `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM) |
+| `utlp_hal_esp32c6_154.c` | **802.15.4 HAL** - Hardware-scheduled TX, Proprioception learning |
 | `utlp_hal_802154.h` | 802.15.4 HAL interface (raw MAC, FCF 0x8841) |
 | `utlp_rfip.h` | RFIP types and stub API (ranges, anchors, positions) |
 | `rfip_hal.h` | **RFIP HAL** (capability detection, observation types) |

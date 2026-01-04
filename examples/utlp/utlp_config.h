@@ -444,6 +444,71 @@ extern "C" {
 /** @} */ /* phase_engine */
 
 /*============================================================================
+ * ROLLING SPLICE-SITE SECURITY (Claim 255)
+ *
+ * Time-based encryption using Bio-TOTP model. The encryption key changes
+ * every second based on the UTLP timestamp + Swarm DNA shared secret.
+ *
+ * Design Philosophy:
+ * - "Hide the Physics": TX_Power in Intron denies ranging intelligence
+ * - "Publicize the Version": Protocol_Version in Exon enables evolutionary safety
+ * - Fixed Geometry: 32-byte packets regardless of encryption mode
+ * - Zero Key Public Mode: Traffic analysis resistance even when "unencrypted"
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Claim 255
+ * @see examples/utlp/utlp_security.h - Security layer implementation
+ *==========================================================================*/
+
+/** @defgroup security Rolling Splice-Site Security
+ * @{
+ */
+
+/**
+ * @brief Trust threshold for Genesis Guard (score > this to reset epoch)
+ *
+ * Only peers with score above this threshold can reset our epoch via
+ * FLAG_GENESIS. Strangers cannot hijack the timeline.
+ *
+ * Typical score composition:
+ *   - aggregate_health * 10 (max ~100)
+ *   - (16 - stratum) (max 16)
+ *   - seniority bonus (max 40 for 20-minute-old peer)
+ *
+ * Score 50 requires either: good health + good stratum, OR seniority.
+ */
+#define UTLP_GENESIS_TRUST_THRESHOLD     50
+
+/**
+ * @brief Stratum threshold for "lost" state
+ *
+ * If our stratum exceeds this value, we're considered "lost" and will
+ * accept genesis beacons from ANY peer (bypass trust check).
+ *
+ * This allows recovery from split-brain scenarios where both fragments
+ * have drifted far from any authority.
+ */
+#define UTLP_STRATUM_LOST                10
+
+/**
+ * @brief Seniority bonus cap (score points)
+ *
+ * Maximum seniority contribution to peer score.
+ * Accrues at +2 per minute known, capped at this value.
+ *
+ * 40 points = 20 minutes of continuous observation.
+ */
+#define UTLP_SENIORITY_BONUS_MAX         40
+
+/**
+ * @brief Seniority accrual rate (points per minute)
+ *
+ * How fast peers earn seniority bonus.
+ */
+#define UTLP_SENIORITY_POINTS_PER_MIN    2
+
+/** @} */ /* security */
+
+/*============================================================================
  * APPLICATION LAYER
  *==========================================================================*/
 
@@ -477,6 +542,283 @@ extern "C" {
 #define UTLP_EMA_ALPHA                   0.1
 
 /** @} */ /* stats */
+
+/*============================================================================
+ * PROPRIOCEPTION - Hardware-Assisted Latency Learning (Claim 239+)
+ *
+ * "The Body Learns Its Own Timing"
+ *
+ * Hardware-scheduled TX via esp_ieee802154_transmit_at() requires the
+ * application to provide a future timestamp. The optimal lead time depends on:
+ *   - Radio warmup time (~50-200µs)
+ *   - Interrupt latency (~10-50µs)
+ *   - SPI buffer fill time (~20-100µs for 127-byte frame)
+ *   - RTOS task scheduling jitter (~0-500µs)
+ *
+ * Rather than hardcode these platform-specific values, we LEARN them by
+ * observing the actual TX timestamp versus our requested target.
+ *
+ * Learning Loop:
+ *   1. SCHEDULE: adjusted_time = tx_time_us + g_learned_latency_us
+ *   2. EMBED: g_last_target_time_us = adjusted_time (for callback)
+ *   3. TRANSMIT: esp_ieee802154_transmit_at(adjusted_time)
+ *   4. FEEDBACK: tx_done_callback reads frame_info->timestamp
+ *   5. LEARN: error = actual - target
+ *      - LATE (error > 0): Increase latency buffer
+ *      - ON-TIME (|error| < 10µs): Perfect, decay slowly
+ *      - EARLY (error < -10µs): Decrease latency buffer
+ *
+ * Convergence: Starts at conservative 50ms, converges to ~100-500µs within
+ * ~100 TX cycles depending on platform characteristics.
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Claim 239+ (Hardware TX)
+ * @see examples/utlp/utlp_hal_esp32c6_154.c - Implementation
+ *==========================================================================*/
+
+/** @defgroup proprioception Proprioception (Latency Learning)
+ * @{
+ */
+
+/**
+ * @brief Initial latency buffer (microseconds)
+ *
+ * Conservative startup value. The learning loop will converge to actual
+ * system requirements within ~100 TX cycles.
+ *
+ * 50ms is chosen because:
+ *   - Worst-case RTOS scheduling + radio warmup is ~1ms
+ *   - 50× safety margin ensures NO early TX at startup
+ *   - Learning quickly reduces this to optimal value
+ */
+#define UTLP_LATENCY_INITIAL_US          50000UL     /* 50ms conservative */
+
+/**
+ * @brief Minimum latency floor (microseconds)
+ *
+ * Never learn below this value. Provides safety margin for:
+ *   - Minimum radio warmup time
+ *   - Worst-case ISR latency spike
+ *   - Prevents unstable oscillation near zero
+ */
+#define UTLP_LATENCY_MIN_US              100UL       /* 100µs minimum */
+
+/**
+ * @brief Maximum latency ceiling (microseconds)
+ *
+ * Sanity check - if we're consistently this late, something is broken.
+ * Also prevents runaway if death spiral detection fails.
+ */
+#define UTLP_LATENCY_MAX_US              100000UL    /* 100ms maximum */
+
+/**
+ * @brief Late error learning divisor (convergence speed)
+ *
+ * When TX is LATE, we add (error_us / divisor) to the latency buffer.
+ * Divisor of 16 means we correct ~6% of the error per cycle.
+ *
+ * Lower = faster convergence but more oscillation
+ * Higher = slower convergence but more stable
+ */
+#define UTLP_LATENCY_LEARN_DIVISOR       16
+
+/**
+ * @brief Early decay rate (microseconds per cycle)
+ *
+ * When TX is ON-TIME or EARLY, we slowly reduce the latency buffer.
+ * This finds the minimum necessary buffer over time.
+ *
+ * 10µs per cycle means 5ms reduction over 500 cycles (~8 minutes at 1Hz).
+ * Slow decay prevents oscillation while still optimizing.
+ */
+#define UTLP_LATENCY_DECAY_US            10UL
+
+/**
+ * @brief Dead zone threshold (microseconds)
+ *
+ * Errors within ±DEADZONE are considered "on time" - no learning.
+ * Prevents oscillation around the optimal point.
+ */
+#define UTLP_LATENCY_DEADZONE_US         10UL
+
+/**
+ * @brief Death spiral bump (microseconds)
+ *
+ * If esp_ieee802154_transmit_at() returns ESP_ERR_INVALID_STATE
+ * (meaning we're already past the target time), bump latency by this amount.
+ *
+ * This is the "death spiral" prevention patch - without it, a system under
+ * heavy load could repeatedly miss deadlines and never recover.
+ */
+#define UTLP_LATENCY_DEATH_SPIRAL_BUMP_US  5000UL   /* 5ms emergency bump */
+
+/** @} */ /* proprioception */
+
+/*============================================================================
+ * SPECTRAL RETINA - Multi-Transport RSSI Telemetry (Claim: Polychromatic Awareness)
+ *
+ * "See the Radio Color"
+ *
+ * When the same peer is observed on multiple transports (WiFi and 802.15.4),
+ * the RSSI values reveal environmental RF characteristics:
+ *
+ *   - SIMILAR RSSI (Delta < 10dB): CLEAR environment, minimal multipath
+ *   - DIFFERENT RSSI (Delta > 10dB): CLUTTERED environment, multipath divergence
+ *
+ * WHY THIS MATTERS:
+ *   - Multipath causes timing jitter (signal bouncing = variable delay)
+ *   - High RSSI delta = high multipath = less reliable timing
+ *   - Future: Weight consensus contributions by RF clarity
+ *
+ * MEASUREMENT:
+ *   - Store RSSI per-arbor per-peer in the Metabolic Ledger
+ *   - When peer seen on arbor B, check if arbor A has recent reading (< 5s)
+ *   - If both fresh, calculate delta and log spectral coherence
+ *
+ * @see examples/utlp/utlp_trust.c - Spectral coherence logging
+ * @see examples/utlp/utlp_trust.h - Per-arbor RSSI fields in peer ledger
+ *==========================================================================*/
+
+/** @defgroup spectral_retina Spectral Retina (RSSI Telemetry)
+ * @{
+ */
+
+/**
+ * @brief RSSI staleness threshold (milliseconds)
+ *
+ * RSSI readings older than this are considered stale and won't be used
+ * for spectral coherence comparison.
+ *
+ * 5 seconds allows for:
+ *   - Normal beacon intervals (100ms to 60s)
+ *   - Brief transport outages
+ *   - Enough freshness for meaningful comparison
+ */
+#define UTLP_RSSI_STALE_MS              5000UL      /* 5 seconds */
+
+/**
+ * @brief RSSI delta threshold for CLEAR vs CLUTTERED classification (dB)
+ *
+ * If |WiFi_RSSI - 154_RSSI| <= this value, environment is CLEAR.
+ * If |WiFi_RSSI - 154_RSSI| > this value, environment is CLUTTERED.
+ *
+ * 10dB is chosen because:
+ *   - Typical free-space variance is < 5dB
+ *   - Multipath environments show 15-30dB divergence
+ *   - 10dB is a reasonable boundary
+ */
+#define UTLP_RSSI_DELTA_CLEAR           10          /* 10 dB threshold */
+
+/**
+ * @brief Invalid RSSI sentinel value
+ *
+ * Used to mark RSSI fields as "never measured" (distinct from -127dBm).
+ * Chosen as absolute minimum int8_t since real RSSI never reaches -128dBm.
+ */
+#define UTLP_RSSI_INVALID               (-128)
+
+/** @} */ /* spectral_retina */
+
+/*============================================================================
+ * INTERRUPT LATENCY COMPENSATION (ILC) - Phase Timer Proprioception
+ *
+ * "The Body Learns Its Own Timing - For ISR Paths"
+ *
+ * Dual Stack (WiFi+BLE) devices experience ~40-60µs interrupt latency due to
+ * the coexistence arbiter. Single Stack devices experience ~5µs. Without
+ * compensation, these devices will show a visible phase offset.
+ *
+ * ILC learns the actual ISR latency and PRE-FIRES the timer to compensate,
+ * ensuring the LED actuates at the intended physics time regardless of
+ * interrupt weight.
+ *
+ * The ILC learning loop runs in the phase timer ISR:
+ * 1. MEASURE: At ISR entry, capture actual time vs. expected target
+ * 2. LEARN: Update EMA of ISR latency based on error
+ * 3. COMPENSATE: Pre-fire next timer by learned latency
+ *
+ * Expected Convergence:
+ * - Single Stack: ~5-20µs after ~100 cycles
+ * - Dual Stack: ~40-80µs after ~100 cycles
+ *
+ * @see examples/utlp/utlp_phase.c - Learning loop in phase_timer_empty_isr()
+ * @see docs/UTLP_Technical_Supplement_S2.md - Claim 239+ (Hardware TX)
+ *==========================================================================*/
+
+/** @defgroup ilc Interrupt Latency Compensation
+ * @{
+ */
+
+/**
+ * @brief Initial ISR latency estimate (microseconds)
+ *
+ * Conservative startup value. The learning loop will converge to actual
+ * platform characteristics within ~100 cycles.
+ *
+ * 1ms is chosen because:
+ *   - Worst-case ISR latency is ~100µs
+ *   - 10× safety margin ensures NO early actuation at startup
+ *   - Learning quickly reduces this to optimal value
+ */
+#define UTLP_ILC_INITIAL_US              1000UL      /* 1ms conservative */
+
+/**
+ * @brief Minimum ISR latency floor (microseconds)
+ *
+ * Never learn below this value. Provides safety margin for:
+ *   - Minimum interrupt dispatch time
+ *   - Worst-case priority inversion spike
+ *   - Prevents unstable oscillation near zero
+ */
+#define UTLP_ILC_MIN_US                  5UL         /* 5µs floor */
+
+/**
+ * @brief Maximum ISR latency ceiling (microseconds)
+ *
+ * Sanity check - if we're consistently this late, something is broken.
+ * Also prevents runaway if death spiral detection fails.
+ */
+#define UTLP_ILC_MAX_US                  100000UL    /* 100ms ceiling */
+
+/**
+ * @brief Learning rate divisor (convergence speed)
+ *
+ * When ISR is LATE, we add (error_us / divisor) to the latency buffer.
+ * Divisor of 16 means we correct ~6% of the error per cycle.
+ *
+ * Lower = faster convergence but more oscillation
+ * Higher = slower convergence but more stable
+ */
+#define UTLP_ILC_LEARN_DIVISOR           16
+
+/**
+ * @brief Early decay rate (microseconds per cycle)
+ *
+ * When ISR is ON-TIME or EARLY, we slowly reduce the latency buffer.
+ * This finds the minimum necessary buffer over time.
+ *
+ * 2µs per cycle means 200µs reduction over 100 cycles (~100 seconds).
+ * Slow decay prevents oscillation while still optimizing.
+ */
+#define UTLP_ILC_DECAY_US                2UL
+
+/**
+ * @brief Deadzone threshold (microseconds)
+ *
+ * Errors within ±DEADZONE are considered "on time" - no learning.
+ * Prevents oscillation around the optimal point.
+ */
+#define UTLP_ILC_DEADZONE_US             5UL
+
+/**
+ * @brief Death spiral bump (microseconds)
+ *
+ * Emergency bump if ISR fires extremely late (>deadzone).
+ * Provides faster recovery from pathological conditions.
+ * Used when error exceeds normal learning rate capacity.
+ */
+#define UTLP_ILC_DEATH_SPIRAL_BUMP_US    1000UL      /* 1ms emergency bump */
+
+/** @} */ /* ilc */
 
 #ifdef __cplusplus
 }

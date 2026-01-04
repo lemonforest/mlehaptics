@@ -66,6 +66,44 @@ static mcpwm_sync_handle_t s_soft_sync = NULL;
 static bool s_initialized = false;
 
 /*============================================================================
+ * INTERRUPT LATENCY COMPENSATION (ILC) STATE
+ *
+ * "The Body Learns Its Own ISR Timing"
+ *
+ * These variables implement proprioceptive learning for the phase timer ISR.
+ * When the ISR fires late (due to interrupt arbiter), we learn to fire the
+ * timer EARLIER to compensate, ensuring LED actuation at physics truth time.
+ *
+ * Thread Safety:
+ * - g_learned_isr_latency_us: Written from ISR, read from scheduler. Volatile
+ *   ensures visibility. 32-bit reads are atomic on ESP32.
+ * - g_isr_target_time_us: Written from scheduler, read from ISR. Single
+ *   producer-single consumer pattern with validity check (0 = invalid).
+ *==========================================================================*/
+
+/**
+ * @brief Learned ISR latency buffer (microseconds)
+ *
+ * Starts at conservative UTLP_ILC_INITIAL_US (1ms) and converges to
+ * actual platform characteristics (~5µs for Single Stack, ~50µs for Dual).
+ *
+ * IRAM_ATTR: Accessed from phase timer ISR.
+ */
+static volatile uint32_t g_learned_isr_latency_us = UTLP_ILC_INITIAL_US;
+
+/**
+ * @brief Target ISR fire time (microseconds, esp_timer epoch)
+ *
+ * Set before arming the phase timer. The ISR compares its actual entry time
+ * to this value to compute the latency error.
+ *
+ * Value 0 indicates "no pending target" (consumed or not yet set).
+ *
+ * IRAM_ATTR: Accessed from phase timer ISR.
+ */
+static volatile uint64_t g_isr_target_time_us = 0;
+
+/*============================================================================
  * ISR CALLBACK
  *
  * Minimal ISR - only increments cycle_count for absolute time derivation.
@@ -73,21 +111,94 @@ static bool s_initialized = false;
  *==========================================================================*/
 
 /**
- * @brief Timer empty ISR - increment cycle count
+ * @brief Phase timer ISR - Cycle tracking + ILC Learning
  *
+ * MCPWM timer empty event handler. Fires once per second (at counter wrap).
+ * Does two things:
+ *   1. Increments cycle_count for absolute time derivation
+ *   2. Measures ISR latency for ILC learning
+ *
+ * @note IRAM_ATTR: Fast interrupt RAM for deterministic latency.
  * @note ISR context is inherently atomic (no preemption on same core).
  * @note cycle_count read requires critical section in getter (torn read hazard).
+ *
+ * @see UTLP_ILC_* constants in utlp_config.h
  */
 static bool IRAM_ATTR phase_timer_empty_isr(mcpwm_timer_handle_t timer,
                                              const mcpwm_timer_event_data_t *edata,
                                              void *user_ctx)
 {
     (void)timer;
-    (void)edata;
     (void)user_ctx;
 
     /* Increment cycle count for absolute time derivation */
     s_state.cycle_count++;
+
+    /*=========================================================================
+     * ILC: Interrupt Latency Compensation Learning Loop
+     *
+     * Measure how late this ISR fired relative to target, then update
+     * learned latency for the next cycle's pre-fire compensation.
+     *
+     * CRITICAL: This runs in ISR context. Keep it minimal.
+     *========================================================================*/
+    uint64_t target = g_isr_target_time_us;
+    if (target != 0) {
+        /*
+         * Capture actual ISR entry time.
+         *
+         * We use the MCPWM event timestamp (timer count × tick duration).
+         * This gives phase-relative time, not absolute wall-clock time.
+         *
+         * For wall-clock comparison, use esp_timer_get_time() instead.
+         * But phase-relative is more useful for phase coherence.
+         */
+        uint64_t actual = (uint64_t)edata->count_value * UTLP_PHASE_TICK_US;
+
+        /* Consume target (mark as processed) */
+        g_isr_target_time_us = 0;
+
+        /* Calculate latency error (32-bit math for rollover safety) */
+        int32_t error_us = (int32_t)((uint32_t)actual - (uint32_t)target);
+
+        /* Read current latency (32-bit atomic on ESP32) */
+        uint32_t current = g_learned_isr_latency_us;
+        uint32_t new_latency = current;
+
+        if (error_us > (int32_t)UTLP_ILC_DEADZONE_US) {
+            /*
+             * LATE: ISR fired after target. Need MORE pre-fire.
+             *
+             * Increase latency buffer by error/divisor (EMA learning).
+             * Minimum increase of 1µs to ensure convergence.
+             */
+            uint32_t increase = (uint32_t)error_us / UTLP_ILC_LEARN_DIVISOR;
+            if (increase < 1) increase = 1;
+            new_latency = current + increase;
+            if (new_latency > UTLP_ILC_MAX_US) {
+                new_latency = UTLP_ILC_MAX_US;
+            }
+        }
+        else if (error_us < -(int32_t)UTLP_ILC_DEADZONE_US) {
+            /*
+             * EARLY: ISR fired before target. Can reduce pre-fire.
+             *
+             * Decay slowly to find minimum necessary buffer.
+             * Never go below ILC_MIN_US floor.
+             */
+            if (current > UTLP_ILC_MIN_US + UTLP_ILC_DECAY_US) {
+                new_latency = current - UTLP_ILC_DECAY_US;
+            } else {
+                new_latency = UTLP_ILC_MIN_US;
+            }
+        }
+        /* ELSE: Within deadzone - perfect, no learning needed */
+
+        /* Write back if changed */
+        if (new_latency != current) {
+            g_learned_isr_latency_us = new_latency;
+        }
+    }
 
     return false;  /* No high-priority task woken */
 }
@@ -495,6 +606,26 @@ bool utlp_phase_is_synchronized(void)
            (s_state.sync_quality >= 50);
 }
 
+/**
+ * @brief Get current learned ISR latency (ILC diagnostic)
+ *
+ * Returns the current learned ISR latency in microseconds. This value
+ * represents how much the ISR fires late due to interrupt dispatch overhead.
+ *
+ * Use for debugging and performance tuning. Typical values:
+ * - Single Stack: ~5-20µs
+ * - Dual Stack (WiFi+BLE coexistence): ~40-80µs
+ *
+ * @return Learned ISR latency in microseconds
+ *
+ * @see UTLP_ILC_* constants in utlp_config.h
+ * @see phase_timer_empty_isr() for learning loop
+ */
+uint32_t utlp_phase_get_isr_latency_us(void)
+{
+    return g_learned_isr_latency_us;
+}
+
 /*============================================================================
  * BACKWARD COMPATIBILITY
  *==========================================================================*/
@@ -590,6 +721,7 @@ esp_err_t utlp_phase_on_beacon(uint32_t peer_tx_phase_ticks, uint64_t rx_timesta
 void utlp_phase_tick(uint64_t uptime_us) { (void)uptime_us; }
 uint8_t utlp_phase_get_quality(void) { return 0; }
 bool utlp_phase_is_synchronized(void) { return false; }
+uint32_t utlp_phase_get_isr_latency_us(void) { return UTLP_ILC_INITIAL_US; }
 uint64_t utlp_phase_get_atomic_time_us(void) { return 0; }
 void utlp_phase_set_epoch_offset(int64_t offset_us) { s_state.epoch_offset_us = offset_us; }
 int64_t utlp_phase_get_epoch_offset(void) { return s_state.epoch_offset_us; }

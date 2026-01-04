@@ -723,6 +723,44 @@ void utlp_hal_set_actuator_phase(int channel, uint32_t frequency_hz,
 void utlp_hal_actuator_stop(int channel);
 
 /*============================================================================
+ * TELEMETRY API - Physics and Status Data for Intron
+ *
+ * These functions provide data for the encrypted Intron payload.
+ * Default implementations return safe placeholder values.
+ *==========================================================================*/
+
+/**
+ * @brief Get NTP wall-clock time (or random if stealth mode)
+ *
+ * For normal operation: Returns UTC timestamp from NTP sync.
+ * For stealth mode: Returns random value to prevent correlation attacks.
+ *
+ * @return NTP timestamp (microseconds since epoch) or random value
+ */
+uint64_t utlp_hal_get_ntp_time_utc(void);
+
+/**
+ * @brief Get current TX power setting
+ *
+ * @return TX power in dBm (-40 to +21 typical range)
+ */
+int8_t utlp_hal_get_tx_power_dbm(void);
+
+/**
+ * @brief Get battery level scaled to 0-255
+ *
+ * @return Battery level (0=empty, 255=full) or 127 if not available
+ */
+uint8_t utlp_hal_get_battery_scaled(void);
+
+/**
+ * @brief Get CPU load percentage
+ *
+ * @return CPU load (0-100%) or 0 if not available
+ */
+uint8_t utlp_hal_get_cpu_load(void);
+
+/*============================================================================
  * LOGGING API - ESP-IDF Integration
  *
  * Maps to ESP-IDF logging system (esp_log.h).

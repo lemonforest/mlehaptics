@@ -402,6 +402,54 @@ typedef struct __attribute__((packed)) {
     uint8_t  mac[6];            /**< Peer MAC address (identity) */
     uint8_t  health_score[UTLP_MAX_ARBORS]; /**< Per-arbor trust 0-255 */
     uint8_t  stratum_claim;     /**< Last claimed stratum (1=Genesis, 2=Follower) */
+
+    /*========================================================================
+     * SPECTRAL RETINA: Per-Arbor RSSI Tracking (Claim: Polychromatic Awareness)
+     *
+     * "See the Radio Color"
+     *
+     * WHY: WiFi (2.4GHz) and 802.15.4 (2.4GHz but different modulation) experience
+     * different multipath propagation. A peer that appears at -45dBm on WiFi but
+     * -68dBm on 802.15.4 is in a "cluttered" RF environment where signals are
+     * bouncing differently for each transport.
+     *
+     * WHAT: Store the most recent RSSI reading from each transport so we can
+     * compare them when the same peer is seen on multiple transports.
+     *
+     * HOW: On each beacon reception, store RSSI indexed by arbor_id. When both
+     * transports have recent readings (< 5s), calculate the delta and log it.
+     * Large deltas (> 10dB) indicate multipath clutter.
+     *
+     * FUTURE: Polychromatic Confidence Weighting - timing from cluttered
+     * environments gets lower weight in consensus calculations.
+     *======================================================================*/
+    int8_t   last_rssi[UTLP_MAX_ARBORS];        /**< Per-arbor RSSI (dBm) */
+    uint32_t rssi_timestamp_ms[UTLP_MAX_ARBORS]; /**< When RSSI was recorded (ms) */
+
+    /*========================================================================
+     * SESSION CONTINUITY: Boot Instance Tracking (Purple Team PT-6)
+     *
+     * "The Ghost has died. Long live the Ghost."
+     *
+     * WHY: A rebooted device has the same MAC but a NEW Session_Salt.
+     * This is definitive proof of reboot - the "Ghost in the Machine" died
+     * and was replaced. We use this to instantly detect reboots on the
+     * FIRST beacon, before interval-based or regression-based methods.
+     *
+     * WHAT: Track the last observed Session_Salt from each peer. If it
+     * changes, the peer has rebooted and loses all accumulated trust
+     * ("Seniority Bankruptcy").
+     *
+     * HOW: Compare pkt->session_salt to last_session_salt. If different
+     * (and last_session_salt != 0 meaning "never seen"), wipe all
+     * seniority metrics: first_seen_ms, health_score[], stratum_claim,
+     * interactions, consecutive_hits, observed_interval_ms.
+     *
+     * DEFENSE: Prevents "Fresh Boot Genesis Attack" where a rebooted
+     * high-trust peer immediately claims Genesis authority before
+     * interval/regression detection fires.
+     *======================================================================*/
+    uint16_t last_session_salt;     /**< Last observed Session_Salt (0 = never seen) */
 } utlp_peer_ledger_t;
 
 /**
@@ -418,9 +466,14 @@ typedef struct __attribute__((packed)) {
  *   uint8_t mac[6]:                  6 bytes
  *   uint8_t health_score[3]:         3 bytes
  *   uint8_t stratum_claim:           1 byte
- *   TOTAL:                          52 bytes
+ *   --- Spectral Retina (Phase 11) ---
+ *   int8_t last_rssi[3]:             3 bytes
+ *   uint32_t rssi_timestamp_ms[3]:  12 bytes
+ *   --- Session Continuity (Purple Team PT-6) ---
+ *   uint16_t last_session_salt:      2 bytes
+ *   TOTAL:                          69 bytes
  */
-_Static_assert(sizeof(utlp_peer_ledger_t) == 52, "Ledger struct packing incorrect");
+_Static_assert(sizeof(utlp_peer_ledger_t) == 69, "Ledger struct packing incorrect");
 
 /*============================================================================
  * PUBLIC API
@@ -463,13 +516,24 @@ void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_
  * the specific transport that received the packet, preventing WiFi jitter
  * from polluting 802.15.4 reputation (or vice versa).
  *
- * @param mac        Peer's 6-byte MAC address
- * @param offset_us  Reported time offset in microseconds
- * @param stratum    Peer's claimed stratum level
- * @param arbor_id   Transport that received this packet (0=WiFi, 1=154, 2=BLE)
+ * Phase 11 (Spectral Retina): Also stores RSSI for cross-transport comparison.
+ * When the same peer is seen on multiple transports within 5 seconds, the
+ * RSSI delta reveals multipath clutter in the RF environment.
+ *
+ * Phase 12 (PT-6): Session_Salt detection added. If peer's salt changes
+ * (same MAC, different salt), triggers SENIORITY BANKRUPTCY - all trust
+ * metrics are wiped. "The Ghost has died. Long live the Ghost."
+ *
+ * @param mac          Peer's 6-byte MAC address
+ * @param offset_us    Reported time offset in microseconds
+ * @param stratum      Peer's claimed stratum level
+ * @param arbor_id     Transport that received this packet (0=WiFi, 1=154, 2=BLE)
+ * @param rssi         Received signal strength (dBm)
+ * @param session_salt Peer's session_salt (16-bit boot instance ID)
  */
 void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
-                                          uint8_t stratum, uint8_t arbor_id);
+                                          uint8_t stratum, uint8_t arbor_id,
+                                          int8_t rssi, uint16_t session_salt);
 
 /**
  * @brief Get health score for a specific arbor (Blood-Brain Barrier)
@@ -479,6 +543,28 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
  * @return Health score 0-255, or 0 if peer not found
  */
 uint8_t utlp_trust_get_health_arbor(const uint8_t *mac, uint8_t arbor_id);
+
+/*============================================================================
+ * SPECTRAL RETINA API (Phase 11)
+ *==========================================================================*/
+
+/**
+ * @brief Log spectral coherence for a peer (Spectral Retina)
+ *
+ * Compares RSSI readings across transports to detect multipath clutter.
+ * Only logs if the peer has been seen on another transport within
+ * UTLP_RSSI_STALE_MS (5 seconds).
+ *
+ * Output format:
+ *   I (12345) RETINA: Peer 5c | WiFi:-45 15.4:-52 | Delta: 7 dB | CLEAR
+ *   I (12456) RETINA: Peer 5c | WiFi:-45 15.4:-68 | Delta: 23 dB | CLUTTERED
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param current_arbor The arbor that just received a packet (0=WiFi, 1=154)
+ * @param now_ms        Current time in milliseconds (for staleness check)
+ */
+void utlp_trust_log_spectral_coherence(const utlp_peer_ledger_t *peer,
+                                        uint8_t current_arbor, uint32_t now_ms);
 
 /**
  * @brief Snapshot per-arbor ledger state for dormancy

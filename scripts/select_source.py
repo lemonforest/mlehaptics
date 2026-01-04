@@ -233,6 +233,10 @@ idf_component_register(
         # SMSP - Synchronized Multimodal Score Protocol (Prior Art Section 4.5)
         "../examples/utlp/utlp_smsp.c"
 
+        # Security Layer - Bio-TOTP + Purple Team Hardening (Claim 255)
+        "../examples/utlp/utlp_security.c"
+        "../examples/utlp/utlp_hal_security.c"
+
         # RFIP HAL - Reference Frame Independent Positioning (Spatial Loom)
         "../examples/utlp/rfip_hal.c"
 
@@ -281,6 +285,9 @@ idf_component_register(
 
         # LED strip encoder (for WS2812B status LED)
         led_strip
+
+        # Cryptography (for utlp_hal_security.c AES-CTR encryption)
+        mbedtls
 )
 """
 

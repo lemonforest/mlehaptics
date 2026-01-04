@@ -170,6 +170,7 @@
 #include "utlp_loom.h"   /* Emergent Time Lord state machine (Phase 9) */
 #include "utlp_arbor.h"  /* Per-arbor dormancy API (Phase 9) */
 #include "utlp_phase.h"  /* Hardware Phase Locked Atomic Coherency (HPLAC) */
+#include "utlp_security.h"  /* 32-byte wire packet + Bio-TOTP encryption */
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -351,6 +352,48 @@ uint8_t utlp_get_stratum(void)
     uint8_t s = g_aatr.stratum[g_aatr.primary_time_source];
     portEXIT_CRITICAL(&g_stratum_spinlock);
     return s;
+}
+
+/*============================================================================
+ * PROTOCOL STATUS API - Drift and Role for Intron Telemetry
+ *
+ * These functions provide protocol-level status data embedded in the
+ * encrypted Intron payload for peer visibility.
+ *==========================================================================*/
+
+/**
+ * @brief Get current drift rate in parts-per-million
+ *
+ * Used in Intron to help peers understand local clock quality.
+ *
+ * @return Drift rate in PPM (positive = running fast, negative = slow)
+ */
+int16_t utlp_get_drift_ppm(void)
+{
+    /* STUB: Return 0 (no drift measured yet) */
+    /* TODO: Integrate with seismic chirp polynomial fitting */
+    return 0;
+}
+
+/**
+ * @brief Get current node role
+ *
+ * @return Role enum (0=GENESIS, 1=SERVER, 2=CLIENT, 3=OBSERVER)
+ */
+uint8_t utlp_get_role(void)
+{
+    /* Role is determined by stratum:
+     * - Stratum 0 = GPS-synced (not applicable in this implementation)
+     * - Stratum 1 = Genesis (Origin)
+     * - Stratum 2+ = Synced follower
+     */
+    uint8_t stratum = utlp_get_stratum();
+
+    if (stratum <= STRATUM_ORIGIN) {
+        return 0;  /* GENESIS role */
+    } else {
+        return 2;  /* CLIENT role (following a time source) */
+    }
 }
 
 /*============================================================================
@@ -1202,32 +1245,28 @@ static void log_drift_stats_if_due(uint64_t uptime_us)
 
     g_drift_stats.last_log_us = uptime_us;
 
-    utlp_hal_log_info(TAG, "════════════════════════════════════════════════════════");
-    utlp_hal_log_info(TAG, "[DRIFT STATS] Chirps analyzed: %lu (uptime: %llus)",
-             (unsigned long)g_drift_stats.chirps_analyzed,
+    utlp_hal_log_info(TAG, "--- DRIFT STATS (uptime: %llus) ---",
              (unsigned long long)(uptime_us / 1000000));
-    utlp_hal_log_info(TAG, "  LAST: offset=%+.0fus | drift=%+.0fppb | accel=%+.1fppb/s",
+    utlp_hal_log_info(TAG, "Chirps: %lu | LAST: off=%+.0fus drift=%+.0fppb accel=%+.1fppb/s",
+             (unsigned long)g_drift_stats.chirps_analyzed,
              g_drift_stats.last_poly.offset_us,
              g_drift_stats.last_poly.drift_ppb,
              g_drift_stats.last_poly.accel_ppb_s);
-    utlp_hal_log_info(TAG, "  AVG:  offset=%+.0fus | drift=%+.0fppb | accel=%+.1fppb/s",
+    utlp_hal_log_info(TAG, "AVG: off=%+.0fus drift=%+.0fppb | RANGE: [%+.0f..%+.0f]ppb",
              g_drift_stats.avg_offset_us,
              g_drift_stats.avg_drift_ppb,
-             g_drift_stats.avg_accel_ppb_s);
-    utlp_hal_log_info(TAG, "  RANGE: drift=[%+.0f..%+.0f]ppb",
              g_drift_stats.min_drift_ppb,
              g_drift_stats.max_drift_ppb);
-    utlp_hal_log_info(TAG, "════════════════════════════════════════════════════════");
 }
 
 /*============================================================================
- * BEACON PROTOCOL (Frontier Algorithm v2)
+ * BEACON PROTOCOL (32-byte Wire Packet)
  *
- * 11-byte seismic chirp burst:
- *   [0]:      Stratum (1 byte)
- *   [1]:      Burst index (0, 1, or 2)
- *   [2]:      Genesis score (0-255, higher = better candidate)
- *   [3-10]:   TX timestamp in microseconds (8 bytes, little-endian)
+ * Fixed 32-byte packet structure (utlp_wire_packet_t from utlp_security.h):
+ *   Exon [0-23]:  Cleartext timing/versioning (SequenceID, Timestamp, etc.)
+ *   Intron [24-31]: AES-128-CTR encrypted (TX_Power, Drift, Opcode, Payload)
+ *
+ * @see utlp_security.h for complete packet structure documentation
  *
  * FRONTIER ELECTION:
  *   1. Lower stratum always wins
@@ -1254,62 +1293,104 @@ static void log_drift_stats_if_due(uint64_t uptime_us)
  * @see SAE 2024-01-2989: Time-controlled hardware access patterns
  *==========================================================================*/
 
-/** @brief Beacon size in bytes */
-#define UTLP_BEACON_SIZE        11
+/*============================================================================
+ * 32-BYTE WIRE PACKET GEOMETRY (utlp_security.h)
+ *
+ * DEPRECATED LEGACY (13-byte beacon) REMOVED.
+ *
+ * New fixed structure:
+ *   - Exon (24 bytes cleartext): SequenceID, Timestamp, NTP, Salt, Stratum, Version
+ *   - Intron (8 bytes AES-CTR): TX_Power, Battery, Drift, Opcode, Payload[3]
+ *
+ * @see utlp_security.h for utlp_wire_packet_t, utlp_exon_t, utlp_intron_t
+ * @see Claim 255: Rolling Splice-Site Security (Bio-TOTP)
+ *==========================================================================*/
 
-/** @brief Byte offsets in beacon payload */
-#define BEACON_OFF_STRATUM      0
-#define BEACON_OFF_BURST        1
-#define BEACON_OFF_SCORE        2
-#define BEACON_OFF_TIMESTAMP    3
+/**
+ * @brief Swarm DNA (16-byte shared secret)
+ *
+ * Loaded from NVS or set via API. Default is UTLP_ZERO_KEY (public mode).
+ *
+ * Public Mode: All packets use deterministic key derived from Zero Key.
+ * This is "Herd Immunity" - public nodes protect private nodes by making
+ * all traffic patterns identical (Purple Team PT-4).
+ *
+ * @see utlp_security_derive_splice_key() for key derivation
+ * @see Claim 255: Rolling Splice-Site Security
+ */
+static uint8_t g_swarm_dna[UTLP_DNA_SIZE] = {0};  /* Zero = public mode */
 
-/** @brief Serialize 64-bit timestamp to bytes (little-endian) */
-static void time_to_bytes(uint64_t t, uint8_t *bytes)
+/**
+ * @brief Set swarm DNA for encrypted communication
+ *
+ * @param dna 16-byte shared secret (or NULL to use UTLP_ZERO_KEY)
+ */
+void utlp_set_swarm_dna(const uint8_t dna[UTLP_DNA_SIZE])
 {
-    bytes[0] = (uint8_t)(t);
-    bytes[1] = (uint8_t)(t >> 8);
-    bytes[2] = (uint8_t)(t >> 16);
-    bytes[3] = (uint8_t)(t >> 24);
-    bytes[4] = (uint8_t)(t >> 32);
-    bytes[5] = (uint8_t)(t >> 40);
-    bytes[6] = (uint8_t)(t >> 48);
-    bytes[7] = (uint8_t)(t >> 56);
-}
-
-/** @brief Deserialize 64-bit timestamp from bytes (little-endian) */
-static uint64_t time_from_bytes(const uint8_t *bytes)
-{
-    return (uint64_t)bytes[0] |
-           ((uint64_t)bytes[1] << 8) |
-           ((uint64_t)bytes[2] << 16) |
-           ((uint64_t)bytes[3] << 24) |
-           ((uint64_t)bytes[4] << 32) |
-           ((uint64_t)bytes[5] << 40) |
-           ((uint64_t)bytes[6] << 48) |
-           ((uint64_t)bytes[7] << 56);
+    if (dna) {
+        memcpy(g_swarm_dna, dna, UTLP_DNA_SIZE);
+    } else {
+        memset(g_swarm_dna, 0, UTLP_DNA_SIZE);  /* Reset to public mode */
+    }
 }
 
 /**
- * @brief Build beacon payload for a single burst
+ * @brief Build 32-byte UTLP wire packet for a single burst
  *
- * @param[out] payload     Buffer to fill (UTLP_BEACON_SIZE bytes)
- * @param      chirp_epoch Timestamp for all bursts in this chirp
- * @param      burst_index Index of this burst (0, 1, or 2)
- * @param      score       Genesis score to embed
- * @param      arbor_id    Which arbor this beacon is for (Claim 253)
+ * Populates both Exon (cleartext) and Intron (encrypted) fields, then calls
+ * the security layer to encrypt the Intron before transmission.
  *
- * @note Uses per-arbor stratum for polychromatic support. A bridge node
- *       following a Time Lord on WiFi (stratum 2) may simultaneously be
- *       Genesis Authority on 802.15.4 (stratum 1) if that band is silent.
+ * @param[out] pkt          Pointer to wire packet structure to fill (32 bytes)
+ * @param      chirp_epoch  Monotonic timestamp for all bursts in this chirp
+ * @param      burst_index  Index of this burst (0, 1, or 2)
+ * @param      score        Genesis election score
+ * @param      arbor_id     Which arbor this beacon is for (Claim 253)
+ *
+ * @note Protocol version is enforced as UTLP_PROTOCOL_VERSION (0x01).
+ * @note Encryption ALWAYS runs, even for Zero Key (Herd Immunity - PT-4).
+ * @note Uses per-arbor stratum for polychromatic support.
+ *
+ * @see utlp_security_encrypt_intron() for encryption details
+ * @see Claim 255: Rolling Splice-Site Security (Bio-TOTP)
+ * @see Claim 253: Polychromatic Stratum (per-arbor genesis)
  */
-static void build_beacon_payload(uint8_t *payload, uint64_t chirp_epoch,
-                                  uint8_t burst_index, uint8_t score,
-                                  utlp_arbor_id_t arbor_id)
+static void build_utlp_packet(utlp_wire_packet_t *pkt, uint64_t chirp_epoch,
+                               uint8_t burst_index, uint8_t score,
+                               utlp_arbor_id_t arbor_id)
 {
-    payload[BEACON_OFF_STRATUM] = utlp_get_stratum_for_arbor(arbor_id);
-    payload[BEACON_OFF_BURST] = burst_index;
-    payload[BEACON_OFF_SCORE] = score;
-    time_to_bytes(chirp_epoch, &payload[BEACON_OFF_TIMESTAMP]);
+    /* Initialize Exon with auto-populated fields (version, salt, sequence) */
+    utlp_security_init_exon(&pkt->exon);
+
+    /* Exon: Timing fields */
+    pkt->exon.utlp_timestamp_us = chirp_epoch;
+    pkt->exon.ntp_timestamp_utc = utlp_hal_get_ntp_time_utc();  /* Or random if stealth */
+    pkt->exon.stratum = utlp_get_stratum_for_arbor(arbor_id);
+
+    /* Exon: Protocol enforcement */
+    pkt->exon.protocol_version = UTLP_PROTOCOL_VERSION;  /* MUST be 0x01 */
+
+    /* Initialize Intron via .u64 = 0 then populate fields directly
+     * (Avoids taking address of packed struct member) */
+    pkt->intron.u64 = 0;
+
+    /* Intron: Physics telemetry (hidden from adversaries) */
+    pkt->intron.field.tx_power_dbm = utlp_hal_get_tx_power_dbm();
+    pkt->intron.field.battery_level = utlp_hal_get_battery_scaled();
+    pkt->intron.field.drift_ppm = (int16_t)utlp_get_drift_ppm();
+
+    /* Intron: Multiplexed payload (Heartbeat mode with burst info) */
+    pkt->intron.field.opcode = UTLP_CMD_NONE;  /* 0x00 = Heartbeat */
+    pkt->intron.field.payload[0] = utlp_hal_get_cpu_load();      /* CPU_Load */
+    pkt->intron.field.payload[1] = (uint8_t)utlp_get_role();     /* Role */
+    pkt->intron.field.payload[2] = (burst_index & 0x0F) | ((score & 0x0F) << 4);  /* Burst + Score nibbles */
+
+    /*
+     * CRITICAL: Encrypt Intron BEFORE transmission
+     *
+     * Even for Public Mode (g_swarm_dna = UTLP_ZERO_KEY), encryption runs
+     * the same code path (Herd Immunity - Purple Team PT-4).
+     */
+    utlp_security_encrypt_intron(pkt, g_swarm_dna);
 }
 
 /**
@@ -1323,12 +1404,13 @@ static void build_beacon_payload(uint8_t *payload, uint64_t chirp_epoch,
  *
  * Achieves ±100µs precision on ESP32, ±10µs on MG24 bare metal.
  *
+ * @note Uses 32-byte wire packet with encrypted Intron.
  * @note Analogous to RAIL_StartTx() in Silicon Labs RAIL API
  * @see send_chirp() for the scheduling-preferred variant
  */
 static void send_chirp_immediate(void)
 {
-    uint8_t payload[UTLP_BEACON_SIZE];
+    utlp_wire_packet_t pkt;
     uint8_t my_score;
     uint64_t wait_until;
 
@@ -1342,9 +1424,9 @@ static void send_chirp_immediate(void)
     utlp_arbor_id_t arbor = utlp_get_primary_time_source();
 
     for (uint8_t burst = 0; burst < CHIRP_BURST_COUNT; burst++) {
-        build_beacon_payload(payload, chirp_epoch, burst, my_score, arbor);
+        build_utlp_packet(&pkt, chirp_epoch, burst, my_score, arbor);
 
-        utlp_hal_tx_packet(NULL, payload, UTLP_BEACON_SIZE);
+        utlp_hal_tx_packet(NULL, (uint8_t *)&pkt, UTLP_PACKET_SIZE);
 
         /* Wait between bursts (except after last) */
         if (burst < CHIRP_BURST_COUNT - 1) {
@@ -1407,12 +1489,15 @@ static void send_chirp(void)
          * Hardware handles inter-burst timing with µs precision.
          */
         utlp_scheduled_tx_t bursts[CHIRP_BURST_COUNT];
+        utlp_wire_packet_t pkt;
         uint64_t now = utlp_hal_get_micros();
 
         for (uint8_t i = 0; i < CHIRP_BURST_COUNT; i++) {
             bursts[i].tx_time_us = now + (i * CHIRP_BURST_SPACING_US);
-            bursts[i].len = UTLP_BEACON_SIZE;
-            build_beacon_payload(bursts[i].payload, chirp_epoch, i, my_score, arbor);
+            bursts[i].len = UTLP_PACKET_SIZE;
+            /* Build 32-byte encrypted wire packet, copy to scheduled buffer */
+            build_utlp_packet(&pkt, chirp_epoch, i, my_score, arbor);
+            memcpy(bursts[i].payload, &pkt, UTLP_PACKET_SIZE);
         }
 
         if (!utlp_hal_tx_schedule(bursts, CHIRP_BURST_COUNT)) {
@@ -1429,26 +1514,69 @@ static void send_chirp(void)
     }
 }
 
+/**
+ * @brief Process received beacon with 32-byte wire packet decryption
+ *
+ * Implements the new Bio-TOTP security model:
+ * 1. Validate packet size and protocol version (cleartext Exon)
+ * 2. Decrypt Intron using sliding window (T-1, T, T+1)
+ * 3. Apply semantic plausibility checks to detect wrong-key decryption
+ * 4. Extract timing/trust data and continue with normal processing
+ *
+ * @param pkt HAL-level receive packet (contains payload, rssi, timestamp, mac)
+ *
+ * @note Decryption failure causes silent drop (no health penalty to sender)
+ * @see utlp_security_decrypt_intron() for sliding window logic
+ * @see Claim 255: Rolling Splice-Site Security (Bio-TOTP)
+ */
 static void process_beacon(const utlp_packet_t *pkt)
 {
     uint8_t remote_stratum;
     uint8_t burst_index;
     uint8_t remote_score;
     uint64_t remote_tx_time;
+    uint16_t remote_session_salt;  /* PT-6: Boot instance identifier */
     bool is_new_chirp;
     bool should_adopt;
     int64_t new_offset;       /* Must be 64-bit to handle runtimes > 35 minutes */
     uint32_t now_lo;
     uint8_t old_stratum;
 
-    if (pkt->len < UTLP_BEACON_SIZE) {
+    /* Validate 32-byte packet geometry */
+    if (pkt->len < UTLP_PACKET_SIZE) {
+        /* Silent drop for undersized packets (avoid log spam) */
         return;
     }
 
-    remote_stratum = pkt->payload[BEACON_OFF_STRATUM];
-    burst_index = pkt->payload[BEACON_OFF_BURST];
-    remote_score = pkt->payload[BEACON_OFF_SCORE];
-    remote_tx_time = time_from_bytes(&pkt->payload[BEACON_OFF_TIMESTAMP]);
+    /* Cast HAL payload to wire packet structure */
+    const utlp_wire_packet_t *wire = (const utlp_wire_packet_t *)pkt->payload;
+
+    /* Protocol version check (cleartext Exon field) */
+    if (wire->exon.protocol_version != UTLP_PROTOCOL_VERSION) {
+        /* Silent drop for unknown protocol versions */
+        return;
+    }
+
+    /* Decrypt Intron using sliding window (tries T-1, T, T+1 key windows) */
+    utlp_intron_t plaintext;
+    if (!utlp_security_decrypt_intron(wire, g_swarm_dna, &plaintext)) {
+        /* Decryption failed - wrong swarm key or corrupted packet */
+        /* Silent drop, no health penalty (could be from different swarm) */
+        return;
+    }
+
+    /*
+     * Extract fields from decrypted packet:
+     * - Exon: stratum, utlp_timestamp_us, session_salt (cleartext)
+     * - Intron: payload[2] contains packed burst_index + score (decrypted)
+     */
+    remote_stratum = wire->exon.stratum;
+    remote_tx_time = wire->exon.utlp_timestamp_us;
+    remote_session_salt = wire->exon.session_salt;
+
+    /* Unpack burst_index (lower nibble) and score (upper nibble) from Intron payload */
+    burst_index = plaintext.field.payload[2] & 0x0F;
+    remote_score = (plaintext.field.payload[2] >> 4) & 0x0F;
 
     /* Neighborhood tracking */
     now_lo = (uint32_t)pkt->rx_timestamp_us;
@@ -1468,7 +1596,17 @@ static void process_beacon(const utlp_packet_t *pkt)
          */
         int32_t observed_offset = (int32_t)((int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us);
         uint32_t now_ms_for_tracking = (uint32_t)(pkt->rx_timestamp_us / 1000);
-        utlp_trust_record_observation(pkt->mac, observed_offset, remote_stratum);
+
+        /*
+         * Phase 9 (Blood-Brain Barrier): Use arbor-aware observation recording.
+         * Phase 11 (Spectral Retina): Pass RSSI for per-arbor signal tracking.
+         * Phase 12 (PT-6): Session_Salt for reboot detection ("Seniority Bankruptcy").
+         *
+         * BUG FIX: Previously called utlp_trust_record_observation() which
+         * defaulted to arbor 0 (WiFi), breaking per-transport trust separation.
+         */
+        utlp_trust_record_observation_arbor(pkt->mac, observed_offset, remote_stratum,
+                                            pkt->arbor_id, pkt->rssi, remote_session_salt);
 
         /* Update TX time tracking for genesis pulse and regression detection (S2.24) */
         utlp_trust_update_tx_tracking(pkt->mac, (int64_t)remote_tx_time, now_ms_for_tracking);
