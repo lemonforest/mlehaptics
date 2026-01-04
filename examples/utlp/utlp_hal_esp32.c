@@ -103,7 +103,18 @@ static const char *TAG = "UTLP_HAL";
  * STATE (Static Allocation)
  *==========================================================================*/
 
-/** @brief Time offset for synchronization */
+/**
+ * @brief Spinlock for 64-bit time offset (Purple Team Pitfall 2: Torn Read Hazard)
+ *
+ * ESP32-C6 is 32-bit RISC-V; 64-bit operations require TWO 32-bit instructions.
+ * ISR can interrupt between high/low word operations, causing mixed old/new halves.
+ * `volatile` prevents caching but does NOT guarantee atomicity.
+ *
+ * This spinlock protects the legacy fallback path used before HPLAC phase engine init.
+ */
+static portMUX_TYPE g_time_offset_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
+/** @brief Time offset for synchronization (requires spinlock for atomic access) */
 static volatile int64_t g_time_offset_us = 0;
 
 /** @brief Local MAC address */
@@ -392,13 +403,30 @@ uint64_t utlp_hal_get_atomic_time_us(void)
         return utlp_phase_get_atomic_time_us();
     }
 
-    /* Fallback: Legacy software-based offset (before phase engine init) */
-    return esp_timer_get_time() + g_time_offset_us;
+    /*
+     * Fallback: Legacy software-based offset (before phase engine init)
+     *
+     * Purple Team Pitfall 2: Torn Read Hazard
+     * 64-bit read on 32-bit MCU requires critical section to prevent
+     * reading mixed old/new halves if ISR fires mid-read.
+     */
+    portENTER_CRITICAL(&g_time_offset_spinlock);
+    int64_t offset = g_time_offset_us;
+    portEXIT_CRITICAL(&g_time_offset_spinlock);
+
+    return esp_timer_get_time() + offset;
 }
 
 void utlp_hal_set_time_offset(int64_t offset_us)
 {
+    /*
+     * Purple Team Pitfall 2: Torn Write Hazard
+     * 64-bit write on 32-bit MCU requires critical section to prevent
+     * reader seeing mixed old/new halves if context switch occurs mid-write.
+     */
+    portENTER_CRITICAL(&g_time_offset_spinlock);
     g_time_offset_us = offset_us;
+    portEXIT_CRITICAL(&g_time_offset_spinlock);
 }
 
 void utlp_hal_yield(void)

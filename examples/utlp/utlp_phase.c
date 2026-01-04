@@ -422,10 +422,26 @@ void utlp_phase_tick(uint64_t uptime_us)
     /* State transition: COLD → LOCKED after cold start period */
     if (s_state.sync_state == UTLP_PHASE_STATE_COLD) {
         if (uptime_us >= UTLP_PHASE_COLD_START_US) {
+            /*
+             * BUG FIX (Coherence Oscillation Audit - Bug #4):
+             * Reset timer period to nominal at state transition.
+             *
+             * During COLD, hard syncs reset period to nominal, but slews
+             * (which bend the period) do not. If the last action was a slew,
+             * the bent period persists into LOCKED state, causing residual
+             * drift that looks like coherence oscillation.
+             *
+             * Solution: Always reset to nominal when transitioning to LOCKED.
+             * This ensures a clean starting point for soft slew mode.
+             */
             portENTER_CRITICAL(&s_phase_spinlock);
+            mcpwm_timer_set_period(s_phase_timer, UTLP_PHASE_PERIOD_TICKS);
+            s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
+            s_state.slewing = false;
+            s_state.drift_accumulator_ppb = 0;
             s_state.sync_state = UTLP_PHASE_STATE_LOCKED;
             portEXIT_CRITICAL(&s_phase_spinlock);
-            ESP_LOGI(TAG, "Transition: COLD → LOCKED (hard sync disabled)");
+            ESP_LOGI(TAG, "Transition: COLD → LOCKED (hard sync disabled, period reset to nominal)");
         }
     }
 

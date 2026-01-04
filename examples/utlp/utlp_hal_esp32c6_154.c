@@ -148,8 +148,11 @@ static bool s_radio_enabled = false;
 /** @brief EUI-64 address (cached from efuse) */
 static uint8_t s_eui64[8];
 
-/** @brief Last SFD timestamp */
+/** @brief Last SFD timestamp (Purple Team: requires spinlock for atomic read) */
 static volatile uint64_t s_last_sfd_time = 0;
+
+/** @brief Spinlock for 64-bit SFD timestamp (Purple Team Pitfall 2: Torn Read Hazard) */
+static portMUX_TYPE s_sfd_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 /** @brief Sequence number for MAC frames */
 static uint8_t s_seq_num = 0;
@@ -319,8 +322,13 @@ static void IRAM_ATTR rx_done_callback(const uint8_t *frame, esp_ieee802154_fram
         return;
     }
 
-    /* Capture SFD time (best-effort software timestamp) */
+    /* Capture SFD time (best-effort software timestamp)
+     * Purple Team: Use spinlock to prevent torn read hazard on 32-bit MCU
+     * The ISR context is inherently atomic, but readers need protection
+     */
+    portENTER_CRITICAL_ISR(&s_sfd_spinlock);
     s_last_sfd_time = esp_timer_get_time();
+    portEXIT_CRITICAL_ISR(&s_sfd_spinlock);
 
     /* Build packet for queue */
     utlp_packet_t pkt = {0};
@@ -647,7 +655,14 @@ bool utlp_hal_154_rx_wait(utlp_packet_t *out_packet, uint32_t timeout_ms)
 
 uint64_t utlp_hal_154_get_last_sfd_time(void)
 {
-    return s_last_sfd_time;
+    /* Purple Team Pitfall 2: Torn Read Hazard
+     * 64-bit read on 32-bit MCU requires critical section to prevent
+     * reading mixed old/new halves if ISR fires mid-read.
+     */
+    portENTER_CRITICAL(&s_sfd_spinlock);
+    uint64_t timestamp = s_last_sfd_time;
+    portEXIT_CRITICAL(&s_sfd_spinlock);
+    return timestamp;
 }
 
 bool utlp_hal_154_set_tx_power(int8_t power_dbm)

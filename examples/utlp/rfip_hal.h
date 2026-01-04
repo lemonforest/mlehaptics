@@ -94,6 +94,7 @@ typedef enum {
     RFIP_CAP_FTM_RESPONDER = (1 << 4),  /**< 802.11mc FTM responder (all FTM-capable chips) */
     RFIP_CAP_UWB           = (1 << 5),  /**< UWB ranging (external DW1000/DW3000 module) */
     RFIP_CAP_BLE_AOA       = (1 << 6),  /**< BLE 5.1 Angle of Arrival (future, requires antenna array) */
+    RFIP_CAP_IMU           = (1 << 7),  /**< IMU for disturbance blanking (MG24 onboard LSM6DS3) */
 } rfip_capability_t;
 
 /*============================================================================
@@ -304,6 +305,88 @@ typedef struct {
 } rfip_metrics_t;
 
 /*============================================================================
+ * IMU INTEGRATION (S2.46 Claims 114-120)
+ *
+ * Yield-pattern architecture: Application owns IMU hardware and runs its
+ * own sample loop and fusion filter. Protocol layer requests instantaneous
+ * state via callback—architecture inversion from traditional sensor fusion.
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Section 8.28
+ *==========================================================================*/
+
+/**
+ * @brief IMU state at a coherence boundary (Claim 114)
+ *
+ * Packed heavy-first: int64 → float → uint8 → bool
+ *
+ * Contains both raw acceleration/gyro and fused orientation quaternion.
+ * Application runs Madgwick/Mahony/EKF filter; protocol consumes result.
+ */
+typedef struct {
+    /* 8-byte fields first */
+    int64_t  timestamp_us;        /**< UTLP atomic time of sample */
+
+    /* 4-byte fields */
+    float    accel_x_mg;          /**< X acceleration (milli-g) */
+    float    accel_y_mg;          /**< Y acceleration (milli-g) */
+    float    accel_z_mg;          /**< Z acceleration (milli-g) */
+    float    gyro_x_dps;          /**< X angular rate (degrees/sec) */
+    float    gyro_y_dps;          /**< Y angular rate (degrees/sec) */
+    float    gyro_z_dps;          /**< Z angular rate (degrees/sec) */
+    float    quat_w;              /**< Orientation quaternion W */
+    float    quat_x;              /**< Orientation quaternion X */
+    float    quat_y;              /**< Orientation quaternion Y */
+    float    quat_z;              /**< Orientation quaternion Z */
+    float    gravity_x;           /**< Gravity vector X (unit) */
+    float    gravity_y;           /**< Gravity vector Y (unit) */
+    float    gravity_z;           /**< Gravity vector Z (unit) */
+
+    /* 1-byte fields */
+    uint8_t  motion_confidence;   /**< Motion confidence 0-255 (Claim 115) */
+    bool     valid;               /**< Sample is valid */
+} rfip_imu_state_t;
+
+/**
+ * @brief IMU state callback type (Claim 114: Yield Pattern)
+ *
+ * Application registers callback; RFIP calls it to get current IMU state.
+ * This inverts traditional sensor fusion where the engine owns the IMU.
+ *
+ * @param[out] state  IMU state to fill
+ * @return true if state is valid, false if IMU unavailable
+ */
+typedef bool (*rfip_imu_callback_t)(rfip_imu_state_t *state);
+
+/**
+ * @brief Disturbance blanking state (Claim 116)
+ *
+ * Tracks high-g events that corrupt RF observations.
+ * Progressive penalty decay matches physical settling (~100-200ms).
+ */
+typedef struct {
+    /* 8-byte fields first */
+    int64_t  shock_timestamp_us;  /**< When shock detected */
+    int64_t  expiry_timestamp_us; /**< When blanking expires */
+
+    /* 4-byte fields */
+    float    peak_accel_mg;       /**< Peak acceleration during shock */
+
+    /* 1-byte fields */
+    uint8_t  penalty_factor;      /**< Current penalty 0-255 (decaying) */
+    bool     blanking_active;     /**< Currently in blanking period */
+} rfip_disturbance_state_t;
+
+/**
+ * @brief Motion state machine for anchor promotion (Claim 119)
+ */
+typedef enum {
+    RFIP_MOTION_MOBILE,     /**< Device is moving */
+    RFIP_MOTION_SETTLING,   /**< Recently stopped, waiting for confirmation */
+    RFIP_MOTION_STATIONARY, /**< Confirmed stationary */
+    RFIP_MOTION_ANCHOR,     /**< Promoted to RFIP anchor role */
+} rfip_motion_state_t;
+
+/*============================================================================
  * PUBLIC API
  *==========================================================================*/
 
@@ -428,6 +511,95 @@ uint8_t rfip_get_cached_peer_count(void);
  * Use when resetting RFIP state or for testing.
  */
 void rfip_clear_cache(void);
+
+/*============================================================================
+ * IMU INTEGRATION API (S2.46 Claims 114-120)
+ *
+ * These functions are MG24-specific (LSM6DS3 onboard). ESP32 platforms
+ * return "not available" status.
+ *==========================================================================*/
+
+/**
+ * @brief Register IMU state callback (Claim 114: Yield Pattern)
+ *
+ * Application owns the IMU and runs its own fusion filter. RFIP calls
+ * this callback to request current state when needed for positioning.
+ *
+ * @param[in] callback  Function pointer to IMU state provider
+ */
+void rfip_imu_register_callback(rfip_imu_callback_t callback);
+
+/**
+ * @brief Get current IMU state via registered callback
+ *
+ * Calls the registered callback to get current IMU state. If no callback
+ * registered or IMU unavailable, returns false.
+ *
+ * @param[out] state  IMU state structure to fill
+ * @return true if state is valid
+ */
+bool rfip_imu_get_state(rfip_imu_state_t *state);
+
+/**
+ * @brief Apply disturbance penalty to RF observation (Claim 116)
+ *
+ * Called when IMU detects high-g event. RF observations are penalized
+ * for refractory period matching physical settling (~150ms).
+ *
+ * The penalty decays progressively:
+ * - 0-50ms: 100% penalty (observations discarded)
+ * - 50-100ms: 75% penalty
+ * - 100-150ms: 50% penalty
+ * - >150ms: No penalty
+ *
+ * @param[in]  accel_mg       Acceleration magnitude in milli-g
+ * @param[in]  timestamp_us   UTLP atomic time of shock
+ * @param[out] state          Disturbance state to update
+ */
+void rfip_apply_disturbance_penalty(float accel_mg, int64_t timestamp_us,
+                                     rfip_disturbance_state_t *state);
+
+/**
+ * @brief Get current disturbance penalty factor
+ *
+ * Returns 0-255 penalty to apply to RF observations. 0 = no penalty,
+ * 255 = full blanking (discard observation).
+ *
+ * @param[in]  state         Disturbance state
+ * @param[in]  current_us    Current UTLP atomic time
+ * @return Penalty factor 0-255
+ */
+uint8_t rfip_get_disturbance_penalty(const rfip_disturbance_state_t *state,
+                                      int64_t current_us);
+
+/**
+ * @brief Get motion confidence for beacon propagation (Claim 115)
+ *
+ * Returns 0-255 motion confidence based on recent IMU data.
+ * 0 = stationary, 255 = high motion. This value is propagated in
+ * UTLP beacons so receivers can weight observations appropriately.
+ *
+ * @return Motion confidence 0-255
+ */
+uint8_t rfip_get_motion_confidence(void);
+
+/**
+ * @brief Update motion state machine (Claim 119)
+ *
+ * Tracks device motion to enable emergent anchor promotion.
+ * State transitions: MOBILE → SETTLING → STATIONARY → ANCHOR
+ *
+ * @param[in] motion_confidence  Current motion confidence 0-255
+ * @return Current motion state
+ */
+rfip_motion_state_t rfip_update_motion_state(uint8_t motion_confidence);
+
+/**
+ * @brief Check if IMU is available on this platform
+ *
+ * @return true if IMU is available (MG24 with LSM6DS3)
+ */
+bool rfip_has_imu(void);
 
 #ifdef __cplusplus
 }

@@ -521,9 +521,18 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
      *
      * This replaces hard jumps with frequency slewing while maintaining
      * continuous waveform integrity for coherent beamforming applications.
+     *
+     * BUG FIX (Coherence Oscillation Audit):
+     * Only reset slew window if not already slewing. Resetting on every beacon
+     * causes infinite convergence - beacons arrive faster than convergence window,
+     * so clock never stabilizes. New beacons update target but keep window running.
      */
     g_servo.target_offset = new_offset;
-    g_servo.slew_start_time_us = uptime_us;
+
+    /* Only reset slew start time if this is a NEW slew operation */
+    if (!g_servo.slewing_active) {
+        g_servo.slew_start_time_us = uptime_us;
+    }
     g_servo.slewing_active = true;
 
     /*
@@ -1601,8 +1610,19 @@ static void process_beacon(const utlp_packet_t *pkt)
         uint64_t uptime_us = utlp_hal_get_micros();
         bool jumped = servo_apply_offset(new_offset, uptime_us);
 
-        /* Update internal state to track the target (servo handles HAL) */
-        g_aatr.time_offset = jumped ? new_offset : g_servo.target_offset;
+        /*
+         * Update internal state to track CURRENT offset (not target!)
+         *
+         * BUG FIX (Coherence Oscillation Audit - Bug #5):
+         * Previously used target_offset when slewing, but servo_tick() is
+         * still interpolating toward target. Using target causes subsequent
+         * phase error calculations to see phantom errors (double-correction).
+         *
+         * current_offset reflects where the clock ACTUALLY is, not where
+         * it wants to be. This fixes stale offset usage in deviation
+         * calculations (Bug #3 was a symptom of this).
+         */
+        g_aatr.time_offset = jumped ? new_offset : g_servo.current_offset;
 
         utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us (%s)",
                  g_aatr.stratum, (long long)new_offset,

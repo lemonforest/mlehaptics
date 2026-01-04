@@ -76,6 +76,13 @@ typedef struct {
 static rfip_peer_cache_entry_t s_peer_cache[RFIP_MAX_CACHED_PEERS];
 static int64_t s_last_rx_timestamp_us = 0;
 
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
+/** @brief Spinlock for 64-bit timestamp (Purple Team Pitfall 2: Torn Read Hazard) */
+static portMUX_TYPE s_rfip_spinlock = portMUX_INITIALIZER_UNLOCKED;
+#endif
+
 /*============================================================================
  * FORWARD DECLARATIONS
  *==========================================================================*/
@@ -264,6 +271,7 @@ void rfip_hal_get_capability_str(const rfip_hal_t *hal, char *buf, size_t len) {
         { RFIP_CAP_FTM_RESPONDER, "FTM_RESP" },
         { RFIP_CAP_UWB,           "UWB" },
         { RFIP_CAP_BLE_AOA,       "BLE_AOA" },
+        { RFIP_CAP_IMU,           "IMU" },
     };
 
     for (size_t i = 0; i < sizeof(caps) / sizeof(caps[0]); i++) {
@@ -413,12 +421,16 @@ void rfip_record_observation(const uint8_t *mac, int8_t rssi_dbm,
 
 #ifdef ESP_PLATFORM
     entry->last_seen_ms = (uint32_t)(esp_timer_get_time() / 1000);
+
+    /* Purple Team Pitfall 2: Protect 64-bit write on 32-bit MCU
+     * This may be called from ESP-NOW callback (task context) */
+    portENTER_CRITICAL(&s_rfip_spinlock);
+    s_last_rx_timestamp_us = rx_timestamp_us;
+    portEXIT_CRITICAL(&s_rfip_spinlock);
 #else
     entry->last_seen_ms = 0;
-#endif
-
-    /* Update global last RX timestamp for TDoA */
     s_last_rx_timestamp_us = rx_timestamp_us;
+#endif
 }
 
 /*============================================================================
@@ -450,10 +462,20 @@ static int32_t rfip_impl_get_rssi(const uint8_t *mac) {
  * Returns the hardware timestamp of the most recent packet reception.
  * On ESP32, this comes from esp_timer_get_time() captured at RX.
  *
+ * @note Purple Team Pitfall 2: Torn Read Hazard
+ *       64-bit read on 32-bit MCU requires critical section.
+ *
  * @return Timestamp in microseconds
  */
 static int64_t rfip_impl_get_rx_timestamp(void) {
+#ifdef ESP_PLATFORM
+    portENTER_CRITICAL(&s_rfip_spinlock);
+    int64_t timestamp = s_last_rx_timestamp_us;
+    portEXIT_CRITICAL(&s_rfip_spinlock);
+    return timestamp;
+#else
     return s_last_rx_timestamp_us;
+#endif
 }
 
 /**
@@ -520,4 +542,204 @@ uint8_t rfip_get_cached_peer_count(void) {
 void rfip_clear_cache(void) {
     memset(s_peer_cache, 0, sizeof(s_peer_cache));
     s_last_rx_timestamp_us = 0;
+}
+
+/*============================================================================
+ * IMU INTEGRATION API (S2.46 Claims 114-120)
+ *
+ * These are STUB implementations for ESP32 platforms (no IMU).
+ * MG24 with onboard LSM6DS3 will have actual implementations in
+ * a future utlp_hal_mg24_imu.c file.
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Section 8.28
+ *==========================================================================*/
+
+/** @brief Registered IMU callback (Claim 114: Yield Pattern) */
+static rfip_imu_callback_t s_imu_callback = NULL;
+
+/** @brief Motion state machine state (Claim 119) */
+static rfip_motion_state_t s_motion_state = RFIP_MOTION_MOBILE;
+
+/** @brief Motion settling counter for hysteresis */
+static uint8_t s_settling_count = 0;
+
+/** @brief Disturbance blanking constants (Claim 116) */
+#define RFIP_DISTURBANCE_THRESHOLD_MG   2000   /**< 2g shock threshold */
+#define RFIP_DISTURBANCE_HOLDOFF_US     150000 /**< 150ms settling time */
+#define RFIP_MOTION_SETTLING_THRESHOLD  5      /**< Samples to confirm stationary */
+#define RFIP_MOTION_ANCHOR_THRESHOLD    20     /**< Samples to promote to anchor */
+
+void rfip_imu_register_callback(rfip_imu_callback_t callback) {
+    s_imu_callback = callback;
+#ifdef ESP_PLATFORM
+    if (callback != NULL) {
+        ESP_LOGI(TAG, "IMU callback registered (Claim 114: Yield Pattern)");
+    } else {
+        ESP_LOGI(TAG, "IMU callback unregistered");
+    }
+#endif
+}
+
+bool rfip_imu_get_state(rfip_imu_state_t *state) {
+    if (state == NULL) {
+        return false;
+    }
+
+    /* Clear output */
+    memset(state, 0, sizeof(rfip_imu_state_t));
+
+    /* If no callback registered, IMU is unavailable */
+    if (s_imu_callback == NULL) {
+        return false;
+    }
+
+    /* Call application's IMU provider */
+    return s_imu_callback(state);
+}
+
+void rfip_apply_disturbance_penalty(float accel_mg, int64_t timestamp_us,
+                                     rfip_disturbance_state_t *state) {
+    if (state == NULL) {
+        return;
+    }
+
+    /*
+     * Claim 116: Cross-Sensor Disturbance Blanking
+     *
+     * When IMU detects high-g event (>2g), RF observations are penalized
+     * for the settling period. This accounts for:
+     * - Antenna displacement during shock
+     * - Multipath environment shift
+     * - Physical settling dynamics (~100-200ms)
+     */
+    if (accel_mg >= RFIP_DISTURBANCE_THRESHOLD_MG) {
+        state->shock_timestamp_us = timestamp_us;
+        state->expiry_timestamp_us = timestamp_us + RFIP_DISTURBANCE_HOLDOFF_US;
+        state->peak_accel_mg = accel_mg;
+        state->blanking_active = true;
+        state->penalty_factor = 255;  /* Full blanking initially */
+
+#ifdef ESP_PLATFORM
+        ESP_LOGD(TAG, "Disturbance detected: %.0f mg (Claim 116 blanking active)",
+                 accel_mg);
+#endif
+    }
+}
+
+uint8_t rfip_get_disturbance_penalty(const rfip_disturbance_state_t *state,
+                                      int64_t current_us) {
+    if (state == NULL || !state->blanking_active) {
+        return 0;  /* No penalty */
+    }
+
+    /* Check if blanking period has expired */
+    if (current_us >= state->expiry_timestamp_us) {
+        return 0;  /* Blanking expired */
+    }
+
+    /*
+     * Progressive penalty decay (Claim 116):
+     * - 0-50ms: 100% penalty (255)
+     * - 50-100ms: 75% penalty (192)
+     * - 100-150ms: 50% penalty (128)
+     */
+    int64_t elapsed_us = current_us - state->shock_timestamp_us;
+
+    if (elapsed_us < 50000) {
+        return 255;  /* Full blanking */
+    } else if (elapsed_us < 100000) {
+        return 192;  /* 75% penalty */
+    } else {
+        return 128;  /* 50% penalty */
+    }
+}
+
+uint8_t rfip_get_motion_confidence(void) {
+    /*
+     * Claim 115: Beacon-Propagated Motion Confidence
+     *
+     * Returns 0-255 motion confidence based on IMU data.
+     * On ESP32 (no IMU), always returns 0 (assume stationary).
+     * MG24 implementation will compute from gyro/accel variance.
+     */
+    rfip_imu_state_t state;
+    if (rfip_imu_get_state(&state)) {
+        return state.motion_confidence;
+    }
+
+    /* No IMU available - assume stationary */
+    return 0;
+}
+
+rfip_motion_state_t rfip_update_motion_state(uint8_t motion_confidence) {
+    /*
+     * Claim 119: Emergent Anchor Topology via Motion-Based Promotion
+     *
+     * State machine with hysteresis:
+     * - MOBILE → SETTLING: motion_confidence drops below threshold
+     * - SETTLING → STATIONARY: sustained low motion for N samples
+     * - STATIONARY → ANCHOR: sustained stationary for M samples
+     * - Any → MOBILE: motion_confidence exceeds threshold
+     */
+    const uint8_t MOTION_THRESHOLD = 30;  /* Below this = low motion */
+
+    if (motion_confidence > MOTION_THRESHOLD) {
+        /* High motion - reset to MOBILE */
+        s_motion_state = RFIP_MOTION_MOBILE;
+        s_settling_count = 0;
+        return s_motion_state;
+    }
+
+    /* Low motion - advance state machine */
+    switch (s_motion_state) {
+        case RFIP_MOTION_MOBILE:
+            s_motion_state = RFIP_MOTION_SETTLING;
+            s_settling_count = 1;
+            break;
+
+        case RFIP_MOTION_SETTLING:
+            s_settling_count++;
+            if (s_settling_count >= RFIP_MOTION_SETTLING_THRESHOLD) {
+                s_motion_state = RFIP_MOTION_STATIONARY;
+                s_settling_count = 0;
+#ifdef ESP_PLATFORM
+                ESP_LOGI(TAG, "Motion state: STATIONARY (Claim 119)");
+#endif
+            }
+            break;
+
+        case RFIP_MOTION_STATIONARY:
+            s_settling_count++;
+            if (s_settling_count >= RFIP_MOTION_ANCHOR_THRESHOLD) {
+                s_motion_state = RFIP_MOTION_ANCHOR;
+#ifdef ESP_PLATFORM
+                ESP_LOGI(TAG, "Motion state: ANCHOR promoted (Claim 119)");
+#endif
+            }
+            break;
+
+        case RFIP_MOTION_ANCHOR:
+            /* Already an anchor - stay there unless motion detected */
+            break;
+    }
+
+    return s_motion_state;
+}
+
+bool rfip_has_imu(void) {
+    /*
+     * IMU availability check:
+     * - ESP32 platforms: No IMU (returns false)
+     * - MG24 (future): Onboard LSM6DS3 (will return true)
+     *
+     * This is a compile-time determination on ESP32.
+     * MG24 implementation will probe I2C for LSM6DS3.
+     */
+#if defined(EFR32MG24) || defined(CONFIG_SOC_SERIES_EFR32MG24)
+    /* MG24 has onboard LSM6DS3 - probe I2C (future implementation) */
+    return true;  /* TODO: Actual I2C probe when MG24 HAL implemented */
+#else
+    /* ESP32 platforms have no IMU */
+    return false;
+#endif
 }
