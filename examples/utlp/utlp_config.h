@@ -332,6 +332,57 @@ extern "C" {
 /** @} */ /* stratum */
 
 /*============================================================================
+ * POLYCHROMATIC STRATUM ASYMMETRY (Claim 253)
+ *
+ * Multi-transport stratum management for bridge nodes.
+ *
+ * Enables a node following a Time Lord on WiFi (Stratum 2) to simultaneously
+ * act as Genesis Authority (Stratum 1) on 802.15.4 if that spectrum is silent.
+ * This propagates "Genesis Truth" into silent spectral bands without manual
+ * "Bridge Mode" flags.
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Claim 253
+ *==========================================================================*/
+
+/** @defgroup polychromatic Polychromatic Stratum
+ * @{
+ */
+
+/** @brief Silence threshold before promoting secondary transport (seconds) */
+#define UTLP_POLYCHROMATIC_SILENCE_S     30
+
+/** @brief Minimum neighbors with stratum <= 1 to prevent self-promotion */
+#define UTLP_POLYCHROMATIC_MIN_AUTHORITY_NEIGHBORS  1
+
+/** @brief Enable split-horizon protection (prevent echo chamber) */
+#define UTLP_POLYCHROMATIC_SPLIT_HORIZON_ENABLED    1
+
+/**
+ * @brief MAC-based jitter base for Thundering Herd prevention (microseconds)
+ *
+ * When multiple bridges have their silence timer expire simultaneously
+ * (e.g., after a power outage), this prevents all from promoting at
+ * the exact same millisecond.
+ *
+ * Jitter = (mac[5] & 0x0F) * UTLP_POLYCHROMATIC_JITTER_BASE_US
+ * Range: 0 to 15 * 100000 = 0 to 1.5 seconds
+ */
+#define UTLP_POLYCHROMATIC_JITTER_BASE_US           100000ULL   /* 100ms per step */
+
+/**
+ * @brief Primary Loss Revocation threshold (stratum value)
+ *
+ * If the primary transport's stratum exceeds this value, the bridge
+ * has "lost its guide" and must immediately demote any polychromatic
+ * secondary arbors from Genesis mode.
+ *
+ * A bridge must not lead if it has lost its own time source.
+ */
+#define UTLP_POLYCHROMATIC_GUIDE_LOSS_STRATUM       100
+
+/** @} */ /* polychromatic */
+
+/*============================================================================
  * MCPWM PHASE ENGINE - Hardware-Based Atomic Coherency (HPLAC)
  *
  * "Physics First: Hardware defines time, not software."
@@ -401,7 +452,7 @@ extern "C" {
  */
 
 /** @brief LED blink period (1Hz = 1 second cycle) */
-#define UTLP_BLINK_PERIOD_US             1000000         /* 1 second */
+#define UTLP_BLINK_PERIOD_US             1000000UL       /* 1 second */
 
 /** @} */ /* app_config */
 

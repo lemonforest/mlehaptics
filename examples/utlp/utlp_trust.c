@@ -1025,3 +1025,85 @@ utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac) {
 
     return NULL;
 }
+
+/*============================================================================
+ * POLYCHROMATIC STRATUM HELPERS (Claim 253)
+ *
+ * Per-arbor neighbor queries for polychromatic stratum asymmetry.
+ * These functions enable bridge nodes to detect authority presence on
+ * each transport independently.
+ *==========================================================================*/
+
+/**
+ * @brief Count neighbors with stratum <= threshold on a specific arbor
+ *
+ * Used by polychromatic logic to detect authority presence on a transport.
+ * Only counts peers that have been seen recently on the specified arbor.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @param max_stratum  Count neighbors with stratum <= this value
+ * @return Count of matching neighbors
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_count_neighbors_by_stratum_arbor(
+    utlp_arbor_id_t arbor_id, uint8_t max_stratum)
+{
+    uint8_t count = 0;
+    int i;
+
+    if (arbor_id >= UTLP_MAX_ARBORS) {
+        return 0;
+    }
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        /* Skip empty slots */
+        if (g_peers[i].interactions == 0) {
+            continue;
+        }
+
+        /* Check if seen on this arbor recently (non-zero last_seen_ms) */
+        if (g_peers[i].last_seen_ms[arbor_id] > 0 &&
+            g_peers[i].stratum_claim <= max_stratum) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/**
+ * @brief Get lowest (best) stratum seen on a specific arbor
+ *
+ * Used by polychromatic logic to determine what stratum to adopt when
+ * an authority appears on a previously silent secondary transport.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @return Best (lowest) stratum, or 255 if no neighbors on that arbor
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_get_best_stratum_arbor(utlp_arbor_id_t arbor_id)
+{
+    uint8_t best = 255;
+    int i;
+
+    if (arbor_id >= UTLP_MAX_ARBORS) {
+        return 255;
+    }
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        /* Skip empty slots */
+        if (g_peers[i].interactions == 0) {
+            continue;
+        }
+
+        /* Check if seen on this arbor recently */
+        if (g_peers[i].last_seen_ms[arbor_id] > 0 &&
+            g_peers[i].stratum_claim < best) {
+            best = g_peers[i].stratum_claim;
+        }
+    }
+
+    return best;
+}

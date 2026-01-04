@@ -156,6 +156,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "utlp_arbor.h"  /* For utlp_arbor_id_t in polychromatic helpers */
 
 #ifdef __cplusplus
 extern "C" {
@@ -617,6 +618,41 @@ void utlp_trust_update_tx_tracking(const uint8_t *mac,
  * @return Pointer to peer entry, or NULL if not found
  */
 utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac);
+
+/*============================================================================
+ * POLYCHROMATIC STRATUM HELPERS (Claim 253)
+ *
+ * Per-arbor neighbor queries for polychromatic stratum asymmetry.
+ * Enable bridge nodes to detect authority presence on each transport.
+ *==========================================================================*/
+
+/**
+ * @brief Count neighbors with stratum <= threshold on a specific arbor
+ *
+ * Used by polychromatic logic to detect authority presence on a transport.
+ * Only counts peers that have been seen recently on the specified arbor.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @param max_stratum  Count neighbors with stratum <= this value
+ * @return Count of matching neighbors
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_count_neighbors_by_stratum_arbor(
+    utlp_arbor_id_t arbor_id, uint8_t max_stratum);
+
+/**
+ * @brief Get lowest (best) stratum seen on a specific arbor
+ *
+ * Used by polychromatic logic to determine what stratum to adopt when
+ * an authority appears on a previously silent secondary transport.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @return Best (lowest) stratum, or 255 if no neighbors on that arbor
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_get_best_stratum_arbor(utlp_arbor_id_t arbor_id);
 
 /*============================================================================
  * PHASE 4: COHERENCE MONITORING (S2 Section 7)

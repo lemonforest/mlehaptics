@@ -30,9 +30,33 @@
 #include "utlp_loom.h"
 #include "utlp_hal.h"
 #include "utlp_arbor.h"
+#include "utlp_config.h"
+#include "utlp_trust.h"
 #include <string.h>
 
 static const char *TAG = "UTLP_LOOM";
+
+/*============================================================================
+ * EXTERNAL STRATUM ACCESSORS (Claim 253: Polychromatic Stratum Asymmetry)
+ *
+ * These functions are defined in utlp.c and provide thread-safe access
+ * to per-arbor stratum levels for polychromatic bridge support.
+ *==========================================================================*/
+
+/**
+ * @brief Get stratum for a specific arbor (extern, defined in utlp.c)
+ */
+extern uint8_t utlp_get_stratum_for_arbor(utlp_arbor_id_t arbor);
+
+/**
+ * @brief Set stratum for a specific arbor (extern, defined in utlp.c)
+ */
+extern void utlp_set_stratum_for_arbor(utlp_arbor_id_t arbor, uint8_t stratum);
+
+/**
+ * @brief Get primary time source arbor (extern, defined in utlp.c)
+ */
+extern utlp_arbor_id_t utlp_get_primary_time_source(void);
 
 /*============================================================================
  * PER-ARBOR LOOM STATE
@@ -234,6 +258,13 @@ void utlp_loom_tick(void) {
                 break;
         }
     }
+
+    /*
+     * Polychromatic Stratum Asymmetry (Claim 253):
+     * Check if secondary transports should be promoted/demoted based on
+     * primary transport's synchronized state and neighbor authority.
+     */
+    utlp_loom_polychromatic_update();
 }
 
 void utlp_loom_beacon_received(utlp_arbor_id_t arbor_id, uint8_t stratum, uint64_t tx_time) {
@@ -417,7 +448,7 @@ void utlp_loom_log_status(void) {
  * GENESIS PULSE INTEGRATION
  *==========================================================================*/
 
-bool utlp_loom_consume_genesis_request(void) {
+bool utlp_loom_consume_genesis_request(utlp_arbor_id_t *out_arbor) {
     if (!s_loom_initialized) {
         return false;
     }
@@ -427,6 +458,9 @@ bool utlp_loom_consume_genesis_request(void) {
         if (s_loom[id].genesis_requested) {
             /* Clear the request and return true */
             s_loom[id].genesis_requested = false;
+            if (out_arbor) {
+                *out_arbor = id;
+            }
             utlp_hal_log_info(TAG, "Arbor %s: Genesis Pulse CONSUMED",
                               utlp_arbor_name(id));
             return true;
@@ -465,4 +499,157 @@ uint8_t utlp_loom_get_genesis_stratum(void) {
     }
 
     return lowest_stratum;
+}
+
+/*============================================================================
+ * POLYCHROMATIC STRATUM ASYMMETRY (Claim 253)
+ *==========================================================================*/
+
+/**
+ * @brief Force demotion of all polychromatic secondaries
+ *
+ * Called when the primary time source is lost (stratum exceeds threshold).
+ * A bridge must not lead if it has lost its own guide.
+ */
+static void polychromatic_revoke_all_secondaries(utlp_arbor_id_t primary) {
+    for (utlp_arbor_id_t arbor = 0; arbor < UTLP_ARBOR_COUNT; arbor++) {
+        if (arbor == primary) {
+            continue;
+        }
+
+        loom_arbor_t *loom = &s_loom[arbor];
+
+        /* If this arbor is acting as polychromatic ANCHOR, dissolve it */
+        if (loom->state == LOOM_STATE_ANCHOR) {
+            utlp_hal_log_warn(TAG,
+                "Arbor %s: POLYCHROMATIC REVOCATION (primary guide lost)",
+                utlp_arbor_name(arbor));
+            transition_to_state(arbor, LOOM_STATE_DISSOLVING);
+
+            /* Reset stratum to max (lost) */
+            utlp_set_stratum_for_arbor(arbor, 255);
+        }
+    }
+}
+
+void utlp_loom_polychromatic_update(void) {
+    if (!s_loom_initialized) {
+        return;
+    }
+
+    utlp_arbor_id_t primary = utlp_get_primary_time_source();
+    uint8_t primary_stratum = utlp_get_stratum_for_arbor(primary);
+
+    /*
+     * PRIMARY LOSS REVOCATION CHECK
+     *
+     * If the primary transport's stratum exceeds the "guide loss" threshold,
+     * we have lost our time source and MUST demote all polychromatic
+     * secondary arbors. A bridge must not lead if it has lost its own guide.
+     */
+    if (primary_stratum > UTLP_POLYCHROMATIC_GUIDE_LOSS_STRATUM) {
+        polychromatic_revoke_all_secondaries(primary);
+        return;  /* Cannot promote secondaries without a valid guide */
+    }
+
+    /*
+     * Polychromatic logic only activates when we're FOLLOWING on primary
+     * (stratum > UTLP_STRATUM_ORIGIN means we're not the genesis).
+     *
+     * If we're genesis on primary, we don't need to promote secondaries.
+     */
+    if (primary_stratum <= UTLP_STRATUM_ORIGIN) {
+        return;  /* We're genesis on primary - no polychromatic promotion */
+    }
+
+    uint64_t now = get_time_us();
+
+    /*
+     * THUNDERING HERD PREVENTION
+     *
+     * Calculate MAC-based jitter to stagger promotions across multiple bridges.
+     * After a power outage, multiple bridges will have their silence timers
+     * expire at the same time. This randomized delay prevents simultaneous
+     * Genesis promotions which would create split-brain conditions.
+     *
+     * Jitter = (mac[5] & 0x0F) * 100ms = 0 to 1.5 seconds
+     */
+    uint8_t local_mac[6];
+    utlp_hal_get_mac(local_mac);
+    uint64_t jitter_us = (uint64_t)(local_mac[5] & 0x0F) * UTLP_POLYCHROMATIC_JITTER_BASE_US;
+    uint64_t silence_threshold_us = (UTLP_POLYCHROMATIC_SILENCE_S * 1000000ULL) + jitter_us;
+
+    /* Scan secondary transports for promotion/demotion */
+    for (utlp_arbor_id_t arbor = 0; arbor < UTLP_ARBOR_COUNT; arbor++) {
+        if (arbor == primary) {
+            continue;  /* Skip primary */
+        }
+
+        loom_arbor_t *loom = &s_loom[arbor];
+
+        /* Skip paused or inactive arbors */
+        if (loom->paused) {
+            continue;
+        }
+        if (utlp_arbor_get_state(arbor) == UTLP_ARBOR_STATE_DORMANT ||
+            utlp_arbor_get_state(arbor) == UTLP_ARBOR_STATE_ERROR) {
+            continue;
+        }
+
+        /*
+         * Count neighbors with authority (stratum <= UTLP_STRATUM_ORIGIN)
+         * on this arbor. If none, this band is "silent" for authority.
+         */
+        uint8_t authority_count = utlp_trust_count_neighbors_by_stratum_arbor(
+            arbor, UTLP_STRATUM_ORIGIN);
+
+        if (authority_count < UTLP_POLYCHROMATIC_MIN_AUTHORITY_NEIGHBORS) {
+            /*
+             * No authority on this secondary arbor.
+             * Check silence duration (with MAC-based jitter) before promoting.
+             */
+            uint64_t silence_us = now - loom->last_beacon_us;
+
+            if (silence_us > silence_threshold_us) {
+                /*
+                 * Silent secondary transport - promote to Local Genesis.
+                 * This propagates "Genesis Truth" from primary into this band.
+                 */
+                utlp_set_stratum_for_arbor(arbor, UTLP_STRATUM_ORIGIN);
+
+                if (loom->state != LOOM_STATE_ANCHOR) {
+                    transition_to_state(arbor, LOOM_STATE_ANCHOR);
+                    utlp_hal_log_info(TAG,
+                        "Arbor %s: POLYCHROMATIC PROMOTION to Stratum %d "
+                        "(primary %s at Stratum %d, jitter=%llu ms)",
+                        utlp_arbor_name(arbor),
+                        UTLP_STRATUM_ORIGIN,
+                        utlp_arbor_name(primary),
+                        primary_stratum,
+                        (unsigned long long)(jitter_us / 1000));
+                }
+            }
+        } else {
+            /*
+             * Authority exists on this secondary arbor.
+             * We should adopt their stratum + 1 (not be genesis here).
+             */
+            uint8_t neighbor_best = utlp_trust_get_best_stratum_arbor(arbor);
+            uint8_t new_stratum = (neighbor_best < 254) ? (neighbor_best + 1) : 255;
+
+            uint8_t current = utlp_get_stratum_for_arbor(arbor);
+            if (current != new_stratum) {
+                utlp_set_stratum_for_arbor(arbor, new_stratum);
+
+                /* If we were ANCHOR, dissolve */
+                if (loom->state == LOOM_STATE_ANCHOR) {
+                    utlp_hal_log_info(TAG,
+                        "Arbor %s: POLYCHROMATIC DEMOTION to Stratum %d "
+                        "(authority neighbor detected)",
+                        utlp_arbor_name(arbor), new_stratum);
+                    transition_to_state(arbor, LOOM_STATE_DISSOLVING);
+                }
+            }
+        }
+    }
 }

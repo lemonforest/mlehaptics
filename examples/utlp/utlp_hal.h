@@ -109,6 +109,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "utlp_config.h"  /* SSOT for all UTLP constants */
 
 #ifdef __cplusplus
 extern "C" {
@@ -133,14 +134,7 @@ typedef float utlp_float_t;
  * ESP32 has hardware 64-bit math - use it directly.
  *==========================================================================*/
 
-/** @brief Standard blink period in microseconds
- *
- * Now defined in utlp_config.h as SSOT. This guard prevents redefinition
- * when utlp_config.h is included first (which is the recommended order).
- */
-#ifndef UTLP_BLINK_PERIOD_US
-#define UTLP_BLINK_PERIOD_US    1000000UL
-#endif
+/* UTLP_BLINK_PERIOD_US defined in utlp_config.h (SSOT) */
 
 /** @brief Get phase position using native modulo */
 #define UTLP_GET_PHASE(t, p)    ((uint32_t)((t) % (p)))

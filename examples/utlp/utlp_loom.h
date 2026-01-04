@@ -258,6 +258,33 @@ const char* utlp_loom_state_name(utlp_loom_state_t state);
 void utlp_loom_log_status(void);
 
 /*============================================================================
+ * POLYCHROMATIC STRATUM ASYMMETRY (Claim 253)
+ *
+ * Multi-transport stratum management for bridge nodes. Enables devices to
+ * maintain different stratum levels on different transports - e.g., following
+ * a Time Lord on WiFi (stratum 2) while acting as Genesis on 802.15.4
+ * (stratum 1) if that spectrum is silent.
+ *==========================================================================*/
+
+/**
+ * @brief Polychromatic stratum update for multi-transport bridges
+ *
+ * Called from utlp_loom_tick() to check if secondary transports should
+ * be promoted to Genesis (stratum 1) when the primary transport is
+ * synchronized and the secondary has no authority neighbors.
+ *
+ * Logic:
+ * - If primary_time_source is synced (stratum > 1 means following)
+ * - AND secondary transport has no authority neighbors (stratum <= 1)
+ * - THEN promote secondary to stratum 1 (Local Genesis)
+ *
+ * This propagates "Genesis Truth" into silent spectral bands.
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+void utlp_loom_polychromatic_update(void);
+
+/*============================================================================
  * GENESIS PULSE INTEGRATION
  *
  * The Loom triggers Genesis Pulse when:
@@ -275,9 +302,13 @@ void utlp_loom_log_status(void);
  * a Genesis Pulse. The main loop should call this periodically
  * and trigger chirps when true is returned.
  *
+ * For polychromatic support (Claim 253), the out_arbor parameter
+ * indicates which arbor the genesis pulse should be sent on.
+ *
+ * @param[out] out_arbor  If non-NULL, filled with the arbor ID
  * @return true if Genesis Pulse should be sent
  */
-bool utlp_loom_consume_genesis_request(void);
+bool utlp_loom_consume_genesis_request(utlp_arbor_id_t *out_arbor);
 
 /**
  * @brief Request a Genesis Pulse on a specific arbor

@@ -633,7 +633,17 @@ void utlp_hal_log_info(const char *tag, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    esp_log_writev(ESP_LOG_INFO, tag, format, args);
+    /*
+     * esp_log_write() is the high-level function that adds timestamp and newline.
+     * esp_log_writev() is raw output (no newline) - don't use it directly.
+     *
+     * We use vprintf-style manually with ESP_LOG_LEVEL_LOCAL for proper output.
+     */
+    esp_log_level_t level = ESP_LOG_INFO;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");  /* esp_log_writev doesn't add newline */
+    }
     va_end(args);
 }
 
@@ -641,7 +651,11 @@ void utlp_hal_log_error(const char *tag, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    esp_log_writev(ESP_LOG_ERROR, tag, format, args);
+    esp_log_level_t level = ESP_LOG_ERROR;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");
+    }
     va_end(args);
 }
 
@@ -649,7 +663,11 @@ void utlp_hal_log_warn(const char *tag, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    esp_log_writev(ESP_LOG_WARN, tag, format, args);
+    esp_log_level_t level = ESP_LOG_WARN;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");
+    }
     va_end(args);
 }
 

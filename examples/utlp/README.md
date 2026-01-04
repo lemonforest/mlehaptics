@@ -8,7 +8,8 @@ instead of political consensus.
 > Servo-Locked Phase Correction (S2 Claim 55), Genesis Reset Detection,
 > SMSP Application Layer, Centralized Configuration (SSOT),
 > **Phase 9: The Loom** (Emergent Time Lord, Per-Arbor Genesis Pulse),
-> **HPLAC: Hardware Phase Locked Atomic Coherency** (MCPWM-based phase engine).
+> **HPLAC: Hardware Phase Locked Atomic Coherency** (MCPWM-based phase engine),
+> **Claim 253: Polychromatic Stratum Asymmetry** (per-transport stratum levels).
 
 > **Transport Support:** ESP-NOW (WiFi broadcast) + IEEE 802.15.4 (raw MAC frames).
 > Staggered startup enables testing pure 802.15.4 sync before WiFi joins.
@@ -40,15 +41,15 @@ If you're new to this codebase, read in this order:
 
 | Order | File | What You'll Learn |
 |-------|------|-------------------|
-| 1 | `utlp_config.h` | All tunable parameters (SSOT - Single Source of Truth) |
+| 1 | `utlp_config.h` | All tunable parameters (SSOT - authoritative constant definitions) |
 | 2 | `utlp.c` (header comments) | The manifesto - why biology beats politics |
 | 3 | `utlp_trust.h` | Hebbian learning, median consensus, Dunbar's Number |
 | 4 | `utlp_immune.h` | T-cell exhaustion, quorum sensing, cytokine storms |
-| 5 | `utlp_loom.h` | Emergent Time Lord authority (Phase 9) |
-| 6 | `utlp_phase.h` | **NEW:** Hardware Phase Engine (MCPWM atomic coherency) |
+| 5 | `utlp_loom.h` | Emergent Time Lord + Polychromatic Stratum (Claim 253) |
+| 6 | `utlp_phase.h` | Hardware Phase Engine (MCPWM atomic coherency) |
 | 7 | `utlp_transport.h` | Multi-arbor architecture (ESP-NOW + 802.15.4) |
 | 8 | `utlp_smsp.h` | Score-driven actuation (Protocol Trinity: when/where/what) |
-| 9 | `utlp_hal.h` | Time-indexed execution, dual clock architecture |
+| 9 | `utlp_hal.h` | Time-indexed execution, imports SSOT from utlp_config.h |
 | 10 | `sim/SIMULATION_RESULTS.md` | What happens when Byzantine actors attack |
 
 Each file includes academic references and biological analogies.
@@ -818,13 +819,13 @@ Python simulation for testing phase coherence and Byzantine scenarios:
 | `utlp_config.h` | **Centralized configuration (SSOT)** - all tunable constants |
 | `utlp.c` | Protocol layer with servo-lock and genesis reset detection |
 | `utlp_smsp.h/c` | **SMSP** - score-driven pattern playback (Protocol Trinity "what") |
-| `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, median consensus) |
+| `utlp_trust.h/c` | Metabolic Ledger (Hebbian trust, per-arbor stratum helpers) |
 | `utlp_immune.h/c` | Immune Checkpoint (token bucket, anergy) |
 | `utlp_transport.h/c` | **Multi-Arbor Transport Manager** (ESP-NOW + 802.15.4) |
 | `utlp_arbor.h/c` | Per-transport selective dormancy API |
-| `utlp_loom.h/c` | **The Loom** - Emergent Time Lord state machine (Phase 9) |
+| `utlp_loom.h/c` | **The Loom** - Emergent Time Lord + Polychromatic Stratum (Claim 253) |
 | `utlp_phase.h/c` | **HPLAC** - Hardware Phase Locked Atomic Coherency (MCPWM) |
-| `utlp_hal.h` | HAL interface contract (time, radio, actuator) |
+| `utlp_hal.h` | HAL interface contract (imports SSOT from utlp_config.h) |
 | `utlp_hal_esp32.c` | ESP32 HAL implementation (ESP-NOW, MCPWM) |
 | `utlp_hal_802154.h` | 802.15.4 HAL interface (raw MAC, FCF 0x8841) |
 | `utlp_rfip.h` | RFIP types and stub API (ranges, anchors, positions) |
@@ -891,7 +892,7 @@ void utlp_app_run(void);
 
 - `docs/UTLP_Specification.md` - Full protocol specification
 - `docs/Connectionless_Distributed_Timing_Prior_Art.md` - Research foundation (122 claims)
-- `docs/UTLP_Technical_Supplement_S2.md` - Biological Governance (100+ claims)
+- `docs/UTLP_Technical_Supplement_S2.md` - Biological Governance (250+ claims including Claim 253)
 - `src/pattern_playback.h` - Production SMSP with bilateral zones
 - `examples/utlp_skeleton/` - Cross-platform reference implementation
 
@@ -1042,6 +1043,65 @@ Genesis Pulse. This prevents "phantom arbor" reintegration bugs.
 - `utlp_trust.c` - Per-arbor health arrays
 
 **Prior Art:** Claims 35-41 (Emergent Role Differentiation, Dormancy Control)
+
+### Claim 253: Polychromatic Stratum Asymmetry
+
+Multi-transport devices (e.g., ESP32-C6 with WiFi + 802.15.4) can maintain
+**independent stratum levels per interface**. A bridge node following a Time Lord
+on WiFi (Stratum 2) can simultaneously act as Genesis Authority (Stratum 1) on
+802.15.4 if that spectrum is silent.
+
+**Key Insight:** Propagates "Genesis Truth" into silent spectral bands without
+manual "Bridge Mode" flags.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Device with WiFi + 802.15.4                                │
+│                                                              │
+│  ┌───────────────┐         ┌───────────────┐                │
+│  │    WiFi       │         │   802.15.4    │                │
+│  │  Stratum: 2   │         │  Stratum: 1   │                │
+│  │  (following)  │         │   (genesis)   │                │
+│  └───────────────┘         └───────────────┘                │
+│         │                         │                          │
+│         ▼                         ▼                          │
+│  ┌──────────────────────────────────────────────┐           │
+│  │        Primary Time Source (WiFi)            │           │
+│  │  Split-Horizon: Only primary updates clock   │           │
+│  └──────────────────────────────────────────────┘           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Architecture:**
+
+| Component | Description |
+|-----------|-------------|
+| **Per-Arbor Stratum** | `stratum[UTLP_ARBOR_COUNT]` array replaces single stratum |
+| **Primary Time Source** | Explicit field tracks which arbor drives the clock |
+| **Split-Horizon Protection** | Beacons from secondary arbors update Loom, not offset |
+| **Auto-Promotion** | Silent secondary promoted to Genesis after 30s |
+| **Auto-Demotion** | Secondary demotes if authority appears on that band |
+
+**API:**
+
+```c
+void utlp_loom_polychromatic_update(void);       // Called from loom_tick()
+uint8_t utlp_get_stratum_for_arbor(arbor_id);    // Per-arbor stratum query
+void utlp_set_stratum_for_arbor(arbor_id, s);    // Per-arbor stratum set
+utlp_arbor_id_t utlp_get_primary_time_source(void); // Which arbor is primary
+```
+
+**Helper Functions (utlp_trust.c):**
+
+```c
+// Count neighbors with stratum <= threshold on specific arbor
+uint8_t utlp_trust_count_neighbors_by_stratum_arbor(arbor_id, max_stratum);
+
+// Get lowest (best) stratum seen on specific arbor
+uint8_t utlp_trust_get_best_stratum_arbor(arbor_id);
+```
+
+**Prior Art:** Claim 253 in Technical Supplement S2
 
 ### HPLAC: Hardware Phase Locked Atomic Coherency (`utlp_phase.h/c`)
 

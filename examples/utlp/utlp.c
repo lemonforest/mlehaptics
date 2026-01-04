@@ -215,18 +215,43 @@ static const char *TAG = "UTLP";
  * STATE
  *==========================================================================*/
 
+/**
+ * @brief AATR (Atomic Alignment Time Reference) state
+ *
+ * Extended for Polychromatic Stratum Asymmetry (Claim 253):
+ * - Per-arbor stratum levels allow different authority on different transports
+ * - primary_time_source tracks which arbor drives the local clock
+ * - Split-horizon protection prevents echo chamber between bridges
+ */
 typedef struct {
     /* 8-byte fields first */
-    int64_t  time_offset;       /* Local + offset = atomic time (±292,471 years range) */
+    int64_t  time_offset;                       /**< Local + offset = atomic time */
+
     /* 1-byte fields and arrays */
-    uint8_t  best_source_mac[6];/* MAC of best time source (biological, not "master") */
-    uint8_t  stratum;           /* My stratum level (distance from truth) */
+    uint8_t  best_source_mac[6];                /**< MAC of best time source */
+    uint8_t  stratum[UTLP_ARBOR_COUNT];         /**< Per-arbor stratum (Claim 253) */
+    uint8_t  primary_time_source;               /**< Arbor driving clock (Claim 253) */
 } aatr_state_t;
 
+/**
+ * @brief Spinlock for per-arbor stratum access (thread safety)
+ *
+ * Required because stratum is read/written from multiple contexts:
+ * - Engine timer callback (Loom polychromatic update)
+ * - Beacon processing (stratum adoption)
+ * - Beacon generation (per-arbor stratum in payload)
+ */
+static portMUX_TYPE g_stratum_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
 static aatr_state_t g_aatr = {
-    .stratum = STRATUM_ORIGIN,  /* DEFAULT: I am the time source */
     .time_offset = 0,
-    .best_source_mac = {0}
+    .best_source_mac = {0},
+    .stratum = {
+        [UTLP_ARBOR_WIFI] = STRATUM_ORIGIN,     /* Default: Genesis on WiFi */
+        [UTLP_ARBOR_154]  = STRATUM_ORIGIN,     /* Default: Genesis on 15.4 */
+        [UTLP_ARBOR_BLE]  = STRATUM_ORIGIN      /* Default: Genesis on BLE */
+    },
+    .primary_time_source = UTLP_ARBOR_WIFI      /* Default: WiFi primary */
 };
 
 static uint8_t g_local_mac[UTLP_MAC_SIZE];
@@ -243,6 +268,90 @@ static bool g_smsp_notified = false;  /* SMSP sync notification sent */
  * Uses dominance hierarchy tie-breaker: lower MAC = dominant (holds ground)
  */
 static uint8_t g_self_demotion_votes = 0;
+
+/*============================================================================
+ * POLYCHROMATIC STRATUM ACCESSORS (Claim 253)
+ *
+ * Thread-safe accessors for per-arbor stratum levels.
+ * All accesses protected by spinlock to prevent torn reads on 32-bit MCU.
+ *==========================================================================*/
+
+/**
+ * @brief Set stratum for a specific arbor (thread-safe)
+ *
+ * @param arbor  Which transport arbor
+ * @param stratum  New stratum value
+ */
+void utlp_set_stratum_for_arbor(utlp_arbor_id_t arbor, uint8_t stratum)
+{
+    if (arbor >= UTLP_ARBOR_COUNT) return;
+
+    portENTER_CRITICAL(&g_stratum_spinlock);
+    g_aatr.stratum[arbor] = stratum;
+    portEXIT_CRITICAL(&g_stratum_spinlock);
+}
+
+/**
+ * @brief Get stratum for a specific arbor (thread-safe)
+ *
+ * @param arbor  Which transport arbor
+ * @return Stratum level for that arbor, or STRATUM_ORIGIN if invalid
+ */
+uint8_t utlp_get_stratum_for_arbor(utlp_arbor_id_t arbor)
+{
+    if (arbor >= UTLP_ARBOR_COUNT) return STRATUM_ORIGIN;
+
+    portENTER_CRITICAL(&g_stratum_spinlock);
+    uint8_t s = g_aatr.stratum[arbor];
+    portEXIT_CRITICAL(&g_stratum_spinlock);
+    return s;
+}
+
+/**
+ * @brief Set which arbor is the primary time source (thread-safe)
+ *
+ * The primary time source is the only arbor allowed to update time_offset.
+ * Other arbors use split-horizon protection.
+ *
+ * @param arbor  Which transport arbor becomes primary
+ */
+void utlp_set_primary_time_source(utlp_arbor_id_t arbor)
+{
+    if (arbor >= UTLP_ARBOR_COUNT) return;
+
+    portENTER_CRITICAL(&g_stratum_spinlock);
+    g_aatr.primary_time_source = arbor;
+    portEXIT_CRITICAL(&g_stratum_spinlock);
+}
+
+/**
+ * @brief Get which arbor is the primary time source (thread-safe)
+ *
+ * @return The arbor ID driving the local clock
+ */
+utlp_arbor_id_t utlp_get_primary_time_source(void)
+{
+    portENTER_CRITICAL(&g_stratum_spinlock);
+    utlp_arbor_id_t p = (utlp_arbor_id_t)g_aatr.primary_time_source;
+    portEXIT_CRITICAL(&g_stratum_spinlock);
+    return p;
+}
+
+/**
+ * @brief Get stratum of primary time source (backward compatibility)
+ *
+ * Returns the stratum of whichever arbor is currently the primary time source.
+ * This maintains API compatibility with code that used the old single-stratum model.
+ *
+ * @return Stratum level of the primary time source
+ */
+uint8_t utlp_get_stratum(void)
+{
+    portENTER_CRITICAL(&g_stratum_spinlock);
+    uint8_t s = g_aatr.stratum[g_aatr.primary_time_source];
+    portEXIT_CRITICAL(&g_stratum_spinlock);
+    return s;
+}
 
 /*============================================================================
  * SEISMIC CHIRP ANALYSIS - Polynomial Fitting for Drift Extraction
@@ -921,8 +1030,8 @@ static uint8_t calculate_genesis_score(void)
  */
 static bool should_relay(void)
 {
-    /* Genesis always chirps */
-    if (g_aatr.stratum == STRATUM_ORIGIN) {
+    /* Genesis always chirps (check primary arbor stratum) */
+    if (utlp_get_stratum() == STRATUM_ORIGIN) {
         return true;
     }
 
@@ -974,8 +1083,8 @@ static bool should_relay(void)
  */
 static uint32_t get_smart_interval(uint32_t uptime_us)
 {
-    /* Genesis uses standard Genesis Pulse */
-    if (g_aatr.stratum == STRATUM_ORIGIN) {
+    /* Genesis uses standard Genesis Pulse (check primary arbor stratum) */
+    if (utlp_get_stratum() == STRATUM_ORIGIN) {
         return get_beacon_interval_us(uptime_us);
     }
 
@@ -1187,11 +1296,17 @@ static uint64_t time_from_bytes(const uint8_t *bytes)
  * @param      chirp_epoch Timestamp for all bursts in this chirp
  * @param      burst_index Index of this burst (0, 1, or 2)
  * @param      score       Genesis score to embed
+ * @param      arbor_id    Which arbor this beacon is for (Claim 253)
+ *
+ * @note Uses per-arbor stratum for polychromatic support. A bridge node
+ *       following a Time Lord on WiFi (stratum 2) may simultaneously be
+ *       Genesis Authority on 802.15.4 (stratum 1) if that band is silent.
  */
 static void build_beacon_payload(uint8_t *payload, uint64_t chirp_epoch,
-                                  uint8_t burst_index, uint8_t score)
+                                  uint8_t burst_index, uint8_t score,
+                                  utlp_arbor_id_t arbor_id)
 {
-    payload[BEACON_OFF_STRATUM] = g_aatr.stratum;
+    payload[BEACON_OFF_STRATUM] = utlp_get_stratum_for_arbor(arbor_id);
     payload[BEACON_OFF_BURST] = burst_index;
     payload[BEACON_OFF_SCORE] = score;
     time_to_bytes(chirp_epoch, &payload[BEACON_OFF_TIMESTAMP]);
@@ -1223,8 +1338,11 @@ static void send_chirp_immediate(void)
     /* Calculate my genesis score */
     my_score = calculate_genesis_score();
 
+    /* Use primary time source arbor for stratum (Claim 253) */
+    utlp_arbor_id_t arbor = utlp_get_primary_time_source();
+
     for (uint8_t burst = 0; burst < CHIRP_BURST_COUNT; burst++) {
-        build_beacon_payload(payload, chirp_epoch, burst, my_score);
+        build_beacon_payload(payload, chirp_epoch, burst, my_score, arbor);
 
         utlp_hal_tx_packet(NULL, payload, UTLP_BEACON_SIZE);
 
@@ -1271,6 +1389,9 @@ static void send_chirp(void)
     /* Calculate my genesis score */
     my_score = calculate_genesis_score();
 
+    /* Use primary time source arbor for stratum (Claim 253) */
+    utlp_arbor_id_t arbor = utlp_get_primary_time_source();
+
     /*
      * TX Mode Selection (following RAIL API pattern):
      *
@@ -1291,7 +1412,7 @@ static void send_chirp(void)
         for (uint8_t i = 0; i < CHIRP_BURST_COUNT; i++) {
             bursts[i].tx_time_us = now + (i * CHIRP_BURST_SPACING_US);
             bursts[i].len = UTLP_BEACON_SIZE;
-            build_beacon_payload(bursts[i].payload, chirp_epoch, i, my_score);
+            build_beacon_payload(bursts[i].payload, chirp_epoch, i, my_score, arbor);
         }
 
         if (!utlp_hal_tx_schedule(bursts, CHIRP_BURST_COUNT)) {
@@ -1412,6 +1533,33 @@ static void process_beacon(const utlp_packet_t *pkt)
     }
 
     /*
+     * SPLIT-HORIZON PROTECTION (Claim 253: Polychromatic Stratum Asymmetry)
+     *
+     * Only accept timing corrections from the PRIMARY time source arbor.
+     * Secondary arbors update neighbor tracking and Loom state (above), but
+     * CANNOT modify time_offset or phase. This prevents "echo chamber" loops
+     * where two bridges sync to each other's secondary beacons.
+     *
+     * Example: Bridge A follows Time Lord on WiFi (primary), broadcasts as
+     * Genesis on 802.15.4. Bridge B does the same. Without split-horizon,
+     * they could each adopt timing from the other's 802.15.4 beacon,
+     * creating a positive feedback loop that drifts from both Time Lords.
+     */
+#if UTLP_POLYCHROMATIC_SPLIT_HORIZON_ENABLED
+    {
+        utlp_arbor_id_t primary = utlp_get_primary_time_source();
+        if (pkt->arbor_id != primary) {
+            /*
+             * Silent skip - this can be frequent during multi-transport operation.
+             * Neighbor tracking and Loom notification already done above.
+             * Phase engine and source selection skipped.
+             */
+            return;
+        }
+    }
+#endif
+
+    /*
      * HARDWARE PHASE ENGINE (HPLAC - Physics First!)
      *
      * Notify the phase engine of this beacon. The phase engine tracks
@@ -1494,7 +1642,7 @@ static void process_beacon(const utlp_packet_t *pkt)
                                   pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
             }
         }
-        else if (!best && remote_stratum < g_aatr.stratum) {
+        else if (!best && remote_stratum < utlp_get_stratum()) {
             /*
              * INNATE IMMUNITY (S2 Bootstrap) - Better Stratum
              *
@@ -1509,7 +1657,7 @@ static void process_beacon(const utlp_packet_t *pkt)
             utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d (ledger empty)",
                               remote_stratum);
         }
-        else if (!best && remote_stratum == g_aatr.stratum) {
+        else if (!best && remote_stratum == utlp_get_stratum()) {
             /*
              * INNATE IMMUNITY (S2 Bootstrap) - Same Stratum "First Born Wins"
              *
@@ -1550,7 +1698,7 @@ static void process_beacon(const utlp_packet_t *pkt)
     }
 
     if (should_adopt) {
-        old_stratum = g_aatr.stratum;
+        old_stratum = utlp_get_stratum();  /* Primary arbor stratum */
         new_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
 
         /*
@@ -1585,15 +1733,27 @@ static void process_beacon(const utlp_packet_t *pkt)
             }
         }
 
-        g_aatr.stratum = remote_stratum + 1;
+        /*
+         * POLYCHROMATIC STRATUM UPDATE (Claim 253)
+         *
+         * Update stratum for the arbor this beacon arrived on, and set it
+         * as the primary time source. This enables per-arbor stratum tracking
+         * for bridge nodes operating across multiple transports.
+         */
+        utlp_set_stratum_for_arbor((utlp_arbor_id_t)pkt->arbor_id, remote_stratum + 1);
+        utlp_set_primary_time_source((utlp_arbor_id_t)pkt->arbor_id);
         memcpy(g_aatr.best_source_mac, pkt->mac, UTLP_MAC_SIZE);
 
         /* Track stratum changes for Promotion Pulse */
-        if (g_aatr.stratum != old_stratum) {
-            g_last_stratum_change = utlp_hal_get_micros();
-            g_is_provider = should_relay();
-            utlp_hal_log_info(TAG, "Stratum changed: %d -> %d (provider=%s)",
-                     old_stratum, g_aatr.stratum, g_is_provider ? "YES" : "NO");
+        {
+            uint8_t new_stratum = utlp_get_stratum();
+            if (new_stratum != old_stratum) {
+                g_last_stratum_change = utlp_hal_get_micros();
+                g_is_provider = should_relay();
+                utlp_hal_log_info(TAG, "Stratum changed: %d -> %d (provider=%s, arbor=%d)",
+                         old_stratum, new_stratum, g_is_provider ? "YES" : "NO",
+                         pkt->arbor_id);
+            }
         }
 
         /*
@@ -1625,7 +1785,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         g_aatr.time_offset = jumped ? new_offset : g_servo.current_offset;
 
         utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us (%s)",
-                 g_aatr.stratum, (long long)new_offset,
+                 utlp_get_stratum(), (long long)new_offset,
                  jumped ? "jumped" : "slewing");
 
         /* Notify SMSP that atomic time is now valid (first sync only) */
@@ -1651,7 +1811,7 @@ skip_adoption:
      * For BOOTSTRAP (newcomers), see Innate Immunity above which uses
      * atomic time ("first born wins") for philosophically correct behavior.
      */
-    if (g_aatr.stratum == STRATUM_ORIGIN) {
+    if (utlp_get_stratum() == STRATUM_ORIGIN) {
         utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
         uint8_t best_health = best ? utlp_trust_get_peer_health(best->mac) : 0;
 
@@ -1673,8 +1833,9 @@ skip_adoption:
                 g_self_demotion_votes++;
 
                 if (g_self_demotion_votes > 3) {
-                    /* Voluntary submission: step down gracefully */
-                    g_aatr.stratum = STRATUM_ORIGIN + 1;
+                    /* Voluntary submission: step down gracefully on primary arbor */
+                    utlp_arbor_id_t primary = utlp_get_primary_time_source();
+                    utlp_set_stratum_for_arbor(primary, STRATUM_ORIGIN + 1);
                     g_self_demotion_votes = 0;
                     g_last_stratum_change = utlp_hal_get_micros();
                     utlp_hal_log_info(TAG, "Voluntary demotion: Better Origin exists");
@@ -1893,7 +2054,7 @@ void utlp_app_run(void)
      * the atomic clock. Notify SMSP immediately - no external sync needed.
      * Followers will wait for beacon adoption to trigger sync.
      */
-    if (g_aatr.stratum == STRATUM_ORIGIN) {
+    if (utlp_get_stratum() == STRATUM_ORIGIN) {
         smsp_notify_sync_ready();
         g_smsp_notified = true;
         utlp_hal_log_info(TAG, "Genesis: SMSP unlocked (no external sync needed)");
@@ -1910,7 +2071,7 @@ void utlp_app_run(void)
     utlp_hal_log_info(TAG, "MAC: %02X:%02X:%02X:%02X:%02X:%02X",
              g_local_mac[0], g_local_mac[1], g_local_mac[2],
              g_local_mac[3], g_local_mac[4], g_local_mac[5]);
-    utlp_hal_log_info(TAG, "Stratum: %d (GENESIS)", g_aatr.stratum);
+    utlp_hal_log_info(TAG, "Stratum: %d (GENESIS)", utlp_get_stratum());
     utlp_hal_log_info(TAG, "Beacon: 11-byte Seismic Chirp (3-burst @ 2ms)");
     utlp_hal_log_info(TAG, "Trust: Metabolic Ledger (Adaptive Immunity)");
     utlp_hal_log_info(TAG, "Relay: Frontier detection (edge nodes = Providers)");
@@ -1941,24 +2102,31 @@ void utlp_app_run(void)
          * The Loom schedules Genesis Pulses when:
          * - An arbor transitions to ANCHOR (automatic Time Lord promotion)
          * - An arbor wakes from dormancy (mandatory announcement)
+         * - POLYCHROMATIC: Secondary transport promoted to genesis (Claim 253)
          *
-         * Genesis Pulse uses stratum from the Loom and sends immediately.
+         * Genesis Pulse uses stratum from the Loom and sends on the
+         * arbor that requested the genesis pulse.
          */
-        if (utlp_loom_consume_genesis_request()) {
+        utlp_arbor_id_t genesis_arbor;
+        if (utlp_loom_consume_genesis_request(&genesis_arbor)) {
             uint8_t genesis_stratum = utlp_loom_get_genesis_stratum();
             if (genesis_stratum != 0xFF) {
-                /* Temporarily override stratum for Genesis chirp */
-                uint8_t saved_stratum = g_aatr.stratum;
-                g_aatr.stratum = genesis_stratum;
+                /*
+                 * Polychromatic support (Claim 253): Use the arbor from the
+                 * genesis request, not necessarily the primary. This enables
+                 * genesis pulses on silent secondary transports.
+                 */
+                uint8_t saved_stratum = utlp_get_stratum_for_arbor(genesis_arbor);
+                utlp_set_stratum_for_arbor(genesis_arbor, genesis_stratum);
 
                 send_chirp();
                 g_last_beacon_time = now;
 
-                utlp_hal_log_info(TAG, "=== GENESIS PULSE (stratum=%d) ===",
-                                  genesis_stratum);
+                utlp_hal_log_info(TAG, "=== GENESIS PULSE (stratum=%d, arbor=%s) ===",
+                                  genesis_stratum, utlp_arbor_name(genesis_arbor));
 
                 /* Restore stratum (will be updated by normal processing) */
-                g_aatr.stratum = saved_stratum;
+                utlp_set_stratum_for_arbor(genesis_arbor, saved_stratum);
             }
         }
 
@@ -1975,7 +2143,7 @@ void utlp_app_run(void)
                     utlp_hal_log_info(TAG, "Beacon interval: %lu ms (uptime %lus, role=%s)",
                              (unsigned long)(beacon_interval / 1000),
                              (unsigned long)(uptime_lo / 1000000),
-                             (g_aatr.stratum == STRATUM_ORIGIN) ? "Origin" : "Provider");
+                             (utlp_get_stratum() == STRATUM_ORIGIN) ? "Origin" : "Provider");
                     last_logged_interval = beacon_interval;
                 }
             }
