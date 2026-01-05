@@ -85,6 +85,69 @@ maintains C64/8-bit compatibility.
 - **SMSP Application Layer:** Score-driven actuation (Protocol Trinity)
 - **Centralized Config:** All constants in `utlp_config.h` (SSOT)
 
+## Protocol Evolution Timeline
+
+PHYRFLY protocol stack development phases (all ✅ IMPLEMENTED):
+
+| Phase | Name | Description | Key Files |
+|-------|------|-------------|-----------|
+| **1-3** | Basic Sync | NTP-style beacon exchange, clock offset tracking | `utlp.c` |
+| **4-5** | Trust Layer | Metabolic Ledger (Hebbian learning), median consensus | `utlp_trust.c` |
+| **6** | Immune System | Token bucket rate limiting, T-cell exhaustion (anergy) | `utlp_immune.c` |
+| **7** | Security | Bio-TOTP (Claim 255), Purple Team hardening (PT-1 through PT-5) | `utlp_security.c`, `utlp_hal_security.c` |
+| **8** | Multi-Arbor | ESP-NOW + 802.15.4, staggered startup, transport manager | `utlp_transport.c`, `utlp_arbor.c` |
+| **9** | The Loom | Emergent Time Lord, Polychromatic Stratum (Claim 253) | `utlp_loom.c` |
+| **10** | Proprioception | Hardware-assisted TX latency learning (802.15.4 HAL) | `utlp_hal_esp32c6_154.c` |
+| **11** | Spectral Retina | Multi-transport RSSI telemetry ("radio color") | `utlp_trust.c` |
+| **12** | Session Continuity | PT-6: Seniority Bankruptcy on reboot detection | `utlp_trust.c` |
+| **13** | HPLAC | Hardware Phase Locked Atomic Coherency (MCPWM engine) | `utlp_phase.c` |
+| **14** | ILC | Interrupt Latency Compensation (ISR proprioception) | `utlp_phase.c` |
+
+### Purple Team Hardening (Security Audit)
+
+All Purple Team directives implemented:
+
+| PT# | Directive | Status | Impact |
+|-----|-----------|--------|--------|
+| PT-1 | Stateless AES-CTR | ✅ | Reset `nc_off=0` before every packet |
+| PT-2 | RISC-V Torn Reads | ✅ | `portENTER_CRITICAL()` for all 64-bit ops |
+| PT-3 | Infinite Slew | N/A | Architecture uses continuous P-servo |
+| PT-4 | Herd Immunity | ✅ | Public/Private identical crypto paths |
+| PT-5 | Strict Plausibility | ✅ | TX_Power, Drift, Heartbeat validation |
+| PT-6 | Session Continuity | ✅ | Salt change = Seniority Bankruptcy |
+| PT-7 | ILC Integration | ✅ | Spinlock protection for ISR learning |
+
+### Prior Art Claims Implemented
+
+| Claim | Name | Description | File |
+|-------|------|-------------|------|
+| **253** | Polychromatic Stratum | Per-transport Genesis election | `utlp_loom.c` |
+| **255** | Rolling Splice-Site Security | Bio-TOTP key rotation per second | `utlp_security.c` |
+
+### Critical Architectural Fixes (v3.1)
+
+Recent fixes that address fundamental timing architecture bugs:
+
+| Fix | Problem | Solution | Impact |
+|-----|---------|----------|--------|
+| **Epoch vs Phase Separation** | Servo tried to slew 7+ second boot offsets | Split error into epoch (jump) + phase (slew) | Instant epoch alignment, gentle phase slew |
+| **Derivative Noise Explosion** | 2nd derivative amplified jitter to +169M ppb | Disabled acceleration calculation | Stable drift tracking, no garbage values |
+| **Physical Drift Clamp** | Measurement errors produced impossible drift | Clamp to ±500 ppm (UTLP_MAX_PHYSICAL_DRIFT_PPB) | Genesis scoring ignores bad measurements |
+
+**Epoch vs Phase Separation:**
+When devices boot at different times, the total clock offset can be millions of microseconds
+(e.g., 7 seconds = 7,000,000 µs). The servo cannot slew such massive offsets - it would take
+hours. The fix splits the error:
+- **Epoch error** (whole cycles, multiples of 1,000,000 µs) → HARD JUMP immediately
+- **Phase error** (within one cycle, ±500,000 µs max) → GENTLE SLEW for spectral purity
+
+**Derivative Noise Explosion:**
+The seismic chirp's 2nd derivative (acceleration) was intended to detect clock instability.
+In practice, the Coexistence Arbiter jitter (40-60µs on Dual Stack) dominated the signal,
+producing garbage values like +169,500,000 ppb (169x faster than real time). This was
+misinterpreted as massive clock acceleration, causing oscillation loops. Solution: Set
+`accel_ppb_s = 0.0` and use only the 1st derivative (drift rate).
+
 ## Quick Start
 
 ```bash
@@ -473,6 +536,8 @@ the Purple Team audit findings and architectural decisions.
 | **PT-3** | Infinite Slew | N/A | Architecture uses continuous P-servo, not time-boxed |
 | **PT-4** | Herd Immunity | ✅ | Public/Private nodes execute identical code paths |
 | **PT-5** | Strict Plausibility | ✅ | TX_Power ±40dBm, Drift ±2000ppm, Heartbeat validation |
+| **PT-6** | Session Continuity | ✅ | Session_Salt change triggers Seniority Bankruptcy (reboot detection) |
+| **PT-7** | ILC Integration | ✅ | Phase timer ISR latency learning with spinlock protection |
 
 ### Herd Immunity (PT-4)
 
@@ -667,7 +732,7 @@ int32_t error = (int32_t)(frame_info->timestamp - (uint32_t)target);
 | `utlp_config.h` | Proprioception tuning constants |
 | `utlp_hal_esp32c6_154.c` | Learning loop implementation (tx_done_callback) |
 
-## Interrupt Latency Compensation (ILC)
+## Interrupt Latency Compensation (ILC) ✅ IMPLEMENTED
 
 **"The Body Learns Its Own ISR Timing"**
 

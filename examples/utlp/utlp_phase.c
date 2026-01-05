@@ -75,10 +75,10 @@ static bool s_initialized = false;
  * timer EARLIER to compensate, ensuring LED actuation at physics truth time.
  *
  * Thread Safety:
- * - g_learned_isr_latency_us: Written from ISR, read from scheduler. Volatile
+ * - g_learned_isr_latency_us: Written from ISR, read from getter. Volatile
  *   ensures visibility. 32-bit reads are atomic on ESP32.
- * - g_isr_target_time_us: Written from scheduler, read from ISR. Single
- *   producer-single consumer pattern with validity check (0 = invalid).
+ * - g_isr_target_time_us: Written AND read only from ISR context. Safe because
+ *   ISR cannot interrupt itself. Set to 0 at end of each cycle (expects count=0).
  *==========================================================================*/
 
 /**
@@ -97,11 +97,13 @@ static volatile uint32_t g_learned_isr_latency_us = UTLP_ILC_INITIAL_US;
  * Set before arming the phase timer. The ISR compares its actual entry time
  * to this value to compute the latency error.
  *
- * Value 0 indicates "no pending target" (consumed or not yet set).
+ * Value UINT64_MAX indicates "no pending target" (consumed or not yet set).
+ * Value 0 indicates "expect ISR when timer count = 0" (normal operation).
  *
  * IRAM_ATTR: Accessed from phase timer ISR.
  */
-static volatile uint64_t g_isr_target_time_us = 0;
+#define ILC_TARGET_INACTIVE UINT64_MAX
+static volatile uint64_t g_isr_target_time_us = ILC_TARGET_INACTIVE;
 
 /*============================================================================
  * ISR CALLBACK
@@ -140,23 +142,24 @@ static bool IRAM_ATTR phase_timer_empty_isr(mcpwm_timer_handle_t timer,
      * Measure how late this ISR fired relative to target, then update
      * learned latency for the next cycle's pre-fire compensation.
      *
+     * Target = 0 means we expect the ISR to fire when timer count = 0.
+     * Actual = timer count × tick_us = how far past count=0 we actually are.
+     * Error = actual - target = ISR dispatch latency (should be positive).
+     *
      * CRITICAL: This runs in ISR context. Keep it minimal.
      *========================================================================*/
     uint64_t target = g_isr_target_time_us;
-    if (target != 0) {
+    if (target != ILC_TARGET_INACTIVE) {
         /*
          * Capture actual ISR entry time.
          *
          * We use the MCPWM event timestamp (timer count × tick duration).
-         * This gives phase-relative time, not absolute wall-clock time.
+         * For an EMPTY event (counter wrap), count_value represents how many
+         * ticks have elapsed since the wrap - i.e., the ISR dispatch delay.
          *
-         * For wall-clock comparison, use esp_timer_get_time() instead.
-         * But phase-relative is more useful for phase coherence.
+         * Example: If ISR fires when count=3, actual = 3 × 20µs = 60µs late.
          */
         uint64_t actual = (uint64_t)edata->count_value * UTLP_PHASE_TICK_US;
-
-        /* Consume target (mark as processed) */
-        g_isr_target_time_us = 0;
 
         /* Calculate latency error (32-bit math for rollover safety) */
         int32_t error_us = (int32_t)((uint32_t)actual - (uint32_t)target);
@@ -199,6 +202,14 @@ static bool IRAM_ATTR phase_timer_empty_isr(mcpwm_timer_handle_t timer,
             g_learned_isr_latency_us = new_latency;
         }
     }
+
+    /*
+     * Bootstrap: Set target for NEXT cycle.
+     *
+     * We expect the next ISR to fire when timer count = 0 (at wrap).
+     * This enables learning from the very next cycle.
+     */
+    g_isr_target_time_us = 0;
 
     return false;  /* No high-priority task woken */
 }

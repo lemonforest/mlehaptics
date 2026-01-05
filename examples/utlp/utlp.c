@@ -638,14 +638,67 @@ static bool servo_jumps_allowed(uint64_t uptime_us)
  */
 static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
 {
-    int64_t phase_error = new_offset - g_servo.current_offset;
-    int64_t abs_error = (phase_error < 0) ? -phase_error : phase_error;
+    /*
+     * EPOCH vs PHASE SEPARATION (Critical Architecture Fix)
+     *
+     * The total error between new_offset and current_offset may be MASSIVE
+     * (e.g., 7 million µs = 7 seconds) if devices booted at different times.
+     * We cannot SLEW such large offsets - that's insane.
+     *
+     * Instead, we split the error into two components:
+     *   1. EPOCH ERROR: Whole cycles (multiples of 1,000,000 µs) → HARD JUMP
+     *   2. PHASE ERROR: Within-cycle error (0 to ±500,000 µs) → GENTLE SLEW
+     *
+     * The epoch is the "which second are we in" question - this must be
+     * aligned instantly. The phase is the "where in that second" question -
+     * this can be slewed to maintain spectral purity.
+     *
+     * Example:
+     *   total_error = 7,267,966 µs (7.27 seconds)
+     *   epoch_error = 7,000,000 µs (7 whole cycles) → JUMP immediately
+     *   phase_error = +267,966 µs (within cycle) → SLEW gently
+     */
+    int64_t total_error = new_offset - g_servo.current_offset;
+    const int64_t cycle_us = UTLP_PHASE_CYCLE_US;  /* 1,000,000 µs */
 
-    /* Check if error is within deadband (noise floor) */
-    if (abs_error < UTLP_SERVO_DEADBAND_US) {
+    /* Split into epoch (whole cycles) and phase (within cycle) */
+    int64_t epoch_error = (total_error / cycle_us) * cycle_us;
+    int64_t phase_error = total_error - epoch_error;
+
+    /*
+     * Wrap-around correction: Choose shortest path within cycle.
+     * If phase_error is > half a cycle, it's faster to go the other way.
+     *
+     * Example: phase_error = +800,000 µs → better as -200,000 µs
+     *          (add one cycle to epoch, subtract from phase)
+     */
+    if (phase_error > cycle_us / 2) {
+        phase_error -= cycle_us;
+        epoch_error += cycle_us;
+    } else if (phase_error < -cycle_us / 2) {
+        phase_error += cycle_us;
+        epoch_error -= cycle_us;
+    }
+
+    int64_t abs_phase_error = (phase_error < 0) ? -phase_error : phase_error;
+
+    /*
+     * EPOCH JUMP: If there's an epoch error, jump it immediately.
+     * This is the "which second are we in" alignment - cannot be slewed.
+     */
+    if (epoch_error != 0) {
+        g_servo.current_offset += epoch_error;
+        utlp_hal_set_time_offset(g_servo.current_offset);
+        utlp_hal_log_info(TAG, "SERVO: Epoch jump %+lld cycles (%+lld us), remaining phase=%+lld us",
+                          (long long)(epoch_error / cycle_us), (long long)epoch_error,
+                          (long long)phase_error);
+    }
+
+    /* Check if remaining phase error is within deadband (noise floor) */
+    if (abs_phase_error < UTLP_SERVO_DEADBAND_US) {
         /* Already at target - no correction needed */
         g_servo.slewing_active = false;
-        return false;
+        return (epoch_error != 0);  /* Return true if we jumped */
     }
 
     /* Genesis phase: instant jumps allowed for fast initial sync */
@@ -696,7 +749,7 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
     int64_t max_slew_ppb;
     const char *state_name;
 
-    if (abs_error < UTLP_SERVO_LOCKED_THRESHOLD_US) {
+    if (abs_phase_error < UTLP_SERVO_LOCKED_THRESHOLD_US) {
         /* LOCKED: Small error - gentle cruise */
         max_slew_ppb = UTLP_SERVO_MAX_SLEW_PPB_LOCKED;
         state_name = "LOCKED";
@@ -1154,6 +1207,34 @@ static uint32_t get_smart_interval(uint32_t uptime_us)
 
 /**
  * @brief Analyze a complete 3-burst chirp and extract drift metrics
+ *
+ * The "Seismic Chirp" is a 3-burst beacon pattern with known 2ms spacing.
+ * By measuring the actual inter-burst timing against the known reference,
+ * we can extract clock drift without mixing sender/receiver drift.
+ *
+ * **Derivative Stack (The Stack is the Message):**
+ * - Burst 0 (t₀): Offset (0th derivative) - "where is the clock?"
+ * - Burst 1 (t₁): Drift (1st derivative) - "how fast is it drifting?"
+ * - Burst 2 (t₂): [DISABLED] Acceleration (2nd derivative) - was unstable
+ *
+ * **Why We Disabled 2nd Derivative (Acceleration):**
+ * The acceleration calculation amplified measurement jitter into +169M ppb
+ * garbage values ("Derivative Noise Explosion"). Real crystals have nearly
+ * constant drift rate - the 2nd derivative is dominated by noise, not signal.
+ *
+ * **Why Same Timestamp for All Bursts:**
+ * All 3 bursts carry the chirp_epoch from burst 0. This creates a known
+ * reference (2ms spacing) that isolates RECEIVER drift from sender drift.
+ * Fresh timestamps per burst would mix the two, corrupting the measurement.
+ *
+ * @param acc   Accumulated chirp data (3 RX timestamps + chirp_epoch)
+ * @param poly  Output: Polynomial fit results (offset, drift, validity)
+ *
+ * @note Drift values are clamped to UTLP_MAX_PHYSICAL_DRIFT_PPB (±500 ppm)
+ * @note Acceleration (accel_ppb_s) is always 0.0 - do not use for control
+ *
+ * @see UTLP_MAX_PHYSICAL_DRIFT_PPB in utlp_config.h
+ * @see README.md "Seismic Chirp Pattern" section
  */
 static void fit_chirp_polynomial(const chirp_accumulator_t *acc, sync_polynomial_t *poly)
 {
@@ -1171,16 +1252,42 @@ static void fit_chirp_polynomial(const chirp_accumulator_t *acc, sync_polynomial
     double expected_spacing_s = expected_spacing_us / 1e6;         /* 0.002 s */
 
     double actual_01 = (double)(acc->rx_times[1] - acc->rx_times[0]);
-    double actual_12 = (double)(acc->rx_times[2] - acc->rx_times[1]);
+    /* NOTE: actual_12 was used for acceleration calculation (2nd derivative),
+     * but removed due to "Derivative Noise Explosion" - it amplified
+     * measurement jitter into +169M ppb garbage values. */
+    (void)acc->rx_times[2];  /* Suppress unused warning */
 
     double delta_01 = actual_01 - expected_spacing_us;
-    double delta_12 = actual_12 - expected_spacing_us;
 
-    /* Drift rate (1st derivative) */
+    /*
+     * Drift rate calculation (1st derivative of timing error).
+     *
+     * delta_01 = actual_spacing - expected_spacing (microseconds)
+     * drift = delta / expected_spacing = relative error per sample
+     * drift_ppb = drift × 1e9 = parts-per-billion
+     *
+     * Example: delta_01 = 4µs means 4/2000 = 0.2% = 2000 ppm = 2,000,000 ppb
+     *
+     * NOTE: This is PROPORTIONAL-ONLY. We removed the derivative term
+     * (accel_ppb_s) because it amplified measurement noise into
+     * +169,500,000 ppb garbage values ("Derivative Noise Explosion").
+     */
     poly->drift_ppb = (delta_01 / expected_spacing_s) * 1000.0;
 
-    /* Drift acceleration (2nd derivative) */
-    poly->accel_ppb_s = ((delta_12 - delta_01) / expected_spacing_s) * 1000.0;
+    /*
+     * SANITY CLAMP: Physical crystal drift is <100 ppm.
+     * Values exceeding ±500 ppm indicate measurement error
+     * (bad timestamps, missed bursts, multipath, etc.)
+     */
+    if (poly->drift_ppb > (double)UTLP_MAX_PHYSICAL_DRIFT_PPB) {
+        poly->drift_ppb = (double)UTLP_MAX_PHYSICAL_DRIFT_PPB;
+    } else if (poly->drift_ppb < -(double)UTLP_MAX_PHYSICAL_DRIFT_PPB) {
+        poly->drift_ppb = -(double)UTLP_MAX_PHYSICAL_DRIFT_PPB;
+    }
+
+    /* Acceleration (2nd derivative) - DISABLED due to noise amplification.
+     * Kept as zero for struct compatibility. Do NOT use for control. */
+    poly->accel_ppb_s = 0.0;
 
     poly->valid = true;
 }
@@ -1245,13 +1352,13 @@ static void log_drift_stats_if_due(uint64_t uptime_us)
 
     g_drift_stats.last_log_us = uptime_us;
 
-    utlp_hal_log_info(TAG, "--- DRIFT STATS (uptime: %llus) ---",
-             (unsigned long long)(uptime_us / 1000000));
-    utlp_hal_log_info(TAG, "Chirps: %lu | LAST: off=%+.0fus drift=%+.0fppb accel=%+.1fppb/s",
+    utlp_hal_log_info(TAG, "--- DRIFT STATS (uptime: %llus, max: %d ppb) ---",
+             (unsigned long long)(uptime_us / 1000000),
+             (int)UTLP_MAX_PHYSICAL_DRIFT_PPB);
+    utlp_hal_log_info(TAG, "Chirps: %lu | LAST: off=%+.0fus drift=%+.0fppb",
              (unsigned long)g_drift_stats.chirps_analyzed,
              g_drift_stats.last_poly.offset_us,
-             g_drift_stats.last_poly.drift_ppb,
-             g_drift_stats.last_poly.accel_ppb_s);
+             g_drift_stats.last_poly.drift_ppb);
     utlp_hal_log_info(TAG, "AVG: off=%+.0fus drift=%+.0fppb | RANGE: [%+.0f..%+.0f]ppb",
              g_drift_stats.avg_offset_us,
              g_drift_stats.avg_drift_ppb,

@@ -170,6 +170,33 @@ extern "C" {
 #define UTLP_SERVO_MAX_SLEW_PPB_RECOVERY 5000000         /* 5000 ppm */
 
 /**
+ * @brief Maximum physically plausible drift rate (ppb)
+ *
+ * **SANITY CLAMP for polynomial drift analysis.**
+ *
+ * Any calculated drift exceeding this value is physically impossible and
+ * indicates measurement error (bad timestamps, missed bursts, etc.).
+ *
+ * 500 ppm = 500,000 ppb = 0.05% clock deviation.
+ * Real crystal oscillators drift <100 ppm. This provides 5× margin.
+ *
+ * Used to clamp:
+ * - Polynomial fit output (poly->drift_ppb)
+ * - Running average (avg_drift_ppb)
+ *
+ * Values exceeding this are replaced with UTLP_DRIFT_INVALID marker.
+ */
+#define UTLP_MAX_PHYSICAL_DRIFT_PPB      500000          /* ±500 ppm max */
+
+/**
+ * @brief Invalid drift marker (indicates measurement failed)
+ *
+ * When calculated drift exceeds UTLP_MAX_PHYSICAL_DRIFT_PPB, it's replaced
+ * with this marker. Genesis scoring ignores peers with invalid drift.
+ */
+#define UTLP_DRIFT_INVALID               INT32_MAX
+
+/**
  * @brief [DEPRECATED] Legacy constant - use UTLP_SERVO_COLD_START_US
  */
 #define UTLP_SERVO_JUMP_ALLOWED_UNTIL_US UTLP_SERVO_COLD_START_US

@@ -189,12 +189,22 @@ static volatile IRAM_ATTR uint32_t g_learned_latency_us = UTLP_LATENCY_INITIAL_U
  * Set before calling esp_ieee802154_transmit_at(), read in tx_done_callback.
  * Value 0 indicates "no pending transmission" (invalid/consumed).
  *
- * CRITICAL: This is 64-bit but callback math uses 32-bit cast for rollover safety.
- * See tx_done_callback for the correct pattern.
+ * CRITICAL: This is 64-bit on 32-bit MCU - requires spinlock protection!
+ * Purple Team Pitfall 2: Torn Read/Write Hazard.
+ * See tx_done_callback for the correct access pattern.
  *
  * IRAM_ATTR: Accessed from tx_done_callback ISR.
  */
 static volatile IRAM_ATTR uint64_t g_last_target_time_us = 0;
+
+/**
+ * @brief Spinlock for 64-bit target timestamp
+ *
+ * Purple Team Pitfall 2: Torn Read/Write Hazard
+ * 64-bit read/write on 32-bit MCU requires critical section to prevent
+ * reading/writing mixed old/new halves if context switch occurs mid-operation.
+ */
+static portMUX_TYPE s_target_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 /** @brief RX packet queue */
 static QueueHandle_t s_rx_queue = NULL;
@@ -455,13 +465,23 @@ static void IRAM_ATTR tx_done_callback(const uint8_t *frame,
         return;
     }
 
-    /* Atomically read and clear target time (consume the pending target) */
+    /*
+     * Purple Team Pitfall 2: Torn Read/Write Hazard
+     *
+     * 64-bit read/write on 32-bit MCU is NOT atomic. Must use critical section
+     * even in ISR context (protects against nested interrupts if enabled).
+     *
+     * Read-then-clear must be atomic to prevent race with main thread write.
+     */
+    portENTER_CRITICAL_ISR(&s_target_spinlock);
     uint64_t target = g_last_target_time_us;
     if (target == 0) {
         /* No pending scheduled TX, or already consumed */
+        portEXIT_CRITICAL_ISR(&s_target_spinlock);
         return;
     }
     g_last_target_time_us = 0;  /* Mark as consumed */
+    portEXIT_CRITICAL_ISR(&s_target_spinlock);
 
     /*
      * CALLBACK MATH SAFETY - Handle 32-bit/64-bit rollover correctly
@@ -719,9 +739,15 @@ bool utlp_hal_154_tx_scheduled(uint64_t tx_time_us, const uint8_t *data, size_t 
      *
      * CRITICAL: Store target time BEFORE calling transmit_at so the callback
      * can compute the timing error.
+     *
+     * Purple Team Pitfall 2: Torn Write Hazard
+     * 64-bit write on 32-bit MCU requires critical section to prevent
+     * ISR reading mixed old/new halves if interrupt fires mid-write.
      */
     uint64_t adjusted_time = tx_time_us + g_learned_latency_us;
+    portENTER_CRITICAL(&s_target_spinlock);
     g_last_target_time_us = adjusted_time;  /* For callback learning loop */
+    portEXIT_CRITICAL(&s_target_spinlock);
 
     /*
      * PRIMARY: Hardware-scheduled TX via esp_ieee802154_transmit_at()
