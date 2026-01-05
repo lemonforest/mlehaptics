@@ -1018,16 +1018,20 @@ compared over 10+ seconds).
 
 **The Derivative Stack:**
 
-| Burst | RX Time | Measures | Mathematical Role |
-|-------|---------|----------|-------------------|
-| Burst 0 | rx₀ | Offset | 0th derivative (where) |
-| Burst 1 | rx₁ = rx₀ + 2ms ± jitter | Jitter | 1st derivative (jitter rate) |
-| Burst 2 | rx₂ = rx₀ + 4ms ± jitter | [DISABLED] | 2nd derivative was noise-dominated |
+| Burst | RX Time | Measures | Use |
+|-------|---------|----------|-----|
+| Burst 0 | rx₀ | Offset | Control (servo) |
+| Burst 1 | rx₁ = rx₀ + 2ms ± jitter | Jitter rate | Control (servo) |
+| Burst 2 | rx₂ = rx₀ + 4ms ± jitter | Jitter accel | **Logged only** |
 
-**Why Burst 2 is Disabled:**
-The 2nd derivative ("jitter acceleration") amplified measurement noise into
-+169M ppb garbage values ("Derivative Noise Explosion"). Jitter is already
-noisy; differentiating it again amplifies the noise catastrophically.
+**Observation vs. Control (Burst 2):**
+The 2nd derivative ("jitter acceleration") amplifies measurement noise into
+values like +169M ppb ("Derivative Noise Explosion"). It is **NOT used for
+servo control**. However, we still CALCULATE and LOG it for:
+- Environmental fingerprinting (WiFi congestion, thermal cycles)
+- Hardware characterization (different devices = different jitter profiles)
+- Research data for future algorithm improvements
+- Anomaly detection (sudden change in jitter pattern = something changed)
 
 **Why same timestamp?** The chirp is a known signal (2ms spacing). Fresh
 timestamps would mix sender and receiver jitter — same timestamp isolates

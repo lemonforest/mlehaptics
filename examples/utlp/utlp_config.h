@@ -307,8 +307,14 @@ extern "C" {
  *
  * **What Each Burst Measures:**
  *   - Burst 0 (t₀): Offset (position) - "where is the clock now?"
- *   - Burst 1 (t₁): Jitter rate (velocity) - "how much jitter this chirp?"
- *   - Burst 2 (t₂): [DISABLED] Was unstable due to Derivative Noise Explosion
+ *   - Burst 1 (t₁): Jitter rate (1st derivative) - used for control
+ *   - Burst 2 (t₂): Jitter accel (2nd derivative) - LOGGED only, not for control
+ *
+ * **Observation vs. Control:**
+ *   Burst 2's "jitter acceleration" is noise-dominated (Derivative Noise Explosion)
+ *   and produces wild values like +169M ppb. We CALCULATE and LOG it for
+ *   statistical analysis (environmental fingerprinting, hardware characterization)
+ *   but do NOT use it for servo corrections.
  *
  * **Why Same Timestamp for All Bursts:**
  *   All 3 bursts carry the SAME chirp_epoch. The 2ms spacing is a known

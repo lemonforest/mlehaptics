@@ -167,13 +167,17 @@ The crystal IS the stable reference ("D" in control theory). What we're measurin
 
 **The derivative stack (corrected):**
 
-| Sample | Measures | Seismic Analog | Mathematical Role |
-|--------|----------|----------------|-------------------|
-| Burst 1 (t₀) | Offset | Position | 0th derivative (where) |
-| Burst 2 (t₁) | Jitter | Velocity | 1st derivative (jitter rate) |
-| Burst 3 (t₂) | [DISABLED] | Acceleration | 2nd derivative (noise-dominated) |
+| Sample | Measures | Seismic Analog | Use |
+|--------|----------|----------------|-----|
+| Burst 1 (t₀) | Offset | Position | Control (servo) |
+| Burst 2 (t₁) | Jitter rate | Velocity | Control (servo) |
+| Burst 3 (t₂) | Jitter accel | Acceleration | **Logged only** |
 
-**Note:** Burst 3 (2nd derivative) was disabled due to "Derivative Noise Explosion" - it amplified jitter noise into +169M ppb garbage values. Jitter is already noisy; differentiating it again amplifies the noise catastrophically.
+**Observation vs. Control (Burst 3):**
+The 2nd derivative ("jitter acceleration") amplifies measurement noise into values like +169M ppb ("Derivative Noise Explosion"). It is **NOT used for servo control**. However, we still CALCULATE and LOG it for statistical analysis:
+- Environmental fingerprinting (WiFi congestion, thermal cycles)
+- Hardware characterization (different devices = different jitter profiles)
+- Research data for future algorithm improvements
 
 **Implementation:**
 

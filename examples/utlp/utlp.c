@@ -1224,13 +1224,16 @@ static uint32_t get_smart_interval(uint32_t uptime_us)
  *
  * **Derivative Stack (The Stack is the Message):**
  * - Burst 0 (t₀): Offset (0th derivative) - "where is the clock?"
- * - Burst 1 (t₁): Jitter (1st derivative) - "how much jitter this chirp?"
- * - Burst 2 (t₂): [DISABLED] Jitter acceleration - unstable, noise-dominated
+ * - Burst 1 (t₁): Jitter rate (1st derivative) - used for control
+ * - Burst 2 (t₂): Jitter acceleration (2nd derivative) - LOGGED, NOT for control
  *
- * **Why We Disabled 2nd Derivative (Jitter Acceleration):**
- * The acceleration calculation amplified measurement noise into +169M ppb
- * garbage values ("Derivative Noise Explosion"). Jitter is already noisy;
- * differentiating it again amplifies the noise catastrophically.
+ * **Observation vs. Control:**
+ * The 2nd derivative is noise-dominated ("Derivative Noise Explosion") and
+ * produces values like +169M ppb. It is NOT used for servo corrections.
+ * However, we CALCULATE and LOG it for statistical analysis:
+ *   - Environmental fingerprinting (WiFi congestion, thermal cycles)
+ *   - Hardware characterization (jitter profiles differ by device)
+ *   - Research data for future algorithm improvements
  *
  * **Why Same Timestamp for All Bursts:**
  * All 3 bursts carry the chirp_epoch from burst 0. This creates a known
@@ -1243,10 +1246,11 @@ static uint32_t get_smart_interval(uint32_t uptime_us)
  * This is done in the servo loop, NOT in this chirp fitting function.
  *
  * @param acc   Accumulated chirp data (3 RX timestamps + chirp_epoch)
- * @param poly  Output: Polynomial fit results (offset, jitter, validity)
+ * @param poly  Output: Polynomial fit results (offset, jitter rate, jitter accel)
  *
- * @note Jitter values are clamped to UTLP_MAX_PHYSICAL_DRIFT_PPB (±500 ppm)
- * @note Acceleration (accel_ppb_s) is always 0.0 - do not use for control
+ * @note drift_ppb is clamped to UTLP_MAX_PHYSICAL_DRIFT_PPB (±500 ppm)
+ * @note accel_ppb_s is UNCLAMPED (raw values for statistical analysis)
+ * @warning DO NOT use accel_ppb_s for servo control!
  *
  * @see utlp_config.h "SEISMIC CHIRP - Jitter Rejection" section
  * @see README.md "Seismic Chirp" section for protocol overview
@@ -1267,12 +1271,10 @@ static void fit_chirp_polynomial(const chirp_accumulator_t *acc, sync_polynomial
     double expected_spacing_s = expected_spacing_us / 1e6;         /* 0.002 s */
 
     double actual_01 = (double)(acc->rx_times[1] - acc->rx_times[0]);
-    /* NOTE: actual_12 was used for acceleration calculation (2nd derivative),
-     * but removed due to "Derivative Noise Explosion" - it amplified
-     * measurement jitter into +169M ppb garbage values. */
-    (void)acc->rx_times[2];  /* Suppress unused warning */
+    double actual_12 = (double)(acc->rx_times[2] - acc->rx_times[1]);
 
     double delta_01 = actual_01 - expected_spacing_us;
+    double delta_12 = actual_12 - expected_spacing_us;
 
     /*
      * Drift rate calculation (1st derivative of timing error).
@@ -1300,9 +1302,30 @@ static void fit_chirp_polynomial(const chirp_accumulator_t *acc, sync_polynomial
         poly->drift_ppb = -(double)UTLP_MAX_PHYSICAL_DRIFT_PPB;
     }
 
-    /* Acceleration (2nd derivative) - DISABLED due to noise amplification.
-     * Kept as zero for struct compatibility. Do NOT use for control. */
-    poly->accel_ppb_s = 0.0;
+    /*
+     * Jitter Acceleration (2nd derivative of timing error)
+     *
+     * **CALCULATED FOR LOGGING, NOT FOR CONTROL**
+     *
+     * The 2nd derivative amplifies measurement noise ("Derivative Noise Explosion").
+     * Values like +169,500,000 ppb are common and physically impossible.
+     *
+     * However, we still CALCULATE and LOG it because:
+     *   1. Statistical analysis over time may reveal patterns
+     *   2. Environmental fingerprinting (WiFi congestion, thermal cycles)
+     *   3. Hardware characterization (different devices = different profiles)
+     *   4. Research data for future algorithm improvements
+     *
+     * accel = (delta_12 - delta_01) / expected_spacing^2
+     *       = change in jitter rate per sample interval
+     *
+     * @warning DO NOT use accel_ppb_s for servo control!
+     */
+    double accel_us_per_s2 = (delta_12 - delta_01) / (expected_spacing_s * expected_spacing_s);
+    poly->accel_ppb_s = accel_us_per_s2 * 1000.0;  /* Convert to ppb/s */
+
+    /* NOTE: No clamping on accel - we want raw values for statistical analysis.
+     * Wild values are expected and informative (they reveal jitter magnitude). */
 
     poly->valid = true;
 }
