@@ -1909,6 +1909,85 @@ The Red Team process worked because:
 
 ---
 
+### 9.18 Arbor Isolation Testing Methodology ("Box of C6s")
+
+This section documents a reproducible experimental protocol to validate transport-specific timing stability in multi-arbor nodes. The methodology proves that arbor isolation works as designed.
+
+#### 9.18.1 Hypothesis
+
+**Claim:** 802.15.4-only nodes achieve lower phase jitter than dual-arbor (WiFi + 802.15.4) nodes due to elimination of WiFi software scheduler interference.
+
+**Null hypothesis:** Arbor isolation is ineffective; dual-arbor nodes show equivalent jitter to single-arbor nodes.
+
+#### 9.18.2 Equipment
+
+| Item | Quantity | Purpose |
+|------|----------|---------|
+| ESP32-C6 DevKits | 8-12 | Homogeneous swarm ("Box of C6s") |
+| External auditor | 1 | Oscilloscope or logic analyzer with µs resolution |
+| GPIO breakout | Per node | Phase pulse observation point |
+
+**Why homogeneous:** Eliminates cross-platform variance. All nodes have identical crystals, identical firmware, identical thermal characteristics. Any measured difference is due to arbor configuration, not hardware variance.
+
+#### 9.18.3 Protocol
+
+| Step | Action | Duration |
+|------|--------|----------|
+| 1 | Flash all nodes with dual-arbor firmware (802.15.4 + WiFi ESP-NOW) | — |
+| 2 | Power all nodes, allow swarm to stabilize | 5 min |
+| 3 | **Baseline measurement**: External auditor captures GPIO phase pulses from 3 randomly selected nodes | 2 min |
+| 4 | Half of nodes execute `utlp_arbor_yield(UTLP_ARBOR_WIFI, ...)` | — |
+| 5 | Allow swarm to re-stabilize (some nodes now 15.4-only) | 2 min |
+| 6 | **Test measurement**: External auditor captures GPIO phase pulses from same 3 nodes | 2 min |
+| 7 | Calculate jitter statistics for both conditions | — |
+
+#### 9.18.4 Measurements
+
+**Primary metric:** Phase pulse inter-arrival time variance (µs²)
+
+| Condition | Expected Jitter | Rationale |
+|-----------|-----------------|-----------|
+| Dual-arbor (baseline) | 10-50 µs | WiFi scheduler contention |
+| 15.4-only (test) | 1-5 µs | Hardware-scheduled TX only |
+
+**Statistical test:** Two-sample t-test on jitter distributions. Reject null hypothesis if p < 0.05.
+
+#### 9.18.5 Controls
+
+| Control | Purpose |
+|---------|---------|
+| Same physical location | Eliminates RF environment variance |
+| Same power supply | Eliminates voltage-induced clock variance |
+| Same firmware version | Eliminates software variance |
+| External auditor (not swarm member) | Eliminates observer effect |
+| Random node selection | Eliminates selection bias |
+
+#### 9.18.6 Expected Results
+
+If arbor isolation works correctly:
+- 15.4-only nodes show 5-10× lower jitter than dual-arbor baseline
+- Swarm maintains phase coherence despite arbor state heterogeneity
+- Yielded arbors successfully re-enter with stratum penalty (Claim 126)
+
+If arbor isolation is broken:
+- No significant jitter difference between conditions
+- Swarm experiences phase discontinuity when arbors yield
+- Re-entry causes phase corruption
+
+#### 9.18.7 Documentation Requirements
+
+For prior art purposes, document:
+1. **Timestamp**: When experiment was conducted
+2. **Hardware serial numbers**: Specific devices used
+3. **Firmware commit hash**: Exact software version
+4. **Raw data**: All captured waveforms
+5. **Statistical analysis**: Complete calculations, not just p-value
+6. **Photographs**: Physical setup
+
+This methodology is reproducible by any party with equivalent hardware.
+
+---
+
 ## Appendix A: Parts Sources
 
 ### Acoustic Sensing

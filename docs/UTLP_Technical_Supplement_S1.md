@@ -1,1021 +1,402 @@
-# UTLP Technical Report — Supplement S1
+# Universal Time Lord Protocol
 
-## Precision, Transport, and Security Extensions
+**Transport-Agnostic Time Synchronization for Distributed Embedded Systems**
 
-*mlehaptics Project — December 2025*
+*mlehaptics Project — Technical Report v2.0 — December 2025*
 
----
+> *"Time is a Public Utility."*
 
-## Scope
-
-This supplement extends the UTLP Technical Report v2.0 with new findings from:
-- ESPARGOS phase-coherent WiFi sensing research (University of Stuttgart)
-- 802.11mc Fine Time Measurement (FTM) protocol analysis
-- Hybrid BLE/ESP-NOW transport architecture
-- Dual-MAC authenticated security model
-
-**Prerequisites:** UTLP Technical Report v2.0, Addendum A (RFIP)
-
-**What this document adds:**
-- Implementation-level precision improvements (not just concepts)
-- 802.11mc FTM as a sub-microsecond sync source
-- ESP-NOW + BLE time-division multiplexing
-- Cryptographic security for ESP-NOW transport
+**Contributors:** Steve (mlehaptics), Gemini (Google), Claude (Anthropic)
 
 ---
 
-# Part I: Precision Improvements
+## Abstract
 
-## 1. ESPARGOS-Derived Techniques
+This document specifies the Universal Time Lord Protocol (UTLP), a transport-agnostic time synchronization architecture enabling distributed determinism on resource-constrained wireless embedded systems. The protocol achieves ±30μs synchronization precision over 90-minute sessions using commodity ESP32-C6 microcontrollers, enabling coordinated behavior across independent nodes without consensus algorithms, persistent storage, or continuous communication.
 
-Research from the ESPARGOS project (University of Stuttgart) on phase-coherent WiFi sensing reveals techniques directly applicable to UTLP time synchronization.
+UTLP treats synchronized time as a *broadcast environmental variable*—a public utility that any device can consume without pairing, encryption, or application-specific logic. This "Glass Wall" architecture strictly separates the time stack (public, unencrypted) from the application stack (private, encrypted), enabling disparate devices to share high-precision timing while maintaining data privacy.
 
-### 1.1 Minimum Delay Packet Selection (MDPS)
+The architecture extends synchronized time beyond clock agreement to provide: stratum-based source selection with opportunistic GPS upgrade, timestamp-based state versioning (implicit LWW-CRDT), holdover mode for graceful degradation during network partitions, power-aware leader election for battery-constrained swarms, and deterministic pattern execution. These primitives form a Distributed Determinism Platform applicable to synchronized wearables, sensor networks, swarm robotics, and coordinated installations.
 
-**Problem:** The Technical Report v2.0 specifies ±30μs sync precision but does not specify the filtering algorithm. Naive averaging of RTT samples includes jitter-contaminated measurements.
-
-**Finding:** Wireless delays have heavy-tailed distributions. The minimum observed RTT is closest to true propagation delay—larger values are contaminated by stack jitter, retransmissions, and queuing.
-
-**Implementation:**
-
-```c
-#define RTT_HISTORY_SIZE 16
-#define RTT_PERCENTILE   10  // 10th percentile ≈ near-minimum
-
-typedef struct {
-    int64_t samples[RTT_HISTORY_SIZE];
-    uint8_t index;
-    uint8_t count;
-} rtt_filter_t;
-
-int64_t rtt_filter_get_minimum(const rtt_filter_t* f) {
-    if (f->count == 0) return 0;
-    
-    // Copy and sort (insertion sort for small N)
-    int64_t sorted[RTT_HISTORY_SIZE];
-    memcpy(sorted, f->samples, f->count * sizeof(int64_t));
-    
-    for (int i = 1; i < f->count; i++) {
-        int64_t key = sorted[i];
-        int j = i - 1;
-        while (j >= 0 && sorted[j] > key) {
-            sorted[j + 1] = sorted[j];
-            j--;
-        }
-        sorted[j + 1] = key;
-    }
-    
-    return sorted[(f->count * RTT_PERCENTILE) / 100];
-}
-```
-
-**Expected improvement:** 2-5x reduction in offset jitter vs averaging.
-
-### 1.2 Two-State Kalman Filter
-
-**Problem:** The Technical Report specifies holdover mode with "last known drift rate" but does not specify how drift is estimated or how offset/drift are jointly tracked.
-
-**Solution:** A two-state Kalman filter simultaneously estimates clock offset and drift rate, enabling optimal measurement fusion and drift prediction during holdover.
-
-**State vector:** `x = [offset_us, drift_ppb]`
-
-```c
-typedef struct {
-    double x[2];           // [offset, drift]
-    double P[4];           // 2x2 covariance (flattened)
-    double Q_offset;       // Process noise: offset
-    double Q_drift;        // Process noise: drift
-    double R;              // Measurement noise
-    int64_t last_update_us;
-} kalman_state_t;
-
-// Typical ESP32 parameters
-void kalman_init(kalman_state_t* k) {
-    k->x[0] = 0;  k->x[1] = 0;
-    k->P[0] = 1e6;  k->P[3] = 1e4;  // High initial uncertainty
-    k->Q_offset = 100.0;    // us²/s - stack jitter
-    k->Q_drift = 1.0;       // ppb²/s - crystal aging
-    k->R = 900.0;           // (30 us)² - BLE measurement noise
-}
-
-void kalman_update(kalman_state_t* k, int64_t measured_offset, int64_t now_us) {
-    double dt = (now_us - k->last_update_us) / 1e6;
-    
-    // Predict: offset grows by drift × dt
-    double x_pred[2] = {
-        k->x[0] + k->x[1] * dt * 1e-3,  // ppb → us/s
-        k->x[1]
-    };
-    double P00_pred = k->P[0] + k->Q_offset * dt;
-    double P11_pred = k->P[3] + k->Q_drift * dt;
-    
-    // Update
-    double y = measured_offset - x_pred[0];
-    double S = P00_pred + k->R;
-    double K0 = P00_pred / S;
-    
-    k->x[0] = x_pred[0] + K0 * y;
-    k->x[1] = x_pred[1] + (k->P[2] / S) * y;
-    k->P[0] = (1 - K0) * P00_pred;
-    k->P[3] = P11_pred;
-    k->last_update_us = now_us;
-}
-
-int64_t kalman_predict(const kalman_state_t* k, int64_t now_us) {
-    double dt = (now_us - k->last_update_us) / 1e6;
-    return (int64_t)(k->x[0] + k->x[1] * dt * 1e-3);
-}
-```
-
-**Benefit:** Kalman drift estimate enables accurate holdover extrapolation. The filter naturally handles varying measurement rates and missing samples.
-
-### 1.3 Enhanced Holdover
-
-**Extension to Technical Report v2.0 Section 4.2:**
-
-The basic holdover mode freezes drift rate. Enhanced holdover uses Kalman extrapolation with uncertainty-based stratum degradation:
-
-```c
-uint8_t get_holdover_stratum(int64_t holdover_start_us, uint8_t base_stratum) {
-    int64_t elapsed_s = (esp_timer_get_time() - holdover_start_us) / 1000000;
-    
-    // Degrade 1 stratum per 30s of holdover
-    uint8_t time_penalty = elapsed_s / 30;
-    
-    // Additional penalty if Kalman uncertainty exceeds thresholds
-    double uncertainty = sqrt(kalman.P[0]);
-    uint8_t uncertainty_penalty = 0;
-    if (uncertainty > 100) uncertainty_penalty++;   // >100μs
-    if (uncertainty > 500) uncertainty_penalty++;   // >500μs
-    
-    return MIN(base_stratum + time_penalty + uncertainty_penalty + 1, 254);
-}
-```
-
-### 1.4 Multi-Burst Beacon Timing (Jitter Rejection via Multi-Sample Filtering)
-
-**Problem:** Single-sample sync measurements conflate systematic offset with random jitter. Without multiple samples, the Kalman filter cannot distinguish "clock is wrong" from "this measurement was noisy."
-
-**Finding:** Using N≥3 equally-spaced beacon bursts per sync exchange filters software/hardware jitter to extract a cleaner offset estimate. The 2ms × 3 burst pattern (6ms total) operates on a timescale where:
-
-- **Crystal drift at 40ppm over 6ms = 0.24µs** (negligible)
-- **Stack jitter (ISR latency, WiFi arbitration) = 10-100µs** (dominates!)
-
-The crystal IS the stable reference ("D" in control theory). What we're measuring is jitter, not drift. Crystal drift characterization requires inter-exchange analysis over SECONDS, not within-chirp analysis over milliseconds.
-
-**CRITICAL CORRECTION (v3.1):** Earlier documentation incorrectly claimed the 3-burst chirp extracts "drift rate" and "drift acceleration". This is physically impossible over a 6ms timescale. The technique filters JITTER to yield a cleaner offset estimate.
-
-**The derivative stack (corrected):**
-
-| Sample | Measures | Seismic Analog | Use |
-|--------|----------|----------------|-----|
-| Burst 1 (t₀) | Offset | Position | Control (servo) |
-| Burst 2 (t₁) | Jitter rate | Velocity | Control (servo) |
-| Burst 3 (t₂) | Jitter accel | Acceleration | **Logged only** |
-
-**Observation vs. Control (Burst 3):**
-The 2nd derivative ("jitter acceleration") amplifies measurement noise into values like +169M ppb ("Derivative Noise Explosion"). It is **NOT used for servo control**. However, we still CALCULATE and LOG it for statistical analysis:
-- Environmental fingerprinting (WiFi congestion, thermal cycles)
-- Hardware characterization (different devices = different jitter profiles)
-- Research data for future algorithm improvements
-
-**Implementation:**
-
-```c
-#define SYNC_BURST_COUNT     3
-#define SYNC_BURST_INTERVAL_MS  2  // 2ms between bursts
-
-typedef struct {
-    int64_t offset_samples[SYNC_BURST_COUNT];
-    int64_t sample_times[SYNC_BURST_COUNT];
-    uint8_t sample_count;
-} burst_sync_state_t;
-
-// Polynomial fit: offset(t) = a + b*t + c*t²
-// a = offset, b = jitter rate (NOT drift!), c = jitter acceleration (DISABLED)
-// NOTE: Over 6ms, crystal drift is ~0.24µs (negligible), jitter is 10-100µs
-typedef struct {
-    double offset_us;      // a: instantaneous offset
-    double drift_ppb;      // b: jitter rate (legacy name, actually measures jitter)
-    double accel_ppb_s;    // c: ALWAYS 0.0 - jitter acceleration was noise-dominated
-} sync_polynomial_t;
-
-void fit_sync_polynomial(const burst_sync_state_t* bursts, sync_polynomial_t* result) {
-    // Normalize times to first sample
-    double t[SYNC_BURST_COUNT];
-    double y[SYNC_BURST_COUNT];
-    for (int i = 0; i < bursts->sample_count; i++) {
-        t[i] = (bursts->sample_times[i] - bursts->sample_times[0]) / 1e6;  // seconds
-        y[i] = bursts->offset_samples[i];  // microseconds
-    }
-    
-    // Least-squares quadratic fit (closed form for 3 points)
-    // For exactly 3 points, this is exact interpolation
-    if (bursts->sample_count == 3) {
-        double t1 = t[1], t2 = t[2];
-        double y0 = y[0], y1 = y[1], y2 = y[2];
-        
-        // Lagrange interpolation coefficients
-        result->offset_us = y0;
-        result->drift_ppb = ((-3*y0 + 4*y1 - y2) / (2*t1)) * 1000;  // us/s -> ppb
-        result->accel_ppb_s = ((y0 - 2*y1 + y2) / (t1*t1)) * 1000;  // us/s^2 -> ppb/s
-    }
-    // For N>3, use least-squares (not shown)
-}
-
-// Integration with Kalman filter
-void process_burst_sync(const burst_sync_state_t* bursts) {
-    sync_polynomial_t poly;
-    fit_sync_polynomial(bursts, &poly);
-    
-    // Feed polynomial results to Kalman with reduced uncertainty
-    // Multiple samples = higher confidence
-    double saved_R = kalman.R;
-    kalman.R = saved_R / bursts->sample_count;  // Reduce noise estimate
-    
-    kalman.x[0] = poly.offset_us;  // Direct offset injection
-    kalman.x[1] = poly.drift_ppb;  // Direct drift injection
-    
-    // Thermal acceleration informs process noise
-    if (fabs(poly.accel_ppb_s) > 10.0) {
-        // High thermal instability -> increase process noise
-        kalman.Q_drift *= 2.0;
-        ESP_LOGW(TAG, "High drift acceleration: %.1f ppb/s", poly.accel_ppb_s);
-    }
-    
-    kalman.R = saved_R;
-}
-```
-
-**Why this works (cross-domain validation):**
-
-The 3-burst approach is mathematically identical to:
-
-| Domain | Technique | What It Extracts |
-|--------|-----------|------------------|
-| Seismology | Chirp survey | Subsurface velocity model |
-| GPS | Carrier-phase tracking | Integer ambiguity resolution |
-| Control theory | Kalman initialization | State + covariance from sparse samples |
-| Signal processing | Polynomial interpolation | Trend vs noise separation |
-
-In all cases: **multiple time-spaced samples enable derivative estimation**, separating systematic trends from random noise.
-
-**Expected improvement:** 
-- Offset precision: 2-3x (jitter rejected as deviation from trend)
-- Drift estimation: Direct measurement vs. Kalman inference
-- Thermal detection: Early warning of oscillator instability
-
-**Burst spacing considerations (within a single chirp):**
-
-| Burst Spacing | Total Chirp Duration | Tradeoff |
-|---------------|---------------------|----------|
-| 2ms | 6ms | Tight grouping, filters jitter within single "moment" |
-| 10ms | 30ms | Wider jitter window, some drift signal starts appearing |
-| 50ms | 150ms | Crystal drift becomes detectable (~2µs at 40ppm) |
-| 200ms | 600ms | Drift dominates jitter, highest sync latency |
-
-**UTLP Protocol Default: 2ms burst spacing** (6ms total chirp). The tight grouping treats the 3-burst chirp as a single atomic measurement, filtering software/hardware jitter to extract a cleaner offset. Crystal drift characterization happens via inter-exchange analysis (comparing offsets from chirps sent seconds apart), not within-chirp analysis. The *chirp interval* (how often chirps are sent) is controlled separately—e.g., Genesis Pulse (100ms→60s) for rapid convergence settling to steady-state.
+This work is published as open-source prior art under permissive license, ensuring these techniques remain freely available for public use.
 
 ---
 
-## 2. 802.11mc Fine Time Measurement Integration
+## 1. Introduction
 
-### 2.1 FTM as Stratum 1a Source
+### 1.1 The Distributed Coordination Problem
 
-802.11mc FTM provides hardware-timestamped ranging with ~100ns precision—300x better than BLE. The same T1-T4 timestamps used for distance calculation yield clock offset:
+Distributed systems face a fundamental challenge: how do independent nodes agree on shared state without continuous coordination? Traditional solutions—consensus algorithms (Raft, Paxos), vector clocks, persistent sequence numbers—assume reliable networks, persistent storage, and significant computational resources. These assumptions fail in resource-constrained embedded systems operating over lossy wireless links with limited memory and power budgets.
 
-```
-FTM ranging:  distance = RTT × c / 2
-UTLP sync:    offset = ((T2 - T1) + (T3 - T4)) / 2   ← Same timestamps!
-```
+The FLP impossibility result (Fischer, Lynch, Paterson, 1985) demonstrates that deterministic consensus is impossible in asynchronous systems with even a single faulty process. Yet practical applications—from synchronized wearables to industrial sensor networks—require coordinated behavior across distributed nodes.
 
-**New stratum level (extends Technical Report Table 3.3):**
+### 1.2 Time as a Public Utility
 
-| Stratum | Source | Precision |
-|---------|--------|-----------|
-| 0 | GPS/Atomic | <1μs |
-| 1 | Direct from Stratum 0 | ~1ms |
-| **1a** | **FTM from Stratum 1** | **~100ns** |
-| 2 | BLE from Stratum 1 | ~30μs |
+UTLP sidesteps the consensus problem entirely by establishing *time agreement first*, then deriving ordering, versioning, and coordination as consequences. The core insight: synchronized time itself serves as a universal reference for any ordering problem. When two devices agree on time to ±30μs precision—three orders of magnitude better than human perception thresholds—wall-clock timestamps provide sufficient ordering granularity for any human-scale interaction.
 
-### 2.2 ESP32-C6 FTM Errata
+Unlike traditional synchronization methods that couple timing with application data (requiring pairing, encryption, and specific app logic), UTLP treats time as a *broadcast environmental variable*. Any device can listen for UTLP beacons and synchronize—no handshake, no secrets, no application awareness required. A cheap consumer wearable automatically "latches" onto a high-precision source (GPS-equipped phone, emergency vehicle, municipal infrastructure) passing nearby, temporarily achieving sub-microsecond precision.
 
-**Critical hardware limitation:**
+### 1.3 The Glass Wall Architecture
 
-| Chip Revision | FTM Initiator | FTM Responder |
-|---------------|---------------|---------------|
-| ESP32-C6 v0.0 | ❌ (WIFI-9686) | ✅ |
-| ESP32-C6 v0.1 | ❌ (WIFI-9686) | ✅ |
-| ESP32-C6 v0.2+ | ✅ | ✅ |
+UTLP mandates strict separation of concerns within firmware:
 
-Errata WIFI-9686: "The time of T3 cannot be acquired correctly" in early silicon.
+**Time Stack (Public/Low-Level):** Listens for any UTLP beacon. Prioritizes sources based on stratum and quality. Maintains monotonic system clock with microsecond precision. *No encryption, no pairing, no application awareness.*
 
-```c
-bool hardware_supports_ftm_initiator(void) {
-    esp_chip_info_t info;
-    esp_chip_info(&info);
-    return (info.model == CHIP_ESP32C6 && info.revision >= 2);
-}
-```
+**Application Stack (Private/High-Level):** Contains user data, encryption keys, and business logic. Has *read-only access* to time via `UTLP_GetEpoch()`. Does not need to know how synchronization was achieved.
 
-### 2.3 FTM-Kalman Fusion
+This "glass wall" enables a medical wearable to synchronize timing with municipal infrastructure while keeping patient data completely isolated. The time stack sees only timestamps; the application stack sees only its encrypted data channel.
 
-When FTM measurements are available, adjust Kalman measurement noise:
+### 1.4 Design Principles
 
-```c
-void process_ftm_offset(int64_t ftm_offset_us) {
-    double saved_R = kalman.R;
-    kalman.R = 0.01;  // FTM: (0.1 μs)² vs BLE: (30 μs)²
-    kalman_update(&kalman, ftm_offset_us, esp_timer_get_time());
-    kalman.R = saved_R;
-}
-```
+- **Transport agnostic:** Core protocol independent of physical layer (BLE, ESP-NOW, WiFi, acoustic)
+- **Stratum-based hierarchy:** Automatic source selection with opportunistic precision upgrade
+- **Graceful degradation:** Holdover mode maintains timing during source loss
+- **Power awareness:** Battery-constrained leader election for swarm scenarios
+- **Stateless recovery:** Position reconstructable from synchronized time alone
+- **Minimal resources:** Implementable on single-core 160MHz MCU with BLE stack overhead
 
-FTM measurements are weighted 900× higher than BLE measurements.
+### 1.5 Multi-Burst Beacon Timing (Jitter Rejection)
 
----
+**Problem:** Single-sample sync measurements conflate systematic offset with random jitter. Without multiple samples, the system cannot distinguish "clock is wrong" from "this measurement was noisy."
 
-# Part II: Hybrid Transport Architecture
+**Finding (Purple Team validated):** Using N≥3 equally-spaced beacon bursts per sync exchange enables **jitter rejection** through outlier detection and best-sample selection. The burst-to-burst timing differences characterize *stack jitter*, not crystal drift—within a ~6ms window (3 bursts @ 2ms spacing), crystal drift (~0.24µs for 40ppm) is negligible compared to WiFi stack jitter (10-100µs).
 
-## 3. ESP-NOW Integration
+**What 3 bursts provide:**
 
-### 3.1 Transport Comparison
+| Capability | Method | Use |
+|------------|--------|-----|
+| Outlier detection | Identify stack-delayed burst | Reject corrupted sample |
+| Best-sample selection | Minimum-latency burst | Closest to hardware truth |
+| Noise floor estimation | Variance across bursts | Confidence weighting for health scoring |
+| Systematic pattern detection | Consistent burst-position effects | Learnable behavior for Proprioception |
 
-| Metric | BLE GATT | ESP-NOW |
-|--------|----------|---------|
-| TX current | ~18 mA | ~145 mA |
-| Packet time | ~2-3 ms | ~300 μs |
-| **Energy/packet** | **~40 μJ** | **~44 μJ** |
-| Latency jitter | ±10-50 ms | **±100 μs** |
+**Timescale separation:**
 
-**Key finding:** Energy per packet is similar, but ESP-NOW has 100× lower latency jitter—critical for sub-30μs sync.
+| Analysis Type | Window | Measures | Valid For |
+|---------------|--------|----------|-----------|
+| Intra-exchange | ~6ms (3 bursts) | Stack jitter | Outlier rejection, confidence |
+| Inter-exchange | seconds/minutes | Crystal drift | Drift rate, holdover prediction |
 
-### 3.2 Radio Coexistence (PWA + Peer)
+**Timescale separation principle:** On the intra-exchange timescale (~6ms), the crystal oscillator is effectively a stable reference — its drift (~0.24µs for 40ppm) is ~400x smaller than stack jitter (10-100µs). Burst-to-burst timing differences therefore measure jitter characteristics, not clock drift. Crystal drift characterization requires inter-exchange analysis over seconds to minutes, comparing offsets across multiple sync exchanges.
 
-**Design Evolution:** Early designs explored Time-Division Multiplexing (TDM) to coordinate BLE and ESP-NOW transmissions. Testing revealed that active TDM scheduling actually *increased* timing jitter rather than reducing it. The implemented architecture relies on ESP-IDF's hardware coexistence arbitrator instead.
-
-**Current Architecture:**
-
-```
-PWA ← BLE → SERVER ←─ ESP-NOW ─→ CLIENT
-              │
-              └── Single 2.4GHz radio, managed by ESP-IDF coex arbitrator
-```
-
-BLE and ESP-NOW share ESP32-C6's single 2.4GHz radio. ESP-IDF's coexistence arbitrator handles contention automatically with the following properties:
-
-- **ESP-NOW priority:** Time-critical beacons given higher priority
-- **BLE connection events:** ~1-3ms every connection interval (typically 50-100ms)
-- **Observed jitter:** ±100μs for ESP-NOW when PWA connected
-
-**Why TDM Was Abandoned:**
-
-1. **Added complexity without benefit:** TDM requires tracking BLE connection anchor points and scheduling ESP-NOW around them. ESP-IDF's coex arbitrator already does this in hardware.
-
-2. **Introduced timing jitter:** Waiting for "safe windows" added variable delays (up to 25ms per-packet). The coex arbitrator's automatic arbitration produces lower and more consistent latency.
-
-3. **BLE anchor tracking unreliable:** Connection parameters can change dynamically, making anchor prediction error-prone.
-
-**Retained TDM Infrastructure:**
-
-The `espnow_transport.h` header retains TDM constants and APIs for future exploration:
-
-```c
-#define ESPNOW_TDM_BLE_INTERVAL_MS  (50U)   // Theoretical BLE interval
-#define ESPNOW_TDM_SAFE_OFFSET_MS   (25U)   // Midpoint offset
-#define ESPNOW_TDM_SAFE_WINDOW_MS   (20U)   // Safe window duration
-
-bool espnow_transport_is_tdm_safe(void);    // Not called in production
-uint32_t espnow_transport_wait_for_tdm_safe(void);  // Not called in production
-```
-
-These remain for potential future use if PWA traffic causes observable ESP-NOW jitter (>1ms), but current testing shows the coex arbitrator is sufficient.
-
-### 3.3 Recommended Transport Allocation
-
-| Function | Transport | Endpoint | Rationale |
-|----------|-----------|----------|-----------|
-| Discovery | BLE Advertising | All | Phone + peer compatible |
-| PWA connection | BLE GATT | Phone↔Device | Web Bluetooth API |
-| Peer bonding | BLE SMP | Device↔Device | Trust establishment |
-| **Key exchange** | **BLE GATT** | Device↔Device | Secure channel for nonce |
-| **Time sync** | **ESP-NOW** | Device↔Device | Deterministic ±100μs latency |
-| Motor coordination | ESP-NOW | Device↔Device | Real-time bilateral commands |
-| Pattern transfer | BLE GATT | Phone↔Device | Reliable, larger MTU |
-| GPS time inject | BLE GATT | Phone→Device | Stratum 0→1 upgrade |
-| FTM ranging | WiFi 802.11mc | Device↔Device | Hardware timestamps (future) |
-
-**Transport lifecycle:**
-
-```
-Phase 1: Bootstrap (BLE only)
-  ├── Peer discovery via advertising
-  ├── BLE connection + SMP bonding
-  ├── WiFi MAC exchange
-  └── ESP-NOW key derivation + peer registration
-
-Phase 2: Operational (ESP-NOW primary, BLE for PWA)
-  ├── Peer BLE released
-  ├── Time sync via ESP-NOW beacons
-  ├── Motor commands via ESP-NOW
-  └── PWA connects via BLE (optional)
-```
-
-### 3.4 Transport Hardware Abstraction Layer (HAL)
-
-To support future transport options (802.11 Long Range, acoustic sync, wired fallback), UTLP defines a transport-agnostic HAL:
-
-```c
-// Transport capability flags
-#define UTLP_TRANSPORT_CAP_BROADCAST    (1 << 0)  // Can broadcast to all peers
-#define UTLP_TRANSPORT_CAP_UNICAST      (1 << 1)  // Can address single peer
-#define UTLP_TRANSPORT_CAP_ENCRYPTED    (1 << 2)  // Link-layer encryption
-#define UTLP_TRANSPORT_CAP_TIMESTAMPS   (1 << 3)  // Hardware TX/RX timestamps
-#define UTLP_TRANSPORT_CAP_RELIABLE     (1 << 4)  // Guaranteed delivery
-
-typedef struct {
-    const char* name;           // "espnow", "ble_gatt", "802.11lr"
-    uint32_t capabilities;
-    uint16_t max_payload;       // Bytes per transmission
-    uint16_t typical_latency_us;
-    uint16_t jitter_us;         // ±jitter bound
-
-    // Lifecycle
-    esp_err_t (*init)(void);
-    esp_err_t (*deinit)(void);
-
-    // Peer management
-    esp_err_t (*add_peer)(const uint8_t mac[6], const uint8_t key[16]);
-    esp_err_t (*remove_peer)(const uint8_t mac[6]);
-
-    // Data transfer
-    esp_err_t (*send)(const uint8_t* data, size_t len, const uint8_t* dest_mac);
-    esp_err_t (*set_recv_callback)(void (*cb)(const uint8_t* data, size_t len,
-                                              const uint8_t* src_mac));
-} utlp_transport_t;
-```
-
-**Current implementation:** `espnow_transport.c` implements this interface for ESP-NOW.
-
-**Future transports:**
-- **802.11 Long Range:** 1km+ outdoor sync for stadium/outdoor events
-- **Acoustic:** Ultrasonic sync through walls/barriers
-- **Wired:** USB/UART fallback for deterministic debugging
-
-### 3.5 BLE Bootstrap Model
-
-**Key insight:** BLE is excellent for *trust establishment* but suboptimal for *real-time sync*. The BLE Bootstrap Model uses BLE only during initialization, then releases it for ESP-NOW-only peer communication.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    BLE BOOTSTRAP PHASE                       │
-│  ┌──────────┐    BLE    ┌──────────┐                        │
-│  │  SERVER  │◄─────────►│  CLIENT  │                        │
-│  └────┬─────┘           └────┬─────┘                        │
-│       │                      │                              │
-│       │ 1. Advertise/Scan    │                              │
-│       │ 2. Connect + Bond    │                              │
-│       │ 3. Exchange WiFi MACs│                              │
-│       │ 4. Exchange nonce    │                              │
-│       │ 5. Derive LMK        │                              │
-│       │ 6. Register ESP-NOW  │                              │
-│       ▼                      ▼                              │
-│   ┌───────────────────────────────┐                         │
-│   │  RELEASE PEER BLE CONNECTION  │ ← Key transition        │
-│   └───────────────────────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                   OPERATIONAL PHASE                          │
-│  ┌──────────┐  ESP-NOW  ┌──────────┐                        │
-│  │  SERVER  │◄─────────►│  CLIENT  │                        │
-│  └────┬─────┘           └────┬─────┘                        │
-│       │                      │                              │
-│       │ Time sync beacons    │  (encrypted, ±100μs jitter)  │
-│       │ Motor commands       │                              │
-│       │ Pattern segments     │                              │
-│       ▼                      ▼                              │
-│                                                             │
-│  ┌──────────┐    BLE    ┌──────────┐                        │
-│  │  SERVER  │◄─────────►│   PWA    │  (optional, for UI)    │
-│  └──────────┘           └──────────┘                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Benefits:**
-1. **Deterministic sync:** ESP-NOW ±100μs vs BLE ±10-50ms jitter
-2. **Radio efficiency:** No peer BLE connection events consuming bandwidth
-3. **PWA compatibility:** Server still accepts PWA connections for user interface
-4. **Clean separation:** Trust layer (BLE) vs realtime layer (ESP-NOW)
-
-**Implementation:** See `src/espnow_transport.c` and `src/ble_manager.c` (key exchange flow).
+**Implementation note:** Calculate and log intra-burst statistics for hardware characterization and Proprioception training, but do NOT use them to apply timing corrections. The derivatives measure stack jitter, not clock error.
 
 ---
 
-# Part III: Security Architecture
+## 2. Related Work
 
-## 4. Authenticated ESP-NOW Transport
+### 2.1 Precision Time Protocol (IEEE 1588)
 
-The Technical Report v2.0 specifies unencrypted UTLP beacons with "Common Mode Rejection" security. This section extends that model for ESP-NOW transport where authentication (not encryption) is desirable.
+IEEE 1588 PTP achieves sub-microsecond synchronization in wired networks using hardware timestamping at the MAC layer. The protocol defines Grandmaster/Ordinary/Boundary/Transparent clock roles, Best Master Clock (BMC) algorithm for hierarchy establishment, and Sync/Follow_Up/Delay_Req/Delay_Resp message exchange for offset calculation.
 
-### 4.1 Key Derivation Approaches: A Design Journey
+UTLP adapts PTP's stratum concept and two-way delay measurement to connectionless wireless transports, sacrificing sub-microsecond precision for transport flexibility and zero-configuration operation.
 
-This section documents two viable approaches to ESP-NOW key derivation, preserving implementation lessons learned. In medical device development, understanding *why* design decisions were made is as important as the final implementation.
+### 2.2 Network Time Protocol (NTP)
 
-#### 4.1.1 Approach A: LTK-Based Derivation (Maximum Entropy)
+NTP's stratum hierarchy (0-15) directly inspires UTLP's source selection model. NTP achieves millisecond-scale synchronization over the internet through statistical filtering of multiple server responses. UTLP extends this hierarchy to embedded wireless contexts with finer granularity (stratum 0-255) and explicit holdover/flywheel semantics.
 
-The theoretically optimal approach derives ESP-NOW keys from the BLE Long Term Key (LTK):
+### 2.3 Wireless Sensor Network Synchronization
 
-**Entropy analysis:**
+Reference Broadcast Synchronization (RBS), Timing-sync Protocol for Sensor Networks (TPSN), and Flooding Time Synchronization Protocol (FTSP) address WSN timing. FTSP achieves ±1μs per-hop accuracy using MAC-layer timestamping and clock skew estimation. Swarm-Sync (2018) demonstrates hundreds-of-microseconds accuracy for swarm robotics with minute-scale resynchronization intervals.
 
-```
-MAC Address: [OUI: 3 bytes][NIC: 3 bytes]
-             └─ Vendor ─┘  └─ Unique ─┘
+UTLP draws from FTSP's flood-based approach but extends beyond clock synchronization to provide versioning and coordination primitives.
 
-ESP32 derivation: WiFi_MAC = BLE_MAC - 2
+### 2.4 CRDTs and Distributed State
 
-Actual entropy:
-  OUI:           0 bits (known: Espressif)
-  BLE↔WiFi:      0 bits (fixed offset)
-  NIC:          ~24 bits per device
+Conflict-free Replicated Data Types (Shapiro et al., 2011) achieve eventual consistency without coordination through mathematically convergent merge operations. The Last-Writer-Wins Register uses timestamps for conflict resolution: max(timestamp) wins. UTLP's timestamp-based versioning implements an implicit LWW-Register CRDT where the standard clock skew caveat is invalidated by ±30μs sync precision.
 
-  MACs total:   ~48 bits (binding, NOT secrecy)
-  LTK:          128 bits (THE secret)
-```
+---
 
-**Critical understanding:** MACs provide *uniqueness* (key binding), not *entropy*. The LTK is the sole source of cryptographic strength.
+## 3. Protocol Architecture
+
+### 3.1 Layered Design
+
+UTLP consists of four layers, each building on the previous:
+
+| Layer | Purpose | Provides |
+|-------|---------|----------|
+| **Transport** | Physical delivery | `send_beacon()`, `receive_beacon()`, `get_tx/rx_timestamp()` |
+| **Time Sync** | Clock agreement | `UTLP_GetEpoch()` → ±30μs synchronized time |
+| **State Versioning** | Ordering agreement | `born_at_us` timestamp as atomic version number |
+| **Coordination** | Behavior agreement | Pattern playback, zone extraction, epoch derivation |
+
+### 3.2 Transport Abstraction
+
+The transport layer provides a minimal interface for beacon exchange with timing information:
 
 ```c
 typedef struct {
-    uint8_t ble_mac[6];
-    uint8_t wifi_mac[6];
-} device_identity_t;
-
-esp_err_t derive_espnow_keys_ltk(
-    const uint8_t ltk[16],           // From BLE bond - THE secret
-    const device_identity_t* local,
-    const device_identity_t* peer,
-    uint8_t lmk_out[16]              // ESP-NOW Local Master Key
-) {
-    // Deterministic ordering (lower BLE MAC first)
-    const device_identity_t *first, *second;
-    if (memcmp(local->ble_mac, peer->ble_mac, 6) < 0) {
-        first = local; second = peer;
-    } else {
-        first = peer; second = local;
-    }
-
-    // MACs in INFO field (binding context)
-    uint8_t info[24];
-    memcpy(info + 0,  first->ble_mac, 6);
-    memcpy(info + 6,  first->wifi_mac, 6);
-    memcpy(info + 12, second->ble_mac, 6);
-    memcpy(info + 18, second->wifi_mac, 6);
-
-    // HKDF: security from LTK, uniqueness from MACs
-    mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-                 (uint8_t*)"UTLP-v1", 7,  // Salt
-                 ltk, 16,                   // IKM (secret)
-                 info, 24,                  // Info (binding)
-                 lmk_out, 16);
-
-    return ESP_OK;
-}
+    esp_err_t (*send_beacon)(const sync_beacon_t* beacon);
+    esp_err_t (*receive_beacon)(sync_beacon_t* beacon, uint32_t timeout_ms);
+    int64_t (*get_tx_timestamp)(void);
+    int64_t (*get_rx_timestamp)(void);
+} sync_transport_t;
 ```
 
-**Advantages:**
-- 128-bit cryptographic entropy (AES-128 strength)
-- Key derived from established BLE SMP security
-- No additional key exchange protocol needed
+| Transport | RTT Jitter | Sync Precision | Range |
+|-----------|------------|----------------|-------|
+| BLE 5.0 | ~15ms | ±30μs | ~10m indoor |
+| ESP-NOW | ~1-5ms | ±10-50μs | ~200m LOS |
+| 802.11 LR | ~5-10ms | ±20μs | ~1km LOS |
+| Acoustic (40kHz) | ~0.3ms/10cm | ±100μs + ranging | ~5m indoor |
 
-**Practical Challenges:**
-- LTK retrieval via NimBLE's `ble_store_util_*` APIs assumes NVS backend
-- Ephemeral LTK access requires pairing callback hook to capture key at generation
-- More complex integration with NimBLE's security manager internals
-- Additional code path vs. explicit nonce exchange
+### 3.3 Stratum-Based Source Selection
 
-#### 4.1.2 Approach B: Nonce-Based Derivation (Implementation Simplicity)
+UTLP uses a "baton passing" model (inspired by NTP) to determine timing authority. Lower stratum values indicate higher trust and precision:
 
-The implemented approach uses a server-generated nonce exchanged over the already-secure BLE channel:
+| Stratum | Class | Description |
+|---------|-------|-------------|
+| **0** | Primary Reference | Active external lock (GPS, Atomic, Cellular PTP). The "Gold Standard." |
+| **1** | Direct Link | Device directly receiving RF packets from Stratum 0. |
+| **2-15** | Mesh Hop | Device synced to Stratum (N-1). Each hop adds ~50μs jitter. |
+| **255** | Free Running | No external reference. Internal crystal with drift compensation. |
 
-**Entropy analysis:**
+#### 3.3.1 Opportunistic Synchronization
 
-```
-8-byte hardware RNG nonce:  64 bits (security)
-WiFi MACs (both devices):   ~48 bits (binding)
-```
+Devices default to **Listener Mode**, continuously scanning for UTLP beacons:
 
-**Key insight:** While 64-bit is below the 128-bit ideal, it vastly exceeds threat model requirements for a therapeutic device. An attacker would need:
-1. Physical proximity during key exchange (~5-second window)
-2. BLE sniffer to capture encrypted GATT traffic
-3. Break BLE encryption to extract nonce
+1. Device scans for beacons with UTLP service UUID (0xFEFE).
+2. If `Packet.Stratum < Current_Stratum` → Switch immediately.
+3. If `Packet.Stratum == Current_Stratum` AND `Packet.Quality > Current_Quality` → Switch.
+4. Result: Cheap consumer device automatically "latches" onto high-precision source passing nearby.
 
-```c
-// Actual implementation from espnow_transport.c
-esp_err_t espnow_derive_session_key(
-    const uint8_t nonce[8],           // Server-generated, sent via BLE
-    const uint8_t server_mac[6],      // WiFi STA MAC of server
-    const uint8_t client_mac[6],      // WiFi STA MAC of client
-    uint8_t lmk_out[16]               // ESP-NOW Local Master Key
-) {
-    // IKM = server_mac || client_mac (key binding material)
-    uint8_t ikm[12];
-    memcpy(ikm, server_mac, 6);
-    memcpy(ikm + 6, client_mac, 6);
-
-    // HKDF-SHA256: nonce as salt, MACs as IKM, fixed info string
-    return mbedtls_hkdf(
-        mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-        nonce, 8,                      // Salt (session-unique)
-        ikm, 12,                       // IKM (device binding)
-        (uint8_t*)"ESPNOW_LMK", 10,   // Info (domain separation)
-        lmk_out, 16
-    );
-}
-```
-
-**Why this was chosen:**
-1. **Simplicity:** No NVS dependency, no LTK retrieval complexity
-2. **Test compatibility:** Works with `CONFIG_BT_NIMBLE_NVS_PERSIST=n`
-3. **Sufficient security:** 64-bit entropy + BLE encryption + physical proximity
-4. **Hardware RNG:** ESP32-C6 provides true randomness via `esp_fill_random()`
-
-#### 4.1.3 Decision Matrix
-
-| Factor | Approach A (LTK) | Approach B (Nonce) |
-|--------|------------------|-------------------|
-| Entropy | 128-bit | 64-bit |
-| NVS dependency | None (LTK in RAM during session)* | None |
-| Implementation complexity | Higher | Lower |
-| Test environment support | All builds (with callback hook) | All builds |
-| BLE channel security | Implicit (derived) | Explicit (transport) |
-| Threat model coverage | Exceeds | Meets |
-
-*LTK exists in RAM during active bonding session. However, NimBLE's `ble_store_util_*` APIs assume NVS backend. Ephemeral LTK access requires hooking into the pairing callback to capture the key at generation time—adding implementation complexity.
-
-**Recommendation for medical devices:** Start with Approach B for development velocity, migrate to Approach A for production if regulatory requirements mandate 128-bit key strength. Document the decision in your Design History File (DHF).
-
-#### 4.1.4 Entropy Guidance for Future Implementations
-
-For AI agents implementing similar protocols:
-
-1. **Don't conflate binding with secrecy.** MAC addresses bind keys to devices but contribute near-zero entropy due to predictable OUI and derivation patterns.
-
-2. **Hardware RNG is mandatory.** Never use `rand()` or timestamps for cryptographic material. ESP32's `esp_fill_random()` uses a hardware entropy source.
-
-3. **HKDF is the right primitive.** It properly separates extraction (getting entropy from IKM) and expansion (generating key material). Don't hand-roll XOR-based derivation.
-
-4. **Transport security compounds.** A 64-bit nonce sent over encrypted BLE is not a 64-bit attack surface—the attacker must also break BLE to obtain it.
-
-5. **Document the journey.** Future maintainers (human or AI) benefit from understanding rejected alternatives as much as chosen solutions.
-
-#### 4.1.5 Why HKDF-SHA256, Not PBKDF2 or Argon2
-
-A common security hardening question: "Should we use PBKDF2 or Argon2 for stronger key derivation?"
-
-**Answer: No—HKDF is the correct choice for our use case.**
-
-| Algorithm | Purpose | Input Entropy | Iterations | Memory |
-|-----------|---------|---------------|------------|--------|
-| **HKDF-SHA256** | Key derivation from high-entropy secrets | 64-128 bits | 1 | Minimal |
-| **PBKDF2** | Password stretching | Low (human passwords) | 10K-600K | Minimal |
-| **Argon2** | Memory-hard password hashing | Low (human passwords) | Configurable | 64MB+ |
-
-**Why PBKDF2/Argon2 are inappropriate here:**
-
-1. **Our input is already high-entropy.** BLE LTK is 128-bit random; our nonce is 64-bit hardware RNG. These are not weak human-memorable passwords that need stretching.
-
-2. **Iterations solve the wrong problem.** PBKDF2's 600K iterations slow brute-force attacks on 40-bit passwords (~1M guesses). With 64-128 bit entropy, brute force is already computationally infeasible (2^64 to 2^128 operations).
-
-3. **Resource constraints.** Argon2's memory-hardness (64MB+) exceeds ESP32-C6's 512KB SRAM. PBKDF2's CPU-bound iterations add latency during time-critical key exchange.
-
-4. **MAC binding is already implemented.** Both device WiFi MACs are included in the HKDF `info` parameter, providing cryptographic binding to the specific device pair.
-
-**Correct hardening approaches for high-entropy inputs:**
-- Increase HKDF output length (16→32 bytes for 256-bit keys)
-- Add timestamps to derivation for session time-bounding
-- Implement key rotation after N beacons or T minutes
-- Ensure hardware RNG is properly seeded (ESP32-C6: automatic)
-
-**Summary:** Use PBKDF2/Argon2 for passwords, HKDF for secrets. Our implementation correctly uses HKDF.
-
-### 4.2 Time-Synchronized TOTP
-
-UTLP's synchronized time enables tight TOTP windows:
-
-| Standard TOTP | UTLP TOTP |
-|---------------|-----------|
-| 30-second windows | **100ms windows** |
-| 30s tolerance | ±1 window (200ms) |
-
-```c
-#define TOTP_WINDOW_US  100000  // 100ms
-
-uint32_t totp_generate(const uint8_t key[16], int64_t sync_time_us) {
-    uint64_t counter = sync_time_us / TOTP_WINDOW_US;
-    
-    uint8_t msg[8];
-    for (int i = 7; i >= 0; i--) {
-        msg[i] = counter & 0xFF;
-        counter >>= 8;
-    }
-    
-    // AES-CMAC (hardware accelerated on ESP32)
-    uint8_t mac[16];
-    mbedtls_cipher_cmac(
-        mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB),
-        key, 128, msg, 8, mac);
-    
-    return ((mac[0] & 0x7F) << 24 | mac[1] << 16 | 
-            mac[2] << 8 | mac[3]) % 1000000;
-}
-
-bool totp_validate(uint32_t received, int64_t sync_time_us, uint64_t* last_counter) {
-    uint64_t counter = sync_time_us / TOTP_WINDOW_US;
-    
-    for (int ofs = -1; ofs <= 1; ofs++) {  // ±1 window tolerance
-        uint64_t check = counter + ofs;
-        if (check <= *last_counter) continue;  // Replay prevention
-        
-        if (received == totp_generate(totp_key, check * TOTP_WINDOW_US)) {
-            *last_counter = check;
-            return true;
-        }
-    }
-    return false;
-}
-```
-
-### 4.3 Authenticated Beacon Format
-
-```c
-typedef struct __attribute__((packed)) {
-    // Header (plaintext for filtering)
-    uint8_t  magic[2];        // 0xFE, 0xFE
-    uint8_t  version;         // 0x03
-    uint8_t  flags;
-    uint16_t sequence;        // Monotonic (replay detection)
-    
-    // Payload
-    uint8_t  stratum;
-    uint8_t  quality;
-    int64_t  sync_time_us;
-    int32_t  drift_ppb;       // Kalman estimate
-    
-    // Authentication
-    uint32_t totp;            // Time-bound authentication
-    uint16_t crc16;
-} espnow_beacon_v3_t;         // 26 bytes
-```
-
-### 4.4 Security Properties
-
-| Property | Mechanism |
-|----------|-----------|
-| Authentication | TOTP proves key possession |
-| Replay prevention | Monotonic sequence + TOTP counter |
-| Hardware binding | Both device MACs in key derivation |
-| Time binding | 100ms TOTP windows (vs 30s standard) |
-| Key secrecy | 128-bit LTK from BLE SMP |
-
-**Note:** This provides *authentication*, not *confidentiality*. Sync beacons remain readable (consistent with Common Mode Rejection model) but cannot be forged or replayed.
-
-#### 4.4.1 Replay Protection Implementation Details
-
-Replay attacks are prevented through multiple complementary mechanisms:
-
-**1. Key Exchange Nonce (Session Uniqueness)**
-
-Each ESP-NOW session begins with a fresh 8-byte hardware RNG nonce:
-
-```c
-// From espnow_transport.c - key exchange initiation
-esp_fill_random(key_exchange->nonce, ESPNOW_NONCE_SIZE);  // 8 bytes
-```
-
-The nonce is included in HKDF key derivation, ensuring each pairing session produces unique keys. An attacker cannot replay captured traffic from a previous session—the keys won't match.
-
-**2. Beacon Sequence Numbers (Intra-Session)**
-
-Each beacon contains a monotonic sequence number (8-bit, wraps 255→0):
-
-```c
-typedef struct __attribute__((packed)) {
-    // ... header fields ...
-    uint8_t sequence;        // Monotonic counter
-    // ... payload fields ...
-} espnow_beacon_t;
-```
-
-Receiver tracks `last_sequence` and rejects duplicates:
-
-```c
-// Replay detection logic
-if (beacon->sequence == last_sequence) {
-    ESP_LOGW(TAG, "Duplicate beacon seq=%u (replay?)", beacon->sequence);
-    return ESP_ERR_INVALID_STATE;
-}
-// Handle wrap-around: valid if new > old OR (old > 200 AND new < 50)
-if (beacon->sequence < last_sequence &&
-    !(last_sequence > 200 && beacon->sequence < 50)) {
-    ESP_LOGW(TAG, "Out-of-order beacon seq=%u < last=%u",
-             beacon->sequence, last_sequence);
-    return ESP_ERR_INVALID_STATE;
-}
-last_sequence = beacon->sequence;
-```
-
-**3. TOTP Time Binding (Optional Layer)**
-
-When FLAG_AUTHENTICATED is set, beacons include a 32-bit TOTP:
-- 100ms window granularity (300× tighter than standard 30s TOTP)
-- Counter derived from synchronized time, not beacon sequence
-- Prevents replay even if attacker captures and immediately retransmits
-
-**4. ESP-NOW CCMP Encryption**
-
-ESP-NOW uses AES-128-CCMP (same as WPA2) which includes:
-- Per-packet nonce (PN) managed by hardware
-- Message authentication via CCMP MIC
-- Protection against bit-flipping attacks
-
-**Attack Surface Analysis:**
-
-| Attack | Mitigation | Residual Risk |
-|--------|-----------|---------------|
-| Replay old session | Key exchange nonce | None (keys differ) |
-| Replay same session | Sequence number | 1-packet window |
-| Immediate replay | TOTP + sequence | None |
-| Bit-flip modification | CCMP MIC | None |
-| Key extraction | BLE encryption + proximity | Physical access required |
-
-**Sequence Wrap Handling:**
-
-The 8-bit sequence wraps every 256 beacons (~51 seconds at 200ms interval). Wrap detection uses heuristics:
-- If `old > 200` and `new < 50`, assume valid wrap (255→0)
-- Otherwise, `new < old` indicates replay or out-of-order
-- Edge case: 51+ seconds of packet loss could cause false rejection (acceptable—session would be degraded anyway)
-
-### 4.5 Cryptographic Hardening Rationale
-
-This section documents the defense-in-depth security architecture and explains why specific cryptographic choices were made.
-
-#### 4.5.1 Layered Security Model
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PHYSICAL LAYER                            │
-│  • Proximity requirement (~10m BLE range)                    │
-│  • User must physically power on both devices                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    TRANSPORT LAYER                           │
-│  • BLE SMP bonding (MITM protection via numeric comparison)  │
-│  • ESP-NOW AES-128-CCMP encryption                          │
-│  • Hardware-managed per-packet nonces                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    KEY DERIVATION LAYER                      │
-│  • 8-byte hardware RNG nonce (64-bit entropy)               │
-│  • HKDF-SHA256 key derivation                               │
-│  • Dual-MAC binding (WiFi MACs in derivation info)          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    APPLICATION LAYER                         │
-│  • Monotonic sequence numbers (replay detection)             │
-│  • Optional 100ms TOTP windows (time-bound authentication)   │
-│  • CRC16 integrity check                                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### 4.5.2 Why This Architecture Exceeds Threat Model Requirements
-
-**Threat model for therapeutic bilateral stimulation:**
-- Not handling financial transactions
-- Not storing sensitive health records (only session timing)
-- Physical proximity inherently required for therapy
-- Attacker value proposition: Low (no monetary gain)
-
-**Security provided:**
-- Session hijacking: Prevented (CCMP + key binding)
-- Eavesdropping: Mitigated (CCMP encryption, low-value data)
-- Replay attacks: Prevented (nonce + sequence + TOTP)
-- Device impersonation: Prevented (MAC-bound keys)
-- Denial of service: Out of scope (RF jamming always possible)
-
-**Design philosophy:** Security should be proportional to threat. We implement strong cryptographic primitives (AES-128, HKDF-SHA256) but avoid over-engineering that would increase complexity, power consumption, and attack surface.
-
-#### 4.5.3 Future Hardening Options (If Required)
-
-If regulatory requirements or threat model changes mandate stronger security:
-
-| Enhancement | Effort | Benefit |
-|-------------|--------|---------|
-| Increase nonce to 16 bytes | Low | 128-bit session entropy |
-| LTK-based derivation (4.1.1) | Medium | 128-bit from BLE bond |
-| 256-bit HKDF output | Low | Larger key space |
-| Key rotation every N minutes | Medium | Limit exposure window |
-| Mutual authentication (challenge-response) | High | Prevent rogue devices |
-
-**Current stance:** The implemented 64-bit nonce + HKDF + CCMP architecture exceeds requirements for the therapeutic device threat model. Enhancements are documented for future consideration if regulatory landscape changes.
+This enables a bilateral EMDR device pair (normally Stratum 255, peer-synced) to opportunistically upgrade to Stratum 1 precision when a GPS-equipped smartphone or emergency vehicle broadcasts UTLP beacons nearby.
 
 ---
 
-# Part IV: Beacon Version 3
+## 4. Time Synchronization Layer
 
-## 5. Extended Beacon Structure
+### 4.1 PTP-Inspired Offset Calculation
 
-Extends Technical Report v2.0 beacon with Kalman drift and optional RFIP fields:
+The synchronization protocol adapts IEEE 1588's two-way delay measurement to connectionless transports. Four timestamps capture a beacon round-trip:
 
-```c
-typedef struct __attribute__((packed)) {
-    // Header (4 bytes)
-    uint8_t  magic[2];           // 0xFE, 0xFE
-    uint8_t  version;            // 0x03
-    uint8_t  flags;
-    
-    // Time sync (14 bytes)
-    uint8_t  stratum;
-    uint8_t  quality;
-    int64_t  sync_time_us;
-    int32_t  drift_ppb;          // NEW: Kalman drift estimate
-    
-    // RFIP extension (optional, 8 bytes if FLAG_HAS_POSITION)
-    int16_t  pos_x_cm;
-    int16_t  pos_y_cm;
-    int16_t  pos_z_cm;
-    uint8_t  pos_uncertainty_cm;
-    uint8_t  spatial_flags;
-    
-    // Integrity (4 bytes, or 8 if authenticated)
-    uint16_t sequence;
-    uint16_t crc16;
-    // + uint32_t totp if FLAG_AUTHENTICATED
-} utlp_beacon_v3_t;
+- **T1:** Server transmit timestamp (local clock when beacon sent)
+- **T2:** Client receive timestamp (local clock when beacon received)
+- **T3:** Client transmit timestamp (response beacon)
+- **T4:** Server receive timestamp (response received)
 
-// flags byte
-#define FLAG_TIME_MASTER    (1 << 0)
-#define FLAG_FTM_CAPABLE    (1 << 1)  // 802.11mc responder
-#define FLAG_HAS_POSITION   (1 << 2)  // RFIP fields present
-#define FLAG_HOLDOVER       (1 << 3)
-#define FLAG_AUTHENTICATED  (1 << 4)  // TOTP field present
-#define FLAG_HIGH_STRATUM   (1 << 5)  // Stratum 0-1
+Clock offset and one-way delay derive from:
+
 ```
+offset = ((T2 - T1) - (T4 - T3)) / 2
+delay  = ((T2 - T1) + (T4 - T3)) / 2
+```
+
+### 4.2 Drift Rate Estimation
+
+Crystal oscillator drift (typically ±20-50ppm for ESP32) accumulates over time. UTLP beacons include a `drift_rate` field (parts per billion) enabling receivers to predict clock behavior between sync events. Linear regression over recent offset samples estimates drift, allowing interpolation during beacon gaps.
+
+### 4.3 Holdover Mode (The Flywheel Effect)
+
+When a device loses connection to its time source (e.g., GPS-equipped phone moves out of range), it enters **Holdover Mode** rather than resetting:
+
+1. Clock continues incrementing using internal crystal.
+2. Last known `drift_rate` correction is applied.
+3. Advertised stratum degrades (e.g., Stratum 2 → Stratum 3, or → Stratum 255).
+4. Device continues broadcasting degraded-stratum beacons for downstream nodes.
+
+This "flywheel" behavior ensures graceful degradation rather than abrupt timing discontinuities. A bilateral device pair losing external sync smoothly transitions to peer-only synchronization while maintaining relative timing accuracy.
 
 ---
 
-## 6. Prior Art Extensions
+## 5. Timestamp-Based State Versioning
 
-This supplement establishes additional prior art for:
+### 5.1 The Core Innovation
 
-### 6.1 Precision Techniques
-1. **Minimum Delay Packet Selection** for wireless time sync filtering
-2. **Two-state Kalman filter** (offset + drift) for embedded sync
-3. **802.11mc FTM as Stratum 1a** time source in UTLP hierarchy
-4. **FTM-Kalman fusion** with transport-specific noise weighting
-5. **Multi-burst beacon timing as time-domain interferometry**: Using N≥3 equally-spaced beacon bursts to extract offset, drift rate, and drift stability (thermal acceleration)—mathematically identical to seismic chirp signal processing; constitutes "temporal phased array" rejecting jitter as deviation from polynomial trend; cross-domain technique independently rediscovered from first principles
+Traditional distributed systems use persistent sequence numbers or vector clocks for version ordering. UTLP eliminates persistence requirements by using the synchronized timestamp at state creation as the version identifier. Since both devices agree on time (±30μs), a timestamp uniquely and globally orders all state changes.
 
-### 6.2 Transport Architecture
-5. **BLE Bootstrap Model**: BLE for trust establishment only, released after key exchange
-6. **Transport HAL abstraction**: Platform-agnostic interface for sync transports
-7. **Hardware coexistence over TDM**: ESP-IDF's coex arbitrator outperforms manual time-division multiplexing
-8. **Transport lifecycle phases**: Bootstrap (BLE) → Operational (ESP-NOW) separation
+When any device initiates a state change, it captures the current synchronized time. This timestamp *becomes* the version number. Conflict resolution is trivial: higher timestamp wins. No NVS writes, no coordination protocol, no central authority for version assignment.
 
-### 6.3 Security Models
-9. **Dual key derivation approaches**: LTK-based (128-bit) vs nonce-based (64-bit) with documented tradeoffs
-10. **Entropy analysis methodology**: Distinguishing binding (MACs) from secrecy (keys)
-11. **Time-synchronized TOTP** with 100ms windows (300× tighter than standard)
-12. **Authenticated broadcast beacons** (authentication without confidentiality)
-13. **Nonce-over-encrypted-channel**: Leveraging BLE encryption for key material transport
-14. **HKDF vs PBKDF2/Argon2 selection criteria**: Algorithm choice based on input entropy characteristics
-15. **Multi-layer replay protection**: Session nonce + sequence numbers + TOTP + CCMP
-16. **Defense-in-depth architecture**: Physical, transport, key derivation, and application layer security
-17. **Threat-proportional security design**: Appropriate cryptographic strength for device threat model
+### 5.2 Beacon Payload Structure
 
-### 6.4 Implementation Guidance
-18. **Design journey documentation**: Preserving rejected alternatives for AI/human maintainers
-19. **Medical device development velocity**: Nonce-based approach for development, LTK for production
-20. **Hardware RNG requirements**: `esp_fill_random()` for cryptographic material, never `rand()`
+```c
+struct UTLP_Payload {
+    uint8_t  magic[2];       // 0xFE, 0xFE (Protocol Identifier)
+    uint8_t  stratum;        // 0 = GPS, 255 = Free Run
+    uint8_t  quality;        // 0-100 (Battery/Oscillator confidence)
+    uint8_t  hops;           // Distance from Master (loop prevention)
+    uint64_t epoch_us;       // Microseconds since epoch
+    int32_t  drift_rate;     // Estimated drift in ppb
+};
+```
+
+### 5.3 CRDT Equivalence
+
+This versioning scheme implements a State-based CRDT with Last-Writer-Wins semantics:
+
+- **Replica:** Each UTLP-enabled device
+- **State:** Beacon payload (epoch_us, stratum, quality)
+- **Timestamp:** epoch_us (from synchronized clock)
+- **Merge function:** Lower stratum wins; if equal, higher quality wins; if equal, max(epoch_us) wins
+- **Tiebreaker:** SERVER role wins if timestamps within ±100μs
+
+---
+
+## 6. Power-Aware Leader Election
+
+### 6.1 The Swarm Rule
+
+In battery-constrained scenarios without external time sources (e.g., bilateral EMDR devices indoors), UTLP implements power-aware leader election using the `quality` field:
+
+1. Nodes encode battery level (0-100) in the quality field.
+2. Current time master broadcasts `quality = battery_level`.
+3. If master's battery drops below threshold (e.g., 20%), it sets `quality = 0`.
+4. Swarm automatically re-elects neighbor with highest quality as new time anchor.
+
+This ensures the device with most remaining power serves as time master, extending overall swarm operating time. Handoffs are seamless—followers simply begin tracking the new highest-quality source.
+
+### 6.2 Zone and Role Separation
+
+Drawing from Texas Instruments' software-defined vehicle architecture, UTLP separates two orthogonal concepts:
+
+- **Zone (physical):** Which outputs to drive. Values: LEFT, RIGHT. Immutable, hardware-determined.
+- **Role (logical):** Who provides timing reference. Values: SERVER, CLIENT. Mutable, runtime-negotiated via quality field.
+
+This separation enables identical firmware on both devices. A LEFT-zone device can be either SERVER or CLIENT depending on battery state and network topology.
+
+---
+
+## 7. Coordination Layer
+
+### 7.1 The Sheet Music Paradigm
+
+The coordination model draws from emergency vehicle lighting systems (Feniex, Whelen): synchronized modules don't negotiate timing per-output. Instead, all modules receive the same pattern definition and execute independently from their local copy. Each module knows its position (zone) and extracts its portion from the shared "sheet music."
+
+This eliminates reactive timing calculation—the source of cascading bugs in earlier architectures. Both devices load identical pattern definitions; each reads only its assigned zone and executes locally. No per-cycle coordination needed during playback.
+
+### 7.2 Epoch Derivation
+
+Pattern playback epoch (when cycle 0 begins) derives mathematically from the state's birth timestamp:
+
+```c
+epoch_us = ((born_at_us / cycle_us) + 1) * cycle_us
+```
+
+Both devices independently calculate the same epoch from the shared `born_at_us` timestamp—no additional coordination required.
+
+---
+
+## 8. Security Considerations
+
+### 8.1 The Shared Hallucination Model
+
+UTLP is intentionally unencrypted, creating what might be called a "shared hallucination." Security analysis:
+
+- **Spoofing:** A bad actor CAN broadcast fake time (e.g., "The year is 2050").
+- **Impact:** All listening devices will agree it is 2050.
+- **Safety:** Since patterns rely on RELATIVE timing (intervals), absolute time error is irrelevant to physical safety.
+
+### 8.2 Common Mode Rejection
+
+The key security insight: if time is spoofed, it is spoofed *identically for all local nodes*, preserving relative synchronization. A bilateral EMDR device pair maintains perfect antiphase regardless of whether the absolute epoch is correct. The "Left" and "Right" units remain synchronized to each other—which is what matters for therapeutic efficacy.
+
+This is fundamentally different from attacks on application data, where spoofing one device while not another creates inconsistency. UTLP's broadcast nature ensures consistent spoofing—a property that, counterintuitively, provides safety through uniformity.
+
+### 8.3 Application-Layer Isolation
+
+The Glass Wall architecture ensures that time spoofing cannot compromise application data:
+
+- Time stack has no access to encryption keys, user data, or business logic.
+- Application stack cannot be reached through time beacons.
+- Worst case: device has wrong absolute time, but all data remains confidential and correctly encrypted.
+
+---
+
+## 9. Implementation Notes
+
+### 9.1 ESP32-C6 Reference Implementation
+
+The reference implementation targets ESP32-C6—a single-core RISC-V processor at 160MHz. The NimBLE stack creates high-priority tasks (19-23) sharing the single core with application code. Timing-critical operations use GPTimer ISR callbacks rather than FreeRTOS software timers.
+
+**Critical Kconfig:** `CONFIG_GPTIMER_ISR_HANDLER_IN_IRAM=y`, `CONFIG_GPTIMER_ISR_CACHE_SAFE=y` (prevents 10-100μs latency spikes during flash operations).
+
+### 9.2 BLE Service UUID
+
+**Proposed Service UUID:** 0xFEFE (pending formal registration). Manufacturing data payload uses this UUID for beacon identification across vendors.
+
+---
+
+## 10. Applications
+
+### 10.1 Reference Application: Bilateral EMDR
+
+The protocol was developed for synchronized bilateral haptic stimulation in EMDR therapy—two handheld devices producing alternating vibration/LED patterns. Requirements: antiphase maintained within ±10ms over 20-minute sessions, autonomous operation during brief disconnections, perceptually smooth output.
+
+### 10.2 Extended Applications
+
+- **Municipal infrastructure:** Traffic signals, emergency vehicle preemption, coordinated lighting
+- **Medical wearables:** Multi-sensor body networks requiring coordinated sampling
+- **Industrial IoT:** Timestamped sensor fusion from distributed arrays
+- **Swarm robotics:** Coordination timing layer for multi-agent systems
+- **Art installations:** Synchronized lighting/sound across distributed nodes
+
+---
+
+## 11. Intellectual Property Statement
+
+This work is published as **open-source prior art** under permissive license. The authors explicitly disclaim any patent rights and publish these techniques to establish prior art, ensuring they remain available for public use.
+
+**Key techniques documented as prior art:**
+
+1. Time as public utility / broadcast environmental variable architecture
+2. Glass Wall separation of time stack (public) from application stack (private)
+3. Stratum-based opportunistic synchronization with GPS upgrade path
+4. Holdover/flywheel mode for graceful degradation during source loss
+5. Power-aware leader election via quality field (Swarm Rule)
+6. Timestamp-based distributed state versioning (implicit LWW-CRDT)
+7. Common Mode Rejection security model for broadcast time
+8. Transport-agnostic sync abstraction (BLE, ESP-NOW, 802.11 LR, acoustic)
+9. Sheet music pattern execution with zone extraction
+10. Zone/Role architectural separation for identical firmware deployment
+
+**First published:** December 2025
+
+**Repository:** github.com/mlehaptics (MIT License)
+
+---
+
+## 12. Conclusion
+
+The Universal Time Lord Protocol demonstrates that distributed determinism is achievable on resource-constrained embedded systems without consensus algorithms, persistent storage, or continuous coordination. The key insight: when time synchronization is precise enough (±30μs), it collapses the distributed systems problem—ordering, versioning, and coordination derive as consequences of time agreement.
+
+By treating time as a public utility—a broadcast environmental variable available to any device without pairing or authentication—UTLP enables a new class of applications where timing precision is shared freely while application data remains private. The Glass Wall architecture ensures this openness does not compromise security.
+
+The resulting Distributed Determinism Platform provides reusable primitives for any application requiring coordinated behavior across independent wireless nodes. By publishing this work as open-source prior art, we ensure these techniques remain freely available for innovation—technology that assumes cooperation rather than extraction.
 
 ---
 
 ## References
 
-1. ESPARGOS Project: https://espargos.net/
-2. ESPARGOS arXiv: https://arxiv.org/abs/2502.09405
-3. IEEE 802.11-2016 §11.24 (Fine Timing Measurement)
-4. ESP32-C6 Errata WIFI-9686: docs.espressif.com
-5. RFC 6238: TOTP Algorithm
-6. RFC 5869: HKDF
+[1] IEEE 1588-2019. "Precision Clock Synchronization Protocol for Networked Measurement and Control Systems." IEEE Standards Association.
+
+[2] D. Mills et al. RFC 5905. "Network Time Protocol Version 4: Protocol and Algorithms Specification." IETF, 2010.
+
+[3] M. Shapiro, N. Preguiça, C. Baquero, M. Zawirski. "Conflict-free Replicated Data Types." SSS 2011.
+
+[4] M. Maróti, B. Kusy, G. Simon, Á. Lédeczi. "The Flooding Time Synchronization Protocol." SenSys 2004.
+
+[5] M. Fischer, N. Lynch, M. Paterson. "Impossibility of Distributed Consensus with One Faulty Process." JACM 1985.
+
+[6] M.V. Shenoy. "Swarm-Sync: A distributed global time synchronization framework for swarm robotic systems." Pervasive and Mobile Computing 2018.
+
+[7] C. Medina, J.C. Segura, A. de la Torre. "Accurate time synchronization of ultrasonic TOF measurements in IEEE 802.15.4 based wireless sensor networks." Ad Hoc Networks 2013.
+
+[8] Espressif Systems. "ESP-IDF Programming Guide: Wi-Fi Driver." docs.espressif.com, 2025.
+
+[9] J. Li et al. "Application-Layer Time Synchronization and Data Alignment Method for Multichannel Biosignal Sensors Using BLE Protocol." Sensors 2023.
 
 ---
 
-*Supplement S1 to UTLP Technical Report v2.0*
+## Acknowledgments
 
-*December 2025*
+This specification emerged from collaborative development across multiple AI systems and human expertise:
+
+- **Steve (mlehaptics):** Architecture design, multi-domain expertise, hardware implementation, "Time as Public Utility" philosophy, Glass Wall architecture, Stratum hierarchy, Flywheel/Holdover mode, Swarm Rule battery-aware election, Common Mode Rejection security model, UTLP packet structure.
+
+- **Gemini (Google):** CRDT analysis and LWW-Register mapping, recognition of timestamp-as-version pattern, distributed systems theoretical framing, platform abstraction insights.
+
+- **Claude (Anthropic):** Technical report compilation, academic literature survey (PTP, FTSP, BLE sync, swarm robotics), transport comparison analysis, prior art documentation, defensive publication framing.
+
+---
+
+*— End of Document —*

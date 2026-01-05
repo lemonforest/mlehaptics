@@ -71,7 +71,7 @@ We document this overlap transparently. Our contribution is not the synchronizat
 
 ### Summary of Core Contributions
 
-This document contains 110 specific prior art claims (Section 9). For navigation, they derive from eight core architectural innovations:
+This document contains 122 specific prior art claims (Section 9). For navigation, they derive from eight core architectural innovations:
 
 | # | Core Innovation | Summary | Claims |
 |---|-----------------|---------|--------|
@@ -398,36 +398,56 @@ UTLP provides synchronized time as a "broadcast environmental variable"—a publ
 
 The core insight: when devices agree on time to ±30μs precision, timestamps provide sufficient ordering granularity for any human-scale coordination.
 
-#### 4.1.1 Multi-Burst Beacon Timing: Time-Domain Interferometry
+#### 4.1.1 Multi-Burst Beacon Timing: Jitter Rejection via Multi-Sample Filtering
 
-A critical implementation detail: UTLP sync beacons use **3 equally-spaced bursts** rather than a single transmission. This approach was discovered empirically ("more samples = more math") and independently rediscovers **seismic chirp signal processing**—the same technique used to characterize subsurface velocity models from swept-frequency acoustic pulses.
+A critical implementation detail: UTLP sync beacons use **3 equally-spaced bursts** rather than a single transmission. This approach was discovered empirically ("more samples = more math") and provides **jitter rejection** and **systematic pattern detection**—analogous to seismic array processing that rejects ground roll to resolve the signal beneath.
 
-**The derivative stack:**
+**Timescale clarity (Purple Team validated):**
 
-| Sample | Measures | Seismic Analog | Mathematical Role |
-|--------|----------|----------------|-------------------|
-| Burst 1 (t₀) | Offset | Position | Where am I? |
-| Burst 2 (t₁) | Drift | Velocity | Where am I going? (1st derivative) |
-| Burst 3 (t₂) | Stability | Acceleration | Is my "going" stable? (2nd derivative) |
+Over a 3-burst window (~6ms at 2ms spacing), crystal drift is negligible (~0.24µs for a 40ppm crystal). What *does* vary on this timescale is WiFi stack behavior: arbitration delay (10-100µs), coexistence arbiter (40-60µs for Dual Stack), and OS scheduler preemption. The 3-burst approach characterizes *stack jitter*, not crystal drift. Drift characterization requires **inter-exchange** analysis over seconds/minutes.
 
-With a single sample, you get a scalar—one offset measurement contaminated by jitter. With 3 samples, you can fit a parabola: offset + drift rate + drift acceleration (thermal stability). You're not just *measuring* time—you're measuring **the curvature of your clock's relationship to truth**.
+**What 3 bursts provide:**
+
+| Capability | Method | Use |
+|------------|--------|-----|
+| **Outlier detection** | Identify burst delayed by stack noise | Reject corrupted sample |
+| **Best sample selection** | Minimum-latency burst | Closest to hardware truth |
+| **Noise floor estimation** | Variance across bursts | Confidence weighting for health scoring |
+| **Systematic pattern detection** | Consistent burst-position effects | Learnable behavior for Proprioception |
 
 **Why this matters:**
 
 ```
 1 Burst:  A dot. Zero context. Jitter indistinguishable from offset.
-3 Bursts: A curve. Trajectory of time. Jitter rejected as deviation from trend.
+3 Bursts: A distribution. Outliers visible. Cleanest sample selectable.
 ```
 
-The 3-burst approach builds a **temporal phased array**—"focusing" the receiver on the valid time signal and rejecting transient noise (stack jitter), exactly like a seismic array rejects ground roll to resolve the oil deposit beneath.
+**Learnable systematic effects**: If burst-position timing patterns are consistent across exchanges (e.g., first-burst warmup penalty, receiver AGC settling), they reveal learnable stack behavior that feeds Proprioception/ILC training. Random jitter averages out; systematic effects accumulate into actionable calibration.
 
-**Cross-domain validation**: This technique is mathematically identical to:
-- Seismic chirp surveys (swept frequency characterizes medium velocity)
+The 3-burst approach builds a **temporal filter**—rejecting transient noise to find the cleanest time signal, exactly like a seismic array rejects ground roll to resolve the oil deposit beneath. The seismic analogy remains valid: multiple samples reject noise and reveal signal. The correction is that within a single exchange, the "signal" is clock offset and the "noise" is stack jitter—not crystal drift.
+
+**Cross-domain validation**: This multi-sample filtering technique parallels:
+- Seismic arrays (multiple geophones reject surface waves, resolve body waves)
 - GPS carrier-phase tracking (multiple samples resolve integer ambiguity)
-- Kalman filter initialization (3+ samples establish state and covariance)
-- Polynomial curve fitting (N points determine N-1 degree polynomial)
+- Median filtering (multiple samples reject outliers)
+- Robust statistics (trimmed mean, minimum-latency selection)
 
-The fact that this approach was discovered independently from first principles, then recognized as a known seismic technique, validates the architecture's cross-domain coherence. **The same math works because the same physics applies.**
+**Timescale separation principle:** On the intra-exchange timescale (~6ms), the crystal oscillator is effectively a stable reference — its drift (~0.24µs for 40ppm) is ~400x smaller than stack jitter (10-100µs). Burst-to-burst timing differences therefore measure jitter characteristics, not clock drift. Crystal drift characterization requires inter-exchange analysis over seconds to minutes, comparing offsets across multiple sync exchanges.
+
+**Implementation guidance — Calculate, Log, but Don't Correct:**
+
+The intra-burst timing differences (derivatives) should be **calculated and logged** for:
+- **Environmental fingerprinting**: Consistent jitter patterns may correlate with RF environment
+- **Hardware characterization**: Stack warmup behavior varies by firmware version, chip revision
+- **Statistical analysis**: Long-term jitter histograms reveal hardware health trends
+- **Proprioception training**: Systematic patterns feed ILC calibration
+
+However, these intra-burst statistics should **NOT** be used to apply timing corrections. The derivatives measure stack jitter, not clock error. Applying "corrections" based on jitter would inject noise into the time estimate. The correct use is:
+1. **Best-sample selection**: Use minimum-latency burst for offset calculation
+2. **Confidence weighting**: High jitter variance → lower health score
+3. **Pattern learning**: Consistent burst-position bias → Proprioception compensation
+
+**What requires inter-exchange analysis**: Crystal drift rate, thermal stability, and long-term clock models require comparing offsets across multiple sync exchanges over seconds to minutes—not derivatives within a single 6ms burst window.
 
 ### 4.2 RFIP (Reference-Frame Independent Positioning)
 
@@ -2785,7 +2805,7 @@ This document establishes prior art for the following techniques, ensuring they 
 
 120. **Aperture as universal epistemological operation**: Recognition that all apertures—physical or virtual, technological or cognitive—perform identical mathematical operations: correlating sparse samples across space and/or time to synthesize understanding unavailable from any single sample; radio telescope arrays, distributed acoustic sensors, historical scholarship, criminal investigation, scientific meta-analysis, and human visual perception all instantiate the same principle; a historian correlating Mayan codices with colonial records performs the same correlation operation as VLBI combining telescope signals; "history as dynamic aperture"—what we resolve about the past depends on which samples survive, how we correlate them, and which interference patterns we constructively combine; this universality establishes that apertures cannot be invented, only instantiated in specific domains; you cannot patent "correlating distributed samples to gain resolution" because it underlies radio astronomy, historiography, jurisprudence, scientific method, and cognition simultaneously; dynamic macroscopic lattice is architecture for instantiating apertures physics already permits, not invention of new aperture types
 
-121. **Multi-burst beacon timing as time-domain interferometry**: Using N≥3 equally-spaced sync beacon bursts to extract clock offset, drift rate, and drift stability (thermal acceleration) from a single synchronization exchange—mathematically identical to seismic chirp signal processing where swept-frequency pulses characterize subsurface velocity models; single burst provides scalar offset contaminated by jitter; 3 bursts enable polynomial fit separating systematic drift from random jitter; constitutes a "temporal phased array" that focuses on valid time signal while rejecting transient noise, exactly as seismic arrays reject ground roll to resolve subsurface structure; cross-domain validation: technique independently rediscovered from first principles then recognized as established geophysics method; same math works because same physics applies; extends to GPS carrier-phase tracking, Kalman filter initialization, and any domain requiring derivative estimation from discrete samples
+121. **Multi-burst beacon timing for jitter rejection**: Using N≥3 equally-spaced sync beacon bursts to extract clock offset while rejecting transient stack jitter; within a single ~6ms exchange window, crystal drift is negligible (~0.24µs for 40ppm) while WiFi stack jitter dominates (10-100µs); 3 bursts enable outlier detection, best-sample selection (minimum-latency burst ≈ closest to hardware truth), and noise floor estimation for confidence weighting; if burst-position timing patterns are consistent across exchanges (e.g., first-burst warmup penalty), they reveal learnable systematic behavior for Proprioception/ILC training; constitutes a "temporal filter" that rejects transient noise to find the cleanest time signal, exactly as seismic arrays reject ground roll to resolve subsurface structure; drift rate characterization requires **inter-exchange** analysis over seconds/minutes, not intra-exchange derivatives; Purple Team validated timescale separation
 
 122. **Kinetically-coupled dynamic macroscopic lattice**: Extension of dynamic macroscopic lattice to mass-bearing nodes moving through fluid or solid media—coordination precision determines coupling regime: below threshold, N independent bodies with fluid/swarm dynamics and individual medium interaction; above threshold, emergent rigid body with solid-object dynamics and collective medium interaction. Applies to aerodynamic (tip vortex cancellation, slot effect, formation drag reduction in air), hydrodynamic (wake sharing, cavitation suppression, coordinated maneuvering in water), ground-based (platoon drafting, coordinated braking, convoy stability on roads/rails), and orbital (formation maintenance, baseline rigidity for interferometry in space) domains. UTLP timing synchronization necessary but not sufficient—position-control actuators must respond within timing budget for given medium and velocity. Key insight: the transition from "swarm" to "object" is not discrete vs continuous—it is coordination precision exceeding medium-specific coupling threshold; a flock becomes a bird, a convoy becomes a train, a flotilla becomes a ship—not by welding, by timing. Same architecture (UTLP/RFIP/SMSP), extended from wave interference to mass/medium interaction
 
@@ -2925,228 +2945,7 @@ We establish that the *architectural pattern* is prior art. Innovations built up
 | 3.5 | 2025-12-27 | **Active selective attenuation via coordinated interference (Claim 118).** Distinguished dynamic macroscopic lattice from passive shielding (Faraday cages, fixed FSS) and reconfigurable shielding (MEMS/varactor FSS, mechanical FSS)—key insight: same physical geometry producing different attenuation profiles based on sensed input and coordinated response. Added cross-domain research validation: Paul Lueg's 1936 ANC patent (US 2,043,416) as foundational principle extended from single-source/single-speaker to distributed multi-node lattices; JASA 2023 spatially selective ANC demonstrating direction-selective cancellation; Cambridge IJMWT 2023 AFSS review showing even "active" FSS require geometric reconfiguration; PMC 2025 Energy Selective Surfaces validating threat-powered activation. Added comparison table: passive vs reconfigurable vs active response. Transistor analogy: dynamic macroscopic lattice is to passive shielding what transistor is to relay. Total 118 claims, 67 references. |
 | 3.6 | 2025-12-27 | **Energy-asymmetric domain response (Claim 119).** Formalized fundamental insight: active interference effectiveness varies by domain based on target inertia. EM cancellation requires only phase-matched amplitude (photons massless). Acoustic cancellation requires pressure-vs-pressure matching (air molecules negligible mass, ANC scales to architectural barriers). Kinetic/ballistic deflection requires momentum transfer (energy scales with mv²)—impractical for direct phononic cancellation. Added "Energy Asymmetry Principle" section with domain comparison table (EM/acoustic/seismic/ballistic) and energy requirements. Key architectural insight: lattice excels at canceling massless waves (EM, acoustic) but responds to kinetic threats via detection-and-response (sensing pressure wave precursor, triggering physical response) rather than direct deflection. Cross-references seismic-acoustic coupling (Section 4.3)—same principle: detect earthquakes, don't cancel them. Natural domain pairings table: threat type → lattice role → response type. Extends Lueg's 1936 ANC patent to explain why it works (massless carrier) and where the principle breaks down (mass requires momentum). Total 119 claims. |
 | 3.7 | 2025-12-27 | **Aperture as universal epistemological operation (Claim 120).** Added "Aperture as Epistemology" section establishing that all apertures—physical, virtual, technological, or cognitive—perform identical mathematical operations: correlating sparse samples across space/time to synthesize understanding unavailable from any single sample. Cross-domain table: radio astronomy, acoustic sensing, historiography, human vision, criminal investigation, scientific method—all instantiate the same correlation principle. Key insight: "history as dynamic aperture"—what we resolve about the past depends on which samples survive, how we correlate them, and which interference patterns we constructively combine. Establishes that apertures cannot be invented, only instantiated; you cannot patent "correlating distributed samples to gain resolution" because it underlies radio astronomy, historiography, jurisprudence, scientific method, and cognition simultaneously. References Event Horizon Telescope as exemplar: black hole imaged not by planet-sized dish but by correlating sparse samples from synchronized, position-known telescopes. Strengthens 35 U.S.C. 101 argument by showing aperture formation is not just physics but epistemology—the fundamental operation by which distributed observations become unified understanding. **Added figure**: Amazon Sidewalk inherent aperture diagram (SVG, Grok/Gemini collaboration) visualizing sparse IoT nodes resolving long-wavelength infrasound—the aperture is physics, not design. Total 120 claims. |
-| 3.8 | 2025-12-28 | **Multi-burst beacon timing as time-domain interferometry (Claim 121).** Added Section 4.1.1 documenting the 3-burst beacon timing approach: using N≥3 equally-spaced sync bursts to extract offset, drift rate, and drift stability (thermal acceleration) from single synchronization exchange. Key insight: technique independently rediscovered from first principles, then recognized as mathematically identical to seismic chirp signal processing—swept-frequency pulses characterizing subsurface velocity models. Single burst = scalar offset contaminated by jitter; 3 bursts = polynomial fit separating systematic drift from random noise. Constitutes "temporal phased array" focusing on valid time signal while rejecting transient jitter, exactly as seismic arrays reject ground roll to resolve subsurface structure. Cross-domain validation table: seismic chirp surveys, GPS carrier-phase tracking, Kalman filter initialization, polynomial curve fitting—same math works because same physics applies. **Kinetically-coupled dynamic macroscopic lattice (Claim 122).** Extended architecture from wave interference to mass/medium interaction—coordination precision determines whether N nodes behave as independent swarm (fluid dynamics) or emergent rigid body (solid dynamics). Applies across aerodynamic (formation drag, slot effect), hydrodynamic (wake sharing, cavitation), ground (platoon drafting), and orbital (baseline rigidity) domains. Key insight: transition from "swarm" to "object" is coordination precision exceeding medium-specific coupling threshold—"a flock becomes a bird, a convoy becomes a train, a flotilla becomes a ship—not by welding, by timing." Total 122 claims. |
-
----
-
-## Appendix A: Deployment Guide
-
-*From Parking Lot to Tornado Alley: A Practical Path Forward*
-
-This appendix provides realistic cost and capability estimates for deploying the distributed acoustic sensing architecture at various scales. The goal is to show that the prior art claims are grounded in achievable engineering, and to provide a starting point for students, researchers, and institutions interested in validating or extending this work.
-
-### A.1 Fundamental Constraints
-
-**Infrasound wavelengths** determine minimum array size for directional sensing:
-
-| Frequency | Wavelength | Minimum Baseline for 10° Resolution |
-|-----------|------------|-------------------------------------|
-| 10 Hz | 34 m | ~200 m |
-| 1 Hz | 340 m | ~2 km |
-| 0.1 Hz | 3,400 m | ~20 km |
-
-For tornado-frequency infrasound (0.5-5 Hz), meaningful direction finding requires **kilometer-scale baselines**.
-
-**The wind noise problem**: MEMS microphones can detect 0.1 Hz pressure variations, but wind turbulence creates massive low-frequency noise. Solutions:
-
-| Approach | Size | Cost | Effectiveness |
-|----------|------|------|---------------|
-| Foam windscreen | 10 cm | $5 | Minimal for infrasound |
-| Porous pipe array | 10-50 m | $20-50 | Good for >1 Hz |
-| Soaker hose rosette | 10-20 m diameter | $30-100 | Research-grade |
-| CTBTO-style rosette | 18 m diameter | $1000+ | Professional-grade |
-| Multi-sensor correlation | N/A | Per-sensor cost | Good, scales with nodes |
-
-A "sensor node" is not a chip—it's a chip plus wind mitigation plus weatherproof enclosure plus power plus connectivity.
-
-### A.2 Deployment Tiers
-
-#### Tier 0: Proof of Concept (Car Trunk)
-**4-8 nodes, 50-200m spacing, fits in a parking lot**
-
-**You get:**
-- Sound source localization (gunshots, explosions, vehicles)
-- Local wind direction estimation
-- Algorithm validation
-- Demonstration that UTLP/RFIP/beamforming stack works
-
-**You don't get:**
-- Weather-scale detection
-- Tornado anything
-- Publishable meteorology data
-
-**Hardware per node (~$50-100 DIY):**
-- ESP32-C6: $4
-- MEMS microphone (ICS-40720 or SPH0645): $3-5
-- Simple wind screen (foam + PVC pipe): $10
-- Weatherproof enclosure: $15
-- Battery + solar panel (small): $20-30
-
-**Total deployment: $400-800**
-
-**Skills required:** Basic soldering, Arduino/ESP-IDF familiarity, outdoor installation
-
-**Time to deploy:** A weekend
-
-**What you prove:** The synchronization and beamforming math works. The stack is real. This is a science fair project or undergraduate lab.
-
----
-
-#### Tier 1: Campus/Neighborhood Scale
-**10-20 nodes, 0.5-2 km spacing**
-
-**You get:**
-- Urban wind field mapping
-- Boundary layer structure (limited vertical resolution)
-- Heat island detection
-- Aircraft/helicopter tracking
-- Acoustic tomography demonstration
-- **Publishable research**
-
-**You don't get:**
-- Regional severe weather detection
-- Tornado precursor signatures
-- Warning system capability
-
-**Hardware per node (~$150-300):**
-- ESP32-C6 with external antenna: $8
-- Research-grade MEMS mic: $10-20
-- Soaker hose rosette (10m): $30-50
-- Robust weatherproof enclosure (NEMA 4X): $40
-- Solar panel + LiFePO4 battery: $50-80
-- Cellular modem or LoRa radio: $30-50
-
-**Total deployment: $2,000-6,000**
-
-**Skills required:** Network programming, basic signal processing, outdoor installation, institutional coordination
-
-**Partnerships needed:** University facilities, building managers for rooftop access
-
-**What you prove:** Dense urban acoustic tomography is feasible. Wind field extraction works. You can write papers.
-
-**Publication targets:** Journal of Atmospheric and Oceanic Technology, Sensors, undergraduate thesis
-
----
-
-#### Tier 2: Metro Area (City-Wide)
-**30-100 nodes, 2-10 km spacing, 20-50 km coverage**
-
-**You get:**
-- Severe weather approach detection
-- Storm cell tracking
-- Boundary layer tomography at useful resolution
-- Wind field mapping for aviation/agriculture
-- Airport wind shear detection
-- **Real operational utility**
-
-**You don't get:**
-- 50+ km tornado tracking
-- National-scale patterns
-- CTBTO-class sensitivity
-
-**Hardware per node (~$200-500):**
-- Hardened for multi-year unattended deployment
-- Professional-grade wind screening
-- Redundant connectivity (cellular + LoRa backup)
-- Remote management capability (OTA updates, health monitoring)
-
-**Total deployment: $10,000-50,000**
-
-**Partnerships needed:** City emergency management, NWS local office, agricultural extension, airport authority
-
-**Deployment strategy—piggyback on existing infrastructure:**
-- School rooftops (power, internet, distributed, educational tie-in)
-- Cell towers (power, backhaul, already weatherproof)
-- Existing mesonet stations (add infrasound to weather station)
-- Traffic signal cabinets (power, sometimes connectivity)
-
-**What you prove:** Regional pilot program viability. This is grant-fundable and operationally useful.
-
-**Funding targets:** NSF atmospheric science, NOAA VORTEX-SE, state emergency management agencies, agricultural grants
-
----
-
-#### Tier 3: Regional (State-Scale, Tornado Alley)
-**200-500 nodes, 10-30 km spacing, 200-500 km coverage**
-
-**You get:**
-- Tornado precursor detection (15-30 min lead time)
-- Storm tracking and evolution monitoring
-- False alarm reduction through acoustic confirmation
-- Multi-vortex detection
-- Full atmospheric tomography
-- **Operational warning system improvement**
-
-**Comparable to:** Multiple WSR-88D radars ($30M each) but for complementary sensing modality
-
-**Hardware per node (~$300-1000):**
-- Research-grade sensors with calibration
-- Redundant connectivity with priority data paths
-- Integration with NWS data feeds
-- 99%+ uptime design
-
-**Total deployment: $100,000-500,000**
-
-**This requires institutional backing:** NOAA, state emergency management, NSF major research grant
-
-**What you prove:** Tornado warning lead times can be extended. False alarms can be reduced. Lives can be saved.
-
-This is where you actually improve tornado warnings—not as a demo, but as operational infrastructure.
-
----
-
-#### Tier 4: National (CTBTO-Class)
-**1000+ nodes, 30-50 km spacing, continental coverage**
-
-The CTBTO operates 60 infrasound stations globally at ~$1M+ per station. A commodity approach could be 10-100x cheaper per node, but continental deployment is still millions of dollars plus ongoing operations.
-
-**Not a hobbyist project.** But achievable by:
-- Adding infrasound to existing NWS ASOS stations (~900 sites)
-- Partnering with cellular carriers (100,000+ tower sites)
-- Citizen science network (CoCoRaHS model: 20,000+ volunteers)
-
-The infrastructure exists. The sensors are cheap. The coordination architecture is documented. The missing piece is institutional will.
-
-### A.3 Bill of Materials (Research-Grade Node)
-
-| Component | Part Number / Description | Unit Cost | Notes |
-|-----------|---------------------------|-----------|-------|
-| MCU | ESP32-C6-DevKitC-1 | $8 | WiFi + BLE + ESP-NOW |
-| Microphone | TDK ICS-40720 or InvenSense ICS-43434 | $5-15 | Low-noise MEMS, I2S output |
-| ADC (if needed) | ADS1115 16-bit | $3 | For analog mics |
-| Wind screen | 10m soaker hose + stakes | $30 | DIY rosette pattern |
-| Enclosure | Polycase WC-26 or similar | $25 | NEMA 4X rated |
-| Solar panel | 6W polycrystalline | $15 | Sized for continuous operation |
-| Battery | 6Ah LiFePO4 | $25 | Safe chemistry, long cycle life |
-| Charge controller | CN3065 or similar | $3 | Solar MPPT |
-| Connectivity | SIM7000A (LTE-M) or RFM95 (LoRa) | $15-30 | Depends on backhaul strategy |
-| Antenna | External 2.4GHz + cellular/LoRa | $10 | For range |
-| Misc | Connectors, cables, mounting | $20 | |
-| **Total** | | **$160-190** | Research-grade, multi-year deployment |
-
-### A.4 What Each Tier Unlocks
-
-| Tier | Academic Output | Operational Value | Next Step |
-|------|-----------------|-------------------|-----------|
-| 0 (Parking lot) | Science fair, demo | None | Campus partnership |
-| 1 (Campus) | Undergrad thesis, conference paper | Local curiosity | City pilot proposal |
-| 2 (Metro) | Journal publication, MS thesis | Ag/aviation advisory | NSF/NOAA grant |
-| 3 (Regional) | PhD dissertation, multi-paper series | Warning system integration | State partnership |
-| 4 (National) | Major research program | Operational meteorology | Federal program |
-
-### A.5 The Honest Summary
-
-**Car trunk** gets you a demo and proves the algorithms work.
-
-**Campus rooftops** gets you a paper and proves dense sensing is feasible.
-
-**City-wide deployment** gets you real data with agricultural and aviation value.
-
-**Regional infrastructure** gets you tornado warning improvement that saves lives.
-
-The hardware isn't the hard part—$200/node is achievable today. The hard part is convincing someone to let you put sensors on their infrastructure across a wide enough area. But the economics are compelling: a state-scale tornado warning network costs less than a single radar maintenance contract.
-
-The path is clear. The costs are documented. The architecture is open. What's missing is someone to walk the path.
+| 3.8 | 2025-12-28 | **Multi-burst beacon timing for jitter rejection (Claim 121).** Added Section 4.1.1 documenting the 3-burst beacon timing approach: using N≥3 equally-spaced sync bursts to extract clock offset while rejecting stack jitter. Purple Team validated timescale separation: within ~6ms exchange window, crystal drift is negligible (~0.24µs for 40ppm) while WiFi stack jitter dominates (10-100µs). 3 bursts enable outlier detection, best-sample selection, and noise floor estimation. If burst-position patterns are consistent, they reveal learnable systematic behavior for Proprioception training. Drift characterization requires inter-exchange analysis over seconds/minutes. **Kinetically-coupled dynamic macroscopic lattice (Claim 122).** Extended architecture from wave interference to mass/medium interaction—coordination precision determines whether N nodes behave as independent swarm (fluid dynamics) or emergent rigid body (solid dynamics). Applies across aerodynamic (formation drag, slot effect), hydrodynamic (wake sharing, cavitation), ground (platoon drafting), and orbital (baseline rigidity) domains. Key insight: transition from "swarm" to "object" is coordination precision exceeding medium-specific coupling threshold—"a flock becomes a bird, a convoy becomes a train, a flotilla becomes a ship—not by welding, by timing." Total 122 claims. |
 
 ---
 

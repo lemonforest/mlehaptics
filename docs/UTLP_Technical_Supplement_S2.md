@@ -237,6 +237,8 @@ peer_health_t* select_time_source(peer_health_t* peers, uint8_t count) {
 }
 ```
 
+**Note:** Health score is one component of the larger **Social Gravity** metric used for Time Lord selection. See Section 3.4.4 for the complete selection algorithm that incorporates neighbor count, RSSI quality, and starvation detection. Health score alone would select nodes with good crystals regardless of their spatial position—Social Gravity ensures the swarm selects nodes that are both stable AND well-connected.
+
 ### 2.3 Bad Actor Response: Statistical Filtering
 
 ```c
@@ -850,6 +852,202 @@ The Time Lord is not elected by its peers. It is **woven by the necessity of the
 | **Reproduction** | **Looming** (weaving new Time Lords from entropy) |
 
 The Loom closes the gap. UTLP nodes don't reproduce sexually or through cell division—they reproduce *roles* through algorithmic necessity. When the swarm needs a Time Lord, one is woven.
+
+### 3.4.4 Social Gravity: Geometry-Aware Role Selection
+
+The basic Loom selects Time Lords based on crystal stability (local entropy). This is necessary but insufficient. A node in a metal cabinet corner may have excellent crystal stability but terrible RF connectivity—it would make a poor swarm anchor.
+
+**The Problem: The Corner Clump**
+
+```
+                    THE CORNER CLUMP FAILURE
+    ┌─────────────────────────────────────────────────────────┐
+    │                                                         │
+    │      ◯ ← Good crystal, hears everyone                   │
+    │                                                         │
+    │           ◯           ◯           ◯                     │
+    │                                                         │
+    │                     ◯                                   │
+    │                                                         │
+    │  ┌────────────┐                                         │
+    │  │ Metal      │                                         │
+    │  │ Cabinet    │ ● ● ● ← Great crystals, low MACs,       │
+    │  │            │        but only hear each other!        │
+    │  └────────────┘                                         │
+    └─────────────────────────────────────────────────────────┘
+```
+
+If we select Time Lords purely on crystal stability (or worse, on MAC address), the corner clump wins. But they're terrible relays—most of the swarm can't hear them.
+
+**The Solution: Social Gravity Score**
+
+We expand the selection metric from "health" to "social gravity"—a composite score that includes connectivity:
+
+```c
+// Social Gravity: Physics of the Room, Not Silicon Lottery
+typedef struct {
+    uint8_t  health_score;      // Crystal stability, battery, uptime
+    uint8_t  neighbor_count;    // How many peers can I hear?
+    int8_t   avg_rssi_dbm;      // Average signal strength to peers
+    uint8_t  packet_loss_pct;   // Recent beacon miss rate
+} social_gravity_input_t;
+
+// Weights are tunable per deployment
+#define W_HEALTH     0.30f
+#define W_NEIGHBORS  0.40f   // Connectivity is MOST important
+#define W_RSSI       0.20f
+#define W_LOSS       0.10f
+
+uint16_t calculate_social_gravity(const social_gravity_input_t* input) {
+    float score = 0.0f;
+    
+    // Health component (0-255 → 0-76.5)
+    score += input->health_score * W_HEALTH;
+    
+    // Neighbor count component (more neighbors = better relay)
+    // Capped at 20 to prevent runaway in dense deployments
+    uint8_t capped_neighbors = MIN(input->neighbor_count, 20);
+    score += (capped_neighbors * 12.75f) * W_NEIGHBORS;  // 0-255 range
+    
+    // RSSI component (stronger average signal = better relay)
+    // Map -90dBm to -30dBm → 0 to 255
+    int16_t rssi_normalized = (input->avg_rssi_dbm + 90) * 4.25f;
+    rssi_normalized = CLAMP(rssi_normalized, 0, 255);
+    score += rssi_normalized * W_RSSI;
+    
+    // Packet loss penalty (unreliable nodes make poor anchors)
+    score -= input->packet_loss_pct * 2.55f * W_LOSS;
+    
+    return (uint16_t)CLAMP(score, 0, 1000);
+}
+```
+
+**Scenario Analysis:**
+
+| Node | Health | Neighbors | Avg RSSI | Loss | Social Gravity |
+|------|--------|-----------|----------|------|----------------|
+| Corner A (cabinet) | 250 | 3 | -75 dBm | 5% | 75 + 15 + 13 - 1 = **102** |
+| Corner B (cabinet) | 240 | 3 | -78 dBm | 8% | 72 + 15 + 10 - 2 = **95** |
+| Center (ceiling) | 180 | 18 | -55 dBm | 2% | 54 + 92 + 30 - 0 = **176** |
+
+**Result:** The center node wins despite lower health score. The geometry dictates the hierarchy.
+
+**Starvation: The Vacuum Driver**
+
+Nodes don't promote themselves arbitrarily—they respond to **starvation**. Starvation isn't "no packets"—it's "no *authoritative* packets."
+
+```c
+// Starvation Detection: Hunger for Authority
+typedef struct {
+    uint32_t last_authority_beacon_ms;  // Last heard from stratum < 3
+    uint8_t  missed_beacon_count;       // Consecutive misses
+    int8_t   best_authority_rssi;       // Signal strength to best source
+    uint8_t  hunger_level;              // 0-255, increases with starvation
+} starvation_state_t;
+
+#define HUNGER_THRESHOLD      200   // Promote when starving
+#define WEAK_AUTHORITY_RSSI  -80    // Below this = "starving" even if heard
+#define BEACON_MISS_HUNGER    10    // Hunger increase per missed beacon
+
+void update_starvation(starvation_state_t* state, bool authority_heard, 
+                       int8_t rssi) {
+    if (authority_heard && rssi > WEAK_AUTHORITY_RSSI) {
+        // Fed: strong authority signal
+        state->hunger_level = 0;
+        state->missed_beacon_count = 0;
+    } else if (authority_heard && rssi <= WEAK_AUTHORITY_RSSI) {
+        // Malnourished: hearing authority but weakly
+        state->hunger_level += 5;
+        state->missed_beacon_count = 0;
+    } else {
+        // Starving: no authority heard
+        state->missed_beacon_count++;
+        state->hunger_level += BEACON_MISS_HUNGER;
+    }
+    
+    state->hunger_level = MIN(state->hunger_level, 255);
+}
+
+// Promotion decision: Am I the best among the starving?
+bool should_promote_to_authority(utlp_node_t* self, peer_list_t* peers) {
+    if (self->starvation.hunger_level < HUNGER_THRESHOLD) {
+        return false;  // Not starving enough
+    }
+    
+    // Check if I have highest social gravity among starving peers
+    uint16_t my_gravity = calculate_social_gravity(&self->gravity_input);
+    
+    for (int i = 0; i < peers->count; i++) {
+        if (peers->nodes[i].starvation.hunger_level >= HUNGER_THRESHOLD) {
+            if (peers->nodes[i].social_gravity > my_gravity) {
+                return false;  // Someone else should promote
+            }
+        }
+    }
+    
+    return true;  // I'm the strongest starving node
+}
+```
+
+**The Adam & Eve Safety Net: MAC as Nuclear Option**
+
+When only 2 nodes exist and all metrics tie, we need a deterministic tie-breaker. This is the **only** place MAC addresses matter:
+
+```c
+// The Tie-Breaker Cascade
+// Returns: node that should be authority (NULL if neither qualifies)
+utlp_node_t* resolve_authority_tie(utlp_node_t* a, utlp_node_t* b) {
+    
+    // Level 1: Social Gravity (geometry wins)
+    int16_t gravity_diff = a->social_gravity - b->social_gravity;
+    if (abs(gravity_diff) > 10) {  // Meaningful difference
+        return (gravity_diff > 0) ? a : b;
+    }
+    
+    // Level 2: Health Score (crystal quality)
+    int16_t health_diff = a->health_score - b->health_score;
+    if (abs(health_diff) > 5) {
+        return (health_diff > 0) ? a : b;
+    }
+    
+    // Level 3: Starvation Level (hungriest gets fed)
+    int16_t hunger_diff = a->starvation.hunger_level - b->starvation.hunger_level;
+    if (abs(hunger_diff) > 20) {
+        return (hunger_diff > 0) ? a : b;
+    }
+    
+    // Level 4: NUCLEAR OPTION - MAC address
+    // Only used when physics cannot decide
+    // Lower MAC wins (arbitrary but deterministic)
+    int cmp = memcmp(a->mac, b->mac, 6);
+    return (cmp < 0) ? a : b;
+}
+```
+
+**The Hierarchy of Selection:**
+
+| Priority | Metric | Rationale |
+|----------|--------|-----------|
+| 1 | Social Gravity | Geometry of the room |
+| 2 | Health Score | Crystal/battery quality |
+| 3 | Starvation Level | Evolutionary pressure |
+| 4 | MAC Address | Deterministic last resort |
+
+**Why MAC is Last:**
+
+MAC addresses are assigned by manufacturing batch. A box of devices from the same production run will have sequential MACs. If you install them in a corner, they'll all have "good" MACs but be spatially clustered. Using MAC as a primary selector creates topology pathologies.
+
+**The 2-Node Bootstrap:**
+
+```
+Nodes A & B meet in empty swarm:
+├── Check 1 (Gravity):  Both hear exactly 1 peer → TIE
+├── Check 2 (Health):   Both have 100% battery → TIE  
+├── Check 3 (Hunger):   Both equally starving → TIE
+└── Check 4 (MAC):      A < B → A becomes Time Lord
+
+Result: Deterministic selection. No oscillation. Sync achieved.
+```
 
 ### 3.5 Application-Layer Dormancy Control
 
@@ -1879,7 +2077,7 @@ This supplement establishes additional prior art for:
 75. **Cognition-governance honesty asymmetry**: Biology is honest because constrained by energy/physics (cannot afford to lie); politics can be "silly" because feedback loops long enough to sustain delusion; UTLP operates at timescales where thermodynamic honesty is enforced; application layer operates at timescales where agreement-based governance is appropriate
 
 ### 8.21 Reference Implementation — Code-Level Specification (S2.30)
-76. **11-byte seismic chirp wire format**: Beacon contains stratum (1 byte), burst index (1 byte), genesis score (1 byte), TX timestamp (8 bytes little-endian); 3-burst pattern at 2ms spacing enables polynomial drift extraction (offset, drift rate, drift acceleration); fits single ESP-NOW frame
+76. **11-byte beacon wire format with 3-burst jitter rejection**: Beacon contains stratum (1 byte), burst index (1 byte), genesis score (1 byte), TX timestamp (8 bytes little-endian); 3-burst pattern at 2ms spacing enables jitter rejection via outlier detection and best-sample selection; drift characterization requires inter-exchange analysis; fits single ESP-NOW frame
 77. **Dual constraint entrainment gate**: Active immunity requires BOTH token budget (internal constraint) AND quorum sensing (external constraint) before firing entrainment pulse; prevents both RF pollution (single aggressive node) and "Crazy Old Man" scenario (isolated drifted node attacking valid peers)
 78. **Time-indexed execution pattern**: Physical outputs computed from atomic time modulo period, not accumulated delays; `should_be_on = (atomic_now % period) < (period/2)`; drift-proof because state recalculated every tick from shared time reference; fundamental separation of "when" from "what"
 
@@ -1932,6 +2130,25 @@ Core thesis: Utilizing Voltage Compliance Spectroscopy and Common-Mode Rejection
 ### 8.26 Methodology Note: Purple Teaming
 
 **Note (not a claim):** This project uses **Purple Teaming** (established cybersecurity methodology) for AI-assisted design review. Purple Team = Red Team (find flaws) + Blue Team (propose fixes) operating simultaneously. Unlike Red Team alone which outputs binary pass/fail, Purple Team requires each objection to include a physics-compliant alternative. This is not novel—it is standard practice adopted for AI collaboration. The term and methodology predate this work. Always request Purple Team when seeking actionable improvement; Red Team alone demolishes without rebuilding.
+
+**Purple Team Directives Registry (S2.56)**
+
+The following directives have been identified, implemented, and validated:
+
+| Directive | Title | Status | Description |
+|-----------|-------|--------|-------------|
+| **PT-1** | Stateless AES-CTR | ✅ | Reset nc_off=0, fresh nonce/stream each packet; prevents nonce reuse |
+| **PT-2** | RISC-V Torn Reads | ✅ | portENTER_CRITICAL() for all 64-bit operations on 32-bit architectures |
+| **PT-3** | Infinite Slew | ✅ | Architecture uses continuous P-servo, not time-boxed correction windows; slew rate inherently bounded |
+| **PT-4** | Herd Immunity | ✅ | Public/Private nodes execute identical SHA256+AES code paths to prevent timing/power side-channels |
+| **PT-5** | Strict Plausibility | ✅ | Semantic validation (TX_Power ±40dBm, Drift ±2000ppm, Heartbeat fields) replaces auth tag |
+| **PT-6** | Session Continuity | ✅ | Session_Salt change triggers Seniority Bankruptcy (instant reboot detection on first beacon) |
+| **PT-7** | ILC Integration | ✅ | Phase timer ISR latency learning with spinlock protection; eliminates Single/Dual Stack phase offset |
+
+**Cross-References:**
+- PT-4, PT-5: See Claim 133 (Rolling Splice-Site Obfuscation)
+- PT-6: See Claim 137 (Session Bankruptcy)
+- PT-7: See Claim 135 (Interrupt Latency Compensation)
 
 > *"The timing must flow — and it flows through the Golden Path. Channel 6 is the Kwisatz Haderach of WiFi channels: the one who can be in all places, bridging populations that cannot directly communicate."*
 
@@ -2194,7 +2411,7 @@ Sensor fusion patterns for integrating inertial measurement with RF-based positi
 
 115. **Beacon-Propagated Motion Confidence for Distributed Fusion**: Transmitter-reported motion confidence (0-255 continuous scale) propagated in UTLP beacon, enabling receivers to multiplicatively weight ranging observations without centralized fusion—RSSI variance increases with motion; transmitter knows its own motion state; sharing this allows receivers to appropriately discount observations from moving transmitters.
 
-116. **Cross-Sensor Disturbance Blanking (IMU Shock → RF Observation Penalty)**: When IMU detects high-g event (acceleration exceeds threshold), RF observations penalized for refractory period matching physical settling dynamics—shock affects RF measurement environment through antenna displacement and multipath shift; mechanical settling time ~100-200ms; progressive penalty decay matching physical settling.
+116. **Cross-Sensor Consistency Verification (Bidirectional RF↔IMU)**: When IMU detects high-g event (acceleration exceeds threshold), RF observations penalized for refractory period matching physical settling dynamics—shock affects RF measurement environment through antenna displacement and multipath shift; mechanical settling time ~100-200ms; progressive penalty decay matching physical settling. **Conversely**, when FTM/ranging reports position change but IMU sensed no corresponding acceleration, the RF observation is flagged as multipath-corrupted—defense against systematic multipath bias in reflective environments (metallic rooms, urban canyons) where FTM errors can exceed 5 meters; if the radio says you moved but the IMU felt no force, the radio is lying. Bidirectional consistency checking provides defense against both transient mechanical disturbance (IMU→RF penalty) and persistent environmental multipath (RF→IMU sanity check).
 
 117. **Online Antenna Pattern Learning from Swarm Observations**: Use of IMU orientation quaternion to learn effective antenna gain pattern online through correlated orientation and RSSI observations—Friis equation inversion reveals pattern gain when distance and TX power known; swarm provides diverse angles; pattern emerges from aggregate observations without anechoic chamber pre-characterization.
 
@@ -2204,11 +2421,983 @@ Sensor fusion patterns for integrating inertial measurement with RF-based positi
 
 120. **RF-Derived Coordinate Frame Learning for 6-Axis IMUs**: For IMUs without magnetometer (yaw unobservable from gravity alone), body→world yaw offset learned online by correlating IMU-reported rotation with changes in RF-observed anchor bearings—RF observations substitute for magnetometer heading reference; linear regression on (Δψ_imu, Δθ_rf) pairs estimates offset.
 
-121. **Unified Hardware-Scheduled TX Discovery Across Consumer 802.15.4 Platforms**: Documentation that ESP32-C6, MG24, and nRF52840 all support hardware-scheduled 802.15.4 TX (`esp_ieee802154_transmit_at()`, `RAIL_StartScheduledTx()`, `nrf_802154_transmit_raw_at()` respectively), enabling unified HAL abstraction—software jitter (100-1000µs from RTOS scheduling) dominates RF propagation delay (3.3 ns/m); hardware-scheduled TX eliminates software jitter entirely; novelty is discovery and unification, not invention.
+121. **Unified Hardware-Scheduled TX Discovery Across Consumer 802.15.4 Platforms (PHYRFLY Reference Implementation)**: Documentation that ESP32-C6, MG24, and nRF52840 all support hardware-scheduled 802.15.4 TX (`esp_ieee802154_transmit_at()`, `RAIL_StartScheduledTx()`, `nrf_802154_transmit_raw_at()` respectively), enabling unified HAL abstraction—software jitter (100-1000µs from RTOS scheduling) dominates RF propagation delay (3.3 ns/m); hardware-scheduled TX eliminates software jitter entirely; novelty is discovery and unification, not invention. The ESP32-C6's `esp_ieee802154_transmit_at()` API serves as the PHYRFLY reference implementation for hardware-precise timing, achieving ~1µs precision equivalent to dedicated timing silicon.
 
-122. **Cross-Vendor 802.15.4 Timing Mesh via Hardware-Scheduled TX**: Application of IEEE 802.15.4 + hardware-scheduled TX for precision timing across heterogeneous consumer hardware, achieving sub-microsecond synchronization without IEEE 1588 PTP infrastructure—UTLP achieves similar timing goals with consumer 802.15.4 radios ($5-10/node) via connectionless broadcast rather than connection-oriented synchronization; time transfer precision limited by timestamping jitter, not propagation delay.
+122. **Cross-Vendor 802.15.4 Timing Mesh via Hardware-Scheduled TX**: Application of IEEE 802.15.4 + hardware-scheduled TX for precision timing across heterogeneous consumer hardware, achieving sub-microsecond synchronization without IEEE 1588 PTP infrastructure—UTLP achieves similar timing goals with consumer 802.15.4 radios ($5-10/node) via connectionless broadcast rather than connection-oriented synchronization; time transfer precision limited by timestamping jitter, not propagation delay. **Wire format**: Raw MAC Data Frames (FCF 0x8841—Data frame, no security, no ACK, PAN ID compression, short dest/extended src addressing) without ZigBee/Thread/Matter protocol stack overhead (~2KB vs ~200KB, no $5000+/year certification). **RX precision**: SFD-relative timestamp capture at Start Frame Delimiter detection, before MAC layer processing, minimizing software-induced jitter; MG24 RAIL provides `RAIL_GetRxTimeSyncWordEnd()` (~0.1µs hardware precision), nRF52840 uses EVENTS_ADDRESS + Timer capture (~0.1µs), ESP32-C6 achieves ~10µs via ISR timestamping.
 
 *Full physics foundations and C99 reference implementations documented in Appendix M.*
+
+---
+
+### 8.29 PHYRFLY Nomenclature and Spectral Isolation (S2.47)
+
+The protocol family uses layered nomenclature to distinguish system identity from standardization-track primitives, and recognizes that transport selection provides physics-layer isolation analogous to biological firefly wavelength differentiation.
+
+**Naming Architecture**
+
+| Name | Scope | Usage Context |
+|------|-------|---------------|
+| **TARDIS** | System identity | Complete architecture (UTLP + RFIP + SMSP). "Temporal And Relative Distribution In Swarms." Conceptual documentation, human explanation. |
+| **PHYRFLY** | Protocol primitive | PHY-layer synchronization mechanism. Standardization contexts, 802.x track discussions, silicon specifications. |
+
+**PHYRFLY Etymology**
+
+The name encodes three meanings:
+- **PHY** as IEEE Physical Layer—positioning for potential 802.x standardization where hardware clock gates replace software ISRs
+- **PHY** as phylogenetic/phylum—indicating evolutionary lineage (S1 → S2 → ... → silicon)
+- **FLY** as firefly—acknowledging 100M years of biological prior art in pulse-coupled oscillator synchronization
+
+**Spectral Isolation Model**
+
+Biological fireflies achieve species isolation through bioluminescence wavelength differentiation. *Photinus carolinus* (synchronous fireflies) flash yellow-green (~560nm); *Photuris versicolor* flashes green (~540nm). Same meadow, same synchronization algorithm, no cross-species interference. The isolation is physics, not protocol.
+
+This maps directly to transport-agnostic architecture:
+
+| Firefly Trait | PHYRFLY Mapping |
+|---------------|-----------------|
+| Flash wavelength (color) | Transport PHY (WiFi, 802.15.4, LoRa) |
+| Flash timing (rhythm) | UTLP phase coherence |
+| Species boundary | Transport boundary |
+| Hybrid zone (color gradients) | Multi-transport bridge node (Arbor/Soma) |
+
+**Three Orthogonal Isolation Mechanisms**
+
+Spectral isolation is orthogonal to both authentication and encryption:
+
+| Layer | Mechanism | Function | Defeats |
+|-------|-----------|----------|---------|
+| **Spectral** | Transport PHY selection | Cannot observe different bands | Physics—RF front-end (LNA/mixer) is blind to other spectra |
+| **Authentication** | MHC-style beacon signing | Proves identity, not secrecy | Spoofing—rejects forged beacons |
+| **Encryption** | Species key (optional) | Private swarm isolation | Eavesdropping—content unreadable without key |
+
+These mechanisms are independent. A node can:
+- Participate in unencrypted public time (no species key)
+- While being spectrally isolated (transport boundary)
+- And authenticated (MHC signature verification)
+
+**Public Time as Species-Agnostic Rhythm**
+
+The unencrypted UTLP time broadcast functions as a species-agnostic rhythm layer. All transports can receive and propagate phase coherence regardless of encryption state or spectral band. The rhythm is public infrastructure; the "color" (transport) and "species key" (encryption) provide orthogonal isolation mechanisms that neither depend on nor interfere with global time coherence.
+
+123. **Spectral Isolation via Transport Agnosticism**: Recognition that transport PHY selection provides physics-layer swarm isolation analogous to firefly bioluminescence wavelength differentiation—WiFi swarms and 802.15.4 swarms in same physical space cannot interfere because they cannot observe each other's signals at the RF front-end (LNA/mixer stage); isolation emerges from physics (spectral boundaries), not protocol (encryption); orthogonal to and independent of authentication (MHC) and encryption (species keys).
+
+124. **Polychromatic Bridge Nodes**: Multi-transport nodes with Arbor/Soma architecture functioning as participants capable of observing and emitting on multiple spectral bands—bridging populations that cannot directly communicate while maintaining per-transport trust isolation; enables global phase coherence across spectrally isolated swarms without compromising per-band immune systems; biological analog is a hypothetical firefly capable of seeing and emitting both green and yellow wavelengths.
+
+125. **PHYRFLY as Standardization-Track Identity**: Nomenclature distinguishing system identity (TARDIS: conceptual architecture for human explanation) from protocol primitive (PHYRFLY: PHY-layer synchronization mechanism suitable for 802.x standardization track); PHY- prefix signals positioning for dedicated silicon implementation where hardware clock gates replace software ISRs for sub-100ns jitter floors; -FLY suffix acknowledges 100M years of firefly pulse-coupled oscillator prior art.
+
+126. **Dormancy Lifecycle with Phantom Arbor Defense**: Complete transport hibernation protocol for multi-arbor nodes including: (1) **Pre-sleep dormancy beacon** broadcast distinguishing "sleeping" from "dead" (expected duration, current atomic time, transport identifier—enables peers to preserve trust for hibernating friends rather than applying trust decay for presumed-dead nodes); (2) **Reputation ledger preservation** across hibernation (snapshot arbor's peer health scores before shutdown, restore on wake); (3) **Degraded re-entry at elevated stratum** (+2 levels penalty) preventing waking transport from immediately claiming authority; (4) **Listen-only WAKING state** where transport receives but cannot transmit until verified; (5) **N-beacon verification** (minimum 5 consistent beacons matching Soma phase) before TX authority restoration. Defends against **Phantom Arbor attack** where a waking transport with stale timing data (clock drifted during sleep, cached peer data obsolete) could corrupt swarm phase coherence by broadcasting authoritative but incorrect time. The attack model: attacker compromises node, forces arbor sleep, waits for swarm to evolve, wakes arbor which now broadcasts stale epoch as truth. Defense: re-entry penalty ensures waking arbor must re-earn trust through observation before influencing swarm.
+
+---
+
+### 8.30 Multi-Oracle Consensus: Council of Oracles (S2.49)
+
+UTLP treats GPS and NTP sources as "gods"—stratum 0 oracles whose time claims are accepted on faith. This creates a vulnerability: a single compromised, malfunctioning, or spoofed oracle can corrupt an entire swarm's time base.
+
+**The Problem: Blind Faith in Oracles**
+
+| Failure Mode | Current Risk | Detection Without Multi-Oracle |
+|--------------|--------------|-------------------------------|
+| GPS receiver malfunction | Accepts garbage time | None—swarm follows bad oracle |
+| NTP server compromised | Accepts spoofed time | None—swarm follows bad oracle |
+| GPS spoofing attack ($300 SDR) | Accepts attacker's time | None—swarm follows bad oracle |
+| Network partition (stale NTP) | Accepts stale time | None—until partition heals |
+
+**The Solution: Peer Review for Gods**
+
+When multiple nodes in a swarm have independent GPS/NTP sources, they can cross-validate each other's time claims:
+
+```
+┌─────────────────────────────────────────────────┐
+│           COUNCIL OF ORACLES                    │
+│                                                 │
+│   GPS-A: "Time is 12:00:00.000"                │
+│   GPS-B: "Time is 12:00:00.001"                │
+│   NTP-C: "Time is 12:00:00.002"                │
+│   GPS-D: "Time is 12:00:05.000"  ← DEVIANT     │
+│                                                 │
+│   Median of oracles: 12:00:00.001              │
+│   GPS-D deviation: 5 seconds → FLAGGED         │
+│                                                 │
+│   Action:                                       │
+│   • GPS-D demoted from stratum 0 to stratum 3  │
+│   • Beacon warning propagated to swarm         │
+│   • Other nodes warned: "Don't trust this MAC" │
+└─────────────────────────────────────────────────┘
+```
+
+**Council Mechanics**
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| Minimum council size | 3 oracles | Byzantine tolerance requires 3f+1 |
+| Consensus threshold | Median agreement | Resistant to single outlier |
+| Deviation threshold | Dynamic (swarm metabolic rate) | Fast swarm tolerates less deviation |
+| Demotion penalty | Stratum +3 | Severe but recoverable |
+| Recovery path | Sustained agreement with median | Allows transient failures |
+
+**Dynamic Deviation Threshold**
+
+Rather than magic numbers, deviation tolerance scales with swarm metabolic rate:
+
+```c
+// Deviation threshold based on observed swarm stability
+uint32_t oracle_deviation_threshold_us(utlp_swarm_state_t *swarm) {
+    // Base: 10× current swarm jitter floor
+    uint32_t base_threshold = swarm->median_jitter_us * 10;
+    
+    // Minimum sanity floor (1ms) - never trust sub-millisecond disagreements
+    if (base_threshold < 1000) base_threshold = 1000;
+    
+    // Maximum ceiling (100ms) - anything beyond this is clearly broken
+    if (base_threshold > 100000) base_threshold = 100000;
+    
+    return base_threshold;
+}
+```
+
+**Why This Belongs in UTLP (Not Application Layer)**
+
+Oracle validation is a *time-sync concern*, not a sensor aggregation concern. A lying god corrupts the protocol's foundation. This is immune system logic: the swarm must detect and isolate bad time sources the same way it detects and isolates bad peers.
+
+127. **Multi-Oracle Time Consensus (Council of Oracles)**: When multiple nodes possess independent GPS/NTP sources, cross-validation via median agreement detects deviant oracles—a GPS receiver reporting time that deviates significantly from the median of other oracles is flagged as malfunctioning, spoofed, or compromised; deviant oracle demoted from stratum 0 to stratum 3 (severe but recoverable); warning propagated via beacon to prevent other nodes from trusting the compromised source; addresses GPS spoofing attacks ($300 SDR can deceive single receiver), receiver malfunction, NTP server compromise, and network partition staleness; deviation threshold scales dynamically with swarm metabolic rate (observed jitter) rather than magic numbers—fast/precise swarms tolerate less deviation than slow/coarse swarms; minimum council size of 3 oracles required for Byzantine tolerance; recovery path allows transient failures to heal through sustained agreement with median. Even gods are accountable to peer review.
+
+---
+
+### 8.31 Architectural Note: Protocol Trinity vs. Application Layer (S2.49)
+
+**The Protocol Trinity** (UTLP, RFIP, SMSP) provides foundational primitives:
+
+| Protocol | Concern | Characteristic |
+|----------|---------|----------------|
+| **UTLP** | When | Distributed time coherence |
+| **RFIP** | Where | Spatial relationship awareness |
+| **SMSP** | What | Coordinated actuation |
+
+These protocols are **flat, peer-to-peer, and leaderless**. There is no hierarchy in the timing layer—every node participates equally in phase consensus.
+
+**The Application Layer** builds on this foundation to create hierarchical structures for data aggregation and command distribution. This is explicitly NOT part of UTLP:
+
+| Layer | Entity | Scale | Role |
+|-------|--------|-------|------|
+| Endpoint | Neuron | 1 node | Sensor/actuator |
+| Local cluster | Ganglion | ~10 nodes | Event detection, local aggregation |
+| Regional hub | Plexus | ~100 ganglia | Regional correlation, data relay |
+| Data center | Cortex | ~1000 plexuses | Central processing, human interface |
+
+**Key Distinction:**
+
+- **Ganglia do NOT participate in time-sync.** They use UTLP time but don't influence it.
+- **Ganglia aggregate sensor data and distribute commands.** This is application logic.
+- **The neural hierarchy is emergent.** Ganglion/Plexus roles are Loomed from metabolic health, not pre-assigned.
+- **Command distribution uses SMSP.** Top-down orchestration through the hierarchy, with each node computing its local contribution.
+
+**Example: Distributed Flashlight Array**
+
+```
+CORTEX: "Illuminate point (x,y) at time T"
+   ↓ (Application layer routing)
+PLEXUS: Spatial filter → relevant ganglia
+   ↓
+GANGLION: "My 10 nodes, prepare"
+   ↓
+NODE: 
+  • RFIP: "My position is (a,b)"
+  • Compute: angle to (x,y) = θ
+  • UTLP: Wait for time T
+  • SMSP: Actuate (aim + illuminate)
+```
+
+The command is tiny. The computation is distributed. The timing is UTLP. The position is RFIP. The actuation is SMSP. **The neural hierarchy is the orchestration fabric built on top of the Protocol Trinity.**
+
+This architectural separation ensures that:
+1. Time-sync remains flat and resilient (no single point of failure)
+2. Application complexity doesn't pollute protocol simplicity
+3. Ganglia can fail without affecting time coherence
+4. Different applications can build different hierarchies on the same protocol foundation
+
+---
+
+### 8.32 Application Layer Extensions: Neural Hierarchy Patterns (S2.50)
+
+While the Protocol Trinity (UTLP/RFIP/SMSP) remains flat and leaderless, applications built on top benefit from documented patterns for hierarchical organization. These claims establish prior art for application-layer constructs that USE the Protocol Trinity without modifying it.
+
+**The Layered Secretion Model (Public Pulse / Private Vitals)**
+
+PHYRFLY utilizes a **Split-Payload Architecture**. The **Temporal Pulse** (Atomic Time and Stratum) is transmitted as a "Public Exon" in cleartext to facilitate universal NTP-grade synchronization for legacy devices. The **Strategic Vitals** (Drift Models, RSSI stats, and Loom Commands) are encapsulated in the **Splice-Site Intron**, which is obfuscated using a rolling key derived from local entropy. This ensures the meadow is fed with time, but the organism's internal health is invisible to predators.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    BEACON STRUCTURE                         │
+├─────────────────────────────────────────────────────────────┤
+│  PUBLIC EXON (Cleartext)     │  PRIVATE INTRON (Obfuscated) │
+│  ─────────────────────────   │  ──────────────────────────  │
+│  • Atomic timestamp          │  • Drift model coefficients  │
+│  • Stratum level             │  • RSSI statistics           │
+│  • Epoch identifier          │  • Jitter measurements       │
+│  • Phase offset              │  • Loom promotion signals    │
+│                              │  • Health scores             │
+├─────────────────────────────────────────────────────────────┤
+│  Anyone can sync time        │  Only swarm members decode   │
+│  (NTP compatibility)         │  (Splice-Site rolling key)   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+This resolves the NTP/encryption tension: time is public infrastructure (like GPS), but swarm health is private conversation.
+
+128. **Hierarchical Information Reduction (Regional Stability Digests)**: A method where individual node vitals (raw RSSI, oscillator drift curves, precise jitter statistics) are strictly localized to a near-peer cluster and processed by a self-promoted **Ganglion** node; the Ganglion emits a **Regional Stability Index (RSI)** and **Centroid Position** in the cleartext "Exon" payload, effectively masking individual node technosignatures from wide-area side-channel analysis while maintaining high-resolution aggregate data for continental-scale sensing; prevents fingerprinting of individual nodes by aggregating their characteristics into anonymous regional summaries; attackers see "region is stable" not "node 0x4F3A has 12.3µs jitter and -67dBm RSSI."
+
+129. **Quorum-Based Role Emergence (Nerve Net Fallback)**: A mechanism for emergent orchestration where hierarchical roles (Ganglions and Plexuses) only emerge once a local node density threshold (Quorum) is met; in sparse environments below the quorum threshold, the system defaults to **Nerve Net** logic where nodes maintain peer-to-peer coherence without aggregation overhead; ensures architecture is scale-invariant from 3 nodes to 10,000 nodes; prevents orphaned Ganglions in sparse deployments; quorum threshold is dynamic based on RF environment (dense urban may require higher quorum than rural); graceful degradation—losing nodes below quorum triggers Nerve Net fallback rather than hierarchy collapse.
+
+130. **Metabolic Throttle for Spectral Stealth**: A defensive behavioral state for solitary or sparse clusters (fewer than 3 nodes within RF range) characterized by deliberate reduction in broadcast frequency; trades high-frequency temporal precision for **Spectral Stealth**, minimizing the cluster's persistent RF footprint; protects isolated nodes from discovery by hostile RF surveillance until they can re-integrate with a larger swarm or Plexus; throttle rate scales with isolation duration—longer isolation triggers progressively lower duty cycle; re-integration with swarm triggers metabolic recovery to normal broadcast rate; biological analog: hibernation metabolic suppression.
+
+---
+
+### 8.33 Multi-Arbor Stratum Management: Polychromatic Loom (S2.51)
+
+In heterogeneous swarms where nodes possess multiple radio transports (WiFi + 802.15.4, for example), a critical question arises: what is a node's stratum? The answer: **it depends on which transport you're asking about.**
+
+**The Problem: Spectral Bottlenecks**
+
+If a bridge node must have a single stratum across all transports, swarms become bottlenecked:
+
+```
+                    BOTTLENECK SCENARIO
+    ┌─────────────────────────────────────────────┐
+    │  WiFi Swarm (many nodes, good time)         │
+    │     Stratum 2 ←── Bridge Node ──→ ???       │
+    │                      │                      │
+    │              Must be Stratum 2              │
+    │              on BOTH transports             │
+    │                      │                      │
+    │                      ▼                      │
+    │  15.4 Swarm (isolated, needs time)          │
+    │     No Genesis → No sync → Drift            │
+    └─────────────────────────────────────────────┘
+```
+
+If the bridge is stratum 2 on WiFi, and must remain stratum 2 on 15.4, the 15.4 swarm has no authority—everyone is equal, no one leads, chaos ensues.
+
+**The Solution: Per-Transport Stratum**
+
+Each arbor maintains its own stratum level:
+
+```
+                POLYCHROMATIC STRATUM
+    ┌─────────────────────────────────────────────┐
+    │  WiFi Swarm (primary truth source)          │
+    │     Stratum 1 ←── Bridge Node               │
+    │                   WiFi: Stratum 2 (Follower)│
+    │                   15.4: Stratum 3 (GENESIS) │
+    │                      │                      │
+    │                      ▼                      │
+    │  15.4 Swarm (receives propagated time)      │
+    │     Bridge is LOCAL AUTHORITY               │
+    │     15.4 nodes sync to Bridge               │
+    │     Stratum 4, 5, 6...                      │
+    └─────────────────────────────────────────────┘
+```
+
+**Split-Horizon Protection**
+
+A critical safety rule prevents timing loops:
+
+```c
+// POLYCHROMATIC LOOM LOGIC
+// Rule 1: Split-Horizon Protection
+// A node cannot be a 15.4 Follower if it is a WiFi Follower.
+void update_transport_roles(utlp_node_t *node) {
+    if (node->primary_source == ARBOR_WIFI && 
+        node->arbor[ARBOR_WIFI].stratum < 255) {
+        // We have high-bandwidth truth from WiFi.
+        // We MUST be Local Authority on 15.4 (or silent).
+        // We CANNOT listen to 15.4 for time—that would create a loop.
+        node->arbor[ARBOR_15_4].role = ROLE_AUTHORITY;
+        node->arbor[ARBOR_15_4].stratum = node->arbor[ARBOR_WIFI].stratum + 1;
+        node->arbor[ARBOR_15_4].ignore_incoming_sync = true;
+    } else {
+        // No WiFi truth. We are allowed to listen to 15.4.
+        node->arbor[ARBOR_15_4].role = ROLE_FOLLOWER;
+        node->arbor[ARBOR_15_4].ignore_incoming_sync = false;
+    }
+}
+
+// Rule 2: Genesis Promotion
+// If we are a bridge, we fill the silence.
+void on_beacon_interval(utlp_node_t *node) {
+    if (node->arbor[ARBOR_15_4].role == ROLE_AUTHORITY) {
+        // Broadcast the time we derived from WiFi
+        utlp_beacon_t beacon = {
+            .atomic_time = node->local_atomic_time,
+            .stratum = node->arbor[ARBOR_WIFI].stratum + 1,
+            .transport = ARBOR_15_4
+        };
+        broadcast_beacon(&beacon);
+    }
+}
+```
+
+**Why This Works**
+
+| Transport | Role | Stratum | Behavior |
+|-----------|------|---------|----------|
+| WiFi | Follower | 2 | Listens to WiFi genesis, syncs |
+| 802.15.4 | Authority | 3 | Broadcasts to 15.4 swarm, ignores incoming |
+
+The node is simultaneously a **student** on one frequency and a **teacher** on another. No configuration required—the Loom logic derives roles automatically from which transports have upstream truth.
+
+131. **Polychromatic Stratum Asymmetry**: A method where a multi-transport node maintains independent synchronization stratum levels for each physical interface (Arbor); allows a node to function as a Time Follower on a high-bandwidth primary transport (e.g., 802.11) while simultaneously promoting itself to Local Genesis Authority on a secondary, spectrally isolated transport (e.g., 802.15.4); enables propagation of "Genesis Truth" into silent spectral bands without requiring manual role configuration or "Bridge Mode" flags; **Split-Horizon Protection** prevents timing loops by forbidding a node from being a Follower on Transport B if it is already a Follower on Transport A that provides its time truth; effectively eliminates spectral bottlenecks in heterogeneous swarms; stratum on secondary transport equals primary stratum + 1; biological analog: a nerve that receives signals from the brain (follower) while simultaneously being the local authority for a muscle group (teacher).
+
+---
+
+### 8.34 The Cricket Chorus: Deterministic Phase Slotting (S2.53)
+
+When a swarm achieves tight phase coherence, a new problem emerges: **Flash Mob Self-Jamming**. If 100 nodes all agree that "now" is the moment to transmit, they all transmit simultaneously—and collide catastrophically.
+
+**The Problem: Synchronization Success Creates Collision**
+
+```
+          FLASH MOB FAILURE (Too Synchronized)
+    ┌─────────────────────────────────────────────────────────┐
+    │                                                         │
+    │  Phase = 0°  → All nodes TX at exactly the same µs     │
+    │                                                         │
+    │  Node A: ████████████████████ ← TX at T                 │
+    │  Node B: ████████████████████ ← TX at T (collision!)    │
+    │  Node C: ████████████████████ ← TX at T (collision!)    │
+    │  Node D: ████████████████████ ← TX at T (collision!)    │
+    │                                                         │
+    │  Result: Total RF chaos. Nobody receives anything.      │
+    └─────────────────────────────────────────────────────────┘
+```
+
+Traditional TDM (Time Division Multiplexing) solves this with centrally allocated slots. But UTLP has no central authority. We need **Fuzzy TDM**—deterministic slot allocation without negotiation.
+
+**The Solution: Cricket Chorus Effect**
+
+Crickets synchronize their chirps but don't chirp at *exactly* the same instant. Each cricket has a slightly different phase offset within the chorus window. The result: a coherent rhythm that doesn't self-destruct.
+
+```
+          CRICKET CHORUS (Fuzzy TDM)
+    ┌─────────────────────────────────────────────────────────┐
+    │                                                         │
+    │  Global Phase Reference: T                              │
+    │  Fuzzy Window: 50ms                                     │
+    │                                                         │
+    │  Node A: ──────████──────────────────────── (T + 5ms)   │
+    │  Node B: ────────────████────────────────── (T + 18ms)  │
+    │  Node C: ──────────────────████──────────── (T + 31ms)  │
+    │  Node D: ────────────────────────████────── (T + 44ms)  │
+    │                                                         │
+    │  Result: Temporal interleaving. No collisions.          │
+    │  All nodes share same phase truth but different slots.  │
+    └─────────────────────────────────────────────────────────┘
+```
+
+**The Key Insight: Deterministic Pseudo-Random Offset**
+
+Each node's slot offset is derived from its MAC address via hash. This means:
+1. The offset is **deterministic**—same node always picks same slot
+2. The offset is **pseudo-random**—evenly distributed across window
+3. **No negotiation required**—each node computes its own slot independently
+4. **Stable rhythm**—the chorus pattern doesn't change unless nodes join/leave
+
+```c
+// FUZZY TDM LOGIC: The Cricket Chorus
+// Prevents "Flash Mob" self-jamming by slotting transmissions
+
+#define FUZZY_WINDOW_US  50000   // 50ms window for the "rain"
+#define BEACON_INTERVAL_MS 1000  // 1 second heartbeat
+
+// Schedule next beacon with deterministic phase offset
+void schedule_next_beacon(utlp_node_t* node) {
+    
+    // 1. Determine the Global Beat (Base Interval)
+    //    This is the shared phase reference all nodes agree on
+    int64_t base_time = utlp_get_next_interval_base();
+    
+    // 2. Calculate Deterministic Slot (The "Drop Time")
+    //    Static hash of MAC ensures the node always picks the same slot
+    //    in the chorus, maintaining a stable rhythm.
+    uint32_t slot_offset = crc32(node->mac_address, 6) % FUZZY_WINDOW_US;
+    
+    // 3. Calculate actual TX time
+    int64_t target_tx_time = base_time + slot_offset;
+    
+    // 4. Schedule Hardware TX (sub-microsecond precision)
+    esp_ieee802154_transmit_at(target_tx_time);
+    
+    // 5. CRITICAL: Embed TX time in payload
+    //    Receiver needs to know WHEN packet left, not when it arrived
+    //    Otherwise phase/range calculations will be wrong by slot_offset
+    node->beacon.timestamp = target_tx_time;
+}
+
+// The receiver side: extract true TX time from payload
+void process_received_beacon(utlp_beacon_t* beacon, int64_t rx_time) {
+    
+    // The timestamp in the beacon is the SCHEDULED TX time
+    // NOT the local RX time
+    int64_t tx_time = beacon->timestamp;
+    
+    // Time of flight (for ranging)
+    int64_t tof = rx_time - tx_time;
+    
+    // Phase comparison uses TX time, not RX time
+    int64_t phase_error = tx_time - expected_phase;
+    
+    // ... rest of processing
+}
+```
+
+**Why Embed TX Time in Payload?**
+
+Without embedded TX timestamp:
+- Node A transmits at T + 5ms (its slot)
+- Node B receives at T + 5ms + propagation
+- Node B thinks A transmitted at "phase 0" → **WRONG by 5ms**
+
+With embedded TX timestamp:
+- Node A transmits at T + 5ms, payload says "T + 5ms"
+- Node B receives at T + 5ms + propagation
+- Node B knows A's actual TX time → **CORRECT phase calculation**
+
+**Slot Distribution Analysis**
+
+For a 50ms window with CRC32 hash:
+
+| Nodes | Avg Slot Spacing | Collision Probability |
+|-------|------------------|----------------------|
+| 10 | 5.0 ms | < 0.01% |
+| 50 | 1.0 ms | < 1% |
+| 100 | 0.5 ms | < 5% |
+| 500 | 0.1 ms | ~15% |
+
+For 802.15.4 (packet duration ~1-4ms), swarms up to ~100 nodes work well with 50ms window. Larger swarms may need wider windows or hierarchical Ganglion aggregation.
+
+**Biological Analog: Rain on a Pond**
+
+Each raindrop (beacon) hits the pond (RF medium) at a slightly different time. The ripples (timing information) spread and interfere constructively at the edges, but the drops themselves don't collide because they're temporally distributed. The "rain" is synchronized (same storm) but individual drops are stochastically interleaved.
+
+**Computer Science Ancestry: Distributed Non-Comparative Bucket Sort**
+
+Fuzzy TDM is not merely a biological analogy—it has deep roots in computer science algorithm theory. The Cricket Chorus is a physical implementation of several foundational algorithms applied to the RF time domain:
+
+**1. Bucket Sort (Bin Sort)**
+
+Most sorting algorithms (Quicksort, Mergesort) work by *comparison*: "Is A bigger than B?" This requires entities to know about each other and takes O(n log n) time.
+
+Bucket Sort works by *distribution*. Each item computes its destination independently:
+
+```
+Bucket_ID = Hash(Value) % Number_Of_Buckets
+```
+
+| Concept | Bucket Sort | Fuzzy TDM |
+|---------|-------------|-----------|
+| Buckets | Memory bins | Time slots (µs offsets) |
+| Value | Data item | MAC address |
+| Hash | Distribution function | CRC32 |
+| Result | Items sorted into bins | Nodes sorted into time slots |
+
+**Critical insight:** Node A doesn't need to know Node B exists. It just does the math: `CRC32(MyMAC) % WINDOW = Slot_Offset`. The slot assignment is O(1)—constant time regardless of swarm size. This is why the protocol scales.
+
+**2. Sleep Sort (The Meme Made Real)**
+
+In 2011, a legendary "joke" algorithm appeared: to sort numbers [5, 2, 9], create threads that sleep for that many seconds then print:
+
+```
+Thread "2" → sleep(2) → prints "2"
+Thread "5" → sleep(5) → prints "5"  
+Thread "9" → sleep(9) → prints "9"
+Result: Numbers print in sorted order. No comparisons needed.
+```
+
+Fuzzy TDM is Sleep Sort applied to RF transmission. Nodes compute a "sleep time" (slot offset) and "print" (transmit) when they wake. The meme algorithm becomes serious physics.
+
+**3. Consistent Hashing (The Industrial Cousin)**
+
+Amazon and Google use Consistent Hashing to distribute data across servers without central coordination:
+
+| Problem | Traditional Hash | Consistent Hash |
+|---------|------------------|-----------------|
+| 100 servers | `ID % 100` | Map to 360° ring |
+| Server dies | Rehash everything (`% 99`) | Only neighbors affected |
+| Stability | Catastrophic churn | Graceful degradation |
+
+Fuzzy TDM uses consistent hashing principles: the phase window is the "ring," MAC hash places nodes on the ring, and if a neighbor dies, your slot doesn't change. The topology is stable under node failure.
+
+**Why Alternative Approaches Fail**
+
+| Approach | Method | Failure Mode |
+|----------|--------|--------------|
+| Strict TDM | Central slot assignment | Requires coordinator (SPOF) |
+| CSMA/CA (WiFi) | Listen-before-talk | Collapses under load |
+| ALOHA | Transmit-and-pray | Exponential backoff storms |
+| **Fuzzy TDM** | **Math assigns seats** | **Scales by Law of Large Numbers** |
+
+**Theoretical Guarantee**
+
+Because CRC32 produces uniform distribution, and uniform distribution over a window guarantees:
+
+```
+P(collision) ≈ n × (packet_duration / window_size)
+```
+
+As window size increases, collision probability drops linearly. This is mathematically sound and exploits the Law of Large Numbers: with enough nodes and a wide enough window, the probability distribution of slots approaches uniform, guaranteeing temporal interleaving.
+
+132. **Deterministic Phase Slotting (Fuzzy TDM / Cricket Chorus)**: A method for collision avoidance in synchronized swarms where transmission times are pseudo-randomly distributed within a fixed phase window based on a static node identifier (MAC address hash via CRC32); ensures that while all nodes share a precise global phase reference, their physical RF emissions are temporally interleaved—the "Cricket Chorus" effect; prevents self-jamming "flash mobs" and destructive interference without requiring central slot allocation or negotiation; **critical implementation detail**: the scheduled TX time MUST be embedded in the beacon payload so receivers can distinguish slot offset from phase error; slot offset is deterministic (same node always uses same slot) ensuring stable rhythm; window size trades off collision probability vs. temporal spread; **computer science ancestry**: physical implementation of Bucket Sort (O(1) slot assignment), Sleep Sort (time-domain sorting without comparison), and Consistent Hashing (stable topology under node failure)—a Distributed, Non-Comparative, Deterministic Bucket Sort in the RF Domain; collision probability follows P(collision) ≈ n × (packet_duration / window_size), exploiting Law of Large Numbers for guaranteed temporal interleaving at scale.
+
+---
+
+### 8.35 Rolling Splice-Site Obfuscation: Bio-TOTP Security (S2.55)
+
+Traditional mesh networks use static network keys—a single secret that, if compromised, exposes all traffic forever. PHYRFLY takes a fundamentally different approach: **Time itself becomes the Initialization Vector**.
+
+**The Design Goal: Open Truth, Private Health**
+
+The swarm must provide two seemingly contradictory services:
+1. **Public Time Sync**: Any device (even untrusted) should be able to synchronize its clock
+2. **Private Vitals**: Battery state, drift metrics, neighbor topology, and commands must remain invisible to outsiders
+
+The solution: **Split the packet into Exon (public) and Intron (private)**, with the Intron protected by a time-rolling key.
+
+**The Packet Anatomy**
+
+```
+        PHYRFLY BEACON FRAME STRUCTURE
+    ┌─────────────────────────────────────────────────────────┐
+    │                                                         │
+    │  ┌─────────────────────────────────────────────────┐   │
+    │  │           EXON (Public Header)                   │   │
+    │  │  ┌─────────────────────────────────────────┐    │   │
+    │  │  │ Sequence ID      [2 bytes]              │    │   │
+    │  │  │ Hardware TX Time [8 bytes]              │    │   │
+    │  │  │ Stratum          [1 byte]               │    │   │
+    │  │  │ --- CLEARTEXT ---                       │    │   │
+    │  │  │ Anyone can read this to sync clocks     │    │   │
+    │  │  └─────────────────────────────────────────┘    │   │
+    │  └─────────────────────────────────────────────────┘   │
+    │                                                         │
+    │  ┌─────────────────────────────────────────────────┐   │
+    │  │           INTRON (Private Payload)               │   │
+    │  │  ┌─────────────────────────────────────────┐    │   │
+    │  │  │ Battery Voltage  [2 bytes]              │    │   │
+    │  │  │ Oscillator Drift [4 bytes]              │    │   │
+    │  │  │ Neighbor Bitmap  [8 bytes]              │    │   │
+    │  │  │ Command Bytes    [N bytes]              │    │   │
+    │  │  │ Intron CRC       [2 bytes]              │    │   │
+    │  │  │ --- OBFUSCATED via Splice-Key ---       │    │   │
+    │  │  │ Only swarm members can decrypt          │    │   │
+    │  │  └─────────────────────────────────────────┘    │   │
+    │  └─────────────────────────────────────────────────┘   │
+    │                                                         │
+    └─────────────────────────────────────────────────────────┘
+```
+
+**The Bio-TOTP Algorithm**
+
+The Splice-Key changes every second, derived from the combination of **Current Time** and **Swarm DNA** (a 128-bit secret stored in NVS):
+
+```c
+// Bio-TOTP: Time-Based One-Time Password for Swarm Security
+// Unlike standard TOTP (which uses NTP), this uses Swarm Atomic Time
+
+#define TIME_SLICE_US       1000000   // 1 second quantization
+#define SWARM_DNA_SIZE      16        // 128-bit swarm secret
+#define SPLICE_KEY_SIZE     4         // 32-bit rolling key
+
+typedef struct {
+    uint8_t dna[SWARM_DNA_SIZE];      // Stored in NVS, shared by swarm
+    bool    public_mode;               // If true, DNA is all zeros (NULL DNA)
+} swarm_identity_t;
+
+// Step 1: Quantize time to 1-second slices
+uint64_t quantize_time_slice(int64_t timestamp_us) {
+    return (uint64_t)(timestamp_us / TIME_SLICE_US);
+}
+
+// Step 2: Derive the Splice-Key from Time + DNA
+uint32_t derive_splice_key(uint64_t time_slice, const swarm_identity_t* identity) {
+    // Concatenate: Time_Slice (8 bytes) + Swarm_DNA (16 bytes)
+    uint8_t buffer[24];
+    memcpy(buffer, &time_slice, 8);
+    memcpy(buffer + 8, identity->dna, SWARM_DNA_SIZE);
+    
+    // Hash to 32-bit key (MurmurHash3 for speed, or truncated SHA-256 for security)
+    uint32_t splice_key = murmur3_32(buffer, 24, 0xPHYRFLY);
+    
+    return splice_key;
+}
+
+// Step 3: XOR-based obfuscation of Intron payload
+void obfuscate_intron(uint8_t* intron, size_t len, uint32_t splice_key) {
+    // Expand 32-bit key to cover payload via LFSR or repeated XOR
+    uint32_t key_stream = splice_key;
+    for (size_t i = 0; i < len; i++) {
+        intron[i] ^= (uint8_t)(key_stream >> (8 * (i % 4)));
+        if ((i % 4) == 3) {
+            // Simple LFSR step for key expansion
+            key_stream = (key_stream >> 1) ^ (-(key_stream & 1) & 0xB4BCD35C);
+        }
+    }
+}
+
+// Alias for clarity
+#define encrypt_intron obfuscate_intron
+#define decrypt_intron obfuscate_intron  // XOR is symmetric
+```
+
+**The Sliding Window: Drift Defense**
+
+Due to time-of-flight, processing jitter, and clock drift, a packet might arrive just as the Time_Slice rolls over. The receiver must handle this gracefully:
+
+```c
+// Sliding Window Decryption: Try current, previous, and next second
+typedef enum {
+    SPLICE_RESULT_SUCCESS,
+    SPLICE_RESULT_STALE,      // Packet too old (> 1 second)
+    SPLICE_RESULT_FUTURE,     // Packet from the future (> 1 second)
+    SPLICE_RESULT_ALIEN       // Wrong DNA (not our swarm)
+} splice_result_t;
+
+splice_result_t decrypt_intron_with_window(
+    uint8_t* intron,
+    size_t intron_len,
+    int64_t packet_timestamp_us,
+    int64_t local_time_us,
+    const swarm_identity_t* identity,
+    uint8_t* decrypted_out
+) {
+    // Extract embedded CRC from end of intron
+    uint16_t embedded_crc;
+    memcpy(&embedded_crc, intron + intron_len - 2, 2);
+    
+    // Try three time slices: current, previous, next
+    uint64_t base_slice = quantize_time_slice(packet_timestamp_us);
+    int64_t time_offsets[] = {0, -1, +1};
+    
+    for (int i = 0; i < 3; i++) {
+        uint64_t try_slice = base_slice + time_offsets[i];
+        uint32_t try_key = derive_splice_key(try_slice, identity);
+        
+        // Copy intron and attempt decryption
+        memcpy(decrypted_out, intron, intron_len);
+        decrypt_intron(decrypted_out, intron_len - 2, try_key);
+        
+        // Verify CRC of decrypted payload
+        uint16_t computed_crc = crc16(decrypted_out, intron_len - 2);
+        if (computed_crc == embedded_crc) {
+            // Success! Determine if it was current, past, or future
+            if (i == 0) return SPLICE_RESULT_SUCCESS;
+            if (i == 1) return SPLICE_RESULT_SUCCESS;  // Previous second OK
+            if (i == 2) return SPLICE_RESULT_SUCCESS;  // Next second OK
+        }
+    }
+    
+    // All three failed - either wrong DNA or packet > 1 second out of sync
+    int64_t time_delta = packet_timestamp_us - local_time_us;
+    if (time_delta < -2 * TIME_SLICE_US) {
+        return SPLICE_RESULT_STALE;   // Packet is old
+    } else if (time_delta > 2 * TIME_SLICE_US) {
+        return SPLICE_RESULT_FUTURE;  // Packet claims future time
+    } else {
+        return SPLICE_RESULT_ALIEN;   // Wrong swarm DNA
+    }
+}
+```
+
+**Security Properties**
+
+| Attack Vector | Traditional Mesh | Bio-TOTP Defense |
+|---------------|------------------|------------------|
+| **Replay Attack** | Effective (same key forever) | **Blocked** (key expired after 1 second) |
+| **Time-Shift Attack** | N/A | **Blocked** (sliding window rejects > ±1 second) |
+| **Key Compromise** | All past/future traffic exposed | Only ±1 second window exposed |
+| **Traffic Analysis** | Possible | Intron contents invisible |
+| **Passive Eavesdropping** | Full visibility | Only Exon (time) visible |
+
+**The Null DNA Case: Public Utility Mode**
+
+When a node operates in Public Mode (swarm DNA = all zeros), the algorithm remains unchanged:
+
+```c
+// Public mode: DNA is NULL, but time-based freshness still applies
+swarm_identity_t public_identity = {
+    .dna = {0},  // All zeros
+    .public_mode = true
+};
+
+// The Splice-Key is now: Hash(Time_Slice + NULL)
+// This still provides replay protection!
+```
+
+**Why Null DNA still provides security:**
+
+Even with known DNA (zeros), an attacker cannot:
+1. Replay a packet from yesterday—the Time_Slice won't match
+2. Inject a packet with a fake timestamp—the sliding window rejects it
+3. Predict future keys—they don't know what time the swarm believes it is
+
+The Exon (public header) feeds time to the world; the Intron (private payload) remains opaque except to swarm members. Even in public mode, temporal freshness is enforced.
+
+**Biological Analog: Gene Expression**
+
+In molecular biology:
+- **Exons** are expressed (translated into protein)—they are the "public output"
+- **Introns** are spliced out and remain internal—they are the "private machinery"
+- The **Splice Site** is the boundary where the ribosome cuts and joins
+
+PHYRFLY uses the same model: the Exon is broadcast publicly (time sync), the Intron is processed internally (health/commands), and the Splice-Key determines where the boundary lies and who can cross it.
+
+133. **Rolling Splice-Site Obfuscation (Bio-TOTP)**: A security mechanism where packet payloads are split into public Exon (cleartext timing data for universal sync) and private Intron (obfuscated vitals/commands); the Intron is protected by a rolling key derived from the hash of quantized Swarm Atomic Time (1-second slices) concatenated with a 128-bit Swarm DNA seed; provides **Replay Attack Defense** (keys expire every second), **Time-Shift Attack Defense** (sliding window rejects packets > ±1 second), and **Traffic Analysis Resistance** (health metrics invisible to outsiders); even Null DNA mode (public operation) provides temporal freshness filtering; key derivation: `Splice_Key = SHA256(Swarm_DNA || Time_Slice)[0:16]`; receivers attempt decryption with current, previous, and next second's key to handle clock jitter; **Fixed 32-Byte Geometry**: all packets use identical wire size (24-byte Exon + 8-byte Intron) for deterministic timing and traffic analysis resistance—encrypted and public packets are indistinguishable; **Herd Immunity (PT-4)**: Public Mode nodes execute identical SHA256+AES code paths as Private Mode nodes to prevent CPU power profile and timing side-channel analysis; **Semantic Plausibility Validation**: replaces authentication tag with multi-field validation (TX_Power ±40dBm, Drift ±2000ppm, Opcode 0x00-0x04) yielding ~0.00004% false positive rate; biological analog: gene expression where exons are translated (public) while introns remain internal (private), with splice sites determining the boundary.
+
+---
+
+### 8.36 Proprioception: Hardware-Assisted Latency Learning (S2.56)
+
+In biological systems, **proprioception** is the body's awareness of its own position and movement—the ability to touch your nose with eyes closed. In UTLP, proprioception is the node's awareness of its own output latency, learned through a closed feedback loop.
+
+**The Problem: Platform-Specific TX Latency**
+
+Hardware-scheduled TX via `esp_ieee802154_transmit_at()` requires providing a future timestamp. The optimal lead time depends on platform-specific factors:
+
+| Factor | Contribution | Variability |
+|--------|-------------|-------------|
+| Radio warmup | ~50-200µs | Fixed per chip |
+| ISR latency | ~5-60µs | Varies with coexistence |
+| SPI buffer time | ~20-50µs | Bus contention |
+| RTOS jitter | ~0-100µs | Scheduling dependent |
+
+Hardcoding these values is fragile. Instead, we **learn** them by observing actual vs. target timing.
+
+**The Learning Loop**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Proprioception Feedback Loop                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. SCHEDULE  ─────┐                                         │
+│                    │  adjusted_time = tx_time + latency      │
+│                    ▼                                         │
+│  2. EMBED     target = adjusted_time                         │
+│                    │                                         │
+│                    ▼                                         │
+│  3. TRANSMIT  esp_ieee802154_transmit_at(adjusted_time)      │
+│                    │                                         │
+│                    ▼                                         │
+│  4. FEEDBACK  tx_done_callback() reads actual timestamp      │
+│                    │                                         │
+│                    ▼                                         │
+│  5. LEARN     error = actual - target                        │
+│               ├─ LATE (error > 0):  latency += error/16      │
+│               ├─ ON-TIME:           no change                │
+│               └─ EARLY (error < -10): latency -= 10µs        │
+│                    │                                         │
+│                    └─────────────► (loop)                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Convergence Behavior**
+
+| Phase | Latency | Duration | Description |
+|-------|---------|----------|-------------|
+| Startup | 50ms | 0 TX | Conservative initial value |
+| Fast Learning | 50ms → 1ms | ~100 TX | Large errors corrected quickly |
+| Fine Tuning | 1ms → 200µs | ~500 TX | Slow decay finds minimum |
+| Steady State | ~100-500µs | ∞ | Platform-optimal buffer |
+
+**Death Spiral Prevention**
+
+If `transmit_at()` fails (returns ESP_ERR_INVALID_STATE), the target time has already passed. Without intervention: no callback → no learning → latency stays too small → next TX also fails → death spiral. The fix: immediately bump latency by 5ms.
+
+```c
+// Death spiral prevention
+esp_err_t err = esp_ieee802154_transmit_at(frame, false, adjusted_time);
+if (err == ESP_ERR_INVALID_STATE) {
+    // Already past target! Emergency bump to escape death spiral
+    g_learned_tx_latency_us += UTLP_LATENCY_DEATH_SPIRAL_BUMP_US;
+    ESP_LOGW(TAG, "TX deadline missed, bumping latency to %lu µs",
+             (unsigned long)g_learned_tx_latency_us);
+}
+```
+
+**Biological Analog: Corollary Discharge**
+
+In neuroscience, **corollary discharge** is the brain's prediction of the sensory consequence of its own motor action. When you move your eyes, your brain predicts the resulting visual shift—otherwise you'd perceive the world as moving. Proprioception applies the same principle: the node predicts its TX timing, observes the actual result, and updates its internal model.
+
+134. **Hardware-Assisted Latency Learning (Proprioception)**: A method where a node learns its own output latency via a closed feedback loop; the TX scheduler provides a target timestamp, the hardware callback reports actual transmission time, and the difference drives an exponential learning algorithm; **Death Spiral Prevention** detects missed deadlines and applies emergency latency bumps to escape runaway failure; the learned latency converges from conservative 50ms to platform-optimal ~100-500µs over ~500 transmissions; eliminates the need for hardcoded platform-specific timing constants; biological analog: **Corollary Discharge**—the brain's prediction of sensory consequences from motor actions.
+
+---
+
+### 8.37 Interrupt Latency Compensation: Pre-Fire Proprioception (S2.56)
+
+While Proprioception learns radio TX latency, **Interrupt Latency Compensation (ILC)** learns the latency of the phase timer ISR itself. This is critical for devices running WiFi+BLE coexistence (Dual Stack), which experience 40-60µs interrupt delay compared to ~5µs on Single Stack devices.
+
+**The Problem: The Software Gap**
+
+| Stack Type | Interrupt Latency | Root Cause |
+|------------|-------------------|------------|
+| Single Stack | ~5µs | Minimal ISR path |
+| Dual Stack | ~40-60µs | WiFi/BLE Coexistence Arbiter |
+
+This 35-55µs difference creates visible phase offset between device types running identical firmware.
+
+**Ideal Physics:** Timer hits `0` → LED toggles.
+
+**Reality (ESP32):** Timer hits `0` → Interrupt Controller → Arbiter → Context Switch → ISR Entry → GPIO Instruction → LED toggles.
+
+**The Solution: Pre-Fire Compensation**
+
+```
+BEFORE (naive):     Timer fires at T → ISR runs at T+40µs → LED toggles LATE
+AFTER (ILC):        Timer fires at T-40µs → ISR runs at T → LED toggles ON-TIME
+```
+
+The learning loop is identical to Proprioception but applied to ISR timing:
+
+```c
+// ILC Learning in phase timer ISR
+int32_t error_us = actual_isr_time - expected_target_time;
+
+if (error_us > +5) {
+    // LATE: ISR took longer than expected
+    g_isr_learned_latency_us += error_us / 16;
+} else if (error_us < -5) {
+    // EARLY: We're pre-firing too much
+    g_isr_learned_latency_us -= 2;
+}
+
+// Next alarm pre-fires by learned amount
+next_alarm = target - g_isr_learned_latency_us;
+```
+
+**Expected Convergence**
+
+| Stack Type | Initial | Converged | Cycles |
+|------------|---------|-----------|--------|
+| Single Stack | 1ms | ~10µs | ~100 |
+| Dual Stack | 1ms | ~50µs | ~100 |
+
+**Why This Is Better Than Hardware Output Compare**
+
+While mapping LED directly to MCPWM comparator output pin is "perfect" (±50ns), it requires specific GPIO assignment. ILC works on **any GPIO** and solves the problem mathematically, effectively learning the weight of the OS stack.
+
+135. **Interrupt Latency Compensation (ILC / Pre-Fire Proprioception / PT-7)**: A method where the phase timer ISR learns its own execution latency and pre-fires the hardware timer to compensate; eliminates phase offset between Single Stack (~5µs ISR latency) and Dual Stack (~40-60µs coexistence arbiter latency) devices running identical firmware; uses the same exponential learning algorithm as TX Proprioception but applied to interrupt timing; enables GPIO-agnostic timing correction without requiring hardware output compare pin mapping; the "Interrupt Weight" converges through observation of actual vs. expected ISR entry times; **spinlock protection** ensures atomic access to shared timing state; result: Dual Stack and Single Stack devices achieve identical phase alignment despite different OS overhead.
+
+---
+
+### 8.38 Spectral Retina: Radio Color Vision (S2.56)
+
+When a peer is visible on both WiFi (ESP-NOW) and 802.15.4, comparing RSSI values reveals environmental RF characteristics—the "radio color" of the propagation path. This is the **Spectral Retina**: the swarm's ability to see in multiple RF frequencies simultaneously.
+
+**The Principle: Frequency Diversity**
+
+WiFi (2.4GHz, 20MHz bandwidth) and 802.15.4 (2.4GHz, 2MHz bandwidth) experience different multipath fading profiles despite sharing the same band:
+
+| Environment | WiFi RSSI | 802.15.4 RSSI | Delta | Classification |
+|-------------|-----------|---------------|-------|----------------|
+| Open area | -45 dBm | -48 dBm | 3 dB | **CLEAR** |
+| Office | -52 dBm | -56 dBm | 4 dB | **CLEAR** |
+| Warehouse | -58 dBm | -72 dBm | 14 dB | **CLUTTERED** |
+| Dense metal | -65 dBm | -88 dBm | 23 dB | **CLUTTERED** |
+
+**Implementation: Per-Arbor RSSI in Metabolic Ledger**
+
+```c
+typedef struct {
+    /* ... existing fields ... */
+
+    /* Spectral Retina: Per-arbor RSSI tracking */
+    int8_t   last_rssi[UTLP_MAX_ARBORS];       /* Per-arbor RSSI (dBm) */
+    uint32_t rssi_timestamp_ms[UTLP_MAX_ARBORS]; /* When RSSI was recorded */
+} utlp_peer_ledger_t;
+```
+
+**Spectral Coherence Calculation**
+
+```c
+int8_t delta = abs(rssi_wifi - rssi_154);
+bool is_clear = (delta <= UTLP_RSSI_DELTA_CLEAR);  // 10 dB threshold
+```
+
+**Future Applications**
+
+- **Polychromatic Confidence Weighting:** Timing from cluttered environments gets lower weight in consensus
+- **Dynamic Arbor Selection:** Prefer transport with lower multipath distortion
+- **Environmental Mapping:** Swarm collectively maps RF characteristics of space
+
+**Biological Analog: Mantis Shrimp / Binocular Vision**
+
+The mantis shrimp has 16 types of photoreceptors (humans have 3), enabling it to see polarization and UV light invisible to other creatures. Similarly, the Spectral Retina enables the swarm to "see" RF phenomena invisible to single-transport devices. Alternatively: just as binocular vision enables depth perception through parallax, multi-transport RSSI comparison enables environmental "depth" (clutter) perception.
+
+136. **Spectral Retina (Radio Color Vision)**: A method where a multi-transport node compares RSSI values from different radio interfaces to detect environmental RF characteristics; the RSSI delta between high-bandwidth (WiFi) and narrow-bandwidth (802.15.4) transports reveals multipath clutter: small delta (~3-4 dB) indicates clear propagation, large delta (~14-23 dB) indicates cluttered/multipath environment; per-arbor RSSI is stored in the Metabolic Ledger with timestamps for staleness detection; enables **Polychromatic Confidence Weighting** where timing from cluttered paths receives lower trust; biological analog: **Mantis Shrimp spectral contrast** (16 photoreceptors vs. human 3) or **Binocular depth perception** (parallax reveals distance).
+
+---
+
+### 8.39 Session Bankruptcy: The Ghost in the Machine (S2.56)
+
+Trust in UTLP is accumulated through consistent, correct behavior over time. But what happens when a trusted node reboots? Its clock resets, its epoch changes, yet its MAC address remains. Without detection, a rebooted Time Lord could corrupt the entire swarm with stale timing.
+
+**Session Bankruptcy** solves this by tying trust to the **Session Salt** (a random 16-bit value generated at boot), not just the MAC address.
+
+**The Attack Scenario (Without Session Bankruptcy)**
+
+1. High-trust peer (health=150, seniority=1000) crashes and reboots
+2. Sends first beacon claiming Genesis authority (stratum 1)
+3. Swarm briefly accepts claim before detecting interval anomaly (Genesis Pulse)
+4. Window of vulnerability: corrupted timing propagates
+
+**The Defense: Instant Reboot Detection**
+
+```
+[Beacon Exon: ..., Session_Salt(2), ...]
+                         ↑
+          PT-6: Boot Instance ID (random at each boot)
+```
+
+When a peer's salt changes but MAC remains the same, the peer has rebooted. The response is **Seniority Bankruptcy**: complete wipe of all accumulated trust.
+
+```c
+if (peer->last_session_salt != 0 && peer->last_session_salt != session_salt) {
+    // SENIORITY BANKRUPTCY: Reset ALL trust metrics
+    peer->first_seen_ms = now_ms;        // Tenure starts over
+    peer->health_score = 0;               // Zero trust, not STARTUP
+    peer->stratum_claim = 255;            // Worst possible stratum
+    peer->interactions = 1;               // First observation in new life
+    peer->consecutive_hits = 0;
+    peer->last_tx_time_us = 0;
+    
+    ESP_LOGW(TAG, "*** SENIORITY BANKRUPTCY *** Peer %02X salt 0x%04X->0x%04X",
+             peer->mac[5], peer->last_session_salt, session_salt);
+}
+peer->last_session_salt = session_salt;
+```
+
+**Why Zero Health, Not STARTUP**
+
+| Mode | Health | Rationale |
+|------|--------|-----------|
+| New Peer (first contact) | 50 (STARTUP) | Benefit of the doubt |
+| Rebooted Peer (salt changed) | **0** | Could have been compromised |
+
+A rebooted peer must completely re-validate before ANY influence. The Genesis Guard rejects peers with health < 100—a rebooted Time Lord cannot immediately reclaim authority.
+
+**Detection Speed Comparison**
+
+| Detection Method | Trigger | Speed | Limitation |
+|------------------|---------|-------|------------|
+| Genesis Pulse | Interval < 2000ms | 2+ beacons | Needs timing history |
+| Time Regression | Atomic time backwards > 10s | Slow | Large threshold |
+| **Session Salt (PT-6)** | Salt ≠ last_salt | **FIRST beacon** | **Definitive** |
+
+Session Salt provides the fastest and most definitive reboot detection—no history needed, no threshold ambiguity, detectable on the very first beacon after reboot.
+
+**Biological Analog: Immune Memory Reset**
+
+When an organ is transplanted, the recipient's immune system initially accepts it (immunosuppression). But if the body detects the organ as "foreign" (HLA mismatch), it triggers rejection—not gradual distrust, but complete wipe. Session Bankruptcy is the immune system's rejection response: the MAC is the same organ, but the Session Salt reveals it's been replaced.
+
+137. **Session Bankruptcy (Seniority Wipe on Reboot Detection / PT-6)**: A method where trust is tied to the Session Salt (random 16-bit boot instance ID), not just the MAC address; when a peer's salt changes but MAC remains the same, the swarm immediately sets health to zero and wipes all accumulated trust metrics (tenure, seniority, stratum claim); provides **First-Beacon Detection**—reboots are identified on the very first packet without requiring timing history; prevents **Fresh Boot Genesis Attack** where a rebooted Time Lord could briefly corrupt the swarm before interval anomalies are detected; zero health (not STARTUP 50) forces complete re-validation before any influence; biological analog: **Immune Rejection**—the body's complete rejection of a transplanted organ when HLA mismatch is detected, despite identical appearance.
 
 ---
 
@@ -3525,7 +4714,7 @@ The organism is complete.
 
 ### K.1 Beacon Wire Format
 
-The UTLP beacon is an 11-byte seismic chirp:
+The UTLP beacon is an 11-byte packet with 3-burst jitter rejection:
 
 ```c
 #define UTLP_BEACON_SIZE        11
@@ -3537,11 +4726,15 @@ The UTLP beacon is an 11-byte seismic chirp:
 #define BEACON_OFF_TIMESTAMP    3    // 8 bytes: TX timestamp (little-endian)
 ```
 
-**Seismic Chirp Pattern:**
+**3-Burst Jitter Rejection Pattern:**
 - 3 bursts per beacon
 - 2ms spacing between bursts (6ms total)
 - Same TX timestamp in all 3 bursts (captured at chirp start)
-- Enables polynomial drift extraction: offset, drift rate, drift acceleration
+- Enables jitter rejection: outlier detection, best-sample selection, noise floor estimation
+- Drift characterization requires inter-exchange analysis over seconds/minutes
+
+**Implementation Note — Calculate and Log, Don't Correct:**
+Intra-burst timing differences should be calculated and logged for statistical analysis (environmental fingerprinting, hardware characterization, Proprioception training) but NOT used to apply timing corrections. The derivatives measure stack jitter, not clock error. Use best-sample selection for offset; use variance for confidence weighting.
 
 ### K.2 Trust System Constants
 
@@ -4200,7 +5393,7 @@ This triggers recursive documentation that makes the methodology auditable and r
 | **Total** | | **$120/month** |
 
 **What was produced:**
-- 91 prior art claims (and counting)
+- 137 prior art extension claims (S2) + 122 prior art claims = 259 total
 - 3 foundational protocols (UTLP, RFIP, SMSP)
 - Working embedded implementations (ESP32-C6)
 - Architecture spanning nanometers to light-years
@@ -4824,9 +6017,9 @@ While these tools generated text and code segments, the author acted as the arch
 
 ---
 
-*Document version: S2.46*
+*Document version: S2.56*
 *Last updated: January 2026*
 *Status: Implementation specification for UTLP biological governance model*
 *Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
 *Repository: https://github.com/lemonforest/mlehaptics*
-*Revision notes: S2.46 restores Multi-Arbor Architecture (Section 8.27, claims 104-113) which was erroneously removed in S2.45, and renumbers RFIP/IMU Integration to Section 8.28 (claims 114-122); total 122 prior art extension claims across 14 appendices (A-N). S2.45 added RFIP/IMU Integration (Arbor Architecture yield-pattern sensor integration, beacon-propagated motion confidence, cross-sensor disturbance blanking, online antenna pattern learning via Friis equation, UTLP-coordinated dead reckoning, emergent anchor topology, RF-derived coordinate frame for 6-axis IMUs, unified hardware-scheduled TX discovery across ESP32-C6/MG24/nRF52840, cross-vendor 802.15.4 timing mesh) plus Appendix M with physics foundations and C99 reference implementations; S2.44 added Multi-Arbor Architecture for heterogeneous transport integration (Arbor/Soma architecture, transport capability vector, physics-informed Bayesian weighting, blood-brain barrier for swarm immunity, identity separation across arbors, passive cross-arbor correlation tracking, shadow scoring for protocol evolution, position inheritance across transport boundaries, parallel sensory modalities UTLP/RFIP); S2.43 adds claims 97-103 (Planetary Stethoscope: Subsea Cable Sensing—voltage compliance spectroscopy, space-veto tsunami warning, tidally de-convolved AMOC monitoring, traffic mapping via FDR, Schumann resonance reception, bio-mechanical jitter detection, triboelectric predator indexing) plus Purple Teaming methodology note; S2.42 corrects erroneous statement "Encryption is a subset of Authentication" to "Authentication and encryption are independent siblings" (aligning with Claim 87); S2.41 adds claims 92-95: Ground-based distributed InSAR via consumer hardware (same math as $500M satellites, $50-100/node, valid for seismology not geodesy); Multi-scale interferometry system of systems (2.4 GHz timing mesh + 60 GHz phase sensing, critical layer separation "UTLP is heartbeat not blood"); Passive Proprioception extended to geological sensing (seismic wavefront imaging via timing mesh distortion); Adversarial refinement methodology (Red Team process documented—clarifying architecture defeats structural attacks, valid attacks led to honest scope limitation, "works for X not Y" stronger than overclaiming); adds Lab Manual sections 9.16-9.17 with structural monitoring implementation and worked Red Team example*
+*Revision notes: S2.56 adds Sections 8.36-8.39 with Claims 134-137 documenting UTLP v3 codebase features: Claim 134 **Proprioception** (hardware-assisted TX latency learning via closed feedback loop, death spiral prevention, corollary discharge analog); Claim 135 **Interrupt Latency Compensation / PT-7** (pre-fire proprioception for phase timer ISR, spinlock protection, eliminates Single/Dual Stack phase offset); Claim 136 **Spectral Retina** (multi-transport RSSI comparison for environmental clutter detection, polychromatic confidence weighting, mantis shrimp analog); Claim 137 **Session Bankruptcy / PT-6** (seniority wipe on reboot detection via Session Salt, zero-health instant distrust, immune rejection analog); adds **Purple Team Directives Registry** to Section 8.26 documenting PT-1 through PT-7 implementation status; enriches Claim 133 with Fixed 32-Byte Geometry, Herd Immunity (PT-4), and Semantic Plausibility Validation details; total 137 prior art extension claims. S2.55 adds Section 8.35 Bio-TOTP with Claim 133. S2.54 enriches Claim 132 with CS Ancestry. S2.53 adds Section 8.34 Cricket Chorus with Claim 132. S2.52 adds Section 3.4.4 Social Gravity (PROTOCOL). S2.51 adds Section 8.33 Polychromatic Loom with Claim 131. S2.50 adds Section 8.32 with claims 128-130. S2.49 adds Sections 8.30-8.31; Claim 127. S2.48 adds Claim 126. S2.47 adds Section 8.29 PHYRFLY (123-125). S2.46 restores Multi-Arbor. S2.45 RFIP/IMU plus Appendix M. S2.44 Multi-Arbor. S2.43 Planetary Stethoscope 97-103. S2.42 encryption/auth. S2.41 adds 92-95*
