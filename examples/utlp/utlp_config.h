@@ -15,7 +15,7 @@
  * 1. **Genesis Pulse** - Beacon intervals during startup
  * 2. **Servo-Lock** - Phase correction slewing (Claim 55)
  * 3. **Coherence** - Phase agreement thresholds
- * 4. **Seismic Chirp** - Burst timing for drift extraction
+ * 4. **Seismic Chirp** - Multi-sample jitter filtering (NOT crystal drift!)
  * 5. **Neighborhood** - Peer tracking and frontier detection
  *
  * @see docs/UTLP_Technical_Supplement_S2.md - Claim 55 (Servo-Locked Phase Correction)
@@ -294,12 +294,28 @@ extern "C" {
 /** @} */ /* coherence */
 
 /*============================================================================
- * SEISMIC CHIRP - Time-Domain Interferometry
+ * SEISMIC CHIRP - Jitter Rejection via Multi-Sample Filtering
  *
- * Every beacon is a 3-burst "seismic chirp". This enables extraction of:
- *   - Burst 0 (t₀): Offset (position) - 0th derivative
- *   - Burst 1 (t₁): Drift (velocity) - 1st derivative
- *   - Burst 2 (t₂): Stability (acceleration) - 2nd derivative
+ * Every beacon is a 3-burst "seismic chirp" with known 2ms spacing. This
+ * filters SOFTWARE/HARDWARE JITTER, NOT crystal drift.
+ *
+ * **Timescale Analysis (Why Jitter, Not Drift):**
+ *   - Crystal drift at 40ppm over 6ms = 0.24µs (negligible)
+ *   - Stack jitter (ISR latency, WiFi arbitration) = 10-100µs (dominates!)
+ *   - The crystal IS the stable reference ("D" in control theory)
+ *   - Drift characterization requires SECONDS of observation, not milliseconds
+ *
+ * **What Each Burst Measures:**
+ *   - Burst 0 (t₀): Offset (position) - "where is the clock now?"
+ *   - Burst 1 (t₁): Jitter rate (velocity) - "how much jitter this chirp?"
+ *   - Burst 2 (t₂): [DISABLED] Was unstable due to Derivative Noise Explosion
+ *
+ * **Why Same Timestamp for All Bursts:**
+ *   All 3 bursts carry the SAME chirp_epoch. The 2ms spacing is a known
+ *   reference signal. Deviations reveal RECEIVER jitter, not sender drift.
+ *
+ * @see fit_chirp_polynomial() in utlp.c for jitter extraction algorithm
+ * @see README.md "Seismic Chirp" section for protocol overview
  *==========================================================================*/
 
 /** @defgroup chirp Seismic Chirp Configuration

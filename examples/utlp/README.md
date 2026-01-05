@@ -142,11 +142,12 @@ hours. The fix splits the error:
 - **Phase error** (within one cycle, ±500,000 µs max) → GENTLE SLEW for spectral purity
 
 **Derivative Noise Explosion:**
-The seismic chirp's 2nd derivative (acceleration) was intended to detect clock instability.
+The seismic chirp's 2nd derivative was intended to detect jitter acceleration.
 In practice, the Coexistence Arbiter jitter (40-60µs on Dual Stack) dominated the signal,
 producing garbage values like +169,500,000 ppb (169x faster than real time). This was
 misinterpreted as massive clock acceleration, causing oscillation loops. Solution: Set
-`accel_ppb_s = 0.0` and use only the 1st derivative (drift rate).
+`accel_ppb_s = 0.0` and use only the 1st derivative (jitter rate). Note: Crystal drift
+is measured via inter-exchange analysis over seconds, not within-chirp analysis.
 
 ## Quick Start
 
@@ -998,22 +999,39 @@ Every beacon transmission is a **seismic chirp**: 3 packets spaced 2ms apart,
 all carrying the **same timestamp** (the "chirp epoch"). The 2ms spacing is
 the **known reference signal** — like a seismic sweep with known frequency.
 
+**CRITICAL INSIGHT: This Measures JITTER, Not Crystal Drift**
+
+Timescale analysis proves why:
+- Crystal drift at 40ppm over 6ms chirp span = **0.24µs** (negligible)
+- Stack jitter (ISR latency, WiFi arbitration) = **10-100µs** (dominates!)
+- The crystal IS the stable reference ("D" in control theory)
+- Drift characterization requires **SECONDS** of observation, not milliseconds
+
+The 3-burst chirp filters software/hardware jitter to extract a cleaner offset.
+Crystal drift is measured separately via inter-exchange analysis (offsets
+compared over 10+ seconds).
+
 **The Principle:**
 - Sender captures timestamp once, transmits it in all 3 bursts
 - Bursts arrive at receiver 0ms, 2ms, 4ms after first (expected)
-- Any deviation from 2ms spacing = receiver clock drift
+- Any deviation from 2ms spacing = **receiver jitter** (not drift!)
 
 **The Derivative Stack:**
 
 | Burst | RX Time | Measures | Mathematical Role |
 |-------|---------|----------|-------------------|
 | Burst 0 | rx₀ | Offset | 0th derivative (where) |
-| Burst 1 | rx₁ = rx₀ + 2ms ± drift | Drift | 1st derivative (rate) |
-| Burst 2 | rx₂ = rx₀ + 4ms ± drift | Stability | 2nd derivative (acceleration) |
+| Burst 1 | rx₁ = rx₀ + 2ms ± jitter | Jitter | 1st derivative (jitter rate) |
+| Burst 2 | rx₂ = rx₀ + 4ms ± jitter | [DISABLED] | 2nd derivative was noise-dominated |
+
+**Why Burst 2 is Disabled:**
+The 2nd derivative ("jitter acceleration") amplified measurement noise into
++169M ppb garbage values ("Derivative Noise Explosion"). Jitter is already
+noisy; differentiating it again amplifies the noise catastrophically.
 
 **Why same timestamp?** The chirp is a known signal (2ms spacing). Fresh
-timestamps would mix sender and receiver drift — same timestamp isolates
-receiver drift against the known reference.
+timestamps would mix sender and receiver jitter — same timestamp isolates
+receiver jitter against the known reference.
 
 See: `UTLP_Technical_Supplement_S1.md` Section 1.4
 

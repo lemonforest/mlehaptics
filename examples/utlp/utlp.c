@@ -397,18 +397,20 @@ uint8_t utlp_get_role(void)
 }
 
 /*============================================================================
- * SEISMIC CHIRP ANALYSIS - Polynomial Fitting for Drift Extraction
+ * SEISMIC CHIRP ANALYSIS - Multi-Sample Jitter Filtering
  *
- * Accumulates 3 bursts from a single chirp, then fits a polynomial:
- *   offset(t) = a + b*t + c*t²
+ * Accumulates 3 bursts from a single chirp to filter software/hardware jitter.
+ * Over 6ms, crystal drift is ~0.24µs (negligible), but stack jitter is 10-100µs.
+ *
+ * Fits a polynomial:   offset(t) = a + b*t + c*t²
  *
  * Where:
  *   a = instantaneous offset (0th derivative - position)
- *   b = drift rate in PPB (1st derivative - velocity)
- *   c = drift acceleration (2nd derivative - thermal instability)
+ *   b = jitter rate (1st derivative) - NOT crystal drift!
+ *   c = [DISABLED] jitter acceleration (2nd derivative - noise-dominated)
  *
  * The receiver measures RX timestamps for bursts that should arrive
- * exactly 2ms apart. Deviation from 2ms spacing = local clock drift.
+ * exactly 2ms apart. Deviation from 2ms spacing = local jitter (not drift!).
  *==========================================================================*/
 
 /** @brief Accumulator for a single chirp's 3 bursts */
@@ -1206,35 +1208,48 @@ static uint32_t get_smart_interval(uint32_t uptime_us)
  *==========================================================================*/
 
 /**
- * @brief Analyze a complete 3-burst chirp and extract drift metrics
+ * @brief Analyze a complete 3-burst chirp and extract JITTER metrics
  *
  * The "Seismic Chirp" is a 3-burst beacon pattern with known 2ms spacing.
  * By measuring the actual inter-burst timing against the known reference,
- * we can extract clock drift without mixing sender/receiver drift.
+ * we filter out SOFTWARE/HARDWARE JITTER to get a cleaner offset estimate.
+ *
+ * **CRITICAL INSIGHT: This Measures JITTER, Not Crystal Drift**
+ *
+ * Timescale analysis proves why:
+ *   - Crystal drift at 40ppm over 6ms chirp span = 0.24µs (negligible)
+ *   - Stack jitter (ISR latency, WiFi arbitration) = 10-100µs (dominates!)
+ *   - The crystal IS the stable reference ("D" in control theory)
+ *   - Drift characterization requires SECONDS of observation, not milliseconds
  *
  * **Derivative Stack (The Stack is the Message):**
  * - Burst 0 (t₀): Offset (0th derivative) - "where is the clock?"
- * - Burst 1 (t₁): Drift (1st derivative) - "how fast is it drifting?"
- * - Burst 2 (t₂): [DISABLED] Acceleration (2nd derivative) - was unstable
+ * - Burst 1 (t₁): Jitter (1st derivative) - "how much jitter this chirp?"
+ * - Burst 2 (t₂): [DISABLED] Jitter acceleration - unstable, noise-dominated
  *
- * **Why We Disabled 2nd Derivative (Acceleration):**
- * The acceleration calculation amplified measurement jitter into +169M ppb
- * garbage values ("Derivative Noise Explosion"). Real crystals have nearly
- * constant drift rate - the 2nd derivative is dominated by noise, not signal.
+ * **Why We Disabled 2nd Derivative (Jitter Acceleration):**
+ * The acceleration calculation amplified measurement noise into +169M ppb
+ * garbage values ("Derivative Noise Explosion"). Jitter is already noisy;
+ * differentiating it again amplifies the noise catastrophically.
  *
  * **Why Same Timestamp for All Bursts:**
  * All 3 bursts carry the chirp_epoch from burst 0. This creates a known
- * reference (2ms spacing) that isolates RECEIVER drift from sender drift.
+ * reference (2ms spacing) that isolates RECEIVER jitter from sender jitter.
  * Fresh timestamps per burst would mix the two, corrupting the measurement.
  *
- * @param acc   Accumulated chirp data (3 RX timestamps + chirp_epoch)
- * @param poly  Output: Polynomial fit results (offset, drift, validity)
+ * **Where Does Drift Come From?**
+ * Crystal drift is measured over SECONDS via inter-exchange analysis:
+ *   drift_ppb = (offset_now - offset_10s_ago) / 10s
+ * This is done in the servo loop, NOT in this chirp fitting function.
  *
- * @note Drift values are clamped to UTLP_MAX_PHYSICAL_DRIFT_PPB (±500 ppm)
+ * @param acc   Accumulated chirp data (3 RX timestamps + chirp_epoch)
+ * @param poly  Output: Polynomial fit results (offset, jitter, validity)
+ *
+ * @note Jitter values are clamped to UTLP_MAX_PHYSICAL_DRIFT_PPB (±500 ppm)
  * @note Acceleration (accel_ppb_s) is always 0.0 - do not use for control
  *
- * @see UTLP_MAX_PHYSICAL_DRIFT_PPB in utlp_config.h
- * @see README.md "Seismic Chirp Pattern" section
+ * @see utlp_config.h "SEISMIC CHIRP - Jitter Rejection" section
+ * @see README.md "Seismic Chirp" section for protocol overview
  */
 static void fit_chirp_polynomial(const chirp_accumulator_t *acc, sync_polynomial_t *poly)
 {

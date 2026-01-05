@@ -152,19 +152,28 @@ uint8_t get_holdover_stratum(int64_t holdover_start_us, uint8_t base_stratum) {
 }
 ```
 
-### 1.4 Multi-Burst Beacon Timing (Time-Domain Interferometry)
+### 1.4 Multi-Burst Beacon Timing (Jitter Rejection via Multi-Sample Filtering)
 
 **Problem:** Single-sample sync measurements conflate systematic offset with random jitter. Without multiple samples, the Kalman filter cannot distinguish "clock is wrong" from "this measurement was noisy."
 
-**Finding:** Using N≥3 equally-spaced beacon bursts per sync exchange enables extraction of offset, drift rate, *and* drift stability (thermal acceleration)—the same technique used in seismic chirp signal processing to characterize subsurface velocity models.
+**Finding:** Using N≥3 equally-spaced beacon bursts per sync exchange filters software/hardware jitter to extract a cleaner offset estimate. The 2ms × 3 burst pattern (6ms total) operates on a timescale where:
 
-**The derivative stack:**
+- **Crystal drift at 40ppm over 6ms = 0.24µs** (negligible)
+- **Stack jitter (ISR latency, WiFi arbitration) = 10-100µs** (dominates!)
+
+The crystal IS the stable reference ("D" in control theory). What we're measuring is jitter, not drift. Crystal drift characterization requires inter-exchange analysis over SECONDS, not within-chirp analysis over milliseconds.
+
+**CRITICAL CORRECTION (v3.1):** Earlier documentation incorrectly claimed the 3-burst chirp extracts "drift rate" and "drift acceleration". This is physically impossible over a 6ms timescale. The technique filters JITTER to yield a cleaner offset estimate.
+
+**The derivative stack (corrected):**
 
 | Sample | Measures | Seismic Analog | Mathematical Role |
 |--------|----------|----------------|-------------------|
 | Burst 1 (t₀) | Offset | Position | 0th derivative (where) |
-| Burst 2 (t₁) | Drift | Velocity | 1st derivative (rate of change) |
-| Burst 3 (t₂) | Stability | Acceleration | 2nd derivative (rate of rate change) |
+| Burst 2 (t₁) | Jitter | Velocity | 1st derivative (jitter rate) |
+| Burst 3 (t₂) | [DISABLED] | Acceleration | 2nd derivative (noise-dominated) |
+
+**Note:** Burst 3 (2nd derivative) was disabled due to "Derivative Noise Explosion" - it amplified jitter noise into +169M ppb garbage values. Jitter is already noisy; differentiating it again amplifies the noise catastrophically.
 
 **Implementation:**
 
@@ -179,11 +188,12 @@ typedef struct {
 } burst_sync_state_t;
 
 // Polynomial fit: offset(t) = a + b*t + c*t²
-// a = offset, b = drift (ppb), c = thermal acceleration
+// a = offset, b = jitter rate (NOT drift!), c = jitter acceleration (DISABLED)
+// NOTE: Over 6ms, crystal drift is ~0.24µs (negligible), jitter is 10-100µs
 typedef struct {
     double offset_us;      // a: instantaneous offset
-    double drift_ppb;      // b: drift rate
-    double accel_ppb_s;    // c: drift acceleration (thermal)
+    double drift_ppb;      // b: jitter rate (legacy name, actually measures jitter)
+    double accel_ppb_s;    // c: ALWAYS 0.0 - jitter acceleration was noise-dominated
 } sync_polynomial_t;
 
 void fit_sync_polynomial(const burst_sync_state_t* bursts, sync_polynomial_t* result) {
@@ -255,12 +265,12 @@ In all cases: **multiple time-spaced samples enable derivative estimation**, sep
 
 | Burst Spacing | Total Chirp Duration | Tradeoff |
 |---------------|---------------------|----------|
-| 2ms | 6ms | Tight grouping, single "moment" in time, minimal drift smearing |
-| 10ms | 30ms | Fast sync, but drift barely measurable |
-| 50ms | 150ms | Measurable drift at typical rates |
-| 200ms | 600ms | Best drift measurement, highest sync latency |
+| 2ms | 6ms | Tight grouping, filters jitter within single "moment" |
+| 10ms | 30ms | Wider jitter window, some drift signal starts appearing |
+| 50ms | 150ms | Crystal drift becomes detectable (~2µs at 40ppm) |
+| 200ms | 600ms | Drift dominates jitter, highest sync latency |
 
-**UTLP Protocol Default: 2ms burst spacing** (6ms total chirp). The tight grouping treats the 3-burst chirp as a single atomic measurement while still extracting offset, drift rate, and drift stability. The *chirp interval* (how often chirps are sent) is controlled separately—e.g., Genesis Pulse (100ms→60s) for rapid convergence settling to steady-state.
+**UTLP Protocol Default: 2ms burst spacing** (6ms total chirp). The tight grouping treats the 3-burst chirp as a single atomic measurement, filtering software/hardware jitter to extract a cleaner offset. Crystal drift characterization happens via inter-exchange analysis (comparing offsets from chirps sent seconds apart), not within-chirp analysis. The *chirp interval* (how often chirps are sent) is controlled separately—e.g., Genesis Pulse (100ms→60s) for rapid convergence settling to steady-state.
 
 ---
 
