@@ -4,9 +4,9 @@
 
 *mlehaptics Project — December 2025*
 
-**Parent Document:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265)
+**Parent Document:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18149212.svg)](https://doi.org/10.5281/zenodo.18149212)
 
-**DOI:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18120833.svg)](https://doi.org/10.5281/zenodo.18120833)
+**DOI:** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18149212.svg)](https://doi.org/10.5281/zenodo.18149212)
 
 ---
 
@@ -14,7 +14,7 @@
 
 This supplement extends the UTLP Technical Report v2.0 and Prior Art Publication with a governance model derived from biological immune systems rather than political leadership structures. The key insight: silicon cannot feel shame, fear, or ambition—therefore governance models based on punishment, voting, or leadership hierarchies are category errors.
 
-**Prerequisites:** UTLP Technical Report v2.0, Prior Art Publication (DOI: [10.5281/zenodo.18078265](https://doi.org/10.5281/zenodo.18078265))
+**Prerequisites:** UTLP Technical Report v2.0, Prior Art Publication (DOI: [10.5281/zenodo.18149212](https://doi.org/10.5281/zenodo.18149212))
 
 **What this document adds:**
 - Immune system governance model for UTLP swarms
@@ -6020,6 +6020,6 @@ While these tools generated text and code segments, the author acted as the arch
 *Document version: S2.56*
 *Last updated: January 2026*
 *Status: Implementation specification for UTLP biological governance model*
-*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
+*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18149212)*
 *Repository: https://github.com/lemonforest/mlehaptics*
 *Revision notes: S2.56 adds Sections 8.36-8.39 with Claims 134-137 documenting UTLP v3 codebase features: Claim 134 **Proprioception** (hardware-assisted TX latency learning via closed feedback loop, death spiral prevention, corollary discharge analog); Claim 135 **Interrupt Latency Compensation / PT-7** (pre-fire proprioception for phase timer ISR, spinlock protection, eliminates Single/Dual Stack phase offset); Claim 136 **Spectral Retina** (multi-transport RSSI comparison for environmental clutter detection, polychromatic confidence weighting, mantis shrimp analog); Claim 137 **Session Bankruptcy / PT-6** (seniority wipe on reboot detection via Session Salt, zero-health instant distrust, immune rejection analog); adds **Purple Team Directives Registry** to Section 8.26 documenting PT-1 through PT-7 implementation status; enriches Claim 133 with Fixed 32-Byte Geometry, Herd Immunity (PT-4), and Semantic Plausibility Validation details; total 137 prior art extension claims. S2.55 adds Section 8.35 Bio-TOTP with Claim 133. S2.54 enriches Claim 132 with CS Ancestry. S2.53 adds Section 8.34 Cricket Chorus with Claim 132. S2.52 adds Section 3.4.4 Social Gravity (PROTOCOL). S2.51 adds Section 8.33 Polychromatic Loom with Claim 131. S2.50 adds Section 8.32 with claims 128-130. S2.49 adds Sections 8.30-8.31; Claim 127. S2.48 adds Claim 126. S2.47 adds Section 8.29 PHYRFLY (123-125). S2.46 restores Multi-Arbor. S2.45 RFIP/IMU plus Appendix M. S2.44 Multi-Arbor. S2.43 Planetary Stethoscope 97-103. S2.42 encryption/auth. S2.41 adds 92-95*

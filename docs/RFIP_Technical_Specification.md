@@ -9,7 +9,7 @@
 *Document version: Draft 0.2*
 *Last updated: January 2026*
 *Status: Implementation specification with IMU integration*
-*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
+*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18149212)*
 *Related: UTLP Technical Supplement S2.44*
 *Repository: https://github.com/lemonforest/mlehaptics*
 
@@ -735,8 +735,8 @@ This eliminates the need for magnetometer (susceptible to interference) in many 
 - Qorvo DWM3000 Datasheet
 
 ### 8.4 Related Documents
-- Connectionless Distributed Timing Prior Art v3.3 (DOI: 10.5281/zenodo.18078265)
-- UTLP Technical Supplement S2.44 (DOI: 10.5281/zenodo.18120833)
+- Connectionless Distributed Timing Prior Art v3.3 (DOI: 10.5281/zenodo.18149212)
+- UTLP Technical Supplement S2.44 (DOI: 10.5281/zenodo.18149212)
 
 ### 8.5 IMU/Sensor Fusion References
 - Madgwick, S.O.H., "An efficient orientation filter for inertial and inertial/magnetic sensor arrays" (2010)
@@ -752,5 +752,5 @@ This eliminates the need for magnetometer (susceptible to interference) in many 
 *Document version: Draft 0.2*
 *Last updated: January 2026*
 *Status: Implementation specification with IMU integration*
-*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078265)*
+*Parent document: Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18149212)*
 *Repository: https://github.com/lemonforest/mlehaptics*
