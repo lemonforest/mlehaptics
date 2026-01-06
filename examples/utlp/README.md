@@ -116,6 +116,11 @@ All Purple Team directives implemented:
 | PT-5 | Strict Plausibility | ✅ | TX_Power, Drift, Heartbeat validation |
 | PT-6 | Session Continuity | ✅ | Salt change = Seniority Bankruptcy |
 | PT-7 | ILC Integration | ✅ | Spinlock protection for ISR learning |
+| PT-8 | Servo State Race | ✅ | Spinlock for all g_servo 64-bit fields |
+| PT-9 | Bankruptcy Stratum | ✅ | Bankrupted peers reset to stratum=255 |
+| PT-10 | INNATE Genesis Guard | ✅ | Genesis pulse check in INNATE immunity |
+| PT-11 | Coalescence Fix | ✅ | Use peer atomic time, not tenure |
+| PT-12 | Token Waste Fix | ✅ | Separate budget check from consume |
 
 ### Prior Art Claims Implemented
 
@@ -124,9 +129,251 @@ All Purple Team directives implemented:
 | **253** | Polychromatic Stratum | Per-transport Genesis election | `utlp_loom.c` |
 | **255** | Rolling Splice-Site Security | Bio-TOTP key rotation per second | `utlp_security.c` |
 
+### Critical Architectural Fixes (v3.4 - January 2026)
+
+**Genesis Pulse Swarm Disruption Fix (PT-10):**
+
+When two devices are synchronized and a third device boots, the newborn's rapid genesis pulse
+(100ms beacon interval) was disrupting the established sync. Root cause: the INNATE IMMUNITY
+path had no genesis pulse detection.
+
+**Failure Chain (Before Fix):**
+1. Device C boots with rapid 100ms genesis pulses
+2. Devices A & B fire entrainment at C (5 tokens in 400ms)
+3. A & B enter ANERGY state (36s deaf period)
+4. A & B lose their mutual "best" peer reference
+5. Device C reaches A & B via INNATE IMMUNITY (`!best && remote_stratum < local_stratum`)
+6. A & B adopt C's stale epoch WITHOUT genesis pulse check
+7. **SYNC BROKEN** between A & B
+
+**FIX-1 (CRITICAL): INNATE IMMUNITY Genesis Protection**
+
+Added genesis pulse check to both INNATE IMMUNITY paths (`utlp.c:2015-2040` and `utlp.c:2041-2087`):
+- "Better Stratum" path now checks `utlp_trust_is_genesis_pulsing(sender)`
+- "Same Stratum / First Born Wins" path also protected
+- Genesis-pulsing peers blocked from INNATE adoption until they exit genesis phase
+- Log: `"INNATE: Blocking genesis-pulsing peer XX:YY (stratum=N, interval=Nms)"`
+
+**FIX-2 (HIGH): Entrainment Token Conservation**
+
+Added genesis pulse check before entrainment fire (`utlp.c:2318-2335`):
+- Genesis-pulsing peers skipped for entrainment (they'll self-correct in 5s)
+- Preserves immune budget for real threats (non-genesis drifting peers)
+- Prevents ANERGY cascade that breaks established sync
+- Log: `"Entrainment: Skipping genesis-pulsing peer XX:YY (interval=Nms) - will self-correct"`
+
+**Expected Behavior (After Fix):**
+1. Device C boots with genesis pulse
+2. A & B observe C but skip entrainment (token conservation)
+3. A & B maintain their mutual sync (no ANERGY)
+4. C exits genesis phase (5s) and naturally syncs via ADAPTIVE IMMUNITY
+5. **SWARM STABLE** - established devices protected from newborn disruption
+
+### Critical Architectural Fixes (v3.6 - January 2026)
+
+**Coalescence Bug Fix (PT-11): Tenure Check Prevented Device Sync**
+
+After adding frequency slewing (v3.5), two devices could no longer entrain. Root cause:
+the genesis pulse detection used `first_seen_ms` (when WE first saw the peer) instead of
+the peer's intrinsic age. This blocked ALL newly-discovered peers for 5 seconds, even
+established ones that a newcomer just met.
+
+**Biological Principle:**
+> *"The nature of the cell is to come together."*
+
+A newcomer encountering an established peer should coalesce, not fight. The peer's atomic
+time (TX timestamp) tells us how long they've been running - this is intrinsic to them,
+not dependent on when we first noticed them.
+
+**Failure Scenario (Before Fix):**
+1. Device A running for 60 seconds (atomic time = 60s)
+2. Device B boots and discovers A
+3. B checks `utlp_trust_is_genesis_pulsing(A)` using tenure:
+   - `tenure_ms = now - first_seen_ms = 0ms` (just discovered!)
+   - Tenure < 5000ms → **INCORRECTLY** returns `true` (genesis pulsing)
+4. B blocks adoption of A's time despite A being established
+5. **COALESCENCE BROKEN** - devices cannot sync
+
+**Root Cause:**
+The v3.5 tenure check conflated two distinct concepts:
+- "Peer I've never seen before" (tenure low)
+- "Peer that just rebooted" (atomic time low)
+
+An established peer (atomic time = 60s) discovered by a newcomer still had tenure_ms ≈ 0
+because the NEWCOMER just discovered that peer.
+
+**Fix (v3.6):** Use peer's atomic time (TX timestamp) as age indicator:
+```c
+if (peer_tx_time >= genesis_threshold_us) {
+    /* Peer running >= 5 seconds - clearly established */
+    return false;  /* NOT genesis-pulsing */
+}
+```
+
+This is unforgeable: a newborn cannot claim to be old (their atomic time starts at 0).
+A cell's age is intrinsic, not based on when a neighbor first noticed it.
+
+**API Change:** `utlp_trust_is_genesis_pulsing()` now requires peer's TX time:
+```c
+// Before (v3.5)
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer);
+
+// After (v3.6)
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer,
+                                    int64_t peer_tx_time);
+```
+
+**Files Modified:**
+- `utlp_trust.h`: Updated function signature with biological analogy documentation
+- `utlp_trust.c`: Rewrote `utlp_trust_is_genesis_pulsing()` (lines 995-1049)
+- `utlp.c`: Updated 4 call sites to pass `remote_tx_time` parameter
+
+**Expected Behavior (After Fix):**
+1. Device A running (atomic time = 60s)
+2. Device B boots and discovers A
+3. B checks `utlp_trust_is_genesis_pulsing(A, A.tx_time)`:
+   - `peer_tx_time = 60,000,000 µs` (A's atomic time from beacon)
+   - 60s >= 5s → Returns `false` (A is NOT genesis-pulsing)
+4. B adopts A's time via INNATE IMMUNITY
+5. **COALESCENCE WORKS** - newcomer syncs with established peer
+
+### Critical Architectural Fixes (v3.7 - January 2026)
+
+**Token Waste Bug Fix (PT-12): Immune Budget Exhausted on First Contact**
+
+When a single device first detected a peer powering up, anergy exhausted immediately (~170ms).
+Root cause: `utlp_immune_can_defend()` consumed a token just by being **called**, even if
+subsequent checks (quorum sensing) failed and no entrainment pulse was fired.
+
+**Failure Scenario (Before Fix):**
+```
+14:53:13.009 > New Peer B3:08 discovered
+14:53:13.010 > Entrainment: No quorum - I may be the outlier   ← Token #1 wasted
+14:53:13.013 > Entrainment: No quorum - I may be the outlier   ← Token #2 wasted
+14:53:13.018 > Entrainment: No quorum - I may be the outlier   ← Token #3 wasted
+14:53:13.107 > Entrainment: No quorum - I may be the outlier   ← Token #4 wasted
+14:53:13.112 > Entrainment budget exhausted. Entering anergy.  ← Token #5 wasted
+14:53:13.115 > Entrainment: Budget exhausted - B3:08 escapes
+```
+
+With genesis chirps (3 bursts × 100ms), 5 tokens exhausted in ~170ms without firing a single
+entrainment pulse. The device entered anergy (36-second deaf period) immediately on first contact.
+
+**Root Cause:**
+The `utlp_immune_can_defend()` function was designed as "check and consume" combined:
+```c
+bool utlp_immune_can_defend(void) {
+    if (g_immune.tokens > 0) {
+        g_immune.tokens--;  // BUG: Consumes token just by CHECKING!
+        return true;
+    }
+    return false;
+}
+```
+
+The caller checked budget BEFORE checking quorum, so tokens were consumed for checks that failed.
+
+**Fix (v3.7):** Separate "check" from "consume":
+```c
+// New API
+bool utlp_immune_has_budget(void);     // Check only - no side effects
+bool utlp_immune_consume_token(void);  // Consume only - call when firing
+
+// Updated call site in evaluate_entrainment_response()
+if (!utlp_immune_has_budget()) return;  // Check only
+if (!utlp_trust_has_quorum(...)) return; // Check only - NO TOKEN CONSUMED
+utlp_immune_consume_token();             // Consume ONLY when actually firing
+send_chirp_immediate();
+```
+
+**Biological Analogy:**
+You don't send T-cells to investigate whether you should deploy T-cells. The immune system
+checks for threats (quorum sensing, antigen recognition) BEFORE committing metabolic resources
+(T-cell activation). Token consumption = T-cell deployment = only after all checks pass.
+
+**Purple Team Audit (PT-12):**
+- ✅ No race conditions (single-threaded execution model)
+- ✅ No token leak paths (consume only immediately before fire)
+- ✅ Biological model faithful (check before commit)
+- ⚠️ Design limitation: 2-node quorum impossible (requires 2+ agreeing peers)
+
+**Files Modified:**
+- `utlp_immune.h`: Added `utlp_immune_has_budget()` and `utlp_immune_consume_token()` APIs
+- `utlp_immune.c`: Implemented separate check/consume functions
+- `utlp.c`: Updated `evaluate_entrainment_response()` to use new pattern (lines 2337-2381)
+
+**Expected Behavior (After Fix):**
+1. Device A discovers peer B3:08 sending genesis chirps
+2. A calls `has_budget()` → true (5 tokens, no consumption)
+3. A calls `has_quorum()` → false (only 1 peer, need 2+)
+4. A returns WITHOUT consuming token
+5. Token budget preserved for actual entrainment needs
+6. **IMMUNE BUDGET INTACT** - no premature anergy
+
+### Critical Architectural Fixes (v3.2 - January 2026)
+
+**Servo State Race Condition Fix (PT-8):**
+
+The servo PLL runs from two contexts that can race:
+1. **Main task**: `servo_apply_offset()` called from beacon handler
+2. **Timer callback**: `servo_tick()` called from 10Hz engine timer (high priority)
+
+Without protection, torn reads/writes of 64-bit fields could occur. All `g_servo`
+accesses are now protected by `g_servo_spinlock`.
+
+**Dual-Offset Architecture (Intentional Design):**
+
+The system maintains **two separate offsets** that serve different purposes:
+
+| Offset | Location | Update Frequency | Purpose |
+|--------|----------|------------------|---------|
+| HAL offset | `g_time_offset_us` | Every 10Hz tick during slewing | Smooth interpolation |
+| Phase engine offset | `s_state.epoch_offset_us` | Epoch events only | Stable atomic time for SMSP |
+
+This is NOT an SSOT violation - it's intentional:
+- **HAL offset**: Updated every 100ms during slewing for smooth clock correction
+- **Phase engine offset**: Only updated at discrete events (epoch jumps, genesis, convergence)
+- **SMSP reads from phase engine**: Sees stable values, not jittery interpolation
+
+**BUG FIX (January 2026):** Previously, phase engine offset was updated every 10Hz tick
+during slewing, causing "firefly" LED chaos (offset values oscillating wildly in logs).
+Fix: Phase engine only receives updates at:
+1. Epoch jumps (whole-cycle corrections)
+2. Genesis jumps (bootstrap)
+3. Slew convergence (final stable value)
+
+During active slewing, HAL offset is updated but phase engine stays stable.
+
+### Critical Architectural Fixes (v3.3 - January 2026)
+
+**Seniority Bankruptcy Stratum Reset (PT-9):**
+
+Per S2 Claim 137 (Session Bankruptcy), when a peer reboots (detected via session salt change),
+ALL trust metrics must be wiped including stratum. Previously, stratum was correctly reset to
+255 but then immediately overwritten by the beacon's claimed stratum value.
+
+**Bug Evidence:**
+```
+*** SENIORITY BANKRUPTCY *** Peer F5:C8 salt 0xBFF0->0x9248 (REBOOT DETECTED)
+Peer F5:C8 reborn (arbor=0, health=0, rssi=-75, salt=0x9248)
+[F5:C8] Health:[W  0/P  0/B  0] Agg:  0 | Strat: 1 | Int:6
+                                                 ↑
+                                    Should be 255, not 1!
+```
+
+**Fix:** Removed errant `p->stratum_claim = stratum;` line in bankruptcy handler.
+Bankrupted peers now correctly show `Strat: 255` until they re-earn trust.
+
+**Two-Octet Peer Naming:**
+
+Changed all peer MAC logging from single-octet (`%02X`) to two-octet (`%02X:%02X`) format
+for clarity when debugging 3+ device swarms. Before: `[08]`, After: `[04:08]`.
+
+Updated 16 log locations across `utlp.c` and `utlp_trust.c`.
+
 ### Critical Architectural Fixes (v3.1)
 
-Recent fixes that address fundamental timing architecture bugs:
+Fixes that address fundamental timing architecture bugs:
 
 | Fix | Problem | Solution | Impact |
 |-----|---------|----------|--------|

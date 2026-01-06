@@ -219,8 +219,8 @@ static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac) {
      * A peer healthy on ANY arbor is protected.
      */
     if (oldest_health < UTLP_TRUST_SYNC_THRESH) {
-        utlp_hal_log_warn(TAG, "Evicting weak peer %02X for new entry (agg_health=%d)",
-                          oldest->mac[5], oldest_health);
+        utlp_hal_log_warn(TAG, "Evicting weak peer %02X:%02X for new entry (agg_health=%d)",
+                          oldest->mac[4], oldest->mac[5], oldest_health);
         clear_peer(oldest);
         return oldest;
     }
@@ -446,8 +446,8 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
      * - Session Salt:     FIRST beacon after reboot triggers this
      *========================================================================*/
     if (p->last_session_salt != 0 && p->last_session_salt != session_salt) {
-        utlp_hal_log_warn(TAG, "*** SENIORITY BANKRUPTCY *** Peer %02X salt 0x%04X->0x%04X (REBOOT DETECTED)",
-                          mac[5], p->last_session_salt, session_salt);
+        utlp_hal_log_warn(TAG, "*** SENIORITY BANKRUPTCY *** Peer %02X:%02X salt 0x%04X->0x%04X (REBOOT DETECTED)",
+                          mac[4], mac[5], p->last_session_salt, session_salt);
 
         /* WIPE: Reset seniority clock (tenure starts over) */
         p->first_seen_ms = current_ms;
@@ -475,15 +475,17 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
         /* Update to new salt and set initial values */
         p->last_session_salt = session_salt;
         p->last_seen_ms[arbor_id] = current_ms;
-        p->stratum_claim = stratum;
+        /* BUG FIX (PT-9): Do NOT set stratum here - it was just wiped to 255 at line 470.
+         * Per S2 Claim 137, bankrupted peers must re-earn trust from scratch.
+         * The stratum will be set normally once this peer proves itself again. */
         if (rssi != UTLP_RSSI_INVALID) {
             p->last_rssi[arbor_id] = rssi;
             p->rssi_timestamp_ms[arbor_id] = current_ms;
         }
 
         /* Log and return - peer starts fresh journey to trustworthiness */
-        utlp_hal_log_info(TAG, "Peer %02X reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
-                          mac[5], arbor_id, rssi, session_salt);
+        utlp_hal_log_info(TAG, "Peer %02X:%02X reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
+                          mac[4], mac[5], arbor_id, rssi, session_salt);
         return;
     }
 
@@ -544,8 +546,8 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
                 p->health_score[arbor_id] = 0;
             }
             p->consecutive_hits = 0;
-            utlp_hal_log_warn(TAG, "Peer %02X punished (arbor=%d, dev=%ldus, health=%d)",
-                              mac[5], arbor_id, (long)deviation, p->health_score[arbor_id]);
+            utlp_hal_log_warn(TAG, "Peer %02X:%02X punished (arbor=%d, dev=%ldus, health=%d)",
+                              mac[4], mac[5], arbor_id, (long)deviation, p->health_score[arbor_id]);
         }
     }
 
@@ -646,8 +648,8 @@ void utlp_trust_log_status(void) {
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions > 0) {
             agg_health = get_aggregate_health(&g_peers[i]);
-            utlp_hal_log_info(TAG, "[%02X] Health:[W%3d/P%3d/B%3d] Agg:%3d | Strat:%2d | Int:%d",
-                              g_peers[i].mac[5],
+            utlp_hal_log_info(TAG, "[%02X:%02X] Health:[W%3d/P%3d/B%3d] Agg:%3d | Strat:%2d | Int:%d",
+                              g_peers[i].mac[4], g_peers[i].mac[5],
                               g_peers[i].health_score[0],  /* WiFi */
                               g_peers[i].health_score[1],  /* 802.15.4 */
                               g_peers[i].health_score[2],  /* BLE */
@@ -669,20 +671,26 @@ void utlp_trust_log_status(void) {
  * node drifts, thinks the healthy swarm is wrong, and burns its entrainment
  * budget entraining valid packets.
  *
+ * @par v3.5 FIX: int64_t my_offset parameter
+ * Changed from int32_t to prevent truncation when g_aatr.time_offset
+ * exceeds int32_t range (±35 minutes = ±2.1B µs). Deviation calculation
+ * uses int64_t but threshold comparison remains int32_t (always small).
+ *
  * @note Phase 9 (Blood-Brain Barrier): Uses aggregate health and most recent
  *       offset across all arbors. Quorum is transport-agnostic.
  *
- * @param my_offset    My current time offset in microseconds
+ * @param my_offset    My current time offset in microseconds (64-bit)
  * @param threshold_us Maximum deviation to count as "agreement"
  * @return true if >= 2 healthy peers agree with me within threshold
  */
-bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us) {
+bool utlp_trust_has_quorum(int64_t my_offset, int32_t threshold_us) {
     int i, j;
     int agreeing_peers = 0;
     uint8_t agg_health;
     uint32_t best_seen;
     int best_arbor;
-    int32_t peer_offset;
+    int64_t peer_offset;
+    int64_t deviation;
 
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         /* Skip empty slots */
@@ -701,11 +709,13 @@ bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us) {
                 best_arbor = j;
             }
         }
-        peer_offset = g_peers[i].last_offset_us[best_arbor];
+        /* Stored as int32_t, promoted to int64_t for comparison */
+        peer_offset = (int64_t)g_peers[i].last_offset_us[best_arbor];
 
-        /* Does this healthy peer agree with me? */
-        int32_t deviation = abs(peer_offset - my_offset);
-        if (deviation < threshold_us) {
+        /* Does this healthy peer agree with me? (64-bit abs for full range) */
+        deviation = peer_offset - my_offset;
+        if (deviation < 0) deviation = -deviation;
+        if (deviation < (int64_t)threshold_us) {
             agreeing_peers++;
         }
     }
@@ -972,15 +982,65 @@ void utlp_trust_log_coherence(void) {
  *
  * If observed_interval_ms < 2000, peer is likely in genesis phases 1-3.
  *
+ * @par v3.5 FIX: Tenure-based detection (S2 Claim 137)
+ * After seniority bankruptcy, interactions=1 and observed_interval_ms=0
+ * would cause this function to return false, allowing rebooted peers to
+ * bypass genesis pulse protection in INNATE IMMUNITY paths. We now also
+ * check peer tenure (time since first_seen_ms). If peer was seen < 5s ago,
+ * we treat them as potentially genesis-pulsing regardless of interval data.
+ *
  * @param peer Pointer to peer ledger entry
  * @return true if peer appears to be in genesis pulse phase
  */
-bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer) {
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer,
+                                    int64_t peer_tx_time) {
+    int64_t genesis_threshold_us;
+
     if (!peer) return false;
 
-    /* Need at least 2 observations to have a valid interval estimate */
+    /*
+     * v3.6 FIX: Use peer's atomic time (TX timestamp) as age indicator
+     *
+     * BIOLOGICAL PRINCIPLE: "The nature of the cell is to come together."
+     * A newcomer discovering an established peer should coalesce, not fight.
+     * The peer's atomic time tells us how long they've been running - this
+     * is intrinsic to them, not dependent on when we first noticed them.
+     *
+     * PREVIOUS BUG (v3.5): The tenure check used first_seen_ms (when WE first
+     * saw the peer), which blocked ALL newly-discovered peers for 5 seconds,
+     * even established ones that a newcomer just met. This prevented
+     * coalescence between devices.
+     *
+     * FIX: If peer_tx_time >= 5 seconds, they've been running long enough
+     * to NOT be genesis-pulsing. This is unforgeable - a newborn can't
+     * claim to be old (their atomic time starts at 0).
+     */
+    genesis_threshold_us = (int64_t)UTLP_GENESIS_TENURE_THRESHOLD_MS * 1000;
+
+    if (peer_tx_time >= genesis_threshold_us) {
+        /* Peer has been running >= 5 seconds - clearly established */
+        return false;
+    }
+
+    /*
+     * Peer's atomic time < 5 seconds - they MIGHT be genesis pulsing.
+     * Fall back to interval-based detection for additional confidence.
+     *
+     * Need at least 2 observations to have a valid interval estimate.
+     * If we don't have enough observations, we're uncertain.
+     */
     if (peer->interactions < UTLP_MIN_INTERVAL_OBSERVATIONS) {
-        return false;  /* Unknown, assume not genesis pulsing */
+        /*
+         * Not enough observations AND atomic time < 5s.
+         * This is the ambiguous case: could be a newborn, or could be
+         * an established peer we just discovered who happens to have
+         * low atomic time (rare - would require reboot within 5s).
+         *
+         * COALESCENCE BIAS: Return false to allow coalescence.
+         * If they ARE genesis-pulsing, we'll catch them on subsequent
+         * beacons when we have interval data.
+         */
+        return false;
     }
 
     /* Genesis pulsing if observed interval is below threshold */
@@ -1305,8 +1365,8 @@ void utlp_trust_log_spectral_coherence(const utlp_peer_ledger_t *peer,
     }
 
     /* Log the spectral coherence reading */
-    utlp_hal_log_info("RETINA", "Peer %02X | %s:%d %s:%d | Delta: %d dB | %s",
-                      peer->mac[5],
+    utlp_hal_log_info("RETINA", "Peer %02X:%02X | %s:%d %s:%d | Delta: %d dB | %s",
+                      peer->mac[4], peer->mac[5],
                       wifi_label, (int)current_rssi,
                       other_label, (int)other_rssi,
                       (int)delta, status);

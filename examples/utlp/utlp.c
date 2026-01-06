@@ -490,6 +490,23 @@ static servo_lock_state_t g_servo = {
     .genesis_jumps_allowed = true,   /* Jumps allowed at boot */
 };
 
+/**
+ * @brief Spinlock for servo state protection
+ *
+ * RACE CONDITION FIX (January 2026):
+ *
+ * The servo state is accessed from two contexts:
+ *   1. Main task: servo_apply_offset() called from beacon handler
+ *   2. Timer callback: servo_tick() called from engine_timer_callback (high priority)
+ *
+ * Without spinlock protection, torn reads/writes of the 64-bit fields
+ * (target_offset, current_offset, slew_start_time_us) could occur on
+ * ESP32's 32-bit architecture.
+ *
+ * This spinlock ensures atomic access to the entire servo state structure.
+ */
+static portMUX_TYPE g_servo_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
 /*============================================================================
  * FRONTIER ALGORITHM - Neighborhood Awareness
  *
@@ -660,12 +677,26 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
      *   epoch_error = 7,000,000 µs (7 whole cycles) → JUMP immediately
      *   phase_error = +267,966 µs (within cycle) → SLEW gently
      */
-    int64_t total_error = new_offset - g_servo.current_offset;
+
+    /* SPINLOCK: Read current offset atomically */
+    portENTER_CRITICAL(&g_servo_spinlock);
+    int64_t current_offset = g_servo.current_offset;
+    bool was_slewing = g_servo.slewing_active;
+    portEXIT_CRITICAL(&g_servo_spinlock);
+
+    int64_t total_error = new_offset - current_offset;
     const int64_t cycle_us = UTLP_PHASE_CYCLE_US;  /* 1,000,000 µs */
 
     /* Split into epoch (whole cycles) and phase (within cycle) */
     int64_t epoch_error = (total_error / cycle_us) * cycle_us;
     int64_t phase_error = total_error - epoch_error;
+
+    /* Diagnostic: Log error decomposition (only for significant errors) */
+    if (total_error > cycle_us || total_error < -cycle_us) {
+        utlp_hal_log_info(TAG, "SERVO: total=%+lld, epoch=%+lld (%+lld cycles), phase=%+lld",
+                          (long long)total_error, (long long)epoch_error,
+                          (long long)(epoch_error / cycle_us), (long long)phase_error);
+    }
 
     /*
      * Wrap-around correction: Choose shortest path within cycle.
@@ -689,29 +720,45 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
      * This is the "which second are we in" alignment - cannot be slewed.
      */
     if (epoch_error != 0) {
-        g_servo.current_offset += epoch_error;
-        utlp_hal_set_time_offset(g_servo.current_offset);
+        int64_t new_current = current_offset + epoch_error;
+
+        /* SPINLOCK: Update offset atomically */
+        portENTER_CRITICAL(&g_servo_spinlock);
+        g_servo.current_offset = new_current;
+        portEXIT_CRITICAL(&g_servo_spinlock);
+
+        /* Update HAL and phase engine outside spinlock (they have own locks) */
+        utlp_hal_set_time_offset(new_current);
+        utlp_phase_set_epoch_offset(new_current);
         utlp_hal_log_info(TAG, "SERVO: Epoch jump %+lld cycles (%+lld us), remaining phase=%+lld us",
                           (long long)(epoch_error / cycle_us), (long long)epoch_error,
                           (long long)phase_error);
+
+        current_offset = new_current;  /* Update local for subsequent logic */
     }
 
     /* Check if remaining phase error is within deadband (noise floor) */
     if (abs_phase_error < UTLP_SERVO_DEADBAND_US) {
         /* Already at target - no correction needed */
+        portENTER_CRITICAL(&g_servo_spinlock);
         g_servo.slewing_active = false;
+        portEXIT_CRITICAL(&g_servo_spinlock);
         return (epoch_error != 0);  /* Return true if we jumped */
     }
 
     /* Genesis phase: instant jumps allowed for fast initial sync */
     if (servo_jumps_allowed(uptime_us)) {
+        /* SPINLOCK: Update all servo state atomically */
+        portENTER_CRITICAL(&g_servo_spinlock);
         g_servo.current_offset = new_offset;
         g_servo.target_offset = new_offset;
         g_servo.slewing_active = false;
         g_servo.drift_correction_ppb = 0;
+        portEXIT_CRITICAL(&g_servo_spinlock);
 
-        /* Apply to HAL immediately */
+        /* Apply to HAL immediately + sync HPLAC phase engine */
         utlp_hal_set_time_offset(new_offset);
+        utlp_phase_set_epoch_offset(new_offset);
 
         utlp_hal_log_info(TAG, "SERVO: Genesis jump applied, offset=%+lld us",
                           (long long)new_offset);
@@ -734,13 +781,6 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
      * causes infinite convergence - beacons arrive faster than convergence window,
      * so clock never stabilizes. New beacons update target but keep window running.
      */
-    g_servo.target_offset = new_offset;
-
-    /* Only reset slew start time if this is a NEW slew operation */
-    if (!g_servo.slewing_active) {
-        g_servo.slew_start_time_us = uptime_us;
-    }
-    g_servo.slewing_active = true;
 
     /*
      * Select slew rate based on error magnitude (Variable Gain)
@@ -778,13 +818,27 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
         drift_ppb = -max_slew_ppb;
     }
 
+    /* SPINLOCK: Update slew state atomically */
+    portENTER_CRITICAL(&g_servo_spinlock);
+    g_servo.target_offset = new_offset;
+    /* Only reset slew start time if this is a NEW slew operation */
+    if (!was_slewing) {
+        g_servo.slew_start_time_us = uptime_us;
+    }
+    g_servo.slewing_active = true;
     g_servo.drift_correction_ppb = (int32_t)drift_ppb;
+    portEXIT_CRITICAL(&g_servo_spinlock);
 
     utlp_hal_log_info(TAG, "SERVO[%s]: Slewing offset=%+lld us (error=%+lld us, drift=%+ld ppb, max=%lld ppb)",
                       state_name, (long long)new_offset, (long long)phase_error,
-                      (long)g_servo.drift_correction_ppb, (long long)max_slew_ppb);
+                      (long)drift_ppb, (long long)max_slew_ppb);
 
-    return false;  /* Slewing, not jumping */
+    /*
+     * Return true if we did an epoch jump, even if also starting to slew phase.
+     * This ensures SYNCED log correctly says "jumped" when epoch alignment occurred.
+     * The phase slew happens in parallel via servo_tick().
+     */
+    return (epoch_error != 0);
 }
 
 /**
@@ -793,41 +847,74 @@ static bool servo_apply_offset(int64_t new_offset, uint64_t uptime_us)
  * When slewing is active, this function updates the current offset
  * toward the target using the calculated drift correction rate.
  *
+ * NOTE: This function is called from esp_timer callback (high priority).
+ * All g_servo accesses are protected by g_servo_spinlock to prevent
+ * torn reads/writes when racing with servo_apply_offset() in main task.
+ *
  * @param now_us Current time in microseconds
  */
 static void servo_tick(uint64_t now_us)
 {
-    if (!g_servo.slewing_active) {
+    /* SPINLOCK: Read all needed state atomically */
+    portENTER_CRITICAL(&g_servo_spinlock);
+    bool slewing = g_servo.slewing_active;
+    if (!slewing) {
+        portEXIT_CRITICAL(&g_servo_spinlock);
         return;
     }
+    uint64_t slew_start = g_servo.slew_start_time_us;
+    int32_t drift_ppb = g_servo.drift_correction_ppb;
+    int64_t current = g_servo.current_offset;
+    int64_t target = g_servo.target_offset;
+    portEXIT_CRITICAL(&g_servo_spinlock);
 
     /* Calculate elapsed time since slew started */
-    uint64_t elapsed_us = now_us - g_servo.slew_start_time_us;
+    uint64_t elapsed_us = now_us - slew_start;
 
     /* Calculate how much offset we should have accumulated */
-    int64_t expected_correction = (g_servo.drift_correction_ppb * (int64_t)elapsed_us) / 1000000LL;
+    int64_t expected_correction = (drift_ppb * (int64_t)elapsed_us) / 1000000LL;
 
     /* Calculate new offset */
-    int64_t new_offset = g_servo.current_offset + expected_correction;
+    int64_t new_offset = current + expected_correction;
 
     /* Check if we've reached or passed the target */
-    int64_t remaining = g_servo.target_offset - new_offset;
+    int64_t remaining = target - new_offset;
     int64_t abs_remaining = (remaining < 0) ? -remaining : remaining;
 
     if (abs_remaining < UTLP_SERVO_DEADBAND_US ||
         elapsed_us >= UTLP_SERVO_CONVERGENCE_US) {
         /* Converged - snap to target and stop slewing */
-        g_servo.current_offset = g_servo.target_offset;
+        portENTER_CRITICAL(&g_servo_spinlock);
+        g_servo.current_offset = target;
         g_servo.slewing_active = false;
         g_servo.drift_correction_ppb = 0;
+        portEXIT_CRITICAL(&g_servo_spinlock);
 
-        utlp_hal_set_time_offset(g_servo.current_offset);
+        /* Update HAL and phase engine outside spinlock (they have own locks) */
+        utlp_hal_set_time_offset(target);
+        utlp_phase_set_epoch_offset(target);  /* Sync HPLAC */
         utlp_hal_log_info(TAG, "SERVO: Converged to offset=%+lld us",
-                          (long long)g_servo.current_offset);
+                          (long long)target);
     } else {
-        /* Still slewing - apply interpolated offset */
+        /* Still slewing - apply interpolated offset to SOFTWARE only.
+         *
+         * BUG FIX: Do NOT update phase engine (HPLAC) during slewing!
+         * The phase engine should only receive:
+         *   1. Epoch jumps (whole-cycle corrections)
+         *   2. Genesis jumps (one-time bootstrap)
+         *   3. Final converged values (slew complete)
+         *
+         * Updating phase engine with every 10Hz interpolated value causes
+         * offset oscillation chaos. The software offset (g_time_offset_us in HAL)
+         * handles smooth interpolation; the hardware phase engine (epoch_offset_us)
+         * should remain stable at last-known-good value during slewing.
+         */
+        portENTER_CRITICAL(&g_servo_spinlock);
         g_servo.current_offset = new_offset;
-        utlp_hal_set_time_offset(g_servo.current_offset);
+        portEXIT_CRITICAL(&g_servo_spinlock);
+
+        utlp_hal_set_time_offset(new_offset);
+        /* Phase engine NOT updated here - wait for convergence */
     }
 }
 
@@ -1893,9 +1980,9 @@ static void process_beacon(const utlp_packet_t *pkt)
              * have likely just rebooted. Block epoch adoption, but allow
              * phase entrainment once they stabilize.
              */
-            if (utlp_trust_is_genesis_pulsing(best)) {
-                utlp_hal_log_warn(TAG, "GENESIS PULSE: Peer %02X detected (interval=%dms), epoch adoption blocked",
-                                  pkt->mac[5], best->observed_interval_ms);
+            if (utlp_trust_is_genesis_pulsing(best, (int64_t)remote_tx_time)) {
+                utlp_hal_log_warn(TAG, "GENESIS PULSE: Peer %02X:%02X detected (interval=%dms), epoch adoption blocked",
+                                  pkt->mac[4], pkt->mac[5], best->observed_interval_ms);
                 should_adopt = false;
                 /* Don't punish - they're legitimately rebooting, not lying */
             }
@@ -1904,8 +1991,8 @@ static void process_beacon(const utlp_packet_t *pkt)
              * their atomic time went backwards - they rebooted.
              */
             else if (utlp_trust_check_regression(best, (int64_t)remote_tx_time, now_ms)) {
-                utlp_hal_log_warn(TAG, "REGRESSION: Peer %02X atomic time went backwards! Epoch adoption blocked.",
-                                  pkt->mac[5]);
+                utlp_hal_log_warn(TAG, "REGRESSION: Peer %02X:%02X atomic time went backwards! Epoch adoption blocked.",
+                                  pkt->mac[4], pkt->mac[5]);
                 should_adopt = false;
                 /* Punish for regression - this is unexpected behavior
                  * Apply penalty to all arbors (peer rebooted, affects all transports) */
@@ -1921,8 +2008,8 @@ static void process_beacon(const utlp_packet_t *pkt)
             else {
                 /* All checks passed - safe to adopt epoch */
                 should_adopt = true;
-                utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X (health=%d, stratum=%d)",
-                                  pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
+                utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X (health=%d, stratum=%d)",
+                                  pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
             }
         }
         else if (!best && remote_stratum < utlp_get_stratum()) {
@@ -1935,10 +2022,21 @@ static void process_beacon(const utlp_packet_t *pkt)
              *
              * This is not blind trust - we will watch closely and build
              * adaptive immunity (Ledger entries) from this interaction.
+             *
+             * v3.4 FIX-1: Genesis pulse protection - a newly booted peer
+             * transmits rapid 100ms beacons that can disrupt established sync.
+             * Block INNATE adoption until peer exits genesis phase.
              */
-            should_adopt = true;
-            utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d (ledger empty)",
-                              remote_stratum);
+            utlp_peer_ledger_t *sender = utlp_trust_get_peer(pkt->mac);
+            if (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time)) {
+                utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing peer %02X:%02X (stratum=%d, interval=%dms)",
+                                  pkt->mac[4], pkt->mac[5], remote_stratum, sender->observed_interval_ms);
+                /* Do NOT adopt - wait for peer to exit genesis phase */
+            } else {
+                should_adopt = true;
+                utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d peer %02X:%02X (ledger empty)",
+                                  remote_stratum, pkt->mac[4], pkt->mac[5]);
+            }
         }
         else if (!best && remote_stratum == utlp_get_stratum()) {
             /*
@@ -1965,16 +2063,27 @@ static void process_beacon(const utlp_packet_t *pkt)
              * NOTE: This is easily spoofable (just claim a high TX time).
              * For production, consider MAC fallback or cryptographic proof.
              * For testing, this matches the "first boot = Genesis" expectation.
+             *
+             * v3.4 FIX-1: Genesis pulse protection applies here too.
+             * A newly booted same-stratum peer should not be trusted
+             * until they exit their rapid-beacon genesis phase.
              */
-            int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
-            bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
+            utlp_peer_ledger_t *sender = utlp_trust_get_peer(pkt->mac);
+            if (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time)) {
+                utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing same-stratum peer %02X:%02X (interval=%dms)",
+                                  pkt->mac[4], pkt->mac[5], sender->observed_interval_ms);
+                /* Do NOT adopt - wait for peer to exit genesis phase */
+            } else {
+                int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
+                bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
 
-            if (they_are_elder) {
-                should_adopt = true;
-                utlp_hal_log_info(TAG, "INNATE: Same-stratum elder - peer %02X atomic time %lld > mine %lld, deferring",
-                                  pkt->mac[5], (long long)remote_tx_time, (long long)my_atomic_at_rx);
+                if (they_are_elder) {
+                    should_adopt = true;
+                    utlp_hal_log_info(TAG, "INNATE: Same-stratum elder - peer %02X:%02X atomic time %lld > mine %lld, deferring",
+                                      pkt->mac[4], pkt->mac[5], (long long)remote_tx_time, (long long)my_atomic_at_rx);
+                }
+                /* If I am elder (higher atomic time), I hold ground - do not adopt */
             }
-            /* If I am elder (higher atomic time), I hold ground - do not adopt */
         }
         /* If best exists but is not this sender, OR no best and stratum not better:
          * Do not adopt. Trust the established relationships. */
@@ -2008,8 +2117,8 @@ static void process_beacon(const utlp_packet_t *pkt)
             uint32_t elapsed_ms = now_ms - agg_last_seen;
 
             if (servo_detect_genesis_reset(peer->last_tx_time_us, remote_tx_time, elapsed_ms)) {
-                utlp_hal_log_warn(TAG, "GENESIS RESET blocked: Peer %02X jumped to newer epoch",
-                                  pkt->mac[5]);
+                utlp_hal_log_warn(TAG, "GENESIS RESET blocked: Peer %02X:%02X jumped to newer epoch",
+                                  pkt->mac[4], pkt->mac[5]);
                 /* Don't adopt their new epoch, but don't punish either */
                 /* They'll stabilize and we can entrain later */
                 goto skip_adoption;
@@ -2065,7 +2174,14 @@ static void process_beacon(const utlp_packet_t *pkt)
          * it wants to be. This fixes stale offset usage in deviation
          * calculations (Bug #3 was a symptom of this).
          */
-        g_aatr.time_offset = jumped ? new_offset : g_servo.current_offset;
+        if (jumped) {
+            g_aatr.time_offset = new_offset;
+        } else {
+            /* SPINLOCK: Read current offset atomically (64-bit on 32-bit MCU) */
+            portENTER_CRITICAL(&g_servo_spinlock);
+            g_aatr.time_offset = g_servo.current_offset;
+            portEXIT_CRITICAL(&g_servo_spinlock);
+        }
 
         utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us (%s)",
                  utlp_get_stratum(), (long long)new_offset,
@@ -2111,8 +2227,8 @@ skip_adoption:
             bool they_are_dominant = (compare_mac(best->mac, g_local_mac) < 0);
 
             if (they_are_dominant) {
-                utlp_hal_log_warn(TAG, "Origin self-awareness: Dominant peer %02X detected (health=%d)",
-                                  best->mac[5], best_health);
+                utlp_hal_log_warn(TAG, "Origin self-awareness: Dominant peer %02X:%02X detected (health=%d)",
+                                  best->mac[4], best->mac[5], best_health);
                 g_self_demotion_votes++;
 
                 if (g_self_demotion_votes > 3) {
@@ -2199,18 +2315,43 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
      * This prevents the "Crazy Old Man" attacking the healthy swarm.
      */
 
-    /* Constraint 1: INTERNAL CHECK - Do I have budget? (Token Bucket) */
-    if (!utlp_immune_can_defend()) {
-        utlp_hal_log_warn(TAG, "Entrainment: Budget exhausted (anergy) - %02X escapes",
-                          peer_mac[5]);
+    /*
+     * v3.4 FIX-2: Genesis Pulse Conservation
+     *
+     * Genesis-pulsing peers (100ms interval) will naturally stabilize after 5s.
+     * Wasting entrainment tokens on them causes:
+     *   - Token exhaustion → ANERGY state
+     *   - Established peers become deaf to each other
+     *   - Sync collapse in the established swarm
+     *
+     * STRATEGY: Don't entrain genesis-pulsing peers - they'll self-correct.
+     * This preserves our immune budget for real threats.
+     */
+    utlp_peer_ledger_t *target_peer = utlp_trust_get_peer(peer_mac);
+    if (target_peer && utlp_trust_is_genesis_pulsing(target_peer, target_peer->last_tx_time_us)) {
+        utlp_hal_log_info(TAG, "Entrainment: Skipping genesis-pulsing peer %02X:%02X (interval=%dms) - will self-correct",
+                          peer_mac[4], peer_mac[5], target_peer->observed_interval_ms);
+        return;  /* Conserve tokens - genesis peer will stabilize naturally */
+    }
+
+    /*
+     * Constraint 1: INTERNAL CHECK - Do I have budget? (Token Bucket)
+     *
+     * v3.7 FIX (PT-12): Use has_budget() (check only) instead of can_defend()
+     * (check + consume). Token consumption happens ONLY when we actually fire,
+     * not when checking. This prevents token waste when quorum check fails.
+     */
+    if (!utlp_immune_has_budget()) {
+        utlp_hal_log_warn(TAG, "Entrainment: Budget exhausted (anergy) - %02X:%02X escapes",
+                          peer_mac[4], peer_mac[5]);
         return;
     }
 
     /* Constraint 2: EXTERNAL CHECK - Do I have crowd support? (Quorum Sensing) */
     if (!utlp_trust_has_quorum(g_aatr.time_offset, ENTRAINMENT_QUORUM_THRESHOLD_US)) {
-        utlp_hal_log_warn(TAG, "Entrainment: No quorum - I may be the outlier, not %02X",
-                          peer_mac[5]);
-        return;  /* Don't attack! I might be wrong! */
+        utlp_hal_log_warn(TAG, "Entrainment: No quorum - I may be the outlier, not %02X:%02X",
+                          peer_mac[4], peer_mac[5]);
+        return;  /* Don't attack! I might be wrong! - NO TOKEN CONSUMED */
     }
 
     /*
@@ -2226,12 +2367,15 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
      * 3. Precision matters less than timeliness for entrainment
      */
     if (abs_deviation >= ENTRAINMENT_THRESHOLD_LYING_US) {
-        utlp_hal_log_info(TAG, "ENTRAINMENT [LYING]: Entraining juvenile %02X (dev=%+ldus, health=%d)",
-                          peer_mac[5], (long)deviation_us, peer_health);
+        utlp_hal_log_info(TAG, "ENTRAINMENT [LYING]: Entraining juvenile %02X:%02X (dev=%+ldus, health=%d)",
+                          peer_mac[4], peer_mac[5], (long)deviation_us, peer_health);
     } else {
-        utlp_hal_log_info(TAG, "ENTRAINMENT [DRIFT]: Entraining juvenile %02X (dev=%+ldus, health=%d)",
-                          peer_mac[5], (long)deviation_us, peer_health);
+        utlp_hal_log_info(TAG, "ENTRAINMENT [DRIFT]: Entraining juvenile %02X:%02X (dev=%+ldus, health=%d)",
+                          peer_mac[4], peer_mac[5], (long)deviation_us, peer_health);
     }
+
+    /* Consume token NOW - right before actually firing (v3.7 PT-12) */
+    utlp_immune_consume_token();
 
     /* Send entrainment pulse (immediate mode - reactive response) */
     send_chirp_immediate();
@@ -2290,14 +2434,17 @@ void utlp_app_run(void)
 
     /* Initialize transport layer (handles staggered startup for multi-arbor)
      *
-     * On ESP32-C6 with both ESP-NOW and 802.15.4:
-     * - 802.15.4 starts immediately (better timing)
-     * - ESP-NOW delayed by 15 seconds (stagger_espnow_ms)
+     * TEMPORARY: ESP-NOW only while debugging epoch/phase servo.
+     * To re-enable dual arbor (802.15.4 + ESP-NOW), change to:
+     *   transport_cfg.transports = UTLP_TRANSPORT_ALL;
      *
-     * This enables testing of pure 802.15.4 sync before WiFi joins.
-     * Pass NULL for auto-detect with default stagger configuration.
+     * Original behavior with UTLP_TRANSPORT_ALL:
+     * - 802.15.4 starts immediately (scheduled send PHY)
+     * - ESP-NOW delayed by stagger_espnow_ms (default 15s)
      */
-    if (!utlp_transport_init(NULL)) {
+    utlp_transport_config_t transport_cfg = UTLP_TRANSPORT_CONFIG_DEFAULT();
+    transport_cfg.transports = UTLP_TRANSPORT_ESPNOW;  /* ESP-NOW only for now */
+    if (!utlp_transport_init(&transport_cfg)) {
         utlp_hal_log_error(TAG, "Transport init failed! Falling back to HAL only.");
         utlp_hal_init();  /* Fallback to direct HAL init */
     }

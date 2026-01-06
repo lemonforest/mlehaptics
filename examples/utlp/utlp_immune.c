@@ -106,7 +106,7 @@ void utlp_immune_tick(void) {
     }
 }
 
-bool utlp_immune_can_defend(void) {
+bool utlp_immune_has_budget(void) {
     /* First, tick to update tokens */
     utlp_immune_tick();
 
@@ -115,21 +115,38 @@ bool utlp_immune_can_defend(void) {
         return false;
     }
 
-    /* Check if we have budget */
-    if (g_immune.tokens > 0) {
-        g_immune.tokens--;
+    /* Check if we have budget (NO consumption) */
+    return (g_immune.tokens > 0);
+}
 
-        /* Last token consumed? Enter anergy */
-        if (g_immune.tokens == 0) {
-            g_immune.in_anergy = true;
-            utlp_hal_log_warn(TAG, "Entrainment budget exhausted. Entering anergy. "
-                              "Possible: chronic infection, or self-disagreement.");
-        }
-
-        return true;
+bool utlp_immune_consume_token(void) {
+    /* Safety check - should not happen if has_budget() was called first */
+    if (g_immune.in_anergy || g_immune.tokens == 0) {
+        return false;
     }
 
-    return false;
+    /* Consume token */
+    g_immune.tokens--;
+
+    /* Last token consumed? Enter anergy */
+    if (g_immune.tokens == 0) {
+        g_immune.in_anergy = true;
+        utlp_hal_log_warn(TAG, "Entrainment budget exhausted. Entering anergy. "
+                          "Possible: chronic infection, or self-disagreement.");
+    }
+
+    return true;
+}
+
+bool utlp_immune_can_defend(void) {
+    /*
+     * LEGACY API: Combined check + consume for backward compatibility.
+     * New code should use has_budget() + consume_token() separately.
+     */
+    if (!utlp_immune_has_budget()) {
+        return false;
+    }
+    return utlp_immune_consume_token();
 }
 
 bool utlp_immune_is_anergic(void) {

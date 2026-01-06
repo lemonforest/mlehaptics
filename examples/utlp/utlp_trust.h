@@ -298,6 +298,21 @@ extern "C" {
  */
 #define UTLP_MIN_INTERVAL_OBSERVATIONS   2
 
+/**
+ * @brief Tenure threshold for treating peer as potentially genesis-pulsing (ms)
+ *
+ * After seniority bankruptcy, a peer's interaction count and interval are reset
+ * but we know they just rebooted. If tenure (now - first_seen_ms) is below this
+ * threshold, treat as genesis-pulsing regardless of interval observations.
+ *
+ * This matches UTLP_GENESIS_DETECT_WINDOW_US (5 seconds) from utlp_config.h.
+ *
+ * @par v3.5 FIX: Seniority bankruptcy genesis bypass (S2 Claim 137)
+ * Without this check, a rebooted peer with interactions=1 and observed_interval_ms=0
+ * would bypass genesis pulse detection in INNATE IMMUNITY paths.
+ */
+#define UTLP_GENESIS_TENURE_THRESHOLD_MS 5000
+
 /** @} */ /* genesis_detection */
 
 /*============================================================================
@@ -621,12 +636,18 @@ void utlp_trust_log_status(void);
  * node drifts, thinks the healthy swarm is wrong, and burns its entrainment
  * budget attacking valid packets.
  *
- * @param my_offset    My current time offset in microseconds
+ * @par v3.5 FIX: int64_t offset parameter
+ * Changed from int32_t to int64_t to match g_aatr.time_offset type.
+ * Prevents truncation of offsets exceeding ±35 minutes (int32_t max ~2.1B µs).
+ * On 32-bit platforms, comparison is still safe since peer offsets are stored
+ * as int32_t in the ledger (truncation happens at storage, not comparison).
+ *
+ * @param my_offset    My current time offset in microseconds (64-bit)
  * @param threshold_us Maximum deviation to count as "agreement" (typically 2000us)
  * @return true if >= 2 healthy peers agree with me within threshold
  * @return false if I am alone or disagreeing with the crowd
  */
-bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us);
+bool utlp_trust_has_quorum(int64_t my_offset, int32_t threshold_us);
 
 /**
  * @brief Look up a peer's health score
@@ -649,19 +670,29 @@ uint8_t utlp_trust_get_peer_health(const uint8_t *mac);
 /**
  * @brief Check if a peer is currently in genesis pulse phase
  *
- * A peer is considered "genesis pulsing" if their observed beacon interval
- * is below UTLP_GENESIS_PULSE_THRESHOLD_MS (2000ms). This indicates they
- * are in genesis phases 1-3 (100ms, 500ms, 1000ms intervals) and have
- * likely just rebooted.
+ * Genesis pulse detection uses the peer's ATOMIC TIME (TX timestamp) as the
+ * primary indicator of how long they've been running. If peer_tx_time >= 5s,
+ * the peer is clearly established and NOT genesis-pulsing, regardless of when
+ * we first observed them.
  *
- * Use this to block epoch adoption from rebooted peers while still
- * allowing phase entrainment once they stabilize.
+ * For peers with atomic time < 5s, we fall back to beacon interval measurement.
+ * Peers transmitting at intervals below UTLP_GENESIS_PULSE_THRESHOLD_MS
+ * (2000ms) are in genesis phases 1-3 and have likely just rebooted.
  *
- * @param peer Pointer to peer ledger entry
+ * BIOLOGICAL ANALOGY: A cell's age is intrinsic, not based on when a neighbor
+ * first noticed it. An established organism tells you how old it is; a newborn
+ * cannot fake being old (their atomic time starts at 0).
+ *
+ * Use this to block epoch adoption from rebooted peers while still allowing
+ * phase entrainment once they stabilize.
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param peer_tx_time  Peer's TX timestamp from current beacon (µs since boot)
  * @return true if peer appears to be in genesis pulse phase
- * @return false if peer is at steady-state beacon interval or unknown
+ * @return false if peer is established or at steady-state beacon interval
  */
-bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer);
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer,
+                                    int64_t peer_tx_time);
 
 /**
  * @brief Check if a peer's atomic time shows regression (reboot indicator)
