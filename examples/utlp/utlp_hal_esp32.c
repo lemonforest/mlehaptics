@@ -392,24 +392,24 @@ uint64_t utlp_hal_get_micros(void)
 uint64_t utlp_hal_get_atomic_time_us(void)
 {
     /*
-     * HPLAC: Delegate to Hardware Phase Engine
+     * PT-19 FIX: Use software offset with esp_timer, not phase engine.
      *
-     * "Physics First: Hardware defines time, not software."
+     * PROBLEM: Clock domain mismatch caused sync failure.
+     * - TX timestamp: phase_engine time (MCPWM counter + offset)
+     * - RX timestamp: esp_timer time (captured in HAL callback)
+     * - Offset calculation: remote_tx - local_rx (mixing domains!)
      *
-     * The phase engine owns atomic time via MCPWM hardware timer.
-     * If not initialized, fall back to legacy software offset.
-     */
-    if (utlp_phase_is_synchronized() || utlp_phase_get_cycle_count() > 0) {
-        /* Phase engine is running - use hardware-derived time */
-        return utlp_phase_get_atomic_time_us();
-    }
-
-    /*
-     * Fallback: Legacy software-based offset (before phase engine init)
+     * MCPWM and esp_timer have different initialization offsets.
+     * After applying the calculated offset, atomic times diverge by
+     * the init offset difference - could be hundreds of microseconds.
      *
-     * Purple Team Pitfall 2: Torn Read Hazard
-     * 64-bit read on 32-bit MCU requires critical section to prevent
-     * reading mixed old/new halves if ISR fires mid-read.
+     * FIX: Use esp_timer consistently for all atomic time calculations.
+     * Both TX and RX timestamps are now in the same clock domain.
+     * Simple math: offset = their_esp_timer - my_esp_timer
+     *              my_atomic = my_esp_timer + offset = their_esp_timer
+     *
+     * The phase engine (MCPWM) is still used for LED actuation timing,
+     * but not for atomic time queries.
      */
     portENTER_CRITICAL(&g_time_offset_spinlock);
     int64_t offset = g_time_offset_us;
@@ -665,6 +665,18 @@ void utlp_hal_log_warn(const char *tag, const char *format, ...)
     va_list args;
     va_start(args, format);
     esp_log_level_t level = ESP_LOG_WARN;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");
+    }
+    va_end(args);
+}
+
+void utlp_hal_log_debug(const char *tag, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    esp_log_level_t level = ESP_LOG_DEBUG;
     if (LOG_LOCAL_LEVEL >= level) {
         esp_log_writev(level, tag, format, args);
         printf("\n");

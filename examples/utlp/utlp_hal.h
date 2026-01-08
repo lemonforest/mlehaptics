@@ -790,6 +790,17 @@ void utlp_hal_log_error(const char *tag, const char *format, ...);
  */
 void utlp_hal_log_warn(const char *tag, const char *format, ...);
 
+/**
+ * @brief Log debug message
+ *
+ * Debug messages are typically filtered out in production builds.
+ * Use for verbose diagnostics that would spam the console.
+ *
+ * @param tag Module identifier for filtering
+ * @param format printf-style format string
+ */
+void utlp_hal_log_debug(const char *tag, const char *format, ...);
+
 /*============================================================================
  * APPLICATION ENTRY POINT
  *

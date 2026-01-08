@@ -202,6 +202,19 @@ extern "C" {
 #define UTLP_SERVO_JUMP_ALLOWED_UNTIL_US UTLP_SERVO_COLD_START_US
 
 /**
+ * @brief Disable frequency slewing entirely (always use instant jumps)
+ *
+ * When defined as 1, the servo will always apply instant time jumps instead
+ * of gradual frequency slewing. This simplifies debugging and may improve
+ * N=2 coalescence by eliminating slew-related timing complexity.
+ *
+ * Set to 0 to re-enable slewing (S2 Claim 55: Servo-Locked Phase Correction).
+ *
+ * DEBUG FLAG: Set to 1 to disable slewing for testing.
+ */
+#define UTLP_SERVO_DISABLE_SLEWING       1               /* 1=instant jumps, 0=slew */
+
+/**
  * @brief Servo-lock update tick interval (microseconds)
  *
  * How often the servo loop runs to apply drift corrections.
@@ -210,6 +223,72 @@ extern "C" {
 #define UTLP_SERVO_TICK_INTERVAL_US      10000           /* 10ms */
 
 /** @} */ /* servo_lock */
+
+/*============================================================================
+ * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
+ *
+ * Network jitter is ASYMMETRIC (Log-Normal distribution):
+ *   - Packets can only arrive LATE, never early (physics!)
+ *   - Averaging late packets drags clock backward
+ *   - The servo "hunts" the noise floor instead of finding truth
+ *
+ * Solution: Track the FLOOR (minimum offset seen) and only slew when
+ * packets arrive near it. The minimum is the "truth" - everything else
+ * is jitter.
+ *
+ * Analogy: Like popcorn kernels falling - the truth is the kernel that
+ * hit the floor first, not the average pile height.
+ *
+ * Implementation:
+ *   - LUCKY: New minimum → Update servo with full authority
+ *   - OKAY: Within noise_window of floor → Update servo normally
+ *   - JITTER: Far from floor → Ignore for sync, just log stats
+ *
+ * The floor must DECAY slowly (rise) to prevent one lucky glitch from
+ * trapping it forever. Decay rate matches expected crystal drift.
+ *
+ * @see examples/utlp/utlp.c - lucky_packet_filter_t implementation
+ * @see draft_n2_coalescence_simplified.md - Design rationale
+ *==========================================================================*/
+
+/** @defgroup lucky_packet Lucky Packet Minimum Filter
+ * @{
+ */
+
+/**
+ * @brief Noise window around floor for "OKAY" classification (microseconds)
+ *
+ * Packets within this distance of the floor are considered good data.
+ * Packets beyond this are jitter and should be ignored for sync.
+ *
+ * 500µs chosen because:
+ *   - Typical WiFi/BLE jitter is 100-1000µs
+ *   - 500µs captures most "good" packets
+ *   - Still rejects obvious outliers
+ */
+#define UTLP_LUCKY_NOISE_WINDOW_US       500
+
+/**
+ * @brief Floor decay rate (ppb = parts per billion)
+ *
+ * The floor must rise slowly to prevent one lucky packet from trapping
+ * it forever. Rate matches expected crystal drift so the floor tracks
+ * reality over time.
+ *
+ * 40,000 ppb = 40 ppm = 40µs per second of drift.
+ * Typical crystal drift is 20-50 ppm.
+ */
+#define UTLP_LUCKY_DECAY_PPB             40000
+
+/**
+ * @brief Minimum time between floor resets (milliseconds)
+ *
+ * After establishing a new floor, ignore potential new floors for this
+ * period. Prevents oscillation from burst noise.
+ */
+#define UTLP_LUCKY_FLOOR_HOLDOFF_MS      100
+
+/** @} */ /* lucky_packet */
 
 /*============================================================================
  * GENESIS RESET DETECTION (S2 Section 2.4)

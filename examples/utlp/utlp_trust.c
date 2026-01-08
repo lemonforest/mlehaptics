@@ -512,14 +512,37 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
     if (!has_consensus) {
         /* No consensus yet. Just check self-consistency (jitter) on THIS arbor */
         deviation = abs(p->last_offset_us[arbor_id] - offset_us);
-        /* If jitter is low (<2ms), small reward. Else small penalty. */
-        if (deviation < 2000) {
-            if (p->health_score[arbor_id] < UTLP_TRUST_MAX) {
-                p->health_score[arbor_id]++;
+
+        /*
+         * v3.8 PT-13 FIX: Bootstrap Grace Period
+         *
+         * During first N interactions, skip the self-consistency penalty.
+         * Two unsynchronized devices WILL have high jitter between consecutive
+         * observations - this is expected during initial sync, not a sign of
+         * untrustworthiness.
+         *
+         * Without this grace, peers start at health=50 but get penalized (-1)
+         * on every observation because jitter > 2ms. Health can only DECREASE,
+         * never reaching SYNC_THRESH (100) = "bootstrap catch-22".
+         */
+        if (p->interactions < UTLP_TRUST_BOOTSTRAP_INTERACTIONS) {
+            /* During bootstrap: only reward stability, never penalize */
+            if (deviation < 2000) {
+                if (p->health_score[arbor_id] < UTLP_TRUST_MAX) {
+                    p->health_score[arbor_id]++;
+                }
             }
+            /* No penalty during bootstrap - jitter is expected */
         } else {
-            if (p->health_score[arbor_id] > 0) {
-                p->health_score[arbor_id]--;
+            /* Normal self-consistency check after bootstrap complete */
+            if (deviation < 2000) {
+                if (p->health_score[arbor_id] < UTLP_TRUST_MAX) {
+                    p->health_score[arbor_id]++;
+                }
+            } else {
+                if (p->health_score[arbor_id] > 0) {
+                    p->health_score[arbor_id]--;
+                }
             }
         }
     } else {
@@ -590,6 +613,28 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
     utlp_peer_ledger_t *best = NULL;
     uint32_t best_score = 0;
     uint8_t agg_health;
+    uint8_t active_peer_count = 0;
+    uint8_t threshold;
+
+    /*
+     * v3.8 PT-13c FIX: Count active peers first for N=2 threshold lowering
+     *
+     * When only 1 peer exists (N=2 swarm), use a lower threshold to break
+     * the bootstrap catch-22. At N=2, we cannot use quorum consensus, so
+     * we must trust the only peer we have - even during bootstrap.
+     *
+     * With N≥3 peers, we maintain higher standards because we have options.
+     */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0) {
+            active_peer_count++;
+        }
+    }
+
+    /* Lower threshold for N=2 (single peer) vs normal for N≥3 */
+    threshold = (active_peer_count == 1) ?
+                UTLP_TRUST_STARTUP :     /* 50 - accept single peer at startup health */
+                UTLP_TRUST_SYNC_THRESH;  /* 100 - normal threshold for N≥3 */
 
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         utlp_peer_ledger_t *p = &g_peers[i];
@@ -598,7 +643,7 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
         /* Filter: Must exist and meet threshold (aggregate health) */
         if (p->interactions == 0) continue;
         agg_health = get_aggregate_health(p);
-        if (agg_health < UTLP_TRUST_SYNC_THRESH) continue;
+        if (agg_health < threshold) continue;
 
         /* FORMULA: Survival of the Fittest
          * Aggregate Health (0-255) is dominant. Stratum (0-255) is secondary.

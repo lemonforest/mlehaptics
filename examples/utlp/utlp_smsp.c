@@ -215,7 +215,23 @@ static void execute_tick(void)
     /* Handle looping */
     uint32_t position_us;
     if (s_state.header.flags & SMSP_PATTERN_FLAG_LOOP) {
-        position_us = (uint32_t)(elapsed_us % pattern_duration);
+        /*
+         * PT-18 FIX: Use atomic time directly for looping patterns.
+         *
+         * Old code: position = (atomic_now - born_at_us) % pattern_duration
+         * Problem: born_at_us differs between devices (each starts at own time)
+         *          so even with synced atomic time, position diverges!
+         *
+         * New code: position = atomic_now % pattern_duration
+         * This makes position purely dependent on synchronized atomic time.
+         * All devices with same atomic time will compute same position.
+         *
+         * Example at 1Hz (1000000us duration):
+         *   atomic_now = 2000500us
+         *   position = 2000500 % 1000000 = 500us into pattern
+         *   All synced devices show same LED state.
+         */
+        position_us = (uint32_t)(atomic_now % pattern_duration);
     } else {
         if (elapsed_us >= pattern_duration) {
             /* Non-looping pattern complete */

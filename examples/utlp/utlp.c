@@ -554,6 +554,189 @@ static uint64_t g_last_stratum_change = 0;
 static bool g_is_provider = false;
 
 /*============================================================================
+ * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
+ *
+ * Network jitter is ASYMMETRIC (Log-Normal distribution):
+ *   - Packets can only arrive LATE, never early (physics!)
+ *   - Averaging late packets drags clock backward
+ *   - The servo "hunts" the noise floor instead of finding truth
+ *
+ * Solution: Track the FLOOR (minimum offset seen) and only slew when
+ * packets arrive near it. The minimum is the "truth" - everything else
+ * is jitter.
+ *
+ * Analogy: Like popcorn kernels falling - the truth is the kernel that
+ * hit the floor first, not the average pile height.
+ *
+ * @see utlp_config.h - UTLP_LUCKY_* constants
+ *==========================================================================*/
+
+/**
+ * @brief Packet quality classification for Lucky Packet filter
+ */
+typedef enum {
+    PACKET_LUCKY,      /**< New floor - update servo with full authority */
+    PACKET_OKAY,       /**< Near floor - update servo normally */
+    PACKET_JITTER      /**< Far from floor - ignore for sync, just log stats */
+} packet_quality_t;
+
+/**
+ * @brief Lucky Packet minimum filter state
+ *
+ * Implements minimum envelope tracking for network time sync.
+ * The "floor" is the best offset seen recently - packets near the
+ * floor are "lucky" (low jitter), packets far from floor are noise.
+ */
+typedef struct {
+    /* 8-byte fields first */
+    int64_t  floor_offset_us;     /**< Best offset seen recently (the truth) */
+    int64_t  jitter_sum_us;       /**< Sum of jitter offsets for averaging */
+    int64_t  jitter_max_us;       /**< Worst jitter seen this period */
+
+    /* 4-byte fields */
+    uint32_t floor_timestamp_ms;  /**< When we last saw a lucky packet */
+    uint32_t jitter_count;        /**< Jitter packets since last log */
+    uint32_t jitter_last_log_ms;  /**< Last jitter stats log timestamp */
+    uint32_t lucky_count;         /**< Lucky packets since last log */
+    uint32_t okay_count;          /**< Okay packets since last log */
+
+    /* 1-byte fields */
+    bool     floor_valid;         /**< True after first packet establishes floor */
+} lucky_packet_filter_t;
+
+/** @brief Jitter stats log interval (60 seconds) */
+#define LUCKY_JITTER_LOG_INTERVAL_MS    60000
+
+static lucky_packet_filter_t g_lucky = {
+    .floor_offset_us = 0,
+    .jitter_sum_us = 0,
+    .jitter_max_us = 0,
+    .floor_timestamp_ms = 0,
+    .jitter_count = 0,
+    .jitter_last_log_ms = 0,
+    .lucky_count = 0,
+    .okay_count = 0,
+    .floor_valid = false
+};
+
+/**
+ * @brief Decay the floor toward drift (compensate for crystal drift)
+ *
+ * The floor must decay (rise) slowly to prevent one lucky glitch from
+ * trapping it forever. Decay rate matches expected crystal drift.
+ *
+ * Called before each packet classification.
+ */
+static void lucky_packet_decay(void)
+{
+    if (!g_lucky.floor_valid) return;
+
+    uint32_t now_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
+    uint32_t elapsed_ms = now_ms - g_lucky.floor_timestamp_ms;
+
+    /* Decay at crystal drift rate (40ppm = 40us per second = 0.04us per ms) */
+    /* decay_us = elapsed_ms * 40000 ppb / 1000000 = elapsed_ms * 0.04 */
+    int64_t decay_us = ((int64_t)elapsed_ms * UTLP_LUCKY_DECAY_PPB) / 1000000;
+
+    if (decay_us > 0) {
+        g_lucky.floor_offset_us += decay_us;
+        g_lucky.floor_timestamp_ms = now_ms;
+    }
+}
+
+/**
+ * @brief Classify incoming packet for Lucky Packet filter
+ *
+ * @param observed_offset  The offset calculated from this packet
+ * @return Packet quality classification
+ */
+static packet_quality_t classify_packet(int64_t observed_offset)
+{
+    uint32_t now_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
+
+    /* First packet establishes the floor */
+    if (!g_lucky.floor_valid) {
+        g_lucky.floor_offset_us = observed_offset;
+        g_lucky.floor_timestamp_ms = now_ms;
+        g_lucky.floor_valid = true;
+        return PACKET_LUCKY;
+    }
+
+    /* Decay the floor toward average (compensate for drift) */
+    lucky_packet_decay();
+
+    /* Case 1: New minimum - this is the truth! */
+    if (observed_offset < g_lucky.floor_offset_us) {
+        /* Check holdoff to prevent oscillation from burst noise */
+        uint32_t elapsed_since_floor = now_ms - g_lucky.floor_timestamp_ms;
+        if (elapsed_since_floor >= UTLP_LUCKY_FLOOR_HOLDOFF_MS) {
+            g_lucky.floor_offset_us = observed_offset;
+            g_lucky.floor_timestamp_ms = now_ms;
+            return PACKET_LUCKY;
+        }
+        /* Within holdoff - treat as OKAY, still a good packet */
+        return PACKET_OKAY;
+    }
+
+    /* Case 2: Near the floor - probably good data */
+    if (observed_offset < (g_lucky.floor_offset_us + UTLP_LUCKY_NOISE_WINDOW_US)) {
+        return PACKET_OKAY;
+    }
+
+    /* Case 3: Far from floor - this is jitter, ignore for sync */
+    return PACKET_JITTER;
+}
+
+/**
+ * @brief Record jitter packet and log aggregate stats periodically
+ *
+ * Tracks jitter offset for this packet. Every 60 seconds, logs aggregated
+ * stats (count, avg, max) and resets counters.
+ *
+ * @param offset_us  The jitter packet's offset (far from floor)
+ */
+static void record_jitter_stats(int64_t offset_us)
+{
+    uint32_t now_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
+
+    /* Track this jitter packet */
+    g_lucky.jitter_count++;
+    g_lucky.jitter_sum_us += offset_us;
+    if (offset_us > g_lucky.jitter_max_us) {
+        g_lucky.jitter_max_us = offset_us;
+    }
+
+    /* Check if it's time to log (every 60s) */
+    uint32_t elapsed = now_ms - g_lucky.jitter_last_log_ms;
+    if (elapsed >= LUCKY_JITTER_LOG_INTERVAL_MS) {
+        /* Calculate totals for the period */
+        uint32_t total_packets = g_lucky.lucky_count + g_lucky.okay_count + g_lucky.jitter_count;
+
+        if (total_packets > 0) {
+            int64_t avg_jitter = (g_lucky.jitter_count > 0) ?
+                                 (g_lucky.jitter_sum_us / (int64_t)g_lucky.jitter_count) : 0;
+
+            utlp_hal_log_debug(TAG, "LUCKY-STATS: lucky=%lu okay=%lu jitter=%lu "
+                               "(avg=%+lld max=%+lld floor=%+lld)",
+                               (unsigned long)g_lucky.lucky_count,
+                               (unsigned long)g_lucky.okay_count,
+                               (unsigned long)g_lucky.jitter_count,
+                               (long long)avg_jitter,
+                               (long long)g_lucky.jitter_max_us,
+                               (long long)g_lucky.floor_offset_us);
+        }
+
+        /* Reset counters for next period */
+        g_lucky.jitter_count = 0;
+        g_lucky.jitter_sum_us = 0;
+        g_lucky.jitter_max_us = 0;
+        g_lucky.lucky_count = 0;
+        g_lucky.okay_count = 0;
+        g_lucky.jitter_last_log_ms = now_ms;
+    }
+}
+
+/*============================================================================
  * FORWARD DECLARATIONS
  *==========================================================================*/
 
@@ -623,7 +806,13 @@ static int compare_mac(const uint8_t *a, const uint8_t *b)
  */
 static bool servo_jumps_allowed(uint64_t uptime_us)
 {
+#if UTLP_SERVO_DISABLE_SLEWING
+    /* Slewing disabled - always allow instant jumps */
+    (void)uptime_us;
+    return true;
+#else
     return uptime_us < UTLP_SERVO_COLD_START_US;
+#endif
 }
 
 /**
@@ -1960,7 +2149,17 @@ static void process_beacon(const utlp_packet_t *pkt)
     {
         /* Get health-based recommendation from Metabolic Ledger */
         utlp_peer_ledger_t *best = utlp_trust_select_best_peer();
-        uint32_t now_ms = (uint32_t)(pkt->rx_timestamp_us / 1000);
+        /*
+         * PT-16 FIX: Use system time (utlp_hal_get_micros), NOT packet RX timestamp.
+         *
+         * record_observation_arbor() uses UTLP_HAL_GET_TIME() for last_seen_ms.
+         * check_regression() computes elapsed = now_ms - last_seen_ms.
+         * If now_ms came from pkt->rx_timestamp_us (captured EARLIER than processing),
+         * the subtraction wraps to ~4 billion, causing false regression detection.
+         *
+         * Both must use the same clock source for elapsed time to be correct.
+         */
+        uint32_t now_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
 
         if (best && memcmp(best->mac, pkt->mac, 6) == 0) {
             /*
@@ -2006,10 +2205,43 @@ static void process_beacon(const utlp_packet_t *pkt)
                 }
             }
             else {
-                /* All checks passed - safe to adopt epoch */
-                should_adopt = true;
-                utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X (health=%d, stratum=%d)",
-                                  pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
+                /*
+                 * All checks passed - safe to consider epoch adoption.
+                 *
+                 * PT-17 FIX: Same-stratum tiebreaker for ADAPTIVE path
+                 *
+                 * When two same-stratum devices meet, BOTH may have each other
+                 * as "best peer" (due to PT-13c lowered threshold for N=2).
+                 * Without a tiebreaker, BOTH would adopt and BOTH would drop
+                 * stratum, leaving no Genesis!
+                 *
+                 * Apply "First Born Wins" rule: only the YOUNGER device adopts.
+                 * This matches INNATE behavior at line 2240-2286.
+                 *
+                 * For different-stratum peers, normal ADAPTIVE adoption applies
+                 * (lower-stratum peer is the authority).
+                 */
+                if (remote_stratum == utlp_get_stratum()) {
+                    /* Same stratum - use atomic time to decide who adopts */
+                    int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
+                    bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
+
+                    if (they_are_elder) {
+                        should_adopt = true;
+                        utlp_hal_log_info(TAG, "ADAPTIVE: Same-stratum elder peer %02X:%02X (health=%d, atomic %lld > mine %lld) - deferring",
+                                          pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac),
+                                          (long long)remote_tx_time, (long long)my_atomic_at_rx);
+                    } else {
+                        /* I am elder - hold ground, do not adopt */
+                        utlp_hal_log_info(TAG, "ADAPTIVE: Same-stratum but I'm elder (atomic %lld > peer's %lld) - holding Genesis",
+                                          (long long)my_atomic_at_rx, (long long)remote_tx_time);
+                    }
+                } else {
+                    /* Different stratum - lower stratum wins, normal ADAPTIVE adoption */
+                    should_adopt = true;
+                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X (health=%d, stratum=%d)",
+                                      pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
+                }
             }
         }
         else if (!best && remote_stratum < utlp_get_stratum()) {
@@ -2149,48 +2381,82 @@ static void process_beacon(const utlp_packet_t *pkt)
         }
 
         /*
-         * SERVO-LOCKED PHASE CORRECTION (S2 Claim 55)
+         * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
          *
-         * Use frequency slewing instead of instant phase jumps.
-         * During genesis phase (first 10s): instant jumps allowed for fast sync.
-         * After genesis: slew toward target to maintain spectral purity.
-         *
-         * This replaces the direct assignment:
-         *   g_aatr.time_offset = new_offset;
-         *   utlp_hal_set_time_offset(new_offset);
+         * Network jitter is asymmetric - packets can only arrive LATE.
+         * Classify this packet to decide if we should update the servo:
+         *   - LUCKY: New floor (best offset seen) - trust fully
+         *   - OKAY: Near floor - trust normally
+         *   - JITTER: Far from floor - ignore for sync, just record observation
          */
         uint64_t uptime_us = utlp_hal_get_micros();
-        bool jumped = servo_apply_offset(new_offset, uptime_us);
+        packet_quality_t quality = classify_packet(new_offset);
 
-        /*
-         * Update internal state to track CURRENT offset (not target!)
-         *
-         * BUG FIX (Coherence Oscillation Audit - Bug #5):
-         * Previously used target_offset when slewing, but servo_tick() is
-         * still interpolating toward target. Using target causes subsequent
-         * phase error calculations to see phantom errors (double-correction).
-         *
-         * current_offset reflects where the clock ACTUALLY is, not where
-         * it wants to be. This fixes stale offset usage in deviation
-         * calculations (Bug #3 was a symptom of this).
-         */
-        if (jumped) {
-            g_aatr.time_offset = new_offset;
+        if (quality == PACKET_JITTER) {
+            /*
+             * Jitter packet - skip servo update but still process for trust.
+             * The observation was already recorded above in the trust system.
+             * Record stats for periodic aggregate logging (every 60s).
+             * Stratum tracking already updated above, just don't slew.
+             */
+            record_jitter_stats(new_offset);
         } else {
-            /* SPINLOCK: Read current offset atomically (64-bit on 32-bit MCU) */
-            portENTER_CRITICAL(&g_servo_spinlock);
-            g_aatr.time_offset = g_servo.current_offset;
-            portEXIT_CRITICAL(&g_servo_spinlock);
-        }
+            /* Track lucky/okay counts for aggregate stats */
+            if (quality == PACKET_LUCKY) {
+                g_lucky.lucky_count++;
+            } else {
+                g_lucky.okay_count++;
+            }
+            /*
+             * SERVO-LOCKED PHASE CORRECTION (S2 Claim 55)
+             *
+             * Use frequency slewing instead of instant phase jumps.
+             * During genesis phase (first 10s): instant jumps allowed for fast sync.
+             * After genesis: slew toward target to maintain spectral purity.
+             *
+             * This replaces the direct assignment:
+             *   g_aatr.time_offset = new_offset;
+             *   utlp_hal_set_time_offset(new_offset);
+             */
+            bool jumped = servo_apply_offset(new_offset, uptime_us);
 
-        utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us (%s)",
-                 utlp_get_stratum(), (long long)new_offset,
-                 jumped ? "jumped" : "slewing");
+            /*
+             * Update internal state to track CURRENT offset (not target!)
+             *
+             * BUG FIX (Coherence Oscillation Audit - Bug #5):
+             * Previously used target_offset when slewing, but servo_tick() is
+             * still interpolating toward target. Using target causes subsequent
+             * phase error calculations to see phantom errors (double-correction).
+             *
+             * current_offset reflects where the clock ACTUALLY is, not where
+             * it wants to be. This fixes stale offset usage in deviation
+             * calculations (Bug #3 was a symptom of this).
+             */
+            if (jumped) {
+                g_aatr.time_offset = new_offset;
+            } else {
+                /* SPINLOCK: Read current offset atomically (64-bit on 32-bit MCU) */
+                portENTER_CRITICAL(&g_servo_spinlock);
+                g_aatr.time_offset = g_servo.current_offset;
+                portEXIT_CRITICAL(&g_servo_spinlock);
+            }
 
-        /* Notify SMSP that atomic time is now valid (first sync only) */
-        if (!g_smsp_notified) {
-            smsp_notify_sync_ready();
-            g_smsp_notified = true;
+            /* Log with Lucky Packet indicator */
+            if (quality == PACKET_LUCKY) {
+                utlp_hal_log_info(TAG, "LUCKY: offset=%+lld us (new floor) stratum=%d %s",
+                                  (long long)new_offset, utlp_get_stratum(),
+                                  jumped ? "jumped" : "slewing");
+            } else {
+                utlp_hal_log_info(TAG, "SYNCED: stratum=%d, offset=%+lld us (%s)",
+                                  utlp_get_stratum(), (long long)new_offset,
+                                  jumped ? "jumped" : "slewing");
+            }
+
+            /* Notify SMSP that atomic time is now valid (first sync only) */
+            if (!g_smsp_notified) {
+                smsp_notify_sync_ready();
+                g_smsp_notified = true;
+            }
         }
     }
 skip_adoption:

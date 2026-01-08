@@ -121,6 +121,12 @@ All Purple Team directives implemented:
 | PT-10 | INNATE Genesis Guard | ✅ | Genesis pulse check in INNATE immunity |
 | PT-11 | Coalescence Fix | ✅ | Use peer atomic time, not tenure |
 | PT-12 | Token Waste Fix | ✅ | Separate budget check from consume |
+| PT-13 | Bootstrap Grace | ✅ | Skip penalty during first 5 interactions |
+| PT-15 | Lucky Packet Filter | ✅ | Minimum envelope tracking rejects jitter |
+| PT-16 | Regression Timestamp | ✅ | Use system time for elapsed calculation |
+| PT-17 | ADAPTIVE Tiebreaker | ✅ | Same-stratum "First Born Wins" in ADAPTIVE path |
+| PT-18 | SMSP Phase Sync | ✅ | Use atomic_now % duration for looping patterns |
+| PT-19 | Clock Domain Fix | ✅ | Use esp_timer consistently (not phase engine) |
 
 ### Prior Art Claims Implemented
 
@@ -236,6 +242,364 @@ bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer,
    - 60s >= 5s → Returns `false` (A is NOT genesis-pulsing)
 4. B adopts A's time via INNATE IMMUNITY
 5. **COALESCENCE WORKS** - newcomer syncs with established peer
+
+### Critical Architectural Fixes (v3.8 - January 2026)
+
+**N=2 Coalescence Fix (PT-13): Health Bootstrap Catch-22**
+
+When exactly two devices attempted to sync, health stayed at 50 (STARTUP) and never reached
+the 100 (SYNC_THRESH) required to be selected as "best peer". Root cause: a vicious cycle
+where peers were penalized for jitter that is **expected** during initial sync.
+
+**Failure Scenario (Before Fix):**
+```
+1. Peer starts at health=50 (UTLP_TRUST_STARTUP)
+2. select_best_peer() requires health >= 100 (UTLP_TRUST_SYNC_THRESH)
+3. Returns NULL → INNATE immunity fires
+4. record_observation_arbor() called
+5. No consensus (50 < MIN_VOTE=60)
+6. Self-consistency check: jitter > 2ms (unsynchronized devices!)
+7. Health DECREASES (-1 penalty)
+8. Loop forever at health ≤ 50
+```
+
+**Fix (PT-13a, PT-13b, PT-13c):**
+
+1. **Bootstrap Grace Period** - During first 5 interactions with a new peer, skip the
+   self-consistency penalty. Two unsynchronized devices WILL have high jitter - this is
+   expected, not a sign of untrustworthiness.
+
+2. **Lower N=2 Threshold** - When only 1 peer exists (N=2 swarm), use health threshold
+   of 50 (STARTUP) instead of 100 (SYNC_THRESH) for best peer selection.
+
+```c
+// PT-13b: Bootstrap grace in no-consensus path
+if (p->interactions < UTLP_TRUST_BOOTSTRAP_INTERACTIONS) {
+    // During bootstrap: only reward stability, never penalize
+    if (deviation < 2000) {
+        p->health_score[arbor_id]++;
+    }
+    // No penalty during bootstrap - jitter is expected
+}
+
+// PT-13c: Lower threshold for N=2
+threshold = (active_peer_count == 1) ?
+            UTLP_TRUST_STARTUP :     // 50 - accept single peer at startup health
+            UTLP_TRUST_SYNC_THRESH;  // 100 - normal threshold for N≥3
+```
+
+**Files Modified:**
+- `utlp_trust.h`: Added `UTLP_TRUST_BOOTSTRAP_INTERACTIONS` constant (5)
+- `utlp_trust.c`: Bootstrap grace in `record_observation_arbor()` lines 512-547
+- `utlp_trust.c`: Lower threshold in `select_best_peer()` lines 616-637
+
+---
+
+**Lucky Packet Minimum Filter (PT-15): Servo Hunts Noise Floor**
+
+Network jitter is ASYMMETRIC (Log-Normal distribution) - packets can only arrive LATE, never
+early. Averaging late packets drags the clock backward. The servo "hunts" the noise floor
+instead of finding truth.
+
+**Solution:** Track the FLOOR (minimum offset seen) and only slew when packets arrive near it.
+The minimum is the "truth" - everything else is jitter.
+
+**Analogy:** Like popcorn kernels falling - the truth is the kernel that hit the floor first,
+not the average pile height.
+
+```c
+typedef enum {
+    PACKET_LUCKY,   // New floor - update servo with full authority
+    PACKET_OKAY,    // Near floor - update servo normally
+    PACKET_JITTER   // Far from floor - ignore for sync
+} packet_quality_t;
+
+// Classification logic
+if (observed_offset < floor_offset) return PACKET_LUCKY;
+if (observed_offset < floor_offset + 500us) return PACKET_OKAY;
+return PACKET_JITTER;
+```
+
+**Expected Log Output:**
+```
+I LUCKY: offset=+127 us (new floor) stratum=2 jumped    ← New minimum found
+I SYNCED: stratum=2, offset=+89 us (slewing)            ← Near floor, update
+D LUCKY-STATS: lucky=3 okay=47 jitter=12 (avg=+2341 max=+5678 floor=+127)
+                                                        ← Aggregate every 60s
+```
+
+**Files Modified:**
+- `utlp_config.h`: Added `UTLP_LUCKY_*` constants (noise window, decay rate, holdoff)
+- `utlp.c`: Added `lucky_packet_filter_t` struct and `classify_packet()` function
+- `utlp.c`: Integrated in beacon handler before `servo_apply_offset()` (lines 2270-2342)
+
+---
+
+**Regression Timestamp Bug Fix (PT-16): False Regression Detection on First Contact**
+
+Despite PT-13 and PT-15 fixes, two devices still could not synchronize. Device B reported
+"REGRESSION: Peer D0:04 atomic time went backwards!" and dropped Device A's health to 0.
+
+**Root Cause: Timestamp Clock Mismatch**
+
+The regression check used DIFFERENT clock sources for time comparison:
+- `record_observation_arbor()` used `UTLP_HAL_GET_TIME()` (system time) for `last_seen_ms`
+- `check_regression()` used `pkt->rx_timestamp_us` (packet RX timestamp) for `now_ms`
+
+When processing delay causes `rx_timestamp < system_time`, the elapsed time calculation:
+```c
+elapsed_us = (int64_t)(now_ms - get_aggregate_last_seen(peer)) * 1000;
+```
+
+The unsigned subtraction `rx_time - system_time` wraps to ~4 billion. Cast to int64_t and
+multiplied by 1000, this produces an astronomically large `expected_tx`, making ANY peer's
+TX time appear to have "gone backwards" relative to expected.
+
+**Failure Scenario (Before Fix):**
+```
+record_observation_arbor():
+  last_seen_ms = UTLP_HAL_GET_TIME() / 1000 = 5000000 ms (system time)
+
+check_regression():
+  now_ms = pkt->rx_timestamp_us / 1000 = 4999990 ms (10ms earlier, RX time)
+  elapsed = (4999990 - 5000000) * 1000 = (-10 wraps to 4294967286) * 1000
+  expected_tx = last_tx + 4,294,967,286,000 us = ASTRONOMICAL
+  reported_tx < expected - threshold → REGRESSION!
+```
+
+**Fix (PT-16):**
+Use consistent clock source - `utlp_hal_get_micros()` instead of packet RX timestamp:
+```c
+// BEFORE (broken):
+uint32_t now_ms = (uint32_t)(pkt->rx_timestamp_us / 1000);
+
+// AFTER (fixed):
+uint32_t now_ms = (uint32_t)(utlp_hal_get_micros() / 1000);
+```
+
+Both `record_observation_arbor()` and `check_regression()` now use the same system clock,
+ensuring elapsed time calculation is always positive and correct.
+
+**Files Modified:**
+- `utlp.c`: Line 2156 - Use `utlp_hal_get_micros()` instead of `pkt->rx_timestamp_us`
+
+---
+
+**Stratum Collapse Bug Fix (PT-17): Both Devices Become Stratum 2**
+
+Despite PT-13 through PT-16 fixes, two devices still could not synchronize. Serial logs showed
+both devices saying "ADAPTIVE: Trusted peer... stratum=1" and BOTH dropping to stratum 2,
+leaving no Genesis!
+
+**Root Cause: Missing Same-Stratum Tiebreaker in ADAPTIVE Path**
+
+The "First Born Wins" tiebreaker existed only in the INNATE immunity path (`!best`).
+When PT-13c lowered the threshold to 50 for N=2 scenarios, `select_best_peer()` returned
+a peer immediately, so the condition `!best && remote_stratum == utlp_get_stratum()` never
+triggered.
+
+**Failure Scenario (Before Fix):**
+```
+Device A (stratum 1) receives beacon from Device B (stratum 1):
+  select_best_peer() returns Device B (health=50, due to PT-13c threshold)
+  Enters ADAPTIVE path (line 2164): best && memcmp(best->mac, pkt->mac) == 0
+  All checks pass → should_adopt = true
+  Stratum changed: 1 → 2
+
+SIMULTANEOUSLY:
+Device B (stratum 1) receives beacon from Device A (stratum 1):
+  select_best_peer() returns Device A (health=50)
+  Enters ADAPTIVE path
+  All checks pass → should_adopt = true
+  Stratum changed: 1 → 2
+
+RESULT: BOTH devices adopt each other. BOTH drop to stratum 2. No Genesis remains!
+```
+
+**Fix (PT-17):**
+Add same-stratum tiebreaker logic to the ADAPTIVE path. When two same-stratum devices
+meet through ADAPTIVE immunity, apply "First Born Wins" rule - only the YOUNGER device
+(lower atomic time) adopts the elder's epoch.
+
+```c
+// In ADAPTIVE path, when all checks pass:
+if (remote_stratum == utlp_get_stratum()) {
+    /* Same stratum - use atomic time to decide who adopts */
+    int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
+    bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
+
+    if (they_are_elder) {
+        should_adopt = true;
+        /* "...elder peer - deferring" */
+    } else {
+        /* I am elder - hold ground, do not adopt */
+        /* "...I'm elder - holding Genesis" */
+    }
+} else {
+    /* Different stratum - normal ADAPTIVE adoption */
+    should_adopt = true;
+}
+```
+
+**Expected Behavior (After Fix):**
+```
+Device A (atomic time = 100s) meets Device B (atomic time = 50s):
+  Device A: "I'm elder (atomic 100s > peer's 50s) - holding Genesis"
+  Device B: "Elder peer (atomic 100s > mine 50s) - deferring"
+  Device B adopts Device A's epoch
+  Device A remains stratum 1 (Genesis)
+  Device B becomes stratum 2
+  SYNC ESTABLISHED!
+```
+
+**Files Modified:**
+- `utlp.c`: Lines 2207-2244 - Added same-stratum tiebreaker in ADAPTIVE immunity path
+
+---
+
+**SMSP Pattern Phase Divergence Fix (PT-18): Devices Sync Then Diverge**
+
+After UTLP synchronization, devices would briefly blink in sync, then rapidly diverge.
+The atomic time was synced correctly, but LED patterns drifted apart within seconds.
+
+**Root Cause: Pattern Position Uses Local Start Time**
+
+The SMSP pattern position calculation:
+```c
+// Old code:
+position_us = (atomic_now - born_at_us) % pattern_duration;
+```
+
+Problem: `born_at_us` is set when each device starts its pattern (via `smsp_start(0)`).
+Since devices start patterns at slightly different times, `born_at_us` differs:
+- Device A: `born_at_us = 1000000`, atomic_now = 2000000 → position = 0
+- Device B: `born_at_us = 1000500`, atomic_now = 2000000 → position = 999500
+
+Even with perfectly synced atomic time, the patterns are 500µs out of phase **permanently**.
+
+**Fix (PT-18):**
+For looping patterns, use atomic time directly without subtracting `born_at_us`:
+```c
+// New code:
+position_us = (uint32_t)(atomic_now % pattern_duration);
+```
+
+This makes position purely dependent on synchronized atomic time. All devices with the
+same atomic time will compute the same position within the pattern.
+
+**Expected Behavior (After Fix):**
+```
+Device A: atomic_now = 2000500us, pattern_duration = 1000000us
+          position = 2000500 % 1000000 = 500us into pattern
+Device B: atomic_now = 2000500us, pattern_duration = 1000000us
+          position = 2000500 % 1000000 = 500us into pattern
+SAME POSITION → SAME LED STATE → IN SYNC!
+```
+
+**Files Modified:**
+- `utlp_smsp.c`: Lines 217-234 - Use `atomic_now % pattern_duration` for looping patterns
+
+---
+
+**Clock Domain Mismatch Fix (PT-19): ROOT CAUSE of Sync Divergence**
+
+After PT-17 and PT-18 fixes, devices still failed to synchronize. Serial logs showed sync
+jumps that never converged - atomic time offset would jump thousands of microseconds every
+beacon exchange, never settling.
+
+**Root Cause: TX and RX Use Different Clock Domains**
+
+The UTLP offset calculation assumes:
+```
+offset = remote_tx_timestamp - local_rx_timestamp
+```
+
+But we were mixing clock domains:
+- **TX timestamp**: Phase engine time (MCPWM counter + software offset)
+- **RX timestamp**: esp_timer (captured in HAL callback)
+
+MCPWM and esp_timer have different initialization offsets. They start at different
+values when the device boots. The difference could be hundreds of microseconds.
+
+**Failure Scenario (Before Fix):**
+```
+Device A boots: MCPWM starts at 0, esp_timer starts at 0
+Device B boots: MCPWM starts at 0, esp_timer starts at 0
+
+Device A sends beacon:
+  TX timestamp = MCPWM time = 1000000us (phase engine)
+
+Device B receives beacon:
+  RX timestamp = esp_timer = 1000200us
+  offset = 1000000 - 1000200 = -200us
+
+Device B sends beacon:
+  TX timestamp = MCPWM time = 1000300us (phase engine)
+  BUT MCPWM init offset differs from esp_timer by 150us!
+  "Actual" phase engine time = esp_timer + 150us
+
+Device A receives beacon:
+  RX timestamp = esp_timer = 1000500us
+  offset = 1000300 - 1000500 = -200us
+  PLUS the init offset error of 150us persists!
+
+Result: Offsets never converge because init offset difference is baked in.
+```
+
+**Fix (PT-19):**
+Use esp_timer consistently for ALL atomic time calculations. The phase engine's MCPWM
+counter is great for hardware PWM generation, but clock synchronization must use a
+single, consistent time source.
+
+```c
+uint64_t utlp_hal_get_atomic_time_us(void)
+{
+    /*
+     * PT-19 FIX: Use software offset with esp_timer, not phase engine.
+     *
+     * Simple math:
+     *   offset = their_esp_timer - my_esp_timer
+     *   my_atomic = my_esp_timer + offset = their_esp_timer
+     *
+     * Both devices use the same clock domain (esp_timer).
+     * Offset calculation is now mathematically correct.
+     */
+    portENTER_CRITICAL(&g_time_offset_spinlock);
+    int64_t offset = g_time_offset_us;
+    portEXIT_CRITICAL(&g_time_offset_spinlock);
+
+    return esp_timer_get_time() + offset;
+}
+```
+
+**Expected Behavior (After Fix):**
+```
+Device A sends beacon:
+  TX timestamp = esp_timer = 1000000us
+
+Device B receives beacon:
+  RX timestamp = esp_timer = 1000200us
+  offset = 1000000 - 1000200 = -200us (one-way latency)
+
+Device B sends beacon:
+  TX timestamp = esp_timer = 1000400us
+
+Device A receives beacon:
+  RX timestamp = esp_timer = 1000600us
+  offset = 1000400 - 1000600 = -200us
+
+Both devices compute same offset. Clock domain is consistent.
+Atomic times converge. SYNC ESTABLISHED!
+```
+
+**Key Insight:**
+This is "just math" - but only if you use the SAME math throughout. Mixing MCPWM and
+esp_timer clock domains introduced a systematic error that could never be corrected.
+
+**Files Modified:**
+- `utlp_hal_esp32.c`: Lines 392-419 - Use esp_timer + software offset consistently
+
+---
 
 ### Critical Architectural Fixes (v3.7 - January 2026)
 

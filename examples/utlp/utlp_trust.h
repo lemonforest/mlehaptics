@@ -260,6 +260,27 @@ extern "C" {
  */
 #define UTLP_COST_LYING         50
 
+/**
+ * @brief Bootstrap grace period for new peer relationships (v3.8 PT-13)
+ *
+ * During the first N interactions with a new peer, skip the self-consistency
+ * penalty in the no-consensus path. Two unsynchronized devices WILL have high
+ * jitter between consecutive observations - this is expected, not a sign of
+ * untrustworthiness.
+ *
+ * Without this grace period, peers start at health=50 but get penalized (-1)
+ * on every observation because jitter > 2ms. This creates a "bootstrap catch-22"
+ * where health can only DECREASE, never reaching the SYNC_THRESH (100) needed
+ * to be considered "healthy" for ADAPTIVE immunity.
+ *
+ * @par Biological Analogy
+ * When cells first meet, they must establish communication. Initial handshake
+ * jitter is normal - don't penalize a newcomer for taking time to sync.
+ *
+ * @see utlp_trust_record_observation_arbor() - no-consensus path
+ */
+#define UTLP_TRUST_BOOTSTRAP_INTERACTIONS   5
+
 /** @} */ /* trust_dynamics */
 
 /**
