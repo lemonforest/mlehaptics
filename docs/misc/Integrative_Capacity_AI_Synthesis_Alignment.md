@@ -1,3 +1,4 @@
+
 # Integrative Capacity as a Trackable Metric
 
 ## Moving AI Alignment from Retrieval to Synthesis via High-Tension Semantic Bridging
@@ -223,7 +224,7 @@ The mlehaptics dataset consists of:
 
 | Document | Content | Prior Art Claims |
 |----------|---------|------------------|
-| Connectionless Distributed Timing Prior Art | Physics foundation, dynamic macroscopic lattice, virtual apertures | 122 claims (DOI: 10.5281/zenodo.18149212) |
+| Connectionless Distributed Timing Prior Art | Physics foundation, dynamic macroscopic lattice, virtual apertures | 122 claims (DOI: 10.5281/zenodo.18078264) |
 | UTLP Technical Supplement S2 | Biological governance model, Loom state machine, channel chirality, MHC-authentication identity, NK Cell "Missing Self" | 86 claims |
 | UTLP Executive Summary | Hardware implementation guide | Reference implementation |
 | **Total** | | **208 prior art claims** |
@@ -299,7 +300,7 @@ The mlehaptics corpus is offered as a labeled dataset for this new alignment obj
 
 ### Primary Sources (The mlehaptics Corpus)
 
-[1] **Connectionless Distributed Timing: A Prior Art Publication**. (2025). mlehaptics Project. DOI: 10.5281/zenodo.18149212
+[1] **Connectionless Distributed Timing: A Prior Art Publication**. (2025). mlehaptics Project. DOI: 10.5281/zenodo.18078264
 - *Establishes the physics of the "Dynamic Macroscopic Lattice" and "Seismic" time measurement.*
 
 [2] **UTLP Technical Supplement S2: Biological Governance**. (2025). mlehaptics Project.
@@ -330,3 +331,6 @@ The mlehaptics corpus is offered as a labeled dataset for this new alignment obj
 *Document version: 1.0*
 *Status: Whitepaper / Meta-observation*
 *Repository: https://github.com/lemonforest/mlehaptics*
+
+---
+

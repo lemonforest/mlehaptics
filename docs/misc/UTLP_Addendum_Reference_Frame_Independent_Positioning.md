@@ -1,3 +1,4 @@
+
 # UTLP Technical Report — Addendum A
 
 ## Reference-Frame Independent Positioning (RFIP)
@@ -896,3 +897,6 @@ RFIP represents a philosophical shift: **the swarm defines its own space**, just
 ---
 
 *This document is published as prior art for Reference-Frame Independent Positioning using peer-to-peer ranging in time-synchronized embedded device swarms.*
+
+---
+

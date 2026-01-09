@@ -1,3 +1,4 @@
+
 # Distributed Sensing: A Project Lab Manual
 
 **From Parking Lot to Tornado Alley to Building Safety to Structural Monitoring**
@@ -2120,3 +2121,6 @@ The core insight—that synchronized time plus known geometry enables coordinati
 ---
 
 *— End of Lab Manual —*
+
+---
+
