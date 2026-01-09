@@ -18,8 +18,11 @@
  */
 
 #include "utlp_hal.h"
+#include "utlp_phase.h"  /* HPLAC: Hardware Phase Engine for atomic time */
+#include "rfip_hal.h"
 
 #include <string.h>
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -28,6 +31,7 @@
 #include "esp_wifi.h"
 #include "esp_now.h"
 #include "esp_mac.h"
+#include "esp_random.h"
 #include "nvs_flash.h"
 #include "driver/mcpwm_prelude.h"
 
@@ -100,7 +104,18 @@ static const char *TAG = "UTLP_HAL";
  * STATE (Static Allocation)
  *==========================================================================*/
 
-/** @brief Time offset for synchronization */
+/**
+ * @brief Spinlock for 64-bit time offset (Purple Team Pitfall 2: Torn Read Hazard)
+ *
+ * ESP32-C6 is 32-bit RISC-V; 64-bit operations require TWO 32-bit instructions.
+ * ISR can interrupt between high/low word operations, causing mixed old/new halves.
+ * `volatile` prevents caching but does NOT guarantee atomicity.
+ *
+ * This spinlock protects the legacy fallback path used before HPLAC phase engine init.
+ */
+static portMUX_TYPE g_time_offset_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
+/** @brief Time offset for synchronization (requires spinlock for atomic access) */
 static volatile int64_t g_time_offset_us = 0;
 
 /** @brief Local MAC address */
@@ -163,12 +178,17 @@ static void espnow_recv_cb(const esp_now_recv_info_t *info,
         return;
     }
 
+    /* Record RSSI observation for RFIP spatial awareness */
+    rfip_record_observation(info->src_addr, info->rx_ctrl->rssi, (int64_t)rx_time);
+
     utlp_packet_t pkt = {
         .rx_timestamp_us = rx_time,
         .len = len,
         .rssi = info->rx_ctrl->rssi
     };
-    memcpy(pkt.mac, info->src_addr, UTLP_MAC_SIZE);
+    /* Populate src_addr (union overlays with mac[]) */
+    memcpy(pkt.src_addr.addr, info->src_addr, UTLP_MAC_SIZE);
+    pkt.src_addr.len = UTLP_MAC_SIZE;
     memcpy(pkt.payload, data, len);
 
     if (rx_queue_push(&pkt)) {
@@ -371,12 +391,43 @@ uint64_t utlp_hal_get_micros(void)
 
 uint64_t utlp_hal_get_atomic_time_us(void)
 {
-    return esp_timer_get_time() + g_time_offset_us;
+    /*
+     * PT-19 FIX: Use software offset with esp_timer, not phase engine.
+     *
+     * PROBLEM: Clock domain mismatch caused sync failure.
+     * - TX timestamp: phase_engine time (MCPWM counter + offset)
+     * - RX timestamp: esp_timer time (captured in HAL callback)
+     * - Offset calculation: remote_tx - local_rx (mixing domains!)
+     *
+     * MCPWM and esp_timer have different initialization offsets.
+     * After applying the calculated offset, atomic times diverge by
+     * the init offset difference - could be hundreds of microseconds.
+     *
+     * FIX: Use esp_timer consistently for all atomic time calculations.
+     * Both TX and RX timestamps are now in the same clock domain.
+     * Simple math: offset = their_esp_timer - my_esp_timer
+     *              my_atomic = my_esp_timer + offset = their_esp_timer
+     *
+     * The phase engine (MCPWM) is still used for LED actuation timing,
+     * but not for atomic time queries.
+     */
+    portENTER_CRITICAL(&g_time_offset_spinlock);
+    int64_t offset = g_time_offset_us;
+    portEXIT_CRITICAL(&g_time_offset_spinlock);
+
+    return esp_timer_get_time() + offset;
 }
 
 void utlp_hal_set_time_offset(int64_t offset_us)
 {
+    /*
+     * Purple Team Pitfall 2: Torn Write Hazard
+     * 64-bit write on 32-bit MCU requires critical section to prevent
+     * reader seeing mixed old/new halves if context switch occurs mid-write.
+     */
+    portENTER_CRITICAL(&g_time_offset_spinlock);
     g_time_offset_us = offset_us;
+    portEXIT_CRITICAL(&g_time_offset_spinlock);
 }
 
 void utlp_hal_yield(void)
@@ -387,6 +438,97 @@ void utlp_hal_yield(void)
 void utlp_hal_get_mac(uint8_t *mac)
 {
     memcpy(mac, g_local_mac, UTLP_MAC_SIZE);
+}
+
+/*============================================================================
+ * ADDRESS OPERATIONS (Transport-Agnostic)
+ *
+ * ESP32 uses 6-byte MAC addresses. These functions wrap the MAC in the
+ * transport-agnostic utlp_addr_t structure for protocol layer compatibility.
+ *==========================================================================*/
+
+void utlp_hal_get_addr(utlp_addr_t *addr)
+{
+    addr->len = UTLP_MAC_SIZE;
+    memcpy(addr->addr, g_local_mac, UTLP_MAC_SIZE);
+}
+
+bool utlp_hal_addr_equal(const utlp_addr_t *a, const utlp_addr_t *b)
+{
+    if (a->len != b->len) {
+        return false;  /* Different address types are never equal */
+    }
+    return memcmp(a->addr, b->addr, a->len) == 0;
+}
+
+void utlp_hal_addr_to_string(const utlp_addr_t *addr, char *buf, size_t buf_len)
+{
+    if (buf_len < 3 * addr->len) {
+        /* Not enough space even for minimal output */
+        if (buf_len > 0) {
+            buf[0] = '\0';
+        }
+        return;
+    }
+
+    size_t pos = 0;
+    for (uint8_t i = 0; i < addr->len && pos + 3 < buf_len; i++) {
+        if (i > 0) {
+            buf[pos++] = ':';
+        }
+        pos += snprintf(buf + pos, buf_len - pos, "%02X", addr->addr[i]);
+    }
+}
+
+uint32_t utlp_hal_addr_hash(const utlp_addr_t *addr)
+{
+    /* DJB2 hash - simple and effective for small data */
+    uint32_t hash = 5381;
+    for (uint8_t i = 0; i < addr->len; i++) {
+        hash = ((hash << 5) + hash) + addr->addr[i];  /* hash * 33 + byte */
+    }
+    return hash;
+}
+
+/*============================================================================
+ * SCHEDULED TX (Fallback Implementation)
+ *
+ * ESP32 ESP-NOW does not support hardware-scheduled transmission.
+ * This fallback uses spin-wait between packets, achieving ~±100µs precision.
+ * MG24 RAIL will provide true hardware scheduling with ±1µs precision.
+ *==========================================================================*/
+
+bool utlp_hal_has_scheduled_tx(void)
+{
+    return false;  /* ESP32 uses spin-wait fallback */
+}
+
+bool utlp_hal_tx_schedule(const utlp_scheduled_tx_t *packets, size_t count)
+{
+    for (size_t i = 0; i < count; i++) {
+        /* Wait until scheduled time (spin-wait) */
+        while (utlp_hal_get_micros() < packets[i].tx_time_us) {
+            /* Spin - yields would add jitter */
+        }
+        if (!utlp_hal_tx_packet(NULL, packets[i].payload, packets[i].len)) {
+            return false;  /* TX failed */
+        }
+    }
+    return true;
+}
+
+/*============================================================================
+ * PLATFORM CAPABILITY DISCOVERY
+ *==========================================================================*/
+
+void utlp_hal_get_caps(utlp_hal_caps_t *caps)
+{
+    caps->has_scheduled_tx = false;       /* Spin-wait fallback */
+    caps->has_hw_timestamp = true;        /* ESP-NOW provides RX timestamps */
+    caps->addr_size = UTLP_MAC_SIZE;      /* 6-byte MAC */
+    caps->max_payload = UTLP_MAX_PAYLOAD; /* 200 bytes */
+    caps->tx_power_dbm = 20;              /* ESP32 default ~20 dBm */
+    caps->channel = DEFAULT_WIFI_CHANNEL; /* Channel 6 (golden path) */
 }
 
 bool utlp_hal_tx_packet(const uint8_t *peer_mac, const uint8_t *data, size_t len)
@@ -492,7 +634,17 @@ void utlp_hal_log_info(const char *tag, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    esp_log_writev(ESP_LOG_INFO, tag, format, args);
+    /*
+     * esp_log_write() is the high-level function that adds timestamp and newline.
+     * esp_log_writev() is raw output (no newline) - don't use it directly.
+     *
+     * We use vprintf-style manually with ESP_LOG_LEVEL_LOCAL for proper output.
+     */
+    esp_log_level_t level = ESP_LOG_INFO;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");  /* esp_log_writev doesn't add newline */
+    }
     va_end(args);
 }
 
@@ -500,7 +652,11 @@ void utlp_hal_log_error(const char *tag, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    esp_log_writev(ESP_LOG_ERROR, tag, format, args);
+    esp_log_level_t level = ESP_LOG_ERROR;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");
+    }
     va_end(args);
 }
 
@@ -508,7 +664,23 @@ void utlp_hal_log_warn(const char *tag, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    esp_log_writev(ESP_LOG_WARN, tag, format, args);
+    esp_log_level_t level = ESP_LOG_WARN;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");
+    }
+    va_end(args);
+}
+
+void utlp_hal_log_debug(const char *tag, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    esp_log_level_t level = ESP_LOG_DEBUG;
+    if (LOG_LOCAL_LEVEL >= level) {
+        esp_log_writev(level, tag, format, args);
+        printf("\n");
+    }
     va_end(args);
 }
 
@@ -655,4 +827,61 @@ bool utlp_chirality_is_bridge_node(void)
 uint8_t utlp_chirality_get_current_channel(void)
 {
     return DEFAULT_WIFI_CHANNEL;
+}
+
+/*============================================================================
+ * TELEMETRY API - Physics and Status Data for Intron
+ *
+ * These functions provide data for the encrypted Intron payload.
+ * Stub implementations return safe placeholder values.
+ *==========================================================================*/
+
+/**
+ * @brief Get NTP wall-clock time (or random if stealth mode)
+ *
+ * @return NTP timestamp (microseconds since epoch) or random value
+ */
+uint64_t utlp_hal_get_ntp_time_utc(void)
+{
+    /*
+     * STUB: Return random value (stealth mode default).
+     *
+     * Real implementation should return actual NTP time if synced,
+     * or random value for stealth/privacy mode.
+     */
+    return (uint64_t)esp_random() | ((uint64_t)esp_random() << 32);
+}
+
+/**
+ * @brief Get current TX power setting
+ *
+ * @return TX power in dBm (-40 to +21 typical range)
+ */
+int8_t utlp_hal_get_tx_power_dbm(void)
+{
+    int8_t power = 0;
+    esp_wifi_get_max_tx_power(&power);
+    return power / 4;  /* ESP-IDF reports in 0.25dBm units */
+}
+
+/**
+ * @brief Get battery level scaled to 0-255
+ *
+ * @return Battery level (0=empty, 255=full) or 127 if not available
+ */
+uint8_t utlp_hal_get_battery_scaled(void)
+{
+    /* STUB: Return midpoint (battery monitoring not implemented) */
+    return 127;
+}
+
+/**
+ * @brief Get CPU load percentage
+ *
+ * @return CPU load (0-100%) or 0 if not available
+ */
+uint8_t utlp_hal_get_cpu_load(void)
+{
+    /* STUB: Return 0 (CPU monitoring not implemented) */
+    return 0;
 }

@@ -106,16 +106,59 @@ static void clear_peer(utlp_peer_ledger_t *p) {
 }
 
 /**
+ * @brief Get aggregate health score across all arbors (Blood-Brain Barrier)
+ *
+ * Returns the MAXIMUM health score across all transports.
+ * Used for eviction decisions: don't evict a peer that's healthy on ANY arbor.
+ *
+ * @param p Pointer to peer entry
+ * @return Maximum health score across all arbors
+ */
+static uint8_t get_aggregate_health(const utlp_peer_ledger_t *p) {
+    uint8_t max_health = 0;
+    int i;
+    for (i = 0; i < UTLP_MAX_ARBORS; i++) {
+        if (p->health_score[i] > max_health) {
+            max_health = p->health_score[i];
+        }
+    }
+    return max_health;
+}
+
+/**
+ * @brief Get aggregate last_seen_ms across all arbors
+ *
+ * Returns the MOST RECENT last_seen_ms across all transports.
+ * Used for LRU decisions: a peer active on any arbor is "recently seen".
+ *
+ * @param p Pointer to peer entry
+ * @return Most recent last_seen_ms across all arbors
+ */
+static uint32_t get_aggregate_last_seen(const utlp_peer_ledger_t *p) {
+    uint32_t max_seen = 0;
+    int i;
+    for (i = 0; i < UTLP_MAX_ARBORS; i++) {
+        if (p->last_seen_ms[i] > max_seen) {
+            max_seen = p->last_seen_ms[i];
+        }
+    }
+    return max_seen;
+}
+
+/**
  * @brief Find or create a peer entry with LRU eviction
  *
  * Search strategy:
  * 1. Look for existing entry matching MAC
  * 2. Use empty slot if available
- * 3. Evict weakest peer (lowest health) if below threshold
- * 4. Reject stranger if all peers are healthy
+ * 3. Evict weakest peer (lowest aggregate health) if below threshold
+ * 4. Reject stranger if all peers are healthy on any arbor
  *
  * The eviction policy implements "don't kill a healthy friend for a stranger":
- * only peers below UTLP_TRUST_SYNC_THRESH can be evicted.
+ * only peers below UTLP_TRUST_SYNC_THRESH on ALL arbors can be evicted.
+ *
+ * @note Phase 9 (Blood-Brain Barrier): Uses aggregate health across all arbors
+ *       for eviction decisions. A peer healthy on ANY transport is protected.
  *
  * @param mac 6-byte MAC address to find/create
  * @return Pointer to peer entry, or NULL if table full of healthy peers
@@ -126,10 +169,16 @@ static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac) {
     utlp_peer_ledger_t *empty = NULL;
     uint32_t current_ms;
     uint64_t now_full;
+    uint8_t oldest_health, peer_health;
+    uint32_t oldest_seen, peer_seen;
 
     /* Get current time for LRU tracking */
     UTLP_HAL_GET_TIME(&now_full);
     current_ms = (uint32_t)(now_full / 1000);
+
+    /* Get aggregate values for oldest candidate */
+    oldest_health = get_aggregate_health(&g_peers[0]);
+    oldest_seen = get_aggregate_last_seen(&g_peers[0]);
 
     /* 1. Try to find existing peer */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
@@ -139,12 +188,22 @@ static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac) {
         if (g_peers[i].interactions == 0) {
             empty = &g_peers[i];
         }
-        /* Track LRU candidate (lowest health is first to go, then oldest) */
-        if (g_peers[i].health_score < oldest->health_score) {
+
+        /* Track LRU candidate using AGGREGATE health (Blood-Brain Barrier)
+         * Lowest aggregate health is first to go, then oldest
+         */
+        peer_health = get_aggregate_health(&g_peers[i]);
+        peer_seen = get_aggregate_last_seen(&g_peers[i]);
+
+        if (peer_health < oldest_health) {
             oldest = &g_peers[i];
-        } else if (g_peers[i].health_score == oldest->health_score) {
-            if ((current_ms - g_peers[i].last_seen_ms) > (current_ms - oldest->last_seen_ms)) {
+            oldest_health = peer_health;
+            oldest_seen = peer_seen;
+        } else if (peer_health == oldest_health) {
+            if ((current_ms - peer_seen) > (current_ms - oldest_seen)) {
                 oldest = &g_peers[i];
+                oldest_health = peer_health;
+                oldest_seen = peer_seen;
             }
         }
     }
@@ -155,11 +214,13 @@ static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac) {
         return empty;
     }
 
-    /* 3. Eviction: Only evict if the oldest slot is "weak" (health < threshold).
+    /* 3. Eviction: Only evict if aggregate health < threshold.
      * Don't kill a healthy friend for a stranger.
+     * A peer healthy on ANY arbor is protected.
      */
-    if (oldest->health_score < UTLP_TRUST_SYNC_THRESH) {
-        utlp_hal_log_warn(TAG, "Evicting weak peer %02X for new entry", oldest->mac[5]);
+    if (oldest_health < UTLP_TRUST_SYNC_THRESH) {
+        utlp_hal_log_warn(TAG, "Evicting weak peer %02X:%02X for new entry (agg_health=%d)",
+                          oldest->mac[4], oldest->mac[5], oldest_health);
         clear_peer(oldest);
         return oldest;
     }
@@ -209,12 +270,15 @@ void utlp_trust_init(void) {
  * @brief Get median consensus offset from healthy peers
  *
  * Byzantine-resistant consensus: collects offsets from all peers with
- * health >= UTLP_TRUST_MIN_VOTE, sorts them, and returns the median.
+ * aggregate health >= UTLP_TRUST_MIN_VOTE, sorts them, and returns median.
  *
  * Why median instead of mean?
  * - A single liar reporting +1000000us cannot corrupt the median
  * - The median is robust to outliers (50% of voters must be corrupted)
  * - Perfect for adversarial environments
+ *
+ * @note Phase 9 (Blood-Brain Barrier): Uses aggregate health and the most
+ *       recent offset across all arbors. Timing consensus is transport-agnostic.
  *
  * @param[out] out_consensus_offset Median offset in microseconds
  * @return true if at least one healthy voter exists
@@ -223,12 +287,27 @@ void utlp_trust_init(void) {
 bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
     int32_t votes[UTLP_TRUST_MAX_PEERS];
     int count = 0;
-    int i;
+    int i, j;
+    uint8_t agg_health;
+    uint32_t best_seen;
+    int best_arbor;
 
-    /* Collect votes from HEALTHY peers only */
+    /* Collect votes from HEALTHY peers only (aggregate health check) */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
-        if (g_peers[i].interactions > 0 && g_peers[i].health_score >= UTLP_TRUST_MIN_VOTE) {
-            votes[count++] = g_peers[i].last_offset_us;
+        if (g_peers[i].interactions == 0) continue;
+
+        agg_health = get_aggregate_health(&g_peers[i]);
+        if (agg_health >= UTLP_TRUST_MIN_VOTE) {
+            /* Use the most recent offset (from whichever arbor saw them last) */
+            best_seen = 0;
+            best_arbor = 0;
+            for (j = 0; j < UTLP_MAX_ARBORS; j++) {
+                if (g_peers[i].last_seen_ms[j] > best_seen) {
+                    best_seen = g_peers[i].last_seen_ms[j];
+                    best_arbor = j;
+                }
+            }
+            votes[count++] = g_peers[i].last_offset_us[best_arbor];
         }
     }
 
@@ -249,14 +328,36 @@ bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
 }
 
 /**
- * @brief Record a timing observation from a peer
+ * @brief Record a timing observation from a peer (backward compatible wrapper)
+ *
+ * @deprecated Use utlp_trust_record_observation_arbor() for per-arbor tracking.
+ *             This function assumes UTLP_ARBOR_WIFI (arbor 0) for backward compat
+ *             and UTLP_RSSI_INVALID for RSSI (no spectral data).
+ *
+ * @param mac        Peer's 6-byte MAC address
+ * @param offset_us  Reported time offset in microseconds
+ * @param stratum    Peer's claimed stratum level (1=Genesis, 2=Follower, etc.)
+ */
+void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_t stratum) {
+    /* Default to arbor 0 (WiFi), invalid RSSI, and 0 session_salt for backward compatibility.
+     * Session_salt 0 means "unknown session" - PT-6 salt change detection is skipped. */
+    utlp_trust_record_observation_arbor(mac, offset_us, stratum, 0, UTLP_RSSI_INVALID, 0);
+}
+
+/**
+ * @brief Record a timing observation with arbor context (Blood-Brain Barrier)
  *
  * This is the heart of the Metabolic Ledger - the judgement engine.
  *
+ * @par Phase 9: Per-Arbor Trust Tracking
+ * Health scores are tracked independently per transport (arbor). A peer that
+ * is healthy on 802.15.4 but jittery on WiFi will only have its WiFi health
+ * degraded - the 15.4 reputation remains intact.
+ *
  * @par The Judgement Process:
  * 1. Find or create peer entry (may trigger LRU eviction)
- * 2. For new peers: initialize with probationary trust (UTLP_TRUST_STARTUP)
- * 3. Get swarm consensus (median of healthy peers)
+ * 2. For new peers: initialize with probationary trust on THIS arbor
+ * 3. Get swarm consensus (median of aggregate-healthy peers)
  * 4. Compare this observation against consensus:
  *    - No consensus: judge by self-consistency (jitter < 2ms = small reward)
  *    - Consensus exists: deviation determines reward/penalty
@@ -270,82 +371,217 @@ bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
  * @param mac        Peer's 6-byte MAC address
  * @param offset_us  Reported time offset in microseconds
  * @param stratum    Peer's claimed stratum level (1=Genesis, 2=Follower, etc.)
+ * @param arbor_id   Transport that received this packet (0=WiFi, 1=154, 2=BLE)
+ * @param rssi       Received signal strength (dBm), or UTLP_RSSI_INVALID if unavailable
+ *
+ * @par Phase 11: Spectral Retina
+ * In addition to timing judgement, we store RSSI for each arbor and log
+ * spectral coherence when both WiFi and 802.15.4 have recent readings.
+ * This reveals environmental multipath ("Radio Color") for future confidence weighting.
  */
-void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_t stratum) {
+void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
+                                          uint8_t stratum, uint8_t arbor_id,
+                                          int8_t rssi, uint16_t session_salt) {
     utlp_peer_ledger_t *p = get_peer_entry(mac);
     int32_t consensus = 0;
     bool has_consensus;
     int32_t deviation;
     uint64_t now_full;
     uint32_t current_ms;
+    int i;
 
     if (!p) return; /* Table full of healthy peers, stranger ignored */
+    if (arbor_id >= UTLP_MAX_ARBORS) arbor_id = 0; /* Bounds check */
 
     UTLP_HAL_GET_TIME(&now_full);
     current_ms = (uint32_t)(now_full / 1000);
 
-    /* New peer initialization - probationary trust */
+    /* New peer initialization - probationary trust on ALL arbors */
     if (p->interactions == 0) {
         memcpy(p->mac, mac, 6);
-        p->health_score = UTLP_TRUST_STARTUP; /* Probationary trust */
+        /* Initialize all arbor health scores to STARTUP (probationary) */
+        for (i = 0; i < UTLP_MAX_ARBORS; i++) {
+            p->health_score[i] = UTLP_TRUST_STARTUP;
+            p->last_seen_ms[i] = 0;
+            p->last_offset_us[i] = 0;
+            /* Spectral Retina: Initialize RSSI tracking */
+            p->last_rssi[i] = UTLP_RSSI_INVALID;
+            p->rssi_timestamp_ms[i] = 0;
+        }
         p->interactions = 1;
-        p->last_offset_us = offset_us;
-        p->last_seen_ms = current_ms;
+        p->last_offset_us[arbor_id] = offset_us;
+        p->last_seen_ms[arbor_id] = current_ms;
         p->stratum_claim = stratum;
-        utlp_hal_log_info(TAG, "New Peer %02X:%02X (Health %d)", mac[4], mac[5], p->health_score);
+        p->first_seen_ms = current_ms;
+        /* PT-6: Initialize session_salt tracking (0 = never seen until now) */
+        p->last_session_salt = session_salt;
+        /* Spectral Retina: Store first RSSI reading if valid */
+        if (rssi != UTLP_RSSI_INVALID) {
+            p->last_rssi[arbor_id] = rssi;
+            p->rssi_timestamp_ms[arbor_id] = current_ms;
+        }
+        utlp_hal_log_info(TAG, "New Peer %02X:%02X (arbor=%d, health=%d, rssi=%d, salt=0x%04X)",
+                          mac[4], mac[5], arbor_id, p->health_score[arbor_id], rssi, session_salt);
         return;
     }
 
-    /* Update metadata */
-    p->last_seen_ms = current_ms;
+    /*=========================================================================
+     * PT-6: SESSION CONTINUITY ENFORCEMENT ("Seniority Bankruptcy")
+     *
+     * "The Ghost has died. Long live the Ghost."
+     *
+     * If session_salt changed (same MAC, different salt), the peer rebooted.
+     * ALL accumulated political capital is forfeit. The peer must re-earn
+     * trust through consistent behavior, starting from ZERO (not STARTUP).
+     *
+     * WHY ZERO NOT STARTUP:
+     * - STARTUP (50) is "probationary" - benefit of the doubt
+     * - A rebooted high-trust peer could have been compromised/attacked
+     * - Zero trust forces re-validation before ANY influence
+     * - Genesis Guard will reject them until they earn >100 health
+     *
+     * DEFENSE IN DEPTH: This is the FASTEST detection method:
+     * - Genesis Pulse:    Needs 2+ beacons to detect interval < 2000ms
+     * - Time Regression:  Needs time to go backwards > 10s (slow)
+     * - Session Salt:     FIRST beacon after reboot triggers this
+     *========================================================================*/
+    if (p->last_session_salt != 0 && p->last_session_salt != session_salt) {
+        utlp_hal_log_warn(TAG, "*** SENIORITY BANKRUPTCY *** Peer %02X:%02X salt 0x%04X->0x%04X (REBOOT DETECTED)",
+                          mac[4], mac[5], p->last_session_salt, session_salt);
+
+        /* WIPE: Reset seniority clock (tenure starts over) */
+        p->first_seen_ms = current_ms;
+
+        /* WIPE: Reset trust history across ALL arbors to ZERO (punitive, not probationary) */
+        for (i = 0; i < UTLP_MAX_ARBORS; i++) {
+            p->health_score[i] = 0;         /* Zero trust, not STARTUP */
+            p->last_seen_ms[i] = 0;
+            p->last_offset_us[i] = 0;
+            p->last_rssi[i] = UTLP_RSSI_INVALID;
+            p->rssi_timestamp_ms[i] = 0;
+        }
+
+        /* WIPE: Reset interaction counters */
+        p->interactions = 1;              /* This IS first valid observation in new life */
+        p->consecutive_hits = 0;
+        p->observed_interval_ms = 0;
+
+        /* WIPE: Force stratum re-evaluation (worst possible) */
+        p->stratum_claim = 255;
+
+        /* WIPE: Reset TX tracking for regression detection */
+        p->last_tx_time_us = 0;
+
+        /* Update to new salt and set initial values */
+        p->last_session_salt = session_salt;
+        p->last_seen_ms[arbor_id] = current_ms;
+        /* BUG FIX (PT-9): Do NOT set stratum here - it was just wiped to 255 at line 470.
+         * Per S2 Claim 137, bankrupted peers must re-earn trust from scratch.
+         * The stratum will be set normally once this peer proves itself again. */
+        if (rssi != UTLP_RSSI_INVALID) {
+            p->last_rssi[arbor_id] = rssi;
+            p->rssi_timestamp_ms[arbor_id] = current_ms;
+        }
+
+        /* Log and return - peer starts fresh journey to trustworthiness */
+        utlp_hal_log_info(TAG, "Peer %02X:%02X reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
+                          mac[4], mac[5], arbor_id, rssi, session_salt);
+        return;
+    }
+
+    /* Update session_salt tracking (same peer, same salt = continuous session) */
+    p->last_session_salt = session_salt;
+
+    /* Update per-arbor metadata */
+    p->last_seen_ms[arbor_id] = current_ms;
     p->stratum_claim = stratum;
+
+    /* Spectral Retina: Store RSSI for this arbor if valid */
+    if (rssi != UTLP_RSSI_INVALID) {
+        p->last_rssi[arbor_id] = rssi;
+        p->rssi_timestamp_ms[arbor_id] = current_ms;
+    }
 
     /* THE JUDGEMENT: Compare against Swarm Consensus
      * If no consensus exists (I am alone), we trust lightly based on self-consistency.
+     *
+     * Note: Consensus uses aggregate health, but judgement affects THIS arbor only.
      */
     has_consensus = utlp_trust_get_consensus(&consensus);
 
     if (!has_consensus) {
-        /* No consensus yet. Just check self-consistency (jitter) */
-        deviation = abs(p->last_offset_us - offset_us);
-        /* If jitter is low (<2ms), small reward. Else small penalty. */
-        if (deviation < 2000) {
-            if (p->health_score < UTLP_TRUST_MAX) p->health_score++;
+        /* No consensus yet. Just check self-consistency (jitter) on THIS arbor */
+        deviation = abs(p->last_offset_us[arbor_id] - offset_us);
+
+        /*
+         * v3.8 PT-13 FIX: Bootstrap Grace Period
+         *
+         * During first N interactions, skip the self-consistency penalty.
+         * Two unsynchronized devices WILL have high jitter between consecutive
+         * observations - this is expected during initial sync, not a sign of
+         * untrustworthiness.
+         *
+         * Without this grace, peers start at health=50 but get penalized (-1)
+         * on every observation because jitter > 2ms. Health can only DECREASE,
+         * never reaching SYNC_THRESH (100) = "bootstrap catch-22".
+         */
+        if (p->interactions < UTLP_TRUST_BOOTSTRAP_INTERACTIONS) {
+            /* During bootstrap: only reward stability, never penalize */
+            if (deviation < 2000) {
+                if (p->health_score[arbor_id] < UTLP_TRUST_MAX) {
+                    p->health_score[arbor_id]++;
+                }
+            }
+            /* No penalty during bootstrap - jitter is expected */
         } else {
-            if (p->health_score > 0) p->health_score--;
+            /* Normal self-consistency check after bootstrap complete */
+            if (deviation < 2000) {
+                if (p->health_score[arbor_id] < UTLP_TRUST_MAX) {
+                    p->health_score[arbor_id]++;
+                }
+            } else {
+                if (p->health_score[arbor_id] > 0) {
+                    p->health_score[arbor_id]--;
+                }
+            }
         }
     } else {
-        /* CONSENSUS EXISTS: The Crowd vs. The Peer */
+        /* CONSENSUS EXISTS: The Crowd vs. The Peer on THIS arbor */
         deviation = abs(offset_us - consensus);
 
         if (deviation < 2000) { /* 2ms Agreement Window */
             /* Hebbian Reward: Trust grows slowly */
-            if (p->health_score <= (UTLP_TRUST_MAX - UTLP_REWARD_TRUTH)) {
-                p->health_score += UTLP_REWARD_TRUTH;
+            if (p->health_score[arbor_id] <= (UTLP_TRUST_MAX - UTLP_REWARD_TRUTH)) {
+                p->health_score[arbor_id] += UTLP_REWARD_TRUTH;
             } else {
-                p->health_score = UTLP_TRUST_MAX;
+                p->health_score[arbor_id] = UTLP_TRUST_MAX;
             }
             p->consecutive_hits++;
         } else {
-            /* Penalty: Entropy eats trust quickly
+            /* Penalty: Entropy eats trust quickly on THIS arbor
              * >100ms = lying (severe), else = drifting (moderate)
              */
             uint8_t penalty = (deviation > 100000) ? UTLP_COST_LYING : UTLP_COST_DRIFTING;
 
-            if (p->health_score > penalty) {
-                p->health_score -= penalty;
+            if (p->health_score[arbor_id] > penalty) {
+                p->health_score[arbor_id] -= penalty;
             } else {
-                p->health_score = 0;
+                p->health_score[arbor_id] = 0;
             }
             p->consecutive_hits = 0;
-            utlp_hal_log_warn(TAG, "Peer %02X punished (Dev: %ldus, Health: %d)",
-                              mac[5], (long)deviation, p->health_score);
+            utlp_hal_log_warn(TAG, "Peer %02X:%02X punished (arbor=%d, dev=%ldus, health=%d)",
+                              mac[4], mac[5], arbor_id, (long)deviation, p->health_score[arbor_id]);
         }
     }
 
-    /* Update last known offset AFTER judgement */
-    p->last_offset_us = offset_us;
+    /* Update last known offset on THIS arbor AFTER judgement */
+    p->last_offset_us[arbor_id] = offset_us;
     if (p->interactions < 65000) p->interactions++;
+
+    /* Spectral Retina: Log coherence when we have fresh RSSI from multiple arbors */
+    if (rssi != UTLP_RSSI_INVALID) {
+        utlp_trust_log_spectral_coherence(p, arbor_id, current_ms);
+    }
 }
 
 /**
@@ -355,7 +591,7 @@ void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_
  *
  * @par Scoring Formula:
  * @code
- * score = (health × 10) + (16 - stratum)
+ * score = (aggregate_health × 10) + (16 - stratum)
  * @endcode
  *
  * Health (0-255) dominates the score (0-2550 contribution).
@@ -367,27 +603,54 @@ void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_
  *
  * The healthy Stratum-2 wins. Consistency beats proximity.
  *
+ * @note Phase 9 (Blood-Brain Barrier): Uses aggregate health across all arbors.
+ *       A peer healthy on ANY transport qualifies.
+ *
  * @return Pointer to best peer, or NULL if no peer meets SYNC_THRESH
  */
 utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
     int i;
     utlp_peer_ledger_t *best = NULL;
     uint32_t best_score = 0;
+    uint8_t agg_health;
+    uint8_t active_peer_count = 0;
+    uint8_t threshold;
+
+    /*
+     * v3.8 PT-13c FIX: Count active peers first for N=2 threshold lowering
+     *
+     * When only 1 peer exists (N=2 swarm), use a lower threshold to break
+     * the bootstrap catch-22. At N=2, we cannot use quorum consensus, so
+     * we must trust the only peer we have - even during bootstrap.
+     *
+     * With N≥3 peers, we maintain higher standards because we have options.
+     */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0) {
+            active_peer_count++;
+        }
+    }
+
+    /* Lower threshold for N=2 (single peer) vs normal for N≥3 */
+    threshold = (active_peer_count == 1) ?
+                UTLP_TRUST_STARTUP :     /* 50 - accept single peer at startup health */
+                UTLP_TRUST_SYNC_THRESH;  /* 100 - normal threshold for N≥3 */
 
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         utlp_peer_ledger_t *p = &g_peers[i];
         uint32_t composite_score;
 
-        /* Filter: Must exist and meet threshold */
+        /* Filter: Must exist and meet threshold (aggregate health) */
         if (p->interactions == 0) continue;
-        if (p->health_score < UTLP_TRUST_SYNC_THRESH) continue;
+        agg_health = get_aggregate_health(p);
+        if (agg_health < threshold) continue;
 
         /* FORMULA: Survival of the Fittest
-         * Health (0-255) is dominant. Stratum (0-255) is secondary.
+         * Aggregate Health (0-255) is dominant. Stratum (0-255) is secondary.
          * Score = (Health * 10) + (16 - Stratum)
          * Note: Stratum 1 is better than 2, so we invert it.
          */
-        composite_score = ((uint32_t)p->health_score * 10);
+        composite_score = ((uint32_t)agg_health * 10);
 
         /* Add small bonus for better stratum, but cap it so a sick Stratum 1
            never beats a healthy Stratum 2 */
@@ -409,28 +672,34 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
  *
  * Outputs all tracked peers showing:
  * - MAC address (last byte for brevity)
- * - Health score (0-255)
+ * - Per-arbor health scores [WiFi/15.4/BLE]
+ * - Aggregate health (max across arbors)
  * - Claimed stratum
- * - Last offset in microseconds
  * - Total interaction count
  *
  * Also indicates whether swarm consensus exists.
+ *
+ * @note Phase 9 (Blood-Brain Barrier): Shows per-arbor health breakdown.
  */
 void utlp_trust_log_status(void) {
     int i;
     int32_t consensus = 0;
     bool has_cons = utlp_trust_get_consensus(&consensus);
+    uint8_t agg_health;
 
     utlp_hal_log_info(TAG, "--- METABOLIC LEDGER (Consensus: %s) ---",
                       has_cons ? "YES" : "NO");
 
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions > 0) {
-            utlp_hal_log_info(TAG, "[%02X] Health:%3d | Strat:%2d | Ofs:%+ldus | Int:%d",
-                              g_peers[i].mac[5],
-                              g_peers[i].health_score,
+            agg_health = get_aggregate_health(&g_peers[i]);
+            utlp_hal_log_info(TAG, "[%02X:%02X] Health:[W%3d/P%3d/B%3d] Agg:%3d | Strat:%2d | Int:%d",
+                              g_peers[i].mac[4], g_peers[i].mac[5],
+                              g_peers[i].health_score[0],  /* WiFi */
+                              g_peers[i].health_score[1],  /* 802.15.4 */
+                              g_peers[i].health_score[2],  /* BLE */
+                              agg_health,
                               g_peers[i].stratum_claim,
-                              (long)g_peers[i].last_offset_us,
                               g_peers[i].interactions);
         }
     }
@@ -447,24 +716,51 @@ void utlp_trust_log_status(void) {
  * node drifts, thinks the healthy swarm is wrong, and burns its entrainment
  * budget entraining valid packets.
  *
- * @param my_offset    My current time offset in microseconds
+ * @par v3.5 FIX: int64_t my_offset parameter
+ * Changed from int32_t to prevent truncation when g_aatr.time_offset
+ * exceeds int32_t range (±35 minutes = ±2.1B µs). Deviation calculation
+ * uses int64_t but threshold comparison remains int32_t (always small).
+ *
+ * @note Phase 9 (Blood-Brain Barrier): Uses aggregate health and most recent
+ *       offset across all arbors. Quorum is transport-agnostic.
+ *
+ * @param my_offset    My current time offset in microseconds (64-bit)
  * @param threshold_us Maximum deviation to count as "agreement"
  * @return true if >= 2 healthy peers agree with me within threshold
  */
-bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us) {
-    int i;
+bool utlp_trust_has_quorum(int64_t my_offset, int32_t threshold_us) {
+    int i, j;
     int agreeing_peers = 0;
+    uint8_t agg_health;
+    uint32_t best_seen;
+    int best_arbor;
+    int64_t peer_offset;
+    int64_t deviation;
 
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         /* Skip empty slots */
         if (g_peers[i].interactions == 0) continue;
 
-        /* Skip unhealthy peers - they don't count for quorum */
-        if (g_peers[i].health_score < UTLP_TRUST_MIN_VOTE) continue;
+        /* Skip unhealthy peers (aggregate health) - they don't count for quorum */
+        agg_health = get_aggregate_health(&g_peers[i]);
+        if (agg_health < UTLP_TRUST_MIN_VOTE) continue;
 
-        /* Does this healthy peer agree with me? */
-        int32_t deviation = abs(g_peers[i].last_offset_us - my_offset);
-        if (deviation < threshold_us) {
+        /* Use most recent offset across all arbors */
+        best_seen = 0;
+        best_arbor = 0;
+        for (j = 0; j < UTLP_MAX_ARBORS; j++) {
+            if (g_peers[i].last_seen_ms[j] > best_seen) {
+                best_seen = g_peers[i].last_seen_ms[j];
+                best_arbor = j;
+            }
+        }
+        /* Stored as int32_t, promoted to int64_t for comparison */
+        peer_offset = (int64_t)g_peers[i].last_offset_us[best_arbor];
+
+        /* Does this healthy peer agree with me? (64-bit abs for full range) */
+        deviation = peer_offset - my_offset;
+        if (deviation < 0) deviation = -deviation;
+        if (deviation < (int64_t)threshold_us) {
             agreeing_peers++;
         }
     }
@@ -482,13 +778,16 @@ bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us) {
 }
 
 /**
- * @brief Look up a peer's health score
+ * @brief Look up a peer's aggregate health score
  *
  * Searches the Metabolic Ledger for a specific peer by MAC address.
- * Returns their current health score, or 0 if the peer is not tracked.
+ * Returns their maximum health score across all arbors, or 0 if not tracked.
+ *
+ * @note Phase 9 (Blood-Brain Barrier): Returns aggregate (max) health.
+ *       Use utlp_trust_get_health_arbor() for per-transport health.
  *
  * @param mac Peer's 6-byte MAC address
- * @return Health score (0-255), or 0 if peer not found
+ * @return Aggregate health score (0-255), or 0 if peer not found
  */
 uint8_t utlp_trust_get_peer_health(const uint8_t *mac) {
     int i;
@@ -497,12 +796,68 @@ uint8_t utlp_trust_get_peer_health(const uint8_t *mac) {
         if (g_peers[i].interactions == 0) continue;
 
         if (memcmp(g_peers[i].mac, mac, 6) == 0) {
-            return g_peers[i].health_score;
+            return get_aggregate_health(&g_peers[i]);
         }
     }
 
     /* Peer not in Ledger - treat as unknown (lowest trust) */
     return 0;
+}
+
+/**
+ * @brief Look up a peer's health score on a specific arbor
+ *
+ * Phase 9 (Blood-Brain Barrier): Per-arbor health lookup.
+ *
+ * @param mac       Peer's 6-byte MAC address
+ * @param arbor_id  Transport to query (0=WiFi, 1=154, 2=BLE)
+ * @return Health score on that arbor (0-255), or 0 if peer not found
+ */
+uint8_t utlp_trust_get_health_arbor(const uint8_t *mac, uint8_t arbor_id) {
+    int i;
+
+    if (arbor_id >= UTLP_MAX_ARBORS) return 0;
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions == 0) continue;
+
+        if (memcmp(g_peers[i].mac, mac, 6) == 0) {
+            return g_peers[i].health_score[arbor_id];
+        }
+    }
+
+    /* Peer not in Ledger - treat as unknown (lowest trust) */
+    return 0;
+}
+
+/*============================================================================
+ * DORMANCY SUPPORT (Phase 9 - Arbor Yield/Wake)
+ *
+ * Snapshot per-arbor ledger state before yielding a transport.
+ * Enables comparison on wake to detect anomalies.
+ *==========================================================================*/
+
+/** @brief Per-arbor snapshot storage for dormancy */
+static struct {
+    uint8_t snapshot_valid;  /* Bitmask of valid snapshots */
+    /* Could expand with more data if needed for wake comparison */
+} g_dormancy_state = {0};
+
+/**
+ * @brief Snapshot per-arbor ledger state for dormancy
+ *
+ * Called before arbor yield to preserve reputation snapshot.
+ * Currently just marks the arbor as having a valid snapshot.
+ * Future: Could save health scores for post-wake comparison.
+ *
+ * @param arbor_id Transport being yielded (0=WiFi, 1=154, 2=BLE)
+ */
+void utlp_trust_snapshot_arbor(uint8_t arbor_id) {
+    if (arbor_id >= UTLP_MAX_ARBORS) return;
+
+    g_dormancy_state.snapshot_valid |= (1 << arbor_id);
+
+    utlp_hal_log_info(TAG, "Arbor %d ledger snapshot taken (pre-dormancy)", arbor_id);
 }
 
 /*============================================================================
@@ -523,15 +878,22 @@ static uint32_t g_last_coherent_ms = 0;
 
 /**
  * @brief Get current swarm coherence metrics
+ *
+ * @note Phase 9 (Blood-Brain Barrier): Uses aggregate health and most recent
+ *       offset across all arbors. Coherence is transport-agnostic.
  */
 void utlp_trust_get_coherence(utlp_coherence_t *out) {
-    int i;
+    int i, j;
     int32_t consensus = 0;
     int32_t min_offset = INT32_MAX;
     int32_t max_offset = INT32_MIN;
     uint8_t healthy_count = 0;
     uint8_t agreeing_count = 0;
     uint32_t now_ms;
+    uint8_t agg_health;
+    uint32_t best_seen;
+    int best_arbor;
+    int32_t peer_offset;
 
     /* Initialize output */
     memset(out, 0, sizeof(*out));
@@ -544,23 +906,36 @@ void utlp_trust_get_coherence(utlp_coherence_t *out) {
     }
     out->consensus_us = consensus;
 
-    /* Count healthy peers and measure spread */
+    /* Count healthy peers and measure spread (using aggregate health) */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions == 0) continue;
-        if (g_peers[i].health_score < UTLP_TRUST_SYNC_THRESH) continue;
+
+        agg_health = get_aggregate_health(&g_peers[i]);
+        if (agg_health < UTLP_TRUST_SYNC_THRESH) continue;
 
         healthy_count++;
 
-        /* Track min/max for spread calculation */
-        if (g_peers[i].last_offset_us < min_offset) {
-            min_offset = g_peers[i].last_offset_us;
+        /* Use most recent offset across all arbors */
+        best_seen = 0;
+        best_arbor = 0;
+        for (j = 0; j < UTLP_MAX_ARBORS; j++) {
+            if (g_peers[i].last_seen_ms[j] > best_seen) {
+                best_seen = g_peers[i].last_seen_ms[j];
+                best_arbor = j;
+            }
         }
-        if (g_peers[i].last_offset_us > max_offset) {
-            max_offset = g_peers[i].last_offset_us;
+        peer_offset = g_peers[i].last_offset_us[best_arbor];
+
+        /* Track min/max for spread calculation */
+        if (peer_offset < min_offset) {
+            min_offset = peer_offset;
+        }
+        if (peer_offset > max_offset) {
+            max_offset = peer_offset;
         }
 
         /* Check if this peer agrees with consensus */
-        int32_t deviation = g_peers[i].last_offset_us - consensus;
+        int32_t deviation = peer_offset - consensus;
         if (deviation < 0) deviation = -deviation;
         if (deviation < COHERENCE_AGREEMENT_THRESHOLD_US) {
             agreeing_count++;
@@ -652,15 +1027,65 @@ void utlp_trust_log_coherence(void) {
  *
  * If observed_interval_ms < 2000, peer is likely in genesis phases 1-3.
  *
+ * @par v3.5 FIX: Tenure-based detection (S2 Claim 137)
+ * After seniority bankruptcy, interactions=1 and observed_interval_ms=0
+ * would cause this function to return false, allowing rebooted peers to
+ * bypass genesis pulse protection in INNATE IMMUNITY paths. We now also
+ * check peer tenure (time since first_seen_ms). If peer was seen < 5s ago,
+ * we treat them as potentially genesis-pulsing regardless of interval data.
+ *
  * @param peer Pointer to peer ledger entry
  * @return true if peer appears to be in genesis pulse phase
  */
-bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer) {
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer,
+                                    int64_t peer_tx_time) {
+    int64_t genesis_threshold_us;
+
     if (!peer) return false;
 
-    /* Need at least 2 observations to have a valid interval estimate */
+    /*
+     * v3.6 FIX: Use peer's atomic time (TX timestamp) as age indicator
+     *
+     * BIOLOGICAL PRINCIPLE: "The nature of the cell is to come together."
+     * A newcomer discovering an established peer should coalesce, not fight.
+     * The peer's atomic time tells us how long they've been running - this
+     * is intrinsic to them, not dependent on when we first noticed them.
+     *
+     * PREVIOUS BUG (v3.5): The tenure check used first_seen_ms (when WE first
+     * saw the peer), which blocked ALL newly-discovered peers for 5 seconds,
+     * even established ones that a newcomer just met. This prevented
+     * coalescence between devices.
+     *
+     * FIX: If peer_tx_time >= 5 seconds, they've been running long enough
+     * to NOT be genesis-pulsing. This is unforgeable - a newborn can't
+     * claim to be old (their atomic time starts at 0).
+     */
+    genesis_threshold_us = (int64_t)UTLP_GENESIS_TENURE_THRESHOLD_MS * 1000;
+
+    if (peer_tx_time >= genesis_threshold_us) {
+        /* Peer has been running >= 5 seconds - clearly established */
+        return false;
+    }
+
+    /*
+     * Peer's atomic time < 5 seconds - they MIGHT be genesis pulsing.
+     * Fall back to interval-based detection for additional confidence.
+     *
+     * Need at least 2 observations to have a valid interval estimate.
+     * If we don't have enough observations, we're uncertain.
+     */
     if (peer->interactions < UTLP_MIN_INTERVAL_OBSERVATIONS) {
-        return false;  /* Unknown, assume not genesis pulsing */
+        /*
+         * Not enough observations AND atomic time < 5s.
+         * This is the ambiguous case: could be a newborn, or could be
+         * an established peer we just discovered who happens to have
+         * low atomic time (rare - would require reboot within 5s).
+         *
+         * COALESCENCE BIAS: Return false to allow coalescence.
+         * If they ARE genesis-pulsing, we'll catch them on subsequent
+         * beacons when we have interval data.
+         */
+        return false;
     }
 
     /* Genesis pulsing if observed interval is below threshold */
@@ -699,8 +1124,9 @@ bool utlp_trust_check_regression(const utlp_peer_ledger_t *peer,
         return false;  /* First observation, no regression possible */
     }
 
-    /* Calculate expected TX time (last TX + elapsed time) */
-    elapsed_us = (int64_t)(now_ms - peer->last_seen_ms) * 1000;
+    /* Calculate expected TX time (last TX + elapsed time)
+     * Use aggregate (most recent) last_seen across all arbors */
+    elapsed_us = (int64_t)(now_ms - get_aggregate_last_seen(peer)) * 1000;
     expected_tx = peer->last_tx_time_us + elapsed_us;
 
     /*
@@ -754,9 +1180,11 @@ void utlp_trust_update_tx_tracking(const uint8_t *mac,
 
     if (!peer) return;  /* Peer not found */
 
-    /* Update interval estimate if we have a previous observation */
-    if (peer->last_seen_ms > 0) {
-        uint32_t observed_interval = now_ms - peer->last_seen_ms;
+    /* Update interval estimate if we have a previous observation
+     * Use aggregate (most recent) last_seen across all arbors */
+    uint32_t agg_last_seen = get_aggregate_last_seen(peer);
+    if (agg_last_seen > 0) {
+        uint32_t observed_interval = now_ms - agg_last_seen;
 
         if (peer->observed_interval_ms == 0) {
             /* First interval observation */
@@ -797,4 +1225,194 @@ utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac) {
     }
 
     return NULL;
+}
+
+/*============================================================================
+ * POLYCHROMATIC STRATUM HELPERS (Claim 253)
+ *
+ * Per-arbor neighbor queries for polychromatic stratum asymmetry.
+ * These functions enable bridge nodes to detect authority presence on
+ * each transport independently.
+ *==========================================================================*/
+
+/**
+ * @brief Count neighbors with stratum <= threshold on a specific arbor
+ *
+ * Used by polychromatic logic to detect authority presence on a transport.
+ * Only counts peers that have been seen recently on the specified arbor.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @param max_stratum  Count neighbors with stratum <= this value
+ * @return Count of matching neighbors
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_count_neighbors_by_stratum_arbor(
+    utlp_arbor_id_t arbor_id, uint8_t max_stratum)
+{
+    uint8_t count = 0;
+    int i;
+
+    if (arbor_id >= UTLP_MAX_ARBORS) {
+        return 0;
+    }
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        /* Skip empty slots */
+        if (g_peers[i].interactions == 0) {
+            continue;
+        }
+
+        /* Check if seen on this arbor recently (non-zero last_seen_ms) */
+        if (g_peers[i].last_seen_ms[arbor_id] > 0 &&
+            g_peers[i].stratum_claim <= max_stratum) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/**
+ * @brief Get lowest (best) stratum seen on a specific arbor
+ *
+ * Used by polychromatic logic to determine what stratum to adopt when
+ * an authority appears on a previously silent secondary transport.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @return Best (lowest) stratum, or 255 if no neighbors on that arbor
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_get_best_stratum_arbor(utlp_arbor_id_t arbor_id)
+{
+    uint8_t best = 255;
+    int i;
+
+    if (arbor_id >= UTLP_MAX_ARBORS) {
+        return 255;
+    }
+
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        /* Skip empty slots */
+        if (g_peers[i].interactions == 0) {
+            continue;
+        }
+
+        /* Check if seen on this arbor recently */
+        if (g_peers[i].last_seen_ms[arbor_id] > 0 &&
+            g_peers[i].stratum_claim < best) {
+            best = g_peers[i].stratum_claim;
+        }
+    }
+
+    return best;
+}
+
+/*============================================================================
+ * SPECTRAL RETINA (Phase 11)
+ *
+ * Multi-transport RSSI comparison reveals environmental "Radio Color" -
+ * how differently WiFi and 802.15.4 propagate through the same space.
+ *
+ * @par Why This Matters:
+ * - WiFi (2.4GHz, 20MHz BW) and 802.15.4 (2.4GHz, 2MHz BW) experience
+ *   different multipath fading profiles despite sharing the same band
+ * - Large RSSI delta (>10dB) indicates cluttered RF environment
+ * - Future: Could weight timing confidence by spectral coherence
+ *
+ * @par Output Classification:
+ * - CLEAR: Delta ≤ 10dB - Both transports see similar signal strength
+ * - CLUTTERED: Delta > 10dB - Multipath causing divergent propagation
+ *
+ * @see Claim 253: Polychromatic Architecture Foundation
+ *==========================================================================*/
+
+/**
+ * @brief Log spectral coherence between WiFi and 802.15.4 transports
+ *
+ * Called after RSSI update to compare signal strength across transports.
+ * Only logs when both WiFi and 802.15.4 have fresh RSSI readings.
+ *
+ * @par Example Output:
+ * @code
+ * RETINA: Peer 5c | WiFi:-45 15.4:-52 | Delta: 7 dB | CLEAR
+ * RETINA: Peer 5c | WiFi:-45 15.4:-68 | Delta: 23 dB | CLUTTERED
+ * @endcode
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param current_arbor Which transport just received an update
+ * @param now_ms        Current time in milliseconds
+ */
+void utlp_trust_log_spectral_coherence(const utlp_peer_ledger_t *peer,
+                                        uint8_t current_arbor, uint32_t now_ms)
+{
+    uint8_t other_arbor;
+    uint32_t other_age_ms;
+    int8_t current_rssi;
+    int8_t other_rssi;
+    int8_t delta;
+    const char *status;
+    const char *wifi_label;
+    const char *other_label;
+
+    if (!peer) return;
+    if (current_arbor >= UTLP_MAX_ARBORS) return;
+
+    /*
+     * Spectral Retina focuses on WiFi vs 802.15.4 comparison.
+     * BLE (arbor 2) is excluded for now since it uses different channels.
+     *
+     * If current arbor is WiFi (0), compare with 802.15.4 (1).
+     * If current arbor is 802.15.4 (1), compare with WiFi (0).
+     * If current arbor is BLE (2), skip spectral coherence logging.
+     */
+    if (current_arbor == UTLP_ARBOR_WIFI) {
+        other_arbor = UTLP_ARBOR_154;
+    } else if (current_arbor == UTLP_ARBOR_154) {
+        other_arbor = UTLP_ARBOR_WIFI;
+    } else {
+        return;  /* BLE - skip spectral coherence */
+    }
+
+    /* Check if other transport has recent RSSI (not stale) */
+    if (peer->rssi_timestamp_ms[other_arbor] == 0) {
+        return;  /* No reading from other transport yet */
+    }
+
+    other_age_ms = now_ms - peer->rssi_timestamp_ms[other_arbor];
+    if (other_age_ms > UTLP_RSSI_STALE_MS) {
+        return;  /* Other transport's RSSI is stale */
+    }
+
+    /* Check both RSSI values are valid */
+    current_rssi = peer->last_rssi[current_arbor];
+    other_rssi = peer->last_rssi[other_arbor];
+
+    if (current_rssi == UTLP_RSSI_INVALID || other_rssi == UTLP_RSSI_INVALID) {
+        return;  /* Invalid RSSI value */
+    }
+
+    /* Calculate delta (absolute difference) */
+    delta = current_rssi - other_rssi;
+    if (delta < 0) delta = -delta;  /* abs() for int8_t */
+
+    /* Classify environment */
+    status = (delta > UTLP_RSSI_DELTA_CLEAR) ? "CLUTTERED" : "CLEAR";
+
+    /* Format labels based on current arbor */
+    if (current_arbor == UTLP_ARBOR_WIFI) {
+        wifi_label = "WiFi";
+        other_label = "15.4";
+    } else {
+        wifi_label = "15.4";
+        other_label = "WiFi";
+    }
+
+    /* Log the spectral coherence reading */
+    utlp_hal_log_info("RETINA", "Peer %02X:%02X | %s:%d %s:%d | Delta: %d dB | %s",
+                      peer->mac[4], peer->mac[5],
+                      wifi_label, (int)current_rssi,
+                      other_label, (int)other_rssi,
+                      (int)delta, status);
 }

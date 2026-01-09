@@ -156,6 +156,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "utlp_arbor.h"  /* For utlp_arbor_id_t in polychromatic helpers */
 
 #ifdef __cplusplus
 extern "C" {
@@ -180,6 +181,22 @@ extern "C" {
  * Small enough for embedded memory, large enough for local mesh.
  */
 #define UTLP_TRUST_MAX_PEERS    12
+
+/**
+ * @brief Number of transport arbors (Blood-Brain Barrier)
+ *
+ * Phase 9: Per-arbor trust tracking. Each peer has independent health
+ * scores for each transport to prevent cross-contamination of reputation.
+ *
+ * A peer that is healthy on 802.15.4 but jittery on WiFi should not have
+ * its WiFi misbehavior pollute its 15.4 reputation.
+ *
+ * Matches UTLP_ARBOR_COUNT from utlp_arbor.h:
+ *   0 = WiFi (ESP-NOW)
+ *   1 = 802.15.4
+ *   2 = BLE
+ */
+#define UTLP_MAX_ARBORS         3
 
 /**
  * @brief Maximum health score (0-255 range)
@@ -243,6 +260,27 @@ extern "C" {
  */
 #define UTLP_COST_LYING         50
 
+/**
+ * @brief Bootstrap grace period for new peer relationships (v3.8 PT-13)
+ *
+ * During the first N interactions with a new peer, skip the self-consistency
+ * penalty in the no-consensus path. Two unsynchronized devices WILL have high
+ * jitter between consecutive observations - this is expected, not a sign of
+ * untrustworthiness.
+ *
+ * Without this grace period, peers start at health=50 but get penalized (-1)
+ * on every observation because jitter > 2ms. This creates a "bootstrap catch-22"
+ * where health can only DECREASE, never reaching the SYNC_THRESH (100) needed
+ * to be considered "healthy" for ADAPTIVE immunity.
+ *
+ * @par Biological Analogy
+ * When cells first meet, they must establish communication. Initial handshake
+ * jitter is normal - don't penalize a newcomer for taking time to sync.
+ *
+ * @see utlp_trust_record_observation_arbor() - no-consensus path
+ */
+#define UTLP_TRUST_BOOTSTRAP_INTERACTIONS   5
+
 /** @} */ /* trust_dynamics */
 
 /**
@@ -281,6 +319,21 @@ extern "C" {
  */
 #define UTLP_MIN_INTERVAL_OBSERVATIONS   2
 
+/**
+ * @brief Tenure threshold for treating peer as potentially genesis-pulsing (ms)
+ *
+ * After seniority bankruptcy, a peer's interaction count and interval are reset
+ * but we know they just rebooted. If tenure (now - first_seen_ms) is below this
+ * threshold, treat as genesis-pulsing regardless of interval observations.
+ *
+ * This matches UTLP_GENESIS_DETECT_WINDOW_US (5 seconds) from utlp_config.h.
+ *
+ * @par v3.5 FIX: Seniority bankruptcy genesis bypass (S2 Claim 137)
+ * Without this check, a rebooted peer with interactions=1 and observed_interval_ms=0
+ * would bypass genesis pulse detection in INNATE IMMUNITY paths.
+ */
+#define UTLP_GENESIS_TENURE_THRESHOLD_MS 5000
+
 /** @} */ /* genesis_detection */
 
 /*============================================================================
@@ -304,6 +357,28 @@ uint64_t utlp_hal_get_micros(void);
 
 /*============================================================================
  * DATA STRUCTURES
+ *
+ * STRUCT PACKING CONVENTION (Memory Alignment Optimization):
+ * Always order struct fields from largest to smallest alignment:
+ *   1. 8-byte fields first (int64_t, uint64_t, double, pointers on 64-bit)
+ *   2. 4-byte fields (int32_t, uint32_t, float)
+ *   3. 2-byte fields (int16_t, uint16_t)
+ *   4. 1-byte fields and arrays (uint8_t, bool, char[])
+ *
+ * This minimizes padding bytes inserted by the compiler for alignment,
+ * reducing memory footprint on embedded systems.
+ *
+ * Example - BAD (15 bytes + 5 padding = 20 bytes):
+ *   uint8_t  a;     // 1 byte + 7 padding
+ *   uint64_t b;     // 8 bytes
+ *   uint8_t  c;     // 1 byte + 3 padding
+ *   uint32_t d;     // 4 bytes
+ *
+ * Example - GOOD (15 bytes + 1 padding = 16 bytes):
+ *   uint64_t b;     // 8 bytes
+ *   uint32_t d;     // 4 bytes
+ *   uint8_t  a;     // 1 byte
+ *   uint8_t  c;     // 1 byte + 2 padding (at end, unavoidable)
  *==========================================================================*/
 
 /**
@@ -315,6 +390,19 @@ uint64_t utlp_hal_get_micros(void);
  *
  * @note Static allocation - no malloc. Array of UTLP_TRUST_MAX_PEERS entries.
  *
+ * @section blood_brain_barrier Blood-Brain Barrier (Phase 9)
+ *
+ * Trust is tracked **per-arbor** (per-transport), not globally per-peer.
+ * A peer healthy on 802.15.4 but jittery on WiFi should have independent
+ * reputation on each transport. This prevents cross-contamination:
+ *
+ * | Scenario | Old (Global) | New (Per-Arbor) |
+ * |----------|--------------|-----------------|
+ * | WiFi jitter | Peer loses all trust | Only WiFi trust degrades |
+ * | 15.4 failure | Full reputation wipe | 15.4 isolated, WiFi OK |
+ *
+ * Arrays indexed by arbor_id: [0]=WiFi, [1]=15.4, [2]=BLE
+ *
  * @section genesis_detection Genesis Pulse Detection (S2.24)
  * The first_seen_ms and observed_interval_ms fields enable fast detection
  * of rebooted peers. A peer broadcasting at genesis intervals (100-500ms)
@@ -325,15 +413,21 @@ uint64_t utlp_hal_get_micros(void);
  * The last_tx_time_us field tracks the peer's last transmitted atomic time.
  * If a peer's atomic time goes backwards (regression), it indicates a reboot
  * and triggers trust penalty + epoch adoption block.
+ *
+ * @section packing Memory Layout (Packed)
+ * Uses __attribute__((packed)) for consistent layout across platforms.
+ * _Static_assert verifies expected size (important for NVS serialization).
  */
-typedef struct {
+typedef struct __attribute__((packed)) {
     /* 8-byte fields first */
     int64_t  last_tx_time_us;   /**< Last TX timestamp from peer (regression check) */
 
-    /* 4-byte fields */
-    uint32_t last_seen_ms;      /**< Timestamp of last observation (LRU tracking) */
+    /* 4-byte array fields (per-arbor) */
+    uint32_t last_seen_ms[UTLP_MAX_ARBORS];   /**< Per-arbor last seen (LRU) */
+    int32_t  last_offset_us[UTLP_MAX_ARBORS]; /**< Per-arbor timing offset */
+
+    /* 4-byte scalar field */
     uint32_t first_seen_ms;     /**< When we first observed this peer (reboot detection) */
-    int32_t  last_offset_us;    /**< Last reported time offset in microseconds */
 
     /* 2-byte fields */
     uint16_t interactions;      /**< Total observation count (caps at 65000) */
@@ -342,9 +436,80 @@ typedef struct {
 
     /* 1-byte fields and arrays */
     uint8_t  mac[6];            /**< Peer MAC address (identity) */
-    uint8_t  health_score;      /**< Trust level 0-255 (higher = more trusted) */
+    uint8_t  health_score[UTLP_MAX_ARBORS]; /**< Per-arbor trust 0-255 */
     uint8_t  stratum_claim;     /**< Last claimed stratum (1=Genesis, 2=Follower) */
+
+    /*========================================================================
+     * SPECTRAL RETINA: Per-Arbor RSSI Tracking (Claim: Polychromatic Awareness)
+     *
+     * "See the Radio Color"
+     *
+     * WHY: WiFi (2.4GHz) and 802.15.4 (2.4GHz but different modulation) experience
+     * different multipath propagation. A peer that appears at -45dBm on WiFi but
+     * -68dBm on 802.15.4 is in a "cluttered" RF environment where signals are
+     * bouncing differently for each transport.
+     *
+     * WHAT: Store the most recent RSSI reading from each transport so we can
+     * compare them when the same peer is seen on multiple transports.
+     *
+     * HOW: On each beacon reception, store RSSI indexed by arbor_id. When both
+     * transports have recent readings (< 5s), calculate the delta and log it.
+     * Large deltas (> 10dB) indicate multipath clutter.
+     *
+     * FUTURE: Polychromatic Confidence Weighting - timing from cluttered
+     * environments gets lower weight in consensus calculations.
+     *======================================================================*/
+    int8_t   last_rssi[UTLP_MAX_ARBORS];        /**< Per-arbor RSSI (dBm) */
+    uint32_t rssi_timestamp_ms[UTLP_MAX_ARBORS]; /**< When RSSI was recorded (ms) */
+
+    /*========================================================================
+     * SESSION CONTINUITY: Boot Instance Tracking (Purple Team PT-6)
+     *
+     * "The Ghost has died. Long live the Ghost."
+     *
+     * WHY: A rebooted device has the same MAC but a NEW Session_Salt.
+     * This is definitive proof of reboot - the "Ghost in the Machine" died
+     * and was replaced. We use this to instantly detect reboots on the
+     * FIRST beacon, before interval-based or regression-based methods.
+     *
+     * WHAT: Track the last observed Session_Salt from each peer. If it
+     * changes, the peer has rebooted and loses all accumulated trust
+     * ("Seniority Bankruptcy").
+     *
+     * HOW: Compare pkt->session_salt to last_session_salt. If different
+     * (and last_session_salt != 0 meaning "never seen"), wipe all
+     * seniority metrics: first_seen_ms, health_score[], stratum_claim,
+     * interactions, consecutive_hits, observed_interval_ms.
+     *
+     * DEFENSE: Prevents "Fresh Boot Genesis Attack" where a rebooted
+     * high-trust peer immediately claims Genesis authority before
+     * interval/regression detection fires.
+     *======================================================================*/
+    uint16_t last_session_salt;     /**< Last observed Session_Salt (0 = never seen) */
 } utlp_peer_ledger_t;
+
+/**
+ * @brief Verify ledger struct packing
+ *
+ * Expected layout (packed):
+ *   int64_t last_tx_time_us:         8 bytes
+ *   uint32_t last_seen_ms[3]:       12 bytes
+ *   int32_t last_offset_us[3]:      12 bytes
+ *   uint32_t first_seen_ms:          4 bytes
+ *   uint16_t interactions:           2 bytes
+ *   uint16_t consecutive_hits:       2 bytes
+ *   uint16_t observed_interval_ms:   2 bytes
+ *   uint8_t mac[6]:                  6 bytes
+ *   uint8_t health_score[3]:         3 bytes
+ *   uint8_t stratum_claim:           1 byte
+ *   --- Spectral Retina (Phase 11) ---
+ *   int8_t last_rssi[3]:             3 bytes
+ *   uint32_t rssi_timestamp_ms[3]:  12 bytes
+ *   --- Session Continuity (Purple Team PT-6) ---
+ *   uint16_t last_session_salt:      2 bytes
+ *   TOTAL:                          69 bytes
+ */
+_Static_assert(sizeof(utlp_peer_ledger_t) == 69, "Ledger struct packing incorrect");
 
 /*============================================================================
  * PUBLIC API
@@ -374,8 +539,78 @@ void utlp_trust_init(void);
  * @param mac        Peer's 6-byte MAC address
  * @param offset_us  Reported time offset in microseconds
  * @param stratum    Peer's claimed stratum level
+ *
+ * @deprecated Use utlp_trust_record_observation_arbor() for per-arbor tracking.
+ *             This function assumes UTLP_ARBOR_WIFI (arbor 0) for backward compat.
  */
 void utlp_trust_record_observation(const uint8_t *mac, int32_t offset_us, uint8_t stratum);
+
+/**
+ * @brief Record a timing observation with arbor context (Blood-Brain Barrier)
+ *
+ * Phase 9: Per-arbor trust tracking. Records the observation only against
+ * the specific transport that received the packet, preventing WiFi jitter
+ * from polluting 802.15.4 reputation (or vice versa).
+ *
+ * Phase 11 (Spectral Retina): Also stores RSSI for cross-transport comparison.
+ * When the same peer is seen on multiple transports within 5 seconds, the
+ * RSSI delta reveals multipath clutter in the RF environment.
+ *
+ * Phase 12 (PT-6): Session_Salt detection added. If peer's salt changes
+ * (same MAC, different salt), triggers SENIORITY BANKRUPTCY - all trust
+ * metrics are wiped. "The Ghost has died. Long live the Ghost."
+ *
+ * @param mac          Peer's 6-byte MAC address
+ * @param offset_us    Reported time offset in microseconds
+ * @param stratum      Peer's claimed stratum level
+ * @param arbor_id     Transport that received this packet (0=WiFi, 1=154, 2=BLE)
+ * @param rssi         Received signal strength (dBm)
+ * @param session_salt Peer's session_salt (16-bit boot instance ID)
+ */
+void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
+                                          uint8_t stratum, uint8_t arbor_id,
+                                          int8_t rssi, uint16_t session_salt);
+
+/**
+ * @brief Get health score for a specific arbor (Blood-Brain Barrier)
+ *
+ * @param mac        Peer's 6-byte MAC address
+ * @param arbor_id   Transport to query (0=WiFi, 1=154, 2=BLE)
+ * @return Health score 0-255, or 0 if peer not found
+ */
+uint8_t utlp_trust_get_health_arbor(const uint8_t *mac, uint8_t arbor_id);
+
+/*============================================================================
+ * SPECTRAL RETINA API (Phase 11)
+ *==========================================================================*/
+
+/**
+ * @brief Log spectral coherence for a peer (Spectral Retina)
+ *
+ * Compares RSSI readings across transports to detect multipath clutter.
+ * Only logs if the peer has been seen on another transport within
+ * UTLP_RSSI_STALE_MS (5 seconds).
+ *
+ * Output format:
+ *   I (12345) RETINA: Peer 5c | WiFi:-45 15.4:-52 | Delta: 7 dB | CLEAR
+ *   I (12456) RETINA: Peer 5c | WiFi:-45 15.4:-68 | Delta: 23 dB | CLUTTERED
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param current_arbor The arbor that just received a packet (0=WiFi, 1=154)
+ * @param now_ms        Current time in milliseconds (for staleness check)
+ */
+void utlp_trust_log_spectral_coherence(const utlp_peer_ledger_t *peer,
+                                        uint8_t current_arbor, uint32_t now_ms);
+
+/**
+ * @brief Snapshot per-arbor ledger state for dormancy
+ *
+ * Called before arbor yield to preserve reputation snapshot.
+ * Allows comparison on wake to detect anomalies.
+ *
+ * @param arbor_id   Transport being yielded
+ */
+void utlp_trust_snapshot_arbor(uint8_t arbor_id);
 
 /**
  * @brief Get median consensus offset from healthy peers
@@ -422,12 +657,18 @@ void utlp_trust_log_status(void);
  * node drifts, thinks the healthy swarm is wrong, and burns its entrainment
  * budget attacking valid packets.
  *
- * @param my_offset    My current time offset in microseconds
+ * @par v3.5 FIX: int64_t offset parameter
+ * Changed from int32_t to int64_t to match g_aatr.time_offset type.
+ * Prevents truncation of offsets exceeding ±35 minutes (int32_t max ~2.1B µs).
+ * On 32-bit platforms, comparison is still safe since peer offsets are stored
+ * as int32_t in the ledger (truncation happens at storage, not comparison).
+ *
+ * @param my_offset    My current time offset in microseconds (64-bit)
  * @param threshold_us Maximum deviation to count as "agreement" (typically 2000us)
  * @return true if >= 2 healthy peers agree with me within threshold
  * @return false if I am alone or disagreeing with the crowd
  */
-bool utlp_trust_has_quorum(int32_t my_offset, int32_t threshold_us);
+bool utlp_trust_has_quorum(int64_t my_offset, int32_t threshold_us);
 
 /**
  * @brief Look up a peer's health score
@@ -450,19 +691,29 @@ uint8_t utlp_trust_get_peer_health(const uint8_t *mac);
 /**
  * @brief Check if a peer is currently in genesis pulse phase
  *
- * A peer is considered "genesis pulsing" if their observed beacon interval
- * is below UTLP_GENESIS_PULSE_THRESHOLD_MS (2000ms). This indicates they
- * are in genesis phases 1-3 (100ms, 500ms, 1000ms intervals) and have
- * likely just rebooted.
+ * Genesis pulse detection uses the peer's ATOMIC TIME (TX timestamp) as the
+ * primary indicator of how long they've been running. If peer_tx_time >= 5s,
+ * the peer is clearly established and NOT genesis-pulsing, regardless of when
+ * we first observed them.
  *
- * Use this to block epoch adoption from rebooted peers while still
- * allowing phase entrainment once they stabilize.
+ * For peers with atomic time < 5s, we fall back to beacon interval measurement.
+ * Peers transmitting at intervals below UTLP_GENESIS_PULSE_THRESHOLD_MS
+ * (2000ms) are in genesis phases 1-3 and have likely just rebooted.
  *
- * @param peer Pointer to peer ledger entry
+ * BIOLOGICAL ANALOGY: A cell's age is intrinsic, not based on when a neighbor
+ * first noticed it. An established organism tells you how old it is; a newborn
+ * cannot fake being old (their atomic time starts at 0).
+ *
+ * Use this to block epoch adoption from rebooted peers while still allowing
+ * phase entrainment once they stabilize.
+ *
+ * @param peer          Pointer to peer ledger entry
+ * @param peer_tx_time  Peer's TX timestamp from current beacon (µs since boot)
  * @return true if peer appears to be in genesis pulse phase
- * @return false if peer is at steady-state beacon interval or unknown
+ * @return false if peer is established or at steady-state beacon interval
  */
-bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer);
+bool utlp_trust_is_genesis_pulsing(const utlp_peer_ledger_t *peer,
+                                    int64_t peer_tx_time);
 
 /**
  * @brief Check if a peer's atomic time shows regression (reboot indicator)
@@ -505,6 +756,41 @@ void utlp_trust_update_tx_tracking(const uint8_t *mac,
  * @return Pointer to peer entry, or NULL if not found
  */
 utlp_peer_ledger_t* utlp_trust_get_peer(const uint8_t *mac);
+
+/*============================================================================
+ * POLYCHROMATIC STRATUM HELPERS (Claim 253)
+ *
+ * Per-arbor neighbor queries for polychromatic stratum asymmetry.
+ * Enable bridge nodes to detect authority presence on each transport.
+ *==========================================================================*/
+
+/**
+ * @brief Count neighbors with stratum <= threshold on a specific arbor
+ *
+ * Used by polychromatic logic to detect authority presence on a transport.
+ * Only counts peers that have been seen recently on the specified arbor.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @param max_stratum  Count neighbors with stratum <= this value
+ * @return Count of matching neighbors
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_count_neighbors_by_stratum_arbor(
+    utlp_arbor_id_t arbor_id, uint8_t max_stratum);
+
+/**
+ * @brief Get lowest (best) stratum seen on a specific arbor
+ *
+ * Used by polychromatic logic to determine what stratum to adopt when
+ * an authority appears on a previously silent secondary transport.
+ *
+ * @param arbor_id  Which arbor to scan
+ * @return Best (lowest) stratum, or 255 if no neighbors on that arbor
+ *
+ * @see Claim 253: Polychromatic Stratum Asymmetry
+ */
+uint8_t utlp_trust_get_best_stratum_arbor(utlp_arbor_id_t arbor_id);
 
 /*============================================================================
  * PHASE 4: COHERENCE MONITORING (S2 Section 7)

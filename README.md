@@ -7,7 +7,7 @@
 
 **A dual-device EMDR therapy system with automatic pairing and coordinated bilateral stimulation**
 
-> **Architecture Note:** This system uses a **hybrid BLE + ESP-NOW architecture**. BLE handles device discovery, pairing, and mobile app communication. ESP-NOW handles all peer-to-peer coordination with ±100μs timing precision. See [Connectionless Distributed Timing](docs/Connectionless_Distributed_Timing_Prior_Art.md) for the foundational techniques.
+> **Architecture Note:** This system uses a **hybrid BLE + ESP-NOW architecture**. BLE handles device discovery, pairing, and mobile app communication. ESP-NOW handles all peer-to-peer coordination with ±100μs timing precision. See [Connectionless Distributed Timing](docs/misc/Connectionless_Distributed_Timing_Prior_Art.md) for the foundational techniques.
 
 ![EMDR Device in Hand](images/device-in-hand.jpg)
 
@@ -438,24 +438,26 @@ This device operates within evidence-based EMDR bilateral stimulation parameters
 
 This project developed foundational techniques for **connectionless distributed timing**—a class of systems that achieve synchronized actuation across wireless nodes *without* real-time coordination traffic during operation. While we built an EMDR device, the architecture enables countless applications from emergency vehicle light bars to drone swarms.
 
-- **[Connectionless Distributed Timing: A Prior Art Publication](docs/Connectionless_Distributed_Timing_Prior_Art.md)** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265): Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
+- **[Connectionless Distributed Timing: A Prior Art Publication](docs/misc/Connectionless_Distributed_Timing_Prior_Art.md)** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265): Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
 
-- **[Distributed Acoustic Sensing: A Project Lab Manual](docs/Distributed_Acoustic_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed acoustic sensing with synchronized wireless nodes. Scales from weekend science project to operational weather sensing (infrasound, wind mapping, tornado detection).
+- **[Distributed Sensing: A Project Lab Manual](docs/misc/Distributed_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed sensing with synchronized wireless nodes. Covers acoustic beamforming, wind mapping, infrasound detection, mmWave radar for building occupancy/safety, and emergency response applications. Scales from weekend science project to operational systems.
 
 ### AI Collaboration & Methodology
 
-- **[Integrative Capacity as a Trackable Metric](docs/Integrative_Capacity_AI_Synthesis_Alignment.md)**: Meta-observation on AI alignment—proposes **Semantic Tension Span (STS)** as a metric for measuring AI synthesis vs retrieval. Uses the mlehaptics corpus (this project) as a labeled dataset of verified cross-domain isomorphisms: immunology→firmware, geophysics→packet radio, thermodynamics→governance. Argues that RLHF suppresses high-tension bridges as "hallucination" when they should be validated by functional stability (does the code compile? does the state machine execute?).
+- **[Integrative Capacity as a Trackable Metric](docs/misc/Integrative_Capacity_AI_Synthesis_Alignment.md)**: Meta-observation on AI alignment—proposes **Semantic Tension Span (STS)** as a metric for measuring AI synthesis vs retrieval. Uses the mlehaptics corpus (this project) as a labeled dataset of verified cross-domain isomorphisms: immunology→firmware, geophysics→packet radio, thermodynamics→governance. Argues that RLHF suppresses high-tension bridges as "hallucination" when they should be validated by functional stability (does the code compile? does the state machine execute?).
 
 ### Technical Reports
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
 
 ### Protocol Specifications (UTLP/RFIP)
-- **[UTLP Specification](docs/UTLP_Specification.md)**: Universal Time Lord Protocol - peer-to-peer time synchronization for embedded swarms
-- **[UTLP Technical Report v2](docs/UTLP_Technical_Report_v2.md)**: Detailed protocol analysis with stratum hierarchy and passive opportunistic adoption
-- **[UTLP Technical Supplement S1](docs/UTLP_Technical_Supplement_S1.md)**: Extended theory - Seismic chirp beacons, dynamic macroscopic lattice, audio sync, and sensor fusion applications
-- **[UTLP Technical Supplement S2](docs/UTLP_Technical_Supplement_S2.md)** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18111583.svg)](https://doi.org/10.5281/zenodo.18111583): Biological Governance - Immune system architecture for distributed time synchronization (fault isolation via statistical filtering, endosymbiotic integration, speciation via encryption)
-- **[UTLP Executive Summary](docs/UTLP_Executive_Summary.md)**: Hardware engineer's build guide - critical numbers, beacon format, genesis election rules, and essential code patterns for implementing UTLP from scratch
-- **[RFIP Addendum](docs/UTLP_Addendum_Reference_Frame_Independent_Positioning.md)**: Reference-Frame Independent Positioning - spatial awareness without external reference frames
+- **[UTLP Specification](docs/misc/UTLP_Specification.md)**: Universal Time Lord Protocol - peer-to-peer time synchronization for embedded swarms
+- **[UTLP Technical Report v2](docs/archive/UTLP_Technical_Report_v2.md)**: Detailed protocol analysis with stratum hierarchy and passive opportunistic adoption
+- **[UTLP Technical Supplement S1](docs/misc/UTLP_Technical_Supplement_S1.md)**: Extended theory - Seismic chirp beacons, dynamic macroscopic lattice, audio sync, and sensor fusion applications
+- **[UTLP Technical Supplement S2](docs/misc/UTLP_Technical_Supplement_S2.md)** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18120833.svg)](https://doi.org/10.5281/zenodo.18120833): Biological Governance - Immune system architecture for distributed time synchronization (fault isolation via statistical filtering, endosymbiotic integration, speciation via encryption)
+- **[UTLP Technical Supplement S3](docs/misc/UTLP_Technical_Supplement_S3.md)**: Vector Time - Hyperdimensional coprime cyclic representation replacing scalar counters with phase chords (Chinese Remainder Theorem, KalmanHD, similarity-based sync)
+- **[UTLP Executive Summary](docs/misc/UTLP_Executive_Summary.md)**: Hardware engineer's build guide - critical numbers, beacon format, genesis election rules, and essential code patterns for implementing UTLP from scratch
+- **[RFIP Addendum](docs/misc/UTLP_Addendum_Reference_Frame_Independent_Positioning.md)**: Reference-Frame Independent Positioning - spatial awareness without external reference frames
+- **[RFIP Technical Specification](docs/misc/RFIP_Technical_Specification.md)**: Spatial Loom implementation - HAL architecture, data hierarchy (RSSI → CSI → TDoA → FTM → UWB), silicon detection
 - **[802.11mc FTM Reconnaissance](docs/802.11mc_FTM_Reconnaissance_Report.md)**: Fine Time Measurement research for ±1-2m ranging capability
 
 ### For Builders
@@ -587,7 +589,65 @@ Please maintain attribution when using or modifying this code or hardware design
 - **Step-boundary transitions**: Pattern changes occur at pattern step boundaries (inherently safe)
 - **RF disruption resilient**: Continues from local buffer during ESP-NOW gaps
 
-### Phase 8: Advanced Haptic Research (Future)
+### Phase 8: TARDIS Foundation — Protocol Primitives for EMDR
+
+**Vision:** Rebuild EMDR bilateral coordination on the UTLP/RFIP/SMSP protocol stack with biological governance.
+
+**The Protocol Trinity:**
+
+| Protocol | Purpose | Current Status |
+|----------|---------|----------------|
+| **UTLP** | *When* — Phase transition agreement | ✅ Phase 2 (NTP-style sync) |
+| **RFIP** | *Where* — Spatial positioning | ⏳ HAL Phase 1 complete |
+| **SMSP** | *What* — Score-based actuation | ✅ Phase 7 (pattern playback) |
+
+**SMSP = How EMDR Works** (from [Prior Art §4.5](docs/Connectionless_Distributed_Timing_Prior_Art.md)):
+- Three-layer architecture: Declarative → Compiler → Imperative
+- Time-indexed scores: "At time T, set channel C to state S"
+- Scale-invariant: Same score plays on GPIO pins or drones 100m apart
+- Pattern classification: `PATTERN_BILATERAL` for therapeutic applications
+
+**Milestones:**
+
+- ⏳ **P8.0 SMSP Formalization**: Align Phase 7 pattern playback with SMSP specification
+  - `score_line_t` structure from Prior Art §4.5.2
+  - Pattern classification metadata (`PATTERN_BILATERAL`)
+  - Compiler layer (PWA → score → firmware)
+
+- ⏳ **P8.1 RFIP Integration**: Complete spatial awareness for bilateral coordination
+  - Port RFIP HAL from `examples/utlp/` to production `src/`
+  - Zone assignment via peer ranging (Prior Art §4.5.4)
+  - Position-aware pattern variants
+
+- ⏳ **P8.2 Biological Governance**: Replace political role model with immune system
+  - **The Loom**: Emergent Time Lord selection (S2 §3.4) — replaces battery-based election
+  - **Metabolic Ledger**: Continuous credibility scoring (S2 §7.3) — replaces binary connected/disconnected
+  - **Immune Response**: Statistical fault tolerance (S2 §2.4) — replaces watchdog reboot
+
+- ⏳ **P8.3 TARDIS Unification**: Full time + space coordination
+  - UTLP (time) + RFIP (space) = TARDIS
+  - Bilateral stimulation coordinated by both *when* and *where*
+  - Scale from 2-node therapy to N-node swarm without architecture change
+
+**Key Insight (from S2 §1.2):**
+
+> Silicon cannot feel shame, fear, or ambition. Governance models based on punishment, voting, or leadership hierarchies are **category errors**. The correct model is the immune system.
+
+**Implementation Strategy:**
+
+Port proven primitives from `examples/utlp/` to `src/`:
+- `utlp_trust.c` → `src/trust_manager.c` (Metabolic Ledger)
+- `utlp_immune.c` → `src/immune_manager.c` (Fault tolerance)
+- `rfip_hal.c` → `src/rfip_manager.c` (Spatial awareness)
+- The Loom state machine → `src/role_manager.c` (Role emergence)
+
+**Reference Documents:**
+- [Connectionless Distributed Timing Prior Art](docs/misc/Connectionless_Distributed_Timing_Prior_Art.md) — SMSP §4.5, 120 claims
+- [RFIP Technical Specification](docs/misc/RFIP_Technical_Specification.md) — Spatial Loom
+- [UTLP Technical Supplement S2](docs/misc/UTLP_Technical_Supplement_S2.md) — Biological Governance, 126 claims
+- [UTLP Technical Supplement S3](docs/misc/UTLP_Technical_Supplement_S3.md) — Vector Time, 15 claims
+
+### Future Work
 - **Dedicated haptic driver ICs**: DRV2605L family evaluation
 - **ERM vs LRA comparison**: Comparative therapeutic efficacy research
 - **Pattern library**: Multiple stimulation waveforms and haptic effects

@@ -159,6 +159,19 @@ extern "C" {
 #endif
 
 /*============================================================================
+ * STRUCT PACKING CONVENTION (Memory Alignment Optimization)
+ *
+ * Always order struct fields from largest to smallest alignment:
+ *   1. 8-byte fields first (int64_t, uint64_t, double, pointers on 64-bit)
+ *   2. 4-byte fields (int32_t, uint32_t, float)
+ *   3. 2-byte fields (int16_t, uint16_t)
+ *   4. 1-byte fields and arrays (uint8_t, bool, char[])
+ *
+ * This minimizes padding bytes inserted by the compiler for alignment.
+ * See utlp_trust.h for detailed example.
+ *==========================================================================*/
+
+/*============================================================================
  * CONFIGURATION
  *==========================================================================*/
 
@@ -197,17 +210,47 @@ extern "C" {
 void utlp_immune_init(void);
 
 /**
- * @brief Attempt to fire an entrainment action
+ * @brief Attempt to fire an entrainment action (LEGACY - check + consume)
  *
  * Checks if we have entrainment budget available:
  * - If in anergy state, returns false (PD-1 engaged)
  * - If tokens available, consumes one and returns true
  * - If last token consumed, enters anergy state
  *
+ * @note DEPRECATED: Prefer using utlp_immune_has_budget() + utlp_immune_consume_token()
+ *       separately. This combined function wastes tokens when subsequent checks fail.
+ *
  * @return true if action allowed (token consumed)
  * @return false if budget exhausted or in anergy
  */
 bool utlp_immune_can_defend(void);
+
+/**
+ * @brief Check if entrainment budget is available (NO consumption)
+ *
+ * Use this to check budget BEFORE other checks (e.g., quorum sensing).
+ * Only call utlp_immune_consume_token() when actually firing.
+ *
+ * v3.7 FIX: Separating check from consume prevents token waste when
+ * subsequent checks (like quorum) fail.
+ *
+ * @return true if tokens available and not in anergy
+ * @return false if budget exhausted or in anergy
+ */
+bool utlp_immune_has_budget(void);
+
+/**
+ * @brief Consume one entrainment token (call only when ACTUALLY firing)
+ *
+ * Use this immediately before sending entrainment pulse, AFTER all other
+ * checks have passed. This prevents token waste from failed checks.
+ *
+ * @note May enter anergy state if last token consumed.
+ *
+ * @return true if token consumed successfully
+ * @return false if no tokens available (should not happen if has_budget() was true)
+ */
+bool utlp_immune_consume_token(void);
 
 /**
  * @brief Tick the immune system (call periodically)

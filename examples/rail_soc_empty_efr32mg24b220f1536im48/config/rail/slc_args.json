@@ -1,0 +1,6 @@
+{
+  "sdkRoot" : "C:/Users/sckir/.silabs/slt/installs/conan/p/simpleb526998f4a4d/p/",
+  "apackRoot" : "C:\\Users\\sckir\\.silabs\\slt\\installs\\conan\\p\\simpleb526998f4a4d\\p\\platform\\radio\\efr32_multiphy_configurator",
+  "partOpn" : "efr32mg24b220f1536im48",
+  "boards" : "none"
+}

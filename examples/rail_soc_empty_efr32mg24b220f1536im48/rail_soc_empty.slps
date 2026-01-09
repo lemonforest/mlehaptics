@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ASCII"?>
+<model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
+  <descriptors name="rail_soc_empty">
+    <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.sisdk:2025.6.2._67273840-2373502477"/>
+    <properties key="universalConfig.relativeWorkspacePath" value="..\rail_soc_empty_efr32mg24b220f1536im48.slcw"/>
+    <properties key="universalConfig.generationDirectory" value=""/>
+    <properties key="universalConfig.toolchainCompatibility" value="iar gcc"/>
+    <properties key="projectCommon.overwriteCopiedSources" value="false"/>
+    <properties key="projectCommon.boardIds" value="com.silabs.board.none:0.0.0"/>
+    <properties key="projectCommon.kitId" value=""/>
+    <properties key="projectCommon.partId" value="mcu.arm.efr32.mg24.efr32mg24b220f1536im48"/>
+    <properties key="projectCommon.toolchainId" value="com.silabs.ss.framework.project.core.noToolChain:0.0.0"/>
+    <properties key="universalConfig.projectTypeIds" value="visual-studio-code"/>
+    <properties key="projectCommon.importModeId" value="COPY"/>
+    <properties key="universalConfig.compSelProjInstanceId" value="1767422875191"/>
+  </descriptors>
+</model:MDescriptors>
