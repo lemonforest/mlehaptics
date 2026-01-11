@@ -1,24 +1,55 @@
 /**
  * @file utlp_phase.h
- * @brief UTLP Hardware Phase Engine - MCPWM-Based Atomic Coherency
+ * @brief UTLP Hardware Phase Engine - Vector Time Foundation
  *
- * "Physics First: Hardware defines time, not software."
+ * "Time is a chord, not a number."
  *
- * This module implements Hardware Phase Locked Atomic Coherency (HPLAC) using
- * the ESP32-C6 MCPWM peripheral. The hardware timer IS the truth - not a
- * follower of software timing.
+ * This module implements Hardware Phase Locked Coherency (HPLC) using
+ * the timer HAL. Time is represented natively as a PHASE CHORD - 8 residues
+ * modulo coprime primes. Scalar time is DERIVED via CRT when needed.
  *
  * @section architecture Architecture
  *
- * - **Single-Register Atomic Phase**: 50kHz × 50000 ticks = 1 second in ONE
+ * - **Vector Time Native**: Time is tracked as phase_chord[8], not scalar.
+ *   Each element is cycles % prime[i]. Scalar time is CRT-derived when needed.
+ *
+ * - **Single-Register Atomic Phase**: 10 MHz × 10000 ticks = 1 ms in ONE
  *   hardware register. A single hardware SYNC resets the ENTIRE phase cycle.
  *
- * - **Atomic Acquisition (Hard Sync)**: During Cold Start (first 5s), the
- *   MCPWM soft sync instantly jams the counter to the received phase.
+ * - **Protocol Primitive Precision**: 100 ns tick resolution enables true
+ *   hardware-level timing for distributed time synchronization primitives.
  *
- * - **Disciplined Maintenance (Soft Slew)**: After locked, phase errors are
- *   corrected by bending the timer period (frequency slewing) to preserve
- *   spectral purity.
+ * - **Hard Sync**: During Cold Start (first 5s), instant phase jam.
+ *
+ * - **Soft Slew**: After locked, period bending preserves spectral purity.
+ *
+ * @section timing Timing Configuration (10 MHz)
+ *
+ * Current configuration uses PLL160M divided by 16 for 10 MHz operation:
+ * - Timer resolution: 10 MHz (100 ns per tick)
+ * - Ticks per cycle: 10000 (fits 16-bit MCPWM counter)
+ * - Hardware cycle: 1 ms
+ * - ISR rate: 1 kHz (cycle boundary interrupt)
+ *
+ * @section power Power vs Precision Tradeoff
+ *
+ * @note **1 kHz ISR prevents light sleep.** The ESP32 cannot enter light sleep
+ * with interrupt wakeups faster than ~10 ms. For battery-powered applications
+ * where precision can be relaxed, consider the 1 MHz alternative below.
+ *
+ * @par 1 MHz Alternative (Battery-Friendly)
+ * For applications where 1 µs tick resolution suffices:
+ * - Timer resolution: 1 MHz (1 µs per tick)
+ * - Ticks per cycle: 10000 (same counter range)
+ * - Hardware cycle: 10 ms
+ * - ISR rate: 100 Hz (enables light sleep between wakeups)
+ *
+ * Change in utlp_config.h:
+ * @code
+ * #define UTLP_PHASE_TIMER_RESOLUTION_HZ   1000000UL   // 1 MHz
+ * #define UTLP_PHASE_CYCLE_US              10000UL     // 10 ms
+ * #define UTLP_PHASE_TICK_NS               1000UL      // 1 µs
+ * @endcode
  *
  * @section atomicity Critical Atomicity Requirements
  *
@@ -36,8 +67,8 @@
  * @see utlp_config.h - Phase engine constants (SSOT)
  * @see docs/UTLP_Technical_Supplement_S2.md - Claim 55 (Servo-Locked Phase)
  *
- * @version 1.0.0
- * @date 2026-01-03
+ * @version 2.0.0
+ * @date 2026-01-08
  *
  * @copyright
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -64,11 +95,55 @@ extern "C" {
 #endif
 
 /*============================================================================
+ * VECTOR TIME TYPES - Protocol Primitive
+ *
+ * "Time is a chord, not a number."
+ *
+ * The phase chord is the NATIVE representation of time in UTLP. Each element
+ * is (cycles % prime[i]). Scalar time is DERIVED via CRT when needed (and
+ * marked invalid during partition).
+ *==========================================================================*/
+
+/**
+ * @brief Phase chord - 8-byte vector time representation
+ *
+ * Wire format: packed, ready for transmission
+ * Each byte is cycles % prime[i] where primes are from UTLP_PRIMES_INIT
+ */
+typedef uint8_t utlp_phase_chord_t[8];
+
+/**
+ * @brief Partition status (from HD similarity)
+ *
+ * When vector similarity drops, CRT may become ambiguous.
+ * SMSP can still sync on phase tuples even during partition.
+ */
+typedef enum {
+    UTLP_PARTITION_NONE = 0,     /**< >70% similarity - CRT unambiguous */
+    UTLP_PARTITION_CAUTION,      /**< 40-70% similarity - CRT marginal */
+    UTLP_PARTITION_DETECTED      /**< <40% similarity - CRT ambiguous, phase-lock only */
+} utlp_partition_status_t;
+
+/**
+ * @brief Application time object (truck-packed, NOT wire format)
+ *
+ * Provides both vector and scalar views of time. Applications should:
+ * - Use phase_chord for SMSP pattern matching (partition-resilient)
+ * - Use scalar_us only when crt_valid is true (logging, calendar)
+ */
+typedef struct {
+    utlp_phase_chord_t phase_chord;      /**< Vector time (always valid) */
+    uint64_t           scalar_us;        /**< CRT-derived (check crt_valid!) */
+    utlp_partition_status_t partition;   /**< Current partition status */
+    bool               crt_valid;        /**< False if partition detected */
+} utlp_app_time_t;
+
+/*============================================================================
  * PHASE ENGINE STATE STRUCTURE (Truck-Packed)
  *
  * "Pack like a truck: big boxes first" - ensures optimal memory alignment.
  *
- * Phase position = timer_count (0 to 49,999) representing 0° to 360°
+ * Phase position = timer_count (0 to 9,999) representing 0° to 360°
  * Single hardware SYNC resets entire phase - true atomic coherency.
  *==========================================================================*/
 
@@ -89,7 +164,10 @@ typedef enum {
 /**
  * @brief Phase engine state structure
  *
- * Physics First: Hardware defines time.
+ * "Time is a chord, not a number."
+ *
+ * The phase_chord is the NATIVE time representation. cycle_count exists
+ * for efficient chord computation (cycles % prime[i]).
  *
  * @note Packed for optimal memory layout. 8-byte fields first, then 4-byte,
  *       then 2-byte, then 1-byte. Padding ensures 8-byte alignment.
@@ -98,11 +176,14 @@ typedef struct __attribute__((packed)) {
     /* 8-byte fields first (64-bit) */
     uint64_t last_beacon_timestamp_us;  /**< When last beacon processed */
     uint64_t last_sync_timestamp_us;    /**< When last hard sync occurred */
-    int64_t  epoch_offset_us;           /**< Offset for absolute time derivation */
-    uint64_t cycle_count;               /**< Full cycles since init (for atomic time) */
+    int64_t  epoch_offset_us;           /**< Offset for CRT scalar derivation */
+    uint64_t cycle_count;               /**< Full cycles since init (for chord computation) */
+
+    /* Vector time - NATIVE representation */
+    utlp_phase_chord_t phase_chord;     /**< Current phase chord (8 bytes) */
 
     /* 4-byte fields (32-bit) */
-    uint32_t current_period_ticks;      /**< Current period (for slew, nom=50000) */
+    uint32_t current_period_ticks;      /**< Current period (for slew, nom=10000) */
     int32_t  drift_accumulator_ppb;     /**< Sub-tick drift accumulator */
 
     /* 2-byte fields (16-bit) */
@@ -113,12 +194,14 @@ typedef struct __attribute__((packed)) {
     uint8_t  error_history_idx;         /**< Index into error_history */
     uint8_t  sync_quality;              /**< Sync quality 0-100% */
     uint8_t  sync_state;                /**< COLD/LOCKED/RECOVERY (utlp_phase_sync_state_t) */
+    uint8_t  partition_status;          /**< Current partition status */
     bool     slewing;                   /**< Period adjustment active */
-    uint8_t  _padding[10];              /**< Align to 64-byte boundary */
+    bool     crt_valid;                 /**< CRT scalar is valid (no partition) */
+    uint8_t  _padding[8];               /**< Align to 72-byte boundary */
 } utlp_phase_state_t;
 
 /* Verify struct packing at compile time */
-_Static_assert(sizeof(utlp_phase_state_t) == 64, "Phase state packing incorrect");
+_Static_assert(sizeof(utlp_phase_state_t) == 72, "Phase state packing incorrect");
 
 /*============================================================================
  * INITIALIZATION API
@@ -128,10 +211,10 @@ _Static_assert(sizeof(utlp_phase_state_t) == 64, "Phase state packing incorrect"
  * @brief Initialize the MCPWM phase engine
  *
  * Sets up MCPWM Timer 0 as the phase master:
- * - 50kHz resolution (20µs/tick)
- * - 50000 ticks per cycle (1 second)
+ * - 10 MHz resolution (100 ns/tick) from PLL160M
+ * - 10000 ticks per cycle (1 ms)
  * - Soft sync source for hard sync capability
- * - Cycle boundary ISR for absolute time derivation
+ * - Cycle boundary ISR for absolute time derivation (1 kHz)
  *
  * @return ESP_OK on success, error code otherwise
  */
@@ -153,7 +236,7 @@ esp_err_t utlp_phase_deinit(void);
 /**
  * @brief Get current phase in timer ticks
  *
- * @return Phase ticks (0 to 49,999) representing entire 1-second cycle
+ * @return Phase ticks (0 to 9,999) representing entire 1 ms cycle
  */
 uint32_t utlp_phase_get_ticks(void);
 
@@ -176,7 +259,7 @@ uint16_t utlp_phase_get_angle_x10(void);
  *
  * @note Uses critical section to prevent torn reads on 32-bit MCU.
  *
- * @return Number of complete 1-second cycles since init
+ * @return Number of complete 1 ms cycles since init
  */
 uint64_t utlp_phase_get_cycle_count(void);
 
@@ -201,7 +284,7 @@ esp_err_t utlp_phase_get_state(utlp_phase_state_t *state);
  * @note Uses critical section to prevent execution jitter.
  * @note Resets period to nominal to prevent "sticky slew".
  *
- * @param target_ticks Target phase (0 to 49,999)
+ * @param target_ticks Target phase (0 to 9,999)
  * @return ESP_OK on success, error code otherwise
  */
 esp_err_t utlp_phase_hard_sync(uint32_t target_ticks);
@@ -277,22 +360,65 @@ bool utlp_phase_is_synchronized(void);
 uint32_t utlp_phase_get_isr_latency_us(void);
 
 /*============================================================================
- * BACKWARD COMPATIBILITY API
+ * VECTOR TIME API - Primary Interface
+ *
+ * "Time is a chord, not a number."
+ *
+ * These are the PRIMARY time access functions. Scalar time is derived.
  *==========================================================================*/
 
 /**
- * @brief Get atomic time derived from hardware phase
+ * @brief Get current time as application time object
  *
- * Replaces software-based utlp_hal_get_atomic_time_us().
+ * This is the PREFERRED way to get time in UTLP. Returns both vector
+ * and scalar views, with partition status indicating CRT validity.
  *
- * Calculation:
- *   atomic_time = (cycle_count × CYCLE_US) + (ticks × TICK_US) + epoch_offset
- *
- * @note Uses critical section to prevent torn reads.
- *
- * @return Atomic time in microseconds
+ * @param[out] time Application time object to fill
+ * @return ESP_OK on success, error code otherwise
  */
-uint64_t utlp_phase_get_atomic_time_us(void);
+esp_err_t utlp_phase_get_time(utlp_app_time_t *time);
+
+/**
+ * @brief Get current phase chord (vector time)
+ *
+ * Fast path for SMSP pattern matching. Copies 8 bytes.
+ *
+ * @param[out] chord 8-byte buffer for phase chord
+ */
+void utlp_phase_get_chord(utlp_phase_chord_t chord);
+
+/**
+ * @brief Get single phase value for actuator matching
+ *
+ * Fastest path for SMSP - no copy, just return one phase.
+ *
+ * @param prime_idx Index 0-7 into primes array
+ * @return Current phase for that prime (0 to prime-1)
+ */
+uint8_t utlp_phase_get_phase(uint8_t prime_idx);
+
+/**
+ * @brief Compute phase chord from cycle count
+ *
+ * Utility function for converting cycles to chord representation.
+ *
+ * @param cycles Cycle count
+ * @param[out] chord 8-byte buffer for computed chord
+ */
+void utlp_phase_cycles_to_chord(uint64_t cycles, utlp_phase_chord_t chord);
+
+/*============================================================================
+ * SCALAR TIME API - Derived (use with caution during partition)
+ *==========================================================================*/
+
+/**
+ * @brief Get scalar time derived from phase chord via CRT
+ *
+ * @warning Check crt_valid before using! Returns 0 if partition detected.
+ *
+ * @return Scalar time in microseconds, or 0 if CRT invalid
+ */
+uint64_t utlp_phase_get_scalar_us(void);
 
 /**
  * @brief Set epoch offset for time adoption
@@ -309,6 +435,20 @@ void utlp_phase_set_epoch_offset(int64_t offset_us);
  * @return Current epoch offset in microseconds
  */
 int64_t utlp_phase_get_epoch_offset(void);
+
+/*============================================================================
+ * BACKWARD COMPATIBILITY (deprecated)
+ *==========================================================================*/
+
+/**
+ * @brief Get atomic time derived from hardware phase
+ *
+ * @deprecated Use utlp_phase_get_time() or utlp_phase_get_scalar_us() instead.
+ *             This function ignores partition status.
+ *
+ * @return Scalar time in microseconds
+ */
+uint64_t utlp_phase_get_atomic_time_us(void);
 
 #ifdef __cplusplus
 }

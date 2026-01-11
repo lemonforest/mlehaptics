@@ -515,13 +515,13 @@ extern "C" {
  *
  * "Physics First: Hardware defines time, not software."
  *
- * SINGLE-REGISTER Atomic Phase Strategy:
+ * HIGH-RESOLUTION Protocol Primitive Strategy:
  * - ESP32-C6 MCPWM has 16-bit counter (max 65535)
- * - At 50kHz, 50000 ticks = 1.0 second (fits in 16-bit!)
- * - CRITICAL: Single hardware SYNC resets ENTIRE phase cycle
- * - No sub-cycles, no ISR overhead - true atomic phase lock
+ * - 10 MHz from 160 MHz PLL (/16 divider) = 100 ns per tick
+ * - 10000 ticks = 1 ms hardware cycle (ISR fires at 1 kHz)
+ * - cycle_count tracks milliseconds for absolute time
  *
- * Phase granularity: 20µs = 0.0072° (well within 2ms coherence threshold)
+ * Phase granularity: 100 ns = 0.000036° (protocol primitive precision)
  *
  * @see docs/UTLP_Technical_Supplement_S2.md - Claim 55 (Servo-Locked Phase Correction)
  *==========================================================================*/
@@ -530,29 +530,38 @@ extern "C" {
  * @{
  */
 
-/** @brief Timer resolution (50kHz = 20µs/tick for full cycle in 16-bit) */
-#define UTLP_PHASE_TIMER_RESOLUTION_HZ   50000UL     /* 50 kHz */
+/** @brief Timer resolution (10 MHz from PLL160M = 100 ns/tick) */
+#define UTLP_PHASE_TIMER_RESOLUTION_HZ   10000000UL  /* 10 MHz */
 
 /** @brief Full phase cycle in ticks (fits in 16-bit counter) */
-#define UTLP_PHASE_PERIOD_TICKS          50000UL     /* 50000 × 20µs = 1s */
+#define UTLP_PHASE_PERIOD_TICKS          10000UL     /* 10000 × 100ns = 1ms */
 
-/** @brief Full phase cycle period in microseconds (matches UTLP_BLINK_PERIOD_US) */
-#define UTLP_PHASE_CYCLE_US              1000000UL   /* 1 second */
+/** @brief Full phase cycle period in microseconds */
+#define UTLP_PHASE_CYCLE_US              1000UL      /* 1 ms per hardware cycle */
 
-/** @brief Tick duration in microseconds (derived) */
-#define UTLP_PHASE_TICK_US               (UTLP_PHASE_CYCLE_US / UTLP_PHASE_PERIOD_TICKS)  /* 20µs */
+/** @brief Tick duration in nanoseconds (100 ns at 10 MHz) */
+#define UTLP_PHASE_TICK_NS               100UL       /* 100 ns */
 
-/** @brief Phase granularity: 20µs = 0.0072° (scaled by 1000 for integer math) */
-#define UTLP_PHASE_DEGREES_PER_TICK_X1000  ((360UL * 1000) / UTLP_PHASE_PERIOD_TICKS)  /* 7.2 */
+/** @brief Tick duration in microseconds (for API compatibility, truncates to 0!) */
+#define UTLP_PHASE_TICK_US               0UL         /* <1 µs - use TICK_NS instead */
+
+/** @brief Ticks per microsecond (derived: 1000 ns / 100 ns = 10 ticks/µs) */
+#define UTLP_PHASE_TICKS_PER_US          (1000UL / UTLP_PHASE_TICK_NS)  /* 10 */
+
+/** @brief Phase granularity: 100ns = 0.000036° (scaled by 1000000 for integer math) */
+#define UTLP_PHASE_DEGREES_PER_TICK_X1M  ((360ULL * 1000000) / UTLP_PHASE_PERIOD_TICKS)  /* 36000 */
 
 /** @brief Maximum period adjustment for soft slew (PPM) */
 #define UTLP_PHASE_SLEW_MAX_PPM          5000UL      /* 0.5% max period bend */
 
 /** @brief Maximum period adjustment in ticks (derived) */
-#define UTLP_PHASE_SLEW_MAX_TICKS        ((UTLP_PHASE_PERIOD_TICKS * UTLP_PHASE_SLEW_MAX_PPM) / 1000000UL)  /* 250 */
+#define UTLP_PHASE_SLEW_MAX_TICKS        ((UTLP_PHASE_PERIOD_TICKS * UTLP_PHASE_SLEW_MAX_PPM) / 1000000UL)  /* 50 */
 
-/** @brief Phase deadband (ticks) - errors below this ignored */
-#define UTLP_PHASE_DEADBAND_TICKS        5UL         /* 5 ticks = 100µs */
+/** @brief Phase deadband in microseconds */
+#define UTLP_PHASE_DEADBAND_US           100UL       /* 100 µs */
+
+/** @brief Phase deadband in ticks (derived: 100 µs × 10 ticks/µs = 1000 ticks) */
+#define UTLP_PHASE_DEADBAND_TICKS        (UTLP_PHASE_DEADBAND_US * UTLP_PHASE_TICKS_PER_US)  /* 1000 */
 
 /** @brief Cold start threshold (inherited from servo config) */
 #define UTLP_PHASE_COLD_START_US         UTLP_SERVO_COLD_START_US
@@ -560,8 +569,8 @@ extern "C" {
 /** @brief Convergence window for soft slew (inherited) */
 #define UTLP_PHASE_CONVERGENCE_US        UTLP_SERVO_CONVERGENCE_US
 
-/** @brief Convergence window in ticks (derived) */
-#define UTLP_PHASE_CONVERGENCE_TICKS     (UTLP_PHASE_CONVERGENCE_US / UTLP_PHASE_TICK_US)  /* 25000 */
+/** @brief Convergence window in ticks (derived: 500ms × 10 ticks/µs × 1000 = 5M ticks) */
+#define UTLP_PHASE_CONVERGENCE_TICKS     (UTLP_PHASE_CONVERGENCE_US * UTLP_PHASE_TICKS_PER_US)  /* 5000000 */
 
 /** @brief MCPWM group for phase engine */
 #define UTLP_PHASE_MCPWM_GROUP           0
@@ -570,6 +579,71 @@ extern "C" {
 #define UTLP_PHASE_MCPWM_TIMER           0
 
 /** @} */ /* phase_engine */
+
+/*============================================================================
+ * VECTOR TIME - Coprime Cyclic Representation (Claims 262-275)
+ *
+ * "Time is a chord, not a number."
+ *
+ * UTLP represents time as a phase chord - 8 residues modulo coprime primes.
+ * This representation is FOUNDATIONAL, not an enhancement:
+ *
+ * Properties:
+ * - Wire size: 8 bytes (same as 64-bit scalar)
+ * - Aliasing horizon: ~261,000 years at 1 ms resolution
+ * - Adjacent ticks: ~99.5% vector similarity (partition detection for free)
+ * - Phase tuple matching: SMSP syncs on individual phases, not CRT scalar
+ *
+ * The 8 primes (descending for cache locality in hot path):
+ * [241, 251, 239, 233, 229, 227, 223, 211]
+ *
+ * Product: 241×251×239×233×229×227×223×211 ≈ 8.22×10^18 (exceeds uint64 range)
+ *
+ * @see docs/misc/UTLP_Technical_Supplement_S3.md - Vector Time Claims
+ * @see scripts/utlp_vector_time.py - Python reference implementation
+ *==========================================================================*/
+
+/** @defgroup vector_time Vector Time (Phase Chord)
+ * @{
+ */
+
+/** @brief Number of primes in the phase chord */
+#define UTLP_CHORD_SIZE                  8
+
+/** @brief The 8 coprime primes for phase chord representation */
+#define UTLP_PRIME_0                     241     /**< Prime 0 - LED actuator phase */
+#define UTLP_PRIME_1                     251     /**< Prime 1 - Motor actuator phase */
+#define UTLP_PRIME_2                     239     /**< Prime 2 */
+#define UTLP_PRIME_3                     233     /**< Prime 3 */
+#define UTLP_PRIME_4                     229     /**< Prime 4 */
+#define UTLP_PRIME_5                     227     /**< Prime 5 */
+#define UTLP_PRIME_6                     223     /**< Prime 6 */
+#define UTLP_PRIME_7                     211     /**< Prime 7 */
+
+/**
+ * @brief Static initializer for primes array
+ *
+ * Usage: static const uint8_t primes[UTLP_CHORD_SIZE] = UTLP_PRIMES_INIT;
+ */
+#define UTLP_PRIMES_INIT { \
+    UTLP_PRIME_0, UTLP_PRIME_1, UTLP_PRIME_2, UTLP_PRIME_3, \
+    UTLP_PRIME_4, UTLP_PRIME_5, UTLP_PRIME_6, UTLP_PRIME_7 \
+}
+
+/**
+ * @brief Partition detection thresholds (HD similarity)
+ *
+ * When vector similarity drops below these thresholds, it indicates
+ * the CRT reconstruction may be ambiguous (beyond largest prime).
+ *
+ * - NONE: >70% similarity - CRT unambiguous, normal operation
+ * - CAUTION: 40-70% similarity - CRT marginal, proceed carefully
+ * - DETECTED: <40% similarity - CRT ambiguous, phase-lock only
+ */
+#define UTLP_PARTITION_THRESHOLD_NONE    70      /**< >70% = CRT safe */
+#define UTLP_PARTITION_THRESHOLD_CAUTION 40      /**< 40-70% = CRT marginal */
+
+/** @} */ /* vector_time */
 
 /*============================================================================
  * ROLLING SPLICE-SITE SECURITY (Claim 255)
