@@ -32,6 +32,7 @@
 #include "esp_now.h"
 #include "esp_mac.h"
 #include "esp_random.h"
+#include "esp_rom_sys.h"  /* esp_rom_delay_us() for seismic chirp burst spacing */
 #include "nvs_flash.h"
 #include "driver/mcpwm_prelude.h"
 
@@ -433,6 +434,19 @@ void utlp_hal_set_time_offset(int64_t offset_us)
 void utlp_hal_yield(void)
 {
     vTaskDelay(1);
+}
+
+void utlp_hal_delay_us(uint32_t us)
+{
+    /*
+     * Microsecond precision delay for seismic chirp burst spacing.
+     * Uses ESP-IDF's esp_rom_delay_us() which is a busy-wait loop
+     * calibrated to the CPU clock - most accurate for short delays.
+     *
+     * For the 2ms chirp burst spacing, this provides ~1-5us precision
+     * which is more than adequate (we're measuring ~10-100us jitter).
+     */
+    esp_rom_delay_us(us);
 }
 
 void utlp_hal_get_mac(uint8_t *mac)

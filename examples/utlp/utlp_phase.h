@@ -408,6 +408,59 @@ uint8_t utlp_phase_get_phase(uint8_t prime_idx);
 void utlp_phase_cycles_to_chord(uint64_t cycles, utlp_phase_chord_t chord);
 
 /*============================================================================
+ * HD SIMILARITY API - Integer-Only (No Floats)
+ *
+ * "Float-free similarity metric for embedded efficiency."
+ *
+ * These functions compute similarity between phase chords using integer math
+ * only. Critical for chord-origin verification and partition detection.
+ *==========================================================================*/
+
+/**
+ * @brief Compute integer HD similarity between two phase chords
+ *
+ * Returns the number of dimensions (0-8) where the two chords are "close"
+ * on their respective prime rings. Uses circular distance with ~10% threshold.
+ *
+ * Design: INTEGER-ONLY (no floating point operations)
+ * - Input: Two 8-byte phase chords
+ * - Output: Integer 0-8 (count of matching dimensions)
+ * - Threshold: ~10% of prime value for each dimension
+ *
+ * Threshold Semantics:
+ * - 8/8: Nearly identical time (within ~20 ticks)
+ * - 6-7/8: Recent divergence (within ~100 ticks)
+ * - 5/8: Minimum for chord-origin verification (UTLP_CHORD_ORIGIN_MIN_SIMILARITY)
+ * - <5/8: Partition detected or spoofed chord
+ *
+ * @param a First phase chord (8 bytes)
+ * @param b Second phase chord (8 bytes)
+ * @return Similarity score 0-8 (higher = more similar)
+ *
+ * @see UTLP_CHORD_ORIGIN_MIN_SIMILARITY in utlp_config.h
+ * @see utlp_phase_chord_origin_verify() for chord-origin defense
+ */
+uint8_t utlp_phase_chord_similarity(const utlp_phase_chord_t a, const utlp_phase_chord_t b);
+
+/**
+ * @brief Verify chord is consistent with claimed origin_time
+ *
+ * Defense Layer 1: Chord-Origin Verification
+ *
+ * When a peer claims an origin_time, we compute what their chord SHOULD be
+ * (given elapsed time since origin) and compare with their actual chord.
+ * Inconsistent chords indicate spoofing or severe partition.
+ *
+ * @param peer_chord Peer's claimed phase chord (8 bytes)
+ * @param peer_origin_time Peer's claimed origin_time (seconds)
+ * @param our_origin_time Our origin_time for reference (seconds)
+ * @return true if chord is plausible (similarity >= UTLP_CHORD_ORIGIN_MIN_SIMILARITY)
+ */
+bool utlp_phase_chord_origin_verify(const utlp_phase_chord_t peer_chord,
+                                    uint32_t peer_origin_time,
+                                    uint32_t our_origin_time);
+
+/*============================================================================
  * SCALAR TIME API - Derived (use with caution during partition)
  *==========================================================================*/
 

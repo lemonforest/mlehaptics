@@ -444,6 +444,19 @@ void utlp_hal_set_time_offset(int64_t offset_us);
  */
 void utlp_hal_yield(void);
 
+/**
+ * @brief Microsecond delay (blocking)
+ *
+ * Precision delay for seismic chirp burst spacing (2ms between bursts).
+ * Uses hardware timer or busy-wait depending on platform.
+ *
+ * @note This is a BLOCKING delay - use sparingly!
+ * @note For delays > 10ms, consider using utlp_hal_yield() in a loop instead.
+ *
+ * @param us Microseconds to delay (max ~10000 for best precision)
+ */
+void utlp_hal_delay_us(uint32_t us);
+
 /*============================================================================
  * SYNCHRONIZATION API
  *

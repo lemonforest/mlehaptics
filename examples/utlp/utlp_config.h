@@ -37,25 +37,112 @@ extern "C" {
 #endif
 
 /*============================================================================
- * GENESIS PULSE - Dynamic Beacon Interval (S2, Prior Art Section 7)
+ * GENESIS CHIRP - Mathematically Identifiable Birth Signal (S2 Prior Art)
  *
- * Like a star beginning fusion, time broadcasts are rapid at genesis
- * then settle to steady-state. This provides:
- *   1. Fast initial sync (new swarm converges quickly)
- *   2. Hospitable environment for late-joining nodes
- *   3. Low steady-state overhead
+ * "Like the Cosmic Microwave Background reveals the Big Bang's age,
+ * the Genesis Chirp pattern reveals how recently a device booted."
  *
- * Timeline:
- *   0-1s:    100ms  (genesis burst - 10 beacons/sec)
- *   1-5s:    500ms  (fast convergence)
- *   5-10s:   1000ms (settling)
- *   10-60s:  10s    (stabilizing)
- *   60s+:    60s    (steady state)
+ * DESIGN PRINCIPLE: The Genesis Chirp must be MATHEMATICALLY IDENTIFIABLE
+ * from the beacon interval pattern alone. Any observer can:
+ *   1. DETECT "This is a newborn device" (from interval slope)
+ *   2. CALCULATE "It started X seconds ago" (from interval value)
+ *   3. RESPOND "I'm established, here's my epoch" (help the newborn sync)
+ *
+ * PATTERN: Linear Frequency Sweep (Chirp)
+ *   interval(t) = CHIRP_BASE_US + (t_seconds × CHIRP_SLOPE_US)
+ *
+ * This is analogous to the "Explosive Expansion Period" after the Big Bang:
+ *   - Rapid initial activity (fast beacon rate)
+ *   - Characteristic deceleration curve (slope = signature)
+ *   - Observable "age of universe" from current state
+ *
+ * DETECTION ALGORITHM (for observers):
+ *   1. Measure peer's beacon interval twice
+ *   2. Compute slope: (interval_2 - interval_1) / time_delta
+ *   3. If slope ≈ CHIRP_SLOPE_US → peer is genesis pulsing
+ *   4. Age estimate: t = (observed_interval - CHIRP_BASE_US) / CHIRP_SLOPE_US
+ *
+ * Timeline with default constants:
+ *   t=0.0s: interval = 50ms    (20 beacons/sec)  - initial burst
+ *   t=1.0s: interval = 150ms   (6.7 beacons/sec) - rapid discovery
+ *   t=2.0s: interval = 250ms   (4 beacons/sec)   - convergence
+ *   t=5.0s: interval = 550ms   (1.8 beacons/sec) - settling
+ *   t=10.0s: interval = 1050ms → switch to STEADY_US (60s)
+ *
+ * WHY LINEAR CHIRP (not stepped intervals):
+ *   - IDENTIFIABLE: Slope is a signature, not just "fast beacons"
+ *   - INVERTIBLE: Can compute age from any observed interval
+ *   - EMBEDDED-FRIENDLY: No floating point needed
+ *   - DISTINGUISHABLE: Established devices have slope ≈ 0
  *==========================================================================*/
 
-/** @defgroup genesis_pulse Genesis Pulse Timing
+/** @defgroup genesis_chirp Genesis Chirp Parameters
  * @{
  */
+
+/**
+ * @brief Genesis chirp base interval (y-intercept)
+ *
+ * The starting beacon interval at t=0 (boot moment).
+ * Smaller = faster initial burst = quicker discovery.
+ */
+#define UTLP_CHIRP_BASE_US              50000UL     /* 50ms starting interval */
+
+/**
+ * @brief Genesis chirp slope (rate of interval increase)
+ *
+ * How much the interval increases per second of uptime.
+ * This is the SIGNATURE that identifies a genesis pulse.
+ *
+ * Formula: interval(t) = BASE + SLOPE × t_seconds
+ *
+ * Detection: If observed slope ≈ this value (within tolerance),
+ * the peer is genesis pulsing and we can estimate their age.
+ */
+#define UTLP_CHIRP_SLOPE_US             100000UL    /* +100ms per second */
+
+/**
+ * @brief Genesis chirp duration (when to switch to steady state)
+ *
+ * After this many microseconds, switch from chirp to steady interval.
+ * The chirp is complete - device is "born" and settled.
+ */
+#define UTLP_CHIRP_DURATION_US          10000000ULL /* 10 seconds */
+
+/**
+ * @brief Steady state beacon interval (after chirp completes)
+ *
+ * Once genesis chirp is complete, use this fixed interval.
+ * Established devices beacon slowly to conserve bandwidth/power.
+ */
+#define UTLP_BEACON_STEADY_US           60000000ULL /* 60 seconds */
+
+/**
+ * @brief Genesis chirp slope detection tolerance (percentage)
+ *
+ * When detecting if a peer is genesis pulsing, allow this much
+ * deviation from the expected slope before rejecting.
+ *
+ * 20% tolerance accounts for timing jitter and measurement noise.
+ */
+#define UTLP_CHIRP_SLOPE_TOLERANCE_PCT  20
+
+/**
+ * @brief Minimum beacons needed to detect genesis chirp
+ *
+ * Need at least 2 beacons to measure interval and slope.
+ * More beacons = more confident detection.
+ */
+#define UTLP_CHIRP_MIN_BEACONS          2
+
+/** @} */ /* genesis_chirp */
+
+/*============================================================================
+ * LEGACY STEPPED INTERVALS (Kept for reference, prefer CHIRP above)
+ *
+ * These were the original non-mathematical stepped intervals.
+ * The linear chirp above is preferred for its identifiability.
+ *==========================================================================*/
 
 /** @brief Phase 1 end time (genesis burst complete) */
 #define UTLP_GENESIS_PHASE_1_END_US      1000000ULL      /*  1 second */
@@ -63,25 +150,25 @@ extern "C" {
 /** @brief Phase 2 end time (fast convergence complete) */
 #define UTLP_GENESIS_PHASE_2_END_US      5000000ULL      /*  5 seconds */
 
-/** @brief Phase 3 end time (settling complete) */
+/** @brief Phase 3 end time (settling complete) - also used as chirp duration check */
 #define UTLP_GENESIS_PHASE_3_END_US     10000000ULL      /* 10 seconds */
 
 /** @brief Phase 4 end time (stabilizing complete) */
 #define UTLP_GENESIS_PHASE_4_END_US     60000000ULL      /* 60 seconds */
 
-/** @brief Beacon interval during phase 1 (genesis burst) */
+/** @brief Beacon interval during phase 1 (genesis burst) - legacy */
 #define UTLP_BEACON_INTERVAL_PHASE_1_US    100000        /* 100ms */
 
-/** @brief Beacon interval during phase 2 (fast convergence) */
+/** @brief Beacon interval during phase 2 (fast convergence) - legacy */
 #define UTLP_BEACON_INTERVAL_PHASE_2_US    500000        /* 500ms */
 
-/** @brief Beacon interval during phase 3 (settling) */
+/** @brief Beacon interval during phase 3 (settling) - legacy */
 #define UTLP_BEACON_INTERVAL_PHASE_3_US   1000000        /* 1s */
 
-/** @brief Beacon interval during phase 4 (stabilizing) */
+/** @brief Beacon interval during phase 4 (stabilizing) - legacy */
 #define UTLP_BEACON_INTERVAL_PHASE_4_US  10000000        /* 10s */
 
-/** @brief Beacon interval at steady state */
+/** @brief Beacon interval at steady state - legacy (use UTLP_BEACON_STEADY_US) */
 #define UTLP_BEACON_INTERVAL_STEADY_US   60000000        /* 60s */
 
 /** @} */ /* genesis_pulse */
@@ -416,6 +503,95 @@ extern "C" {
 /** @} */ /* chirp */
 
 /*============================================================================
+ * WELCOME RESPONSE - Genesis Burst Detection and Immediate Reply
+ *
+ * "When an established device hears a genesis pulse, it says 'Hello!'"
+ *
+ * Problem: Device A (established, 60s beacon interval) receives Device B's
+ * genesis pulse (50ms interval). Without welcome response, Device B waits
+ * up to 60 seconds to learn of Device A's existence.
+ *
+ * Solution: When an established device detects rapid beacons from a new peer
+ * (genesis burst pattern), it sends an IMMEDIATE out-of-schedule beacon to
+ * accelerate convergence.
+ *
+ * Detection: If we receive N beacons from a NEW peer within WINDOW_US,
+ * that peer is genesis pulsing and we should respond immediately.
+ *
+ * Rate Limiting: Only one welcome response per chirp epoch (per peer)
+ * to prevent flood attacks.
+ *
+ * @see draft_claude_code_implementation_guide.md - Purple Team Analysis
+ *==========================================================================*/
+
+/** @defgroup welcome_response Welcome Response Configuration
+ * @{
+ */
+
+/**
+ * @brief Minimum beacons to detect genesis burst pattern
+ *
+ * After receiving this many beacons from a NEW peer within the
+ * detection window, we classify them as "genesis pulsing" and
+ * send an immediate welcome response.
+ *
+ * 2 beacons is minimum to detect any pattern, but a single beacon
+ * from a new peer with a genesis-era timestamp is sufficient for
+ * Phase 2 (N=2) where we're eager to converge.
+ */
+#define UTLP_WELCOME_THRESHOLD_BEACONS   2
+
+/**
+ * @brief Time window for genesis burst detection (microseconds)
+ *
+ * If we receive THRESHOLD_BEACONS from a NEW peer within this window,
+ * we classify them as "genesis pulsing" and send welcome response.
+ *
+ * 500ms is chosen because:
+ *   - Genesis chirp starts at 50ms intervals
+ *   - After 500ms, t=0.5s, interval would be ~100ms
+ *   - We should see ~5-8 beacons in first 500ms of genesis
+ *   - Large enough to detect pattern, small enough for fast response
+ */
+#define UTLP_WELCOME_THRESHOLD_WINDOW_US 500000UL
+
+/**
+ * @brief Delay before sending welcome response (microseconds)
+ *
+ * Small random jitter before responding to prevent synchronized
+ * welcome floods from multiple established devices.
+ *
+ * 10ms provides:
+ *   - Enough separation from the triggering beacon
+ *   - Short enough to not feel like a timeout
+ *   - MAC-based jitter can be added: delay += (mac[5] & 0x0F) * 1000
+ */
+#define UTLP_WELCOME_RESPONSE_DELAY_US   10000UL
+
+/**
+ * @brief Minimum uptime before we can send welcome responses (microseconds)
+ *
+ * A device must be out of its OWN genesis chirp phase before sending
+ * welcome responses. Otherwise, two newborns would spam each other.
+ *
+ * Uses same threshold as genesis chirp duration - after chirp complete,
+ * we're "established" and can welcome newcomers.
+ */
+#define UTLP_WELCOME_MIN_UPTIME_US       UTLP_CHIRP_DURATION_US
+
+/**
+ * @brief Cooldown between welcome responses to same peer (microseconds)
+ *
+ * After sending a welcome response to a peer, don't send another
+ * welcome for this duration. Prevents spam from rapid reconnects.
+ *
+ * 5 seconds matches the genesis chirp phase completion time.
+ */
+#define UTLP_WELCOME_COOLDOWN_US         5000000ULL
+
+/** @} */ /* welcome_response */
+
+/*============================================================================
  * NEIGHBORHOOD - Peer Tracking and Frontier Detection
  *==========================================================================*/
 
@@ -644,6 +820,81 @@ extern "C" {
 #define UTLP_PARTITION_THRESHOLD_CAUTION 40      /**< 40-70% = CRT marginal */
 
 /** @} */ /* vector_time */
+
+/*============================================================================
+ * STEM CELL DEPTH MODEL - Biological Lineage Vitality (N=2 First Contact)
+ *
+ * "Somatic cells have limited divisions; stem cells regenerate via telomerase."
+ *
+ * The depth field in epoch_state_t represents lineage vitality using the
+ * biological stem cell / telomere model:
+ *
+ * - FRESH (128): Somatic cell - half vitality, just booted, unproven
+ * - TIME_LORD (255): Stem cell with telomerase - earned authority via service
+ * - EXHAUSTED (0): Lineage cannot propagate further
+ *
+ * Resolution Rules (N=2 First Contact):
+ * 1. Higher depth (more vitality) wins
+ * 2. Equal depth → oldest origin_time wins (temporal precedence)
+ * 3. True tie → lower MAC adopts from higher MAC
+ *
+ * On Adoption:
+ * - Normal nodes: depth = source_depth - 1 (telomere shortening)
+ * - Time Lords: depth = 255 (telomerase regeneration)
+ *
+ * Why Fresh=128 (not 255):
+ * - Prevents reboot attacks: fresh boot cannot fake Time Lord status
+ * - Time Lord (255) always beats fresh boot (128) as it should
+ * - Fresh boot must prove itself through service to earn higher depth
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Biological Governance
+ * @see examples/utlp/claude-code-crafting/draft_known_failure_scenarios.md
+ *==========================================================================*/
+
+/** @defgroup stem_cell_depth Stem Cell Depth Model
+ * @{
+ */
+
+/**
+ * @brief Fresh boot depth - somatic cell, half vitality
+ *
+ * A device that just booted starts at half vitality (128), not full (255).
+ * This prevents reboot attacks where an attacker repeatedly reboots to
+ * gain epoch authority. Only Time Lords get depth=255.
+ */
+#define UTLP_DEPTH_FRESH                 128
+
+/**
+ * @brief Time Lord depth - stem cell with telomerase
+ *
+ * Time Lords have earned their authority through service. They regenerate
+ * to 255 when adopting a new epoch (telomerase activation). Only promoted
+ * devices can reach this depth.
+ */
+#define UTLP_DEPTH_TIME_LORD             255
+
+/**
+ * @brief Exhausted lineage - cannot propagate further
+ *
+ * When depth reaches 0, the lineage has exhausted its telomeres and
+ * cannot propagate further. This forces natural rotation of timeline
+ * authority over long periods.
+ */
+#define UTLP_DEPTH_EXHAUSTED             0
+
+/**
+ * @brief Minimum similarity for chord-origin verification (0-8 scale)
+ *
+ * When a peer claims an origin_time, we verify their phase chord is
+ * consistent with that claimed origin. This threshold defines the
+ * minimum number of matching dimensions (out of 8) required.
+ *
+ * 5/8 = 62.5% similarity is the minimum for plausibility.
+ * Below this, the peer is likely spoofing or partitioned.
+ */
+#define UTLP_CHORD_ORIGIN_MIN_SIMILARITY 5
+
+/** @} */ /* stem_cell_depth */
 
 /*============================================================================
  * ROLLING SPLICE-SITE SECURITY (Claim 255)

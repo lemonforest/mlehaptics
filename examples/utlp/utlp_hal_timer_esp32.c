@@ -85,10 +85,24 @@ utlp_hal_timer_err_t utlp_hal_timer_init(const utlp_hal_timer_config_t *config)
     ESP_LOGI(TAG, "  Resolution: %lu Hz", (unsigned long)resolution);
     ESP_LOGI(TAG, "  Period: %lu ticks", (unsigned long)period);
 
-    /* Configure MCPWM timer */
+    /*
+     * Configure MCPWM timer
+     *
+     * CROSS-PLATFORM CLOCK SOURCE:
+     * - MCPWM_TIMER_CLK_SRC_DEFAULT: ESP-IDF selects optimal clock per chip
+     * - ESP32 (classic): APB clock 80 MHz → 10 MHz achievable (divider = 8)
+     * - ESP32-C6/S3: PLL160M 160 MHz → 10 MHz achievable (divider = 16)
+     *
+     * Math verification: APB_CLK / resolution = divider (must be 1-256)
+     *   80 MHz / 10 MHz = 8  ✓ (ESP32 classic)
+     *  160 MHz / 10 MHz = 16 ✓ (ESP32-C6)
+     *
+     * Using DEFAULT ensures the timer initializes on all ESP32 variants.
+     * The driver will fail with ESP_ERR_INVALID_ARG if divider out of range.
+     */
     mcpwm_timer_config_t timer_config = {
         .group_id = UTLP_PHASE_MCPWM_GROUP,
-        .clk_src = MCPWM_TIMER_CLK_SRC_PLL160M,
+        .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,  /* Cross-platform compatible */
         .resolution_hz = resolution,
         .period_ticks = period,
         .count_mode = MCPWM_TIMER_COUNT_MODE_UP,

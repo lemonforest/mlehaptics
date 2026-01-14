@@ -42,10 +42,20 @@ Vector time:     [142, 217, 84, 156, 203, 31, 178, 92]
 |-------|------|--------|-------------|
 | **0** | HAL Preservation | ✅ COMPLETE | Timer HAL, stubs for N≥3 features |
 | **1** | Genesis (N=1) | ✅ COMPLETE | Single device life, vector time native |
-| **2** | First Contact (N=2) | 🔄 NEXT | Peer discovery, epoch resolution |
+| **2** | First Contact (N=2) | 🔄 IN PROGRESS | Peer discovery, epoch resolution, texture tracking |
 | **3** | Time Agreement | ⏳ Planned | Beacon exchange, offset convergence |
 | **4** | HD Similarity | ⏳ Planned | Integer HDC, partition detection |
 | **5** | SMSP Sync | ⏳ Planned | Synchronized LED blink |
+
+### Phase 2 Progress
+
+- ✅ Seismic chirp (3-burst beacon) with offset/jitter extraction
+- ✅ Median-filtered offset for stable sync
+- ✅ Offset-first epoch resolution (oldest device wins)
+- ✅ Genesis pulse protection (established devices reject newborns)
+- ✅ **Beacon interval texture tracking** (swarm state awareness)
+- ✅ **Genesis pattern script** (SMSP-style playback definition)
+- ⏳ Hardware testing: Two devices discovering and synchronizing
 
 ## Quick Start
 
@@ -116,6 +126,35 @@ Lineage vitality uses biological stem cell / telomere dynamics:
 - Fresh boots start at 128, not 255 (prevents reboot attacks)
 - Time Lords earn 255 through service (telomerase activation)
 - Non-Time-Lords exhaust naturally over propagation hops
+
+### Beacon Interval Texture (Swarm State Awareness)
+
+"Time has texture" - beacon intervals reveal device state:
+
+```c
+// Genesis Pattern Script (SMSP-style playback definition)
+static const genesis_step_t GENESIS_SCRIPT[5] = {
+    { .start_ms = 0,     .end_ms = 1000,   .interval_ms = 100,   .tolerance_ms = 50 },   // Phase 1: Rapid
+    { .start_ms = 1000,  .end_ms = 5000,   .interval_ms = 500,   .tolerance_ms = 200 },  // Phase 2: Fast
+    { .start_ms = 5000,  .end_ms = 10000,  .interval_ms = 1000,  .tolerance_ms = 300 },  // Phase 3: Settling
+    { .start_ms = 10000, .end_ms = 60000,  .interval_ms = 10000, .tolerance_ms = 2000 }, // Phase 4: Stabilizing
+    { .start_ms = 60000, .end_ms = MAX,    .interval_ms = 60000, .tolerance_ms = 5000 }, // Phase 5: Steady
+};
+
+// Pattern matching: "Where in genesis is this peer?"
+uint8_t phase = genesis_pattern_match(peer->interval_history.median_ms);
+```
+
+**Why this matters:**
+- Genesis texture: rapid ramp (100ms → 500ms → 1s → 10s → 60s)
+- Established texture: steady 60s intervals with low variance
+- Pattern matching detects genesis without trusting claimed timestamps
+- Self-observation: device tracks its own beacon texture for symmetry
+
+**Texture-based adoption:**
+- Devices with similar textures can sync
+- Mismatched textures → established wins (genesis protection)
+- Cannot be faked: observed behavior, not claimed values
 
 ### Integer HDC Similarity
 
