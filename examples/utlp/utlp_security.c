@@ -145,6 +145,12 @@ bool utlp_security_intron_plausible(const utlp_intron_t *intron)
         return false;
     }
 
+    /* Check role is in valid range (biological taxonomy) */
+    uint8_t role = intron->field.payload[1];
+    if (!utlp_role_plausible(role)) {
+        return false;
+    }
+
     return true;
 }
 

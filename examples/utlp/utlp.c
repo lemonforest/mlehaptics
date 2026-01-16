@@ -409,6 +409,7 @@ typedef struct {
 
     /* === Epoch Resolution State === */
     bool          epoch_resolved;   /**< True after epoch resolution complete */
+    bool          genesis_protected; /**< True if we used genesis protection (don't touch our sync) */
 
     /* Future: trust metrics, reputation, arbor-specific RSSI, etc. */
 } peer_record_t;
@@ -1213,7 +1214,8 @@ static void handle_first_contact(const uint8_t *peer_mac,
     /* Register peer - epoch resolution happens after chirp complete */
     peer_record_t *peer = register_peer(peer_mac, peer_epoch);
     if (peer) {
-        peer->epoch_resolved = false;  /* Will resolve when we have offset */
+        peer->epoch_resolved = false;    /* Will resolve when we have offset */
+        peer->genesis_protected = false; /* Clear protection flag for new resolution */
         utlp_hal_log_info(TAG, "Peer registered - awaiting chirp for epoch resolution");
     }
 }
@@ -1343,11 +1345,16 @@ static void resolve_epoch_with_offset(peer_record_t *peer)
          * - A meets C: A is established, C is genesis → A keeps epoch
          * - B meets C: B is established, C is genesis → B keeps epoch
          * - C adopts from both A and B → swarm stable
+         *
+         * CRITICAL: Do NOT modify s_utlp.we_adopted_epoch here!
+         * That flag tracks our sync state with whoever we adopted FROM.
+         * Genesis protection is a per-peer decision that should not
+         * affect our global sync state. (Bug fix: N=3 was breaking N=2 sync)
          */
         utlp_hal_log_info(TAG, "RESOLUTION: GENESIS PROTECTION - we are established, peer is newborn");
-        utlp_hal_log_info(TAG, "  → We keep epoch, peer must sync to us");
-        s_utlp.we_adopted_epoch = false;
+        utlp_hal_log_info(TAG, "  → We keep epoch, peer must sync to us (our sync preserved)");
         peer->epoch_resolved = true;
+        peer->genesis_protected = true;  /* Mark that we used genesis protection for this peer */
         return;  /* Early exit - no further checks needed */
     }
 
@@ -1586,9 +1593,14 @@ static void process_chirp_burst(peer_record_t *peer,
              * - Device that ADOPTED: Apply offset to convert local → global time
              * - Device that KEPT epoch: Their local time IS the reference (offset=0)
              *
-             * This ensures both devices show the SAME scalar time in logs.
+             * CRITICAL: Skip offset application if genesis protection fired!
+             * Genesis protection means we're established and met a newborn.
+             * Our existing sync (if any) must be preserved.
+             * (Bug fix: N=3 joining was breaking N=2 sync)
              */
-            if (s_utlp.we_adopted_epoch) {
+            if (peer->genesis_protected) {
+                utlp_hal_log_info(TAG, "PHASE ENGINE: Skipped (genesis protection - preserving existing sync)");
+            } else if (s_utlp.we_adopted_epoch) {
                 /*
                  * We adopted the peer's epoch.
                  * Our local time + offset = peer's time = GLOBAL time
@@ -1604,9 +1616,17 @@ static void process_chirp_burst(peer_record_t *peer,
                 utlp_hal_log_info(TAG, "PHASE ENGINE: Offset applied=%lld us (we adopted)",
                                   (long long)(-s_utlp.time_offset_us));
             } else {
-                /* We won - keep offset at 0, our time is the reference */
-                utlp_phase_set_epoch_offset(0);
-                utlp_hal_log_info(TAG, "PHASE ENGINE: We are time reference (offset=0)");
+                /*
+                 * We won the resolution - but only set offset=0 if this is
+                 * our FIRST sync. If we already have a sync (time_synced),
+                 * don't touch it - our offset is valid from a previous peer.
+                 */
+                if (!s_utlp.time_synced) {
+                    utlp_phase_set_epoch_offset(0);
+                    utlp_hal_log_info(TAG, "PHASE ENGINE: We are time reference (offset=0)");
+                } else {
+                    utlp_hal_log_info(TAG, "PHASE ENGINE: Keeping existing sync (already synced to another peer)");
+                }
             }
         }
     }
@@ -1768,7 +1788,24 @@ static void send_beacon(void)
 
     /* Payload[0] = CPU load (unused), Payload[1] = Role, Payload[2] = Burst index */
     pkt.intron.field.payload[0] = 0;  /* CPU load */
-    pkt.intron.field.payload[1] = 0;  /* Role: GENESIS */
+
+    /*
+     * Determine biological role:
+     * - NAIVE (0): Genesis pulsing, haven't resolved epoch yet
+     * - TIME_LORD (1): We are the origin of our lineage (didn't adopt)
+     * - SOMATIC (2): We adopted from another device
+     *
+     * Genesis pulsing is determined by uptime (chirp_epoch_us is monotonic from boot)
+     */
+    uint8_t role;
+    if (chirp_epoch_us < UTLP_CHIRP_DURATION_US) {
+        role = UTLP_ROLE_NAIVE;  /* Still genesis pulsing */
+    } else if (s_utlp.we_adopted_epoch) {
+        role = UTLP_ROLE_SOMATIC;  /* We adopted - following Time Lord */
+    } else {
+        role = UTLP_ROLE_TIME_LORD;  /* We are origin of lineage */
+    }
+    pkt.intron.field.payload[1] = role;
 
     /*
      * Send 3 bursts with 2ms spacing - the seismic chirp!

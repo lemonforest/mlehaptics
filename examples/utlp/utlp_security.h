@@ -319,13 +319,63 @@ _Static_assert(offsetof(utlp_wire_packet_t, intron) == UTLP_EXON_SIZE,
  */
 #define UTLP_SECURITY_CPU_LOAD_MAX      (100)
 
+/*============================================================================
+ * BIOLOGICAL ROLE TAXONOMY
+ *
+ * UTLP uses biological models, NOT political models (no "server/client").
+ *
+ * INFRASTRUCTURE ROLES (0-9): Participate in swarm time-keeping
+ *   - Beacon regularly, participate in Loom elections (N≥3)
+ *   - Eligible to become Time Lord
+ *
+ * NON-INFRASTRUCTURE ROLES (200+): Consume swarm time
+ *   - Battery-powered sensors, actuators, end-devices
+ *   - Listen for Time Lord beacons, sync local clock
+ *   - Do not beacon, do not participate in Loom
+ *==========================================================================*/
+
+/**
+ * @brief Biological role identifiers
+ *
+ * Role determines behavior in the swarm:
+ * - NAIVE: Just born, genesis pulsing, seeking a time source
+ * - TIME_LORD: Origin of lineage OR elected by Loom (authoritative time)
+ * - SOMATIC: Adopted from another, following Time Lord's time
+ * - OBSERVER: Battery device, consumes time but doesn't participate
+ */
+typedef enum {
+    /* === Infrastructure Roles (participate in swarm time) === */
+    UTLP_ROLE_NAIVE     = 0,    /**< Just born, genesis pulsing, undifferentiated */
+    UTLP_ROLE_TIME_LORD = 1,    /**< Origin of lineage / Loom-elected (authoritative) */
+    UTLP_ROLE_SOMATIC   = 2,    /**< Adopted lineage, following Time Lord */
+    /* 3-9 reserved for future infrastructure roles */
+
+    /* === Non-Infrastructure Roles (consume swarm time) === */
+    UTLP_ROLE_OBSERVER  = 200,  /**< Battery device, consumes time, no beaconing */
+    /* 201+ reserved for other consumer device types */
+} utlp_role_t;
+
+/** @brief Maximum infrastructure role (roles <= this participate in consensus) */
+#define UTLP_ROLE_INFRASTRUCTURE_MAX    (9)
+
 /**
  * @brief Maximum role value for Heartbeat plausibility
  *
- * Valid roles: 0=GENESIS, 1=SERVER, 2=CLIENT, 3=OBSERVER
- * Values > 3 indicate wrong key decryption.
+ * For plausibility checking during decryption:
+ * - Infrastructure roles: 0-9
+ * - Non-infrastructure roles: 200-255
+ * - Values 10-199 are invalid (wrong key indicator)
  */
-#define UTLP_SECURITY_ROLE_MAX          (3)
+#define UTLP_SECURITY_ROLE_MAX          (255)
+
+/**
+ * @brief Check if role value is plausible
+ *
+ * Valid ranges: 0-9 (infrastructure) or 200-255 (non-infrastructure)
+ */
+static inline bool utlp_role_plausible(uint8_t role) {
+    return (role <= UTLP_ROLE_INFRASTRUCTURE_MAX) || (role >= UTLP_ROLE_OBSERVER);
+}
 
 /** @brief Microseconds per second (for key quantization) */
 #define UTLP_SECURITY_US_PER_SEC        (1000000ULL)

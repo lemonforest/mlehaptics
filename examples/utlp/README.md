@@ -55,7 +55,25 @@ Vector time:     [142, 217, 84, 156, 203, 31, 178, 92]
 - ✅ Genesis pulse protection (established devices reject newborns)
 - ✅ **Beacon interval texture tracking** (swarm state awareness)
 - ✅ **Genesis pattern script** (SMSP-style playback definition)
-- ⏳ Hardware testing: Two devices discovering and synchronizing
+- ✅ **Biological role taxonomy** (NAIVE/TIME_LORD/SOMATIC/OBSERVER)
+- ✅ **N=2 hardware test:** Two C6s sync ✓, C6+DevKit sync ✓
+- ⚠️ **N=3 oscillation bug:** Known issue, see below
+
+### Known Issue: N=3 Oscillation
+
+**Symptom:** When N=3 device joins an established N=2 pair, all three devices
+oscillate between coherence states. N2 exchanges sync between N1 and N3.
+
+**Root Cause:** The `beacon_interval_update()` function measures BURST spacing
+(2ms between chirp bursts) instead of BEACON spacing (100ms-60s between chirps).
+This causes `self_interval.min_ms = 2ms` for all devices, making
+`is_genesis_pattern = true` universally, so no device ever sees itself as
+"established" and genesis protection never triggers.
+
+**Impact:** Established devices don't reject newborns, causing constant re-resolution.
+
+**Fix Required:** Only call `beacon_interval_update()` once per complete chirp,
+not per burst.
 
 ## Quick Start
 
