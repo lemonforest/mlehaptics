@@ -1561,6 +1561,19 @@ static void process_chirp_burst(peer_record_t *peer,
          * Use the FILTERED (median) offset once history has built up.
          * The median naturally rejects outliers and provides stability.
          * First sync uses raw offset; subsequent updates use median.
+         *
+         * CRITICAL (PT-20): For ongoing sync, only update offset from peers
+         * whose epoch is already resolved AND whom we didn't reject via
+         * genesis protection. This prevents newly-joined genesis devices
+         * from polluting our established sync with another peer.
+         *
+         * Bug scenario without this check:
+         * 1. Device B synced to A with offset=-8ms
+         * 2. Device C (newborn) joins, B calculates C's offset=+47ms
+         * 3. TIME UPDATE fires BEFORE epoch resolution → B's offset polluted!
+         * 4. Genesis protection fires → too late, damage done
+         *
+         * Fix: Don't update from new peers until epoch resolution accepts them.
          */
         if (!s_utlp.time_synced) {
             /* First sync: use raw averaged offset */
@@ -1568,8 +1581,9 @@ static void process_chirp_burst(peer_record_t *peer,
             s_utlp.time_synced = true;
             utlp_hal_log_info(TAG, "TIME SYNCED! Adopted offset=%lld us (3-burst avg)",
                               (long long)s_utlp.time_offset_us);
-        } else if (peer->chirp.offset_history.count >= 4) {
-            /* Ongoing sync: use median-filtered offset for stability */
+        } else if (peer->epoch_resolved && !peer->genesis_protected &&
+                   peer->chirp.offset_history.count >= 4) {
+            /* Ongoing sync: use median-filtered offset from ACCEPTED peer only */
             s_utlp.time_offset_us = peer->chirp.offset_history.median_us;
             utlp_hal_log_info(TAG, "TIME UPDATE: median_offset=%lld us (from %u samples)",
                               (long long)s_utlp.time_offset_us,
