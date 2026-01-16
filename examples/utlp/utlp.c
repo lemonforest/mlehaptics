@@ -1703,9 +1703,20 @@ static void on_beacon_received(const utlp_packet_t *pkt)
      *
      * Track beacon intervals for genesis/steady pattern detection.
      * This is the foundation of swarm state awareness.
+     *
+     * CRITICAL FIX: Only update on NEW chirp, not every burst!
+     * Each chirp has 3 bursts with 2ms spacing. If we update on every burst,
+     * we'd measure 2ms intervals and EVERYONE would look like genesis pulsing.
+     *
+     * A new chirp is identified by a different chirp_epoch (TX timestamp).
      */
     if (peer) {
-        beacon_interval_update(&peer->interval_history, rx_time_us);
+        uint64_t chirp_epoch = wire_pkt->exon.utlp_timestamp_us;
+        if (chirp_epoch != peer->chirp.chirp_epoch_us) {
+            /* This is a NEW chirp - update interval history */
+            beacon_interval_update(&peer->interval_history, rx_time_us);
+        }
+        /* Note: peer->chirp.chirp_epoch_us will be updated in process_chirp_burst() */
     }
 
     /*
