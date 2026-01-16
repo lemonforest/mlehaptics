@@ -1798,7 +1798,31 @@ static void send_beacon(void)
      * Build EXON (cleartext header) - same for all bursts
      */
     pkt.exon.sequence_id = s_utlp.sequence_id++;
-    pkt.exon.utlp_timestamp_us = chirp_epoch_us;
+
+    /*
+     * Beacon TX: Use SWARM time, not LOCAL time.
+     *
+     * When we've adopted from another device, our local clock differs from
+     * swarm time by time_offset_us. If we send LOCAL time in beacons, a
+     * third device (C) adopting from us (B) will calculate offset relative
+     * to our LOCAL time, not the swarm's time - ending up offset by our
+     * offset from the origin.
+     *
+     * Example: A boots, B boots +8.5s later, B adopts from A (offset=-8.5s)
+     * Without fix: B sends B_local, C adopts with offset to B_local
+     *              C ends up 8.5s behind A (exactly B's offset!)
+     * With fix:    B sends B_swarm = B_local - offset = A's time
+     *              C adopts with offset to A's time correctly
+     *
+     * Formula: swarm_time = local_time - time_offset_us
+     * (same pattern as run_heartbeat())
+     */
+    if (s_utlp.time_synced && s_utlp.we_adopted_epoch) {
+        pkt.exon.utlp_timestamp_us = (uint64_t)((int64_t)chirp_epoch_us - s_utlp.time_offset_us);
+    } else {
+        pkt.exon.utlp_timestamp_us = chirp_epoch_us;
+    }
+
     pkt.exon.ntp_timestamp_utc = 0;  /* No NTP in Phase 2 */
     pkt.exon.session_salt = (uint16_t)(s_utlp.epoch.session_salt[0] |
                                         (s_utlp.epoch.session_salt[1] << 8));
