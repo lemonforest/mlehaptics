@@ -1562,7 +1562,7 @@ static void process_chirp_burst(peer_record_t *peer,
          * The median naturally rejects outliers and provides stability.
          * First sync uses raw offset; subsequent updates use median.
          *
-         * CRITICAL (PT-20): For ongoing sync, only update offset from peers
+         * CRITICAL: For ongoing sync, only update offset from peers
          * whose epoch is already resolved AND whom we didn't reject via
          * genesis protection. This prevents newly-joined genesis devices
          * from polluting our established sync with another peer.

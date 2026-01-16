@@ -58,8 +58,8 @@ Vector time:     [142, 217, 84, 156, 203, 31, 178, 92]
 - ✅ **Biological role taxonomy** (NAIVE/TIME_LORD/SOMATIC/OBSERVER)
 - ✅ **N=2 hardware test:** Two C6s sync ✓, C6+DevKit sync ✓
 - ✅ **Burst interval bug fix:** Now measures chirp intervals, not burst intervals
-- ✅ **PT-20 fix:** TIME UPDATE guards prevent genesis peers from polluting established sync
-- ⏳ **N=3 hardware test:** Pending re-test after PT-20 fix
+- ✅ **TIME UPDATE guard:** Prevent genesis peers from polluting established sync
+- ⏳ **N=3 hardware test:** Pending re-test
 
 ## Quick Start
 
