@@ -240,11 +240,13 @@ static const genesis_step_t GENESIS_SCRIPT[GENESIS_PATTERN_STEPS] = {
  * represent offset buckets. Similar offsets → similar hypervectors.
  */
 typedef struct {
+    /* === 8-byte aligned fields (descending) === */
     int64_t     samples[UTLP_METRIC_HISTORY_SIZE];  /**< Ring buffer of offsets */
-    uint8_t     write_idx;                          /**< Next write position */
-    uint8_t     count;                              /**< Valid samples (0-8) */
     int64_t     median_us;                          /**< Median of samples (filtered) */
     int64_t     trend_us_per_s;                     /**< Drift rate (positive = diverging) */
+    /* === 1-byte fields (grouped at end) === */
+    uint8_t     write_idx;                          /**< Next write position */
+    uint8_t     count;                              /**< Valid samples (0-8) */
 } offset_history_t;
 
 /**
@@ -257,11 +259,13 @@ typedef struct {
  * sets bit count. Higher jitter → more bits set → orthogonal to low jitter.
  */
 typedef struct {
+    /* === 4-byte aligned fields (descending) === */
     uint32_t    samples[UTLP_METRIC_HISTORY_SIZE];  /**< Ring buffer of |jitter| */
-    uint8_t     write_idx;                          /**< Next write position */
-    uint8_t     count;                              /**< Valid samples (0-8) */
     uint32_t    p50_us;                             /**< Median jitter */
     uint32_t    p90_us;                             /**< 90th percentile (worst-case) */
+    /* === 1-byte fields (grouped at end) === */
+    uint8_t     write_idx;                          /**< Next write position */
+    uint8_t     count;                              /**< Valid samples (0-8) */
 } jitter_distribution_t;
 
 /**
@@ -323,8 +327,11 @@ typedef struct {
  * - Partition recovery (find common chord subsequence)
  */
 typedef struct {
-    utlp_phase_chord_t  chords[UTLP_METRIC_HISTORY_SIZE]; /**< Ring buffer of chords */
+    /* === 8-byte aligned fields first === */
     uint64_t            timestamps[UTLP_METRIC_HISTORY_SIZE]; /**< When observed (local) */
+    /* === 1-byte aligned arrays === */
+    utlp_phase_chord_t  chords[UTLP_METRIC_HISTORY_SIZE]; /**< Ring buffer of chords */
+    /* === 1-byte fields (grouped at end) === */
     uint8_t             write_idx;                  /**< Next write position */
     uint8_t             count;                      /**< Valid entries (0-8) */
 } chord_history_t;
@@ -345,20 +352,21 @@ typedef struct {
  * Logging shows BOTH for debugging.
  */
 typedef struct {
+    /* === 8-byte aligned fields first === */
     uint64_t    chirp_epoch_us;         /**< Sender's timestamp (same for all 3 bursts) */
     uint64_t    rx_time_us[UTLP_CHIRP_BURST_COUNT]; /**< Local RX times for each burst */
-    uint8_t     bursts_received;        /**< Bitmask of received bursts (0x01, 0x02, 0x04) */
-    bool        chirp_complete;         /**< All 3 bursts received */
-
-    /* === SCALAR: Current Measurement (for logging) === */
     int64_t     offset_us;              /**< Clock offset (our time - their time) */
     int64_t     jitter_01_us;           /**< Jitter: (rx1-rx0) - 2ms expected */
     int64_t     jitter_12_us;           /**< Jitter: (rx2-rx1) - 2ms expected */
     int64_t     motion_hint_us;         /**< Motion: jitter_12 - jitter_01 (acceleration) */
 
-    /* === VECTOR: History for Filtering/HDC (for control) === */
-    offset_history_t     offset_history;    /**< Offset trend over time */
+    /* === Embedded structs (already properly ordered internally) === */
+    offset_history_t      offset_history;   /**< Offset trend over time */
     jitter_distribution_t jitter_dist;      /**< Jitter quality distribution */
+
+    /* === 1-byte fields (grouped at end) === */
+    uint8_t     bursts_received;        /**< Bitmask of received bursts (0x01, 0x02, 0x04) */
+    bool        chirp_complete;         /**< All 3 bursts received */
 } chirp_state_t;
 
 /**
@@ -383,33 +391,27 @@ typedef struct {
  * - Old offset/jitter data corrupting new sync
  */
 typedef struct {
-    /* === Hardware Identity (MAC) - Stable Across Reboots === */
-    uint8_t       mac[6];           /**< Peer's MAC address */
-
-    /* === Session Identity (Salt) - Changes on Reboot === */
-    uint8_t       session_salt[2];  /**< Last known session salt */
-
-    /* === Epoch State (from beacon) === */
-    uint32_t      origin_time;      /**< Last known origin_time */
-    uint8_t       depth;            /**< Last known depth */
+    /* === 8-byte aligned fields first === */
     uint64_t      last_seen_us;     /**< When last heard from peer */
-    bool          is_known;         /**< Slot in use */
-
-    /* === Per-Session Accumulated State (WIPED on salt change) === */
-    chirp_state_t chirp;            /**< Seismic chirp burst tracking */
-
-    /* Welcome Response tracking (genesis burst detection) */
     uint64_t      first_beacon_us;  /**< When we first heard from this peer */
-    uint8_t       beacon_count;     /**< Beacons received in detection window */
     uint64_t      welcome_sent_us;  /**< When we last sent welcome (cooldown) */
 
-    /* === VECTOR METRICS: Swarm State Snapshot === */
-    chord_history_t           chord_history;     /**< Peer's chord over time */
-    beacon_interval_history_t interval_history;  /**< Beacon timing pattern (SWARM STATE) */
+    /* === Large embedded structs (already properly ordered internally) === */
+    chirp_state_t             chirp;            /**< Seismic chirp burst tracking */
+    chord_history_t           chord_history;    /**< Peer's chord over time */
+    beacon_interval_history_t interval_history; /**< Beacon timing pattern (SWARM STATE) */
 
-    /* === Epoch Resolution State === */
+    /* === 4-byte aligned fields === */
+    uint32_t      origin_time;      /**< Last known origin_time */
+
+    /* === 1-byte fields (grouped at end) === */
+    uint8_t       mac[6];           /**< Peer's MAC address (hardware identity) */
+    uint8_t       session_salt[2];  /**< Last known session salt (session identity) */
+    uint8_t       depth;            /**< Last known depth */
+    uint8_t       beacon_count;     /**< Beacons received in detection window */
+    bool          is_known;         /**< Slot in use */
     bool          epoch_resolved;   /**< True after epoch resolution complete */
-    bool          genesis_protected; /**< True if we used genesis protection (don't touch our sync) */
+    bool          genesis_protected; /**< True if we used genesis protection */
 
     /* Future: trust metrics, reputation, arbor-specific RSSI, etc. */
 } peer_record_t;
