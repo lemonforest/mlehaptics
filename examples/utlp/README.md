@@ -267,7 +267,7 @@ We use deterministic resolution:
 
 - [x] Single device boots, generates unique session_salt
 - [x] LED blinks at 1Hz using HPLC phase engine
-- [x] origin_time = boot moment, depth = 128 (somatic cell)
+- [x] origin_time = swarm epoch origin, depth = 128 (somatic cell)
 - [x] Epoch regenerates fresh on every power cycle (no RTC)
 - [x] Phase chord computed each cycle and logged in heartbeat
 

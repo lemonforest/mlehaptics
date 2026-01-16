@@ -75,7 +75,7 @@ static const char *TAG = "UTLP_PHASE2";
  * See utlp_config.h for full stem cell depth model documentation.
  */
 typedef struct __attribute__((packed)) {
-    uint32_t origin_time;      /**< When epoch lineage began (boot moment) */
+    uint32_t origin_time;      /**< Swarm time epoch origin (seconds) - lineage's T=0 */
     uint8_t  depth;            /**< Stem cell model: 128=fresh, 255=Time Lord, 0=exhausted */
     uint8_t  session_salt[2];  /**< Per-boot random (anti-replay) */
 } epoch_state_t;
@@ -2005,7 +2005,7 @@ void utlp_app_run(void)
      * with half vitality. Only Time Lords earn depth=255 through service.
      * This prevents reboot attacks where a fresh device claims authority.
      *
-     * origin_time = boot moment (truncated to seconds for wire efficiency)
+     * origin_time = swarm time epoch origin (seconds, for wire efficiency)
      * depth = UTLP_DEPTH_FRESH (128) - somatic cell, half vitality
      * session_salt = per-boot random (anti-replay, peer identification)
      *
@@ -2016,7 +2016,7 @@ void utlp_app_run(void)
      */
     uint16_t salt = utlp_security_generate_session_salt();
 
-    /* Capture boot moment as origin time (seconds, for wire format) */
+    /* Establish swarm time epoch origin (seconds, for wire format) */
     uint64_t boot_us = utlp_hal_get_micros();
     uint32_t origin_time_s = (uint32_t)(boot_us / 1000000ULL);
 
@@ -2091,7 +2091,7 @@ void utlp_app_run(void)
      * Phase 2 Validation Gates:
      * - [x] Single device boots, generates unique session_salt
      * - [x] LED blinks at 1Hz using phase engine
-     * - [x] origin_time = boot moment, depth = 128 (fresh)
+     * - [x] origin_time = swarm epoch origin, depth = 128 (fresh)
      * - [ ] Two devices discover each other via beacons
      * - [ ] Higher depth (more vital) wins resolution
      * - [ ] Depth DECREMENTS on adoption (telomere shortening)

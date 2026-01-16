@@ -83,7 +83,7 @@ extern "C" {
 /**
  * @brief Genesis chirp base interval (y-intercept)
  *
- * The starting beacon interval at t=0 (boot moment).
+ * The starting beacon interval at t=0 (swarm genesis).
  * Smaller = faster initial burst = quicker discovery.
  */
 #define UTLP_CHIRP_BASE_US              50000UL     /* 50ms starting interval */
