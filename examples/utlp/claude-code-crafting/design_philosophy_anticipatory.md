@@ -123,6 +123,55 @@ None of these are commands. They are OBSERVATIONS that receivers use to:
 3. Make informed decisions about adoption
 4. Continue their own pre-buffered patterns
 
+## Empirical Foundation: EMDR Bilateral Stimulation Project
+
+This design philosophy is not theoretical speculation. It was **discovered empirically**
+through development of the EMDR bilateral stimulation device in this repository.
+
+### The Evolution
+
+**Phase 0-6 (Reactive):**
+- Motor states driven by mode commands
+- Event-driven state machines responding to button presses, BLE writes
+- Constant stream of bugs: race conditions, timing glitches, state corruption
+
+**Phase 7 (Anticipatory - Pattern Playback):**
+- Patterns defined as "sheet music" - pre-buffered sequences
+- Motor task computes "what should I be doing at time T?"
+- Mode changes become "switch to pattern P" not "command motor states"
+
+### Results
+
+| Aspect | Reactive (Phase 0-6) | Anticipatory (Phase 7) |
+|--------|----------------------|------------------------|
+| **Bug classes** | Many: races, timing, state | Eliminated entire classes |
+| **Mode switch latency** | Variable, sometimes glitchy | Instant, deterministic |
+| **Code complexity** | High (state machines) | Lower (time → action lookup) |
+| **Testing difficulty** | Hard (event sequences) | Easy (time is predictable) |
+
+### Key Insight
+
+> "The EMDR project performs monumentally better when patterns are played like
+> sheet music while still feeling event-driven. An entire class of bugs
+> disappeared, and even actuator changes became cleaner."
+
+This hands-on experience - not just academic research - is why UTLP and SMSP
+are built on anticipatory principles. We didn't guess. We put in the work.
+
+### The Pattern Playback Revolution
+
+The EMDR pattern catalog (`src/pattern_playback.h`) defines patterns as:
+- Step sequences with timing
+- Intensity curves (static, ramp, breathe)
+- Phase relationships for bilateral alternation
+
+Devices don't receive commands like "left motor 50% for 125ms". They receive:
+- "Play pattern BILATERAL_STANDARD"
+- "Current global time is T"
+
+From this, each device computes its own motor state. No commands needed.
+No race conditions possible. No timing glitches from network latency.
+
 ## Summary
 
 > "Pre-Buffered Pattern Playback is a footing in the foundation for
@@ -132,9 +181,12 @@ UTLP provides the shared time base. SMSP provides the pattern definitions.
 Together, they enable anticipatory coordination where devices act based on
 WHAT TIME IT IS, not based on WHAT COMMAND THEY RECEIVED.
 
-This is not a new idea - it's how biology coordinates trillions of cells,
-how fireflies synchronize, and how safety-critical systems achieve reliability.
-UTLP simply applies these principles to embedded IoT devices.
+This approach is validated by:
+1. **Academic research**: Kopetz (1991, 1997) on time-triggered architectures
+2. **Industry practice**: Aerospace (Airbus), Automotive (FlexRay)
+3. **Our own empirical work**: EMDR bilateral stimulation project Phase 7
+
+The EMDR project is living proof that anticipatory beats reactive.
 
 ---
 
