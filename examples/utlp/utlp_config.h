@@ -757,6 +757,95 @@ extern "C" {
 /** @} */ /* phase_engine */
 
 /*============================================================================
+ * POWER PROFILE - Runtime Timer Frequency Selection
+ *
+ * Enables battery-friendly 1 MHz operation while maintaining 10 MHz precision
+ * option. Selected at startup via utlp_phase_init_with_config().
+ *
+ * Tradeoff:
+ * - PRECISION (10 MHz): 100 ns tick, 1 kHz ISR - prevents ESP32 light sleep
+ * - BALANCED (1 MHz):   1 µs tick, 100 Hz ISR - enables light sleep
+ *
+ * @note Changing frequency after init is NOT supported.
+ *==========================================================================*/
+
+/** @defgroup power_profile Power Profile Configuration
+ * @{
+ */
+
+/**
+ * @brief Timer power profiles
+ *
+ * Select at startup based on application requirements:
+ * - Time Lords may prefer PRECISION for authoritative time
+ * - Battery devices may prefer BALANCED for power savings
+ */
+typedef enum {
+    UTLP_POWER_PROFILE_PRECISION = 0,   /**< 10 MHz, 1 kHz ISR (default) */
+    UTLP_POWER_PROFILE_BALANCED,        /**< 1 MHz, 100 Hz ISR (battery) */
+} utlp_power_profile_t;
+
+/**
+ * @brief Power profile parameters (computed at init)
+ *
+ * These values replace compile-time #defines for calculations that
+ * depend on timer resolution. Stored at init, read-only thereafter.
+ */
+typedef struct {
+    uint32_t resolution_hz;     /**< Timer resolution (10 MHz or 1 MHz) */
+    uint32_t period_ticks;      /**< Ticks per cycle (10000) */
+    uint32_t cycle_us;          /**< Microseconds per cycle (1000 or 10000) */
+    uint32_t tick_ns;           /**< Nanoseconds per tick (100 or 1000) */
+    uint32_t ticks_per_us;      /**< Ticks per microsecond (10 or 1) */
+    uint32_t cycles_per_sec;    /**< Cycles per second (1000 or 100) */
+    uint32_t quanta_per_cycle;  /**< Canonical quanta per ISR cycle (1 or 10) */
+} utlp_power_params_t;
+
+/*
+ * PRECISION Profile Constants (10 MHz - default)
+ * These match the existing UTLP_PHASE_* constants.
+ */
+#define UTLP_PRECISION_RESOLUTION_HZ    10000000UL  /**< 10 MHz */
+#define UTLP_PRECISION_PERIOD_TICKS     10000UL     /**< 10000 ticks = 1 ms */
+#define UTLP_PRECISION_CYCLE_US         1000UL      /**< 1 ms per cycle */
+#define UTLP_PRECISION_TICK_NS          100UL       /**< 100 ns per tick */
+#define UTLP_PRECISION_TICKS_PER_US     10UL        /**< 10 ticks/µs */
+#define UTLP_PRECISION_CYCLES_PER_SEC   1000UL      /**< 1000 Hz ISR */
+
+/*
+ * BALANCED Profile Constants (1 MHz - battery-friendly)
+ * Same tick count (10000), but 10× longer cycle for power savings.
+ */
+#define UTLP_BALANCED_RESOLUTION_HZ     1000000UL   /**< 1 MHz */
+#define UTLP_BALANCED_PERIOD_TICKS      10000UL     /**< 10000 ticks = 10 ms */
+#define UTLP_BALANCED_CYCLE_US          10000UL     /**< 10 ms per cycle */
+#define UTLP_BALANCED_TICK_NS           1000UL      /**< 1 µs per tick */
+#define UTLP_BALANCED_TICKS_PER_US      1UL         /**< 1 tick/µs */
+#define UTLP_BALANCED_CYCLES_PER_SEC    100UL       /**< 100 Hz ISR */
+
+/*
+ * CANONICAL QUANTUM: ISR-independent time unit for phase chord evolution
+ *
+ * CRITICAL: The phase chord MUST evolve at the same rate regardless of
+ * ISR frequency. Different devices may run at 1 kHz or 100 Hz ISR rates,
+ * but their chords must remain compatible for distributed time agreement.
+ *
+ * The canonical quantum is 1 ms - this matches:
+ * - PRECISION profile: 1 ISR cycle = 1 quantum
+ * - BALANCED profile:  1 ISR cycle = 10 quanta
+ *
+ * The ISR accumulates quanta and evolves the chord accordingly.
+ */
+#define UTLP_CANONICAL_QUANTUM_US       1000UL      /**< 1 ms = 1 chord step */
+#define UTLP_PRECISION_QUANTA_PER_CYCLE 1UL         /**< PRECISION: 1 ms/cycle ÷ 1 ms/quantum */
+#define UTLP_BALANCED_QUANTA_PER_CYCLE  10UL        /**< BALANCED: 10 ms/cycle ÷ 1 ms/quantum */
+
+/** @brief Default power profile */
+#define UTLP_DEFAULT_POWER_PROFILE    UTLP_POWER_PROFILE_PRECISION
+
+/** @} */ /* power_profile */
+
+/*============================================================================
  * VECTOR TIME - Coprime Cyclic Representation (Claims 262-275)
  *
  * "Time is a chord, not a number."
@@ -786,15 +875,41 @@ extern "C" {
 /** @brief Number of primes in the phase chord */
 #define UTLP_CHORD_SIZE                  8
 
-/** @brief The 8 coprime primes for phase chord representation */
-#define UTLP_PRIME_0                     241     /**< Prime 0 - LED actuator phase */
-#define UTLP_PRIME_1                     251     /**< Prime 1 - Motor actuator phase */
-#define UTLP_PRIME_2                     239     /**< Prime 2 */
-#define UTLP_PRIME_3                     233     /**< Prime 3 */
-#define UTLP_PRIME_4                     229     /**< Prime 4 */
-#define UTLP_PRIME_5                     227     /**< Prime 5 */
-#define UTLP_PRIME_6                     223     /**< Prime 6 */
-#define UTLP_PRIME_7                     211     /**< Prime 7 */
+/**
+ * @brief The 8 coprime primes for phase chord representation
+ *
+ * Each prime defines a cyclic dimension of vector time. Periods are in
+ * CANONICAL QUANTA (1 ms), independent of ISR frequency:
+ *
+ * | Prime | Period    | Freq   | ½      | ⅓     | ¼     |
+ * |-------|-----------|--------|--------|-------|-------|
+ * | 241   | 241 ms    | 4.15Hz | 120    | 80    | 60    |
+ * | 251   | 251 ms    | 3.98Hz | 125    | 83    | 62    |
+ * | 239   | 239 ms    | 4.18Hz | 119    | 79    | 59    |
+ * | 233   | 233 ms    | 4.29Hz | 116    | 77    | 58    |
+ * | 229   | 229 ms    | 4.37Hz | 114    | 76    | 57    |
+ * | 227   | 227 ms    | 4.41Hz | 113    | 75    | 56    |
+ * | 223   | 223 ms    | 4.48Hz | 111    | 74    | 55    |
+ * | 211   | 211 ms    | 4.74Hz | 105    | 70    | 52    |
+ *
+ * NOTE: Both PRECISION (1 kHz) and BALANCED (100 Hz) profiles produce
+ * identical chords for the same wall-clock time. The ISR converts its
+ * cycle count to canonical quanta before computing the chord.
+ *
+ * SMSP Pattern Example:
+ *   "50% duty on prime[0]" → LED ON when phase[0] < 120 (half of 241)
+ *   "33% duty on prime[2]" → Motor ON when phase[2] < 79 (third of 239)
+ *
+ * The coprimality ensures CRT uniqueness for 261,000 years at 1 μs resolution.
+ */
+#define UTLP_PRIME_0                     241     /**< 241 quanta period (½=120, ⅓=80, ¼=60) */
+#define UTLP_PRIME_1                     251     /**< 251 quanta period (½=125, ⅓=83, ¼=62) */
+#define UTLP_PRIME_2                     239     /**< 239 quanta period (½=119, ⅓=79, ¼=59) */
+#define UTLP_PRIME_3                     233     /**< 233 quanta period (½=116, ⅓=77, ¼=58) */
+#define UTLP_PRIME_4                     229     /**< 229 quanta period (½=114, ⅓=76, ¼=57) */
+#define UTLP_PRIME_5                     227     /**< 227 quanta period (½=113, ⅓=75, ¼=56) */
+#define UTLP_PRIME_6                     223     /**< 223 quanta period (½=111, ⅓=74, ¼=55) */
+#define UTLP_PRIME_7                     211     /**< 211 quanta period (½=105, ⅓=70, ¼=52) */
 
 /**
  * @brief Static initializer for primes array
@@ -1272,6 +1387,89 @@ extern "C" {
 #define UTLP_ILC_DEATH_SPIRAL_BUMP_US    1000UL      /* 1ms emergency bump */
 
 /** @} */ /* ilc */
+
+/*============================================================================
+ * FUNDAMENTAL TIME CONSTANTS
+ *
+ * These constants define basic time units to eliminate magic numbers.
+ * Use these instead of hardcoding 1000000ULL, etc.
+ *==========================================================================*/
+
+/** @defgroup time_constants Fundamental Time Constants
+ * @{
+ */
+
+/** @brief Microseconds per second */
+#define UTLP_US_PER_SEC                  1000000ULL
+
+/** @brief Microseconds per millisecond */
+#define UTLP_US_PER_MS                   1000ULL
+
+/** @brief Milliseconds per second */
+#define UTLP_MS_PER_SEC                  1000UL
+
+/** @} */ /* time_constants */
+
+/*============================================================================
+ * MAIN LOOP TIMING (Application Layer)
+ *
+ * These constants control the UTLP main loop behavior.
+ * Glass wall: UTLP provides primitives, application uses these for timing.
+ *==========================================================================*/
+
+/** @defgroup main_loop Main Loop Timing
+ * @{
+ */
+
+/** @brief Main loop heartbeat log interval */
+#define UTLP_MAIN_LOG_INTERVAL_US        10000000ULL     /* 10 seconds */
+
+/** @brief Chirp status log interval (during genesis) */
+#define UTLP_CHIRP_LOG_INTERVAL_US       UTLP_US_PER_SEC /* 1 second */
+
+/** @brief Minimum interval between beacon observations for slope calc */
+#define UTLP_MIN_OBSERVATION_INTERVAL_US 100000UL        /* 100ms */
+
+/** @brief Maximum iterations per main loop cycle (JPL Rule 2) */
+#define UTLP_MAIN_LOOP_MAX_ITERATIONS    UINT32_MAX
+
+/** @} */ /* main_loop */
+
+/*============================================================================
+ * EPOCH RESOLUTION
+ *==========================================================================*/
+
+/** @defgroup epoch_resolution Epoch Resolution Constants
+ * @{
+ */
+
+/** @brief Epoch offset threshold for considering devices synchronized */
+#define UTLP_EPOCH_OFFSET_THRESHOLD_US   1000000UL       /* 1 second */
+
+/** @} */ /* epoch_resolution */
+
+/*============================================================================
+ * APPLICATION API (Glass Wall Interface)
+ *
+ * These functions are the glass wall between UTLP primitives and application.
+ * Application layer uses these to control UTLP behavior.
+ *==========================================================================*/
+
+/** @defgroup app_api Application API
+ * @{
+ */
+
+/**
+ * @brief Request UTLP main loop shutdown
+ *
+ * Sets the shutdown flag, causing the main loop to exit on its next iteration.
+ * JPL Rule 2 compliance: All loops must have bounded termination.
+ *
+ * Implementation: utlp.c
+ */
+void utlp_request_shutdown(void);
+
+/** @} */ /* app_api */
 
 #ifdef __cplusplus
 }

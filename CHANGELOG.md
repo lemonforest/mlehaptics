@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **UTLP: Canonical Quantum Abstraction** - ISR-independent time unit for phase chord evolution
+  - **Problem**: Different ISR frequencies (1 kHz vs 100 Hz) produced incompatible phase chords
+  - **Solution**: Introduced canonical quantum (1 ms) as the universal chord evolution unit
+  - **Constants**: `UTLP_CANONICAL_QUANTUM_US`, `UTLP_PRECISION_QUANTA_PER_CYCLE`, `UTLP_BALANCED_QUANTA_PER_CYCLE`
+  - **New field**: `quanta_per_cycle` in `utlp_power_params_t` struct
+  - Files: [utlp_config.h](examples/utlp/utlp_config.h), [utlp_phase.c](examples/utlp/utlp_phase.c)
+
+- **UTLP: Mixed-Node Testing Support** - Target-based power profile selection
+  - ESP32-C6 (XIAO): PRECISION profile (10 MHz, 1 kHz ISR, authoritative time source)
+  - ESP32 (DevKit): BALANCED profile (1 MHz, 100 Hz ISR, battery-friendly)
+  - Both produce **identical phase chords** for the same wall-clock time
+  - Biological analogy: SA node (high-frequency) + AV node (low-frequency) = synchronized heartbeat
+  - Files: [utlp.c](examples/utlp/utlp.c), [platformio.ini](platformio.ini)
+
+- **UTLP: JPL Power of Ten Compliance Improvements**
+  - **Bounded loops**: Added `shutdown_requested` flag and `utlp_request_shutdown()` API
+  - **SSOT constants**: Fundamental time constants (`UTLP_US_PER_SEC`, `UTLP_MS_PER_SEC`, etc.)
+  - **Main loop timing**: Named constants for log intervals, observation periods
+  - Files: [utlp_config.h](examples/utlp/utlp_config.h), [utlp.c](examples/utlp/utlp.c)
+
+### Fixed
+
+- **UTLP Bug: Phase Chord Cross-Profile Incompatibility** (CRITICAL)
+  - **Symptom**: PRECISION and BALANCED profiles produced different chords for the same wall-clock time
+  - **Root Cause**: ISR computed chord from raw cycle count (`cycles % prime[i]`) instead of wall-clock time
+  - **Impact**: Devices with different ISR rates could never achieve time agreement
+  - **Fix**: ISR now computes `quanta = cycle_count * quanta_per_cycle` before chord evolution
+  - Files: [utlp_phase.c:107-124](examples/utlp/utlp_phase.c#L107-L124)
+
+### Documentation
+
+- **UTLP: Prime Table Documentation Update**
+  - Clarified that periods are in canonical quanta (1 ms), independent of ISR frequency
+  - Removed misleading "multiply by 10 for BALANCED" note (no longer needed with canonical quantum fix)
+  - Updated individual prime macro comments to reference "quanta period" instead of "@ 1kHz"
+  - Files: [utlp_config.h:878-912](examples/utlp/utlp_config.h#L878-L912)
+
 - **P7.4: Legacy Modes as Patterns**: Modes 0-3 now available as LED-only bilateral patterns
   - **Pattern IDs**: 4 new patterns at top of catalog (BLE commands 2-5)
   - **Timing**: Matches reactive mode timing exactly (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty)

@@ -78,6 +78,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "utlp_config.h"  /* For utlp_power_profile_t, utlp_power_params_t */
 
 #ifdef ESP_PLATFORM
 #include "esp_err.h"
@@ -219,6 +220,35 @@ _Static_assert(sizeof(utlp_phase_state_t) == 72, "Phase state packing incorrect"
  * @return ESP_OK on success, error code otherwise
  */
 esp_err_t utlp_phase_init(void);
+
+/**
+ * @brief Phase engine configuration for init
+ */
+typedef struct {
+    utlp_power_profile_t power_profile;  /**< Power profile selection */
+} utlp_phase_config_t;
+
+/**
+ * @brief Initialize phase engine with configuration
+ *
+ * Allows runtime selection of power profile:
+ * - PRECISION: 10 MHz, 100 ns tick, 1 kHz ISR (default)
+ * - BALANCED:  1 MHz, 1 µs tick, 100 Hz ISR (battery-friendly)
+ *
+ * @param config Configuration (NULL for defaults = PRECISION profile)
+ * @return ESP_OK on success, error code otherwise
+ */
+esp_err_t utlp_phase_init_with_config(const utlp_phase_config_t *config);
+
+/**
+ * @brief Get current power parameters (read-only)
+ *
+ * Returns pointer to the active power parameters. Valid after init.
+ * Use this instead of compile-time #defines for resolution-dependent math.
+ *
+ * @return Pointer to active parameters, or NULL if not initialized
+ */
+const utlp_power_params_t *utlp_phase_get_power_params(void);
 
 /**
  * @brief Deinitialize the phase engine

@@ -445,7 +445,28 @@ static struct {
      */
     beacon_interval_history_t self_interval;  /**< Our beacon timing pattern */
     uint64_t      last_tx_us;       /**< When we last transmitted (for self-interval calc) */
+
+    /* JPL Rule 2: Bounded loop termination */
+    bool          shutdown_requested; /**< Request graceful shutdown of main loop */
 } s_utlp = {0};
+
+/*============================================================================
+ * SHUTDOWN API - Glass Wall Interface
+ *
+ * Application layer can request UTLP shutdown via this API.
+ * The main loop will exit cleanly on next iteration.
+ *==========================================================================*/
+
+/**
+ * @brief Request UTLP main loop shutdown
+ *
+ * Sets the shutdown flag, causing the main loop to exit on its next iteration.
+ * JPL Rule 2 compliance: All loops must have bounded termination.
+ */
+void utlp_request_shutdown(void)
+{
+    s_utlp.shutdown_requested = true;
+}
 
 /*============================================================================
  * VECTOR METRIC HELPERS - Update History Buffers
@@ -783,7 +804,7 @@ static uint64_t get_genesis_chirp_interval_us(uint64_t uptime_us, bool *out_is_c
 {
     if (uptime_us < UTLP_CHIRP_DURATION_US) {
         /* Still in genesis chirp phase - use linear formula */
-        uint32_t uptime_s = (uint32_t)(uptime_us / 1000000ULL);
+        uint32_t uptime_s = (uint32_t)(uptime_us / UTLP_US_PER_SEC);
         uint64_t interval = UTLP_CHIRP_BASE_US + (uptime_s * UTLP_CHIRP_SLOPE_US);
 
         if (out_is_chirping) *out_is_chirping = true;
@@ -832,16 +853,16 @@ static uint32_t estimate_peer_age_from_interval(uint64_t observed_interval_us)
 static bool detect_genesis_chirp(uint64_t interval_1_us, uint64_t interval_2_us,
                                   uint64_t time_delta_us)
 {
-    if (time_delta_us < 100000) {  /* Need at least 100ms between observations */
+    if (time_delta_us < UTLP_MIN_OBSERVATION_INTERVAL_US) {
         return false;
     }
 
     /* Calculate observed slope (us increase per second) */
     int64_t interval_delta = (int64_t)interval_2_us - (int64_t)interval_1_us;
-    int64_t time_delta_s = (int64_t)(time_delta_us / 1000000ULL);
+    int64_t time_delta_s = (int64_t)(time_delta_us / UTLP_US_PER_SEC);
     if (time_delta_s == 0) time_delta_s = 1;  /* Avoid division by zero */
 
-    int64_t observed_slope = (interval_delta * 1000000LL) / (int64_t)time_delta_us;
+    int64_t observed_slope = (interval_delta * (int64_t)UTLP_US_PER_SEC) / (int64_t)time_delta_us;
 
     /* Expected slope from constants */
     int64_t expected_slope = UTLP_CHIRP_SLOPE_US;
@@ -1275,8 +1296,7 @@ static void resolve_epoch_with_offset(peer_record_t *peer)
      * C is PULLED INTO SYNC with A+B rather than disrupting their sync.
      */
 
-    /* OFFSET THRESHOLD for determining "same second" */
-    #define EPOCH_OFFSET_THRESHOLD_US  1000000  /* 1 second */
+    /* OFFSET THRESHOLD for determining "same second" (from utlp_config.h) */
 
     /*
      * === RULE 0: GENESIS PULSE PROTECTION (INNATE IMMUNITY) ===
@@ -1383,13 +1403,13 @@ static void resolve_epoch_with_offset(peer_record_t *peer)
          * If offset > 0: My clock is ahead → I've been running longer → I'm older
          * If offset < 0: Peer's clock is ahead → Peer booted first → Peer is older
          */
-        if (offset_us < -EPOCH_OFFSET_THRESHOLD_US) {
+        if (offset_us < -UTLP_EPOCH_OFFSET_THRESHOLD_US) {
             /* Peer is significantly older - their clock is ahead */
             i_should_adopt = true;
             utlp_hal_log_info(TAG, "RESOLUTION: Peer is older (offset=%lld us, older wins)",
                               (long long)offset_us);
         }
-        else if (offset_us > EPOCH_OFFSET_THRESHOLD_US) {
+        else if (offset_us > UTLP_EPOCH_OFFSET_THRESHOLD_US) {
             /* We are significantly older - our clock is ahead */
             utlp_hal_log_info(TAG, "RESOLUTION: We are older (offset=%lld us, we keep epoch)",
                               (long long)offset_us);
@@ -1681,7 +1701,7 @@ static void on_beacon_received(const utlp_packet_t *pkt)
 
     /* Build epoch_state from wire packet for first contact handling */
     epoch_state_t peer_epoch;
-    peer_epoch.origin_time = (uint32_t)(wire_pkt->exon.utlp_timestamp_us / 1000000ULL);
+    peer_epoch.origin_time = (uint32_t)(wire_pkt->exon.utlp_timestamp_us / UTLP_US_PER_SEC);
     peer_epoch.depth = UTLP_DEPTH_FRESH;  /* Phase 2: assume fresh for now */
     peer_epoch.session_salt[0] = salt[0];
     peer_epoch.session_salt[1] = salt[1];
@@ -2018,7 +2038,7 @@ void utlp_app_run(void)
 
     /* Establish swarm time epoch origin (seconds, for wire format) */
     uint64_t boot_us = utlp_hal_get_micros();
-    uint32_t origin_time_s = (uint32_t)(boot_us / 1000000ULL);
+    uint32_t origin_time_s = (uint32_t)(boot_us / UTLP_US_PER_SEC);
 
     /* Initialize epoch state */
     s_utlp.epoch.origin_time = origin_time_s;
@@ -2036,12 +2056,36 @@ void utlp_app_run(void)
      *
      * "Time is a chord, not a number."
      *
-     * Phase 1 uses the full 10 MHz MCPWM-based Hardware Phase Locked
-     * Coherency engine via the timer HAL. Time is represented as a
-     * phase chord (8 residues modulo coprime primes) - scalar time
-     * is DERIVED via CRT when needed.
+     * The Hardware Phase Locked Coherency engine uses MCPWM timer HAL.
+     * Time is represented as a phase chord (8 residues modulo coprime
+     * primes) - scalar time is DERIVED via CRT when needed.
+     *
+     * Power Profile Selection (via API):
+     *   PRECISION (10 MHz): 1 kHz ISR, 100 ns tick, blocks light sleep
+     *   BALANCED  (1 MHz):  100 Hz ISR, 1 µs tick, enables light sleep
+     *
+     * Target-based selection:
+     *   ESP32-C6 (XIAO): PRECISION - authoritative time source
+     *   ESP32 (DevKit): BALANCED - battery-friendly, mixed-node testing
+     *
+     * Mixed-node testing verifies canonical quantum fix - both produce
+     * identical phase chords for the same wall-clock time.
      */
-    esp_err_t phase_ret = utlp_phase_init();
+    utlp_power_profile_t selected_profile;
+#if CONFIG_IDF_TARGET_ESP32
+    /* ESP32 DevKit: Use BALANCED for mixed-node testing */
+    selected_profile = UTLP_POWER_PROFILE_BALANCED;
+    utlp_hal_log_info(TAG, "Power profile: BALANCED (1 MHz, 100 Hz ISR)");
+#else
+    /* ESP32-C6 and others: Use PRECISION as authoritative time source */
+    selected_profile = UTLP_POWER_PROFILE_PRECISION;
+    utlp_hal_log_info(TAG, "Power profile: PRECISION (10 MHz, 1 kHz ISR)");
+#endif
+
+    utlp_phase_config_t phase_config = {
+        .power_profile = selected_profile,
+    };
+    esp_err_t phase_ret = utlp_phase_init_with_config(&phase_config);
     if (phase_ret != ESP_OK) {
         utlp_hal_log_error(TAG, "Phase engine init failed!");
     }
@@ -2109,11 +2153,20 @@ void utlp_app_run(void)
 
     /* Log genesis chirp start */
     utlp_hal_log_info(TAG, "Genesis Chirp: interval=%lu ms (LINEAR: base=%lu + slope=%lu×t)",
-                      (unsigned long)(UTLP_CHIRP_BASE_US / 1000),
-                      (unsigned long)(UTLP_CHIRP_BASE_US / 1000),
-                      (unsigned long)(UTLP_CHIRP_SLOPE_US / 1000));
+                      (unsigned long)(UTLP_CHIRP_BASE_US / UTLP_US_PER_MS),
+                      (unsigned long)(UTLP_CHIRP_BASE_US / UTLP_US_PER_MS),
+                      (unsigned long)(UTLP_CHIRP_SLOPE_US / UTLP_US_PER_MS));
 
-    while (1) {
+    /*
+     * Main Loop - JPL Rule 2 Compliant
+     *
+     * Loop terminates when:
+     * 1. shutdown_requested flag is set (via utlp_request_shutdown())
+     * 2. External reset/power cycle
+     *
+     * Glass Wall: Application layer controls shutdown via API.
+     */
+    while (!s_utlp.shutdown_requested) {
         uint64_t now_us = utlp_hal_get_micros();
         uint64_t uptime_us = now_us - s_utlp.boot_time_us;
 
@@ -2140,18 +2193,18 @@ void utlp_app_run(void)
         uint64_t beacon_interval_us = get_genesis_chirp_interval_us(uptime_us, &is_chirping);
 
         /* Log chirp progress every second during chirp phase */
-        if (is_chirping && (now_us - last_chirp_log_us >= 1000000ULL)) {
-            uint32_t uptime_s = (uint32_t)(uptime_us / 1000000ULL);
+        if (is_chirping && (now_us - last_chirp_log_us >= UTLP_CHIRP_LOG_INTERVAL_US)) {
+            uint32_t uptime_s = (uint32_t)(uptime_us / UTLP_US_PER_SEC);
             utlp_hal_log_info(TAG, "Chirp: t=%lus → interval=%lu ms",
                               (unsigned long)uptime_s,
-                              (unsigned long)(beacon_interval_us / 1000));
+                              (unsigned long)(beacon_interval_us / UTLP_US_PER_MS));
             last_chirp_log_us = now_us;
         }
 
         /* Log transition from chirp to steady state */
         if (was_chirping && !is_chirping) {
             utlp_hal_log_info(TAG, "Genesis Chirp COMPLETE → Steady state: %lu s interval",
-                              (unsigned long)(UTLP_BEACON_STEADY_US / 1000000));
+                              (unsigned long)(UTLP_BEACON_STEADY_US / UTLP_US_PER_SEC));
             was_chirping = false;
         }
 
@@ -2162,7 +2215,7 @@ void utlp_app_run(void)
         }
 
         /* Periodic logging (every 10 seconds) */
-        if (now_us - last_log_us >= 10000000ULL) {
+        if (now_us - last_log_us >= UTLP_MAIN_LOG_INTERVAL_US) {
             heartbeat_count++;
 
             /* Get ISR latency from phase engine (ILC learning) */

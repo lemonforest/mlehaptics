@@ -69,6 +69,18 @@ static utlp_phase_state_t s_state = {0};
 /** @brief Initialization flag */
 static bool s_initialized = false;
 
+/** @brief Active power parameters (set at init, read-only thereafter) */
+static utlp_power_params_t s_power_params = {
+    /* Defaults match PRECISION profile */
+    .resolution_hz = UTLP_PRECISION_RESOLUTION_HZ,
+    .period_ticks = UTLP_PRECISION_PERIOD_TICKS,
+    .cycle_us = UTLP_PRECISION_CYCLE_US,
+    .tick_ns = UTLP_PRECISION_TICK_NS,
+    .ticks_per_us = UTLP_PRECISION_TICKS_PER_US,
+    .cycles_per_sec = UTLP_PRECISION_CYCLES_PER_SEC,
+    .quanta_per_cycle = UTLP_PRECISION_QUANTA_PER_CYCLE,
+};
+
 /*============================================================================
  * INTERRUPT LATENCY COMPENSATION (ILC) STATE
  *==========================================================================*/
@@ -82,8 +94,13 @@ static volatile uint32_t g_learned_isr_latency_us = UTLP_ILC_INITIAL_US;
 /**
  * @brief Cycle boundary callback from timer HAL
  *
- * Called once per cycle (1 ms at 10 MHz / 10000 ticks).
+ * Called once per cycle (1 ms at PRECISION, 10 ms at BALANCED).
  * Updates phase chord (vector time) and performs ILC learning.
+ *
+ * CRITICAL: Phase chord evolves in CANONICAL QUANTA (1 ms units), not ISR cycles.
+ * This ensures devices with different ISR frequencies produce compatible chords:
+ *   - PRECISION (1 kHz): 1 cycle = 1 quantum
+ *   - BALANCED (100 Hz): 1 cycle = 10 quanta
  *
  * "Time is a chord, not a number."
  */
@@ -91,18 +108,24 @@ static bool phase_cycle_callback(void *user_ctx, uint32_t count_at_isr)
 {
     (void)user_ctx;
 
-    /* Increment cycle count */
+    /* Increment cycle count (ISR cycles for debugging/diagnostics) */
     s_state.cycle_count++;
 
-    /* Update phase chord - the NATIVE time representation */
-    uint64_t cycles = s_state.cycle_count;
+    /*
+     * Update phase chord - the NATIVE time representation
+     *
+     * Convert ISR cycles to canonical quanta (1 ms units) before computing chord.
+     * This ensures PRECISION and BALANCED profiles produce identical chords
+     * for the same wall-clock time, enabling cross-profile interoperability.
+     */
+    uint64_t quanta = s_state.cycle_count * s_power_params.quanta_per_cycle;
     for (int i = 0; i < UTLP_CHORD_SIZE; i++) {
-        s_state.phase_chord[i] = (uint8_t)(cycles % s_primes[i]);
+        s_state.phase_chord[i] = (uint8_t)(quanta % s_primes[i]);
     }
 
     /* ILC learning from count_at_isr */
     if (count_at_isr > 0) {
-        uint32_t latency_us = (count_at_isr * UTLP_PHASE_TICK_NS) / 1000;
+        uint32_t latency_us = (count_at_isr * s_power_params.tick_ns) / 1000;
         uint32_t current = g_learned_isr_latency_us;
 
         if (latency_us > current + UTLP_ILC_DEADZONE_US) {
@@ -127,41 +150,77 @@ static bool phase_cycle_callback(void *user_ctx, uint32_t count_at_isr)
  * INITIALIZATION
  *==========================================================================*/
 
-esp_err_t utlp_phase_init(void)
+esp_err_t utlp_phase_init_with_config(const utlp_phase_config_t *config)
 {
     if (s_initialized) {
         LOG_WARN(TAG, "Phase engine already initialized");
         return ESP_OK;
     }
 
+    /* Select power profile parameters */
+    utlp_power_profile_t profile = config ? config->power_profile
+                                          : UTLP_DEFAULT_POWER_PROFILE;
+
+    switch (profile) {
+        case UTLP_POWER_PROFILE_PRECISION:
+            /* 10 MHz: 100 ns tick, 1 ms cycle, 1 kHz ISR */
+            s_power_params.resolution_hz = UTLP_PRECISION_RESOLUTION_HZ;
+            s_power_params.period_ticks = UTLP_PRECISION_PERIOD_TICKS;
+            s_power_params.cycle_us = UTLP_PRECISION_CYCLE_US;
+            s_power_params.tick_ns = UTLP_PRECISION_TICK_NS;
+            s_power_params.ticks_per_us = UTLP_PRECISION_TICKS_PER_US;
+            s_power_params.cycles_per_sec = UTLP_PRECISION_CYCLES_PER_SEC;
+            s_power_params.quanta_per_cycle = UTLP_PRECISION_QUANTA_PER_CYCLE;
+            break;
+
+        case UTLP_POWER_PROFILE_BALANCED:
+            /* 1 MHz: 1 µs tick, 10 ms cycle, 100 Hz ISR */
+            s_power_params.resolution_hz = UTLP_BALANCED_RESOLUTION_HZ;
+            s_power_params.period_ticks = UTLP_BALANCED_PERIOD_TICKS;
+            s_power_params.cycle_us = UTLP_BALANCED_CYCLE_US;
+            s_power_params.tick_ns = UTLP_BALANCED_TICK_NS;
+            s_power_params.ticks_per_us = UTLP_BALANCED_TICKS_PER_US;
+            s_power_params.cycles_per_sec = UTLP_BALANCED_CYCLES_PER_SEC;
+            s_power_params.quanta_per_cycle = UTLP_BALANCED_QUANTA_PER_CYCLE;
+            break;
+
+        default:
+            LOG_WARN(TAG, "Unknown power profile %d, using PRECISION", profile);
+            return utlp_phase_init_with_config(NULL);
+    }
+
     LOG_INFO(TAG, "Initializing Phase Engine (HPLC - Vector Time)");
     LOG_INFO(TAG, "  \"Time is a chord, not a number\"");
+    LOG_INFO(TAG, "  Power profile: %s",
+             profile == UTLP_POWER_PROFILE_PRECISION ? "PRECISION (10 MHz)"
+                                                      : "BALANCED (1 MHz)");
     LOG_INFO(TAG, "  Resolution: %lu Hz (%lu ns/tick)",
-             (unsigned long)UTLP_PHASE_TIMER_RESOLUTION_HZ,
-             (unsigned long)UTLP_PHASE_TICK_NS);
-    LOG_INFO(TAG, "  Period: %lu ticks = %lu us",
-             (unsigned long)UTLP_PHASE_PERIOD_TICKS,
-             (unsigned long)UTLP_PHASE_CYCLE_US);
+             (unsigned long)s_power_params.resolution_hz,
+             (unsigned long)s_power_params.tick_ns);
+    LOG_INFO(TAG, "  Period: %lu ticks = %lu us (%lu Hz ISR)",
+             (unsigned long)s_power_params.period_ticks,
+             (unsigned long)s_power_params.cycle_us,
+             (unsigned long)s_power_params.cycles_per_sec);
     LOG_INFO(TAG, "  Primes: [%u,%u,%u,%u,%u,%u,%u,%u]",
              s_primes[0], s_primes[1], s_primes[2], s_primes[3],
              s_primes[4], s_primes[5], s_primes[6], s_primes[7]);
 
     /* Initialize state */
     memset(&s_state, 0, sizeof(s_state));
-    s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
+    s_state.current_period_ticks = s_power_params.period_ticks;
     s_state.sync_state = UTLP_PHASE_STATE_COLD;
     s_state.crt_valid = true;  /* CRT valid until partition detected */
     s_state.partition_status = UTLP_PARTITION_NONE;
 
-    /* Initialize timer HAL */
-    utlp_hal_timer_config_t config = {
-        .resolution_hz = UTLP_PHASE_TIMER_RESOLUTION_HZ,
-        .period_ticks = UTLP_PHASE_PERIOD_TICKS,
+    /* Initialize timer HAL with selected power profile */
+    utlp_hal_timer_config_t timer_config = {
+        .resolution_hz = s_power_params.resolution_hz,
+        .period_ticks = s_power_params.period_ticks,
         .on_cycle = phase_cycle_callback,
         .user_ctx = &s_state,
     };
 
-    utlp_hal_timer_err_t err = utlp_hal_timer_init(&config);
+    utlp_hal_timer_err_t err = utlp_hal_timer_init(&timer_config);
     if (err != UTLP_TIMER_OK) {
         LOG_WARN(TAG, "Failed to init timer HAL: %d", err);
         return ESP_FAIL;
@@ -178,6 +237,17 @@ esp_err_t utlp_phase_init(void)
     s_initialized = true;
     LOG_INFO(TAG, "Phase engine initialized - Physics First!");
     return ESP_OK;
+}
+
+esp_err_t utlp_phase_init(void)
+{
+    /* Backward compatible: use default PRECISION profile */
+    return utlp_phase_init_with_config(NULL);
+}
+
+const utlp_power_params_t *utlp_phase_get_power_params(void)
+{
+    return s_initialized ? &s_power_params : NULL;
 }
 
 esp_err_t utlp_phase_deinit(void)
@@ -396,7 +466,7 @@ void utlp_phase_tick(uint64_t uptime_us)
     s_state.sync_quality = quality;
 
     /* State transitions: LOCKED ↔ RECOVERY */
-    uint32_t threshold_ticks = UTLP_SERVO_LOCKED_THRESHOLD_US * UTLP_PHASE_TICKS_PER_US;
+    uint32_t threshold_ticks = UTLP_SERVO_LOCKED_THRESHOLD_US * s_power_params.ticks_per_us;
 
     if (s_state.sync_state == UTLP_PHASE_STATE_LOCKED && avg_error > threshold_ticks) {
         s_state.sync_state = UTLP_PHASE_STATE_RECOVERY;
@@ -439,9 +509,9 @@ uint64_t utlp_phase_get_atomic_time_us(void)
     utlp_hal_timer_exit_critical(crit);
 
     uint32_t ticks = utlp_phase_get_ticks();
-    uint64_t ticks_us = ((uint64_t)ticks * UTLP_PHASE_TICK_NS) / 1000;
+    uint64_t ticks_us = ((uint64_t)ticks * s_power_params.tick_ns) / 1000;
 
-    return (cycles * UTLP_PHASE_CYCLE_US) + ticks_us + offset;
+    return (cycles * s_power_params.cycle_us) + ticks_us + offset;
 }
 
 void utlp_phase_set_epoch_offset(int64_t offset_us)
@@ -498,8 +568,8 @@ esp_err_t utlp_phase_get_time(utlp_app_time_t *time)
         utlp_hal_timer_exit_critical(crit);
 
         uint32_t ticks = utlp_phase_get_ticks();
-        uint64_t ticks_us = ((uint64_t)ticks * UTLP_PHASE_TICK_NS) / 1000;
-        time->scalar_us = (cycles * UTLP_PHASE_CYCLE_US) + ticks_us + offset;
+        uint64_t ticks_us = ((uint64_t)ticks * s_power_params.tick_ns) / 1000;
+        time->scalar_us = (cycles * s_power_params.cycle_us) + ticks_us + offset;
     } else {
         utlp_hal_timer_exit_critical(crit);
         time->scalar_us = 0;  /* Invalid during partition */
@@ -560,9 +630,9 @@ uint64_t utlp_phase_get_scalar_us(void)
     utlp_hal_timer_exit_critical(crit);
 
     uint32_t ticks = utlp_phase_get_ticks();
-    uint64_t ticks_us = ((uint64_t)ticks * UTLP_PHASE_TICK_NS) / 1000;
+    uint64_t ticks_us = ((uint64_t)ticks * s_power_params.tick_ns) / 1000;
 
-    return (cycles * UTLP_PHASE_CYCLE_US) + ticks_us + offset;
+    return (cycles * s_power_params.cycle_us) + ticks_us + offset;
 }
 
 /*============================================================================
@@ -623,11 +693,11 @@ bool utlp_phase_chord_origin_verify(const utlp_phase_chord_t peer_chord,
      */
 
     /* Compute expected chord from origin time difference */
-    /* Convert seconds to cycles (1 ms = 1 cycle at 10 MHz/10000) */
+    /* Convert seconds to cycles (runtime: 1000 at 10 MHz, 100 at 1 MHz) */
     uint64_t delta_s = (peer_origin_time > our_origin_time) ?
                        (peer_origin_time - our_origin_time) :
                        (our_origin_time - peer_origin_time);
-    uint64_t delta_cycles = delta_s * 1000ULL;  /* seconds to ms (cycles) */
+    uint64_t delta_cycles = delta_s * s_power_params.cycles_per_sec;
 
     /* Get our current chord */
     utlp_phase_chord_t our_chord;
