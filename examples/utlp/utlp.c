@@ -41,6 +41,7 @@
 #include "utlp_arbor.h"
 #include "utlp_security.h"  /* utlp_wire_packet_t, utlp_exon_t, utlp_intron_t */
 #include "utlp_smsp.h"
+#include "utlp_hdc.h"       /* HDC-native sync primitives */
 
 #include <string.h>
 
@@ -111,8 +112,19 @@ _Static_assert(sizeof(epoch_state_t) == 7, "epoch_state_t must be exactly 7 byte
  * @see utlp_security.h - utlp_wire_packet_t definition
  *==========================================================================*/
 
-/** @brief Protocol version for Phase 2 (Vector Time) */
-#define UTLP_PROTOCOL_VERSION_N2    0x02
+/** @brief Protocol version for Phase 2 (Vector Time) - Steady State */
+#define UTLP_PROTOCOL_VERSION_N2        0x02
+
+/**
+ * @brief Protocol version for Genesis Pulsing
+ *
+ * Devices in genesis chirp phase (first ~10s after boot) use this version
+ * to explicitly signal they're seeking swarm adoption. Established devices
+ * seeing this version should send an immediate welcome response.
+ *
+ * Using 0xFE (not 0xFF) leaves room for future special values.
+ */
+#define UTLP_PROTOCOL_VERSION_GENESIS   0xFE
 
 /*============================================================================
  * PHASE 2: PEER TRACKING (First Contact Detection)
@@ -199,8 +211,34 @@ static const genesis_step_t GENESIS_SCRIPT[GENESIS_PATTERN_STEPS] = {
  */
 #define GENESIS_RAPID_INTERVAL_MS     200   /**< < 200ms = Phase 1 (rapid) */
 #define GENESIS_FAST_INTERVAL_MS     1000   /**< < 1s = Phase 1-2 (genesis) */
-#define GENESIS_SETTLING_INTERVAL_MS 2000   /**< < 2s = Phase 1-3 (young) */
-#define STEADY_STATE_INTERVAL_MS    50000   /**< > 50s = Phase 5 (established) */
+#define GENESIS_SETTLING_INTERVAL_MS 2000   /**< <= 2s = Phase 1-4 (unproven) */
+#define STEADY_STATE_INTERVAL_MS    50000   /**< > 50s = Phase 5 (proven) */
+
+/**
+ * @brief Lineage state enumeration
+ *
+ * Replaces binary is_genesis_pattern/is_steady_pattern with explicit state machine.
+ * Terminology shift: "genesis" → "lineage" per HDC/Physics/Engineering analysis.
+ *
+ * Key insight: "Lineage is what propagates. Authority is what accumulates."
+ *   - A device doesn't "become established" - its AUTHORITY increases
+ *   - A lineage doesn't "become proven" - EVIDENCE accumulates
+ *
+ * The UNKNOWN state solves the critical default-state bug where (false, false)
+ * meant both "no data yet" AND "transitioning" - now these are distinct.
+ */
+typedef enum {
+    LINEAGE_UNKNOWN = 0,       /**< Default: insufficient interval data (SAFE) */
+    LINEAGE_UNPROVEN,          /**< Genesis pulsing: intervals <= 2s observed */
+    LINEAGE_TRANSITIONING,     /**< Between genesis and steady: 2s < interval <= 50s */
+    LINEAGE_PROVEN             /**< Established: intervals > 50s with low variance */
+} lineage_state_t;
+
+/** Minimum intervals needed before trusting lineage classification */
+#define UTLP_MIN_INTERVALS_FOR_LINEAGE  2
+
+/** Hysteresis threshold: consecutive observations needed to change state */
+#define UTLP_LINEAGE_HYSTERESIS_THRESHOLD  2
 
 /*============================================================================
  * SEISMIC CHIRP STATE - Per-Peer Burst Tracking
@@ -236,6 +274,10 @@ static const genesis_step_t GENESIS_SCRIPT[GENESIS_PATTERN_STEPS] = {
  * Each element is a signed offset (our_time - peer_time) in microseconds.
  * Positive = we're ahead, Negative = we're behind.
  *
+ * TREND CALCULATION FIX: Uses actual elapsed time between first and last
+ * samples, not sample count. This ensures accurate drift rate even when
+ * samples are spaced irregularly (e.g., 20s between chirps, not 1s).
+ *
  * HDC Encoding (future): Encode as sparse binary vector where set bits
  * represent offset buckets. Similar offsets → similar hypervectors.
  */
@@ -244,6 +286,8 @@ typedef struct {
     int64_t     samples[UTLP_METRIC_HISTORY_SIZE];  /**< Ring buffer of offsets */
     int64_t     median_us;                          /**< Median of samples (filtered) */
     int64_t     trend_us_per_s;                     /**< Drift rate (positive = diverging) */
+    uint64_t    first_sample_time_us;               /**< When tracking started (for accurate trend) */
+    uint64_t    last_sample_time_us;                /**< Most recent sample time */
     /* === 1-byte fields (grouped at end) === */
     uint8_t     write_idx;                          /**< Next write position */
     uint8_t     count;                              /**< Valid samples (0-8) */
@@ -313,8 +357,8 @@ typedef struct {
     /* === 1-byte fields grouped (box truck packed) === */
     uint8_t     write_idx;                          /**< Next write position */
     uint8_t     count;                              /**< Valid intervals (0-8) */
-    uint8_t     is_genesis_pattern;                 /**< True if intervals match genesis ramp */
-    uint8_t     is_steady_pattern;                  /**< True if intervals are consistent ~60s */
+    lineage_state_t lineage;                        /**< Lineage classification (replaces 2 bools) */
+    uint8_t     lineage_hysteresis;                 /**< Consecutive obs supporting state change */
     /* 4 bytes: no padding needed, naturally aligned to next 4-byte boundary */
 } beacon_interval_history_t;
 
@@ -353,7 +397,6 @@ typedef struct {
  */
 typedef struct {
     /* === 8-byte aligned fields first === */
-    uint64_t    chirp_epoch_us;         /**< Sender's timestamp (same for all 3 bursts) */
     uint64_t    rx_time_us[UTLP_CHIRP_BURST_COUNT]; /**< Local RX times for each burst */
     int64_t     offset_us;              /**< Clock offset (our time - their time) */
     int64_t     jitter_01_us;           /**< Jitter: (rx1-rx0) - 2ms expected */
@@ -363,6 +406,9 @@ typedef struct {
     /* === Embedded structs (already properly ordered internally) === */
     offset_history_t      offset_history;   /**< Offset trend over time */
     jitter_distribution_t jitter_dist;      /**< Jitter quality distribution */
+
+    /* === Chord-based chirp identification (8 bytes) === */
+    utlp_phase_chord_t chirp_epoch_chord; /**< Peer's chord (same for all 3 bursts) */
 
     /* === 1-byte fields (grouped at end) === */
     uint8_t     bursts_received;        /**< Bitmask of received bursts (0x01, 0x02, 0x04) */
@@ -404,16 +450,22 @@ typedef struct {
     /* === 4-byte aligned fields === */
     uint32_t      origin_time;      /**< Last known origin_time */
 
+    /* === HDC tracking (Phase 3 - Vector-native sync) === */
+    trajectory_t      trajectory;       /**< Peer's chord trajectory (legacy ring buffer) */
+    trajectory_holo_t traj_holo;        /**< Peer's holographic trajectory (TRUE HDC) */
+    latency_holo_t    latency_holo;     /**< Holographic latency memory */
+    agreement_vector_t last_agreement;  /**< Most recent agreement vector */
+
     /* === 1-byte fields (grouped at end) === */
     uint8_t       mac[6];           /**< Peer's MAC address (hardware identity) */
     uint8_t       session_salt[2];  /**< Last known session salt (session identity) */
     uint8_t       depth;            /**< Last known depth */
     uint8_t       beacon_count;     /**< Beacons received in detection window */
+    uint8_t       last_beacon_chord[8]; /**< Chord of last beacon (for dedup) */
     bool          is_known;         /**< Slot in use */
     bool          epoch_resolved;   /**< True after epoch resolution complete */
-    bool          genesis_protected; /**< True if we used genesis protection */
-
-    /* Future: trust metrics, reputation, arbor-specific RSSI, etc. */
+    bool          genesis_protected; /**< True if we used genesis protection (legacy) */
+    bool          is_genesis;       /**< True if peer is genesis pulsing (from protocol_version) */
 } peer_record_t;
 
 /*============================================================================
@@ -429,11 +481,36 @@ static struct {
     uint8_t       current_genesis_phase; /**< 1-5 for logging, 5 = steady state */
     bool          initialized;
 
-    /* Time synchronization state */
+    /* Time synchronization state (legacy scalar - being replaced by HDC) */
     int64_t       time_offset_us;   /**< Our time - peer time (positive = we're ahead) */
     bool          time_synced;      /**< True if we have a valid time offset */
     bool          we_adopted_epoch; /**< True if WE adopted peer's epoch (we adjust time) */
     uint32_t      sequence_id;      /**< TX sequence counter for beacons */
+
+    /* HDC-native sync state (Phase 3 - Vector consensus) */
+    trajectory_t      self_trajectory;   /**< Our own chord trajectory (legacy) */
+    trajectory_holo_t self_traj_holo;    /**< Our holographic trajectory (TRUE HDC) */
+    latency_holo_t    self_latency;      /**< Our latency hologram (for self-assessment) */
+    rollin_t          rollin;            /**< Roll-in state for fresh boot convergence */
+    uint32_t          observation_count; /**< Our total observations (authority metric) */
+
+    /*
+     * SYNC SOURCE TRACKING (Bug Fix: Stale Offset After Peer Reboot)
+     *
+     * When we adopt a peer's epoch, we record WHICH peer we synced from.
+     * If that peer reboots (CONTACT_REBOOTED_PEER), our time_offset becomes
+     * meaningless - the peer's new timeline has no relation to their old one.
+     *
+     * On sync source reboot:
+     * 1. Clear time_synced
+     * 2. Clear sync_source_mac
+     * 3. Re-run epoch resolution with the rebooted peer
+     *
+     * This prevents "swarm fragmentation" where devices hold stale offsets
+     * to timelines that no longer exist.
+     */
+    uint8_t       sync_source_mac[6];   /**< MAC of peer we adopted from (if have_sync_source) */
+    bool          have_sync_source;     /**< True if sync_source_mac is valid */
 
     /* === SELF-OBSERVATION: Our Own Beacon Texture ===
      *
@@ -517,18 +594,247 @@ static int64_t compute_median_i64(const int64_t *arr, uint8_t count)
 }
 
 /**
+ * @brief Clear offset history (call when sync source changes)
+ *
+ * Prevents history contamination when transitioning between sync sources.
+ * Without this, old samples from previous timeline cause garbage trend values.
+ *
+ * @param history Offset history to clear
+ */
+static void offset_history_clear(offset_history_t *history)
+{
+    if (!history) return;
+    memset(history, 0, sizeof(offset_history_t));
+}
+
+/*============================================================================
+ * CHORD-ON-WIRE HELPERS - Protocol v0x02 Support
+ *
+ * These functions support the new chord-based wire format where time is
+ * transmitted as 8-byte phase chord instead of scalar timestamp.
+ *==========================================================================*/
+
+/** @brief The 8 coprime primes used for phase chord (from utlp_config.h) */
+static const uint8_t PHASE_PRIMES[8] = {241, 251, 239, 233, 229, 227, 223, 211};
+
+/**
+ * @brief Compute signed offset in quanta between two chords
+ *
+ * Each chord dimension wraps around at its prime. We compute the minimum
+ * signed distance on each prime ring, then take the median as the offset.
+ *
+ * Positive result: chord_a is AHEAD of chord_b (a is in the future)
+ * Negative result: chord_a is BEHIND chord_b (a is in the past)
+ *
+ * @param chord_a First chord (typically local/receiver)
+ * @param chord_b Second chord (typically peer/sender)
+ * @return Signed offset in quanta (chord_a - chord_b), median across dimensions
+ */
+static int32_t chord_offset_quanta(const uint8_t *chord_a, const uint8_t *chord_b)
+{
+    int32_t deltas[8];
+
+    for (int i = 0; i < 8; i++) {
+        uint8_t prime = PHASE_PRIMES[i];
+        int16_t raw_diff = (int16_t)chord_a[i] - (int16_t)chord_b[i];
+
+        /*
+         * Compute minimum signed distance on circular ring.
+         * If raw_diff > prime/2, we wrapped around - adjust to negative.
+         * If raw_diff < -prime/2, we wrapped around - adjust to positive.
+         */
+        if (raw_diff > (int16_t)(prime / 2)) {
+            raw_diff -= prime;  /* Wrapped forward → actually behind */
+        } else if (raw_diff < -(int16_t)(prime / 2)) {
+            raw_diff += prime;  /* Wrapped backward → actually ahead */
+        }
+
+        deltas[i] = raw_diff;
+    }
+
+    /* Return median of the 8 deltas (robust to outliers from prime ambiguity) */
+    /* Simple sort for 8 elements */
+    for (int i = 1; i < 8; i++) {
+        int32_t key = deltas[i];
+        int j = i - 1;
+        while (j >= 0 && deltas[j] > key) {
+            deltas[j + 1] = deltas[j];
+            j--;
+        }
+        deltas[j + 1] = key;
+    }
+
+    /* Return average of middle two (median of even count) */
+    return (deltas[3] + deltas[4]) / 2;
+}
+
+/**
+ * @brief Overflow-safe modular multiplication
+ *
+ * Computes (a * b) % m without overflow using Russian peasant algorithm.
+ * Works correctly even when a * b would exceed UINT64_MAX.
+ *
+ * @param a First multiplicand (will be reduced mod m)
+ * @param b Second multiplicand
+ * @param m Modulus
+ * @return (a * b) % m
+ */
+static uint64_t mulmod_safe(uint64_t a, uint64_t b, uint64_t m)
+{
+    uint64_t result = 0;
+    a %= m;
+
+    while (b > 0) {
+        if (b & 1) {
+            /* result = (result + a) % m, avoiding overflow in addition */
+            if (result >= m - a) {
+                result = result - (m - a);  /* result = result + a - m */
+            } else {
+                result = result + a;
+            }
+        }
+
+        /* a = (a * 2) % m, avoiding overflow in doubling */
+        if (a >= m - a) {
+            a = a - (m - a);  /* a = 2a - m */
+        } else {
+            a = a << 1;
+        }
+
+        b >>= 1;
+    }
+
+    return result;
+}
+
+/**
+ * @brief Convert chord to scalar time via Chinese Remainder Theorem
+ *
+ * Given a phase chord [r0, r1, ..., r7], find the unique scalar x such that:
+ *   x ≡ r0 (mod 241)
+ *   x ≡ r1 (mod 251)
+ *   ...
+ *   x ≡ r7 (mod 211)
+ *
+ * The solution is unique modulo M = 241×251×...×211 ≈ 8.24×10^18, which fits
+ * in uint64_t. This provides unambiguous time for ~261,000 years at 1μs ticks.
+ *
+ * @param chord Phase chord (8 bytes)
+ * @return Scalar time in quanta (1 quanta = 1 ms in PRECISION mode)
+ */
+static uint64_t chord_to_scalar_crt(const uint8_t *chord)
+{
+    /*
+     * Product of all primes: M = 241×251×239×233×229×227×223×211
+     * M = 8,239,355,544,127,721,383 (fits in uint64_t)
+     */
+    static const uint64_t M = 8239355544127721383ULL;
+
+    /*
+     * Precomputed M_i values: M_i = M / prime[i]
+     * Primes:     [241,     251,     239,     233,     229,     227,     223,     211]
+     */
+    static const uint64_t M_i[8] = {
+        34188197278538263ULL,   /* M / 241 */
+        32826117705688133ULL,   /* M / 251 */
+        34474290979613897ULL,   /* M / 239 */
+        35362040961921551ULL,   /* M / 233 */
+        35979718533308827ULL,   /* M / 229 */
+        36296720458712429ULL,   /* M / 227 */
+        36947782709092921ULL,   /* M / 223 */
+        39049078408188253ULL    /* M / 211 */
+    };
+
+    /*
+     * Precomputed y_i values: y_i = M_i^(-1) mod prime[i]
+     * These are the modular multiplicative inverses, precomputed offline.
+     * Verify: (M_i[i] * y_i[i]) mod prime[i] == 1 for all i
+     */
+    static const uint8_t y_i[8] = {22, 206, 186, 18, 208, 102, 119, 72};
+
+    uint64_t result = 0;
+
+    for (int i = 0; i < 8; i++) {
+        /*
+         * CRT term: chord[i] * M_i * y_i mod M
+         *
+         * We use mulmod_safe to avoid overflow:
+         * - chord[i] <= 250
+         * - M_i ~ 3.4×10^16
+         * - y_i <= 250
+         * - chord[i] * M_i ~ 8.5×10^18 which can OVERFLOW uint64_t
+         * - And then multiplying by y_i would definitely overflow
+         *
+         * mulmod_safe handles this correctly via Russian peasant algorithm.
+         */
+        uint64_t term = mulmod_safe((uint64_t)chord[i], M_i[i], M);
+        term = mulmod_safe(term, (uint64_t)y_i[i], M);
+
+        /* Accumulate with safe modular addition */
+        if (result >= M - term) {
+            result = result - (M - term);  /* result = result + term - M */
+        } else {
+            result = result + term;
+        }
+    }
+
+    /* Result is already positive (uint64_t) and < M due to modular arithmetic */
+    return result;
+}
+
+/**
+ * @brief Compute signed offset between two chords using CRT
+ *
+ * Unlike chord_offset_quanta (which uses circular distance and fails for
+ * large time differences), this uses full CRT reconstruction to compute
+ * the TRUE scalar difference.
+ *
+ * @param chord_a First chord (typically local/receiver)
+ * @param chord_b Second chord (typically peer/sender)
+ * @return Signed offset in quanta (chord_a_scalar - chord_b_scalar)
+ */
+static int64_t chord_offset_crt(const uint8_t *chord_a, const uint8_t *chord_b)
+{
+    uint64_t scalar_a = chord_to_scalar_crt(chord_a);
+    uint64_t scalar_b = chord_to_scalar_crt(chord_b);
+
+    /*
+     * Compute signed difference. Since scalars can be anywhere in the
+     * ~8×10^18 range, we need to handle wrap-around at the CRT horizon.
+     * But for practical purposes (devices running < 261,000 years),
+     * simple subtraction works.
+     */
+    return (int64_t)scalar_a - (int64_t)scalar_b;
+}
+
+/**
  * @brief Update offset history vector with new sample
  *
  * Adds new offset to ring buffer and updates derived statistics:
  * - median_us: Filtered offset (robust to outliers)
- * - trend_us_per_s: Rate of change (future: for drift compensation)
+ * - trend_us_per_s: Rate of change using ACTUAL elapsed time
+ *
+ * TREND CALCULATION FIX:
+ * Previous bug assumed 1 second between samples (dividing by count).
+ * With chirps every ~20 seconds and 8 samples, that's 160s window,
+ * but old code assumed 8s, producing 20× error in trend.
+ *
+ * Fix: Track actual timestamps and compute drift = ΔOffset / ΔTime.
  *
  * @param history Offset history to update
  * @param offset_us New offset sample
+ * @param sample_time_us Timestamp when this sample was taken (local clock)
  */
-static void offset_history_update(offset_history_t *history, int64_t offset_us)
+static void offset_history_update(offset_history_t *history, int64_t offset_us,
+                                   uint64_t sample_time_us)
 {
     if (!history) return;
+
+    /* Track first sample time (for accurate trend calculation) */
+    if (history->count == 0) {
+        history->first_sample_time_us = sample_time_us;
+    }
+    history->last_sample_time_us = sample_time_us;
 
     /* Add to ring buffer */
     history->samples[history->write_idx] = offset_us;
@@ -540,17 +846,27 @@ static void offset_history_update(offset_history_t *history, int64_t offset_us)
     /* Update median */
     history->median_us = compute_median_i64(history->samples, history->count);
 
-    /* Compute trend (simple: newest - oldest, scaled to per-second)
-     * More sophisticated: linear regression (future enhancement)
+    /*
+     * Compute trend using ACTUAL elapsed time (not sample count!)
+     *
+     * drift_rate = (newest_offset - oldest_offset) / elapsed_time
+     *
+     * This gives us the true drift in µs/s, which should be bounded by
+     * crystal tolerance (typically ±50 ppm = ±50 µs/s).
      */
-    if (history->count >= 2) {
-        /* Approximate: assume ~1 second between samples (adjustable) */
+    if (history->count >= 2 && history->first_sample_time_us > 0) {
         uint8_t oldest_idx = (history->write_idx + UTLP_METRIC_HISTORY_SIZE - history->count)
                              % UTLP_METRIC_HISTORY_SIZE;
         uint8_t newest_idx = (history->write_idx + UTLP_METRIC_HISTORY_SIZE - 1)
                              % UTLP_METRIC_HISTORY_SIZE;
-        history->trend_us_per_s = (history->samples[newest_idx] - history->samples[oldest_idx])
-                                  / (int64_t)history->count;
+
+        int64_t delta_offset = history->samples[newest_idx] - history->samples[oldest_idx];
+        uint64_t elapsed_us = history->last_sample_time_us - history->first_sample_time_us;
+
+        if (elapsed_us > 0) {
+            /* Scale to µs per second: (delta_offset / elapsed_us) * 1,000,000 */
+            history->trend_us_per_s = (delta_offset * UTLP_US_PER_SEC) / (int64_t)elapsed_us;
+        }
     }
 }
 
@@ -695,21 +1011,55 @@ static void beacon_interval_update(beacon_interval_history_t *history, uint64_t 
     history->variance_ms = history->max_ms - history->min_ms;
 
     /*
-     * PATTERN CLASSIFICATION (using constants from GENESIS_SCRIPT)
+     * LINEAGE CLASSIFICATION with hysteresis
      *
-     * Genesis signature: ANY interval < 2s (matches Phase 1-3)
-     * Steady signature: ALL intervals > 50s with low variance (matches Phase 5)
+     * Replaces binary is_genesis/is_steady with explicit state machine.
+     * Key insight: "Lineage is what propagates. Authority is what accumulates."
      *
-     * See GENESIS_SCRIPT for the full pattern definition.
+     * States:
+     *   UNKNOWN:       Insufficient data (< 2 intervals) - SAFE default
+     *   UNPROVEN:      Genesis pulsing (any interval <= 2s)
+     *   TRANSITIONING: Between genesis and steady (2s < all intervals <= 50s)
+     *   PROVEN:        Established (all intervals > 50s, low variance)
+     *
+     * Hysteresis prevents single-packet state flips from noise.
      */
     #define STEADY_VARIANCE_MAX_MS         10000   /* < 10s variance = stable */
 
-    /* Check for genesis pattern (any short interval) */
-    history->is_genesis_pattern = (history->min_ms < GENESIS_SETTLING_INTERVAL_MS);
+    /* Insufficient data? Stay UNKNOWN (the safe default) */
+    if (history->count < UTLP_MIN_INTERVALS_FOR_LINEAGE) {
+        history->lineage = LINEAGE_UNKNOWN;
+        history->lineage_hysteresis = 0;
+        return;
+    }
 
-    /* Check for steady pattern (all long intervals, low variance) */
-    history->is_steady_pattern = (history->min_ms > STEADY_STATE_INTERVAL_MS) &&
-                                  (history->variance_ms < STEADY_VARIANCE_MAX_MS);
+    /* Classify based on current interval statistics */
+    lineage_state_t observed;
+    if (history->min_ms <= GENESIS_SETTLING_INTERVAL_MS) {
+        /* Any short interval = unproven (genesis pulsing) */
+        observed = LINEAGE_UNPROVEN;
+    } else if (history->min_ms > STEADY_STATE_INTERVAL_MS &&
+               history->variance_ms < STEADY_VARIANCE_MAX_MS) {
+        /* All long intervals with low variance = proven (established) */
+        observed = LINEAGE_PROVEN;
+    } else {
+        /* Between genesis and steady = transitioning */
+        observed = LINEAGE_TRANSITIONING;
+    }
+
+    /* Apply hysteresis: require N consecutive observations to change state */
+    if (observed != history->lineage) {
+        history->lineage_hysteresis++;
+        if (history->lineage_hysteresis >= UTLP_LINEAGE_HYSTERESIS_THRESHOLD) {
+            /* Enough evidence - transition to new state */
+            history->lineage = observed;
+            history->lineage_hysteresis = 0;
+        }
+        /* else: stay in current state, accumulating evidence */
+    } else {
+        /* Observation matches current state - reset hysteresis counter */
+        history->lineage_hysteresis = 0;
+    }
 }
 
 /**
@@ -1096,14 +1446,25 @@ static void send_beacon(void);
  *
  * Conditions:
  * 1. WE are established (past our own genesis chirp phase)
- * 2. PEER is genesis pulsing (rapid beacons within detection window)
+ * 2. PEER is genesis pulsing (explicit protocol version flag)
  * 3. Cooldown has expired (prevent spam)
+ *
+ * EXPLICIT GENESIS MARKING: Uses protocol_version field (0xFE = genesis).
+ * This is cleaner than behavioral detection because it works on FIRST beacon.
+ *
+ * BEHAVIORAL TRACKING: We still track beacon timing patterns for diagnostics
+ * and arbor classification, but it's not used for the welcome decision.
  *
  * @param peer Peer record to check
  * @param rx_time_us Current reception timestamp
+ * @param peer_is_genesis True if peer's protocol_version == GENESIS (0xFE)
+ * @param beacon_chord The chord from the received beacon (for burst dedup)
  * @return true if we should send welcome response
  */
-static bool should_send_welcome_response(peer_record_t *peer, uint64_t rx_time_us)
+static bool should_send_welcome_response(peer_record_t *peer,
+                                          uint64_t rx_time_us,
+                                          bool peer_is_genesis,
+                                          const uint8_t *beacon_chord)
 {
     /* Condition 1: Are WE established? (past genesis chirp) */
     uint64_t our_uptime_us = rx_time_us - s_utlp.boot_time_us;
@@ -1112,42 +1473,60 @@ static bool should_send_welcome_response(peer_record_t *peer, uint64_t rx_time_u
         return false;
     }
 
-    /* Condition 2: Is this peer genesis pulsing? (rapid beacon rate) */
+    /*
+     * SEISMIC CHIRP BURST DEDUPLICATION
+     *
+     * Each chirp has 3 bursts with identical chords. Only respond to ONE
+     * burst per chirp (the first one with a new chord).
+     */
+    bool is_new_chirp = (memcmp(beacon_chord, peer->last_beacon_chord, 8) != 0);
+
+    /* Always update last_beacon_chord for next comparison */
+    memcpy(peer->last_beacon_chord, beacon_chord, 8);
+
+    if (!is_new_chirp) {
+        /* Same chord as last beacon = another burst of same chirp, ignore */
+        return false;
+    }
+
+    /*
+     * BEHAVIORAL TRACKING (for diagnostics, not welcome decision)
+     *
+     * Track beacon timing patterns to learn about peer's hardware and arbor type.
+     * This data is useful for arbor classification even though we use explicit
+     * genesis marking for the welcome response decision.
+     */
     if (peer->first_beacon_us == 0) {
-        /* First beacon from this peer - start tracking */
         peer->first_beacon_us = rx_time_us;
         peer->beacon_count = 1;
-        return false;  /* Need at least THRESHOLD_BEACONS to detect pattern */
-    }
-
-    uint64_t window_elapsed = rx_time_us - peer->first_beacon_us;
-
-    if (window_elapsed <= UTLP_WELCOME_THRESHOLD_WINDOW_US) {
-        /* Still within detection window - count beacon */
-        peer->beacon_count++;
-
-        if (peer->beacon_count >= UTLP_WELCOME_THRESHOLD_BEACONS) {
-            /* Detected genesis burst pattern! Check cooldown. */
-
-            /* Condition 3: Cooldown expired? */
-            if (peer->welcome_sent_us > 0) {
-                uint64_t since_welcome = rx_time_us - peer->welcome_sent_us;
-                if (since_welcome < UTLP_WELCOME_COOLDOWN_US) {
-                    /* Recently sent welcome - skip (rate limiting) */
-                    return false;
-                }
-            }
-
-            /* All conditions met - send welcome! */
-            return true;
-        }
     } else {
-        /* Window expired - reset detection */
-        peer->first_beacon_us = rx_time_us;
-        peer->beacon_count = 1;
+        uint64_t window_elapsed = rx_time_us - peer->first_beacon_us;
+        if (window_elapsed <= UTLP_WELCOME_THRESHOLD_WINDOW_US) {
+            peer->beacon_count++;
+        } else {
+            /* Window expired - reset for next observation window */
+            peer->first_beacon_us = rx_time_us;
+            peer->beacon_count = 1;
+        }
     }
 
-    return false;
+    /* Condition 2: Is peer EXPLICITLY marked as genesis pulsing? */
+    if (!peer_is_genesis) {
+        /* Peer is in steady state - no welcome needed */
+        return false;
+    }
+
+    /* Condition 3: Cooldown expired? (prevent spam) */
+    if (peer->welcome_sent_us > 0) {
+        uint64_t since_welcome = rx_time_us - peer->welcome_sent_us;
+        if (since_welcome < UTLP_WELCOME_COOLDOWN_US) {
+            /* Recently sent welcome - skip (rate limiting) */
+            return false;
+        }
+    }
+
+    /* All conditions met - send welcome! */
+    return true;
 }
 
 /**
@@ -1210,13 +1589,29 @@ static void handle_first_contact(const uint8_t *peer_mac,
                       s_utlp.epoch.depth,
                       s_utlp.epoch.session_salt[1], s_utlp.epoch.session_salt[0]);
 
-    /* Defense Layer 1: Chord-Origin Verification */
-    if (!utlp_phase_chord_origin_verify(peer_chord,
-                                        peer_epoch->origin_time,
-                                        s_utlp.epoch.origin_time)) {
-        utlp_hal_log_warn(TAG, "REJECT: Chord-origin verification failed");
-        return;
-    }
+    /*
+     * CHORD-ORIGIN VERIFICATION DISABLED AT FIRST CONTACT
+     *
+     * The original design called for verifying peer's chord against their
+     * claimed origin_time. However, at FIRST contact this comparison is
+     * meaningless because:
+     *
+     * - Peer's chord is computed from THEIR boot timeline
+     * - Our chord is computed from OUR boot timeline
+     * - These are independent until we sync!
+     *
+     * The verification was comparing peer_chord with our_chord and requiring
+     * 5/8 similarity, which fails 100% of the time for unsynced devices.
+     *
+     * FUTURE: Re-enable chord verification AFTER sync is established to
+     * detect clock drift or spoofing. For N=2 first contact, we must trust
+     * the peer's claims and verify through subsequent chirp exchanges.
+     *
+     * (void)peer_chord;  // Will use for swarm chord sync
+     */
+    utlp_hal_log_info(TAG, "  peer_chord=[%u,%u,%u,%u,%u,%u,%u,%u]",
+                      peer_chord[0], peer_chord[1], peer_chord[2], peer_chord[3],
+                      peer_chord[4], peer_chord[5], peer_chord[6], peer_chord[7]);
 
     /*
      * EPOCH RESOLUTION DEFERRED
@@ -1244,7 +1639,148 @@ static void handle_first_contact(const uint8_t *peer_mac,
 }
 
 /**
+ * @brief Resolve epoch using HDC agreement vectors (Phase 3 - Vector-native)
+ *
+ * Replaces scalar offset comparison with hyperdimensional agreement:
+ * - Agreement vector shows per-dimension phase alignment
+ * - Trajectory parallelism confirms clocks evolve together
+ * - Observation count determines authority (can't be faked)
+ * - Elastic nudge for convergence (not hard adoption)
+ *
+ * Key insight: "Two clocks are synced when they evolve in PARALLEL,
+ * not when their readings match at a single instant."
+ *
+ * @param peer Peer record with valid chord data
+ * @return true if resolution complete, false if still converging
+ */
+static bool resolve_epoch_hdc(peer_record_t *peer)
+{
+    if (!peer) {
+        return false;
+    }
+
+    /*
+     * ==========================================================================
+     * LAMPREY MODEL: Simplified HDC Epoch Resolution
+     * ==========================================================================
+     *
+     * The OLDEST device carries lineage. Younger devices "attach" like a lamprey.
+     *
+     * Algorithm:
+     * 1. Use CRT offset (already computed in process_chirp_burst via chord_offset_crt)
+     * 2. If peer is older (negative offset) → we adopt
+     * 3. If we are older (positive offset) → we don't adopt
+     * 4. If nearly simultaneous → MAC tiebreaker
+     *
+     * Offset sign convention (from chord_offset_crt):
+     *   offset = our_chord_scalar - peer_chord_scalar
+     *   - Positive offset = our chord is ahead = we booted EARLIER = we are OLDER
+     *   - Negative offset = peer chord is ahead = peer booted EARLIER = peer is OLDER
+     *
+     * NOTE: The CRT offset is already stored in peer->chirp.offset_us and has
+     * been copied to s_utlp.time_offset_us by process_chirp_burst() before
+     * this function is called.
+     */
+
+    /* Use the CRT offset already computed by process_chirp_burst() */
+    int64_t offset_us = peer->chirp.offset_us;
+
+    /* Get chords for logging */
+    utlp_phase_chord_t our_chord;
+    utlp_phase_get_chord(our_chord);
+    const utlp_phase_chord_t *peer_chord = &peer->chirp.chirp_epoch_chord;
+
+    uint8_t chord_similarity = utlp_hdc_chord_similarity(our_chord, *peer_chord);
+    utlp_hal_log_info(TAG, "LAMPREY: CRT offset=%lld us, chord_similarity=%u/8",
+                      (long long)offset_us, chord_similarity);
+
+    /*
+     * === LAMPREY RESOLUTION: OLDEST DEVICE WINS ===
+     *
+     * Threshold: 100ms (100,000 us) to distinguish "nearly simultaneous"
+     * from "clearly different boot times".
+     *
+     * With CRT offset:
+     *   offset > 0 → our chord is ahead → we are OLDER → we keep epoch
+     *   offset < 0 → peer chord is ahead → peer is OLDER → we adopt
+     */
+    #define LAMPREY_OFFSET_THRESHOLD_US 100000  /* 100ms */
+
+    bool i_should_adopt = false;
+
+    if (offset_us < -LAMPREY_OFFSET_THRESHOLD_US) {
+        /*
+         * Peer chord is significantly AHEAD of ours (negative offset).
+         * Peer booted EARLIER → Peer is OLDER → We should adopt.
+         */
+        i_should_adopt = true;
+        utlp_hal_log_info(TAG, "LAMPREY: Peer is older (offset=%lld us) → we adopt",
+                          (long long)offset_us);
+
+    } else if (offset_us > LAMPREY_OFFSET_THRESHOLD_US) {
+        /*
+         * Our chord is significantly AHEAD (positive offset).
+         * We booted EARLIER → We are OLDER → Peer should adopt from us.
+         */
+        i_should_adopt = false;
+        utlp_hal_log_info(TAG, "LAMPREY: We are older (offset=+%lld us) → we keep epoch",
+                          (long long)offset_us);
+
+    } else {
+        /*
+         * Nearly simultaneous boot (within ±100ms).
+         * Use MAC address as deterministic tiebreaker.
+         * Lower MAC adopts from higher MAC (arbitrary but consistent).
+         */
+        i_should_adopt = (memcmp(s_utlp.local_mac, peer->mac, 6) < 0);
+        utlp_hal_log_info(TAG, "LAMPREY: Same age (offset=%lld us) → MAC tiebreaker: %s adopts",
+                          (long long)offset_us,
+                          i_should_adopt ? "we" : "peer");
+    }
+
+    /*
+     * === APPLY RESOLUTION ===
+     */
+    if (i_should_adopt) {
+        /*
+         * We are the younger device - attach to peer's timeline.
+         *
+         * The offset is already stored in s_utlp.time_offset_us by the caller.
+         * We just need to set the phase engine offset and mark that we adopted.
+         *
+         * Phase engine offset: Apply negative of CRT offset to align with peer.
+         * If offset is -5000000 (peer is 5s ahead), we apply +5000000 to catch up.
+         */
+        utlp_phase_set_epoch_offset(-offset_us);
+        s_utlp.we_adopted_epoch = true;
+
+        /* Track sync source for reboot detection */
+        memcpy(s_utlp.sync_source_mac, peer->mac, 6);
+        s_utlp.have_sync_source = true;
+
+        utlp_hal_log_info(TAG, "LAMPREY: Applied offset %lld us (attached to peer)",
+                          (long long)(-offset_us));
+    } else {
+        /*
+         * We are the older device - we ARE the swarm reference.
+         * No offset needed; peer will adopt from us.
+         */
+        s_utlp.we_adopted_epoch = false;
+
+        if (!s_utlp.time_synced) {
+            utlp_phase_set_epoch_offset(0);  /* Our local time IS swarm time */
+        }
+
+        utlp_hal_log_info(TAG, "LAMPREY: We are the reference (no offset)");
+    }
+
+    s_utlp.observation_count++;
+    return true;  /* Resolution complete */
+}
+
+/**
  * @brief Resolve epoch using clock offset (called after chirp complete)
+ * @deprecated Use resolve_epoch_hdc() for vector-native resolution
  *
  * Uses the offset from seismic chirp to determine who is older:
  * - offset > 0: Our clock is ahead → we started first → we're older
@@ -1306,81 +1842,139 @@ static void resolve_epoch_with_offset(peer_record_t *peer)
      * If WE are established AND peer is genesis pulsing, we NEVER adopt.
      * The newborn must sync to the established swarm.
      *
-     * DETECTION STRATEGY (VECTOR-BASED SWARM STATE):
+     * DETECTION STRATEGY (TIME-TRIGGERED, PROTOCOL v0x02):
      *
-     * PRIMARY: Use interval_history.is_genesis_pattern (observed beacon intervals)
-     *   - Requires multiple beacons → more reliable
+     * ONLY: Use interval_history.is_genesis_pattern (observed beacon intervals)
+     *   - Requires multiple beacons → builds over time
      *   - Detects genesis ramp signature (100ms → 500ms → 1s intervals)
-     *   - Cannot be faked by manipulating TX timestamp
+     *   - Cannot be faked by manipulating any field
+     *   - Aligns with design_philosophy_anticipatory.md: observe, don't react
      *
-     * FALLBACK: Use is_genesis_chirping(TX timestamp) for early/sparse observations
-     *   - Works on first contact (before interval history builds)
-     *   - Peer claims "I've been running X microseconds"
-     *   - Can be spoofed but combined with interval pattern is robust
+     * NOTE: Timestamp-based detection was REMOVED with chord-on-wire (v0x02).
+     * The old approach used chord_to_approx_quanta() which was fundamentally
+     * broken, wrapping every 241ms. With chord-on-wire, we can't derive scalar
+     * time from the beacon - we rely solely on interval vector observation.
      *
-     * BOTH MUST AGREE for established detection (conservative approach):
-     *   - We consider ourselves established ONLY if uptime > 5s
-     *   - We consider peer genesis pulsing if EITHER vector OR timestamp indicates
+     * We consider ourselves established ONLY if uptime > 5s (UTLP_CHIRP_DURATION_US).
      */
     uint64_t our_uptime_us = utlp_hal_get_micros() - s_utlp.boot_time_us;
-    bool we_are_established = (our_uptime_us >= UTLP_CHIRP_DURATION_US);
 
-    /* Vector-based detection (observed behavior - cannot be faked) */
-    bool peer_genesis_by_vector = peer->interval_history.is_genesis_pattern;
+    /*
+     * LINEAGE-BASED CLASSIFICATION (replaces binary genesis/established)
+     *
+     * Per HDC/Physics/Engineering specialist analysis:
+     * - "Lineage is what propagates. Authority is what accumulates."
+     * - Binary classification created edge case failures
+     * - New approach uses explicit state machine with UNKNOWN as safe default
+     */
+    lineage_state_t peer_lineage = peer->interval_history.lineage;
+    bool we_have_proven_lineage = (our_uptime_us >= UTLP_CHIRP_DURATION_US);
+    bool we_have_unproven_lineage = !we_have_proven_lineage;
 
-    /* Timestamp-based detection (peer's claim - can be faked but useful early) */
-    bool peer_genesis_by_timestamp = is_genesis_chirping(peer->chirp.chirp_epoch_us);
+    /* Map lineage states to semantic booleans for clarity */
+    bool peer_has_unproven_lineage = (peer_lineage == LINEAGE_UNPROVEN);
+    bool peer_has_proven_lineage = (peer_lineage == LINEAGE_PROVEN);
 
-    /* EITHER method indicates genesis = protective (conservative) */
-    bool peer_is_genesis_pulsing = peer_genesis_by_vector || peer_genesis_by_timestamp;
-
-    utlp_hal_log_info(TAG, "  We established=%s (uptime=%llu us)",
-                      we_are_established ? "YES" : "NO",
+    utlp_hal_log_info(TAG, "  Our lineage: %s (uptime=%llu us)",
+                      we_have_proven_lineage ? "PROVEN" : "UNPROVEN",
                       (unsigned long long)our_uptime_us);
+    utlp_hal_log_info(TAG, "  Peer lineage: %s (min=%lu ms, median=%lu ms)",
+                      peer_lineage == LINEAGE_UNKNOWN ? "UNKNOWN" :
+                      peer_lineage == LINEAGE_UNPROVEN ? "UNPROVEN" :
+                      peer_lineage == LINEAGE_TRANSITIONING ? "TRANSITIONING" : "PROVEN",
+                      (unsigned long)peer->interval_history.min_ms,
+                      (unsigned long)peer->interval_history.median_ms);
 
-    /* Use SMSP-style pattern matching to identify peer's genesis phase */
+    /*
+     * === RULE 0: DEFER if insufficient data ===
+     *
+     * Critical fix for "fresh boot thinks it won" bug.
+     * If peer's lineage is UNKNOWN (< 2 interval samples), we cannot
+     * make a reliable resolution decision. Defer until we have data.
+     *
+     * This prevents:
+     * - Fresh boot receiving one beacon and claiming victory
+     * - Edge cases where default (false, false) was ambiguous
+     */
+    if (peer_lineage == LINEAGE_UNKNOWN) {
+        utlp_hal_log_info(TAG, "RESOLUTION: DEFERRED - peer lineage unknown (need %d+ intervals)",
+                          UTLP_MIN_INTERVALS_FOR_LINEAGE);
+        utlp_hal_log_info(TAG, "  → Waiting for more observations before resolving");
+        /* Don't set epoch_resolved - we'll try again on next beacon */
+        return;
+    }
+
+    /* Use SMSP-style pattern matching for age estimation (informational) */
     uint8_t peer_phase = genesis_pattern_match(peer->interval_history.median_ms);
     uint32_t peer_age_min_ms, peer_age_max_ms;
     genesis_phase_to_age(peer_phase, &peer_age_min_ms, &peer_age_max_ms);
+    utlp_hal_log_info(TAG, "  Peer age estimate: phase=%u (%lu-%lu ms)",
+                      peer_phase, (unsigned long)peer_age_min_ms, (unsigned long)peer_age_max_ms);
 
-    utlp_hal_log_info(TAG, "  Peer genesis: vector=%s (min=%lu ms, median=%lu ms)",
-                      peer_genesis_by_vector ? "YES" : "NO",
-                      (unsigned long)peer->interval_history.min_ms,
-                      (unsigned long)peer->interval_history.median_ms);
-    utlp_hal_log_info(TAG, "  Peer pattern: phase=%u (%lu-%lu ms uptime), timestamp=%s (tx=%llu us)",
-                      peer_phase,
-                      (unsigned long)peer_age_min_ms,
-                      (unsigned long)peer_age_max_ms,
-                      peer_genesis_by_timestamp ? "YES" : "NO",
-                      (unsigned long long)peer->chirp.chirp_epoch_us);
-
-    if (we_are_established && peer_is_genesis_pulsing) {
-        /*
-         * GENESIS PROTECTION TRIGGERED
-         *
-         * We are established, peer just booted (detected via interval vector
-         * and/or TX timestamp). We keep our epoch.
-         *
-         * This protects existing N=2 sync when a 3rd device joins:
-         * - A & B are synced (established)
-         * - C boots (genesis pulsing)
-         * - A meets C: A is established, C is genesis → A keeps epoch
-         * - B meets C: B is established, C is genesis → B keeps epoch
-         * - C adopts from both A and B → swarm stable
-         *
-         * CRITICAL: Do NOT modify s_utlp.we_adopted_epoch here!
-         * That flag tracks our sync state with whoever we adopted FROM.
-         * Genesis protection is a per-peer decision that should not
-         * affect our global sync state. (Bug fix: N=3 was breaking N=2 sync)
-         */
-        utlp_hal_log_info(TAG, "RESOLUTION: GENESIS PROTECTION - we are established, peer is newborn");
-        utlp_hal_log_info(TAG, "  → We keep epoch, peer must sync to us (our sync preserved)");
+    /*
+     * === RULE 1: LINEAGE PRIORITY (was "GENESIS PROTECTION") ===
+     *
+     * "Proven lineage has priority over unproven lineage."
+     *
+     * If WE have proven lineage AND peer has unproven lineage, we keep ours.
+     * The newcomer must sync to the established swarm.
+     *
+     * This protects existing N=2 sync when a 3rd device joins:
+     * - A & B are synced (proven lineage)
+     * - C boots (unproven lineage)
+     * - A meets C: A proven, C unproven → A keeps epoch
+     * - B meets C: B proven, C unproven → B keeps epoch
+     * - C adopts from both A and B → swarm stable
+     *
+     * CRITICAL: Do NOT modify s_utlp.we_adopted_epoch here!
+     * That flag tracks our sync state with whoever we adopted FROM.
+     * Lineage priority is a per-peer decision that should not
+     * affect our global sync state.
+     */
+    if (we_have_proven_lineage && peer_has_unproven_lineage) {
+        utlp_hal_log_info(TAG, "RESOLUTION: LINEAGE PRIORITY - we are proven, peer is unproven");
+        utlp_hal_log_info(TAG, "  → We keep epoch, peer must sync to us");
         peer->epoch_resolved = true;
-        peer->genesis_protected = true;  /* Mark that we used genesis protection for this peer */
+        peer->genesis_protected = true;  /* Legacy field name - means "lineage priority applied" */
         return;  /* Early exit - no further checks needed */
     }
 
-    /* Rule 1: Time Lord check - only Time Lords get special treatment */
+    /*
+     * === RULE 2: SYMMETRIC LINEAGE PRIORITY (WE ARE THE NEWCOMER) ===
+     *
+     * The inverse of Rule 1: if WE have unproven lineage (just booted)
+     * AND peer has PROVEN lineage (steady 60s intervals observed),
+     * then WE MUST adopt from them.
+     *
+     * This handles the case where:
+     * - Device C boots fresh (unproven lineage, < 10s uptime)
+     * - Device C sees Device B with steady 60s intervals (proven lineage)
+     * - C should immediately recognize B as proven and adopt
+     *
+     * Combined with RULE 0 (deferral on UNKNOWN), this ensures:
+     * - No decisions made on first beacon (UNKNOWN → defer)
+     * - Clear asymmetry once lineage is known (proven beats unproven)
+     */
+    if (we_have_unproven_lineage && peer_has_proven_lineage) {
+        /*
+         * WE ARE UNPROVEN, PEER IS PROVEN
+         *
+         * We just booted. Peer has PROVEN lineage (steady intervals observed).
+         * We MUST adopt from the proven peer - no question.
+         *
+         * This is the symmetric case to lineage priority:
+         * - Rule 1: "proven lineage keeps epoch over unproven"
+         * - Rule 2: "unproven lineage adopts from proven"
+         */
+        utlp_hal_log_info(TAG, "RESOLUTION: SYMMETRIC LINEAGE - we are unproven, peer is proven");
+        utlp_hal_log_info(TAG, "  → We adopt from proven peer");
+        i_should_adopt = true;
+
+        /* Skip all other resolution logic - this is definitive */
+        goto do_adoption;
+    }
+
+    /* Rule 3: Time Lord check - only Time Lords get special treatment */
     bool peer_is_time_lord = (peer->depth == UTLP_DEPTH_TIME_LORD);
     bool we_are_time_lord = (s_utlp.epoch.depth == UTLP_DEPTH_TIME_LORD);
 
@@ -1446,6 +2040,7 @@ static void resolve_epoch_with_offset(peer_record_t *peer)
         }
     }
 
+do_adoption:
     /* Execute adoption if needed */
     if (i_should_adopt) {
         adopt_epoch(&peer_epoch);
@@ -1457,6 +2052,12 @@ static void resolve_epoch_with_offset(peer_record_t *peer)
     }
 
     peer->epoch_resolved = true;
+
+    /*
+     * NOTE: time_synced is set in the PHASE ENGINE block after this function
+     * returns, not here. This preserves the check at line ~2071 that decides
+     * whether to set offset=0 (first sync) or preserve existing (already synced).
+     */
 }
 
 /**
@@ -1473,7 +2074,9 @@ static void process_chirp_burst(peer_record_t *peer,
                                  uint64_t rx_time_us)
 {
     uint8_t burst_idx = wire_pkt->intron.field.payload[2];
-    uint64_t chirp_epoch = wire_pkt->exon.utlp_timestamp_us;
+
+    /* Extract peer's chord from wire packet (v0x02 format) */
+    const uint8_t *peer_chord = wire_pkt->exon.phase_chord;
 
     /* Validate burst index */
     if (burst_idx >= UTLP_CHIRP_BURST_COUNT) {
@@ -1483,11 +2086,11 @@ static void process_chirp_burst(peer_record_t *peer,
 
     /*
      * Check if this is a NEW chirp or continuation of current chirp.
-     * A new chirp has a different chirp_epoch (timestamp).
+     * PROTOCOL v0x02: Compare chords directly (same chord = same chirp).
      */
-    if (chirp_epoch != peer->chirp.chirp_epoch_us) {
+    if (memcmp(peer_chord, peer->chirp.chirp_epoch_chord, sizeof(utlp_phase_chord_t)) != 0) {
         /* New chirp starting - reset state */
-        peer->chirp.chirp_epoch_us = chirp_epoch;
+        memcpy(peer->chirp.chirp_epoch_chord, peer_chord, sizeof(utlp_phase_chord_t));
         peer->chirp.bursts_received = 0;
         peer->chirp.chirp_complete = false;
     }
@@ -1519,26 +2122,50 @@ static void process_chirp_burst(peer_record_t *peer,
          * This is "self-adjustment" - we correct our own jitter without
          * any explicit feedback from the peer.
          */
-        int64_t offset_0 = (int64_t)peer->chirp.rx_time_us[0] - (int64_t)chirp_epoch;
-        int64_t offset_1 = (int64_t)peer->chirp.rx_time_us[1] -
-                           ((int64_t)chirp_epoch + UTLP_CHIRP_BURST_SPACING_US);
-        int64_t offset_2 = (int64_t)peer->chirp.rx_time_us[2] -
-                           ((int64_t)chirp_epoch + 2 * UTLP_CHIRP_BURST_SPACING_US);
+        /*
+         * PROTOCOL v0x02: Compute offset using CRT SCALAR DIFFERENCE.
+         *
+         * HISTORY OF BUGS:
+         * 1. chord_to_approx_quanta() returned chord[0], wrapping every 241ms
+         * 2. chord_offset_quanta() used circular distance, failing for >120ms differences
+         *
+         * CORRECT APPROACH: Use Chinese Remainder Theorem to convert each chord
+         * to its unique scalar value (modulo ~8×10^18), then compute difference.
+         * This gives the TRUE time offset without any wrap-around issues.
+         *
+         * The CRT approach works because:
+         * - Each chord uniquely maps to a scalar in [0, 8.24×10^18)
+         * - The difference of scalars is the true time difference
+         * - No circular distance ambiguity at any time scale
+         *
+         * The result is the signed offset in quanta (1 quanta = 1 ms).
+         */
+        utlp_phase_chord_t our_chord;
+        utlp_phase_get_chord(our_chord);
 
-        /* Average cancels ISR jitter - self-adjustment! */
-        peer->chirp.offset_us = (offset_0 + offset_1 + offset_2) / 3;
+        int64_t offset_quanta = chord_offset_crt(our_chord, peer->chirp.chirp_epoch_chord);
+        int64_t chord_offset_us = offset_quanta * 1000LL;
 
-        utlp_hal_log_info(TAG, "3-burst offset: [%lld, %lld, %lld] → avg=%lld us",
-                          (long long)offset_0, (long long)offset_1, (long long)offset_2,
-                          (long long)peer->chirp.offset_us);
-
-        /* Calculate inter-burst timing (expected: 2ms each) */
+        /*
+         * 3-burst jitter averaging using RX time deltas.
+         * Even without scalar TX time, we can measure ISR jitter from
+         * the inter-burst timing (should be exactly 2ms each).
+         */
         int64_t delta_01 = (int64_t)(peer->chirp.rx_time_us[1] - peer->chirp.rx_time_us[0]);
         int64_t delta_12 = (int64_t)(peer->chirp.rx_time_us[2] - peer->chirp.rx_time_us[1]);
+        int64_t jitter_01 = delta_01 - UTLP_CHIRP_BURST_SPACING_US;
+        int64_t jitter_12 = delta_12 - UTLP_CHIRP_BURST_SPACING_US;
 
-        /* Jitter = deviation from expected 2ms */
-        peer->chirp.jitter_01_us = delta_01 - UTLP_CHIRP_BURST_SPACING_US;
-        peer->chirp.jitter_12_us = delta_12 - UTLP_CHIRP_BURST_SPACING_US;
+        /* Final offset = chord-based offset */
+        peer->chirp.offset_us = chord_offset_us;
+
+        utlp_hal_log_info(TAG, "CRT offset: %lld quanta = %lld us (jitter=[%lld,%lld])",
+                          (long long)offset_quanta, (long long)chord_offset_us,
+                          (long long)jitter_01, (long long)jitter_12);
+
+        /* Store jitter for history tracking */
+        peer->chirp.jitter_01_us = jitter_01;
+        peer->chirp.jitter_12_us = jitter_12;
 
         /*
          * Motion hint: difference in jitter between intervals
@@ -1561,7 +2188,7 @@ static void process_chirp_burst(peer_record_t *peer,
          * and future HDC encoding. Control loops should use the FILTERED
          * (median) values rather than raw scalars.
          */
-        offset_history_update(&peer->chirp.offset_history, peer->chirp.offset_us);
+        offset_history_update(&peer->chirp.offset_history, peer->chirp.offset_us, rx_time_us);
         jitter_dist_update(&peer->chirp.jitter_dist, peer->chirp.jitter_01_us);
         jitter_dist_update(&peer->chirp.jitter_dist, peer->chirp.jitter_12_us);
 
@@ -1597,12 +2224,24 @@ static void process_chirp_burst(peer_record_t *peer,
          *
          * Fix: Don't update from new peers until epoch resolution accepts them.
          */
-        if (!s_utlp.time_synced) {
-            /* First sync: use raw averaged offset */
+        /*
+         * CRITICAL FIX: Do NOT set time_synced until AFTER epoch resolution!
+         *
+         * Previously, time_synced was set here immediately on first chirp.
+         * But epoch resolution is DEFERRED until we have 3+ interval samples.
+         * This caused a race condition:
+         *   - time_synced = true (first chirp received)
+         *   - we_adopted_epoch = false (default, resolution not run yet)
+         *   - Heartbeat shows "NOT applying - we won" (WRONG!)
+         *
+         * The fix: Only store the offset here, but don't set time_synced.
+         * time_synced is set INSIDE the epoch resolution block below.
+         */
+        if (!s_utlp.time_synced && !peer->epoch_resolved) {
+            /* Store offset for later use, but don't mark synced yet */
             s_utlp.time_offset_us = peer->chirp.offset_us;
-            s_utlp.time_synced = true;
-            utlp_hal_log_info(TAG, "TIME SYNCED! Adopted offset=%lld us (3-burst avg)",
-                              (long long)s_utlp.time_offset_us);
+            utlp_hal_log_debug(TAG, "Offset stored=%lld us (awaiting epoch resolution)",
+                               (long long)s_utlp.time_offset_us);
         } else if (peer->epoch_resolved && !peer->genesis_protected &&
                    peer->chirp.offset_history.count >= 4) {
             /* Ongoing sync: use median-filtered offset from ACCEPTED peer only */
@@ -1613,14 +2252,53 @@ static void process_chirp_burst(peer_record_t *peer,
         }
 
         /*
-         * EPOCH RESOLUTION - Now that we have a valid offset!
+         * DEFERRED EPOCH RESOLUTION (Anticipatory Design)
          *
-         * This is the key fix for the "youngest device wins" bug.
-         * We defer epoch resolution until here because we need the clock
-         * offset to determine who actually booted first.
+         * We defer epoch resolution until we have OBSERVED enough of the peer's
+         * behavior to detect whether they're in genesis mode. This is the
+         * time-triggered approach: observe actual beacon intervals, not claims.
+         *
+         * Genesis detection requires seeing the interval pattern (50ms→150ms→250ms...)
+         * which takes at least 3 beacon observations to identify.
+         *
+         * Without this deferral, established devices would immediately resolve
+         * against fresh reboots before detecting the genesis pattern, causing
+         * the "both devices think they won" bug.
+         *
+         * EXPLICIT GENESIS MARKING: If peer's protocol_version tells us they're
+         * NOT genesis pulsing (is_genesis = false), we can skip the interval
+         * requirement and proceed immediately. The interval detection is only
+         * needed when we have to infer genesis state from behavior.
          */
+        #define MIN_INTERVAL_SAMPLES_FOR_RESOLUTION 3
+
         if (!peer->epoch_resolved) {
-            resolve_epoch_with_offset(peer);
+            /*
+             * Check if we can proceed with resolution:
+             * 1. If peer is NOT genesis pulsing (explicit flag), proceed immediately
+             * 2. If peer IS genesis pulsing, wait for interval samples to detect transition
+             */
+            bool can_resolve = !peer->is_genesis ||  /* Peer is established - proceed */
+                               (peer->interval_history.count >= MIN_INTERVAL_SAMPLES_FOR_RESOLUTION);
+
+            if (!can_resolve) {
+                /* Genesis peer without enough observations - defer resolution */
+                utlp_hal_log_debug(TAG, "Epoch resolution deferred: peer is genesis, need %d interval samples, have %u",
+                                   MIN_INTERVAL_SAMPLES_FOR_RESOLUTION,
+                                   peer->interval_history.count);
+            } else {
+                /* Enough observations - use HDC agreement-based resolution */
+                bool resolution_complete = resolve_epoch_hdc(peer);
+
+                if (!resolution_complete) {
+                    /* Still converging via elastic nudge - skip offset application */
+                    utlp_hal_log_debug(TAG, "HDC roll-in: Still converging (state=%d)",
+                                       s_utlp.rollin.state);
+                    return;  /* Wait for next chirp to continue convergence */
+                }
+
+                /* Mark peer epoch as resolved */
+                peer->epoch_resolved = true;
 
             /*
              * === APPLY OFFSET TO PHASE ENGINE FOR GLOBAL TIME ===
@@ -1647,10 +2325,17 @@ static void process_chirp_burst(peer_record_t *peer,
                  *
                  * Phase engine: scalar = cycles*period + ticks + epoch_offset
                  * We set epoch_offset = -time_offset_us to align with peer
+                 *
+                 * SYNC SOURCE TRACKING: Record which peer we synced from.
+                 * If this peer reboots later, our offset becomes stale and must be reset.
                  */
+                memcpy(s_utlp.sync_source_mac, peer->mac, 6);
+                s_utlp.have_sync_source = true;
                 utlp_phase_set_epoch_offset(-s_utlp.time_offset_us);
-                utlp_hal_log_info(TAG, "PHASE ENGINE: Offset applied=%lld us (we adopted)",
-                                  (long long)(-s_utlp.time_offset_us));
+                utlp_hal_log_info(TAG, "PHASE ENGINE: Offset applied=%lld us from %02X:%02X:%02X:%02X:%02X:%02X",
+                                  (long long)(-s_utlp.time_offset_us),
+                                  peer->mac[0], peer->mac[1], peer->mac[2],
+                                  peer->mac[3], peer->mac[4], peer->mac[5]);
             } else {
                 /*
                  * We won the resolution - but only set offset=0 if this is
@@ -1664,6 +2349,30 @@ static void process_chirp_burst(peer_record_t *peer,
                     utlp_hal_log_info(TAG, "PHASE ENGINE: Keeping existing sync (already synced to another peer)");
                 }
             }
+
+            /*
+             * NOW set time_synced = true, AFTER epoch resolution AND phase engine
+             * offset application are complete.
+             *
+             * CRITICAL FIX: Previously time_synced was set immediately on first
+             * chirp, BEFORE epoch resolution ran. This caused fresh devices to
+             * think they "won" because:
+             *   - time_synced = true (first chirp)
+             *   - we_adopted_epoch = false (default, resolution deferred)
+             *   - Heartbeat shows "NOT applying - we won" (WRONG!)
+             *
+             * Bug symptom: "TIME SYNCED! Adopted offset=X" immediately followed
+             * by heartbeat "NOT applying - we won" (contradiction).
+             *
+             * Now time_synced is only set AFTER resolution completes and we know
+             * the correct value of we_adopted_epoch.
+             */
+            if (!s_utlp.time_synced) {
+                s_utlp.time_synced = true;
+                utlp_hal_log_info(TAG, "TIME SYNCED! Resolution complete (we %s)",
+                                  s_utlp.we_adopted_epoch ? "adopted" : "won");
+            }
+            }  /* End of else (enough interval samples) */
         }
     }
 }
@@ -1684,10 +2393,12 @@ static void on_beacon_received(const utlp_packet_t *pkt)
     uint64_t rx_time_us = utlp_hal_get_micros();
     const utlp_wire_packet_t *wire_pkt = (const utlp_wire_packet_t *)pkt->payload;
 
-    /* Verify protocol version */
-    if (wire_pkt->exon.protocol_version != UTLP_PROTOCOL_VERSION_N2) {
+    /* Verify protocol version - accept both steady state and genesis */
+    uint8_t proto_ver = wire_pkt->exon.protocol_version;
+    bool peer_is_genesis = (proto_ver == UTLP_PROTOCOL_VERSION_GENESIS);
+    if (proto_ver != UTLP_PROTOCOL_VERSION_N2 && !peer_is_genesis) {
         utlp_hal_log_warn(TAG, "Ignoring beacon: unsupported version 0x%02X",
-                          wire_pkt->exon.protocol_version);
+                          proto_ver);
         return;
     }
 
@@ -1699,16 +2410,29 @@ static void on_beacon_received(const utlp_packet_t *pkt)
     /* Classify contact type */
     contact_type_t contact = classify_contact(pkt->mac, salt);
 
+    /*
+     * PROTOCOL v0x02: Extract peer's chord directly from wire packet.
+     *
+     * NOTE: With chord-on-wire, we cannot derive peer's absolute boot time.
+     * The origin_time field is now our local time when we first see this peer
+     * (useful for debugging, but NOT used for epoch resolution - that uses
+     * chord offset comparison instead).
+     */
+    utlp_phase_chord_t peer_chord;
+    memcpy(peer_chord, wire_pkt->exon.phase_chord, sizeof(utlp_phase_chord_t));
+
     /* Build epoch_state from wire packet for first contact handling */
     epoch_state_t peer_epoch;
-    peer_epoch.origin_time = (uint32_t)(wire_pkt->exon.utlp_timestamp_us / UTLP_US_PER_SEC);
+    /*
+     * origin_time: Use our local uptime when we first see this peer.
+     * This is meaningful for debugging ("when did we meet this peer?").
+     * Epoch resolution now uses chord offset, NOT origin_time comparison.
+     */
+    uint64_t our_uptime_us = utlp_hal_get_micros() - s_utlp.boot_time_us;
+    peer_epoch.origin_time = (uint32_t)(our_uptime_us / UTLP_US_PER_SEC);
     peer_epoch.depth = UTLP_DEPTH_FRESH;  /* Phase 2: assume fresh for now */
     peer_epoch.session_salt[0] = salt[0];
     peer_epoch.session_salt[1] = salt[1];
-
-    /* Get phase chord from current time (Phase 2: placeholder) */
-    utlp_phase_chord_t peer_chord;
-    utlp_phase_get_chord(peer_chord);  /* Use our chord as placeholder */
 
     peer_record_t *peer = NULL;
 
@@ -1721,6 +2445,31 @@ static void on_beacon_received(const utlp_packet_t *pkt)
 
         case CONTACT_REBOOTED_PEER:
             utlp_hal_log_info(TAG, "Peer reboot detected - re-evaluating");
+
+            /*
+             * SYNC SOURCE REBOOT DETECTION
+             *
+             * If this peer is our sync source (we adopted from them), our
+             * time_offset is now STALE. The peer's new boot time has no
+             * relation to their old one - our offset was computed against
+             * a timeline that no longer exists.
+             *
+             * Reset sync state so epoch resolution starts fresh.
+             * This prevents "swarm fragmentation" where we broadcast
+             * timestamps based on a stale offset to a dead timeline.
+             */
+            if (s_utlp.have_sync_source &&
+                memcmp(s_utlp.sync_source_mac, pkt->mac, 6) == 0) {
+                utlp_hal_log_warn(TAG, "⚠️ SYNC SOURCE REBOOTED! Resetting sync state (was offset=%lld us)",
+                                  (long long)s_utlp.time_offset_us);
+                s_utlp.time_synced = false;
+                s_utlp.we_adopted_epoch = false;
+                s_utlp.have_sync_source = false;
+                s_utlp.time_offset_us = 0;
+                memset(s_utlp.sync_source_mac, 0, 6);
+                utlp_phase_set_epoch_offset(0);  /* Reset to local time */
+            }
+
             invalidate_peer(pkt->mac);
             handle_first_contact(pkt->mac, &peer_epoch, peer_chord);
             peer = find_peer_by_mac(pkt->mac);
@@ -1744,15 +2493,26 @@ static void on_beacon_received(const utlp_packet_t *pkt)
      * Each chirp has 3 bursts with 2ms spacing. If we update on every burst,
      * we'd measure 2ms intervals and EVERYONE would look like genesis pulsing.
      *
-     * A new chirp is identified by a different chirp_epoch (TX timestamp).
+     * PROTOCOL v0x02: Compare chords to detect new chirp (same chord = same chirp).
      */
     if (peer) {
-        uint64_t chirp_epoch = wire_pkt->exon.utlp_timestamp_us;
-        if (chirp_epoch != peer->chirp.chirp_epoch_us) {
+        if (memcmp(peer_chord, peer->chirp.chirp_epoch_chord, sizeof(utlp_phase_chord_t)) != 0) {
             /* This is a NEW chirp - update interval history */
             beacon_interval_update(&peer->interval_history, rx_time_us);
         }
-        /* Note: peer->chirp.chirp_epoch_us will be updated in process_chirp_burst() */
+        /* Note: peer->chirp.chirp_epoch_chord will be updated in process_chirp_burst() */
+    }
+
+    /*
+     * TRACK PEER'S GENESIS STATE
+     *
+     * The explicit protocol_version flag tells us if peer is genesis pulsing.
+     * This is used to bypass the interval detection requirement - if we KNOW
+     * the peer is established (version 0x02), we can proceed with epoch
+     * resolution immediately instead of waiting for 3 interval samples.
+     */
+    if (peer) {
+        peer->is_genesis = peer_is_genesis;
     }
 
     /*
@@ -1768,11 +2528,23 @@ static void on_beacon_received(const utlp_packet_t *pkt)
      *
      * "When an established device hears a genesis pulse, it says 'Hello!'"
      *
-     * This solves the critical gap where newborn (50ms interval) waits up to
+     * EXPLICIT GENESIS MARKING: Peer's protocol_version field tells us
+     * immediately if they're genesis pulsing (0xFE) or steady state (0x02).
+     * No need for behavioral detection - works on FIRST beacon!
+     *
+     * This solves the critical gap where newborn (150ms interval) waits up to
      * 60 seconds to hear from established device (60s interval).
      */
-    if (peer && (contact == CONTACT_NEW_PEER || contact == CONTACT_REBOOTED_PEER)) {
-        if (should_send_welcome_response(peer, rx_time_us)) {
+    if (peer) {
+        /* Reset tracking on reboot (peer is new life) */
+        if (contact == CONTACT_REBOOTED_PEER) {
+            peer->beacon_count = 0;
+            peer->first_beacon_us = 0;
+            peer->welcome_sent_us = 0;
+            memset(peer->last_beacon_chord, 0, 8);
+        }
+
+        if (should_send_welcome_response(peer, rx_time_us, peer_is_genesis, peer_chord)) {
             send_welcome_response(peer, rx_time_us);
         }
     }
@@ -1822,32 +2594,44 @@ static void send_beacon(void)
     /*
      * Beacon TX: Use SWARM time, not LOCAL time.
      *
-     * When we've adopted from another device, our local clock differs from
-     * swarm time by time_offset_us. If we send LOCAL time in beacons, a
-     * third device (C) adopting from us (B) will calculate offset relative
-     * to our LOCAL time, not the swarm's time - ending up offset by our
-     * offset from the origin.
+     * PROTOCOL v0x02: Send phase chord directly on wire.
+     *
+     * "Time is a chord, not a number." - S3 Spec
+     *
+     * When we've adopted from another device, our local chord differs from
+     * swarm chord by time_offset_us worth of quanta. We compute the swarm
+     * chord by getting our local chord and adjusting by the offset.
+     *
+     * For now, we use a simpler approach: get the chord at local time
+     * or swarm time based on sync state. The phase engine already handles
+     * the offset internally via epoch_offset.
      *
      * Example: A boots, B boots +8.5s later, B adopts from A (offset=-8.5s)
-     * Without fix: B sends B_local, C adopts with offset to B_local
-     *              C ends up 8.5s behind A (exactly B's offset!)
-     * With fix:    B sends B_swarm = B_local - offset = A's time
-     *              C adopts with offset to A's time correctly
-     *
-     * Formula: swarm_time = local_time - time_offset_us
-     * (same pattern as run_heartbeat())
+     * - A's chord evolves from A_boot
+     * - B's chord evolves from B_boot, but phase engine adds -(-8.5s) = +8.5s
+     * - Both compute same swarm chord, which goes on wire
      */
-    if (s_utlp.time_synced && s_utlp.we_adopted_epoch) {
-        pkt.exon.utlp_timestamp_us = (uint64_t)((int64_t)chirp_epoch_us - s_utlp.time_offset_us);
-    } else {
-        pkt.exon.utlp_timestamp_us = chirp_epoch_us;
-    }
+    utlp_phase_get_chord(pkt.exon.phase_chord);  /* Phase engine handles offset */
 
     pkt.exon.ntp_timestamp_utc = 0;  /* No NTP in Phase 2 */
     pkt.exon.session_salt = (uint16_t)(s_utlp.epoch.session_salt[0] |
                                         (s_utlp.epoch.session_salt[1] << 8));
     pkt.exon.stratum = 1;  /* Genesis stratum */
-    pkt.exon.protocol_version = UTLP_PROTOCOL_VERSION_N2;
+
+    /*
+     * PROTOCOL VERSION: Explicit Genesis Marking
+     *
+     * Devices in genesis chirp phase use GENESIS version to signal they're
+     * seeking swarm adoption. Established devices seeing this version should
+     * send an immediate welcome response.
+     *
+     * This explicit marking is cleaner than behavioral detection (counting
+     * beacon intervals) because it works on the FIRST beacon.
+     */
+    uint64_t tx_uptime_us = chirp_epoch_us - s_utlp.boot_time_us;
+    bool is_genesis_pulsing = (tx_uptime_us < UTLP_CHIRP_DURATION_US);
+    pkt.exon.protocol_version = is_genesis_pulsing ?
+        UTLP_PROTOCOL_VERSION_GENESIS : UTLP_PROTOCOL_VERSION_N2;
 
     /*
      * Build INTRON (encrypted payload) - burst_index varies
@@ -1865,11 +2649,9 @@ static void send_beacon(void)
      * - NAIVE (0): Genesis pulsing, haven't resolved epoch yet
      * - TIME_LORD (1): We are the origin of our lineage (didn't adopt)
      * - SOMATIC (2): We adopted from another device
-     *
-     * Genesis pulsing is determined by uptime (chirp_epoch_us is monotonic from boot)
      */
     uint8_t role;
-    if (chirp_epoch_us < UTLP_CHIRP_DURATION_US) {
+    if (is_genesis_pulsing) {
         role = UTLP_ROLE_NAIVE;  /* Still genesis pulsing */
     } else if (s_utlp.we_adopted_epoch) {
         role = UTLP_ROLE_SOMATIC;  /* We adopted - following Time Lord */

@@ -1444,7 +1444,12 @@ typedef struct {
  */
 
 /** @brief Epoch offset threshold for considering devices synchronized */
-#define UTLP_EPOCH_OFFSET_THRESHOLD_US   1000000UL       /* 1 second */
+/**
+ * NOTE: Must be signed (LL not UL) because it's negated in comparison:
+ *   if (offset_us < -UTLP_EPOCH_OFFSET_THRESHOLD_US)
+ * Using UL causes unsigned underflow to ~4 billion, breaking the comparison!
+ */
+#define UTLP_EPOCH_OFFSET_THRESHOLD_US   1000000LL       /* 1 second */
 
 /** @} */ /* epoch_resolution */
 

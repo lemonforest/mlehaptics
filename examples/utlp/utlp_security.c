@@ -82,8 +82,8 @@ void utlp_security_build_nonce(const utlp_exon_t *exon,
         return;
     }
 
-    /* Bytes 0-7: UTLP timestamp */
-    memcpy(&nonce_out[0], &exon->utlp_timestamp_us, sizeof(uint64_t));
+    /* Bytes 0-7: Phase chord (PROTOCOL v0x02) */
+    memcpy(&nonce_out[0], exon->phase_chord, sizeof(exon->phase_chord));
 
     /* Bytes 8-11: Sequence ID */
     memcpy(&nonce_out[8], &exon->sequence_id, sizeof(uint32_t));

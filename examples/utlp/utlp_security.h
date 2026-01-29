@@ -19,14 +19,14 @@
  *
  * ```
  * ┌─────────────────────────────────────────────────────────────┐
- * │  CLEARTEXT EXON (24 bytes)                                  │
+ * │  CLEARTEXT EXON (24 bytes) - Protocol v0x02                 │
  * ├─────────────────────────────────────────────────────────────┤
  * │  [0-3]   SequenceID          - Anti-replay counter          │
- * │  [4-11]  UTLP_Timestamp_US   - Monotonic time, nonce source │
+ * │  [4-11]  Phase_Chord[8]      - Vector time (8 coprime mods) │
  * │  [12-19] NTP_Timestamp_UTC   - Wall-clock or RANDOM         │
  * │  [20-21] Session_Salt        - Per-boot random              │
  * │  [22]    Stratum             - Time source depth            │
- * │  [23]    Protocol_Version    - Fixed 0x01                   │
+ * │  [23]    Protocol_Version    - 0x02 (vector time)           │
  * ├─────────────────────────────────────────────────────────────┤
  * │  ENCRYPTED INTRON (8 bytes) - AES-128-CTR                   │
  * ├─────────────────────────────────────────────────────────────┤
@@ -67,8 +67,11 @@ extern "C" {
  * understanding the cryptographic implications.
  *==========================================================================*/
 
-/** @brief Current protocol version (embedded in Exon) */
-#define UTLP_PROTOCOL_VERSION       0x01
+/** @brief Current protocol version (embedded in Exon)
+ *  v0x01: Scalar timestamp in Exon bytes [4-11]
+ *  v0x02: Phase chord (vector time) in Exon bytes [4-11]
+ */
+#define UTLP_PROTOCOL_VERSION       0x02
 
 /** @brief Cleartext Exon size in bytes */
 #define UTLP_EXON_SIZE              24
@@ -120,20 +123,27 @@ typedef enum {
  *
  * CRITICAL: Field order is FIXED for cryptographic alignment.
  * DO NOT REORDER to optimize padding ("no box-trucking").
+ *
+ * PROTOCOL v0x02: Changed utlp_timestamp_us (scalar) to phase_chord (vector).
+ * "Time is a chord, not a number." - S3 Spec
+ *
+ * The 8-byte phase chord encodes time as residues modulo 8 coprime primes,
+ * providing ~261,000 years of unique timestamps with CRT reconstruction.
+ * Similarity-based comparison enables partition detection and gradient sync.
  *==========================================================================*/
 
 /**
- * @brief Cleartext packet header (24 bytes)
+ * @brief Cleartext packet header (24 bytes) - Protocol v0x02
  *
  * @warning Field order is cryptographically significant. Do not reorder.
  */
 typedef struct __attribute__((packed)) {
     uint32_t sequence_id;           /**< [0-3]   Monotonic counter, anti-replay */
-    uint64_t utlp_timestamp_us;     /**< [4-11]  Monotonic time, nonce component */
+    uint8_t  phase_chord[8];        /**< [4-11]  Vector time (8 coprime residues) */
     uint64_t ntp_timestamp_utc;     /**< [12-19] Wall-clock, or RANDOM if stealth */
     uint16_t session_salt;          /**< [20-21] Per-boot random, nonce component */
     uint8_t  stratum;               /**< [22]    Time source depth */
-    uint8_t  protocol_version;      /**< [23]    Protocol version (0x01) */
+    uint8_t  protocol_version;      /**< [23]    Protocol version (0x02) */
 } utlp_exon_t;
 
 /* Compile-time validation of Exon structure */
@@ -141,8 +151,8 @@ _Static_assert(sizeof(utlp_exon_t) == UTLP_EXON_SIZE,
                "Exon size mismatch - check struct packing");
 _Static_assert(offsetof(utlp_exon_t, sequence_id) == 0,
                "sequence_id must be at offset 0");
-_Static_assert(offsetof(utlp_exon_t, utlp_timestamp_us) == 4,
-               "utlp_timestamp_us must be at offset 4");
+_Static_assert(offsetof(utlp_exon_t, phase_chord) == 4,
+               "phase_chord must be at offset 4");
 _Static_assert(offsetof(utlp_exon_t, ntp_timestamp_utc) == 12,
                "ntp_timestamp_utc must be at offset 12");
 _Static_assert(offsetof(utlp_exon_t, session_salt) == 20,
@@ -406,8 +416,8 @@ void utlp_security_derive_splice_key(const uint8_t swarm_dna[UTLP_DNA_SIZE],
 /**
  * @brief Build 16-byte nonce from packet Exon fields
  *
- * Nonce construction:
- * - Bytes 0-7:   UTLP_Timestamp_US
+ * Nonce construction (PROTOCOL v0x02):
+ * - Bytes 0-7:   Phase chord (8 coprime residues)
  * - Bytes 8-11:  SequenceID
  * - Bytes 12-13: Session_Salt (per-boot random)
  * - Bytes 14-15: Zero padding
@@ -507,7 +517,7 @@ uint16_t utlp_security_get_session_salt(void);
  * - sequence_id: auto-incremented
  *
  * Caller must still set:
- * - utlp_timestamp_us
+ * - phase_chord (PROTOCOL v0x02)
  * - ntp_timestamp_utc (or fill with random if stealth)
  * - stratum
  *

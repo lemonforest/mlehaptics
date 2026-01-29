@@ -551,27 +551,36 @@ esp_err_t utlp_phase_get_time(utlp_app_time_t *time)
     }
 
     uint32_t crit = utlp_hal_timer_enter_critical();
-
-    /* Copy phase chord - always valid */
-    for (int i = 0; i < UTLP_CHORD_SIZE; i++) {
-        time->phase_chord[i] = s_state.phase_chord[i];
-    }
+    uint64_t local_quanta = s_state.cycle_count * s_power_params.quanta_per_cycle;
+    int64_t offset_us = s_state.epoch_offset_us;
 
     /* Copy partition status */
     time->partition = (utlp_partition_status_t)s_state.partition_status;
     time->crt_valid = s_state.crt_valid;
+    utlp_hal_timer_exit_critical(crit);
 
-    /* Derive scalar time from cycles + ticks + offset (if CRT valid) */
-    if (s_state.crt_valid) {
-        uint64_t cycles = s_state.cycle_count;
-        int64_t offset = s_state.epoch_offset_us;
-        utlp_hal_timer_exit_critical(crit);
+    /*
+     * Compute SWARM chord from local quanta + offset
+     * (Same logic as utlp_phase_get_chord for consistency)
+     */
+    int64_t offset_quanta = offset_us / 1000;
+    int64_t swarm_quanta = (int64_t)local_quanta + offset_quanta;
 
+    for (int i = 0; i < UTLP_CHORD_SIZE; i++) {
+        int64_t phase = swarm_quanta % (int64_t)s_primes[i];
+        if (phase < 0) {
+            phase += s_primes[i];
+        }
+        time->phase_chord[i] = (uint8_t)phase;
+    }
+
+    /* Derive scalar time (if CRT valid) */
+    if (time->crt_valid) {
         uint32_t ticks = utlp_phase_get_ticks();
         uint64_t ticks_us = ((uint64_t)ticks * s_power_params.tick_ns) / 1000;
-        time->scalar_us = (cycles * s_power_params.cycle_us) + ticks_us + offset;
+        uint64_t local_us = (local_quanta * 1000) + ticks_us;  /* quanta → us */
+        time->scalar_us = local_us + offset_us;
     } else {
-        utlp_hal_timer_exit_critical(crit);
         time->scalar_us = 0;  /* Invalid during partition */
     }
 
@@ -584,11 +593,44 @@ void utlp_phase_get_chord(utlp_phase_chord_t chord)
         return;
     }
 
+    /*
+     * Return SWARM chord, not LOCAL chord
+     *
+     * The ISR maintains s_state.phase_chord from raw cycle_count (LOCAL time).
+     * To get SWARM time, we must apply epoch_offset_us.
+     *
+     * Glass Wall Architecture:
+     * - Leader: offset=0, local chord IS swarm chord
+     * - Follower: offset≠0, must add offset to get swarm chord
+     *
+     * Both devices calling this function will return the SAME chord
+     * (within tick precision) when properly synchronized.
+     */
     uint32_t crit = utlp_hal_timer_enter_critical();
-    for (int i = 0; i < UTLP_CHORD_SIZE; i++) {
-        chord[i] = s_state.phase_chord[i];
-    }
+    uint64_t local_quanta = s_state.cycle_count * s_power_params.quanta_per_cycle;
+    int64_t offset_us = s_state.epoch_offset_us;
     utlp_hal_timer_exit_critical(crit);
+
+    /* Convert offset to quanta (1 quanta = 1 ms = 1000 us) */
+    int64_t offset_quanta = offset_us / 1000;
+
+    /* Swarm quanta = local quanta + offset */
+    int64_t swarm_quanta = (int64_t)local_quanta + offset_quanta;
+
+    /*
+     * Compute chord from swarm quanta
+     *
+     * Handle negative values with proper modular arithmetic.
+     * In C, (-5) % 7 can give -5 (implementation-defined).
+     * We need the positive equivalent: (-5 % 7 + 7) % 7 = 2
+     */
+    for (int i = 0; i < UTLP_CHORD_SIZE; i++) {
+        int64_t phase = swarm_quanta % (int64_t)s_primes[i];
+        if (phase < 0) {
+            phase += s_primes[i];
+        }
+        chord[i] = (uint8_t)phase;
+    }
 }
 
 uint8_t utlp_phase_get_phase(uint8_t prime_idx)
@@ -597,8 +639,29 @@ uint8_t utlp_phase_get_phase(uint8_t prime_idx)
         return 0;
     }
 
-    /* Single byte read - atomic on all platforms */
-    return s_state.phase_chord[prime_idx];
+    /*
+     * Return SWARM phase for this dimension, not LOCAL phase
+     *
+     * Used by SMSP for fast single-dimension pattern matching.
+     * Must apply epoch_offset to return swarm time.
+     *
+     * Performance note: This is slightly more expensive than the old
+     * single-byte read, but correctness requires offset application.
+     * SMSP patterns only work when all devices agree on swarm time.
+     */
+    uint32_t crit = utlp_hal_timer_enter_critical();
+    uint64_t local_quanta = s_state.cycle_count * s_power_params.quanta_per_cycle;
+    int64_t offset_us = s_state.epoch_offset_us;
+    utlp_hal_timer_exit_critical(crit);
+
+    int64_t offset_quanta = offset_us / 1000;
+    int64_t swarm_quanta = (int64_t)local_quanta + offset_quanta;
+
+    int64_t phase = swarm_quanta % (int64_t)s_primes[prime_idx];
+    if (phase < 0) {
+        phase += s_primes[prime_idx];
+    }
+    return (uint8_t)phase;
 }
 
 void utlp_phase_cycles_to_chord(uint64_t cycles, utlp_phase_chord_t chord)
