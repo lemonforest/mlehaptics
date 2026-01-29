@@ -339,6 +339,172 @@ static inline agreement_vector_t utlp_hdc_compute_agreement(
 }
 
 /*============================================================================
+ * FIREFLY MODEL: Vector-Native Epoch Resolution
+ *
+ * Like fireflies synchronizing flashes through coupled oscillators,
+ * we determine who is "older" (the reference) by VOTING across dimensions
+ * rather than converting to scalar.
+ *
+ * Key insight: If peer's chord is consistently AHEAD of ours in most
+ * dimensions, peer booted earlier → peer is the reference.
+ *
+ * Returns:
+ *   +1 = We are older (peer should sync to us)
+ *   -1 = Peer is older (we should sync to peer)
+ *    0 = Tied (use MAC tiebreaker)
+ *
+ * Also computes the OFFSET CHORD: the per-dimension offset to apply
+ * to transform our local chord into swarm chord.
+ *==========================================================================*/
+
+/**
+ * @brief Firefly direction vote result
+ */
+typedef struct {
+    int8_t   direction;      /**< +1 = we're older, -1 = peer older, 0 = tied */
+    uint8_t  confidence;     /**< 0-8: how many dimensions agree */
+    uint8_t  offset_chord[UTLP_CHORD_SIZE]; /**< Offset to add: swarm = local + offset */
+} firefly_vote_t;
+
+/**
+ * @brief Vote across dimensions to determine who is older (no CRT)
+ *
+ * FIREFLY ALGORITHM:
+ * For each dimension i:
+ *   diff = peer_chord[i] - our_chord[i]  (circular on prime[i])
+ *   if diff > prime/2: diff -= prime  (wrap to signed)
+ *
+ *   if diff > threshold: peer is AHEAD → peer is OLDER → vote -1
+ *   if diff < -threshold: we are AHEAD → we are OLDER → vote +1
+ *   else: too close to call → no vote
+ *
+ * Majority vote determines overall direction.
+ * Tie (4-4 or close votes) → return 0 for MAC tiebreaker.
+ *
+ * @param our_chord Our current local phase chord
+ * @param peer_chord Peer's chord from beacon
+ * @return Firefly vote result with direction, confidence, and offset chord
+ */
+static inline firefly_vote_t utlp_hdc_firefly_vote(
+    const utlp_phase_chord_t our_chord,
+    const utlp_phase_chord_t peer_chord)
+{
+    static const uint8_t primes[UTLP_CHORD_SIZE] = UTLP_PRIMES_INIT;
+    firefly_vote_t result = {0};
+
+    int peer_older_votes = 0;
+    int we_older_votes = 0;
+
+    for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
+        int16_t diff = (int16_t)peer_chord[i] - (int16_t)our_chord[i];
+        uint8_t prime = primes[i];
+
+        /* Circular wrap to signed range [-prime/2, +prime/2] */
+        if (diff > (int16_t)(prime / 2)) {
+            diff -= prime;
+        } else if (diff < -(int16_t)(prime / 2)) {
+            diff += prime;
+        }
+
+        /*
+         * Threshold: 10% of prime (~24 for prime 241)
+         * Below this, phases are "close enough" to not vote.
+         */
+        int16_t threshold = prime / 10;
+
+        if (diff > threshold) {
+            /* Peer chord is ahead of ours → peer booted earlier → peer is OLDER */
+            peer_older_votes++;
+        } else if (diff < -threshold) {
+            /* Our chord is ahead of peer → we booted earlier → WE are OLDER */
+            we_older_votes++;
+        }
+        /* else: too close to call, dimension abstains */
+
+        /*
+         * Compute offset chord for this dimension:
+         * offset = peer - ours (what we need to ADD to local to get swarm)
+         *
+         * Store as unsigned [0, prime-1] for modular arithmetic later.
+         */
+        int16_t offset = diff;
+        if (offset < 0) offset += prime;
+        result.offset_chord[i] = (uint8_t)offset;
+    }
+
+    /* Determine winner by majority vote */
+    if (peer_older_votes > we_older_votes + 1) {
+        /* Peer clearly older (need >1 vote margin for confidence) */
+        result.direction = -1;
+        result.confidence = (uint8_t)peer_older_votes;
+    } else if (we_older_votes > peer_older_votes + 1) {
+        /* We clearly older */
+        result.direction = +1;
+        result.confidence = (uint8_t)we_older_votes;
+    } else {
+        /* Too close to call → MAC tiebreaker */
+        result.direction = 0;
+        result.confidence = (uint8_t)((peer_older_votes > we_older_votes)
+                                       ? peer_older_votes : we_older_votes);
+    }
+
+    return result;
+}
+
+/**
+ * @brief Apply offset chord to local chord to get swarm chord
+ *
+ * FIREFLY SYNC: swarm_chord[i] = (local_chord[i] + offset_chord[i]) mod prime[i]
+ *
+ * This is the vector-native way to "adjust our time" without polluting
+ * the local phase engine. The offset_chord is stored, and we compute
+ * swarm chord on demand.
+ *
+ * @param local_chord Our clean local chord (THE RULER - never modified)
+ * @param offset_chord Per-dimension offset (from firefly vote)
+ * @param[out] swarm_chord Output swarm-synchronized chord
+ */
+static inline void utlp_hdc_apply_offset_chord(
+    const utlp_phase_chord_t local_chord,
+    const utlp_phase_chord_t offset_chord,
+    utlp_phase_chord_t swarm_chord)
+{
+    static const uint8_t primes[UTLP_CHORD_SIZE] = UTLP_PRIMES_INIT;
+
+    for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
+        uint16_t sum = (uint16_t)local_chord[i] + (uint16_t)offset_chord[i];
+        if (sum >= primes[i]) {
+            sum -= primes[i];
+        }
+        swarm_chord[i] = (uint8_t)sum;
+    }
+}
+
+/**
+ * @brief Invert an offset chord (for switching from peer reference to us)
+ *
+ * If peer was reference and now we are, we need the inverse offset.
+ * inverse_offset[i] = (prime[i] - offset[i]) mod prime[i]
+ *
+ * @param offset_chord Original offset chord
+ * @param[out] inverse_chord Inverted offset chord
+ */
+static inline void utlp_hdc_invert_offset_chord(
+    const utlp_phase_chord_t offset_chord,
+    utlp_phase_chord_t inverse_chord)
+{
+    static const uint8_t primes[UTLP_CHORD_SIZE] = UTLP_PRIMES_INIT;
+
+    for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
+        if (offset_chord[i] == 0) {
+            inverse_chord[i] = 0;
+        } else {
+            inverse_chord[i] = primes[i] - offset_chord[i];
+        }
+    }
+}
+
+/*============================================================================
  * HOLOGRAPHIC TRAJECTORY MEMORY
  *
  * TRUE HDC: Instead of storing raw chords (which limits us to N observations),

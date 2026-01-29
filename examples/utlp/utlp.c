@@ -495,6 +495,26 @@ static struct {
     uint32_t          observation_count; /**< Our total observations (authority metric) */
 
     /*
+     * FIREFLY MODEL: Vector-Native Offset (Replaces scalar time_offset_us)
+     *
+     * Like fireflies synchronizing their flashes, we store the offset as a
+     * CHORD (8 bytes) not a scalar. Each dimension tracks phase difference
+     * in that prime's ring:
+     *
+     *   offset_chord[i] = (peer_chord[i] - our_chord[i]) mod prime[i]
+     *
+     * Benefits:
+     * 1. No CRT conversion (avoids scalar artifacts)
+     * 2. Each dimension can converge independently (elastic)
+     * 3. SMSP can use swarm_chord directly (no scalar→chord→LED)
+     * 4. Natural partition detection (dimensions disagree = trouble)
+     *
+     * To get swarm chord: swarm[i] = (local[i] + offset_chord[i]) mod prime[i]
+     */
+    utlp_phase_chord_t offset_chord;     /**< Vector offset: add to local → swarm */
+    bool               have_offset_chord; /**< True if offset_chord is valid */
+
+    /*
      * SYNC SOURCE TRACKING (Bug Fix: Stale Offset After Peer Reboot)
      *
      * When we adopt a peer's epoch, we record WHICH peer we synced from.
@@ -1661,117 +1681,111 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
 
     /*
      * ==========================================================================
-     * LAMPREY MODEL: Simplified HDC Epoch Resolution
+     * FIREFLY MODEL: Vector-Native Epoch Resolution
      * ==========================================================================
      *
-     * The OLDEST device carries lineage. Younger devices "attach" like a lamprey.
+     * Like fireflies synchronizing flashes, we determine who is "older"
+     * (the reference) by VOTING across 8 dimensions rather than converting
+     * to scalar via CRT.
      *
      * Algorithm:
-     * 1. Use CRT offset (already computed in process_chirp_burst via chord_offset_crt)
-     * 2. If peer is older (negative offset) → we adopt
-     * 3. If we are older (positive offset) → we don't adopt
-     * 4. If nearly simultaneous → MAC tiebreaker
+     * 1. Vote across all 8 dimensions: in each prime's ring, who is ahead?
+     * 2. Majority vote determines who is older
+     * 3. If tied → MAC tiebreaker
+     * 4. Store offset as a CHORD (not scalar) for vector-native heartbeat
      *
-     * Offset sign convention (from chord_offset_crt):
-     *   offset = our_chord_scalar - peer_chord_scalar
-     *   - Positive offset = our chord is ahead = we booted EARLIER = we are OLDER
-     *   - Negative offset = peer chord is ahead = peer booted EARLIER = peer is OLDER
-     *
-     * NOTE: The CRT offset is already stored in peer->chirp.offset_us and has
-     * been copied to s_utlp.time_offset_us by process_chirp_burst() before
-     * this function is called.
+     * Key insight: If peer's chord is consistently AHEAD of ours in most
+     * dimensions, peer booted earlier → peer is the reference.
      */
 
-    /* Use the CRT offset already computed by process_chirp_burst() */
-    int64_t offset_us = peer->chirp.offset_us;
-
-    /* Get chords for logging */
+    /* Get our current chord */
     utlp_phase_chord_t our_chord;
     utlp_phase_get_chord(our_chord);
     const utlp_phase_chord_t *peer_chord = &peer->chirp.chirp_epoch_chord;
 
+    /* Firefly direction vote - no CRT conversion! */
+    firefly_vote_t vote = utlp_hdc_firefly_vote(our_chord, *peer_chord);
+
+    utlp_hal_log_info(TAG, "FIREFLY: direction=%+d confidence=%u/8 offset_chord=[%u,%u,%u,%u,%u,%u,%u,%u]",
+                      vote.direction, vote.confidence,
+                      vote.offset_chord[0], vote.offset_chord[1],
+                      vote.offset_chord[2], vote.offset_chord[3],
+                      vote.offset_chord[4], vote.offset_chord[5],
+                      vote.offset_chord[6], vote.offset_chord[7]);
+
+    /* Also log chord similarity for debugging */
     uint8_t chord_similarity = utlp_hdc_chord_similarity(our_chord, *peer_chord);
-    utlp_hal_log_info(TAG, "LAMPREY: CRT offset=%lld us, chord_similarity=%u/8",
-                      (long long)offset_us, chord_similarity);
+    utlp_hal_log_info(TAG, "FIREFLY: chord_similarity=%u/8", chord_similarity);
 
     /*
-     * === LAMPREY RESOLUTION: OLDEST DEVICE WINS ===
+     * === FIREFLY RESOLUTION: OLDEST DEVICE WINS ===
      *
-     * Threshold: 100ms (100,000 us) to distinguish "nearly simultaneous"
-     * from "clearly different boot times".
-     *
-     * With CRT offset:
-     *   offset > 0 → our chord is ahead → we are OLDER → we keep epoch
-     *   offset < 0 → peer chord is ahead → peer is OLDER → we adopt
+     * vote.direction:
+     *   +1 = We are older (majority say our chord is ahead)
+     *   -1 = Peer is older (majority say peer chord is ahead)
+     *    0 = Tied (use MAC tiebreaker)
      */
-    #define LAMPREY_OFFSET_THRESHOLD_US 100000  /* 100ms */
-
     bool i_should_adopt = false;
 
-    if (offset_us < -LAMPREY_OFFSET_THRESHOLD_US) {
+    if (vote.direction < 0) {
         /*
-         * Peer chord is significantly AHEAD of ours (negative offset).
-         * Peer booted EARLIER → Peer is OLDER → We should adopt.
+         * Peer is older (majority of dimensions say peer is ahead).
+         * We should adopt peer's timeline.
          */
         i_should_adopt = true;
-        utlp_hal_log_info(TAG, "LAMPREY: Peer is older (offset=%lld us) → we adopt",
-                          (long long)offset_us);
+        utlp_hal_log_info(TAG, "FIREFLY: Peer is older (vote=%+d, conf=%u) → we adopt",
+                          vote.direction, vote.confidence);
 
-    } else if (offset_us > LAMPREY_OFFSET_THRESHOLD_US) {
+    } else if (vote.direction > 0) {
         /*
-         * Our chord is significantly AHEAD (positive offset).
-         * We booted EARLIER → We are OLDER → Peer should adopt from us.
+         * We are older (majority of dimensions say we are ahead).
+         * Peer should adopt from us.
          */
         i_should_adopt = false;
-        utlp_hal_log_info(TAG, "LAMPREY: We are older (offset=+%lld us) → we keep epoch",
-                          (long long)offset_us);
+        utlp_hal_log_info(TAG, "FIREFLY: We are older (vote=%+d, conf=%u) → we keep epoch",
+                          vote.direction, vote.confidence);
 
     } else {
         /*
-         * Nearly simultaneous boot (within ±100ms).
+         * Tied vote (dimensions split or all abstained).
          * Use MAC address as deterministic tiebreaker.
          * Lower MAC adopts from higher MAC (arbitrary but consistent).
          */
         i_should_adopt = (memcmp(s_utlp.local_mac, peer->mac, 6) < 0);
-        utlp_hal_log_info(TAG, "LAMPREY: Same age (offset=%lld us) → MAC tiebreaker: %s adopts",
-                          (long long)offset_us,
+        utlp_hal_log_info(TAG, "FIREFLY: Tied vote (conf=%u) → MAC tiebreaker: %s adopts",
+                          vote.confidence,
                           i_should_adopt ? "we" : "peer");
     }
 
     /*
-     * === APPLY RESOLUTION ===
+     * === APPLY RESOLUTION (Vector-Native) ===
      */
     if (i_should_adopt) {
         /*
-         * We are the younger device - attach to peer's timeline.
+         * We are the younger device - adopt peer's timeline.
          *
-         * The offset is already stored in s_utlp.time_offset_us by the caller.
-         * We just need to set the phase engine offset and mark that we adopted.
-         *
-         * Phase engine offset: Apply negative of CRT offset to align with peer.
-         * If offset is -5000000 (peer is 5s ahead), we apply +5000000 to catch up.
+         * Store the OFFSET CHORD (not scalar!). To get swarm chord:
+         *   swarm[i] = (local[i] + offset_chord[i]) mod prime[i]
          */
-        utlp_phase_set_epoch_offset(-offset_us);
+        memcpy(s_utlp.offset_chord, vote.offset_chord, UTLP_CHORD_SIZE);
+        s_utlp.have_offset_chord = true;
         s_utlp.we_adopted_epoch = true;
 
         /* Track sync source for reboot detection */
         memcpy(s_utlp.sync_source_mac, peer->mac, 6);
         s_utlp.have_sync_source = true;
 
-        utlp_hal_log_info(TAG, "LAMPREY: Applied offset %lld us (attached to peer)",
-                          (long long)(-offset_us));
+        utlp_hal_log_info(TAG, "FIREFLY: Stored offset chord (attached to peer)");
     } else {
         /*
          * We are the older device - we ARE the swarm reference.
-         * No offset needed; peer will adopt from us.
+         * Offset chord is all zeros (local chord = swarm chord).
          */
+        memset(s_utlp.offset_chord, 0, UTLP_CHORD_SIZE);
+        s_utlp.have_offset_chord = true;  /* Valid, just zero */
         s_utlp.we_adopted_epoch = false;
 
-        if (!s_utlp.time_synced) {
-            utlp_phase_set_epoch_offset(0);  /* Our local time IS swarm time */
-        }
-
-        utlp_hal_log_info(TAG, "LAMPREY: We are the reference (no offset)");
+        utlp_hal_log_info(TAG, "FIREFLY: We are the reference (zero offset chord)");
     }
 
     s_utlp.observation_count++;
@@ -2698,27 +2712,79 @@ static void send_beacon(void)
  *   - Positive offset: we're ahead of peer → subtract to slow down
  *   - Negative offset: we're behind peer → subtracting negative = speed up
  */
+/**
+ * @brief Get current swarm chord (vector-native sync)
+ *
+ * FIREFLY MODEL: Applies the offset chord to our local chord to get
+ * the swarm-synchronized chord. No scalar conversion needed!
+ *
+ *   swarm[i] = (local[i] + offset_chord[i]) mod prime[i]
+ *
+ * If we haven't synced yet (no offset chord), returns local chord.
+ *
+ * @param[out] swarm_chord Output swarm-synchronized chord
+ */
+static void utlp_get_swarm_chord(utlp_phase_chord_t swarm_chord)
+{
+    /* Get our clean local chord */
+    utlp_phase_chord_t local_chord;
+    utlp_phase_get_chord(local_chord);
+
+    if (s_utlp.have_offset_chord) {
+        /* Apply offset chord to get swarm chord */
+        utlp_hdc_apply_offset_chord(local_chord, s_utlp.offset_chord, swarm_chord);
+    } else {
+        /* No sync yet - local chord IS swarm chord */
+        memcpy(swarm_chord, local_chord, UTLP_CHORD_SIZE);
+    }
+}
+
 static void run_heartbeat(void)
 {
-    uint64_t now_us = utlp_hal_get_micros();
+    /*
+     * ==========================================================================
+     * FIREFLY HEARTBEAT: Vector-Native LED Phase
+     * ==========================================================================
+     *
+     * Instead of:
+     *   1. Get scalar time (microseconds)
+     *   2. Apply scalar offset
+     *   3. Convert to phase (mod 1000ms)
+     *   4. Drive LED
+     *
+     * We now do:
+     *   1. Get swarm chord directly (vector)
+     *   2. Use swarm_chord[0] (prime[0]=241) as LED phase
+     *   3. Drive LED based on chord phase
+     *
+     * Benefits:
+     *   - No CRT conversion artifacts
+     *   - Each dimension can be used for different actuators
+     *   - Natural 241-phase cycle (~4.15ms per phase at 1ms tick)
+     *
+     * With 1ms phase engine ticks and prime[0]=241:
+     *   Full cycle = 241ms (~4.15 Hz)
+     *
+     * For 1Hz blink, we could use multiple cycles or slow tick rate.
+     * For now, we use phase[0] with 50% duty: ON when phase < 121.
+     */
+    utlp_phase_chord_t swarm_chord;
+    utlp_get_swarm_chord(swarm_chord);
 
     /*
-     * Apply time sync offset ONLY if we adopted (lost epoch resolution).
-     * The epoch winner keeps their time; the loser adjusts.
+     * LED duty based on prime[0]=241 phase.
      *
-     * This ensures both devices compute the SAME phase value at the SAME
-     * wall-clock moment, resulting in synchronized LED blinking.
+     * phase[0] ranges 0-240 (241 values).
+     * LED ON when phase < 121 (approximately 50% duty).
+     *
+     * Both devices compute identical swarm_chord[0] at the same moment,
+     * so LEDs blink in sync!
      */
-    if (s_utlp.time_synced && s_utlp.we_adopted_epoch) {
-        now_us = (uint64_t)((int64_t)now_us - s_utlp.time_offset_us);
-    }
+    uint8_t phase_0 = swarm_chord[0];
+    uint8_t duty = (phase_0 < 121) ? 100 : 0;
 
-    uint32_t phase_ms = (now_us / 1000) % 1000;
-
-    /* 1Hz blink: ON for 500ms, OFF for 500ms */
-    uint8_t duty = (phase_ms < 500) ? 100 : 0;
-
-    utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, 0, duty);
+    /* Period doesn't matter for pure ON/OFF, but keep consistent */
+    utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 241, 0, duty);
 }
 
 /*============================================================================
