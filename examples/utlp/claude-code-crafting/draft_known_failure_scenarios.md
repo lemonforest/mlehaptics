@@ -298,6 +298,24 @@ This section tracks which commits achieve stable sync and which do not.
 | `5de5420` | Vector-native firefly sync (no CRT) | ❌ Unstable | Same antiphase bug as 033022d |
 | `e4440be` | Pure HDC direction voting (10k expansion) | ❌ Unstable | Forward/backward reference comparison |
 | `1b082c2` | Genesis Distance (10k HDC) | ⏳ Pending Test | Measures distance from [0,0,...,0] |
+| `33ad3c1` | Virtual 1Hz gear for LED blink | ⏳ Pending Test | Fixes 4kHz→1Hz blink rate |
+
+### Known Bug: 4kHz LED Blink (FIXED in 33ad3c1)
+
+**Symptom:** LED blinks too fast to see, causes headaches.
+
+**Root Cause:** Used `swarm_chord[0]` directly for LED phase. At 1µs tick rate, chord[0]=241 cycles every 241µs = ~4150 Hz!
+
+**Fix:** Create virtual 1Hz gear by deriving ms_in_second from tick count:
+- `ms_in_second = (synced_tick / 1000) % 1000`
+- LED ON when `ms_in_second < 500` (50% duty, 1Hz)
+
+**Future: True HDC Player Piano Model**
+The ideal implementation uses resonance, not conditionals (Gemini insight):
+- Store "LED_ON schedule" hypervector bound to target phases
+- Compute `similarity(current_chord_10k, schedule)`
+- LED ON when resonance exceeds threshold
+Requires a gear that naturally cycles at target frequency, or pre-computing what chords look like at specific time marks.
 
 ### Known Bug: Antiphase Sync
 

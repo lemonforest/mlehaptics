@@ -2793,43 +2793,38 @@ static void run_heartbeat(void)
      * For adopted device: swarm_tick = local_tick + offset_scalar
      *
      * Since we want to avoid CRT for offset, we use a simpler approach:
-     * Track milliseconds within each second using the phase engine's tick count.
+     * Track milliseconds within each second using the phase engine's scalar time.
      *
-     * With 1µs ticks: 1,000,000 ticks = 1 second
-     * virtual_ms_in_sec = (tick_count / 1000) % 1000
+     * With 1µs resolution: 1,000,000 µs = 1 second
+     * virtual_ms_in_sec = (scalar_us / 1000) % 1000
      * LED ON for first 500ms, OFF for next 500ms → 1Hz, 50% duty
      */
-    uint64_t local_tick = utlp_phase_get_tick_count();
+    uint64_t local_us = utlp_phase_get_scalar_us();
 
     /*
-     * Apply offset in tick domain for synchronized time.
+     * Apply offset for synchronized time.
      *
-     * If we adopted an offset chord, we need the scalar equivalent.
-     * For now, we compute offset from chord difference at dimension 0.
+     * If we adopted an offset chord, we also have scalar time_offset_us.
+     * time_offset_us = our_time - peer_time
      *
-     * TODO: Store scalar offset alongside offset_chord for efficiency.
+     * If positive: we're ahead, subtract to sync backward
+     * If negative: we're behind, add (subtract negative) to sync forward
      *
      * The key insight: Both devices should see the SAME ms_in_second value
      * at the same wall-clock moment.
      */
-    uint64_t synced_tick = local_tick;
-    if (s_utlp.have_offset_chord) {
-        /*
-         * Approximate scalar offset from offset_chord[0].
-         * offset_chord[0] represents how many chord[0] steps peer is ahead.
-         * At 1µs per tick, each chord[0] step = 1µs.
-         * This is approximate but sufficient for 1Hz visual sync.
-         */
-        int16_t offset_steps = (int16_t)s_utlp.offset_chord[0];
-        /* Handle wrap-around: if offset > 120, peer is actually behind */
-        if (offset_steps > 120) {
-            offset_steps -= 241;  /* Convert 241→0 to -120→0 range */
-        }
-        synced_tick = local_tick + offset_steps;
+    int64_t synced_us = (int64_t)local_us;
+    if (s_utlp.time_synced && s_utlp.we_adopted_epoch) {
+        /* We adopted peer's epoch - adjust our time toward peer */
+        synced_us = (int64_t)local_us - s_utlp.time_offset_us;
+    }
+    /* Ensure non-negative for modulo operation */
+    if (synced_us < 0) {
+        synced_us += 1000000;  /* Add 1 second to make positive */
     }
 
     /* Virtual 1Hz gear: milliseconds within current second */
-    uint32_t ms_in_second = (uint32_t)((synced_tick / 1000) % 1000);
+    uint32_t ms_in_second = (uint32_t)((synced_us / 1000) % 1000);
 
     /* 1Hz, 50% duty: ON for first 500ms, OFF for next 500ms */
     uint8_t duty = (ms_in_second < 500) ? 100 : 0;
