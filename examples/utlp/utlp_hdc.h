@@ -369,31 +369,31 @@ typedef struct {
     int16_t  signed_dist[UTLP_CHORD_SIZE];  /**< Per-dimension signed distance (debug) */
 } firefly_vote_t;
 
-/** Minimum similarity difference to declare direction (pure HDC) */
-#define UTLP_HDC_DIRECTION_THRESHOLD  10  /* Need 10+ point difference in 0-255 scale */
+/** Minimum distance difference to declare direction (pure HDC) */
+#define UTLP_HDC_DIRECTION_THRESHOLD  5  /* Need 5+ point difference in distance from genesis */
 
 /**
- * @brief PURE HDC direction voting using 10k expansion
+ * @brief PURE HDC direction: Geometric Distance from Genesis
  *
- * TRUE HDC APPROACH:
- * 1. Compute difference chord: diff[i] = (peer[i] - our[i]) mod prime[i]
- * 2. Expand diff chord to 10k dimensions
- * 3. Compare with reference "forward" and "backward" hypervectors
- * 4. Whichever is more similar indicates direction
+ * THE ORRERY INSIGHT:
+ * Every chord is a point on a 10k-dimensional hypersphere. We cannot compare
+ * "magnitude" (all points are unit distance from center). But we CAN measure
+ * how far each point has "walked" from the STARTING LINE (Genesis).
  *
- * Reference vectors:
- * - forward_ref  = [1, 1, 1, 1, 1, 1, 1, 1]  (small positive offset)
- * - backward_ref = [prime-1, prime-1, ...]   (small negative offset = large positive)
+ * Genesis = [0,0,0,0,0,0,0,0] = all gears at position 0 = boot moment
  *
- * If diff is more similar to forward_ref → peer is ahead (newer)
- * If diff is more similar to backward_ref → peer is behind (older? NO - we need to think...)
+ * As time passes, the orrery "unwinds" - it walks further from genesis.
+ * In 10k space, this creates a monotonic ARC away from the starting point.
  *
- * Actually: diff = peer - ours
- * - If peer > ours (peer ahead), diff is small positive → similar to forward_ref
- * - If peer < ours (we ahead), diff wraps to large positive → similar to backward_ref
+ * ALGORITHM:
+ * 1. Compute similarity of OUR chord to Genesis in 10k space
+ * 2. Compute similarity of PEER chord to Genesis in 10k space
+ * 3. LOWER similarity = FURTHER from genesis = MORE elapsed time = OLDER
  *
- * So: forward_ref similarity > backward_ref → peer is AHEAD → peer is OLDER
- *     backward_ref similarity > forward_ref → we are AHEAD → we are OLDER
+ * This works because:
+ * - The slowest "gear combination" in the orrery takes 261,000 years to repeat
+ * - Until then, distance from genesis grows monotonically
+ * - We're measuring "how much string has unwound from the spool"
  *
  * @param our_chord Our current local phase chord
  * @param peer_chord Peer's chord from beacon
@@ -407,23 +407,53 @@ static inline firefly_vote_t utlp_hdc_firefly_vote(
     firefly_vote_t result = {0};
 
     /*
-     * Step 1: Compute difference chord and signed distances
-     * diff[i] = (peer[i] - our[i]) mod prime[i]
-     *
-     * This is the "offset" we'd need to add to our chord to reach peer's chord.
+     * Step 1: Define Genesis - the starting line
+     * All gears at position 0, as they were at boot.
      */
-    utlp_phase_chord_t diff_chord;
+    static const utlp_phase_chord_t genesis = {0, 0, 0, 0, 0, 0, 0, 0};
 
+    /*
+     * Step 2: Measure distance from Genesis in 10k space
+     *
+     * Similarity is INVERSE of distance:
+     * - High similarity to genesis = close to start = YOUNG
+     * - Low similarity to genesis = far from start = OLD
+     *
+     * So we compute: distance = 255 - similarity
+     */
+    uint8_t our_sim_to_genesis = utlp_hdc_expanded_similarity(
+        our_chord, genesis,
+        UTLP_HDC_DEFAULT_SEED,
+        UTLP_HDC_EMBEDDED_DIMS
+    );
+
+    uint8_t peer_sim_to_genesis = utlp_hdc_expanded_similarity(
+        peer_chord, genesis,
+        UTLP_HDC_DEFAULT_SEED,
+        UTLP_HDC_EMBEDDED_DIMS
+    );
+
+    /* Distance from genesis (higher = older) */
+    uint8_t our_distance = 255 - our_sim_to_genesis;
+    uint8_t peer_distance = 255 - peer_sim_to_genesis;
+
+    /* Store for debugging (repurpose sim_forward/sim_backward fields) */
+    result.sim_forward = our_distance;    /* Our distance from genesis */
+    result.sim_backward = peer_distance;  /* Peer distance from genesis */
+
+    /*
+     * Step 3: Compute offset chord (needed regardless of who is older)
+     * offset[i] = (peer[i] - our[i]) mod prime[i]
+     */
     for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
         int16_t diff = (int16_t)peer_chord[i] - (int16_t)our_chord[i];
         uint8_t prime = primes[i];
 
         /* Wrap to [0, prime-1] for the offset chord */
         if (diff < 0) diff += prime;
-        diff_chord[i] = (uint8_t)diff;
         result.offset_chord[i] = (uint8_t)diff;
 
-        /* Also compute signed distance for debugging */
+        /* Compute signed distance for debugging */
         int16_t signed_diff = (int16_t)peer_chord[i] - (int16_t)our_chord[i];
         if (signed_diff > (int16_t)(prime / 2)) {
             signed_diff -= prime;
@@ -434,62 +464,24 @@ static inline firefly_vote_t utlp_hdc_firefly_vote(
     }
 
     /*
-     * Step 2: Create reference chords for "forward" and "backward"
+     * Step 4: Determine who is older based on distance from genesis
      *
-     * Forward = small positive offset (peer slightly ahead)
-     * Backward = small negative offset (we slightly ahead) = large positive mod prime
-     *
-     * We use a fixed small offset for the reference.
+     * GREATER distance from genesis = MORE elapsed time = OLDER
      */
-    utlp_phase_chord_t forward_ref;
-    utlp_phase_chord_t backward_ref;
+    int16_t dist_diff = (int16_t)our_distance - (int16_t)peer_distance;
 
-    for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
-        /* Forward: small positive offset (e.g., 10% of prime) */
-        forward_ref[i] = primes[i] / 10;
-
-        /* Backward: small negative offset = prime - (prime/10) = 90% of prime */
-        backward_ref[i] = primes[i] - (primes[i] / 10);
-    }
-
-    /*
-     * Step 3: PURE HDC DIRECTION - Compare diff_chord against references in 10k space
-     */
-    uint8_t sim_forward = utlp_hdc_expanded_similarity(
-        diff_chord, forward_ref,
-        UTLP_HDC_DEFAULT_SEED,
-        UTLP_HDC_EMBEDDED_DIMS
-    );
-
-    uint8_t sim_backward = utlp_hdc_expanded_similarity(
-        diff_chord, backward_ref,
-        UTLP_HDC_DEFAULT_SEED,
-        UTLP_HDC_EMBEDDED_DIMS
-    );
-
-    result.sim_forward = sim_forward;
-    result.sim_backward = sim_backward;
-
-    /*
-     * Step 4: Determine direction from similarity comparison
-     *
-     * Higher similarity to forward_ref → diff is small positive → peer ahead → peer OLDER
-     * Higher similarity to backward_ref → diff is large (wrapped) → we ahead → WE OLDER
-     */
-    int16_t sim_diff = (int16_t)sim_forward - (int16_t)sim_backward;
-
-    if (sim_diff > UTLP_HDC_DIRECTION_THRESHOLD) {
-        /* More similar to forward → peer is ahead → peer is OLDER */
-        result.direction = -1;
-        result.confidence = (uint8_t)((sim_diff > 127) ? 255 : 128 + sim_diff);
-    } else if (sim_diff < -UTLP_HDC_DIRECTION_THRESHOLD) {
-        /* More similar to backward → we are ahead → WE are OLDER */
+    if (dist_diff > UTLP_HDC_DIRECTION_THRESHOLD) {
+        /* We are further from genesis → we are OLDER */
         result.direction = +1;
-        result.confidence = (uint8_t)((-sim_diff > 127) ? 255 : 128 - sim_diff);
+        result.confidence = (uint8_t)((dist_diff > 127) ? 255 : 128 + dist_diff);
+    } else if (dist_diff < -UTLP_HDC_DIRECTION_THRESHOLD) {
+        /* Peer is further from genesis → peer is OLDER */
+        result.direction = -1;
+        result.confidence = (uint8_t)((-dist_diff > 127) ? 255 : 128 - dist_diff);
     } else {
-        /* Too close to call → MAC tiebreaker */
+        /* Same distance from genesis → MAC tiebreaker */
         result.direction = 0;
-        result.confidence = 128;  /* Uncertain */
+        result.confidence = 128;
     }
 
     return result;

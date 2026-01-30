@@ -1718,9 +1718,9 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
                       vote.signed_dist[2], vote.signed_dist[3],
                       vote.signed_dist[4], vote.signed_dist[5],
                       vote.signed_dist[6], vote.signed_dist[7]);
-    utlp_hal_log_info(TAG, "FIREFLY: direction=%+d conf=%u sim_fwd=%u sim_bwd=%u",
+    utlp_hal_log_info(TAG, "FIREFLY: direction=%+d conf=%u our_dist=%u peer_dist=%u",
                       vote.direction, vote.confidence,
-                      vote.sim_forward, vote.sim_backward);
+                      vote.sim_forward, vote.sim_backward);  /* Genesis distance: higher = older */
     utlp_hal_log_info(TAG, "FIREFLY: offset=[%u,%u,%u,%u,%u,%u,%u,%u]",
                       vote.offset_chord[0], vote.offset_chord[1],
                       vote.offset_chord[2], vote.offset_chord[3],
@@ -1730,16 +1730,21 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
     /*
      * === FIREFLY RESOLUTION: OLDEST DEVICE WINS ===
      *
+     * Genesis Distance approach (HDC Orrery model):
+     * - Genesis = [0,0,0,0,0,0,0,0] = starting line
+     * - Distance = 255 - similarity(chord, genesis) in 10k space
+     * - GREATER distance from genesis = MORE elapsed time = OLDER
+     *
      * vote.direction:
-     *   +1 = We are older (majority say our chord is ahead)
-     *   -1 = Peer is older (majority say peer chord is ahead)
+     *   +1 = We are older (our genesis distance > peer's)
+     *   -1 = Peer is older (peer genesis distance > ours)
      *    0 = Tied (use MAC tiebreaker)
      */
     bool i_should_adopt = false;
 
     if (vote.direction < 0) {
         /*
-         * Peer is older (majority of dimensions say peer is ahead).
+         * Peer is older (peer has walked further from genesis).
          * We should adopt peer's timeline.
          */
         i_should_adopt = true;
@@ -1748,7 +1753,7 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
 
     } else if (vote.direction > 0) {
         /*
-         * We are older (majority of dimensions say we are ahead).
+         * We are older (we have walked further from genesis).
          * Peer should adopt from us.
          */
         i_should_adopt = false;
