@@ -296,19 +296,28 @@ This section tracks which commits achieve stable sync and which do not.
 | `36ea892` | Fix chord cross-profile incompatibility | ✅ Working | Baseline before HDC changes |
 | `033022d` | HDC primitives + lamprey model (CRT offset) | ❌ Unstable | Sometimes in-phase, sometimes antiphase |
 | `5de5420` | Vector-native firefly sync (no CRT) | ❌ Unstable | Same antiphase bug as 033022d |
+| `e4440be` | Pure HDC direction voting (10k expansion) | ❌ Unstable | Forward/backward reference comparison |
+| `1b082c2` | Genesis Distance (10k HDC) | ⏳ Pending Test | Measures distance from [0,0,...,0] |
 
 ### Known Bug: Antiphase Sync
 
 **Symptom:** After reboot, devices sometimes sync in-phase, sometimes antiphase (~180° out of phase).
 
-**Suspected Causes:**
-1. Firefly vote margin requirement (+1) may cause too many "tied" results
-2. MAC tiebreaker doesn't correlate with actual age - wrong device may adopt
-3. Offset chord application may have sign/direction bug
+**Previous Approaches (All Failed):**
+1. `033022d`: Lamprey model with CRT offset - scalar approach, not pure HDC
+2. `5de5420`: 8D signed distance voting - aliasing in 8 dimensions
+3. `e4440be`: Forward/backward reference comparison in 10k space - direction ambiguity
 
-**Required Investigation:**
-- Add verbose logging to firefly vote showing all dimension votes
-- Log which device adopts and what offset chord is stored
+**Current Approach (`1b082c2`): Genesis Distance**
+- Genesis = [0,0,0,0,0,0,0,0] = starting line for all orreries
+- Distance = 255 - similarity(chord, genesis) in 10k space
+- GREATER distance from genesis = MORE elapsed time = OLDER
+- Monotonic until orrery cycles (261,000 years at 1µs resolution)
+
+**Required Hardware Testing:**
+- Verify both devices report different genesis distances
+- Verify OLDER device (greater distance) consistently wins
+- Verify adopted offset chord produces in-phase LED blink
 - Compare swarm_chord values between devices at same wall-clock moment
 
 ---
