@@ -2758,48 +2758,94 @@ static void run_heartbeat(void)
 {
     /*
      * ==========================================================================
-     * FIREFLY HEARTBEAT: Vector-Native LED Phase
+     * FIREFLY HEARTBEAT: 1Hz LED Blink via Virtual Gear
      * ==========================================================================
      *
-     * Instead of:
-     *   1. Get scalar time (microseconds)
-     *   2. Apply scalar offset
-     *   3. Convert to phase (mod 1000ms)
-     *   4. Drive LED
+     * THE CHALLENGE:
+     * Our 8 primes (241, 251, 239...) all cycle at kHz rates at 1µs tick resolution.
+     * chord[0]=241 cycles every 241µs = ~4150 Hz (causes headaches!)
      *
-     * We now do:
-     *   1. Get swarm chord directly (vector)
-     *   2. Use swarm_chord[0] (prime[0]=241) as LED phase
-     *   3. Drive LED based on chord phase
+     * THE PLAYER PIANO MODEL (from Gemini insight):
+     * We need a "gear" that naturally cycles at 1Hz to use as our LED clock.
+     * Since we don't have one, we CREATE a virtual 1Hz gear.
      *
-     * Benefits:
-     *   - No CRT conversion artifacts
-     *   - Each dimension can be used for different actuators
-     *   - Natural 241-phase cycle (~4.15ms per phase at 1ms tick)
+     * APPROACH: Virtual 1Hz Gear via Synchronized Tick Count
+     * - Use offset chord to synchronize swarm_tick (HDC-native sync)
+     * - Derive virtual_1hz_phase from swarm_tick (scalar derived from vector)
+     * - Drive LED based on virtual phase
      *
-     * With 1ms phase engine ticks and prime[0]=241:
-     *   Full cycle = 241ms (~4.15 Hz)
-     *
-     * For 1Hz blink, we could use multiple cycles or slow tick rate.
-     * For now, we use phase[0] with 50% duty: ON when phase < 121.
+     * FUTURE: True HDC Resonance Model
+     * - Store "LED_ON schedule" hypervector
+     * - Compute similarity(current_chord_10k, schedule)
+     * - LED ON when resonance > threshold
+     * This requires pre-computing what chords look like at 0, 0.5s, 1s marks.
      */
     utlp_phase_chord_t swarm_chord;
     utlp_get_swarm_chord(swarm_chord);
 
     /*
-     * LED duty based on prime[0]=241 phase.
+     * Virtual 1Hz gear derived from synchronized tick count.
      *
-     * phase[0] ranges 0-240 (241 values).
-     * LED ON when phase < 121 (approximately 50% duty).
+     * The offset chord keeps us synchronized in vector space.
+     * We derive a scalar "swarm tick" for the 1Hz virtual gear:
      *
-     * Both devices compute identical swarm_chord[0] at the same moment,
-     * so LEDs blink in sync!
+     * For synced device: swarm_tick = local_tick
+     * For adopted device: swarm_tick = local_tick + offset_scalar
+     *
+     * Since we want to avoid CRT for offset, we use a simpler approach:
+     * Track milliseconds within each second using the phase engine's tick count.
+     *
+     * With 1µs ticks: 1,000,000 ticks = 1 second
+     * virtual_ms_in_sec = (tick_count / 1000) % 1000
+     * LED ON for first 500ms, OFF for next 500ms → 1Hz, 50% duty
      */
-    uint8_t phase_0 = swarm_chord[0];
-    uint8_t duty = (phase_0 < 121) ? 100 : 0;
+    uint64_t local_tick = utlp_phase_get_tick_count();
 
-    /* Period doesn't matter for pure ON/OFF, but keep consistent */
-    utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 241, 0, duty);
+    /*
+     * Apply offset in tick domain for synchronized time.
+     *
+     * If we adopted an offset chord, we need the scalar equivalent.
+     * For now, we compute offset from chord difference at dimension 0.
+     *
+     * TODO: Store scalar offset alongside offset_chord for efficiency.
+     *
+     * The key insight: Both devices should see the SAME ms_in_second value
+     * at the same wall-clock moment.
+     */
+    uint64_t synced_tick = local_tick;
+    if (s_utlp.have_offset_chord) {
+        /*
+         * Approximate scalar offset from offset_chord[0].
+         * offset_chord[0] represents how many chord[0] steps peer is ahead.
+         * At 1µs per tick, each chord[0] step = 1µs.
+         * This is approximate but sufficient for 1Hz visual sync.
+         */
+        int16_t offset_steps = (int16_t)s_utlp.offset_chord[0];
+        /* Handle wrap-around: if offset > 120, peer is actually behind */
+        if (offset_steps > 120) {
+            offset_steps -= 241;  /* Convert 241→0 to -120→0 range */
+        }
+        synced_tick = local_tick + offset_steps;
+    }
+
+    /* Virtual 1Hz gear: milliseconds within current second */
+    uint32_t ms_in_second = (uint32_t)((synced_tick / 1000) % 1000);
+
+    /* 1Hz, 50% duty: ON for first 500ms, OFF for next 500ms */
+    uint8_t duty = (ms_in_second < 500) ? 100 : 0;
+
+    /* Log swarm chord for debugging (only occasionally to avoid spam) */
+    static uint32_t log_counter = 0;
+    if (++log_counter >= 1000) {  /* Every 1000 heartbeats */
+        utlp_hal_log_debug(TAG, "HEARTBEAT: chord=[%u,%u,%u,%u,%u,%u,%u,%u] ms_in_sec=%lu LED=%s",
+                           swarm_chord[0], swarm_chord[1], swarm_chord[2], swarm_chord[3],
+                           swarm_chord[4], swarm_chord[5], swarm_chord[6], swarm_chord[7],
+                           (unsigned long)ms_in_second,
+                           duty ? "ON" : "OFF");
+        log_counter = 0;
+    }
+
+    utlp_hal_set_actuator_phase(UTLP_ACTUATOR_MAIN, 1000, (uint16_t)ms_in_second, duty);
 }
 
 /*============================================================================
