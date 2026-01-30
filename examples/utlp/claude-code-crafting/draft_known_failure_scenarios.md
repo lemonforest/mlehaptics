@@ -287,4 +287,30 @@ We choose: **Simple rules, deterministic outcomes, bounded uncertainty, graceful
 
 ---
 
+## Implementation Status Tracking
+
+This section tracks which commits achieve stable sync and which do not.
+
+| Commit | Description | Sync Status | Notes |
+|--------|-------------|-------------|-------|
+| `36ea892` | Fix chord cross-profile incompatibility | ✅ Working | Baseline before HDC changes |
+| `033022d` | HDC primitives + lamprey model (CRT offset) | ❌ Unstable | Sometimes in-phase, sometimes antiphase |
+| `5de5420` | Vector-native firefly sync (no CRT) | ❌ Unstable | Same antiphase bug as 033022d |
+
+### Known Bug: Antiphase Sync
+
+**Symptom:** After reboot, devices sometimes sync in-phase, sometimes antiphase (~180° out of phase).
+
+**Suspected Causes:**
+1. Firefly vote margin requirement (+1) may cause too many "tied" results
+2. MAC tiebreaker doesn't correlate with actual age - wrong device may adopt
+3. Offset chord application may have sign/direction bug
+
+**Required Investigation:**
+- Add verbose logging to firefly vote showing all dimension votes
+- Log which device adopts and what offset chord is stored
+- Compare swarm_chord values between devices at same wall-clock moment
+
+---
+
 *End of Known Failure Scenarios*

@@ -362,24 +362,38 @@ static inline agreement_vector_t utlp_hdc_compute_agreement(
  */
 typedef struct {
     int8_t   direction;      /**< +1 = we're older, -1 = peer older, 0 = tied */
-    uint8_t  confidence;     /**< 0-8: how many dimensions agree */
+    uint8_t  confidence;     /**< 0-255: direction confidence from HDC */
+    uint8_t  sim_forward;    /**< Similarity to forward reference (debug) */
+    uint8_t  sim_backward;   /**< Similarity to backward reference (debug) */
     uint8_t  offset_chord[UTLP_CHORD_SIZE]; /**< Offset to add: swarm = local + offset */
+    int16_t  signed_dist[UTLP_CHORD_SIZE];  /**< Per-dimension signed distance (debug) */
 } firefly_vote_t;
 
+/** Minimum similarity difference to declare direction (pure HDC) */
+#define UTLP_HDC_DIRECTION_THRESHOLD  10  /* Need 10+ point difference in 0-255 scale */
+
 /**
- * @brief Vote across dimensions to determine who is older (no CRT)
+ * @brief PURE HDC direction voting using 10k expansion
  *
- * FIREFLY ALGORITHM:
- * For each dimension i:
- *   diff = peer_chord[i] - our_chord[i]  (circular on prime[i])
- *   if diff > prime/2: diff -= prime  (wrap to signed)
+ * TRUE HDC APPROACH:
+ * 1. Compute difference chord: diff[i] = (peer[i] - our[i]) mod prime[i]
+ * 2. Expand diff chord to 10k dimensions
+ * 3. Compare with reference "forward" and "backward" hypervectors
+ * 4. Whichever is more similar indicates direction
  *
- *   if diff > threshold: peer is AHEAD → peer is OLDER → vote -1
- *   if diff < -threshold: we are AHEAD → we are OLDER → vote +1
- *   else: too close to call → no vote
+ * Reference vectors:
+ * - forward_ref  = [1, 1, 1, 1, 1, 1, 1, 1]  (small positive offset)
+ * - backward_ref = [prime-1, prime-1, ...]   (small negative offset = large positive)
  *
- * Majority vote determines overall direction.
- * Tie (4-4 or close votes) → return 0 for MAC tiebreaker.
+ * If diff is more similar to forward_ref → peer is ahead (newer)
+ * If diff is more similar to backward_ref → peer is behind (older? NO - we need to think...)
+ *
+ * Actually: diff = peer - ours
+ * - If peer > ours (peer ahead), diff is small positive → similar to forward_ref
+ * - If peer < ours (we ahead), diff wraps to large positive → similar to backward_ref
+ *
+ * So: forward_ref similarity > backward_ref → peer is AHEAD → peer is OLDER
+ *     backward_ref similarity > forward_ref → we are AHEAD → we are OLDER
  *
  * @param our_chord Our current local phase chord
  * @param peer_chord Peer's chord from beacon
@@ -392,60 +406,90 @@ static inline firefly_vote_t utlp_hdc_firefly_vote(
     static const uint8_t primes[UTLP_CHORD_SIZE] = UTLP_PRIMES_INIT;
     firefly_vote_t result = {0};
 
-    int peer_older_votes = 0;
-    int we_older_votes = 0;
+    /*
+     * Step 1: Compute difference chord and signed distances
+     * diff[i] = (peer[i] - our[i]) mod prime[i]
+     *
+     * This is the "offset" we'd need to add to our chord to reach peer's chord.
+     */
+    utlp_phase_chord_t diff_chord;
 
     for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
         int16_t diff = (int16_t)peer_chord[i] - (int16_t)our_chord[i];
         uint8_t prime = primes[i];
 
-        /* Circular wrap to signed range [-prime/2, +prime/2] */
-        if (diff > (int16_t)(prime / 2)) {
-            diff -= prime;
-        } else if (diff < -(int16_t)(prime / 2)) {
-            diff += prime;
+        /* Wrap to [0, prime-1] for the offset chord */
+        if (diff < 0) diff += prime;
+        diff_chord[i] = (uint8_t)diff;
+        result.offset_chord[i] = (uint8_t)diff;
+
+        /* Also compute signed distance for debugging */
+        int16_t signed_diff = (int16_t)peer_chord[i] - (int16_t)our_chord[i];
+        if (signed_diff > (int16_t)(prime / 2)) {
+            signed_diff -= prime;
+        } else if (signed_diff < -(int16_t)(prime / 2)) {
+            signed_diff += prime;
         }
-
-        /*
-         * Threshold: 10% of prime (~24 for prime 241)
-         * Below this, phases are "close enough" to not vote.
-         */
-        int16_t threshold = prime / 10;
-
-        if (diff > threshold) {
-            /* Peer chord is ahead of ours → peer booted earlier → peer is OLDER */
-            peer_older_votes++;
-        } else if (diff < -threshold) {
-            /* Our chord is ahead of peer → we booted earlier → WE are OLDER */
-            we_older_votes++;
-        }
-        /* else: too close to call, dimension abstains */
-
-        /*
-         * Compute offset chord for this dimension:
-         * offset = peer - ours (what we need to ADD to local to get swarm)
-         *
-         * Store as unsigned [0, prime-1] for modular arithmetic later.
-         */
-        int16_t offset = diff;
-        if (offset < 0) offset += prime;
-        result.offset_chord[i] = (uint8_t)offset;
+        result.signed_dist[i] = signed_diff;
     }
 
-    /* Determine winner by majority vote */
-    if (peer_older_votes > we_older_votes + 1) {
-        /* Peer clearly older (need >1 vote margin for confidence) */
+    /*
+     * Step 2: Create reference chords for "forward" and "backward"
+     *
+     * Forward = small positive offset (peer slightly ahead)
+     * Backward = small negative offset (we slightly ahead) = large positive mod prime
+     *
+     * We use a fixed small offset for the reference.
+     */
+    utlp_phase_chord_t forward_ref;
+    utlp_phase_chord_t backward_ref;
+
+    for (uint8_t i = 0; i < UTLP_CHORD_SIZE; i++) {
+        /* Forward: small positive offset (e.g., 10% of prime) */
+        forward_ref[i] = primes[i] / 10;
+
+        /* Backward: small negative offset = prime - (prime/10) = 90% of prime */
+        backward_ref[i] = primes[i] - (primes[i] / 10);
+    }
+
+    /*
+     * Step 3: PURE HDC DIRECTION - Compare diff_chord against references in 10k space
+     */
+    uint8_t sim_forward = utlp_hdc_expanded_similarity(
+        diff_chord, forward_ref,
+        UTLP_HDC_DEFAULT_SEED,
+        UTLP_HDC_EMBEDDED_DIMS
+    );
+
+    uint8_t sim_backward = utlp_hdc_expanded_similarity(
+        diff_chord, backward_ref,
+        UTLP_HDC_DEFAULT_SEED,
+        UTLP_HDC_EMBEDDED_DIMS
+    );
+
+    result.sim_forward = sim_forward;
+    result.sim_backward = sim_backward;
+
+    /*
+     * Step 4: Determine direction from similarity comparison
+     *
+     * Higher similarity to forward_ref → diff is small positive → peer ahead → peer OLDER
+     * Higher similarity to backward_ref → diff is large (wrapped) → we ahead → WE OLDER
+     */
+    int16_t sim_diff = (int16_t)sim_forward - (int16_t)sim_backward;
+
+    if (sim_diff > UTLP_HDC_DIRECTION_THRESHOLD) {
+        /* More similar to forward → peer is ahead → peer is OLDER */
         result.direction = -1;
-        result.confidence = (uint8_t)peer_older_votes;
-    } else if (we_older_votes > peer_older_votes + 1) {
-        /* We clearly older */
+        result.confidence = (uint8_t)((sim_diff > 127) ? 255 : 128 + sim_diff);
+    } else if (sim_diff < -UTLP_HDC_DIRECTION_THRESHOLD) {
+        /* More similar to backward → we are ahead → WE are OLDER */
         result.direction = +1;
-        result.confidence = (uint8_t)we_older_votes;
+        result.confidence = (uint8_t)((-sim_diff > 127) ? 255 : 128 - sim_diff);
     } else {
         /* Too close to call → MAC tiebreaker */
         result.direction = 0;
-        result.confidence = (uint8_t)((peer_older_votes > we_older_votes)
-                                       ? peer_older_votes : we_older_votes);
+        result.confidence = 128;  /* Uncertain */
     }
 
     return result;

@@ -1703,19 +1703,29 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
     utlp_phase_get_chord(our_chord);
     const utlp_phase_chord_t *peer_chord = &peer->chirp.chirp_epoch_chord;
 
-    /* Firefly direction vote - no CRT conversion! */
+    /* Firefly direction vote - uses 10k expansion for anti-aliasing */
     firefly_vote_t vote = utlp_hdc_firefly_vote(our_chord, *peer_chord);
 
-    utlp_hal_log_info(TAG, "FIREFLY: direction=%+d confidence=%u/8 offset_chord=[%u,%u,%u,%u,%u,%u,%u,%u]",
+    /* Log detailed debug info */
+    utlp_hal_log_info(TAG, "FIREFLY: our=[%u,%u,%u,%u,%u,%u,%u,%u]",
+                      our_chord[0], our_chord[1], our_chord[2], our_chord[3],
+                      our_chord[4], our_chord[5], our_chord[6], our_chord[7]);
+    utlp_hal_log_info(TAG, "FIREFLY: peer=[%u,%u,%u,%u,%u,%u,%u,%u]",
+                      (*peer_chord)[0], (*peer_chord)[1], (*peer_chord)[2], (*peer_chord)[3],
+                      (*peer_chord)[4], (*peer_chord)[5], (*peer_chord)[6], (*peer_chord)[7]);
+    utlp_hal_log_info(TAG, "FIREFLY: signed_dist=[%d,%d,%d,%d,%d,%d,%d,%d]",
+                      vote.signed_dist[0], vote.signed_dist[1],
+                      vote.signed_dist[2], vote.signed_dist[3],
+                      vote.signed_dist[4], vote.signed_dist[5],
+                      vote.signed_dist[6], vote.signed_dist[7]);
+    utlp_hal_log_info(TAG, "FIREFLY: direction=%+d conf=%u sim_fwd=%u sim_bwd=%u",
                       vote.direction, vote.confidence,
+                      vote.sim_forward, vote.sim_backward);
+    utlp_hal_log_info(TAG, "FIREFLY: offset=[%u,%u,%u,%u,%u,%u,%u,%u]",
                       vote.offset_chord[0], vote.offset_chord[1],
                       vote.offset_chord[2], vote.offset_chord[3],
                       vote.offset_chord[4], vote.offset_chord[5],
                       vote.offset_chord[6], vote.offset_chord[7]);
-
-    /* Also log chord similarity for debugging */
-    uint8_t chord_similarity = utlp_hdc_chord_similarity(our_chord, *peer_chord);
-    utlp_hal_log_info(TAG, "FIREFLY: chord_similarity=%u/8", chord_similarity);
 
     /*
      * === FIREFLY RESOLUTION: OLDEST DEVICE WINS ===
