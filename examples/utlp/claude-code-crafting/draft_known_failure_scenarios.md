@@ -299,6 +299,18 @@ This section tracks which commits achieve stable sync and which do not.
 | `e4440be` | Pure HDC direction voting (10k expansion) | ❌ Unstable | Forward/backward reference comparison |
 | `1b082c2` | Genesis Distance (10k HDC) | ⏳ Pending Test | Measures distance from [0,0,...,0] |
 | `33ad3c1` | Virtual 1Hz gear for LED blink | ⏳ Pending Test | Fixes 4kHz→1Hz blink rate |
+| `16f483a` | Genesis protection in epoch resolution | ⏳ Pending Test | Established devices never adopt from genesis |
+
+### Known Bug: Established Device Adopting from Genesis (FIXED in 16f483a)
+
+**Symptom:** First device to boot has its blink pattern interrupted when second device boots.
+
+**Root Cause:** `resolve_epoch_hdc()` had no protection against adopting from genesis peers. The Genesis Distance algorithm ran even when `peer->is_genesis == true`, causing established devices to potentially adopt from newborns.
+
+**Fix:** Add explicit check at start of `resolve_epoch_hdc()`:
+- If WE are established (uptime >= CHIRP_DURATION_US) AND peer is genesis pulsing
+- Then we NEVER adopt - set zero offset and return immediately
+- This is a HARD RULE that overrides Genesis Distance calculations
 
 ### Known Bug: 4kHz LED Blink (FIXED in 33ad3c1)
 
