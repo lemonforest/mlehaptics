@@ -1681,6 +1681,37 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
 
     /*
      * ==========================================================================
+     * GENESIS PROTECTION: Established devices NEVER adopt from genesis peers
+     * ==========================================================================
+     *
+     * CRITICAL: If WE are established (past genesis chirp duration) AND
+     * the peer is still genesis pulsing, we MUST NOT adopt from them.
+     *
+     * The newborn must sync to the established swarm, not vice versa.
+     * This is a HARD RULE that overrides Genesis Distance calculations.
+     */
+    uint64_t our_uptime_us = utlp_hal_get_micros() - s_utlp.boot_time_us;
+    bool we_are_established = (our_uptime_us >= UTLP_CHIRP_DURATION_US);
+
+    if (we_are_established && peer->is_genesis) {
+        /*
+         * We are established, peer is genesis pulsing.
+         * We ARE the reference - peer must sync to us.
+         * Set zero offset chord and return immediately.
+         */
+        utlp_hal_log_info(TAG, "GENESIS PROTECTION: We are established (uptime=%llu ms), "
+                          "peer is genesis pulsing → we keep epoch",
+                          (unsigned long long)(our_uptime_us / 1000));
+
+        memset(s_utlp.offset_chord, 0, UTLP_CHORD_SIZE);
+        s_utlp.have_offset_chord = true;
+        s_utlp.we_adopted_epoch = false;
+        s_utlp.observation_count++;
+        return true;  /* Resolution complete - we won by rule */
+    }
+
+    /*
+     * ==========================================================================
      * FIREFLY MODEL: Vector-Native Epoch Resolution
      * ==========================================================================
      *
