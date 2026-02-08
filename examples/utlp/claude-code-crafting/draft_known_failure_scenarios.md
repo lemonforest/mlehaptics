@@ -297,9 +297,33 @@ This section tracks which commits achieve stable sync and which do not.
 | `033022d` | HDC primitives + lamprey model (CRT offset) | ❌ Unstable | Sometimes in-phase, sometimes antiphase |
 | `5de5420` | Vector-native firefly sync (no CRT) | ❌ Unstable | Same antiphase bug as 033022d |
 | `e4440be` | Pure HDC direction voting (10k expansion) | ❌ Unstable | Forward/backward reference comparison |
-| `1b082c2` | Genesis Distance (10k HDC) | ⏳ Pending Test | Measures distance from [0,0,...,0] |
-| `33ad3c1` | Virtual 1Hz gear for LED blink | ⏳ Pending Test | Fixes 4kHz→1Hz blink rate |
-| `16f483a` | Genesis protection in epoch resolution | ⏳ Pending Test | Established devices never adopt from genesis |
+| `1b082c2` | Genesis Distance (10k HDC) | ❌ Broken | Random at 1µs rate (chord wraps 4000×/sec) |
+| `33ad3c1` | Virtual 1Hz gear for LED blink | ✅ Working | Fixes 4kHz→1Hz blink rate |
+| `16f483a` | Genesis protection in epoch resolution | ⚠️ Partial | Established never adopts genesis, but reverse missing |
+| `pending` | Reverse genesis protection | ⏳ Pending Test | Genesis devices MUST adopt from established |
+
+### Known Bug: Both Devices Think They Won (FIXED in pending commit)
+
+**Symptom:** Both devices log "We are older → we keep epoch" even though one is clearly newer.
+
+**Root Cause:** Genesis Distance doesn't work at 1µs tick rate because chord values wrap thousands of times per second:
+- Prime 241: wraps every 241µs = ~4,149 times/second
+- After just 1 second, "distance from genesis" is essentially random noise
+- Two chords with identical similarity to genesis could be microseconds or years apart
+
+**Why This Happened:** The Genesis Protection (16f483a) only handled ONE direction:
+- ✅ Established + Genesis peer → we keep epoch
+- ❌ Genesis + Established peer → SHOULD adopt but ran broken Genesis Distance instead
+
+**Fix:** Add **Reverse Genesis Protection**:
+- If WE are genesis (uptime < CHIRP_DURATION_US) AND peer is established
+- Then we MUST adopt from peer unconditionally
+- This is a HARD RULE - the newborn joins the established swarm
+
+**Complete Asymmetric First-Contact Rules:**
+1. Established vs Genesis peer → Established keeps (genesis protection)
+2. Genesis vs Established peer → Genesis adopts (reverse protection)
+3. Same state (both genesis OR both established) → Use HDC comparison (firefly model)
 
 ### Known Bug: Established Device Adopting from Genesis (FIXED in 16f483a)
 
@@ -337,18 +361,39 @@ Requires a gear that naturally cycles at target frequency, or pre-computing what
 1. `033022d`: Lamprey model with CRT offset - scalar approach, not pure HDC
 2. `5de5420`: 8D signed distance voting - aliasing in 8 dimensions
 3. `e4440be`: Forward/backward reference comparison in 10k space - direction ambiguity
+4. `1b082c2`: Genesis Distance - produces random results at 1µs tick rate
 
-**Current Approach (`1b082c2`): Genesis Distance**
-- Genesis = [0,0,0,0,0,0,0,0] = starting line for all orreries
-- Distance = 255 - similarity(chord, genesis) in 10k space
-- GREATER distance from genesis = MORE elapsed time = OLDER
-- Monotonic until orrery cycles (261,000 years at 1µs resolution)
+**Why Genesis Distance Failed:**
+At 1µs tick resolution, chord values wrap extremely fast:
+- Prime 241 completes a cycle every 241µs = ~4,149 wraps/second
+- After 1 second, the chord has wrapped 4000+ times
+- "Similarity to genesis [0,0,0,0,0,0,0,0]" is essentially random noise
+- Two chords with IDENTICAL similarity to genesis could be microseconds or YEARS apart
+
+**Current Approach: Asymmetric First-Contact Rules (pending commit)**
+
+Instead of comparing chords to genesis, use the `is_genesis` flag directly:
+1. **Established vs Genesis peer** → Established wins (already implemented)
+2. **Genesis vs Established peer** → Genesis adopts (REVERSE PROTECTION - new)
+3. **Same state** → Use HDC comparison (firefly model)
+
+This is pure HDC in spirit - `is_genesis` is a STATE flag (protocol_version 0xFE), not a measurement.
+
+**Future: Compound Virtual Gears**
+Track phase *relationships* between gears to create slower-cycling virtual gears:
+
+| Compound Gear | Period | Wraps/Second |
+|---------------|--------|--------------|
+| Single prime (241) | 241µs | ~4149 |
+| Two primes (241×251) | 60.5ms | ~16.5 |
+| Three primes (241×251×239) | 14.5s | ~0.07 |
+| All 8 primes | 261,000 years | never |
 
 **Required Hardware Testing:**
-- Verify both devices report different genesis distances
-- Verify OLDER device (greater distance) consistently wins
+- Verify established device keeps epoch when genesis peer joins
+- Verify genesis device adopts when established peer exists
 - Verify adopted offset chord produces in-phase LED blink
-- Compare swarm_chord values between devices at same wall-clock moment
+- Test with device A booting first, then device B 10+ seconds later
 
 ---
 

@@ -1712,7 +1712,52 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
 
     /*
      * ==========================================================================
-     * FIREFLY MODEL: Vector-Native Epoch Resolution
+     * REVERSE GENESIS PROTECTION: Genesis devices MUST adopt from established
+     * ==========================================================================
+     *
+     * CRITICAL: If WE are still genesis pulsing AND the peer is established,
+     * we MUST adopt from them unconditionally. The newborn joins the swarm.
+     *
+     * This completes the asymmetric first-contact rule:
+     * - Established + Genesis peer → we keep (above)
+     * - Genesis + Established peer → we adopt (this block)
+     * - Same state → use HDC comparison (below)
+     */
+    bool we_are_genesis = !we_are_established;  /* Still in genesis chirp period */
+    bool peer_is_established = !(peer->is_genesis);
+
+    if (we_are_genesis && peer_is_established) {
+        /*
+         * We are newborn, peer is established.
+         * We MUST adopt from the established swarm.
+         * Compute offset chord from our chord vs peer's chord.
+         */
+        utlp_phase_chord_t our_chord;
+        utlp_phase_get_chord(our_chord);
+        const utlp_phase_chord_t *peer_chord = &peer->chirp.chirp_epoch_chord;
+
+        /* Use firefly vote just for offset computation */
+        firefly_vote_t vote = utlp_hdc_firefly_vote(our_chord, *peer_chord);
+
+        utlp_hal_log_info(TAG, "REVERSE GENESIS: We are genesis (uptime=%llu ms), "
+                          "peer is established → we MUST adopt",
+                          (unsigned long long)(our_uptime_us / 1000));
+
+        memcpy(s_utlp.offset_chord, vote.offset_chord, UTLP_CHORD_SIZE);
+        s_utlp.have_offset_chord = true;
+        s_utlp.we_adopted_epoch = true;
+
+        /* Track sync source for reboot detection */
+        memcpy(s_utlp.sync_source_mac, peer->mac, 6);
+        s_utlp.have_sync_source = true;
+
+        s_utlp.observation_count++;
+        return true;  /* Resolution complete - peer won by rule */
+    }
+
+    /*
+     * ==========================================================================
+     * FIREFLY MODEL: Vector-Native Epoch Resolution (Both Same State)
      * ==========================================================================
      *
      * Like fireflies synchronizing flashes, we determine who is "older"
