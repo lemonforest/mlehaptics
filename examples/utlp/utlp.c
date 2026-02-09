@@ -41,7 +41,8 @@
 #include "utlp_arbor.h"
 #include "utlp_security.h"  /* utlp_wire_packet_t, utlp_exon_t, utlp_intron_t */
 #include "utlp_smsp.h"
-#include "utlp_hdc.h"       /* HDC-native sync primitives */
+#include "utlp_hdc.h"           /* HDC-native sync primitives (legacy hash-based) */
+#include "utlp_hdc_chebyshev.h" /* Chebyshev harmonic HDC (smooth texture) */
 
 #include <string.h>
 
@@ -1804,49 +1805,78 @@ static bool resolve_epoch_hdc(peer_record_t *peer)
                       vote.offset_chord[6], vote.offset_chord[7]);
 
     /*
-     * === FIREFLY RESOLUTION: OLDEST DEVICE WINS ===
+     * === CHEBYSHEV SPECTRAL AGE RESOLUTION ===
      *
-     * Genesis Distance approach (HDC Orrery model):
-     * - Genesis = [0,0,0,0,0,0,0,0] = starting line
-     * - Distance = 255 - similarity(chord, genesis) in 10k space
-     * - GREATER distance from genesis = MORE elapsed time = OLDER
+     * Replaces broken Genesis Distance with monotonic spectral age.
      *
-     * vote.direction:
-     *   +1 = We are older (our genesis distance > peer's)
-     *   -1 = Peer is older (peer genesis distance > ours)
-     *    0 = Tied (use MAC tiebreaker)
+     * Genesis Distance failed because:
+     * - At 1µs tick rate, chord[0] wraps 4149 times/second
+     * - "Similarity to [0,0,0,0,0,0,0,0]" becomes random noise
+     *
+     * Chebyshev Spectral Age works because:
+     * - Slow compound gear (3-prime = 14.5s) provides monotonic window
+     * - Harmonic decomposition provides fine resolution
+     * - T_n(cos θ) = cos(nθ) creates SMOOTH texture
+     *
+     * "The cosmos provides the texture. We just need to listen."
      */
     bool i_should_adopt = false;
 
-    if (vote.direction < 0) {
+    /* Get current tick for spectral age computation */
+    uint64_t current_tick_us = utlp_hal_get_micros();
+
+    /* Compute spectral ages for both chords */
+    utlp_spectral_age_t our_age = utlp_cheb_spectral_age(our_chord, current_tick_us);
+    utlp_spectral_age_t peer_age = utlp_cheb_spectral_age(*peer_chord, current_tick_us);
+
+    /* Compare ages: positive = peer is older, negative = we are older */
+    int32_t age_diff = utlp_cheb_compare_age(&our_age, &peer_age);
+
+    /* Log spectral age details */
+    utlp_hal_log_info(TAG, "CHEBYSHEV: our_slow=%lu peer_slow=%lu",
+                      (unsigned long)our_age.slow_phase,
+                      (unsigned long)peer_age.slow_phase);
+    utlp_hal_log_info(TAG, "CHEBYSHEV: our_mono=%ld peer_mono=%ld diff=%ld",
+                      (long)our_age.monotonic_age,
+                      (long)peer_age.monotonic_age,
+                      (long)age_diff);
+
+    /* Threshold for significant age difference (100ms in slow gear units) */
+    const int32_t AGE_THRESHOLD = 1000;  /* ~1ms equivalent */
+
+    if (age_diff > AGE_THRESHOLD) {
         /*
-         * Peer is older (peer has walked further from genesis).
+         * Peer is older (greater spectral age).
          * We should adopt peer's timeline.
          */
         i_should_adopt = true;
-        utlp_hal_log_info(TAG, "FIREFLY: Peer is older (vote=%+d, conf=%u) → we adopt",
-                          vote.direction, vote.confidence);
+        utlp_hal_log_info(TAG, "CHEBYSHEV: Peer is older (diff=%+ld) → we adopt",
+                          (long)age_diff);
 
-    } else if (vote.direction > 0) {
+    } else if (age_diff < -AGE_THRESHOLD) {
         /*
-         * We are older (we have walked further from genesis).
+         * We are older (greater spectral age).
          * Peer should adopt from us.
          */
         i_should_adopt = false;
-        utlp_hal_log_info(TAG, "FIREFLY: We are older (vote=%+d, conf=%u) → we keep epoch",
-                          vote.direction, vote.confidence);
+        utlp_hal_log_info(TAG, "CHEBYSHEV: We are older (diff=%+ld) → we keep epoch",
+                          (long)age_diff);
 
     } else {
         /*
-         * Tied vote (dimensions split or all abstained).
+         * Ages are too close to distinguish reliably.
          * Use MAC address as deterministic tiebreaker.
          * Lower MAC adopts from higher MAC (arbitrary but consistent).
          */
         i_should_adopt = (memcmp(s_utlp.local_mac, peer->mac, 6) < 0);
-        utlp_hal_log_info(TAG, "FIREFLY: Tied vote (conf=%u) → MAC tiebreaker: %s adopts",
-                          vote.confidence,
+        utlp_hal_log_info(TAG, "CHEBYSHEV: Ages similar (diff=%+ld) → MAC tiebreaker: %s adopts",
+                          (long)age_diff,
                           i_should_adopt ? "we" : "peer");
     }
+
+    /* Log legacy firefly vote for comparison (can be removed after validation) */
+    utlp_hal_log_info(TAG, "LEGACY_FIREFLY: direction=%+d (Genesis Distance - DEPRECATED)",
+                      vote.direction);
 
     /*
      * === APPLY RESOLUTION (Vector-Native) ===
@@ -2988,6 +3018,31 @@ void utlp_app_run(void)
      * - Random number generation
      */
     utlp_hal_init();
+
+    /*
+     * Step 1b: Initialize Chebyshev Harmonic LUT
+     *
+     * The Chebyshev basis provides SMOOTH texture for HDC encoding,
+     * replacing the jagged hash-based expansion. This enables:
+     * - Monotonic distance measurement (vs random Genesis Distance)
+     * - Self-describing vectors (DCT decomposition)
+     * - Byzantine detection via coefficient consistency
+     *
+     * The identity T_n(cos θ) = cos(nθ) connects:
+     * - NASA SPICE ephemeris compression
+     * - DCT-II transform basis
+     * - Antikythera mechanism gear ratios
+     * - Our 8-prime phase chord orrery
+     *
+     * LUT size: 8 harmonics × 256 samples = 2KB
+     * Init cost: ~50ms (one-time at boot)
+     */
+    if (!utlp_cheb_init()) {
+        utlp_hal_log_error(TAG, "Failed to initialize Chebyshev LUT!");
+        /* Continue anyway - will use fallback computation */
+    } else {
+        utlp_hal_log_info(TAG, "Chebyshev Harmonic LUT initialized (2KB)");
+    }
 
     /*
      * Step 2: Get our MAC address
