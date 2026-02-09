@@ -243,6 +243,9 @@ idf_component_register(
         # Hardware Phase Engine (platform-agnostic)
         "../examples/utlp/utlp_phase.c"
 
+        # HDC Chebyshev Harmonic Encoding (spectral age, smooth similarity)
+        "../examples/utlp/utlp_hdc_chebyshev.c"
+
         # Timer HAL (ESP32 MCPWM implementation)
         "../examples/utlp/utlp_hal_timer_esp32.c"
 

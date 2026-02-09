@@ -54,14 +54,16 @@ bool utlp_cheb_init(void)
             uint8_t lut_idx = (uint8_t)((n * k) & 0xFF);
             int16_t cos_q15 = utlp_cheb_cos_lut[lut_idx];
 
-            /* Convert Q15 to Q7 with rounding */
-            int8_t basis_val = (int8_t)((cos_q15 + 128) >> 8);
+            /* Convert Q15 to Q7 with rounding
+             * Compute in int16_t to avoid overflow, then clamp and cast.
+             */
+            int16_t raw_val = (cos_q15 + 128) >> 8;
 
-            /* Clamp to valid range */
-            if (basis_val > 127) basis_val = 127;
-            if (basis_val < -127) basis_val = -127;
+            /* Clamp to valid int8_t range before cast */
+            if (raw_val > 127) raw_val = 127;
+            if (raw_val < -127) raw_val = -127;
 
-            utlp_cheb_basis_lut[n][k] = basis_val;
+            utlp_cheb_basis_lut[n][k] = (int8_t)raw_val;
         }
     }
 
