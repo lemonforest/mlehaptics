@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Simulation-Lucid Phenotype**: Two new research documents on consciousness, aphantasia, and therapeutic mechanisms
+  - [simulation_lucid_phenotype.md](docs/misc/simulation_lucid_phenotype.md): Full paper proposing aphantasia as natural experiment for dissociating visual overlay from interoceptive-somatic substrate in consciousness and psychedelic research
+  - [simulation_lucid_phenotype_companion_piece.md](docs/misc/simulation_lucid_phenotype_companion_piece.md): Accessible companion piece with practical implications for psychedelic trials, trauma therapy, and contemplative practice
+  - README: New "Consciousness & Therapeutic Mechanisms" subsection in Documentation
+
 - **P7.4: Legacy Modes as Patterns**: Modes 0-3 now available as LED-only bilateral patterns
   - **Pattern IDs**: 4 new patterns at top of catalog (BLE commands 2-5)
   - **Timing**: Matches reactive mode timing exactly (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty)
