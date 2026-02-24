@@ -438,9 +438,15 @@ This device operates within evidence-based EMDR bilateral stimulation parameters
 
 This project developed foundational techniques for **connectionless distributed timing**—a class of systems that achieve synchronized actuation across wireless nodes *without* real-time coordination traffic during operation. While we built an EMDR device, the architecture enables countless applications from emergency vehicle light bars to drone swarms.
 
-- **[Connectionless Distributed Timing: A Prior Art Publication](docs/misc/Connectionless_Distributed_Timing_Prior_Art.md)** [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18078265.svg)](https://doi.org/10.5281/zenodo.18078265): Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
+- **[Connectionless Distributed Timing: A Prior Art Publication](docs/misc/Connectionless_Distributed_Timing_Prior_Art.md)**: Defensive publication establishing open-source prior art for synchronized wireless actuation. Documents the journey from BLE stack timing jitter to recognizing the constraint was artificial. Validated with SAE J845 Quad Flash at 240fps (zero-frame overlap). Published to ensure these techniques remain freely available.
 
 - **[Distributed Sensing: A Project Lab Manual](docs/misc/Distributed_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed sensing with synchronized wireless nodes. Covers acoustic beamforming, wind mapping, infrasound detection, mmWave radar for building occupancy/safety, and emergency response applications. Scales from weekend science project to operational systems.
+
+### Consciousness & Therapeutic Mechanisms
+
+- **[The Simulation-Lucid Phenotype](docs/misc/simulation_lucid_phenotype.md)**: Proposes complete aphantasia (~1% of population) as a natural experiment for consciousness research. Argues that removing the cortical imagery "rendering engine" reveals the interoceptive-somatic substrate underlying all cognition. Synthesizes aphantasia neuroscience, predictive processing, Craig's interoceptive hierarchy, Damasio's somatic markers, and psychedelic pharmacology (REBUS model) to predict that therapeutic benefit operates at substrate level, not the visual overlay. Includes implications for trauma therapy, meditation science, animal cognition, and IQ measurement.
+
+- **[What Removing the Overlay Reveals](docs/misc/simulation_lucid_phenotype_companion_piece.md)**: Accessible companion to the simulation-lucid phenotype paper. Frames the core insight — that body-based processing is where the deepest therapeutic and contemplative work happens, for everyone — with practical consequences for psychedelic trials (stratifying outcomes by imagery ability), trauma therapy (guided interoception as alternative to imagery-based approaches), and the 2,500-year precedent of body-based contemplative practice. Includes first-principles account of mystical experience grounded in insular cortex neuroanatomy.
 
 ### AI Collaboration & Methodology
 
