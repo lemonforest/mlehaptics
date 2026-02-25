@@ -76,7 +76,7 @@ The simulation-lucid phenotype contributes uniquely here: aphantasic individuals
 
 ### For education
 
-When an aphantasic child arrives at a correct answer through somatic-intuitive processing — the substrate — but cannot demonstrate the standard visual-spatial reasoning steps that rely on the overlay, "show your work" becomes systematic invalidation of their actual cognitive process. The child's primary way of knowing is treated as insufficient or nonexistent.
+When an aphantasic child arrives at a correct answer through somatic-intuitive processing — the substrate — but cannot demonstrate the standard visual-spatial reasoning steps that rely on the overlay, "show your work" becomes systematic invalidation of their actual cognitive process. The child's primary way of knowing is treated as insufficient or nonexistent. For spatial and mathematical problems, the child may be literally constructing models through what we term **proprioceptive spatial construction (PSC)** — holding geometric relationships in hand position, navigating mathematical structure through body-based coordinate systems. "Show your work" demands externalization of a visual-spatial process, but the child's process is proprioceptive-spatial. They cannot show it because it happened in a modality that leaves no visual trace.
 
 This creates compounding damage: the cognitive channel is invalidated by educational authority; the invalidation is structurally invisible (embedded in standard pedagogy); and the suppression reinforces itself as the child learns to distrust their somatic knowing. When combined with trauma-driven hypervigilance in later life, two independent suppression mechanisms converge: a person with a computationally powerful substrate-level evaluation system that they've been systematically trained not to trust.
 
@@ -86,7 +86,7 @@ Importantly, this isn't only an aphantasia problem. The ERIC somatic/embodied le
 
 Cross-species evidence demonstrates that complex social cognition — empathy in rats, grief behaviors in elephants, sophisticated social structures in cetaceans — operates in brains that share the interoceptive-somatic substrate but differ dramatically in cortical overlay. Panksepp's research showed that coherent emotional behaviors are elicited exclusively from subcortical regions, with no dramatic emotional responses ever produced by neocortical stimulation. Hydranencephalic children — born without most cerebral cortex — show emotional expression, social recognition, and situationally appropriate behavior.
 
-This suggests: **the overlay may be an evolutionary addition to an already conscious substrate, not the source of consciousness itself.** The anterior insula's progressive integration of body states, the somatic marker system's pre-conscious decision guidance, and subcortical emotional circuits' capacity for complex social behavior all point toward awareness rooted in the interoceptive substrate — the system that aphantasia makes visible by removing the overlay.
+This suggests: **the overlay may be an evolutionary addition to an already conscious substrate, not the source of consciousness itself.** The anterior insula's progressive integration of body states, the somatic marker system's pre-conscious decision guidance, subcortical emotional circuits' capacity for complex social behavior, and PSC's demonstration that the substrate can actively *construct* and *manipulate* spatial models — not merely evaluate — all point toward awareness and cognition rooted in the interoceptive-proprioceptive substrate. The overlay adds rendering, not cognition. The system that aphantasia makes visible by removing the overlay is not a backup. It is the foundation.
 
 ---
 
@@ -140,6 +140,8 @@ Full methodological discussion in the main research document.
 This companion piece synthesizes research from the following primary sources (full citations in the main research document):
 
 **Aphantasia neuroscience:** Zeman et al. (2015, 2024); Pearson, Keogh, Koenig-Robert (2019–2025); Liu (2023, 7T fMRI); Chang et al. (2025); Bouyer & Arnold (2024, deep aphantasia)
+
+**Ventral/dorsal dissociation & PSC:** Farah et al. (1988); Bainbridge et al. (2021, drawing double dissociation); Reeder et al. (2024, strategy use); Phillips (2025, spared spatial imagery); Ernst & Banks (2002, visual suppression of proprioception); Wasaka & Kakigi (2012, SI suppression); Graziano (1999, hand-anchored neurons)
 
 **Interoceptive hierarchy:** Craig (2002, 2003, 2009); Damasio (1991, 1994, 1996); Silvanto & Nagai (2025a, 2025b predictive coding account); Nagai et al. (2025, n=468); Monzel et al. (2025, imagery-interoception-mental health mediation); Monzel, Karneboge & Reuter (2024, aphantasia/alexithymia overlap)
 
