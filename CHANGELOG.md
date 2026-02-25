@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated Complete Documentation Suite (md + pdf) incorporating S4 and SMSP
   - Added SMSP v2.0 cross-reference note to Connectionless Distributed Timing Prior Art §4.5
 
+- **HDC Vector Design Research**: Two documents from the HDC exploration capturing cross-domain insights
+  - [hdc_as_instruments.md](docs/misc/hdc_as_instruments.md): Source-filter acoustic model applied to HDC base vector design — spectral envelopes, Walsh-Hadamard partitioning, CDMA/orchestration parallels
+  - [Spectral_Convergence_Conjecture.md](docs/misc/Spectral_Convergence_Conjecture.md): Conjecture with proof sketch — why six independent fields converge on spectral structure over randomness (Peter-Weyl → Bochner → Karhunen-Loeve chain)
+
 - **P7.4: Legacy Modes as Patterns**: Modes 0-3 now available as LED-only bilateral patterns
   - **Pattern IDs**: 4 new patterns at top of catalog (BLE commands 2-5)
   - **Timing**: Matches reactive mode timing exactly (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty)
