@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Simulation-Lucid Phenotype**: Two new research documents on consciousness, aphantasia, and therapeutic mechanisms
+- **Simulation-Lucid Phenotype**: Research documents on consciousness, aphantasia, and therapeutic mechanisms
   - [simulation_lucid_phenotype.md](docs/misc/simulation_lucid_phenotype.md): Full paper proposing aphantasia as natural experiment for dissociating visual overlay from interoceptive-somatic substrate in consciousness and psychedelic research
   - [simulation_lucid_phenotype_companion_piece.md](docs/misc/simulation_lucid_phenotype_companion_piece.md): Accessible companion piece with practical implications for psychedelic trials, trauma therapy, and contemplative practice
-  - README: New "Consciousness & Therapeutic Mechanisms" subsection in Documentation
+  - [proprioceptive_spatial_construction.md](docs/misc/proprioceptive_spatial_construction.md): Identifies taxonomic gap — using the body's position-sensing system as a generative spatial reasoning instrument without visual imagery or prior tactile experience
+  - README: "Consciousness & Therapeutic Mechanisms" subsection in Documentation
 
 - **UTLP v3.31 Protocol Triad Documentation**: Prior art expansion completing the UTLP/RFIP/SMSP protocol triad (264 claims)
   - [SMSP_Technical_Specification.md](docs/misc/SMSP_Technical_Specification.md): Synchronized Multimodal Score Protocol v2.0 — defines *what* synchronized nodes do, completing the triad (UTLP=when, RFIP=where, SMSP=what)
