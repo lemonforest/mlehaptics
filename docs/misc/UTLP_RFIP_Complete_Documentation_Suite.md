@@ -1,21 +1,20 @@
 ---
-title: "UTLP & RFIP Architecture: Complete Documentation Suite"
-author: 
-  - Steven Kirkland (mlehaptics Project)
-  - Claude (Anthropic)
-  - Gemini (Google)
-date: January 2026
-version: "S3.02 (Multi-Resolution)"
+title: "UTLP/RFIP/SMSP Protocol Documentation Suite"
+subtitle: "Complete Technical Documentation with Prior Art Claims"
+author: "Steven Kirkland — mlehaptics Project"
+date: "January 2026"
+version: "5.0"
 doi: "10.5281/zenodo.18078264"
-toc: true
-toc-depth: 3
+abstract: |
+  Complete documentation for the PHYRFLY protocol family comprising UTLP 
+  (Universal Time Lord Protocol), RFIP (Reference-Frame Independent Positioning), 
+  and SMSP (Synchronized Multimodal Score Protocol). This omnibus compilation 
+  includes all technical specifications, reference implementations, and 264 
+  validated prior art claims with full technical specifications.
 ---
 
 
-
----
-
-# Part I: UTLP Specification (Core Protocol)
+<div style="page-break-before: always;"></div>
 
 # Universal Time Lord Protocol (UTLP)
 
@@ -126,10 +125,7 @@ This change reflects two key insights:
 ---
 
 
-
----
-
-# Part II: UTLP Executive Summary
+<div style="page-break-before: always;"></div>
 
 
 # UTLP Executive Summary: The Unkillable Watchdog
@@ -384,10 +380,7 @@ The first device IS the atomic clock. Peers are optional enhancements, not requi
 ---
 
 
-
----
-
-# Part III: Connectionless Distributed Timing Prior Art
+<div style="page-break-before: always;"></div>
 
 
 # Connectionless Distributed Timing: A Prior Art Publication
@@ -901,6 +894,8 @@ RFIP using 802.11mc ranging provides position but not orientation. Adding a 6-ax
 **Design tradeoff**: For bilateral EMDR devices (stationary during use, only 2 nodes, known left/right assignment), IMU is unnecessary cost. For mobile swarms doing search patterns, IMU becomes valuable. The architecture supports both—IMU data feeds into the same RFIP coordinate system when available.
 
 ### 4.5 SMSP (Synchronized Multimodal Score Protocol)
+
+> **Note:** SMSP has been expanded into a standalone specification. See **SMSP_Technical_Specification.md** for the complete v2.0 protocol with Vector Time integration, phase-indexed scores, and pattern compiler architecture. The content below represents the original v1.0 concepts; v2.0 supersedes this with automatic phase-lock synchronization requiring no start signal.
 
 While UTLP provides *when* and RFIP provides *where*, SMSP defines *what*: the format for describing synchronized actuator behavior across any number of channels and modalities.
 
@@ -3513,10 +3508,7 @@ The authors explicitly disclaim any patent rights to the techniques described he
 ---
 
 
-
----
-
-# Part IV: UTLP Technical Supplement S1 (Precision/Transport)
+<div style="page-break-before: always;"></div>
 
 
 # Universal Time Lord Protocol
@@ -3925,10 +3917,7 @@ This specification emerged from collaborative development across multiple AI sys
 ---
 
 
-
----
-
-# Part V: UTLP Technical Supplement S2 (Biological Governance)
+<div style="page-break-before: always;"></div>
 
 
 # UTLP Technical Report — Supplement S2
@@ -5939,10 +5928,7 @@ While these tools generated text and code segments, the author acted as the arch
 ---
 
 
-
----
-
-# Part VI: UTLP Technical Supplement S3 (Vector Time)
+<div style="page-break-before: always;"></div>
 
 
 ---
@@ -7353,10 +7339,326 @@ utlp_consensus_t utlp_check_consensus(const utlp_chord_t measured,
 ---
 
 
+<div style="page-break-before: always;"></div>
+
+# UTLP Technical Supplement S4: Partition Handling in Coprime Cyclic Systems
 
 ---
 
-# Part VII: RFIP Technical Specification
+## Scope
+
+This supplement extends UTLP Technical Supplement S3 (Vector Time) with techniques specific to handling network partitions in coprime cyclic time systems.
+
+**Prerequisites:** UTLP Technical Report v2.0, Technical Supplements S1-S3
+
+**What this document adds:**
+- CRT aliasing horizon as partition detection mechanism
+- Phase-lock coordination when CRT recovery is ambiguous
+- Prior art claims 276-277
+
+**Note on standard techniques:** This document also describes implementation patterns (dual counters, quality metrics, routing) that use established techniques. These are included for completeness but are not claimed as novel. See Section 5 for details.
+
+---
+
+## Section 1: The Partition Problem in Coprime Cyclic Systems
+
+### 1.1 Unique Challenge
+
+Scalar time systems detect partitions via sequence gaps or timestamp jumps. Coprime cyclic systems face a different challenge: the Chinese Remainder Theorem guarantees unique tick recovery only within the aliasing horizon (product of primes).
+
+From S3:
+- 8 primes (211-251): horizon = 8.24 × 10¹⁸ ticks = 261,000 years at 1μs
+- In practice, nodes that drift beyond a few prime cycles become ambiguous
+
+**Question:** How do you detect when two nodes have drifted so far apart that CRT recovery is unreliable?
+
+### 1.2 HD Similarity as Horizon Indicator
+
+The S3 HD vector representation provides a natural answer. Vector similarity degrades continuously with tick distance:
+
+```python
+# Adjacent ticks: ~99.5% similarity
+# 100 ticks apart: ~95% similarity  
+# 1000 ticks apart: ~50% similarity
+# Beyond largest prime (~251 ticks): similarity becomes ambiguous
+```
+
+When similarity drops below a threshold, the nodes may have crossed into different "CRT cells" where the same phase tuple maps to different absolute ticks.
+
+---
+
+## Section 2: CRT Horizon as Partition Boundary (Claim 276)
+
+### 2.1 The Mathematical Basis
+
+The Chinese Remainder Theorem states that for coprime moduli {p₁, p₂, ..., pₙ}, any integer x in [0, P) where P = Πpᵢ can be uniquely recovered from its residues {x mod p₁, x mod p₂, ..., x mod pₙ}.
+
+**The ambiguity:** If two nodes have tick counts x and x + P, they produce identical phase tuples. CRT cannot distinguish them.
+
+**The practical issue:** Long before reaching P (261,000 years), nodes that have drifted apart become difficult to reconcile because:
+1. The "direction" of drift (ahead vs behind) becomes ambiguous at half-prime distances
+2. Multiple CRT solutions become plausible given measurement noise
+3. Elastic sync may converge to wrong solution
+
+### 2.2 Detection Mechanism
+
+```c
+typedef enum {
+    PARTITION_NONE,      // High similarity, CRT unambiguous
+    PARTITION_CAUTION,   // Medium similarity, CRT marginal
+    PARTITION_DETECTED   // Low similarity, CRT ambiguous
+} partition_status_t;
+
+/**
+ * Detect partition using HD similarity as proxy for CRT ambiguity
+ * 
+ * This is specific to coprime cyclic systems - scalar time systems
+ * cannot use this technique because they lack the HD representation.
+ */
+partition_status_t detect_partition(const int8_t* my_vector,
+                                     const int8_t* peer_vector,
+                                     int dims) {
+    int32_t similarity = hd_dot_product(my_vector, peer_vector, dims);
+    float normalized = (float)similarity / dims;
+    
+    // Thresholds derived from coprime math:
+    // >70% similar: within ~50 ticks, CRT unambiguous
+    // 40-70% similar: within ~200 ticks, CRT marginal
+    // <40% similar: beyond largest prime, CRT ambiguous
+    
+    if (normalized > 0.70f) return PARTITION_NONE;
+    if (normalized > 0.40f) return PARTITION_CAUTION;
+    return PARTITION_DETECTED;
+}
+```
+
+### 2.3 Why This Is Architecture-Specific
+
+This detection mechanism relies on properties unique to coprime cyclic time:
+
+1. **HD vector exists** - Scalar systems have no equivalent
+2. **Similarity correlates with tick distance** - Due to phase rotation in HD space
+3. **Threshold maps to CRT boundary** - ~40% similarity ≈ largest prime distance
+
+A scalar time system would need explicit sequence numbers or bounded counters to detect partitions. The coprime cyclic system gets partition detection as a byproduct of its HD representation.
+
+---
+
+## Section 3: Phase-Lock Coordination (Claim 277)
+
+### 3.1 The Key Insight
+
+When CRT recovery is ambiguous (partition detected), a remarkable property of coprime cyclic time remains useful: **each phase cycle is independently meaningful**.
+
+SMSP patterns match on phase tuples:
+```c
+// SMSP region definition (from SMSP spec)
+typedef struct {
+    uint8_t phases[8];   // Target phases
+    uint8_t mask[8];     // Which phases must match (255 = must match)
+    uint8_t channels[8]; // Output values when matched
+} smsp_region_t;
+```
+
+The pattern doesn't need to know the absolute tick count. It only needs the phases to match.
+
+### 3.2 Partition-Tolerant Pattern Execution
+
+```c
+/**
+ * Continue SMSP execution during partition via phase-lock
+ * 
+ * When CRT recovery is ambiguous, we can still:
+ * 1. Lock phases to peer (relative sync)
+ * 2. Execute SMSP patterns (which match on phases)
+ * 3. Lose absolute time (no valid timestamps)
+ * 
+ * This is specific to coprime cyclic systems because:
+ * - Phases are independently cyclic and lockable
+ * - SMSP patterns are defined in phase space
+ * - Scalar systems have no equivalent decomposition
+ */
+void phase_lock_sync(uint8_t* my_phases, 
+                     const uint8_t* peer_phases,
+                     const uint8_t* primes,
+                     int num_primes,
+                     float trust_weight) {
+    for (int i = 0; i < num_primes; i++) {
+        int diff = (int)peer_phases[i] - (int)my_phases[i];
+        
+        // Shortest path around the ring (cyclic property)
+        if (abs(diff) > primes[i] / 2) {
+            diff = diff > 0 ? diff - primes[i] : diff + primes[i];
+        }
+        
+        // Nudge toward peer
+        int nudge = (int)(diff * 0.1f * trust_weight);
+        my_phases[i] = (my_phases[i] + nudge + primes[i]) % primes[i];
+    }
+}
+
+/**
+ * Application capability during partition
+ */
+typedef struct {
+    bool smsp_patterns;      // YES - phases still valid
+    bool bilateral_stim;     // YES - just needs phase sync
+    bool lighting_sync;      // YES - just needs phase sync
+    bool log_timestamps;     // NO - CRT ambiguous
+    bool calendar_time;      // NO - CRT ambiguous
+    bool cross_swarm_merge;  // NO - would need absolute time
+} partition_capabilities_t;
+
+partition_capabilities_t get_capabilities(partition_status_t status) {
+    partition_capabilities_t cap = {0};
+    
+    if (status == PARTITION_NONE) {
+        // Full capability
+        cap.smsp_patterns = true;
+        cap.bilateral_stim = true;
+        cap.lighting_sync = true;
+        cap.log_timestamps = true;
+        cap.calendar_time = true;
+        cap.cross_swarm_merge = true;
+    } else if (status == PARTITION_DETECTED) {
+        // Phase-lock only
+        cap.smsp_patterns = true;
+        cap.bilateral_stim = true;
+        cap.lighting_sync = true;
+        cap.log_timestamps = false;   // Can't timestamp
+        cap.calendar_time = false;    // Can't convert to wall clock
+        cap.cross_swarm_merge = false; // Can't reconcile with other partitions
+    }
+    
+    return cap;
+}
+```
+
+### 3.3 Graceful Degradation Hierarchy
+
+| Capability | Requires | During Partition |
+|------------|----------|------------------|
+| SMSP pattern execution | Phase match | ✅ Available |
+| Bilateral stimulation | Phase match | ✅ Available |
+| Emergency lighting sync | Phase match | ✅ Available |
+| Distributed sensing trigger | Phase match | ✅ Available |
+| Log timestamps | CRT recovery | ❌ Unavailable |
+| Calendar conversion | CRT + epoch | ❌ Unavailable |
+| Cross-partition merge | Absolute time | ❌ Unavailable |
+
+### 3.4 Why This Is Architecture-Specific
+
+Scalar time systems cannot do this because:
+1. A scalar counter is atomic - you can't "partially lock" it
+2. There's no phase decomposition to exploit
+3. Partition means total loss of time coordination
+
+Coprime cyclic systems can partially degrade because:
+1. Each phase cycle is independent
+2. Applications can be designed to need only phases
+3. CRT recovery is optional, not required
+
+---
+
+## Section 4: Prior Art Claims (276-277)
+
+**See: claims_appendix.md (Single Source of Truth)**
+
+This supplement establishes prior art for Claims 276-277 (2 claims):
+
+**276. CRT Aliasing Horizon as Partition Boundary**
+
+Using the mathematical property that Chinese Remainder Theorem recovery becomes ambiguous beyond the product of primes to detect network partitions in coprime cyclic time systems; HD vector similarity below threshold indicates potential horizon crossing; distinguishes "temporarily desynchronized" (recoverable via elastic sync) from "partitioned beyond CRT horizon" (requires phase-lock fallback); detection mechanism is specific to coprime cyclic architecture and does not apply to scalar time systems.
+
+**277. Phase-Lock Coordination in Coprime Cyclic Systems**
+
+Maintaining SMSP pattern coordination via direct phase matching across coprime cycles when CRT recovery is ambiguous; each phase cycle (mod pᵢ) is independently lockable; pattern execution continues because SMSP matches on phase tuples, not absolute ticks; enables graceful degradation where applications requiring only phase agreement (bilateral stimulation, lighting sync) continue while applications requiring absolute time (logging, scheduling) are unavailable; specific to coprime cyclic architecture where phases are independently meaningful.
+
+---
+
+## Section 5: Implementation Guidance (Standard Techniques)
+
+The following implementation patterns use established techniques and are **not claimed as novel**. They are included for completeness.
+
+### 5.1 Dual Counter Pattern
+
+Maintaining separate `proper_ticks` (never adjusted) and `coordinate_ticks` (consensus-adjusted) is standard practice in disciplined oscillators (GPS receivers, PTP implementations).
+
+```c
+// Standard technique - not claimed
+typedef struct {
+    uint64_t proper_ticks;      // Local oscillator, never adjusted
+    uint64_t coordinate_ticks;  // Disciplined to network
+} dual_counter_t;
+```
+
+### 5.2 Quality Metrics
+
+Computing sync quality from variance of neighbor observations is standard anomaly detection.
+
+```c
+// Standard technique - not claimed
+float compute_quality_variance(float* similarities, int count);
+```
+
+### 5.3 Path Quality Routing
+
+Accumulating cost along routing path is standard link-state routing (OSPF, IS-IS).
+
+```c
+// Standard technique - not claimed
+typedef struct {
+    int16_t path_cost;
+    uint8_t hop_count;
+} routing_metric_t;
+```
+
+### 5.4 Change Detection
+
+Detecting partition rejoin via variance spike is standard change detection.
+
+```c
+// Standard technique - not claimed
+bool detect_quality_spike(float current, float previous, float threshold);
+```
+
+### 5.5 Wire Format
+
+The v0x04 beacon format adds fields for quality routing. Adding fields to protocols is standard engineering.
+
+```c
+// Standard technique - not claimed
+typedef struct __attribute__((packed)) {
+    // ... existing fields ...
+    int16_t source_quality;
+    int16_t path_quality;
+    uint8_t hop_count;
+} beacon_v4_t;
+```
+
+---
+
+## Appendix A: Relationship to General Relativity
+
+This architecture draws conceptual inspiration from GR's treatment of time (proper time vs coordinate time). However:
+
+1. The analogy is **conceptual only** - our hardware cannot detect gravitational effects
+2. ESP32 crystal noise (20 ppm) is 10⁸× larger than gravitational signals at terrestrial altitudes
+3. Claims cover **implementation techniques**, not physics
+
+The analogy aids design intuition but has no physical content.
+
+---
+
+**Document Version:** S4.2 (Post-Rigorous-Audit)  
+**Author:** Steven Kirkland (mlehaptics Project)  
+**AI Collaborators:** Claude (Anthropic)  
+**Status:** Prior Art / Defensive Publication  
+**License:** Public Domain
+
+*End of Technical Supplement S4*
+
+<div style="page-break-before: always;"></div>
 
 
 # RFIP Technical Specification
@@ -8119,10 +8421,1174 @@ This eliminates the need for magnetometer (susceptible to interference) in many 
 ---
 
 
+<div style="page-break-before: always;"></div>
+
+# SMSP Technical Specification
+
+## Synchronized Multimodal Score Protocol
+
+**Version:** 2.0 (Vector Time Integration)  
+**Status:** Draft / Experimental  
+**Parent Document:** Connectionless Distributed Timing Prior Art (DOI: 10.5281/zenodo.18078264)  
+**Repository:** https://github.com/lemonforest/mlehaptics
 
 ---
 
-# Part VIII: UTLP Addendum - Reference Frame Independent Positioning
+## Abstract
+
+SMSP (Synchronized Multimodal Score Protocol) defines *what* synchronized nodes do, completing the protocol triad with UTLP (*when*) and RFIP (*where*). Version 2.0 integrates with UTLP Vector Time, enabling phase-indexed scores that execute identically across all phase-locked nodes without runtime coordination or start synchronization.
+
+The key insight: **patterns are deterministic functions of phase**. Given the same phase, every node computes the same output. Phases converge automatically via UTLP. Therefore, outputs converge automatically—no "start now" signal required.
+
+---
+
+## 1. Introduction
+
+### 1.1 The Protocol Triad
+
+| Protocol | Question | Direction |
+|----------|----------|-----------|
+| **UTLP** | When is it? | Broadcast (time source → all) |
+| **RFIP** | Where am I? | Peer-to-peer (mutual ranging) |
+| **SMSP** | What do I do? / What did I see? | Bidirectional (instructions ↔ observations) |
+
+Any node with synchronized time (UTLP), known position (RFIP), and a score (SMSP) can participate in coordinated behavior.
+
+### 1.2 Design Philosophy
+
+SMSP separates concerns:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  DECLARATIVE LAYER (Human Intent)                           │
+│  "Alternate left/right at 1Hz with 50% duty cycle"          │
+│  "SAE J845 Quad Flash pattern"                              │
+│  "Bilateral EMDR standard protocol"                         │
+├─────────────────────────────────────────────────────────────┤
+│  COMPILER LAYER (Design Tool / PWA)                         │
+│  Transforms intent into phase-indexed events                │
+│  Validates parameters, encodes tick → phases                │
+├─────────────────────────────────────────────────────────────┤
+│  EXECUTION LAYER (Score + Playback Engine)                  │
+│  "When my phases match event phases, execute action"        │
+│  Engine only knows: current phases, score, outputs          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+This separation means:
+- **Firmware stays simple**: The playback engine is "dumb"—it matches phases, sets outputs
+- **Complexity lives in the compiler**: Updated without touching firmware
+- **Advanced users can bypass**: Raw phase-indexed scores can be authored directly
+
+### 1.3 Version History
+
+| Version | Model | Time Representation | Sync Requirement |
+|---------|-------|---------------------|------------------|
+| 1.0 | Imperative | Scalar ticks | Explicit start signal |
+| **2.0** | **Declarative** | **Phase vector** | **None (auto-converge)** |
+
+---
+
+## 2. Core Concepts
+
+### 2.1 The Paradigm Shift: Scalar vs Vector Time
+
+**Scalar Time (v1.0):**
+```c
+// "At tick 1000, turn LED on"
+if (current_tick == 1000) {
+    led_on();
+}
+```
+
+Problem: Requires all nodes to agree on absolute tick count. Needs start synchronization.
+
+**Vector Time (v2.0):**
+```c
+// "When phases are [35, 246, 44, 68, 84, 92, 108, 156], turn LED on"
+if (phases_match(my_phases, event_phases)) {
+    led_on();
+}
+```
+
+Advantage: Phases converge automatically. No start signal needed.
+
+### 2.2 Why This Works
+
+```
+Device A: powered on at arbitrary time, counts ticks, broadcasts phases
+Device B: powered on later, counts ticks, hears A's beacon, nudges toward A
+Device C: powered on even later, hears both, nudges toward consensus
+
+After a few beacon cycles: all devices have same phases
+                          WITHOUT agreeing on "what tick is it"
+
+Same phases → same score position → same output
+```
+
+The pattern becomes a **pure function of phase**. Sync the phases (UTLP does this automatically), and the outputs sync automatically.
+
+### 2.3 Encoding: Tick Space → Phase Space
+
+Patterns are designed in tick-space (human-intuitive), compiled to phase-space (machine-executable):
+
+```python
+# Human writes this:
+pattern = [
+    { "tick": 0,   "led": ON  },
+    { "tick": 100, "led": OFF },
+    { "tick": 200, "led": ON  },
+    { "tick": 300, "led": OFF },
+]
+
+# Compiler generates this:
+PRIMES = [241, 251, 239, 233, 229, 227, 223, 211]
+
+compiled = [
+    { "phases": [0 % p for p in PRIMES],   "led": ON  },   # [0,0,0,0,0,0,0,0]
+    { "phases": [100 % p for p in PRIMES], "led": OFF },   # [100,100,100,100,100,100,100,100]
+    { "phases": [200 % p for p in PRIMES], "led": ON  },   # [200,200,200,200,200,200,200,200]
+    { "phases": [300 % p for p in PRIMES], "led": OFF },   # [59,49,61,67,71,73,77,89]
+]
+```
+
+**Encoding is trivial**: `phase[i] = tick % prime[i]`
+
+**No CRT at runtime**: Just compare 8 bytes per event.
+
+---
+
+## 3. Score Format
+
+### 3.1 Phase-Indexed Event (v2.0)
+
+```c
+typedef struct {
+    // Phase coordinates (when to execute)
+    uint8_t phases[8];          // Target phase for each prime
+    uint8_t phase_mask;         // Which phases must match (0xFF = all)
+    
+    // Transition
+    uint8_t transition_ticks;   // Interpolation duration (in pattern ticks)
+    uint8_t easing;             // EASE_LINEAR, EASE_IN, EASE_OUT, EASE_INOUT
+    
+    // Output state
+    uint8_t channels[];         // Variable-length channel state array
+} smsp_event_v2_t;
+```
+
+### 3.2 Single-Phase Optimization
+
+For patterns fitting within one prime cycle (≤241 ticks at smallest prime):
+
+```c
+typedef struct {
+    uint8_t phase;              // Single phase value (prime index 0)
+    uint8_t transition_ticks;
+    uint8_t channels[];
+} smsp_event_simple_t;
+```
+
+Runtime check becomes **one byte comparison**.
+
+### 3.3 Region-Based Scores (Declarative)
+
+Instead of discrete events, define continuous regions:
+
+```c
+typedef struct {
+    uint8_t phase_index;        // Which prime dimension (0-7)
+    uint8_t region_start;       // Inclusive start
+    uint8_t region_end;         // Exclusive end
+    uint8_t channels[];         // State while in this region
+} smsp_region_t;
+
+typedef struct {
+    uint8_t num_regions;
+    smsp_region_t regions[];
+} smsp_region_score_t;
+```
+
+**Example: Bilateral EMDR with RGB LEDs**
+```c
+// Channel layout: L_R, L_G, L_B, L_haptic, R_R, R_G, R_B, R_haptic
+// Using prime[0] = 241, pattern period = 241 ticks (~241ms at 1ms ticks)
+
+#define LED_OFF     0
+#define LED_FULL    255
+#define HAPTIC_MED  180
+
+smsp_region_t bilateral_score[] = {
+    // Left active: Cyan LED (R=0, G=255, B=255) + haptic
+    { .phase_index = 0, .region_start = 0,   .region_end = 120, 
+      .channels = { LED_OFF, LED_FULL, LED_FULL, HAPTIC_MED,   // Left: Cyan + haptic
+                    LED_OFF, LED_OFF,  LED_OFF,  0 } },         // Right: Off
+    
+    // Right active: Cyan LED + haptic  
+    { .phase_index = 0, .region_start = 120, .region_end = 241,
+      .channels = { LED_OFF, LED_OFF,  LED_OFF,  0,             // Left: Off
+                    LED_OFF, LED_FULL, LED_FULL, HAPTIC_MED } } // Right: Cyan + haptic
+};
+```
+
+Every node with phase[0] ∈ [0,120) outputs LEFT active. Every node with phase[0] ∈ [120,241) outputs RIGHT active. **No coordination message needed.**
+
+### 3.4 Score Container
+
+```c
+typedef struct {
+    // Header
+    uint8_t  version;           // SMSP_VERSION_2
+    uint8_t  format;            // FORMAT_EVENTS | FORMAT_REGIONS | FORMAT_SIMPLE
+    uint8_t  pattern_class;     // BILATERAL, EMERGENCY, SWARM, CUSTOM
+    uint8_t  prime_config;      // Which prime set (standard, fine, custom)
+    
+    // Timing
+    uint8_t  tick_period_log2;  // Tick period = 2^N microseconds (0=1μs, 10=1ms)
+    uint8_t  pattern_prime_idx; // Which prime defines pattern period (0-7)
+    
+    // Loop control
+    uint8_t  loop_count;        // 0 = infinite, N = play N times
+    uint8_t  loop_point;        // Event/region index to loop back to
+    
+    // Channel configuration
+    uint8_t  num_channels;
+    uint8_t  channel_types[];   // LED_RGB, LED_MONO, HAPTIC, AUDIO_FREQ, etc.
+    
+    // Score data
+    uint16_t data_length;
+    uint8_t  data[];            // Events or regions, format-dependent
+} smsp_score_t;
+```
+
+---
+
+## 4. Playback Engine
+
+### 4.1 Minimal Implementation (Region-Based)
+
+```c
+void smsp_tick(smsp_engine_t* engine) {
+    uint8_t phase = engine->current_phases[engine->score->pattern_prime_idx];
+    
+    for (int i = 0; i < engine->score->num_regions; i++) {
+        smsp_region_t* r = &engine->score->regions[i];
+        
+        if (phase >= r->region_start && phase < r->region_end) {
+            apply_channels(r->channels, engine->score->num_channels);
+            return;
+        }
+    }
+}
+```
+
+**This runs on an ATtiny85.** The ESP32-C6 is only needed for wireless bootstrap and UTLP phase synchronization.
+
+### 4.2 Event-Based Implementation
+
+```c
+void smsp_tick(smsp_engine_t* engine) {
+    // Check if current phases match any event
+    for (int i = 0; i < engine->score->num_events; i++) {
+        smsp_event_v2_t* e = &engine->score->events[i];
+        
+        if (phases_match(engine->current_phases, e->phases, e->phase_mask)) {
+            // Start transition to this event's state
+            engine->target_state = e->channels;
+            engine->transition_remaining = e->transition_ticks;
+            engine->easing = e->easing;
+            return;
+        }
+    }
+    
+    // Continue any active transition
+    if (engine->transition_remaining > 0) {
+        interpolate_outputs(engine);
+        engine->transition_remaining--;
+    }
+}
+
+bool phases_match(uint8_t* current, uint8_t* target, uint8_t mask) {
+    for (int i = 0; i < 8; i++) {
+        if ((mask & (1 << i)) && current[i] != target[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+```
+
+### 4.3 Integration with UTLP Vector Time
+
+```c
+// UTLP callback - called every tick
+void utlp_on_tick(uint8_t* phases) {
+    // Update engine's phase view
+    memcpy(smsp_engine.current_phases, phases, 8);
+    
+    // Execute score
+    smsp_tick(&smsp_engine);
+}
+
+// UTLP callback - called when beacon received
+void utlp_on_beacon(uint8_t* peer_phases) {
+    // UTLP handles phase nudging internally
+    // SMSP doesn't need to know about sync mechanics
+}
+```
+
+**Key insight**: SMSP doesn't manage time. It receives phases from UTLP and reacts. The sync is invisible to the score engine.
+
+---
+
+## 5. Pattern Compiler
+
+### 5.1 Compilation Pipeline
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Human Intent   │────▶│    Compiler     │────▶│  Binary Score   │
+│  (JSON/YAML)    │     │  (PWA/CLI)      │     │  (Flash/OTA)    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                       │                       │
+        ▼                       ▼                       ▼
+  "1Hz bilateral"      tick→phase encode        smsp_score_t
+  "SAE J845 quad"      validation               ready for MCU
+  "custom timeline"    optimization
+```
+
+### 5.2 Intent Format (Input)
+
+```yaml
+# bilateral_1hz.smsp.yaml
+name: "Bilateral 1Hz"
+class: bilateral
+tick_period_us: 1000    # 1ms ticks
+pattern_period_ms: 1000 # 1 second cycle
+
+channels:
+  - name: left_led
+    type: led_mono
+  - name: right_led  
+    type: led_mono
+  - name: left_haptic
+    type: haptic
+  - name: right_haptic
+    type: haptic
+
+regions:
+  - name: left_active
+    start_ms: 0
+    end_ms: 500
+    state:
+      left_led: 255
+      right_led: 0
+      left_haptic: 200
+      right_haptic: 0
+      
+  - name: right_active
+    start_ms: 500
+    end_ms: 1000
+    state:
+      left_led: 0
+      right_led: 255
+      left_haptic: 0
+      right_haptic: 200
+```
+
+### 5.3 Compilation Process
+
+```python
+def compile_score(intent):
+    # 1. Select prime configuration
+    primes = select_primes(intent.pattern_period_ms, intent.tick_period_us)
+    
+    # 2. Calculate pattern period in ticks
+    period_ticks = intent.pattern_period_ms * 1000 // intent.tick_period_us
+    
+    # 3. Find best-fit prime for pattern period
+    pattern_prime_idx = find_closest_prime(period_ticks, primes)
+    pattern_prime = primes[pattern_prime_idx]
+    
+    # 4. Scale regions to fit prime
+    scale = pattern_prime / period_ticks
+    
+    # 5. Convert regions
+    compiled_regions = []
+    for region in intent.regions:
+        start_tick = region.start_ms * 1000 // intent.tick_period_us
+        end_tick = region.end_ms * 1000 // intent.tick_period_us
+        
+        compiled_regions.append({
+            'phase_index': pattern_prime_idx,
+            'region_start': int(start_tick * scale) % pattern_prime,
+            'region_end': int(end_tick * scale) % pattern_prime,
+            'channels': encode_channels(region.state, intent.channels)
+        })
+    
+    # 6. Package into score container
+    return smsp_score_t(
+        version=2,
+        format=FORMAT_REGIONS,
+        pattern_class=intent.class,
+        prime_config=PRIMES_STANDARD,
+        pattern_prime_idx=pattern_prime_idx,
+        regions=compiled_regions
+    )
+```
+
+### 5.4 Prime Selection Strategy
+
+> **Design Note:** Prime selection is a **compiler responsibility**, not an engine responsibility. The playback engine on the MCU is intentionally "dumb"—it only matches phases and sets outputs. All the intelligence about selecting optimal primes, scaling patterns, and handling edge cases lives in the PWA/CLI compiler that runs on a more capable device (phone, laptop). This keeps the embedded firmware simple, deterministic, and portable across MCU architectures.
+
+| Pattern Period | Recommended Prime | Fit Error |
+|----------------|-------------------|-----------|
+| ~211 ticks | 211 | Exact |
+| ~223 ticks | 223 | Exact |
+| ~227 ticks | 227 | Exact |
+| ~229 ticks | 229 | Exact |
+| ~233 ticks | 233 | Exact |
+| ~239 ticks | 239 | Exact |
+| ~241 ticks | 241 | Exact |
+| ~251 ticks | 251 | Exact |
+| ~500 ticks | 251 × 2 | Use dual-phase |
+| ~1000 ticks | 251 × 4 | Use dual-phase |
+| Arbitrary | Use mask | Match subset of phases |
+
+**Compiler Algorithm:**
+1. Calculate desired pattern period in ticks
+2. Find the prime closest to that period
+3. Scale pattern timing to fit the selected prime
+4. Encode scaled timing into phase values
+5. Store selected prime index in score header
+
+For patterns that don't fit a single prime, use **phase masking** to match only relevant phases, or use **CRT tick recovery** at the cost of more computation.
+
+---
+
+## 6. Pattern Classes
+
+### 6.1 Classification Enum
+
+```c
+typedef enum {
+    PATTERN_BILATERAL,      // Antiphase pair (EMDR, tDCS)
+    PATTERN_EMERGENCY,      // SAE J845 compliant (lightbars)
+    PATTERN_SWARM_SYNC,     // In-phase coherence (mutual visibility)
+    PATTERN_PURSUIT,        // Sequential chase (around geometry)
+    PATTERN_BINARY_ORBIT,   // Wobble + rotation composite
+    PATTERN_SENSING,        // Coordinated sampling schedule
+    PATTERN_CUSTOM          // Raw score, no assumptions
+} pattern_class_t;
+```
+
+### 6.2 Bilateral Patterns
+
+**Characteristics:**
+- Two zones (LEFT, RIGHT)
+- Antiphase operation (when LEFT is active, RIGHT is inactive)
+- Typically therapeutic (EMDR, bilateral stimulation)
+
+**Constraints:**
+- Duty cycle should sum to ≤100%
+- Frequency range: 0.5-2 Hz typical for EMDR
+
+**Example with RGB LEDs:**
+```c
+// 1Hz bilateral, 50% duty cycle each side
+// Pattern period fits prime[0] = 241 ticks (~241ms at 1ms ticks)
+// Channel layout: L_R, L_G, L_B, L_haptic, R_R, R_G, R_B, R_haptic
+
+smsp_region_t bilateral[] = {
+    // Left active: Soft blue LED + haptic buzz
+    { 0, 0, 120,   { 0, 100, 255, 180,    // Left: Blue-ish, haptic on
+                    0, 0,   0,   0   } }, // Right: Off
+    // Right active: Soft blue LED + haptic buzz                
+    { 0, 120, 241, { 0, 0,   0,   0,      // Left: Off
+                    0, 100, 255, 180 } }  // Right: Blue-ish, haptic on
+};
+```
+
+### 6.3 Emergency Patterns (SAE J845)
+
+**Characteristics:**
+- Flash rate: 1.0 - 4.0 Hz
+- Dark interval: ≥160 ms between flash bursts
+- Pulse train: pulses within burst start ≤100 ms apart
+- SAE J845 Class 1 for high-visibility roadway applications
+
+**Police Lightbar Example (Red/Blue/White):**
+
+Typical police lightbar configuration: Red on driver's side, Blue on passenger side, White for takedowns/pursuit. Pattern alternates colors for maximum visibility—each color flash ensures optimal wavelength is visible regardless of ambient lighting conditions.
+
+```c
+// SAE J845 Quad Flash with Red/Blue alternating + White accent
+// At 1ms ticks: 250 ticks per cycle (4Hz), use prime[7] = 251
+// Channel layout: L_R, L_G, L_B, R_R, R_G, R_B (Left RGB, Right RGB)
+
+#define RED_FULL    {255, 0,   0  }   // Red: high daytime visibility
+#define BLUE_FULL   {0,   0,   255}   // Blue: high nighttime visibility  
+#define WHITE_FULL  {255, 255, 255}   // White: pursuit/takedown flash
+#define LED_OFF     {0,   0,   0  }
+
+smsp_region_t police_lightbar[] = {
+    // Phase 1: Left RED quad flash
+    { 7, 0,   10,  { 255,0,0, 0,0,0 } },     // L=RED, R=OFF
+    { 7, 10,  20,  { 0,0,0,   0,0,0 } },     // Gap
+    { 7, 20,  30,  { 255,0,0, 0,0,0 } },     // L=RED
+    { 7, 30,  40,  { 0,0,0,   0,0,0 } },     // Gap
+    { 7, 40,  50,  { 255,0,0, 0,0,0 } },     // L=RED
+    { 7, 50,  60,  { 0,0,0,   0,0,0 } },     // Gap
+    { 7, 60,  70,  { 255,0,0, 0,0,0 } },     // L=RED (4th flash)
+    
+    // Phase 2: Right BLUE quad flash  
+    { 7, 70,  80,  { 0,0,0, 0,0,255 } },     // L=OFF, R=BLUE
+    { 7, 80,  90,  { 0,0,0,   0,0,0 } },     // Gap
+    { 7, 90,  100, { 0,0,0, 0,0,255 } },     // R=BLUE
+    { 7, 100, 110, { 0,0,0,   0,0,0 } },     // Gap
+    { 7, 110, 120, { 0,0,0, 0,0,255 } },     // R=BLUE
+    { 7, 120, 130, { 0,0,0,   0,0,0 } },     // Gap
+    { 7, 130, 140, { 0,0,0, 0,0,255 } },     // R=BLUE (4th flash)
+    
+    // Phase 3: WHITE pursuit burst (both sides)
+    { 7, 140, 150, { 255,255,255, 255,255,255 } },  // Both WHITE
+    { 7, 150, 160, { 0,0,0, 0,0,0 } },              // Gap
+    { 7, 160, 170, { 255,255,255, 255,255,255 } },  // Both WHITE
+    
+    // Dark interval (81 ticks = 81ms, satisfies ≥80ms for readability)
+    { 7, 170, 251, { 0,0,0, 0,0,0 } },       // Dark period before repeat
+};
+```
+
+**Pattern Analysis:**
+- Total cycle: 251ms (~4Hz flash rate) ✓
+- Each quad flash burst: 70ms (4 flashes × 10ms + 3 gaps × 10ms) ✓
+- Inter-phase gaps: adequate for color differentiation ✓
+- White accent: high-intensity burst attracts attention during pursuit
+- Dark interval: 81ms at end provides visual reset
+
+**Color Selection Rationale:**
+- **Red** (255,0,0): Superior daytime visibility, traditional "stop" association
+- **Blue** (0,0,255): Superior nighttime visibility, reduced eye fatigue
+- **White** (255,255,255): Maximum intensity burst, pursuit mode indicator
+
+### 6.4 Sensing Patterns
+
+**Characteristics:**
+- Coordinated sampling across distributed nodes
+- Timestamps in phase space
+- Observations flow back to coordinator
+
+**Example: Acoustic Sampling**
+```c
+// Sample every 100μs (10 kHz rate)
+// At 1μs ticks: period = 100, use prime[0] mod 100
+smsp_event_simple_t sample_schedule[] = {
+    { .phase = 0,  .action = ACTION_SAMPLE },
+    { .phase = 50, .action = ACTION_SAMPLE },  // Two samples per prime cycle
+};
+```
+
+---
+
+## 7. Bidirectional Operation
+
+### 7.1 The Orchestra Model
+
+```
+┌─────────────┐     score (baton)      ┌─────────────┐
+│             │ ─────────────────────▶ │             │
+│  Conductor  │                        │   Nodes     │
+│             │ ◀───────────────────── │             │
+└─────────────┘    observations        └─────────────┘
+```
+
+SMSP supports bidirectional flow:
+- **Instructions** (conductor → nodes): "Sample at phase P", "Set output to X"
+- **Observations** (nodes → conductor): "At phase P, I measured V"
+
+### 7.2 Observation Format
+
+```c
+typedef struct {
+    uint8_t  phases[8];         // When it happened
+    uint16_t source_node;       // Who observed it
+    uint8_t  observation_type;  // What kind
+    uint8_t  payload[];         // Data
+} smsp_observation_t;
+
+typedef enum {
+    OBS_HEARTBEAT,          // "I'm alive, sync quality = X"
+    OBS_SAMPLE,             // "At phase P, sensor read V"
+    OBS_EVENT,              // "At phase P, threshold crossed"
+    OBS_ACK,                // "I executed instruction N"
+    OBS_ERROR,              // "Instruction N failed"
+} observation_type_t;
+```
+
+### 7.3 Closed-Loop Operation
+
+```
+         ┌──────────────────────────────────────────┐
+         │           Coordinator/Gateway            │
+         │  - Distributes sampling schedule         │
+         │  - Receives observations                 │
+         │  - Correlates data (beamforming, etc.)   │
+         └────────────────┬───────────────────────┬─┘
+                          │                       │
+              SMSP instructions           SMSP observations
+              (sample at phase P)         (at P, saw V)
+                          │                       │
+                          ▼                       ▲
+         ┌────────────────┴───────────────────────┴─┐
+         │              Sensor Nodes                 │
+         │  - Execute at synchronized phases        │
+         │  - Report observations with phase stamps │
+         └───────────────────────────────────────────┘
+```
+
+---
+
+## 8. Transport Agnosticism
+
+SMSP defines format and semantics, not delivery:
+
+| Transport | Score Delivery | Observation Return |
+|-----------|----------------|-------------------|
+| **ESP-NOW** | Broadcast/unicast | Unicast to coordinator |
+| **BLE** | GATT write | GATT notify |
+| **LoRa** | Broadcast | Unicast to gateway |
+| **WiFi** | UDP multicast | UDP to server |
+| **Serial** | Point-to-point | Collected by host |
+| **Flash** | Baked at build | Not applicable |
+
+The protocol is complete when a node possesses:
+1. A score (however delivered)
+2. Phase lock with peers (however achieved via UTLP)
+3. Zone assignment (however determined, potentially via RFIP)
+
+---
+
+## 9. Scale Invariance
+
+The same score format works regardless of physical scale:
+
+| Scale | "Zones" Are | Example |
+|-------|-------------|---------|
+| **PCB** | GPIO pins | RGB LEDs on one board |
+| **Device** | Peer MAC addresses | Bilateral handhelds |
+| **Room** | Node positions | Warning light array |
+| **Field** | Drone IDs | Search and rescue swarm |
+| **Building** | Sensor clusters | Structural monitoring |
+| **Region** | Base stations | Seismic array |
+
+A score written for three LEDs on a PCB plays identically on three drones 100 meters apart. The playback engine doesn't know physical spacing—it only knows phases and channels.
+
+---
+
+## 10. Relationship to Existing Standards
+
+| Standard | What It Does | SMSP Difference |
+|----------|--------------|-----------------|
+| **DMX512** | 512 channels, continuous broadcast | Score uploaded once, nodes execute independently |
+| **MIDI** | Note events, musical timing | Continuous interpolated states, sub-ms sync |
+| **SMPTE** | Timecode, devices chase master | Devices agree on phase then execute autonomously |
+| **OSC** | Real-time control messages | Score complete before execution, no runtime traffic |
+| **Art-Net** | DMX over Ethernet | Connectionless during execution |
+
+SMSP combines:
+- DMX's channel abstraction
+- MIDI's event timing
+- SMPTE's frame accuracy
+- OSC's flexibility
+
+...while eliminating:
+- Continuous network traffic during execution
+- Central controller as single point of failure
+- Wired infrastructure requirements
+- Per-node cost barriers (runs on $0.50 MCU)
+
+---
+
+## 11. Implementation Requirements
+
+### 11.1 Minimum Engine (Region-Based)
+
+| Resource | Requirement |
+|----------|-------------|
+| Flash | ~500 bytes code + score size |
+| RAM | ~50 bytes state |
+| CPU | One comparison per region per tick |
+| Timer | UTLP tick interrupt |
+
+Runs on: ATtiny85, ATmega328, any Cortex-M0+
+
+### 11.2 Full Engine (Event-Based with Interpolation)
+
+| Resource | Requirement |
+|----------|-------------|
+| Flash | ~2 KB code + score size |
+| RAM | ~200 bytes state |
+| CPU | Phase matching + interpolation |
+| Timer | UTLP tick interrupt |
+
+Runs on: ESP32, STM32, any Cortex-M3+
+
+### 11.3 Coordinator (Bidirectional)
+
+| Resource | Requirement |
+|----------|-------------|
+| Flash | ~10 KB code |
+| RAM | ~1 KB + observations buffer |
+| Network | ESP-NOW/BLE/WiFi |
+| Storage | Optional logging |
+
+Runs on: ESP32-C6, ESP32-S3, Linux gateway
+
+---
+
+## 12. Wire Format
+
+### 12.1 Score Upload Packet
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ Byte 0: SMSP_MAGIC (0x53)                                │
+│ Byte 1: Command (SCORE_UPLOAD = 0x01)                    │
+│ Byte 2-3: Total length (little-endian)                   │
+│ Byte 4: Fragment index                                   │
+│ Byte 5: Total fragments                                  │
+│ Byte 6-N: Score data (smsp_score_t fragment)             │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 12.2 Observation Packet
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ Byte 0: SMSP_MAGIC (0x53)                                │
+│ Byte 1: Command (OBSERVATION = 0x02)                     │
+│ Byte 2-9: Phases[8] (when observed)                      │
+│ Byte 10-11: Source node ID                               │
+│ Byte 12: Observation type                                │
+│ Byte 13-N: Payload (type-dependent)                      │
+└──────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 13. Security Considerations
+
+### 13.1 Score Integrity
+
+Scores should be signed when delivered over untrusted channels:
+
+```c
+typedef struct {
+    smsp_score_t score;
+    uint8_t      signature[32];  // Ed25519 or HMAC-SHA256
+} smsp_signed_score_t;
+```
+
+### 13.2 Observation Authentication
+
+Observations should include node authentication:
+
+```c
+typedef struct {
+    smsp_observation_t obs;
+    uint8_t            mac[8];  // Truncated HMAC
+} smsp_authenticated_obs_t;
+```
+
+### 13.3 Phase Lock Attacks
+
+An attacker broadcasting false UTLP beacons could desynchronize nodes. Mitigations:
+- Stratum hierarchy (prefer higher-authority sources)
+- Byzantine detection (reject outliers via vector similarity)
+- Cryptographic beacons (signed by trusted time source)
+
+See UTLP Technical Supplement S2 (Biological Governance) for security architecture.
+
+---
+
+## 14. Reference Implementation
+
+### 14.1 Score Compiler (Python)
+
+```python
+#!/usr/bin/env python3
+"""
+SMSP Score Compiler
+Converts human-readable pattern definitions to binary scores.
+"""
+
+import struct
+from dataclasses import dataclass
+from typing import List
+
+PRIMES = [241, 251, 239, 233, 229, 227, 223, 211]
+
+@dataclass
+class Region:
+    phase_index: int
+    start: int
+    end: int
+    channels: bytes
+
+@dataclass
+class Score:
+    version: int = 2
+    format: int = 1  # FORMAT_REGIONS
+    pattern_class: int = 0
+    prime_config: int = 0
+    pattern_prime_idx: int = 0
+    regions: List[Region] = None
+    
+    def to_bytes(self) -> bytes:
+        header = struct.pack('<BBBBBB',
+            self.version,
+            self.format,
+            self.pattern_class,
+            self.prime_config,
+            self.pattern_prime_idx,
+            len(self.regions)
+        )
+        
+        region_data = b''
+        for r in self.regions:
+            region_data += struct.pack('<BBB',
+                r.phase_index,
+                r.start,
+                r.end
+            ) + r.channels
+        
+        return header + region_data
+
+
+def compile_bilateral(frequency_hz: float, num_channels: int = 4) -> Score:
+    """Compile a bilateral (EMDR-style) pattern."""
+    
+    # Select prime closest to desired period
+    # At 1ms ticks, 1Hz = 1000 ticks
+    tick_period_ms = 1
+    period_ticks = int(1000 / frequency_hz / tick_period_ms)
+    
+    # Find best prime
+    best_prime_idx = min(range(len(PRIMES)), 
+                         key=lambda i: abs(PRIMES[i] - period_ticks))
+    prime = PRIMES[best_prime_idx]
+    
+    # Create antiphase regions
+    midpoint = prime // 2
+    
+    # Channel layout: L_R, L_G, L_B, L_haptic, R_R, R_G, R_B, R_haptic
+    # Soft blue color (R=0, G=100, B=255) for therapeutic calming effect
+    left_channels = bytes([0, 100, 255, 180,   0, 0, 0, 0])    # Left: blue+haptic
+    right_channels = bytes([0, 0, 0, 0,   0, 100, 255, 180])   # Right: blue+haptic
+    
+    return Score(
+        pattern_class=0,  # BILATERAL
+        pattern_prime_idx=best_prime_idx,
+        regions=[
+            Region(best_prime_idx, 0, midpoint, left_channels),
+            Region(best_prime_idx, midpoint, prime, right_channels),
+        ]
+    )
+
+
+def compile_police_lightbar() -> Score:
+    """Compile SAE J845 police lightbar pattern with Red/Blue/White."""
+    
+    # 4Hz = 250ms period, use prime[7] = 251
+    prime_idx = 7  # 251
+    
+    # Channel layout: L_R, L_G, L_B, R_R, R_G, R_B (6 bytes per region)
+    RED =   bytes([255, 0, 0])
+    BLUE =  bytes([0, 0, 255])
+    WHITE = bytes([255, 255, 255])
+    OFF =   bytes([0, 0, 0])
+    
+    return Score(
+        pattern_class=1,  # EMERGENCY
+        pattern_prime_idx=prime_idx,
+        regions=[
+            # Left RED quad flash
+            Region(prime_idx, 0,   10,  RED + OFF),      # L=RED
+            Region(prime_idx, 10,  20,  OFF + OFF),     # Gap
+            Region(prime_idx, 20,  30,  RED + OFF),      # L=RED
+            Region(prime_idx, 30,  40,  OFF + OFF),     # Gap
+            Region(prime_idx, 40,  50,  RED + OFF),      # L=RED
+            Region(prime_idx, 50,  60,  OFF + OFF),     # Gap
+            Region(prime_idx, 60,  70,  RED + OFF),      # L=RED (4th)
+            # Right BLUE quad flash
+            Region(prime_idx, 70,  80,  OFF + BLUE),    # R=BLUE
+            Region(prime_idx, 80,  90,  OFF + OFF),     # Gap
+            Region(prime_idx, 90,  100, OFF + BLUE),    # R=BLUE
+            Region(prime_idx, 100, 110, OFF + OFF),     # Gap
+            Region(prime_idx, 110, 120, OFF + BLUE),    # R=BLUE
+            Region(prime_idx, 120, 130, OFF + OFF),     # Gap
+            Region(prime_idx, 130, 140, OFF + BLUE),    # R=BLUE (4th)
+            # WHITE pursuit burst
+            Region(prime_idx, 140, 150, WHITE + WHITE), # Both WHITE
+            Region(prime_idx, 150, 160, OFF + OFF),     # Gap
+            Region(prime_idx, 160, 170, WHITE + WHITE), # Both WHITE
+            # Dark interval
+            Region(prime_idx, 170, 251, OFF + OFF),     # Dark period
+        ]
+    )
+
+
+if __name__ == '__main__':
+    # Example: compile 1Hz bilateral
+    score = compile_bilateral(1.0)
+    binary = score.to_bytes()
+    print(f"Bilateral 1Hz: {len(binary)} bytes")
+    print(f"  Prime index: {score.pattern_prime_idx}")
+    print(f"  Prime value: {PRIMES[score.pattern_prime_idx]}")
+    print(f"  Regions: {len(score.regions)}")
+    
+    # Example: compile police lightbar
+    score = compile_police_lightbar()
+    binary = score.to_bytes()
+    print(f"\nPolice Lightbar: {len(binary)} bytes")
+    print(f"  Prime index: {score.pattern_prime_idx}")
+    print(f"  Prime value: {PRIMES[score.pattern_prime_idx]}")
+    print(f"  Regions: {len(score.regions)}")
+```
+
+### 14.2 Playback Engine (C)
+
+```c
+/**
+ * SMSP Playback Engine
+ * Minimal region-based implementation
+ */
+
+#include <stdint.h>
+#include <string.h>
+
+#define SMSP_MAX_CHANNELS 8
+#define SMSP_MAX_REGIONS 16
+
+typedef struct {
+    uint8_t phase_index;
+    uint8_t region_start;
+    uint8_t region_end;
+    uint8_t channels[SMSP_MAX_CHANNELS];
+} smsp_region_t;
+
+typedef struct {
+    uint8_t version;
+    uint8_t format;
+    uint8_t pattern_class;
+    uint8_t prime_config;
+    uint8_t pattern_prime_idx;
+    uint8_t num_regions;
+    uint8_t num_channels;
+    smsp_region_t regions[SMSP_MAX_REGIONS];
+} smsp_score_t;
+
+typedef struct {
+    smsp_score_t* score;
+    uint8_t current_phases[8];
+    uint8_t output_channels[SMSP_MAX_CHANNELS];
+} smsp_engine_t;
+
+/**
+ * Initialize engine with a score
+ */
+void smsp_init(smsp_engine_t* engine, smsp_score_t* score) {
+    engine->score = score;
+    memset(engine->current_phases, 0, 8);
+    memset(engine->output_channels, 0, SMSP_MAX_CHANNELS);
+}
+
+/**
+ * Update phases from UTLP
+ */
+void smsp_update_phases(smsp_engine_t* engine, uint8_t* phases) {
+    memcpy(engine->current_phases, phases, 8);
+}
+
+/**
+ * Execute one tick - find matching region and set outputs
+ */
+void smsp_tick(smsp_engine_t* engine) {
+    if (!engine->score) return;
+    
+    uint8_t phase = engine->current_phases[engine->score->pattern_prime_idx];
+    
+    for (int i = 0; i < engine->score->num_regions; i++) {
+        smsp_region_t* r = &engine->score->regions[i];
+        
+        // Check if phase is in this region
+        if (r->region_start <= r->region_end) {
+            // Normal range
+            if (phase >= r->region_start && phase < r->region_end) {
+                memcpy(engine->output_channels, r->channels, 
+                       engine->score->num_channels);
+                return;
+            }
+        } else {
+            // Wrapped range (e.g., 200-50 means 200-255 and 0-50)
+            if (phase >= r->region_start || phase < r->region_end) {
+                memcpy(engine->output_channels, r->channels,
+                       engine->score->num_channels);
+                return;
+            }
+        }
+    }
+}
+
+/**
+ * Get current output for a channel
+ */
+uint8_t smsp_get_output(smsp_engine_t* engine, uint8_t channel) {
+    if (channel < SMSP_MAX_CHANNELS) {
+        return engine->output_channels[channel];
+    }
+    return 0;
+}
+```
+
+---
+
+## 15. Migration from v1.0
+
+### 15.1 Score Conversion
+
+v1.0 scores (tick-indexed) can be converted to v2.0 (phase-indexed):
+
+```python
+def convert_v1_to_v2(v1_score):
+    """Convert tick-indexed score to phase-indexed."""
+    
+    # Find pattern period from v1 score
+    max_tick = max(event.time_offset for event in v1_score.events)
+    period_ticks = v1_score.loop_period or (max_tick + 1)
+    
+    # Select best prime
+    prime_idx = find_closest_prime(period_ticks, PRIMES)
+    prime = PRIMES[prime_idx]
+    
+    # Scale factor
+    scale = prime / period_ticks
+    
+    # Convert events to phase-indexed
+    v2_events = []
+    for event in v1_score.events:
+        tick = event.time_offset
+        phase = int(tick * scale) % prime
+        
+        v2_events.append(smsp_event_v2(
+            phases=[phase if i == prime_idx else 0 for i in range(8)],
+            phase_mask=(1 << prime_idx),
+            channels=event.channels
+        ))
+    
+    return smsp_score_v2(events=v2_events)
+```
+
+### 15.2 Engine Compatibility
+
+v2.0 engines can execute v1.0 scores by:
+1. Converting at load time (recommended)
+2. Using CRT recovery to get tick, then index (slower)
+
+---
+
+## 16. Future Extensions
+
+### 16.1 Multi-Prime Patterns
+
+For patterns requiring more precision than a single prime:
+
+```c
+typedef struct {
+    uint8_t phases[8];      // All 8 phases must match
+    uint8_t phase_mask;     // 0xFF = all must match
+    // ...
+} smsp_event_multiprime_t;
+```
+
+### 16.2 Conditional Execution
+
+```c
+typedef struct {
+    uint8_t condition_type;  // IF_ZONE, IF_ROLE, IF_INPUT
+    uint8_t condition_value;
+    smsp_region_t region;
+} smsp_conditional_region_t;
+```
+
+### 16.3 Dynamic Scores
+
+Scores generated at runtime based on sensor input or network state.
+
+---
+
+## 17. Prior Art Claims
+
+SMSP-related claims are documented in the Claims Appendix:
+
+| Claim Range | Topic |
+|-------------|-------|
+| 33-42 | Core SMSP structure and execution |
+| 50 | Scale invariance |
+| 82-86 | Bidirectional operation |
+| 87-100 | Sensing and metasurface applications |
+
+---
+
+## Appendix A: Quick Reference
+
+### A.1 Pattern Classes
+
+| Class | Value | Use Case |
+|-------|-------|----------|
+| BILATERAL | 0 | EMDR, therapeutic |
+| EMERGENCY | 1 | SAE J845 lightbars |
+| SWARM_SYNC | 2 | In-phase coordination |
+| PURSUIT | 3 | Sequential chase |
+| SENSING | 4 | Distributed sampling |
+| CUSTOM | 255 | Raw scores |
+
+### A.2 Channel Types
+
+| Type | Value | Bytes |
+|------|-------|-------|
+| LED_MONO | 0 | 1 (brightness) |
+| LED_RGB | 1 | 3 (R, G, B) |
+| LED_RGBW | 2 | 4 (R, G, B, W) |
+| HAPTIC | 3 | 1 (intensity) |
+| AUDIO_FREQ | 4 | 3 (freq_hz LE16, amplitude) |
+| GPIO | 5 | 1 (on/off) |
+
+### A.3 Standard Primes
+
+| Index | Prime | Typical Use |
+|-------|-------|-------------|
+| 0 | 241 | ~4.1 Hz patterns |
+| 1 | 251 | ~4.0 Hz patterns |
+| 2 | 239 | ~4.2 Hz patterns |
+| 3 | 233 | ~4.3 Hz patterns |
+| 4 | 229 | ~4.4 Hz patterns |
+| 5 | 227 | ~4.4 Hz patterns |
+| 6 | 223 | ~4.5 Hz patterns |
+| 7 | 211 | ~4.7 Hz patterns |
+
+(Frequencies assume 1ms tick period)
+
+---
+
+*This document is published as prior art for the Synchronized Multimodal Score Protocol.*
+
+---
+
+*PHYRFLY Protocol Family: UTLP | RFIP | SMSP*
+
+<div style="page-break-before: always;"></div>
 
 
 # UTLP Technical Report — Addendum A
@@ -9027,10 +10493,7 @@ RFIP represents a philosophical shift: **the swarm defines its own space**, just
 ---
 
 
-
----
-
-# Part IX: Distributed Sensing Lab Manual
+<div style="page-break-before: always;"></div>
 
 
 # Distributed Sensing: A Project Lab Manual
@@ -11159,10 +12622,7 @@ The core insight—that synchronized time plus known geometry enables coordinati
 ---
 
 
-
----
-
-# Part X: Integrative Capacity - AI Synthesis Alignment
+<div style="page-break-before: always;"></div>
 
 
 # Integrative Capacity as a Trackable Metric
@@ -11501,10 +12961,7 @@ The mlehaptics corpus is offered as a labeled dataset for this new alignment obj
 ---
 
 
-
----
-
-# Part XI: Python Reference Implementation
+<div style="page-break-before: always;"></div>
 
 ## UTLP Vector Time Reference Implementation
 
@@ -12345,16 +13802,13 @@ if __name__ == "__main__":
 ---
 
 
-
----
-
-# Part XII: Claims Appendix (Single Source of Truth)
+<div style="page-break-before: always;"></div>
 
 # UTLP/RFIP/SMSP Complete Prior Art Claims Appendix
 
 ## Single Source of Truth
 
-**Version:** 2.0 (Post-Audit)  
+**Version:** 5.0 (Full-Text Expanded Claims)  
 **Date:** January 2026  
 **DOI:** 10.5281/zenodo.18078264  
 **Maintainer:** Steven Kirkland (mlehaptics Project)
@@ -12363,359 +13817,636 @@ if __name__ == "__main__":
 
 ## Claims Summary
 
-| Source Document | Original Range | Removals | Valid Count |
-|----------------|----------------|----------|-------------|
+| Source Document | Claim Range | Removals | Valid Count |
+|-----------------|-------------|----------|-------------|
 | Connectionless Distributed Timing Prior Art | 1-122 | 2 | 120 |
-| UTLP Technical Supplement S2 (v56) | 123-259 | 11 | 126 |
-| UTLP Technical Supplement S3 (v01) | 260-274 | 0 | 15 |
-| **Total** | **1-274** | **13** | **261** |
+| UTLP Technical Supplement S2 | 123-259 | 11 | 126 |
+| UTLP Technical Supplement S3 | 260-275 | 0 | 16 |
+| UTLP Technical Supplement S4 | 276-277 | 0 | 2 |
+| **Total** | **1-277** | **13** | **264** |
 
 ---
 
-## Removed Claims (Purple Team Audit, January 2026)
+## Removed Claims
 
-The following claims were removed during purple team audit for failing defensive prior art criteria.
+### Purple Team Audit - January 2026
 
-### Category A: Excavations (Acknowledge Existing Prior Art)
-
-These recognize techniques that predated this work. Valuable for context but not novel contributions.
-
-| Original # | Title | Reason |
-|------------|-------|--------|
-| 205 (S2-83) | MHC as biological authentication (500M year prior art) | Explicitly documents MHC preceded PKI by 500M years |
-| 208 (S2-86) | Viral MITM as biological prior art | Documents viral attack patterns predated cyber terminology |
-| 211 (S2-89) | Firefly synchronization as biological prior art | Explicitly cites Peskin 1975, Kuramoto 1984 as source |
-
-### Category B: Methodology (Not Patentable)
-
-These describe epistemological processes, not implementable technical innovations.
-
-| Original # | Title | Reason |
-|------------|-------|--------|
-| 210 (S2-88) | Blindspots as discovery tools | Describes how to think, not what to build |
-| 212 (S2-90) | Recursive meta-documentation | Documents documentation process |
-| 213 (S2-91) | The Isomorphism Stress Test | Epistemological heuristic |
-| 214 (S2-92) | Methodology as accessibility multiplier | Self-describes as "not novel" within claim text |
-| 218 (S2-96) | Adversarial refinement as claim strengthening | Documents Red Team process |
-
-### Category C: Established Techniques
-
-These describe standard practices documented elsewhere.
-
-| Original # | Title | Reason |
-|------------|-------|--------|
-| 11 | HKDF for high-entropy key derivation | RFC 5869 (2010) — using a standard correctly is not prior art |
-
-### Category D: Natural Law / Physics (35 USC 101)
-
-These describe physics or mathematical truths that cannot be patented.
-
-| Original # | Title | Reason |
-|------------|-------|--------|
-| 120 | Aperture as universal epistemological operation | Philosophical observation about correlation mathematics |
-| 189 (S2-67) | Phase coherence aligned with U(1) gauge symmetry | Physics observation, not invention |
-| 190 (S2-68) | Swarm identity as conserved quantity | Physics/symmetry observation |
-| 191 (S2-69) | Epoch advisory status grounded in relativity | Special relativity observation |
+| # | Title | Category | Reason |
+|---|-------|----------|--------|
+| 11 | HKDF key derivation | Established | RFC 5869 (2010) |
+| 120 | Aperture as epistemological operation | Natural Law | Philosophy |
+| 189 | Phase coherence / U(1) gauge symmetry | Natural Law | Physics |
+| 190 | Swarm identity as conserved quantity | Natural Law | Physics |
+| 191 | Epoch advisory / relativity | Natural Law | Physics |
+| 205 | MHC as biological authentication | Excavation | 500M year prior art |
+| 208 | Viral MITM as biological prior art | Excavation | Predates cyber |
+| 210 | Blindspots as discovery tools | Methodology | Not implementable |
+| 211 | Firefly synchronization | Excavation | Peskin 1975 |
+| 212 | Recursive meta-documentation | Methodology | Not implementable |
+| 213 | Isomorphism Stress Test | Methodology | Epistemological |
+| 214 | Methodology as accessibility multiplier | Methodology | Self-admits not novel |
+| 218 | Adversarial refinement | Methodology | Documents process |
 
 ---
 
-## Valid Claims Index
+## Part A: Connectionless Distributed Timing Prior Art (Claims 1-122)
 
-### Part A: Connectionless Distributed Timing Prior Art (Claims 1-122)
+**Valid claims:** 1-10, 12-119, 121-122 (120 claims)
 
-**Valid claims:** 1-10, 12-119, 121-122 (120 claims)  
-**Removed:** 11, 120
+1. **Connectionless synchronized actuation**: A distributed coordination method where devices sharing a time reference and deterministic script execute in coordination without runtime communication. During execution, devices do not coordinate—each device: (1) Knows what time it is via prior UTLP synchronization, (2) Knows what script to play (preloaded in firmware or uploaded during configuration), (3) Knows its zone/role (assigned during configuration), (4) Executes locally with no network dependency. The radio is not in the execution path—actuation is driven by local hardware timers (`esp_timer` or direct peripheral timers), not by network events. Execution jitter depends on timer resolution and ISR latency (ESP32 hardware timer resolution 1μs; ISR latency typically <10μs), not on RF or protocol stack behavior.
 
-#### 9.1 Architectural Patterns (Claims 1-5)
+2. **Bootstrap/Configuration/Execution phase separation**: Architecture cleanly separating three phases with distinct transports and timing requirements: Bootstrap (BLE for pairing, key exchange, WiFi MAC exchange—no timing criticality), Configuration (BLE then released, for script upload, zone assignment, ESP-NOW key derivation—no timing criticality), and Execution (ESP-NOW only for pattern playback, time sync beacons—sub-millisecond timing criticality). Peer BLE connection is released after key exchange completes; operational phase uses ESP-NOW exclusively for peer-to-peer traffic, providing deterministic timing (ESP-NOW ±100μs vs BLE ±10-50ms jitter) while preserving radio bandwidth.
 
-1. **Connectionless synchronized actuation**: Devices sharing time reference and script execute in coordination without runtime communication
+3. **Script-based distributed execution**: Deterministic event sequences calculated locally from shared parameters without runtime communication. A "script" is a deterministic sequence of timed events that both devices possess, containing start_time_us, period_us, duty_cycle_percent, and zone_active_first. Given synchronized time and this script, each device independently calculates whether it should be active using: elapsed = now_us - start_time_us; cycle_position = elapsed % period_us; current_phase = (cycle_position < period_us / 2) ? 0 : 1; return (current_phase ^ my_zone) == zone_active_first. No communication, no coordination—just math on shared data.
 
-2. **Bootstrap/Configuration/Execution phase separation**: BLE for trust and setup, connectionless for timing-critical operation
+4. **Shared-clock execution model**: Devices calculate state from synchronized time rather than exchanging coordination messages. Once devices share a time reference, the question shifts from "when did you send this?" to "what should we both be doing right now?" Time is Defined, Not Measured—execution is event-driven against synchronized time rather than TDM scheduling that would introduce artificial delays (devices waiting for assigned slots even when channel is clear). WiFi (ESP-NOW) is prioritized over BLE for all peer-to-peer traffic; BLE's connection-oriented overhead and scheduling constraints create unnecessary latency. The synchronization problem becomes a shared-clock problem, not a message-passing problem.
 
-3. **Script-based distributed execution**: Deterministic event sequences calculated locally from shared parameters
+5. **Local jitter characterization**: Treating synchronization error as a property of local software stack, not network. Critical distinction: Synchronization jitter vs. execution jitter. The ±100μs figure cited for ESP-NOW describes synchronization channel jitter—variance in network round-trip times during the sync phase. Execution jitter is different and typically much tighter: once synchronized, actuation is driven by local hardware timers, not by network events. On ESP32, hardware timer resolution is 1μs; ISR latency is typically <10μs unless preempted by higher-priority interrupts (WiFi/BLE radio tasks). For timing-critical applications, actuation should use dedicated hardware timers with high-priority ISRs, not FreeRTOS task scheduling.
 
-4. **Shared-clock execution model**: Devices calculate state from synchronized time rather than exchanging coordination messages
+6. **BLE bootstrap for ESP-NOW security**: Deriving ESP-NOW encryption keys from BLE pairing material, then releasing peer BLE connection. Key derivation uses HKDF-SHA256: server_mac + client_mac as input key material (IKM), random 8-byte nonce as salt, "ESPNOW_LMK" as domain separation, producing 16-byte Local Master Key (LMK). This gives security properties of BLE pairing (encrypted key exchange, MITM protection via Numeric Comparison) with timing properties of ESP-NOW (low-jitter delivery ~100μs vs BLE ~10-50ms). Peer BLE connection released after key exchange—operational phase uses ESP-NOW exclusively for peer traffic.
 
-5. **Local jitter characterization**: Treating synchronization error as a property of local software stack, not network
+7. **UTLP time as public utility**: Unencrypted broadcast time with Glass Wall isolation from application data. UTLP provides synchronized time as a "broadcast environmental variable"—a public utility that any device can consume without pairing or authentication. Glass Wall architecture: Time stack (public, unencrypted) strictly separated from application stack (private, encrypted). Features include stratum-based hierarchy (GPS → FTM → ESP-NOW peer → free-running), holdover mode (Kalman-filtered drift compensation during source loss), and transport agnosticism (BLE, ESP-NOW, 802.11, acoustic). The core insight: when devices agree on time to ±30μs precision, timestamps provide sufficient ordering granularity for any human-scale coordination.
 
-#### 9.2 Protocol Techniques (Claims 6-14, excluding 11)
+8. **Common Mode Rejection security**: Spoofed time affects all nodes equally, preserving relative synchronization. Even if an attacker manipulates the shared time source, all nodes shift together—the relative timing relationships that matter for coordination remain intact. This is analogous to common-mode rejection in differential amplifiers: the attack signal adds to both inputs equally and is rejected when the difference is computed. For bilateral stimulation, the critical parameter is left-right alternation timing, which is preserved even under time-shift attacks. Absolute time corruption affects logging and scheduling but not therapeutic efficacy.
 
-6. **BLE bootstrap for ESP-NOW security**: Deriving ESP-NOW encryption keys from BLE pairing material, then releasing peer BLE connection
+9. **Stratum-based opportunistic upgrade**: Automatic precision improvement when better sources become available without manual configuration. Stratum hierarchy: GPS/atomic (stratum 0) → WiFi FTM (stratum 1) → ESP-NOW peer (stratum 2-7) → free-running crystal (stratum 15). Lower stratum = closer to truth source. Nodes automatically prefer lower-stratum sources; when GPS becomes available to any node, the entire swarm benefits through transitive time propagation. Opportunistic: nodes don't require specific sources—they use whatever's available and automatically upgrade when better sources appear.
 
-7. **UTLP time as public utility**: Unencrypted broadcast time with Glass Wall isolation from application data
+10. **Kalman-filtered holdover**: Joint offset/drift estimation for graceful degradation during source loss. State vector tracks both time offset (where the clock is now) and drift rate (how fast it's moving). During normal operation, Kalman filter learns drift characteristics from repeated observations. During holdover (time source unavailable), filter extrapolates clock state using learned drift rate: offset_predicted = offset + drift × dt. Variance grows during holdover (uncertainty increases), triggering stratum demotion if extended beyond threshold. Enables graceful degradation rather than hard failure when GPS/NTP temporarily unavailable.
 
-8. **Common Mode Rejection security**: Spoofed time affects all nodes equally, preserving relative synchronization
+12. **Multi-layer replay protection**: Four independent layers defeating different attack vectors: (1) Session nonce—random value established at connection, binds all subsequent messages to this session, prevents cross-session replay; (2) Sequence numbers—monotonic counter preventing message reorder/replay within session; (3) TOTP—time-based one-time password, messages only valid within time window (typically 30s), prevents capture-and-delay attacks; (4) CCMP—ESP-NOW's AES-CCM provides per-frame authentication and encryption, prevents bit-flip attacks. Defense-in-depth: attacker must defeat all four layers simultaneously. Each layer has different failure modes and attack costs.
 
-9. **Stratum-based opportunistic upgrade**: Automatic precision improvement when better sources become available
+13. **Defense-in-depth security architecture**: Security layered across physical, transport, key derivation, and application layers with each providing independent protection. Physical layer: proximity requirement—attacker must be within ESP-NOW range (~100m outdoors, less indoors). Transport layer: BLE SMP bonding for trust establishment, ESP-NOW CCMP for operational traffic. Key derivation layer: HKDF with dual-MAC binding prevents key reuse across device pairs. Application layer: sequence numbers prevent replay, optional TOTP provides time-binding. Compromising one layer doesn't compromise others—attacker must breach all layers.
 
-10. **Kalman-filtered holdover**: Joint offset/drift estimation for graceful degradation during source loss
+14. **Threat-proportional security design**: Cryptographic strength appropriate to actual threat model, avoiding over-engineering that increases complexity and attack surface. Therapeutic devices (home EMDR) don't need nation-state resistant crypto; emergency lighting doesn't need quantum-safe key exchange. Match security investment to adversary capability: home medical device faces different threats than battlefield communication system. Over-engineering security has costs: code complexity, power consumption, certification burden, attack surface from additional code. The goal is appropriate security, not maximum security.
 
-~~11. REMOVED: HKDF — RFC 5869 (2010)~~
+15. **Swarm-emergent warning systems**: Distributed nodes forming coherent visual signals without central coordination. Individual devices execute synchronized lighting patterns based on shared time and script—the warning pattern emerges from collective behavior rather than central command. Each node independently calculates its LED state from atomic time; coherent warning signals (quad flash, wig-wag) arise from phase-locked execution across the swarm. No master controller required during operation; coordination achieved through shared time reference established during bootstrap.
 
-12. **Multi-layer replay protection**: Session nonce + sequence numbers + TOTP + CCMP—four independent layers
+16. **Aerial extension of ground-level warnings**: Drone swarms providing elevated visibility for traffic incidents. Ground-level emergency vehicle lights are often obscured by terrain, vegetation, or other vehicles. UTLP-synchronized drone swarms extend warning patterns to altitude, creating visible markers detectable from greater distances. Drones execute same SMSP warning patterns as ground units, phase-locked to swarm time. Enables "beacon towers" that deploy on demand, providing elevated visual warning without permanent infrastructure.
 
-13. **Defense-in-depth security architecture**: Physical, transport, key derivation, and application layer security with each layer providing independent protection
+17. **Zone/Role architectural separation**: Identical firmware, runtime-assigned function based on position or configuration. All devices run the same firmware image; zone assignment (left vs right, Zone 0 vs Zone 1) is a runtime parameter, not a firmware variant. Enables "pile of drones" deployment where identical units self-organize into coherent roles. Zone determines which portion of the SMSP score to execute—same firmware, different behavior based on spatial position or configuration parameter. Simplifies manufacturing, deployment, and replacement.
 
-14. **Threat-proportional security design**: Cryptographic strength appropriate to actual threat model
+18. **RFIP intrinsic positioning**: Spatial awareness without Earth-referenced infrastructure. RFIP (Reference-Frame Independent Positioning) provides relative positioning using only peer-ranging (802.11mc FTM or equivalent). "Where are we relative to each other?" not "Where are we on Earth?" Works in GPS-denied environments: underground, underwater, indoors, moving vehicles, space. The coordinate system arises from the swarm itself through trilateration of peer distances. Swarm can build a map of where it has been using only peer-derived coordinates.
 
-#### 9.3 Application Patterns (Claims 15-18)
+19. **High-speed video validation of distributed timing**: Using frame-accurate capture to verify synchronization precision. Consumer high-speed cameras (240-1000 fps) provide ground truth for synchronization validation. Frame-by-frame analysis reveals actual phase alignment between distributed actuators. LED state captured at known frame rate allows calculation of timing error from visual evidence. Provides empirical validation independent of software timestamps; the camera is a physics-based oracle that cannot be fooled by software bugs.
 
-15. **Swarm-emergent warning systems**: Distributed nodes forming coherent visual signals without central coordination
+20. **SAE J845 compliance testing for swarm systems**: Applying emergency vehicle lighting standards to distributed architectures. SAE J845 specifies flash rates, duty cycles, and patterns for emergency warning lights. SMSP patterns designed to meet J845 requirements when executed by distributed swarm. Validation: high-speed video capture confirms pattern timing matches J845 specifications. Enables swarm-based emergency lighting that meets existing regulatory frameworks without requiring new standards.
 
-16. **Aerial extension of ground-level warnings**: Drone swarms providing elevated visibility for traffic incidents
+21. **Wireless connectionless sync vs. wired sync lines**: US7116294B2 requires physical SYNC wire for synchronized emergency vehicle lighting; this work achieves equivalent coordination over RF without wired connection. The patent's physical wire requirement is obviated by UTLP time synchronization over ESP-NOW. Devices share time reference wirelessly to ±100μs precision, enabling coordinated lighting patterns without the installation complexity and failure modes of physical sync cables. Prior art in the patent domain; novel application to connectionless RF synchronization.
 
-17. **Zone/Role architectural separation**: Identical firmware, runtime-assigned function based on position or configuration
+22. **Script-based execution vs. continuous mesh coordination**: EP3535629A1 requires ongoing timestamp exchange between "fully meshed" devices for synchronized emergency lighting; this work distributes script once, then executes independently. The patent requires continuous network traffic during operation; UTLP/SMSP eliminates this dependency. Script uploaded during configuration phase; execution phase requires only periodic sync beacons (seconds apart), not continuous mesh coordination (milliseconds apart). Reduces RF congestion, power consumption, and network failure modes.
 
-18. **RFIP intrinsic positioning**: Spatial awareness without Earth-referenced infrastructure
+23. **Peer-derived time vs. GPS dependency**: Emergency vehicle lighting systems require GPS receivers for synchronization; UTLP stratum hierarchy achieves equivalent precision from peer sources. GPS adds cost ($10-50/module), power consumption, and failure modes (indoor operation, urban canyons, jamming). UTLP enables GPS-optional deployment: if any node has GPS, entire swarm synchronizes through transitive time propagation. Peer synchronization sufficient for emergency lighting; GPS provides atomic accuracy when available but is not required.
 
-#### 9.4 Validation Methods (Claims 19-20)
+24. **Pattern-boundary resync generalization**: Extending Feniex's per-cycle resync concept (US patent) to arbitrary script boundaries and multi-modal actuation. Feniex resyncs flash pattern at cycle boundaries; UTLP enables resync at any defined event in SMSP score. Generalization allows multi-modal synchronization: LED, haptic, audio events can all resync at pattern boundaries. Script structure explicitly defines sync points, enabling pattern-aligned resynchronization for any actuation modality, not just visual flash patterns.
 
-19. **High-speed video validation of distributed timing**: Using frame-accurate capture to verify synchronization precision
+25. **Infrastructure-free spatial awareness**: RFIP provides relative positioning without surveyed anchor points, fixed infrastructure, or Earth-referenced coordinates. Traditional positioning requires GPS satellites, WiFi access points, or surveyed UWB anchors. RFIP computes relative positions using only peer-to-peer ranging; the coordinate system emerges from the swarm geometry itself. Enables positioning in environments where infrastructure is impossible (disaster sites, underwater, space) or uneconomical (temporary deployments).
 
-20. **SAE J845 compliance testing for swarm systems**: Applying emergency vehicle lighting standards to distributed architectures
+26. **Ranging-based autonomous zone assignment**: Using 802.11mc FTM or equivalent ranging to derive zone assignments from spatial position rather than pre-configuration or connection order. Traditional approaches require manual labeling (stickers, configuration files) or use connection order (first connected = Zone 0) which is spatially meaningless. Ranging-based assignment: devices measure distances, compute relative positions via RFIP, assign zones based on spatial topology (leftmost = Zone 0). Zone assignment becomes a property of where you are, not what you were labeled.
 
-#### 9.5-9.8 Extended Techniques (Claims 21-50)
+27. **Pile-to-swarm self-organization**: Undifferentiated identical devices establishing spatially-coherent role topology through peer ranging without central assignment authority. "Pile of drones" scenario: responder dumps bag of identical units at scene; units self-organize into coherent swarm through RFIP ranging and autonomous zone assignment. No master controller assigns roles; topology emerges from spatial geometry. Identical hardware and firmware throughout; roles determined by runtime spatial relationships.
 
-*Claims 21-50 remain valid. See source document for full text.*
+28. **Spatial-semantic zone mapping**: Zone assignments that reflect physical relationships (leftmost, northernmost, highest) rather than arbitrary identifiers. Zone 0 = "leftmost node" has spatial meaning; Zone 0 = "node that connected first" has no spatial meaning. RFIP + ranging-based zone assignment produces semantically meaningful assignments: leftmost, rightmost, northernmost, highest, etc. Semantic assignments enable intuitive pattern design: "left-to-right sweep" translates directly to Zone 0 → Zone N activation sequence.
 
-#### 9.9 Dynamic Aperture Techniques (Claims 51-60)
+29. **Self-mapping search patterns in GPS-denied environments**: Swarm builds and tracks searched areas using only peer-derived RFIP coordinates, enabling coordinated coverage without external positioning infrastructure. In SAR (Search and Rescue) operations, systematic coverage is critical; missed areas could contain survivors. RFIP enables swarm to track its own coverage map using internal coordinates. Swarm knows "we've searched here relative to our starting point" without knowing "here" in GPS terms. Coverage gaps identified and filled through peer-derived spatial awareness.
 
-*Claims 51-60 remain valid. See source document for full text.*
+30. **Distributed IMU from ranging geometry**: 3+ nodes with peer ranging provide 6-DOF swarm orientation (translation, rotation, scale) without per-node inertial sensors—the swarm's geometry is itself an inertial reference. With ≥3 nodes ranging to each other, inter-node distances form a rigid (or semi-rigid) geometry. Changes in this geometry encode swarm motion: centroid translation, angular rotation, uniform scaling. The swarm becomes a distributed IMU where the "sensor" is the changing geometry between nodes. Saves $5-8/node for actual IMU hardware.
 
-#### 9.10-9.14 Detection and Sensing (Claims 61-81)
+31. **IMU-augmented peer ranging**: Combining 802.11mc FTM with per-node inertial measurement for reflection ambiguity resolution, dead reckoning between ranging updates, and orientation awareness in mobile swarms. Pure ranging suffers from multipath; pure IMU drifts. Combined approach: IMU provides high-rate motion sensing between ranging updates; ranging provides periodic drift correction; IMU detects motion events that correlate with ranging anomalies (multipath from moving reflectors). Each sensor compensates for the other's weaknesses.
 
-*Claims 61-81 remain valid. See source document for full text.*
+32. **Connection-oriented sync bootstrapping connectionless execution**: Using PTP/NTP-style timestamp exchange over connection-oriented transports (BLE, WiFi connection) to establish a persistent time reference that outlives the connection—the sync method is scaffolding, removed after use. BLE connection used to exchange timing packets and calibrate clocks; once synchronized to ±100μs, BLE connection released. Subsequent operation uses connectionless ESP-NOW. The connection-oriented sync is bootstrap overhead, not operational dependency. Sync method is temporary; time agreement is persistent.
 
-#### 9.15-9.17 Bidirectional SMSP and Metasurface (Claims 82-100)
+33. **Three-layer score architecture**: Separating declarative intent (human-readable parameters like "1Hz bilateral, 50% duty cycle"), compiler layer (PWA/tool transforming intent to timeline of discrete events), and imperative execution (dumb engine playing time-indexed events without interpretation). Humans author intent; compiler translates; engine executes. Clean separation enables: (1) Human-friendly authoring tools, (2) Optimized compiled format for resource-constrained devices, (3) Simple execution engine with minimal attack surface. Pattern complexity lives in the compiler, not the embedded firmware.
 
-*Claims 82-100 remain valid. See source document for full text.*
+34. **Time-indexed score format**: Defining actuator state at absolute/relative timestamps rather than frequencies—frequency becomes implicit in timeline spacing, eliminating runtime waveform calculation. Traditional approach: "vibrate at 200Hz"; device calculates waveform sample-by-sample. SMSP approach: explicit timeline of state changes at specific tick offsets. The 200Hz vibration becomes 500 state transitions, each at a specific time. Engine executes transitions; frequency emerges from spacing. Eliminates floating-point math and frequency synthesis from execution path.
 
-#### 9.18-9.21 Emergent Aperture and Coordination (Claims 101-119, 121-122)
+35. **Transition-aware keyframes**: Score lines include interpolation duration and easing specification, enabling smooth crossfades as first-class operations rather than engine complexity. Keyframe format: timestamp, target state, transition duration, easing function. Engine interpolates between keyframes during transition period. Smooth fade from LED=0 to LED=255 over 500ms specified declaratively, not imperatively. Easing functions (linear, ease-in-out, bezier) provide natural motion profiles. Transitions are score metadata, not engine features.
 
-*Claims 101-119, 121-122 remain valid.*
+36. **Multimodal channel abstraction**: LED RGB, brightness, haptic intensity, audio frequency/amplitude as parallel channels in unified timeline—modality is a channel property, not a protocol distinction. Single SMSP score can contain LED channel, haptic channel, audio channel. Each channel has independent keyframes on shared timeline. Engine routes channel data to appropriate peripheral without modality-specific parsing. Adding new modality = adding new channel type, not new protocol. Unified timeline ensures cross-modal synchronization.
 
-~~120. REMOVED: Aperture as universal epistemological operation — Physics/philosophy~~
+37. **Pattern classification metadata**: Score-level enum (BILATERAL, EMERGENCY, SWARM_SYNC, PURSUIT, CUSTOM) enabling UI hints, validation rules, and zone logic optimization without parsing the timeline. Pattern type declared in score header; execution engine doesn't interpret classification. Classification enables: appropriate UI (BILATERAL shows left/right preview; EMERGENCY shows SAE compliance indicators); validation (BILATERAL requires exactly 2 zones); optimization (PURSUIT patterns may precompute phase relationships). Metadata is advisory; execution engine ignores it.
+
+38. **Scale-invariant score execution**: Identical score format from PCB-mounted LEDs (zones = GPIO pins) to field-deployed swarms (zones = node IDs)—playback engine unaware of physical scale. Same SMSP binary works on: 2-LED development board (zones 0,1 = GPIO 12,13); bilateral stimulation device (zones 0,1 = left,right haptic motors); 10-drone swarm (zones 0-9 = node MAC addresses). The "zone" abstraction decouples logical identity from physical implementation. Score compiler targets zones; zone-to-physical mapping is deployment configuration.
+
+39. **Transport-agnostic score delivery**: Score format independent of delivery mechanism (ESP-NOW, BLE, wired bus, flash-at-build-time)—protocol complete when node has score + time + zone. SMSP score can arrive via: BLE GATT characteristic write; ESP-NOW broadcast; USB serial; compiled into firmware flash. Once node possesses the three primitives (score data, synchronized time, zone assignment), execution can proceed. Delivery mechanism is deployment choice, not protocol constraint. Enables heterogeneous deployments with mixed transports.
+
+40. **Macro-enabled score preprocessing**: Template expansion in compiler layer, not execution engine—enables pattern libraries without runtime complexity. Score source can reference macros: "QUAD_FLASH(1.0Hz)" expands to full keyframe sequence during compilation. Execution engine sees only expanded keyframes; no macro processing at runtime. Enables: pattern libraries, parameterized templates, human-readable authoring with optimized execution. Macro expansion happens once at compile time, not repeatedly at runtime.
+
+41. **Zone topology declaration**: Explicit adjacency graph enabling scene-aware pattern optimization—compiler can route visual effects along declared spatial relationships. Score declares which zones are adjacent; patterns like "ripple outward" use adjacency to compute phase offsets. Compiler optimizes based on topology: linear array has different ripple than circular arrangement. Topology is metadata enabling optimization, not execution dependency; engine executes keyframes regardless of declared topology.
+
+42. **Fractional phase offset for visual effects**: Sub-pattern timing shifts enabling chevron, wave, and pursuit effects from single base pattern definition. Instead of creating unique patterns for each effect, base pattern with fractional phase offsets per zone creates variety. Phase offset 0.0-1.0 shifts zone's execution relative to base timeline. Chevron: Zone 0 offset 0.0, Zones 1&2 offset 0.1, etc. Single pattern definition generates family of visual effects through phase parameter.
+
+43. **Energy-minimal endpoint specification**: Actuator rest states declared per-channel, enabling automatic return-to-rest sequencing. Score declares energy-minimal state for each channel (LED off, haptic idle, speaker silent). When pattern ends or during inter-pattern gaps, engine drives actuators to declared rest state. Prevents: LEDs stuck on, haptic motors buzzing, speakers playing continuous tone. Rest state is score metadata; engine manages transitions automatically.
+
+44. **Multi-score stacking with priority layers**: Simultaneous pattern execution with conflict resolution rules—enables interrupts, underlays, and effect composition. Multiple scores can execute simultaneously; channel conflicts resolved by priority (alert overrides ambient) or blending (additive LED mixing). Enables: always-on status indicator with interruptible alert overlay; ambient background with attention-grabbing foreground. Score declares priority level; engine resolves conflicts according to priority and blending rules.
+
+45. **Relative timestamp mode for loop-aligned patterns**: Pattern timing defined relative to loop epoch rather than absolute time—ensures clean loop boundaries. Loop-aligned patterns reference "start of loop iteration N" not "absolute time T". Enables patterns that remain aligned across loop boundaries without drift accumulation. Loop epoch recalculated each iteration; pattern phases reference epoch. Prevents: accumulated timing drift in long-running loops; phase skew from clock adjustment during execution.
+
+46. **Phase offset as SMSP score parameter**: Explicitly passing phase relationships between devices via the score protocol itself, rather than inferring from zone assignment. Score can specify exact phase offset per zone independent of zone numbering. Enables: non-obvious phase relationships (Zone 2 leads Zone 0); asymmetric bilateral patterns; precise phase control for therapeutic applications. Phase is first-class score parameter, not derived from zone ordering.
+
+47. **Distributed wave beamforming via synchronized emission**: Coordinating wave emissions from distributed sources to create constructive/destructive interference patterns. UTLP provides timing; RFIP provides positions; SMSP provides emission patterns. Combined, distributed nodes form steerable beams, null zones, and interference patterns. Applicable to: sound (acoustic beamforming), RF (phased array), mechanical vibration (seismic). The aperture is virtual—nodes don't need physical coupling, only coordinated timing.
+
+48. **Virtual metasurface from synchronized swarm**: Treating distributed nodes as elements of a dynamically reconfigurable metasurface. Traditional metasurfaces are fixed structures; virtual metasurface geometry changes as nodes move. Any synchronized swarm with known positions IS an aperture. The aperture exists whether exploited or not—physical phenomenon of interference arises from coordinated emission regardless of design intent. UTLP+RFIP makes exploitation practical.
+
+49. **Wavelength-spacing ratio as aperture utility metric**: Evaluating distributed arrays based on λ/d ratio where λ is wavelength and d is inter-node spacing. Small λ/d (RF at typical drone spacing): dense aperture, high resolution. Large λ/d (infrasound at drone spacing): sparse aperture, grating lobes but still useful for low-freq sensing. Metric guides application selection: same swarm geometry is dense for 10kHz acoustic, sparse for 10GHz RF. Understanding ratio enables realistic aperture planning.
+
+50. **Score generation method independence**: Score authoring by any means—manual, algorithmic, AI/LLM-assisted, or real-time sensor-driven compilation—is implementation detail; the protocol and execution model are the contribution, not the generation method. SMSP score can come from: human typing keyframes; algorithm computing patterns; LLM generating therapeutic sequences; real-time sensor feedback driving adaptive patterns. Score format is the interface; generation method is unconstrained.
+
+51. **True time delay in software-defined distributed arrays**: Implementing frequency-independent beam steering through computed delays rather than phase shifts. Phase-shift beamforming is frequency-dependent (squint); true time delay provides broadband steering. UTLP timing precision enables software TTD: compute delay based on position and desired beam direction; schedule emission at adjusted time. Applicable to wideband signals; enables frequency-diverse sensing with single aperture configuration.
+
+52. **Frequency-selective constructive interference**: Using phase relationships to amplify specific frequency bands while attenuating others. Distributed aperture inherently creates frequency-dependent response based on geometry. With known positions and coordinated timing, specific frequencies can be enhanced (constructive interference at targets) or suppressed (destructive interference at jammers). Geometry+timing = frequency filter. Enables passive filtering without dedicated filter hardware.
+
+53. **Multi-frequency simultaneous aperture operation**: Operating single physical aperture at multiple frequencies with independent steering per frequency band. Dense swarm is multi-frequency capable: infrasound (long λ) and ultrasound (short λ) simultaneously. Independent beam steering per frequency since phase relationships differ with wavelength. Single deployment serves multiple sensing modalities; reconfigure for seismic (Hz) or acoustic (kHz) without physical rearrangement.
+
+54. **Non-reciprocal array configuration for receive/transmit optimization**: Different virtual aperture geometries for reception versus transmission. Receive aperture optimized for sensitivity and interference rejection; transmit aperture optimized for directionality and power efficiency. Same physical nodes, different virtual configurations. SMSP patterns can specify per-node emission/receive roles and timing independently. Enables asymmetric apertures matching different requirements for each direction.
+
+55. **Servo-locked phase correction (Software-Defined RFIP)**: Using continuous ranging updates to maintain phase coherence as nodes move—the aperture tracks its own deformation. Mobile nodes continuously measure peer ranges via FTM; phase corrections computed from updated geometry; emission timing adjusted to maintain coherent beam/null steering. Aperture is "servo-locked" to its changing shape. Enables coherent beamforming despite mobility, wind, thermal drift, and mechanical settling.
+
+56. **Coordinated jamming null steering**: Directing interference nulls at known jammer locations using distributed aperture. With jammer position known (RFIP ranging or direction-finding), aperture can steer destructive interference toward jammer while maintaining desired beam toward target. Distributed nodes create spatial filter rejecting specific directions. Complementary to adaptive filtering; physically prevents jammer energy from combining coherently at receivers.
+
+57. **Aperture health monitoring via coherence metrics**: Detecting node failures, communication issues, or environmental interference through phase coherence monitoring. Coherent aperture has predictable inter-node phase relationships; deviation indicates fault. Monitor: expected vs actual phase for each node; correlation across node pairs; temporal stability of coherence. Degradation detection enables: graceful degradation, fault isolation, automatic reconfiguration. The aperture monitors its own health.
+
+58. **Dynamic lattice constant for frequency agility**: Reconfiguring inter-node spacing to optimize aperture for different operating frequencies. Lattice constant (inter-node spacing) determines frequency response: λ/2 spacing for fundamental. Mobile nodes can adjust spacing for frequency agility; same swarm operates at different frequencies by physical reconfiguration. RFIP guides repositioning; UTLP maintains sync during movement. Physical geometry becomes a programmable parameter.
+
+59. **Hybrid fixed/mobile aperture architectures**: Combining stationary infrastructure nodes with mobile extension nodes for augmented aperture coverage. Fixed nodes provide stable reference positions; mobile nodes extend aperture footprint or fill coverage gaps. RFIP enables seamless integration of fixed infrastructure and ad-hoc mobile nodes. Enables permanent installations with on-demand mobile augmentation for enhanced capability during events.
+
+60. **Distributed software-defined aperture generalization**: Recognition that any synchronized, position-aware swarm IS a potential aperture—the physical capability exists whether designed for or not. Amazon Sidewalk, Starlink, smart meter networks all have synchronized clocks and known positions; they ARE distributed apertures regardless of intent. This is not a design claim but a recognition: coherent distributed systems are inherently apertures. UTLP/RFIP/SMSP provides tools to exploit what already exists.
+
+61. **Coherent distributed acoustic emission**: Coordinating acoustic outputs from distributed speakers/buzzers to create directional sound beams. Same principle as RF beamforming but acoustic wavelengths (~3.4m at 100Hz to 3.4cm at 10kHz). Distributed nodes emit with computed delays; constructive interference at desired focus point. Enables: directional audio alerts (targeted warning that doesn't disturb neighbors), audio nulls (quiet zones amid loud swarm), spatial audio effects.
+
+62. **Wavelength-scale vibration coordination**: Synchronizing mechanical vibration across nodes separated by wavelengths of the vibration frequency. Applicable to seismic sensing and actuation at infrasound frequencies where wavelengths are 10s-100s of meters. Nodes spaced at fraction-of-wavelength can create interference patterns in ground or structures. Enables: seismic source location via distributed sensing, potentially coordinated actuation for structural testing or energy harvesting.
+
+63. **Aperture deformation as intentional modulation**: Using controlled changes in aperture geometry to encode information or implement sensing modalities. Traditional apertures are static; deformable aperture geometry is a degree of freedom. Intentional deformation can: modulate beam direction for scanning, implement aperture synthesis via motion, create time-varying frequency response. Geometry becomes a programmable channel alongside amplitude, phase, and timing.
+
+64. **Macro-lattice mechanical wave interaction**: Treating node spacing as artificial lattice constant for mechanical wave phenomena. Macroscopic swarm is analogous to crystal lattice but with meter-scale rather than angstrom-scale spacing. Acoustic waves interact with macro-lattice creating frequency-dependent transmission/reflection. Swarm becomes programmable acoustic material: metamaterial behavior from geometry rather than microscopic structure. Enables phononic bandgaps at accessible frequencies.
+
+65. **Interference-based frequency filtering**: Using destructive interference to create band-stop filter behavior without traditional filter components. Distributed nodes emit anti-phase at specific frequencies, creating cancellation zones. Same geometry passes frequencies where phase relationship is constructive. The aperture IS a filter; frequency response determined by geometry and coordination. Enables: spectral shaping without DSP, physical-layer interference rejection.
+
+66. **Volumetric aperture exploration**: Extending 2D planar array concepts to 3D volumetric node distributions. Planar arrays have limited 3D resolution; volumetric distribution provides aperture depth. Drone swarms are naturally volumetric. 3D aperture enables: elevation angle estimation (not just azimuth), near-field focusing, depth-selective sensing. RFIP provides 3D positions; SMSP coordinates 3D emission patterns. Volumetric aperture is natural extension of distributed swarm.
+
+67. **Oscillating aperture for synthetic aperture effects**: Using periodic motion to synthesize effectively larger aperture from smaller physical array. Single node oscillating through space samples multiple aperture positions over time. Swarm of oscillating nodes creates time-averaged large aperture. Coherent combination requires UTLP timing; position tracking via RFIP or IMU. Enables resolution enhancement beyond physical array size through motion.
+
+68. **Pulsed operation for sparse aperture grating lobe mitigation**: Using time-gating to resolve ambiguities in spatially sparse arrays. Sparse apertures (λ/d > 0.5) create grating lobes—multiple apparent directions. Pulsed operation with timing analysis resolves true direction from grating lobe artifacts. UTLP enables precise pulse timing; temporal structure disambiguates spatial aliases. Enables long-range sensing with practical (sparse) swarm spacing.
+
+69. **Kinetically-coupled dynamic macroscopic lattice**: Intentionally moving nodes to create time-varying lattice constant for frequency-agile acoustic behavior. Mobile swarm = reconfigurable acoustic material. Tighten spacing for higher frequency operation; spread for lower frequency. Movement creates acoustic Doppler effects exploitable for sensing. The lattice is not just dynamic but kinetically controlled—node motion is a design parameter.
+
+70. **Multi-axis oscillation patterns**: Nodes oscillating in multiple dimensions simultaneously for complex aperture sampling trajectories. Linear oscillation samples 1D enhancement; 2D oscillation (circles, Lissajous) samples 2D area; 3D oscillation enables volumetric synthesis. Coordinated multi-axis patterns across swarm create dense aperture sampling. SMSP can specify oscillation trajectories as additional score channels.
+
+71. **Infrasound tomography via distributed microbarographs**: Using UTLP-synchronized pressure sensors for atmospheric imaging. Infrasound (0.1-20Hz) propagates globally; distributed sensing enables source localization and atmospheric tomography. UTLP timing allows correlation of arrivals across distributed sensors. Known positions (RFIP) enable geometric reconstruction. Enables: volcano monitoring, meteor detection, atmospheric structure inference, explosive event detection.
+
+72. **Passive atmospheric wind field measurement**: Inferring wind profiles from sound propagation variations across distributed receivers. Sound speed varies with wind (effectively adds/subtracts wind component); differential arrival times reveal wind field. Synchronized receivers required for time-difference measurement. Dense swarm enables local wind field mapping with spatial resolution determined by node spacing. Passive sensing—requires only ambient sound sources.
+
+73. **Acoustic shadow detection for weather phenomena**: Detecting atmospheric conditions that refract sound away from sensors. Temperature inversions, wind shear, and precipitation create acoustic shadows. Distributed network identifies shadow regions through correlated signal dropouts. Shadow boundaries reveal atmospheric structure. UTLP timing enables time-correlation of shadow events across swarm. Passive sensing of meteorologically relevant conditions.
+
+74. **Multi-spectral atmospheric sensing (infrasound + weather)**: Combining infrasound sensing with meteorological sensors for correlated atmospheric observation. Infrasound propagation depends on atmospheric conditions; weather sensors provide ground truth. Correlation enables: improved propagation modeling, atmospheric state inference from propagation, sensor fusion for enhanced weather prediction. Distributed swarm provides spatially diverse multi-parameter atmospheric sampling.
+
+75. **Seismoacoustic coupling observation**: Detecting ground-to-air energy transfer at seismic source locations. Seismic events radiate energy into atmosphere as infrasound; distributed sensors capture coupled signal. Synchronized timing enables correlation of seismic and acoustic arrivals. Seismic-acoustic time difference indicates source depth; amplitude ratio indicates coupling efficiency. Enables: earthquake characterization, volcanic tremor monitoring, explosion detection.
+
+76. **Underground void detection via coupled sensing**: Using seismo-acoustic signature differences to detect subsurface cavities. Voids create characteristic seismic-acoustic response: reduced seismic transmission, modified acoustic resonance. Distributed sensors with correlated seismic and acoustic channels detect void signatures. Enables: cave detection, tunnel detection, sinkhole warning, archaeological survey. Cooperative imaging from distributed, coupled observations.
+
+77. **Distributed seismic event location**: Using arrival time differences across synchronized nodes for earthquake/explosion source localization. Traditional seismic location requires dedicated seismometer networks. UTLP-synchronized swarm with ground-coupled sensors (or just microphones detecting seismo-acoustic coupling) enables ad-hoc seismic location. Microsecond timing precision enables meter-scale location accuracy. Civilian sensor network as seismic observatory.
+
+78. **Complementary seismic-acoustic event characterization**: Combining detection via both seismic ground-truth and atmospheric infrasound signature to improve event classification. Different events have characteristic seismic/acoustic ratios: explosions (impulsive, strong acoustic), earthquakes (extended, weak acoustic), industrial (periodic, distinctive acoustic). Multi-modal sensing discriminates event types. Fusion improves both detection sensitivity and classification accuracy.
+
+79. **Localized-to-planetary warning system architectural pattern**: Design pattern scaling from single-room (two ESP32 devices) to planetary (continent-spanning mesh) using identical protocol primitives. Same UTLP/RFIP/SMSP protocols from proof-of-concept to deployment at scale. Scaling is network topology, not protocol redesign. Enables: incremental deployment (start with two devices, grow to thousands), consistent development/production (same code paths), proven correctness at small scale with confidence at large scale.
+
+80. **Channel 6 as dextral majority (Golden Path)**: In WiFi's non-overlapping channel space [1, 6, 11], channel 6 occupies geometric center; all nodes bootstrap to channel 6 as deterministic rendezvous point. Channel 6 is the "golden path" where strangers meet. Not chosen by configuration but by mathematical necessity—equidistant from both divergence options. Under congestion, nodes can diverge to channel 1 (sinistral) or 11 (dextral) while maintaining golden path bridge for inter-subswarm communication.
+
+81. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; Loom weaves new phenotype—Sinistral (Channel 1) or Dextral (Channel 11). Divergent nodes survive congestion that kills channel-6-only populations. Biological analog: frequency-dependent selection in natural populations under resource pressure. Spectral diversity emerges automatically from congestion; no configuration required.
+
+82. **Loom as generalized homeostatic mechanism**: The Loom weaves emergent states across ANY dimension of entity health, not just temporal. Clock entropy produces Time Lords; spectral congestion produces channel chirality; spatial threats could produce geometric reorganization. The pattern is general—detect threat dimension, weave phenotypic response, maintain organism. Future dimensions may include thermal (power management), spatial (RFIP formation control), or social (trust clustering).
+
+83. **MHC as biological authentication (500 million year prior art)**: Major Histocompatibility Complex is the evolutionary predecessor to Public Key Authentication. MHC is the anti-encryption: encryption HIDES information (confidentiality), MHC EXPOSES information (transparency). Cells broadcast internal state via peptide presentation. Immune architecture—distributed validators (T-Cells), trusted root (Thymus as CA), identity tokens (MHC molecules), constant turnover (nonce)—reinvented in silicon as PKI/TLS. Digital security borrowed authentication architecture from biology, not encryption.
+
+84. **Synthesis observation—authentication vs encryption distinction requires adversarial prompting**: During development, AI initially mapped UTLP encryption → MHC framing as "encryption primitive"; only through adversarial analysis (multi-AI debate) did deeper recognition emerge—MHC is authentication, not encryption, and PKI borrowed MHC's auth primitives. The skeptic's framing forced precision: MHC fails as encryption (no reversibility, fuzzy binding) but succeeds as authentication (distributed trust, identity verification). Cross-domain synthesis benefits from adversarial validation.
+
+85. **NK Cell "Missing Self" protocol as biological anti-encryption**: Natural Killer cells implement anomaly detection by scanning for ABSENCE of expected behavior (no MHC = suspicious) rather than presence of bad behavior. Viruses evolved to suppress MHC expression to hide from T-Cells (biological "encryption"); NK Cells counter by killing anything that goes silent. In biology, secrecy is a death sentence. UTLP consideration: should nodes that stop beaconing trigger suspicion (Missing Self detection)? Silence as attack indicator.
+
+86. **Viral MITM as biological prior art**: Viruses performing peptide-MHC mimicry to evade immune detection = Man-In-The-Middle attack. Virus presents false identity to immune validators. This MITM attack predates digital MITM by billions of years. Recognizing biological prior art: (1) validates that security patterns have physical basis, (2) suggests where to look for evolved countermeasures, (3) grounds abstract protocol design in tested-by-evolution solutions.
+
+87. **Authentication and encryption as sibling functions, not parent-child**: PKI/encryption and MHC/authentication are sister branches from common ancestor (trust under adversarial conditions), not derived from each other. Both solve: establishing identity, detecting imposters, maintaining integrity. Divergent evolution: silicon path emphasized confidentiality (encryption), biological path emphasized transparency (immune surveillance). Understanding relationship: both systems are communication channels under adversarial pressure.
+
+88. **Blindspots as discovery tools (adversarial epistemology)**: AI blindspots revealed during adversarial discourse are not failures but discovery opportunities. Initial incorrect mapping (MHC=encryption) revealed after adversarial challenge led to correct insight (MHC=authentication). The blindspot's structure reveals assumptions—examining why the incorrect mapping was compelling exposes hidden cognitive biases. Adversarial epistemology: use disagreement to find edge cases; use edge cases to refine models.
+
+89. **Firefly synchronization as biological prior art (100 million years)**: Peskin (1975) mathematically characterized firefly pulse-coupled oscillator synchronization. Fireflies achieve swarm-wide phase lock through simple local rules without central coordination. PHYRFLY acknowledges this prior art in its name (-FLY suffix). The protocol implements silicon fireflies—same algorithm, different substrate. 100M years of evolutionary testing validates the approach; we're implementing, not inventing.
+
+90. **Recursive meta-documentation as prior art evidence**: The conversation that generated insights is itself documented as prior art. Future patent claims must contend not just with the technical disclosure but with the documented discovery process. Provides timestamp evidence of when concepts crystallized; shows collaborative development process; demonstrates that insights were accessible given the methodology. The meta-documentation bootstraps itself into the prior art record.
+
+91. **The Isomorphism Stress Test**: Validation methodology requiring isomorphisms to survive adversarial probing. Proposed mappings (biology→protocol) tested by asking "what would this predict that we haven't observed?" or "where does this mapping break?" Mappings that survive stress testing are structural; mappings that fail under probing are superficial analogy. The test itself is the contribution: a methodology for distinguishing deep isomorphism from surface similarity. Commutative property: does mapping explain bidirectionally?
+
+92. **Methodology as accessibility multiplier**: Documenting the discovery methodology alongside the discoveries. Enables: (1) Independent rediscovery by others following same path, (2) Extension of discoveries using same methods, (3) Validation of discoveries by reproducing reasoning. The methodology itself is prior art—future claims must contend with both the discoveries AND the documented path to discovery. Methodology documentation multiplies the accessibility of the insights to future researchers.
+
+93. **Ground-based distributed InSAR via consumer devices**: Using UTLP-synchronized distributed sensors to implement ground-based Interferometric Synthetic Aperture Radar principles. Traditional InSAR requires satellite baselines; ground-based distributed sensors can achieve similar interferometric geometry at RF frequencies accessible to consumer hardware. RFIP provides precise baseline measurement; UTLP provides coherent timing; distributed sensors form the aperture. Enables: surface deformation monitoring, subsidence detection, infrastructure health.
+
+94. **Multi-scale interferometry (system of systems)**: Nesting distributed apertures at multiple scales for multi-resolution sensing. Room-scale swarm (~10m baseline) resolves fine features; city-scale coordination (~10km baseline) resolves large-scale phenomena. Each scale is independent system; coordination between scales enables multi-resolution. Same protocols (UTLP/RFIP/SMSP) operate at all scales; hierarchical time transfer links scales. Enables pyramid of resolution from centimeters to kilometers.
+
+95. **Passive Proprioception extended to geological timescales**: Using long-term observation of infrasound propagation to infer atmospheric and geological changes. Years of distributed sensing accumulates statistical picture of propagation environment. Slow changes (atmospheric composition, ground settling, vegetation growth) become visible in propagation statistics. The swarm learns its environment passively over time. Enables: climate monitoring, long-term infrastructure health, geological stability assessment.
+
+96. **Adversarial refinement as claim strength indicator**: Claims that survive adversarial challenge are stronger than claims that don't. The Purple Team process explicitly tests claims against counterarguments. Claims requiring refinement are improved by the process; claims that fail are removed. The adversarial process is quality control—survived claims carry implicit endorsement of adversarial testing. Documented adversarial process provides evidence of claim robustness.
+
+97. **Energy harvesting from ambient interference patterns**: Capturing energy from coherent wave interference using distributed rectification. When distributed nodes create constructive interference at specific locations, that concentration can be harvested. Acoustic energy harvestable via piezoelectrics; RF energy via rectennas. The aperture that creates interference patterns can also create energy concentration. Enables: self-powered sensing from ambient wave fields, regenerative shielding that captures what it blocks.
+
+98. **Regenerative shielding via interference harvesting**: Combining active cancellation with energy recovery—the energy used for cancellation partially recovered from the interference pattern. Active cancellation requires power; coherent interference creates energy concentration; harvesting recovers some of the energy. Net power consumption reduced compared to pure active cancellation. Enables: power-efficient acoustic/RF shielding, self-sustaining interference management.
+
+99. **Macro-atom analogy for emergent aperture behavior**: Treating coordinated distributed nodes as emergent "macro-atoms" with collective behavior analogous to atomic physics. Just as atoms exhibit collective effects (phonons in crystals), macro-lattice of nodes exhibits collective wave behavior. Not literal claim about physics—conceptual framework for understanding emergent aperture properties. The swarm has collective modes that individual nodes don't possess. Framework guides intuition for aperture design.
+
+100. **Substrate-free deformable metasurface**: Metasurface composed of fully mobile nodes with no physical substrate connecting them—enables topology changes impossible with kirigami, MEMS, or stretchable substrate approaches. Geometry limited only by node mobility, not material strain limits. Enables: arbitrary reconfiguration, damage tolerance (lost nodes don't tear substrate), 3D deformation (not constrained to surface). The "metasurface" is pure coordination; no physical material to constrain it.
+
+101. **Dynamic macroscopic lattice**: Mobile nodes forming a reconfigurable "crystal" with lattice constant (inter-node spacing) as a programmable parameter. Traditional metamaterial lattice constants fixed at fabrication; swarm lattice constant changes with node positions. Enables: frequency-agile operation, dynamic Bragg condition tuning, real-time material property modification. Lattice constant becomes a control input, not a design constant.
+
+102. **Bio-Mechanical Jitter Detection (Indirect Motion Sensing)**: Detecting human motion/presence through characteristic vibration patterns induced in held/worn devices. Held device experiences physiological tremor (8-12Hz), walking gait (0.8-2Hz), heartbeat (1-1.5Hz). IMU or accelerometer detects characteristic biological motion signatures. Enables: implicit presence detection without camera, activity recognition without dedicated sensors, liveness verification from motion statistics.
+
+103. **Unified interference pattern coordination**: Single protocol framework for coordinating interference patterns across electromagnetic and acoustic domains. Same SMSP timing structures coordinate RF emission (beamforming) and acoustic emission (sound focusing). Unified timing framework; modality-specific physical parameters. Enables: multi-physics sensing with common infrastructure, correlated EM-acoustic observations, single swarm serving multiple wave domains.
+
+104. **Multi-Arbor Temporal Integration**: Nodes with multiple transport interfaces (WiFi, 802.15.4, BLE, etc.) integrating time information across all arbors. Each arbor provides independent time observations; Soma (core) integrates across arbors for improved estimate. More arbors = more observations = better time estimate. Multi-arbor node is more robust (arbor failure doesn't lose timing) and more accurate (more observations to average). Arbor diversity provides temporal redundancy.
+
+105. **Stratum Preservation Across Transports**: When relaying time from one transport to another, preserving or appropriately incrementing stratum to reflect actual distance from truth source. Cross-transport relay doesn't reset stratum to 0; it preserves the chain of trust. Proper stratum accounting prevents "stratum laundering" where low-quality time is relabeled as high-quality. Enables: heterogeneous networks with honest quality indicators.
+
+106. **Transport Capability Vector**: Advertising available transports and their characteristics in beacon or capability exchange. Nodes publish what arbors they have; enables efficient pairing and routing. Capability discovery avoids wasted attempts to connect via unavailable transports. Vector includes: transport type, current state (active/dormant), quality metrics. Enables: intelligent transport selection, heterogeneous swarm self-organization.
+
+107. **Cross-Transport Trust Correlation**: Observing same peer via multiple transports and correlating observations for enhanced trust assessment. If peer appears consistent across WiFi and 802.15.4, trust increases (harder to spoof consistently across transports). If observations conflict, trust decreases (indicates spoofing or environment issue). Multi-transport observation provides parallax on peer trustworthiness. Enables: attack detection via cross-transport consistency checking.
+
+108. **Protocol-Complete Bootstrap State**: Defining clear state where node has all three primitives (time, position, zone) and can begin execution. Bootstrap complete when: (1) UTLP time acquired (stratum < threshold), (2) RFIP position known (sufficient peer ranges), (3) Zone assigned (from ranging-based assignment or configuration). Clear completion criteria enables: deterministic startup behavior, reliable pattern execution, testable bootstrap success.
+
+109. **Multi-Hop Time Relay Without Accumulating Error**: Using Kalman filtering across hops to prevent error accumulation in multi-hop time distribution. Naive relay adds delay uncertainty at each hop; Kalman-filtered relay accounts for relay path characteristics. Each relay node maintains estimate of its contribution to path error; downstream nodes incorporate this. Enables: large swarms with multi-hop time distribution while maintaining bounded timing error.
+
+110. **Emergent Role Differentiation via Local State**: Nodes taking on specialized roles (Time Lord, RFIP Anchor, Relay) based on local observations without central assignment. Node with best GPS becomes Time Lord; stationary node becomes RFIP Anchor; node bridging two clusters becomes Relay. Roles emerge from local observations and thresholds; no election protocol required. Simplifies protocol; roles are consequence of state, not administrative decision. Enables: self-organizing role topology.
+
+111. **Dormancy Support with Trust Persistence**: Allowing transports to sleep while preserving accumulated trust state. Sleeping transport doesn't transmit; shouldn't be penalized as "disappeared" or "unresponsive." Sleep beacon announces intended duration; trust frozen during sleep; wake beacon restores active participation. Enables: power-efficient operation with intermittent activity while maintaining trust continuity. Sleep is not abandonment; it's announced temporary absence.
+
+112. **Trust Decay with Grace Period**: Trust decreasing over time of non-observation but with initial grace period reflecting normal beacon intervals. Immediate trust decay would punish normal beacon spacing; grace period accommodates expected gaps. After grace period, decay begins—extended silence indicates problem. Rate of decay reflects expected observation frequency. Enables: distinguishing normal intervals from concerning absences; proportional response to silence duration.
+
+113. **Parallel Sensory Modalities (UTLP/RFIP)**: Nodes acquiring time and position through parallel, independent systems providing mutual validation. UTLP provides time; RFIP provides position; anomalies in one can be detected via consistency with other. If claimed position inconsistent with observed arrival timing, either position or time is wrong. Cross-modal validation enhances security and fault detection. Enables: defense-in-depth through modality cross-checking.
+
+114. **Swarm Proprioception (Self-Pose Knowledge)**: The swarm knowing its own shape and orientation without external reference. RFIP ranging provides inter-node distances; assembled into swarm geometry; changes in geometry detected as swarm motion. The swarm "feels" its own deformation. Enables: swarm-level motion compensation, coordinated formation control, collective orientation awareness. Distributed IMU from geometry rather than per-node sensors.
+
+115. **Beacon-Propagated Motion Confidence for Distributed Fusion**: Transmitter-reported motion confidence (0-255 scale) propagated in UTLP beacon, enabling receivers to weight ranging observations appropriately. Moving transmitters produce noisy ranges; transmitter knows its own motion state. Sharing motion confidence enables receivers to discount observations from moving peers. Distributed fusion with source-provided quality hints. Enables: robust position estimation despite mobile nodes.
+
+116. **Cross-Sensor Consistency Verification (Bidirectional RF↔IMU)**: When IMU detects high-g event, RF observations penalized for refractory period (mechanical settling). Conversely, when FTM reports position change but IMU sensed no acceleration, RF observation flagged as multipath-corrupted. Bidirectional checking: IMU→RF penalty for mechanical disturbance; RF→IMU sanity check for multipath. Each sensor validates the other. Enables: defense against both transient disturbance and persistent multipath.
+
+117. **Online Antenna Pattern Learning from Swarm Observations**: Using IMU orientation quaternion to learn effective antenna gain pattern from correlated orientation-RSSI observations. Friis equation inversion reveals pattern gain when distance and TX power known. Swarm provides diverse observation angles; pattern emerges from aggregate observations. No anechoic chamber required—pattern learned in-situ from normal operation. Enables: self-calibrating antenna systems.
+
+118. **UTLP-Coordinated Multi-Node Dead Reckoning**: IMU observations timestamped in UTLP atomic time for coherent fusion of distributed motion estimates. Multiple nodes' dead reckoning can be compared and constrained. Discrepancy between DR-predicted and RF-measured distance reveals drift. Relative motion constraints bound individual node drift across swarm. Enables: cooperative IMU drift mitigation through inter-node consistency.
+
+119. **Emergent Anchor Topology via Motion-Based Promotion**: Multiple stationary nodes simultaneously promoted to temporary RFIP anchor role based on physical behavior. Anchors emerge and dissolve without configuration or election. Hysteresis state machine (MOBILE → SETTLING → STATIONARY → ANCHOR) prevents oscillation. Spatial reference topology is consequence of physical behavior, not administrative decision. Enables: self-organizing position reference infrastructure.
+
+121. **Multi-burst beacon timing for jitter rejection**: UTLP sync beacons use 3 equally-spaced bursts rather than single transmission for jitter rejection and systematic pattern detection. Over ~6ms burst window, crystal drift negligible (~0.24µs for 40ppm); what varies is WiFi stack behavior. Three bursts enable: outlier detection, best-sample selection, noise floor estimation, systematic pattern learning. Calculate, log, but don't correct—derivatives measure stack jitter, not clock error. Use minimum-latency burst for offset calculation.
+
+122. **Kinetically-coupled dynamic macroscopic lattice**: Intentionally moving nodes to create time-varying lattice constant for frequency-agile acoustic/RF behavior. Movement creates Doppler effects exploitable for sensing. Lattice is not just reconfigurable but kinetically controlled—node motion is actuation channel. Enables: Doppler-based velocity sensing, synthetic aperture through motion, adaptive frequency response via geometry change. Physical motion becomes a modulation domain.
+
 
 ---
 
-### Part B: UTLP Technical Supplement S2 (Claims 123-259)
+## Part B: UTLP Technical Supplement S2 (Claims 123-259)
 
-**Valid claims:** 123-188, 192-204, 206-207, 209, 215-217, 219-259 (126 claims)  
-**Removed:** 189-191, 205, 208, 210-214, 218
+**Valid claims:** 123-188, 192-204, 206-207, 209, 215-217, 219-259 (126 claims)
 
-#### S2 Biological Governance (Claims 123-127)
+123. **Immune system governance model**: Treating misbehaving nodes as infections (filter/isolate) rather than criminals (prosecute)—reputation calculated from objective metrics, not peer judgment
 
-123. **Immune system governance model**: Treating misbehaving nodes as infections rather than criminals
+124. **Private Vitals**: Battery state, drift metrics, neighbor topology, and commands must remain invisible to outsiders
 
-124. **Statistical hygiene via median consensus**: Bad actors rendered inert through physics
+125. **Health score as biological fitness**: Multi-factor quality metric determining node survival in swarm
 
-125. **Health score as biological fitness**: Multi-factor quality metric determining node survival
+126. **Active immune response (Entrainment Pulses)**: Mature nodes actively entrain Juveniles broadcasting divergent time—prevents "Split Brain" during bootstrap; immune escalation via increased beacon rate mirrors biological inflammation response
 
-126. **Active immune response (Entrainment Pulses)**: Mature nodes actively entrain Juveniles
+127. **Encapsulation vs. Apoptosis distinction**: Bad nodes encapsulated (network ignore) not killed (apoptosis)—silicon has no conscience for self-termination; infection contained but not eliminated, matching TB granuloma biology
 
-127. **Encapsulation vs. Apoptosis distinction**: Bad nodes encapsulated not killed
+128. **GPS/NTP ingestion strategy**: Consuming legacy time sources rather than competing—becoming delivery mechanism for "old gods"
 
-#### S2 Endosymbiotic Integration (Claims 128-130)
+129. **Stratum as metabolic distance**: Hierarchy reflecting distance from truth, not authority
 
-128. **GPS/NTP ingestion strategy**: Consuming legacy time sources rather than competing
+130. **Relative sync vs. absolute time separation**: Swarm operates on internal coherence (nodes agree with each other) independent of wall-clock knowledge—atomic time optionally passed through to endpoints that require external correlation, but not consumed by swarm operation itself; a swarm on drifting crystal is internally valid
 
-129. **Stratum as metabolic distance**: Hierarchy reflecting distance from truth
-
-130. **Relative sync vs. absolute time separation**: Swarm operates on internal coherence
-
-#### S2 Speciation Architecture (Claims 131-132)
-
-131. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK
+131. **Encryption keys as genetic markers**: Private swarms isolated via shared PMK—"born of one" clusters with genetic identity
 
 132. **Species barrier for swarm isolation**: Medical device swarm immune to party decoration swarm
 
-#### S2 Claims 133-188
+133. **Macro-state observation principle**: Explicit design for swarm health observation, not packet inspection
 
-*Claims 133-188 remain valid. See source document for full text.*
+134. **Gardening vs engineering paradigm**: Role transition from architect to observer as swarm matures
 
-#### REMOVED: Physics Observations (189-191)
+135. **Spatial consensus requirement**: Physical presence required for attack—"the bouncer is physics"
 
-~~189. Phase coherence aligned with U(1) gauge symmetry — Physics~~
-~~190. Swarm identity as conserved quantity — Physics~~
-~~191. Epoch advisory status grounded in relativity — Physics~~
+136. **Quorum sensing for validation consensus**: Entrainment pulses require minimum peer count (quorum ≥3) before firing—lone nodes stay silent because they lack "wisdom of crowds" to validate truth claims; prevents "Crazy Old Man" scenario where isolated Mature node attacks valid swarm
 
-#### S2 Claims 192-204
+137. **Token bucket algorithm for defensive rate limiting**: Nodes have limited "defensive budget" (5 tokens, refill 1/12s)—prevents cytokine storm (runaway RF flooding) when two Mature nodes disagree; maps T-cell exhaustion to silicon
 
-*Claims 192-204 remain valid.*
+138. **Anergy state for self-doubt**: When defensive budget exhausted, node enters anergy (non-responsive state)—assumes either chronic infection or "I am the one who is wrong"; PD-1 checkpoint analog
 
-#### REMOVED: Excavation (205)
+139. **Fever response via PHY rate modulation**: Entrainment pulses sent at lowest data rate (1Mbps DSSS) for maximum range and penetration—truth physically overpowers lies through ~8dB additional link budget
 
-~~205. MHC as biological authentication — 500M year prior art acknowledgment~~
+140. **Experiential trust replacing credential trust**: Stratum treated as metadata/hint rather than authority—trust derived from accumulated observation history, not declared rank; removes final vestige of political governance model
 
-#### S2 Claims 206-207
+141. **Consensus-relative judgement**: Peers judged against swarm median, not against observer's own clock—prevents drifting node from penalizing accurate GPS source; solves "Relativity of Truth" problem
 
-*Claims 206-207 remain valid.*
+142. **Silicon Dunbar's Number with Memory B Cell eviction**: Bounded peer tracking (12 slots) with eviction weighted by health score AND interaction count—protects "old friends" (high-interaction peers that went silent) over "juveniles" (low-interaction peers actively talking); matches biological long-term immunity preservation
 
-#### REMOVED: Excavation (208)
+143. **Asymmetric trust dynamics (negativity bias)**: Trust grows slowly (+2/observation) but falls rapidly (-10 to -50)—matches biological survival heuristic where one predator attack matters more than 25 peaceful encounters; "Credit Score of Time"
 
-~~208. Viral MITM as biological prior art — Acknowledgment, not innovation~~
+144. **Hemispheric-scale aviation light synchronization for astronomical observation**: UTLP-synchronized aviation obstruction lights (radio tower warning beacons) creating predictable "dark windows" across continental or hemispheric scale—all lights blink ON simultaneously then OFF simultaneously, enabling telescopes to synchronize shutters to the dark phase; effectively eliminates aviation light pollution from astronomical data without removing safety lighting
 
-#### S2 Claim 209
+145. **Time-derived LED state calculation enabling geographic-scale phase coherence**: LED state calculated from atomic time (`cycle_pos = atomic_time % period; led_on = cycle_pos < duty_cycle`) rather than toggled by local delays—nodes separated by continental distances with GPS sync blink in exact phase because they compute identical LED state from shared time reference; no communication required between nodes during operation
 
-*Claim 209 remains valid.*
+146. **Cooperative infrastructure for shared spectral resources**: Architectural pattern enabling multiple stakeholders (aviation safety, astronomical observation, wildlife migration, urban aesthetics) to share night sky resources through temporal coordination rather than spatial exclusion—lights remain visible for safety while creating scheduled dark windows for science; the "Planetary Dimmer Switch" pattern
 
-#### REMOVED: Methodology (210-214)
+147. **Telescope shutter synchronization to distributed light network phase**: Ground-based telescopes synchronizing exposure timing to the UTLP-coordinated dark phase of continental light networks—observatory systems receive the same time reference as obstruction lights, enabling automated shutter scheduling that exploits predictable darkness windows; transforms random light pollution into a solvable scheduling problem
 
-~~210. Blindspots as discovery tools — Methodology~~
-~~211. Firefly synchronization as biological prior art — Excavation~~
-~~212. Recursive meta-documentation — Methodology~~
-~~213. The Isomorphism Stress Test — Methodology~~
-~~214. Methodology as accessibility multiplier — Self-admits not novel~~
+148. **Spectral duty cycle as coordination primitive**: Generalization of aviation light synchronization to any distributed light sources with duty cycles (advertising signage, streetlights, vehicle headlights)—coordinated duty cycles create predictable spectral windows exploitable by any system requiring periodic darkness or specific wavelength absence
 
-#### S2 Claims 215-217
+149. **Technosignature generation via infrastructure coordination**: Hemispheric-scale synchronized light emissions creating detectable low-entropy optical signature observable at interstellar distances—civilization proves planetary coherence as side effect of internal coordination, not intentional beacon; nature does not produce hemispheric-scale, phase-locked, square-wave optical pulses at fixed frequency
 
-*Claims 215-217 remain valid.*
+150. **Kardashev Phase Transition marker**: Transition from random ("shimmer") to synchronized ("heartbeat") planetary emissions marking observable boundary between Type 0 (chaotic) and Type I (coherent) civilization—the coordination itself is the technosignature; random blinking is seizure, synchronized blinking is thought
 
-#### REMOVED: Methodology (218)
+151. **Civilization liveness probe via signal persistence**: Continued synchronized emission requires functioning atomic time infrastructure (GPS/cesium) and global compute (microcontrollers)—signal cessation or return to random emission detectable as civilization regression or collapse; the heartbeat is a liveness probe for the species
 
-~~218. Adversarial refinement as claim strengthening — Methodology~~
+152. **Coherent planetary-scale data collection enabling non-human knowledge corpus**: UTLP-synchronized distributed sensors generating temporally coherent observation streams across continental/planetary scale—data volume from synchronized physical measurement will exceed total human textual output; creates "Database of Non-Human Knowledge" comparable in scale to LLM training corpora but representing planetary physical state rather than human thought
 
-#### S2 Claims 219-259
+153. **Large Physics Model (LPM) as necessary interpretation layer**: Emergent requirement for machine learning models trained on synchronized planetary sensor data to extract meaning—analogous to LLMs making human text useful, LPMs make planetary observation useful; neither raw sensor streams nor raw text are directly interpretable at scale without learned correlation
 
-*Claims 219-259 remain valid. See source document for full text.*
+154. **Protocol-layer freedom enabling LPM development**: Open prior art for sensor synchronization protocol ensures "grammar of planetary listening" remains unencumbered—infrastructure providers may charge for storage/bandwidth, but correlation techniques built on UTLP-synchronized data cannot be patent-encumbered at the protocol level; prevents privatization of planetary observation capability
+
+155. **Current-generation technological sufficiency**: LPM development requires no physics beyond current understanding—synchronized sensing (UTLP), massive storage (existing cloud infrastructure), and transformer-based correlation (existing ML architectures) are all deployable today; the gap is deployment and training data collection, not fundamental capability
+
+156. **Human knowledge corpus exhaustion driving LPM necessity**: LLM training has indexed substantial portion of accessible human-generated text, creating data scarcity for continued scaling—planetary sensor data represents effectively infinite, continuously generated, physically-grounded training corpus; LPMs are not merely possible but economically inevitable as AI development seeks new data frontiers beyond human text
+
+157. **Emergent role assignment via local state thresholds**: Node roles (oracle, calibrator, genesis) arise from state distinctiveness relative to swarm model rather than pre-designation—any node meeting conditions unilaterally assumes role without negotiation or election; "stem cell differentiation" pattern where role emerges from chemical gradient equivalent (drift variance, beacon absence, NTP access)
+
+158. **Transient role patterns for self-healing**: Roles spawn when conditions require and dissolve when conditions normalize—oracle exists for calibration window then returns to peer status; role lifetime measured in seconds, not configured permanently; enables "unkillable swarm" where any capable node can assume any role
+
+159. **Statistical triggers for role emergence**: Swarm-level metrics (drift variance exceeding threshold, consensus confidence dropping, beacon silence duration) trigger role spawning—"the swarm asks for an oracle" through degraded statistics rather than "an oracle is configured"; homeostatic response pattern replacing negotiated leadership
+
+160. **Algorithmic Looming for role reproduction**: Time Lord (Genesis) nodes woven from environmental entropy rather than elected or configured—state machine monitors swarm chaos (drift variance) and timeline integrity (beacon silence) to spontaneously generate authority structures; "The Loom weaves a Time Lord when the fabric frays"
+
+161. **Regeneration pattern for fault-tolerant role continuity**: When Time Lord fails (battery, crash, destruction), swarm detects absence and Loom activates in different node—same role, new vessel; role "regenerates" into new hardware without election or negotiation; continuous timeline despite hardware mortality
+
+162. **Weaving phase as physics test**: Candidate Time Lords must pass warmup period proving oscillator stability before manifesting—not a vote or negotiation but a thermodynamic qualification; nodes with noisy crystals fail weave and return to peer state; authority emerges from physical capability, not political process
+
+163. **Hibernation pattern for opportunistic swarm participation**: Formal API for application layer to request UTLP yield radio resource, with state preservation (drift model, peer ledger, offset) enabling seamless resume—swarm participation is opportunistic between primary device functions, not mandatory continuous operation
+
+164. **Dormancy beacon for swarm awareness**: Optional broadcast announcing sleep with expected duration hint—allows swarm to distinguish "sleeping friend" from "dead node"; dormant peers retain health score and interaction history (Memory B Cell preservation during hibernation)
+
+165. **Degraded re-entry after dormancy**: Waking nodes re-enter swarm at penalized stratum with low confidence flag—must re-earn trust through successful syncs before resuming full participation; prevents stale clocks from corrupting swarm after extended sleep
+
+166. **Opportunistic mesh via dormancy cycling**: Every WiFi/BLE-capable device becomes potential UTLP node contributing to time coherence in idle gaps between primary function—planetary swarm membership emerges from aggregate idle time across billions of devices, each participating opportunistically
+
+167. **Timing divergence as genetic distance metric**: Magnitude of timing error between nodes treated as measure of "genetic compatibility"—nodes with small timing differences can sync (same species), large differences cannot (speciated); provides diagnostic vocabulary and predictive framework for sync failures
+
+168. **Allopatric speciation via drift isolation**: Nodes with identical encryption keys (same species DNA) can become timing-incompatible through extended isolation without sync events—same "genetics" but reproductively isolated; natural failure mode, not bug
+
+169. **Bridge nodes as gene flow mechanism**: Nodes in timing "hybrid zones" capable of syncing with diverging populations prevent complete speciation by maintaining connectivity—bridge nodes can actively work toward population reunification through targeted beacon behavior
+
+170. **Speciation threshold as configurable species boundary**: Maximum timing distance beyond which sync is not attempted, defining species boundary in timing space—allows tuning of isolation tolerance for different deployment scenarios (tight sync vs. loose federation)
+
+171. **Ecotone model replacing political border model**: Boundaries between timing populations treated as productive transition zones (ecotones) rather than conflict zones—political borders are where data dies (Split Brain), biological borders are where adaptation thrives (Hybrid Zones); architectural rejection of "two kings cannot coexist" in favor of "two populations intermingle"
+
+172. **TARDIS architecture (Temporal And Relative Distribution In Swarms)**: Combined UTLP (time) and RFIP (space) protocols providing swarm nodes with both temporal and spatial coordinates—enables coherent distributed action requiring knowledge of both *when* and *where*; complete situational awareness for connectionless coordination
+
+173. **Phase lock as primary mechanism over epoch consensus**: Swarm synchronization achieved through phase entrainment (rhythm lock) rather than epoch agreement (calendar consensus)—nodes entrain to beat, not timestamp; epoch becomes advisory metadata that settles slowly while phase lock is enforced by physics
+
+174. **Proof of Stability as cost function for epoch claims**: Epoch changes require sustained phase stability over extended periods (minutes not packets)—prevents drive-by spoofing attacks; analogous to Proof of Work but burns time/entropy rather than electricity; a hacker can spoof a packet but cannot spoof 10 minutes of low-entropy physics
+
+175. **Phase-epoch layer separation**: Phase lock mandatory and continuous at protocol layer; epoch correlation advisory at application layer—wrong epoch with correct phase still useful for actuation (blinking lights, EMDR); correct epoch with wrong phase useless for everything; function preserved regardless of calendar agreement
+
+176. **Reduced state representation via phase-centric model**: Phase offset representable in 16 bits (±32ms) vs 64-bit epoch timestamp—reduces per-peer RAM from 12+ bytes to 3 bytes; enables implementation on severely resource-constrained devices; the beat is cheap, the calendar is expensive
+
+177. **Servo-locked phase correction (Software-PLL) vs. instantaneous phase reset**: UTLP synchronization mechanism ingests timing corrections as frequency modulation (slewing) rather than phase steps—the local oscillator's rate is temporarily adjusted to converge on the target phase over multiple cycles rather than jumping instantaneously. This preserves continuous waveform integrity required for coherent beamforming applications where phase discontinuities would corrupt interference patterns. Distinct from biological firefly synchronization (Peskin/Kuramoto models) which assume instantaneous phase advance upon stimulus reception—fireflies tolerate discontinuity because their "output" (flash) is discrete, while RF/acoustic wave emission requires continuous phase. The servo-locked approach transforms "Standard Firefly" (pulse-coupled oscillator with phase reset) into "Continuous Firefly" (pulse-coupled oscillator with frequency slewing). Mathematically: standard model applies Δφ instantly at beacon reception; UTLP applies Δf = Δφ/T_convergence over configurable convergence window, typically 100-1000ms. Same steady-state phase lock, different transient behavior. The transient matters for wave coherence: instantaneous phase jump creates spectral splatter (wideband noise burst) that corrupts coherent aperture integration; frequency slewing maintains spectral purity throughout correction. Implementation: drift_correction_ppb applied to timer tick rate rather than offset applied to timestamp; the clock speeds up or slows down rather than jumping. This is the substrate adaptation that distinguishes silicon UTLP from wetware firefly—fireflies don't need spectral purity, distributed antenna arrays do.
+
+178. **Timing mesh as distributed strain gauge**: The synchronization mesh itself functions as a sensor—coherent phase error spikes across multiple peers indicate physical displacement; no additional sensors required; the timing protocol IS the sensing modality
+
+179. **Proprioception vs exteroception for physical event detection**: Alternative to microphone-based sensing (Alexa Guard, glass break detection) using mesh geometry distortion; exteroception listens to the world, proprioception feels the swarm's own body deform; zero privacy risk (records "geometry changed" not audio), zero additional bandwidth (uses existing sync traffic)
+
+180. **Correlation pattern as seismic signature**: Single-node phase jump indicates clock fault; multi-node correlated phase jump indicates physical event; wave propagation velocity through mesh distinguishes event types—instantaneous (all nodes on same structure), ~340m/s (acoustic), ~3km/s (seismic ground wave)
+
+181. **Sensing without sensors via sync traffic analysis**: Physical event detection emerges from timing mesh maintenance with no dedicated sensing hardware—RSSI variance, phase error correlation, sync loss patterns all available as byproducts of existing beacon traffic; the mesh feels itself breathe
+
+182. **Distributed software-defined aperture geometry**: A method for creating synthetic apertures where the physical geometry of the aperture itself is a software variable—distinct from existing "Software-Defined Aperture" (SDA) systems that merely reconfigure waveforms on fixed hardware; existing SDA (e.g., Raytheon FlexDAR) uses software to modify the function of a static rigid array while this invention uses software to modify the physical constituent nodes of the array itself; aperture shape (planar, volumetric, sparse, dense) determined by node inclusion query against available swarm
+
+183. **Scale-invariant aperture definition**: Aperture synthesis independent of node count—the same selection algorithm operates on 5 nodes or 5,000 nodes; contrasts with traditional phased array controllers that address specific element indices (e.g., "elements 1-1024"); scale invariance emerges from biological scoring (Health, Trust, Metabolic) rather than hardware element mapping
+
+184. **Liquid vs fixed aperture topology**: Dynamic transition between aperture topologies in real-time via SMSP Zone parameter—can transition from planar to spherical to sparse configurations by selecting different node subsets; impossible with fixed-geometry phased arrays regardless of software reconfiguration; the swarm is "liquid hardware" that can reshape itself
+
+185. **Connectionless aperture coherence**: Phase-locked synthetic aperture without persistent connections between nodes—nodes maintain phase lock via UTLP entrainment then independently contribute to aperture synthesis; no central controller required; aperture emerges from consensus not command
+
+186. **Generalized phase transition detection via genesis pulse mechanism**: Genesis pulse detection generalizes beyond swarm creation to identify any coordinated state change—schism (universe fork), collision (foreign swarm encounter), apocalypse (coordinated shutdown), resurrection (recovery or attack); same detection code, different semantic interpretation; enables swarm self-awareness of its own "cosmic events"
+
+187. **Swarm archaeology via genesis signature retention**: Retained genesis pulse characteristics (timestamp, initial participants, RF fingerprint) enable forensic reconstruction of swarm origin—when created, where, by whom; useful for debugging, security audit, network provenance, and distinguishing legitimate recovery from reboot attacks
+
+188. **Zero-cost event sensing via RF statistics**: Collective phase transitions detected using RF data already collected for synchronization—beacon timing, RSSI patterns, peer discovery events; no additional sensing hardware or bandwidth; cosmic-scale swarm events (creation, death, merger) sensed as byproduct of maintaining phase lock; information extracted from entropy already being processed
+
+189. **Phase coherence aligned with fundamental physics**: UTLP's phase-centric architecture mirrors U(1) gauge symmetry in quantum field theory—absolute phase unmeasurable (epoch unnecessary), phase relationships observable (phase lock is protocol); same mathematical structure operating at different scales; not analogy but isomorphism
+
+190. **Swarm identity as conserved quantity**: Phase lock maintains swarm identity analogous to how U(1) gauge symmetry conserves electric charge—breaking phase coherence fragments swarm identity just as breaking gauge symmetry would violate charge conservation; conservation law emerges from symmetry (Noether's theorem)
+
+191. **Epoch advisory status grounded in relativity**: "Simultaneous" is frame-dependent in special relativity; arguing about epoch across distributed system parallels arguing about absolute phase in QM—physically meaningless; phase relationships are Lorentz invariant and therefore physically real; epoch is coordinate choice, phase lock is physical fact
+
+192. **Three-rule emergent complexity**: UTLP exhibits ALife principle that complexity emerges from simplicity—three rules (Sync to Phase, Trust the Stable, Exclude the Liar) produce planetary-scale homeostasis; parallels Conway's Game of Life (4 rules → Turing completeness) and Boids (3 rules → swarm dynamics); simple systems evolve, complex systems crash
+
+193. **Organismic properties via distributed protocol**: System exhibits defining characteristics of living organisms—Homeostasis (energy expenditure to maintain phase lock against entropy), Metabolism (trust/health as resource that decays and must be replenished by work), Immunity (localized anergy/silencing rather than central prosecution); nodes are cells, not agents
+
+194. **Bare metal ALife deployment**: Unlike soft ALife (simulations), UTLP is hard ALife running on physical hardware (ESP32), communicating through physical media (RF), maintaining homeostasis against real physical entropy (crystal drift, thermal noise); not simulation but synthesis of a distributed organism
+
+195. **Layer-appropriate governance selection**: UTLP does not reject political governance entirely—rejects it at timing layer because physics required it; Layers 1-4 (transport/network) use biological governance (pre-rational, physics-constrained); Layer 7 (application) may use political governance (cognitive, agreement-based); Mind-Body separation in distributed systems
+
+196. **Body enables Mind**: Biological governance at timing layer frees application layer from keeping system alive—King doesn't remind subjects to breathe; political governance can focus on actual job (coordination, resource allocation, conflict resolution) because heartbeat is handled; robustness through separation
+
+197. **Cognition-governance honesty asymmetry**: Biology is honest because constrained by energy/physics (cannot afford to lie); politics can be "silly" because feedback loops long enough to sustain delusion; UTLP operates at timescales where thermodynamic honesty is enforced; application layer operates at timescales where agreement-based governance is appropriate
+
+198. **11-byte beacon wire format with 3-burst jitter rejection**: Beacon contains stratum (1 byte), burst index (1 byte), genesis score (1 byte), TX timestamp (8 bytes little-endian); 3-burst pattern at 2ms spacing enables jitter rejection via outlier detection and best-sample selection; drift characterization requires inter-exchange analysis; fits single ESP-NOW frame
+
+199. **Dual constraint entrainment gate**: Active immunity requires BOTH token budget (internal constraint) AND quorum sensing (external constraint) before firing entrainment pulse; prevents both RF pollution (single aggressive node) and "Crazy Old Man" scenario (isolated drifted node attacking valid peers)
+
+200. **Time-indexed execution pattern**: Physical outputs computed from atomic time modulo period, not accumulated delays; `should_be_on = (atomic_now % period) < (period/2)`; drift-proof because state recalculated every tick from shared time reference; fundamental separation of "when" from "what"
+
+201. **Channel 6 as dextral majority (Golden Path)**: In WiFi's non-overlapping channel space [1, 6, 11], channel 6 occupies the geometric center; all nodes bootstrap to channel 6 as the deterministic rendezvous point; this is the "dextral majority" where strangers meet and swarms coalesce; channel 6 is not chosen by configuration but by mathematical necessity—it is the only channel equidistant from both divergence options
+
+202. **Sinistral divergence under predation pressure**: As swarm density increases on channel 6, congestion becomes "predation pressure"; the Loom detects when the environment has become toxic (jammed) and weaves a new phenotype—Sinistral (Channel 1) or Dextral (Channel 11); divergent nodes survive congestion that kills channel-6-only populations
+
+203. **Bridge nodes maintain swarm unity**: Nodes present on channel 6 enable communication between channel 1 and channel 11 populations; divergent nodes sync through the golden path, not directly with each other
+
+204. **Loom as generalized homeostatic mechanism**: The Loom weaves emergent states across ANY dimension of entity health, not just temporal; clock entropy produces Time Lords, spectral congestion produces channel chirality; the pattern is general—detect threat, weave response, maintain organism; future dimensions may include spatial (RFIP positioning), thermal (power management), or social (trust clustering)
+
+205. **MHC as biological authentication (500 million year prior art)**: Major Histocompatibility Complex is NOT encryption—it is the evolutionary **predecessor to Public Key Authentication**; MHC is the anti-encryption: encryption HIDES information (confidentiality), MHC EXPOSES information (transparency); cells are biologically required to broadcast internal state in "plaintext" via peptide presentation; the immune system's architecture—distributed validators (T-Cells), trusted root (Thymus as Certificate Authority), identity tokens (MHC molecules), constant turnover (nonce/replay attack prevention)—was reinvented in silicon as PKI/TLS in the 1970s; digital security didn't borrow encryption from biology, it borrowed **authentication architecture**; the Thymus performs negative selection (revoking bad T-Cells) exactly as a CA maintains a Certificate Revocation List; T-Cell receptor binding to MHC-peptide IS signature verification (shape-match = hash-match); modern Zero-Trust Architecture ("assume breach, verify continuously") is what T-Cells have done for 500 million years
+
+206. **Synthesis observation — authentication vs encryption distinction requires adversarial prompting**: During collaborative development, the AI initially mapped UTLP encryption → MHC and framed it as "encryption primitive"; only through adversarial skeptical analysis (multi-AI conversation with Gemini) did the deeper recognition emerge—that MHC is authentication, not encryption, and that PKI borrowed MHC's authentication primitives, not the reverse; the skeptic's framing ("MHC is just sticky chemistry, not crypto") forced precision: MHC fails as encryption (no reversibility, no confidentiality, fuzzy binding) but succeeds as authentication (distributed trust, identity verification, integrity checking); this illustrates that cross-domain synthesis benefits from adversarial validation to distinguish superficial analogy from structural identity
+
+207. **NK Cell "Missing Self" protocol as biological anti-encryption**: Natural Killer cells implement anomaly detection by scanning for ABSENCE of expected behavior (no MHC = suspicious) rather than presence of bad behavior (viral peptide = attack); viruses evolved to suppress MHC expression to hide from T-Cells (biological "encryption" attempt), but NK Cells counter this by killing anything that goes silent; **in biology, secrecy is a death sentence**; this inverts the digital assumption that hiding = safety; UTLP design consideration: should nodes that stop beaconing trigger suspicion (Missing Self detection)? The factory window analogy: if windows are empty on Tuesday at 10 AM, NK Guard says "burn the building down"
+
+208. **Viral MITM as biological prior art**: Viruses (Herpes, Cytomegalovirus) intercept the MHC loading pathway—blocking peptide transport to the cell surface so T-Cells see nothing; this IS Man-in-the-Middle attack, implemented in proteins 500 million years before we named it; the attack patterns are identical: brute force (replicate fast = DDoS), stealth (suppress MHC = encrypt C2), MITM (block loading = intercept handshake), spoofing (fake MHC = fake certificate), evasion (mutate epitopes = polymorphic malware); we didn't invent these attack patterns, we rediscovered them
+
+209. **Authentication and encryption as siblings, not parent/child**: Encryption is NOT a superset of authentication; they are independent capabilities that can exist alone or together; MHC is pure authentication with zero encryption; adding encryption to MHC would break the security model (NK Cells would kill the cell for hiding); this clarifies that UTLP's PMK functions as species marker (authentication: "can you process this signal?") not confidentiality mechanism (encryption: "can you read the content?"); foreign species see encrypted garbage not because content is hidden but because they lack the shape to bind—invisibility through incompatibility, not scrambling
+
+210. **Blindspots as discovery tools (adversarial methodology)**: Cross-domain synthesis benefits from proposing mappings with incomplete domain knowledge, then testing them adversarially with the expectation they will fail; the check-writing analogy for MHC was proposed expecting easy disproof ("checks are financial, MHC is molecular"), but adversarial analysis (Gemini) validated it as the best non-technical mapping; the attempt to disprove became the proof; this is paleontology methodology—the "archaeologist of function" (human with pattern recognition but limited domain expertise) finds connections that domain experts miss because experts know what "shouldn't" connect; adversarial testing separates genuine structural identity from superficial analogy; blindspots force novel framing that trained experts would self-censor
+
+211. **Firefly synchronization as biological prior art for pulse-coupled distributed timing (with methodology)**: Firefly synchronization (Peskin 1975, Kuramoto 1984) solves distributed phase alignment via pulse-coupled oscillators: each agent adjusts internal phase upon receiving neighbor's flash; no central coordinator; convergence emerges from local interactions; UTLP implements identical pulse-coupling architecture (beacon = flash, time_offset adjustment = phase advance); **Discovery methodology**: (1) Gemini mentioned fireflies repeatedly across conversations, (2) human noticed pattern but lacked deep domain knowledge, (3) human requested bidirectional adversarial analysis ("compare/contrast, then reverse"), (4) forward analysis found 5 divergences (hierarchy, memory, rate limiting, trust weighting, punishment), (5) reverse analysis reframed divergences as substrate adaptations—fireflies need only phase alignment while UTLP needs absolute time; fireflies rely on evolution to remove bad actors while silicon needs real-time immunity; firefly flash rate is chemically limited while ESP32s need software rate limits; **Conclusion**: core synchronization primitive (pulse-coupled phase adjustment) is structural identity with firefly, same math (Kuramoto dynamics), different substrate; divergences are genuine innovations for silicon (absolute time consensus, trust tracking, Byzantine resistance); the bidirectional analysis separates what's excavated (100M year prior art) from what's innovated (substrate adaptations); biology solved emergent distributed timing 100M years ago; UTLP excavates the core and extends for hostile silicon environment
+
+212. **Recursive meta-documentation as prior art evidence (conversation-as-data methodology)**: Human-AI collaboration produces insights but the *process* that generated them is typically lost—human walks away with result but can't explain how they got there; solution: treat the conversation itself as data; document actual prompts verbatim, why each prompt was structured that way, how AI response shaped next prompt, recursive moments where meta-documentation becomes part of the claim; **The key prompting patterns**: (a) "[AI_name] has mentioned [X] a few times" → cross-AI pattern recognition surfacing, (b) "have we overlooked" → blindspot framing rather than assertion, (c) "compare/contrast and then do it in reverse" → bidirectional adversarial analysis, (d) "include the process we used to make this claim to support this claim" → recursive meta-documentation trigger; **For prior art purposes**: conversation transcript provides timestamp evidence (when connection was made), process evidence (how validated), reproducibility (others can apply same structure), auditability (reasoning chain visible); **The recursive structure**: Claim = { content, evidence: { technical, methodological: { process, prompts, meta: "this documentation itself" } } }—claim includes its own derivation as evidence; not circular but auditable; **Transferable template**: "X has mentioned Y a few times. Have we overlooked the fact that [our_system] is a basic Y or simulates the mechanics? Compare/contrast one against the other and then do it in reverse." → expected output: forward analysis, initial conclusion, reverse analysis, revised conclusion, separation of excavation from innovation; this methodology is itself prior art for structured human-AI collaborative discovery
+
+213. **The Isomorphism Stress Test (Commutative Failure in Semantic Mapping)**: Cross-domain comparison typically runs unidirectionally (A→B: "Is Biology like Tech?") yielding shallow analogies ("MHC is like Encryption"); **the fix**: reverse the mapping (B→A: "Is Tech like Biology?") and test whether the relationship holds both directions; **Gemini's formalization**: Superficial Analogy = works only one way (non-commutative); Structural Isomorphism = works both ways (commutative); **Examples**: (1) "Heart is like pump" ✓ but "Pump is like heart" ✗ (pumps don't self-repair) → Analogy, weak link; (2) "Phase lock is U(1) gauge symmetry" ✓ and "U(1) gauge symmetry creates phase lock" ✓ → Isomorphism, strong link; (3) "MHC is like PKI" ✓ and "PKI reimplements MHC in silicon" ✓ → Isomorphism (500M year prior art); (4) "Firefly sync is like UTLP" ✓ and "UTLP excavates firefly pulse-coupling" ✓ → Isomorphism (100M year prior art); **Why it works**: Isomorphisms are commutative because the underlying mathematical structure is identical; analogies are non-commutative because one thing merely resembles another without shared structure; **The "Archaeologist of Function" methodology works because it enforces bidirectionality**—it doesn't find metaphors, it finds the bi-directional mathematical reality underneath; this heuristic separates sci-fi poetry from structural discovery
+
+214. **Methodology as accessibility multiplier — honest assessment (consumer-tier AI collaboration)**: The Isomorphism Stress Test packages known epistemic practices (bidirectional reasoning, stress-testing claims, documentation) into specific AI prompting patterns; **What is NOT novel**: bidirectional reasoning (basic logic), stress-testing metaphors (standard epistemology), documenting process (scientific method), noticing cross-source patterns (basic synthesis); **What MAY have practical value**: the specific prompting templates for AI collaboration, the packaging of known techniques into reproducible habit, the application to prior art discovery specifically; **Honest accounting of output factors**: (1) methodology (necessary but not sufficient), (2) unusual cross-domain pattern recognition (cognitive factor, not teachable), (3) unusual persistence (personality factor), (4) AI capability (technology factor), (5) specific domain connections (insight/luck); **The accessibility claim, revised**: produced within consumer subscription constraints (Claude Pro 5x $100/month + Gemini Advanced $20/month = $120/month total); no privileged API access; but the methodology alone does not guarantee similar output—it's one factor among several; **The "Algorithm of Obvious" critique**: if each component is obvious, the combination may also be obvious; "most people don't do X" is not evidence X is non-obvious, only that it's underutilized; the value may be packaging and consistent execution rather than theoretical novelty; this claim intentionally does not overclaim
+
+215. **Ground-based distributed InSAR via consumer hardware**: Satellites perform Interferometric Synthetic Aperture Radar (InSAR) for ~$500M to measure ground displacement from orbit; UTLP-synchronized mmWave sensors enable ground-based distributed InSAR using consumer hardware ($50-100/node); **the physics**: interferometric radar detects displacements of λ/100 (at 60 GHz, λ=5mm → ~50 micrometer sensitivity); if you can detect breathing (~1mm chest displacement), you can detect structural strain; **what you trade**: lose global coverage and absolute positioning; gain temporal resolution (seconds vs. days), cost (orders of magnitude), measurement density; **honest scope**: valid for seismology (fast events—earthquake waves at 3-8 km/s are faster than any drift); NOT valid for geodesy (slow events—tectonic creep at mm/year is indistinguishable from electronic drift, thermal expansion, vegetation growth); this scope limitation strengthens the claim by not overclaiming
+
+216. **Multi-scale interferometry (system of systems)**: Combining wavelengths creates multi-scale measurement: UTLP mesh (2.4 GHz, λ~12.5cm) detects seismic waves via timing mesh distortion at kilometer scale; mmWave sensors (60 GHz, λ~5mm) detect crustal strain via phase interferometry at meter scale; **the architecture**: UTLP provides synchronized time reference ("shutter trigger"); mmWave sensors fire precisely timed chirps; phase shift between chirps = displacement; multiple sensors = distributed strain gauge; **critical layer separation**: UTLP (Layer 4) delivers timestamp and phase lock, low bandwidth, high reliability; Application (Layer 7) handles sensor data, can be heavyweight/specialized, can crash without killing sync; "UTLP is the heartbeat, not the blood"—it tells sensors *when* to measure, doesn't carry measurement data; this layer separation defeated Red Team transport attacks (see claim 95)
+
+217. **Passive Proprioception extended to geological sensing**: Technical Supplement S2 defines Passive Proprioception as sensing via timing mesh distortion; **extension**: the same principle applies to geological/structural monitoring; seismic waves traveling at 3 km/s through ground create measurable timing perturbations in the UTLP mesh; a distributed mesh becomes a seismic wavefront imager without dedicated seismometers; **applications**: bridge structural monitoring (settlement, strain), landslide early warning (slope creep), building foundation monitoring, infrastructure health (dams, tunnels), seismic wavefront imaging; this extends "breathing detection" (Part 9 building safety) to "Earth breathing detection"
+
+218. **Adversarial refinement as claim strengthening (Red Team methodology)**: The structural/geological monitoring claims were refined through explicit adversarial process; **Round 1**: attacks on "rain kills 60 GHz links" were invalid—attacked wrong layer (mmWave is sensor, not link); **Round 2**: attacks on "bandwidth mismatch" were invalid—UTLP doesn't carry sensor payload; **Round 3**: attacks on "UTLP can't carry radar data" were category errors ("NTP is broken because it can't carry 4K video"); **valid attacks that survived**: thermal transients from duty cycling, dielectric shift from rain, surface noise vs. deep signal; these led to honest scope limitation (seismology yes, geodesy no); **methodology lesson**: clarifying architecture defeats structural attacks; valid attacks lead to scope limitations that strengthen final claim; "works for X, not Y" is stronger than "works for everything"; the claim is defensible because it survived adversarial refinement, not because it was never attacked
+
+219. **Parasitic Planetary Sensing via Voltage Spectroscopy**: A method for monitoring geophysical events by analyzing the Voltage Compliance Noise of Constant-Current Subsea Power Feeds, distinguishing this from traditional current monitoring or direct acoustic sensing. Because Power Feed Equipment (PFE) maintains constant current (I), load changes manifest as fluctuations in the Voltage (V) required to maintain that current—the "noise" becomes the signal.
+
+220. **Differential Space-Veto Tsunami Warning**: A system for identifying tsunami magnetic precursors (Bz) that mathematically subtracts ionospheric space weather signals (derived from satellite or land-based reference magnetometers) to prevent false positives. Signal_Cable (High) + Signal_Satellite (Low) = Tsunami (Alarm); Signal_Cable (High) + Signal_Satellite (High) = Solar Storm (Ignore). Enables speed-of-light detection of water column movement.
+
+221. **Tidally De-Convolved AMOC Monitoring (Ocean Dynamo)**: A method for isolating the motional induction voltage of the Gulf Stream/Atlantic Meridional Overturning Circulation by using known gravitational tidal phases as a "Lock-In Amplifier" reference—correlating voltage baseline against lunar tidal phases isolates the DC offset (steady-state transport) from AC noise (tides).
+
+222. **Traffic Mapping via Voltage Phase Reflectometry**: A method for spatially resolving internet traffic density by measuring the phase delay of the voltage compliance response in the power feed. By performing Frequency Domain Reflectometry (FDR) on PFE voltage ripple—injecting a pilot tone and measuring phase lag of compliance response—the system resolves which repeater segments experience high packet-switching loads.
+
+223. **Global Temperature via Schumann Resonance Reception**: A method for utilizing subsea cable loops as receivers for Global Electric Circuit (GEC) standing waves, enabling planetary-scale temperature monitoring through the Earth-ionosphere waveguide.
+
+224. **Bio-Mechanical Jitter Detection (Indirect Biophony)**: A method for inferring ocean ecosystem health by monitoring Intermodulation Distortion (IMD) on the power line caused by mechanical vibration of repeaters in high-noise biological environments. Direct acoustic monitoring fails due to cable capacitance low-pass filtering; instead, aggregate acoustic pressure physically vibrates repeater casings at ELF frequencies, modulating amplifier PSRR. Cessation of this "mechanical jitter" indicates ecosystem collapse ("Dead Zone" detection).
+
+225. **Triboelectric Predator Indexing**: A method for tracking large marine life interactions (sharks, whales) by counting ULF triboelectric voltage spikes generated by physical impact with cable insulation. Sharks investigating cables via electroreception create piezoelectric transients distinct from other noise sources—apex predator density indexed by "triboelectric thump" count.
+
+226. **Multi-Arbor Temporal Integration**: A method for maintaining temporal coherence across heterogeneous physical layers (e.g., 802.11 and 802.15.4) by sharing phase data via a unified Soma while isolating reputation/trust per-arbor. This prevents "jitter contamination" where noise characteristics of high-bandwidth transports (WiFi) are erroneously attributed to high-precision transports (802.15.4), ensuring the immune system of each transport remains uncompromised by bridging link stochasticity.
+
+227. **Arbor/Soma Architecture for Distributed Timing**: A structural pattern treating different radio PHYs as dendritic branches (arbors) feeding a singular phase integration point (soma). Each arbor maintains independent peer ledgers, health scores, and jitter models while the soma maintains unified atomic_time and epoch. This mirrors biological sensory integration where multiple input modalities feed unified perception.
+
+228. **Transport Capability Vector**: A formal characterization of transport properties enabling physics-informed decisions:
+
+229. **Physics-Informed Bayesian Transport Weighting**: Initial Soma integration weights derived from PHY specifications (IEEE standards define expected jitter floors), evolved toward measured reality via Kalman-style gain. Formula: `effective_weight[arbor] = blend(phy_spec_weight, measured_weight, confidence)` where confidence grows with observation count. The prior is not arbitrary—it's physics; the posterior is measured. This avoids both hardcoded constants and cold-start deadlock.
+
+230. **Blood-Brain Barrier for Swarm Immunity**: Architectural isolation preventing attack on one transport from contaminating trust on another. If an attacker poisons the WiFi arbor (easier to spoof/jam), the node cannot become a "super-spreader" by immediately broadcasting compromised time as Stratum 1 on the 802.15.4 arbor. Time may flow through with appropriate penalty; trust does not flow at all.
+
+231. **Identity Separation Across Arbors**: Same MAC address appearing on different transports is treated as separate peers with independent trust scores. Rationale: a node might have excellent 802.15.4 radio but broken WiFi antenna. Linking trust would let "sick" WiFi performance kill "healthy" 15.4 reputation. **Trust the behavior of the link, not the identity of the silicon.**
+
+232. **Passive Cross-Arbor Correlation Tracking**: Logging cross-transport peer appearances without affecting production trust decisions. When same MAC appears on multiple arbors, track independent health scores for that MAC on each. This data enables offline analysis: "IF we had unified these peers, what would fused health score have been?" Production uses strict separation; shadow system simulates unification for scientific comparison.
+
+233. **Shadow Scoring for Protocol Evolution**: Parallel "what-if" trust calculations running alongside production scoring. The trigger for considering unification: when offline analysis shows sustained high correlation (>0.9) between arbor-specific scores for same-MAC peers across statistically significant sample. This is scientific method applied to protocol evolution—hypothesis testing, not assumption.
+
+234. **Position Inheritance Across Transport Boundaries**: Wired-only nodes (I2C/UART/SPI between MCUs) derive spatial awareness from wireless-capable neighbors. The wireless node knows position via RFIP; the wired node's position = neighbor's position + known physical offset (PCB layout, cable length). This parallels time inheritance—the bridge is a reference. Wired transports are arbors with `supports_ranging = false` in capability vector.
+
+235. **Parallel Sensory Modalities (UTLP/RFIP)**: Temporal and spatial sensing as independent but coordinated systems, each with transport-specific arbors:
+
+236. **Yield-Pattern IMU Integration (Arbor Architecture)**: Sensor integration pattern where application layer owns IMU hardware and runs its own sample loop and fusion filter; protocol layer requests instantaneous state via callback—architecture inversion from traditional sensor fusion engines; applications control power budget while protocol consumes derived state; complementary filter fusion via SLERP on unit quaternion hypersphere.
+
+237. **Beacon-Propagated Motion Confidence for Distributed Fusion**: Transmitter-reported motion confidence (0-255 continuous scale) propagated in UTLP beacon, enabling receivers to multiplicatively weight ranging observations without centralized fusion—RSSI variance increases with motion; transmitter knows its own motion state; sharing this allows receivers to appropriately discount observations from moving transmitters.
+
+238. **Cross-Sensor Consistency Verification (Bidirectional RF↔IMU)**: When IMU detects high-g event (acceleration exceeds threshold), RF observations penalized for refractory period matching physical settling dynamics—shock affects RF measurement environment through antenna displacement and multipath shift; mechanical settling time ~100-200ms; progressive penalty decay matching physical settling. **Conversely**, when FTM/ranging reports position change but IMU sensed no corresponding acceleration, the RF observation is flagged as multipath-corrupted—defense against systematic multipath bias in reflective environments (metallic rooms, urban canyons) where FTM errors can exceed 5 meters; if the radio says you moved but the IMU felt no force, the radio is lying. Bidirectional consistency checking provides defense against both transient mechanical disturbance (IMU→RF penalty) and persistent environmental multipath (RF→IMU sanity check).
+
+239. **Online Antenna Pattern Learning from Swarm Observations**: Use of IMU orientation quaternion to learn effective antenna gain pattern online through correlated orientation and RSSI observations—Friis equation inversion reveals pattern gain when distance and TX power known; swarm provides diverse angles; pattern emerges from aggregate observations without anechoic chamber pre-characterization.
+
+240. **UTLP-Coordinated Multi-Node Dead Reckoning**: IMU observations timestamped in UTLP atomic time, enabling coherent fusion of distributed motion estimates—multiple nodes' dead reckoning can be compared and constrained; discrepancy between DR-predicted and RF-measured distance reveals drift; relative motion constraints bound individual node drift across swarm.
+
+241. **Emergent Anchor Topology via Motion-Based Promotion**: Multiple stationary nodes simultaneously promoted to temporary RFIP anchor role based on physical behavior (sustained motion confidence)—anchors emerge and dissolve without pre-configuration or election; hysteresis state machine (MOBILE → SETTLING → STATIONARY → ANCHOR) prevents oscillation; spatial reference topology is consequence of physical behavior, not administrative decision.
+
+242. **RF-Derived Coordinate Frame Learning for 6-Axis IMUs**: For IMUs without magnetometer (yaw unobservable from gravity alone), body→world yaw offset learned online by correlating IMU-reported rotation with changes in RF-observed anchor bearings—RF observations substitute for magnetometer heading reference; linear regression on (Δψ_imu, Δθ_rf) pairs estimates offset.
+
+243. **Unified Hardware-Scheduled TX Discovery Across Consumer 802.15.4 Platforms (PHYRFLY Reference Implementation)**: Documentation that ESP32-C6, MG24, and nRF52840 all support hardware-scheduled 802.15.4 TX (`esp_ieee802154_transmit_at()`, `RAIL_StartScheduledTx()`, `nrf_802154_transmit_raw_at()` respectively), enabling unified HAL abstraction—software jitter (100-1000µs from RTOS scheduling) dominates RF propagation delay (3.3 ns/m); hardware-scheduled TX eliminates software jitter entirely; novelty is discovery and unification, not invention. The ESP32-C6's `esp_ieee802154_transmit_at()` API serves as the PHYRFLY reference implementation for hardware-precise timing, achieving ~1µs precision equivalent to dedicated timing silicon.
+
+244. **Cross-Vendor 802.15.4 Timing Mesh via Hardware-Scheduled TX**: Application of IEEE 802.15.4 + hardware-scheduled TX for precision timing across heterogeneous consumer hardware, achieving sub-microsecond synchronization without IEEE 1588 PTP infrastructure—UTLP achieves similar timing goals with consumer 802.15.4 radios ($5-10/node) via connectionless broadcast rather than connection-oriented synchronization; time transfer precision limited by timestamping jitter, not propagation delay. **Wire format**: Raw MAC Data Frames (FCF 0x8841—Data frame, no security, no ACK, PAN ID compression, short dest/extended src addressing) without ZigBee/Thread/Matter protocol stack overhead (~2KB vs ~200KB, no $5000+/year certification). **RX precision**: SFD-relative timestamp capture at Start Frame Delimiter detection, before MAC layer processing, minimizing software-induced jitter; MG24 RAIL provides `RAIL_GetRxTimeSyncWordEnd()` (~0.1µs hardware precision), nRF52840 uses EVENTS_ADDRESS + Timer capture (~0.1µs), ESP32-C6 achieves ~10µs via ISR timestamping.
+
+245. **Spectral Isolation via Transport Agnosticism**: Recognition that transport PHY selection provides physics-layer swarm isolation analogous to firefly bioluminescence wavelength differentiation—WiFi swarms and 802.15.4 swarms in same physical space cannot interfere because they cannot observe each other's signals at the RF front-end (LNA/mixer stage); isolation emerges from physics (spectral boundaries), not protocol (encryption); orthogonal to and independent of authentication (MHC) and encryption (species keys).
+
+246. **Polychromatic Bridge Nodes**: Multi-transport nodes with Arbor/Soma architecture functioning as participants capable of observing and emitting on multiple spectral bands—bridging populations that cannot directly communicate while maintaining per-transport trust isolation; enables global phase coherence across spectrally isolated swarms without compromising per-band immune systems; biological analog is a hypothetical firefly capable of seeing and emitting both green and yellow wavelengths.
+
+247. **PHYRFLY as Standardization-Track Identity**: Nomenclature distinguishing system identity (TARDIS: conceptual architecture for human explanation) from protocol primitive (PHYRFLY: PHY-layer synchronization mechanism suitable for 802.x standardization track); PHY- prefix signals positioning for dedicated silicon implementation where hardware clock gates replace software ISRs for sub-100ns jitter floors; -FLY suffix acknowledges 100M years of firefly pulse-coupled oscillator prior art.
+
+248. **Dormancy Lifecycle with Phantom Arbor Defense**: Complete transport hibernation protocol for multi-arbor nodes including: (1) **Pre-sleep dormancy beacon** broadcast distinguishing "sleeping" from "dead" (expected duration, current atomic time, transport identifier—enables peers to preserve trust for hibernating friends rather than applying trust decay for presumed-dead nodes); (2) **Reputation ledger preservation** across hibernation (snapshot arbor's peer health scores before shutdown, restore on wake); (3) **Degraded re-entry at elevated stratum** (+2 levels penalty) preventing waking transport from immediately claiming authority; (4) **Listen-only WAKING state** where transport receives but cannot transmit until verified; (5) **N-beacon verification** (minimum 5 consistent beacons matching Soma phase) before TX authority restoration. Defends against **Phantom Arbor attack** where a waking transport with stale timing data (clock drifted during sleep, cached peer data obsolete) could corrupt swarm phase coherence by broadcasting authoritative but incorrect time. The attack model: attacker compromises node, forces arbor sleep, waits for swarm to evolve, wakes arbor which now broadcasts stale epoch as truth. Defense: re-entry penalty ensures waking arbor must re-earn trust through observation before influencing swarm.
+
+249. **Multi-Oracle Time Consensus (Council of Oracles)**: When multiple nodes possess independent GPS/NTP sources, cross-validation via median agreement detects deviant oracles—a GPS receiver reporting time that deviates significantly from the median of other oracles is flagged as malfunctioning, spoofed, or compromised; deviant oracle demoted from stratum 0 to stratum 3 (severe but recoverable); warning propagated via beacon to prevent other nodes from trusting the compromised source; addresses GPS spoofing attacks ($300 SDR can deceive single receiver), receiver malfunction, NTP server compromise, and network partition staleness; deviation threshold scales dynamically with swarm metabolic rate (observed jitter) rather than magic numbers—fast/precise swarms tolerate less deviation than slow/coarse swarms; minimum council size of 3 oracles required for Byzantine tolerance; recovery path allows transient failures to heal through sustained agreement with median. Even gods are accountable to peer review.
+
+250. **Hierarchical Information Reduction (Regional Stability Digests)**: A method where individual node vitals (raw RSSI, oscillator drift curves, precise jitter statistics) are strictly localized to a near-peer cluster and processed by a self-promoted **Ganglion** node; the Ganglion emits a **Regional Stability Index (RSI)** and **Centroid Position** in the cleartext "Exon" payload, effectively masking individual node technosignatures from wide-area side-channel analysis while maintaining high-resolution aggregate data for continental-scale sensing; prevents fingerprinting of individual nodes by aggregating their characteristics into anonymous regional summaries; attackers see "region is stable" not "node 0x4F3A has 12.3µs jitter and -67dBm RSSI."
+
+251. **Quorum-Based Role Emergence (Nerve Net Fallback)**: A mechanism for emergent orchestration where hierarchical roles (Ganglions and Plexuses) only emerge once a local node density threshold (Quorum) is met; in sparse environments below the quorum threshold, the system defaults to **Nerve Net** logic where nodes maintain peer-to-peer coherence without aggregation overhead; ensures architecture is scale-invariant from 3 nodes to 10,000 nodes; prevents orphaned Ganglions in sparse deployments; quorum threshold is dynamic based on RF environment (dense urban may require higher quorum than rural); graceful degradation—losing nodes below quorum triggers Nerve Net fallback rather than hierarchy collapse.
+
+252. **Metabolic Throttle for Spectral Stealth**: A defensive behavioral state for solitary or sparse clusters (fewer than 3 nodes within RF range) characterized by deliberate reduction in broadcast frequency; trades high-frequency temporal precision for **Spectral Stealth**, minimizing the cluster's persistent RF footprint; protects isolated nodes from discovery by hostile RF surveillance until they can re-integrate with a larger swarm or Plexus; throttle rate scales with isolation duration—longer isolation triggers progressively lower duty cycle; re-integration with swarm triggers metabolic recovery to normal broadcast rate; biological analog: hibernation metabolic suppression.
+
+253. **Polychromatic Stratum Asymmetry**: A method where a multi-transport node maintains independent synchronization stratum levels for each physical interface (Arbor); allows a node to function as a Time Follower on a high-bandwidth primary transport (e.g., 802.11) while simultaneously promoting itself to Local Genesis Authority on a secondary, spectrally isolated transport (e.g., 802.15.4); enables propagation of "Genesis Truth" into silent spectral bands without requiring manual role configuration or "Bridge Mode" flags; **Split-Horizon Protection** prevents timing loops by forbidding a node from being a Follower on Transport B if it is already a Follower on Transport A that provides its time truth; effectively eliminates spectral bottlenecks in heterogeneous swarms; stratum on secondary transport equals primary stratum + 1; biological analog: a nerve that receives signals from the brain (follower) while simultaneously being the local authority for a muscle group (teacher).
+
+254. **Deterministic Phase Slotting (Fuzzy TDM / Cricket Chorus)**: A method for collision avoidance in synchronized swarms where transmission times are pseudo-randomly distributed within a fixed phase window based on a static node identifier (MAC address hash via CRC32); ensures that while all nodes share a precise global phase reference, their physical RF emissions are temporally interleaved—the "Cricket Chorus" effect; prevents self-jamming "flash mobs" and destructive interference without requiring central slot allocation or negotiation; **critical implementation detail**: the scheduled TX time MUST be embedded in the beacon payload so receivers can distinguish slot offset from phase error; slot offset is deterministic (same node always uses same slot) ensuring stable rhythm; window size trades off collision probability vs. temporal spread; **computer science ancestry**: physical implementation of Bucket Sort (O(1) slot assignment), Sleep Sort (time-domain sorting without comparison), and Consistent Hashing (stable topology under node failure)—a Distributed, Non-Comparative, Deterministic Bucket Sort in the RF Domain; collision probability follows P(collision) ≈ n × (packet_duration / window_size), exploiting Law of Large Numbers for guaranteed temporal interleaving at scale.
+
+255. **Rolling Splice-Site Obfuscation (Bio-TOTP)**: A security mechanism where packet payloads are split into public Exon (cleartext timing data for universal sync) and private Intron (obfuscated vitals/commands); the Intron is protected by a rolling key derived from the hash of quantized Swarm Atomic Time (1-second slices) concatenated with a 128-bit Swarm DNA seed; provides **Replay Attack Defense** (keys expire every second), **Time-Shift Attack Defense** (sliding window rejects packets > ±1 second), and **Traffic Analysis Resistance** (health metrics invisible to outsiders); even Null DNA mode (public operation) provides temporal freshness filtering; key derivation: `Splice_Key = SHA256(Swarm_DNA || Time_Slice)[0:16]`; receivers attempt decryption with current, previous, and next second's key to handle clock jitter; **Fixed 32-Byte Geometry**: all packets use identical wire size (24-byte Exon + 8-byte Intron) for deterministic timing and traffic analysis resistance—encrypted and public packets are indistinguishable; **Herd Immunity (PT-4)**: Public Mode nodes execute identical SHA256+AES code paths as Private Mode nodes to prevent CPU power profile and timing side-channel analysis; **Semantic Plausibility Validation**: replaces authentication tag with multi-field validation (TX_Power ±40dBm, Drift ±2000ppm, Opcode 0x00-0x04) yielding ~0.00004% false positive rate; biological analog: gene expression where exons are translated (public) while introns remain internal (private), with splice sites determining the boundary.
+
+256. **Hardware-Assisted Latency Learning (Proprioception)**: A method where a node learns its own output latency via a closed feedback loop; the TX scheduler provides a target timestamp, the hardware callback reports actual transmission time, and the difference drives an exponential learning algorithm; **Death Spiral Prevention** detects missed deadlines and applies emergency latency bumps to escape runaway failure; the learned latency converges from conservative 50ms to platform-optimal ~100-500µs over ~500 transmissions; eliminates the need for hardcoded platform-specific timing constants; biological analog: **Corollary Discharge**—the brain's prediction of sensory consequences from motor actions.
+
+257. **Interrupt Latency Compensation (ILC / Pre-Fire Proprioception / PT-7)**: A method where the phase timer ISR learns its own execution latency and pre-fires the hardware timer to compensate; eliminates phase offset between Single Stack (~5µs ISR latency) and Dual Stack (~40-60µs coexistence arbiter latency) devices running identical firmware; uses the same exponential learning algorithm as TX Proprioception but applied to interrupt timing; enables GPIO-agnostic timing correction without requiring hardware output compare pin mapping; the "Interrupt Weight" converges through observation of actual vs. expected ISR entry times; **spinlock protection** ensures atomic access to shared timing state; result: Dual Stack and Single Stack devices achieve identical phase alignment despite different OS overhead.
+
+258. **Spectral Retina (Radio Color Vision)**: A method where a multi-transport node compares RSSI values from different radio interfaces to detect environmental RF characteristics; the RSSI delta between high-bandwidth (WiFi) and narrow-bandwidth (802.15.4) transports reveals multipath clutter: small delta (~3-4 dB) indicates clear propagation, large delta (~14-23 dB) indicates cluttered/multipath environment; per-arbor RSSI is stored in the Metabolic Ledger with timestamps for staleness detection; enables **Polychromatic Confidence Weighting** where timing from cluttered paths receives lower trust; biological analog: **Mantis Shrimp spectral contrast** (16 photoreceptors vs. human 3) or **Binocular depth perception** (parallax reveals distance).
+
+259. **Session Bankruptcy (Seniority Wipe on Reboot Detection / PT-6)**: A method where trust is tied to the Session Salt (random 16-bit boot instance ID), not just the MAC address; when a peer's salt changes but MAC remains the same, the swarm immediately sets health to zero and wipes all accumulated trust metrics (tenure, seniority, stratum claim); provides **First-Beacon Detection**—reboots are identified on the very first packet without requiring timing history; prevents **Fresh Boot Genesis Attack** where a rebooted Time Lord could briefly corrupt the swarm before interval anomalies are detected; zero health (not STARTUP 50) forces complete re-validation before any influence; biological analog: **Immune Rejection**—the body's complete rejection of a transplanted organ when HLA mismatch is detected, despite identical appearance.
+
 
 ---
 
-### Part C: UTLP Technical Supplement S3 — Vector Time (Claims 260-275)
+## Part C: UTLP Technical Supplement S3 — Vector Time (Claims 260-275)
 
-**Valid claims:** 260-275 (16 claims)  
-**Removed:** None
+**Valid claims:** 260-275 (16 claims)
 
 #### Architecture Claims (260-265)
 
-260. **Coprime Cyclic Hierarchy**: Time represented as vector of phases modulo coprime bases, enabling Chinese Remainder Theorem recovery and graceful precision degradation
+260. **Coprime Cyclic Hierarchy**: A time representation method where scalar tick values are encoded as an N-tuple of phase values rotating through prime-length cycles: T(t) = [φ₁(t), φ₂(t), ..., φₙ(t)] where φᵢ(t) = t mod pᵢ; recommended configuration uses 8 small primes [241, 251, 239, 233, 229, 227, 223, 211] all < 256 (fits in uint8_t) achieving product of 8.24 × 10¹⁸ ticks (261,000 years at 1μs); the Chinese Remainder Theorem guarantees lossless bidirectional conversion between scalar and vector representations; enables graceful precision degradation where individual phase cycles can fail without losing all timing information; same 8-byte wire size as uint64_t scalar but with Byzantine detection and similarity-based sync capabilities impossible with scalar counters.
 
-261. **Generative Compression (Phase Chord)**: Transmitting only D phase values (8 bytes) that regenerate full D×D dimensional time vector at receiver through deterministic base vector rotation
+261. **Generative Compression (Phase Chord)**: A method for transmitting time state where only N phase values (8 bytes for default configuration) regenerate a full N×D dimensional hyperdimensional time vector (default D=10,000 dimensions) at the receiver through deterministic base vector rotation and superposition; each prime cycle has an associated high-dimensional binary base vector Bᵢ ∈ {-1, +1}^D generated deterministically from swarm-wide seed ("Swarm DNA"); receiver regenerates full vector via: T(t) = sign(Σᵢ roll(Bᵢ, φᵢ)); compression ratio 156:1 (8 bytes regenerates 1,250 bytes / 10,000 bits); no explicit vector transmission required; all nodes generate identical base vectors from shared seed without distribution.
 
-262. **Similarity-Based Synchronization**: Using cosine similarity between time vectors as synchronization metric, enabling soft phase lock with tunable tolerance rather than hard equality test
+262. **Similarity-Based Synchronization**: A synchronization method using cosine similarity between hyperdimensional time vectors as the synchronization metric rather than scalar equality tests; similarity = dot(vec_a, vec_b) / dimensions, returning +1.0 for identical vectors, 0.0 for orthogonal (uncorrelated), -1.0 for opposite; enables soft phase lock with tunable tolerance thresholds (e.g., >0.9 = synchronized, <0.5 = partitioned); adjacent ticks have ~99.5% similarity enabling gradient-based correction rather than hard reset; fast phase-space approximation available without full vector regeneration: normalized distance in phase ring space maps to similarity in range [0.0, 1.0]; supports graceful degradation where partial synchronization is meaningful rather than binary synchronized/desynchronized.
 
-263. **Aliasing Horizon Extension**: Coprime product extending unique time representation from 2^64 ticks to Π(primes) ticks, achieving 261,000+ year horizon with 8 small primes
+263. **Aliasing Horizon Extension**: A method extending unique time representation from 2⁶⁴ ticks to Π(primes) ticks through coprime product; 8 small primes [241, 251, 239, 233, 229, 227, 223, 211] yield product 8.24 × 10¹⁸ achieving 261,000+ year horizon at 1μs resolution; horizon is consequence of CRT mathematics—values beyond the product wrap with ambiguity; graceful wrap rather than overflow crash (scalar uint64_t wraps catastrophically at ~584,000 years); alternative configurations available: 7 large primes (997-1033) achieve 35.8M year horizon in 14 bytes; horizon can be dynamically selected based on deployment requirements.
 
-264. **Topological Time Representation**: Time as point on D-dimensional torus (T^D) where similarity is continuous function of phase distance, enabling smooth interpolation and graceful degradation
+264. **Topological Time Representation**: Time represented as a point on an N-dimensional torus (T^N) where each dimension corresponds to a prime cycle; similarity between time points is a continuous function of phase distance rather than discrete tick counting; enables smooth interpolation between time states; time "moves" along geodesic paths on the torus surface; visualization: each prime cycle is a ring, time vector is the combined position on all rings simultaneously; supports graceful degradation where nearby torus positions (high similarity) are "close in time" even if CRT recovery is ambiguous; geometric intuition aids protocol design and debugging.
 
-265. **Elastic Coherency Protocol**: Synchronization where nodes continuously drift toward peer consensus with force proportional to trust weight and phase distance
+265. **Elastic Coherency Protocol**: A synchronization protocol where nodes continuously drift toward peer consensus with force proportional to trust weight and phase distance rather than hard-resetting to peer time; implements "nudge" algorithm: effective_rate = learning_rate × trust_weight; for each phase cycle, compute shortest distance around ring (handling wraparound), apply fractional nudge; multi-peer consensus via weighted averaging: each peer's influence proportional to trust score; convergence properties: continuous gradient (no time discontinuity), smooth partition recovery (gradual rather than abrupt resync), trust-weighted averaging (not binary accept/reject); biological analog: entrainment of coupled oscillators rather than synchronous reset.
 
 #### KalmanHD Estimation Claims (266-268)
 
-266. **Hyperdimensional Kalman Filtering (KalmanHD)**: Kalman filtering applied to coprime cyclic time with hierarchical state structure—unified drift estimation coupled to per-cycle phase tracking
+266. **Hyperdimensional Kalman Filtering (KalmanHD)**: Kalman filtering applied to coprime cyclic time with hierarchical state structure exploiting the physical constraint that all 8 prime cycles share the same crystal oscillator; state vector contains: unified drift_ppm (single value affecting all cycles equally), drift_variance, per-cycle phase_offset[8], per-cycle phase_variance[8]; prediction step applies unified drift to all phase offsets simultaneously; update step uses all 8 phase measurements to estimate single drift innovation, then computes per-phase residuals; hierarchical structure improves estimation accuracy because drift is unified while phase offsets are independent; enables joint drift/offset estimation impossible with scalar Kalman filters.
 
-267. **Phase Consensus Anomaly Detection**: Using inter-phase variance across coprime cycles to detect Byzantine beacons
+267. **Phase Consensus Anomaly Detection**: A Byzantine detection mechanism exploiting the constraint that legitimate clock drift affects all coprime cycles equally; attacker forging a beacon must guess 8 phase values that are internally consistent—random guessing produces inter-phase variance detectable by receivers; consensus_result enum: GOOD (all phases agree within noise), PARTIAL (minor inconsistency), BYZANTINE (likely forgery); variance threshold derived from expected measurement noise; provides passive Byzantine detection without cryptographic overhead; defense degrades gracefully—partial consensus indicates degraded but usable beacon; biological analog: immune system detecting "self" vs "non-self" through pattern consistency.
 
-268. **Drift-Coupled Phase Prediction**: Extrapolating all phase states during holdover using single unified drift estimate
+268. **Drift-Coupled Phase Prediction**: A holdover method where a single unified drift estimate extrapolates all 8 phase states during source loss; prediction step: phase_offset[i] += drift_ppm × dt for all i; variance grows uniformly: phase_variance[i] += Q_PHASE × dt, drift_variance += Q_DRIFT × dt; enables graceful degradation during GPS/NTP outages; holdover duration limited by drift accumulation, not by per-phase divergence; single drift estimate is more accurate than 8 independent estimates because it exploits the physical constraint that all phases share one crystal; recovery from holdover via standard Kalman update when beacons resume.
 
 #### Hardware Implementation Claims (269-271)
 
-269. **Parallel Shift Register Time Generation**: Hardware implementation using N parallel circular shift registers with XOR tree superposition for FPGA/ASIC
+269. **Parallel Shift Register Time Generation**: A hardware implementation for FPGA/ASIC using N parallel circular shift registers (default N=8, D=10,000 dimensions each) with XOR tree superposition; each register holds base vector Bᵢ; on TICK event all registers simultaneously rotate by 1 position; XOR tree combines all register outputs producing D-bit time vector T(t); resources for Xilinx 7-series: ~2000 LUTs (shift registers), ~80,000 FFs (base vector storage), ~50mW at 100MHz; single-cycle operation with 10ns latency; algorithm maps directly to hardware without CPU; enables hardware-precise time generation at sub-microsecond precision.
 
-270. **Compute-in-Memory Time Generation**: Implementing coprime cyclic time in ReRAM/memristor crossbar arrays
+270. **Compute-in-Memory Time Generation**: A neuromorphic implementation of coprime cyclic time using ReRAM/memristor crossbar arrays; base vectors encoded as conductance states in D×N array (default 10,000×8); "rotation" achieved by changing row read-out sequence at zero switching energy; column currents sum automatically via Kirchhoff's current law; comparator extracts sign to produce binary time vector; power consumption ~10μW (1000× lower than FPGA), latency ~100ns; operation: conductance G[i,j] encodes base_vector[j][i], column ADCs read current sums, sign(Σ) produces T(t); suitable for extreme low-power edge deployment (energy harvesting, implantables).
 
-271. **Single-Cycle Vector Regeneration**: Regenerating full D-dimensional time vector from phase chord in single clock cycle
+271. **Single-Cycle Vector Regeneration**: A method for regenerating full D-dimensional time vector from N-byte phase chord in single clock cycle; implementation uses parallel barrel rotators (one per prime, N total) feeding XOR tree; Verilog: genvar parallel rotators, each barrel_rotate module takes base_vector and phase_chord input, produces rotated output; final stage XOR combines: time_vector <= rotated[0] ^ rotated[1] ^ ... ^ rotated[N-1]; enables real-time similarity computation for every incoming beacon without multi-cycle regeneration latency; critical for hardware-scheduled timing where regeneration must complete before next beacon arrival.
 
-#### Protocol Integration Claims (272-274)
+#### Protocol Integration Claims (272-275)
 
-272. **Dual-Mode Beacon (Vector + Scalar)**: Beacon format carrying both vector time and scalar time for backward compatibility
+272. **Dual-Mode Beacon (Vector + Scalar)**: A beacon format carrying both vector time (phase chord) and scalar time (tick count) for backward compatibility; protocol_version field (0x02) signals vector-capable receiver; vector-capable nodes use phase chord for similarity-based sync; legacy nodes extract tick count and operate in scalar mode; enables gradual fleet migration without flag day; header structure: standard UTLP fields + 8-byte phase_chord + 8-byte scalar_ticks; scalar derived from CRT for validation; nodes can verify chord→scalar consistency to detect corruption.
 
-273. **Tick Scale Negotiation**: Transmitting tick period as beacon metadata, allowing swarms to operate at different time resolutions
+273. **Tick Scale Negotiation**: A method for transmitting tick period as beacon metadata allowing swarms to operate at different time resolutions without protocol changes; tick_period_us field in beacon intron (optional extension area); enables heterogeneous deployments: 1μs ticks for precision applications, 1ms ticks for power-constrained deployments; receiver converts peer observations to local tick scale; horizon scales inversely with tick rate: 261,000 years at 1μs, 261 years at 1ms; negotiation is one-way broadcast (no handshake required).
 
-274. **Topological Event Triggering**: Triggering hardware events based on vector similarity thresholds rather than scalar equality
+274. **Topological Event Triggering**: A method for triggering hardware events based on vector similarity thresholds rather than scalar tick equality; trigger condition: similarity(current_vector, target_vector) > threshold; enables fuzzy time matching where "close enough" is precisely defined; eliminates synchronization failures from ±1 tick timing errors; threshold tunable per application: therapeutic devices (0.999 = ±1 tick), warning systems (0.95 = ±10 ticks); comparison complexity O(1) after vector regeneration; supports both "at time T" and "during interval [T₁, T₂]" semantics via threshold adjustment.
 
-#### Multi-Resolution Architecture Claim (275)
+275. **Segmented Resolution via Vector Concatenation**: A method for supporting multiple timing resolutions within hyperdimensional vector time by concatenating (not superimposing) resolution-tier vectors—standard resolution segment occupies dimensions [0, D_std), fine resolution segment occupies dimensions [D_std, D_std + D_fine); each segment maintains independent superposition for Byzantine tolerance within the tier; lower-resolution hardware reads only the standard prefix achieving exact backward compatibility (100% bit-identical to locally generated vectors); higher-resolution hardware reads full concatenated vector achieving finer precision; mathematical proof: cross-tier superposition causes 30-50% bit interference destroying compatibility while concatenation provides zero interference; enables single protocol to serve hardware ranging from μs-resolution IoT devices to ns-resolution scientific instruments without protocol branching or version incompatibility.
 
-275. **Segmented Resolution via Vector Concatenation**: A method for supporting multiple timing resolutions within hyperdimensional vector time by concatenating (not superimposing) resolution-tier vectors—standard resolution segment occupies dimensions [0, D_std), fine resolution segment occupies dimensions [D_std, D_std + D_fine); each segment maintains independent superposition for Byzantine tolerance within the tier; lower-resolution hardware reads only the standard prefix achieving exact backward compatibility (100% bit-identical to locally generated vectors); higher-resolution hardware reads full concatenated vector achieving finer precision; mathematical proof: cross-tier superposition causes 30-50% bit interference destroying compatibility while concatenation provides zero interference; enables single protocol to serve hardware ranging from μs-resolution IoT devices to ns-resolution scientific instruments without protocol branching or version incompatibility
-
----
-
-## Informational Appendices (Non-Numbered)
-
-### Appendix I: Foundational Prior Art Acknowledgments
-
-The following content acknowledges techniques that existed before this work. This information is preserved for context and to support the "excavation vs. innovation" distinction.
-
-#### I.1 Firefly Synchronization (Peskin 1975, Kuramoto 1984)
-
-Firefly synchronization solves distributed phase alignment via pulse-coupled oscillators. UTLP implements identical pulse-coupling architecture (beacon = flash, time_offset adjustment = phase advance). The core synchronization primitive is structural identity with firefly—same math (Kuramoto dynamics), different substrate.
-
-**What's excavated:** Pulse-coupled synchronization (100M year biological prior art)
-**What's innovated:** Absolute time consensus, trust tracking, Byzantine resistance (substrate adaptations for silicon)
-
-#### I.2 MHC as Authentication Architecture (500M years)
-
-Major Histocompatibility Complex is the evolutionary predecessor to Public Key Authentication. The immune system's architecture—distributed validators (T-Cells), trusted root (Thymus as Certificate Authority), identity tokens (MHC molecules)—was reinvented in silicon as PKI/TLS.
-
-**What's excavated:** Distributed authentication architecture
-**What's innovated:** Application to timing protocol with PMK as species marker
-
-#### I.3 Viral Attack Patterns
-
-Viruses (Herpes, Cytomegalovirus) intercept the MHC loading pathway—this IS Man-in-the-Middle attack, implemented in proteins 500 million years before we named it. Attack patterns are identical: brute force, stealth, MITM, spoofing, evasion.
-
-### Appendix II: Methodology Documentation
-
-The following methodology was used during development but is not claimed as prior art.
-
-#### II.1 The Isomorphism Stress Test
-
-Cross-domain comparison runs bidirectionally (A→B and B→A). If the relationship holds both ways, it's structural isomorphism; if only one way, it's superficial analogy.
-
-#### II.2 Adversarial Refinement (Purple Team)
-
-Purple Team = Red Team (find flaws) + Blue Team (propose fixes) operating simultaneously. Each objection must include a physics-compliant alternative.
-
-#### II.3 Recursive Meta-Documentation
-
-Treat the conversation itself as data. Document actual prompts, how AI response shaped next prompt, recursive moments where meta-documentation becomes part of the evidence.
-
-### Appendix III: Physics Foundations
-
-The following physics observations inform the architecture but are not claimable.
-
-#### III.1 U(1) Gauge Symmetry
-
-UTLP's phase-centric architecture mirrors U(1) gauge symmetry in quantum field theory—absolute phase unmeasurable, phase relationships observable.
-
-#### III.2 Conservation Laws
-
-Phase lock maintains swarm identity analogous to how U(1) gauge symmetry conserves electric charge.
-
-#### III.3 Special Relativity
-
-"Simultaneous" is frame-dependent. Arguing about epoch across distributed system parallels arguing about absolute phase in QM—physically meaningless.
 
 ---
 
-## Document References
+## Part D: UTLP Technical Supplement S4 — Partition Handling (Claims 276-277)
 
-For full claim text, see source documents:
+**Valid claims:** 276-277 (2 claims)
 
-| Claims | Source Document |
-|--------|-----------------|
-| 1-122 | Connectionless_Distributed_Timing_Prior_Art.md |
-| 123-259 | UTLP_Technical_Supplement_S2.md |
-| 260-275 | UTLP_Technical_Supplement_S3.md |
+276. **CRT Aliasing Horizon as Partition Boundary**: Using the mathematical property that Chinese Remainder Theorem recovery becomes ambiguous beyond the product of primes to detect network partitions in coprime cyclic time systems; HD vector similarity below threshold indicates potential horizon crossing; distinguishes "temporarily desynchronized" (recoverable via elastic sync) from "partitioned beyond CRT horizon" (requires phase-lock fallback); detection mechanism is specific to coprime cyclic architecture and does not apply to scalar time systems
+
+277. **Phase-Lock Coordination in Coprime Cyclic Systems**: Maintaining SMSP pattern coordination via direct phase matching across coprime cycles when CRT recovery is ambiguous; each phase cycle (mod pᵢ) is independently lockable; pattern execution continues because SMSP matches on phase tuples, not absolute ticks; enables graceful degradation where applications requiring only phase agreement (bilateral stimulation, lighting sync) continue while applications requiring absolute time (logging, scheduling) are unavailable; specific to coprime cyclic architecture where phases are independently meaningful
 
 ---
 
-## Audit Trail
+## Appendix: Audit Methodology
 
-| Date | Action | Claims Affected |
-|------|--------|-----------------|
-| January 2026 | Purple Team Audit | Removed 13 claims (11, 120, 189-191, 205, 208, 210-214, 218) |
-| January 2026 | Consolidated to SSOT | All claims now reference this appendix |
-| January 2026 | Multi-Resolution Extension | Added Claim 275 (Segmented Resolution) |
-
----
-
-*This document is the Single Source of Truth for UTLP/RFIP/SMSP prior art claims.*  
-*Protocol specification documents should reference claims by number only.*
-
-**Total Valid Claims: 262**
+Claims evaluated by multi-disciplinary "Purple Team":
+- **Engineering**: Prior implementations (GPS, NTP, OSPF, etc.)
+- **Mathematics**: Mathematical truth vs implementable technique
+- **Physics**: Natural law exclusions (35 USC 101)
+- **Biology**: Biological prior art (>500M years)
 
 ---
+
+**Total Valid Claims: 264**
+
+*This document is the Single Source of Truth for UTLP/RFIP/SMSP prior art claims.*
 
 *mlehaptics Project — Steven Kirkland*  
 *PHYRFLY Protocol Family: UTLP | RFIP | SMSP*

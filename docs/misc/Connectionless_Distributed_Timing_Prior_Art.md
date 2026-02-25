@@ -511,6 +511,8 @@ RFIP using 802.11mc ranging provides position but not orientation. Adding a 6-ax
 
 ### 4.5 SMSP (Synchronized Multimodal Score Protocol)
 
+> **Note:** SMSP has been expanded into a standalone specification. See **SMSP_Technical_Specification.md** for the complete v2.0 protocol with Vector Time integration, phase-indexed scores, and pattern compiler architecture. The content below represents the original v1.0 concepts; v2.0 supersedes this with automatic phase-lock synchronization requiring no start signal.
+
 While UTLP provides *when* and RFIP provides *where*, SMSP defines *what*: the format for describing synchronized actuator behavior across any number of channels and modalities.
 
 #### 4.5.1 The Three-Layer Architecture

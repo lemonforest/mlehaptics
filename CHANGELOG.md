@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [simulation_lucid_phenotype_companion_piece.md](docs/misc/simulation_lucid_phenotype_companion_piece.md): Accessible companion piece with practical implications for psychedelic trials, trauma therapy, and contemplative practice
   - README: New "Consciousness & Therapeutic Mechanisms" subsection in Documentation
 
+- **UTLP v3.31 Protocol Triad Documentation**: Prior art expansion completing the UTLP/RFIP/SMSP protocol triad (264 claims)
+  - [SMSP_Technical_Specification.md](docs/misc/SMSP_Technical_Specification.md): Synchronized Multimodal Score Protocol v2.0 — defines *what* synchronized nodes do, completing the triad (UTLP=when, RFIP=where, SMSP=what)
+  - [UTLP_Technical_Supplement_S4.md](docs/misc/UTLP_Technical_Supplement_S4.md): Partition Handling in Coprime Cyclic Systems — CRT aliasing horizon as partition detection (claims 276-277)
+  - [claims_appendix.md](docs/misc/claims_appendix.md): Full-text expanded claims with complete descriptions (264 total)
+  - [omnibus_header.yaml](docs/misc/omnibus_header.yaml): Machine-readable metadata for documentation suite (14 components, 310 pages)
+  - Updated Complete Documentation Suite (md + pdf) incorporating S4 and SMSP
+  - Added SMSP v2.0 cross-reference note to Connectionless Distributed Timing Prior Art §4.5
+
 - **P7.4: Legacy Modes as Patterns**: Modes 0-3 now available as LED-only bilateral patterns
   - **Pattern IDs**: 4 new patterns at top of catalog (BLE commands 2-5)
   - **Timing**: Matches reactive mode timing exactly (0.5Hz, 1.0Hz, 1.5Hz, 2.0Hz @ 25% duty)
