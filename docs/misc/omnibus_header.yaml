@@ -1,0 +1,67 @@
+---
+title: "UTLP & RFIP Architecture: Complete Documentation Suite"
+version: "S4.0"
+date: "January 2026"
+doi: "10.5281/zenodo.18078264"
+author: "Steven Kirkland (mlehaptics Project)"
+status: "Prior Art / Defensive Publication"
+license: "Public Domain"
+
+files:
+  component_count: 14
+  combined_markdown:
+    file: "UTLP_RFIP_Complete_Documentation_Suite.md"
+    lines: 14087
+    size_kb: 635
+  combined_pdf:
+    file: "UTLP_RFIP_Complete_Documentation_Suite.pdf"
+    pages: 310
+    size_kb: 953
+
+claims:
+  total_valid: 264
+  by_source:
+    - document: "Connectionless Distributed Timing Prior Art"
+      range: "1-122"
+      valid: 120
+    - document: "UTLP Technical Supplement S2"
+      range: "123-259"
+      valid: 126
+    - document: "UTLP Technical Supplement S3"
+      range: "260-275"
+      valid: 16
+    - document: "UTLP Technical Supplement S4"
+      range: "276-277"
+      valid: 2
+  removed: 13
+
+structure:
+  - part: "I"
+    title: "UTLP Specification (Core Protocol)"
+  - part: "II"
+    title: "UTLP Executive Summary"
+  - part: "III"
+    title: "Connectionless Distributed Timing Prior Art"
+  - part: "IV"
+    title: "UTLP Technical Supplement S1 (Precision/Transport)"
+  - part: "V"
+    title: "UTLP Technical Supplement S2 (Biological Governance)"
+  - part: "VI"
+    title: "UTLP Technical Supplement S3 (Vector Time)"
+  - part: "VII"
+    title: "UTLP Technical Supplement S4 (Partition Handling)"
+  - part: "VIII"
+    title: "RFIP Technical Specification"
+  - part: "IX"
+    title: "SMSP Technical Specification"
+  - part: "X"
+    title: "UTLP Addendum - Reference Frame Independent Positioning"
+  - part: "XI"
+    title: "Distributed Sensing Lab Manual"
+  - part: "XII"
+    title: "Integrative Capacity - AI Synthesis Alignment"
+  - part: "XIII"
+    title: "Python Reference Implementation"
+  - part: "XIV"
+    title: "Claims Appendix (Single Source of Truth)"
+---
