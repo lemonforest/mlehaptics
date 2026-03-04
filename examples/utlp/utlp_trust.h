@@ -840,6 +840,33 @@ void utlp_trust_get_coherence(utlp_coherence_t *out);
  */
 void utlp_trust_log_coherence(void);
 
+/*============================================================================
+ * LINEAGE LOYALTY - TRUST INTEGRATION (v3.9)
+ *
+ * The trust system needs to know the device's committed lineage to
+ * correctly score foreign-lineage peers. A peer that is consistent
+ * on a DIFFERENT timeline should not earn health credit on MY ledger.
+ *
+ * @see utlp_config.h - UTLP_LINEAGE_LOYALTY_THRESHOLD_US
+ *==========================================================================*/
+
+/**
+ * @brief Set the current lineage context for trust scoring.
+ *
+ * Called from process_beacon() before recording observations.
+ * Enables the trust system to cap health growth for foreign-lineage peers.
+ *
+ * When committed=true and a peer's observed offset deviates from my_offset
+ * by more than UTLP_LINEAGE_LOYALTY_THRESHOLD_US, that peer's health
+ * reward is suppressed for this observation. The observation is still
+ * recorded (interaction count, interval tracking, etc.) but does not
+ * contribute to health growth.
+ *
+ * @param my_offset    Current committed time offset (g_aatr.time_offset)
+ * @param committed    Whether device is in LINEAGE_COMMITTED state
+ */
+void utlp_trust_set_lineage_context(int64_t my_offset, bool committed);
+
 #ifdef __cplusplus
 }
 #endif

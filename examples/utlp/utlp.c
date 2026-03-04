@@ -554,6 +554,189 @@ static uint64_t g_last_stratum_change = 0;
 static bool g_is_provider = false;
 
 /*============================================================================
+ * LINEAGE LOYALTY STATE MACHINE (v3.9)
+ *
+ * Commitment lifecycle for timeline identity defense.
+ * Prevents foreign-lineage beacons from corrupting synchronization.
+ *
+ * Biological analogy: Self/Non-Self discrimination in transplant immunology.
+ * Once the body (device) develops tolerance for its own tissue (timeline),
+ * it actively rejects foreign tissue (foreign timelines) regardless of
+ * the donor's apparent health.
+ *
+ * States:
+ *   NAIVE      - Boot state. No commitment. Accept any timeline.
+ *   PROBATION  - Recently adopted an epoch. Servo converging. Gate permissive.
+ *   COMMITTED  - Stably entrained. Gate active: reject foreign timelines.
+ *   GRIEVING   - Lost best source (seniority bankruptcy or loneliness).
+ *                Gate temporarily relaxed to allow re-entrainment.
+ *
+ * @see utlp_config.h - UTLP_LINEAGE_LOYALTY_THRESHOLD_US
+ * @see utlp_config.h - UTLP_LINEAGE_COMMITMENT_MIN_US
+ *==========================================================================*/
+
+/** @brief Lineage loyalty commitment state */
+typedef enum {
+    LINEAGE_NAIVE = 0,      /**< No commitment - accept any timeline */
+    LINEAGE_PROBATION,      /**< Recently adopted - servo converging */
+    LINEAGE_COMMITTED,      /**< Stable entrainment - reject foreign */
+    LINEAGE_GRIEVING,       /**< Lost best peer - temporarily open */
+    LINEAGE_STATE_COUNT     /**< Sentinel - must be last */
+} lineage_state_t;
+
+static lineage_state_t g_lineage_state = LINEAGE_NAIVE;
+static uint64_t g_lineage_committed_since_us = 0;
+
+static const char *lineage_state_name(lineage_state_t state) {
+    switch (state) {
+        case LINEAGE_NAIVE:     return "NAIVE";
+        case LINEAGE_PROBATION: return "PROBATION";
+        case LINEAGE_COMMITTED: return "COMMITTED";
+        case LINEAGE_GRIEVING:  return "GRIEVING";
+        default:                return "UNKNOWN";
+    }
+}
+
+/**
+ * @brief Lineage Loyalty Gate: Is this beacon from a peer on (or near) my timeline?
+ *
+ * Called before ALL synchronization inputs (phase tracker, adoption, servo).
+ * Only blocks beacons when in COMMITTED state — all other states are permissive
+ * to allow bootstrap, convergence, and re-entrainment.
+ *
+ * @param proposed_offset  The offset this beacon implies (remote_tx - rx_ts)
+ * @return true if beacon should be processed for synchronization
+ *         false if beacon is from a foreign lineage (informational only)
+ */
+static bool is_near_my_lineage(int64_t proposed_offset) {
+    /* NAIVE, PROBATION, GRIEVING: accept everything (bootstrap / recovery) */
+    if (g_lineage_state != LINEAGE_COMMITTED) {
+        return true;
+    }
+
+    /* COMMITTED: check proximity to established timeline */
+    int64_t deviation = proposed_offset - g_aatr.time_offset;
+    if (deviation < 0) deviation = -deviation;
+
+    return (deviation < (int64_t)UTLP_LINEAGE_LOYALTY_THRESHOLD_US);
+}
+
+/**
+ * @brief Valid transition table for the lineage state machine.
+ *
+ * Indexed as [from_state][to_state]. true = legal transition.
+ *
+ * Legal transitions:
+ *   NAIVE      → PROBATION  (first adoption)
+ *   PROBATION  → COMMITTED  (stability timer elapsed)
+ *   PROBATION  → NAIVE      (loneliness before commitment)
+ *   COMMITTED  → GRIEVING   (best source bankruptcy or loneliness)
+ *   COMMITTED  → NAIVE      (loneliness - extended silence)
+ *   GRIEVING   → PROBATION  (re-adoption after grief)
+ *   GRIEVING   → NAIVE      (loneliness during grief)
+ */
+static const bool s_lineage_valid_transitions[LINEAGE_STATE_COUNT][LINEAGE_STATE_COUNT] = {
+    /*                  NAIVE  PROB   COMMIT GRIEV */
+    /* NAIVE     */ {  false, true,  false, false },
+    /* PROBATION */ {  true,  false, true,  false },
+    /* COMMITTED */ {  true,  false, false, true  },
+    /* GRIEVING  */ {  true,  true,  false, false },
+};
+
+/**
+ * @brief Transition the lineage state machine with validation.
+ *
+ * Validates the transition against the legal transition table,
+ * logs all transitions for diagnostics, and tracks commitment duration.
+ * Centralized to prevent scattered state changes.
+ *
+ * @param new_state  Target state
+ */
+static void lineage_transition(lineage_state_t new_state) {
+    if (g_lineage_state == new_state) return;
+
+    /* Bounds check - defensive against memory corruption */
+    if ((unsigned)new_state >= LINEAGE_STATE_COUNT ||
+        (unsigned)g_lineage_state >= LINEAGE_STATE_COUNT) {
+        utlp_hal_log_warn(TAG,
+            "LINEAGE: Invalid state value (current=%d, requested=%d) - ignoring",
+            (int)g_lineage_state, (int)new_state);
+        return;
+    }
+
+    /* Validate transition against legal table */
+    if (!s_lineage_valid_transitions[g_lineage_state][new_state]) {
+        utlp_hal_log_warn(TAG,
+            "LINEAGE: Illegal transition %s -> %s - ignoring",
+            lineage_state_name(g_lineage_state),
+            lineage_state_name(new_state));
+        return;
+    }
+
+    /* Log commitment duration when leaving COMMITTED state */
+    if (g_lineage_state == LINEAGE_COMMITTED && g_lineage_committed_since_us > 0) {
+        uint64_t commitment_duration_us = utlp_hal_get_micros() - g_lineage_committed_since_us;
+        utlp_hal_log_info(TAG,
+            "LINEAGE: %s -> %s after %llu s committed (offset=%+lld, stratum=%d)",
+            lineage_state_name(g_lineage_state),
+            lineage_state_name(new_state),
+            (unsigned long long)(commitment_duration_us / 1000000ULL),
+            (long long)g_aatr.time_offset,
+            utlp_get_stratum());
+    } else {
+        utlp_hal_log_info(TAG, "LINEAGE: %s -> %s (offset=%+lld, stratum=%d)",
+                          lineage_state_name(g_lineage_state),
+                          lineage_state_name(new_state),
+                          (long long)g_aatr.time_offset,
+                          utlp_get_stratum());
+    }
+
+    g_lineage_state = new_state;
+
+    if (new_state == LINEAGE_COMMITTED) {
+        g_lineage_committed_since_us = utlp_hal_get_micros();
+    }
+}
+
+/**
+ * @brief Notify lineage system that our best time source underwent Seniority Bankruptcy.
+ *
+ * Called from the trust system when a peer matching our best_source_mac
+ * changes session_salt (indicating reboot). Triggers COMMITTED→GRIEVING
+ * transition so we can re-adopt the rebooted source's new timeline.
+ *
+ * @param mac  The MAC address of the peer that rebooted
+ */
+void utlp_lineage_on_source_bankruptcy(const uint8_t *mac) {
+    /* Only relevant if we're committed and this is our source */
+    if (g_lineage_state != LINEAGE_COMMITTED) return;
+    if (memcmp(mac, g_aatr.best_source_mac, UTLP_MAC_SIZE) != 0) return;
+
+    utlp_hal_log_warn(TAG,
+        "LINEAGE: Best source %02X:%02X underwent Seniority Bankruptcy - entering GRIEVING",
+        mac[4], mac[5]);
+    lineage_transition(LINEAGE_GRIEVING);
+}
+
+/**
+ * @brief Notify lineage system of extended silence (loneliness).
+ *
+ * Called from the Loom when entering WEAVING state (no beacons for 120s).
+ * Resets lineage commitment so the device can adopt a new timeline when
+ * peers reappear. This handles:
+ * - Genesis reboot where followers lost all peers
+ * - Network partition where this device was isolated
+ * - New deployment where device was left running alone
+ */
+void utlp_lineage_on_loneliness(void) {
+    if (g_lineage_state == LINEAGE_NAIVE) return;  /* Already open */
+
+    utlp_hal_log_warn(TAG,
+        "LINEAGE: Extended silence (Loom WEAVING) - resetting to NAIVE");
+    lineage_transition(LINEAGE_NAIVE);
+}
+
+/*============================================================================
  * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
  *
  * Network jitter is ASYMMETRIC (Log-Normal distribution):
@@ -1972,9 +2155,19 @@ static void process_beacon(const utlp_packet_t *pkt)
     /* Cast HAL payload to wire packet structure */
     const utlp_wire_packet_t *wire = (const utlp_wire_packet_t *)pkt->payload;
 
-    /* Protocol version check (cleartext Exon field) */
+    /*
+     * Protocol version gate (cleartext Exon byte [23]).
+     *
+     * This branch implements v0x01 SCALAR time only. Bytes [4-11] are
+     * interpreted as uint64_t utlp_timestamp_us. The HDC experimental
+     * branch uses v0x02 where the same bytes carry a phase_chord[8]
+     * (coprime cyclic vector). Accepting a v0x02 beacon here would
+     * misinterpret 8 phase residues as a single uint64_t — producing
+     * a nonsense timestamp that corrupts the servo loop.
+     *
+     * Silent drop: no health penalty, no log (avoids spam in mixed swarms).
+     */
     if (wire->exon.protocol_version != UTLP_PROTOCOL_VERSION) {
-        /* Silent drop for unknown protocol versions */
         return;
     }
 
@@ -2026,6 +2219,12 @@ static void process_beacon(const utlp_packet_t *pkt)
          * BUG FIX: Previously called utlp_trust_record_observation() which
          * defaulted to arbor 0 (WiFi), breaking per-transport trust separation.
          */
+        /* v3.9: Set lineage context before recording observation.
+         * This enables the trust system to freeze health for foreign-lineage peers. */
+        utlp_trust_set_lineage_context(
+            g_aatr.time_offset,
+            (g_lineage_state == LINEAGE_COMMITTED));
+
         utlp_trust_record_observation_arbor(pkt->mac, observed_offset, remote_stratum,
                                             pkt->arbor_id, pkt->rssi, remote_session_salt);
 
@@ -2119,6 +2318,36 @@ static void process_beacon(const utlp_packet_t *pkt)
 #endif
 
     /*
+     * LINEAGE LOYALTY GATE (v3.9)
+     *
+     * Compute the proposed offset BEFORE any synchronization processing.
+     * This single check gates both the phase engine and source selection.
+     *
+     * A foreign-lineage beacon is informational only: it was already
+     * recorded for trust scoring (above), but it must NOT feed the
+     * phase tracker or trigger epoch adoption.
+     */
+    {
+        int64_t proposed_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
+
+        if (!is_near_my_lineage(proposed_offset)) {
+            utlp_hal_log_info(TAG,
+                "LINEAGE: Foreign beacon from %02X:%02X (dev=%+lld us from my offset %+lld), informational only",
+                pkt->mac[4], pkt->mac[5],
+                (long long)(proposed_offset - g_aatr.time_offset),
+                (long long)g_aatr.time_offset);
+            /*
+             * Skip phase engine, source selection, and adoption entirely.
+             * Trust observation was already recorded above.
+             * Entrainment evaluation still runs below (we may want to
+             * entrain this foreign peer once they're on our lineage).
+             */
+            should_adopt = false;
+            goto skip_source_selection;
+        }
+    }
+
+    /*
      * HARDWARE PHASE ENGINE (HPLAC - Physics First!)
      *
      * Notify the phase engine of this beacon. The phase engine tracks
@@ -2128,6 +2357,9 @@ static void process_beacon(const utlp_packet_t *pkt)
      * This runs in PARALLEL with the legacy servo_apply_offset system
      * during the transition period. Once validated, servo_apply_offset
      * will be removed.
+     *
+     * v3.9: Only processes beacons from peers on (or near) our lineage.
+     * Foreign beacons are filtered by the Lineage Loyalty gate above.
      *
      * Conversion: TX time (µs) → phase ticks (0-49999)
      *   peer_phase_ticks = (remote_tx_time % CYCLE_US) / TICK_US
@@ -2236,11 +2468,30 @@ static void process_beacon(const utlp_packet_t *pkt)
                         utlp_hal_log_info(TAG, "ADAPTIVE: Same-stratum but I'm elder (atomic %lld > peer's %lld) - holding Genesis",
                                           (long long)my_atomic_at_rx, (long long)remote_tx_time);
                     }
-                } else {
-                    /* Different stratum - lower stratum wins, normal ADAPTIVE adoption */
+                } else if (remote_stratum < utlp_get_stratum()) {
+                    /*
+                     * Different stratum, peer has BETTER authority - adopt.
+                     *
+                     * v3.9 STRATUM GUARD: Only adopt peers with strictly lower
+                     * (better) stratum. A Genesis (Stratum 1) must NEVER adopt
+                     * a Follower (Stratum 2+) via the ADAPTIVE path, even if
+                     * that Follower is highly trusted. Authority flows downward
+                     * in the stratum hierarchy; health cannot invert it.
+                     *
+                     * If a Genesis device is truly broken, the entrainment
+                     * system (not adoption) handles correction. If irredeemable,
+                     * self-demotion logic (line ~2505) will step it down.
+                     */
                     should_adopt = true;
-                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X (health=%d, stratum=%d)",
-                                      pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
+                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X (health=%d, stratum=%d < mine=%d)",
+                                      pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac),
+                                      remote_stratum, utlp_get_stratum());
+                } else {
+                    /* Different stratum, peer has LOWER authority (higher number).
+                     * Do not adopt upward - this prevents authority inversion.
+                     * A Genesis should never follow a Follower. */
+                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X has lower authority (stratum=%d > mine=%d), holding ground",
+                                      pkt->mac[4], pkt->mac[5], remote_stratum, utlp_get_stratum());
                 }
             }
         }
@@ -2304,7 +2555,23 @@ static void process_beacon(const utlp_packet_t *pkt)
             if (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time)) {
                 utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing same-stratum peer %02X:%02X (interval=%dms)",
                                   pkt->mac[4], pkt->mac[5], sender->observed_interval_ms);
-                /* Do NOT adopt - wait for peer to exit genesis phase */
+                /* Do NOT adopt - wait for peer to exit genesis phase.
+                 *
+                 * PHENOTYPE TRUTH (v3.9): Even though adoption is blocked,
+                 * we can compare atomic times to determine if we're younger.
+                 * If so, we should NOT claim Genesis stratum. */
+                {
+                    int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
+                    bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
+                    if (they_are_elder && utlp_get_stratum() == STRATUM_ORIGIN) {
+                        utlp_set_stratum_for_arbor(
+                            (utlp_arbor_id_t)pkt->arbor_id, remote_stratum + 1);
+                        g_last_stratum_change = utlp_hal_get_micros();
+                        utlp_hal_log_info(TAG,
+                            "PHENOTYPE: Demoting to stratum %d (elder %02X:%02X genesis-pulsing, adoption deferred)",
+                            remote_stratum + 1, pkt->mac[4], pkt->mac[5]);
+                    }
+                }
             } else {
                 int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
                 bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
@@ -2319,6 +2586,24 @@ static void process_beacon(const utlp_packet_t *pkt)
         }
         /* If best exists but is not this sender, OR no best and stratum not better:
          * Do not adopt. Trust the established relationships. */
+    }
+
+skip_source_selection:
+    /* Lineage Loyalty gate jumps here for foreign beacons (should_adopt=false) */
+
+    /*
+     * LINEAGE LOYALTY: PROBATION → COMMITTED transition (v3.9)
+     *
+     * Check on every non-foreign beacon (not just adoption successes).
+     * This ensures commitment can occur even when should_adopt is false,
+     * e.g., an elder Genesis correctly holding ground still advances
+     * through PROBATION → COMMITTED after the stability period.
+     */
+    if (g_lineage_state == LINEAGE_PROBATION) {
+        uint64_t time_since_change = utlp_hal_get_micros() - g_last_stratum_change;
+        if (time_since_change > UTLP_LINEAGE_COMMITMENT_MIN_US) {
+            lineage_transition(LINEAGE_COMMITTED);
+        }
     }
 
     if (should_adopt) {
@@ -2379,6 +2664,27 @@ static void process_beacon(const utlp_packet_t *pkt)
                          pkt->arbor_id);
             }
         }
+
+        /*
+         * LINEAGE LOYALTY: State transition on successful adoption (v3.9)
+         *
+         * NAIVE/GRIEVING → PROBATION: We just adopted a new timeline.
+         * The servo is converging; gate remains permissive to allow
+         * subsequent beacons from this source to fine-tune the offset.
+         *
+         * PROBATION → COMMITTED: Check if we've been stable long enough.
+         * This transition activates the lineage gate, which will reject
+         * beacons from foreign timelines going forward.
+         */
+        if (g_lineage_state == LINEAGE_NAIVE ||
+            g_lineage_state == LINEAGE_GRIEVING) {
+            lineage_transition(LINEAGE_PROBATION);
+        }
+
+        /* NOTE: PROBATION→COMMITTED check moved to skip_source_selection label
+         * so it runs on ALL non-foreign beacons, not just adoption successes.
+         * This ensures commitment can occur even when should_adopt is false
+         * (e.g., elder Genesis correctly holding ground). */
 
         /*
          * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
@@ -2460,6 +2766,29 @@ static void process_beacon(const utlp_packet_t *pkt)
         }
     }
 skip_adoption:
+
+    /*
+     * PHENOTYPE TRUTH (v3.9 Lineage Loyalty - Component A)
+     *
+     * If we reached skip_adoption via genesis reset detection, the adoption
+     * was blocked but we HAD determined should_adopt=true. This means a
+     * peer with equal-or-better stratum exists, and we are NOT the authority.
+     * Demote our stratum to prevent false Genesis advertising.
+     *
+     * The principle: claiming a stratum you haven't earned is a protocol
+     * violation. Observable phenotype (beacon stratum field) must match
+     * actual genotype (whether you are truly the timeline authority).
+     */
+    if (should_adopt &&
+        utlp_get_stratum() == STRATUM_ORIGIN &&
+        remote_stratum <= utlp_get_stratum()) {
+        utlp_set_stratum_for_arbor(
+            (utlp_arbor_id_t)pkt->arbor_id, remote_stratum + 1);
+        g_last_stratum_change = utlp_hal_get_micros();
+        utlp_hal_log_info(TAG,
+            "PHENOTYPE: Demoting at skip_adoption (stratum %d claim invalid, peer %02X:%02X has stratum %d)",
+            STRATUM_ORIGIN, pkt->mac[4], pkt->mac[5], remote_stratum);
+    }
 
     /*
      * ORIGIN SELF-AWARENESS (S2 Biological Governance)

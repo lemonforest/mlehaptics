@@ -58,6 +58,14 @@ extern void utlp_set_stratum_for_arbor(utlp_arbor_id_t arbor, uint8_t stratum);
  */
 extern utlp_arbor_id_t utlp_get_primary_time_source(void);
 
+/**
+ * @brief Notify lineage system of extended silence (extern, defined in utlp.c)
+ *
+ * v3.9: Called when Loom enters WEAVING state (no beacons for 120s).
+ * Resets lineage commitment to NAIVE so device can re-adopt.
+ */
+extern void utlp_lineage_on_loneliness(void);
+
 /*============================================================================
  * PER-ARBOR LOOM STATE
  *==========================================================================*/
@@ -129,6 +137,13 @@ static void transition_to_state(utlp_arbor_id_t arbor_id, utlp_loom_state_t new_
     switch (new_state) {
         case LOOM_STATE_WEAVING:
             loom->weave_start_us = get_time_us();
+            /*
+             * v3.9: Entering WEAVING means no beacons heard for 120s.
+             * If lineage was COMMITTED or GRIEVING, this extended silence
+             * means our timeline source is gone. Reset lineage to NAIVE
+             * so we can adopt a new timeline when/if peers appear.
+             */
+            utlp_lineage_on_loneliness();
             break;
 
         case LOOM_STATE_ANCHOR:

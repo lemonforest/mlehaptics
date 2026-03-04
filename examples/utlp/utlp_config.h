@@ -948,6 +948,54 @@ extern "C" {
 
 /** @} */ /* ilc */
 
+/*============================================================================
+ * LINEAGE LOYALTY (v3.9 - Timeline Hijack Defense)
+ *
+ * Once a device is stably entrained to a timeline, it rejects synchronization
+ * inputs from foreign timelines. This is a catch-all defense: even if stratum,
+ * health, or adoption checks are bypassed, the lineage gate prevents a newcomer
+ * from corrupting an established swarm's phase tracking or epoch.
+ *
+ * Biological analogy: Transplant rejection. Foreign tissue is rejected even
+ * if "healthy" — because it's not from your lineage. The body distinguishes
+ * "self" from "non-self" regardless of the foreign tissue's vitality.
+ *
+ * Commitment lifecycle: NAIVE → PROBATION → COMMITTED → GRIEVING → NAIVE
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Lineage Loyalty immune defense
+ *==========================================================================*/
+
+/** @defgroup lineage_loyalty Lineage Loyalty
+ * @{
+ */
+
+/**
+ * @brief Lineage Loyalty threshold (microseconds)
+ *
+ * Maximum offset deviation from established timeline before a beacon
+ * is classified as "foreign lineage." Must be:
+ * - Large enough to tolerate normal drift (±30µs/90min from testing)
+ * - Large enough to tolerate Lucky Packet jitter (typically <5ms)
+ * - Small enough to reject independent timelines (differ by seconds+)
+ *
+ * 50ms provides ~2500 hours of drift headroom at observed rates.
+ */
+#define UTLP_LINEAGE_LOYALTY_THRESHOLD_US   50000   /* 50ms */
+
+/**
+ * @brief Minimum stable entrainment before lineage commitment (microseconds)
+ *
+ * Device must maintain stratum without change for this duration
+ * before the Lineage Loyalty gate activates. Allows servo convergence
+ * during bootstrap without premature gate activation.
+ *
+ * 10 seconds covers genesis pulsing phases 1-3 (100ms, 500ms, 1s)
+ * and provides ~10 beacon exchanges at 1s intervals for confidence.
+ */
+#define UTLP_LINEAGE_COMMITMENT_MIN_US      (10ULL * 1000000ULL)  /* 10 seconds */
+
+/** @} */ /* lineage_loyalty */
+
 #ifdef __cplusplus
 }
 #endif

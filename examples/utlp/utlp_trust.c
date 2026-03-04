@@ -67,6 +67,7 @@
  */
 
 #include "utlp_trust.h"
+#include "utlp_config.h"    /* v3.9: UTLP_LINEAGE_LOYALTY_THRESHOLD_US */
 #include "utlp_hal.h"
 #include <string.h>
 #include <stdlib.h> /* For qsort(), abs() */
@@ -88,6 +89,24 @@ static const char *TAG = "TRUST";
  * Static allocation ensures predictable memory usage.
  */
 static utlp_peer_ledger_t g_peers[UTLP_TRUST_MAX_PEERS];
+
+/*============================================================================
+ * LINEAGE LOYALTY CONTEXT (v3.9)
+ *
+ * The trust system uses lineage context to suppress health growth for
+ * peers on foreign timelines. Set by utlp.c before each observation.
+ *==========================================================================*/
+
+static int32_t s_lineage_offset = 0;  /* int32_t to match offset_us parameter type */
+static bool s_lineage_committed = false;
+
+/* Forward declaration: Defined in utlp.c, called from Seniority Bankruptcy handler */
+extern void utlp_lineage_on_source_bankruptcy(const uint8_t *mac);
+
+void utlp_trust_set_lineage_context(int64_t my_offset, bool committed) {
+    s_lineage_offset = (int32_t)my_offset;  /* Truncate to match offset_us in record_observation */
+    s_lineage_committed = committed;
+}
 
 /*============================================================================
  * INTERNAL HELPERS
@@ -483,6 +502,14 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
             p->rssi_timestamp_ms[arbor_id] = current_ms;
         }
 
+        /*
+         * v3.9: Notify lineage system of source bankruptcy.
+         * If this peer was our best time source, the lineage system
+         * transitions COMMITTED → GRIEVING to allow re-adoption of
+         * the rebooted peer's new timeline.
+         */
+        utlp_lineage_on_source_bankruptcy(mac);
+
         /* Log and return - peer starts fresh journey to trustworthiness */
         utlp_hal_log_info(TAG, "Peer %02X:%02X reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
                           mac[4], mac[5], arbor_id, rssi, session_salt);
@@ -500,6 +527,38 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
     if (rssi != UTLP_RSSI_INVALID) {
         p->last_rssi[arbor_id] = rssi;
         p->rssi_timestamp_ms[arbor_id] = current_ms;
+    }
+
+    /*
+     * LINEAGE LOYALTY HEALTH GATE (v3.9)
+     *
+     * When we are COMMITTED to a lineage, peers whose observed offset
+     * deviates far from our lineage are "foreign." They are consistent
+     * on a DIFFERENT timeline — their consistency should not earn them
+     * trust on OUR ledger.
+     *
+     * We still record the observation (interactions++, interval tracking,
+     * RSSI, etc.) but skip the health reward/penalty cycle entirely.
+     * This prevents foreign peers from building trust pre-adoption.
+     *
+     * Once a foreign peer joins our lineage (via Phenotype Truth demotion
+     * + adoption), their subsequent offsets will be near ours and normal
+     * health scoring resumes.
+     */
+    if (s_lineage_committed) {
+        int32_t lineage_dev = offset_us - s_lineage_offset;
+        if (lineage_dev < 0) lineage_dev = -lineage_dev;
+
+        if (lineage_dev > (int32_t)UTLP_LINEAGE_LOYALTY_THRESHOLD_US) {
+            /* Foreign lineage: record observation metadata but skip health changes */
+            p->last_offset_us[arbor_id] = offset_us;
+            if (p->interactions < 65000) p->interactions++;
+            utlp_hal_log_info(TAG,
+                "LINEAGE: Foreign peer %02X:%02X (arbor=%d, dev=%lld us), health frozen at %d",
+                mac[4], mac[5], arbor_id, (long long)lineage_dev,
+                p->health_score[arbor_id]);
+            return;  /* Skip THE JUDGEMENT entirely */
+        }
     }
 
     /* THE JUDGEMENT: Compare against Swarm Consensus

@@ -67,7 +67,28 @@ extern "C" {
  * understanding the cryptographic implications.
  *==========================================================================*/
 
-/** @brief Current protocol version (embedded in Exon) */
+/**
+ * @brief Current protocol version (embedded in Exon byte [23])
+ *
+ * VERSION REGISTRY:
+ *   0x01 - Scalar time (uint64_t utlp_timestamp_us at bytes [4-11])
+ *          THIS IS THE ONLY VERSION IMPLEMENTED IN THIS BRANCH.
+ *          32-byte fixed geometry, AES-128-CTR encrypted Intron.
+ *
+ *   0x02 - Vector time (phase_chord[8] replacing bytes [4-11])
+ *          Described in Technical Supplement S3. EXPERIMENTAL ONLY.
+ *          Uses hyperdimensional coprime cyclic representation.
+ *          NOT implemented here. Beacons with 0x02 are silently dropped.
+ *
+ *   0x03 - Segmented vector (40-byte packet with fine segment)
+ *          Described in Technical Supplement S3 Section 14.7.
+ *          SPECULATIVE. NOT implemented. Silently dropped.
+ *
+ * RX behavior: process_beacon() in utlp.c rejects any packet where
+ * protocol_version != UTLP_PROTOCOL_VERSION before interpreting the
+ * timestamp field. This prevents scalar code from misreading vector
+ * phase chords as uint64_t values.
+ */
 #define UTLP_PROTOCOL_VERSION       0x01
 
 /** @brief Cleartext Exon size in bytes */
