@@ -165,6 +165,50 @@ static uint32_t get_aggregate_last_seen(const utlp_peer_ledger_t *p) {
 }
 
 /**
+ * @brief Check if a peer is on a foreign lineage (v3.11)
+ *
+ * When we're COMMITTED to a lineage, peers whose most recent offset
+ * deviates from our lineage offset by more than UTLP_LINEAGE_LOYALTY_THRESHOLD_US
+ * are "foreign." They should not count toward active_peer_count for N=2 threshold
+ * decisions, because they represent a DIFFERENT swarm, not a missing peer.
+ *
+ * Without this check, DEV_C seeing D0:04 (same lineage) + B3:08 (93s foreign offset)
+ * thinks active_peer_count=2, so the N=2 threshold relaxation (50 instead of 100)
+ * never applies — causing permanent "swarm empty" coherence despite being synced.
+ *
+ * @param p Pointer to peer entry
+ * @return true if peer is on a foreign lineage (should be excluded from N-counting)
+ */
+static bool is_foreign_peer(const utlp_peer_ledger_t *p) {
+    int j;
+    uint32_t best_seen = 0;
+    int best_arbor = 0;
+    int32_t peer_offset;
+    int32_t lineage_dev;
+
+    if (!s_lineage_committed) {
+        return false;  /* Not committed yet — no foreigners */
+    }
+
+    /* Use most recent offset across all arbors */
+    for (j = 0; j < UTLP_MAX_ARBORS; j++) {
+        if (p->last_seen_ms[j] > best_seen) {
+            best_seen = p->last_seen_ms[j];
+            best_arbor = j;
+        }
+    }
+    if (best_seen == 0) {
+        return false;  /* No data — not foreign by default */
+    }
+
+    peer_offset = p->last_offset_us[best_arbor];
+    lineage_dev = peer_offset - s_lineage_offset;
+    if (lineage_dev < 0) lineage_dev = -lineage_dev;
+
+    return (lineage_dev > (int32_t)UTLP_LINEAGE_LOYALTY_THRESHOLD_US);
+}
+
+/**
  * @brief Find or create a peer entry with LRU eviction
  *
  * Search strategy:
@@ -238,8 +282,8 @@ static utlp_peer_ledger_t* get_peer_entry(const uint8_t *mac) {
      * A peer healthy on ANY arbor is protected.
      */
     if (oldest_health < UTLP_TRUST_SYNC_THRESH) {
-        utlp_hal_log_warn(TAG, "Evicting weak peer %02X:%02X for new entry (agg_health=%d)",
-                          oldest->mac[4], oldest->mac[5], oldest_health);
+        utlp_hal_log_warn(TAG, "Evicting weak peer " PEER_FMT " for new entry (agg_health=%d)",
+                          PEER_ID(oldest->mac), oldest_health);
         clear_peer(oldest);
         return oldest;
     }
@@ -311,12 +355,27 @@ bool utlp_trust_get_consensus(int32_t *out_consensus_offset) {
     uint32_t best_seen;
     int best_arbor;
 
+    /* v3.13: N=2-aware voting threshold.
+     * Same pattern as coherence and select_best_peer — at N=2 (one real peer),
+     * requiring health >= 60 is too strict during drift model convergence
+     * where health oscillates around 50. Use the relaxed STARTUP threshold
+     * so consensus can form, unblocking the coherence reporting chain. */
+    uint8_t active_peers = 0;
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 && !is_foreign_peer(&g_peers[i])) {
+            active_peers++;
+        }
+    }
+    uint8_t vote_threshold = (active_peers <= 1) ?
+                              UTLP_TRUST_STARTUP :     /* 50 — relaxed for N=2 */
+                              UTLP_TRUST_MIN_VOTE;     /* 60 — normal threshold */
+
     /* Collect votes from HEALTHY peers only (aggregate health check) */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions == 0) continue;
 
         agg_health = get_aggregate_health(&g_peers[i]);
-        if (agg_health >= UTLP_TRUST_MIN_VOTE) {
+        if (agg_health >= vote_threshold) {
             /* Use the most recent offset (from whichever arbor saw them last) */
             best_seen = 0;
             best_arbor = 0;
@@ -415,18 +474,28 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
     UTLP_HAL_GET_TIME(&now_full);
     current_ms = (uint32_t)(now_full / 1000);
 
-    /* New peer initialization - probationary trust on ALL arbors */
+    /* New peer initialization - probationary trust on OBSERVED arbor only
+     *
+     * v3.14 FIX: Only the arbor that actually received this beacon gets
+     * STARTUP health. Other arbors start at 0 (unknown/unused).
+     *
+     * Previously all arbors were initialized to STARTUP (50), which meant
+     * unused arbors (802.15.4, BLE) permanently held health=50, inflating
+     * aggregate health even when the peer's WiFi health dropped to 0.
+     * This created "phantom health" — aggregate=50 from arbors that had
+     * never received a single observation, masking real transport failure.
+     */
     if (p->interactions == 0) {
         memcpy(p->mac, mac, 6);
-        /* Initialize all arbor health scores to STARTUP (probationary) */
         for (i = 0; i < UTLP_MAX_ARBORS; i++) {
-            p->health_score[i] = UTLP_TRUST_STARTUP;
+            p->health_score[i] = 0;  /* Unknown until observed */
             p->last_seen_ms[i] = 0;
             p->last_offset_us[i] = 0;
             /* Spectral Retina: Initialize RSSI tracking */
             p->last_rssi[i] = UTLP_RSSI_INVALID;
             p->rssi_timestamp_ms[i] = 0;
         }
+        p->health_score[arbor_id] = UTLP_TRUST_STARTUP; /* Only the seen arbor */
         p->interactions = 1;
         p->last_offset_us[arbor_id] = offset_us;
         p->last_seen_ms[arbor_id] = current_ms;
@@ -439,8 +508,8 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
             p->last_rssi[arbor_id] = rssi;
             p->rssi_timestamp_ms[arbor_id] = current_ms;
         }
-        utlp_hal_log_info(TAG, "New Peer %02X:%02X (arbor=%d, health=%d, rssi=%d, salt=0x%04X)",
-                          mac[4], mac[5], arbor_id, p->health_score[arbor_id], rssi, session_salt);
+        utlp_hal_log_info(TAG, "New Peer " PEER_FMT " (arbor=%d, health=%d, rssi=%d, salt=0x%04X)",
+                          PEER_ID(mac), arbor_id, p->health_score[arbor_id], rssi, session_salt);
         return;
     }
 
@@ -465,8 +534,8 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
      * - Session Salt:     FIRST beacon after reboot triggers this
      *========================================================================*/
     if (p->last_session_salt != 0 && p->last_session_salt != session_salt) {
-        utlp_hal_log_warn(TAG, "*** SENIORITY BANKRUPTCY *** Peer %02X:%02X salt 0x%04X->0x%04X (REBOOT DETECTED)",
-                          mac[4], mac[5], p->last_session_salt, session_salt);
+        utlp_hal_log_warn(TAG, "*** SENIORITY BANKRUPTCY *** Peer " PEER_FMT " salt 0x%04X->0x%04X (REBOOT DETECTED)",
+                          PEER_ID(mac), p->last_session_salt, session_salt);
 
         /* WIPE: Reset seniority clock (tenure starts over) */
         p->first_seen_ms = current_ms;
@@ -484,6 +553,7 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
         p->interactions = 1;              /* This IS first valid observation in new life */
         p->consecutive_hits = 0;
         p->observed_interval_ms = 0;
+        p->drift_rate_us_per_s = 0;       /* v3.12: Reset drift model */
 
         /* WIPE: Force stratum re-evaluation (worst possible) */
         p->stratum_claim = 255;
@@ -511,13 +581,22 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
         utlp_lineage_on_source_bankruptcy(mac);
 
         /* Log and return - peer starts fresh journey to trustworthiness */
-        utlp_hal_log_info(TAG, "Peer %02X:%02X reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
-                          mac[4], mac[5], arbor_id, rssi, session_salt);
+        utlp_hal_log_info(TAG, "Peer " PEER_FMT " reborn (arbor=%d, health=0, rssi=%d, salt=0x%04X)",
+                          PEER_ID(mac), arbor_id, rssi, session_salt);
         return;
     }
 
     /* Update session_salt tracking (same peer, same salt = continuous session) */
     p->last_session_salt = session_salt;
+
+    /*
+     * v3.12: Capture elapsed time BEFORE updating last_seen_ms.
+     * Needed for drift-compensated trust prediction below.
+     */
+    uint32_t elapsed_ms = 0;
+    if (p->last_seen_ms[arbor_id] > 0 && current_ms > p->last_seen_ms[arbor_id]) {
+        elapsed_ms = current_ms - p->last_seen_ms[arbor_id];
+    }
 
     /* Update per-arbor metadata */
     p->last_seen_ms[arbor_id] = current_ms;
@@ -554,8 +633,8 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
             p->last_offset_us[arbor_id] = offset_us;
             if (p->interactions < 65000) p->interactions++;
             utlp_hal_log_info(TAG,
-                "LINEAGE: Foreign peer %02X:%02X (arbor=%d, dev=%lld us), health frozen at %d",
-                mac[4], mac[5], arbor_id, (long long)lineage_dev,
+                "LINEAGE: Foreign peer " PEER_FMT " (arbor=%d, dev=%lld us), health frozen at %d",
+                PEER_ID(mac), arbor_id, (long long)lineage_dev,
                 p->health_score[arbor_id]);
             return;  /* Skip THE JUDGEMENT entirely */
         }
@@ -569,8 +648,31 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
     has_consensus = utlp_trust_get_consensus(&consensus);
 
     if (!has_consensus) {
-        /* No consensus yet. Just check self-consistency (jitter) on THIS arbor */
-        deviation = abs(p->last_offset_us[arbor_id] - offset_us);
+        /*
+         * No consensus yet. Check self-consistency (jitter) on THIS arbor.
+         *
+         * v3.12: DRIFT-COMPENSATED PREDICTION
+         *
+         * Instead of raw deviation (|current - previous|), predict the
+         * expected offset using the peer's drift rate EMA, then measure
+         * the RESIDUAL (prediction error = jitter only).
+         *
+         * Before v3.12: deviation = |current - previous| ≈ drift + jitter
+         *   At 60s intervals: ~2-4ms → always near the 2ms threshold
+         *
+         * After v3.12:  deviation = |current - predicted| ≈ jitter only
+         *   At any interval: ~500µs-1ms → 2ms threshold has clear headroom
+         *
+         * The drift_rate_us_per_s field converges in ~4-8 observations.
+         * Before convergence, prediction is 0 (raw comparison, same as before).
+         */
+        {
+            int32_t predicted_offset = p->last_offset_us[arbor_id];
+            if (elapsed_ms > 0 && elapsed_ms < 120000) {
+                predicted_offset += ((int32_t)p->drift_rate_us_per_s * (int32_t)elapsed_ms) / 1000;
+            }
+            deviation = abs(offset_us - predicted_offset);
+        }
 
         /*
          * v3.8 PT-13 FIX: Bootstrap Grace Period
@@ -579,16 +681,17 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
          * Two unsynchronized devices WILL have high jitter between consecutive
          * observations - this is expected during initial sync, not a sign of
          * untrustworthiness.
-         *
-         * Without this grace, peers start at health=50 but get penalized (-1)
-         * on every observation because jitter > 2ms. Health can only DECREASE,
-         * never reaching SYNC_THRESH (100) = "bootstrap catch-22".
          */
         if (p->interactions < UTLP_TRUST_BOOTSTRAP_INTERACTIONS) {
-            /* During bootstrap: only reward stability, never penalize */
+            /* During bootstrap: reward stability at 2× rate, never penalize.
+             * v3.10: Use UTLP_REWARD_TRUTH (+2) instead of +1 to accelerate
+             * trust building. At 60s intervals, +1 only reaches 60 in 10
+             * observations; +2 reaches 70, well above N=2 threshold (50). */
             if (deviation < 2000) {
-                if (p->health_score[arbor_id] < UTLP_TRUST_MAX) {
-                    p->health_score[arbor_id]++;
+                if (p->health_score[arbor_id] <= (UTLP_TRUST_MAX - UTLP_REWARD_TRUTH)) {
+                    p->health_score[arbor_id] += UTLP_REWARD_TRUTH;
+                } else {
+                    p->health_score[arbor_id] = UTLP_TRUST_MAX;
                 }
             }
             /* No penalty during bootstrap - jitter is expected */
@@ -605,10 +708,42 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
             }
         }
     } else {
-        /* CONSENSUS EXISTS: The Crowd vs. The Peer on THIS arbor */
-        deviation = abs(offset_us - consensus);
+        /*
+         * CONSENSUS EXISTS: The Crowd vs. The Peer on THIS arbor
+         *
+         * v3.12: Use drift-compensated prediction instead of raw comparison.
+         * Same logic as the no-consensus path: predict where this peer's
+         * offset SHOULD be based on their drift model, measure the residual.
+         *
+         * The consensus median is still used for the 100ms "lying" threshold
+         * (a peer reporting an offset 100ms+ away from consensus is definitely
+         * wrong, regardless of drift model). But the ±2ms "drifting" judgement
+         * uses the prediction residual.
+         */
+        {
+            int32_t predicted_offset = p->last_offset_us[arbor_id];
+            if (elapsed_ms > 0 && elapsed_ms < 120000) {
+                predicted_offset += ((int32_t)p->drift_rate_us_per_s * (int32_t)elapsed_ms) / 1000;
+            }
+            deviation = abs(offset_us - predicted_offset);
+        }
 
-        if (deviation < 2000) { /* 2ms Agreement Window */
+        /* Also check absolute deviation from consensus for the "lying" gate */
+        int32_t consensus_deviation = abs(offset_us - consensus);
+
+        if (consensus_deviation > 100000) {
+            /* >100ms from consensus = lying (severe), regardless of drift model */
+            uint8_t penalty = UTLP_COST_LYING;
+            if (p->health_score[arbor_id] > penalty) {
+                p->health_score[arbor_id] -= penalty;
+            } else {
+                p->health_score[arbor_id] = 0;
+            }
+            p->consecutive_hits = 0;
+            utlp_hal_log_warn(TAG, "Peer " PEER_FMT " LYING (arbor=%d, dev=%ldus, health=%d)",
+                              PEER_ID(mac), arbor_id, (long)consensus_deviation,
+                              p->health_score[arbor_id]);
+        } else if (deviation < 2000) { /* 2ms residual — jitter is normal */
             /* Hebbian Reward: Trust grows slowly */
             if (p->health_score[arbor_id] <= (UTLP_TRUST_MAX - UTLP_REWARD_TRUTH)) {
                 p->health_score[arbor_id] += UTLP_REWARD_TRUTH;
@@ -617,20 +752,42 @@ void utlp_trust_record_observation_arbor(const uint8_t *mac, int32_t offset_us,
             }
             p->consecutive_hits++;
         } else {
-            /* Penalty: Entropy eats trust quickly on THIS arbor
-             * >100ms = lying (severe), else = drifting (moderate)
-             */
-            uint8_t penalty = (deviation > 100000) ? UTLP_COST_LYING : UTLP_COST_DRIFTING;
-
-            if (p->health_score[arbor_id] > penalty) {
-                p->health_score[arbor_id] -= penalty;
+            /* Residual > 2ms: unpredictable jitter, moderate penalty */
+            if (p->health_score[arbor_id] > UTLP_COST_DRIFTING) {
+                p->health_score[arbor_id] -= UTLP_COST_DRIFTING;
             } else {
                 p->health_score[arbor_id] = 0;
             }
             p->consecutive_hits = 0;
-            utlp_hal_log_warn(TAG, "Peer %02X:%02X punished (arbor=%d, dev=%ldus, health=%d)",
-                              mac[4], mac[5], arbor_id, (long)deviation, p->health_score[arbor_id]);
+            utlp_hal_log_warn(TAG, "Peer " PEER_FMT " punished (arbor=%d, residual=%ldus, health=%d)",
+                              PEER_ID(mac), arbor_id, (long)deviation, p->health_score[arbor_id]);
         }
+    }
+
+    /*
+     * v3.12: Update drift rate EMA BEFORE storing new offset.
+     *
+     * drift_rate = EMA of (delta_offset / elapsed_time) in µs/s.
+     * Uses (3×old + new) / 4 for smooth convergence (~4-8 observations).
+     *
+     * v3.14 FIX: Guard raised from 100ms to 1000ms.
+     *
+     * The seismic chirp sends 3 beacons per burst, ~100ms apart. Each
+     * burst triggers a separate trust observation. The rx_timestamp
+     * includes variable processing queue delay (~0-5ms between bursts),
+     * causing observed_offset to vary by ±5000µs within a single chirp.
+     * At 100ms elapsed, this produces measured drift rates of ±50,000µs/s
+     * (vs true drift of ~5-80µs/s), destroying the EMA.
+     *
+     * With the guard at 1000ms, only inter-chirp intervals (60s steady
+     * state) trigger drift updates. Intra-chirp bursts are filtered out.
+     */
+    if (elapsed_ms > 1000 && elapsed_ms < 120000) {
+        int32_t delta = offset_us - p->last_offset_us[arbor_id];
+        int32_t measured_rate = (delta * 1000) / (int32_t)elapsed_ms;  /* µs/s */
+        p->drift_rate_us_per_s = (int16_t)(
+            ((int32_t)p->drift_rate_us_per_s * 3 + measured_rate) / 4
+        );
     }
 
     /* Update last known offset on THIS arbor AFTER judgement */
@@ -683,9 +840,17 @@ utlp_peer_ledger_t* utlp_trust_select_best_peer(void) {
      * we must trust the only peer we have - even during bootstrap.
      *
      * With N≥3 peers, we maintain higher standards because we have options.
+     *
+     * v3.14 FIX: Exclude foreign-lineage peers from active count.
+     * A foreign peer (e.g. 715s offset from our lineage) is a different
+     * swarm, not a "missing" local peer. Without this, foreign peers
+     * inflate active_peer_count, raising threshold from 50→100, making
+     * select_best_peer() return NULL even when a valid peer exists at
+     * health 50. This was the root cause of the 60s re-adoption cycle
+     * observed in the March 17 hardware test.
      */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
-        if (g_peers[i].interactions > 0) {
+        if (g_peers[i].interactions > 0 && !is_foreign_peer(&g_peers[i])) {
             active_peer_count++;
         }
     }
@@ -752,8 +917,8 @@ void utlp_trust_log_status(void) {
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions > 0) {
             agg_health = get_aggregate_health(&g_peers[i]);
-            utlp_hal_log_info(TAG, "[%02X:%02X] Health:[W%3d/P%3d/B%3d] Agg:%3d | Strat:%2d | Int:%d",
-                              g_peers[i].mac[4], g_peers[i].mac[5],
+            utlp_hal_log_info(TAG, "[" PEER_SALT_FMT "] Health:[W%3d/P%3d/B%3d] Agg:%3d | Strat:%2d | Int:%d",
+                              PEER_SALT_ARGS(&g_peers[i]),
                               g_peers[i].health_score[0],  /* WiFi */
                               g_peers[i].health_score[1],  /* 802.15.4 */
                               g_peers[i].health_score[2],  /* BLE */
@@ -790,15 +955,27 @@ void utlp_trust_log_status(void) {
 bool utlp_trust_has_quorum(int64_t my_offset, int32_t threshold_us) {
     int i, j;
     int agreeing_peers = 0;
+    int active_peer_count = 0;
     uint8_t agg_health;
     uint32_t best_seen;
     int best_arbor;
     int64_t peer_offset;
     int64_t deviation;
+    int required;
 
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         /* Skip empty slots */
         if (g_peers[i].interactions == 0) continue;
+
+        /*
+         * v3.11: Exclude foreign-lineage peers from active count.
+         * A foreign peer (93s offset from our lineage) isn't a "missing" local
+         * peer — it's a different swarm. Without this, N=2 quorum relaxation
+         * fails when a foreign peer inflates active_peer_count to 2.
+         */
+        if (is_foreign_peer(&g_peers[i])) continue;
+
+        active_peer_count++;
 
         /* Skip unhealthy peers (aggregate health) - they don't count for quorum */
         agg_health = get_aggregate_health(&g_peers[i]);
@@ -825,15 +1002,18 @@ bool utlp_trust_has_quorum(int64_t my_offset, int32_t threshold_us) {
     }
 
     /*
-     * Quorum = at least 2 healthy peers agree with me.
+     * v3.10: N=2 aware quorum requirement.
      *
-     * If I have 0-1 agreeing peers, I may be:
-     * - Alone (no swarm yet)
-     * - The outlier (I drifted, not them)
+     * At N=2 (1 active peer), requiring 2 agreeing peers is structurally
+     * impossible. Lower to 1 for small swarms. This is safe because:
+     * - At N=2, outlier detection is impossible anyway (no third voice)
+     * - The token bucket still limits RF pollution
+     * - When a 3rd device appears, quorum automatically requires 2 again
      *
-     * Either way, I should NOT fire entrainment pulses.
+     * At N≥3, maintain the original requirement of 2 agreeing peers.
      */
-    return (agreeing_peers >= 2);
+    required = (active_peer_count <= 1) ? 1 : 2;
+    return (agreeing_peers >= required);
 }
 
 /**
@@ -926,8 +1106,15 @@ void utlp_trust_snapshot_arbor(uint8_t arbor_id) {
  * "We will debug by observing distributions, not individual samples."
  *==========================================================================*/
 
-/** @brief Threshold for "agreement" with consensus (2ms) */
-#define COHERENCE_AGREEMENT_THRESHOLD_US    2000
+/**
+ * @brief Threshold for "agreement" with consensus
+ *
+ * v3.11: Scaled from 2ms to 10ms to match consensus/self-consistency/quorum
+ * scaling for 60s beacon intervals. At 60s intervals, crystal drift (20-100 ppm)
+ * causes 1.2-6ms of offset change. The fixed 2ms threshold made coherence
+ * report peers as "disagreeing" even when they were well-synced.
+ */
+#define COHERENCE_AGREEMENT_THRESHOLD_US    10000
 
 /** @brief Minimum coherence percentage to be considered "coherent" */
 #define COHERENCE_MIN_PERCENT               80
@@ -953,6 +1140,8 @@ void utlp_trust_get_coherence(utlp_coherence_t *out) {
     uint32_t best_seen;
     int best_arbor;
     int32_t peer_offset;
+    uint8_t active_peer_count = 0;
+    uint8_t health_threshold;
 
     /* Initialize output */
     memset(out, 0, sizeof(*out));
@@ -965,12 +1154,27 @@ void utlp_trust_get_coherence(utlp_coherence_t *out) {
     }
     out->consensus_us = consensus;
 
+    /*
+     * v3.10: N=2 aware threshold (matches select_best_peer() pattern).
+     * When only 1 peer exists, use STARTUP threshold (50) instead of
+     * SYNC_THRESH (100). Without this, coherence reports "swarm empty"
+     * for 50+ minutes while adoption is actually working fine.
+     */
+    for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
+        if (g_peers[i].interactions > 0 && !is_foreign_peer(&g_peers[i])) {
+            active_peer_count++;
+        }
+    }
+    health_threshold = (active_peer_count == 1) ?
+                       UTLP_TRUST_STARTUP :      /* 50 - N=2 bootstrap */
+                       UTLP_TRUST_SYNC_THRESH;    /* 100 - normal for N≥3 */
+
     /* Count healthy peers and measure spread (using aggregate health) */
     for (i = 0; i < UTLP_TRUST_MAX_PEERS; i++) {
         if (g_peers[i].interactions == 0) continue;
 
         agg_health = get_aggregate_health(&g_peers[i]);
-        if (agg_health < UTLP_TRUST_SYNC_THRESH) continue;
+        if (agg_health < health_threshold) continue;
 
         healthy_count++;
 
@@ -1469,8 +1673,8 @@ void utlp_trust_log_spectral_coherence(const utlp_peer_ledger_t *peer,
     }
 
     /* Log the spectral coherence reading */
-    utlp_hal_log_info("RETINA", "Peer %02X:%02X | %s:%d %s:%d | Delta: %d dB | %s",
-                      peer->mac[4], peer->mac[5],
+    utlp_hal_log_info("RETINA", "Peer " PEER_FMT " | %s:%d %s:%d | Delta: %d dB | %s",
+                      PEER_ID(peer->mac),
                       wifi_label, (int)current_rssi,
                       other_label, (int)other_rssi,
                       (int)delta, status);

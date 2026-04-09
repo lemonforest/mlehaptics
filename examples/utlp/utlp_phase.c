@@ -1,42 +1,42 @@
 /**
  * @file utlp_phase.c
- * @brief UTLP Hardware Phase Engine - MCPWM Implementation
+ * @brief UTLP Hardware Phase Engine - HAL-Abstracted Implementation
  *
  * "Physics First: Hardware defines time, not software."
  *
- * This module implements Hardware Phase Locked Atomic Coherency (HPLAC) using
- * the ESP32-C6 MCPWM peripheral as the single source of phase truth.
+ * This module implements Hardware Phase Locked Atomic Coherency (HPLAC)
+ * via the platform-agnostic Timer HAL (utlp_hal_timer.h). The hardware
+ * timer IS the truth - not a follower of software timing.
  *
  * @section key_features Key Features
  *
  * - **Single-Register Atomic Phase**: 50kHz × 50000 ticks = 1 second
- * - **Hardware Sync**: MCPWM soft sync for instant phase jam
+ * - **Hardware Sync**: Instant phase jam via HAL hard_sync
  * - **Spectral Purity**: Period bending for frequency slewing
  * - **Variable Gain PLL**: COLD → LOCKED → RECOVERY state machine
+ * - **Precision Windows**: Pause/resume for power-managed beacon timing
+ * - **Anticipatory Memory**: Diagnostic prediction/scoring framework
  *
  * @section atomicity Atomicity Guarantees
  *
- * All critical sections use `portMUX_TYPE` spinlock to:
+ * All critical sections use Timer HAL's enter/exit_critical to:
  * 1. Prevent execution jitter during hard sync
  * 2. Prevent torn reads of 64-bit values
  * 3. Ensure period reset during hard sync (no "sticky slew")
  *
- * @version 1.0.0
- * @date 2026-01-03
+ * @version 2.0.0
+ * @date 2026-03-04
  *
  * @copyright
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "utlp_phase.h"
+#include "utlp_hal_timer.h"
 #include "utlp_config.h"
 #include "utlp_hal.h"
 
 #ifdef ESP_PLATFORM
-#include "driver/mcpwm_timer.h"
-#include "driver/mcpwm_sync.h"
-#include "hal/mcpwm_ll.h"     /* Low-level API for reading timer count */
-#include "soc/mcpwm_struct.h" /* Hardware register definitions */
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/portmacro.h"
@@ -50,20 +50,55 @@ static const char *TAG = "UTLP_PHASE";
  * "Physics First: Hardware defines time."
  *==========================================================================*/
 
-/** @brief Module spinlock for all critical sections (Purple Team fix) */
-static portMUX_TYPE s_phase_spinlock = portMUX_INITIALIZER_UNLOCKED;
-
 /** @brief Phase engine state (truck-packed) */
 static utlp_phase_state_t s_state = {0};
 
-/** @brief MCPWM timer handle */
-static mcpwm_timer_handle_t s_phase_timer = NULL;
-
-/** @brief MCPWM soft sync handle */
-static mcpwm_sync_handle_t s_soft_sync = NULL;
-
 /** @brief Initialization flag */
 static bool s_initialized = false;
+
+/*============================================================================
+ * PRECISION WINDOW STATE
+ *
+ * Pause/resume support for power-managed beacon timing.
+ * Timer OFF during sleep, ON during beacon windows.
+ *==========================================================================*/
+
+/** @brief Phase engine is paused (timer stopped, waiting for resume) */
+static bool s_paused = false;
+
+/** @brief esp_timer timestamp when phase engine was paused */
+static uint64_t s_pause_timestamp_us = 0;
+
+/** @brief Timer elapsed microseconds captured at pause */
+static uint64_t s_pause_elapsed_us = 0;
+
+/** @brief Precision Window orchestrator state */
+typedef enum {
+    PRECISION_CONTINUOUS = 0,   /**< Timer always on (boot/bootstrap) */
+    PRECISION_AWAKE,            /**< Timer on during beacon window */
+    PRECISION_SLEEPING,         /**< Timer off, RTC tracking time */
+    PRECISION_STATE_COUNT       /**< Sentinel */
+} precision_state_t;
+
+static precision_state_t s_precision_state = PRECISION_CONTINUOUS;
+
+/** @brief Consecutive missed beacons in precision mode */
+static uint8_t s_precision_misses = 0;
+
+/** @brief Predicted next beacon arrival (esp_timer epoch) */
+static uint64_t s_next_beacon_predicted_us = 0;
+
+/** @brief Last beacon arrival (esp_timer epoch) */
+static uint64_t s_last_beacon_arrival_us = 0;
+
+/*============================================================================
+ * ANTICIPATORY MEMORY STATE
+ *
+ * Diagnostic-first: log predictions vs. reality.
+ * NOT used for timing control yet.
+ *==========================================================================*/
+
+static utlp_anticipatory_state_t s_anticipatory = {0};
 
 /*============================================================================
  * INTERRUPT LATENCY COMPENSATION (ILC) STATE
@@ -106,16 +141,18 @@ static volatile uint32_t g_learned_isr_latency_us = UTLP_ILC_INITIAL_US;
 static volatile uint64_t g_isr_target_time_us = ILC_TARGET_INACTIVE;
 
 /*============================================================================
- * ISR CALLBACK
+ * ISR CALLBACK (via Timer HAL)
  *
  * Minimal ISR - only increments cycle_count for absolute time derivation.
  * Fires once per second at cycle boundary (timer empty).
+ *
+ * Registered with the Timer HAL as the on_cycle callback.
  *==========================================================================*/
 
 /**
- * @brief Phase timer ISR - Cycle tracking + ILC Learning
+ * @brief Phase timer cycle callback - Cycle tracking + ILC Learning
  *
- * MCPWM timer empty event handler. Fires once per second (at counter wrap).
+ * Timer HAL cycle boundary handler. Fires once per second (at counter wrap).
  * Does two things:
  *   1. Increments cycle_count for absolute time derivation
  *   2. Measures ISR latency for ILC learning
@@ -124,13 +161,15 @@ static volatile uint64_t g_isr_target_time_us = ILC_TARGET_INACTIVE;
  * @note ISR context is inherently atomic (no preemption on same core).
  * @note cycle_count read requires critical section in getter (torn read hazard).
  *
+ * @param user_ctx      Unused context pointer
+ * @param count_at_isr  Timer count at ISR entry (for latency measurement)
+ * @return false (no high-priority task woken)
+ *
  * @see UTLP_ILC_* constants in utlp_config.h
  */
-static bool IRAM_ATTR phase_timer_empty_isr(mcpwm_timer_handle_t timer,
-                                             const mcpwm_timer_event_data_t *edata,
-                                             void *user_ctx)
+static bool IRAM_ATTR phase_timer_cycle_callback(void *user_ctx,
+                                                  uint32_t count_at_isr)
 {
-    (void)timer;
     (void)user_ctx;
 
     /* Increment cycle count for absolute time derivation */
@@ -153,13 +192,12 @@ static bool IRAM_ATTR phase_timer_empty_isr(mcpwm_timer_handle_t timer,
         /*
          * Capture actual ISR entry time.
          *
-         * We use the MCPWM event timestamp (timer count × tick duration).
-         * For an EMPTY event (counter wrap), count_value represents how many
+         * For an EMPTY event (counter wrap), count_at_isr represents how many
          * ticks have elapsed since the wrap - i.e., the ISR dispatch delay.
          *
          * Example: If ISR fires when count=3, actual = 3 × 20µs = 60µs late.
          */
-        uint64_t actual = (uint64_t)edata->count_value * UTLP_PHASE_TICK_US;
+        uint64_t actual = (uint64_t)count_at_isr * UTLP_PHASE_TICK_US;
 
         /* Calculate latency error (32-bit math for rollover safety) */
         int32_t error_us = (int32_t)((uint32_t)actual - (uint32_t)target);
@@ -225,7 +263,7 @@ esp_err_t utlp_phase_init(void)
         return ESP_OK;
     }
 
-    ESP_LOGI(TAG, "Initializing MCPWM Phase Engine (HPLAC)");
+    ESP_LOGI(TAG, "Initializing Phase Engine (HPLAC) via Timer HAL");
     ESP_LOGI(TAG, "  Resolution: %lu Hz (%lu µs/tick)",
              UTLP_PHASE_TIMER_RESOLUTION_HZ, UTLP_PHASE_TICK_US);
     ESP_LOGI(TAG, "  Period: %lu ticks = %lu µs",
@@ -238,69 +276,34 @@ esp_err_t utlp_phase_init(void)
     s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
     s_state.sync_state = UTLP_PHASE_STATE_COLD;
 
-    /* Configure MCPWM timer as Phase Master */
-    mcpwm_timer_config_t timer_config = {
-        .group_id = UTLP_PHASE_MCPWM_GROUP,
-        .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
+    /* Initialize anticipatory memory */
+    memset(&s_anticipatory, 0, sizeof(s_anticipatory));
+
+    /* Reset precision window state */
+    s_paused = false;
+    s_precision_state = PRECISION_CONTINUOUS;
+    s_precision_misses = 0;
+
+    /* Configure Timer HAL with phase engine callback */
+    utlp_hal_timer_config_t timer_config = {
         .resolution_hz = UTLP_PHASE_TIMER_RESOLUTION_HZ,
         .period_ticks = UTLP_PHASE_PERIOD_TICKS,
-        .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-        .flags = {
-            .update_period_on_empty = true,   /* Period change at cycle end */
-            .update_period_on_sync = true,    /* Period change on sync */
-        },
+        .on_cycle = phase_timer_cycle_callback,
+        .user_ctx = NULL,
     };
 
-    esp_err_t ret = mcpwm_new_timer(&timer_config, &s_phase_timer);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create MCPWM timer: %s", esp_err_to_name(ret));
-        return ret;
+    utlp_hal_timer_err_t err = utlp_hal_timer_init(&timer_config);
+    if (err != UTLP_TIMER_OK) {
+        ESP_LOGE(TAG, "Failed to initialize Timer HAL: %d", (int)err);
+        return ESP_FAIL;
     }
 
-    /* Create soft sync source for hard sync capability */
-    mcpwm_soft_sync_config_t sync_config = {};
-    ret = mcpwm_new_soft_sync_src(&sync_config, &s_soft_sync);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create soft sync: %s", esp_err_to_name(ret));
-        mcpwm_del_timer(s_phase_timer);
-        s_phase_timer = NULL;
-        return ret;
-    }
-
-    /* Register cycle boundary ISR for absolute time */
-    mcpwm_timer_event_callbacks_t cbs = {
-        .on_empty = phase_timer_empty_isr,
-    };
-    ret = mcpwm_timer_register_event_callbacks(s_phase_timer, &cbs, NULL);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to register timer callback: %s", esp_err_to_name(ret));
-        mcpwm_del_sync_src(s_soft_sync);
-        mcpwm_del_timer(s_phase_timer);
-        s_soft_sync = NULL;
-        s_phase_timer = NULL;
-        return ret;
-    }
-
-    /* Enable and start timer */
-    ret = mcpwm_timer_enable(s_phase_timer);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to enable timer: %s", esp_err_to_name(ret));
-        mcpwm_del_sync_src(s_soft_sync);
-        mcpwm_del_timer(s_phase_timer);
-        s_soft_sync = NULL;
-        s_phase_timer = NULL;
-        return ret;
-    }
-
-    ret = mcpwm_timer_start_stop(s_phase_timer, MCPWM_TIMER_START_NO_STOP);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to start timer: %s", esp_err_to_name(ret));
-        mcpwm_timer_disable(s_phase_timer);
-        mcpwm_del_sync_src(s_soft_sync);
-        mcpwm_del_timer(s_phase_timer);
-        s_soft_sync = NULL;
-        s_phase_timer = NULL;
-        return ret;
+    /* Start timer */
+    err = utlp_hal_timer_start();
+    if (err != UTLP_TIMER_OK) {
+        ESP_LOGE(TAG, "Failed to start Timer HAL: %d", (int)err);
+        utlp_hal_timer_deinit();
+        return ESP_FAIL;
     }
 
     s_initialized = true;
@@ -316,19 +319,11 @@ esp_err_t utlp_phase_deinit(void)
 
     ESP_LOGI(TAG, "Deinitializing phase engine");
 
-    if (s_phase_timer) {
-        mcpwm_timer_start_stop(s_phase_timer, MCPWM_TIMER_STOP_EMPTY);
-        mcpwm_timer_disable(s_phase_timer);
-        mcpwm_del_timer(s_phase_timer);
-        s_phase_timer = NULL;
-    }
-
-    if (s_soft_sync) {
-        mcpwm_del_sync_src(s_soft_sync);
-        s_soft_sync = NULL;
-    }
+    utlp_hal_timer_deinit();
 
     s_initialized = false;
+    s_paused = false;
+    s_precision_state = PRECISION_CONTINUOUS;
     return ESP_OK;
 }
 
@@ -338,14 +333,11 @@ esp_err_t utlp_phase_deinit(void)
 
 uint32_t utlp_phase_get_ticks(void)
 {
-    if (!s_initialized || !s_phase_timer) {
+    if (!s_initialized) {
         return 0;
     }
 
-    /* Use Low-Level API to read timer counter (high-level API not available) */
-    mcpwm_dev_t *hw = MCPWM_LL_GET_HW(UTLP_PHASE_MCPWM_GROUP);
-    uint32_t count = mcpwm_ll_timer_get_count_value(hw, UTLP_PHASE_MCPWM_TIMER);
-    return count;
+    return utlp_hal_timer_get_ticks();
 }
 
 uint16_t utlp_phase_get_angle(void)
@@ -365,9 +357,9 @@ uint16_t utlp_phase_get_angle_x10(void)
 uint64_t utlp_phase_get_cycle_count(void)
 {
     /* CRITICAL: Use critical section to prevent torn reads (Purple Team Pitfall 2) */
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     uint64_t count = s_state.cycle_count;
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
     return count;
 }
 
@@ -377,9 +369,9 @@ esp_err_t utlp_phase_get_state(utlp_phase_state_t *state)
         return ESP_ERR_INVALID_ARG;
     }
 
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     memcpy(state, &s_state, sizeof(utlp_phase_state_t));
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
 
     return ESP_OK;
 }
@@ -390,7 +382,7 @@ esp_err_t utlp_phase_get_state(utlp_phase_state_t *state)
 
 esp_err_t utlp_phase_hard_sync(uint32_t target_ticks)
 {
-    if (!s_initialized || !s_phase_timer || !s_soft_sync) {
+    if (!s_initialized) {
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -403,30 +395,25 @@ esp_err_t utlp_phase_hard_sync(uint32_t target_ticks)
      * CRITICAL SECTION (Purple Team fixes):
      * 1. Prevents execution jitter (Pitfall 1)
      * 2. Resets period to nominal (Pitfall 3 - Sticky Slew)
+     *
+     * Note: The HAL's hard_sync already resets period to nominal internally,
+     * but we also need to update our local state under the same critical section.
      */
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
 
-    /* 1. Reset Period to Nominal (Fix "Sticky Slew" - stop running fast/slow) */
-    mcpwm_timer_set_period(s_phase_timer, UTLP_PHASE_PERIOD_TICKS);
     s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
     s_state.slewing = false;
     s_state.drift_accumulator_ppb = 0;
-
-    /* 2. Configure Sync Phase */
-    mcpwm_timer_sync_phase_config_t sync_config = {
-        .sync_src = s_soft_sync,
-        .count_value = target_ticks,
-        .direction = MCPWM_TIMER_DIRECTION_UP,
-    };
-    mcpwm_timer_set_phase_on_sync(s_phase_timer, &sync_config);
-
-    /* 3. Fire! Counter teleports (atomic - no ISR can insert jitter) */
-    mcpwm_soft_sync_activate(s_soft_sync);
-
-    /* Update state */
     s_state.last_sync_timestamp_us = utlp_hal_get_micros();
 
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
+
+    /* HAL hard sync handles the actual hardware teleport + period reset */
+    utlp_hal_timer_err_t err = utlp_hal_timer_hard_sync(target_ticks);
+    if (err != UTLP_TIMER_OK) {
+        ESP_LOGE(TAG, "Hard sync failed: %d", (int)err);
+        return ESP_FAIL;
+    }
 
     ESP_LOGI(TAG, "Hard sync to tick %lu (%.1f°)",
              target_ticks,
@@ -437,7 +424,7 @@ esp_err_t utlp_phase_hard_sync(uint32_t target_ticks)
 
 esp_err_t utlp_phase_slew(int32_t error_ticks)
 {
-    if (!s_initialized || !s_phase_timer) {
+    if (!s_initialized) {
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -446,11 +433,12 @@ esp_err_t utlp_phase_slew(int32_t error_ticks)
         error_ticks < (int32_t)UTLP_PHASE_DEADBAND_TICKS) {
         /* Error within deadband, reset to nominal period */
         if (s_state.slewing) {
-            portENTER_CRITICAL(&s_phase_spinlock);
-            mcpwm_timer_set_period(s_phase_timer, UTLP_PHASE_PERIOD_TICKS);
+            utlp_hal_timer_reset_period();
+
+            uint32_t cs = utlp_hal_timer_enter_critical();
             s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
             s_state.slewing = false;
-            portEXIT_CRITICAL(&s_phase_spinlock);
+            utlp_hal_timer_exit_critical(cs);
         }
         return ESP_OK;
     }
@@ -475,12 +463,13 @@ esp_err_t utlp_phase_slew(int32_t error_ticks)
     /* Calculate new period */
     uint32_t new_period = UTLP_PHASE_PERIOD_TICKS - (uint32_t)delta_ticks;
 
-    portENTER_CRITICAL(&s_phase_spinlock);
-    mcpwm_timer_set_period(s_phase_timer, new_period);
+    utlp_hal_timer_set_period(new_period);
+
+    uint32_t cs = utlp_hal_timer_enter_critical();
     s_state.current_period_ticks = new_period;
     s_state.slewing = true;
     s_state.last_error_ticks = (uint16_t)((error_ticks < 0) ? -error_ticks : error_ticks);
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
 
     ESP_LOGD(TAG, "Slew: error=%ld ticks, delta=%ld, period=%lu",
              (long)error_ticks, (long)delta_ticks, new_period);
@@ -508,12 +497,31 @@ esp_err_t utlp_phase_on_beacon(uint32_t peer_tx_phase_ticks, uint64_t rx_timesta
     }
 
     /* Update error history for quality calculation */
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     s_state.error_history[s_state.error_history_idx] =
         (uint16_t)((error_ticks < 0) ? -error_ticks : error_ticks);
     s_state.error_history_idx = (s_state.error_history_idx + 1) % 4;
     s_state.last_beacon_timestamp_us = rx_timestamp_us;
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
+
+    /* Track beacon arrival for anticipatory memory */
+    s_last_beacon_arrival_us = utlp_hal_get_micros();
+
+    /* Reset precision miss counter on successful beacon */
+    if (s_precision_state == PRECISION_AWAKE) {
+        s_precision_misses = 0;
+    }
+
+    /* v3.12: Log phase error at each beacon for drift visibility.
+     * This is the datum that shows whether LEDs are drifting apart. */
+    {
+        int32_t error_us = error_ticks * (int32_t)UTLP_PHASE_TICK_US;
+        const char *state_names[] = {"COLD", "LOCKED", "RECOVERY"};
+        const char *sn = (s_state.sync_state < 3) ? state_names[s_state.sync_state] : "?";
+        ESP_LOGI(TAG, "PHASE: peer=%lu local=%lu error=%+ld ticks (%+ld us) [%s]",
+                 (unsigned long)peer_tx_phase_ticks, (unsigned long)local_ticks,
+                 (long)error_ticks, (long)error_us, sn);
+    }
 
     /* Select sync method based on state */
     uint8_t state = s_state.sync_state;
@@ -556,13 +564,14 @@ void utlp_phase_tick(uint64_t uptime_us)
              * Solution: Always reset to nominal when transitioning to LOCKED.
              * This ensures a clean starting point for soft slew mode.
              */
-            portENTER_CRITICAL(&s_phase_spinlock);
-            mcpwm_timer_set_period(s_phase_timer, UTLP_PHASE_PERIOD_TICKS);
+            utlp_hal_timer_reset_period();
+
+            uint32_t cs = utlp_hal_timer_enter_critical();
             s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
             s_state.slewing = false;
             s_state.drift_accumulator_ppb = 0;
             s_state.sync_state = UTLP_PHASE_STATE_LOCKED;
-            portEXIT_CRITICAL(&s_phase_spinlock);
+            utlp_hal_timer_exit_critical(cs);
             ESP_LOGI(TAG, "Transition: COLD → LOCKED (hard sync disabled, period reset to nominal)");
         }
     }
@@ -582,26 +591,65 @@ void utlp_phase_tick(uint64_t uptime_us)
         quality = (uint8_t)(100 - (avg_error * 400 / UTLP_PHASE_PERIOD_TICKS));
     }
 
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     s_state.sync_quality = quality;
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
 
     /* State transition: LOCKED ↔ RECOVERY based on error threshold */
     if (s_state.sync_state == UTLP_PHASE_STATE_LOCKED) {
         uint32_t threshold_ticks = UTLP_SERVO_LOCKED_THRESHOLD_US / UTLP_PHASE_TICK_US;
         if (avg_error > threshold_ticks) {
-            portENTER_CRITICAL(&s_phase_spinlock);
+            cs = utlp_hal_timer_enter_critical();
             s_state.sync_state = UTLP_PHASE_STATE_RECOVERY;
-            portEXIT_CRITICAL(&s_phase_spinlock);
+            utlp_hal_timer_exit_critical(cs);
             ESP_LOGW(TAG, "Transition: LOCKED → RECOVERY (error=%lu ticks)", avg_error);
         }
     } else if (s_state.sync_state == UTLP_PHASE_STATE_RECOVERY) {
         uint32_t threshold_ticks = UTLP_SERVO_LOCKED_THRESHOLD_US / UTLP_PHASE_TICK_US;
         if (avg_error < threshold_ticks / 2) {  /* Hysteresis */
-            portENTER_CRITICAL(&s_phase_spinlock);
+            cs = utlp_hal_timer_enter_critical();
             s_state.sync_state = UTLP_PHASE_STATE_LOCKED;
-            portEXIT_CRITICAL(&s_phase_spinlock);
+            utlp_hal_timer_exit_critical(cs);
             ESP_LOGI(TAG, "Transition: RECOVERY → LOCKED (error=%lu ticks)", avg_error);
+        }
+    }
+
+    /*=========================================================================
+     * Precision Window Orchestrator
+     *
+     * Manages timer ON/OFF transitions based on beacon prediction.
+     * Only active when precision_state != CONTINUOUS.
+     *========================================================================*/
+    if (s_precision_state == PRECISION_AWAKE) {
+        /* Check if trail time has expired (time to sleep) */
+        uint64_t now = utlp_hal_get_micros();
+        uint64_t trail_deadline = s_last_beacon_arrival_us + UTLP_PRECISION_WAKE_TRAIL_US;
+
+        if (now > trail_deadline && s_last_beacon_arrival_us > 0) {
+            /* Predict next beacon and compute wake time */
+            /* Use steady-state interval as initial estimate */
+            s_next_beacon_predicted_us = s_last_beacon_arrival_us + UTLP_BEACON_INTERVAL_STEADY_US;
+
+            /* Pause phase engine */
+            esp_err_t err = utlp_phase_pause();
+            if (err == ESP_OK) {
+                s_precision_state = PRECISION_SLEEPING;
+                ESP_LOGD(TAG, "PRECISION: Sleeping until predicted beacon at +%llu s",
+                         (unsigned long long)(s_next_beacon_predicted_us - now) / 1000000ULL);
+            }
+        }
+    } else if (s_precision_state == PRECISION_SLEEPING) {
+        /* Check if wake lead time has been reached */
+        uint64_t now = utlp_hal_get_micros();
+        uint64_t wake_time = s_next_beacon_predicted_us - UTLP_PRECISION_WAKE_LEAD_US;
+
+        if (now >= wake_time) {
+            /* Wake up for beacon window */
+            esp_err_t err = utlp_phase_resume();
+            if (err == ESP_OK) {
+                s_precision_state = PRECISION_AWAKE;
+                ESP_LOGD(TAG, "PRECISION: Awake for beacon window");
+            }
         }
     }
 }
@@ -630,11 +678,216 @@ bool utlp_phase_is_synchronized(void)
  * @return Learned ISR latency in microseconds
  *
  * @see UTLP_ILC_* constants in utlp_config.h
- * @see phase_timer_empty_isr() for learning loop
+ * @see phase_timer_cycle_callback() for learning loop
  */
 uint32_t utlp_phase_get_isr_latency_us(void)
 {
     return g_learned_isr_latency_us;
+}
+
+/*============================================================================
+ * PRECISION WINDOW - Pause/Resume
+ *==========================================================================*/
+
+esp_err_t utlp_phase_pause(void)
+{
+    if (!s_initialized || s_paused) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* Capture elapsed time via HAL */
+    uint64_t elapsed = 0;
+    utlp_hal_timer_err_t err = utlp_hal_timer_pause(&elapsed);
+    if (err != UTLP_TIMER_OK) {
+        ESP_LOGE(TAG, "Timer HAL pause failed: %d", (int)err);
+        return ESP_FAIL;
+    }
+
+    s_pause_elapsed_us = elapsed;
+    s_pause_timestamp_us = utlp_hal_get_micros();
+    s_paused = true;
+
+    ESP_LOGI(TAG, "Phase engine paused (elapsed=%llu us, cycles=%llu)",
+             (unsigned long long)elapsed,
+             (unsigned long long)s_state.cycle_count);
+    return ESP_OK;
+}
+
+esp_err_t utlp_phase_resume(void)
+{
+    if (!s_initialized || !s_paused) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    /* Reconstruct missed cycles from RTC */
+    uint64_t rtc_now = utlp_hal_get_micros();
+    uint64_t rtc_elapsed = rtc_now - s_pause_timestamp_us;
+
+    /* Update cycle count with RTC-estimated cycles during pause */
+    uint64_t missed_cycles = rtc_elapsed / UTLP_PHASE_CYCLE_US;
+
+    uint32_t cs = utlp_hal_timer_enter_critical();
+    s_state.cycle_count += missed_cycles;
+    utlp_hal_timer_exit_critical(cs);
+
+    /* Resume hardware timer */
+    utlp_hal_timer_err_t err = utlp_hal_timer_resume();
+    if (err != UTLP_TIMER_OK) {
+        ESP_LOGE(TAG, "Timer HAL resume failed: %d", (int)err);
+        return ESP_FAIL;
+    }
+
+    s_paused = false;
+
+    ESP_LOGI(TAG, "Phase engine resumed (rtc_delta=%llu us, missed_cycles=%llu)",
+             (unsigned long long)rtc_elapsed,
+             (unsigned long long)missed_cycles);
+    return ESP_OK;
+}
+
+bool utlp_phase_is_paused(void)
+{
+    return s_paused;
+}
+
+/*============================================================================
+ * PRECISION WINDOW - Mode Control
+ *==========================================================================*/
+
+void utlp_phase_enable_precision_mode(void)
+{
+    if (s_precision_state != PRECISION_CONTINUOUS) {
+        return;  /* Already in precision mode */
+    }
+
+    s_precision_state = PRECISION_AWAKE;
+    s_precision_misses = 0;
+    ESP_LOGI(TAG, "PRECISION: Mode enabled (timer will sleep between beacons)");
+}
+
+void utlp_phase_disable_precision_mode(void)
+{
+    if (s_precision_state == PRECISION_CONTINUOUS) {
+        return;  /* Already continuous */
+    }
+
+    /* If sleeping, wake up first */
+    if (s_precision_state == PRECISION_SLEEPING && s_paused) {
+        utlp_phase_resume();
+    }
+
+    s_precision_state = PRECISION_CONTINUOUS;
+    s_precision_misses = 0;
+    ESP_LOGI(TAG, "PRECISION: Mode disabled (continuous timer)");
+}
+
+bool utlp_phase_is_precision_mode(void)
+{
+    return s_precision_state != PRECISION_CONTINUOUS;
+}
+
+/*============================================================================
+ * ANTICIPATORY MEMORY - Diagnostic Framework
+ *
+ * Predict/observe/score beacon timing for future power optimization.
+ * All devices maintain this — Genesis predicts its own schedule stability,
+ * Followers predict upstream beacon arrivals.
+ *==========================================================================*/
+
+void utlp_anticipatory_predict(uint64_t expected_arrival_us, int64_t expected_offset_us)
+{
+    utlp_anticipatory_entry_t *entry =
+        &s_anticipatory.history[s_anticipatory.history_idx];
+
+    entry->predicted_arrival_us = expected_arrival_us;
+    entry->predicted_offset_us = expected_offset_us;
+
+    /* Clear reality fields (will be filled on observe) */
+    entry->actual_arrival_us = 0;
+    entry->actual_offset_us = 0;
+    entry->arrival_error_us = 0;
+    entry->offset_error_us = 0;
+    entry->hit = false;
+
+    s_anticipatory.total_predictions++;
+}
+
+void utlp_anticipatory_observe(uint64_t actual_arrival_us, int64_t actual_offset_us)
+{
+    utlp_anticipatory_entry_t *entry =
+        &s_anticipatory.history[s_anticipatory.history_idx];
+
+    /* Fill reality */
+    entry->actual_arrival_us = actual_arrival_us;
+    entry->actual_offset_us = actual_offset_us;
+
+    /* Score this prediction */
+    if (entry->predicted_arrival_us > 0) {
+        entry->arrival_error_us = (int32_t)(
+            (int64_t)actual_arrival_us - (int64_t)entry->predicted_arrival_us);
+        entry->offset_error_us = (int32_t)(
+            actual_offset_us - entry->predicted_offset_us);
+
+        /* Hit = arrived within the precision wake window */
+        int32_t abs_arrival_err = entry->arrival_error_us;
+        if (abs_arrival_err < 0) abs_arrival_err = -abs_arrival_err;
+        entry->hit = ((uint32_t)abs_arrival_err < UTLP_PRECISION_WAKE_LEAD_US);
+
+        if (entry->hit) {
+            s_anticipatory.total_hits++;
+        }
+
+        /* Update EMA of arrival error (α = 0.2 ≈ 1/5) */
+        s_anticipatory.avg_arrival_error_us =
+            s_anticipatory.avg_arrival_error_us -
+            (s_anticipatory.avg_arrival_error_us / 5) +
+            (entry->arrival_error_us / 5);
+
+        /* Update EMA of offset error */
+        s_anticipatory.avg_offset_error_us =
+            s_anticipatory.avg_offset_error_us -
+            (s_anticipatory.avg_offset_error_us / 5) +
+            (entry->offset_error_us / 5);
+
+        /* Update confidence: 100 * hits / predictions (capped at 100) */
+        if (s_anticipatory.total_predictions > 0) {
+            uint32_t pct = (uint32_t)s_anticipatory.total_hits * 100 /
+                           s_anticipatory.total_predictions;
+            if (pct > 100) pct = 100;
+            s_anticipatory.confidence = (uint8_t)pct;
+        }
+
+        entry->confidence = s_anticipatory.confidence;
+    }
+
+    /* Advance ring buffer */
+    s_anticipatory.history_idx =
+        (s_anticipatory.history_idx + 1) % UTLP_ANTICIPATORY_HISTORY_SIZE;
+}
+
+uint8_t utlp_anticipatory_get_confidence(void)
+{
+    return s_anticipatory.confidence;
+}
+
+void utlp_anticipatory_log_state(void)
+{
+    ESP_LOGI(TAG, "ANTICIPATORY: confidence=%u%%, predictions=%u, hits=%u",
+             s_anticipatory.confidence,
+             s_anticipatory.total_predictions,
+             s_anticipatory.total_hits);
+    ESP_LOGI(TAG, "  avg_arrival_err=%+ld us, avg_offset_err=%+ld us",
+             (long)s_anticipatory.avg_arrival_error_us,
+             (long)s_anticipatory.avg_offset_error_us);
+}
+
+esp_err_t utlp_phase_get_anticipatory_state(utlp_anticipatory_state_t *state)
+{
+    if (!state) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memcpy(state, &s_anticipatory, sizeof(utlp_anticipatory_state_t));
+    return ESP_OK;
 }
 
 /*============================================================================
@@ -648,10 +901,10 @@ uint64_t utlp_phase_get_atomic_time_us(void)
     }
 
     /* CRITICAL: Prevent torn reads of 64-bit values (Purple Team Pitfall 2) */
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     uint64_t cycles = s_state.cycle_count;
     int64_t offset = s_state.epoch_offset_us;
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
 
     /* Get current phase ticks */
     uint32_t ticks = utlp_phase_get_ticks();
@@ -666,18 +919,18 @@ uint64_t utlp_phase_get_atomic_time_us(void)
 
 void utlp_phase_set_epoch_offset(int64_t offset_us)
 {
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     s_state.epoch_offset_us = offset_us;
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
 
     ESP_LOGI(TAG, "Epoch offset set to %lld µs", (long long)offset_us);
 }
 
 int64_t utlp_phase_get_epoch_offset(void)
 {
-    portENTER_CRITICAL(&s_phase_spinlock);
+    uint32_t cs = utlp_hal_timer_enter_critical();
     int64_t offset = s_state.epoch_offset_us;
-    portEXIT_CRITICAL(&s_phase_spinlock);
+    utlp_hal_timer_exit_critical(cs);
     return offset;
 }
 
@@ -689,12 +942,17 @@ int64_t utlp_phase_get_epoch_offset(void)
  * Minimal stubs for compilation on native (non-ESP32) platforms.
  *==========================================================================*/
 
+#include <string.h>
+
 static utlp_phase_state_t s_state = {0};
 static bool s_initialized = false;
+static bool s_paused = false;
+static utlp_anticipatory_state_t s_anticipatory = {0};
 
 esp_err_t utlp_phase_init(void) {
     s_initialized = true;
     s_state.current_period_ticks = UTLP_PHASE_PERIOD_TICKS;
+    memset(&s_anticipatory, 0, sizeof(s_anticipatory));
     return ESP_OK;
 }
 
@@ -736,5 +994,23 @@ uint32_t utlp_phase_get_isr_latency_us(void) { return UTLP_ILC_INITIAL_US; }
 uint64_t utlp_phase_get_atomic_time_us(void) { return 0; }
 void utlp_phase_set_epoch_offset(int64_t offset_us) { s_state.epoch_offset_us = offset_us; }
 int64_t utlp_phase_get_epoch_offset(void) { return s_state.epoch_offset_us; }
+
+/* Precision Window stubs */
+esp_err_t utlp_phase_pause(void) { s_paused = true; return ESP_OK; }
+esp_err_t utlp_phase_resume(void) { s_paused = false; return ESP_OK; }
+bool utlp_phase_is_paused(void) { return s_paused; }
+void utlp_phase_enable_precision_mode(void) {}
+void utlp_phase_disable_precision_mode(void) {}
+bool utlp_phase_is_precision_mode(void) { return false; }
+
+/* Anticipatory Memory stubs */
+void utlp_anticipatory_predict(uint64_t a, int64_t b) { (void)a; (void)b; }
+void utlp_anticipatory_observe(uint64_t a, int64_t b) { (void)a; (void)b; }
+uint8_t utlp_anticipatory_get_confidence(void) { return 0; }
+void utlp_anticipatory_log_state(void) {}
+esp_err_t utlp_phase_get_anticipatory_state(utlp_anticipatory_state_t *state) {
+    if (state) memset(state, 0, sizeof(*state));
+    return ESP_OK;
+}
 
 #endif /* ESP_PLATFORM */

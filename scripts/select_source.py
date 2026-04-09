@@ -250,6 +250,9 @@ idf_component_register(
         # Hardware Phase Engine - MCPWM-Based Atomic Coherency (HPLAC)
         "../examples/utlp/utlp_phase.c"
 
+        # Timer HAL - Platform-Agnostic Phase Timer (Precision Windows)
+        "../examples/utlp/utlp_hal_timer_esp32.c"
+
         # UTLP HAL Implementation (ESP32 specific)
         "../examples/utlp/utlp_hal_esp32.c"
 

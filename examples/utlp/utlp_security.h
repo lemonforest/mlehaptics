@@ -89,7 +89,25 @@ extern "C" {
  * timestamp field. This prevents scalar code from misreading vector
  * phase chords as uint64_t values.
  */
-#define UTLP_PROTOCOL_VERSION       0x01
+/**
+ * @brief Normal established beacon protocol version.
+ * Scalar time (uint64_t utlp_timestamp_us in bytes [4-11]).
+ */
+#define UTLP_PROTOCOL_VERSION           0x01
+
+/**
+ * @brief Genesis-pulsing beacon protocol version.
+ *
+ * Sent during first 60 seconds after boot (genesis pulse phases 1-4).
+ * Same wire format as 0x01 (scalar time), but explicitly signals
+ * "I am a newborn seeking swarm adoption — do NOT adopt my timeline."
+ *
+ * Receivers accept both 0x01 and 0xFE but use the version to guard
+ * against premature adoption of unstable genesis timelines.
+ *
+ * @see UTLP_GENESIS_PHASE_4_END_US (60 seconds)
+ */
+#define UTLP_PROTOCOL_VERSION_GENESIS   0xFE
 
 /** @brief Cleartext Exon size in bytes */
 #define UTLP_EXON_SIZE              24

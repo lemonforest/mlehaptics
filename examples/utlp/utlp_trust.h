@@ -278,10 +278,54 @@ extern "C" {
  * jitter is normal - don't penalize a newcomer for taking time to sync.
  *
  * @see utlp_trust_record_observation_arbor() - no-consensus path
+ *
+ * @par v3.10 FIX: Extended from 5 to 10
+ * At 60s steady-state beacon intervals, 5 interactions = 5 minutes which
+ * barely covers the fast beacon ramp. Health crawls from 50 to 55.
+ * With 10 interactions and +2 reward, health reaches 70 during bootstrap,
+ * well above the N=2 threshold (50) for select_best_peer().
+ *
+ * @par v3.13 FIX: Extended from 10 to 20
+ * The drift EMA needs 4-8 observations to converge. At 60s beacon intervals,
+ * 10 interactions are consumed during genesis rapid-beacon phases (100ms,
+ * 500ms, 1s) in ~15 seconds, leaving the drift model un-converged when
+ * bootstrap ends. Raw comparison at 60s intervals gives 2-4ms jitter,
+ * sitting right at the 2ms threshold — causing random punishment. With 20
+ * interactions: health reaches ~90 during bootstrap (20 x +2 = 40, from 50),
+ * and drift model is fully converged by observation ~8 before grace ends.
  */
-#define UTLP_TRUST_BOOTSTRAP_INTERACTIONS   5
+#define UTLP_TRUST_BOOTSTRAP_INTERACTIONS   20
 
 /** @} */ /* trust_dynamics */
+
+/**
+ * @defgroup peer_id_format Peer Identifier Formatting
+ *
+ * Macros for consistent peer MAC display across all log sites.
+ * Uses the last 3 octets of the EUI-48 MAC (24-bit) for compact but
+ * collision-resistant identification. All log sites MUST use these
+ * macros so the format can be changed in one place.
+ *
+ * PEER_SALT_FMT / PEER_SALT_ARGS: for the metabolic ledger where we
+ * also display the peer's last observed session salt. Two devices with
+ * the same MAC but different salts are DIFFERENT sessions (rebooted);
+ * the salt change is visible in the ledger without having to grep logs.
+ * @{
+ */
+
+/** @brief Printf format for a 3-octet peer MAC: "XX:XX:XX" */
+#define PEER_FMT                "%02X:%02X:%02X"
+
+/** @brief Printf args for PEER_FMT — last 3 bytes of a MAC array */
+#define PEER_ID(mac)            (mac)[3], (mac)[4], (mac)[5]
+
+/** @brief Printf format for ledger display: "XX:XX:XX/sAAAA" (MAC + session salt) */
+#define PEER_SALT_FMT           PEER_FMT "/s%04X"
+
+/** @brief Printf args for PEER_SALT_FMT — takes a utlp_peer_ledger_t pointer */
+#define PEER_SALT_ARGS(p)       PEER_ID((p)->mac), (unsigned)(p)->last_session_salt
+
+/** @} */ /* peer_id_format */
 
 /**
  * @defgroup genesis_detection Genesis Pulse Detection (S2.24)
@@ -486,6 +530,29 @@ typedef struct __attribute__((packed)) {
      * interval/regression detection fires.
      *======================================================================*/
     uint16_t last_session_salt;     /**< Last observed Session_Salt (0 = never seen) */
+
+    /*========================================================================
+     * DRIFT-COMPENSATED TRUST (v3.12)
+     *
+     * "Measure the residual, not the physics."
+     *
+     * WHY: The trust system was punishing normal crystal drift + jitter.
+     * At 60s beacon intervals, offset changes ~2-4ms between observations
+     * (crystal drift ~56µs/s + stack jitter ~1-2ms). The 2ms trust
+     * threshold sat right at the noise floor, causing 800 punishments
+     * over 16 hours in a perfectly synced swarm.
+     *
+     * WHAT: Track the peer's clock drift rate as an EMA. Before judging
+     * a new observation, PREDICT the expected offset using the drift
+     * model. The trust threshold is applied to the RESIDUAL (prediction
+     * error = jitter only), not the raw offset change.
+     *
+     * HOW: drift_rate = EMA of (delta_offset / elapsed_time).
+     * predicted = last_offset + drift_rate × elapsed.
+     * residual = |current - predicted|.
+     * Trust decision based on residual vs 2ms threshold.
+     *======================================================================*/
+    int16_t  drift_rate_us_per_s;  /**< EMA of peer's clock drift (µs/s ≈ ppm) */
 } utlp_peer_ledger_t;
 
 /**
@@ -507,9 +574,11 @@ typedef struct __attribute__((packed)) {
  *   uint32_t rssi_timestamp_ms[3]:  12 bytes
  *   --- Session Continuity (Purple Team PT-6) ---
  *   uint16_t last_session_salt:      2 bytes
- *   TOTAL:                          69 bytes
+ *   --- Drift-Compensated Trust (v3.12) ---
+ *   int16_t drift_rate_us_per_s:     2 bytes
+ *   TOTAL:                          71 bytes
  */
-_Static_assert(sizeof(utlp_peer_ledger_t) == 69, "Ledger struct packing incorrect");
+_Static_assert(sizeof(utlp_peer_ledger_t) == 71, "Ledger struct packing incorrect");
 
 /*============================================================================
  * PUBLIC API
