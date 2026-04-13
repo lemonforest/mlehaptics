@@ -98,6 +98,8 @@ void power_enter_deep_sleep(bool save_settings) {
     ESP_LOGI(TAG, "Entering deep sleep sequence");
 
     // 1. Coast motor immediately (safe state)
+    // CP7 note: motor_coast() has internal guards (!motor_initialized, NULL mutex)
+    // so it's safe to call regardless of motor task state.
     motor_coast(false);  // Shutdown - no logging needed
     led_clear();
 

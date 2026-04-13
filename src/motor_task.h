@@ -378,27 +378,68 @@ void motor_mode5_settings_mark_clean(void);
 // ============================================================================
 
 /**
- * @brief Armed mode change state variables (shared with time_sync_task.c)
+ * @brief Armed mode change snapshot (thread-safe two-phase commit state)
  *
- * These variables implement the two-phase commit protocol for synchronized
- * mode changes between SERVER and CLIENT devices (AD045).
+ * Implements the AD045 two-phase commit protocol for synchronized mode changes.
+ * All fields are copied atomically under mutex protection to prevent torn reads
+ * of 64-bit values on 32-bit RISC-V (C3 audit fix).
  *
  * Protocol:
- * 1. SERVER: Button pressed → calculate epochs → send PROPOSAL to CLIENT
- * 2. CLIENT: Receive PROPOSAL → validate → send ACK → arm mode change
- * 3. Both devices: Wait until respective epoch → execute mode change
+ * 1. SERVER: Button pressed -> calculate epochs -> send PROPOSAL to CLIENT
+ * 2. CLIENT: Receive PROPOSAL -> validate -> send ACK -> arm mode change
+ * 3. Both devices: Wait until respective epoch -> execute mode change
  *
- * Access:
- * - motor_task.c: Arms mode change (SERVER via button, CLIENT via proposal)
- * - motor_task.c: Executes mode change when epoch reached
- * - time_sync_task.c: CLIENT arms mode change when PROPOSAL received
+ * Access via thread-safe API only:
+ * - motor_arm_mode_change(): Called by motor_task (SERVER) and time_sync_task (CLIENT)
+ * - motor_get_armed_change(): Called by motor_task to snapshot armed state
+ * - motor_clear_armed_change(): Called by motor_task after execution
+ * - motor_is_mode_change_armed(): Quick boolean check (no full snapshot)
  */
-extern bool mode_change_armed;       /**< True if mode change is armed and waiting for epoch */
-extern mode_t armed_new_mode;        /**< Mode to activate when epoch is reached */
-extern uint64_t armed_epoch_us;      /**< Synchronized time (μs) to execute mode change */
-extern uint32_t armed_cycle_ms;      /**< New cycle period (ms) for armed mode */
-extern uint32_t armed_active_ms;     /**< New active period (ms) for armed mode */
-extern uint64_t armed_server_epoch_us; /**< Bug #82: SERVER's motor epoch for CLIENT antiphase */
+typedef struct {
+    bool armed;                 /**< True if mode change is armed and waiting for epoch */
+    mode_t new_mode;            /**< Mode to activate when epoch is reached */
+    uint64_t epoch_us;          /**< Synchronized time (us) to execute mode change */
+    uint32_t cycle_ms;          /**< New cycle period (ms) for armed mode */
+    uint32_t active_ms;         /**< New active period (ms) for armed mode */
+    uint64_t server_epoch_us;   /**< Bug #82: SERVER's motor epoch for CLIENT antiphase */
+} armed_mode_change_t;
+
+/**
+ * @brief Initialize armed mode change mutex (call before any task starts)
+ */
+esp_err_t motor_armed_change_init(void);
+
+/**
+ * @brief Arm a synchronized mode change (thread-safe)
+ *
+ * Sets all fields atomically under mutex, with armed flag written LAST.
+ * Called by motor_task.c (SERVER path) and time_sync_task.c (CLIENT path).
+ */
+void motor_arm_mode_change(const armed_mode_change_t *change);
+
+/**
+ * @brief Get atomic snapshot of armed mode change state (thread-safe)
+ *
+ * Copies all fields under mutex to prevent torn 64-bit reads on RISC-V.
+ * @param[out] out Snapshot destination
+ * @return true if mode change is armed, false otherwise
+ */
+bool motor_get_armed_change(armed_mode_change_t *out);
+
+/**
+ * @brief Clear armed mode change state (thread-safe)
+ *
+ * Resets all fields to defaults under mutex. Called after mode change executes.
+ */
+void motor_clear_armed_change(void);
+
+/**
+ * @brief Quick check if mode change is armed (thread-safe)
+ *
+ * Boolean read is atomic on 32-bit RISC-V, so no mutex needed for polling.
+ * Use motor_get_armed_change() when you need the actual field values.
+ */
+bool motor_is_mode_change_armed(void);
 
 // ============================================================================
 // EXTERNAL DEPENDENCIES

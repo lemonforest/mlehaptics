@@ -15,6 +15,7 @@
 #include "status_led.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_task_wdt.h"  // L3 audit fix: watchdog subscription
 #include "host/ble_gap.h"
 #include "host/ble_hs.h"
 
@@ -33,12 +34,20 @@ void ble_task(void *pvParameters) {
     ble_state_t state = BLE_STATE_IDLE;
     uint32_t idle_log_counter = 0;  // For periodic state logging
 
+    // M4 fix: Moved from case-local to function scope so PAIRING state can reset it
+    bool pairing_window_started = false;
+    int64_t pairing_start_time = 0;
+
+    // L3 audit fix: Subscribe to watchdog (matches motor_task and button_task)
+    ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
+
     ESP_LOGI(TAG, "BLE task started");
     ESP_LOGI(TAG, "Initial state: IDLE, advertising=%s, connected=%s",
              ble_is_advertising() ? "YES" : "NO",
              ble_is_connected() ? "YES" : "NO");
 
     while (state != BLE_STATE_SHUTDOWN) {
+        esp_task_wdt_reset();  // L3: Feed watchdog every iteration
         switch (state) {
             case BLE_STATE_IDLE: {
                 // Check if advertising was auto-started by ble_on_sync() callback
@@ -164,7 +173,6 @@ void ble_task(void *pvParameters) {
                 // Check for pairing started (Phase 1b.3)
                 // CRITICAL FIX: Check NVS for bonded peers before starting pairing window
                 // If bonded peer exists, skip pairing window for silent reconnection
-                static bool pairing_window_started = false;
                 if (!pairing_window_started) {
                     // Check if bonded peer exists in NVS storage
                     bool bonded_peer_exists = ble_check_bonded_peer_exists();
@@ -249,7 +257,6 @@ void ble_task(void *pvParameters) {
 
             case BLE_STATE_PAIRING: {
                 // Phase 1b.3: Wait for pairing to complete with 30-second timeout
-                static int64_t pairing_start_time = 0;
                 const uint32_t PAIRING_TIMEOUT_MS = 30000;  // 30 seconds (JPL compliant)
 
                 // Initialize pairing start time on first entry
@@ -375,6 +382,10 @@ void ble_task(void *pvParameters) {
                     ble_stop_advertising();  // Stop Bilateral UUID advertising
                     vTaskDelay(pdMS_TO_TICKS(100));  // Brief delay for cleanup
                     ble_start_advertising();  // Restart with Config UUID (30s elapsed)
+                    // M4/L4 audit fix: Reset one-shot flags so pairing can fire again
+                    // if device disconnects later and re-enters ADVERTISING
+                    pairing_window_started = false;
+                    pairing_complete_sent = false;
                     ESP_LOGI(TAG, "State: PAIRING → ADVERTISING (Config UUID for PWA/app)");
                     state = BLE_STATE_ADVERTISING;
                     break;
@@ -478,5 +489,6 @@ void ble_task(void *pvParameters) {
     }
 
     ESP_LOGI(TAG, "BLE task stopping");
+    esp_task_wdt_delete(NULL);  // L3: Unsubscribe before exit
     vTaskDelete(NULL);
 }
