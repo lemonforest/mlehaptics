@@ -64,3 +64,6 @@ serial_log*.txt
 
 
 src/CMakeLists.txt
+
+docs/chess-maths/stockfish/
+docs/chess-maths/.pgn_cache/
