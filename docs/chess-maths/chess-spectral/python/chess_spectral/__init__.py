@@ -50,6 +50,7 @@ from .frame import (
     FRAME_BYTES,
 )
 from .csv_export import write_csv, iter_rows, fmt_num, fmt_cos
+from .safety_field import compute_safety_field, side_most_exposed
 
 __all__ = [
     # Encoder
@@ -63,4 +64,6 @@ __all__ = [
     "FRAME_BYTES",
     # CSV
     "write_csv", "iter_rows", "fmt_num", "fmt_cos",
+    # Safety field
+    "compute_safety_field", "side_most_exposed",
 ]
