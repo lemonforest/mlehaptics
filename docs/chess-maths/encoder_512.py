@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+# ─────────────────────────────────────────────────────────────────────
+# SUPERSEDED — archived R&D script, not the production encoder.
+#
+# This file is the 512-dim HDC architecture (8 channels × 64, 5 D4
+# irreps + 3 symmetric fiber). Its first 512 dims are byte-for-byte
+# identical to the production encoder's first 512 dims; the production
+# encoder extends it with FA (dims 512-575) and FD (dims 576-639).
+# Kept for pedagogical value and as an executable companion to
+# research notebook §8/§9a. Nothing in the corpus pipeline imports it.
+#
+# PRODUCTION ENCODER: chess_spectral.encode_640 in
+#   docs/chess-maths/chess-spectral/python/chess_spectral/encoder.py
+# (10 channels × 64 dims = 640; produces every .spectralz in results/).
+#
+# Full encoder map and reproduction recipe: docs/chess-maths/ENCODERS.md
+# ─────────────────────────────────────────────────────────────────────
 """
 Chess Spectral Encoder: 512-Dimensional HDC Architecture
 =========================================================

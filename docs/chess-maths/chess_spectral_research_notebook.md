@@ -904,6 +904,8 @@ The local fiber at each square decomposes exactly into per-edge contributions (e
 
 **Correction to §7 holonomy interpretation:** Accumulated fiber change around closed loops is identically zero by telescoping: Σ(f_{i+1} − f_i) = f_final − f_start = 0. The −0.016 holonomy measured in §7 used cosine similarity of fiber vectors (not accumulated delta), which measures genuine geometric content but is not the same as curvature of the discrete connection. The rook bundle is confirmed flat (zero global fiber). The distinction between holonomy-as-similarity and curvature-as-transport requires careful treatment in any formal write-up.
 
+**Note on the production encoder.** The v3 dual-channel encoder (70-dim) discussed in §8 is an R&D artifact, not the production encoder. The production encoder is 640-dim (documented in §9a): `encode_640` in `chess-spectral/python/chess_spectral/encoder.py`, which extends the v3 geometric/interaction split into 5 D4 irreps + 5 fiber channels and generates every `.spectralz` file in `results/`. See [ENCODERS.md](ENCODERS.md) for the full lineage and reproduction recipe.
+
 ---
 
 ## 9. HDC Integration & UTLP S3 Connection

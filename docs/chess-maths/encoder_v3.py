@@ -1,3 +1,17 @@
+# ─────────────────────────────────────────────────────────────────────
+# SUPERSEDED — archived R&D script, not the production encoder.
+#
+# This file is the 70-dim prototype described in research notebook §8
+# ("Encoder evolution: Global → Grok → Gemini → v3"). It is kept for
+# pedagogical value and as an executable companion to that notebook
+# section. Nothing in the corpus pipeline imports it.
+#
+# PRODUCTION ENCODER: chess_spectral.encode_640 in
+#   docs/chess-maths/chess-spectral/python/chess_spectral/encoder.py
+# (10 channels × 64 dims = 640; produces every .spectralz in results/).
+#
+# Full encoder map and reproduction recipe: docs/chess-maths/ENCODERS.md
+# ─────────────────────────────────────────────────────────────────────
 """
 Spectral Fiber Encoder v3: Dual-Channel Design
 ================================================

@@ -88,10 +88,14 @@ The key claim (novel, needs documentation): the coprime-phase rotation basis fro
 ### Proof Harness
 - `chess_spectral_consolidated.py` — 544 lines, 7 test sections, ALL PASS. Reproduces every claim from Sections 2-7 of the notebook. Run: `python3 chess_spectral_consolidated.py`
 
-### Encoder Experiments
-- `encoder_v3.py` — Dual-channel encoder (64 GFT + 3 geometric + 3 interaction = 70 dims). Best current encoder: r=0.971 knight PST, non-additive many-body, 9× dynamic range.
-- `test_local_fiber.py` — Full test battery for Grok's local fiber encoder (Fisher, position quality, PST, many-body, rook sanity)
-- `test_gemini_encoder.py` — Full test battery comparing Grok, Gemini, v3 encoders
+### Encoder Map
+See [ENCODERS.md](ENCODERS.md) for the full encoder lineage, production file path, channel layout, and corpus reproduction recipe.
+
+### Archived encoder experiments (pedagogical)
+- `encoder_v3.py` — 70-dim dual-channel prototype (geometric + interaction split). Archived; see notebook §8.
+- `encoder_512.py` — 512-dim HDC architecture (5 D4 irreps + 3 symmetric fiber). Archived; superseded by chess_spectral.encode_640.
+- `test_local_fiber.py` — Grok local-fiber encoder test battery (archived research).
+- `test_gemini_encoder.py` — Grok/Gemini/v3 encoder comparison (archived research).
 
 ### Structural Analysis
 - `chess_connection.py` — Connection form computation, per-edge fiber decomposition, holonomy, curvature
