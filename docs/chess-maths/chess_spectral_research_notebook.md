@@ -1460,6 +1460,31 @@ The game with FEWER errors has the HIGHER chaos ratio (more fiber disruption rel
 
 What it CANNOT do: detect specific tactical patterns (pins, forks, overloaded defenders) that require multi-piece spatial conjunctions evaluated through the game tree. These are Level 3 phenomena — properties of the connection form's domain, provably inaccessible from the Level 2 fiber encoding. The Kg4?? null result (zero spectral signature on a 1.69-pawn swing) is the definitive empirical confirmation of the §8b theoretical prediction.
 
+### 9p. FA Channel Structural Sensitivity Test (Pawn Structure ≠ Pawn Count)
+
+**File:** `docs/chess-maths/test_fa_structure.py`. Run with `--out` to write the markdown report.
+
+The FA channel (dims 512–575) is the antisymmetric pawn fiber. Its visible behaviour in trajectory plots — monotone decay as pawns leave the board — raised the question of whether FA carries any pawn-STRUCTURE information at all, or whether it is a glorified pawn-count proxy. An external reviewer asked specifically: can FA distinguish "three connected pawns traded" from "three pawns traded creating a passed pawn"?
+
+**Verdict: STRUCTURAL.** Six position pairs were tested. Four chess-structure pairs (passed vs blockaded, connected vs isolated, chain vs lateral, race vs head-on) all hold pawn count constant; in every case FA differs by **3× to 13× the pure-count baseline** (the count-control pair `1P → 1P+1P`, |ΔFA|=0.255). FA is not a count proxy.
+
+| Pair (same pawn count) | FA_A | FA_B | \|ΔFA\| | × count-baseline |
+|---|---|---|---|---|
+| passed_vs_blockaded (3p) | 7.082 | 3.802 | 3.280 | **12.9×** |
+| connected_vs_isolated (6p) | 11.293 | 10.065 | 1.228 | 4.8× |
+| chain_vs_lateral (6p) | 7.633 | 9.658 | 2.025 | 7.9× |
+| race_vs_head_on (2p) | 2.041 | 1.281 | 0.760 | 3.0× |
+
+**Trajectory test confirms.** Two trade sequences from the same balanced 4v4 pawn position: one creates a passed pawn (`creates_passer`), the other does not (`no_passer`). At matched pawn count = 4, FA = 3.11 (passer) vs 4.91 (no-passer) — a 58% difference at identical material.
+
+**Mechanism.** ||FA||² = sigᵀ M sig where M = PAWN_ANTI_FIBER · PAWN_ANTI_FIBERᵀ. ||diag(M)|| = 11.56, ||off-diag(M)|| = 12.00 — the off-diagonal mass (pair geometry) carries as much variance as the per-square diagonal. Per-rank diagonal means peak on rank 7 (M[s,s] mean = 2.485) and decay toward both extremes (rank 1 ≈ 0.30, rank 8 ≈ 1.45) — reflecting where forward-pawn flow has the most coupling potential.
+
+**Encoder geometry side-finding.** A `file_mirror` sanity pair (a2,b2 vs g2,h2) was expected to give identical FA energies because the directed white-pawn graph is file-uniform. It does not: FA(a2,b2) = 0.543, FA(g2,h2) = 1.072. The kernel `K = A_anti · A_antiᵀ` IS file-symmetric in the board basis (||K − P_F K P_Fᵀ|| = 0; sigᵀ K sig = 2.75 for both configs). The mismatch comes from the encoder's `FA = Σ_pawns sign · PAWN_ANTI_FIBER[s, :]` — indexing rows of an *eigenbasis* matrix by *board-square* index without first rotating the signal. This conflates board-basis address with eigenbasis output, producing an FA that is not D4-equivariant under board permutations. The other channels (irreps via Serre projection; symmetric fiber via `adj_row @ sig`; FD via `sig[s] · DIAG_DEV[t]`) compute entirely in board basis and don't have this property.
+
+This does not invalidate the structural sensitivity above — those pairs differ in ways that any reasonable encoding would register — but FA carries an extra basis-dependent signal that downstream consumers should be aware of. A geometrically-clean alternative would be `FA = (EVECSᵀ A_anti EVECS) · (EVECSᵀ sig_P)`, i.e., rotate the signal into eigenbasis before applying the operator. Whether to "fix" this or treat it as a feature is a design call: the current form makes FA sensitive to absolute board position (kingside vs queenside attack distinction), which has chess meaning.
+
+**Regression status.** The six pairs and two trade sequences are now codified in `test_fa_structure.py` and serve as regression tests for any future FA channel changes.
+
 ---
 
 ## 10. Appendix: Environment & Reproducibility
