@@ -40,7 +40,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "chess-spectral" / "python"))
 
-from pgn_fetcher import PGNFetcher  # noqa: E402
+from pgn_fetcher import PGNFetcher, LichessSource  # noqa: E402
 from chess_spectral import process_game, extract_features  # noqa: E402
 from chess_spectral.encoder import CHANNELS  # noqa: E402
 
@@ -68,10 +68,14 @@ INDEX_COLUMNS = (
 )
 
 
-def _safe_default_run_id(source: str, n: int, seed: int | None) -> str:
+def _safe_default_run_id(source: str, n: int, seed: int | None,
+                         username: str | None = None) -> str:
     today = dt.date.today().isoformat()
     seed_str = f"_seed{seed}" if seed is not None else ""
-    return f"sweep_{source}_{today}_N{n}{seed_str}"
+    # Lichess runs get username in the id so "sweep_lichess_X_Y_Z" is unique
+    # across different players scraped on the same day.
+    user_str = f"_{username.lower()}" if username else ""
+    return f"sweep_{source}{user_str}_{today}_N{n}{seed_str}"
 
 
 def _row_for_csv(entry: dict[str, Any], run_id: str) -> dict[str, Any]:
@@ -175,17 +179,47 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=50, help="Number of games to fetch")
     ap.add_argument("--seed", type=int, default=None,
                     help="RNG seed for reproducibility")
-    ap.add_argument("--source", default="hf", choices=["hf"],
-                    help="Fetch source (only 'hf' wired in this driver)")
+    ap.add_argument("--source", default="hf", choices=["hf", "lichess"],
+                    help="Fetch source ('hf' = fishtest HuggingFace, "
+                         "'lichess' = Lichess user-games with eval+clk)")
     ap.add_argument("--min-moves", type=int, default=30)
     ap.add_argument("--max-moves", type=int, default=100)
-    ap.add_argument("--tc-min", type=float, default=10.0)
+    ap.add_argument("--tc-min", type=float, default=10.0,
+                    help="HF-only: min time control in seconds")
+    # Lichess-specific
+    ap.add_argument("--username",
+                    help="Lichess username (required for --source lichess)")
+    ap.add_argument("--perf", default="blitz,rapid",
+                    help="Lichess perf type(s), comma-separated "
+                         "(default: blitz,rapid)")
+    ap.add_argument("--rated", action="store_true", default=True,
+                    help="Lichess: rated games only (default: true)")
+    ap.add_argument("--since-year", type=int,
+                    help="Lichess: start year filter (inclusive)")
+    ap.add_argument("--until-year", type=int,
+                    help="Lichess: end year filter (inclusive)")
+    ap.add_argument("--chain", action="store_true",
+                    help="Lichess: Fibonacci-style opponent chain walk "
+                         "(seed user -> opponent -> opponent of opponent...). "
+                         "Stops when N games collected or chain dead-ends.")
+    ap.add_argument("--chain-buffer", type=int, default=8,
+                    help="Per-step buffer when searching for an unseen game "
+                         "in chain mode (default: 8)")
     ap.add_argument("--run-id", default=None,
                     help="Output subdir under results/ (default: sweep_<...>)")
     ap.add_argument("--results-root", default=str(RESULTS_ROOT))
     args = ap.parse_args()
 
-    run_id = args.run_id or _safe_default_run_id(args.source, args.n, args.seed)
+    if args.source == "lichess" and not args.username:
+        ap.error("--source lichess requires --username")
+
+    default_id = _safe_default_run_id(
+        args.source, args.n, args.seed, username=args.username,
+    )
+    if args.source == "lichess" and args.chain:
+        # sweep_lichess_X_DATE_NN  ->  sweep_chain_lichess_X_DATE_NN
+        default_id = default_id.replace("sweep_", "sweep_chain_", 1)
+    run_id = args.run_id or default_id
     run_dir = Path(args.results_root) / run_id
     for sub in ("pgn", "ndjson", "spectralz"):
         (run_dir / sub).mkdir(parents=True, exist_ok=True)
@@ -194,12 +228,34 @@ def main() -> int:
     print(f"[sweep] output = {run_dir}", file=sys.stderr)
 
     t0 = time.time()
-    print(f"[sweep] fetching {args.n} games from {args.source}...",
-          file=sys.stderr)
-    games = PGNFetcher(verbose=True).fetch_random_games(
-        n=args.n, min_moves=args.min_moves, max_moves=args.max_moves,
-        tc_base_min=args.tc_min, seed=args.seed,
-    )
+    if args.source == "hf":
+        print(f"[sweep] fetching {args.n} games from HuggingFace fishtest...",
+              file=sys.stderr)
+        games = PGNFetcher(verbose=True).fetch_random_games(
+            n=args.n, min_moves=args.min_moves, max_moves=args.max_moves,
+            tc_base_min=args.tc_min, seed=args.seed,
+        )
+    else:  # lichess
+        li = LichessSource(verbose=True)
+        if args.chain:
+            print(f"[sweep] chain-walking from Lichess user "
+                  f"'{args.username}' (perf={args.perf}, target N={args.n})...",
+                  file=sys.stderr)
+            games = li.fetch_opponent_chain(
+                args.username, n=args.n,
+                rated=args.rated, perf=args.perf,
+                buffer=args.chain_buffer,
+                min_moves=args.min_moves, max_moves=args.max_moves,
+            )
+        else:
+            print(f"[sweep] fetching {args.n} games from Lichess user "
+                  f"'{args.username}' (perf={args.perf})...", file=sys.stderr)
+            games = li.fetch_user_games(
+                args.username, n=args.n, rated=args.rated, perf=args.perf,
+                since_year=args.since_year, until_year=args.until_year,
+                min_moves=args.min_moves, max_moves=args.max_moves,
+            )
+
     if not games:
         print("[sweep] fetcher returned no games", file=sys.stderr)
         return 3
@@ -251,11 +307,18 @@ def main() -> int:
         "run_id":        run_id,
         "source":        args.source,
         "fetch_params": {
-            "n":         args.n,
-            "seed":      args.seed,
-            "min_moves": args.min_moves,
-            "max_moves": args.max_moves,
-            "tc_min":    args.tc_min,
+            "n":          args.n,
+            "seed":       args.seed,
+            "min_moves":  args.min_moves,
+            "max_moves":  args.max_moves,
+            "tc_min":     args.tc_min if args.source == "hf" else None,
+            "username":   args.username if args.source == "lichess" else None,
+            "perf":       args.perf if args.source == "lichess" else None,
+            "rated":      args.rated if args.source == "lichess" else None,
+            "since_year": args.since_year if args.source == "lichess" else None,
+            "until_year": args.until_year if args.source == "lichess" else None,
+            "chain":      args.chain if args.source == "lichess" else None,
+            "chain_buffer": args.chain_buffer if (args.source == "lichess" and args.chain) else None,
         },
         "tool_versions": {
             "python":  sys.version.split()[0],

@@ -85,6 +85,18 @@ TWIC_BASE = "https://theweekinchess.com"
 TWIC_PGN_URL = TWIC_BASE + "/assets/files/pgn/{event}.pgn"
 TWIC_INDEX_URL = TWIC_BASE + "/a-year-of-pgn-game-files"
 
+# Lichess
+LICHESS_BASE = "https://lichess.org"
+LICHESS_GAME_EXPORT_URL = LICHESS_BASE + "/game/export/{id}"
+LICHESS_USER_GAMES_URL = LICHESS_BASE + "/api/games/user/{username}"
+LICHESS_MASTERS_URL = "https://explorer.lichess.ovh/masters"
+LICHESS_MASTERS_PGN_URL = "https://explorer.lichess.ovh/masters/pgn/{id}"
+LICHESS_STARTPOS_FEN = (
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+)
+# Lichess allows ~20 req/s unauthenticated. Stay well under.
+LICHESS_RATE_DELAY_S = 0.3
+
 # Local cache directory (alongside this script)
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.pgn_cache')
 
@@ -929,6 +941,359 @@ class TWICSource(PGNSource):
 
 
 # ═══════════════════════════════════════════════════════════════
+# SOURCE 4: LICHESS
+# ═══════════════════════════════════════════════════════════════
+
+class LichessSource(PGNSource):
+    """Fetch chess games from Lichess.org.
+
+    Lichess is the ideal source for our v2 bridge: games include
+    `[%eval X.YZ]` and `[%clk H:MM:SS]` annotations natively, which the
+    v2 NDJSON schema preserves per-ply. No API key required for public
+    data; rate limit is ~20 req/s unauthenticated.
+
+    Three discovery modes:
+      - fetch_by_id(lid)              single Lichess game (8-char ID)
+      - fetch_user_games(user, n)     stream N games for a user / titled player
+      - fetch_masters_top(fen, top_n) top masters-DB games from a position
+
+    Masters DB = elite OTB tournaments (>2200 avg rating, ~5M games).
+    User games = Lichess online play (blitz/rapid/classical, ratings vary).
+
+    Usage:
+        li = LichessSource()
+        g  = li.fetch_by_id('q7ZvsdUF')
+        gs = li.fetch_user_games('DrNykterstein', n=10, perf='classical')
+        gs = li.fetch_masters_top(top_n=20, since_year=2020)
+    """
+
+    name = 'lichess'
+
+    def __init__(self, cache_dir=None, verbose=True):
+        super().__init__(cache_dir=cache_dir, verbose=verbose)
+        # Some Lichess endpoints (notably explorer.lichess.ovh/masters)
+        # return 401 to non-browser User-Agents. Use a browser UA so
+        # both game-export and masters-DB work from the same session.
+        self._session.headers['User-Agent'] = BROWSER_UA
+
+    def _fetch_pgn_text(self, url, params=None, accept_pgn=True):
+        """GET a Lichess endpoint with Accept: application/x-chess-pgn.
+
+        Returns decoded PGN text (or raises FetchError).
+        """
+        headers = {}
+        if accept_pgn:
+            headers['Accept'] = 'application/x-chess-pgn'
+
+        # Manual retry/rate-limit loop — we need custom headers that
+        # _api_get doesn't take, and 429 should back off longer for Lichess.
+        last_err = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = self._session.get(
+                    url, params=params, headers=headers,
+                    timeout=DOWNLOAD_TIMEOUT_S,
+                )
+                if resp.status_code == 429:
+                    # Lichess returns a Retry-After header on 429
+                    wait = int(resp.headers.get('Retry-After', '60'))
+                    self._log(f"Rate limited (429), waiting {wait}s...")
+                    time.sleep(wait)
+                    continue
+                if resp.status_code == 404:
+                    raise FetchError(f"HTTP 404: {url}")
+                resp.raise_for_status()
+                return resp.text
+            except requests.RequestException as e:
+                last_err = e
+                if attempt < MAX_RETRIES - 1:
+                    wait = RETRY_DELAY_S * (attempt + 1)
+                    self._log(f"Retry {attempt + 1}/{MAX_RETRIES}: {e}")
+                    time.sleep(wait)
+        raise FetchError(f"Failed after {MAX_RETRIES} attempts: {url}") from last_err
+
+    def fetch_by_id(self, lid):
+        """Fetch a single Lichess game by 8-character ID.
+
+        Requests eval + clock annotations and opening tag. Cached locally
+        so repeat calls are free.
+        """
+        lid = str(lid).strip()
+        cache_file = os.path.join(self.cache_dir, f'lichess_{lid}.pgn')
+
+        if os.path.exists(cache_file):
+            self._log(f"Cache hit: lichess_{lid}.pgn")
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                pgn_text = f.read()
+        else:
+            url = LICHESS_GAME_EXPORT_URL.format(id=lid)
+            pgn_text = self._fetch_pgn_text(url, params={
+                'clocks':  'true',
+                'evals':   'true',
+                'opening': 'true',
+                'literate': 'false',
+            })
+            if not pgn_text.strip() or '[Event' not in pgn_text:
+                self._log(f"Lichess {lid}: empty or invalid PGN response")
+                return None
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                f.write(pgn_text)
+
+        parsed = self._parse_single_game(pgn_text.strip())
+        if parsed is None:
+            return None
+        self._normalize_game(parsed, 'lichess', lid)
+        h = parsed['headers']
+        self._log(f"Lichess {lid}: {h.get('White', '?')} vs {h.get('Black', '?')} "
+                  f"({h.get('Result', '?')})")
+        return parsed
+
+    def fetch_user_games(self, username, n=10, rated=True, perf=None,
+                         since_year=None, until_year=None,
+                         min_moves=None, max_moves=None,
+                         result_filter=None, color=None):
+        """Stream N games for a Lichess user via the export API.
+
+        Args:
+            username: Lichess username (case-insensitive)
+            n:        max games to return (upstream `max` parameter)
+            rated:    only rated games (True) or also casual (False)
+            perf:     comma-separated: 'ultraBullet,bullet,blitz,rapid,classical,correspondence'
+            since_year, until_year: int year filters (inclusive)
+            color:    'white' or 'black' (None = both)
+
+        Returns normalized game dicts, ordered newest→oldest.
+        """
+        username = str(username).strip()
+        # Cache key encodes the full query so different filters don't collide.
+        cache_key_raw = f"{username}|{n}|{rated}|{perf}|{since_year}|{until_year}|{color}"
+        cache_hash = hashlib.md5(cache_key_raw.encode()).hexdigest()[:12]
+        cache_file = os.path.join(
+            self.cache_dir, f'lichess_user_{username.lower()}_{cache_hash}.pgn'
+        )
+
+        if os.path.exists(cache_file):
+            self._log(f"Cache hit: lichess_user_{username.lower()}_{cache_hash}.pgn")
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                pgn_text = f.read()
+        else:
+            params = {
+                'max':     n,
+                'rated':   'true' if rated else 'false',
+                'clocks':  'true',
+                'evals':   'true',
+                'opening': 'true',
+            }
+            if perf:
+                params['perfType'] = perf
+            if color:
+                params['color'] = color
+            if since_year:
+                params['since'] = int(dt_year_to_unix_ms(since_year))
+            if until_year:
+                params['until'] = int(dt_year_to_unix_ms(until_year + 1))
+
+            url = LICHESS_USER_GAMES_URL.format(username=username)
+            self._log(f"Streaming up to {n} games for user '{username}'...")
+            pgn_text = self._fetch_pgn_text(url, params=params)
+            if not pgn_text.strip():
+                self._log(f"User '{username}': no games returned")
+                return []
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                f.write(pgn_text)
+
+        games = self.parse_games(
+            pgn_text, max_games=n,
+            min_moves=min_moves, max_moves=max_moves,
+            result_filter=result_filter,
+        )
+        for g in games:
+            gid = g['headers'].get('Site', '').rsplit('/', 1)[-1] or 'unknown'
+            self._normalize_game(g, 'lichess', gid)
+        self._log(f"User '{username}': {len(games)} games parsed")
+        return games
+
+    def fetch_opponent_chain(self, seed_username, n=10, rated=True, perf=None,
+                             buffer=8, min_moves=None, max_moves=None,
+                             result_filter=None):
+        """Walk a Fibonacci-style opponent chain starting from `seed_username`.
+
+        Each step:
+          1. Fetch a small buffer of recent games for the current user.
+          2. Pick the first game not already in the corpus.
+          3. Next user = the opponent in that game.
+          4. Continue until `n` games collected or the chain dead-ends.
+
+        "Dead-end" means: the current user has no unseen games matching the
+        filter (they've already all appeared earlier in the chain, or the
+        user has no games at all). We stop at that point — the corpus is
+        whatever length we reached, which may be < n.
+
+        Args:
+            seed_username: starting Lichess user
+            n: target corpus size (chain length)
+            buffer: how many games to pull per step when searching for an
+                    unseen one (keeps Lichess API calls minimal while
+                    tolerating already-visited games)
+
+        Returns a list of normalized game dicts, in chain order.
+        Each dict carries a fresh `chain_step` field (0 = seed game).
+        """
+        corpus = []
+        seen_ids = set()
+        current = str(seed_username).strip()
+        visited_users = [current]
+
+        self._log(f"Starting opponent chain from '{current}', target N={n}")
+        for step in range(n):
+            games = self.fetch_user_games(
+                current, n=buffer, rated=rated, perf=perf,
+                min_moves=min_moves, max_moves=max_moves,
+                result_filter=result_filter,
+            )
+            pick = None
+            for g in games:
+                gid = g.get('source_id') or g['headers'].get(
+                    'Site', '').rsplit('/', 1)[-1]
+                if gid and gid not in seen_ids:
+                    pick = g
+                    pick['source_id'] = gid
+                    break
+
+            if pick is None:
+                self._log(f"Chain dead-end at step {step}: "
+                          f"'{current}' has no unseen games (corpus={len(corpus)})")
+                break
+
+            pick['chain_step'] = step
+            pick['chain_user'] = current
+            seen_ids.add(pick['source_id'])
+            corpus.append(pick)
+
+            white = pick['headers'].get('White', '').strip()
+            black = pick['headers'].get('Black', '').strip()
+            # Case-insensitive opponent selection — Lichess normalizes but
+            # occasionally cased differently in headers.
+            if white.lower() == current.lower():
+                opponent = black
+            elif black.lower() == current.lower():
+                opponent = white
+            else:
+                # Shouldn't happen for a user-owned game; bail gracefully.
+                self._log(f"Chain break at step {step}: "
+                          f"'{current}' not in game ({white} vs {black})")
+                break
+
+            if not opponent:
+                self._log(f"Chain break at step {step}: no opponent name")
+                break
+
+            self._log(f"  step {step}: {white} vs {black} [{pick['source_id']}] "
+                      f"-> next user: {opponent}")
+            current = opponent
+            visited_users.append(current)
+
+        self._log(f"Chain complete: {len(corpus)} games, "
+                  f"{len(set(u.lower() for u in visited_users))} unique users")
+        return corpus
+
+    def fetch_masters_top(self, fen=None, top_n=20,
+                          play_uci=None, since_year=None, until_year=None,
+                          min_moves=None, max_moves=None,
+                          result_filter=None):
+        """Fetch top masters-DB games from a board position.
+
+        The masters DB is Lichess's curated set of elite OTB games
+        (~5M games, ≥2200 avg rating). We query the position explorer
+        for the top N games reaching `fen`, then fetch each PGN.
+
+        Args:
+            fen: position FEN (default: starting position)
+            top_n: number of top games to retrieve (max 4 per query; we
+                   page by date to get more)
+            play_uci: comma-separated UCI moves from startpos (alternative to fen)
+            since_year, until_year: int year filters
+        """
+        fen = fen or LICHESS_STARTPOS_FEN
+        params = {
+            'fen':      fen,
+            'topGames': min(top_n, 15),  # upstream caps at 15 per query
+        }
+        if play_uci:
+            params['play'] = play_uci
+        if since_year:
+            params['since'] = since_year
+        if until_year:
+            params['until'] = until_year
+
+        self._log(f"Querying masters DB (top {params['topGames']}) for "
+                  f"FEN={fen[:30]}...")
+        resp_text = self._fetch_pgn_text(
+            LICHESS_MASTERS_URL, params=params, accept_pgn=False,
+        )
+        try:
+            data = json.loads(resp_text)
+        except json.JSONDecodeError as e:
+            raise ParseError(f"Masters explorer returned non-JSON: {e}")
+
+        top = data.get('topGames', [])
+        if not top:
+            self._log("Masters DB: no top games for this position")
+            return []
+
+        self._log(f"Masters DB: {len(top)} top games found; fetching PGNs...")
+        games = []
+        for i, entry in enumerate(top[:top_n]):
+            mid = entry.get('id')
+            if not mid:
+                continue
+            pgn_text = self._fetch_masters_pgn(mid)
+            if pgn_text is None:
+                continue
+            parsed = self._parse_single_game(
+                pgn_text.strip(),
+                min_moves=min_moves, max_moves=max_moves,
+                result_filter=result_filter,
+            )
+            if parsed is None:
+                continue
+            self._normalize_game(parsed, 'lichess_masters', mid)
+            games.append(parsed)
+            # Rate limit between PGN fetches (cache hits skip the sleep)
+            if i < len(top) - 1:
+                time.sleep(LICHESS_RATE_DELAY_S)
+
+        self._log(f"Masters DB: {len(games)} games parsed")
+        return games
+
+    def _fetch_masters_pgn(self, masters_id):
+        """Fetch a single masters-DB game PGN, with caching."""
+        cache_file = os.path.join(
+            self.cache_dir, f'lichess_masters_{masters_id}.pgn'
+        )
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                return f.read()
+        url = LICHESS_MASTERS_PGN_URL.format(id=masters_id)
+        try:
+            pgn_text = self._fetch_pgn_text(url)
+        except FetchError as e:
+            self._log(f"Masters {masters_id}: fetch failed ({e})")
+            return None
+        if not pgn_text.strip() or '[Event' not in pgn_text:
+            return None
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            f.write(pgn_text)
+        return pgn_text
+
+
+def dt_year_to_unix_ms(year):
+    """Convert a year (int) to a unix timestamp in ms (Jan 1 00:00 UTC)."""
+    import calendar
+    return calendar.timegm((int(year), 1, 1, 0, 0, 0, 0, 0, 0)) * 1000
+
+
+# ═══════════════════════════════════════════════════════════════
 # MULTI-SOURCE FACADE
 # ═══════════════════════════════════════════════════════════════
 
@@ -947,6 +1312,8 @@ class MultiFetcher:
         'fishtest': 'huggingface',
         'cg': 'chessgames',
         'chess': 'chessgames',
+        'li': 'lichess',
+        'masters': 'lichess',
     }
 
     def __init__(self, cache_dir=None, verbose=True):
@@ -970,9 +1337,13 @@ class MultiFetcher:
                 self._sources[name] = TWICSource(
                     cache_dir=self.cache_dir, verbose=self.verbose
                 )
+            elif name == 'lichess':
+                self._sources[name] = LichessSource(
+                    cache_dir=self.cache_dir, verbose=self.verbose
+                )
             else:
                 raise ValueError(f"Unknown source: {name!r}. "
-                                 f"Available: huggingface, chessgames, twic")
+                                 f"Available: huggingface, chessgames, twic, lichess")
         return self._sources[name]
 
     def fetch(self, source_name, **kwargs):
@@ -1010,6 +1381,45 @@ class MultiFetcher:
             return source.fetch_event(
                 event,
                 max_games=kwargs.get('max_games') or kwargs.get('n'),
+                min_moves=kwargs.get('min_moves'),
+                max_moves=kwargs.get('max_moves'),
+                result_filter=kwargs.get('result_filter'),
+            )
+
+        elif isinstance(source, LichessSource):
+            lids = kwargs.get('lichess_ids') or []
+            username = kwargs.get('username')
+            fen = kwargs.get('fen')
+            mode = kwargs.get('mode')  # 'by_id' | 'user' | 'masters'
+            n = kwargs.get('n', 10)
+            if lids or mode == 'by_id':
+                games = []
+                for i, lid in enumerate(lids):
+                    g = source.fetch_by_id(lid)
+                    if g is not None:
+                        games.append(g)
+                    if i < len(lids) - 1:
+                        time.sleep(LICHESS_RATE_DELAY_S)
+                return games
+            if username or mode == 'user':
+                if not username:
+                    raise ValueError("lichess user mode requires --username")
+                return source.fetch_user_games(
+                    username, n=n,
+                    rated=kwargs.get('rated', True),
+                    perf=kwargs.get('perf'),
+                    since_year=kwargs.get('since_year'),
+                    until_year=kwargs.get('until_year'),
+                    min_moves=kwargs.get('min_moves'),
+                    max_moves=kwargs.get('max_moves'),
+                    result_filter=kwargs.get('result_filter'),
+                    color=kwargs.get('color'),
+                )
+            # default: masters DB from startpos (or supplied FEN)
+            return source.fetch_masters_top(
+                fen=fen, top_n=n,
+                since_year=kwargs.get('since_year'),
+                until_year=kwargs.get('until_year'),
                 min_moves=kwargs.get('min_moves'),
                 max_moves=kwargs.get('max_moves'),
                 result_filter=kwargs.get('result_filter'),
@@ -1153,6 +1563,20 @@ def cmd_fetch(args, multi):
                             seed=args.seed,
                             tc_base_min=args.tc_min or 10.0,
                             date=args.date)
+
+    elif source in ('lichess', 'li', 'masters'):
+        games = multi.fetch('lichess',
+                            n=args.n,
+                            lichess_ids=args.lichess_id or [],
+                            username=args.username,
+                            fen=args.fen,
+                            perf=args.perf,
+                            since_year=args.since_year,
+                            until_year=args.until_year,
+                            color=args.color,
+                            min_moves=args.min_moves,
+                            max_moves=args.max_moves,
+                            result_filter=args.result)
     else:
         print(f"Error: unknown source '{source}'", file=sys.stderr)
         return
@@ -1441,7 +1865,8 @@ def build_parser():
     p_fetch = sub.add_parser('fetch', help='Fetch games from a source')
     p_fetch.add_argument('--source', '-s', default='hf',
                          choices=['hf', 'huggingface', 'fishtest',
-                                  'chessgames', 'cg', 'chess', 'twic'],
+                                  'chessgames', 'cg', 'chess', 'twic',
+                                  'lichess', 'li', 'masters'],
                          help='Source (default: hf)')
     p_fetch.add_argument('--n', '-n', type=int, default=20,
                          help='Number of games (default: 20)')
@@ -1465,6 +1890,21 @@ def build_parser():
                          help='chessgames.com game ID(s)')
     # TWIC-specific
     p_fetch.add_argument('--event', help='TWIC event name')
+    # Lichess-specific
+    p_fetch.add_argument('--lichess-id', nargs='+',
+                         help='Lichess 8-char game ID(s)')
+    p_fetch.add_argument('--username',
+                         help='Lichess username (for user-games mode)')
+    p_fetch.add_argument('--perf',
+                         help='Lichess perf type(s) e.g. classical,rapid,blitz')
+    p_fetch.add_argument('--fen',
+                         help='FEN position for Lichess masters-DB lookup')
+    p_fetch.add_argument('--since-year', type=int,
+                         help='Start year (Lichess filter, inclusive)')
+    p_fetch.add_argument('--until-year', type=int,
+                         help='End year (Lichess filter, inclusive)')
+    p_fetch.add_argument('--color', choices=['white', 'black'],
+                         help='Filter by color (Lichess user-games)')
 
     # ── list ──
     p_list = sub.add_parser('list', help='List available dates/events')
