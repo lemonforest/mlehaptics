@@ -1485,6 +1485,45 @@ This does not invalidate the structural sensitivity above — those pairs differ
 
 **Regression status.** The six pairs and two trade sequences are now codified in `test_fa_structure.py` and serve as regression tests for any future FA channel changes.
 
+### 9q. Chaos Ratio: Length-Driven or Genuine? (and a Naming Trap)
+
+**Files:** `docs/chess-maths/analyze_chaos_length.py` (script), `docs/chess-maths/results/chaos_length_analysis_2026-04-15.md` (frozen report).
+
+**The metric, defined precisely** (`chess_spectral/corpus.py:201-207`):
+```
+L2_fiber[t] = sqrt(||FA||²[t] + ||FD||²[t])
+L2_irrep[t] = sqrt(sum_{c ∈ {A1,A2,B1,B2,E,F1,F2,F3}} ||c||²[t])
+chaos_ratio = mean_t(L2_fiber) / mean_t(L2_irrep)        ← mean-of-means
+```
+
+**Naming trap.** The dashboard's "Fiber Topology" view charts `F1+F2+F3`, but those channels are part of `chaos_ratio`'s *irrep* denominator. `chaos_ratio` is the antisymmetric-pawn-breaking ratio (FA+FD vs everything else), not the orbit-mixing ratio. Two different "fibers" with the same name. The dashboard's chart and the CSV column are answering different questions.
+
+**Length confound test (N=26 games, 3 sweeps).** Spearman ρ between game length and each chaos-ratio variant:
+
+| Variant | ρ | p |
+|---|---:|---:|
+| `cr_csv` (mean-of-means, the published metric) | +0.252 | 0.213 |
+| mean of per-ply ratio | +0.153 | 0.456 |
+| **median of per-ply ratio** | **+0.449** | **0.022** |
+| max of per-ply ratio | +0.266 | 0.188 |
+| 90th percentile | +0.167 | 0.415 |
+| `cr_csv / sqrt(plies)` | +0.088 | 0.669 |
+
+**The published `chaos_ratio` is NOT length-driven** at α=0.05. The only metric that is significantly length-correlated is the *median* per-ply ratio — which we don't publish. Sqrt-normalising kills even the residual association (ρ→0.09).
+
+**Game 7 deep dive (the original outlier, 163 plies, csv cr=15.65).** The ratio is **uniformly elevated, not spike-driven**:
+- Median per-ply ratio: 25.83
+- Plies above 3×median: 1 of 163 (0.6%)
+- Opening (plies 0-20): per-ply ratio < 0.5
+- Middlegame plateau (plies 25-100): sustained 10-16
+- Endgame zone (plies 108-145): sustained ~40 with isolated peak of 83 at ply 58
+
+So Game 7's high `cr_csv` is not a length artefact and not a single-move spike. It reflects a sustained middle/endgame regime where the antisymmetric pawn fiber carries a large fraction of total signal — consistent with the §9p finding that FA encodes structural pawn information. A long game with persistent pawn-structural tension will accumulate more such ply-mass, but the *ratio* is not mechanically inflated by ply count.
+
+**Footnote on the new corpus.** Across all 26 games, the *per-ply max* outlier is fishtest Game 4 (max=146 at ply 119, csv cr=4.90), not Game 7. Game 7's csv cr leads because its ratio is high *for many plies*, not because of one extreme ply. This is a useful distinction the published metric captures correctly.
+
+**Recommendation.** Keep `chaos_ratio` as the published metric. The mean-of-means form is robust to length and to per-ply spikes; alternative formulations either correlate with length (median) or are dominated by single-ply outliers (max). The dashboard subtitle and tooltips should be updated to note that the chart-labelled "Fiber" and the metric-labelled "fiber" are different sets of channels (or one of them should be renamed).
+
 ---
 
 ## 10. Appendix: Environment & Reproducibility
