@@ -62,7 +62,7 @@ def _eval_from_node(node):
 
 def _board_to_pos(board):
     """python-chess board → encoder pos dict. Square convention matches
-    pgn_bridge.fen_to_pos (row 0 = rank 8)."""
+    chess_spectral.fen_to_pos (row 0 = rank 8)."""
     pos = {}
     for square, piece in board.piece_map().items():
         rank = chess.square_rank(square)

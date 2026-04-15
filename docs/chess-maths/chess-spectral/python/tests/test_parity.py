@@ -23,11 +23,9 @@ if PKG not in sys.path:
     sys.path.insert(0, PKG)
 
 CHESS_MATHS = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-# pgn_bridge.py lives in docs/chess-maths/ — the encoder no longer pulls
-# that directory onto sys.path (it's self-contained via tables.py), so
-# the test has to add it explicitly.
-if CHESS_MATHS not in sys.path:
-    sys.path.insert(0, CHESS_MATHS)
+# Reference artifacts (captured from the C encoder) live in docs/chess-maths/.
+# fen_to_pos used to live there too but has moved into the chess_spectral
+# package — no sys.path gymnastics needed for it anymore.
 REF_SPECTRAL = os.path.join(CHESS_MATHS, "chessgame_1937789.spectral")
 REF_SPECTRALZ = os.path.join(CHESS_MATHS, "chessgame_1937789.spectralz")
 REF_CSV = os.path.join(CHESS_MATHS, "chessgame_1937789.csv")
@@ -76,8 +74,7 @@ def test_csv_matches_c_byte_for_byte():
 def test_encoder_starting_position_channel_energies():
     """Sanity: encode the starting position and check the 10 channel
     energies match the known reference (derived from the C encoder)."""
-    from chess_spectral import encode_640, channel_energies
-    from pgn_bridge import fen_to_pos
+    from chess_spectral import encode_640, channel_energies, fen_to_pos
 
     pos = fen_to_pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     enc = encode_640(pos)

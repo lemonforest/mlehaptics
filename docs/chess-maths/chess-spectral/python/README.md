@@ -22,8 +22,9 @@ subcommand-for-subcommand.
 ## Quick start
 
 ```python
->>> from chess_spectral import encode_640, channel_energies, read_encodings
->>> from pgn_bridge import fen_to_pos
+>>> from chess_spectral import (
+...     encode_640, channel_energies, read_encodings, fen_to_pos,
+... )
 
 >>> pos = fen_to_pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 >>> enc = encode_640(pos)

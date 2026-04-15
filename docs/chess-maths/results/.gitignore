@@ -1,0 +1,13 @@
+# Corpus sweep artifacts — regenerable from manifest + fetcher.
+# Commit the manifest + index + summary; let the bulk bytes stay local.
+*/pgn/
+*/ndjson/
+*/spectralz/
+*/*.spectral
+
+# Keep the folder shape + per-run committed artifacts tracked.
+!*/manifest.json
+!*/corpus_index.csv
+!*/corpus_summary.md
+!.gitignore
+!README.md

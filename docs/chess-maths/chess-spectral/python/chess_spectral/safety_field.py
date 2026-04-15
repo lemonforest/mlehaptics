@@ -49,7 +49,7 @@ def compute_safety_field(pos, *, include_pawns: bool = False) -> dict:
     pos : dict[int|str, str]
         Square index → piece char. Uppercase = white, lowercase = black.
         Square convention: ``sq(r,c) = r*8 + c`` with row 0 = rank 8
-        (matches ``pgn_bridge.fen_to_pos`` and the encoder).
+        (matches ``chess_spectral.fen_to_pos`` and the encoder).
     include_pawns : bool
         Reserved. When True, pawns would contribute to coverage via a
         symmetric-pawn Laplacian. Not yet wired — has no effect today.

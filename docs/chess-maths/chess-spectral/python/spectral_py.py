@@ -35,7 +35,7 @@ if HERE not in sys.path:
 
 from chess_spectral import (  # noqa: E402
     encode_640, normalize_pos, Frame, write_file, write_csv,
-    FILE_VERSION, ENCODING_DIM,
+    FILE_VERSION, ENCODING_DIM, fen_to_pos, uci_to_indices,
 )
 
 VERSION = "0.1.0-py"
@@ -106,8 +106,18 @@ def cmd_csv(args: argparse.Namespace) -> int:
 
 
 def _iter_ndjson_frames(path: str) -> Iterator[Frame]:
-    """Stream (ply, pos, move_from, move_to) records from an NDJSON
-    file produced by pgn_bridge.py and yield encoded Frames."""
+    """Stream per-ply records from an NDJSON file produced by
+    pgn_bridge.py and yield encoded Frames. Accepts all three
+    schemas emitted by the bridge over time:
+
+      - v2 ndjson-fen-v2: fen/uci/san with move_from/move_to preset
+        and optional nag/eval/clk/comment fields (all ignored here —
+        the encoder only needs the position).
+      - v1 ndjson-fen: fen/uci/san only; move indices derived from uci.
+      - legacy: pos (string-keyed dict) + move_from/move_to.
+
+    `type:"game_header"` records and the top-level bridge header are
+    skipped."""
     with open(path, "r", encoding="utf-8") as f:
         for line_no, line in enumerate(f, 1):
             line = line.strip()
@@ -117,17 +127,33 @@ def _iter_ndjson_frames(path: str) -> Iterator[Frame]:
                 rec = json.loads(line)
             except json.JSONDecodeError as e:
                 raise ValueError(f"{path}:{line_no}: bad JSON ({e})") from e
+            if rec.get("type") == "game_header":
+                continue
+
             pos = rec.get("pos")
-            if pos is None:
-                continue  # header line or non-position record
-            enc = encode_640(normalize_pos(pos))
+            fen = rec.get("fen")
+            if pos is None and fen is None:
+                continue  # top-level header or unrelated record
+            pos_dict = normalize_pos(pos) if pos is not None \
+                else fen_to_pos(fen)
+
+            if "move_from" in rec:
+                move_from = int(rec["move_from"]) & 0xFF
+                move_to = int(rec.get("move_to", 0xFF)) & 0xFF
+                move_promo = int(rec.get("move_promo", 0)) & 0xFF
+            else:
+                uci = rec.get("uci") or ""
+                move_from, move_to, move_promo = uci_to_indices(uci)
+            move_flags = int(rec.get("move_flags", 0)) & 0xFF
+
+            enc = encode_640(pos_dict)
             yield Frame(
                 encoding=enc.astype(np.float32),
                 ply=int(rec.get("ply", 0)),
-                move_from=int(rec.get("move_from", 0xFF)) & 0xFF,
-                move_to=int(rec.get("move_to", 0xFF)) & 0xFF,
-                move_promo=int(rec.get("move_promo", 0)) & 0xFF,
-                move_flags=int(rec.get("move_flags", 0)) & 0xFF,
+                move_from=move_from,
+                move_to=move_to,
+                move_promo=move_promo,
+                move_flags=move_flags,
             )
 
 
@@ -157,13 +183,6 @@ def cmd_encode(args: argparse.Namespace) -> int:
 
 
 def cmd_encode_fen(args: argparse.Namespace) -> int:
-    # Import pgn_bridge only when needed — it drags python-chess.
-    try:
-        from pgn_bridge import fen_to_pos
-    except ImportError as e:
-        print(f"encode-fen: {e} (install python-chess, or put pgn_bridge.py "
-              f"on PYTHONPATH)", file=sys.stderr)
-        return 4
     pos = fen_to_pos(args.fen)
     enc = encode_640(pos)
     fr = Frame(encoding=enc.astype(np.float32), ply=0)

@@ -4,8 +4,7 @@ analysis; use the C binary for batch throughput.
 
 Quick start:
 
-    >>> from chess_spectral import encode_640, channel_energies
-    >>> from pgn_bridge import fen_to_pos
+    >>> from chess_spectral import encode_640, channel_energies, fen_to_pos
     >>> pos = fen_to_pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     >>> enc = encode_640(pos)
     >>> enc.shape
@@ -51,6 +50,8 @@ from .frame import (
 )
 from .csv_export import write_csv, iter_rows, fmt_num, fmt_cos
 from .safety_field import compute_safety_field, side_most_exposed
+from .fen import fen_to_pos, uci_to_indices
+from .corpus import process_game, extract_features
 
 __all__ = [
     # Encoder
@@ -66,4 +67,8 @@ __all__ = [
     "write_csv", "iter_rows", "fmt_num", "fmt_cos",
     # Safety field
     "compute_safety_field", "side_most_exposed",
+    # FEN helpers
+    "fen_to_pos", "uci_to_indices",
+    # Corpus primitives
+    "process_game", "extract_features",
 ]

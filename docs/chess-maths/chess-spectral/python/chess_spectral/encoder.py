@@ -46,8 +46,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
         "    python spectral_py.py version\n"
         "\n"
         "Programmatic use:\n"
-        "    >>> from chess_spectral import encode_640, channel_energies\n"
-        "    >>> from pgn_bridge import fen_to_pos\n"
+        "    >>> from chess_spectral import encode_640, channel_energies, fen_to_pos\n"
         "    >>> enc = encode_640(fen_to_pos(\"...\"))   # shape (640,)\n",
         file=sys.stderr,
     )
@@ -199,8 +198,7 @@ sibling driver:
 
 Programmatic use:
 
-    >>> from chess_spectral import encode_640, channel_energies
-    >>> from pgn_bridge import fen_to_pos
+    >>> from chess_spectral import encode_640, channel_energies, fen_to_pos
     >>> pos = fen_to_pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     >>> enc = encode_640(pos)          # shape (640,)
     >>> channel_energies(enc)
