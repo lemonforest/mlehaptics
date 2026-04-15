@@ -38,6 +38,18 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+const ScatterTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: 'rgba(15,15,20,0.95)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '8px 12px', fontSize: 11 }}>
+      <div style={{ color: '#999', marginBottom: 4 }}>Progress {(label * 100).toFixed(0)}%</div>
+      {payload.map((p, i) => (
+        <div key={i} style={{ color: p.color }}>{p.name}: {p.value?.toFixed(2)}</div>
+      ))}
+    </div>
+  );
+};
+
 export default function SpectralDashboard() {
   const [view, setView] = useState('a1');
   const [selected, setSelected] = useState(new Set(GAMES.map(g => g.id)));
@@ -69,7 +81,7 @@ export default function SpectralDashboard() {
   const faData    = useMemo(() => buildSeries(activeGames, 'fa'), [activeGames]);
 
   const views = {
-    a1: { title: 'A₁ Energy — D4-Invariant Complexity', data: a1Data, key: 'a1', yLabel: 'Energy', desc: 'Predicts tactical depth (ρ=+0.452 vs Stockfish depth gap). Peaks during middlegame tension.' },
+    a1: { title: 'A₁ Energy — D4-Invariant Complexity', data: a1Data, key: 'a1', yLabel: 'Energy', desc: 'Total symmetric complexity — board signal averaged over all 8 D4 transforms. Predicts tactical depth in §9g depth-gap experiment (N=55 Stockfish positions, ρ=+0.452, p=0.0005). Not derived from this corpus.' },
     fiber: { title: 'Total Fiber Energy — Interaction Topology', data: fiberData, key: 'ft', yLabel: 'Energy', desc: 'Measures cross-piece interaction strength. Drops as pieces are exchanged.' },
     fa: { title: 'Pawn Antisymmetric Fiber — Z₂ Breaking', data: faData, key: 'fa', yLabel: 'Energy', desc: 'The only channel unique to pawns. Monotonically decreases as pawns leave the board.' },
   };
@@ -84,7 +96,7 @@ export default function SpectralDashboard() {
           SPECTRAL LATTICE FERMION CORPUS
         </h1>
         <div style={{ fontSize: 11, color: '#666', marginBottom: 16 }}>
-          10 Stockfish fishtest games · 640-dim encoding · 10 channels × 64 eigenmodes
+          {GAMES.length} games · 640-dim encoding · 10 channels × 64 eigenmodes
         </div>
 
         {/* Game selector */}
@@ -136,7 +148,7 @@ export default function SpectralDashboard() {
           </div>
           <div style={{ fontSize: 10, color: '#555', marginBottom: 12, paddingLeft: 8 }}>
             {view === 'chaos'
-              ? 'Per-ply fiber÷irrep energy. High = sharp/tactical, low = positional. Game 7 (χ=15.65) is an outlier.'
+              ? 'Per-ply fiber÷irrep energy. High = sharp/tactical, low = positional. Outliers (χ ≫ corpus median) mark unusually sharp games.'
               : v.desc}
           </div>
 
@@ -147,7 +159,7 @@ export default function SpectralDashboard() {
                   label={{ value: 'Game Progress', position: 'bottom', offset: 0, style: { fontSize: 10, fill: '#666' } }} />
                 <YAxis dataKey="ratio" type="number" domain={[0, 'auto']} tick={{ fontSize: 10, fill: '#555' }}
                   label={{ value: 'Fiber / Irrep', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#666' } }} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<ScatterTooltip />} />
                 {activeGames.map((g, i) => {
                   const gd = chaosData.filter(d => d.game === g.id);
                   return <Scatter key={g.id} name={`G${g.id}`} data={gd} fill={COLORS[GAMES.findIndex(gg => gg.id === g.id)]} opacity={0.5} r={2} />;
