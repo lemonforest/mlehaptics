@@ -927,6 +927,8 @@ The complete HDC dimension is **640**: 64 board eigenmodes × 10 channels. The 1
 | Fiber-anti | 512-575 | Antisymmetric off-diagonal | Pawn directional flow — Z₂-breaking operator content |
 | Fiber-diag | 576-639 | Diagonal deviation | Rook's shadow — spatial rule modification hidden by grid eigenbasis |
 
+Live visualiser for the 640-dim channels (board + heatmap + per-channel energy, all browser-side): <https://lemonforest.github.io/chess-maths-viewer>.
+
 The encoding grew from 512 to 640 because the pawn characterization (§9m) revealed a fifth fiber dimension that cannot be expressed in any existing channel:
 
 - **Not diagonal:** The antisymmetric content is off-diagonal (cross-modal flow between eigenmodes, not per-mode energy shifts). The rook's diagonal channel doesn't capture it.

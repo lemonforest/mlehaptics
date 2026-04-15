@@ -6,6 +6,15 @@
 > `encoder_512.py`) is historical R&D. Skip to **Reproduction recipe** below
 > if you want to regenerate the corpus.
 
+## Try it in your browser
+
+A live visualiser consumes the 640-dim `.spectralz` corpus archives directly,
+no install required: <https://lemonforest.github.io/chess-maths-viewer>.
+Drop a `sweep_*.7z` from `results/` (or use the bundled sample) to get a
+synchronised chessboard + spectral heatmap + per-channel energy charts for
+all 10 channels × 64 eigenmodes. Source:
+<https://github.com/lemonforest/chess-maths-viewer>.
+
 ## Encoder versions
 
 | Stage | File | Output dim | Status | What it is |
