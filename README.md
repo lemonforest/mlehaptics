@@ -442,6 +442,8 @@ This project developed foundational techniques for **connectionless distributed 
 
 - **[Distributed Sensing: A Project Lab Manual](docs/misc/Distributed_Sensing_Lab_Manual.md)**: Educational guide for students, hobbyists, and researchers exploring distributed sensing with synchronized wireless nodes. Covers acoustic beamforming, wind mapping, infrasound detection, mmWave radar for building occupancy/safety, and emergency response applications. Scales from weekend science project to operational systems.
 
+- **[Spectral Lattice Fermion as a universal gauge theory for grid-based phase spaces](docs/chess-maths/chess_spectral_research_notebook.md)**: Research notebook exploring the mathematical structure of spectral lattices and their application to universal gauge theories for grid-based phase spaces. Synthesizes concepts from lattice gauge theory, spectral graph theory, and hyperdimensional computing to propose a novel framework for representing complex systems with emergent spatial-temporal dynamics.
+
 ### Consciousness & Therapeutic Mechanisms
 
 - **[The Simulation-Lucid Phenotype](docs/misc/simulation_lucid_phenotype.md)**: Proposes complete aphantasia (~1% of population) as a natural experiment for consciousness research. Argues that removing the cortical imagery "rendering engine" reveals the interoceptive-somatic substrate underlying all cognition. Synthesizes aphantasia neuroscience, predictive processing, Craig's interoceptive hierarchy, Damasio's somatic markers, and psychedelic pharmacology (REBUS model) to predict that therapeutic benefit operates at substrate level, not the visual overlay. Includes implications for trauma therapy, meditation science, animal cognition, and IQ measurement.
@@ -455,8 +457,6 @@ This project developed foundational techniques for **connectionless distributed 
 - **[Integrative Capacity as a Trackable Metric](docs/misc/Integrative_Capacity_AI_Synthesis_Alignment.md)**: Meta-observation on AI alignment—proposes **Semantic Tension Span (STS)** as a metric for measuring AI synthesis vs retrieval. Uses the mlehaptics corpus (this project) as a labeled dataset of verified cross-domain isomorphisms: immunology→firmware, geophysics→packet radio, thermodynamics→governance. Argues that RLHF suppresses high-tension bridges as "hallucination" when they should be validated by functional stability (does the code compile? does the state machine execute?).
 
 ### Technical Reports
-- **[Spectral Lattice Fermion as a universal gauge theory for grid-based phase spaces](docs/chess-maths/chess_spectral_research_notebook.md)**: Research notebook exploring the mathematical structure of spectral lattices and their application to universal gauge theories for grid-based phase spaces. Synthesizes concepts from lattice gauge theory, spectral graph theory, and hyperdimensional computing to propose a novel framework for representing complex systems with emergent spatial-temporal dynamics.
-
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
 
 ### Protocol Specifications (UTLP/RFIP)
