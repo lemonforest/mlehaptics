@@ -948,6 +948,143 @@ extern "C" {
 
 /** @} */ /* ilc */
 
+/*============================================================================
+ * LINEAGE LOYALTY (v3.9 - Timeline Hijack Defense)
+ *
+ * Once a device is stably entrained to a timeline, it rejects synchronization
+ * inputs from foreign timelines. This is a catch-all defense: even if stratum,
+ * health, or adoption checks are bypassed, the lineage gate prevents a newcomer
+ * from corrupting an established swarm's phase tracking or epoch.
+ *
+ * Biological analogy: Transplant rejection. Foreign tissue is rejected even
+ * if "healthy" — because it's not from your lineage. The body distinguishes
+ * "self" from "non-self" regardless of the foreign tissue's vitality.
+ *
+ * Commitment lifecycle: NAIVE → PROBATION → COMMITTED → GRIEVING → NAIVE
+ *
+ * @see docs/UTLP_Technical_Supplement_S2.md - Lineage Loyalty immune defense
+ *==========================================================================*/
+
+/** @defgroup lineage_loyalty Lineage Loyalty
+ * @{
+ */
+
+/**
+ * @brief Lineage Loyalty threshold (microseconds)
+ *
+ * Maximum offset deviation from established timeline before a beacon
+ * is classified as "foreign lineage." Must be:
+ * - Large enough to tolerate normal drift (±30µs/90min from testing)
+ * - Large enough to tolerate Lucky Packet jitter (typically <5ms)
+ * - Small enough to reject independent timelines (differ by seconds+)
+ *
+ * 50ms provides ~2500 hours of drift headroom at observed rates.
+ */
+#define UTLP_LINEAGE_LOYALTY_THRESHOLD_US   50000   /* 50ms */
+
+/**
+ * @brief Minimum stable entrainment before lineage commitment (microseconds)
+ *
+ * Device must maintain stratum without change for this duration
+ * before the Lineage Loyalty gate activates. Allows servo convergence
+ * during bootstrap without premature gate activation.
+ *
+ * 10 seconds covers genesis pulsing phases 1-3 (100ms, 500ms, 1s)
+ * and provides ~10 beacon exchanges at 1s intervals for confidence.
+ */
+#define UTLP_LINEAGE_COMMITMENT_MIN_US      (10ULL * 1000000ULL)  /* 10 seconds */
+
+/** @} */ /* lineage_loyalty */
+
+/*============================================================================
+ * PRECISION WINDOWS - Power-Managed Beacon Timing
+ *
+ * Timer ON for ~2s around beacon events, OFF for ~58s sleep.
+ * Reduces average current from ~30mA (continuous MCPWM) to ~1.5mA.
+ *
+ * The phase engine pauses the MCPWM timer between beacon windows.
+ * Phase continuity is maintained by:
+ *   1. Capturing cycle_count at pause
+ *   2. Using RTC elapsed time during sleep (~100ppm drift = 6ms/60s)
+ *   3. Reconstructing cycle_count on resume
+ *   4. Anticipatory memory corrects residual error at next beacon
+ *
+ * Lifecycle:
+ *   CONTINUOUS (boot) → PRECISION (after COMMITTED + confidence) → CONTINUOUS (fallback)
+ *
+ * @see utlp_phase.h - Precision Window API (pause/resume/enable/disable)
+ *==========================================================================*/
+
+/**
+ * @brief Master enable for precision windows (EXPERIMENTAL)
+ *
+ * Set to 1 to enable precision windows (timer pauses between beacons).
+ * Set to 0 to keep timer in CONTINUOUS mode always.
+ *
+ * v3.13: Disabled by default. Precision mode has three interacting bugs
+ * that break N>=3 swarms:
+ *   A) Stale beacon TX: send_chirp() reads frozen phase → stale timestamps
+ *   B) Stale beacon RX: utlp_phase_on_beacon() reads paused ticks → garbage error
+ *   C) Mutual starvation: 2 of 3 devices sleeping → no useful beacons exchanged
+ *
+ * All precision infrastructure code is preserved for future debugging.
+ * The phase engine stays in CONTINUOUS mode when disabled.
+ */
+#define UTLP_PRECISION_ENABLED           0
+
+/** @defgroup precision_window Precision Window (Power Management)
+ * @{
+ */
+
+/**
+ * @brief Wake lead time before predicted beacon (microseconds)
+ *
+ * Timer restarts this long before the predicted beacon arrival.
+ * Must be large enough for:
+ *   - MCPWM timer to stabilize (~1ms)
+ *   - ILC to re-learn ISR latency (~1 cycle = 1s)
+ *   - Margin for RTC drift prediction error
+ *
+ * 1 second provides ample margin for all platforms.
+ */
+#define UTLP_PRECISION_WAKE_LEAD_US      1000000UL   /* 1 second */
+
+/**
+ * @brief Wake trail time after beacon processed (microseconds)
+ *
+ * Timer stays running this long after processing a beacon,
+ * allowing for:
+ *   - Seismic chirp burst completion (3 × 2ms = 6ms)
+ *   - Phase correction convergence
+ *   - Any retransmission attempts
+ *
+ * 1 second provides margin for multi-burst chirps.
+ */
+#define UTLP_PRECISION_WAKE_TRAIL_US     1000000UL   /* 1 second */
+
+/**
+ * @brief Minimum successful predictions before enabling precision mode
+ *
+ * Device must demonstrate prediction accuracy (beacons arriving within
+ * the wake window) this many consecutive times before the orchestrator
+ * activates PRECISION mode. Prevents premature sleep during unstable
+ * beacon intervals (genesis chirp, interference, etc.).
+ */
+#define UTLP_PRECISION_MIN_PREDICTIONS   3
+
+/**
+ * @brief Maximum consecutive missed beacons before fallback to continuous
+ *
+ * If this many beacons are missed (timer was sleeping when beacon arrived),
+ * the orchestrator falls back to CONTINUOUS mode. This could indicate:
+ *   - Changed beacon interval (genesis restart)
+ *   - Prediction model drift
+ *   - Network partition
+ */
+#define UTLP_PRECISION_MAX_MISSES        2
+
+/** @} */ /* precision_window */
+
 #ifdef __cplusplus
 }
 #endif

@@ -439,6 +439,13 @@ typedef struct {
     double   min_drift_ppb;         /* Minimum observed drift */
     uint64_t last_log_us;           /* Timestamp of last stats log */
     uint32_t chirps_analyzed;       /* Count of chirps analyzed */
+    uint32_t clamped_count;         /* v3.10: Chirps where drift hit ±500ppm clamp */
+
+    /* v3.10: Beacon-to-beacon drift (long-term, much better measurement window) */
+    double   prev_offset_us;        /* Previous beacon's offset for delta calc */
+    uint64_t prev_offset_time_us;   /* Timestamp of previous offset measurement */
+    double   beacon_drift_ppb;      /* EMA: drift from offset change between beacons */
+    bool     has_prev_offset;       /* Have a previous offset to compare against */
 } drift_stats_t;
 
 static drift_stats_t g_drift_stats = {0};
@@ -552,6 +559,211 @@ static uint64_t g_last_stratum_change = 0;
 
 /** @brief Am I currently a Provider (relay)? */
 static bool g_is_provider = false;
+
+/*============================================================================
+ * LINEAGE LOYALTY STATE MACHINE (v3.9)
+ *
+ * Commitment lifecycle for timeline identity defense.
+ * Prevents foreign-lineage beacons from corrupting synchronization.
+ *
+ * Biological analogy: Self/Non-Self discrimination in transplant immunology.
+ * Once the body (device) develops tolerance for its own tissue (timeline),
+ * it actively rejects foreign tissue (foreign timelines) regardless of
+ * the donor's apparent health.
+ *
+ * States:
+ *   NAIVE      - Boot state. No commitment. Accept any timeline.
+ *   PROBATION  - Recently adopted an epoch. Servo converging. Gate permissive.
+ *   COMMITTED  - Stably entrained. Gate active: reject foreign timelines.
+ *   GRIEVING   - Lost best source (seniority bankruptcy or loneliness).
+ *                Gate temporarily relaxed to allow re-entrainment.
+ *
+ * @see utlp_config.h - UTLP_LINEAGE_LOYALTY_THRESHOLD_US
+ * @see utlp_config.h - UTLP_LINEAGE_COMMITMENT_MIN_US
+ *==========================================================================*/
+
+/** @brief Lineage loyalty commitment state */
+typedef enum {
+    LINEAGE_NAIVE = 0,      /**< No commitment - accept any timeline */
+    LINEAGE_PROBATION,      /**< Recently adopted - servo converging */
+    LINEAGE_COMMITTED,      /**< Stable entrainment - reject foreign */
+    LINEAGE_GRIEVING,       /**< Lost best peer - temporarily open */
+    LINEAGE_STATE_COUNT     /**< Sentinel - must be last */
+} lineage_state_t;
+
+static lineage_state_t g_lineage_state = LINEAGE_NAIVE;
+static uint64_t g_lineage_committed_since_us = 0;
+
+static const char *lineage_state_name(lineage_state_t state) {
+    switch (state) {
+        case LINEAGE_NAIVE:     return "NAIVE";
+        case LINEAGE_PROBATION: return "PROBATION";
+        case LINEAGE_COMMITTED: return "COMMITTED";
+        case LINEAGE_GRIEVING:  return "GRIEVING";
+        default:                return "UNKNOWN";
+    }
+}
+
+/**
+ * @brief Lineage Loyalty Gate: Is this beacon from a peer on (or near) my timeline?
+ *
+ * Called before ALL synchronization inputs (phase tracker, adoption, servo).
+ * Only blocks beacons when in COMMITTED state — all other states are permissive
+ * to allow bootstrap, convergence, and re-entrainment.
+ *
+ * @param proposed_offset  The offset this beacon implies (remote_tx - rx_ts)
+ * @return true if beacon should be processed for synchronization
+ *         false if beacon is from a foreign lineage (informational only)
+ */
+static bool is_near_my_lineage(int64_t proposed_offset) {
+    /* NAIVE, PROBATION, GRIEVING: accept everything (bootstrap / recovery) */
+    if (g_lineage_state != LINEAGE_COMMITTED) {
+        return true;
+    }
+
+    /* COMMITTED: check proximity to established timeline */
+    int64_t deviation = proposed_offset - g_aatr.time_offset;
+    if (deviation < 0) deviation = -deviation;
+
+    return (deviation < (int64_t)UTLP_LINEAGE_LOYALTY_THRESHOLD_US);
+}
+
+/**
+ * @brief Valid transition table for the lineage state machine.
+ *
+ * Indexed as [from_state][to_state]. true = legal transition.
+ *
+ * Legal transitions:
+ *   NAIVE      → PROBATION  (first adoption)
+ *   PROBATION  → COMMITTED  (stability timer elapsed)
+ *   PROBATION  → NAIVE      (loneliness before commitment)
+ *   COMMITTED  → GRIEVING   (best source bankruptcy or loneliness)
+ *   COMMITTED  → NAIVE      (loneliness - extended silence)
+ *   GRIEVING   → PROBATION  (re-adoption after grief)
+ *   GRIEVING   → NAIVE      (loneliness during grief)
+ */
+static const bool s_lineage_valid_transitions[LINEAGE_STATE_COUNT][LINEAGE_STATE_COUNT] = {
+    /*                  NAIVE  PROB   COMMIT GRIEV */
+    /* NAIVE     */ {  false, true,  false, false },
+    /* PROBATION */ {  true,  false, true,  false },
+    /* COMMITTED */ {  true,  false, false, true  },
+    /* GRIEVING  */ {  true,  true,  false, false },
+};
+
+/**
+ * @brief Transition the lineage state machine with validation.
+ *
+ * Validates the transition against the legal transition table,
+ * logs all transitions for diagnostics, and tracks commitment duration.
+ * Centralized to prevent scattered state changes.
+ *
+ * @param new_state  Target state
+ */
+static void lineage_transition(lineage_state_t new_state) {
+    if (g_lineage_state == new_state) return;
+
+    /* Bounds check - defensive against memory corruption */
+    if ((unsigned)new_state >= LINEAGE_STATE_COUNT ||
+        (unsigned)g_lineage_state >= LINEAGE_STATE_COUNT) {
+        utlp_hal_log_warn(TAG,
+            "LINEAGE: Invalid state value (current=%d, requested=%d) - ignoring",
+            (int)g_lineage_state, (int)new_state);
+        return;
+    }
+
+    /* Validate transition against legal table */
+    if (!s_lineage_valid_transitions[g_lineage_state][new_state]) {
+        utlp_hal_log_warn(TAG,
+            "LINEAGE: Illegal transition %s -> %s - ignoring",
+            lineage_state_name(g_lineage_state),
+            lineage_state_name(new_state));
+        return;
+    }
+
+    /* Log commitment duration when leaving COMMITTED state */
+    if (g_lineage_state == LINEAGE_COMMITTED && g_lineage_committed_since_us > 0) {
+        uint64_t commitment_duration_us = utlp_hal_get_micros() - g_lineage_committed_since_us;
+        utlp_hal_log_info(TAG,
+            "LINEAGE: %s -> %s after %llu s committed (offset=%+lld, stratum=%d)",
+            lineage_state_name(g_lineage_state),
+            lineage_state_name(new_state),
+            (unsigned long long)(commitment_duration_us / 1000000ULL),
+            (long long)g_aatr.time_offset,
+            utlp_get_stratum());
+    } else {
+        utlp_hal_log_info(TAG, "LINEAGE: %s -> %s (offset=%+lld, stratum=%d)",
+                          lineage_state_name(g_lineage_state),
+                          lineage_state_name(new_state),
+                          (long long)g_aatr.time_offset,
+                          utlp_get_stratum());
+    }
+
+    g_lineage_state = new_state;
+
+    if (new_state == LINEAGE_COMMITTED) {
+        g_lineage_committed_since_us = utlp_hal_get_micros();
+    }
+
+    /*
+     * PRECISION WINDOW gating (v3.10, v3.13: compile-flag guarded)
+     *
+     * COMMITTED with sufficient anticipatory confidence enables
+     * precision mode (timer ON only during beacon windows).
+     * Any regression (GRIEVING, NAIVE) falls back to continuous.
+     *
+     * v3.13: Disabled by default (UTLP_PRECISION_ENABLED=0).
+     * Precision mode has three interacting bugs that break N>=3:
+     *   A) Stale beacon TX (frozen phase timestamps)
+     *   B) Stale beacon RX (garbage phase error)
+     *   C) Mutual starvation (2/3 devices sleeping)
+     * All infrastructure preserved for future fix.
+     */
+#if UTLP_PRECISION_ENABLED
+    if (new_state == LINEAGE_COMMITTED) {
+        utlp_phase_enable_precision_mode();
+    } else if (new_state == LINEAGE_GRIEVING || new_state == LINEAGE_NAIVE) {
+        utlp_phase_disable_precision_mode();
+    }
+#endif
+}
+
+/**
+ * @brief Notify lineage system that our best time source underwent Seniority Bankruptcy.
+ *
+ * Called from the trust system when a peer matching our best_source_mac
+ * changes session_salt (indicating reboot). Triggers COMMITTED→GRIEVING
+ * transition so we can re-adopt the rebooted source's new timeline.
+ *
+ * @param mac  The MAC address of the peer that rebooted
+ */
+void utlp_lineage_on_source_bankruptcy(const uint8_t *mac) {
+    /* Only relevant if we're committed and this is our source */
+    if (g_lineage_state != LINEAGE_COMMITTED) return;
+    if (memcmp(mac, g_aatr.best_source_mac, UTLP_MAC_SIZE) != 0) return;
+
+    utlp_hal_log_warn(TAG,
+        "LINEAGE: Best source " PEER_FMT " underwent Seniority Bankruptcy - entering GRIEVING",
+        PEER_ID(mac));
+    lineage_transition(LINEAGE_GRIEVING);
+}
+
+/**
+ * @brief Notify lineage system of extended silence (loneliness).
+ *
+ * Called from the Loom when entering WEAVING state (no beacons for 120s).
+ * Resets lineage commitment so the device can adopt a new timeline when
+ * peers reappear. This handles:
+ * - Genesis reboot where followers lost all peers
+ * - Network partition where this device was isolated
+ * - New deployment where device was left running alone
+ */
+void utlp_lineage_on_loneliness(void) {
+    if (g_lineage_state == LINEAGE_NAIVE) return;  /* Already open */
+
+    utlp_hal_log_warn(TAG,
+        "LINEAGE: Extended silence (Loom WEAVING) - resetting to NAIVE");
+    lineage_transition(LINEAGE_NAIVE);
+}
 
 /*============================================================================
  * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
@@ -743,7 +955,8 @@ static void record_jitter_stats(int64_t offset_us)
 /* Active Immunity: Entrainment response with dual constraints (defined later) */
 static void evaluate_entrainment_response(const uint8_t *peer_mac,
                                           uint8_t peer_health,
-                                          int32_t deviation_us);
+                                          int32_t deviation_us,
+                                          bool peer_is_genesis);
 
 /*============================================================================
  * HELPERS
@@ -1409,6 +1622,22 @@ static bool should_relay(void)
         return true;
     }
 
+    /*
+     * v3.12: Small swarm override.
+     *
+     * In a 2-3 device swarm, the follower's genesis score is too low to
+     * pass RELAY_THRESHOLD (128). Score breakdown: 1 peer (10 pts) +
+     * RSSI -66 (34 pts) + 100% clamped drift (10 pts) = 54. Result:
+     * the Genesis node never hears from followers — health frozen,
+     * consensus impossible, bidirectional communication broken.
+     *
+     * Fix: if no other providers exist and I have peers, always relay.
+     * When more providers appear, normal scoring/suppression takes over.
+     */
+    if (g_hood.providers_nearby == 0 && g_hood.peer_count > 0) {
+        return true;
+    }
+
     /* Frontier Rule: At edge with high score? */
     if (g_hood.source_rssi < RSSI_FRONTIER && g_hood.my_score > RELAY_THRESHOLD) {
         return true;
@@ -1618,6 +1847,15 @@ static void update_drift_stats(const sync_polynomial_t *poly)
     g_drift_stats.last_poly = *poly;
     g_drift_stats.chirps_analyzed++;
 
+    /* v3.10: Track how many chirps hit the ±500ppm clamp */
+    {
+        double abs_drift = poly->drift_ppb;
+        if (abs_drift < 0) abs_drift = -abs_drift;
+        if (abs_drift >= (double)(UTLP_MAX_PHYSICAL_DRIFT_PPB - 1)) {
+            g_drift_stats.clamped_count++;
+        }
+    }
+
     /* First sample: initialize averages */
     if (g_drift_stats.chirps_analyzed == 1) {
         g_drift_stats.avg_offset_us = poly->offset_us;
@@ -1641,6 +1879,38 @@ static void update_drift_stats(const sync_polynomial_t *poly)
         if (poly->drift_ppb < g_drift_stats.min_drift_ppb) {
             g_drift_stats.min_drift_ppb = poly->drift_ppb;
         }
+    }
+
+    /*
+     * v3.10: Beacon-to-beacon drift measurement.
+     *
+     * The chirp-based drift (2ms window) is too noisy to be useful — any
+     * 1µs of ISR jitter saturates the ±500ppm clamp. Instead, measure
+     * offset change between consecutive beacons (60s window = 30000×
+     * better measurement resolution).
+     *
+     * drift_ppb = (offset_delta / time_delta) × 1e9
+     */
+    {
+        uint64_t now_us = utlp_hal_get_micros();
+        if (g_drift_stats.has_prev_offset) {
+            double offset_delta = poly->offset_us - g_drift_stats.prev_offset_us;
+            double time_delta_s = (double)(now_us - g_drift_stats.prev_offset_time_us) / 1e6;
+            if (time_delta_s > 0.5) {  /* Avoid division by near-zero */
+                double beacon_drift = (offset_delta / time_delta_s) * 1000.0;  /* ppb */
+                if (g_drift_stats.beacon_drift_ppb == 0.0 &&
+                    g_drift_stats.chirps_analyzed <= 2) {
+                    g_drift_stats.beacon_drift_ppb = beacon_drift;
+                } else {
+                    g_drift_stats.beacon_drift_ppb =
+                        EMA_ALPHA * beacon_drift +
+                        (1.0 - EMA_ALPHA) * g_drift_stats.beacon_drift_ppb;
+                }
+            }
+        }
+        g_drift_stats.prev_offset_us = poly->offset_us;
+        g_drift_stats.prev_offset_time_us = now_us;
+        g_drift_stats.has_prev_offset = true;
     }
 }
 
@@ -1666,18 +1936,36 @@ static void log_drift_stats_if_due(uint64_t uptime_us)
 
     g_drift_stats.last_log_us = uptime_us;
 
-    utlp_hal_log_info(TAG, "--- DRIFT STATS (uptime: %llus, max: %d ppb) ---",
-             (unsigned long long)(uptime_us / 1000000),
-             (int)UTLP_MAX_PHYSICAL_DRIFT_PPB);
-    utlp_hal_log_info(TAG, "Chirps: %lu | LAST: off=%+.0fus drift=%+.0fppb",
-             (unsigned long)g_drift_stats.chirps_analyzed,
-             g_drift_stats.last_poly.offset_us,
-             g_drift_stats.last_poly.drift_ppb);
-    utlp_hal_log_info(TAG, "AVG: off=%+.0fus drift=%+.0fppb | RANGE: [%+.0f..%+.0f]ppb",
-             g_drift_stats.avg_offset_us,
-             g_drift_stats.avg_drift_ppb,
-             g_drift_stats.min_drift_ppb,
-             g_drift_stats.max_drift_ppb);
+    {
+        uint32_t clamped_pct = (g_drift_stats.chirps_analyzed > 0) ?
+            (uint32_t)((100UL * g_drift_stats.clamped_count) / g_drift_stats.chirps_analyzed) : 0;
+
+        utlp_hal_log_info(TAG, "--- DRIFT STATS (uptime: %llus) ---",
+                 (unsigned long long)(uptime_us / 1000000));
+        utlp_hal_log_info(TAG, "Chirps: %lu (clamped: %lu/%lu = %lu%%) | LAST: off=%+.0fus drift=%+.0fppb",
+                 (unsigned long)g_drift_stats.chirps_analyzed,
+                 (unsigned long)g_drift_stats.clamped_count,
+                 (unsigned long)g_drift_stats.chirps_analyzed,
+                 (unsigned long)clamped_pct,
+                 g_drift_stats.last_poly.offset_us,
+                 g_drift_stats.last_poly.drift_ppb);
+        utlp_hal_log_info(TAG, "AVG: off=%+.0fus chirp_drift=%+.0fppb | RANGE: [%+.0f..%+.0f]ppb",
+                 g_drift_stats.avg_offset_us,
+                 g_drift_stats.avg_drift_ppb,
+                 g_drift_stats.min_drift_ppb,
+                 g_drift_stats.max_drift_ppb);
+
+        /* v3.10: Beacon-to-beacon drift (much more meaningful than chirp drift) */
+        if (g_drift_stats.has_prev_offset) {
+            utlp_hal_log_info(TAG, "BEACON DRIFT: %+.0f ppb (EMA, inter-beacon measurement)",
+                     g_drift_stats.beacon_drift_ppb);
+        }
+
+        if (clamped_pct >= 90) {
+            utlp_hal_log_warn(TAG, "DRIFT WARNING: %lu%% of chirps clamped - chirp drift stats unreliable (use BEACON DRIFT)",
+                     (unsigned long)clamped_pct);
+        }
+    }
 }
 
 /*============================================================================
@@ -1787,8 +2075,25 @@ static void build_utlp_packet(utlp_wire_packet_t *pkt, uint64_t chirp_epoch,
     pkt->exon.ntp_timestamp_utc = utlp_hal_get_ntp_time_utc();  /* Or random if stealth */
     pkt->exon.stratum = utlp_get_stratum_for_arbor(arbor_id);
 
-    /* Exon: Protocol enforcement */
-    pkt->exon.protocol_version = UTLP_PROTOCOL_VERSION;  /* MUST be 0x01 */
+    /* Exon: Protocol version — marks genesis-pulsing beacons explicitly.
+     * During first 10s (genesis phases 1-3), use 0xFE so receivers can
+     * identify newborn beacons on the FIRST packet without needing
+     * behavioral detection (which requires ≥2 observations).
+     * Uses raw uptime (not atomic time) since genesis phase is local.
+     *
+     * v3.13: Reduced from PHASE_4 (60s) to PHASE_3 (10s). The 60s
+     * duration blocked ALL adoption for a full minute, creating a race
+     * condition in N>=3 swarms where devices adopt in the wrong order:
+     *   - C adopts B's time before B has adopted A's genesis timeline
+     *   - B then jumps to A's timeline, stranding C on a dead timeline
+     *   - Lineage loyalty makes C's isolation permanent
+     * 10s still covers the rapid-beacon phases (100ms/500ms/1s) where
+     * the wire flag provides first-beacon identification value. After
+     * 10s, the behavioral check (peer_tx_time >= 5s) takes over. */
+    pkt->exon.protocol_version =
+        (utlp_hal_get_micros() < UTLP_GENESIS_PHASE_3_END_US)
+            ? UTLP_PROTOCOL_VERSION_GENESIS
+            : UTLP_PROTOCOL_VERSION;
 
     /* Initialize Intron via .u64 = 0 then populate fields directly
      * (Avoids taking address of packed struct member) */
@@ -1972,9 +2277,22 @@ static void process_beacon(const utlp_packet_t *pkt)
     /* Cast HAL payload to wire packet structure */
     const utlp_wire_packet_t *wire = (const utlp_wire_packet_t *)pkt->payload;
 
-    /* Protocol version check (cleartext Exon field) */
-    if (wire->exon.protocol_version != UTLP_PROTOCOL_VERSION) {
-        /* Silent drop for unknown protocol versions */
+    /*
+     * Protocol version gate (cleartext Exon byte [23]).
+     *
+     * Accept both 0x01 (established) and 0xFE (genesis-pulsing).
+     * Both use the same SCALAR wire format (bytes [4-11] = uint64_t).
+     * The HDC experimental branch uses 0x02 where those bytes carry a
+     * phase_chord[8] — reject that to avoid timestamp corruption.
+     *
+     * The genesis flag (0xFE) is extracted and passed downstream so
+     * adoption guards can reject genesis timelines on the FIRST beacon
+     * without needing behavioral detection (≥2 observations).
+     */
+    uint8_t proto_ver = wire->exon.protocol_version;
+    bool peer_is_genesis_wire = (proto_ver == UTLP_PROTOCOL_VERSION_GENESIS);
+    if (proto_ver != UTLP_PROTOCOL_VERSION && !peer_is_genesis_wire) {
+        /* Unknown version — silent drop (avoids spam in mixed swarms) */
         return;
     }
 
@@ -2026,6 +2344,12 @@ static void process_beacon(const utlp_packet_t *pkt)
          * BUG FIX: Previously called utlp_trust_record_observation() which
          * defaulted to arbor 0 (WiFi), breaking per-transport trust separation.
          */
+        /* v3.9: Set lineage context before recording observation.
+         * This enables the trust system to freeze health for foreign-lineage peers. */
+        utlp_trust_set_lineage_context(
+            g_aatr.time_offset,
+            (g_lineage_state == LINEAGE_COMMITTED));
+
         utlp_trust_record_observation_arbor(pkt->mac, observed_offset, remote_stratum,
                                             pkt->arbor_id, pkt->rssi, remote_session_salt);
 
@@ -2050,7 +2374,7 @@ static void process_beacon(const utlp_packet_t *pkt)
         uint8_t peer_health = utlp_trust_get_peer_health(pkt->mac);
 
         /* Cast to int32_t for entrainment (deviation > 35 min = definitely wrong) */
-        evaluate_entrainment_response(pkt->mac, peer_health, (int32_t)deviation_us);
+        evaluate_entrainment_response(pkt->mac, peer_health, (int32_t)deviation_us, peer_is_genesis_wire);
     }
 
     /* Validate burst index */
@@ -2119,6 +2443,36 @@ static void process_beacon(const utlp_packet_t *pkt)
 #endif
 
     /*
+     * LINEAGE LOYALTY GATE (v3.9)
+     *
+     * Compute the proposed offset BEFORE any synchronization processing.
+     * This single check gates both the phase engine and source selection.
+     *
+     * A foreign-lineage beacon is informational only: it was already
+     * recorded for trust scoring (above), but it must NOT feed the
+     * phase tracker or trigger epoch adoption.
+     */
+    {
+        int64_t proposed_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
+
+        if (!is_near_my_lineage(proposed_offset)) {
+            utlp_hal_log_info(TAG,
+                "LINEAGE: Foreign beacon from " PEER_FMT " (dev=%+lld us from my offset %+lld), informational only",
+                PEER_ID(pkt->mac),
+                (long long)(proposed_offset - g_aatr.time_offset),
+                (long long)g_aatr.time_offset);
+            /*
+             * Skip phase engine, source selection, and adoption entirely.
+             * Trust observation was already recorded above.
+             * Entrainment evaluation still runs below (we may want to
+             * entrain this foreign peer once they're on our lineage).
+             */
+            should_adopt = false;
+            goto skip_source_selection;
+        }
+    }
+
+    /*
      * HARDWARE PHASE ENGINE (HPLAC - Physics First!)
      *
      * Notify the phase engine of this beacon. The phase engine tracks
@@ -2129,6 +2483,9 @@ static void process_beacon(const utlp_packet_t *pkt)
      * during the transition period. Once validated, servo_apply_offset
      * will be removed.
      *
+     * v3.9: Only processes beacons from peers on (or near) our lineage.
+     * Foreign beacons are filtered by the Lineage Loyalty gate above.
+     *
      * Conversion: TX time (µs) → phase ticks (0-49999)
      *   peer_phase_ticks = (remote_tx_time % CYCLE_US) / TICK_US
      */
@@ -2136,6 +2493,21 @@ static void process_beacon(const utlp_packet_t *pkt)
         uint32_t peer_phase_ticks = (uint32_t)((remote_tx_time % UTLP_PHASE_CYCLE_US) /
                                                UTLP_PHASE_TICK_US);
         utlp_phase_on_beacon(peer_phase_ticks, pkt->rx_timestamp_us);
+
+        /*
+         * ANTICIPATORY MEMORY (v3.10 diagnostic)
+         *
+         * Record this beacon arrival for prediction scoring, then
+         * predict the next beacon arrival based on current interval.
+         * Diagnostic-only: predictions are logged, not yet used for timing.
+         */
+        int64_t measured_offset = (int64_t)remote_tx_time - (int64_t)pkt->rx_timestamp_us;
+        utlp_anticipatory_observe(pkt->rx_timestamp_us, measured_offset);
+
+        /* Predict next beacon: current arrival + steady-state interval */
+        uint64_t next_predicted_arrival = pkt->rx_timestamp_us +
+                                          BEACON_INTERVAL_STEADY_US;
+        utlp_anticipatory_predict(next_predicted_arrival, measured_offset);
     }
 
     /*
@@ -2175,13 +2547,13 @@ static void process_beacon(const utlp_packet_t *pkt)
              */
 
             /* Check 1: Genesis Pulse Detection (S2.24)
-             * If peer is broadcasting at genesis intervals (100-1000ms), they
-             * have likely just rebooted. Block epoch adoption, but allow
-             * phase entrainment once they stabilize.
+             * Primary: wire-format version 0xFE (works on FIRST beacon).
+             * Fallback: behavioral detection for peers on older firmware.
              */
-            if (utlp_trust_is_genesis_pulsing(best, (int64_t)remote_tx_time)) {
-                utlp_hal_log_warn(TAG, "GENESIS PULSE: Peer %02X:%02X detected (interval=%dms), epoch adoption blocked",
-                                  pkt->mac[4], pkt->mac[5], best->observed_interval_ms);
+            if (peer_is_genesis_wire ||
+                utlp_trust_is_genesis_pulsing(best, (int64_t)remote_tx_time)) {
+                utlp_hal_log_warn(TAG, "GENESIS PULSE: Peer " PEER_FMT " detected (interval=%dms), epoch adoption blocked",
+                                  PEER_ID(pkt->mac), best->observed_interval_ms);
                 should_adopt = false;
                 /* Don't punish - they're legitimately rebooting, not lying */
             }
@@ -2190,8 +2562,8 @@ static void process_beacon(const utlp_packet_t *pkt)
              * their atomic time went backwards - they rebooted.
              */
             else if (utlp_trust_check_regression(best, (int64_t)remote_tx_time, now_ms)) {
-                utlp_hal_log_warn(TAG, "REGRESSION: Peer %02X:%02X atomic time went backwards! Epoch adoption blocked.",
-                                  pkt->mac[4], pkt->mac[5]);
+                utlp_hal_log_warn(TAG, "REGRESSION: Peer " PEER_FMT " atomic time went backwards! Epoch adoption blocked.",
+                                  PEER_ID(pkt->mac));
                 should_adopt = false;
                 /* Punish for regression - this is unexpected behavior
                  * Apply penalty to all arbors (peer rebooted, affects all transports) */
@@ -2228,19 +2600,38 @@ static void process_beacon(const utlp_packet_t *pkt)
 
                     if (they_are_elder) {
                         should_adopt = true;
-                        utlp_hal_log_info(TAG, "ADAPTIVE: Same-stratum elder peer %02X:%02X (health=%d, atomic %lld > mine %lld) - deferring",
-                                          pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac),
+                        utlp_hal_log_info(TAG, "ADAPTIVE: Same-stratum elder peer " PEER_FMT " (health=%d, atomic %lld > mine %lld) - deferring",
+                                          PEER_ID(pkt->mac), utlp_trust_get_peer_health(best->mac),
                                           (long long)remote_tx_time, (long long)my_atomic_at_rx);
                     } else {
                         /* I am elder - hold ground, do not adopt */
                         utlp_hal_log_info(TAG, "ADAPTIVE: Same-stratum but I'm elder (atomic %lld > peer's %lld) - holding Genesis",
                                           (long long)my_atomic_at_rx, (long long)remote_tx_time);
                     }
-                } else {
-                    /* Different stratum - lower stratum wins, normal ADAPTIVE adoption */
+                } else if (remote_stratum < utlp_get_stratum()) {
+                    /*
+                     * Different stratum, peer has BETTER authority - adopt.
+                     *
+                     * v3.9 STRATUM GUARD: Only adopt peers with strictly lower
+                     * (better) stratum. A Genesis (Stratum 1) must NEVER adopt
+                     * a Follower (Stratum 2+) via the ADAPTIVE path, even if
+                     * that Follower is highly trusted. Authority flows downward
+                     * in the stratum hierarchy; health cannot invert it.
+                     *
+                     * If a Genesis device is truly broken, the entrainment
+                     * system (not adoption) handles correction. If irredeemable,
+                     * self-demotion logic (line ~2505) will step it down.
+                     */
                     should_adopt = true;
-                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer %02X:%02X (health=%d, stratum=%d)",
-                                      pkt->mac[4], pkt->mac[5], utlp_trust_get_peer_health(best->mac), remote_stratum);
+                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer " PEER_FMT " (health=%d, stratum=%d < mine=%d)",
+                                      PEER_ID(pkt->mac), utlp_trust_get_peer_health(best->mac),
+                                      remote_stratum, utlp_get_stratum());
+                } else {
+                    /* Different stratum, peer has LOWER authority (higher number).
+                     * Do not adopt upward - this prevents authority inversion.
+                     * A Genesis should never follow a Follower. */
+                    utlp_hal_log_info(TAG, "ADAPTIVE: Trusted peer " PEER_FMT " has lower authority (stratum=%d > mine=%d), holding ground",
+                                      PEER_ID(pkt->mac), remote_stratum, utlp_get_stratum());
                 }
             }
         }
@@ -2260,14 +2651,15 @@ static void process_beacon(const utlp_packet_t *pkt)
              * Block INNATE adoption until peer exits genesis phase.
              */
             utlp_peer_ledger_t *sender = utlp_trust_get_peer(pkt->mac);
-            if (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time)) {
-                utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing peer %02X:%02X (stratum=%d, interval=%dms)",
-                                  pkt->mac[4], pkt->mac[5], remote_stratum, sender->observed_interval_ms);
+            if (peer_is_genesis_wire ||
+                (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time))) {
+                utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing peer " PEER_FMT " (stratum=%d, ver=0x%02X)",
+                                  PEER_ID(pkt->mac), remote_stratum, proto_ver);
                 /* Do NOT adopt - wait for peer to exit genesis phase */
             } else {
                 should_adopt = true;
-                utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d peer %02X:%02X (ledger empty)",
-                                  remote_stratum, pkt->mac[4], pkt->mac[5]);
+                utlp_hal_log_info(TAG, "INNATE: Provisional trust for stratum %d peer " PEER_FMT " (ledger empty)",
+                                  remote_stratum, PEER_ID(pkt->mac));
             }
         }
         else if (!best && remote_stratum == utlp_get_stratum()) {
@@ -2301,24 +2693,59 @@ static void process_beacon(const utlp_packet_t *pkt)
              * until they exit their rapid-beacon genesis phase.
              */
             utlp_peer_ledger_t *sender = utlp_trust_get_peer(pkt->mac);
-            if (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time)) {
-                utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing same-stratum peer %02X:%02X (interval=%dms)",
-                                  pkt->mac[4], pkt->mac[5], sender->observed_interval_ms);
-                /* Do NOT adopt - wait for peer to exit genesis phase */
+            if (peer_is_genesis_wire ||
+                (sender && utlp_trust_is_genesis_pulsing(sender, (int64_t)remote_tx_time))) {
+                utlp_hal_log_warn(TAG, "INNATE: Blocking genesis-pulsing same-stratum peer " PEER_FMT " (ver=0x%02X)",
+                                  PEER_ID(pkt->mac), proto_ver);
+                /* Do NOT adopt - wait for peer to exit genesis phase.
+                 *
+                 * PHENOTYPE TRUTH (v3.9): Even though adoption is blocked,
+                 * we can compare atomic times to determine if we're younger.
+                 * If so, we should NOT claim Genesis stratum. */
+                {
+                    int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
+                    bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
+                    if (they_are_elder && utlp_get_stratum() == STRATUM_ORIGIN) {
+                        utlp_set_stratum_for_arbor(
+                            (utlp_arbor_id_t)pkt->arbor_id, remote_stratum + 1);
+                        g_last_stratum_change = utlp_hal_get_micros();
+                        utlp_hal_log_info(TAG,
+                            "PHENOTYPE: Demoting to stratum %d (elder " PEER_FMT " genesis-pulsing, adoption deferred)",
+                            remote_stratum + 1, PEER_ID(pkt->mac));
+                    }
+                }
             } else {
                 int64_t my_atomic_at_rx = pkt->rx_timestamp_us + g_aatr.time_offset;
                 bool they_are_elder = ((int64_t)remote_tx_time > my_atomic_at_rx);
 
                 if (they_are_elder) {
                     should_adopt = true;
-                    utlp_hal_log_info(TAG, "INNATE: Same-stratum elder - peer %02X:%02X atomic time %lld > mine %lld, deferring",
-                                      pkt->mac[4], pkt->mac[5], (long long)remote_tx_time, (long long)my_atomic_at_rx);
+                    utlp_hal_log_info(TAG, "INNATE: Same-stratum elder - peer " PEER_FMT " atomic time %lld > mine %lld, deferring",
+                                      PEER_ID(pkt->mac), (long long)remote_tx_time, (long long)my_atomic_at_rx);
                 }
                 /* If I am elder (higher atomic time), I hold ground - do not adopt */
             }
         }
         /* If best exists but is not this sender, OR no best and stratum not better:
          * Do not adopt. Trust the established relationships. */
+    }
+
+skip_source_selection:
+    /* Lineage Loyalty gate jumps here for foreign beacons (should_adopt=false) */
+
+    /*
+     * LINEAGE LOYALTY: PROBATION → COMMITTED transition (v3.9)
+     *
+     * Check on every non-foreign beacon (not just adoption successes).
+     * This ensures commitment can occur even when should_adopt is false,
+     * e.g., an elder Genesis correctly holding ground still advances
+     * through PROBATION → COMMITTED after the stability period.
+     */
+    if (g_lineage_state == LINEAGE_PROBATION) {
+        uint64_t time_since_change = utlp_hal_get_micros() - g_last_stratum_change;
+        if (time_since_change > UTLP_LINEAGE_COMMITMENT_MIN_US) {
+            lineage_transition(LINEAGE_COMMITTED);
+        }
     }
 
     if (should_adopt) {
@@ -2349,8 +2776,8 @@ static void process_beacon(const utlp_packet_t *pkt)
             uint32_t elapsed_ms = now_ms - agg_last_seen;
 
             if (servo_detect_genesis_reset(peer->last_tx_time_us, remote_tx_time, elapsed_ms)) {
-                utlp_hal_log_warn(TAG, "GENESIS RESET blocked: Peer %02X:%02X jumped to newer epoch",
-                                  pkt->mac[4], pkt->mac[5]);
+                utlp_hal_log_warn(TAG, "GENESIS RESET blocked: Peer " PEER_FMT " jumped to newer epoch",
+                                  PEER_ID(pkt->mac));
                 /* Don't adopt their new epoch, but don't punish either */
                 /* They'll stabilize and we can entrain later */
                 goto skip_adoption;
@@ -2379,6 +2806,27 @@ static void process_beacon(const utlp_packet_t *pkt)
                          pkt->arbor_id);
             }
         }
+
+        /*
+         * LINEAGE LOYALTY: State transition on successful adoption (v3.9)
+         *
+         * NAIVE/GRIEVING → PROBATION: We just adopted a new timeline.
+         * The servo is converging; gate remains permissive to allow
+         * subsequent beacons from this source to fine-tune the offset.
+         *
+         * PROBATION → COMMITTED: Check if we've been stable long enough.
+         * This transition activates the lineage gate, which will reject
+         * beacons from foreign timelines going forward.
+         */
+        if (g_lineage_state == LINEAGE_NAIVE ||
+            g_lineage_state == LINEAGE_GRIEVING) {
+            lineage_transition(LINEAGE_PROBATION);
+        }
+
+        /* NOTE: PROBATION→COMMITTED check moved to skip_source_selection label
+         * so it runs on ALL non-foreign beacons, not just adoption successes.
+         * This ensures commitment can occur even when should_adopt is false
+         * (e.g., elder Genesis correctly holding ground). */
 
         /*
          * LUCKY PACKET MINIMUM FILTER (v3.8 PT-15)
@@ -2462,6 +2910,29 @@ static void process_beacon(const utlp_packet_t *pkt)
 skip_adoption:
 
     /*
+     * PHENOTYPE TRUTH (v3.9 Lineage Loyalty - Component A)
+     *
+     * If we reached skip_adoption via genesis reset detection, the adoption
+     * was blocked but we HAD determined should_adopt=true. This means a
+     * peer with equal-or-better stratum exists, and we are NOT the authority.
+     * Demote our stratum to prevent false Genesis advertising.
+     *
+     * The principle: claiming a stratum you haven't earned is a protocol
+     * violation. Observable phenotype (beacon stratum field) must match
+     * actual genotype (whether you are truly the timeline authority).
+     */
+    if (should_adopt &&
+        utlp_get_stratum() == STRATUM_ORIGIN &&
+        remote_stratum <= utlp_get_stratum()) {
+        utlp_set_stratum_for_arbor(
+            (utlp_arbor_id_t)pkt->arbor_id, remote_stratum + 1);
+        g_last_stratum_change = utlp_hal_get_micros();
+        utlp_hal_log_info(TAG,
+            "PHENOTYPE: Demoting at skip_adoption (stratum %d claim invalid, peer " PEER_FMT " has stratum %d)",
+            STRATUM_ORIGIN, PEER_ID(pkt->mac), remote_stratum);
+    }
+
+    /*
      * ORIGIN SELF-AWARENESS (S2 Biological Governance)
      *
      * Time Lord (Genesis/Origin) nodes should recognize when to step down.
@@ -2493,8 +2964,8 @@ skip_adoption:
             bool they_are_dominant = (compare_mac(best->mac, g_local_mac) < 0);
 
             if (they_are_dominant) {
-                utlp_hal_log_warn(TAG, "Origin self-awareness: Dominant peer %02X:%02X detected (health=%d)",
-                                  best->mac[4], best->mac[5], best_health);
+                utlp_hal_log_warn(TAG, "Origin self-awareness: Dominant peer " PEER_FMT " detected (health=%d)",
+                                  PEER_ID(best->mac), best_health);
                 g_self_demotion_votes++;
 
                 if (g_self_demotion_votes > 3) {
@@ -2534,7 +3005,20 @@ skip_adoption:
 #define ENTRAINMENT_TARGET_MAX_HEALTH         80      /* Only entrain juveniles */
 
 /** @brief Quorum threshold for agreement check */
-#define ENTRAINMENT_QUORUM_THRESHOLD_US       2000    /* 2ms agreement window */
+/**
+ * v3.11: Scale quorum agreement window with steady-state beacon interval.
+ *
+ * At 60s intervals, crystal drift (20-100 ppm) causes 1.2-6ms of offset
+ * divergence between agreeing peers. The fixed 2ms window meant peers that
+ * agree on lineage still fail the quorum "agreement" check, blocking all
+ * entrainment even when the swarm is healthy.
+ *
+ * Same formula as self-consistency/consensus scaling: for 60s beacons,
+ * the calculated value (60000*2=120000) exceeds the 10ms clamp, so we
+ * use 10ms. This allows ~166 ppm of crystal drift — well within the
+ * 20-100 ppm typical range with safety margin.
+ */
+#define ENTRAINMENT_QUORUM_THRESHOLD_US       10000   /* 10ms for 60s beacons */
 
 /**
  * @brief Evaluate and potentially fire an entrainment pulse
@@ -2549,7 +3033,8 @@ skip_adoption:
  */
 static void evaluate_entrainment_response(const uint8_t *peer_mac,
                                         uint8_t peer_health,
-                                        int32_t deviation_us)
+                                        int32_t deviation_us,
+                                        bool peer_is_genesis)
 {
     /*
      * TARGETING: Only entrain "juveniles" (low-health peers)
@@ -2594,9 +3079,10 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
      * This preserves our immune budget for real threats.
      */
     utlp_peer_ledger_t *target_peer = utlp_trust_get_peer(peer_mac);
-    if (target_peer && utlp_trust_is_genesis_pulsing(target_peer, target_peer->last_tx_time_us)) {
-        utlp_hal_log_info(TAG, "Entrainment: Skipping genesis-pulsing peer %02X:%02X (interval=%dms) - will self-correct",
-                          peer_mac[4], peer_mac[5], target_peer->observed_interval_ms);
+    if (peer_is_genesis ||
+        (target_peer && utlp_trust_is_genesis_pulsing(target_peer, target_peer->last_tx_time_us))) {
+        utlp_hal_log_info(TAG, "Entrainment: Skipping genesis-pulsing peer " PEER_FMT " - will self-correct",
+                          PEER_ID(peer_mac));
         return;  /* Conserve tokens - genesis peer will stabilize naturally */
     }
 
@@ -2608,15 +3094,15 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
      * not when checking. This prevents token waste when quorum check fails.
      */
     if (!utlp_immune_has_budget()) {
-        utlp_hal_log_warn(TAG, "Entrainment: Budget exhausted (anergy) - %02X:%02X escapes",
-                          peer_mac[4], peer_mac[5]);
+        utlp_hal_log_warn(TAG, "Entrainment: Budget exhausted (anergy) - " PEER_FMT " escapes",
+                          PEER_ID(peer_mac));
         return;
     }
 
     /* Constraint 2: EXTERNAL CHECK - Do I have crowd support? (Quorum Sensing) */
     if (!utlp_trust_has_quorum(g_aatr.time_offset, ENTRAINMENT_QUORUM_THRESHOLD_US)) {
-        utlp_hal_log_warn(TAG, "Entrainment: No quorum - I may be the outlier, not %02X:%02X",
-                          peer_mac[4], peer_mac[5]);
+        utlp_hal_log_warn(TAG, "Entrainment: No quorum - I may be the outlier, not " PEER_FMT,
+                          PEER_ID(peer_mac));
         return;  /* Don't attack! I might be wrong! - NO TOKEN CONSUMED */
     }
 
@@ -2633,11 +3119,11 @@ static void evaluate_entrainment_response(const uint8_t *peer_mac,
      * 3. Precision matters less than timeliness for entrainment
      */
     if (abs_deviation >= ENTRAINMENT_THRESHOLD_LYING_US) {
-        utlp_hal_log_info(TAG, "ENTRAINMENT [LYING]: Entraining juvenile %02X:%02X (dev=%+ldus, health=%d)",
-                          peer_mac[4], peer_mac[5], (long)deviation_us, peer_health);
+        utlp_hal_log_info(TAG, "ENTRAINMENT [LYING]: Entraining juvenile " PEER_FMT " (dev=%+ldus, health=%d)",
+                          PEER_ID(peer_mac), (long)deviation_us, peer_health);
     } else {
-        utlp_hal_log_info(TAG, "ENTRAINMENT [DRIFT]: Entraining juvenile %02X:%02X (dev=%+ldus, health=%d)",
-                          peer_mac[4], peer_mac[5], (long)deviation_us, peer_health);
+        utlp_hal_log_info(TAG, "ENTRAINMENT [DRIFT]: Entraining juvenile " PEER_FMT " (dev=%+ldus, health=%d)",
+                          PEER_ID(peer_mac), (long)deviation_us, peer_health);
     }
 
     /* Consume token NOW - right before actually firing (v3.7 PT-12) */
@@ -2759,14 +3245,18 @@ void utlp_app_run(void)
     /* Get our MAC */
     utlp_hal_get_mac(g_local_mac);
 
+    /* Eagerly generate session salt so it appears in the startup banner.
+     * Without this, salt is lazily generated on first beacon TX. */
+    uint16_t salt = utlp_security_get_session_salt();
+
     /* Startup banner */
     utlp_hal_log_info(TAG, "========================================");
     utlp_hal_log_info(TAG, "UTLP v3 - Biological Governance + SMSP");
     utlp_hal_log_info(TAG, "\"Time is born of one.\"");
     utlp_hal_log_info(TAG, "========================================");
-    utlp_hal_log_info(TAG, "MAC: %02X:%02X:%02X:%02X:%02X:%02X",
+    utlp_hal_log_info(TAG, "MAC: %02X:%02X:%02X:%02X:%02X:%02X  Salt: 0x%04X",
              g_local_mac[0], g_local_mac[1], g_local_mac[2],
-             g_local_mac[3], g_local_mac[4], g_local_mac[5]);
+             g_local_mac[3], g_local_mac[4], g_local_mac[5], salt);
     utlp_hal_log_info(TAG, "Stratum: %d (GENESIS)", utlp_get_stratum());
     utlp_hal_log_info(TAG, "Beacon: 11-byte Seismic Chirp (3-burst @ 2ms)");
     utlp_hal_log_info(TAG, "Trust: Metabolic Ledger (Adaptive Immunity)");

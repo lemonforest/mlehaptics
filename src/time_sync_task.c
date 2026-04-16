@@ -1137,17 +1137,18 @@ static void handle_coordination_message(const time_sync_message_t *msg)
             if (err == ESP_OK) {
                 ESP_LOGI(TAG, "CLIENT: Mode change ACK sent to SERVER");
 
-                // Arm mode change for CLIENT epoch
-                // motor_task will check mode_change_armed and execute when epoch reached
-                mode_change_armed = true;
-                armed_new_mode = proposal->new_mode;
-                armed_epoch_us = proposal->client_epoch_us;
-                armed_cycle_ms = proposal->new_cycle_ms;
-                armed_active_ms = proposal->new_active_ms;
-                // Bug #82 fix: Store SERVER's epoch for CLIENT antiphase calculation
-                armed_server_epoch_us = proposal->server_epoch_us;
+                // C3 fix: Arm mode change via thread-safe API
+                armed_mode_change_t arm = {
+                    .armed = true,
+                    .new_mode = proposal->new_mode,
+                    .epoch_us = proposal->client_epoch_us,
+                    .cycle_ms = proposal->new_cycle_ms,
+                    .active_ms = proposal->new_active_ms,
+                    .server_epoch_us = proposal->server_epoch_us  // Bug #82 fix
+                };
+                motor_arm_mode_change(&arm);
 
-                ESP_LOGI(TAG, "CLIENT: Mode change armed for epoch %llu", armed_epoch_us);
+                ESP_LOGI(TAG, "CLIENT: Mode change armed for epoch %llu", arm.epoch_us);
             } else {
                 ESP_LOGW(TAG, "CLIENT: Failed to send mode change ACK: %s", esp_err_to_name(err));
             }

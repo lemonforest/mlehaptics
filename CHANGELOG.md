@@ -39,6 +39,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **C3: Torn 64-bit reads on armed mode change state**: Thread-safe API with mutex protection
+  - **Problem**: `armed_epoch_us` and `armed_server_epoch_us` (64-bit) were shared via bare `extern` between motor_task and time_sync_task on 32-bit RISC-V — reads/writes are non-atomic and could produce torn values
+  - **Solution**: New `armed_mode_change_t` struct with mutex-protected API (`motor_arm_mode_change`, `motor_get_armed_change`, `motor_clear_armed_change`, `motor_is_mode_change_armed`); variables made `static`, externs removed
+  - Files: [motor_task.h](src/motor_task.h), [motor_task.c](src/motor_task.c), [time_sync_task.c](src/time_sync_task.c), [button_task.c](src/button_task.c), [main.c](src/main.c)
+
+- **C1: Key material not securely cleared + key bytes logged**: Hardened ESP-NOW key handling
+  - **Problem**: `memset(ikm, 0, ...)` could be optimized away by compiler (dead-store elimination); session LMK first/last bytes logged to serial (harvest-now decrypt-later risk)
+  - **Solution**: `secure_memzero()` via volatile function pointer; removed key byte logging from `espnow_transport_derive_session_key` and `espnow_transport_derive_key_from_ltk`
+  - Files: [espnow_transport.c](src/espnow_transport.c)
+
+- **H2: Peer recovery silently downgraded encryption**: Re-register with cached LMK
+  - **Problem**: `attempt_peer_recovery()` always re-added peer with `encrypt=false`, silently dropping ESP-NOW encryption after any transient failure
+  - **Solution**: Cache LMK at `espnow_transport_set_peer_encrypted()` time; recovery re-adds peer with cached key when available, logs warning if forced to downgrade
+  - Files: [espnow_transport.c](src/espnow_transport.c)
+
+- **H4: Deadlock in `session_end()` on non-recursive mutex**: Inline elapsed time calculation
+  - **Problem**: `session_end()` held `g_state_mutex` then called `session_get_elapsed_ms()` which also takes `g_state_mutex` — guaranteed deadlock
+  - **Solution**: Calculate elapsed time inline while mutex already held
+  - Files: [role_manager.c](src/role_manager.c)
+
+- **L3: BLE task missing watchdog subscription**: Added `esp_task_wdt_add`/`reset`/`delete`
+  - **Problem**: `ble_task` was the only long-running task not subscribed to the watchdog — a hang would go undetected
+  - **Solution**: Subscribe at task start, feed every iteration, unsubscribe before exit (matches motor_task and button_task pattern)
+  - Files: [ble_task.c](src/ble_task.c)
+
+- **M4: Pairing window one-shot flags never reset after disconnect**: Reset on PAIRING→ADVERTISING transition
+  - **Problem**: `pairing_window_started` and `pairing_complete_sent` were `static` case-local variables that persisted across state re-entries — after disconnect, pairing window could never fire again
+  - **Solution**: Moved to function scope; reset both flags when pairing timeout transitions back to ADVERTISING
+  - Files: [ble_task.c](src/ble_task.c)
+
+- **Bug #113 follow-up: SMP races connection parameter negotiation**: Defer SMP until conn update completes
+  - **Problem**: `ble_gap_security_initiate()` called immediately after GATT discovery could race with ongoing BLE connection parameter update, causing SMP failure
+  - **Solution**: Track `conn_update_done` flag; defer SMP to `BLE_GAP_EVENT_CONN_UPDATE` handler if params not yet settled
+  - Files: [ble_manager.c](src/ble_manager.c)
+
+- **CP4: Removed deprecated `esp_coex_preference_set()` API**: TDM scheduling sufficient
+  - **Problem**: `esp_coexist.h` API deprecated with no direct replacement — build warning
+  - **Solution**: Removed call; existing TDM scheduling (`espnow_transport_is_tdm_safe`) already handles BLE/ESP-NOW radio contention
+  - Files: [espnow_transport.c](src/espnow_transport.c)
+
 - **Bug #114: LMK Mismatch Between Paired Devices**: Use BLE role for key derivation
   - **Problem**: CLIENT could receive ESP-NOW messages from SERVER but couldn't send back (asymmetric encryption)
   - **Root Cause**: `TIME_SYNC_IS_SERVER()` returns false on BOTH devices when WIFI_MAC arrives during GATT discovery, because time_sync role isn't set until later

@@ -455,6 +455,8 @@ This project developed foundational techniques for **connectionless distributed 
 - **[Integrative Capacity as a Trackable Metric](docs/misc/Integrative_Capacity_AI_Synthesis_Alignment.md)**: Meta-observation on AI alignment—proposes **Semantic Tension Span (STS)** as a metric for measuring AI synthesis vs retrieval. Uses the mlehaptics corpus (this project) as a labeled dataset of verified cross-domain isomorphisms: immunology→firmware, geophysics→packet radio, thermodynamics→governance. Argues that RLHF suppresses high-tension bridges as "hallucination" when they should be validated by functional stability (does the code compile? does the state machine execute?).
 
 ### Technical Reports
+- **[Spectral Lattice Fermion as a universal gauge theory for grid-based phase spaces](docs/chess-maths/chess_spectral_research_notebook.md)**: Research notebook exploring the mathematical structure of spectral lattices and their application to universal gauge theories for grid-based phase spaces. Synthesizes concepts from lattice gauge theory, spectral graph theory, and hyperdimensional computing to propose a novel framework for representing complex systems with emergent spatial-temporal dynamics.
+
 - **[Bilateral Time Sync Protocol Technical Report](docs/Bilateral_Time_Sync_Protocol_Technical_Report.md)**: Comprehensive documentation of the PTP-inspired BLE synchronization protocol achieving +/-30us over 90 minutes
 
 ### Protocol Specifications (UTLP/RFIP)

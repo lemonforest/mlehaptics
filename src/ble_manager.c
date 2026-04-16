@@ -503,6 +503,7 @@ static uint16_t g_peer_led_brightness_val_handle = 0;
  */
 static bool pairing_in_progress = false;
 static uint16_t pairing_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+static bool conn_update_done = false;  /**< Tracks BLE_GAP_EVENT_CONN_UPDATE completion (SMP prerequisite) */
 
 // NOTE: peer_role_t typedef moved to ble_manager.h (Phase 1b.3)
 
@@ -2354,14 +2355,24 @@ static int gattc_on_cccd_write(uint16_t conn_handle,
          * service discovery. Only SERVER (MASTER) should initiate to avoid conflicts.
          */
         if (peer_state.role == PEER_ROLE_SERVER) {
-            ESP_LOGI(TAG, "Bug #113: SERVER (MASTER) starting SMP pairing (GATT operations complete)");
-            int sec_rc = ble_gap_security_initiate(conn_handle);
-            if (sec_rc == 0) {
-                ESP_LOGI(TAG, "Bug #113: SMP pairing initiated (will generate LTK for ESP-NOW)");
-            } else if (sec_rc == BLE_HS_EALREADY) {
-                ESP_LOGI(TAG, "Bug #113: SMP pairing already in progress");
+            if (!conn_update_done) {
+                /* Conn params not yet settled - defer SMP to BLE_GAP_EVENT_CONN_UPDATE handler.
+                 * Per examples/smp_pairing: SMP should wait for conn update completion to
+                 * avoid racing with connection parameter negotiation. */
+                ESP_LOGI(TAG, "Bug #113: Deferring SMP until conn params update completes");
             } else {
-                ESP_LOGW(TAG, "Bug #113: SMP pairing failed; rc=%d (ESP-NOW unencrypted fallback)", sec_rc);
+                ESP_LOGI(TAG, "Bug #113: SERVER (MASTER) starting SMP pairing (GATT + conn update complete)");
+                int sec_rc = ble_gap_security_initiate(conn_handle);
+                if (sec_rc == 0) {
+                    ESP_LOGI(TAG, "Bug #113: SMP pairing initiated (will generate LTK for ESP-NOW)");
+                } else if (sec_rc == BLE_HS_EALREADY) {
+                    ESP_LOGI(TAG, "Bug #113: SMP pairing already in progress");
+                } else {
+                    ESP_LOGW(TAG, "Bug #113: SMP pairing failed; rc=%d (ESP-NOW unencrypted fallback)", sec_rc);
+                    if (sec_rc == BLE_HS_ENOTSUP) {
+                        ESP_LOGE(TAG, "BLE_HS_ENOTSUP (8) - Is ble_store_config_init() called?");
+                    }
+                }
             }
         } else {
             ESP_LOGI(TAG, "Bug #113: CLIENT (SLAVE) waiting for SERVER to initiate SMP");
@@ -3078,6 +3089,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
                 peer_state.peer_connected = false;
                 peer_state.peer_discovered = false;
                 peer_state.peer_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+                conn_update_done = false;  // Reset for next connection
                 // NOTE: Preserve peer_state.role for mid-session reconnection!
                 // Previous SERVER will initiate reconnect, previous CLIENT will wait.
                 // Role is only cleared on fresh pairing (ble_reset_pairing_window).
@@ -3274,10 +3286,27 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
 
         case BLE_GAP_EVENT_CONN_UPDATE:
             ESP_LOGI(TAG, "BLE conn params updated; status=%d", event->conn_update.status);
+            if (event->conn_update.status == 0) {
+                conn_update_done = true;
+                /* If SMP was deferred waiting for conn update, initiate now */
+                if (peer_state.role == PEER_ROLE_SERVER && !pairing_in_progress
+                    && peer_state.peer_connected) {
+                    ESP_LOGI(TAG, "Conn update complete - attempting deferred SMP");
+                    int sec_rc = ble_gap_security_initiate(event->conn_update.conn_handle);
+                    if (sec_rc == 0) {
+                        ESP_LOGI(TAG, "Deferred SMP pairing initiated after conn update");
+                    } else if (sec_rc == BLE_HS_EALREADY) {
+                        ESP_LOGI(TAG, "SMP already in progress (initiated before conn update)");
+                    } else {
+                        ESP_LOGW(TAG, "Deferred SMP failed; rc=%d", sec_rc);
+                    }
+                }
+            }
             break;
 
         case BLE_GAP_EVENT_CONN_UPDATE_REQ:
             ESP_LOGI(TAG, "BLE conn params update requested");
+            conn_update_done = false;
             break;
 
         case BLE_GAP_EVENT_MTU:

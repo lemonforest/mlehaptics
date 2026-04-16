@@ -485,8 +485,14 @@ esp_err_t session_end(void) {
         return ESP_ERR_TIMEOUT;
     }
 
+    // H4 audit fix: Calculate elapsed inline (we already hold g_state_mutex).
+    // Calling session_get_elapsed_ms() would deadlock on the non-recursive mutex.
+    uint32_t duration = 0;
+    if (g_fallback_state.session_active) {
+        uint32_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        duration = now - g_fallback_state.session_start_time;
+    }
     g_fallback_state.session_active = false;
-    uint32_t duration = session_get_elapsed_ms();
 
     ESP_LOGI(TAG, "Session ended (duration: %u minutes)", duration / 60000);
 

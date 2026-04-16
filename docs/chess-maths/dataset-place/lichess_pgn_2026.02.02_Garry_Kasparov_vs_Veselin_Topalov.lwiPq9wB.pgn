@@ -1,0 +1,20 @@
+[Event "Hoogovens Group A"]
+[Site "Wijk aan Zee NED"]
+[Date "1999.01.20"]
+[Round "4"]
+[White "Garry Kasparov"]
+[Black "Veselin Topalov"]
+[Result "1-0"]
+[GameId "lwiPq9wB"]
+[WhiteElo "2812"]
+[BlackElo "2700"]
+[Variant "Standard"]
+[TimeControl "-"]
+[ECO "B07"]
+[Opening "Pirc Defense"]
+[Termination "Unknown"]
+[Annotator "lichess.org"]
+
+1. e4 { [%eval 0.18] } 1... d6 { [%eval 0.43] } 2. d4 { [%eval 0.43] } 2... Nf6 { [%eval 0.43] } 3. Nc3 { [%eval 0.38] } 3... g6 { [%eval 0.51] } { B07 Pirc Defense } 4. Be3 { [%eval 0.47] } 4... Bg7 { [%eval 0.59] } 5. Qd2 { [%eval 0.52] } 5... c6 { [%eval 0.47] } 6. f3 { [%eval 0.21] } 6... b5 { [%eval 0.29] } 7. Nge2 { [%eval 0.16] } 7... Nbd7 { [%eval 0.22] } 8. Bh6 { [%eval 0.3] } 8... Bxh6 { [%eval 0.29] } 9. Qxh6 { [%eval 0.32] } 9... Bb7 { [%eval 0.26] } 10. a3 { [%eval 0.2] } 10... e5 { [%eval 0.47] } 11. O-O-O { [%eval 0.37] } 11... Qe7 { [%eval 0.44] } 12. Kb1 { [%eval 0.41] } 12... a6 { [%eval 0.68] } 13. Nc1 { [%eval 0.44] } 13... O-O-O { [%eval 0.65] } 14. Nb3 { [%eval 0.44] } 14... exd4 { [%eval 0.45] } 15. Rxd4 { [%eval 0.39] } 15... c5 { [%eval 0.44] } 16. Rd1 { [%eval 0.43] } 16... Nb6 { [%eval 0.47] } 17. g3 { [%eval 0.23] } 17... Kb8 { [%eval 0.36] } 18. Na5?! { (0.36 → -0.21) Inaccuracy. Qf4 was best. } { [%eval -0.21] } (18. Qf4 Nh5 19. Qe3 Rhe8 20. Qf2 Qc7 21. Bg2 f5 22. exf5 gxf5 23. Rhe1 Nf6) 18... Ba8 { [%eval -0.21] } 19. Bh3 { [%eval -0.44] } 19... d5 { [%eval -0.23] } 20. Qf4+ { [%eval -0.23] } 20... Ka7 { [%eval -0.26] } 21. Rhe1 { [%eval -0.29] } 21... d4 { [%eval -0.38] } 22. Nd5 { [%eval -0.29] } 22... Nbxd5 { [%eval -0.2] } 23. exd5 { [%eval -0.3] } 23... Qd6 { [%eval -0.27] } 24. Rxd4 { [%eval -0.36] } 24... cxd4?? { (-0.36 → 2.98) Blunder. g5 was best. } { [%eval 2.98] } (24... g5 25. Qxd6 Rxd6 26. Rdd1 Rxd5 27. Rxd5 Bxd5 28. Re5 h5 29. Rxg5 h4 30. gxh4) 25. Re7+ { [%eval 2.71] } 25... Kb6?! { (2.71 → 3.77) Inaccuracy. Kb8 was best. } { [%eval 3.77] } (25... Kb8 26. Qxd4 Nd7 27. Rxd7 Rxd7 28. Bxd7 Rg8 29. Bc6 Qc7 30. Qb4 Bxc6 31. Nxc6+) 26. Qxd4+ { [%eval 2.72] } 26... Kxa5 { [%eval 1.77] } 27. b4+ { [%eval 1.36] } 27... Ka4 { [%eval 1.35] } 28. Qc3 { [%eval 0.83] } 28... Qxd5 { [%eval 0.36] } 29. Ra7 { [%eval 0.49] } 29... Bb7 { [%eval 0.31] } 30. Rxb7 { [%eval 0.42] } 30... Qc4 { [%eval 0.51] } 31. Qxf6 { [%eval 0.55] } 31... Kxa3? { (0.55 → 1.71) Mistake. Rd1+ was best. } { [%eval 1.71] } (31... Rd1+ 32. Kb2 Ra8 33. Qb6 Qd4+ 34. Qxd4 Rxd4 35. Rxf7 a5 36. Be6 axb4 37. Bb3+) 32. Qxa6+ { [%eval 2.54] } 32... Kxb4 { [%eval 2.59] } 33. c3+ { [%eval 2.65] } 33... Kxc3 { [%eval 2.51] } 34. Qa1+ { [%eval 2.25] } 34... Kd2 { [%eval 2.85] } 35. Qb2+ { [%eval 2.8] } 35... Kd1 { [%eval 2.54] } 36. Bf1 { [%eval 2.53] } 36... Rd2 { [%eval 2.96] } 37. Rd7 { [%eval 2.91] } 37... Rxd7 { [%eval 2.91] } 38. Bxc4 { [%eval 2.95] } 38... bxc4 { [%eval 3.06] } 39. Qxh8 { [%eval 2.88] } 39... Rd3 { [%eval 2.86] } 40. Qa8 { [%eval 2.6] } 40... c3?! { (2.60 → 3.53) Inaccuracy. Rb3+ was best. } { [%eval 3.53] } (40... Rb3+ 41. Ka2 Rd3 42. Qe4 Rd2+ 43. Ka3 c3 44. Qc4 Kc2 45. Qb3+ Kd3 46. Qxf7) 41. Qa4+ { [%eval 3.46] } 41... Ke1 { [%eval 3.39] } 42. f4 { [%eval 3.54] } 42... f5?! { (3.54 → 4.47) Inaccuracy. Rd1+ was best. } { [%eval 4.47] } (42... Rd1+ 43. Kc2 Rd2+ 44. Kxc3 Rxh2 45. Qa7 Kf1 46. g4 Rh4 47. f5 Rxg4 48. f6) 43. Kc1 { [%eval 4.44] } 43... Rd2 { [%eval 4.29] } 44. Qa7 { [%eval 3.82] } { White wins. } 1-0
+
+

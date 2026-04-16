@@ -151,13 +151,15 @@ static uint32_t beacon_bemf_start_ms = 0;
 // Replaced complex drift correction with simple epoch-based calculation
 
 // AD045: Mode change proposal state (two-phase commit protocol)
-// Note: Shared with time_sync_task.c (extern declarations in motor_task.h)
-bool mode_change_armed = false;          /**< True if mode change is armed and waiting for epoch */
-mode_t armed_new_mode = MODE_05HZ_25;    /**< Mode to activate when armed epoch reached */
-uint64_t armed_epoch_us = 0;             /**< Absolute time to activate armed mode change */
-uint32_t armed_cycle_ms = 0;             /**< New cycle period for armed mode */
-uint32_t armed_active_ms = 0;            /**< New active period for armed mode */
-uint64_t armed_server_epoch_us = 0;      /**< Bug #82: SERVER's motor epoch for CLIENT antiphase */
+// C3 audit fix: Protected by mutex to prevent torn 64-bit reads on 32-bit RISC-V.
+// Access ONLY via motor_arm_mode_change() / motor_get_armed_change() / motor_clear_armed_change().
+static SemaphoreHandle_t armed_change_mutex = NULL;
+static bool mode_change_armed = false;
+static mode_t armed_new_mode = MODE_05HZ_25;
+static uint64_t armed_epoch_us = 0;
+static uint32_t armed_cycle_ms = 0;
+static uint32_t armed_active_ms = 0;
+static uint64_t armed_server_epoch_us = 0;
 
 // Bug #80 fix: CLIENT cycle counter (moved to file scope for mode change reset)
 // Tracks cycles for activation_report correlation - must reset on mode change
@@ -189,6 +191,80 @@ static uint32_t notify_epoch_cycle_start_ms = 0;
 // Phase 6l Fix: Increased from 500ms to 3000ms to account for handshake overhead
 // (beacon transmission ~50ms + CLIENT handshake ~500ms + CLIENT_READY ~50ms + margin)
 #define COORD_START_DELAY_MS TIMING_COORD_START_DELAY_MS  // From timing_config.h
+
+// ============================================================================
+// C3 AUDIT FIX: THREAD-SAFE ARMED MODE CHANGE API
+// ============================================================================
+
+/** Mutex timeout for armed change operations (JPL: bounded waits) */
+#define ARMED_CHANGE_MUTEX_TIMEOUT_MS 100
+
+esp_err_t motor_armed_change_init(void) {
+    armed_change_mutex = xSemaphoreCreateMutex();
+    if (armed_change_mutex == NULL) {
+        ESP_LOGE(TAG, "Failed to create armed_change_mutex");
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+void motor_arm_mode_change(const armed_mode_change_t *change) {
+    if (armed_change_mutex == NULL || change == NULL) {
+        ESP_LOGE(TAG, "motor_arm_mode_change: NULL mutex or change");
+        return;
+    }
+    if (xSemaphoreTake(armed_change_mutex, pdMS_TO_TICKS(ARMED_CHANGE_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        // Write data fields BEFORE setting armed flag
+        armed_new_mode = change->new_mode;
+        armed_epoch_us = change->epoch_us;
+        armed_cycle_ms = change->cycle_ms;
+        armed_active_ms = change->active_ms;
+        armed_server_epoch_us = change->server_epoch_us;
+        mode_change_armed = true;
+        xSemaphoreGive(armed_change_mutex);
+    } else {
+        ESP_LOGE(TAG, "Mutex timeout in motor_arm_mode_change");
+    }
+}
+
+bool motor_get_armed_change(armed_mode_change_t *out) {
+    if (armed_change_mutex == NULL || out == NULL) {
+        return false;
+    }
+    if (xSemaphoreTake(armed_change_mutex, pdMS_TO_TICKS(ARMED_CHANGE_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        out->armed = mode_change_armed;
+        out->new_mode = armed_new_mode;
+        out->epoch_us = armed_epoch_us;
+        out->cycle_ms = armed_cycle_ms;
+        out->active_ms = armed_active_ms;
+        out->server_epoch_us = armed_server_epoch_us;
+        xSemaphoreGive(armed_change_mutex);
+        return out->armed;
+    }
+    return false;
+}
+
+void motor_clear_armed_change(void) {
+    if (armed_change_mutex == NULL) {
+        return;
+    }
+    if (xSemaphoreTake(armed_change_mutex, pdMS_TO_TICKS(ARMED_CHANGE_MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        mode_change_armed = false;
+        armed_new_mode = MODE_05HZ_25;
+        armed_epoch_us = 0;
+        armed_cycle_ms = 0;
+        armed_active_ms = 0;
+        armed_server_epoch_us = 0;
+        xSemaphoreGive(armed_change_mutex);
+    } else {
+        ESP_LOGE(TAG, "Mutex timeout in motor_clear_armed_change");
+    }
+}
+
+bool motor_is_mode_change_armed(void) {
+    // Boolean read is atomic on 32-bit RISC-V - safe without mutex for polling
+    return mode_change_armed;
+}
 
 // ============================================================================
 // CLIENT HARDWARE TIMER SYNCHRONIZATION (AD044)
@@ -1284,12 +1360,16 @@ void motor_task(void *pvParameters) {
 
                                     esp_err_t err = ble_send_coordination_message(&proposal);
                                     if (err == ESP_OK) {
-                                        // Arm mode change for SERVER epoch
-                                        mode_change_armed = true;
-                                        armed_new_mode = new_mode;
-                                        armed_epoch_us = server_epoch_us;
-                                        armed_cycle_ms = new_cycle_ms;
-                                        armed_active_ms = new_active_ms;
+                                        // C3 fix: Arm mode change via thread-safe API
+                                        armed_mode_change_t arm = {
+                                            .armed = true,
+                                            .new_mode = new_mode,
+                                            .epoch_us = server_epoch_us,
+                                            .cycle_ms = new_cycle_ms,
+                                            .active_ms = new_active_ms,
+                                            .server_epoch_us = 0  // SERVER doesn't need this
+                                        };
+                                        motor_arm_mode_change(&arm);
 
                                         ESP_LOGI(TAG, "SERVER: Mode change proposal sent (server_epoch=%llu, client_epoch=%llu)",
                                                  server_epoch_us, client_epoch_us);
@@ -1357,13 +1437,15 @@ void motor_task(void *pvParameters) {
                 }
 
                 // AD045: Check if armed mode change has reached its epoch
-                if (mode_change_armed && TIME_SYNC_IS_ACTIVE()) {
+                // C3 fix: Use atomic snapshot to prevent torn 64-bit reads
+                armed_mode_change_t armed_snap;
+                if (motor_get_armed_change(&armed_snap) && TIME_SYNC_IS_ACTIVE()) {
                     uint64_t current_time_us;
                     if (time_sync_get_time(&current_time_us) == ESP_OK) {
-                        if (current_time_us >= armed_epoch_us) {
+                        if (current_time_us >= armed_snap.epoch_us) {
                             // Epoch reached - execute synchronized mode change
                             mode_t old_mode = current_mode;  // AD047: Save for pattern transition check
-                            current_mode = armed_new_mode;
+                            current_mode = armed_snap.new_mode;
 
                             peer_role_t role = ble_get_peer_role();
                             const char* role_str = (role == PEER_ROLE_SERVER) ? "SERVER" : "CLIENT";
@@ -1372,7 +1454,7 @@ void motor_task(void *pvParameters) {
                                      role_str, current_time_us);
                             ESP_LOGI(TAG, "Mode: %s (synchronized)", modes[current_mode].name);
                             // Bug #102: Notify PWA of mode change (synchronized case)
-                            ble_update_mode(armed_new_mode);
+                            ble_update_mode(armed_snap.new_mode);
 
                             // Bug #92 fix: Recalculate timing for new mode IMMEDIATELY
                             // Without this, CLIENT skips to ACTIVE with OLD mode's motor_on_ms
@@ -1388,9 +1470,9 @@ void motor_task(void *pvParameters) {
 
                             if (role == PEER_ROLE_SERVER) {
                                 // SERVER: Set motor_epoch to its own start time
-                                time_sync_set_motor_epoch(armed_epoch_us, armed_cycle_ms);
+                                time_sync_set_motor_epoch(armed_snap.epoch_us, armed_snap.cycle_ms);
                                 ESP_LOGI(TAG, "SERVER: Motor epoch updated to %llu (cycle=%lu ms)",
-                                         armed_epoch_us, armed_cycle_ms);
+                                         armed_snap.epoch_us, armed_snap.cycle_ms);
                                 // Bug #94b fix: DON'T set server_epoch_cycle_start_ms here!
                                 // Mode change execution happens BEFORE ACTIVE state runs.
                                 // If we set cycle_start now, it's stale by the time ACTIVE uses it.
@@ -1398,12 +1480,12 @@ void motor_task(void *pvParameters) {
                                 // INACTIVE will set epoch-anchored timing for subsequent cycles.
                                 server_cycle_count = 0;  // Reset cycle count on mode change
                                 server_skip_epoch_update = true;  // Bug #38: Don't overwrite aligned epoch
-                            } else if (role == PEER_ROLE_CLIENT && armed_server_epoch_us > 0) {
+                            } else if (role == PEER_ROLE_CLIENT && armed_snap.server_epoch_us > 0) {
                                 // Bug #82 fix: CLIENT sets motor_epoch from proposal
                                 // Without this, CLIENT uses old epoch for antiphase calculation
-                                time_sync_set_motor_epoch(armed_server_epoch_us, armed_cycle_ms);
+                                time_sync_set_motor_epoch(armed_snap.server_epoch_us, armed_snap.cycle_ms);
                                 ESP_LOGI(TAG, "CLIENT: Motor epoch set to server's epoch %llu (cycle=%lu ms)",
-                                         armed_server_epoch_us, armed_cycle_ms);
+                                         armed_snap.server_epoch_us, armed_snap.cycle_ms);
 
                                 // Bug #83 fix: CLIENT skips INACTIVE wait after mode change
                                 // CLIENT's armed_epoch_us (client_epoch) is already half-cycle after server_epoch
@@ -1426,7 +1508,7 @@ void motor_task(void *pvParameters) {
                             client_inactive_cycle_count = 0;
 
                             // AD047: Handle pattern mode transitions (synchronized)
-                            if (MODE_IS_PATTERN(armed_new_mode) && !MODE_IS_PATTERN(old_mode)) {
+                            if (MODE_IS_PATTERN(armed_snap.new_mode) && !MODE_IS_PATTERN(old_mode)) {
                                 // Entering pattern mode: Load default pattern (BLE can override via Pattern Control)
                                 pattern_playback_init();
                                 pattern_load_builtin(BUILTIN_PATTERN_ALTERNATING);
@@ -1435,7 +1517,7 @@ void motor_task(void *pvParameters) {
                                 pattern_mode_active = true;
                                 ble_update_pattern_status(1);  // Notify PWA: playing
                                 ESP_LOGI(TAG, "%s: Pattern playback started (synchronized)", role_str);
-                            } else if (!MODE_IS_PATTERN(armed_new_mode) && MODE_IS_PATTERN(old_mode)) {
+                            } else if (!MODE_IS_PATTERN(armed_snap.new_mode) && MODE_IS_PATTERN(old_mode)) {
                                 // Leaving pattern mode: Stop pattern
                                 pattern_stop();
                                 pattern_mode_active = false;
@@ -1443,13 +1525,8 @@ void motor_task(void *pvParameters) {
                                 ESP_LOGI(TAG, "%s: Pattern playback stopped (synchronized)", role_str);
                             }
 
-                            // Disarm mode change
-                            mode_change_armed = false;
-                            armed_new_mode = MODE_05HZ_25;
-                            armed_epoch_us = 0;
-                            armed_cycle_ms = 0;
-                            armed_active_ms = 0;
-                            armed_server_epoch_us = 0;  // Bug #82 fix
+                            // C3 fix: Disarm via thread-safe API
+                            motor_clear_armed_change();
 
                             // Update LED indication
                             led_indication_active = true;
@@ -1552,8 +1629,8 @@ void motor_task(void *pvParameters) {
                 // This prevents CLIENT from running NEW pattern while SERVER runs OLD pattern
                 // Bug #94c fix: Check armed BEFORE calculate_mode_timing to avoid log spam
                 // Previously, calculate_mode_timing was called every 50ms during armed wait
-                if (mode_change_armed) {
-                    ESP_LOGD(TAG, "Motors paused (mode change armed for epoch %llu)", armed_epoch_us);
+                if (motor_is_mode_change_armed()) {
+                    ESP_LOGD(TAG, "Motors paused (mode change armed)");
                     vTaskDelay(pdMS_TO_TICKS(50));  // Wait and check again
                     continue;  // Stay in CHECK_MESSAGES
                 }

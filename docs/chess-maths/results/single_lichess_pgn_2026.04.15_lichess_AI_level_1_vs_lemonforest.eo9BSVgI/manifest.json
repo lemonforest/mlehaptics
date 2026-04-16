@@ -1,0 +1,59 @@
+{
+  "generated_utc": "2026-04-15T18:04:31.459263+00:00",
+  "run_id": "single_lichess_pgn_2026.04.15_lichess_AI_level_1_vs_lemonforest.eo9BSVgI",
+  "source": "local_pgn",
+  "fetch_params": {
+    "pgn_path": "dataset-place\\lichess_pgn_2026.04.15_lichess_AI_level_1_vs_lemonforest.eo9BSVgI.pgn"
+  },
+  "tool_versions": {
+    "python": "3.12.10",
+    "bridge": "C:/AI_PROJECTS/EMDR_PULSER_SONNET4/docs/chess-maths/chess-spectral/bridge/pgn_bridge.py",
+    "encoder": "C:/AI_PROJECTS/EMDR_PULSER_SONNET4/docs/chess-maths/chess-spectral/python/spectral_py.py"
+  },
+  "aggregates": {
+    "n_requested": 1,
+    "n_fetched": 1,
+    "n_encoded": 1,
+    "n_errors": 0,
+    "wall_time_s": 2.05
+  },
+  "games": [
+    {
+      "index": 1,
+      "white": "lichess AI level 1",
+      "black": "lemonforest",
+      "result": "0-1",
+      "event": "casual correspondence game",
+      "date": "2026.04.15",
+      "white_elo": "?",
+      "black_elo": "1500",
+      "n_moves": 50,
+      "source_date": "2026.04.15",
+      "source_test": null,
+      "source_tc": "-",
+      "pgn": "pgn/game_001.pgn",
+      "ndjson": "ndjson/game_001.ndjson",
+      "spectralz": "spectralz/game_001.spectralz",
+      "pgn_bytes": 7821,
+      "ndjson_bytes": 20056,
+      "spectralz_bytes": 70424,
+      "n_plies": 101,
+      "mean_A1": 26.3022,
+      "mean_A2": 22.3572,
+      "mean_B1": 37.107,
+      "mean_B2": 37.107,
+      "mean_E": 196.8413,
+      "mean_F1": 137.7001,
+      "mean_F2": 555.096,
+      "mean_F3": 445.7872,
+      "mean_FA": 14.0815,
+      "mean_FD": 1079345.125,
+      "chaos_ratio": 16.9198,
+      "nag_count": 37,
+      "blunder_count": 13,
+      "mistake_count": 2,
+      "has_eval": true,
+      "has_clk": false
+    }
+  ]
+}

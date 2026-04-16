@@ -15,7 +15,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_random.h"
-#include "esp_coexist.h"  // WiFi/BLE coexistence priority
+// CP4: Removed #include "esp_coexist.h" (deprecated API removed)
 #include "nvs_flash.h"
 #include <string.h>
 #include <math.h>
@@ -29,6 +29,12 @@
 #include "freertos/task.h"
 
 static const char *TAG = "ESPNOW";
+
+// C1 audit fix: Secure memory clearing that cannot be optimized away by the compiler
+static void *(*volatile secure_memset_ptr)(void *, int, size_t) = memset;
+static inline void secure_memzero(void *ptr, size_t len) {
+    secure_memset_ptr(ptr, 0, len);
+}
 
 // Broadcast MAC address for UTLP time beacons (no ACK expected)
 static const uint8_t ESPNOW_BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -56,6 +62,8 @@ static struct {
     uint32_t callback_failures;            // Send callback reported failures
     uint32_t peer_re_registrations;        // Times we've re-registered peer as recovery
     uint8_t lmk_fingerprint[4];            // First 4 bytes of LMK for verification
+    uint8_t lmk_cached[ESPNOW_KEY_SIZE];   // H2 fix: Cached LMK for recovery re-encryption
+    bool lmk_cached_valid;                 // H2 fix: True if lmk_cached holds a valid key
     bool send_in_progress;                 // Flag to detect concurrent sends
 } s_espnow = {
     .state = ESPNOW_STATE_UNINITIALIZED,
@@ -72,6 +80,8 @@ static struct {
     .callback_failures = 0,
     .peer_re_registrations = 0,
     .lmk_fingerprint = {0},
+    .lmk_cached = {0},
+    .lmk_cached_valid = false,
     .send_in_progress = false
 };
 
@@ -394,19 +404,10 @@ esp_err_t espnow_transport_init(void)
 
     s_espnow.state = ESPNOW_STATE_READY;
 
-    // Set WiFi/ESP-NOW priority over BLE for coordination messages
-    // This reduces TDM contention by giving ESP-NOW preferential radio access.
-    // Rationale: Post-bootstrap, coordination messages are time-critical;
-    // BLE is mainly for PWA connectivity which tolerates slight delays.
-    // Note: esp_coex_preference_set() is deprecated but still functional.
-    ret = esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
-    if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Coexistence priority set to WIFI (ESP-NOW preferred)");
-    } else {
-        ESP_LOGW(TAG, "Coexistence preference set failed: %s (non-fatal)",
-                 esp_err_to_name(ret));
-        // Non-fatal - TDM scheduling still provides contention mitigation
-    }
+    // CP4 audit fix: Removed deprecated esp_coex_preference_set(ESP_COEX_PREFER_WIFI).
+    // The replacement API (esp_coex_status_bit_set/clear) serves a different purpose
+    // and has no "prefer WiFi" equivalent. TDM scheduling (espnow_transport_is_tdm_safe)
+    // already handles radio contention between ESP-NOW and BLE.
 
     // Log local MAC for debugging
     uint8_t mac[6];
@@ -714,19 +715,29 @@ static void attempt_peer_recovery(void)
     // Brief delay for state cleanup
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    // Re-add peer (without encryption for now - simpler recovery)
+    // H2 fix: Re-add peer WITH encryption if cached LMK is available
+    // Previously, recovery always disabled encryption (security downgrade)
     esp_now_peer_info_t peer_info = {0};
     memcpy(peer_info.peer_addr, saved_mac, 6);
     peer_info.channel = 0;  // Use current WiFi channel
     peer_info.ifidx = WIFI_IF_STA;
-    peer_info.encrypt = false;  // Disable encryption for recovery test
+
+    if (was_encrypted && s_espnow.lmk_cached_valid) {
+        peer_info.encrypt = true;
+        memcpy(peer_info.lmk, s_espnow.lmk_cached, ESPNOW_KEY_SIZE);
+    } else {
+        peer_info.encrypt = false;
+    }
 
     esp_err_t add_ret = esp_now_add_peer(&peer_info);
     if (add_ret == ESP_OK) {
         s_espnow.peer_re_registrations++;
-        s_espnow.encryption_enabled = false;
-        ESP_LOGI(TAG, "Bug #106: Peer re-registered (re_reg=%lu, was_enc=%d)",
-                 s_espnow.peer_re_registrations, was_encrypted);
+        s_espnow.encryption_enabled = peer_info.encrypt;
+        ESP_LOGI(TAG, "Bug #106: Peer re-registered (re_reg=%lu, enc=%d, was_enc=%d)",
+                 s_espnow.peer_re_registrations, peer_info.encrypt, was_encrypted);
+        if (was_encrypted && !peer_info.encrypt) {
+            ESP_LOGW(TAG, "H2: Encryption downgraded (no cached LMK) - coordination unprotected");
+        }
     } else {
         ESP_LOGE(TAG, "Bug #106: Peer re-registration failed: %s", esp_err_to_name(add_ret));
     }
@@ -1009,17 +1020,16 @@ esp_err_t espnow_transport_derive_session_key(
         lmk_out, ESPNOW_KEY_SIZE                    // output key
     );
 
-    // Zero out sensitive input keying material
-    memset(ikm, 0, sizeof(ikm));
+    // C1 fix: Use secure_memzero to prevent compiler optimizing away the clear
+    secure_memzero(ikm, sizeof(ikm));
 
     if (ret != 0) {
         ESP_LOGE(TAG, "HKDF derivation failed: -0x%04X", -ret);
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Session LMK derived (nonce): [%02X%02X...%02X%02X]",
-             lmk_out[0], lmk_out[1],
-             lmk_out[ESPNOW_KEY_SIZE - 2], lmk_out[ESPNOW_KEY_SIZE - 1]);
+    // C1 fix: Don't log key bytes (harvest-now risk via serial capture)
+    ESP_LOGI(TAG, "Session LMK derived (nonce-based, %d bytes)", ESPNOW_KEY_SIZE);
 
     return ESP_OK;
 }
@@ -1047,7 +1057,7 @@ esp_err_t espnow_transport_derive_key_from_ltk(
     const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     if (md_info == NULL) {
         ESP_LOGE(TAG, "Failed to get SHA-256 MD info");
-        memset(ikm, 0, sizeof(ikm));
+        secure_memzero(ikm, sizeof(ikm));
         return ESP_FAIL;
     }
 
@@ -1063,17 +1073,16 @@ esp_err_t espnow_transport_derive_key_from_ltk(
         lmk_out, ESPNOW_KEY_SIZE                    // output key
     );
 
-    // Zero out sensitive input keying material
-    memset(ikm, 0, sizeof(ikm));
+    // C1 fix: Use secure_memzero to prevent compiler optimizing away the clear
+    secure_memzero(ikm, sizeof(ikm));
 
     if (ret != 0) {
         ESP_LOGE(TAG, "HKDF (LTK) derivation failed: -0x%04X", -ret);
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "Session LMK derived (LTK-based): [%02X%02X...%02X%02X]",
-             lmk_out[0], lmk_out[1],
-             lmk_out[ESPNOW_KEY_SIZE - 2], lmk_out[ESPNOW_KEY_SIZE - 1]);
+    // C1 fix: Don't log key bytes (harvest-now risk via serial capture)
+    ESP_LOGI(TAG, "Session LMK derived (LTK-based, %d bytes)", ESPNOW_KEY_SIZE);
 
     return ESP_OK;
 }
@@ -1119,8 +1128,17 @@ esp_err_t espnow_transport_set_peer_encrypted(
     s_espnow.state = ESPNOW_STATE_PEER_SET;
 
     // Bug #106: Store LMK fingerprint for diagnostics (first 4 bytes)
-    // Both devices should log identical fingerprints if keys match
+    // Both devices should log identical fingerprints if keys match.
+    // C1 note: This leaks 32 bits of the 128-bit LMK. Acceptable tradeoff
+    // for debugging key mismatch issues (Bug #106, #114). Full key bytes
+    // are NOT logged (see C1 fix above).
     memcpy(s_espnow.lmk_fingerprint, lmk, 4);
+
+    // H2 fix: Cache LMK for peer recovery re-encryption
+    // ESP-NOW internally stores the LMK in its peer list anyway, so no
+    // additional security exposure from keeping our own copy.
+    memcpy(s_espnow.lmk_cached, lmk, ESPNOW_KEY_SIZE);
+    s_espnow.lmk_cached_valid = true;
 
     // Log current WiFi channel for diagnostics
     uint8_t current_chan = 0;

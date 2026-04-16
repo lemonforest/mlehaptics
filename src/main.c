@@ -281,6 +281,13 @@ static esp_err_t init_hardware(void) {
         return ret;
     }
 
+    // C3 audit fix: Initialize armed mode change mutex before tasks start
+    ret = motor_armed_change_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Armed mode change mutex init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
     // NOTE: Session timer initialization moved to motor_task (Phase 1b.3)
     // Session timer now starts AFTER pairing completes to ensure accurate session duration
 

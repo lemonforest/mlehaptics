@@ -1,12 +1,12 @@
 /**
  * @file utlp_phase.h
- * @brief UTLP Hardware Phase Engine - MCPWM-Based Atomic Coherency
+ * @brief UTLP Hardware Phase Engine - HAL-Abstracted Atomic Coherency
  *
  * "Physics First: Hardware defines time, not software."
  *
- * This module implements Hardware Phase Locked Atomic Coherency (HPLAC) using
- * the ESP32-C6 MCPWM peripheral. The hardware timer IS the truth - not a
- * follower of software timing.
+ * This module implements Hardware Phase Locked Atomic Coherency (HPLAC)
+ * via the platform-agnostic Timer HAL. The hardware timer IS the truth -
+ * not a follower of software timing.
  *
  * @section architecture Architecture
  *
@@ -14,17 +14,23 @@
  *   hardware register. A single hardware SYNC resets the ENTIRE phase cycle.
  *
  * - **Atomic Acquisition (Hard Sync)**: During Cold Start (first 5s), the
- *   MCPWM soft sync instantly jams the counter to the received phase.
+ *   Timer HAL hard_sync instantly jams the counter to the received phase.
  *
  * - **Disciplined Maintenance (Soft Slew)**: After locked, phase errors are
  *   corrected by bending the timer period (frequency slewing) to preserve
  *   spectral purity.
  *
+ * - **Precision Windows**: Timer pauses between beacons for 20× power savings.
+ *   Phase continuity maintained via RTC + anticipatory prediction.
+ *
+ * - **Anticipatory Memory**: Diagnostic framework predicting beacon timing,
+ *   scoring accuracy, and building confidence for future power optimization.
+ *
  * @section atomicity Critical Atomicity Requirements
  *
  * Three hazards are addressed (see Purple Team review):
  *
- * 1. **Execution Jitter**: Hard sync uses `portENTER_CRITICAL()` to prevent
+ * 1. **Execution Jitter**: Hard sync uses critical sections to prevent
  *    ISR insertion between calculation and sync activation.
  *
  * 2. **Torn Reads**: 64-bit `cycle_count` getters use critical sections to
@@ -33,11 +39,12 @@
  * 3. **Sticky Slew**: Hard sync resets period to nominal to prevent drift
  *    continuation after phase jam.
  *
+ * @see utlp_hal_timer.h - Platform-agnostic timer interface
  * @see utlp_config.h - Phase engine constants (SSOT)
  * @see docs/UTLP_Technical_Supplement_S2.md - Claim 55 (Servo-Locked Phase)
  *
- * @version 1.0.0
- * @date 2026-01-03
+ * @version 2.0.0
+ * @date 2026-03-04
  *
  * @copyright
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -121,17 +128,69 @@ typedef struct __attribute__((packed)) {
 _Static_assert(sizeof(utlp_phase_state_t) == 64, "Phase state packing incorrect");
 
 /*============================================================================
+ * ANTICIPATORY MEMORY STRUCTURES
+ *
+ * Diagnostic-first framework for predicting beacon timing, scoring
+ * prediction accuracy, and building confidence for power optimization.
+ *
+ * All devices maintain this — Genesis predicts its own beacon schedule
+ * stability, Followers predict upstream beacon arrivals.
+ *==========================================================================*/
+
+/** @brief Anticipatory memory history buffer size (must be power of 2) */
+#define UTLP_ANTICIPATORY_HISTORY_SIZE  8
+
+/**
+ * @brief Anticipatory memory entry — one beacon prediction cycle
+ *
+ * Records what we predicted vs. what actually happened, for each beacon.
+ * This is the atomic unit of "proprioceptive time memory."
+ */
+typedef struct {
+    /* Prediction (set before beacon arrives) */
+    uint64_t predicted_arrival_us;      /**< When we expected the beacon */
+    int64_t  predicted_offset_us;       /**< What offset we expected */
+
+    /* Reality (set when beacon actually arrives) */
+    uint64_t actual_arrival_us;         /**< When beacon actually arrived */
+    int64_t  actual_offset_us;          /**< Actual measured offset */
+
+    /* Scoring (computed after beacon) */
+    int32_t  arrival_error_us;          /**< actual - predicted arrival */
+    int32_t  offset_error_us;           /**< actual - predicted offset */
+    uint8_t  confidence;                /**< 0-100, snapshot at time of observation */
+    bool     hit;                       /**< Beacon arrived within wake window */
+} utlp_anticipatory_entry_t;
+
+/**
+ * @brief Anticipatory memory diagnostic state
+ *
+ * Rolling window of prediction results for diagnostic logging.
+ * All devices (Genesis and Follower) maintain this — Genesis predicts
+ * its own beacon schedule stability, Followers predict upstream arrivals.
+ */
+typedef struct {
+    utlp_anticipatory_entry_t history[UTLP_ANTICIPATORY_HISTORY_SIZE];
+    uint8_t  history_idx;               /**< Current write index */
+    uint8_t  total_predictions;         /**< Total predictions made */
+    uint8_t  total_hits;                /**< Predictions within window */
+    uint8_t  confidence;                /**< Current EMA confidence 0-100 */
+    int32_t  avg_arrival_error_us;      /**< EMA of arrival timing error */
+    int32_t  avg_offset_error_us;       /**< EMA of offset prediction error */
+} utlp_anticipatory_state_t;
+
+/*============================================================================
  * INITIALIZATION API
  *==========================================================================*/
 
 /**
- * @brief Initialize the MCPWM phase engine
+ * @brief Initialize the phase engine via Timer HAL
  *
- * Sets up MCPWM Timer 0 as the phase master:
+ * Sets up the phase timer as the phase master:
  * - 50kHz resolution (20µs/tick)
  * - 50000 ticks per cycle (1 second)
- * - Soft sync source for hard sync capability
- * - Cycle boundary ISR for absolute time derivation
+ * - Cycle boundary callback for absolute time derivation
+ * - Starts in CONTINUOUS mode (timer always on)
  *
  * @return ESP_OK on success, error code otherwise
  */
@@ -140,7 +199,7 @@ esp_err_t utlp_phase_init(void);
 /**
  * @brief Deinitialize the phase engine
  *
- * Stops the MCPWM timer and releases resources.
+ * Stops the timer and releases resources.
  *
  * @return ESP_OK on success, error code otherwise
  */
@@ -241,6 +300,7 @@ esp_err_t utlp_phase_on_beacon(uint32_t peer_tx_phase_ticks, uint64_t rx_timesta
  * - Update sync state (COLD → LOCKED → RECOVERY)
  * - Apply drift corrections
  * - Update quality metrics
+ * - Drive Precision Window orchestrator (sleep/wake transitions)
  *
  * @param uptime_us Current uptime in microseconds
  */
@@ -275,6 +335,119 @@ bool utlp_phase_is_synchronized(void);
  * @see UTLP_ILC_* constants in utlp_config.h
  */
 uint32_t utlp_phase_get_isr_latency_us(void);
+
+/*============================================================================
+ * PRECISION WINDOW API - Power-Managed Beacon Timing
+ *
+ * The phase engine can pause between beacons to save power.
+ * Timer ON for ~2s around beacon events, OFF for ~58s sleep.
+ * Phase continuity maintained via RTC + anticipatory prediction.
+ *
+ * Lifecycle:
+ *   CONTINUOUS (boot) → PRECISION (after COMMITTED + confidence) → CONTINUOUS (fallback)
+ *==========================================================================*/
+
+/**
+ * @brief Pause phase engine for Precision Window sleep
+ *
+ * Stops the hardware timer, captures cumulative time for reconstruction.
+ * Phase can be reconstructed on resume using RTC elapsed time.
+ *
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE if not initialized or already paused
+ */
+esp_err_t utlp_phase_pause(void);
+
+/**
+ * @brief Resume phase engine from Precision Window pause
+ *
+ * Restarts the hardware timer, reconstructs cycle_count from RTC elapsed time.
+ * Returns to previous PLL state (COLD/LOCKED/RECOVERY).
+ *
+ * @return ESP_OK on success, ESP_ERR_INVALID_STATE if not paused
+ */
+esp_err_t utlp_phase_resume(void);
+
+/**
+ * @brief Check if phase engine is currently paused
+ *
+ * @return true if paused (timer stopped, waiting for resume)
+ */
+bool utlp_phase_is_paused(void);
+
+/**
+ * @brief Enable Precision Window mode
+ *
+ * Allows the phase engine to sleep between beacons once anticipatory
+ * confidence is sufficient. Call when Lineage Loyalty enters COMMITTED state.
+ */
+void utlp_phase_enable_precision_mode(void);
+
+/**
+ * @brief Disable Precision Window mode (return to continuous timer)
+ *
+ * Forces the phase engine back to always-on operation. Call when
+ * Lineage Loyalty enters GRIEVING or NAIVE state, or on repeated
+ * beacon misses.
+ */
+void utlp_phase_disable_precision_mode(void);
+
+/**
+ * @brief Check if Precision Window mode is active
+ *
+ * @return true if in PRECISION mode (may be AWAKE or SLEEPING)
+ */
+bool utlp_phase_is_precision_mode(void);
+
+/*============================================================================
+ * ANTICIPATORY MEMORY API - Diagnostic Prediction Framework
+ *
+ * Predict/observe/score beacon timing accuracy. All devices maintain this:
+ * - Genesis predicts its own beacon schedule stability
+ * - Followers predict upstream beacon arrivals
+ *
+ * Diagnostic-first: data collection only, NOT used for timing control yet.
+ *==========================================================================*/
+
+/**
+ * @brief Record a beacon prediction (call before beacon expected)
+ *
+ * @param expected_arrival_us  Predicted beacon arrival (esp_timer epoch)
+ * @param expected_offset_us   Predicted time offset from this beacon
+ */
+void utlp_anticipatory_predict(uint64_t expected_arrival_us, int64_t expected_offset_us);
+
+/**
+ * @brief Record actual beacon arrival (call when beacon received)
+ *
+ * Scores the most recent prediction against observed reality.
+ * Updates confidence and error EMA.
+ *
+ * @param actual_arrival_us  Actual beacon arrival time (esp_timer epoch)
+ * @param actual_offset_us   Actual measured time offset
+ */
+void utlp_anticipatory_observe(uint64_t actual_arrival_us, int64_t actual_offset_us);
+
+/**
+ * @brief Get current anticipatory confidence (0-100)
+ *
+ * @return Confidence percentage based on prediction accuracy history
+ */
+uint8_t utlp_anticipatory_get_confidence(void);
+
+/**
+ * @brief Log anticipatory memory state (diagnostic dump)
+ *
+ * Outputs current confidence, hit rate, and average errors via ESP_LOGI.
+ */
+void utlp_anticipatory_log_state(void);
+
+/**
+ * @brief Get copy of current anticipatory memory state
+ *
+ * @param[out] state Pointer to state structure to fill
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if state is NULL
+ */
+esp_err_t utlp_phase_get_anticipatory_state(utlp_anticipatory_state_t *state);
 
 /*============================================================================
  * BACKWARD COMPATIBILITY API
