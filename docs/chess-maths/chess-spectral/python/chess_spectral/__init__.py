@@ -51,7 +51,12 @@ from .frame import (
 from .csv_export import write_csv, iter_rows, fmt_num, fmt_cos
 from .safety_field import compute_safety_field, side_most_exposed
 from .fen import fen_to_pos, uci_to_indices
-from .corpus import process_game, extract_features
+from .corpus import (
+    process_game, extract_features,
+    parse_local_pgn, iter_local_pgn_games,
+    write_index_csv, write_summary_md,
+    row_for_csv, INDEX_COLUMNS,
+)
 
 __all__ = [
     # Encoder
@@ -71,4 +76,7 @@ __all__ = [
     "fen_to_pos", "uci_to_indices",
     # Corpus primitives
     "process_game", "extract_features",
+    "parse_local_pgn", "iter_local_pgn_games",
+    "write_index_csv", "write_summary_md",
+    "row_for_csv", "INDEX_COLUMNS",
 ]

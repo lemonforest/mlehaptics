@@ -442,10 +442,19 @@ static int cmd_encode(int argc, char **argv)
             fr.encoding[i] = (float)enc.v[i];
         }
         fr.ply = (uint32_t)(ply >= 0 ? ply : (int)n_plies);
-        fr.move_from  = 0xFF;
-        fr.move_to    = 0xFF;
-        fr.move_promo = 0;
-        fr.move_flags = 0;
+
+        /* NDJSON v2 carries move_from/move_to/move_promo/move_flags per
+         * ply. Fall back to 0xFF/0 sentinels if a legacy producer omits
+         * them (matches the Python reference encoder's behaviour). */
+        int mv_from = 0xFF, mv_to = 0xFF, mv_promo = 0, mv_flags = 0;
+        (void)json_int_field(buf, "move_from",  &mv_from);
+        (void)json_int_field(buf, "move_to",    &mv_to);
+        (void)json_int_field(buf, "move_promo", &mv_promo);
+        (void)json_int_field(buf, "move_flags", &mv_flags);
+        fr.move_from  = (uint8_t)(mv_from  & 0xFF);
+        fr.move_to    = (uint8_t)(mv_to    & 0xFF);
+        fr.move_promo = (uint8_t)(mv_promo & 0xFF);
+        fr.move_flags = (uint8_t)(mv_flags & 0xFF);
 
         if (cs_file_write_frame(fout, &fr) != 0) {
             fprintf(stderr, "encode: frame write failed at ply %u\n", fr.ply);

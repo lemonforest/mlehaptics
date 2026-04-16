@@ -14,6 +14,14 @@ Commands (symmetric with the C side):
     encode-fen --fen "<fen>" [-o single.spectral]
                Encode a single FEN string to a one-ply .spectral file.
 
+    corpus     --pgn PATH [PATH ...] [--run-id NAME] [--results-root DIR]
+               Wrap one or more local PGNs as a corpus-layout folder
+               consumable by the chess-maths-viewer (web app
+               that expects manifest.json + corpus_index.csv +
+               pgn/ ndjson/ spectralz/ subdirs). Equivalent to running
+               run_corpus_sweep.py for a fetched corpus, but on a PGN
+               you already have on disk.
+
     version    Print version / format info.
 
 Not yet implemented: query, analyze, heatmap, compare.
@@ -36,9 +44,38 @@ if HERE not in sys.path:
 from chess_spectral import (  # noqa: E402
     encode_640, normalize_pos, Frame, write_file, write_csv,
     FILE_VERSION, ENCODING_DIM, fen_to_pos, uci_to_indices,
+    process_game, extract_features,
+    parse_local_pgn, iter_local_pgn_games,
+    write_index_csv, write_summary_md,
 )
 
 VERSION = "0.1.0-py"
+
+# Paths for the `corpus` subcommand. spectral_py.py lives at
+# <repo>/docs/chess-maths/chess-spectral/python/spectral_py.py, so:
+#   bridge  = <repo>/docs/chess-maths/chess-spectral/bridge/pgn_bridge.py
+#   results = <repo>/docs/chess-maths/results/
+_BRIDGE_SCRIPT = os.path.abspath(os.path.join(
+    HERE, os.pardir, "bridge", "pgn_bridge.py"))
+_DEFAULT_RESULTS_ROOT = os.path.abspath(os.path.join(
+    HERE, os.pardir, os.pardir, "results"))
+
+
+def _find_c_binary() -> str | None:
+    """Locate the native spectral binary built from chess-spectral/src/.
+    Checks (1) CS_SPECTRAL_BIN env var, (2) standard CMake Release/Debug
+    output paths under chess-spectral/build/. Returns None if no binary
+    is found — callers should fall back to the Python encoder."""
+    env = os.environ.get("CS_SPECTRAL_BIN")
+    if env and os.path.isfile(env):
+        return env
+    build_root = os.path.abspath(os.path.join(HERE, os.pardir, "build"))
+    suffix = ".exe" if os.name == "nt" else ""
+    for sub in ("Release", "Debug", ""):
+        cand = os.path.join(build_root, sub, f"spectral{suffix}")
+        if os.path.isfile(cand):
+            return cand
+    return None
 
 
 # ─── Filename derivation helpers ────────────────────────────────────────
@@ -199,6 +236,140 @@ def cmd_encode_fen(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_corpus(args: argparse.Namespace) -> int:
+    """Wrap one or more local PGNs into a corpus-layout folder for the
+    chess-maths-viewer. Produces the same manifest.json /
+    corpus_index.csv / corpus_summary.md / pgn/ ndjson/ spectralz/
+    layout as run_corpus_sweep.py, but for PGNs already on disk."""
+    import datetime as _dt
+    import time as _time
+    from pathlib import Path as _Path
+
+    pgn_paths = [_Path(p) for p in args.pgn]
+    for p in pgn_paths:
+        if not p.is_file():
+            print(f"corpus: not a file: {p}", file=sys.stderr)
+            return 2
+
+    if args.run_id:
+        run_id = args.run_id
+    elif len(pgn_paths) == 1:
+        run_id = f"single_{_strip_known_ext(pgn_paths[0].name)}"
+    else:
+        today = _dt.date.today().isoformat()
+        run_id = f"local_N{len(pgn_paths)}_{today}"
+
+    results_root = _Path(args.results_root or _DEFAULT_RESULTS_ROOT)
+    run_dir = results_root / run_id
+    for sub in ("pgn", "ndjson", "spectralz"):
+        (run_dir / sub).mkdir(parents=True, exist_ok=True)
+
+    print(f"corpus: run_id = {run_id}", file=sys.stderr)
+    print(f"corpus: output = {run_dir}", file=sys.stderr)
+    print(f"corpus: games  = {len(pgn_paths)}", file=sys.stderr)
+
+    t0 = _time.time()
+    bridge_script = _Path(_BRIDGE_SCRIPT)
+    encoder_script = _Path(os.path.abspath(__file__))
+
+    encoder_binary: _Path | None = None
+    if getattr(args, "encoder", "py") == "c":
+        c_bin = _find_c_binary()
+        if c_bin is None:
+            print("corpus: --encoder c requested but no spectral binary "
+                  "found (set CS_SPECTRAL_BIN or build "
+                  "chess-spectral/build/Release/spectral)",
+                  file=sys.stderr)
+            return 4
+        encoder_binary = _Path(c_bin)
+        print(f"corpus: encoder = c ({c_bin})", file=sys.stderr)
+    else:
+        print("corpus: encoder = py (reference)", file=sys.stderr)
+
+    rows: list = []
+    n_encoded = 0
+    n_errors = 0
+    idx = 0
+    limit = getattr(args, "limit", None)
+    stop = False
+    for p in pgn_paths:
+        if stop:
+            break
+        for game in iter_local_pgn_games(p):
+            idx += 1
+            if limit is not None and idx > limit:
+                idx -= 1
+                stop = True
+                break
+            print(f"corpus: [{idx}] {p.name} — "
+                  f"{game['headers'].get('White','?')} vs "
+                  f"{game['headers'].get('Black','?')}",
+                  file=sys.stderr)
+            entry = process_game(
+                game, run_dir, idx, bridge_script, encoder_script,
+                encoder_binary=encoder_binary,
+            )
+            if "error" in entry:
+                n_errors += 1
+                print(f"corpus:   error: {entry['error']}",
+                      file=sys.stderr)
+                rows.append(entry)
+                continue
+            try:
+                entry.update(extract_features(
+                    run_dir / entry["spectralz"],
+                    run_dir / entry["ndjson"],
+                ))
+                n_encoded += 1
+            except Exception as e:  # noqa: BLE001
+                entry["error"] = f"features: {e}"
+                n_errors += 1
+                print(f"corpus:   feature extraction failed: {e}",
+                      file=sys.stderr)
+            rows.append(entry)
+
+    elapsed_s = _time.time() - t0
+
+    n_fetched = idx
+    write_index_csv(rows, run_dir / "corpus_index.csv", run_id)
+    write_summary_md(
+        rows, run_dir / "corpus_summary.md",
+        run_id, elapsed_s,
+        n_requested=n_fetched, n_fetched=n_fetched,
+        n_encoded=n_encoded, n_errors=n_errors,
+    )
+
+    manifest = {
+        "generated_utc": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "run_id":        run_id,
+        "source":        "local_pgn",
+        "fetch_params":  {
+            "pgn_paths": [str(p) for p in pgn_paths],
+            "limit":     limit,
+            "encoder":   "c" if encoder_binary else "py",
+        },
+        "tool_versions": {
+            "python":  sys.version.split()[0],
+            "bridge":  str(bridge_script).replace("\\", "/"),
+            "encoder": str(encoder_script).replace("\\", "/"),
+        },
+        "aggregates": {
+            "n_requested": n_fetched,
+            "n_fetched":   n_fetched,
+            "n_encoded":   n_encoded,
+            "n_errors":    n_errors,
+            "wall_time_s": round(elapsed_s, 2),
+        },
+        "games": rows,
+    }
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
+    print(f"corpus: wrote {n_encoded}/{n_fetched} games to {run_dir}",
+          file=sys.stderr)
+    return 0 if n_errors == 0 else 3
+
+
 def cmd_version(_args: argparse.Namespace) -> int:
     print(f"spectral_py {VERSION}")
     print(f"  file format v{FILE_VERSION}  encoding_dim {ENCODING_DIM}")
@@ -243,6 +414,40 @@ def build_parser() -> argparse.ArgumentParser:
     p_fen.add_argument("-z", "--compress", action="store_true",
                        help="gzip the output (inferred from .spectralz ext otherwise)")
     p_fen.set_defaults(func=cmd_encode_fen)
+
+    p_cor = sub.add_parser(
+        "corpus",
+        help="Wrap a local PGN into a viewer-ready corpus folder",
+        description=(
+            "Wrap a single local PGN file into the corpus-layout folder "
+            "expected by chess-maths-viewer "
+            "(https://lemonforest.github.io/chess-maths-viewer/). "
+            "Produces manifest.json + corpus_index.csv + corpus_summary.md "
+            "alongside pgn/, ndjson/, and spectralz/ subdirs — the same "
+            "shape as run_corpus_sweep.py output, but for a PGN you "
+            "already have on disk. Archive the run folder (e.g. `7z a "
+            "run.7z <run-dir>`) and feed the archive to the viewer."
+        ),
+    )
+    p_cor.add_argument("--pgn", required=True, nargs="+",
+                       help="one or more PGN file paths; each file may "
+                            "contain multiple games (all are ingested)")
+    p_cor.add_argument("--limit", type=int, default=None,
+                       help="max total games to process across all --pgn "
+                            "files (default: no limit)")
+    p_cor.add_argument("--encoder", choices=("py", "c"), default="py",
+                       help="NDJSON→.spectralz backend: 'py' = Python "
+                            "reference (default, trust); 'c' = native "
+                            "binary ~38x faster, byte-identical output "
+                            "(requires chess-spectral/build/Release/"
+                            "spectral or $CS_SPECTRAL_BIN)")
+    p_cor.add_argument("--run-id",
+                       help="output folder name under --results-root "
+                            "(default: single_<pgn-stem>)")
+    p_cor.add_argument("--results-root",
+                       help=f"parent directory for the run folder "
+                            f"(default: {_DEFAULT_RESULTS_ROOT})")
+    p_cor.set_defaults(func=cmd_corpus)
 
     p_ver = sub.add_parser("version", help="Print version info")
     p_ver.set_defaults(func=cmd_version)

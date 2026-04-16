@@ -27,10 +27,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
 import datetime as dt
 import json
-import statistics
 import sys
 import time
 from pathlib import Path
@@ -41,31 +39,14 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "chess-spectral" / "python"))
 
 from pgn_fetcher import PGNFetcher, LichessSource  # noqa: E402
-from chess_spectral import process_game, extract_features  # noqa: E402
-from chess_spectral.encoder import CHANNELS  # noqa: E402
+from chess_spectral import (  # noqa: E402
+    process_game, extract_features,
+    write_index_csv, write_summary_md, INDEX_COLUMNS,
+)
 
 BRIDGE = HERE / "chess-spectral" / "bridge" / "pgn_bridge.py"
 ENCODER = HERE / "chess-spectral" / "python" / "spectral_py.py"
 RESULTS_ROOT = HERE / "results"
-
-# Column order for corpus_index.csv. Identity columns first (sortable in
-# Excel without cognitive load), then numeric features that typically
-# drive analysis (chaos, NAG counts), then the raw channel means.
-_IDENTITY_COLS = (
-    "index", "run_id", "result", "n_moves", "n_plies",
-    "white", "black", "white_elo", "black_elo",
-    "event", "date", "source_tc",
-)
-_FEATURE_COLS = (
-    "chaos_ratio", "nag_count", "blunder_count", "mistake_count",
-    "has_eval", "has_clk",
-)
-_CHANNEL_COLS = tuple(f"mean_{name}" for name, _ in CHANNELS)
-_BYTES_COLS = ("pgn_bytes", "ndjson_bytes", "spectralz_bytes")
-_ERROR_COL = ("error",)
-INDEX_COLUMNS = (
-    _IDENTITY_COLS + _FEATURE_COLS + _CHANNEL_COLS + _BYTES_COLS + _ERROR_COL
-)
 
 
 def _safe_default_run_id(source: str, n: int, seed: int | None,
@@ -76,102 +57,6 @@ def _safe_default_run_id(source: str, n: int, seed: int | None,
     # across different players scraped on the same day.
     user_str = f"_{username.lower()}" if username else ""
     return f"sweep_{source}{user_str}_{today}_N{n}{seed_str}"
-
-
-def _row_for_csv(entry: dict[str, Any], run_id: str) -> dict[str, Any]:
-    """Flatten a manifest entry + features dict into a single CSV row.
-    Missing numeric fields become '' so the spreadsheet shows blanks
-    (not zero) for failed games."""
-    row = {col: "" for col in INDEX_COLUMNS}
-    row["run_id"] = run_id
-    for col in INDEX_COLUMNS:
-        if col in entry:
-            row[col] = entry[col]
-    return row
-
-
-def _top_n(rows: list[dict[str, Any]], key: str, n: int = 5,
-           reverse: bool = True) -> list[dict[str, Any]]:
-    viable = [r for r in rows if isinstance(r.get(key), (int, float))]
-    viable.sort(key=lambda r: r[key], reverse=reverse)
-    return viable[:n]
-
-
-def _fmt_row_for_summary(row: dict[str, Any]) -> str:
-    white = row.get("white", "?")
-    black = row.get("black", "?")
-    res = row.get("result", "?")
-    return f"#{row['index']:>3} {white} vs {black} ({res})"
-
-
-def _write_summary(rows: list[dict[str, Any]], out_path: Path,
-                   run_id: str, elapsed_s: float,
-                   n_requested: int, n_fetched: int,
-                   n_encoded: int, n_errors: int) -> None:
-    ok = [r for r in rows if not r.get("error")]
-
-    def _stat(key: str) -> tuple[float, float, float] | None:
-        vals = [r[key] for r in ok if isinstance(r.get(key), (int, float))]
-        if not vals:
-            return None
-        return (
-            statistics.mean(vals),
-            statistics.median(vals),
-            statistics.stdev(vals) if len(vals) > 1 else 0.0,
-        )
-
-    result_counts: dict[str, int] = {}
-    for r in ok:
-        result_counts[r.get("result", "?")] = \
-            result_counts.get(r.get("result", "?"), 0) + 1
-
-    lines: list[str] = []
-    lines.append(f"# Corpus sweep summary — `{run_id}`")
-    lines.append("")
-    lines.append(f"- Games requested: **{n_requested}**")
-    lines.append(f"- Games fetched:   **{n_fetched}**")
-    lines.append(f"- Games encoded:   **{n_encoded}**")
-    lines.append(f"- Errors:          **{n_errors}**")
-    lines.append(f"- Wall time:       **{elapsed_s:.1f}s**")
-    lines.append("")
-    if result_counts:
-        lines.append("## Result distribution")
-        lines.append("")
-        for res, count in sorted(result_counts.items(),
-                                 key=lambda kv: -kv[1]):
-            lines.append(f"- `{res}`: {count}")
-        lines.append("")
-
-    lines.append("## Numeric feature stats (successful games)")
-    lines.append("")
-    lines.append("| Feature | mean | median | stdev |")
-    lines.append("|---|---|---|---|")
-    for key in ("n_plies", "chaos_ratio", "nag_count", "blunder_count",
-                "mean_F3", "mean_FA", "mean_FD"):
-        st = _stat(key)
-        if st:
-            m, md, sd = st
-            lines.append(f"| {key} | {m:.4f} | {md:.4f} | {sd:.4f} |")
-    lines.append("")
-
-    for key, label, rev in (
-        ("chaos_ratio",   "Top 5 by chaos ratio (sharpest)", True),
-        ("blunder_count", "Top 5 by blunder count (NAG heavy)", True),
-        ("nag_count",     "Top 5 by total NAGs", True),
-        ("n_plies",       "Top 5 by length", True),
-    ):
-        top = _top_n(ok, key, 5, reverse=rev)
-        if not top:
-            continue
-        lines.append(f"## {label}")
-        lines.append("")
-        for r in top:
-            v = r[key]
-            tag = f"{v:.4f}" if isinstance(v, float) else str(v)
-            lines.append(f"- `{tag:>10}`  {_fmt_row_for_summary(r)}")
-        lines.append("")
-
-    out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:
@@ -287,14 +172,10 @@ def main() -> int:
 
     # corpus_index.csv — the main deliverable; one row per game.
     index_path = run_dir / "corpus_index.csv"
-    with open(index_path, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(INDEX_COLUMNS))
-        w.writeheader()
-        for entry in rows:
-            w.writerow(_row_for_csv(entry, run_id))
+    write_index_csv(rows, index_path, run_id)
 
     # corpus_summary.md — human-readable top-N snapshots.
-    _write_summary(
+    write_summary_md(
         rows, run_dir / "corpus_summary.md",
         run_id, elapsed_s,
         n_requested=args.n, n_fetched=len(games),
