@@ -7,9 +7,12 @@ Commands (symmetric with the C side):
                Read a .spectral or .spectralz and emit the chat-friendly
                CSV (17 columns: inter-frame metrics + channel energies).
 
-    encode     -i game.ndjson -o game.spectral[z] [-z]
-               Encode an NDJSON game (from pgn_bridge.py) into a v2
-               .spectral file. With -z, writes gzip-compressed output.
+    encode     { -i game.ndjson | --pgn game.pgn | --url URL }
+               [--pgn-start N] [--pgn-count K] -o game.spectral[z] [-z]
+               Encode a PGN / NDJSON / URL stream into a v2 .spectral
+               file. With --pgn/--url, auto-pipes through pgn_bridge.py
+               (supports --pgn-start / --pgn-count for multi-game
+               slicing). With -z, writes gzip-compressed output.
 
     encode-fen --fen "<fen>" [-o single.spectral]
                Encode a single FEN string to a one-ply .spectral file.
@@ -31,8 +34,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, TextIO
 
 import numpy as np
 
@@ -142,8 +146,8 @@ def cmd_csv(args: argparse.Namespace) -> int:
     return 0
 
 
-def _iter_ndjson_frames(path: str) -> Iterator[Frame]:
-    """Stream per-ply records from an NDJSON file produced by
+def _iter_ndjson_stream(stream: TextIO, source_label: str) -> Iterator[Frame]:
+    """Stream per-ply records from a text iterable produced by
     pgn_bridge.py and yield encoded Frames. Accepts all three
     schemas emitted by the bridge over time:
 
@@ -154,65 +158,134 @@ def _iter_ndjson_frames(path: str) -> Iterator[Frame]:
       - legacy: pos (string-keyed dict) + move_from/move_to.
 
     `type:"game_header"` records and the top-level bridge header are
-    skipped."""
+    skipped. `source_label` is used only for error messages."""
+    for line_no, line in enumerate(stream, 1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"{source_label}:{line_no}: bad JSON ({e})") from e
+        if rec.get("type") == "game_header":
+            continue
+
+        pos = rec.get("pos")
+        fen = rec.get("fen")
+        if pos is None and fen is None:
+            continue  # top-level header or unrelated record
+        pos_dict = normalize_pos(pos) if pos is not None \
+            else fen_to_pos(fen)
+
+        if "move_from" in rec:
+            move_from = int(rec["move_from"]) & 0xFF
+            move_to = int(rec.get("move_to", 0xFF)) & 0xFF
+            move_promo = int(rec.get("move_promo", 0)) & 0xFF
+        else:
+            uci = rec.get("uci") or ""
+            move_from, move_to, move_promo = uci_to_indices(uci)
+        move_flags = int(rec.get("move_flags", 0)) & 0xFF
+
+        enc = encode_640(pos_dict)
+        yield Frame(
+            encoding=enc.astype(np.float32),
+            ply=int(rec.get("ply", 0)),
+            move_from=move_from,
+            move_to=move_to,
+            move_promo=move_promo,
+            move_flags=move_flags,
+        )
+
+
+def _iter_ndjson_frames(path: str) -> Iterator[Frame]:
+    """Open an NDJSON file and yield encoded Frames. See
+    `_iter_ndjson_stream` for schema details."""
     with open(path, "r", encoding="utf-8") as f:
-        for line_no, line in enumerate(f, 1):
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"{path}:{line_no}: bad JSON ({e})") from e
-            if rec.get("type") == "game_header":
-                continue
+        yield from _iter_ndjson_stream(f, path)
 
-            pos = rec.get("pos")
-            fen = rec.get("fen")
-            if pos is None and fen is None:
-                continue  # top-level header or unrelated record
-            pos_dict = normalize_pos(pos) if pos is not None \
-                else fen_to_pos(fen)
 
-            if "move_from" in rec:
-                move_from = int(rec["move_from"]) & 0xFF
-                move_to = int(rec.get("move_to", 0xFF)) & 0xFF
-                move_promo = int(rec.get("move_promo", 0)) & 0xFF
-            else:
-                uci = rec.get("uci") or ""
-                move_from, move_to, move_promo = uci_to_indices(uci)
-            move_flags = int(rec.get("move_flags", 0)) & 0xFF
-
-            enc = encode_640(pos_dict)
-            yield Frame(
-                encoding=enc.astype(np.float32),
-                ply=int(rec.get("ply", 0)),
-                move_from=move_from,
-                move_to=move_to,
-                move_promo=move_promo,
-                move_flags=move_flags,
-            )
+def _spawn_bridge(pgn: str | None, url: str | None,
+                  pgn_start: int, pgn_count: int):
+    """Launch pgn_bridge.py as a subprocess and return a (Popen, stdout)
+    pair. stdout is a text-mode file-like stream of NDJSON lines that
+    the caller can iterate. The caller is responsible for closing the
+    stream and checking Popen.wait()."""
+    if pgn is None and url is None:
+        raise ValueError("_spawn_bridge requires --pgn or --url")
+    cmd = [sys.executable, _BRIDGE_SCRIPT]
+    if url:
+        cmd.extend(["--url", url])
+    else:
+        cmd.extend(["--input", pgn])
+    if pgn_start > 0 or pgn_count > 0:
+        cmd.extend(["--start-game", str(max(0, pgn_start)),
+                    "--max-games",  str(max(0, pgn_count))])
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=sys.stderr,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,  # line-buffered
+    )
+    return proc, proc.stdout
 
 
 def cmd_encode(args: argparse.Namespace) -> int:
-    if not args.input:
-        print("encode: -i <file.ndjson> required", file=sys.stderr)
+    sources = [bool(args.input), bool(args.pgn), bool(args.url)]
+    if sum(sources) == 0:
+        print("encode: one of -i/--input, --pgn, --url required",
+              file=sys.stderr)
         return 2
-    # Auto-derive output: <input-basename>.spectralz (with -z) or .spectral.
-    # Preserves multi-dot basenames via _strip_known_ext.
+    if sum(sources) > 1:
+        print("encode: -i/--input, --pgn, and --url are mutually exclusive",
+              file=sys.stderr)
+        return 2
+
+    pgn_start = int(getattr(args, "pgn_start", 0) or 0)
+    pgn_count = int(getattr(args, "pgn_count", 0) or 0)
+    if pgn_start < 0 or pgn_count < 0:
+        print("encode: --pgn-start/--pgn-count must be >= 0", file=sys.stderr)
+        return 2
+    if (pgn_start > 0 or pgn_count > 0) and args.input:
+        print("encode: --pgn-start/--pgn-count only apply with --pgn/--url "
+              "(NDJSON input is sliced at the bridge step)", file=sys.stderr)
+        return 2
+
+    # Auto-derive output from whichever source is set.
+    src_for_name = args.input or args.pgn or args.url or "out"
     output = args.output or _auto_output(
-        args.input,
+        src_for_name,
         ".spectralz" if args.compress else ".spectral",
     )
+
+    proc = None
     try:
-        n = write_file(
-            output,
-            _iter_ndjson_frames(args.input),
-            compress=args.compress,
-        )
+        if args.input:
+            frames = _iter_ndjson_frames(args.input)
+        else:
+            proc, stream = _spawn_bridge(args.pgn, args.url,
+                                         pgn_start, pgn_count)
+            frames = _iter_ndjson_stream(stream, args.pgn or args.url)
+        n = write_file(output, frames, compress=args.compress)
     except (IOError, ValueError) as e:
         print(f"encode: {e}", file=sys.stderr)
+        if proc is not None:
+            proc.kill()
+            proc.wait()
         return 3
+    finally:
+        if proc is not None and proc.stdout is not None:
+            proc.stdout.close()
+
+    if proc is not None:
+        rc = proc.wait()
+        if rc != 0:
+            print(f"encode: pgn_bridge.py exited with status {rc}",
+                  file=sys.stderr)
+            return 3
+
     tag = "(gzip)" if args.compress else ""
     print(f"encode: wrote {n} frames to {output} {tag}".rstrip(),
           file=sys.stderr)
@@ -398,9 +471,25 @@ def build_parser() -> argparse.ArgumentParser:
                        help="disable auto-detection of sibling NDJSON")
     p_csv.set_defaults(func=cmd_csv)
 
-    p_enc = sub.add_parser("encode", help="Encode NDJSON game → .spectral[z]")
-    p_enc.add_argument("-i", "--input", required=True,
-                       help="game.ndjson (from pgn_bridge.py)")
+    p_enc = sub.add_parser(
+        "encode",
+        help="Encode PGN / NDJSON / URL → .spectral[z] "
+             "(mirrors the C `spectral encode` CLI)",
+    )
+    p_enc.add_argument("-i", "--input",
+                       help="pre-produced NDJSON (from pgn_bridge.py)")
+    p_enc.add_argument("--pgn",
+                       help="PGN file path; auto-pipes through pgn_bridge.py")
+    p_enc.add_argument("-u", "--url",
+                       help="URL returning PGN text; auto-pipes through "
+                            "pgn_bridge.py (lichess / chess.com export)")
+    p_enc.add_argument("--pgn-start", type=int, default=0,
+                       help="With --pgn/--url: skip to game N (0-indexed) "
+                            "before encoding. Combine with --pgn-count to "
+                            "slice a window.")
+    p_enc.add_argument("--pgn-count", type=int, default=0,
+                       help="With --pgn/--url: encode at most K games "
+                            "starting at --pgn-start (0 = no limit)")
     p_enc.add_argument("-o", "--output",
                        help="output path (default: <input>.spectralz with -z, "
                             "else <input>.spectral)")

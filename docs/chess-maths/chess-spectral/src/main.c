@@ -72,6 +72,9 @@ static void print_usage(FILE *fp)
         "            --url <URL>      fetch PGN from the web (lichess, chess.com)\n"
         "            -z, --compress   gzip-compress output (file becomes *.spectralz,\n"
         "                             ~5-6x smaller; readers detect 1F 8B transparently)\n"
+        "            --pgn-start N    skip to game N (0-indexed) in a multi-game PGN\n"
+        "            --pgn-count K    emit at most K games starting at --pgn-start\n"
+        "                             (both forwarded to pgn_bridge.py)\n"
         "        PGN handling requires Python + 'pip install python-chess'.\n"
         "        Override interpreter with CS_PYTHON, bridge path with CS_PGN_BRIDGE.\n"
         "        Examples:\n"
@@ -261,7 +264,8 @@ static int has_suffix_ci(const char *s, const char *suf)
  *   otherwise             → fopen(input_path) (assumed NDJSON)
  */
 static int open_ndjson_stream(const char *input_path, const char *url,
-                              int force_pgn, FILE **fp, int *is_pipe)
+                              int force_pgn, int pgn_start, int pgn_count,
+                              FILE **fp, int *is_pipe)
 {
     *fp = NULL;
     *is_pipe = 0;
@@ -304,14 +308,29 @@ static int open_ndjson_stream(const char *input_path, const char *url,
      * we want the bridge to consume its own stdin (inheriting ours). */
     const char *bridge_input = (input_path && strcmp(input_path, "-") != 0)
                                ? input_path : "-";
+    /* Optional slice flags — only emitted when the user passed non-default
+     * values on the spectral CLI. Defaults (0) match pgn_bridge's own
+     * defaults so omission is semantically identical. */
+    char slice[128] = {0};
+    if (pgn_start > 0 || pgn_count > 0) {
+        int sn = snprintf(slice, sizeof(slice),
+                          " --start-game %d --max-games %d",
+                          pgn_start > 0 ? pgn_start : 0,
+                          pgn_count > 0 ? pgn_count : 0);
+        if (sn < 0 || (size_t)sn >= sizeof(slice)) {
+            fprintf(stderr, "encode: slice flags overflow\n");
+            return -1;
+        }
+    }
+
     if (url) {
         n = snprintf(cmd, sizeof(cmd),
-                     "%s\"%s\" \"%s\" --url \"%s\"%s",
-                     open_wrap, py, br, url, close_wrap);
+                     "%s\"%s\" \"%s\" --url \"%s\"%s%s",
+                     open_wrap, py, br, url, slice, close_wrap);
     } else {
         n = snprintf(cmd, sizeof(cmd),
-                     "%s\"%s\" \"%s\" --input \"%s\"%s",
-                     open_wrap, py, br, bridge_input, close_wrap);
+                     "%s\"%s\" \"%s\" --input \"%s\"%s%s",
+                     open_wrap, py, br, bridge_input, slice, close_wrap);
     }
     if (n < 0 || (size_t)n >= sizeof(cmd)) {
         fprintf(stderr, "encode: bridge command too long\n");
@@ -341,6 +360,8 @@ static int cmd_encode(int argc, char **argv)
     const char *url = NULL;
     int force_pgn = 0;
     int compress = 0;
+    int pgn_start = 0;
+    int pgn_count = 0;
     for (int i = 0; i < argc; i++) {
         if ((strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0)
             && i + 1 < argc) {
@@ -350,6 +371,10 @@ static int cmd_encode(int argc, char **argv)
             url = argv[++i];
         } else if (strcmp(argv[i], "--pgn") == 0) {
             force_pgn = 1;
+        } else if (strcmp(argv[i], "--pgn-start") == 0 && i + 1 < argc) {
+            pgn_start = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--pgn-count") == 0 && i + 1 < argc) {
+            pgn_count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--compress") == 0 || strcmp(argv[i], "-z") == 0) {
             compress = 1;
         } else if (strcmp(argv[i], "-") == 0 && !input) {
@@ -366,7 +391,10 @@ static int cmd_encode(int argc, char **argv)
             "    spectral encode -                -o out.spectral   (NDJSON on stdin)\n"
             "    spectral encode --pgn -          -o out.spectral   (PGN on stdin)\n"
             "    spectral encode --url <URL>      -o out.spectral\n"
-            "    spectral encode game.pgn -z      -o out.spectralz  (gzip-compressed)\n");
+            "    spectral encode game.pgn -z      -o out.spectralz  (gzip-compressed)\n"
+            "  Multi-game PGN slicing:\n"
+            "    spectral encode corpus.pgn --pgn-start 0 --pgn-count 100 -o head100.spectral\n"
+            "    spectral encode corpus.pgn --pgn-start 2527 --pgn-count 100 -o mid100.spectral\n");
         return 2;
     }
     if (!output) {
@@ -376,9 +404,22 @@ static int cmd_encode(int argc, char **argv)
     /* --pgn with no input implies stdin. */
     if (force_pgn && !input && !url) input = "-";
 
+    if (pgn_start < 0 || pgn_count < 0) {
+        fprintf(stderr, "encode: --pgn-start/--pgn-count must be >= 0\n");
+        return 2;
+    }
+    if ((pgn_start > 0 || pgn_count > 0) && !url && !force_pgn
+        && !(input && has_suffix_ci(input, ".pgn"))) {
+        fprintf(stderr,
+            "encode: --pgn-start/--pgn-count only apply when ingesting PGN "
+            "(use --pgn, --url, or a .pgn file)\n");
+        return 2;
+    }
+
     FILE *fin = NULL;
     int is_pipe = 0;
-    if (open_ndjson_stream(input, url, force_pgn, &fin, &is_pipe) != 0) return 3;
+    if (open_ndjson_stream(input, url, force_pgn, pgn_start, pgn_count,
+                           &fin, &is_pipe) != 0) return 3;
 
     /* When compressing, write plain frames to an anonymous tmpfile first
      * (so header backfill via fseek still works), then deflate the whole

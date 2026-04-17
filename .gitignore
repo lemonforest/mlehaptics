@@ -68,6 +68,5 @@ src/CMakeLists.txt
 docs/chess-maths/stockfish/
 docs/chess-maths/.pgn_cache/
 docs/chess-maths/**/*.7z
-docs/chess-maths/dataset-place/lichess_db_broadcast_*.pgn
-docs/chess-maths/results/lichess_broadcast_*
 docs/chess-maths/results/*_logs/
+docs/chess-maths/results/delta_sigma_*/

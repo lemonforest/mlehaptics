@@ -256,8 +256,13 @@ def main() -> int:
                      help="URL returning PGN text (e.g. lichess/chess.com export)")
     ap.add_argument("--output", "-o",
                     help="NDJSON output file (default: stdout)")
+    ap.add_argument("--start-game", type=int, default=0,
+                    help="Skip to game N (0-indexed) before emitting. "
+                         "Combine with --max-games to slice a window "
+                         "(e.g. --start-game 2500 --max-games 100).")
     ap.add_argument("--max-games", type=int, default=0,
-                    help="Stop after N games (0 = no limit)")
+                    help="Emit at most N games starting at --start-game "
+                         "(0 = no limit)")
     ap.add_argument("--no-annotations", action="store_true",
                     help="Skip per-ply nag/eval/clk/comment fields "
                          "(smaller records; equivalent to v1 schema)")
@@ -279,27 +284,42 @@ def main() -> int:
 
     emit_line(out, {"bridge_version": BRIDGE_VERSION, "format": FORMAT_TAG})
 
-    total_games = 0
+    # Fast-forward past the first `start_game` games. skip_game is O(1) per
+    # game (byte-scan for next "[Event ..." header) and avoids full parse.
+    pgn_index = 0
+    if args.start_game < 0:
+        sys.stderr.write("pgn_bridge: --start-game must be >= 0\n")
+        return 3
+    while pgn_index < args.start_game:
+        if not chess.pgn.skip_game(src_stream):
+            sys.stderr.write(
+                f"pgn_bridge: PGN has fewer than {args.start_game} games "
+                f"(only {pgn_index} present)\n")
+            return 3
+        pgn_index += 1
+
+    emitted_games = 0
     total_plies = 0
     try:
         while True:
             game = chess.pgn.read_game(src_stream)
             if game is None:
                 break
-            total_plies += emit_game(out, game, total_games,
+            total_plies += emit_game(out, game, pgn_index,
                                      annotated=not args.no_annotations)
-            total_games += 1
-            if args.max_games and total_games >= args.max_games:
+            pgn_index += 1
+            emitted_games += 1
+            if args.max_games and emitted_games >= args.max_games:
                 break
     finally:
         if args.output:
             out.close()
 
-    if total_games == 0:
+    if emitted_games == 0:
         sys.stderr.write("pgn_bridge: no games found in input\n")
         return 3
     sys.stderr.write(
-        f"pgn_bridge: emitted {total_games} game(s), {total_plies} plies "
+        f"pgn_bridge: emitted {emitted_games} game(s), {total_plies} plies "
         f"(v{BRIDGE_VERSION})\n"
     )
     return 0
