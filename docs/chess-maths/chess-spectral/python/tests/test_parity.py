@@ -8,6 +8,12 @@ These tests require:
       docs/chess-maths/chessgame_1937789.spectral from the Carlsen-
       Caruana WCC 2018 Round 6 cache).
     - A reference .csv produced by the C CLI against that file.
+
+The Carlsen-Caruana fixture is NOT committed to the tree (regenerate
+from the corresponding PGN or fetch it from the cache). Tests that
+depend on it are auto-skipped when the fixture is absent, so this file
+never blocks a local pytest run. Byte-for-byte parity is still enforced
+by `test_c_py_parity.py` (Kasparov-Topalov NDJSON, fixture committed).
 """
 from __future__ import annotations
 
@@ -16,6 +22,7 @@ import sys
 import tempfile
 
 import numpy as np
+import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG  = os.path.dirname(HERE)
@@ -30,7 +37,21 @@ REF_SPECTRAL = os.path.join(CHESS_MATHS, "chessgame_1937789.spectral")
 REF_SPECTRALZ = os.path.join(CHESS_MATHS, "chessgame_1937789.spectralz")
 REF_CSV = os.path.join(CHESS_MATHS, "chessgame_1937789.csv")
 
+_FIXTURES_PRESENT = (
+    os.path.exists(REF_SPECTRAL)
+    and os.path.exists(REF_SPECTRALZ)
+    and os.path.exists(REF_CSV)
+)
+_REQUIRES_FIXTURE = pytest.mark.skipif(
+    not _FIXTURES_PRESENT,
+    reason=(
+        "Carlsen-Caruana fixture absent (chessgame_1937789.spectral[z]/.csv). "
+        "Parity is still covered by test_c_py_parity.py — skipping."
+    ),
+)
 
+
+@_REQUIRES_FIXTURE
 def test_header_round_trip():
     from chess_spectral import read_all, FILE_VERSION, ENCODING_DIM
     hdr, frames = read_all(REF_SPECTRAL)
@@ -40,6 +61,7 @@ def test_header_round_trip():
     assert len(frames) == 161
 
 
+@_REQUIRES_FIXTURE
 def test_plain_and_gz_equal():
     from chess_spectral import read_encodings
     _, arr_plain = read_encodings(REF_SPECTRAL)
@@ -48,6 +70,7 @@ def test_plain_and_gz_equal():
     assert np.array_equal(arr_plain, arr_gz)
 
 
+@_REQUIRES_FIXTURE
 def test_csv_matches_c_byte_for_byte():
     from chess_spectral import write_csv
     with tempfile.NamedTemporaryFile(
@@ -102,13 +125,19 @@ def test_empty_board_gives_zero_vector():
 
 if __name__ == "__main__":
     # Allow `python tests/test_parity.py` as a quick smoke-test runner.
-    tests = [
+    fixture_tests = [
         test_header_round_trip,
         test_plain_and_gz_equal,
         test_csv_matches_c_byte_for_byte,
+    ]
+    always_tests = [
         test_encoder_starting_position_channel_energies,
         test_empty_board_gives_zero_vector,
     ]
+    tests = (fixture_tests if _FIXTURES_PRESENT else []) + always_tests
+    if not _FIXTURES_PRESENT:
+        print("[SKIP] fixture tests (chessgame_1937789.* absent); "
+              "parity covered by test_c_py_parity.py")
     fails = 0
     for t in tests:
         try:
