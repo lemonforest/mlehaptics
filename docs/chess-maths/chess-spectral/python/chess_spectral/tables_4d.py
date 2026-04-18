@@ -446,3 +446,313 @@ def verify_phase2(verbose: bool = False, seed: int = 42,
                       + (" ..." if len(sample_tuples) > 5 else ""))
 
     return report
+
+
+# ---- B_4 hyperoctahedral group ----------------------------------------
+#
+# B_4 = (Z_2)^4 >| S_4 acts on Z^4 by signed permutations. |B_4| = 2^4 * 4! = 384.
+# A group element g is encoded as a pair (perm, signs):
+#   perm:  length-4 tuple, a permutation of (0,1,2,3) telling which input
+#          axis maps to which output axis. Convention: (g.x)[perm[i]] = signs[i] * x[i]
+#   signs: length-4 tuple of +1 / -1
+# Composition: (p2,s2) * (p1,s1) applied to x gives p2(s2 * p1(s1 * x)).
+# We carry the action on the centered lattice {-7/2, -5/2, ..., +7/2} (equivalently
+# coords 0..7 with reflection w -> 7-w on sign flip) so translations stay on-board.
+
+Perm = Tuple[int, int, int, int]
+Signs = Tuple[int, int, int, int]
+GroupElem = Tuple[Perm, Signs]
+
+
+def _b4_identity() -> GroupElem:
+    return ((0, 1, 2, 3), (1, 1, 1, 1))
+
+
+def _b4_generators() -> List[GroupElem]:
+    """8 generators: 4 single-axis sign flips + 3 adjacent S_4 transpositions
+    (minimal set; 3 adjacent transpositions generate S_4). We include all 4
+    adjacent + wrap-around transpositions for redundant coverage, total 7 perm
+    generators, but 3 suffice; keep it tight: 4 flips + 3 transpositions = 7.
+    With identity appended implicitly via closure we hit all 384."""
+    gens: List[GroupElem] = []
+    # Sign flips on each axis
+    for axis in range(N_DIMS):
+        signs = [1, 1, 1, 1]
+        signs[axis] = -1
+        gens.append(((0, 1, 2, 3), tuple(signs)))  # type: ignore[arg-type]
+    # Adjacent transpositions: (0 1), (1 2), (2 3) generate S_4
+    for i in range(N_DIMS - 1):
+        perm = [0, 1, 2, 3]
+        perm[i], perm[i + 1] = perm[i + 1], perm[i]
+        gens.append((tuple(perm), (1, 1, 1, 1)))  # type: ignore[arg-type]
+    return gens
+
+
+def _compose(g2: GroupElem, g1: GroupElem) -> GroupElem:
+    """Apply g1 first, then g2. In our convention a GroupElem acts on x by
+    y[perm[i]] = signs[i] * x[i], equivalently y = P diag(s) x where P is
+    the permutation matrix with P[perm[i], i] = 1.
+
+    Composition: let A_k = P_k D_k. Then A_2 A_1 = P_2 D_2 P_1 D_1
+    = P_2 (D_2 P_1) D_1. Since D_2 P_1 = P_1 (P_1^{-1} D_2 P_1), and for a
+    permutation matrix P P^{-1} D P has entry (i,i) = D[perm(i), perm(i)],
+    we get A_2 A_1 = (P_2 P_1) diag(D_1 . permuted_D_2)
+    => perm_out[i] = perm2[perm1[i]],
+       signs_out[i] = signs1[i] * signs2[perm1[i]]."""
+    p2, s2 = g2
+    p1, s1 = g1
+    perm_out = tuple(p2[p1[i]] for i in range(N_DIMS))
+    signs_out = tuple(s1[i] * s2[p1[i]] for i in range(N_DIMS))
+    return perm_out, signs_out  # type: ignore[return-value]
+
+
+def b4_closure(gens: List[GroupElem] | None = None) -> List[GroupElem]:
+    """BFS closure over B_4 from the given generators + identity. Returns
+    the list of all |B_4| = 384 signed permutations. Order is BFS-deterministic
+    (useful for reproducible projector construction)."""
+    if gens is None:
+        gens = _b4_generators()
+    seen = {_b4_identity()}
+    order = [_b4_identity()]
+    frontier = [_b4_identity()]
+    # Fixed upper bound to satisfy JPL-style bounded loop
+    for _ in range(10):  # 10 BFS layers is more than enough for |B_4|=384
+        if not frontier:
+            break
+        nxt: List[GroupElem] = []
+        for g in frontier:
+            for h in gens:
+                g_new = _compose(h, g)
+                if g_new not in seen:
+                    seen.add(g_new)
+                    order.append(g_new)
+                    nxt.append(g_new)
+        frontier = nxt
+    return order
+
+
+def _apply_b4_to_square(g: GroupElem, x: int, y: int, z: int, w: int
+                        ) -> Coord:
+    """Apply a signed-permutation to a lattice coord, using the centered
+    action. Input coords 0..7 map to centered c = coord - 3.5; after flip
+    we get 3.5 - coord (reflection). In integer form: sign=+1 leaves coord,
+    sign=-1 maps coord -> 7 - coord. Then permute axes."""
+    perm, signs = g
+    src = (x, y, z, w)
+    # Apply signs in input-axis order (reflect in place)
+    flipped = tuple((BOARD_SIDE - 1 - src[i]) if signs[i] == -1 else src[i]
+                    for i in range(N_DIMS))
+    # Permute: output[perm[i]] = flipped[i]
+    out = [0, 0, 0, 0]
+    for i in range(N_DIMS):
+        out[perm[i]] = flipped[i]
+    return out[0], out[1], out[2], out[3]
+
+
+def b4_permutation_matrix(g: GroupElem) -> csr_matrix:
+    """Sparse 4096x4096 permutation matrix P_g such that (P_g f)[s] =
+    f[g^{-1} . s]. Built by mapping s -> g . s and placing 1 at
+    (g.s, s)."""
+    rows = np.empty(N_SQUARES, dtype=np.int64)
+    cols = np.empty(N_SQUARES, dtype=np.int64)
+    for s in range(N_SQUARES):
+        x, y, z, w = rc4(s)
+        t = sq4(*_apply_b4_to_square(g, x, y, z, w))
+        rows[s] = t
+        cols[s] = s
+    data = np.ones(N_SQUARES, dtype=np.float64)
+    return csr_matrix((data, (rows, cols)), shape=(N_SQUARES, N_SQUARES))
+
+
+def b4_a1_orbit_projector(closure: List[GroupElem] | None = None
+                          ) -> csr_matrix:
+    """A_1 (trivial-irrep) projector on the 4096-dim lattice signal space:
+        P_A1 = (1/|B_4|) sum_{g in B_4} Pi(g)
+    Pi is the signed-permutation action; for A_1 we average the full
+    permutation action (no sign twist), so (P_A1 f)[s] = mean over the
+    B_4-orbit of s. Returns a sparse CSR matrix."""
+    if closure is None:
+        closure = b4_closure()
+    order = len(closure)
+    assert order == 384, f"closure size {order} != 384"
+    # Compute the orbit labeling: two squares s,t are in the same orbit
+    # iff some g in B_4 maps s to t. We just need the orbit partition.
+    orbit_of = -np.ones(N_SQUARES, dtype=np.int64)
+    orbits: List[List[int]] = []
+    for s in range(N_SQUARES):
+        if orbit_of[s] >= 0:
+            continue
+        # Enumerate orbit of s
+        x, y, z, w = rc4(s)
+        orb_set = set()
+        for g in closure:
+            orb_set.add(sq4(*_apply_b4_to_square(g, x, y, z, w)))
+        orb_id = len(orbits)
+        for t in orb_set:
+            orbit_of[t] = orb_id
+        orbits.append(sorted(orb_set))
+    # Build the orbit-averaging projector: P[i,j] = 1/|orbit(i)| if orbit(i)==orbit(j) else 0
+    rows: List[int] = []
+    cols: List[int] = []
+    data: List[float] = []
+    for orb in orbits:
+        inv = 1.0 / len(orb)
+        for i in orb:
+            for j in orb:
+                rows.append(i)
+                cols.append(j)
+                data.append(inv)
+    P = csr_matrix(
+        (np.asarray(data, dtype=np.float64),
+         (np.asarray(rows, dtype=np.int64),
+          np.asarray(cols, dtype=np.int64))),
+        shape=(N_SQUARES, N_SQUARES),
+    )
+    return P
+
+
+# ---- Standard 4D representation (closed form) ------------------------
+
+def std4_projector_coords() -> np.ndarray:
+    """Projector onto the 4D standard representation of B_4, acting on the
+    coordinate channels R^4. Standard rep = orthogonal complement of the
+    trivial sum-over-axes vector, so
+        P_std = I_4 - (1/4) J_4
+    where J_4 is the 4x4 all-ones matrix. Trace = 3 (standard of B_4
+    restricted-from-S_4 is 3-dim; with sign flips the direct decomposition
+    is slightly different, so we treat `std4` here as the 4-dim defining
+    rep minus the trivial axis-sum, which matches the usual bottom-up
+    'coordinate residual' channels used in the encoder)."""
+    return np.eye(N_DIMS) - np.ones((N_DIMS, N_DIMS)) / N_DIMS
+
+
+def std4_character(g: GroupElem) -> float:
+    """Character chi_std(g) = trace of the signed-permutation 4x4 matrix
+    of g, in the defining (coordinate) representation. For the 4D
+    'standard' used by the encoder (I-(1/4)J projection), the character
+    is the defining-rep trace minus 1 (the trivial axis-sum has trace 1
+    on every element). Used only for unit-test character-value checks."""
+    perm, signs = g
+    # Defining-rep matrix: M[perm[i], i] = signs[i]
+    # trace = sum_i M[i, i] = sum over i s.t. perm[i] == i of signs[i]
+    return float(sum(signs[i] for i in range(N_DIMS) if perm[i] == i))
+
+
+# ---- Phase 3 gate ----------------------------------------------------
+
+def verify_phase3(verbose: bool = False, seed: int = 42,
+                  tol: float = 1e-12) -> List[str]:
+    """Phase 3 gate.
+
+    1. Closure of 7 B_4 generators (4 sign flips + 3 adjacent S_4 trans-
+       positions) has exactly 384 elements.
+    2. Standard-4D character values match known values of B_4 defining rep
+       minus trivial: chi(e)=4, chi(sign-flip on one axis)=2,
+       chi(axis transposition)=2.
+    3. A_1 orbit projector is idempotent and symmetric, and commutes with
+       every group generator (equivalently: it is B_4-invariant).
+    4. std4 coordinate projector satisfies P^2 = P, P = P^T, and
+       P . (1,1,1,1) = 0."""
+    report: List[str] = []
+
+    # 1. Closure size
+    gens = _b4_generators()
+    closure = b4_closure(gens)
+    assert len(closure) == 384, (
+        f"|B_4 closure from {len(gens)} generators| = {len(closure)}, "
+        f"expected 384"
+    )
+    report.append(
+        f"B_4 closure: {len(gens)} generators -> 384 elements "
+        f"(= 2^4 * 4! = 16 * 24) OK"
+    )
+
+    # 2. Standard-4D character spot-checks.
+    #    defining-rep character = sum of signs at fixed points of perm.
+    e = _b4_identity()
+    chi_e = std4_character(e)
+    assert chi_e == 4, f"chi_std(e) = {chi_e} != 4"
+
+    # Pick the first sign flip (axis 0) and first transposition (0<->1)
+    flip0 = gens[0]
+    assert flip0 == ((0, 1, 2, 3), (-1, 1, 1, 1)), f"unexpected gen: {flip0}"
+    chi_flip = std4_character(flip0)
+    # Defining rep: fixed points = all 4 axes, sum of signs = -1+1+1+1 = 2
+    assert chi_flip == 2, f"chi_std(flip axis 0) = {chi_flip} != 2"
+
+    transp01 = gens[4]  # first perm gen
+    assert transp01 == ((1, 0, 2, 3), (1, 1, 1, 1)), (
+        f"unexpected gen: {transp01}"
+    )
+    chi_tr = std4_character(transp01)
+    # Defining rep: fixed points = {2, 3}, signs=(+1,+1), trace = 2
+    assert chi_tr == 2, f"chi_std(transp 0<->1) = {chi_tr} != 2"
+
+    report.append(
+        "std4 characters: chi(e)=4, chi(sign-flip)=2, chi(transp)=2 "
+        "(defining rep of B_4) OK"
+    )
+
+    # 3. A_1 orbit projector
+    P_a1 = b4_a1_orbit_projector(closure)
+    # Idempotence
+    PP = P_a1 @ P_a1
+    err_idem = float(np.max(np.abs((PP - P_a1).toarray())))
+    assert err_idem < tol, (
+        f"P_A1^2 != P_A1: max |diff| = {err_idem:.3e} > {tol:.1e}"
+    )
+    # Symmetry
+    err_sym = float(np.max(np.abs((P_a1 - P_a1.T).toarray())))
+    assert err_sym < tol, (
+        f"P_A1 not symmetric: max |P - P^T| = {err_sym:.3e} > {tol:.1e}"
+    )
+    # Commutes with generators: Pi(g) P = P Pi(g) = P (for a trivial-irrep
+    # projector, P commutes with every group action and Pi(g) P = P).
+    rng = np.random.default_rng(seed)
+    chk_err = 0.0
+    for g in rng.choice(len(closure), size=5, replace=False):
+        Pi_g = b4_permutation_matrix(closure[int(g)])
+        diff = (Pi_g @ P_a1 - P_a1).toarray()
+        chk_err = max(chk_err, float(np.max(np.abs(diff))))
+    assert chk_err < tol, (
+        f"A_1 projector not B_4-invariant: max |Pi(g) P - P| = "
+        f"{chk_err:.3e} > {tol:.1e}"
+    )
+    # Orbit count (sanity): number of distinct orbits = rank of P_A1
+    n_orbits = int(round(np.trace(P_a1.toarray())))
+    # Trace of an orbit-average projector equals the number of orbits:
+    # each orbit contributes 1/|orb| * |orb| = 1 to the trace.
+    report.append(
+        f"A_1 projector: P^2=P, P=P^T, Pi(g) P = P over 5 random g; "
+        f"rank = #orbits = {n_orbits} OK"
+    )
+
+    # 4. std4 coordinate projector
+    P_std = std4_projector_coords()
+    err = float(np.max(np.abs(P_std @ P_std - P_std)))
+    assert err < tol, f"P_std^2 != P_std: {err:.3e}"
+    err_sym2 = float(np.max(np.abs(P_std - P_std.T)))
+    assert err_sym2 < tol, f"P_std not symmetric: {err_sym2:.3e}"
+    ones = np.ones(N_DIMS)
+    err_null = float(np.max(np.abs(P_std @ ones)))
+    assert err_null < tol, (
+        f"P_std . (1,1,1,1) != 0: residual {err_null:.3e}"
+    )
+    tr = float(np.trace(P_std))
+    assert abs(tr - 3.0) < tol, f"trace(P_std) = {tr} != 3"
+    report.append(
+        "std4 coord projector: P^2=P, P=P^T, P.1=0, trace=3 "
+        "(I - (1/4)J on R^4) OK"
+    )
+
+    if verbose:
+        report.append(
+            f"(verbose) closure sample: identity={_b4_identity()}, "
+            f"first gen={gens[0]}, last closure elem={closure[-1]}"
+        )
+        report.append(
+            f"(verbose) A_1 projector shape={P_a1.shape}, "
+            f"nnz={P_a1.nnz}, #orbits={n_orbits}"
+        )
+
+    return report

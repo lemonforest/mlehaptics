@@ -73,7 +73,9 @@ def cmd_tables_verify(args: argparse.Namespace) -> int:
             rc = _run_phase_gate("1", "verify_phase1", verbose=args.verbose)
         elif p == "2":
             rc = _run_phase_gate("2", "verify_phase2", verbose=args.verbose)
-        elif p in ("3", "4"):
+        elif p == "3":
+            rc = _run_phase_gate("3", "verify_phase3", verbose=args.verbose)
+        elif p == "4":
             print(f"tables-verify phase {p}: SKIP (not yet implemented)")
             rc = 4
         else:
