@@ -807,6 +807,31 @@ def pawn_anti_4d() -> np.ndarray:
     return 0.5 * (A - A.T)
 
 
+def w_anti_dct_block() -> np.ndarray:
+    """Factored 8x8 pawn antisymmetric fiber in the DCT basis.
+
+    Since A_anti = I (x) I (x) I (x) A_w_anti with A_w_anti the 8x8
+    antisymmetrized +w shift (boundary-aware: no push from w=7), and the
+    tensor-DCT basis is U = U_P8 (x) U_P8 (x) U_P8 (x) U_P8, by Kronecker
+    product rules
+
+        U^T A_anti U = I (x) I (x) I (x) (U_P8^T A_w_anti U_P8)
+
+    i.e. the 4096x4096 DCT-basis PAWN_ANTI_FIB is block-diagonal over
+    (x,y,z) with a single 8x8 block on the w-axis. This function returns
+    that block. Storing it instead of the full dense matrix saves 128 MB
+    and — because it exactly zeros out the off-w entries that the dense
+    form carries at < 1e-8 FP noise — gives the C port a clean parity
+    target at 1e-10 tolerance. See encoder_4d.encode_4d channel 8.
+    """
+    S = np.zeros((BOARD_SIDE, BOARD_SIDE), dtype=np.float64)
+    for i in range(BOARD_SIDE - 1):
+        S[i, i + 1] = 1.0
+    A_w_anti = 0.5 * (S - S.T)
+    U_P8, _ = eig_p8()
+    return U_P8.T @ A_w_anti @ U_P8
+
+
 def diag_dev_4d(
     U: np.ndarray | None = None,
     evals_1d: np.ndarray | None = None,

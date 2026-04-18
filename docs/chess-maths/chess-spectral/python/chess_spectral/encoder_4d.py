@@ -112,14 +112,16 @@ def _load_tables() -> Dict[str, object]:
 
     P_A1           sparse (4096,4096) orbit projector
     coord_resid    (4, 4096) std-4D coord residual masks
-    PAWN_ANTI_FIB  (4096, 4096) dense, U^T A_anti U; 128 MB
+    W_ANTI_DCT     (8, 8) factored pawn antisymmetric fiber (see
+                   tables_4d.w_anti_dct_block for the algebraic
+                   derivation; equivalent to the 8x8 w-block of the
+                   dense 4096x4096 PAWN_ANTI_FIB)
     DIAG_DEV       (6, 4096) per-piece mode-space diag deviations
     FIBER_LOCAL    (5, 4096, 3) per-(piece, square) fiber coordinates
     PIECE_ADJ      list of 5 CSR sparse adjacencies (knight, bishop,
                    rook, queen, king)
 
-    First call is expensive (dense 4D DCT transform). Subsequent calls
-    return the cached dict."""
+    Subsequent calls return the cached dict."""
     if _CACHE:
         return _CACHE
 
@@ -135,19 +137,18 @@ def _load_tables() -> Dict[str, object]:
             coord_resid[a, s] = c[a] - mean_c
     _CACHE['coord_resid'] = coord_resid
 
-    # 3. Pawn antisymmetric fiber in DCT-mode basis (4096, 4096 dense)
-    #    and 4. diag_dev table (6, 4096). Both need the U tensor; build
-    #    once and drop it after.
-    U = t4.build_u_tensor_4d()
-    A_anti = t4.pawn_anti_4d()
-    _CACHE['PAWN_ANTI_FIB'] = (U.T @ A_anti @ U).astype(np.float64)
-    _CACHE['DIAG_DEV'] = t4.diag_dev_4d(U=U)
+    # 3. Pawn antisymmetric fiber (factored 8x8 block; the full DCT-basis
+    #    matrix is I (x) I (x) I (x) W_ANTI_DCT). The C encoder mirrors
+    #    this factored form exactly; keeping the Python reference in the
+    #    same form means the 1e-10 parity target is clean instead of
+    #    being polluted by 1e-8 off-w FP noise from the 128 MB dense
+    #    form.
+    _CACHE['W_ANTI_DCT'] = t4.w_anti_dct_block()
 
-    # 5. Local fiber coords (5, 4096, 3) via cross-piece SVD rank-3
-    #    basis. Uses the same U tensor. Rook row gets dropped by the
-    #    zero_tol guard inside fiber_sym_4d; the returned (5, 4096, 3)
-    #    array has zero entries for the rook slab, which is the correct
-    #    structural fact (rook is diagonal in this basis).
+    # 4. diag_dev table (6, 4096). 5. Local fiber coords (5, 4096, 3).
+    #    Both need the U tensor; build once and drop it after.
+    U = t4.build_u_tensor_4d()
+    _CACHE['DIAG_DEV'] = t4.diag_dev_4d(U=U)
     _CACHE['FIBER_LOCAL'] = t4.local_fiber_4d(U=U)
     _CACHE['PIECE_ADJ'] = t4.piece_adjacencies_4d()
     return _CACHE
@@ -210,9 +211,13 @@ def encode_4d(pos4: Dict[int, str],
     #   (see [encoder.py:156-168]).
     FIBER_LOCAL = tables['FIBER_LOCAL']  # type: ignore[assignment]
     PIECE_ADJ = tables['PIECE_ADJ']      # type: ignore[assignment]
+    # Sorted occupied-square iteration. Load-bearing for C parity: the C
+    # port accumulates in ascending square order, and float64 summation
+    # is not associative. See plan: "when-we-need-to-spicy-seahorse" P0.
+    sorted_items = sorted(pos4.items(), key=lambda kv: int(kv[0]))
     for d in range(3):
         fc = np.zeros(CHANNEL_DIM, dtype=np.float64)
-        for k, pchar in pos4.items():
+        for k, pchar in sorted_items:
             pkey = pchar.upper()
             if pkey not in _FIBER_IDX_4D:
                 continue  # skip pawn
@@ -228,15 +233,28 @@ def encode_4d(pos4: Dict[int, str],
         start = (5 + d) * CHANNEL_DIM
         out[start:start + CHANNEL_DIM] = fc.astype(np.float32)
 
-    # Channel 8: pawn antisymmetric fiber (DCT-mode space)
-    #   out = sum over pawn squares s: sign * PAWN_ANTI_FIB[s, :]
-    PAWN_ANTI_FIB = tables['PAWN_ANTI_FIB']  # type: ignore[assignment]
+    # Channel 8: pawn antisymmetric fiber (DCT-mode space).
+    #   The full DCT-basis matrix is I (x) I (x) I (x) W_ANTI_DCT, so for
+    #   each pawn at square s = (sx, sy, sz, sw):
+    #       row[s][t] = W_ANTI_DCT[sw, tw] if (tx,ty,tz) == (sx,sy,sz) else 0
+    #   => pawn contribution writes into the 8 modes sharing (sx,sy,sz)
+    #   along w. 8 float ops per pawn vs 4096 for the dense form, and —
+    #   more importantly — exactly zero for the off-w modes that the
+    #   dense form carries at < 1e-8 FP noise. Parity target for the C
+    #   port is this exact form.
+    W_ANTI_DCT = tables['W_ANTI_DCT']  # type: ignore[assignment]
     pawn_ch = np.zeros(CHANNEL_DIM, dtype=np.float64)
-    for k, pchar in pos4.items():
+    for k, pchar in sorted_items:
         if pchar.upper() != 'P':
             continue
         sign = 1.0 if pchar == 'P' else -1.0
-        pawn_ch += sign * PAWN_ANTI_FIB[int(k)]  # type: ignore[index]
+        s = int(k)
+        sx = (s >> 9) & 7
+        sy = (s >> 6) & 7
+        sz = (s >> 3) & 7
+        sw = s & 7
+        base = (sx << 9) | (sy << 6) | (sz << 3)
+        pawn_ch[base:base + 8] += sign * W_ANTI_DCT[sw]  # type: ignore[index]
     out[8 * CHANNEL_DIM:9 * CHANNEL_DIM] = pawn_ch.astype(np.float32)
 
     # Channel 9: diagonal deviation (rook shadow), DCT-mode space

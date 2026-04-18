@@ -216,6 +216,33 @@ def test_pawn_antisym_channel_nonzero_with_pawn():
     assert e["FA_PAWN"] > 0.0
 
 
+def test_pawn_antisym_factored_structure_is_w_axis_only():
+    """Single pawn at (sx, sy, sz, sw) writes W_ANTI_DCT[sw] into the
+    eight DCT modes at (sx, sy, sz, *) and exactly zero everywhere
+    else. This is the algebraic invariant the factored form (and the
+    C encoder port) must preserve. See encoder_4d.encode_4d channel 8
+    comment and tables_4d.w_anti_dct_block."""
+    sx, sy, sz, sw = 3, 3, 3, 3
+    s = _sq(sx, sy, sz, sw)
+    v = enc_mod.encode_4d({s: 'P'})
+    fa = v[8 * 4096:9 * 4096]
+    base = (sx << 9) | (sy << 6) | (sz << 3)
+    W = t4.w_anti_dct_block()
+    # Inside the (sx,sy,sz,*) ray: 8 modes match W_ANTI_DCT[sw]
+    np.testing.assert_allclose(
+        fa[base:base + 8].astype(np.float64), W[sw],
+        atol=1e-6, err_msg='w-axis block mismatches W_ANTI_DCT[sw]'
+    )
+    # Outside: exactly zero, not just "small" — the factored form means
+    # the encoder never even touches these modes.
+    mask = np.ones(4096, dtype=bool)
+    mask[base:base + 8] = False
+    assert np.max(np.abs(fa[mask])) == 0.0, (
+        f'factored form leaked off-w energy: '
+        f'max |fa[off-w]| = {np.max(np.abs(fa[mask])):.3e}'
+    )
+
+
 def test_white_and_black_pawn_same_square_antisym_flip():
     """Equal-magnitude opposite-color pawn at same square should give
     opposite-signed pawn antisym contributions (encoding difference is
