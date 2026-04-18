@@ -997,3 +997,132 @@ def verify_phase4(verbose: bool = False, tol: float = 1e-10
         )
 
     return report
+
+
+# ---- Phase 5 gate ----------------------------------------------------
+
+def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
+    """Phase 5 gate: end-to-end encoder + spectralz v3 round-trip.
+
+    1. encode_4d on a small synthetic position produces a 40960-float32
+       vector; channel ranges match CHANNELS_4D layout; channel energies
+       are finite.
+    2. spectralz v3 write->read of 10 random frames is byte-identical
+       (encoding + all metadata).
+    3. Unknown-magic file correctly raises in read_header_any.
+    """
+    import os
+    import tempfile
+    from chess_spectral import encoder_4d as enc_mod
+    from chess_spectral import frame_4d as frm
+
+    report: List[str] = []
+    rng = np.random.default_rng(seed)
+
+    # 1. Encoder smoke-test: 4-piece mini-position (white and black
+    #    pawns on opposite sides of the w-axis so pawn antisym and
+    #    diag_dev channels are nonzero, plus one rook for more signal).
+    pos4 = {
+        sq4(0, 0, 0, 1): 'P',   # white pawn near start on +w
+        sq4(7, 7, 7, 6): 'p',   # black pawn near end on +w
+        sq4(3, 3, 3, 3): 'R',   # white rook centered
+        sq4(4, 4, 4, 4): 'k',   # black king centered-offset
+    }
+    v = enc_mod.encode_4d(pos4)
+    assert v.shape == (enc_mod.ENCODING_DIM_4D,), (
+        f"encoding shape {v.shape} != ({enc_mod.ENCODING_DIM_4D},)"
+    )
+    assert v.dtype == np.float32, f"encoding dtype {v.dtype} != float32"
+    energies = enc_mod.channel_energies_4d(v)
+    for name, e in energies.items():
+        assert np.isfinite(e), f"channel {name} energy non-finite: {e}"
+    # The stub fiber-sym channels must be zero in v1
+    for name in ("FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"):
+        assert energies[name] == 0.0, (
+            f"v1 fiber-sym channel {name} should be 0, got {energies[name]}"
+        )
+    # A_1 and at least one mode-space channel should be nonzero
+    assert energies["A1"] > 0, "A_1 channel unexpectedly zero"
+    assert energies["FD_DIAG"] > 0, "FD diag-dev channel unexpectedly zero"
+    assert energies["FA_PAWN"] > 0, "FA pawn antisym channel unexpectedly zero"
+    report.append(
+        f"encode_4d: shape=(40960,) float32, energies finite; "
+        f"A1={energies['A1']:.2f}, FA={energies['FA_PAWN']:.2f}, "
+        f"FD={energies['FD_DIAG']:.2f}, fiber-sym=0 (v1 stub) OK"
+    )
+
+    # 2. spectralz v3 round-trip
+    n_frames = 10
+    frames_in: List[frm.Frame4D] = []
+    for p in range(n_frames):
+        enc = rng.standard_normal(frm.ENCODING_DIM_4D).astype(np.float32)
+        from_sq = tuple(int(x) for x in rng.integers(0, 8, size=4))
+        to_sq = tuple(int(x) for x in rng.integers(0, 8, size=4))
+        promo = int(rng.integers(0, 256))
+        flags = int(rng.integers(0, 256))
+        frames_in.append(frm.Frame4D(
+            encoding=enc, ply=p,
+            from_sq=from_sq, to_sq=to_sq,  # type: ignore[arg-type]
+            promo=promo, flags=flags,
+        ))
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".spectralz")
+    tmp_path = tmp.name
+    tmp.close()
+    try:
+        n_bytes = frm.write_spectralz_v3(tmp_path, frames_in)
+        header, frames_out = frm.read_spectralz_v3(tmp_path)
+    finally:
+        os.remove(tmp_path)
+
+    assert header.magic == frm.SPECTRALZ_V3_MAGIC, (
+        f"magic {header.magic!r} != {frm.SPECTRALZ_V3_MAGIC!r}"
+    )
+    assert header.version == 3
+    assert header.encoding_dim == frm.ENCODING_DIM_4D
+    assert header.frame_bytes == frm.ENCODING_DIM_4D * 4 + frm.FRAME_TAIL_BYTES
+    assert header.n_plies == n_frames
+    assert header.board_dim_side == 8
+    assert header.n_dimensions == 4
+
+    # Frame-by-frame identity
+    max_enc_err = 0.0
+    for i, (fin, fout) in enumerate(zip(frames_in, frames_out)):
+        # float32 round-trip must be bit-exact
+        err = float(np.max(np.abs(fin.encoding - fout.encoding)))
+        max_enc_err = max(max_enc_err, err)
+        assert err == 0.0, f"frame {i}: encoding not bit-exact, max|d|={err}"
+        assert fin.ply == fout.ply, f"frame {i} ply mismatch"
+        assert fin.from_sq == fout.from_sq, f"frame {i} from_sq mismatch"
+        assert fin.to_sq == fout.to_sq, f"frame {i} to_sq mismatch"
+        assert fin.promo == fout.promo, f"frame {i} promo mismatch"
+        assert fin.flags == fout.flags, f"frame {i} flags mismatch"
+
+    report.append(
+        f"spectralz v3 round-trip: {n_frames} frames, "
+        f"{n_bytes} bytes written, all metadata + encoding byte-identical "
+        f"(max|d|={max_enc_err}) OK"
+    )
+
+    # 3. Unknown magic -> error
+    import io
+    bad = io.BytesIO(b"\x00" * 256)
+    try:
+        frm.read_header_any(bad)
+        assertion = False
+    except ValueError:
+        assertion = True
+    assert assertion, "read_header_any(garbage) should raise ValueError"
+    report.append("read_header_any(garbage bytes) -> ValueError OK")
+
+    if verbose:
+        report.append(
+            f"(verbose) v3 header size = {frm.HEADER_SIZE}, "
+            f"frame_bytes = {header.frame_bytes}, "
+            f"total bytes written = {n_bytes}"
+        )
+        ch_names = [name for name, _ in enc_mod.CHANNELS_4D]
+        report.append("(verbose) channel energies: "
+                      + ", ".join(f"{n}={energies[n]:.2f}" for n in ch_names))
+
+    return report
