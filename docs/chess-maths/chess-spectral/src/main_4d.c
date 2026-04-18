@@ -169,11 +169,18 @@ static int cmd_encode_fixture(int argc, char **argv)
 {
     const char *jsonl_path = NULL;
     const char *name       = NULL;
+    int repeat             = 1;
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--positions-jsonl") == 0 && i + 1 < argc) {
             jsonl_path = argv[++i];
         } else if (strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
             name = argv[++i];
+        } else if (strcmp(argv[i], "--repeat") == 0 && i + 1 < argc) {
+            /* Benchmark-only: run cs_encode_4d N times, emit only the
+             * last result. Lets callers amortize subprocess startup over
+             * many encodes without writing N * 163 840 bytes to stdout. */
+            repeat = atoi(argv[++i]);
+            if (repeat < 1) repeat = 1;
         }
     }
     if (!jsonl_path) {
@@ -223,7 +230,9 @@ static int cmd_encode_fixture(int argc, char **argv)
     }
 
     cs_encoding_4d_t enc;
-    cs_encode_4d(&pos, &enc);
+    for (int r = 0; r < repeat; r++) {
+        cs_encode_4d(&pos, &enc);
+    }
 
 #ifdef _WIN32
     /* Switch stdout to binary so \n doesn't mangle 0x0A bytes in the
