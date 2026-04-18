@@ -37,10 +37,12 @@ REPO_SPECTRAL = PY_DIR.parent                 # chess-spectral
 FIXTURE_PACK = HERE / "fixtures" / "fixtures_4d.npz"
 JSONL_PATH   = HERE / "fixtures" / "positions_4d.jsonl"
 
-# Channels that are real in P2b (and stay real through P5).
-GATED_CHANNELS_P2B = {"A1", "STD4_X", "STD4_Y", "STD4_Z", "STD4_W", "FD_DIAG"}
-# Channels whose C-side is a zero stub at P2b (lifted in P3/P4).
-STUBBED_CHANNELS_P2B = {"FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3", "FA_PAWN"}
+# Channels that have real C impls at the current milestone. Grows as
+# each phase lands (P2b: 0/1-4/9; P3: +8; P4: +5-7).
+GATED_CHANNELS = {"A1", "STD4_X", "STD4_Y", "STD4_Z", "STD4_W",
+                  "FA_PAWN", "FD_DIAG"}
+# Channels whose C-side is still a zero stub. Lifted in P4.
+STUBBED_CHANNELS = {"FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"}
 
 # Tolerance rationale: see test_c_py_parity.py. 1e-10 is ~4 orders below
 # observable float32 noise; anything above is formula drift, not
@@ -121,7 +123,7 @@ def run_parity() -> int:
 
         # 1) Gated channels (real C impl) must agree within TOL.
         failed_gated = []
-        for ch in GATED_CHANNELS_P2B:
+        for ch in GATED_CHANNELS:
             s, e = ch_slice[ch]
             d = float(delta[s:e].max())
             if d > TOL:
@@ -132,7 +134,7 @@ def run_parity() -> int:
         #    C's zero diverges; that's expected at P2b and we skip the
         #    comparison with an informational note).
         stub_present_nonzero = []
-        for ch in STUBBED_CHANNELS_P2B:
+        for ch in STUBBED_CHANNELS:
             s, e = ch_slice[ch]
             c_slab = c_enc[s:e]
             py_slab = py_enc[s:e]
@@ -160,7 +162,7 @@ def run_parity() -> int:
             detail_parts.append("FAILED gated: "
                                 + ", ".join(f"{c}={d:.3g}" for c, d in failed))
         if stubs:
-            detail_parts.append("stub-zero vs py-nonzero (expected P2b): "
+            detail_parts.append("stub-zero vs py-nonzero (lifted in P4): "
                                 + ",".join(stubs))
         detail = "; ".join(detail_parts) if detail_parts else "all gated "
         if not detail_parts:
@@ -172,7 +174,7 @@ def run_parity() -> int:
               f"tol={TOL:.0e}", file=sys.stderr)
         return 1
 
-    print(f"\nOK: {len(names)} fixtures × {len(GATED_CHANNELS_P2B)} gated "
+    print(f"\nOK: {len(names)} fixtures × {len(GATED_CHANNELS)} gated "
           f"channels all within tol={TOL:.0e}")
     return 0
 
