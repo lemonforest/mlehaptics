@@ -847,18 +847,30 @@ def diag_dev_4d(
 
 
 def fiber_sym_4d(U: np.ndarray | None = None, k_top: int = 3,
-                 ) -> Tuple[np.ndarray, np.ndarray]:
+                 zero_tol: float = 1e-6,
+                 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """Global symmetric fiber basis via SVD of per-piece off-diagonal
     C = U^T L_piece U blocks. Pieces: knight, bishop, rook, queen, king.
-    Each piece contributes a flattened upper-triangle vector; the 5xM
-    matrix is SVD'd and the top `k_top` right-singular directions form
-    the fiber basis.
+    Each piece contributes a flattened upper-triangle vector; the kept
+    rows form a matrix that is SVD'd, and the top `k_top` right-singular
+    directions form the fiber basis.
 
-    Returns (sv, fiber_dirs) where `sv` is the 5-vector of singular
-    values and `fiber_dirs` has shape (k_top, M) with M = 4096*4095/2.
+    Zero-norm handling. The 4D rook is a Kronecker sum of four K_8
+    Laplacians, which is exactly diagonal in the P_8-tensor-DCT basis.
+    Its off-diagonal fiber vector is structurally zero up to round-off
+    (||C_off||_F ~ 1e-13). Normalizing such a row divides by the round-
+    off norm and inflates float64 noise into a spurious unit direction
+    that then pollutes the SVD as a phantom rank-4 mode. We therefore
+    drop any piece whose off-diagonal norm is below
+    `zero_tol * max(||C_off||_F)` before normalization and SVD.
+
+    Returns (sv, fiber_dirs, dropped) where `sv` is the vector of
+    singular values (one per KEPT piece), `fiber_dirs` has shape
+    (k_top, M) with M = 4096*4095/2, and `dropped` lists the piece
+    names whose off-diagonal was treated as structural zero.
 
     Memory: holds one C_piece at a time (128 MB) plus a 5xM float32
-    buffer (~170 MB). Slower than diag_dev but still tractable."""
+    buffer (~170 MB)."""
     if U is None:
         U = build_u_tensor_4d()
     upper_idx = np.triu_indices(N_SQUARES, k=1)
@@ -870,22 +882,135 @@ def fiber_sym_4d(U: np.ndarray | None = None, k_top: int = 3,
         ('queen',  queen4_targets),
         ('king',   king4_targets),
     ]
-    rows = np.zeros((len(piece_fns), m), dtype=np.float32)
-    for idx, (_, fn) in enumerate(piece_fns):
+    raw_rows: List[Tuple[str, np.ndarray, float]] = []
+    raw_norms: List[float] = []
+    for name, fn in piece_fns:
         L = _dense_laplacian(fn)
         C = U.T @ L @ U
         np.fill_diagonal(C, 0.0)
         v = C[upper_idx]
-        nv = np.linalg.norm(v)
-        if nv > 0:
-            v = v / nv
-        rows[idx] = v.astype(np.float32)
-    # SVD on a tall-skinny 5xM matrix; thin SVD gives (5,5), (5,), (5,M)
+        nv = float(np.linalg.norm(v))
+        raw_rows.append((name, v, nv))
+        raw_norms.append(nv)
+        del L, C
+
+    n_max = max(raw_norms) if raw_norms else 0.0
+    threshold = zero_tol * n_max
+    kept = [(name, v, nv) for name, v, nv in raw_rows if nv > threshold]
+    dropped = [name for name, _, nv in raw_rows if nv <= threshold]
+
+    rows = np.zeros((len(kept), m), dtype=np.float32)
+    for idx, (_, v, nv) in enumerate(kept):
+        rows[idx] = (v / nv).astype(np.float32)
+    del raw_rows
+
     _, s, Vt = np.linalg.svd(rows, full_matrices=False)
-    return s, Vt[:k_top].astype(np.float32)
+    k = min(k_top, Vt.shape[0])
+    return s, Vt[:k].astype(np.float32), dropped
 
 
-# ---- Phase 4 gate ----------------------------------------------------
+# ---- Piece adjacency rows for encoder ---------------------------------
+#
+# The fiber channels at encode time need, for each occupied (piece,
+# square), the adjacency row of that piece at that square. Per piece,
+# this is a 4096x4096 sparse binary matrix. Build once, keep CSR.
+
+_PIECE_TARGETS_4D: List[Tuple[str, Callable[[int, int, int, int],
+                                            Iterator[Coord]]]] = [
+    ('N', knight4_targets),
+    ('B', bishop4_targets),
+    ('R', rook4_targets),
+    ('Q', queen4_targets),
+    ('K', king4_targets),
+]
+
+
+def piece_adjacencies_4d() -> List[csr_matrix]:
+    """Sparse CSR adjacencies for knight, bishop, rook, queen, king
+    (in that order; same order as LOCAL_FIBER_3D_4D's first axis)."""
+    return [build_adjacency_4d(fn) for _, fn in _PIECE_TARGETS_4D]
+
+
+def local_fiber_4d(
+    fiber_dirs: np.ndarray | None = None,
+    U: np.ndarray | None = None,
+    k_top: int = 3,
+    dtype: type = np.float32,
+    dropped: List[str] | None = None,
+) -> np.ndarray:
+    """Per-(piece, square) fiber coordinates in the rank-3 cross-piece
+    fiber basis. Shape (5, 4096, k_top), mirroring 2D's
+    LOCAL_FIBER_3D[piece_idx, square, direction].
+
+    For each piece p and source square s, let A_loc = e_s e_t^T +
+    e_t e_s^T summed over the piece's edges from s. The d-th local
+    fiber coordinate is the projection of off-diag(U^T A_loc U) onto
+    the d-th fiber direction of `fiber_dirs`. By the trace identity,
+
+        fib_d(p, s) = <C_loc_offdiag_uppertri, fiber_dirs[d]>
+                    = sum over targets t of K_d[s, t]
+
+    where K_d = U @ F_d_sym @ U^T and F_d_sym reconstructs the d-th
+    fiber direction as a (4096, 4096) symmetric zero-diagonal matrix.
+    We build K_d once, walk piece edges to accumulate, then discard.
+
+    Pieces dropped from the SVD input (``dropped`` list from
+    ``fiber_sym_4d``) are treated as zero in this basis and their rows
+    are left zero-filled. This is the structural fact that a piece
+    whose global off-diag is zero contributes no shared-structure fiber
+    coord — any per-square nonzero is a local artifact of the per-
+    square decomposition, not a genuine fiber participation.
+
+    Peak memory: U (128 MB) + one K_d (64 MB float32) at a time.
+    Runtime output size: 5 * 4096 * k_top * 4 bytes = ~240 KB.
+    """
+    if U is None:
+        U = build_u_tensor_4d()
+    if fiber_dirs is None:
+        _, fiber_dirs, dropped = fiber_sym_4d(U=U, k_top=k_top)
+    if fiber_dirs.ndim != 2 or fiber_dirs.shape[1] != N_SQUARES * (N_SQUARES - 1) // 2:
+        raise ValueError(
+            f"fiber_dirs shape {fiber_dirs.shape} is not "
+            f"(k_top, {N_SQUARES * (N_SQUARES - 1) // 2})"
+        )
+    dropped_set = set(dropped) if dropped else set()
+
+    upper_idx = np.triu_indices(N_SQUARES, k=1)
+    adjacencies = piece_adjacencies_4d()
+
+    n_kept = fiber_dirs.shape[0]
+    out = np.zeros((len(adjacencies), N_SQUARES, n_kept), dtype=dtype)
+
+    U_f32 = U.astype(np.float32, copy=False)
+
+    for d in range(n_kept):
+        # Reconstruct F_d_sym (symmetric, zero-diagonal) from upper-tri.
+        F = np.zeros((N_SQUARES, N_SQUARES), dtype=np.float32)
+        F[upper_idx] = fiber_dirs[d]
+        F = F + F.T
+        # K_d = U @ F @ U^T, signal-space representation of fiber dir d.
+        # Done in float32 to keep memory at 64 MB. Precision is ample for
+        # encoder use (outputs are float32 anyway).
+        K = U_f32 @ F @ U_f32.T
+        del F
+        # Walk each piece's edges and accumulate per-source-square sums.
+        for p_idx, (pchar, _fn) in enumerate(_PIECE_TARGETS_4D):
+            if pchar in dropped_set:
+                continue  # leave row zero; piece is orthogonal to fiber basis
+            A = adjacencies[p_idx]
+            # A is CSR; iterate rows to pull (s, targets) without a full
+            # dense pass. indptr/indices let us find row s's columns.
+            indptr = A.indptr
+            indices = A.indices
+            for s in range(N_SQUARES):
+                start, end = indptr[s], indptr[s + 1]
+                if start == end:
+                    continue
+                targets = indices[start:end]
+                out[p_idx, s, d] = K[s, targets].sum()
+        del K
+
+    return out
 
 def verify_phase4(verbose: bool = False, tol: float = 1e-10
                   ) -> List[str]:

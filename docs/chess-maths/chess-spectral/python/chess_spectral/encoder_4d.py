@@ -16,13 +16,22 @@ The 'signal space' vs 'DCT-mode space' split mirrors the 2D encoder
 ([encoder.py]) so downstream tools (channel energy plots, F_D sign
 analysis) carry over unchanged up to dimension.
 
-Fiber-sym note: the 2D fiber channels use per-square LOCAL_FIBER_3D +
-LOCAL_ADJ_ROWS tables (5 x 64 x 3 and 5 x 64 x 64 respectively). The
-4D analogue would be 5 x 4096 x 3 and 5 x 4096 x 4096 = 2.6 GB, which
-we won't precompute in v1. For v1 the fiber-sym channels are LEFT AS
-ZEROS; the encoder structure is otherwise complete and the Phase 5
-round-trip gate is unaffected. Filling these in is a Phase 6 / v1.1
-task (plan: global SVD fiber basis applied per-piece, not per-square).
+Fiber-sym (v1.1): the 2D fiber channels use per-square LOCAL_FIBER_3D +
+LOCAL_ADJ_ROWS tables (5 x 64 x 3 and 5 x 64 x 64). The 4D analogue
+uses a cross-piece SVD fiber basis instead of a per-square local
+Laplacian. The cross-piece SVD of off-diag(U^T L_piece U) across the
+five pieces is rank 3 in the grid-DCT off-diagonal representation —
+knight, bishop (= queen), and king contribute three independent
+shared-structure directions; the 4D rook is diagonal in this basis
+and contributes nothing, so it is dropped from the SVD input to avoid
+a spurious rank-4 direction from round-off.
+
+The per-(piece, square) fiber coordinates live in `tables_4d.
+local_fiber_4d()` as a (5, 4096, 3) float32 array. At encode time we
+perform the same aggregation as 2D: for each occupied non-pawn square
+si with piece value sig[si], read fib_d[piece_idx, si, d] and the
+piece's sparse adjacency row, compute gradient = adj_row @ sig, and
+accumulate `gradient * fib_d * adj_row` into fiber channel d.
 
 Position input:
     pos4 : dict mapping sq4(x,y,z,w) linear index -> piece char
@@ -69,6 +78,14 @@ _DIAG_DEV_ROW: Dict[str, int] = {
 }
 
 
+# Row index into local_fiber_4d's (5, 4096, 3) table. Matches the
+# _PIECE_TARGETS_4D order in tables_4d. Pawns are skipped (directed,
+# handled in the antisym channel).
+_FIBER_IDX_4D: Dict[str, int] = {
+    'N': 0, 'B': 1, 'R': 2, 'Q': 3, 'K': 4,
+}
+
+
 # ---- Channel name index (for channel_energies_4d, debugging) ----
 
 CHANNELS_4D = [
@@ -97,6 +114,9 @@ def _load_tables() -> Dict[str, object]:
     coord_resid    (4, 4096) std-4D coord residual masks
     PAWN_ANTI_FIB  (4096, 4096) dense, U^T A_anti U; 128 MB
     DIAG_DEV       (6, 4096) per-piece mode-space diag deviations
+    FIBER_LOCAL    (5, 4096, 3) per-(piece, square) fiber coordinates
+    PIECE_ADJ      list of 5 CSR sparse adjacencies (knight, bishop,
+                   rook, queen, king)
 
     First call is expensive (dense 4D DCT transform). Subsequent calls
     return the cached dict."""
@@ -122,6 +142,14 @@ def _load_tables() -> Dict[str, object]:
     A_anti = t4.pawn_anti_4d()
     _CACHE['PAWN_ANTI_FIB'] = (U.T @ A_anti @ U).astype(np.float64)
     _CACHE['DIAG_DEV'] = t4.diag_dev_4d(U=U)
+
+    # 5. Local fiber coords (5, 4096, 3) via cross-piece SVD rank-3
+    #    basis. Uses the same U tensor. Rook row gets dropped by the
+    #    zero_tol guard inside fiber_sym_4d; the returned (5, 4096, 3)
+    #    array has zero entries for the rook slab, which is the correct
+    #    structural fact (rook is diagonal in this basis).
+    _CACHE['FIBER_LOCAL'] = t4.local_fiber_4d(U=U)
+    _CACHE['PIECE_ADJ'] = t4.piece_adjacencies_4d()
     return _CACHE
 
 
@@ -172,8 +200,33 @@ def encode_4d(pos4: Dict[int, str],
             coord_resid[a] * sig  # type: ignore[index]
         ).astype(np.float32)
 
-    # Channels 5-7: fiber-sym (v1 stub -- left as zeros; see module docstring)
-    # out[5*CHANNEL_DIM:8*CHANNEL_DIM] is already zero.
+    # Channels 5-7: fiber-sym (v1.1 rank-3 cross-piece SVD basis).
+    #   For each direction d in {0,1,2} and each occupied non-pawn
+    #   square k with piece pchar:
+    #     gradient_d(k) = sig[adj(k)].sum()                (neighbor mass)
+    #     fib_d         = FIBER_LOCAL[piece_idx, k, d]
+    #     fc[adj(k)]   += gradient_d(k) * fib_d
+    #   This mirrors the 2D encoder semantics
+    #   (see [encoder.py:156-168]).
+    FIBER_LOCAL = tables['FIBER_LOCAL']  # type: ignore[assignment]
+    PIECE_ADJ = tables['PIECE_ADJ']      # type: ignore[assignment]
+    for d in range(3):
+        fc = np.zeros(CHANNEL_DIM, dtype=np.float64)
+        for k, pchar in pos4.items():
+            pkey = pchar.upper()
+            if pkey not in _FIBER_IDX_4D:
+                continue  # skip pawn
+            pidx = _FIBER_IDX_4D[pkey]
+            s = int(k)
+            row = PIECE_ADJ[pidx].getrow(s)  # type: ignore[index]
+            cols = row.indices
+            if cols.size == 0:
+                continue
+            gradient = float(sig[cols].sum())
+            fib_d = float(FIBER_LOCAL[pidx, s, d])  # type: ignore[index]
+            fc[cols] += gradient * fib_d
+        start = (5 + d) * CHANNEL_DIM
+        out[start:start + CHANNEL_DIM] = fc.astype(np.float32)
 
     # Channel 8: pawn antisymmetric fiber (DCT-mode space)
     #   out = sum over pawn squares s: sign * PAWN_ANTI_FIB[s, :]
