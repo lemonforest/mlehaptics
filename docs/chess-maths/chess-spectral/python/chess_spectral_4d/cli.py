@@ -70,8 +70,10 @@ def cmd_tables_verify(args: argparse.Namespace) -> int:
     overall = 0
     for p in phases:
         if p == "1":
-            rc = _run_phase1_gate(verbose=args.verbose)
-        elif p in ("2", "3", "4"):
+            rc = _run_phase_gate("1", "verify_phase1", verbose=args.verbose)
+        elif p == "2":
+            rc = _run_phase_gate("2", "verify_phase2", verbose=args.verbose)
+        elif p in ("3", "4"):
             print(f"tables-verify phase {p}: SKIP (not yet implemented)")
             rc = 4
         else:
@@ -84,30 +86,31 @@ def cmd_tables_verify(args: argparse.Namespace) -> int:
     return overall
 
 
-def _run_phase1_gate(verbose: bool) -> int:
-    """Phase 1 gate: verify 4D piece mobility matches Oana & Chiru §3 on
-    a sample of interior squares, and bishop graph has 2 parity
-    components. Delegates math to chess_spectral.tables_4d."""
+def _run_phase_gate(phase: str, fn_name: str, verbose: bool) -> int:
+    """Generic phase-gate runner: import `fn_name` from
+    chess_spectral.tables_4d, call it with verbose=..., print report
+    lines, return 0 on success / 3 on AssertionError or ImportError."""
     try:
-        from chess_spectral.tables_4d import verify_phase1
-    except ImportError as e:
-        print(f"tables-verify phase 1: import error ({e})", file=sys.stderr)
-        return 3
-
-    try:
-        report = verify_phase1(verbose=verbose)
-    except AssertionError as e:
-        print(f"tables-verify phase 1: FAIL — {e}", file=sys.stderr)
-        return 3
-    except Exception as e:
-        print(f"tables-verify phase 1: ERROR — {type(e).__name__}: {e}",
+        from chess_spectral import tables_4d
+        fn = getattr(tables_4d, fn_name)
+    except (ImportError, AttributeError) as e:
+        print(f"tables-verify phase {phase}: import error ({e})",
               file=sys.stderr)
         return 3
 
-    # Per-piece summary line
+    try:
+        report = fn(verbose=verbose)
+    except AssertionError as e:
+        print(f"tables-verify phase {phase}: FAIL -- {e}", file=sys.stderr)
+        return 3
+    except Exception as e:
+        print(f"tables-verify phase {phase}: ERROR -- {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return 3
+
     for line in report:
         print(f"  {line}")
-    print("tables-verify phase 1: PASS")
+    print(f"tables-verify phase {phase}: PASS")
     return 0
 
 

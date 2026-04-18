@@ -22,7 +22,7 @@ from itertools import product
 from typing import Iterator, Tuple, Callable, List
 
 import numpy as np
-from scipy.sparse import csr_matrix, lil_matrix
+from scipy.sparse import csr_matrix, lil_matrix, diags
 from scipy.sparse.csgraph import connected_components
 
 BOARD_SIDE = 8
@@ -69,6 +69,20 @@ def _in_bounds(v: int) -> bool:
 #   bishop: 2 connected components partitioned by sum(coords) mod 2
 #   queen:  union of rook + bishop
 #   pawn:   directed single-step on +w axis
+
+def grid4_targets(x: int, y: int, z: int, w: int) -> Iterator[Coord]:
+    """4D grid graph: Cartesian product P_8 [] P_8 [] P_8 [] P_8. Each
+    square adjacent to <=8 neighbors (+-1 along each of 4 axes). This
+    is the 'empty-board' graph whose Laplacian eigenbasis is the
+    tensor-DCT basis used by the encoder."""
+    coords = [x, y, z, w]
+    for axis in range(N_DIMS):
+        for sign in (-1, +1):
+            out = coords.copy()
+            out[axis] = coords[axis] + sign
+            if _in_bounds(out[axis]):
+                yield (out[0], out[1], out[2], out[3])
+
 
 def rook4_targets(x: int, y: int, z: int, w: int) -> Iterator[Coord]:
     """4D rook: all other squares differing in exactly one coordinate.
@@ -179,6 +193,69 @@ def build_adjacency_4d(
 def degree_vector(A: csr_matrix) -> np.ndarray:
     """Row-sum degree as a flat (N_SQUARES,) int array."""
     return np.asarray(A.sum(axis=1)).ravel().astype(np.int64)
+
+
+def laplacian_4d(A: csr_matrix) -> csr_matrix:
+    """Graph Laplacian L = D - A from a (possibly directed) adjacency.
+    For symmetric undirected graphs this is the standard combinatorial
+    Laplacian; for directed graphs, D uses row sums (out-degree)."""
+    deg = degree_vector(A).astype(np.float64)
+    D = diags(deg)
+    return (D - A.astype(np.float64)).tocsr()
+
+
+# ---- Path-graph eigenbasis (1D building block for the 4D tensor DCT)
+
+def p8_laplacian() -> np.ndarray:
+    """8x8 Laplacian of the path graph P_8. Tridiagonal: -1 on
+    super/subdiagonals, degree on the diagonal (1 at endpoints,
+    2 interior)."""
+    n = BOARD_SIDE
+    A = np.zeros((n, n), dtype=np.float64)
+    for i in range(n - 1):
+        A[i, i + 1] = 1.0
+        A[i + 1, i] = 1.0
+    D = np.diag(A.sum(axis=1))
+    return D - A
+
+
+def eig_p8() -> Tuple[np.ndarray, np.ndarray]:
+    """Return (evecs[8,8], evals[8]) of the P_8 Laplacian, sorted by
+    eigenvalue ascending. Eigenvectors form the DCT-II basis. Cheap
+    enough (8x8) to recompute on demand — no caching needed."""
+    L = p8_laplacian()
+    evals, evecs = np.linalg.eigh(L)
+    return evecs, evals
+
+
+def kron_sum4_eigvals(evals_1d: np.ndarray) -> np.ndarray:
+    """All 4096 eigenvalues of the 4D grid Laplacian as the Kronecker
+    sum `evals_1d[i] + evals_1d[j] + evals_1d[k] + evals_1d[l]`,
+    indexed by sq4(i,j,k,l). Matches the C-order ravel of the
+    (8,8,8,8) tensor of tensor-product eigenvectors."""
+    out = np.empty(N_SQUARES, dtype=np.float64)
+    for x in range(BOARD_SIDE):
+        for y in range(BOARD_SIDE):
+            for z in range(BOARD_SIDE):
+                for w in range(BOARD_SIDE):
+                    out[sq4(x, y, z, w)] = (
+                        evals_1d[x] + evals_1d[y]
+                        + evals_1d[z] + evals_1d[w]
+                    )
+    return out
+
+
+def tensor_eigvec_4d(evecs_1d: np.ndarray,
+                     i: int, j: int, k: int, l: int) -> np.ndarray:
+    """Build the 4096-vector `e_i (x) e_j (x) e_k (x) e_l` for the
+    4D grid, indexed by sq4. Column `i` of `evecs_1d` is the i-th P_8
+    eigenvector."""
+    v = np.einsum(
+        'a,b,c,d->abcd',
+        evecs_1d[:, i], evecs_1d[:, j],
+        evecs_1d[:, k], evecs_1d[:, l],
+    )
+    return v.ravel()
 
 
 # ─── Phase 1 gate ──────────────────────────────────────────────────────
@@ -295,5 +372,77 @@ def verify_phase1(verbose: bool = False, seed: int = 42,
     report.append(
         "pawn:   directed +w push, out-deg=1 for w<7, 0 for w=7 OK"
     )
+
+    return report
+
+
+# ---- Phase 2 gate -----------------------------------------------------
+
+def verify_phase2(verbose: bool = False, seed: int = 42,
+                  n_sample: int = 20, tol: float = 1e-10) -> List[str]:
+    """Phase 2 gate: verify the 4D grid Laplacian has eigenvalues equal
+    to the Kronecker sum of four copies of the P_8 spectrum, with
+    tensor-DCT eigenvectors. We do NOT build the 4096x4096 dense
+    eigensystem; instead we check `L_grid @ v = lambda * v` on
+    `n_sample` random tensor-product eigenvectors."""
+    report: List[str] = []
+    rng = np.random.default_rng(seed)
+
+    # 4D grid Laplacian (sparse, 4096x4096)
+    A_grid = build_adjacency_4d(grid4_targets)
+    L_grid = laplacian_4d(A_grid)
+
+    # P_8 eigenbasis
+    evecs, evals = eig_p8()
+    report.append(
+        "P_8 eigenvalues: [" +
+        ", ".join(f"{v:.4f}" for v in evals) + "]"
+    )
+
+    # Kronecker-sum spectrum of the 4D grid
+    kron_evals = kron_sum4_eigvals(evals)
+    report.append(
+        f"4D grid spectrum: lambda_min={kron_evals.min():.6f}, "
+        f"lambda_max={kron_evals.max():.6f}, "
+        f"unique={len(np.unique(np.round(kron_evals, 9)))}"
+    )
+
+    # Trace identity: sum of Kronecker eigvals == trace(L_grid) == sum of degrees
+    trace_L = float(degree_vector(A_grid).sum())
+    trace_sum = float(kron_evals.sum())
+    assert abs(trace_L - trace_sum) < 1e-8, (
+        f"trace mismatch: trace(L_grid)={trace_L}, "
+        f"sum(kronecker)={trace_sum}"
+    )
+    report.append(
+        f"trace identity: trace(L)={trace_L:.1f} == "
+        f"sum(kron eigvals) {trace_sum:.6f} OK"
+    )
+
+    # Sample random (i,j,k,l) and verify L v = lambda v
+    max_err = 0.0
+    sample_tuples = []
+    for _ in range(n_sample):
+        i, j, k, l = (int(rng.integers(0, BOARD_SIDE)) for _ in range(4))
+        sample_tuples.append((i, j, k, l))
+        v = tensor_eigvec_4d(evecs, i, j, k, l)
+        lam = evals[i] + evals[j] + evals[k] + evals[l]
+        residual = L_grid @ v - lam * v
+        err = float(np.max(np.abs(residual)))
+        if err > max_err:
+            max_err = err
+        assert err < tol, (
+            f"eigenvector (i,j,k,l)={(i, j, k, l)}: "
+            f"||L v - lambda v||_inf = {err:.3e} > tol={tol:.1e}"
+        )
+
+    report.append(
+        f"eigvec identity: L v == lambda v for {n_sample} random "
+        f"tensor products (max ||r||_inf = {max_err:.2e}, tol={tol:.0e}) OK"
+    )
+
+    if verbose:
+        report.append("(verbose) sampled tuples: " + str(sample_tuples[:5])
+                      + (" ..." if len(sample_tuples) > 5 else ""))
 
     return report
