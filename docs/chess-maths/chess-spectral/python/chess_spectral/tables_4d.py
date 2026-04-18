@@ -998,7 +998,17 @@ def local_fiber_4d(
             f"fiber_dirs shape {fiber_dirs.shape} is not "
             f"(k_top, {N_SQUARES * (N_SQUARES - 1) // 2})"
         )
-    dropped_set = set(dropped) if dropped else set()
+    # dropped is reported by fiber_sym_4d as lowercase piece names
+    # ('knight', 'bishop', 'rook', 'queen', 'king') while
+    # _PIECE_TARGETS_4D iterates over single-char codes ('N','B','R',
+    # 'Q','K'). Normalize to chars so the membership test below actually
+    # fires; without this, dropped pieces kept nonzero float32 rows full
+    # of SVD round-off noise, breaking the 1e-10 C-parity target (the
+    # rook-structural-zero analog of the P0 pawn-antisym cleanup).
+    _NAME_TO_CHAR = {
+        'knight': 'N', 'bishop': 'B', 'rook': 'R', 'queen': 'Q', 'king': 'K',
+    }
+    dropped_set = {_NAME_TO_CHAR.get(x, x) for x in dropped} if dropped else set()
 
     upper_idx = np.triu_indices(N_SQUARES, k=1)
     adjacencies = piece_adjacencies_4d()

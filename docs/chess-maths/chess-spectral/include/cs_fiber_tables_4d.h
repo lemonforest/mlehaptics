@@ -19,8 +19,10 @@ extern const double W_ANTI_DCT[8][8];
  * Indexed [cs_piece_4d_t][k]. */
 extern const double DIAG_DEV_4D[6][4096];
 
-/* FIBER_LOCAL_4D and piece-adjacency CSR arrays emitted in P4. */
-/* extern const float FIBER_LOCAL_4D[5][4096][3]; */
+/* Per-(piece, square) fiber coordinates in the rank-3 cross-piece
+ * SVD basis. Indexed [cs_fiber_piece_4d_t][square][direction].
+ * Rook row is identically zero (see CS_FIBER_DROPPED_MASK). */
+extern const float FIBER_LOCAL_4D[5][4096][3];
 
 #ifdef __cplusplus
 }

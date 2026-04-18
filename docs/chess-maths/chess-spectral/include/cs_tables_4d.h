@@ -65,6 +65,39 @@ extern const double   ORBIT_INV_SIZE[35];
 /* Nominal piece values (signed-magnitude; encoder flips sign for black). */
 extern const double PIECE_VALUES_4D[6];
 
+/* Bitmask (over cs_fiber_piece_4d_t) of pieces whose off-diagonal
+ * fiber is structurally zero in the DCT basis and was dropped from
+ * the rank-3 SVD. In Z_8^4 the rook Laplacian is a Kronecker sum of
+ * four K_8's (exactly diagonal in the P_8-tensor basis), so its
+ * off-diagonal vanishes and the SVD drops it. Any other value here
+ * means the BLAS build flipped the zero-norm boundary; pin numpy /
+ * scipy via codegen/requirements.txt and regenerate the tables. */
+#define CS_FIBER_DROPPED_MASK 0x04
+_Static_assert(CS_FIBER_DROPPED_MASK == 0x04,
+               "rook must be the only dropped fiber piece");
+
+/* Sparse binary adjacency nnz per piece (CSR, ascending indices). */
+#define CS_FIBER_ADJ_NNZ_N 129024
+#define CS_FIBER_ADJ_NNZ_B 215040
+#define CS_FIBER_ADJ_NNZ_R 114688
+#define CS_FIBER_ADJ_NNZ_Q 329728
+#define CS_FIBER_ADJ_NNZ_K 230160
+
+/* Piece-adjacency CSRs for fiber-sym channels 5-7.
+ *   PIECE_ADJ_INDPTR_<pc>[s .. s+1]   target-index range for square s
+ *   PIECE_ADJ_INDICES_<pc>[...]       target squares, ascending per row
+ * Binary adjacency; no data[] array. 32-bit indices mirror scipy defaults. */
+extern const int32_t PIECE_ADJ_INDPTR_N[4097];
+extern const int32_t PIECE_ADJ_INDICES_N[CS_FIBER_ADJ_NNZ_N];
+extern const int32_t PIECE_ADJ_INDPTR_B[4097];
+extern const int32_t PIECE_ADJ_INDICES_B[CS_FIBER_ADJ_NNZ_B];
+extern const int32_t PIECE_ADJ_INDPTR_R[4097];
+extern const int32_t PIECE_ADJ_INDICES_R[CS_FIBER_ADJ_NNZ_R];
+extern const int32_t PIECE_ADJ_INDPTR_Q[4097];
+extern const int32_t PIECE_ADJ_INDICES_Q[CS_FIBER_ADJ_NNZ_Q];
+extern const int32_t PIECE_ADJ_INDPTR_K[4097];
+extern const int32_t PIECE_ADJ_INDICES_K[CS_FIBER_ADJ_NNZ_K];
+
 #ifdef __cplusplus
 }
 #endif

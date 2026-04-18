@@ -18,7 +18,15 @@ Tables emitted in P1a (this script):
   DIAG_DEV_4D[6][4096]            double (pawn_sym, N, B, R, Q, K)
   PIECE_VALUES_4D[6]              double (nominal P,N,B,R,Q,K values)
 
-FIBER_LOCAL_4D and sparse piece adjacencies are emitted in P4 (not P1a).
+Tables added in P4:
+  PIECE_ADJ_INDPTR_{N,B,R,Q,K}[4097]   int32 (CSR row pointers, binary adj)
+  PIECE_ADJ_INDICES_{N,B,R,Q,K}[nnz]   int32 (CSR col indices, ascending)
+  FIBER_LOCAL_4D[5][4096][3]           float32 (per-(piece,square) fiber
+                                                coord in rank-3 SVD basis;
+                                                dropped pieces zero-filled)
+  CS_FIBER_DROPPED_MASK                (#define, bitmask over fiber-piece
+                                                index 0..4 = N,B,R,Q,K)
+
 See plan: "when-we-need-to-spicy-seahorse" (C:\\Users\\sckir\\.claude\\plans\\).
 """
 from __future__ import annotations
@@ -134,7 +142,63 @@ assert DIAG_DEV_4D.shape == (6, t4.N_SQUARES)
 # Rook row (idx 3) must be nonzero (does-not-commute-with-grid witness).
 rook_norm = float(np.linalg.norm(DIAG_DEV_4D[3]))
 assert rook_norm > 1.0, f"rook diag-dev norm {rook_norm} unexpectedly small"
+
+
+# ─── Fiber SVD + FIBER_LOCAL_4D (P4) ────────────────────────────────────────
+#
+# Two more heavy passes over U. Kept together with DIAG_DEV_4D so we
+# don't rebuild the 128 MB U tensor. fiber_sym_4d returns the rank-3
+# cross-piece SVD basis and the list of pieces dropped as structural
+# zero (rook in DCT basis, per encoder_4d's zero-norm handling).
+# local_fiber_4d materializes per-(piece, square) fiber coordinates in
+# that basis; dropped pieces stay zero.
+
+print("Computing fiber_sym_4d SVD (~60 s) ...", flush=True)
+SV, FIBER_DIRS, DROPPED_LIST = t4.fiber_sym_4d(U=U_TENSOR, k_top=3)
+print(f"  singular values: {SV.tolist()}")
+print(f"  dropped pieces:  {DROPPED_LIST}")
+
+# Map dropped-name list to a bitmask over FIBER_PIECE_CHARS order (N,B,R,Q,K).
+# Risk-register row: SVD zero-norm boundary is sensitive to BLAS build;
+# requirements.txt pins numpy/scipy, and the _Static_assert emitted in
+# the header catches any drift at compile time.
+_FIBER_NAME_TO_CHAR = {
+    'knight': 'N', 'bishop': 'B', 'rook': 'R', 'queen': 'Q', 'king': 'K',
+}
+CS_FIBER_DROPPED_MASK = 0
+for _name in DROPPED_LIST:
+    _ch = _FIBER_NAME_TO_CHAR[_name]
+    CS_FIBER_DROPPED_MASK |= (1 << FIBER_PIECE_CHARS.index(_ch))
+assert CS_FIBER_DROPPED_MASK == 0x04, (
+    f"expected rook-only drop (mask 0x04), got 0x{CS_FIBER_DROPPED_MASK:02x}; "
+    f"BLAS variance may have flipped the SVD zero-norm boundary"
+)
+
+print("Computing FIBER_LOCAL_4D (~60 s) ...", flush=True)
+FIBER_LOCAL_4D = t4.local_fiber_4d(
+    fiber_dirs=FIBER_DIRS, U=U_TENSOR, k_top=3,
+    dtype=np.float32, dropped=DROPPED_LIST,
+)
+assert FIBER_LOCAL_4D.shape == (5, t4.N_SQUARES, 3)
+assert FIBER_LOCAL_4D.dtype == np.float32
+
 del U_TENSOR  # free 128 MB
+
+
+# ─── Piece adjacency CSRs (P4) ──────────────────────────────────────────────
+#
+# 5 sparse binary CSRs (N, B, R, Q, K) with sorted column indices.
+# scipy.tocsr() + A.maximum(A.T) keeps indices sorted; the C port walks
+# them in that order so the float64 gradient sum matches Python's
+# row.indices iteration.
+
+print("Building piece adjacency CSRs ...", flush=True)
+PIECE_ADJACENCIES = t4.piece_adjacencies_4d()
+assert len(PIECE_ADJACENCIES) == 5
+for _p, _A in zip(FIBER_PIECE_CHARS, PIECE_ADJACENCIES):
+    assert _A.shape == (t4.N_SQUARES, t4.N_SQUARES)
+    assert _A.has_sorted_indices, f"piece {_p} CSR not sorted"
+    assert _A.indptr.shape == (t4.N_SQUARES + 1,)
 
 
 # ─── Emission helpers ───────────────────────────────────────────────────────
@@ -170,6 +234,44 @@ def emit_f64_2d(fout, name: str, arr, dim0: int, dim1: int) -> None:
         fout.write("    {")
         fout.write(", ".join(_fmt_d(arr[i][j]) for j in range(dim1)))
         fout.write(f"}}{',' if i + 1 < dim0 else ''}\n")
+    fout.write("};\n\n")
+
+
+def _fmt_f(x: float) -> str:
+    """Emit a float32 literal at full round-trip precision ('%.9e' + f).
+
+    9 decimal digits is the round-trip precision for IEEE-754 binary32;
+    the 'f' suffix pins the literal to float so MSVC/gcc don't promote to
+    double and re-round. Without the suffix the 0.0/-0.0 distinction can
+    also flip on some toolchains for zero-initialized table slots.
+    """
+    return f"{float(x):.9e}f"
+
+
+def emit_i32_1d(fout, name: str, arr, dim0: int) -> None:
+    fout.write(f"const int32_t {name}[{dim0}] = {{\n    ")
+    cols = 16
+    for i in range(dim0):
+        fout.write(str(int(arr[i])))
+        if i + 1 < dim0:
+            fout.write(",")
+        if (i + 1) % cols == 0 and i + 1 < dim0:
+            fout.write("\n    ")
+        elif i + 1 < dim0:
+            fout.write(" ")
+    fout.write("\n};\n\n")
+
+
+def emit_f32_3d(fout, name: str, arr,
+                dim0: int, dim1: int, dim2: int) -> None:
+    fout.write(f"const float {name}[{dim0}][{dim1}][{dim2}] = {{\n")
+    for i in range(dim0):
+        fout.write("    {\n")
+        for j in range(dim1):
+            fout.write("        {")
+            fout.write(", ".join(_fmt_f(arr[i][j][k]) for k in range(dim2)))
+            fout.write(f"}}{',' if j + 1 < dim1 else ''}\n")
+        fout.write(f"    }}{',' if i + 1 < dim0 else ''}\n")
     fout.write("};\n\n")
 
 
@@ -233,6 +335,33 @@ def write_cs_tables_4d_h() -> None:
         f.write("/* Nominal piece values (signed-magnitude; encoder flips sign for black). */\n")
         f.write("extern const double PIECE_VALUES_4D[6];\n\n")
 
+        # ─── Fiber-sym SVD bookkeeping (P4) ────────────────────────────
+        f.write("/* Bitmask (over cs_fiber_piece_4d_t) of pieces whose off-diagonal\n")
+        f.write(" * fiber is structurally zero in the DCT basis and was dropped from\n")
+        f.write(" * the rank-3 SVD. In Z_8^4 the rook Laplacian is a Kronecker sum of\n")
+        f.write(" * four K_8's (exactly diagonal in the P_8-tensor basis), so its\n")
+        f.write(" * off-diagonal vanishes and the SVD drops it. Any other value here\n")
+        f.write(" * means the BLAS build flipped the zero-norm boundary; pin numpy /\n")
+        f.write(" * scipy via codegen/requirements.txt and regenerate the tables. */\n")
+        f.write(f"#define CS_FIBER_DROPPED_MASK 0x{CS_FIBER_DROPPED_MASK:02x}\n")
+        f.write("_Static_assert(CS_FIBER_DROPPED_MASK == 0x04,\n")
+        f.write("               \"rook must be the only dropped fiber piece\");\n\n")
+
+        # Per-piece adjacency nnz constants (needed to size the extern arrays).
+        f.write("/* Sparse binary adjacency nnz per piece (CSR, ascending indices). */\n")
+        for ch, A in zip(FIBER_PIECE_CHARS, PIECE_ADJACENCIES):
+            f.write(f"#define CS_FIBER_ADJ_NNZ_{ch} {int(A.nnz)}\n")
+        f.write("\n")
+
+        f.write("/* Piece-adjacency CSRs for fiber-sym channels 5-7.\n")
+        f.write(" *   PIECE_ADJ_INDPTR_<pc>[s .. s+1]   target-index range for square s\n")
+        f.write(" *   PIECE_ADJ_INDICES_<pc>[...]       target squares, ascending per row\n")
+        f.write(" * Binary adjacency; no data[] array. 32-bit indices mirror scipy defaults. */\n")
+        for ch in FIBER_PIECE_CHARS:
+            f.write(f"extern const int32_t PIECE_ADJ_INDPTR_{ch}[{t4.N_SQUARES + 1}];\n")
+            f.write(f"extern const int32_t PIECE_ADJ_INDICES_{ch}[CS_FIBER_ADJ_NNZ_{ch}];\n")
+        f.write("\n")
+
         f.write("#ifdef __cplusplus\n}\n#endif\n\n")
         f.write("#endif /* CS_TABLES_4D_H */\n")
     print(f"Wrote {path}")
@@ -259,8 +388,10 @@ def write_cs_fiber_tables_4d_h() -> None:
         f.write(" * Indexed [cs_piece_4d_t][k]. */\n")
         f.write("extern const double DIAG_DEV_4D[6][4096];\n\n")
 
-        f.write("/* FIBER_LOCAL_4D and piece-adjacency CSR arrays emitted in P4. */\n")
-        f.write("/* extern const float FIBER_LOCAL_4D[5][4096][3]; */\n\n")
+        f.write("/* Per-(piece, square) fiber coordinates in the rank-3 cross-piece\n")
+        f.write(" * SVD basis. Indexed [cs_fiber_piece_4d_t][square][direction].\n")
+        f.write(" * Rook row is identically zero (see CS_FIBER_DROPPED_MASK). */\n")
+        f.write("extern const float FIBER_LOCAL_4D[5][4096][3];\n\n")
 
         f.write("#ifdef __cplusplus\n}\n#endif\n\n")
         f.write("#endif /* CS_FIBER_TABLES_4D_H */\n")
@@ -286,6 +417,17 @@ def write_cs_tables_data_4d_c() -> None:
         emit_f64_1d(f, "ORBIT_INV_SIZE", ORBIT_INV_SIZE, N_ORBITS)
         emit_f64_2d(f, "DIAG_DEV_4D", DIAG_DEV_4D, 6, t4.N_SQUARES)
         emit_f64_1d(f, "PIECE_VALUES_4D", PIECE_VALUES_4D, 6)
+
+        # FIBER_LOCAL_4D: (5, 4096, 3) float32. ~240 KB source line cost.
+        emit_f32_3d(f, "FIBER_LOCAL_4D", FIBER_LOCAL_4D,
+                    5, t4.N_SQUARES, 3)
+
+        # Piece adjacency CSRs — int32 indptr + int32 indices per piece.
+        for ch, A in zip(FIBER_PIECE_CHARS, PIECE_ADJACENCIES):
+            emit_i32_1d(f, f"PIECE_ADJ_INDPTR_{ch}",
+                        A.indptr.astype(np.int32), t4.N_SQUARES + 1)
+            emit_i32_1d(f, f"PIECE_ADJ_INDICES_{ch}",
+                        A.indices.astype(np.int32), int(A.nnz))
     print(f"Wrote {path}")
 
 
@@ -303,6 +445,8 @@ def main() -> None:
     print(f"PIECE_VALUES_4D:     {PIECE_VALUES_4D}")
     print(f"||DIAG_DEV[Rook]||:  {rook_norm:.4f} (expected ~nonzero witness)")
     print(f"||W_ANTI_DCT||:      {float(np.linalg.norm(W_ANTI_DCT)):.4f}")
+    adj_bytes = sum(4 * (t4.N_SQUARES + 1) + 4 * int(A.nnz)
+                    for A in PIECE_ADJACENCIES)
     total_bytes = (
         # binary payload, not source
         8 * 8 * 8                               # P8_EVECS
@@ -315,9 +459,14 @@ def main() -> None:
         + N_ORBITS * 8                          # ORBIT_INV_SIZE
         + 6 * 4096 * 8                          # DIAG_DEV_4D
         + 6 * 8                                 # PIECE_VALUES_4D
+        + 5 * 4096 * 3 * 4                      # FIBER_LOCAL_4D
+        + adj_bytes                             # PIECE_ADJ_{INDPTR,INDICES}
     )
+    print(f"Fiber drop mask:     0x{CS_FIBER_DROPPED_MASK:02x}")
+    for ch, A in zip(FIBER_PIECE_CHARS, PIECE_ADJACENCIES):
+        print(f"  adj[{ch}] nnz:      {int(A.nnz):>6d}")
     print(f"Binary table size:   {total_bytes} bytes (~{total_bytes / 1024:.1f} KB)")
-    print("All P1a tables emitted successfully.")
+    print("All P1a+P4 tables emitted successfully.")
 
 
 if __name__ == '__main__':

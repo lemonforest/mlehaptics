@@ -5,12 +5,10 @@ codegen'd fixture pack (fixtures_4d.npz), encodes each position through
 spectral_4d, and compares against the Python reference at 1e-10 absolute
 tolerance.
 
-P2b scope: gate channels 0 (A1), 1-4 (std4), and 9 (FD_DIAG). Channels
-5-8 are zero-stubs on the C side at this milestone; we assert they
-match Python's also-zero output (which happens whenever those channels
-carry no content — most fixtures) and skip the delta check on fixtures
-where Python's channels 5-8 are nonzero. P3 closes channel 8, P4 closes
-5-7, and the skip list collapses to empty.
+P4 scope: all 10 channels (A1, STD4_{X,Y,Z,W}, FIB_SYM_{1,2,3},
+FA_PAWN, FD_DIAG) are gated at 1e-10. P2b opened 0/1-4/9, P3 opened 8,
+P4 opens 5-7 — the stub list is empty. Any remaining skip path would
+indicate a regression, not an expected milestone gap.
 
 Exit codes:
     0   parity confirmed (or C binary absent — skipped with a warning)
@@ -37,12 +35,13 @@ REPO_SPECTRAL = PY_DIR.parent                 # chess-spectral
 FIXTURE_PACK = HERE / "fixtures" / "fixtures_4d.npz"
 JSONL_PATH   = HERE / "fixtures" / "positions_4d.jsonl"
 
-# Channels that have real C impls at the current milestone. Grows as
-# each phase lands (P2b: 0/1-4/9; P3: +8; P4: +5-7).
+# Channels that have real C impls at the current milestone. Full set
+# at P4 — every channel is gated at TOL.
 GATED_CHANNELS = {"A1", "STD4_X", "STD4_Y", "STD4_Z", "STD4_W",
+                  "FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3",
                   "FA_PAWN", "FD_DIAG"}
-# Channels whose C-side is still a zero stub. Lifted in P4.
-STUBBED_CHANNELS = {"FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"}
+# Channels whose C-side is still a zero stub. Empty at P4.
+STUBBED_CHANNELS: set[str] = set()
 
 # Tolerance rationale: see test_c_py_parity.py. 1e-10 is ~4 orders below
 # observable float32 noise; anything above is formula drift, not
