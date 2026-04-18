@@ -75,3 +75,32 @@ add_custom_target(codegen
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Regenerate C tables and reference test vectors from Python"
 )
+
+# ─── 4D encoder (v1.1 port) ─────────────────────────────────────────────────
+# Separate static lib + binary; zero shared TUs with the 2D paths. Per-channel
+# stubs in P2a zero-fill; P2b/P3/P4 replace them with real impls under the
+# same cs_encoder_4d.h contract.
+add_library(cs_core_4d STATIC
+    src/cs_signal_4d.c
+    src/cs_a1_4d.c
+    src/cs_std4_4d.c
+    src/cs_diag_4d.c
+    src/cs_pawn_anti_4d.c
+    src/cs_fiber_sym_4d.c
+    src/cs_encoder_4d.c
+    src/cs_tables_data_4d.c
+)
+target_include_directories(cs_core_4d PUBLIC include)
+
+add_executable(spectral_4d
+    src/main_4d.c
+)
+target_link_libraries(spectral_4d PRIVATE cs_core_4d)
+
+add_custom_target(codegen_4d
+    COMMAND ${CMAKE_COMMAND} -E echo "Running 4D codegen scripts..."
+    COMMAND python ${CMAKE_SOURCE_DIR}/codegen/emit_tables_4d.py
+    COMMAND python ${CMAKE_SOURCE_DIR}/codegen/emit_test_vectors_4d.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Regenerate 4D C tables and reference test vectors from Python"
+)
