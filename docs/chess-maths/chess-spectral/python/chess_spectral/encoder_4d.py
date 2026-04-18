@@ -259,9 +259,13 @@ def encode_4d(pos4: Dict[int, str],
 
     # Channel 9: diagonal deviation (rook shadow), DCT-mode space
     #   out[k] = sum over occupied squares s: sig[s] * DIAG_DEV[piece_row, k]
+    # Load-bearing for C parity: float64 vector accumulation is non-
+    # associative, so the C port (which iterates pos->sq[s] in ascending
+    # s order) and Python must agree on iteration order. Use sorted_items
+    # here, same reason as channels 5-7.
     DIAG_DEV = tables['DIAG_DEV']  # type: ignore[assignment]
     diag_ch = np.zeros(CHANNEL_DIM, dtype=np.float64)
-    for k, pchar in pos4.items():
+    for k, pchar in sorted_items:
         row = _DIAG_DEV_ROW[pchar]
         diag_ch += sig[int(k)] * DIAG_DEV[row]  # type: ignore[index]
     out[9 * CHANNEL_DIM:10 * CHANNEL_DIM] = diag_ch.astype(np.float32)
