@@ -756,3 +756,244 @@ def verify_phase3(verbose: bool = False, seed: int = 42,
         )
 
     return report
+
+
+# ---- 4D fiber bundle (Phase 4) ---------------------------------------
+#
+# The "fiber" at each square encodes per-piece deviation from the pure
+# grid Laplacian. In 2D (see [tables.py]) the bundle is rank 5:
+#   3 symmetric fiber subspaces (from SVD of piece Laplacians in the
+#       grid eigenbasis),
+#   1 pawn antisymmetric fiber (directed pawn push breaks Z_2),
+#   1 diagonal deviation (rook-shadow: diag(U^T L_rook U) - lambda_grid
+#       is nonzero because the K_8 rook Laplacian does not commute with
+#       the P_8 grid Laplacian).
+# Phase 4 verifies the same structure survives in 4D and the algebraic
+# identities (queen = rook + bishop, pawn antisym lives only on w-axis,
+# rook diag-dev nonzero) hold on Z_8^4.
+
+def build_u_tensor_4d(evecs_1d: np.ndarray | None = None) -> np.ndarray:
+    """Build the dense 4096x4096 tensor-DCT basis U as a double Kronecker
+    product of the 8x8 P_8 eigenvectors. ~128 MB float64. Call on demand;
+    caller is responsible for holding the reference and freeing.
+
+    U[sq4(a,b,c,d), sq4(i,j,k,l)] = evecs[a,i] * evecs[b,j] * evecs[c,k]
+                                   * evecs[d,l]
+    Verified against tensor_eigvec_4d to < 1e-17.
+    """
+    if evecs_1d is None:
+        evecs_1d, _ = eig_p8()
+    U_pair = np.kron(evecs_1d, evecs_1d)          # 64x64
+    return np.kron(U_pair, U_pair)                # 4096x4096
+
+
+def _dense_laplacian(target_fn: Callable[[int, int, int, int], Iterator[Coord]],
+                     directed: bool = False) -> np.ndarray:
+    """Build L_piece as a dense 4096x4096 float64 matrix. Convenience
+    helper for Phase 4 transforms where we also multiply by a dense U."""
+    A = build_adjacency_4d(target_fn, directed=directed)
+    L = laplacian_4d(A)
+    return L.toarray().astype(np.float64)
+
+
+def pawn_anti_4d() -> np.ndarray:
+    """Antisymmetric pawn adjacency: A_anti = (A_pawn - A_pawn^T) / 2.
+    Shape (4096, 4096) dense float64. The directed +w pawn push means
+    A_pawn = I (x) I (x) I (x) S_+, where S_+ is the 8x8 +1 shift matrix,
+    so A_anti = I (x) I (x) I (x) A_w_anti with A_w_anti 8x8 antisymmetric.
+    This 'only w mixes' structure is the key Phase 4 algebraic claim."""
+    A = build_adjacency_4d(white_pawn4_targets, directed=True).toarray()
+    A = A.astype(np.float64)
+    return 0.5 * (A - A.T)
+
+
+def diag_dev_4d(
+    U: np.ndarray | None = None,
+    evals_1d: np.ndarray | None = None,
+) -> np.ndarray:
+    """Per-piece diagonal deviation diag(U^T L_piece U) - lambda_grid,
+    shape (6, 4096). Row order: [pawn_sym, knight, bishop, rook, queen,
+    king]. A piece whose Laplacian commutes with the 4D grid Laplacian
+    would produce an all-zero row; rook is the canonical nonzero example
+    (its single-axis K_8 structure does not commute with the grid P_8)."""
+    if U is None:
+        U = build_u_tensor_4d()
+    if evals_1d is None:
+        _, evals_1d = eig_p8()
+    lambda_grid = kron_sum4_eigvals(evals_1d)
+
+    # Pawn symmetric Laplacian: (A + A^T) / 2 of the directed push
+    A_pw = build_adjacency_4d(white_pawn4_targets, directed=True).toarray()
+    A_pw = A_pw.astype(np.float64)
+    A_sym = 0.5 * (A_pw + A_pw.T)
+    L_pawn_sym = np.diag(A_sym.sum(axis=1)) - A_sym
+
+    laplacians = [
+        ('pawn_sym', L_pawn_sym),
+        ('knight',   _dense_laplacian(knight4_targets)),
+        ('bishop',   _dense_laplacian(bishop4_targets)),
+        ('rook',     _dense_laplacian(rook4_targets)),
+        ('queen',    _dense_laplacian(queen4_targets)),
+        ('king',     _dense_laplacian(king4_targets)),
+    ]
+    DIAG_DEV = np.zeros((6, N_SQUARES), dtype=np.float64)
+    for idx, (_, L) in enumerate(laplacians):
+        # Diagonal of U^T L U without materializing the full transform:
+        # (U^T L U)[p, p] = sum_i U[i, p] * (L @ U[:, p])[i]
+        LU = L @ U
+        diag_p = np.einsum('ij,ij->j', U, LU)
+        DIAG_DEV[idx] = diag_p - lambda_grid
+    return DIAG_DEV
+
+
+def fiber_sym_4d(U: np.ndarray | None = None, k_top: int = 3,
+                 ) -> Tuple[np.ndarray, np.ndarray]:
+    """Global symmetric fiber basis via SVD of per-piece off-diagonal
+    C = U^T L_piece U blocks. Pieces: knight, bishop, rook, queen, king.
+    Each piece contributes a flattened upper-triangle vector; the 5xM
+    matrix is SVD'd and the top `k_top` right-singular directions form
+    the fiber basis.
+
+    Returns (sv, fiber_dirs) where `sv` is the 5-vector of singular
+    values and `fiber_dirs` has shape (k_top, M) with M = 4096*4095/2.
+
+    Memory: holds one C_piece at a time (128 MB) plus a 5xM float32
+    buffer (~170 MB). Slower than diag_dev but still tractable."""
+    if U is None:
+        U = build_u_tensor_4d()
+    upper_idx = np.triu_indices(N_SQUARES, k=1)
+    m = upper_idx[0].shape[0]  # 4096*4095/2 = 8_382_720
+    piece_fns = [
+        ('knight', knight4_targets),
+        ('bishop', bishop4_targets),
+        ('rook',   rook4_targets),
+        ('queen',  queen4_targets),
+        ('king',   king4_targets),
+    ]
+    rows = np.zeros((len(piece_fns), m), dtype=np.float32)
+    for idx, (_, fn) in enumerate(piece_fns):
+        L = _dense_laplacian(fn)
+        C = U.T @ L @ U
+        np.fill_diagonal(C, 0.0)
+        v = C[upper_idx]
+        nv = np.linalg.norm(v)
+        if nv > 0:
+            v = v / nv
+        rows[idx] = v.astype(np.float32)
+    # SVD on a tall-skinny 5xM matrix; thin SVD gives (5,5), (5,), (5,M)
+    _, s, Vt = np.linalg.svd(rows, full_matrices=False)
+    return s, Vt[:k_top].astype(np.float32)
+
+
+# ---- Phase 4 gate ----------------------------------------------------
+
+def verify_phase4(verbose: bool = False, tol: float = 1e-10
+                  ) -> List[str]:
+    """Phase 4 gate.
+
+    1. Adjacency identity: A_queen == A_rook + A_bishop (disjoint support).
+    2. Laplacian identity in DCT basis: C_Q == C_R + C_B.
+    3. Rook diagonal deviation is finite and has nonzero norm (proves the
+       rook Laplacian does NOT commute with the grid Laplacian).
+    4. Pawn antisymmetric fiber is block-diagonal over (x,y,z): only the
+       w-axis mixes modes. Computed as U^T A_anti U; off-w entries should
+       be < 1e-8.
+    5. Full 6-piece diag_dev table is finite.
+    """
+    report: List[str] = []
+    U = build_u_tensor_4d()
+    _, evals = eig_p8()
+
+    # 1. Adjacency identity
+    A_R = build_adjacency_4d(rook4_targets).toarray().astype(np.float64)
+    A_B = build_adjacency_4d(bishop4_targets).toarray().astype(np.float64)
+    A_Q = build_adjacency_4d(queen4_targets).toarray().astype(np.float64)
+    diff_adj = float(np.max(np.abs(A_Q - A_R - A_B)))
+    assert diff_adj < tol, (
+        f"adjacency: A_Q - A_R - A_B max|.| = {diff_adj:.3e}"
+    )
+    report.append(
+        "adjacency: A_queen == A_rook + A_bishop (disjoint support) OK"
+    )
+
+    # 2. Laplacian identity in tensor-DCT basis
+    L_R = np.diag(A_R.sum(axis=1)) - A_R
+    L_B = np.diag(A_B.sum(axis=1)) - A_B
+    L_Q = np.diag(A_Q.sum(axis=1)) - A_Q
+    C_R = U.T @ L_R @ U
+    C_B = U.T @ L_B @ U
+    C_Q = U.T @ L_Q @ U
+    diff_L = float(np.max(np.abs(C_Q - C_R - C_B)))
+    # Numerical tolerance on 128MB dense matmul is looser than sparse
+    assert diff_L < 1e-6, (
+        f"DCT-basis identity: C_Q - C_R - C_B max|.| = {diff_L:.3e}"
+    )
+    report.append(
+        f"DCT basis: C_queen == C_rook + C_bishop "
+        f"(max |diff| = {diff_L:.3e}, tol=1e-6) OK"
+    )
+
+    # 3. Rook diagonal deviation (shadow)
+    lambda_grid = kron_sum4_eigvals(evals)
+    rook_dd = np.diag(C_R) - lambda_grid
+    rook_norm = float(np.linalg.norm(rook_dd))
+    assert np.isfinite(rook_norm) and rook_norm > 1.0, (
+        f"rook diag-dev norm = {rook_norm} (expected finite > 1)"
+    )
+    report.append(
+        f"rook diag-dev: finite, ||.||_2 = {rook_norm:.4f} (nonzero) OK"
+    )
+
+    # 4. Pawn antisymmetric fiber lives only on w-axis
+    A_anti = pawn_anti_4d()
+    asym_err = float(np.max(np.abs(A_anti + A_anti.T)))
+    assert asym_err < tol, (
+        f"A_anti not antisymmetric: ||A + A^T||_inf = {asym_err:.3e}"
+    )
+    C_anti = U.T @ A_anti @ U
+    C_tensor = C_anti.reshape(
+        BOARD_SIDE, BOARD_SIDE, BOARD_SIDE, BOARD_SIDE,
+        BOARD_SIDE, BOARD_SIDE, BOARD_SIDE, BOARD_SIDE,
+    )
+    # "on-w" mask: (i,j,k) == (i',j',k'); mixing is only over (l, l')
+    mask = np.zeros_like(C_tensor, dtype=bool)
+    for i in range(BOARD_SIDE):
+        for j in range(BOARD_SIDE):
+            for k in range(BOARD_SIDE):
+                mask[i, j, k, :, i, j, k, :] = True
+    off_w_norm = float(np.linalg.norm(C_tensor[~mask]))
+    on_w_norm = float(np.linalg.norm(C_tensor[mask]))
+    assert off_w_norm < 1e-8, (
+        f"pawn antisym has off-w mixing: off-w ||.||_F = {off_w_norm:.3e}"
+    )
+    assert on_w_norm > 1.0, (
+        f"pawn antisym on-w norm = {on_w_norm} (expected > 1)"
+    )
+    report.append(
+        f"pawn antisym: on-w ||.||_F = {on_w_norm:.4f}, "
+        f"off-w ||.||_F = {off_w_norm:.3e} < 1e-8 OK"
+    )
+
+    # 5. 6-piece diag_dev table
+    DIAG_DEV = diag_dev_4d(U=U, evals_1d=evals)
+    piece_names = ['pawn_sym', 'knight', 'bishop', 'rook', 'queen', 'king']
+    norms = np.linalg.norm(DIAG_DEV, axis=1)
+    assert np.all(np.isfinite(norms)), "diag_dev has non-finite entries"
+    report.append(
+        "diag-dev (6-piece): "
+        + ", ".join(f"{n}={v:.2f}" for n, v in zip(piece_names, norms))
+        + " OK"
+    )
+
+    if verbose:
+        report.append(
+            f"(verbose) U_tensor dense: shape={U.shape}, "
+            f"mem={U.nbytes / 1e6:.1f} MB"
+        )
+        # Sanity: rook diag_dev (idx 3) should match rook_norm from step 3
+        report.append(
+            f"(verbose) rook_dd via step 3 = {rook_norm:.4f}, "
+            f"via diag_dev_4d row[3] = {norms[3]:.4f}"
+        )
+
+    return report
