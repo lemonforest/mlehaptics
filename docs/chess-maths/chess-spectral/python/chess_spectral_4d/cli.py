@@ -28,22 +28,15 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
-# Make sibling `chess_spectral` importable when this CLI is run from any cwd.
-HERE = os.path.dirname(os.path.abspath(__file__))
-PARENT = os.path.abspath(os.path.join(HERE, os.pardir))
-if PARENT not in sys.path:
-    sys.path.insert(0, PARENT)
-
-from chess_spectral_4d import (  # noqa: E402
+from chess_spectral_4d import (
     VERSION,
     ENCODING_DIM_4D,
     BOARD_SIDE_4D,
     N_DIMENSIONS_4D,
 )
-from chess_spectral import frame_4d as _frame_4d  # noqa: E402
+from chess_spectral import frame_4d as _frame_4d
 
 SPECTRALZ_MAGIC = _frame_4d.SPECTRALZ_MAGIC.decode("ascii")
 SPECTRALZ_VERSION = _frame_4d.SPECTRALZ_VERSION

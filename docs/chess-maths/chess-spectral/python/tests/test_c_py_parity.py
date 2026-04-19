@@ -28,7 +28,6 @@ HERE = Path(__file__).resolve().parent
 PY_DIR = HERE.parent                          # chess-spectral/python
 REPO_SPECTRAL = PY_DIR.parent                 # chess-spectral
 FIXTURE = HERE / "fixtures" / "kasparov_topalov_1999.ndjson"
-ENCODER_SCRIPT = PY_DIR / "spectral_py.py"
 
 sys.path.insert(0, str(PY_DIR))
 from chess_spectral import read_all, CHANNELS, BOARD_DIM  # noqa: E402
@@ -49,7 +48,7 @@ def _find_c_binary() -> Path | None:
 
 def _encode_py(ndjson: Path, out: Path) -> None:
     subprocess.run(
-        [sys.executable, str(ENCODER_SCRIPT), "encode",
+        [sys.executable, "-m", "chess_spectral.cli", "encode",
          "-i", str(ndjson), "-o", str(out)],
         check=True, capture_output=True,
     )
@@ -66,11 +65,6 @@ def run_parity() -> int:
     if not FIXTURE.is_file():
         print(f"FAIL setup: fixture missing: {FIXTURE}", file=sys.stderr)
         return 2
-    if not ENCODER_SCRIPT.is_file():
-        print(f"FAIL setup: encoder script missing: {ENCODER_SCRIPT}",
-              file=sys.stderr)
-        return 2
-
     c_bin = _find_c_binary()
     if c_bin is None:
         print("SKIP: no C spectral binary found (set CS_SPECTRAL_BIN or "
@@ -79,7 +73,7 @@ def run_parity() -> int:
 
     print(f"fixture: {FIXTURE.name}")
     print(f"c bin:   {c_bin}")
-    print(f"py enc:  {ENCODER_SCRIPT.name}")
+    print(f"py enc:  chess_spectral.cli")
 
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
