@@ -47,7 +47,7 @@ def test_board_signal_empty():
 
 
 def test_board_signal_pieces_assign_correct_values():
-    pos = {_sq(0, 0, 0, 0): 'P', _sq(1, 2, 3, 4): 'q',
+    pos = {_sq(0, 0, 0, 0): ('P', 'w'), _sq(1, 2, 3, 4): 'q',
            _sq(7, 7, 7, 7): 'K'}
     sig = enc_mod.board_signal_4d(pos)
     assert sig[_sq(0, 0, 0, 0)] == enc_mod.PIECE_VALUES_4D['P']
@@ -57,6 +57,23 @@ def test_board_signal_pieces_assign_correct_values():
         enc_mod.PIECE_VALUES_4D['P'] + enc_mod.PIECE_VALUES_4D['q']
         + enc_mod.PIECE_VALUES_4D['K']
     )
+
+
+def test_board_signal_tuple_on_non_pawn_is_rejected():
+    """board_signal_4d only accepts tuple values for pawns; tuple on
+    any other piece type is a usage error (prevents silent axis-coding
+    of non-pawns)."""
+    with pytest.raises(ValueError):
+        enc_mod.board_signal_4d({0: ('R', 'w')})
+
+
+def test_board_signal_rejects_unknown_pawn_axis():
+    """Pawn axis must be 'y' or 'w' (Oana & Chiru Definition 11
+    forbids z-axis pawns); any other value is a usage error."""
+    with pytest.raises(ValueError):
+        # board_signal_4d defers axis validation to encode_4d, so route
+        # through encode_4d which calls _pawn_axis().
+        enc_mod.encode_4d({0: ('P', 'z')})
 
 
 def test_board_signal_rejects_unknown_piece():
@@ -72,12 +89,13 @@ def test_board_signal_rejects_out_of_range_square():
 # ---- encode_4d shape & dtype ------------------------------------------
 
 def test_encode_shape_dtype_and_channel_split():
-    pos = {_sq(0, 0, 0, 1): 'P'}
+    pos = {_sq(0, 0, 0, 1): ('P', 'w')}
     v = enc_mod.encode_4d(pos)
     assert v.shape == (enc_mod.ENCODING_DIM_4D,)
     assert v.dtype == np.float32
-    # 10 channels of 4096
-    assert enc_mod.ENCODING_DIM_4D == 10 * 4096
+    # v1.1.1: 11 channels of 4096 (v1.0 was 10 channels / 40960)
+    assert enc_mod.ENCODING_DIM_4D == 11 * 4096
+    assert enc_mod.N_CHANNELS_4D == 11
 
 
 def test_encode_empty_position_is_all_zeros():
@@ -107,7 +125,7 @@ def test_fiber_sym_channels_nonzero_with_nonrook_piece():
     s1_coord = (3, 3, 3, 3)
     s1 = _sq(*s1_coord)
     kn_target = next(iter(t4.knight4_targets(*s1_coord)))
-    pos = {s1: 'N', _sq(*kn_target): 'P'}
+    pos = {s1: 'N', _sq(*kn_target): ('P', 'w')}
     v = enc_mod.encode_4d(pos)
     e = enc_mod.channel_energies_4d(v)
     total_fib = e["FIB_SYM_1"] + e["FIB_SYM_2"] + e["FIB_SYM_3"]
@@ -153,9 +171,9 @@ def test_fiber_sym_channels_distinguish_knight_bishop_king():
     bp_target = next(iter(t4.bishop4_targets(*s_coord)))
     kg_target = next(iter(t4.king4_targets(*s_coord)))
 
-    v_knight = enc_mod.encode_4d({s: 'N', _sq(*kn_target): 'P'})
-    v_bishop = enc_mod.encode_4d({s: 'B', _sq(*bp_target): 'P'})
-    v_king = enc_mod.encode_4d({s: 'K', _sq(*kg_target): 'P'})
+    v_knight = enc_mod.encode_4d({s: 'N', _sq(*kn_target): ('P', 'w')})
+    v_bishop = enc_mod.encode_4d({s: 'B', _sq(*bp_target): ('P', 'w')})
+    v_king = enc_mod.encode_4d({s: 'K', _sq(*kg_target): ('P', 'w')})
 
     # Each piece type's fiber block must be nonzero (gradient enabled)
     assert np.any(v_knight[fib_slice] != 0)
@@ -202,44 +220,96 @@ def test_fiber_local_queen_trace_equals_bishop_trace():
     )
 
 
-def test_pawn_antisym_channel_zero_without_pawns():
+def test_pawn_antisym_channels_zero_without_pawns():
     pos = {_sq(0, 0, 0, 0): 'Q'}
     v = enc_mod.encode_4d(pos)
     e = enc_mod.channel_energies_4d(v)
-    assert e["FA_PAWN"] == 0.0
+    assert e["FA_PAWN_W"] == 0.0
+    assert e["FA_PAWN_Y"] == 0.0
 
 
-def test_pawn_antisym_channel_nonzero_with_pawn():
-    pos = {_sq(0, 0, 0, 3): 'P'}
+def test_pawn_antisym_w_channel_nonzero_with_w_pawn():
+    pos = {_sq(0, 0, 0, 3): ('P', 'w')}
     v = enc_mod.encode_4d(pos)
     e = enc_mod.channel_energies_4d(v)
-    assert e["FA_PAWN"] > 0.0
+    assert e["FA_PAWN_W"] > 0.0
+    # Y channel untouched — axis isolation is load-bearing for v1.1.1.
+    assert e["FA_PAWN_Y"] == 0.0
 
 
-def test_pawn_antisym_factored_structure_is_w_axis_only():
-    """Single pawn at (sx, sy, sz, sw) writes W_ANTI_DCT[sw] into the
-    eight DCT modes at (sx, sy, sz, *) and exactly zero everywhere
-    else. This is the algebraic invariant the factored form (and the
-    C encoder port) must preserve. See encoder_4d.encode_4d channel 8
-    comment and tables_4d.w_anti_dct_block."""
+def test_pawn_antisym_y_channel_nonzero_with_y_pawn():
+    """Y-axis pawn contributes only to FA_PAWN_Y; W channel stays
+    exactly zero."""
+    pos = {_sq(0, 3, 0, 0): ('P', 'y')}
+    v = enc_mod.encode_4d(pos)
+    e = enc_mod.channel_energies_4d(v)
+    assert e["FA_PAWN_W"] == 0.0
+    assert e["FA_PAWN_Y"] > 0.0
+
+
+def test_pawn_antisym_factored_structure_w_axis():
+    """W-axis pawn at (sx, sy, sz, sw) writes W_ANTI_DCT[sw] into the
+    eight DCT modes at (sx, sy, sz, *) in FA_PAWN_W and exactly zero
+    everywhere else in that channel; FA_PAWN_Y is all-zero. This is
+    the algebraic invariant the factored form (and the C encoder port)
+    must preserve. See encoder_4d.encode_4d channels 8-9 and
+    tables_4d.w_anti_dct_block."""
     sx, sy, sz, sw = 3, 3, 3, 3
     s = _sq(sx, sy, sz, sw)
-    v = enc_mod.encode_4d({s: 'P'})
-    fa = v[8 * 4096:9 * 4096]
+    v = enc_mod.encode_4d({s: ('P', 'w')})
+    fa_w = v[8 * 4096:9 * 4096]
+    fa_y = v[9 * 4096:10 * 4096]
     base = (sx << 9) | (sy << 6) | (sz << 3)
     W = t4.w_anti_dct_block()
-    # Inside the (sx,sy,sz,*) ray: 8 modes match W_ANTI_DCT[sw]
+    # Inside the (sx,sy,sz,*) w-ray: 8 modes match W_ANTI_DCT[sw]
     np.testing.assert_allclose(
-        fa[base:base + 8].astype(np.float64), W[sw],
+        fa_w[base:base + 8].astype(np.float64), W[sw],
         atol=1e-6, err_msg='w-axis block mismatches W_ANTI_DCT[sw]'
     )
-    # Outside: exactly zero, not just "small" — the factored form means
-    # the encoder never even touches these modes.
+    # Outside: exactly zero — the factored form means the encoder
+    # never even touches these modes.
     mask = np.ones(4096, dtype=bool)
     mask[base:base + 8] = False
-    assert np.max(np.abs(fa[mask])) == 0.0, (
+    assert np.max(np.abs(fa_w[mask])) == 0.0, (
         f'factored form leaked off-w energy: '
-        f'max |fa[off-w]| = {np.max(np.abs(fa[mask])):.3e}'
+        f'max |fa_w[off-w]| = {np.max(np.abs(fa_w[mask])):.3e}'
+    )
+    # FA_PAWN_Y must be completely untouched by a W-axis pawn.
+    assert np.all(fa_y == 0.0), (
+        f'W-axis pawn leaked into Y-axis channel: '
+        f'max |fa_y| = {np.max(np.abs(fa_y)):.3e}'
+    )
+
+
+def test_pawn_antisym_factored_structure_y_axis():
+    """Y-axis pawn at (sx, sy, sz, sw) writes Y_ANTI_DCT[sy] into the
+    eight DCT modes at (sx, *, sz, sw) in FA_PAWN_Y (stride-64 in the
+    4096-array) and exactly zero everywhere else; FA_PAWN_W is all-
+    zero. v1.1.1 analog of the w-axis factored-structure test."""
+    sx, sy, sz, sw = 3, 3, 3, 3
+    s = _sq(sx, sy, sz, sw)
+    v = enc_mod.encode_4d({s: ('P', 'y')})
+    fa_w = v[8 * 4096:9 * 4096]
+    fa_y = v[9 * 4096:10 * 4096]
+    base = (sx << 9) | (sz << 3) | sw
+    # Stride-64 y-ray indices: (sx, j, sz, sw) for j in 0..7.
+    y_ray = np.array([base | (j << 6) for j in range(8)])
+    Y = t4.y_anti_dct_block()
+    np.testing.assert_allclose(
+        fa_y[y_ray].astype(np.float64), Y[sy],
+        atol=1e-6, err_msg='y-axis ray mismatches Y_ANTI_DCT[sy]'
+    )
+    # Outside the y-ray: exactly zero in fa_y.
+    mask_off_y = np.ones(4096, dtype=bool)
+    mask_off_y[y_ray] = False
+    assert np.max(np.abs(fa_y[mask_off_y])) == 0.0, (
+        f'factored form leaked off-y energy: '
+        f'max |fa_y[off-y]| = {np.max(np.abs(fa_y[mask_off_y])):.3e}'
+    )
+    # FA_PAWN_W must be completely untouched by a Y-axis pawn.
+    assert np.all(fa_w == 0.0), (
+        f'Y-axis pawn leaked into W-axis channel: '
+        f'max |fa_w| = {np.max(np.abs(fa_w)):.3e}'
     )
 
 
@@ -324,23 +394,46 @@ def test_pawn_axis_factorization_structural():
     )
 
 
-def test_white_and_black_pawn_same_square_antisym_flip():
-    """Equal-magnitude opposite-color pawn at same square should give
+def test_white_and_black_w_pawn_same_square_antisym_flip():
+    """Equal-magnitude opposite-color W-axis pawn at same square gives
     opposite-signed pawn antisym contributions (encoding difference is
-    exactly 2x one pawn's contribution)."""
+    exactly 2x one pawn's contribution). The Y channel is untouched
+    for both."""
     s = _sq(3, 3, 3, 3)
-    v_white = enc_mod.encode_4d({s: 'P'})
-    v_black = enc_mod.encode_4d({s: 'p'})
-    # FA channel should be exactly opposite
-    fa_start = 8 * 4096
-    fa_end = 9 * 4096
-    assert np.allclose(v_white[fa_start:fa_end],
-                       -v_black[fa_start:fa_end], atol=0)
+    v_white = enc_mod.encode_4d({s: ('P', 'w')})
+    v_black = enc_mod.encode_4d({s: ('p', 'w')})
+    # FA_PAWN_W channel should be exactly opposite
+    fa_w_start = 8 * 4096
+    fa_w_end = 9 * 4096
+    assert np.allclose(v_white[fa_w_start:fa_w_end],
+                       -v_black[fa_w_start:fa_w_end], atol=0)
+    # FA_PAWN_Y channel exactly zero for both
+    fa_y_start = 9 * 4096
+    fa_y_end = 10 * 4096
+    assert np.all(v_white[fa_y_start:fa_y_end] == 0.0)
+    assert np.all(v_black[fa_y_start:fa_y_end] == 0.0)
+
+
+def test_white_and_black_y_pawn_same_square_antisym_flip():
+    """Y-axis analog of the W-axis sign-flip test."""
+    s = _sq(3, 3, 3, 3)
+    v_white = enc_mod.encode_4d({s: ('P', 'y')})
+    v_black = enc_mod.encode_4d({s: ('p', 'y')})
+    fa_y_start = 9 * 4096
+    fa_y_end = 10 * 4096
+    assert np.allclose(v_white[fa_y_start:fa_y_end],
+                       -v_black[fa_y_start:fa_y_end], atol=0)
+    fa_w_start = 8 * 4096
+    fa_w_end = 9 * 4096
+    assert np.all(v_white[fa_w_start:fa_w_end] == 0.0)
+    assert np.all(v_black[fa_w_start:fa_w_end] == 0.0)
 
 
 def test_diagonal_deviation_differs_by_piece_type():
     s = _sq(3, 3, 3, 3)
-    fd_slice = slice(9 * 4096, 10 * 4096)
+    # v1.1.1: FD_DIAG shifted from slot 9 to slot 10 after the pawn
+    # antisym split.
+    fd_slice = slice(10 * 4096, 11 * 4096)
     v_knight = enc_mod.encode_4d({s: 'N'})
     v_rook = enc_mod.encode_4d({s: 'R'})
     v_queen = enc_mod.encode_4d({s: 'Q'})
@@ -373,14 +466,28 @@ def test_a1_channel_is_b4_orbit_invariant():
 
 
 def test_channel_energies_sum_to_total_energy():
-    pos = {_sq(0, 0, 0, 0): 'P', _sq(1, 2, 3, 4): 'N',
+    pos = {_sq(0, 0, 0, 0): ('P', 'w'), _sq(1, 2, 3, 4): 'N',
            _sq(7, 7, 7, 7): 'K'}
     v = enc_mod.encode_4d(pos)
     e = enc_mod.channel_energies_4d(v)
     total_via_channels = sum(e.values())
     total_direct = float(np.dot(v, v))
-    # Channels tile the 40960-dim output exactly; energies partition.
+    # Channels tile the 45056-dim output exactly; energies partition.
     assert np.isclose(total_via_channels, total_direct, rtol=1e-5)
+
+
+def test_legacy_single_char_pawn_emits_deprecation_warning():
+    """The v1.0 single-char pawn schema ('P'/'p' with no axis) is
+    retained as a back-compat shortcut for the W axis; using it emits
+    a DeprecationWarning. Output must be bit-identical to the explicit
+    ('P', 'w') form so callers mid-migration get no semantic drift."""
+    s = _sq(2, 4, 6, 1)
+    with pytest.warns(DeprecationWarning, match=r"legacy .* pawn"):
+        v_legacy = enc_mod.encode_4d({s: 'P'})
+    v_explicit = enc_mod.encode_4d({s: ('P', 'w')})
+    assert np.array_equal(v_legacy, v_explicit), (
+        "legacy 'P' schema drifted from explicit ('P', 'w')"
+    )
 
 
 if __name__ == "__main__":
