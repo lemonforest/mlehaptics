@@ -162,6 +162,17 @@ def white_pawn4_targets(x: int, y: int, z: int, w: int) -> Iterator[Coord]:
         yield (x, y, z, w + 1)
 
 
+def white_pawn4_y_targets(x: int, y: int, z: int, w: int) -> Iterator[Coord]:
+    """4D white pawn on Y axis: single-step push on +y. Oana & Chiru
+    (AppliedMath 6(3):48, 2026) Definition 11 allows pawns to be
+    oriented along y OR w (never z); section 3.11 makes y<->w a
+    ruleset-preserving symmetry. Same structural role as
+    white_pawn4_targets but on a different tensor factor — feeds
+    pawn_anti_y_4d() as the W-axis generator feeds pawn_anti_w_4d()."""
+    if y + 1 < BOARD_SIDE:
+        yield (x, y + 1, z, w)
+
+
 # ─── Adjacency construction ────────────────────────────────────────────
 
 def build_adjacency_4d(
@@ -796,8 +807,20 @@ def _dense_laplacian(target_fn: Callable[[int, int, int, int], Iterator[Coord]],
     return L.toarray().astype(np.float64)
 
 
-def pawn_anti_4d() -> np.ndarray:
-    """Antisymmetric pawn adjacency: A_anti = (A_pawn - A_pawn^T) / 2.
+def _axis_anti_8x8() -> np.ndarray:
+    """Shared 8x8 antisymmetric axis-push generator: 0.5 * (S_+ - S_+^T)
+    where S_+ is the 8x8 +1 shift matrix (boundary-aware: no push from
+    index 7). Used as the single-axis 8x8 block lifted to a different
+    tensor factor for each pawn axis: w-axis pawns see it as the
+    rightmost factor, y-axis pawns as the second factor."""
+    S = np.zeros((BOARD_SIDE, BOARD_SIDE), dtype=np.float64)
+    for i in range(BOARD_SIDE - 1):
+        S[i, i + 1] = 1.0
+    return 0.5 * (S - S.T)
+
+
+def pawn_anti_w_4d() -> np.ndarray:
+    """Antisymmetric W-axis pawn adjacency: A_anti = (A_pawn - A_pawn^T)/2.
     Shape (4096, 4096) dense float64. The directed +w pawn push means
     A_pawn = I (x) I (x) I (x) S_+, where S_+ is the 8x8 +1 shift matrix,
     so A_anti = I (x) I (x) I (x) A_w_anti with A_w_anti 8x8 antisymmetric.
@@ -807,8 +830,28 @@ def pawn_anti_4d() -> np.ndarray:
     return 0.5 * (A - A.T)
 
 
+def pawn_anti_y_4d() -> np.ndarray:
+    """Antisymmetric Y-axis pawn adjacency. Y-axis analog of
+    pawn_anti_w_4d: A_pawn_y = I (x) S_+ (x) I (x) I, so
+    A_anti_y = I (x) A_y_anti (x) I (x) I with A_y_anti the same 8x8
+    antisymmetric generator as A_w_anti but on a different tensor
+    factor. Because A_y_anti is antisymmetric, tr(A_y_anti) = 0, which
+    combined with tr(A_w_anti) = 0 makes the y- and w-axis pawn
+    antisymmetric adjacencies Frobenius-orthogonal by construction (see
+    test_pawn_axis_factorization_structural). v1.1.1 feasibility basis."""
+    A = build_adjacency_4d(white_pawn4_y_targets, directed=True).toarray()
+    A = A.astype(np.float64)
+    return 0.5 * (A - A.T)
+
+
+# Backward-compat alias: the v1.0 encoder and phase-4 gate referenced
+# `pawn_anti_4d()`. v1.1.1 splits the pawn antisym channel into two
+# axes (W and Y); the legacy name continues to return the W-axis form.
+pawn_anti_4d = pawn_anti_w_4d
+
+
 def w_anti_dct_block() -> np.ndarray:
-    """Factored 8x8 pawn antisymmetric fiber in the DCT basis.
+    """Factored 8x8 W-axis pawn antisymmetric fiber in the DCT basis.
 
     Since A_anti = I (x) I (x) I (x) A_w_anti with A_w_anti the 8x8
     antisymmetrized +w shift (boundary-aware: no push from w=7), and the
@@ -824,12 +867,29 @@ def w_anti_dct_block() -> np.ndarray:
     form carries at < 1e-8 FP noise — gives the C port a clean parity
     target at 1e-10 tolerance. See encoder_4d.encode_4d channel 8.
     """
-    S = np.zeros((BOARD_SIDE, BOARD_SIDE), dtype=np.float64)
-    for i in range(BOARD_SIDE - 1):
-        S[i, i + 1] = 1.0
-    A_w_anti = 0.5 * (S - S.T)
+    A_w_anti = _axis_anti_8x8()
     U_P8, _ = eig_p8()
     return U_P8.T @ A_w_anti @ U_P8
+
+
+def y_anti_dct_block() -> np.ndarray:
+    """Factored 8x8 Y-axis pawn antisymmetric fiber in the DCT basis.
+
+    Y-axis analog of w_anti_dct_block. The 8x8 generator is identical
+    (see _axis_anti_8x8) and U_P8 is shared, so numerically this
+    returns the same 8x8 matrix as w_anti_dct_block. The distinction
+    between Y- and W-axis pawn channels is WHICH tensor factor the 8x8
+    block inhabits in the 4096x4096 DCT-basis form:
+
+        PAWN_ANTI_FIB_w = I (x) I (x) I (x) W_ANTI_DCT   (w-axis, slot 4)
+        PAWN_ANTI_FIB_y = I (x) Y_ANTI_DCT (x) I (x) I   (y-axis, slot 2)
+
+    The encoder uses this block to scatter 8 modes per pawn along the
+    relevant axis at encode time, rather than materializing the
+    128 MB dense DCT-basis matrix. See encoder_4d.encode_4d (v1.1.1)."""
+    A_y_anti = _axis_anti_8x8()
+    U_P8, _ = eig_p8()
+    return U_P8.T @ A_y_anti @ U_P8
 
 
 def diag_dev_4d(

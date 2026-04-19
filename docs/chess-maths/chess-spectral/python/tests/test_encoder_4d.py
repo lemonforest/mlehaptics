@@ -243,6 +243,87 @@ def test_pawn_antisym_factored_structure_is_w_axis_only():
     )
 
 
+def test_pawn_axis_factorization_structural():
+    """P1 feasibility gate (v1.1.1): the Y- and W-axis pawn antisymmetric
+    adjacencies lift the same 8x8 block into independent tensor factors
+    of the 4D DCT basis, so they are Frobenius-orthogonal by construction.
+
+    Computed via the factored Kronecker form (the same form the encoder
+    uses to scatter 8 modes per pawn), not the dense 4096x4096 U^T A U
+    that verify_phase4 uses — factored form avoids 128 MB of matmul
+    round-off and makes the structural identities exact to ~1e-15.
+
+    Checks:
+    - C_anti_w has support only on the (x,y,z)-diagonal w-axis 8x8 block;
+    - C_anti_y has support only on the (x,z,w)-diagonal y-axis 8x8 block;
+    - on-axis Frobenius norms match (same 8x8 generator, different leg);
+    - cross-channel Frobenius inner product ~ 0 (v1.1.1 feasibility
+      signal — follows from tr(A_w_anti) = tr(A_y_anti) = 0 via the
+      Kronecker trace identity tr(A (x) B (x) C (x) D) = tr A tr B tr C tr D).
+    """
+    from scipy.sparse import kron as skron, eye as seye, csr_matrix
+
+    B = t4.BOARD_SIDE
+    I8 = seye(B, format='csr')
+    W = csr_matrix(t4.w_anti_dct_block())
+    Y = csr_matrix(t4.y_anti_dct_block())
+
+    # W-axis pawn antisym in DCT basis: I (x) I (x) I (x) W
+    C_w = skron(skron(skron(I8, I8), I8), W, format='csr')
+    # Y-axis pawn antisym in DCT basis: I (x) Y (x) I (x) I
+    C_y = skron(skron(skron(I8, Y), I8), I8, format='csr')
+
+    # Dense reshape for mask-based norms (4096x4096 float64 = 128 MB; fine
+    # for a single structural test).
+    T_w = C_w.toarray().reshape(B, B, B, B, B, B, B, B)
+    T_y = C_y.toarray().reshape(B, B, B, B, B, B, B, B)
+
+    # On-w mask: (i,j,k)==(i',j',k'); mix only on (l, l').
+    mask_w = np.zeros_like(T_w, dtype=bool)
+    for i in range(B):
+        for j in range(B):
+            for k in range(B):
+                mask_w[i, j, k, :, i, j, k, :] = True
+    # On-y mask: (i,k,l)==(i',k',l'); mix only on (j, j').
+    mask_y = np.zeros_like(T_y, dtype=bool)
+    for i in range(B):
+        for k in range(B):
+            for l in range(B):
+                mask_y[i, :, k, l, i, :, k, l] = True
+
+    on_w_norm = float(np.linalg.norm(T_w[mask_w]))
+    off_w_norm = float(np.linalg.norm(T_w[~mask_w]))
+    on_y_norm = float(np.linalg.norm(T_y[mask_y]))
+    off_y_norm = float(np.linalg.norm(T_y[~mask_y]))
+
+    # Factored form zeroes off-axis support exactly — tolerance tracks
+    # the 8x8 eigendecomposition noise floor, not 128 MB matmul noise.
+    assert off_w_norm < 1e-13, (
+        f'W-axis pawn antisym leaked off-w energy: {off_w_norm:.3e}'
+    )
+    assert off_y_norm < 1e-13, (
+        f'Y-axis pawn antisym leaked off-y energy: {off_y_norm:.3e}'
+    )
+
+    # Same 8x8 generator lifted to different legs => equal Frobenius norm
+    # on the occupied block.
+    assert abs(on_w_norm - on_y_norm) < 1e-10, (
+        f'on-axis norms disagree: w={on_w_norm:.10f} y={on_y_norm:.10f}'
+    )
+    assert on_w_norm > 1.0, f'on-w norm unexpectedly small: {on_w_norm}'
+
+    # *** v1.1.1 feasibility signal: cross-channel Frobenius inner
+    # product ~ 0. Kronecker trace identity gives it exactly zero in
+    # infinite precision; 8x8 eigendecomposition noise bounds the
+    # numerical floor at ~ 1e-14.
+    inner = float((C_w.multiply(C_y)).sum())
+    assert abs(inner) < 1e-13, (
+        f'cross-channel <C_anti_w, C_anti_y>_F = {inner:.3e} '
+        f'(expected < 1e-13); independent-tensor-factor argument fails — '
+        f'v1.1.1 feasibility premise does not hold'
+    )
+
+
 def test_white_and_black_pawn_same_square_antisym_flip():
     """Equal-magnitude opposite-color pawn at same square should give
     opposite-signed pawn antisym contributions (encoding difference is
