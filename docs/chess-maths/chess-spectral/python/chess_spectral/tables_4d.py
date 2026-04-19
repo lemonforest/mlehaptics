@@ -1222,14 +1222,17 @@ def verify_phase4(verbose: bool = False, tol: float = 1e-10
 # ---- Phase 5 gate ----------------------------------------------------
 
 def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
-    """Phase 5 gate: end-to-end encoder + spectralz v3 round-trip.
+    """Phase 5 gate: end-to-end encoder + spectralz v4 round-trip with
+    v3 backward-read.
 
-    1. encode_4d on a small synthetic position produces a 40960-float32
-       vector; channel ranges match CHANNELS_4D layout; channel energies
-       are finite.
-    2. spectralz v3 write->read of 10 random frames is byte-identical
+    1. encode_4d on a small synthetic position produces a 45056-float32
+       vector (v1.1.1); channel ranges match CHANNELS_4D layout; channel
+       energies are finite. Both split pawn axis channels (W + Y) carry
+       signal when a Y-axis and a W-axis pawn are both present.
+    2. spectralz v4 write->read of 10 random frames is byte-identical
        (encoding + all metadata).
-    3. Unknown-magic file correctly raises in read_header_any.
+    3. spectralz v3 backward-read still works on a legacy-dim blob.
+    4. Unknown-magic file correctly raises in read_header_any.
     """
     import os
     import tempfile
@@ -1239,14 +1242,15 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
     report: List[str] = []
     rng = np.random.default_rng(seed)
 
-    # 1. Encoder smoke-test: 4-piece mini-position (white and black
-    #    pawns on opposite sides of the w-axis so pawn antisym and
-    #    diag_dev channels are nonzero, plus one rook for more signal).
+    # 1. Encoder smoke-test: 5-piece mini-position exercising both pawn
+    #    axes (W and Y) plus a rook and a king so A_1, FD_DIAG and both
+    #    pawn axis channels all carry signal.
     pos4 = {
-        sq4(0, 0, 0, 1): 'P',   # white pawn near start on +w
-        sq4(7, 7, 7, 6): 'p',   # black pawn near end on +w
-        sq4(3, 3, 3, 3): 'R',   # white rook centered
-        sq4(4, 4, 4, 4): 'k',   # black king centered-offset
+        sq4(0, 0, 0, 1): ('P', 'w'),   # white W-axis pawn
+        sq4(7, 7, 7, 6): ('p', 'w'),   # black W-axis pawn
+        sq4(2, 1, 4, 5): ('P', 'y'),   # white Y-axis pawn
+        sq4(3, 3, 3, 3): 'R',          # white rook centered
+        sq4(4, 4, 4, 4): 'k',          # black king centered-offset
     }
     v = enc_mod.encode_4d(pos4)
     assert v.shape == (enc_mod.ENCODING_DIM_4D,), (
@@ -1256,22 +1260,29 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
     energies = enc_mod.channel_energies_4d(v)
     for name, e in energies.items():
         assert np.isfinite(e), f"channel {name} energy non-finite: {e}"
-    # The stub fiber-sym channels must be zero in v1
-    for name in ("FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"):
-        assert energies[name] == 0.0, (
-            f"v1 fiber-sym channel {name} should be 0, got {energies[name]}"
-        )
     # A_1 and at least one mode-space channel should be nonzero
     assert energies["A1"] > 0, "A_1 channel unexpectedly zero"
     assert energies["FD_DIAG"] > 0, "FD diag-dev channel unexpectedly zero"
-    assert energies["FA_PAWN"] > 0, "FA pawn antisym channel unexpectedly zero"
+    assert energies["FA_PAWN_W"] > 0, (
+        "FA_PAWN_W channel unexpectedly zero with W-axis pawns present"
+    )
+    assert energies["FA_PAWN_Y"] > 0, (
+        "FA_PAWN_Y channel unexpectedly zero with a Y-axis pawn present"
+    )
+    fib_sum = sum(energies[n] for n in ("FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"))
+    assert fib_sum > 0, (
+        "fiber-sym channels all zero; non-pawn pieces should drive signal"
+    )
     report.append(
-        f"encode_4d: shape=(40960,) float32, energies finite; "
-        f"A1={energies['A1']:.2f}, FA={energies['FA_PAWN']:.2f}, "
-        f"FD={energies['FD_DIAG']:.2f}, fiber-sym=0 (v1 stub) OK"
+        f"encode_4d: shape=({enc_mod.ENCODING_DIM_4D},) float32, energies "
+        f"finite; A1={energies['A1']:.2f}, "
+        f"FA_W={energies['FA_PAWN_W']:.2f}, "
+        f"FA_Y={energies['FA_PAWN_Y']:.2f}, "
+        f"FD={energies['FD_DIAG']:.2f}, "
+        f"FIB_SYM_sum={fib_sum:.2f} OK"
     )
 
-    # 2. spectralz v3 round-trip
+    # 2. spectralz v4 round-trip
     n_frames = 10
     frames_in: List[frm.Frame4D] = []
     for p in range(n_frames):
@@ -1290,15 +1301,15 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
     tmp_path = tmp.name
     tmp.close()
     try:
-        n_bytes = frm.write_spectralz_v3(tmp_path, frames_in)
-        header, frames_out = frm.read_spectralz_v3(tmp_path)
+        n_bytes = frm.write_spectralz_v4(tmp_path, frames_in)
+        header, frames_out = frm.read_spectralz_v4(tmp_path)
     finally:
         os.remove(tmp_path)
 
-    assert header.magic == frm.SPECTRALZ_V3_MAGIC, (
-        f"magic {header.magic!r} != {frm.SPECTRALZ_V3_MAGIC!r}"
+    assert header.magic == frm.SPECTRALZ_MAGIC, (
+        f"magic {header.magic!r} != {frm.SPECTRALZ_MAGIC!r}"
     )
-    assert header.version == 3
+    assert header.version == frm.SPECTRALZ_VERSION == 4
     assert header.encoding_dim == frm.ENCODING_DIM_4D
     assert header.frame_bytes == frm.ENCODING_DIM_4D * 4 + frm.FRAME_TAIL_BYTES
     assert header.n_plies == n_frames
@@ -1319,12 +1330,40 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
         assert fin.flags == fout.flags, f"frame {i} flags mismatch"
 
     report.append(
-        f"spectralz v3 round-trip: {n_frames} frames, "
+        f"spectralz v4 round-trip: {n_frames} frames, "
         f"{n_bytes} bytes written, all metadata + encoding byte-identical "
         f"(max|d|={max_enc_err}) OK"
     )
 
-    # 3. Unknown magic -> error
+    # 3. spectralz v3 backward-read: a legacy-dim blob remains readable
+    v3_frames: List[frm.Frame4D] = []
+    for p in range(3):
+        enc = rng.standard_normal(frm.ENCODING_DIM_4D_V3).astype(np.float32)
+        v3_frames.append(frm.Frame4D(
+            encoding=enc, ply=p,
+            from_sq=(0, 0, 0, 0), to_sq=(0, 0, 0, 0),
+            promo=0, flags=0,
+        ))
+    tmp_v3 = tempfile.NamedTemporaryFile(delete=False, suffix=".spectralz")
+    tmp_v3.close()
+    try:
+        frm.write_spectralz_v3(tmp_v3.name, v3_frames)
+        with open(tmp_v3.name, "rb") as f:
+            hdr_v3, kind = frm.read_header_any(f)
+        assert kind == "v3", f"expected kind='v3', got {kind!r}"
+        assert hdr_v3.version == frm.SPECTRALZ_VERSION_V3 == 3
+        assert hdr_v3.encoding_dim == frm.ENCODING_DIM_4D_V3 == 40960
+        _, v3_out = frm.read_spectralz_v3(tmp_v3.name)
+        for fin, fout in zip(v3_frames, v3_out):
+            assert np.array_equal(fin.encoding, fout.encoding)
+    finally:
+        os.remove(tmp_v3.name)
+    report.append(
+        "spectralz v3 backward-read: legacy 40960-dim blob detected as v3 "
+        "and decoded byte-identical OK"
+    )
+
+    # 4. Unknown magic -> error
     import io
     bad = io.BytesIO(b"\x00" * 256)
     try:
@@ -1337,7 +1376,7 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
 
     if verbose:
         report.append(
-            f"(verbose) v3 header size = {frm.HEADER_SIZE}, "
+            f"(verbose) v4 header size = {frm.HEADER_SIZE}, "
             f"frame_bytes = {header.frame_bytes}, "
             f"total bytes written = {n_bytes}"
         )

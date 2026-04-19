@@ -43,9 +43,12 @@ from chess_spectral_4d import (  # noqa: E402
     BOARD_SIDE_4D,
     N_DIMENSIONS_4D,
 )
+from chess_spectral import frame_4d as _frame_4d  # noqa: E402
 
-SPECTRALZ_V3_MAGIC = "LARTPSEC"
-SPECTRALZ_VERSION = 3
+SPECTRALZ_MAGIC = _frame_4d.SPECTRALZ_MAGIC.decode("ascii")
+SPECTRALZ_VERSION = _frame_4d.SPECTRALZ_VERSION
+# Retained alias for older callers that referenced the v3 magic name.
+SPECTRALZ_V3_MAGIC = SPECTRALZ_MAGIC
 
 
 # --- stub helper ---------------------------------------------------------
@@ -139,7 +142,7 @@ def cmd_corpus_gen(args: argparse.Namespace) -> int:
 
 def cmd_version(args: argparse.Namespace) -> int:
     print(f"chess_spectral_4d {VERSION}")
-    print(f"  spectralz magic:    {SPECTRALZ_V3_MAGIC!r}")
+    print(f"  spectralz magic:    {SPECTRALZ_MAGIC!r}")
     print(f"  spectralz version:  {SPECTRALZ_VERSION}")
     print(f"  encoding_dim:       {ENCODING_DIM_4D}")
     print(f"  board_dim_side:     {BOARD_SIDE_4D}")
