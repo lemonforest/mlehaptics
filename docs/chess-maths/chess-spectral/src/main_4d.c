@@ -138,6 +138,7 @@ static int parse_pieces_object(const char *obj, cs_position_4d_t *pos)
     if (*obj != '{') return -1;
     obj++;  /* past '{' */
     memset(pos->sq, 0, sizeof(pos->sq));
+    memset(pos->pawn_axis, CS_PAWN_AXIS_W, sizeof(pos->pawn_axis));
 
     while (*obj && *obj != '}') {
         while (*obj == ' ' || *obj == '\t' || *obj == ',') obj++;
@@ -201,7 +202,7 @@ static int cmd_encode_fixture(int argc, char **argv)
     /* JSONL lines: find the one with matching "name". Lines can be long
      * (the 12-piece fixture is ~300 bytes); 4 KiB is ample for v1.1.   */
     char line[4096];
-    cs_position_4d_t pos;
+    cs_position_4d_t pos = {0};  /* defaults pawn_axis[] to CS_PAWN_AXIS_W */
     int found = 0;
     while (fgets(line, sizeof(line), fin)) {
         char got[64];

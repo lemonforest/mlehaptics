@@ -9,6 +9,14 @@
 extern "C" {
 #endif
 
+/* Pawn axis labels (v1.1.1, Oana & Chiru Def. 11).
+ *   CS_PAWN_AXIS_W = 0 -- pawn advances along the w-axis (v1.0 default)
+ *   CS_PAWN_AXIS_Y = 1 -- pawn advances along the y-axis
+ * Non-pawn squares carry CS_PAWN_AXIS_W (0) by convention and are
+ * ignored when the pawn-axis channels walk the position. */
+#define CS_PAWN_AXIS_W 0
+#define CS_PAWN_AXIS_Y 1
+
 /* 4D chess position.
  *
  * Square index s encodes (x,y,z,w) as ((x*8+y)*8+z)*8+w, i.e.
@@ -18,22 +26,36 @@ extern "C" {
  * sq[s] stores the piece ASCII char at square s, or 0 for empty.
  * Uppercase = white {P,N,B,R,Q,K}; lowercase = black {p,n,b,r,q,k}.
  * int8_t is ample: all piece chars fit in 7 bits.
+ *
+ * pawn_axis[s] carries the v1.1.1 axis label per Oana & Chiru Def. 11:
+ *   CS_PAWN_AXIS_W (0)  -- w-axis pawn  (legacy default; safe for
+ *                                        non-pawn squares too)
+ *   CS_PAWN_AXIS_Y (1)  -- y-axis pawn
+ * Only meaningful when sq[s] is 'P' or 'p'. Because memset-to-zero
+ * produces a valid W-axis default for every square, callers that are
+ * still on the v1.0 single-axis schema remain correct without code
+ * changes.
  */
 typedef struct {
-    int8_t sq[CS_N_SQUARES_4D];
+    int8_t  sq[CS_N_SQUARES_4D];
+    uint8_t pawn_axis[CS_N_SQUARES_4D];
 } cs_position_4d_t;
 
-/* Flat 40 960-dim float32 encoding.
+/* Flat 45 056-dim float32 encoding (v1.1.1; up from 40 960 in v1.0).
  *
  * Float32 (not double) because:
  *   (a) the Python reference explicitly stores encoder output as
- *       np.float32 — parity target is float32;
- *   (b) the spectralz v3 frame format stores each ply as 40 960 float32
- *       (160 KB/ply), so this matches the on-disk representation.
+ *       np.float32 -- parity target is float32;
+ *   (b) the spectralz v4 frame format stores each ply as 45 056 float32
+ *       (180 224 B/ply), matching the on-disk representation.
  */
 typedef struct {
     float v[CS_ENCODING_DIM_4D];
 } cs_encoding_4d_t;
+
+_Static_assert(sizeof(((cs_position_4d_t*)0)->pawn_axis)
+               == CS_N_SQUARES_4D,
+               "pawn_axis[] must cover every square");
 
 /* Map a piece ASCII char to the 6-piece cs_piece_4d_t enum row used by
  * DIAG_DEV_4D. Returns -1 for 0 / empty / unknown chars.
