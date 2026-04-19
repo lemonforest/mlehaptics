@@ -34,7 +34,28 @@ FA_PAWN_W_OFFSET = 8 * N_SQUARES_4D    # 32768
 FA_PAWN_Y_OFFSET = 9 * N_SQUARES_4D    # 36864
 FD_DIAG_OFFSET = 10 * N_SQUARES_4D     # 40960
 
+# Facade re-exports. The 4D encoder and spectralz I/O currently live in
+# chess_spectral.{encoder_4d,frame_4d} for historical reasons; surfacing
+# them here lets downstream code write `from chess_spectral_4d import
+# encode_4d, frame_4d, write_spectralz_v4` without caring about the
+# physical module layout.
+from chess_spectral.encoder_4d import (
+    encode_4d,
+    channel_energies_4d,
+    board_signal_4d,
+)
+from chess_spectral import frame_4d
+from chess_spectral.frame_4d import (
+    Frame4D,
+    Header4D,
+    write_spectralz_v4,
+    read_spectralz_v4,
+    SPECTRALZ_MAGIC,
+    SPECTRALZ_VERSION,
+)
+
 __all__ = [
+    # Version + constants
     "VERSION",
     "ENCODING_DIM_4D",
     "N_CHANNELS_4D",
@@ -44,4 +65,16 @@ __all__ = [
     "FA_PAWN_W_OFFSET",
     "FA_PAWN_Y_OFFSET",
     "FD_DIAG_OFFSET",
+    # Encoder
+    "encode_4d",
+    "channel_energies_4d",
+    "board_signal_4d",
+    # Frame I/O
+    "frame_4d",
+    "Frame4D",
+    "Header4D",
+    "write_spectralz_v4",
+    "read_spectralz_v4",
+    "SPECTRALZ_MAGIC",
+    "SPECTRALZ_VERSION",
 ]
