@@ -2,22 +2,26 @@
 
 Companion to the 2D reference at [chess-spectral/](chess-spectral/). This
 notebook records what transferred cleanly from the 2D encoder (640-dim
-on Z_8^2) to the 4D encoder (40 960-dim on Z_8^4), what changed, and
-what is still open for v1.1.
+on Z_8^2) to the 4D encoder (now 45 056-dim on Z_8^4 at v1.1.1), what
+changed, and what is still open.
 
 Paired with the implementation plan `when-we-need-to-spicy-seahorse.md`
-(kept in `~/.claude/plans/`), which defined the six-phase roadmap.
+(kept in `~/.claude/plans/`), which defined the six-phase v1.0 roadmap
+and the seven-phase v1.1.1 pawn-axis extension.
 
 ## Run the gates yourself
 
 ```
 cd docs/chess-maths/chess-spectral/python
 python -m chess_spectral_4d.cli tables-verify --phase all
-python -m pytest tests/test_encoder_4d.py tests/test_roundtrip_4d.py -v
+python -m pytest tests/test_encoder_4d.py tests/test_roundtrip_4d.py \
+                 tests/test_pawn_axis_symmetry.py -v
 ```
 
-All six gates (1..5 via `tables-verify`, 6 via pytest) must pass before
-any further work.
+`--phase all` now covers Phases 1..5 plus the v1.1.1 `pawn-axis`
+orthogonality gate. All gates — plus the pytest suite (including
+`test_c_py_parity_4d.py` when a built `spectral_4d` binary is
+present) — must pass before any further work.
 
 ---
 
@@ -557,6 +561,117 @@ Logged here as a bridge between the two claims rather than a proof.
 
 ---
 
-*Last updated with v1.1 fiber wiring, edge-support orthogonality gate,
-and two-claim / primitives-plus-sums reframing on branch
-`chess-spectral-4d`.*
+## v1.1.1 — Pawn axis split (Y / W)
+
+v1.0 encoded every pawn as W-axis-forward. Oana & Chiru Def. 11 allows
+each pawn a fixed axis of motion chosen from `{y, w}` (never `z`), and
+§3.11 names Y↔W as one of three ruleset-preserving symmetries. v1.1.1
+lifts the W-only assumption by splitting the single pawn antisymmetric
+channel into two.
+
+### Channel layout change
+
+| slot | v1.0            | v1.1.1          | notes                          |
+|------|-----------------|-----------------|--------------------------------|
+| 0    | A_1             | A_1             | unchanged                      |
+| 1-4  | STD4_{X,Y,Z,W}  | STD4_{X,Y,Z,W}  | unchanged                      |
+| 5-7  | FIB_SYM_{1,2,3} | FIB_SYM_{1,2,3} | unchanged                      |
+| **8**| **FA_PAWN**     | **FA_PAWN_W**   | W-axis pawn antisym; byte range unchanged for bit-exact v1.0 backward parity on W-only fixtures |
+| **9**| FD_DIAG         | **FA_PAWN_Y**   | new; Y-axis pawn antisym       |
+| **10**| —              | **FD_DIAG**     | shifted from slot 9            |
+
+Encoding dim: **40 960 → 45 056** (one extra channel × 4096 modes).
+Spectralz format bumps v3 → v4. `read_header_any` keeps dispatching
+v3 blobs to the 40 960-dim reader for backward compatibility.
+
+### Factored Kronecker form
+
+Each sub-channel lives on a single tensor factor of the 4D DCT basis:
+
+```
+PAWN_ANTI_FIB_w  =  I (x) I (x) I (x) W_ANTI_DCT     (w-axis, slot 4)
+PAWN_ANTI_FIB_y  =  I (x) Y_ANTI_DCT (x) I (x) I     (y-axis, slot 2)
+```
+
+`W_ANTI_DCT` and `Y_ANTI_DCT` are both `U_P8^T · A_anti_8x8 · U_P8`
+where `A_anti_8x8 = 0.5*(S − S^T)` is the 8×8 antisymmetrized boundary-
+aware forward shift. Numerically the two 8×8 blocks are equal
+(`max|W − Y| = 0`); the distinction is which tensor factor they
+inhabit in the 4096×4096 lift.
+
+The encoder uses the factored form directly — it scatters 8 modes per
+pawn along the relevant axis, never materializing the 128 MB dense
+DCT-basis adjacency.
+
+### Feasibility gate (P1, hard-stop)
+
+`chess_spectral.tables_4d.verify_pawn_axis()` — also exposed as
+`python -m chess_spectral_4d.cli tables-verify --phase pawn-axis`.
+
+Observed numbers on the current build:
+
+```
+W-axis support: on-w-block ||.||_F = 42.3320, off = 0.00e+00
+Y-axis support: on-y-block ||.||_F = 42.3320, off = 0.00e+00
+on-axis Frobenius norms agree: |w - y| = 3.55e-14  (< 1e-10)
+cross-channel <C_w, C_y>_F        = +1.54e-32      (< 1e-13)
+```
+
+The cross-channel inner product is the v1.1.1 feasibility signal: it
+must be exactly zero in infinite precision by the Kronecker trace
+identity `tr(A⊗B⊗C⊗D) = tr(A)·tr(B)·tr(C)·tr(D)` combined with
+`tr(A_anti_8x8) = 0`. A numerical floor at ~1e-32 is 19 orders below
+the 1e-13 gate — the independent-tensor-factor argument holds
+cleanly.
+
+### Y↔W ruleset symmetry (P2)
+
+`test_pawn_axis_symmetry.py` verifies that the encoder respects the
+§3.11 Y↔W mirror:
+
+1. A pure W-axis pawn population, re-encoded after swapping each
+   square's (x,y,z,w) → (x,w,z,y) and flipping axis labels w→y,
+   produces FA_PAWN_W of the original equal to FA_PAWN_Y of the
+   mirror (modulo the mode-index re-index).
+2. A mixed Y+W-pawn population's two channels swap roles under the
+   same mirror.
+3. The mirror is an involution on the 45 056-dim encoding (applying
+   it twice is bit-identical to identity).
+
+These are orthogonal to the P1 orthogonality gate: P1 says the two
+sub-channels live on independent tensor factors; P2 says the
+encoder's routing respects the ruleset symmetry.
+
+### Position schema
+
+- **Python:** `Dict[int, Union[str, Tuple[str, str]]]`. Pawns are
+  tuples `('P'|'p', 'y'|'w')`; non-pawns remain single chars. Legacy
+  single-char pawns (`'P'`, `'p'`) are still accepted and route to
+  the W axis with a one-shot `DeprecationWarning` per session.
+- **C:** sidecar `uint8_t pawn_axis[CS_N_SQUARES_4D]` on
+  `cs_position_4d_t` (4 KB overhead). `0 = CS_PAWN_AXIS_W` (matches
+  `memset` zero-init → v1.0 callers still get W-axis pawns for free);
+  `1 = CS_PAWN_AXIS_Y`.
+- **JSONL (`positions_4d.jsonl`):** 2-char values for pawns
+  (`"Pw"`, `"Py"`, `"pw"`, `"py"`); single char unchanged for
+  non-pawns. `main_4d.c` rejects any other 2-char value (z-axis
+  pawns are explicitly forbidden by Def. 11).
+
+### C parity (P6)
+
+`spectral_4d encode-fixture` remains bit-exact against the Python
+reference at 1e-10 absolute tolerance on all 11 gated channels across
+the expanded fixture set (12 legacy W-only + 1 Y-only + 1 mixed Y+W +
+1 single Y pawn). See
+`docs/chess-maths/chess-spectral/python/tests/test_c_py_parity_4d.py`.
+
+Bench sanity (`bench_encoder_4d.py`): speedup ratios stay in the
+30–60× range even with the extra channel — e.g. `starting_like_mini`
+runs at ~43× vs v1.0's ~42×, `single_pawn_white_y` (a new fixture)
+clocks in at ~19×.
+
+---
+
+*Last updated with v1.1.1 Y/W pawn-axis split (channels 8-10 relayout,
+spectralz v4 format, cross-channel orthogonality gate at 1e-32) on
+branch `zesty-llama`.*

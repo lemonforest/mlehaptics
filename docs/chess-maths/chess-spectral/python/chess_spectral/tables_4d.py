@@ -1385,3 +1385,105 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
                       + ", ".join(f"{n}={energies[n]:.2f}" for n in ch_names))
 
     return report
+
+
+# ---- v1.1.1 pawn-axis gate ------------------------------------------
+
+def verify_pawn_axis(verbose: bool = False) -> List[str]:
+    """v1.1.1 pawn-axis feasibility gate.
+
+    Confirms that the split of the v1.0 FA_PAWN channel into
+    FA_PAWN_W (slot 8) and FA_PAWN_Y (slot 9) is numerically sound:
+    the two sub-channels' DCT-basis adjacencies sit on independent
+    tensor factors, hence are Frobenius-orthogonal by construction.
+
+    Checks (all via the factored 8x8 Kronecker form, not the 128 MB
+    dense U^T A U):
+    - W-axis block support: off-w-axis mass < 1e-13
+    - Y-axis block support: off-y-axis mass < 1e-13
+    - On-axis Frobenius norms agree (same 8x8 generator, different leg)
+    - Cross-channel inner product |<C_w, C_y>_F| < 1e-13
+
+    The last line is the v1.1.1 feasibility signal: it follows exactly
+    from tr(A_w_anti) = tr(A_y_anti) = 0 via the Kronecker trace
+    identity, so any nonzero value here means the independent-tensor-
+    factor argument doesn't hold and the channel split is unsafe.
+    """
+    from scipy.sparse import kron as skron, eye as seye, csr_matrix
+
+    report: List[str] = []
+    B = BOARD_SIDE
+    I8 = seye(B, format='csr')
+    W = csr_matrix(w_anti_dct_block())
+    Y = csr_matrix(y_anti_dct_block())
+
+    # W-axis: I (x) I (x) I (x) W    Y-axis: I (x) Y (x) I (x) I
+    C_w = skron(skron(skron(I8, I8), I8), W, format='csr')
+    C_y = skron(skron(skron(I8, Y), I8), I8, format='csr')
+
+    T_w = C_w.toarray().reshape(B, B, B, B, B, B, B, B)
+    T_y = C_y.toarray().reshape(B, B, B, B, B, B, B, B)
+
+    mask_w = np.zeros_like(T_w, dtype=bool)
+    for i in range(B):
+        for j in range(B):
+            for k in range(B):
+                mask_w[i, j, k, :, i, j, k, :] = True
+    mask_y = np.zeros_like(T_y, dtype=bool)
+    for i in range(B):
+        for k in range(B):
+            for l in range(B):
+                mask_y[i, :, k, l, i, :, k, l] = True
+
+    on_w = float(np.linalg.norm(T_w[mask_w]))
+    off_w = float(np.linalg.norm(T_w[~mask_w]))
+    on_y = float(np.linalg.norm(T_y[mask_y]))
+    off_y = float(np.linalg.norm(T_y[~mask_y]))
+
+    assert off_w < 1e-13, (
+        f"W-axis pawn antisym leaked off-w energy: {off_w:.3e}"
+    )
+    assert off_y < 1e-13, (
+        f"Y-axis pawn antisym leaked off-y energy: {off_y:.3e}"
+    )
+    report.append(
+        f"W-axis support: on-w-block ||.||_F={on_w:.4f}, off={off_w:.2e} OK"
+    )
+    report.append(
+        f"Y-axis support: on-y-block ||.||_F={on_y:.4f}, off={off_y:.2e} OK"
+    )
+
+    assert abs(on_w - on_y) < 1e-10, (
+        f"on-axis norms disagree: w={on_w:.10f} y={on_y:.10f}"
+    )
+    assert on_w > 1.0, f"on-w norm unexpectedly small: {on_w}"
+    report.append(
+        f"on-axis Frobenius norms agree: |w-y|={abs(on_w - on_y):.2e} "
+        f"(< 1e-10) OK"
+    )
+
+    inner = float((C_w.multiply(C_y)).sum())
+    assert abs(inner) < 1e-13, (
+        f"cross-channel <C_anti_w, C_anti_y>_F = {inner:.3e} "
+        f"(expected < 1e-13); v1.1.1 feasibility premise fails"
+    )
+    report.append(
+        f"cross-channel <C_w, C_y>_F = {inner:+.3e} "
+        f"(< 1e-13; v1.1.1 feasibility signal) OK"
+    )
+
+    if verbose:
+        report.append(
+            f"(verbose) 8x8 W_ANTI_DCT Frobenius = "
+            f"{float(np.linalg.norm(w_anti_dct_block())):.6f}"
+        )
+        report.append(
+            f"(verbose) 8x8 Y_ANTI_DCT Frobenius = "
+            f"{float(np.linalg.norm(y_anti_dct_block())):.6f}"
+        )
+        report.append(
+            f"(verbose) |W_ANTI_DCT - Y_ANTI_DCT|_max = "
+            f"{float(np.max(np.abs(w_anti_dct_block() - y_anti_dct_block()))):.2e}"
+        )
+
+    return report

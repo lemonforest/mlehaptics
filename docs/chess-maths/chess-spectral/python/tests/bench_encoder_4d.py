@@ -51,16 +51,32 @@ def _find_c_binary() -> Path | None:
     return None
 
 
-def _load_fixture(name: str) -> dict[int, str]:
+def _jsonl_to_pieceval(v: str):
+    """Map a JSONL piece value to the encoder_4d PieceValue schema.
+
+    v1.1.1 fixtures write pawns as 2-char ("Pw"/"Py"/"pw"/"py"); the C
+    JSONL parser accepts the same format. The Python encoder wants
+    either a single str (non-pawn) or a tuple ('P'|'p', 'y'|'w') for
+    pawns, so we translate here. A 1-char 'P'/'p' is legacy and maps
+    to W-axis implicitly via encoder_4d's DeprecationWarning path --
+    we convert explicitly to avoid spamming warnings in the bench.
+    """
+    if len(v) == 2 and v[0] in ('P', 'p'):
+        return (v[0], v[1])
+    return v
+
+
+def _load_fixture(name: str) -> dict[int, object]:
     with FIXTURE_JSONL.open() as f:
         for line in f:
             rec = json.loads(line)
             if rec["name"] == name:
-                return {int(k): v for k, v in rec["pieces"].items()}
+                return {int(k): _jsonl_to_pieceval(v)
+                        for k, v in rec["pieces"].items()}
     raise KeyError(f"fixture '{name}' not found in {FIXTURE_JSONL}")
 
 
-def _bench_python(pos: dict[int, str], iters: int) -> dict[str, float]:
+def _bench_python(pos: dict[int, object], iters: int) -> dict[str, float]:
     encoder_4d.encode_4d(pos)  # warm table cache + dict insertion order
     samples = np.empty(iters, dtype=np.float64)
     for i in range(iters):
@@ -111,7 +127,7 @@ def _bench_c(binary: Path, name: str, iters: int) -> dict[str, float]:
     }
 
 
-def _count_pieces(pos: dict[int, str]) -> int:
+def _count_pieces(pos: dict[int, object]) -> int:
     return len(pos)
 
 
