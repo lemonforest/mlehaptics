@@ -40,12 +40,7 @@ from typing import Iterable, Iterator, TextIO
 
 import numpy as np
 
-# Make `chess_spectral` importable when run as a script from any cwd.
-HERE = os.path.dirname(os.path.abspath(__file__))
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
-
-from chess_spectral import (  # noqa: E402
+from chess_spectral import (
     encode_640, normalize_pos, Frame, write_file, write_csv,
     FILE_VERSION, ENCODING_DIM, fen_to_pos, uci_to_indices,
     process_game, extract_features,
@@ -55,14 +50,15 @@ from chess_spectral import (  # noqa: E402
 
 VERSION = "0.1.0-py"
 
-# Paths for the `corpus` subcommand. spectral_py.py lives at
-# <repo>/docs/chess-maths/chess-spectral/python/spectral_py.py, so:
+# Paths for the `corpus` subcommand. This module lives at
+# <repo>/docs/chess-maths/chess-spectral/python/chess_spectral/cli.py, so:
 #   bridge  = <repo>/docs/chess-maths/chess-spectral/bridge/pgn_bridge.py
 #   results = <repo>/docs/chess-maths/results/
+HERE = os.path.dirname(os.path.abspath(__file__))
 _BRIDGE_SCRIPT = os.path.abspath(os.path.join(
-    HERE, os.pardir, "bridge", "pgn_bridge.py"))
+    HERE, os.pardir, os.pardir, "bridge", "pgn_bridge.py"))
 _DEFAULT_RESULTS_ROOT = os.path.abspath(os.path.join(
-    HERE, os.pardir, os.pardir, "results"))
+    HERE, os.pardir, os.pardir, os.pardir, "results"))
 
 
 def _find_c_binary() -> str | None:
@@ -73,7 +69,8 @@ def _find_c_binary() -> str | None:
     env = os.environ.get("CS_SPECTRAL_BIN")
     if env and os.path.isfile(env):
         return env
-    build_root = os.path.abspath(os.path.join(HERE, os.pardir, "build"))
+    build_root = os.path.abspath(os.path.join(
+        HERE, os.pardir, os.pardir, "build"))
     suffix = ".exe" if os.name == "nt" else ""
     for sub in ("Release", "Debug", ""):
         cand = os.path.join(build_root, sub, f"spectral{suffix}")

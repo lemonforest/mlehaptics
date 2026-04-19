@@ -18,7 +18,8 @@ Discover the CLI with:
     python -m chess_spectral_4d.cli --help
 """
 
-VERSION = "1.1.1-dev"
+VERSION = "1.1.1"
+__version__ = VERSION  # PEP 396 alias; VERSION kept for cli.py back-compat
 ENCODING_DIM_4D = 45056   # 11 channels x 4096 eigenmodes (v1.1.1)
 N_CHANNELS_4D = 11
 BOARD_SIDE_4D = 8

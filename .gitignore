@@ -28,6 +28,10 @@ dependencies.lock
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+dist/
+.pytest_cache/
+.venv/
 
 # Temporary files
 *.tmp

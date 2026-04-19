@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chess-spectral"
+version = "1.1.1"
+description = "Spectral lattice-fermion encoder for 2D and 4D chess (D4 / B4 symmetry, graph-Laplacian eigenbasis, 640-dim / 45 056-dim HDC)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Steven Kirkland" }]
+keywords = [
+    "chess",
+    "spectral",
+    "4d",
+    "hyperdimensional-computing",
+    "graph-laplacian",
+    "oana-chiru",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Games/Entertainment :: Board Games",
+]
+dependencies = ["numpy", "scipy"]
+
+[project.optional-dependencies]
+corpus = ["chess"]
+
+[project.urls]
+Repository = "https://github.com/lemonforest/mlehaptics"
+"Notebook (2D)" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_research_notebook.md"
+"Notebook (4D)" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_4d_notebook.md"
+
+[project.scripts]
+chess-spectral = "chess_spectral.cli:main"
+chess-spectral-4d = "chess_spectral_4d.cli:main"
+
+[tool.setuptools]
+packages = ["chess_spectral", "chess_spectral_4d"]
