@@ -1,14 +1,16 @@
 """C-binary vs Python reference parity test — 4D encoder.
 
-Mirrors test_c_py_parity.py for the 4D encoder port (v1.1). Loads the
+Mirrors test_c_py_parity.py for the 4D encoder port. Loads the
 codegen'd fixture pack (fixtures_4d.npz), encodes each position through
 spectral_4d, and compares against the Python reference at 1e-10 absolute
 tolerance.
 
-P4 scope: all 10 channels (A1, STD4_{X,Y,Z,W}, FIB_SYM_{1,2,3},
-FA_PAWN, FD_DIAG) are gated at 1e-10. P2b opened 0/1-4/9, P3 opened 8,
-P4 opens 5-7 — the stub list is empty. Any remaining skip path would
-indicate a regression, not an expected milestone gap.
+v1.1.1 scope: all 11 channels (A1, STD4_{X,Y,Z,W}, FIB_SYM_{1,2,3},
+FA_PAWN_W, FA_PAWN_Y, FD_DIAG) are gated at 1e-10. The v1.0 single
+FA_PAWN channel was split into per-axis FA_PAWN_W / FA_PAWN_Y by the
+pawn-axis routing added in P6; both must agree byte-for-byte with
+their Python counterparts across the legacy W-only fixtures *and* the
+new Y-axis + mixed fixtures.
 
 Exit codes:
     0   parity confirmed (or C binary absent — skipped with a warning)
@@ -36,11 +38,12 @@ FIXTURE_PACK = HERE / "fixtures" / "fixtures_4d.npz"
 JSONL_PATH   = HERE / "fixtures" / "positions_4d.jsonl"
 
 # Channels that have real C impls at the current milestone. Full set
-# at P4 — every channel is gated at TOL.
+# at v1.1.1/P6 — every channel is gated at TOL, including both pawn-
+# axis sub-channels after the FA_PAWN split.
 GATED_CHANNELS = {"A1", "STD4_X", "STD4_Y", "STD4_Z", "STD4_W",
                   "FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3",
-                  "FA_PAWN", "FD_DIAG"}
-# Channels whose C-side is still a zero stub. Empty at P4.
+                  "FA_PAWN_W", "FA_PAWN_Y", "FD_DIAG"}
+# Channels whose C-side is still a zero stub. Empty at v1.1.1/P6.
 STUBBED_CHANNELS: set[str] = set()
 
 # Tolerance rationale: see test_c_py_parity.py. 1e-10 is ~4 orders below
@@ -62,7 +65,7 @@ def _find_c_binary() -> Path | None:
 
 
 def _encode_c(binary: Path, name: str) -> np.ndarray:
-    """Shell out to spectral_4d encode-fixture and read 40960 float32 LE."""
+    """Shell out to spectral_4d encode-fixture and read 45056 float32 LE."""
     result = subprocess.run(
         [str(binary), "encode-fixture",
          "--positions-jsonl", str(JSONL_PATH),
@@ -70,7 +73,8 @@ def _encode_c(binary: Path, name: str) -> np.ndarray:
         check=True, capture_output=True,
     )
     data = result.stdout
-    expected_bytes = 4 * 40960
+    # v1.1.1: 11 channels × 4096 floats = 45056 floats = 180 224 bytes.
+    expected_bytes = 4 * 45056
     if len(data) != expected_bytes:
         raise RuntimeError(
             f"spectral_4d encode-fixture '{name}': expected {expected_bytes} "
@@ -102,9 +106,9 @@ def run_parity() -> int:
 
     pack = np.load(FIXTURE_PACK, allow_pickle=True)
     names         = pack["names"]
-    encodings     = pack["encodings"]        # (N, 40960) float32
-    channel_names = pack["channel_names"]    # (10,) object
-    channel_starts = pack["channel_starts"]  # (11,) int32
+    encodings     = pack["encodings"]        # (N, 45056) float32
+    channel_names = pack["channel_names"]    # (11,) object
+    channel_starts = pack["channel_starts"]  # (12,) int32
 
     # Map channel name -> (start, end) slice.
     ch_slice: dict[str, tuple[int, int]] = {}

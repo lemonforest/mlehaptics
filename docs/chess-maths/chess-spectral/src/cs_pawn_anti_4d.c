@@ -8,18 +8,25 @@
  *     For each pawn with pawn_axis[s] == CS_PAWN_AXIS_W at
  *     s = (sx,sy,sz,sw):
  *       out[(sx,sy,sz,tw)] += sign * W_ANTI_DCT[sw, tw]   (tw in 0..7)
- *     8 fp ops per pawn; zero contribution off the (sx,sy,sz,*) fiber.
+ *     Scatter pattern: 8 contiguous stride-1 writes.
  *
  *   FA_PAWN_Y (slot 9, new)      Kronecker form: I (x) A_y (x) I (x) I
  *     For each pawn with pawn_axis[s] == CS_PAWN_AXIS_Y at
  *     s = (sx,sy,sz,sw):
  *       out[(sx,ty,sz,sw)] += sign * Y_ANTI_DCT[sy, ty]   (ty in 0..7)
- *     Full impl lands in P6 -- this TU currently emits a zero-fill
- *     for FA_PAWN_Y so the header split compiles and cs_encode_4d
- *     writes well-defined bytes.
+ *     Scatter pattern: 8 stride-64 writes at base | (ty << 6),
+ *     where base clears the y-bits (6..8) of the pawn's square.
+ *
+ * Both routines skip pawns that don't match the channel's axis, so
+ * v1.0 fixtures (where every pawn defaults to CS_PAWN_AXIS_W via the
+ * struct zero-init) feed only FA_PAWN_W and leave FA_PAWN_Y all-zero;
+ * this preserves byte-for-byte parity with the v1.0 W-only encoding
+ * on the legacy fixture subset.
  *
  * Sign convention: 'P' -> +1, 'p' -> -1; non-pawn squares are skipped
- * unconditionally.
+ * unconditionally. Square-index layout (matches tables_4d.sq4):
+ *   s = ((sx*8 + sy)*8 + sz)*8 + sw
+ *   sw = s & 7  sz = (s>>3)&7  sy = (s>>6)&7  sx = (s>>9)&7
  */
 #include <string.h>
 #include "cs_encoder_4d.h"
@@ -58,8 +65,28 @@ void cs_channel_fa_pawn_w_4d(const cs_position_4d_t *pos,
 
 void cs_channel_fa_pawn_y_4d(const cs_position_4d_t *pos,
                              float out[CS_N_SQUARES_4D]) {
-    /* P4 stub: zero-fill. Full Y-axis factored scatter lands in P6
-     * along with Y_ANTI_DCT regeneration in P5. */
-    (void)pos;
-    memset(out, 0, CS_N_SQUARES_4D * sizeof(float));
+    double pawn_ch[CS_N_SQUARES_4D];
+    memset(pawn_ch, 0, sizeof(pawn_ch));
+
+    /* y-axis mask covers bits 6..8 of the square index (see header
+     * comment above for the sq4 layout). */
+    const int Y_MASK = 7 << 6;  /* 0x1C0 */
+
+    for (int s = 0; s < CS_N_SQUARES_4D; s++) {
+        int8_t pc = pos->sq[s];
+        if (pc != 'P' && pc != 'p') continue;
+        if (pos->pawn_axis[s] != CS_PAWN_AXIS_Y) continue;
+
+        double sign = (pc == 'P') ? 1.0 : -1.0;
+        int sy   = (s >> 6) & 7;
+        int base = s & ~Y_MASK;  /* (sx, 0, sz, sw) */
+        const double *row = Y_ANTI_DCT[sy];
+        for (int ty = 0; ty < 8; ty++) {
+            pawn_ch[base | (ty << 6)] += sign * row[ty];
+        }
+    }
+
+    for (int k = 0; k < CS_N_SQUARES_4D; k++) {
+        out[k] = (float)pawn_ch[k];
+    }
 }

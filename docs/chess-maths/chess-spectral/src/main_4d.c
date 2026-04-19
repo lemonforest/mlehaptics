@@ -30,7 +30,7 @@
 static void print_usage(FILE *fp)
 {
     fprintf(fp,
-        "spectral_4d — 40 960-dim 4D spectral chess encoder (C17)\n"
+        "spectral_4d — 45 056-dim 4D spectral chess encoder (C17, v1.1.1)\n"
         "\n"
         "USAGE:\n"
         "    spectral_4d <command> [options]\n"
@@ -42,19 +42,20 @@ static void print_usage(FILE *fp)
         "    encode-fixture   Encode a named fixture from positions_4d.jsonl\n"
         "                         --positions-jsonl <path>   JSONL fixture file\n"
         "                         --name <fixture>           fixture name to encode\n"
-        "                     Emits 40960 little-endian float32 (163 840 bytes)\n"
+        "                     Emits 45056 little-endian float32 (180 224 bytes)\n"
         "                     on stdout. Parity-test entry point.\n"
         "    encode-fen4      [stub — requires FEN4 parser]\n"
         "    encode           [stub — P5]  NDJSON4 → .spectralz4 bulk encoding\n"
         "    csv              [stub — P5]  Per-ply channel energies (CSV)\n"
         "\n"
-        "ENCODING DIMENSIONS:\n"
-        "    10 channels × 4096 board eigenmodes = 40 960 floats per position.\n"
-        "        Ch 0     : A_1 orbit-mean                               (dims     0..4095 )\n"
-        "        Ch 1-4   : std-4D coord residuals                       (dims  4096..20479)\n"
-        "        Ch 5-7   : symmetric 3D cross-piece fiber               (dims 20480..32767)\n"
-        "        Ch 8     : antisymmetric pawn fiber (Z_2-breaking, w)   (dims 32768..36863)\n"
-        "        Ch 9     : diagonal deviation (rook shadow)             (dims 36864..40959)\n"
+        "ENCODING DIMENSIONS (v1.1.1, Oana-Chiru Def. 11 pawn axis split):\n"
+        "    11 channels × 4096 board eigenmodes = 45 056 floats per position.\n"
+        "        Ch 0     : A_1 orbit-mean                                (dims     0..4095 )\n"
+        "        Ch 1-4   : std-4D coord residuals                        (dims  4096..20479)\n"
+        "        Ch 5-7   : symmetric 3D cross-piece fiber                (dims 20480..32767)\n"
+        "        Ch 8     : antisymmetric pawn fiber, W-axis              (dims 32768..36863)\n"
+        "        Ch 9     : antisymmetric pawn fiber, Y-axis (NEW v1.1.1) (dims 36864..40959)\n"
+        "        Ch 10    : diagonal deviation (rook shadow)              (dims 40960..45055)\n"
         "\n"
         "EXIT CODES:\n"
         "    0  success\n"
@@ -130,9 +131,19 @@ static const char *json_object_field(const char *line, const char *key)
     return p;
 }
 
-/* Parse {"<square>":"<char>", ...} into pos->sq. Square keys are decimal
- * strings 0..4095; chars are single ASCII letters. Tolerates whitespace
- * (json.dumps default inserts one space after each `:` and `,`). */
+/* Parse {"<square>":"<val>", ...} into pos->sq + pos->pawn_axis.
+ *
+ * Square keys are decimal strings 0..4095. Values are either:
+ *   - 1-char: a single piece letter (NBRQKnbrqk) OR a legacy pawn
+ *             ('P'/'p') which defaults to W-axis (matches v1.0 JSONL).
+ *   - 2-char: a pawn color + axis, e.g. "Pw", "Py", "pw", "py"
+ *             (v1.1.1 per Oana-Chiru Def. 11).
+ *
+ * Tolerates whitespace (json.dumps' default inserts one space after
+ * each `:` and `,`). Returns 0 on success, -1 on any malformed input
+ * including an unknown pawn axis letter. Non-pawn chars MUST be
+ * 1-char; a 2-char non-pawn value is rejected.
+ */
 static int parse_pieces_object(const char *obj, cs_position_4d_t *pos)
 {
     if (*obj != '{') return -1;
@@ -158,10 +169,34 @@ static int parse_pieces_object(const char *obj, cs_position_4d_t *pos)
         obj++;  /* past opening quote of value */
 
         if (s < 0 || s >= CS_N_SQUARES_4D) return -1;
-        pos->sq[s] = (int8_t)(*obj);
-        obj++;  /* past the single piece char */
-        if (*obj != '"') return -1;
-        obj++;  /* past closing quote of value */
+
+        char color = *obj;
+        if (color == '\0' || color == '"') return -1;
+        obj++;  /* past color char */
+        pos->sq[s] = (int8_t)color;
+
+        if (*obj == '"') {
+            /* 1-char value: either a non-pawn piece or a legacy pawn
+             * (W-axis default, already set by the memset above). */
+            obj++;  /* past closing quote */
+        } else {
+            /* 2-char value: must be a pawn with an explicit axis. */
+            if (color != 'P' && color != 'p') return -1;
+            char axis = *obj;
+            obj++;  /* past axis char */
+            if (*obj != '"') return -1;
+            obj++;  /* past closing quote */
+            if (axis == 'w') {
+                pos->pawn_axis[s] = CS_PAWN_AXIS_W;
+            } else if (axis == 'y') {
+                pos->pawn_axis[s] = CS_PAWN_AXIS_Y;
+            } else {
+                /* Oana-Chiru Def. 11 forbids z-axis pawns; reject
+                 * anything that isn't 'w' or 'y' rather than silently
+                 * falling back to W. */
+                return -1;
+            }
+        }
     }
     return 0;
 }
