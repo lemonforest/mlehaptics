@@ -69,12 +69,26 @@ assert P8_EVECS.shape == (8, 8)
 assert P8_EVALS.shape == (8,)
 
 
-# ─── W_ANTI_DCT (factored 8x8 pawn antisym block in DCT basis) ──────────────
+# ─── W_ANTI_DCT / Y_ANTI_DCT (factored 8x8 pawn antisym blocks) ────────────
+#
+# v1.1.1 splits the pawn antisymmetric channel per axis (Oana & Chiru
+# Def. 11). Both factors come from the same 0.5*(S - S^T) generator, so
+# they are numerically identical; we still emit both symbols so the two
+# axis channels are structurally distinct at link time (and the C
+# encoder reads axis-specific storage rather than sharing W for Y).
 
 W_ANTI_DCT = t4.w_anti_dct_block()
+Y_ANTI_DCT = t4.y_anti_dct_block()
 assert W_ANTI_DCT.shape == (8, 8)
-# Sanity: antisymmetric in the DCT basis as well (similarity by orthogonal U).
+assert Y_ANTI_DCT.shape == (8, 8)
+# Both factors must be antisymmetric in the DCT basis (similarity by
+# orthogonal U preserves antisymmetry).
 assert np.allclose(W_ANTI_DCT, -W_ANTI_DCT.T, atol=1e-12)
+assert np.allclose(Y_ANTI_DCT, -Y_ANTI_DCT.T, atol=1e-12)
+# Sanity: shared generator -> bitwise-identical entries.
+assert np.array_equal(W_ANTI_DCT, Y_ANTI_DCT), (
+    "W_ANTI_DCT / Y_ANTI_DCT should be identical (shared generator)"
+)
 
 
 # ─── COORD_RESID (std-4D coord residual masks) ──────────────────────────────
@@ -285,12 +299,30 @@ def write_cs_tables_4d_h() -> None:
         f.write("#include <stdint.h>\n\n")
         f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n")
 
-        f.write("/* 4D encoding dimensions (Z_8^4 lattice) */\n")
+        f.write("/* 4D encoding dimensions (Z_8^4 lattice). v1.1.1 splits the pawn\n")
+        f.write(" * antisymmetric channel into W-axis and Y-axis sub-channels (Oana &\n")
+        f.write(" * Chiru Def. 11); N_CHANNELS 10 -> 11, ENCODING_DIM 40960 -> 45056. */\n")
         f.write(f"#define CS_BOARD_SIDE_4D      {t4.BOARD_SIDE}\n")
         f.write(f"#define CS_N_DIMS             {t4.N_DIMS}\n")
         f.write(f"#define CS_N_SQUARES_4D       {t4.N_SQUARES}\n")
         f.write(f"#define CS_N_CHANNELS_4D      {enc4.N_CHANNELS_4D}\n")
         f.write(f"#define CS_ENCODING_DIM_4D    {enc4.ENCODING_DIM_4D}\n\n")
+
+        f.write("/* Channel offset macros (float indices into cs_encoding_4d_t::v).\n")
+        f.write(" * Each channel spans CS_N_SQUARES_4D consecutive floats. SSOT for\n")
+        f.write(" * the v1.1.1 layout -- do NOT hardcode `k * CS_N_SQUARES_4D` in TU\n")
+        f.write(" * code; reference these macros instead. */\n")
+        f.write("#define CS_CHANNEL_A1_OFFSET         (0  * CS_N_SQUARES_4D)\n")
+        f.write("#define CS_CHANNEL_STD4_OFFSET       (1  * CS_N_SQUARES_4D)\n")
+        f.write("#define CS_CHANNEL_FIB_SYM_OFFSET    (5  * CS_N_SQUARES_4D)\n")
+        f.write("#define CS_CHANNEL_FA_PAWN_W_OFFSET  (8  * CS_N_SQUARES_4D)  /* v1.0 FA_PAWN slot */\n")
+        f.write("#define CS_CHANNEL_FA_PAWN_Y_OFFSET  (9  * CS_N_SQUARES_4D)  /* new in v1.1.1 */\n")
+        f.write("#define CS_CHANNEL_FD_DIAG_OFFSET    (10 * CS_N_SQUARES_4D)  /* shifted from 9 */\n\n")
+
+        f.write("_Static_assert(CS_ENCODING_DIM_4D == CS_N_CHANNELS_4D * CS_N_SQUARES_4D,\n")
+        f.write("               \"CS_ENCODING_DIM_4D must equal CS_N_CHANNELS_4D * CS_N_SQUARES_4D\");\n")
+        f.write("_Static_assert(CS_CHANNEL_FD_DIAG_OFFSET + CS_N_SQUARES_4D == CS_ENCODING_DIM_4D,\n")
+        f.write("               \"FD_DIAG must be the final channel in v1.1.1 layout\");\n\n")
 
         f.write("/* B_4 group order and orbit count on Z_8^4. */\n")
         f.write("#define CS_B4_ORDER           384\n")
@@ -377,12 +409,17 @@ def write_cs_fiber_tables_4d_h() -> None:
         f.write("#include \"cs_tables_4d.h\"\n\n")
         f.write("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n")
 
-        f.write("/* Pawn antisymmetric fiber, factored form.\n")
-        f.write(" *   A_anti = I (x) I (x) I (x) A_w_anti  (Kronecker identity)\n")
-        f.write(" *   U^T A_anti U = I (x) I (x) I (x) (U_P8^T A_w_anti U_P8)\n")
-        f.write(" * so the 4096x4096 DCT-basis matrix is block-diagonal over (x,y,z)\n")
-        f.write(" * with this single 8x8 block on the w-axis. */\n")
-        f.write("extern const double W_ANTI_DCT[8][8];\n\n")
+        f.write("/* Pawn antisymmetric fibers, factored form (v1.1.1: per axis).\n")
+        f.write(" *   A_w_anti = I (x) I    (x) I (x) A_w_anti_8   (Kronecker identity)\n")
+        f.write(" *   A_y_anti = I (x) A_y_anti_8 (x) I (x) I\n")
+        f.write(" * so each 4096x4096 DCT-basis matrix reduces to an 8x8 factor.\n")
+        f.write(" *\n")
+        f.write(" * The 8x8 blocks are numerically identical (both = U_P8^T @ A_anti @\n")
+        f.write(" * U_P8 for the shared 0.5*(S-S^T) generator); they are emitted as\n")
+        f.write(" * separate symbols so the two axis channels are structurally\n")
+        f.write(" * distinct and readable in the encoder. */\n")
+        f.write("extern const double W_ANTI_DCT[8][8];\n")
+        f.write("extern const double Y_ANTI_DCT[8][8];\n\n")
 
         f.write("/* Per-piece diagonal deviation from grid spectrum, mode space.\n")
         f.write(" * Indexed [cs_piece_4d_t][k]. */\n")
@@ -410,6 +447,7 @@ def write_cs_tables_data_4d_c() -> None:
         emit_f64_2d(f, "P8_EVECS", P8_EVECS, 8, 8)
         emit_f64_1d(f, "P8_EVALS", P8_EVALS, 8)
         emit_f64_2d(f, "W_ANTI_DCT", W_ANTI_DCT, 8, 8)
+        emit_f64_2d(f, "Y_ANTI_DCT", Y_ANTI_DCT, 8, 8)
         emit_f64_2d(f, "COORD_RESID", COORD_RESID, t4.N_DIMS, t4.N_SQUARES)
         emit_u16_1d(f, "ORBIT_OF", ORBIT_OF, t4.N_SQUARES)
         emit_u16_1d(f, "ORBIT_MEMBERS", ORBIT_MEMBERS, t4.N_SQUARES)
@@ -452,6 +490,7 @@ def main() -> None:
         8 * 8 * 8                               # P8_EVECS
         + 8 * 8                                 # P8_EVALS
         + 8 * 8 * 8                             # W_ANTI_DCT
+        + 8 * 8 * 8                             # Y_ANTI_DCT
         + 4 * 4096 * 8                          # COORD_RESID
         + 4096 * 2                              # ORBIT_OF
         + 4096 * 2                              # ORBIT_MEMBERS

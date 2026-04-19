@@ -8,12 +8,30 @@
 extern "C" {
 #endif
 
-/* 4D encoding dimensions (Z_8^4 lattice) */
+/* 4D encoding dimensions (Z_8^4 lattice). v1.1.1 splits the pawn
+ * antisymmetric channel into W-axis and Y-axis sub-channels (Oana &
+ * Chiru Def. 11); N_CHANNELS 10 -> 11, ENCODING_DIM 40960 -> 45056. */
 #define CS_BOARD_SIDE_4D      8
 #define CS_N_DIMS             4
 #define CS_N_SQUARES_4D       4096
-#define CS_N_CHANNELS_4D      10
-#define CS_ENCODING_DIM_4D    40960
+#define CS_N_CHANNELS_4D      11
+#define CS_ENCODING_DIM_4D    45056
+
+/* Channel offset macros (float indices into cs_encoding_4d_t::v).
+ * Each channel spans CS_N_SQUARES_4D consecutive floats. SSOT for
+ * the v1.1.1 layout -- do NOT hardcode `k * CS_N_SQUARES_4D` in TU
+ * code; reference these macros instead. */
+#define CS_CHANNEL_A1_OFFSET         (0  * CS_N_SQUARES_4D)
+#define CS_CHANNEL_STD4_OFFSET       (1  * CS_N_SQUARES_4D)
+#define CS_CHANNEL_FIB_SYM_OFFSET    (5  * CS_N_SQUARES_4D)
+#define CS_CHANNEL_FA_PAWN_W_OFFSET  (8  * CS_N_SQUARES_4D)  /* v1.0 FA_PAWN slot */
+#define CS_CHANNEL_FA_PAWN_Y_OFFSET  (9  * CS_N_SQUARES_4D)  /* new in v1.1.1 */
+#define CS_CHANNEL_FD_DIAG_OFFSET    (10 * CS_N_SQUARES_4D)  /* shifted from 9 */
+
+_Static_assert(CS_ENCODING_DIM_4D == CS_N_CHANNELS_4D * CS_N_SQUARES_4D,
+               "CS_ENCODING_DIM_4D must equal CS_N_CHANNELS_4D * CS_N_SQUARES_4D");
+_Static_assert(CS_CHANNEL_FD_DIAG_OFFSET + CS_N_SQUARES_4D == CS_ENCODING_DIM_4D,
+               "FD_DIAG must be the final channel in v1.1.1 layout");
 
 /* B_4 group order and orbit count on Z_8^4. */
 #define CS_B4_ORDER           384

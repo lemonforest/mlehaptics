@@ -43,9 +43,12 @@ from chess_spectral_4d import (  # noqa: E402
     BOARD_SIDE_4D,
     N_DIMENSIONS_4D,
 )
+from chess_spectral import frame_4d as _frame_4d  # noqa: E402
 
-SPECTRALZ_V3_MAGIC = "LARTPSEC"
-SPECTRALZ_VERSION = 3
+SPECTRALZ_MAGIC = _frame_4d.SPECTRALZ_MAGIC.decode("ascii")
+SPECTRALZ_VERSION = _frame_4d.SPECTRALZ_VERSION
+# Retained alias for older callers that referenced the v3 magic name.
+SPECTRALZ_V3_MAGIC = SPECTRALZ_MAGIC
 
 
 # --- stub helper ---------------------------------------------------------
@@ -65,7 +68,10 @@ def _not_implemented(cmd: str, what: str) -> int:
 def cmd_tables_verify(args: argparse.Namespace) -> int:
     """Run one (or all) phase validation gates. Each gate prints a single
     pass/fail line. Return 0 iff every requested gate passes."""
-    phases = ["1", "2", "3", "4", "5"] if args.phase == "all" else [args.phase]
+    if args.phase == "all":
+        phases = ["1", "2", "3", "4", "5", "pawn-axis"]
+    else:
+        phases = [args.phase]
 
     overall = 0
     for p in phases:
@@ -79,6 +85,9 @@ def cmd_tables_verify(args: argparse.Namespace) -> int:
             rc = _run_phase_gate("4", "verify_phase4", verbose=args.verbose)
         elif p == "5":
             rc = _run_phase_gate("5", "verify_phase5", verbose=args.verbose)
+        elif p == "pawn-axis":
+            rc = _run_phase_gate("pawn-axis", "verify_pawn_axis",
+                                 verbose=args.verbose)
         else:
             print(f"tables-verify: unknown phase {p!r}", file=sys.stderr)
             rc = 2
@@ -139,7 +148,7 @@ def cmd_corpus_gen(args: argparse.Namespace) -> int:
 
 def cmd_version(args: argparse.Namespace) -> int:
     print(f"chess_spectral_4d {VERSION}")
-    print(f"  spectralz magic:    {SPECTRALZ_V3_MAGIC!r}")
+    print(f"  spectralz magic:    {SPECTRALZ_MAGIC!r}")
     print(f"  spectralz version:  {SPECTRALZ_VERSION}")
     print(f"  encoding_dim:       {ENCODING_DIM_4D}")
     print(f"  board_dim_side:     {BOARD_SIDE_4D}")
@@ -174,8 +183,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     p_tv.add_argument(
-        "--phase", choices=("1", "2", "3", "4", "5", "all"), default="all",
-        help="which phase gate(s) to run (default: all)",
+        "--phase",
+        choices=("1", "2", "3", "4", "5", "pawn-axis", "all"),
+        default="all",
+        help=("which phase gate(s) to run (default: all, which also runs "
+              "the v1.1.1 pawn-axis orthogonality gate)"),
     )
     p_tv.add_argument(
         "-v", "--verbose", action="store_true",

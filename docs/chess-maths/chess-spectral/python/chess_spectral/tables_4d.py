@@ -162,6 +162,17 @@ def white_pawn4_targets(x: int, y: int, z: int, w: int) -> Iterator[Coord]:
         yield (x, y, z, w + 1)
 
 
+def white_pawn4_y_targets(x: int, y: int, z: int, w: int) -> Iterator[Coord]:
+    """4D white pawn on Y axis: single-step push on +y. Oana & Chiru
+    (AppliedMath 6(3):48, 2026) Definition 11 allows pawns to be
+    oriented along y OR w (never z); section 3.11 makes y<->w a
+    ruleset-preserving symmetry. Same structural role as
+    white_pawn4_targets but on a different tensor factor — feeds
+    pawn_anti_y_4d() as the W-axis generator feeds pawn_anti_w_4d()."""
+    if y + 1 < BOARD_SIDE:
+        yield (x, y + 1, z, w)
+
+
 # ─── Adjacency construction ────────────────────────────────────────────
 
 def build_adjacency_4d(
@@ -796,8 +807,20 @@ def _dense_laplacian(target_fn: Callable[[int, int, int, int], Iterator[Coord]],
     return L.toarray().astype(np.float64)
 
 
-def pawn_anti_4d() -> np.ndarray:
-    """Antisymmetric pawn adjacency: A_anti = (A_pawn - A_pawn^T) / 2.
+def _axis_anti_8x8() -> np.ndarray:
+    """Shared 8x8 antisymmetric axis-push generator: 0.5 * (S_+ - S_+^T)
+    where S_+ is the 8x8 +1 shift matrix (boundary-aware: no push from
+    index 7). Used as the single-axis 8x8 block lifted to a different
+    tensor factor for each pawn axis: w-axis pawns see it as the
+    rightmost factor, y-axis pawns as the second factor."""
+    S = np.zeros((BOARD_SIDE, BOARD_SIDE), dtype=np.float64)
+    for i in range(BOARD_SIDE - 1):
+        S[i, i + 1] = 1.0
+    return 0.5 * (S - S.T)
+
+
+def pawn_anti_w_4d() -> np.ndarray:
+    """Antisymmetric W-axis pawn adjacency: A_anti = (A_pawn - A_pawn^T)/2.
     Shape (4096, 4096) dense float64. The directed +w pawn push means
     A_pawn = I (x) I (x) I (x) S_+, where S_+ is the 8x8 +1 shift matrix,
     so A_anti = I (x) I (x) I (x) A_w_anti with A_w_anti 8x8 antisymmetric.
@@ -807,8 +830,28 @@ def pawn_anti_4d() -> np.ndarray:
     return 0.5 * (A - A.T)
 
 
+def pawn_anti_y_4d() -> np.ndarray:
+    """Antisymmetric Y-axis pawn adjacency. Y-axis analog of
+    pawn_anti_w_4d: A_pawn_y = I (x) S_+ (x) I (x) I, so
+    A_anti_y = I (x) A_y_anti (x) I (x) I with A_y_anti the same 8x8
+    antisymmetric generator as A_w_anti but on a different tensor
+    factor. Because A_y_anti is antisymmetric, tr(A_y_anti) = 0, which
+    combined with tr(A_w_anti) = 0 makes the y- and w-axis pawn
+    antisymmetric adjacencies Frobenius-orthogonal by construction (see
+    test_pawn_axis_factorization_structural). v1.1.1 feasibility basis."""
+    A = build_adjacency_4d(white_pawn4_y_targets, directed=True).toarray()
+    A = A.astype(np.float64)
+    return 0.5 * (A - A.T)
+
+
+# Backward-compat alias: the v1.0 encoder and phase-4 gate referenced
+# `pawn_anti_4d()`. v1.1.1 splits the pawn antisym channel into two
+# axes (W and Y); the legacy name continues to return the W-axis form.
+pawn_anti_4d = pawn_anti_w_4d
+
+
 def w_anti_dct_block() -> np.ndarray:
-    """Factored 8x8 pawn antisymmetric fiber in the DCT basis.
+    """Factored 8x8 W-axis pawn antisymmetric fiber in the DCT basis.
 
     Since A_anti = I (x) I (x) I (x) A_w_anti with A_w_anti the 8x8
     antisymmetrized +w shift (boundary-aware: no push from w=7), and the
@@ -824,12 +867,29 @@ def w_anti_dct_block() -> np.ndarray:
     form carries at < 1e-8 FP noise — gives the C port a clean parity
     target at 1e-10 tolerance. See encoder_4d.encode_4d channel 8.
     """
-    S = np.zeros((BOARD_SIDE, BOARD_SIDE), dtype=np.float64)
-    for i in range(BOARD_SIDE - 1):
-        S[i, i + 1] = 1.0
-    A_w_anti = 0.5 * (S - S.T)
+    A_w_anti = _axis_anti_8x8()
     U_P8, _ = eig_p8()
     return U_P8.T @ A_w_anti @ U_P8
+
+
+def y_anti_dct_block() -> np.ndarray:
+    """Factored 8x8 Y-axis pawn antisymmetric fiber in the DCT basis.
+
+    Y-axis analog of w_anti_dct_block. The 8x8 generator is identical
+    (see _axis_anti_8x8) and U_P8 is shared, so numerically this
+    returns the same 8x8 matrix as w_anti_dct_block. The distinction
+    between Y- and W-axis pawn channels is WHICH tensor factor the 8x8
+    block inhabits in the 4096x4096 DCT-basis form:
+
+        PAWN_ANTI_FIB_w = I (x) I (x) I (x) W_ANTI_DCT   (w-axis, slot 4)
+        PAWN_ANTI_FIB_y = I (x) Y_ANTI_DCT (x) I (x) I   (y-axis, slot 2)
+
+    The encoder uses this block to scatter 8 modes per pawn along the
+    relevant axis at encode time, rather than materializing the
+    128 MB dense DCT-basis matrix. See encoder_4d.encode_4d (v1.1.1)."""
+    A_y_anti = _axis_anti_8x8()
+    U_P8, _ = eig_p8()
+    return U_P8.T @ A_y_anti @ U_P8
 
 
 def diag_dev_4d(
@@ -1162,14 +1222,17 @@ def verify_phase4(verbose: bool = False, tol: float = 1e-10
 # ---- Phase 5 gate ----------------------------------------------------
 
 def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
-    """Phase 5 gate: end-to-end encoder + spectralz v3 round-trip.
+    """Phase 5 gate: end-to-end encoder + spectralz v4 round-trip with
+    v3 backward-read.
 
-    1. encode_4d on a small synthetic position produces a 40960-float32
-       vector; channel ranges match CHANNELS_4D layout; channel energies
-       are finite.
-    2. spectralz v3 write->read of 10 random frames is byte-identical
+    1. encode_4d on a small synthetic position produces a 45056-float32
+       vector (v1.1.1); channel ranges match CHANNELS_4D layout; channel
+       energies are finite. Both split pawn axis channels (W + Y) carry
+       signal when a Y-axis and a W-axis pawn are both present.
+    2. spectralz v4 write->read of 10 random frames is byte-identical
        (encoding + all metadata).
-    3. Unknown-magic file correctly raises in read_header_any.
+    3. spectralz v3 backward-read still works on a legacy-dim blob.
+    4. Unknown-magic file correctly raises in read_header_any.
     """
     import os
     import tempfile
@@ -1179,14 +1242,15 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
     report: List[str] = []
     rng = np.random.default_rng(seed)
 
-    # 1. Encoder smoke-test: 4-piece mini-position (white and black
-    #    pawns on opposite sides of the w-axis so pawn antisym and
-    #    diag_dev channels are nonzero, plus one rook for more signal).
+    # 1. Encoder smoke-test: 5-piece mini-position exercising both pawn
+    #    axes (W and Y) plus a rook and a king so A_1, FD_DIAG and both
+    #    pawn axis channels all carry signal.
     pos4 = {
-        sq4(0, 0, 0, 1): 'P',   # white pawn near start on +w
-        sq4(7, 7, 7, 6): 'p',   # black pawn near end on +w
-        sq4(3, 3, 3, 3): 'R',   # white rook centered
-        sq4(4, 4, 4, 4): 'k',   # black king centered-offset
+        sq4(0, 0, 0, 1): ('P', 'w'),   # white W-axis pawn
+        sq4(7, 7, 7, 6): ('p', 'w'),   # black W-axis pawn
+        sq4(2, 1, 4, 5): ('P', 'y'),   # white Y-axis pawn
+        sq4(3, 3, 3, 3): 'R',          # white rook centered
+        sq4(4, 4, 4, 4): 'k',          # black king centered-offset
     }
     v = enc_mod.encode_4d(pos4)
     assert v.shape == (enc_mod.ENCODING_DIM_4D,), (
@@ -1196,22 +1260,29 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
     energies = enc_mod.channel_energies_4d(v)
     for name, e in energies.items():
         assert np.isfinite(e), f"channel {name} energy non-finite: {e}"
-    # The stub fiber-sym channels must be zero in v1
-    for name in ("FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"):
-        assert energies[name] == 0.0, (
-            f"v1 fiber-sym channel {name} should be 0, got {energies[name]}"
-        )
     # A_1 and at least one mode-space channel should be nonzero
     assert energies["A1"] > 0, "A_1 channel unexpectedly zero"
     assert energies["FD_DIAG"] > 0, "FD diag-dev channel unexpectedly zero"
-    assert energies["FA_PAWN"] > 0, "FA pawn antisym channel unexpectedly zero"
+    assert energies["FA_PAWN_W"] > 0, (
+        "FA_PAWN_W channel unexpectedly zero with W-axis pawns present"
+    )
+    assert energies["FA_PAWN_Y"] > 0, (
+        "FA_PAWN_Y channel unexpectedly zero with a Y-axis pawn present"
+    )
+    fib_sum = sum(energies[n] for n in ("FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3"))
+    assert fib_sum > 0, (
+        "fiber-sym channels all zero; non-pawn pieces should drive signal"
+    )
     report.append(
-        f"encode_4d: shape=(40960,) float32, energies finite; "
-        f"A1={energies['A1']:.2f}, FA={energies['FA_PAWN']:.2f}, "
-        f"FD={energies['FD_DIAG']:.2f}, fiber-sym=0 (v1 stub) OK"
+        f"encode_4d: shape=({enc_mod.ENCODING_DIM_4D},) float32, energies "
+        f"finite; A1={energies['A1']:.2f}, "
+        f"FA_W={energies['FA_PAWN_W']:.2f}, "
+        f"FA_Y={energies['FA_PAWN_Y']:.2f}, "
+        f"FD={energies['FD_DIAG']:.2f}, "
+        f"FIB_SYM_sum={fib_sum:.2f} OK"
     )
 
-    # 2. spectralz v3 round-trip
+    # 2. spectralz v4 round-trip
     n_frames = 10
     frames_in: List[frm.Frame4D] = []
     for p in range(n_frames):
@@ -1230,15 +1301,15 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
     tmp_path = tmp.name
     tmp.close()
     try:
-        n_bytes = frm.write_spectralz_v3(tmp_path, frames_in)
-        header, frames_out = frm.read_spectralz_v3(tmp_path)
+        n_bytes = frm.write_spectralz_v4(tmp_path, frames_in)
+        header, frames_out = frm.read_spectralz_v4(tmp_path)
     finally:
         os.remove(tmp_path)
 
-    assert header.magic == frm.SPECTRALZ_V3_MAGIC, (
-        f"magic {header.magic!r} != {frm.SPECTRALZ_V3_MAGIC!r}"
+    assert header.magic == frm.SPECTRALZ_MAGIC, (
+        f"magic {header.magic!r} != {frm.SPECTRALZ_MAGIC!r}"
     )
-    assert header.version == 3
+    assert header.version == frm.SPECTRALZ_VERSION == 4
     assert header.encoding_dim == frm.ENCODING_DIM_4D
     assert header.frame_bytes == frm.ENCODING_DIM_4D * 4 + frm.FRAME_TAIL_BYTES
     assert header.n_plies == n_frames
@@ -1259,12 +1330,40 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
         assert fin.flags == fout.flags, f"frame {i} flags mismatch"
 
     report.append(
-        f"spectralz v3 round-trip: {n_frames} frames, "
+        f"spectralz v4 round-trip: {n_frames} frames, "
         f"{n_bytes} bytes written, all metadata + encoding byte-identical "
         f"(max|d|={max_enc_err}) OK"
     )
 
-    # 3. Unknown magic -> error
+    # 3. spectralz v3 backward-read: a legacy-dim blob remains readable
+    v3_frames: List[frm.Frame4D] = []
+    for p in range(3):
+        enc = rng.standard_normal(frm.ENCODING_DIM_4D_V3).astype(np.float32)
+        v3_frames.append(frm.Frame4D(
+            encoding=enc, ply=p,
+            from_sq=(0, 0, 0, 0), to_sq=(0, 0, 0, 0),
+            promo=0, flags=0,
+        ))
+    tmp_v3 = tempfile.NamedTemporaryFile(delete=False, suffix=".spectralz")
+    tmp_v3.close()
+    try:
+        frm.write_spectralz_v3(tmp_v3.name, v3_frames)
+        with open(tmp_v3.name, "rb") as f:
+            hdr_v3, kind = frm.read_header_any(f)
+        assert kind == "v3", f"expected kind='v3', got {kind!r}"
+        assert hdr_v3.version == frm.SPECTRALZ_VERSION_V3 == 3
+        assert hdr_v3.encoding_dim == frm.ENCODING_DIM_4D_V3 == 40960
+        _, v3_out = frm.read_spectralz_v3(tmp_v3.name)
+        for fin, fout in zip(v3_frames, v3_out):
+            assert np.array_equal(fin.encoding, fout.encoding)
+    finally:
+        os.remove(tmp_v3.name)
+    report.append(
+        "spectralz v3 backward-read: legacy 40960-dim blob detected as v3 "
+        "and decoded byte-identical OK"
+    )
+
+    # 4. Unknown magic -> error
     import io
     bad = io.BytesIO(b"\x00" * 256)
     try:
@@ -1277,12 +1376,114 @@ def verify_phase5(verbose: bool = False, seed: int = 42) -> List[str]:
 
     if verbose:
         report.append(
-            f"(verbose) v3 header size = {frm.HEADER_SIZE}, "
+            f"(verbose) v4 header size = {frm.HEADER_SIZE}, "
             f"frame_bytes = {header.frame_bytes}, "
             f"total bytes written = {n_bytes}"
         )
         ch_names = [name for name, _ in enc_mod.CHANNELS_4D]
         report.append("(verbose) channel energies: "
                       + ", ".join(f"{n}={energies[n]:.2f}" for n in ch_names))
+
+    return report
+
+
+# ---- v1.1.1 pawn-axis gate ------------------------------------------
+
+def verify_pawn_axis(verbose: bool = False) -> List[str]:
+    """v1.1.1 pawn-axis feasibility gate.
+
+    Confirms that the split of the v1.0 FA_PAWN channel into
+    FA_PAWN_W (slot 8) and FA_PAWN_Y (slot 9) is numerically sound:
+    the two sub-channels' DCT-basis adjacencies sit on independent
+    tensor factors, hence are Frobenius-orthogonal by construction.
+
+    Checks (all via the factored 8x8 Kronecker form, not the 128 MB
+    dense U^T A U):
+    - W-axis block support: off-w-axis mass < 1e-13
+    - Y-axis block support: off-y-axis mass < 1e-13
+    - On-axis Frobenius norms agree (same 8x8 generator, different leg)
+    - Cross-channel inner product |<C_w, C_y>_F| < 1e-13
+
+    The last line is the v1.1.1 feasibility signal: it follows exactly
+    from tr(A_w_anti) = tr(A_y_anti) = 0 via the Kronecker trace
+    identity, so any nonzero value here means the independent-tensor-
+    factor argument doesn't hold and the channel split is unsafe.
+    """
+    from scipy.sparse import kron as skron, eye as seye, csr_matrix
+
+    report: List[str] = []
+    B = BOARD_SIDE
+    I8 = seye(B, format='csr')
+    W = csr_matrix(w_anti_dct_block())
+    Y = csr_matrix(y_anti_dct_block())
+
+    # W-axis: I (x) I (x) I (x) W    Y-axis: I (x) Y (x) I (x) I
+    C_w = skron(skron(skron(I8, I8), I8), W, format='csr')
+    C_y = skron(skron(skron(I8, Y), I8), I8, format='csr')
+
+    T_w = C_w.toarray().reshape(B, B, B, B, B, B, B, B)
+    T_y = C_y.toarray().reshape(B, B, B, B, B, B, B, B)
+
+    mask_w = np.zeros_like(T_w, dtype=bool)
+    for i in range(B):
+        for j in range(B):
+            for k in range(B):
+                mask_w[i, j, k, :, i, j, k, :] = True
+    mask_y = np.zeros_like(T_y, dtype=bool)
+    for i in range(B):
+        for k in range(B):
+            for l in range(B):
+                mask_y[i, :, k, l, i, :, k, l] = True
+
+    on_w = float(np.linalg.norm(T_w[mask_w]))
+    off_w = float(np.linalg.norm(T_w[~mask_w]))
+    on_y = float(np.linalg.norm(T_y[mask_y]))
+    off_y = float(np.linalg.norm(T_y[~mask_y]))
+
+    assert off_w < 1e-13, (
+        f"W-axis pawn antisym leaked off-w energy: {off_w:.3e}"
+    )
+    assert off_y < 1e-13, (
+        f"Y-axis pawn antisym leaked off-y energy: {off_y:.3e}"
+    )
+    report.append(
+        f"W-axis support: on-w-block ||.||_F={on_w:.4f}, off={off_w:.2e} OK"
+    )
+    report.append(
+        f"Y-axis support: on-y-block ||.||_F={on_y:.4f}, off={off_y:.2e} OK"
+    )
+
+    assert abs(on_w - on_y) < 1e-10, (
+        f"on-axis norms disagree: w={on_w:.10f} y={on_y:.10f}"
+    )
+    assert on_w > 1.0, f"on-w norm unexpectedly small: {on_w}"
+    report.append(
+        f"on-axis Frobenius norms agree: |w-y|={abs(on_w - on_y):.2e} "
+        f"(< 1e-10) OK"
+    )
+
+    inner = float((C_w.multiply(C_y)).sum())
+    assert abs(inner) < 1e-13, (
+        f"cross-channel <C_anti_w, C_anti_y>_F = {inner:.3e} "
+        f"(expected < 1e-13); v1.1.1 feasibility premise fails"
+    )
+    report.append(
+        f"cross-channel <C_w, C_y>_F = {inner:+.3e} "
+        f"(< 1e-13; v1.1.1 feasibility signal) OK"
+    )
+
+    if verbose:
+        report.append(
+            f"(verbose) 8x8 W_ANTI_DCT Frobenius = "
+            f"{float(np.linalg.norm(w_anti_dct_block())):.6f}"
+        )
+        report.append(
+            f"(verbose) 8x8 Y_ANTI_DCT Frobenius = "
+            f"{float(np.linalg.norm(y_anti_dct_block())):.6f}"
+        )
+        report.append(
+            f"(verbose) |W_ANTI_DCT - Y_ANTI_DCT|_max = "
+            f"{float(np.max(np.abs(w_anti_dct_block() - y_anti_dct_block()))):.2e}"
+        )
 
     return report

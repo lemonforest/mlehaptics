@@ -8,12 +8,17 @@
 extern "C" {
 #endif
 
-/* Pawn antisymmetric fiber, factored form.
- *   A_anti = I (x) I (x) I (x) A_w_anti  (Kronecker identity)
- *   U^T A_anti U = I (x) I (x) I (x) (U_P8^T A_w_anti U_P8)
- * so the 4096x4096 DCT-basis matrix is block-diagonal over (x,y,z)
- * with this single 8x8 block on the w-axis. */
+/* Pawn antisymmetric fibers, factored form (v1.1.1: per axis).
+ *   A_w_anti = I (x) I    (x) I (x) A_w_anti_8   (Kronecker identity)
+ *   A_y_anti = I (x) A_y_anti_8 (x) I (x) I
+ * so each 4096x4096 DCT-basis matrix reduces to an 8x8 factor.
+ *
+ * The 8x8 blocks are numerically identical (both = U_P8^T @ A_anti @
+ * U_P8 for the shared 0.5*(S-S^T) generator); they are emitted as
+ * separate symbols so the two axis channels are structurally
+ * distinct and readable in the encoder. */
 extern const double W_ANTI_DCT[8][8];
+extern const double Y_ANTI_DCT[8][8];
 
 /* Per-piece diagonal deviation from grid spectrum, mode space.
  * Indexed [cs_piece_4d_t][k]. */

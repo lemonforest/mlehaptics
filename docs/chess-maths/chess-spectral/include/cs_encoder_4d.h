@@ -43,12 +43,30 @@ void cs_channel_diag_4d(const cs_position_4d_t *pos,
                         const double sig[CS_N_SQUARES_4D],
                         float out[CS_N_SQUARES_4D]);
 
-/* Channel 8: pawn antisymmetric fiber, factored form (P3).
- *   For each pawn at s = (sx,sy,sz,sw), write sign * W_ANTI_DCT[sw, 0..7]
- *   into the 8 modes sharing (sx,sy,sz) along w. 8 ops per pawn, not 4096.
+/* Channel 8: FA_PAWN_W -- pawn antisymmetric fiber along the w-axis.
+ *   For each W-axis pawn at s = (sx,sy,sz,sw), write
+ *     sign * W_ANTI_DCT[sw, 0..7] into the 8 modes sharing (sx,sy,sz)
+ *   along w. Pawns with pawn_axis[s] != CS_PAWN_AXIS_W are skipped.
  */
-void cs_channel_pawn_antisym_4d(const cs_position_4d_t *pos,
-                                float out[CS_N_SQUARES_4D]);
+void cs_channel_fa_pawn_w_4d(const cs_position_4d_t *pos,
+                             float out[CS_N_SQUARES_4D]);
+
+/* Channel 9 (v1.1.1): FA_PAWN_Y -- pawn antisymmetric fiber along the
+ * y-axis. Symmetric structure to FA_PAWN_W but with the 8x8 factor
+ * sitting on the y-tensor leg:
+ *   out[(sx, ty, sz, sw)] += sign * Y_ANTI_DCT[sy, ty]   for ty in 0..7
+ * Pawns with pawn_axis[s] != CS_PAWN_AXIS_Y are skipped.
+ */
+void cs_channel_fa_pawn_y_4d(const cs_position_4d_t *pos,
+                             float out[CS_N_SQUARES_4D]);
+
+/* Legacy alias: equivalent to cs_channel_fa_pawn_w_4d. Retained for
+ * incremental migration; new code should call the axis-specific
+ * entrypoints directly. */
+static inline void cs_channel_pawn_antisym_4d(const cs_position_4d_t *pos,
+                                              float out[CS_N_SQUARES_4D]) {
+    cs_channel_fa_pawn_w_4d(pos, out);
+}
 
 /* Channels 5-7: cross-piece fiber-sym (P4).
  *   For each direction d in 0..2 and sorted-ascending occupied non-pawn
@@ -60,8 +78,9 @@ void cs_channels_fiber_sym_4d(const cs_position_4d_t *pos,
                               const double sig[CS_N_SQUARES_4D],
                               float out[CS_N_SYM_FIBER_4D * CS_N_SQUARES_4D]);
 
-/* Full 10-channel, 40 960-float32 encoder. Byte-for-byte parity target
- * for Python's encode_4d (tolerance 1e-10 absolute max-delta). */
+/* Full 11-channel, 45 056-float32 encoder (v1.1.1). Byte-for-byte
+ * parity target for Python's encode_4d (tolerance 1e-10 absolute
+ * max-delta). */
 void cs_encode_4d(const cs_position_4d_t *pos,
                   cs_encoding_4d_t *enc);
 

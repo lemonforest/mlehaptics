@@ -1,12 +1,15 @@
 {"name": "empty", "pieces": {}}
-{"name": "single_pawn_white", "pieces": {"1752": "P"}}
-{"name": "single_pawn_black", "pieces": {"1759": "p"}}
+{"name": "single_pawn_white", "pieces": {"1752": "Pw"}}
+{"name": "single_pawn_black", "pieces": {"1759": "pw"}}
 {"name": "single_knight", "pieces": {"1755": "N"}}
 {"name": "single_bishop_even", "pieces": {"0": "B"}}
 {"name": "single_rook_center", "pieces": {"1755": "R"}}
 {"name": "single_queen", "pieces": {"2340": "Q"}}
 {"name": "single_king", "pieces": {"1755": "K"}}
-{"name": "pawn_pair_w_axis", "pieces": {"1169": "P", "1174": "p"}}
+{"name": "pawn_pair_w_axis", "pieces": {"1169": "Pw", "1174": "pw"}}
 {"name": "four_rooks_corners", "pieces": {"0": "R", "448": "R", "3584": "R", "4032": "R"}}
-{"name": "starting_like_mini", "pieces": {"0": "R", "64": "N", "128": "B", "192": "K", "256": "Q", "320": "B", "384": "N", "448": "R", "512": "P", "704": "P", "3271": "p", "3783": "k"}}
-{"name": "starting_like_rotated", "pieces": {"0": "R", "1": "P", "512": "N", "1024": "B", "1536": "K", "1537": "P", "1598": "p", "1599": "k", "2048": "Q", "2560": "B", "3072": "N", "3584": "R"}}
+{"name": "starting_like_mini", "pieces": {"0": "R", "64": "N", "128": "B", "192": "K", "256": "Q", "320": "B", "384": "N", "448": "R", "512": "Pw", "704": "Pw", "3271": "pw", "3783": "k"}}
+{"name": "starting_like_rotated", "pieces": {"0": "R", "1": "Pw", "512": "N", "1024": "B", "1536": "K", "1537": "Pw", "1598": "pw", "1599": "k", "2048": "Q", "2560": "B", "3072": "N", "3584": "R"}}
+{"name": "single_pawn_white_y", "pieces": {"1563": "Py"}}
+{"name": "pawn_pair_y_axis", "pieces": {"1106": "Py", "1426": "py"}}
+{"name": "pawn_mixed_axes", "pieces": {"584": "Pw", "591": "pw", "2605": "Py", "3053": "py"}}

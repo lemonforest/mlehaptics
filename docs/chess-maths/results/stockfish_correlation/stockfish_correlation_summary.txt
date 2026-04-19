@@ -1,0 +1,28 @@
+Stockfish correlation summary
+  binary         : C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\chess-maths\stockfish\stockfish-windows-x86-64-avx2.exe
+  version        : Stockfish 18
+  v2 csv         : C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\chess-maths\results\delta_sigma_chessgames_pair\delta_sigma_analysis_v2_chessgames_pair.csv
+  sample size    : 200 positions (seed=42)
+  depth / threads: 12 / 1
+  hash MiB       : 64
+  per-move rows  : 6040
+
+stockfish_scalar distribution:
+  n=6040  min=-9990.0  q1=-452.2  median=-200.0  q3=-45.0  max=666.0
+  mean=-325.81  std=900.67
+
+Spearman rho(stockfish_scalar, X):
+  kappa_annihilate : rho=+0.1315
+  kappa_position   : rho=+0.0127
+  kappa_threat     : rho=-0.4584
+  delta (v1)       : rho=+0.4544
+  delta_v2         : rho=+0.0591
+
+Top-move match rate (argmax vs Stockfish argmax):
+  kappa_annihilate : 11.0%
+  kappa_position   : 6.0%
+  kappa_threat     : 1.0%
+  delta (v1)       : 11.0%
+  delta_v2         : 7.5%
+
+  (sanity) stockfish_scalar self-match : 100.0% (should be 100.0)
