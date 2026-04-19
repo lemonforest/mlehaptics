@@ -18,7 +18,7 @@ extern "C" {
  * separate symbols so the two axis channels are structurally
  * distinct and readable in the encoder. */
 extern const double W_ANTI_DCT[8][8];
-extern const double Y_ANTI_DCT[8][8];    /* wired in P5 codegen */
+extern const double Y_ANTI_DCT[8][8];
 
 /* Per-piece diagonal deviation from grid spectrum, mode space.
  * Indexed [cs_piece_4d_t][k]. */
