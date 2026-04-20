@@ -1949,7 +1949,28 @@ Load-bearing primary references, grouped by role in the hybrid framework.
 
 ---
 
-## 11. Appendix: Environment & Reproducibility
+## 11. Phase-Operator Move Engine
+
+> **Status.** Working supplement — lives in [PHASE_OPERATOR_SUPPLEMENT.md](PHASE_OPERATOR_SUPPLEMENT.md) as a standalone document pending experimental validation. Internal numbering §11.1–§11.9 already matches this slot, so the supplement drops in verbatim once data is collected.
+
+The phase-operator move engine asks whether the legal reachable set of each polarization state on the 8×8 lattice can be generated entirely in phase space — via coprime cyclic phase operators acting on a polarization's origin phase tuple — without consulting the 2D board coordinates. This extends §9f (coprime roll binding) and §9r (polarization reframing) from *representation* to *dynamics*: where §9 treats occupation as a signal over a fixed lattice, §11 treats legal transition as a phase-arithmetic operation in the 640-dim coprime cyclic space. UTLP S4's Chinese Remainder Theorem aliasing horizon — used temporally for distributed clock recovery — is here transferred to the spatial domain as a partition detector for the legal reachable set.
+
+The supplement defines seven phase operators (one per polarization, §11.2), specifies four experiments (§11.3–§11.6) that test equivalence with the geometric move generator, correlate phase-tuple similarity with thermodynamic gradients, and probe aliasing-horizon partition detection as the spatial analog of UTLP S4's mechanism. Infrastructure requirements (§11.7) and the explicit *all outcomes produce knowledge* stance (§11.8–§11.9) round it out.
+
+**See the supplement** for:
+- §11.1 — The Phase-Operator Hypothesis
+- §11.2 — Phase Operator Specifications (seven polarization states)
+- §11.3 — Experiment 1: Equivalence on Empty Board
+- §11.4 — Experiment 2: Occupation-Aware Phase Operators
+- §11.5 — Experiment 3: Phase-Tuple Similarity as Field Gradient Indicator
+- §11.6 — Experiment 4: Aliasing Horizon as Partition Detection
+- §11.7 — Open Infrastructure Requirements
+- §11.8 — What We Will Ask After Data Collection
+- §11.9 — Success and Failure Both Produce Knowledge
+
+---
+
+## 42. Appendix: Environment & Reproducibility
 
 ### Requirements
 ```
