@@ -6,6 +6,24 @@ for REPL / LLM / notebook analysis; use the C binary for batch throughput.
 
 ## Install
 
+From PyPI (recommended):
+
+```bash
+pip install chess-spectral
+```
+
+The base install pulls only `numpy` and `scipy`. If you need PGN ingest
+via `chess_spectral.corpus`, request the `[corpus]` extra to add
+`python-chess`:
+
+```bash
+pip install "chess-spectral[corpus]"
+```
+
+Package page: <https://pypi.org/project/chess-spectral/>
+
+### From source
+
 Editable install from a local checkout:
 
 ```bash
@@ -16,14 +34,6 @@ From a git URL (pin a commit in production):
 
 ```bash
 pip install "git+https://github.com/lemonforest/mlehaptics.git@COMMIT#subdirectory=docs/chess-maths/chess-spectral/python"
-```
-
-The base install pulls only `numpy` and `scipy`. If you need PGN ingest
-via `chess_spectral.corpus`, request the `[corpus]` extra to add
-`python-chess`:
-
-```bash
-pip install "chess-spectral[corpus]"
 ```
 
 After install, two console scripts are on your `$PATH`:
