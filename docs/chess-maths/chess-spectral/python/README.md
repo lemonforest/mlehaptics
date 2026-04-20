@@ -38,7 +38,7 @@ Both packages also expose `__version__`:
 ```python
 >>> import chess_spectral, chess_spectral_4d
 >>> chess_spectral.__version__, chess_spectral_4d.__version__
-('1.1.2', '1.1.2')
+('1.1.3', '1.1.3')
 ```
 
 ### In-place (no install)
