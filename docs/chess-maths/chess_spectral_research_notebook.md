@@ -1376,54 +1376,9 @@ Random Stockfish-vs-Stockfish games from the HuggingFace `official-stockfish/fis
 8. **Epistemological audit**: Review all section titles, figure labels, and variable names for chess language creep. Replace with spectral/physics language where the chess term implies the model detects a chess concept rather than a structural property. First pass applied in §1, §9g, §9h, §9h′, §9o; second pass should extend to §5-§8 code variable names (e.g. rename `safety_field` → `coverage_balance` or similar at the Python level).
 9. **Yumoto-Misumi lattice↔graph equivalence investigation**: Yumoto & Misumi (*PTEP* 2024(2), 023B03) establish rigorous equivalences between lattice field theory operators and spectral graph theory matrices — graph Laplacian = lattice scalar operator + Wilson term; antisymmetrized adjacency matrix for directed graphs; Dirac zero-mode count = sum of Betti numbers. This is the most direct mathematical bridge between the notebook's graph-theoretic objects (piece Laplacians, fiber bundle, spectral decomposition) and lattice field theory formalism (propagators, gauge connections, fermion operators). Specific investigation targets: (a) map the notebook's per-piece Laplacians onto lattice scalar operators via the Yumoto-Misumi correspondence and verify whether the fiber bundle structure (§7, §9n) survives the translation; (b) determine whether the pawn's antisymmetric adjacency matrix (§9m) maps onto a lattice Dirac operator via the antisymmetrized adjacency matrix construction; (c) test whether the Betti number relation predicts the topology of the piece movement graphs (knight bipartiteness, bishop 2-component, rook regularity) from the Dirac zero-mode count; (d) assess whether the Wilson term in the correspondence provides a natural formalization of the §8b Level 2/Level 3 boundary (the Wilson term is the lattice artifact that the continuum limit removes — paralleling how Level 3 microscopic edge information is integrated out by the fiber). This investigation is prerequisite to the §9h variational principle: if the notebook's objects translate cleanly into lattice field theory operators, the Lagrangian may already exist in the standard lattice field theory action, specialized to the chess lattice geometry.
 
-### 9j. Future Work: Othello as Validation Domain
+### 9j. Othello as Validation Domain — see §10
 
-Othello (Reversi) provides a compelling second application for the spectral framework, both as validation that the tools detect real game structure and as a domain where chess's benchmark limitations are eliminated.
-
-**Same board, fundamentally different physics.** Othello is played on the same 8×8 grid, so the board Laplacian eigenbasis, the D4 symmetry group, and the 8-generator spectral lattice are all identical. Everything above the board is different:
-
-- **Single piece type, but NOT zero fiber.** There are no per-piece Laplacians and no spectral quantum numbers (Level 1 collapses). However, the fiber bundle is NOT zero — because the fiber measures the gap between rule structure and spatial structure, not the number of species. In chess, we discovered the fiber through cross-species analysis, but that's how we FOUND it, not what it IS. The fiber is the off-diagonal coupling content that the spatial basis can't express. Any game whose rules have structure beyond the grid itself produces fiber.
-
-  Othello's rules operate along **8 ray directions** (N, S, E, W, NE, NW, SE, SW). Each ray direction defines an influence adjacency: which squares affect which through the flanking mechanic. The E/W rays are path graphs along ranks (subsets of the chess rook's adjacency). The diagonal rays are path graphs along diagonals (subsets of the chess bishop's adjacency). Each ray Laplacian, projected onto the board eigenbasis, has off-diagonal content — because a ray along the diagonal couples eigenmodes differently than a ray along the rank. The 8 ray directions should span a fiber subspace whose rank reveals how many independent types of directional influence Othello has. Predicted rank: 2 (orthogonal vs diagonal, since the 4 orthogonal and 4 diagonal rays are D4-related) or 4 (if individual ray directions maintain independence). Not zero.
-
-- **Dynamic fiber.** Chess has a static fiber (piece Laplacians are fixed) with a dynamic signal (occupation changes). Othello has a DYNAMIC fiber — the flanking rule means the influence of a placed disc extends along a ray only as far as the first friendly disc. The effective adjacency changes with every move. This is more complex than chess, not simpler: Othello has a state-dependent fiber geometry that evolves through the game. The fiber at move 10 is a different geometric object than the fiber at move 40.
-
-- **No movement.** Discs are placed, never moved. No movement graph in the chess sense, no connection form. Legal moves depend on the global board state (bracketing lines of opponent discs), not on piece-type topology. But the directional ray structure IS a movement-like constraint: influence propagates along specific graph edges, creating directional coupling that the board eigenbasis can't fully express. This coupling IS the fiber content.
-
-- **Spin-flip instead of annihilation.** Chess captures remove pieces (annihilation operator). Othello flips opponent discs to your color — the disc stays, its value changes sign. The board signal is an Ising-like spin field s_i ∈ {−1, 0, +1}. A single move triggers a wave of sign changes propagating along grid rays. This propagation has structured spectral content that the GFT can decompose.
-
-- **State-dependent legality.** Chess has static operators (piece Laplacians define legal moves regardless of board state). Othello has dynamic operators — legality depends entirely on the current disc configuration. In spectral terms: chess has a fixed operator with a dynamic signal; Othello has a dynamic operator that changes with every move.
-
-- **Exact Z₂ symmetry.** In chess, Z₂ (color/spin inversion) is approximate because pawns are directional. In Othello, Z₂ is EXACT — the rules are perfectly color-symmetric. Swapping all disc colors + swapping side to move gives a strategically equivalent position. The full symmetry group is D4 × Z₂ (16 elements), and the irrep decomposition under this full group is the natural framework for Othello from the start.
-
-**What the spectral framework can probe in Othello:**
-
-- **Directional fiber structure.** Build the 8 ray adjacency matrices. Compute their Laplacians. Project onto the board eigenbasis. Measure the off-diagonal rank. This IS Othello's fiber dimension. Compare with chess's rank-3 (off-diagonal) / rank-4 (full) fiber to characterize how rule complexity manifests differently in the two games.
-
-- **Flip propagation kernels.** When a disc is placed at square s, the set of flipped discs defines a spatially structured perturbation along specific rays. The GFT of the flip pattern reveals which spectral modes are excited by each move — potentially explaining why corners are dominant (all low-frequency modes reinforce), edges are semi-stable, and the center is volatile.
-
-- **Ising model mapping.** The board state with nearest-neighbor interactions is a lattice spin system. The Othello flip rule is a specific spin-flip dynamics on the P₈ □ P₈ grid graph. The Ising model on this graph has well-studied spectral properties (statistical mechanics literature). Othello may map onto a driven Ising model with specific boundary conditions.
-
-- **Dynamic fiber evolution.** Track how the fiber content (off-diagonal coupling from the state-dependent ray adjacencies) changes through a game. In chess, the fiber is static and only the signal evolves. In Othello, both evolve. The interplay between fiber evolution and signal evolution may capture the strategic arc of the game — opening (few discs, sparse fiber), middlegame (many contested rays, complex fiber), endgame (stable regions, simplified fiber).
-
-- **Territory as spectral clusters.** Controlling a region means having stable same-color disc groups. These correspond to low-frequency components of the board subgraph where one player dominates. Spectral clustering of the current board state could identify stable territories, contested boundaries, and vulnerable configurations.
-
-**The decisive advantage: perfect ground truth.** Othello was weakly solved in 2023 (Takizawa), proving that perfect play from both sides results in a draw. The complete game solution provides exact game-theoretic values for every reachable position — win, draw, or loss with optimal play, and distance to outcome.
-
-This eliminates the benchmark problem that limited our chess results. In chess, we tested spectral similarity against PST tables (wrong ground truth, ρ ≈ 0), against material heuristics (circular, ρ = 0.71), and identified Stockfish as the right benchmark but couldn't run it initially. Every chess evaluation function is an approximation.
-
-In Othello, the evaluation IS the answer. When we ask "do spectrally similar Othello positions have similar game-theoretic values?" the result is uncontaminated by heuristic noise. If spectral encoding captures game-relevant structure, it will show up as correlation with perfect play values. If it doesn't, that's a clean negative result — not a benchmark artifact.
-
-Additionally, the complete solution gives us optimal moves at every position, enabling a stronger test: "do positions with the same optimal strategy cluster in spectral space?" This tests whether the encoding captures strategic structure, not just positional evaluation.
-
-**The contrast validates the method.** Chess is a many-species system with static fiber geometry (multiple particle types, fixed movement rules, rank-4 fiber bundle). Othello is a single-species system with dynamic fiber geometry (identical particles, state-dependent directional influence, evolving ray adjacencies). Both should produce fiber structure — but the sources are different. In chess, the fiber comes from species diversity (different pieces have different movement graphs). In Othello, the fiber comes from directional influence structure (8 ray directions create non-spatial coupling). If the spectral framework detects fiber in both cases but from the correct source in each, that demonstrates the framework adapts to the actual physics of whatever system it encounters.
-
-**Key tests for the Othello experiment:**
-1. Does A₁ energy predict depth-gap in Othello? (Universal complexity metric?)
-2. Is the fiber nonzero? What rank? Does it reflect directional ray structure?
-3. How does the dynamic fiber evolve through a game? Does it track strategic complexity?
-4. Does spectral similarity correlate with perfect-play game-theoretic values?
-5. Under D4 × Z₂ decomposition, do the Z₂-invariant channels predict complexity and Z₂-breaking channels predict advantage?
+The original "Future Work: Othello as Validation Domain" subsection has been promoted to a full top-level section, **§10. Phase-Space Othello**, after a foundation-anchored survey of 9 candidate mathematical frameworks converged on a hybrid synthesis (Blume-Capel spin-1 site fiber + exact D₄×Z₂ + 8-ray decomposition 2A₁⊕B₁⊕B₂⊕2E + Wolff-like flanking under Fraenkel two-player bounded-change non-local CA semantics + Hansen-Ghrist sheaf Laplacians with dynamic restriction maps + Sagawa-Ueda information thermodynamics under a Boltzmann-policy embedding). The migrated text, literature grounding, and falsifiable WTHOR predictions all live in §10.
 
 ### Prior art candidates for formal documentation
 
@@ -1790,7 +1745,211 @@ Othello (§9j) reduces the polarization framework to its minimum: a single θ cl
 
 ---
 
-## 10. Appendix: Environment & Reproducibility
+## 10. Phase-Space Othello
+
+> **Status.** Active project scaffold. The chess notebook above characterizes a static, multi-species spectral lattice system; this section characterizes Othello as a dynamic, single-species phase-space system on the same 8×8 grid. Findings here are theoretical — the empirical tests in §10.10 against the WTHOR database have not yet been executed.
+
+**Hybrid-framework thesis.** A survey of nine candidate mathematical frameworks (lattice fermion model, Ising / Blume-Capel / Potts, driven nonequilibrium lattice systems, non-local CA, compass / eight-vertex / Kitaev, voter / Glauber / Wolff, information thermodynamics, sheaf Laplacians, combinatorial game theory) found that **no single existing framework is a clean fit**. Othello naturally lives as a **dynamic cellular sheaf** whose stalks are Blume-Capel {−1, 0, +1} fibers per cell, whose restriction maps update per move, whose symmetry is exact D₄×Z₂ with the 8-ray decomposition 2A₁⊕B₁⊕B₂⊕2E, whose update rule is a two-player bounded-change non-local CA with ray-gated flip along subsystem-symmetry-like product operators, and whose information content per move is a Sagawa-Ueda feedback step under a Boltzmann-policy embedding. The global arrow of time is a monotone disc count — a genuinely different breaking of reciprocity from chess's local Hatano-Nelson pawn sector.
+
+### 10.1. Same board, fundamentally different physics
+
+Othello is played on the same 8×8 grid as chess, so the board Laplacian eigenbasis, the D₄ symmetry group, and the 8-generator spectral lattice (§9b) all transfer identically. Everything above the board changes:
+
+- **Single piece type, but non-zero fiber.** There are no per-piece Laplacians and no spectral quantum numbers — Level 1 (§8b) collapses. The fiber bundle is still non-zero because the fiber measures the gap between rule structure and spatial structure, not the number of species. In chess, cross-species analysis is how we *found* the fiber; it is not what the fiber *is*. Any game whose rules have structure beyond the grid itself produces fiber content.
+
+  Othello's rules operate along **8 ray directions** {N, NE, E, SE, S, SW, W, NW}. Each ray defines an influence adjacency — which squares affect which through the flanking mechanic. The E/W rays are path graphs along ranks (subsets of the chess rook's adjacency); the diagonal rays are path graphs along diagonals (subsets of the chess bishop's adjacency). Each ray Laplacian, projected onto the board eigenbasis, carries off-diagonal content because a ray along the diagonal couples eigenmodes differently than a ray along the rank. The 8 ray directions span a fiber subspace whose rank reveals the number of independent types of directional influence (§10.4 derives this rank as 6 from the irrep decomposition, or 2 from the orbit count).
+
+- **Dynamic fiber.** Chess has a static fiber (piece Laplacians are fixed) with a dynamic signal (occupation changes). Othello has a **dynamic fiber** — the flanking rule means the influence of a placed disc extends along a ray only as far as the first friendly disc. The effective adjacency changes with every move. This is more complex than chess, not simpler: the fiber at move 10 is a different geometric object than the fiber at move 40. The natural formal home for this is a cellular sheaf with dynamic restriction maps (§10.7).
+
+- **No movement.** Discs are placed, never moved. No movement graph in the chess sense; no connection form. Legal moves depend on the global board state (bracketing lines of opponent discs), not on piece-type topology. The directional ray structure *is* a movement-like constraint on influence propagation, and that is the source of the fiber content.
+
+- **Spin-flip instead of annihilation.** Chess captures remove pieces (annihilation operator). Othello flips opponent discs to your color — the disc stays, its sign changes. The board signal is an Ising-like spin field s_i ∈ {−1, 0, +1}. A single move triggers a wave of sign changes along grid rays whose spectral content the GFT can decompose.
+
+- **State-dependent legality.** Chess has static operators (piece Laplacians define legal moves regardless of board state). Othello has dynamic operators — legality depends entirely on the current disc configuration. Chess has a fixed operator with a dynamic signal; Othello has a dynamic operator that changes with every move.
+
+- **Exact Z₂ symmetry.** In chess, Z₂ (color/spin inversion) is approximate because pawns are directional (§9m, §1b.1). In Othello, Z₂ is **exact** — the rules are perfectly color-symmetric. Swapping all disc colors and swapping side-to-move gives a strategically equivalent position. The full symmetry group is D₄×Z₂ (16 elements), and the irrep decomposition under this full group is the natural framework from the start.
+
+**The decisive advantage: perfect ground truth.** Takizawa (arXiv:2310.19387, 2023) weakly solved Othello: perfect play from both sides results in a draw. The complete game solution (Zenodo 10.5281/zenodo.10030906) provides exact game-theoretic values for every reachable position. This eliminates the benchmark problem that limited the chess results — in Othello, the evaluation *is* the answer. The WTHOR tournament database (61,549 games, French Othello Federation, 2001–2020) provides the empirical substrate for the falsifiable predictions in §10.10.
+
+### 10.2. Transfer and failure modes of the chess framework
+
+Against the chess spectral framework documented in §§2–9r, Othello transfers on its foundations but fails on the upper structure.
+
+**What transfers.**
+
+- **Board Laplacian eigenbasis (§2).** The 8×8 grid Laplacian's eigenvectors are the 2D DCT basis (exact, machine-epsilon verified). Identical for both games.
+- **D₄ symmetry and irrep decomposition (§9a).** The eight-element point group of the square is the same; the DCT basis *is* the irrep basis of D₄ (Püschel & Moura 2003; §1b.3). Othello's Z₂ is stronger (exact vs approximate), promoting the framework to exact D₄×Z₂ throughout.
+- **8-generator spectral lattice (§9b).** The coprime basis for spatial HDC encoding is independent of piece content and transfers directly.
+- **Grid-only findings.** Anything derived from P₈□P₈ structure alone (mean-degree statistics, spatial frequencies, low-frequency modes) survives.
+
+**What fails.**
+
+| Chess element | Othello analog | Verdict |
+|---|---|---|
+| Piece species (rank-5 fiber, 5-tuple quantum numbers) | Single particle type — rank-5 has no referent | **FAILS** |
+| Hopping Hamiltonian (piece movement) | No movement at all | **FAILS** |
+| Pawn → Hatano-Nelson local T-violator (§1b.1) | No local T-violator; T-breaking is global monotone disc count | **FAILS** (global ≠ local) |
+| Nearest-neighbor piece adjacency | Flanking is state-dependent and length ≤ 7 along rays | **FAILS** |
+| Static fiber geometry | Fiber restriction maps evolve every move | **FAILS** |
+| KPZ / ASEP / directed percolation (driven nonequilibrium) | No interface, no particle motion, no critical absorbing parameter | **FAILS** |
+| Q-state Potts (q=3) | Wrong symmetry — S₃ permutes all three colors equally; empty is distinct | **FAILS** |
+| Eight-vertex model | The "8" is vertex parity configurations, not ray directions — numerological coincidence | **FAILS** |
+
+**Near-misses worth naming.** Five frameworks fail cleanly as mathematical fits but are close enough structurally that they frame what an Othello-native framework must handle:
+
+- **Voter model (Holley-Liggett 1975; Liggett 1985).** Continuous-time single-site updates with bichromatic spins and absorbing all-0 / all-1 states match Othello's monochromatic absorbing terminus. Voter-copy-neighbor ≠ Othello-flank-flip, but the absorbing-state structure transfers.
+- **Glauber dynamics (Glauber 1963).** Single-site flips with detailed balance toward a Boltzmann stationary state. Non-ergodic in Othello (monotone filling), no native Hamiltonian, no temperature — but the flip-rate formalism is the starting point for the Boltzmann-policy embedding in §10.8.
+- **Sandpile / avalanche CA (Bak-Tang-Wiesenfeld 1987; Dhar 1990).** Flanking cascades are avalanche-like: one placement flips multiple discs along multiple rays. If the per-move flip-count distribution is a power law (§10.10 test 1), the scaling exponent could align with SOC. Critical differences: sandpile toppling is abelian / order-independent; Othello is violently order-dependent, and flips are chosen adversarially.
+- **Directed percolation (Hinrichsen 2000; Janssen 1981).** Othello terminal states are absorbing — once neither player has a legal move, the game ends. But DP requires a fluctuating-to-absorbing transition with a continuous control parameter; Othello's turnover to absorbing is deterministic, not critical. Activity scaling near end-game is still testable empirically.
+- **Random sequential adsorption (Evans 1993).** The closest native statistical-mechanics match to Othello placement structure — particles placed irreversibly, never removed; jamming state ≈ terminal position. RSA lacks the flanking-and-flipping dynamic, and Othello placements are adversarial rather than uniform-random. But the jamming limit is a real structural analog.
+
+### 10.3. Site space: Blume-Capel spin-1 with D as empty-density control
+
+The three-state per-cell space {−1 = white, 0 = empty, +1 = black} with exact Z₂ s → −s symmetry is the Blume-Capel spin-1 model (Blume 1966 PR 141, 517; Capel 1966 Physica 32, 966):
+
+    H = −J Σ_⟨ij⟩ sᵢ sⱼ + D Σᵢ sᵢ²,    sᵢ ∈ {−1, 0, +1}.
+
+The crystal-field parameter D controls the density of empty sites: large D penalizes occupation (favors sᵢ = 0), small D allows occupation. On the 2D square lattice, the tricritical point sits at Δt ≈ 1.966, T_t ≈ 0.608 (arXiv:2401.02720). Tricritical exponents: y_t = 1.804(5), y_g = 0.80(1), y_h = 1.925(3) (arXiv:1504.02565) — distinct from pure Ising (y_t = 1, y_h = 15/8).
+
+**Othello's monotone filling as a trajectory in (T_eff, D_eff).** Blume-Emery-Griffiths (PRA 4, 1071, 1971) established the exact structural analog with ³He–⁴He mixtures: the quadrupole moment 1 − ⟨sᵢ²⟩ ↔ ³He concentration. For Othello, the quadrupole moment Q = ρ_black + ρ_white = 1 − ρ_empty is the **secondary order parameter**, and disc magnetization M = ρ_black − ρ_white is the primary one. A game traces a path from high-D (60/64 empty at move 1) toward low-D (0 empty at terminal), monotonically. Whether this trajectory crosses the tricritical point at or near half-filling is an empirical question against WTHOR (§10.10 test 4).
+
+**Cluster representation.** Bouabci-Carneiro (*J. Stat. Phys.* 100, 805, 2000) gave an FK-like random-cluster representation for Blume-Capel that generalizes Fortuin-Kasteleyn 1972 to the 3-state case. This is the correct equilibrium-statmech substrate for the Wolff-cluster analogy in §10.6.
+
+**What this buys.** The site space and its Z₂ symmetry are now mathematically **MATHEMATICAL** (exact formalism match), not analogical. The dynamics remain mismatched — Blume-Capel is equilibrium thermal, Othello is deterministic adversarial — but the fiber content is correctly 3-valued at each cell, empirically validated by the Othello-GPT linear-probe results in §10.9.
+
+### 10.4. Symmetry: exact D₄×Z₂ and the 8-ray decomposition 2A₁⊕B₁⊕B₂⊕2E
+
+D₄ has 5 conjugacy classes {E, 2C₄, C₂, 2C′₂, 2C″₂} and 5 irreps A₁, A₂, B₁, B₂, E of dimensions 1, 1, 1, 1, 2 (Tinkham 1964; Dresselhaus-Dresselhaus-Jorio 2008). The standard character table:
+
+| D₄  | E | 2C₄ | C₂ | 2C′₂ | 2C″₂ | carried by |
+|-----|---|-----|----|------|------|-----------|
+| A₁  | 1 | 1   | 1  | 1    | 1    | x²+y², z² |
+| A₂  | 1 | 1   | 1  | −1   | −1   | R_z       |
+| B₁  | 1 | −1  | 1  | 1    | −1   | x²−y²     |
+| B₂  | 1 | −1  | 1  | −1   | 1    | xy        |
+| E   | 2 | 0   | −2 | 0    | 0    | (x, y)    |
+
+**D₄ decomposition of the 8 ray directions (new derivation).** The 8 rays {N, NE, E, SE, S, SW, W, NW} split into two D₄ orbits of size 4: orthogonal {N, E, S, W}, diagonal {NE, SE, SW, NW}.
+
+- **Γ_ortho:** character χ = (4, 0, 0, 2, 0). Reduction: **Γ_ortho = A₁ ⊕ B₁ ⊕ E**. Basis: A₁ = (N+E+S+W)/2; B₁ = ((N+S) − (E+W))/2 transforms as x²−y²; E = {(N−S)/√2, (E−W)/√2}.
+- **Γ_diag:** character χ = (4, 0, 0, 0, 2). Reduction: **Γ_diag = A₁ ⊕ B₂ ⊕ E**. Basis: A₁ = (NE+SE+SW+NW)/2; B₂ = ((NE+SW) − (SE+NW))/2 transforms as xy; E = {(NE−SW)/√2, (SE−NW)/√2}.
+- **Combined 8-ray representation:** **Γ_8 = 2·A₁ ⊕ B₁ ⊕ B₂ ⊕ 2·E** (dimension check: 2+1+1+4 = 8 ✓).
+
+**B₁↔B₂ is the rook/bishop signature, derived from rays alone.** In the chess notebook, the orthogonal-sliding vs diagonal-sliding distinction appears through piece-species analysis (rook adjacency vs bishop adjacency). Here, the same distinction drops out of the ray-set character analysis with no reference to pieces. B₁ carries the orthogonal-orbit anisotropic mode; B₂ carries the diagonal-orbit anisotropic mode. Interchanging orthogonal and diagonal rays — a group-theoretic B₁↔B₂ swap — is the exact signature of the rook/bishop distinction. To this survey's knowledge, this decomposition has not been previously published for Othello.
+
+**Exact Z₂ extension.** With the exact color-inversion Z₂ (which is only approximate in chess — pawn-broken, §1b.1), the full symmetry is D₄×Z₂ with 16 elements and 10 irreps. Spin-squared quantities (quadrupole Q = 1 − ρ_empty) are Z₂-invariant; spin-signed quantities (magnetization M = ρ_b − ρ_w) carry the non-trivial Z₂ character. The natural channel split in §9h' transfers: Z₂-invariant channels predict complexity, Z₂-breaking channels predict advantage.
+
+**Fiber rank prediction.** The 8-ray irrep decomposition gives three natural bundle ranks: rank-2 (orbit count: ortho vs diag), rank-6 (irrep count: 2A₁+B₁+B₂+2E), rank-8 (individual directions, fully reducible). **None equals the chess rank-5**, confirming the §10.2 "rank-5 has no referent in Othello" verdict. The chess notebook's polarization reframing (§9r) reduces to (θ-class, r = ∞, c = 0) for Othello — chirality absent because Z₂ is exact.
+
+### 10.5. Ray structure: compass models and subsystem symmetries
+
+**90° compass model.** The closest published structural match to Othello's ray-gated dynamics is the 90° compass model (Kugel-Khomskii 1973/1982; Nussinov & van den Brink, *Rev. Mod. Phys.* 87, 1, 2015; Dorier-Becca-Mila, *Phys. Rev. B* 72, 024448, 2005):
+
+    H = −J_x Σ_⟨ij⟩_H τᵢˣ τⱼˣ − J_y Σ_⟨ij⟩_V τᵢʸ τⱼʸ,
+
+with direction-dependent couplings. Nussinov-Ortiz (*Phys. Rev. B* 71, 195120, 2005) established that compass models carry **d=1 subsystem symmetries**: product operators P_j = Π_i σᵢⱼʸ along rows and Q_i = Π_j σᵢⱼˣ along columns are exact symmetries. These lie midway between global and local gauge symmetries and cause effective dimensional reduction.
+
+**Direct analog.** Othello's flanking evaluates product operators along rays. Subsystem symmetries along rows/columns map to ray-flank counts; the B₁↔B₂ swap of §10.4 is the group-theoretic promotion of the compass model's orthogonal-vs-diagonal bond-type split to the 8-ray case. Nasu et al. (arXiv:1203.3683, 2012) independently constructed an orbital compass on the checkerboard lattice with different components along orthogonal vs diagonal NN bonds — the closest published construction to Othello's rook/bishop ray split.
+
+**Bacon-Shor / compass codes.** Li-Miller-Newman-Wu-Brown (*Phys. Rev. X* 9, 021041, 2019) present 2D compass codes whose product operators span entire rows and columns (X-stabilizers along rows, Z-stabilizers along columns). This is the cleanest existing physics analog of Othello's ray flank operators at the Hamiltonian level. Limitations: 2 orbits (rows/cols), no diagonals, no same-color termination.
+
+**Not in this bucket.** Kitaev models (Kitaev 2006) have 3–4 bond classes, not 8 rays — **ANALOGICAL**. The eight-vertex model (Baxter 1972; Lieb 1967) uses "8" for vertex-parity configurations, not ray directions — **numerological coincidence**, not a structural match.
+
+### 10.6. Non-local update: Wolff flanking, bounded-change CA, two-player CA games
+
+**Wolff cluster as closest stat-mech analog.** The Wolff single-cluster flip (Wolff, *Phys. Rev. Lett.* 62, 361, 1989) — seed spin → cluster of like neighbors via the Fortuin-Kasteleyn random-cluster construction (Fortuin-Kasteleyn 1972) → flip whole cluster — is the **closest equilibrium-statmech analog to Othello flanking**. Seed placement → cluster of flanked opponent discs → flip. The differences are concrete: Wolff builds clusters stochastically with p_add = 1 − e^{−2βJ}, while Othello flanking is deterministic and geometrically ray-constrained (only contiguous chains of opposite color terminated by same color, along one of 8 directions). Bouabci-Carneiro (2000) extends the FK representation to Blume-Capel, which is the right 3-state lift.
+
+**Bounded-change / non-local CA.** Othello is not a freezing CA — cells can be flipped many times (no monotone state order) — but on an 8×8 board each cell flips at most ~60 times, so Othello is a **bounded-change CA** in the sense of Ollinger-Theyssier (arXiv:1908.06751, 2019). Classical Wolfram/Langton CA fail at four canonical assumptions for Othello: deterministic, synchronous, translation-invariant, local. The range-unbounded-along-rays structure is best matched by Sipper's **non-local cellular automata** (Santa Fe Institute working paper): "non-local connections provide a handy way for information transmission, it is much easier for a non-local cellular automaton to be a universal computer than for a local one." Non-local CA typically use random/small-world wiring rather than 8 rays from an update site — still **ANALOGICAL**.
+
+**Two-player CA games — the framework-level wrapper.** Fraenkel (*More Games of No Chance*, MSRI, 2000) developed two-player CA games in a general sense — a move consists of selecting a vertex and firing it, complementing its weight and that of a selected neighborhood. Othello *is* a two-player CA game in Fraenkel's sense, though its ray-flanking rule falls outside the specific digraph-additive family he studied. Cook-Larsson-Neary (arXiv:1506.01431, 2015; *Natural Computing* 16, 397, 2017) extend to blocking queen games. Classification: **MATHEMATICAL at the framework level**, not yet instantiated for Othello's ray structure.
+
+**Bootstrap percolation — monotone near-miss.** Bootstrap percolation (Chalupa-Leath-Reich 1979; Aizenman-Lebowitz 1988; Holroyd 2003) is the canonical threshold-based monotone CA: a cell activates when ≥r active neighbors are present. It is the closest canonical CA with "cell activates on neighborhood pattern," but it is monotone where Othello is not (flips change sign, they don't freeze). **ANALOGICAL** only — the monotone structure in Othello lives in the disc count, not the site state.
+
+**Complexity baseline.** Iwata-Kasai (*Theor. Comput. Sci.* 123, 329, 1994) proved that n×n Othello is PSPACE-complete. This is a game-complexity result, **not** a CA-universality result. Whether Othello's flanking rule, treated as an abstract CA, is Turing-universal is an open question (no paper addresses it).
+
+### 10.7. State-dependent adjacency: sheaf Laplacians with dynamic restriction maps
+
+Hansen & Ghrist (*J. Appl. Comput. Topol.* 3, 315, 2019; arXiv:1808.01513) developed spectral sheaf theory on regular cell complexes. A **cellular sheaf F** on X assigns a vector space F(σ) to each cell σ and, for every incidence σ ⊴ τ, a linear **restriction map** F_{σ⊴τ}: F(σ) → F(τ) satisfying F_{σ⊴σ} = id and F_{ρ⊴τ} = F_{σ⊴τ} ∘ F_{ρ⊴σ}. The **degree-0 sheaf Laplacian** on C⁰(X; F) is
+
+    (L_F x)_v = Σ_{v⊴e} F_{v⊴e}^⊤ (F_{v⊴e} x_v − F_{w⊴e} x_w),
+
+reducing to the ordinary graph Laplacian for the constant sheaf ℝ with identity restrictions. Harmonic cochains = global sections = H⁰(X; F).
+
+**Direct Othello instantiation.**
+
+- **Vertex stalks:** 3-valued Blume-Capel fiber F(v) ≅ ℝ³ (or the 3-state simplex) at each of the 64 cells, carrying sᵥ ∈ {−1, 0, +1}.
+- **Edge stalks:** the ray-flank incidence structure on each of the 8 ray directions through each cell. Edges are not static nearest-neighbor pairs but dynamic ray-segments bounded by same-color terminators.
+- **Restriction maps F_{σ⊴τ}:** evolve with every move. When a disc is placed and a line is flanked, the restriction maps along the affected ray segments update to reflect the new flank structure. The dynamic fiber geometry of §10.1 is exactly this family of evolving restriction maps.
+- **Sheaf Laplacian spectrum:** tracks through the game — opening has sparse restriction maps (few non-empty cells), middlegame has complex restriction maps (many contested rays), endgame has simplified maps (stable regions).
+
+Hansen's thesis (U. Penn 2020) and the Neural Sheaf Diffusion work (Bodnar et al., NeurIPS 2022, arXiv:2202.04579) develop the computational tooling. Singer-Wu (*Comm. Pure Appl. Math.* 65, 1067, 2012) provides the connection-Laplacian variant via vector diffusion maps. Riess-Ghrist et al. (arXiv:2504.02049, 2510.00270, 2025) establish that partially asynchronous nonlinear sheaf diffusion converges linearly under bounded delays — relevant for the move-by-move update structure.
+
+**Novel application status.** No paper applies sheaf Laplacians, connection Laplacians, or temporal graph signal processing to any board game. Applying Hansen-Ghrist to Othello is an open research direction — this section is the **MATHEMATICAL framework-level match**; the instantiation is novel.
+
+### 10.8. Information thermodynamics: Sagawa-Ueda under a Boltzmann-policy embedding
+
+Rigorous information-thermodynamic statements about Othello require an explicit stochastic embedding. The survey found six preconditions to make Sagawa-Ueda rigorous:
+
+1. **Stochasticize:** replace the deterministic move by a softmax policy π(m | s) ∝ e^{−β · cost(m, s)}, defining effective T = 1/β.
+2. **Explicit physical memory:** each square carries a bit with physical substrate state (for Landauer's k_B T ln 2 per erase to be literal).
+3. **Heat-bath coupling at T.**
+4. **Bipartite / N-partite embedding** (Horowitz-Esposito, *Phys. Rev. X* 4, 031015, 2014): joint (board, player-memory) Markov process with decomposable information-flow rates dS_X/dt − İ_X ≥ 0.
+5. **Work reservoir:** define a conjugate variable (score or free-energy analog).
+6. **Fluctuation-theorem-compatible ensembles:** initial Boltzmann distribution + time-reversed protocol.
+
+Under (1)–(6), each move satisfies a Sagawa-Ueda-type identity ⟨e^{β(ΔF − W) − I}⟩ = 1 (Sagawa-Ueda, *Phys. Rev. Lett.* 104, 090602, 2010; *Phys. Rev. E* 85, 021104, 2012) with the information-theoretic work bound ⟨W⟩ ≥ ΔF − k_B T · I. Parrondo-Horowitz-Sagawa (*Nature Physics* 11, 131, 2015) give the generalized second law ΔS_total ≥ −k_B · I. **This is mathematical content about the embedding, not about Othello per se.**
+
+**Without embedding — pure Shannon bookkeeping.** Each move extracts I_move = log₂ |M(s)| − log₂ P(chosen | policy) bits of decision information; placement discards H(s_past | s_now) bits of prior-state information. Shannon claims hold rigorously; thermodynamic claims require the embedding above.
+
+**Global monotone T-breaking distinguishes Othello from chess.** In chess, T-symmetry breaking is **local**: the pawn is the single T-violating polarization, realizing Hatano-Nelson t_L = 0 exactly (§1b.1). In Othello, there is no local T-violating particle. T-breaking appears only through the **global monotone disc count**: pieces are placed irreversibly, flips preserve count. This is macroscopic irreversibility, not biased local hopping. The entropy-production bookkeeping is correspondingly global — at the move level, not the per-particle level.
+
+**Without embedding, Maxwell-demon-lattice as a named class is SPECULATIVE** (not a defined technical term in the literature). The Sagawa-Ueda / Horowitz-Esposito framework is the rigorous home under embedding.
+
+### 10.9. Empirical grounding: Othello-GPT representation results
+
+A decisive empirical signal for the Blume-Capel site fiber comes from the Othello-GPT line of research, which trains transformers on synthetic Othello move sequences and probes the learned internal representations.
+
+- **Li-Hopkins-Bau-Viégas-Pfister-Wattenberg (ICLR 2023 Oral, arXiv:2210.13382)**, "Emergent World Representations," established via linear probes and causal intervention that Othello-GPT maintains a linear world model of the board state.
+- **Nanda-Lee-Wattenberg (BlackboxNLP 2023, arXiv:2309.00941)** sharpened the claim: **the representation is linear in mine/yours/empty coordinates, not black/white/empty.** The natural fiber the network learns is 3-valued per cell, keyed to the player-relative state.
+- **Hazineh et al. (2023)**, replication: github.com/DeanHazineh/Emergent-World-Representations-Othello.
+- **He et al. (arXiv:2402.12201, 2024)** extended with sparse autoencoders.
+- **Yuan & Søgaard (ICLR 2025, arXiv:2503.04421)**, "Revisiting the Othello World Model Hypothesis," extended across GPT-2, T5, BART, Mistral, LLaMA-2, Qwen2.5 with up to 99% probe accuracy.
+- **Singh et al. (arXiv:2511.00059, 2025)** gave decision-tree interpretations of Othello-GPT MLP neurons — ~913/2048 layer-5 neurons have R² > 0.7 rule-tree fits.
+
+**Implication.** The per-cell fiber is empirically **3-valued** (mine/yours/empty). This directly validates a **Blume-Capel-like spin-1 structure at the representation level**, *not* a piece-species bundle. The chess rank-5 piece-species bundle has no representational referent in Othello, consistent with the §10.2 failure table. Classification: **MATHEMATICAL** at the level of VSA encodings; **ANALOGICAL** as a fiber-bundle interpretation.
+
+### 10.10. Falsifiable predictions against WTHOR
+
+No empirical study in the literature has extracted, from the WTHOR database (61,549 tournament games), the spectral or statistical-mechanical observables predicted by the hybrid framework above. These are concrete open empirical tests, each tied to a candidate framework's distinguishing signature:
+
+1. **Flip-count-per-move distribution** (power law vs exponential). Distinguishes SOC / directed-percolation-critical scaling (power law) from Blume-Capel tricritical or away-from-critical (exponential tails). If power-law, extract the scaling exponent and compare with sandpile and DP critical exponents.
+2. **B₁ vs B₂ spectral populations** across game trajectories. Tests the rook/bishop-from-rays prediction of §10.4: ⟨B₁²⟩ vs ⟨B₂²⟩ should be statistically indistinguishable under rules alone, but may differ because corners are diagonal-reachable first from the center and tournament strategy values edge/corner control asymmetrically.
+3. **Shannon information per move** vs the Sagawa-Ueda bound ⟨W⟩ ≥ ΔF − k_B T · I. Without the Boltzmann-policy embedding, test the pure Shannon bookkeeping: I_move = log₂ |M(s)| − log₂ P(chosen | policy). Under the embedding with inferred β, test the full generalized-Jarzynski identity.
+4. **Trajectory through (T_eff, D_eff) plane.** Map each game position to a point in the Blume-Capel control-parameter plane; test whether the monotone-filling trajectory passes near the tricritical point (Δt ≈ 1.966, T_t ≈ 0.608) at or near half-filling. Joint distribution P(ρ_black, ρ_white, ρ_empty) gives the marginal P(M = ρ_b − ρ_w); Binder cumulant U* ≈ 0.6107 for Ising, different for tricritical.
+5. **Cluster-size distribution of flanks.** Tests Wolff-critical scaling: power-law cluster sizes at criticality, exponential away. Compare with the Bouabci-Carneiro FK-cluster statistics for Blume-Capel.
+
+**Additional tests inherited from §9j.**
+
+- Does A₁ energy predict depth-gap in Othello, as it does in chess (§9h', ρ = +0.452, p = 0.0005)? Tests universal complexity metric across games.
+- Is the directional fiber rank non-zero, and does it match the §10.4 prediction of 2 (orbit count), 6 (irrep count), or 8 (fully reducible)?
+- Do positions with the same Takizawa-perfect-play optimal move cluster in spectral space? Tests whether the encoding captures strategic structure, not just positional evaluation.
+
+**Ground-truth substrate.** Takizawa 2023 weak solution (arXiv:2310.19387) + WTHOR 61,549 games + existing AI engines (Edax, Logistello, WZebra, NTest, Saio) eliminate the chess benchmark problem.
+
+### 10.11. Literature grounding
+
+Load-bearing primary references, grouped by role in the hybrid framework.
+
+- **Site-space / stat mech:** Blume 1966 PR 141, 517; Capel 1966 Physica 32(5), 966; Blume-Emery-Griffiths 1971 PRA 4, 1071; Bouabci-Carneiro 2000 JSP 100, 805; Fortuin-Kasteleyn 1972 Physica 57, 536; Wolff 1989 PRL 62, 361.
+- **Symmetry / ray structure:** Nussinov & van den Brink 2015 RMP 87, 1 (arXiv:1303.5922); Nussinov & Ortiz 2005 PRB 71, 195120; Dorier-Becca-Mila 2005 PRB 72, 024448; Li-Miller-Newman-Wu-Brown 2019 PRX 9, 021041 (Bacon-Shor / compass codes); Nasu et al. 2012 arXiv:1203.3683 (orbital compass with ortho/diag split).
+- **CA / game structure:** Fraenkel 2000 (*More Games of No Chance*, MSRI); Ollinger & Theyssier 2019 arXiv:1908.06751 (bounded-change CA); Iwata & Kasai 1994 TCS 123, 329 (PSPACE-completeness of n×n Othello); Evans 1993 RMP 65, 1281 (RSA); Sipper SFI working paper (non-local CA).
+- **Sheaf / dynamic operators:** Hansen & Ghrist 2019 JACT 3, 315 (arXiv:1808.01513); Hansen 2020 U. Penn PhD thesis; Bodnar et al. 2022 NeurIPS (arXiv:2202.04579, Neural Sheaf Diffusion); Singer & Wu 2012 CPAM 65, 1067 (connection Laplacian).
+- **Information thermodynamics:** Landauer 1961 IBM J R&D 5, 183; Bennett 1982 IJTP 21, 905; Sagawa & Ueda 2010 PRL 104, 090602; Sagawa & Ueda 2012 PRE 85, 021104; Parrondo-Horowitz-Sagawa 2015 Nat Phys 11, 131; Horowitz & Esposito 2014 PRX 4, 031015; Jarzynski 1997 PRL 78, 2690; Crooks 1999 PRE 60, 2721.
+- **Empirical validation:** Takizawa 2023 arXiv:2310.19387v3 (weak solution + ground truth); Li-Hopkins-Bau-Viégas-Pfister-Wattenberg 2023 ICLR arXiv:2210.13382 (Othello-GPT); Nanda-Lee-Wattenberg 2023 BlackboxNLP arXiv:2309.00941 (linear mine/yours/empty probes); Yuan & Søgaard 2025 ICLR arXiv:2503.04421 (cross-LLM extension).
+
+---
+
+## 11. Appendix: Environment & Reproducibility
 
 ### Requirements
 ```
