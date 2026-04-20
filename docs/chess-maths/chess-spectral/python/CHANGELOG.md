@@ -5,6 +5,22 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] — 2026-04-20
+
+Pipeline-exercise release. Functionally identical to 1.1.2; exists to
+drive the full autotag → dispatch → PyPI-publish chain end-to-end after
+the `workflow_dispatch` + explicit `gh workflow run` fix in
+`.github/workflows/chess-spectral-{autotag,publish}.yml` landed on main.
+`chess-spectral-v1.1.2` never produced a PyPI artifact (autotag ran
+before the dispatch fix and the GITHUB_TOKEN anti-recursion guard
+silently swallowed the publish trigger); the dangling tag has been
+deleted.
+
+### Changed
+
+- Version bumped 1.1.2 → 1.1.3. No encoder, wire-format, or public-API
+  changes.
+
 ## [1.1.2] — 2026-04-20
 
 Packaging release. First version published to PyPI under the distribution
