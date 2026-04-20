@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed to push tags + create releases
+      actions: write   # needed to dispatch chess-spectral-publish.yml
     steps:
       - name: Checkout with full history
         uses: actions/checkout@v4
@@ -133,3 +134,15 @@ jobs:
           else
             gh release create "$TAG" --title "$TAG" --notes "Auto-tagged by CI on push to main."
           fi
+
+      - name: Dispatch publish workflow
+        # Tags pushed by GITHUB_TOKEN don't fire ``on: push`` workflows
+        # (GitHub's anti-recursion guard). Explicitly dispatch the
+        # publish workflow against the new tag so it runs anyway.
+        if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          gh workflow run chess-spectral-publish.yml --ref "$TAG"

@@ -2,8 +2,16 @@ name: chess-spectral-publish
 
 # Builds the ``chess-spectral`` sdist + wheel from
 # ``docs/chess-maths/chess-spectral/python/`` and publishes them to PyPI
-# via trusted publishing (OIDC) whenever a ``chess-spectral-v*`` tag is
-# pushed. The autotag workflow creates those tags on version bumps.
+# via trusted publishing (OIDC) for a given ``chess-spectral-v*`` tag.
+#
+# Triggers:
+#   * ``push`` on ``chess-spectral-v*`` tags — ONLY fires when the tag
+#     push comes from a human / PAT. Tags pushed by the autotag
+#     workflow's GITHUB_TOKEN do NOT trigger this event (GitHub's
+#     anti-recursion guard). The autotag workflow compensates by
+#     dispatching this workflow explicitly after it pushes the tag.
+#   * ``workflow_dispatch`` — manual fallback. Pick the tag (e.g.
+#     ``chess-spectral-v1.1.2``) in the Ref dropdown and click Run.
 #
 # Trusted publisher configuration (one-time, done by a human on pypi.org):
 #   Project:           chess-spectral
@@ -16,6 +24,7 @@ on:
   push:
     tags:
       - "chess-spectral-v*"
+  workflow_dispatch: {}
 
 jobs:
   build-and-publish:
