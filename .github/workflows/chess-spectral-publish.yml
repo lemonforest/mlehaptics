@@ -1,0 +1,72 @@
+name: chess-spectral-publish
+
+# Builds the ``chess-spectral`` sdist + wheel from
+# ``docs/chess-maths/chess-spectral/python/`` and publishes them to PyPI
+# via trusted publishing (OIDC) whenever a ``chess-spectral-v*`` tag is
+# pushed. The autotag workflow creates those tags on version bumps.
+#
+# Trusted publisher configuration (one-time, done by a human on pypi.org):
+#   Project:           chess-spectral
+#   Owner:             lemonforest
+#   Repository:        mlehaptics
+#   Workflow filename: chess-spectral-publish.yml
+#   Environment name:  pypi
+
+on:
+  push:
+    tags:
+      - "chess-spectral-v*"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/chess-spectral/
+    permissions:
+      id-token: write  # OIDC token for PyPI trusted publishing
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+
+      - name: Build sdist and wheel
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: python -m build
+
+      - name: Twine metadata check
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: python -m twine check --strict dist/*
+
+      - name: Verify tag matches pyproject version
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import os, re, tomllib, sys
+          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "chess-spectral-v1.1.2"
+          m = re.fullmatch(r"chess-spectral-v(\d+\.\d+\.\d+)", tag)
+          if not m:
+              print(f"::error::Tag {tag!r} does not match chess-spectral-vX.Y.Z")
+              sys.exit(1)
+          tag_version = m.group(1)
+          with open("docs/chess-maths/chess-spectral/python/pyproject.toml", "rb") as f:
+              pyproject_version = tomllib.load(f)["project"]["version"]
+          if tag_version != pyproject_version:
+              print(
+                  f"::error::Tag version {tag_version!r} != pyproject version "
+                  f"{pyproject_version!r}; refusing to publish."
+              )
+              sys.exit(1)
+          print(f"Tag and pyproject agree: {tag_version}")
+          PY
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: docs/chess-maths/chess-spectral/python/dist

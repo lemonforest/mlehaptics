@@ -1,0 +1,135 @@
+name: chess-spectral-autotag
+
+# Creates and pushes an annotated ``chess-spectral-vX.Y.Z`` tag (plus a
+# matching GitHub Release) whenever ``docs/chess-maths/chess-spectral/
+# python/pyproject.toml`` on the default branch reaches a version that
+# doesn't yet have a tag. No-ops on pushes that don't touch the version,
+# don't advance it past an existing tag, or land a non-strict-semver
+# (pre-release / dev) version.
+#
+# Monorepo adaptation of the chess4d single-package autotag: the tag
+# namespace is ``chess-spectral-v*`` (not ``v*``) so other packages in
+# this repo can own their own tag prefixes, and both the version and
+# the CHANGELOG are read from the package subdirectory.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/chess-maths/chess-spectral/python/pyproject.toml"
+      - "docs/chess-maths/chess-spectral/python/CHANGELOG.md"
+      - ".github/workflows/chess-spectral-autotag.yml"
+
+# Only one tagging run at a time to avoid two back-to-back pushes racing
+# on the same tag. ``cancel-in-progress: false`` is important: we never
+# want to cancel a tag-push mid-flight.
+concurrency:
+  group: chess-spectral-autotag
+  cancel-in-progress: false
+
+jobs:
+  maybe-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to push tags + create releases
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need all tags + prior commits
+
+      - name: Read version and CHANGELOG notes
+        id: ver
+        shell: bash
+        run: |
+          python3 <<'PY' >> "$GITHUB_OUTPUT"
+          import re
+          import tomllib
+
+          PKG_DIR = "docs/chess-maths/chess-spectral/python"
+          TAG_PREFIX = "chess-spectral-v"
+
+          with open(f"{PKG_DIR}/pyproject.toml", "rb") as f:
+              version = tomllib.load(f)["project"]["version"]
+
+          if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+              # Pre-release / dev markers (1.1.2.dev1, 1.1.2rc1, …) are
+              # intentionally excluded — auto-tagging those would
+              # clutter the release surface.
+              print(f"skip=true")
+              print(f"reason=non-strict-semver::{version}")
+              raise SystemExit(0)
+
+          tag = f"{TAG_PREFIX}{version}"
+          print(f"skip=false")
+          print(f"version={version}")
+          print(f"tag={tag}")
+
+          # Extract this version's CHANGELOG section (lines between
+          # "## [X.Y.Z]" and the next "## [" header or EOF).
+          try:
+              content = open(f"{PKG_DIR}/CHANGELOG.md", encoding="utf-8").read()
+          except FileNotFoundError:
+              content = ""
+          pattern = rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)"
+          m = re.search(pattern, content, re.MULTILINE | re.DOTALL)
+          notes = (m.group(1).strip() if m else "").strip()
+          # GitHub Actions multi-line output — use a fixed delimiter
+          # so the body can safely contain any literal string.
+          print("notes<<CHANGELOG_EOF")
+          print(notes)
+          print("CHANGELOG_EOF")
+          PY
+
+      - name: Report skip
+        if: steps.ver.outputs.skip == 'true'
+        run: |
+          echo "::notice::Skipping auto-tag: ${{ steps.ver.outputs.reason }}"
+
+      - name: Check whether tag already exists
+        id: exists
+        if: steps.ver.outputs.skip == 'false'
+        shell: bash
+        run: |
+          tag='${{ steps.ver.outputs.tag }}'
+          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $tag does not exist; will create."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create annotated tag + push
+        if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          NOTES: ${{ steps.ver.outputs.notes }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Tag message: "chess-spectral-vX.Y.Z" on line 1, blank line,
+          # then the CHANGELOG section so `git show <tag>` is
+          # self-explanatory.
+          if [ -n "$NOTES" ]; then
+            printf '%s\n\n%s\n' "$TAG" "$NOTES" > /tmp/tag-msg
+          else
+            printf '%s\n' "$TAG" > /tmp/tag-msg
+          fi
+          git tag -a "$TAG" -F /tmp/tag-msg
+          git push origin "$TAG"
+
+      - name: Publish GitHub Release
+        if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          NOTES: ${{ steps.ver.outputs.notes }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" --title "$TAG" --notes "Auto-tagged by CI on push to main."
+          fi
