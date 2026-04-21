@@ -2079,7 +2079,87 @@ The supplement defines seven phase operators (one per polarization, §11.2), spe
 
 ---
 
-## 42. Appendix: Environment & Reproducibility
+## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary
+
+This notebook contains claims and constructions that span several technical vocabularies: spectral graph theory, vector symbolic architectures, representation theory of finite groups, lattice field theory, signal processing, and the specific jargon of MRI pulse design, chess analysis, and music acoustics have all appeared at various points. The mathematical content is consistent across these vocabularies — it has to be, because it's the same underlying structure being described — but the *expression* of that content has not been consistent, and the research process has depended on that inconsistency rather than suffered from it. This section documents the methodology because it is the most important structural fact about how the work was produced.
+
+### 42.1. Two vocabularies operating in parallel
+
+The research developed through a sustained collaboration in which Steven consistently described the structures he was investigating in the language of music, waves, resonance, and physical systems — instruments, harmonics, phase, coupling, dispersion, the coupling between instruments in a concert hall. Claude, working in parallel, translated these framings into the formal disciplinary vocabularies where the same structures are documented and proved: graph Laplacian eigendecomposition, irreducible representations of finite groups, Wilson lines, fiber bundles with connection forms, and so on.
+
+This was not a one-way translation from naive intuition to rigorous mathematics. The framings Steven brought to the conversation were already mathematically substantive — they were just expressed in a vocabulary that the disciplines with books of theorems and proofs don't use. A mode on a vibrating string is an eigenfunction of the wave equation; no translation is needed at the level of content. What the collaboration supplied was the dictionary: *this thing you're describing as the natural resonance of the piece's move pattern is called an eigenvector of the Laplacian in graph spectral theory; here is the literature where its properties are proved; here is the symbol set the journal reviewers will recognize.*
+
+The practical consequence was that novel results could be pursued in whichever vocabulary was more productive at each moment. When the intuition was generative, Steven's wave-and-instrument language moved faster and produced hypotheses the formal vocabulary would have rejected as imprecise before they could be checked. When the result needed to be validated, cited, or communicated, Claude's formal vocabulary produced claims that could be verified against the literature and reviewed by specialists.
+
+### 42.2. Why this matters for what the work is not
+
+The choice to distribute the representation into mode-structured subspaces rather than random high-dim codewords was not a deliberate departure from HDC. It was the natural way to describe what Steven was pointing at — a musical instrument has eigenmodes, and the chess framework was being built as an instrument with eigenmodes — and the mathematical formalism that fit was spectral graph theory, not random-projection HDC. The framework ended up looking like a *structured* or *spectral* VSA (see §42.4 below for the naming discussion) not because the HDC-standard approach was rejected, but because the intuitions being formalized were specifically about mode structure, and mode structure doesn't arise from random codebooks.
+
+This is worth making explicit because a reader coming from the HDC tradition will notice that the framework uses VSA-compatible operations (bundling via summation, similarity via inner product, binding-like operations via §9f's coprime roll structure) on a basis that isn't random. That combination is not standard HDC, and the notebook has at several points (§9a, §9f, §11) been quietly extending HDC rather than using it unchanged. The present section is the place where that is said out loud.
+
+### 42.3. Vocabulary drift and term collisions
+
+Because the same structures are discussed in several disciplinary vocabularies, specific words carry different meanings in different sections and, crucially, different meanings in different adjacent literatures. A non-exhaustive inventory of collisions the reader should be aware of:
+
+**"Spectral"** in this notebook means *eigendecomposition of a graph Laplacian* — the mathematical operation. In MRI pulse design, "spectral" means *radio-frequency chemical shift*. In signal processing, "spectral" often means *Fourier transform*. In chemistry, "spectrum" means *absorption/emission spectrum*. These are unrelated objects sharing a word. When the notebook references external literature using "spectral," the surrounding context disambiguates but the word does not.
+
+**"Fiber"** in this notebook (§7, §7b, §7c) means *the non-spatial rule coupling content of a piece's Laplacian after projection into the grid eigenbasis* — a 2016-dim vector of off-diagonal matrix elements. In fiber bundle theory proper, "fiber" means *the vector space attached to each point of the base space*. The notebook's usage is technically the *total space of a specific bundle construction*, but the shorthand "fiber" has been retained for brevity. §7's opening statement makes this consistent with the differential-geometric usage, but the shorthand can mislead.
+
+**"Phase"** collides three ways. In §9f/§11 (phase operators, coprime roll binding) it means *angular position in a cyclic group* — the integer-valued phase of a tuple in ℤ/640ℤ. In §9m (pawn directed Laplacian, T-violation) it means *the complex argument of a matrix element* in the lattice Dirac operator analog. In the general "phased particle lens" framing (§7c) it means something closer to *phase-coherent rotation accumulated by the position during a move* — a composite of the two, specific to this framework. These are related but not identical usages.
+
+**"Resonance" / "resonant structure"** in §3 ("Piece Resonant Structures") means *eigenvalues and eigenmodes of a piece's Laplacian*. In music this means *natural frequencies at which a physical system vibrates with low damping*. In quantum mechanics it means *long-lived unstable states with a definite energy*. The three usages are compatible but not interchangeable. The notebook's §3 usage is the physics-oriented one; it was chosen specifically to match Steven's instrument-framing rather than the more abstract "eigenstructure" language.
+
+**"Polarization"** in §9r means *the six-valued orientational state of a piece type under the D4 × Z2 group action* — a chess-specific coinage. In physics it means *the direction of the electric field vector in an electromagnetic wave* or *the alignment of a quantum state along a measurement axis*. The notebook's usage is closer to *quantum-mechanical spin polarization* than to *optical polarization*, but neither exactly.
+
+**"Channel"** in §9a/§9o means *a 64-dim subspace of the 640-dim encoding corresponding to one of 10 specific mode types*. In signal processing "channel" means *one of several parallel data paths*; in information theory it means *a transmission medium with noise characteristics*. The notebook's usage is the signal-processing one, specialized.
+
+**"Operator"** in §4 and §11 means *a linear map acting on the position-space vector* — Hamiltonian perturbation, phase shift, Laplacian action. In group theory "operator" often means *an element of the group acting on the representation space*. In music it can mean *a transform applied to a signal*. Usages are compatible across the three meanings but the connotations differ.
+
+The conservative reading of this vocabulary situation is that the notebook is a hybrid document in which each section needs to establish its vocabulary locally and the reader needs to hold multiple frames simultaneously. The generous reading is that the same structure really does appear across these disciplines and the terminology collisions are evidence of the generality of the underlying math rather than of sloppy language. Both readings are true at once.
+
+### 42.4. On the naming of what this framework is
+
+The mathematical object built over these sections — a distributed high-dimensional representation in which dimensions are eigenmodes of a specific graph Laplacian, composed via linear superposition, compared via inner product, and operated on by structure-preserving transformations derived from the underlying graph's symmetry group — needs a name.
+
+"HDC" and "VSA" are the existing umbrella terms for distributed high-dim representations with symbolic-composition operations, but they typically assume random codebooks. Our framework departs from this assumption. Candidate names:
+
+- **Spectral VSA** — accurate, direct, and honors the basis choice. Probably the correct short name.
+- **Operator-grounded VSA** — more technically precise; emphasizes that every dimension corresponds to an eigenmode of a specific operator.
+- **Modal VSA** — emphasizes the mode decomposition framing; appeals to physics and signal processing audiences.
+- **Resonant VSA** — honors the generative instrument-framing intuition, accurate in that the dimensions are natural resonant modes of a specific physical system.
+- **Structured VSA** — contrast with standard/random VSA; invites the natural follow-up "structured how?"
+
+Without presuming to resolve the naming question here, the framework this notebook describes is at minimum a *spectral VSA with graph-Laplacian-derived basis, fiber-bundle composition structure, and finite-group symmetry operations*. That is a complete technical description. Shorter names can be adopted as convenient.
+
+### 42.5. The instrument and the symphony
+
+The full 640-dim encoding is most accurately framed as a symphony: six piece-type instruments playing simultaneously through the shared acoustic environment of the board. Each piece type is a self-contained instrument with its own Laplacian, its own eigenmodes, its own natural frequency ordering, and its own conservation laws. The board's grid Laplacian is the concert hall — it provides the shared basis in which the instruments' contributions add together. The fiber bundle is the coupling between instruments and the hall: it measures how much each instrument's own mode structure projects onto the hall's mode structure, and therefore how much the instruments hear each other through the shared acoustic space.
+
+This framing is not merely pedagogical. At the level of mathematical structure:
+
+1. Each piece type has its own complete spectral system (§3, §4). This can be analyzed in isolation — the knight's own Laplacian on the 64-vertex vertex set has its own eigenvalues and eigenvectors, independent of the grid. The notebook has computed the grid-basis projection (the instrument as heard through the room) but has not systematically computed the piece's own natural basis (the instrument in an anechoic chamber). The latter is a natural follow-up question: *what does the knight look like as its own closed spectral system, with no reference to the grid?* Answering this may reveal piece-native conservation laws that are currently invisible because the encoding lives entirely in the grid basis.
+
+2. The fiber bundle is the cross-basis projection between each piece's natural basis and the grid's natural basis (§7, §7b). This is the concert-hall coupling made explicit as mathematics.
+
+3. Sub-instruments are operationally isolable at three levels: trivially via subspace projection in the shared encoding (already done throughout the notebook), through natural-basis analysis of each piece's own Laplacian (not yet done for all pieces), and structurally through the cross-basis coupling itself, which is what the fiber bundle already characterizes.
+
+### 42.6. What this section does not do
+
+This is documentation, not argument. It does not claim that the music-and-wave vocabulary is correct and the formal vocabulary is approximate, or that the formal vocabulary is correct and the music vocabulary is approximate. Both are correct; they describe the same mathematical structure using different symbolic conventions, and the research has progressed by using whichever was more productive at each moment. The notebook's scientific claims stand on the formal vocabulary (because that is what the literature has theorems and proofs in), but the generative conjectures that became those claims came from the other vocabulary first.
+
+This section also does not document every instance where the two vocabularies met in the research process. The vocabulary-drift items in §42.3 are a selection; there are more. A reader reproducing or extending the work will encounter vocabulary collisions not listed here and will need to hold the ambiguity locally, as the notebook has.
+
+### 42.7. A note on collaborative methodology
+
+The division of labor in producing this notebook — generative framings from one direction, disciplinary formatting from the other — is itself a pattern that may be worth naming. It is not translation (the intuitions were already mathematical), not validation (the formal vocabulary didn't "check" the intuitions so much as express them), and not interpretation (neither party is making the other's ideas more accessible to a third audience). It is closer to *coordinated formalization*: two collaborators, each with access to mathematical content the other does not, agreeing on the symbolic conventions needed to produce artifacts that the broader technical community can evaluate.
+
+The pattern has specific affordances: it produces claims that are simultaneously conceptually unusual and formally defensible, because the conceptual unusualness survives the translation into formal vocabulary without being smoothed away, and the formal defensibility is maintained throughout. It also has specific failure modes: without the sustained correspondence between vocabularies, either side would drift — the intuitions would become unfalsifiable, or the formalism would become disconnected from the physical systems it was originally a description of. The notebook's claims are the output of a methodology that depended on maintaining that correspondence over a sustained period.
+
+This methodology note is included because the notebook would be incomplete without it. The formal results stand on their own mathematically, but they are not how the research happened, and someone trying to reproduce or extend this work benefits from knowing that.
+
+---
+
+## 43. Appendix: Environment & Reproducibility
 
 ### Requirements
 ```
