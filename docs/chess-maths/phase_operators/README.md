@@ -29,8 +29,10 @@ equivalence experiment, and the §11.4 occupation-aware Solutions A / B / C
   and runs all four channels (A, B, C, python-chess) with pairwise agreement
   rates and per-solution timings.
 - `benchmark_solutions.py` — dedicated wall-time benchmark for A/B/C with
-  warmup, repeats, percentiles (p50/p95/p99), and per-piece filtering.
-  Run `python benchmark_solutions.py --help` for usage.
+  warmup, repeats, percentiles (p50/p95/p99), per-piece filtering, and
+  `--filter {pseudo,legal,both}` to compare all three solutions at matched
+  correctness (apples-to-apples). Run `python benchmark_solutions.py --help`
+  for usage.
 
 ### Tests
 
