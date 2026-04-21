@@ -28,6 +28,9 @@ equivalence experiment, and the §11.4 occupation-aware Solutions A / B / C
 - `occupation_equivalence_check.py` — CLI that samples positions from a corpus
   and runs all four channels (A, B, C, python-chess) with pairwise agreement
   rates and per-solution timings.
+- `benchmark_solutions.py` — dedicated wall-time benchmark for A/B/C with
+  warmup, repeats, percentiles (p50/p95/p99), and per-piece filtering.
+  Run `python benchmark_solutions.py --help` for usage.
 
 ### Tests
 
