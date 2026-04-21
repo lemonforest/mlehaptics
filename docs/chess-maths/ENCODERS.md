@@ -22,8 +22,8 @@ all 10 channels × 64 eigenmodes. Source:
 | Global fiber (failed) | (no file) | n/a | **failed** | Position-independent fiber-per-piece-type. Knight on e5 == knight on a1. Documented in notebook §8. |
 | Grok local fiber | (no standalone file; subsumed into v3) | 64 | research | Per-square local fiber, fixed the global-fiber problem (PST r=0.971) but is purely additive (no many-body). |
 | Gemini quadratic | (no standalone file; subsumed into v3) | 64 | research | Quadratic form weighting captures many-body but has 983× dynamic range. |
-| **v3 dual-channel** | [encoder_v3.py](encoder_v3.py) | **70** | **archived** | 64 GFT + 3 geometric fiber + 3 interaction fiber. Demonstration of the geometric/interaction split. Self-contained pedagogical script. |
-| **512-dim HDC** | [encoder_512.py](encoder_512.py) | **512** | **archived** | 8 channels × 64. First full HDC encoder: 5 D4 irreps + 3 symmetric fiber. Self-contained pedagogical script. |
+| **v3 dual-channel** | [archive/encoder_v3.py](archive/encoder_v3.py) | **70** | **archived** | 64 GFT + 3 geometric fiber + 3 interaction fiber. Demonstration of the geometric/interaction split. Self-contained pedagogical script. |
+| **512-dim HDC** | [archive/encoder_512.py](archive/encoder_512.py) | **512** | **archived** | 8 channels × 64. First full HDC encoder: 5 D4 irreps + 3 symmetric fiber. Self-contained pedagogical script. |
 | **640-dim production** | [chess-spectral/python/chess_spectral/encoder.py](chess-spectral/python/chess_spectral/encoder.py) (`encode_640`) | **640** | **production** | 10 channels × 64. Adds antisymmetric pawn fiber (FA, dims 512-575) and diagonal deviation (FD, dims 576-639). The first 512 dims are byte-for-byte identical to encoder_512 (same math, same tables). This is what produces every `.spectralz` file in `results/`. |
 
 The 70-dim and 512-dim versions are NOT subsets of the 640-dim production

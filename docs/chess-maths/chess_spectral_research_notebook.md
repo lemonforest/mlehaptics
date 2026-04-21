@@ -1380,7 +1380,7 @@ The model does not reproduce Stockfish evaluations because it is not computing t
 
 ### 9h′. Follow-Up Experiments: Z₂ Confirmation and New Discoveries
 
-**Implementation:** `chess_a1_followup.py` — three experiments building on the A₁ depth-gap discovery.
+**Implementation:** `archive/chess_a1_followup.py` — three experiments building on the A₁ depth-gap discovery.
 
 #### Experiment 1: Z₂ Decomposition Confirmed
 
@@ -1476,7 +1476,7 @@ Random Stockfish-vs-Stockfish games from the HuggingFace `official-stockfish/fis
 ### 9i. Remaining Open Items
 
 1. ~~**Stockfish benchmark**~~ ✅ DONE. Stockfish installed, depth-gap experiment (ρ=+0.452, p=0.0005), Z₂ decomposition, trajectory analysis across 5 masterpieces + 20 fishtest games. A₁ energy confirmed as complexity predictor; A₁ signed sum confirmed as material proxy; E channel identified as positional weakness marker.
-2. ~~**Pawn directed Laplacian**~~ ✅ DONE (`chess_pawn_laplacian.py`). Directed adjacency decomposed via (A + A^T)/2 into symmetric (Hermitian) and antisymmetric (Z₂-breaking) parts. Spectral pawn value P=0.84 (below traditional 1.0). Quantum 5-tuple (0,9,0,0.13,5.66) is unique — all 6 pieces now classified. Z₂ breaking: ||A_anti||/||A_sym|| = 1.0, confirming directionality is not a perturbation but a 50/50 split. Fiber coordinates [-3.98, 1.38, 1.48], closest to King (cos=0.65). Movement vs capture sub-graphs are spectrally distinct (fiber cos=0.52). **Symmetry correction:** the spec's proposed (A_white + A_black)/2 is NOT symmetric (rotation ≠ transpose); fixed to standard transpose decomposition.
+2. ~~**Pawn directed Laplacian**~~ ✅ DONE (`archive/chess_pawn_laplacian.py`). Directed adjacency decomposed via (A + A^T)/2 into symmetric (Hermitian) and antisymmetric (Z₂-breaking) parts. Spectral pawn value P=0.84 (below traditional 1.0). Quantum 5-tuple (0,9,0,0.13,5.66) is unique — all 6 pieces now classified. Z₂ breaking: ||A_anti||/||A_sym|| = 1.0, confirming directionality is not a perturbation but a 50/50 split. Fiber coordinates [-3.98, 1.38, 1.48], closest to King (cos=0.65). Movement vs capture sub-graphs are spectrally distinct (fiber cos=0.52). **Symmetry correction:** the spec's proposed (A_white + A_black)/2 is NOT symmetric (rotation ≠ transpose); fixed to standard transpose decomposition.
 3. **Resonator network decoding**: Iterative unbinding to improve past 58% accuracy ceiling.
 4. ~~**Game-outcome benchmark**~~ ✅ SUPERSEDED. Trajectory analysis with SF evaluation at every ply (Exp 2/2b) provides continuous evaluation ground truth, which is strictly more informative than discrete win/draw/loss outcomes.
 5. **Othello implementation**: The design document (Exp 3) is complete. Build `encoder_othello.py` with Ising spin signal, test A₁ depth-gap transfer, verify fiber channels detect directional ray structure, benchmark against Edax/perfect-play values.
@@ -1600,7 +1600,7 @@ The split-object-with-fiber-matrix pattern may generalize as a reusable componen
 
 ### 9m. Pawn Directed Laplacian: The Last Uncharacterized Piece
 
-**File:** `chess_pawn_laplacian.py` — standalone, imports from `encoder_512.py`.
+**File:** `archive/chess_pawn_laplacian.py` — standalone, imports from `archive/encoder_512.py`.
 
 The pawn was the only piece without spectral characterization. Unlike all other pieces (whose movement is symmetric — a knight can go from A to B iff it can go from B to A), pawns have **directed** movement (forward only), making their adjacency matrix non-symmetric and the naive Laplacian non-Hermitian.
 
@@ -2214,7 +2214,7 @@ No GPU required. All computations complete in <60 seconds on a modern CPU. All r
 - `test_gemini_encoder.py` — Cross-encoder comparison
 
 **Claude Code scripts** (HDC implementation, in mlehaptics repo):
-- `encoder_512.py` — Full 512-dim HDC encoder with D4 irreps + fiber channels, spectral values, quantum number codebook, coprime roll binding, diffusion square codebook, position similarity benchmarks
+- `archive/encoder_512.py` — Full 512-dim HDC encoder with D4 irreps + fiber channels, spectral values, quantum number codebook, coprime roll binding, diffusion square codebook, position similarity benchmarks (superseded by `chess-spectral/python/chess_spectral/` — the production 640-dim package; archived as historical R&D reference)
 
 ### Conversation history
 This research was conducted across a single, now four, Claude conversation starting from a Gemini-generated survey document on AI architecture. The investigation was driven by Steven's intuitions — particularly the subatomic particle analogy, the rule-dimension separation, and the Pauli exclusion observation — with Claude providing mathematical formalization, computational testing, and honest error correction when predictions failed. Encoder iterations were contributed by Grok (local fiber) and Gemini (quadratic many-body), with cross-model review and testing by Claude. The 512-dim HDC architecture, spectral piece values, quantum number codebook, D4 irrep implementation, position benchmarks, coprime roll binding, and spectral square codebook were built and tested in Claude Code.

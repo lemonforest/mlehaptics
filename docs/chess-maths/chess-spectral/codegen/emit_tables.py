@@ -26,64 +26,55 @@ import io
 import math
 import numpy as np
 
+# Windows console: the printout uses a checkmark glyph; default cp1252 cannot
+# encode it. Reconfigure stdout to UTF-8 (errors='replace' so a mis-configured
+# terminal still gets a sensible byte, just without the tick).
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8',
+                                  errors='replace')
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, '..'))
-PY_DIR = os.path.abspath(os.path.join(HERE, '..', '..'))
+PKG_DIR = os.path.abspath(os.path.join(HERE, '..', 'python'))
 INC_DIR = os.path.join(REPO, 'include')
 SRC_DIR = os.path.join(REPO, 'src')
 
-# Just import; encoder_512 prints one module-level status line which is fine.
-sys.path.insert(0, PY_DIR)
-import encoder_512 as enc
-from chess_pawn_laplacian import (
-    white_pawn_targets, build_directed_adjacency,
+# Pull all tables and helpers from the production chess_spectral package —
+# same SSOT the C reference was derived from (verified bit-identical).
+sys.path.insert(0, PKG_DIR)
+from chess_spectral.tables import (
+    SPECTRAL_VALS as _SV_DICT,
+    VALS as _VALS_DICT,
+    D4_PERMS as _D4_PERMS,
+    CHARS as _CHARS,
+    LOCAL_FIBER_3D as _LOCAL_FIBER_3D,
+    LOCAL_ADJ_ROWS as _LOCAL_ADJ_ROWS,
+    PAWN_ANTI_FIBER,
+    DIAG_DEV,
+    white_pawn_targets,
+    build_directed_adjacency,
 )
 
 # --- Derived objects ---------------------------------------------------------
 
-# Piece order for fiber channels (5 pieces: N,B,R,Q,K)
+# Piece order for fiber channels (5 pieces: N,B,R,Q,K) — matches
+# chess_spectral.tables construction order.
 FIBER_PIECES = ['N', 'B', 'R', 'Q', 'K']
 # Piece order for diagonal channel (6 pieces: P,N,B,R,Q,K)
 DIAG_PIECE_NAMES = ['Pawn', 'Knight', 'Bishop', 'Rook', 'Queen', 'King']
 
-# Long-name lookup for PIECE_FNS
-LONG_NAME = {'N': 'Knight', 'B': 'Bishop', 'R': 'Rook', 'Q': 'Queen', 'K': 'King'}
+SPECTRAL_VALS = [float(_SV_DICT[c]) for c in ('P', 'N', 'B', 'R', 'Q', 'K')]
+TRAD_VALS = [float(_VALS_DICT[c]) for c in ('P', 'N', 'B', 'R', 'Q', 'K')]
 
-SPECTRAL_VALS_P = float(enc.SPECTRAL_VALS['P'])
-SPECTRAL_VALS_N = float(enc.SPECTRAL_VALS['N'])
-SPECTRAL_VALS_B = float(enc.SPECTRAL_VALS['B'])
-SPECTRAL_VALS_R = float(enc.SPECTRAL_VALS['R'])
-SPECTRAL_VALS_Q = float(enc.SPECTRAL_VALS['Q'])
-SPECTRAL_VALS_K = float(enc.SPECTRAL_VALS['K'])
-SPECTRAL_VALS = [SPECTRAL_VALS_P, SPECTRAL_VALS_N, SPECTRAL_VALS_B,
-                 SPECTRAL_VALS_R, SPECTRAL_VALS_Q, SPECTRAL_VALS_K]
-TRAD_VALS = [float(enc.VALS[c]) for c in ('P', 'N', 'B', 'R', 'Q', 'K')]
+# Sanity printouts: reconstruct A_anti locally (cheap) so we can still report
+# its norm alongside PAWN_ANTI_FIBER. The imported PAWN_ANTI_FIBER is the
+# authoritative table used in the C emission.
+_A_white = build_directed_adjacency(white_pawn_targets)
+_A_anti = 0.5 * (_A_white - _A_white.T)
 
-# --- Build PAWN_ANTI_FIBER (in eigenbasis) -----------------------------------
-A_white = build_directed_adjacency(white_pawn_targets)
-A_anti = 0.5 * (A_white - A_white.T)
-assert np.allclose(A_anti, -A_anti.T, atol=1e-12), "A_anti must be antisymmetric"
-assert np.linalg.norm(A_anti + A_anti.T) < 1e-12, "A_anti antisymmetry check failed"
-PAWN_ANTI_FIBER = enc.EVECS_GRID.T @ A_anti @ enc.EVECS_GRID   # (64, 64)
-
-# --- Build DIAG_DEV[6][64] ----------------------------------------------------
-DIAG_DEV = np.zeros((6, 64), dtype=np.float64)
-
-# Pawn: symmetric part of directed pawn Laplacian
-A_sym_pawn = 0.5 * (A_white + A_white.T)
-L_pawn_sym = enc.graph_laplacian(A_sym_pawn)
-C_pawn = enc.EVECS_GRID.T @ L_pawn_sym @ enc.EVECS_GRID
-DIAG_DEV[0] = np.diag(C_pawn) - enc.EVALS_GRID
-
-# N, B, R, Q, K
-for idx, ch in enumerate(FIBER_PIECES):
-    pname = LONG_NAME[ch]
-    A = enc.build_adjacency(enc.PIECE_FNS[pname])
-    L = enc.graph_laplacian(A)
-    C = enc.EVECS_GRID.T @ L @ enc.EVECS_GRID
-    DIAG_DEV[idx + 1] = np.diag(C) - enc.EVALS_GRID
-
-# Verify: Rook's diagonal deviation norm should be ~88.05 (chess_rook_shadow.py)
+# Rook's diagonal deviation norm should be ~88.05 (chess_rook_shadow.py).
+# chess_spectral.tables asserts this internally on build; we re-check here
+# as a belt-and-suspenders guard against a stale on-disk cache.
 rook_diag_norm = float(np.linalg.norm(DIAG_DEV[3]))
 assert 87.0 < rook_diag_norm < 89.0, (
     f"Rook diag-dev norm = {rook_diag_norm:.3f}, expected ~88.05")
@@ -221,22 +212,17 @@ def write_cs_fiber_tables_h():
 def write_cs_tables_data_c():
     path = os.path.join(SRC_DIR, 'cs_tables_data.c')
 
-    # Pack D4_PERMS into a numpy array
-    d4 = np.zeros((8, 64), dtype=np.int32)
-    for g in range(8):
-        d4[g] = enc.D4_PERMS[g]
+    # D4_PERMS is shape (8, 64) int8 in the package; emit helper coerces to int.
+    d4 = np.asarray(_D4_PERMS)
 
     chars = np.zeros((5, 8), dtype=np.int32)
     for i, name in enumerate(('A1', 'A2', 'B1', 'B2', 'E')):
-        chars[i] = enc.CHARS[name]
+        chars[i] = _CHARS[name]
 
-    # LOCAL_FIBER_3D[5][64][3] and LOCAL_ADJ_ROWS[5][64][64]
-    lf3d = np.zeros((5, 64, 3), dtype=np.float64)
-    lar = np.zeros((5, 64, 64), dtype=np.float64)
-    for idx, ch in enumerate(FIBER_PIECES):
-        for s in range(64):
-            lf3d[idx, s, :] = enc.LOCAL_FIBER_3D[(ch, s)]
-            lar[idx, s, :] = enc.LOCAL_ADJ_ROWS[(ch, s)]
+    # LOCAL_FIBER_3D is already shape (5, 64, 3) indexed as piece=(N,B,R,Q,K);
+    # LOCAL_ADJ_ROWS already shape (5, 64, 64). No repacking needed.
+    lf3d = _LOCAL_FIBER_3D
+    lar = _LOCAL_ADJ_ROWS
 
     with open(path, 'w', encoding='utf-8') as f:
         f.write("/* GENERATED by codegen/emit_tables.py — DO NOT EDIT BY HAND */\n")
@@ -269,7 +255,7 @@ def main():
     print(f"SPECTRAL_VALS (P,N,B,R,Q,K) = {SPECTRAL_VALS}")
     print(f"TRAD_VALS     (P,N,B,R,Q,K) = {TRAD_VALS}")
     print(f"||DIAG_DEV[Rook]||         = {rook_diag_norm:.4f} (expected ~88.05)")
-    print(f"||A_anti||                 = {float(np.linalg.norm(A_anti)):.4f}")
+    print(f"||A_anti||                 = {float(np.linalg.norm(_A_anti)):.4f}")
     print(f"||PAWN_ANTI_FIBER||        = {float(np.linalg.norm(PAWN_ANTI_FIBER)):.4f}")
     print(f"Spatial offsets distinct   = {len(offsets)}/64 ✓")
     print("All tables emitted successfully.")
