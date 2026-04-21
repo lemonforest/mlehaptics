@@ -54,7 +54,11 @@ Row index r ∈ {0, 1, …, 7}. Column index c ∈ {0, 1, …, 7}. The origin ph
 
 φ(r, c) = (r × 67 + c × 7) mod 640
 
-This matches the coprime roll binding from §9f. The phase tuple is a single integer in [0, 640), but it carries two components: r × 67 mod 640 (row phase) and c × 7 mod 640 (column phase), which are individually recoverable because 67 and 7 are coprime to 640 (640 = 2⁷ × 5; 67 is prime and not 2 or 5; 7 is prime and not 2 or 5).
+This extends §9f's coprime roll binding from the historical 512-dim encoder (mod 512) to the production 640-dim encoder (mod 640). Both moduli admit the same generators 67 and 7: gcd(67, 512) = gcd(67, 640) = gcd(7, 512) = gcd(7, 640) = 1. The 64-point image of Z₈ × Z₈ under φ is verified distinct (no collisions) for both moduli. §11 operates at mod 640 throughout; any reference to §9f's mod 512 formulation should be read as the antecedent of this extended form.
+
+The phase tuple is a single integer in [0, 640), but it carries two components: r × 67 mod 640 (row phase) and c × 7 mod 640 (column phase), which are individually recoverable because 67 and 7 are coprime to 640 (640 = 2⁷ × 5; 67 is prime and not 2 or 5; 7 is prime and not 2 or 5).
+
+**Subgroup structure.** The image set {φ(r, c) : (r, c) ∈ [0, 7]²} is *not* a subgroup of Z₆₄₀ — closure fails (e.g., 384 + 384 = 128 mod 640, which is not in the image). This is the correct structure for the problem: phase-op shifts that carry an origin off the lattice land in the off-image complement of Z₆₄₀, where §11.3.2 inversion fails, and §11.3.3 pruning catches them. A subgroup image would close under piece-operator addition and eliminate the boundary-detection mechanism.
 
 ### §11.2.2 Phase operator for the rook (massless, θ = 0° and 90°, T-symmetric)
 
@@ -88,9 +92,9 @@ The king is a localized excitation — k = ±1 only, all 8 directions:
 
 Unobstructed reachable set: up to 8 destinations.
 
-### §11.2.6 Phase operator for the knight (tunneling, θ = arctan(1/2) ≈ 26.57°, T-symmetric)
+### §11.2.6 Phase operator for the knight (tunneling, knight-offset θ class, T-symmetric)
 
-The knight tunnels to a discrete shell at the phase-shifted angle. The 8 knight destinations correspond to 8 distinct linear combinations of the row and column generators:
+The knight occupies its own θ class in the §9r polarization framework — disjoint from {axial, diagonal}. Its 8 destinations are the D4 orbit of (1, 2), with angles {26.57°, 63.43°, 116.57°, 153.43°, 206.57°, 243.43°, 296.57°, 333.43°} (arctan(1/2) is one representative, not the full class). The 8 destinations correspond to 8 distinct linear combinations of the row and column generators:
 
 **P_knight(φ_origin)** = {φ_origin + s mod 640 : s ∈ {±(2×67 + 7), ±(2×67 − 7), ±(67 + 2×7), ±(67 − 2×7)}}
                               = {φ_origin + s mod 640 : s ∈ {±141, ±127, ±81, ±53}}
@@ -109,6 +113,8 @@ The pawn operator depends on Z₂ charge. For white (charge +V):
 For black (charge −V): replace +67 with −67 throughout.
 
 The T-violation is explicit: there is no inverse operator. The phase operator is non-Hermitian, consistent with §9m's identification of the pawn's antisymmetric fiber.
+
+**Empty-board comparison caveat (§11.3).** python-chess does not report diagonal captures as legal moves when no enemy piece occupies the target square. The §11.3 equivalence check against python-chess therefore compares *advance* destinations only; capture destinations are validated in §11.4 (occupation-aware) where enemy pieces are present on the board. This is a quirk of the reference implementation, not of the phase operator — the capture phases are arithmetically correct, they just lack validation targets on an empty board.
 
 ### §11.2.8 What these operators do and do not include
 
@@ -284,11 +290,13 @@ All three outcomes are informative.
 
 ### §11.6.1 The UTLP S4 mechanism, applied spatially
 
-In UTLP S4, partition detection uses HD vector similarity between nodes. When similarity drops below threshold, the nodes have drifted beyond the CRT aliasing horizon and phase-lock fallback becomes necessary.
+In UTLP S4, partition detection uses HD vector similarity between nodes. When similarity drops below threshold, the nodes have drifted beyond the CRT aliasing horizon and phase-lock fallback becomes necessary. S4's "CRT aliasing horizon" is the literal Chinese Remainder Theorem — coprime temporal moduli lose unambiguous recovery past a specific range.
 
-Spatial analog: consider two positions P₁ and P₂. Compute similarity(enc_640(P₁), enc_640(P₂)). If the positions are close in phase space (high similarity), they are in the same "CRT cell" — field-theoretically similar and expected to have similar thermodynamic gradients. If similarity drops below threshold, the positions are in different CRT cells — the phase representation cannot reliably extrapolate between them.
+Spatial analog (as framework, not theorem): consider two positions P₁ and P₂. Compute similarity(enc_640(P₁), enc_640(P₂)). If the positions are close in phase space (high similarity), they are in the same *similarity cell* — field-theoretically similar and expected to have similar thermodynamic gradients. If similarity drops below threshold, the positions are in different similarity cells — the phase representation cannot reliably extrapolate between them.
 
 This gives a partition detector for phase space. Positions within the same partition should have consistent local gradients. Positions across a partition boundary should have discontinuous gradients.
+
+**Mathematical honesty caveat.** The enc_640 vector is a bundled HDC superposition of piece states, not a literal coprime-residue encoding of position. A similarity drop is a high-dimensional noise-floor crossing in that bundled representation, not a CRT-recovery ambiguity event. The "similarity cell" framing is metaphorically useful and S4-analogous, but claiming CRT-specific partition-detection guarantees requires either (a) a proof that the bundled HDC similarity structure factorizes into per-axis aliasing kernels — the Vector Function Architecture product-kernel result from Frady et al. 2022 (arXiv:2109.03429) and the Residue HDC kernel theorem from Kymn et al. 2024 (arXiv:2311.04872) are the relevant tools, or (b) reframing §11.6 as an empirical partition-detection experiment with no appeal to CRT guarantees. This supplement takes path (b) for the experimental phase and flags (a) as a downstream analytical task.
 
 ### §11.6.2 Why this matters for the depth-of-search question
 
