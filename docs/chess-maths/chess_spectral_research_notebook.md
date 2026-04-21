@@ -1005,6 +1005,115 @@ The rook has the second-largest diagonal deviation (88.05), despite having zero 
 
 ---
 
+### 7c. Spectral Energy Dispersion: Fiber Norm as a Predictive Lens for Move-Induced Disturbance
+
+The rank-3 fiber norm (§7) and the per-ply channel-energy decomposition (§9a, §9o) are two views of the same spectral object at different temporal scales. §7 measures the *static* rule-content density available at each square for a given piece type — a property of the move graph, independent of occupation. §9a/§9o tracks the *dynamic* redistribution of energy across the 10 HDC channels as the position evolves ply by ply. Combining them yields a predictive framework for **move-induced spectral dispersion**: how much, and in what direction, a candidate move will reshape the position's representation in the 640-dim encoding.
+
+#### The physical analogy
+
+The fiber norm V_piece(r), where r indexes the 64 squares, has the structure of an external potential. For the bishop it is approximately proportional to √(degree of move graph at r), center-bright and corner-dim, with the D4 symmetry of the unobstructed move graph. In optical terms it is a *lens* — a medium whose local refractive content varies with position. A piece moving through the lens experiences variable rule coupling depending on where it is.
+
+The per-ply channel-energy distribution E_channel(ply) is the *field* propagating through that lens. It reports what fraction of the position's 640-dim content lives in each of the 10 channels at the current moment: A₁, A₂, B₁, B₂, E (the five D4 irreps), FS₁, FS₂, FS₃ (the three fiber-symmetric modes), FA (the antisymmetric pawn channel), FD (the diagonal deviation channel).
+
+Together these two objects form what we will call the **phased particle lens**: V_piece(r) is the magnitude landscape, and the coprime-cyclic structure from §9f adds a phase-coherent rotation to each transition. The lens shapes where disturbances can form; the field shows what has actually formed at each moment.
+
+#### Dispersion as a move-ranking observable
+
+For any legal move M applied at ply t, define the **dispersion change**:
+
+ΔH(M) = H(E_channel(t+1)) − H(E_channel(t))
+
+where H is the entropy (or an entropy-like spread measure — Rényi-2 / inverse participation ratio / L2 distance between normalized channel distributions) of the channel-energy distribution. ΔH > 0 means the move flattens the distribution across channels (**dispersive**, +disperse). ΔH < 0 means the move sharpens it into fewer channels (**concentrative**, −disperse).
+
+The predictive claim this section investigates:
+
+> **|ΔH(M)| correlates with the sum (or appropriate combination) of fiber-norm values at the move's origin and destination squares for the moving piece's type.**
+
+Rationale: a piece sitting on a high-fiber-norm square contributes heavily to the off-diagonal coupling in multiple directions of the rank-3 subspace. Removing it from that square (via a move) removes coupling across many modes simultaneously, producing a large redistribution. A piece on a low-fiber-norm square contributes little; removing it barely shifts the channel energies. By the same argument, placing a piece *onto* a high-fiber-norm square injects coupling across many modes. The fiber norm therefore upper-bounds the potential magnitude of spectral disturbance from any move involving that square.
+
+Equivalently: the fiber norm is a static predictor of where moves will produce the largest per-ply ΔE_channel.
+
+#### Sign of dispersion and its relation to current channel concentration
+
+The magnitude claim is geometric. The sign claim is phase-dependent and requires the current channel distribution as context:
+
+> **A move produces +disperse (ΔH > 0) when its induced change in the rank-3 fiber subspace is orthogonal or anti-aligned with the currently dominant channel direction. It produces −disperse (ΔH < 0) when aligned with the currently dominant direction.**
+
+A dispersive move spreads energy *into* channels that currently hold little. A concentrative move piles energy *onto* channels that are already dominant.
+
+Operationally: project the pre-move encoding onto the rank-3 fiber basis to get a 3-vector **f_before**. Project the post-move encoding to get **f_after**. Identify the currently dominant channel axis as the unit vector **d** aligned with the peak of E_channel(t). Then:
+
+- cos(angle(**f_after − f_before**, **d**)) ≈ +1 → the move adds to the dominant mode → −disperse
+- cos(angle(**f_after − f_before**, **d**)) ≈ −1 → the move removes from the dominant mode → +disperse (because energy must go elsewhere; §9a channel sum is a conserved quantity per ply up to occupation changes)
+- cos ≈ 0 → the move acts orthogonally to the current dominant axis → +disperse (energy moves sideways into new channels)
+
+#### Connection to chess intuition
+
+In chess-evaluative terms, the two regimes map onto the tactical/positional distinction informally used by human players and formalized by engine depth-gap analysis (§9h, §9h′):
+
+- **+disperse moves** are those that reshape the structural configuration of the position. They force the evaluation to re-search: the spectral state after the move sits in a different mode basin than before. These are the moves that produce large Stockfish depth-gaps (ρ=+0.452 vs A₁ from §9c) — the engine needs to look deeper to catch up with the restructured landscape.
+- **−disperse moves** reinforce existing structure. They keep the position in its current mode basin, concentrating energy onto the channels that are already dominant. These are the moves Stockfish evaluates reliably at shallow depth.
+
+This framework gives the notebook's pre-existing A₁ / depth-gap correlation (§9c, §9h′) a mechanism. A₁ is the fully invariant D4 channel; positions dominated by A₁ have their structural content concentrated in the most symmetric channel. The depth gap reports where shallow search disagrees with deep search — i.e., where the position is about to disperse out of its current concentration. A₁ correlates with depth gap because A₁-dominant positions are the ones most likely to undergo a large +disperse event on the next move.
+
+#### Relation to capture spectroscopy (§5, §5b, §5c)
+
+The capture decomposition in §5 already establishes that captures produce predictable spectral signatures — F_D spikes with piece-type-specific magnitudes, FS₁/FS₂ decoupling with characteristic relaxation time, knight capture mixing patterns. The present framework generalizes this: captures are simply moves with exceptionally large |ΔH|, because a capture removes a second piece's fiber contribution simultaneously with the attacker's relocation.
+
+A concrete prediction: the spectral magnitude of any capture event C(piece_a captures piece_v on square s) should decompose as:
+
+|Δ_spectral(C)| ≈ |V_piece_a(origin) − V_piece_a(s)| + |V_piece_v(s)| + cross_terms
+
+The first term is the attacker's fiber redistribution from its origin to the capture square. The second is the total removal of the victim's fiber contribution at s. The cross-terms are the rank-3 basis interference between attacker and victim fiber directions.
+
+This predicts, among other things, that a knight capturing a queen on d5 produces a larger |ΔH| than a knight capturing a pawn on d5 (because V_queen(d5) ≫ V_pawn(d5) in the bishop-fiber-dominated subspace, and pawns live mostly in the antisymmetric FA channel which is disjoint from the rank-3 basis). The relative prediction is testable against the corpus of captures already in the .spectralz archives.
+
+#### Experimental protocol
+
+For each ply t in a reference corpus (GM games, random playouts, or the existing 26-game benchmark):
+
+1. Compute enc_640(position(t)) and decompose into 10 channels of 64 dims.
+2. Enumerate the legal move set L(t) via python-chess.
+3. For each candidate move M ∈ L(t):
+   - Apply M to produce position(t+1 | M).
+   - Compute enc_640(position(t+1 | M)) and its channel decomposition.
+   - Compute ΔH(M) using normalized channel-energy entropy.
+   - Retrieve V_piece_type(M)(origin(M)) and V_piece_type(M)(destination(M)) from the fiber_norms.json asset produced for Stage 1 of the viewer overlay.
+   - For captures, additionally retrieve V_piece_captured(destination(M)).
+4. Record (ΔH(M), V_origin, V_destination, V_victim, is_capture, is_played).
+
+Aggregate analyses:
+
+- **Magnitude test:** regress |ΔH(M)| on (V_origin + V_destination). Expected: positive Pearson correlation. Null hypothesis: fiber norm does not predict dispersion magnitude.
+- **Sign test:** for each move, compute cos(angle(**f_after − f_before**, **d_current**)) and correlate with sign(ΔH(M)). Expected: positive correlation (aligned → ΔH<0, anti-aligned → ΔH>0).
+- **Selection test:** within L(t), rank all candidate moves by |ΔH|. Check whether the move actually played ranks higher (tactical positions) or lower (positional positions) than the legal-move median. Correlate this ranking with Stockfish depth gap.
+- **Capture prediction:** restrict to capture moves. Regress |ΔH(C)| on the additive decomposition in the previous subsection. Measure residual to detect cross-term effects.
+
+#### Decision point
+
+If the magnitude test succeeds, the fiber-norm field is a pure-spectral predictor of move impact — no game-tree search, no engine heuristic, just a static geometric property plus the current position's channel state. This would establish §7's rank-3 fiber as the *operator norm* for the move-induced Hamiltonian perturbation (§4), completing the lattice-fermion analogy with an explicit predictive formula.
+
+If the magnitude test succeeds but the sign test fails, we have a magnitude-predictor but not a direction-predictor. This would mean the rank-3 subspace compresses too aggressively to retain directional information about individual moves; a finer (rank-4, rank-5, or channel-level) analysis would be needed.
+
+If both tests fail, the fiber norm is decorative rather than predictive — beautiful visualization, no dynamical content. This is the null result. It does not invalidate §7 (the static structural claim stands) but it would mean the lens analogy breaks at the move-prediction level.
+
+#### Visualization implications
+
+The viewer's Stage 1 fiber-norm overlay (static, per piece type) combined with the existing per-ply channel-energy panel already contains the raw material for this analysis. Two natural extensions:
+
+1. **Dispersion trajectory panel.** A plot of H(E_channel(t)) over the game. Rises are +disperse events; drops are −disperse events. Correlating the trajectory shape with the move list makes the tactical/positional rhythm of the game visually explicit.
+2. **Move-candidate coloring.** For the current ply, compute |ΔH(M)| for each legal move and paint the destination squares with magnitude intensity. The fiber-norm overlay provides the static context; the move-candidate overlay shows the dynamic foreground. Clicking a piece shows its dispersive moves highlighted.
+
+Neither is Stage 3 (which would make the fiber norm itself state-dependent). Both use the existing Stage 1 overlay as background context with a dynamic foreground derived from the per-move encoding computation.
+
+#### What this section does not claim
+
+This is a framework + a testable hypothesis, not a confirmed result. The magnitude and sign tests have not yet been run against a corpus. The connection to chess intuition is suggestive and consistent with §9c's A₁/depth-gap finding but has not been independently verified at the move level. The capture prediction is a direct consequence of the framework but its numerical coefficients are not yet measured.
+
+The next section (§7d if this framework is validated, or a §9-series follow-up if it folds back into encoder work) will report the experimental results and either confirm or revise the magnitude and sign claims.
+
+---
+
 ## 8. Practical Encoding: What Worked and What Didn't
 
 ### What worked
