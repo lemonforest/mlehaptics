@@ -1,6 +1,6 @@
 """analyze_stockfish_correlation — Phase 2 of the Δ/σ pipeline.
 
-Sample positions from the v2 Δ/σ CSV produced by analyze_delta_sigma_v2.py,
+Sample positions from the Δ/σ CSV produced by analyze_delta_sigma.py,
 evaluate every legal move with Stockfish, and compute Spearman ρ between the
 Stockfish scalar and each of:
 
@@ -333,8 +333,8 @@ def main():
     print(f"Stockfish version: {version}")
 
     if not args.csv.exists():
-        sys.exit(f"v2 CSV not found: {args.csv}\n"
-                 f"Run analyze_delta_sigma_v2.py first.")
+        sys.exit(f"CSV not found: {args.csv}\n"
+                 f"Run analyze_delta_sigma.py first.")
 
     print(f"Loading v2 CSV: {args.csv}")
     rows = load_v2_rows(args.csv)

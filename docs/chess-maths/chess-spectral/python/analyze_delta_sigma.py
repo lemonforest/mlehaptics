@@ -1,27 +1,27 @@
-"""analyze_delta_sigma — per-move Δ and σ collection across a GM corpus.
+"""analyze_delta_sigma — per-move Δ and σ collection with fiber-space kappa_position.
 
-First-pass collector for two per-move scalars:
+Computes kappa_position, a scalar measuring how the moving excitation
+changes the position's fiber-channel coupling (F1, F2, F3, FA, FD —
+dims 320:640 of the 640-dim encoding).
 
-  κ_annihilate(self, target) = piece_value[target] − piece_value[self]
-                               (0 for non-captures)
-  κ_threat(dest, self)       = Σ_{opp pieces attacking dest after the move}
-                                   max(0, piece_value[self] − piece_value[opp])
-  Δ                          = κ_annihilate − κ_threat
-  σ(move)                    = stdev(Δ over fiber-neighbors of move)
+    kappa_position(board, move) =
+        sign(||fiber_after||_2 - ||fiber_before||_2) * ||fiber_after - fiber_before||_2
 
-Fiber-neighbors of a move are the legal moves from the same position that
-share its aggressor type OR its destination square. (The spec's third
-condition — same aggressor type AND same origin — is a subset of the first
-and adds nothing.)
+The refined delta:
 
-Purpose: generate raw data; no interpretation, no tuning, no plotting.
+    delta_v2 = kappa_annihilate + kappa_position - kappa_threat
 
-Piece values: spectrally-derived per notebook §9c (P=0.84, N=2.0, B=3.4,
-R=5.4, Q=8.8, K=2.5). These are hardcoded rather than imported from
-chess_spectral.tables.SPECTRAL_VALS because that module overrides P to 1.0
-(see tables.py:157) — a known divergence flagged for later reconciliation.
+The CSV retains every column from v1 and appends:
 
-Run `python analyze_delta_sigma.py --help` for CLI options.
+    kappa_position, delta_v2, sigma_v2
+
+where sigma_v2 is std-dev of delta_v2 across the same fiber-neighbor set
+used for sigma (aggressor-type match OR destination match).
+
+Do not modify piece values or v1 quantities here. This script preserves
+them for side-by-side comparison.
+
+Dependencies: numpy, python-chess, chess_spectral (local package).
 """
 
 from __future__ import annotations
@@ -38,20 +38,32 @@ from pathlib import Path
 
 import chess
 import chess.pgn
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+try:
+    from chess_spectral import encode_640, fen_to_pos, CHANNELS
+except ImportError as e:
+    sys.stderr.write(
+        f"error: could not import spectral encoder from {HERE}\n"
+        f"       ({e})\n"
+        f"       Ensure docs/chess-maths/chess-spectral/python/chess_spectral/ "
+        f"is importable and its deps (numpy, scipy) are installed.\n"
+    )
+    sys.exit(3)
 
 
 # ─── Paths / defaults ──────────────────────────────────────────────────────
 
-HERE = Path(__file__).resolve().parent
 REPO_CHESS_MATHS = HERE.parent.parent
 DEFAULT_CORPUS_DIR = REPO_CHESS_MATHS / "results" / "chessgames_pair_2026-04-15_N2"
 DEFAULT_PGN = DEFAULT_CORPUS_DIR / "pgn"
 DEFAULT_LABEL = "chessgames_pair"
 
 
-# ─── Piece values ──────────────────────────────────────────────────────────
+# ─── Piece values (v1 parity; see analyze_delta_sigma.py docstring) ───────
 
-# See module docstring for the divergence from SPECTRAL_VALS.
 PIECE_VALUES: dict[int, float] = {
     chess.PAWN:   0.84,
     chess.KNIGHT: 2.0,
@@ -66,6 +78,14 @@ PIECE_LETTER: dict[int, str] = {
 }
 
 
+# ─── Fiber channel slice ──────────────────────────────────────────────────
+
+_FIBER_START = dict(CHANNELS)["F1"]   # 320
+_FIBER_END = 640                       # through FD
+assert _FIBER_START == 320, f"unexpected F1 offset {_FIBER_START}"
+assert (_FIBER_END - _FIBER_START) == 320
+
+
 # ─── CSV schema ────────────────────────────────────────────────────────────
 
 CSV_COLUMNS = [
@@ -73,14 +93,14 @@ CSV_COLUMNS = [
     "move_uci", "move_san",
     "is_capture", "aggressor_type", "target_type",
     "kappa_annihilate", "kappa_threat", "delta", "sigma",
+    "kappa_position", "delta_v2", "sigma_v2",
     "was_played",
 ]
 
 
-# ─── Per-move quantities ───────────────────────────────────────────────────
+# ─── Per-move quantities (v1 functions preserved verbatim) ────────────────
 
 def captured_piece(board: chess.Board, move: chess.Move) -> chess.Piece | None:
-    """Return the piece captured by ``move`` on ``board`` (handles en passant)."""
     if board.is_en_passant(move):
         ep_sq = move.to_square + (-8 if board.turn == chess.WHITE else 8)
         return board.piece_at(ep_sq)
@@ -94,19 +114,11 @@ def kappa_annihilate(aggressor_type: int, target_type: int | None) -> float:
 
 
 def kappa_threat(board: chess.Board, move: chess.Move, aggressor_type: int) -> float:
-    """Aggregate threat to the just-moved piece on its destination square.
-
-    Evaluated on the post-move board. Promotion is not specially modeled —
-    we still use the pre-move aggressor type (PAWN) for self_value per
-    first-pass spec.
-    """
     self_value = PIECE_VALUES[aggressor_type]
-    self_color = board.turn  # before push: colour of the moving side
-
+    self_color = board.turn
     post = board.copy(stack=False)
     post.push(move)
     dest = move.to_square
-
     total = 0.0
     for sq, piece in post.piece_map().items():
         if piece.color == self_color:
@@ -115,6 +127,20 @@ def kappa_threat(board: chess.Board, move: chess.Move, aggressor_type: int) -> f
             total += max(0.0, self_value - PIECE_VALUES[piece.piece_type])
     return total
 
+
+# ─── Fiber-space gradient (new in v2) ──────────────────────────────────────
+
+def kappa_position(fiber_before: np.ndarray, fiber_after: np.ndarray) -> float:
+    """Scalar fiber-coupling change, signed by total fiber energy change."""
+    delta = fiber_after - fiber_before
+    magnitude = float(np.linalg.norm(delta))
+    energy_before = float(np.linalg.norm(fiber_before))
+    energy_after = float(np.linalg.norm(fiber_after))
+    sign = 1.0 if energy_after >= energy_before else -1.0
+    return sign * magnitude
+
+
+# ─── Fiber-neighbor σ (v1 logic, applied to both delta and delta_v2) ──────
 
 def fiber_neighbors(
     target: chess.Move,
@@ -130,6 +156,8 @@ def fiber_neighbors(
     return out
 
 
+# ─── Main per-position row builder ─────────────────────────────────────────
+
 def compute_position_rows(
     board: chess.Board,
     played: chess.Move,
@@ -143,6 +171,10 @@ def compute_position_rows(
     fen = board.fen()
     side = "w" if board.turn == chess.WHITE else "b"
 
+    # One encoding for the current position (shared across all legal moves).
+    enc_before = encode_640(fen_to_pos(fen))
+    fiber_before = enc_before[_FIBER_START:_FIBER_END]
+
     meta: dict[chess.Move, dict] = {}
     for m in legal:
         aggressor = board.piece_at(m.from_square)
@@ -153,6 +185,15 @@ def compute_position_rows(
         k_ann = kappa_annihilate(aggressor_type, target_type)
         k_thr = kappa_threat(board, m, aggressor_type)
 
+        post = board.copy(stack=False)
+        post.push(m)
+        enc_after = encode_640(fen_to_pos(post.fen()))
+        fiber_after = enc_after[_FIBER_START:_FIBER_END]
+        k_pos = kappa_position(fiber_before, fiber_after)
+
+        delta_v1 = k_ann - k_thr
+        delta_v2 = k_ann + k_pos - k_thr
+
         meta[m] = {
             "aggressor_type": aggressor_type,
             "target_type": target_type,
@@ -160,16 +201,19 @@ def compute_position_rows(
             "san": board.san(m),
             "k_ann": k_ann,
             "k_thr": k_thr,
-            "delta": k_ann - k_thr,
+            "k_pos": k_pos,
+            "delta": delta_v1,
+            "delta_v2": delta_v2,
         }
 
     for m in legal:
         neighbors = fiber_neighbors(m, legal, meta)
-        neigh_deltas = [meta[n]["delta"] for n in neighbors]
-        if len(neigh_deltas) < 3:
+        if len(neighbors) < 3:
             meta[m]["sigma"] = float("nan")
+            meta[m]["sigma_v2"] = float("nan")
         else:
-            meta[m]["sigma"] = statistics.stdev(neigh_deltas)
+            meta[m]["sigma"] = statistics.stdev(meta[n]["delta"] for n in neighbors)
+            meta[m]["sigma_v2"] = statistics.stdev(meta[n]["delta_v2"] for n in neighbors)
 
     rows: list[dict] = []
     for m in sorted(legal, key=lambda x: x.uci()):
@@ -189,12 +233,15 @@ def compute_position_rows(
             "kappa_threat": info["k_thr"],
             "delta": info["delta"],
             "sigma": info["sigma"],
+            "kappa_position": info["k_pos"],
+            "delta_v2": info["delta_v2"],
+            "sigma_v2": info["sigma_v2"],
             "was_played": (m == played),
         })
     return rows
 
 
-# ─── Game validation & source iteration ────────────────────────────────────
+# ─── Game validation & source iteration (copied from v1) ──────────────────
 
 def mainline_ply_count(game: chess.pgn.Game) -> int:
     n = 0
@@ -203,12 +250,10 @@ def mainline_ply_count(game: chess.pgn.Game) -> int:
     return n
 
 
-def is_valid_game(game: chess.pgn.Game | None, min_plies: int) -> tuple[bool, str]:
-    """Return (ok, reason). Reason is empty when ok is True."""
+def is_valid_game(game, min_plies):
     if game is None:
         return False, "null game"
     if game.errors:
-        # python-chess populates .errors on illegal / unparseable moves.
         return False, f"parser errors ({len(game.errors)})"
     plies = mainline_ply_count(game)
     if plies < min_plies:
@@ -216,17 +261,7 @@ def is_valid_game(game: chess.pgn.Game | None, min_plies: int) -> tuple[bool, st
     return True, ""
 
 
-def iter_source_games(
-    pgn_path: Path,
-    min_plies: int,
-) -> list[tuple[str, chess.pgn.Game, dict[str, int]]]:
-    """Enumerate valid games from a PGN file or a directory of PGN files.
-
-    Returns (game_id, game, filter_counts) — game_id is deterministic and
-    unique within the source. filter_counts is a summary dict (total, kept,
-    skipped_by_reason) returned alongside each yielded game only once at
-    the end for simplicity this is NOT yielded; see the returned list.
-    """
+def iter_source_games(pgn_path: Path, min_plies: int):
     accepted: list[tuple[str, chess.pgn.Game]] = []
     counts = {"total": 0, "kept": 0,
               "skip_null": 0, "skip_parser_errors": 0, "skip_short": 0}
@@ -237,7 +272,6 @@ def iter_source_games(
             try:
                 game = chess.pgn.read_game(fh)
             except Exception:
-                # Catastrophic parse error — advance by bailing out of this handle.
                 return
             if game is None:
                 return
@@ -260,47 +294,72 @@ def iter_source_games(
     if pgn_path.is_dir():
         for pgn_file in sorted(pgn_path.glob("*.pgn")):
             with pgn_file.open("r", encoding="utf-8") as fh:
-                # Allow multi-game files in a directory: use stem_####.
-                # But if a file has exactly one game, use the bare stem.
-                start_accepted = len(accepted)
+                start = len(accepted)
                 _consume(fh, pgn_file.stem, multi_game=True)
-                added = len(accepted) - start_accepted
-                if added == 1:
-                    # Rename back to bare stem (backward compatibility).
+                if len(accepted) - start == 1:
                     gid_old, game = accepted[-1]
                     accepted[-1] = (pgn_file.stem, game)
     else:
         with pgn_path.open("r", encoding="utf-8") as fh:
             _consume(fh, pgn_path.stem, multi_game=True)
-
     return accepted, counts
 
 
-# ─── Row collection ────────────────────────────────────────────────────────
-
-def collect_rows_from_games(games: list[tuple[str, chess.pgn.Game]]) -> list[dict]:
-    rows: list[dict] = []
+def collect_rows_from_games(
+    games: list[tuple[str, chess.pgn.Game]],
+    sample_positions: int | None,
+    seed: int,
+) -> list[dict]:
+    # First: enumerate all positions (board, played, game_id, ply).
+    positions: list[tuple] = []
     for game_id, game in games:
         board = game.board()
         for ply, played in enumerate(game.mainline_moves(), start=1):
             if not any(True for _ in board.legal_moves):
                 break
-            rows.extend(compute_position_rows(board, played, game_id, ply))
+            positions.append((board.copy(stack=False), played, game_id, ply))
             board.push(played)
+
+    if sample_positions is not None and sample_positions < len(positions):
+        rng = random.Random(seed)
+        positions = sorted(positions, key=lambda t: (t[2], t[3]))
+        positions = rng.sample(positions, sample_positions)
+        positions.sort(key=lambda t: (t[2], t[3]))
+        print(f"  sampled to {len(positions)} positions (seed={seed})")
+
+    rows: list[dict] = []
+    n_done = 0
+    t_report = 0
+    import time as _t
+    t0 = _t.perf_counter()
+    for board, played, game_id, ply in positions:
+        rows.extend(compute_position_rows(board, played, game_id, ply))
+        n_done += 1
+        if n_done - t_report >= 500:
+            elapsed = _t.perf_counter() - t0
+            rate = n_done / elapsed if elapsed > 0 else 0.0
+            remaining = (len(positions) - n_done) / rate if rate > 0 else float("nan")
+            print(f"  [{n_done}/{len(positions)}] positions done  "
+                  f"({rate:.1f}/s, ~{remaining:.0f}s remaining)")
+            t_report = n_done
     return rows
 
 
 # ─── CSV I/O ───────────────────────────────────────────────────────────────
 
+def _fnum(x):
+    return "NaN" if (isinstance(x, float) and math.isnan(x)) else f"{x:.6f}"
+
+
 def rows_to_csv_dict(r: dict) -> dict:
     out = dict(r)
     out["is_capture"] = "True" if r["is_capture"] else "False"
     out["was_played"] = "True" if r["was_played"] else "False"
-    out["kappa_annihilate"] = f"{r['kappa_annihilate']:.6f}"
-    out["kappa_threat"] = f"{r['kappa_threat']:.6f}"
-    out["delta"] = f"{r['delta']:.6f}"
-    s = r["sigma"]
-    out["sigma"] = "NaN" if math.isnan(s) else f"{s:.6f}"
+    for c in ("kappa_annihilate", "kappa_threat", "delta",
+              "kappa_position", "delta_v2"):
+        out[c] = f"{r[c]:.6f}"
+    out["sigma"] = _fnum(r["sigma"])
+    out["sigma_v2"] = _fnum(r["sigma_v2"])
     return out
 
 
@@ -322,6 +381,9 @@ def load_csv_rows(path: Path) -> list[dict]:
                 "kappa_threat": float(r["kappa_threat"]),
                 "delta": float(r["delta"]),
                 "sigma": float("nan") if r["sigma"] == "NaN" else float(r["sigma"]),
+                "kappa_position": float(r["kappa_position"]),
+                "delta_v2": float(r["delta_v2"]),
+                "sigma_v2": float("nan") if r["sigma_v2"] == "NaN" else float(r["sigma_v2"]),
                 "was_played": r["was_played"] == "True",
             })
     return rows
@@ -345,14 +407,10 @@ def five_number(values: list[float]) -> dict:
         return {"n": 0}
     n = len(vals)
     s = sorted(vals)
-
     def q(p: float) -> float:
         idx = p * (n - 1)
         lo, hi = int(math.floor(idx)), int(math.ceil(idx))
-        if lo == hi:
-            return s[lo]
-        return s[lo] + (s[hi] - s[lo]) * (idx - lo)
-
+        return s[lo] if lo == hi else s[lo] + (s[hi] - s[lo]) * (idx - lo)
     mean = sum(vals) / n
     std = statistics.pstdev(vals) if n > 1 else 0.0
     return {"n": n, "min": s[0], "max": s[-1], "mean": mean, "std": std,
@@ -382,21 +440,19 @@ def spearman_rho(xs: list[float], ys: list[float]) -> float:
     n = len(xs)
     if n < 2:
         return float("nan")
-
     def ranks(vals: list[float]) -> list[float]:
-        indexed = sorted(range(n), key=lambda i: vals[i])
+        idx = sorted(range(n), key=lambda i: vals[i])
         r = [0.0] * n
         i = 0
         while i < n:
             j = i
-            while j + 1 < n and vals[indexed[j + 1]] == vals[indexed[i]]:
+            while j + 1 < n and vals[idx[j + 1]] == vals[idx[i]]:
                 j += 1
             avg = (i + j) / 2.0 + 1.0
             for k in range(i, j + 1):
-                r[indexed[k]] = avg
+                r[idx[k]] = avg
             i = j + 1
         return r
-
     rx, ry = ranks(xs), ranks(ys)
     mx, my = sum(rx) / n, sum(ry) / n
     num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
@@ -414,7 +470,6 @@ def summarise(rows: list[dict], source_desc: str) -> str:
     positions: dict[tuple, list[dict]] = {}
     for r in rows:
         positions.setdefault((r["game_id"], r["ply"]), []).append(r)
-
     games = sorted({r["game_id"] for r in rows})
     total_rows = len(rows)
     total_positions = len(positions)
@@ -424,186 +479,212 @@ def summarise(rows: list[dict], source_desc: str) -> str:
     w(f"Piece values (P,N,B,R,Q,K): "
       f"{PIECE_VALUES[chess.PAWN]}, {PIECE_VALUES[chess.KNIGHT]}, "
       f"{PIECE_VALUES[chess.BISHOP]}, {PIECE_VALUES[chess.ROOK]}, "
-      f"{PIECE_VALUES[chess.QUEEN]}, {PIECE_VALUES[chess.KING]}\n")
-    w("\n")
+      f"{PIECE_VALUES[chess.QUEEN]}, {PIECE_VALUES[chess.KING]}\n\n")
     w(f"Total games:         {len(games)}\n")
     w(f"Total rows:          {total_rows}\n")
     w(f"Total positions:     {total_positions}\n")
-    w(f"Mean legal / pos:    {mean_legal:.2f}\n")
+    w(f"Mean legal / pos:    {mean_legal:.2f}\n\n")
+
+    for col, label in [
+        ("kappa_annihilate", "kappa_annihilate"),
+        ("kappa_threat",     "kappa_threat"),
+        ("kappa_position",   "kappa_position (new)"),
+        ("delta",            "delta (v1)"),
+        ("delta_v2",         "delta_v2 (v1 + kappa_position)"),
+    ]:
+        vals = [r[col] for r in rows]
+        w(fmt_dist(label, five_number(vals))); w("\n")
+
+    sigma_raw = [r["sigma"] for r in rows]
+    sigma_nan = sum(1 for v in sigma_raw if math.isnan(v))
+    w(fmt_dist("sigma (v1)", five_number(sigma_raw), nan_count=sigma_nan)); w("\n")
+    sigma_v2_raw = [r["sigma_v2"] for r in rows]
+    sigma_v2_nan = sum(1 for v in sigma_v2_raw if math.isnan(v))
+    w(fmt_dist("sigma_v2 (new)", five_number(sigma_v2_raw), nan_count=sigma_v2_nan)); w("\n")
+
+    # kappa_position by capture vs non-capture
+    k_pos_capture = [r["kappa_position"] for r in rows if r["is_capture"]]
+    k_pos_quiet   = [r["kappa_position"] for r in rows if not r["is_capture"]]
+    w("kappa_position by move type:\n")
+    if k_pos_capture:
+        w(f"  captures (n={len(k_pos_capture)}): "
+          f"mean={statistics.mean(k_pos_capture):+.4f}, "
+          f"std={statistics.pstdev(k_pos_capture):.4f}\n")
+    if k_pos_quiet:
+        w(f"  quiets   (n={len(k_pos_quiet)}): "
+          f"mean={statistics.mean(k_pos_quiet):+.4f}, "
+          f"std={statistics.pstdev(k_pos_quiet):.4f}\n")
     w("\n")
 
-    k_ann_vals = [r["kappa_annihilate"] for r in rows]
-    k_thr_vals = [r["kappa_threat"] for r in rows]
-    delta_vals = [r["delta"] for r in rows]
-    sigma_vals_raw = [r["sigma"] for r in rows]
-    sigma_nan = sum(1 for v in sigma_vals_raw if math.isnan(v))
+    # Per-position ranks under each formula.
+    def rank_of(target, group, key):
+        target_val = target[key]
+        return sum(1 for r in group if r[key] > target_val) + 1
 
-    w(fmt_dist("kappa_annihilate", five_number(k_ann_vals))); w("\n")
-    w(fmt_dist("kappa_threat", five_number(k_thr_vals))); w("\n")
-    w(fmt_dist("delta", five_number(delta_vals))); w("\n")
-    w(fmt_dist("sigma", five_number(sigma_vals_raw), nan_count=sigma_nan)); w("\n")
-
-    ranks: list[int] = []
+    rank_delta: list[int] = []
+    rank_delta_v2: list[int] = []
     sigma_of_played: list[float] = []
-    is_not_top: list[float] = []
+    sigma_v2_of_played: list[float] = []
+    played_not_top_v1: list[float] = []
+    played_not_top_v2: list[float] = []
+    top_switched = 0       # positions where top move changed between v1 and v2
+    promoted_to_top = 0    # positions where played move was not top-v1 but is top-v2
+    demoted_from_top = 0   # played was top-v1 but not top-v2
+
     for (gid, ply), group in positions.items():
         played_rows = [r for r in group if r["was_played"]]
         if len(played_rows) != 1:
             continue
         played = played_rows[0]
-        played_delta = played["delta"]
-        strictly_above = sum(1 for r in group if r["delta"] > played_delta)
-        rank = strictly_above + 1
-        ranks.append(rank)
+
+        r1 = rank_of(played, group, "delta")
+        r2 = rank_of(played, group, "delta_v2")
+        rank_delta.append(r1)
+        rank_delta_v2.append(r2)
+
         if not math.isnan(played["sigma"]):
             sigma_of_played.append(played["sigma"])
-            is_not_top.append(0.0 if rank == 1 else 1.0)
+            played_not_top_v1.append(0.0 if r1 == 1 else 1.0)
+        if not math.isnan(played["sigma_v2"]):
+            sigma_v2_of_played.append(played["sigma_v2"])
+            played_not_top_v2.append(0.0 if r2 == 1 else 1.0)
 
-    w(f"Rank of played move's delta (1 = highest delta; n positions = {len(ranks)}):\n")
-    if ranks:
-        rank_hist: dict[int, int] = {}
-        for r in ranks:
-            rank_hist[r] = rank_hist.get(r, 0) + 1
-        top_n = sum(1 for r in ranks if r == 1)
-        w(f"  played move is top-delta: {top_n}/{len(ranks)} "
-          f"({100.0 * top_n / len(ranks):.1f}%)\n")
-        w(f"  mean rank:   {sum(ranks)/len(ranks):.2f}\n")
-        w(f"  median rank: {statistics.median(ranks):.1f}\n")
-        w("  rank histogram (rank : count):\n")
-        for r in sorted(rank_hist):
-            bar = "#" * min(60, rank_hist[r])
-            w(f"    {r:3d} : {rank_hist[r]:4d} {bar}\n")
+        # Top-move switches between formulas (regardless of played move)
+        top_v1 = max(r["delta"] for r in group)
+        top_v2 = max(r["delta_v2"] for r in group)
+        top_v1_set = {r["move_uci"] for r in group if r["delta"] == top_v1}
+        top_v2_set = {r["move_uci"] for r in group if r["delta_v2"] == top_v2}
+        if top_v1_set.isdisjoint(top_v2_set):
+            top_switched += 1
+        if r1 != 1 and r2 == 1:
+            promoted_to_top += 1
+        if r1 == 1 and r2 != 1:
+            demoted_from_top += 1
+
+    def top_count(ranks):
+        return sum(1 for r in ranks if r == 1)
+
+    w(f"Rank of played move (n positions = {len(rank_delta)}):\n")
+    if rank_delta:
+        t1 = top_count(rank_delta)
+        t2 = top_count(rank_delta_v2)
+        w(f"  under delta      (v1): {t1}/{len(rank_delta)} "
+          f"({100.0*t1/len(rank_delta):.1f}%)   mean rank {sum(rank_delta)/len(rank_delta):.2f}\n")
+        w(f"  under delta_v2   (v2): {t2}/{len(rank_delta_v2)} "
+          f"({100.0*t2/len(rank_delta_v2):.1f}%)   mean rank {sum(rank_delta_v2)/len(rank_delta_v2):.2f}\n")
+        w(f"  top move DISJOINT across v1/v2 (any played): {top_switched}/{len(positions)} "
+          f"({100.0*top_switched/len(positions):.1f}%)\n")
+        w(f"  played move NOT top-v1 but IS top-v2 (v2 promotes): {promoted_to_top}\n")
+        w(f"  played move IS  top-v1 but NOT top-v2 (v2 demotes): {demoted_from_top}\n")
     w("\n")
 
-    w(f"Spearman rho ( sigma(played)  vs  played_is_NOT_top_delta ): "
-      f"n={len(sigma_of_played)}\n")
-    if len(sigma_of_played) >= 2:
-        rho = spearman_rho(sigma_of_played, is_not_top)
-        w(f"  rho = {rho:.4f}\n")
-        w("  (positive rho => high-sigma positions are where played move "
-          "is NOT the top-delta pick;\n"
-          "   that would be evidence that sigma flags unreliable-gradient "
-          "positions.)\n")
-    else:
-        w("  insufficient data.\n")
+    # Spearman on per-row scalars (everything lines up).
+    def pair(a, b):
+        return [(r[a], r[b]) for r in rows
+                if not (math.isnan(r.get(a, 0.0)) or math.isnan(r.get(b, 0.0)))]
+
+    pairs = pair("delta", "delta_v2")
+    rho_d_d2 = spearman_rho([p[0] for p in pairs], [p[1] for p in pairs])
+    w(f"Spearman rho (delta vs delta_v2): {rho_d_d2:.4f} "
+      f"(n={len(pairs)})\n")
+    w("  (rho close to 1 => v2 is a small perturbation; rho << 1 => substantial redirection)\n\n")
+
+    if sigma_of_played:
+        rho = spearman_rho(sigma_of_played, played_not_top_v1)
+        w(f"Spearman rho ( sigma(played)    vs played_is_NOT_top(v1) ): "
+          f"rho={rho:.4f}  n={len(sigma_of_played)}\n")
+    if sigma_v2_of_played:
+        rho = spearman_rho(sigma_v2_of_played, played_not_top_v2)
+        w(f"Spearman rho ( sigma_v2(played) vs played_is_NOT_top(v2) ): "
+          f"rho={rho:.4f}  n={len(sigma_v2_of_played)}\n")
 
     return buf.getvalue()
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="analyze_delta_sigma.py",
-        description="Collect per-move delta (kappa_annihilate - kappa_threat) "
-                    "and sigma (std-dev of delta across fiber-neighbors) for "
-                    "every legal move of every ply in a GM corpus. Writes one "
-                    "CSV and one summary .txt.",
+        description="Phase 1: compute per-move kappa_position (fiber-space "
+                    "gradient from the 640-dim spectral encoding) and the "
+                    "refined delta_v2 = kappa_annihilate + kappa_position - "
+                    "kappa_threat. Adds three new columns (kappa_position, "
+                    "delta_v2, sigma_v2) to the v1 CSV schema.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent("""
             Examples:
-              # Default: 2 reference GM games (chessgames_pair), fresh CSV.
+              # Full run (2 reference games, all positions, fresh CSV)
               python analyze_delta_sigma.py
 
-              # Sample 100 random valid games from a multi-game PGN and APPEND
-              # to the existing chessgames_pair CSV:
+              # Sample 1000 positions uniformly at random (faster iteration)
+              python analyze_delta_sigma.py --sample-positions 1000 --seed 42
+
+              # Sample 100 games from lichess and append to existing CSV
               python analyze_delta_sigma.py \\
                   --pgn docs/chess-maths/dataset-place/lichess_db_broadcast_2022-11.pgn \\
                   --label chessgames_pair --sample 100 --seed 42 --append
-
-              # Fresh CSV at a new label:
-              python analyze_delta_sigma.py --pgn some.pgn --label lichess_sample_100 \\
-                  --sample 100 --seed 42
         """),
     )
-    parser.add_argument(
-        "--pgn", type=Path, default=DEFAULT_PGN,
-        help=f"Source PGN: either a single multi-game .pgn file or a "
-             f"directory of .pgn files. Default: {DEFAULT_PGN}",
-    )
-    parser.add_argument(
-        "--label", default=DEFAULT_LABEL,
-        help=f"Label used for output directory and filenames. Default: "
-             f"'{DEFAULT_LABEL}'.",
-    )
-    parser.add_argument(
-        "--sample", type=int, default=None, metavar="N",
-        help="Randomly sample N valid games from the source. Applies only "
-             "to single-file multi-game PGN inputs. If N exceeds the number "
-             "of valid games, all are used. Games are first filtered by "
-             "--min-plies and python-chess parser errors (game.errors must "
-             "be empty) before sampling.",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=42,
-        help="RNG seed for --sample (for reproducibility). Default: 42.",
-    )
-    parser.add_argument(
-        "--min-plies", type=int, default=20,
-        help="Minimum ply count for a game to be considered valid. Games "
-             "shorter than this, or with non-empty game.errors, are "
-             "dropped before sampling. Default: 20.",
-    )
-    parser.add_argument(
-        "--append", action="store_true",
-        help="Append to the existing CSV if it exists. New rows whose "
-             "game_id already appears in the target CSV are skipped "
-             "(dedupe). The combined CSV is always re-sorted by "
-             "(game_id, ply, move_uci), and the summary .txt is "
-             "regenerated over the combined dataset. Without this flag, an "
-             "existing CSV is silently overwritten (matching the "
-             "deterministic first-run behavior).",
-    )
-    parser.add_argument(
-        "--output-dir", type=Path, default=None,
+    parser.add_argument("--pgn", type=Path, default=DEFAULT_PGN,
+        help=f"Source PGN file or directory. Default: {DEFAULT_PGN}")
+    parser.add_argument("--label", default=DEFAULT_LABEL,
+        help=f"Output label. Default '{DEFAULT_LABEL}'.")
+    parser.add_argument("--sample", type=int, default=None, metavar="N",
+        help="Randomly sample N valid GAMES from a single multi-game PGN.")
+    parser.add_argument("--sample-positions", type=int, default=None, metavar="N",
+        help="After game selection, uniformly sample N POSITIONS. Useful for "
+             "fast iteration when the fiber encoder is the bottleneck.")
+    parser.add_argument("--seed", type=int, default=42,
+        help="RNG seed. Default 42.")
+    parser.add_argument("--min-plies", type=int, default=20,
+        help="Minimum plies for a game to be considered valid. Default 20.")
+    parser.add_argument("--append", action="store_true",
+        help="Append to existing v2 CSV; dedupe by game_id; re-sort; "
+             "regenerate summary.")
+    parser.add_argument("--output-dir", type=Path, default=None,
         help="Override output directory. Default: "
-             "<repo>/docs/chess-maths/results/delta_sigma_<label>/.",
-    )
+             "<repo>/docs/chess-maths/results/delta_sigma_<label>/.")
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv=None) -> int:
     args = parse_args(argv)
-
     pgn_path = args.pgn
     if not pgn_path.exists():
         print(f"error: --pgn path not found: {pgn_path}", file=sys.stderr)
         return 2
     if args.sample is not None and pgn_path.is_dir():
-        print("error: --sample requires a single multi-game .pgn file, not a directory.",
-              file=sys.stderr)
+        print("error: --sample requires a single multi-game .pgn file.", file=sys.stderr)
         return 2
 
     out_dir = args.output_dir or (REPO_CHESS_MATHS / "results" / f"delta_sigma_{args.label}")
-    csv_path = out_dir / f"delta_sigma_analysis_{args.label}.csv"
-    summary_path = out_dir / f"delta_sigma_summary_{args.label}.txt"
+    csv_path = out_dir / f"delta_sigma_analysis_v2_{args.label}.csv"
+    summary_path = out_dir / f"delta_sigma_summary_v2_{args.label}.txt"
 
     print(f"Scanning PGN source: {pgn_path}")
     accepted, counts = iter_source_games(pgn_path, args.min_plies)
-    print(f"  total games read:       {counts['total']}")
-    print(f"  kept (valid):           {counts['kept']}")
-    print(f"  skipped (null):         {counts['skip_null']}")
-    print(f"  skipped (parser errs):  {counts['skip_parser_errors']}")
-    print(f"  skipped (< min-plies):  {counts['skip_short']}")
+    print(f"  total: {counts['total']}  kept: {counts['kept']}  "
+          f"parse-errs: {counts['skip_parser_errors']}  "
+          f"short: {counts['skip_short']}  null: {counts['skip_null']}")
 
     if args.sample is not None:
-        n_available = len(accepted)
-        if args.sample >= n_available:
-            print(f"  sample ({args.sample}) >= available ({n_available}); using all.")
+        n_avail = len(accepted)
+        if args.sample >= n_avail:
+            print(f"  sample ({args.sample}) >= available ({n_avail}); using all.")
         else:
             rng = random.Random(args.seed)
-            # Sort first for deterministic selection given seed.
             accepted = sorted(accepted, key=lambda gg: gg[0])
             accepted = rng.sample(accepted, args.sample)
             accepted.sort(key=lambda gg: gg[0])
-            print(f"  sampled:                {len(accepted)} (seed={args.seed})")
+            print(f"  sampled games: {len(accepted)} (seed={args.seed})")
 
     if not accepted:
         print("error: no valid games to process.", file=sys.stderr)
         return 1
 
-    print(f"Computing delta/sigma over {len(accepted)} game(s)...")
-    new_rows = collect_rows_from_games(accepted)
+    print(f"Computing delta/sigma/kappa_position over {len(accepted)} game(s)...")
+    new_rows = collect_rows_from_games(accepted, args.sample_positions, args.seed)
     print(f"  new rows: {len(new_rows)}")
 
     append_mode = args.append and csv_path.exists()
@@ -616,8 +697,8 @@ def main(argv: list[str] | None = None) -> int:
         if dropped:
             print(f"  dropped {dropped} rows whose game_id was already in {csv_path.name}")
         all_rows = existing + new_rows
-        print(f"  existing rows: {len(existing)} | appending: {len(new_rows)} "
-              f"| combined: {len(all_rows)}")
+        print(f"  existing: {len(existing)} | appending: {len(new_rows)} | "
+              f"combined: {len(all_rows)}")
     else:
         if args.append:
             print(f"  --append given but {csv_path} does not exist; writing fresh.")
@@ -626,8 +707,7 @@ def main(argv: list[str] | None = None) -> int:
     write_csv(all_rows, csv_path)
     print(f"CSV written: {csv_path}")
 
-    source_desc = (f"{pgn_path.name}"
-                   if not append_mode
+    source_desc = (pgn_path.name if not append_mode
                    else f"appended {pgn_path.name} -> {csv_path.name}")
     summary = summarise(all_rows, source_desc)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
