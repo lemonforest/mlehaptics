@@ -201,17 +201,33 @@ Sliding polarizations (R, B, Q) have rays truncated by other excitations. A rook
 
 Solution C is cleanest and most consistent with the lattice-fermion framing — the ray propagates step by step, interacts with the first excitation it encounters, and terminates. This is the phase-space analog of the Green's function collapsing at a scattering site.
 
-### §11.4.3 Protocol for Solution C
+### §11.4.3 Protocol for Solutions B and C
 
-For each sliding polarization p ∈ {R, B, Q} and for each origin φ_origin in a position with other excitations present:
+Both solutions represent occupancy as a **set of phases** Φ_occ = {φ(r, c) : (r, c) is occupied in the current position}, annotated with the Z₂ charge at each occupied phase. Both are phase-native in the specific sense that the blocker check is a set-membership test on Φ_occ, not a lookup on a python-chess Board object. They differ in how the truncation happens.
 
-1. For each ray direction d (e.g., +row, −column) defined by the polarization's phase-shift unit u_d:
+**Solution B — Phase-space occupation field (batch / set-intersection).**
+
+For each sliding polarization p ∈ {R, B, Q} and for each origin φ_origin:
+
+1. For each ray direction d with phase-shift unit u_d:
+2. Generate the full candidate phase set Φ_ray = {(φ_origin + k × u_d) mod 640 : k ∈ {1, ..., 7}} in order of increasing k.
+3. Clip Φ_ray at the first on-board phase that is off-lattice (boundary halt) — all k beyond that are dropped regardless of occupation.
+4. Find Φ_ray ∩ Φ_occ. The lowest-k intersection is the blocker.
+5. Destinations are: all pre-blocker phases from Φ_ray, plus the blocker itself *if* its Z₂ charge is opposite (capture allowed), plus nothing if the blocker's charge matches (own-charge block).
+
+**Solution C — Incremental phase operator (sequential / early halt).**
+
+For each sliding polarization p ∈ {R, B, Q} and for each origin φ_origin:
+
+1. For each ray direction d with phase-shift unit u_d:
 2. Initialize k = 1.
-3. Compute candidate phase φ_k = φ_origin + k × u_d mod 640.
+3. Compute φ_k = (φ_origin + k × u_d) mod 640.
 4. Check if φ_k corresponds to a valid lattice node (inside [0, 7]²). If not, halt the ray (boundary reached).
-5. Check if φ_k corresponds to an occupied node in the current position. If occupied by same Z₂ charge, halt the ray before φ_k (cannot capture own charge). If occupied by opposite Z₂ charge, include φ_k (capture) and halt. If unoccupied, include φ_k and continue to k = k + 1.
+5. Check Φ_occ for membership. If absent (unoccupied), include φ_k in destinations and continue with k := k + 1. If present with same Z₂ charge, halt before φ_k. If present with opposite Z₂ charge, include φ_k (capture) and halt.
 
-The occupation check in step 5 is the only geometric operation. All phase generation is pure arithmetic.
+**Equivalence claim.** B and C must produce identical destination sets for every (position, polarization, origin) triple where both are well-defined. Their difference is the order of operations, not the answer. Any observed disagreement is a bug in one or the other, not a property of chess.
+
+**Non-sliding pieces.** King, knight, and pawn operators from §11.2 are already localized (k = ±1 only for king/pawn; discrete shell for knight). The occupation-aware version of these is the unobstructed set minus own-charge-occupied destinations, plus opposite-charge destinations as captures. Both B and C reduce to the same localized filter for these pieces; the B vs C distinction only matters for {R, B, Q}.
 
 ### §11.4.4 Data to collect
 
