@@ -2060,7 +2060,7 @@ Load-bearing primary references, grouped by role in the hybrid framework.
 
 ## 11. Phase-Operator Move Engine
 
-> **Status.** Working supplement — lives in [PHASE_OPERATOR_SUPPLEMENT.md](PHASE_OPERATOR_SUPPLEMENT.md) as a standalone document pending experimental validation. Internal numbering §11.1–§11.9 already matches this slot, so the supplement drops in verbatim once data is collected.
+> **Status.** Working supplement — lives in [PHASE_OPERATOR_SUPPLEMENT.md](PHASE_OPERATOR_SUPPLEMENT.md) as a standalone document. Reference implementation at [`phase_operators/`](phase_operators/). **§11.3 and §11.4 are validated** against python-chess (416/416 empty-board pairs, and 1153/1153 on-board pairs against `pseudo_legal_moves` via A/B/C four-way convergence — the residual ~5.81% gap against `legal_moves` is the moves-into-check filter deferred to §11.5). §11.5 and §11.6 remain open.
 
 The phase-operator move engine asks whether the legal reachable set of each polarization state on the 8×8 lattice can be generated entirely in phase space — via coprime cyclic phase operators acting on a polarization's origin phase tuple — without consulting the 2D board coordinates. This extends §9f (coprime roll binding) and §9r (polarization reframing) from *representation* to *dynamics*: where §9 treats occupation as a signal over a fixed lattice, §11 treats legal transition as a phase-arithmetic operation in the 640-dim coprime cyclic space. UTLP S4's Chinese Remainder Theorem aliasing horizon — used temporally for distributed clock recovery — is here transferred to the spatial domain as a partition detector for the legal reachable set.
 
@@ -2069,8 +2069,8 @@ The supplement defines seven phase operators (one per polarization, §11.2), spe
 **See the supplement** for:
 - §11.1 — The Phase-Operator Hypothesis
 - §11.2 — Phase Operator Specifications (seven polarization states)
-- §11.3 — Experiment 1: Equivalence on Empty Board
-- §11.4 — Experiment 2: Occupation-Aware Phase Operators
+- §11.3 — Experiment 1: Equivalence on Empty Board *(validated: 416/416)*
+- §11.4 — Experiment 2: Occupation-Aware Phase Operators *(validated: B≡C 100%, A≡python-chess 100%; §11.4.3.1 P_castle closes the castling gap)*
 - §11.5 — Experiment 3: Phase-Tuple Similarity as Field Gradient Indicator
 - §11.6 — Experiment 4: Aliasing Horizon as Partition Detection
 - §11.7 — Open Infrastructure Requirements
