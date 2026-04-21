@@ -26,6 +26,7 @@ from phase_operators import (
 )
 from phase_to_coords import phase_set_to_board
 from occupation_field import WHITE_CHARGE
+from castling import castle_king_destinations
 
 
 def _unobstructed_dests(piece_char: str, origin_r: int, origin_c: int,
@@ -39,7 +40,7 @@ def _unobstructed_dests(piece_char: str, origin_r: int, origin_c: int,
     if pc == "Q":
         return phase_set_to_board(P_queen(origin_phi))
     if pc == "K":
-        return phase_set_to_board(P_king(origin_phi))
+        return phase_set_to_board(P_king(origin_phi))  # castling unioned at top-level
     if pc == "N":
         return phase_set_to_board(P_knight(origin_phi))
     if pc == "P":
@@ -71,10 +72,16 @@ def occupation_aware_moves_a(board: chess.Board, piece_char: str,
                              mover_charge: int) -> frozenset[tuple[int, int]]:
     """Hybrid: phase-space candidate generation, python-chess filter.
 
-    En passant, promotion, castling are NOT handled here (§11.2.8).
-    Castling is layered on separately via castling.available_castles.
+    En passant and promotion are NOT handled here (§11.2.8). Castling
+    is handled via the §11.4.3.1 P_castle composite operator — king
+    candidates are unioned with castle_king_destinations(board) before
+    the legal-move intersection.
     """
     candidates = _unobstructed_dests(piece_char, origin_r, origin_c,
                                      mover_charge)
+    if piece_char.upper() == "K":
+        mover_color = (chess.WHITE if mover_charge == WHITE_CHARGE
+                       else chess.BLACK)
+        candidates = candidates | castle_king_destinations(board, mover_color)
     legal = _chess_legal_dests(board, origin_r, origin_c)
     return frozenset(candidates & legal)
