@@ -20,42 +20,59 @@ Positions covered:
 """
 import os
 import sys
+import io
 import numpy as np
+
+# Windows console: keep stdout on UTF-8 for consistency with emit_tables.py
+# (prior codegen inherited this fix transitively from encoder_512's import).
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8',
+                                  errors='replace')
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, '..'))
-PY_DIR = os.path.abspath(os.path.join(HERE, '..', '..'))
+PKG_DIR = os.path.abspath(os.path.join(HERE, '..', 'python'))
 TEST_DIR = os.path.join(REPO, 'test')
 
-sys.path.insert(0, PY_DIR)
-import encoder_512 as enc
-from chess_pawn_laplacian import (
-    white_pawn_targets, build_directed_adjacency,
+# Pull everything from the production chess_spectral package (same SSOT the
+# C reference was derived from). No dependency on the archived encoder_512.
+sys.path.insert(0, PKG_DIR)
+from chess_spectral.tables import (
+    SPECTRAL_VALS, SHORT_PFNS,
+    LOCAL_FIBER_3D, LOCAL_ADJ_ROWS,
+    PAWN_ANTI_FIBER, DIAG_DEV,
+    board_signal, project_irrep,
 )
 
-# Local helpers matching the tables produced by emit_tables.py
-FIBER_PIECES = ['N', 'B', 'R', 'Q', 'K']
-LONG_NAME = {'N': 'Knight', 'B': 'Bishop', 'R': 'Rook', 'Q': 'Queen', 'K': 'King'}
-
-# Build PAWN_ANTI_FIBER in eigenbasis (must match emit_tables.py)
-A_white = build_directed_adjacency(white_pawn_targets)
-A_anti = 0.5 * (A_white - A_white.T)
-PAWN_ANTI_FIBER = enc.EVECS_GRID.T @ A_anti @ enc.EVECS_GRID
-
-# Build DIAG_DEV[6][64]
-DIAG_DEV = np.zeros((6, 64), dtype=np.float64)
-A_sym_pawn = 0.5 * (A_white + A_white.T)
-L_pawn_sym = enc.graph_laplacian(A_sym_pawn)
-C_pawn = enc.EVECS_GRID.T @ L_pawn_sym @ enc.EVECS_GRID
-DIAG_DEV[0] = np.diag(C_pawn) - enc.EVALS_GRID
-for idx, ch in enumerate(FIBER_PIECES):
-    pname = LONG_NAME[ch]
-    A = enc.build_adjacency(enc.PIECE_FNS[pname])
-    L = enc.graph_laplacian(A)
-    C = enc.EVECS_GRID.T @ L @ enc.EVECS_GRID
-    DIAG_DEV[idx + 1] = np.diag(C) - enc.EVALS_GRID
+# Fiber-piece index matches chess_spectral.tables construction order:
+# LOCAL_FIBER_3D / LOCAL_ADJ_ROWS first axis is (N, B, R, Q, K).
+_FIBER_IDX = {'N': 0, 'B': 1, 'R': 2, 'Q': 3, 'K': 4}
 
 PIECE_TYPE_IDX = {'P': 0, 'N': 1, 'B': 2, 'R': 3, 'Q': 4, 'K': 5}
+
+
+def _encode_512_spectral(pos):
+    """Reference for the tp{i}_enc512 back-compat column.
+
+    Identical math to the (archived) encoder_512.encode_512_spectral: 5 D4
+    irreps + 3 symmetric fiber channels = 512 dims, using SPECTRAL_VALS.
+    Kept inline so codegen does not depend on the archived module.
+    """
+    sig = board_signal(pos, vals=SPECTRAL_VALS)
+    channels = [project_irrep(sig, n) for n in ('A1', 'A2', 'B1', 'B2', 'E')]
+    for d in range(3):
+        fc = np.zeros(64)
+        for si, pchar in pos.items():
+            pkey = pchar.upper()
+            if pkey not in _FIBER_IDX:
+                continue
+            pidx = _FIBER_IDX[pkey]
+            fib_d = LOCAL_FIBER_3D[pidx, si, d]
+            adj_row = LOCAL_ADJ_ROWS[pidx, si]
+            gradient = float(adj_row @ sig)
+            fc += gradient * fib_d * adj_row
+        channels.append(fc)
+    return np.concatenate(channels)
 
 
 def sq(r, c):
@@ -119,21 +136,22 @@ TEST_POSITIONS = [
 # --- Reference computations --------------------------------------------------
 
 def ref_signal(pos):
-    return enc.board_signal(pos, vals=enc.SPECTRAL_VALS)
+    return board_signal(pos, vals=SPECTRAL_VALS)
 
 
 def ref_irrep(sig, name):
-    return enc.project_irrep(sig, name)
+    return project_irrep(sig, name)
 
 
 def ref_sym_fiber(pos, sig, d):
     fc = np.zeros(64)
     for si, pchar in pos.items():
         pkey = pchar.upper()
-        if pkey not in enc.SHORT_PFNS:
+        if pkey not in SHORT_PFNS:
             continue
-        fib_d = enc.LOCAL_FIBER_3D[(pkey, si)][d]
-        adj_row = enc.LOCAL_ADJ_ROWS[(pkey, si)]
+        pidx = _FIBER_IDX[pkey]
+        fib_d = LOCAL_FIBER_3D[pidx, si, d]
+        adj_row = LOCAL_ADJ_ROWS[pidx, si]
         gradient = float(adj_row @ sig)
         fc += gradient * fib_d * adj_row
     return fc
@@ -145,7 +163,7 @@ def ref_antisymmetric(pos):
         if pchar.upper() != 'P':
             continue
         sign = 1.0 if pchar == 'P' else -1.0  # white=+, black=-
-        w = sign * enc.SPECTRAL_VALS['P']  # SPECTRAL_VALS[P] unsigned part
+        w = sign * SPECTRAL_VALS['P']  # SPECTRAL_VALS[P] unsigned part
         out += w * PAWN_ANTI_FIBER[si, :]
     return out
 
@@ -172,7 +190,7 @@ def ref_640(pos):
 
 
 def ref_512(pos):
-    return enc.encode_512_spectral(pos)
+    return _encode_512_spectral(pos)
 
 
 # --- Emission ----------------------------------------------------------------

@@ -340,7 +340,7 @@ Explicitly do not do any of the following in this task:
 
 - Do not start §11.4 (occupation-aware) or §11.5 / §11.6 scaffolding.
 - Do not modify `chess-spectral/python/chess_spectral/encoder.py` or `tables.py`.
-- Do not touch `encoder_512.py` or `encoder_v3.py`.
+- Do not touch `archive/encoder_512.py` or `archive/encoder_v3.py`.
 - Do not add a phase operator for fairy pieces, L-pieces, or any non-standard polarization. §11.2 defines the seven and only the seven that §11.3 validates.
 - Do not optimize for runtime. The whole experiment runs in under a second; readability and correspondence with the supplement specification matter more than speed.
 - Do not produce visualizations or dashboards. CSV + stdout summary only, per §11.7.4.

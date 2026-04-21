@@ -92,10 +92,13 @@ The key claim (novel, needs documentation): the coprime-phase rotation basis fro
 See [ENCODERS.md](ENCODERS.md) for the full encoder lineage, production file path, channel layout, and corpus reproduction recipe.
 
 ### Archived encoder experiments (pedagogical)
-- `encoder_v3.py` — 70-dim dual-channel prototype (geometric + interaction split). Archived; see notebook §8.
-- `encoder_512.py` — 512-dim HDC architecture (5 D4 irreps + 3 symmetric fiber). Archived; superseded by chess_spectral.encode_640.
-- `test_local_fiber.py` — Grok local-fiber encoder test battery (archived research).
-- `test_gemini_encoder.py` — Grok/Gemini/v3 encoder comparison (archived research).
+- `archive/encoder_v3.py` — 70-dim dual-channel prototype (geometric + interaction split). Archived; see notebook §8.
+- `archive/encoder_512.py` — 512-dim HDC architecture (5 D4 irreps + 3 symmetric fiber). Archived; superseded by chess_spectral.encode_640.
+- `archive/chess_depth_gap_expanded.py` — A₁ depth-gap experiment against Stockfish. Archived.
+- `archive/chess_a1_followup.py` — Z₂ decomposition + trajectory follow-ups to the A₁ result. Archived.
+- `archive/chess_pawn_laplacian.py` — Directed pawn adjacency + antisymmetric fiber derivation. Archived; its math is baked into `chess_spectral.tables` (PAWN_ANTI_FIBER).
+- `archive/test_local_fiber.py` — Grok local-fiber encoder test battery (archived research).
+- `archive/test_gemini_encoder.py` — Grok/Gemini/v3 encoder comparison (archived research).
 
 ### Structural Analysis
 - `chess_connection.py` — Connection form computation, per-edge fiber decomposition, holonomy, curvature
