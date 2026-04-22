@@ -317,6 +317,100 @@ running regardless of which occurs.
 
 ---
 
-## §12.10 Result
+## §12.10 Result (Phase A — three-corpus evaluation)
 
-[Placeholder. Filled in after Phase A run.]
+**Three-corpus §12 Phase A outcome: AMBIGUOUS.**
+
+Ran `evaluate_encoder.py` against three §11.5-style CSVs generated
+from the same three corpora used in §11.6.6.1's durability check. Each
+CSV contains ~3200 pseudo-legal transitions labeled with
+`is_check_unsafe`, plus path-1 reference correctness validated at
+100%. The §12 CLI re-encodes every transition under Derivations A,
+B, C and reports Spearman ρ per slice.
+
+| Derivation               | drnykterstein (GM cls, N=10)   | ashchess (FM blitz, N=50)      | fishtest (engines blitz, N=50) |
+|--------------------------|-------------------------------:|-------------------------------:|-------------------------------:|
+| A (Laplacian, k=5)       | max \|ρ\| = 0.161 (knight)     | max \|ρ\| = 0.172 (captures)   | max \|ρ\| = 0.179 (captures)   |
+| B (D4 concat, all rows)  | +0.116                         | +0.094                         | +0.210                         |
+| B best slice             | **+0.332 (king moves)**        | +0.172 (pawn, E_ka)            | +0.256 (bishop)                |
+| B per-irrep \|ρ\| (A1)   | −0.200                         | −0.145                         | −0.238                         |
+| B per-irrep \|ρ\| (E_ka) | +0.174                         | +0.172                         | +0.259                         |
+| C (attack op cosine)     | NaN (all-zero vectors)         | NaN                            | NaN                            |
+| Transitions evaluated    | 3393                           | 3203                           | 3211                           |
+
+**Durability finding.** Derivation B's single-corpus "viable" result
+(|ρ|=0.332 on drnykterstein's king-moves slice) **does not replicate**
+across the other two corpora. The king-moves |ρ| drops to +0.123
+(ashchess) and +0.228 (fishtest). The all-transitions ρ ranges
++0.094 to +0.210 — consistent ambiguous-zone, never crossing 0.3.
+Per-irrep shape is stable across corpora (A1 consistently negative,
+E_ka consistently largest positive) which is structurally meaningful
+but not a viability signal.
+
+Per §12.7 thresholds on the three-corpus aggregate:
+- |ρ| > 0.3 occurs only on one slice of one corpus.
+- |ρ| < 0.1 is not met (all-transitions ρ on fishtest = +0.210).
+- The honest categorical label is **AMBIGUOUS**.
+
+**Derivation C's structural degeneracy.** On all three corpora, the
+16-dim feature vector is identically zero for every position's
+pre-move and post-move snapshot. The cosine metric returns 0.0 (zero-
+norm fallback) for every row. Spearman is NaN across every slice.
+The finding is not "C carries no signal" — it is "cosine similarity
+on attack-density-before-vs-after is structurally degenerate as a
+metric when the pre-move vector is almost always zero." A different
+summary statistic (L2 norm of Δ-vector, attack density at destination
+square, sign-flip counts) might work; per §11.7.4 this is not tuned
+within Phase A.
+
+**Derivation A's fidelity deficit.** Variance explained by the first
+k=5 eigenvectors of the symmetrized attack Laplacian averages 7.3%
+(drnykterstein), 11.1% (ashchess), 10.4% (fishtest) across rows.
+The eigenchannel is not capturing δ_king's L2 norm at k=5. A would
+need k ≥ 16 for a faithful summary, which the prompt scope forbids
+retuning in Phase A. This is noted as a prerequisite for any Phase
+A2 reconsideration.
+
+**Timing (consistent across corpora):**
+- Derivation A: ~2000 µs/call (dominated by scipy.linalg.eigh on 64×64)
+- Derivation B: ~1350 µs/call (dominated by project_irrep)
+- Derivation C: ~250 µs/call (phase-arithmetic only)
+
+**Pairwise cosines (50-position samples, zero-padded common space):**
+- cos(A, B) ≈ 0.0 across all corpora — A and B measure orthogonal things.
+- cos(A, C) ≈ +0.25 (drnykterstein), ≈ 0 (ashchess), ≈ +0.25 (fishtest) — moderate similarity on two of three.
+- cos(B, C) ≈ 0.0 — B and C also orthogonal.
+
+**CSVs on disk** (all gitignored per existing `docs/chess-maths/results/*/` policy):
+- `exp5_king_attack_correlation.csv` (drnykterstein N=10)
+- `exp5_king_attack_correlation_ashchess.csv` (ashchess N=50)
+- `exp5_king_attack_correlation_hf.csv` (fishtest N=50)
+
+Regenerate via the three-line recipe:
+```sh
+python similarity_experiment.py --corpus ../results/<CORPUS> --out exp3_<tag>.csv
+python -m king_attack_encoder.evaluate_encoder --input-csv exp3_<tag>.csv --out exp5_<tag>.csv
+```
+
+**Decision per §12.7.** Phase A is AMBIGUOUS. The researcher decides
+whether to:
+1. Accept the ambiguity as the §12 finding — the HDC construction
+   pattern produces partial king-attack signal (per-irrep structure
+   in B is stable across corpora) that does not durably cross the
+   viability threshold. §11.5's null does not quite generalize to
+   a structural property of the encoder family, but the family also
+   does not obviously extend to king-attack content.
+2. Commission Phase A2 with specific refinements:
+   - Derivation A at k = 16 or 32 (the current k = 5 captures <15%
+     of δ_king's norm).
+   - Derivation C with a non-cosine metric (L2 of Δ-vector, or
+     attack density at destination square).
+   - Derivation B with alternative signal choices (column-sum,
+     attacker-value-weighted row-sum) to test whether row-sum
+     is the limiting factor on B's signal.
+3. Promote Phase B (assembly) only if a specific refined derivation
+   crosses 0.3 durably across all three corpora.
+
+Per §11.7.4 discipline, the AMBIGUOUS label is recorded as the Phase
+A finding regardless of which follow-up (if any) the researcher
+chooses.
