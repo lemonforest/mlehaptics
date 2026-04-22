@@ -461,7 +461,7 @@ Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_ev
 
 **What remains open.** This result closes path 2 *for the check-filter use case*. It does not close the broader §11.5 hypothesis for thermodynamic gradients — phase_similarity's correlation with delta_v1, stockfish_eval, kappa_annihilate, kappa_threat is untested in this run because those columns require a pre-computed Stockfish sweep that was not attached. A follow-up experiment with the full sweep attached is the appropriate vehicle for that analysis.
 
-**What this motivates.** The null result raises a structural research question independent of §11.5's stated scope: *should the encoder family be extended to include king-attack content, and is there a principled derivation that produces such a channel naturally?* This question is addressed in a parallel experiment (§12 — to be documented after the parallel king-attack encoder returns data). It is not a modification of the C17 encoder; it is a separate instrument built from the same mathematical discipline, tested against the same CSV produced by §11.5.
+**What this motivates.** The null result raises a structural research question independent of §11.5's stated scope: *should the encoder family be extended to include king-attack content, and is there a principled derivation that produces such a channel naturally?* This question is addressed in a parallel experiment (§12 — to be documented after the parallel king-attack encoder returns data). It is not a modification of the existing 640-dim encoder; it is a separate instrument built from the same mathematical discipline, tested against the same CSV produced by §11.5.
 
 **Timing (mean per call, naive Python, same positions):**
 - python-chess `is_check` (reference): 22 µs
@@ -589,8 +589,8 @@ All three outcomes advance the research. None of them is wasted effort.
 
 ## §12. Parallel King-Attack Encoder
 
-> **Status.** Working experiment. Triggered by §11.5.6's validated null for path-2 check filtering in the C17 encoder. Asks whether a separate HDC instrument, derived from the same mathematical discipline that produced C17 but targeting king-attack structure specifically, can expose the signal that C17 does not.
+> **Status.** Working experiment. Triggered by §11.5.6's validated null for path-2 check filtering in the 640-dim encoder (`encode_640` in the `chess_spectral` package). Asks whether a separate HDC instrument, derived from the same mathematical discipline that produced `encode_640` but targeting king-attack structure specifically, can expose the signal that `encode_640` does not.
 >
 > Lives in [PHASE_OPERATOR_SUPPLEMENT_12.md](PHASE_OPERATOR_SUPPLEMENT_12.md) as a standalone document pending experimental validation. See that file for derivation, construction, and comparison protocol.
 >
-> **Important scoping.** §12 does not modify C17. C17 remains the validated 640-dim encoder for §9 and §11's experiments. §12 is a parallel instrument built to answer a specific question C17 did not answer. If §12 succeeds, the HDC encoder family has a king-attack member; if §12 fails, C17's construction pattern does not support king-attack content naturally and the null result from §11.5 reflects a structural property of that construction pattern, not a gap.
+> **Important scoping.** §12 does not modify `encode_640`. The existing 640-dim encoder remains the validated instrument for §9 and §11's experiments. §12 is a parallel instrument built to answer a specific question `encode_640` did not answer. If §12 succeeds, the HDC encoder family has a king-attack member; if §12 fails, the existing encoder's construction pattern does not support king-attack content naturally and the null result from §11.5 reflects a structural property of that construction pattern, not a gap.
