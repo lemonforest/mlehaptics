@@ -19,6 +19,14 @@ import sys
 import time
 from pathlib import Path
 
+# Windows console: default cp1252 cannot encode § or ≠ glyphs in the
+# help text. Reconfigure stdout/stderr to UTF-8 so researchers see
+# the supplement section references correctly on any platform.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import chess
 
 from chess_spectral.phase_operators import (
@@ -239,13 +247,59 @@ def main() -> int:
                    / "results" / "phase_operator_experiments"
                    / "exp2_occupation_equivalence_abc.csv")
 
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--corpus", type=Path, default=default_corpus)
-    parser.add_argument("--n-positions", type=int, default=100)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--out", type=Path, default=default_out)
-    parser.add_argument("--fail-on-disagreement", action="store_true",
-                        help="Exit 1 if A ≠ B or B ≠ C anywhere.")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Reproduce the §11.4 headline result (default 100 positions, seed 42)
+  python occupation_equivalence_check.py
+  # -> "A matches python-chess: 1153/1153 (100.00%)"
+  # -> "B matches C:            1153/1153 (100.00%)"  (phase-native sanity)
+  # -> "B matches python-chess: 1086/1153  (94.19%)"  (residual is check filter)
+
+  # Larger sample for the supplement's stability claim
+  python occupation_equivalence_check.py --n-positions 500 --seed 7
+
+  # Different corpus (must contain an ndjson/ subdirectory; see
+  # docs/chess-maths/results/*/ for available samples)
+  python occupation_equivalence_check.py --corpus ../results/sweep_hf_2026-04-20_N50
+
+  # CI lock on phase-native agreement: A ≠ B or B ≠ C exits nonzero
+  python occupation_equivalence_check.py --fail-on-disagreement
+
+see also:
+  benchmark_solutions.py              — timings for A/B/C at same correctness
+  PHASE_OPERATOR_SUPPLEMENT.md §11.4  — the experiment this CLI validates
+""")
+    parser.add_argument(
+        "--corpus", type=Path, default=default_corpus,
+        help="Corpus directory containing an ndjson/ subdirectory of "
+             "per-game FEN streams. Default: the drnykterstein N=10 "
+             "sample at ../results/.")
+    parser.add_argument(
+        "--n-positions", type=int, default=100,
+        help="Number of positions to sample from the corpus. Default "
+             "100 (matches supplement §11.4 headline). Increase for "
+             "tighter statistical bounds.")
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="Random seed for deterministic position sampling. "
+             "Default: 42 (matches supplement §11.4 reproducibility).")
+    parser.add_argument(
+        "--out", type=Path, default=default_out,
+        help="Output CSV path (parents created). One row per "
+             "(position, polarization, origin) sampled; columns "
+             "include all four channels' destination sets and "
+             "per-solution timings. Default: "
+             "../results/phase_operator_experiments/"
+             "exp2_occupation_equivalence_abc.csv (gitignored).")
+    parser.add_argument(
+        "--fail-on-disagreement", action="store_true",
+        help="Exit nonzero if Solutions A, B, and C disagree on any "
+             "sampled piece (i.e., any row where A ≠ B or B ≠ C). "
+             "The supplement §11.4 claim is that A/B/C converge 100%% "
+             "on every position; use in CI to lock the phase-native "
+             "cross-validation.")
     args = parser.parse_args()
 
     summary = run(args.corpus, args.n_positions, args.seed, args.out)

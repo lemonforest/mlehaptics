@@ -67,8 +67,16 @@ import argparse
 import csv
 import json
 import random
+import sys
 import time
 from pathlib import Path
+
+# Windows console: default cp1252 cannot encode § or ≠ glyphs in the
+# help text and summary output. Reconfigure stdout/stderr to UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import chess
 
