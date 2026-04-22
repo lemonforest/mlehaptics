@@ -7,14 +7,14 @@ shared with Solution C.
 """
 import chess
 
-from phase_operators import phi, MODULUS
-from phase_to_coords import PHI_TO_RC
-from occupation_field import (
+from .phase_operators import phi, MODULUS
+from .phase_to_coords import PHI_TO_RC
+from .occupation_field import (
     WHITE_CHARGE,
     king_destinations, knight_destinations, pawn_destinations,
     ep_phase_from_board,
 )
-from castling import castle_king_destinations
+from .castling import castle_king_destinations
 
 
 _ROOK_RAYS: tuple[int, ...] = (67, -67, 7, -7)
@@ -61,7 +61,7 @@ def occupation_aware_moves_b(board: chess.Board, piece_char: str,
                              mover_charge: int,
                              occupation: dict[int, int] | None = None,
                              ) -> frozenset[tuple[int, int]]:
-    from occupation_field import occupation_field_from_board
+    from .occupation_field import occupation_field_from_board
     if occupation is None:
         occupation = occupation_field_from_board(board)
     origin_phi = phi(origin_r, origin_c)

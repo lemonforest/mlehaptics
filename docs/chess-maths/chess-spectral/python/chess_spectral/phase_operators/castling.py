@@ -31,7 +31,7 @@ from dataclasses import dataclass
 
 import chess
 
-from phase_operators import phi, COL_GEN
+from .phase_operators import phi, COL_GEN
 
 
 @dataclass(frozen=True)

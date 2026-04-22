@@ -3,16 +3,14 @@
 Mirror of test_occupation_aware_c.py; both must produce identical results
 on every fixture per §11.4.3 equivalence claim.
 """
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chess
 
-import chess  # noqa: E402
-
-from occupation_field import WHITE_CHARGE, BLACK_CHARGE  # noqa: E402
-from occupation_aware_b import occupation_aware_moves_b  # noqa: E402
+from chess_spectral.phase_operators import (
+    WHITE_CHARGE, BLACK_CHARGE,
+    occupation_aware_moves_b,
+)
 
 
 def _board_with(pieces: dict[str, str]) -> chess.Board:

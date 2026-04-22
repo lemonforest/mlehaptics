@@ -38,6 +38,15 @@ import subprocess
 import sys
 from typing import Iterable, Iterator, TextIO
 
+# Windows console: default cp1252 cannot encode the em-dash, arrow,
+# and box-drawing glyphs used in this CLI's help text and status
+# output. Reconfigure stdout/stderr to UTF-8 so `--help` renders on
+# any platform.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import numpy as np
 
 from chess_spectral import (

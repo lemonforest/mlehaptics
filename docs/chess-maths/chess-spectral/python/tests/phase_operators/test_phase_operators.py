@@ -1,28 +1,22 @@
 """Unit tests for the §11.2 phase operators and §11.3 inversion.
 
-Per build-prompt: unittest only, no pytest dependency. Run from the
-phase_operators/ directory with:
+Run via pytest from the repo root or from the python/ package dir:
 
-    python -m unittest discover
+    pytest docs/chess-maths/chess-spectral/python/tests/phase_operators/
+
+(unittest discovery still works because pytest collects unittest-style
+TestCase subclasses).
 """
 import math
-import sys
 import unittest
-from pathlib import Path
 
-# Allow running as `python -m unittest discover` from the package dir —
-# tests/ sits alongside the modules, so one level up is importable.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from phase_operators import (  # noqa: E402
+from chess_spectral.phase_operators import (
     MODULUS, ROW_GEN, COL_GEN,
     DIAG_NE_SW_GEN, DIAG_NW_SE_GEN,
     KNIGHT_SHIFTS, KING_SHIFTS,
     phi,
     P_rook, P_bishop, P_queen, P_king, P_knight,
     P_pawn_white, P_pawn_black,
-)
-from phase_to_coords import (  # noqa: E402
     PHI_TO_RC, RC_TO_PHI,
     invert, phase_set_to_board,
 )

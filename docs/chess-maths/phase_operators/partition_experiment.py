@@ -1,4 +1,4 @@
-"""Section11.6 Phase A CLI: partition detection in phase space.
+"""§11.6 Phase A CLI: partition detection in phase space.
 
 For each game in a corpus, encode every ply, compute pairwise cosine
 similarity, detect phase clusters at a sweep of thresholds, and emit a
@@ -17,6 +17,13 @@ import json
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+# Windows console: default cp1252 cannot encode § glyphs used in the
+# help text. Reconfigure stdout/stderr to UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import numpy as np
 
@@ -354,23 +361,76 @@ def print_summary(result: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Reproduce the §11.6 Phase A headline on one of the three corpora
+  python partition_experiment.py \\
+      --corpus ../results/sweep_chain_lichess_drnykterstein_2026-04-14_N10
+  # -> per-tau clusters/game stats
+  # -> continuous-drift ρ per threshold (strongly positive → DRIFT)
+  # -> Phase A outcome label: DRIFT / CLEAR / INDETERMINATE
+
+  # Three-corpus durability check (§11.6.6.1 validated null)
+  for c in sweep_chain_lichess_drnykterstein_2026-04-14_N10 \\
+           sweep_chain_lichess_ashchess_2026-04-21_N50 \\
+           sweep_hf_2026-04-20_N50; do
+    python partition_experiment.py \\
+        --corpus ../results/$c \\
+        --out ../results/phase_operator_experiments/exp4_partitions_${c}.csv
+  done
+
+  # Attach Stockfish eval data for optional cross-reference columns
+  # (kappa_annihilate, kappa_threat, delta_v1 per position). See
+  # §11.6.5 for the Phase B deferral; columns are empty-by-default.
+  python partition_experiment.py \\
+      --corpus ../results/sweep_chain_lichess_drnykterstein_2026-04-14_N10 \\
+      --stockfish-csv ../results/stockfish_correlation/stockfish_evaluations_v2.csv
+
+  # Quick dev iteration on a single game
+  python partition_experiment.py \\
+      --corpus ../results/sweep_chain_lichess_drnykterstein_2026-04-14_N10 \\
+      --games 1 --verbose
+
+see also:
+  similarity_experiment.py             — §11.5 move-level phase similarity
+  PHASE_OPERATOR_SUPPLEMENT.md §11.6   — the experiment this CLI runs
+""")
     parser.add_argument(
         "--corpus", type=Path, required=True,
-        help="Path to corpus directory containing ndjson/")
+        help="Corpus directory containing an ndjson/ subdirectory of "
+             "per-game FEN streams (one file per game, one JSON "
+             "object per ply).")
     parser.add_argument(
         "--thresholds", type=float, nargs="+",
-        default=[0.70, 0.80, 0.85, 0.90, 0.95])
+        default=[0.70, 0.80, 0.85, 0.90, 0.95],
+        help="Cosine-similarity thresholds τ to sweep. At each τ the "
+             "CLI identifies maximal consecutive-ply clusters and "
+             "records drift-ρ vs cluster size. Default covers the "
+             "range used in §11.6.6.1 (0.70..0.95 in 0.05 steps).")
     parser.add_argument(
         "--stockfish-csv", type=Path, default=None,
-        help="Optional per-move Stockfish CSV for cross-reference join")
+        help="Optional per-move Stockfish CSV (e.g., "
+             "stockfish_evaluations_v2.csv). When present, per-"
+             "position κ and delta columns are joined into the "
+             "output. Absence is expected in the §11.6 Phase A "
+             "scope; see §11.6.5 for the Phase B deferral.")
     parser.add_argument(
         "--out", type=Path,
         default=Path("../results/phase_operator_experiments/"
-                     "exp4_partitions.csv"))
-    parser.add_argument("--games", type=int, default=0,
-                        help="Limit to first N games (default: all)")
-    parser.add_argument("--verbose", action="store_true")
+                     "exp4_partitions.csv"),
+        help="Output CSV path (parents created). Per-ply rows; schema "
+             "defined by §11.6.3. Default: "
+             "../results/phase_operator_experiments/exp4_partitions.csv "
+             "(gitignored).")
+    parser.add_argument(
+        "--games", type=int, default=0,
+        help="Limit processing to the first N games for quick "
+             "iteration. Default: 0 (= process the full corpus).")
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="Print per-game progress (game id, ply count) as the "
+             "CLI iterates the corpus. Useful when debugging a "
+             "specific game or tracking long-corpus throughput.")
     args = parser.parse_args()
 
     result = run(

@@ -4,6 +4,9 @@ Validates that phase-algebra destinations from §11.2 operators match
 python-chess empty-board legal moves over all (polarization, origin)
 pairs, writes a CSV per §11.3.5, and prints a summary to stdout.
 
+Requires the chess_spectral package to be importable
+(``pip install -e ../chess-spectral/python/`` if running from source).
+
 Run from this directory:
     python equivalence_check.py [--out PATH] [--fail-on-mismatch]
 """
@@ -12,13 +15,22 @@ import csv
 import sys
 from pathlib import Path
 
+# Windows console: default cp1252 cannot encode the § glyph used in
+# this script's --help description and its stdout summary. Reconfigure
+# stdout/stderr to UTF-8 so researchers on any platform see the
+# supplement section references rendered correctly.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import chess
 
-from phase_operators import (
+from chess_spectral.phase_operators import (
     phi, P_rook, P_bishop, P_queen, P_king, P_knight,
     P_pawn_white, P_pawn_black,
+    phase_set_to_board,
 )
-from phase_to_coords import phase_set_to_board
 
 
 POLARIZATIONS = ["N", "B", "R", "Q", "K", "P_white", "P_black"]
@@ -117,14 +129,39 @@ def run_experiment_1() -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Reproduce the §11.3 headline result
+  python equivalence_check.py
+  # -> writes exp1_equivalence.csv; prints "§11.3 complete: 416/416 pairs equivalent"
+
+  # CI-style check: exit nonzero if any polarization disagrees with python-chess.
+  # Useful for locking the §11.3 result in automation; the supplement's
+  # correctness claim is that this exits 0 every time.
+  python equivalence_check.py --fail-on-mismatch
+
+  # Custom output location
+  python equivalence_check.py --out /tmp/phase_ops_exp1.csv
+
+see also:
+  occupation_equivalence_check.py  — §11.4 occupation-aware four-way validation
+  PHASE_OPERATOR_SUPPLEMENT.md §11.3 — the experiment this CLI validates
+""")
     parser.add_argument(
         "--out", type=Path,
         default=Path(__file__).resolve().parents[1]
         / "results" / "phase_operator_experiments" / "exp1_equivalence.csv",
-        help="Output CSV path (parents created).")
-    parser.add_argument("--fail-on-mismatch", action="store_true",
-                        help="Exit nonzero if any (polarization, origin) mismatches.")
+        help="Output CSV path (parent directories created if missing). "
+             "Default: ../results/phase_operator_experiments/"
+             "exp1_equivalence.csv (gitignored; regenerate per run).")
+    parser.add_argument(
+        "--fail-on-mismatch", action="store_true",
+        help="Exit nonzero if any (polarization, origin) pair produces a "
+             "phase-space destination set that disagrees with python-chess's "
+             "legal moves. The §11.3 supplement claim is that this never "
+             "fires; use in CI to lock the correctness guarantee.")
     args = parser.parse_args()
 
     rows = run_experiment_1()

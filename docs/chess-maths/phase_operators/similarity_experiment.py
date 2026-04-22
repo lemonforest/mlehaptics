@@ -19,11 +19,22 @@ import sys
 import time
 from pathlib import Path
 
+# Windows console: default cp1252 cannot encode § glyphs used in the
+# help text and the §11.5.5 stdout summary. Reconfigure stdout/stderr
+# to UTF-8 so researchers see supplement section references on any
+# platform.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 import chess
 import numpy as np
 from scipy.stats import spearmanr
 
-from phase_check_detection import move_leaves_king_in_check, phasecast_is_check
+from chess_spectral.phase_operators import (
+    move_leaves_king_in_check, phasecast_is_check,
+)
 from phase_similarity import phase_similarity
 
 
@@ -394,21 +405,65 @@ def print_summary(result: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Reproduce the §11.5 headline result (drnykterstein N=10 corpus)
+  python similarity_experiment.py
+  # -> writes exp3_phase_similarity.csv
+  # -> prints Spearman ρ(phase_similarity, is_check_unsafe) per
+  #    polarization slice; headline |ρ|=0.097 max (validated null)
+
+  # Larger sample for tighter bounds on the §11.5.6 null claim
+  python similarity_experiment.py --n-positions 500 --seed 7
+
+  # Different corpus (§11.5 was validated three-way in §12 across
+  # drnykterstein GM-classical, ashchess FM-blitz, fishtest engine-blitz)
+  python similarity_experiment.py \\
+      --corpus ../results/sweep_hf_2026-04-20_N50 \\
+      --out ../results/phase_operator_experiments/exp3_phase_similarity_hf.csv
+
+  # CI lock on path-1 correctness (phase_check_detection vs python-chess)
+  python similarity_experiment.py --fail-on-mismatch
+
+see also:
+  partition_experiment.py              — §11.6 position-level partition detection
+  PHASE_OPERATOR_SUPPLEMENT.md §11.5   — the experiment this CLI runs
+""")
     parser.add_argument(
         "--corpus", type=Path,
         default=Path("../results/"
-                     "sweep_chain_lichess_drnykterstein_2026-04-14_N10"))
-    parser.add_argument("--n-positions", type=int, default=100)
-    parser.add_argument("--seed", type=int, default=42)
+                     "sweep_chain_lichess_drnykterstein_2026-04-14_N10"),
+        help="Corpus directory containing an ndjson/ subdirectory of "
+             "per-game FEN streams. Default: the drnykterstein N=10 "
+             "sample that the §11.5.6 null result was measured on.")
+    parser.add_argument(
+        "--n-positions", type=int, default=100,
+        help="Positions to sample from the corpus. Every pseudo-legal "
+             "transition out of each sampled position becomes one row. "
+             "Default 100 (~3000-3500 transitions; matches supplement "
+             "§11.5 headline).")
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="Random seed for deterministic position sampling. "
+             "Default 42 (matches supplement §11.5 reproducibility).")
     parser.add_argument(
         "--out", type=Path,
         default=Path("../results/phase_operator_experiments/"
-                     "exp3_phase_similarity.csv"))
+                     "exp3_phase_similarity.csv"),
+        help="Output CSV path (parents created). Schema defined by "
+             "§11.5.4: per-transition phase_similarity, "
+             "is_check_unsafe (python-chess reference), "
+             "is_check_unsafe_phasecast (path-1 reference), "
+             "phasecast_matches_chess, per-path timings, capture "
+             "flag, delta_material. §12 evaluate_encoder.py consumes "
+             "this CSV as input.")
     parser.add_argument(
         "--fail-on-mismatch", action="store_true",
-        help="Exit 1 if path-1 phasecast disagrees with python-chess "
-             "on any row.")
+        help="Exit nonzero if path-1 phasecast_is_check disagrees "
+             "with python-chess's is_check on any sampled transition. "
+             "The §11.5 path-1 supplement claim is that this never "
+             "fires (validated 3393/3393); use in CI to lock the "
+             "phase-native check-detector correctness guarantee.")
     args = parser.parse_args()
 
     result = run(args.corpus, args.n_positions, args.seed, args.out,

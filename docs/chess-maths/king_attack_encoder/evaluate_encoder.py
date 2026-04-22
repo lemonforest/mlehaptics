@@ -1,7 +1,7 @@
-"""Section 12 evaluation: Derivations A, B, C similarity vs is_check_unsafe.
+"""§12 evaluation: Derivations A, B, C similarity vs is_check_unsafe.
 
 Reads results/phase_operator_experiments/exp3_phase_similarity.csv
-(the Section 11.5 output with is_check_unsafe labels), recomputes king-
+(the §11.5 output with is_check_unsafe labels), recomputes king-
 attack similarity for each transition under each derivation, appends
 those columns to the CSV, and reports Spearman correlations per
 derivation and per polarization slice.
@@ -17,6 +17,13 @@ import random
 import sys
 import time
 from pathlib import Path
+
+# Windows console: default cp1252 cannot encode § or ρ glyphs used in
+# the stdout summary. Reconfigure stdout/stderr to UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import chess
 import numpy as np
@@ -436,16 +443,70 @@ def print_summary(summary: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--input-csv", type=Path, required=True)
-    parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--sample-for-diagnostics", type=int,
-                        default=50)
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Phase A2 headline: evaluate all three derivations on the
+  # drnykterstein §11.5 CSV with k=16 eigenvectors for Derivation A
+  python -m king_attack_encoder.evaluate_encoder \\
+      --input-csv results/phase_operator_experiments/exp3_phase_similarity.csv \\
+      --out results/phase_operator_experiments/exp5_king_attack_correlation_a2.csv \\
+      --k-for-a 16
+  # -> prints per-derivation max |ρ| per slice, tautological baseline
+  #    check, Phase A decision label (VIABLE / AMBIGUOUS / NULL)
+
+  # Three-corpus durability (§12.10.1 validated VIABLE on B king-moves)
+  for tag in "" _ashchess _hf; do
+    python -m king_attack_encoder.evaluate_encoder \\
+        --input-csv results/phase_operator_experiments/exp3_phase_similarity${tag}.csv \\
+        --out results/phase_operator_experiments/exp5_king_attack_correlation_a2${tag}.csv \\
+        --k-for-a 16
+  done
+
+  # Reproduce Phase A (k=5) to compare against Phase A2's k=16 result
+  python -m king_attack_encoder.evaluate_encoder \\
+      --input-csv results/phase_operator_experiments/exp3_phase_similarity.csv \\
+      --out results/phase_operator_experiments/exp5_phase_a_k5.csv \\
+      --k-for-a 5
+
+  # Escalate to k=32 if variance-explained at k=16 is below 0.80
+  # ("faithful" threshold per §12.7.1)
+  python -m king_attack_encoder.evaluate_encoder \\
+      --input-csv results/phase_operator_experiments/exp3_phase_similarity.csv \\
+      --out results/phase_operator_experiments/exp5_a_k32.csv \\
+      --k-for-a 32
+
+see also:
+  similarity_experiment.py                   — generates the §11.5 input CSV
+  PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.1  — Phase A2 evaluation + turn-flip fix
+  PHASE_OPERATOR_SUPPLEMENT_12.md §12.10.1   — three-corpus VIABLE verdict
+""")
+    parser.add_argument(
+        "--input-csv", type=Path, required=True,
+        help="Path to the §11.5 output CSV (exp3_phase_similarity.csv "
+             "or its per-corpus variants). Each row is one pseudo-"
+             "legal transition with the is_check_unsafe label this "
+             "CLI correlates against. Three separate CSVs exist — "
+             "drnykterstein, ashchess, fishtest — per the §12.10.1 "
+             "three-corpus durability protocol.")
+    parser.add_argument(
+        "--out", type=Path, required=True,
+        help="Output CSV path (parents created). Same schema as the "
+             "input plus Derivation A/B/C similarity columns, delta_c, "
+             "mag_c_after, var_exp_a, and per-derivation timings. "
+             "Phase A outputs use exp5_..._a2.csv (k=16 post turn-flip "
+             "fix); Phase A k=5 outputs used exp5_...csv.")
+    parser.add_argument(
+        "--sample-for-diagnostics", type=int, default=50,
+        help="Number of unique positions used for the pairwise "
+             "cos(A,B), cos(A,C), cos(B,C) diagnostics reported in "
+             "the stdout summary. Does not affect correlation "
+             "numbers (those use all rows). Default 50.")
     parser.add_argument(
         "--k-for-a", type=int, default=16,
-        help="Number of eigenvectors to use for Derivation A "
-             "(default: 16 per Phase A2; k=5 was the Phase A setting "
-             "and can be reproduced by passing --k-for-a 5).")
+        help="Number of Laplacian eigenvectors used for Derivation A. "
+             "Default 16 per §12.7.1 (partial variance-explained ~60%% "
+             "on drnykterstein; escalate to 32 for \"faithful\" ≥80%%). "
+             "Pass 5 to reproduce the original Phase A k setting.")
     args = parser.parse_args()
 
     t0 = time.perf_counter()

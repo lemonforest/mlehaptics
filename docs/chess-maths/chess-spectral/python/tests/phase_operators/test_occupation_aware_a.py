@@ -3,16 +3,14 @@
 Mirror of test_occupation_aware_{b,c}.py; A must produce identical sets
 on every fixture per §11.4 four-way convergence.
 """
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chess
 
-import chess  # noqa: E402
-
-from occupation_field import WHITE_CHARGE, BLACK_CHARGE  # noqa: E402
-from occupation_aware_a import occupation_aware_moves_a  # noqa: E402
+from chess_spectral.phase_operators import (
+    WHITE_CHARGE, BLACK_CHARGE,
+    occupation_aware_moves_a,
+)
 
 
 def _board_with(pieces: dict[str, str], turn: chess.Color = chess.WHITE) -> chess.Board:

@@ -1,14 +1,10 @@
 """§11.5 path-1 phase-native is_check tests."""
 import random
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chess
 
-import chess  # noqa: E402
-
-from phase_check_detection import phasecast_is_check  # noqa: E402
+from chess_spectral.phase_operators import phasecast_is_check
 
 
 class TestPhaseCheckDetection(unittest.TestCase):

@@ -1,14 +1,10 @@
 """Unit tests for occupation_field.py (§11.4 substrate)."""
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chess
 
-import chess  # noqa: E402
-
-from phase_operators import phi  # noqa: E402
-from occupation_field import (  # noqa: E402
+from chess_spectral.phase_operators import (
+    phi,
     WHITE_CHARGE, BLACK_CHARGE,
     occupation_field_from_board,
     is_own_charge,

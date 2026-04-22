@@ -5,7 +5,7 @@ PHI_TO_RC is that image built once at import; invert() is a single dict
 lookup returning None for phases outside the board image (the 576 holes).
 phase_set_to_board drops off-image phases, implementing the boundary clip.
 """
-from phase_operators import MODULUS, phi
+from .phase_operators import MODULUS, phi
 
 
 def _build_tables() -> tuple[dict[int, tuple[int, int]], dict[tuple[int, int], int]]:
