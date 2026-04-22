@@ -72,17 +72,19 @@ from pathlib import Path
 
 import chess
 
-from castling import castle_king_destinations
-from occupation_field import (
+from chess_spectral.phase_operators import (
+    castle_king_destinations,
     WHITE_CHARGE, BLACK_CHARGE, occupation_field_from_board,
+    occupation_aware_moves_a,
+    occupation_aware_moves_b,
+    occupation_aware_moves_c,
 )
-from occupation_aware_a import (
+# Private helpers (underscore-prefixed, not re-exported at subpackage
+# level) — imported directly from the source module.
+from chess_spectral.phase_operators.occupation_aware_a import (
     _unobstructed_dests,
     _chess_legal_dests,
-    occupation_aware_moves_a,
 )
-from occupation_aware_b import occupation_aware_moves_b
-from occupation_aware_c import occupation_aware_moves_c
 
 
 _PIECE_CHARS = {

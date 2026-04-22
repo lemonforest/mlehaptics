@@ -23,29 +23,16 @@ to be strong. C therefore serves as a REFINED BASELINE: any
 derivation (A or B) that beats C's correlation is carrying signal
 beyond direct enumeration of attack-line occupation.
 """
-import sys
-from pathlib import Path
-
 import chess
 import numpy as np
 
-# The phase_operators modules live at docs/chess-maths/phase_operators/
-# and import each other as top-level modules (e.g., phase_to_coords.py
-# does `from phase_operators import MODULUS` which resolves to
-# phase_operators.py as a sibling module, NOT the package __init__.py).
-# Mirror that layout by putting the inner directory on sys.path, not
-# its parent.
-_PHASE_OPS_DIR = Path(__file__).resolve().parent.parent / "phase_operators"
-if str(_PHASE_OPS_DIR) not in sys.path:
-    sys.path.insert(0, str(_PHASE_OPS_DIR))
-
-from phase_operators import (  # noqa: E402
+from chess_spectral.phase_operators import (
     phi, MODULUS, ROW_GEN, COL_GEN,
     DIAG_NE_SW_GEN, DIAG_NW_SE_GEN,
     P_king, P_knight,
+    PHI_TO_RC,
+    occupation_field_from_board,
 )
-from phase_to_coords import PHI_TO_RC  # noqa: E402
-from occupation_field import occupation_field_from_board  # noqa: E402
 
 
 FEATURE_DIM = 16

@@ -23,7 +23,9 @@ import chess
 import numpy as np
 from scipy.stats import spearmanr
 
-from phase_check_detection import move_leaves_king_in_check, phasecast_is_check
+from chess_spectral.phase_operators import (
+    move_leaves_king_in_check, phasecast_is_check,
+)
 from phase_similarity import phase_similarity
 
 

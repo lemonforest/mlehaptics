@@ -21,12 +21,12 @@ from pathlib import Path
 
 import chess
 
-from occupation_field import (
+from chess_spectral.phase_operators import (
     WHITE_CHARGE, BLACK_CHARGE, occupation_field_from_board,
+    occupation_aware_moves_a,
+    occupation_aware_moves_b,
+    occupation_aware_moves_c,
 )
-from occupation_aware_a import occupation_aware_moves_a
-from occupation_aware_b import occupation_aware_moves_b
-from occupation_aware_c import occupation_aware_moves_c
 
 
 _PIECE_CHARS = {

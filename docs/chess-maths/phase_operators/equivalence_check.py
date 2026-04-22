@@ -4,6 +4,9 @@ Validates that phase-algebra destinations from §11.2 operators match
 python-chess empty-board legal moves over all (polarization, origin)
 pairs, writes a CSV per §11.3.5, and prints a summary to stdout.
 
+Requires the chess_spectral package to be importable
+(``pip install -e ../chess-spectral/python/`` if running from source).
+
 Run from this directory:
     python equivalence_check.py [--out PATH] [--fail-on-mismatch]
 """
@@ -14,11 +17,11 @@ from pathlib import Path
 
 import chess
 
-from phase_operators import (
+from chess_spectral.phase_operators import (
     phi, P_rook, P_bishop, P_queen, P_king, P_knight,
     P_pawn_white, P_pawn_black,
+    phase_set_to_board,
 )
-from phase_to_coords import phase_set_to_board
 
 
 POLARIZATIONS = ["N", "B", "R", "Q", "K", "P_white", "P_black"]
