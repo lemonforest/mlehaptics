@@ -1,0 +1,322 @@
+# Parallel King-Attack Encoder: Notebook Supplement
+
+**Status:** working supplement. Triggered by §11.5.6's validated null
+for path-2 check filtering and §11.6.6.1's three-corpus DRIFT null on
+`encode_640`. Asks whether a parallel HDC instrument targeting
+king-attack structure can carry the signal `encode_640` does not.
+
+**Framing:** this is not an extension of `encode_640`. It is a parallel
+instrument built from the same mathematical discipline that produced
+`encode_640`. Per UTLP S3 §14's segmentation result, the combined
+representation is `[encode_640 | encode_king_attack]` with the two
+segments concatenated rather than superimposed.
+
+**Language discipline.** Same as the main supplement: polarization,
+lattice domain, phase transition, coprime cyclic phase space. The
+"king" in "king-attack encoder" is the royal polarization state
+under attack; the encoder measures the field-theoretic structure of
+attack relationships against that polarization.
+
+**Architectural constraint — UTLP S3 §14.** Adding a new channel by
+superposition into `encode_640` would rotate every dimension's
+sign-vote and destroy the existing similarity structure (Frady et al.
+2022 cross-tier interference; see UTLP S3 §14.2). Segmentation —
+concatenating a parallel vector rather than mixing channels — avoids
+this. The §11 baselines remain valid; the new signal lives in a
+disjoint subspace.
+
+---
+
+## §12.1 Motivation
+
+Three findings from the §11 arc frame the §12 question:
+
+1. **§11.3 / §11.4.** The phase-operator move generator reproduces
+   python-chess's `pseudo_legal_moves` at 100% across four independent
+   channels (A/B/C/python-chess) after the §11.4.3.1 castling fix and
+   the §11.4.3.2/3 en passant + promotion wrappers. The 640-dim
+   encoder's coprime-cyclic representation fully captures chess move
+   geometry.
+
+2. **§11.5.6.** Phase-tuple similarity between pre-move and post-move
+   `encode_640` vectors does **not** correlate with `is_check_unsafe`.
+   Max |ρ| = 0.097 across nine polarization/capture slices, n = 3393
+   transitions. The encoder is blind to king-attack geometry at the
+   similarity level.
+
+3. **§11.6.6.1.** The same encoder produces continuous trajectories
+   through game positions rather than discrete phase-cells. Across
+   three structurally orthogonal corpora (110 games, 14,729 plies,
+   GM classical / FM blitz / engine blitz), all 15 drift-ρ measurements
+   are strongly positive (+0.46 to +0.84) and cluster counts rise
+   monotonically with τ without a plateau.
+
+**Shared diagnosis.** `encode_640` is a **content descriptor** (what
+pieces are at what phases) rather than a **discontinuity detector**
+(what's dangerous, what's transitional). The construction — D4
+irreps plus rank-3 fiber SVD plus FA/FD channels — produces
+bundled-HDC superpositions where every piece contributes to every
+mode. Changes accumulate smoothly. None of the constituent
+derivations produces discrete cluster boundaries or king-attack
+geometry as a first-order output.
+
+**The §12 question.** Can a parallel HDC instrument, derived from
+the same mathematical discipline as `encode_640` but targeting
+king-attack structure specifically, expose signal that `encode_640`
+does not?
+
+**Three possible outcomes** (per §11.7.4 discipline):
+
+- **|ρ| > 0.3 on any derivation:** king-attack encoder viable. The
+  HDC family extends to king-attack content. §11.5's null was
+  specific to `encode_640`, not structural to the encoder family.
+
+- **|ρ| < 0.1 across all three derivations:** the construction
+  pattern does not naturally produce king-attack content. The §11.5
+  null generalizes to a structural property of the encoder family.
+  Three independent derivations failing is strong evidence that the
+  mathematics does not support the construction.
+
+- **0.1 ≤ |ρ| < 0.3 on any derivation:** ambiguous. Researcher
+  decides whether to refine derivations or accept the ambiguity.
+
+All three outcomes advance the research record. None is wasted effort.
+
+**Why now.** §11.5's null left open whether a different encoder might
+carry the signal. §11.6 sharpened the question: whatever constituent
+mathematics would produce **discontinuity structure** on game
+trajectories is the same mathematics that would plausibly produce
+**king-attack signal** on individual transitions. Both are about the
+encoder being sensitive to threshold crossings rather than to
+continuous accumulation. Derivation A (king-centered Laplacian
+eigendecomposition) is the most motivated candidate in this light;
+its eigenstructure is a property of the position-dependent attack
+graph, and topology changes discretely when a piece moves into or
+out of an attack line. Whether that discontinuity actually correlates
+with `is_check_unsafe` is empirical — but the construction has a
+structural reason to expect the correlation, which is more than §11.5
+could say in advance.
+
+## §12.2 Derivation discipline
+
+Each channel in the king-attack encoder must be derivable from a
+**specific mathematical object**. Just as `encode_640`'s channels
+come from D4 irreps, fiber SVD, pawn antisymmetry, and diagonal
+deviation — each with its own derivation — §12's channels must come
+from named mathematical objects of the lattice and the attack
+structure. No channel may exist because a use case demands it. No
+channel may be tuned to produce a desired correlation outcome.
+
+This is the same rule as §11.7.4: record failures, do not repair them.
+
+If the mathematics does not produce a coherent channel, the
+construction fails and we record the failure as the finding. Do not
+engineer around it.
+
+## §12.3 Derivation A — King-centered Laplacian eigenchannel
+
+**Mathematical object.** The position-dependent 64×64 attack
+Laplacian L_ka, where L_ka[i, j] = −1 if square j is attacked by an
+opponent piece on square i (with i ≠ j), L_ka[i, i] = deg(i), and
+L_ka[i, j] = 0 otherwise. This is the combinatorial Laplacian of the
+opponent-attack graph restricted to the current position. Because the
+attack relation is directed but the eigenstructure is more
+interpretable on the symmetric version, the working definition
+symmetrizes via L = D − (A + Aᵀ)/2; the directional content is
+retained in the unsymmetrized A_ka consumed by Derivation B.
+
+**Channel derivation.** Compute eigendecomposition of L_ka. Project
+the king's unit impulse δ_king (a 64-dim vector with 1 at the king's
+square and 0 elsewhere) onto the first k eigenvectors (ascending
+eigenvalue order). The projection magnitudes form a k-dimensional
+feature vector.
+
+k is chosen empirically to match `encode_640`'s fiber-channel count
+(3 or 5). Phase A defaults k = 5. Variance-explained at k = 5 is
+reported as a diagnostic on a representative position sample; if
+below ~80%, the eigenchannel is not a faithful summary and the
+derivation's utility is limited by its information capture.
+
+**Why this is structurally motivated.** L_ka is position-dependent;
+its topology changes discretely when pieces move into or out of
+attack lines. The eigenstructure therefore changes discretely too.
+This is the discontinuity mechanism `encode_640` lacks. Whether the
+discontinuities correlate with `is_check_unsafe` is empirical.
+
+## §12.4 Derivation B — D4 decomposition of attack adjacency
+
+**Mathematical object.** The binary attack adjacency A_ka, where
+A_ka[i, j] = 1 iff j is attacked by an opponent piece on i, 0
+otherwise. Note A_ka is in general **not symmetric** (attack is
+directed) and **not D4-invariant** (it depends on the specific piece
+positions).
+
+**Channel derivation.** Reduce A_ka to a 64-dim signal via row-sum —
+the total outgoing attacks from each source square (0 for squares
+not occupied by an opponent piece). Project that 64-dim signal onto
+the five D4 irreps using the same Serre character projection formula
+`encode_640` uses for its board signal
+(`chess_spectral.tables.project_irrep`). This produces five 64-dim
+channels A1_ka, A2_ka, B1_ka, B2_ka, E_ka, paralleling the five
+D4-irrep channels of `encode_640`.
+
+**Known tension.** The projection is approximate because the source
+signal derived from A_ka is not D4-symmetric in general. The
+projection returns the best-fit D4-equivariant component in each
+irrep. Whether that approximation carries useful signal or degenerates
+to noise is empirical — §12.6 analysis reports per-irrep variance
+explained by the projected component as a diagnostic.
+
+**Alternative signal choices** (deferred). Column-sum (total incoming
+attacks per square) or an attacker-type-weighted row-sum could be
+substituted for the plain row-sum. Phase A uses row-sum as the
+simplest first choice; if Phase A crosses the viability threshold
+on a different signal, that would be a finding about *which*
+projection carries the information.
+
+## §12.5 Derivation C — Attack operator from king's phase
+
+**Mathematical object.** The §11.4.3.1 P_castle pattern generalized
+to king-attack: a composite operator on the king's phase that
+enumerates, per attacker type and per direction class, whether the
+corresponding phase shift from the king lands on an occupied square
+of the right attacker type.
+
+**Channel derivation.** For each attacker type t ∈ {N, B, R, Q, K, P}
+and each direction class d in t's attack pattern, compute the phase
+shift Δ_{t,d} from the king. For the king's current phase φ_K in
+the current position, count the number of opponent-t pieces at phases
+φ_K + k · Δ_{t,d} mod 640 for k ∈ {1, …, 7} (sliders, weighted by 1/k
+so closer attackers count more and the ray stops at the first
+blocker) or k = 1 (non-sliders). Pawn attack squares use the §11.5
+diagonal scheme, split per diagonal for a 2-component pawn signal.
+
+The (attacker_type × direction_class) enumeration yields 16 scalar
+components in Phase A, packed into a 16-dim feature vector:
+
+- 4 rook-ray densities (+row, −row, +col, −col) — rooks and queens
+- 4 bishop-ray densities (+NE, −NE, +NW, −NW) — bishops and queens
+- 1 knight attack count
+- 1 king adjacency count
+- 2 pawn attack counts (per diagonal)
+- 4 reserved zero channels for future extensions
+
+**Relationship to path-1 `phasecast_is_check`.** Derivation C is the
+vector-valued generalization of `phasecast_is_check` from the §11.5
+substrate. The boolean answer to "is the king attacked?" reduces
+these 16 components to "is any of them positive"; C keeps them as a
+continuous signature. C therefore is *expected* to correlate with
+`is_check_unsafe` because it literally enumerates the components of
+`is_check_unsafe` as continuous values.
+
+**Purpose of including C.** It serves as a **refined baseline**. Any
+derivation (A or B) that fails to beat C's correlation is carrying
+less signal than a straight enumeration of attack-line occupation.
+If A or B beats C, it means those derivations expose structure the
+direct enumeration does not — which would be the genuine §12 finding.
+
+## §12.6 Assembly protocol
+
+Do not prematurely commit to an assembly. Phase A builds A, B, C
+independently and measures their pairwise cosines plus their
+correlations with `is_check_unsafe`. Only if Phase A produces
+usable signal does Phase B address assembly.
+
+Phase A reports:
+
+- Per-derivation |ρ(similarity, is_check_unsafe)| on the §11.5 CSV
+  (3393 transitions, existing labels).
+- Per-derivation pairwise cosines across a representative sample
+  of positions — if cos(A, C) > 0.5 the two are highly correlated
+  and A adds little over C; if cos(A, C) < 0.2 they measure
+  different things.
+- Variance-explained diagnostics per Derivation A's k and per
+  Derivation B's irrep.
+- Per-call timings for each derivation (µs per position).
+
+Phase B (conditional on Phase A crossing |ρ| > 0.3 for any derivation):
+
+- Concatenation architecture `[encode_640 | encode_king_attack]`,
+  per UTLP S3 §14.3 segmentation.
+- Dimensionality budget, channel layout, Serre-projection choices.
+- Write-back to `chess_spectral` as a new encoder variant — not a
+  modification of `encode_640`. §11 baselines must remain reproducible
+  against the unchanged `encode_640`.
+
+## §12.7 Evaluation — success, null, ambiguous
+
+Same three-outcome framework from §11.5 and §11.6.6.1:
+
+- **|ρ| > 0.3 on any derivation:** king-attack encoder is viable.
+  Record as validated finding. Phase B is unblocked pending
+  researcher review.
+
+- **|ρ| < 0.1 across all three derivations:** validated null. The
+  construction pattern does not naturally produce king-attack signal.
+  §11.5's null generalizes to a structural property of the encoder
+  family.
+
+- **0.1 ≤ |ρ| < 0.3 on any derivation:** ambiguous. Researcher
+  decides whether to refine derivations (Phase A2 with alternative
+  signal choices for B, different k values for A, different
+  reductions for C) or accept the ambiguity as the §12.10 finding.
+
+Per §11.7.4, record failures; do not tune derivations to produce
+desired outcomes. The numbers are the finding.
+
+## §12.8 Infrastructure requirements
+
+Phase A needs:
+
+- `king_attack_encoder/` package as a sibling of `phase_operators/`.
+- Three derivation modules, one per §12.3–§12.5, plus an
+  `attack_graph.py` shared substrate.
+- Evaluation CLI that reads
+  `results/phase_operator_experiments/exp3_phase_similarity.csv`
+  (the §11.5 CSV), recomputes each transition's encoder-before and
+  encoder-after for each derivation, records the king-attack
+  similarities alongside the existing columns, and emits a new CSV.
+- Unit tests per derivation covering the underlying graph/matrix
+  construction, a determinism check, edge cases (no king, no
+  opponent pieces), and a performance budget of <10 ms per encode
+  call.
+
+Frozen dependencies (read-only imports):
+
+- `phase_operators.phase_operators` — phase arithmetic constants.
+- `phase_operators.phase_to_coords` — PHI_TO_RC inversion lookup.
+- `phase_operators.occupation_field` — occupation dict builder.
+- `chess_spectral.tables.project_irrep` — D4 irrep projector.
+
+§12 imports from these packages but does not modify them.
+
+## §12.9 What success or failure would mean
+
+**If any derivation carries signal at |ρ| > 0.3:** the HDC encoder
+family extends to king-attack content. §11.5's null on `encode_640`
+reflects a choice of construction (bundled content descriptor), not
+an inherent limit of the family. The parallel instrument architecture
+(segmentation per UTLP S3 §14) validates as a path to adding specific
+structural capabilities without disturbing existing baselines.
+
+**If all three derivations produce |ρ| < 0.1:** three independent
+mathematical objects (position-dependent Laplacian, D4 projection of
+directed adjacency, composite phase operator) have each failed to
+produce king-attack similarity signal. That is strong evidence that
+king-attack structure is not representable as a similarity-based
+measurement in the HDC encoder family — whatever signal it carries
+lives at a different algebraic layer than similarity (e.g., at the
+polarization-identity level, which §11 has not addressed).
+
+**If the outcome is ambiguous (0.1 ≤ |ρ| < 0.3):** the construction
+pattern carries partial signal. The researcher decides whether
+refinement is justified or whether the partial signal is the finding.
+
+All three outcomes advance the research. The experiment is worth
+running regardless of which occurs.
+
+---
+
+## §12.10 Result
+
+[Placeholder. Filled in after Phase A run.]
