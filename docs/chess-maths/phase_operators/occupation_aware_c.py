@@ -12,6 +12,7 @@ from phase_to_coords import invert
 from occupation_field import (
     WHITE_CHARGE,
     king_destinations, knight_destinations, pawn_destinations,
+    ep_phase_from_board,
 )
 from castling import castle_king_destinations
 
@@ -77,5 +78,6 @@ def occupation_aware_moves_c(board: chess.Board, piece_char: str,
     if pc == "N":
         return knight_destinations(origin_phi, occupation, mover_charge)
     if pc == "P":
-        return pawn_destinations(origin_r, origin_c, occupation, mover_charge)
+        return pawn_destinations(origin_r, origin_c, occupation, mover_charge,
+                                 ep_phase=ep_phase_from_board(board))
     raise ValueError(f"unknown piece char: {piece_char}")

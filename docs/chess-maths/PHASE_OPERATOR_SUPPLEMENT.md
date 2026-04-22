@@ -120,14 +120,18 @@ The T-violation is explicit: there is no inverse operator. The phase operator is
 
 **Included:** the unobstructed reachable set for each polarization from any origin. The mathematics is pure phase arithmetic modulo 640.
 
-**Not included:** 
-- Occupation-based ray truncation (handled separately in §11.4)
-- En passant (a temporal couple between two pawn moves)
-- Castling (a coupled two-polarization transition; handled as a composite
-  operator P_castle in §11.4.3.1)
-- Promotion (a polarization-identity change at the horizon boundary)
+**Not included:**
+- Occupation-based ray truncation (handled in §11.4 via Solutions A/B/C)
+- Castling (handled in §11.4 via P_castle composite operator; see §11.4.3.1)
+- En passant (handled in §11.4 via ep_square pass-through; see §11.4.3.2)
+- Promotion (handled in §11.4 via last-rank move expansion; see §11.4.3.3)
 - Check/checkmate legality (a global constraint on the king's phase tuple,
   deferred to §11.5)
+
+Of the original five exclusions, four have been closed. Check/checkmate
+legality remains — it requires the full king-safety filter (the §11.5
+is_check check we validated in two paths) and is structurally distinct
+from per-piece move generation.
 
 The base experiment (§11.3) tests only the unobstructed set. Subsequent experiments extend to the full legal set.
 
@@ -295,6 +299,67 @@ is implicit: when the king appears at the castle target, the rook
 must also have moved to its paired target, but for move-generation
 purposes only the king destination is enumerated (per python-chess's
 convention that castling is emitted as a king move).
+
+### §11.4.3.2 En passant as ep_square pass-through
+
+En passant is a state-dependent capture where the destination square is
+empty but capturing is nevertheless legal because the opposite side's
+pawn just moved two squares and is on an adjacent file. The destination
+is the phantom square the two-step pawn would have occupied if it had
+only advanced one.
+
+The phase arithmetic is identical to an ordinary diagonal pawn capture —
+the destination phase is (φ_origin ± DIAG_NE_SW_GEN) or
+(φ_origin ± DIAG_NW_SE_GEN) per §11.2.7. What differs is the
+occupation-field predicate: the diagonal is empty, not occupied by
+opposite charge.
+
+**Integration.** The `pawn_destinations` generator accepts an optional
+ep_phase parameter. When present, it matches against the two capture
+diagonals; if a match is found, that diagonal is added to destinations
+even though the occupation field shows the square as empty. The ep_phase
+is derived from python-chess's `board.ep_square` — an `int | None`
+field on the Board object that is part of FEN state, not HDC state.
+
+This is a **state-dependent filter**, not a new phase operator: the
+phase arithmetic was already producing the capture phase; the ep_square
+pass-through is what lifts it from "drop if empty" to "keep if empty
+and equals ep_phase."
+
+### §11.4.3.3 Promotion as last-rank move expansion
+
+When a pawn advances or captures onto the last rank (row 7 for white,
+row 0 for black), the move is structurally a single phase transition
+whose destination corresponds to a polarization-identity change: the
+pawn becomes a queen, rook, bishop, or knight. python-chess represents
+this as four distinct `chess.Move` objects, one per promotion piece,
+sharing the same (from, to) pair.
+
+The phase operators produce the destination correctly in a single call —
+the diagonal capture phase or the forward advance phase per §11.2.7.
+The phase arithmetic does not distinguish "pawn arriving on last rank"
+from "pawn arriving anywhere else"; the distinction is a boundary
+property of the destination coordinate.
+
+**Integration.** A small wrapper at the move-emission boundary (where
+destinations become `chess.Move` objects) tests whether the destination
+row is the last rank for the mover's charge. If yes, the single
+destination expands into four Move objects with `promotion` set to
+each of QUEEN, ROOK, BISHOP, KNIGHT. This matches python-chess's
+emission order.
+
+This is **not a phase-native operation**. The encoder's polarization-
+identity change (pawn → queen) is a separate structural question that
+§11 does not address. The expansion here is a wrapper-layer formality
+that makes the phase generator's output set-equal to python-chess's
+legal move enumeration; the underlying phase destination is a single
+point per advance, and the four promotion variants are the same point
+with four different "tag" values.
+
+Promotion under-promotion (emitting =N/=B/=R when =Q is usually best)
+is always included because python-chess's legal_moves emits all four;
+whether the move is *good* is a search question, not a move-generation
+question.
 
 ### §11.4.4 Data to collect
 

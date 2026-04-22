@@ -62,6 +62,24 @@ class TestSolutionC(unittest.TestCase):
         dests = occupation_aware_moves_c(board, "Q", 3, 3, WHITE_CHARGE)
         self.assertEqual(len(dests), 27)
 
+    def test_pawn_en_passant_white_captures_d6(self):
+        """§11.4.3.2: white pawn on e5 captures black pawn on d5 via en
+        passant to d6. FEN declares d6 as ep_square.
+        """
+        board = chess.Board(
+            "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3")
+        dests = occupation_aware_moves_c(board, "P", 4, 4, WHITE_CHARGE)
+        self.assertEqual(dests, frozenset({(5, 4), (5, 3)}))
+
+    def test_pawn_promotion_destination_single_square(self):
+        """§11.4.3.3: phase side emits a single destination on the last
+        rank; the four promotion Move objects share the same to_square
+        and collapse to one (r, c) tuple in python-chess's comparison.
+        """
+        board = chess.Board("4k3/P7/8/8/8/8/8/4K3 w - - 0 1")
+        dests = occupation_aware_moves_c(board, "P", 6, 0, WHITE_CHARGE)
+        self.assertEqual(dests, frozenset({(7, 0)}))
+
 
 if __name__ == "__main__":
     unittest.main()
