@@ -288,10 +288,17 @@ map — the set of phases attacked by the opposite charge's operators —
 which is a separate P_attack-like operator that is outside the §11.4
 scope and deferred to §11.5. The reference implementation delegates
 conditions 4–5 to python-chess's `board.is_legal()` on the canonical
-castling UCI move, making P_castle a composite operator in the
-§11.4-scoped sense: its geometry is expressed by φ() arithmetic, but
-its full legality predicate borrows one attack-check primitive from
-the geometric reference.
+castling UCI move — after explicitly verifying that the king and rook
+sit on their canonical home squares. Without the home-square guards,
+python-chess may parse the castling UCI as a non-castling piece slide
+(e.g., a rook on e1 makes `"e1c1"` a legal rook move), and `is_legal`
+returns True for reasons unrelated to castling. The home-square guards
+turn the delegation into an unambiguous castling check. This makes
+P_castle a composite operator in the §11.4-scoped sense: its geometry
+is expressed by φ() arithmetic, its home-square preconditions are
+phase-native (set-membership in the occupation field with piece-type
+discrimination), and only its full attack-map predicate borrows one
+primitive from the geometric reference.
 
 **Integration.** P_castle's king-side destinations are unioned into
 the king output of all three solutions (A, B, C). The rook component

@@ -80,5 +80,48 @@ class TestCastles(unittest.TestCase):
             frozenset({(7, 6), (7, 2)}))
 
 
+class TestAvailableCastlesGuards(unittest.TestCase):
+    """§11.4.3.1 fix — is_legal delegation is only trustworthy when
+    the king and rook sit on their canonical castling home squares."""
+
+    def test_rook_on_e1_without_king_does_not_produce_phantom_castle(self):
+        # White rook on e1, white king on d3, no castling rights.
+        # is_legal("e1c1") returns True (rook slide), but that must NOT
+        # translate into a phantom king-side castle destination.
+        board = chess.Board("4k3/8/8/8/8/3K4/8/4R3 w - - 0 1")
+        self.assertEqual(available_castles(board), [])
+        self.assertEqual(
+            castle_king_destinations(board, chess.WHITE), frozenset())
+
+    def test_rook_on_e8_without_king_does_not_produce_phantom_castle(self):
+        # Mirror of the above for black.
+        board = chess.Board("4r3/8/3k4/8/8/8/8/4K3 b - - 0 1")
+        self.assertEqual(available_castles(board), [])
+        self.assertEqual(
+            castle_king_destinations(board, chess.BLACK), frozenset())
+
+    def test_rook_on_a1_without_king_does_not_produce_queenside_phantom(self):
+        # White rook on a1, king moved to d3, no white castling rights.
+        # Ensures the king-home guard rejects castling even when the
+        # rook happens to be on its canonical home square.
+        board = chess.Board("r3k3/8/8/8/8/3K4/8/R7 w q - 0 1")
+        self.assertEqual(available_castles(board), [])
+
+    def test_king_on_home_rook_missing_does_not_produce_castle(self):
+        # White king on e1, castling rights claimed, but no rooks.
+        # Guards should reject both sides.
+        board = chess.Board("4k3/8/8/8/8/8/8/4K3 w KQ - 0 1")
+        self.assertEqual(available_castles(board), [])
+
+    def test_both_on_home_with_rights_still_produces_castle(self):
+        # Regression check: normal case still works after guards added.
+        board = chess.Board(
+            "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1")
+        castles = available_castles(board)
+        self.assertEqual(len(castles), 2)
+        sides = {c.side for c in castles}
+        self.assertEqual(sides, {"kingside", "queenside"})
+
+
 if __name__ == "__main__":
     unittest.main()

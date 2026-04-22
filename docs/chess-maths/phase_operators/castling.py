@@ -97,12 +97,33 @@ def available_castles(board: chess.Board) -> list[CastleMove]:
     """Return the castles currently legal for the side to move.
 
     Uses board.is_legal() on the canonical UCI move for each candidate,
-    which folds together: has_castling_rights, empty path, not in
-    check, and no attacked square on the king's route.
+    after verifying the king and rook sit on their canonical home
+    squares. Without those guards, python-chess may accept the
+    castling UCI as a non-castling slide of whatever piece happens to
+    occupy the from-square (e.g., a rook on e1 makes "e1c1" a legal
+    rook move, which would otherwise be mistaken for a legal castle).
     """
     out: list[CastleMove] = []
     for (color, _side), castle in CASTLES.items():
         if board.turn != color:
+            continue
+        # Guard 1: the actual king must sit on its canonical home
+        # square. Otherwise is_legal may accept the UCI as a piece
+        # slide by whatever is actually sitting there.
+        king_sq = chess.square(castle.king_from_rc[1],
+                               castle.king_from_rc[0])
+        kpiece = board.piece_at(king_sq)
+        if (kpiece is None or kpiece.piece_type != chess.KING
+                or kpiece.color != color):
+            continue
+        # Guard 2: the actual rook must sit on its canonical home
+        # square. Defensive against rare FENs where castling rights
+        # are set but the rook has moved or been captured.
+        rook_sq = chess.square(castle.rook_from_rc[1],
+                               castle.rook_from_rc[0])
+        rpiece = board.piece_at(rook_sq)
+        if (rpiece is None or rpiece.piece_type != chess.ROOK
+                or rpiece.color != color):
             continue
         try:
             move = chess.Move.from_uci(castle.uci)
