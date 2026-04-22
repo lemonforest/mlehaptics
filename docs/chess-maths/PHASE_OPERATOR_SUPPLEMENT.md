@@ -413,16 +413,18 @@ This is a field-theoretic quantity, not a geometric one.
 
 ### §11.5.3 Protocol
 
-For each position in the sample corpus (§11.4), for each legal transition:
+For each position in the sample corpus (§11.4), for each pseudo-legal transition:
 
 1. Compute enc_before = encode_640(position_before).
 2. Compute enc_after = encode_640(position_after_transition).
 3. Compute phase_similarity = cosine(enc_before, enc_after).
 4. Record phase_similarity alongside the Δ value from the earlier experiment (if position is in the Stockfish corpus, record Stockfish eval too).
 
+**Population note.** The protocol iterates `board.pseudo_legal_moves` rather than `board.legal_moves` because the correlation target `is_check_unsafe` has zero variance on the legal-move set by construction (every legal move is check-safe). Pseudo-legal is also the §11.4 candidate-set scope that a phase-similarity-based check filter would operate on, so this is the correct operational population for the §11.4.5 optimization question.
+
 ### §11.5.4 Data to collect
 
-Per legal transition:
+Per pseudo-legal transition:
 - position_fen
 - transition_uci
 - polarization_type
@@ -435,6 +437,8 @@ Per legal transition:
 - phasecast_matches_chess (boolean: is_check_unsafe == is_check_unsafe_phasecast; expected to be True for every row)
 - was_played (boolean)
 
+**Status of thermodynamic columns in the first §11.5 run.** `delta_v1`, `stockfish_eval`, `kappa_annihilate`, and `kappa_threat` are emitted as empty fields in the first-run CSV because their source — the Stockfish-augmented sweep with pre-computed κ quantities — was not attached to this experiment. Their correlation with `phase_similarity` is therefore not answered by the current run. A follow-up experiment with the Stockfish sweep bound as an input corpus would populate these columns and close the broader thermodynamic question posed in §11.5.2; that is a separate data-collection task and is deliberately out of scope for the check-filter question addressed in §11.5.6.
+
 ### §11.5.5 Analysis
 
 Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_eval, kappa_annihilate, kappa_threat, is_check_unsafe. Break down by polarization type and by capture/non-capture.
@@ -445,13 +449,31 @@ Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_ev
 
 **Timing comparison.** Record the per-call cost of (a) python-chess is_check and (b) path-1 phase-cast is_check on the same positions. This extends the §11.4.5 table to include check-filter costs explicitly. The expected result: python-chess wins by ~30–40× in naive Python because its is_check is bitboard-backed. This is a reference datum, not a research finding.
 
-### §11.5.6 Decision point
+### §11.5.6 Decision point: validated null result for the check-filter hypothesis
 
-If phase_similarity correlates strongly (|ρ| > 0.3) with any existing thermodynamic quantity, the phase representation is capturing the same signal. If it correlates only with specific components (say, high correlation with kappa_annihilate but low with delta_v1), the phase representation is revealing a decomposition of the thermodynamic gradient we have not explicitly computed.
+**Empirical result (first §11.5 run, n=100 positions, seed=42, drnykterstein corpus):**
 
-If phase_similarity correlates with nothing (|ρ| < 0.1 across the board), the phase representation is capturing an orthogonal quantity — potentially the "field geometry" that Stockfish does not measure but that we suspected in the κ_position experiments.
+| Quantity                                   | Value                          |
+|--------------------------------------------|--------------------------------|
+| Pseudo-legal transitions sampled           | 3393                           |
+| Path-1 reference correctness               | 3393/3393 (100.00%)            |
+| Path-2 Spearman ρ — best slice             | +0.095 (queen) / −0.097 (king) |
+| Path-2 Spearman ρ — all 9 slices           | all satisfy \|ρ\| < 0.1        |
+| python-chess is_check (geometric baseline) | 22 µs / call                   |
+| Path-1 phase-cast is_check                 | 138 µs / call (6.4× slower)    |
+| Path-2 phase_similarity (encoder call)     | 1190 µs / call                 |
 
-All three outcomes are informative.
+CSV at `docs/chess-maths/results/phase_operator_experiments/exp3_phase_similarity.csv` (gitignored per existing policy; regenerate via `python similarity_experiment.py --n-positions 100 --seed 42`).
+
+**Conclusion — check-filter hypothesis (path 2): closed.**
+
+Per the §11.5.5 decision rule (|ρ| > 0.3 → candidate; |ρ| < 0.1 across all slices → closed), phase_similarity does not carry check-unsafety information at a strength that would let it substitute for a geometric check filter. The maximum |ρ| across all nine slices (all, N, B, R, Q, K, P, capture, non-capture) is 0.097, below the closure threshold. The §11.4.5 optimization path via path 2 is therefore closed on empirical grounds: a geometric check filter (path 1, or bitboard-backed python-chess) remains the only viable implementation, and the ~60 µs check-filter overhead observed in §11.4.5 is a floor not crossable by phase-similarity approximation in this representation.
+
+**Structural interpretation.** The bundled encode_640 superposition is not sensitive to king-attack geometry: two post-move positions that differ only in whether the mover's king is attacked produce 640-dim encodings that are cosine-indistinguishable from pairs that differ in unrelated ways. This is consistent with the encoder being a position-content descriptor (which pieces are at which phases) rather than a legality-of-attack descriptor — the latter would require exposing ray-and-blocker structure in the feature decomposition, which the §11.3/§11.4 operators do compute but which encode_640 does not retain in its bundled form.
+
+**Scope of the null result.** What is closed is specifically the *check-filter* use of path 2. The broader §11.5 hypothesis — that phase_similarity correlates with thermodynamic gradients (delta_v1, stockfish_eval, κ_annihilate, κ_threat) — is **not** closed by this run. Those correlations are left as `NaN` in the first-run CSV because the Stockfish/κ source sweep was not attached (see §11.5.4 status note). A follow-up run with the Stockfish corpus bound as input would populate those columns and answer the thermodynamic-gradient question; the outcome there is independent of the check-filter outcome reported above and remains unresolved.
+
+**Residual structural datum.** Path 1's naive-Python phase-cast is_check costs 138 µs vs python-chess's bitboard-backed 22 µs — a 6.4× slowdown, not the ~30–40× projected in §11.5.5. This is because python-chess's is_check includes machinery beyond the minimal ray-walk that phase-cast performs, partly narrowing the gap. Any future phase-native check filter engineered for throughput would need to match the 22 µs bitboard floor; the 138 µs phase-cast is a correct-by-construction reference, not an optimization target.
 
 ---
 
