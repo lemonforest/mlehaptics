@@ -61,7 +61,7 @@ def occupation_aware_moves_b(board: chess.Board, piece_char: str,
                              mover_charge: int,
                              occupation: dict[int, int] | None = None,
                              ) -> frozenset[tuple[int, int]]:
-    from occupation_field import occupation_field_from_board
+    from .occupation_field import occupation_field_from_board
     if occupation is None:
         occupation = occupation_field_from_board(board)
     origin_phi = phi(origin_r, origin_c)

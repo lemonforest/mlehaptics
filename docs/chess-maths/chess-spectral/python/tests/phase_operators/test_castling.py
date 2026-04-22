@@ -1,20 +1,16 @@
 """§11.4.3.1 P_castle composite operator tests."""
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import chess
 
-import chess  # noqa: E402
-
-from phase_operators import phi, COL_GEN  # noqa: E402
-from castling import (  # noqa: E402
+from chess_spectral.phase_operators import (
+    phi, COL_GEN,
     CASTLES, CastleMove, available_castles, castle_king_destinations,
+    WHITE_CHARGE, BLACK_CHARGE,
+    occupation_aware_moves_a,
+    occupation_aware_moves_b,
+    occupation_aware_moves_c,
 )
-from occupation_field import WHITE_CHARGE, BLACK_CHARGE  # noqa: E402
-from occupation_aware_a import occupation_aware_moves_a  # noqa: E402
-from occupation_aware_b import occupation_aware_moves_b  # noqa: E402
-from occupation_aware_c import occupation_aware_moves_c  # noqa: E402
 
 
 class TestCastles(unittest.TestCase):
