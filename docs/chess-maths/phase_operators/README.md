@@ -65,3 +65,21 @@ is gitignored — regenerate locally):
 - `exp2_occupation_equivalence_abc.csv` (§11.4 four-way A/B/C/python-chess)
 - `exp2_occupation_equivalence.csv` (older §11.4 B/C-only output, preserved
   for reference during the A-channel integration).
+
+## Benchmarks
+
+`benchmark_solutions.py` measures wall-time for Solutions A, B, C at a chosen
+reference scope. Run `python benchmark_solutions.py --help` for flag
+documentation and usage examples.
+
+Key result (50 positions, 5 repeats, 2 warmup; values will vary by hardware):
+
+| Reference      | A      | B      | C      | B speedup | C speedup |
+|----------------|-------:|-------:|-------:|----------:|----------:|
+| pseudo_legal   | 48 μs  | 7.4 μs | 6.4 μs | ~6.5×     | ~7.5×     |
+| legal          | 75 μs  | 72 μs  | 69 μs  | ~1.05×    | ~1.10×    |
+
+The phase-vs-geometric speedup is ~6–7× at pseudo-legal parity and compresses
+to ~1.0–1.1× when check-filtering is included on both sides. Check-filtering
+dominates legal-scope runtime regardless of generation method — it is the
+operational target for §11.5 / §11.6.

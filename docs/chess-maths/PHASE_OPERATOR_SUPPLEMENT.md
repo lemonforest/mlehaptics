@@ -324,10 +324,55 @@ piece-origin triples), the four channels converge as follows:
 | A matches B            | 1086/1153  (94.19%) | same residual, A filters check |
 | A matches C            | 1086/1153  (94.19%) | same residual, A filters check |
 
-Mean per-piece timings on one (position, polarization, origin) triple:
-A = 72 μs (dominated by the python-chess fallback), B = 9.7 μs,
-C = 6.1 μs. The phase-native solutions are roughly one order of
-magnitude faster than the hybrid.
+**Timing (mean per call on sampled middlegame positions).** The
+reference scope matters — python-chess's `legal_moves` includes
+king-safety filtering (move-into-check detection), while
+`pseudo_legal_moves` does not. Solutions B and C are phase-native and
+scoped to pseudo-legal generation; Solution A delegates to whichever
+python-chess method the benchmark was invoked with. The apples-to-apples
+comparison is A against `pseudo_legal_moves`, where all three solutions
+operate at the same scope. Numbers below are from
+`benchmark_solutions.py --n-positions 50 --repeats 5 --warmup 2` on the
+same sampled corpus.
+
+| Reference scope                    | Solution A | Solution B | Solution C | B speedup | C speedup |
+|------------------------------------|-----------:|-----------:|-----------:|----------:|----------:|
+| pseudo_legal (phase-native parity) | 48 μs      | 7.4 μs     | 6.4 μs     | 6.5×      | 7.5×      |
+| legal (check-filtered)             | 75 μs      | 72 μs      | 69 μs      | 1.05×     | 1.10×     |
+
+Two structural findings:
+
+1. **The ~7× speedup at pseudo-legal scope is the phase-vs-geometric
+   delta at parity.** Solutions B and C compute the same set as
+   python-chess's `pseudo_legal_moves` in ~15% of the wall-clock time.
+   No vectorization, no compilation, no caching — naive Python integer
+   arithmetic against python-chess's reference implementation in the
+   same language. The advantage is purely algorithmic: phase arithmetic
+   replaces board iteration plus bounds checking plus `Board` state
+   inspection.
+
+2. **The check filter dominates legal-scope runtime.** Both B and C
+   lose their parity advantage when the reference is switched to
+   `legal_moves` — C's total jumps from 6.4 μs to 69 μs, a factor of
+   ~11×. The geometric check filter costs ~60 μs per call regardless
+   of how the candidate moves were generated (A's smaller delta,
+   48 → 75 μs, reflects that A's pseudo variant already iterates
+   `pseudo_legal_moves`, so the switch to `legal_moves` adds only the
+   incremental king-safety work rather than a full second iteration).
+   This frames the §11.5 / §11.6 research question operationally: any
+   phase-native check filter at |ρ| > 0.3 correlation with
+   "move-into-check" has a large budget to beat before it becomes
+   neutral, and any filter faster than ~60 μs with usable precision
+   is operationally interesting.
+
+Solution C's early-halt advantage over B is consistent with the
+lattice-fermion framing — rays terminate at the first scattering site,
+and most rays in a populated middlegame terminate within 1–3 steps.
+B's batch generation pays for the full k ∈ {1..7} candidate set even
+when the ray blocks at k=1; C's sequential step halts immediately.
+The effect is visible at both pseudo-legal (B 7.4 μs vs C 6.4 μs, ~14%
+faster) and legal (B 72 μs vs C 69 μs, ~4% faster) scopes; the latter
+compresses because both pay the same ~60 μs filter on top.
 
 **Interpretation.** Solutions B and C are operationally complete for
 move generation against `board.pseudo_legal_moves` once castling is
@@ -345,9 +390,11 @@ Proceeding to §11.5.
 
 ### §11.5.1 Motivation
 
-If §11.3 and §11.4 succeed, we have a phase-space move generator that reproduces the geometric one. The next question is whether phase-space operations reveal thermodynamic structure that geometric operations do not.
+§11.3 and §11.4 succeeded — we have a phase-space move generator that reproduces python-chess's pseudo-legal move set across four independent channels at 100% agreement, with the ~5.81% residual against `legal_moves` accounted for by check/pin filtering (§11.2.8). The next question is whether phase-space operations reveal thermodynamic structure that geometric operations do not.
 
 Specifically: for any candidate transition (φ_origin → φ_dest) under polarization operator P_p, does the **phase-tuple similarity** between the pre-transition and post-transition 640-dim encodings correlate with the thermodynamic gradient Δ from the earlier experiments?
+
+**Operational target derived from §11.4.5 timing data.** The benchmark split in §11.4.5 showed that check-filtering (move-into-check detection) costs ~60 μs per call in python-chess, dominating legal-scope move generation by ~10× over the phase-space generation cost. If phase similarity correlates with "move leaves own king in check" at usable precision (|ρ| > 0.3 as a loose threshold), §11.5 has produced a phase-native component of a faster check filter — approximate detection in phase space, geometric confirmation only for ambiguous cases. This does not guarantee the correlation exists; it defines what would be operationally interesting if it did. The §11.5 protocol therefore adds `is_check_unsafe` as a correlation target alongside the existing thermodynamic quantities, so the experiment can answer this specific question in addition to the broader gradient-correlation one.
 
 ### §11.5.2 What phase-tuple similarity measures
 
@@ -377,11 +424,14 @@ Per legal transition:
 - delta_v1 (from prior experiment, if available)
 - stockfish_eval (from prior experiment, if available)
 - kappa_annihilate, kappa_threat (from prior experiment)
+- is_check_unsafe (boolean: does applying this transition leave mover's king in check, per python-chess)
 - was_played (boolean)
 
 ### §11.5.5 Analysis
 
-Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_eval, kappa_annihilate, kappa_threat. Break down by polarization type and by capture/non-capture.
+Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_eval, kappa_annihilate, kappa_threat, is_check_unsafe. Break down by polarization type and by capture/non-capture.
+
+The is_check_unsafe correlation answers the operational question from §11.5.1: if |ρ(phase_similarity, is_check_unsafe)| > 0.3 in any polarization slice, phase similarity is a candidate component of a faster-than-geometric check filter. If the correlation is weak or absent across all slices, the §11.4.5 optimization path via phase similarity is closed and the check filter remains strictly a geometric operation.
 
 ### §11.5.6 Decision point
 
