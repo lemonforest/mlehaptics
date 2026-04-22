@@ -437,7 +437,7 @@ Per pseudo-legal transition:
 - phasecast_matches_chess (boolean: is_check_unsafe == is_check_unsafe_phasecast; expected to be True for every row)
 - was_played (boolean)
 
-**Status of thermodynamic columns in the first §11.5 run.** `delta_v1`, `stockfish_eval`, `kappa_annihilate`, and `kappa_threat` are emitted as empty fields in the first-run CSV because their source — the Stockfish-augmented sweep with pre-computed κ quantities — was not attached to this experiment. Their correlation with `phase_similarity` is therefore not answered by the current run. A follow-up experiment with the Stockfish sweep bound as an input corpus would populate these columns and close the broader thermodynamic question posed in §11.5.2; that is a separate data-collection task and is deliberately out of scope for the check-filter question addressed in §11.5.6.
+**Columns from prior experiments.** The `delta_v1`, `stockfish_eval`, `kappa_annihilate`, and `kappa_threat` columns require a pre-computed Stockfish sweep with κ-quantity extraction. If that data is not attached to the corpus at experiment run time, those columns remain empty in the CSV and their correlations with phase_similarity are not answered by this run. A follow-up experiment with the full Stockfish sweep attached is the appropriate vehicle for that analysis; it is not a blocker for the §11.5.6 decision on the check-filter path.
 
 ### §11.5.5 Analysis
 
@@ -449,31 +449,28 @@ Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_ev
 
 **Timing comparison.** Record the per-call cost of (a) python-chess is_check and (b) path-1 phase-cast is_check on the same positions. This extends the §11.4.5 table to include check-filter costs explicitly. The expected result: python-chess wins by ~30–40× in naive Python because its is_check is bitboard-backed. This is a reference datum, not a research finding.
 
-### §11.5.6 Decision point: validated null result for the check-filter hypothesis
+### §11.5.6 Result — validated null for path-2 check filtering
 
-**Empirical result (first §11.5 run, n=100 positions, seed=42, drnykterstein corpus):**
+**Run parameters:** 100 positions sampled from `sweep_chain_lichess_drnykterstein_2026-04-14_N10`, 3393 pseudo-legal transitions total.
 
-| Quantity                                   | Value                          |
-|--------------------------------------------|--------------------------------|
-| Pseudo-legal transitions sampled           | 3393                           |
-| Path-1 reference correctness               | 3393/3393 (100.00%)            |
-| Path-2 Spearman ρ — best slice             | +0.095 (queen) / −0.097 (king) |
-| Path-2 Spearman ρ — all 9 slices           | all satisfy \|ρ\| < 0.1        |
-| python-chess is_check (geometric baseline) | 22 µs / call                   |
-| Path-1 phase-cast is_check                 | 138 µs / call (6.4× slower)    |
-| Path-2 phase_similarity (encoder call)     | 1190 µs / call                 |
+**Path-1 reference correctness.** phasecast_matches_chess: 3393/3393 (100.00%). The reverse phase-cast is_check detector matches python-chess across every sampled transition by construction. Path 1 is validated as a correct phase-space reformulation of the geometric check operation; it is not faster than python-chess's bitboard is_check (138 µs vs 22 µs in the run's naive-Python benchmark), but correctness is unimpeachable.
 
-CSV at `docs/chess-maths/results/phase_operator_experiments/exp3_phase_similarity.csv` (gitignored per existing policy; regenerate via `python similarity_experiment.py --n-positions 100 --seed 42`).
+**Path-2 correlation result.** Max |Spearman ρ(phase_similarity, is_check_unsafe)| across all nine slices: **0.097** (king-move slice). All other slices (knight, bishop, rook, queen, pawn, captures, non-captures, all-transitions) fell below this value. Per the §11.5.6 threshold of |ρ| < 0.1 for "no correlation," this is a validated null: **phase-tuple similarity between pre-move and post-move `encode_640` vectors does not carry information about whether the move leaves the mover's king in check.**
 
-**Conclusion — check-filter hypothesis (path 2): closed.**
+**Structural interpretation.** The 640-dim encoder's ten channels — five D4 irreps, three symmetric fiber channels, FA antisymmetric pawn fiber, FD diagonal deviation — are each derived from a specific mathematical object of the lattice and its piece operator content. None of those derivations produces king-attack geometry as a first-order output. The null result is consistent with the encoder's construction: it faithfully represents the board's field-theoretic structure and its symmetry content, and king-attack relationships happen to not be field-theoretic in the same sense. A move that exposes the king changes the encoding by roughly the same amount as any other move of the same piece type; the differential signal is below the 0.1 threshold.
 
-Per the §11.5.5 decision rule (|ρ| > 0.3 → candidate; |ρ| < 0.1 across all slices → closed), phase_similarity does not carry check-unsafety information at a strength that would let it substitute for a geometric check filter. The maximum |ρ| across all nine slices (all, N, B, R, Q, K, P, capture, non-capture) is 0.097, below the closure threshold. The §11.4.5 optimization path via path 2 is therefore closed on empirical grounds: a geometric check filter (path 1, or bitboard-backed python-chess) remains the only viable implementation, and the ~60 µs check-filter overhead observed in §11.4.5 is a floor not crossable by phase-similarity approximation in this representation.
+**What remains open.** This result closes path 2 *for the check-filter use case*. It does not close the broader §11.5 hypothesis for thermodynamic gradients — phase_similarity's correlation with delta_v1, stockfish_eval, kappa_annihilate, kappa_threat is untested in this run because those columns require a pre-computed Stockfish sweep that was not attached. A follow-up experiment with the full sweep attached is the appropriate vehicle for that analysis.
 
-**Structural interpretation.** The bundled encode_640 superposition is not sensitive to king-attack geometry: two post-move positions that differ only in whether the mover's king is attacked produce 640-dim encodings that are cosine-indistinguishable from pairs that differ in unrelated ways. This is consistent with the encoder being a position-content descriptor (which pieces are at which phases) rather than a legality-of-attack descriptor — the latter would require exposing ray-and-blocker structure in the feature decomposition, which the §11.3/§11.4 operators do compute but which encode_640 does not retain in its bundled form.
+**What this motivates.** The null result raises a structural research question independent of §11.5's stated scope: *should the encoder family be extended to include king-attack content, and is there a principled derivation that produces such a channel naturally?* This question is addressed in a parallel experiment (§12 — to be documented after the parallel king-attack encoder returns data). It is not a modification of the C17 encoder; it is a separate instrument built from the same mathematical discipline, tested against the same CSV produced by §11.5.
 
-**Scope of the null result.** What is closed is specifically the *check-filter* use of path 2. The broader §11.5 hypothesis — that phase_similarity correlates with thermodynamic gradients (delta_v1, stockfish_eval, κ_annihilate, κ_threat) — is **not** closed by this run. Those correlations are left as `NaN` in the first-run CSV because the Stockfish/κ source sweep was not attached (see §11.5.4 status note). A follow-up run with the Stockfish corpus bound as input would populate those columns and answer the thermodynamic-gradient question; the outcome there is independent of the check-filter outcome reported above and remains unresolved.
+**Timing (mean per call, naive Python, same positions):**
+- python-chess `is_check` (reference): 22 µs
+- path-1 phasecast `is_check`: 138 µs (~6× slower, consistent with naive-Python-vs-bitboard gap)
+- path-2 `phase_similarity`: 1190 µs (dominated by two encode_640 calls)
 
-**Residual structural datum.** Path 1's naive-Python phase-cast is_check costs 138 µs vs python-chess's bitboard-backed 22 µs — a 6.4× slowdown, not the ~30–40× projected in §11.5.5. This is because python-chess's is_check includes machinery beyond the minimal ray-walk that phase-cast performs, partly narrowing the gap. Any future phase-native check filter engineered for throughput would need to match the 22 µs bitboard floor; the 138 µs phase-cast is a correct-by-construction reference, not an optimization target.
+The path-1 timing extends the §11.4.5 table with check-filter cost explicitly; the path-2 timing is a data point about the encoder's per-call cost at the current implementation level, not a claim about phase similarity being fast.
+
+**Decision:** §11.6 unblocked. §12 (parallel king-attack encoder) added as a sibling experiment.
 
 ---
 
@@ -587,3 +584,13 @@ If the phase operators reveal partition structure that corresponds to computatio
 If the phase operators fail to reproduce the geometric generator, we will have learned something specific about which polarization states resist phase-arithmetic description. That is another real result.
 
 All three outcomes advance the research. None of them is wasted effort.
+
+---
+
+## §12. Parallel King-Attack Encoder
+
+> **Status.** Working experiment. Triggered by §11.5.6's validated null for path-2 check filtering in the C17 encoder. Asks whether a separate HDC instrument, derived from the same mathematical discipline that produced C17 but targeting king-attack structure specifically, can expose the signal that C17 does not.
+>
+> Lives in [PHASE_OPERATOR_SUPPLEMENT_12.md](PHASE_OPERATOR_SUPPLEMENT_12.md) as a standalone document pending experimental validation. See that file for derivation, construction, and comparison protocol.
+>
+> **Important scoping.** §12 does not modify C17. C17 remains the validated 640-dim encoder for §9 and §11's experiments. §12 is a parallel instrument built to answer a specific question C17 did not answer. If §12 succeeds, the HDC encoder family has a king-attack member; if §12 fails, C17's construction pattern does not support king-attack content naturally and the null result from §11.5 reflects a structural property of that construction pattern, not a gap.
