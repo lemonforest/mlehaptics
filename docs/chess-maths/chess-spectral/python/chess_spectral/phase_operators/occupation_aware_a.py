@@ -19,14 +19,14 @@ python-chess. Its purpose is threefold:
 """
 import chess
 
-from phase_operators import (
+from .phase_operators import (
     phi,
     P_rook, P_bishop, P_queen, P_king, P_knight,
     P_pawn_white, P_pawn_black,
 )
-from phase_to_coords import phase_set_to_board
-from occupation_field import WHITE_CHARGE
-from castling import castle_king_destinations
+from .phase_to_coords import phase_set_to_board
+from .occupation_field import WHITE_CHARGE
+from .castling import castle_king_destinations
 
 
 def _unobstructed_dests(piece_char: str, origin_r: int, origin_c: int,

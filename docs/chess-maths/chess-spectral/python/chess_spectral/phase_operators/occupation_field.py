@@ -10,14 +10,14 @@ from dataclasses import dataclass
 
 import chess
 
-from phase_operators import (
+from .phase_operators import (
     phi,
     P_king, P_knight,
     P_pawn_white, P_pawn_black,
     ROW_GEN, DIAG_NE_SW_GEN, DIAG_NW_SE_GEN,
     MODULUS,
 )
-from phase_to_coords import PHI_TO_RC, invert, phase_set_to_board
+from .phase_to_coords import PHI_TO_RC, invert, phase_set_to_board
 
 
 WHITE_CHARGE = +1

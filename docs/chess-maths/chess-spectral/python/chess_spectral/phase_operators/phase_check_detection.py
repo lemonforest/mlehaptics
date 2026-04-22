@@ -15,13 +15,13 @@ See PHASE_OPERATOR_SUPPLEMENT.md §11.5.1 for the path-1 / path-2 distinction.
 """
 import chess
 
-from phase_operators import (
+from .phase_operators import (
     phi, MODULUS,
     P_king, P_knight,
     DIAG_NE_SW_GEN, DIAG_NW_SE_GEN, ROW_GEN, COL_GEN,
 )
-from phase_to_coords import PHI_TO_RC
-from occupation_field import occupation_field_from_board
+from .phase_to_coords import PHI_TO_RC
+from .occupation_field import occupation_field_from_board
 
 
 def _pawn_threat_phases_on_king(king_phi: int,
