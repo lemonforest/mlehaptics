@@ -493,37 +493,72 @@ The σ estimator from earlier experiments measures gradient roughness across fib
 A position with low σ in a small CRT cell: gradient is reliable, local decision suffices.
 A position with high σ or near a partition boundary: gradient is unreliable or inapplicable, deeper exploration needed.
 
-### §11.6.3 Protocol
+### §11.6.3 Protocol (Phase A: partition detection)
 
 For each game in the corpus:
 
 1. Compute enc_640 for every ply.
-2. Compute pairwise similarities between all plies in the game (upper triangular matrix).
-3. Identify "phase clusters" — sequences of consecutive plies with mutual similarity above threshold.
-4. Identify "partition boundaries" — consecutive plies with similarity below threshold.
+2. Compute pairwise cosine similarities between all plies in the game (upper triangular matrix over plies).
+3. Identify **phase clusters** — maximal sequences of consecutive plies whose pairwise similarities with every other ply in the cluster are above a threshold τ.
+4. Identify **partition boundaries** — consecutive ply pairs where similarity drops below τ, crossing from one phase cluster into another.
 
-For each ply:
-- ply_index
-- cluster_id (which phase cluster this ply belongs to)
-- distance_to_nearest_boundary (in plies)
-- similarity_to_previous_ply
-- similarity_to_next_ply
+For each ply, record:
+- `position_fen`
+- `game_id`, `ply_index`
+- `cluster_id` (integer per-game cluster assignment)
+- `cluster_size` (number of plies in this ply's cluster)
+- `distance_to_nearest_boundary` (in plies, signed: negative if the previous boundary is nearer, positive if the next boundary is nearer, zero if this ply is itself a boundary)
+- `similarity_to_previous_ply`, `similarity_to_next_ply`
+- `similarity_to_cluster_centroid` (mean cosine to all other plies in the same cluster)
 
-### §11.6.4 Cross-reference with the σ experiment
+**Threshold τ.** The choice of τ is a hyperparameter. Phase A produces the analysis across a sweep of τ ∈ {0.70, 0.80, 0.85, 0.90, 0.95}, reporting cluster statistics per threshold. The researcher inspects the sweep and picks a canonical τ for §11.6.6 interpretation, or reports the full sweep if no single τ dominates.
 
-For plies where we have σ data: does high σ correlate with proximity to a partition boundary? Does low σ correlate with being deep inside a phase cluster?
+**Data already available for cross-references.** The following columns are populated from existing data where it exists, and left empty otherwise:
+
+- `sigma_local` — the σ estimator from §11.6.4 (currently **not available**; column left empty; §11.6.4 cross-reference is deferred to Phase B)
+- `stockfish_cp` — Stockfish centipawn evaluation at a single reference depth (available from `stockfish_correlation/stockfish_evaluations_v2.csv` for games overlapping that corpus; left empty otherwise)
+- `stockfish_depth_gap` — shallow vs deep disagreement magnitude (currently **not available** as shallow+deep pairs do not exist for this corpus; column left empty; §11.6.5 cross-reference deferred to Phase B)
+- `kappa_annihilate`, `kappa_threat`, `delta_v1` — populated where the corpus overlaps with `stockfish_correlation/stockfish_evaluations_v2.csv`; empty otherwise
+
+Phase A's primary output is the partition structure itself. Cross-reference analyses (§11.6.4, §11.6.5) run in Phase B when prerequisite data becomes available.
+
+### §11.6.4 Cross-reference with the σ experiment (Phase B — deferred)
+
+**Status.** Deferred. The σ estimator referenced here is not materialized as a CSV in `docs/chess-maths/results/` at the time §11.6 Phase A runs. Implementing σ is a separate experiment outside §11.6's scope.
+
+**Intended analysis (pending σ availability).** For plies where σ data exists: does high σ correlate with `distance_to_nearest_boundary` being small? Does low σ correlate with being deep inside a phase cluster (high `similarity_to_cluster_centroid`)?
 
 This tests whether the position-level partition structure (§11.6) is the same thing as the move-level gradient roughness (σ), viewed at different scales.
 
-### §11.6.5 Cross-reference with Stockfish depth-gap
+Phase B will be scheduled once σ data exists on a corpus that overlaps with the §11.6 Phase A output.
 
-For plies where we have Stockfish evaluations at multiple depths: do the depth-gap peaks (positions where shallow and deep evaluations disagree most) align with partition boundaries? Previous data showed A₁ correlates with depth gap (ρ = +0.452). Does proximity to a phase partition correlate more strongly?
+### §11.6.5 Cross-reference with Stockfish depth-gap (Phase B — deferred)
 
-### §11.6.6 Decision point
+**Status.** Deferred. The existing `stockfish_correlation/stockfish_evaluations_v2.csv` is single-depth (depth 12) and does not contain the shallow+deep pairs needed to compute depth-gap magnitudes. Re-running Stockfish at multiple depths on the corpus is outside this experiment's compute budget.
 
-If partition boundaries align with high σ regions and with depth-gap peaks, we have a unified picture: the phase-space partition structure IS the structure that determines when local computation suffices versus when search is required. This would be the meta-cognitive signal we have been reaching for.
+**Intended analysis (pending depth-gap data).** For plies where Stockfish evaluations at multiple depths exist: do depth-gap peaks (positions where shallow and deep evaluations disagree most) align with partition boundaries (small `distance_to_nearest_boundary`)? Previous data showed the A₁ channel correlates with depth-gap at ρ=+0.452. Phase B asks whether partition-proximity correlates more strongly than A₁ alone.
 
-If partition boundaries are unrelated to σ or depth gap, the phase-space partitions are a structural feature of the encoding that does not correspond to computational difficulty. Still data, still informative, but a different answer.
+Phase B will be scheduled once multi-depth Stockfish data exists on the §11.6 Phase A corpus.
+
+### §11.6.6 Decision point (Phase A)
+
+Phase A produces partition structure itself, not the cross-reference verdicts. Phase A's decision point is narrower than the original §11.6.6 question: **does the phase-space similarity structure exhibit well-defined partitions at all, or does it look like a continuous drift with no natural cluster boundaries?**
+
+Three possible Phase A outcomes:
+
+1. **Clear partitions.** At some threshold τ, games decompose into a small number of internally-coherent clusters with sharp boundaries. `cluster_size` distribution has a modal peak; `similarity_to_cluster_centroid` is tight within clusters and drops cleanly across boundaries. This is the setup Phase B wants — partitions that can be cross-referenced with σ and depth-gap data.
+
+2. **Continuous drift.** Pairwise similarity decays monotonically with ply distance. No natural cluster boundaries; every τ choice is arbitrary. `cluster_size` varies smoothly with τ without a plateau. This closes the partition-detection hypothesis for the 640-dim encoder: the encoder sees games as continuous trajectories, not as a sequence of phase-cells, and the "similarity cell" framing is descriptive rather than structural.
+
+3. **Mixed behavior.** Some games partition cleanly, others do not. Examine whether the partitioning behavior correlates with game characteristics (opening type, time control, result, Elo) — this is itself an interesting structural finding even if Phase B is partially blocked.
+
+**Phase B decision (deferred).** Once σ and depth-gap data become available, Phase B answers the original §11.6 question: do partition boundaries align with computational-difficulty indicators?
+
+- If boundaries align with both σ and depth-gap peaks: the phase-space partition structure IS the structure that determines when local computation suffices versus when search is required. Meta-cognitive signal confirmed.
+- If boundaries are unrelated to both: the phase-space partitions are a structural feature of the encoding that does not correspond to computational difficulty. Null result for the meta-cognitive hypothesis; still structurally informative about how enc_640 organizes game trajectories.
+- If boundaries align with one but not the other: partial signal. The decomposition between σ (move-level roughness) and depth-gap (position-level evaluation instability) tells us which scale of computational difficulty the partitions track.
+
+All Phase B outcomes are informative. Phase A must complete cleanly first.
 
 ---
 
