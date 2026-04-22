@@ -264,6 +264,60 @@ Same three-outcome framework from §11.5 and §11.6.6.1:
 Per §11.7.4, record failures; do not tune derivations to produce
 desired outcomes. The numbers are the finding.
 
+### §12.7.1 Phase A2 — evaluation refinements
+
+Phase A's three-corpus extension produced an AMBIGUOUS categorical
+result with two evaluation-harness bugs that prevented a clean test
+of Derivations A and C:
+
+**Derivation A at k=5 did not test the eigenchannel hypothesis.**
+Variance-explained on δ_king at k=5 was 7–11% across the three
+corpora. The first five eigenvectors of the attack Laplacian carry
+almost none of the king-impulse energy; attack-line structure lives
+in higher-frequency modes. A's measured |ρ|=0.161–0.179 tested "the
+smoothest 5 of 64 modes carry some signal," not the full eigenchannel
+hypothesis. Phase A2 re-runs Derivation A at k=16 (and reports
+variance-explained at that k as a diagnostic). If variance-explained
+at k=16 is still below 0.8, the CLI accepts `--k-for-a` values up to
+32; the first k that achieves ≥0.8 variance-explained on a
+representative position sample is the honest test of A.
+
+**Derivation C's cosine metric did not measure corpus-relevant
+change.** Every sampled position in the three corpora has a king not
+under direct attack, so `derivation_c_channel` returns all-zeros on
+every row, and cosine of two zero vectors collapses to 0.0. C's
+feature vector is correct; the cosine summary wrapped around it was
+the wrong reduction for corpora where both sides of the transition
+have zero-magnitude C vectors. Phase A2 adds two alternative scalar
+summaries alongside cosine:
+
+- `delta_c`: L2 norm of (C_after − C_before). Nonzero whenever the
+  move changes any component of the king-attack vector, even when
+  both endpoints are near-zero.
+- `mag_c_after`: L2 norm of C_after alone. Captures the post-move
+  attack density directly; its correlation with `is_check_unsafe` is
+  expected to be near-1 by construction (`is_check_unsafe` is
+  literally "some component of C_after is positive"), and serves as
+  a sanity check that the evaluation pipeline recovers the
+  tautological baseline.
+
+The three C metrics together let us distinguish:
+
+- "C's derivation does not carry signal" (all three near zero)
+- "C's derivation carries signal but cosine is the wrong metric"
+  (cosine near zero, `delta_c` and/or `mag_c_after` above threshold)
+- "C's evaluation pipeline has a bug beyond the metric choice"
+  (`mag_c_after` fails to recover the near-1 tautological baseline)
+
+**Derivation B is not refined.** Its current three-corpus evaluation
+is methodologically sound. Its ambiguous result (single corpus
+crosses 0.3 on a single slice; does not replicate on other corpora)
+is the honest research finding. Per §11.7.4, alternative B signals
+are not explored in Phase A2.
+
+Phase A2 emits new CSVs with `_a2` suffix on disk; Phase A CSVs
+remain unchanged as part of the research record.
+
 ## §12.8 Infrastructure requirements
 
 Phase A needs:
