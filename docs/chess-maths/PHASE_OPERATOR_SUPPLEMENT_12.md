@@ -406,6 +406,119 @@ running regardless of which occurs.
 
 ---
 
+## §12.10.1 Phase A2 result — fresh three-corpus matrix (post turn-flip fix)
+
+Run parameters: same three §11.5 input CSVs as Phase A; Derivation
+A evaluated at k=16 (variance-explained 59.9% drnykterstein / 48.3%
+ashchess / 48.3% fishtest — "partial" or "inadequate") and then
+escalated to k=32 (93.8% / 95.1% / 92.0% — "faithful" per §12.7.1).
+Derivation B's channel construction and k choice are unchanged from
+Phase A. Derivation C reports all three scalar metrics introduced
+in §12.7.1. Tautological baseline `mag_c_after` recovered at
+|ρ| ≥ 0.994 across all three corpora, confirming the §12.7.1.1
+turn-flip fix is working as intended.
+
+### Three-corpus matrix at k=32 for A (faithful variance-explained)
+
+| Corpus       | n      | A max \|ρ\|      | A slice | B max \|ρ\|      | B slice       | C-cosine max      | C-delta max       |
+|--------------|-------:|-----------------:|:--------|-----------------:|:--------------|------------------:|------------------:|
+| drnykterstein | 3393  | 0.308 (−)        | knight  | **0.402 (−)**    | king moves    | 1.000 (bishop/rook/queen) | 0.855 (+) king moves |
+| ashchess      | 3203  | 0.209 (−)        | knight  | **0.304 (−)**    | king moves    | 1.000 (bishop/rook/queen) | 0.919 (+) king moves |
+| fishtest      | 3211  | 0.267 (−)        | bishop  | **0.313 (−)**    | king moves    | 1.000 (knight/rook/queen) | 0.903 (+) king moves |
+
+### Durability criterion applied
+
+A crossing of the |ρ| > 0.3 viability threshold is **durable** iff it
+replicates on the same slice across all three corpora (per §11.6.6.1).
+
+- **Derivation A**: max |ρ| = 0.308 / 0.209 / 0.267. Crosses 0.3
+  on drnykterstein knight, but not on the same slice across all
+  three corpora. **NOT durable.**
+- **Derivation B, king-moves slice**: |ρ| = 0.402 / 0.304 / 0.313.
+  **All three cross 0.3 on the same slice**, consistently with a
+  negative sign. **DURABLE.**
+- **Derivation C cosine / delta**: max values are dominated by
+  tautological structure. For `sim_c`, the zero-norm fallback
+  returns 0.0 whenever `C_before` or `C_after` is the all-zero
+  vector; post-fix, any sim_c > 0 means both vectors are nonzero,
+  which by construction implies `is_check_unsafe = True` after the
+  move. For `delta_c`, `C_before` is zero on most rows (mover's
+  king not previously attacked), so `‖C_after − 0‖ = ‖C_after‖`,
+  reducing delta to the tautological baseline. The high C-cosine
+  and C-delta values are therefore not independent evidence — they
+  are algebraic consequences of `mag_c_after`'s tautological
+  correlation, propagated through the wrapper metric. The C
+  derivation's genuine non-tautological content would require a
+  metric that separates "was the king attacked to begin with" from
+  "did the move change the attack pattern" — neither of which the
+  three current scalar summaries cleanly isolate.
+
+### Categorical outcome: **VIABLE (Derivation B, king-moves slice).**
+
+Derivation B's D4 decomposition of the opponent-attack adjacency row
+sum carries signal about whether a king move leaves the mover's king
+in check, at |ρ| ≈ 0.30–0.40 consistently negative, on all three
+structurally orthogonal corpora. The negative sign means:
+**post-move king-attack adjacency is less similar to pre-move adjacency
+when the move creates a check** than when it doesn't. This is
+structurally sensible — a check-creating king move necessarily
+reorganizes the attacker-set around the king, producing a larger
+D4-projected difference — and it is not a tautology of the
+is_check_unsafe label.
+
+§11.5's null on `encode_640` is therefore specific to that encoder's
+construction (bundled content descriptor); the HDC family CAN carry
+king-attack signal when the encoder targets attack-adjacency structure
+directly. Phase B (assembly via UTLP S3 §14.3 segmentation) is unblocked
+pending researcher review.
+
+**Note on slice specificity.** B's signal lives primarily on the
+king-moves slice; on all-transitions it is near-zero. This is
+consistent with the structural argument above (king moves are the
+transitions that necessarily change the set of squares in the king's
+attack environment). It also means the viable signal is narrow: B's
+256-dim concatenation plus king-move classification is required to
+extract it, not B alone.
+
+### Pairwise cosines (drnykterstein, 50 sampled positions)
+
+cos(A, B) = +0.024   cos(A, C) = +0.256   cos(B, C) = +0.042
+
+A, B, C measure different things; the king-attack encoder family
+covers orthogonal structural content.
+
+### Per-call timings (drnykterstein, mean over all rows)
+
+A: 1970 µs (k=16) / higher at k=32   B: 1352 µs   C: 600 µs
+
+### CSVs on disk (all gitignored per existing `docs/chess-maths/results/*/`)
+
+Phase A (pre-fix, retained as research trail):
+- `exp5_king_attack_correlation.csv` (drnykterstein)
+- `exp5_king_attack_correlation_ashchess.csv`
+- `exp5_king_attack_correlation_hf.csv`
+
+Phase A2 post-fix (k=16 primary, k=32 escalation):
+- `exp5_king_attack_correlation_a2.csv` (drnykterstein, k=16)
+- `exp5_king_attack_correlation_a2_k32.csv` (drnykterstein, k=32)
+- `exp5_king_attack_correlation_a2_ashchess.csv` (k=16)
+- `exp5_king_attack_correlation_a2_ashchess_k32.csv` (k=32)
+- `exp5_king_attack_correlation_a2_hf.csv` (k=16)
+- `exp5_king_attack_correlation_a2_hf_k32.csv` (k=32)
+
+### Research record note
+
+The Phase A matrix was computed on post-move boards where `board.turn`
+was not flipped, causing A and C to query the opponent's king and B
+to measure mover's outgoing attacks. The three-corpus protocol still
+detected non-replication of B's single-corpus crossing (because
+wrong-side measurements do still vary across corpora), but the
+quantity being measured was not the one the derivations were
+designed to produce. The §12.7.1.1 fix restored measurements to
+mover-perspective, after which (a) the tautological baseline
+recovered cleanly and (b) B's king-moves signal emerged as a durable
+three-corpus finding with a definite sign.
+
 ## §12.10 Result (Phase A — three-corpus evaluation)
 
 **Three-corpus §12 Phase A outcome: AMBIGUOUS.**
