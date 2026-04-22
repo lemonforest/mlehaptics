@@ -560,35 +560,41 @@ Three possible Phase A outcomes:
 
 All Phase B outcomes are informative. Phase A must complete cleanly first.
 
-### §11.6.6.1 Result — validated null for phase-space partition detection (two-corpus confirmation)
+### §11.6.6.1 Result — validated null for phase-space partition detection (three-corpus confirmation)
 
-**Phase A outcome: DRIFT.** Ran `partition_experiment.py` on two structurally distinct corpora:
+**Phase A outcome: DRIFT.** Ran `partition_experiment.py` on three structurally distinct corpora spanning human-vs-engine play, classical-vs-blitz time controls, and standard-vs-custom starting positions:
 
-| Corpus                       | Source                        | Games | Plies | τ=0.70 drift ρ | τ=0.95 drift ρ |
-|------------------------------|-------------------------------|------:|------:|---------------:|---------------:|
-| drnykterstein_2026-04-14_N10 | Magnus Carlsen (GM human, classical) |    10 |   796 |         +0.461 |         +0.778 |
-| sweep_hf_2026-04-20_N50      | Stockfish fishtest (engine sparring, ~41s TC, custom setup FEN) |    50 |  5070 |         +0.669 |         +0.839 |
+| Corpus                                    | Source / style                                                      | Games | Plies | τ=0.70 ρ | τ=0.80 ρ | τ=0.85 ρ | τ=0.90 ρ | τ=0.95 ρ |
+|-------------------------------------------|---------------------------------------------------------------------|------:|------:|---------:|---------:|---------:|---------:|---------:|
+| drnykterstein_2026-04-14_N10              | Magnus Carlsen (GM human, classical, standard FEN)                  |    10 |   796 |   +0.461 |   +0.563 |   +0.598 |   +0.711 |   +0.778 |
+| sweep_chain_lichess_ashchess_2026-04-21_N50 | ashchess (FM 2544, lichess rated blitz 180+0, standard FEN)       |    50 |  4863 |   +0.571 |   +0.622 |   +0.645 |   +0.690 |   +0.758 |
+| sweep_hf_2026-04-20_N50                   | Stockfish fishtest (engines, ~41s+0.4s, custom setup FEN)           |    50 |  5070 |   +0.669 |   +0.727 |   +0.761 |   +0.797 |   +0.839 |
 
-Within-cluster drift ρ is strongly positive at every τ on both corpora (all ρ ≥ +0.46; typical ρ ≈ +0.7). Cluster-size distributions show no plateau as τ sweeps from 0.70 to 0.95: cluster counts per game rise smoothly (drnykterstein 10.1 → 26.2; fishtest 20.5 → 42.9) while mean cluster sizes fall smoothly, with no τ where a modal cluster-size emerges.
+**Totals.** 110 games, 14,729 plies, 14,646 drift data points at each τ. All 15 drift-ρ measurements are strongly positive (+0.46 to +0.84). Cluster counts per game rise monotonically with τ on every corpus (drnykterstein 10.1 → 26.2; ashchess 15.2 → 30.2; fishtest 20.5 → 42.9) without a plateau.
 
-The fishtest corpus is deliberately orthogonal to drnykterstein across player identity (engine vs human), purpose (regression sparring vs rated tournament), time control (~41s vs classical), starting position (custom FEN vs standard), and sample size (5×). That DRIFT is *stronger* on the varied corpus (ρ uniformly higher at every τ) confirms this is not a player-specific or corpus-specific artifact: it is a property of how `encode_640` represents position sequences.
+The null is robust across every orthogonal dimension: player identity (GM / FM / engines), purpose (tournament / ranked ladder / regression sparring), time control (classical / 3-min blitz / ~41s blitz), starting position (standard / standard / custom setup FEN), and sample size (1× / 5× / 5×). The outcome does not change.
+
+**Volatility gradient.** A secondary structural datum deserves explicit note: drift-ρ magnitude orders cleanly at every τ as Carlsen-classical < ashchess-blitz < fishtest-engines, and cluster-count-per-game at τ=0.70 orders the same way (10.1 < 15.2 < 20.5). This is consistent with a reading that `encode_640` does not produce discrete partitions but *is* sensitive to a continuous "volatility of play" signal that scales with engine-like tactical jumpiness. The effect is suggestive, not established here — it rests on three data points. It is flagged for follow-up rather than claimed as a finding.
 
 **Structural interpretation.** Combined with §11.5.6's result, `encode_640` has now produced two nulls with the same signature: it does not expose king-attack geometry (§11.5.6), and it does not produce phase-space partitions (§11.6.6.1). Both are consistent with the encoder being a **content descriptor** (what pieces are at what phases) rather than a **discontinuity detector**. The encoder's ten channels — five D4 irreps, three symmetric fiber channels, FA antisymmetric pawn fiber, FD diagonal deviation — are each bundled-HDC superpositions derived from the lattice's symmetry content, and none of those derivations produces discrete cluster boundaries as a first-order output. Game trajectories therefore render as continuous paths through 640-dim space even when the chess-theoretic narrative (piece trades, pawn breaks, tactical shots) has natural phase-transition points.
 
-**Scope of the null.** Phase A's partition-detection hypothesis is closed for `encode_640` across the two-corpus durability check. The broader §11.6 question — whether phase-space partitions exist *for some encoder* and align with computational-difficulty indicators — is **not** closed by this result. A follow-up encoder that exposes discontinuity structure (e.g., the parallel king-attack instrument stubbed in §12, or any threshold-gated or rank-detecting channel) could produce a different Phase A outcome on the same corpora. Phase B (σ and depth-gap cross-references) also remains deferred under its original prerequisites; it is not blocked by Phase A's null because Phase B would only run against a corpus that *did* partition cleanly, and the current encoder does not.
+**Scope of the null.** Phase A's partition-detection hypothesis is closed for `encode_640` across the three-corpus durability check. The broader §11.6 question — whether phase-space partitions exist *for some encoder* and align with computational-difficulty indicators — is **not** closed by this result. A follow-up encoder that exposes discontinuity structure (e.g., the parallel king-attack instrument stubbed in §12, or any threshold-gated or rank-detecting channel) could produce a different Phase A outcome on the same corpora. Phase B (σ and depth-gap cross-references) also remains deferred under its original prerequisites; it is not blocked by Phase A's null because Phase B would only run against a corpus that *did* partition cleanly, and the current encoder does not.
 
-**CSVs on disk** (both gitignored per `docs/chess-maths/results/*/` policy):
+**CSVs on disk** (all gitignored per `docs/chess-maths/results/*/` policy):
 - `docs/chess-maths/results/phase_operator_experiments/exp4_partitions.csv` — drnykterstein N=10
+- `docs/chess-maths/results/phase_operator_experiments/exp4_partitions_ashchess_N50.csv` — ashchess N=50
 - `docs/chess-maths/results/phase_operator_experiments/exp4_partitions_hf_N50.csv` — fishtest N=50
 
 Regenerate via:
 ```sh
 python partition_experiment.py --corpus ../results/sweep_chain_lichess_drnykterstein_2026-04-14_N10
+python partition_experiment.py --corpus ../results/sweep_chain_lichess_ashchess_2026-04-21_N50 \
+    --out ../results/phase_operator_experiments/exp4_partitions_ashchess_N50.csv
 python partition_experiment.py --corpus ../results/sweep_hf_2026-04-20_N50 \
     --out ../results/phase_operator_experiments/exp4_partitions_hf_N50.csv
 ```
 
-**Decision:** §11.6.6 closed as validated null for path-1 partition detection on `encode_640`. §12 (parallel king-attack encoder) remains the natural next probe for whether a principled derivation CAN produce discontinuity structure; it is sibling work, not a follow-up for §11.6. §11.6 Phase B remains deferred under its original prerequisites.
+**Decision:** §11.6.6 closed as validated null for path-1 partition detection on `encode_640`. §12 (parallel king-attack encoder) remains the natural next probe for whether a principled derivation CAN produce discontinuity structure; it is sibling work, not a follow-up for §11.6. §11.6 Phase B remains deferred under its original prerequisites. The volatility-gradient observation is a deferred open question: whether the drift-ρ ordering by play style is a robust structural signal or a coincidence across three data points.
 
 ---
 
