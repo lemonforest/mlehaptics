@@ -59,6 +59,18 @@ from .corpus import (
     write_index_csv, write_summary_md,
     row_for_csv, INDEX_COLUMNS,
 )
+from .phase_operators import (
+    phi,
+    P_knight, P_king, P_rook, P_bishop, P_queen,
+    P_pawn_white, P_pawn_black,
+    invert,
+    occupation_aware_moves_a,
+    occupation_aware_moves_b,
+    occupation_aware_moves_c,
+    available_castles,
+    phasecast_is_check,
+    move_leaves_king_in_check,
+)
 
 __all__ = [
     # Encoder
@@ -81,4 +93,16 @@ __all__ = [
     "parse_local_pgn", "iter_local_pgn_games",
     "write_index_csv", "write_summary_md",
     "row_for_csv", "INDEX_COLUMNS",
+    # Phase operators (curated re-exports; full API at
+    # chess_spectral.phase_operators.*)
+    "phi",
+    "P_knight", "P_king", "P_rook", "P_bishop", "P_queen",
+    "P_pawn_white", "P_pawn_black",
+    "invert",
+    "occupation_aware_moves_a",
+    "occupation_aware_moves_b",
+    "occupation_aware_moves_c",
+    "available_castles",
+    "phasecast_is_check",
+    "move_leaves_king_in_check",
 ]
