@@ -10,8 +10,10 @@ import chess
 from phase_operators import phi, MODULUS
 from phase_to_coords import invert
 from occupation_field import (
+    WHITE_CHARGE,
     king_destinations, knight_destinations, pawn_destinations,
 )
+from castling import castle_king_destinations
 
 
 _ROOK_RAYS: tuple[int, ...] = (67, -67, 7, -7)
@@ -68,7 +70,10 @@ def occupation_aware_moves_c(board: chess.Board, piece_char: str,
         return _sliding_destinations_c(origin_phi, _QUEEN_RAYS,
                                        occupation, mover_charge)
     if pc == "K":
-        return king_destinations(origin_phi, occupation, mover_charge)
+        base = king_destinations(origin_phi, occupation, mover_charge)
+        mover_color = (chess.WHITE if mover_charge == WHITE_CHARGE
+                       else chess.BLACK)
+        return base | castle_king_destinations(board, mover_color)
     if pc == "N":
         return knight_destinations(origin_phi, occupation, mover_charge)
     if pc == "P":
