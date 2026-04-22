@@ -76,14 +76,37 @@ def knight_destinations(origin_phi: int, occupation: dict[int, int],
     return _filter_localized(P_knight(origin_phi), occupation, mover_charge)
 
 
+def ep_phase_from_board(board: chess.Board) -> int | None:
+    """Phase of board.ep_square, or None if no en passant target is active.
+
+    Per §11.4.3.2 this is the pass-through of FEN ep_square state into
+    phase space; the pawn_destinations generator uses it to lift an
+    otherwise-empty capture diagonal into a legal destination.
+    """
+    if board.ep_square is None:
+        return None
+    r = chess.square_rank(board.ep_square)
+    c = chess.square_file(board.ep_square)
+    return phi(r, c)
+
+
 def pawn_destinations(origin_r: int, origin_c: int,
                       occupation: dict[int, int],
-                      mover_charge: int) -> frozenset[tuple[int, int]]:
-    """White/black pawn destinations with occupation-aware advance + capture.
+                      mover_charge: int,
+                      ep_phase: int | None = None,
+                      ) -> frozenset[tuple[int, int]]:
+    """White/black pawn destinations with occupation-aware advance + capture
+    and optional en passant.
 
     Advance cannot land on any occupied square; two-step advance also
     requires the intermediate square to be empty. Captures require the
-    diagonal destination to be occupied by opposite charge.
+    diagonal destination to be occupied by opposite charge — UNLESS
+    ep_phase is set and equals the capture diagonal phase, in which
+    case the capture is allowed even though the square is empty
+    (§11.4.3.2 en passant).
+
+    ep_phase: optional phase of the en passant target square, derived
+    from board.ep_square. None when no ep capture is available.
     """
     origin_phi = phi(origin_r, origin_c)
     if mover_charge == WHITE_CHARGE:
@@ -115,6 +138,8 @@ def pawn_destinations(origin_r: int, origin_c: int,
             continue
         charge = occupation.get(cap_phase)
         if charge is not None and charge != mover_charge:
+            out.add(rc)
+        elif ep_phase is not None and cap_phase == ep_phase:
             out.add(rc)
 
     return frozenset(out)
