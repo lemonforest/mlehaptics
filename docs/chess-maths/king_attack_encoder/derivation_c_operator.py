@@ -143,3 +143,44 @@ def derivation_c_similarity(board_before: chess.Board,
     if norm == 0.0:
         return 0.0
     return float(np.dot(b, a) / norm)
+
+
+def derivation_c_delta(board_before: chess.Board,
+                       move: chess.Move) -> float:
+    """L2 norm of (C_after − C_before). Phase A2 complementary metric
+    to `derivation_c_similarity`: handles the common case where both
+    C_before and C_after are near-zero (king safe on both sides of the
+    move) by measuring the displacement directly rather than through
+    a normalized inner product.
+
+    Returns a non-negative float. Zero means the king-attack vector
+    is unchanged by the move; positive values scale with the magnitude
+    of change in attack density.
+
+    See PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.
+    """
+    board_after = board_before.copy(stack=False)
+    board_after.push(move)
+    b = derivation_c_channel(board_before)
+    a = derivation_c_channel(board_after)
+    return float(np.linalg.norm(a - b))
+
+
+def derivation_c_after_magnitude(board_before: chess.Board,
+                                 move: chess.Move) -> float:
+    """L2 norm of C(board_after) alone. A tautological baseline:
+    `is_check_unsafe` is defined as "some component of C_after is
+    positive," so this metric's correlation with `is_check_unsafe`
+    should be near 1.0 by construction. Its role in Phase A2 is to
+    verify the evaluation pipeline recovers that baseline; any
+    meaningful finding from A or `delta_c` must beat it along a
+    dimension other than raw post-move attack density.
+
+    Returns a non-negative float.
+
+    See PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.
+    """
+    board_after = board_before.copy(stack=False)
+    board_after.push(move)
+    a = derivation_c_channel(board_after)
+    return float(np.linalg.norm(a))
