@@ -91,9 +91,15 @@ def derivation_b_similarity(board_before: chess.Board,
 
     For zero-norm channels (empty attack graph, homogeneous signal
     with zero projection on some irrep), returns 0.0 for that irrep.
+
+    board.turn is flipped on the post-move board so that `opp_color`
+    inside `attack_adjacency` continues to select the defender's
+    attackers (from the mover's perspective) rather than the mover's
+    own pieces. See PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.1.
     """
     board_after = board_before.copy(stack=False)
     board_after.push(move)
+    board_after.turn = not board_after.turn
     before = derivation_b_channels(board_before)
     after = derivation_b_channels(board_after)
     out: dict = {}
@@ -109,9 +115,14 @@ def derivation_b_similarity_concat(board_before: chess.Board,
                                    move: chess.Move) -> float:
     """Cosine similarity of the 5*64 = 320-dim concatenated vector
     across all five D4 irreps. Single-scalar summary suitable for
-    direct comparison with derivation_a_similarity."""
+    direct comparison with derivation_a_similarity.
+
+    Flips board.turn after push per §12.7.1.1 so the post-move
+    adjacency is computed from the mover's perspective.
+    """
     board_after = board_before.copy(stack=False)
     board_after.push(move)
+    board_after.turn = not board_after.turn
     before = derivation_b_channels(board_before)
     after = derivation_b_channels(board_after)
     b_concat = np.concatenate([before[i] for i in D4_IRREPS])

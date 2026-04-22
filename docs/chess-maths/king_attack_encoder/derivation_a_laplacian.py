@@ -52,9 +52,16 @@ def derivation_a_similarity(board_before: chess.Board,
                             k: int = DEFAULT_K) -> float:
     """Cosine similarity between Derivation A encodings before/after a
     move. Returns a float in [-1, 1]; 0.0 when either side has zero
-    norm (degenerate king-absent positions)."""
+    norm (degenerate king-absent positions).
+
+    board.turn is flipped on the post-move board so that the mover's
+    king (not the opponent's) remains the analysis target after the
+    push. See PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.1 for the bug
+    history.
+    """
     board_after = board_before.copy(stack=False)
     board_after.push(move)
+    board_after.turn = not board_after.turn
     a_before = derivation_a_channel(board_before, k=k)
     a_after = derivation_a_channel(board_after, k=k)
     norm = float(np.linalg.norm(a_before) * np.linalg.norm(a_after))

@@ -85,6 +85,43 @@ class TestDerivationA(unittest.TestCase):
         self.assertLess(elapsed_ms, 10.0,
                         f"per-call {elapsed_ms:.2f} ms exceeds budget")
 
+    def test_similarity_uses_mover_king_after_move(self):
+        """Regression test for the §12.7.1.1 turn-flip fix.
+
+        Constructs a position where the mover's king IS attacked
+        after the move (is_check_unsafe) but the opponent's king is
+        NOT. The Derivation A channel computed on the post-move
+        board must reflect the mover's king's neighborhood, not the
+        opponent's.
+
+        Before the fix, derivation_a_similarity consulted board.turn
+        AFTER push without flipping, picking up the opponent's king.
+        """
+        board = chess.Board("k7/8/8/4r3/4Q3/8/8/4K3 w - - 0 1")
+        move = chess.Move.from_uci("e4d4")
+
+        # Reference: compute what the wrapper SHOULD produce, by
+        # doing the push + turn-flip explicitly.
+        board_after = board.copy(stack=False)
+        board_after.push(move)
+        board_after.turn = not board_after.turn
+        expected_after = derivation_a_channel(board_after, k=DEFAULT_K)
+        expected_before = derivation_a_channel(board, k=DEFAULT_K)
+        norm_b = float(np.linalg.norm(expected_before))
+        norm_a = float(np.linalg.norm(expected_after))
+        if norm_b > 0 and norm_a > 0:
+            expected_sim = float(np.dot(expected_before, expected_after)
+                                 / (norm_b * norm_a))
+        else:
+            expected_sim = 0.0
+
+        actual_sim = derivation_a_similarity(board, move, k=DEFAULT_K)
+        self.assertAlmostEqual(
+            actual_sim, expected_sim, places=10,
+            msg=("derivation_a_similarity must flip board.turn on "
+                 "the post-move board; the mover's king is the "
+                 "analysis target, not the opponent's."))
+
 
 if __name__ == "__main__":
     unittest.main()

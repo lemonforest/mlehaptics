@@ -88,6 +88,42 @@ class TestDerivationB(unittest.TestCase):
         self.assertLess(elapsed_ms, 10.0,
                         f"per-call {elapsed_ms:.2f} ms exceeds budget")
 
+    def test_similarity_concat_uses_mover_perspective_after_move(self):
+        """Regression test for the §12.7.1.1 turn-flip fix.
+
+        In the test FEN, after Qe4d4 the white king on e1 becomes
+        attacked by the black rook on e5 through the cleared e-file.
+        Derivation B's attack_adjacency must compute "opponent of
+        mover" after the move -- i.e., black's attacks -- not
+        "opponent of new side-to-move" which would be white's
+        outgoing attacks.
+
+        The reference below computes the concat cosine with an
+        explicit turn-flip; the wrapper must match bit-identically.
+        """
+        board = chess.Board("k7/8/8/4r3/4Q3/8/8/4K3 w - - 0 1")
+        move = chess.Move.from_uci("e4d4")
+
+        board_after = board.copy(stack=False)
+        board_after.push(move)
+        board_after.turn = not board_after.turn
+        before = derivation_b_channels(board)
+        after = derivation_b_channels(board_after)
+        b_concat = np.concatenate([before[i] for i in D4_IRREPS])
+        a_concat = np.concatenate([after[i] for i in D4_IRREPS])
+        nb = float(np.linalg.norm(b_concat))
+        na = float(np.linalg.norm(a_concat))
+        if nb > 0 and na > 0:
+            expected = float(np.dot(b_concat, a_concat) / (nb * na))
+        else:
+            expected = 0.0
+
+        actual = derivation_b_similarity_concat(board, move)
+        self.assertAlmostEqual(
+            actual, expected, places=10,
+            msg=("derivation_b_similarity_concat must flip "
+                 "board.turn on the post-move board."))
+
 
 if __name__ == "__main__":
     unittest.main()

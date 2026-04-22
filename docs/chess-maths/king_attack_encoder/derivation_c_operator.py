@@ -134,9 +134,14 @@ def derivation_c_similarity(board_before: chess.Board,
     move. Returns a float in [-1, 1]; 0.0 on zero-norm degenerate
     cases (including the common case where both pre- and post-move
     positions have zero king-attack density — most quiet moves in
-    most positions)."""
+    most positions).
+
+    Flips board.turn after push per §12.7.1.1 so the post-move
+    channel queries the mover's king rather than the opponent's.
+    """
     board_after = board_before.copy(stack=False)
     board_after.push(move)
+    board_after.turn = not board_after.turn
     b = derivation_c_channel(board_before)
     a = derivation_c_channel(board_after)
     norm = float(np.linalg.norm(b) * np.linalg.norm(a))
@@ -157,10 +162,14 @@ def derivation_c_delta(board_before: chess.Board,
     is unchanged by the move; positive values scale with the magnitude
     of change in attack density.
 
+    Flips board.turn after push per §12.7.1.1 so the post-move
+    channel queries the mover's king rather than the opponent's.
+
     See PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.
     """
     board_after = board_before.copy(stack=False)
     board_after.push(move)
+    board_after.turn = not board_after.turn
     b = derivation_c_channel(board_before)
     a = derivation_c_channel(board_after)
     return float(np.linalg.norm(a - b))
@@ -178,9 +187,16 @@ def derivation_c_after_magnitude(board_before: chess.Board,
 
     Returns a non-negative float.
 
+    Flips board.turn after push per §12.7.1.1 so the post-move
+    channel queries the mover's king rather than the opponent's —
+    the entire point of the tautological baseline is that it should
+    correlate near-1.0 with `is_check_unsafe`, which is defined from
+    the mover's perspective.
+
     See PHASE_OPERATOR_SUPPLEMENT_12.md §12.7.1.
     """
     board_after = board_before.copy(stack=False)
     board_after.push(move)
+    board_after.turn = not board_after.turn
     a = derivation_c_channel(board_after)
     return float(np.linalg.norm(a))

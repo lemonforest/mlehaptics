@@ -318,6 +318,41 @@ are not explored in Phase A2.
 Phase A2 emits new CSVs with `_a2` suffix on disk; Phase A CSVs
 remain unchanged as part of the research record.
 
+### §12.7.1.1 Turn-flip wrapper fix
+
+Phase A2's tautological-baseline check (|C_after| correlation with
+`is_check_unsafe` should be near 1.0 by construction) halted the
+three-corpus re-run when the baseline failed on drnykterstein. The
+diagnosis was a missing `board.turn` flip in all six similarity
+wrappers across Derivations A, B, and C: after `board.push(move)`,
+python-chess flips `board.turn` to the opponent, and the subsequent
+call to `derivation_*_channel(board_after)` queries the wrong king
+(for A and C via `board.king(board.turn)`) or the wrong attacker
+color (for B via `opp_color = not board.turn` inside
+`attack_adjacency`). The correct pattern — established in
+`phase_operators/phase_check_detection.move_leaves_king_in_check` —
+flips `board.turn` back before the post-move channel computation.
+
+The fix is one line per wrapper: `board_after.turn = not
+board_after.turn` after the push. The channel functions themselves
+(`derivation_a_channel`, `derivation_b_channels`,
+`derivation_c_channel`) and the underlying `attack_graph`
+primitives are unchanged.
+
+Consequence for the research record: the original Phase A
+three-corpus numbers (B's 0.332 single-corpus crossing, A's
+0.161–0.179 across corpora, C's NaN) were computed on wrong-side
+measurements. The three-corpus protocol still detected
+non-replication of B, but the quantity being measured was not the
+one the derivation was designed to produce. Phase A2 (post-fix)
+supplies the fresh three-corpus matrix that §12.10.1 interprets.
+
+The tautological-baseline design pattern is preserved as a reusable
+check for any future evaluation harness: any derivation whose
+correlation with its target is provably near 1.0 by construction
+should be included and asserted, to catch exactly this class of
+wrapper-layer bug before it contaminates interpretation.
+
 ## §12.8 Infrastructure requirements
 
 Phase A needs:

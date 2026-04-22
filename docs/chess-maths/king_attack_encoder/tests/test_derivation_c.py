@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from king_attack_encoder.derivation_c_operator import (  # noqa: E402
     FEATURE_DIM, derivation_c_channel, derivation_c_similarity,
+    derivation_c_delta, derivation_c_after_magnitude,
 )
 
 
@@ -95,6 +96,96 @@ class TestDerivationC(unittest.TestCase):
         elapsed_ms = (time.perf_counter() - t0) * 1000 / 10
         self.assertLess(elapsed_ms, 10.0,
                         f"per-call {elapsed_ms:.2f} ms exceeds budget")
+
+    def test_after_magnitude_measures_mover_king(self):
+        """Regression test for the §12.7.1.1 turn-flip fix.
+
+        derivation_c_after_magnitude is designed as a tautological
+        baseline: |C_after| must be non-zero whenever the move
+        leaves the MOVER's king attacked (is_check_unsafe=True). If
+        the wrapper queries the opponent's king instead, this
+        baseline fails (which is what Phase A2 initially detected).
+
+        In the test FEN, after Qe4d4 the white king on e1 is
+        attacked by the black rook on e5 via the cleared e-file;
+        the black king on a8 remains attack-free. The post-flip
+        channel must be non-zero.
+        """
+        board = chess.Board("k7/8/8/4r3/4Q3/8/8/4K3 w - - 0 1")
+        move = chess.Move.from_uci("e4d4")
+
+        mag = derivation_c_after_magnitude(board, move)
+        self.assertGreater(
+            mag, 0.0,
+            "Mover's king (white e1) is attacked after Qd4 clears "
+            "the e-file; |C_after| must be positive. A value of "
+            "0.0 indicates the wrapper is querying the opponent's "
+            "king (black a8) instead.")
+
+        # Pin the exact value: rook ray from e1 in the -row direction
+        # hits the rook on e5 at k=4, so the density component is
+        # 1/4 = 0.25. All other components are 0. |C_after| = 0.25.
+        board_after = board.copy(stack=False)
+        board_after.push(move)
+        board_after.turn = not board_after.turn
+        expected_channel = derivation_c_channel(board_after)
+        expected_mag = float(np.linalg.norm(expected_channel))
+        self.assertAlmostEqual(mag, expected_mag, places=10)
+        # Component layout: index 1 is -row ray (pointing from king
+        # toward e5 given white king on e1, that's the +row toward
+        # a higher rank -- index 0). The actual ray direction depends
+        # on the ROW_GEN sign convention; assert that SOMETHING is
+        # nonzero in the rook-ray band [0..3].
+        rook_band = expected_channel[0:4]
+        self.assertGreater(
+            float(np.max(rook_band)), 0.0,
+            "One of the four rook-ray density components must be "
+            "non-zero; got all zeros.")
+
+    def test_delta_uses_mover_king_after_move(self):
+        """Regression test for the §12.7.1.1 turn-flip fix on
+        derivation_c_delta."""
+        board = chess.Board("k7/8/8/4r3/4Q3/8/8/4K3 w - - 0 1")
+        move = chess.Move.from_uci("e4d4")
+
+        dlt = derivation_c_delta(board, move)
+        # Before the move, white's king on e1 has no attackers (the
+        # rook on e5 is blocked by the queen on e4). So C_before is
+        # all zeros. After the move with turn-flip, C_after has
+        # 0.25 in the rook-ray component. Delta = L2(C_after - 0) =
+        # |C_after| = 0.25.
+        board_after = board.copy(stack=False)
+        board_after.push(move)
+        board_after.turn = not board_after.turn
+        b = derivation_c_channel(board)
+        a = derivation_c_channel(board_after)
+        expected = float(np.linalg.norm(a - b))
+        self.assertAlmostEqual(dlt, expected, places=10)
+        self.assertGreater(
+            dlt, 0.0,
+            "delta_c must measure change on mover's-king attack "
+            "density, not opponent's-king.")
+
+    def test_similarity_uses_mover_king_after_move(self):
+        """Regression test for the §12.7.1.1 turn-flip fix on
+        derivation_c_similarity."""
+        board = chess.Board("k7/8/8/4r3/4Q3/8/8/4K3 w - - 0 1")
+        move = chess.Move.from_uci("e4d4")
+
+        sim = derivation_c_similarity(board, move)
+        # C_before is all zeros (queen blocks the rook); with the
+        # zero-norm fallback the cosine returns 0.0 regardless of
+        # whether the turn-flip is applied. But the reference path
+        # with explicit flip should match.
+        board_after = board.copy(stack=False)
+        board_after.push(move)
+        board_after.turn = not board_after.turn
+        b = derivation_c_channel(board)
+        a = derivation_c_channel(board_after)
+        norm = float(np.linalg.norm(b) * np.linalg.norm(a))
+        expected = (float(np.dot(b, a) / norm)
+                    if norm > 0 else 0.0)
+        self.assertAlmostEqual(sim, expected, places=10)
 
 
 if __name__ == "__main__":
