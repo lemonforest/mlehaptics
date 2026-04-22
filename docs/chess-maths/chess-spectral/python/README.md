@@ -66,15 +66,17 @@ input file. The Python CLI (`chess-spectral`, entry point
 ## Layout
 
     chess_spectral/
-      encoder.py       # encode_640(pos) → np.ndarray(640,)
-      frame.py         # v2 .spectral[z] binary I/O + transparent gzip
-      csv_export.py    # dist_prev / cos_prev / energies CSV
-      cli.py           # `chess-spectral csv file.spectralz` (2D CLI)
+      encoder.py             # encode_640(pos) → np.ndarray(640,)
+      frame.py               # v2 .spectral[z] binary I/O + transparent gzip
+      csv_export.py          # dist_prev / cos_prev / energies CSV
+      cli.py                 # `chess-spectral csv file.spectralz` (2D CLI)
+      phase_operators/       # §11 phase-space move generator + is_check (1.2.0+)
     chess_spectral_4d/
-      cli.py           # `chess-spectral-4d tables-verify --phase all`
-    pyproject.toml     # PEP 621 packaging metadata
+      cli.py                 # `chess-spectral-4d tables-verify --phase all`
+    pyproject.toml           # PEP 621 packaging metadata
     tests/
-      test_parity.py   # Python output == C output (5 tests)
+      test_parity.py         # Python output == C output (5 tests)
+      phase_operators/       # §11 validation suite (92 tests; 1.2.0+)
 
 ## Quick start
 
@@ -105,6 +107,64 @@ input file. The Python CLI (`chess-spectral`, entry point
     python spectral_py.py encode     -i game.ndjson -o game.spectralz -z
     python spectral_py.py encode-fen --fen "..."   -o single.spectral
     python spectral_py.py version
+
+## Phase operators (§11)
+
+`chess_spectral` ships a phase-space move generator and check
+detector as the `chess_spectral.phase_operators` subpackage (added
+in 1.2.0). The primitives compute all moves and check relationships
+as modular arithmetic on a single integer per square —
+`phi(r, c) = r·67 + c·7 mod 640` — rather than geometric
+coordinates. They are a drop-in equivalent to python-chess's
+`pseudo_legal_moves` + `is_check`, validated at 100% on the reference
+corpus, and compose naturally with the spectral encoder's coprime
+phase structure.
+
+```python
+import chess
+from chess_spectral.phase_operators import (
+    occupation_aware_moves_c,   # pseudo-legal dests from a square
+    available_castles,          # legal castles for side-to-move
+    phasecast_is_check,         # is the mover's king attacked?
+    move_leaves_king_in_check,  # would this move expose our king?
+)
+
+board = chess.Board()
+
+# Pseudo-legal destinations for the knight on b1 (the 1,2 indexed
+# from bottom-left: row 0, col 1). mover_charge is +1 for white.
+dests = occupation_aware_moves_c(board, "N", 0, 1, +1)
+# -> frozenset({(2, 0), (2, 2)})   (a3 and c3)
+
+# Check detection
+phasecast_is_check(board)  # False on the starting position
+```
+
+Validation coverage (see
+[PHASE_OPERATOR_SUPPLEMENT.md](https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/PHASE_OPERATOR_SUPPLEMENT.md)
+for the full research record):
+
+- Empty-board pseudo-legal destinations for every piece type at
+  every square — 416 / 416 pairs (§11.3).
+- Occupation-aware pseudo-legal moves including en passant and
+  castling — 1153 / 1153 at n=100 positions (§11.4).
+- `is_check` on arbitrary pseudo-legal transitions — 3393 / 3393
+  (§11.5 path 1).
+
+### When to use phase operators vs python-chess
+
+Both give you the same answers. The phase-space formulation is
+faster than python-chess's `pseudo_legal_moves` in pure Python
+(~7 µs/piece for the fastest solution vs ~15–20 µs for python-chess's
+equivalent), and slower than python-chess's bitboard `is_check`
+(`phasecast_is_check` runs ~138 µs vs ~22 µs for python-chess). The
+subpackage exists because the phase-space formulation is the
+substrate the §11/§12 spectral research is built on — not because
+it universally out-performs python-chess. If you're writing a search
+engine hot loop, python-chess's bitboards are the right choice. If
+you're doing phase-space research (similarity, partition detection,
+encoder composition) or need the operators as primitives in C via a
+future codegen port, the subpackage is the right choice.
 
 ## Parity with C
 

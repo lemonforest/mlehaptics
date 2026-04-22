@@ -5,6 +5,65 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-04-22
+
+Feature release. Adds the §11 phase-space move generator and check
+detector as the `chess_spectral.phase_operators` subpackage. Previously
+these modules lived at `docs/chess-maths/phase_operators/` with no PyPI
+distribution; users had to import via `sys.path` tricks. They are now
+first-class `chess_spectral` API, installable via
+`pip install chess-spectral`.
+
+### Added
+
+- `chess_spectral.phase_operators` subpackage exposing the validated
+  §11 primitives:
+  - Phase arithmetic on Z_640 (`phi`, `P_rook`, `P_bishop`, `P_queen`,
+    `P_king`, `P_knight`, `P_pawn_white`, `P_pawn_black`, and the
+    generator constants `ROW_GEN`, `COL_GEN`, `DIAG_NE_SW_GEN`,
+    `DIAG_NW_SE_GEN`, `MODULUS`, `KNIGHT_SHIFTS`, `KING_SHIFTS`).
+  - Inverse lookup (`invert`, `PHI_TO_RC`, `RC_TO_PHI`,
+    `phase_set_to_board`).
+  - Occupation-aware move generation in three equivalent solutions
+    (`occupation_aware_moves_a/b/c`) including en passant via
+    `ep_phase_from_board` and castling via `available_castles` /
+    `castle_king_destinations` / `CASTLES`.
+  - Phase-native check detection (`phasecast_is_check`,
+    `move_leaves_king_in_check`) — validated 100% against
+    python-chess's `is_check` over 3393 pseudo-legal transitions in
+    the §11.5 experiment.
+- Top-level re-exports for the high-traffic primitives so
+  `from chess_spectral import phasecast_is_check,
+  occupation_aware_moves_c, phi, ...` works without the subpackage
+  path. Full API remains accessible at
+  `chess_spectral.phase_operators.*`.
+- 92 unit tests migrated from the research tree into the packaged
+  suite at `tests/phase_operators/`, runnable via
+  `pytest tests/phase_operators/`. Existing `chess_spectral` tests
+  (encoder parity, roundtrip, edge support) unchanged.
+
+### Changed
+
+- Version bumped 1.1.3 → 1.2.0 (feature addition; semver minor).
+- No changes to encoder, `spectralz` wire format, frame I/O, CLI,
+  safety field, corpus processing, or any existing public API. All
+  pre-1.2.0 call sites continue to work unchanged.
+
+### Research artifacts (unaffected)
+
+The following §11/§12 research modules remain at their original
+`docs/chess-maths/` paths because they are experiment-scoped, not
+library surface:
+
+- `docs/chess-maths/phase_operators/{equivalence_check,
+  occupation_equivalence_check, benchmark_solutions, phase_similarity,
+  similarity_experiment, partition_detector, partition_experiment}.py`
+- `docs/chess-maths/king_attack_encoder/` (§12 Phase A2)
+
+Their imports now reference `chess_spectral.phase_operators` rather
+than relying on `sys.path` manipulation. A `pip install` of
+`chess-spectral` is now a prerequisite for running them.
+
 ## [1.1.3] — 2026-04-20
 
 Pipeline-exercise release. Functionally identical to 1.1.2; exists to
