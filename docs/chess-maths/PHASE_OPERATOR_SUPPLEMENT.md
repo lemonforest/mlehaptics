@@ -394,7 +394,13 @@ Proceeding to §11.5.
 
 Specifically: for any candidate transition (φ_origin → φ_dest) under polarization operator P_p, does the **phase-tuple similarity** between the pre-transition and post-transition 640-dim encodings correlate with the thermodynamic gradient Δ from the earlier experiments?
 
-**Operational target derived from §11.4.5 timing data.** The benchmark split in §11.4.5 showed that check-filtering (move-into-check detection) costs ~60 μs per call in python-chess, dominating legal-scope move generation by ~10× over the phase-space generation cost. If phase similarity correlates with "move leaves own king in check" at usable precision (|ρ| > 0.3 as a loose threshold), §11.5 has produced a phase-native component of a faster check filter — approximate detection in phase space, geometric confirmation only for ambiguous cases. This does not guarantee the correlation exists; it defines what would be operationally interesting if it did. The §11.5 protocol therefore adds `is_check_unsafe` as a correlation target alongside the existing thermodynamic quantities, so the experiment can answer this specific question in addition to the broader gradient-correlation one.
+**Two paths, one experiment.** The §11.4.5 benchmark showed check-filtering dominates legal-scope runtime by roughly 10× over move generation. Two distinct research paths target this cost:
+
+- **Path 1: phase-native check detection.** Reformulate python-chess's `is_check` operation in phase space. The natural formulation ("reverse phase-cast") casts inverse attack operators outward from the king and intersects with opponent-occupation-by-type. This is mathematically equivalent to bitboard-based attack detection — same asymptotic complexity, same correctness. It offers no algorithmic advantage over what optimized engines already do, and in a naive Python implementation runs ~38× slower than python-chess's bitboard `is_check`. Its value is as a *reference path*: a phase-space operation with known-correct answer by construction.
+
+- **Path 2: phase-native check prediction via similarity.** If phase-tuple similarity between pre-move and post-move encodings correlates with is_check_unsafe at usable precision (|ρ| > 0.3 as a loose threshold), phase space contributes a cheap approximate signal that the geometric filter does not provide — a pre-filter for the expensive geometric confirmation step. This is structurally different from path 1; it is not a faster reimplementation of an existing operation, it is a new signal whose presence or absence the experiment must determine.
+
+§11.5 runs both paths in the same experiment: path 1 as a reference channel with known correct answers, path 2 as the correlation target with unknown outcome. Having the path-1 reference in the CSV lets us compare any path-2 signal against what a straight phase-space reformulation already achieves by construction. If phase_similarity correlates with is_check_unsafe at a strength comparable to or exceeding what path 1 achieves at its correctness level, phase similarity is carrying information that the direct geometric computation does not expose. If it underperforms, phase similarity is a weaker signal than direct computation and the §11.5.6 decision for the check-filter use case is negative (though the broader thermodynamic correlations may still be informative).
 
 ### §11.5.2 What phase-tuple similarity measures
 
@@ -424,14 +430,20 @@ Per legal transition:
 - delta_v1 (from prior experiment, if available)
 - stockfish_eval (from prior experiment, if available)
 - kappa_annihilate, kappa_threat (from prior experiment)
-- is_check_unsafe (boolean: does applying this transition leave mover's king in check, per python-chess)
+- is_check_unsafe (boolean: does applying this transition leave mover's king in check, per python-chess; the geometric reference)
+- is_check_unsafe_phasecast (boolean: same question, computed via path-1 reverse phase-cast; correct-by-construction reference channel)
+- phasecast_matches_chess (boolean: is_check_unsafe == is_check_unsafe_phasecast; expected to be True for every row)
 - was_played (boolean)
 
 ### §11.5.5 Analysis
 
 Compute Spearman ρ between phase_similarity and each of: delta_v1, stockfish_eval, kappa_annihilate, kappa_threat, is_check_unsafe. Break down by polarization type and by capture/non-capture.
 
-The is_check_unsafe correlation answers the operational question from §11.5.1: if |ρ(phase_similarity, is_check_unsafe)| > 0.3 in any polarization slice, phase similarity is a candidate component of a faster-than-geometric check filter. If the correlation is weak or absent across all slices, the §11.4.5 optimization path via phase similarity is closed and the check filter remains strictly a geometric operation.
+**Path-1 reference correctness.** Assert phasecast_matches_chess == True for every row before running any correlation. If any row disagrees, the path-1 implementation has a bug that must be fixed before the path-2 analysis is trustworthy. Record the mismatched rows in the summary and halt analysis.
+
+**Path-2 correlation analysis.** The |ρ(phase_similarity, is_check_unsafe)| value answers the operational question from §11.5.1. If |ρ| > 0.3 in any polarization slice, phase similarity is a candidate component of a faster-than-geometric check filter at approximate precision. If |ρ| < 0.1 across all slices, the §11.4.5 optimization path via phase similarity is closed; the check filter remains strictly a geometric operation and path-1's 38× slowdown in naive Python is the floor without bitboard-level engineering.
+
+**Timing comparison.** Record the per-call cost of (a) python-chess is_check and (b) path-1 phase-cast is_check on the same positions. This extends the §11.4.5 table to include check-filter costs explicitly. The expected result: python-chess wins by ~30–40× in naive Python because its is_check is bitboard-backed. This is a reference datum, not a research finding.
 
 ### §11.5.6 Decision point
 
