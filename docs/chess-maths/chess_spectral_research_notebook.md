@@ -1248,6 +1248,10 @@ The B₂ partial (+0.490) now **outperforms A₁ partial (+0.456)** as a complex
 
 Re-run artefact: `docs/chess-maths/archive/chess_a1_followup.py` executed against the corrected `archive/encoder_512.py::CHARS` and `chess_spectral/tables.py::CHARS` on 2026-04-23; full stdout preserved locally (Stockfish runs are deterministic at fixed depth, so the corpus and correlations are reproducible).
 
+**Empirical post-fix follow-up (§9c′).** Corpus-level structural characterization of the now-distinct B₁ and B₂ channels — orthogonality verification, per-corpus fingerprints, game-phase dependence (B₂/B₁ ratio narrows monotonically from opening to endgame), cross-channel correlation matrix, and move-event signatures including a castling-as-B₂ signature — is in §9c′. See §9c′.6 for the scale of the correction: 6–10× inflated pre-fix norms.
+
+**Corpus manifest regeneration (2026-04-23).** The `.spectralz` files were already regenerated on 2026-04-23 14:21 UTC (post-fix, after the 12:40 `tables.py` CHARS correction), but the sibling `manifest.json` / `corpus_index.csv` / `corpus_summary.md` files retained their pre-fix `mean_B1` / `mean_B2` summaries (both numerically equal at the broken value). All four live corpora — `sweep_chain_lichess_drnykterstein_2026-04-14_N10`, `sweep_chain_lichess_ashchess_2026-04-21_N50`, `sweep_hf_2026-04-20_N50`, and `single_lichess_pgn_2026.04.15_...` — have been regenerated in place via `docs/chess-maths/regen_corpus_derived.py`, which re-runs `extract_features()` against the current `.spectralz` and patches only the spectral fields (`mean_*`, `chaos_ratio`, `n_plies`, `nag_count`, etc.), preserving each corpus's original `fetch_params`, `tool_versions`, and per-game PGN headers. After regen, `mean_B1 ≠ mean_B2` on every game in every corpus, and the per-corpus B₂/B₁ ratios (~2.5 in squared-L2 energy, ≈1.58 in L2 norm) are consistent with the §9c′.2 "1.4–1.7×" finding. The orphan-metadata corpora (`chessgames_pair_2026-04-15_N2`, `pilot_hf_2026-04-14_N3_seed42`) have no `spectralz/` / `ndjson/` subdirs and were skipped by the regen script. `build_dashboard_data.py` reads the current `.spectralz` directly and was not run per-corpus here; run it on demand when a specific dashboard is rebuilt.
+
 ### 9b. The 8-Generator Frequency Lattice
 
 The 8 path graph eigenvalues λ_k = 2(1 − cos(πk/8)) for k = 0,...,7 generate the full board spectrum via pairwise sums. Verified: 33 unique pairwise sums account for all 33 unique board eigenvalues exactly.
@@ -1274,6 +1278,176 @@ Correlation with traditional: interaction total r = 0.972, mean degree r = 0.968
 **King domination fix:** Same king squares, different material: cos 0.87 (K=100) → **0.34** (K=2.5). The encoding now sees non-king pieces. King identity is encoded through the quantum number codebook (its 5-tuple is unique), not through signal magnitude inflation.
 
 Dynamic range: 100× (magic) → 3.0× (traditional K=4) → **8.8×** (spectral).
+
+### 9c′. Post-Fix B1/B2 Analysis: Structural Channel Separation
+
+*Audit follow-up to §9a's PATCH 6 character-table fix. Supersedes the pre-fix B1/B2 correlations reported in §9a and in all derivative statistics in the notebook prior to the 2026-04-23 reprocessing. Based on empirical analysis of 23 games across 4 corpora (drnykterstein N=10, ashchess sample N=6, sweep_hf sample N=6, single_lichess N=1). The bug previously projected B1 and B2 onto the same subspace with opposite signs (yielding corner-to-corner / diagonal-axis reflection in both channels). The post-fix encoder projects them onto genuinely distinct 1D irreducible subspaces of D₄. This section documents what the now-distinct channels carry.*
+
+#### 9c′.1 — Fix verification
+
+**Orthogonality (hard check).** Per-ply vector cosine between the 64-dim B1 and B2 channel vectors is **exactly 0.0000** for every ply in every game in the sample (n = 2,112 plies, max|cos| = 0.0000 to four decimal places). The two projections now span mutually orthogonal subspaces, as the irrep decomposition requires.
+
+**Ply-0 D₄ symmetry test (soft check).** The standard chess initial position is invariant under σᵥ (vertical-axis reflection across the d–e file boundary). The B1 irrep projection annihilates σᵥ-symmetric content; consequently B1 must vanish at ply 0 of any game starting from the standard position.
+
+Observed: in all **17/17** games starting from the standard position (drnykterstein ×10, ashchess ×6, single_lichess ×1), the ply-0 signature is bit-identical:
+
+```
+A1=0.000  A2=4.455  B1=0.000  B2=4.455  E=17.960
+FS1=9.422  FS2=43.023  FS3=38.828  FA=4.463  FD=0.000
+```
+
+The 6 `sweep_hf` games are sampled from Stockfish's test-positions book (`"SetUp": "1"`, explicit FEN per game, not the standard start); their ply-0 values are not comparable to this test. This is intentional test-suite behaviour, not a data quality issue.
+
+**Energy-trace correlation (over-time coupling).** Vector orthogonality does not imply energy-magnitude decoupling. The Pearson correlation of the scalar traces |B1(t)| and |B2(t)| varies by game:
+
+```
+corpus         mean ρ    range of ρ
+nykt           +0.20     [-0.21, +0.46]
+ash            +0.07     [-0.19, +0.34]
+hf             +0.19     [-0.34, +0.81]     ← outlier hf/game_010 = +0.807
+single         +0.05
+global mean    +0.15
+```
+
+The weak positive average reflects the fact that both B1 and B2 track overall "positional disturbance" but through different symmetry lenses; dramatic disturbances tend to excite both. The `hf/game_010` outlier (ρ = +0.807) is worth a one-off look — it may be a short engine-draw game where the trajectory happened to align, or it may indicate a specific class of position that collapses the B1/B2 distinction. Flagged, not urgent.
+
+#### 9c′.2 — Corpus-level spectral fingerprints (post-fix)
+
+Mean per-channel energies over the sample, by corpus:
+
+```
+corpus     A1      A2      B1      B2       E      FS1     FS2     FS3     FA       FD
+nykt      4.11    4.60    3.49    5.91    13.33    9.63   17.96   17.76   3.74    137.6
+ash       3.85    3.95    3.16    5.30    11.74    6.72   13.08   12.92   3.51    144.7
+hf        4.27    3.59    3.25    4.93    11.07    7.37   13.39   11.99   3.16     59.0
+single    4.87    4.54    4.05    5.48    13.70   10.60   20.49   19.12   3.66    604.6
+```
+
+*These values supersede the `mean_B1` and `mean_B2` entries in every corpus `manifest.json` / `corpus_index.csv` / `corpus_summary.md` until `build_dashboard_data.py` is re-run against the current `.spectralz` files.*
+
+**Universal finding: B2 > B1 across every corpus**, with a ratio of **1.4–1.7×**. The relationship is consistent across strong human play (nykt, ash), engine self-play from varied openings (hf), and mixed-skill play (single). This is the first quantitative asymmetry between the two newly distinct channels: they are not interchangeable, and the system has a structural preference for the B2 irrep over B1.
+
+Corollary finding: the **FD channel scales with positional volatility**, not with identity of play. Engine self-play (hf) has the lowest FD despite not being the lowest chaos ratio, consistent with engines making fewer "trailing event" moves. The `single_lichess` game (lichess AI Level 1 vs lemonforest) has FD = 604.6 — 4–10× the other corpora — consistent with a beginner-level game producing large capture events and decisive positional swings.
+
+#### 9c′.3 — Game-phase dependence of B1/B2
+
+Splitting each game into opening (plies 1–15), middlegame (plies 16 to n−15), and endgame (last 15 plies), averaged over all 23 games:
+
+```
+phase        mean B1    mean B2    ratio B2/B1
+opening        1.90       5.06        2.66
+middlegame     3.70       5.79        1.57
+endgame        3.53       4.79        1.36
+```
+
+- **B1 grows 86% from opening to middlegame**, then stays approximately flat into the endgame. This is the signature of B1 as a channel that populates as play breaks σᵥ-symmetric structure — something that begins only once pieces start crossing to non-mirrored squares.
+- **B2 grows only 14% from opening to middlegame** and *decreases* 17% into the endgame. B2 is largely "loaded" by the initial position itself (σᵥ-antisymmetric content from the white-vs-black ply ordering) and discharges slowly as material simplifies.
+- The **B2/B1 ratio is highest in the opening (2.66) and lowest in the endgame (1.36)** — a monotonic narrowing. This gives a spectral handle on game phase that's orthogonal to material count.
+
+**Prediction to test (§9c′-followup):** game phase (opening / middlegame / endgame) should be classifiable from the instantaneous B2/B1 ratio alone, independently of piece count. Worth checking whether this beats or complements the existing phase-detection heuristics.
+
+#### 9c′.4 — Cross-channel correlation matrix (post-fix)
+
+Pearson correlations of per-ply channel energies, averaged over all 23 games:
+
+```
+        A1      A2      B1      B2       E     FS1     FS2     FS3      FA      FD
+A1   +1.000  -0.013  +0.575  +0.221  -0.293  +0.200  -0.361  -0.379  -0.128  +0.242
+A2   -0.013  +1.000  +0.012  +0.358  +0.321  +0.346  +0.302  +0.298  +0.341  -0.063
+B1   +0.575  +0.012  +1.000  +0.155  -0.227  +0.196  -0.364  -0.336  -0.081  +0.181
+B2   +0.221  +0.358  +0.155  +1.000  +0.067  +0.386  +0.054  +0.029  +0.189  +0.001
+E    -0.293  +0.321  -0.227  +0.067  +1.000  +0.422  +0.833  +0.871  +0.629  -0.395
+FS1  +0.200  +0.346  +0.196  +0.386  +0.422  +1.000  +0.382  +0.317  +0.337  -0.067
+FS2  -0.361  +0.302  -0.364  +0.054  +0.833  +0.382  +1.000  +0.955  +0.561  -0.338
+FS3  -0.379  +0.298  -0.336  +0.029  +0.871  +0.317  +0.955  +1.000  +0.559  -0.379
+FA   -0.128  +0.341  -0.081  +0.189  +0.629  +0.321  +0.561  +0.559  +1.000  -0.224
+FD   +0.242  -0.063  +0.181  +0.001  -0.395  -0.067  -0.338  -0.379  -0.224  +1.000
+```
+
+**The substantive result: B1 and B2 have different cross-channel fingerprints.** Pre-fix, B1 and B2 had identical correlations with every other channel (necessarily, because they were the same vector with opposite signs). Post-fix they couple to distinct channel families:
+
+| partner | ρ(B1, ·) | ρ(B2, ·) | interpretation |
+|---------|----------|----------|----------------|
+| A1      | **+0.575** | +0.221   | B1 co-moves strongly with the fully-symmetric channel |
+| A2      | +0.012   | **+0.358** | B2 co-moves with the sign irrep |
+| FS1     | +0.196   | **+0.386** | B2 couples more strongly to FS1 |
+| FS2     | **−0.364** | +0.054   | B1 anti-correlates with FS2 |
+| FS3     | **−0.336** | +0.029   | B1 anti-correlates with FS3 |
+| FA      | −0.081   | +0.189   | B2 weakly positive, B1 near-zero |
+| FD      | +0.181   | +0.001   | B1 weakly positive, B2 decoupled |
+
+B1 looks "symmetric-fiber-aligned": it rises with A1 and with FD, falls with the σ-axis fiber channels FS2 and FS3. B2 looks "alternating-fiber-aligned": it rises with A2, FS1, and FA, and is nearly decoupled from FS2/FS3/FD.
+
+One orthogonal empirical note: **FS2 ≈ FS3 with ρ = +0.955**. They are close to collinear in the energy domain. This is not a bug — they are geometrically distinct fiber axes — but it suggests that most of the fiber-norm signal lives in a 1-dimensional subspace spanned by (FS2 + FS3), with a much weaker independent component (FS2 − FS3). Worth flagging for the fiber-norm viewer / §7c dispersion analysis: the "FS2 vs FS3" distinction may be less informative than the "FS2+FS3 combined vs E combined" distinction.
+
+#### 9c′.5 — Move-event signatures (drnykterstein + single, n = 11 games)
+
+Using NDJSON move metadata, per-ply absolute energy changes |Δ·| in B1 and B2 were accumulated by move category:
+
+**Per-piece:**
+
+```
+piece    n      |ΔB1|    |ΔB2|    B2/B1 ratio
+P      247      0.179    0.147       0.82
+N      133      0.281    0.269       0.96
+B      151      0.571    0.377       0.66   ← B1 dominant
+R      144      0.727    0.928       1.28
+Q      111      1.192    0.791       0.66   ← B1 dominant
+K      100      0.324    0.497       1.53
+```
+
+**Bishops and queens preferentially excite B1; rooks and kings preferentially excite B2.** Knights and pawns are approximately balanced (1 ± 0.2).
+
+A tentative geometric reading: B1 is more strongly activated by pieces whose move set carries diagonal content (bishops, queens), while B2 is more strongly activated by pieces whose move set carries rank/file content (rooks, kings). Knights, which visit both file- and rank-adjacent squares via L-shape, fall in between. This would be consistent with B1 and B2 carrying complementary irrep content under the axial-vs-diagonal distinction within the reflection subgroup of D₄ — though the specific irrep labelling in the current encoder implementation needs confirmation before reading this as theory.
+
+**Per-event-type:**
+
+```
+event       n      |ΔB1|    |ΔB2|    B2/B1 ratio
+castle     20      0.768    1.574       2.05   ← B2 spikes
+capture   209      0.559    0.592       1.06
+plain     657      0.464    0.373       0.80
+```
+
+**Castling produces the sharpest B2 spike of any event class in the sample.** Both kingside (O-O) and queenside (O-O-O) castling break σᵥ symmetry severely — the king jumps two squares laterally and the rook reverses its file-direction relationship to the king. If B2 is (as the ply-0 data supports) the σᵥ-antisymmetric channel, this is exactly the signature expected.
+
+Captures register as balanced between B1 and B2 (ratio 1.06), while quiet "plain" moves slightly favour B1 (ratio 0.80). **The castling ratio of 2.05 is roughly 2.5× the plain-move ratio**, suggesting B2 could function as a cheap castling detector.
+
+**First-move quantization (curiosity).** Over 11 first moves observed (all pawn moves), only two discrete (ΔB1, ΔB2) signatures appear:
+
+- **(+0.354, +0.042)** → e4 (×6), d4 (×1)
+- **(+0.500, +0.028)** → e3 (×1), f4 (×1), c4 (×1)
+
+Same-signature moves sit in the same D₄ orbit of the board-change vector. The magnitudes 0.354 ≈ 1/√8 and 0.500 = 1/2 suggest the encoder's irrep basis is normalized such that specific symmetry classes of pawn moves collapse to these rational values. This is not directly actionable but is a useful sanity indicator that the D₄ machinery is operating on clean rational coefficients rather than noisy floats.
+
+#### 9c′.6 — Stale-manifest drift
+
+For reference, the magnitude of the correction:
+
+```
+game           manifest(B1=B2)    actual B1    actual B2    ΔB1       ΔB2
+nykt/game_001        22.51           2.79          4.54      −19.72    −17.97
+nykt/game_002        41.49           3.79          6.06      −37.70    −35.43
+nykt/game_003        42.93           3.13          7.07      −39.81    −35.86
+nykt/game_004        31.70           3.69          4.88      −28.01    −26.82
+nykt/game_005        36.16           4.32          5.50      −31.85    −30.67
+nykt/game_006        41.82           3.67          6.99      −38.15    −34.82
+nykt/game_007        45.58           3.99          6.78      −41.59    −38.81
+nykt/game_008        40.52           3.22          5.52      −37.30    −34.99
+nykt/game_009        46.42           3.81          6.99      −42.62    −39.43
+nykt/game_010        23.90           2.46          4.74      −21.44    −19.17
+```
+
+Pre-fix values are **6–10× the actual post-fix values**. The pre-fix encoder was producing B1/B2 projections with inflated norms, consistent with projecting onto a larger incorrect subspace rather than the correct 1D irreps. Every manifest file, corpus index, and dashboard data file in the results tree needs regeneration; every derivative statistic in the notebook that cited pre-fix B1/B2 values is invalidated.
+
+#### 9c′.7 — Open questions raised by this analysis
+
+1. **hf/game_010 outlier** (B1–B2 energy correlation ρ = +0.807). Is this a short-game artefact, a specific opening that collapses the B1/B2 distinction, or something structural?
+2. **B2 > B1 universally.** Is the ratio genuinely fixed at ~1.5 across play styles, or does it move with a specific attribute (material, king safety, position openness)?
+3. **FS2 ≈ FS3 (ρ = +0.955).** Should the fiber-norm basis be reduced, or is there information in (FS2 − FS3) that the energy projection flattens?
+4. **Castling-as-B2-detector hypothesis.** Can a simple B2-spike threshold recover castling moves reliably? This would make a clean §9c′-followup validation experiment.
+5. **Depth-gap correlation — CLOSED.** The pre-fix §9a table showed B1 ρ = +0.461 vs depth gap (with B2 identical). The post-fix §9h′ Table 1 gives B1 partial +0.303 / B2 partial +0.490 on the 55-position Stockfish corpus (re-run via `archive/chess_a1_followup.py` on 2026-04-23; log at `results/chess_a1_followup_rerun_2026-04-23.log`). Separately, the `results/stockfish_correlation/` artefacts are outputs of `analyze_stockfish_correlation.py`, which feeds the Δ/σ pipeline (`kappa_annihilate`, `kappa_position`, `kappa_threat`, `delta`, `delta_v2`); `kappa_position` reads only the **fiber** sub-vector (dims 320:640) and never touches the D₄ irreps, so B₁/B₂ CHARS changes leave that output invariant and no re-run is required. The four live corpora have been regenerated in place (see §9a audit note above): `mean_B1 ≠ mean_B2` on every game.
+6. **Piece-type signatures** (bishop-and-queen → B1; rook-and-king → B2) deserve confirmation on a larger sample with explicit control for move frequency, and ideally with a piece-type ablation: what happens to B1/B2 energy on otherwise-identical positions with one piece-type absent?
 
 ### 9d. Quantum Number Codebook
 
