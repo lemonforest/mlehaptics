@@ -181,6 +181,68 @@ figshare download** (noted for the sequel):
 - `empty50_tasklist_edax_knowledge.csv` (~204 KB) — edax knowledge
   at 50-empty positions; partial ground-truth anchor.
 
+## Phase 1c addendum — reversi-scripts integration
+
+Runs corpus-level probes using artefacts from
+[`eukaryo/reversi-scripts`](https://github.com/eukaryo/reversi-scripts)
+that do NOT require the 20 GB figshare perfect-play download.
+Plan: [`PHASE_1C_PLAN.md`](../PHASE_1C_PLAN.md).  License
+compatibility verified (upstream is GPL v3, compatible with our
+GPL v3).
+
+- **1c.1 OthelloBoard cross-validation CONFIRMED.** 2684 positions
+  (2184 PGN + 500 synthetic) against Takizawa's vendored
+  `reversi_misc.py::get_moves`; 100 % agreement, zero
+  disagreements.  Every downstream probe inherits this confidence.
+
+- **1c.2 §10.10 T3 Shannon info per move CONFIRMED.** N = 2099 played
+  plies across 35 games.  In-book coverage 32 %; mean I_move =
+  5.09 bits overall (4.40 in-book, 5.41 out-of-book).  Headlines:
+    Spearman(I_move, n_legal_moves) = +0.814 (dominant log_2|M| term)
+    Spearman(I_move, A1- energy) in-book only = **+0.213,
+      p = 2 x 10^-8**  (N ~= 676 in-book plies)
+    Spearman(game mean I, |disc_diff|) = +0.109, p = 0.53 (null)
+  The in-book I_move vs A1- correlation is the novel connection
+  between §10.10 information bookkeeping and §10.4 spectral
+  decomposition.  No direct chess analog.
+
+- **1c.3 Edax 50-empty anchor PARTIAL.** 15/35 Barcelona 50-empty
+  positions match the 2587-row tasklist (default threshold 20;
+  deferred).  Peek with --min-matches=10:
+    Spearman(A1- energy, edax_score) = **+0.820, p = 1.8 x 10^-4,
+    N = 15**
+  Striking effect size; N = 15 too small for firm conclusions.
+  Worth retesting at WTHOR scale where 2000+ matches are expected.
+
+- **1c.4 H9 surrogate PROTOCOL-READY.** `research/edax_wrapper.py`
+  + `research/a1_depth_gap_runner.py` land with full `EDAX_PATH`
+  env var support, OBF position feeding, d=1 / d=20 gap
+  computation, partial correlation controlling for |disc_diff|.
+  Edax not installed on researcher's system; runner emits
+  placeholder JSON with `"status": "needs_edax"` and exits 2.
+  Install edax (upstream `abulmo/edax-reversi` prebuilt release),
+  set `EDAX_PATH`, and re-run; expected walltime 1-6 h for full
+  2184-position Barcelona corpus at d=20.
+
+**New tooling added (Phase 1c).**
+- `research/third_party/` with vendored `reversi_misc.py` (GPL v3,
+  attribution headers added) and `reversi_player.py`.
+- `research/cross_validate_othello_board.py --help`
+- `research/opening_book_loader.py --help`
+- `research/shannon_info_runner.py --help`
+- `research/edax_knowledge_anchor.py --help`
+- `research/edax_wrapper.py --help`
+- `research/a1_depth_gap_runner.py --help`
+
+All CLIs follow the chess-spectral `--help` convention
+(RawDescriptionHelpFormatter, epilog examples, per-arg research-
+audience help, UTF-8 safe).
+
+**Data committed in-repo (Phase 1c).**
+- `dataset/reversi_scripts/opening_book_freq.csv.bz2` (24 MB)
+- `dataset/reversi_scripts/empty50_tasklist_edax_knowledge.csv`
+  (204 KB)
+
 ## What's scoped to the sequel
 
 1. Phase-operator move engine — full construction against

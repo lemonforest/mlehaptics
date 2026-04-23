@@ -458,6 +458,156 @@ same repo.
 
 ---
 
+## 2c. Phase 1c — reversi-scripts integration
+
+Runs the corpus-level probes that need artefacts from
+[`eukaryo/reversi-scripts`](https://github.com/eukaryo/reversi-scripts)
+but NOT the 20 GB figshare perfect-play table.  All four sub-phases
+of the Phase 1c plan ([`PHASE_1C_PLAN.md`](PHASE_1C_PLAN.md)) land.
+
+### 2c.1 OthelloBoard cross-validated — **CONFIRMED**
+
+Agreement rate against Takizawa's reference bitboard implementation
+(vendored in `research/third_party/reversi_misc.py`, GPL v3):
+
+    positions compared:    2684
+    positions in agreement: 2684
+    agreement rate:         100.000 %
+
+2184 Barcelona corpus positions plus 500 synthetic random-play
+positions; zero disagreements.  `OthelloBoard.legal_moves()` is
+independently validated; every probe downstream of legal-move
+enumeration inherits that confidence.
+
+### 2c.2 §10.10 T3 Shannon information per move — **CONFIRMED**
+
+Opening book `opening_book_freq.csv.bz2` (24 MB, 2.57M rows,
+D4-canonical position → WTHOR tournament frequency).  For every
+played ply in the Barcelona corpus compute
+
+    I_move = log_2 |M(s)| - log_2 P(chosen | WTHOR empirical,
+                                            Laplace alpha=1)
+
+Coverage by game phase (fraction of corpus positions in the book):
+
+    empties 60-53 : 100 %
+    empties 52    : 97 %
+    empties 51    : 91 %
+    empties 50    : 86 %
+    empties 49    : 80 %
+    empties 30-21 : 14 % down to 3 %
+    empties <= 20 :  0 %
+
+Overall in-book fraction: 32.2 % of played moves have at least one
+successor position in the WTHOR book.  The 2/3 out-of-book tail is
+midgame / endgame where Barcelona 2026 has diverged from any
+2001-2020 WTHOR precedent.
+
+Headlines (N = 2099 played plies, 35 games):
+
+    mean I_move (all plies)        = 5.087 bits  (s.d. 2.025)
+    mean I_move (in-book only)     = 4.403 bits
+    mean I_move (out-of-book only) = 5.412 bits
+
+    Spearman(I_move, n_legal_moves)      = +0.814, p << 1e-10
+    Spearman(I_move, A1- energy)         = -0.065, p = 3e-3
+    Spearman(I_move, A1- energy) in-book = +0.213, p = 2e-8
+    Spearman(game mean I_move, |disc_diff|) = +0.109, p = 0.53
+
+The dominant correlation is with `n_legal_moves` as expected (the
+`log_2 |M|` term is leading order).  **The novel finding is the
+in-book-only positive correlation between I_move and A1- energy:
+ρ = +0.213, p = 2 × 10⁻⁸** (N ≈ 676 in-book plies).  In book-
+covered positions — where we have a real empirical-policy
+reference — the spectral A1- observable tracks how much a chosen
+move diverges from the most-common tournament line.  This is the
+first direct connection between the D₄×Z₂ spectral decomposition
+and the §10.10 information-theoretic bookkeeping.
+
+The null on `game mean I_move vs |disc_diff|` (ρ = +0.109,
+p = 0.53) says that at the GAME level, information-rich games are
+not necessarily decisive games.  Consistent with tournament play
+containing both forced-sequence blowouts and balanced fights.
+
+### 2c.3 Edax 50-empty knowledge anchor — **PARTIAL / striking but underpowered**
+
+Cross-reference against `empty50_tasklist_edax_knowledge.csv`
+(2587 D4-canonical 50-empty positions with edax's predicted
+score).  Match count:
+
+    50-empty positions in Barcelona corpus:    35  (one per game)
+    canonical matches against 2587-row list:   15  (42.9 %)
+
+Below the `--min-matches = 20` threshold from the Phase 1c plan.
+The default runner therefore reports "deferred".  Peek at
+`--min-matches = 10`:
+
+    Spearman(A1- energy, edax_score) at matching positions
+        = +0.820, p = 1.8 × 10⁻⁴  (N = 15)
+
+**Large effect size with tight p-value** — but N = 15 is below
+conventional power thresholds; this is a preliminary anchor, not
+a confirmed result.  The direction is intuitive: edax's score is
+signed with "good for side-to-move"; at 50-empties only 14 discs
+are down, and large A1- magnetisation at that stage typically
+reflects one player having flipped more stones overall, which
+edax rightly evaluates as an advantage.  **Worth retesting at
+WTHOR scale** — a 2000-match corpus would either replicate the
+effect or surface selection bias.
+
+### 2c.4 H9 surrogate (A1- energy vs edax d=1 / d=20 gap) — **PROTOCOL-READY**
+
+All machinery implemented:
+
+- [`research/edax_wrapper.py`](research/edax_wrapper.py) —
+  subprocess bridge; configured by `EDAX_PATH` env var; raises
+  `EdaxNotFoundError` with clear install instructions if the
+  binary is unlocated.
+- [`research/a1_depth_gap_runner.py`](research/a1_depth_gap_runner.py)
+  — walks a corpus, evaluates each position at d=1 and d=20,
+  correlates A1- energy with |d1 − d20|, reports partial
+  correlation controlling for |disc_diff|.
+
+Status at the time of writing: the researcher's system does not
+have edax installed.  The runner emits a placeholder
+`results/phase1c_a1_depth_gap.json` with `"status": "needs_edax"`
+and exits non-zero; the rest of the pipeline is unaffected.
+
+**Install prerequisite to complete H9:**
+
+1. Download prebuilt edax from
+   [upstream releases](https://github.com/abulmo/edax-reversi/releases).
+   Place evaluation weights (`eval.dat`) next to the binary.
+2. Set `EDAX_PATH=/absolute/path/to/edax.exe`.
+3. Smoke-test: `python research/edax_wrapper.py --smoke` must
+   print `edax smoke test: PASS`.
+4. Run full Barcelona corpus at d=1 vs d=20:
+
+        python research/a1_depth_gap_runner.py --deep-depth 20
+
+   Expected walltime 1-6 h depending on CPU.
+
+Reference: chess §9h' ρ = +0.452 at N = 55 Stockfish d=1 vs d=20.
+
+### 2c Summary
+
+Three of four Phase 1c sub-phases land numeric results; one is
+protocol-ready but compute-blocked on edax install.  The headline
+novel finding — **in-book I_move vs A1- energy correlation
+ρ = +0.213, p = 2 × 10⁻⁸** — connects the §10.10 information-
+theoretic bookkeeping to the §10.4 spectral decomposition in a way
+that has no direct chess analog.  The 50-empty edax anchor adds a
+preliminary (N = 15, ρ = +0.82) piece of evidence that A1- energy
+tracks engine evaluation at midgame, worth confirming at WTHOR
+scale.
+
+With Phase 1c landed, remaining §10.10 tests (T4 T_eff / D_eff
+trajectory, T5 FK-BC cluster fit) and strict H9 / E8 vs Takizawa
+perfect-play table stay scoped to the sequel / external-data-
+dependent work.
+
+---
+
 ## 3. Dynamic fiber — sheaf Laplacian instantiation
 
 [research/dynamic_sheaf.py](research/dynamic_sheaf.py) builds a

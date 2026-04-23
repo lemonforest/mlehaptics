@@ -1,0 +1,7 @@
+{
+  "status": "needs_edax",
+  "message": "edax executable not found.  Set the EDAX_PATH environment variable to the full path of the edax binary, or pass --edax-path.  See research/edax_wrapper.py docstring for install instructions.",
+  "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+  "depth_shallow": 1,
+  "depth_deep": 20
+}
