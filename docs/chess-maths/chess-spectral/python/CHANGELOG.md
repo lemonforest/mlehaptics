@@ -5,6 +5,82 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-04-23
+
+Bug-fix release.  The `CHARS` character table in `chess_spectral.tables`
+had a class-constancy violation on the B₁ and B₂ rows that silently
+broke idempotence of `project_irrep` on those two irreps.  Sanity tests
+(A₁ D₄-invariance, fiber reconstruction) were unaffected and did not
+catch the bug.  The defect was discovered by the Othello Phase 1 pass
+(`docs/othello-maths/`) which lifted the table to D₄×Z₂, at which point
+the failure surfaced as a loud idempotence violation (error ~0.64 on
+B₁⁻ and B₂⁻ projections).
+
+### Fixed
+
+- **D₄ character table class-constancy bug in `tables.py` (CHARS).**
+  Prior B₁ row `[1,-1, 1,-1, 1,-1, 1,-1]` and B₂ row
+  `[1,-1, 1,-1,-1, 1,-1, 1]` failed class-constancy on the conjugacy
+  classes `{g=4, g=5}` (axis reflections — σ_v and σ_h) and
+  `{g=6, g=7}` (diagonal reflections — σ_d and σ_d').  Verified by
+  direct conjugation on `D4_PERMS`: `g₁ · g₄ · g₁⁻¹ = g₅` and
+  `g₁ · g₆ · g₁⁻¹ = g₇`, so each reflection pair is conjugate and
+  every valid character row must assign them the same value.
+- Corrected rows: `B₁ = [1,-1, 1,-1, +1, +1, -1, -1]` (axis reflections
+  +1, diagonal −1), `B₂ = [1,-1, 1,-1, -1, -1, +1, +1]` (axis −1,
+  diagonal +1).  Post-fix `project_irrep` sanity: idempotence max
+  error 2.2×10⁻¹⁶, completeness max error 4.4×10⁻¹⁶ (both at machine
+  precision).
+
+### Numerical impact (for users depending on B₁/B₂ projections)
+
+At chess starting position with traditional piece values
+(P=1, N=3, B=3.5, R=5, Q=9, K=100):
+
+| Channel | Pre-fix energy | Post-fix energy |
+|---------|---------------:|----------------:|
+| A₁      | 0.000          | 0.000           |
+| A₂      | 4140.500       | 4140.500        |
+| **B₁**  | **2545.375**   | **0.000**       |
+| **B₂**  | **2545.375**   | **4140.500**    |
+| E       | (unchanged)    | (unchanged)     |
+
+Pre-fix B₁ and B₂ frequently coincided numerically because the non-
+class-constant character rows collapsed both projections onto the same
+linear combination.  Any downstream statistic that distinguished B₁
+from B₂ (or combined them in a "breaking" sum) was affected.
+
+Reprocessed chess §9h' depth-gap experiment (55 Stockfish d=1 vs d=20
+positions, re-run against the corrected table on 2026-04-23) shows:
+
+- B₁ partial ρ: +0.461 (pre) → +0.303 (post)
+- B₂ partial ρ: +0.461 (pre) → +0.490 (post) — now outperforms A₁
+  partial +0.456 as a complexity predictor
+- "breaking signed" partial ρ: +0.101 non-significant (pre) → −0.310
+  p=0.022 (post) — a previously-null hypothesis ("breaking channels
+  signed sum predicts advantage after material control") is now
+  confirmed
+
+Full audit note with numerical delta table in
+`docs/chess-maths/chess_spectral_research_notebook.md` §9a, and the
+updated §9h′ Tables 1 and 2.
+
+### No other changes
+
+- No encoder output changes on A₁, A₂, or E channels (those character
+  rows were already class-consistent).
+- Phase-operator subpackage (`chess_spectral.phase_operators`) does
+  not use `tables.CHARS` — unaffected.
+- spectralz v4 frame format unchanged.
+- Public API surface unchanged (only the numerical values returned
+  by `project_irrep(sig, 'B1')` and `project_irrep(sig, 'B2')` move,
+  and they move to the correct values).
+
+### Changed
+
+- Version bumped 1.2.0 → 1.2.1 (semver patch; behavioural correction
+  to a public numerical API).
+
 ## [1.2.0] — 2026-04-22
 
 Feature release. Adds the §11 phase-space move generator and check

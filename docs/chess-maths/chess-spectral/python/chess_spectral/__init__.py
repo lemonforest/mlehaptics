@@ -20,7 +20,7 @@ Reading a game file produced by either the C or Python encoder:
     (161, 640)
 """
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 from .encoder import (
     encode_640,

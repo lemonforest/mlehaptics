@@ -138,11 +138,21 @@ def make_perm(g: int) -> np.ndarray:
 
 D4_PERMS = np.stack([make_perm(g) for g in range(8)])  # (8, 64)
 
+# Conjugacy classes under the D4_PERMS element ordering above:
+#   {0}, {1, 3}, {2}, {4, 5}, {6, 7}
+# Each character row must be constant on each class.
+#
+# CORRECTED 2026-04-23 (PATCH 6 audit, Othello Phase 1c findings).
+# Prior B1 = [1,-1,1,-1,1,-1,1,-1] and B2 = [1,-1,1,-1,-1,1,-1,1]
+# failed class-constancy on (4,5) axis reflections and (6,7)
+# diagonal reflections, making B1 and B2 projectors non-idempotent
+# and numerically ambiguous.  See CHANGELOG.md and §9a audit note
+# in chess_spectral_research_notebook.md.
 CHARS = {
     'A1': [ 1,  1,  1,  1,  1,  1,  1,  1],
     'A2': [ 1,  1,  1,  1, -1, -1, -1, -1],
-    'B1': [ 1, -1,  1, -1,  1, -1,  1, -1],
-    'B2': [ 1, -1,  1, -1, -1,  1, -1,  1],
+    'B1': [ 1, -1,  1, -1,  1,  1, -1, -1],  # axis +, diag -
+    'B2': [ 1, -1,  1, -1, -1, -1,  1,  1],  # axis -, diag +
     'E':  [ 2,  0, -2,  0,  0,  0,  0,  0],
 }
 
