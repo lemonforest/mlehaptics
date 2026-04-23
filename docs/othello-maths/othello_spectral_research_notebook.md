@@ -628,8 +628,9 @@ All four Phase 1c sub-phases land numeric results.  The headlines:
    (occupation) — scoped as Phase 1d.
 
 Remaining §10.10 tests (T4 T_eff / D_eff trajectory, T5 FK-BC
-cluster fit) and strict H9 / E8 vs Takizawa perfect-play table
-stay scoped to the sequel / external-data-dependent work.
+cluster fit) stay scoped to the sequel / external-data-dependent
+work.  **Strict H9 / E8 are now runnable** following the arrival
+of Takizawa's figshare knowledge archive — see §2d.
 
 **Framework lesson carried forward.**  The "state richness vs
 strategic structure" axis split (§10.13 in the chess notebook)
@@ -638,6 +639,80 @@ both track `n_legal_moves` at ~+0.77 to +0.81; A₁⁻ energy tracks
 ρ_disc at +0.77.  Two independent axes of position description,
 each with its own natural observable.  Chess counterpart
 experiment has not been run; would benefit from a Phase 1d pass.
+
+---
+
+## 2d. Phase 1d — strict H9 / E8 against Takizawa perfect-play archive
+
+The Takizawa figshare download (17 GB compressed → 171 GB decompressed
+at a local drive path, outside repo) provides per-50-empty-position
+knowledge files.  Each of 2587 canonical 50-empty positions has an
+associated `knowledge_<OBF>.csv` containing every 36-empty sub-problem
+reached from it under optimal play, with exact game-theoretic bound
+pairs `(score_lb, score_ub)` and accuracy codes (100 = exact, 99 =
+single-point acceptable).
+
+The 2587-row small CSV `empty50_tasklist_edax_knowledge.csv` (already
+committed under `dataset/reversi_scripts/` since Phase 1c) has the
+pre-proof edax `score` prediction for each 50-empty position plus its
+WTHOR frequency count.
+
+### 2d.a Tasklist-scale correlation (N = 2587) — **CONFIRMED the predicted transfer channel**
+
+Run: `python research/h9_strict_runner.py`.  Computes the D4-only A₁
+projection of `s²` (the Z₂-invariant occupation observable that
+Phase 1c.4 identified as the "cleaner chess-transfer analog" of A₁
+energy), plus A₁⁻ magnetisation and the B₁/B₂/E channels, for every
+2587 tasklist position.  Correlates with edax's predicted score.
+Full per-position CSV in
+[`results/phase1d_spectral_vs_perfectplay.csv`](results/phase1d_spectral_vs_perfectplay.csv);
+aggregate JSON at
+[`results/phase1d_correlations.json`](results/phase1d_correlations.json).
+
+Headline correlations (N = 2587):
+
+    raw:
+      D4-only A1(s^2)     vs edax_score      = -0.349  p = 7.4e-75
+      A1-                 vs edax_score      = +0.181  p = 1.5e-20
+      B1, B2, E           vs edax_score      |rho| < 0.07, mixed significance
+      D4-only A1(s^2)     vs |edax_score|    = -0.320  p = 1.7e-62
+
+    partial (controlling |disc_diff|):
+      D4-only A1(s^2)     vs edax_score      = -0.279  p = 2.3e-47   SURVIVES
+      A1-                 vs edax_score      = -0.054  p = 6e-3      collapses
+      E                   vs edax_score      = +0.075  p = 1.3e-4
+
+**The predicted D₄×Z₂ Z₂-invariant channel carries robust spectral-
+beyond-counting signal** (ρ = −0.279 partial, p = 2 × 10⁻⁴⁷, N =
+2587).  This confirms the §2c.4 conjecture that the cleaner chess-
+transfer analog uses the occupation projection rather than the
+magnetisation projection.  The A₁⁻ magnetisation channel, consistent
+with the Phase 1c.4 finding, collapses under the partial (ρ = −0.054)
+— its raw correlation is a disc-count artifact.
+
+**Direction.** Negative ρ means: positions with higher D4-symmetric
+occupation structure tend to have lower edax predicted score (worse
+for side-to-move).  At 50-empties (14 discs placed), this suggests
+that tournament strategy prefers asymmetric configurations over
+D4-symmetric ones, and edax's evaluator encodes that preference.
+
+### 2d.b Strict augmentation via archive bounds — **pending scan**
+
+A second pass (`--archive-summary` flag on `h9_strict_runner.py`)
+joins the per-position archive-derived bounds (aggregated over each
+knowledge file's 36-empty children: mean/min/max/median of
+`score_lb` and `score_ub`) and re-correlates spectral observables
+against those.  This replaces the edax pre-proof *predicted* score
+with the post-proof *proved-value aggregate* — the strict H9
+formulation.
+
+**Status: archive scan of 2587 files × ~100-200 MB each is running
+in background**; aggregate CSV at
+`results/phase1d_archive_summary.csv` when complete.  Rough estimate
+~45 min at 1 file/s on initial smoke-test.
+
+The archive-aggregate correlations will be added here once the scan
+finishes.
 
 ---
 

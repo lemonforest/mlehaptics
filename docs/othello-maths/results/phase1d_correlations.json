@@ -1,0 +1,85 @@
+{
+  "n_positions": 2587,
+  "tasklist_path": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\reversi_scripts\\empty50_tasklist_edax_knowledge.csv",
+  "archive_summary_path": null,
+  "wall_time_seconds": 0.6891486644744873,
+  "correlations": {
+    "spearman__a1_minus_energy__vs__edax_score": {
+      "rho": 0.18127405204183683,
+      "pvalue": 1.5043192050335563e-20,
+      "n": 2587
+    },
+    "spearman__a1_minus_energy__vs__abs_edax_score": {
+      "rho": 0.07271632909145535,
+      "pvalue": 0.00021420013245527166,
+      "n": 2587
+    },
+    "spearman__b1_energy__vs__edax_score": {
+      "rho": -0.02831629721190436,
+      "pvalue": 0.1499149348259056,
+      "n": 2587
+    },
+    "spearman__b1_energy__vs__abs_edax_score": {
+      "rho": -0.06742073632775938,
+      "pvalue": 0.0006003888155438055,
+      "n": 2587
+    },
+    "spearman__b2_energy__vs__edax_score": {
+      "rho": 0.008555657403422751,
+      "pvalue": 0.6635912540053408,
+      "n": 2587
+    },
+    "spearman__b2_energy__vs__abs_edax_score": {
+      "rho": 0.026707479660907717,
+      "pvalue": 0.17446479676959062,
+      "n": 2587
+    },
+    "spearman__e_energy__vs__edax_score": {
+      "rho": -0.06513613292842467,
+      "pvalue": 0.0009167268411901232,
+      "n": 2587
+    },
+    "spearman__e_energy__vs__abs_edax_score": {
+      "rho": 0.008290302600597595,
+      "pvalue": 0.6734123025592363,
+      "n": 2587
+    },
+    "spearman__d4_a1_occupation_energy__vs__edax_score": {
+      "rho": -0.34871752481610463,
+      "pvalue": 7.444277133210512e-75,
+      "n": 2587
+    },
+    "spearman__d4_a1_occupation_energy__vs__abs_edax_score": {
+      "rho": -0.31955855044021925,
+      "pvalue": 1.681752343294113e-62,
+      "n": 2587
+    }
+  },
+  "partial_correlations": {
+    "partial__a1_minus_energy__vs__edax_score__ctrl_abs_disc_diff": {
+      "rho": -0.05421695219022533,
+      "pvalue": 0.005810123924104089,
+      "n": 2587
+    },
+    "partial__b1_energy__vs__edax_score__ctrl_abs_disc_diff": {
+      "rho": -0.02098278066329203,
+      "pvalue": 0.2860442752613653,
+      "n": 2587
+    },
+    "partial__b2_energy__vs__edax_score__ctrl_abs_disc_diff": {
+      "rho": 0.0326617399657865,
+      "pvalue": 0.09673354416488465,
+      "n": 2587
+    },
+    "partial__e_energy__vs__edax_score__ctrl_abs_disc_diff": {
+      "rho": 0.07512780354247649,
+      "pvalue": 0.00013090397977550292,
+      "n": 2587
+    },
+    "partial__d4_a1_occupation_energy__vs__edax_score__ctrl_abs_disc_diff": {
+      "rho": -0.2786897424686718,
+      "pvalue": 2.319515552564754e-47,
+      "n": 2587
+    }
+  }
+}
