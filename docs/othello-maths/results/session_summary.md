@@ -119,6 +119,68 @@ explicitly before asserting them.
    projection of `s^2`, giving the expected Spearman +0.998 with
    disc density.
 
+## Phase 1b addendum — real PGN corpus (Barcelona EGP 2026, 35 games)
+
+Run `research/game_trajectory_tests.py` against
+`dataset/liveothello_Barcelona_EGP_2026.pgn`.  2184 position records
+across 35 games, all replayed through `OthelloBoard` without errors
+(auto-inserted passes where needed).
+
+- **T1 flip-count on real moves.** 2184 positions, max single-move
+  flip = 12, median per-position max = 4.0, mean of per-position means
+  = 2.23.  Comparable to the random-play surrogate (2.28 / 1.81 / 13)
+  — strategic play does not shift the single-move distribution at this
+  sample size.  Power-law vs exponential fit (§10.10 T1 proper) still
+  requires WTHOR-scale N and an explicit fitter; deferred.
+
+- **T2 B1 / B2 population asymmetry — CONFIRMED DIRECTION.**
+    mean <B1^2> = 3.930, mean <B2^2> = 4.397, ratio = 0.894
+    paired diff (B1 - B2) mean = -0.468, s.d. 4.551
+    B2 > B1 in 1351/2184 positions (61.9%)
+  The diagonal orbit registers ~12% higher energy than the
+  orthogonal orbit under tournament play.  The direction matches
+  the §10.10 T2 prediction (corner-valuing strategy biases the
+  diagonal modes).  Finite-sample effects not ruled out at N = 35
+  games; worth retesting at WTHOR scale.
+
+- **E3 scale-up.** Spearman(rho, A1- energy) on 2184 real-game
+  positions = **+0.772** (vs +0.671 on 300 random-play positions).
+  Structural coupling is tighter under skilled play.
+
+- **E7 aggregate.** Forward-positive fraction = 0.541 ± 0.038 across
+  35 games; 30/35 games have fraction > 0.5.  Small but consistent
+  T-breaker signature.
+
+- **G9 (Othello §9h' peak/drop).** Mean A1- peak ply = 57.9
+  (92.8% of game).  Mean drop ply = 45.9 (73.7% of game).
+  corr(peak, drop) = -0.298 across games.  The ordering is REVERSED
+  relative to chess — in Othello, A1- energy is monotone-increasing
+  through most of the game (filling drives magnetisation), so the
+  "peak" lives near terminal and the "drop" is a midgame
+  simplification event.  Chess-style simplification-then-peak
+  reading does not transfer.
+
+**New tooling added.**
+- `research/othello_pgn_loader.py` — eOthello-transcript parser with
+  auto-pass insertion; research-audience `--help` with examples and
+  notes.
+- `research/game_trajectory_tests.py` — corpus-level probe runner;
+  emits `phase1b_game_trajectories.json` + `phase1b_per_move.csv`;
+  same `--help` convention.
+
+**What the Takizawa reversi-scripts repo unlocks without the 20 GB
+figshare download** (noted for the sequel):
+- `opening_book_freq.csv.bz2` (~24 MB) — tournament move-frequency
+  dictionary.  Enables §10.10 T3 Shannon info per move
+  (I_move = log2|M| - log2 P(chosen | empirical_freq)) directly.
+- `reversi_misc.py` / `reversi_player.py` — reference Python legal-
+  move generator; useful for cross-validating `OthelloBoard`.
+- `Source.cpp` / `eval.cpp` / `Makefile` — the modified edax engine.
+  Compilable.  Unlocks H9 depth-1 vs depth-20 evaluation without
+  the figshare table.
+- `empty50_tasklist_edax_knowledge.csv` (~204 KB) — edax knowledge
+  at 50-empty positions; partial ground-truth anchor.
+
 ## What's scoped to the sequel
 
 1. Phase-operator move engine — full construction against

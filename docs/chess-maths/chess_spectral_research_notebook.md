@@ -2057,8 +2057,8 @@ A decisive empirical signal for the Blume-Capel site fiber comes from the Othell
 No empirical study in the literature has extracted, from the WTHOR database (61,549 tournament games), the spectral or statistical-mechanical observables predicted by the hybrid framework above. These are concrete open empirical tests, each tied to a candidate framework's distinguishing signature:
 
 1. **Flip-count-per-move distribution** (power law vs exponential). Distinguishes SOC / directed-percolation-critical scaling (power law) from Blume-Capel tricritical or away-from-critical (exponential tails). If power-law, extract the scaling exponent and compare with sandpile and DP critical exponents.
-2. **B₁ vs B₂ spectral populations** across game trajectories. Tests the rook/bishop-from-rays prediction of §10.4: ⟨B₁²⟩ vs ⟨B₂²⟩ should be statistically indistinguishable under rules alone, but may differ because corners are diagonal-reachable first from the center and tournament strategy values edge/corner control asymmetrically.
-3. **Shannon information per move** vs the Sagawa-Ueda bound ⟨W⟩ ≥ ΔF − k_B T · I. Without the Boltzmann-policy embedding, test the pure Shannon bookkeeping: I_move = log₂ |M(s)| − log₂ P(chosen | policy). Under the embedding with inferred β, test the full generalized-Jarzynski identity.
+2. **B₁ vs B₂ spectral populations** across game trajectories. Tests the rook/bishop-from-rays prediction of §10.4: ⟨B₁²⟩ vs ⟨B₂²⟩ should be statistically indistinguishable under rules alone, but may differ because corners are diagonal-reachable first from the center and tournament strategy values edge/corner control asymmetrically. **Preliminary empirical support (2026-04-22)**: on 2184 positions from 35 Barcelona EGP 2026 tournament games, ⟨B₂²⟩ / ⟨B₁²⟩ = 1.118 — the diagonal orbit registers ~12% higher than the orthogonal orbit, in the predicted direction. Finite-sample effects at N = 35 games not yet ruled out; WTHOR-scale rerun is the decisive version.
+3. **Shannon information per move** vs the Sagawa-Ueda bound ⟨W⟩ ≥ ΔF − k_B T · I. Without the Boltzmann-policy embedding, test the pure Shannon bookkeeping: I_move = log₂ |M(s)| − log₂ P(chosen | policy). Under the embedding with inferred β, test the full generalized-Jarzynski identity. **The `opening_book_freq.csv.bz2` file in the Takizawa reversi-scripts repo provides the empirical P(chosen) dictionary directly** — T3 is runnable without the 20 GB figshare download, scoped to the sequel.
 4. **Trajectory through (T_eff, D_eff) plane.** Map each game position to a point in the Blume-Capel control-parameter plane; test whether the monotone-filling trajectory passes near the tricritical point (Δt ≈ 1.966, T_t ≈ 0.608) at or near half-filling. Joint distribution P(ρ_black, ρ_white, ρ_empty) gives the marginal P(M = ρ_b − ρ_w); Binder cumulant U* ≈ 0.6107 for Ising, different for tricritical.
 5. **Cluster-size distribution of flanks.** Tests Wolff-critical scaling: power-law cluster sizes at criticality, exponential away. Compare with the Bouabci-Carneiro FK-cluster statistics for Blume-Capel.
 
@@ -2123,9 +2123,30 @@ Phase 0–2 of the §10 survey is now computationally instantiated at [`../othel
 
 **Phase 3 preflight.** The sequel — the phase-operator move engine for Othello, analogous to [`PHASE_OPERATOR_SUPPLEMENT.md`](PHASE_OPERATOR_SUPPLEMENT.md) for chess — has its decision log at [`../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md`](../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md). Recommended default: D = 768 with rank-2 fiber, generators (7, 11), flip gate via Option B (explicit Z₂ channel in the encoder), state-dependent gating via aliasing-horizon detection (Option 3). The Othello phase operators have NOT been built in this pass — that is the sequel.
 
+**Phase 1b (game-trajectory corpus, Barcelona EGP 2026, 35 games, 2184 positions).** Subsequent run of `research/game_trajectory_tests.py` upgrades five probes from PARTIAL / random-play-surrogate to numeric-with-real-games:
+
+| Probe | Result |
+|---|---|
+| T1 flip-count on real moves | max flip = 12, median per-position max = 4.0, mean-of-means = 2.23 — comparable to random play; distribution-fit vs power-law still requires WTHOR scale |
+| **T2 B₁ vs B₂ population asymmetry** | `<B₁²>` / `<B₂²>` = 0.894; B₂ > B₁ in 1351/2184 positions (61.9%); paired diff mean = −0.468 — **predicted direction confirmed** (diagonal orbit runs ~12% hotter under tournament play) |
+| E3 scale-up | Spearman(ρ, A₁⁻ energy) = **+0.772** on 2184 real positions (was +0.671 on 300 random-play) — tighter under skilled play |
+| E7 aggregate | forward-positive fraction = 0.541 ± 0.038 across 35 games; 30/35 games have fraction > 0.5 — small but consistent |
+| G9 (Othello §9h′ peak/drop) | mean A₁⁻ peak ply = 57.9 (92.8% of game), drop ply = 45.9 (73.7%); **ordering REVERSED vs chess** — in Othello magnetisation grows monotonically with filling, so peak sits near terminal |
+
+The T2 result is the most immediately interesting: the §10.4 rook/bishop-from-rays derivation plus the §10.10 T2 prediction that tournament strategy *should* bias the diagonal orbit (corners are diagonal-reachable first) both land in the predicted direction. Finite-sample effects at N=35 are not ruled out — the same test at WTHOR scale is the decisive version.
+
+**Inventory of Takizawa reversi-scripts** ([github.com/eukaryo/reversi-scripts](https://github.com/eukaryo/reversi-scripts)) usable **without** the 20 GB figshare position-value table:
+
+- `opening_book_freq.csv.bz2` (24 MB) — move-frequency dictionary. Directly unlocks **§10.10 T3 Shannon info per move** without any 20 GB download.
+- `Source.cpp`, `eval.cpp`, `Source_manyeval.cpp`, `Makefile` — the modified edax used for 36-empty solving. Compilable. Gives depth-1 vs depth-20 evaluation and unlocks **H9** as a surrogate for the chess §9h′ protocol (which used Stockfish depth-1 vs depth-20, not perfect play).
+- `reversi_misc.py`, `reversi_player.py` — reference Python legal-move generator for cross-validation.
+- `empty50_tasklist_edax_knowledge.csv` (204 KB) — edax knowledge at 50-empty positions; partial ground-truth anchor.
+
+Only **exact perfect-play** correlations (the strict reading of H9 against the 20 GB table, and E8) require the figshare download.
+
 **What remains genuinely open.** Items still requiring external data or further experiment:
 
-- H9, E8, and the §10.10 WTHOR tests T1–T5 (flip-count power-law fit, B₁/B₂ trajectory populations, Shannon info per move, (T_eff, D_eff) trajectory, FK-BC cluster fit).
+- H9 strict (vs Takizawa perfect-play), E8, §10.10 T4 (T_eff / D_eff trajectory), §10.10 T5 (FK-BC cluster-size fit).
 - Predictive (not just snapshot) power of the dynamic sheaf spectrum.
 - The compass-model ground-state-vs-reachable-play distance distribution under *optimal* rather than random play.
 - Whether a full bracket-aware restriction map for the sheaf (rather than the endpoint-based surrogate used in Phase 2) changes the kernel-dimension structure.

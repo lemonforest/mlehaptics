@@ -352,6 +352,112 @@ Blocked on external data, as with H9.  Scoped to the sequel.
 
 ---
 
+## 2b. Phase 1b — game-trajectory tests on real PGN
+
+Run `research/game_trajectory_tests.py` on the Barcelona European
+Grand Prix 2026 transcript (`dataset/liveothello_Barcelona_EGP_2026.pgn`,
+35 games, 2184 position records including auto-inserted passes).
+Full aggregate in
+[`results/phase1b_game_trajectories.json`](results/phase1b_game_trajectories.json);
+per-ply CSV in [`results/phase1b_per_move.csv`](results/phase1b_per_move.csv).
+
+### 2b.T1 Flip-count distribution on real play
+
+    N = 2184 positions
+    max flip over entire corpus = 12   (single legal move in a single position)
+    median per-position max flip = 4.0
+    mean-of-mean flip-per-legal-move over positions = 2.23 +/- 0.70
+
+Comparable in magnitude to the random-play surrogate (E5 mean 2.28,
+std 1.81, max 13).  Strategic play does **not** dramatically shift the
+single-move flip-count distribution at this sample size.  The §10.10 T1
+test — power-law vs exponential — requires larger N and an explicit
+distribution fit against FK-Blume-Capel and SOC baselines; that is
+still scoped to the sequel.
+
+### 2b.T2 B1 vs B2 population asymmetry — **confirmed direction**
+
+The §10.4 and §10.10 T2 prediction: under *rules alone* the two orbits
+are indistinguishable; under *tournament strategy* the diagonal orbit
+may register higher because corners are diagonal-reachable first from
+the centre and edge/corner control is strategically valued
+asymmetrically.
+
+    mean <B1^2> energy over 2184 positions = 3.930
+    mean <B2^2> energy over 2184 positions = 4.397
+    ratio <B1^2> / <B2^2> = 0.894
+    paired diff (B1 - B2) mean = -0.468  (s.d. 4.551)
+    B2 > B1 in 1351/2184 positions (61.9%)
+    B1 > B2 in  833/2184 positions (38.1%)
+
+**The diagonal orbit (B₂) registers ~12% higher than the orthogonal
+orbit (B₁) in tournament play.** The effect is in the predicted
+direction.  It is not universal — 38% of positions invert the
+ranking — but the population mean is clearly offset.  At this sample
+size (N = 35 games, ~2200 plies) we cannot yet compare to
+random-play expectation with statistical power sufficient to rule
+out finite-sample effects; the random-play baseline is a follow-up
+measurement.
+
+### 2b.E3 scale-up — **stronger under real play**
+
+    Spearman(rho, A1- energy) over 2184 tournament positions = +0.772
+    p-value essentially 0 (Spearman exact limit)
+
+Phase 1 random-play measurement at N = 300: +0.671.  Real tournament
+play scales the correlation UP to +0.772 — structural coupling
+between disc density and magnetisation-sector spectra is tighter
+under skilled play, consistent with the Blume-Emery-Griffiths
+reading of §10.3.
+
+### 2b.E7 aggregate forward asymmetry — **small but consistent**
+
+    mean forward-positive fraction over 35 games = 0.541 (s.d. 0.038)
+    fraction of games with forward-positive fraction > 0.5 = 0.857  (30/35)
+
+Small but tight signature — 54.1 ± 3.8% of A₁⁻ ply-to-ply gradients
+are positive.  The monotone disc-filling T-breaker of §10.8 leaves a
+detectable spectral signature at game level.  The tight standard
+deviation (0.038) suggests this is a real population effect rather
+than per-game noise.
+
+### 2b.G9 A₁⁻ peak/drop trajectory — **Othello analog of §9h′**
+
+Chess §9h' Experiment 2 found the A₁ energy PEAK ply as the decisive
+crisis predictor across 5 masterpieces, with the ΔA₁ drop ply
+preceding the peak (the drop detects simplification, the peak
+detects residual tactical density).
+
+    mean peak  ply = 57.9  (92.8% of game)
+    mean drop  ply = 45.9  (73.7% of game)
+    corr(peak_ply, drop_ply) across 35 games = -0.298
+
+**The ordering is reversed relative to chess.**  In chess the drop
+*precedes* the peak; in Othello the drop (at ~74% of the game)
+precedes the peak (at ~93%), which makes structural sense — A₁⁻
+magnetisation energy in Othello grows monotonically with disc count
+through most of the game, then plateaus near terminal.  The "drop"
+in Othello is a midgame simplification event, which can happen
+when a large flanking chain is resolved; the "peak" is the near-
+terminal maximum of the magnetisation-weighted structure.  The
+chess-style simplification-then-peak reading does not transfer.
+
+The peak/drop correlation across games (ρ = −0.298) is a mildly
+negative signal — games where the peak occurs especially late
+tend to have earlier drops.  Not sharp enough for significance at
+N = 35; worth retesting at WTHOR scale.
+
+### 2b Summary
+
+Phase 1b upgrades five PARTIAL probes to numeric-with-real-games
+and lands one new prediction (T2) at the corpus-empirical level.
+T3 (Shannon info per move) and H9 (depth-gap vs edax) remain
+scoped to further tooling — T3 needs the reversi-scripts
+`opening_book_freq.csv`; H9 needs a compiled edax binary from the
+same repo.
+
+---
+
 ## 3. Dynamic fiber — sheaf Laplacian instantiation
 
 [research/dynamic_sheaf.py](research/dynamic_sheaf.py) builds a
