@@ -214,15 +214,28 @@ GPL v3).
   Striking effect size; N = 15 too small for firm conclusions.
   Worth retesting at WTHOR scale where 2000+ matches are expected.
 
-- **1c.4 H9 surrogate PROTOCOL-READY.** `research/edax_wrapper.py`
-  + `research/a1_depth_gap_runner.py` land with full `EDAX_PATH`
-  env var support, OBF position feeding, d=1 / d=20 gap
-  computation, partial correlation controlling for |disc_diff|.
-  Edax not installed on researcher's system; runner emits
-  placeholder JSON with `"status": "needs_edax"` and exits 2.
-  Install edax (upstream `abulmo/edax-reversi` prebuilt release),
-  set `EDAX_PATH`, and re-run; expected walltime 1-6 h for full
-  2184-position Barcelona corpus at d=20.
+- **1c.4 H9 surrogate CONFIRMED (disc-count-mediated).** Full
+  2184-position Barcelona corpus run against Takizawa-delivered
+  edax 4.5.5 at d=1 and d=20 (2180/2184 positions evaluated,
+  99.8% — 4 parse-edge-case failures).  Results:
+    Spearman(A1- energy, |d1 - d20|)             = +0.151,
+      p = 1.6 x 10^-12, N = 2180
+    Partial controlling for |disc_diff|          = +0.058,
+      p = 0.007, N = 2180
+  Direction matches chess §9h' (+0.452, N = 55); effect size
+  smaller; p tighter due to N ~ 40x larger.  Partial collapse
+  from +0.151 to +0.058 shows most of the raw correlation is a
+  disc-count artifact (E3 already established Othello A1- scales
+  with disc density at ρ = +0.77).  Chess §9h' partial did NOT
+  collapse, because chess A1 *energy* is not a piece-count proxy
+  — the cleaner chess→Othello analog uses the D4-only A1
+  projection of s^2 (occupation), not the magnetisation
+  projection.  Scoped as Phase 1d.
+
+  Edax parser bugfix: initial run only parsed 921/2184 positions
+  because edax 4.5.5 emits "26@98%" (depth@confidence) in
+  solve-mode for endgame positions.  Regex updated to accept the
+  "@XX%" suffix; full rerun succeeded at 2180/2184.
 
 **New tooling added (Phase 1c).**
 - `research/third_party/` with vendored `reversi_misc.py` (GPL v3,

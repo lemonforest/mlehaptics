@@ -1181,8 +1181,8 @@ The complete HDC dimension is **640**: 64 board eigenmodes × 10 channels. The 1
 |---------|------|------|---------|
 | A₁ | 0-63 | D4 irrep | Fully invariant — complexity predictor (ρ=+0.452 vs depth gap) |
 | A₂ | 64-127 | D4 irrep | Rotation-invariant, reflection-antisymmetric |
-| B₁ | 128-191 | D4 irrep | Axis symmetry — complexity after piece-count control (ρ=+0.461) |
-| B₂ | 192-255 | D4 irrep | Diagonal axis symmetry — same as B₁ |
+| B₁ | 128-191 | D4 irrep | Orthogonal-orbit anisotropic mode — complexity predictor (ρ=+0.303 partial, post-audit) |
+| B₂ | 192-255 | D4 irrep | Diagonal-orbit anisotropic mode — **strongest complexity predictor** (ρ=+0.490 partial, post-audit, outperforms A₁) |
 | E | 256-319 | D4 irrep | 2-dim oriented asymmetry — positional weakness marker (ρ=−0.293) |
 | Fiber-sym₁ | 320-383 | Symmetric off-diagonal | Cross-modal coupling direction 1 (σ₁=1.70, 72.6%) |
 | Fiber-sym₂ | 384-447 | Symmetric off-diagonal | Cross-modal coupling direction 2 (σ₂=0.82, 16.9%) |
@@ -1215,6 +1215,38 @@ f_μ = (d_μ / |G|) Σ_{g∈D4} χ_μ(g) · (P_g f)
 This operates on the SIGNAL, bypassing eigenvector alignment issues in degenerate subspaces. Verified: A₁ projection produces exactly identical encodings for all 8 D4 transforms (||diff|| < 10⁻¹⁰). Rotation-invariant retrieval: 90°-rotated Sicilian retrieves original Sicilian at sim = **1.0000** using A₁.
 
 **Key finding:** A₁ alone has near-zero evaluation-predictive power (ρ = 0.05) because it over-averages, collapsing strategically different positions. Evaluation information lives in the symmetry-BREAKING channels (A₂, B₁, B₂, E).
+
+**Audit note (2026-04-23, PATCH 6 outcome).** The D₄ character table rows for B₁ and B₂ in `chess_d4_direct.py::CHARS` and `chess_spectral/tables.py::CHARS` previously contained **incorrect values** that failed the class-constancy requirement under our permutation numbering:
+
+- Conjugacy classes under our element ordering (`g=0` identity, `g=1,3` C₄ rotations, `g=2` C₂, `g=4,5` axis reflections σ_v/σ_h, `g=6,7` diagonal reflections σ_d/σ_d'): `{0}, {1,3}, {2}, {4,5}, {6,7}`. Every character row must be constant on each class.
+- **Broken rows** (prior): `B₁ = [1,-1,1,-1,1,-1,1,-1]`, `B₂ = [1,-1,1,-1,-1,1,-1,1]`. These give different values on `g=4` vs `g=5` and `g=6` vs `g=7` — class-constancy fails.
+- **Corrected rows** (2026-04-23): `B₁ = [1,-1,1,-1,+1,+1,-1,-1]` (axis reflections +1, diagonal reflections −1), `B₂ = [1,-1,1,-1,-1,-1,+1,+1]` (axis reflections −1, diagonal reflections +1).
+- Bug discovered by the Othello Phase 1 pass (`docs/othello-maths/research/consolidated_tests.py` sanity check) which lifted this table to D₄×Z₂ and found idempotence failed on B₁⁻ and B₂⁻ with errors ~0.64. Post-fix idempotence on both tables passes at machine precision.
+
+**Numerical impact — ACTIVE FAIL, not silent.** Chess starting-position energies:
+
+| Channel | Broken (prior) | Corrected |
+|---|---|---|
+| A₁ | 0.000 | 0.000 |
+| A₂ | 4140.500 | 4140.500 |
+| B₁ | **2545.375** | **0.000** |
+| B₂ | **2545.375** | **4140.500** |
+
+The broken B₁ and B₂ energies coincided numerically at many positions — which is why §9h' previously reported identical `partial ρ = +0.461` for both channels and identical raw ρ=+0.321 in Table 1 (same row repeated). Those correlations were computed on **non-idempotent non-irrep projections** and do not reflect the true D₄ irrep content of the chess signal.
+
+The A₁, A₂, and E channels are unaffected — their character rows were already class-consistent.
+
+**Re-run status (2026-04-23): COMPLETE.** The §9h' Experiment 1 corpus (55 Stockfish-filtered positions) was re-evaluated with corrected character rows. **Updated Table 1 / Table 2 numbers are in place** (§9h' above). Numerical deltas:
+
+| Quantity | Pre-audit | Post-audit |
+|---|---|---|
+| B₁ partial ρ | +0.461 (p=0.0005) | **+0.303** (p=0.026) |
+| B₂ partial ρ | +0.461 (p=0.0005) | **+0.490** (p=0.0002) |
+| breaking signed partial ρ | +0.101 (n.s.) | **−0.310** (p=0.022) |
+
+The B₂ partial (+0.490) now **outperforms A₁ partial (+0.456)** as a complexity predictor — a structural result that was hidden by the collapse. The combined breaking-signed partial flipped from trending-positive to significantly-negative (p=0.022), confirming the previously-null hypothesis that "breaking channels signed sum predicts advantage after material control." **This flip is the most consequential audit outcome**: the previously-reported §9h' conclusion that "breaking → advantage not confirmed" is REVERSED — the combined effect IS confirmed at p=0.022, just not visible through the broken projections.
+
+Re-run artefact: `docs/chess-maths/archive/chess_a1_followup.py` executed against the corrected `archive/encoder_512.py::CHARS` and `chess_spectral/tables.py::CHARS` on 2026-04-23; full stdout preserved locally (Stockfish runs are deterministic at fixed depth, so the corpus and correlations are reproducible).
 
 ### 9b. The 8-Generator Frequency Lattice
 
@@ -1288,6 +1320,8 @@ The key architectural connection to UTLP S3: binding is **coprime cyclic roll**,
 - Adjacent squares differ by one coprime stride (67 for vertical, 7 for horizontal)
 - Roll is exactly self-inverse: `roll(roll(x, n), -n) = x`
 - No bipolar requirement — works with any vector
+
+**Generator-selection requirement (subtlety discovered by the Othello Phase 1 pass).** Coprimality of each generator with the modulus `D` is necessary but *not* sufficient for 64-phase uniqueness on the 8×8 lattice. The complete condition is that `p · Δr + q · Δc ≢ 0 (mod D)` holds for every nonzero `(Δr, Δc) ∈ [-7, 7]²`. The individual-coprimality condition prevents collisions along the axes only; mixed-sign Diophantine collisions can still occur. Concrete counter-example from the Othello work: `(p, q) = (3, 7)` with `D = 1024` has `gcd(3, 1024) = gcd(7, 1024) = 1`, but `φ(7, 0) = 21 = φ(0, 3)` because `7·3 − 3·7 = 0`. The chess choice `(67, 7)` with `D = 512` and `D = 640` both pass 64-phase uniqueness verification; the "verified distinct" clause above is doing the real work, and coprimality is an insufficient shortcut. For any new modulus `D` (other domains, other dimensions), the correct check is exhaustive verification of 8×8 phase uniqueness, not pairwise `gcd`.
 
 This IS the UTLP S3 pattern applied to space: where UTLP decomposes TIME into coprime cyclic phases over a shared eigenbasis, this decomposes SPATIAL POSITION into coprime cyclic shifts in the 512-dim HDC vector space.
 
@@ -1390,33 +1424,36 @@ The D4 × Z₂ symmetry framework predicts two orthogonal types of information:
 
 Both predictions confirmed on the 55-position depth-gap corpus:
 
-**Table 1 — Energy (Z₂-invariant) vs unsigned targets (N=55, Spearman ρ):**
+**Table 1 — Energy (Z₂-invariant) vs unsigned targets (N=55, Spearman ρ) — reprocessed 2026-04-23 on corrected D₄ character table (PATCH 6 audit fix):**
 
 | Channel | vs \|depth_gap\| | vs \|SF_d20\| | Partial (ctrl pieces) |
 |---------|-----------------|--------------|----------------------|
 | **A₁** | **+0.452** (p=0.0005) | **+0.467** | **+0.456** (p=0.0005) |
-| A₂ | +0.310 (p=0.02) | +0.424 | +0.366 (p=0.006) |
-| B₁ | +0.321 (p=0.02) | +0.329 | **+0.461** (p=0.0005) |
-| B₂ | +0.321 (p=0.02) | +0.329 | **+0.461** (p=0.0005) |
+| A₂ | +0.310 (p=0.021) | +0.424 | +0.366 (p=0.006) |
+| B₁ | +0.302 (p=0.025) | +0.302 | +0.303 (p=0.026) |
+| **B₂** | **+0.405** (p=0.002) | **+0.481** | **+0.490** (p=0.0002) |
 | E | +0.177 | +0.190 | +0.225 |
-| breaking | +0.148 | +0.187 | +0.191 |
+| breaking | +0.166 | +0.226 | +0.245 (p=0.075, trending) |
 | fiber | +0.166 | +0.236 | +0.193 |
 
-A₁ replicates perfectly and remains the strongest single channel. **Novel finding: B₁/B₂ energies jump from ρ=+0.321 to +0.461 after piece-count control** — these diagonal-reflection channels carry complexity information that is confounded with piece count in the raw correlation but emerges cleanly in the partial. The combined breaking energy does NOT show this effect (individual channels cancel when combined).
+A₁ replicates perfectly and remains the strongest single channel. **B₁ and B₂ are now numerically distinct** (post-audit): under the broken D₄ character table they reported identical `partial ρ = +0.461`, which was the bug manifesting — the non-class-constant character rows collapsed both channels onto the same projection. With corrected characters B₁ partial = +0.303, B₂ partial = +0.490 — the diagonal-reflection channel (B₂, orbits diagonal) is the stronger complexity predictor after piece-count control, outperforming A₁ partial (+0.456) on this metric. B₁ (orbits orthogonal) is the weaker of the two. The corrected decomposition matches the §10.4 Othello-derived rook/bishop signature: B₂ lives in the diagonal-orbit edge set and B₁ in the orthogonal-orbit edge set (grid-topology theorem, not coincidence; see §10.4 PATCH 1).
 
-**Table 2 — Signed sum (Z₂-antisymmetric) vs signed SF evaluation:**
+**Table 2 — Signed sum (Z₂-antisymmetric) vs signed SF evaluation (N=55) — reprocessed 2026-04-23:**
 
 | Channel | vs SF_d20 (raw) | Partial (ctrl material) |
 |---------|----------------|------------------------|
 | **A₁** | **+0.527** (p<0.001) | −0.057 (n.s.) |
+| A₂ | −0.033 | −0.012 |
+| B₁ | +0.019 | −0.069 |
+| B₂ | −0.095 | +0.039 |
 | E | −0.145 | **−0.293** (p<0.05) |
-| breaking | +0.022 | +0.101 |
+| breaking | **−0.097** | **−0.310** (p=0.022) |
 
 **Z₂ confirmation:** A₁ signed sum has the strongest raw correlation with evaluation (+0.527) but **collapses to zero after material control** (−0.057). This proves A₁ signed sum is a material-counting proxy: the Z₂-antisymmetric signal IS material balance, as the theory predicts. A₁ *energy* measures complexity; A₁ *signed sum* measures material. Same channel, orthogonal quantities, separated by the Z₂ decomposition.
 
-**E channel discovery:** The E channel (2-dimensional D4 irrep) shows a **significant negative partial correlation** (ρ=−0.293, p<0.05) with evaluation after material control. The E channel signed sum captures oriented structural asymmetry that correlates negatively with engine evaluation after material control. In chess terms this corresponds to what players call positional weakness (exposed king, bad pawn structure, piece coordination deficits), but the spectral model detects it as a specific eigenmode pattern in the 2-dimensional D4 irrep, not as a chess concept. This is the first spectral marker in the framework of a Z₂-breaking field mode that disagrees with material counting — the chess interpretation ("positional weakness") is the application-domain name for that structural pattern.
+**E channel result:** The E channel (2-dim D₄ irrep) shows a **significant negative partial correlation** (ρ=−0.293, p<0.05) with evaluation after material control. Unchanged by the audit (E character row was already class-consistent). The E channel signed sum captures oriented structural asymmetry that correlates negatively with engine evaluation after material control. In chess terms this corresponds to positional weakness (exposed king, bad pawn structure, coordination deficits); spectrally it's a specific eigenmode pattern in the 2-dim D4 irrep.
 
-The hypothesis that "breaking channels predict who's winning" was NOT confirmed for the combined breaking channel (ρ=+0.022). The signal is channel-specific: E carries positional information, A₂/B₁/B₂ do not (in the signed-sum sense).
+**"Breaking channels predict who's winning" — CONFIRMED after the audit.** Pre-audit, the combined breaking signed correlation was reported as non-significant (ρ = +0.022 raw, +0.101 partial). On the corrected character table this becomes **ρ = −0.097 raw, −0.310 partial (p=0.022)** — significant and in the same direction as the individual E channel. The broken B₁/B₂ rows had been injecting sign-inconsistent contributions into the "breaking" sum that cancelled the real effect; with the fix, the combined breaking channel and the individual E channel both carry the structural-weakness signal. **This is the most significant downstream change from the PATCH 6 audit: a previously-null hypothesis (combined breaking → advantage) is now confirmed.**
 
 #### Experiment 2: Game Trajectory Analysis
 
@@ -1508,7 +1545,7 @@ The original "Future Work: Othello as Validation Domain" subsection has been pro
 | 11 | D4 irrep decomposition → A₁ as depth-gap predictor (ρ=+0.452, p=0.0005) | MATHEMATICAL | DCT = dihedral irreps (Püschel & Moura 2003; §1b.3) |
 | 12 | Z₂ decomposition: energy → complexity, signed sum → material (confirmed) | — | Empirical; D4 × Z₂ group theory |
 | 13 | A₁ eval-volatility correlation (ρ=+0.134, p<10⁻⁶, N=2165 plies, 20 games) | — | Empirical |
-| 14 | B₁/B₂ complexity jump after piece-count control (ρ=+0.321 → +0.461) | — | Empirical |
+| 14 | B₁/B₂ rook/bishop signature split (post-PATCH-6 audit): B₁ partial ρ=+0.303, B₂ partial ρ=+0.490 — B₂ (diagonal orbit) outperforms A₁ as complexity predictor | — | Empirical; pre-audit reported identical +0.461 (bug artefact) |
 | 15 | 8-generator spectral lattice as domain-specific coprime basis | — | Connects to UTLP S3 |
 | 16 | Coprime roll binding as UTLP S3 spatial analog | — | UTLP S3 pattern |
 | 17 | Pawn as spectral composite: king-like forward movement + bishop-like diagonal capture (cos=0.52) | MATHEMATICAL | Lattice propagator anisotropy (§1b.5); HN model decomposition (§1b.1) |
@@ -1958,7 +1995,9 @@ D₄ has 5 conjugacy classes {E, 2C₄, C₂, 2C′₂, 2C″₂} and 5 irreps A
 - **Γ_diag:** character χ = (4, 0, 0, 0, 2). Reduction: **Γ_diag = A₁ ⊕ B₂ ⊕ E**. Basis: A₁ = (NE+SE+SW+NW)/2; B₂ = ((NE+SW) − (SE+NW))/2 transforms as xy; E = {(NE−SW)/√2, (SE−NW)/√2}.
 - **Combined 8-ray representation:** **Γ_8 = 2·A₁ ⊕ B₁ ⊕ B₂ ⊕ 2·E** (dimension check: 2+1+1+4 = 8 ✓).
 
-**B₁↔B₂ is the rook/bishop signature, derived from rays alone.** In the chess notebook, the orthogonal-sliding vs diagonal-sliding distinction appears through piece-species analysis (rook adjacency vs bishop adjacency). Here, the same distinction drops out of the ray-set character analysis with no reference to pieces. B₁ carries the orthogonal-orbit anisotropic mode; B₂ carries the diagonal-orbit anisotropic mode. Interchanging orthogonal and diagonal rays — a group-theoretic B₁↔B₂ swap — is the exact signature of the rook/bishop distinction. To this survey's knowledge, this decomposition has not been previously published for Othello. **CONFIRMED 2026-04-22** by character-projection on the 8-dim ray-indicator space: measured multiplicities exactly match `{A₁: 2, A₂: 0, B₁: 1, B₂: 1, E: 2}`; the B₁ and B₂ modes lifted to 64×64 operators land Frobenius-orthogonal (inner product exactly 0), which is a stronger distinctness statement than the original prediction required. See `othello-maths/research/consolidated_tests.py` (H2, H3).
+**B₁↔B₂ is the rook/bishop signature, derived from rays alone.** In the chess notebook, the orthogonal-sliding vs diagonal-sliding distinction appears through piece-species analysis (rook adjacency vs bishop adjacency). Here, the same distinction drops out of the ray-set character analysis with no reference to pieces. B₁ carries the orthogonal-orbit anisotropic mode; B₂ carries the diagonal-orbit anisotropic mode. Interchanging orthogonal and diagonal rays — a group-theoretic B₁↔B₂ swap — is the exact signature of the rook/bishop distinction. To this survey's knowledge, this decomposition has not been previously published for Othello. **CONFIRMED 2026-04-22** by character-projection on the 8-dim ray-indicator space: measured multiplicities exactly match `{A₁: 2, A₂: 0, B₁: 1, B₂: 1, E: 2}`; the B₁ and B₂ modes lifted to 64×64 operators land Frobenius-orthogonal (inner product exactly 0). See `othello-maths/research/consolidated_tests.py` (H2, H3).
+
+**The Frobenius-orthogonality is a grid-topology theorem, not an empirical coincidence.** On the 8×8 grid, the orthogonal-neighbor edge set `E_ortho` (112 edges, displacements `(±1, 0)` and `(0, ±1)`) and the diagonal-neighbor edge set `E_diag` (98 edges, displacements `(±1, ±1)`) are disjoint: no cell pair is simultaneously an orthogonal and diagonal neighbor. Each undirected orthogonal ray Laplacian has matrix support ⊆ `E_ortho`; each diagonal ray Laplacian has support ⊆ `E_diag`. Any real linear combination in one orbit therefore has Frobenius inner product identically zero with any combination in the other orbit, independent of the coefficients. The B₁ and B₂ spectral channels are not merely distinct — they live on disjoint subsets of matrix position-space, so the rook/bishop decomposition is a *direct sum* of operator subspaces, not an orthogonal splitting of a shared space. The same theorem applies to chess: the rook adjacency and bishop adjacency have disjoint edge supports, which is why rook+bishop=queen holds exactly at the adjacency-matrix level (§3, §7b). Othello makes the ray-level structure explicit; chess inherits it via piece species.
 
 **Exact Z₂ extension.** With the exact color-inversion Z₂ (which is only approximate in chess — pawn-broken, §1b.1), the full symmetry is D₄×Z₂ with 16 elements and 10 irreps. Spin-squared quantities (quadrupole Q = 1 − ρ_empty) are Z₂-invariant; spin-signed quantities (magnetization M = ρ_b − ρ_w) carry the non-trivial Z₂ character. The natural channel split in §9h' transfers: Z₂-invariant channels predict complexity, Z₂-breaking channels predict advantage.
 
@@ -2058,7 +2097,7 @@ No empirical study in the literature has extracted, from the WTHOR database (61,
 
 1. **Flip-count-per-move distribution** (power law vs exponential). Distinguishes SOC / directed-percolation-critical scaling (power law) from Blume-Capel tricritical or away-from-critical (exponential tails). If power-law, extract the scaling exponent and compare with sandpile and DP critical exponents.
 2. **B₁ vs B₂ spectral populations** across game trajectories. Tests the rook/bishop-from-rays prediction of §10.4: ⟨B₁²⟩ vs ⟨B₂²⟩ should be statistically indistinguishable under rules alone, but may differ because corners are diagonal-reachable first from the center and tournament strategy values edge/corner control asymmetrically. **Preliminary empirical support (2026-04-22)**: on 2184 positions from 35 Barcelona EGP 2026 tournament games, ⟨B₂²⟩ / ⟨B₁²⟩ = 1.118 — the diagonal orbit registers ~12% higher than the orthogonal orbit, in the predicted direction. Finite-sample effects at N = 35 games not yet ruled out; WTHOR-scale rerun is the decisive version.
-3. **Shannon information per move** vs the Sagawa-Ueda bound ⟨W⟩ ≥ ΔF − k_B T · I. Without the Boltzmann-policy embedding, test the pure Shannon bookkeeping: I_move = log₂ |M(s)| − log₂ P(chosen | policy). Under the embedding with inferred β, test the full generalized-Jarzynski identity. **The `opening_book_freq.csv.bz2` file in the Takizawa reversi-scripts repo provides the empirical P(chosen) dictionary directly** — T3 is runnable without the 20 GB figshare download, scoped to the sequel.
+3. **Shannon information per move** vs the Sagawa-Ueda bound ⟨W⟩ ≥ ΔF − k_B T · I. Without the Boltzmann-policy embedding, test the pure Shannon bookkeeping: I_move = log₂ |M(s)| − log₂ P(chosen | policy). Under the embedding with inferred β, test the full generalized-Jarzynski identity. **The `opening_book_freq.csv.bz2` file in the Takizawa reversi-scripts repo provides the empirical P(chosen) dictionary directly** — T3 is runnable without the 20 GB figshare download. **Status: CONFIRMED as a conditional effect (2026-04-22)** — I_move is near-null with A₁⁻ energy globally (ρ = −0.065) but picks up a significant positive correlation on the in-book subset (ρ = +0.213, p = 2 × 10⁻⁸ on N ≈ 676 of 2099 scored plies across 35 Barcelona EGP 2026 games). The in-book / out-of-book conditioning is the structural lever; see §10.13. The generalized-Jarzynski version under the embedding remains open.
 4. **Trajectory through (T_eff, D_eff) plane.** Map each game position to a point in the Blume-Capel control-parameter plane; test whether the monotone-filling trajectory passes near the tricritical point (Δt ≈ 1.966, T_t ≈ 0.608) at or near half-filling. Joint distribution P(ρ_black, ρ_white, ρ_empty) gives the marginal P(M = ρ_b − ρ_w); Binder cumulant U* ≈ 0.6107 for Ising, different for tricritical.
 5. **Cluster-size distribution of flanks.** Tests Wolff-critical scaling: power-law cluster sizes at criticality, exponential away. Compare with the Bouabci-Carneiro FK-cluster statistics for Blume-Capel.
 
@@ -2121,6 +2160,8 @@ Phase 0–2 of the §10 survey is now computationally instantiated at [`../othel
 
 **Phase 2 dynamic sheaf headline.** A 60-move random-play game yielded sheaf λ₂ ∈ [0.22, 0.93] with Spearman(legal_moves, λ₂) = +0.765, p = 1.1 × 10⁻¹². The sheaf spectral gap tracks *strategic freedom* (count of legal placements), not disc density. The L7b caveat from the logo notebook applies: this is a snapshot correlation, and predictive power of `spec(L_F(t))` for `t + Δ` has NOT been tested.
 
+Paired with the §10.13 Phase 1c finding that Shannon `I_move` correlates with `n_legal_moves` at ρ = +0.814 on tournament play, the sheaf observable and the information observable are both dominated by the state-richness (count-of-options) axis. Whether they carry independent signal within that axis — i.e. whether `spec(L_F(t))` is informative *conditioning on* `n_legal_moves` — is an open question and the natural next probe for a Phase 1d run.
+
 **Phase 3 preflight.** The sequel — the phase-operator move engine for Othello, analogous to [`PHASE_OPERATOR_SUPPLEMENT.md`](PHASE_OPERATOR_SUPPLEMENT.md) for chess — has its decision log at [`../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md`](../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md). Recommended default: D = 768 with rank-2 fiber, generators (7, 11), flip gate via Option B (explicit Z₂ channel in the encoder), state-dependent gating via aliasing-horizon detection (Option 3). The Othello phase operators have NOT been built in this pass — that is the sequel.
 
 **Phase 1b (game-trajectory corpus, Barcelona EGP 2026, 35 games, 2184 positions).** Subsequent run of `research/game_trajectory_tests.py` upgrades five probes from PARTIAL / random-play-surrogate to numeric-with-real-games:
@@ -2150,6 +2191,35 @@ Only **exact perfect-play** correlations (the strict reading of H9 against the 2
 - Predictive (not just snapshot) power of the dynamic sheaf spectrum.
 - The compass-model ground-state-vs-reachable-play distance distribution under *optimal* rather than random play.
 - Whether a full bracket-aware restriction map for the sheaf (rather than the endpoint-based surrogate used in Phase 2) changes the kernel-dimension structure.
+
+### 10.13. Phase 1c addendum — reversi-scripts integration (2026-04-22)
+
+Run after §10.12 had been finalized.  Integrates the GPL-v3 [`eukaryo/reversi-scripts`](https://github.com/eukaryo/reversi-scripts) artefacts that can be used **without** the 20 GB figshare perfect-play table.  Full numerics in [`../othello-maths/results/phase1c_*.json`](../othello-maths/results/) and [`../othello-maths/results/session_summary.md`](../othello-maths/results/session_summary.md).
+
+**1c.1 — OthelloBoard engine cross-validation (CONFIRMED).**  2684 positions (2184 from the Barcelona EGP 2026 PGN + 500 synthetic random-play positions) evaluated against Takizawa's vendored `reversi_misc.py::get_moves`.  **2684/2684 agreement, zero disagreements.**  Every downstream claim in §10.12 / §10.13 inherits this confidence; positions with divergent move sets between Claude's implementation and the reference would have invalidated every correlation in the Othello trajectory work.  They don't.
+
+**1c.2 — §10.10 T3 Shannon information per move (CONFIRMED — conditional).**  Using the `opening_book_freq.csv.bz2` from reversi-scripts as the empirical P(chosen) dictionary, `I_move = log₂|M(s)| − log₂ P̂(chosen | book)` was computed for 2099 scored plies across 35 tournament games.  32 % of plies were in-book (coverage determined by the book's truncation depth).
+
+| Observable | Correlation | p-value | N |
+|---|---|---|---|
+| I_move vs n_legal_moves (global) | +0.814 | ~0 | 2099 |
+| I_move vs A₁⁻ energy (global) | −0.065 | 0.003 | 2099 |
+| I_move vs A₁⁻ energy (in-book only) | **+0.213** | **2.1 × 10⁻⁸** | ~676 |
+| game-mean I_move vs \|final disc diff\| | +0.109 | 0.53 | 35 |
+
+The global I_move-vs-A₁⁻ correlation is noise (effect size near zero).  Out of book, `P̂(chosen | book)` is Laplace-smoothed to uniform-noise baseline, so I_move collapses to `log₂|M(s)|` plus additive noise, which is why the global Spearman is dominated by the `+0.814` legal-move-count correlation.  **In-book, where `P̂(chosen | book)` is an informative tournament-frequency distribution, I_move picks up a strategic-weight component, and that component partially aligns with A₁⁻ magnetisation energy at ρ = +0.21.**  This is a conditional effect, not a marginal one, and the conditioning variable (in-book / out-of-book) is the structural lever.
+
+The null result at the game level — mean I_move does not predict winning margin (ρ = +0.11, p = 0.53) — distinguishes I_move as a *state-richness* observable rather than a *quality* observable.  The spectral channel A₁⁻ (which does partially track disc density at ρ = +0.77 on the same corpus; §10.12 E3 scale-up) carries a different signal.  Naming the split explicitly: **Shannon information per move measures state richness (how many options, how evenly distributed); A₁⁻ energy measures strategic structure (how the magnetisation is arranged under the group action).**  The two are independent axes of a position description.  This is a reusable framework distinction; when the same question is asked of chess (what fraction of I_move-vs-spectral-observable covariance is opening-book-conditional?) the answer may differ because chess's opening-book structure is different, but the conditional framing transfers.
+
+No chess analog for the in-book conditional effect has been measured.  Chess §9h′ measures A₁ energy vs Stockfish depth-gap, which is a different observable pairing.  Adding a matching in-book I_move experiment to chess is scoped as a §9s follow-up if of interest.
+
+**1c.3 — Edax 50-empty knowledge anchor (PARTIAL, flagged).**  15 of 35 Barcelona 50-empty positions match entries in reversi-scripts' 2587-row `empty50_tasklist_edax_knowledge.csv`.  At the default reporting threshold of 20 matches the correlation is suppressed as a result; a peek at N = 15 gives Spearman(A₁⁻ energy, edax_score) = **+0.820, p = 1.8 × 10⁻⁴**.  The effect size is the largest in the session.  N = 15 is too small to commit to — this is a flag, not a result.  A 2148-position edax run at depth 1 vs depth 20 is currently in flight; its result will either vindicate or kill this reading.
+
+**1c.4 — H9 A₁ depth-gap surrogate (CONFIRMED — disc-count-mediated).**  Ran full Barcelona corpus against Takizawa-delivered edax 4.5.5 at depth 1 and depth 20.  2180 / 2184 positions evaluated (99.8 %; 4 edge-case parse failures).  Results: **Spearman(A₁⁻ energy, |d1 − d20|) = +0.151, p = 1.6 × 10⁻¹²**; partial controlling for |disc_diff| = +0.058, p = 0.007.  Direction matches chess §9h′ (+0.452, N = 55) but effect size is ~1/3 and collapses by ~60 % under the disc-count partial — **most of the signal is a disc-count artifact**.  Chess §9h′ partial did NOT collapse (+0.452 → +0.456), because chess A₁ *energy* is not a piece-count proxy, while Othello A₁⁻ *magnetisation* largely is (§10.12 E3: ρ(ρ_disc, A₁⁻) = +0.77).  The cleaner chess-transfer analog uses the D₄-only A₁ projection of s² (occupation); that probe is scoped as Phase 1d.  H9 UNDETERMINED → CONFIRMED with caveat.
+
+**What this does not change.**  The §10.12 pass-table is unaffected — H9 and E8 remain UNDETERMINED at the strict (Takizawa-figshare) reading; their surrogate (edax depth-gap) is now runnable and is in flight.  The §10.10 T4 (T_eff / D_eff trajectory) and T5 (FK-BC cluster fit) are still scoped to a subsequent pass.  Predictive-validation of the Phase 2 sheaf spectrum (following the logo L7b template) is still scoped to the sequel.
+
+**Framework-level observation to carry forward.**  The Shannon-information / spectral-observable conditional split is the most novel structural result of the Othello Phase 1c pass.  It suggests that position description in the spectral VSA has at least two functionally independent axes — an information-content axis (state richness, tracks |M(s)|, null with outcome) and a spectral-structure axis (strategic configuration, tracks magnetisation arrangement under D₄×Z₂, partially correlates with quality).  Whether these two axes also separate cleanly in chess is an open question worth running, especially because chess has a more developed opening-book theory and the in-book / out-of-book regime switch is sharper.
 
 ---
 

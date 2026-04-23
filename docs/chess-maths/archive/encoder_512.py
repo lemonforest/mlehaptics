@@ -163,11 +163,14 @@ def make_perm(g):
 
 D4_PERMS = [make_perm(g) for g in range(8)]
 
+# CORRECTED 2026-04-23 PATCH 6 audit; see chess_d4_direct.py for
+# class-constancy details.  This file is archived/superseded;
+# keeping the fix here for reproducibility only.
 CHARS = {
     'A1': [1, 1, 1, 1, 1, 1, 1, 1],
     'A2': [1, 1, 1, 1,-1,-1,-1,-1],
-    'B1': [1,-1, 1,-1, 1,-1, 1,-1],
-    'B2': [1,-1, 1,-1,-1, 1,-1, 1],
+    'B1': [1,-1, 1,-1, 1, 1,-1,-1],
+    'B2': [1,-1, 1,-1,-1,-1, 1, 1],
     'E':  [2, 0,-2, 0, 0, 0, 0, 0],
 }
 

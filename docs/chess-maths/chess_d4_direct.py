@@ -46,11 +46,30 @@ def make_perm(g):
 D4_PERMS = [make_perm(g) for g in range(8)]
 
 # Character table
+#
+# Element ordering (matches D4_PERMS above):
+#   g=0 identity, g=1 C4 (90 CCW), g=2 C2 (180), g=3 C4^-1 (90 CW),
+#   g=4 sigma_v (reflect across vertical axis, col-flip),
+#   g=5 sigma_h (reflect across horizontal axis, row-flip),
+#   g=6 sigma_d (reflect across main diagonal),
+#   g=7 sigma_d' (reflect across anti-diagonal).
+#
+# Conjugacy classes under this ordering (verified by direct
+# conjugation, see PATCH 6 audit note in §9a of the notebook):
+#   {0}, {1, 3}, {2}, {4, 5}, {6, 7}
+# Each row below must be constant on each class.
+#
+# CORRECTED 2026-04-23 (PATCH 6 audit, Othello Phase 1c).  Prior
+# values had B1 = [1,-1,1,-1,1,-1,1,-1] and B2 = [1,-1,1,-1,-1,1,-1,1]
+# which failed class-constancy on classes (4,5) and (6,7) and gave
+# identical-looking energies for B1 and B2 at many positions
+# (e.g. both = 2545.375 at the starting position, against the true
+# values 0.000 and 4140.500).  See CHANGELOG.md and §9a audit note.
 CHARS = {
     'A1': [1, 1, 1, 1, 1, 1, 1, 1],
     'A2': [1, 1, 1, 1,-1,-1,-1,-1],
-    'B1': [1,-1, 1,-1, 1,-1, 1,-1],
-    'B2': [1,-1, 1,-1,-1, 1,-1, 1],
+    'B1': [1,-1, 1,-1, 1, 1,-1,-1],  # axis reflections +1, diagonal -1
+    'B2': [1,-1, 1,-1,-1,-1, 1, 1],  # axis reflections -1, diagonal +1
     'E':  [2, 0,-2, 0, 0, 0, 0, 0],
 }
 
