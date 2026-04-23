@@ -728,14 +728,60 @@ Partial Spearman controlling for |disc_diff|:
     D4-A1(s^2)  vs  archive_mean_ub       = -0.163   p = 6.2e-17
     D4-A1(s^2)  vs  archive_median_lb     = -0.268   p = 6.3e-44
 
-**Interpretation.**  The Z₂-invariant occupation projection captures
-structural information about a 50-empty position that is more
-aligned with its *true* game-theoretic value (as proved by
-Takizawa's algorithm) than with edax's pre-proof heuristic guess.
-Improvement from ρ = −0.349 (vs edax) to ρ = −0.498 (vs proved
-lower-bound aggregate) is a 43 % relative gain in Spearman
-magnitude; the partial version goes from ρ = −0.279 to ρ = −0.319
-(14 % gain), confirming the signal is not a disc-count artefact.
+**Interpretation — the 43 % gain, two readings.**  The raw Spearman
+magnitude goes from |ρ| = 0.349 (spectral vs edax's pre-proof
+heuristic score) to |ρ| = 0.498 (spectral vs Takizawa's proof-
+grounded `archive_mean_lb`), a ~43 % relative gain (0.498 / 0.349
+≈ 1.43).  The partial version goes from 0.279 → 0.319 (14 % gain),
+confirming the signal is not a disc-count artefact.  Two possible
+mechanisms contribute to the gain; they are NOT mutually exclusive
+and a follow-up experiment is needed to disentangle them:
+
+  - **Reading A — aggregation / noise-reduction.**  `archive_mean_lb`
+    averages over 300 k – 600 k proof-grounded 36-empty child
+    bounds per 50-empty parent.  Heavy averaging produces a smoother
+    target than `edax_score`, which is a single pre-proof heuristic
+    integer.  Spearman against a smoother target is naturally
+    tighter.  Some fraction of the 43 % gain is a noise-floor
+    effect on the y-variable, not a substantive property of the
+    spectral observable.
+
+  - **Reading B — alignment / substantive.**  The D₄-A₁(s²)
+    projection is a simple linear functional of the occupation
+    pattern with no search or heuristic content.  If it correlates
+    with the *proved* game-theoretic value more tightly than with
+    a strong engine's pre-proof *prediction* of that value, the
+    spectral observable is genuinely picking up structural content
+    aligned with ground truth that the engine's heuristic does not
+    fully capture.  That would be a substantive statement about
+    the D₄-A₁(s²) channel's informational content.
+
+**How to separate the two readings (not yet run).**  Run edax at
+matched deep search depth (e.g. d = 20, roughly comparable to the
+effort of Takizawa's individual sub-problem solves) on the same
+2587 positions and take that as a third target, `edax_d20_score`.
+
+  - If ρ(spectral, edax_d20) ≈ ρ(spectral, archive_mean_lb), the
+    43 % gain is mostly Reading A (aggregation / smoother target).
+    The spectral observable agrees with ANY strong evaluator,
+    pre- or post-proof, once noise is averaged down.
+
+  - If ρ(spectral, edax_d20) is noticeably weaker than
+    ρ(spectral, archive_mean_lb), Reading B is load-bearing: the
+    spectral channel carries ground-truth-aligned content that
+    even a strong deep-search engine doesn't fully capture.
+
+At the time of this writing, only the pre-proof `edax_score` and
+the proof-grounded `archive_mean_lb` are computed.  The deep-search
+comparison is scoped as Phase 1e.1 (edax wrapper + runner are
+already in place from Phase 1c.4 — `a1_depth_gap_runner.py`).
+
+The earlier phrasing in an interim commit that the spectral channel
+"knows more about the TRUE game-theoretic value than edax's
+heuristic eval" was too strong — it conflated Reading B with the
+narrower Reading-A-or-B ambiguity the data actually supports.  The
+two-reading framing is the accurate one until the deep-search edax
+comparison lands.
 
 The asymmetric behavior between `archive_mean_lb` (very strong)
 and `archive_mean_ub` (much weaker) is structurally interpretable:
@@ -923,6 +969,145 @@ p-value.  Combined with A₁/E, the 2d battery on occupation has three
 channels with meaningful signal.  The full channel-energy vector
 (A₁, A₂, B₁, B₂, E) on s² could be a 5-D encoding of "structural
 content of occupation" worth testing in a downstream classifier.
+
+### 2d.e Chess vs Othello cross-game comparison (post-PATCH-6, both sides)
+
+Cross-game comparison is now meaningful — PR #57 landed chess §9c′
+(corpus-level post-fix B₁/B₂ analysis, 23 games across 4 lichess
+corpora) on main on 2026-04-23, with the chess `manifest.json` /
+`corpus_index.csv` / `corpus_summary.md` all regenerated from post-
+fix spectralz.  The matched-Stockfish per-ply chess correlation is
+still a pending batch item (referenced in chess §9c′ but not yet
+computed against the re-encoded spectralz), but the structural
+channel-level numbers are available on both sides.  Static
+structural comparison only; game-theoretic-value correlation
+comparison deferred until chess Stockfish re-correlation lands.
+
+#### Similarities — universal grid-topology properties
+
+Both chess (static §9c′ 23-game sample) and Othello (N = 2587
+Takizawa 50-empty positions) show:
+
+1. **B₂ > B₁ in mean energy**, at a consistent ratio:
+   - Chess B₂/B₁ ≈ 1.4–1.7× across all four corpora (nykt 1.69,
+     ash 1.68, hf 1.52, single 1.35; chess §9c′.2).
+   - Othello B₂⁻/B₁⁻ = **2.01** (magnetisation), D₄-B₂(s²)/D₄-B₁(s²)
+     = **1.82** (occupation).
+   - Structural interpretation: the diagonal-orbit vs orthogonal-
+     orbit asymmetry of the 8×8 grid under standard occupation
+     patterns (initial position, tournament fills) favours B₂.
+     Independent of piece-species / single-species structure.
+
+2. **B₁ and B₂ projections are exactly orthogonal per-ply.**  Chess
+   §9c′.1 measures Frobenius cos(B₁, B₂) = 0.0000 over 2112 plies.
+   Othello H3 shows the same via direct grid-topology argument
+   (`E_ortho ∩ E_diag = ∅`).  Identical structural fact on both
+   games.
+
+3. **E is the largest D₄ channel by mean energy.**  Chess E mean
+   11–14 across corpora vs A₁ mean 3.9–4.9 and B₂ mean 4.9–5.9.
+   Othello E⁻ mean 7.2 vs A₁⁻ mean 2.7 vs B₂⁻ mean 2.3.  E/A₁
+   ≈ 2.7× and E/B₂ ≈ 2–3× on both sides.
+
+4. **A₁ and E anti-correlate** in both games, but magnitude differs:
+   - Chess corr(A₁, E) = **−0.293** (moderate; §9c′.4).
+   - Othello corr(A₁⁻, E⁻) = **−0.532** (on magnetisation).
+   - Othello corr(A₁(s²), E(s²)) = **−0.834** (on occupation — the
+     near-mirror we flagged in §2d.c).
+   - Interpretation: A₁ and E decompose the full D₄ occupation
+     energy into "fully symmetric" vs "2D (x, y)-oriented"
+     components and trade off under Plancherel.  Chess's signal
+     carries additional content from the fiber channels
+     (FS1, FS2, FS3, FA, FD) that dilutes the A₁/E anticorrelation;
+     Othello's single-disc-type signal concentrates the trade-off
+     into exactly two D₄ channels, producing the tighter −0.83
+     mirror.
+
+#### Divergences — piece-species content as the amplifier
+
+Chess B₁/B₂ and Othello B₁/B₂ behave very differently once we
+look beyond mean energy into cross-channel structure and strategic
+content:
+
+1. **Cross-channel correlation structure is opposite-signed on
+   (A₁, B₁).**
+
+   | Pair | Chess ρ (§9c′.4, raw signal) | Othello ρ (D₄/s² channels) |
+   |---|---|---|
+   | (A₁, B₁) | **+0.575** | **−0.299** |
+   | (A₁, B₂) | +0.221 | −0.230 |
+   | (A₂, B₂) | +0.358 | −0.003 |
+   | (A₁, E)  | −0.293 | −0.834 |
+
+   **Chess B₁ co-moves with A₁** ("symmetric-fiber-aligned" per
+   §9c′.4), while **Othello B₁(s²) anti-correlates with A₁(s²)**.
+   The sign flip on the (A₁, B₁) pair is the sharpest structural
+   divergence.  It reflects the Plancherel accounting: in chess
+   the signal has many channels (5 D₄ irreps + 5 fiber channels =
+   10 total, 640 dims) and A₁/B₁ can co-move without exhausting
+   the norm budget; in Othello the 5 D₄ occupation channels alone
+   account for most of the norm, so A₁(s²) and B₁(s²) compete for
+   the same budget and anti-correlate.
+
+2. **Strategic content on B₂ is chess-specific.**  Chess §9h′ Table
+   1 (55-position hand-picked depth-gap corpus, post-PATCH-6) puts
+   B₂ partial ρ = +0.490 against |depth_gap|, the strongest
+   single-channel complexity predictor there.  Chess §9c′.5
+   decomposes this by move type: rooks and kings excite B₂
+   preferentially (×1.28 and ×1.53), **castling produces a ×2.05
+   B₂ spike** — castling is the archetype of σᵥ-symmetry breaking
+   and B₂ is the σᵥ-antisymmetric channel.  Othello has no castling,
+   no piece species, no rook/king asymmetry.  Its D₄-B₂(s²) partial
+   ρ = −0.007 (p = 0.73) against Takizawa's archive_mean_lb is
+   genuinely null.  **The structural ray geometry is shared, but
+   the strategic amplification requires piece-species or
+   directional-movement content to show up.**
+
+3. **The "useful" headline spectral channel differs.**
+   - Chess (narrow §9h′ sample): B₂ on raw piece-value signal;
+     partial ρ = +0.490 vs |depth_gap|.
+   - Othello (Takizawa-strict N = 2587): D₄-A₁(s²) and D₄-E(s²)
+     on occupation; partial ρ = −0.319 and +0.310 vs archive_mean_lb.
+   - Both findings are "spectral beyond counting" — they survive
+     the disc-count / piece-count partial control.  They just
+     live on different (signal, irrep) coordinates.
+
+#### Framework reading
+
+The cross-game picture is:
+
+- **Static D₄ grid geometry is universal**: B₂ > B₁, A₁/E
+  anti-correlate, B₁ ⊥ B₂.  Both games inherit this from the
+  8×8 grid topology, no piece-species amplification needed.
+- **Strategic signal on the B-irreps is piece-species-dependent**:
+  chess B₂ carries rook-vs-king / castling-vs-plain content that
+  Othello's single-disc-type play has no analog for, so chess B₂
+  becomes the complexity headline while Othello B₂ is inert.
+- **Strategic signal on the A₁/E axis transfers**: chess A₁ energy
+  (§9h′ +0.452 partial vs depth_gap) and Othello A₁(s²) energy
+  (−0.319 partial vs archive_mean_lb) are both "fully-symmetric"
+  invariants of their respective occupation signals, and both
+  predict ground-truth-aligned quantities.
+- **The E channel's partial ρ matches A₁'s in magnitude with
+  opposite sign on the Othello side** (+0.310 vs −0.319).  Chess
+  §9c′ does not yet have an E/depth-gap partial; the corpus-scale
+  Stockfish re-correlation batch (in flight) may find a symmetric
+  A₁/E twin result if the Othello framing transfers.
+
+Pending confirmation items (each requires the chess Stockfish
+re-correlation batch to land):
+
+- Chess post-fix B₂ partial ρ at corpus scale vs |depth_gap| /
+  |eval_change| — does the §9h′ +0.490 hold at ~2000 plies, or
+  was that a hand-picked-corpus artefact?
+- Chess post-fix E partial ρ vs |depth_gap| — does the Othello
+  A₁/E mirror have a chess analog?
+- Chess post-fix A₁/E cross-channel Pearson at corpus scale —
+  does the Othello −0.83 have a chess analog, or is the tight
+  mirror an Othello-specific consequence of single-species signal?
+
+None of these are blockers for the §2d.c A₁/E-twin claim; they
+add a chess-side symmetry check if the framework transfers.
 
 ### 2d summary (updated after deep channel analysis)
 
