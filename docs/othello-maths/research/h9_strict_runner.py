@@ -99,15 +99,59 @@ def _d4_only_energy(sig: np.ndarray, irrep: str) -> float:
 
 
 def spectral_observables(state: np.ndarray) -> dict:
+    """Full D4 and D4xZ2 projector battery.
+
+    We probe two signals:
+      sig   = raw Blume-Capel {-1, 0, +1} magnetisation (Z2-odd)
+      sig^2 = occupation indicator in {0, 1} (Z2-even)
+
+    For the magnetisation signal the D4xZ2 '-' irreps are the
+    substantive projections (a1_minus, a2_minus, ...); the '+'
+    irreps project trivially to zero and are omitted.
+
+    For the occupation signal we apply D4-only projectors (the
+    D4xZ2 '+' irreps under the Z2-odd default group action also
+    trivially zero; the canonical way to probe Z2-invariant content
+    is via D4-only on s^2).  Naming: d4_a1_occupation, d4_b1_occupation,
+    etc.
+    """
     sig = state.astype(float)
+    occ = sig ** 2
     return {
+        # D4xZ2 '-' irreps on magnetisation
         "a1_minus_energy": float(
             np.linalg.norm(project_irrep(sig, "A1-")) ** 2
         ),
-        "b1_energy": _d4_only_energy(sig, "B1"),
-        "b2_energy": _d4_only_energy(sig, "B2"),
-        "e_energy": _d4_only_energy(sig, "E"),
-        "d4_a1_occupation_energy": _d4_only_energy(sig ** 2, "A1"),
+        "a2_minus_energy": float(
+            np.linalg.norm(project_irrep(sig, "A2-")) ** 2
+        ),
+        "b1_minus_energy": float(
+            np.linalg.norm(project_irrep(sig, "B1-")) ** 2
+        ),
+        "b2_minus_energy": float(
+            np.linalg.norm(project_irrep(sig, "B2-")) ** 2
+        ),
+        "e_minus_energy": float(
+            np.linalg.norm(project_irrep(sig, "E-")) ** 2
+        ),
+        # D4-only on occupation (Z2-invariant probes)
+        "d4_a1_occupation_energy": _d4_only_energy(occ, "A1"),
+        "d4_a2_occupation_energy": _d4_only_energy(occ, "A2"),
+        "d4_b1_occupation_energy": _d4_only_energy(occ, "B1"),
+        "d4_b2_occupation_energy": _d4_only_energy(occ, "B2"),
+        "d4_e_occupation_energy":  _d4_only_energy(occ, "E"),
+        # Back-compat aliases for the magnetisation-side B1/B2/E
+        # (used by earlier reports; identical to b1_minus_energy etc.
+        # but without the '_minus' suffix).
+        "b1_energy": float(
+            np.linalg.norm(project_irrep(sig, "B1-")) ** 2
+        ),
+        "b2_energy": float(
+            np.linalg.norm(project_irrep(sig, "B2-")) ** 2
+        ),
+        "e_energy": float(
+            np.linalg.norm(project_irrep(sig, "E-")) ** 2
+        ),
     }
 
 
@@ -231,8 +275,16 @@ def run(
     }
 
     spectral_keys = [
-        "a1_minus_energy", "b1_energy", "b2_energy",
-        "e_energy", "d4_a1_occupation_energy",
+        # Magnetisation (Z2-odd) — D4xZ2 '-' irreps
+        "a1_minus_energy", "a2_minus_energy",
+        "b1_minus_energy", "b2_minus_energy",
+        "e_minus_energy",
+        # Occupation (Z2-even) — D4-only projectors on s^2
+        "d4_a1_occupation_energy",
+        "d4_a2_occupation_energy",
+        "d4_b1_occupation_energy",
+        "d4_b2_occupation_energy",
+        "d4_e_occupation_energy",
     ]
     value_keys = ["edax_score"]
     if archive_summary:

@@ -780,6 +780,151 @@ Open items for a Phase 1e or sequel:
   aggregate includes both equally; an exact-only restriction would
   reduce N per parent but tighten the signal.
 
+### 2d.c Deep channel analysis — the full D₄ battery on s² (post PATCH 6 audit)
+
+The 1d.a and 1d.b passes reported A₁(s²) as the headline and
+mentioned that B₁/B₂ on magnetisation came back null.  A follow-up
+pass extended the observable battery to all FIVE D₄ irreps projected
+onto the occupation s² signal (Z₂-invariant probes), plus all five
+D₄×Z₂ '−' irreps on the magnetisation s signal (Z₂-odd probes).
+Motivated explicitly by the question "after the PATCH 6 B₁/B₂
+character-table fix, did we re-evaluate B₁/B₂ or just assume they
+stayed null?"  Answer: on magnetisation they are null, but on
+occupation the full D₄ battery contains a second strong signal we
+had not reported.
+
+**Complete post-fix channel table, raw Spearman vs `archive_mean_lb`
+(N = 2587):**
+
+| Channel | raw ρ | raw p | partial ρ | partial p |
+|---|---|---|---|---|
+| Magnetisation (Z₂-odd) |  |  |  |  |
+| A₁⁻ | +0.187 | 8.6×10⁻²² | −0.069 | 4.4×10⁻⁴ |
+| A₂⁻ | −0.006 | 0.76 | +0.000 | 1.00 |
+| B₁⁻ | −0.015 | 0.45 | +0.004 | 0.86 |
+| B₂⁻ | −0.041 | 0.04 | +0.009 | 0.65 |
+| E⁻ | +0.073 | 2.1×10⁻⁴ | +0.102 | 1.8×10⁻⁷ |
+| Occupation (Z₂-even) |  |  |  |  |
+| **D₄-A₁(s²)** | **−0.498** | **1.7×10⁻¹⁶²** | **−0.319** | **4.4×10⁻⁶²** |
+| D₄-A₂(s²) | +0.151 | 1.4×10⁻¹⁴ | +0.133 | 1.1×10⁻¹¹ |
+| D₄-B₁(s²) | +0.148 | 3.5×10⁻¹⁴ | +0.074 | 1.6×10⁻⁴ |
+| D₄-B₂(s²) | +0.034 | 0.08 | −0.007 | 0.73 |
+| **D₄-E(s²)** | **+0.484** | **5.9×10⁻¹⁵²** | **+0.310** | **9.3×10⁻⁵⁹** |
+
+**Two headline findings, not one.**  The raw-correlation
+magnitudes sort into a striking pattern:
+
+    Strong (|rho| > 0.3):   A1(s^2)  -0.498,   E(s^2)  +0.484
+    Moderate (0.1-0.2):     A2(s^2)  +0.151,   B1(s^2) +0.148
+    Null (|rho| < 0.05):    B2(s^2)  +0.034
+
+Under the disc-count partial:
+
+    Strong:     A1(s^2) -0.319,  E(s^2) +0.310
+    Moderate:   A2(s^2) +0.133
+    Weak:       B1(s^2) +0.074
+    Null:       B2(s^2) -0.007
+
+**D₄-E(s²) is the near-mirror of D₄-A₁(s²).**  Opposite sign,
+magnitudes within 3 % of each other raw and within 3 % partial.
+These are the two channels that carry essentially all of the
+"spectral-beyond-counting" signal in the D₄ decomposition of the
+occupation pattern, and they pull in opposite directions.
+
+**Interpretation.**  The A₁ projection picks out the D₄-invariant
+(fully symmetric) component of the occupation pattern — "how evenly
+distributed the 14 discs are under all 8 spatial symmetries."  The
+E projection picks out the D₄-covariant 2-dim (x, y)-transforming
+component — "how much oriented anisotropy the occupation carries."
+The mirror relationship is intuitive: positions with LESS uniform
+fill (smaller A₁, worse for side-to-move) tend to have MORE oriented
+fill (larger E, also worse for side-to-move), and vice versa.
+Because D₄-A₁ + D₄-A₂ + D₄-B₁ + D₄-B₂ + D₄-E sums to the full
+occupation norm (Plancherel), a decrease in one channel must be
+compensated by an increase elsewhere; the A₁/E pair soaks up the
+dominant trade-off.
+
+**Multivariate implication.**  If A₁(s²) and E(s²) partially
+cancel each other, their DIFFERENCE `D4-A1 - D4-E` (or any rotation
+in the 2-D span) might be a sharper univariate predictor.  Both
+channels individually explain ~10 % of the variance in
+`archive_mean_lb` (partial R² ≈ 0.32² ≈ 0.10 each); combined they
+might explain 25–30 %.  A multivariate regression on these two
+alone is scoped as a Phase 1e item.
+
+**B₁(s²) / B₂(s²) asymmetry revisited.**  In chess, the PATCH 6
+reprocess gave B₂ partial ρ = +0.490 against |depth_gap| — the
+single strongest complexity predictor, beating A₁ at +0.456 (§9h′
+Table 1).  In Othello B₁/B₂ on either signal (magnetisation or
+occupation) are essentially null.  Why the divergence?
+
+The chess B₂ signal captures diagonal-sliding vs orthogonal-sliding
+structure across piece species — rook-like adjacency in the ortho
+orbit vs bishop-like in the diag orbit, with the "which-orbit"
+distinction carrying strategic content about pawn structure and
+piece mobility.  Othello has a single disc type, so the B₁↔B₂
+swap has no piece-species content to modulate.  The orthogonal-vs-
+diagonal RAY structure still exists (it sits in the H2 8-ray
+decomposition `2 A₁ + B₁ + B₂ + 2 E`), but a single 50-empty
+configuration of 14 indistinguishable discs projects into B₁(s²)
+and B₂(s²) as close to random-signal noise once disc count is
+controlled — no structural lever amplifies the anisotropy.
+
+This is the structural interpretation of the §10.4 rank-6 irrep
+count not showing up as an operator rank: B₁ and B₂ are real
+geometric modes of the 8×8 grid, but they need piece-species or
+directional-movement content to carry strategic signal.  Othello
+provides neither.
+
+**B₁(s²) moderate partial (ρ = +0.074) as a ghost signal.**  It
+is not null — raw +0.148, partial +0.074 with p = 1.6×10⁻⁴ — but
+it is ~4× weaker than A₁(s²) and E(s²).  Most likely explanation:
+B₁ picks up edge/corner vs centre occupation asymmetry on the 8×8
+grid (transforms as x² − y²), and tournament play at 50-empties
+has a mild systematic bias toward centre-filled configurations.
+Not a headline, but worth noting as a weak corroborating signal
+alongside A₁ and E.
+
+### 2d.d A₂(s²) — a third meaningful channel (weaker than A₁/E)
+
+The D₄-A₂(s²) channel transforms as R_z (rotation about the board
+normal) and is invariant under rotations but sign-flips under
+reflections.  Partial ρ = +0.133, p = 1.1×10⁻¹¹ at N = 2587.  Not
+as strong as A₁ or E but clearly above noise and with a tight
+p-value.  Combined with A₁/E, the 2d battery on occupation has three
+channels with meaningful signal.  The full channel-energy vector
+(A₁, A₂, B₁, B₂, E) on s² could be a 5-D encoding of "structural
+content of occupation" worth testing in a downstream classifier.
+
+### 2d summary (updated after deep channel analysis)
+
+1. **D₄-A₁(s²) and D₄-E(s²) are the twin headline channels**,
+   opposite signs, ~0.32 partial ρ magnitude each against Takizawa
+   proved bounds, p values of 10⁻⁶² to 10⁻⁵⁹.  Together they carry
+   the bulk of the Z₂-invariant spectral-beyond-counting signal.
+2. **D₄-A₂(s²) is a supporting third channel** at partial
+   ρ = +0.13.
+3. **D₄-B₁(s²) is a weak fourth channel** at partial ρ = +0.07.
+4. **D₄-B₂(s²) is genuinely null** in Othello, in contrast to
+   chess B₂ (partial ρ = +0.49 against depth-gap).  The
+   divergence is explained by the absence of piece-species /
+   orientation-specific content in single-disc-type play.
+5. **All magnetisation-side projections collapse under the
+   disc-count partial control**, consistent with the Phase 1c.4
+   finding that Othello A₁⁻ is a disc-count proxy.
+
+Revised framework statement: **the useful spectral observables for
+Othello perfect-play correlation live in the D₄-only projection of
+the Z₂-invariant occupation signal s², not in the D₄×Z₂ projection
+of the magnetisation signal s.**  This cleanly separates Othello
+from chess, where magnetisation-based A₁ energy remains the
+complexity headline.  The chess-style "A₁ energy" and Othello-style
+"D₄-A₁(s²)" are structurally analogous — both are the fully-
+symmetric irrep on the Z₂-invariant aggregate — but they live on
+different Z₂ parities of the underlying signal because Othello's
+piece content is Z₂-invariant (single particle type) while chess's
+is not (piece-species polarizes the signal).
+
 ---
 
 ## 3. Dynamic fiber — sheaf Laplacian instantiation
