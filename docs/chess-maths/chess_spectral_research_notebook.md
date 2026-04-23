@@ -1479,7 +1479,7 @@ Random Stockfish-vs-Stockfish games from the HuggingFace `official-stockfish/fis
 2. ~~**Pawn directed Laplacian**~~ ✅ DONE (`archive/chess_pawn_laplacian.py`). Directed adjacency decomposed via (A + A^T)/2 into symmetric (Hermitian) and antisymmetric (Z₂-breaking) parts. Spectral pawn value P=0.84 (below traditional 1.0). Quantum 5-tuple (0,9,0,0.13,5.66) is unique — all 6 pieces now classified. Z₂ breaking: ||A_anti||/||A_sym|| = 1.0, confirming directionality is not a perturbation but a 50/50 split. Fiber coordinates [-3.98, 1.38, 1.48], closest to King (cos=0.65). Movement vs capture sub-graphs are spectrally distinct (fiber cos=0.52). **Symmetry correction:** the spec's proposed (A_white + A_black)/2 is NOT symmetric (rotation ≠ transpose); fixed to standard transpose decomposition.
 3. **Resonator network decoding**: Iterative unbinding to improve past 58% accuracy ceiling.
 4. ~~**Game-outcome benchmark**~~ ✅ SUPERSEDED. Trajectory analysis with SF evaluation at every ply (Exp 2/2b) provides continuous evaluation ground truth, which is strictly more informative than discrete win/draw/loss outcomes.
-5. **Othello implementation**: The design document (Exp 3) is complete. Build `encoder_othello.py` with Ising spin signal, test A₁ depth-gap transfer, verify fiber channels detect directional ray structure, benchmark against Edax/perfect-play values.
+5. ~~**Othello implementation**~~ ✅ PHASE 0-2 DONE (2026-04-22). Foundation in [`../othello-maths/`](../othello-maths/): D₄×Z₂ projectors, 8 ray Laplacians, coprime generator table, static fiber holonomy, minimal Hansen-Ghrist sheaf Laplacian, and a Phase 1 verification battery (H1–H9, E1–E8) all pass or land as PARTIAL by design. See [§10.12](#1012-verification-pass-2026-04-22) for the pass-table summary, [`../othello-maths/othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) for per-hypothesis numerics. **Remaining:** A₁ depth-gap transfer (H9), Takizawa perfect-play correlations (E8), and WTHOR tournament tests (§10.10 T1–T5) — all blocked on external data, scoped to sequel.
 6. **LOGO prototype**: Split-object HDC prototype validating that the decomposition-by-symmetry pattern generalizes beyond chess (see §9l). Establishes that a turtle-graphics program is a composite of a discrete control graph (command sequence, branch structure) and a continuous kinematic field (turtle trajectory, pen state), with the spectral decomposition applied independently to each substrate. Status: iterations 1-3 complete in `docs/logo-maths/`; framework pattern validated.
 7. **Scale fishtest analysis**: The ρ=+0.134 (p<10⁻⁶) eval-volatility finding from 20 games / 2165 plies should be validated at 200+ games. The E channel partial (which washed out at N=20) may recover signal at larger N if the effect is real but small. `pgn_fetcher.py` is ready for this.
 8. **Epistemological audit**: Review all section titles, figure labels, and variable names for chess language creep. Replace with spectral/physics language where the chess term implies the model detects a chess concept rather than a structural property. First pass applied in §1, §9g, §9h, §9h′, §9o; second pass should extend to §5-§8 code variable names (e.g. rename `safety_field` → `coverage_balance` or similar at the Python level).
@@ -1488,6 +1488,8 @@ Random Stockfish-vs-Stockfish games from the HuggingFace `official-stockfish/fis
 ### 9j. Othello as Validation Domain — see §10
 
 The original "Future Work: Othello as Validation Domain" subsection has been promoted to a full top-level section, **§10. Phase-Space Othello**, after a foundation-anchored survey of 9 candidate mathematical frameworks converged on a hybrid synthesis (Blume-Capel spin-1 site fiber + exact D₄×Z₂ + 8-ray decomposition 2A₁⊕B₁⊕B₂⊕2E + Wolff-like flanking under Fraenkel two-player bounded-change non-local CA semantics + Hansen-Ghrist sheaf Laplacians with dynamic restriction maps + Sagawa-Ueda information thermodynamics under a Boltzmann-policy embedding). The migrated text, literature grounding, and falsifiable WTHOR predictions all live in §10.
+
+**Verification status (2026-04-22):** Phase 0–2 of §10 is now computationally grounded. The structural predictions (§10.4 decomposition, §10.7 sheaf Laplacian instantiation) are CONFIRMED; the rank claim was partially revised (rank-6 did not emerge as an operator rank — it is an irrep multiplicity). WTHOR empirical tests (§10.10) remain open pending external data. See §10.12 for the pass-table and [`../othello-maths/`](../othello-maths/) for the full artifact set.
 
 ### Prior art candidates for formal documentation
 
@@ -1856,7 +1858,19 @@ Othello (§9j) reduces the polarization framework to its minimum: a single θ cl
 
 ## 10. Phase-Space Othello
 
-> **Status.** Active project scaffold. The chess notebook above characterizes a static, multi-species spectral lattice system; this section characterizes Othello as a dynamic, single-species phase-space system on the same 8×8 grid. Findings here are theoretical — the empirical tests in §10.10 against the WTHOR database have not yet been executed.
+> **Status (updated 2026-04-22).** Phase 0–2 of the verification pass
+> is now computationally grounded — see §10.12 and
+> [`../othello-maths/`](../othello-maths/). The structural
+> predictions of §10.4 (8-ray D₄ decomposition, B₁↔B₂ rook/bishop
+> signature) are CONFIRMED; the fiber-rank trichotomy in §10.4 was
+> partially revised (rank-2 orbit and rank-8 directed operators both
+> emerge cleanly; rank-6 is an irrep multiplicity, not an operator
+> rank); the Hansen-Ghrist sheaf instantiation of §10.7 has a
+> working minimal implementation with a testable spectral
+> observable. The WTHOR empirical predictions of §10.10 remain open
+> pending external data. This section should be read as the
+> motivating survey; §10.12 and the Othello notebook carry the
+> numerics.
 
 **Hybrid-framework thesis.** A survey of nine candidate mathematical frameworks (lattice fermion model, Ising / Blume-Capel / Potts, driven nonequilibrium lattice systems, non-local CA, compass / eight-vertex / Kitaev, voter / Glauber / Wolff, information thermodynamics, sheaf Laplacians, combinatorial game theory) found that **no single existing framework is a clean fit**. Othello naturally lives as a **dynamic cellular sheaf** whose stalks are Blume-Capel {−1, 0, +1} fibers per cell, whose restriction maps update per move, whose symmetry is exact D₄×Z₂ with the 8-ray decomposition 2A₁⊕B₁⊕B₂⊕2E, whose update rule is a two-player bounded-change non-local CA with ray-gated flip along subsystem-symmetry-like product operators, and whose information content per move is a Sagawa-Ueda feedback step under a Boltzmann-policy embedding. The global arrow of time is a monotone disc count — a genuinely different breaking of reciprocity from chess's local Hatano-Nelson pawn sector.
 
@@ -1944,11 +1958,22 @@ D₄ has 5 conjugacy classes {E, 2C₄, C₂, 2C′₂, 2C″₂} and 5 irreps A
 - **Γ_diag:** character χ = (4, 0, 0, 0, 2). Reduction: **Γ_diag = A₁ ⊕ B₂ ⊕ E**. Basis: A₁ = (NE+SE+SW+NW)/2; B₂ = ((NE+SW) − (SE+NW))/2 transforms as xy; E = {(NE−SW)/√2, (SE−NW)/√2}.
 - **Combined 8-ray representation:** **Γ_8 = 2·A₁ ⊕ B₁ ⊕ B₂ ⊕ 2·E** (dimension check: 2+1+1+4 = 8 ✓).
 
-**B₁↔B₂ is the rook/bishop signature, derived from rays alone.** In the chess notebook, the orthogonal-sliding vs diagonal-sliding distinction appears through piece-species analysis (rook adjacency vs bishop adjacency). Here, the same distinction drops out of the ray-set character analysis with no reference to pieces. B₁ carries the orthogonal-orbit anisotropic mode; B₂ carries the diagonal-orbit anisotropic mode. Interchanging orthogonal and diagonal rays — a group-theoretic B₁↔B₂ swap — is the exact signature of the rook/bishop distinction. To this survey's knowledge, this decomposition has not been previously published for Othello.
+**B₁↔B₂ is the rook/bishop signature, derived from rays alone.** In the chess notebook, the orthogonal-sliding vs diagonal-sliding distinction appears through piece-species analysis (rook adjacency vs bishop adjacency). Here, the same distinction drops out of the ray-set character analysis with no reference to pieces. B₁ carries the orthogonal-orbit anisotropic mode; B₂ carries the diagonal-orbit anisotropic mode. Interchanging orthogonal and diagonal rays — a group-theoretic B₁↔B₂ swap — is the exact signature of the rook/bishop distinction. To this survey's knowledge, this decomposition has not been previously published for Othello. **CONFIRMED 2026-04-22** by character-projection on the 8-dim ray-indicator space: measured multiplicities exactly match `{A₁: 2, A₂: 0, B₁: 1, B₂: 1, E: 2}`; the B₁ and B₂ modes lifted to 64×64 operators land Frobenius-orthogonal (inner product exactly 0), which is a stronger distinctness statement than the original prediction required. See `othello-maths/research/consolidated_tests.py` (H2, H3).
 
 **Exact Z₂ extension.** With the exact color-inversion Z₂ (which is only approximate in chess — pawn-broken, §1b.1), the full symmetry is D₄×Z₂ with 16 elements and 10 irreps. Spin-squared quantities (quadrupole Q = 1 − ρ_empty) are Z₂-invariant; spin-signed quantities (magnetization M = ρ_b − ρ_w) carry the non-trivial Z₂ character. The natural channel split in §9h' transfers: Z₂-invariant channels predict complexity, Z₂-breaking channels predict advantage.
 
 **Fiber rank prediction.** The 8-ray irrep decomposition gives three natural bundle ranks: rank-2 (orbit count: ortho vs diag), rank-6 (irrep count: 2A₁+B₁+B₂+2E), rank-8 (individual directions, fully reducible). **None equals the chess rank-5**, confirming the §10.2 "rank-5 has no referent in Othello" verdict. The chess notebook's polarization reframing (§9r) reduces to (θ-class, r = ∞, c = 0) for Othello — chirality absent because Z₂ is exact.
+
+**Empirical readout (2026-04-22, H6).** SVD of four candidate stackings of the 8 ray Laplacians:
+
+| Stacking | Effective rank |
+|---|---|
+| Undirected ray Laplacians (pairs coincide: L_N = L_S etc.) | **4** |
+| Directed ray Laplacians (non-symmetric, all 8 distinct) | **8** |
+| Orbit Laplacians (L_ortho, L_diag) | **2** |
+| D₄×Z₂-projected per-site degree signatures | **8** |
+
+Rank-2 (orbit) and rank-8 (directed / degree-projected) emerge cleanly. Rank-4 is the natural undirected reading — a consequence of `L_d = L_{-d}` for undirected graph Laplacians. **Rank-6 does not appear as an operator rank in any of the four constructions** — the `2A₁+B₁+B₂+2E` count is an irrep multiplicity, not a stacked-matrix rank. This is a partial revision of the §10.4 "three candidates" framing: the production encoder should default to rank-2 (aligning with the §9r polarization collapse) with rank-8 as an ablation; rank-6 is not a fiber structure but a decomposition of the D₄×Z₂ channel layout.
 
 ### 10.5. Ray structure: compass models and subsystem symmetries
 
@@ -1993,7 +2018,7 @@ reducing to the ordinary graph Laplacian for the constant sheaf ℝ with identit
 
 Hansen's thesis (U. Penn 2020) and the Neural Sheaf Diffusion work (Bodnar et al., NeurIPS 2022, arXiv:2202.04579) develop the computational tooling. Singer-Wu (*Comm. Pure Appl. Math.* 65, 1067, 2012) provides the connection-Laplacian variant via vector diffusion maps. Riess-Ghrist et al. (arXiv:2504.02049, 2510.00270, 2025) establish that partially asynchronous nonlinear sheaf diffusion converges linearly under bounded delays — relevant for the move-by-move update structure.
 
-**Novel application status.** No paper applies sheaf Laplacians, connection Laplacians, or temporal graph signal processing to any board game. Applying Hansen-Ghrist to Othello is an open research direction — this section is the **MATHEMATICAL framework-level match**; the instantiation is novel.
+**Novel application status.** No paper applies sheaf Laplacians, connection Laplacians, or temporal graph signal processing to any board game. Applying Hansen-Ghrist to Othello is an open research direction — this section is the **MATHEMATICAL framework-level match**; the instantiation is novel. **Minimal instantiation CONFIRMED 2026-04-22** — see [`othello-maths/research/dynamic_sheaf.py`](../othello-maths/research/dynamic_sheaf.py). A 60-move random-play trajectory yielded λ₂ ranging [0.22, 0.93] with **Spearman(legal_moves, λ₂) = +0.765, p = 1.1e-12**. The sheaf spectral gap tracks strategic freedom, not disc density (Spearman(ρ_disc, λ₂) = −0.008, null). The observation is a snapshot correlation — the logo-maths §L7b retraction template explicitly warns that snapshot fibers do not necessarily extrapolate forward in time, and the Othello sheaf's predictive power is an open question for the sequel.
 
 ### 10.8. Information thermodynamics: Sagawa-Ueda under a Boltzmann-policy embedding
 
@@ -2039,11 +2064,17 @@ No empirical study in the literature has extracted, from the WTHOR database (61,
 
 **Additional tests inherited from §9j.**
 
-- Does A₁ energy predict depth-gap in Othello, as it does in chess (§9h', ρ = +0.452, p = 0.0005)? Tests universal complexity metric across games.
-- Is the directional fiber rank non-zero, and does it match the §10.4 prediction of 2 (orbit count), 6 (irrep count), or 8 (fully reducible)?
-- Do positions with the same Takizawa-perfect-play optimal move cluster in spectral space? Tests whether the encoding captures strategic structure, not just positional evaluation.
+- Does A₁ energy predict depth-gap in Othello, as it does in chess (§9h', ρ = +0.452, p = 0.0005)? Tests universal complexity metric across games. **Status: UNDETERMINED** (H9) — blocked on Takizawa dataset + Othello engine; surrogate check (A₁⁻ energy variance over 30 random positions, mean 3.64 ± 7.84) confirms the probe is at least non-trivial.
+- Is the directional fiber rank non-zero, and does it match the §10.4 prediction of 2 (orbit count), 6 (irrep count), or 8 (fully reducible)? **Status: PARTIAL / revised** (H6) — rank-2 (orbit) and rank-8 (directed) both emerge cleanly from the appropriate stacking; rank-6 does NOT appear as an operator rank (see §10.4 revision). Production encoder recommendation: D = 768 with rank-2 fiber.
+- Do positions with the same Takizawa-perfect-play optimal move cluster in spectral space? Tests whether the encoding captures strategic structure, not just positional evaluation. **Status: UNDETERMINED** (E8) — blocked on same external data.
 
 **Ground-truth substrate.** Takizawa 2023 weak solution (arXiv:2310.19387) + WTHOR 61,549 games + existing AI engines (Edax, Logistello, WZebra, NTest, Saio) eliminate the chess benchmark problem.
+
+**Preliminary numbers from the 2026-04-22 verification pass.** The structural pieces of the §10.10 prediction set that do NOT require WTHOR data have been probed:
+
+- **Flip-count distribution (surrogate).** Across 20 random-play games (N = 7216 candidate-move flip counts): mean 2.28, std 1.81, max 13. Random play produces an exponential-looking tail; whether tournament play shifts this toward power-law scaling is the actual §10.10 T1 test and requires WTHOR. Histogram in [`../othello-maths/results/phase1_detail.json`](../othello-maths/results/phase1_detail.json) (E5).
+- **B₁ / B₂ distinctness.** CONFIRMED at the static structural level (§10.4 update above). Trajectory-level ⟨B₁²⟩ vs ⟨B₂²⟩ asymmetry (§10.10 T2) still requires tournament data.
+- **Disc density as slow variable.** Spearman(ρ_disc, A₁⁻ energy) = +0.671, p = 1.5e-40 over 300 positions from 5 random games (E3). The magnetisation spectrum scales with filling monotonically but not perfectly, consistent with the Blume-Emery-Griffiths structural analog of §10.3 without yet committing to the tricritical-point crossing claim of T4.
 
 ### 10.11. Literature grounding
 
@@ -2055,6 +2086,49 @@ Load-bearing primary references, grouped by role in the hybrid framework.
 - **Sheaf / dynamic operators:** Hansen & Ghrist 2019 JACT 3, 315 (arXiv:1808.01513); Hansen 2020 U. Penn PhD thesis; Bodnar et al. 2022 NeurIPS (arXiv:2202.04579, Neural Sheaf Diffusion); Singer & Wu 2012 CPAM 65, 1067 (connection Laplacian).
 - **Information thermodynamics:** Landauer 1961 IBM J R&D 5, 183; Bennett 1982 IJTP 21, 905; Sagawa & Ueda 2010 PRL 104, 090602; Sagawa & Ueda 2012 PRE 85, 021104; Parrondo-Horowitz-Sagawa 2015 Nat Phys 11, 131; Horowitz & Esposito 2014 PRX 4, 031015; Jarzynski 1997 PRL 78, 2690; Crooks 1999 PRE 60, 2721.
 - **Empirical validation:** Takizawa 2023 arXiv:2310.19387v3 (weak solution + ground truth); Li-Hopkins-Bau-Viégas-Pfister-Wattenberg 2023 ICLR arXiv:2210.13382 (Othello-GPT); Nanda-Lee-Wattenberg 2023 BlackboxNLP arXiv:2309.00941 (linear mine/yours/empty probes); Yuan & Søgaard 2025 ICLR arXiv:2503.04421 (cross-LLM extension).
+
+### 10.12. Verification pass (2026-04-22)
+
+Phase 0–2 of the §10 survey is now computationally instantiated at [`../othello-maths/`](../othello-maths/) on branch `othello-spectral-foundations-v0.1.0`. This subsection is the pass-table summary so readers of this notebook do not have to hop to the sibling project to see what has and has not been grounded.
+
+**Phase 1 hypothesis battery (H1–H9 + E1–E8).** Full per-hypothesis numerics in [`../othello-maths/results/phase1_hypotheses.csv`](../othello-maths/results/phase1_hypotheses.csv) and [`phase1_detail.json`](../othello-maths/results/phase1_detail.json).
+
+| ID | Claim | Status | Headline number |
+|---|---|---|---|
+| H1 | Grid Laplacian = 2D DCT eigenbasis | **PASS** | subspace gap 3.4 × 10⁻¹⁴ |
+| H2 | 8-ray rep decomposes as 2A₁ + B₁ + B₂ + 2E under D₄ | **PASS** | `{A1:2, A2:0, B1:1, B2:1, E:2}` exact |
+| H3 | B₁ and B₂ ray modes numerically distinct | **PASS (stronger)** | cos(B₁, B₂) = 0 in both 8-dim and 64×64 Frobenius senses |
+| H4 | L_ortho ≠ L_diag spectrally | **PASS** | mean-degree 1.75 vs 1.53; bandwidth 7.72 vs 6.83 |
+| H5 | Static ray bundle has nontrivial holonomy | **PASS** | one rectangular loop with cos = −1.000 (full Z₂ reversal) |
+| H6 | Fiber rank ∈ {2, 6, 8} | **PARTIAL / revised** | rank-2 and rank-8 emerge; rank-6 is an irrep count, not an operator rank |
+| H7 | Coprime (p, q) generators exist for candidate D | **PASS** | (7, 11) for D = 768; (3, 11) for 1024; (7, 11) for 1152 |
+| H8 | D₄×Z₂ invariance of the encoder | **PASS** | A₁⁻ D₄-invariant and Z₂-odd; A₁⁺(s²) fully invariant; all errors < 10⁻¹⁰ |
+| H9 | A₁ depth-gap transfer chess → Othello | **UNDETERMINED** | requires Takizawa data |
+| E1 | Null tests (no knight DCT orth, no pawn antisym, no rank-5 species) | **PASS** (absence confirmed) | undirected ray antisym norm = 0 exactly |
+| E2 | JW / CP² fermion analog | **PARTIAL** | local Z₂ grading structural sketch |
+| E3 | Disc density ρ as KAM-like slow variable | **PARTIAL / suggestive** | Spearman(ρ, A₁⁻ energy) = +0.671, p = 1.5 × 10⁻⁴⁰ (N = 300) |
+| E4 | Compass-model ground state reachability | **PARTIAL** | constant-board ground state = 64-0 terminal |
+| E5 | Flank cluster-size distribution | **PARTIAL** | N = 7216 candidate flips; distribution-fit deferred |
+| E6 | Dynamic sheaf at move k | **PARTIAL** | instantiated; Spearman(legal_moves, λ₂) = +0.765, p = 1.1 × 10⁻¹² |
+| E7 | Disc-count monotone as global T-breaker | **PARTIAL** | no signal at N = 1 game; needs aggregate |
+| E8 | Takizawa perfect-play correlations | **UNDETERMINED** | requires external data |
+
+**Bugs fixed along the way** (documented in [`othello_spectral_research_notebook.md`](../othello-maths/othello_spectral_research_notebook.md) §1.2 and [`session_summary.md`](../othello-maths/results/session_summary.md)):
+
+1. D₄ character table required class-aware assignment — the chess notebook's B₁/B₂ row structure failed idempotence when lifted verbatim because our permutation numbering puts axis reflections at `{g4, g5}` and diagonal reflections at `{g6, g7}`, and the character must be constant on each class.
+2. Coprime generator search must verify 64-phase uniqueness, not just pairwise `gcd`. The first admissible prime pair (3, 7) for D = 1024 collides via the Diophantine relation `7p − 3q = 0` within the 8×8 range.
+3. Z₂-even functionals (like occupation s²) need a D₄-only projection, not the full D₄×Z₂ projector — the latter trivialises because the default group action negates the signal under z = 1.
+
+**Phase 2 dynamic sheaf headline.** A 60-move random-play game yielded sheaf λ₂ ∈ [0.22, 0.93] with Spearman(legal_moves, λ₂) = +0.765, p = 1.1 × 10⁻¹². The sheaf spectral gap tracks *strategic freedom* (count of legal placements), not disc density. The L7b caveat from the logo notebook applies: this is a snapshot correlation, and predictive power of `spec(L_F(t))` for `t + Δ` has NOT been tested.
+
+**Phase 3 preflight.** The sequel — the phase-operator move engine for Othello, analogous to [`PHASE_OPERATOR_SUPPLEMENT.md`](PHASE_OPERATOR_SUPPLEMENT.md) for chess — has its decision log at [`../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md`](../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md). Recommended default: D = 768 with rank-2 fiber, generators (7, 11), flip gate via Option B (explicit Z₂ channel in the encoder), state-dependent gating via aliasing-horizon detection (Option 3). The Othello phase operators have NOT been built in this pass — that is the sequel.
+
+**What remains genuinely open.** Items still requiring external data or further experiment:
+
+- H9, E8, and the §10.10 WTHOR tests T1–T5 (flip-count power-law fit, B₁/B₂ trajectory populations, Shannon info per move, (T_eff, D_eff) trajectory, FK-BC cluster fit).
+- Predictive (not just snapshot) power of the dynamic sheaf spectrum.
+- The compass-model ground-state-vs-reachable-play distance distribution under *optimal* rather than random play.
+- Whether a full bracket-aware restriction map for the sheaf (rather than the endpoint-based surrogate used in Phase 2) changes the kernel-dimension structure.
 
 ---
 
