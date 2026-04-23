@@ -5,6 +5,62 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] — 2026-04-23
+
+Source-tree consistency follow-up to 1.2.1.  The 1.2.1 release corrected
+`chess_spectral.tables.CHARS` in the Python package but did not
+regenerate the companion C data file `src/cs_tables_data.c`, which
+continued to hold the pre-fix B₁/B₂ rows.  The PyPI wheel is pure-Python
+and therefore was already correct at 1.2.1 — users who `pip install
+chess-spectral==1.2.1` saw the fix via `tables.py`.  **Users who rebuild
+the companion `spectral.exe` / `spectral_4d.exe` C binaries from source
+(CMake Release) at the 1.2.1 tag would get the old broken B₁/B₂ values**
+and the C ↔ Python parity test (`tests/test_c_py_parity.py`) would
+diverge.  1.2.2 closes that gap.
+
+### Fixed
+
+- Regenerated `src/cs_tables_data.c` from the corrected Python
+  `tables.CHARS` by re-running `codegen/emit_tables.py`.  Delta vs
+  1.2.1 is 2 lines (only the CHARS[3] and CHARS[4] rows), matching
+  the Python delta committed in 1.2.1:
+
+      B₁: {1,-1, 1,-1, 1,-1, 1,-1}   →  {1,-1, 1,-1, +1,+1,-1,-1}
+      B₂: {1,-1, 1,-1,-1, 1,-1, 1}   →  {1,-1, 1,-1,-1,-1,+1,+1}
+
+- Rebuilt `spectral.exe` locally (CMake Release target) against the
+  regenerated C source and re-ran the committed parity test:
+
+      OK: 88 frames × 640 dims, max |delta| = 0 (byte-identical),
+      move metadata identical
+
+  End-to-end regression: Python fix (from 1.2.1) → codegen →
+  regenerated C source (this release) → rebuilt C binary →
+  spectralz v4 frames all agree.
+
+### No PyPI wheel changes
+
+- The pure-Python wheel produced by hatchling at 1.2.2 is byte-
+  identical to the wheel produced at 1.2.1.  The release exists to
+  keep the tagged source tree internally consistent and so that
+  `git diff chess-spectral-v1.2.1 chess-spectral-v1.2.2 -- chess-spectral/src/`
+  is a legible 2-line C data delta.  Same pattern as the 1.1.3
+  "pipeline-exercise" release that drove the autotag → PyPI chain
+  end-to-end without changing behaviour.
+
+### Advisory for spectralz users
+
+Any `.spectralz` v4 frames produced by a C binary built from source at
+or before 1.2.1 have stale B₁/B₂ dims (640-dim encoding, channels
+128-191 and 192-255).  Pure-Python-encoded frames are unaffected.
+Affected users should re-encode their corpora with a 1.2.2-built C
+binary (or any Python-backed encoder at 1.2.1+).
+
+### Changed
+
+- Version bumped 1.2.1 → 1.2.2 (semver patch; source-tree
+  consistency; no public-API change).
+
 ## [1.2.1] — 2026-04-23
 
 Bug-fix release.  The `CHARS` character table in `chess_spectral.tables`
