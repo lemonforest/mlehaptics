@@ -75,15 +75,18 @@ def resolve_edax_path(explicit: str | None = None) -> Path:
     )
 
 
-_SCORE_RE = re.compile(
-    r"(?:score|value)\s*[:=]?\s*(-?\d+)", re.IGNORECASE
-)
-_MOVE_RE = re.compile(r"\b(?:best\s*move|move)\s*[:=]?\s*([a-h][1-8])",
-                       re.IGNORECASE)
-# Edax printout line: "depth X score Y move ZZ ..."
+# Edax 4.5.5 "-solve" output has a header and one data row per position.
+# Two observed formats for the depth column:
+#   (a) midgame / requested-depth: "   20"   (pure integer)
+#   (b) endgame solve-mode:        "26@98%"  (depth@confidence)
+# Score is a signed integer (e.g. "+00", "-04", "-2").  We ignore the
+# principal-variation tail.
 _LINE_RE = re.compile(
-    r"^\s*(?P<depth>\d+)\s+(?P<score>[+-]?\d+).*?(?P<move>[a-h][1-8])"
+    r"^\s*\d+\s*\|\s*"                       # leading "  1|" position index
+    r"(?P<depth>\d+)(?:@\d+%)?"              # depth, optionally with @XX%
+    r"\s+(?P<score>[+-]\s*\d+)"              # signed score
 )
+_MOVE_IN_LINE_RE = re.compile(r"\b(?P<move>[a-h][1-8])\b")
 
 
 class EdaxResult:
@@ -159,28 +162,28 @@ def evaluate(
             f"stderr:\n{proc.stderr[:400]}"
         )
 
-    # Parse: edax's solve output has one result line per position,
-    # formatted roughly as:
-    #   depth score move ...
-    # e.g. "    20    -2       d3 ...  elapsed ..."
+    # Parse edax's tabular data row.  Edax prints a header, then one
+    # data row per position in the problem file.  We ignore the
+    # header and trailing summary.
     score = None
     best_move = None
     observed_depth = None
     for line in proc.stdout.splitlines():
         m = _LINE_RE.match(line)
-        if m:
-            observed_depth = int(m.group("depth"))
-            score = int(m.group("score"))
-            best_move = m.group("move")
-            break
-    if score is None:
-        # Fallback parser: look for "score = N" or "value = N"
-        sm = _SCORE_RE.search(proc.stdout)
-        if sm:
-            score = int(sm.group(1))
-        mm = _MOVE_RE.search(proc.stdout)
-        if mm:
-            best_move = mm.group(1).lower()
+        if not m:
+            continue
+        observed_depth = int(m.group("depth"))
+        # Normalise score: may have '@' prefix (solved) or '+' sign
+        # or whitespace between sign and digits.
+        raw = m.group("score").replace("@", "").replace(" ", "")
+        score = int(raw)
+        # Best move is the first [a-h][1-8] after the score position
+        # in the same line.
+        rest = line[m.end():]
+        mv = _MOVE_IN_LINE_RE.search(rest)
+        if mv:
+            best_move = mv.group("move").lower()
+        break
     if score is None:
         raise RuntimeError(
             "could not parse edax score from output:\n"

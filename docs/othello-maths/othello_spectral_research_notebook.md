@@ -555,56 +555,89 @@ edax rightly evaluates as an advantage.  **Worth retesting at
 WTHOR scale** — a 2000-match corpus would either replicate the
 effect or surface selection bias.
 
-### 2c.4 H9 surrogate (A1- energy vs edax d=1 / d=20 gap) — **PROTOCOL-READY**
+### 2c.4 H9 surrogate (A1- energy vs edax d=1 / d=20 gap) — **CONFIRMED (disc-count-mediated)**
 
-All machinery implemented:
+Run against the Takizawa-delivered edax 4.5.5 binary
+(`wEdax-x86-64.exe`) at depth 1 and depth 20 across the full
+Barcelona corpus.
 
-- [`research/edax_wrapper.py`](research/edax_wrapper.py) —
-  subprocess bridge; configured by `EDAX_PATH` env var; raises
-  `EdaxNotFoundError` with clear install instructions if the
-  binary is unlocated.
-- [`research/a1_depth_gap_runner.py`](research/a1_depth_gap_runner.py)
-  — walks a corpus, evaluates each position at d=1 and d=20,
-  correlates A1- energy with |d1 − d20|, reports partial
-  correlation controlling for |disc_diff|.
+    n_positions_evaluated: 2180 / 2184  (99.8% — 4 parse failures
+                                         on rare edax output edge cases)
+    Spearman(A1- energy, |d1 - d20|)              = +0.151, p = 1.6 x 10^-12
+    Partial Spearman controlling for |disc_diff|  = +0.058, p = 0.007
 
-Status at the time of writing: the researcher's system does not
-have edax installed.  The runner emits a placeholder
-`results/phase1c_a1_depth_gap.json` with `"status": "needs_edax"`
-and exits non-zero; the rest of the pipeline is unaffected.
+**Direction matches chess §9h'** (which reported +0.452 at N = 55
+Stockfish d=1 vs d=20).  Effect size is roughly a third of chess;
+p-value is much tighter because N is ~40x larger.  The chess
+§9h' partial-with-piece-count was essentially identical to the
+raw Spearman (+0.456 vs +0.452), meaning piece count did NOT
+mediate the effect.  **In Othello, the partial collapses from
++0.151 to +0.058** — the signal is mostly a disc-count artifact,
+not a pure spectral signal.
 
-**Install prerequisite to complete H9:**
+**Interpretation.**  Othello's A₁⁻ channel is the Z₂-odd
+magnetisation projection; it is strongly coupled to disc density
+(§10.12 E3 scale-up: Spearman(ρ, A₁⁻) = +0.772).  Chess's A₁
+channel is the full-D₄-invariant component including magnitudes,
+which does not reduce to a piece-count proxy.  So the natural
+chess/Othello analog is *not* identical — the Othello A₁⁻ is
+closer to the chess *signed-sum* A₁ than to the chess *energy* A₁,
+and chess §9h' itself shows that A₁ signed sum collapses to a
+material-counting proxy (§9h' partial controlling material =
+−0.057 vs raw +0.527).  **Our Othello H9 result is the direct
+analog of the chess A₁-signed-sum observation, not the
+A₁-energy observation**, and the +0.058 partial is the
+spectral-beyond-counting residual.
 
-1. Download prebuilt edax from
-   [upstream releases](https://github.com/abulmo/edax-reversi/releases).
-   Place evaluation weights (`eval.dat`) next to the binary.
-2. Set `EDAX_PATH=/absolute/path/to/edax.exe`.
-3. Smoke-test: `python research/edax_wrapper.py --smoke` must
-   print `edax smoke test: PASS`.
-4. Run full Barcelona corpus at d=1 vs d=20:
+A cleaner chess→Othello transfer would use the Z₂-even
+`D4-only A1` projection of `s²` (the occupation magnitude, which
+does not reduce to disc count because it sums a Z₂-invariant
+quantity).  That probe is scoped as a Phase 1d item.
 
-        python research/a1_depth_gap_runner.py --deep-depth 20
-
-   Expected walltime 1-6 h depending on CPU.
-
-Reference: chess §9h' ρ = +0.452 at N = 55 Stockfish d=1 vs d=20.
+**H9 status: CONFIRMED as a disc-count-mediated effect with a
+small residual spectral signal.**  Re-reading §9h' chess
+against this Othello finding, the distinction between the
+A₁-energy and A₁-signed-sum channels may be load-bearing for
+the cross-game transfer of the complexity-vs-depth-gap
+correlation.  The single-number headline (chess +0.452 vs
+Othello +0.151) is misleading without this breakdown.
 
 ### 2c Summary
 
-Three of four Phase 1c sub-phases land numeric results; one is
-protocol-ready but compute-blocked on edax install.  The headline
-novel finding — **in-book I_move vs A1- energy correlation
-ρ = +0.213, p = 2 × 10⁻⁸** — connects the §10.10 information-
-theoretic bookkeeping to the §10.4 spectral decomposition in a way
-that has no direct chess analog.  The 50-empty edax anchor adds a
-preliminary (N = 15, ρ = +0.82) piece of evidence that A1- energy
-tracks engine evaluation at midgame, worth confirming at WTHOR
-scale.
+All four Phase 1c sub-phases land numeric results.  The headlines:
 
-With Phase 1c landed, remaining §10.10 tests (T4 T_eff / D_eff
-trajectory, T5 FK-BC cluster fit) and strict H9 / E8 vs Takizawa
-perfect-play table stay scoped to the sequel / external-data-
-dependent work.
+1. **1c.1 CONFIRMED** — OthelloBoard 100% agrees with Takizawa's
+   reference bitboard engine across 2684 positions.
+2. **1c.2 CONFIRMED (conditional)** — Shannon I_move vs A₁⁻
+   energy is null globally (ρ = −0.065) but significantly
+   positive on the in-book subset (ρ = +0.213, p = 2 × 10⁻⁸,
+   N ≈ 676).  Novel: first direct connection between §10.10
+   information-theoretic bookkeeping and §10.4 spectral
+   decomposition, no direct chess analog.
+3. **1c.3 PARTIAL (flagged)** — edax 50-empty anchor at N = 15
+   matches shows ρ = +0.820, p = 1.8 × 10⁻⁴.  Large effect,
+   small N; worth retesting at WTHOR scale.
+4. **1c.4 CONFIRMED (disc-count-mediated)** — A₁⁻ energy vs
+   |edax d=1 − d=20| Spearman = +0.151 (p = 1.6 × 10⁻¹²) on
+   N = 2180.  Partial controlling for |disc_diff| collapses to
+   +0.058 (p = 0.007).  Direction matches chess §9h' but the
+   signal is mostly a disc-count artifact; chess §9h' partial
+   did NOT collapse (chess A₁ *energy* is not a piece-count
+   proxy, Othello A₁⁻ *magnetisation* largely is).  The cleaner
+   chess-transfer analog uses the D₄-only A₁ projection of s²
+   (occupation) — scoped as Phase 1d.
+
+Remaining §10.10 tests (T4 T_eff / D_eff trajectory, T5 FK-BC
+cluster fit) and strict H9 / E8 vs Takizawa perfect-play table
+stay scoped to the sequel / external-data-dependent work.
+
+**Framework lesson carried forward.**  The "state richness vs
+strategic structure" axis split (§10.13 in the chess notebook)
+is the most reusable observation: Shannon I_move and sheaf λ₂
+both track `n_legal_moves` at ~+0.77 to +0.81; A₁⁻ energy tracks
+ρ_disc at +0.77.  Two independent axes of position description,
+each with its own natural observable.  Chess counterpart
+experiment has not been run; would benefit from a Phase 1d pass.
 
 ---
 
