@@ -4,7 +4,7 @@
 - Games fetched:   **10**
 - Games encoded:   **10**
 - Errors:          **0**
-- Wall time:       **31.6s**
+- Wall time:       **0.2s**
 
 ## Result distribution
 
@@ -16,7 +16,7 @@
 | Feature | mean | median | stdev |
 |---|---|---|---|
 | n_plies | 79.6000 | 76.0000 | 28.2300 |
-| chaos_ratio | 4.6236 | 3.2121 | 3.9113 |
+| chaos_ratio | 4.6573 | 3.2396 | 3.9467 |
 | nag_count | 0.0000 | 0.0000 | 0.0000 |
 | blunder_count | 0.0000 | 0.0000 | 0.0000 |
 | mean_F3 | 460.4445 | 479.8698 | 160.0357 |
@@ -25,11 +25,11 @@
 
 ## Top 5 by chaos ratio (sharpest)
 
-- `   14.2680`  # 10 MachInsufferable vs MasxxX (1-0)
-- `    7.8844`  #  4 MATEVZ_2014 vs MarioBarinas (0-1)
-- `    5.6951`  #  5 ChristophBarsch vs MarioBarinas (0-1)
-- `    4.0081`  #  6 Romulus48 vs ChristophBarsch (1-0)
-- `    3.7363`  #  2 respects_55 vs Anowari (0-1)
+- `   14.4017`  # 10 MachInsufferable vs MasxxX (1-0)
+- `    7.9323`  #  4 MATEVZ_2014 vs MarioBarinas (0-1)
+- `    5.7228`  #  5 ChristophBarsch vs MarioBarinas (0-1)
+- `    4.0264`  #  6 Romulus48 vs ChristophBarsch (1-0)
+- `    3.7623`  #  2 respects_55 vs Anowari (0-1)
 
 ## Top 5 by blunder count (NAG heavy)
 
