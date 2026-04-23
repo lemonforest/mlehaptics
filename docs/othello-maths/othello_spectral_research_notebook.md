@@ -853,12 +853,40 @@ might explain 25–30 %.  A multivariate regression on these two
 alone is scoped as a Phase 1e item.
 
 **B₁(s²) / B₂(s²) asymmetry revisited.**  In chess, the PATCH 6
-reprocess gave B₂ partial ρ = +0.490 against |depth_gap| — the
-single strongest complexity predictor, beating A₁ at +0.456 (§9h′
-Table 1).  In Othello B₁/B₂ on either signal (magnetisation or
-occupation) are essentially null.  Why the divergence?
+reprocess of [`archive/chess_a1_followup.py`](../chess-maths/archive/chess_a1_followup.py)
+on 2026-04-23 (55-position hand-picked depth-gap corpus, Stockfish
+d=1 vs d=20) gave B₂ partial ρ = +0.490 against |depth_gap| — the
+single strongest complexity predictor in THAT sample, beating A₁ at
++0.456 (chess §9h′ Table 1).  In Othello B₁/B₂ on either signal
+(magnetisation or occupation) at N = 2587 vs Takizawa proved bounds
+are essentially null.
 
-The chess B₂ signal captures diagonal-sliding vs orthogonal-sliding
+**Scope caveat.**  The chess "B₂ is the best predictor" claim is
+based on a single 55-position corpus, not on a broader Stockfish-
+matched post-PATCH-6 corpus.  A chess-side batch is in flight
+(see `docs/chess-maths/results/sweep_chain_lichess_ashchess_2026-04-21_N50/`)
+re-encoding a 50-game lichess sample on post-fix characters; the
+corpus-level aggregates (`corpus_index.csv`) and per-ply Stockfish
+correlations have not been regenerated from the re-encoded spectralz
+at the time of this notebook edit.  **A structural sanity scan on
+the 20-game post-fix spectralz subset did confirm:**
+
+- 1953 plies scanned, **99.7 % show B₁ ≠ B₂** (the correct post-fix
+  signature; bug would pin the ratio near 100 % equal).
+- Mean channel energies in that subset: A₁ = 18.94, B₁ = 12.65,
+  **B₂ = 32.66** (B₂ is the largest channel by mean), consistent
+  with B₂ being an active complexity channel at chess-corpus scale
+  — but **not yet confirmed as the strongest Stockfish predictor**
+  at that scale.
+
+So the chess vs Othello structural-divergence claim ("chess B₂
+carries piece-species content; Othello has one disc type so the
+B₁↔B₂ swap has no modulation") is defensible on theory plus the
+55-position empirical anchor; confirmation at broader corpus scale
+is pending the chess-side re-correlation batch.
+
+**Structural interpretation of the divergence (theory-side).**  The
+chess B₂ signal captures diagonal-sliding vs orthogonal-sliding
 structure across piece species — rook-like adjacency in the ortho
 orbit vs bishop-like in the diag orbit, with the "which-orbit"
 distinction carrying strategic content about pawn structure and
@@ -906,9 +934,14 @@ content of occupation" worth testing in a downstream classifier.
    ρ = +0.13.
 3. **D₄-B₁(s²) is a weak fourth channel** at partial ρ = +0.07.
 4. **D₄-B₂(s²) is genuinely null** in Othello, in contrast to
-   chess B₂ (partial ρ = +0.49 against depth-gap).  The
-   divergence is explained by the absence of piece-species /
-   orientation-specific content in single-disc-type play.
+   chess B₂ on the 55-position §9h′ hand-picked depth-gap corpus
+   where partial ρ = +0.49 against |d1−d20| beats A₁ (+0.456).
+   The chess claim is narrow to that corpus; broader post-fix
+   chess-side re-correlation (50-game lichess sweep) is in
+   flight and its corpus_index / Stockfish tables had not been
+   regenerated from post-fix spectralz at the time of this edit.
+   Structural reading: chess B₂ needs piece-species content to
+   carry signal, Othello's single disc type kills that modulation.
 5. **All magnetisation-side projections collapse under the
    disc-count partial control**, consistent with the Phase 1c.4
    finding that Othello A₁⁻ is a disc-count proxy.
