@@ -696,23 +696,89 @@ for side-to-move).  At 50-empties (14 discs placed), this suggests
 that tournament strategy prefers asymmetric configurations over
 D4-symmetric ones, and edax's evaluator encodes that preference.
 
-### 2d.b Strict augmentation via archive bounds — **pending scan**
+### 2d.b Strict augmentation via archive bounds — **CONFIRMED, stronger than 1d.a**
 
-A second pass (`--archive-summary` flag on `h9_strict_runner.py`)
-joins the per-position archive-derived bounds (aggregated over each
-knowledge file's 36-empty children: mean/min/max/median of
-`score_lb` and `score_ub`) and re-correlates spectral observables
-against those.  This replaces the edax pre-proof *predicted* score
-with the post-proof *proved-value aggregate* — the strict H9
-formulation.
+Archive scan completed: **2587 / 2587 knowledge files**, ~80-minute
+walltime on the N:\\ mount, zero parse errors.  Per-parent aggregates
+(mean / median / min / max of each file's 36-empty child
+`score_lb` and `score_ub`) joined with the per-position spectral
+observables; full summary in
+[`results/phase1d_archive_summary.csv`](results/phase1d_archive_summary.csv).
+Each 50-empty parent's file contained between ~300 k and ~600 k
+36-empty children under Takizawa's proof tree — proved values
+aggregated across that many positions per parent.
 
-**Status: archive scan of 2587 files × ~100-200 MB each is running
-in background**; aggregate CSV at
-`results/phase1d_archive_summary.csv` when complete.  Rough estimate
-~45 min at 1 file/s on initial smoke-test.
+**Headline: the D₄-only A₁(s²) channel is a STRONGER predictor of
+Takizawa's proved game-theoretic bound than of edax's pre-proof
+predicted score**, and the effect survives the disc-count partial
+control MORE robustly than the prediction version.
 
-The archive-aggregate correlations will be added here once the scan
-finishes.
+Raw Spearman correlations (N = 2587):
+
+    D4-A1(s^2)  vs  edax_score            = -0.349   p = 7.4e-75
+    D4-A1(s^2)  vs  archive_mean_lb       = -0.498   p = 1.7e-162   <== strongest
+    D4-A1(s^2)  vs  archive_mean_ub       = -0.064   p = 1.1e-3
+    D4-A1(s^2)  vs  archive_median_lb     = -0.405   p ~ 5e-100
+    D4-A1(s^2)  vs  archive_median_ub     = -0.318   p ~ 1e-61
+
+Partial Spearman controlling for |disc_diff|:
+
+    D4-A1(s^2)  vs  edax_score            = -0.279   p = 2.3e-47
+    D4-A1(s^2)  vs  archive_mean_lb       = -0.319   p = 4.4e-62    <== survives, stronger
+    D4-A1(s^2)  vs  archive_mean_ub       = -0.163   p = 6.2e-17
+    D4-A1(s^2)  vs  archive_median_lb     = -0.268   p = 6.3e-44
+
+**Interpretation.**  The Z₂-invariant occupation projection captures
+structural information about a 50-empty position that is more
+aligned with its *true* game-theoretic value (as proved by
+Takizawa's algorithm) than with edax's pre-proof heuristic guess.
+Improvement from ρ = −0.349 (vs edax) to ρ = −0.498 (vs proved
+lower-bound aggregate) is a 43 % relative gain in Spearman
+magnitude; the partial version goes from ρ = −0.279 to ρ = −0.319
+(14 % gain), confirming the signal is not a disc-count artefact.
+
+The asymmetric behavior between `archive_mean_lb` (very strong)
+and `archive_mean_ub` (much weaker) is structurally interpretable:
+the lower bound aggregate represents the "worst case under optimal
+play" for the side-to-move — a position's *defensive floor* — while
+the upper bound aggregate is the "best case if opponent mistakes"
+(often saturated at 64 for any reachable chain).  The spectral
+observable tracks the defensive floor much better, suggesting it
+encodes something like "how much optimal-play value this position
+contains" rather than "how much tactical upside exists."
+
+A₁⁻ magnetisation also shows modest negative partial correlations
+with archive bounds (ρ ≈ −0.07 to −0.08), ~4× weaker than the
+D₄-A₁(s²) signal.  B₁, B₂, E channels: near-zero, consistent with
+the 1d.a finding.
+
+**This is the strict H9 / E8 result that §2c.4's Phase 1c.4 caveat
+predicted: an occupation-based (Z₂-invariant) observable needed to
+find the chess-style A₁-energy-vs-depth-gap analog in Othello.  It
+lands at N = 2587 and p ~ 10⁻¹⁶² — the largest-N and lowest-p
+spectral-to-ground-truth correlation in this notebook or any of its
+siblings.**
+
+Open items for a Phase 1e or sequel:
+
+- Does the effect generalise to other child-aggregate functions
+  (variance, per-child correlation)?  Preliminary: mean is
+  strongest, median survives the partial, min/max saturate at
+  ±64 and are uninformative.
+- Does the correlation transfer to earlier game phases (55- or
+  60-empty positions) when larger corpora become available?  The
+  Takizawa archive only covers 50-empty and 36-empty levels.
+- Is there a cleaner chess-side analog experiment?  Chess lacks a
+  weak-solution table, but the §9h′ fishtest corpus could be
+  re-run with a Z₂-invariant D₄-only A₁(|signal|) projection
+  paired with the Stockfish depth-20-vs-depth-12 gap; prediction is
+  that the chess partial ρ against Stockfish would rise above the
+  +0.456 A₁-energy baseline if the Othello structural finding
+  transfers.
+- Does the result hold for Takizawa's own accuracy-weighted scoring
+  (weighting children by `accuracy = 100` vs `99`)?  The current
+  aggregate includes both equally; an exact-only restriction would
+  reduce N per parent but tighten the signal.
 
 ---
 

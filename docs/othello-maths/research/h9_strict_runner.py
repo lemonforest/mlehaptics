@@ -275,23 +275,37 @@ def run(
                 "n": int(xs.size),
             }
 
-    # Partial correlation controlling for |disc_diff|
+    # Partial correlations controlling for |disc_diff| against every
+    # value target (edax prediction + archive bounds).
     partials: dict[str, dict] = {}
     disc_diff = np.array([
         abs(r["disc_diff_player_minus_opp"]) for r in records
     ], dtype=float)
+    partial_targets = list(value_keys)
     for sk in spectral_keys:
-        xs = np.array([r[sk] for r in records], dtype=float)
-        ys = np.array([r["edax_score"] for r in records], dtype=float)
-        if np.std(disc_diff) > 0:
-            coef = np.polyfit(disc_diff, ys, 1)
-            ys_resid = ys - (coef[0] * disc_diff + coef[1])
-            sp = spearmanr(xs, ys_resid)
-            partials[f"partial__{sk}__vs__edax_score__ctrl_abs_disc_diff"] = {
-                "rho": float(sp.statistic),
-                "pvalue": float(sp.pvalue),
-                "n": int(xs.size),
-            }
+        xs_full = np.array([r[sk] for r in records], dtype=float)
+        for target in partial_targets:
+            mask = np.array([
+                r.get(target) is not None for r in records
+            ])
+            if mask.sum() < 3:
+                continue
+            xs = xs_full[mask]
+            ys = np.array([
+                r[target] for r in records if r.get(target) is not None
+            ], dtype=float)
+            dd = disc_diff[mask]
+            if np.std(dd) > 0:
+                coef = np.polyfit(dd, ys, 1)
+                ys_resid = ys - (coef[0] * dd + coef[1])
+                sp = spearmanr(xs, ys_resid)
+                partials[
+                    f"partial__{sk}__vs__{target}__ctrl_abs_disc_diff"
+                ] = {
+                    "rho": float(sp.statistic),
+                    "pvalue": float(sp.pvalue),
+                    "n": int(xs.size),
+                }
 
     summary["correlations"] = correlations
     summary["partial_correlations"] = partials
