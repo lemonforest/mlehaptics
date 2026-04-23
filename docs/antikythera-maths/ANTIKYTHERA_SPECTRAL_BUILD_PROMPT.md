@@ -4,7 +4,9 @@
 
 The Antikythera mechanism (Greek, ca. 150–60 BCE, recovered 1901, reconstructed through Freeth/UCL 2021 and subsequent work) is not a chess-like problem we need to discover structure in. It is a **physical instantiation of coprime-indexed phase-space addressing, designed deliberately 2100 years ago to solve the exact class of Diophantine approximation problems that docs/addressing-maths/ now characterizes formally**. Every gear is a cyclic group ℤ/nℤ; every mesh is a rational map between cyclic groups; every shared gear-train is an empirical solution to the multi-dataset packing problem (A-H1 in the addressing-maths research plan); every celestial pointer is an HDC-style hypervector whose components are the phase angles on the various dials. The Greeks built a **resonant HDC object** before Plate wrote HRR, before Kanerva wrote SDM, before Chung wrote *Spectral Graph Theory*.
 
-This project documents it as such.
+**The HDC state is rendering-agnostic — orrery and Antikythera are sibling projections.** The angular dynamic state captured by the encoder is the complete input to *any* rendering of the mechanism's output. The Antikythera's dial display projects each body's angle onto a concentric circular scale at a fixed dial radius chosen at instrument-design time. A classical orrery projects the same angle onto a scaled orbital radius chosen for visual fit. Both renderings consult a static radial-parameter table that is rendering-specific, not dynamic; both expose a free scale parameter that does not enter the phase-space computation. **Perspective is the scale invariance.** Consequently, what the project is reconstructing is not the Antikythera qua dial-calculator but the parent HDC state that the Antikythera's dial rendering and the Archimedean-tradition orrery rendering are both projections of. Cicero (*De re publica*, *Tusculan Disputations*) describes Archimedes' Syracuse planetarium as an orrery-like device built from related gearing principles — whether that historical tradition and the Antikythera share a lineage is DISPUTED in the archaeology literature; the mathematical equivalence of the dynamic computations underlying both device classes is not.
+
+This project documents the shared parent structure.
 
 ## The methodological difference from chess, Othello, logo
 
@@ -183,6 +185,8 @@ The encoding has one channel per dial, matching the mechanism's physical structu
 
 Commit to one primary and one ablation, like Othello's D=768 + rank-8 ablation.
 
+**Rendering-agnostic design constraint.** `encode_Ant(t)` returns angular dynamic state only — residue-class phases for each cycle, bundled into the D-dim HDC vector. It does NOT return pre-baked (x, y) pointer positions or spatial coordinates. Radial parameters (dial radii for Antikythera-style rendering, orbital radii for orrery-style rendering) are kept in a separate static lookup module, e.g. `research/rendering.py`, with two modes: `render_dial(state, dial_layout)` and `render_spatial(state, orbital_radii, orrery_scale)`. The encoder output is the parent; the renderers are projections. This matters for Phase 4 validation: the *same* `encode_Ant(t)` output must validate against Freeth 2021 dial-pointer positions AND against NASA JPL Horizons angular ephemeris, because both ground truths are projections of the same underlying astronomy. If the encoder is implemented correctly, writing `render_dial` vs `render_spatial` is ~20 lines of code each and neither involves re-running the mechanism.
+
 ### Fiber structure
 
 The Antikythera's "fiber" is the shared gear-train structure (H-A2). Unlike chess's piece Laplacians (static) or Othello's ray Laplacians (dynamic with flanking), the Antikythera fiber is **static but shared across species**. Each celestial body has its own dial (species), but the internal gearing draws from a shared pool of generators (7, 17, and a few others). This is the cleanest "fiber bundle" in the project so far — completely static, empirically verified by Freeth 2021.
@@ -242,6 +246,10 @@ Every claim is tagged **KNOWN / NOVEL / CONFIRMED / FAILED / DISPUTED** (see Fra
 
 The Antikythera mechanism is coprime-indexed phase-space addressing executed in bronze, designed 2100 years ago. This notebook documents it as such. The math is already in the artifact; our job is to name it in the vocabulary the addressing-maths thread has now assembled. This is the first mlehaptics project where the encoding is *descriptive*, not *prescriptive* — we are not inventing an encoder, we are recognizing one.
 
+### 0.1 The HDC state is rendering-agnostic
+
+The encoded state is angular dynamic information: each celestial body's phase in its respective cyclic group. That state is the complete input to any rendering of the mechanism's output. The Antikythera's dial display and a classical orrery's spatial model are both projections of the same state, differing only in which static radial-parameter table is consulted at rendering time (concentric dial radii for the Antikythera; scaled orbital radii for the orrery) and in which free scale parameter is exposed (dial-ring layout vs. overall model scale). Neither parameter participates in the dynamic computation; both are rendering-time choices. **Perspective is the scale invariance.** A single `encode_Ant(t)` output can drive either rendering — which is why, historically, the same Hellenistic gearing tradition that plausibly produced the Antikythera (dial calculator) also, per Cicero, produced the Archimedean planetarium (orrery-like model). The HDC state is the shared parent; the two device families are sibling renderings. The Archimedean attribution is DISPUTED in the archaeology literature; the mathematical equivalence of the underlying computations is not.
+
 ## 1. Infrastructure (Phase 0)
 
 ### 1.1 The artifact
@@ -283,6 +291,8 @@ Cicero, in *De re publica* and *Tusculan Disputations*, describes a planetarium 
 - "Cycle" (astronomical period) vs "cycle" (graph-theoretic closed walk) — we commit to the astronomical usage in this notebook.
 - "Fiber" — adopted from chess §7 with the refinement that here the fiber is static *and* shared across species, unlike Othello's dynamic fiber.
 - "Phase" — adopted from chess/addressing-maths. In this notebook "phase" means angular position on a dial (equivalently: residue class in ℤ/n_dialℤ).
+- **"Rendering"** — a projection from the `encode_Ant(t)` dynamic state to a user-visible spatial or dial display, parameterized by a static radial-parameter table and a free scale parameter. Distinct from the "rendering" in computer graphics (ray tracing, rasterization, shading). This project uses the term in the specific sense "projecting an HDC angular state through a parameter table into a spatial or graphical form."
+- **"Orrery"** — any device or simulation that renders planetary positions in 2D or 3D spatial arrangement with bodies at their scaled orbital radii. Contrast with "Antikythera-style" which renders angular positions on concentric circular dials. Both are renderings of the same HDC state in this project's framing. The word "orrery" historically derives from the 4th Earl of Orrery's 1704 Tompion/Graham clockwork model; this project uses it genericly for any spatial-position renderer, acknowledging the anachronism for ancient devices (the Archimedean planetarium is described as orrery-like by Cicero without the word being available in antiquity).
 
 ## 8. Appendix: Environment and reproducibility
 
@@ -318,21 +328,24 @@ At end of session:
 
 ## How this fits the Rosetta Stone
 
-| Project | Structure type | Encoding type | Phase operator complexity |
-|---|---|---|---|
-| chess-maths | discovered | prescriptive | rich (6 piece types × 8 orbits) |
-| othello-maths | discovered | prescriptive | rich but different (1 piece, 8 rays, dynamic) |
-| logo-maths | discovered | prescriptive | command set + grammar |
-| addressing-maths | formalized foundation | — | — (the substrate itself) |
-| **antikythera-maths** | **recognized/documented** | **descriptive** | **trivial (1 operator, many projections)** |
+| Project | Structure type | Encoding type | Phase operator complexity | Rendering |
+|---|---|---|---|---|
+| chess-maths | discovered | prescriptive | rich (6 piece types × 8 orbits) | implicit (board diagram) |
+| othello-maths | discovered | prescriptive | rich but different (1 piece, 8 rays, dynamic) | implicit (board diagram) |
+| logo-maths | discovered | prescriptive | command set + grammar | implicit (turtle canvas) |
+| addressing-maths | formalized foundation | — | — (the substrate itself) | — |
+| **antikythera-maths** | **recognized/documented** | **descriptive** | **trivial (1 operator, many projections)** | **explicit, factored (dial / orrery / ephemeris)** |
 
 Antikythera is the first project where:
 - The structure was deliberately designed into the artifact.
 - The encoding is recognized, not invented.
 - The phase operator is minimal.
 - Ground truth is external (actual astronomy) rather than internal (game rules).
+- **Rendering is explicitly factored out of encoding.** The dial display (Antikythera), spatial model (orrery), and angular ephemeris (NASA Horizons) are all projections of the same `encode_Ant(t)` output through different static radial-parameter tables. Perspective is the scale invariance; the encoding is rendering-agnostic.
 
-These four simplifications make Antikythera the **best pedagogical entry point** for the framework. A reader coming to mlehaptics fresh may find Antikythera easier to enter than chess because every claim has an external grounding — one can check "is this really how the 127-tooth gear works?" against the physical mechanism, rather than against our construction of piece Laplacians.
+The "rendering" column deserves a sentence on its own: the three game projects all treat rendering as implicit — chess diagrams, Othello boards, and LOGO canvases are how results are displayed, not separate projection modes. Antikythera is the first project in the triad-plus where a single encoding has multiple culturally-independent rendering traditions (Hellenistic dial calculator, Renaissance-to-modern orrery, astronomical almanac) all drawing from the same underlying dynamic computation. Factoring rendering out cleanly from encoding is both a design discipline and a methodological statement about what the HDC object IS — angular state, not displayed state.
+
+These simplifications make Antikythera the **best pedagogical entry point** for the framework. A reader coming to mlehaptics fresh may find Antikythera easier to enter than chess because every claim has an external grounding — one can check "is this really how the 127-tooth gear works?" against the physical mechanism, rather than against our construction of piece Laplacians.
 
 **Consequence for the framework narrative.** When the addressing-maths paper is eventually written, the Antikythera example is probably the best motivating vignette — it gives a concrete, visual, historically documented instance of every concept the paper introduces. Consider writing the mlehaptics framework paper with Antikythera as §1 introduction, addressing-maths as §2 formal substrate, and chess/Othello/logo as §3 empirical case studies.
 
