@@ -1383,10 +1383,108 @@ as `fiber_mode="rank2"` for C parity.
   rank2 (v0.2)    D4-A1(s^2)           −0.319
   sheaf (v0.3)    D4-A1(pending_white) **−0.447**   (40 % gain)
 
-Open items: port faithful_sheaf.classify_ray to C for full
-bit-identical sheaf fiber; extend Exp 2's Z₂-cancellation
-analysis (rejected on Barcelona; mechanism of s-vs-s² asymmetry
-in §2e.4 trajectory memory remains open).
+### 2e.13 C sheaf port — bit-identical v0.3.0/0.3.1 parity + 25× speedup
+
+[othello_spectral/c_encoder/src/othello_spectral.c](research/othello_spectral/c_encoder/src/othello_spectral.c)
+gains `classify_ray` + `sheaf_pending_counts` (~80 lines,
+direct port of `faithful_sheaf.classify_ray`).  New public
+API `othello_spectral_encode_768_v2(state, fiber_mode, out)`
+with `fiber_mode ∈ {FIBER_RANK2, FIBER_SHEAF}`; legacy
+`encode_768` retained as alias for rank-2.  CLI + ctypes
+wrappers thread `--fiber {rank2, sheaf}` through.  Tests at
+v0.3.1 verify **36 bit-identical py/c comparisons** (2 fiber
+modes × 2 C paths × 9 states) at float32 (subprocess) and
+float64 (ctypes).
+
+End-to-end on 35-game Barcelona corpus:
+
+  path                        encode   wall
+  py (fiber=sheaf)            5.0 s    7.0 s
+  c ctypes DLL (fiber=sheaf)  0.2 s    2.4 s     **25× encode speedup**
+
+Byte-identical .spectralz SHA256 = `461bd1219357041a`.
+
+### 2e.14 s-vs-s² asymmetry mechanism — three-regime structural explanation
+
+[phase1e_s_vs_s2_asymmetry.py](research/phase1e_s_vs_s2_asymmetry.py)
+runs four per-game diagnostics on 2178 games of 2025 corpus:
+volatility, lag-1 autocorrelation, Pearson with disc-count,
+monotone fraction.
+
+  target                  volatility  autocorr1  r_disc   mono_frac
+  a1_minus_energy            +0.236    +0.842    +0.755    0.550
+  d4_a1_occupation_energy    +0.051    +0.9996   +0.991    1.000
+  d4_e_occupation_energy     +0.277    +0.961    +0.083    0.500
+  rho                        +0.056    +1.0000   +1.000    1.000
+  empty_count                +0.056    +1.0000   −1.000    1.000
+
+Three regimes fully account for the §1e.7.4b trajectory-memory
+gain pattern:
+
+  1. **Game-clock monotone** (ρ, empty_count, d4_a1_occ) —
+     trivially predictable.  The sheaf "predictive gain" for
+     these is a disc-count correlation artefact.
+
+  2. **Non-monotone structural** (d4_e_occ, r_disc = +0.083).
+     **Genuine trajectory memory.**  The sheaf's pending-bracket
+     count predicts how oriented occupation anisotropy evolves
+     because active flanks drive directional shifts.
+
+  3. **Turn-order-coupled** (a1_minus).  The sheaf captures
+     WHAT happens structurally (brackets) but not WHO places/
+     flips the disc.  Sign of A1⁻ depends on turn order; the
+     bracket classifier doesn't encode that → snapshot wins.
+
+Z₂ representation theory doesn't explain it; the distinction
+is target's coupling to (disc count, turn order), not Z₂ parity.
+
+### 2e.15 Sheaf-phased operator — **12 % additional gain over §2e.6**
+
+[othello_spectral/phase_operator.py](research/othello_spectral/phase_operator.py).
+The first concrete instantiation of a §4-style phase operator
+for Othello.  Applies a state-dependent diagonal scaling D(f(state))
+to the encoding vector, where f maps sheaf spectrum features
+(λ₂, λ_max, entropy, kerdim per owner) to channel weights.
+
+Four modes provided (v0.3.1):
+
+  - `identity`               no-op baseline
+  - `scale_fiber_by_owner_lambda2`   weight fiber channels by 1/(1+λ₂^{owner})
+  - `scale_all_by_kernel_dim`        weight all channels by ⟨kerdim⟩/192
+  - `rotate_E_by_entropy`            cos(entropy_B) damping of E channels
+
+Benchmark on 2587 tasklist against archive_mean_lb:
+
+  mode                            fiber_pw through D4-A1 partial ρ
+  identity (baseline Exp 1)                  **−0.447**
+  scale_fiber_by_owner_lambda2               **−0.503**   (+12 % gain)
+  scale_all_by_kernel_dim                    −0.449
+  rotate_E_by_entropy                        −0.447
+
+`scale_fiber_by_owner_lambda2` lifts the partial ρ magnitude
+from 0.447 to **0.503** — another 12 % on top of the 40 % gain
+sheaf fiber gave over occupation in §2e.6.  Total improvement
+over the §1d.b baseline D₄-A₁(s²) (ρ = −0.319):
+**0.503 / 0.319 ≈ 58 % cumulative gain.**
+
+Interpretation: λ₂ of each owner's faithful sheaf Laplacian
+measures the algebraic connectivity of that owner's bracket
+graph.  Dividing the per-cell bracket counts by 1 + λ₂ normalises
+for "how busy" the bracket network is, letting per-cell
+structure drive the correlation rather than total activity.
+
+Framework is minimal — diagonal scaling only.  Phase operators
+with off-diagonal coupling (SO(2) rotations within the E
+subspace, state-dependent mixing between channels) are future
+work.  The current module is pure Python; C port would need
+sheaf eigendecomposition (scipy eigh; not bit-identical across
+LAPACK versions, so the operator is platform-reproducible but
+not bit-portable at v0.3.1).
+
+Open items (updated after this pass):
+  - Port faithful_sheaf.classify_ray to C — **CLOSED** (2e.13)
+  - Z₂-cancellation Exp 2 on Barcelona — **CLOSED** (2e.14)
+  - Sheaf as phase-operator coupling — **CLOSED** (2e.15)
 
 ---
 
