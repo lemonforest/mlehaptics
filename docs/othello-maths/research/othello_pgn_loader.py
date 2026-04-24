@@ -73,20 +73,24 @@ _ensure_utf8_stdio()
 # ---------------------------------------------------------------------------
 
 _HEADER_RE = re.compile(r'^\[(\w+)\s+"(.*)"\]\s*$')
-_MOVE_TOKEN_RE = re.compile(r"^[a-h][1-8]$")
+# Accept both lower- and upper-case column letters (e.g. "d3" and
+# "D3") - the liveothello 2005 world-championships transcript uses
+# uppercase throughout while other corpora use lowercase.
+_MOVE_TOKEN_RE = re.compile(r"^[a-hA-H][1-8]$")
 _MOVE_NUMBER_RE = re.compile(r"^\d+\.$")
 _SCORE_RE = re.compile(r"^\d+-\d+$")
 
 
 def move_to_idx(move: str) -> int:
-    """Convert Othello coordinate like 'd3' to a 0..63 linear index.
+    """Convert Othello coordinate like 'd3' or 'D3' to a 0..63 linear
+    index.
 
-    Column letter (a..h) -> 0..7.  Row digit (1..8) -> 0..7.
+    Column letter (a..h or A..H) -> 0..7.  Row digit (1..8) -> 0..7.
     Layout is row-major: idx = r * 8 + c.
     """
     if not _MOVE_TOKEN_RE.match(move):
         raise ValueError(f"not an Othello coordinate: {move!r}")
-    c = ord(move[0]) - ord("a")
+    c = ord(move[0].lower()) - ord("a")
     r = int(move[1]) - 1
     return rc_to_idx(r, c)
 
@@ -136,7 +140,9 @@ def parse_pgn_file(path: Path) -> list[dict]:
             if _MOVE_NUMBER_RE.match(tok):
                 continue
             if _MOVE_TOKEN_RE.match(tok):
-                cur_moves.append(tok)
+                # Canonicalise to lowercase so replay() / move_to_idx
+                # downstream does not have to care.
+                cur_moves.append(tok.lower())
             elif tok.lower() in ("ps", "pass"):
                 cur_moves.append("pass")
             else:

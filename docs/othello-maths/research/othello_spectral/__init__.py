@@ -42,7 +42,25 @@ Design choices locked in v0.1.0
 
 from __future__ import annotations
 
-VERSION = "0.1.0"
+from pathlib import Path as _Path
+
+
+def _read_version() -> str:
+    """Load the package version from the VERSION file.
+
+    Single source of truth for both the Python package semver and the
+    C encoder codegen (codegen/emit_c_tables.py emits the same string
+    into the generated C header).  If VERSION file is missing (e.g.
+    running from a partial checkout) fall back to a sentinel.
+    """
+    version_file = _Path(__file__).resolve().parent / "VERSION"
+    if version_file.exists():
+        return version_file.read_text(encoding="utf-8").strip()
+    return "0.0.0-unknown"
+
+
+VERSION: str = _read_version()
+__version__: str = VERSION
 
 # Public re-exports (populated on first call - avoids circular
 # import during tables/encoder cross-loading).
@@ -51,6 +69,7 @@ from .encoder import encode_768, channel_energies
 
 __all__ = [
     "VERSION",
+    "__version__",
     "CHANNEL_NAMES",
     "ENCODING_DIM",
     "encode_768",
