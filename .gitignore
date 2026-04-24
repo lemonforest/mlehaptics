@@ -95,3 +95,9 @@ docs/othello-maths/research/othello_spectral/c_encoder/encode_cli.exe
 docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.dll
 docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.so
 docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.dylib
+
+# Windows import library from clang -shared (alongside .dll)
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.lib
+
+# Process stdout logs from background runs (regenerate by rerunning)
+docs/othello-maths/results/*_log.txt
