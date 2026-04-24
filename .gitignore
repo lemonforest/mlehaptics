@@ -76,3 +76,9 @@ docs/chess-maths/results/*_logs/
 docs/chess-maths/results/delta_sigma_*/
 docs/chess-maths/results/*/
 docs/othello-maths/edax*/
+
+# Large .spectralz binaries that exceed GitHub file-size limits
+# (keep smaller corpora like barcelona.spectralz, wc2005.spectralz;
+# regenerate the big ones on demand via `othello_spectral.cli encode-pgn`).
+docs/othello-maths/results/all2025.spectralz
+docs/othello-maths/results/apr2026.spectralz
