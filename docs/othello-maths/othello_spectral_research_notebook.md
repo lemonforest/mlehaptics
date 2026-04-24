@@ -1145,6 +1145,251 @@ is not (piece-species polarizes the signal).
 
 ---
 
+## 2e. Phase 1e — follow-ups, encoder, C-parity, sheaf-as-reference
+
+Phase 1e extends 1d in five parallel tracks.  Full per-item detail
+in the running doc
+[PHASE_1E_FINDINGS.md](PHASE_1E_FINDINGS.md); this section is the
+notebook-level summary with status tags.
+
+### 2e.1 Multivariate A₁(s²) + E(s²) — **CONFIRMED** the Plancherel pair
+
+[phase1e_multivariate.py](research/phase1e_multivariate.py).
+Joint OLS at N=2587: (A₁, E) gives R² partial 0.100; full D₄
+5-channel adds only +0.012.  The A₁ − E rotated direction at 135°
+lands partial ρ = +0.337, marginally stronger than A₁ alone.  The
+A₁ + E (45°) direction is near-null (−0.038), confirming the
+§2d.c mirror.
+
+### 2e.2 edax d=20 on the 2587 tasklist — **Reading B CONFIRMED**
+
+[phase1e_edax_d20_tasklist.py](research/phase1e_edax_d20_tasklist.py),
+[phase1e_edax_d20_correlations.py](research/phase1e_edax_d20_correlations.py).
+Spearman(D₄-A₁(s²), edax_d20) = −0.342 — essentially identical to
+pre-proof edax_score (−0.349, gap of 0.007).  Both are ~35 % short
+of the archive_mean_lb correlation (−0.498).  **The 43 % gain in
+§2d.b is not a search-depth artifact** — deep-search edax doesn't
+bridge the gap.  Reading B (the spectral channel sees structural
+content beyond deep-search heuristics) is load-bearing.
+
+### 2e.3 Shannon info × D₄-A₁(s²) — **retraction via Simpson**
+
+[phase1e_shannon_observables.py](research/phase1e_shannon_observables.py),
+[phase1e_signflip_decomposition.py](research/phase1e_signflip_decomposition.py).
+Initial §2c.2 headline Spearman(I_move, A₁⁻) = +0.213 doubles to
++0.465 when the D₄-A₁(s²) observable replaces A₁⁻.  §1e.6
+decomposition by n_empties bucket then shows both aggregates are
+**Simpson's paradox** artifacts of game-phase structure — within
+any single phase bucket, A₁⁻ correlates NEGATIVELY with I_move
+(opening in-book −0.274, late-midgame in-book −0.419).  The
+"A₁⁻ tracks strategic divergence" framing in §2c.2 is retracted.
+
+### 2e.4 Predictive sheaf (§3 L7b caveat) — **target-specific trajectory memory**
+
+[phase1e_predictive_sheaf.py](research/phase2_predictive_sheaf.py),
+[phase1e_predictive_sheaf_pgn.py](research/phase1e_predictive_sheaf_pgn.py),
+[phase1e_predictive_sheaf_faithful.py](research/phase1e_predictive_sheaf_faithful.py),
+[phase1e_faithful_gain_investigation.py](research/phase1e_faithful_gain_investigation.py).
+
+The sheaf spectrum carries FORWARD-PREDICTIVE content — contra
+logo §L7b.5.  On 30-seed random-play trajectories, sheaf λ₂ at
+time t predicts `n_legal_moves(t+10)` with R² = 0.56, matching
+sheaf λ₂ at t+10.  Gain vs persistence baseline grows from +0.24
+(Δ=1) to **+0.49 (Δ=10)**.  On the 2178-game 2025 tournament
+corpus the pattern replicates, but at scale the picture sharpens:
+**trajectory memory is target-specific.**
+
+  target                        Δ=10 gain_vs_snap (2025)
+  d4_e_occupation_energy        **+0.159**
+  d4_a1_occupation_energy       +0.070  (grows to +0.150 @ Δ=20)
+  rho                           +0.079  (grows to +0.154 @ Δ=20)
+  n_legal_moves                 +0.012  (near-zero)
+  a1_minus_energy               **−0.041**  (snapshot wins)
+
+Train/test split (1089 train, 1089 test) confirms the signature
+is not overfit (OOS gain LARGER than in-sample on most targets).
+Per-feature ablation shows the effect is **joint feature
+decorrelation**: at time t the 8 sheaf features (λ₂/entropy/
+kerdim/λmax × owner) encode diverse trajectory-relevant info;
+at t+Δ they collapse to redundant current-state summaries.
+
+### 2e.5 Faithful sheaf restriction maps — **bracket-aware**
+
+[faithful_sheaf.py](research/faithful_sheaf.py).  Replaces §3's
+endpoint-only crude restriction with an R1/R2/R3/R4 bracket
+classifier: edges exist only across active flanks (R2 stable,
+R3 pending).  **Breaks §3.4's constant-128 kernel artifact** —
+faithful kernel dim is position-dependent (141–188 on seed=123).
+λ₂ differs from crude by mean +0.29.  The per-cell R3_PENDING
+count, projected through D₄, becomes the headline observable in
+2e.6.
+
+### 2e.6 Sheaf-derived D₄ channels beat occupation by 40 % — **NEW HEADLINE**
+
+[phase1e_sheaf_vs_archive.py](research/phase1e_sheaf_vs_archive.py)
+at N=2587.  Against Takizawa's `archive_mean_lb`:
+
+  channel                                  raw ρ    partial ρ
+  D₄-A₁(s²)      §2d.b baseline            −0.498   −0.319
+  D₄-E(s²)       §2d.b baseline            +0.484   +0.310
+  **E_pending_white_A1**   sheaf-derived   −0.621   **−0.447**
+  E_degree_white_E         sheaf-derived   +0.638   +0.429
+  E_pending_black_A1       sheaf-derived   +0.224   +0.370
+  E_pending_black_E        sheaf-derived   +0.565   +0.362
+
+The per-cell **pending white** bracket count, projected through
+D₄-A₁, lifts the partial ρ magnitude from 0.319 to **0.447** — a
+40 % improvement.  Sign interpretation: many white-side pending
+flanks ⇒ bad news for side-to-move (BLACK on the tasklist) ⇒
+lower `archive_mean_lb`.
+
+Consequence: sheaf-derived channels are promoted to the encoder's
+reference fiber layout (v0.3.0).  Channels 10-11 of the 768-dim
+encoding are now `sheaf_pending_black` and `sheaf_pending_white`
+instead of `L_ortho @ s` / `L_diag @ s`.  The legacy rank-2
+(orbit-Laplacian) fiber remains available via
+`encode_768(state, fiber_mode="rank2")` — and is what the C
+reference encoder supports until the bracket walker is ported
+(2e.7).
+
+### 2e.7 C encoder + bit-identical engine dispatch
+
+[othello_spectral/c_encoder/](research/othello_spectral/c_encoder/),
+[othello_spectral/codegen/emit_c_tables.py](research/othello_spectral/codegen/emit_c_tables.py),
+[othello_spectral/runtime.py](research/othello_spectral/runtime.py).
+
+ANSI C17 reference encoder with `clang -Wall` clean build.
+Python-side ctypes path (v0.3.0): loads `othello_spectral.dll`,
+direct-calls `othello_spectral_encode_768` — no subprocess
+overhead.  Benchmarks (APR 2026, 25 447 states):
+
+  path                encode  wall
+  python              3.0 s   18.4 s
+  c (ctypes DLL)      3.1 s   17.8 s
+  c (subprocess exe)  7.6 s   21.7 s
+
+All three paths are bit-identical on rank-2 fiber.  Parity test
+[tests/test_c_py_parity.py](research/othello_spectral/tests/test_c_py_parity.py)
+compares 9 states at float32 precision (subprocess) and float64
+(ctypes).  Sheaf-fiber C port is a future item (the bracket
+walker in `faithful_sheaf.py` is Python-only).
+
+Engine dispatch: `--engine {py, c, auto}`, env vars
+`OTHELLO_SPECTRAL_BIN` / `OTHELLO_SPECTRAL_DLL` /
+`OTHELLO_SPECTRAL_ENGINE`; `auto` mode verifies the C binary
+against Python (version + smoke test) before selecting, silent
+fallback on any failure.  When `--fiber sheaf` is active the C
+path is skipped (rank2-only).
+
+### 2e.8 T1 flip-count + T5 chain-size — **exponential at corpus scale**
+
+[phase1e_flipcount_distribution.py](research/phase1e_flipcount_distribution.py),
+[phase1e_t5_cluster_distribution.py](research/phase1e_t5_cluster_distribution.py).
+
+Both §10.10 T1 (per-move flip count) and T5 (per-chain same-colour
+run length) **reject the power-law** prediction across all four
+committed PGN corpora (WC 2005, Barcelona 2026, APR 2026, 2025
+all — 23 to 2178 games each).
+
+  T1 (flip-count):       all 4 corpora prefer exponential by
+                         ΔAIC 3 k to 346 k;  λ ≈ 0.548;  mean 2.37
+  T5 (chain length):     all 4 corpora prefer exponential by
+                         ΔAIC 3 k to 221 k;  τ ≈ 2.68 (close to
+                         FK-BC critical τ ≈ 2.05 but exp wins);
+                         mean 2.94, max 8
+
+Remarkably stable across a 20-year span and 3 orders of magnitude
+of N.  Strategic play does not shift these distributions from
+random-play expectation (§2.E5 mean 2.28).
+
+### 2e.9 T4 thermodynamic trajectory — **negative T_eff robust**
+
+[phase1e_t4_thermodynamic_trajectory.py](research/phase1e_t4_thermodynamic_trajectory.py),
+[phase1e_t4_robust.py](research/phase1e_t4_robust.py),
+[phase1e_t4_logtransform.py](research/phase1e_t4_logtransform.py).
+
+Per-ply T_eff = dE_tot / dS_eff heavy-tailed (median −11 k, mean
++70 k on Barcelona).  Windowed OLS on high-R² windows: median
+−22 k with IQR [−35 k, −14 k].  Log-transform log(E_tot) vs S_eff:
+median slope −6.04 with IQR [−8.48, −4.28] — robust negative
+signal, interpretable as "1 unit increase in Shannon entropy
+corresponds to factor exp(−6.04) ≈ 0.002 change in E_tot."
+
+Structurally consistent with §2d.c's A₁ / E mirror: as spectral
+energy grows with disc count, the channel-energy distribution
+concentrates (Shannon entropy shrinks).
+
+### 2e.10 Holonomy structural map — **Z₂ holonomy exclusive to lj_rect_W×1, W≥3**
+
+[phase1e_holonomy_plaquettes.py](research/phase1e_holonomy_plaquettes.py).
+Enumerated 1192 loops across 7 shape families on the 8×8 static
+fiber bundle.  Exactly **105 / 1192 loops carry Z₂ holonomy
+(cos = −1)**, and they are ALL of shape `lj_rect_Wx1` with W ≥ 3
+(long-jump rectangles of height 1).  All other 1087 loops are
+trivial.  The effect is path-orientation-dependent, not homotopy
+invariant: lj_rect_1×H (transpose) is trivial.
+
+Generalises §2.H5's single-loop finding (the 0,0→0,3→1,3→1,0
+rectangle, one of the 35 lj_rect_3×1 instances) to the full
+curvature map.
+
+### 2e.11 Chess vs Othello A₁ / E — **Simpson's paradox mechanism**
+
+[phase1e_chess_a1_e_pair.py](research/phase1e_chess_a1_e_pair.py),
+[phase1e_chess_a1_e_bootstrap.py](research/phase1e_chess_a1_e_bootstrap.py),
+[phase1e_simpson_mechanism.py](research/phase1e_simpson_mechanism.py),
+[phase1e_othello_a1_e_per_game.py](research/phase1e_othello_a1_e_per_game.py).
+
+§2d.e deferred the chess A₁/E correlation check pending
+Stockfish re-correlation.  Completed here via direct chess-
+spectral spectralz extraction at N=10 729 plies.
+
+  species            pooled   within   between
+  chess/ashchess     +0.011   −0.117   **+0.667**
+  chess/drnyk        −0.201   −0.315   **+0.605**
+  chess/hf           +0.116   +0.022   **+0.663**
+  othello/2025 magn  +0.330   +0.385   **−0.479**
+  othello/2025 occ   −0.072   −0.051   **−0.592**
+
+Between-game Pearson of game-means is the dominant contribution
+and has OPPOSITE sign between the two species:
+
+  - Chess: between +0.60 to +0.67 — games with high mean A1 also
+    have high mean E.  Pooled ≈ 0 because positive between and
+    slight negative within partially cancel.
+
+  - Othello magnetisation: between −0.48 — games with high mean
+    A1⁻ have LOW mean E⁻.  Pooled positive because within-game
+    co-correlation (+0.39) outweighs.
+
+  - Othello occupation: between −0.59, within −0.05.  Driven by
+    between-game baseline structure.
+
+The Othello §2d.c 50-empty static Pearson of −0.834 is a
+**phase-specific 14-disc configuration** property, not a general
+trajectory signature.  Per-game trajectory-level A₁/E is
+game-species-specific.  The Plancherel-budget reading (fewer
+channels in Othello ⇒ tighter mirror) only holds at the static
+50-empty cross-section.
+
+### 2e.12 Sheaf-phased encoder v0.3.0 benchmark — **sheaf is new reference**
+
+Pulls together 2e.5 + 2e.6 + 2e.7: the faithful-sheaf pending-
+bracket channels replace the v0.2.0 orbit-Laplacian fiber.
+Default encoder now v0.3.0 sheaf-default; rank-2 mode survives
+as `fiber_mode="rank2"` for C parity.
+
+  fiber mode      partial ρ vs archive_mean_lb (A1 channel)
+  rank2 (v0.2)    D4-A1(s^2)           −0.319
+  sheaf (v0.3)    D4-A1(pending_white) **−0.447**   (40 % gain)
+
+Open items: port faithful_sheaf.classify_ray to C for full
+bit-identical sheaf fiber; extend Exp 2's Z₂-cancellation
+analysis (rejected on Barcelona; mechanism of s-vs-s² asymmetry
+in §2e.4 trajectory memory remains open).
+
+---
+
 ## 3. Dynamic fiber — sheaf Laplacian instantiation
 
 [research/dynamic_sheaf.py](research/dynamic_sheaf.py) builds a
