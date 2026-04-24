@@ -40,22 +40,34 @@ python -m othello_spectral.cli encode-pgn path/to/games.pgn \
     --out out.spectralz
 ```
 
-## Encoder layout (v0.2.0, D=768)
+## Encoder layout (v0.3.0, D=768, sheaf-fiber default)
 
-| dims        | channel           | source signal  |
-|-------------|-------------------|----------------|
-| [  0: 64)   | magn_A1minus      | magnetisation s |
-| [ 64:128)   | magn_A2minus      | magnetisation s |
-| [128:192)   | magn_B1minus      | magnetisation s |
-| [192:256)   | magn_B2minus      | magnetisation s |
-| [256:320)   | magn_Eminus       | magnetisation s |
-| [320:384)   | occ_A1plus        | occupation s²   |
-| [384:448)   | occ_A2plus        | occupation s²   |
-| [448:512)   | occ_B1plus        | occupation s²   |
-| [512:576)   | occ_B2plus        | occupation s²   |
-| [576:640)   | occ_Eplus         | occupation s²   |
-| [640:704)   | fiber_ortho_s     | L_ortho @ s     |
-| [704:768)   | fiber_diag_s      | L_diag  @ s     |
+| dims        | channel                | source signal                              |
+|-------------|------------------------|--------------------------------------------|
+| [  0: 64)   | magn_A1minus           | magnetisation s                             |
+| [ 64:128)   | magn_A2minus           | magnetisation s                             |
+| [128:192)   | magn_B1minus           | magnetisation s                             |
+| [192:256)   | magn_B2minus           | magnetisation s                             |
+| [256:320)   | magn_Eminus            | magnetisation s                             |
+| [320:384)   | occ_A1plus             | occupation s²                               |
+| [384:448)   | occ_A2plus             | occupation s²                               |
+| [448:512)   | occ_B1plus             | occupation s²                               |
+| [512:576)   | occ_B2plus             | occupation s²                               |
+| [576:640)   | occ_Eplus              | occupation s²                               |
+| [640:704)   | **sheaf_pending_black**| per-cell R3 pending-bracket count, black    |
+| [704:768)   | **sheaf_pending_white**| per-cell R3 pending-bracket count, white    |
+
+v0.3.0 replaces the v0.2.0 rank-2 orbit-Laplacian fiber
+(`fiber_ortho_s`, `fiber_diag_s`) with sheaf-derived per-cell
+pending-bracket counts.  The new channels encode active flank
+structure and give ~40 % stronger correlation with Takizawa's
+proved `archive_mean_lb` than the previous occupation channels
+(partial ρ −0.447 vs −0.319 for A1 on 2587 positions).
+
+The v0.2.0 geometric fiber is still available via
+`encode_768(state, fiber_mode="rank2")` — and is the mode the
+current C reference encoder supports.  The C port of the sheaf
+bracket walker is a future item.
 
 ## Binary format (.spectralz)
 

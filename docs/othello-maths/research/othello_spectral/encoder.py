@@ -47,7 +47,10 @@ from .tables import (
 )
 
 
-def encode_768(state: Sequence[int] | np.ndarray) -> np.ndarray:
+def encode_768(
+    state: Sequence[int] | np.ndarray,
+    fiber_mode: str = "sheaf",
+) -> np.ndarray:
     """Compute the 768-dim spectral encoding of an Othello state.
 
     Parameters
@@ -55,6 +58,19 @@ def encode_768(state: Sequence[int] | np.ndarray) -> np.ndarray:
     state : length-64 integer sequence in {-1, 0, +1}
         World-frame Blume-Capel signal.  +1 = black disc, -1 = white
         disc, 0 = empty cell.  Ordering is row-major (row * 8 + col).
+    fiber_mode : {"sheaf", "rank2"}
+        - "sheaf" (default at v0.3.0+, reference): channels 10-11
+          are per-cell pending-bracket (R3) counts from the black-
+          owner and white-owner faithful sheaves.  State-dependent;
+          captures active flank structure.  Exp 1 (§1e.7.x)
+          showed that D4 projections of these channels beat the
+          rank-2 occupation baselines against archive_mean_lb by
+          ~40 % (partial rho -0.447 vs -0.319 for A1).
+        - "rank2" (legacy, v0.2.0 reference): channels 10-11 are
+          L_ortho @ s, L_diag @ s (pure orbit Laplacians on the
+          magnetisation signal; state-linear, pure geometry).
+          Kept for the C-encoder bit-identical parity path — C
+          cannot yet compute the sheaf fiber.
 
     Returns
     -------
@@ -65,22 +81,69 @@ def encode_768(state: Sequence[int] | np.ndarray) -> np.ndarray:
         raise ValueError(
             f"state must have shape (64,), got {sig.shape}"
         )
-    # Blume-Capel values are {-1, 0, +1}; occupation = s^2 lands in
-    # {0, 1}.
     occ = sig * sig
 
     out = np.zeros(ENCODING_DIM, dtype=np.float64)
     # 5 Z2-odd channels on magnetisation
     for i, irrep in enumerate(magn_irreps()):
         out[channel_slice(i)] = projector(irrep) @ sig
-    # 5 Z2-even channels on occupation, starting at channel index 5
+    # 5 Z2-even channels on occupation, indices 5..9
     for i, irrep in enumerate(occ_irreps()):
         out[channel_slice(5 + i)] = projector(irrep) @ occ
-    # 2 orbit-Laplacian fiber channels on magnetisation, indices 10, 11
-    L_ortho, L_diag = orbit_laplacian_pair()
-    out[channel_slice(10)] = L_ortho @ sig
-    out[channel_slice(11)] = L_diag @ sig
+
+    if fiber_mode == "rank2":
+        L_ortho, L_diag = orbit_laplacian_pair()
+        out[channel_slice(10)] = L_ortho @ sig
+        out[channel_slice(11)] = L_diag @ sig
+    elif fiber_mode == "sheaf":
+        # Lazy import to avoid circular dependency on faithful_sheaf
+        # and to keep the default encoder import lightweight.
+        state_int = np.asarray(state, dtype=int)
+        pending_b, pending_w = _sheaf_fiber_channels(state_int)
+        out[channel_slice(10)] = pending_b
+        out[channel_slice(11)] = pending_w
+    else:
+        raise ValueError(
+            f"unknown fiber_mode {fiber_mode!r}; expected "
+            f"'rank2' or 'sheaf'"
+        )
     return out
+
+
+def _sheaf_fiber_channels(state_int: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Compute per-cell pending-bracket counts for black and white
+    faithful sheaves.  Imported lazily from faithful_sheaf.
+
+    pending_<color>[i] = number of R3_PENDING brackets in which cell
+    i participates (as the friendly origin OR as an opponent-run
+    member), from the <color>-owner's perspective.  This mirrors the
+    Exp 1 feature that beat the occupation D4-A1 channel on the
+    Takizawa archive_mean_lb correlation by ~40 %.
+    """
+    # Sibling import — the faithful_sheaf module lives one level up.
+    import sys
+    from pathlib import Path as _Path
+    _research_dir = _Path(__file__).resolve().parent.parent
+    if str(_research_dir) not in sys.path:
+        sys.path.insert(0, str(_research_dir))
+    from faithful_sheaf import classify_ray, R3_PENDING
+    from othello_utils import BLACK, N as _N, RAY_OFFSETS
+
+    pending_b = np.zeros(_N, dtype=np.float64)
+    pending_w = np.zeros(_N, dtype=np.float64)
+    for v in range(_N):
+        s_v = int(state_int[v])
+        if s_v == 0:
+            continue
+        for _, (dr, dc) in RAY_OFFSETS.items():
+            cls, opp_cells = classify_ray(state_int, v, dr, dc)
+            if cls != R3_PENDING:
+                continue
+            target = pending_b if s_v == BLACK else pending_w
+            target[v] += 1.0
+            for w in opp_cells:
+                target[w] += 1.0
+    return pending_b, pending_w
 
 
 def channel_energies(enc: np.ndarray) -> dict[str, float]:

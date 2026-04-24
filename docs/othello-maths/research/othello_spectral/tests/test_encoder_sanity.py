@@ -126,8 +126,28 @@ def test_linearity_under_scaling() -> None:
     _check(0, 5, 2.0, "magn")
     # occ_* channels: quadratic -> 4x
     _check(5, 10, 4.0, "occ")
-    # fiber_*_s channels: linear -> 2x
-    _check(10, 12, 2.0, "fiber")
+    # fiber channels:
+    #   - v0.2.0 'rank2' (L_ortho/L_diag @ s): linear -> 2x
+    #   - v0.3.0 'sheaf' (per-cell pending counts): NON-LINEAR
+    #     (bracket-count doesn't scale with state magnitude; in fact,
+    #     scaling s by 2 gives an invalid Othello state since values
+    #     leave {-1, 0, +1}).  We skip the linearity check for
+    #     sheaf-mode fiber and test the rank2 fiber explicitly via
+    #     encode_768(state, fiber_mode='rank2') below.
+    from othello_spectral.encoder import encode_768 as _encode
+    enc_s_rank2 = _encode(s, fiber_mode="rank2")
+    enc_2s_rank2 = _encode(2 * s, fiber_mode="rank2")
+    # Replace the sheaf fiber blocks with the rank2 ones for the
+    # linearity check; rank2 fiber must be linear in s.
+    for i in (10, 11):
+        e1 = enc_s_rank2[i * 64:(i + 1) * 64]
+        e2 = enc_2s_rank2[i * 64:(i + 1) * 64]
+        mask = np.abs(e1) > 1e-9
+        if mask.any():
+            observed = e2[mask] / e1[mask]
+            assert np.allclose(observed, 2.0, atol=1e-9), (
+                f"rank2 fiber channel {i} not 2x: {observed[:3]}"
+            )
 
 
 ALL_TESTS = [

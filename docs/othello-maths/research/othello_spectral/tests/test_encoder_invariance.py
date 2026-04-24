@@ -70,12 +70,19 @@ def test_z2_flip_signs_minus_blocks() -> None:
         assert np.allclose(b, a, atol=1e-12), (
             f"channel {CHANNEL_NAMES[i]} should be invariant under Z2"
         )
-    for i in (10, 11):  # fiber on s
-        a = enc_s[channel_slice(i)]
-        b = enc_neg[channel_slice(i)]
-        assert np.allclose(b, -a, atol=1e-12), (
-            f"fiber channel {CHANNEL_NAMES[i]} should sign-flip under Z2"
-        )
+    # Fiber channels at v0.3.0 (sheaf mode, default):
+    #   under Z2 (s -> -s), BLACK cells become WHITE and vice versa,
+    #   so pending_black and pending_white SWAP (not sign-flip).
+    a10 = enc_s[channel_slice(10)]        # pending_black on s
+    a11 = enc_s[channel_slice(11)]        # pending_white on s
+    b10 = enc_neg[channel_slice(10)]      # pending_black on -s
+    b11 = enc_neg[channel_slice(11)]      # pending_white on -s
+    assert np.allclose(b10, a11, atol=1e-12), (
+        "sheaf fiber: Z2 should swap pending_black <-> pending_white"
+    )
+    assert np.allclose(b11, a10, atol=1e-12), (
+        "sheaf fiber: Z2 should swap pending_white <-> pending_black"
+    )
 
 
 def test_d4_channel_energy_invariance() -> None:

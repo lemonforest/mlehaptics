@@ -1,0 +1,310 @@
+{
+  "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+  "n_trajectories": 35,
+  "sheaf_features": [
+    "sheaf_black_lambda2",
+    "sheaf_white_lambda2",
+    "sheaf_black_entropy",
+    "sheaf_white_entropy",
+    "sheaf_black_kerdim",
+    "sheaf_white_kerdim",
+    "sheaf_black_lambdamax",
+    "sheaf_white_lambdamax"
+  ],
+  "deltas": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "per_delta": {
+    "delta_1": {
+      "n_pairs": 2149,
+      "a1_minus_energy": {
+        "overall": {
+          "r2_pred": 0.3702167615841767,
+          "r2_snap": 0.3561906030275457,
+          "r2_pers": 0.7744781836019198,
+          "n": 2149,
+          "gain_vs_snap": 0.01402615855663103
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.3816141034838332,
+            "r2_snap": 0.3564929474334523,
+            "gain_vs_snap": 0.0251211560503809,
+            "n": 1065
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.3963898102375242,
+            "r2_snap": 0.39156138114155514,
+            "gain_vs_snap": 0.0048284290959690335,
+            "n": 1084
+          }
+        }
+      },
+      "a1_minus_signed_z2": {
+        "overall": {
+          "r2_pred": 0.01240645296461007,
+          "r2_snap": 0.00906838757720796,
+          "r2_pers": 0.8768896826939746,
+          "n": 2149,
+          "gain_vs_snap": 0.0033380653874021116
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.4313583853444811,
+            "r2_snap": 0.49231381951779307,
+            "gain_vs_snap": -0.06095543417331195,
+            "n": 1065
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.4770993559733204,
+            "r2_snap": 0.48454700363422765,
+            "gain_vs_snap": -0.0074476476609072195,
+            "n": 1084
+          }
+        }
+      },
+      "n_legal_moves": {
+        "overall": {
+          "r2_pred": 0.5632898949557706,
+          "r2_snap": 0.601343245182494,
+          "r2_pers": 0.32238514510599803,
+          "n": 2149,
+          "gain_vs_snap": -0.038053350226723404
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.6185110403175476,
+            "r2_snap": 0.6618951691814449,
+            "gain_vs_snap": -0.04338412886389731,
+            "n": 1065
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.5916796600075263,
+            "r2_snap": 0.6235828638720846,
+            "gain_vs_snap": -0.03190320386455836,
+            "n": 1084
+          }
+        }
+      }
+    },
+    "delta_3": {
+      "n_pairs": 2079,
+      "a1_minus_energy": {
+        "overall": {
+          "r2_pred": 0.35914733353319406,
+          "r2_snap": 0.340528767085448,
+          "r2_pers": 0.5627599476063097,
+          "n": 2079,
+          "gain_vs_snap": 0.018618566447746066
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.36807580263319173,
+            "r2_snap": 0.3394721701004063,
+            "gain_vs_snap": 0.028603632532785417,
+            "n": 1030
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.3711472952263244,
+            "r2_snap": 0.3782212336376155,
+            "gain_vs_snap": -0.007073938411291114,
+            "n": 1049
+          }
+        }
+      },
+      "a1_minus_signed_z2": {
+        "overall": {
+          "r2_pred": 0.0103311597728315,
+          "r2_snap": 0.008802147246158132,
+          "r2_pers": 0.6174981456193896,
+          "n": 2079,
+          "gain_vs_snap": 0.0015290125266733678
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.31611547239390214,
+            "r2_snap": 0.49405095759304263,
+            "gain_vs_snap": -0.1779354851991405,
+            "n": 1030
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.36154221916412643,
+            "r2_snap": 0.4850007489544673,
+            "gain_vs_snap": -0.12345852979034089,
+            "n": 1049
+          }
+        }
+      },
+      "n_legal_moves": {
+        "overall": {
+          "r2_pred": 0.5503082512316442,
+          "r2_snap": 0.6036824083079663,
+          "r2_pers": 0.2639133420329187,
+          "n": 2079,
+          "gain_vs_snap": -0.05337415707632209
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.609268202990078,
+            "r2_snap": 0.6657845641172688,
+            "gain_vs_snap": -0.05651636112719083,
+            "n": 1030
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.5710589372366349,
+            "r2_snap": 0.6225292976548732,
+            "gain_vs_snap": -0.05147036041823827,
+            "n": 1049
+          }
+        }
+      }
+    },
+    "delta_5": {
+      "n_pairs": 2009,
+      "a1_minus_energy": {
+        "overall": {
+          "r2_pred": 0.35834020424929525,
+          "r2_snap": 0.3296818527563602,
+          "r2_pers": 0.4373565628102506,
+          "n": 2009,
+          "gain_vs_snap": 0.028658351492935052
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.3657265633394471,
+            "r2_snap": 0.3285786834409926,
+            "gain_vs_snap": 0.03714787989845447,
+            "n": 995
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.3650888751218401,
+            "r2_snap": 0.3686193676647713,
+            "gain_vs_snap": -0.0035304925429312517,
+            "n": 1014
+          }
+        }
+      },
+      "a1_minus_signed_z2": {
+        "overall": {
+          "r2_pred": 0.010130597766228155,
+          "r2_snap": 0.009475342902489858,
+          "r2_pers": 0.41820354928316517,
+          "n": 2009,
+          "gain_vs_snap": 0.0006552548637382971
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.25015020534171417,
+            "r2_snap": 0.5014069736142186,
+            "gain_vs_snap": -0.2512567682725044,
+            "n": 995
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.2847341074872185,
+            "r2_snap": 0.486164420073103,
+            "gain_vs_snap": -0.2014303125858845,
+            "n": 1014
+          }
+        }
+      },
+      "n_legal_moves": {
+        "overall": {
+          "r2_pred": 0.5480996218721172,
+          "r2_snap": 0.6031972616374102,
+          "r2_pers": 0.18765374582433436,
+          "n": 2009,
+          "gain_vs_snap": -0.055097639765292916
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.6134901306651298,
+            "r2_snap": 0.6675741561246722,
+            "gain_vs_snap": -0.054084025459542384,
+            "n": 995
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.5586549848824681,
+            "r2_snap": 0.6191855123455562,
+            "gain_vs_snap": -0.06053052746308807,
+            "n": 1014
+          }
+        }
+      }
+    },
+    "delta_10": {
+      "n_pairs": 1834,
+      "a1_minus_energy": {
+        "overall": {
+          "r2_pred": 0.35672419815850764,
+          "r2_snap": 0.3289083160323888,
+          "r2_pers": 0.2843186211761244,
+          "n": 1834,
+          "gain_vs_snap": 0.02781588212611885
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.3492121717178607,
+            "r2_snap": 0.32179716744720843,
+            "gain_vs_snap": 0.027415004270652243,
+            "n": 925
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.37662149092159647,
+            "r2_snap": 0.3628435731012305,
+            "gain_vs_snap": 0.01377791782036597,
+            "n": 909
+          }
+        }
+      },
+      "a1_minus_signed_z2": {
+        "overall": {
+          "r2_pred": 0.0061629283417820035,
+          "r2_snap": 0.014599188910801142,
+          "r2_pers": 0.1193328669771635,
+          "n": 1834,
+          "gain_vs_snap": -0.008436260569019138
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.14323733769647273,
+            "r2_snap": 0.5120118270725365,
+            "gain_vs_snap": -0.3687744893760637,
+            "n": 925
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.15038545559810546,
+            "r2_snap": 0.4943121034424133,
+            "gain_vs_snap": -0.3439266478443078,
+            "n": 909
+          }
+        }
+      },
+      "n_legal_moves": {
+        "overall": {
+          "r2_pred": 0.5891768212659081,
+          "r2_snap": 0.6149846237893858,
+          "r2_pers": 0.20312995611454954,
+          "n": 1834,
+          "gain_vs_snap": -0.025807802523477696
+        },
+        "conditioned": {
+          "side_late_BLACK": {
+            "r2_pred": 0.6452180967795234,
+            "r2_snap": 0.6794834598551562,
+            "gain_vs_snap": -0.03426536307563288,
+            "n": 925
+          },
+          "side_late_WHITE": {
+            "r2_pred": 0.5705439769406234,
+            "r2_snap": 0.631419923849339,
+            "gain_vs_snap": -0.06087594690871556,
+            "n": 909
+          }
+        }
+      }
+    }
+  }
+}

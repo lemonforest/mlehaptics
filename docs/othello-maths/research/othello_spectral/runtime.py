@@ -183,6 +183,13 @@ def verify_c_binary(binary: Path) -> tuple[bool, str]:
 
     # Functional sanity: encode the starting position and compare
     # first float32 against Python's.
+    #
+    # The C encoder currently implements only the v0.2.0 'rank2'
+    # fiber (orbit Laplacians applied to s); the v0.3.0 'sheaf'
+    # fiber requires a bracket walker not yet ported to C.  So
+    # the parity check compares C against Python WITH
+    # fiber_mode='rank2' explicitly - the C binary is verified as a
+    # rank2 reference, not a full v0.3.0 reference.
     import numpy as _np
     s = _np.zeros(64, dtype=int)
     s[3 * 8 + 3] = -1  # d4 white
@@ -208,14 +215,17 @@ def verify_c_binary(binary: Path) -> tuple[bool, str]:
         struct.unpack(f"<{ENCODING_DIM}f", out.stdout),
         dtype=_np.float32,
     )
-    py_arr = _np.asarray(_py_encode(s), dtype=_np.float32)
+    py_arr = _np.asarray(
+        _py_encode(s, fiber_mode="rank2"), dtype=_np.float32,
+    )
     if not _np.array_equal(c_arr, py_arr):
         n_diff = int(_np.sum(c_arr != py_arr))
         return False, (
-            f"binary output does NOT match Python: {n_diff} of "
-            f"{ENCODING_DIM} dims differ at float32 precision"
+            f"binary output (rank2) does NOT match Python-rank2: "
+            f"{n_diff} of {ENCODING_DIM} dims differ at float32 "
+            f"precision"
         )
-    return True, "ok"
+    return True, "ok (rank2 parity)"
 
 
 def resolve_engine(

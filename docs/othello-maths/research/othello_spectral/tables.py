@@ -55,8 +55,12 @@ CHANNEL_NAMES: tuple[str, ...] = (
     "magn_A1minus", "magn_A2minus", "magn_B1minus", "magn_B2minus", "magn_Eminus",
     # 5..9: D4xZ2 '+' irreps applied to occupation s^2
     "occ_A1plus",  "occ_A2plus",  "occ_B1plus",  "occ_B2plus",  "occ_Eplus",
-    # 10..11: orbit-Laplacian fiber channels applied to s
-    "fiber_ortho_s", "fiber_diag_s",
+    # 10..11: sheaf-fiber channels (v0.3.0+, reference).  Per-cell
+    # pending-bracket (R3) counts from the black- and white-owner
+    # faithful sheaves.  Replaces the v0.2.0 orbit-Laplacian channels
+    # (which were fiber_ortho_s / fiber_diag_s); see encoder.py
+    # fiber_mode='rank2' for backwards compatibility.
+    "sheaf_pending_black", "sheaf_pending_white",
 )
 N_CHANNELS: int = len(CHANNEL_NAMES)  # 12
 CELLS_PER_CHANNEL: int = 64

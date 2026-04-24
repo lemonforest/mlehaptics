@@ -128,14 +128,27 @@ def cmd_encode_pgn(args) -> int:
     if args.out is None:
         out_path = pgn_path.parent / out_path.name
 
-    # Engine dispatch.
+    # Engine dispatch.  C path only works with fiber='rank2' at v0.3.0.
+    fiber_mode = getattr(args, "fiber", "sheaf")
+    requested_engine = args.engine or default_engine()
+    if fiber_mode == "sheaf" and requested_engine == "c":
+        print(
+            "engine='c' requested but fiber='sheaf' is Python-only "
+            "at v0.3.0 (C encoder is rank2 only).  Falling back to "
+            "engine='py'.",
+            file=sys.stderr,
+        )
+        requested_engine = "py"
+    elif fiber_mode == "sheaf" and requested_engine == "auto":
+        # Auto with sheaf fiber is necessarily py.
+        requested_engine = "py"
     try:
-        engine, c_binary = resolve_engine(args.engine or default_engine())
+        engine, c_binary = resolve_engine(requested_engine)
     except FileNotFoundError as exc:
         print(f"engine resolution failed: {exc}", file=sys.stderr)
         return 4
     print(
-        f"encoder engine: {engine}"
+        f"encoder engine: {engine}  fiber: {fiber_mode}"
         + (f"  binary={c_binary}" if c_binary else "")
     )
 
@@ -168,7 +181,8 @@ def cmd_encode_pgn(args) -> int:
     t0 = time.time()
     # When engine is 'c', prefer the ctypes DLL path if available
     # (skip subprocess overhead).  Fall back to subprocess binary
-    # if only exe is present.
+    # if only exe is present.  Note: C path is rank2-only and we
+    # already forced fiber=rank2 above if engine=c.
     used_path = engine
     if engine == "c":
         dll = None
@@ -183,8 +197,8 @@ def cmd_encode_pgn(args) -> int:
             encs = encode_768_c_stream(all_states, c_binary)
             used_path = f"c (subprocess: {c_binary.name})"
     else:
-        encs = [encode_768(st) for st in all_states]
-        used_path = "py"
+        encs = [encode_768(st, fiber_mode=fiber_mode) for st in all_states]
+        used_path = f"py (fiber={fiber_mode})"
     print(
         f"encoded {len(encs)} states in {time.time() - t0:.1f}s "
         f"(engine={used_path})"
@@ -256,11 +270,20 @@ def _build_parser() -> argparse.ArgumentParser:
     ppgn.add_argument(
         "--engine", choices=["py", "c", "auto"], default=None,
         help="Encoder engine.  'py' = Python reference (always "
-             "works); 'c' = the compiled C binary (requires a built "
-             "encode_cli binary or the OTHELLO_SPECTRAL_BIN env var); "
-             "'auto' = prefer 'c' if available else fall back to "
-             "'py'.  Default: whatever is in OTHELLO_SPECTRAL_ENGINE, "
-             "or 'auto'.",
+             "works); 'c' = the compiled C binary/DLL (rank2 fiber "
+             "only at v0.3.0 - no sheaf fiber yet); 'auto' = prefer "
+             "'c' if available AND we're in rank2 fiber mode, else "
+             "fall back to 'py'.  Default: whatever is in "
+             "OTHELLO_SPECTRAL_ENGINE, or 'auto'.",
+    )
+    ppgn.add_argument(
+        "--fiber", choices=["sheaf", "rank2"], default="sheaf",
+        help="Fiber mode for channels 10-11.  'sheaf' (default at "
+             "v0.3.0+): per-cell pending-bracket counts, state-"
+             "dependent, Python-only.  'rank2' (legacy v0.2.0): "
+             "orbit Laplacians applied to s, state-linear, C-"
+             "compatible.  If 'rank2' is selected the C engine can "
+             "handle it; if 'sheaf', only py.",
     )
     ppgn.set_defaults(func=cmd_encode_pgn)
 

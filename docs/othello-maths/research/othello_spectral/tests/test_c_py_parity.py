@@ -107,7 +107,10 @@ def test_c_py_parity_starting_position() -> None:
         print("SKIP (C binary not built)")
         return
     s = _starting_state()
-    py_f32 = np.asarray(encode_768(s), dtype=np.float32)
+    # C encoder only implements v0.2.0 rank-2 fiber.  Parity test
+    # must compare against Python with fiber_mode='rank2' until
+    # the faithful-sheaf bracket walker is ported to C.
+    py_f32 = np.asarray(encode_768(s, fiber_mode="rank2"), dtype=np.float32)
     c_f32 = _c_encode(binary, _state_to_obf(s))
     # Byte-for-byte at float32 precision
     assert np.array_equal(py_f32, c_f32), (
@@ -125,7 +128,10 @@ def test_c_py_parity_random_states() -> None:
         return
     for seed in (1, 2, 3, 7, 11, 17, 42, 100):
         s = _random_state(seed)
-        py_f32 = np.asarray(encode_768(s), dtype=np.float32)
+        # Same caveat as above — C is rank2-only.
+        py_f32 = np.asarray(
+            encode_768(s, fiber_mode="rank2"), dtype=np.float32,
+        )
         c_f32 = _c_encode(binary, _state_to_obf(s))
         assert np.array_equal(py_f32, c_f32), (
             f"parity failure on seed {seed}"
@@ -145,7 +151,10 @@ def test_ctypes_dll_parity_if_present() -> None:
         return
     for seed in (1, 2, 3, 7, 11, 17, 42, 100):
         s = _random_state(seed)
-        py_f64 = np.asarray(encode_768(s), dtype=np.float64)
+        # ctypes DLL also rank2-only at this version.
+        py_f64 = np.asarray(
+            encode_768(s, fiber_mode="rank2"), dtype=np.float64,
+        )
         c_f64 = encode_768_c_ctypes(s)
         assert np.array_equal(py_f64, c_f64), (
             f"ctypes parity failure on seed {seed}: "
