@@ -284,14 +284,52 @@ def _build_parser():
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Default: 30 random-play trajectories (seeds 100..129), deltas
+  # 1,3,5,10.  Walltime ~1.5 min on a laptop.
+  python research/phase2_predictive_sheaf.py
+
+  # More seeds for tighter variance estimate.
+  python research/phase2_predictive_sheaf.py --n-seeds 100
+
+  # Smoke test.
+  python research/phase2_predictive_sheaf.py --n-seeds 5 --deltas 1
+
+reading the output:
+  'predictive_gain_vs_persistence' is the headline.  Positive means
+  sheaf features at t explain target at t+delta beyond what just
+  knowing target at t does.  For n_legal_moves, this grows from
+  +0.24 (delta=1) to +0.49 (delta=10).  Targets rho and
+  empty_count are near-monotone in random play so persistence is
+  near-R^2=1 and gains are uninformative.
+
+related:
+  For PGN tournament trajectories with spectral targets instead
+  of random play with state targets, see
+  phase1e_predictive_sheaf_pgn.py.
+""",
     )
-    p.add_argument("--out-json", type=Path, default=default_out_json)
-    p.add_argument("--out-csv", type=Path, default=default_out_csv)
-    p.add_argument("--cache-dir", type=Path, default=default_cache)
-    p.add_argument("--n-seeds", type=int, default=30)
+    p.add_argument(
+        "--out-json", type=Path, default=default_out_json,
+        help="Output JSON summary path.",
+    )
+    p.add_argument(
+        "--out-csv", type=Path, default=default_out_csv,
+        help="Output per-pair CSV path.",
+    )
+    p.add_argument(
+        "--cache-dir", type=Path, default=default_cache,
+        help="Directory for per-seed trajectory JSON cache (reruns "
+             "reuse cached trajectories).",
+    )
+    p.add_argument(
+        "--n-seeds", type=int, default=30,
+        help="Number of random-play trajectories to generate (seeds "
+             "100 .. 100 + n_seeds - 1).  Default: 30.",
+    )
     p.add_argument(
         "--deltas", type=str, default="1,3,5,10",
-        help="Comma-separated time shifts to test.",
+        help="Comma-separated ply shifts to test.  Default: 1,3,5,10.",
     )
     return p
 

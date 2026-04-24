@@ -370,13 +370,64 @@ coupling to these channels is 2× stronger than §2c.2 reported, and
 the Othello sheaf spectrum carries non-trivial forward-predictive
 content for legal-move count.
 
-## Open items / sequel work
+## 1e.6 — Sign-flip decomposition — **Simpson's paradox identified**
 
-1. **1e.3 sign-flip of D₄-A₁(s²) between in-book (+0.465) and
-   out-of-book (−0.755)** is novel and unexplained.  Worth:
-   - Decomposing out-of-book by `n_empties` bucket (early/mid/late).
-   - Checking whether the sign flip happens at the book-coverage
-     cliff (empties ≈ 30) or gradually.
+Runner: [`research/phase1e_signflip_decomposition.py`](research/phase1e_signflip_decomposition.py).
+Output: [`results/phase1e_signflip_decomposition.json`](results/phase1e_signflip_decomposition.json).
+Uses per-move CSV from 1e.3.
+
+**The §1e.3 in-book (+0.465) vs out-of-book (−0.755) split is
+dominated by Simpson's paradox, not by book coverage.**  Sign flip
+is a game-phase effect, not a book-cliff effect.
+
+Within-phase Spearman(I_move, D₄-A₁(s²)) by empties range:
+
+| range | N | all | in-book | out-of-book |
+|---|---|---|---|---|
+| opening (60–53 empties) | 280 | +0.245 | +0.245 | (all in-book) |
+| early midgame (52–45)   | 280 | +0.117 | +0.104 | +0.480 |
+| late midgame (44–35)    | 350 | +0.283 | +0.126 | +0.321 |
+| endgame entry (34–25)   | 350 | +0.065 | +0.100 | +0.033 |
+| deep endgame (24–10)    | 525 | **−0.425** | (no in-book) | **−0.440** |
+| terminal (9–0)          | 314 | **−0.616** | (no in-book) | **−0.616** |
+
+**Within-phase in-book correlations are small (+0.10–0.25),** far
+from the +0.465 aggregate.  The aggregate amplification comes from
+Simpson-style between-phase structure — D₄-A₁(s²) and I_move both
+grow with filling density, so the between-phase trend boosts rank
+correlation on the pooled in-book subset.
+
+**Out-of-book covers mostly post-book deep endgame** (30–0 empties).
+Within deep endgame and terminal, within-phase ρ is strongly
+negative (−0.44, −0.62).  The aggregate out-of-book −0.755 is
+compatible with this floor plus between-phase amplification in the
+opposite direction.
+
+**Sign flip occurs at ~24 empties, not ~20.**  The WTHOR book
+coverage cliff is at empties ≈ 20 (see §2c.2), but the spectral
+sign flip happens 4 plies earlier.  The two are nearby but not
+coincident — confirms flip is phase-driven, not coverage-driven.
+
+**D₄-E(s²) has a double sign flip**: +0.128 (opening) → +0.263
+(early midgame) → **−0.264** (endgame entry) → **+0.525** (terminal).
+A more complex phase trajectory than A₁, motivates a longitudinal
+analysis rather than a single aggregate ρ.
+
+**A₁⁻ magnetisation is consistently NEGATIVE within every phase**
+(opening in-book −0.274, late midgame in-book −0.419).  The §2c.2
+reported aggregate of +0.213 is a pure Simpson's paradox artifact
+of between-phase structure; within any single phase A₁⁻ correlates
+NEGATIVELY with Shannon info.  **This is a material retraction of
+§2c.2's framing**: A₁⁻ does NOT track strategic divergence from
+tournament-empirical policy; it tracks game phase.
+
+**Takeaway.**  For trajectory-based claims (Shannon info, move-by-move
+analyses) the notebook's previous in-book / out-of-book split is
+misleading as a between-group comparison.  Within-phase
+decomposition is the cleaner analysis.  The static-50-empty results
+(§2d / §1e.1) are unaffected because they are single-phase.
+
+## Open items / sequel work
 2. **1e.5 multivariate predictive gain on richer targets.**  Random
    play makes ρ/empties trivially persistent.  A better trajectory
    target is the A₁⁻ or D₄-A₁(s²) energy Δ moves into the future
@@ -402,6 +453,8 @@ Scripts added (this phase):
 - [phase1e_edax_d20_tasklist.py](research/phase1e_edax_d20_tasklist.py)
 - [phase1e_edax_d20_correlations.py](research/phase1e_edax_d20_correlations.py)
 - [phase2_predictive_sheaf.py](research/phase2_predictive_sheaf.py)
+- [phase1e_signflip_decomposition.py](research/phase1e_signflip_decomposition.py)
+- [phase1e_predictive_sheaf_pgn.py](research/phase1e_predictive_sheaf_pgn.py)
 
 Scripts modified:
 - [takizawa_archive_loader.py](research/takizawa_archive_loader.py) —

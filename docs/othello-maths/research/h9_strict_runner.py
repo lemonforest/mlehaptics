@@ -184,6 +184,7 @@ def run(
     tasklist_path: Path,
     archive_summary_path: Path | None,
     out_dir: Path,
+    out_prefix: str = "phase1d",
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
@@ -248,7 +249,7 @@ def run(
     # ------------------------------------------------------------
     # CSV output
     # ------------------------------------------------------------
-    csv_path = out_dir / "phase1d_spectral_vs_perfectplay.csv"
+    csv_path = out_dir / f"{out_prefix}_spectral_vs_perfectplay.csv"
     if records:
         fieldnames = list(records[0].keys())
         # union with any record that carries archive fields
@@ -362,7 +363,7 @@ def run(
     summary["correlations"] = correlations
     summary["partial_correlations"] = partials
 
-    json_path = out_dir / "phase1d_correlations.json"
+    json_path = out_dir / f"{out_prefix}_correlations.json"
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
@@ -411,6 +412,12 @@ def _build_parser() -> argparse.ArgumentParser:
   python research/h9_strict_runner.py \\
       --archive-summary ../results/phase1d_archive_summary.csv
 
+  # Re-run against a different archive summary (e.g. accuracy=100
+  # restricted) without clobbering §2d.b's canonical outputs:
+  python research/h9_strict_runner.py \\
+      --archive-summary ../results/phase1d_archive_summary_exact100.csv \\
+      --out-prefix phase1e_exact100
+
 notes:
   All 2587 tasklist positions have 50 empty squares.  ``edax_score``
   from the tasklist is edax's pre-proof predicted value with
@@ -431,8 +438,15 @@ notes:
     )
     parser.add_argument(
         "--results-dir", type=Path, default=default_results,
-        help="Output directory for phase1d_spectral_vs_perfectplay.csv "
-             "and phase1d_correlations.json.",
+        help="Output directory for the two output files.",
+    )
+    parser.add_argument(
+        "--out-prefix", type=str, default="phase1d",
+        help="Prefix for output filenames.  Default 'phase1d' emits "
+             "phase1d_spectral_vs_perfectplay.csv and phase1d_correlations.json "
+             "(matching §2d.b).  Use a different prefix (e.g. 'phase1e_exact100') "
+             "when re-running against an alternate archive summary to avoid "
+             "clobbering §2d.b's canonical outputs.",
     )
     return parser
 
@@ -442,7 +456,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.tasklist.exists():
         print(f"tasklist not found: {args.tasklist}", file=sys.stderr)
         return 2
-    run(args.tasklist, args.archive_summary, args.results_dir)
+    run(
+        args.tasklist, args.archive_summary, args.results_dir,
+        out_prefix=args.out_prefix,
+    )
     return 0
 
 

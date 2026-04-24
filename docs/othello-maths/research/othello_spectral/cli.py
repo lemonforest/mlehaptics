@@ -1,0 +1,218 @@
+"""Command-line entry points for othello_spectral.
+
+Subcommands
+-----------
+  encode-pgn PGN [--out PATH] [--metadata STR]
+      Encode every ply of every game in a PGN corpus to a
+      .spectralz binary file (float32 frames, little-endian).
+
+  encode-obf OBF [--out PATH]
+      Encode a single OBF string and print the 12 channel energies
+      (optionally writing the full 768-dim vector as a .spectralz
+      single-frame file).
+
+  channels
+      Print the 12 channel names in encoder order.
+
+  version
+      Print the encoder VERSION string.
+
+Usage
+-----
+    cd docs/othello-maths/research
+    python -m othello_spectral.cli encode-pgn \\
+        ../dataset/liveothello-2026-APR.pgn \\
+        --out ../results/apr_2026.spectralz
+
+    python -m othello_spectral.cli encode-obf \\
+        '---------------------------OX------XO--------------------------- X;'
+
+    python -m othello_spectral.cli channels
+    python -m othello_spectral.cli version
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+# research/ on path for flat-module imports
+_RESEARCH_DIR = Path(__file__).resolve().parent.parent
+if str(_RESEARCH_DIR) not in sys.path:
+    sys.path.insert(0, str(_RESEARCH_DIR))
+
+from othello_spectral import (  # noqa: E402
+    CHANNEL_NAMES, ENCODING_DIM, VERSION, channel_energies, encode_768,
+)
+from othello_spectral.frame import Frame, write_file  # noqa: E402
+
+
+def _obf_to_state(obf: str) -> np.ndarray:
+    """Convert an OBF string to a length-64 world-frame signal.
+
+    OBF encodes the 64-char board from a1 (index 0) to h8 (index 63):
+      '-' empty, 'X' black, 'O' white.
+    Side-to-move is the 66th char ('X' or 'O'); we ignore it since the
+    encoder operates on the world-frame signal.  A standalone
+    sanity check: len(obf) == 66 (64 + ' ' + side + ';').
+    """
+    if len(obf) < 66 or obf[64] != " " or obf[65] not in "XO":
+        raise ValueError(f"bad OBF string: {obf!r}")
+    state = np.zeros(64, dtype=int)
+    for i, ch in enumerate(obf[:64]):
+        if ch == "X":
+            state[i] = 1
+        elif ch == "O":
+            state[i] = -1
+        elif ch == "-":
+            state[i] = 0
+        else:
+            raise ValueError(f"bad OBF char {ch!r} at pos {i}")
+    return state
+
+
+def cmd_channels(_args) -> int:
+    for i, name in enumerate(CHANNEL_NAMES):
+        dim_lo = i * 64
+        print(f"  {i:2d}  dims [{dim_lo:3d}:{dim_lo + 64:3d})  {name}")
+    return 0
+
+
+def cmd_version(_args) -> int:
+    print(f"othello_spectral VERSION = {VERSION}")
+    print(f"encoding dim = {ENCODING_DIM}")
+    print(f"n channels   = {len(CHANNEL_NAMES)}")
+    return 0
+
+
+def cmd_encode_obf(args) -> int:
+    state = _obf_to_state(args.obf)
+    enc = encode_768(state)
+    en = channel_energies(enc)
+    print(f"obf: {args.obf}")
+    print(f"||enc||^2 = {float(np.dot(enc, enc)):.6f}")
+    print("channel energies:")
+    for i, name in enumerate(CHANNEL_NAMES):
+        print(f"  {i:2d}  {name:18s}  {en[name]:+12.6f}")
+    if args.out:
+        out = Path(args.out)
+        write_file(
+            out, [Frame(data=enc, ply=0)],
+            metadata=f"othello_spectral v{VERSION} obf_single_frame",
+        )
+        print(f"wrote {out}")
+    return 0
+
+
+def cmd_encode_pgn(args) -> int:
+    # Lazy import — othello_pgn_loader pulls numpy + othello_utils
+    import othello_pgn_loader as pgn_loader
+    from othello_utils import BLACK, OthelloBoard
+    pgn_path = Path(args.pgn)
+    if not pgn_path.exists():
+        print(f"PGN not found: {pgn_path}", file=sys.stderr)
+        return 2
+    out_path = Path(
+        args.out or (
+            pgn_path.with_suffix(".spectralz").name
+        )
+    )
+    if args.out is None:
+        out_path = pgn_path.parent / out_path.name
+
+    games = pgn_loader.parse_pgn_file(pgn_path)
+    print(f"parsed {len(games)} games from {pgn_path.name}")
+
+    frames: list[Frame] = []
+    t0 = time.time()
+    failures = 0
+    global_ply_counter = 0
+    for gi, g in enumerate(games):
+        try:
+            _, states, _ = pgn_loader.replay(g["moves"])
+        except Exception as exc:
+            print(
+                f"  game {gi}: replay failed: {exc}",
+                file=sys.stderr,
+            )
+            failures += 1
+            continue
+        for state in states:
+            enc = encode_768(state)
+            frames.append(Frame(data=enc, ply=global_ply_counter))
+            global_ply_counter += 1
+        if (gi + 1) % 100 == 0 or gi + 1 == len(games):
+            elapsed = time.time() - t0
+            print(
+                f"  [{gi + 1}/{len(games)}] games processed "
+                f"({elapsed:.1f}s, {global_ply_counter} frames)"
+            )
+    metadata = (
+        args.metadata or
+        f"othello_spectral v{VERSION} corpus={pgn_path.name} "
+        f"games={len(games) - failures}"
+    )
+    write_file(out_path, frames, metadata=metadata)
+    print(
+        f"wrote {out_path}  ({len(frames)} frames, "
+        f"{len(games) - failures}/{len(games)} games)"
+    )
+    return 0
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="othello_spectral",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    pver = sub.add_parser("version", help="Print encoder VERSION")
+    pver.set_defaults(func=cmd_version)
+
+    pchan = sub.add_parser("channels", help="List channel layout")
+    pchan.set_defaults(func=cmd_channels)
+
+    pobf = sub.add_parser(
+        "encode-obf",
+        help="Encode a single OBF position and print channel energies",
+    )
+    pobf.add_argument("obf", help="OBF position string")
+    pobf.add_argument(
+        "--out", type=str, default=None,
+        help="Optional .spectralz output path (single-frame).",
+    )
+    pobf.set_defaults(func=cmd_encode_obf)
+
+    ppgn = sub.add_parser(
+        "encode-pgn",
+        help="Encode every state in a PGN corpus to a .spectralz file",
+    )
+    ppgn.add_argument("pgn", help="Path to a PGN corpus file")
+    ppgn.add_argument(
+        "--out", type=str, default=None,
+        help="Output .spectralz path.  Default: alongside the PGN "
+             "with extension swapped to .spectralz.",
+    )
+    ppgn.add_argument(
+        "--metadata", type=str, default=None,
+        help="Free-form metadata string written into the file header "
+             "(232 bytes max).",
+    )
+    ppgn.set_defaults(func=cmd_encode_pgn)
+
+    return p
+
+
+def main(argv=None) -> int:
+    args = _build_parser().parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -226,6 +226,25 @@ def _build_parser():
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Default: use the canonical phase1e_edax_d20.csv and the §2d.b
+  # phase1d_spectral_vs_perfectplay.csv, write the verdict JSON.
+  python research/phase1e_edax_d20_correlations.py
+
+  # Custom pairing (e.g. against the accuracy=100 re-aggregation
+  # spectral CSV).
+  python research/phase1e_edax_d20_correlations.py \\
+      --edax-csv ../results/phase1e_edax_d20.csv \\
+      --spectral-csv ../results/phase1e_spectral_vs_perfectplay_exact100.csv \\
+      --out-json ../results/phase1e_edax_d20_correlations_exact100.json
+
+reading the output:
+  'reading_a_vs_b_verdict_d4_a1_occ.a_position' quantifies where
+  the d=20 correlation sits between pre-proof (0.0) and
+  archive_mean_lb (1.0).  |a_position| <~ 0.1 means d=20 tracks
+  pre-proof (Reading B dominates); |a_position| ~> 0.7 means d=20
+  tracks archive_mean_lb (Reading A dominates).
+""",
     )
     default_edax = (
         Path(__file__).resolve().parent.parent / "results"

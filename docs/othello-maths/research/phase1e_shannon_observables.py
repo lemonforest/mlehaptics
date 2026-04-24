@@ -162,11 +162,46 @@ def _build_parser():
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Default: Barcelona EGP 2026, opening_book_freq.csv.bz2, alpha=1.
+  python research/phase1e_shannon_observables.py
+
+  # Different smoothing.
+  python research/phase1e_shannon_observables.py --laplace 0.5
+
+  # Custom PGN corpus (e.g. APR 2026).
+  python research/phase1e_shannon_observables.py \\
+      --pgn ../dataset/liveothello-2026-APR.pgn
+
+reading the output:
+  The headline columns are the per-observable in-book Spearmans.
+  §2c.2 reported rho(I_move, a1_minus) in-book = +0.213 at ~676
+  plies.  The 1e.3 finding was that d4_a1_occupation_energy jumps
+  to ~+0.465 on the same subset.  Phase 1e.6
+  (phase1e_signflip_decomposition.py) further shows that this
+  aggregate is partly a Simpson's paradox of game-phase structure.
+  For clean within-phase analyses, see the 1e.6 decomposition.
+""",
     )
-    p.add_argument("--pgn", type=Path, default=default_pgn)
-    p.add_argument("--book", type=Path, default=default_book)
-    p.add_argument("--laplace", type=float, default=1.0)
-    p.add_argument("--results-dir", type=Path, default=default_results)
+    p.add_argument(
+        "--pgn", type=Path, default=default_pgn,
+        help="PGN corpus path.  Default: Barcelona EGP 2026.",
+    )
+    p.add_argument(
+        "--book", type=Path, default=default_book,
+        help="Path to opening_book_freq.csv.bz2 (WTHOR empirical "
+             "frequencies).",
+    )
+    p.add_argument(
+        "--laplace", type=float, default=1.0,
+        help="Laplace alpha for smoothing book frequencies.  "
+             "Default: 1.0.",
+    )
+    p.add_argument(
+        "--results-dir", type=Path, default=default_results,
+        help="Output directory for phase1e_shannon_observables.json "
+             "and per-move CSV.  Default: ../results/.",
+    )
     return p
 
 

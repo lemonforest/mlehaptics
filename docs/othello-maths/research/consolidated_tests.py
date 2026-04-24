@@ -12,13 +12,15 @@ Each hypothesis produces one row with columns:
 Status = PASS | FAIL | PARTIAL | UNDETERMINED.
 
 No internet, no heavy I/O; everything below is deterministic over
-fixed seeds.
+fixed seeds.  Total walltime ~3 s.
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -891,8 +893,35 @@ def e8() -> tuple[dict, dict]:
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+def _build_parser():
+    p = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Default: run all H1-H9 + E1-E8 tests, write results to
+  # ../results/phase1_hypotheses.csv and phase1_detail.json.
+  python research/consolidated_tests.py
+
+  # Redirect to a different results dir (for A/B or CI dry-runs).
+  python research/consolidated_tests.py --results-dir /tmp/phase1
+
+reading the output:
+  phase1_hypotheses.csv is the canonical one-row-per-hypothesis
+  status table published in notebook §2.  phase1_detail.json has
+  the full numeric dump every runner recomputes on demand.
+""",
+    )
+    p.add_argument(
+        "--results-dir", type=Path, default=RESULTS_DIR,
+        help="Output directory for phase1_hypotheses.csv and "
+             "phase1_detail.json.  Default: ../results/.",
+    )
+    return p
+
+
+def main(argv=None) -> int:
+    args = _build_parser().parse_args(argv)
+    args.results_dir.mkdir(parents=True, exist_ok=True)
     funcs = [h1, h2, h3, h4, h5, h6, h7, h8, h9,
              e1, e2, e3, e4, e5, e6, e7, e8]
     rows: list[dict] = []
@@ -903,7 +932,7 @@ def main() -> None:
         detail[row["id"]] = det
         print(f"{row['id']:4s} {row['status']:14s} {row['statement']}")
     # Write CSV
-    csv_path = RESULTS_DIR / "phase1_hypotheses.csv"
+    csv_path = args.results_dir / "phase1_hypotheses.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
@@ -914,12 +943,13 @@ def main() -> None:
         for row in rows:
             writer.writerow(row)
     # Write JSON
-    json_path = RESULTS_DIR / "phase1_detail.json"
+    json_path = args.results_dir / "phase1_detail.json"
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(detail, f, indent=2)
     print(f"\nwrote {csv_path}")
     print(f"wrote {json_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
