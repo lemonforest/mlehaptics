@@ -26,18 +26,38 @@ operator set and would require a separate P_attack operator to be
 fully phase-native. The §11.2 operators define the geometry of
 castling; python-chess here only supplies the attack check that the
 supplement flags as deferred to §11.5.
-"""
-from dataclasses import dataclass
 
-import chess
+python-chess dependency:
+    ``chess`` is imported lazily inside functions that need it.  The
+    module-level ``CASTLES`` dict uses ``_WHITE = True`` / ``_BLACK =
+    False`` explicitly (matching the stable python-chess API where
+    ``chess.WHITE is True`` and ``chess.BLACK is False`` / ``chess.
+    Color is bool``).  This lets ``import chess_spectral`` succeed
+    without python-chess installed — 4D-only consumers (spectral-
+    chess4d-oana-chiru) can drop the ``[corpus]`` extra.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import chess
 
 from .phase_operators import phi, COL_GEN
 
 
+# python-chess ``chess.Color`` is just ``bool`` (public API commitment).
+# We define the two colour sentinels locally so ``CASTLES`` can be a
+# module-level dict literal without ``import chess``.
+_WHITE: bool = True   # == chess.WHITE
+_BLACK: bool = False  # == chess.BLACK
+
+
 @dataclass(frozen=True)
 class CastleMove:
-    color: chess.Color
-    side: str  # "kingside" or "queenside"
+    color: bool  # chess.Color
+    side: str    # "kingside" or "queenside"
     king_from_rc: tuple[int, int]
     king_to_rc: tuple[int, int]
     rook_from_rc: tuple[int, int]
@@ -49,7 +69,7 @@ class CastleMove:
     uci: str
 
 
-def _make(color: chess.Color, side: str,
+def _make(color: bool, side: str,
           king_from_rc: tuple[int, int], king_to_rc: tuple[int, int],
           rook_from_rc: tuple[int, int], rook_to_rc: tuple[int, int],
           uci: str) -> CastleMove:
@@ -65,19 +85,19 @@ def _make(color: chess.Color, side: str,
     )
 
 
-CASTLES: dict[tuple[chess.Color, str], CastleMove] = {
-    (chess.WHITE, "kingside"):  _make(chess.WHITE, "kingside",
-                                      (0, 4), (0, 6), (0, 7), (0, 5),
-                                      "e1g1"),
-    (chess.WHITE, "queenside"): _make(chess.WHITE, "queenside",
-                                      (0, 4), (0, 2), (0, 0), (0, 3),
-                                      "e1c1"),
-    (chess.BLACK, "kingside"):  _make(chess.BLACK, "kingside",
-                                      (7, 4), (7, 6), (7, 7), (7, 5),
-                                      "e8g8"),
-    (chess.BLACK, "queenside"): _make(chess.BLACK, "queenside",
-                                      (7, 4), (7, 2), (7, 0), (7, 3),
-                                      "e8c8"),
+CASTLES: dict[tuple[bool, str], CastleMove] = {
+    (_WHITE, "kingside"):  _make(_WHITE, "kingside",
+                                 (0, 4), (0, 6), (0, 7), (0, 5),
+                                 "e1g1"),
+    (_WHITE, "queenside"): _make(_WHITE, "queenside",
+                                 (0, 4), (0, 2), (0, 0), (0, 3),
+                                 "e1c1"),
+    (_BLACK, "kingside"):  _make(_BLACK, "kingside",
+                                 (7, 4), (7, 6), (7, 7), (7, 5),
+                                 "e8g8"),
+    (_BLACK, "queenside"): _make(_BLACK, "queenside",
+                                 (7, 4), (7, 2), (7, 0), (7, 3),
+                                 "e8c8"),
 }
 
 
@@ -93,7 +113,7 @@ for _cm in CASTLES.values():
             f"queenside king delta mismatch: {_delta} vs {-_KING_SHIFT}")
 
 
-def available_castles(board: chess.Board) -> list[CastleMove]:
+def available_castles(board: "chess.Board") -> list[CastleMove]:
     """Return the castles currently legal for the side to move.
 
     Uses board.is_legal() on the canonical UCI move for each candidate,
@@ -103,6 +123,7 @@ def available_castles(board: chess.Board) -> list[CastleMove]:
     occupy the from-square (e.g., a rook on e1 makes "e1c1" a legal
     rook move, which would otherwise be mistaken for a legal castle).
     """
+    import chess
     out: list[CastleMove] = []
     for (color, _side), castle in CASTLES.items():
         if board.turn != color:
@@ -134,8 +155,8 @@ def available_castles(board: chess.Board) -> list[CastleMove]:
     return out
 
 
-def castle_king_destinations(board: chess.Board,
-                             mover_color: chess.Color,
+def castle_king_destinations(board: "chess.Board",
+                             mover_color: bool,
                              ) -> frozenset[tuple[int, int]]:
     """Additional king destinations contributed by P_castle.
 
