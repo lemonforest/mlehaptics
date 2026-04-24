@@ -46,19 +46,61 @@ int othello_spectral_encode_768(
     const int8_t state[64],
     double out[OTHELLO_SPECTRAL_ENCODING_DIM])
 {
-    /* STUB — validates input shape only and returns all-zero output.
-     * See TODO list in file header. */
     if (state == NULL || out == NULL) {
         return -1;
     }
+
+    /* Validate input and cast to double.  The encoder operates on
+     * float64 throughout; state values must be in {-1, 0, +1}. */
+    double sig[64];
+    double occ[64];
     for (size_t i = 0; i < 64; ++i) {
         int8_t v = state[i];
         if (v != -1 && v != 0 && v != 1) {
-            return -2;  /* state out of {-1, 0, +1} */
+            return -2;
+        }
+        sig[i] = (double)v;
+        occ[i] = sig[i] * sig[i];
+    }
+
+    /* Zero the output block. */
+    memset(out, 0, sizeof(double) * OTHELLO_SPECTRAL_ENCODING_DIM);
+
+    /* Channels 0..4: five D4xZ2 '-' irreps applied to magnetisation.
+     * Channels 5..9: five D4   irreps applied to occupation s^2.
+     * Both are stored in PROJECTORS[10][64][64] in encoder-channel
+     * order.  For each channel, the output block is PROJ @ signal. */
+    for (size_t ch = 0; ch < 10; ++ch) {
+        const double *signal = (ch < 5) ? sig : occ;
+        double *block = &out[ch * 64];
+        for (size_t i = 0; i < 64; ++i) {
+            double s = 0.0;
+            for (size_t j = 0; j < 64; ++j) {
+                s += OTHELLO_SPECTRAL_PROJECTORS[ch][i][j] * signal[j];
+            }
+            block[i] = s;
         }
     }
-    memset(out, 0, sizeof(double) * OTHELLO_SPECTRAL_ENCODING_DIM);
-    return 1;  /* NOT IMPLEMENTED; return nonzero so callers notice */
+
+    /* Channel 10: L_ortho @ sig. */
+    for (size_t i = 0; i < 64; ++i) {
+        double s = 0.0;
+        for (size_t j = 0; j < 64; ++j) {
+            s += OTHELLO_SPECTRAL_L_ORTHO[i][j] * sig[j];
+        }
+        out[640 + i] = s;
+    }
+
+    /* Channel 11: L_diag @ sig. */
+    for (size_t i = 0; i < 64; ++i) {
+        double s = 0.0;
+        for (size_t j = 0; j < 64; ++j) {
+            s += OTHELLO_SPECTRAL_L_DIAG[i][j] * sig[j];
+        }
+        out[704 + i] = s;
+    }
+
+    return 0;
 }
 
 int othello_spectral_channel_energies(

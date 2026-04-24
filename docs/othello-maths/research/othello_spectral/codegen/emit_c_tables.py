@@ -66,14 +66,12 @@ def _format_matrix_double(
             f"block_dim {block_dim} implies {expected}"
         )
     dim_list = "".join(f"[{d}]" for d in block_dim)
-    out = [f"static const double {name}{dim_list} = {{"]
-    # Emit one inner-most-dim row per line, 4 values per line for
-    # readability at 17 sig figs.
-    inner = block_dim[-1]
-    total = flat.size
-    i = 0
-    # For nested array we need balanced braces.  Emit block by block
-    # using a recursive helper.
+    # Declaration sets up the assignment; emit_block generates the
+    # full brace tree including outermost braces.  This keeps the
+    # brace count == len(block_dim) and matches what the C
+    # initializer grammar expects for a multi-dim array.
+    out = [f"static const double {name}{dim_list} ="]
+
     def emit_block(shape, offset: int, indent: int) -> tuple[list[str], int]:
         lines: list[str] = []
         ind = "    " * indent
@@ -81,7 +79,9 @@ def _format_matrix_double(
             vals = flat[offset: offset + shape[0]]
             chunks = []
             for k in range(0, shape[0], 4):
-                chunk = ", ".join(_DOUBLE_FMT.format(v) for v in vals[k:k + 4])
+                chunk = ", ".join(
+                    _DOUBLE_FMT.format(v) for v in vals[k:k + 4]
+                )
                 chunks.append(chunk)
             joined = (",\n" + ind + "    ").join(chunks)
             lines.append(f"{ind}{{ {joined} }}")
@@ -89,8 +89,9 @@ def _format_matrix_double(
         lines.append(f"{ind}{{")
         new_off = offset
         for i in range(shape[0]):
-            sub_lines, new_off = emit_block(shape[1:], new_off, indent + 1)
-            # Append comma except on last
+            sub_lines, new_off = emit_block(
+                shape[1:], new_off, indent + 1
+            )
             tail = "," if i < shape[0] - 1 else ""
             joined = "\n".join(sub_lines)
             lines.append(joined + tail)
@@ -99,7 +100,7 @@ def _format_matrix_double(
 
     body, _ = emit_block(block_dim, 0, 0)
     out.extend(body)
-    out.append("};")
+    out[-1] = out[-1] + ";"  # terminate the declaration
     return "\n".join(out)
 
 
