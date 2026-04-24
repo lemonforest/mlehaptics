@@ -82,3 +82,7 @@ docs/othello-maths/edax*/
 # regenerate the big ones on demand via `othello_spectral.cli encode-pgn`).
 docs/othello-maths/results/all2025.spectralz
 docs/othello-maths/results/apr2026.spectralz
+
+# Generated C encoder table header (regenerate via
+# `python -m othello_spectral.codegen.emit_c_tables`).
+docs/othello-maths/research/othello_spectral/c_encoder/include/othello_spectral_tables.h
