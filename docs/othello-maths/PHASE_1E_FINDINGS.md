@@ -680,6 +680,52 @@ property** (14-disc configuration), not a general trajectory
 signature.  Trajectory-level A1/E structure is game-specific and
 differently-signed between chess and Othello.
 
+### 1e.7.5b — A1⁻ drift by phase at 2025 corpus scale
+
+Runner: [`research/phase1e_a1_drift_by_phase.py`](research/phase1e_a1_drift_by_phase.py).
+Output: [`results/phase1e_a1_drift_by_phase_2025.json`](results/phase1e_a1_drift_by_phase_2025.json).
+Corpus: 2178 games, 132 k pairs at Δ=1.  Walltime ~55 min.
+
+Barcelona (35 games) showed a messy picture — small N per bucket
+couldn't cleanly localise the `gain_vs_snap > 0` signature.  2025
+resolves it:
+
+  gain_vs_snap (crude sheaf → A1⁻ energy) at Δ=10, by phase:
+
+  phase               N_pairs   R²_pred   R²_snap   R²_pers  gain_snap
+  opening              17 403    +0.024    +0.084    +0.006   **−0.060**
+  early_midgame        17 374    +0.024    +0.086    +0.010   −0.062
+  late_midgame         21 661    +0.034    +0.050    +0.045   −0.016
+  endgame_entry        21 609    +0.039    +0.062    +0.090   −0.023
+  **deep_endgame**     32 308    +0.120    +0.074    +0.109   **+0.047**
+  terminal              2 173    +0.146    +0.390    +0.028   −0.244
+
+**The non-stationary sheaf signature is concentrated in deep
+endgame** (24–10 empties).  Opening/midgame have `gain_vs_snap < 0`
+(snapshot beats predictive — standard expectation).  Deep endgame
+reverses it.
+
+**Interpretation:** deep endgame is where the board is densely
+populated with latent bracket structures.  The sheaf at time t
+captures the full bracket network; by t + 10 many brackets have
+resolved (flipped into stable flanks or disappeared).  The
+"which brackets were pending at t" information is gone at t + Δ,
+leaving the snapshot sheaf's features only describing current
+state.
+
+Consistent with §1e.7.4's faithful-sheaf finding: H1 (trajectory
+memory) holds on the crude sheaf too, but only in the phase where
+bracket-structure dynamics dominate the A1⁻ signal.  At opening,
+A1⁻ is dominated by the initial 4-disc configuration's D₄×Z₂
+structure, which has no trajectory memory to encode.
+
+Terminal (N=2173) is a small-sample outlier; games that reach
+Δ+10 past terminal are a small self-selected subset.
+
+**This finding tightens §1e.5b's (+0.066) pooled 2025 result:**
+the effect is phase-localised, not diffuse.  Future predictive-
+sheaf work should segment analyses by n_empties.
+
 ### 1e.7.6 — C encoder body + engine dispatch
 
 Scripts: [`research/othello_spectral/c_encoder/src/othello_spectral.c`](research/othello_spectral/c_encoder/src/othello_spectral.c),
