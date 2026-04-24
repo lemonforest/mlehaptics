@@ -50,7 +50,8 @@ from othello_spectral import (  # noqa: E402
 )
 from othello_spectral.frame import Frame, write_file  # noqa: E402
 from othello_spectral.runtime import (  # noqa: E402
-    default_engine, encode_768_c_stream, find_c_binary, resolve_engine,
+    default_engine, encode_768_c_ctypes_batch, encode_768_c_stream,
+    find_c_binary, find_c_dll, resolve_engine,
 )
 
 
@@ -165,13 +166,28 @@ def cmd_encode_pgn(args) -> int:
         all_states.extend(states)
 
     t0 = time.time()
+    # When engine is 'c', prefer the ctypes DLL path if available
+    # (skip subprocess overhead).  Fall back to subprocess binary
+    # if only exe is present.
+    used_path = engine
     if engine == "c":
-        encs = encode_768_c_stream(all_states, c_binary)
+        dll = None
+        try:
+            dll = find_c_dll()
+        except FileNotFoundError:
+            dll = None
+        if dll is not None:
+            encs = encode_768_c_ctypes_batch(all_states)
+            used_path = f"c (ctypes: {dll.name})"
+        else:
+            encs = encode_768_c_stream(all_states, c_binary)
+            used_path = f"c (subprocess: {c_binary.name})"
     else:
         encs = [encode_768(st) for st in all_states]
+        used_path = "py"
     print(
         f"encoded {len(encs)} states in {time.time() - t0:.1f}s "
-        f"(engine={engine})"
+        f"(engine={used_path})"
     )
 
     # Reassemble frames with a monotone ply counter across games.

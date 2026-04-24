@@ -19,6 +19,7 @@ Public API
 
 from __future__ import annotations
 
+import ctypes
 import os
 import struct
 import subprocess
@@ -38,6 +39,91 @@ _DEFAULT_ENGINE_FROM_ENV = os.environ.get(
 def default_engine() -> str:
     """Return the default engine based on env var (or 'auto')."""
     return _DEFAULT_ENGINE_FROM_ENV
+
+
+def find_c_dll() -> Path | None:
+    """Locate the encoder shared library.
+
+    Search order:
+      1. OTHELLO_SPECTRAL_DLL env var (exact path)
+      2. c_encoder/othello_spectral.{dll,so,dylib} (relative to pkg)
+    """
+    env_override = os.environ.get("OTHELLO_SPECTRAL_DLL")
+    if env_override:
+        p = Path(env_override)
+        if p.is_file():
+            return p
+        raise FileNotFoundError(
+            f"OTHELLO_SPECTRAL_DLL={p!s} set but file does not exist"
+        )
+    base = Path(__file__).resolve().parent / "c_encoder"
+    for suffix in ("dll", "so", "dylib"):
+        p = base / f"othello_spectral.{suffix}"
+        if p.exists():
+            return p
+    return None
+
+
+_DLL_HANDLE = None
+_DLL_PATH: Path | None = None
+
+
+def _load_dll() -> tuple[ctypes.CDLL | None, Path | None]:
+    """Load the shared library once; cache the handle.  Returns
+    (handle, path) or (None, None) if the DLL is not present or
+    fails to load / declare signatures."""
+    global _DLL_HANDLE, _DLL_PATH
+    if _DLL_HANDLE is not None:
+        return _DLL_HANDLE, _DLL_PATH
+    try:
+        dll = find_c_dll()
+    except FileNotFoundError:
+        return None, None
+    if dll is None:
+        return None, None
+    try:
+        handle = ctypes.CDLL(str(dll))
+        handle.othello_spectral_encode_768.restype = ctypes.c_int
+        handle.othello_spectral_encode_768.argtypes = [
+            ctypes.POINTER(ctypes.c_int8),
+            ctypes.POINTER(ctypes.c_double),
+        ]
+    except (OSError, AttributeError) as exc:
+        print(
+            f"[othello_spectral.runtime] failed to load DLL {dll}: {exc}",
+        )
+        return None, None
+    _DLL_HANDLE = handle
+    _DLL_PATH = dll
+    return handle, dll
+
+
+def encode_768_c_ctypes(state) -> np.ndarray:
+    """Call encode_768 via ctypes.  Returns a float64 numpy array
+    (the C encoder returns float64 in memory; only frame.py
+    downcasts to float32)."""
+    handle, _ = _load_dll()
+    if handle is None:
+        raise RuntimeError(
+            "No C encoder DLL available.  Build with "
+            "`clang -shared` per c_encoder/README.md, or set "
+            "OTHELLO_SPECTRAL_DLL."
+        )
+    s = np.ascontiguousarray(
+        np.asarray(state, dtype=np.int8), dtype=np.int8,
+    )
+    if s.shape != (64,):
+        raise ValueError(
+            f"state must have shape (64,), got {s.shape}"
+        )
+    out = np.zeros(ENCODING_DIM, dtype=np.float64)
+    rc = handle.othello_spectral_encode_768(
+        s.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+        out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+    )
+    if rc != 0:
+        raise RuntimeError(f"encode_768 returned nonzero status {rc}")
+    return out
 
 
 def find_c_binary() -> Path | None:
@@ -214,6 +300,36 @@ def encode_768_c(state, binary: Path) -> np.ndarray:
         struct.unpack(f"<{ENCODING_DIM}f", proc.stdout), dtype=np.float32,
     )
     return arr.astype(np.float64)
+
+
+def encode_768_c_ctypes_batch(states) -> list[np.ndarray]:
+    """Batch-apply encode_768 via the DLL (one ctypes call per state,
+    no subprocess).  Returns a list of float64 arrays."""
+    handle, _ = _load_dll()
+    if handle is None:
+        raise RuntimeError(
+            "No C encoder DLL available.  Build per c_encoder/README.md."
+        )
+    out_list: list[np.ndarray] = []
+    for s in states:
+        arr = np.ascontiguousarray(
+            np.asarray(s, dtype=np.int8), dtype=np.int8,
+        )
+        if arr.shape != (64,):
+            raise ValueError(
+                f"state must have shape (64,), got {arr.shape}"
+            )
+        out = np.zeros(ENCODING_DIM, dtype=np.float64)
+        rc = handle.othello_spectral_encode_768(
+            arr.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        if rc != 0:
+            raise RuntimeError(
+                f"encode_768 returned nonzero status {rc}"
+            )
+        out_list.append(out)
+    return out_list
 
 
 def encode_768_c_stream(

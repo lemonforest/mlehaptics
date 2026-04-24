@@ -132,9 +132,31 @@ def test_c_py_parity_random_states() -> None:
         )
 
 
+def test_ctypes_dll_parity_if_present() -> None:
+    """If a DLL is built, verify encode_768_c_ctypes matches Python
+    at float64 precision across 8 random states."""
+    from othello_spectral.runtime import find_c_dll, encode_768_c_ctypes
+    try:
+        dll = find_c_dll()
+    except FileNotFoundError:
+        dll = None
+    if dll is None:
+        print("SKIP (DLL not built)")
+        return
+    for seed in (1, 2, 3, 7, 11, 17, 42, 100):
+        s = _random_state(seed)
+        py_f64 = np.asarray(encode_768(s), dtype=np.float64)
+        c_f64 = encode_768_c_ctypes(s)
+        assert np.array_equal(py_f64, c_f64), (
+            f"ctypes parity failure on seed {seed}: "
+            f"{int(np.sum(py_f64 != c_f64))} of {len(py_f64)} dims differ"
+        )
+
+
 ALL_TESTS = [
     test_c_py_parity_starting_position,
     test_c_py_parity_random_states,
+    test_ctypes_dll_parity_if_present,
 ]
 
 

@@ -90,3 +90,8 @@ docs/othello-maths/research/othello_spectral/c_encoder/include/othello_spectral_
 # Compiled C encoder (rebuild via clang invocation in c_encoder/README.md)
 docs/othello-maths/research/othello_spectral/c_encoder/encode_cli
 docs/othello-maths/research/othello_spectral/c_encoder/encode_cli.exe
+
+# Compiled C encoder DLL (rebuild via clang -shared per c_encoder/README.md)
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.dll
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.so
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.dylib

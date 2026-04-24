@@ -726,6 +726,103 @@ Terminal (N=2173) is a small-sample outlier; games that reach
 the effect is phase-localised, not diffuse.  Future predictive-
 sheaf work should segment analyses by n_empties.
 
+### 1e.7.7 — Simpson's paradox mechanism (chess vs Othello)
+
+Runner: [`research/phase1e_simpson_mechanism.py`](research/phase1e_simpson_mechanism.py).
+Output: [`results/phase1e_simpson_mechanism.json`](results/phase1e_simpson_mechanism.json).
+
+Law-of-total-covariance decomposition of pooled Pearson into
+within-game and between-game components:
+
+  corpus                                      pooled   within   between
+  chess/ashchess_N50                          +0.011   −0.117   **+0.667**
+  chess/drnykterstein_N10                     −0.201   −0.315   **+0.605**
+  chess/hf_N50                                +0.116   +0.022   **+0.663**
+  othello/Barcelona magn_A1⁻ × E⁻             +0.353   +0.386   **−0.431**
+  othello/2025 magn_A1⁻ × E⁻                  +0.330   +0.385   **−0.479**
+  othello/2025 occ_A1⁺ × E⁺                   −0.072   −0.051   **−0.592**
+
+**Clean mechanism:** the between-game component (correlation of
+per-game means of A1 and E) is **tightly +0.60 to +0.67 for all
+three chess corpora**.  Chess games with high mean A1 also have
+high mean E — game-to-game baseline variation co-varies strongly.
+Within any single chess game, A1 and E mildly anti-correlate
+(mean −0.15).  Pooled Pearson reflects both: near-zero, because
+the positive between and negative within partially cancel.
+
+**Othello magnetisation reverses the sign structure:** between-
+game is strongly NEGATIVE (−0.48 on 2025), within-game is
+strongly POSITIVE (+0.39).  Games whose mean A1⁻ is high tend to
+have low mean E⁻ — **opposite direction from chess**.  Pooled is
+positive because the within-game positive is the larger
+contribution here.
+
+**Othello occupation:** both within and between are negative
+(weak −0.05 and strong −0.59).  Pooled weakly negative because
+within-game variance dominates the occupation signal.
+
+The chess "mirror" that §1e.7.5 identified at per-game median
+(−0.18 to −0.58) reflects the within-game component with
+medium-range noise.  The between-game +0.67 is the larger
+statistical effect when pooling.
+
+### 1e.7.8 — T4 log-transform robust variant
+
+Runner: [`research/phase1e_t4_logtransform.py`](research/phase1e_t4_logtransform.py).
+Output: [`results/phase1e_t4_logtransform_*.json`](results/).
+
+Three variants compared on Barcelona:
+
+  variant     slope_all median       slope_hi_r2 median    IQR (hi_r2)
+  raw         −14 726                −22 188                [−34 803, −14 008]
+  **log_E**   **−4.33**              **−6.04**              [−8.48, −4.28]
+  log_both    −3.40                  −4.85                  [−6.70, −3.37]
+
+`log_E` (regress log(E_tot) on S_eff) compresses the raw slope's
+heavy tail while preserving the negative sign.  Interpretation:
+a unit increase in Shannon entropy corresponds to a factor of
+exp(−6.04) ≈ 0.002 change in total spectral energy (high-r² wins).
+
+`log_both` (log-log / elasticity): a 1 % change in S_eff
+corresponds to a −4.85 % change in E_tot.  Same sign, similar
+magnitude.  Either log variant is a dramatically more stable
+estimator than the raw slope, without changing the qualitative
+conclusion (negative T_eff).
+
+### 1e.7.9 — C encoder ctypes path
+
+Scripts: [`research/othello_spectral/runtime.py`](research/othello_spectral/runtime.py)
+gains `find_c_dll()`, `_load_dll()`, `encode_768_c_ctypes()`,
+`encode_768_c_ctypes_batch()`.
+
+The subprocess-based C path was 7.6 s on APR 2026 (25 k states)
+vs Python's 2.7 s — the stdio round-trip dominated single-threaded
+encoding.
+
+Building `othello_spectral.dll` and calling via `ctypes` bypasses
+the subprocess entirely.  Benchmarks:
+
+  path                    encode time (25k states)    wall total
+  python                  3.0 s                        18.4 s
+  c (ctypes DLL)          3.1 s                        17.8 s
+  c (subprocess exe)      7.6 s                        21.7 s
+
+`ctypes` is 2.5× faster than the subprocess path and matches
+Python on this corpus.  Bit-identical .spectralz body SHA
+matches between py and ctypes (`dd8f68cc20c2f65a` on APR 2026).
+Parity verified at float64 precision on 8 random states via
+`tests/test_c_py_parity.py::test_ctypes_dll_parity_if_present`.
+
+CLI engine dispatch prefers ctypes when the DLL is present and
+falls back to the subprocess binary when only the exe is built.
+Both paths respect the VERSION string match + smoke test in
+`auto` mode.
+
+Build: `clang -std=c17 -O2 -shared -I c_encoder/include
+c_encoder/src/othello_spectral.c -o c_encoder/othello_spectral.dll`.
+Windows exports are gated by `__declspec(dllexport)` in
+`othello_spectral.h` (via the `OTHELLO_API` macro).
+
 ### 1e.7.6 — C encoder body + engine dispatch
 
 Scripts: [`research/othello_spectral/c_encoder/src/othello_spectral.c`](research/othello_spectral/c_encoder/src/othello_spectral.c),

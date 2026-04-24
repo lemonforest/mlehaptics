@@ -18,6 +18,21 @@
 
 #include "othello_spectral_tables.h"
 
+/* Export annotation for Windows DLL builds.  On non-Windows or
+ * static builds the macro is a no-op.  clang on Windows builds a
+ * DLL when -shared is passed; in that case we must explicitly
+ * tag the public symbols as exported, otherwise they are not in
+ * the DLL's export table and ctypes can't find them. */
+#if defined(_WIN32)
+#  if defined(OTHELLO_SPECTRAL_STATIC)
+#    define OTHELLO_API
+#  else
+#    define OTHELLO_API __declspec(dllexport)
+#  endif
+#else
+#  define OTHELLO_API __attribute__((visibility("default")))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,13 +69,13 @@ extern const char *const othello_spectral_version;
  * invariant.  See tests/test_c_py_parity (to be added) for the
  * fixture-based regression.
  */
-int othello_spectral_encode_768(
+OTHELLO_API int othello_spectral_encode_768(
     const int8_t state[64],
     double out[OTHELLO_SPECTRAL_ENCODING_DIM]);
 
 /* Compute per-channel squared-norm energies (||channel_block||^2).
  * Caller allocates ``out`` with n_channels entries in encoder order. */
-int othello_spectral_channel_energies(
+OTHELLO_API int othello_spectral_channel_energies(
     const double enc[OTHELLO_SPECTRAL_ENCODING_DIM],
     double out[OTHELLO_SPECTRAL_N_CHANNELS]);
 
