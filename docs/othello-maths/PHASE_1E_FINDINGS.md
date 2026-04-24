@@ -514,23 +514,228 @@ misleading as a between-group comparison.  Within-phase
 decomposition is the cleaner analysis.  The static-50-empty results
 (§2d / §1e.1) are unaffected because they are single-phase.
 
-## Open items / sequel work
-2. **1e.5 multivariate predictive gain on richer targets.**  Random
-   play makes ρ/empties trivially persistent.  A better trajectory
-   target is the A₁⁻ or D₄-A₁(s²) energy Δ moves into the future
-   (which is NOT monotone) — that would make persistence weaker and
-   give the sheaf features more to predict.  Also: re-run on a
-   tournament-play corpus (Barcelona) instead of random play.
-3. **Chess-side A₁/E pair check.**  The Othello D₄-A₁(s²) vs
-   D₄-E(s²) correlation is the Plancherel-mirror result.  Chess's
-   analogous pair was not yet computed at time of §2d.e; the
-   corpus-scale Stockfish re-correlation batch in flight should
-   produce the chess A₁ vs E cross-channel Pearson.
-4. **Harden h9_strict_runner against filename collision.**  It
-   hardcodes `phase1d_*` output names; re-running with a different
-   archive summary overwrites §2d.b originals if pointed at the
-   shared results dir.  An `--out-prefix` flag would prevent this
-   footgun.
+## 1e.7 — Open item follow-ups (Z holonomy, T4 T_eff, T5 chains, faithful-sheaf gain, chess A1/E, engine dispatch)
+
+Seven open items closed in a single session (commits `0f7a74f` …
+`345a50e` …`0ace888`), plus the encoder engine-dispatch wiring.
+
+### 1e.7.1 — §2.H5 holonomy characterisation at corpus scale
+
+Runner: [`research/phase1e_holonomy_plaquettes.py`](research/phase1e_holonomy_plaquettes.py).
+Output: [`results/phase1e_holonomy_plaquettes.{csv,json}`](results/).
+
+Enumerated **1192 loops** across 7 shape families (unit plaquettes,
+2×2 and 3×3 squares, m×1 / 1×m bars, corner triangles, long-jump
+rectangles).  Clean structural rule:
+
+  **Z₂ holonomy exists iff the loop is a long-jump W×1 rectangle
+  with W ≥ 3** (105/105 such loops non-trivial).
+
+All other 1087 loops are trivial (cos = +1).  The §2.H5 hand-picked
+loop (rectangle (0,0)-(0,3)-(1,3)-(1,0)-(0,0), i.e. one of the 35
+lj_rect_3x1 instances) is one example of this class.  The effect
+is **path-orientation-dependent, not homotopy-invariant**:
+lj_rect_1x3 (transpose) is trivial.  Connection form's curvature
+concentrates on horizontal long-jumps of width ≥ 3.
+
+### 1e.7.2 — T4 (T_eff, D_eff) thermodynamic trajectory
+
+Runner: [`research/phase1e_t4_thermodynamic_trajectory.py`](research/phase1e_t4_thermodynamic_trajectory.py).
+Robust variant: [`research/phase1e_t4_robust.py`](research/phase1e_t4_robust.py).
+Outputs: [`results/phase1e_t4_thermodynamic_*.json`](results/), [`results/phase1e_t4_robust_*.json`](results/).
+
+Per-ply T_eff = dE_tot / dS_eff where E_tot = ||enc||² and
+S_eff = Shannon entropy of the 12-channel energy distribution:
+
+  Barcelona (N=2184 plies, finite-diff): T_eff median = −11 k
+  WC 2005    (N=1418 plies, finite-diff): T_eff median = −12 k
+  Barcelona (windowed OLS, window=8, r²≥0.3): T_eff median = −22 k,
+                                               IQR [−35 k, −14 k]
+
+Negative T_eff is **robust across both 20-year-apart corpora and
+both estimation methods**.  Reading: spectral-energy ANTI-correlates
+with Shannon entropy over the channel distribution — as total
+energy grows (disc count rises), channel distribution concentrates
+(fewer effective channels carry the norm).  Structurally
+consistent with the A₁/E Plancherel-budget story (§2d.c).
+
+Mean/outliers are heavy-tailed (|dS|→0 outliers dominate); median
+is the honest summary.
+
+### 1e.7.3 — T5 FK-BC flank-cluster size distribution
+
+Runner: [`research/phase1e_t5_cluster_distribution.py`](research/phase1e_t5_cluster_distribution.py).
+Output: [`results/phase1e_t5_cluster_distribution.json`](results/).
+
+Extracts maximal same-colour chain lengths (≥ 2) along every ray
+from every ply; fits exponential vs power-law.
+
+  corpus                        N chains    mean  max   tau   lambda  preferred
+  Barcelona_EGP_2026            141 584     2.94  8     2.67   0.72   exponential
+  World_Championships_2005       93 950     2.86  8     2.73   0.77   exponential
+  liveothello-2026-APR        1 646 532     2.95  8     2.67   0.72   exponential
+  liveothello_2025_all        8 754 052     2.94  8     2.68   0.73   exponential
+
+**All 4 corpora prefer exponential** by ΔAIC of 3 k–221 k.
+§10.10 T5's critical FK-BC power-law is rejected.  Remarkable
+cross-corpus stability (mean 2.86–2.95, tau 2.67–2.73) across 20
+years.  Echoes T1's per-move flip-count result (also exponential).
+
+### 1e.7.4 — Faithful sheaf restriction maps + predictive validation
+
+Runners: [`research/faithful_sheaf.py`](research/faithful_sheaf.py),
+[`research/phase1e_predictive_sheaf_faithful.py`](research/phase1e_predictive_sheaf_faithful.py),
+[`research/phase1e_faithful_gain_investigation.py`](research/phase1e_faithful_gain_investigation.py).
+
+Replaces the endpoint-only crude restriction maps with bracket-
+aware ones.  Edges only exist across active flanks (R2 stable
+or R3 pending); restriction maps have α = 1.0 (pending) or
+α = 0.5 (stable).  Breaks §3.4's constant-128 kernel dim
+artifact: faithful kernel varies **141–188** with state on the
+seed=123 trajectory.  λ₂ differs from crude by mean +0.29.
+
+Predictive-sheaf re-run on Barcelona (see §1e.5) now with faithful
+restrictions.  `gain_vs_snap > 0` is **ubiquitous**:
+
+  target                    Δ=10 gain_vs_snap
+  d4_e_occupation_energy       +0.086
+  rho / empty_count            +0.060
+  d4_a1_occupation_energy      +0.050
+  a1_minus_energy              +0.028
+
+**Investigation of the gain signature** (Probe 1–3 in
+phase1e_faithful_gain_investigation.py):
+
+  1. Δ sweep: gain_vs_snap GROWS monotonically with Δ on
+     persistence-saturated targets (rho 0.045 @ Δ=7 → 0.104 @ Δ=20).
+
+  2. Train/test split (17/18 games): out-of-sample gain is LARGER
+     than in-sample for every target:
+
+       target                    OOS gain_vs_snap
+       a1_minus_energy              +0.244  (in-sample +0.028)
+       d4_e_occupation              +0.105  (in-sample +0.086)
+       rho                          +0.105  (in-sample +0.060)
+
+     **Rules out overfit / survivorship (H2).**
+
+  3. Per-feature ablation: EVERY feature has delta_gain < 0
+     (removing any one feature makes predictive lose less than
+     snapshot).  No single feature drives the gain; it's a **joint
+     feature decorrelation** effect.
+
+**Mechanistic reading (H1, confirmed):**  at time t, the 8 faithful-
+sheaf features encode diverse trajectory-relevant info — λ₂
+(connectivity), entropy (spectral spread), kernel_dim (bracket-
+graph sparsity), λ_max (largest mode).  These features are more
+INDEPENDENT at t, so the multivariate regression picks up unique
+predictive content per feature.  At time t + Δ, the same features
+collapse onto "current state summary" — they become redundant with
+each other, and with features of the target.  Hence predictive
+regression at t outperforms snapshot regression at t + Δ.
+
+**This is a non-trivial signature of temporal structure in the
+faithful sheaf.**  The crude sheaf's constant kernel dim (§3.4)
+hid it; the faithful sheaf's position-dependent kernel dim exposes
+it.
+
+### 1e.7.5 — Chess A1/E pair check + Simpson's paradox
+
+Runners: [`research/phase1e_chess_a1_e_pair.py`](research/phase1e_chess_a1_e_pair.py),
+[`research/phase1e_chess_a1_e_bootstrap.py`](research/phase1e_chess_a1_e_bootstrap.py),
+[`research/phase1e_othello_a1_e_per_game.py`](research/phase1e_othello_a1_e_per_game.py).
+Outputs: [`results/phase1e_chess_a1_e_{pair,bootstrap}.json`](results/),
+[`results/phase1e_othello_a1_e_per_game.json`](results/).
+
+Chess pooled Pearson(E_A1, E_E) = +0.0414 (p = 2e-5) on N=10 729
+plies across 3 corpora.  Looks like the Othello -0.834 mirror is
+Othello-specific.  **But per-game analysis reveals Simpson's paradox:**
+
+  chess corpus                   pooled     per-game median
+  ashchess_N50                   +0.011          -0.178
+  drnykterstein_N10              -0.201          -0.582
+  hf_N50                         +0.116          -0.171
+
+Chess DOES have within-game anticorrelation (A1/E mirror).  It's
+hidden by between-game variation when pooled.  Bootstrap: drnykterstein
+sits at 3.3rd percentile of ashchess 10-game resamples — unusual
+but within the 95 % null.
+
+**Othello per-game (N = 2177 games, 2025 corpus):**
+
+  pair                       per-game median     pooled
+  magn_A1⁻ vs magn_E⁻         **+0.481**          +0.330
+  occ_A1⁺  vs occ_E⁺           −0.046            −0.072
+  magn_A1⁻ vs magn_B2⁻         +0.310
+  occ_A1⁺  vs occ_B2⁺          +0.093
+  fiber_ortho_s vs fiber_diag_s +0.799
+
+**Chess and Othello have OPPOSITE-signed per-game A1/E structure.**
+Chess (piece-value signal) is −0.18 to −0.58 median (anti-correlation).
+Othello magnetisation (Z₂-odd) is **+0.48** median (co-correlation).
+Othello occupation (Z₂-even) is weakly negative (−0.05).
+
+The Othello 50-empty static −0.834 is a **phase-specific structural
+property** (14-disc configuration), not a general trajectory
+signature.  Trajectory-level A1/E structure is game-specific and
+differently-signed between chess and Othello.
+
+### 1e.7.6 — C encoder body + engine dispatch
+
+Scripts: [`research/othello_spectral/c_encoder/src/othello_spectral.c`](research/othello_spectral/c_encoder/src/othello_spectral.c),
+[`research/othello_spectral/runtime.py`](research/othello_spectral/runtime.py).
+
+  - ANSI C17 encoder body filled in, bit-identical to Python at
+    float32 precision on 9 test states (starting + 8 random seeds).
+  - Codegen brace-count bug fixed: emit_c_tables was generating one
+    extra brace level; clang silently truncated each row to its
+    first value (all-zero channels).  After fix, clang -Wall
+    builds with zero warnings.
+  - Engine dispatch: `--engine {py, c, auto}` on the `encode-pgn`
+    CLI; env vars `OTHELLO_SPECTRAL_BIN` (path), `OTHELLO_SPECTRAL_ENGINE`
+    (default mode).  `auto` mode **verifies** the C binary (version
+    string + byte-identical starting-position encoding) before
+    selection; silent fallback to py on verification failure.
+  - End-to-end parity: Barcelona 35-game corpus encoded via py and
+    c gives byte-identical .spectralz bodies (SHA256 match on all
+    2184 frames).
+
+Perf note: Python 2.7 s vs C 7.6 s on 25 k state encodes (APR
+2026).  C subprocess stdio round-trip dominates single-threaded
+encoding; C would win with direct memory sharing or multi-worker
+orchestration.  Filed as perf improvement for a later revision.
+
+## Revised open items / sequel work
+
+1. **1e.5 multivariate predictive gain on richer targets.**  See
+   1e.7.4 — this is substantially closed.
+2. **Chess-side A₁/E pair check.**  See 1e.7.5 — CLOSED.
+3. **Harden h9_strict_runner against filename collision.** Fixed —
+   `--out-prefix` flag landed in commit `fd6246e`.
+4. **A1-drift on 2025 corpus** (queued, running as of this write).
+   Barcelona result (§1e.5b's A1⁻ drift signature decomposed by
+   phase bucket, 2099 plies, N=35 games) was statistically thin.
+   2025 rerun at N=2178 games promises meaningful per-bucket
+   effect sizes.
+5. **T4 outlier robustification** — windowed variant
+   (phase1e_t4_robust.py) now lands median −22 k with IQR
+   [−35 k, −14 k].  Still heavy-tailed if windows are too short;
+   worth a log-transform follow-up.
+6. **Faithful sheaf gain investigation on 2025 corpus** — §1e.7.4's
+   Barcelona result is qualitatively consistent with §1e.5b's 2025
+   result; a 2025 rerun of the OOS probe would confirm the
+   joint-feature-decorrelation interpretation at statistical power
+   1–2 orders of magnitude higher.
+7. **C encoder batch perf.**  Current subprocess pipe is
+   single-threaded and stdio-bound.  Shared-memory or direct-PGN
+   ingest in the C layer would make the C path actually faster than
+   Python for large corpora.
+8. **Chess Simpson's paradox mechanism.**  Why are chess games'
+   A1/E per-game correlations tightly negative (−0.18 to −0.58
+   median) while pooling flattens them?  Likely between-game
+   baseline variation (game-to-game shifts in mean A1 and mean E)
+   dominates within-game anticorrelation.  Worth factoring with a
+   mixed-effects model.
 
 ## Files
 
@@ -542,6 +747,25 @@ Scripts added (this phase):
 - [phase2_predictive_sheaf.py](research/phase2_predictive_sheaf.py)
 - [phase1e_signflip_decomposition.py](research/phase1e_signflip_decomposition.py)
 - [phase1e_predictive_sheaf_pgn.py](research/phase1e_predictive_sheaf_pgn.py)
+- [phase1e_holonomy_plaquettes.py](research/phase1e_holonomy_plaquettes.py) (Open-4)
+- [phase1e_a1_drift_by_phase.py](research/phase1e_a1_drift_by_phase.py) (Open-1)
+- [phase1e_t5_cluster_distribution.py](research/phase1e_t5_cluster_distribution.py) (Open-3)
+- [phase1e_predictive_sheaf_faithful.py](research/phase1e_predictive_sheaf_faithful.py) (Open-5)
+- [phase1e_faithful_gain_investigation.py](research/phase1e_faithful_gain_investigation.py) (iii MAIN EVENT)
+- [faithful_sheaf.py](research/faithful_sheaf.py)
+- [phase1e_t4_thermodynamic_trajectory.py](research/phase1e_t4_thermodynamic_trajectory.py) (Open-2)
+- [phase1e_t4_robust.py](research/phase1e_t4_robust.py) (ii)
+- [phase1e_chess_a1_e_pair.py](research/phase1e_chess_a1_e_pair.py) (Open-7)
+- [phase1e_chess_a1_e_bootstrap.py](research/phase1e_chess_a1_e_bootstrap.py) (iv)
+- [phase1e_othello_a1_e_per_game.py](research/phase1e_othello_a1_e_per_game.py) (iv+)
+- [phase1e_replay_from_features.py](research/phase1e_replay_from_features.py)
+- [phase1e_flipcount_distribution.py](research/phase1e_flipcount_distribution.py) (T1)
+- [phase1e_wthor_scale_retest.py](research/phase1e_wthor_scale_retest.py) (1c.3 retest)
+
+Encoder package:
+- [othello_spectral/](research/othello_spectral/) — v0.2.0 with
+  py/c/auto engine dispatch, bit-identical C17 reference encoder
+  (Open-6 + engine wiring)
 
 Result files (1e.5b, 1e.6):
 - [phase1e_signflip_decomposition.json](results/phase1e_signflip_decomposition.json)
