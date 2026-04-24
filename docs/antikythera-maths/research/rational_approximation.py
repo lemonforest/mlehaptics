@@ -83,10 +83,18 @@ def rank_in_convergents(x: float, p: int, q: int,
     return None
 
 
-def semi_convergents(cf: List[int]) -> List[Tuple[int, int]]:
+def semi_convergents(cf: List[int],
+                     budget: Optional[int] = None) -> List[Tuple[int, int]]:
     """Semi-convergents — include intermediate (a_k' for a_k' < a_k)
     approximations.  These are the "best rationals" in the Stern-Brocot
     sense.
+
+    If ``budget`` is provided, the inner enumeration over i ∈ [1, a_k]
+    stops as soon as max(p, q) exceeds the budget — without this guard,
+    a CF term ``a`` near 10^12 (which arises near machine-precision
+    convergents of irrational ratios) would attempt to allocate ~10^12
+    pairs and OOM.  Callers that filter by budget after the fact MUST
+    pass the budget here.
     """
     if not cf:
         return []
@@ -97,9 +105,14 @@ def semi_convergents(cf: List[int]) -> List[Tuple[int, int]]:
         for i in range(1, a + 1):
             p = i * p_prev1 + p_prev2
             q = i * q_prev1 + q_prev2
+            if budget is not None and max(p, q) > budget:
+                break
             out.append((p, q))
         p_prev2, p_prev1 = p_prev1, p_prev1 * a + p_prev2
         q_prev2, q_prev1 = q_prev1, q_prev1 * a + q_prev2
+        # Once the recurrence itself exceeds budget, no further iteration helps.
+        if budget is not None and max(p_prev1, q_prev1) > budget:
+            break
     return out
 
 
@@ -129,7 +142,7 @@ def best_rational_under_budget(x: float, budget: int,
     |x - p/q|.  Uses semi-convergents; O(max_terms) with tiny const.
     """
     cf = continued_fraction(x, max_terms=max_terms)
-    sc = semi_convergents(cf)
+    sc = semi_convergents(cf, budget=budget)
     best: Optional[Tuple[int, int]] = None
     best_err = float("inf")
     for p, q in sc:

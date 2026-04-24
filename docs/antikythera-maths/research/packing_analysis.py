@@ -169,12 +169,15 @@ def cycle_cf_ranks(budget: int = 500, max_terms: int = 40) -> List[Dict]:
         if c.denominator == 0:
             continue
         mech_ratio = c.numerator / c.denominator
-        # The modern "true" ratio is harder: for calendrical cycles,
-        # it's modern_days_in_den / modern_days_per_unit_num.  We use
-        # the residual as the accuracy measure and the CF rank for
-        # structural goodness.
-        true_ratio = (c.modern_days / c.denominator) / (c.mechanism_days / c.numerator)
-        true_ratio *= mech_ratio
+        # The astronomical "true" ratio in the same units the mechanism
+        # encodes: numerator-units per denominator-unit.  E.g. for Metonic
+        # this is (modern synodic months per modern tropical year), which
+        # the mechanism approximates as 235/19.
+        true_ratio = (c.mechanism_days / c.numerator)  # days per numerator unit
+        # Now divide modern_days_per_denominator_unit by that:
+        if true_ratio == 0:
+            continue
+        true_ratio = (c.modern_days / c.denominator) / true_ratio
         cf = continued_fraction(true_ratio, max_terms=max_terms)
         cvs = convergents(cf)
         # Where does (p, q) = (numerator, denominator) fit?
