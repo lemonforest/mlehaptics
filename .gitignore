@@ -76,3 +76,31 @@ docs/chess-maths/results/*_logs/
 docs/chess-maths/results/delta_sigma_*/
 docs/chess-maths/results/*/
 docs/othello-maths/edax*/
+
+# Large .spectralz binaries that exceed GitHub file-size limits
+# (keep smaller corpora like barcelona.spectralz, wc2005.spectralz;
+# regenerate the big ones on demand via `othello_spectral.cli encode-pgn`).
+docs/othello-maths/results/all2025.spectralz
+docs/othello-maths/results/apr2026.spectralz
+
+# Generated C encoder table header (regenerate via
+# `python -m othello_spectral.codegen.emit_c_tables`).
+docs/othello-maths/research/othello_spectral/c_encoder/include/othello_spectral_tables.h
+
+# Compiled C encoder (rebuild via clang invocation in c_encoder/README.md)
+docs/othello-maths/research/othello_spectral/c_encoder/encode_cli
+docs/othello-maths/research/othello_spectral/c_encoder/encode_cli.exe
+
+# Compiled C encoder DLL (rebuild via clang -shared per c_encoder/README.md)
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.dll
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.so
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.dylib
+
+# Windows import library from clang -shared (alongside .dll)
+docs/othello-maths/research/othello_spectral/c_encoder/othello_spectral.lib
+
+# Process stdout logs from background runs (regenerate by rerunning)
+docs/othello-maths/results/*_log.txt
+
+# Windows import lib from encode_cli.exe build
+docs/othello-maths/research/othello_spectral/c_encoder/encode_cli.lib

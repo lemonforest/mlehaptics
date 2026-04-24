@@ -45,7 +45,9 @@ What we observe at each move
 
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -204,11 +206,50 @@ def sample_game_trajectory(seed: int = 123) -> list[dict]:
     return out
 
 
-def main() -> None:
-    traj = sample_game_trajectory()
-    results_dir = Path(__file__).resolve().parent.parent / "results"
-    results_dir.mkdir(parents=True, exist_ok=True)
-    out_path = results_dir / "phase2_sheaf_trajectory.json"
+def _build_parser():
+    default_results = Path(__file__).resolve().parent.parent / "results"
+    p = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  # Default: one random-play trajectory seeded 123, write
+  # ../results/phase2_sheaf_trajectory.json.
+  python research/dynamic_sheaf.py
+
+  # Different seed.
+  python research/dynamic_sheaf.py --seed 42
+
+  # Custom output path.
+  python research/dynamic_sheaf.py --out /tmp/sheaf_seed42.json \\
+      --seed 42
+
+reading the output:
+  Per-ply dicts with sheaf spectral summaries (lambda_2, lambda_max,
+  kernel_dim, entropy) for both black- and white-owner sheaves, plus
+  game state (rho, legal-move count, disc counts).  §3 of the
+  notebook discusses the per-move interpretation; §1e.5 extends
+  this to multi-seed predictive testing.
+""",
+    )
+    p.add_argument(
+        "--seed", type=int, default=123,
+        help="Random-play RNG seed.  Default: 123 (the §3 published "
+             "trajectory).",
+    )
+    p.add_argument(
+        "--out", type=Path,
+        default=default_results / "phase2_sheaf_trajectory.json",
+        help="Output JSON path.  Default: "
+             "../results/phase2_sheaf_trajectory.json.",
+    )
+    return p
+
+
+def main(argv=None) -> int:
+    args = _build_parser().parse_args(argv)
+    traj = sample_game_trajectory(seed=args.seed)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    out_path = args.out
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(traj, f, indent=2)
 
@@ -247,7 +288,8 @@ def main() -> None:
         f"(p={sp_lm_lam2.pvalue:.1e})"
     )
     print(f"\nwrote {out_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

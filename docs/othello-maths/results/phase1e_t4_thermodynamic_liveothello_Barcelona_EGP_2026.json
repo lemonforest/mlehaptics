@@ -1,0 +1,713 @@
+{
+  "pgn": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+  "n_games_replayed": 35,
+  "n_games_with_T_eff": 35,
+  "n_plies_total": 2184,
+  "T_eff_corpus": {
+    "mean": 69636.50548363428,
+    "std": 2833890.3828009423,
+    "median": -10985.827005155052
+  },
+  "per_game": [
+    {
+      "game": 0,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Tastet Marc",
+        "final_score": "37-27"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -42407.93436757608,
+      "T_eff_median": -15863.960884122544,
+      "T_eff_std": 117480.39035287514,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5679946653092024,
+        0.8196984676656967
+      ]
+    },
+    {
+      "game": 1,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Berg Matthias",
+        "final_score": "29-35"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -38960.65629711468,
+      "T_eff_median": -16582.818810296514,
+      "T_eff_std": 113381.05195209454,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8544682742466683
+      ]
+    },
+    {
+      "game": 2,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Saiz Ruben",
+        "final_score": "39-25"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -12278.511273896951,
+      "T_eff_median": -9814.286513469895,
+      "T_eff_std": 34218.23838341892,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8929325573341336
+      ]
+    },
+    {
+      "game": 3,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Tastet R\u00e9mi",
+        "final_score": "35-29"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -19199.451065872276,
+      "T_eff_median": -5116.91189558668,
+      "T_eff_std": 90076.53590998083,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8215392884492951
+      ]
+    },
+    {
+      "game": 4,
+      "headers": {
+        "black": "Saiz Ruben",
+        "white": "Kashiwabara Takuji",
+        "final_score": "31-33"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -18411.586141931744,
+      "T_eff_median": -7756.970900631262,
+      "T_eff_std": 51297.169982384,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.9155804537808978
+      ]
+    },
+    {
+      "game": 5,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Salvo Michele",
+        "final_score": "49-15"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -20738.172347259988,
+      "T_eff_median": -15032.67663167861,
+      "T_eff_std": 69730.99006360307,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8537969403797963
+      ]
+    },
+    {
+      "game": 6,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Martinez Oscar",
+        "final_score": "53-11"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 16710.76408071502,
+      "T_eff_median": -13453.114253443679,
+      "T_eff_std": 206713.73280945406,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8701883691766199
+      ]
+    },
+    {
+      "game": 7,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Leader Imre",
+        "final_score": "24-40"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -33126.50253318028,
+      "T_eff_median": -16393.18774838887,
+      "T_eff_std": 115459.37179728526,
+      "D_eff_range": [
+        0.0625,
+        0.984375
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8168817758212155
+      ]
+    },
+    {
+      "game": 8,
+      "headers": {
+        "black": "Boe Alexander",
+        "white": "Hobo Roel",
+        "final_score": "16-48"
+      },
+      "n_plies": 64,
+      "T_eff_mean": -3356.5149762824285,
+      "T_eff_median": -18776.766142395638,
+      "T_eff_std": 636023.6364504285,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8359369407879723
+      ]
+    },
+    {
+      "game": 9,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Kashiwabara Takuji",
+        "final_score": "38-26"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -22125.583653224472,
+      "T_eff_median": -14557.3970498899,
+      "T_eff_std": 69174.21146079457,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.856499545603842
+      ]
+    },
+    {
+      "game": 10,
+      "headers": {
+        "black": "Andriani Bintsa",
+        "white": "Berg Matthias",
+        "final_score": "16-48"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 2410733.339343226,
+      "T_eff_median": -12817.150905924966,
+      "T_eff_std": 16395948.843801826,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8356927461508643
+      ]
+    },
+    {
+      "game": 11,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Berg Matthias",
+        "final_score": "25-39"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 58891.22752338117,
+      "T_eff_median": -12365.47020230996,
+      "T_eff_std": 729866.0438828634,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8567484568489921
+      ]
+    },
+    {
+      "game": 12,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Hobo Roel",
+        "final_score": "42-22"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -7553.491097066157,
+      "T_eff_median": -12933.766336227865,
+      "T_eff_std": 88416.90398718124,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8467995340030596
+      ]
+    },
+    {
+      "game": 13,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Hobo Roel",
+        "final_score": "21-43"
+      },
+      "n_plies": 63,
+      "T_eff_mean": -11085.437713164212,
+      "T_eff_median": -10423.395766728114,
+      "T_eff_std": 120174.46188075037,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8191529931745958
+      ]
+    },
+    {
+      "game": 14,
+      "headers": {
+        "black": "Leader Imre",
+        "white": "Kashiwabara Takuji",
+        "final_score": "22-42"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -24720.135764974886,
+      "T_eff_median": -5606.241809749532,
+      "T_eff_std": 151482.11009702506,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.922390361222727
+      ]
+    },
+    {
+      "game": 15,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Leader Imre",
+        "final_score": "30-34"
+      },
+      "n_plies": 63,
+      "T_eff_mean": -16660.218599689306,
+      "T_eff_median": -11194.293836711688,
+      "T_eff_std": 93160.5459091794,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8325708741088115
+      ]
+    },
+    {
+      "game": 16,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Berg Matthias",
+        "final_score": "23-41"
+      },
+      "n_plies": 61,
+      "T_eff_mean": 251035.01620128116,
+      "T_eff_median": -8427.64408533118,
+      "T_eff_std": 1845373.7556473885,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8311396832708038
+      ]
+    },
+    {
+      "game": 17,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Affatigato Carlo",
+        "final_score": "44-20"
+      },
+      "n_plies": 61,
+      "T_eff_mean": 33336.25083264988,
+      "T_eff_median": -8474.048538927429,
+      "T_eff_std": 350249.52186708763,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5949569612264527,
+        0.8989499379022441
+      ]
+    },
+    {
+      "game": 18,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Affatigato Carlo",
+        "final_score": "39-25"
+      },
+      "n_plies": 64,
+      "T_eff_mean": 54313.36217344738,
+      "T_eff_median": -14187.666702569117,
+      "T_eff_std": 593496.7419162771,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8301506684332358
+      ]
+    },
+    {
+      "game": 19,
+      "headers": {
+        "black": "Saiz Ruben",
+        "white": "Hobo Roel",
+        "final_score": "41-23"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -9947.816169527945,
+      "T_eff_median": -10693.65488772767,
+      "T_eff_std": 528034.0470039413,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8654223548103503
+      ]
+    },
+    {
+      "game": 20,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Kashiwabara Takuji",
+        "final_score": "40-24"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -32327.237683000236,
+      "T_eff_median": -10471.899378876202,
+      "T_eff_std": 294390.4681792588,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8710919317525421
+      ]
+    },
+    {
+      "game": 21,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Andriani Bintsa",
+        "final_score": "51-13"
+      },
+      "n_plies": 64,
+      "T_eff_mean": -26519.334465300184,
+      "T_eff_median": -10705.660543214055,
+      "T_eff_std": 143590.03166749363,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8674359910121296
+      ]
+    },
+    {
+      "game": 22,
+      "headers": {
+        "black": "Ramirez Sergio",
+        "white": "Berg Matthias",
+        "final_score": "28-36"
+      },
+      "n_plies": 61,
+      "T_eff_mean": 20675.248824942206,
+      "T_eff_median": -5656.728639778899,
+      "T_eff_std": 259643.6502674597,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8265761105314917
+      ]
+    },
+    {
+      "game": 23,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Polonski Maciej",
+        "final_score": "46-18"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 50956.41491038312,
+      "T_eff_median": -3729.1681100741284,
+      "T_eff_std": 257691.78389578694,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8982796281980991
+      ]
+    },
+    {
+      "game": 24,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Boe Alexander",
+        "final_score": "18-46"
+      },
+      "n_plies": 63,
+      "T_eff_mean": -33795.00090331495,
+      "T_eff_median": -13796.28834033617,
+      "T_eff_std": 88966.56409286695,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8102204815361427
+      ]
+    },
+    {
+      "game": 25,
+      "headers": {
+        "black": "Martinez Oscar",
+        "white": "Hobo Roel",
+        "final_score": "12-52"
+      },
+      "n_plies": 65,
+      "T_eff_mean": -41973.06696952172,
+      "T_eff_median": -13041.605378417422,
+      "T_eff_std": 222660.82792507103,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8448322857663937
+      ]
+    },
+    {
+      "game": 26,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Saiz Ruben",
+        "final_score": "48-16"
+      },
+      "n_plies": 64,
+      "T_eff_mean": -43342.350695661655,
+      "T_eff_median": -9010.503776770842,
+      "T_eff_std": 172848.18829884919,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8440781972364068
+      ]
+    },
+    {
+      "game": 27,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Ramirez Sergio",
+        "final_score": "54-10"
+      },
+      "n_plies": 64,
+      "T_eff_mean": -12694.952745094903,
+      "T_eff_median": -15547.576455378043,
+      "T_eff_std": 60320.44755282913,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8637313682956601
+      ]
+    },
+    {
+      "game": 28,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Salvo Michele",
+        "final_score": "29-35"
+      },
+      "n_plies": 63,
+      "T_eff_mean": 3492.835384037375,
+      "T_eff_median": -6901.465060543425,
+      "T_eff_std": 70453.04307007663,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8471904100745898
+      ]
+    },
+    {
+      "game": 29,
+      "headers": {
+        "black": "Boe Alexander",
+        "white": "Berg Matthias",
+        "final_score": "20-44"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -23020.243951517732,
+      "T_eff_median": -13981.417891579826,
+      "T_eff_std": 87470.61058685294,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8402836868794619
+      ]
+    },
+    {
+      "game": 30,
+      "headers": {
+        "black": "Polonski Maciej",
+        "white": "Kashiwabara Takuji",
+        "final_score": "12-52"
+      },
+      "n_plies": 65,
+      "T_eff_mean": 3671.6909462541557,
+      "T_eff_median": -14464.918013882812,
+      "T_eff_std": 136169.46042031824,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8786379608587598
+      ]
+    },
+    {
+      "game": 31,
+      "headers": {
+        "black": "Tastet R\u00e9mi",
+        "white": "Berg Matthias",
+        "final_score": "17-47"
+      },
+      "n_plies": 63,
+      "T_eff_mean": -29425.056324549907,
+      "T_eff_median": -19125.511517028877,
+      "T_eff_std": 137533.79954764302,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8542079347315477
+      ]
+    },
+    {
+      "game": 32,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Boe Alexander",
+        "final_score": "51-13"
+      },
+      "n_plies": 64,
+      "T_eff_mean": -6844.296422997327,
+      "T_eff_median": -13145.580351366174,
+      "T_eff_std": 86612.78777101659,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8659319342485351
+      ]
+    },
+    {
+      "game": 33,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Andriani Bintsa",
+        "final_score": "59-5"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -35449.01459021211,
+      "T_eff_median": -4747.754672380496,
+      "T_eff_std": 309745.76521517686,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8798641727301602
+      ]
+    },
+    {
+      "game": 34,
+      "headers": {
+        "black": "Affatigato Carlo",
+        "white": "Ramirez Sergio",
+        "final_score": "50-14"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 97711.39165853374,
+      "T_eff_median": -10308.698625342367,
+      "T_eff_std": 799766.0452377169,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8476014973126544
+      ]
+    }
+  ]
+}

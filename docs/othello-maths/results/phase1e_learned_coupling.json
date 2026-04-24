@@ -1,0 +1,45 @@
+{
+  "tasklist": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\reversi_scripts\\empty50_tasklist_edax_knowledge.csv",
+  "best_m_coefficients": [
+    -0.015590540697203545,
+    0.0007243851326123141,
+    0.00032758963585177465,
+    -0.009110584687249375,
+    0.25567896834783627,
+    -0.2831106288252409,
+    0.027212495510565066,
+    -0.025968293824083454
+  ],
+  "feature_order": [
+    "lambda2_B",
+    "lambda2_W",
+    "lambdamax_B",
+    "lambdamax_W",
+    "entropy_B",
+    "entropy_W",
+    "kerdim_B",
+    "kerdim_W"
+  ],
+  "train": {
+    "pearson_r": -0.7622583254167359,
+    "spearman_rho": -0.7036234927084389,
+    "partial_rho": -0.6363864864537567,
+    "n": 1941
+  },
+  "val": {
+    "pearson_r": -0.7777182801990388,
+    "spearman_rho": -0.7370817890364673,
+    "partial_rho": -0.6830941691101233,
+    "n": 646
+  },
+  "overall": {
+    "pearson_r": -0.7662645034719376,
+    "spearman_rho": -0.7116981603833057,
+    "partial_rho": -0.6483554345271109,
+    "n": 2587
+  },
+  "baseline_identity": {
+    "train_pearson": -0.6472875842640737,
+    "val_pearson": -0.6658482814212365
+  }
+}

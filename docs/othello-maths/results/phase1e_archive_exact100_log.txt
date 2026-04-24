@@ -1,0 +1,56 @@
+archive: N:\NORMSTOR\knowledge_archive
+processing 2587 knowledge files
+applying accuracy filter: keep rows with accuracy >= 100
+  [50/2587] 155.4s elapsed, 0.32 files/s
+  [100/2587] 358.9s elapsed, 0.28 files/s
+  [150/2587] 485.0s elapsed, 0.31 files/s
+  [200/2587] 684.1s elapsed, 0.29 files/s
+  [250/2587] 805.8s elapsed, 0.31 files/s
+  [300/2587] 938.9s elapsed, 0.32 files/s
+  [350/2587] 1035.6s elapsed, 0.34 files/s
+  [400/2587] 1124.0s elapsed, 0.36 files/s
+  [450/2587] 1257.9s elapsed, 0.36 files/s
+  [500/2587] 1335.2s elapsed, 0.37 files/s
+  [550/2587] 1456.4s elapsed, 0.38 files/s
+  [600/2587] 1604.8s elapsed, 0.37 files/s
+  [650/2587] 1732.5s elapsed, 0.38 files/s
+  [700/2587] 1830.3s elapsed, 0.38 files/s
+  [750/2587] 1968.9s elapsed, 0.38 files/s
+  [800/2587] 2058.6s elapsed, 0.39 files/s
+  [850/2587] 2150.3s elapsed, 0.40 files/s
+  [900/2587] 2227.1s elapsed, 0.40 files/s
+  [950/2587] 2331.3s elapsed, 0.41 files/s
+  [1000/2587] 2432.2s elapsed, 0.41 files/s
+  [1050/2587] 2540.5s elapsed, 0.41 files/s
+  [1100/2587] 2655.2s elapsed, 0.41 files/s
+  [1150/2587] 2778.8s elapsed, 0.41 files/s
+  [1200/2587] 2894.5s elapsed, 0.41 files/s
+  [1250/2587] 3030.1s elapsed, 0.41 files/s
+  [1300/2587] 3093.7s elapsed, 0.42 files/s
+  [1350/2587] 3196.9s elapsed, 0.42 files/s
+  [1400/2587] 3306.4s elapsed, 0.42 files/s
+  [1450/2587] 3406.7s elapsed, 0.43 files/s
+  [1500/2587] 3509.5s elapsed, 0.43 files/s
+  [1550/2587] 3611.4s elapsed, 0.43 files/s
+  [1600/2587] 3660.7s elapsed, 0.44 files/s
+  [1650/2587] 3707.9s elapsed, 0.44 files/s
+  [1700/2587] 3810.5s elapsed, 0.45 files/s
+  [1750/2587] 3946.6s elapsed, 0.44 files/s
+  [1800/2587] 4027.3s elapsed, 0.45 files/s
+  [1850/2587] 4067.8s elapsed, 0.45 files/s
+  [1900/2587] 4131.8s elapsed, 0.46 files/s
+  [1950/2587] 4227.4s elapsed, 0.46 files/s
+  [2000/2587] 4257.7s elapsed, 0.47 files/s
+  [2050/2587] 4292.8s elapsed, 0.48 files/s
+  [2100/2587] 4392.8s elapsed, 0.48 files/s
+  [2150/2587] 4493.7s elapsed, 0.48 files/s
+  [2200/2587] 4576.7s elapsed, 0.48 files/s
+  [2250/2587] 4647.7s elapsed, 0.48 files/s
+  [2300/2587] 4692.1s elapsed, 0.49 files/s
+  [2350/2587] 4738.0s elapsed, 0.50 files/s
+  [2400/2587] 4757.8s elapsed, 0.50 files/s
+  [2450/2587] 4852.5s elapsed, 0.50 files/s
+  [2500/2587] 4883.3s elapsed, 0.51 files/s
+  [2550/2587] 4923.5s elapsed, 0.52 files/s
+  [2587/2587] 4958.6s elapsed, 0.52 files/s
+wrote ..\results\phase1d_archive_summary_exact100.csv  (4958.6s)

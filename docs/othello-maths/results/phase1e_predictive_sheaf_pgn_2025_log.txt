@@ -1,0 +1,190 @@
+corpus: ..\dataset\liveothello_2025_all.pgn (tag=liveothello_2025_all)
+deltas: [1, 3, 5, 10]
+sampling seed: 42  n_games cap: None
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+[othello_pgn_loader] ignoring token '*' in line: '*'
+  [20/2178] elapsed 34s rate 0.59 g/s eta 60.9 min
+  [40/2178] elapsed 71s rate 0.57 g/s eta 63.0 min
+  [60/2178] elapsed 105s rate 0.57 g/s eta 62.0 min
+  [80/2178] elapsed 140s rate 0.57 g/s eta 61.4 min
+  [100/2178] elapsed 175s rate 0.57 g/s eta 60.6 min
+  [120/2178] elapsed 214s rate 0.56 g/s eta 61.2 min
+  [140/2178] elapsed 250s rate 0.56 g/s eta 60.6 min
+  [160/2178] elapsed 285s rate 0.56 g/s eta 59.9 min
+  [180/2178] elapsed 330s rate 0.54 g/s eta 61.1 min
+  [200/2178] elapsed 363s rate 0.55 g/s eta 59.8 min
+  [220/2178] elapsed 395s rate 0.56 g/s eta 58.6 min
+  [240/2178] elapsed 424s rate 0.57 g/s eta 57.0 min
+  [260/2178] elapsed 453s rate 0.57 g/s eta 55.7 min
+  [280/2178] elapsed 484s rate 0.58 g/s eta 54.6 min
+  [300/2178] elapsed 512s rate 0.59 g/s eta 53.4 min
+  [320/2178] elapsed 540s rate 0.59 g/s eta 52.3 min
+  [340/2178] elapsed 567s rate 0.60 g/s eta 51.1 min
+  [360/2178] elapsed 595s rate 0.61 g/s eta 50.1 min
+  [380/2178] elapsed 622s rate 0.61 g/s eta 49.0 min
+  [400/2178] elapsed 648s rate 0.62 g/s eta 48.0 min
+  [420/2178] elapsed 675s rate 0.62 g/s eta 47.1 min
+  [440/2178] elapsed 701s rate 0.63 g/s eta 46.1 min
+  [460/2178] elapsed 729s rate 0.63 g/s eta 45.4 min
+  [480/2178] elapsed 757s rate 0.63 g/s eta 44.6 min
+  [500/2178] elapsed 784s rate 0.64 g/s eta 43.9 min
+  [520/2178] elapsed 812s rate 0.64 g/s eta 43.1 min
+  [540/2178] elapsed 840s rate 0.64 g/s eta 42.5 min
+  [560/2178] elapsed 868s rate 0.64 g/s eta 41.8 min
+  [580/2178] elapsed 896s rate 0.65 g/s eta 41.2 min
+  [600/2178] elapsed 924s rate 0.65 g/s eta 40.5 min
+  [620/2178] elapsed 951s rate 0.65 g/s eta 39.8 min
+  [640/2178] elapsed 978s rate 0.65 g/s eta 39.2 min
+  [660/2178] elapsed 1008s rate 0.66 g/s eta 38.6 min
+  [680/2178] elapsed 1035s rate 0.66 g/s eta 38.0 min
+  [700/2178] elapsed 1064s rate 0.66 g/s eta 37.4 min
+  [720/2178] elapsed 1099s rate 0.66 g/s eta 37.1 min
+  [740/2178] elapsed 1144s rate 0.65 g/s eta 37.0 min
+  [760/2178] elapsed 1181s rate 0.64 g/s eta 36.7 min
+  [780/2178] elapsed 1217s rate 0.64 g/s eta 36.4 min
+  [800/2178] elapsed 1243s rate 0.64 g/s eta 35.7 min
+  [820/2178] elapsed 1265s rate 0.65 g/s eta 34.9 min
+  [840/2178] elapsed 1287s rate 0.65 g/s eta 34.2 min
+  [860/2178] elapsed 1310s rate 0.66 g/s eta 33.5 min
+  [880/2178] elapsed 1333s rate 0.66 g/s eta 32.8 min
+  [900/2178] elapsed 1355s rate 0.66 g/s eta 32.1 min
+  [920/2178] elapsed 1377s rate 0.67 g/s eta 31.4 min
+  [940/2178] elapsed 1399s rate 0.67 g/s eta 30.7 min
+  [960/2178] elapsed 1422s rate 0.67 g/s eta 30.1 min
+  [980/2178] elapsed 1445s rate 0.68 g/s eta 29.4 min
+  [1000/2178] elapsed 1467s rate 0.68 g/s eta 28.8 min
+  [1020/2178] elapsed 1489s rate 0.69 g/s eta 28.2 min
+  [1040/2178] elapsed 1512s rate 0.69 g/s eta 27.6 min
+  [1060/2178] elapsed 1534s rate 0.69 g/s eta 27.0 min
+  [1080/2178] elapsed 1556s rate 0.69 g/s eta 26.4 min
+  [1100/2178] elapsed 1578s rate 0.70 g/s eta 25.8 min
+  [1120/2178] elapsed 1598s rate 0.70 g/s eta 25.2 min
+  [1140/2178] elapsed 1619s rate 0.70 g/s eta 24.6 min
+  [1160/2178] elapsed 1641s rate 0.71 g/s eta 24.0 min
+  [1180/2178] elapsed 1662s rate 0.71 g/s eta 23.4 min
+  [1200/2178] elapsed 1685s rate 0.71 g/s eta 22.9 min
+  [1220/2178] elapsed 1708s rate 0.71 g/s eta 22.3 min
+  [1240/2178] elapsed 1730s rate 0.72 g/s eta 21.8 min
+  [1260/2178] elapsed 1752s rate 0.72 g/s eta 21.3 min
+  [1280/2178] elapsed 1773s rate 0.72 g/s eta 20.7 min
+  [1300/2178] elapsed 1796s rate 0.72 g/s eta 20.2 min
+  [1320/2178] elapsed 1817s rate 0.73 g/s eta 19.7 min
+  [1340/2178] elapsed 1840s rate 0.73 g/s eta 19.2 min
+  [1360/2178] elapsed 1862s rate 0.73 g/s eta 18.7 min
+  [1380/2178] elapsed 1884s rate 0.73 g/s eta 18.2 min
+  [1400/2178] elapsed 1908s rate 0.73 g/s eta 17.7 min
+  [1420/2178] elapsed 1930s rate 0.74 g/s eta 17.2 min
+  [1440/2178] elapsed 1953s rate 0.74 g/s eta 16.7 min
+  [1460/2178] elapsed 1977s rate 0.74 g/s eta 16.2 min
+  [1480/2178] elapsed 2003s rate 0.74 g/s eta 15.7 min
+  [1500/2178] elapsed 2028s rate 0.74 g/s eta 15.3 min
+  [1520/2178] elapsed 2056s rate 0.74 g/s eta 14.8 min
+  [1540/2178] elapsed 2080s rate 0.74 g/s eta 14.4 min
+  [1560/2178] elapsed 2104s rate 0.74 g/s eta 13.9 min
+  [1580/2178] elapsed 2127s rate 0.74 g/s eta 13.4 min
+  [1600/2178] elapsed 2150s rate 0.74 g/s eta 12.9 min
+  [1620/2178] elapsed 2173s rate 0.75 g/s eta 12.5 min
+  [1640/2178] elapsed 2194s rate 0.75 g/s eta 12.0 min
+  [1660/2178] elapsed 2215s rate 0.75 g/s eta 11.5 min
+  [1680/2178] elapsed 2237s rate 0.75 g/s eta 11.0 min
+  [1700/2178] elapsed 2258s rate 0.75 g/s eta 10.6 min
+  [1720/2178] elapsed 2279s rate 0.75 g/s eta 10.1 min
+  [1740/2178] elapsed 2312s rate 0.75 g/s eta 9.7 min
+  [1760/2178] elapsed 2364s rate 0.74 g/s eta 9.4 min
+  [1780/2178] elapsed 2401s rate 0.74 g/s eta 8.9 min
+  [1800/2178] elapsed 2441s rate 0.74 g/s eta 8.5 min
+  [1820/2178] elapsed 2477s rate 0.73 g/s eta 8.1 min
+  [1840/2178] elapsed 2514s rate 0.73 g/s eta 7.7 min
+  [1860/2178] elapsed 2555s rate 0.73 g/s eta 7.3 min
+  [1880/2178] elapsed 2588s rate 0.73 g/s eta 6.8 min
+  [1900/2178] elapsed 2641s rate 0.72 g/s eta 6.4 min
+  [1920/2178] elapsed 2681s rate 0.72 g/s eta 6.0 min
+  [1940/2178] elapsed 2708s rate 0.72 g/s eta 5.5 min
+  [1960/2178] elapsed 2733s rate 0.72 g/s eta 5.1 min
+  [1980/2178] elapsed 2761s rate 0.72 g/s eta 4.6 min
+  [2000/2178] elapsed 2786s rate 0.72 g/s eta 4.1 min
+  [2020/2178] elapsed 2815s rate 0.72 g/s eta 3.7 min
+  [2040/2178] elapsed 2841s rate 0.72 g/s eta 3.2 min
+  [2060/2178] elapsed 2871s rate 0.72 g/s eta 2.7 min
+  [2080/2178] elapsed 2896s rate 0.72 g/s eta 2.3 min
+  [2100/2178] elapsed 2925s rate 0.72 g/s eta 1.8 min
+  [2120/2178] elapsed 2951s rate 0.72 g/s eta 1.3 min
+  [2140/2178] elapsed 2977s rate 0.72 g/s eta 0.9 min
+  [2160/2178] elapsed 3007s rate 0.72 g/s eta 0.4 min
+  [2178/2178] elapsed 3031s rate 0.72 g/s eta 0.0 min
+replayed 2178 games in 3031.2s; mean traj length 61.7
+
+delta=1: 132128 pairs
+  a1_minus_energy               R2_pred=+0.4430  R2_snap=+0.4307  R2_pers=+0.7885  gain_pers=-0.3455  gain_snap=+0.0123
+  d4_a1_occupation_energy       R2_pred=+0.9624  R2_snap=+0.9588  R2_pers=+0.9991  gain_pers=-0.0367  gain_snap=+0.0036
+  d4_e_occupation_energy        R2_pred=+0.1148  R2_snap=+0.0984  R2_pers=+0.9457  gain_pers=-0.8309  gain_snap=+0.0165
+  n_legal_moves                 R2_pred=+0.5586  R2_snap=+0.5741  R2_pers=+0.2428  gain_pers=+0.3158  gain_snap=-0.0154
+  rho                           R2_pred=+0.9759  R2_snap=+0.9719  R2_pers=+0.9999  gain_pers=-0.0240  gain_snap=+0.0040
+  empty_count                   R2_pred=+0.9759  R2_snap=+0.9719  R2_pers=+0.9999  gain_pers=-0.0240  gain_snap=+0.0040
+
+delta=3: 127772 pairs
+  a1_minus_energy               R2_pred=+0.4418  R2_snap=+0.4122  R2_pers=+0.5971  gain_pers=-0.1552  gain_snap=+0.0296
+  d4_a1_occupation_energy       R2_pred=+0.9640  R2_snap=+0.9559  R2_pers=+0.9967  gain_pers=-0.0328  gain_snap=+0.0081
+  d4_e_occupation_energy        R2_pred=+0.1115  R2_snap=+0.0629  R2_pers=+0.7735  gain_pers=-0.6619  gain_snap=+0.0486
+  n_legal_moves                 R2_pred=+0.5654  R2_snap=+0.5747  R2_pers=+0.1873  gain_pers=+0.3781  gain_snap=-0.0093
+  rho                           R2_pred=+0.9785  R2_snap=+0.9690  R2_pers=+0.9998  gain_pers=-0.0212  gain_snap=+0.0095
+  empty_count                   R2_pred=+0.9785  R2_snap=+0.9690  R2_pers=+0.9998  gain_pers=-0.0212  gain_snap=+0.0095
+
+delta=5: 123416 pairs
+  a1_minus_energy               R2_pred=+0.4377  R2_snap=+0.3935  R2_pers=+0.4670  gain_pers=-0.0293  gain_snap=+0.0442
+  d4_a1_occupation_energy       R2_pred=+0.9633  R2_snap=+0.9524  R2_pers=+0.9938  gain_pers=-0.0305  gain_snap=+0.0109
+  d4_e_occupation_energy        R2_pred=+0.1219  R2_snap=+0.0503  R2_pers=+0.5798  gain_pers=-0.4579  gain_snap=+0.0717
+  n_legal_moves                 R2_pred=+0.5801  R2_snap=+0.5916  R2_pers=+0.1255  gain_pers=+0.4546  gain_snap=-0.0115
+  rho                           R2_pred=+0.9795  R2_snap=+0.9657  R2_pers=+0.9995  gain_pers=-0.0200  gain_snap=+0.0137
+  empty_count                   R2_pred=+0.9795  R2_snap=+0.9657  R2_pers=+0.9995  gain_pers=-0.0200  gain_snap=+0.0137
+
+delta=10: 112528 pairs
+  a1_minus_energy               R2_pred=+0.4182  R2_snap=+0.3519  R2_pers=+0.3207  gain_pers=+0.0975  gain_snap=+0.0663
+  d4_a1_occupation_energy       R2_pred=+0.9599  R2_snap=+0.9419  R2_pers=+0.9851  gain_pers=-0.0252  gain_snap=+0.0179
+  d4_e_occupation_energy        R2_pred=+0.1702  R2_snap=+0.0960  R2_pers=+0.1768  gain_pers=-0.0066  gain_snap=+0.0742
+  n_legal_moves                 R2_pred=+0.6239  R2_snap=+0.6306  R2_pers=+0.2142  gain_pers=+0.4096  gain_snap=-0.0067
+  rho                           R2_pred=+0.9794  R2_snap=+0.9569  R2_pers=+0.9987  gain_pers=-0.0193  gain_snap=+0.0225
+  empty_count                   R2_pred=+0.9794  R2_snap=+0.9569  R2_pers=+0.9987  gain_pers=-0.0193  gain_snap=+0.0225
+
+wrote C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\othello-maths\results\phase1e_predictive_sheaf_pgn_liveothello_2025_all.json
