@@ -2,9 +2,12 @@
 
 Subcommands
 -----------
-  encode-pgn PGN [--out PATH] [--metadata STR]
+  encode-pgn PGN [--out PATH] [--metadata STR] [--engine E]
+             [--fiber F] [--replay-engine R]
       Encode every ply of every game in a PGN corpus to a
       .spectralz binary file (float32 frames, little-endian).
+      v0.3.2+: replay uses SheafMoveOperator by default (2.5x
+      end-to-end speedup over OthelloBoard; byte-identical output).
 
   encode-obf OBF [--out PATH]
       Encode a single OBF string and print the 12 channel energies
@@ -12,23 +15,44 @@ Subcommands
       single-frame file).
 
   channels
-      Print the 12 channel names in encoder order.
+      Print the 12 channel names + 64-dim slice addresses.
 
   version
-      Print the encoder VERSION string.
+      Print the encoder VERSION, encoding dim, and channel count.
 
-Usage
------
+  engine [--engine py|c|auto]
+      Diagnose which encoder engine would be selected without
+      running an encode.  Respects $OTHELLO_SPECTRAL_ENGINE,
+      $OTHELLO_SPECTRAL_BIN, and $OTHELLO_SPECTRAL_DLL.
+
+Environment variables
+---------------------
+  $OTHELLO_SPECTRAL_ENGINE  -- default engine: py / c / auto
+  $OTHELLO_SPECTRAL_BIN     -- path to encode_cli.exe (subprocess fallback)
+  $OTHELLO_SPECTRAL_DLL     -- path to othello_spectral.dll (ctypes fast path)
+
+Examples
+--------
     cd docs/othello-maths/research
+
+    # Full corpus encode (defaults: C engine, sheaf fiber, sheaf replay)
     python -m othello_spectral.cli encode-pgn \\
         ../dataset/liveothello-2026-APR.pgn \\
         --out ../results/apr_2026.spectralz
 
+    # Force the legacy OthelloBoard replay path for audit
+    python -m othello_spectral.cli encode-pgn \\
+        ../dataset/liveothello-2026-APR.pgn \\
+        --replay-engine othelloboard
+
+    # Single-position channel energies
     python -m othello_spectral.cli encode-obf \\
         '---------------------------OX------XO--------------------------- X;'
 
+    # Introspection subcommands
     python -m othello_spectral.cli channels
     python -m othello_spectral.cli version
+    python -m othello_spectral.cli engine --engine auto
 """
 
 from __future__ import annotations
@@ -249,20 +273,48 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    pver = sub.add_parser("version", help="Print encoder VERSION")
+    pver = sub.add_parser(
+        "version",
+        help="Print encoder VERSION + dim + channel count",
+        description="Print the current encoder VERSION (semver), the "
+                    "encoding dimension (768 at v0.3.x), and the "
+                    "number of channels (12).  Useful for smoke-check "
+                    "that the installed package matches the corpus "
+                    "you're about to re-encode.",
+    )
     pver.set_defaults(func=cmd_version)
 
-    pchan = sub.add_parser("channels", help="List channel layout")
+    pchan = sub.add_parser(
+        "channels",
+        help="List the 12 channel names + dim ranges",
+        description="Dump the full channel layout (index, 64-dim slice, "
+                    "name).  Channels 0-4: D4-Z2 '-' irreps on the "
+                    "magnetisation field s.  Channels 5-9: D4 irreps "
+                    "on the occupation field s^2.  Channels 10-11: "
+                    "sheaf-pending fiber (black / white) under "
+                    "fiber_mode='sheaf' (default, v0.3.0+).",
+    )
     pchan.set_defaults(func=cmd_channels)
 
     pobf = sub.add_parser(
         "encode-obf",
         help="Encode a single OBF position and print channel energies",
+        description="Encode one OBF-format board string to a 768-dim "
+                    "vector and print the 12 per-channel squared norms. "
+                    "OBF = 64 cells of {-, X, O} + space + side-to-move "
+                    "(X/O) + ';'.  Example: "
+                    "'---------------------------OX------XO----"
+                    "---------------------- X;' is the starting "
+                    "position with black to move.  The encoder "
+                    "operates on the world-frame signal so side-to-"
+                    "move is not part of the encoding.",
     )
-    pobf.add_argument("obf", help="OBF position string")
+    pobf.add_argument("obf", help="OBF position string (66 chars)")
     pobf.add_argument(
         "--out", type=str, default=None,
-        help="Optional .spectralz output path (single-frame).",
+        help="Optional .spectralz output path.  Writes a single-frame "
+             "file (header + one 768-dim float32 vector) at the given "
+             "path, suitable for downstream spectralz analysis tooling.",
     )
     pobf.set_defaults(func=cmd_encode_obf)
 
@@ -323,11 +375,23 @@ def _build_parser() -> argparse.ArgumentParser:
     # selected under the current environment + CLI overrides.
     peng = sub.add_parser(
         "engine",
-        help="Print the resolved encoder engine (py / c) + C binary "
-             "path if any",
+        help="Diagnose which encoder engine would be selected now",
+        description="Resolve and print the encoder engine that "
+                    "encode-pgn / encode-obf would use under the "
+                    "current environment without running an encode. "
+                    "Shows the requested engine (from CLI or "
+                    "$OTHELLO_SPECTRAL_ENGINE), the resolved engine "
+                    "after version+smoke verification, the "
+                    "subprocess binary path ($OTHELLO_SPECTRAL_BIN), "
+                    "and the ctypes DLL path ($OTHELLO_SPECTRAL_DLL). "
+                    "Exit code 4 if 'c' was requested but no verified "
+                    "binary/DLL is available.",
     )
     peng.add_argument(
         "--engine", choices=["py", "c", "auto"], default=None,
+        help="Override the engine choice for this diagnostic run. "
+             "Same semantics as encode-pgn's --engine flag.  Omit "
+             "to use $OTHELLO_SPECTRAL_ENGINE (or 'auto' if unset).",
     )
 
     def cmd_engine(args):
