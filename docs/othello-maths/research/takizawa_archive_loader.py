@@ -72,14 +72,33 @@ def parent_obf_from_filename(path: Path) -> str | None:
     return m.group("obf") + " X;"
 
 
-def aggregate_parent(path: Path) -> dict:
+def aggregate_parent(
+    path: Path, min_accuracy: int | None = None
+) -> dict:
     """Stream one knowledge file; return aggregate stats over its
     child rows.
 
-    Uses running sums + a min-heap-free approach (mean / min / max
-    only), plus a reservoir of all lb / ub for median computation.
-    For large files (~200 MB) the reservoirs hold ~1-3M integers
-    each; acceptable RAM at a few hundred MB peak.
+    Parameters
+    ----------
+    path : Path
+        knowledge_<OBF>.csv file under the archive root.
+    min_accuracy : int | None
+        If given, only children with ``accuracy >= min_accuracy`` are
+        included in the aggregate.  Use ``100`` for exact-only
+        (Phase 1e.4).  ``None`` (default) keeps all accuracy levels
+        (Phase 1d.b behaviour).
+
+    Returns
+    -------
+    dict with counts, bounds aggregates, exact fraction, etc.  The
+    counts and aggregates reflect ONLY the retained children after
+    any --min-accuracy filter; ``exact_count`` is always the count of
+    accuracy==100 children among the retained set (so when
+    min_accuracy=100 it equals n).
+
+    Uses running sums plus a reservoir of all lb / ub for median
+    computation.  For large files (~200 MB) the reservoirs hold
+    ~1-3M integers each; acceptable RAM at a few hundred MB peak.
     """
     n = 0
     sum_lb = 0
@@ -87,6 +106,7 @@ def aggregate_parent(path: Path) -> dict:
     min_lb = 10_000
     max_ub = -10_000
     exact = 0
+    n_filtered_out = 0
     lbs: list[int] = []
     ubs: list[int] = []
     parse_errors = 0
@@ -99,6 +119,9 @@ def aggregate_parent(path: Path) -> dict:
                 continue
             # m.group(1) is the child OBF; we ignore it here.
             accuracy = int(m.group(3))
+            if min_accuracy is not None and accuracy < min_accuracy:
+                n_filtered_out += 1
+                continue
             score_lb = int(m.group(4))
             score_ub = int(m.group(5))
             n += 1
@@ -121,6 +144,7 @@ def aggregate_parent(path: Path) -> dict:
             "min_lb": None, "max_ub": None,
             "median_lb": None, "median_ub": None,
             "exact_count": 0, "exact_fraction": 0.0,
+            "n_filtered_out": n_filtered_out,
         }
     lbs.sort()
     ubs.sort()
@@ -138,6 +162,7 @@ def aggregate_parent(path: Path) -> dict:
         "median_ub": median_ub,
         "exact_count": exact,
         "exact_fraction": exact / n,
+        "n_filtered_out": n_filtered_out,
     }
 
 
@@ -192,6 +217,13 @@ reading the output:
              "filename).  Default: process all.",
     )
     parser.add_argument(
+        "--min-accuracy", type=int, default=None,
+        help="Only include children with accuracy >= this value in "
+             "the aggregate.  Common values: 100 (exact only), 99 "
+             "(exact or single-point-tolerated).  Default: no filter "
+             "(all children included, matches Phase 1d.b behaviour).",
+    )
+    parser.add_argument(
         "--quiet", action="store_true",
         help="Suppress per-file progress; only print the final summary.",
     )
@@ -219,23 +251,30 @@ def main(argv: list[str] | None = None) -> int:
         "mean_lb", "mean_ub", "min_lb", "max_ub",
         "median_lb", "median_ub",
         "exact_count", "exact_fraction", "parse_errors",
+        "n_filtered_out",
     ]
+    if args.min_accuracy is not None:
+        print(f"applying accuracy filter: keep rows with accuracy >= {args.min_accuracy}")
     with args.out.open("w", newline="", encoding="utf-8") as fout:
         writer = csv.DictWriter(fout, fieldnames=fieldnames)
         writer.writeheader()
         for i, path in enumerate(files, 1):
             parent_obf = parent_obf_from_filename(path)
-            stats = aggregate_parent(path)
+            stats = aggregate_parent(path, min_accuracy=args.min_accuracy)
             row = {"parent_obf": parent_obf, **{
                 k: stats.get(k) for k in fieldnames if k != "parent_obf"
             }}
             writer.writerow(row)
+            # Flush per-file so external monitors can observe progress
+            # and a crash mid-run preserves partial results.
+            fout.flush()
             if not args.quiet and (i % 50 == 0 or i == n):
                 elapsed = time.time() - t0
                 rate = i / max(elapsed, 1e-6)
                 print(
                     f"  [{i}/{n}] {elapsed:.1f}s elapsed, "
-                    f"{rate:.2f} files/s"
+                    f"{rate:.2f} files/s",
+                    flush=True,
                 )
     elapsed = time.time() - t0
     print(f"wrote {args.out}  ({elapsed:.1f}s)")
