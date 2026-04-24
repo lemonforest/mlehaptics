@@ -1,0 +1,27 @@
+{
+  "spectralz": "..\\results\\barcelona.spectralz",
+  "metadata": "othello_spectral v0.2.0 corpus=liveothello_Barcelona_EGP_2026.pgn games=35",
+  "n_games": 1,
+  "n_plies_total": 2184,
+  "T_eff_corpus": {
+    "mean": 69036.64394975961,
+    "std": 2811218.0869036475,
+    "median": -10616.749644237041
+  },
+  "per_game": [
+    {
+      "game": 0,
+      "n_plies": 2184,
+      "T_eff_mean": 69036.64394975961,
+      "T_eff_std": 2811218.0869036475,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5679946653092024,
+        0.922390361222727
+      ]
+    }
+  ]
+}

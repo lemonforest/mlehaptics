@@ -1,0 +1,138 @@
+{
+  "liveothello_Barcelona_EGP_2026": {
+    "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+    "n_games_replayed": 35,
+    "n_positions_scanned": 2184,
+    "n_chains": 141584,
+    "mean": 2.9429596564583567,
+    "std": 1.2813239391429607,
+    "max": 8,
+    "histogram": {
+      "2": 71858,
+      "3": 35482,
+      "4": 17694,
+      "5": 8336,
+      "6": 4776,
+      "7": 2102,
+      "8": 1336
+    },
+    "fit_exponential": {
+      "lambda": 0.7229441860347635,
+      "p_hat": 0.48532127433731254,
+      "mean": 2.9429596564583567,
+      "aic": 381123.3635440356,
+      "n": 141584
+    },
+    "fit_power_law": {
+      "tau": 2.670548405407855,
+      "n_min": 2,
+      "n_max_observed": 8,
+      "aic": 384609.9800706339,
+      "n": 141584
+    },
+    "preferred": "exponential",
+    "aic_diff_pl_minus_exp": 3486.6165265982854
+  },
+  "liveothello_World_Championships_2005": {
+    "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_World_Championships_2005.pgn",
+    "n_games_replayed": 23,
+    "n_positions_scanned": 1418,
+    "n_chains": 93950,
+    "mean": 2.860202235231506,
+    "std": 1.1882424539647891,
+    "max": 8,
+    "histogram": {
+      "2": 49334,
+      "3": 23734,
+      "4": 11880,
+      "5": 4960,
+      "6": 2336,
+      "7": 1138,
+      "8": 568
+    },
+    "fit_exponential": {
+      "lambda": 0.7712729705674489,
+      "p_hat": 0.46242404128949566,
+      "mean": 2.860202235231506,
+      "aic": 241291.14381924472,
+      "n": 93950
+    },
+    "fit_power_law": {
+      "tau": 2.733079941655011,
+      "n_min": 2,
+      "n_max_observed": 8,
+      "aic": 244624.14922294905,
+      "n": 93950
+    },
+    "preferred": "exponential",
+    "aic_diff_pl_minus_exp": 3333.00540370433
+  },
+  "liveothello-2026-APR": {
+    "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello-2026-APR.pgn",
+    "n_games_replayed": 414,
+    "n_positions_scanned": 25447,
+    "n_chains": 1646532,
+    "mean": 2.9501570573787816,
+    "std": 1.2907689675507035,
+    "max": 8,
+    "histogram": {
+      "2": 831622,
+      "3": 413948,
+      "4": 208030,
+      "5": 98586,
+      "6": 50554,
+      "7": 26270,
+      "8": 17522
+    },
+    "fit_exponential": {
+      "lambda": 0.7190378960732035,
+      "p_hat": 0.487220787568717,
+      "mean": 2.9501570573787816,
+      "aic": 4449289.891144678,
+      "n": 1646532
+    },
+    "fit_power_law": {
+      "tau": 2.6652021913971375,
+      "n_min": 2,
+      "n_max_observed": 8,
+      "aic": 4488949.297011857,
+      "n": 1646532
+    },
+    "preferred": "exponential",
+    "aic_diff_pl_minus_exp": 39659.405867178924
+  },
+  "liveothello_2025_all": {
+    "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_2025_all.pgn",
+    "n_games_replayed": 2178,
+    "n_positions_scanned": 134306,
+    "n_chains": 8754052,
+    "mean": 2.9354733099597765,
+    "std": 1.2759663133835342,
+    "max": 8,
+    "histogram": {
+      "2": 4453006,
+      "3": 2201454,
+      "4": 1097822,
+      "5": 525290,
+      "6": 254420,
+      "7": 133826,
+      "8": 88234
+    },
+    "fit_exponential": {
+      "lambda": 0.7270545651170254,
+      "p_hat": 0.48333051411554606,
+      "mean": 2.9354733099597765,
+      "aic": 23469476.07817817,
+      "n": 8754052
+    },
+    "fit_power_law": {
+      "tau": 2.6761394981201,
+      "n_min": 2,
+      "n_max_observed": 8,
+      "aic": 23690305.51353977,
+      "n": 8754052
+    },
+    "preferred": "exponential",
+    "aic_diff_pl_minus_exp": 220829.4353615977
+  }
+}

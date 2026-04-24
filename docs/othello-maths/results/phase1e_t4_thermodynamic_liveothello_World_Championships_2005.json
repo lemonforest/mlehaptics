@@ -1,0 +1,473 @@
+{
+  "pgn": "..\\dataset\\liveothello_World_Championships_2005.pgn",
+  "n_games_replayed": 23,
+  "n_games_with_T_eff": 23,
+  "n_plies_total": 1418,
+  "T_eff_corpus": {
+    "mean": -17476.44589813864,
+    "std": 518598.87849560025,
+    "median": -11728.994892705367
+  },
+  "per_game": [
+    {
+      "game": 0,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Lee Kwang Wook",
+        "final_score": "33-31"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -11576.047090503745,
+      "T_eff_median": -5359.264139567405,
+      "T_eff_std": 120054.5003763528,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8365177200570414
+      ]
+    },
+    {
+      "game": 1,
+      "headers": {
+        "black": "Lee Kwang Wook",
+        "white": "Tamenori Hideshi",
+        "final_score": "26-38"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -20441.89277874662,
+      "T_eff_median": -13603.27699939596,
+      "T_eff_std": 48610.84903074186,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8428004173647862
+      ]
+    },
+    {
+      "game": 2,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Miyaoka Tamaki",
+        "final_score": "33-31"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -15741.216044305755,
+      "T_eff_median": -16109.618856175315,
+      "T_eff_std": 49633.33572206858,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8342346118886701
+      ]
+    },
+    {
+      "game": 3,
+      "headers": {
+        "black": "Lee Kwang Wook",
+        "white": "Miyaoka Tamaki",
+        "final_score": "41-23"
+      },
+      "n_plies": 64,
+      "T_eff_mean": 38419.79275656628,
+      "T_eff_median": -7912.661135527704,
+      "T_eff_std": 342857.9252182553,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.824681042658667
+      ]
+    },
+    {
+      "game": 4,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Kashiwabara Takuji",
+        "final_score": "32-32"
+      },
+      "n_plies": 61,
+      "T_eff_mean": 14106.751543503737,
+      "T_eff_median": -7918.559962800539,
+      "T_eff_std": 96711.99718349699,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8150301295506894
+      ]
+    },
+    {
+      "game": 5,
+      "headers": {
+        "black": "Miyaoka Tamaki",
+        "white": "Lee Kwang Wook",
+        "final_score": "46-18"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 27852.522698112367,
+      "T_eff_median": -12705.594014394545,
+      "T_eff_std": 234795.5994742717,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.837970446003699
+      ]
+    },
+    {
+      "game": 6,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Tamenori Hideshi",
+        "final_score": "34-30"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -1458.867061352221,
+      "T_eff_median": -8680.463500901995,
+      "T_eff_std": 88323.88719441391,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8656705251122081
+      ]
+    },
+    {
+      "game": 7,
+      "headers": {
+        "black": "Lee Kwang Wook",
+        "white": "Miyaoka Tamaki",
+        "final_score": "39-25"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 47364.49338620783,
+      "T_eff_median": -5882.090797383006,
+      "T_eff_std": 342438.8579451961,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8487514104841759
+      ]
+    },
+    {
+      "game": 8,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Kashiwabara Takuji",
+        "final_score": "35-29"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -14972.72894278119,
+      "T_eff_median": -17231.19110202782,
+      "T_eff_std": 37088.80257302948,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8482766426963503
+      ]
+    },
+    {
+      "game": 9,
+      "headers": {
+        "black": "Yamanaka Mami",
+        "white": "Hoshi Hisako",
+        "final_score": "17-47"
+      },
+      "n_plies": 64,
+      "T_eff_mean": -12338.192985397327,
+      "T_eff_median": -9597.779529787173,
+      "T_eff_std": 119129.50490789999,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.825267469632295
+      ]
+    },
+    {
+      "game": 10,
+      "headers": {
+        "black": "Pihlajapuro Katie",
+        "white": "Schotte Tom",
+        "final_score": "40-24"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 1572.0822113408847,
+      "T_eff_median": -6366.262657323108,
+      "T_eff_std": 117270.40350391642,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8496017900052838
+      ]
+    },
+    {
+      "game": 11,
+      "headers": {
+        "black": "Seeley Ben",
+        "white": "Tamenori Hideshi",
+        "final_score": "24-40"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -25227.263527024716,
+      "T_eff_median": -20136.10703642796,
+      "T_eff_std": 44761.71709143107,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.828918110388595
+      ]
+    },
+    {
+      "game": 12,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Brightwell Graham",
+        "final_score": "41-23"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -12191.159575465594,
+      "T_eff_median": -13514.21525554885,
+      "T_eff_std": 51037.193695257825,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8292236061403632
+      ]
+    },
+    {
+      "game": 13,
+      "headers": {
+        "black": "van den Biggelaar Nicky",
+        "white": "Tamenori Hideshi",
+        "final_score": "24-40"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -325222.6430898091,
+      "T_eff_median": -15229.680654706575,
+      "T_eff_std": 2362600.8361360664,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8272803048421468
+      ]
+    },
+    {
+      "game": 14,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Miyaoka Tamaki",
+        "final_score": "33-31"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -21964.524032660513,
+      "T_eff_median": -13688.829296087431,
+      "T_eff_std": 58816.441230767145,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8497328918890003
+      ]
+    },
+    {
+      "game": 15,
+      "headers": {
+        "black": "Miyaoka Tamaki",
+        "white": "Seeley Ben",
+        "final_score": "47-17"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -1771.3215790748534,
+      "T_eff_median": -10972.788103621595,
+      "T_eff_std": 175577.5290160318,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.853581463083717
+      ]
+    },
+    {
+      "game": 16,
+      "headers": {
+        "black": "Miyaoka Tamaki",
+        "white": "Kashiwabara Takuji",
+        "final_score": "27-37"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -26655.169172461858,
+      "T_eff_median": -17686.887894074993,
+      "T_eff_std": 58008.072333179545,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8689995571956644
+      ]
+    },
+    {
+      "game": 17,
+      "headers": {
+        "black": "Eng Tintin",
+        "white": "Tamenori Hideshi",
+        "final_score": "22-42"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 4441.896162008594,
+      "T_eff_median": -10845.445214136458,
+      "T_eff_std": 150574.38223805296,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.850035659136853
+      ]
+    },
+    {
+      "game": 18,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Kashiwabara Takuji",
+        "final_score": "44-20"
+      },
+      "n_plies": 62,
+      "T_eff_mean": 18331.62609746885,
+      "T_eff_median": -18480.322611109696,
+      "T_eff_std": 174315.04125583917,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8412095850832855
+      ]
+    },
+    {
+      "game": 19,
+      "headers": {
+        "black": "Seeley Ben",
+        "white": "Leader Imre",
+        "final_score": "20-44"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -15667.502611402684,
+      "T_eff_median": -13276.544867431596,
+      "T_eff_std": 69401.67868258648,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.829597852528227
+      ]
+    },
+    {
+      "game": 20,
+      "headers": {
+        "black": "Lee Kwang Wook",
+        "white": "Fu Jacky",
+        "final_score": "39-25"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -38460.41742332486,
+      "T_eff_median": -13957.364148115554,
+      "T_eff_std": 102988.67829601662,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8610862648060735
+      ]
+    },
+    {
+      "game": 21,
+      "headers": {
+        "black": "Tamenori Hideshi",
+        "white": "Leader Imre",
+        "final_score": "46-18"
+      },
+      "n_plies": 62,
+      "T_eff_mean": -9266.998158409695,
+      "T_eff_median": -12162.196764325268,
+      "T_eff_std": 140888.0344359943,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.6080326098159929,
+        0.8315836132498676
+      ]
+    },
+    {
+      "game": 22,
+      "headers": {
+        "black": "Leader Imre",
+        "white": "Miyaoka Tamaki",
+        "final_score": "29-35"
+      },
+      "n_plies": 61,
+      "T_eff_mean": -1091.4764396766082,
+      "T_eff_median": -17354.59653409454,
+      "T_eff_std": 93964.26118746964,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8321971231337666
+      ]
+    }
+  ]
+}

@@ -1,0 +1,234 @@
+{
+  "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+  "n_trajectories": 35,
+  "sheaf_features": [
+    "faithful_black_lambda2",
+    "faithful_white_lambda2",
+    "faithful_black_entropy",
+    "faithful_white_entropy",
+    "faithful_black_kerdim",
+    "faithful_white_kerdim",
+    "faithful_black_lambdamax",
+    "faithful_white_lambdamax"
+  ],
+  "deltas": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "per_delta": {
+    "delta_1": {
+      "n_pairs": 2149,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive": 0.3702167615841767,
+          "r2_snapshot": 0.3561906030275457,
+          "r2_persistence": 0.7744781836019198,
+          "gain_vs_persistence": -0.40426142201774307,
+          "gain_vs_snapshot": 0.01402615855663103,
+          "n": 2149
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8932951161560617,
+          "r2_snapshot": 0.8851635463920748,
+          "r2_persistence": 0.9991071411507952,
+          "gain_vs_persistence": -0.10581202499473352,
+          "gain_vs_snapshot": 0.008131569763986879,
+          "n": 2149
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.3520301907489828,
+          "r2_snapshot": 0.35414415497887697,
+          "r2_persistence": 0.9419106298880435,
+          "gain_vs_persistence": -0.5898804391390607,
+          "gain_vs_snapshot": -0.002113964229894183,
+          "n": 2149
+        },
+        "n_legal_moves": {
+          "r2_predictive": 0.5632898949557706,
+          "r2_snapshot": 0.601343245182494,
+          "r2_persistence": 0.32238514510599803,
+          "gain_vs_persistence": 0.24090474984977261,
+          "gain_vs_snapshot": -0.038053350226723404,
+          "n": 2149
+        },
+        "rho": {
+          "r2_predictive": 0.9075835041575888,
+          "r2_snapshot": 0.9009311196929783,
+          "r2_persistence": 0.9999302324216314,
+          "gain_vs_persistence": -0.09234672826404255,
+          "gain_vs_snapshot": 0.006652384464610472,
+          "n": 2149
+        },
+        "empty_count": {
+          "r2_predictive": 0.9075835041575888,
+          "r2_snapshot": 0.9009311196929785,
+          "r2_persistence": 0.9999302324216314,
+          "gain_vs_persistence": -0.09234672826404255,
+          "gain_vs_snapshot": 0.006652384464610361,
+          "n": 2149
+        }
+      }
+    },
+    "delta_3": {
+      "n_pairs": 2079,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive": 0.35914733353319406,
+          "r2_snapshot": 0.340528767085448,
+          "r2_persistence": 0.5627599476063097,
+          "gain_vs_persistence": -0.2036126140731156,
+          "gain_vs_snapshot": 0.018618566447746066,
+          "n": 2079
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8995239971118495,
+          "r2_snapshot": 0.8769743825939176,
+          "r2_persistence": 0.9966518108174321,
+          "gain_vs_persistence": -0.09712781370558266,
+          "gain_vs_snapshot": 0.022549614517931915,
+          "n": 2079
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.3365871700579467,
+          "r2_snapshot": 0.33901463471180726,
+          "r2_persistence": 0.7609402657287381,
+          "gain_vs_persistence": -0.4243530956707914,
+          "gain_vs_snapshot": -0.002427464653860567,
+          "n": 2079
+        },
+        "n_legal_moves": {
+          "r2_predictive": 0.5503082512316442,
+          "r2_snapshot": 0.6036824083079663,
+          "r2_persistence": 0.2639133420329187,
+          "gain_vs_persistence": 0.28639490919872546,
+          "gain_vs_snapshot": -0.05337415707632209,
+          "n": 2079
+        },
+        "rho": {
+          "r2_predictive": 0.9123446768802377,
+          "r2_snapshot": 0.89068062473069,
+          "r2_persistence": 0.9997708646385685,
+          "gain_vs_persistence": -0.08742618775833078,
+          "gain_vs_snapshot": 0.021664052149547697,
+          "n": 2079
+        },
+        "empty_count": {
+          "r2_predictive": 0.9123446768802377,
+          "r2_snapshot": 0.89068062473069,
+          "r2_persistence": 0.9997708646385685,
+          "gain_vs_persistence": -0.08742618775833078,
+          "gain_vs_snapshot": 0.021664052149547697,
+          "n": 2079
+        }
+      }
+    },
+    "delta_5": {
+      "n_pairs": 2009,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive": 0.35834020424929525,
+          "r2_snapshot": 0.3296818527563602,
+          "r2_persistence": 0.4373565628102506,
+          "gain_vs_persistence": -0.07901635856095535,
+          "gain_vs_snapshot": 0.028658351492935052,
+          "n": 2009
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.9030649125841599,
+          "r2_snapshot": 0.8685148351306152,
+          "r2_persistence": 0.9936532737855522,
+          "gain_vs_persistence": -0.09058836120139235,
+          "gain_vs_snapshot": 0.03455007745354466,
+          "n": 2009
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.3607808105536411,
+          "r2_snapshot": 0.3414789987651363,
+          "r2_persistence": 0.5649247096152447,
+          "gain_vs_persistence": -0.20414389906160357,
+          "gain_vs_snapshot": 0.019301811788504764,
+          "n": 2009
+        },
+        "n_legal_moves": {
+          "r2_predictive": 0.5480996218721172,
+          "r2_snapshot": 0.6031972616374102,
+          "r2_persistence": 0.18765374582433436,
+          "gain_vs_persistence": 0.3604458760477829,
+          "gain_vs_snapshot": -0.055097639765292916,
+          "n": 2009
+        },
+        "rho": {
+          "r2_predictive": 0.9143658385602268,
+          "r2_snapshot": 0.8793937145239105,
+          "r2_persistence": 0.9995676875924463,
+          "gain_vs_persistence": -0.0852018490322195,
+          "gain_vs_snapshot": 0.03497212403631633,
+          "n": 2009
+        },
+        "empty_count": {
+          "r2_predictive": 0.9143658385602268,
+          "r2_snapshot": 0.8793937145239105,
+          "r2_persistence": 0.9995676875924463,
+          "gain_vs_persistence": -0.0852018490322195,
+          "gain_vs_snapshot": 0.03497212403631633,
+          "n": 2009
+        }
+      }
+    },
+    "delta_10": {
+      "n_pairs": 1834,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive": 0.35672419815850764,
+          "r2_snapshot": 0.3289083160323888,
+          "r2_persistence": 0.2843186211761244,
+          "gain_vs_persistence": 0.07240557698238326,
+          "gain_vs_snapshot": 0.02781588212611885,
+          "n": 1834
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.89667949666458,
+          "r2_snapshot": 0.8469019099778468,
+          "r2_persistence": 0.9844402157092192,
+          "gain_vs_persistence": -0.08776071904463922,
+          "gain_vs_snapshot": 0.049777586686733266,
+          "n": 1834
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.4008381233989594,
+          "r2_snapshot": 0.3152455115454992,
+          "r2_persistence": 0.1547884719443121,
+          "gain_vs_persistence": 0.2460496514546473,
+          "gain_vs_snapshot": 0.08559261185346023,
+          "n": 1834
+        },
+        "n_legal_moves": {
+          "r2_predictive": 0.5891768212659081,
+          "r2_snapshot": 0.6149846237893858,
+          "r2_persistence": 0.20312995611454954,
+          "gain_vs_persistence": 0.38604686515135855,
+          "gain_vs_snapshot": -0.025807802523477696,
+          "n": 1834
+        },
+        "rho": {
+          "r2_predictive": 0.9097584847129081,
+          "r2_snapshot": 0.849667415908135,
+          "r2_persistence": 0.9991143945040438,
+          "gain_vs_persistence": -0.08935590979113572,
+          "gain_vs_snapshot": 0.06009106880477311,
+          "n": 1834
+        },
+        "empty_count": {
+          "r2_predictive": 0.909758484712908,
+          "r2_snapshot": 0.849667415908135,
+          "r2_persistence": 0.9991143945040438,
+          "gain_vs_persistence": -0.08935590979113583,
+          "gain_vs_snapshot": 0.060091068804772996,
+          "n": 1834
+        }
+      }
+    }
+  }
+}
