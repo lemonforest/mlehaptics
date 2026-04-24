@@ -3,8 +3,9 @@
 **Authors:** Steven (mlehaptics Project) & Claude (Anthropic)
 **Date:** April 2026 (last update: Phase 1e, PR #58)
 **Status:** Active research — §1–§2e computational; §3 computational
-(faithful-sheaf update in §2e.5); §4 instantiated in §2e.15–§2e.18;
-§5 resolved in §2e.
+(faithful-sheaf update in §2e.5); §4 instantiated in §2e.15–§2e.19;
+§5 resolved in §2e.  v0.3.2: encoder pipeline now uses
+`SheafMoveOperator` as the replay primitive (§2e.19).
 **Tools:** Python 3, NumPy, SciPy; C17 reference encoder (clang);
 ctypes DLL path.
 
@@ -1600,6 +1601,49 @@ Operational usefulness:
     sequences.  Sheaf spectrum of intermediate states is
     computable via the same runtime.
 
+### 2e.19 Encoder replay path now uses SheafMoveOperator — v0.3.2
+
+The `encode-pgn` CLI previously delegated per-ply legality to
+`OthelloBoard.legal_moves()` via `othello_pgn_loader.replay()` —
+a 64-cell scan on every ply even though only one cell moves.
+v0.3.2 swaps that for `pgn_loader.replay_sheaf()`, which uses
+`SheafMoveOperator.flipped_cells(state, move, side)` to walk only
+the 8 rays from the target cell.  Slow path (forced-pass
+detection on genuinely illegal-looking plies) still defers to
+`op.legal_moves` so semantics match exactly.
+
+**End-to-end speedup on liveothello-2026-APR (414 games, 25,447
+plies):**
+
+| stage                | OthelloBoard | SheafMoveOp | speedup |
+| -------------------- | -----------: | ----------: | ------: |
+| replay               | 7.02 s       | 1.42 s      | **4.9×** |
+| encode (C ctypes)    | 1.9 s        | 2.2 s       | ~1× (unchanged) |
+| total                | 8.92 s       | 3.62 s      | **2.5×** |
+
+SHA-256 of the resulting `.spectralz` is **byte-identical**
+across replay engines (78,275,228 bytes, hash
+`3c10951d36e926694e94f6539476d96a53d5a8d8b1f5d3c27862a59a44235ba3`)
+— the speedup is pure.  Byte parity is locked in by
+[tests/test_pgn_loader_replay_parity.py](research/othello_spectral/tests/test_pgn_loader_replay_parity.py):
+3 tests covering the legal control game, both illegal fixtures,
+and 10 random-play games.
+
+The legacy path remains available via
+`encode-pgn --replay-engine othelloboard` for audit / debugging.
+An illegal-move corpus fixture
+[tests/fixtures/illegal_move_corpus.pgn](research/othello_spectral/tests/fixtures/illegal_move_corpus.pgn)
+(2 bad games + 1 legal control) plus 5 rejection tests in
+[tests/test_encoder_rejects_illegal_pgn.py](research/othello_spectral/tests/test_encoder_rejects_illegal_pgn.py)
+verify that both replay engines raise `ValueError("... not legal
+...")` on the same inputs.
+
+This closes the circuit: the `SheafMoveOperator` instantiated in
+§2e.18 as a chess-style P_place_i toolkit is now also the
+production replay primitive that drives every published encoding
+run, unifying validation, mutation, and lookahead-encoding under
+the faithful sheaf's bracket walker.
+
 ---
 
 ## 3. Dynamic fiber — sheaf Laplacian instantiation
@@ -1716,6 +1760,12 @@ only" with a working toolbox:
   chess-style per-cell `P_place_i` using the bracket classifier
   to compute flipped cells.  6/6 parity tests against
   `OthelloBoard.play()` on 20 random games.
+- **Encoder replay primitive** (§2e.19, v0.3.2): `encode-pgn`
+  now uses `pgn_loader.replay_sheaf()` — wrapping the same
+  `SheafMoveOperator` — as its replay backend.  2.5× end-to-end
+  speedup on APR 2026 (8.92 s → 3.62 s), byte-identical output.
+  The faithful sheaf's bracket walker is now the single source
+  of truth for validation, mutation, and lookahead-encoding.
 
 Residual preflight items: off-diagonal phase operators beyond
 SO(2)-on-E (state-dependent channel mixing among non-E

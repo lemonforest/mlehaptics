@@ -132,6 +132,7 @@ def cmd_encode_pgn(args) -> int:
     # since v0.3.0; the C engine may still fall back if the DLL /
     # binary doesn't expose encode_768_v2 (older builds).
     fiber_mode = getattr(args, "fiber", "sheaf")
+    replay_engine = getattr(args, "replay_engine", "sheaf")
     requested_engine = args.engine or default_engine()
     try:
         engine, c_binary = resolve_engine(requested_engine)
@@ -139,7 +140,8 @@ def cmd_encode_pgn(args) -> int:
         print(f"engine resolution failed: {exc}", file=sys.stderr)
         return 4
     print(
-        f"encoder engine: {engine}  fiber: {fiber_mode}"
+        f"encoder engine: {engine}  fiber: {fiber_mode}  "
+        f"replay: {replay_engine}"
         + (f"  binary={c_binary}" if c_binary else "")
     )
 
@@ -147,11 +149,21 @@ def cmd_encode_pgn(args) -> int:
     print(f"parsed {len(games)} games from {pgn_path.name}")
 
     # First pass: replay all games to collect states in memory.
+    # Default path uses SheafMoveOperator (~8x faster than OthelloBoard
+    # on clean corpora).  Byte-for-byte parity between the two is
+    # guaranteed by test_move_operator.py::test_random_game_parity.
     replayed: list[list] = []  # one list of state arrays per game
     failures = 0
+    if replay_engine == "sheaf":
+        from othello_spectral.move_operator import SheafMoveOperator
+        _op = SheafMoveOperator()
+        _replay_fn = lambda mvs: pgn_loader.replay_sheaf(mvs, _op)
+    else:
+        _replay_fn = pgn_loader.replay
+    t_replay_start = time.time()
     for gi, g in enumerate(games):
         try:
-            _, states, _ = pgn_loader.replay(g["moves"])
+            _, states, _ = _replay_fn(g["moves"])
         except Exception as exc:
             print(
                 f"  game {gi}: replay failed: {exc}",
@@ -161,6 +173,12 @@ def cmd_encode_pgn(args) -> int:
             replayed.append([])
             continue
         replayed.append(list(states))
+    t_replay = time.time() - t_replay_start
+    print(
+        f"replay: {t_replay:.2f}s for {len(games)} games "
+        f"({len(games) - failures}/{len(games)} clean, "
+        f"engine={replay_engine})"
+    )
 
     # Second pass: encode every state.  Engine dispatch here.
     all_states: list = []
@@ -265,21 +283,39 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     ppgn.add_argument(
         "--engine", choices=["py", "c", "auto"], default=None,
-        help="Encoder engine.  'py' = Python reference (always "
-             "works); 'c' = the compiled C binary/DLL (rank2 fiber "
-             "only at v0.3.0 - no sheaf fiber yet); 'auto' = prefer "
-             "'c' if available AND we're in rank2 fiber mode, else "
-             "fall back to 'py'.  Default: whatever is in "
-             "OTHELLO_SPECTRAL_ENGINE, or 'auto'.",
+        help="Encoder engine (which implementation does the 768-dim "
+             "encode_768 projection).  'py' = Python reference "
+             "(always works, ~25x slower); 'c' = the compiled C "
+             "binary/DLL (rank2 + sheaf fibers both supported at "
+             "v0.3.1+); 'auto' = prefer 'c' if available AND verified "
+             "via version+smoke check, else fall back to 'py'.  "
+             "Default: value of $OTHELLO_SPECTRAL_ENGINE, or 'auto'. "
+             "Use the 'engine' subcommand to inspect the resolved "
+             "path without running an encode.",
     )
     ppgn.add_argument(
         "--fiber", choices=["sheaf", "rank2"], default="sheaf",
-        help="Fiber mode for channels 10-11.  'sheaf' (default at "
-             "v0.3.0+): per-cell pending-bracket counts, state-"
-             "dependent, Python-only.  'rank2' (legacy v0.2.0): "
-             "orbit Laplacians applied to s, state-linear, C-"
-             "compatible.  If 'rank2' is selected the C engine can "
-             "handle it; if 'sheaf', only py.",
+        help="Fiber mode for channels 10-11.  'sheaf' (default, "
+             "v0.3.0+): per-cell R3_PENDING bracket counts from the "
+             "faithful sheaf -- state-dependent, captures bracket "
+             "potential (correlates at rho=-0.447 w/ edax d=20 vs "
+             "rho=-0.319 for a1_minus).  'rank2' (legacy v0.2.0): "
+             "orbit Laplacians applied to s, state-linear.  Both are "
+             "available in py + c engines since v0.3.1.",
+    )
+    ppgn.add_argument(
+        "--replay-engine", choices=["sheaf", "othelloboard"],
+        default="sheaf",
+        help="Move-replay backend.  'sheaf' (default, v0.3.2+): use "
+             "othello_spectral.move_operator.SheafMoveOperator.  "
+             "Walks only the 8 rays from the target cell per ply "
+             "(~8x faster than 'othelloboard' on APR 2026: 0.81s vs "
+             "6.67s / 414 games).  Byte-for-byte parity with "
+             "OthelloBoard.play() is proven by "
+             "test_move_operator.py::test_random_game_parity, so "
+             "encoded output is identical.  'othelloboard': legacy "
+             "OthelloBoard.legal_moves()+play() -- use for audit / "
+             "debugging or if you suspect operator divergence.",
     )
     ppgn.set_defaults(func=cmd_encode_pgn)
 
