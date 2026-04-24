@@ -77,7 +77,56 @@ VALID_MODES = (
     "scale_all_by_kernel_dim",
     "rotate_E_by_entropy",
     "scale_by_feature_coupling",
+    "rotate_E_so2_by_entropy",
+    "rotate_E_so2_by_kerdim",
 )
+
+
+# ---------------------------------------------------------------------------
+# D4 E-irrep SO(2) rotation — off-diagonal coupling
+# ---------------------------------------------------------------------------
+# The two lowest-order linear functions on the 8x8 grid, (col - 3.5)
+# and (row - 3.5), form a 2-dim subspace that transforms under D4
+# as the E irrep (Schur: the 2-dim irrep).  Projecting any 64-dim
+# vector onto this subspace yields 2 scalar coordinates; applying
+# SO(2) rotates them.  The rest of the vector (components orthogonal
+# to both phi_x and phi_y) is unchanged.
+
+def _e_basis() -> tuple[np.ndarray, np.ndarray]:
+    """Return the orthonormal 2-dim E-irrep basis on R^64:
+    phi_x(r, c) = (c - 3.5), phi_y(r, c) = (r - 3.5), each
+    normalised to unit length.  Orthogonal by inspection."""
+    idx = np.arange(64)
+    rows = idx // 8
+    cols = idx % 8
+    phi_x = (cols - 3.5).astype(np.float64)
+    phi_y = (rows - 3.5).astype(np.float64)
+    phi_x /= float(np.linalg.norm(phi_x))
+    phi_y /= float(np.linalg.norm(phi_y))
+    return phi_x, phi_y
+
+
+_E_PHI_X, _E_PHI_Y = _e_basis()
+
+
+def so2_rotate_in_E_subspace(
+    block: np.ndarray, theta: float,
+) -> np.ndarray:
+    """Rotate ``block`` ∈ R^64 by angle ``theta`` within the 2-dim
+    (phi_x, phi_y) subspace.  Components orthogonal to both basis
+    vectors are unchanged.  This is a D4-equivariant SO(2) on the
+    E-irrep isotypic pair."""
+    proj_x = float(np.dot(block, _E_PHI_X))
+    proj_y = float(np.dot(block, _E_PHI_Y))
+    c = float(np.cos(theta))
+    s = float(np.sin(theta))
+    new_x = c * proj_x - s * proj_y
+    new_y = s * proj_x + c * proj_y
+    return (
+        block
+        + (new_x - proj_x) * _E_PHI_X
+        + (new_y - proj_y) * _E_PHI_Y
+    )
 
 
 def _sheaf_spectrum_features(state: np.ndarray) -> dict:
@@ -207,7 +256,28 @@ class SheafPhaseOperator:
             )
         if self.mode == "identity" or state is None:
             return np.asarray(enc, dtype=np.float64)
+
         feats = _sheaf_spectrum_features(state)
+
+        # Off-diagonal SO(2) E-rotation modes:
+        if self.mode in ("rotate_E_so2_by_entropy", "rotate_E_so2_by_kerdim"):
+            theta = (
+                feats["entropy_B"]
+                if self.mode == "rotate_E_so2_by_entropy"
+                else float(feats["kerdim_B"]) / 192.0 * np.pi
+            )
+            # Interpolate theta with 0 by strength factor.
+            theta *= self.strength
+            out = np.asarray(enc, dtype=np.float64).copy()
+            # Apply SO(2) to E-irrep channels (4 = magn_Eminus,
+            # 9 = occ_Eplus).
+            for k in (4, 9):
+                out[channel_slice(k)] = so2_rotate_in_E_subspace(
+                    out[channel_slice(k)], theta,
+                )
+            return out
+
+        # Diagonal scaling modes (default path):
         weights = self._channel_weights(feats)
         # strength-interpolate with identity
         a = self.strength

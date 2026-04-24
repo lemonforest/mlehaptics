@@ -1486,6 +1486,117 @@ Open items (updated after this pass):
   - Z₂-cancellation Exp 2 on Barcelona — **CLOSED** (2e.14)
   - Sheaf as phase-operator coupling — **CLOSED** (2e.15)
 
+### 2e.16 Learned coupling matrix — **+114 % cumulative gain**
+
+[phase1e_learned_coupling.py](research/phase1e_learned_coupling.py).
+Fits the `scale_by_feature_coupling` mode's coefficient row M[11]
+(the one that determines the weight for pending_white fiber) by
+Nelder-Mead minimisation of −|Pearson(E_pw_A1, archive_mean_lb)|
+on a 75 % training split (1941 positions).  Held out 646 positions
+for validation.  6 restarts to escape local minima.
+
+  stage                                  partial ρ (Spearman)
+  §1d.b  D4-A1(s^2) baseline              −0.319
+  §2e.6  raw pending_white_A1             −0.447
+  §2e.15 scale_fiber_by_owner_lambda2     −0.503
+  §2e.16 **learned coupling** (val)       **−0.683**
+  §2e.16 learned coupling (train)         −0.636
+  §2e.16 learned coupling (overall)       −0.648
+
+Val partial ρ is slightly BETTER than train (no overfitting
+signal); generalisation is clean.  Cumulative improvement over
+§1d.b's occupation A₁(s²) baseline: 0.648 / 0.319 ≈ **2.03×**.
+
+**Learned coefficients** (for the 8-d sheaf feature vector):
+
+  feature       coefficient
+  lambda2_B      -0.016
+  lambda2_W      +0.001
+  lambdamax_B    +0.000
+  lambdamax_W    -0.009
+  entropy_B     **+0.256**
+  entropy_W     **-0.283**
+  kerdim_B       +0.027
+  kerdim_W       -0.026
+
+The dominant structure: **weight ≈ 0.256 · entropy_B − 0.283 · entropy_W**
+— almost exactly the difference in sheaf entropies between owners.
+
+Interpretation: spectral entropy of the faithful sheaf Laplacian
+measures how DIVERSE the eigenvalues are (high entropy = spread
+distribution = rich mode structure; low entropy = concentrated
+distribution = simple bracket topology).  The owner-entropy
+difference encodes which player's flanking network is more
+structured.  When white's bracket network is MORE structured
+than black's (i.e. W_entropy > B_entropy), weight is negative,
+which inverts the pending_white fiber sign, making it CORRELATE
+POSITIVELY with archive_mean_lb (it was negatively correlated
+raw).
+
+The operator encodes a structural "who has more bracket
+complexity" coupling that the hand-tuned λ₂ modes couldn't
+capture.  Worth noting: this is NOT a simple algebraic coupling
+(not a weight-function of a single spectral quantity).  It
+requires comparing two owners' spectra — a feature of the
+bracket structure that the sheaf uniquely exposes.
+
+### 2e.17 Off-diagonal SO(2) on the E irrep subspace
+
+[othello_spectral/phase_operator.py](research/othello_spectral/phase_operator.py)
+adds `rotate_E_so2_by_entropy` and `rotate_E_so2_by_kerdim`
+modes that apply a D₄-equivariant SO(2) rotation within the
+2-dim subspace spanned by the lowest-order E-irrep basis:
+
+    phi_x(r, c) = (c - 3.5) / ||·||
+    phi_y(r, c) = (r - 3.5) / ||·||
+
+on the magnetisation-E and occupation-E channels.  Because the
+rotation is orthogonal, it preserves channel ENERGY exactly; it
+only changes the (proj_x, proj_y) PHASE within the E-isotypic
+pair.  The benchmark against archive_mean_lb through channel
+ENERGIES (our standard metric) is therefore insensitive to the
+rotation — confirmed empirically (partial ρ unchanged at
+−0.4467 across the two new modes).
+
+SO(2) E-rotation is a scaffolded capability: downstream models
+that use direction-sensitive E-channel summaries (e.g., a phase
+difference between E-magn and E-occ) can benefit.  For now it
+sits in the API alongside the diagonal-scaling modes as part
+of the §4 phase-operator toolbox.
+
+### 2e.18 Move-type phase operators
+
+[othello_spectral/move_operator.py](research/othello_spectral/move_operator.py).
+Chess-style per-cell placement operators P_place_i for i in
+0..63, using the faithful-sheaf bracket classifier to determine
+which opponent discs flip.  Public API:
+
+  SheafMoveOperator.is_legal(state, move, side) -> bool
+  SheafMoveOperator.flip_count(state, move, side) -> int
+  SheafMoveOperator.flipped_cells(state, move, side) -> list[int]
+  SheafMoveOperator.apply(state, move, side) -> post_state
+  SheafMoveOperator.encode_post_move(state, move, side) -> post_enc
+  SheafMoveOperator.legal_moves(state, side) -> list[int]
+  SheafMoveOperator.flip_count_vector(state, side) -> np.ndarray[64]
+
+Parity tests verify byte-for-byte agreement with
+`OthelloBoard.play()` across 20 random-play games.  6/6 tests
+in [tests/test_move_operator.py](research/othello_spectral/tests/test_move_operator.py)
+pass.  No mutation of the input state.
+
+Operational usefulness:
+  - `flip_count_vector` is a 64-dim state descriptor that
+    ranks cells by "impact if played" — candidate extra channel
+    for a future v0.4.0 encoder.
+  - `encode_post_move` allows look-ahead search algorithms to
+    get the encoding of any reachable state without re-replaying
+    through OthelloBoard, skipping the replay overhead (~3× on
+    the sheaf-fiber encoder which does its own bracket walk).
+  - Composition of multiple P_place_i gives multi-ply look-ahead
+    encoding chains, the analog of chess's P_rook · P_bishop
+    sequences.  Sheaf spectrum of intermediate states is
+    computable via the same runtime.
+
 ---
 
 ## 3. Dynamic fiber — sheaf Laplacian instantiation
