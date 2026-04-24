@@ -283,10 +283,20 @@ def _build_parser() -> argparse.ArgumentParser:
             print(f"requested: {req}")
             print(f"error: {exc}")
             return 4
-        print(f"requested: {req}")
-        print(f"resolved:  {e}")
-        print(f"binary:    {b or '(none)'}")
+        dll = None
+        try:
+            dll = find_c_dll()
+        except FileNotFoundError as exc:
+            print(f"DLL env override points to missing file: {exc}")
+        print(f"requested:        {req}")
+        print(f"resolved engine:  {e}")
+        print(f"subprocess binary: {b or '(none)'}")
+        print(f"ctypes DLL:       {dll or '(none)'}")
         print(f"default_from_env: {default_engine()}")
+        if e == "c" and dll is not None:
+            print("  -> 'c' will use ctypes DLL (fast path)")
+        elif e == "c" and b is not None:
+            print("  -> 'c' will use subprocess binary (slow path)")
         return 0
     peng.set_defaults(func=cmd_engine)
 

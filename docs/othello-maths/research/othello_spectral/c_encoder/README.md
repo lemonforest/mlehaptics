@@ -25,19 +25,56 @@ c_encoder/
     └── othello_spectral.c           # stub (committed)
 ```
 
-## Build (once stubs are filled in)
+## Build
+
+Two output artefacts: an executable (`encode_cli.exe`) for subprocess
+use, and a shared library (`othello_spectral.dll` on Windows /
+`.so` on Linux / `.dylib` on macOS) for ctypes use.  The Python
+engine dispatch prefers the DLL (ctypes, no subprocess overhead)
+and silently falls back to the executable.
 
 ```
-cd docs/othello-maths/research/othello_spectral
+cd docs/othello-maths/research
 
-# 1. Generate the tables header (creates include/othello_spectral_tables.h).
+# 1. Generate the tables header.
 python -m othello_spectral.codegen.emit_c_tables
 
-# 2. Compile.
-cc -std=c17 -Wall -Wextra -O2 -I c_encoder/include \
-   c_encoder/src/othello_spectral.c \
-   -o c_encoder/othello_spectral_reference
+# 2. Build the executable (for --engine c with subprocess path).
+clang -std=c17 -Wall -Wextra -O2 \
+    -I othello_spectral/c_encoder/include \
+    othello_spectral/c_encoder/src/othello_spectral.c \
+    othello_spectral/c_encoder/src/encode_cli.c \
+    -o othello_spectral/c_encoder/encode_cli.exe
+
+# 3. Build the shared library (for --engine c with ctypes path).
+clang -std=c17 -O2 -shared \
+    -I othello_spectral/c_encoder/include \
+    othello_spectral/c_encoder/src/othello_spectral.c \
+    -o othello_spectral/c_encoder/othello_spectral.dll
+#    (On Linux/macOS: -o othello_spectral.so / othello_spectral.dylib)
 ```
+
+Check which path the engine dispatch resolves to:
+
+```
+python -m othello_spectral.cli engine
+```
+
+Shows both subprocess binary and ctypes DLL status, and indicates
+which path `--engine c` would take.  Override locations via
+`OTHELLO_SPECTRAL_BIN` (exe) or `OTHELLO_SPECTRAL_DLL` (library).
+
+### Benchmarks (APR 2026, 25 447 states)
+
+| path                  | encode time | wall (incl PGN replay) |
+|-----------------------|-------------|------------------------|
+| python                | 3.0 s       | 18.4 s                 |
+| c (ctypes DLL)        | 3.1 s       | 17.8 s                 |
+| c (subprocess exe)    | 7.6 s       | 21.7 s                 |
+
+ctypes path is 2.5× faster than subprocess; matches Python's
+per-state throughput.  Both C paths produce byte-identical
+`.spectralz` output to Python (SHA256 parity verified).
 
 ## Parity test (to be added in a later commit)
 
