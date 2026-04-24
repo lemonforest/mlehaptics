@@ -67,6 +67,8 @@ def find_c_dll() -> Path | None:
 _DLL_HANDLE = None
 _DLL_PATH: Path | None = None
 
+_FIBER_MODE_CODES = {"rank2": 0, "sheaf": 1}
+
 
 def _load_dll() -> tuple[ctypes.CDLL | None, Path | None]:
     """Load the shared library once; cache the handle.  Returns
@@ -88,6 +90,16 @@ def _load_dll() -> tuple[ctypes.CDLL | None, Path | None]:
             ctypes.POINTER(ctypes.c_int8),
             ctypes.POINTER(ctypes.c_double),
         ]
+        # v0.3.0: encode_768_v2 lets the caller pick the fiber mode.
+        # Tolerate missing symbol on older DLLs and fall back to the
+        # rank-2 only code path.
+        if hasattr(handle, "othello_spectral_encode_768_v2"):
+            handle.othello_spectral_encode_768_v2.restype = ctypes.c_int
+            handle.othello_spectral_encode_768_v2.argtypes = [
+                ctypes.POINTER(ctypes.c_int8),
+                ctypes.c_int,
+                ctypes.POINTER(ctypes.c_double),
+            ]
     except (OSError, AttributeError) as exc:
         print(
             f"[othello_spectral.runtime] failed to load DLL {dll}: {exc}",
@@ -98,10 +110,16 @@ def _load_dll() -> tuple[ctypes.CDLL | None, Path | None]:
     return handle, dll
 
 
-def encode_768_c_ctypes(state) -> np.ndarray:
-    """Call encode_768 via ctypes.  Returns a float64 numpy array
-    (the C encoder returns float64 in memory; only frame.py
-    downcasts to float32)."""
+def encode_768_c_ctypes(
+    state, fiber_mode: str = "rank2",
+) -> np.ndarray:
+    """Call the C encoder via ctypes.  Returns a float64 numpy
+    array.
+
+    fiber_mode:
+      - 'rank2' (backwards-compat; v0.2.0 or v0.3.0 DLL)
+      - 'sheaf' (v0.3.0+ only; requires encode_768_v2 symbol)
+    """
     handle, _ = _load_dll()
     if handle is None:
         raise RuntimeError(
@@ -109,6 +127,21 @@ def encode_768_c_ctypes(state) -> np.ndarray:
             "`clang -shared` per c_encoder/README.md, or set "
             "OTHELLO_SPECTRAL_DLL."
         )
+    if fiber_mode not in _FIBER_MODE_CODES:
+        raise ValueError(
+            f"unknown fiber_mode {fiber_mode!r}; expected 'rank2' "
+            f"or 'sheaf'"
+        )
+    code = _FIBER_MODE_CODES[fiber_mode]
+    if code != 0 and not hasattr(
+        handle, "othello_spectral_encode_768_v2",
+    ):
+        raise RuntimeError(
+            f"DLL does not export encode_768_v2 (v0.2.0 binary?); "
+            f"cannot run fiber_mode={fiber_mode}.  Rebuild with "
+            f"v0.3.0 source."
+        )
+
     s = np.ascontiguousarray(
         np.asarray(state, dtype=np.int8), dtype=np.int8,
     )
@@ -117,10 +150,17 @@ def encode_768_c_ctypes(state) -> np.ndarray:
             f"state must have shape (64,), got {s.shape}"
         )
     out = np.zeros(ENCODING_DIM, dtype=np.float64)
-    rc = handle.othello_spectral_encode_768(
-        s.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
-        out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-    )
+    if code == 0:
+        rc = handle.othello_spectral_encode_768(
+            s.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+    else:
+        rc = handle.othello_spectral_encode_768_v2(
+            s.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+            code,
+            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
     if rc != 0:
         raise RuntimeError(f"encode_768 returned nonzero status {rc}")
     return out
@@ -182,14 +222,10 @@ def verify_c_binary(binary: Path) -> tuple[bool, str]:
         )
 
     # Functional sanity: encode the starting position and compare
-    # first float32 against Python's.
-    #
-    # The C encoder currently implements only the v0.2.0 'rank2'
-    # fiber (orbit Laplacians applied to s); the v0.3.0 'sheaf'
-    # fiber requires a bracket walker not yet ported to C.  So
-    # the parity check compares C against Python WITH
-    # fiber_mode='rank2' explicitly - the C binary is verified as a
-    # rank2 reference, not a full v0.3.0 reference.
+    # C output against Python on BOTH fiber modes if the binary
+    # supports them.  At v0.3.0 the C binary handles rank2 and sheaf
+    # via --fiber flag; older binaries only handle rank2 (no --fiber
+    # flag) and are verified on rank2 alone.
     import numpy as _np
     s = _np.zeros(64, dtype=int)
     s[3 * 8 + 3] = -1  # d4 white
@@ -199,33 +235,52 @@ def verify_c_binary(binary: Path) -> tuple[bool, str]:
     obf = "".join(
         {0: "-", 1: "X", -1: "O"}[int(v)] for v in s
     ) + " X;"
-    try:
-        out = subprocess.run(
-            [str(binary), "--obf", obf],
-            capture_output=True, check=True, timeout=10.0,
+
+    def _check_mode(fiber_arg: str | None) -> tuple[bool, str]:
+        cmd = [str(binary), "--obf", obf]
+        if fiber_arg is not None:
+            cmd += ["--fiber", fiber_arg]
+        try:
+            out = subprocess.run(
+                cmd, capture_output=True, check=True, timeout=10.0,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return False, f"binary invocation failed: {exc}"
+        if len(out.stdout) != 4 * ENCODING_DIM:
+            return False, (
+                f"binary emitted {len(out.stdout)} bytes; expected "
+                f"{4 * ENCODING_DIM}"
+            )
+        c_arr = _np.array(
+            struct.unpack(f"<{ENCODING_DIM}f", out.stdout),
+            dtype=_np.float32,
         )
-    except (OSError, subprocess.SubprocessError) as exc:
-        return False, f"--obf smoke-test failed: {exc}"
-    if len(out.stdout) != 4 * ENCODING_DIM:
-        return False, (
-            f"binary emitted {len(out.stdout)} bytes; expected "
-            f"{4 * ENCODING_DIM}"
+        py_mode = fiber_arg if fiber_arg else "rank2"
+        py_arr = _np.asarray(
+            _py_encode(s, fiber_mode=py_mode), dtype=_np.float32,
         )
-    c_arr = _np.array(
-        struct.unpack(f"<{ENCODING_DIM}f", out.stdout),
-        dtype=_np.float32,
-    )
-    py_arr = _np.asarray(
-        _py_encode(s, fiber_mode="rank2"), dtype=_np.float32,
-    )
-    if not _np.array_equal(c_arr, py_arr):
-        n_diff = int(_np.sum(c_arr != py_arr))
-        return False, (
-            f"binary output (rank2) does NOT match Python-rank2: "
-            f"{n_diff} of {ENCODING_DIM} dims differ at float32 "
-            f"precision"
+        if not _np.array_equal(c_arr, py_arr):
+            n_diff = int(_np.sum(c_arr != py_arr))
+            return False, (
+                f"binary output (fiber={py_mode}) does NOT match "
+                f"Python: {n_diff}/{ENCODING_DIM} dims differ "
+                f"at float32 precision"
+            )
+        return True, "ok"
+
+    # Rank-2 always supported.
+    ok, reason = _check_mode(None)
+    if not ok:
+        return False, f"rank2 parity check failed: {reason}"
+    # Sheaf supported iff binary recognises --fiber.  Probe with
+    # --fiber sheaf; if that errors out, binary is rank2-only.
+    ok_sheaf, reason_sheaf = _check_mode("sheaf")
+    if not ok_sheaf:
+        return True, (
+            f"ok (rank2 parity; sheaf parity unavailable — "
+            f"{reason_sheaf})"
         )
-    return True, "ok (rank2 parity)"
+    return True, "ok (rank2 + sheaf parity)"
 
 
 def resolve_engine(
@@ -312,13 +367,28 @@ def encode_768_c(state, binary: Path) -> np.ndarray:
     return arr.astype(np.float64)
 
 
-def encode_768_c_ctypes_batch(states) -> list[np.ndarray]:
-    """Batch-apply encode_768 via the DLL (one ctypes call per state,
-    no subprocess).  Returns a list of float64 arrays."""
+def encode_768_c_ctypes_batch(
+    states, fiber_mode: str = "rank2",
+) -> list[np.ndarray]:
+    """Batch-apply encode_768 via the DLL (one ctypes call per
+    state, no subprocess).  Returns a list of float64 arrays.
+
+    fiber_mode: 'rank2' (default) or 'sheaf' (requires v0.3.0+ DLL).
+    """
     handle, _ = _load_dll()
     if handle is None:
         raise RuntimeError(
             "No C encoder DLL available.  Build per c_encoder/README.md."
+        )
+    if fiber_mode not in _FIBER_MODE_CODES:
+        raise ValueError(f"unknown fiber_mode {fiber_mode!r}")
+    code = _FIBER_MODE_CODES[fiber_mode]
+    if code != 0 and not hasattr(
+        handle, "othello_spectral_encode_768_v2",
+    ):
+        raise RuntimeError(
+            f"DLL does not export encode_768_v2; cannot run "
+            f"fiber_mode={fiber_mode}.  Rebuild at v0.3.0."
         )
     out_list: list[np.ndarray] = []
     for s in states:
@@ -330,10 +400,17 @@ def encode_768_c_ctypes_batch(states) -> list[np.ndarray]:
                 f"state must have shape (64,), got {arr.shape}"
             )
         out = np.zeros(ENCODING_DIM, dtype=np.float64)
-        rc = handle.othello_spectral_encode_768(
-            arr.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
-            out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-        )
+        if code == 0:
+            rc = handle.othello_spectral_encode_768(
+                arr.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+                out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            )
+        else:
+            rc = handle.othello_spectral_encode_768_v2(
+                arr.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+                code,
+                out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            )
         if rc != 0:
             raise RuntimeError(
                 f"encode_768 returned nonzero status {rc}"
@@ -344,14 +421,18 @@ def encode_768_c_ctypes_batch(states) -> list[np.ndarray]:
 
 def encode_768_c_stream(
     states: Iterable, binary: Path,
+    fiber_mode: str = "rank2",
 ) -> list[np.ndarray]:
     """Stream many states through a single C subprocess via
     --stdin-stream mode.  Amortises subprocess startup over the
     full batch.  Returns a list of float64 arrays (one per state).
+
+    fiber_mode: 'rank2' (v0.2.0 default) or 'sheaf' (v0.3.0+).
     """
     states = list(states)
+    cmd = [str(binary), "--stdin-stream", "--fiber", fiber_mode]
     proc = subprocess.Popen(
-        [str(binary), "--stdin-stream"],
+        cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

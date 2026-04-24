@@ -128,20 +128,11 @@ def cmd_encode_pgn(args) -> int:
     if args.out is None:
         out_path = pgn_path.parent / out_path.name
 
-    # Engine dispatch.  C path only works with fiber='rank2' at v0.3.0.
+    # Engine dispatch.  Both rank2 and sheaf fibers supported in C
+    # since v0.3.0; the C engine may still fall back if the DLL /
+    # binary doesn't expose encode_768_v2 (older builds).
     fiber_mode = getattr(args, "fiber", "sheaf")
     requested_engine = args.engine or default_engine()
-    if fiber_mode == "sheaf" and requested_engine == "c":
-        print(
-            "engine='c' requested but fiber='sheaf' is Python-only "
-            "at v0.3.0 (C encoder is rank2 only).  Falling back to "
-            "engine='py'.",
-            file=sys.stderr,
-        )
-        requested_engine = "py"
-    elif fiber_mode == "sheaf" and requested_engine == "auto":
-        # Auto with sheaf fiber is necessarily py.
-        requested_engine = "py"
     try:
         engine, c_binary = resolve_engine(requested_engine)
     except FileNotFoundError as exc:
@@ -181,8 +172,7 @@ def cmd_encode_pgn(args) -> int:
     t0 = time.time()
     # When engine is 'c', prefer the ctypes DLL path if available
     # (skip subprocess overhead).  Fall back to subprocess binary
-    # if only exe is present.  Note: C path is rank2-only and we
-    # already forced fiber=rank2 above if engine=c.
+    # if only exe is present.
     used_path = engine
     if engine == "c":
         dll = None
@@ -191,11 +181,17 @@ def cmd_encode_pgn(args) -> int:
         except FileNotFoundError:
             dll = None
         if dll is not None:
-            encs = encode_768_c_ctypes_batch(all_states)
-            used_path = f"c (ctypes: {dll.name})"
+            encs = encode_768_c_ctypes_batch(
+                all_states, fiber_mode=fiber_mode,
+            )
+            used_path = f"c (ctypes: {dll.name}, fiber={fiber_mode})"
         else:
-            encs = encode_768_c_stream(all_states, c_binary)
-            used_path = f"c (subprocess: {c_binary.name})"
+            encs = encode_768_c_stream(
+                all_states, c_binary, fiber_mode=fiber_mode,
+            )
+            used_path = (
+                f"c (subprocess: {c_binary.name}, fiber={fiber_mode})"
+            )
     else:
         encs = [encode_768(st, fiber_mode=fiber_mode) for st in all_states]
         used_path = f"py (fiber={fiber_mode})"

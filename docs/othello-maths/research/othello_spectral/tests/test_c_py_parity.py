@@ -69,11 +69,14 @@ def _state_to_obf(state: np.ndarray, side_is_black: bool = True) -> str:
     return "".join(out) + " " + ("X" if side_is_black else "O") + ";"
 
 
-def _c_encode(binary: Path, obf: str) -> np.ndarray:
-    """Run the C binary with --obf and return its 768-dim float32 array."""
+def _c_encode(
+    binary: Path, obf: str, fiber: str = "rank2",
+) -> np.ndarray:
+    """Run the C binary with --obf and return its 768-dim float32
+    array.  fiber in {'rank2', 'sheaf'} selects the --fiber flag."""
+    cmd = [str(binary), "--obf", obf, "--fiber", fiber]
     result = subprocess.run(
-        [str(binary), "--obf", obf],
-        capture_output=True, check=True,
+        cmd, capture_output=True, check=True,
     )
     raw = result.stdout
     expected = 4 * ENCODING_DIM
@@ -107,18 +110,16 @@ def test_c_py_parity_starting_position() -> None:
         print("SKIP (C binary not built)")
         return
     s = _starting_state()
-    # C encoder only implements v0.2.0 rank-2 fiber.  Parity test
-    # must compare against Python with fiber_mode='rank2' until
-    # the faithful-sheaf bracket walker is ported to C.
-    py_f32 = np.asarray(encode_768(s, fiber_mode="rank2"), dtype=np.float32)
-    c_f32 = _c_encode(binary, _state_to_obf(s))
-    # Byte-for-byte at float32 precision
-    assert np.array_equal(py_f32, c_f32), (
-        f"parity failure on starting position: "
-        f"{int(np.sum(py_f32 != c_f32))} of {len(py_f32)} dims differ; "
-        f"first mismatches: "
-        f"{[(i, float(py_f32[i]), float(c_f32[i])) for i in np.where(py_f32 != c_f32)[0][:5]]}"
-    )
+    # Test both fiber modes: at v0.3.0 the C binary supports both.
+    for mode in ("rank2", "sheaf"):
+        py_f32 = np.asarray(
+            encode_768(s, fiber_mode=mode), dtype=np.float32,
+        )
+        c_f32 = _c_encode(binary, _state_to_obf(s), fiber=mode)
+        assert np.array_equal(py_f32, c_f32), (
+            f"parity failure on starting position (fiber={mode}): "
+            f"{int(np.sum(py_f32 != c_f32))}/{len(py_f32)} dims differ"
+        )
 
 
 def test_c_py_parity_random_states() -> None:
@@ -126,16 +127,16 @@ def test_c_py_parity_random_states() -> None:
     if binary is None:
         print("SKIP (C binary not built)")
         return
-    for seed in (1, 2, 3, 7, 11, 17, 42, 100):
-        s = _random_state(seed)
-        # Same caveat as above — C is rank2-only.
-        py_f32 = np.asarray(
-            encode_768(s, fiber_mode="rank2"), dtype=np.float32,
-        )
-        c_f32 = _c_encode(binary, _state_to_obf(s))
-        assert np.array_equal(py_f32, c_f32), (
-            f"parity failure on seed {seed}"
-        )
+    for mode in ("rank2", "sheaf"):
+        for seed in (1, 2, 3, 7, 11, 17, 42, 100):
+            s = _random_state(seed)
+            py_f32 = np.asarray(
+                encode_768(s, fiber_mode=mode), dtype=np.float32,
+            )
+            c_f32 = _c_encode(binary, _state_to_obf(s), fiber=mode)
+            assert np.array_equal(py_f32, c_f32), (
+                f"parity failure on seed {seed} (fiber={mode})"
+            )
 
 
 def test_ctypes_dll_parity_if_present() -> None:
@@ -149,17 +150,18 @@ def test_ctypes_dll_parity_if_present() -> None:
     if dll is None:
         print("SKIP (DLL not built)")
         return
-    for seed in (1, 2, 3, 7, 11, 17, 42, 100):
-        s = _random_state(seed)
-        # ctypes DLL also rank2-only at this version.
-        py_f64 = np.asarray(
-            encode_768(s, fiber_mode="rank2"), dtype=np.float64,
-        )
-        c_f64 = encode_768_c_ctypes(s)
-        assert np.array_equal(py_f64, c_f64), (
-            f"ctypes parity failure on seed {seed}: "
-            f"{int(np.sum(py_f64 != c_f64))} of {len(py_f64)} dims differ"
-        )
+    for mode in ("rank2", "sheaf"):
+        for seed in (1, 2, 3, 7, 11, 17, 42, 100):
+            s = _random_state(seed)
+            py_f64 = np.asarray(
+                encode_768(s, fiber_mode=mode), dtype=np.float64,
+            )
+            c_f64 = encode_768_c_ctypes(s, fiber_mode=mode)
+            assert np.array_equal(py_f64, c_f64), (
+                f"ctypes parity failure on seed {seed} "
+                f"(fiber={mode}): {int(np.sum(py_f64 != c_f64))}/"
+                f"{len(py_f64)} dims differ"
+            )
 
 
 ALL_TESTS = [

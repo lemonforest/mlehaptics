@@ -69,8 +69,25 @@ extern const char *const othello_spectral_version;
  * invariant.  See tests/test_c_py_parity (to be added) for the
  * fixture-based regression.
  */
+/* Legacy entry point: encode with v0.2.0 rank-2 orbit-Laplacian
+ * fiber (channels 10-11 = L_ortho @ s, L_diag @ s).  Kept for
+ * callers that need the pre-v0.3.0 channel layout.  Equivalent to
+ * encode_768_v2(state, FIBER_RANK2, out). */
 OTHELLO_API int othello_spectral_encode_768(
     const int8_t state[64],
+    double out[OTHELLO_SPECTRAL_ENCODING_DIM]);
+
+/* Fiber mode selector for encode_768_v2. */
+#define OTHELLO_SPECTRAL_FIBER_RANK2  0  /* v0.2.0, L_ortho/L_diag @ s */
+#define OTHELLO_SPECTRAL_FIBER_SHEAF  1  /* v0.3.0, per-cell R3 counts */
+
+/* v0.3.0 entry point: fiber_mode selects channels 10-11.  All
+ * other channels unchanged.  For FIBER_SHEAF the C implementation
+ * runs the faithful-sheaf bracket classifier per (cell, direction)
+ * and emits per-cell R3_PENDING counts for black / white owners. */
+OTHELLO_API int othello_spectral_encode_768_v2(
+    const int8_t state[64],
+    int fiber_mode,
     double out[OTHELLO_SPECTRAL_ENCODING_DIM]);
 
 /* Compute per-channel squared-norm energies (||channel_block||^2).

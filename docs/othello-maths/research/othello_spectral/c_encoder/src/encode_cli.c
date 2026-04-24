@@ -86,6 +86,7 @@ int main(int argc, char **argv)
     int8_t state[64];
     enum { MODE_STDIN_ONE, MODE_STDIN_STREAM, MODE_OBF } mode = MODE_STDIN_ONE;
     const char *obf = NULL;
+    int fiber_mode = OTHELLO_SPECTRAL_FIBER_RANK2;  /* rank2 default */
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--stdin") == 0) {
@@ -95,13 +96,24 @@ int main(int argc, char **argv)
         } else if (strcmp(argv[i], "--obf") == 0 && i + 1 < argc) {
             mode = MODE_OBF;
             obf = argv[++i];
+        } else if (strcmp(argv[i], "--fiber") == 0 && i + 1 < argc) {
+            const char *f = argv[++i];
+            if (strcmp(f, "rank2") == 0) {
+                fiber_mode = OTHELLO_SPECTRAL_FIBER_RANK2;
+            } else if (strcmp(f, "sheaf") == 0) {
+                fiber_mode = OTHELLO_SPECTRAL_FIBER_SHEAF;
+            } else {
+                fprintf(stderr, "unknown --fiber %s\n", f);
+                return 2;
+            }
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("%s\n", OTHELLO_SPECTRAL_VERSION);
             return 0;
         } else {
             fprintf(
                 stderr,
-                "usage: %s [--stdin | --stdin-stream | --obf <OBF>]\n",
+                "usage: %s [--stdin | --stdin-stream | --obf <OBF>]"
+                " [--fiber rank2|sheaf]\n",
                 argv[0]);
             return 2;
         }
@@ -123,9 +135,9 @@ int main(int argc, char **argv)
             if (r == 1) break;      /* clean EOF */
             if (r != 0) return 3;
             double out[OTHELLO_SPECTRAL_ENCODING_DIM];
-            int rc = othello_spectral_encode_768(state, out);
+            int rc = othello_spectral_encode_768_v2(state, fiber_mode, out);
             if (rc != 0) {
-                fprintf(stderr, "encode_768 returned %d\n", rc);
+                fprintf(stderr, "encode_768_v2 returned %d\n", rc);
                 return 4;
             }
             for (size_t i = 0; i < OTHELLO_SPECTRAL_ENCODING_DIM; ++i) {
@@ -143,9 +155,9 @@ int main(int argc, char **argv)
     }
 
     double out[OTHELLO_SPECTRAL_ENCODING_DIM];
-    int rc = othello_spectral_encode_768(state, out);
+    int rc = othello_spectral_encode_768_v2(state, fiber_mode, out);
     if (rc != 0) {
-        fprintf(stderr, "encode_768 returned %d\n", rc);
+        fprintf(stderr, "encode_768_v2 returned %d\n", rc);
         return 4;
     }
 
