@@ -76,3 +76,6 @@ docs/chess-maths/results/*_logs/
 docs/chess-maths/results/delta_sigma_*/
 docs/chess-maths/results/*/
 docs/othello-maths/edax*/
+
+# antikythera-maths skyfield ephemeris cache (de421.bsp ~15MB; downloaded on demand)
+docs/antikythera-maths/skyfield_data/
