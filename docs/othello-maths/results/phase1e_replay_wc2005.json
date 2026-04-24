@@ -1,0 +1,45 @@
+{
+  "features_csv": "..\\results\\wc2005_features.csv",
+  "n_plies": 1418,
+  "mean_energies": {
+    "magn_A1minus": 5.839210155148096,
+    "magn_B1minus": 4.670486600846262,
+    "magn_B2minus": 4.999294781382228,
+    "magn_Eminus": 17.125176304654442,
+    "occ_A1plus": 29.361071932299012,
+    "occ_A2plus": 0.4349435825105783,
+    "occ_B1plus": 0.6211212976022567,
+    "occ_B2plus": 0.6671368124118476,
+    "occ_Eplus": 3.201339915373766
+  },
+  "b1_b2_asymmetry": {
+    "magn_mean_B1_over_B2": 0.9342290873183806,
+    "occ_mean_B1_over_B2": 0.9310253699788583,
+    "magn_B2_gt_B1_fraction": 0.5557122708039492,
+    "occ_B2_gt_B1_fraction": 0.48519040902679833
+  },
+  "rho_vs_a1_minus": {
+    "rho": 0.746730795077333,
+    "p": 4.8444753156045226e-253,
+    "n": 1418
+  },
+  "rho_vs_d4_a1_occ": {
+    "rho": 0.9971313960739187,
+    "p": 0.0,
+    "n": 1418
+  },
+  "cross_channel_pearson": {
+    "a1_minus_vs_e_minus": {
+      "pearson_r": 0.3458834295055902
+    },
+    "a1_occ_vs_e_occ": {
+      "pearson_r": -0.05333882494109287
+    },
+    "b1_minus_vs_b2_minus": {
+      "pearson_r": 0.26454610356084773
+    },
+    "b1_occ_vs_b2_occ": {
+      "pearson_r": -0.029713597187454192
+    }
+  }
+}
