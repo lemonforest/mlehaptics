@@ -1,9 +1,12 @@
 # Othello as a Dynamic Spectral Lattice System — Research Notebook
 
 **Authors:** Steven (mlehaptics Project) & Claude (Anthropic)
-**Date:** April 2026
-**Status:** Active research — §1–§3 computational, §4–§5 scaffold.
-**Tools:** Python 3, NumPy, SciPy (all runnable standalone).
+**Date:** April 2026 (last update: Phase 1e, PR #58)
+**Status:** Active research — §1–§2e computational; §3 computational
+(faithful-sheaf update in §2e.5); §4 instantiated in §2e.15–§2e.18;
+§5 resolved in §2e.
+**Tools:** Python 3, NumPy, SciPy; C17 reference encoder (clang);
+ctypes DLL path.
 
 > Living document.  Sibling to
 > [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md)
@@ -1668,41 +1671,87 @@ not trivially degenerate.
 
 ### 3.4 Kernel dimension
 
-The kernel dim is constant at 128 across the trajectory.  This is an
-artefact of the simplified restriction maps: empty cells project
-onto a single coordinate, leaving two kernel directions per cell.
-A faithful bracket-aware restriction should reduce the kernel at
-positions with many contested rays.  Sequel work.
+The crude sheaf's kernel dim is constant at 128 across the
+trajectory.  This is an artefact of the simplified restriction
+maps: empty cells project onto a single coordinate, leaving two
+kernel directions per cell.
+
+**CLOSED in §2e.5** — the faithful (bracket-aware) sheaf
+(`faithful_sheaf.py`) breaks the constant kernel: on the seed=123
+trajectory the kernel dim ranges 141–188, varying with how many
+cells participate in active brackets.  The faithful restriction
+maps depend on R2_COMPLETE / R3_PENDING classification of each
+ray segment, not just cell-endpoint state.  λ₂ differs from crude
+by mean +0.29.  All downstream spectrum-based analyses (§2e.4,
+§2e.15, §2e.16) use the faithful sheaf.
 
 ---
 
-## 4. Phase-operator preflight — scaffold only
+## 4. Phase-operator preflight — **instantiated in §2e.15–§2e.18**
 
 See [OTHELLO_PHASE_OP_PREFLIGHT.md](OTHELLO_PHASE_OP_PREFLIGHT.md)
-for the full handoff document.  Candidate encoder dimensions,
-placement generators, flip gate options, state-dependent gating
-mechanisms, and ground-truth engine selection are documented there.
+for the original handoff document.  Phase 1e replaced "scaffold
+only" with a working toolbox:
 
-Recommended default: D = 768 with generators (7, 11), rank-2 fiber
-motivated by the §9r polarization collapse.
+- **Encoder** (D = 768 at v0.3.1): default `fiber_mode="sheaf"`
+  uses per-cell R3_PENDING bracket counts as channels 10/11
+  (§2e.6).  Legacy `fiber_mode="rank2"` — the §9r polarization-
+  collapse default — kept for C-parity and ablations.
+- **C reference encoder** at
+  [research/othello_spectral/c_encoder/](research/othello_spectral/c_encoder/),
+  bit-identical to Python on both fiber modes (§2e.7, §2e.13).
+  25× speedup on sheaf encoding via ctypes.
+- **Sheaf-phased operator**
+  ([research/othello_spectral/phase_operator.py](research/othello_spectral/phase_operator.py))
+  with 6 modes: `identity`, `scale_fiber_by_owner_lambda2`,
+  `scale_all_by_kernel_dim`, `rotate_E_by_entropy`,
+  `rotate_E_so2_by_entropy`, `scale_by_feature_coupling`.
+- **Learned coupling** (§2e.16): Nelder-Mead fit produces
+  **partial ρ = −0.683 against archive_mean_lb** — 2.03× the
+  §1d.b D₄-A₁(s²) baseline.  Dominant coefficient pattern
+  `+0.256 entropy_B − 0.283 entropy_W`: cross-owner sheaf-
+  entropy difference as the structural coupling.
+- **Move-type operators**
+  ([research/othello_spectral/move_operator.py](research/othello_spectral/move_operator.py)),
+  chess-style per-cell `P_place_i` using the bracket classifier
+  to compute flipped cells.  6/6 parity tests against
+  `OthelloBoard.play()` on 20 random games.
+
+Residual preflight items: off-diagonal phase operators beyond
+SO(2)-on-E (state-dependent channel mixing among non-E
+subspaces), phase-operator composition for multi-ply look-ahead,
+and a C port of the phase operator itself.
 
 ---
 
-## 5. WTHOR empirical tests — scaffold only
+## 5. WTHOR empirical tests — **resolved in §2e**
 
-§10.10 tests 1–5 plus the A1 depth-gap transfer.  All require
-external data not available in-session:
+§10.10 tests 1–5 plus the A1 depth-gap transfer.  Phase 1c–1e
+answered every item; original section preserved below for
+historical context.  Current status:
 
-- T1 Flip-count distribution (power law vs exponential).
-- T2 B1 vs B2 population asymmetry along game trajectories.
-- T3 Shannon information per move.
-- T4 Trajectory in (T_eff, D_eff) plane.
-- T5 Flank-cluster size distribution vs FK-BC.
+- **T1 Flip-count distribution** — FAILED power-law hypothesis,
+  PASSED exponential with λ ≈ 0.548 across all 4 tournament
+  corpora (§2e.8).
+- **T2 B1 vs B2 population asymmetry** — CONFIRMED (§2b.T2);
+  B2 > B1 on the static 50-empty tasklist (2.01×) and on
+  trajectory averages (1.07–1.25×, §1e.7-era commits).
+- **T3 Shannon information per move** — CONFIRMED via
+  `opening_book_freq.csv.bz2` (§2c.2) with Simpson's-paradox
+  retraction of the aggregate reading (§2e.3 / §1e.6).
+- **T4 Trajectory in (T_eff, D_eff) plane** — PARTIAL; median
+  T_eff = −22 k robust across corpora via windowed OLS, or
+  −6.04 log-E slope; heavy-tailed at short windows (§2e.9).
+- **T5 Flank-cluster size distribution vs FK-BC** — FAILED
+  power-law, PASSED exponential (τ ≈ 2.68 across all 4 corpora;
+  §2e.8).
+- **H9 strict perfect-play depth-gap** — CONFIRMED (§2d.b at
+  N = 2587) with Reading B separation confirmed by edax d=20
+  (§2e.2).
 
-Preparation: `research/wthor_loader.py` is scoped but not yet
-implemented; `research/perfect_play_compare.py` is similarly scoped.
-Both are single-session tasks once the WTHOR .wtb file is
-downloaded and the Takizawa Zenodo dataset is available.
+`research/wthor_loader.py` scope became unnecessary: the
+2178-game `liveothello_2025_all.pgn` + Takizawa tasklist +
+archive summary together provide the WTHOR-scale corpus.
 
 ---
 
