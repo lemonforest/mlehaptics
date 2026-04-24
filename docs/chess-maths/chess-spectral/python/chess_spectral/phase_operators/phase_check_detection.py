@@ -12,8 +12,17 @@ it to validate that any phase-similarity-based signal (path 2) carries
 information beyond what a direct phase-space reformulation already provides.
 
 See PHASE_OPERATOR_SUPPLEMENT.md §11.5.1 for the path-1 / path-2 distinction.
+
+python-chess dependency:
+    ``chess`` is imported lazily inside functions that actually need it
+    (see module header note in ``occupation_field.py``).
 """
-import chess
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import chess
 
 from .phase_operators import (
     phi, MODULUS,
@@ -65,12 +74,13 @@ def _sliding_ray_hits_king(king_phi: int,
     return False
 
 
-def phasecast_is_check(board: chess.Board) -> bool:
+def phasecast_is_check(board: "chess.Board") -> bool:
     """Return True if the side-to-move's king is under attack.
 
     Path 1 reference: reverse phase-cast from the king's phase across all
     attacker types. Matches python-chess's is_check by construction.
     """
+    import chess
     mover_color = +1 if board.turn == chess.WHITE else -1
     king_sq = board.king(board.turn)
     if king_sq is None:
@@ -118,8 +128,8 @@ def phasecast_is_check(board: chess.Board) -> bool:
     return False
 
 
-def move_leaves_king_in_check(board: chess.Board,
-                              move: chess.Move) -> bool:
+def move_leaves_king_in_check(board: "chess.Board",
+                              move: "chess.Move") -> bool:
     """Return True if applying `move` to `board` leaves the mover's king
     attacked. Uses phasecast_is_check.
 

@@ -16,8 +16,17 @@ python-chess. Its purpose is threefold:
   3. Castling handling (§11.2.8 exclusion) is easier in the hybrid
      formulation and provides a reference for the phase-native P_castle
      in castling.py.
+
+python-chess dependency:
+    ``chess`` is imported lazily inside functions that actually need it
+    (see module header note in ``occupation_field.py``).
 """
-import chess
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import chess
 
 from .phase_operators import (
     phi,
@@ -56,8 +65,9 @@ def _unobstructed_dests(piece_char: str, origin_r: int, origin_c: int,
     raise ValueError(f"unknown piece char: {piece_char}")
 
 
-def _chess_legal_dests(board: chess.Board, origin_r: int,
+def _chess_legal_dests(board: "chess.Board", origin_r: int,
                        origin_c: int) -> frozenset[tuple[int, int]]:
+    import chess
     origin_sq = chess.square(origin_c, origin_r)
     out: set[tuple[int, int]] = set()
     for move in board.legal_moves:
@@ -67,7 +77,7 @@ def _chess_legal_dests(board: chess.Board, origin_r: int,
     return frozenset(out)
 
 
-def occupation_aware_moves_a(board: chess.Board, piece_char: str,
+def occupation_aware_moves_a(board: "chess.Board", piece_char: str,
                              origin_r: int, origin_c: int,
                              mover_charge: int) -> frozenset[tuple[int, int]]:
     """Hybrid: phase-space candidate generation, python-chess filter.
@@ -77,6 +87,7 @@ def occupation_aware_moves_a(board: chess.Board, piece_char: str,
     candidates are unioned with castle_king_destinations(board) before
     the legal-move intersection.
     """
+    import chess
     candidates = _unobstructed_dests(piece_char, origin_r, origin_c,
                                      mover_charge)
     if piece_char.upper() == "K":
