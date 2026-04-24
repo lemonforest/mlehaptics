@@ -6,9 +6,17 @@
  * regression test.
  *
  * Usage:
- *   (a) --obf '<66-char OBF string>' : parse then encode
- *   (b) --stdin                      : read 64 bytes of signed state
- *                                       from stdin, encode to stdout
+ *   (a) --obf '<66-char OBF string>' : parse, encode, emit one frame
+ *   (b) --stdin                      : read exactly 64 bytes of
+ *                                       state from stdin, emit one
+ *                                       frame of 3072 bytes
+ *   (c) --stdin-stream               : read 64-byte states in a
+ *                                       loop until EOF, emit one
+ *                                       frame per input state.
+ *                                       Used by the Python engine
+ *                                       dispatcher to amortise
+ *                                       subprocess startup over a
+ *                                       whole corpus.
  *
  * Build:
  *   cc -std=c17 -Wall -Wextra -O2 -I include \
@@ -49,23 +57,6 @@ static int obf_to_state(const char *obf, int8_t state[64])
     return 0;
 }
 
-static int read_state_stdin(int8_t state[64])
-{
-    /* Read 64 bytes, interpret as int8_t.  Little-endian machines
-     * can memcpy; portability-minded code should read one byte at
-     * a time. */
-    unsigned char buf[64];
-    size_t got = fread(buf, 1, 64, stdin);
-    if (got != 64) {
-        fprintf(stderr, "read_state_stdin: got %zu bytes, wanted 64\n", got);
-        return -1;
-    }
-    for (size_t i = 0; i < 64; ++i) {
-        state[i] = (int8_t)buf[i];
-    }
-    return 0;
-}
-
 static void write_f32_little_endian(double value)
 {
     float f = (float)value;
@@ -77,31 +68,78 @@ static void write_f32_little_endian(double value)
     fwrite(bytes, 1, 4, stdout);
 }
 
+static int read_one_state(int8_t state[64])
+{
+    unsigned char buf[64];
+    size_t got = fread(buf, 1, 64, stdin);
+    if (got == 0) return 1;  /* EOF */
+    if (got != 64) {
+        fprintf(stderr, "short read: got %zu bytes\n", got);
+        return -1;
+    }
+    for (size_t i = 0; i < 64; ++i) state[i] = (int8_t)buf[i];
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     int8_t state[64];
-    int input_mode = 0;  /* 0 = stdin, 1 = obf */
+    enum { MODE_STDIN_ONE, MODE_STDIN_STREAM, MODE_OBF } mode = MODE_STDIN_ONE;
     const char *obf = NULL;
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--stdin") == 0) {
-            input_mode = 0;
+            mode = MODE_STDIN_ONE;
+        } else if (strcmp(argv[i], "--stdin-stream") == 0) {
+            mode = MODE_STDIN_STREAM;
         } else if (strcmp(argv[i], "--obf") == 0 && i + 1 < argc) {
-            input_mode = 1;
+            mode = MODE_OBF;
             obf = argv[++i];
         } else if (strcmp(argv[i], "--version") == 0) {
             printf("%s\n", OTHELLO_SPECTRAL_VERSION);
             return 0;
         } else {
-            fprintf(stderr, "usage: %s [--stdin | --obf <OBF>]\n", argv[0]);
+            fprintf(
+                stderr,
+                "usage: %s [--stdin | --stdin-stream | --obf <OBF>]\n",
+                argv[0]);
             return 2;
         }
     }
 
-    if (input_mode == 1) {
+    if (mode == MODE_STDIN_STREAM) {
+        /* Streaming: read 64 bytes, encode, emit 3072 bytes; repeat
+         * until EOF.  Used by the Python engine dispatcher to encode
+         * many states through a single subprocess. */
+#if defined(_WIN32)
+        /* Windows: flip stdin/stdout to binary so CRLF translation
+         * does not corrupt the state bytes or float32 output. */
+        extern int _setmode(int, int);
+        _setmode(0 /*stdin*/, 0x8000 /* _O_BINARY */);
+        _setmode(1 /*stdout*/, 0x8000);
+#endif
+        for (;;) {
+            int r = read_one_state(state);
+            if (r == 1) break;      /* clean EOF */
+            if (r != 0) return 3;
+            double out[OTHELLO_SPECTRAL_ENCODING_DIM];
+            int rc = othello_spectral_encode_768(state, out);
+            if (rc != 0) {
+                fprintf(stderr, "encode_768 returned %d\n", rc);
+                return 4;
+            }
+            for (size_t i = 0; i < OTHELLO_SPECTRAL_ENCODING_DIM; ++i) {
+                write_f32_little_endian(out[i]);
+            }
+            fflush(stdout);
+        }
+        return 0;
+    }
+
+    if (mode == MODE_OBF) {
         if (obf_to_state(obf, state) != 0) return 3;
     } else {
-        if (read_state_stdin(state) != 0) return 3;
+        if (read_one_state(state) != 0) return 3;
     }
 
     double out[OTHELLO_SPECTRAL_ENCODING_DIM];

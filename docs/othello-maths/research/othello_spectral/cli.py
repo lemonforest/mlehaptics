@@ -49,6 +49,9 @@ from othello_spectral import (  # noqa: E402
     CHANNEL_NAMES, ENCODING_DIM, VERSION, channel_energies, encode_768,
 )
 from othello_spectral.frame import Frame, write_file  # noqa: E402
+from othello_spectral.runtime import (  # noqa: E402
+    default_engine, encode_768_c_stream, find_c_binary, resolve_engine,
+)
 
 
 def _obf_to_state(obf: str) -> np.ndarray:
@@ -124,13 +127,23 @@ def cmd_encode_pgn(args) -> int:
     if args.out is None:
         out_path = pgn_path.parent / out_path.name
 
+    # Engine dispatch.
+    try:
+        engine, c_binary = resolve_engine(args.engine or default_engine())
+    except FileNotFoundError as exc:
+        print(f"engine resolution failed: {exc}", file=sys.stderr)
+        return 4
+    print(
+        f"encoder engine: {engine}"
+        + (f"  binary={c_binary}" if c_binary else "")
+    )
+
     games = pgn_loader.parse_pgn_file(pgn_path)
     print(f"parsed {len(games)} games from {pgn_path.name}")
 
-    frames: list[Frame] = []
-    t0 = time.time()
+    # First pass: replay all games to collect states in memory.
+    replayed: list[list] = []  # one list of state arrays per game
     failures = 0
-    global_ply_counter = 0
     for gi, g in enumerate(games):
         try:
             _, states, _ = pgn_loader.replay(g["moves"])
@@ -140,21 +153,41 @@ def cmd_encode_pgn(args) -> int:
                 file=sys.stderr,
             )
             failures += 1
+            replayed.append([])
             continue
-        for state in states:
-            enc = encode_768(state)
-            frames.append(Frame(data=enc, ply=global_ply_counter))
-            global_ply_counter += 1
-        if (gi + 1) % 100 == 0 or gi + 1 == len(games):
-            elapsed = time.time() - t0
-            print(
-                f"  [{gi + 1}/{len(games)}] games processed "
-                f"({elapsed:.1f}s, {global_ply_counter} frames)"
-            )
+        replayed.append(list(states))
+
+    # Second pass: encode every state.  Engine dispatch here.
+    all_states: list = []
+    game_lengths: list[int] = []
+    for states in replayed:
+        game_lengths.append(len(states))
+        all_states.extend(states)
+
+    t0 = time.time()
+    if engine == "c":
+        encs = encode_768_c_stream(all_states, c_binary)
+    else:
+        encs = [encode_768(st) for st in all_states]
+    print(
+        f"encoded {len(encs)} states in {time.time() - t0:.1f}s "
+        f"(engine={engine})"
+    )
+
+    # Reassemble frames with a monotone ply counter across games.
+    frames: list[Frame] = []
+    ply = 0
+    offset = 0
+    for L in game_lengths:
+        for i in range(L):
+            frames.append(Frame(data=encs[offset + i], ply=ply))
+            ply += 1
+        offset += L
+
     metadata = (
         args.metadata or
         f"othello_spectral v{VERSION} corpus={pgn_path.name} "
-        f"games={len(games) - failures}"
+        f"games={len(games) - failures} engine={engine}"
     )
     write_file(out_path, frames, metadata=metadata)
     print(
@@ -204,7 +237,42 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Free-form metadata string written into the file header "
              "(232 bytes max).",
     )
+    ppgn.add_argument(
+        "--engine", choices=["py", "c", "auto"], default=None,
+        help="Encoder engine.  'py' = Python reference (always "
+             "works); 'c' = the compiled C binary (requires a built "
+             "encode_cli binary or the OTHELLO_SPECTRAL_BIN env var); "
+             "'auto' = prefer 'c' if available else fall back to "
+             "'py'.  Default: whatever is in OTHELLO_SPECTRAL_ENGINE, "
+             "or 'auto'.",
+    )
     ppgn.set_defaults(func=cmd_encode_pgn)
+
+    # Engine-diagnostic subcommand — prints which engine would be
+    # selected under the current environment + CLI overrides.
+    peng = sub.add_parser(
+        "engine",
+        help="Print the resolved encoder engine (py / c) + C binary "
+             "path if any",
+    )
+    peng.add_argument(
+        "--engine", choices=["py", "c", "auto"], default=None,
+    )
+
+    def cmd_engine(args):
+        req = args.engine or default_engine()
+        try:
+            e, b = resolve_engine(req)
+        except FileNotFoundError as exc:
+            print(f"requested: {req}")
+            print(f"error: {exc}")
+            return 4
+        print(f"requested: {req}")
+        print(f"resolved:  {e}")
+        print(f"binary:    {b or '(none)'}")
+        print(f"default_from_env: {default_engine()}")
+        return 0
+    peng.set_defaults(func=cmd_engine)
 
     return p
 
