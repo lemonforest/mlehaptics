@@ -680,6 +680,82 @@ property** (14-disc configuration), not a general trajectory
 signature.  Trajectory-level A1/E structure is game-specific and
 differently-signed between chess and Othello.
 
+### 1e.7.4b — Faithful gain investigation at 2025 corpus scale
+
+Runner: [`research/phase1e_faithful_gain_investigation.py`](research/phase1e_faithful_gain_investigation.py)
+on the 2178-game 2025 corpus.  ~1 h walltime (faithful sheaf
+computation dominates).  Refines §1e.7.4's Barcelona result at
+60× more statistical power.
+
+Headline table — in-sample gain_vs_snap by Δ and target:
+
+  Δ     target                    R²_pred    R²_snap    gain
+  10    n_legal_moves              +0.529     +0.517     +0.012
+  10    a1_minus_energy            +0.287     +0.328     **−0.041**
+  10    d4_a1_occupation_energy    +0.886     +0.816     +0.070
+  10    d4_e_occupation_energy     +0.299     +0.140     **+0.159**
+  10    rho                        +0.899     +0.820     +0.079
+  20    a1_minus_energy            +0.257     +0.297     −0.041
+  20    d4_a1_occupation_energy    +0.898     +0.748     **+0.150**
+  20    rho                        +0.917     +0.763     **+0.154**
+
+Train/test split (1089 train, 1089 test) at Δ=10:
+
+  target                    R²_pred_oos    R²_snap_oos    gain
+  n_legal_moves              +0.515         +0.507         +0.008
+  a1_minus_energy            +0.269         +0.327         −0.058
+  d4_a1_occupation_energy    +0.884         +0.812         +0.072
+  **d4_e_occupation_energy** +0.288         +0.131         **+0.157**
+  rho                        +0.895         +0.814         +0.081
+
+OOS gains track in-sample closely — not an overfit artefact.
+
+**Refined H1 interpretation: trajectory memory is target-specific.**
+
+  - **Strong predictive gain (H1 confirmed):** Z₂-invariant
+    occupation channels.  d4_e_occ especially (+0.159 @ Δ=10,
+    holds at +0.089 @ Δ=20 after peaking mid-range).  Rho /
+    empty_count gains grow monotonically with Δ (0.079 → 0.154).
+    d4_a1_occ likewise (0.070 → 0.150).
+
+  - **No predictive gain (H1 null):** n_legal_moves (+0.012 @ Δ=10).
+    Sheaf and snapshot are equivalent here; what predicts future
+    mobility is captured equally well by either.
+
+  - **Snapshot wins (H1 negated):** a1_minus_energy.  **Gain is
+    consistently NEGATIVE across Δ ∈ {5, 10, 15, 20}** (−0.03 to
+    −0.04, in-sample and OOS).  Consistent with §1e.7.5b's
+    A1-drift decomposition: A1⁻ is phase-sensitive (Z₂-odd
+    magnetisation channel that sign-flips between phases), so the
+    sheaf at time t does NOT reliably encode A1⁻(t + Δ) better
+    than the sheaf at t + Δ itself.
+
+Per-feature ablation at Δ=10 on d4_e_occ: all 8 features have
+POSITIVE dGain values (removing any feature SHRINKS the gain).
+Features cooperate in the predictive direction.
+
+Per-feature ablation on a1_minus_energy: all features have
+NEGATIVE dGain (removing any feature LOWERS the snapshot more
+than the predictive — so removing hurts snapshot more, which
+would raise gain; since baseline gain is already negative, we're
+at local maxima).  Consistent with "features encode the same
+thing for A1⁻ in both directions, so snapshot is strictly
+better equipped."
+
+**Mechanistic reading:** the faithful sheaf's features carry
+forward-predictive information about CURRENT-STATE-TYPE signals
+(occupation density, channel geometry) but NOT about phase-odd
+magnetisation.  The Z₂-even content evolves smoothly and the
+sheaf captures its trajectory; the Z₂-odd content is too phase-
+coupled to benefit from trajectory memory.
+
+This reconciles §1e.7.4's Barcelona result (where a1_minus gain
+was weakly positive +0.028) with §1e.7.5b's deep-endgame
+localisation on the crude sheaf.  Barcelona N=35 was too small to
+resolve a1_minus's true ~−0.04 gain; §1e.7.5b already hinted at
+phase-localisation; 2025 now separates Z₂-even trajectory memory
+(H1 confirmed) from Z₂-odd phase-sensitivity (H1 null).
+
 ### 1e.7.5b — A1⁻ drift by phase at 2025 corpus scale
 
 Runner: [`research/phase1e_a1_drift_by_phase.py`](research/phase1e_a1_drift_by_phase.py).

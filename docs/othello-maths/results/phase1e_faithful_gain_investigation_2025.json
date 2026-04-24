@@ -1,0 +1,668 @@
+{
+  "corpus": "..\\dataset\\liveothello_2025_all.pgn",
+  "n_trajectories": 2178,
+  "sheaf_features_order": [
+    "sheaf_black_lambda2",
+    "sheaf_white_lambda2",
+    "sheaf_black_entropy",
+    "sheaf_white_entropy",
+    "sheaf_black_kerdim",
+    "sheaf_white_kerdim",
+    "sheaf_black_lambdamax",
+    "sheaf_white_lambdamax"
+  ],
+  "delta_sweep": {
+    "delta_1": {
+      "n_pairs": 132128,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.5066920866434681,
+          "r2_snapshot": 0.5366618288660953,
+          "r2_persistence": 0.24284455482748568,
+          "gain_vs_pers": 0.2638475318159824,
+          "gain_vs_snap": -0.02996974222262716,
+          "n": 132128
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.31317355754591203,
+          "r2_snapshot": 0.3041310924307413,
+          "r2_persistence": 0.7885144513906608,
+          "gain_vs_pers": -0.47534089384474876,
+          "gain_vs_snap": 0.009042465115170706,
+          "n": 132128
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8600341268298337,
+          "r2_snapshot": 0.8481546417001566,
+          "r2_persistence": 0.9991114176387332,
+          "gain_vs_pers": -0.13907729080889952,
+          "gain_vs_snap": 0.01187948512967707,
+          "n": 132128
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.24369562949315593,
+          "r2_snapshot": 0.220924502207397,
+          "r2_persistence": 0.9457212702943519,
+          "gain_vs_pers": -0.702025640801196,
+          "gain_vs_snap": 0.02277112728575892,
+          "n": 132128
+        },
+        "rho": {
+          "r2_predictive": 0.8701236475380243,
+          "r2_snapshot": 0.857288314684098,
+          "r2_persistence": 0.9999295206990183,
+          "gain_vs_pers": -0.129805873160994,
+          "gain_vs_snap": 0.01283533285392624,
+          "n": 132128
+        },
+        "empty_count": {
+          "r2_predictive": 0.8701236475380243,
+          "r2_snapshot": 0.8572883146840979,
+          "r2_persistence": 0.9999295206990183,
+          "gain_vs_pers": -0.129805873160994,
+          "gain_vs_snap": 0.012835332853926351,
+          "n": 132128
+        }
+      }
+    },
+    "delta_2": {
+      "n_pairs": 129950,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.5216110693912466,
+          "r2_snapshot": 0.5293028331825043,
+          "r2_persistence": 0.7983305547671025,
+          "gain_vs_pers": -0.2767194853758559,
+          "gain_vs_snap": -0.007691763791257689,
+          "n": 129950
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.3115134265010078,
+          "r2_snapshot": 0.30292184456145665,
+          "r2_persistence": 0.7456114035899145,
+          "gain_vs_pers": -0.43409797708890674,
+          "gain_vs_snap": 0.008591581939551118,
+          "n": 129950
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8649161283054075,
+          "r2_snapshot": 0.8440657433027741,
+          "r2_persistence": 0.9980079178914816,
+          "gain_vs_pers": -0.13309178958607404,
+          "gain_vs_snap": 0.020850385002633476,
+          "n": 129950
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.2371876640803704,
+          "r2_snapshot": 0.19441703596775628,
+          "r2_persistence": 0.866643189495558,
+          "gain_vs_pers": -0.6294555254151876,
+          "gain_vs_snap": 0.04277062811261412,
+          "n": 129950
+        },
+        "rho": {
+          "r2_predictive": 0.8747083737172057,
+          "r2_snapshot": 0.8507416260401178,
+          "r2_persistence": 0.9998624791531284,
+          "gain_vs_pers": -0.12515410543592276,
+          "gain_vs_snap": 0.02396674767708784,
+          "n": 129950
+        },
+        "empty_count": {
+          "r2_predictive": 0.8747083737172057,
+          "r2_snapshot": 0.8507416260401178,
+          "r2_persistence": 0.9998624791531284,
+          "gain_vs_pers": -0.12515410543592276,
+          "gain_vs_snap": 0.02396674767708784,
+          "n": 129950
+        }
+      }
+    },
+    "delta_3": {
+      "n_pairs": 127772,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.49350997458770396,
+          "r2_snapshot": 0.5255955925728838,
+          "r2_persistence": 0.1872659534417247,
+          "gain_vs_pers": 0.30624402114597926,
+          "gain_vs_snap": -0.03208561798517984,
+          "n": 127772
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.310153988685396,
+          "r2_snapshot": 0.30279729795757193,
+          "r2_persistence": 0.5970601322781431,
+          "gain_vs_pers": -0.28690614359274713,
+          "gain_vs_snap": 0.007356690727824078,
+          "n": 127772
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8696179676339137,
+          "r2_snapshot": 0.8401759545031554,
+          "r2_persistence": 0.9967090507929012,
+          "gain_vs_pers": -0.12709108315898743,
+          "gain_vs_snap": 0.029442013130758338,
+          "n": 127772
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.23731648298893138,
+          "r2_snapshot": 0.17209667870780054,
+          "r2_persistence": 0.7734938225101963,
+          "gain_vs_pers": -0.5361773395212649,
+          "gain_vs_snap": 0.06521980428113083,
+          "n": 127772
+        },
+        "rho": {
+          "r2_predictive": 0.8793651228767074,
+          "r2_snapshot": 0.8450829456927502,
+          "r2_persistence": 0.9997509443642444,
+          "gain_vs_pers": -0.12038582148753696,
+          "gain_vs_snap": 0.03428217718395721,
+          "n": 127772
+        },
+        "empty_count": {
+          "r2_predictive": 0.8793651228767074,
+          "r2_snapshot": 0.8450829456927502,
+          "r2_persistence": 0.9997509443642444,
+          "gain_vs_pers": -0.12038582148753696,
+          "gain_vs_snap": 0.03428217718395721,
+          "n": 127772
+        }
+      }
+    },
+    "delta_5": {
+      "n_pairs": 123416,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.4940186957541445,
+          "r2_snapshot": 0.5150167285704133,
+          "r2_persistence": 0.12549147015742712,
+          "gain_vs_pers": 0.36852722559671736,
+          "gain_vs_snap": -0.020998032816268775,
+          "n": 123416
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.30521738848546764,
+          "r2_snapshot": 0.31227306598662474,
+          "r2_persistence": 0.4669860000678039,
+          "gain_vs_pers": -0.16176861158233624,
+          "gain_vs_snap": -0.007055677501157098,
+          "n": 123416
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8759306525790531,
+          "r2_snapshot": 0.8346201721118469,
+          "r2_persistence": 0.9938081145659362,
+          "gain_vs_pers": -0.11787746198688309,
+          "gain_vs_snap": 0.0413104804672062,
+          "n": 123416
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.254819059889425,
+          "r2_snapshot": 0.1438262629590964,
+          "r2_persistence": 0.5798383022903713,
+          "gain_vs_pers": -0.32501924240094626,
+          "gain_vs_snap": 0.1109927969303286,
+          "n": 123416
+        },
+        "rho": {
+          "r2_predictive": 0.8860899927237988,
+          "r2_snapshot": 0.8368803315374429,
+          "r2_persistence": 0.9995010207177477,
+          "gain_vs_pers": -0.11341102799394887,
+          "gain_vs_snap": 0.049209661186355946,
+          "n": 123416
+        },
+        "empty_count": {
+          "r2_predictive": 0.8860899927237988,
+          "r2_snapshot": 0.8368803315374429,
+          "r2_persistence": 0.9995010207177477,
+          "gain_vs_pers": -0.11341102799394887,
+          "gain_vs_snap": 0.049209661186355946,
+          "n": 123416
+        }
+      }
+    },
+    "delta_7": {
+      "n_pairs": 119060,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.5051452199705324,
+          "r2_snapshot": 0.5136436802714539,
+          "r2_persistence": 0.07666342995925834,
+          "gain_vs_pers": 0.42848179001127407,
+          "gain_vs_snap": -0.008498460300921495,
+          "n": 119060
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.2966256791307691,
+          "r2_snapshot": 0.31846338993668644,
+          "r2_persistence": 0.38072498856304104,
+          "gain_vs_pers": -0.08409930943227195,
+          "gain_vs_snap": -0.021837710805917343,
+          "n": 119060
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8807106281525044,
+          "r2_snapshot": 0.8268861039645963,
+          "r2_persistence": 0.9905053156810444,
+          "gain_vs_pers": -0.10979468752853994,
+          "gain_vs_snap": 0.053824524187908174,
+          "n": 119060
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.27308874494186985,
+          "r2_snapshot": 0.12833011249007475,
+          "r2_persistence": 0.3949803904317932,
+          "gain_vs_pers": -0.12189164548992337,
+          "gain_vs_snap": 0.1447586324517951,
+          "n": 119060
+        },
+        "rho": {
+          "r2_predictive": 0.8919483923078044,
+          "r2_snapshot": 0.8278688506057361,
+          "r2_persistence": 0.9991987870583233,
+          "gain_vs_pers": -0.1072503947505189,
+          "gain_vs_snap": 0.06407954170206831,
+          "n": 119060
+        },
+        "empty_count": {
+          "r2_predictive": 0.8919483923078044,
+          "r2_snapshot": 0.827868850605736,
+          "r2_persistence": 0.9991987870583233,
+          "gain_vs_pers": -0.1072503947505189,
+          "gain_vs_snap": 0.06407954170206842,
+          "n": 119060
+        }
+      }
+    },
+    "delta_10": {
+      "n_pairs": 112528,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.5289033960897445,
+          "r2_snapshot": 0.5171340612569557,
+          "r2_persistence": 0.2142237850761266,
+          "gain_vs_pers": 0.31467961101361785,
+          "gain_vs_snap": 0.011769334832788747,
+          "n": 112528
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.28701822216301975,
+          "r2_snapshot": 0.3281020350101843,
+          "r2_persistence": 0.3207205688457,
+          "gain_vs_pers": -0.03370234668268024,
+          "gain_vs_snap": -0.04108381284716456,
+          "n": 112528
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8862164887567944,
+          "r2_snapshot": 0.8161409867311304,
+          "r2_persistence": 0.9850889544728687,
+          "gain_vs_pers": -0.09887246571607433,
+          "gain_vs_snap": 0.07007550202566393,
+          "n": 112528
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.2988744538745336,
+          "r2_snapshot": 0.14028727096951765,
+          "r2_persistence": 0.1767955648630105,
+          "gain_vs_pers": 0.12207888901152308,
+          "gain_vs_snap": 0.15858718290501594,
+          "n": 112528
+        },
+        "rho": {
+          "r2_predictive": 0.8990888913211297,
+          "r2_snapshot": 0.8196857592415339,
+          "r2_persistence": 0.9986586357973121,
+          "gain_vs_pers": -0.09956974447618239,
+          "gain_vs_snap": 0.07940313207959582,
+          "n": 112528
+        },
+        "empty_count": {
+          "r2_predictive": 0.8990888913211297,
+          "r2_snapshot": 0.8196857592415339,
+          "r2_persistence": 0.9986586357973121,
+          "gain_vs_pers": -0.09956974447618239,
+          "gain_vs_snap": 0.07940313207959582,
+          "n": 112528
+        }
+      }
+    },
+    "delta_15": {
+      "n_pairs": 101648,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.5449057015705586,
+          "r2_snapshot": 0.5135998247439719,
+          "r2_persistence": 0.005741218807669202,
+          "gain_vs_pers": 0.5391644827628894,
+          "gain_vs_snap": 0.0313058768265867,
+          "n": 101648
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.27771296066548246,
+          "r2_snapshot": 0.321739092933492,
+          "r2_persistence": 0.23469656980496056,
+          "gain_vs_pers": 0.04301639086052189,
+          "gain_vs_snap": -0.044026132268009555,
+          "n": 101648
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.893210647313199,
+          "r2_snapshot": 0.7881530530349597,
+          "r2_persistence": 0.9756412440113652,
+          "gain_vs_pers": -0.08243059669816621,
+          "gain_vs_snap": 0.10505759427823924,
+          "n": 101648
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.3446289772002379,
+          "r2_snapshot": 0.22243277264516337,
+          "r2_persistence": 0.009254853164341159,
+          "gain_vs_pers": 0.3353741240358967,
+          "gain_vs_snap": 0.12219620455507452,
+          "n": 101648
+        },
+        "rho": {
+          "r2_predictive": 0.9090936623307473,
+          "r2_snapshot": 0.7981027439901243,
+          "r2_persistence": 0.9975154724402651,
+          "gain_vs_pers": -0.08842181010951777,
+          "gain_vs_snap": 0.11099091834062302,
+          "n": 101648
+        },
+        "empty_count": {
+          "r2_predictive": 0.9090936623307473,
+          "r2_snapshot": 0.7981027439901243,
+          "r2_persistence": 0.9975154724402651,
+          "gain_vs_pers": -0.08842181010951777,
+          "gain_vs_snap": 0.11099091834062302,
+          "n": 101648
+        }
+      }
+    },
+    "delta_20": {
+      "n_pairs": 90777,
+      "mv": {
+        "n_legal_moves": {
+          "r2_predictive": 0.56604565797345,
+          "r2_snapshot": 0.4909047752054668,
+          "r2_persistence": 0.0020960813026782432,
+          "gain_vs_pers": 0.5639495766707717,
+          "gain_vs_snap": 0.07514088276798314,
+          "n": 90777
+        },
+        "a1_minus_energy": {
+          "r2_predictive": 0.2568798314902826,
+          "r2_snapshot": 0.29733025698049564,
+          "r2_persistence": 0.193539106878155,
+          "gain_vs_pers": 0.06334072461212759,
+          "gain_vs_snap": -0.04045042549021305,
+          "n": 90777
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive": 0.8979005233495417,
+          "r2_snapshot": 0.7480823246803132,
+          "r2_persistence": 0.9657446356970344,
+          "gain_vs_pers": -0.06784411234749266,
+          "gain_vs_snap": 0.14981819866922852,
+          "n": 90777
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive": 0.3904414600158084,
+          "r2_snapshot": 0.3010671343966571,
+          "r2_persistence": 0.028666094830852473,
+          "gain_vs_pers": 0.3617753651849559,
+          "gain_vs_snap": 0.08937432561915126,
+          "n": 90777
+        },
+        "rho": {
+          "r2_predictive": 0.9167716541939597,
+          "r2_snapshot": 0.7632759971705468,
+          "r2_persistence": 0.9958952593278156,
+          "gain_vs_pers": -0.07912360513385597,
+          "gain_vs_snap": 0.15349565702341283,
+          "n": 90777
+        },
+        "empty_count": {
+          "r2_predictive": 0.9167716541939598,
+          "r2_snapshot": 0.763275997170547,
+          "r2_persistence": 0.9958952593278156,
+          "gain_vs_pers": -0.07912360513385586,
+          "gain_vs_snap": 0.15349565702341283,
+          "n": 90777
+        }
+      }
+    }
+  },
+  "train_test_split_delta10": {
+    "n_train_games": 1089,
+    "n_test_games": 1089,
+    "n_train_pairs": 56488,
+    "n_test_pairs": 56040,
+    "results_by_target": {
+      "n_legal_moves": {
+        "r2_predictive_oos": 0.5145689365571938,
+        "r2_snapshot_oos": 0.5065857139642678,
+        "gain_vs_snap_oos": 0.007983222592926054
+      },
+      "a1_minus_energy": {
+        "r2_predictive_oos": 0.26878656318374305,
+        "r2_snapshot_oos": 0.32708652899698465,
+        "gain_vs_snap_oos": -0.058299965813241594
+      },
+      "d4_a1_occupation_energy": {
+        "r2_predictive_oos": 0.8838749301702932,
+        "r2_snapshot_oos": 0.812098936610836,
+        "gain_vs_snap_oos": 0.07177599355945719
+      },
+      "d4_e_occupation_energy": {
+        "r2_predictive_oos": 0.2879785823640647,
+        "r2_snapshot_oos": 0.13071656200582438,
+        "gain_vs_snap_oos": 0.15726202035824033
+      },
+      "rho": {
+        "r2_predictive_oos": 0.8952852973544193,
+        "r2_snapshot_oos": 0.8142147588575918,
+        "gain_vs_snap_oos": 0.08107053849682755
+      },
+      "empty_count": {
+        "r2_predictive_oos": 0.8952852973544192,
+        "r2_snapshot_oos": 0.8142147588575916,
+        "gain_vs_snap_oos": 0.08107053849682755
+      }
+    }
+  },
+  "ablation_delta10": {
+    "d4_e_occupation_energy": {
+      "baseline_pred": 0.2988744538745336,
+      "baseline_snap": 0.14028727096951765,
+      "baseline_gain_vs_snap": 0.15858718290501594,
+      "per_feature": {
+        "sheaf_black_lambda2": {
+          "delta_pred": 0.00027979267202749014,
+          "delta_snap": 0.006762145502056116,
+          "delta_gain": -0.006482352830028626
+        },
+        "sheaf_white_lambda2": {
+          "delta_pred": 0.00045523356920373903,
+          "delta_snap": 0.009032853049560585,
+          "delta_gain": -0.008577619480356846
+        },
+        "sheaf_black_entropy": {
+          "delta_pred": 0.028573888726425967,
+          "delta_snap": 0.019075481520636095,
+          "delta_gain": 0.009498407205789872
+        },
+        "sheaf_white_entropy": {
+          "delta_pred": 0.00716336528757977,
+          "delta_snap": 0.005959130484971764,
+          "delta_gain": 0.0012042348026080063
+        },
+        "sheaf_black_kerdim": {
+          "delta_pred": 0.04840117304096536,
+          "delta_snap": 0.03807418674341245,
+          "delta_gain": 0.01032698629755291
+        },
+        "sheaf_white_kerdim": {
+          "delta_pred": 0.02451295967630307,
+          "delta_snap": 0.022345132450717897,
+          "delta_gain": 0.0021678272255851727
+        },
+        "sheaf_black_lambdamax": {
+          "delta_pred": 0.009936732077634902,
+          "delta_snap": 0.0067006803801527015,
+          "delta_gain": 0.0032360516974822007
+        },
+        "sheaf_white_lambdamax": {
+          "delta_pred": 0.004563817967253914,
+          "delta_snap": 0.00370628670783546,
+          "delta_gain": 0.0008575312594184537
+        }
+      }
+    },
+    "a1_minus_energy": {
+      "baseline_pred": 0.28701822216301975,
+      "baseline_snap": 0.3281020350101843,
+      "baseline_gain_vs_snap": -0.04108381284716456,
+      "per_feature": {
+        "sheaf_black_lambda2": {
+          "delta_pred": 0.003205057540566325,
+          "delta_snap": 0.0001773264399055341,
+          "delta_gain": 0.003027731100660791
+        },
+        "sheaf_white_lambda2": {
+          "delta_pred": 0.0019203370824995014,
+          "delta_snap": 0.0006030135375376666,
+          "delta_gain": 0.0013173235449618348
+        },
+        "sheaf_black_entropy": {
+          "delta_pred": 0.00019882427006256975,
+          "delta_snap": 0.036434575220971266,
+          "delta_gain": -0.036235750950908696
+        },
+        "sheaf_white_entropy": {
+          "delta_pred": 0.0012608525457217246,
+          "delta_snap": 0.03691455994849302,
+          "delta_gain": -0.035653707402771295
+        },
+        "sheaf_black_kerdim": {
+          "delta_pred": 0.00862664086449072,
+          "delta_snap": 0.05798211967811484,
+          "delta_gain": -0.04935547881362412
+        },
+        "sheaf_white_kerdim": {
+          "delta_pred": 0.009011955573694053,
+          "delta_snap": 0.05360395874102675,
+          "delta_gain": -0.044592003167332694
+        },
+        "sheaf_black_lambdamax": {
+          "delta_pred": 0.002596052611654742,
+          "delta_snap": 0.013986443447063235,
+          "delta_gain": -0.011390390835408493
+        },
+        "sheaf_white_lambdamax": {
+          "delta_pred": 0.0036664923837886887,
+          "delta_snap": 0.014950236860032828,
+          "delta_gain": -0.01128374447624414
+        }
+      }
+    },
+    "rho": {
+      "baseline_pred": 0.8990888913211297,
+      "baseline_snap": 0.8196857592415339,
+      "baseline_gain_vs_snap": 0.07940313207959582,
+      "per_feature": {
+        "sheaf_black_lambda2": {
+          "delta_pred": 0.0018759347698278361,
+          "delta_snap": 0.006119600249279378,
+          "delta_gain": -0.004243665479451542
+        },
+        "sheaf_white_lambda2": {
+          "delta_pred": 0.0014727515832324567,
+          "delta_snap": 0.007194806106757046,
+          "delta_gain": -0.005722054523524589
+        },
+        "sheaf_black_entropy": {
+          "delta_pred": 1.675368342013428e-05,
+          "delta_snap": 0.006133403563554074,
+          "delta_gain": -0.00611664988013394
+        },
+        "sheaf_white_entropy": {
+          "delta_pred": 0.0002180502592066258,
+          "delta_snap": 0.00805664785809368,
+          "delta_gain": -0.007838597598887054
+        },
+        "sheaf_black_kerdim": {
+          "delta_pred": 0.013187442063342436,
+          "delta_snap": 0.04421934096882929,
+          "delta_gain": -0.031031898905486854
+        },
+        "sheaf_white_kerdim": {
+          "delta_pred": 0.015165173545259036,
+          "delta_snap": 0.047208182309963265,
+          "delta_gain": -0.03204300876470423
+        },
+        "sheaf_black_lambdamax": {
+          "delta_pred": 0.0003344688889143077,
+          "delta_snap": 0.008326067561226003,
+          "delta_gain": -0.007991598672311695
+        },
+        "sheaf_white_lambdamax": {
+          "delta_pred": 0.00047131222831442443,
+          "delta_snap": 0.007591553728492406,
+          "delta_gain": -0.007120241500177982
+        }
+      }
+    },
+    "n_legal_moves": {
+      "baseline_pred": 0.5289033960897445,
+      "baseline_snap": 0.5171340612569557,
+      "baseline_gain_vs_snap": 0.011769334832788747,
+      "per_feature": {
+        "sheaf_black_lambda2": {
+          "delta_pred": 0.0019066278719048757,
+          "delta_snap": 0.006598380840900475,
+          "delta_gain": -0.0046917529689955995
+        },
+        "sheaf_white_lambda2": {
+          "delta_pred": 0.0015094131474131522,
+          "delta_snap": 0.008053319929786196,
+          "delta_gain": -0.0065439067823730435
+        },
+        "sheaf_black_entropy": {
+          "delta_pred": 0.005051757978801641,
+          "delta_snap": 0.028398126306687477,
+          "delta_gain": -0.023346368327885836
+        },
+        "sheaf_white_entropy": {
+          "delta_pred": 0.0077455343093804085,
+          "delta_snap": 0.026170925428212644,
+          "delta_gain": -0.018425391118832235
+        },
+        "sheaf_black_kerdim": {
+          "delta_pred": 0.030432614661645152,
+          "delta_snap": 0.057581594604148356,
+          "delta_gain": -0.027148979942503204
+        },
+        "sheaf_white_kerdim": {
+          "delta_pred": 0.03189840212945838,
+          "delta_snap": 0.05086163050460146,
+          "delta_gain": -0.018963228375143082
+        },
+        "sheaf_black_lambdamax": {
+          "delta_pred": 0.008974286655662134,
+          "delta_snap": 0.029848410454283547,
+          "delta_gain": -0.020874123798621413
+        },
+        "sheaf_white_lambdamax": {
+          "delta_pred": 0.008269027685345653,
+          "delta_snap": 0.024764275287857185,
+          "delta_gain": -0.01649524760251153
+        }
+      }
+    }
+  }
+}
