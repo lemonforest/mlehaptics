@@ -879,6 +879,23 @@ The verdict logic distinguishes candidates whose absence *fits* the observed pat
 
 This is the **G-H5 candidate class** sketched in §11.6.10.6, now operational. The G-H4 missing-mesh search (§11.6.3 sub-problem C) and G-H5 missing-non-gear-element search are complementary; together they cover both branches of the damaged-hologram inversion.
 
+#### 11.6.10.10 Track B — archaeological research dossier
+
+[figures/clutch_evidence_dossier.md](figures/clutch_evidence_dossier.md) compiles a systematic literature survey on non-gear bronze features in Fragment A's a1/b1 region. Headline findings:
+
+- **No published paper explicitly argues the clutch hypothesis.** It is genuinely novel — not refuted, just unexplored.
+- **Voulgaris et al. 2024** identify two missing "mechanical structures" on b1 that "extended above" the gear; the full paper is paywalled, so whether these could be release-related vs strictly indicator-related is undetermined from the abstract alone.
+- **Szigety & Arenas 2025** report a 120-day jamming crisis under continuous-operation tolerance modelling but propose no mechanical solution. A clutch / release mechanism would elegantly resolve it (and is structurally what §11.6.10.4 + Track C confirmed).
+- **Voulgaris & Mouratidis 2018** document severe a1 torque and operability issues under the assumption of gear-only architecture; the unexplained stress is exactly what a spring-loaded release-element would predict.
+- **The keyway depth has never been published.** Currently no open-source measurement of the keyway exists. A keyway > 5 mm deep would directly support the deep-well-mate axial-release reading.
+- **Six explicit literature gaps** identified — the silence is not evidence against, but evidence no one has looked.
+
+**Six concrete next-step actions** with URLs and museum contacts (NYU 3D-CT models, MDPI Heritage open-access papers, National Archaeological Museum Athens contact for full AMRP volumes) — listed in the dossier's "Actionable Next Steps" section. These are offline tasks for the operator; computational tooling cannot resolve them.
+
+**Falsification path** (per the dossier's §"Falsification Path"): observations that would CONFIRM (bronze wedge/cam near keyway, > 5 mm keyway depth, brake-pad wear scars on b1's rim, inscriptions referencing a "lock/release") vs REFUTE (complete absence of non-gear features after high-resolution re-examination, < 3 mm keyway, no engagement marks, inscriptions explicitly describing continuous-time operation).
+
+Combined with §11.6.10.8 (Track C's empirical G-H1 flip) and §11.6.10.9 (Track A's G-H5 candidate vocabulary), the crank-as-clutch hypothesis is now: **(a) numerically supported** (G-H1 PASS at any plausible intermittent budget), **(b) categorically articulated** (4 candidate release-element shapes catalogued, 3 LIKELY-LOST + 1 RECOVERABLE), **(c) literature-surveyed** (no prior published advocacy, but no contradiction either; concrete next-step research path identified).
+
 ### 11.6.9 Visualisation
 
 ### 11.6.9 Visualisation
