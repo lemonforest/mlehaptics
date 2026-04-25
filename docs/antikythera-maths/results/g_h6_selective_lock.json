@@ -1,0 +1,115 @@
+{
+  "subsystems": [
+    {
+      "name": "lunar",
+      "entry_gear": "c1",
+      "lock_verdict": "CAUTION",
+      "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+      "description": "Lunar train + pin-and-slot epicycle.  Branches off b1 at c1.  Lock attached to c1's axle would decouple the entire lunar train (including pin-and-slot) from the trunk.",
+      "evaluation": {
+        "gear": "c1",
+        "periphery_score": 0.5333333333333333,
+        "degree": 2,
+        "is_crank_shaft": false,
+        "is_leaf": false,
+        "is_bridge": false,
+        "verdict": "CAUTION",
+        "note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists."
+      }
+    },
+    {
+      "name": "metonic",
+      "entry_gear": "e2",
+      "lock_verdict": "CAUTION",
+      "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+      "description": "Metonic 19-yr calendar.  Branches off b2 at e2.  Lock on e2's axle decouples the Metonic + Callippic + Olympic spirals from the trunk.",
+      "evaluation": {
+        "gear": "e2",
+        "periphery_score": 0.5666666666666667,
+        "degree": 2,
+        "is_crank_shaft": false,
+        "is_leaf": false,
+        "is_bridge": false,
+        "verdict": "CAUTION",
+        "note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists."
+      }
+    },
+    {
+      "name": "saros",
+      "entry_gear": "f1",
+      "lock_verdict": "CAUTION",
+      "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+      "description": "Saros eclipse cycle.  Branches off the Metonic e5 at f1.  Lock on f1's axle decouples Saros + Exeligmos.  Note: e5 is the bridge gear shared with Metonic, so the Saros lock is downstream of the Metonic lock; the two are independent.",
+      "evaluation": {
+        "gear": "f1",
+        "periphery_score": 0.6333333333333333,
+        "degree": 2,
+        "is_crank_shaft": false,
+        "is_leaf": false,
+        "is_bridge": false,
+        "verdict": "CAUTION",
+        "note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists."
+      }
+    },
+    {
+      "name": "mercury",
+      "entry_gear": "mercury_145",
+      "lock_verdict": "UNKNOWN",
+      "lock_note": "not in surviving DAG",
+      "description": "Hypothetical Mercury planetary train (Freeth 2021's 145/46 chain).  Lock attaches at mercury_145's input.",
+      "evaluation": {
+        "gear": "mercury_145",
+        "verdict": "UNKNOWN",
+        "note": "not in surviving DAG"
+      }
+    },
+    {
+      "name": "venus",
+      "entry_gear": "venus_289",
+      "lock_verdict": "UNKNOWN",
+      "lock_note": "not in surviving DAG",
+      "description": "Hypothetical Venus planetary train (Freeth 2021's 289/462 chain).  Lock attaches at venus_289's input.",
+      "evaluation": {
+        "gear": "venus_289",
+        "verdict": "UNKNOWN",
+        "note": "not in surviving DAG"
+      }
+    },
+    {
+      "name": "mars",
+      "entry_gear": "mars_133",
+      "lock_verdict": "UNKNOWN",
+      "lock_note": "not in surviving DAG",
+      "description": "Hypothetical Mars planetary train (Freeth 2021's 133/125 chain).  Lock attaches at mars_133's input.",
+      "evaluation": {
+        "gear": "mars_133",
+        "verdict": "UNKNOWN",
+        "note": "not in surviving DAG"
+      }
+    },
+    {
+      "name": "jupiter",
+      "entry_gear": "jupiter_76",
+      "lock_verdict": "UNKNOWN",
+      "lock_note": "not in surviving DAG",
+      "description": "Hypothetical Jupiter planetary train (Freeth 2021's 76/83 chain).  Lock attaches at jupiter_76's input.",
+      "evaluation": {
+        "gear": "jupiter_76",
+        "verdict": "UNKNOWN",
+        "note": "not in surviving DAG"
+      }
+    },
+    {
+      "name": "saturn",
+      "entry_gear": "saturn_427",
+      "lock_verdict": "UNKNOWN",
+      "lock_note": "not in surviving DAG",
+      "description": "Hypothetical Saturn planetary train (Freeth 2021's 427/442 chain).  Lock attaches at saturn_427's input.",
+      "evaluation": {
+        "gear": "saturn_427",
+        "verdict": "UNKNOWN",
+        "note": "not in surviving DAG"
+      }
+    }
+  ]
+}
