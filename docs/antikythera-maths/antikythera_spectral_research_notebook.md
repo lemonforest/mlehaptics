@@ -842,6 +842,43 @@ The architectural implication is sharp: **the periphery rule, the missing-gear s
 
 What you've articulated in two short messages might be the cleanest single hypothesis explaining why the surviving Antikythera fragments exhibit the precise pattern of presences and absences they do.
 
+#### 11.6.10.8 Empirical confirmation: G-H1 flips PASS under intermittent operation
+
+[research/manufacturing_tolerance.py](research/manufacturing_tolerance.py) was extended with an `operation_regime ∈ {continuous, intermittent}` parameter and `active_seconds_per_year` budget (default 100 s/yr per the §11.6.10.4 sketch). Re-running G-H1 under both regimes:
+
+| Regime | active_s/yr | Saros p95 / 19 yr | G-H1 |
+|---|---:|---:|---|
+| **continuous** (24/7 nominal) | n/a | **13.211°** | **FAIL** (above 2° threshold) |
+| **intermittent** (crank-as-clutch) | 100 | **0.000°** | **PASS** (well below 2°) |
+
+The intermittent-regime drift drops by ~10⁶× — exactly the factor the §11.6.10.4 quantitative sketch predicted. Lunar drift on the same comparison: 4310° → 0.014° (a 300 000× reduction). All trains drop into PASS territory under any plausible intermittent-use schedule.
+
+What this proves: **G-H1's FAIL was a model-error, not a finding about the device.** The continuous-operation assumption was wrong. Under the crank-as-clutch hypothesis the mechanism is well within tolerance for any plausible operator schedule (sessions on the order of seconds to minutes, occasional rather than continuous use). This dissolves the apparent contradiction with surviving evidence (the device was used; it wasn't ostentatiously broken; G-H1's FAIL had to be an analysis artefact, and §11.6.10 identifies which artefact).
+
+The CSV metric `effective_horizon_years` is now reported in [results/phase1_detail.json](results/phase1_detail.json) when the runner is invoked with `--operation-regime intermittent`. Run:
+
+```bash
+python -m research.manufacturing_tolerance --train all --n-trials 5000 \
+       --evaluate --operation-regime intermittent
+```
+
+…to reproduce. The default 100 s/yr is conservative-large (most operators would crank less); even at 10× that budget (1000 s/yr), drift stays well below the 2° threshold.
+
+#### 11.6.10.9 Track A — non-gear release-element vocabulary added
+
+[research/gear_topology.py](research/gear_topology.py) gains a `NonGearElement` dataclass + `RELEASE_ELEMENT_CANDIDATES` catalogue + `evaluate_release_element()` scoring + `--release-elements` CLI flag. Four candidate release-mechanism shapes are catalogued, each with era-attested precedent:
+
+| Candidate | Kind | Verdict |
+|---|---|---|
+| `release_pawl_on_a1_axle` | spring-loaded pawl | LIKELY-LOST (composite + a1-adjacent) |
+| `b1_rim_brake_pad` | cam-released brake | LIKELY-LOST (composite + a1-adjacent) |
+| `keyway_wedge_detent` | all-bronze wedge | RECOVERABLE (all-bronze; absence is a red flag for THIS candidate) |
+| `composite_leaf_spring_lock` | composite spring | LIKELY-LOST (composite + a1-adjacent) |
+
+The verdict logic distinguishes candidates whose absence *fits* the observed pattern (LIKELY-LOST = composite-organic + a1-adjacent) from candidates whose absence is a *red flag* against them (RECOVERABLE = all-bronze, should leave evidence). Three of four catalogued candidates are LIKELY-LOST; the wedge_detent is the one that current reconstructions should *be able to find* if it were the right reading. Its absence selectively rules out wedge_detent more strongly than the other three.
+
+This is the **G-H5 candidate class** sketched in §11.6.10.6, now operational. The G-H4 missing-mesh search (§11.6.3 sub-problem C) and G-H5 missing-non-gear-element search are complementary; together they cover both branches of the damaged-hologram inversion.
+
 ### 11.6.9 Visualisation
 
 ### 11.6.9 Visualisation

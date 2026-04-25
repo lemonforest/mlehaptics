@@ -390,6 +390,163 @@ def render_svg(out_path: str = "figures/gear_topology.svg",
     return str(out_p.resolve())
 
 
+@dataclass(frozen=True)
+class NonGearElement:
+    """A hypothetical non-gear bronze element (release pawl, brake pad,
+    leaf spring, detent) that participates in the mechanism's behaviour
+    without contributing teeth to the gear DAG.
+
+    Per notebook §11.6.10 (the crank-as-clutch hypothesis): the mechanism
+    may have included a clutch / release element coupled to the crank
+    keyway, holding the gears stationary when the key is withdrawn.
+    Such an element would not appear in MESH_EDGES (no teeth), would
+    have no degree in the gear DAG, but would attach to one or two
+    gears (typically a1 or its axle, plus possibly a brake-contact
+    point on b1's rim).
+
+    This dataclass captures the candidate vocabulary for G-H5: a
+    missing-element class that complements the missing-mesh search of
+    G-H4 (§11.6.3 sub-problem C).  Together G-H4 + G-H5 cover both
+    the "missing tooth-bearing element" and "missing non-tooth element"
+    branches of the damaged-hologram inversion.
+    """
+
+    name: str
+    """Short identifier (e.g. 'release_pawl', 'b1_brake_pad')."""
+
+    kind: str
+    """``'pawl'`` | ``'leaf_spring'`` | ``'cam_brake'`` | ``'wedge_detent'`` |
+    ``'composite_spring'``  (mechanically attested in Hellenistic engineering)."""
+
+    primary_attachment: str
+    """Gear or shaft the element mounts on (e.g. 'a1', 'a1_axle', 'case_wall')."""
+
+    secondary_contact: Optional[str] = None
+    """Gear the element contacts (e.g. 'b1_rim').  None for purely-on-shaft
+    elements like a pure pawl-and-ratchet on a1's axle."""
+
+    requires_organic: bool = True
+    """True if the element typically used composite materials
+    (bronze + leather + wood + cordage) that would NOT survive seawater.
+    Almost all Hellenistic spring-loaded mechanisms required organic
+    components."""
+
+    citation: str = ""
+    """Era-attested precedent (e.g. 'Heron, Belopoiika; Hellenistic
+    crossbow ratchet')."""
+
+
+# Catalogued candidate release-element classes -- each defensible as a
+# Hellenistic-era mechanical primitive.
+RELEASE_ELEMENT_CANDIDATES: List[NonGearElement] = [
+    NonGearElement(
+        name="release_pawl_on_a1_axle",
+        kind="pawl",
+        primary_attachment="a1_axle",
+        secondary_contact=None,
+        requires_organic=True,
+        citation=("Heron of Alexandria, Belopoiika; Hellenistic crossbow "
+                  "and water-clock ratchets.  A spring-loaded pawl "
+                  "engaging an integral ratchet wheel on a1's axle, "
+                  "lifted clear by axial protrusion on the inserted key."),
+    ),
+    NonGearElement(
+        name="b1_rim_brake_pad",
+        kind="cam_brake",
+        primary_attachment="case_wall",
+        secondary_contact="b1",
+        requires_organic=True,
+        citation=("Cam-released brake pad mounted on the case wall, "
+                  "normally held against b1's rim by a leaf spring.  "
+                  "Lifted clear by a lever pivoted at the keyway when "
+                  "the key is inserted.  Mechanical precedent: "
+                  "Hellenistic latches and Roman lock mechanisms."),
+    ),
+    NonGearElement(
+        name="keyway_wedge_detent",
+        kind="wedge_detent",
+        primary_attachment="a1",
+        secondary_contact=None,
+        requires_organic=False,
+        citation=("Wedge-and-detent: keyway has a side feature; the key "
+                  "has a matching radial bump that wedges open a side-"
+                  "mounted detent holding a brake pad against an adjacent "
+                  "gear.  All-bronze possible (no organic required)."),
+    ),
+    NonGearElement(
+        name="composite_leaf_spring_lock",
+        kind="composite_spring",
+        primary_attachment="case_wall",
+        secondary_contact="a1",
+        requires_organic=True,
+        citation=("Composite bronze + leather + wood spring assembly.  "
+                  "Era-attested in Hellenistic instrument cases and "
+                  "Roman portable astronomical tools.  Holds a pin in "
+                  "a hole on a1's flange; key insertion withdraws the "
+                  "pin via cam action."),
+    ),
+]
+
+
+def evaluate_release_element(element: NonGearElement) -> Dict[str, object]:
+    """Score a candidate release element against the periphery rule.
+
+    Release elements are NOT subject to the gear-DAG centrality test
+    (they have no degree in the mesh graph), but they ARE subject to:
+      - **a1-adjacency**: should attach to a1 or a1's axle directly
+        (the operator interface).  Attachment elsewhere doesn't make
+        mechanical sense for a crank-coupled release.
+      - **organic-loss prediction**: composite-material elements predict
+        a stronger archaeological-absence signature (only mounting
+        feature survives).  All-bronze elements should leave more
+        recoverable evidence and so are *less* likely to fit the
+        observed absence pattern.
+
+    Verdict:
+      LIKELY-LOST    : organic-composite + a1-adjacent  (best fit to
+                       'whatever that was is missing' observation)
+      RECOVERABLE    : all-bronze + a1-adjacent  (should leave evidence;
+                       absence is a red flag for this candidate)
+      MISPLACED      : not a1-adjacent  (mechanically implausible)
+    """
+    a1_adjacent = (
+        element.primary_attachment in ("a1", "a1_axle")
+        or element.secondary_contact in ("a1", "a1_axle")
+    )
+    if not a1_adjacent and element.primary_attachment != "case_wall":
+        verdict = "MISPLACED"
+        note = "Not a1-adjacent; release-coupling implausible."
+    elif element.requires_organic:
+        verdict = "LIKELY-LOST"
+        note = ("Composite organic element near a1; predicted absence "
+                "matches the surviving evidence pattern.  Only the "
+                "mounting feature (slot / pin-hole / case-wall slot) "
+                "would survive corrosion.")
+    else:
+        verdict = "RECOVERABLE"
+        note = ("All-bronze element near a1; absence from current "
+                "reconstructions is a red flag -- if this candidate "
+                "were the right reading, fragments should retain "
+                "the bronze body.  Either the candidate is wrong or "
+                "the bronze is mis-classified in current catalogues "
+                "as decorative.")
+    return {
+        "element": element.name,
+        "kind": element.kind,
+        "primary_attachment": element.primary_attachment,
+        "secondary_contact": element.secondary_contact,
+        "requires_organic": element.requires_organic,
+        "verdict": verdict,
+        "note": note,
+        "citation": element.citation,
+    }
+
+
+def candidate_release_elements() -> List[Dict[str, object]]:
+    """Score every catalogued release-element candidate."""
+    return [evaluate_release_element(e) for e in RELEASE_ELEMENT_CANDIDATES]
+
+
 def shared_prime_planet_pairs(exclude_trivial: Tuple[int, ...] = (2, 3, 5),
                               ) -> Dict[Tuple[str, str], List[int]]:
     """For each pair of planetary cycles, return the non-trivial shared primes.
@@ -551,6 +708,11 @@ def _make_parser():
         help="Shorthand for --svg figures/gear_topology.svg "
              "--dot figures/gear_topology.dot.",
     )
+    parser.add_argument(
+        "--release-elements", action="store_true",
+        help="Score the catalogued NonGearElement release-mechanism "
+             "candidates (notebook §11.6.10 G-H5 class).",
+    )
     return parser
 
 
@@ -584,6 +746,24 @@ def main(argv=None):
         path = render_dot(out_path=args.dot)
         print(f"Wrote DOT: {path}")
     if args.svg or args.dot:
+        return 0
+
+    # Release-element analysis (G-H5 class)
+    if args.release_elements:
+        results = candidate_release_elements()
+        print("Catalogued non-gear release-element candidates")
+        print("(G-H5 class; per notebook §11.6.10 / crank-as-clutch hypothesis)")
+        print()
+        for r in results:
+            print(f"  {r['element']:<32} {r['kind']:<18} "
+                  f"verdict: {r['verdict']}")
+            print(f"    primary attachment : {r['primary_attachment']}")
+            if r['secondary_contact']:
+                print(f"    secondary contact  : {r['secondary_contact']}")
+            print(f"    requires organic   : {r['requires_organic']}")
+            print(f"    note               : {r['note']}")
+            print(f"    citation           : {r['citation']}")
+            print()
         return 0
 
     # Attachment-point queries

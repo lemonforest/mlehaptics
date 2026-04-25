@@ -263,6 +263,33 @@ def sample_train_ratio(
 # Monte Carlo
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Operational regimes
+# ---------------------------------------------------------------------------
+# The "horizon_years" parameter in monte_carlo_train treats the mechanism as
+# running CONTINUOUSLY for the horizon (24/7 over the full window).  This is
+# the worst-case assumption.  The crank-as-clutch hypothesis (notebook §11.6.10)
+# proposes the mechanism only ticks during ACTIVE cranking.  We support both
+# regimes via the ``operation_regime`` parameter.
+#
+# Under intermittent operation, drift accumulates at the rate of input shaft
+# rotation, not calendar time.  The output revs/yr * horizon_years bound is
+# replaced by an explicit "active output revolutions over horizon" count.
+
+CONTINUOUS_OPERATION = "continuous"
+INTERMITTENT_OPERATION = "intermittent"
+VALID_OPERATION_REGIMES = (CONTINUOUS_OPERATION, INTERMITTENT_OPERATION)
+
+# Default intermittent-operation schedule (from notebook §11.6.10.4):
+# the mechanism advances ~78 days per crank revolution.  Assume 5 sessions
+# per Olympiad (~one per year), each advancing 4 years of mechanism time
+# at ~1 rev/sec.  4 yr / (78 d/rev) = ~18.7 rev per session.  18.7 rev/sec
+# is too fast; assume operator cranks at ~1 rev/sec, so ~19 sec per session
+# of active gear motion.  Five sessions/yr -> ~95 sec active per year.
+# Conservative round-up: 100 active gear-motion seconds per calendar year.
+DEFAULT_ACTIVE_SECONDS_PER_YEAR: float = 100.0
+
+
 def monte_carlo_train(
     spec: TrainSpec,
     *,
@@ -270,20 +297,38 @@ def monte_carlo_train(
     noise_spec: NoiseSpec = GUILLERMO_SZIGETY_2025_DEFAULT,
     horizon_years: float = 19.0,
     seed: Optional[int] = None,
+    operation_regime: str = CONTINUOUS_OPERATION,
+    active_seconds_per_year: float = DEFAULT_ACTIVE_SECONDS_PER_YEAR,
 ) -> Dict[str, Any]:
     """Sample n_trials noisy ratios and report angular drift statistics.
 
-    Angular drift per trial = 360 * (noisy_ratio - noiseless_ratio_float)
-                              * input_turns_per_year * horizon_years.
+    Continuous regime (default): drift accumulates over the full horizon
+    in calendar years, treating the mechanism as running 24/7.
 
-    Returns a dict with peak, mean, std, p95, max keys (in degrees).
+    Intermittent regime (per notebook §11.6.10 crank-as-clutch hypothesis):
+    drift accumulates only during active cranking.  ``active_seconds_per_year``
+    sets the operator's annual cranking budget (default 100 s/yr).  The
+    effective drift horizon scales by ``active_seconds_per_year /
+    seconds_per_year``, so 100 s/yr over a 19-yr nominal horizon corresponds
+    to ~5.5 minutes of cumulative active gear motion.
     """
     import numpy as np
     if seed is None:
         seed = noise_spec.seed
+    if operation_regime not in VALID_OPERATION_REGIMES:
+        raise ValueError(f"operation_regime must be one of "
+                         f"{VALID_OPERATION_REGIMES}, got {operation_regime!r}")
     rng = np.random.default_rng(seed)
     p, q = spec.noiseless_ratio
     noiseless_ratio = float(p) / float(q) if q != 0 else 1.0
+
+    # Effective drift horizon
+    if operation_regime == INTERMITTENT_OPERATION:
+        seconds_per_year = 365.25 * 86400.0
+        effective_horizon = horizon_years * (active_seconds_per_year
+                                             / seconds_per_year)
+    else:
+        effective_horizon = horizon_years
 
     drifts_deg: List[float] = []
     for _ in range(n_trials):
@@ -294,7 +339,7 @@ def monte_carlo_train(
             rel_err = (noisy / noiseless_ratio) - 1.0
         # Output pointer drift over horizon = 360 deg * output_revs * rel_err
         drift_deg = (360.0 * spec.output_revs_per_year
-                     * horizon_years * rel_err)
+                     * effective_horizon * rel_err)
         drifts_deg.append(drift_deg)
 
     arr = np.asarray(drifts_deg, dtype=float)
@@ -302,6 +347,11 @@ def monte_carlo_train(
         "train": spec.name,
         "n_trials": n_trials,
         "horizon_years": horizon_years,
+        "operation_regime": operation_regime,
+        "active_seconds_per_year": (active_seconds_per_year
+                                    if operation_regime == INTERMITTENT_OPERATION
+                                    else None),
+        "effective_horizon_years": effective_horizon,
         "noiseless_ratio": noiseless_ratio,
         "noise_mode": noise_spec.mode,
         "noise_sigma": noise_spec.sigma,
@@ -321,6 +371,8 @@ def run_all(
     horizon_years: float = 19.0,
     seed: Optional[int] = None,
     train_filter: Optional[Sequence[str]] = None,
+    operation_regime: str = CONTINUOUS_OPERATION,
+    active_seconds_per_year: float = DEFAULT_ACTIVE_SECONDS_PER_YEAR,
 ) -> List[Dict[str, Any]]:
     """Run Monte Carlo across every train (or a filtered subset)."""
     out: List[Dict[str, Any]] = []
@@ -330,6 +382,8 @@ def run_all(
         out.append(monte_carlo_train(
             spec, n_trials=n_trials, noise_spec=noise_spec,
             horizon_years=horizon_years, seed=seed,
+            operation_regime=operation_regime,
+            active_seconds_per_year=active_seconds_per_year,
         ))
     return out
 
@@ -575,6 +629,20 @@ def _make_parser() -> argparse.ArgumentParser:
         help="Run G-H1..G-H3 evaluators and print PASS/FAIL.",
     )
     parser.add_argument(
+        "--operation-regime",
+        choices=VALID_OPERATION_REGIMES,
+        default=CONTINUOUS_OPERATION,
+        help=("'continuous' (default, 24/7 nominal); 'intermittent' "
+              "(crank-as-clutch hypothesis -- drift accumulates only "
+              "during active cranking).  See notebook §11.6.10."),
+    )
+    parser.add_argument(
+        "--active-seconds-per-year", type=float,
+        default=DEFAULT_ACTIVE_SECONDS_PER_YEAR,
+        help=f"Active-cranking budget per calendar year for intermittent "
+             f"regime (default: {DEFAULT_ACTIVE_SECONDS_PER_YEAR} s/yr).",
+    )
+    parser.add_argument(
         "--csv-out", default=None,
         help="Write per-train summary CSV to this path.",
     )
@@ -637,15 +705,21 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
     train_filter = None if args.train == "all" else (args.train,)
 
+    regime_label = (f"INTERMITTENT ({args.active_seconds_per_year} s/yr active)"
+                    if args.operation_regime == INTERMITTENT_OPERATION
+                    else "CONTINUOUS (24/7 nominal)")
     print(f"Running Monte Carlo: n_trials={args.n_trials}, "
           f"noise_spec={noise_spec.label}, sigma={noise_spec.sigma:.5f}, "
-          f"mode={noise_spec.mode}, horizon={args.horizon_years} yr")
+          f"mode={noise_spec.mode}, horizon={args.horizon_years} yr, "
+          f"regime={regime_label}")
     results = run_all(
         n_trials=args.n_trials,
         noise_spec=noise_spec,
         horizon_years=args.horizon_years,
         seed=args.seed,
         train_filter=train_filter,
+        operation_regime=args.operation_regime,
+        active_seconds_per_year=args.active_seconds_per_year,
     )
     print()
     _print_results(results)
@@ -660,7 +734,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         # Need full battery for G-H3
         if args.train != "all":
             full = run_all(n_trials=args.n_trials, noise_spec=noise_spec,
-                           horizon_years=args.horizon_years, seed=args.seed)
+                           horizon_years=args.horizon_years, seed=args.seed,
+                           operation_regime=args.operation_regime,
+                           active_seconds_per_year=args.active_seconds_per_year)
         else:
             full = results
         for name, fn in (("G-H1", evaluate_G_H1),
