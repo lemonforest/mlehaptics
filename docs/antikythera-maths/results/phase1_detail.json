@@ -1436,22 +1436,31 @@
     "antikythera_top_n": [
       2,
       3,
-      5
+      5,
+      7,
+      17,
+      19,
+      53
     ],
     "mulapin_top_n": [
       2,
       3,
-      5
+      5,
+      11,
+      13,
+      19,
+      47
     ],
     "overlap": [
       2,
       3,
-      5
+      5,
+      19
     ],
-    "jaccard": 1.0,
-    "n_overlap": 3,
-    "top_n": 3,
-    "min_overlap_threshold": 2,
+    "jaccard": 0.4,
+    "n_overlap": 4,
+    "top_n": 7,
+    "min_jaccard_threshold": 0.5,
     "kl": {
       "d_ab": 0.30077442914421415,
       "d_ba": 0.38244203940642996,

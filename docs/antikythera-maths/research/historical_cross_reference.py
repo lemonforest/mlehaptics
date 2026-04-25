@@ -285,32 +285,42 @@ def evaluate_H_H1(
 
 
 def evaluate_H_H2(
-    top_n: int = 3,
-    min_overlap: int = 2,
+    top_n: int = 7,                  # ITER-4 AUDIT-FIX: was 3
+    min_jaccard: float = 0.5,        # ITER-4 AUDIT-FIX: was min_overlap=2
 ) -> Tuple[str, str, str, Dict[str, object]]:
-    """H-H2: MUL.APIN top-3 primes overlap with Antikythera by >= 2."""
+    """H-H2 (REVISED iter 4): MUL.APIN top-7 primes overlap with Antikythera
+    by Jaccard >= 0.5.
+
+    AUDIT FIX (research_audit_report.md §B): K=3 with overlap >=2 was
+    a near-tautology because {2, 3, 5} dominate the top-3 of any
+    astronomical period system.  K=7 includes non-trivial primes
+    (7, 17, 19, 23) and can actually discriminate.  Jaccard threshold
+    >=0.5 means a non-trivial fraction of the union must overlap.
+    """
     spec_ant = antikythera_spectrum()
     spec_mul = historical_spectrum("mulapin")
     top_a = set(top_k_primes(spec_ant, top_n))
     top_m = set(top_k_primes(spec_mul, top_n))
     overlap = top_a & top_m
     n_overlap = len(overlap)
-    if n_overlap >= min_overlap:
+    jaccard = (n_overlap / len(top_a | top_m)) if (top_a | top_m) else 0.0
+    if jaccard >= min_jaccard:
         status = "PASS"
-    elif n_overlap >= 1:
+    elif jaccard >= min_jaccard / 2.0:
         status = "PARTIAL"
     else:
         status = "FAIL"
-    jaccard = (n_overlap / len(top_a | top_m)) if (top_a | top_m) else 0.0
     notes = (
         f"Antikythera top-{top_n} = {sorted(top_a)}; "
         f"MUL.APIN top-{top_n} = {sorted(top_m)}; "
         f"overlap = {sorted(overlap)} ({n_overlap} primes, "
-        f"Jaccard = {jaccard:.2f}).  Threshold: >= {min_overlap}."
+        f"Jaccard = {jaccard:.2f}).  Threshold: Jaccard >= "
+        f"{min_jaccard}.  (Iter-4 audit: top-7 with Jaccard threshold "
+        "discriminates better than top-3 overlap, which is dominated "
+        "by the {2,3,5} small-prime tautology.)"
     )
     computed = (
-        f"top-{top_n} overlap = {n_overlap} primes "
-        f"(Jaccard {jaccard:.2f})"
+        f"top-{top_n} Jaccard = {jaccard:.2f} (overlap {n_overlap} primes)"
     )
     detail = {
         "antikythera_top_n": sorted(top_a),
@@ -319,7 +329,7 @@ def evaluate_H_H2(
         "jaccard": jaccard,
         "n_overlap": n_overlap,
         "top_n": top_n,
-        "min_overlap_threshold": min_overlap,
+        "min_jaccard_threshold": min_jaccard,
         "kl": kl_divergence(spec_ant, spec_mul),
     }
     return status, computed, notes, detail

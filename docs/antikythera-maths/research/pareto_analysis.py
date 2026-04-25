@@ -396,15 +396,18 @@ def evaluate_A_H2_rigorous(
     on_proxy = is_set_on_frontier(target, proxy)
 
     n_pass_ablations = sum([on_primary, on_fr, on_proxy])
-    # ITER 2 THRESHOLD RELAXATION: Freeth's {7,17} claim is about
-    # bronze-cost-shared design, which is most directly captured by
-    # the factor-reuse + proxy metrics (both cost = total bronze).
-    # The primary metric uses max-single-tooth-count, a different
-    # cost framing.  PASS at >= 2/3 metrics = clear support for the
-    # claim under multiple cost framings.
-    if n_pass_ablations >= 2:
+    # ITER-4 AUDIT-REVERT: the iter-2 threshold relaxation
+    # (PASS at >= 2/3 ablations) was flagged by the research audit
+    # (research_audit_report.md §A) as the closest-to-p-hacking move
+    # in the iteration history -- promoting PARTIAL -> PASS without
+    # re-computing.  The PARTIAL is substantively MORE informative:
+    # it preserves the finding that {7,17} survives the bronze-cost
+    # framing (factor-reuse + proxy) but NOT the workshop-bottleneck
+    # framing (primary, cost = max single tooth count).  Reverted
+    # to the original PASS = primary AND (>= 1 ablation).
+    if on_primary and (on_fr or on_proxy):
         status = "PASS"
-    elif n_pass_ablations >= 1:
+    elif on_primary or on_fr or on_proxy:
         status = "PARTIAL"
     else:
         status = "FAIL"
@@ -416,7 +419,8 @@ def evaluate_A_H2_rigorous(
         f"ablations).  Primary metric uses cost = max single tooth count "
         "(bronze-workshop bottleneck); factor-reuse uses cost = total "
         "bronze (Freeth's bronze-cost-shared framing).  PASS threshold: "
-        ">= 2/3 ablations agree."
+        "primary frontier + >= 1 ablation (audit-reverted from iter-2's "
+        ">= 2/3 ablations relaxation)."
     )
     computed = (
         f"{{7, 17}} on Pareto: primary={on_primary}, "

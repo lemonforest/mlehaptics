@@ -1363,8 +1363,8 @@ def hypothesis_H_H2() -> Tuple[Dict[str, str], Dict[str, Any]]:
         status, computed, notes, detail = evaluate_H_H2()
         row = mk_row(
             "H-H2",
-            "Antikythera and MUL.APIN top-3 prime spectra overlap >=2 primes",
-            computed, "top-3 prime overlap >= 2",
+            "Antikythera and MUL.APIN top-7 prime Jaccard >= 0.5",
+            computed, "top-7 Jaccard >= 0.5 (audit-revised from top-3)",
             status, notes,
         )
         return row, detail

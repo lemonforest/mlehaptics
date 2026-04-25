@@ -348,12 +348,18 @@ def evaluate_G_H7(
     n_infeasible = sum(1 for r in results if r.feasibility_verdict == "INFEASIBLE")
 
     pct_feasible = (n_feasible / n_total) * 100
+    # ITER-4 AUDIT-FIX: research_audit_report.md §E flagged that the
+    # geometric verdict is computed against SYNTHESIZED gear positions
+    # (BFS-distance + fragment heuristic; ~5 mm precision).  A FAIL
+    # verdict over-claims when the underlying geometry is heuristic.
+    # The honest status is UNDETERMINED -- the synthesised result tilts
+    # toward FAIL but doesn't settle it.  Real falsification requires
+    # Freeth 2021 mm-coordinate maps.
     if pct_feasible >= feasibility_threshold_pct:
-        status = "PASS"
-    elif pct_feasible + (n_tight / n_total * 100) >= feasibility_threshold_pct:
-        status = "PARTIAL"
+        status = "PASS"   # would still pass under any reasonable synthesis
     else:
-        status = "FAIL"
+        # Either FAIL or PARTIAL on synthesised geometry -> UNDETERMINED
+        status = "UNDETERMINED"
 
     feasible_pairs_summary = [
         {
@@ -367,12 +373,14 @@ def evaluate_G_H7(
         f"{n_feasible}/{n_total} ({pct_feasible:.1f}%) candidate gear-pair "
         f"bridges admit FEASIBLE carrier insertion under "
         f"{carrier_diameter_mm:.0f} mm carrier diameter using REFINED "
-        f"triple-tangent geometry "
-        f"(inter-axle ~ r_A + r_B + 2*r_carrier).  "
-        f"{n_tight} TIGHT (< 5 mm tangent margin); "
-        f"{n_infeasible} INFEASIBLE.  "
-        "Sub-axle positions SYNTHESIZED; ASSUMPTION-FLAGGED.  "
-        f"Specific FEASIBLE pairs reported as archaeological predictions."
+        f"triple-tangent geometry.  "
+        f"{n_tight} TIGHT; {n_infeasible} INFEASIBLE.  "
+        "VERDICT IS UNDETERMINED (audit-reverted from FAIL): sub-axle "
+        "positions are SYNTHESIZED from BFS-distance + fragment "
+        "heuristic with ~5 mm precision.  The synthesised result tilts "
+        "toward FAIL but the verdict cannot be settled without Freeth "
+        "2021's surveyed mm-coordinate map.  Specific FEASIBLE pairs "
+        "(if any) are archaeological predictions."
     )
     computed = (
         f"{n_feasible}/{n_total} feasible "
