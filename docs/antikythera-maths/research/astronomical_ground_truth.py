@@ -476,9 +476,12 @@ def main(argv: Optional[List[str]] = None) -> int:
                 kernel=args.ephemeris,
                 kernel_file=args.ephemeris_bsp,
             )
-            print(f"  Peak error: {peak:>6.2f} deg")
-            print(f"  Mean error: {mean:>6.2f} deg")
-            print(f"  Samples   : {n}")
+            # CodeQL false positive: prints astronomical error magnitudes
+            # (degrees of arc, sample count) computed from ephemeris data.
+            # No filesystem path or other sensitive data is logged.
+            print(f"  Peak error: {peak:>6.2f} deg")  # lgtm[py/clear-text-logging-sensitive-data]
+            print(f"  Mean error: {mean:>6.2f} deg")  # lgtm[py/clear-text-logging-sensitive-data]
+            print(f"  Samples   : {n}")  # lgtm[py/clear-text-logging-sensitive-data]
             print("  Documented Greek attainable limit: ~38 deg "
                   "(Ptolemy equant; not uniform).")
         except RuntimeError as exc:

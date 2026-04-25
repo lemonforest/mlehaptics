@@ -609,10 +609,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"  ERROR: {exc}")
         return 1
     print(f"  model      : {args.model}")
-    print(f"  peak deg   : {stats['peak_deg']:>7.2f}")
-    print(f"  mean deg   : {stats['mean_deg']:>7.2f}")
-    print(f"  rms deg    : {stats['rms_deg']:>7.2f}")
-    print(f"  n_samples  : {stats['n_samples']}")
+    # CodeQL false positive: prints peak/mean/RMS angular errors (degrees)
+    # and sample count from the ephemeris comparison.  No filesystem path
+    # or other sensitive data is logged.
+    print(f"  peak deg   : {stats['peak_deg']:>7.2f}")  # lgtm[py/clear-text-logging-sensitive-data]
+    print(f"  mean deg   : {stats['mean_deg']:>7.2f}")  # lgtm[py/clear-text-logging-sensitive-data]
+    print(f"  rms deg    : {stats['rms_deg']:>7.2f}")  # lgtm[py/clear-text-logging-sensitive-data]
+    print(f"  n_samples  : {stats['n_samples']}")  # lgtm[py/clear-text-logging-sensitive-data]
     return 0
 
 
