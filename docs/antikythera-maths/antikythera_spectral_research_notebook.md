@@ -1102,6 +1102,109 @@ If the hypothesis turns out to be supported, much of §10, §11.6.6, §11.6.10, 
 
 The hypothesis is **falsifiable** and **architecturally consequential**. That makes it worth recording even at low probability — exactly the kind of long-shot reading the project's notebook discipline is designed to capture rather than dismiss.
 
+### 11.6.15 Setting-mode gears (G-H8) — the clock-setting analogy
+
+The user refined §11.6.14:
+
+> "Not portable gears.  Gears that, for some reason, don't always participate in the full cranking load (is this possible) but are only put under higher stress when a dial component is disengaged from the heart, and that be how they would set it like you would a clock?"
+
+This is mechanically much more defensible than carriers (G-H7, §11.6.14) and **directly mirrors how mechanical watch / clock setting works**.  It also has *one example already in the surviving Antikythera*: the b1-b2 differential.
+
+#### 11.6.15.1 The clock-setting precedent
+
+A modern mechanical watch has TWO operational modes set by the crown position:
+
+- **Crown position 0 (pushed in)**: mainspring drives the gear train.  The hour and minute hands turn at fixed ratios.  A "setting wheel" exists in the train between the going-train and the setting-knob shaft.  Under normal operation, the setting-knob shaft is fixed (locked to the case), so the setting wheel rotates *with* the train but transmits zero net torque to/from the locked knob.  **Idle but mounted.**
+- **Crown position 1 (pulled out)**: a clutch disengages the going-train output from the hour-hand drive AND simultaneously couples the (now-free) crown to the setting wheel.  Operator rotates the crown; setting wheel transmits the operator's torque to the hour hand.  **Same gear, now load-bearing.**
+
+The *gear* doesn't change.  Its *load state* changes when the clutch toggles.  This is the canonical mechanical-watch setting architecture, attested across centuries of horology.
+
+#### 11.6.15.2 The b1-b2 differential is already this
+
+The Antikythera's lunar phase ball is driven by the b1-b2 differential, which subtracts the solar position (b1) from the sidereal lunar position (the b2 chain) to produce synodic phase.  In a differential gear, the *planet gear* (the small bridging element between the two sun gears) has a torque state that depends entirely on the relative motion of the two sun gears:
+
+- **Normal operation (both inputs cranked together by main drive)**: the planet gear's net torque is determined by the *difference* of input rates — small and predictable.  It rotates and transmits the synodic phase to the output, but the absolute torque magnitude on the planet gear is bounded by the small differential rate.  **Low load.**
+- **Setting operation (one input held fixed, the other manually rotated)**: the planet gear now transmits the *full* manual rotation torque from the rotated input to the output.  **High load.**
+
+The b1-b2 differential's planet gear is, in this sense, **the prototype of a setting-mode gear in the Antikythera itself**.  The user's hypothesis generalises: there may be MORE such elements throughout the mechanism — each a normally-idle bridge that becomes load-bearing only when one of its inputs is decoupled from the main drive for setting.
+
+#### 11.6.15.3 Architectural reading
+
+Under the setting-mode hypothesis, the surviving Antikythera architecture has two interleaved gear classes:
+
+| Class | Role in normal operation | Role during setting |
+|---|---|---|
+| **Trunk gears** (b1, e5, the visible large bridges) | High torque; transmit operator crank to all subsystems | Same trunk torque |
+| **Setting-mode gears** ("missing", peripheral, often near subsidiary dials) | Low / zero net torque; rotate but don't structurally bear load | High torque; carry operator's setting input to the dial subsystem being adjusted |
+
+The 30 surviving gears are mostly trunk + lunar-train (the always-loaded heart).  The ~39 "missing" gears in Freeth 2021's reconstruction are predicted under this reading to be **mostly setting-mode wheels** — small, peripheral, mounted on subsidiary axles between b1's main drive and each subsidiary indicator dial.
+
+#### 11.6.15.4 Probability assessment — significantly higher than G-H7
+
+This is MORE mechanically defensible than the carrier-gear hypothesis (§11.6.14) because:
+
+| Factor | G-H7 carriers | G-H8 setting-mode gears |
+|---|---|---|
+| Requires unaccounted-for bronze in wreck site | YES (portable carriers) | NO (all permanent) |
+| Has Antikythera-internal precedent | NO | YES (b1-b2 differential planet gear) |
+| Has Hellenistic-era external precedent | astrolabe rete (plates, not gears) | water-clock setting screws (Heron of Alexandria) |
+| Mechanical complexity | high (carrier alignment tolerances) | moderate (standard idler / differential bridges) |
+| Falsification difficulty | requires complete wreck inventory | requires identifying *which* surviving gears are normally-idle vs trunk |
+| Predicts wear pattern asymmetry | weakly | strongly (setting wheels would show LIGHTER wear than trunk gears) |
+
+Net probability estimate: **30–50%** — the most defensible of the "operational-mode" hypotheses.  Roughly comparable to §11.6.10's crank-as-clutch hypothesis, with which it composes naturally (the clutch is the trunk-vs-setting toggle; the setting-mode gears carry the setting load).
+
+#### 11.6.15.5 What this unifies
+
+The setting-mode hypothesis cleanly subsumes most of the prior architectural-mode hypotheses:
+
+- **§11.6.10 (crank-as-clutch)**: the clutch is the trunk-vs-setting toggle (crown position 0 vs 1).  Crank-as-clutch is the SUBSYSTEM-DECOUPLING action; setting-mode wheels carry the resulting manual torque.  These are *complementary*, not competing — the clutch is the lever; the setting wheels are the load path.
+- **§11.6.12 (selective lock)**: each subsystem's selective lock decouples that subsystem's setting wheel from the trunk and re-routes it to a setting interface.  The "doodad on the side" reading from §11.6.12.2 is a setting-mode interface — a subsidiary dial doubling as both readout and setting knob, with a permanent setting wheel between it and the trunk.
+- **§10 (missing gears as compensators)**: weakened.  The missing gears are more plausibly setting-mode wheels than tolerance compensators.  Some of the §10 framing should be retracted under this reading; tolerance compensators may not be needed (per §11.6.10.8's empirical G-H1 flip showing intermittent operation has no drift problem).
+- **§11.6.14 (G-H7 carrier gears)**: weakened relative to G-H8.  Carriers are *possible* (requires portable bronze) but G-H8 is *more probable* (requires only permanent peripheral bronze).  G-H7 and G-H8 are not mutually exclusive — some missing elements could be carriers and others could be setting-mode wheels — but G-H8 is the lower-evidence-burden reading.
+
+#### 11.6.15.6 Falsification path
+
+The setting-mode hypothesis predicts:
+
+**CONFIRM** (any of):
+- A surviving gear in current reconstructions whose **wear pattern is significantly lighter** than its trunk-gear neighbours (predicted because setting wheels are normally low-load).
+- A surviving gear whose meshing partners are **out-of-position relative to the gear's own axle** in a way that matches a setting-decouplable configuration (the gear can swing in/out of mesh).
+- An inscription on the back-cover plates referencing setting procedures: "to set Mars to today's position, do X then Y" — operationally identifying which subsidiary dials are settable.
+- Differential-gear architecture in the missing-planetary-plate region beyond the surviving b1-b2 differential.  Any planetary differential would predict a setting-mode planet gear.
+
+**REFUTE** (any of):
+- All surviving gears show similar wear patterns proportional to their gear ratio in a SINGLE-MODE operation model.
+- Comprehensive X-ray re-examination shows no decouplable sub-axles or swing-mounted gears.
+- Inscriptions explicitly describe a continuous-engagement, no-setting-mode operation.
+- The surviving b1-b2 differential is the ONLY differential in the device (then setting-mode is the b1-b2 case alone, not generalisable).
+
+#### 11.6.15.7 Mechanical implementation sketch
+
+A canonical setting-mode wheel for one planetary subsystem would look like this:
+
+```
+trunk (b1's solar shaft)
+  |
+  └── permanent gear (transmits solar rate down to subsystem)
+        |
+        └── SETTING WHEEL (this commit's hypothetical missing gear)
+              ├── (mode 0, normal) ──► subsidiary dial (rotates with planetary rate)
+              └── (mode 1, setting) ──► operator's setting interface, dial decoupled
+```
+
+The setting wheel is permanently mounted between the trunk-derived planetary rate and the subsidiary dial's input.  In mode 0, it carries the small differential-rate torque between the trunk's prediction and the dial's actual position (zero if synchronized, small if drifting).  In mode 1, the dial is decoupled from the trunk, the operator's manual rotation comes through a different shaft, and the setting wheel carries the full setting torque.
+
+Per the periphery rule (§11.6.6.3), the setting wheel attaches at a PERIPHERAL leaf — single-output impact — exactly where §11.6 predicts a single-purpose element should live.  **The setting-mode hypothesis doesn't violate the periphery rule; it provides the periphery rule's archetypal candidate element.**
+
+#### 11.6.15.8 Status
+
+**NOVEL + WELL-GROUNDED + COMPOSABLE.**  No published paper makes the claim explicitly that I've found, but the architectural primitive (a planet gear in a differential) is documented in the surviving b1-b2 element, which is the existence proof.  The hypothesis composes naturally with §11.6.10's crank-as-clutch (the clutch toggles modes; setting wheels carry the load in mode 1) and §11.6.12's selective lock (each subsystem's lock + setting wheel implements per-subsystem clock-style setting).
+
+If pursued, this is the strongest unifying reading of the missing-gear question articulated in this thread.  Probability ~30-50% based on (a) Antikythera-internal precedent in the b1-b2 differential, (b) Hellenistic external precedent in Heron's water-clock setting screws, (c) consistent with the periphery rule and surviving evidence pattern, (d) requires no unaccounted-for bronze artefacts at the wreck site.
+
+The next operational step is to extend [research/gear_topology.py](research/gear_topology.py) with a `SettingModeGear` class (analogous to G-H5's `NonGearElement`) plus a load-state distinction in the gear DAG (a gear can be `trunk` or `setting-mode`, with consequences for centrality scoring under different operational modes).  G-H8 is at the right level of formal articulation to add to the consolidated hypothesis battery once code support exists.
+
 ### 11.6.9 Visualisation
 
 [docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
