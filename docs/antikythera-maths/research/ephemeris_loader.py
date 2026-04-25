@@ -160,7 +160,7 @@ def _resolve_kernel_name(kernel: str) -> KernelSpec:
 
 def load_ephemeris(
     kernel: str = "de441",
-    kernel_path: Optional[str] = None,
+    kernel_file: Optional[str] = None,
     data_dir: Optional[str] = None,
 ) -> Optional[EphemerisBundle]:
     """Load (or fetch from cache) a JPL DE-series kernel via skyfield.
@@ -169,10 +169,10 @@ def load_ephemeris(
     ----------
     kernel : str
         Catalog name (see ``available_kernels()``).  Default ``'de441'``.
-    kernel_path : Optional[str]
+    kernel_file : Optional[str]
         Direct filesystem path to a pre-downloaded ``.bsp`` file.  When
         given, the catalog ``kernel`` is honoured only for naming /
-        metadata; the bytes are loaded from ``kernel_path``.
+        metadata; the bytes are loaded from ``kernel_file``.
     data_dir : Optional[str]
         Skyfield Loader directory.  Default ``./skyfield_data`` relative
         to the project root (matches the existing scaffold's gitignore).
@@ -183,7 +183,7 @@ def load_ephemeris(
         ``None`` on any failure (skyfield missing, file absent, bad
         format).  Never raises — callers downstream emit ``UNDETERMINED``.
     """
-    cache_key = (kernel, kernel_path)
+    cache_key = (kernel, kernel_file)
     if cache_key in _BUNDLE_CACHE:
         return _BUNDLE_CACHE[cache_key]
 
@@ -199,9 +199,9 @@ def load_ephemeris(
             data_dir = "./skyfield_data"
         loader = Loader(data_dir, verbose=False)
         ts = loader.timescale()
-        if kernel_path is not None:
-            eph = (loader(kernel_path) if str(kernel_path).endswith(".bsp")
-                   else loader(kernel_path))
+        if kernel_file is not None:
+            eph = (loader(kernel_file) if str(kernel_file).endswith(".bsp")
+                   else loader(kernel_file))
         else:
             eph = loader(spec.filename)
         bundle = EphemerisBundle(
@@ -225,9 +225,9 @@ def load_ephemeris(
 
 
 def is_available(kernel: str = "de441",
-                 kernel_path: Optional[str] = None) -> bool:
-    """True iff ``load_ephemeris(kernel, kernel_path)`` succeeds."""
-    return load_ephemeris(kernel, kernel_path) is not None
+                 kernel_file: Optional[str] = None) -> bool:
+    """True iff ``load_ephemeris(kernel, kernel_file)`` succeeds."""
+    return load_ephemeris(kernel, kernel_file) is not None
 
 
 def covers_jd(kernel: str, jd: float) -> bool:
@@ -384,7 +384,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
 
     if args.probe is not None:
-        ok = is_available(args.probe, kernel_path=args.ephemeris_bsp)
+        ok = is_available(args.probe, kernel_file=args.ephemeris_bsp)
         print(f"{args.probe}: {'AVAILABLE' if ok else 'unavailable'}")
         return 0 if ok else 1
 

@@ -68,7 +68,7 @@ def scan_syzygies(
     jd_lo: float = DEFAULT_JD_LO,
     jd_hi: float = DEFAULT_JD_HI,
     kernel: str = "de422",
-    kernel_path: Optional[str] = None,
+    kernel_file: Optional[str] = None,
     sample_step_days: float = 1.0,
     refine_tolerance_deg: float = 0.5,
 ) -> List[SyzygyEvent]:
@@ -87,7 +87,7 @@ def scan_syzygies(
     import numpy as np
     from .ephemeris_loader import load_ephemeris
 
-    bundle = load_ephemeris(kernel=kernel, kernel_path=kernel_path)
+    bundle = load_ephemeris(kernel=kernel, kernel_file=kernel_file)
     if bundle is None:
         raise RuntimeError(
             f"Ephemeris kernel {kernel!r} not loadable.  "
@@ -154,7 +154,7 @@ def infer_anchor_jd_from_date(
     tolerance_days: float = 16.0,
     sample_step_days: float = 1.0,
     kernel: str = "de422",
-    kernel_path: Optional[str] = None,
+    kernel_file: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Find the actual DE422 syzygy nearest to a nominal hand-curated JD.
 
@@ -176,7 +176,7 @@ def infer_anchor_jd_from_date(
     events = scan_syzygies(
         jd_lo=nominal_jd - tolerance_days,
         jd_hi=nominal_jd + tolerance_days,
-        kernel=kernel, kernel_path=kernel_path,
+        kernel=kernel, kernel_file=kernel_file,
         sample_step_days=sample_step_days,
     )
     matching = [e for e in events if e.eclipse_type == eclipse_type]
@@ -301,7 +301,7 @@ def planetary_residual(
     n_samples: int = 200,
     start_jd: Optional[float] = None,
     kernel: str = "de422",
-    kernel_path: Optional[str] = None,
+    kernel_file: Optional[str] = None,
 ) -> Dict[str, float]:
     """Residual of the encoder's planetary longitude vs DE422.
 
@@ -319,14 +319,14 @@ def planetary_residual(
         from .astronomical_ground_truth import mars_retrograde_error
         peak, mean, n = mars_retrograde_error(
             span_days=span_days, n_samples=n_samples,
-            start_jd=start_jd, kernel=kernel, kernel_path=kernel_path,
+            start_jd=start_jd, kernel=kernel, kernel_file=kernel_file,
         )
         return {"planet": "mars", "peak_deg": peak, "mean_deg": mean,
                 "n_samples": n, "start_jd": start_jd, "kernel": kernel}
 
     # For other planets: simple uniform-rate residue vs ephemeris.
     import numpy as np
-    bundle = load_ephemeris(kernel=kernel, kernel_path=kernel_path)
+    bundle = load_ephemeris(kernel=kernel, kernel_file=kernel_file)
     if bundle is None:
         raise RuntimeError(f"Kernel {kernel!r} not loadable.")
 
@@ -436,7 +436,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             res = planetary_residual(
                 planet=args.planet, span_days=args.span_days,
-                kernel=args.ephemeris, kernel_path=args.ephemeris_bsp,
+                kernel=args.ephemeris, kernel_file=args.ephemeris_bsp,
             )
         except RuntimeError as exc:
             print(f"  ERROR: {exc}")
@@ -457,7 +457,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         events = scan_syzygies(
             jd_lo=jd_lo, jd_hi=jd_hi, kernel=args.ephemeris,
-            kernel_path=args.ephemeris_bsp,
+            kernel_file=args.ephemeris_bsp,
             sample_step_days=args.sample_step_days,
         )
     except RuntimeError as exc:
