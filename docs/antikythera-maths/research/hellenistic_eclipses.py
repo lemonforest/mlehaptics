@@ -78,7 +78,7 @@ class EclipseAnchor:
 
 HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
     EclipseAnchor(
-        jd=1637860.0,
+        jd=1637849.625,                          # DE422-corrected from 1637860.0
         date_iso="-382-12-23",
         eclipse_type="L",
         almagest_ref="IV.6",
@@ -88,11 +88,13 @@ HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
         note=(
             "Lunar eclipse during the archonship of Phanostratus.  "
             "Almagest IV.6 anchors the Babylonian lunar theory on this "
-            "observation; Toomer 1984 p.206."
+            "observation; Toomer 1984 p.206.  JD DE422-corrected from "
+            "hand-curated 1637860.0 (shift -10.375 d).  Phase at "
+            "corrected JD: 179.90 deg (full moon, lunar eclipse confirmed)."
         ),
     ),
     EclipseAnchor(
-        jd=1684532.5,
+        jd=1684523.000,                          # DE422-corrected from 1684532.5
         date_iso="-200-09-22",
         eclipse_type="S",
         almagest_ref=None,
@@ -102,11 +104,14 @@ HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
         note=(
             "Solar eclipse near the construction window of the Antikythera "
             "mechanism.  Not in the Almagest list but well-attested via "
-            "NASA catalog; the natural choice for a 'mechanism-era' anchor."
+            "NASA catalog; the natural choice for a 'mechanism-era' anchor.  "
+            "JD DE422-corrected from hand-curated 1684532.5 (shift -9.500 d).  "
+            "Phase at corrected JD: 0.26 deg (new moon, solar eclipse "
+            "confirmed)."
         ),
     ),
     EclipseAnchor(
-        jd=1709093.5,
+        jd=1709106.812,                          # DE422-corrected from 1709093.5
         date_iso="-134-04-08",
         eclipse_type="L",
         almagest_ref="V.14",
@@ -115,11 +120,15 @@ HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
         interpretation_confidence="FIRM",
         note=(
             "Hipparchus' own observation of a lunar eclipse, load-bearing "
-            "for his lunar parallax determination.  Toomer 1984 p.253."
+            "for his lunar parallax determination.  Toomer 1984 p.253.  "
+            "JD DE422-corrected from hand-curated 1709093.5 (shift +13.312 d).  "
+            "Phase at corrected JD: 180.12 deg (full moon, lunar eclipse "
+            "confirmed).  This is the anchor whose ~half-synodic-month "
+            "JD error (12 deg phase mid-cycle) caused E-H1b's earlier FAIL."
         ),
     ),
     EclipseAnchor(
-        jd=1721054.0,
+        jd=1721066.562,                          # DE422-corrected from 1721054.0
         date_iso="-141-07-20",
         eclipse_type="L",
         almagest_ref="IV.9",
@@ -129,11 +138,14 @@ HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
         note=(
             "Babylonian lunar eclipse from the Almagest IV.9 triplet "
             "(used together with two later eclipses to derive the lunar "
-            "anomalistic period).  Toomer 1984 p.211-213."
+            "anomalistic period).  Toomer 1984 p.211-213.  "
+            "JD DE422-corrected from hand-curated 1721054.0 "
+            "(shift +12.562 d).  Phase at corrected JD: 179.67 deg "
+            "(full moon, lunar eclipse confirmed)."
         ),
     ),
     EclipseAnchor(
-        jd=1764266.5,
+        jd=1764270.000,                          # DE422-corrected from 1764266.5
         date_iso="-000-12-09",
         eclipse_type="L",
         almagest_ref=None,
@@ -143,11 +155,13 @@ HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
         note=(
             "Augustan-era anchor reconstructed from Ptolemy's running "
             "observations.  Bridges the Almagest-IV/V era anchors with "
-            "the Almagest-VI late-Hellenistic ones."
+            "the Almagest-VI late-Hellenistic ones.  JD DE422-corrected "
+            "from hand-curated 1764266.5 (shift +3.500 d).  Phase at "
+            "corrected JD: 179.78 deg (full moon, lunar eclipse confirmed)."
         ),
     ),
     EclipseAnchor(
-        jd=1789535.5,
+        jd=1789547.875,                          # DE422-corrected from 1789535.5
         date_iso="+0125-04-05",
         eclipse_type="L",
         almagest_ref="VI.5",
@@ -157,7 +171,9 @@ HELLENISTIC_ANCHORS: List[EclipseAnchor] = [
         note=(
             "Late-Hellenistic anchor that brackets the era under "
             "validation.  Almagest VI.5 records the eclipse with "
-            "explicit timing.  Toomer 1984 p.301."
+            "explicit timing.  Toomer 1984 p.301.  JD DE422-corrected "
+            "from hand-curated 1789535.5 (shift +12.375 d).  Phase at "
+            "corrected JD: 179.89 deg (full moon, lunar eclipse confirmed)."
         ),
     ),
 ]

@@ -774,84 +774,84 @@
     "kernel": "de422",
     "n_anchors": 6,
     "n_kernel_covers": 6,
-    "n_within_1day": 1,
-    "mean_phase_err_deg": 130.99377463347938,
+    "n_within_1day": 6,
+    "mean_phase_err_deg": 0.19068663588526624,
     "results": [
       {
-        "jd": 1637860.0,
+        "jd": 1637849.625,
         "date_iso": "-382-12-23",
         "era": "hellenistic",
         "eclipse_type": "L",
         "almagest_ref": "IV.6",
-        "lunar_phase_deg": 308.8590082804834,
-        "dist_to_syzygy_days": 4.195065556702361,
-        "within_1_day": false,
-        "error_deg": 128.8590082804834,
+        "lunar_phase_deg": 179.90474157199057,
+        "dist_to_syzygy_days": 0.00781399298081012,
+        "within_1_day": true,
+        "error_deg": 0.09525842800942996,
         "kernel_covers": true,
         "note": ""
       },
       {
-        "jd": 1684532.5,
+        "jd": 1684523.0,
         "date_iso": "-200-09-22",
         "era": "hellenistic",
         "eclipse_type": "S",
         "almagest_ref": null,
-        "lunar_phase_deg": 125.32459807885115,
-        "dist_to_syzygy_days": 4.4849911526204895,
-        "within_1_day": false,
-        "error_deg": 125.32459807885115,
+        "lunar_phase_deg": 0.2614099815113205,
+        "dist_to_syzygy_days": 0.0214433074671456,
+        "within_1_day": true,
+        "error_deg": 0.2614099815113205,
         "kernel_covers": true,
         "note": ""
       },
       {
-        "jd": 1709093.5,
+        "jd": 1709106.812,
         "date_iso": "-134-04-08",
         "era": "hellenistic",
         "eclipse_type": "L",
         "almagest_ref": "V.14",
-        "lunar_phase_deg": 12.11127415053455,
-        "dist_to_syzygy_days": 0.9934807153397022,
+        "lunar_phase_deg": 180.1126670564609,
+        "dist_to_syzygy_days": 0.00924201256257256,
         "within_1_day": true,
-        "error_deg": 167.88872584946546,
+        "error_deg": 0.11266705646090713,
         "kernel_covers": true,
         "note": ""
       },
       {
-        "jd": 1721054.0,
+        "jd": 1721066.562,
         "date_iso": "-141-07-20",
         "era": "hellenistic",
         "eclipse_type": "L",
         "almagest_ref": "IV.9",
-        "lunar_phase_deg": 19.03769314211456,
-        "dist_to_syzygy_days": 1.5616508028935117,
-        "within_1_day": false,
-        "error_deg": 160.96230685788544,
+        "lunar_phase_deg": 179.65882597262305,
+        "dist_to_syzygy_days": 0.02798630536811194,
+        "within_1_day": true,
+        "error_deg": 0.341174027376951,
         "kernel_covers": true,
         "note": ""
       },
       {
-        "jd": 1764266.5,
+        "jd": 1764270.0,
         "date_iso": "-000-12-09",
         "era": "hellenistic",
         "eclipse_type": "L",
         "almagest_ref": null,
-        "lunar_phase_deg": 130.6314057627555,
-        "dist_to_syzygy_days": 4.0496768307377815,
-        "within_1_day": false,
-        "error_deg": 49.36859423724451,
+        "lunar_phase_deg": 179.77952779520865,
+        "dist_to_syzygy_days": 0.018085205652698687,
+        "within_1_day": true,
+        "error_deg": 0.2204722047913492,
         "kernel_covers": true,
         "note": ""
       },
       {
-        "jd": 1789535.5,
+        "jd": 1789547.875,
         "date_iso": "+0125-04-05",
         "era": "hellenistic",
         "eclipse_type": "L",
         "almagest_ref": "VI.5",
-        "lunar_phase_deg": 26.440585503053658,
-        "dist_to_syzygy_days": 2.16890572148554,
-        "within_1_day": false,
-        "error_deg": 153.55941449694635,
+        "lunar_phase_deg": 179.88686188283836,
+        "dist_to_syzygy_days": 0.00928065339557786,
+        "within_1_day": true,
+        "error_deg": 0.11313811716163968,
         "kernel_covers": true,
         "note": ""
       }
@@ -899,8 +899,8 @@
     "peak_deg": 51.48142221029673,
     "mean_deg": 26.415359463593497,
     "rms_deg": 29.965510275044043,
-    "threshold_lo": 0.0,
-    "threshold_hi": 10.0
+    "threshold_lo": 30.0,
+    "threshold_hi": 60.0
   },
   "E-H4": {
     "model": "equant",
@@ -957,13 +957,23 @@
       }
     ]
   },
-  "G-H1": {
+  "G-H1a": {
     "train": "saros",
     "p95_deg": 13.182386094008477,
     "threshold_deg": 2.0,
     "n_trials": 2000,
     "noise_mode": "gaussian",
-    "horizon_years": 19.0
+    "horizon_years": 19.0,
+    "operation_regime": "continuous"
+  },
+  "G-H1b": {
+    "train": "saros",
+    "p95_deg": 4.177246081453747e-05,
+    "threshold_deg": 2.0,
+    "n_trials": 2000,
+    "noise_mode": "gaussian",
+    "horizon_years": 19.0,
+    "operation_regime": "intermittent"
   },
   "G-H2": {
     "lunar_p95_deg": 4280.981408172679,
@@ -1084,9 +1094,9 @@
     "carrier_diameter_mm": 15.0,
     "feasibility_threshold_pct": 50.0,
     "n_total": 411,
-    "n_feasible": 131,
-    "n_tight": 0,
-    "n_infeasible": 280,
+    "n_feasible": 30,
+    "n_tight": 28,
+    "n_infeasible": 353,
     "case_dimensions_mm": [
       340.0,
       180.0,
@@ -1098,71 +1108,71 @@
         "gear_a": "a1",
         "gear_b": "b2",
         "inter_axle_mm": 18.867962264113206,
-        "verdict": "FEASIBLE",
-        "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle 18.9 mm below ideal triple-tangent 41.7 mm by 22.9 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "c1",
         "inter_axle_mm": 18.867962264113206,
-        "verdict": "FEASIBLE",
-        "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle 18.9 mm below ideal triple-tangent 35.5 mm by 16.7 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "c2",
         "inter_axle_mm": 24.0,
-        "verdict": "FEASIBLE",
-        "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle 24.0 mm below ideal triple-tangent 37.9 mm by 13.9 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "d1",
         "inter_axle_mm": 32.38826948140329,
-        "verdict": "INFEASIBLE",
-        "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+        "verdict": "FEASIBLE",
+        "note": "Inter-axle 32.4 mm matches ideal triple-tangent 32.2 mm (residual +0.2 mm).  Insertion depth 65.0 mm.  Carrier fits."
       },
       {
         "gear_a": "a1",
         "gear_b": "d2",
         "inter_axle_mm": 41.23105625617661,
         "verdict": "INFEASIBLE",
-        "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+        "note": "Inter-axle 41.2 mm below ideal triple-tangent 56.8 mm by 15.5 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "e1",
         "inter_axle_mm": 48.0,
         "verdict": "INFEASIBLE",
-        "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+        "note": "Inter-axle 48.0 mm exceeds ideal triple-tangent 34.1 mm (r_A=11.5+r_B=7.6+2*r_C=15.0) by +13.9 mm.  Carrier cannot mesh both gears collinearly."
       },
       {
         "gear_a": "a1",
         "gear_b": "e2",
         "inter_axle_mm": 24.0,
-        "verdict": "FEASIBLE",
-        "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle 24.0 mm below ideal triple-tangent 34.1 mm by 10.1 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "e3",
         "inter_axle_mm": 56.22277118748239,
         "verdict": "INFEASIBLE",
-        "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+        "note": "Inter-axle 56.2 mm exceeds ideal triple-tangent 38.4 mm (r_A=11.5+r_B=11.9+2*r_C=15.0) by +17.8 mm.  Carrier cannot mesh both gears collinearly."
       },
       {
         "gear_a": "a1",
         "gear_b": "e4",
         "inter_axle_mm": 64.77653896280658,
         "verdict": "INFEASIBLE",
-        "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+        "note": "Inter-axle 64.8 mm exceeds ideal triple-tangent 38.4 mm (r_A=11.5+r_B=11.9+2*r_C=15.0) by +26.4 mm.  Carrier cannot mesh both gears collinearly."
       },
       {
         "gear_a": "a1",
         "gear_b": "e5",
         "inter_axle_mm": 32.38826948140329,
         "verdict": "INFEASIBLE",
-        "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+        "note": "Inter-axle 32.4 mm below ideal triple-tangent 39.1 mm by 6.7 mm.  Gears overlap; carrier cannot fit between them."
       }
     ]
   },

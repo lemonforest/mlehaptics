@@ -154,42 +154,96 @@ class CarrierCandidate:
     note: str
 
 
+GEAR_MODULE_MM: float = 1.5
+"""Hellenistic bronze-gear module (mm per tooth around the pitch circle).
+Per Voulgaris 2018 surveys; ~1.4-1.6 mm range; 1.5 is mid-range."""
+
+
+def _pitch_radius_mm(gear_name: str) -> float:
+    """Pitch radius (mm) of a gear, from its tooth count.
+
+    radius = teeth * module / (2 * pi)
+    """
+    import math
+    from .gear_database import gear_by_name, FREETH_2021
+    try:
+        g = gear_by_name(gear_name)
+        teeth = g.canonical_count(FREETH_2021)
+    except KeyError:
+        teeth = 50
+    return teeth * GEAR_MODULE_MM / (2 * math.pi)
+
+
+MESHING_TANGENT_TOLERANCE_MM: float = 5.0
+"""Tolerance band around the ideal triple-tangent inter-axle distance
+within which a carrier can actually mesh.  +-5 mm reflects synthesised-
+position uncertainty (~5 mm precision) plus Hellenistic-tolerance
+clearance."""
+
+
 def evaluate_carrier_pair(
     gear_a: str,
     gear_b: str,
     carrier_diameter_mm: float = DEFAULT_CARRIER_DIAMETER_MM,
 ) -> CarrierCandidate:
-    """Score whether a carrier of given diameter could bridge gear_a and gear_b."""
+    """Score whether a carrier of given diameter could bridge gear_a and gear_b.
+
+    REFINED MODEL (commit fb22a4c → this refinement):
+    A carrier C bridges A and B by meshing with both (collinear
+    triple-tangent geometry).  This requires the inter-axle distance
+    to be approximately r_A + r_B + 2*r_carrier (the sum of three
+    tangent pitch circles aligned along a line).
+
+    Specifically:
+      ideal_inter_axle = r_A + r_B + 2 * r_carrier
+      |actual_inter_axle - ideal_inter_axle| <= 5 mm  -> FEASIBLE
+      smaller actual: gears overlap; carrier won't fit
+      larger actual: carrier doesn't reach -- needs longer spindle
+    """
     pos_a = _synthesize_position(gear_a)
     pos_b = _synthesize_position(gear_b)
     inter = _euclidean_distance_mm(pos_a, pos_b)
 
+    r_a = _pitch_radius_mm(gear_a)
+    r_b = _pitch_radius_mm(gear_b)
+    r_c = carrier_diameter_mm / 2.0
+    ideal_inter = r_a + r_b + 2 * r_c
+    mesh_residual = inter - ideal_inter   # >0 = too far apart, <0 = overlap
+
     # Insertion depth needed: must reach the deeper of the two sub-axles
     deeper_z = max(pos_a[2], pos_b[2])
     insertion_depth = deeper_z + CARRIER_ASSEMBLY_MARGIN_MM
-
     fits_case_depth = insertion_depth <= INSERTABLE_DEPTH_MM
-    spans_inter_axle = (carrier_diameter_mm * 2) >= inter
-    # Margin: would the carrier *just* span, or comfortably?
-    span_margin = (carrier_diameter_mm * 2) - inter
+
+    # Mesh feasibility: |inter - ideal_inter| <= tolerance
+    in_mesh_band = abs(mesh_residual) <= MESHING_TANGENT_TOLERANCE_MM
+    spans_inter_axle = in_mesh_band
 
     if not fits_case_depth:
         verdict = "INFEASIBLE"
         note = (f"Required insertion depth {insertion_depth:.1f} mm "
                 f"exceeds case-insertable budget {INSERTABLE_DEPTH_MM:.1f} mm.")
-    elif not spans_inter_axle:
+    elif mesh_residual > MESHING_TANGENT_TOLERANCE_MM:
         verdict = "INFEASIBLE"
-        note = (f"Inter-axle distance {inter:.1f} mm exceeds carrier reach "
-                f"({carrier_diameter_mm * 2:.1f} mm = 2x diameter).  "
-                "Carrier cannot span both gears with single mesh contact.")
-    elif span_margin < 5.0:
+        note = (f"Inter-axle {inter:.1f} mm exceeds ideal triple-tangent "
+                f"{ideal_inter:.1f} mm (r_A={r_a:.1f}+r_B={r_b:.1f}+"
+                f"2*r_C={r_c*2:.1f}) by {mesh_residual:+.1f} mm.  "
+                "Carrier cannot mesh both gears collinearly.")
+    elif mesh_residual < -MESHING_TANGENT_TOLERANCE_MM:
+        verdict = "INFEASIBLE"
+        note = (f"Inter-axle {inter:.1f} mm below ideal triple-tangent "
+                f"{ideal_inter:.1f} mm by {-mesh_residual:.1f} mm.  "
+                "Gears overlap; carrier cannot fit between them.")
+    elif abs(mesh_residual) > MESHING_TANGENT_TOLERANCE_MM / 2.0:
         verdict = "TIGHT"
-        note = (f"Span margin only {span_margin:.1f} mm; carrier just barely "
-                "reaches both gears.  Greek tolerance limits make this risky.")
+        note = (f"Inter-axle {inter:.1f} mm within tolerance of ideal "
+                f"{ideal_inter:.1f} mm but margin tight ({mesh_residual:+.1f} mm). "
+                "Greek tolerance makes this risky.")
     else:
         verdict = "FEASIBLE"
-        note = (f"Span margin {span_margin:.1f} mm; insertion depth "
-                f"{insertion_depth:.1f} mm.  Carrier fits comfortably.")
+        note = (f"Inter-axle {inter:.1f} mm matches ideal triple-tangent "
+                f"{ideal_inter:.1f} mm (residual {mesh_residual:+.1f} mm).  "
+                f"Insertion depth {insertion_depth:.1f} mm.  Carrier fits.")
 
     return CarrierCandidate(
         gear_a=gear_a,

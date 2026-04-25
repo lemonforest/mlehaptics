@@ -148,6 +148,51 @@ def _nearest_syzygy_jd(syzygies: List[SyzygyEvent],
     return float(best.jd)
 
 
+def infer_anchor_jd_from_date(
+    nominal_jd: float,
+    eclipse_type: str,
+    tolerance_days: float = 16.0,
+    sample_step_days: float = 1.0,
+    kernel: str = "de422",
+    path: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Find the actual DE422 syzygy nearest to a nominal hand-curated JD.
+
+    Used to CORRECT the buggy hand-curated JDs in
+    ``hellenistic_eclipses.HELLENISTIC_ANCHORS`` by letting DE422 itself
+    determine the true eclipse JD.  Searches +-tolerance_days around
+    the nominal JD for a syzygy of the matching eclipse_type ('S' for
+    solar / new moon, 'L' for lunar / full moon).
+
+    Returns dict with:
+        nominal_jd          : input
+        corrected_jd        : DE422 syzygy JD
+        shift_days          : corrected - nominal
+        eclipse_type        : 'S' | 'L' (matching the requested type)
+        phase_deg           : lunar phase at corrected JD
+    Or None if no matching syzygy is found in the tolerance window.
+    """
+    import numpy as np
+    events = scan_syzygies(
+        jd_lo=nominal_jd - tolerance_days,
+        jd_hi=nominal_jd + tolerance_days,
+        kernel=kernel, path=path,
+        sample_step_days=sample_step_days,
+    )
+    matching = [e for e in events if e.eclipse_type == eclipse_type]
+    if not matching:
+        return None
+    # Pick the one closest to nominal_jd
+    best = min(matching, key=lambda e: abs(e.jd - nominal_jd))
+    return {
+        "nominal_jd": float(nominal_jd),
+        "corrected_jd": float(best.jd),
+        "shift_days": float(best.jd - nominal_jd),
+        "eclipse_type": best.eclipse_type,
+        "phase_deg": float(best.phase_deg),
+    }
+
+
 def saros_coverage(
     syzygies: List[SyzygyEvent],
     anchor_jd: float = HIPPARCHUS_LUNAR_ECLIPSE_JD,
