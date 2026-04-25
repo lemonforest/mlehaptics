@@ -390,6 +390,22 @@ User-confirmed scope: every `research/*.py` module gained a rich `argparse` bloc
 
 A research direction the sequel opened but did not close: **could the Antikythera's lost gears include manufacturing-tolerance compensators?**
 
+### 10.0 Physical and historical constraints
+
+The mechanism is roughly the size of a modern hardback book (**34 × 18 × 9 cm** wooden case per Freeth 2006). Freeth 2021's reconstruction has **69 total gears** (34 in the front Cosmos system, 35 in the back calendar/eclipse system); **30 survived** corrosion across 82 fragments, leaving roughly **39 hypothesised gears** the model places in lost regions of the device. Two constraints follow: (a) any extra "compensator" gear has to fit physically inside the surviving real estate, mostly on the front planetary plate; (b) Greek instrument-making practice — Hellenistic-era bronze gear-cutting technology, lathe-finished spindles, hand-pinned arbors — strongly favours **minimum-parts, maximum-multi-purpose** designs. The user's intuition that a tolerance compensator would *also* serve an astronomical function (a "combination gear") is the right shape for the era.
+
+### 10.0.1 The 63-tooth precedent (`r1` in Fragment D)
+
+The Antikythera already contains **a known historical example of exactly this pattern.** The 63-tooth gear (`r1`) in Fragment D was treated for ~50 years as "**superfluous**" — researchers couldn't account for it in any pure-ratio reconstruction and it was sometimes catalogued as a redundant or unexplained spare. Three competing readings have since been advanced:
+
+| Author | Proposed function for the 63-tooth gear |
+|---|---|
+| Trent (multiple papers) | Eclipse-season prediction (combination with A1 + B1 indicators) |
+| Freeth 2021 ("Cosmos in the ancient Greek...") | Encodes Venus 462-year period; **63 = 3 · 7**, where the prime **7** is the shared planetary factor across Venus + Mars (A-H2 / Track 4) |
+| Other | Jupiter epicyclic motion |
+
+**The empirical lesson is direct: a gear that looked redundant in pure ratio-tabulation terms turned out to play a specific astronomical role tied to the shared-prime architecture (factor 7).** The user's intuition that a hypothetical tolerance-compensating gear should *also* serve an astronomical function — never one job alone — is **exactly the historical pattern.** The conjecture below should not propose pure compensators; it should propose **combination gears** of the b1-b2 differential family that average errors *as a side effect* of computing a primary astronomical quantity.
+
 ### 10.1 The forcing logic
 
 Three independent results frame the question:
@@ -400,12 +416,14 @@ Three independent results frame the question:
 
 These three converge on a question: if the mechanism *as currently reconstructed* either jams in 120 days or drifts 13° per Metonic, but the Greeks (who built it) presumably operated it for some useful duration, **what compensated for the budget?**
 
-### 10.2 Hypotheses (not yet operationalised)
+### 10.2 Hypotheses (combination gears only — Greek-economy constraint)
 
-- **C1. Differential-averaging.** The known b1+b2 differential is a documented example: it averages two input rates. Other planetary trains may have used unattested differentials whose role is *error-averaging across redundant paths* rather than ratio computation. Predict: surviving Freeth 2021 reconstruction's "single-path" planetary trains may, on careful re-examination, show residual evidence of paired paths whose ratios match.
-- **C2. Idler / spacing gears.** Gears that don't change ratios but improve angular resolution by sub-dividing a step. A 100-tooth idler between two ratios is invisible in `chain_ratio` but reduces backlash error by 100×.
-- **C3. Periodic re-calibration markers.** The mechanism's dial face inscriptions (largely indecipherable from corrosion) may have included operator instructions for re-zeroing the eclipse pointers at known anchor events (Olympics, archonship eclipses). Voulgaris 2024's "missing indicator dials" claim is consistent with this.
-- **C4. Compensation via specific-prime tooth selection.** The forced rare primes (A-H4: 47, 127, 223, 251) place specific irrational ratios on specific *prime* gears that cannot be decomposed into smaller meshes — making their angular position quantised at exactly the mechanism's natural unit. *If* the manufacturing error is dominated by tooth-pitch uniformity (not tooth count), large-prime gears are paradoxically *more* tolerance-robust because they have more teeth averaging the error.
+Each candidate must be a **combination gear**: it serves a primary astronomical function *and* its mechanical structure incidentally averages, sub-divides, or re-anchors error. Pure tolerance-only gears are excluded as historically implausible (Greeks would not add bronze that does only one thing, and the 63-tooth `r1` precedent confirms this).
+
+- **C1. Hidden differentials (combination averaging + derived quantity).** The b1-b2 differential already in the surviving mechanism averages two input rates *as a side effect* of computing the lunar synodic phase (Moon-Sun longitude difference). The conjecture: planetary trains whose period relations contain shared primes (Venus 462 = 2·3·7·11, Saturn 442 = 2·13·17, with shared 7 + 17 per A-H2 / Track 4) may have been driven by **paired differentials** rather than single-path chains. Each differential outputs the planet's deferent angle while *averaging* the noise contributions of its two input shafts. Predict: re-running G-H1 with each surviving train modelled as a differential (two parallel paths sharing a final mesh) cuts p95 drift by √2 to ½ depending on coupling.
+- **C2. Worm/sub-vernier idlers.** A worm-gear (single-tooth driver meshing with a many-tooth wheel) provides strong tolerance averaging at a fixed ratio — the worm's continuous tooth profile averages bronze imprecision over many revolutions. The Antikythera is not currently believed to use worms (which are anachronistic for the era), but a *fine-tooth idler* between two coarser meshes serves a similar averaging role. A 100-tooth idler between a 32-tooth and a 53-tooth mesh introduces no ratio change in `chain_ratio` — but reduces per-mesh backlash error from ~1/32 to ~1/100.
+- **C3. Calendar-anchored re-zero indicators (Voulgaris 2024 line of argument).** Voulgaris et al. 2024 ([arXiv:2407.15858](https://arxiv.org/abs/2407.15858)) argue from independent functional-reconstruction evidence that the b1 gear and its lost Cover Disc held two missing operator-indicator dials. If those indicators were **anchor markers** for known Hellenistic events (Olympic-quadrennium tick, archonship-eclipse pointer, Saros 18-yr Egyptian-calendar anchor), then the mechanism's design embeds **periodic re-calibration** as user instruction — drift accumulated between anchors is bounded by the inter-anchor interval, not by pure manufacturing tolerance.
+- **C4. Large-prime tolerance-averaging (a paradoxical reading of A-H4).** A-H4 confirmed that 47, 127, 223, 251 are *forced* by celestial mechanics. *If* manufacturing error is dominated by per-tooth pitch noise (not per-mesh ratio noise), larger-prime gears are **more** tolerance-robust — they average over more independent tooth errors per revolution. This is the *opposite* of G-H3's per-mesh-ratio-noise reading. Whether the Greeks chose primes 127 and 223 partly because they're individually large enough to be self-averaging is testable: re-run Track 3 with a per-tooth-pitch noise model rather than per-mesh-ratio noise; large-prime trains should be relatively more robust under the new model.
 
 ### 10.3 Operationalisation (future work)
 
@@ -430,3 +448,71 @@ A second-order test: under our default σ, does the shared-train Freeth 2021 rec
 - **Voulgaris et al. (2024, 2025)** — multiple arXiv papers on bronze functional reconstructions [2407.15858](https://arxiv.org/abs/2407.15858) (missing parts), [2505.08484](https://arxiv.org/abs/2505.08484) (zodiac dial), and a Draconic-gearing paper [2104.06181](https://arxiv.org/abs/2104.06181) explicitly testing gear-error impact on eclipse prediction.
 
 A future session could add a frozen-data module `research/known_reconstructions.py` (analogous to `historical_periods.py`) cataloguing each reconstruction's specific gear choices with citations, then run G-H4 against each reconstruction to characterise Pareto-frontier sensitivity to reconstruction ambiguity.
+
+### 10.6 Visual references (figures committed to `docs/antikythera-maths/figures/`)
+
+Five public-domain schematic SVGs from Wikimedia Commons, all CC0 / public domain:
+
+| File | Source / authorship | What it shows |
+|---|---|---|
+| `antikythera_mechanism_overview.svg` | Lead Holder, 2009 | Front-panel + back-panel dial layout (Metonic, Callippic, Olympiad, Saros, Exeligmos spirals) |
+| `Antikythera-proposed-1.svg` | Evans et al. proposal | One reconstruction of the planetary plate |
+| `Antikythera-proposed-3.svg` | Freeth et al. 2012 proposal | Pre-2021 planetary mechanism layout |
+| `Antikythera-proposed-4.svg` | Wright proposal | Wright's alternative reconstruction (used for the Wright tooth-count column in [research/gear_database.py](research/gear_database.py)) |
+| `Gearing_Relationships_of_the_Antikythera_Mechanism.svg` | Freeth & Jones model | **Most detailed:** internal gearing-relationship graph for missing-gear inquiries |
+
+The size constraint is dramatic: the wooden case is **34 × 18 × 9 cm** (smaller than a hardback book), which physically caps the planetary plate's possible internal complexity. Freeth 2021's full reconstruction places **69 gears** in this volume (34 front Cosmos + 35 back calendar/eclipse), of which **30 survived**. The ~39 hypothesised missing gears must all fit within the surviving real-estate envelope, primarily on the front face's planetary plate.
+
+---
+
+## 11. The mechanism as a damaged hologram (sky-driven inversion)
+
+> "The machine is our hypervector, it is our damaged hologram, and we must rebuild its lattice based on what we have and what they saw in the sky." — research-thread framing, April 2026
+
+This section reframes the missing-gear question in the project's own HDC vocabulary, then sketches the concrete inversion approach DE422 makes possible.
+
+### 11.1 The hypervector view
+
+Per §0 and §3, the mechanism's full state at time *t* is a point in **ℂ[ℤ/D_LCMℤ]** with D_LCM = 102 325 385 652 732 381 204 565 500. Each surviving gear is a *generator* of a sub-lattice; each mesh edge is a *binding operation* between adjacent generators (the cyclic-group algebra of [research/cyclic_group_algebra.py](research/cyclic_group_algebra.py)). The 13-dial readout at time *t* is a projection of the state vector onto 13 sub-lattices, one per cycle (Metonic, Saros, Mars synodic, …). All of this is already in the notebook.
+
+The new framing makes the inverse direction explicit:
+
+- **Surviving fragment** = ~30 known generators + ~24 known mesh edges (from `gear_database.MESH_EDGES`).
+- **Missing fragment** = ~39 unknown generators + an unknown number of missing mesh edges (Freeth 2021's hypothetical planetary plate completion, or any of the competing reconstructions in §10.6).
+- **Sky** = the 13-tuple of *true* projections, available now via DE422 over the entire Antikythera era.
+- **Inversion problem** = recover the missing generators + meshes that complete the lattice such that the encoder's projection matches the sky to Greek-attainable tolerance, subject to (a) the size envelope (§10.6), (b) Greek bronze-cutting era constraints (tooth count ≤ 500, prime alphabet from observed gears), (c) Pareto-minimum bronze cost (Track 4 metric).
+
+### 11.2 Why "damaged hologram" is the right word
+
+A hologram has a strong property: any sub-region encodes the whole image at reduced resolution. The Antikythera fragments behave the same way — Fragment A alone tells us the Metonic + Callippic + Olympic spirals; Fragment B alone gives us the lunar pin-and-slot epicycle (D-H1); Fragment D alone gave us the 63-tooth gear that was opaque for 50 years until shared-prime analysis (§10.0.1) extracted its Venus-period role. Each fragment is a damaged sub-hologram of the whole; the missing fragments imply specific projections of the whole that are absent in our local sections.
+
+The HDC-formal version: the mechanism is an element of ℂ[ℤ/D_LCMℤ]; each surviving fragment is a *partial restriction* of that element to a sub-lattice; the gluing data (which surviving gears mesh with which) is partially observable, partially hypothetical. This is the **sheaf-theoretic completion** problem in [docs/othello-maths/](../othello-maths/) vocabulary: the sheaf is the mechanism, the surviving fragments are local sections, and DE422 specifies what the global section's stalks must equal at every JD.
+
+### 11.3 Concrete sub-problems the sky enables
+
+**A — Sky-driven E-H1c (replaces hand-curated anchor JDs).** Scan DE422 for every syzygy (lunar phase = 0° or 180°) in the band [-200 BCE, +100 CE]. Anchor the encoder's Saros cycle at one well-attested historical eclipse (e.g. -134-04-08 *if* its JD is correct, or pick whichever DE422 syzygy falls within ±1 day of an Almagest-recorded date). For every other DE422 syzygy in the band, ask: "does the encoder predict this date?" Concrete metric: fraction of syzygies the encoder's Saros multiples cover within ±1 day. **This is the right E-H1b/c test; it bypasses the JD-data error mode entirely** because DE422 generates the anchors, not me. Sketch lives in [research/sky_driven_validation.py](research/sky_driven_validation.py) (this commit).
+
+**B — Planetary-train verification.** Freeth 2021's planetary trains are *conjectural* (the surviving gears are mostly back-panel calendar/eclipse). Run `encode_ant_packing` over -200..+100 CE for each planet's hypothetical train; compare to DE422's actual ecliptic longitude for that planet. The residual characterises Freeth's reconstruction error vs the sky directly. Concrete metric: peak / mean Mars longitude error against DE422 for Freeth's `(133, 125)` Mars ratio specifically — if the residual exceeds the 30-50° band E-H4 found for the Ptolemy-equant model, Freeth's specific tooth choice is sub-optimal even within the Greek-attainable design space.
+
+**C — Missing-mesh synthesis (the headline G-H4).** For each conjectural completion topology (Wright vs Freeth 2012 vs Freeth 2021 vs Evans), score against DE422 over the design epoch + existing mesh constraints + Pareto cost. Output: the topology with the minimum-bronze + minimum-residual against the sky. Optionally, *generate* candidate topologies via constrained search rather than only scoring known proposals — restrict to (a) at most 39 added gears, (b) tooth counts within {2..500}, (c) primes from the observed alphabet ∪ {forced primes}, (d) physical mesh adjacency constrained by surviving evidence.
+
+### 11.4 Why this is "just a compute problem"
+
+The sky tells us the answer for every planetary pointer at every moment in the Antikythera era. The surviving fragments tell us what the answer-machine looks like in roughly two-thirds of its volume. The remaining one-third is constrained by:
+
+- **Connectivity** — missing meshes have to attach to existing shafts.
+- **Cost** — the bronze available, the workshop capability, and the Pareto frontier from Track 4.
+- **Multi-purpose** — §10.0.1's lesson: any added gear should also serve an astronomical function (the 63-tooth precedent).
+
+Given those three constraints + the sky as objective, the inversion is a constrained-optimisation problem with a finite (combinatorially bounded) candidate set. It is genuinely "just compute" once the framing is cleanly stated. The estimate isn't trivially small — depending on how much we constrain the candidate set, it ranges from a few thousand topologies (mesh adjacency strictly preserves Freeth 2021's general layout) to ~10⁹ (full enumeration over a ≤39-gear addition with primes ≤ 500). The middle case — preserve the topology category but vary tooth counts within Pareto-optimal sets — is ~10⁵ candidates, well within reach for an offline run.
+
+### 11.5 Connection to existing project pieces
+
+- **Track 4 ([pareto_analysis.py](research/pareto_analysis.py))** already implements the Pareto cost-vs-precision search for *individual* cycle ratios. Extending to multi-train topology is the same machinery wrapped in a graph-search outer loop.
+- **Track 1 ([astronomical_ground_truth.py](research/astronomical_ground_truth.py))** already has `mars_longitude_error(longitude_fn, kernel)` — the comparator that ingests an arbitrary encoder closure and scores it against DE422. Sub-problem B reuses this directly.
+- **Track 2 ([equant_encoder.py](research/equant_encoder.py))** demonstrated how a custom longitude function plugs into the comparator. Each candidate missing-mesh topology becomes one such longitude function.
+- **B-H3 round-trip** ([dial_decoder.py](research/dial_decoder.py)) already proves the encoder is bijective on the surviving lattice. The inversion problem extends bijectivity demand to *the completed lattice* — i.e. any candidate completion must round-trip on every surviving dial.
+
+### 11.6 Open question — how much sky resolves the ambiguity?
+
+The Pareto frontier in Track 4 already shows that multiple shared-prime sets are non-dominated (e.g. {7, 17}, {11, 19}, {7, 11}). The Greeks chose ONE set; the sky alone won't tell us which. **But** the sky may break ties on tooth-count *assignments* even when topology is degenerate: two candidate trains may both encode the right *ratio* but differ in their per-step quantisation error. DE422 records that quantisation error directly. So the right framing is: the sky narrows the answer set; surviving fragments narrow it further; in the intersection, what's left is a small enough family to enumerate. **G-H4 measures the size of that intersection.**
