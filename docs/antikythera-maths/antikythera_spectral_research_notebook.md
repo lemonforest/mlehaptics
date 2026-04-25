@@ -465,7 +465,7 @@ The size constraint is dramatic: the wooden case is **34 × 18 × 9 cm** (smalle
 
 ---
 
-## 11. The mechanism as a damaged hologram (sky-driven inversion)
+## 11. Sky-driven missing-gear inversion
 
 > "The machine is our hypervector, it is our damaged hologram, and we must rebuild its lattice based on what we have and what they saw in the sky." — research-thread framing, April 2026
 
@@ -482,11 +482,20 @@ The new framing makes the inverse direction explicit:
 - **Sky** = the 13-tuple of *true* projections, available now via DE422 over the entire Antikythera era.
 - **Inversion problem** = recover the missing generators + meshes that complete the lattice such that the encoder's projection matches the sky to Greek-attainable tolerance, subject to (a) the size envelope (§10.6), (b) Greek bronze-cutting era constraints (tooth count ≤ 500, prime alphabet from observed gears), (c) Pareto-minimum bronze cost (Track 4 metric).
 
-### 11.2 Why "damaged hologram" is the right word
+### 11.2 The metaphor's reach (and its limits)
 
-A hologram has a strong property: any sub-region encodes the whole image at reduced resolution. The Antikythera fragments behave the same way — Fragment A alone tells us the Metonic + Callippic + Olympic spirals; Fragment B alone gives us the lunar pin-and-slot epicycle (D-H1); Fragment D alone gave us the 63-tooth gear that was opaque for 50 years until shared-prime analysis (§10.0.1) extracted its Venus-period role. Each fragment is a damaged sub-hologram of the whole; the missing fragments imply specific projections of the whole that are absent in our local sections.
+The "damaged hologram" framing is rhetorically useful as motivation but does **not** buy analytic machinery. A hologram has a strong property — any sub-region encodes the whole image at reduced resolution — that the Antikythera fragments do *not* actually have. Fragment A doesn't encode the planetary trains "at reduced resolution"; it encodes the Saros + Metonic + Olympic spirals *directly* and is silent on the planetary plate. Fragment D's 63-tooth gear was opaque for ~50 years and only became interpretable through shared-prime analysis (§10.0.1) connecting it to other fragments — that's good detective work, not holographic redundancy.
 
-The HDC-formal version: the mechanism is an element of ℂ[ℤ/D_LCMℤ]; each surviving fragment is a *partial restriction* of that element to a sub-lattice; the gluing data (which surviving gears mesh with which) is partially observable, partially hypothetical. This is the **sheaf-theoretic completion** problem in [docs/othello-maths/](../othello-maths/) vocabulary: the sheaf is the mechanism, the surviving fragments are local sections, and DE422 specifies what the global section's stalks must equal at every JD.
+The honest description of what we're doing: **constrained graph search** over a partially-observed mesh DAG. Inputs:
+
+- The 24 known mesh edges in [research/gear_database.py](research/gear_database.py) `MESH_EDGES`
+- The 30 known tooth counts (with provenance per Freeth 2021 / Wright / Price 1974)
+- DE422-derived ground truth for what each dial pointer should read at any Hellenistic-era JD
+- The Pareto cost frontier from Track 4
+
+Outputs: candidate completions (added meshes + added tooth counts) that minimise (a) residual error against DE422 over the design epoch, (b) added bronze cost subject to Greek workshop constraints, (c) periphery-rule consistency (§11.6).
+
+This is concretely a **discrete optimisation over a small graph** — 24 known edges, ≤39 added candidate edges, tooth counts in [10, 500], primes from the observed alphabet ∪ {forced primes per A-H4}. Not a sheaf-cohomology computation, not holographic reconstruction. The vocabulary the project sometimes reaches for ("sheaf-completion", "global section's stalks") was rhetorical garnish; the actual computational substrate is described above and runs in [research/pareto_analysis.py](research/pareto_analysis.py) + [research/paired_chain_search.py](research/paired_chain_search.py) + [research/carrier_insertion_geometry.py](research/carrier_insertion_geometry.py).
 
 ### 11.3 Concrete sub-problems the sky enables
 
@@ -838,7 +847,7 @@ The user's one-line follow-up:
 
 The hypothesis is, in this sense, **strongly self-confirming under non-observation**: the predicted absence of evidence *is* the predicted evidence-of-absence. That cuts both ways philosophically — it makes the hypothesis hard to falsify by inspection alone — but it also explains why, after a century of careful study, no one has confidently identified what holds the gears stationary when the crank is out: there's nothing for them to identify, because the answer is among the lost bronze.
 
-The architectural implication is sharp: **the periphery rule, the missing-gear search, and the damaged-hologram framing should *all* admit a "non-gear element" candidate.** §11.6.3 sub-problem C / G-H4 was framed exclusively in gear-mesh-edge vocabulary; the right generalisation includes "release / lock / brake elements adjacent to the input shaft" as a separate candidate class with its own priors (peripheral attachment to a1 specifically, no gear teeth, bronze + organic composite, no mesh contribution to the DAG). Whether to fold this into the existing G-H4 search or to break it out as G-H5 is a curation decision for the next session.
+The architectural implication is sharp: **the periphery rule, the missing-gear search, and the §11 inversion framing should *all* admit a "non-gear element" candidate.** §11.6.3 sub-problem C / G-H4 was framed exclusively in gear-mesh-edge vocabulary; the right generalisation includes "release / lock / brake elements adjacent to the input shaft" as a separate candidate class with its own priors (peripheral attachment to a1 specifically, no gear teeth, bronze + organic composite, no mesh contribution to the DAG). Whether to fold this into the existing G-H4 search or to break it out as G-H5 is a curation decision for the next session.
 
 What you've articulated in two short messages might be the cleanest single hypothesis explaining why the surviving Antikythera fragments exhibit the precise pattern of presences and absences they do.
 
@@ -877,7 +886,7 @@ python -m research.manufacturing_tolerance --train all --n-trials 5000 \
 
 The verdict logic distinguishes candidates whose absence *fits* the observed pattern (LIKELY-LOST = composite-organic + a1-adjacent) from candidates whose absence is a *red flag* against them (RECOVERABLE = all-bronze, should leave evidence). Three of four catalogued candidates are LIKELY-LOST; the wedge_detent is the one that current reconstructions should *be able to find* if it were the right reading. Its absence selectively rules out wedge_detent more strongly than the other three.
 
-This is the **G-H5 candidate class** sketched in §11.6.10.6, now operational. The G-H4 missing-mesh search (§11.6.3 sub-problem C) and G-H5 missing-non-gear-element search are complementary; together they cover both branches of the damaged-hologram inversion.
+This is the **G-H5 candidate class** sketched in §11.6.10.6, now operational. The G-H4 missing-mesh search (§11.6.3 sub-problem C) and G-H5 missing-non-gear-element search are complementary; together they cover both branches of the missing-element inversion (§11).
 
 #### 11.6.10.10 Track B — archaeological research dossier
 
@@ -1046,11 +1055,11 @@ Each prior hypothesis in this thread becomes a special case of the carrier-gear 
 
 The 30 surviving gears could be the **permanently-mounted core** (the main drive + the always-engaged subsystems like the lunar pin-and-slot); the ~39 hypothesised "missing gears" could be a mix of (a) actually-missing permanently-mounted gears in damaged regions, and (b) **portable carriers that were never meant to be in the case full-time** and so might not have been at the wreck site at all.
 
-#### 11.6.14.4 Probability assessment — honest
+#### 11.6.14.4 Confidence assessment — honest
 
-Prior probability the hypothesis is correct, by my best honest reading:
+Qualitative weighing of the considerations, by my best honest reading:
 
-| Factor | Weight |
+| Factor | Direction & weight |
 |---|---|
 | Greek instrument tradition has interchangeable-part precedents (astrolabe retes, sundial scales) | weak FOR |
 | Hellenistic bronze gear-trains in surviving instruments are typically fixed (e.g. siege-engine torsion mechanisms) | weak AGAINST |
@@ -1059,9 +1068,11 @@ Prior probability the hypothesis is correct, by my best honest reading:
 | Through-shafts are documented; their terminations on both case faces are real | weak FOR (consistent with insertion ports, but also consistent with passive axle terminations) |
 | No published paper proposes carrier gears | strong AGAINST (silence) |
 
-Net estimate: **10–25% probability** the carrier-gear hypothesis is correct. Lower than the §11.6.10 crank-as-clutch hypothesis (which I'd estimate 30–50%), because the carrier reading requires positive evidence (extra bronze artefacts) where the clutch reading only requires negative evidence (a non-gear element fitting the absence pattern).
+Net informal-confidence rating: **LOW** (speculative; worth investigating but not a likely-correct claim). Lower than the §11.6.10 crank-as-clutch hypothesis (rated MODERATE), because the carrier reading requires positive evidence (extra bronze artefacts) where the clutch reading only requires negative evidence (a non-gear element fitting the absence pattern).
 
-But: even at 10–25%, the hypothesis is worth taking seriously because it would be **architecturally transformative** if correct. It would reclassify the Antikythera from "fixed-program analog computer" to "programmable analog computer", elevating its historical significance considerably.
+> **Note on confidence ratings.** Throughout this notebook, hypothesis confidence is rated qualitatively (LOW / MODERATE / HIGH) reflecting "how worth investigating with what epistemic humility." These are NOT calibrated Bayesian probabilities — they're informal tiers that should not be cited externally as quantitative claims. The verdict tags (NOVEL / SPECULATIVE / CONSEQUENTIAL / CONFIRMED / FAILED / DISPUTED) carry more signal than any numerical estimate.
+
+Even at LOW confidence, the hypothesis is worth recording because it would be **architecturally transformative** if correct. It would reclassify the Antikythera from "fixed-program analog computer" to "programmable analog computer", elevating its historical significance considerably.
 
 #### 11.6.14.5 Falsification path
 
@@ -1096,11 +1107,11 @@ If carrier gears are real, the right next step is to ask: **what minimal extensi
 
 #### 11.6.14.7 Status
 
-**NOVEL + SPECULATIVE + ARCHITECTURALLY-TRANSFORMATIVE.** No published paper advocates this reading. The through-shaft archaeology is consistent with but does not prove the hypothesis. The 10–25% probability estimate should not be confused with rejection — it's a "worth investigating with appropriate epistemic humility" rating, not a "likely correct" rating.
+**NOVEL + SPECULATIVE + ARCHITECTURALLY-TRANSFORMATIVE.** No published paper advocates this reading. The through-shaft archaeology is consistent with but does not prove the hypothesis. The LOW informal-confidence rating is "worth investigating with appropriate epistemic humility" — not a likelihood claim, not a calibrated probability.
 
 If the hypothesis turns out to be supported, much of §10, §11.6.6, §11.6.10, and §11.6.12 should be reread under the carrier-gear unifying lens — they all become special cases of "what carriers are currently inserted." If refuted, the failure modes (no orphan sub-axles, no portable gears in wreck inventory) directly strengthen the alternative readings (§11.6.10's clutch is a non-gear element; §11.6.12's selectivity is achieved by per-cluster levers).
 
-The hypothesis is **falsifiable** and **architecturally consequential**. That makes it worth recording even at low probability — exactly the kind of long-shot reading the project's notebook discipline is designed to capture rather than dismiss.
+The hypothesis is **falsifiable** and **architecturally consequential**. That makes it worth recording even at LOW informal confidence — exactly the kind of long-shot reading the project's notebook discipline is designed to capture rather than dismiss.
 
 ### 11.6.15 Setting-mode gears (G-H8) — the clock-setting analogy
 
@@ -1139,7 +1150,7 @@ Under the setting-mode hypothesis, the surviving Antikythera architecture has tw
 
 The 30 surviving gears are mostly trunk + lunar-train (the always-loaded heart).  The ~39 "missing" gears in Freeth 2021's reconstruction are predicted under this reading to be **mostly setting-mode wheels** — small, peripheral, mounted on subsidiary axles between b1's main drive and each subsidiary indicator dial.
 
-#### 11.6.15.4 Probability assessment — significantly higher than G-H7
+#### 11.6.15.4 Confidence assessment — significantly higher than G-H7
 
 This is MORE mechanically defensible than the carrier-gear hypothesis (§11.6.14) because:
 
@@ -1152,7 +1163,7 @@ This is MORE mechanically defensible than the carrier-gear hypothesis (§11.6.14
 | Falsification difficulty | requires complete wreck inventory | requires identifying *which* surviving gears are normally-idle vs trunk |
 | Predicts wear pattern asymmetry | weakly | strongly (setting wheels would show LIGHTER wear than trunk gears) |
 
-Net probability estimate: **30–50%** — the most defensible of the "operational-mode" hypotheses.  Roughly comparable to §11.6.10's crank-as-clutch hypothesis, with which it composes naturally (the clutch is the trunk-vs-setting toggle; the setting-mode gears carry the setting load).
+Net informal-confidence rating: **MODERATE** — the most defensible of the "operational-mode" hypotheses.  Roughly comparable to §11.6.10's crank-as-clutch hypothesis, with which it composes naturally (the clutch is the trunk-vs-setting toggle; the setting-mode gears carry the setting load).  (See the confidence-rating note in §11.6.14.4: these are qualitative tiers, not Bayesian probabilities.)
 
 #### 11.6.15.5 What this unifies
 
@@ -1201,7 +1212,7 @@ Per the periphery rule (§11.6.6.3), the setting wheel attaches at a PERIPHERAL 
 
 **NOVEL + WELL-GROUNDED + COMPOSABLE.**  No published paper makes the claim explicitly that I've found, but the architectural primitive (a planet gear in a differential) is documented in the surviving b1-b2 element, which is the existence proof.  The hypothesis composes naturally with §11.6.10's crank-as-clutch (the clutch toggles modes; setting wheels carry the load in mode 1) and §11.6.12's selective lock (each subsystem's lock + setting wheel implements per-subsystem clock-style setting).
 
-If pursued, this is the strongest unifying reading of the missing-gear question articulated in this thread.  Probability ~30-50% based on (a) Antikythera-internal precedent in the b1-b2 differential, (b) Hellenistic external precedent in Heron's water-clock setting screws, (c) consistent with the periphery rule and surviving evidence pattern, (d) requires no unaccounted-for bronze artefacts at the wreck site.
+If pursued, this is the strongest unifying reading of the missing-gear question articulated in this thread.  Informal confidence: **MODERATE**, based on (a) Antikythera-internal precedent in the b1-b2 differential, (b) Hellenistic external precedent in Heron's water-clock setting screws, (c) consistent with the periphery rule and surviving evidence pattern, (d) requires no unaccounted-for bronze artefacts at the wreck site.
 
 The next operational step is to extend [research/gear_topology.py](research/gear_topology.py) with a `SettingModeGear` class (analogous to G-H5's `NonGearElement`) plus a load-state distinction in the gear DAG (a gear can be `trunk` or `setting-mode`, with consequences for centrality scoring under different operational modes).  G-H8 is at the right level of formal articulation to add to the consolidated hypothesis battery once code support exists.
 
@@ -1322,7 +1333,7 @@ Mars is similarly compelling: 5 alternative disjoint-prime chains within 0.3% sy
 
 What this changes in the project:
 
-- G-H8 moves from "30–50% probability speculative" to "computationally supported" — though full confirmation still requires archaeological evidence (orphan sub-axles in Fragment A; differential architecture in the missing planetary plate).
+- G-H8 moves from "MODERATE-confidence speculative" to "computationally supported" — though full confirmation still requires archaeological evidence (orphan sub-axles in Fragment A; differential architecture in the missing planetary plate).
 - §11.6.15 is now the **leading reading** of the missing-gear question.  The setting-mode + clock-style architecture is the most computationally defensible architectural hypothesis we've articulated.
 - The composite reading §11.6.10 + §11.6.15 + §11.6.12 (clutch lever + setting wheels + per-subsystem lock) gains a concrete bronze-cost estimate for at least one architectural mode: ~290–1100 bronze teeth per planet for the paired-chain implementation, plus ~50–100 teeth for the per-subsystem clutch.
 - Wiring G-H8 into [consolidated_tests.py](research/consolidated_tests.py) is now well-defined: the H-battery would grow from 26 → 27 with G-H8 PASS at 4/5 planets.
