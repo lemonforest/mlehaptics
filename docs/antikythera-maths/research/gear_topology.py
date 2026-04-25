@@ -390,6 +390,55 @@ def render_svg(out_path: str = "figures/gear_topology.svg",
     return str(out_p.resolve())
 
 
+def shared_prime_planet_pairs(exclude_trivial: Tuple[int, ...] = (2, 3, 5),
+                              ) -> Dict[Tuple[str, str], List[int]]:
+    """For each pair of planetary cycles, return the non-trivial shared primes.
+
+    Excludes 2, 3, 5 by default (these are 'free' under any Greek workshop's
+    prime alphabet -- see ALWAYS_ALLOWED_PRIMES in pareto_analysis.py).
+    Output keys are (planet_a, planet_b) sorted alphabetically; values are
+    sorted lists of shared primes.
+    """
+    from .astronomical_cycles import CYCLES, prime_factor_set
+    planetary = [c for c in CYCLES if c.tag == "planetary"]
+    out: Dict[Tuple[str, str], List[int]] = {}
+    for i, c1 in enumerate(planetary):
+        for c2 in planetary[i + 1:]:
+            n1 = c1.name.split("_")[0]
+            n2 = c2.name.split("_")[0]
+            p1 = ((prime_factor_set(c1.numerator)
+                   | prime_factor_set(c1.denominator))
+                  - set(exclude_trivial))
+            p2 = ((prime_factor_set(c2.numerator)
+                   | prime_factor_set(c2.denominator))
+                  - set(exclude_trivial))
+            shared = sorted(p1 & p2)
+            if shared:
+                key = tuple(sorted([n1, n2]))
+                out[key] = shared
+    return out
+
+
+def shared_prime_planet_triples(exclude_trivial: Tuple[int, ...] = (2, 3, 5),
+                                ) -> Dict[Tuple[str, ...], List[int]]:
+    """Triples of planets sharing at least one common non-trivial prime."""
+    from .astronomical_cycles import CYCLES, prime_factor_set
+    from itertools import combinations as _combs
+    planetary = [c for c in CYCLES if c.tag == "planetary"]
+    out: Dict[Tuple[str, ...], List[int]] = {}
+    for combo in _combs(planetary, 3):
+        names = tuple(sorted(c.name.split("_")[0] for c in combo))
+        primes_each = [
+            ((prime_factor_set(c.numerator) | prime_factor_set(c.denominator))
+             - set(exclude_trivial))
+            for c in combo
+        ]
+        common = sorted(primes_each[0] & primes_each[1] & primes_each[2])
+        if common:
+            out[names] = common
+    return out
+
+
 def render_dot(out_path: str = "figures/gear_topology.dot") -> str:
     """Emit a Graphviz .dot file of the gear DAG (for users with graphviz)."""
     from .gear_database import MESH_EDGES

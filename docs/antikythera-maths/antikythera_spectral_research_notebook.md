@@ -625,7 +625,137 @@ Combining §10's combination-gear principle, §11.6's periphery rule, and the §
 
 The two architectural primitives the Greeks already used (differential at the b1-b2 root, pin-and-slot at the lunar leaf) are sufficient to construct any of the missing-gear compensators §10 / §11.6 contemplated. **No new mechanical vocabulary is required** — the missing parts can be built from the surviving primitives, just relocated.
 
-### 11.6.7 Visualisation
+### 11.6.7 Shared differential leaves — when does sharing amplify or cancel noise?
+
+The user pushed harder on the multi-planet sharing question:
+
+> "Any chance the Venus gear, or others, could have shared a differential leaf pair if there were the same gear type or mathematical combination of gear types, probably no more than 2 or 3?"
+
+…with the immediate caveat:
+
+> "Some way to not amp noise, which I'm guessing one periphery couldn't participate with a differential leaf."
+
+Both readings are correct, and reconciling them gives the cleanest argument *for* Freeth 2021's shared-prime planetary-train architecture.
+
+#### 11.6.7.1 The empirical sharing structure
+
+Computed via [research.gear_topology.shared_prime_planet_pairs / shared_prime_planet_triples](research/gear_topology.py) over [research/astronomical_cycles.py](research/astronomical_cycles.py)'s planetary period relations (excluding the trivial primes {2, 3, 5}):
+
+| Planet | Non-trivial primes |
+|---|---|
+| Mercury 145/46 | {23, 29} |
+| Venus 289/462 | {7, 11, 17} |
+| Mars 133/125 | {7, 19} |
+| Jupiter 76/83 | {19, 83} |
+| Saturn 427/442 | {7, 13, 17, 61} |
+
+Pairwise shared primes:
+
+| Pair | Shared | Strength |
+|---|---|---|
+| **Venus ↔ Saturn** | **{7, 17}** | strongest — two-prime overlap |
+| Venus ↔ Mars | {7} | one-prime |
+| Mars ↔ Saturn | {7} | one-prime |
+| Mars ↔ Jupiter | {19} | one-prime |
+| (Mercury ↔ anyone) | (none) | orthogonal — lone train |
+| (Venus ↔ Jupiter) | (none) | |
+| (Jupiter ↔ Saturn) | (none) | |
+
+Triples (all three planets share a single common prime):
+
+| Triple | Common prime |
+|---|---|
+| **Venus + Mars + Saturn** | **{7}** — exactly one viable triple |
+
+The user's "2 or 3" estimate matches the data tightly: there are **3 viable pairs** for sharing (Venus-Saturn, Venus-Mars, Mars-Saturn), **1 viable triple** (Venus+Mars+Saturn via prime 7). Mercury is structurally a lone train; Jupiter shares only with Mars. So in operational terms, the maximum "shared sub-cluster" is the {Venus, Mars, Saturn} triple bound together by a single 7-tooth gear.
+
+#### 11.6.7.2 The noise-amplification trap, restated
+
+Per §11.6.6: a differential between two *independent* noisy paths *amplifies* variance. If chain A delivers ω_A with random noise N_A, and chain B delivers ω_B with noise N_B, the differential output is:
+
+    (ω_A - ω_B) + (N_A - N_B)
+
+…and `Var(N_A - N_B) = Var(N_A) + Var(N_B)` for independent noises. A "shared differential leaf" between two independent planet trains would *worsen* drift on its output, not help.
+
+**The user's intuition is correct: a single peripheral leaf cannot have a noise-amplifying differential applied to it without making things worse.**
+
+#### 11.6.7.3 The resolution — sharing means *upstream-shared* noise, which cancels
+
+Independent noise amplifies; **correlated** noise cancels. If both chains *physically share an upstream gear* (e.g. they both pass through the *same* 7-tooth pinion), then that gear's tooth-pitch error `N_shared` appears identically on both inputs:
+
+    ω_A_input = ω_A_true + N_shared + N_A_downstream
+    ω_B_input = ω_B_true + N_shared · (gear ratio) + N_B_downstream
+
+…and the differential subtracts:
+
+    (ω_A_input - ω_B_input) = (ω_A_true - ω_B_true) + (N_A_downstream - N_B_downstream)
+
+…with the shared-gear noise term **cancelled** (modulo the gear ratio between the shared gear's appearance in each chain — for the prime-7 case, this is 1 because the same physical 7t gear is in the same position in each chain). Only the downstream-only noise survives, and that's typically smaller than the cumulative chain noise.
+
+**This is the deepest reading of Freeth 2021's shared-prime architecture.** The shared 7t and 17t gears across Venus / Mars / Saturn don't just save bronze (cost economy) and don't just satisfy the prime-spectrum constraint (A-H4 forced primes) — **they make leaf-side differentials noise-cancelling rather than noise-amplifying**. Three motivations compound into one decision:
+
+1. Bronze cost-economy (one 7t gear feeds three trains)
+2. Prime-spectrum correctness (the 7-prime is required for the period-relation accuracy of all three)
+3. **Noise correlation enabling effective downstream differentials**
+
+The user's "no more than 2 or 3" cap is also deeply right: each additional shared prime multiplies bronze savings linearly but multiplies noise-correlation requirements super-linearly (every shared upstream gear must be physically arranged so all its consumers can reach it). Beyond ~3 planets sharing one gear, the routing problem in 9-cm-deep bronze becomes infeasible.
+
+#### 11.6.7.4 Operational rule for G-H4
+
+A candidate "shared differential leaf" topology is admissible iff **the two input chains converge upstream at a common ancestor that is NOT b1**. (Sharing b1 doesn't count because every planet shares b1; the noise on b1 with 224 teeth is already minimal and cancels trivially.)
+
+For Venus-Saturn: the operational test would find a hypothetical shared 17t gear (since 17² = 289 is in Venus, and 442 = 2·13·17 in Saturn) and assert that both planets' chains pass through that single 17t pinion before diverging. If yes → noise-cancelling differential plausible. If no → the shared prime is encoded in *separate* 17t gears (one per planet) and noise cancellation doesn't apply.
+
+The surviving evidence does not let us distinguish these two readings — *that's exactly the kind of question DE422 + the periphery-rule-pruned candidate search (§11.6.3) can resolve*. A topology with ONE shared 17t gear scoring better against DE422 than a topology with TWO independent 17t gears would empirically support Freeth's "shared train" claim against the alternative "duplicate primes" reading.
+
+### 11.6.8 What's beyond reach even with maximal missing gears?
+
+The user asked the symmetric question:
+
+> "What celestial bodies do we think we can't track with the missing gears?"
+
+Sharp framing. Even with the most generous missing-gear reconstruction (Freeth 2021's full 69 gears), the mechanism's architecture has structural limits. There are three categories:
+
+#### 11.6.8.1 Genuinely beyond Greek astronomical knowledge (architecturally irrelevant)
+
+These were unknown to the 2nd-century BCE Greeks; no missing gears could encode them because the underlying phenomena weren't yet identified:
+
+- **Outer planets** beyond Saturn — Uranus (1781) and Neptune (1846) discovered telescopically; Pluto (1930) post-telescopic.
+- **Galactic structure** — stars beyond the zodiac were mapped (Hipparchus's catalog ~190 BCE has ~850 stars) but not cyclically; their proper motion is sub-arcsec/century.
+- **Stellar parallax** — measurable only with telescopes; absent from Greek astronomy.
+- **Comets** — recognised as celestial events but treated as unpredictable; non-periodic so structurally incompatible with cyclic gearing.
+- **Tides** — depend on lunar declination + solar declination, not just longitude.
+
+#### 11.6.8.2 Beyond the geometric architecture (1D longitude only)
+
+The Antikythera's gearing fundamentally computes **angular position on the ecliptic** — a one-dimensional quantity. Two-dimensional position requires a parallel mechanism for each body's *latitude*, doubling the planetary gear count. The Greeks knew about latitude (Almagest XIII has full latitude theory for planets), but the Antikythera does NOT track:
+
+- **Planetary latitude** — planets oscillate up to ±7° (Mercury) above/below the ecliptic. This is an observable cycle (Mercury's draconic latitude period ≈ 87.97 days, the same as its sidereal); a missing latitude train would require its own pin-and-slot mechanism per planet to encode the non-uniform latitude motion. **Almost certainly not in the missing gears** — too much bronze, no surviving evidence, and Freeth's reconstruction doesn't propose it.
+- **Lunar latitude beyond synodic-month phase** — the Moon's actual celestial position is 3D (longitude + latitude); the Antikythera computes longitude (sidereal), synodic phase (from b1-b2 differential), and anomalistic longitude (pin-and-slot), but not the latitude/declination component that determines whether a syzygy is *actually* an eclipse vs a near-miss.
+- **Brightness / magnitude** — geometry only; no luminosity model.
+- **Time of day finer than per-day** — the mechanism advances ~78 days per crank revolution; sub-day resolution would require a second time-of-day mechanism with hour-angle gearing.
+
+#### 11.6.8.3 Within architecture but plausibly missing (the ambiguous category)
+
+These ARE encodable in the gearing paradigm and the Greeks ARE known to have understood them. They MAY have been included in the lost gears:
+
+- **True Sun position (equation of centre)** — the Antikythera's surviving sun pointer is the *mean* sun (uniform rate). The actual apparent sun is non-uniform due to Earth's eccentric orbit (the equation of center, ~1.9° amplitude). A true-sun mechanism would need an eccentric-deferent or pin-and-slot for the sun, analogous to lunar anomaly. Freeth 2021 proposes this is in the missing front gears.
+- **Planetary equation-of-centre / equant motion** — same problem as Mars (§9.2 / E-H4): the mean planetary positions need an equant or epicycle correction. Freeth 2021's reconstruction includes these for all five planets in the missing planetary plate.
+- **Stationary points and retrogrades** — derivable from the equant model when present; intrinsic to E-H4.
+- **Eclipse magnitude / type discrimination (partial vs total, lunar vs solar)** — the Saros pointer marks the *cycle*, but the inscriptions on the Saros spiral encode eclipse type per Saros number (this is *attested* on surviving fragments). The mechanism's gear architecture handles cyclic period; the eclipse-type metadata lives in the inscriptions, not the gears.
+- **Heliacal rising and setting** — first/last visibility of a planet in the morning/evening sky. Requires longitude (in mechanism) + a solar-elongation threshold (geometric, easy to compute from existing outputs). The Saros-spiral inscriptions contain heliacal data; whether a dedicated dial existed is debated.
+
+#### 11.6.8.4 The headline answer
+
+**Definitely beyond reach**: outer planets (unknown), comets (acyclic), stars beyond zodiac (orthogonal coordinate system), brightness, time-of-day finer than per-day.
+
+**Beyond the 1D-longitude architecture**: planetary latitudes (would double the gear count), 3D lunar position, declination-based tide prediction.
+
+**Within architecture, plausibly missing**: true sun (equation of centre), full planetary equants (Freeth 2021's planetary plate), heliacal rising dial.
+
+The clean way to summarise: **the Antikythera is a 1D angular calculator on the ecliptic plane. Anything orthogonal to that plane, anything outside the ecliptic, anything aperiodic, and anything sub-day-resolution is structurally outside its capability — even with the most generous missing-gear reconstruction.** What's missing within the architecture is more equation-of-centre / equant corrections (the Mars story §9.2 generalised across all planets) plus probably the true-sun mechanism. Track 2's [equant_encoder.py](research/equant_encoder.py) is the right computational tool to score these candidate missing pieces against DE422.
+
+### 11.6.9 Visualisation
 
 [docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
 
