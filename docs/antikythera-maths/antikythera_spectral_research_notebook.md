@@ -515,6 +515,59 @@ Given those three constraints + the sky as objective, the inversion is a constra
 - **Track 2 ([equant_encoder.py](research/equant_encoder.py))** demonstrated how a custom longitude function plugs into the comparator. Each candidate missing-mesh topology becomes one such longitude function.
 - **B-H3 round-trip** ([dial_decoder.py](research/dial_decoder.py)) already proves the encoder is bijective on the surviving lattice. The inversion problem extends bijectivity demand to *the completed lattice* — i.e. any candidate completion must round-trip on every surviving dial.
 
-### 11.6 Open question — how much sky resolves the ambiguity?
+### 11.6 The periphery rule — an architectural prior on missing-gear placement
+
+> "These gears who only have one job, they must be more loosely coupled to the others, designed at extremities when possible to preserve the heart, their ground truth. If Venus takes a bonus gear, then maybe we try to put that gear as far away from the heart of clicks and clacks." — research-thread framing, April 2026
+
+The ~10⁵-candidate space estimate in §11.4 is loose because it ignores an architectural principle Greek instrument-makers seem to have followed: **single-job gears live at the periphery of the mesh DAG; load-bearing multi-output trains live at the heart.** Operationalised as graph centrality on `gear_database.MESH_EDGES`, the surviving 24-edge mesh DAG has a sharp layered structure that confirms the prior empirically.
+
+#### 11.6.1 What the surviving DAG actually looks like
+
+[research/gear_topology.py](research/gear_topology.py) computes degree, BFS distance from a1 (the input crank) and b1 (the main sun gear), and a composite **periphery score** ∈ [0, 1] (1 = pure leaf far from b1; 0 = central bridge with high degree).
+
+The full ordering — bottom of the table is most peripheral, top is most central:
+
+| Gear | Train | Degree | dist b1 | Periphery | Note |
+|---|---|---:|---:|---:|---|
+| **b1** | main | **3** | 0 | **0.111** | 224 teeth — *largest tooth count*, most precision/click |
+| **e5** | metonic | **3** | 3 | **0.211** | 53 teeth — *prime*, bridges Metonic ↔ Saros |
+| b2 / c1 | main / lunar | 2 | 1 | 0.533 | direct branches off b1 |
+| ... | ... | ... | ... | ... | mid-chain transmission gears |
+| i1 | saros | **1** | 10 | **1.000** | Saros pointer leaf (max distance from b1) |
+| k2 | lunar | **1** | 8 | **0.933** | lunar pin-and-slot output |
+| m1 | metonic | **1** | 8 | **0.933** | Metonic pointer leaf |
+
+Two gears have degree ≥ 3 (the bridges): **b1 and e5**. Three gears have degree 1 (the leaves): **i1, k2, m1** — the three back-panel pointer outputs. Everything else has degree 2 (transmission). The DAG has *exactly* the layered structure your prior predicts.
+
+#### 11.6.2 Why b1 and e5 specifically?
+
+These two bridge gears carry the entire mechanism's load and are chosen with deliberate care:
+
+- **b1 (224 teeth, main sun gear, degree 3)** has the *largest tooth count in the mechanism*. Per-tooth angular resolution is 360°/224 ≈ 1.6°, the finest in any surviving gear. Errors at b1 propagate to every downstream pointer, so high precision matters most here. Freeth 2021's choice of 224 (over Wright/Price's 223) is specifically motivated by Callippic alignment — the user's prior predicts this is non-negotiable: any reconstruction that perturbs b1 should be deeply suspect.
+- **e5 (53 teeth, Metonic-Saros bridge, degree 3)** has a *prime* tooth count. 53 introduces no shared factors with the cycles it bridges (Metonic 235 = 5·47, Saros 223 prime) — so the bridge transmits angular state without collapsing any sub-lattice's information content. This is **exactly the load-bearing role** of a high-centrality node in HDC binding: e5 is the irreducible factor between two otherwise-independent lattices.
+
+#### 11.6.3 Where missing gears must go
+
+The periphery rule constrains §11.3 sub-problem C / G-H4 dramatically. Candidate missing-mesh topologies that:
+
+- **Add edges to b1 or e5** are *strongly disfavoured* — a new mesh into the bridge perturbs both bridged trains' ground truth.
+- **Add a new degree-3 hub** are also disfavoured — the surviving DAG has only two degree-3 nodes (b1, e5), and adding more without strong evidence violates the parsimony prior.
+- **Branch off b1's shaft to a new dial output** are *favoured* — this is exactly how Freeth 2021's planetary plate is structured (the planetary trains physically attach to b1's solar-rate shaft because Mars/Venus etc. are computed *relative* to the sun, but they branch to dedicated leaf shafts whose end-of-chain pointers don't perturb anything else).
+- **Add a bonus gear at a leaf** (i1, k2, m1, or any conjectural planetary leaf) are *most* favoured — single-output impact, no cross-train propagation. Your "Venus bonus gear at the extremity" intuition is exactly this: the Venus train's terminal compensator, not a mid-chain idler near b1.
+
+In G-H4's search-space framing: prune candidate topologies whose added edges have at least one endpoint with *current* degree ≥ 2 in the surviving DAG. This drops the candidate count by roughly 10× without losing the historically defensible reconstructions.
+
+#### 11.6.4 Bridge-gears as combination-gear candidates (the §10 connection)
+
+There's a satisfying synthesis with §10's "combination-gear" framing:
+
+- **§10's prediction**: missing gears should be combination (multi-purpose), not pure compensators (the 63-tooth `r1` precedent).
+- **§11.7's prediction**: missing gears should be peripheral (single-output) when they exist as compensators.
+
+These reconcile in a clean way: **a combination gear at the periphery serves as both an astronomical readout (e.g. the Venus pointer) and a tolerance-averaging element (e.g. a differential at the leaf shaft that averages two independent paths feeding the same dial).** The Greeks' design vocabulary accommodates exactly this — the b1-b2 differential at the *root* of the DAG is the load-bearing example, and a Venus-leaf differential at the *tip* is the compensator-shaped extension. Same architectural element, different graph location, different role.
+
+This narrows G-H4's candidate generator to: "for each peripheral leaf in the surviving DAG, propose adding a differential-shaped completion (two parallel mesh chains converging on the leaf) and score against DE422."
+
+### 11.7 Open question — how much sky resolves the ambiguity?
 
 The Pareto frontier in Track 4 already shows that multiple shared-prime sets are non-dominated (e.g. {7, 17}, {11, 19}, {7, 11}). The Greeks chose ONE set; the sky alone won't tell us which. **But** the sky may break ties on tooth-count *assignments* even when topology is degenerate: two candidate trains may both encode the right *ratio* but differ in their per-step quantisation error. DE422 records that quantisation error directly. So the right framing is: the sky narrows the answer set; surviving fragments narrow it further; in the intersection, what's left is a small enough family to enumerate. **G-H4 measures the size of that intersection.**
