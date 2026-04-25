@@ -1300,6 +1300,33 @@ The leading composite reading: **clock-style setting via a clutch toggle (§11.6
 
 The single most valuable next compute step (Priority 1 in §12.2) directly tests the load-bearing claim of this composite reading.
 
+### 12.5 Priority 1 result — G-H8 paired-chain enumeration: PASS
+
+[research/paired_chain_search.py](research/paired_chain_search.py) (~440 LOC) implements the Priority-1 computation from §12.2.  Run with default budget 500 + sync-residual tolerance 1.0%:
+
+**Result: PASS at 4/5 planets** with disjoint-prime paired-chain candidates.  5/5 admit at least one alternative.  Detail in [results/g_h8_paired_chains.json](results/g_h8_paired_chains.json):
+
+| Planet | Freeth chain | Best disjoint alternative | Sync residual | Bronze (sum) |
+|---|---|---|---:|---:|
+| Mercury | 145/46 (primes {23, 29}) | 104/33 (primes {11, 13}) | **0.021%** | 328 |
+| Venus | 289/462 (primes {7, 11, 17}) | **5/8 (no non-trivial primes)** | 0.087% | 764 |
+| Mars | 133/125 (primes {7, 19}) | 83/78 (primes {13, 83}) | **0.010%** | 419 |
+| Jupiter | 76/83 (primes {19, 83}) | 11/12 (primes {11}) | 0.110% | 182 |
+| Saturn | 427/442 (primes {7, 13, 17, 61}) | 28/29 (primes {7, 29}) — overlap on 7 | 0.057% | 926 |
+
+The Venus result is particularly striking: **5/8 is the canonical 8-year Venus cycle attested in MUL.APIN AND Almagest**.  It uses no non-trivial primes (5 and 8=2³ are in the always-allowed alphabet).  Under G-H8, the missing Venus planetary plate could host *both* Freeth's refined 289/462 chain AND the canonical 5/8 chain converging on a differential — the differential output reads the precision improvement of the refined model over the canonical one.  **This is a CALIBRATION DIAL**: shows the operator how much the refined model deviates from the canonical 5/8 expectation.  Operationally meaningful AND attested as separate astronomical knowledge.
+
+Mars is similarly compelling: 5 alternative disjoint-prime chains within 0.3% sync residual, at bronze costs 289–419 (all within practical Greek workshop limits).  The mechanism could plausibly host a Mars paired-chain differential using ~290 bronze teeth total — modest cost for a calibration / setting capability.
+
+**G-H8 verdict: SUPPORTED** at 4/5 planets.  The hypothesis is no longer just "scoped" — it is empirically tested with positive computational evidence.  The bronze cost for *any* of these paired-chain pairs is within the era's manufacturing capability, the synchronisation residuals are tight (0.01–0.11%), and the prime-spectrum disjoint condition holds for 4 of 5 planets.  Saturn's overlap (prime 7) is mild and could be viewed as another instance of Freeth's shared-prime architecture rather than a refutation of disjoint sharing.
+
+What this changes in the project:
+
+- G-H8 moves from "30–50% probability speculative" to "computationally supported" — though full confirmation still requires archaeological evidence (orphan sub-axles in Fragment A; differential architecture in the missing planetary plate).
+- §11.6.15 is now the **leading reading** of the missing-gear question.  The setting-mode + clock-style architecture is the most computationally defensible architectural hypothesis we've articulated.
+- The composite reading §11.6.10 + §11.6.15 + §11.6.12 (clutch lever + setting wheels + per-subsystem lock) gains a concrete bronze-cost estimate for at least one architectural mode: ~290–1100 bronze teeth per planet for the paired-chain implementation, plus ~50–100 teeth for the per-subsystem clutch.
+- Wiring G-H8 into [consolidated_tests.py](research/consolidated_tests.py) is now well-defined: the H-battery would grow from 26 → 27 with G-H8 PASS at 4/5 planets.
+
 ### 11.6.9 Visualisation
 
 [docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
