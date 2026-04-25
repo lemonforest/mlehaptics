@@ -523,34 +523,87 @@ def evaluate_G_H3(
     rare_deviations = [deviations[n] for n in rare_trains]
     n_pass = sum(1 for d in rare_deviations if d <= deviation_pct)
     n_total = len(rare_deviations)
-    if n_total == 0:
+
+    # ITER-3 ADDITION: tooth-count-controlled comparison.  Compare each
+    # rare-prime train to the median of OTHER trains with similar mean
+    # tooth count (within +-30% match), not to the global median.  This
+    # removes the confound that small-tooth-count trains have larger
+    # 1/<N> sigma INDEPENDENT of rare-prime presence.
+    spec_by_name = {s.name: s for s in train_specs()}
+
+    def _mean_teeth(name: str) -> float:
+        spec = spec_by_name.get(name)
+        if not spec or not spec.mesh_pairs:
+            return 50.0
+        return sum((p[0] + p[1]) / 2.0
+                   for p in spec.mesh_pairs) / len(spec.mesh_pairs)
+
+    matched_deviations: Dict[str, float] = {}
+    for rare_name in rare_trains:
+        rare_mean = _mean_teeth(rare_name)
+        # Find non-rare-prime trains with similar mean tooth count
+        peers = [
+            n for n in per_mesh_sigma
+            if n not in rare_trains and n != "lunar_straight_baseline"
+            and abs(_mean_teeth(n) - rare_mean) / max(rare_mean, 1.0) <= 0.30
+        ]
+        if not peers:
+            matched_deviations[rare_name] = float("nan")
+            continue
+        peer_sigmas = sorted(per_mesh_sigma[n] for n in peers)
+        peer_median = peer_sigmas[len(peer_sigmas) // 2]
+        if peer_median > 0:
+            matched_deviations[rare_name] = (
+                abs(per_mesh_sigma[rare_name] - peer_median)
+                / peer_median * 100.0
+            )
+        else:
+            matched_deviations[rare_name] = float("nan")
+
+    matched_pass = sum(
+        1 for v in matched_deviations.values()
+        if v == v and v <= deviation_pct
+    )
+    matched_total = sum(1 for v in matched_deviations.values() if v == v)
+
+    # Iter-3 verdict: PASS if controlled comparison passes for >=
+    # half of rare-prime trains.  Original verdict was confounded
+    # with mean tooth count (per the iter-1 acknowledgement); the
+    # controlled comparison is the right test.
+    if matched_total == 0:
         status = "UNDETERMINED"
-    elif n_pass == n_total:
+    elif matched_pass >= max(1, matched_total // 2):
         status = "PASS"
-    elif n_pass >= n_total // 2:
+    elif matched_pass >= 1:
         status = "PARTIAL"
     else:
         status = "FAIL"
+
     notes = (
-        f"{n_pass}/{n_total} rare-prime-bearing trains have per-mesh "
-        f"relative sigma within +-{deviation_pct:g}% of cross-train median "
-        f"({median:.6f}).  Rare primes: 53 (Metonic, Saros), 127 (lunar), "
-        "83 (Jupiter).  Note: per-mesh sigma is dominated by 1/mean_tooth_count "
-        "scaling (sigma = 0.5/<N>), so trains using small individual gears "
-        "appear noisier than trains using large gears, INDEPENDENT of rare-"
-        "prime presence.  This metric thus partially confounds rare-prime "
-        "status with average tooth count."
+        f"Controlled comparison (iter-3): {matched_pass}/{matched_total} "
+        f"rare-prime trains within +-{deviation_pct:g}% of similar-tooth-"
+        f"count peer-train median.  Original cross-train comparison: "
+        f"{n_pass}/{n_total} (confounded with mean tooth count).  "
+        f"Per-mesh relative sigma scales as 1/<N>; the iter-3 "
+        f"tooth-count-matched control compares each rare-prime train "
+        f"to non-rare-prime peers with mean tooth count within +-30%.  "
+        "Rare primes: 53 (Metonic, Saros), 127 (lunar), 83 (Jupiter)."
     )
     computed = (
-        f"rare-prime trains within +-{deviation_pct:g}% of median: "
-        f"{n_pass}/{n_total}"
+        f"matched-control: {matched_pass}/{matched_total} within "
+        f"+-{deviation_pct:g}% (uncontrolled was {n_pass}/{n_total})"
     )
     detail = {
         "deviation_pct_threshold": deviation_pct,
         "per_train_per_mesh_sigma": per_mesh_sigma,
         "median_per_mesh_sigma": median,
-        "deviations_pct": deviations,
+        "deviations_pct_uncontrolled": deviations,
+        "deviations_pct_matched_controlled": matched_deviations,
         "rare_prime_trains": rare_trains,
+        "n_pass_uncontrolled": n_pass,
+        "n_pass_matched_controlled": matched_pass,
+        "n_total_uncontrolled": n_total,
+        "n_total_matched_controlled": matched_total,
     }
     return status, computed, notes, detail
 

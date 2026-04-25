@@ -1,8 +1,11 @@
 {
-  "A-H1": {
+  "A-H1a": {
     "n_total": 13,
     "n_top3_strict": 2,
-    "fraction_top3_strict": 0.15384615384615385,
+    "fraction_top3_strict": 0.15384615384615385
+  },
+  "A-H1b": {
+    "n_total": 13,
     "n_best_under_budget": 7,
     "fraction_best_under_budget": 0.5384615384615384,
     "ranks_per_cycle": [
@@ -368,6 +371,7 @@
     "n_gears": 40,
     "obs_small_prime_weight": 54,
     "null_small_prime_weight": 47.018,
+    "obs_small_ratio_to_null": 1.148496320558084,
     "large_primes_in_observed": [
       47,
       53,
@@ -375,7 +379,10 @@
       83,
       127,
       223
-    ]
+    ],
+    "chi2_stat": 65.03139674708542,
+    "chi2_p_value": 0.3382218432812169,
+    "chi2_dof": 61
   },
   "A-H4": {
     "probed_primes": [
@@ -994,7 +1001,7 @@
       "saturn": 0.002297766597980066
     },
     "median_per_mesh_sigma": 0.012558233796507001,
-    "deviations_pct": {
+    "deviations_pct_uncontrolled": {
       "saros": 38.34870319745294,
       "lunar": 101.47872956818841,
       "metonic": 55.127404064091735,
@@ -1004,12 +1011,22 @@
       "jupiter": 0.0,
       "saturn": 81.70310701956213
     },
+    "deviations_pct_matched_controlled": {
+      "saros": NaN,
+      "lunar": NaN,
+      "metonic": NaN,
+      "jupiter": 20.125786163522132
+    },
     "rare_prime_trains": [
       "saros",
       "lunar",
       "metonic",
       "jupiter"
-    ]
+    ],
+    "n_pass_uncontrolled": 1,
+    "n_pass_matched_controlled": 0,
+    "n_total_uncontrolled": 4,
+    "n_total_matched_controlled": 1
   },
   "G-H6": {
     "n_subsystems_total": 8,
