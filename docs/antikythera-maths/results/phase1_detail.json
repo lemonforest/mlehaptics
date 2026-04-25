@@ -1001,6 +1001,260 @@
       "jupiter"
     ]
   },
+  "G-H6": {
+    "n_subsystems_total": 8,
+    "n_surviving_scored": 3,
+    "n_hypothetical": 5,
+    "verdicts": [
+      {
+        "subsystem": "lunar",
+        "entry_gear": "c1",
+        "lock_verdict": "CAUTION",
+        "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+        "periphery_score": 0.5333333333333333,
+        "is_leaf": false,
+        "is_bridge": false
+      },
+      {
+        "subsystem": "metonic",
+        "entry_gear": "e2",
+        "lock_verdict": "CAUTION",
+        "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+        "periphery_score": 0.5666666666666667,
+        "is_leaf": false,
+        "is_bridge": false
+      },
+      {
+        "subsystem": "saros",
+        "entry_gear": "f1",
+        "lock_verdict": "CAUTION",
+        "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+        "periphery_score": 0.6333333333333333,
+        "is_leaf": false,
+        "is_bridge": false
+      },
+      {
+        "subsystem": "mercury",
+        "entry_gear": "mercury_145",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "venus",
+        "entry_gear": "venus_289",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "mars",
+        "entry_gear": "mars_133",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "jupiter",
+        "entry_gear": "jupiter_76",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "saturn",
+        "entry_gear": "saturn_427",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      }
+    ]
+  },
+  "G-H7": {
+    "carrier_diameter_mm": 15.0,
+    "feasibility_threshold_pct": 50.0,
+    "n_total": 411,
+    "n_feasible": 131,
+    "n_tight": 0,
+    "n_infeasible": 280,
+    "case_dimensions_mm": [
+      340.0,
+      180.0,
+      90.0
+    ],
+    "insertable_depth_mm": 84.0,
+    "sample_results": [
+      {
+        "gear_a": "a1",
+        "gear_b": "b2",
+        "inter_axle_mm": 18.867962264113206,
+        "verdict": "FEASIBLE",
+        "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "c1",
+        "inter_axle_mm": 18.867962264113206,
+        "verdict": "FEASIBLE",
+        "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "c2",
+        "inter_axle_mm": 24.0,
+        "verdict": "FEASIBLE",
+        "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "d1",
+        "inter_axle_mm": 32.38826948140329,
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "d2",
+        "inter_axle_mm": 41.23105625617661,
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "e1",
+        "inter_axle_mm": 48.0,
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "e2",
+        "inter_axle_mm": 24.0,
+        "verdict": "FEASIBLE",
+        "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "e3",
+        "inter_axle_mm": 56.22277118748239,
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "e4",
+        "inter_axle_mm": 64.77653896280658,
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "e5",
+        "inter_axle_mm": 32.38826948140329,
+        "verdict": "INFEASIBLE",
+        "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+      }
+    ]
+  },
+  "G-H8": {
+    "budget": 500,
+    "residual_tolerance_pct": 1.0,
+    "n_planets": 5,
+    "n_with_disjoint_alternative": 4,
+    "n_with_any_alternative": 5,
+    "per_planet_summary": [
+      {
+        "planet": "Mercury",
+        "freeth_chain": [
+          145,
+          46
+        ],
+        "n_alternatives": 4,
+        "n_disjoint_alternatives": 4,
+        "best_alternative_chain": [
+          104,
+          33
+        ],
+        "best_alternative_primes": [
+          11,
+          13
+        ],
+        "best_sync_residual_pct": 0.020898641588294294
+      },
+      {
+        "planet": "Venus",
+        "freeth_chain": [
+          289,
+          462
+        ],
+        "n_alternatives": 2,
+        "n_disjoint_alternatives": 1,
+        "best_alternative_chain": [
+          5,
+          8
+        ],
+        "best_alternative_primes": [],
+        "best_sync_residual_pct": 0.08650519031141354
+      },
+      {
+        "planet": "Mars",
+        "freeth_chain": [
+          133,
+          125
+        ],
+        "n_alternatives": 5,
+        "n_disjoint_alternatives": 5,
+        "best_alternative_chain": [
+          83,
+          78
+        ],
+        "best_alternative_primes": [
+          13,
+          83
+        ],
+        "best_sync_residual_pct": 0.009639483323687971
+      },
+      {
+        "planet": "Jupiter",
+        "freeth_chain": [
+          76,
+          83
+        ],
+        "n_alternatives": 1,
+        "n_disjoint_alternatives": 1,
+        "best_alternative_chain": [
+          11,
+          12
+        ],
+        "best_alternative_primes": [
+          11
+        ],
+        "best_sync_residual_pct": 0.1096491228070189
+      },
+      {
+        "planet": "Saturn",
+        "freeth_chain": [
+          427,
+          442
+        ],
+        "n_alternatives": 1,
+        "n_disjoint_alternatives": 0,
+        "best_alternative_chain": null,
+        "best_alternative_primes": null,
+        "best_sync_residual_pct": null
+      }
+    ]
+  },
   "H-H1": {
     "antikythera_top5": [
       2,

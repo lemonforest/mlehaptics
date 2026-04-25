@@ -1075,6 +1075,94 @@ def hypothesis_G_H3() -> Tuple[Dict[str, str], Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# G-H6, G-H7, G-H8 (NEW, §11.6 architectural-mode hypotheses)
+# ---------------------------------------------------------------------------
+
+def hypothesis_G_H6() -> Tuple[Dict[str, str], Dict[str, Any]]:
+    """G-H6 (NEW, §11.6.12): per-subsystem selective-lock attachment.
+
+    Each surviving subsystem (lunar, Metonic, Saros) admits an
+    OK/STRONG-verdict lock-attachment point under the periphery rule.
+    PARTIAL if all three are CAUTION (mid-chain transmission --
+    appropriate for engagement-lock placement); FAIL if any AVOID.
+    """
+    try:
+        from .selective_lock_search import evaluate_G_H6
+        status, computed, notes, detail = evaluate_G_H6()
+        row = mk_row(
+            "G-H6",
+            "Each subsystem admits a non-AVOID lock-attachment point "
+            "(selective-lock hypothesis, §11.6.12)",
+            computed,
+            "All surviving subsystems admit OK/STRONG (PASS) or "
+            "CAUTION (PARTIAL); any AVOID -> FAIL",
+            status, notes,
+        )
+        return row, detail
+    except Exception as e:
+        return (mk_row("G-H6", "Selective-lock attachment",
+                       f"ERROR: {type(e).__name__}", "n/a",
+                       UNDETERMINED, f"Crashed: {e}"),
+                {"error": str(e), "traceback": traceback.format_exc()})
+
+
+def hypothesis_G_H7() -> Tuple[Dict[str, str], Dict[str, Any]]:
+    """G-H7 (NEW, §11.6.14): carrier-gear insertion geometric feasibility.
+
+    Geometric feasibility test for the carrier-gear hypothesis.  PASS
+    iff >= 50% of candidate gear-pair bridges admit FEASIBLE carrier
+    insertion under default 15 mm carrier diameter + 84 mm insertable
+    case depth.  PARTIAL with TIGHT margins; FAIL otherwise.
+    """
+    try:
+        from .carrier_insertion_geometry import evaluate_G_H7
+        status, computed, notes, detail = evaluate_G_H7()
+        row = mk_row(
+            "G-H7",
+            "Carrier-gear insertion geometrically feasible at >=50% of "
+            "candidate bridges (carrier hypothesis, §11.6.14)",
+            computed,
+            ">=50% FEASIBLE under default 15 mm carrier",
+            status, notes,
+        )
+        return row, detail
+    except Exception as e:
+        return (mk_row("G-H7", "Carrier insertion geometry",
+                       f"ERROR: {type(e).__name__}", "n/a",
+                       UNDETERMINED, f"Crashed: {e}"),
+                {"error": str(e), "traceback": traceback.format_exc()})
+
+
+def hypothesis_G_H8() -> Tuple[Dict[str, str], Dict[str, Any]]:
+    """G-H8 (NEW, §11.6.15): paired-chain enumeration -- synchronised-input
+    differential candidates per planet.
+
+    For each of 5 planets (Mercury, Venus, Mars, Jupiter, Saturn),
+    enumerate alternative rational approximations to Freeth 2021's chain
+    using disjoint non-trivial primes within budget 500 + sync residual
+    1%.  PASS iff >= 3/5 planets admit such an alternative.
+    """
+    try:
+        from .paired_chain_search import evaluate_G_H8
+        status, computed, notes, detail = evaluate_G_H8()
+        row = mk_row(
+            "G-H8",
+            "Paired-chain differentials viable for >=3/5 planets "
+            "(setting-mode hypothesis, §11.6.15)",
+            computed,
+            ">=3/5 planets admit disjoint-prime paired-chain pair "
+            "(sync residual <=1%, max(p,q) <=500)",
+            status, notes,
+        )
+        return row, detail
+    except Exception as e:
+        return (mk_row("G-H8", "Paired-chain enumeration",
+                       f"ERROR: {type(e).__name__}", "n/a",
+                       UNDETERMINED, f"Crashed: {e}"),
+                {"error": str(e), "traceback": traceback.format_exc()})
+
+
+# ---------------------------------------------------------------------------
 # H-H1, H-H2 (NEW, Track 5): historical cross-references
 # ---------------------------------------------------------------------------
 
@@ -1130,6 +1218,7 @@ ALL_HYPOTHESES: List[Callable[[], Tuple[Dict[str, str], Dict[str, Any]]]] = [
     hypothesis_E_H2, hypothesis_E_H3, hypothesis_E_H4,
     hypothesis_F_E1, hypothesis_F_E2, hypothesis_F_E3,
     hypothesis_G_H1, hypothesis_G_H2, hypothesis_G_H3,
+    hypothesis_G_H6, hypothesis_G_H7, hypothesis_G_H8,
     hypothesis_H_H1, hypothesis_H_H2,
 ]
 
