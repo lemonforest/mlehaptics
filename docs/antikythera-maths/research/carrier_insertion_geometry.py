@@ -459,7 +459,7 @@ def _make_parser():
     )
     parser.add_argument(
         "--threshold-pct", type=float, default=50.0,
-        help="G-H7 PASS threshold: % of pairs that must be FEASIBLE.",
+        help="G-H7 PASS threshold: %% of pairs that must be FEASIBLE.",
     )
     parser.add_argument(
         "--verbose", action="store_true",

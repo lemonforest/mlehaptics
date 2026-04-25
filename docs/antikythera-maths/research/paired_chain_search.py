@@ -377,7 +377,7 @@ def _make_parser():
     parser.add_argument(
         "--tolerance-pct", type=float,
         default=DEFAULT_RESIDUAL_TOLERANCE_PCT,
-        help=f"Sync residual tolerance in % "
+        help=f"Sync residual tolerance in %% "
              f"(default: {DEFAULT_RESIDUAL_TOLERANCE_PCT}).",
     )
     parser.add_argument(
