@@ -9,7 +9,7 @@ Per the build prompt's rendering-agnostic discipline (Patch 3):
 
 This module never computes a phase-space anything.  It takes an
 encoded state (any of the four ``encode_ant_*`` outputs), decodes
-each supported dial through ``dial_decoder``, converts residue → angle,
+each supported dial through ``dial_decoder``, converts residue -> angle,
 and projects through a static radial table to produce ``Dict[dial_name,
 (x, y)]``.
 
@@ -83,7 +83,7 @@ ORBITAL_RADII_AU: Dict[str, float] = {
 # ---------------------------------------------------------------------------
 
 def _residue_to_angle(spec, residue_value: int, D: Union[int, str]) -> float:
-    """Convert a residue (D-bin or modulus-integer) to radians in [0, 2π)."""
+    """Convert a residue (D-bin or modulus-integer) to radians in [0, 2pi)."""
     if D == "lcm":
         return 2.0 * np.pi * residue_value / spec.cycle_modulus
     return 2.0 * np.pi * residue_value / D
@@ -170,40 +170,96 @@ def _render_with_radii(
 # Smoke test
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+_EPILOG = """\
+Examples:
+  # Default: dial + orrery + LCM perspective check at REFERENCE_JD+1000:
+  python -m research.rendering
+
+  # Dial render only:
+  python -m research.rendering --projection dial --jd 1684960.0
+
+  # Orrery render with custom scale (in AU):
+  python -m research.rendering --projection orrery --orrery-scale 0.5
+
+References
+----------
+Patch-3 discipline: encoder produces angular state only;
+2D coordinates live exclusively here (rendering layer).
+"""
+
+
+def _make_parser():
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="python -m research.rendering",
+        description=("Patch-3-compliant 2D projections of the encoded "
+                     "state.  Encoder produces angular dynamic state; "
+                     "this module supplies the dial-style and orrery-"
+                     "style 2D coordinates from a fixed lookup table."),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--projection", default="all",
+        choices=("dial", "orrery", "lcm-dial", "all"),
+        help="Projection style (default: all).",
+    )
+    parser.add_argument(
+        "--jd", type=float, default=None,
+        help="Date as JD (default: REFERENCE_JD + 1000).",
+    )
+    parser.add_argument(
+        "--orrery-scale", type=float, default=1.0,
+        help="Scale factor for orrery render (AU; default: 1.0).",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = _make_parser().parse_args(argv)
     from .encode_ant import (
         REFERENCE_JD, D_PACKING,
         encode_ant_packing, encode_ant_lcm,
     )
 
-    print("rendering — Patch-3-compliant 2D projections")
+    print("rendering -- Patch-3-compliant 2D projections")
     print("=" * 60)
-    print()
-
-    test_jd = REFERENCE_JD + 1000.0
+    test_jd = args.jd if args.jd is not None else REFERENCE_JD + 1000.0
     print(f"Test date: JD = {test_jd}")
     print()
 
-    state_packing = encode_ant_packing(test_jd)
-    pos_dial = render_dial(state_packing, D_PACKING)
-    print("Antikythera-style dial render (D=13440 packing):")
-    for name, (x, y) in pos_dial.items():
-        print(f"  {name:35s} (x, y) = ({x:+.3f}, {y:+.3f})")
-    print()
+    if args.projection in ("dial", "all"):
+        state_packing = encode_ant_packing(test_jd)
+        pos_dial = render_dial(state_packing, D_PACKING)
+        print("Antikythera-style dial render (D=13440 packing):")
+        for name, (x, y) in pos_dial.items():
+            print(f"  {name:35s} (x, y) = ({x:+.3f}, {y:+.3f})")
+        print()
 
-    pos_orrery = render_spatial(state_packing, D_PACKING, orrery_scale=1.0)
-    print("Orrery-style spatial render (D=13440 packing, scale=1.0 AU):")
-    for name, (x, y) in pos_orrery.items():
-        print(f"  {name:35s} (x, y) = ({x:+.4f}, {y:+.4f})  AU")
-    print()
+    if args.projection in ("orrery", "all"):
+        state_packing = encode_ant_packing(test_jd)
+        pos_orrery = render_spatial(state_packing, D_PACKING,
+                                    orrery_scale=args.orrery_scale)
+        print(f"Orrery-style spatial render "
+              f"(D=13440 packing, scale={args.orrery_scale} AU):")
+        for name, (x, y) in pos_orrery.items():
+            print(f"  {name:35s} (x, y) = ({x:+.4f}, {y:+.4f})  AU")
+        print()
 
-    state_lcm = encode_ant_lcm(test_jd)
-    pos_lcm_dial = render_dial(state_lcm, "lcm")
-    print("LCM symbolic dial render (perspective check — same angles):")
-    for name, (x, y) in list(pos_lcm_dial.items())[:5]:
-        print(f"  {name:35s} (x, y) = ({x:+.3f}, {y:+.3f})")
-    print(f"  ... ({len(pos_lcm_dial) - 5} more)")
-    print()
+    if args.projection in ("lcm-dial", "all"):
+        state_lcm = encode_ant_lcm(test_jd)
+        pos_lcm_dial = render_dial(state_lcm, "lcm")
+        print("LCM symbolic dial render (perspective check):")
+        for name, (x, y) in list(pos_lcm_dial.items())[:5]:
+            print(f"  {name:35s} (x, y) = ({x:+.3f}, {y:+.3f})")
+        if len(pos_lcm_dial) > 5:
+            print(f"  ... ({len(pos_lcm_dial) - 5} more)")
+        print()
 
-    print("Rendering smoke test complete — encoder output drove TWO")
-    print("independent renderings (dial + orrery) without re-encoding.")
+    print("Rendering smoke test complete.")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

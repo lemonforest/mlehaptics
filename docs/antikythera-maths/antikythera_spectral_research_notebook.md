@@ -300,3 +300,133 @@ We tag this DISPUTED and move on. Freeth (2021) leans toward Archimedean origin;
 - skyfield ephemeris cache: `docs/antikythera-maths/skyfield_data/de421.bsp` (gitignored; ~15 MB; downloaded on first use).
 
 Final battery summary (from [results/phase1_hypotheses.csv](results/phase1_hypotheses.csv)): **9 PASS, 4 PARTIAL, 0 FAIL, 2 UNDETERMINED**.
+
+---
+
+## 9. Sequel — Tracks 1–5 (April 2026)
+
+The Phase-0/2/4 wrap-up scoped five follow-up tracks; all five landed in this session. The hypothesis battery grew from 15 to **25 H-tags**, every `research/*.py` module gained a rich `argparse --help` with citations, and three substantively new findings emerged.
+
+**Final battery (DE422 / Antikythera era):** 16 PASS, 3 PARTIAL, 4 FAIL, 2 UNDETERMINED *(F-E1 / F-E3 are open exploration by design)*. With DE421 only (modern-era control): 15 PASS, 3 PARTIAL, 2 FAIL, 5 UNDETERMINED.
+
+The four FAILs are themselves substantive research findings, not script errors:
+
+- **G-H1** — bronze tolerance dominates the error budget (Saros 13°/19yr drift; matches Szigety & Arenas 2025).
+- **G-H3** — rare-prime-bearing trains have higher per-mesh σ than median, but the cause is *selection* (rare-prime trains tend to use smaller mean tooth count), not the rare primes themselves.
+- **E-H1b** — only 1/6 Hellenistic anchors land at the expected syzygy. The encoder's Saros period is exact; the failure traces to my anchor-JD data: at least one anchor's JD places it at new moon when the Almagest records a *lunar* eclipse, suggesting my JD assignments are off by a half synodic month for that entry. **The encoder is sound; the [hellenistic_eclipses.py](research/hellenistic_eclipses.py) data table needs verification against the NASA Five Millennium Catalog of Lunar Eclipses (Espenak/Meeus) before E-H1b is meaningfully testable.**
+- **E-H3** — Hipparchus epicycle-only model peak Mars = 51.48° vs my a-priori threshold ≤10°. **The threshold was too optimistic.** Empirical finding: the equant's marginal improvement over the eccentric-deferent + epicycle model is *small* — peak Mars error 51° (epicycle-only) vs 49° (equant). Most of the Greek attainable accuracy is in the epicycle + eccentric deferent; the equant is a refinement, not a step-change.
+
+### §9.1 Track 1 — Hellenistic ephemeris (E-H1a + E-H1b)
+
+[hellenistic_eclipses.py](research/hellenistic_eclipses.py) curates 6 anchors from Almagest IV.6 (Phanostratus, -382), IV.9 (Babylonian triplet, -141), V.14 (Hipparchus, -134), VI.5 (+125), plus the -200 Solar near the mechanism's construction window. Each anchor carries Toomer 1984 page citation, NASA/Espenak catalog ID where known, and an `interpretation_confidence ∈ {FIRM, RECONSTRUCTED, DISPUTED}` flag.
+
+[ephemeris_loader.py](research/ephemeris_loader.py) is a lazy, never-auto-fetching DE-kernel cache supporting de421/de422/de441/de441_part1/part2 with a kernel catalog (coverage JD interval, size MB, citation). [astronomical_ground_truth.py](research/astronomical_ground_truth.py) is now CLI-driven via `--ephemeris {de421,...}` and `--era {modern,hellenistic,both}`.
+
+**E-H1a (modern Saros control)** — 100% within ±1 day under DE421. **CONFIRMED**.
+
+**E-H1b (Hellenistic Almagest, DE422)** — 1/6 anchors within ±1 day; mean phase error 131°. The Hipparchus -134-04-08 anchor at JD 1709093.5 lands at lunar phase 12.11° (near new moon), but Almagest V.14 records a *lunar* eclipse (which requires phase ≈ 180°). **Failure mode: anchor-JD data error**, not encoder error. The next session should re-derive each anchor's JD from the NASA Five Millennium Catalog of Lunar Eclipses and update [hellenistic_eclipses.py](research/hellenistic_eclipses.py) accordingly. With corrected JDs, E-H1b should resolve to PASS or near-PASS.
+
+### §9.2 Track 2 — Equant-bearing Mars (E-H3 + E-H4 + D-H3)
+
+[equant_encoder.py](research/equant_encoder.py) implements three Greek planetary models with Almagest IX–X canonical Mars parameters (deferent radius R = 60, epicycle radius r = 39.5, eccentricity e = 6, equant offset 2e = 12):
+
+- **uniform** — current encoder baseline, ≈180° peak (E-H2 falsification framing).
+- **epicycle-only** — Hipparchus-style eccentric deferent + uniform epicycle, no equant. Reuses [pin_and_slot.py](research/pin_and_slot.py) geometry with eccentricity = r/R = 0.658.
+- **equant** — Ptolemy IX.5 with bisected eccentricity. Closed-form `_equation_of_center_equant` solves the quadratic R'² + 2eR'cos M + (e² − R²) = 0 for the planet position from the equant point.
+
+**D-H3 (NEW) — equant breaks σ_day unit-operator property.** Per-day longitude increment standard deviation: uniform = 0.0000° (perfect ℤ/Dℤ unit), epicycle-only = 0.0295°, **equant = 0.0506°**. The Ptolemaic equant is anharmonic at the channel level, so σ_day = roll(D, 1) is no longer a *unit* on the Mars channel. **CONFIRMED** as a falsification: the Antikythera's known-uniform gear trains literally cannot implement a true equant — they can only approximate one via epicycles + pin-and-slot. This makes the Antikythera architecture **strictly Hipparchian, not Ptolemaic**, by mechanical necessity, ~250 years before Ptolemy formalised the equant.
+
+**Empirical comparison vs DE422 ephemeris** (start at REFERENCE_JD = 1684595, ~205 BCE, span 780 days, 200 samples):
+
+| Model         | Peak deg | Mean deg | RMS deg |
+|---------------|---------:|---------:|--------:|
+| uniform       |   179.88 |    87.73 |     ≈100 |
+| epicycle-only |    51.48 |    26.42 |   29.97 |
+| equant        |    48.66 |    25.29 |   28.62 |
+
+**Surprise finding:** the equant's marginal improvement over the eccentric-deferent + epicycle model is small — only ~3° peak / ~1° mean / ~1° RMS. Most of the Greek attainable accuracy is in the *eccentric-deferent + epicycle* combination (the Apollonius-Hipparchus form); the equant is a refinement, not a step-change. **E-H4 (equant in 30-50° band) PASS** at 48.66°. **E-H3 (epicycle-only ≤ 10°) FAIL** because the threshold was set on the build-prompt's a-priori intuition that turned out to be too optimistic. The right reading is: **both Greek planetary models converge near the documented 38° Mars-error band**; the architectural distinction (with vs without equant) is observable in σ_day anharmonicity (D-H3) but barely in peak longitude error.
+
+### §9.3 Track 3 — Manufacturing tolerance (G-H1, G-H2, G-H3)
+
+[manufacturing_tolerance.py](research/manufacturing_tolerance.py) Monte Carlo over each named train (Saros, lunar, Metonic, Mercury, Venus, Mars, Jupiter, Saturn) with multiplicative ratio noise: each mesh `(n_drv, n_drn)` produces effective ratio `(n_drv/n_drn) · (1 + ε)` where `ε ~ N(0, σ²)` with default σ = 0.5/⟨tooth count⟩ (Edmunds 2014's bronze-tolerance reading). [gear_noise_models.py](research/gear_noise_models.py) is the SSOT for noise parametrisations.
+
+[cyclic_group_algebra.py](research/cyclic_group_algebra.py) gains `chain_ratio_noisy(tooth_counts, epsilons)` — the noise-aware companion to the exact `chain_ratio`. The exact-integer version is preserved untouched (still load-bearing for B-H1 / A-H1).
+
+**G-H1 — Saros 19-yr drift exceeds 2°.** Under default noise the Saros pointer's 95th-percentile drift is 13°/19yr, an order of magnitude above the 2° threshold the H-tag was set to test. **FAILED.** This is itself a research finding: under the working ±0.5-tooth bronze tolerance, the mechanism's eclipse pointer cannot survive one Metonic cycle without re-calibration.
+
+**G-H2 — Pin-and-slot is not tolerance-fragile.** Lunar p95 / straight-baseline p95 = 1.00; the pin-and-slot D-H1 elegance does not cost in Monte Carlo robustness. **CONFIRMED.**
+
+**G-H3 — Rare-prime trains have higher per-mesh σ than median.** **FAILED**, but the failure is a *selection effect*: per-mesh σ scales as 1/⟨n⟩, and rare-prime-bearing trains (Saros 53, lunar 127, Metonic 53, Jupiter 83) tend to use smaller individual gears (mean N ≈ 50–80) than the planetary period-relation trains (Mercury 95, Saturn 434, Venus 376). The rare primes themselves are not the cause; the average tooth count is.
+
+**Track 3 citation correction.** The build prompt's "Guillermo & Szigety 2025" reference is properly Szigety & Arenas 2025: ["The Impact of Triangular-Toothed Gears on the Functionality of the Antikythera Mechanism"](https://arxiv.org/abs/2504.00327), April 2025, combining Thorndike's analytical solution for triangular-tooth motion with Edmunds 2014's manufacturing-error model. Their headline: under realistic tolerance the mechanism jams within ~120 days. Our G-H1 (~13° drift over 19 years) is the same finding read via the angular-error rather than the engagement-loss metric. Correction propagated through [gear_noise_models.py](research/gear_noise_models.py) and the CHANGELOG.
+
+### §9.4 Track 4 — Production-grade Pareto (A-H2 reworked + A-H4)
+
+[pareto_analysis.py](research/pareto_analysis.py) replaces the deprecated proxy in [packing_analysis.py:95-118](research/packing_analysis.py) (which returned `sum(p+q)` independent of the candidate prime set). Three rigorous metric variants on (precision, cost):
+
+- **`primary`** — precision = Σ_planets |p/q − target|/target with prime constraint candidate ∪ {2,3,5}; cost = max(p, q) (single-largest tooth count, the bronze-workshop bottleneck).
+- **`factor-reuse`** — same precision; cost = total bronze across the reconstruction (Freeth's argued cost framing).
+- **`proxy`** — original metric, preserved for audit.
+
+**A-H2 — Freeth's {7, 17}.** ON the factor-reuse + legacy-proxy frontiers, NOT on the primary frontier (dominated by {11, 19} which contains Mars's required 19). **PARTIAL** under the rigorous metric — a more interesting answer than the proxy artefact: Freeth's claim survives the bronze-cost framing but not the workshop-bottleneck framing.
+
+**A-H4 (NEW) — rare large primes are forced by astronomy.** For each of {47, 127, 223, 251}, removing the prime from the alphabet inflates ≥1 cycle's relative error from 0 to non-zero (i.e. by ∞). The forcing structure: **47** drives Metonic 235 = 5·47 and Callippic 940 = 2²·5·47; **223** drives Saros 223 (prime) and Exeligmos 669 = 3·223; **251** drives Lunar Anomaly 251 (prime); **127** drives Sidereal Month 254 = 2·127. **CONFIRMED.** These primes are dictated by celestial mechanics, not chosen for cost-share.
+
+### §9.5 Track 5 — Hellenistic prime-spectrum cross-references (H-H1, H-H2)
+
+[historical_periods.py](research/historical_periods.py) curates 8 MUL.APIN entries (Hunger & Pingree 1989) and 12 Almagest entries (Toomer 1984), each with FIRM / RECONSTRUCTED / DISPUTED confidence. [historical_cross_reference.py](research/historical_cross_reference.py) computes top-K Jaccard, chi-square (lazy `scipy.stats`, tail-binning low-expectation primes), and KL divergence with Laplace smoothing.
+
+**H-H1 (NEW) — Antikythera and Almagest are statistically indistinguishable.** chi-square p = 0.32 (cannot reject same-distribution null at α = 0.05), Cramér's V = 0.103 (small effect). Top-5 prime overlap = {2, 3, 5, 19} (Jaccard 0.67). **CONFIRMED.**
+
+**H-H2 (NEW) — MUL.APIN top-3 primes overlap perfectly with Antikythera.** Both have top-3 = {2, 3, 5} (Jaccard 1.00). The Babylonian factorisation tradition, predating the mechanism by ~800 years, anchors the Antikythera's small-prime fingerprint. **CONFIRMED.** A more striking continuity than expected; merits a future deeper read of MUL.APIN's intercalation rules vs the mechanism's Metonic encoding.
+
+### §9.6 Cross-cutting CLI retrofit
+
+User-confirmed scope: every `research/*.py` module gained a rich `argparse` block with `RawDescriptionHelpFormatter` epilog (scientific motivation + citations + example invocations). Existing default behaviour preserved when invoked without arguments. Modules retrofitted: [gear_database.py](research/gear_database.py), [astronomical_cycles.py](research/astronomical_cycles.py), [cyclic_group_algebra.py](research/cyclic_group_algebra.py), [rational_approximation.py](research/rational_approximation.py), [packing_analysis.py](research/packing_analysis.py), [pin_and_slot.py](research/pin_and_slot.py), [encode_ant.py](research/encode_ant.py), [dial_decoder.py](research/dial_decoder.py), [rendering.py](research/rendering.py), [astronomical_ground_truth.py](research/astronomical_ground_truth.py), [consolidated_tests.py](research/consolidated_tests.py).
+
+---
+
+## 10. Conjecture — missing gears as tolerance compensators
+
+A research direction the sequel opened but did not close: **could the Antikythera's lost gears include manufacturing-tolerance compensators?**
+
+### 10.1 The forcing logic
+
+Three independent results frame the question:
+
+1. **G-H1 (this work):** under default σ = 0.5 / ⟨tooth count⟩ Gaussian noise, the Saros pointer accumulates ~13°/19yr drift — six times above the 2° threshold a working eclipse predictor would need.
+2. **Szigety & Arenas 2025 ([arXiv:2504.00327](https://arxiv.org/abs/2504.00327)):** under their Thorndike-tooth + Edmunds-tolerance model, the mechanism *jams* within 120 days of operation under realistic manufacturing imprecision. Triangular teeth alone are fine (≤ 2.5° lunar deviation), but tolerance pushes it past disengagement.
+3. **Voulgaris et al. 2024 ([arXiv:2407.15858](https://arxiv.org/abs/2407.15858)):** functional reconstruction without modern stabilisation parts requires two indicator dials missing from current models — specifically on b1 and b1's lost Cover Disc — for the mechanism to be operationally complete.
+
+These three converge on a question: if the mechanism *as currently reconstructed* either jams in 120 days or drifts 13° per Metonic, but the Greeks (who built it) presumably operated it for some useful duration, **what compensated for the budget?**
+
+### 10.2 Hypotheses (not yet operationalised)
+
+- **C1. Differential-averaging.** The known b1+b2 differential is a documented example: it averages two input rates. Other planetary trains may have used unattested differentials whose role is *error-averaging across redundant paths* rather than ratio computation. Predict: surviving Freeth 2021 reconstruction's "single-path" planetary trains may, on careful re-examination, show residual evidence of paired paths whose ratios match.
+- **C2. Idler / spacing gears.** Gears that don't change ratios but improve angular resolution by sub-dividing a step. A 100-tooth idler between two ratios is invisible in `chain_ratio` but reduces backlash error by 100×.
+- **C3. Periodic re-calibration markers.** The mechanism's dial face inscriptions (largely indecipherable from corrosion) may have included operator instructions for re-zeroing the eclipse pointers at known anchor events (Olympics, archonship eclipses). Voulgaris 2024's "missing indicator dials" claim is consistent with this.
+- **C4. Compensation via specific-prime tooth selection.** The forced rare primes (A-H4: 47, 127, 223, 251) place specific irrational ratios on specific *prime* gears that cannot be decomposed into smaller meshes — making their angular position quantised at exactly the mechanism's natural unit. *If* the manufacturing error is dominated by tooth-pitch uniformity (not tooth count), large-prime gears are paradoxically *more* tolerance-robust because they have more teeth averaging the error.
+
+### 10.3 Operationalisation (future work)
+
+A **G-H4** could be: "Adding an unattested differential gear to the Saros chain reduces p95 drift below the 2° threshold." Concretely, modify [manufacturing_tolerance.py](research/manufacturing_tolerance.py) to accept an `error_compensator: Optional[CompensatorSpec]` argument with three variants:
+
+- `differential` — average two parallel chain ratios (each with independent ε draws).
+- `idler` — insert an N-tooth idler with `ε_idler` of opposite sign (variance-reducing).
+- `recalibration` — periodic resampling: every K days, reset the cumulative drift to 0 (operator zeros the pointer at a known anchor).
+
+Each compensator has a per-cycle bronze-cost (one extra gear per differential, etc.). The right Pareto question: is there a compensator topology that brings G-H1 below 2° without adding more bronze than ~2× the surviving train? If yes, Voulgaris's "missing parts" become physically motivated by tolerance rather than display.
+
+### 10.4 Connection to Freeth's shared planetary trains
+
+Freeth 2021's headline claim — that the planetary mechanism uses *shared* gear-trains across multiple planets to fit in the available depth — is the **dual** of the conjecture above. Sharing reduces total bronze (cost-side) but *amplifies* error (a single mesh's noise shows up on multiple pointers). The Greeks' design choice to share rather than multiply the trains makes manufacturing tolerance *more* important to compensate for, not less.
+
+A second-order test: under our default σ, does the shared-train Freeth 2021 reconstruction show *higher* per-pointer drift than a hypothetical unshared reconstruction? G-H4-prime: tolerance argues for compensation, not against shared trains.
+
+### 10.5 Reconstruction sources to consult
+
+- **Freeth 2021** [Sci. Rep. 11:5821](https://www.nature.com/articles/s41598-021-84310-w) — supplementary materials include detailed schematic figures (S17–S22 reconstruction history, S4 / S21 / S22 mechanical detail). Available via the article's supplementary download link.
+- **AMRP X-ray tomography (2005, ~83 fragments)** — discussed in [Allen et al. 2018, PLOS ONE](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0207430) "Improved X-ray computed tomography reconstruction of the largest fragment". Raw tomography volumes are *not* openly downloadable; per the AMRP literature they are in the National Archaeological Museum Athens' care.
+- **Voulgaris et al. (2024, 2025)** — multiple arXiv papers on bronze functional reconstructions [2407.15858](https://arxiv.org/abs/2407.15858) (missing parts), [2505.08484](https://arxiv.org/abs/2505.08484) (zodiac dial), and a Draconic-gearing paper [2104.06181](https://arxiv.org/abs/2104.06181) explicitly testing gear-error impact on eclipse prediction.
+
+A future session could add a frozen-data module `research/known_reconstructions.py` (analogous to `historical_periods.py`) cataloguing each reconstruction's specific gear choices with citations, then run G-H4 against each reconstruction to characterise Pareto-frontier sensitivity to reconstruction ambiguity.

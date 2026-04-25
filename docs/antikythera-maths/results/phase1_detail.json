@@ -178,63 +178,109 @@
     ]
   },
   "A-H2": {
-    "candidates_evaluated": 231,
-    "frontier_size": 3,
-    "freeth_choice_on_frontier": false,
-    "top5_frontier": [
+    "target_set": [
+      7,
+      17
+    ],
+    "max_set_size": 2,
+    "n_candidates": 91,
+    "frontier_size_primary": 11,
+    "frontier_size_factor_reuse": 63,
+    "frontier_size_proxy": 3,
+    "on_primary": false,
+    "on_factor_reuse": true,
+    "on_proxy_legacy": true,
+    "primary_frontier_top10": [
       {
-        "shared_primes": [
-          2,
-          5,
-          7
+        "primes": [
+          11
         ],
-        "total_teeth": 2228,
-        "shared_count": 9
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
       },
       {
-        "shared_primes": [
-          2,
-          7,
+        "primes": [
+          11,
+          23
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          29
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          37
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          41
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          43
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          53
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
           17
         ],
-        "total_teeth": 2228,
-        "shared_count": 9
+        "precision_relerr": 0.08677598525684894,
+        "cost_max_teeth": 17,
+        "cost_total_teeth": 75
       },
       {
-        "shared_primes": [
-          2,
-          7,
+        "primes": [
+          11,
           19
         ],
-        "total_teeth": 2228,
-        "shared_count": 9
+        "precision_relerr": 0.04419431556537885,
+        "cost_max_teeth": 19,
+        "cost_total_teeth": 94
+      },
+      {
+        "primes": [
+          7,
+          11
+        ],
+        "precision_relerr": 0.04255227944058404,
+        "cost_max_teeth": 22,
+        "cost_total_teeth": 98
       }
-    ],
-    "shared_primes_observed": {
-      "2": [
-        "Mercury",
-        "Venus",
-        "Jupiter",
-        "Saturn"
-      ],
-      "5": [
-        "Mercury",
-        "Mars"
-      ],
-      "17": [
-        "Venus",
-        "Saturn"
-      ],
-      "7": [
-        "Venus",
-        "Mars",
-        "Saturn"
-      ],
-      "19": [
-        "Mars",
-        "Jupiter"
-      ]
-    }
+    ]
   },
   "A-H3": {
     "observed_spectrum": {
@@ -329,6 +375,82 @@
       83,
       127,
       223
+    ]
+  },
+  "A-H4": {
+    "probed_primes": [
+      47,
+      127,
+      223,
+      251
+    ],
+    "max_relerr_blow_up": 10.0,
+    "n_forced": 4,
+    "results": [
+      {
+        "prime": 47,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "Metonic",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00038684719535784465,
+            "ratio": Infinity
+          },
+          {
+            "cycle": "Callippic",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00038684719535784465,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      },
+      {
+        "prime": 127,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "SiderealMonth",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00035790980672871454,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      },
+      {
+        "prime": 223,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "Saros",
+            "rel_full": 0.0,
+            "rel_reduced": 0.0002989536621824005,
+            "ratio": Infinity
+          },
+          {
+            "cycle": "Exeligmos",
+            "rel_full": 0.0,
+            "rel_reduced": 0.004484304932735426,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      },
+      {
+        "prime": 251,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "LunarAnomaly",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00028457598178703,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      }
     ]
   },
   "B-H1": {
@@ -565,14 +687,14 @@
     "saros_n_turns": 4,
     "metonic_months_per_turn": 47.0,
     "metonic_n_turns": 5,
-    "chess_cross_ref": "\u00a711.3.3 torus-clip aliasing horizon"
+    "chess_cross_ref": "sec11.3.3 torus-clip aliasing horizon"
   },
   "D-H1": {
     "ratio_pin_and_slot": 1.0,
     "ratio_circular_reference": 1.0,
     "ratio_difference": 0.0,
     "eccentricity_freeth_2006": 0.054,
-    "chess_cross_ref": "\u00a79m Hatano-Nelson pawn directed Laplacian"
+    "chess_cross_ref": "sec9m Hatano-Nelson pawn directed Laplacian"
   },
   "D-H2": {
     "reference_jd": 1684595.0,
@@ -594,40 +716,168 @@
       "Saturn_synodic_period_relation": 0
     }
   },
-  "E-H1": {
-    "n_within_1_day": 3,
-    "n_total": 3,
+  "D-H3": {
+    "uniform": {
+      "model": "uniform",
+      "mean_deg_per_day": 0.4615739672282483,
+      "std_deg_per_day": 4.134634360961368e-15,
+      "max_dev_deg_per_day": 1.5210055437364645e-14,
+      "n_samples": 200
+    },
+    "equant": {
+      "model": "equant",
+      "mean_deg_per_day": -0.5433595020353864,
+      "std_deg_per_day": 0.007892018430277533,
+      "max_dev_deg_per_day": 0.022056137185814007,
+      "n_samples": 200
+    },
+    "ratio": 7892018.430277533
+  },
+  "E-H1a": {
+    "era": "modern",
+    "kernel": "de422",
+    "n_anchors": 2,
+    "n_kernel_covers": 2,
+    "n_within_1day": 2,
+    "mean_phase_err_deg": 5.310754036611248,
     "results": [
       {
         "jd": 2451402.0,
-        "lunar_phase_deg": 0.45479949796414554,
-        "dist_to_syzygy_days": 0.03730693607935663,
+        "date_iso": "1999-08-11",
+        "era": "modern",
+        "eclipse_type": "S",
+        "almagest_ref": null,
+        "lunar_phase_deg": 0.454799531596374,
+        "dist_to_syzygy_days": 0.03730693883818861,
         "within_1_day": true,
-        "saros_index": 0,
-        "saros_residue_match": true
+        "error_deg": 0.454799531596374,
+        "kernel_covers": true,
+        "note": ""
       },
       {
-        "jd": 2457987.3211,
-        "lunar_phase_deg": 0.644838162187507,
-        "dist_to_syzygy_days": 0.052895696248450294,
+        "jd": 2457986.5,
+        "date_iso": "2017-08-21",
+        "era": "modern",
+        "eclipse_type": "S",
+        "almagest_ref": null,
+        "lunar_phase_deg": 349.8332914583739,
+        "dist_to_syzygy_days": 0.8339691389232718,
         "within_1_day": true,
-        "saros_index": 1,
-        "saros_residue_match": true
+        "error_deg": 10.166708541626122,
+        "kernel_covers": true,
+        "note": ""
+      }
+    ]
+  },
+  "E-H1b": {
+    "era": "hellenistic",
+    "kernel": "de422",
+    "n_anchors": 6,
+    "n_kernel_covers": 6,
+    "n_within_1day": 1,
+    "mean_phase_err_deg": 130.99377463347938,
+    "results": [
+      {
+        "jd": 1637860.0,
+        "date_iso": "-382-12-23",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "IV.6",
+        "lunar_phase_deg": 308.8590082804834,
+        "dist_to_syzygy_days": 4.195065556702361,
+        "within_1_day": false,
+        "error_deg": 128.8590082804834,
+        "kernel_covers": true,
+        "note": ""
       },
       {
-        "jd": 2464572.6422,
-        "lunar_phase_deg": 0.7673532288943116,
-        "dist_to_syzygy_days": 0.06294553531566316,
+        "jd": 1684532.5,
+        "date_iso": "-200-09-22",
+        "era": "hellenistic",
+        "eclipse_type": "S",
+        "almagest_ref": null,
+        "lunar_phase_deg": 125.32459807885115,
+        "dist_to_syzygy_days": 4.4849911526204895,
+        "within_1_day": false,
+        "error_deg": 125.32459807885115,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1709093.5,
+        "date_iso": "-134-04-08",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "V.14",
+        "lunar_phase_deg": 12.11127415053455,
+        "dist_to_syzygy_days": 0.9934807153397022,
         "within_1_day": true,
-        "saros_index": 2,
-        "saros_residue_match": true
+        "error_deg": 167.88872584946546,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1721054.0,
+        "date_iso": "-141-07-20",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "IV.9",
+        "lunar_phase_deg": 19.03769314211456,
+        "dist_to_syzygy_days": 1.5616508028935117,
+        "within_1_day": false,
+        "error_deg": 160.96230685788544,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1764266.5,
+        "date_iso": "-000-12-09",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": null,
+        "lunar_phase_deg": 130.6314057627555,
+        "dist_to_syzygy_days": 4.0496768307377815,
+        "within_1_day": false,
+        "error_deg": 49.36859423724451,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1789535.5,
+        "date_iso": "+0125-04-05",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "VI.5",
+        "lunar_phase_deg": 26.440585503053658,
+        "dist_to_syzygy_days": 2.16890572148554,
+        "within_1_day": false,
+        "error_deg": 153.55941449694635,
+        "kernel_covers": true,
+        "note": ""
       }
     ]
   },
   "E-H2": {
-    "peak_error_deg": 179.88448921121744,
-    "mean_error_deg": 87.72951079056821,
-    "n_samples": 200
+    "peak_error_deg": 179.8844892042219,
+    "mean_error_deg": 87.7295107906587,
+    "n_samples": 200,
+    "kernel": "de422"
+  },
+  "E-H3": {
+    "model": "epicycle-only",
+    "peak_deg": 51.48142221029673,
+    "mean_deg": 26.415359463593497,
+    "rms_deg": 29.965510275044043,
+    "threshold_lo": 0.0,
+    "threshold_hi": 10.0
+  },
+  "E-H4": {
+    "model": "equant",
+    "peak_deg": 48.66007639457362,
+    "mean_deg": 25.293730750011882,
+    "rms_deg": 28.621820182610787,
+    "threshold_lo": 30.0,
+    "threshold_hi": 50.0
   },
   "F-E1": {
     "primes_used": [
@@ -675,5 +925,114 @@
         "tag": "lunar"
       }
     ]
+  },
+  "G-H1": {
+    "train": "saros",
+    "p95_deg": 13.182386094008477,
+    "threshold_deg": 2.0,
+    "n_trials": 2000,
+    "noise_mode": "gaussian",
+    "horizon_years": 19.0
+  },
+  "G-H2": {
+    "lunar_p95_deg": 4280.981408172679,
+    "baseline_p95_deg": 4280.981408172679,
+    "ratio": 1.0,
+    "ratio_threshold": 1.2
+  },
+  "G-H3": {
+    "deviation_pct_threshold": 15.0,
+    "per_train_per_mesh_sigma": {
+      "saros": 0.017374153601971698,
+      "lunar": 0.025302169909405182,
+      "metonic": 0.019481262084820743,
+      "mercury": 0.010454236511228331,
+      "venus": 0.0026588004975294454,
+      "mars": 0.007739376642033425,
+      "jupiter": 0.012558233796507001,
+      "saturn": 0.002297766597980066
+    },
+    "median_per_mesh_sigma": 0.012558233796507001,
+    "deviations_pct": {
+      "saros": 38.34870319745294,
+      "lunar": 101.47872956818841,
+      "metonic": 55.127404064091735,
+      "mercury": 16.753926701570762,
+      "venus": 78.82822902796272,
+      "mars": 38.372093023255495,
+      "jupiter": 0.0,
+      "saturn": 81.70310701956213
+    },
+    "rare_prime_trains": [
+      "saros",
+      "lunar",
+      "metonic",
+      "jupiter"
+    ]
+  },
+  "H-H1": {
+    "antikythera_top5": [
+      2,
+      3,
+      5,
+      7,
+      19
+    ],
+    "almagest_top5": [
+      2,
+      5,
+      3,
+      19,
+      13
+    ],
+    "top5_overlap": [
+      2,
+      3,
+      5,
+      19
+    ],
+    "top5_jaccard": 0.6666666666666666,
+    "chi2": {
+      "available": true,
+      "chi2": 5.8212487401237745,
+      "p_value": 0.32400263009742153,
+      "dof": 5,
+      "cramers_v": 0.10334984445489487,
+      "n_bins": 6,
+      "n": 109.0
+    },
+    "kl": {
+      "d_ab": 0.27962720858812085,
+      "d_ba": 0.340966487277962,
+      "n_primes": 22,
+      "smoothing": 0.5
+    }
+  },
+  "H-H2": {
+    "antikythera_top_n": [
+      2,
+      3,
+      5
+    ],
+    "mulapin_top_n": [
+      2,
+      3,
+      5
+    ],
+    "overlap": [
+      2,
+      3,
+      5
+    ],
+    "jaccard": 1.0,
+    "n_overlap": 3,
+    "top_n": 3,
+    "min_overlap_threshold": 2,
+    "kl": {
+      "d_ab": 0.30077442914421415,
+      "d_ba": 0.38244203940642996,
+      "n_primes": 18,
+      "smoothing": 0.5
+    }
   }
 }

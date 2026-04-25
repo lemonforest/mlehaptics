@@ -147,7 +147,7 @@ def decode_all_dials_block_diagonal(
 # ---------------------------------------------------------------------------
 
 def round_trip_dense(date_jd: float, D: int) -> Dict[str, Dict[str, Any]]:
-    """For each supported dial, encode → decode → compare.
+    """For each supported dial, encode -> decode -> compare.
 
     Returns
     -------
@@ -228,59 +228,115 @@ def round_trip_block_diagonal(
 # Smoke test
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    print("dial_decoder — round-trip tests for all 3 D variants + oracle")
+_EPILOG = """\
+Examples:
+  # Default: full round-trip battery (3 variants + oracle):
+  python -m research.dial_decoder
+
+  # Just one variant:
+  python -m research.dial_decoder --variant lcm
+
+  # Decode a single dial at a specific JD:
+  python -m research.dial_decoder --variant packing --jd 1684960.0 \\
+        --dial Saros
+
+References
+----------
+Decoding via FFT correlation is the standard HDC unbinding (Plate 2003).
+"""
+
+
+def _make_parser():
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="python -m research.dial_decoder",
+        description=("Round-trip decoder battery -- encode then decode "
+                     "every dial under three D variants and verify exact "
+                     "recovery (B-H3)."),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--variant", default="all",
+        choices=("dense", "lcm", "block", "callippic", "packing", "all"),
+        help="Round-trip variant (default: all).",
+    )
+    parser.add_argument(
+        "--jd", type=float, default=None,
+        help="Test date as JD (default: REFERENCE_JD + 365).",
+    )
+    parser.add_argument(
+        "--dial", default=None,
+        help="Decode just this dial name and exit.",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = _make_parser().parse_args(argv)
+    print("dial_decoder -- round-trip tests for all 3 D variants + oracle")
     print("=" * 60)
+    test_jd = args.jd if args.jd is not None else REFERENCE_JD + 365.0
+    print(f"Test date: JD = {test_jd}")
     print()
 
-    test_jd = REFERENCE_JD + 365.0
-    print(f"Test date: JD = {test_jd} (REFERENCE_JD + 365 days)")
-    print()
+    if args.dial:
+        # Single-dial decode probe
+        if args.variant in ("packing", "dense", "all"):
+            state = encode_ant_packing(test_jd)
+            try:
+                r = decode_dial_dense(state, args.dial, D_PACKING)
+                print(f"  {args.dial} (D=13440): residue = {r}")
+            except UnsupportedDialError as e:
+                print(f"  {args.dial}: UnsupportedDialError: {e}")
+        if args.variant in ("lcm", "all"):
+            from .encode_ant import encode_ant_lcm
+            state_lcm = encode_ant_lcm(test_jd)
+            try:
+                r = decode_dial_lcm(state_lcm, args.dial)
+                print(f"  {args.dial} (LCM symbolic): residue = {r}")
+            except KeyError:
+                print(f"  {args.dial}: not in LCM state")
+        return 0
 
-    print("--- D = 940 (Callippic) dense round-trip ---")
-    rt = round_trip_dense(test_jd, D_CALLIPPIC)
-    n_match_d = sum(1 for v in rt.values() if v["match_d_bin"])
-    n_match_m = sum(1 for v in rt.values() if v["match_modulus"])
-    n = len(rt)
-    print(f"  D-bin exact matches: {n_match_d}/{n}")
-    print(f"  Modulus matches:     {n_match_m}/{n}")
-    for name, v in rt.items():
-        ok = "OK" if v["match_modulus"] else "FAIL"
-        print(f"    [{ok}] {name:35s} D-bin: {v['true_d_bin']} -> {v['recovered_d_bin']}, "
-              f"modulus: {v['true_modulus']} -> {v['recovered_modulus']}")
-    print()
+    if args.variant in ("dense", "callippic", "all"):
+        print("--- D = 940 (Callippic) dense round-trip ---")
+        rt = round_trip_dense(test_jd, D_CALLIPPIC)
+        n_match_m = sum(1 for v in rt.values() if v["match_modulus"])
+        print(f"  Modulus matches: {n_match_m}/{len(rt)}")
 
-    print("--- D = 13440 (Packing) dense round-trip ---")
-    rt = round_trip_dense(test_jd, D_PACKING)
-    n_match_d = sum(1 for v in rt.values() if v["match_d_bin"])
-    n_match_m = sum(1 for v in rt.values() if v["match_modulus"])
-    n = len(rt)
-    print(f"  D-bin exact matches: {n_match_d}/{n}")
-    print(f"  Modulus matches:     {n_match_m}/{n}")
-    for name, v in rt.items():
-        ok = "OK" if v["match_modulus"] else "FAIL"
-        print(f"    [{ok}] {name:35s} modulus: {v['true_modulus']} -> {v['recovered_modulus']}")
-    print()
+    if args.variant in ("dense", "packing", "all"):
+        print("--- D = 13440 (Packing) dense round-trip ---")
+        rt = round_trip_dense(test_jd, D_PACKING)
+        n_match_m = sum(1 for v in rt.values() if v["match_modulus"])
+        print(f"  Modulus matches: {n_match_m}/{len(rt)}")
 
-    print("--- D = LCM symbolic round-trip ---")
-    rt_lcm = round_trip_lcm(test_jd)
-    n_match = sum(1 for v in rt_lcm.values() if v["match"])
-    print(f"  Matches: {n_match}/{len(rt_lcm)} (should be all)")
-    print()
+    if args.variant in ("lcm", "all"):
+        print("--- D = LCM symbolic round-trip ---")
+        rt_lcm = round_trip_lcm(test_jd)
+        n_match = sum(1 for v in rt_lcm.values() if v["match"])
+        print(f"  Matches: {n_match}/{len(rt_lcm)} (should be all)")
 
-    print("--- D = 13440 block-diagonal oracle round-trip ---")
-    rt_b = round_trip_block_diagonal(test_jd, D_PACKING)
-    n_match = sum(1 for v in rt_b.values() if v["match_within_block"])
-    print(f"  Within-block matches: {n_match}/{len(rt_b)}")
-    print()
+    if args.variant in ("block", "all"):
+        print("--- D = 13440 block-diagonal oracle round-trip ---")
+        rt_b = round_trip_block_diagonal(test_jd, D_PACKING)
+        n_match = sum(1 for v in rt_b.values() if v["match_within_block"])
+        print(f"  Within-block matches: {n_match}/{len(rt_b)}")
 
-    print("--- D = 940 planetary UnsupportedDialError check ---")
-    state = encode_ant_callippic(test_jd)
-    try:
-        _ = decode_dial_dense(state, "Mars_synodic_period_relation", D_CALLIPPIC)
-        print("  FAIL: no exception raised")
-    except UnsupportedDialError as e:
-        print(f"  PASS: {e}")
+    if args.variant == "all":
+        print("--- D = 940 planetary UnsupportedDialError check ---")
+        state = encode_ant_callippic(test_jd)
+        try:
+            _ = decode_dial_dense(state, "Mars_synodic_period_relation",
+                                  D_CALLIPPIC)
+            print("  FAIL: no exception raised")
+        except UnsupportedDialError as e:
+            print(f"  PASS: {e}")
     print()
-
     print("All round-trip smoke tests complete.")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

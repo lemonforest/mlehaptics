@@ -432,17 +432,91 @@ MESH_EDGES: List[Tuple[str, str, Optional[str]]] = [
 ]
 
 
-if __name__ == "__main__":
-    # Quick provenance / consistency report when run standalone.
-    print(f"Antikythera gear database")
+_EPILOG = """\
+Examples:
+  # Default: provenance summary + reconstruction disagreements:
+  python -m research.gear_database
+
+  # Just the Freeth 2021 tooth-count list:
+  python -m research.gear_database --reconstruction Freeth2021 --counts-only
+
+  # Show reconstruction disagreements only:
+  python -m research.gear_database --show-disagreements
+
+  # Without planetary (more speculative) gears:
+  python -m research.gear_database --no-planetary
+
+Citations
+---------
+Freeth, T. (2021). A Model of the Cosmos in the ancient Greek Antikythera
+    Mechanism. Sci. Rep. 11:5821.
+Wright, M. T. (2005). The Antikythera Mechanism: a new gearing scheme.
+    Bull. Sci. Instr. Soc. 85:2-7.
+Price, D. de S. (1974). Gears from the Greeks: The Antikythera Mechanism.
+    Trans. Am. Phil. Soc. 64.7.
+"""
+
+
+def _make_parser():
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="python -m research.gear_database",
+        description=("Antikythera gear database (SSOT for tooth counts "
+                     "with provenance across three reconstructions)."),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--reconstruction", default=FREETH_2021,
+        choices=(FREETH_2021, WRIGHT, PRICE_1974),
+        help=f"Which reconstruction to summarise (default: {FREETH_2021}).",
+    )
+    parser.add_argument(
+        "--no-planetary", action="store_true",
+        help="Exclude conceptual planetary gears (more speculative).",
+    )
+    parser.add_argument(
+        "--counts-only", action="store_true",
+        help="Print just the sorted unique tooth counts and exit.",
+    )
+    parser.add_argument(
+        "--show-disagreements", action="store_true",
+        help="Print only the reconstruction disagreements and exit.",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = _make_parser().parse_args(argv)
+    include_planetary = not args.no_planetary
+
+    if args.counts_only:
+        print(",".join(str(n) for n in sorted(set(
+            tooth_count_list(args.reconstruction,
+                             include_planetary=include_planetary)))))
+        return 0
+    if args.show_disagreements:
+        for name, counts in known_disagreements():
+            print(f"{name:20s}  {counts}")
+        return 0
+
+    print(f"Antikythera gear database (reconstruction={args.reconstruction})")
     print(f"  Main train gears:      {len(MAIN_TRAIN)}")
     print(f"  Lunar train gears:     {len(LUNAR_TRAIN)}")
     print(f"  Planetary gears:       {len(PLANETARY)}")
     print(f"  Total:                 {len(ALL_GEARS)}")
-    print(f"  Unique Freeth counts:  {sorted(set(tooth_count_list(FREETH_2021)))}")
+    counts = sorted(set(tooth_count_list(args.reconstruction,
+                                         include_planetary=include_planetary)))
+    print(f"  Unique tooth counts:   {counts}")
     print()
     print("Reconstruction disagreements:")
     for name, counts in known_disagreements():
         print(f"  {name:20s}  {counts}")
     print()
     print("Mesh edges:", len(MESH_EDGES))
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
