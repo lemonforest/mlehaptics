@@ -287,13 +287,89 @@ def shared_primes_among_planetary() -> Dict[int, List[str]]:
     return {p: names for p, names in out.items() if len(names) > 1}
 
 
-if __name__ == "__main__":
-    print(f"Cycles:           {len(CYCLES)}")
+_EPILOG = """\
+Examples:
+  # Default: full per-cycle residuals + shared planetary primes:
+  python -m research.astronomical_cycles
+
+  # Filter to one tag:
+  python -m research.astronomical_cycles --tag planetary
+
+  # Lookup one cycle by name:
+  python -m research.astronomical_cycles --cycle Saros
+
+  # Just the shared-primes histogram:
+  python -m research.astronomical_cycles --shared-primes
+
+Citations
+---------
+Toomer, G. J. (1984). Ptolemy's Almagest. Princeton.
+Neugebauer, O. (1975). A History of Ancient Mathematical Astronomy.
+    Springer (3 vols).
+"""
+
+
+def _make_parser():
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="python -m research.astronomical_cycles",
+        description=("Astronomical cycle SSOT -- 13 commensurability "
+                     "ratios spanning calendar, eclipse, lunar, and "
+                     "planetary periods.  Drives the encoder and the "
+                     "Pareto / packing analyses."),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--tag", default=None,
+        choices=("calendar", "eclipse", "lunar", "planetary"),
+        help="Filter to cycles with the given tag.",
+    )
+    parser.add_argument(
+        "--cycle", default=None,
+        help="Print just the cycle with this name and exit.",
+    )
+    parser.add_argument(
+        "--shared-primes", action="store_true",
+        help="Print only the planetary shared-primes histogram.",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = _make_parser().parse_args(argv)
+
+    if args.cycle:
+        for c in CYCLES:
+            if c.name == args.cycle:
+                print(f"{c.name}: {c.numerator}/{c.denominator}  tag={c.tag}")
+                if c.modern_days is not None:
+                    print(f"  modern_days    = {c.modern_days:.3f}")
+                if c.mechanism_days is not None:
+                    print(f"  mechanism_days = {c.mechanism_days:.3f}")
+                if c.residual_days is not None:
+                    print(f"  residual_days  = {c.residual_days:.3f}")
+                print(f"  notes: {c.notes}")
+                return 0
+        print(f"No cycle named {args.cycle!r}")
+        return 1
+
+    if args.shared_primes:
+        for p, names in sorted(shared_primes_among_planetary().items()):
+            print(f"  p = {p}: shared by "
+                  f"{', '.join(n.split('_')[0] for n in names)}")
+        return 0
+
+    cycles = CYCLES if args.tag is None else [c for c in CYCLES
+                                              if c.tag == args.tag]
+    print(f"Cycles:            {len(cycles)} "
+          f"(tag filter: {args.tag or 'all'})")
     print(f"All prime factors: {all_prime_factors()}")
     print()
     print("Per-cycle residuals (mechanism vs modern, days):")
-    print(f"  {'cycle':30s} {'num/den':>14s} {'mech_d':>14s} {'mod_d':>14s} {'err_d':>10s}")
-    for c in CYCLES:
+    print(f"  {'cycle':30s} {'num/den':>14s} {'mech_d':>14s} "
+          f"{'mod_d':>14s} {'err_d':>10s}")
+    for c in cycles:
         if c.modern_days is not None and c.mechanism_days is not None:
             print(f"  {c.name:30s} {c.numerator:>6d}/{c.denominator:<7d} "
                   f"{c.mechanism_days:14.3f} {c.modern_days:14.3f} "
@@ -301,4 +377,11 @@ if __name__ == "__main__":
     print()
     print("Shared primes across planetary trains (A-H2 load-bearing):")
     for p, names in sorted(shared_primes_among_planetary().items()):
-        print(f"  p = {p}: shared by {', '.join(n.split('_')[0] for n in names)}")
+        print(f"  p = {p}: shared by "
+              f"{', '.join(n.split('_')[0] for n in names)}")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

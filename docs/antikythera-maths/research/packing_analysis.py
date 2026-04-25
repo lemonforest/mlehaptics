@@ -131,7 +131,7 @@ def pareto_frontier(candidates: Iterable[Tuple[int, ...]]
                     ) -> List[Tuple[Tuple[int, ...], int, int]]:
     """Return (candidate, total_teeth, shared_count) sorted so Pareto-optimal
     entries are up front.  Pareto-optimality: no other candidate has
-    ≤ teeth AND ≥ shared_count."""
+    <= teeth AND >= shared_count."""
     scored = [(c, total_tooth_budget_for_candidate(c), candidate_share_count(c))
               for c in candidates]
     frontier: List[Tuple[Tuple[int, ...], int, int]] = []
@@ -197,31 +197,111 @@ def cycle_cf_ranks(budget: int = 500, max_terms: int = 40) -> List[Dict]:
     return out
 
 
+_EPILOG = """\
+Examples:
+  # Default: prime spectrum + null model + Pareto + CF ranks:
+  python -m research.packing_analysis
+
+  # Just the prime spectrum:
+  python -m research.packing_analysis --analysis prime-spectrum
+
+  # Compare to null model only:
+  python -m research.packing_analysis --analysis null-model
+
+  # Per-cycle CF ranks:
+  python -m research.packing_analysis --analysis cf-ranks
+
+DEPRECATED: ``--analysis pareto-proxy`` keeps the legacy proxy
+metric for audit only.  For production Pareto analysis use
+``research.pareto_analysis`` (Track 4).
+
+Citations
+---------
+Freeth, T. (2021). A Model of the Cosmos in the ancient Greek Antikythera
+    Mechanism. Sci. Rep. 11:5821.
+"""
+
+
+def _make_parser():
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="python -m research.packing_analysis",
+        description=("Empirical packing analysis: prime spectrum (A-H3), "
+                     "null model, deprecated Pareto proxy (A-H2 historical), "
+                     "and CF ranks (A-H1)."),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--analysis", default="all",
+        choices=("prime-spectrum", "null-model", "shared-primes",
+                 "pareto-proxy", "cf-ranks", "all"),
+        help="Which sub-analysis to run (default: all).",
+    )
+    parser.add_argument(
+        "--reconstruction", default=FREETH_2021,
+        choices=(FREETH_2021, WRIGHT),
+        help="Reconstruction for prime spectrum (default: Freeth 2021).",
+    )
+    parser.add_argument(
+        "--no-planetary", action="store_true",
+        help="Exclude planetary gears.",
+    )
+    parser.add_argument(
+        "--budget", type=int, default=500,
+        help="Tooth budget for CF ranks (default: 500).",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = _make_parser().parse_args(argv)
+    include_planetary = not args.no_planetary
+
+    if args.analysis in ("prime-spectrum", "all"):
+        print(f"Prime spectrum ({args.reconstruction}, "
+              f"planetary={include_planetary}):")
+        hist = prime_spectrum(args.reconstruction,
+                              include_planetary=include_planetary)
+        for p, n in sorted(hist.items()):
+            print(f"  p={p:3d}: {n:2d} gears")
+        print()
+
+    if args.analysis in ("null-model", "all"):
+        hist = prime_spectrum(args.reconstruction,
+                              include_planetary=include_planetary)
+        print("Null model (avg over 1000 trials of 40 random gears in [10,300]):")
+        null = prime_spectrum_null_model(40)
+        for p in sorted(set(hist.keys()) | {2, 3, 5, 7, 11, 13}):
+            print(f"  p={p:3d}: observed={hist.get(p, 0):2d}  "
+                  f"null={null.get(p, 0):5.2f}")
+        print()
+
+    if args.analysis in ("shared-primes", "all"):
+        print("Shared primes across planetary trains:")
+        for p, names in sorted(shared_primes_among_planetary().items()):
+            print(f"  p={p}: {[n.split('_')[0] for n in names]}")
+        print()
+
+    if args.analysis in ("pareto-proxy", "all"):
+        print("DEPRECATED: legacy Pareto proxy "
+              "(see research.pareto_analysis for production version):")
+        frontier = pareto_frontier(candidate_shared_prime_sets(max_shared=3))
+        for c, t, s in frontier[:8]:
+            print(f"  candidate={c}  total_teeth={t}  shared_count={s}")
+        on_frontier = any(set(c) == {7, 17} for c, _, _ in frontier)
+        print(f"  {{7, 17}} on legacy proxy frontier? {on_frontier}")
+        print()
+
+    if args.analysis in ("cf-ranks", "all"):
+        print(f"Per-cycle CF rank report (budget = {args.budget}):")
+        for rec in cycle_cf_ranks(budget=args.budget):
+            print(f"  {rec['cycle']:40s} mech={rec['mechanism_pq']} "
+                  f"CF rank={rec['rank_of_mechanism_pq']} "
+                  f"best_pq_b{args.budget}={rec['best_pq_budget500']}")
+    return 0
+
+
 if __name__ == "__main__":
-    print("Prime spectrum (Freeth 2021, with planetary):")
-    hist = prime_spectrum(FREETH_2021, include_planetary=True)
-    for p, n in sorted(hist.items()):
-        print(f"  p={p:3d}: {n:2d} gears")
-    print()
-    print("Null model (avg over 1000 trials of 40 random gears in [10,300]):")
-    null = prime_spectrum_null_model(40)
-    for p in sorted(set(hist.keys()) | {2, 3, 5, 7, 11, 13}):
-        print(f"  p={p:3d}: observed={hist.get(p, 0):2d}  null={null.get(p, 0):5.2f}")
-    print()
-    print("Shared primes across planetary trains:")
-    for p, names in sorted(shared_primes_among_planetary().items()):
-        print(f"  p={p}: {[n.split('_')[0] for n in names]}")
-    print()
-    print("Pareto candidates (first 8 on frontier):")
-    frontier = pareto_frontier(candidate_shared_prime_sets(max_shared=3))
-    for c, t, s in frontier[:8]:
-        print(f"  candidate={c}  total_teeth={t}  shared_count={s}")
-    # Does {7, 17} lie on the frontier?
-    on_frontier = any(set(c) == {7, 17} for c, _, _ in frontier)
-    print(f"\n{{7, 17}} on Pareto frontier? {on_frontier}")
-    print()
-    print("Per-cycle CF rank report:")
-    for rec in cycle_cf_ranks():
-        print(f"  {rec['cycle']:40s} mech={rec['mechanism_pq']} "
-              f"CF rank={rec['rank_of_mechanism_pq']} "
-              f"best_pq_b500={rec['best_pq_budget500']}")
+    import sys
+    sys.exit(main())

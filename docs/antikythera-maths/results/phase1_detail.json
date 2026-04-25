@@ -1,8 +1,11 @@
 {
-  "A-H1": {
+  "A-H1a": {
     "n_total": 13,
     "n_top3_strict": 2,
-    "fraction_top3_strict": 0.15384615384615385,
+    "fraction_top3_strict": 0.15384615384615385
+  },
+  "A-H1b": {
+    "n_total": 13,
     "n_best_under_budget": 7,
     "fraction_best_under_budget": 0.5384615384615384,
     "ranks_per_cycle": [
@@ -178,63 +181,109 @@
     ]
   },
   "A-H2": {
-    "candidates_evaluated": 231,
-    "frontier_size": 3,
-    "freeth_choice_on_frontier": false,
-    "top5_frontier": [
+    "target_set": [
+      7,
+      17
+    ],
+    "max_set_size": 2,
+    "n_candidates": 91,
+    "frontier_size_primary": 11,
+    "frontier_size_factor_reuse": 63,
+    "frontier_size_proxy": 3,
+    "on_primary": false,
+    "on_factor_reuse": true,
+    "on_proxy_legacy": true,
+    "primary_frontier_top10": [
       {
-        "shared_primes": [
-          2,
-          5,
-          7
+        "primes": [
+          11
         ],
-        "total_teeth": 2228,
-        "shared_count": 9
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
       },
       {
-        "shared_primes": [
-          2,
-          7,
+        "primes": [
+          11,
+          23
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          29
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          37
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          41
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          43
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
+          53
+        ],
+        "precision_relerr": 0.087872476484919,
+        "cost_max_teeth": 16,
+        "cost_total_teeth": 73
+      },
+      {
+        "primes": [
+          11,
           17
         ],
-        "total_teeth": 2228,
-        "shared_count": 9
+        "precision_relerr": 0.08677598525684894,
+        "cost_max_teeth": 17,
+        "cost_total_teeth": 75
       },
       {
-        "shared_primes": [
-          2,
-          7,
+        "primes": [
+          11,
           19
         ],
-        "total_teeth": 2228,
-        "shared_count": 9
+        "precision_relerr": 0.04419431556537885,
+        "cost_max_teeth": 19,
+        "cost_total_teeth": 94
+      },
+      {
+        "primes": [
+          7,
+          11
+        ],
+        "precision_relerr": 0.04255227944058404,
+        "cost_max_teeth": 22,
+        "cost_total_teeth": 98
       }
-    ],
-    "shared_primes_observed": {
-      "2": [
-        "Mercury",
-        "Venus",
-        "Jupiter",
-        "Saturn"
-      ],
-      "5": [
-        "Mercury",
-        "Mars"
-      ],
-      "17": [
-        "Venus",
-        "Saturn"
-      ],
-      "7": [
-        "Venus",
-        "Mars",
-        "Saturn"
-      ],
-      "19": [
-        "Mars",
-        "Jupiter"
-      ]
-    }
+    ]
   },
   "A-H3": {
     "observed_spectrum": {
@@ -322,6 +371,7 @@
     "n_gears": 40,
     "obs_small_prime_weight": 54,
     "null_small_prime_weight": 47.018,
+    "obs_small_ratio_to_null": 1.148496320558084,
     "large_primes_in_observed": [
       47,
       53,
@@ -329,6 +379,85 @@
       83,
       127,
       223
+    ],
+    "chi2_stat": 65.03139674708542,
+    "chi2_p_value": 0.3382218432812169,
+    "chi2_dof": 61
+  },
+  "A-H4": {
+    "probed_primes": [
+      47,
+      127,
+      223,
+      251
+    ],
+    "max_relerr_blow_up": 10.0,
+    "n_forced": 4,
+    "results": [
+      {
+        "prime": 47,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "Metonic",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00038684719535784465,
+            "ratio": Infinity
+          },
+          {
+            "cycle": "Callippic",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00038684719535784465,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      },
+      {
+        "prime": 127,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "SiderealMonth",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00035790980672871454,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      },
+      {
+        "prime": 223,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "Saros",
+            "rel_full": 0.0,
+            "rel_reduced": 0.0002989536621824005,
+            "ratio": Infinity
+          },
+          {
+            "cycle": "Exeligmos",
+            "rel_full": 0.0,
+            "rel_reduced": 0.004484304932735426,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      },
+      {
+        "prime": 251,
+        "forced": true,
+        "inflated_cycles": [
+          {
+            "cycle": "LunarAnomaly",
+            "rel_full": 0.0,
+            "rel_reduced": 0.00028457598178703,
+            "ratio": Infinity
+          }
+        ],
+        "max_blow_up_threshold": 10.0
+      }
     ]
   },
   "B-H1": {
@@ -565,14 +694,14 @@
     "saros_n_turns": 4,
     "metonic_months_per_turn": 47.0,
     "metonic_n_turns": 5,
-    "chess_cross_ref": "\u00a711.3.3 torus-clip aliasing horizon"
+    "chess_cross_ref": "sec11.3.3 torus-clip aliasing horizon"
   },
   "D-H1": {
     "ratio_pin_and_slot": 1.0,
     "ratio_circular_reference": 1.0,
     "ratio_difference": 0.0,
     "eccentricity_freeth_2006": 0.054,
-    "chess_cross_ref": "\u00a79m Hatano-Nelson pawn directed Laplacian"
+    "chess_cross_ref": "sec9m Hatano-Nelson pawn directed Laplacian"
   },
   "D-H2": {
     "reference_jd": 1684595.0,
@@ -594,40 +723,199 @@
       "Saturn_synodic_period_relation": 0
     }
   },
-  "E-H1": {
-    "n_within_1_day": 3,
-    "n_total": 3,
+  "D-H3": {
+    "uniform": {
+      "model": "uniform",
+      "mean_deg_per_day": 0.4615739672282483,
+      "std_deg_per_day": 4.134634360961368e-15,
+      "max_dev_deg_per_day": 1.5210055437364645e-14,
+      "n_samples": 200
+    },
+    "equant": {
+      "model": "equant",
+      "mean_deg_per_day": -0.5433595020353864,
+      "std_deg_per_day": 0.007892018430277533,
+      "max_dev_deg_per_day": 0.022056137185814007,
+      "n_samples": 200
+    },
+    "ratio": 7892018.430277533
+  },
+  "E-H1a": {
+    "era": "modern",
+    "kernel": "de422",
+    "n_anchors": 2,
+    "n_kernel_covers": 2,
+    "n_within_1day": 2,
+    "mean_phase_err_deg": 5.310754036611248,
     "results": [
       {
         "jd": 2451402.0,
-        "lunar_phase_deg": 0.45479949796414554,
-        "dist_to_syzygy_days": 0.03730693607935663,
+        "date_iso": "1999-08-11",
+        "era": "modern",
+        "eclipse_type": "S",
+        "almagest_ref": null,
+        "lunar_phase_deg": 0.454799531596374,
+        "dist_to_syzygy_days": 0.03730693883818861,
         "within_1_day": true,
-        "saros_index": 0,
-        "saros_residue_match": true
+        "error_deg": 0.454799531596374,
+        "kernel_covers": true,
+        "note": ""
       },
       {
-        "jd": 2457987.3211,
-        "lunar_phase_deg": 0.644838162187507,
-        "dist_to_syzygy_days": 0.052895696248450294,
+        "jd": 2457986.5,
+        "date_iso": "2017-08-21",
+        "era": "modern",
+        "eclipse_type": "S",
+        "almagest_ref": null,
+        "lunar_phase_deg": 349.8332914583739,
+        "dist_to_syzygy_days": 0.8339691389232718,
         "within_1_day": true,
-        "saros_index": 1,
-        "saros_residue_match": true
-      },
-      {
-        "jd": 2464572.6422,
-        "lunar_phase_deg": 0.7673532288943116,
-        "dist_to_syzygy_days": 0.06294553531566316,
-        "within_1_day": true,
-        "saros_index": 2,
-        "saros_residue_match": true
+        "error_deg": 10.166708541626122,
+        "kernel_covers": true,
+        "note": ""
       }
     ]
   },
+  "E-H1b": {
+    "era": "hellenistic",
+    "kernel": "de422",
+    "n_anchors": 6,
+    "n_kernel_covers": 6,
+    "n_within_1day": 6,
+    "mean_phase_err_deg": 0.19068663588526624,
+    "results": [
+      {
+        "jd": 1637849.625,
+        "date_iso": "-382-12-23",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "IV.6",
+        "lunar_phase_deg": 179.90474157199057,
+        "dist_to_syzygy_days": 0.00781399298081012,
+        "within_1_day": true,
+        "error_deg": 0.09525842800942996,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1684523.0,
+        "date_iso": "-200-09-22",
+        "era": "hellenistic",
+        "eclipse_type": "S",
+        "almagest_ref": null,
+        "lunar_phase_deg": 0.2614099815113205,
+        "dist_to_syzygy_days": 0.0214433074671456,
+        "within_1_day": true,
+        "error_deg": 0.2614099815113205,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1709106.812,
+        "date_iso": "-134-04-08",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "V.14",
+        "lunar_phase_deg": 180.1126670564609,
+        "dist_to_syzygy_days": 0.00924201256257256,
+        "within_1_day": true,
+        "error_deg": 0.11266705646090713,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1721066.562,
+        "date_iso": "-141-07-20",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "IV.9",
+        "lunar_phase_deg": 179.65882597262305,
+        "dist_to_syzygy_days": 0.02798630536811194,
+        "within_1_day": true,
+        "error_deg": 0.341174027376951,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1764270.0,
+        "date_iso": "-000-12-09",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": null,
+        "lunar_phase_deg": 179.77952779520865,
+        "dist_to_syzygy_days": 0.018085205652698687,
+        "within_1_day": true,
+        "error_deg": 0.2204722047913492,
+        "kernel_covers": true,
+        "note": ""
+      },
+      {
+        "jd": 1789547.875,
+        "date_iso": "+0125-04-05",
+        "era": "hellenistic",
+        "eclipse_type": "L",
+        "almagest_ref": "VI.5",
+        "lunar_phase_deg": 179.88686188283836,
+        "dist_to_syzygy_days": 0.00928065339557786,
+        "within_1_day": true,
+        "error_deg": 0.11313811716163968,
+        "kernel_covers": true,
+        "note": ""
+      }
+    ]
+  },
+  "E-H1c": {
+    "cov_all": {
+      "forward_recall": 0.002952755905511811,
+      "backward_precision": 1.0,
+      "n_syzygies": 1016,
+      "n_saros_marks": 3,
+      "fwd_hits": 3,
+      "bwd_hits": 3,
+      "nominal_anchor_jd": 1692000.0,
+      "effective_anchor_jd": 1691993.8125,
+      "anchor_shift_days": -6.1875,
+      "eclipse_type_filter": null,
+      "saros_days": 6585.3211,
+      "tolerance_days": 1.0
+    },
+    "cov_lunar": {
+      "forward_recall": 0.005905511811023622,
+      "backward_precision": 1.0,
+      "n_syzygies": 508,
+      "n_saros_marks": 3,
+      "fwd_hits": 3,
+      "bwd_hits": 3,
+      "nominal_anchor_jd": 1692000.0,
+      "effective_anchor_jd": 1692008.75,
+      "anchor_shift_days": 8.75,
+      "eclipse_type_filter": "L",
+      "saros_days": 6585.3211,
+      "tolerance_days": 1.0
+    },
+    "n_events": 1016
+  },
   "E-H2": {
-    "peak_error_deg": 179.88448921121744,
-    "mean_error_deg": 87.72951079056821,
-    "n_samples": 200
+    "peak_error_deg": 179.8844892042219,
+    "mean_error_deg": 87.7295107906587,
+    "n_samples": 200,
+    "kernel": "de422"
+  },
+  "E-H3": {
+    "model": "epicycle-only",
+    "peak_deg": 51.48142221029673,
+    "mean_deg": 26.415359463593497,
+    "rms_deg": 29.965510275044043,
+    "threshold_lo": 30.0,
+    "threshold_hi": 60.0
+  },
+  "E-H4": {
+    "model": "equant",
+    "peak_deg": 48.66007639457362,
+    "mean_deg": 25.293730750011882,
+    "rms_deg": 28.621820182610787,
+    "threshold_lo": 30.0,
+    "threshold_hi": 50.0
   },
   "F-E1": {
     "primes_used": [
@@ -675,5 +963,509 @@
         "tag": "lunar"
       }
     ]
+  },
+  "G-H1a": {
+    "train": "saros",
+    "p95_deg": 13.182386094008477,
+    "threshold_deg": 2.0,
+    "n_trials": 2000,
+    "noise_mode": "gaussian",
+    "horizon_years": 19.0,
+    "operation_regime": "continuous"
+  },
+  "G-H1b": {
+    "train": "saros",
+    "p95_deg": 4.177246081453747e-05,
+    "threshold_deg": 2.0,
+    "n_trials": 2000,
+    "noise_mode": "gaussian",
+    "horizon_years": 19.0,
+    "operation_regime": "intermittent"
+  },
+  "G-H2": {
+    "lunar_p95_deg": 4280.981408172679,
+    "baseline_p95_deg": 4280.981408172679,
+    "ratio": 1.0,
+    "ratio_threshold": 1.2
+  },
+  "G-H3": {
+    "deviation_pct_threshold": 15.0,
+    "per_train_per_mesh_sigma": {
+      "saros": 0.017374153601971698,
+      "lunar": 0.025302169909405182,
+      "metonic": 0.019481262084820743,
+      "mercury": 0.010454236511228331,
+      "venus": 0.0026588004975294454,
+      "mars": 0.007739376642033425,
+      "jupiter": 0.012558233796507001,
+      "saturn": 0.002297766597980066
+    },
+    "median_per_mesh_sigma": 0.012558233796507001,
+    "deviations_pct_uncontrolled": {
+      "saros": 38.34870319745294,
+      "lunar": 101.47872956818841,
+      "metonic": 55.127404064091735,
+      "mercury": 16.753926701570762,
+      "venus": 78.82822902796272,
+      "mars": 38.372093023255495,
+      "jupiter": 0.0,
+      "saturn": 81.70310701956213
+    },
+    "deviations_pct_matched_controlled": {
+      "saros": NaN,
+      "lunar": NaN,
+      "metonic": NaN,
+      "jupiter": 20.125786163522132
+    },
+    "rare_prime_trains": [
+      "saros",
+      "lunar",
+      "metonic",
+      "jupiter"
+    ],
+    "n_pass_uncontrolled": 1,
+    "n_pass_matched_controlled": 0,
+    "n_total_uncontrolled": 4,
+    "n_total_matched_controlled": 1
+  },
+  "G-H6": {
+    "n_subsystems_total": 8,
+    "n_surviving_scored": 3,
+    "n_hypothetical": 5,
+    "verdicts": [
+      {
+        "subsystem": "lunar",
+        "entry_gear": "c1",
+        "lock_verdict": "CAUTION",
+        "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+        "periphery_score": 0.5333333333333333,
+        "is_leaf": false,
+        "is_bridge": false
+      },
+      {
+        "subsystem": "metonic",
+        "entry_gear": "e2",
+        "lock_verdict": "CAUTION",
+        "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+        "periphery_score": 0.5666666666666667,
+        "is_leaf": false,
+        "is_bridge": false
+      },
+      {
+        "subsystem": "saros",
+        "entry_gear": "f1",
+        "lock_verdict": "CAUTION",
+        "lock_note": "Mid-chain transmission.  Single perturbation propagates to one downstream train; acceptable if no peripheral alternative exists.",
+        "periphery_score": 0.6333333333333333,
+        "is_leaf": false,
+        "is_bridge": false
+      },
+      {
+        "subsystem": "mercury",
+        "entry_gear": "mercury_145",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "venus",
+        "entry_gear": "venus_289",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "mars",
+        "entry_gear": "mars_133",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "jupiter",
+        "entry_gear": "jupiter_76",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      },
+      {
+        "subsystem": "saturn",
+        "entry_gear": "saturn_427",
+        "lock_verdict": "UNKNOWN",
+        "lock_note": "not in surviving DAG",
+        "periphery_score": null,
+        "is_leaf": null,
+        "is_bridge": null
+      }
+    ]
+  },
+  "G-H7": {
+    "carrier_diameter_mm": 15.0,
+    "feasibility_threshold_pct": 50.0,
+    "n_total": 411,
+    "n_feasible": 30,
+    "n_tight": 28,
+    "n_infeasible": 353,
+    "case_dimensions_mm": [
+      340.0,
+      180.0,
+      90.0
+    ],
+    "insertable_depth_mm": 84.0,
+    "feasible_pairs": [
+      {
+        "gear_a": "a1",
+        "gear_b": "d1",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "f1",
+        "inter_axle_mm": 41.23
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "l1",
+        "inter_axle_mm": 34.0
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "l2",
+        "inter_axle_mm": 38.74
+      },
+      {
+        "gear_a": "b1",
+        "gear_b": "h2",
+        "inter_axle_mm": 72.0
+      },
+      {
+        "gear_a": "b2",
+        "gear_b": "e3",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "c1",
+        "gear_b": "e1",
+        "inter_axle_mm": 33.53
+      },
+      {
+        "gear_a": "c1",
+        "gear_b": "f2",
+        "inter_axle_mm": 33.53
+      },
+      {
+        "gear_a": "d1",
+        "gear_b": "e4",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "d1",
+        "gear_b": "e_eccentric",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "d1",
+        "gear_b": "frag_d_63",
+        "inter_axle_mm": 38.0
+      },
+      {
+        "gear_a": "e2",
+        "gear_b": "e3",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "e2",
+        "gear_b": "l1",
+        "inter_axle_mm": 31.05
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "g2",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "h1",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "k2",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "l1",
+        "inter_axle_mm": 34.37
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "saros_display",
+        "inter_axle_mm": 78.64
+      },
+      {
+        "gear_a": "e6",
+        "gear_b": "h2",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "e6",
+        "gear_b": "i1",
+        "inter_axle_mm": 41.23
+      },
+      {
+        "gear_a": "e6",
+        "gear_b": "l2",
+        "inter_axle_mm": 38.74
+      },
+      {
+        "gear_a": "e_eccentric",
+        "gear_b": "f1",
+        "inter_axle_mm": 41.23
+      },
+      {
+        "gear_a": "k1",
+        "gear_b": "h2",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "l1",
+        "gear_b": "c1",
+        "inter_axle_mm": 31.62
+      },
+      {
+        "gear_a": "l1",
+        "gear_b": "e_eccentric",
+        "inter_axle_mm": 34.0
+      },
+      {
+        "gear_a": "l2",
+        "gear_b": "d1",
+        "inter_axle_mm": 31.05
+      },
+      {
+        "gear_a": "l2",
+        "gear_b": "e_eccentric",
+        "inter_axle_mm": 38.74
+      },
+      {
+        "gear_a": "m1",
+        "gear_b": "h1",
+        "inter_axle_mm": 50.25
+      },
+      {
+        "gear_a": "m1",
+        "gear_b": "k2",
+        "inter_axle_mm": 50.25
+      },
+      {
+        "gear_a": "metonic_display",
+        "gear_b": "d1",
+        "inter_axle_mm": 78.64
+      }
+    ],
+    "sample_infeasible": [
+      {
+        "gear_a": "a1",
+        "gear_b": "b2",
+        "inter_axle_mm": 18.867962264113206,
+        "note": "Inter-axle 18.9 mm below ideal triple-tangent 41.7 mm by 22.9 mm.  Gears overlap; carrier cannot fit between them."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "c1",
+        "inter_axle_mm": 18.867962264113206,
+        "note": "Inter-axle 18.9 mm below ideal triple-tangent 35.5 mm by 16.7 mm.  Gears overlap; carrier cannot fit between them."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "c2",
+        "inter_axle_mm": 24.0,
+        "note": "Inter-axle 24.0 mm below ideal triple-tangent 37.9 mm by 13.9 mm.  Gears overlap; carrier cannot fit between them."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "d2",
+        "inter_axle_mm": 41.23105625617661,
+        "note": "Inter-axle 41.2 mm below ideal triple-tangent 56.8 mm by 15.5 mm.  Gears overlap; carrier cannot fit between them."
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "e1",
+        "inter_axle_mm": 48.0,
+        "note": "Inter-axle 48.0 mm exceeds ideal triple-tangent 34.1 mm (r_A=11.5+r_B=7.6+2*r_C=15.0) by +13.9 mm.  Carrier cannot mesh both gears collinearly."
+      }
+    ]
+  },
+  "G-H8": {
+    "budget": 500,
+    "residual_tolerance_pct": 1.0,
+    "n_planets": 5,
+    "n_with_disjoint_alternative": 4,
+    "n_with_any_alternative": 5,
+    "per_planet_summary": [
+      {
+        "planet": "Mercury",
+        "freeth_chain": [
+          145,
+          46
+        ],
+        "n_alternatives": 4,
+        "n_disjoint_alternatives": 4,
+        "best_alternative_chain": [
+          104,
+          33
+        ],
+        "best_alternative_primes": [
+          11,
+          13
+        ],
+        "best_sync_residual_pct": 0.020898641588294294
+      },
+      {
+        "planet": "Venus",
+        "freeth_chain": [
+          289,
+          462
+        ],
+        "n_alternatives": 2,
+        "n_disjoint_alternatives": 1,
+        "best_alternative_chain": [
+          5,
+          8
+        ],
+        "best_alternative_primes": [],
+        "best_sync_residual_pct": 0.08650519031141354
+      },
+      {
+        "planet": "Mars",
+        "freeth_chain": [
+          133,
+          125
+        ],
+        "n_alternatives": 5,
+        "n_disjoint_alternatives": 5,
+        "best_alternative_chain": [
+          83,
+          78
+        ],
+        "best_alternative_primes": [
+          13,
+          83
+        ],
+        "best_sync_residual_pct": 0.009639483323687971
+      },
+      {
+        "planet": "Jupiter",
+        "freeth_chain": [
+          76,
+          83
+        ],
+        "n_alternatives": 1,
+        "n_disjoint_alternatives": 1,
+        "best_alternative_chain": [
+          11,
+          12
+        ],
+        "best_alternative_primes": [
+          11
+        ],
+        "best_sync_residual_pct": 0.1096491228070189
+      },
+      {
+        "planet": "Saturn",
+        "freeth_chain": [
+          427,
+          442
+        ],
+        "n_alternatives": 1,
+        "n_disjoint_alternatives": 0,
+        "best_alternative_chain": null,
+        "best_alternative_primes": null,
+        "best_sync_residual_pct": null
+      }
+    ]
+  },
+  "H-H1": {
+    "antikythera_top5": [
+      2,
+      3,
+      5,
+      7,
+      19
+    ],
+    "almagest_top5": [
+      2,
+      5,
+      3,
+      19,
+      13
+    ],
+    "top5_overlap": [
+      2,
+      3,
+      5,
+      19
+    ],
+    "top5_jaccard": 0.6666666666666666,
+    "chi2": {
+      "available": true,
+      "chi2": 5.8212487401237745,
+      "p_value": 0.32400263009742153,
+      "dof": 5,
+      "cramers_v": 0.10334984445489487,
+      "n_bins": 6,
+      "n": 109.0
+    },
+    "kl": {
+      "d_ab": 0.27962720858812085,
+      "d_ba": 0.340966487277962,
+      "n_primes": 22,
+      "smoothing": 0.5
+    }
+  },
+  "H-H2": {
+    "antikythera_top_n": [
+      2,
+      3,
+      5,
+      7,
+      17,
+      19,
+      53
+    ],
+    "mulapin_top_n": [
+      2,
+      3,
+      5,
+      11,
+      13,
+      19,
+      47
+    ],
+    "overlap": [
+      2,
+      3,
+      5,
+      19
+    ],
+    "jaccard": 0.4,
+    "n_overlap": 4,
+    "top_n": 7,
+    "min_jaccard_threshold": 0.5,
+    "kl": {
+      "d_ab": 0.30077442914421415,
+      "d_ba": 0.38244203940642996,
+      "n_primes": 18,
+      "smoothing": 0.5
+    }
   }
 }

@@ -15,7 +15,7 @@ The three D variants (per the "both/and" build-prompt discipline):
   real numpy array.  Encoded *symbolically* via ``LCMState`` — a sparse
   residue dictionary that round-trips trivially.
 - ``D_PACKING = 13440 = 2⁷·3·5·7``.  HDC-engineered packing per chess
-  §9f's coprime-roll architecture; supports all dials with bounded
+  sec9f's coprime-roll architecture; supports all dials with bounded
   quantisation error 1/D per cycle phase.
 
 Each dial has its **own dense complex channel basis** (not delta spikes).
@@ -31,9 +31,9 @@ Encoding (dense variants):
 then normalise.  Decoding (in ``dial_decoder.py``) unbinds per dial by
 correlating against rolls of the channel basis.
 
-``σ_day(D) = roll_operator(D, 1)`` is the formal unitary on ℂ[ℤ/Dℤ] —
+``sigma_day(D) = roll_operator(D, 1)`` is the formal unitary on C[Z/DZ] —
 a single generator of the cyclic group, so gcd(1, D) = 1 confirms B-H2
-("crank-turn is a unit in ℤ/Dℤ") by construction.  ``advance_day(date,
+("crank-turn is a unit in Z/DZ") by construction.  ``advance_day(date,
 D, days)`` is the physically meaningful day advance via re-encoding —
 because each dial advances at its own daily rate, the "advance one day"
 action on the multi-dial encoded state is most cleanly expressed as
@@ -82,7 +82,7 @@ raise ``UnsupportedDialError``.
 D_PACKING: int = 13440
 """D for the HDC-packing variant: 2⁷·3·5·7.
 
-Engineered for coprime-roll binding (chess §9f).  Supports all
+Engineered for coprime-roll binding (chess sec9f).  Supports all
 thirteen dials with quantisation error 1/D per cycle phase
 (≈ 7.4·10⁻⁵).
 """
@@ -380,20 +380,20 @@ def encode_ant_block_diagonal(date_jd: float, D: int) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# σ_day operator and physical advance_day
+# sigma_day operator and physical advance_day
 # ---------------------------------------------------------------------------
 
 def sigma_day(D: int) -> np.ndarray:
-    """Single-day-advance unitary on ℂ[ℤ/Dℤ] as an explicit matrix.
+    """Single-day-advance unitary on C[Z/DZ] as an explicit matrix.
 
-    σ_day = roll_operator(D, 1) — the canonical generator of ℤ/Dℤ.
-    Trivially gcd(1, D) = 1, so σ_day is a unit, confirming B-H2 by
+    sigma_day = roll_operator(D, 1) — the canonical generator of Z/DZ.
+    Trivially gcd(1, D) = 1, so sigma_day is a unit, confirming B-H2 by
     construction.
 
-    NOTE: σ_day rolls the *D-bin counter* by one.  Because the
+    NOTE: sigma_day rolls the *D-bin counter* by one.  Because the
     multiple dial channels have different physical advance rates
     (Metonic: 1 month per ~30 days; Mars: 1 synodic per ~780 days),
-    σ_day applied directly to a multi-dial encoded state advances
+    sigma_day applied directly to a multi-dial encoded state advances
     each channel by 1 D-bin, which is *not* the same as advancing the
     physical date by one day.  For physically meaningful day advance
     use ``advance_day(date, D, days)`` which re-encodes for the new
@@ -412,15 +412,77 @@ def advance_day(date_jd: float, D: int, days: int = 1) -> np.ndarray:
 # Smoke test
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+_EPILOG = """\
+Examples:
+  # Default: full smoke test (orthogonality, three encoders, sigma_day,
+  # advance_day) at REFERENCE_JD + 365:
+  python -m research.encode_ant
+
+  # Encode at a specific JD:
+  python -m research.encode_ant --jd 1684960.0 --variant callippic
+
+  # Just the LCM symbolic state:
+  python -m research.encode_ant --variant lcm --jd 1684595.0
+
+  # sigma_day operator metadata:
+  python -m research.encode_ant --sigma-day --D 940
+
+References
+----------
+Plate, T. A. (2003). Holographic Reduced Representations.  CSLI.
+Kanerva, P. (2009). Hyperdimensional Computing.  Cogn. Comput. 1:139.
+"""
+
+
+def _make_parser():
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="python -m research.encode_ant",
+        description=("Resonant HDC encoder for the Antikythera (Phase 2). "
+                     "Three D-variant encoders: Callippic (D=940), "
+                     "Packing (D=13440), and LCM (symbolic).  "
+                     "sigma_day = roll(D, 1) is the unit operator on "
+                     "the cyclic group algebra (B-H2)."),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--variant", default="all",
+        choices=("callippic", "packing", "lcm", "block", "all"),
+        help="Which encoder variant to demonstrate (default: all).",
+    )
+    parser.add_argument(
+        "--jd", type=float, default=None,
+        help="Date as Julian Day (default: REFERENCE_JD + 365).",
+    )
+    parser.add_argument(
+        "--sigma-day", action="store_true",
+        help="Print sigma_day operator metadata for --D.",
+    )
+    parser.add_argument(
+        "--D", type=int, default=None,
+        help="D for sigma_day or block-diagonal demos.",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = _make_parser().parse_args(argv)
+    test_jd = args.jd if args.jd is not None else REFERENCE_JD + 365.0
     print("Resonant HDC encoder for the Antikythera mechanism (Phase 2)")
     print("=" * 60)
-    print()
     print(f"REFERENCE_JD     = {REFERENCE_JD}")
     print(f"D_CALLIPPIC      = {D_CALLIPPIC}")
     print(f"D_PACKING        = {D_PACKING}")
     print(f"D_LCM            = {D_LCM:_}  ({len(str(D_LCM))} digits)")
     print()
+
+    if args.sigma_day:
+        D = args.D if args.D is not None else D_CALLIPPIC
+        sd = sigma_day(D)
+        print(f"sigma_day(D={D}): shape={sd.shape}  "
+              f"|det|={abs(np.linalg.det(sd)):.4f}")
+        return 0
 
     # Cross-talk pre-flight for the dense variants
     for D, label in [(D_CALLIPPIC, "Callippic"), (D_PACKING, "Packing")]:
@@ -430,48 +492,47 @@ if __name__ == "__main__":
               f"Gram max off-diag = {max_offdiag:.4f}  "
               f"(threshold < 0.05: {'PASS' if max_offdiag < 0.05 else 'FAIL'})")
     print()
-
-    # Sample encodings
-    test_jd = REFERENCE_JD + 365.0  # one year after epoch
-    print(f"Sample encoding at JD = {test_jd} (REFERENCE_JD + 365 days):")
+    print(f"Sample encoding at JD = {test_jd}:")
     print()
 
-    s_callippic = encode_ant_callippic(test_jd)
-    print(f"  encode_ant_callippic: shape={s_callippic.shape} "
-          f"dtype={s_callippic.dtype} "
-          f"||state||={np.linalg.norm(s_callippic):.4f}")
-
-    s_packing = encode_ant_packing(test_jd)
-    print(f"  encode_ant_packing:   shape={s_packing.shape} "
-          f"dtype={s_packing.dtype} "
-          f"||state||={np.linalg.norm(s_packing):.4f}")
-
-    s_lcm = encode_ant_lcm(test_jd)
-    print(f"  encode_ant_lcm:       LCMState with "
-          f"{len(s_lcm.residues)} residues, D={s_lcm.D:_}")
-    for name, r in list(s_lcm.residues.items())[:5]:
-        print(f"    {name:35s} residue = {r}")
-    if len(s_lcm.residues) > 5:
-        print(f"    ... ({len(s_lcm.residues) - 5} more)")
-
-    s_block = encode_ant_block_diagonal(test_jd, D_PACKING)
-    print(f"  encode_ant_block_diagonal (D={D_PACKING}): "
-          f"shape={s_block.shape} non-zero={int(np.sum(np.abs(s_block) > 0))}")
+    if args.variant in ("callippic", "all"):
+        s = encode_ant_callippic(test_jd)
+        print(f"  encode_ant_callippic: shape={s.shape} "
+              f"dtype={s.dtype} ||state||={np.linalg.norm(s):.4f}")
+    if args.variant in ("packing", "all"):
+        s = encode_ant_packing(test_jd)
+        print(f"  encode_ant_packing:   shape={s.shape} "
+              f"dtype={s.dtype} ||state||={np.linalg.norm(s):.4f}")
+    if args.variant in ("lcm", "all"):
+        s_lcm = encode_ant_lcm(test_jd)
+        print(f"  encode_ant_lcm:       LCMState with "
+              f"{len(s_lcm.residues)} residues, D={s_lcm.D:_}")
+        for name, r in list(s_lcm.residues.items())[:5]:
+            print(f"    {name:35s} residue = {r}")
+        if len(s_lcm.residues) > 5:
+            print(f"    ... ({len(s_lcm.residues) - 5} more)")
+    if args.variant in ("block", "all"):
+        D = args.D if args.D is not None else D_PACKING
+        s_block = encode_ant_block_diagonal(test_jd, D)
+        print(f"  encode_ant_block_diagonal (D={D}): "
+              f"shape={s_block.shape} "
+              f"non-zero={int(np.sum(np.abs(s_block) > 0))}")
     print()
 
-    # σ_day check
-    sd = sigma_day(D_CALLIPPIC)
-    print(f"sigma_day(D=940): shape={sd.shape}  "
-          f"unitary check |det|={abs(np.linalg.det(sd)):.4f} "
-          f"(should be 1.0 for permutation matrix)")
-    print()
+    if args.variant == "all":
+        sd = sigma_day(D_CALLIPPIC)
+        print(f"sigma_day(D=940): shape={sd.shape}  "
+              f"|det|={abs(np.linalg.det(sd)):.4f} (should be 1.0)")
+        s0 = encode_ant_callippic(test_jd)
+        s1 = advance_day(test_jd, D_CALLIPPIC, days=1)
+        overlap = float(np.abs(np.vdot(s0, s1)))
+        print(f"advance_day overlap |<state(t), state(t+1)>| = "
+              f"{overlap:.4f} (should be < 1; decorrelation expected)")
+        print()
+        print("All smoke tests pass.")
+    return 0
 
-    # advance_day check
-    s0 = encode_ant_callippic(test_jd)
-    s1 = advance_day(test_jd, D_CALLIPPIC, days=1)
-    overlap = float(np.abs(np.vdot(s0, s1)))
-    print(f"advance_day overlap |<state(t), state(t+1)>| = {overlap:.4f} "
-          f"(should be < 1; some decorrelation expected)")
-    print()
 
-    print("All smoke tests pass.")
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

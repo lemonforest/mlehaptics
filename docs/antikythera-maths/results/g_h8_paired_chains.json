@@ -1,0 +1,296 @@
+{
+  "Mercury": [
+    {
+      "chain_a_p_q": [
+        145,
+        46
+      ],
+      "chain_a_primes": [
+        23,
+        29
+      ],
+      "chain_b_p_q": [
+        104,
+        33
+      ],
+      "chain_b_primes": [
+        11,
+        13
+      ],
+      "sync_residual_pct": 0.020898641588294294,
+      "bronze_total": 328,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        145,
+        46
+      ],
+      "chain_a_primes": [
+        23,
+        29
+      ],
+      "chain_b_p_q": [
+        41,
+        13
+      ],
+      "chain_b_primes": [
+        13,
+        41
+      ],
+      "sync_residual_pct": 0.05305039787798757,
+      "bronze_total": 245,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        145,
+        46
+      ],
+      "chain_a_primes": [
+        23,
+        29
+      ],
+      "chain_b_p_q": [
+        22,
+        7
+      ],
+      "chain_b_primes": [
+        7,
+        11
+      ],
+      "sync_residual_pct": 0.2955665024630495,
+      "bronze_total": 220,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        145,
+        46
+      ],
+      "chain_a_primes": [
+        23,
+        29
+      ],
+      "chain_b_p_q": [
+        19,
+        6
+      ],
+      "chain_b_primes": [
+        19
+      ],
+      "sync_residual_pct": 0.45977011494253084,
+      "bronze_total": 216,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    }
+  ],
+  "Venus": [
+    {
+      "chain_a_p_q": [
+        289,
+        462
+      ],
+      "chain_a_primes": [
+        7,
+        11,
+        17
+      ],
+      "chain_b_p_q": [
+        147,
+        235
+      ],
+      "chain_b_primes": [
+        7,
+        47
+      ],
+      "sync_residual_pct": 0.0014724287712507016,
+      "bronze_total": 1133,
+      "primes_disjoint": false,
+      "primes_overlap": [
+        7
+      ]
+    },
+    {
+      "chain_a_p_q": [
+        289,
+        462
+      ],
+      "chain_a_primes": [
+        7,
+        11,
+        17
+      ],
+      "chain_b_p_q": [
+        5,
+        8
+      ],
+      "chain_b_primes": [],
+      "sync_residual_pct": 0.08650519031141354,
+      "bronze_total": 764,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    }
+  ],
+  "Mars": [
+    {
+      "chain_a_p_q": [
+        133,
+        125
+      ],
+      "chain_a_primes": [
+        7,
+        19
+      ],
+      "chain_b_p_q": [
+        83,
+        78
+      ],
+      "chain_b_primes": [
+        13,
+        83
+      ],
+      "sync_residual_pct": 0.009639483323687971,
+      "bronze_total": 419,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        133,
+        125
+      ],
+      "chain_a_primes": [
+        7,
+        19
+      ],
+      "chain_b_p_q": [
+        50,
+        47
+      ],
+      "chain_b_primes": [
+        47
+      ],
+      "sync_residual_pct": 0.01599744040954159,
+      "bronze_total": 355,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        133,
+        125
+      ],
+      "chain_a_primes": [
+        7,
+        19
+      ],
+      "chain_b_p_q": [
+        33,
+        31
+      ],
+      "chain_b_primes": [
+        11,
+        31
+      ],
+      "sync_residual_pct": 0.048508367693416383,
+      "bronze_total": 322,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        133,
+        125
+      ],
+      "chain_a_primes": [
+        7,
+        19
+      ],
+      "chain_b_p_q": [
+        17,
+        16
+      ],
+      "chain_b_primes": [
+        17
+      ],
+      "sync_residual_pct": 0.1409774436090279,
+      "bronze_total": 291,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    },
+    {
+      "chain_a_p_q": [
+        133,
+        125
+      ],
+      "chain_a_primes": [
+        7,
+        19
+      ],
+      "chain_b_p_q": [
+        16,
+        15
+      ],
+      "chain_b_primes": [],
+      "sync_residual_pct": 0.25062656641603337,
+      "bronze_total": 289,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    }
+  ],
+  "Jupiter": [
+    {
+      "chain_a_p_q": [
+        76,
+        83
+      ],
+      "chain_a_primes": [
+        19,
+        83
+      ],
+      "chain_b_p_q": [
+        11,
+        12
+      ],
+      "chain_b_primes": [
+        11
+      ],
+      "sync_residual_pct": 0.1096491228070189,
+      "bronze_total": 182,
+      "primes_disjoint": true,
+      "primes_overlap": []
+    }
+  ],
+  "Saturn": [
+    {
+      "chain_a_p_q": [
+        427,
+        442
+      ],
+      "chain_a_primes": [
+        7,
+        13,
+        17,
+        61
+      ],
+      "chain_b_p_q": [
+        28,
+        29
+      ],
+      "chain_b_primes": [
+        7,
+        29
+      ],
+      "sync_residual_pct": 0.05652911249293049,
+      "bronze_total": 926,
+      "primes_disjoint": false,
+      "primes_overlap": [
+        7
+      ]
+    }
+  ]
+}

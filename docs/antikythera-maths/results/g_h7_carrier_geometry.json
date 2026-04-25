@@ -1,0 +1,3303 @@
+{
+  "case_dimensions_mm": [
+    340.0,
+    180.0,
+    90.0
+  ],
+  "insertable_depth_mm": 84.0,
+  "carrier_diameter_mm": 15.0,
+  "n_total": 411,
+  "n_feasible": 131,
+  "n_tight": 0,
+  "n_infeasible": 280,
+  "results": [
+    {
+      "gear_a": "a1",
+      "gear_b": "b2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "c1",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "c2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "d1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "d2",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e3",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e4",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e5",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e6",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "f1",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "f2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 70.178344238091,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "g1",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "g2",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "h1",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "h2",
+      "inter_axle_mm": 80.15609770940699,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 80.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "i1",
+      "inter_axle_mm": 88.56635930193812,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 88.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "k1",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "k2",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "l1",
+      "inter_axle_mm": 34.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "l2",
+      "inter_axle_mm": 38.742741255621034,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "m1",
+      "inter_axle_mm": 44.14748010928823,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 44.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "a1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "c2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "d1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "d2",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e1",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e3",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e4",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e5",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e6",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 57.48043145279966,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 57.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "f1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "f2",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 62.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 62.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "g1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "g2",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "h1",
+      "inter_axle_mm": 64.19501538281614,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "h2",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "i1",
+      "inter_axle_mm": 80.15609770940699,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 80.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "k1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "k2",
+      "inter_axle_mm": 64.19501538281614,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "l1",
+      "inter_axle_mm": 31.448370387032774,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "l2",
+      "inter_axle_mm": 34.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "m1",
+      "inter_axle_mm": 39.698866482558415,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 39.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 57.48043145279966,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 57.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 57.48043145279966,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 57.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "c1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "c2",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "d1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "d2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "e1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "e3",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "e4",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "e5",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "e6",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "f1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "f2",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 54.230987451824994,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 54.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "g1",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "g2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "h1",
+      "inter_axle_mm": 56.88585061331157,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "h2",
+      "inter_axle_mm": 64.19501538281614,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "i1",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "k1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "k2",
+      "inter_axle_mm": 56.88585061331157,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "l1",
+      "inter_axle_mm": 31.622776601683793,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "l2",
+      "inter_axle_mm": 31.448370387032774,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "m1",
+      "inter_axle_mm": 37.16180835212409,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 37.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "b2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "d1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "d2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "e1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "e3",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "e4",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "f1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "f2",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 54.230987451824994,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 54.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "g1",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "g2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "h1",
+      "inter_axle_mm": 56.88585061331157,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "h2",
+      "inter_axle_mm": 64.19501538281614,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "i1",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "k2",
+      "inter_axle_mm": 56.88585061331157,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "d2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "e1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "e3",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "e4",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "f1",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "f2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 46.2709412050371,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 46.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "g1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "g2",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "h1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "h2",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "i1",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "k2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "c2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "e1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "e3",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "e4",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "f1",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "f2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 38.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "g1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "g2",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "h1",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "h2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "i1",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "k2",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "e3",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "e4",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "f1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "f2",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 30.4138126514911,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 30.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "g1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "g2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "h1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "h2",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "i1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "k2",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "d2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "e4",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "f1",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "f2",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 22.561028345356956,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 7.4 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "g1",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "g2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "h1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "h2",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "i1",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "k2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "c1",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "c2",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "d1",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "d2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "e1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "e3",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "e4",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "e6",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "f1",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "f2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 46.2709412050371,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 46.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "g1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "g2",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "h1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "h2",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "i1",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "k1",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "k2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "l1",
+      "inter_axle_mm": 31.04834939252005,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "l2",
+      "inter_axle_mm": 30.4138126514911,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 30.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "m1",
+      "inter_axle_mm": 31.448370387032774,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 101.07423014794622,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 101.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "f1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "f2",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 14.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 16.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "g1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "g2",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "h1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "h2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "i1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "k2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e3",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 101.07423014794622,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 101.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 109.27488274987991,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 109.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "f1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "f2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 7.810249675906654,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 22.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "g1",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "g2",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "h1",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "h2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "i1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e4",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 109.27488274987991,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 109.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "c1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "c2",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "d1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "d2",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "e1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "e3",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "e4",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "e6",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "f2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 38.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "g1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "g2",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "h1",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "h2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "i1",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "k2",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "l1",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "l2",
+      "inter_axle_mm": 31.04834939252005,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "m1",
+      "inter_axle_mm": 31.622776601683793,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e5",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "c1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "c2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "d1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "d2",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "e1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "e3",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "e4",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "f1",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "f2",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 22.561028345356956,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 7.4 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "g1",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "g2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "h1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "h2",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "i1",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "k2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "l2",
+      "inter_axle_mm": 38.742741255621034,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "m1",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e6",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "f1",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "f2",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 70.178344238091,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "g1",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "g2",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "h1",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "h2",
+      "inter_axle_mm": 80.15609770940699,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 80.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "i1",
+      "inter_axle_mm": 88.56635930193812,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 88.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "e_eccentric",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "exeligmos_display",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 114.45523142259597,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 114.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 30.4138126514911,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 30.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "g1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "g2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "h1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "h2",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "i1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 22.561028345356956,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 7.4 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "g2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "h1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "h2",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "i1",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "f2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "g1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 101.07423014794622,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 101.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "g1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 14.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 16.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "g1",
+      "gear_b": "h1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "g1",
+      "gear_b": "h2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "g1",
+      "gear_b": "i1",
+      "inter_axle_mm": 32.38826948140329,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 32.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "g1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 101.07423014794622,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 101.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "g2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 109.27488274987991,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 109.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "g2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 7.810249675906654,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 22.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "g2",
+      "gear_b": "h2",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "g2",
+      "gear_b": "i1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "g2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 109.27488274987991,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 109.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "h1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 116.05602095539895,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 116.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "h1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 5.385164807134504,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 24.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "h1",
+      "gear_b": "i1",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "h1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 116.05602095539895,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 116.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "h2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 124.09673645990857,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 124.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "h2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 10.0,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.0 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "h2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 124.09673645990857,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 124.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "i1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 132.32157798333574,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 132.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "i1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 18.681541692269406,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.3 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "i1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 132.32157798333574,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 132.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "c1",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "c2",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "d1",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "d2",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "e1",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "e3",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "e4",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 41.23105625617661,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 41.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "f1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "f2",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 30.4138126514911,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 30.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "g1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "g2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "h1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "h2",
+      "inter_axle_mm": 40.311288741492746,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 40.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "i1",
+      "inter_axle_mm": 48.0,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 48.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "k2",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "l1",
+      "inter_axle_mm": 39.698866482558415,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 39.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "l2",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "m1",
+      "inter_axle_mm": 34.48187929913333,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 116.05602095539895,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 116.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "f1",
+      "inter_axle_mm": 33.52610922848042,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 33.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "f2",
+      "inter_axle_mm": 24.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 6.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 5.385164807134504,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 24.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "g1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "g2",
+      "inter_axle_mm": 12.806248474865697,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 17.2 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "h1",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "h2",
+      "inter_axle_mm": 9.433981132056603,
+      "insertion_depth_mm": 65.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 20.6 mm; insertion depth 65.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "i1",
+      "inter_axle_mm": 18.867962264113206,
+      "insertion_depth_mm": 70.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 11.1 mm; insertion depth 70.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "k2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 116.05602095539895,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 116.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "c1",
+      "inter_axle_mm": 31.622776601683793,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "c2",
+      "inter_axle_mm": 31.04834939252005,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "d1",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "d2",
+      "inter_axle_mm": 39.698866482558415,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 39.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "e1",
+      "inter_axle_mm": 43.86342439892262,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 43.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "e3",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "e4",
+      "inter_axle_mm": 57.48043145279966,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 57.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 34.0,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "f1",
+      "inter_axle_mm": 39.698866482558415,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 39.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "f2",
+      "inter_axle_mm": 43.86342439892262,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 43.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 61.97580172938467,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 62.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "g1",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "g2",
+      "inter_axle_mm": 57.48043145279966,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 57.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "h1",
+      "inter_axle_mm": 63.52952069707436,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 63.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "h2",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "i1",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "k2",
+      "inter_axle_mm": 63.52952069707436,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 63.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "m1",
+      "inter_axle_mm": 16.76305461424021,
+      "insertion_depth_mm": 60.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 13.2 mm; insertion depth 60.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 56.22277118748239,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "c1",
+      "inter_axle_mm": 31.448370387032774,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "c2",
+      "inter_axle_mm": 30.4138126514911,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 30.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "d1",
+      "inter_axle_mm": 31.04834939252005,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "d2",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "e1",
+      "inter_axle_mm": 38.742741255621034,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "e3",
+      "inter_axle_mm": 43.86342439892262,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 43.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "e4",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 38.742741255621034,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "f1",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "f2",
+      "inter_axle_mm": 38.742741255621034,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 38.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 54.91812087098393,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 54.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "g1",
+      "inter_axle_mm": 43.86342439892262,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 43.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "g2",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "h1",
+      "inter_axle_mm": 56.824290580701486,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "h2",
+      "inter_axle_mm": 63.52952069707436,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 63.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "i1",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "k2",
+      "inter_axle_mm": 56.824290580701486,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 56.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "l2",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 64.77653896280658,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 64.8 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "c1",
+      "inter_axle_mm": 37.16180835212409,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 37.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "c2",
+      "inter_axle_mm": 31.448370387032774,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "d1",
+      "inter_axle_mm": 31.622776601683793,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 31.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "d2",
+      "inter_axle_mm": 34.48187929913333,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "e1",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "e3",
+      "inter_axle_mm": 39.698866482558415,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 39.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "e4",
+      "inter_axle_mm": 46.357307945997036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 46.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 44.14748010928823,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 44.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 55.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "f1",
+      "inter_axle_mm": 34.48187929913333,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "f2",
+      "inter_axle_mm": 34.36568055487916,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 34.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 49.4368283772331,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 49.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "g1",
+      "inter_axle_mm": 39.698866482558415,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 39.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "g2",
+      "inter_axle_mm": 46.357307945997036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 46.4 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "h1",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "h2",
+      "inter_axle_mm": 57.48043145279966,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 57.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "i1",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "k2",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "metonic_display",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 55.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "m1",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 72.0,
+      "insertion_depth_mm": 55.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 72.0 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "c1",
+      "inter_axle_mm": 65.27633568147036,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 65.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "c2",
+      "inter_axle_mm": 70.8590149522275,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 70.9 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "d1",
+      "inter_axle_mm": 78.63841300535,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 78.6 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "d2",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "e1",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "e3",
+      "inter_axle_mm": 101.07423014794622,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 101.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "e4",
+      "inter_axle_mm": 109.27488274987991,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 109.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "e_eccentric",
+      "inter_axle_mm": 50.24937810560445,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 50.2 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 55.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 55.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "f1",
+      "inter_axle_mm": 86.74675786448736,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 86.7 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "f2",
+      "inter_axle_mm": 93.1074647920348,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 93.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 114.45523142259597,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 114.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "g1",
+      "inter_axle_mm": 101.07423014794622,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 101.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "g2",
+      "inter_axle_mm": 109.27488274987991,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 109.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "h1",
+      "inter_axle_mm": 116.05602095539895,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 116.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "h2",
+      "inter_axle_mm": 124.09673645990857,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 124.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "i1",
+      "inter_axle_mm": 132.32157798333574,
+      "insertion_depth_mm": 70.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 132.3 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "k2",
+      "inter_axle_mm": 116.05602095539895,
+      "insertion_depth_mm": 60.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 116.1 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    },
+    {
+      "gear_a": "metonic_display",
+      "gear_b": "saros_display",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 55.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 55.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "saros_display",
+      "gear_b": "exeligmos_display",
+      "inter_axle_mm": 0.0,
+      "insertion_depth_mm": 55.0,
+      "verdict": "FEASIBLE",
+      "note": "Span margin 30.0 mm; insertion depth 55.0 mm.  Carrier fits comfortably."
+    },
+    {
+      "gear_a": "saros_display",
+      "gear_b": "frag_d_63",
+      "inter_axle_mm": 114.45523142259597,
+      "insertion_depth_mm": 65.0,
+      "verdict": "INFEASIBLE",
+      "note": "Inter-axle distance 114.5 mm exceeds carrier reach (30.0 mm = 2x diameter).  Carrier cannot span both gears with single mesh contact."
+    }
+  ]
+}
