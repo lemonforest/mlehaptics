@@ -1205,6 +1205,43 @@ If pursued, this is the strongest unifying reading of the missing-gear question 
 
 The next operational step is to extend [research/gear_topology.py](research/gear_topology.py) with a `SettingModeGear` class (analogous to G-H5's `NonGearElement`) plus a load-state distinction in the gear DAG (a gear can be `trunk` or `setting-mode`, with consequences for centrality scoring under different operational modes).  G-H8 is at the right level of formal articulation to add to the consolidated hypothesis battery once code support exists.
 
+#### 11.6.15.9 The precise specification: "they move, but they don't move the dials, unless being set"
+
+The user's exact refinement, captured verbatim because it pins down the canonical implementation:
+
+> "Like they move, but they don't move the dials, unless being 'set'."
+
+This is the mechanical picture: **the gears are kinematically active during normal operation (rotating along with the trunk-driven train) but functionally inert with respect to the dial output (their motion does not advance the dial pointer).**  Under setting mode, the same gears become functionally active — their rotation now drives the dial.
+
+Two canonical mechanical implementations of "kinematically active but functionally inert":
+
+##### Implementation A: Synchronised-input differential (most likely)
+
+Two parallel chains both compute the *same* astronomical quantity (e.g., both encode Mars's heliocentric longitude via different gear ratios, both driven from b1's solar shaft).  These two chains feed the two sun gears of a differential.  The differential's planet gear:
+
+- **Normal operation**: both inputs rotate at synchronised rates by design (the two chains are calibrated to give the same output rate per unit b1 rotation).  Differential output = (input_A − input_B) ≈ 0.  **Planet gear rotates because the two suns are spinning, but the dial output doesn't move.**
+- **Setting**: one input is decoupled from b1 (e.g., by §11.6.10's clutch).  Operator manually rotates that input via a setting interface.  Now input_A ≠ input_B; differential output is non-zero; planet gear's motion translates to dial movement.
+
+The b1-b2 differential is *almost* this — the difference is that its two inputs (sun and sidereal lunar) are *not* synchronised: they rotate at different rates by astronomical design, so the b1-b2 output (synodic phase) DOES advance during normal operation.  But OTHER differentials in the missing planetary plate could be of the synchronised-input variety: two parallel computations of the same quantity, designed to agree, with the differential output reading drift OR carrying setting load only when one input is decoupled.
+
+##### Implementation B: Free-wheeling idler with pivoting axle
+
+An idler gear meshes with the trunk on one face but has a pivoting / sliding axle that can either engage the dial input or sit clear of it.  Under normal operation, the axle is positioned such that the idler spins freely with the trunk but doesn't contact the dial input — kinematically active, functionally inert.  Under setting, the axle pivots to engage the dial input; operator-driven rotation of the idler now translates to dial motion.
+
+Implementation B requires additional bronze (a pivoting-axle mechanism) and a clutch element.  Implementation A only requires a permanent differential and a separate clutch on one of its inputs.  **Implementation A is mechanically simpler and uses architecture already attested in the b1-b2 differential.**
+
+##### Why this is the strongest reading of the missing-gear question
+
+The user's "moves but doesn't move the dials" specification rules out:
+
+- **Pure tolerance compensators** (§10): a compensator that doesn't move the dial during normal operation isn't a compensator.  Compensators by definition modify the trunk's output.
+- **Pure gear-ratio bridges** (Freeth 2021's planetary period-relation gears): these MOVE the dials by design; they're trunk gears, not setting-mode gears.
+- **Carrier gears** (G-H7 §11.6.14): carriers either move the dial when inserted or don't exist when removed.  No "kinematically active but functionally inert" intermediate state.
+
+The specification is **selectively consistent with G-H8's setting-mode reading** and few alternatives.  This is the kind of operational specificity that distinguishes hypotheses — many missing-gear interpretations are compatible with "some gears are missing", but only a few are compatible with "they move but don't move the dials, unless being set."
+
+The hypothesis space has narrowed.  G-H8's specific prediction — synchronised-input differentials in the missing planetary plate — is now the leading candidate for what the missing bronze actually does.  Falsification path §11.6.15.6 should be tightened: look for **paired planetary chains computing the same quantity** in any extension of [research/gear_database.py](research/gear_database.py)'s `MESH_EDGES`.  Two chains that converge on a single differential output reading "drift between them" is the signature.
+
 ### 11.6.9 Visualisation
 
 [docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
