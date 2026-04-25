@@ -1103,76 +1103,188 @@
       90.0
     ],
     "insertable_depth_mm": 84.0,
-    "sample_results": [
+    "feasible_pairs": [
+      {
+        "gear_a": "a1",
+        "gear_b": "d1",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "f1",
+        "inter_axle_mm": 41.23
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "l1",
+        "inter_axle_mm": 34.0
+      },
+      {
+        "gear_a": "a1",
+        "gear_b": "l2",
+        "inter_axle_mm": 38.74
+      },
+      {
+        "gear_a": "b1",
+        "gear_b": "h2",
+        "inter_axle_mm": 72.0
+      },
+      {
+        "gear_a": "b2",
+        "gear_b": "e3",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "c1",
+        "gear_b": "e1",
+        "inter_axle_mm": 33.53
+      },
+      {
+        "gear_a": "c1",
+        "gear_b": "f2",
+        "inter_axle_mm": 33.53
+      },
+      {
+        "gear_a": "d1",
+        "gear_b": "e4",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "d1",
+        "gear_b": "e_eccentric",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "d1",
+        "gear_b": "frag_d_63",
+        "inter_axle_mm": 38.0
+      },
+      {
+        "gear_a": "e2",
+        "gear_b": "e3",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "e2",
+        "gear_b": "l1",
+        "inter_axle_mm": 31.05
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "g2",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "h1",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "k2",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "l1",
+        "inter_axle_mm": 34.37
+      },
+      {
+        "gear_a": "e5",
+        "gear_b": "saros_display",
+        "inter_axle_mm": 78.64
+      },
+      {
+        "gear_a": "e6",
+        "gear_b": "h2",
+        "inter_axle_mm": 32.39
+      },
+      {
+        "gear_a": "e6",
+        "gear_b": "i1",
+        "inter_axle_mm": 41.23
+      },
+      {
+        "gear_a": "e6",
+        "gear_b": "l2",
+        "inter_axle_mm": 38.74
+      },
+      {
+        "gear_a": "e_eccentric",
+        "gear_b": "f1",
+        "inter_axle_mm": 41.23
+      },
+      {
+        "gear_a": "k1",
+        "gear_b": "h2",
+        "inter_axle_mm": 40.31
+      },
+      {
+        "gear_a": "l1",
+        "gear_b": "c1",
+        "inter_axle_mm": 31.62
+      },
+      {
+        "gear_a": "l1",
+        "gear_b": "e_eccentric",
+        "inter_axle_mm": 34.0
+      },
+      {
+        "gear_a": "l2",
+        "gear_b": "d1",
+        "inter_axle_mm": 31.05
+      },
+      {
+        "gear_a": "l2",
+        "gear_b": "e_eccentric",
+        "inter_axle_mm": 38.74
+      },
+      {
+        "gear_a": "m1",
+        "gear_b": "h1",
+        "inter_axle_mm": 50.25
+      },
+      {
+        "gear_a": "m1",
+        "gear_b": "k2",
+        "inter_axle_mm": 50.25
+      },
+      {
+        "gear_a": "metonic_display",
+        "gear_b": "d1",
+        "inter_axle_mm": 78.64
+      }
+    ],
+    "sample_infeasible": [
       {
         "gear_a": "a1",
         "gear_b": "b2",
         "inter_axle_mm": 18.867962264113206,
-        "verdict": "INFEASIBLE",
         "note": "Inter-axle 18.9 mm below ideal triple-tangent 41.7 mm by 22.9 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "c1",
         "inter_axle_mm": 18.867962264113206,
-        "verdict": "INFEASIBLE",
         "note": "Inter-axle 18.9 mm below ideal triple-tangent 35.5 mm by 16.7 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "c2",
         "inter_axle_mm": 24.0,
-        "verdict": "INFEASIBLE",
         "note": "Inter-axle 24.0 mm below ideal triple-tangent 37.9 mm by 13.9 mm.  Gears overlap; carrier cannot fit between them."
-      },
-      {
-        "gear_a": "a1",
-        "gear_b": "d1",
-        "inter_axle_mm": 32.38826948140329,
-        "verdict": "FEASIBLE",
-        "note": "Inter-axle 32.4 mm matches ideal triple-tangent 32.2 mm (residual +0.2 mm).  Insertion depth 65.0 mm.  Carrier fits."
       },
       {
         "gear_a": "a1",
         "gear_b": "d2",
         "inter_axle_mm": 41.23105625617661,
-        "verdict": "INFEASIBLE",
         "note": "Inter-axle 41.2 mm below ideal triple-tangent 56.8 mm by 15.5 mm.  Gears overlap; carrier cannot fit between them."
       },
       {
         "gear_a": "a1",
         "gear_b": "e1",
         "inter_axle_mm": 48.0,
-        "verdict": "INFEASIBLE",
         "note": "Inter-axle 48.0 mm exceeds ideal triple-tangent 34.1 mm (r_A=11.5+r_B=7.6+2*r_C=15.0) by +13.9 mm.  Carrier cannot mesh both gears collinearly."
-      },
-      {
-        "gear_a": "a1",
-        "gear_b": "e2",
-        "inter_axle_mm": 24.0,
-        "verdict": "INFEASIBLE",
-        "note": "Inter-axle 24.0 mm below ideal triple-tangent 34.1 mm by 10.1 mm.  Gears overlap; carrier cannot fit between them."
-      },
-      {
-        "gear_a": "a1",
-        "gear_b": "e3",
-        "inter_axle_mm": 56.22277118748239,
-        "verdict": "INFEASIBLE",
-        "note": "Inter-axle 56.2 mm exceeds ideal triple-tangent 38.4 mm (r_A=11.5+r_B=11.9+2*r_C=15.0) by +17.8 mm.  Carrier cannot mesh both gears collinearly."
-      },
-      {
-        "gear_a": "a1",
-        "gear_b": "e4",
-        "inter_axle_mm": 64.77653896280658,
-        "verdict": "INFEASIBLE",
-        "note": "Inter-axle 64.8 mm exceeds ideal triple-tangent 38.4 mm (r_A=11.5+r_B=11.9+2*r_C=15.0) by +26.4 mm.  Carrier cannot mesh both gears collinearly."
-      },
-      {
-        "gear_a": "a1",
-        "gear_b": "e5",
-        "inter_axle_mm": 32.38826948140329,
-        "verdict": "INFEASIBLE",
-        "note": "Inter-axle 32.4 mm below ideal triple-tangent 39.1 mm by 6.7 mm.  Gears overlap; carrier cannot fit between them."
       }
     ]
   },

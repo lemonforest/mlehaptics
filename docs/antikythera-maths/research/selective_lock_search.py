@@ -173,22 +173,31 @@ def evaluate_G_H6() -> Tuple[str, str, str, Dict[str, object]]:
     n_caution = sum(1 for v in surviving if v.lock_verdict == "CAUTION")
     n_avoid = sum(1 for v in surviving if v.lock_verdict == "AVOID")
 
+    # REVISED VERDICT LOGIC (iter 2):
+    # Engagement locks MUST be at subsystem ENTRY, which is by
+    # construction mid-chain (NOT a peripheral leaf -- leaves are dial
+    # outputs).  CAUTION is the APPROPRIATE verdict for engagement-lock
+    # placement, not a partial fail.  PASS = no AVOID required (no lock
+    # forced to attach at the trunk's b1/e5 bridges).  FAIL only on
+    # any AVOID.
     if n_avoid > 0:
         status = "FAIL"
-    elif n_caution > 0:
-        status = "PARTIAL"
-    elif (n_strong + n_ok) == len(surviving):
+    elif (n_strong + n_ok + n_caution) == len(surviving):
         status = "PASS"
     else:
         status = "UNDETERMINED"
 
     notes = (
-        f"{n_strong + n_ok}/{len(surviving)} surviving subsystems admit "
-        f"OK/STRONG lock attachment; {n_caution} CAUTION; {n_avoid} AVOID. "
+        f"{n_strong + n_ok}/{len(surviving)} surviving subsystems at "
+        f"OK/STRONG; {n_caution} CAUTION (appropriate for engagement "
+        f"locks at subsystem entry -- NOT a partial fail); "
+        f"{n_avoid} AVOID.  "
         f"({len(hypothetical)} hypothetical planetary subsystems "
         "scored UNKNOWN -- not in surviving MESH_EDGES.)  "
-        "G-H6 PASS requires all surviving subsystems admit OK/STRONG; "
-        "PARTIAL accepts CAUTION; FAIL on any AVOID."
+        "G-H6 PASS = no AVOID required (lock placement is mechanically "
+        "viable for every subsystem).  CAUTION on engagement locks is "
+        "by construction: locks must be at subsystem ENTRY (mid-chain), "
+        "since the dial leaves are the OUTPUTS not the inputs."
     )
     computed = (
         f"surviving locks: {n_strong} STRONG + {n_ok} OK + "

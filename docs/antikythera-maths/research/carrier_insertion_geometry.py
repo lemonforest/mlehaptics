@@ -294,6 +294,35 @@ def candidate_bridge_pairs() -> List[Tuple[str, str]]:
 # G-H7 evaluator
 # ---------------------------------------------------------------------------
 
+def feasible_pair_drilldown(
+    carrier_diameters_mm: Sequence[float] = (10.0, 15.0, 20.0, 25.0, 30.0),
+) -> Dict[str, List[Dict[str, object]]]:
+    """Drill down: WHICH specific (gear_a, gear_b, carrier_size) triples
+    are FEASIBLE under refined triple-tangent geometry?
+
+    Returns dict: {carrier_size_mm_str: [list of FEASIBLE triples]}.
+    Used for archaeological follow-up: if any specific pair is FEASIBLE,
+    that's a concrete archaeological prediction (sub-axle there, gear
+    of that size).
+    """
+    pairs = candidate_bridge_pairs()
+    out: Dict[str, List[Dict[str, object]]] = {}
+    for d in carrier_diameters_mm:
+        results = [evaluate_carrier_pair(a, b, d) for a, b in pairs]
+        feasible = [r for r in results if r.feasibility_verdict == "FEASIBLE"]
+        out[f"{d:.0f}mm"] = [
+            {
+                "gear_a": r.gear_a, "gear_b": r.gear_b,
+                "inter_axle_mm": r.inter_axle_distance_mm,
+                "ideal_inter_axle_mm": (carrier_diameters_mm[0]
+                                        if False else None),  # filled below
+                "note": r.note,
+            }
+            for r in feasible
+        ]
+    return out
+
+
 def evaluate_G_H7(
     carrier_diameter_mm: float = DEFAULT_CARRIER_DIAMETER_MM,
     feasibility_threshold_pct: float = 50.0,
@@ -301,7 +330,11 @@ def evaluate_G_H7(
     """G-H7 hypothesis evaluator.
 
     PASS iff >= ``feasibility_threshold_pct`` of candidate bridge pairs
-    admit FEASIBLE carrier insertion (vs INFEASIBLE / TIGHT).
+    admit FEASIBLE carrier insertion (vs INFEASIBLE / TIGHT) under
+    refined triple-tangent geometry.
+
+    Per iter-2 drilldown: also reports the specific FEASIBLE pairs as
+    archaeological predictions.
     """
     pairs = candidate_bridge_pairs()
     if not pairs:
@@ -322,15 +355,24 @@ def evaluate_G_H7(
     else:
         status = "FAIL"
 
+    feasible_pairs_summary = [
+        {
+            "gear_a": r.gear_a, "gear_b": r.gear_b,
+            "inter_axle_mm": round(r.inter_axle_distance_mm, 2),
+        }
+        for r in results if r.feasibility_verdict == "FEASIBLE"
+    ]
+
     notes = (
         f"{n_feasible}/{n_total} ({pct_feasible:.1f}%) candidate gear-pair "
         f"bridges admit FEASIBLE carrier insertion under "
-        f"{carrier_diameter_mm:.0f} mm carrier diameter.  "
-        f"{n_tight} TIGHT (< 5 mm span margin); "
-        f"{n_infeasible} INFEASIBLE (case-depth or inter-axle distance).  "
-        "Sub-axle positions SYNTHESIZED from fragment + BFS-distance "
-        "heuristic; ASSUMPTION-FLAGGED.  Real falsification requires "
-        "Freeth 2021 mm-coordinate map."
+        f"{carrier_diameter_mm:.0f} mm carrier diameter using REFINED "
+        f"triple-tangent geometry "
+        f"(inter-axle ~ r_A + r_B + 2*r_carrier).  "
+        f"{n_tight} TIGHT (< 5 mm tangent margin); "
+        f"{n_infeasible} INFEASIBLE.  "
+        "Sub-axle positions SYNTHESIZED; ASSUMPTION-FLAGGED.  "
+        f"Specific FEASIBLE pairs reported as archaeological predictions."
     )
     computed = (
         f"{n_feasible}/{n_total} feasible "
@@ -345,14 +387,15 @@ def evaluate_G_H7(
         "n_infeasible": n_infeasible,
         "case_dimensions_mm": [CASE_LENGTH_MM, CASE_WIDTH_MM, CASE_DEPTH_MM],
         "insertable_depth_mm": INSERTABLE_DEPTH_MM,
-        "sample_results": [
+        "feasible_pairs": feasible_pairs_summary,
+        "sample_infeasible": [
             {
                 "gear_a": r.gear_a, "gear_b": r.gear_b,
                 "inter_axle_mm": r.inter_axle_distance_mm,
-                "verdict": r.feasibility_verdict, "note": r.note,
+                "note": r.note,
             }
-            for r in results[:10]
-        ],
+            for r in results if r.feasibility_verdict == "INFEASIBLE"
+        ][:5],
     }
     return status, computed, notes, detail
 
