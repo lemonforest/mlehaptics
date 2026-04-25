@@ -17,6 +17,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Hypothesis battery**: [consolidated_tests.py](docs/antikythera-maths/research/consolidated_tests.py) runs 15 hypotheses across A-H1..F-E3, writing [results/phase1_hypotheses.csv](docs/antikythera-maths/results/phase1_hypotheses.csv) and [results/phase1_detail.json](docs/antikythera-maths/results/phase1_detail.json). Final summary: 9 PASS, 4 PARTIAL, 0 FAIL, 2 UNDETERMINED.
   - **Documentation**: [antikythera_spectral_research_notebook.md](docs/antikythera-maths/antikythera_spectral_research_notebook.md) main narrative, [ANTIKYTHERA_SPECTRAL_INSTRUCTIONS.md](docs/antikythera-maths/ANTIKYTHERA_SPECTRAL_INSTRUCTIONS.md) session-handoff guide, [ANTIKYTHERA_PHASE_OP_PREFLIGHT.md](docs/antikythera-maths/ANTIKYTHERA_PHASE_OP_PREFLIGHT.md) Phase-3 short doc, [results/session_summary.md](docs/antikythera-maths/results/session_summary.md) ~1-page summary. Cross-references chess §9a (methodological), §9f (B-H3 coprime-roll), §9m (D-H1 pin-and-slot), §11.3.3 (C-H2 torus-clip).
 
+- **Othello Phase 1e + encoder v0.3.2** ([PR #58](https://github.com/lemonforest/mlehaptics/pull/58), merged 2026-04-24):
+  Phase 1e promotes the Othello spectral stack from observational (§1d-style)
+  to sheaf-native.  Headline: **+114% cumulative correlation gain** against
+  edax d=20 archive scores (§1d.b ρ=−0.319 → §2e.16 ρ=−0.683).
+  - **Encoder v0.3.0**: default `fiber_mode="sheaf"` — per-cell R3_PENDING
+    bracket counts from the faithful sheaf replace the rank-2 fiber as the
+    reference encoder; rank-2 retained as legacy
+  - **Encoder v0.3.1**: bit-identical ANSI C17 port + ctypes DLL (~25× faster)
+    with engine dispatch `py/c/auto` and version+smoke verification
+  - **Encoder v0.3.2**: `encode-pgn` swaps `OthelloBoard.legal_moves()` for
+    `SheafMoveOperator.flipped_cells()` as the replay primitive
+    (rays-from-target-cell only).  **2.5× end-to-end speedup** on
+    liveothello-2026-APR (8.92s → 3.62s for 414 games, 25,447 plies);
+    byte-identical `.spectralz` output
+  - **Phase-operator toolbox** (6 modes): scale_fiber_by_owner_lambda2
+    (+12%), scale_all_by_kernel_dim, rotate_E_by_entropy,
+    rotate_E_so2_by_entropy/kerdim (true SO(2) on D4-E isotypic φ_x/φ_y
+    basis), scale_by_feature_coupling (12×8 learned matrix, Nelder-Mead fit)
+  - **Move-type operators** (`SheafMoveOperator`): chess-style
+    per-cell P_place_i with is_legal/flipped_cells/apply/encode_post_move/
+    legal_moves/flip_count_vector; byte-identical to OthelloBoard.play()
+    across 20 random-play games
+  - **Illegal-move corpus fixture** ([illegal_move_corpus.pgn](docs/othello-maths/research/othello_spectral/tests/fixtures/illegal_move_corpus.pgn))
+    + 2 new test suites (5+3 tests) verifying both replay engines agree on
+    rejection
+  - **Notebook §2e** refreshed with 19 subsections documenting the full
+    cascade ([othello_spectral_research_notebook.md](docs/othello-maths/othello_spectral_research_notebook.md))
+
 - **Simulation-Lucid Phenotype**: Research documents on consciousness, aphantasia, and therapeutic mechanisms
   - [simulation_lucid_phenotype.md](docs/misc/simulation_lucid_phenotype.md): Full paper proposing aphantasia as natural experiment for dissociating visual overlay from interoceptive-somatic substrate in consciousness and psychedelic research
   - [simulation_lucid_phenotype_companion_piece.md](docs/misc/simulation_lucid_phenotype_companion_piece.md): Accessible companion piece with practical implications for psychedelic trials, trauma therapy, and contemplative practice
@@ -46,6 +74,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Files: [pattern_playback.h](src/pattern_playback.h), [pattern_playback.c](src/pattern_playback.c)
 
 ### Fixed
+
+- **chess-spectral 1.2.3: eager-import regression** (branch `fix/chess-spectral-lazy-occupation-import`):
+  `import chess_spectral` transitively required python-chess (~1.5 MB)
+  because six submodules in `phase_operators/` had top-level
+  `import chess` calls — blocking spectral-chess4d-oana-chiru and
+  other 4D-only consumers from dropping the `[corpus]` extra.
+  - **Root cause**: `chess_spectral/__init__.py` eagerly pulled in
+    `phase_operators` → `occupation_field`, `occupation_aware_{a,b,c}`,
+    `castling`, `phase_check_detection`, all of which had
+    `import chess` at module top
+  - **Fix**: `TYPE_CHECKING`-gated annotations + function-body lazy imports
+    across all six files; `castling.py` additionally replaced
+    module-level `chess.WHITE`/`chess.BLACK` references (in the
+    `CASTLES` dict literal) with explicit `_WHITE = True` /
+    `_BLACK = False` constants documented as matching the stable
+    python-chess API (`chess.Color is bool`)
+  - **Measured**: `import chess_spectral` 3590 ms → 3174 ms
+    (−416 ms, −11%), and now succeeds with python-chess blocked
+    from `sys.meta_path`; `sys.modules` count 555 → 554
+  - **Public API unchanged**: all names still re-exported from
+    `chess_spectral` and `chess_spectral.phase_operators`.  Calling
+    a chess-dependent function without python-chess installed now
+    raises `ImportError` at **call time** (not import time)
+  - **Tests**: 92/92 phase_operators + 69/69 core pass; no
+    behavioural change when python-chess IS installed
+  - Files: [CHANGELOG.md](docs/chess-maths/chess-spectral/python/CHANGELOG.md),
+    [pyproject.toml](docs/chess-maths/chess-spectral/python/pyproject.toml)
+    (1.2.2 → 1.2.3), 6 files in
+    [phase_operators/](docs/chess-maths/chess-spectral/python/chess_spectral/phase_operators/)
 
 - **C3: Torn 64-bit reads on armed mode change state**: Thread-safe API with mutex protection
   - **Problem**: `armed_epoch_us` and `armed_server_epoch_us` (64-bit) were shared via bare `extern` between motor_task and time_sync_task on 32-bit RISC-V — reads/writes are non-atomic and could produce torn values

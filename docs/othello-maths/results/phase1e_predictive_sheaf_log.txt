@@ -1,0 +1,66 @@
+C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\othello-maths\research\phase2_predictive_sheaf.py:160: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  sp_pred = spearmanr(sheaf_early[fk], y)
+C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\othello-maths\research\phase2_predictive_sheaf.py:162: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  sp_snap = spearmanr(sheaf_late[fk], y)
+generating 30 trajectories (seeds 100..129)
+  generated: seed 100 (62 moves, 2.3s)
+  generated: seed 101 (61 moves, 2.3s)
+  generated: seed 102 (60 moves, 2.1s)
+  generated: seed 103 (61 moves, 2.4s)
+  generated: seed 104 (60 moves, 2.1s)
+  generated: seed 105 (61 moves, 2.0s)
+  generated: seed 106 (60 moves, 1.9s)
+  generated: seed 107 (61 moves, 1.9s)
+  generated: seed 108 (61 moves, 2.2s)
+  generated: seed 109 (60 moves, 1.9s)
+  generated: seed 110 (61 moves, 2.3s)
+  generated: seed 111 (60 moves, 2.3s)
+  generated: seed 112 (61 moves, 2.1s)
+  generated: seed 113 (62 moves, 1.9s)
+  generated: seed 114 (60 moves, 2.2s)
+  generated: seed 115 (60 moves, 2.0s)
+  generated: seed 116 (60 moves, 2.0s)
+  generated: seed 117 (60 moves, 2.2s)
+  generated: seed 118 (60 moves, 2.4s)
+  generated: seed 119 (60 moves, 2.2s)
+  generated: seed 120 (60 moves, 2.3s)
+  generated: seed 121 (61 moves, 2.1s)
+  generated: seed 122 (60 moves, 2.2s)
+  generated: seed 123 (60 moves, 1.9s)
+  generated: seed 124 (60 moves, 1.8s)
+  generated: seed 125 (60 moves, 1.9s)
+  generated: seed 126 (61 moves, 2.0s)
+  generated: seed 127 (60 moves, 2.0s)
+  generated: seed 128 (60 moves, 2.3s)
+  generated: seed 129 (60 moves, 1.9s)
+generated/loaded 30 trajectories in 63.3s
+trajectory lengths: min 60, max 62, mean 60.4
+delta=1: 1783 pairs; predictive gain vs persistence (n_legal): +0.2370
+delta=3: 1723 pairs; predictive gain vs persistence (n_legal): +0.3008
+delta=5: 1663 pairs; predictive gain vs persistence (n_legal): +0.3768
+delta=10: 1513 pairs; predictive gain vs persistence (n_legal): +0.4902
+
+=== Phase 1e.5 predictive-sheaf verdict ===
+
+  delta = 1
+    target=n_legal_moves     R2_pred=+0.5621  R2_snap=+0.5771  R2_pers=+0.3251  gain_vs_pers=+0.2370
+    target=rho               R2_pred=+0.9719  R2_snap=+0.9700  R2_pers=+1.0000  gain_vs_pers=-0.0281
+    target=empty_count       R2_pred=+0.9719  R2_snap=+0.9700  R2_pers=+1.0000  gain_vs_pers=-0.0281
+
+  delta = 3
+    target=n_legal_moves     R2_pred=+0.5511  R2_snap=+0.5587  R2_pers=+0.2504  gain_vs_pers=+0.3008
+    target=rho               R2_pred=+0.9732  R2_snap=+0.9669  R2_pers=+1.0000  gain_vs_pers=-0.0268
+    target=empty_count       R2_pred=+0.9732  R2_snap=+0.9669  R2_pers=+1.0000  gain_vs_pers=-0.0268
+
+  delta = 5
+    target=n_legal_moves     R2_pred=+0.5442  R2_snap=+0.5510  R2_pers=+0.1674  gain_vs_pers=+0.3768
+    target=rho               R2_pred=+0.9735  R2_snap=+0.9636  R2_pers=+0.9999  gain_vs_pers=-0.0265
+    target=empty_count       R2_pred=+0.9735  R2_snap=+0.9636  R2_pers=+0.9999  gain_vs_pers=-0.0265
+
+  delta = 10
+    target=n_legal_moves     R2_pred=+0.5606  R2_snap=+0.5621  R2_pers=+0.0705  gain_vs_pers=+0.4902
+    target=rho               R2_pred=+0.9720  R2_snap=+0.9538  R2_pers=+0.9999  gain_vs_pers=-0.0278
+    target=empty_count       R2_pred=+0.9720  R2_snap=+0.9538  R2_pers=+0.9999  gain_vs_pers=-0.0278
+
+wrote C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\othello-maths\results\phase1e_predictive_sheaf.json
+wrote C:\AI_PROJECTS\EMDR_PULSER_SONNET4\docs\othello-maths\results\phase1e_predictive_sheaf_pairs.csv

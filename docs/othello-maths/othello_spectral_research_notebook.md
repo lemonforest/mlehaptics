@@ -1,9 +1,13 @@
 # Othello as a Dynamic Spectral Lattice System — Research Notebook
 
 **Authors:** Steven (mlehaptics Project) & Claude (Anthropic)
-**Date:** April 2026
-**Status:** Active research — §1–§3 computational, §4–§5 scaffold.
-**Tools:** Python 3, NumPy, SciPy (all runnable standalone).
+**Date:** April 2026 (last update: Phase 1e, PR #58)
+**Status:** Active research — §1–§2e computational; §3 computational
+(faithful-sheaf update in §2e.5); §4 instantiated in §2e.15–§2e.19;
+§5 resolved in §2e.  v0.3.2: encoder pipeline now uses
+`SheafMoveOperator` as the replay primitive (§2e.19).
+**Tools:** Python 3, NumPy, SciPy; C17 reference encoder (clang);
+ctypes DLL path.
 
 > Living document.  Sibling to
 > [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md)
@@ -628,8 +632,9 @@ All four Phase 1c sub-phases land numeric results.  The headlines:
    (occupation) — scoped as Phase 1d.
 
 Remaining §10.10 tests (T4 T_eff / D_eff trajectory, T5 FK-BC
-cluster fit) and strict H9 / E8 vs Takizawa perfect-play table
-stay scoped to the sequel / external-data-dependent work.
+cluster fit) stay scoped to the sequel / external-data-dependent
+work.  **Strict H9 / E8 are now runnable** following the arrival
+of Takizawa's figshare knowledge archive — see §2d.
 
 **Framework lesson carried forward.**  The "state richness vs
 strategic structure" axis split (§10.13 in the chess notebook)
@@ -638,6 +643,1006 @@ both track `n_legal_moves` at ~+0.77 to +0.81; A₁⁻ energy tracks
 ρ_disc at +0.77.  Two independent axes of position description,
 each with its own natural observable.  Chess counterpart
 experiment has not been run; would benefit from a Phase 1d pass.
+
+---
+
+## 2d. Phase 1d — strict H9 / E8 against Takizawa perfect-play archive
+
+The Takizawa figshare download (17 GB compressed → 171 GB decompressed
+at a local drive path, outside repo) provides per-50-empty-position
+knowledge files.  Each of 2587 canonical 50-empty positions has an
+associated `knowledge_<OBF>.csv` containing every 36-empty sub-problem
+reached from it under optimal play, with exact game-theoretic bound
+pairs `(score_lb, score_ub)` and accuracy codes (100 = exact, 99 =
+single-point acceptable).
+
+The 2587-row small CSV `empty50_tasklist_edax_knowledge.csv` (already
+committed under `dataset/reversi_scripts/` since Phase 1c) has the
+pre-proof edax `score` prediction for each 50-empty position plus its
+WTHOR frequency count.
+
+### 2d.a Tasklist-scale correlation (N = 2587) — **CONFIRMED the predicted transfer channel**
+
+Run: `python research/h9_strict_runner.py`.  Computes the D4-only A₁
+projection of `s²` (the Z₂-invariant occupation observable that
+Phase 1c.4 identified as the "cleaner chess-transfer analog" of A₁
+energy), plus A₁⁻ magnetisation and the B₁/B₂/E channels, for every
+2587 tasklist position.  Correlates with edax's predicted score.
+Full per-position CSV in
+[`results/phase1d_spectral_vs_perfectplay.csv`](results/phase1d_spectral_vs_perfectplay.csv);
+aggregate JSON at
+[`results/phase1d_correlations.json`](results/phase1d_correlations.json).
+
+Headline correlations (N = 2587):
+
+    raw:
+      D4-only A1(s^2)     vs edax_score      = -0.349  p = 7.4e-75
+      A1-                 vs edax_score      = +0.181  p = 1.5e-20
+      B1, B2, E           vs edax_score      |rho| < 0.07, mixed significance
+      D4-only A1(s^2)     vs |edax_score|    = -0.320  p = 1.7e-62
+
+    partial (controlling |disc_diff|):
+      D4-only A1(s^2)     vs edax_score      = -0.279  p = 2.3e-47   SURVIVES
+      A1-                 vs edax_score      = -0.054  p = 6e-3      collapses
+      E                   vs edax_score      = +0.075  p = 1.3e-4
+
+**The predicted D₄×Z₂ Z₂-invariant channel carries robust spectral-
+beyond-counting signal** (ρ = −0.279 partial, p = 2 × 10⁻⁴⁷, N =
+2587).  This confirms the §2c.4 conjecture that the cleaner chess-
+transfer analog uses the occupation projection rather than the
+magnetisation projection.  The A₁⁻ magnetisation channel, consistent
+with the Phase 1c.4 finding, collapses under the partial (ρ = −0.054)
+— its raw correlation is a disc-count artifact.
+
+**Direction.** Negative ρ means: positions with higher D4-symmetric
+occupation structure tend to have lower edax predicted score (worse
+for side-to-move).  At 50-empties (14 discs placed), this suggests
+that tournament strategy prefers asymmetric configurations over
+D4-symmetric ones, and edax's evaluator encodes that preference.
+
+### 2d.b Strict augmentation via archive bounds — **CONFIRMED, stronger than 1d.a**
+
+Archive scan completed: **2587 / 2587 knowledge files**, ~80-minute
+walltime on the N:\\ mount, zero parse errors.  Per-parent aggregates
+(mean / median / min / max of each file's 36-empty child
+`score_lb` and `score_ub`) joined with the per-position spectral
+observables; full summary in
+[`results/phase1d_archive_summary.csv`](results/phase1d_archive_summary.csv).
+Each 50-empty parent's file contained between ~300 k and ~600 k
+36-empty children under Takizawa's proof tree — proved values
+aggregated across that many positions per parent.
+
+**Headline: the D₄-only A₁(s²) channel is a STRONGER predictor of
+Takizawa's proved game-theoretic bound than of edax's pre-proof
+predicted score**, and the effect survives the disc-count partial
+control MORE robustly than the prediction version.
+
+Raw Spearman correlations (N = 2587):
+
+    D4-A1(s^2)  vs  edax_score            = -0.349   p = 7.4e-75
+    D4-A1(s^2)  vs  archive_mean_lb       = -0.498   p = 1.7e-162   <== strongest
+    D4-A1(s^2)  vs  archive_mean_ub       = -0.064   p = 1.1e-3
+    D4-A1(s^2)  vs  archive_median_lb     = -0.405   p ~ 5e-100
+    D4-A1(s^2)  vs  archive_median_ub     = -0.318   p ~ 1e-61
+
+Partial Spearman controlling for |disc_diff|:
+
+    D4-A1(s^2)  vs  edax_score            = -0.279   p = 2.3e-47
+    D4-A1(s^2)  vs  archive_mean_lb       = -0.319   p = 4.4e-62    <== survives, stronger
+    D4-A1(s^2)  vs  archive_mean_ub       = -0.163   p = 6.2e-17
+    D4-A1(s^2)  vs  archive_median_lb     = -0.268   p = 6.3e-44
+
+**Interpretation — the 43 % gain, two readings.**  The raw Spearman
+magnitude goes from |ρ| = 0.349 (spectral vs edax's pre-proof
+heuristic score) to |ρ| = 0.498 (spectral vs Takizawa's proof-
+grounded `archive_mean_lb`), a ~43 % relative gain (0.498 / 0.349
+≈ 1.43).  The partial version goes from 0.279 → 0.319 (14 % gain),
+confirming the signal is not a disc-count artefact.  Two possible
+mechanisms contribute to the gain; they are NOT mutually exclusive
+and a follow-up experiment is needed to disentangle them:
+
+  - **Reading A — aggregation / noise-reduction.**  `archive_mean_lb`
+    averages over 300 k – 600 k proof-grounded 36-empty child
+    bounds per 50-empty parent.  Heavy averaging produces a smoother
+    target than `edax_score`, which is a single pre-proof heuristic
+    integer.  Spearman against a smoother target is naturally
+    tighter.  Some fraction of the 43 % gain is a noise-floor
+    effect on the y-variable, not a substantive property of the
+    spectral observable.
+
+  - **Reading B — alignment / substantive.**  The D₄-A₁(s²)
+    projection is a simple linear functional of the occupation
+    pattern with no search or heuristic content.  If it correlates
+    with the *proved* game-theoretic value more tightly than with
+    a strong engine's pre-proof *prediction* of that value, the
+    spectral observable is genuinely picking up structural content
+    aligned with ground truth that the engine's heuristic does not
+    fully capture.  That would be a substantive statement about
+    the D₄-A₁(s²) channel's informational content.
+
+**How to separate the two readings (not yet run).**  Run edax at
+matched deep search depth (e.g. d = 20, roughly comparable to the
+effort of Takizawa's individual sub-problem solves) on the same
+2587 positions and take that as a third target, `edax_d20_score`.
+
+  - If ρ(spectral, edax_d20) ≈ ρ(spectral, archive_mean_lb), the
+    43 % gain is mostly Reading A (aggregation / smoother target).
+    The spectral observable agrees with ANY strong evaluator,
+    pre- or post-proof, once noise is averaged down.
+
+  - If ρ(spectral, edax_d20) is noticeably weaker than
+    ρ(spectral, archive_mean_lb), Reading B is load-bearing: the
+    spectral channel carries ground-truth-aligned content that
+    even a strong deep-search engine doesn't fully capture.
+
+At the time of this writing, only the pre-proof `edax_score` and
+the proof-grounded `archive_mean_lb` are computed.  The deep-search
+comparison is scoped as Phase 1e.1 (edax wrapper + runner are
+already in place from Phase 1c.4 — `a1_depth_gap_runner.py`).
+
+The earlier phrasing in an interim commit that the spectral channel
+"knows more about the TRUE game-theoretic value than edax's
+heuristic eval" was too strong — it conflated Reading B with the
+narrower Reading-A-or-B ambiguity the data actually supports.  The
+two-reading framing is the accurate one until the deep-search edax
+comparison lands.
+
+The asymmetric behavior between `archive_mean_lb` (very strong)
+and `archive_mean_ub` (much weaker) is structurally interpretable:
+the lower bound aggregate represents the "worst case under optimal
+play" for the side-to-move — a position's *defensive floor* — while
+the upper bound aggregate is the "best case if opponent mistakes"
+(often saturated at 64 for any reachable chain).  The spectral
+observable tracks the defensive floor much better, suggesting it
+encodes something like "how much optimal-play value this position
+contains" rather than "how much tactical upside exists."
+
+A₁⁻ magnetisation also shows modest negative partial correlations
+with archive bounds (ρ ≈ −0.07 to −0.08), ~4× weaker than the
+D₄-A₁(s²) signal.  B₁, B₂, E channels: near-zero, consistent with
+the 1d.a finding.
+
+**This is the strict H9 / E8 result that §2c.4's Phase 1c.4 caveat
+predicted: an occupation-based (Z₂-invariant) observable needed to
+find the chess-style A₁-energy-vs-depth-gap analog in Othello.  It
+lands at N = 2587 and p ~ 10⁻¹⁶² — the largest-N and lowest-p
+spectral-to-ground-truth correlation in this notebook or any of its
+siblings.**
+
+Open items for a Phase 1e or sequel:
+
+- Does the effect generalise to other child-aggregate functions
+  (variance, per-child correlation)?  Preliminary: mean is
+  strongest, median survives the partial, min/max saturate at
+  ±64 and are uninformative.
+- Does the correlation transfer to earlier game phases (55- or
+  60-empty positions) when larger corpora become available?  The
+  Takizawa archive only covers 50-empty and 36-empty levels.
+- Is there a cleaner chess-side analog experiment?  Chess lacks a
+  weak-solution table, but the §9h′ fishtest corpus could be
+  re-run with a Z₂-invariant D₄-only A₁(|signal|) projection
+  paired with the Stockfish depth-20-vs-depth-12 gap; prediction is
+  that the chess partial ρ against Stockfish would rise above the
+  +0.456 A₁-energy baseline if the Othello structural finding
+  transfers.
+- Does the result hold for Takizawa's own accuracy-weighted scoring
+  (weighting children by `accuracy = 100` vs `99`)?  The current
+  aggregate includes both equally; an exact-only restriction would
+  reduce N per parent but tighten the signal.
+
+### 2d.c Deep channel analysis — the full D₄ battery on s² (post PATCH 6 audit)
+
+The 1d.a and 1d.b passes reported A₁(s²) as the headline and
+mentioned that B₁/B₂ on magnetisation came back null.  A follow-up
+pass extended the observable battery to all FIVE D₄ irreps projected
+onto the occupation s² signal (Z₂-invariant probes), plus all five
+D₄×Z₂ '−' irreps on the magnetisation s signal (Z₂-odd probes).
+Motivated explicitly by the question "after the PATCH 6 B₁/B₂
+character-table fix, did we re-evaluate B₁/B₂ or just assume they
+stayed null?"  Answer: on magnetisation they are null, but on
+occupation the full D₄ battery contains a second strong signal we
+had not reported.
+
+**Complete post-fix channel table, raw Spearman vs `archive_mean_lb`
+(N = 2587):**
+
+| Channel | raw ρ | raw p | partial ρ | partial p |
+|---|---|---|---|---|
+| Magnetisation (Z₂-odd) |  |  |  |  |
+| A₁⁻ | +0.187 | 8.6×10⁻²² | −0.069 | 4.4×10⁻⁴ |
+| A₂⁻ | −0.006 | 0.76 | +0.000 | 1.00 |
+| B₁⁻ | −0.015 | 0.45 | +0.004 | 0.86 |
+| B₂⁻ | −0.041 | 0.04 | +0.009 | 0.65 |
+| E⁻ | +0.073 | 2.1×10⁻⁴ | +0.102 | 1.8×10⁻⁷ |
+| Occupation (Z₂-even) |  |  |  |  |
+| **D₄-A₁(s²)** | **−0.498** | **1.7×10⁻¹⁶²** | **−0.319** | **4.4×10⁻⁶²** |
+| D₄-A₂(s²) | +0.151 | 1.4×10⁻¹⁴ | +0.133 | 1.1×10⁻¹¹ |
+| D₄-B₁(s²) | +0.148 | 3.5×10⁻¹⁴ | +0.074 | 1.6×10⁻⁴ |
+| D₄-B₂(s²) | +0.034 | 0.08 | −0.007 | 0.73 |
+| **D₄-E(s²)** | **+0.484** | **5.9×10⁻¹⁵²** | **+0.310** | **9.3×10⁻⁵⁹** |
+
+**Two headline findings, not one.**  The raw-correlation
+magnitudes sort into a striking pattern:
+
+    Strong (|rho| > 0.3):   A1(s^2)  -0.498,   E(s^2)  +0.484
+    Moderate (0.1-0.2):     A2(s^2)  +0.151,   B1(s^2) +0.148
+    Null (|rho| < 0.05):    B2(s^2)  +0.034
+
+Under the disc-count partial:
+
+    Strong:     A1(s^2) -0.319,  E(s^2) +0.310
+    Moderate:   A2(s^2) +0.133
+    Weak:       B1(s^2) +0.074
+    Null:       B2(s^2) -0.007
+
+**D₄-E(s²) is the near-mirror of D₄-A₁(s²).**  Opposite sign,
+magnitudes within 3 % of each other raw and within 3 % partial.
+These are the two channels that carry essentially all of the
+"spectral-beyond-counting" signal in the D₄ decomposition of the
+occupation pattern, and they pull in opposite directions.
+
+**Interpretation.**  The A₁ projection picks out the D₄-invariant
+(fully symmetric) component of the occupation pattern — "how evenly
+distributed the 14 discs are under all 8 spatial symmetries."  The
+E projection picks out the D₄-covariant 2-dim (x, y)-transforming
+component — "how much oriented anisotropy the occupation carries."
+The mirror relationship is intuitive: positions with LESS uniform
+fill (smaller A₁, worse for side-to-move) tend to have MORE oriented
+fill (larger E, also worse for side-to-move), and vice versa.
+Because D₄-A₁ + D₄-A₂ + D₄-B₁ + D₄-B₂ + D₄-E sums to the full
+occupation norm (Plancherel), a decrease in one channel must be
+compensated by an increase elsewhere; the A₁/E pair soaks up the
+dominant trade-off.
+
+**Multivariate implication.**  If A₁(s²) and E(s²) partially
+cancel each other, their DIFFERENCE `D4-A1 - D4-E` (or any rotation
+in the 2-D span) might be a sharper univariate predictor.  Both
+channels individually explain ~10 % of the variance in
+`archive_mean_lb` (partial R² ≈ 0.32² ≈ 0.10 each); combined they
+might explain 25–30 %.  A multivariate regression on these two
+alone is scoped as a Phase 1e item.
+
+**B₁(s²) / B₂(s²) asymmetry revisited.**  In chess, the PATCH 6
+reprocess of [`archive/chess_a1_followup.py`](../chess-maths/archive/chess_a1_followup.py)
+on 2026-04-23 (55-position hand-picked depth-gap corpus, Stockfish
+d=1 vs d=20) gave B₂ partial ρ = +0.490 against |depth_gap| — the
+single strongest complexity predictor in THAT sample, beating A₁ at
++0.456 (chess §9h′ Table 1).  In Othello B₁/B₂ on either signal
+(magnetisation or occupation) at N = 2587 vs Takizawa proved bounds
+are essentially null.
+
+**Scope caveat.**  The chess "B₂ is the best predictor" claim is
+based on a single 55-position corpus, not on a broader Stockfish-
+matched post-PATCH-6 corpus.  A chess-side batch is in flight
+(see `docs/chess-maths/results/sweep_chain_lichess_ashchess_2026-04-21_N50/`)
+re-encoding a 50-game lichess sample on post-fix characters; the
+corpus-level aggregates (`corpus_index.csv`) and per-ply Stockfish
+correlations have not been regenerated from the re-encoded spectralz
+at the time of this notebook edit.  **A structural sanity scan on
+the 20-game post-fix spectralz subset did confirm:**
+
+- 1953 plies scanned, **99.7 % show B₁ ≠ B₂** (the correct post-fix
+  signature; bug would pin the ratio near 100 % equal).
+- Mean channel energies in that subset: A₁ = 18.94, B₁ = 12.65,
+  **B₂ = 32.66** (B₂ is the largest channel by mean), consistent
+  with B₂ being an active complexity channel at chess-corpus scale
+  — but **not yet confirmed as the strongest Stockfish predictor**
+  at that scale.
+
+So the chess vs Othello structural-divergence claim ("chess B₂
+carries piece-species content; Othello has one disc type so the
+B₁↔B₂ swap has no modulation") is defensible on theory plus the
+55-position empirical anchor; confirmation at broader corpus scale
+is pending the chess-side re-correlation batch.
+
+**Structural interpretation of the divergence (theory-side).**  The
+chess B₂ signal captures diagonal-sliding vs orthogonal-sliding
+structure across piece species — rook-like adjacency in the ortho
+orbit vs bishop-like in the diag orbit, with the "which-orbit"
+distinction carrying strategic content about pawn structure and
+piece mobility.  Othello has a single disc type, so the B₁↔B₂
+swap has no piece-species content to modulate.  The orthogonal-vs-
+diagonal RAY structure still exists (it sits in the H2 8-ray
+decomposition `2 A₁ + B₁ + B₂ + 2 E`), but a single 50-empty
+configuration of 14 indistinguishable discs projects into B₁(s²)
+and B₂(s²) as close to random-signal noise once disc count is
+controlled — no structural lever amplifies the anisotropy.
+
+This is the structural interpretation of the §10.4 rank-6 irrep
+count not showing up as an operator rank: B₁ and B₂ are real
+geometric modes of the 8×8 grid, but they need piece-species or
+directional-movement content to carry strategic signal.  Othello
+provides neither.
+
+**B₁(s²) moderate partial (ρ = +0.074) as a ghost signal.**  It
+is not null — raw +0.148, partial +0.074 with p = 1.6×10⁻⁴ — but
+it is ~4× weaker than A₁(s²) and E(s²).  Most likely explanation:
+B₁ picks up edge/corner vs centre occupation asymmetry on the 8×8
+grid (transforms as x² − y²), and tournament play at 50-empties
+has a mild systematic bias toward centre-filled configurations.
+Not a headline, but worth noting as a weak corroborating signal
+alongside A₁ and E.
+
+### 2d.d A₂(s²) — a third meaningful channel (weaker than A₁/E)
+
+The D₄-A₂(s²) channel transforms as R_z (rotation about the board
+normal) and is invariant under rotations but sign-flips under
+reflections.  Partial ρ = +0.133, p = 1.1×10⁻¹¹ at N = 2587.  Not
+as strong as A₁ or E but clearly above noise and with a tight
+p-value.  Combined with A₁/E, the 2d battery on occupation has three
+channels with meaningful signal.  The full channel-energy vector
+(A₁, A₂, B₁, B₂, E) on s² could be a 5-D encoding of "structural
+content of occupation" worth testing in a downstream classifier.
+
+### 2d.e Chess vs Othello cross-game comparison (post-PATCH-6, both sides)
+
+Cross-game comparison is now meaningful — PR #57 landed chess §9c′
+(corpus-level post-fix B₁/B₂ analysis, 23 games across 4 lichess
+corpora) on main on 2026-04-23, with the chess `manifest.json` /
+`corpus_index.csv` / `corpus_summary.md` all regenerated from post-
+fix spectralz.  The matched-Stockfish per-ply chess correlation is
+still a pending batch item (referenced in chess §9c′ but not yet
+computed against the re-encoded spectralz), but the structural
+channel-level numbers are available on both sides.  Static
+structural comparison only; game-theoretic-value correlation
+comparison deferred until chess Stockfish re-correlation lands.
+
+#### Similarities — universal grid-topology properties
+
+Both chess (static §9c′ 23-game sample) and Othello (N = 2587
+Takizawa 50-empty positions) show:
+
+1. **B₂ > B₁ in mean energy**, at a consistent ratio:
+   - Chess B₂/B₁ ≈ 1.4–1.7× across all four corpora (nykt 1.69,
+     ash 1.68, hf 1.52, single 1.35; chess §9c′.2).
+   - Othello B₂⁻/B₁⁻ = **2.01** (magnetisation), D₄-B₂(s²)/D₄-B₁(s²)
+     = **1.82** (occupation).
+   - Structural interpretation: the diagonal-orbit vs orthogonal-
+     orbit asymmetry of the 8×8 grid under standard occupation
+     patterns (initial position, tournament fills) favours B₂.
+     Independent of piece-species / single-species structure.
+
+2. **B₁ and B₂ projections are exactly orthogonal per-ply.**  Chess
+   §9c′.1 measures Frobenius cos(B₁, B₂) = 0.0000 over 2112 plies.
+   Othello H3 shows the same via direct grid-topology argument
+   (`E_ortho ∩ E_diag = ∅`).  Identical structural fact on both
+   games.
+
+3. **E is the largest D₄ channel by mean energy.**  Chess E mean
+   11–14 across corpora vs A₁ mean 3.9–4.9 and B₂ mean 4.9–5.9.
+   Othello E⁻ mean 7.2 vs A₁⁻ mean 2.7 vs B₂⁻ mean 2.3.  E/A₁
+   ≈ 2.7× and E/B₂ ≈ 2–3× on both sides.
+
+4. **A₁ and E anti-correlate** in both games, but magnitude differs:
+   - Chess corr(A₁, E) = **−0.293** (moderate; §9c′.4).
+   - Othello corr(A₁⁻, E⁻) = **−0.532** (on magnetisation).
+   - Othello corr(A₁(s²), E(s²)) = **−0.834** (on occupation — the
+     near-mirror we flagged in §2d.c).
+   - Interpretation: A₁ and E decompose the full D₄ occupation
+     energy into "fully symmetric" vs "2D (x, y)-oriented"
+     components and trade off under Plancherel.  Chess's signal
+     carries additional content from the fiber channels
+     (FS1, FS2, FS3, FA, FD) that dilutes the A₁/E anticorrelation;
+     Othello's single-disc-type signal concentrates the trade-off
+     into exactly two D₄ channels, producing the tighter −0.83
+     mirror.
+
+#### Divergences — piece-species content as the amplifier
+
+Chess B₁/B₂ and Othello B₁/B₂ behave very differently once we
+look beyond mean energy into cross-channel structure and strategic
+content:
+
+1. **Cross-channel correlation structure is opposite-signed on
+   (A₁, B₁).**
+
+   | Pair | Chess ρ (§9c′.4, raw signal) | Othello ρ (D₄/s² channels) |
+   |---|---|---|
+   | (A₁, B₁) | **+0.575** | **−0.299** |
+   | (A₁, B₂) | +0.221 | −0.230 |
+   | (A₂, B₂) | +0.358 | −0.003 |
+   | (A₁, E)  | −0.293 | −0.834 |
+
+   **Chess B₁ co-moves with A₁** ("symmetric-fiber-aligned" per
+   §9c′.4), while **Othello B₁(s²) anti-correlates with A₁(s²)**.
+   The sign flip on the (A₁, B₁) pair is the sharpest structural
+   divergence.  It reflects the Plancherel accounting: in chess
+   the signal has many channels (5 D₄ irreps + 5 fiber channels =
+   10 total, 640 dims) and A₁/B₁ can co-move without exhausting
+   the norm budget; in Othello the 5 D₄ occupation channels alone
+   account for most of the norm, so A₁(s²) and B₁(s²) compete for
+   the same budget and anti-correlate.
+
+2. **Strategic content on B₂ is chess-specific.**  Chess §9h′ Table
+   1 (55-position hand-picked depth-gap corpus, post-PATCH-6) puts
+   B₂ partial ρ = +0.490 against |depth_gap|, the strongest
+   single-channel complexity predictor there.  Chess §9c′.5
+   decomposes this by move type: rooks and kings excite B₂
+   preferentially (×1.28 and ×1.53), **castling produces a ×2.05
+   B₂ spike** — castling is the archetype of σᵥ-symmetry breaking
+   and B₂ is the σᵥ-antisymmetric channel.  Othello has no castling,
+   no piece species, no rook/king asymmetry.  Its D₄-B₂(s²) partial
+   ρ = −0.007 (p = 0.73) against Takizawa's archive_mean_lb is
+   genuinely null.  **The structural ray geometry is shared, but
+   the strategic amplification requires piece-species or
+   directional-movement content to show up.**
+
+3. **The "useful" headline spectral channel differs.**
+   - Chess (narrow §9h′ sample): B₂ on raw piece-value signal;
+     partial ρ = +0.490 vs |depth_gap|.
+   - Othello (Takizawa-strict N = 2587): D₄-A₁(s²) and D₄-E(s²)
+     on occupation; partial ρ = −0.319 and +0.310 vs archive_mean_lb.
+   - Both findings are "spectral beyond counting" — they survive
+     the disc-count / piece-count partial control.  They just
+     live on different (signal, irrep) coordinates.
+
+#### Framework reading
+
+The cross-game picture is:
+
+- **Static D₄ grid geometry is universal**: B₂ > B₁, A₁/E
+  anti-correlate, B₁ ⊥ B₂.  Both games inherit this from the
+  8×8 grid topology, no piece-species amplification needed.
+- **Strategic signal on the B-irreps is piece-species-dependent**:
+  chess B₂ carries rook-vs-king / castling-vs-plain content that
+  Othello's single-disc-type play has no analog for, so chess B₂
+  becomes the complexity headline while Othello B₂ is inert.
+- **Strategic signal on the A₁/E axis transfers**: chess A₁ energy
+  (§9h′ +0.452 partial vs depth_gap) and Othello A₁(s²) energy
+  (−0.319 partial vs archive_mean_lb) are both "fully-symmetric"
+  invariants of their respective occupation signals, and both
+  predict ground-truth-aligned quantities.
+- **The E channel's partial ρ matches A₁'s in magnitude with
+  opposite sign on the Othello side** (+0.310 vs −0.319).  Chess
+  §9c′ does not yet have an E/depth-gap partial; the corpus-scale
+  Stockfish re-correlation batch (in flight) may find a symmetric
+  A₁/E twin result if the Othello framing transfers.
+
+Pending confirmation items (each requires the chess Stockfish
+re-correlation batch to land):
+
+- Chess post-fix B₂ partial ρ at corpus scale vs |depth_gap| /
+  |eval_change| — does the §9h′ +0.490 hold at ~2000 plies, or
+  was that a hand-picked-corpus artefact?
+- Chess post-fix E partial ρ vs |depth_gap| — does the Othello
+  A₁/E mirror have a chess analog?
+- Chess post-fix A₁/E cross-channel Pearson at corpus scale —
+  does the Othello −0.83 have a chess analog, or is the tight
+  mirror an Othello-specific consequence of single-species signal?
+
+None of these are blockers for the §2d.c A₁/E-twin claim; they
+add a chess-side symmetry check if the framework transfers.
+
+### 2d summary (updated after deep channel analysis)
+
+1. **D₄-A₁(s²) and D₄-E(s²) are the twin headline channels**,
+   opposite signs, ~0.32 partial ρ magnitude each against Takizawa
+   proved bounds, p values of 10⁻⁶² to 10⁻⁵⁹.  Together they carry
+   the bulk of the Z₂-invariant spectral-beyond-counting signal.
+2. **D₄-A₂(s²) is a supporting third channel** at partial
+   ρ = +0.13.
+3. **D₄-B₁(s²) is a weak fourth channel** at partial ρ = +0.07.
+4. **D₄-B₂(s²) is genuinely null** in Othello, in contrast to
+   chess B₂ on the 55-position §9h′ hand-picked depth-gap corpus
+   where partial ρ = +0.49 against |d1−d20| beats A₁ (+0.456).
+   The chess claim is narrow to that corpus; broader post-fix
+   chess-side re-correlation (50-game lichess sweep) is in
+   flight and its corpus_index / Stockfish tables had not been
+   regenerated from post-fix spectralz at the time of this edit.
+   Structural reading: chess B₂ needs piece-species content to
+   carry signal, Othello's single disc type kills that modulation.
+5. **All magnetisation-side projections collapse under the
+   disc-count partial control**, consistent with the Phase 1c.4
+   finding that Othello A₁⁻ is a disc-count proxy.
+
+Revised framework statement: **the useful spectral observables for
+Othello perfect-play correlation live in the D₄-only projection of
+the Z₂-invariant occupation signal s², not in the D₄×Z₂ projection
+of the magnetisation signal s.**  This cleanly separates Othello
+from chess, where magnetisation-based A₁ energy remains the
+complexity headline.  The chess-style "A₁ energy" and Othello-style
+"D₄-A₁(s²)" are structurally analogous — both are the fully-
+symmetric irrep on the Z₂-invariant aggregate — but they live on
+different Z₂ parities of the underlying signal because Othello's
+piece content is Z₂-invariant (single particle type) while chess's
+is not (piece-species polarizes the signal).
+
+---
+
+## 2e. Phase 1e — follow-ups, encoder, C-parity, sheaf-as-reference
+
+Phase 1e extends 1d in five parallel tracks.  Full per-item detail
+in the running doc
+[PHASE_1E_FINDINGS.md](PHASE_1E_FINDINGS.md); this section is the
+notebook-level summary with status tags.
+
+### 2e.1 Multivariate A₁(s²) + E(s²) — **CONFIRMED** the Plancherel pair
+
+[phase1e_multivariate.py](research/phase1e_multivariate.py).
+Joint OLS at N=2587: (A₁, E) gives R² partial 0.100; full D₄
+5-channel adds only +0.012.  The A₁ − E rotated direction at 135°
+lands partial ρ = +0.337, marginally stronger than A₁ alone.  The
+A₁ + E (45°) direction is near-null (−0.038), confirming the
+§2d.c mirror.
+
+### 2e.2 edax d=20 on the 2587 tasklist — **Reading B CONFIRMED**
+
+[phase1e_edax_d20_tasklist.py](research/phase1e_edax_d20_tasklist.py),
+[phase1e_edax_d20_correlations.py](research/phase1e_edax_d20_correlations.py).
+Spearman(D₄-A₁(s²), edax_d20) = −0.342 — essentially identical to
+pre-proof edax_score (−0.349, gap of 0.007).  Both are ~35 % short
+of the archive_mean_lb correlation (−0.498).  **The 43 % gain in
+§2d.b is not a search-depth artifact** — deep-search edax doesn't
+bridge the gap.  Reading B (the spectral channel sees structural
+content beyond deep-search heuristics) is load-bearing.
+
+### 2e.3 Shannon info × D₄-A₁(s²) — **retraction via Simpson**
+
+[phase1e_shannon_observables.py](research/phase1e_shannon_observables.py),
+[phase1e_signflip_decomposition.py](research/phase1e_signflip_decomposition.py).
+Initial §2c.2 headline Spearman(I_move, A₁⁻) = +0.213 doubles to
++0.465 when the D₄-A₁(s²) observable replaces A₁⁻.  §1e.6
+decomposition by n_empties bucket then shows both aggregates are
+**Simpson's paradox** artifacts of game-phase structure — within
+any single phase bucket, A₁⁻ correlates NEGATIVELY with I_move
+(opening in-book −0.274, late-midgame in-book −0.419).  The
+"A₁⁻ tracks strategic divergence" framing in §2c.2 is retracted.
+
+### 2e.4 Predictive sheaf (§3 L7b caveat) — **target-specific trajectory memory**
+
+[phase1e_predictive_sheaf.py](research/phase2_predictive_sheaf.py),
+[phase1e_predictive_sheaf_pgn.py](research/phase1e_predictive_sheaf_pgn.py),
+[phase1e_predictive_sheaf_faithful.py](research/phase1e_predictive_sheaf_faithful.py),
+[phase1e_faithful_gain_investigation.py](research/phase1e_faithful_gain_investigation.py).
+
+The sheaf spectrum carries FORWARD-PREDICTIVE content — contra
+logo §L7b.5.  On 30-seed random-play trajectories, sheaf λ₂ at
+time t predicts `n_legal_moves(t+10)` with R² = 0.56, matching
+sheaf λ₂ at t+10.  Gain vs persistence baseline grows from +0.24
+(Δ=1) to **+0.49 (Δ=10)**.  On the 2178-game 2025 tournament
+corpus the pattern replicates, but at scale the picture sharpens:
+**trajectory memory is target-specific.**
+
+  target                        Δ=10 gain_vs_snap (2025)
+  d4_e_occupation_energy        **+0.159**
+  d4_a1_occupation_energy       +0.070  (grows to +0.150 @ Δ=20)
+  rho                           +0.079  (grows to +0.154 @ Δ=20)
+  n_legal_moves                 +0.012  (near-zero)
+  a1_minus_energy               **−0.041**  (snapshot wins)
+
+Train/test split (1089 train, 1089 test) confirms the signature
+is not overfit (OOS gain LARGER than in-sample on most targets).
+Per-feature ablation shows the effect is **joint feature
+decorrelation**: at time t the 8 sheaf features (λ₂/entropy/
+kerdim/λmax × owner) encode diverse trajectory-relevant info;
+at t+Δ they collapse to redundant current-state summaries.
+
+### 2e.5 Faithful sheaf restriction maps — **bracket-aware**
+
+[faithful_sheaf.py](research/faithful_sheaf.py).  Replaces §3's
+endpoint-only crude restriction with an R1/R2/R3/R4 bracket
+classifier: edges exist only across active flanks (R2 stable,
+R3 pending).  **Breaks §3.4's constant-128 kernel artifact** —
+faithful kernel dim is position-dependent (141–188 on seed=123).
+λ₂ differs from crude by mean +0.29.  The per-cell R3_PENDING
+count, projected through D₄, becomes the headline observable in
+2e.6.
+
+### 2e.6 Sheaf-derived D₄ channels beat occupation by 40 % — **NEW HEADLINE**
+
+[phase1e_sheaf_vs_archive.py](research/phase1e_sheaf_vs_archive.py)
+at N=2587.  Against Takizawa's `archive_mean_lb`:
+
+  channel                                  raw ρ    partial ρ
+  D₄-A₁(s²)      §2d.b baseline            −0.498   −0.319
+  D₄-E(s²)       §2d.b baseline            +0.484   +0.310
+  **E_pending_white_A1**   sheaf-derived   −0.621   **−0.447**
+  E_degree_white_E         sheaf-derived   +0.638   +0.429
+  E_pending_black_A1       sheaf-derived   +0.224   +0.370
+  E_pending_black_E        sheaf-derived   +0.565   +0.362
+
+The per-cell **pending white** bracket count, projected through
+D₄-A₁, lifts the partial ρ magnitude from 0.319 to **0.447** — a
+40 % improvement.  Sign interpretation: many white-side pending
+flanks ⇒ bad news for side-to-move (BLACK on the tasklist) ⇒
+lower `archive_mean_lb`.
+
+Consequence: sheaf-derived channels are promoted to the encoder's
+reference fiber layout (v0.3.0).  Channels 10-11 of the 768-dim
+encoding are now `sheaf_pending_black` and `sheaf_pending_white`
+instead of `L_ortho @ s` / `L_diag @ s`.  The legacy rank-2
+(orbit-Laplacian) fiber remains available via
+`encode_768(state, fiber_mode="rank2")` — and is what the C
+reference encoder supports until the bracket walker is ported
+(2e.7).
+
+### 2e.7 C encoder + bit-identical engine dispatch
+
+[othello_spectral/c_encoder/](research/othello_spectral/c_encoder/),
+[othello_spectral/codegen/emit_c_tables.py](research/othello_spectral/codegen/emit_c_tables.py),
+[othello_spectral/runtime.py](research/othello_spectral/runtime.py).
+
+ANSI C17 reference encoder with `clang -Wall` clean build.
+Python-side ctypes path (v0.3.0): loads `othello_spectral.dll`,
+direct-calls `othello_spectral_encode_768` — no subprocess
+overhead.  Benchmarks (APR 2026, 25 447 states):
+
+  path                encode  wall
+  python              3.0 s   18.4 s
+  c (ctypes DLL)      3.1 s   17.8 s
+  c (subprocess exe)  7.6 s   21.7 s
+
+All three paths are bit-identical on rank-2 fiber.  Parity test
+[tests/test_c_py_parity.py](research/othello_spectral/tests/test_c_py_parity.py)
+compares 9 states at float32 precision (subprocess) and float64
+(ctypes).  Sheaf-fiber C port is a future item (the bracket
+walker in `faithful_sheaf.py` is Python-only).
+
+Engine dispatch: `--engine {py, c, auto}`, env vars
+`OTHELLO_SPECTRAL_BIN` / `OTHELLO_SPECTRAL_DLL` /
+`OTHELLO_SPECTRAL_ENGINE`; `auto` mode verifies the C binary
+against Python (version + smoke test) before selecting, silent
+fallback on any failure.  When `--fiber sheaf` is active the C
+path is skipped (rank2-only).
+
+### 2e.8 T1 flip-count + T5 chain-size — **exponential at corpus scale**
+
+[phase1e_flipcount_distribution.py](research/phase1e_flipcount_distribution.py),
+[phase1e_t5_cluster_distribution.py](research/phase1e_t5_cluster_distribution.py).
+
+Both §10.10 T1 (per-move flip count) and T5 (per-chain same-colour
+run length) **reject the power-law** prediction across all four
+committed PGN corpora (WC 2005, Barcelona 2026, APR 2026, 2025
+all — 23 to 2178 games each).
+
+  T1 (flip-count):       all 4 corpora prefer exponential by
+                         ΔAIC 3 k to 346 k;  λ ≈ 0.548;  mean 2.37
+  T5 (chain length):     all 4 corpora prefer exponential by
+                         ΔAIC 3 k to 221 k;  τ ≈ 2.68 (close to
+                         FK-BC critical τ ≈ 2.05 but exp wins);
+                         mean 2.94, max 8
+
+Remarkably stable across a 20-year span and 3 orders of magnitude
+of N.  Strategic play does not shift these distributions from
+random-play expectation (§2.E5 mean 2.28).
+
+### 2e.9 T4 thermodynamic trajectory — **negative T_eff robust**
+
+[phase1e_t4_thermodynamic_trajectory.py](research/phase1e_t4_thermodynamic_trajectory.py),
+[phase1e_t4_robust.py](research/phase1e_t4_robust.py),
+[phase1e_t4_logtransform.py](research/phase1e_t4_logtransform.py).
+
+Per-ply T_eff = dE_tot / dS_eff heavy-tailed (median −11 k, mean
++70 k on Barcelona).  Windowed OLS on high-R² windows: median
+−22 k with IQR [−35 k, −14 k].  Log-transform log(E_tot) vs S_eff:
+median slope −6.04 with IQR [−8.48, −4.28] — robust negative
+signal, interpretable as "1 unit increase in Shannon entropy
+corresponds to factor exp(−6.04) ≈ 0.002 change in E_tot."
+
+Structurally consistent with §2d.c's A₁ / E mirror: as spectral
+energy grows with disc count, the channel-energy distribution
+concentrates (Shannon entropy shrinks).
+
+### 2e.10 Holonomy structural map — **Z₂ holonomy exclusive to lj_rect_W×1, W≥3**
+
+[phase1e_holonomy_plaquettes.py](research/phase1e_holonomy_plaquettes.py).
+Enumerated 1192 loops across 7 shape families on the 8×8 static
+fiber bundle.  Exactly **105 / 1192 loops carry Z₂ holonomy
+(cos = −1)**, and they are ALL of shape `lj_rect_Wx1` with W ≥ 3
+(long-jump rectangles of height 1).  All other 1087 loops are
+trivial.  The effect is path-orientation-dependent, not homotopy
+invariant: lj_rect_1×H (transpose) is trivial.
+
+Generalises §2.H5's single-loop finding (the 0,0→0,3→1,3→1,0
+rectangle, one of the 35 lj_rect_3×1 instances) to the full
+curvature map.
+
+### 2e.11 Chess vs Othello A₁ / E — **Simpson's paradox mechanism**
+
+[phase1e_chess_a1_e_pair.py](research/phase1e_chess_a1_e_pair.py),
+[phase1e_chess_a1_e_bootstrap.py](research/phase1e_chess_a1_e_bootstrap.py),
+[phase1e_simpson_mechanism.py](research/phase1e_simpson_mechanism.py),
+[phase1e_othello_a1_e_per_game.py](research/phase1e_othello_a1_e_per_game.py).
+
+§2d.e deferred the chess A₁/E correlation check pending
+Stockfish re-correlation.  Completed here via direct chess-
+spectral spectralz extraction at N=10 729 plies.
+
+  species            pooled   within   between
+  chess/ashchess     +0.011   −0.117   **+0.667**
+  chess/drnyk        −0.201   −0.315   **+0.605**
+  chess/hf           +0.116   +0.022   **+0.663**
+  othello/2025 magn  +0.330   +0.385   **−0.479**
+  othello/2025 occ   −0.072   −0.051   **−0.592**
+
+Between-game Pearson of game-means is the dominant contribution
+and has OPPOSITE sign between the two species:
+
+  - Chess: between +0.60 to +0.67 — games with high mean A1 also
+    have high mean E.  Pooled ≈ 0 because positive between and
+    slight negative within partially cancel.
+
+  - Othello magnetisation: between −0.48 — games with high mean
+    A1⁻ have LOW mean E⁻.  Pooled positive because within-game
+    co-correlation (+0.39) outweighs.
+
+  - Othello occupation: between −0.59, within −0.05.  Driven by
+    between-game baseline structure.
+
+The Othello §2d.c 50-empty static Pearson of −0.834 is a
+**phase-specific 14-disc configuration** property, not a general
+trajectory signature.  Per-game trajectory-level A₁/E is
+game-species-specific.  The Plancherel-budget reading (fewer
+channels in Othello ⇒ tighter mirror) only holds at the static
+50-empty cross-section.
+
+### 2e.12 Sheaf-phased encoder v0.3.0 benchmark — **sheaf is new reference**
+
+Pulls together 2e.5 + 2e.6 + 2e.7: the faithful-sheaf pending-
+bracket channels replace the v0.2.0 orbit-Laplacian fiber.
+Default encoder now v0.3.0 sheaf-default; rank-2 mode survives
+as `fiber_mode="rank2"` for C parity.
+
+  fiber mode      partial ρ vs archive_mean_lb (A1 channel)
+  rank2 (v0.2)    D4-A1(s^2)           −0.319
+  sheaf (v0.3)    D4-A1(pending_white) **−0.447**   (40 % gain)
+
+### 2e.13 C sheaf port — bit-identical v0.3.0/0.3.1 parity + 25× speedup
+
+[othello_spectral/c_encoder/src/othello_spectral.c](research/othello_spectral/c_encoder/src/othello_spectral.c)
+gains `classify_ray` + `sheaf_pending_counts` (~80 lines,
+direct port of `faithful_sheaf.classify_ray`).  New public
+API `othello_spectral_encode_768_v2(state, fiber_mode, out)`
+with `fiber_mode ∈ {FIBER_RANK2, FIBER_SHEAF}`; legacy
+`encode_768` retained as alias for rank-2.  CLI + ctypes
+wrappers thread `--fiber {rank2, sheaf}` through.  Tests at
+v0.3.1 verify **36 bit-identical py/c comparisons** (2 fiber
+modes × 2 C paths × 9 states) at float32 (subprocess) and
+float64 (ctypes).
+
+End-to-end on 35-game Barcelona corpus:
+
+  path                        encode   wall
+  py (fiber=sheaf)            5.0 s    7.0 s
+  c ctypes DLL (fiber=sheaf)  0.2 s    2.4 s     **25× encode speedup**
+
+Byte-identical .spectralz SHA256 = `461bd1219357041a`.
+
+### 2e.14 s-vs-s² asymmetry mechanism — three-regime structural explanation
+
+[phase1e_s_vs_s2_asymmetry.py](research/phase1e_s_vs_s2_asymmetry.py)
+runs four per-game diagnostics on 2178 games of 2025 corpus:
+volatility, lag-1 autocorrelation, Pearson with disc-count,
+monotone fraction.
+
+  target                  volatility  autocorr1  r_disc   mono_frac
+  a1_minus_energy            +0.236    +0.842    +0.755    0.550
+  d4_a1_occupation_energy    +0.051    +0.9996   +0.991    1.000
+  d4_e_occupation_energy     +0.277    +0.961    +0.083    0.500
+  rho                        +0.056    +1.0000   +1.000    1.000
+  empty_count                +0.056    +1.0000   −1.000    1.000
+
+Three regimes fully account for the §1e.7.4b trajectory-memory
+gain pattern:
+
+  1. **Game-clock monotone** (ρ, empty_count, d4_a1_occ) —
+     trivially predictable.  The sheaf "predictive gain" for
+     these is a disc-count correlation artefact.
+
+  2. **Non-monotone structural** (d4_e_occ, r_disc = +0.083).
+     **Genuine trajectory memory.**  The sheaf's pending-bracket
+     count predicts how oriented occupation anisotropy evolves
+     because active flanks drive directional shifts.
+
+  3. **Turn-order-coupled** (a1_minus).  The sheaf captures
+     WHAT happens structurally (brackets) but not WHO places/
+     flips the disc.  Sign of A1⁻ depends on turn order; the
+     bracket classifier doesn't encode that → snapshot wins.
+
+Z₂ representation theory doesn't explain it; the distinction
+is target's coupling to (disc count, turn order), not Z₂ parity.
+
+### 2e.15 Sheaf-phased operator — **12 % additional gain over §2e.6**
+
+[othello_spectral/phase_operator.py](research/othello_spectral/phase_operator.py).
+The first concrete instantiation of a §4-style phase operator
+for Othello.  Applies a state-dependent diagonal scaling D(f(state))
+to the encoding vector, where f maps sheaf spectrum features
+(λ₂, λ_max, entropy, kerdim per owner) to channel weights.
+
+Four modes provided (v0.3.1):
+
+  - `identity`               no-op baseline
+  - `scale_fiber_by_owner_lambda2`   weight fiber channels by 1/(1+λ₂^{owner})
+  - `scale_all_by_kernel_dim`        weight all channels by ⟨kerdim⟩/192
+  - `rotate_E_by_entropy`            cos(entropy_B) damping of E channels
+
+Benchmark on 2587 tasklist against archive_mean_lb:
+
+  mode                            fiber_pw through D4-A1 partial ρ
+  identity (baseline Exp 1)                  **−0.447**
+  scale_fiber_by_owner_lambda2               **−0.503**   (+12 % gain)
+  scale_all_by_kernel_dim                    −0.449
+  rotate_E_by_entropy                        −0.447
+
+`scale_fiber_by_owner_lambda2` lifts the partial ρ magnitude
+from 0.447 to **0.503** — another 12 % on top of the 40 % gain
+sheaf fiber gave over occupation in §2e.6.  Total improvement
+over the §1d.b baseline D₄-A₁(s²) (ρ = −0.319):
+**0.503 / 0.319 ≈ 58 % cumulative gain.**
+
+Interpretation: λ₂ of each owner's faithful sheaf Laplacian
+measures the algebraic connectivity of that owner's bracket
+graph.  Dividing the per-cell bracket counts by 1 + λ₂ normalises
+for "how busy" the bracket network is, letting per-cell
+structure drive the correlation rather than total activity.
+
+Framework is minimal — diagonal scaling only.  Phase operators
+with off-diagonal coupling (SO(2) rotations within the E
+subspace, state-dependent mixing between channels) are future
+work.  The current module is pure Python; C port would need
+sheaf eigendecomposition (scipy eigh; not bit-identical across
+LAPACK versions, so the operator is platform-reproducible but
+not bit-portable at v0.3.1).
+
+Open items (updated after this pass):
+  - Port faithful_sheaf.classify_ray to C — **CLOSED** (2e.13)
+  - Z₂-cancellation Exp 2 on Barcelona — **CLOSED** (2e.14)
+  - Sheaf as phase-operator coupling — **CLOSED** (2e.15)
+
+### 2e.16 Learned coupling matrix — **+114 % cumulative gain**
+
+[phase1e_learned_coupling.py](research/phase1e_learned_coupling.py).
+Fits the `scale_by_feature_coupling` mode's coefficient row M[11]
+(the one that determines the weight for pending_white fiber) by
+Nelder-Mead minimisation of −|Pearson(E_pw_A1, archive_mean_lb)|
+on a 75 % training split (1941 positions).  Held out 646 positions
+for validation.  6 restarts to escape local minima.
+
+  stage                                  partial ρ (Spearman)
+  §1d.b  D4-A1(s^2) baseline              −0.319
+  §2e.6  raw pending_white_A1             −0.447
+  §2e.15 scale_fiber_by_owner_lambda2     −0.503
+  §2e.16 **learned coupling** (val)       **−0.683**
+  §2e.16 learned coupling (train)         −0.636
+  §2e.16 learned coupling (overall)       −0.648
+
+Val partial ρ is slightly BETTER than train (no overfitting
+signal); generalisation is clean.  Cumulative improvement over
+§1d.b's occupation A₁(s²) baseline: 0.648 / 0.319 ≈ **2.03×**.
+
+**Learned coefficients** (for the 8-d sheaf feature vector):
+
+  feature       coefficient
+  lambda2_B      -0.016
+  lambda2_W      +0.001
+  lambdamax_B    +0.000
+  lambdamax_W    -0.009
+  entropy_B     **+0.256**
+  entropy_W     **-0.283**
+  kerdim_B       +0.027
+  kerdim_W       -0.026
+
+The dominant structure: **weight ≈ 0.256 · entropy_B − 0.283 · entropy_W**
+— almost exactly the difference in sheaf entropies between owners.
+
+Interpretation: spectral entropy of the faithful sheaf Laplacian
+measures how DIVERSE the eigenvalues are (high entropy = spread
+distribution = rich mode structure; low entropy = concentrated
+distribution = simple bracket topology).  The owner-entropy
+difference encodes which player's flanking network is more
+structured.  When white's bracket network is MORE structured
+than black's (i.e. W_entropy > B_entropy), weight is negative,
+which inverts the pending_white fiber sign, making it CORRELATE
+POSITIVELY with archive_mean_lb (it was negatively correlated
+raw).
+
+The operator encodes a structural "who has more bracket
+complexity" coupling that the hand-tuned λ₂ modes couldn't
+capture.  Worth noting: this is NOT a simple algebraic coupling
+(not a weight-function of a single spectral quantity).  It
+requires comparing two owners' spectra — a feature of the
+bracket structure that the sheaf uniquely exposes.
+
+### 2e.17 Off-diagonal SO(2) on the E irrep subspace
+
+[othello_spectral/phase_operator.py](research/othello_spectral/phase_operator.py)
+adds `rotate_E_so2_by_entropy` and `rotate_E_so2_by_kerdim`
+modes that apply a D₄-equivariant SO(2) rotation within the
+2-dim subspace spanned by the lowest-order E-irrep basis:
+
+    phi_x(r, c) = (c - 3.5) / ||·||
+    phi_y(r, c) = (r - 3.5) / ||·||
+
+on the magnetisation-E and occupation-E channels.  Because the
+rotation is orthogonal, it preserves channel ENERGY exactly; it
+only changes the (proj_x, proj_y) PHASE within the E-isotypic
+pair.  The benchmark against archive_mean_lb through channel
+ENERGIES (our standard metric) is therefore insensitive to the
+rotation — confirmed empirically (partial ρ unchanged at
+−0.4467 across the two new modes).
+
+SO(2) E-rotation is a scaffolded capability: downstream models
+that use direction-sensitive E-channel summaries (e.g., a phase
+difference between E-magn and E-occ) can benefit.  For now it
+sits in the API alongside the diagonal-scaling modes as part
+of the §4 phase-operator toolbox.
+
+### 2e.18 Move-type phase operators
+
+[othello_spectral/move_operator.py](research/othello_spectral/move_operator.py).
+Chess-style per-cell placement operators P_place_i for i in
+0..63, using the faithful-sheaf bracket classifier to determine
+which opponent discs flip.  Public API:
+
+  SheafMoveOperator.is_legal(state, move, side) -> bool
+  SheafMoveOperator.flip_count(state, move, side) -> int
+  SheafMoveOperator.flipped_cells(state, move, side) -> list[int]
+  SheafMoveOperator.apply(state, move, side) -> post_state
+  SheafMoveOperator.encode_post_move(state, move, side) -> post_enc
+  SheafMoveOperator.legal_moves(state, side) -> list[int]
+  SheafMoveOperator.flip_count_vector(state, side) -> np.ndarray[64]
+
+Parity tests verify byte-for-byte agreement with
+`OthelloBoard.play()` across 20 random-play games.  6/6 tests
+in [tests/test_move_operator.py](research/othello_spectral/tests/test_move_operator.py)
+pass.  No mutation of the input state.
+
+Operational usefulness:
+  - `flip_count_vector` is a 64-dim state descriptor that
+    ranks cells by "impact if played" — candidate extra channel
+    for a future v0.4.0 encoder.
+  - `encode_post_move` allows look-ahead search algorithms to
+    get the encoding of any reachable state without re-replaying
+    through OthelloBoard, skipping the replay overhead (~3× on
+    the sheaf-fiber encoder which does its own bracket walk).
+  - Composition of multiple P_place_i gives multi-ply look-ahead
+    encoding chains, the analog of chess's P_rook · P_bishop
+    sequences.  Sheaf spectrum of intermediate states is
+    computable via the same runtime.
+
+### 2e.19 Encoder replay path now uses SheafMoveOperator — v0.3.2
+
+The `encode-pgn` CLI previously delegated per-ply legality to
+`OthelloBoard.legal_moves()` via `othello_pgn_loader.replay()` —
+a 64-cell scan on every ply even though only one cell moves.
+v0.3.2 swaps that for `pgn_loader.replay_sheaf()`, which uses
+`SheafMoveOperator.flipped_cells(state, move, side)` to walk only
+the 8 rays from the target cell.  Slow path (forced-pass
+detection on genuinely illegal-looking plies) still defers to
+`op.legal_moves` so semantics match exactly.
+
+**End-to-end speedup on liveothello-2026-APR (414 games, 25,447
+plies):**
+
+| stage                | OthelloBoard | SheafMoveOp | speedup |
+| -------------------- | -----------: | ----------: | ------: |
+| replay               | 7.02 s       | 1.42 s      | **4.9×** |
+| encode (C ctypes)    | 1.9 s        | 2.2 s       | ~1× (unchanged) |
+| total                | 8.92 s       | 3.62 s      | **2.5×** |
+
+SHA-256 of the resulting `.spectralz` is **byte-identical**
+across replay engines (78,275,228 bytes, hash
+`3c10951d36e926694e94f6539476d96a53d5a8d8b1f5d3c27862a59a44235ba3`)
+— the speedup is pure.  Byte parity is locked in by
+[tests/test_pgn_loader_replay_parity.py](research/othello_spectral/tests/test_pgn_loader_replay_parity.py):
+3 tests covering the legal control game, both illegal fixtures,
+and 10 random-play games.
+
+The legacy path remains available via
+`encode-pgn --replay-engine othelloboard` for audit / debugging.
+An illegal-move corpus fixture
+[tests/fixtures/illegal_move_corpus.pgn](research/othello_spectral/tests/fixtures/illegal_move_corpus.pgn)
+(2 bad games + 1 legal control) plus 5 rejection tests in
+[tests/test_encoder_rejects_illegal_pgn.py](research/othello_spectral/tests/test_encoder_rejects_illegal_pgn.py)
+verify that both replay engines raise `ValueError("... not legal
+...")` on the same inputs.
+
+This closes the circuit: the `SheafMoveOperator` instantiated in
+§2e.18 as a chess-style P_place_i toolkit is now also the
+production replay primitive that drives every published encoding
+run, unifying validation, mutation, and lookahead-encoding under
+the faithful sheaf's bracket walker.
 
 ---
 
@@ -710,41 +1715,93 @@ not trivially degenerate.
 
 ### 3.4 Kernel dimension
 
-The kernel dim is constant at 128 across the trajectory.  This is an
-artefact of the simplified restriction maps: empty cells project
-onto a single coordinate, leaving two kernel directions per cell.
-A faithful bracket-aware restriction should reduce the kernel at
-positions with many contested rays.  Sequel work.
+The crude sheaf's kernel dim is constant at 128 across the
+trajectory.  This is an artefact of the simplified restriction
+maps: empty cells project onto a single coordinate, leaving two
+kernel directions per cell.
+
+**CLOSED in §2e.5** — the faithful (bracket-aware) sheaf
+(`faithful_sheaf.py`) breaks the constant kernel: on the seed=123
+trajectory the kernel dim ranges 141–188, varying with how many
+cells participate in active brackets.  The faithful restriction
+maps depend on R2_COMPLETE / R3_PENDING classification of each
+ray segment, not just cell-endpoint state.  λ₂ differs from crude
+by mean +0.29.  All downstream spectrum-based analyses (§2e.4,
+§2e.15, §2e.16) use the faithful sheaf.
 
 ---
 
-## 4. Phase-operator preflight — scaffold only
+## 4. Phase-operator preflight — **instantiated in §2e.15–§2e.18**
 
 See [OTHELLO_PHASE_OP_PREFLIGHT.md](OTHELLO_PHASE_OP_PREFLIGHT.md)
-for the full handoff document.  Candidate encoder dimensions,
-placement generators, flip gate options, state-dependent gating
-mechanisms, and ground-truth engine selection are documented there.
+for the original handoff document.  Phase 1e replaced "scaffold
+only" with a working toolbox:
 
-Recommended default: D = 768 with generators (7, 11), rank-2 fiber
-motivated by the §9r polarization collapse.
+- **Encoder** (D = 768 at v0.3.1): default `fiber_mode="sheaf"`
+  uses per-cell R3_PENDING bracket counts as channels 10/11
+  (§2e.6).  Legacy `fiber_mode="rank2"` — the §9r polarization-
+  collapse default — kept for C-parity and ablations.
+- **C reference encoder** at
+  [research/othello_spectral/c_encoder/](research/othello_spectral/c_encoder/),
+  bit-identical to Python on both fiber modes (§2e.7, §2e.13).
+  25× speedup on sheaf encoding via ctypes.
+- **Sheaf-phased operator**
+  ([research/othello_spectral/phase_operator.py](research/othello_spectral/phase_operator.py))
+  with 6 modes: `identity`, `scale_fiber_by_owner_lambda2`,
+  `scale_all_by_kernel_dim`, `rotate_E_by_entropy`,
+  `rotate_E_so2_by_entropy`, `scale_by_feature_coupling`.
+- **Learned coupling** (§2e.16): Nelder-Mead fit produces
+  **partial ρ = −0.683 against archive_mean_lb** — 2.03× the
+  §1d.b D₄-A₁(s²) baseline.  Dominant coefficient pattern
+  `+0.256 entropy_B − 0.283 entropy_W`: cross-owner sheaf-
+  entropy difference as the structural coupling.
+- **Move-type operators**
+  ([research/othello_spectral/move_operator.py](research/othello_spectral/move_operator.py)),
+  chess-style per-cell `P_place_i` using the bracket classifier
+  to compute flipped cells.  6/6 parity tests against
+  `OthelloBoard.play()` on 20 random games.
+- **Encoder replay primitive** (§2e.19, v0.3.2): `encode-pgn`
+  now uses `pgn_loader.replay_sheaf()` — wrapping the same
+  `SheafMoveOperator` — as its replay backend.  2.5× end-to-end
+  speedup on APR 2026 (8.92 s → 3.62 s), byte-identical output.
+  The faithful sheaf's bracket walker is now the single source
+  of truth for validation, mutation, and lookahead-encoding.
+
+Residual preflight items: off-diagonal phase operators beyond
+SO(2)-on-E (state-dependent channel mixing among non-E
+subspaces), phase-operator composition for multi-ply look-ahead,
+and a C port of the phase operator itself.
 
 ---
 
-## 5. WTHOR empirical tests — scaffold only
+## 5. WTHOR empirical tests — **resolved in §2e**
 
-§10.10 tests 1–5 plus the A1 depth-gap transfer.  All require
-external data not available in-session:
+§10.10 tests 1–5 plus the A1 depth-gap transfer.  Phase 1c–1e
+answered every item; original section preserved below for
+historical context.  Current status:
 
-- T1 Flip-count distribution (power law vs exponential).
-- T2 B1 vs B2 population asymmetry along game trajectories.
-- T3 Shannon information per move.
-- T4 Trajectory in (T_eff, D_eff) plane.
-- T5 Flank-cluster size distribution vs FK-BC.
+- **T1 Flip-count distribution** — FAILED power-law hypothesis,
+  PASSED exponential with λ ≈ 0.548 across all 4 tournament
+  corpora (§2e.8).
+- **T2 B1 vs B2 population asymmetry** — CONFIRMED (§2b.T2);
+  B2 > B1 on the static 50-empty tasklist (2.01×) and on
+  trajectory averages (1.07–1.25×, §1e.7-era commits).
+- **T3 Shannon information per move** — CONFIRMED via
+  `opening_book_freq.csv.bz2` (§2c.2) with Simpson's-paradox
+  retraction of the aggregate reading (§2e.3 / §1e.6).
+- **T4 Trajectory in (T_eff, D_eff) plane** — PARTIAL; median
+  T_eff = −22 k robust across corpora via windowed OLS, or
+  −6.04 log-E slope; heavy-tailed at short windows (§2e.9).
+- **T5 Flank-cluster size distribution vs FK-BC** — FAILED
+  power-law, PASSED exponential (τ ≈ 2.68 across all 4 corpora;
+  §2e.8).
+- **H9 strict perfect-play depth-gap** — CONFIRMED (§2d.b at
+  N = 2587) with Reading B separation confirmed by edax d=20
+  (§2e.2).
 
-Preparation: `research/wthor_loader.py` is scoped but not yet
-implemented; `research/perfect_play_compare.py` is similarly scoped.
-Both are single-session tasks once the WTHOR .wtb file is
-downloaded and the Takizawa Zenodo dataset is available.
+`research/wthor_loader.py` scope became unnecessary: the
+2178-game `liveothello_2025_all.pgn` + Takizawa tasklist +
+archive summary together provide the WTHOR-scale corpus.
 
 ---
 

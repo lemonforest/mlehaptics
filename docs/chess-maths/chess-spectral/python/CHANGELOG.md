@@ -5,6 +5,56 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] — 2026-04-24
+
+Restores the `[corpus]`-optional contract documented in 1.2.x.
+`spectral-chess4d-oana-chiru` (and any other 4D-only consumer) can
+now `pip install chess-spectral` without the `[corpus]` extra and
+still `import chess_spectral` cleanly.
+
+### Fixed
+
+- **Eager-import regression in `chess_spectral.phase_operators`.**
+  Six submodules (`castling`, `occupation_field`, `occupation_aware_a/b/c`,
+  `phase_check_detection`) had a top-level `import chess` that ran
+  during `from chess_spectral import ...`, transitively forcing
+  python-chess (~1.5 MB) as a hard dependency even though the
+  project declares `chess` as `[corpus]`-optional.  All six now use
+  `TYPE_CHECKING`-gated annotations and function-body lazy imports.
+
+  `castling.py` additionally replaced the module-level
+  `chess.WHITE` / `chess.BLACK` references (used as keys in the
+  `CASTLES` dict literal) with explicit `_WHITE = True` /
+  `_BLACK = False` constants — documented as matching the stable
+  python-chess API where `chess.Color is bool`.
+
+### Measured impact
+
+- `import chess_spectral` with python-chess **blocked from
+  sys.meta_path**: succeeds in ~3.1 s (was `ImportError` before).
+- `import chess_spectral` with python-chess available: 3590 ms →
+  3174 ms (−416 ms, 11 % faster; python-chess no longer loaded
+  eagerly).
+- `sys.modules` count after import: 555 → 554.
+
+### API surface
+
+No public API changes.  All names re-exported from
+`chess_spectral` and `chess_spectral.phase_operators` continue to
+work identically when python-chess is installed.  Calling a chess-
+dependent function (e.g. `occupation_aware_moves_a`, `available_
+castles`) without python-chess installed raises `ImportError` at
+call time with a clear message, instead of at import time.
+
+### Tests
+
+All 161 tests pass (92 phase_operators + 69 core).
+`tests/test_parity.py::test_encoder_starting_position_channel_energies`
+is a known pre-existing failure unrelated to this change
+(expected values in the fixture have not been updated since the
+1.2.1 B₁/B₂ character fix); it fails identically on `main` at
+1.2.2.
+
 ## [1.2.2] — 2026-04-23
 
 Source-tree consistency follow-up to 1.2.1.  The 1.2.1 release corrected

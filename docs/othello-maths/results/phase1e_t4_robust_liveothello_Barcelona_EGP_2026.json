@@ -1,0 +1,475 @@
+{
+  "pgn": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+  "window": 8,
+  "r2_min_for_filter": 0.3,
+  "n_games": 35,
+  "n_windows_total": 1939,
+  "n_high_r2_windows": 1179,
+  "t_eff_all_median": -14725.566555514833,
+  "t_eff_all_iqr": [
+    -26803.550959246735,
+    -5278.196118681705
+  ],
+  "t_eff_high_r2_median": -22187.754132052745,
+  "t_eff_high_r2_iqr": [
+    -34803.109484989094,
+    -14008.411935071616
+  ],
+  "per_game": [
+    {
+      "game": 0,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Tastet Marc",
+        "final": "37-27"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 32,
+      "t_eff_median": -11280.255368394832,
+      "t_eff_median_high_r2": -22050.9605200527
+    },
+    {
+      "game": 1,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Berg Matthias",
+        "final": "29-35"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 29,
+      "t_eff_median": -12093.319048603385,
+      "t_eff_median_high_r2": -15754.771162769359
+    },
+    {
+      "game": 2,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Saiz Ruben",
+        "final": "39-25"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 26,
+      "t_eff_median": -12107.161513452796,
+      "t_eff_median_high_r2": -15222.132646700848
+    },
+    {
+      "game": 3,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Tastet R\u00e9mi",
+        "final": "35-29"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 31,
+      "t_eff_median": -8498.79229624036,
+      "t_eff_median_high_r2": -16627.98109969845
+    },
+    {
+      "game": 4,
+      "headers": {
+        "black": "Saiz Ruben",
+        "white": "Kashiwabara Takuji",
+        "final": "31-33"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 40,
+      "t_eff_median": -10391.532358048076,
+      "t_eff_median_high_r2": -15715.30464000401
+    },
+    {
+      "game": 5,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Salvo Michele",
+        "final": "49-15"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 32,
+      "t_eff_median": -15867.316347685059,
+      "t_eff_median_high_r2": -27526.839778394744
+    },
+    {
+      "game": 6,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Martinez Oscar",
+        "final": "53-11"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 34,
+      "t_eff_median": -13564.56486920299,
+      "t_eff_median_high_r2": -26256.267735404264
+    },
+    {
+      "game": 7,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Leader Imre",
+        "final": "24-40"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 23,
+      "t_eff_median": -7681.90616645686,
+      "t_eff_median_high_r2": -34768.466198744056
+    },
+    {
+      "game": 8,
+      "headers": {
+        "black": "Boe Alexander",
+        "white": "Hobo Roel",
+        "final": "16-48"
+      },
+      "n_windows": 57,
+      "n_valid_windows": 57,
+      "n_high_r2_windows": 31,
+      "t_eff_median": -16632.079411949726,
+      "t_eff_median_high_r2": -26813.01620885502
+    },
+    {
+      "game": 9,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Kashiwabara Takuji",
+        "final": "38-26"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 38,
+      "t_eff_median": -14465.197699250682,
+      "t_eff_median_high_r2": -23918.867321483038
+    },
+    {
+      "game": 10,
+      "headers": {
+        "black": "Andriani Bintsa",
+        "white": "Berg Matthias",
+        "final": "16-48"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 33,
+      "t_eff_median": -16719.500152854926,
+      "t_eff_median_high_r2": -28275.86116765583
+    },
+    {
+      "game": 11,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Berg Matthias",
+        "final": "25-39"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 38,
+      "t_eff_median": -14601.22972580733,
+      "t_eff_median_high_r2": -24576.02562118126
+    },
+    {
+      "game": 12,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Hobo Roel",
+        "final": "42-22"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 37,
+      "t_eff_median": -20794.259910088553,
+      "t_eff_median_high_r2": -24136.232797935372
+    },
+    {
+      "game": 13,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Hobo Roel",
+        "final": "21-43"
+      },
+      "n_windows": 56,
+      "n_valid_windows": 56,
+      "n_high_r2_windows": 30,
+      "t_eff_median": -14230.842243956391,
+      "t_eff_median_high_r2": -36518.98994727367
+    },
+    {
+      "game": 14,
+      "headers": {
+        "black": "Leader Imre",
+        "white": "Kashiwabara Takuji",
+        "final": "22-42"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 35,
+      "t_eff_median": -13124.426765711283,
+      "t_eff_median_high_r2": -16389.68260996311
+    },
+    {
+      "game": 15,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Leader Imre",
+        "final": "30-34"
+      },
+      "n_windows": 56,
+      "n_valid_windows": 56,
+      "n_high_r2_windows": 38,
+      "t_eff_median": -16752.21736385942,
+      "t_eff_median_high_r2": -23709.50618507016
+    },
+    {
+      "game": 16,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Berg Matthias",
+        "final": "23-41"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 26,
+      "t_eff_median": -13361.797664849852,
+      "t_eff_median_high_r2": -22410.68851341823
+    },
+    {
+      "game": 17,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Affatigato Carlo",
+        "final": "44-20"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 40,
+      "t_eff_median": -11036.518816375015,
+      "t_eff_median_high_r2": -18774.171869411453
+    },
+    {
+      "game": 18,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Affatigato Carlo",
+        "final": "39-25"
+      },
+      "n_windows": 57,
+      "n_valid_windows": 57,
+      "n_high_r2_windows": 44,
+      "t_eff_median": -27322.41114102946,
+      "t_eff_median_high_r2": -34644.64658042051
+    },
+    {
+      "game": 19,
+      "headers": {
+        "black": "Saiz Ruben",
+        "white": "Hobo Roel",
+        "final": "41-23"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 37,
+      "t_eff_median": -11972.040894001319,
+      "t_eff_median_high_r2": -13920.963597360256
+    },
+    {
+      "game": 20,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Kashiwabara Takuji",
+        "final": "40-24"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 34,
+      "t_eff_median": -14285.817059966945,
+      "t_eff_median_high_r2": -30815.850220183434
+    },
+    {
+      "game": 21,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Andriani Bintsa",
+        "final": "51-13"
+      },
+      "n_windows": 57,
+      "n_valid_windows": 57,
+      "n_high_r2_windows": 41,
+      "t_eff_median": -14214.087590424486,
+      "t_eff_median_high_r2": -17161.3037470769
+    },
+    {
+      "game": 22,
+      "headers": {
+        "black": "Ramirez Sergio",
+        "white": "Berg Matthias",
+        "final": "28-36"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 20,
+      "t_eff_median": -14346.74135298936,
+      "t_eff_median_high_r2": -40576.94692393828
+    },
+    {
+      "game": 23,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Polonski Maciej",
+        "final": "46-18"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 33,
+      "t_eff_median": -13799.590056451883,
+      "t_eff_median_high_r2": -20792.283929354184
+    },
+    {
+      "game": 24,
+      "headers": {
+        "black": "Tastet Marc",
+        "white": "Boe Alexander",
+        "final": "18-46"
+      },
+      "n_windows": 56,
+      "n_valid_windows": 56,
+      "n_high_r2_windows": 24,
+      "t_eff_median": -13831.66314181366,
+      "t_eff_median_high_r2": -36802.97546440017
+    },
+    {
+      "game": 25,
+      "headers": {
+        "black": "Martinez Oscar",
+        "white": "Hobo Roel",
+        "final": "12-52"
+      },
+      "n_windows": 58,
+      "n_valid_windows": 58,
+      "n_high_r2_windows": 46,
+      "t_eff_median": -20871.55304572823,
+      "t_eff_median_high_r2": -21781.63818732561
+    },
+    {
+      "game": 26,
+      "headers": {
+        "black": "Berg Matthias",
+        "white": "Saiz Ruben",
+        "final": "48-16"
+      },
+      "n_windows": 57,
+      "n_valid_windows": 57,
+      "n_high_r2_windows": 33,
+      "t_eff_median": -14540.680764663357,
+      "t_eff_median_high_r2": -20360.313979106395
+    },
+    {
+      "game": 27,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Ramirez Sergio",
+        "final": "54-10"
+      },
+      "n_windows": 57,
+      "n_valid_windows": 57,
+      "n_high_r2_windows": 35,
+      "t_eff_median": -17222.062014431733,
+      "t_eff_median_high_r2": -22636.378292694404
+    },
+    {
+      "game": 28,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Salvo Michele",
+        "final": "29-35"
+      },
+      "n_windows": 56,
+      "n_valid_windows": 56,
+      "n_high_r2_windows": 41,
+      "t_eff_median": -15942.644978495016,
+      "t_eff_median_high_r2": -23163.945189878294
+    },
+    {
+      "game": 29,
+      "headers": {
+        "black": "Boe Alexander",
+        "white": "Berg Matthias",
+        "final": "20-44"
+      },
+      "n_windows": 54,
+      "n_valid_windows": 54,
+      "n_high_r2_windows": 30,
+      "t_eff_median": -10088.049600233866,
+      "t_eff_median_high_r2": -23251.951096318164
+    },
+    {
+      "game": 30,
+      "headers": {
+        "black": "Polonski Maciej",
+        "white": "Kashiwabara Takuji",
+        "final": "12-52"
+      },
+      "n_windows": 58,
+      "n_valid_windows": 58,
+      "n_high_r2_windows": 36,
+      "t_eff_median": -20208.508216991595,
+      "t_eff_median_high_r2": -27894.984658433183
+    },
+    {
+      "game": 31,
+      "headers": {
+        "black": "Tastet R\u00e9mi",
+        "white": "Berg Matthias",
+        "final": "17-47"
+      },
+      "n_windows": 56,
+      "n_valid_windows": 56,
+      "n_high_r2_windows": 40,
+      "t_eff_median": -18998.09894047331,
+      "t_eff_median_high_r2": -22880.715676845808
+    },
+    {
+      "game": 32,
+      "headers": {
+        "black": "Kashiwabara Takuji",
+        "white": "Boe Alexander",
+        "final": "51-13"
+      },
+      "n_windows": 57,
+      "n_valid_windows": 57,
+      "n_high_r2_windows": 30,
+      "t_eff_median": -13058.208385949632,
+      "t_eff_median_high_r2": -17300.677240245408
+    },
+    {
+      "game": 33,
+      "headers": {
+        "black": "Hobo Roel",
+        "white": "Andriani Bintsa",
+        "final": "59-5"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 38,
+      "t_eff_median": -15590.53452198941,
+      "t_eff_median_high_r2": -19708.144501788374
+    },
+    {
+      "game": 34,
+      "headers": {
+        "black": "Affatigato Carlo",
+        "white": "Ramirez Sergio",
+        "final": "50-14"
+      },
+      "n_windows": 55,
+      "n_valid_windows": 55,
+      "n_high_r2_windows": 24,
+      "t_eff_median": -12184.674074778712,
+      "t_eff_median_high_r2": -18951.523343214067
+    }
+  ]
+}

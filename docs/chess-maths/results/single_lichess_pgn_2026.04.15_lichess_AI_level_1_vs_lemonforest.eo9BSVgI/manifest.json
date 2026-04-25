@@ -15,7 +15,7 @@
     "n_fetched": 1,
     "n_encoded": 1,
     "n_errors": 0,
-    "wall_time_s": 2.05
+    "wall_time_s": 0.03
   },
   "games": [
     {
@@ -40,20 +40,30 @@
       "n_plies": 101,
       "mean_A1": 26.3022,
       "mean_A2": 22.3572,
-      "mean_B1": 37.107,
-      "mean_B2": 37.107,
+      "mean_B1": 18.7487,
+      "mean_B2": 31.2585,
       "mean_E": 196.8413,
       "mean_F1": 137.7001,
       "mean_F2": 555.096,
       "mean_F3": 445.7872,
       "mean_FA": 14.0815,
       "mean_FD": 1079345.125,
-      "chaos_ratio": 16.9198,
+      "chaos_ratio": 17.0516,
       "nag_count": 37,
       "blunder_count": 13,
       "mistake_count": 2,
       "has_eval": true,
       "has_clk": false
+    }
+  ],
+  "regenerated_utc": "2026-04-23T21:09:42.894993+00:00",
+  "regen_history": [
+    {
+      "when_utc": "2026-04-23T21:09:42.894993+00:00",
+      "script": "regen_corpus_derived.py",
+      "note": "refresh extract_features() after chess_spectral/tables.py CHARS fix; spectralz/ndjson unchanged",
+      "n_ok": 1,
+      "n_errors": 0
     }
   ]
 }

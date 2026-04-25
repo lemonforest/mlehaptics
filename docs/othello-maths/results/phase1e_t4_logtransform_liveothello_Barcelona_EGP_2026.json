@@ -1,0 +1,80 @@
+{
+  "raw": {
+    "pgn": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+    "variant": "raw",
+    "window": 8,
+    "r2_min": 0.3,
+    "n_games": 35,
+    "n_windows_total": 1939,
+    "n_high_r2_windows": 1179,
+    "slope_all": {
+      "median": -14725.566555514833,
+      "iqr": [
+        -26803.550959246735,
+        -5278.196118681705
+      ],
+      "mean": -17718.127057959224,
+      "std": 18630.246739771806
+    },
+    "slope_high_r2": {
+      "median": -22187.754132052745,
+      "iqr": [
+        -34803.109484989094,
+        -14008.411935071616
+      ],
+      "mean": -25939.231304600027
+    }
+  },
+  "log_E": {
+    "pgn": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+    "variant": "log_E",
+    "window": 8,
+    "r2_min": 0.3,
+    "n_games": 35,
+    "n_windows_total": 1939,
+    "n_high_r2_windows": 1188,
+    "slope_all": {
+      "median": -4.330804068025209,
+      "iqr": [
+        -6.924251177492612,
+        -1.901650544714067
+      ],
+      "mean": -4.416916738816483,
+      "std": 4.2845443575707085
+    },
+    "slope_high_r2": {
+      "median": -6.040674720639329,
+      "iqr": [
+        -8.479699357352015,
+        -4.281590095059869
+      ],
+      "mean": -6.418590362239189
+    }
+  },
+  "log_both": {
+    "pgn": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+    "variant": "log_both",
+    "window": 8,
+    "r2_min": 0.3,
+    "n_games": 35,
+    "n_windows_total": 1939,
+    "n_high_r2_windows": 1187,
+    "slope_all": {
+      "median": -3.399579741941818,
+      "iqr": [
+        -5.612562784648615,
+        -1.4450799471599631
+      ],
+      "mean": -3.5166170380215034,
+      "std": 3.4104512725099556
+    },
+    "slope_high_r2": {
+      "median": -4.851147579868565,
+      "iqr": [
+        -6.701319992276142,
+        -3.3663140629907518
+      ],
+      "mean": -5.122903284348755
+    }
+  }
+}

@@ -1,0 +1,1818 @@
+{
+  "corpus": "..\\dataset\\liveothello_2025_all.pgn",
+  "corpus_tag": "liveothello_2025_all",
+  "n_games_requested": null,
+  "n_games_replayed": 2178,
+  "deltas": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "trajectory_lengths_summary": {
+    "min": 8,
+    "max": 70,
+    "mean": 61.66483011937557
+  },
+  "sheaf_features": [
+    "sheaf_black_lambda2",
+    "sheaf_white_lambda2",
+    "sheaf_black_entropy",
+    "sheaf_white_entropy",
+    "sheaf_black_lambdamax",
+    "sheaf_white_lambdamax"
+  ],
+  "spectral_targets": [
+    "a1_minus_energy",
+    "d4_a1_occupation_energy",
+    "d4_e_occupation_energy"
+  ],
+  "state_targets": [
+    "n_legal_moves",
+    "rho",
+    "empty_count"
+  ],
+  "wall_time_seconds": 3031.215474128723,
+  "per_delta": {
+    "delta_1": {
+      "n_pairs": 132128,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.44298439008790835,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.43068023383944976,
+          "r2_persistence_target_at_t": 0.7885144513906608,
+          "predictive_gain_vs_persistence": -0.34553006130275243,
+          "predictive_gain_vs_snapshot": 0.012304156248458598,
+          "n": 132128
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.9623672908917077,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9587585392314244,
+          "r2_persistence_target_at_t": 0.9991114176387332,
+          "predictive_gain_vs_persistence": -0.03674412674702554,
+          "predictive_gain_vs_snapshot": 0.0036087516602832936,
+          "n": 132128
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.114843249403898,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.09836353243454099,
+          "r2_persistence_target_at_t": 0.9457212702943519,
+          "predictive_gain_vs_persistence": -0.8308780208904539,
+          "predictive_gain_vs_snapshot": 0.016479716969357017,
+          "n": 132128
+        },
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.5586396185561322,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5740748726335314,
+          "r2_persistence_target_at_t": 0.24284455482748568,
+          "predictive_gain_vs_persistence": 0.3157950637286465,
+          "predictive_gain_vs_snapshot": -0.015435254077399208,
+          "n": 132128
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.9759239894902848,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9719132497025534,
+          "r2_persistence_target_at_t": 0.9999295206990183,
+          "predictive_gain_vs_persistence": -0.0240055312087335,
+          "predictive_gain_vs_snapshot": 0.0040107397877313655,
+          "n": 132128
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.9759239894902849,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9719132497025534,
+          "r2_persistence_target_at_t": 0.9999295206990183,
+          "predictive_gain_vs_persistence": -0.02400553120873339,
+          "predictive_gain_vs_snapshot": 0.0040107397877314765,
+          "n": 132128
+        }
+      },
+      "univariate": {
+        "persistence__a1_minus_energy": {
+          "rho": 0.87225629161783,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": 0.033830169068541936,
+          "p": 9.004535784135354e-35,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": -0.01948337345257262,
+          "p": 1.413749846334199e-12,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": 0.03779848333733667,
+          "p": 5.509657698432149e-43,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": -0.01234201915994273,
+          "p": 7.2443411462703765e-06,
+          "n": 132128
+        },
+        "predictive__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.6581635199692905,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.639609876153502,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.63997644561367,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.629518952806561,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.16506196438556545,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.13149375153658546,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": -0.14843433269749529,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": -0.10855067108125417,
+          "p": 0.0,
+          "n": 132128
+        },
+        "persistence__d4_a1_occupation_energy": {
+          "rho": 0.9995396238268649,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.012316392769127738,
+          "p": 7.567649462558013e-06,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.055015514093615964,
+          "p": 4.261597350852507e-89,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.015403927298729624,
+          "p": 2.149501797557994e-08,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.05055858911353198,
+          "p": 1.5992051633644703e-75,
+          "n": 132128
+        },
+        "predictive__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8641532885090043,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8565782882727025,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8550479138650481,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8474320982533015,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.17674128397165118,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.1339608093512157,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.1795861513589699,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.13729789758733973,
+          "p": 0.0,
+          "n": 132128
+        },
+        "persistence__d4_e_occupation_energy": {
+          "rho": 0.9681063964858561,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.3565446753767644,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.3279823065283287,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.34922999982678155,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.3203521857187775,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": -0.11876515771574986,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": -0.12515785661129247,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": -0.09739256135395864,
+          "p": 8.176331960237738e-276,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": -0.09892953684656348,
+          "p": 1.4598527505925692e-284,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.23409041376417472,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.2070183857700315,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.22366487097325216,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.1987231613906254,
+          "p": 0.0,
+          "n": 132128
+        },
+        "persistence__n_legal_moves": {
+          "rho": 0.4909378396802224,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.507421976427111,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.5302334837778008,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5082308454412674,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5366907748103307,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.34521084058333634,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.33073600045303847,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.3411076219473759,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.37208097142404484,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.2873048160202497,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.2971631572852945,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.2724389572884579,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.2709841005023161,
+          "p": 0.0,
+          "n": 132128
+        },
+        "persistence__rho": {
+          "rho": 0.9999615267276615,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": -0.006282801363794434,
+          "p": 0.022385492771672424,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.0745252442000384,
+          "p": 4.735530902762503e-162,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": -0.00528772241565131,
+          "p": 0.05459928573672383,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.07220978277897079,
+          "p": 3.0886664210429987e-152,
+          "n": 132128
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.8723248613557583,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.8647348570461436,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.8634287180259053,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8557825900922535,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.1626286414138541,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": -0.11962863400234304,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.16744602923897953,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": -0.12513502689120923,
+          "p": 0.0,
+          "n": 132128
+        },
+        "persistence__empty_count": {
+          "rho": 0.9999615267276615,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": 0.006282801363794434,
+          "p": 0.022385492771672424,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.0745252442000384,
+          "p": 4.735530902762503e-162,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": 0.00528772241565131,
+          "p": 0.05459928573672383,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.07220978277897079,
+          "p": 3.0886664210429987e-152,
+          "n": 132128
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.8723248613557583,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.8647348570461436,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.8634287180259053,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8557825900922535,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.1626286414138541,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.11962863400234304,
+          "p": 0.0,
+          "n": 132128
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.16744602923897953,
+          "p": 0.0,
+          "n": 132128
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.12513502689120923,
+          "p": 0.0,
+          "n": 132128
+        }
+      }
+    },
+    "delta_3": {
+      "n_pairs": 127772,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.44183035176644825,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.4122207137642797,
+          "r2_persistence_target_at_t": 0.5970601322781431,
+          "predictive_gain_vs_persistence": -0.1552297805116949,
+          "predictive_gain_vs_snapshot": 0.029609638002168537,
+          "n": 127772
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.963955045826783,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9558526767449378,
+          "r2_persistence_target_at_t": 0.9967090507929012,
+          "predictive_gain_vs_persistence": -0.03275400496611813,
+          "predictive_gain_vs_snapshot": 0.008102369081845251,
+          "n": 127772
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.11154825989828754,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.06290456272973466,
+          "r2_persistence_target_at_t": 0.7734938225101963,
+          "predictive_gain_vs_persistence": -0.6619455626119087,
+          "predictive_gain_vs_snapshot": 0.04864369716855288,
+          "n": 127772
+        },
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.56536187744132,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5746712386218187,
+          "r2_persistence_target_at_t": 0.1872659534417247,
+          "predictive_gain_vs_persistence": 0.37809592399959535,
+          "predictive_gain_vs_snapshot": -0.009309361180498632,
+          "n": 127772
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.978517555919647,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9689954559662872,
+          "r2_persistence_target_at_t": 0.9997509443642444,
+          "predictive_gain_vs_persistence": -0.021233388444597434,
+          "predictive_gain_vs_snapshot": 0.00952209995335973,
+          "n": 127772
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.978517555919647,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9689954559662872,
+          "r2_persistence_target_at_t": 0.9997509443642444,
+          "predictive_gain_vs_persistence": -0.021233388444597434,
+          "predictive_gain_vs_snapshot": 0.00952209995335973,
+          "n": 127772
+        }
+      },
+      "univariate": {
+        "persistence__a1_minus_energy": {
+          "rho": 0.7587595016909396,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": 0.05514985475639283,
+          "p": 1.2336148397706076e-86,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": -0.09972665223176612,
+          "p": 1.0813571869922005e-279,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": 0.06054152446838662,
+          "p": 4.8550932522785776e-104,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": -0.0908454921745108,
+          "p": 2.9101746963322514e-232,
+          "n": 127772
+        },
+        "predictive__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.6446425004952717,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.608601947538644,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.6255112346263695,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.6010953088190395,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.16441500552203245,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.066697388546218,
+          "p": 6.670468268313094e-126,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": -0.1471566708606278,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": -0.04221507346609777,
+          "p": 1.7089410789161715e-51,
+          "n": 127772
+        },
+        "persistence__d4_a1_occupation_energy": {
+          "rho": 0.9983348607043437,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.05750064455037271,
+          "p": 5.039711796769747e-94,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.14435366949855283,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.06245357282490968,
+          "p": 1.3277992458690562e-110,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.13822104442018743,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8655378750760544,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8430746556585589,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8546604766526711,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8382125918194756,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.19839193368764743,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.06369714840835966,
+          "p": 5.554587860628775e-115,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.19741450727612284,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.06771747591214666,
+          "p": 9.910263390124707e-130,
+          "n": 127772
+        },
+        "persistence__d4_e_occupation_energy": {
+          "rho": 0.8636195359270555,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.34947460707655076,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.2713811407486121,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.34143910218544177,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.2636600293529928,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": -0.03659475149208076,
+          "p": 4.0050004831772696e-39,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": -0.04981918458245602,
+          "p": 5.045237768708497e-71,
+          "n": 127772
+        },
+        "predictive__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": -0.016571322344383854,
+          "p": 3.145809544430675e-09,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": -0.03156926895167624,
+          "p": 1.5178862735174133e-29,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.22228125371424676,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.14248673373278875,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.21006746081389102,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.13396264003521366,
+          "p": 0.0,
+          "n": 127772
+        },
+        "persistence__n_legal_moves": {
+          "rho": 0.4318436888458324,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.4280912205267815,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.5039122388259454,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.4261579401618591,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5105466905614559,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.43029768117264966,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.4110270291388113,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.41961801371240715,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.44188270416115166,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.22547849864972336,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.258828085801421,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.21603029311821362,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.23177850130652522,
+          "p": 0.0,
+          "n": 127772
+        },
+        "persistence__rho": {
+          "rho": 0.9998824413530556,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": 0.03972087469171175,
+          "p": 8.680607406722068e-46,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.16566512266759734,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": 0.04271457737388654,
+          "p": 1.1182066801099925e-52,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.16183888120374654,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.8744270016984884,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.852076779400598,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.8633304813918594,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8474210573286048,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.1846196093706075,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": -0.047931216281440245,
+          "p": 7.114250075509887e-66,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.18524358489680162,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": -0.05429904558310093,
+          "p": 4.8895271487519745e-84,
+          "n": 127772
+        },
+        "persistence__empty_count": {
+          "rho": 0.9998824413530556,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": -0.03972087469171175,
+          "p": 8.680607406722068e-46,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.16566512266759734,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": -0.04271457737388654,
+          "p": 1.1182066801099925e-52,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.16183888120374654,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.8744270016984884,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.852076779400598,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.8633304813918594,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8474210573286048,
+          "p": 0.0,
+          "n": 127772
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.1846196093706075,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.047931216281440245,
+          "p": 7.114250075509887e-66,
+          "n": 127772
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.18524358489680162,
+          "p": 0.0,
+          "n": 127772
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.05429904558310093,
+          "p": 4.8895271487519745e-84,
+          "n": 127772
+        }
+      }
+    },
+    "delta_5": {
+      "n_pairs": 123416,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.43767264548768214,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.39345010269264846,
+          "r2_persistence_target_at_t": 0.4669860000678039,
+          "predictive_gain_vs_persistence": -0.029313354580121742,
+          "predictive_gain_vs_snapshot": 0.04422254279503368,
+          "n": 123416
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.9632782745467612,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9524121161174273,
+          "r2_persistence_target_at_t": 0.9938081145659362,
+          "predictive_gain_vs_persistence": -0.030529840019175025,
+          "predictive_gain_vs_snapshot": 0.010866158429333916,
+          "n": 123416
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.12194735400898049,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.050281697917725854,
+          "r2_persistence_target_at_t": 0.5798383022903713,
+          "predictive_gain_vs_persistence": -0.45789094828139076,
+          "predictive_gain_vs_snapshot": 0.07166565609125464,
+          "n": 123416
+        },
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.5800872634065724,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5915695478517048,
+          "r2_persistence_target_at_t": 0.12549147015742712,
+          "predictive_gain_vs_persistence": 0.45459579324914523,
+          "predictive_gain_vs_snapshot": -0.01148228444513244,
+          "n": 123416
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.9794642789324177,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9657240289884327,
+          "r2_persistence_target_at_t": 0.9995010207177477,
+          "predictive_gain_vs_persistence": -0.020036741785329992,
+          "predictive_gain_vs_snapshot": 0.013740249943985039,
+          "n": 123416
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.9794642789324177,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9657240289884327,
+          "r2_persistence_target_at_t": 0.9995010207177477,
+          "predictive_gain_vs_persistence": -0.020036741785329992,
+          "predictive_gain_vs_snapshot": 0.013740249943985039,
+          "n": 123416
+        }
+      },
+      "univariate": {
+        "persistence__a1_minus_energy": {
+          "rho": 0.6828037077717635,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": 0.07348930261937925,
+          "p": 2.3138535769916418e-147,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": -0.17139420691412574,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": 0.080470479450066,
+          "p": 2.232754374970455e-176,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": -0.1612235290102229,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.6260531150240342,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.5758927335989882,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.6076799180785623,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.5697718487413433,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.16297223126223445,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.005167106776189069,
+          "p": 0.06948856537755782,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": -0.14419981922568634,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": 0.02053649122468859,
+          "p": 5.3821876393887e-13,
+          "n": 123416
+        },
+        "persistence__d4_a1_occupation_energy": {
+          "rho": 0.9968789280499777,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.10548133173770631,
+          "p": 3.0721885891564297e-302,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.2268277143590693,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.11287908912147165,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.21948234834890645,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8644372243915519,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8289307326693917,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8515218569216245,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8273060444290695,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.22256699065675747,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": 0.007159601124367809,
+          "p": 0.01189586153724181,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.21699489396431548,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": 0.002063208564875375,
+          "p": 0.4685678298810388,
+          "n": 123416
+        },
+        "persistence__d4_e_occupation_energy": {
+          "rho": 0.7298291157381345,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.3328901529703785,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.22797520234962448,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.32392522302956983,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.2196286759210712,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": 0.03453693892029318,
+          "p": 6.7628941512112944e-34,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": 0.015084525492535382,
+          "p": 1.1609851829055157e-07,
+          "n": 123416
+        },
+        "predictive__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": 0.054367710427540114,
+          "p": 1.9437326664306541e-81,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": 0.02748189388067476,
+          "p": 4.623318013736624e-22,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.20869917862682752,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.0906666150636567,
+          "p": 1.5431041530053051e-223,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.19691354741024378,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.08235723082265038,
+          "p": 1.1240599993760604e-184,
+          "n": 123416
+        },
+        "persistence__n_legal_moves": {
+          "rho": 0.3530629885874791,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.33146078036818855,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.48675644873103147,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.32561499898536733,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.49324861961423605,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.5037731606367947,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.48203572210520673,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.4882068197968713,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.5030464986841533,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.15528920284305628,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.229642667126775,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.1527117675842162,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.20199461928044132,
+          "p": 0.0,
+          "n": 123416
+        },
+        "persistence__rho": {
+          "rho": 0.9997796032391855,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": 0.08902536671281139,
+          "p": 1.4594159871721128e-215,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.25001358830593556,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": 0.09475918618702547,
+          "p": 4.5282048001293264e-244,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.24514413135037505,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.8739606992917878,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.838835952595262,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.860268678474627,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8374662284550509,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.2098619443645038,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": 0.024358134227495647,
+          "p": 1.144993053932782e-17,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.2054759765480926,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": 0.01672785023387509,
+          "p": 4.178993132336759e-09,
+          "n": 123416
+        },
+        "persistence__empty_count": {
+          "rho": 0.9997796032391855,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": -0.08902536671281139,
+          "p": 1.4594159871721128e-215,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.25001358830593556,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": -0.09475918618702547,
+          "p": 4.5282048001293264e-244,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.24514413135037505,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.8739606992917878,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.838835952595262,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.860268678474627,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8374662284550509,
+          "p": 0.0,
+          "n": 123416
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.2098619443645038,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": -0.024358134227495647,
+          "p": 1.144993053932782e-17,
+          "n": 123416
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.2054759765480926,
+          "p": 0.0,
+          "n": 123416
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": -0.01672785023387509,
+          "p": 4.178993132336759e-09,
+          "n": 123416
+        }
+      }
+    },
+    "delta_10": {
+      "n_pairs": 112528,
+      "multivariate_r2": {
+        "a1_minus_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.4181819616601158,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.3519317678393601,
+          "r2_persistence_target_at_t": 0.3207205688457,
+          "predictive_gain_vs_persistence": 0.09746139281441579,
+          "predictive_gain_vs_snapshot": 0.0662501938207557,
+          "n": 112528
+        },
+        "d4_a1_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.9598681609020577,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9419365465282469,
+          "r2_persistence_target_at_t": 0.9850889544728687,
+          "predictive_gain_vs_persistence": -0.025220793570810973,
+          "predictive_gain_vs_snapshot": 0.017931614373810856,
+          "n": 112528
+        },
+        "d4_e_occupation_energy": {
+          "r2_predictive_full_sheaf_at_t": 0.1702302789732697,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.09602298594689085,
+          "r2_persistence_target_at_t": 0.1767955648630105,
+          "predictive_gain_vs_persistence": -0.006565285889740813,
+          "predictive_gain_vs_snapshot": 0.07420729302637885,
+          "n": 112528
+        },
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.6238513923930559,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.6305604970249974,
+          "r2_persistence_target_at_t": 0.2142237850761266,
+          "predictive_gain_vs_persistence": 0.40962760731692927,
+          "predictive_gain_vs_snapshot": -0.00670910463194152,
+          "n": 112528
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.9794042616281431,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9569395274624656,
+          "r2_persistence_target_at_t": 0.9986586357973121,
+          "predictive_gain_vs_persistence": -0.019254374169168975,
+          "predictive_gain_vs_snapshot": 0.022464734165677513,
+          "n": 112528
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.979404261628143,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9569395274624656,
+          "r2_persistence_target_at_t": 0.9986586357973121,
+          "predictive_gain_vs_persistence": -0.019254374169169086,
+          "predictive_gain_vs_snapshot": 0.022464734165677402,
+          "n": 112528
+        }
+      },
+      "univariate": {
+        "persistence__a1_minus_energy": {
+          "rho": 0.5882328084546059,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": 0.13555656264848817,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambda2__a1_minus_energy": {
+          "rho": -0.29068266153245126,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": 0.148374596609294,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambda2__a1_minus_energy": {
+          "rho": -0.28059939794655797,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.5807360415713778,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_entropy__a1_minus_energy": {
+          "rho": -0.5002869453650339,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.5540319678736613,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_entropy__a1_minus_energy": {
+          "rho": -0.49754434080305654,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": -0.18803591134743186,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambdamax__a1_minus_energy": {
+          "rho": 0.0788043702295188,
+          "p": 1.833656821542018e-154,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": -0.15967315376839195,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambdamax__a1_minus_energy": {
+          "rho": 0.10455091074708522,
+          "p": 6.207591998597723e-271,
+          "n": 112528
+        },
+        "persistence__d4_a1_occupation_energy": {
+          "rho": 0.9927919728808058,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.23539690457352774,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.3967566026807069,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": 0.24814480553761542,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambda2__d4_a1_occupation_energy": {
+          "rho": -0.3903866815595595,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8565139767260567,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_entropy__d4_a1_occupation_energy": {
+          "rho": -0.7889460401963877,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.8383974414539551,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_entropy__d4_a1_occupation_energy": {
+          "rho": -0.7943939325187356,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.2950680495620223,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambdamax__d4_a1_occupation_energy": {
+          "rho": 0.13506742566070395,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": -0.2739484823689595,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambdamax__d4_a1_occupation_energy": {
+          "rho": 0.12338898287004595,
+          "p": 0.0,
+          "n": 112528
+        },
+        "persistence__d4_e_occupation_energy": {
+          "rho": 0.3631884289425089,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.21451614973025354,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambda2__d4_e_occupation_energy": {
+          "rho": 0.16560503740620844,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.20215899968572532,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambda2__d4_e_occupation_energy": {
+          "rho": 0.15326343528203057,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": 0.2118132654193656,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_entropy__d4_e_occupation_energy": {
+          "rho": 0.17288118661608767,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": 0.22939565785883742,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_entropy__d4_e_occupation_energy": {
+          "rho": 0.1696672475927666,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.11996736990805103,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.028773686953163284,
+          "p": 4.723782619502449e-22,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.12107968298732372,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambdamax__d4_e_occupation_energy": {
+          "rho": -0.024356497761737348,
+          "p": 3.0443801575354497e-16,
+          "n": 112528
+        },
+        "persistence__n_legal_moves": {
+          "rho": 0.43120310096399184,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.08826250876357901,
+          "p": 2.1464432737084211e-193,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.4904588709295461,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.08217340853586926,
+          "p": 8.068782798245896e-168,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.49700216641719397,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.6095078380522827,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.575414740583593,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.6161850792249807,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.5835442300465334,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": 0.01607976215543455,
+          "p": 6.88003555692865e-08,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.21614003612931695,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": 0.008288735833760129,
+          "p": 0.005427704217167566,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.18757943601203428,
+          "p": 0.0,
+          "n": 112528
+        },
+        "persistence__rho": {
+          "rho": 0.9994585322933418,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": 0.2232902410392716,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.4237866441439449,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": 0.2349664919775258,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.42044045514243245,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.8669965003357712,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.8006842597674378,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.8472043296958509,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8076592406385824,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.2861022036071821,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": 0.15336504016120456,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.2655355619033114,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": 0.1386027547322185,
+          "p": 0.0,
+          "n": 112528
+        },
+        "persistence__empty_count": {
+          "rho": 0.9994585322933418,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": -0.2232902410392716,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.4237866441439449,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": -0.2349664919775258,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.42044045514243245,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.8669965003357712,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.8006842597674378,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.8472043296958509,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8076592406385824,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.2861022036071821,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": -0.15336504016120456,
+          "p": 0.0,
+          "n": 112528
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.2655355619033114,
+          "p": 0.0,
+          "n": 112528
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": -0.1386027547322185,
+          "p": 0.0,
+          "n": 112528
+        }
+      }
+    }
+  }
+}

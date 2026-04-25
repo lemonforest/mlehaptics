@@ -4,8 +4,17 @@ Sliding ray: generate the full k ∈ {1..7} phase list, clip at first
 off-board phase, then find the lowest-k intersection with Φ_occ and
 truncate. Non-sliding pieces fall through to the localized filter
 shared with Solution C.
+
+python-chess dependency:
+    ``chess`` is imported lazily inside the one function that needs it
+    (see module header note in ``occupation_field.py``).
 """
-import chess
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import chess
 
 from .phase_operators import phi, MODULUS
 from .phase_to_coords import PHI_TO_RC
@@ -56,11 +65,12 @@ def _sliding_destinations_b(origin_phi: int, rays: tuple[int, ...],
     return frozenset(out)
 
 
-def occupation_aware_moves_b(board: chess.Board, piece_char: str,
+def occupation_aware_moves_b(board: "chess.Board", piece_char: str,
                              origin_r: int, origin_c: int,
                              mover_charge: int,
                              occupation: dict[int, int] | None = None,
                              ) -> frozenset[tuple[int, int]]:
+    import chess
     from .occupation_field import occupation_field_from_board
     if occupation is None:
         occupation = occupation_field_from_board(board)

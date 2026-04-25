@@ -1,0 +1,118 @@
+{
+  "corpus": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\liveothello_Barcelona_EGP_2026.pgn",
+  "book": "C:\\AI_PROJECTS\\EMDR_PULSER_SONNET4\\docs\\othello-maths\\dataset\\reversi_scripts\\opening_book_freq.csv.bz2",
+  "laplace": 1.0,
+  "n_plies_scored": 2099,
+  "correlations": {
+    "_control_i_vs_n_legal": {
+      "rho": 0.8143396845505765,
+      "p": 0.0,
+      "n": 2099
+    },
+    "i_vs_a1_minus_energy__all": {
+      "rho": -0.06466355999574176,
+      "p": 0.003037784251295052,
+      "n": 2099
+    },
+    "i_vs_a1_minus_energy__in_book": {
+      "rho": 0.21328773209359717,
+      "p": 2.1462637826410244e-08,
+      "n": 676
+    },
+    "i_vs_a1_minus_energy__out_of_book": {
+      "rho": -0.46474995495428706,
+      "p": 3.730376576787818e-77,
+      "n": 1423
+    },
+    "i_vs_e_minus_energy__all": {
+      "rho": -0.011321491283338186,
+      "p": 0.6041792138245253,
+      "n": 2099
+    },
+    "i_vs_e_minus_energy__in_book": {
+      "rho": 0.4264563100783164,
+      "p": 2.9974313180598977e-31,
+      "n": 676
+    },
+    "i_vs_e_minus_energy__out_of_book": {
+      "rho": -0.5075544585381281,
+      "p": 5.043013085715825e-94,
+      "n": 1423
+    },
+    "i_vs_d4_a1_occupation_energy__all": {
+      "rho": -0.11452046323054627,
+      "p": 1.4333002778250197e-07,
+      "n": 2099
+    },
+    "i_vs_d4_a1_occupation_energy__in_book": {
+      "rho": 0.46487680905149165,
+      "p": 1.5195131939509806e-37,
+      "n": 676
+    },
+    "i_vs_d4_a1_occupation_energy__out_of_book": {
+      "rho": -0.7554068362900643,
+      "p": 3.691971262432504e-263,
+      "n": 1423
+    },
+    "i_vs_d4_a2_occupation_energy__all": {
+      "rho": 0.3663508027046711,
+      "p": 1.1256703328301844e-67,
+      "n": 2099
+    },
+    "i_vs_d4_a2_occupation_energy__in_book": {
+      "rho": 0.1238816334764382,
+      "p": 0.0012492007238171603,
+      "n": 676
+    },
+    "i_vs_d4_a2_occupation_energy__out_of_book": {
+      "rho": 0.3345163385522766,
+      "p": 1.5153339693168235e-38,
+      "n": 1423
+    },
+    "i_vs_d4_b1_occupation_energy__all": {
+      "rho": 0.4029514819270457,
+      "p": 9.01753218785035e-83,
+      "n": 2099
+    },
+    "i_vs_d4_b1_occupation_energy__in_book": {
+      "rho": 0.3450554309252742,
+      "p": 2.462085340348926e-20,
+      "n": 676
+    },
+    "i_vs_d4_b1_occupation_energy__out_of_book": {
+      "rho": 0.3267053369388689,
+      "p": 9.548446461255724e-37,
+      "n": 1423
+    },
+    "i_vs_d4_b2_occupation_energy__all": {
+      "rho": 0.24357357156965515,
+      "p": 1.0026919970983102e-29,
+      "n": 2099
+    },
+    "i_vs_d4_b2_occupation_energy__in_book": {
+      "rho": 0.23672594011995568,
+      "p": 4.5969726130976633e-10,
+      "n": 676
+    },
+    "i_vs_d4_b2_occupation_energy__out_of_book": {
+      "rho": 0.18337237406562035,
+      "p": 3.1603754724624802e-12,
+      "n": 1423
+    },
+    "i_vs_d4_e_occupation_energy__all": {
+      "rho": 0.5078678013730958,
+      "p": 4.970246380451307e-138,
+      "n": 2099
+    },
+    "i_vs_d4_e_occupation_energy__in_book": {
+      "rho": 0.4221362200455571,
+      "p": 1.366000004021914e-30,
+      "n": 676
+    },
+    "i_vs_d4_e_occupation_energy__out_of_book": {
+      "rho": 0.4379257310390373,
+      "p": 9.617622185134141e-68,
+      "n": 1423
+    }
+  }
+}

@@ -1,0 +1,29 @@
+[Event "Illegal Move Fixture - DO NOT USE FOR RESEARCH"]
+[Date "2026.04.24"]
+[Black "FixtureBot"]
+[White "FixtureBot"]
+[Result "*"]
+[Annotation "Move 3 (a1) is deliberately illegal: after d3 c5 f6 f5, the corner a1 does not flank any opponent disc. Encoder pipeline MUST reject this game."]
+1. d3 c5
+2. f6 f5
+3. a1
+
+[Event "Illegal Move Fixture - DO NOT USE FOR RESEARCH"]
+[Date "2026.04.24"]
+[Black "FixtureBot"]
+[White "FixtureBot"]
+[Result "*"]
+[Annotation "Move 2 (d4) targets an occupied cell from the starting position. Encoder pipeline MUST reject this game."]
+1. d3 d4
+
+[Event "Legal Sanity Game - control"]
+[Date "2026.04.24"]
+[Black "FixtureBot"]
+[White "FixtureBot"]
+[Result "*"]
+[Annotation "Fully legal 10-ply sequence (verified by replaying the smallest legal index each ply). Encoder pipeline MUST accept this game. Used as the positive control so an 'everything fails' test regression is caught."]
+1. d3 c3
+2. b3 b2
+3. b1 a1
+4. c4 c1
+5. c2 d2

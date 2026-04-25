@@ -1,0 +1,1202 @@
+{
+  "n_seeds": 30,
+  "deltas": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "trajectory_lengths": [
+    62,
+    61,
+    60,
+    61,
+    60,
+    61,
+    60,
+    61,
+    61,
+    60,
+    61,
+    60,
+    61,
+    62,
+    60,
+    60,
+    60,
+    60,
+    60,
+    60,
+    60,
+    61,
+    60,
+    60,
+    60,
+    60,
+    61,
+    60,
+    60,
+    60
+  ],
+  "sheaf_features": [
+    "sheaf_black_lambda2",
+    "sheaf_white_lambda2",
+    "sheaf_black_entropy",
+    "sheaf_white_entropy",
+    "sheaf_black_kerdim",
+    "sheaf_white_kerdim",
+    "sheaf_black_lambdamax",
+    "sheaf_white_lambdamax"
+  ],
+  "targets": [
+    "n_legal_moves",
+    "rho",
+    "empty_count"
+  ],
+  "per_delta": {
+    "delta_1": {
+      "n_pairs": 1783,
+      "univariate": {
+        "persistence__n_legal_moves": {
+          "rho": 0.5740980049590927,
+          "p": 7.483796515333507e-157,
+          "n": 1783
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.6386745425703709,
+          "p": 6.100126409625746e-205,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.6450026646018133,
+          "p": 2.7444314121680458e-210,
+          "n": 1783
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5947411820983999,
+          "p": 4.821411712346469e-171,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.6047078872449442,
+          "p": 2.8531083577913836e-178,
+          "n": 1783
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.18306822527367111,
+          "p": 6.665550095812933e-15,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.18691928114995404,
+          "p": 1.755896826938695e-15,
+          "n": 1783
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.21126747424107453,
+          "p": 1.9402644651293121e-19,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.22902537444148746,
+          "p": 1.1898750590834332e-22,
+          "n": 1783
+        },
+        "predictive__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "predictive__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.3761237425147701,
+          "p": 5.121776036675977e-61,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.3934350957139273,
+          "p": 4.383456710610473e-67,
+          "n": 1783
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.41078325942511124,
+          "p": 1.534949434283223e-73,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.41335658510374285,
+          "p": 1.5683891182182788e-74,
+          "n": 1783
+        },
+        "persistence__rho": {
+          "rho": 0.9999931944496762,
+          "p": 0.0,
+          "n": 1783
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": -0.08222535854003195,
+          "p": 0.0005099680423968516,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.16097031589920424,
+          "p": 8.090871545471778e-12,
+          "n": 1783
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": -0.02202407574650445,
+          "p": 0.35266109700369613,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.10208246115982782,
+          "p": 1.5691194975849227e-05,
+          "n": 1783
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.9068814672290312,
+          "p": 0.0,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.9072963421283935,
+          "p": 0.0,
+          "n": 1783
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.84412359781605,
+          "p": 0.0,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.844457874193466,
+          "p": 0.0,
+          "n": 1783
+        },
+        "predictive__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "predictive__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.28897091029075656,
+          "p": 1.2309960586266687e-35,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": -0.23697555257089986,
+          "p": 3.5148639787129076e-24,
+          "n": 1783
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.2254826682519467,
+          "p": 5.4798496719295795e-22,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": -0.178599483745688,
+          "p": 3.0228016466356864e-14,
+          "n": 1783
+        },
+        "persistence__empty_count": {
+          "rho": 0.9999931944496762,
+          "p": 0.0,
+          "n": 1783
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": 0.08222535854003195,
+          "p": 0.0005099680423968516,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.16097031589920424,
+          "p": 8.090871545471778e-12,
+          "n": 1783
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": 0.02202407574650445,
+          "p": 0.35266109700369613,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.10208246115982782,
+          "p": 1.5691194975849227e-05,
+          "n": 1783
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.9068814672290312,
+          "p": 0.0,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.9072963421283935,
+          "p": 0.0,
+          "n": 1783
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.84412359781605,
+          "p": 0.0,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.844457874193466,
+          "p": 0.0,
+          "n": 1783
+        },
+        "predictive__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "predictive__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1783
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.28897091029075656,
+          "p": 1.2309960586266687e-35,
+          "n": 1783
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.23697555257089986,
+          "p": 3.5148639787129076e-24,
+          "n": 1783
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.2254826682519467,
+          "p": 5.4798496719295795e-22,
+          "n": 1783
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.178599483745688,
+          "p": 3.0228016466356864e-14,
+          "n": 1783
+        }
+      },
+      "multivariate_r2": {
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.5620770124561555,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5770878423018174,
+          "r2_persistence_target_at_t": 0.3251074617675964,
+          "predictive_gain_vs_persistence": 0.23696955068855907,
+          "predictive_gain_vs_snapshot": -0.015010829845661933,
+          "n": 1783
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.9718852229493368,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9700367440934987,
+          "r2_persistence_target_at_t": 0.9999756925358246,
+          "predictive_gain_vs_persistence": -0.028090469586487865,
+          "predictive_gain_vs_snapshot": 0.0018484788558380538,
+          "n": 1783
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.9718852229493368,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9700367440934987,
+          "r2_persistence_target_at_t": 0.9999756925358246,
+          "predictive_gain_vs_persistence": -0.028090469586487865,
+          "predictive_gain_vs_snapshot": 0.0018484788558380538,
+          "n": 1783
+        }
+      }
+    },
+    "delta_3": {
+      "n_pairs": 1723,
+      "univariate": {
+        "persistence__n_legal_moves": {
+          "rho": 0.5038090572141096,
+          "p": 1.4491663921212053e-111,
+          "n": 1723
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.5967551710804327,
+          "p": 9.688982388942321e-167,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.619800272832976,
+          "p": 2.1531749057613247e-183,
+          "n": 1723
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5462254630009471,
+          "p": 1.337246586459552e-134,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5774097126557141,
+          "p": 9.057131634906049e-154,
+          "n": 1723
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.2595457305529294,
+          "p": 6.363305120357475e-28,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.26650127640532695,
+          "p": 2.1054657052113453e-29,
+          "n": 1723
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.28128553501113357,
+          "p": 1.0666948343256908e-32,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.29813834703938613,
+          "p": 1.0450894377000704e-36,
+          "n": 1723
+        },
+        "predictive__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "predictive__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.3190878278212671,
+          "p": 4.449385587080893e-42,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.34964745617237436,
+          "p": 1.0179994779354019e-50,
+          "n": 1723
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.3309565737391585,
+          "p": 2.5623912744857157e-45,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.37189979711250437,
+          "p": 1.2073128313149174e-57,
+          "n": 1723
+        },
+        "persistence__rho": {
+          "rho": 0.9999861298105592,
+          "p": 0.0,
+          "n": 1723
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": -0.019217409578912707,
+          "p": 0.4253402057141361,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.25764132633190917,
+          "p": 1.5895914813332342e-27,
+          "n": 1723
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": 0.03773087768251891,
+          "p": 0.11744388651908264,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.19325580542914703,
+          "p": 5.84798755489095e-16,
+          "n": 1723
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.9012962627233462,
+          "p": 0.0,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.9020889602311843,
+          "p": 0.0,
+          "n": 1723
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.8338718471307498,
+          "p": 0.0,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8398903642444913,
+          "p": 0.0,
+          "n": 1723
+        },
+        "predictive__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "predictive__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.31478062866254003,
+          "p": 6.142943479341184e-41,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": -0.16230481055637444,
+          "p": 1.22519076961833e-11,
+          "n": 1723
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.2764874858081344,
+          "p": 1.317929862445921e-31,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": -0.11014696824851268,
+          "p": 4.589525674559234e-06,
+          "n": 1723
+        },
+        "persistence__empty_count": {
+          "rho": 0.9999861298105592,
+          "p": 0.0,
+          "n": 1723
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": 0.019217409578912707,
+          "p": 0.4253402057141361,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.25764132633190917,
+          "p": 1.5895914813332342e-27,
+          "n": 1723
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": -0.03773087768251891,
+          "p": 0.11744388651908264,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.19325580542914703,
+          "p": 5.84798755489095e-16,
+          "n": 1723
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.9012962627233462,
+          "p": 0.0,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.9020889602311843,
+          "p": 0.0,
+          "n": 1723
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.8338718471307498,
+          "p": 0.0,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8398903642444913,
+          "p": 0.0,
+          "n": 1723
+        },
+        "predictive__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "predictive__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1723
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.31478062866254003,
+          "p": 6.142943479341184e-41,
+          "n": 1723
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.16230481055637444,
+          "p": 1.22519076961833e-11,
+          "n": 1723
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.2764874858081344,
+          "p": 1.317929862445921e-31,
+          "n": 1723
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.11014696824851268,
+          "p": 4.589525674559234e-06,
+          "n": 1723
+        }
+      },
+      "multivariate_r2": {
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.551128896683003,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5586736229066073,
+          "r2_persistence_target_at_t": 0.25035618515168967,
+          "predictive_gain_vs_persistence": 0.30077271153131335,
+          "predictive_gain_vs_snapshot": -0.007544726223604248,
+          "n": 1723
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.9731532382133988,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9669253598343686,
+          "r2_persistence_target_at_t": 0.9999587566623933,
+          "predictive_gain_vs_persistence": -0.02680551844899448,
+          "predictive_gain_vs_snapshot": 0.006227878379030272,
+          "n": 1723
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.9731532382133987,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9669253598343686,
+          "r2_persistence_target_at_t": 0.9999587566623933,
+          "predictive_gain_vs_persistence": -0.026805518448994592,
+          "predictive_gain_vs_snapshot": 0.006227878379030161,
+          "n": 1723
+        }
+      }
+    },
+    "delta_5": {
+      "n_pairs": 1663,
+      "univariate": {
+        "persistence__n_legal_moves": {
+          "rho": 0.40919642382581733,
+          "p": 3.826785630556934e-68,
+          "n": 1663
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.5303413417178111,
+          "p": 2.8079494659631053e-121,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.59873369596077,
+          "p": 2.5171863500145155e-162,
+          "n": 1663
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.4757664651738981,
+          "p": 1.11660969505098e-94,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5554230552701952,
+          "p": 3.137758272074994e-135,
+          "n": 1663
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.3241983300940032,
+          "p": 5.3158841552457734e-42,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.34105266632437303,
+          "p": 1.4327887795696573e-46,
+          "n": 1663
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.35141120721340796,
+          "p": 1.5984246999494948e-49,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.36031354165220764,
+          "p": 3.768837804213752e-52,
+          "n": 1663
+        },
+        "predictive__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "predictive__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.2464683606122669,
+          "p": 1.9590954313359865e-24,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.3126395833531574,
+          "p": 4.964154980816923e-39,
+          "n": 1663
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.25224178139754116,
+          "p": 1.4956338325413013e-25,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.33667250080284933,
+          "p": 2.3514848354595815e-45,
+          "n": 1663
+        },
+        "persistence__rho": {
+          "rho": 0.9999777220062511,
+          "p": 0.0,
+          "n": 1663
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": 0.04255357615264068,
+          "p": 0.0827742090732577,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.3474549846816474,
+          "p": 2.2105877708686366e-48,
+          "n": 1663
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": 0.09755243349597009,
+          "p": 6.75671571304016e-05,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.27942645040055536,
+          "p": 3.314825292078744e-31,
+          "n": 1663
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.8939723083178187,
+          "p": 0.0,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.8958659638092441,
+          "p": 0.0,
+          "n": 1663
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.8241071008523411,
+          "p": 0.0,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8356555721301121,
+          "p": 0.0,
+          "n": 1663
+        },
+        "predictive__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "predictive__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.3449739596863179,
+          "p": 1.126170107673491e-47,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": -0.08427831045789778,
+          "p": 0.0005808577127946997,
+          "n": 1663
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.3214711500448477,
+          "p": 2.7428823347315215e-41,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": -0.038650450821800714,
+          "p": 0.11512609447283664,
+          "n": 1663
+        },
+        "persistence__empty_count": {
+          "rho": 0.9999777220062511,
+          "p": 0.0,
+          "n": 1663
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": -0.04255357615264068,
+          "p": 0.0827742090732577,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.3474549846816474,
+          "p": 2.2105877708686366e-48,
+          "n": 1663
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": -0.09755243349597009,
+          "p": 6.75671571304016e-05,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.27942645040055536,
+          "p": 3.314825292078744e-31,
+          "n": 1663
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.8939723083178187,
+          "p": 0.0,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.8958659638092441,
+          "p": 0.0,
+          "n": 1663
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.8241071008523411,
+          "p": 0.0,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8356555721301121,
+          "p": 0.0,
+          "n": 1663
+        },
+        "predictive__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "predictive__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1663
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.3449739596863179,
+          "p": 1.126170107673491e-47,
+          "n": 1663
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.08427831045789778,
+          "p": 0.0005808577127946997,
+          "n": 1663
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.3214711500448477,
+          "p": 2.7428823347315215e-41,
+          "n": 1663
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.038650450821800714,
+          "p": 0.11512609447283664,
+          "n": 1663
+        }
+      },
+      "multivariate_r2": {
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.5442219416082198,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5509911871369579,
+          "r2_persistence_target_at_t": 0.1674339523397529,
+          "predictive_gain_vs_persistence": 0.3767879892684669,
+          "predictive_gain_vs_snapshot": -0.006769245528738144,
+          "n": 1663
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.97348787844188,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9635566139094954,
+          "r2_persistence_target_at_t": 0.9999406173621929,
+          "predictive_gain_vs_persistence": -0.026452738920312857,
+          "predictive_gain_vs_snapshot": 0.009931264532384576,
+          "n": 1663
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.97348787844188,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9635566139094953,
+          "r2_persistence_target_at_t": 0.9999406173621929,
+          "predictive_gain_vs_persistence": -0.026452738920312857,
+          "predictive_gain_vs_snapshot": 0.009931264532384687,
+          "n": 1663
+        }
+      }
+    },
+    "delta_10": {
+      "n_pairs": 1513,
+      "univariate": {
+        "persistence__n_legal_moves": {
+          "rho": 0.2626276843171051,
+          "p": 2.7542099057612783e-25,
+          "n": 1513
+        },
+        "predictive__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.3287250397795963,
+          "p": 1.8689001667117313e-39,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_lambda2__n_legal_moves": {
+          "rho": 0.5799544409398768,
+          "p": 1.058458726507276e-136,
+          "n": 1513
+        },
+        "predictive__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.26177238849801665,
+          "p": 3.975708689244381e-25,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_lambda2__n_legal_moves": {
+          "rho": 0.5405892008164065,
+          "p": 1.4760368358836731e-115,
+          "n": 1513
+        },
+        "predictive__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.46253129630086753,
+          "p": 4.6219913371607125e-81,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_entropy__n_legal_moves": {
+          "rho": 0.48327714895120444,
+          "p": 2.247621056842497e-89,
+          "n": 1513
+        },
+        "predictive__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.46531987522739465,
+          "p": 3.8059078889798363e-82,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_entropy__n_legal_moves": {
+          "rho": 0.471819272765282,
+          "p": 1.0321530724425184e-84,
+          "n": 1513
+        },
+        "predictive__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "predictive__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_kerdim__n_legal_moves": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "predictive__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.04523212165811284,
+          "p": 0.0786023907703881,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_lambdamax__n_legal_moves": {
+          "rho": -0.2695903839564632,
+          "p": 1.319133411824486e-26,
+          "n": 1513
+        },
+        "predictive__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.08450663607888848,
+          "p": 0.0010009835785533994,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_lambdamax__n_legal_moves": {
+          "rho": -0.29599174560102665,
+          "p": 5.675403149894183e-32,
+          "n": 1513
+        },
+        "persistence__rho": {
+          "rho": 0.9999439008760915,
+          "p": 0.0,
+          "n": 1513
+        },
+        "predictive__sheaf_black_lambda2__rho": {
+          "rho": 0.21391091848858737,
+          "p": 4.057595614311001e-17,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_lambda2__rho": {
+          "rho": -0.5485848335998962,
+          "p": 1.260375904999668e-119,
+          "n": 1513
+        },
+        "predictive__sheaf_white_lambda2__rho": {
+          "rho": 0.2528810759603643,
+          "p": 1.6674490796395145e-23,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_lambda2__rho": {
+          "rho": -0.4749454947642275,
+          "p": 5.744800757747089e-86,
+          "n": 1513
+        },
+        "predictive__sheaf_black_entropy__rho": {
+          "rho": -0.8733328611450784,
+          "p": 0.0,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_entropy__rho": {
+          "rho": -0.875752324793107,
+          "p": 0.0,
+          "n": 1513
+        },
+        "predictive__sheaf_white_entropy__rho": {
+          "rho": -0.7940748475470112,
+          "p": 0.0,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_entropy__rho": {
+          "rho": -0.8243074715646465,
+          "p": 0.0,
+          "n": 1513
+        },
+        "predictive__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "predictive__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_kerdim__rho": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "predictive__sheaf_black_lambdamax__rho": {
+          "rho": -0.439109439266609,
+          "p": 2.4309739480365936e-72,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_lambdamax__rho": {
+          "rho": 0.0962033740874912,
+          "p": 0.00017849622421417034,
+          "n": 1513
+        },
+        "predictive__sheaf_white_lambdamax__rho": {
+          "rho": -0.4241452223739332,
+          "p": 4.075033242322058e-67,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_lambdamax__rho": {
+          "rho": 0.1342638693919033,
+          "p": 1.5890021730086101e-07,
+          "n": 1513
+        },
+        "persistence__empty_count": {
+          "rho": 0.9999439008760915,
+          "p": 0.0,
+          "n": 1513
+        },
+        "predictive__sheaf_black_lambda2__empty_count": {
+          "rho": -0.21391091848858737,
+          "p": 4.057595614311001e-17,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_lambda2__empty_count": {
+          "rho": 0.5485848335998962,
+          "p": 1.260375904999668e-119,
+          "n": 1513
+        },
+        "predictive__sheaf_white_lambda2__empty_count": {
+          "rho": -0.2528810759603643,
+          "p": 1.6674490796395145e-23,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_lambda2__empty_count": {
+          "rho": 0.4749454947642275,
+          "p": 5.744800757747089e-86,
+          "n": 1513
+        },
+        "predictive__sheaf_black_entropy__empty_count": {
+          "rho": 0.8733328611450784,
+          "p": 0.0,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_entropy__empty_count": {
+          "rho": 0.875752324793107,
+          "p": 0.0,
+          "n": 1513
+        },
+        "predictive__sheaf_white_entropy__empty_count": {
+          "rho": 0.7940748475470112,
+          "p": 0.0,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_entropy__empty_count": {
+          "rho": 0.8243074715646465,
+          "p": 0.0,
+          "n": 1513
+        },
+        "predictive__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "predictive__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_kerdim__empty_count": {
+          "rho": NaN,
+          "p": NaN,
+          "n": 1513
+        },
+        "predictive__sheaf_black_lambdamax__empty_count": {
+          "rho": 0.439109439266609,
+          "p": 2.4309739480365936e-72,
+          "n": 1513
+        },
+        "snapshot__sheaf_black_lambdamax__empty_count": {
+          "rho": -0.0962033740874912,
+          "p": 0.00017849622421417034,
+          "n": 1513
+        },
+        "predictive__sheaf_white_lambdamax__empty_count": {
+          "rho": 0.4241452223739332,
+          "p": 4.075033242322058e-67,
+          "n": 1513
+        },
+        "snapshot__sheaf_white_lambdamax__empty_count": {
+          "rho": -0.1342638693919033,
+          "p": 1.5890021730086101e-07,
+          "n": 1513
+        }
+      },
+      "multivariate_r2": {
+        "n_legal_moves": {
+          "r2_predictive_full_sheaf_at_t": 0.5606321381707196,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.5620595422744149,
+          "r2_persistence_target_at_t": 0.07048205880121061,
+          "predictive_gain_vs_persistence": 0.49015007936950894,
+          "predictive_gain_vs_snapshot": -0.001427404103695351,
+          "n": 1513
+        },
+        "rho": {
+          "r2_predictive_full_sheaf_at_t": 0.9720333663560018,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9538320300359424,
+          "r2_persistence_target_at_t": 0.9998638583338355,
+          "predictive_gain_vs_persistence": -0.027830491977833716,
+          "predictive_gain_vs_snapshot": 0.01820133632005938,
+          "n": 1513
+        },
+        "empty_count": {
+          "r2_predictive_full_sheaf_at_t": 0.9720333663560018,
+          "r2_snapshot_full_sheaf_at_t_plus_delta": 0.9538320300359423,
+          "r2_persistence_target_at_t": 0.9998638583338355,
+          "predictive_gain_vs_persistence": -0.027830491977833716,
+          "predictive_gain_vs_snapshot": 0.01820133632005949,
+          "n": 1513
+        }
+      }
+    }
+  }
+}

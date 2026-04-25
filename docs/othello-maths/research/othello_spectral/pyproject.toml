@@ -1,0 +1,71 @@
+# Packaging metadata for the othello_spectral encoder.
+#
+# The current setup supports two equally-supported deployment paths:
+#
+# 1. Standalone PyPI package
+#    ------------------------
+#    `pip install -e .` from this directory installs
+#    `othello_spectral` as a package with the `othello-spectral` CLI.
+#    Dependencies are the minimum numpy + scipy.
+#
+# 2. Bundled inside chess-spectral
+#    ------------------------------
+#    Copy this directory to
+#    docs/chess-maths/chess-spectral/python/othello_spectral/ and
+#    re-export from chess-spectral's __init__.py.  The package has no
+#    hard-coded paths that depend on docs/othello-maths/ ; all test
+#    fixtures are inlined and the VERSION file lives with the
+#    package.
+#
+# Until we pick one, we stay build-neutral: this file is the Python
+# packaging metadata and is referenced by CI / codegen.  Source layout
+# is flat (no src/) so `pip install -e .` works without
+# a build-system step for the Python half.
+
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "othello-spectral"
+description = "D4xZ2 spectral encoder for Othello positions"
+authors = [
+    { name = "Steven Kirkland" },
+]
+license = { text = "GPL-3.0-or-later" }
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+keywords = ["othello", "spectral", "encoder", "d4", "reversi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.scripts]
+othello-spectral = "othello_spectral.cli:main"
+
+[tool.setuptools]
+# Treat this directory itself as the package root.  package_dir
+# maps the top-level package name "othello_spectral" back here.
+package-dir = { "othello_spectral" = "." }
+packages = ["othello_spectral", "othello_spectral.tests"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+[tool.setuptools.package-data]
+othello_spectral = ["VERSION", "README.md"]

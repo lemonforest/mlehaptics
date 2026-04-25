@@ -1,0 +1,27 @@
+{
+  "spectralz": "..\\results\\wc2005.spectralz",
+  "metadata": "othello_spectral v0.2.0 corpus=liveothello_World_Championships_2005.pgn games=23",
+  "n_games": 1,
+  "n_plies_total": 1418,
+  "T_eff_corpus": {
+    "mean": -16680.108072530937,
+    "std": 514553.5770484797,
+    "median": -11234.725924105682
+  },
+  "per_game": [
+    {
+      "game": 0,
+      "n_plies": 1418,
+      "T_eff_mean": -16680.108072530937,
+      "T_eff_std": 514553.5770484797,
+      "D_eff_range": [
+        0.0625,
+        1.0
+      ],
+      "S_eff_range": [
+        0.5798639760075028,
+        0.8689995571956644
+      ]
+    }
+  ]
+}
