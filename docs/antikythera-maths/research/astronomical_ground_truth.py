@@ -62,7 +62,7 @@ DEFAULT_KERNEL = "de441"
 
 
 def _try_load_ephemeris(kernel: str = DEFAULT_KERNEL,
-                        path: Optional[str] = None):
+                        kernel_path: Optional[str] = None):
     """Load (cached) skyfield bundle via ``ephemeris_loader``.  Returns
     ``None`` on any failure; never raises.
 
@@ -71,13 +71,13 @@ def _try_load_ephemeris(kernel: str = DEFAULT_KERNEL,
     ``ephemeris_loader.load_ephemeris`` directly.
     """
     from .ephemeris_loader import load_ephemeris
-    return load_ephemeris(kernel=kernel, path=path)
+    return load_ephemeris(kernel=kernel, kernel_path=kernel_path)
 
 
 def ground_truth_available(kernel: str = DEFAULT_KERNEL,
-                           path: Optional[str] = None) -> bool:
+                           kernel_path: Optional[str] = None) -> bool:
     """True iff the chosen ephemeris kernel can be loaded."""
-    return _try_load_ephemeris(kernel, path) is not None
+    return _try_load_ephemeris(kernel, kernel_path) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +115,7 @@ def _phase_distance_days(phase_deg: float, synodic_days: float) -> float:
 def saros_prediction_test(
     anchors: Optional[List[EclipseAnchor]] = None,
     kernel: str = DEFAULT_KERNEL,
-    path: Optional[str] = None,
+    kernel_path: Optional[str] = None,
     n_eclipses: Optional[int] = None,
 ) -> List[Dict]:
     """For each anchor, compute the lunar phase angle at JD and report
@@ -130,8 +130,8 @@ def saros_prediction_test(
         via ``hellenistic_eclipses.anchors_for_era()``.
     kernel : str
         JPL DE-kernel name (default: 'de441').
-    path : optional str
-        Direct path to a pre-downloaded .bsp file.
+    kernel_path : optional str
+        Direct filesystem path to a pre-downloaded .bsp file.
     n_eclipses : optional int
         Truncate the anchor list to first N entries.
 
@@ -141,7 +141,7 @@ def saros_prediction_test(
         jd, era, eclipse_type, almagest_ref, lunar_phase_deg,
         dist_to_syzygy_days, within_1_day, error_deg.
     """
-    bundle = _try_load_ephemeris(kernel=kernel, path=path)
+    bundle = _try_load_ephemeris(kernel=kernel, kernel_path=kernel_path)
     if bundle is None:
         raise RuntimeError(
             f"skyfield + {kernel} not available.  "
@@ -229,7 +229,7 @@ def mars_longitude_error(
     n_samples: int = 200,
     start_jd: float = 2451545.0,
     kernel: str = DEFAULT_KERNEL,
-    path: Optional[str] = None,
+    kernel_path: Optional[str] = None,
     anchor_at_start: bool = True,
 ) -> Dict[str, float]:
     """Compare an injected ``longitude_fn(jd) -> deg`` against skyfield
@@ -245,7 +245,7 @@ def mars_longitude_error(
     Dict with keys: peak_deg, mean_deg, rms_deg, n_samples,
     samples_jd (list), errors_deg (list), kernel_used.
     """
-    bundle = _try_load_ephemeris(kernel=kernel, path=path)
+    bundle = _try_load_ephemeris(kernel=kernel, kernel_path=kernel_path)
     if bundle is None:
         raise RuntimeError(
             f"skyfield + {kernel} not available.  "
@@ -295,7 +295,7 @@ def mars_retrograde_error(
     n_samples: int = 200,
     start_jd: float = 2451545.0,
     kernel: str = DEFAULT_KERNEL,
-    path: Optional[str] = None,
+    kernel_path: Optional[str] = None,
 ) -> Tuple[float, float, int]:
     """Legacy uniform-Mars wrapper preserved for back-compat.
 
@@ -315,7 +315,7 @@ def mars_retrograde_error(
         n_samples=n_samples,
         start_jd=start_jd,
         kernel=kernel,
-        path=path,
+        kernel_path=kernel_path,
     )
     return stats["peak_deg"], stats["mean_deg"], stats["n_samples"]
 
@@ -414,7 +414,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("astronomical_ground_truth -- Phase 4 skyfield validation")
     print("=" * 70)
     available = ground_truth_available(kernel=args.ephemeris,
-                                       path=args.ephemeris_path)
+                                       kernel_path=args.ephemeris_path)
     print(f"  ephemeris kernel : {args.ephemeris}")
     print(f"  available locally: {available}")
     if not available:
@@ -441,7 +441,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         results = saros_prediction_test(
             anchors=anchors,
             kernel=args.ephemeris,
-            path=args.ephemeris_path,
+            kernel_path=args.ephemeris_path,
         )
     except RuntimeError as exc:
         print(f"  ERROR: {exc}")
@@ -474,7 +474,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             peak, mean, n = mars_retrograde_error(
                 kernel=args.ephemeris,
-                path=args.ephemeris_path,
+                kernel_path=args.ephemeris_path,
             )
             print(f"  Peak error: {peak:>6.2f} deg")
             print(f"  Mean error: {mean:>6.2f} deg")

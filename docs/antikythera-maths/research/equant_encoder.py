@@ -361,7 +361,7 @@ def compare_models(
     n_samples: int = 200,
     start_jd: Optional[float] = None,
     kernel: str = "de441",
-    path: Optional[str] = None,
+    kernel_path: Optional[str] = None,
     params: MarsParams = PTOLEMY_MARS_PARAMS,
 ) -> Dict[str, ModelStats]:
     """Run all three models against skyfield ephemeris.
@@ -384,7 +384,7 @@ def compare_models(
             n_samples=n_samples,
             start_jd=start_jd,
             kernel=kernel,
-            path=path,
+            kernel_path=kernel_path,
         )
         out[model] = ModelStats(
             model=model,
@@ -581,7 +581,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 n_samples=args.n_samples,
                 start_jd=args.start_jd,
                 kernel=args.ephemeris,
-                path=args.ephemeris_path,
+                kernel_path=args.ephemeris_path,
             )
         except RuntimeError as exc:
             print(f"  ERROR: {exc}")
@@ -603,7 +603,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             n_samples=args.n_samples,
             start_jd=args.start_jd or REFERENCE_JD,
             kernel=args.ephemeris,
-            path=args.ephemeris_path,
+            kernel_path=args.ephemeris_path,
         )
     except RuntimeError as exc:
         print(f"  ERROR: {exc}")
