@@ -896,7 +896,114 @@ This is the **G-H5 candidate class** sketched in §11.6.10.6, now operational. T
 
 Combined with §11.6.10.8 (Track C's empirical G-H1 flip) and §11.6.10.9 (Track A's G-H5 candidate vocabulary), the crank-as-clutch hypothesis is now: **(a) numerically supported** (G-H1 PASS at any plausible intermittent budget), **(b) categorically articulated** (4 candidate release-element shapes catalogued, 3 LIKELY-LOST + 1 RECOVERABLE), **(c) literature-surveyed** (no prior published advocacy, but no contradiction either; concrete next-step research path identified).
 
-### 11.6.9 Visualisation
+### 11.6.11 Reverse-cranking as drift cancellation
+
+The user proposed:
+
+> "What if their solution to drifting over 19 years was to run it backwards? What's a shortcut to that?"
+
+This is a clean mechanical hypothesis that the math partially supports.  Worth working through carefully because the answer has multiple regimes.
+
+#### 11.6.11.1 Mechanical viability
+
+The Antikythera CAN be cranked backwards.  There is no surviving evidence of a one-way ratchet or escapement preventing reverse rotation: every gear mesh is reversible, the b1-b2 differential operates symmetrically, and even the lunar pin-and-slot (D-H1) — although directionally asymmetric in *velocity profile* — is positionally reversible: the pin retraces the slot under exact-reverse cranking, returning to the same angular position when the input returns to its starting angle.
+
+So a forward-then-reverse round-trip is mechanically defined.  The question is what *cancels* under reversal and what doesn't.
+
+#### 11.6.11.2 What cancels under reversal
+
+**Systematic tooth-pitch errors cancel.**  If gear A's tooth #N is cut slightly thick (a constant pitch error +δ), then it pushes B's tooth #M slightly farther under forward crank (drift +δ) and B's tooth #M pushes A's tooth #N back slightly farther under reverse crank (drift −δ at the same contact).  Sum: zero.  This holds for any error that depends *only on which tooth pair is in contact*, not on direction.
+
+**Eccentricity errors cancel.**  A gear mounted slightly off-axis introduces a sinusoidal velocity error per revolution.  Forward cranking integrates +sin over the rotation; reverse integrates −sin over the same arc.  The two cancel exactly if the rotation count is identical.
+
+**Pin-and-slot eccentricity cancels** (positionally, despite the asymmetric velocity profile).  The pin returns to its starting position after a forward+reverse round-trip even though its angular speed during the forward and reverse passes is different at corresponding points.
+
+#### 11.6.11.3 What does NOT cancel under reversal
+
+**Backlash does not cancel.**  The gap between meshing teeth means forward cranking engages one tooth flank, while reverse cranking engages the *opposite* flank.  The two contacts have independent random pitch errors.  A round-trip accumulates `Var(forward) + Var(reverse) = 2 × Var(one direction)` of backlash drift.
+
+**Random tooth-pitch noise** (independent per tooth-engagement, e.g. due to non-uniform manufacturing variation across the wheel) **also doesn't cancel** by direction reversal — each tooth's error is independent in each pass.
+
+**Pin-and-slot anharmonicity** introduces a small position-dependent error that depends on *where* in the rotation the reversal happens — if the operator stops mid-rotation and reverses, the pin's angular position has accumulated different velocities than it would on the forward continuation.
+
+#### 11.6.11.4 The clean operator strategy: anchor recalibration
+
+The user's "shortcut" question has a beautiful answer that doesn't require full reverse-traversal.  The operator doesn't need to zero drift to a specific past date — they just need to bring the device's pointer back to a *known sky configuration* at any anchor event:
+
+- **Olympic anchor** (every 4 years): Panhellenic games tick.  Verify by calendar; reset.
+- **Metonic anchor** (every 19 years): full lunar-solar calendar wrap.  Verify by lunar phase observation; reset.
+- **Saros anchor** (every 18.03 years): eclipse cycle.  If a real eclipse is observed at a Saros multiple from the device's last calibration, the device is correct; if not, dial back the difference.
+- **Callippic anchor** (every 76 years): 4-Metonic refinement; rare in human lifetime but documented.
+
+The "shortcut" to drift cancellation is **not** to crank backwards 19 years — it's to crank forward to the next observable anchor, observe the actual sky, and re-zero.  The shortest reset path is "wait for the next Olympics" (≤ 4 years).
+
+This is the operator strategy implicit in Voulgaris 2024's hypothesised b1 Cover Disc indicators (§11.6.6) — those indicators are *anchor-event markers*, not drift-collector dials.  When the user sees an anchor mark, they verify against the sky and reset.  The mechanism's drift is bounded by *the longest interval between observable anchors*, not by the calendar age of the device.
+
+Combined with §11.6.10's crank-as-clutch (mechanism only ticks during use), the practical drift bound is: max anchor interval × per-active-second drift ≈ 4 years × ε ≈ negligible.  The Greeks didn't *need* a drift-correction mechanism in bronze because the operator's recalibration loop at each anchor handles it for free.
+
+#### 11.6.11.5 Quick math: reverse-traversal vs anchor-recalibration
+
+For a Saros pointer drifting at ~0.01° per active gear-second under §11.6.10's intermittent regime:
+
+- **Crank-back-19-years strategy**: cancel forward drift by reverse-cranking 19 yr's worth (≈ 5 active seconds at 1 rev/sec).  Cancels systematic + eccentricity errors; leaves backlash.  **Per-event cost: 5 sec of operator effort.**
+- **Anchor-recalibration strategy**: crank forward to next observable anchor; verify; restart counting.  **Per-event cost: zero operator effort beyond normal use; just observation at the anchor.**
+
+The anchor strategy is **strictly cheaper** in operator labour AND **strictly more accurate** (it cancels everything including backlash, since the new "zero" is observationally verified against actual sky position rather than computed from gear-mesh history).  The anchor strategy is what any sensible operator would actually do.
+
+So the hypothesis "the Greeks ran it backwards to reset drift" is mechanically valid but operationally suboptimal vs the alternative "the Greeks observed the sky at anchor events and recalibrated."  Both work; the second is more efficient and more accurate.
+
+### 11.6.12 The "selective lock" hypothesis — per-cluster engagement
+
+The user proposed a variant of the §11.6.10 clutch:
+
+> "Maybe something to depress to lock some gear or gear cluster while cranking?"
+
+Distinct from the *global* clutch in §11.6.10 (mechanism either ticks or doesn't).  This is a *selective* clutch: the operator can disengage a specific subsystem (e.g., the planetary trains) while cranking the main drive (e.g., to advance the calendar).  Mechanically distinct, operationally important.
+
+#### 11.6.12.1 Why selective decoupling matters operationally
+
+The mechanism's 13 dials all read different astronomical quantities.  To set the device to "today's date" requires the calendar pointer to land on today, which means cranking until the date pointer reaches today's position.  Without selective decoupling, this *also* advances every other pointer by their respective gear ratios — which means setting the date *also* advances the planetary positions to wherever the gearing implies they should be at the new date.
+
+But what if the operator wants to set the device to "today's date AND today's actual Mars position observed last night, even though Mars's gear-implied position differs slightly from observation"?  Without selective decoupling, that's mechanically impossible — the operator can only set one pointer at a time, and any setting cascades through all gears.
+
+A selective lock on the planetary subsystem would let the operator: (1) lock planetary trains, (2) crank main drive to today's date (only calendar advances), (3) unlock planetaries, (4) lock everything else; manually rotate Mars pointer to its observed position, (5) unlock; resume normal operation.
+
+Modern mechanical clocks do exactly this (e.g., the date-setting stem is decoupled from the time-setting stem; setting one doesn't cascade through the other).
+
+#### 11.6.12.2 The "doodad on the side" reading
+
+In the Wikipedia front-view diagram ([antikythera_mechanism_overview.svg](figures/antikythera_mechanism_overview.svg)), the front face shows the central zodiac+Egyptian-calendar rings PLUS several smaller subsidiary dials at peripheral positions.  Reading the SVG path geometry: there's a large central system (~273 unit radius — main zodiac + Egyptian calendar), two small mirrored circles in the upper corners (~74 unit radius each), a medium circle near the upper-front (~97 unit radius), and two smaller dials at the lower-front (~52 / ~54 unit radius).  Freeth 2021's reconstruction interprets these as planetary anomaly / position indicators (one dial per planet) plus the Olympiad games dial.
+
+The user's selective-lock hypothesis offers an alternative reading: each subsidiary dial could be (a) the planet's *position indicator* AND (b) a *manual setting interface* for that planet's pointer.  Press to engage manual mode (decouples the planet's gear train from b1); rotate the dial to the observed position; release to re-engage the gear train.  This is a "press-to-set" rather than a "press-to-lock" interpretation.
+
+Mechanically this requires per-cluster decouplers between b1's solar shaft and each planetary train's input shaft.  Such decouplers are **almost certainly among the lost gears** under the §11.6.10.7 framing — they would be small, partly organic (composite spring-loaded), case-mounted near each planetary subsidiary dial.  Voulgaris's hypothesised b1 Cover Disc indicators could in this reading be the *visible* portions of the per-cluster decouplers — what the operator presses or rotates.
+
+#### 11.6.12.3 Status
+
+This is a **G-H6 candidate class** sketched but not formalised: per-subsystem selective-engagement elements distinct from the §11.6.10 global clutch.  Each would have:
+
+- Its own attachment point at the *output* end of a planetary train (just before the subsidiary indicator dial)
+- A spring-loaded engagement default (gears coupled when not pressed)
+- A manual-rotation interface (the visible subsidiary dial doubles as the setting knob)
+
+The candidate class fits the periphery rule (each subsystem's lock is at the periphery of *that* subsystem) and the combination-gear principle (the visible dial is both readout and manipulator).  G-H6 is a natural extension of the G-H5 vocabulary.
+
+### 11.6.13 SVG layout caveat — graph-theoretic vs physical
+
+The user observed:
+
+> "Most your SVG don't have the smaller gears fitting inside the space of the largest by any order of the imagination."
+
+Correct critique.  [figures/gear_topology.svg](figures/gear_topology.svg) is a **DAG layout (graph-theoretic)**, not a physical-layout.  Nodes are positioned by BFS distance from a1 with deterministic vertical spread; circle sizes are log-scaled tooth count.  The diagram correctly conveys *which gears mesh with which* and *which are core / peripheral*, but it does NOT reflect the physical packing of gears inside the 9-cm-deep bronze case.
+
+Physically, b1 (224 teeth) is dimensionally large enough to overlap or nest with the smaller gears on adjacent shafts.  Most of the back-panel gears mount on shafts passing through the b1 plate or on parallel axles that physically overlap b1's footprint when viewed in plan.  **The right physical layout requires surveyed mm-coordinates from Freeth 2021's reconstruction, which are not in the project's gear database** — `gear_database.MESH_EDGES` records connectivity only, not positions.
+
+Two options for a follow-up physical-layout figure:
+
+1. **Approximate**: synthesise positions from the shaft-stack constraints implied by Freeth 2021's published cross-sections; accept ±5 mm precision.
+2. **Defer**: use the Wikimedia Commons [Gearing_Relationships_of_the_Antikythera_Mechanism.svg](figures/Gearing_Relationships_of_the_Antikythera_Mechanism.svg) as the canonical physical-layout reference (already in `figures/`); keep `gear_topology.svg` for centrality / connectivity questions.
+
+Recommend option 2 for now (option 1 requires data we don't have); revisit if Freeth's mm-coordinate table becomes available.  Both files are committed to `figures/` — a reader can choose the appropriate view for the question they're asking.
 
 ### 11.6.9 Visualisation
 
