@@ -608,14 +608,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     except RuntimeError as exc:
         print(f"  ERROR: {exc}")
         return 1
+    # Sanitisation barrier: explicit numeric casts on the dict values.
+    # peak/mean/RMS are angular errors in degrees; n_samples is the
+    # comparison sample count.  All numerics by construction; the cast
+    # makes that explicit for any data-flow tracker that conservatively
+    # treats the upstream function as a sensitive source.
+    peak_deg = float(stats["peak_deg"])
+    mean_deg = float(stats["mean_deg"])
+    rms_deg = float(stats["rms_deg"])
+    n_samples = int(stats["n_samples"])
     print(f"  model      : {args.model}")
-    # CodeQL false positive: prints peak/mean/RMS angular errors (degrees)
-    # and sample count from the ephemeris comparison.  No filesystem path
-    # or other sensitive data is logged.
-    print(f"  peak deg   : {stats['peak_deg']:>7.2f}")  # lgtm[py/clear-text-logging-sensitive-data]
-    print(f"  mean deg   : {stats['mean_deg']:>7.2f}")  # lgtm[py/clear-text-logging-sensitive-data]
-    print(f"  rms deg    : {stats['rms_deg']:>7.2f}")  # lgtm[py/clear-text-logging-sensitive-data]
-    print(f"  n_samples  : {stats['n_samples']}")  # lgtm[py/clear-text-logging-sensitive-data]
+    print(f"  peak deg   : {peak_deg:>7.2f}")
+    print(f"  mean deg   : {mean_deg:>7.2f}")
+    print(f"  rms deg    : {rms_deg:>7.2f}")
+    print(f"  n_samples  : {n_samples}")
     return 0
 
 
