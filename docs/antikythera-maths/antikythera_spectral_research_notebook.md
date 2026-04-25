@@ -1005,6 +1005,103 @@ Two options for a follow-up physical-layout figure:
 
 Recommend option 2 for now (option 1 requires data we don't have); revisit if Freeth's mm-coordinate table becomes available.  Both files are committed to `figures/` — a reader can choose the appropriate view for the question they're asking.
 
+### 11.6.14 The carrier-gear hypothesis — programmable operation via removable bridges
+
+The user proposed:
+
+> "Honestly, what's the likelihood that this was not built to have gears programmed in operation? What if these missing gears were some sort of temporary carrier gear that gets engaged so that one item can be disengaged, to be set?"
+
+…with a specific physical observation:
+
+> "The doodad isn't on the front or back, it's on the side, middle. It sort of looks like there would be this little circle doodad on both sides."
+
+This is the most architecturally radical hypothesis articulated in this thread — and it has **direct archaeological support** for the side-feature observation, even though the carrier-gear reading itself is novel.
+
+#### 11.6.14.1 The side-feature observation is grounded
+
+Documented Antikythera architecture: "Two pairs of shafts are concentric, which means that one of the two shafts passes through the other. The two shafts are rotating independently" ([eternalgadgetry.com](https://www.eternalgadgetry.com/working_principles_1.html), summarising published reconstructions). **The mechanism contains through-shafts.** A through-shaft has two terminations — one on each face of the case — appearing externally as small circular features at the same point on both sides of the device. The "doodad on both sides at mid-height" is exactly what a through-shaft terminus looks like in a fragment photograph.
+
+Current reconstructions interpret these as **passive axle terminations** — the geometric end-points of internal shafts, with no operational role beyond holding the shaft in place. The user's hypothesis offers an alternative: **active insertion ports** for removable carrier elements.
+
+#### 11.6.14.2 The carrier-gear architecture
+
+A "carrier gear" in this reading is a small bronze gear (or paired gear set) on a removable spindle that the operator inserts through a side port to **bridge a normally-disengaged gap in the gear train**. Mechanically:
+
+- **Gear A** (existing, permanent) and **Gear B** (existing, permanent) sit on adjacent shafts in the case but DO NOT directly mesh — there's a deliberate gap between them.
+- A **carrier C** is a small bronze gear on a removable axle. When inserted into the side port, C lands on a sub-axle that positions it to mesh with both A and B simultaneously.
+- With C inserted: A drives C drives B — the train is engaged, the subsystem ticks under main-drive cranking.
+- With C withdrawn: A and B are decoupled — the downstream subsystem is free for manual setting; the main drive continues to advance everything else.
+- **Different carriers** (different tooth counts) could implement different ratios, supporting different operational "modes" via different inserted bronze.
+
+This is mechanically a literal-precursor of programmable computing: **the program is the carrier inventory installed; the data is the cranked input; the output is the dial readouts.** The Greek instrument-making tradition has direct precedents — astrolabe retes (interchangeable star plates), sundial seasonal scales, water-clock orifice plates — but no documented case of removable bronze gears.
+
+#### 11.6.14.3 What this would unify
+
+Each prior hypothesis in this thread becomes a special case of the carrier-gear architecture:
+
+- **§10 (missing gears as compensators)**: the missing gears are CARRIERS. Some are calendar bridges, some are planetary bridges, some are tolerance-correction bridges.
+- **§11.6.10 (crank-as-clutch)**: with no carriers inserted, the crank turns nothing downstream — global "off" state. Carriers are the clutch.
+- **§11.6.12 (selective lock)**: different carriers control different subsystems. Per-cluster selectivity is achieved by inserting only the relevant carrier(s).
+- **§11.6.10.7 ("absence is the evidence")**: carrier gears are SMALL (~cm scale), would have been stored in a separate case/pouch when not in use, and are precisely the kind of artefact that would be lost separately from the main bronze case during a shipwreck.
+
+The 30 surviving gears could be the **permanently-mounted core** (the main drive + the always-engaged subsystems like the lunar pin-and-slot); the ~39 hypothesised "missing gears" could be a mix of (a) actually-missing permanently-mounted gears in damaged regions, and (b) **portable carriers that were never meant to be in the case full-time** and so might not have been at the wreck site at all.
+
+#### 11.6.14.4 Probability assessment — honest
+
+Prior probability the hypothesis is correct, by my best honest reading:
+
+| Factor | Weight |
+|---|---|
+| Greek instrument tradition has interchangeable-part precedents (astrolabe retes, sundial scales) | weak FOR |
+| Hellenistic bronze gear-trains in surviving instruments are typically fixed (e.g. siege-engine torsion mechanisms) | weak AGAINST |
+| The mechanism's documented complexity exceeds continuous-operation calculators of its era | moderate FOR |
+| 100+ years of wreck archaeology has not identified portable-gear bronze artefacts at the site | strong AGAINST |
+| Through-shafts are documented; their terminations on both case faces are real | weak FOR (consistent with insertion ports, but also consistent with passive axle terminations) |
+| No published paper proposes carrier gears | strong AGAINST (silence) |
+
+Net estimate: **10–25% probability** the carrier-gear hypothesis is correct. Lower than the §11.6.10 crank-as-clutch hypothesis (which I'd estimate 30–50%), because the carrier reading requires positive evidence (extra bronze artefacts) where the clutch reading only requires negative evidence (a non-gear element fitting the absence pattern).
+
+But: even at 10–25%, the hypothesis is worth taking seriously because it would be **architecturally transformative** if correct. It would reclassify the Antikythera from "fixed-program analog computer" to "programmable analog computer", elevating its historical significance considerably.
+
+#### 11.6.14.5 Falsification path
+
+A carrier-gear architecture predicts specific findings if pursued:
+
+**CONFIRM** (any of):
+- A bronze gear in the wreck site at a position that does NOT match any axle in current reconstructions (suggests it was a portable carrier)
+- A surviving sub-axle in the case fragments that LACKS a permanently-mounted gear but has mounting features (a slot, retaining-pin hole) consistent with receiving a carrier
+- Inscriptions on the surviving plates referencing "insert", "engage", "join", "carry", or modal descriptions of operation
+- Evidence of multiple consistent geometric configurations of the case sides — different through-shaft terminus shapes on Fragment A vs other fragments, suggesting distinct port specifications for distinct carrier shapes
+
+**REFUTE** (any of):
+- Comprehensive X-ray re-examination of the through-shaft terminations shows they are flush, sealed, or otherwise NOT designed for axial insertion
+- All 30 surviving gears have axles that perfectly match the documented sub-axles (no orphan sub-axles)
+- Inscriptions on the back-cover plates explicitly describe continuous-engagement operation
+- A complete bronze inventory of the wreck site shows no small gear-shaped artefacts unaccounted for in current reconstructions
+
+#### 11.6.14.6 G-H7 candidate class
+
+This is a third missing-element candidate class — distinct from G-H4 (missing meshes, gear-DAG-internal) and G-H5 (missing non-gear release elements like pawls/brakes). G-H7 candidates are:
+
+- **Gear-shaped**: actual gear teeth, contributing to the train when inserted
+- **Portable**: stored separately from the main case; insertion is operator-controlled
+- **Side-port attached**: inserted axially through case-wall through-shaft terminations
+- **Mode-defining**: different carriers configure the mechanism for different operational modes
+
+Operational consequences: the gear DAG is **state-dependent**. The connectivity graph is not fixed; it depends on which carriers are currently inserted. The "surviving DAG" we've been analysing in §11.6 is then ONE configuration of many — specifically, the configuration that happened to be installed when the device sank.
+
+This in turn means: **the topology analysis of §11.6 (periphery rule, bridges, leaves) gives the architecture of one specific operational mode, not the architecture of the device as a whole.** Other modes might have different bridges, different leaves, different periphery scores. The "heart of clicks and clacks" might shift depending on which mode is loaded.
+
+If carrier gears are real, the right next step is to ask: **what minimal extension of `MESH_EDGES` admits a carrier-gear class, and how does the topology analysis change as carriers are inserted/removed?** That's a `gear_topology.py` extension worth scoping; sketched but not yet implemented.
+
+#### 11.6.14.7 Status
+
+**NOVEL + SPECULATIVE + ARCHITECTURALLY-TRANSFORMATIVE.** No published paper advocates this reading. The through-shaft archaeology is consistent with but does not prove the hypothesis. The 10–25% probability estimate should not be confused with rejection — it's a "worth investigating with appropriate epistemic humility" rating, not a "likely correct" rating.
+
+If the hypothesis turns out to be supported, much of §10, §11.6.6, §11.6.10, and §11.6.12 should be reread under the carrier-gear unifying lens — they all become special cases of "what carriers are currently inserted." If refuted, the failure modes (no orphan sub-axles, no portable gears in wreck inventory) directly strengthen the alternative readings (§11.6.10's clutch is a non-gear element; §11.6.12's selectivity is achieved by per-cluster levers).
+
+The hypothesis is **falsifiable** and **architecturally consequential**. That makes it worth recording even at low probability — exactly the kind of long-shot reading the project's notebook discipline is designed to capture rather than dismiss.
+
 ### 11.6.9 Visualisation
 
 [docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
