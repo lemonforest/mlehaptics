@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Antikythera-Maths Research Scaffold (Phase 0 + 2 + 4)**: Resonant HDC encoder + Phase 1 hypothesis battery + skyfield ground-truth validation for the Antikythera mechanism, framed as the physical instantiation of coprime-indexed phase-space addressing.
+  - **Phase 0 completion**: [pin_and_slot.py](docs/antikythera-maths/research/pin_and_slot.py) — Fragment-B 50-tooth epicycle with closed-form Jacobian and a directed-advance-operator decomposition. ||M_anti||/||M_sym|| = 1.0 saturation matches chess §9m's pawn directed Laplacian (D-H1).
+  - **Phase 2 encoder**: [encode_ant.py](docs/antikythera-maths/research/encode_ant.py) with three D variants per the both/and discipline — D=940 Callippic (calendar only), D=13440 packing (2⁷·3·5·7), D=LCM symbolic (~10²⁶). Dense complex unit-norm channel bases, Gram-orthogonality pre-flight (off-diagonal < 0.05), explicit `REFERENCE_JD` epoch, `UnsupportedDialError` for D=940 planetaries.
+  - **Decoder + rendering**: [dial_decoder.py](docs/antikythera-maths/research/dial_decoder.py) FFT-based circular-correlation unbinding; [rendering.py](docs/antikythera-maths/research/rendering.py) Patch-3-compliant dial + orrery projections that share a single encoded state.
+  - **Phase 4 ground truth**: [astronomical_ground_truth.py](docs/antikythera-maths/research/astronomical_ground_truth.py) — skyfield DE421 with auto-fallback. E-H1 Saros-cycle period validated 3/3 within ±1 day (anchor at 1999-08-11 total solar eclipse + Saros multiples).
+  - **Hypothesis battery**: [consolidated_tests.py](docs/antikythera-maths/research/consolidated_tests.py) runs 15 hypotheses across A-H1..F-E3, writing [results/phase1_hypotheses.csv](docs/antikythera-maths/results/phase1_hypotheses.csv) and [results/phase1_detail.json](docs/antikythera-maths/results/phase1_detail.json). Final summary: 9 PASS, 4 PARTIAL, 0 FAIL, 2 UNDETERMINED.
+  - **Documentation**: [antikythera_spectral_research_notebook.md](docs/antikythera-maths/antikythera_spectral_research_notebook.md) main narrative, [ANTIKYTHERA_SPECTRAL_INSTRUCTIONS.md](docs/antikythera-maths/ANTIKYTHERA_SPECTRAL_INSTRUCTIONS.md) session-handoff guide, [ANTIKYTHERA_PHASE_OP_PREFLIGHT.md](docs/antikythera-maths/ANTIKYTHERA_PHASE_OP_PREFLIGHT.md) Phase-3 short doc, [results/session_summary.md](docs/antikythera-maths/results/session_summary.md) ~1-page summary. Cross-references chess §9a (methodological), §9f (B-H3 coprime-roll), §9m (D-H1 pin-and-slot), §11.3.3 (C-H2 torus-clip).
+
 - **Othello Phase 1e + encoder v0.3.2** ([PR #58](https://github.com/lemonforest/mlehaptics/pull/58), merged 2026-04-24):
   Phase 1e promotes the Othello spectral stack from observational (§1d-style)
   to sheaf-native.  Headline: **+114% cumulative correlation gain** against

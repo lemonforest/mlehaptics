@@ -1,0 +1,679 @@
+{
+  "A-H1": {
+    "n_total": 13,
+    "n_top3_strict": 2,
+    "fraction_top3_strict": 0.15384615384615385,
+    "n_best_under_budget": 7,
+    "fraction_best_under_budget": 0.5384615384615384,
+    "ranks_per_cycle": [
+      {
+        "cycle": "Metonic",
+        "mechanism_pq": [
+          235,
+          19
+        ],
+        "rank_in_cf_convergents": 5,
+        "best_pq_under_budget500": [
+          235,
+          19
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "Callippic",
+        "mechanism_pq": [
+          940,
+          76
+        ],
+        "rank_in_cf_convergents": 5,
+        "best_pq_under_budget500": [
+          235,
+          19
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "Olympic",
+        "mechanism_pq": [
+          4,
+          1
+        ],
+        "rank_in_cf_convergents": 0,
+        "best_pq_under_budget500": [
+          4,
+          1
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "Saros",
+        "mechanism_pq": [
+          223,
+          19
+        ],
+        "rank_in_cf_convergents": 4,
+        "best_pq_under_budget500": [
+          223,
+          19
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "Exeligmos",
+        "mechanism_pq": [
+          669,
+          3
+        ],
+        "rank_in_cf_convergents": 1,
+        "best_pq_under_budget500": [
+          223,
+          1
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "SiderealMonth",
+        "mechanism_pq": [
+          254,
+          19
+        ],
+        "rank_in_cf_convergents": 5,
+        "best_pq_under_budget500": [
+          254,
+          19
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "DraconicMonth",
+        "mechanism_pq": [
+          242,
+          19
+        ],
+        "rank_in_cf_convergents": null,
+        "best_pq_under_budget500": [
+          255,
+          19
+        ],
+        "matches_best_under_budget": false
+      },
+      {
+        "cycle": "LunarAnomaly",
+        "mechanism_pq": [
+          251,
+          19
+        ],
+        "rank_in_cf_convergents": null,
+        "best_pq_under_budget500": [
+          464,
+          35
+        ],
+        "matches_best_under_budget": false
+      },
+      {
+        "cycle": "Mercury_synodic_period_relation",
+        "mechanism_pq": [
+          145,
+          46
+        ],
+        "rank_in_cf_convergents": 5,
+        "best_pq_under_budget500": [
+          249,
+          79
+        ],
+        "matches_best_under_budget": false
+      },
+      {
+        "cycle": "Venus_synodic_period_relation",
+        "mechanism_pq": [
+          289,
+          462
+        ],
+        "rank_in_cf_convergents": null,
+        "best_pq_under_budget500": [
+          157,
+          251
+        ],
+        "matches_best_under_budget": false
+      },
+      {
+        "cycle": "Mars_synodic_period_relation",
+        "mechanism_pq": [
+          133,
+          125
+        ],
+        "rank_in_cf_convergents": null,
+        "best_pq_under_budget500": [
+          1,
+          1
+        ],
+        "matches_best_under_budget": false
+      },
+      {
+        "cycle": "Jupiter_synodic_period_relation",
+        "mechanism_pq": [
+          76,
+          83
+        ],
+        "rank_in_cf_convergents": 4,
+        "best_pq_under_budget500": [
+          76,
+          83
+        ],
+        "matches_best_under_budget": true
+      },
+      {
+        "cycle": "Saturn_synodic_period_relation",
+        "mechanism_pq": [
+          427,
+          442
+        ],
+        "rank_in_cf_convergents": null,
+        "best_pq_under_budget500": [
+          199,
+          206
+        ],
+        "matches_best_under_budget": false
+      }
+    ]
+  },
+  "A-H2": {
+    "candidates_evaluated": 231,
+    "frontier_size": 3,
+    "freeth_choice_on_frontier": false,
+    "top5_frontier": [
+      {
+        "shared_primes": [
+          2,
+          5,
+          7
+        ],
+        "total_teeth": 2228,
+        "shared_count": 9
+      },
+      {
+        "shared_primes": [
+          2,
+          7,
+          17
+        ],
+        "total_teeth": 2228,
+        "shared_count": 9
+      },
+      {
+        "shared_primes": [
+          2,
+          7,
+          19
+        ],
+        "total_teeth": 2228,
+        "shared_count": 9
+      }
+    ],
+    "shared_primes_observed": {
+      "2": [
+        "Mercury",
+        "Venus",
+        "Jupiter",
+        "Saturn"
+      ],
+      "5": [
+        "Mercury",
+        "Mars"
+      ],
+      "17": [
+        "Venus",
+        "Saturn"
+      ],
+      "7": [
+        "Venus",
+        "Mars",
+        "Saturn"
+      ],
+      "19": [
+        "Mars",
+        "Jupiter"
+      ]
+    }
+  },
+  "A-H3": {
+    "observed_spectrum": {
+      "2": 24,
+      "3": 13,
+      "7": 5,
+      "53": 4,
+      "19": 4,
+      "5": 12,
+      "47": 1,
+      "127": 1,
+      "223": 2,
+      "17": 2,
+      "11": 1,
+      "61": 1,
+      "13": 1,
+      "83": 1,
+      "29": 1,
+      "23": 1
+    },
+    "null_avg_spectrum": {
+      "5": 8.016,
+      "7": 5.518,
+      "47": 0.894,
+      "2": 20.238,
+      "137": 0.296,
+      "17": 2.428,
+      "37": 1.17,
+      "53": 0.678,
+      "163": 0.17,
+      "293": 0.138,
+      "11": 3.67,
+      "3": 13.246,
+      "109": 0.306,
+      "127": 0.28,
+      "31": 1.264,
+      "13": 3.11,
+      "79": 0.41,
+      "197": 0.124,
+      "83": 0.382,
+      "139": 0.282,
+      "19": 2.042,
+      "67": 0.564,
+      "193": 0.11,
+      "29": 1.334,
+      "23": 1.826,
+      "71": 0.55,
+      "113": 0.292,
+      "73": 0.526,
+      "269": 0.12,
+      "59": 0.652,
+      "97": 0.424,
+      "43": 0.796,
+      "241": 0.128,
+      "283": 0.138,
+      "233": 0.12,
+      "61": 0.54,
+      "271": 0.118,
+      "157": 0.166,
+      "149": 0.302,
+      "277": 0.136,
+      "101": 0.256,
+      "131": 0.278,
+      "41": 0.958,
+      "103": 0.28,
+      "107": 0.292,
+      "239": 0.126,
+      "89": 0.382,
+      "179": 0.148,
+      "199": 0.146,
+      "181": 0.134,
+      "151": 0.082,
+      "167": 0.134,
+      "257": 0.166,
+      "251": 0.116,
+      "227": 0.17,
+      "281": 0.134,
+      "229": 0.132,
+      "223": 0.138,
+      "191": 0.12,
+      "263": 0.106,
+      "211": 0.136,
+      "173": 0.144
+    },
+    "n_gears": 40,
+    "obs_small_prime_weight": 54,
+    "null_small_prime_weight": 47.018,
+    "large_primes_in_observed": [
+      47,
+      53,
+      61,
+      83,
+      127,
+      223
+    ]
+  },
+  "B-H1": {
+    "D_Ant": 102325385652732381204565500,
+    "D_Ant_n_digits": 27,
+    "prime_factorisation": [
+      2,
+      2,
+      3,
+      5,
+      5,
+      5,
+      7,
+      11,
+      11,
+      13,
+      17,
+      17,
+      19,
+      23,
+      29,
+      47,
+      61,
+      83,
+      127,
+      223,
+      251
+    ],
+    "unique_primes": [
+      2,
+      3,
+      5,
+      7,
+      11,
+      13,
+      17,
+      19,
+      23,
+      29,
+      47,
+      61,
+      83,
+      127,
+      223,
+      251
+    ],
+    "moduli_used": [
+      235,
+      940,
+      4,
+      223,
+      669,
+      254,
+      242,
+      251,
+      145,
+      289,
+      133,
+      76,
+      427,
+      19,
+      76,
+      1,
+      19,
+      3,
+      19,
+      19,
+      19,
+      46,
+      462,
+      125,
+      83,
+      442
+    ]
+  },
+  "B-H2": {
+    "per_D": {
+      "940": {
+        "gcd_step_D": 1,
+        "is_unit": true
+      },
+      "13440": {
+        "gcd_step_D": 1,
+        "is_unit": true
+      }
+    }
+  },
+  "B-H3": {
+    "test_jd_primary": 1684960.0,
+    "n_total_dials": 13,
+    "n_match_modulus": 13,
+    "fraction_match": 1.0,
+    "per_dial_results": {
+      "Metonic": {
+        "true_d_bin": 706,
+        "recovered_d_bin": 706,
+        "match_d_bin": true,
+        "true_modulus": 12,
+        "recovered_modulus": 12,
+        "match_modulus": true
+      },
+      "Callippic": {
+        "true_d_bin": 176,
+        "recovered_d_bin": 176,
+        "match_d_bin": true,
+        "true_modulus": 12,
+        "recovered_modulus": 12,
+        "match_modulus": true
+      },
+      "Olympic": {
+        "true_d_bin": 3357,
+        "recovered_d_bin": 3357,
+        "match_d_bin": true,
+        "true_modulus": 0,
+        "recovered_modulus": 0,
+        "match_modulus": true
+      },
+      "Saros": {
+        "true_d_bin": 744,
+        "recovered_d_bin": 744,
+        "match_d_bin": true,
+        "true_modulus": 12,
+        "recovered_modulus": 12,
+        "match_modulus": true
+      },
+      "Exeligmos": {
+        "true_d_bin": 248,
+        "recovered_d_bin": 248,
+        "match_d_bin": true,
+        "true_modulus": 12,
+        "recovered_modulus": 12,
+        "match_modulus": true
+      },
+      "SiderealMonth": {
+        "true_d_bin": 706,
+        "recovered_d_bin": 706,
+        "match_d_bin": true,
+        "true_modulus": 13,
+        "recovered_modulus": 13,
+        "match_modulus": true
+      },
+      "DraconicMonth": {
+        "true_d_bin": 744,
+        "recovered_d_bin": 744,
+        "match_d_bin": true,
+        "true_modulus": 13,
+        "recovered_modulus": 13,
+        "match_modulus": true
+      },
+      "LunarAnomaly": {
+        "true_d_bin": 709,
+        "recovered_d_bin": 709,
+        "match_d_bin": true,
+        "true_modulus": 13,
+        "recovered_modulus": 13,
+        "match_modulus": true
+      },
+      "Mercury_synodic_period_relation": {
+        "true_d_bin": 291,
+        "recovered_d_bin": 291,
+        "match_d_bin": true,
+        "true_modulus": 3,
+        "recovered_modulus": 3,
+        "match_modulus": true
+      },
+      "Venus_synodic_period_relation": {
+        "true_d_bin": 29,
+        "recovered_d_bin": 29,
+        "match_d_bin": true,
+        "true_modulus": 0,
+        "recovered_modulus": 0,
+        "match_modulus": true
+      },
+      "Mars_synodic_period_relation": {
+        "true_d_bin": 47,
+        "recovered_d_bin": 47,
+        "match_d_bin": true,
+        "true_modulus": 0,
+        "recovered_modulus": 0,
+        "match_modulus": true
+      },
+      "Jupiter_synodic_period_relation": {
+        "true_d_bin": 161,
+        "recovered_d_bin": 161,
+        "match_d_bin": true,
+        "true_modulus": 0,
+        "recovered_modulus": 0,
+        "match_modulus": true
+      },
+      "Saturn_synodic_period_relation": {
+        "true_d_bin": 30,
+        "recovered_d_bin": 30,
+        "match_d_bin": true,
+        "true_modulus": 0,
+        "recovered_modulus": 0,
+        "match_modulus": true
+      }
+    },
+    "multi_date_agreements": [
+      {
+        "jd": 1684595.0,
+        "matches": 13,
+        "of": 13
+      },
+      {
+        "jd": 1684960.0,
+        "matches": 13,
+        "of": 13
+      },
+      {
+        "jd": 1685595.0,
+        "matches": 13,
+        "of": 13
+      },
+      {
+        "jd": 1691535.0,
+        "matches": 11,
+        "of": 13
+      },
+      {
+        "jd": 1712353.78,
+        "matches": 11,
+        "of": 13
+      }
+    ]
+  },
+  "C-H1": {
+    "n_gears": 40,
+    "bijection_verified": true,
+    "implication": "Single-tooth slip propagates with no correction.  Manufacturing tolerance is the load-bearing safety margin."
+  },
+  "C-H2": {
+    "saros_months_per_turn": 55.75,
+    "saros_n_turns": 4,
+    "metonic_months_per_turn": 47.0,
+    "metonic_n_turns": 5,
+    "chess_cross_ref": "\u00a711.3.3 torus-clip aliasing horizon"
+  },
+  "D-H1": {
+    "ratio_pin_and_slot": 1.0,
+    "ratio_circular_reference": 1.0,
+    "ratio_difference": 0.0,
+    "eccentricity_freeth_2006": 0.054,
+    "chess_cross_ref": "\u00a79m Hatano-Nelson pawn directed Laplacian"
+  },
+  "D-H2": {
+    "reference_jd": 1684595.0,
+    "n_dials_at_zero_epoch": 13,
+    "n_dials_total": 13,
+    "epoch_residues": {
+      "Metonic": 0,
+      "Callippic": 0,
+      "Olympic": 0,
+      "Saros": 0,
+      "Exeligmos": 0,
+      "SiderealMonth": 0,
+      "DraconicMonth": 0,
+      "LunarAnomaly": 0,
+      "Mercury_synodic_period_relation": 0,
+      "Venus_synodic_period_relation": 0,
+      "Mars_synodic_period_relation": 0,
+      "Jupiter_synodic_period_relation": 0,
+      "Saturn_synodic_period_relation": 0
+    }
+  },
+  "E-H1": {
+    "n_within_1_day": 3,
+    "n_total": 3,
+    "results": [
+      {
+        "jd": 2451402.0,
+        "lunar_phase_deg": 0.45479949796414554,
+        "dist_to_syzygy_days": 0.03730693607935663,
+        "within_1_day": true,
+        "saros_index": 0,
+        "saros_residue_match": true
+      },
+      {
+        "jd": 2457987.3211,
+        "lunar_phase_deg": 0.644838162187507,
+        "dist_to_syzygy_days": 0.052895696248450294,
+        "within_1_day": true,
+        "saros_index": 1,
+        "saros_residue_match": true
+      },
+      {
+        "jd": 2464572.6422,
+        "lunar_phase_deg": 0.7673532288943116,
+        "dist_to_syzygy_days": 0.06294553531566316,
+        "within_1_day": true,
+        "saros_index": 2,
+        "saros_residue_match": true
+      }
+    ]
+  },
+  "E-H2": {
+    "peak_error_deg": 179.88448921121744,
+    "mean_error_deg": 87.72951079056821,
+    "n_samples": 200
+  },
+  "F-E1": {
+    "primes_used": [
+      2,
+      3,
+      5,
+      7,
+      11,
+      13,
+      17,
+      19,
+      23,
+      29,
+      47,
+      61,
+      83,
+      127,
+      223,
+      251
+    ]
+  },
+  "F-E2": {
+    "D_LCM": 102325385652732381204565500,
+    "n_digits": 27,
+    "moduli_count": 26
+  },
+  "F-E3": {
+    "failed_cycles": [
+      {
+        "cycle": "Mars_synodic_period_relation",
+        "abs_error_days": 6239.520000000004,
+        "rel_error": 0.06400000000000004,
+        "tag": "planetary"
+      },
+      {
+        "cycle": "DraconicMonth",
+        "abs_error_days": 354.24437000000034,
+        "rel_error": 0.051046787684401435,
+        "tag": "lunar"
+      },
+      {
+        "cycle": "LunarAnomaly",
+        "abs_error_days": 23.409560000000056,
+        "rel_error": 0.0033733290923021815,
+        "tag": "lunar"
+      }
+    ]
+  }
+}
