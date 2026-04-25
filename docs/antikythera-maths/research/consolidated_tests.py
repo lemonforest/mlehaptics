@@ -671,7 +671,7 @@ def hypothesis_D_H3() -> Tuple[Dict[str, str], Dict[str, Any]]:
 # the hypothesis functions.
 _RUNNER_KERNEL = "de441"
 _RUNNER_ERA = "both"
-_RUNNER_EPHEMERIS_PATH: Optional[str] = None
+_RUNNER_EPHEMERIS_BSP: Optional[str] = None
 
 
 def _eh1_run(era: str) -> Tuple[Dict[str, str], Dict[str, Any]]:
@@ -695,7 +695,7 @@ def _eh1_run(era: str) -> Tuple[Dict[str, str], Dict[str, Any]]:
             anchors_for_era, filter_by_confidence,
         )
         if not ground_truth_available(kernel=_RUNNER_KERNEL,
-                                      kernel_path=_RUNNER_EPHEMERIS_PATH):
+                                      kernel_path=_RUNNER_EPHEMERIS_BSP):
             return (
                 mk_row(tag, statement,
                        f"skyfield + {_RUNNER_KERNEL} unavailable",
@@ -710,7 +710,7 @@ def _eh1_run(era: str) -> Tuple[Dict[str, str], Dict[str, Any]]:
         results = saros_prediction_test(
             anchors=anchors,
             kernel=_RUNNER_KERNEL,
-            kernel_path=_RUNNER_EPHEMERIS_PATH,
+            kernel_path=_RUNNER_EPHEMERIS_BSP,
         )
         n_total = len(results)
         n_kernel_covers = sum(1 for r in results if r.get("kernel_covers"))
@@ -812,7 +812,7 @@ def hypothesis_E_H1c() -> Tuple[Dict[str, str], Dict[str, Any]]:
         from .sky_driven_validation import scan_syzygies, saros_coverage
         events = scan_syzygies(
             jd_lo=1684500.0, jd_hi=1699500.0,
-            kernel=_RUNNER_KERNEL, kernel_path=_RUNNER_EPHEMERIS_PATH,
+            kernel=_RUNNER_KERNEL, kernel_path=_RUNNER_EPHEMERIS_BSP,
             sample_step_days=4.0,
         )
         cov_all = saros_coverage(events, anchor_jd=1692000.0,
@@ -890,7 +890,7 @@ def hypothesis_E_H2() -> Tuple[Dict[str, str], Dict[str, Any]]:
             mars_retrograde_error, ground_truth_available,
         )
         if not ground_truth_available(kernel=_RUNNER_KERNEL,
-                                      kernel_path=_RUNNER_EPHEMERIS_PATH):
+                                      kernel_path=_RUNNER_EPHEMERIS_BSP):
             return (
                 mk_row("E-H2",
                        "Uniform encoder Mars peak error >= 150 deg "
@@ -901,7 +901,7 @@ def hypothesis_E_H2() -> Tuple[Dict[str, str], Dict[str, Any]]:
                 {"reason": "kernel_unavailable"},
             )
         peak, mean, n = mars_retrograde_error(
-            kernel=_RUNNER_KERNEL, kernel_path=_RUNNER_EPHEMERIS_PATH,
+            kernel=_RUNNER_KERNEL, kernel_path=_RUNNER_EPHEMERIS_BSP,
         )
         status = PASS if peak >= 150.0 else FAIL
         notes = (
@@ -941,7 +941,7 @@ def _eh_planetary_model(model: str, threshold_lo: float, threshold_hi: float,
         )
         from .equant_encoder import model_residue_function, REFERENCE_JD
         if not ground_truth_available(kernel=_RUNNER_KERNEL,
-                                      kernel_path=_RUNNER_EPHEMERIS_PATH):
+                                      kernel_path=_RUNNER_EPHEMERIS_BSP):
             return (
                 mk_row(tag, statement, "skyfield unavailable",
                        f"{threshold_lo} <= peak <= {threshold_hi} deg",
@@ -953,7 +953,7 @@ def _eh_planetary_model(model: str, threshold_lo: float, threshold_hi: float,
         stats = mars_longitude_error(
             longitude_fn=fn,
             kernel=_RUNNER_KERNEL,
-            kernel_path=_RUNNER_EPHEMERIS_PATH,
+            kernel_path=_RUNNER_EPHEMERIS_BSP,
             start_jd=REFERENCE_JD,
         )
         peak = stats["peak_deg"]
@@ -1460,7 +1460,7 @@ def _make_parser():
         help="JPL DE kernel for E-Hx (default: de441).",
     )
     parser.add_argument(
-        "--ephemeris-path", default=None,
+        "--ephemeris-path", dest="ephemeris_bsp", default=None,
         help="Direct path to a .bsp file (offline override).",
     )
     parser.add_argument(
@@ -1487,11 +1487,11 @@ def _make_parser():
 
 
 def main(argv=None) -> int:
-    global _RUNNER_KERNEL, _RUNNER_ERA, _RUNNER_EPHEMERIS_PATH
+    global _RUNNER_KERNEL, _RUNNER_ERA, _RUNNER_EPHEMERIS_BSP
     args = _make_parser().parse_args(argv)
     _RUNNER_KERNEL = args.ephemeris
     _RUNNER_ERA = "modern" if args.skip_ephemeris else args.era
-    _RUNNER_EPHEMERIS_PATH = args.ephemeris_path
+    _RUNNER_EPHEMERIS_BSP = args.ephemeris_bsp
 
     results_dir = Path(__file__).parent.parent / "results"
     rows: List[Dict[str, str]] = []
@@ -1501,7 +1501,7 @@ def main(argv=None) -> int:
     print("=" * 70)
     print(f"  ephemeris kernel: {_RUNNER_KERNEL}  "
           f"era: {_RUNNER_ERA}  "
-          f"path: {_RUNNER_EPHEMERIS_PATH or '(default)'}")
+          f"path: {_RUNNER_EPHEMERIS_BSP or '(default)'}")
     print()
 
     for h in ALL_HYPOTHESES:

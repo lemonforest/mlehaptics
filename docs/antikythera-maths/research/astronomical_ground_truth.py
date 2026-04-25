@@ -377,7 +377,7 @@ def _make_parser() -> argparse.ArgumentParser:
         help=f"JPL DE kernel name (default: {DEFAULT_KERNEL}).",
     )
     parser.add_argument(
-        "--ephemeris-path", default=None,
+        "--ephemeris-path", dest="ephemeris_bsp", default=None,
         help="Direct path to a .bsp file (offline override).",
     )
     parser.add_argument(
@@ -414,7 +414,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("astronomical_ground_truth -- Phase 4 skyfield validation")
     print("=" * 70)
     available = ground_truth_available(kernel=args.ephemeris,
-                                       kernel_path=args.ephemeris_path)
+                                       kernel_path=args.ephemeris_bsp)
     print(f"  ephemeris kernel : {args.ephemeris}")
     print(f"  available locally: {available}")
     if not available:
@@ -441,7 +441,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         results = saros_prediction_test(
             anchors=anchors,
             kernel=args.ephemeris,
-            kernel_path=args.ephemeris_path,
+            kernel_path=args.ephemeris_bsp,
         )
     except RuntimeError as exc:
         print(f"  ERROR: {exc}")
@@ -474,7 +474,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             peak, mean, n = mars_retrograde_error(
                 kernel=args.ephemeris,
-                kernel_path=args.ephemeris_path,
+                kernel_path=args.ephemeris_bsp,
             )
             print(f"  Peak error: {peak:>6.2f} deg")
             print(f"  Mean error: {mean:>6.2f} deg")

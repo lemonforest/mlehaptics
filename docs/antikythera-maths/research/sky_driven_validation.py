@@ -393,7 +393,7 @@ def _make_parser():
         help="JPL DE kernel (default: de422; covers full Antikythera era).",
     )
     parser.add_argument(
-        "--ephemeris-path", default=None,
+        "--ephemeris-path", dest="ephemeris_bsp", default=None,
         help="Direct path to a .bsp file (offline override).",
     )
     parser.add_argument(
@@ -436,7 +436,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         try:
             res = planetary_residual(
                 planet=args.planet, span_days=args.span_days,
-                kernel=args.ephemeris, kernel_path=args.ephemeris_path,
+                kernel=args.ephemeris, kernel_path=args.ephemeris_bsp,
             )
         except RuntimeError as exc:
             print(f"  ERROR: {exc}")
@@ -457,7 +457,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         events = scan_syzygies(
             jd_lo=jd_lo, jd_hi=jd_hi, kernel=args.ephemeris,
-            kernel_path=args.ephemeris_path,
+            kernel_path=args.ephemeris_bsp,
             sample_step_days=args.sample_step_days,
         )
     except RuntimeError as exc:

@@ -490,7 +490,7 @@ def _make_parser() -> argparse.ArgumentParser:
         help="JPL DE kernel name (default: de441).",
     )
     parser.add_argument(
-        "--ephemeris-path", default=None,
+        "--ephemeris-path", dest="ephemeris_bsp", default=None,
         help="Direct path to a .bsp file.",
     )
     parser.add_argument(
@@ -581,7 +581,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 n_samples=args.n_samples,
                 start_jd=args.start_jd,
                 kernel=args.ephemeris,
-                kernel_path=args.ephemeris_path,
+                kernel_path=args.ephemeris_bsp,
             )
         except RuntimeError as exc:
             print(f"  ERROR: {exc}")
@@ -603,7 +603,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             n_samples=args.n_samples,
             start_jd=args.start_jd or REFERENCE_JD,
             kernel=args.ephemeris,
-            kernel_path=args.ephemeris_path,
+            kernel_path=args.ephemeris_bsp,
         )
     except RuntimeError as exc:
         print(f"  ERROR: {exc}")

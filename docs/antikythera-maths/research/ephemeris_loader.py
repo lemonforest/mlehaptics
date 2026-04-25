@@ -356,7 +356,7 @@ def _make_parser() -> argparse.ArgumentParser:
         help="Suggest the smallest kernel covering [JD_LO, JD_HI].",
     )
     parser.add_argument(
-        "--ephemeris-path", default=None,
+        "--ephemeris-path", dest="ephemeris_bsp", default=None,
         help="Direct path to a .bsp file (overrides kernel name lookup).",
     )
     return parser
@@ -384,7 +384,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
 
     if args.probe is not None:
-        ok = is_available(args.probe, kernel_path=args.ephemeris_path)
+        ok = is_available(args.probe, kernel_path=args.ephemeris_bsp)
         print(f"{args.probe}: {'AVAILABLE' if ok else 'unavailable'}")
         return 0 if ok else 1
 
