@@ -857,6 +857,37 @@
       }
     ]
   },
+  "E-H1c": {
+    "cov_all": {
+      "forward_recall": 0.002952755905511811,
+      "backward_precision": 1.0,
+      "n_syzygies": 1016,
+      "n_saros_marks": 3,
+      "fwd_hits": 3,
+      "bwd_hits": 3,
+      "nominal_anchor_jd": 1692000.0,
+      "effective_anchor_jd": 1691993.8125,
+      "anchor_shift_days": -6.1875,
+      "eclipse_type_filter": null,
+      "saros_days": 6585.3211,
+      "tolerance_days": 1.0
+    },
+    "cov_lunar": {
+      "forward_recall": 0.005905511811023622,
+      "backward_precision": 1.0,
+      "n_syzygies": 508,
+      "n_saros_marks": 3,
+      "fwd_hits": 3,
+      "bwd_hits": 3,
+      "nominal_anchor_jd": 1692000.0,
+      "effective_anchor_jd": 1692008.75,
+      "anchor_shift_days": 8.75,
+      "eclipse_type_filter": "L",
+      "saros_days": 6585.3211,
+      "tolerance_days": 1.0
+    },
+    "n_events": 1016
+  },
   "E-H2": {
     "peak_error_deg": 179.8844892042219,
     "mean_error_deg": 87.7295107906587,

@@ -94,32 +94,37 @@ def scan_syzygies(
             f"Run `python -m research.ephemeris_loader --download {kernel}`."
         )
 
-    # Coarse scan
+    # Coarse scan: detect zero crossings of sin(phase) -- these are syzygies
+    # (sin(0) = sin(180) = 0).  cos(phase) sign distinguishes type.  This
+    # avoids the modular discontinuity at phase = 90 / 270 that a folded
+    # |phase mod 180 - 90| metric introduces.
     n_samples = max(2, int((jd_hi - jd_lo) / sample_step_days) + 1)
     jds = np.linspace(jd_lo, jd_hi, n_samples)
-    phases = np.array([_phase_at_jd(bundle, float(j)) for j in jds])
-    # phase mod 180: 0 at both new moon (phase=0) and full moon (phase=180)
-    folded = ((phases + 90) % 180) - 90  # maps to [-90, 90], 0 at syzygy
+    phases_rad = np.array([np.radians(_phase_at_jd(bundle, float(j)))
+                           for j in jds])
+    sin_phase = np.sin(phases_rad)
 
     events: List[SyzygyEvent] = []
-    for i in range(len(folded) - 1):
-        a, b = folded[i], folded[i + 1]
-        if a * b < 0:  # zero crossing
-            # Bisect
+    for i in range(len(sin_phase) - 1):
+        a, b = sin_phase[i], sin_phase[i + 1]
+        if a * b < 0:  # genuine zero crossing of sin(phase)
             lo_jd, hi_jd = float(jds[i]), float(jds[i + 1])
             lo_v, hi_v = float(a), float(b)
+            # Bisect to refine
             for _ in range(40):
                 mid_jd = 0.5 * (lo_jd + hi_jd)
                 mid_phase = _phase_at_jd(bundle, mid_jd)
-                mid_v = ((mid_phase + 90) % 180) - 90
-                if abs(mid_v) < refine_tolerance_deg:
+                mid_v = float(np.sin(np.radians(mid_phase)))
+                if abs(np.degrees(np.arcsin(np.clip(mid_v, -1, 1)))) \
+                        < refine_tolerance_deg:
                     break
                 if mid_v * lo_v < 0:
                     hi_jd, hi_v = mid_jd, mid_v
                 else:
                     lo_jd, lo_v = mid_jd, mid_v
             phase_at_root = _phase_at_jd(bundle, mid_jd)
-            ec_type = "S" if (phase_at_root < 90 or phase_at_root > 270) else "L"
+            ec_type = ("S" if (phase_at_root < 90 or phase_at_root > 270)
+                       else "L")
             events.append(SyzygyEvent(
                 jd=mid_jd, phase_deg=phase_at_root, eclipse_type=ec_type,
             ))
@@ -130,11 +135,26 @@ def scan_syzygies(
 # Encoder Saros prediction coverage (E-H1c)
 # ---------------------------------------------------------------------------
 
+def _nearest_syzygy_jd(syzygies: List[SyzygyEvent],
+                       target_jd: float) -> Optional[float]:
+    """Return JD of the syzygy in the list closest to ``target_jd``.
+
+    Used to anchor the Saros chain to an actual DE422 syzygy rather than
+    trusting a hand-curated historical JD (which proved buggy in E-H1b).
+    """
+    if not syzygies:
+        return None
+    best = min(syzygies, key=lambda s: abs(s.jd - target_jd))
+    return float(best.jd)
+
+
 def saros_coverage(
     syzygies: List[SyzygyEvent],
     anchor_jd: float = HIPPARCHUS_LUNAR_ECLIPSE_JD,
     tolerance_days: float = 1.0,
     saros_days: float = SAROS_DAYS_EXACT,
+    sky_anchor: bool = True,
+    eclipse_type: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Fraction of syzygies that the encoder's Saros multiples cover.
 
@@ -164,14 +184,36 @@ def saros_coverage(
                 "backward_precision": float("nan"),
                 "n_syzygies": 0, "n_saros_marks": 0}
 
-    syz_jds = np.array(sorted(s.jd for s in syzygies))
-    jd_lo = syz_jds[0] - saros_days
-    jd_hi = syz_jds[-1] + saros_days
+    # Optionally restrict to syzygies of one eclipse type (e.g. lunar only)
+    if eclipse_type is not None:
+        filtered = [s for s in syzygies if s.eclipse_type == eclipse_type]
+    else:
+        filtered = list(syzygies)
+    if not filtered:
+        return {"forward_recall": float("nan"),
+                "backward_precision": float("nan"),
+                "n_syzygies": 0, "n_saros_marks": 0}
 
-    # Generate Saros multiples in range
-    k_lo = int(np.floor((jd_lo - anchor_jd) / saros_days))
-    k_hi = int(np.ceil((jd_hi - anchor_jd) / saros_days))
-    saros_jds = np.array([anchor_jd + k * saros_days
+    syz_jds = np.array(sorted(s.jd for s in filtered))
+
+    # Sky-anchor: replace user-provided anchor_jd with the closest actual
+    # DE422 syzygy.  This is THE point of the sky-driven framing -- let
+    # DE422 anchor the Saros chain rather than trusting hand-curated JDs.
+    effective_anchor = anchor_jd
+    if sky_anchor:
+        nearest = _nearest_syzygy_jd(filtered, anchor_jd)
+        if nearest is not None:
+            effective_anchor = nearest
+
+    # Generate Saros multiples ONLY within the syzygy-enumeration window.
+    # Marks outside [syz_jds[0], syz_jds[-1]] cannot be evaluated -- there
+    # are no syzygies enumerated there to match against -- so including
+    # them in the precision count is an artifact.
+    jd_lo = syz_jds[0]
+    jd_hi = syz_jds[-1]
+    k_lo = int(np.ceil((jd_lo - effective_anchor) / saros_days))
+    k_hi = int(np.floor((jd_hi - effective_anchor) / saros_days))
+    saros_jds = np.array([effective_anchor + k * saros_days
                           for k in range(k_lo, k_hi + 1)])
 
     # forward_recall: fraction of syzygies within tol of ANY saros mark
@@ -195,7 +237,10 @@ def saros_coverage(
         "n_saros_marks": len(saros_jds),
         "fwd_hits": fwd_hits,
         "bwd_hits": bwd_hits,
-        "anchor_jd": anchor_jd,
+        "nominal_anchor_jd": anchor_jd,
+        "effective_anchor_jd": float(effective_anchor),
+        "anchor_shift_days": float(effective_anchor - anchor_jd),
+        "eclipse_type_filter": eclipse_type,
         "saros_days": saros_days,
         "tolerance_days": tolerance_days,
     }
@@ -377,23 +422,32 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"Found {len(events)} syzygies in band.")
     print()
 
-    cov = saros_coverage(events, anchor_jd=args.anchor_jd,
-                         tolerance_days=args.tolerance_days)
-    print(f"Saros-coverage metrics:")
-    print(f"  n_syzygies      : {cov['n_syzygies']}")
-    print(f"  n_saros_marks   : {cov['n_saros_marks']}")
-    print(f"  forward_recall  : {cov['forward_recall']:.3f}  "
-          f"(fraction of DE422 syzygies within +-{args.tolerance_days}d "
-          "of any Saros multiple)")
-    print(f"  backward_precision: {cov['backward_precision']:.3f}  "
-          f"(fraction of Saros multiples within +-{args.tolerance_days}d "
-          "of a DE422 syzygy)")
-    print()
+    # Run twice: all syzygies, then lunar-only (Saros family)
+    for ec_filter in (None, "L"):
+        label = "all syzygies" if ec_filter is None else "lunar only (L)"
+        cov = saros_coverage(events, anchor_jd=args.anchor_jd,
+                             tolerance_days=args.tolerance_days,
+                             sky_anchor=True, eclipse_type=ec_filter)
+        print(f"Saros-coverage metrics ({label}):")
+        print(f"  n_syzygies        : {cov['n_syzygies']}")
+        print(f"  n_saros_marks     : {cov['n_saros_marks']}")
+        print(f"  nominal anchor JD : {cov['nominal_anchor_jd']:.1f}")
+        print(f"  effective anchor  : {cov['effective_anchor_jd']:.3f} "
+              f"(shifted {cov['anchor_shift_days']:+.3f} d to match nearest "
+              "DE422 syzygy)")
+        print(f"  forward_recall    : {cov['forward_recall']:.3f}  "
+              f"(syzygies within +-{args.tolerance_days}d of a Saros mark)")
+        print(f"  backward_precision: {cov['backward_precision']:.3f}  "
+              f"(Saros marks within +-{args.tolerance_days}d of a syzygy)")
+        print()
+
     print("Interpretation:")
-    print("  backward_precision should be HIGH (Saros chain is sound) - if it")
-    print("  is, the encoder reliably marks eclipse candidates.")
+    print("  backward_precision should be HIGH (Saros chain is sound) -- if")
+    print("  it is, the encoder reliably marks eclipse candidates.  When")
+    print("  eclipse-type-filtered to lunar (L), Saros marks fall on lunar")
+    print("  syzygies by definition (Saros = 223 synodic months).")
     print("  forward_recall is naturally LOW because Saros marks only one")
-    print("  eclipse per ~6585 days, not every syzygy (~365/29.53 = ~12/yr).")
+    print("  syzygy per ~6585 days, not every syzygy (~24/yr).")
     return 0
 
 

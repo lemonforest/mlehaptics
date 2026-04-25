@@ -685,6 +685,88 @@ def hypothesis_E_H1a() -> Tuple[Dict[str, str], Dict[str, Any]]:
     return _eh1_run("modern")
 
 
+def hypothesis_E_H1c() -> Tuple[Dict[str, str], Dict[str, Any]]:
+    """E-H1c (NEW, sky-driven): the encoder's Saros cycle, anchored on a
+    real DE422 syzygy, reliably predicts other syzygies within +-1 day.
+
+    Replaces the E-H1b anchor-JD-data dependency by letting DE422 itself
+    pick the Saros chain anchor.  Notebook section 11.3 sub-problem A.
+    Test window is 41 years (~2.3 Saros) anchored at JD 1692000 (~ -154
+    BCE).  PASS = backward_precision >= 0.9.  Wall time ~2 min on a
+    typical run (DE422 phase calls dominate).
+    """
+    if _RUNNER_KERNEL == "de421":
+        return (mk_row("E-H1c",
+                       "Sky-driven: encoder Saros chain anchored on DE422 "
+                       "syzygy reliably marks other syzygies within +-1 day",
+                       "skipped (DE421 lacks Hellenistic-era coverage)",
+                       "backward_precision >= 0.9", UNDETERMINED,
+                       "Skipped: kernel de421 doesn't cover the Antikythera era. "
+                       "Re-run with --ephemeris de422."),
+                {"reason": "kernel coverage", "kernel": _RUNNER_KERNEL})
+    if _RUNNER_ERA not in ("hellenistic", "both"):
+        return (mk_row("E-H1c", "Sky-driven Saros prediction (DE422)",
+                       "skipped per --era flag", "n/a",
+                       UNDETERMINED,
+                       f"Skipped: --era={_RUNNER_ERA} excludes hellenistic."),
+                {"era": _RUNNER_ERA, "skipped": True})
+
+    try:
+        from .sky_driven_validation import scan_syzygies, saros_coverage
+        events = scan_syzygies(
+            jd_lo=1684500.0, jd_hi=1699500.0,
+            kernel=_RUNNER_KERNEL, path=_RUNNER_EPHEMERIS_PATH,
+            sample_step_days=4.0,
+        )
+        cov_all = saros_coverage(events, anchor_jd=1692000.0,
+                                 tolerance_days=1.0, sky_anchor=True,
+                                 eclipse_type=None)
+        cov_lunar = saros_coverage(events, anchor_jd=1692000.0,
+                                   tolerance_days=1.0, sky_anchor=True,
+                                   eclipse_type="L")
+        bp = cov_lunar["backward_precision"]
+        if bp != bp:  # nan
+            return (mk_row("E-H1c", "Sky-driven Saros prediction",
+                           "no syzygies in band", "n/a",
+                           UNDETERMINED, "Sky scan returned 0 lunar syzygies"),
+                    {"cov_all": cov_all, "cov_lunar": cov_lunar})
+        if bp >= 0.9:
+            status = PASS
+        elif bp >= 0.5:
+            status = PARTIAL
+        else:
+            status = FAIL
+        notes = (
+            f"DE422 sky scan over ~41 yr (~2.3 Saros) at JD~1692000: "
+            f"{cov_lunar['n_syzygies']} lunar syzygies enumerated.  Saros "
+            f"chain anchored on the DE422 syzygy nearest JD 1692000 "
+            f"(effective: {cov_lunar['effective_anchor_jd']:.2f}, shifted "
+            f"{cov_lunar['anchor_shift_days']:+.2f} d).  Of "
+            f"{cov_lunar['n_saros_marks']} Saros multiples in the syzygy "
+            f"window, {cov_lunar['bwd_hits']} land within +-1 day of an "
+            "actual DE422 lunar syzygy.  Bypasses E-H1b's anchor-JD data "
+            "dependency entirely."
+        )
+        row = mk_row(
+            "E-H1c",
+            "Sky-driven Saros: encoder anchored on DE422 syzygy reliably "
+            "marks other syzygies within +-1 day",
+            f"backward_precision = {bp:.3f} (lunar); "
+            f"{cov_lunar['bwd_hits']}/{cov_lunar['n_saros_marks']} marks hit",
+            "backward_precision >= 0.9",
+            status, notes,
+        )
+        detail = {"cov_all": cov_all, "cov_lunar": cov_lunar,
+                  "n_events": len(events)}
+        return row, detail
+    except Exception as e:
+        return (mk_row("E-H1c", "Sky-driven Saros prediction",
+                       f"ERROR: {type(e).__name__}",
+                       "backward_precision >= 0.9",
+                       UNDETERMINED, f"Crashed: {e}"),
+                {"error": str(e), "traceback": traceback.format_exc()})
+
+
 def hypothesis_E_H1b() -> Tuple[Dict[str, str], Dict[str, Any]]:
     """E-H1b (Track 1, NEW): Hellenistic Almagest anchors via DE441/DE422."""
     if _RUNNER_ERA not in ("hellenistic", "both"):
@@ -1044,7 +1126,7 @@ ALL_HYPOTHESES: List[Callable[[], Tuple[Dict[str, str], Dict[str, Any]]]] = [
     hypothesis_B_H1, hypothesis_B_H2, hypothesis_B_H3,
     hypothesis_C_H1, hypothesis_C_H2,
     hypothesis_D_H1, hypothesis_D_H2, hypothesis_D_H3,
-    hypothesis_E_H1a, hypothesis_E_H1b,
+    hypothesis_E_H1a, hypothesis_E_H1b, hypothesis_E_H1c,
     hypothesis_E_H2, hypothesis_E_H3, hypothesis_E_H4,
     hypothesis_F_E1, hypothesis_F_E2, hypothesis_F_E3,
     hypothesis_G_H1, hypothesis_G_H2, hypothesis_G_H3,
