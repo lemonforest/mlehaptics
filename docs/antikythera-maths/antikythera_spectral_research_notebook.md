@@ -1242,6 +1242,64 @@ The specification is **selectively consistent with G-H8's setting-mode reading**
 
 The hypothesis space has narrowed.  G-H8's specific prediction — synchronised-input differentials in the missing planetary plate — is now the leading candidate for what the missing bronze actually does.  Falsification path §11.6.15.6 should be tightened: look for **paired planetary chains computing the same quantity** in any extension of [research/gear_database.py](research/gear_database.py)'s `MESH_EDGES`.  Two chains that converge on a single differential output reading "drift between them" is the signature.
 
+---
+
+## 12. Computability audit (April 25, 2026)
+
+A structured audit of all 33 hypotheses articulated in this thread (the original 25-row H-battery + the 8 architectural-mode hypotheses §10–§11.6.15) is in [figures/hypothesis_computability_audit.md](figures/hypothesis_computability_audit.md).
+
+### 12.1 Headline summary
+
+- **76% (25 of 33) are fully computed** in the Phase 1 H-battery (`results/phase1_hypotheses.csv`).
+- **1 partially computed**: §11.6.10 crank-as-clutch (numerical part DONE via Track C; archaeological part DATA-BLOCKED).
+- **1 analytically resolved**: §11.6.11 reverse-cranking (worked through, no compute needed).
+- **3 code-ready / scoped** (could be computed today with ≤200 LOC): §11.6.12 G-H6 selective lock, §11.6.14 G-H7 carrier gears, §11.6.15 G-H8 setting-mode gears.
+- **1 weakened**: §10 (compensator necessity refuted by §11.6.10.8's empirical G-H1 flip).
+- **2 descriptive / open**: §11.6.13 SVG caveat, F-series open exploration.
+
+### 12.2 Recommended next computational steps (priority order)
+
+1. **G-H8 paired-chain enumeration** (~120 LOC, ~30 min): for each planet, enumerate alternative rational approximations to the target ratio using `pareto_analysis.best_pq_constrained()`; score the (chain_A, chain_B) pair's synchronisation residual; output per-planet table of candidate synchronised-input differential pairs. **Highest-value next step** — directly tests the leading architectural reading.
+2. **G-H7 carrier insertion geometry** (~150 LOC): for each candidate carrier, check whether axial insertion through the side ports is mechanically possible given case dimensions. Could rule out the carrier-gear reading outright if no plausible insertion exists.
+3. **G-H6 selective-lock attachment** (~75 LOC, quickest): per-subsystem lock-attachment evaluator + periphery-rule scoring.
+4. **Wire G-H6, G-H7, G-H8 into [consolidated_tests.py](research/consolidated_tests.py)** so they emit rows in the canonical CSV. H-battery grows 26 → 29.
+
+### 12.3 What's NOT computable from current data (offline blockers)
+
+- AMRP X-ray volume re-examination of Fragment A near a1/b1 (museum-held)
+- NASA Espenak catalog re-derivation of the 6 Almagest anchor JDs (data exists but requires manual cross-referencing)
+- Voulgaris 2024 paywalled paper full text
+- Keyway depth measurement (never published)
+- Complete wreck-site bronze inventory beyond gear-vs-case classification
+
+These are real research blockers no compute can resolve. They are listed in [figures/clutch_evidence_dossier.md](figures/clutch_evidence_dossier.md) as actionable next steps with URLs and museum contacts.
+
+### 12.4 Composability of the architectural hypotheses
+
+The 8 architectural-mode hypotheses do not all compete; many compose:
+
+```
+§11.6.10 crank-as-clutch (lever)
+   +
+§11.6.15 setting-mode gears G-H8 (load path)
+   =
+   complete clock-style setting architecture
+                  
+                  composes naturally with:
+
+§11.6.12 selective lock G-H6 (per-subsystem)
+   =
+   per-dial setting via clutch + setting wheel + decoupling lock
+```
+
+§10 (compensators) is weakened by §11.6.10.8's intermittent G-H1 PASS.
+§11.6.11 (reverse-cranking) is superseded by anchor recalibration as the better operator strategy.
+§11.6.14 G-H7 (carriers) is weakened relative to G-H8 by lower evidence burden.
+
+The leading composite reading: **clock-style setting via a clutch toggle (§11.6.10) + setting-mode wheels (§11.6.15) + per-subsystem selective lock (§11.6.12)** — all complementary, all consistent with the periphery rule (§11.6.6), all consistent with the "missing gears are mostly small peripheral elements that didn't structurally support the main bronze stack."
+
+The single most valuable next compute step (Priority 1 in §12.2) directly tests the load-bearing claim of this composite reading.
+
 ### 11.6.9 Visualisation
 
 [docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
