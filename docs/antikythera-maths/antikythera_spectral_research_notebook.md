@@ -568,6 +568,69 @@ These reconcile in a clean way: **a combination gear at the periphery serves as 
 
 This narrows G-H4's candidate generator to: "for each peripheral leaf in the surviving DAG, propose adding a differential-shaped completion (two parallel mesh chains converging on the leaf) and score against DE422."
 
+### 11.6.5 The crank, the keyway, and what "avoid the crank" actually means
+
+The user's prior sharpened in mid-thread:
+
+> "Consider if such a compensation gear might need to avoid other periphery gearing or the crank. Perhaps the crank had more than one end? Was it removeable? Did the crank marry with a deep well or surface like mate?"
+
+The archaeological record is precise enough to answer most of this:
+
+- **The crank handle is lost; only the keyway remains.** No surviving fragment retains the actual handle. What survives is a slotted hole on the right-hand face of the case (`a1`'s shaft termination). A "keyway" is by definition a longitudinal slot cut into a shaft into which a matching key on the handle slides axially — i.e. **a deep-well mate**, not a surface coupling. Torque is transmitted along the length of the key engagement.
+- **Removable by design.** The keyway-and-key interface is the canonical removable mechanical coupling: insert the handle, crank, withdraw for storage. The Antikythera was a portable instrument (~34 × 18 × 9 cm wooden case) and the keyway is consistent with the operator carrying the handle separately.
+- **Multi-ended is unlikely as inferred.** A single-keyway shaft accepts one handle at a time; bidirectional operation would require either a through-shaft (handle protruding from both sides) or two separate keyways. Neither is attested. The right-hand keyway implies a right-handed operational convention.
+- **a1 was probably not the *physical* input shaft despite being the *graph-theoretic* input node.** Voulgaris & Mouratidis 2018 ([Mech. Mach. Theory 122:207-218](https://www.sciencedirect.com/science/article/abs/pii/S0094114X17315586)) computed shaft torques for various input-point hypotheses and found that operating from a1 produces "enormous stress" on downstream shafts. Their analysis suggests the operator cranked at a *different* point — possibly directly on b1's spoked face, or via an intermediate gear that no longer survives. Either way, **the topological "a1" in our DAG is not necessarily the bronze the operator's hand touched.**
+
+This refines the periphery rule:
+
+#### Hard constraints on compensator placement (after the crank evidence)
+
+1. **AVOID a1's shaft** for added bronze — the keyway must remain accessible, and torque concentration there is already at a documented stress limit. Encoded in [research/gear_topology.evaluate_attachment](research/gear_topology.py)'s `is_crank_shaft` check.
+2. **AVOID adjacent peripheral gears as well** — if you put a compensator at the i1 leaf and another at k2 within the same physical fragment, they may compete for radial mounting room on a 9-cm-deep case. The graph-theoretic periphery rule has no spatial dimension; the *physical* periphery rule says: look at the surviving fragment maps in [docs/antikythera-maths/figures/](figures/) before placing two leaf-extensions in the same fragment.
+3. **Plausible deep-well sub-coupling.** Greek bronze-cutting can produce a key-and-keyway interface for a *secondary* removable element (an inserted gear, a configuration plate). If a compensator was *itself* keyed into a peripheral shaft and could be swapped — say, one Mars compensator for one Venus compensator — that would explain why no single configuration of "missing bronze" is found in surviving fragments: there may have been *several* removable compensators, only some carried with the device when it sank.
+
+### 11.6.6 Drift redirection — can a compensator collect drift as a useful output?
+
+The user pushed harder:
+
+> "Is it possible such a compensation gear would collect this drift in some other function? Is that something we can do with gearing? Some sort of feedback dampening from gears possible?"
+
+Yes, in two distinct mechanical regimes the Greeks demonstrably had access to:
+
+#### A. Differentials as drift-collecting output dials
+
+A differential gear takes two angular inputs and outputs their algebraic difference (or sum). The Antikythera *already does this* with the b1-b2 differential, which subtracts the solar position from the sidereal lunar position to produce the synodic month phase — i.e. the lunar phase ball.
+
+The same architecture can be repurposed as a *drift collector*: drive two paths from the same reference shaft via two different gear chains, both nominally computing the same astronomical quantity. The differential's output is then the *systematic discrepancy* between the two chains — pure drift, isolated as its own readable signal. A non-zero differential output indicates that one chain has accumulated more error than the other; zero output indicates they agree.
+
+This is exactly what Voulgaris et al. 2024 ([arXiv:2407.15858](https://arxiv.org/abs/2407.15858)) hypothesise as the *missing indicator dials on b1's lost Cover Disc*. The "two missing indicators" they argue for could be drift-difference dials between paired chains — calibration readouts the operator consults when re-zeroing the eclipse pointer at a known anchor event. **Drift becomes a readable quantity, not a wasted error.**
+
+The graph-theoretic role of such an element is unusual: it sits at a leaf (single output) but its two input shafts may both come from the core. So in periphery-rule terms, a drift-collector differential is *graph-position peripheral* (output side) with *attachment-side coupling to core bridges* (the two input chains). The b1-b2 differential matches this pattern exactly — its inputs are b1 (core bridge) and the lunar sidereal chain (mid-chain transmission) and its output is the lunar phase ball (a leaf).
+
+#### B. Feedback dampening via mechanical low-pass filters
+
+True closed-loop feedback (where a downstream output corrects an upstream input) is anachronistic for Greek mechanics — it requires either a sensor or a self-actuated regulator that the Antikythera's bronze toolbox doesn't include. **But the Antikythera *does* include mechanical low-pass filtering**, and the operator's intuition about "feedback dampening from gears" maps cleanly onto this:
+
+- **Pin-and-slot is a mechanical low-pass filter.** The lunar pin-and-slot epicycle (D-H1, [research/pin_and_slot.py](research/pin_and_slot.py)) takes a uniform-rotating input and produces a *non-uniform* output via a continuous pin-in-slot constraint. The pin slides smoothly along the slot rather than snapping discrete tooth-by-tooth, which means the output's angular position is integrated over the slot's contact arc — averaging out tooth-pitch noise on its input. Mechanically: the slot is a moving-average kernel. Spectrally: it is a low-pass filter with cutoff inversely proportional to the slot's angular extent.
+- **A pin-and-slot inserted mid-chain damps tooth-pitch noise on that mesh.** Replace a single mesh in the Saros chain (e.g. between f2 and g1) with a pin-and-slot, and the downstream Saros pointer's drift no longer accumulates tooth-pitch quantisation error from that mesh — the slot smooths it out.
+- **Differentials as variance-isolation, not averaging.** Note: a differential between two *independently noisy* paths *increases* output variance (variance sums for differences, just as for sums). Differentials don't average out noise — they isolate the *systematic* discrepancy from the *common* signal. So differential dampening only works if the two paths share a common systematic drift you want to subtract out (e.g., both are biased the same direction by temperature). Independent random noise gets *amplified*, not averaged.
+
+#### Implication for compensator architecture
+
+Combining §10's combination-gear principle, §11.6's periphery rule, and the §11.6.6 dampening regimes, **a strongly-favoured compensator shape emerges**:
+
+1. **Pin-and-slot inserted at a peripheral leaf**, providing continuous-motion smoothing for that pointer's drift. Adds one degree-2 node to the DAG; preserves the surviving train's bridges and core; reduces tooth-pitch noise propagation to that one output.
+2. **Differential at a peripheral leaf**, with both input shafts coming from the same train's mid-chain (so the inputs share systematic bias). Output reads pure drift as a calibration signal — the lost Cover Disc indicators Voulgaris hypothesises.
+3. **NOT a fresh transmission gear inserted mid-chain** — that adds noise without dampening it.
+
+The two architectural primitives the Greeks already used (differential at the b1-b2 root, pin-and-slot at the lunar leaf) are sufficient to construct any of the missing-gear compensators §10 / §11.6 contemplated. **No new mechanical vocabulary is required** — the missing parts can be built from the surviving primitives, just relocated.
+
+### 11.6.7 Visualisation
+
+[docs/antikythera-maths/figures/gear_topology.svg](figures/gear_topology.svg) renders the surviving DAG with positional layout = BFS distance from a1 (input on left, leaves on right), node colour = periphery score (red = core bridges b1/e5, blue = peripheral leaves i1/k2/m1), node size = tooth count (b1 the visibly largest), edge style = mesh (solid) vs axle-share (dashed). Three clean horizontal bands fall out of the layout — top = lunar / pin-and-slot chain; middle = main + Metonic chain; bottom = Saros chain — with b1 and e5 as the central junctions. The Greek architectural prior is visible at a glance.
+
+[docs/antikythera-maths/figures/gear_topology.dot](figures/gear_topology.dot) is the Graphviz-format source for users with `graphviz` installed (`dot -Tsvg gear_topology.dot -o out.svg`).
+
 ### 11.7 Open question — how much sky resolves the ambiguity?
 
 The Pareto frontier in Track 4 already shows that multiple shared-prime sets are non-dominated (e.g. {7, 17}, {11, 19}, {7, 11}). The Greeks chose ONE set; the sky alone won't tell us which. **But** the sky may break ties on tooth-count *assignments* even when topology is degenerate: two candidate trains may both encode the right *ratio* but differ in their per-step quantisation error. DE422 records that quantisation error directly. So the right framing is: the sky narrows the answer set; surviving fragments narrow it further; in the intersection, what's left is a small enough family to enumerate. **G-H4 measures the size of that intersection.**
