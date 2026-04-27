@@ -5,6 +5,40 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] — 2026-04-27
+
+Security patch closing CodeQL alert
+[#26](https://github.com/lemonforest/mlehaptics/security/code-scanning/26)
+(`cpp/command-line-injection`, severity: critical).
+
+### Fixed
+
+- **PGN bridge is no longer launched through a shell.** The C `encode`
+  command's PGN ingestion path historically built a command line with
+  `snprintf` (interpolating user-supplied `--url` and `--input`
+  arguments) and ran it via `popen()`, which routes through `cmd.exe
+  /c` on Windows and `/bin/sh -c` on POSIX. CodeQL correctly flagged
+  this as `cpp/command-line-injection`: a `--url` containing shell
+  metacharacters (`&`, `;`, backtick, `"`, …) would be interpreted as
+  shell syntax. The bridge now spawns directly via `fork()` +
+  `execvp()` on POSIX and `_pipe()` + `_dup2()` + `_spawnvp()` on
+  Windows, with each token (interpreter, script path, flag, value)
+  passed as one opaque element of an argv array. No shell is ever
+  involved, so user-supplied input cannot escape into command syntax.
+  Verified by a negative test: a URL containing `" & echo PWNED & "`
+  is now passed verbatim to `pgn_bridge.py` (which rejects it as a
+  malformed URL) instead of executing the embedded `echo`.
+  ([`src/main.c`](src/main.c) — new `bridge_proc_t`, `bridge_open()`,
+  `bridge_close()`; `CS_POPEN` / `CS_PCLOSE` macros removed.)
+
+### No behavior change for legitimate inputs
+
+All 230 Python tests pass against the rebuilt binary with the new
+spawn path. PGN file ingestion, stdin PGN ingestion, URL fetch,
+`--pgn-start` / `--pgn-count` slicing, and the bridge's exit-code
+propagation all behave identically to 1.2.5; only the underlying
+process-launch mechanism changed.
+
 ## [1.2.5] — 2026-04-27
 
 Re-attempt of the v1.2.4 release. The 1.2.4 tag's publish workflow

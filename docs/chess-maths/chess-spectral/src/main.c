@@ -21,17 +21,34 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <fcntl.h>
 #include "cs_encoder.h"
 #include "cs_frame.h"
 #include "cs_gzip.h"
 
+/* PGN bridge subprocess: we explicitly avoid popen() + a shell-formatted
+ * command string here because user-supplied arguments (--url, --input)
+ * would then be subject to shell interpretation, which CodeQL correctly
+ * flags as a command-injection sink (cpp/command-line-injection, alert
+ * #26). Instead we build a NULL-terminated argv array and hand it to
+ * fork+execvp (POSIX) or _spawnvp (Windows) — neither of which goes
+ * through a shell, so user data is passed as opaque argv elements. */
 #ifdef _WIN32
-#  define CS_POPEN  _popen
-#  define CS_PCLOSE _pclose
+#  include <io.h>
+#  include <process.h>
+#  include <stdint.h>      /* intptr_t */
+typedef intptr_t bridge_pid_t;
 #else
-#  define CS_POPEN  popen
-#  define CS_PCLOSE pclose
+#  include <unistd.h>
+#  include <sys/types.h>
+#  include <sys/wait.h>
+typedef pid_t bridge_pid_t;
 #endif
+
+typedef struct {
+    FILE *fp;            /* stdout pipe of the child (NULL if not started) */
+    bridge_pid_t pid;    /* spawned child process id (-1 if not started)   */
+} bridge_proc_t;
 
 int cs_fen_parse(const char *fen, cs_position_t *pos);
 
@@ -253,8 +270,131 @@ static int has_suffix_ci(const char *s, const char *suf)
     return 1;
 }
 
-/* Open an NDJSON-producing stream. On return, *is_pipe is 1 if the caller
- * must use CS_PCLOSE, 0 if plain fclose. Sets *fp, returns 0 on success.
+/* ─── shell-free child-process spawn ────────────────────────────────────
+ *
+ * bridge_open() runs `argv[0]` with the rest of `argv` as its argument
+ * vector and connects the child's stdout to a FILE* the parent can
+ * fgets() from. argv must be NULL-terminated.
+ *
+ * No element of argv is ever interpreted by a shell — execvp on POSIX
+ * and _spawnvp on Windows pass each element to the child as a single
+ * opaque argv entry. This eliminates the cpp/command-line-injection
+ * class flagged by CodeQL alert #26.
+ *
+ * Returns 0 on success (bp->fp and bp->pid populated). Non-zero on
+ * failure; bp is left zeroed.
+ */
+static int bridge_open(bridge_proc_t *bp, const char *const argv[])
+{
+    bp->fp = NULL;
+    bp->pid = (bridge_pid_t)-1;
+
+#ifdef _WIN32
+    int p[2];
+    if (_pipe(p, 65536, _O_BINARY | _O_NOINHERIT) != 0) return -1;
+
+    /* The child needs to inherit the *write* end of the pipe (so it can
+     * write to its stdout), but the parent's read end must NOT be
+     * inheritable (else the child holds it open and the parent's
+     * fgets() never sees EOF). Mark the read end non-inheritable, then
+     * temporarily redirect our own stdout to the write end so the
+     * spawned child inherits the redirected stdout. */
+    int saved_stdout = _dup(_fileno(stdout));
+    if (saved_stdout < 0) {
+        _close(p[0]); _close(p[1]); return -1;
+    }
+    fflush(stdout);
+    if (_dup2(p[1], _fileno(stdout)) < 0) {
+        _close(p[0]); _close(p[1]); _close(saved_stdout); return -1;
+    }
+    _close(p[1]);  /* child has its own copy via the dup2'd stdout */
+
+    /* _spawnvp's argv signature is `const char *const *`. Cast away
+     * the array-of-pointers vs. pointer-to-pointer mismatch. */
+    intptr_t pid = _spawnvp(_P_NOWAIT, argv[0], (const char *const *)argv);
+
+    /* Restore parent stdout immediately so subsequent printf/fprintf
+     * doesn't accidentally write into the pipe. */
+    fflush(stdout);
+    _dup2(saved_stdout, _fileno(stdout));
+    _close(saved_stdout);
+
+    if (pid == -1) {
+        _close(p[0]);
+        return -1;
+    }
+    bp->fp = _fdopen(p[0], "r");
+    if (!bp->fp) {
+        _close(p[0]);
+        return -1;
+    }
+    bp->pid = (bridge_pid_t)pid;
+    return 0;
+#else
+    int p[2];
+    if (pipe(p) != 0) return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(p[0]); close(p[1]); return -1;
+    }
+    if (pid == 0) {
+        /* Child: hook write-end onto stdout, exec. No shell. */
+        close(p[0]);
+        if (dup2(p[1], STDOUT_FILENO) < 0) _exit(127);
+        close(p[1]);
+        /* execvp's argv signature is `char *const argv[]`. The strings
+         * themselves are not modified; the cast satisfies the type
+         * system. (Same convention as `main(int, char **)`.)        */
+        execvp(argv[0], (char *const *)argv);
+        _exit(127);  /* exec failed */
+    }
+    /* Parent. */
+    close(p[1]);
+    bp->fp = fdopen(p[0], "r");
+    if (!bp->fp) {
+        close(p[0]);
+        /* Reap the child we just spawned so we don't leak a zombie. */
+        int status;
+        waitpid(pid, &status, 0);
+        return -1;
+    }
+    bp->pid = pid;
+    return 0;
+#endif
+}
+
+/* Close the bridge pipe and reap the child. Returns the child's exit
+ * status (0 == success). Returns -1 if the proc was never spawned. */
+static int bridge_close(bridge_proc_t *bp)
+{
+    if (!bp->fp) return -1;
+    fclose(bp->fp);
+    bp->fp = NULL;
+#ifdef _WIN32
+    int status = -1;
+    if (_cwait(&status, bp->pid, 0) == -1) {
+        bp->pid = (bridge_pid_t)-1;
+        return -1;
+    }
+    bp->pid = (bridge_pid_t)-1;
+    return status;
+#else
+    int status = 0;
+    if (waitpid(bp->pid, &status, 0) < 0) {
+        bp->pid = (bridge_pid_t)-1;
+        return -1;
+    }
+    bp->pid = (bridge_pid_t)-1;
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    return -1;
+#endif
+}
+
+/* Open an NDJSON-producing stream. On return, bp->fp != NULL means a
+ * bridge subprocess was spawned and the caller must call
+ * bridge_close(bp) (which fclose's the pipe and reaps the child).
+ * Otherwise the caller does plain fclose() (or nothing if *fp == stdin).
  *
  * Routing:
  *   url != NULL           → bridge --url <URL>
@@ -265,10 +405,11 @@ static int has_suffix_ci(const char *s, const char *suf)
  */
 static int open_ndjson_stream(const char *input_path, const char *url,
                               int force_pgn, int pgn_start, int pgn_count,
-                              FILE **fp, int *is_pipe)
+                              FILE **fp, bridge_proc_t *bp)
 {
     *fp = NULL;
-    *is_pipe = 0;
+    bp->fp = NULL;
+    bp->pid = (bridge_pid_t)-1;
 
     int use_bridge = (url != NULL)
         || force_pgn
@@ -285,61 +426,54 @@ static int open_ndjson_stream(const char *input_path, const char *url,
         return 0;
     }
 
-    /* PGN / URL path — shell out to pgn_bridge.py and read NDJSON from
-     * its stdout. We rely on the OS shell to re-quote the tokens.
-     *
-     * Windows cmd.exe quoting gotcha: when the command line starts with
-     * `"` and contains >2 quote chars, cmd strips the outermost pair
-     * (documented in `cmd /?`). We work around it by wrapping the entire
-     * line in one extra pair of quotes so cmd's outer-strip leaves the
-     * inner quoting intact. POSIX `/bin/sh -c` doesn't need this dance. */
-    char cmd[8192];
+    /* PGN / URL path — spawn pgn_bridge.py directly (no shell) and read
+     * NDJSON from its stdout via a pipe. Each token below becomes a
+     * single argv element passed verbatim to execvp/_spawnvp, so a URL
+     * containing `;`, `&`, `"`, etc. is safe — no shell ever parses it. */
     const char *py = bridge_python();
     const char *br = bridge_script();
-    int n;
-#ifdef _WIN32
-    const char *open_wrap = "\"";
-    const char *close_wrap = "\"";
-#else
-    const char *open_wrap = "";
-    const char *close_wrap = "";
-#endif
     /* When the caller passes "-" or leaves input_path NULL under --pgn,
      * we want the bridge to consume its own stdin (inheriting ours). */
     const char *bridge_input = (input_path && strcmp(input_path, "-") != 0)
                                ? input_path : "-";
-    /* Optional slice flags — only emitted when the user passed non-default
-     * values on the spectral CLI. Defaults (0) match pgn_bridge's own
-     * defaults so omission is semantically identical. */
-    char slice[128] = {0};
-    if (pgn_start > 0 || pgn_count > 0) {
-        int sn = snprintf(slice, sizeof(slice),
-                          " --start-game %d --max-games %d",
-                          pgn_start > 0 ? pgn_start : 0,
-                          pgn_count > 0 ? pgn_count : 0);
-        if (sn < 0 || (size_t)sn >= sizeof(slice)) {
-            fprintf(stderr, "encode: slice flags overflow\n");
-            return -1;
-        }
-    }
 
+    /* argv slots: py, br, --input/--url, value, [--start-game, N,
+     *             --max-games, K], NULL = up to 9. */
+    const char *argv_bridge[10] = {0};
+    char start_buf[32] = {0};
+    char count_buf[32] = {0};
+    int argc_bridge = 0;
+    argv_bridge[argc_bridge++] = py;
+    argv_bridge[argc_bridge++] = br;
     if (url) {
-        n = snprintf(cmd, sizeof(cmd),
-                     "%s\"%s\" \"%s\" --url \"%s\"%s%s",
-                     open_wrap, py, br, url, slice, close_wrap);
+        argv_bridge[argc_bridge++] = "--url";
+        argv_bridge[argc_bridge++] = url;
     } else {
-        n = snprintf(cmd, sizeof(cmd),
-                     "%s\"%s\" \"%s\" --input \"%s\"%s%s",
-                     open_wrap, py, br, bridge_input, slice, close_wrap);
+        argv_bridge[argc_bridge++] = "--input";
+        argv_bridge[argc_bridge++] = bridge_input;
     }
-    if (n < 0 || (size_t)n >= sizeof(cmd)) {
-        fprintf(stderr, "encode: bridge command too long\n");
-        return -1;
+    if (pgn_start > 0 || pgn_count > 0) {
+        int sn = snprintf(start_buf, sizeof(start_buf), "%d",
+                          pgn_start > 0 ? pgn_start : 0);
+        if (sn < 0 || (size_t)sn >= (int)sizeof(start_buf)) return -1;
+        sn = snprintf(count_buf, sizeof(count_buf), "%d",
+                      pgn_count > 0 ? pgn_count : 0);
+        if (sn < 0 || (size_t)sn >= (int)sizeof(count_buf)) return -1;
+        argv_bridge[argc_bridge++] = "--start-game";
+        argv_bridge[argc_bridge++] = start_buf;
+        argv_bridge[argc_bridge++] = "--max-games";
+        argv_bridge[argc_bridge++] = count_buf;
     }
+    argv_bridge[argc_bridge] = NULL;
 
-    fprintf(stderr, "encode: piping through bridge: %s\n", cmd);
-    FILE *pipe = CS_POPEN(cmd, "r");
-    if (!pipe) {
+    /* Diagnostic: log the resolved argv (one element per quoted token).
+     * Unlike the old shell-string log, this is structurally
+     * unambiguous — every metachar in user data is shown literally. */
+    fprintf(stderr, "encode: spawning bridge:");
+    for (int i = 0; i < argc_bridge; i++) fprintf(stderr, " '%s'", argv_bridge[i]);
+    fputc('\n', stderr);
+
+    if (bridge_open(bp, argv_bridge) != 0) {
         fprintf(stderr,
             "encode: failed to launch pgn_bridge.py.\n"
             "        Checked interpreter:  %s  (override via CS_PYTHON)\n"
@@ -348,8 +482,7 @@ static int open_ndjson_stream(const char *input_path, const char *url,
             py, br);
         return -1;
     }
-    *fp = pipe;
-    *is_pipe = 1;
+    *fp = bp->fp;
     return 0;
 }
 
@@ -417,16 +550,17 @@ static int cmd_encode(int argc, char **argv)
     }
 
     FILE *fin = NULL;
-    int is_pipe = 0;
+    bridge_proc_t bridge = { .fp = NULL, .pid = (bridge_pid_t)-1 };
     if (open_ndjson_stream(input, url, force_pgn, pgn_start, pgn_count,
-                           &fin, &is_pipe) != 0) return 3;
+                           &fin, &bridge) != 0) return 3;
 
     /* When compressing, write plain frames to an anonymous tmpfile first
      * (so header backfill via fseek still works), then deflate the whole
      * thing to the user's output path at the end. */
     FILE *fout = compress ? tmpfile() : fopen(output, "wb");
     if (!fout) {
-        if (is_pipe) CS_PCLOSE(fin); else if (fin != stdin) fclose(fin);
+        if (bridge.fp) bridge_close(&bridge);
+        else if (fin != stdin) fclose(fin);
         fprintf(stderr, "encode: cannot create %s\n",
                 compress ? "temporary staging file" : output);
         return 3;
@@ -510,8 +644,8 @@ static int cmd_encode(int argc, char **argv)
         fprintf(stderr, "encode: header backfill failed\n");
     }
 
-    if (is_pipe) {
-        int rc = CS_PCLOSE(fin);
+    if (bridge.fp) {
+        int rc = bridge_close(&bridge);
         if (rc != 0) {
             fprintf(stderr, "encode: pgn_bridge.py exited with status %d\n", rc);
         }
