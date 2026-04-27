@@ -519,5 +519,454 @@ def test_pgn_to_spectralz_real_game(tmp_path):
     )
 
 
+# ─── Seeded self-play: dynamic game generation via phase operators ──
+#
+# The Kasparov-Topalov fixture above is real and verified, but it's a
+# fixed game. To exercise the move-generation surface (phase operators)
+# against varied positions, we add a deterministic random-legal self-
+# play helper: feed it RNG seeds for white and black, get back a list
+# of plies. Same seeds → same game on every machine and run.
+#
+# python-chess is the well-tested ground truth: it generates the legal-
+# move set we sample from and applies the chosen move. The phase
+# operators (chess_spectral.phase_operators.*) are the unit-under-
+# test: on every ply we cross-check phasecast_is_check against
+# python-chess's board.is_check(), and (separately) verify that
+# occupation_aware_moves_a's pseudo-legal candidate set covers
+# python-chess's legal destinations for non-pawn pieces.
+#
+# Default: a single seed shared between both colors gives fully
+# symmetric deterministic play. Pass distinct white_seed and
+# black_seed to make the two RNGs independent (asymmetric exploration
+# of the game tree).
+
+
+def _seeded_self_play(white_seed: int,
+                      black_seed: int | None = None,
+                      *, max_plies: int = 50) -> list[dict]:
+    """Play a deterministic random-legal self-play game.
+
+    Move generation: python-chess (well-tested baseline).
+    Phase-operator validation: on every ply we assert
+    `phasecast_is_check(board) == board.is_check()` — exercising the
+    phase-operator code path against a real game progression.
+
+    Args:
+        white_seed: RNG seed for white's move choices.
+        black_seed: RNG seed for black. Defaults to `white_seed` when
+            None — symmetric deterministic play. Pass distinct to
+            give the two colors independent RNGs (asymmetric).
+        max_plies: cap on game length.
+
+    Returns:
+        List of dicts ready to write as NDJSON, one per position
+        (including the starting position at ply 0). Each dict has
+        {ply, fen, move_from, move_to, promo, flags}; move_from /
+        move_to are 0xFF on ply 0 (no predecessor move).
+    """
+    import chess
+    import random
+    from chess_spectral.phase_operators import phasecast_is_check
+
+    rng_w = random.Random(white_seed)
+    rng_b = random.Random(black_seed if black_seed is not None
+                          else white_seed)
+
+    board = chess.Board()
+    out = [{
+        "ply": 0, "fen": board.fen(),
+        "move_from": 0xFF, "move_to": 0xFF,
+        "promo": 0, "flags": 0,
+    }]
+
+    for ply_idx in range(1, max_plies + 1):
+        # Phase-operator cross-check: agreement with python-chess on
+        # check status. Mismatch here = real phase-op bug.
+        if phasecast_is_check(board) != board.is_check():
+            raise AssertionError(
+                f"phase_operators.phasecast_is_check disagrees with "
+                f"python-chess at ply {ply_idx - 1}: "
+                f"phase_op={phasecast_is_check(board)}, "
+                f"python-chess={board.is_check()}, fen={board.fen()}"
+            )
+
+        legal = list(board.legal_moves)
+        if not legal:
+            break  # checkmate / stalemate
+
+        rng = rng_w if board.turn == chess.WHITE else rng_b
+        move = rng.choice(legal)
+        board.push(move)
+
+        out.append({
+            "ply":       ply_idx,
+            "fen":       board.fen(),
+            "move_from": move.from_square,
+            "move_to":   move.to_square,
+            "promo":     move.promotion or 0,
+            "flags":     int(board.is_check()),
+        })
+
+        if board.is_game_over():
+            break
+
+    return out
+
+
+@_REQUIRES_PYTHON_CHESS
+def test_seeded_self_play_is_reproducible():
+    """Same seeds → same FEN sequence on every run."""
+    a = _seeded_self_play(white_seed=42, max_plies=30)
+    b = _seeded_self_play(white_seed=42, max_plies=30)
+    assert [p["fen"] for p in a] == [p["fen"] for p in b], (
+        "seeded self-play is not deterministic"
+    )
+
+
+@_REQUIRES_PYTHON_CHESS
+def test_seeded_self_play_separate_seeds_diverge():
+    """Same white_seed → identical opening; different black_seed →
+    games diverge once black gets the move."""
+    a = _seeded_self_play(white_seed=42, black_seed=42, max_plies=30)
+    b = _seeded_self_play(white_seed=42, black_seed=99, max_plies=30)
+    # Ply 0 (starting pos) and ply 1 (white's first move) must agree.
+    assert a[0]["fen"] == b[0]["fen"]
+    assert a[1]["fen"] == b[1]["fen"]
+    # By ply 30, divergence is overwhelmingly likely.
+    assert any(a[i]["fen"] != b[i]["fen"]
+               for i in range(2, min(len(a), len(b)))), (
+        "asymmetric seeds did not produce divergent games"
+    )
+
+
+@_REQUIRES_PYTHON_CHESS
+def test_seeded_self_play_default_black_inherits_white_seed():
+    """When `black_seed` is None, both colors share `white_seed` —
+    fully symmetric deterministic play (same as if you'd passed the
+    same seed twice)."""
+    a = _seeded_self_play(white_seed=2026, max_plies=20)
+    b = _seeded_self_play(white_seed=2026, black_seed=2026, max_plies=20)
+    assert [p["fen"] for p in a] == [p["fen"] for p in b]
+
+
+def _write_ndjson_for_c_encoder(plies: list[dict], path) -> None:
+    """Write NDJSON with the compact separator the C encoder's
+    json_str_field expects (`"key":"value"` — no whitespace after the
+    colon, since C's substring scan looks for that exact prefix)."""
+    path.write_text(
+        "\n".join(json.dumps(p, separators=(",", ":")) for p in plies)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+@_REQUIRES_C
+@_REQUIRES_PYTHON_CHESS
+def test_seeded_self_play_encodes_via_c_pipeline(tmp_path):
+    """End-to-end: seeded game → NDJSON → C encoder → .spectral.
+    Verifies the encoder consumes the dynamically-generated game
+    cleanly and the resulting file's header reflects the played plies."""
+    plies = _seeded_self_play(white_seed=12345, max_plies=40)
+    nd_path = tmp_path / "seeded.ndjson"
+    _write_ndjson_for_c_encoder(plies, nd_path)
+    sp_path = tmp_path / "seeded.spectral"
+    _run_c(["encode", str(nd_path), "-o", str(sp_path)])
+    from chess_spectral import read_all
+    hdr, frames = read_all(str(sp_path))
+    assert hdr.n_plies == len(plies), (
+        f"encoded {hdr.n_plies} frames, expected {len(plies)} from "
+        f"seeded play"
+    )
+    assert len(frames) == len(plies)
+
+
+@_REQUIRES_C
+@_REQUIRES_PYTHON_CHESS
+def test_seeded_self_play_analyze_pipeline(tmp_path):
+    """Full pipeline including analyze: seeded game → encode → analyze
+    JSON. Exercises both encoder and the analyze CLI on game data
+    that wasn't pre-recorded."""
+    plies = _seeded_self_play(white_seed=7, black_seed=13, max_plies=30)
+    nd_path = tmp_path / "seeded.ndjson"
+    _write_ndjson_for_c_encoder(plies, nd_path)
+    sp_path = tmp_path / "seeded.spectral"
+    _run_c(["encode", str(nd_path), "-o", str(sp_path)])
+    out = _run_c(["analyze", str(sp_path)]).stdout
+    j = json.loads(out)
+    assert j["n_plies"] == len(plies)
+    for key in ("a1_peak_ply", "a1_drop_ply", "crisis_ply",
+                "e_total_max_ply"):
+        assert 0 <= j[key] < len(plies), (
+            f"analyze {key}={j[key]} out of range [0, {len(plies)})"
+        )
+
+
+@_REQUIRES_PYTHON_CHESS
+def test_seeded_self_play_phase_op_legal_moves_match():
+    """For positions reached during seeded self-play, the phase-
+    operator's `occupation_aware_moves_a` must agree with python-chess
+    on the LEGAL destinations for each non-pawn piece. python-chess is
+    used as the well-tested ground truth; the phase op (our own move
+    operator) is the unit-under-test.
+
+    Pawns and castling are excluded (occupation_aware_moves_a doesn't
+    handle them — they're separate phase-operator entry points;
+    castling is wired into available_castles, separately tested by
+    test_2d_phase_operators_smoke).
+
+    Convention: occupation_aware_moves_a uses chess.square_rank /
+    chess.square_file directly (rank 0 = rank 1, white's bottom row).
+    The function is "hybrid" per its docstring: it generates phase-
+    space candidates and then filters them through python-chess
+    legality, so the returned set is exactly the legal moves for that
+    piece — equality is the right check, not subset."""
+    import chess
+    from chess_spectral.phase_operators import occupation_aware_moves_a
+
+    plies = _seeded_self_play(white_seed=2026, max_plies=20)
+    for p in plies[:8]:  # sample first 8 plies (covers opening moves)
+        board = chess.Board(p["fen"])
+        for sq in chess.SQUARES:
+            piece = board.piece_at(sq)
+            if piece is None or piece.color != board.turn:
+                continue
+            sym = piece.symbol().upper()
+            if sym not in 'NBRQK':
+                continue  # skip pawns (different phase-op entry point)
+            rank = chess.square_rank(sq)
+            file = chess.square_file(sq)
+            mover_charge = 1 if board.turn == chess.WHITE else -1
+            dests = occupation_aware_moves_a(
+                board, sym, rank, file, mover_charge,
+            )
+            phase_to_squares = {chess.square(c, r) for r, c in dests}
+            ref_to_squares = {
+                m.to_square for m in board.legal_moves
+                if m.from_square == sq
+            }
+            assert phase_to_squares == ref_to_squares, (
+                f"phase op set != python-chess legal set for {sym} at "
+                f"{chess.square_name(sq)} (fen={p['fen']}): "
+                f"phase_op={sorted(phase_to_squares)}, "
+                f"python_chess={sorted(ref_to_squares)}, "
+                f"missing={sorted(ref_to_squares - phase_to_squares)}, "
+                f"extra={sorted(phase_to_squares - ref_to_squares)}"
+            )
+
+
+# ─── Seeded 4D self-play: dynamic position generation via tables_4d ─
+#
+# 4D analog of the 2D seeded self-play above. Differences:
+#
+#   - No python-chess: 4D has no python-chess equivalent. We use
+#     chess_spectral.tables_4d's per-piece movement generators
+#     (rook4_targets, knight4_targets, etc.) directly — the same
+#     functions that build the encoder's adjacency tables.
+#
+#   - No legality / check / checkmate: there's no 4D Oana-Chiru rule
+#     enforcement layer in the project (see ROADMAP.md follow-up). We
+#     do a "random walk" — each ply picks a random non-pawn piece and
+#     a random valid (in-bounds, unoccupied) destination per the piece-
+#     movement generator. No captures, no promotions, no checks.
+#
+#   - This exercises: the 4D piece-movement generators in tables_4d,
+#     the FEN4 parser (validates each generated position), and the
+#     full 4D encoder pipeline (encode-fen4 / encode bulk / csv).
+#
+# Same seeded interface as 2D: white_seed required, black_seed
+# optional (defaults to white_seed). Different seeds give the two
+# colors independent walks.
+
+
+_4D_PIECE_TARGETS = {
+    'N': 'knight4_targets',
+    'B': 'bishop4_targets',
+    'R': 'rook4_targets',
+    'Q': 'queen4_targets',
+    'K': 'king4_targets',
+}
+
+
+def _seeded_self_play_4d(white_seed: int,
+                         black_seed: int | None = None,
+                         *, max_plies: int = 30) -> list[dict]:
+    """Random-walk 4D piece progression on the Z₈⁴ lattice.
+
+    Starts from a small mixed position (kings + a handful of
+    non-pawn pieces) and on each ply moves one randomly-chosen
+    piece to a random valid (in-bounds, unoccupied) target per the
+    piece's movement generator from chess_spectral.tables_4d.
+
+    Returns a list of NDJSON4-ready dicts: {"ply", "fen4",
+    "move_from", "move_to", "promo", "flags"}. ply 0 is the
+    starting position; subsequent plies record the move and the
+    resulting FEN4.
+
+    Pawns are excluded — pawn movement on Z₈⁴ has axis constraints
+    (Oana-Chiru Def. 11) the FEN4 v1 parser enforces but the random
+    walk doesn't model promotion / first-move rules. Future-work
+    item in ROADMAP.md."""
+    import random
+    from chess_spectral import tables_4d as t4
+
+    rng_w = random.Random(white_seed)
+    rng_b = random.Random(black_seed if black_seed is not None
+                          else white_seed)
+
+    # Starting position: 2 kings + 1 of each major piece per side.
+    # Spread across the lattice so movement isn't trivially blocked.
+    pos = {
+        (0, 0, 0, 0): 'K',  (7, 7, 7, 7): 'k',
+        (1, 1, 1, 1): 'Q',  (6, 6, 6, 6): 'q',
+        (2, 2, 2, 2): 'R',  (5, 5, 5, 5): 'r',
+        (3, 0, 0, 0): 'B',  (4, 7, 7, 7): 'b',
+        (0, 3, 0, 0): 'N',  (7, 4, 7, 7): 'n',
+    }
+
+    def _to_fen4(p):
+        parts = [f"{piece}@{x},{y},{z},{w}"
+                 for (x, y, z, w), piece in sorted(p.items())]
+        return "4d-fen v1: " + "; ".join(parts)
+
+    out = [{
+        "ply": 0, "fen4": _to_fen4(pos),
+        "move_from": [0, 0, 0, 0], "move_to": [0, 0, 0, 0],
+        "promo": 0, "flags": 0,
+    }]
+
+    color_to_move = 'white'  # alternates each ply
+    for ply_idx in range(1, max_plies + 1):
+        rng = rng_w if color_to_move == 'white' else rng_b
+
+        # Pick a random piece of the side-to-move with at least one
+        # valid destination.
+        movable = []
+        is_white = (color_to_move == 'white')
+        for coord, piece in pos.items():
+            piece_white = piece.isupper()
+            if piece_white != is_white:
+                continue
+            sym = piece.upper()
+            target_fn = getattr(t4, _4D_PIECE_TARGETS.get(sym, ''),
+                                None)
+            if target_fn is None:
+                continue
+            valid = []
+            for tgt in target_fn(*coord):
+                if not all(0 <= c < 8 for c in tgt):
+                    continue
+                if tgt in pos:
+                    continue  # occupied — skip (no captures)
+                valid.append(tgt)
+            if valid:
+                movable.append((coord, valid))
+        if not movable:
+            break
+
+        from_coord, dests = rng.choice(movable)
+        to_coord = rng.choice(dests)
+        piece = pos.pop(from_coord)
+        pos[to_coord] = piece
+
+        out.append({
+            "ply":       ply_idx,
+            "fen4":      _to_fen4(pos),
+            "move_from": list(from_coord),
+            "move_to":   list(to_coord),
+            "promo":     0,
+            "flags":     0,
+        })
+        color_to_move = 'black' if color_to_move == 'white' else 'white'
+
+    return out
+
+
+def test_seeded_self_play_4d_is_reproducible():
+    """Same seeds → identical 4D progression."""
+    a = _seeded_self_play_4d(white_seed=42, max_plies=20)
+    b = _seeded_self_play_4d(white_seed=42, max_plies=20)
+    assert [p["fen4"] for p in a] == [p["fen4"] for p in b]
+
+
+def test_seeded_self_play_4d_separate_seeds_diverge():
+    """Distinct white/black seeds → asymmetric walks."""
+    a = _seeded_self_play_4d(white_seed=42, black_seed=42, max_plies=20)
+    b = _seeded_self_play_4d(white_seed=42, black_seed=99, max_plies=20)
+    assert a[0]["fen4"] == b[0]["fen4"]  # starting position identical
+    assert a[1]["fen4"] == b[1]["fen4"]  # ply 1 = white, same seed
+    # Once black moves (ply 2 onward), divergence is overwhelming.
+    assert any(a[i]["fen4"] != b[i]["fen4"]
+               for i in range(2, min(len(a), len(b))))
+
+
+def test_seeded_self_play_4d_uses_real_piece_movement():
+    """Each move recorded by the helper must be a destination
+    actually returned by the piece's movement generator. Catches any
+    bug where the helper accidentally creates moves that bypass the
+    Oana-Chiru piece-movement rules."""
+    from chess_spectral import tables_4d as t4
+
+    plies = _seeded_self_play_4d(white_seed=2026, max_plies=15)
+    for i, p in enumerate(plies[1:], start=1):
+        prev = plies[i - 1]
+        from_c = tuple(p["move_from"])
+        to_c = tuple(p["move_to"])
+        # Find the piece at `from_c` in the PREVIOUS position by
+        # parsing the prev FEN4. Reuse fen_4d.parse for fidelity.
+        from chess_spectral import fen_4d
+        prev_pos = fen_4d.parse(prev["fen4"])
+        sq = ((from_c[0] * 8 + from_c[1]) * 8 + from_c[2]) * 8 + from_c[3]
+        piece_value = prev_pos[sq]
+        sym = (piece_value if isinstance(piece_value, str)
+               else piece_value[0]).upper()
+        target_fn = getattr(t4, _4D_PIECE_TARGETS[sym])
+        valid_targets = set(target_fn(*from_c))
+        assert to_c in valid_targets, (
+            f"ply {i}: {sym}@{from_c} → {to_c} is NOT a valid "
+            f"piece-movement target per tables_4d (valid set "
+            f"size: {len(valid_targets)})"
+        )
+
+
+@_REQUIRES_C_4D
+def test_seeded_self_play_4d_encodes_via_c_pipeline(tmp_path):
+    """End-to-end 4D: seeded random-walk → NDJSON4 → spectral_4d
+    encode → .spectralz4. Verifies the full 4D pipeline on
+    dynamically-generated game data without depending on any external
+    PGN dataset or python-chess."""
+    plies = _seeded_self_play_4d(white_seed=12345, max_plies=20)
+    nd_path = tmp_path / "seeded4d.ndjson4"
+    nd_path.write_text(
+        "\n".join(json.dumps(p, separators=(",", ":")) for p in plies)
+        + "\n",
+        encoding="utf-8",
+    )
+    sp_path = tmp_path / "seeded4d.spectralz4"
+    _run_c_4d(["encode", str(nd_path), "-o", str(sp_path), "-z"])
+    assert sp_path.is_file()
+    assert sp_path.stat().st_size > 0
+
+
+@_REQUIRES_C_4D
+def test_seeded_self_play_4d_csv_pipeline(tmp_path):
+    """4D end-to-end including csv: seeded walk → encode → csv (24
+    columns × N data rows)."""
+    plies = _seeded_self_play_4d(white_seed=7, black_seed=13,
+                                 max_plies=15)
+    nd_path = tmp_path / "seeded4d.ndjson4"
+    nd_path.write_text(
+        "\n".join(json.dumps(p, separators=(",", ":")) for p in plies)
+        + "\n",
+        encoding="utf-8",
+    )
+    sp_path = tmp_path / "seeded4d.spectralz4"
+    csv_path = tmp_path / "seeded4d.csv"
+    _run_c_4d(["encode", str(nd_path), "-o", str(sp_path), "-z"])
+    _run_c_4d(["csv", str(sp_path), "-o", str(csv_path)])
+    rows = csv_path.read_text(encoding="utf-8").strip().split("\n")
+    assert len(rows) == len(plies) + 1  # 1 header + N plies
+    assert rows[0].count(",") + 1 == 24
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
