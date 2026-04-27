@@ -29,11 +29,16 @@ from .phase_to_coords_4d import (
     invert, phase_set_to_board,
 )
 
-# Note: occupation_aware_a_4d depends on the optional ``chess4d``
-# package. We import it lazily so this package stays importable in
-# environments without the test extra installed. The Phase C tests
-# use ``pytest.importorskip("chess4d")`` to skip cleanly.
+# Note: occupation_aware_a_4d and phase_check_detection_4d depend on
+# the optional ``chess4d`` package. They import it lazily so this
+# package stays importable in environments without the test extra
+# installed. The Phase C/D tests use ``pytest.importorskip("chess4d")``
+# to skip cleanly.
 from .occupation_aware_a_4d import occupation_aware_moves_a_4d
+from .phase_check_detection_4d import (
+    phasecast_is_check_4d_no_pawns,
+    move_leaves_king_in_check_4d_no_pawns,
+)
 
 __all__ = [
     # phase_operators_4d
@@ -48,4 +53,7 @@ __all__ = [
     "invert", "phase_set_to_board",
     # occupation_aware_a_4d
     "occupation_aware_moves_a_4d",
+    # phase_check_detection_4d
+    "phasecast_is_check_4d_no_pawns",
+    "move_leaves_king_in_check_4d_no_pawns",
 ]
