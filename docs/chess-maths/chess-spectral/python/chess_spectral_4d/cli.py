@@ -373,9 +373,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="chess_spectral_4d.cli",
         description=(
-            "CLI for the 4D chess-spectral encoder "
-            "(B4 symmetry, Z_8^4 lattice). v1 is Python-only; C port "
-            "is v1.1."
+            "CLI for the 4D chess-spectral encoder (B4 symmetry, Z_8^4 "
+            "lattice; Oana & Chiru 2026). Mirrors the C `spectral_4d` "
+            "binary; encode-fen4 / encode-moves4 / corpus-gen produce "
+            "byte-identical output to their C counterparts."
         ),
     )
     # Optional subcommand so bare invocation prints full help, matching
@@ -431,18 +432,20 @@ def build_parser() -> argparse.ArgumentParser:
     # encode-moves4
     p_mv = sub.add_parser(
         "encode-moves4",
-        help="Encode a JSONL move log to a v3 .spectralz",
+        help="Encode an NDJSON4 ply-log to a v4 .spectralz4",
         description=(
-            "Encode a JSONL move log (schema cs4d-moves/v1) to a v3 "
-            ".spectralz. One JSON object per line: "
-            "{ply, from:[x,y,z,w], to:[x,y,z,w], promo, flags}."
+            "Encode an NDJSON4 ply-log (one FEN4 v1 literal per line) to "
+            "a v4 .spectralz4. See docs/NDJSON4_FORMAT.md for the schema. "
+            "Each line: {ply, fen4, move_from?, move_to?, promo?, flags?}. "
+            "Output is decompressed-byte-identical to `spectral_4d encode`."
         ),
     )
     p_mv.add_argument("--moves", required=True,
-                      help="path to .jsonl move log")
-    p_mv.add_argument("-o", "--output", help="output path")
+                      help="path to NDJSON4 ply-log (one FEN4 per line)")
+    p_mv.add_argument("-o", "--output",
+                      help="output .spectral4 / .spectralz4 path")
     p_mv.add_argument("-z", "--compress", action="store_true",
-                      help="gzip the output")
+                      help="gzip the output (RFC 1952, mtime=0)")
     p_mv.add_argument("--start", type=int, default=0,
                       help="skip to ply N (0-indexed) before encoding")
     p_mv.add_argument("--count", type=int, default=0,
@@ -452,10 +455,10 @@ def build_parser() -> argparse.ArgumentParser:
     # corpus-gen
     p_cor = sub.add_parser(
         "corpus-gen",
-        help="Wrap N JSONL move logs into a viewer-ready corpus folder",
+        help="Wrap N NDJSON4 ply-logs into a viewer-ready corpus folder",
     )
     p_cor.add_argument("--games", required=True, nargs="+",
-                       help="one or more JSONL move-log paths")
+                       help="one or more NDJSON4 ply-log paths")
     p_cor.add_argument("--run-id",
                        help="output folder name under --results-root")
     p_cor.add_argument("--results-root",
