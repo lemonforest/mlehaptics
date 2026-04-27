@@ -701,13 +701,152 @@ def test_seeded_self_play_analyze_pipeline(tmp_path):
         )
 
 
+def _spatial_legal_dests(board, sq: int) -> set:
+    """Compute the set of legal destinations for a non-pawn piece at
+    `sq` using ONLY chess_spectral.tables.SHORT_PFNS (geometric move
+    generators) + a slider-blocking walk + king-safety via python-
+    chess board state. python-chess is used here for board state and
+    the move-and-check primitive (push / pop / is_attacked_by); the
+    move CANDIDATE GENERATION comes entirely from our own SHORT_PFNS.
+
+    This is the middle layer of the test-only validation chain:
+
+        python-chess (well-tested external) ─validates→ spatial op
+        spatial op (our own SHORT_PFNS-based) ─validates→ phase op
+
+    Layer 1 → 2 is verified by `test_spatial_op_matches_python_chess`.
+    Layer 2 → 3 is verified by
+    `test_seeded_self_play_phase_op_legal_moves_match`.
+
+    Pawns and castling are not covered here — pawns have direction-
+    plus-axis rules that SHORT_PFNS doesn't model, and castling is a
+    composite move handled by chess_spectral.phase_operators.castling
+    separately."""
+    import chess
+    from chess_spectral.tables import SHORT_PFNS
+
+    piece = board.piece_at(sq)
+    if piece is None:
+        return set()
+    sym = piece.symbol().upper()
+    if sym not in SHORT_PFNS:
+        return set()
+    own_color = piece.color
+    rank = chess.square_rank(sq)
+    file = chess.square_file(sq)
+
+    # 1. Pseudo-legal destinations via SHORT_PFNS + blocking.
+    pseudo: set[int] = set()
+    is_slider = sym in ('B', 'R', 'Q')
+    if not is_slider:
+        # Knights jump; kings step. No blocking. Just exclude own-color
+        # squares.
+        for nr, nc in SHORT_PFNS[sym](rank, file):
+            target = chess.square(nc, nr)
+            target_piece = board.piece_at(target)
+            if target_piece is not None and target_piece.color == own_color:
+                continue
+            pseudo.add(target)
+    else:
+        # Sliders: SHORT_PFNS emits squares in direction order, distance
+        # ascending within each direction. Track the unit vector from
+        # the origin to detect direction changes; reset 'blocked' state
+        # at each direction boundary.
+        prev_dir: tuple[int, int] | None = None
+        blocked = False
+        for nr, nc in SHORT_PFNS[sym](rank, file):
+            dr, dc = nr - rank, nc - file
+            unit = (0 if dr == 0 else (1 if dr > 0 else -1),
+                    0 if dc == 0 else (1 if dc > 0 else -1))
+            if unit != prev_dir:
+                prev_dir = unit
+                blocked = False
+            if blocked:
+                continue
+            target = chess.square(nc, nr)
+            target_piece = board.piece_at(target)
+            if target_piece is None:
+                pseudo.add(target)
+            elif target_piece.color != own_color:
+                pseudo.add(target)  # capture allowed
+                blocked = True       # ray stops at the captured piece
+            else:
+                blocked = True       # own piece blocks; can't capture
+
+    # 2. Filter by king-safety: a move is legal iff applying it doesn't
+    #    leave the mover's king under attack. Use python-chess push/pop
+    #    for the apply primitive — chess-spectral has no equivalent.
+    legal: set[int] = set()
+    for to_sq in pseudo:
+        move = chess.Move(sq, to_sq)
+        if move not in board.pseudo_legal_moves:
+            continue  # a corner case (e.g. promotion required, or move
+                      # wasn't classifiable by python-chess) — skip
+        board.push(move)
+        try:
+            still_attacked = board.is_attacked_by(
+                not own_color,
+                board.king(own_color) if board.king(own_color) is not None
+                else to_sq,  # king moved → check the destination
+            )
+        finally:
+            board.pop()
+        if not still_attacked:
+            legal.add(to_sq)
+
+    return legal
+
+
+@_REQUIRES_PYTHON_CHESS
+def test_spatial_op_matches_python_chess():
+    """Layer 1 → 2: validates our spatial operator (SHORT_PFNS-based)
+    against python-chess's legal_moves for each non-pawn piece across
+    a sample of positions reached during seeded self-play. Verifies
+    the spatial op correctly implements geometry + blocking + king-
+    safety on real board states, before we use it as ground truth for
+    the phase op test."""
+    import chess
+
+    plies = _seeded_self_play(white_seed=2026, max_plies=20)
+    for p in plies[:8]:
+        board = chess.Board(p["fen"])
+        for sq in chess.SQUARES:
+            piece = board.piece_at(sq)
+            if piece is None or piece.color != board.turn:
+                continue
+            sym = piece.symbol().upper()
+            if sym not in 'NBRQK':
+                continue
+            spatial = _spatial_legal_dests(board, sq)
+            ref = {
+                m.to_square for m in board.legal_moves
+                if m.from_square == sq and m.promotion is None
+                # exclude castling (king moves >1 square): handled
+                # by phase_operators.available_castles separately
+                and not (sym == 'K'
+                         and abs(chess.square_file(m.to_square)
+                                 - chess.square_file(sq)) > 1)
+            }
+            assert spatial == ref, (
+                f"spatial op != python-chess legal for {sym} at "
+                f"{chess.square_name(sq)} (fen={p['fen']}): "
+                f"spatial={sorted(spatial)}, python-chess={sorted(ref)}, "
+                f"missing={sorted(ref - spatial)}, "
+                f"extra={sorted(spatial - ref)}"
+            )
+
+
 @_REQUIRES_PYTHON_CHESS
 def test_seeded_self_play_phase_op_legal_moves_match():
-    """For positions reached during seeded self-play, the phase-
-    operator's `occupation_aware_moves_a` must agree with python-chess
-    on the LEGAL destinations for each non-pawn piece. python-chess is
-    used as the well-tested ground truth; the phase op (our own move
-    operator) is the unit-under-test.
+    """Layer 2 → 3: the phase operator's `occupation_aware_moves_a`
+    must agree with our spatial operator (validated separately
+    against python-chess by `test_spatial_op_matches_python_chess`)
+    on the legal destinations for each non-pawn piece during seeded
+    self-play.
+
+    Three-layer chain — this is the phase-op-against-spatial-op leg:
+
+        python-chess  ─validates→  spatial op  ─validates→  phase op
 
     Pawns and castling are excluded (occupation_aware_moves_a doesn't
     handle them — they're separate phase-operator entry points;
@@ -740,17 +879,17 @@ def test_seeded_self_play_phase_op_legal_moves_match():
                 board, sym, rank, file, mover_charge,
             )
             phase_to_squares = {chess.square(c, r) for r, c in dests}
-            ref_to_squares = {
-                m.to_square for m in board.legal_moves
-                if m.from_square == sq
-            }
-            assert phase_to_squares == ref_to_squares, (
-                f"phase op set != python-chess legal set for {sym} at "
+            # Ground truth: spatial op (validated against python-chess
+            # by test_spatial_op_matches_python_chess). Excludes
+            # castling, just like spatial op does.
+            spatial_to_squares = _spatial_legal_dests(board, sq)
+            assert phase_to_squares == spatial_to_squares, (
+                f"phase op set != spatial op set for {sym} at "
                 f"{chess.square_name(sq)} (fen={p['fen']}): "
                 f"phase_op={sorted(phase_to_squares)}, "
-                f"python_chess={sorted(ref_to_squares)}, "
-                f"missing={sorted(ref_to_squares - phase_to_squares)}, "
-                f"extra={sorted(phase_to_squares - ref_to_squares)}"
+                f"spatial_op={sorted(spatial_to_squares)}, "
+                f"missing={sorted(spatial_to_squares - phase_to_squares)}, "
+                f"extra={sorted(phase_to_squares - spatial_to_squares)}"
             )
 
 
