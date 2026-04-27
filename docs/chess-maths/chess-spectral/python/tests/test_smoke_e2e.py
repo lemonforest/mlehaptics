@@ -1,10 +1,14 @@
-"""End-to-end smoke suite for chess-spectral v1.2.4.
+"""End-to-end smoke ("immolation") suite for chess-spectral v1.2.4+.
 
 This is the "does everything we ship still work?" test. It exercises
 every wired CLI command against a real, verified game from the dataset
 (Kasparov vs Topalov, Hoogovens 1999 R4 — 87 plies, "Kasparov's
-Immortal") plus the 2D phase-operator package and the 4D Oana-Chiru
-table-verification gates.
+Immortal") plus the 2D phase-operator package, the 4D Oana-Chiru
+table-verification gates, and seeded deterministic self-play that
+generates fresh games per test run.
+
+This suite is the canonical release gate: run it before every PyPI
+tag. If anything we ship is broken, this catches it.
 
 What it covers (organized by surface):
 
@@ -23,14 +27,25 @@ What it covers (organized by surface):
     4D Python CLI (chess_spectral_4d):
       encode-fen4, encode-moves4, corpus-gen, tables-verify.
 
-    2D phase operators (chess_spectral.phase_operators):
-      Import + invoke pseudo-legal generation against a real position
-      from the Kasparov-Topalov game; cross-check against python-chess
-      when available.
+    2D phase-spatial validator chain (3 layers):
+      python-chess (external, well-tested)
+        ↓ test_spatial_op_matches_python_chess
+      our spatial op (chess_spectral.tables.SHORT_PFNS + blocking + king-safety)
+        ↓ test_seeded_self_play_phase_op_legal_moves_match
+      our phase op (chess_spectral.phase_operators.occupation_aware_moves_a)
+      Each layer is independently validated against the next; the
+      external dep is isolated to a single test. Released code stays
+      untouched — all helpers live under python/tests/.
 
-    4D Oana-Chiru phase verification (chess_spectral.tables_4d):
-      Run all six phase gates (1, 2, 3, 4, 5, pawn-axis) via
-      `chess_spectral_4d tables-verify --phase all`.
+    4D Oana-Chiru spatial validation (single layer):
+      Our spatial op (chess_spectral.tables_4d.<piece>4_targets) is
+      validated against the paper-predicted invariants in §3 (piece
+      mobility on Z₈⁴, B₄ group action, irrep projection, fiber
+      bundle, pawn-axis orthogonality) via `chess_spectral_4d
+      tables-verify --phase all`. There is no 4D phase operator in
+      chess-spectral today — the phase_operators package is 2D-only.
+      Adding a 4D phase operator + a chess4d → tables_4d → phase4d
+      validator chain analogous to the 2D one is future work.
 
 Skip behavior:
     - Tests that need the C binary skip cleanly if it isn't built
@@ -39,7 +54,7 @@ Skip behavior:
     - Tests that need python-chess (the optional `[corpus]` extra)
       skip if it isn't installed.
 
-Runs in ~60s end-to-end on a warm Python interpreter.
+Runs in ~90 s end-to-end on a warm Python interpreter; 34 tests.
 """
 from __future__ import annotations
 
