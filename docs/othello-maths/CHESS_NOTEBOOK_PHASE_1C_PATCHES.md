@@ -1,5 +1,27 @@
 # Claude Code: Chess Notebook Phase 1c Propagation Patches
 
+## Status (2026-04-27)
+
+**PARTIAL APPLICATION.** Patch 2's *coprimality is necessary but not
+sufficient* discipline was lifted into the chess-maths research
+record at
+[`chess-maths/PHASE_OPERATOR_SUPPLEMENT_4D.md`](../chess-maths/PHASE_OPERATOR_SUPPLEMENT_4D.md)
+§13.1.4 (the Phase B refinement story) and §13.8 (cross-pollination
+credits) during the 4D phase-operator landing in
+[`chess-spectral/4d-phase-operators` PR #67](https://github.com/lemonforest/mlehaptics/pull/67).
+The 4-tuple Diophantine extension (the 4D analogue of the (3, 7) mod
+1024 counter-example below) is now codified as constraint **C5** in
+[`tests/test_phase_4d_design.py::test_c5_no_integer_dependency_in_minus14_to_14_box`](../chess-maths/chess-spectral/python/tests/test_phase_4d_design.py).
+
+**Still pending propagation into the 2D notebook**
+([`chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md)):
+Patches 1, 3, 4, 5, 6 — the §10.4 grid-topology theorem upgrade,
+§9f coprimality clarification (the textual edit, not the
+discipline), the §10.13 reversi-scripts addendum, and the audit
+items on §10.10 / §11.5. Tracking: open a follow-up PR titled
+`docs/2D-notebook: apply CHESS_NOTEBOOK_PHASE_1C_PATCHES propagations`
+once the 4D phase-operator PR lands.
+
 ## Context
 
 The Othello verification pass has yielded findings that propagate back to the chess notebook — some as structural theorems that strengthen existing §10 claims, some as new empirical results from Phase 1c that postdate the current `chess_spectral_research_notebook.md` update, and one as a first-principles audit item that may reveal a latent bug.

@@ -36,7 +36,9 @@ from .phase_to_coords_4d import (
 # to skip cleanly.
 from .occupation_aware_a_4d import occupation_aware_moves_a_4d
 from .phase_check_detection_4d import (
+    phasecast_is_check_4d,
     phasecast_is_check_4d_no_pawns,
+    move_leaves_king_in_check_4d,
     move_leaves_king_in_check_4d_no_pawns,
 )
 
@@ -54,6 +56,8 @@ __all__ = [
     # occupation_aware_a_4d
     "occupation_aware_moves_a_4d",
     # phase_check_detection_4d
+    "phasecast_is_check_4d",
     "phasecast_is_check_4d_no_pawns",
+    "move_leaves_king_in_check_4d",
     "move_leaves_king_in_check_4d_no_pawns",
 ]

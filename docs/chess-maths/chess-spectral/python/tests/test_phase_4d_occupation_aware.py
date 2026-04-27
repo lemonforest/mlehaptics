@@ -99,6 +99,7 @@ _PIECE_GENS = {
     chess4d.types.PieceType.QUEEN:  chess4d.queen_moves,
     chess4d.types.PieceType.KNIGHT: chess4d.knight_moves,
     chess4d.types.PieceType.KING:   chess4d.king_moves,
+    chess4d.types.PieceType.PAWN:   chess4d.pawn_moves,  # Phase E
 }
 
 
@@ -118,12 +119,14 @@ def _oracle_dests(state, origin, piece):
 
 
 def _all_test_cases():
+    """All (state, origin, piece) triples, including pawns now that
+    Phase E has wired ``include_captures``. Pawn cases are still
+    a strict minority of the corpus (most starting pawns haven't
+    moved by ply 6), but they're now in scope."""
     cases = []
     for state_idx, gs in enumerate(_CORPUS):
         for color in (chess4d.Color.WHITE, chess4d.Color.BLACK):
             for sq, piece in gs.board.pieces_of(color):
-                if piece.piece_type == chess4d.types.PieceType.PAWN:
-                    continue
                 cases.append((state_idx, gs, sq, piece))
     return cases
 
@@ -203,19 +206,17 @@ def test_corpus_covers_all_non_pawn_piece_types():
     )
 
 
-def test_pawn_oracle_path_raises_value_error_for_now():
-    """Phase E is still pending — pawn dispatch in
-    ``occupation_aware_moves_a_4d`` should raise ``ValueError`` (loud
-    failure) rather than silently producing wrong results."""
-    gs = chess4d.initial_position()
-    # Find a pawn.
-    pawn_sq = None
-    pawn_piece = None
-    for sq, piece in gs.board.pieces_of(chess4d.Color.WHITE):
-        if piece.piece_type == chess4d.types.PieceType.PAWN:
-            pawn_sq = sq
-            pawn_piece = piece
-            break
-    assert pawn_sq is not None
-    with pytest.raises(ValueError, match="Phase E"):
-        occupation_aware_moves_a_4d(gs, pawn_sq, pawn_piece)
+def test_corpus_includes_pawns():
+    """Phase E lifted the pawn dispatch; the corpus should contain
+    pawn pieces and the parametrized gate above must exercise them.
+    """
+    pawn_count = sum(
+        1 for gs in _CORPUS
+        for color in (chess4d.Color.WHITE, chess4d.Color.BLACK)
+        for _sq, piece in gs.board.pieces_of(color)
+        if piece.piece_type == chess4d.types.PieceType.PAWN
+    )
+    assert pawn_count > 0, (
+        "corpus has no pawn pieces; Phase E pawn-capture coverage "
+        "is vacuous"
+    )

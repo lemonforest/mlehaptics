@@ -246,12 +246,18 @@ def P_knight4(origin_phi: int) -> frozenset[int]:
 # pawn direction). The two-axis machinery is already reflected in
 # the encoder's W-anti / Y-anti channel split (see encoder_4d.py).
 #
-# v1 (Phase B): forward push only, plus optional double-push from
-# the starting rank. Diagonal capture geometry is deferred to
-# Phase E (per the tables_4d.py:154-159 punt — O&C's exact rule
-# needs to be pinned down). For now ``include_captures=True``
-# raises NotImplementedError so the failure mode is loud, not
-# silent.
+# Phase B: forward push + optional double-push from starting rank.
+# Phase E (this commit): diagonal captures per O&C §3.10 Def 13.
+# Captures live in the 2-plane spanned by the x-axis and the pawn's
+# forward axis (W or Y) — never XZ, YZ, ZW. White's forward sign is
+# +1; black's is -1. Up to 2 capture targets per origin (left- and
+# right-x diagonals on the forward-axis side).
+#
+# Note: ``phase_set_to_board`` only verifies the destination is in
+# [0,7]^4 — occupancy semantics (a capture is legal only if the
+# target holds an enemy piece) are an
+# ``occupation_aware_moves_a_4d`` concern. The phase op emits all
+# geometrically reachable destinations.
 
 PawnAxis = Literal["w", "y"]
 """Pawn orientation axis. Per O&C Definition 11, pawns are W- or
@@ -268,6 +274,24 @@ def _pawn_axis_gen(axis: PawnAxis) -> int:
     )
 
 
+def _pawn_capture_phases(
+    origin_phi: int, *, axis: PawnAxis, forward_sign: int,
+) -> set[int]:
+    """Phase shifts for diagonal captures in the (x-axis, forward-axis)
+    2-plane (paper §3.10 Def 13).
+
+    ``forward_sign`` is +1 for white, -1 for black. Returns up to 2
+    phase values (left- and right-x diagonals on the forward-axis
+    side); off-board candidates are filtered downstream by
+    :func:`phase_set_to_board`.
+    """
+    g_forward = _pawn_axis_gen(axis)
+    return {
+        (origin_phi + GEN_X + forward_sign * g_forward) % MODULUS_4D,
+        (origin_phi - GEN_X + forward_sign * g_forward) % MODULUS_4D,
+    }
+
+
 def P_pawn4_white(
     origin_phi: int,
     *,
@@ -276,23 +300,23 @@ def P_pawn4_white(
     include_captures: bool,
 ) -> frozenset[int]:
     """4D white pawn. Forward push along ``axis`` (one square); plus
-    a two-square push when on the starting rank. White pushes in
-    the +axis direction.
+    a two-square push when on the starting rank. White pushes in the
+    +axis direction.
 
-    Captures: not yet implemented — pinning the exact rule is the
-    Phase E task. ``include_captures=True`` raises
-    NotImplementedError so the failure mode is loud, not silent.
+    With ``include_captures=True`` the diagonal captures from
+    O&C §3.10 Def 13 are emitted: ``(±g_x + g_axis) mod M``. Captures
+    are restricted to the (x-axis, forward-axis) 2-plane — not XZ,
+    YZ, or ZW. Up to 2 capture phases per origin; off-board candidates
+    drop via :func:`phase_set_to_board`.
     """
     g = _pawn_axis_gen(axis)
     out = {(origin_phi + g) % MODULUS_4D}
     if on_starting_rank:
         out.add((origin_phi + 2 * g) % MODULUS_4D)
     if include_captures:
-        raise NotImplementedError(
-            "P_pawn4_white(include_captures=True) is Phase E. "
-            "See PHASE_OPERATOR_SUPPLEMENT_4D.md §13.6 for the "
-            "open question on O&C Def 11 capture geometry."
-        )
+        out.update(_pawn_capture_phases(
+            origin_phi, axis=axis, forward_sign=+1,
+        ))
     return frozenset(out)
 
 
@@ -303,19 +327,15 @@ def P_pawn4_black(
     on_starting_rank: bool,
     include_captures: bool,
 ) -> frozenset[int]:
-    """4D black pawn. Mirror of ``P_pawn4_white`` — pushes in the
-    −axis direction.
-
-    Captures: see ``P_pawn4_white`` for the Phase E deferral note.
+    """4D black pawn. Mirror of :func:`P_pawn4_white` — pushes in the
+    −axis direction; captures at ``(±g_x − g_axis) mod M``.
     """
     g = _pawn_axis_gen(axis)
     out = {(origin_phi - g) % MODULUS_4D}
     if on_starting_rank:
         out.add((origin_phi - 2 * g) % MODULUS_4D)
     if include_captures:
-        raise NotImplementedError(
-            "P_pawn4_black(include_captures=True) is Phase E. "
-            "See PHASE_OPERATOR_SUPPLEMENT_4D.md §13.6 for the "
-            "open question on O&C Def 11 capture geometry."
-        )
+        out.update(_pawn_capture_phases(
+            origin_phi, axis=axis, forward_sign=-1,
+        ))
     return frozenset(out)

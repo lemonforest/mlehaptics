@@ -7,22 +7,20 @@ the 4D version filters against
 the Python reference implementation of Oana & Chiru (2026).
 
 Solution A is the simplest validator: generate unobstructed phase
-destinations from Phase B's piece operators, then prune via the oracle's
-piece-specific pseudo-legal generator. The intersection equals the oracle's
-own destination set when (and only when) the phase op is complete on the
-empty board — which Phase B's structural gate already verified.
+destinations from Phase B's piece operators (including Phase E's pawn
+captures), then prune via the oracle's piece-specific pseudo-legal
+generator. The intersection equals the oracle's own destination set
+when (and only when) the phase op is complete on the empty board —
+which Phase B's structural gate already verified for non-pawn pieces,
+and Phase E extends to pawn captures.
 
-This module imports ``chess4d`` at top level. It is therefore optional:
-callers that only want the pure-stdlib phase operators (Phase B) should
-import from :mod:`chess_spectral.phase_operators_4d.phase_operators_4d`
-directly. ``chess4d`` is declared in
-``pyproject.toml::[project.optional-dependencies].test`` so wheels stay
-free of the dependency.
-
-Pawns are deliberately excluded from this module. Their oracle behavior
-(``pawn_moves``) includes diagonal captures whose phase-op equivalent is
-deferred to Phase E (see ``P_pawn4_white(include_captures=True)`` raising
-``NotImplementedError``).
+This module imports ``chess4d`` lazily inside the function body. It is
+therefore optional: callers that only want the pure-stdlib phase
+operators should import from
+:mod:`chess_spectral.phase_operators_4d.phase_operators_4d` directly.
+``chess4d`` is declared in
+``pyproject.toml::[project.optional-dependencies].test`` so wheels
+stay free of the dependency.
 """
 from __future__ import annotations
 
@@ -32,7 +30,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from chess4d import GameState, Piece, Square4D
 
 from .phase_operators_4d import (
-    P_rook4, P_bishop4, P_queen4, P_king4, P_knight4, phi4,
+    P_rook4, P_bishop4, P_queen4, P_king4, P_knight4,
+    P_pawn4_white, P_pawn4_black,
+    phi4,
 )
 from .phase_to_coords_4d import Coord4D, phase_set_to_board
 
@@ -54,17 +54,38 @@ def _phase_dests_for(piece_type_name: str, origin: Coord4D) -> frozenset[Coord4D
 
     Off-board phases drop via :func:`phase_set_to_board` (the inversion
     side of the boundary clipping). Result is a set of (x, y, z, w)
-    coords ⊂ [0, 7]^4.
+    coords ⊂ [0, 7]^4. Pawns are handled in
+    :func:`_phase_dests_for_pawn` since they require ``(color, axis,
+    on_starting_rank)`` parameters.
     """
     op = _PHASE_OP_BY_PIECE_TYPE_NAME.get(piece_type_name)
     if op is None:
         raise ValueError(
             f"no phase operator for piece type {piece_type_name!r}; "
-            "supported: ROOK, BISHOP, QUEEN, KNIGHT, KING. Pawn captures "
-            "are Phase E (PHASE_OPERATOR_SUPPLEMENT_4D.md §13.6)."
+            "supported: ROOK, BISHOP, QUEEN, KNIGHT, KING, PAWN."
         )
     x, y, z, w = origin
     return phase_set_to_board(op(phi4(x, y, z, w)))
+
+
+def _phase_dests_for_pawn(
+    origin: Coord4D, *, color_white: bool, axis: str, on_starting_rank: bool,
+) -> frozenset[Coord4D]:
+    """Pawn phase destinations including diagonal captures (§3.10
+    Def 12 + Def 13).
+
+    ``axis`` is "w" or "y" (chess4d's PawnAxis name lowercased).
+    Off-board candidates drop via :func:`phase_set_to_board`.
+    """
+    x, y, z, w = origin
+    op = P_pawn4_white if color_white else P_pawn4_black
+    phases = op(
+        phi4(x, y, z, w),
+        axis=axis,  # type: ignore[arg-type]
+        on_starting_rank=on_starting_rank,
+        include_captures=True,
+    )
+    return phase_set_to_board(phases)
 
 
 def occupation_aware_moves_a_4d(
@@ -83,10 +104,6 @@ def occupation_aware_moves_a_4d(
     (Phase B verified) and the oracle and phase op agree on which
     destinations occupancy / capture rules permit.
 
-    Pawns are not supported here — call sites should dispatch
-    ``PieceType.PAWN`` to Phase E's machinery once it lands. Calling
-    this function with a pawn raises ``ValueError``.
-
     Parameters
     ----------
     state : chess4d.GameState
@@ -96,8 +113,9 @@ def occupation_aware_moves_a_4d(
     origin : chess4d.Square4D
         Square holding ``piece``; not re-verified here.
     piece : chess4d.Piece
-        The piece being moved. Its ``piece_type`` selects which
-        phase operator + oracle generator pair to call.
+        The piece being moved. Its ``piece_type`` (and for pawns,
+        ``pawn_axis`` and color) selects which phase operator and
+        oracle generator pair to call.
 
     Returns
     -------
@@ -108,23 +126,37 @@ def occupation_aware_moves_a_4d(
     # Lazy import — keeps ``occupation_aware_a_4d`` importable without
     # ``chess4d`` installed; only the function call path requires it.
     import chess4d
-    from chess4d.types import PieceType
+    from chess4d.types import PawnAxis, PieceType
 
     pt = piece.piece_type
     color = piece.color
-
-    if pt == PieceType.PAWN:
-        raise ValueError(
-            "occupation_aware_moves_a_4d does not support pawns. Phase E "
-            "will close this; until then call P_pawn4_white/black "
-            "directly with include_captures=False, or wait for the "
-            "Phase E pawn-capture support."
-        )
-
     origin_coord: Coord4D = (origin.x, origin.y, origin.z, origin.w)
 
     # 1. Phase-op candidates (unobstructed reach from origin).
-    phase_dests = _phase_dests_for(pt.name, origin_coord)
+    if pt == PieceType.PAWN:
+        # Pawn axis carried by the piece per O&C §3.10 Def 11.
+        if piece.pawn_axis is None:
+            raise ValueError(
+                "PAWN piece must carry a pawn_axis (W or Y) per O&C "
+                "Def 11."
+            )
+        axis_str = "w" if piece.pawn_axis == PawnAxis.W else "y"
+        # Starting-rank check: white pawns start at axis-coord 1;
+        # black pawns at axis-coord 6 (paper §3.10 Def 12 + the
+        # 0-based [0..7] convention; the paper's 1-based "rank 2 /
+        # rank 7" maps to 0-based 1 / 6).
+        axis_index = int(piece.pawn_axis)
+        on_starting_rank = origin[axis_index] == (
+            1 if color == chess4d.Color.WHITE else 6
+        )
+        phase_dests = _phase_dests_for_pawn(
+            origin_coord,
+            color_white=(color == chess4d.Color.WHITE),
+            axis=axis_str,
+            on_starting_rank=on_starting_rank,
+        )
+    else:
+        phase_dests = _phase_dests_for(pt.name, origin_coord)
 
     # 2. Oracle: chess4d's piece-specific pseudo-legal generator. Each
     #    oracle module exposes ``<piece>_moves(origin, color, board)``
@@ -135,6 +167,7 @@ def occupation_aware_moves_a_4d(
         PieceType.QUEEN:  chess4d.queen_moves,
         PieceType.KNIGHT: chess4d.knight_moves,
         PieceType.KING:   chess4d.king_moves,
+        PieceType.PAWN:   chess4d.pawn_moves,
     }[pt]
     oracle_dests = frozenset(
         (m.to_sq.x, m.to_sq.y, m.to_sq.z, m.to_sq.w)
@@ -143,5 +176,6 @@ def occupation_aware_moves_a_4d(
 
     # 3. Solution A: intersect. The intersection equals oracle_dests
     #    iff the phase op is complete on the empty board (Phase B
-    #    structural gate confirmed this).
+    #    structural gate confirmed this for non-pawns; Phase E
+    #    extends the contract to pawn captures).
     return phase_dests & oracle_dests

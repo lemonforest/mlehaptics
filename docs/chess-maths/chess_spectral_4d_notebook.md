@@ -672,6 +672,53 @@ clocks in at ~19×.
 
 ---
 
+## Phase operators (v1.2)
+
+The chess4d-OC phase-operator move engine — a 4D analogue of the 2D
+§11 phase-operator framework — landed in v1.2 of `chess-spectral`.
+The full design + experimental record lives in
+[PHASE_OPERATOR_SUPPLEMENT_4D.md](PHASE_OPERATOR_SUPPLEMENT_4D.md);
+this notebook only carries the high-level pointer.
+
+Highlights:
+
+- **§13.1.** The φ_4d phase encoding is a mixed-radix tower
+  `phi(x,y,z,w) = (x·g_x + y·g_y + z·g_z + w·g_w) mod M` with
+  `(M, g_x, g_y, g_z, g_w) = (145451, 9719, 647, 43, 3)`. The
+  ladder coefficient is 14 (not 7 as in 2D), so the integer-
+  Diophantine no-aliasing condition holds in the wider
+  `[-14, 14]^4` box that operator-shift differences span.
+- **§13.3.** Empty-board structural gate: 4096 origins × 9 piece
+  configs against `tables_4d.X_targets`, all 36,864 set-equality
+  assertions pass.
+- **§13.4.** Occupation-aware Solution A validates against
+  [`python-chess4d-oana-chiru`](https://pypi.org/project/python-chess4d-oana-chiru/)
+  (the Python reference port of Oana & Chiru's JS implementation
+  at [`oanaunc/4d_chess`](https://github.com/oanaunc/4d_chess)).
+  50-position seeded corpus; tens of thousands of (state, origin,
+  piece) cases, all green.
+- **§13.5.** Reverse-cast `phasecast_is_check_4d` agrees with the
+  naive enemy-iterator oracle on 100 (state, color) pairs plus 7
+  hand-built check constructions covering each piece type's attack
+  ray (rook on x-axis, knight (2,1)-leap, bishop xy-diagonal,
+  queen zw-diagonal, blocked rook, W-axis pawn check, Y-axis pawn
+  check).
+- **§13.6.** Pawn captures lifted from O&C §3.10 Def 13 (xw plane
+  for W-axis pawns, xy plane for Y-axis). En passant + promotion
+  remain deferred (matches the 2D supplement's deferral discipline).
+- **§13.8.** Cross-pollination from
+  [`docs/othello-maths/`](../othello-maths/): the *coprimality is
+  necessary but not sufficient* discipline (Patch 2 of
+  CHESS_NOTEBOOK_PHASE_1C_PATCHES.md) was the lesson that drove
+  the C5 design constraint. The same Othello patches still need to
+  be propagated back into the 2D notebook
+  ([`chess_spectral_research_notebook.md`](chess_spectral_research_notebook.md))
+  in a follow-up PR — those Phase 1c findings sit there as
+  orphaned data.
+
+---
+
 *Last updated with v1.1.1 Y/W pawn-axis split (channels 8-10 relayout,
 spectralz v4 format, cross-channel orthogonality gate at 1e-32) on
-branch `zesty-llama`.*
+branch `zesty-llama`. v1.2 added the φ_4d phase-operator framework;
+see PHASE_OPERATOR_SUPPLEMENT_4D.md.*

@@ -176,20 +176,24 @@ def test_play_list_mode_runs(sample_spectral):
     assert len(rows) == 4, f"expected 4 rows, got {len(rows)}: {rows!r}"
 
 
-# ─── safety_field include_pawns guard ────────────────────────────────
+# ─── safety_field default-path coverage ──────────────────────────────
 
 
-def test_safety_field_include_pawns_raises():
-    """Inventory item #14: passing include_pawns=True must raise
-    NotImplementedError (no longer silently produces the False answer)."""
+def test_safety_field_default_path_returns_expected_keys():
+    """Smoke test: the §9o safety field still computes its scalars
+    from a small fixture. The function is preserved for §9o
+    reproducibility per the chess_spectral_research_notebook null
+    result; the previous ``include_pawns`` extension hook was removed
+    in this release because the parent hypothesis (ΔS tracks
+    engine-Δeval) didn't validate."""
     from chess_spectral.safety_field import compute_safety_field
     pos = {0: 'K', 7: 'k', 8: 'Q'}
-    # include_pawns=False (default) works
     res = compute_safety_field(pos)
-    assert "S_total" in res
-    # include_pawns=True now raises loudly
-    with pytest.raises(NotImplementedError, match="not yet wired"):
-        compute_safety_field(pos, include_pawns=True)
+    expected_keys = {
+        "per_piece", "S_white", "S_black", "S_total",
+        "hanging", "most_exposed",
+    }
+    assert expected_keys.issubset(set(res.keys()))
 
 
 if __name__ == "__main__":

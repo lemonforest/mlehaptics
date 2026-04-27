@@ -281,19 +281,77 @@ def test_w_pawn_black_single_push():
     assert dests == frozenset({(3, 3, 3, 4)})
 
 
-def test_pawn_capture_geometry_is_phase_e_punt():
-    """Pawn captures (include_captures=True) raise NotImplementedError
-    so the failure mode is loud, not silent. Phase E will close
-    this — see PHASE_OPERATOR_SUPPLEMENT_4D.md §13.6."""
+def test_w_pawn_white_captures_in_xw_plane():
+    """Phase E: white W-pawn captures at ``(±g_x + g_w)`` mod M.
+
+    From (3, 3, 3, 3), a white W-pawn captures at (4, 3, 3, 4) and
+    (2, 3, 3, 4). Per O&C §3.10 Def 13, these are the only two
+    capture targets — XZ, YZ, ZW captures are not legal.
+    """
     p = phi4(3, 3, 3, 3)
-    with pytest.raises(NotImplementedError, match="Phase E"):
-        P_pawn4_white(
-            p, axis="w", on_starting_rank=False, include_captures=True,
-        )
-    with pytest.raises(NotImplementedError, match="Phase E"):
-        P_pawn4_black(
-            p, axis="y", on_starting_rank=False, include_captures=True,
-        )
+    phases = P_pawn4_white(
+        p, axis="w", on_starting_rank=False, include_captures=True,
+    )
+    dests = phase_set_to_board(phases)
+    expected_forward = (3, 3, 3, 4)
+    expected_capture_left = (2, 3, 3, 4)
+    expected_capture_right = (4, 3, 3, 4)
+    assert dests == frozenset({
+        expected_forward,
+        expected_capture_left,
+        expected_capture_right,
+    })
+
+
+def test_y_pawn_white_captures_in_xy_plane():
+    """Phase E: white Y-pawn captures at ``(±g_x + g_y)`` mod M."""
+    p = phi4(3, 3, 3, 3)
+    phases = P_pawn4_white(
+        p, axis="y", on_starting_rank=False, include_captures=True,
+    )
+    dests = phase_set_to_board(phases)
+    assert dests == frozenset({
+        (3, 4, 3, 3),  # forward
+        (2, 4, 3, 3),  # left-x diagonal
+        (4, 4, 3, 3),  # right-x diagonal
+    })
+
+
+def test_w_pawn_black_captures_in_xw_plane_negative_forward():
+    """Black W-pawn forward sign is -1; captures at (±g_x - g_w)."""
+    p = phi4(3, 3, 3, 3)
+    phases = P_pawn4_black(
+        p, axis="w", on_starting_rank=False, include_captures=True,
+    )
+    dests = phase_set_to_board(phases)
+    assert dests == frozenset({
+        (3, 3, 3, 2),
+        (2, 3, 3, 2),
+        (4, 3, 3, 2),
+    })
+
+
+def test_pawn_captures_clip_at_board_boundary():
+    """A pawn at x=0 only has one capture diagonal (right-x); x=7
+    only has left-x. ``phase_set_to_board`` drops the off-board
+    candidate."""
+    # White W-pawn at (0, 3, 3, 3): only (1, 3, 3, 4) is in bounds.
+    p = phi4(0, 3, 3, 3)
+    dests = phase_set_to_board(P_pawn4_white(
+        p, axis="w", on_starting_rank=False, include_captures=True,
+    ))
+    assert dests == frozenset({(0, 3, 3, 4), (1, 3, 3, 4)})
+
+
+def test_pawn_captures_at_axis_boundary_drop():
+    """A white W-pawn at w=7 has nowhere to capture (no +w available),
+    AND no forward (the pawn would already have promoted in real
+    play). All include_captures phases land off-board; result empty."""
+    p = phi4(3, 3, 3, 7)
+    dests = phase_set_to_board(P_pawn4_white(
+        p, axis="w", on_starting_rank=False, include_captures=True,
+    ))
+    assert dests == frozenset()
 
 
 def test_pawn_axis_z_is_rejected():

@@ -5,6 +5,150 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-04-28 (unreleased)
+
+Adds the **chess4d-OC phase-operator move engine** — the 4D analogue
+of the 2D `chess_spectral.phase_operators` package — validated
+against [`python-chess4d-oana-chiru`](https://pypi.org/project/python-chess4d-oana-chiru/),
+the Python reference implementation of Oana & Chiru (2026). Closes
+the §11 phase-operator hypothesis arc on 4D: the φ_4d coprime
+cyclic phase structure fully captures the Oana-Chiru piece geometry
+on `Z_8^4`, both unobstructed and with occupancy.
+
+Full design + experimental record:
+[`docs/chess-maths/PHASE_OPERATOR_SUPPLEMENT_4D.md`](../../PHASE_OPERATOR_SUPPLEMENT_4D.md).
+
+Minor version bump (not patch) because this adds a substantial new
+public API surface (`chess_spectral.phase_operators_4d`).
+
+### Added
+
+- **`chess_spectral.phase_operators_4d` package** — 4D phase
+  operators with the same shape as the 2D `phase_operators`
+  package:
+  - `MODULUS_4D = 145451`, `GEN_X = 9719`, `GEN_Y = 647`,
+    `GEN_Z = 43`, `GEN_W = 3`, plus precomputed shift tuples
+    and `phi4(x,y,z,w)`.
+  - Piece operators: `P_rook4`, `P_bishop4`, `P_queen4`,
+    `P_king4`, `P_knight4`, and pawn ops parameterized by
+    `axis ∈ {'w', 'y'}` per O&C §3.10 Def 11.
+  - `phase_to_coords_4d`: `PHI_TO_XYZW`, `XYZW_TO_PHI`,
+    `invert(phi)`, `phase_set_to_board(phases)`.
+  - `occupation_aware_moves_a_4d(state, origin, piece)` —
+    Solution A: phase-op candidates ∩ chess4d oracle dests.
+  - `phasecast_is_check_4d(state, color)` — pawn-aware reverse
+    cast; non-pawn-only variant
+    `phasecast_is_check_4d_no_pawns` retained for ablation.
+  - `move_leaves_king_in_check_4d(state, move)` — pawn-aware
+    move filter; non-pawn-only variant
+    `move_leaves_king_in_check_4d_no_pawns` retained.
+
+- **Pinned design** via mixed-radix tower with **ladder
+  coefficient 14** (vs the 2D framework's effective 8). Phase B's
+  structural gate caught a real failure at the original
+  ladder-coefficient-7 attempt: the Phase A constraints (C1-C4)
+  passed at `(M=12181, GEN=(1523,191,23,3))` but operator-shift
+  differences span `[-14, 14]^4` and that wider box surfaced an
+  integer dependency `g_y = 10·g_w + 7·g_z` (i.e.,
+  `191 = 30 + 161`) that caused cross-piece destination aliasing.
+  The new fifth constraint **C5: operator-aliasing freedom** is
+  codified in
+  [`tests/test_phase_4d_design.py::test_c5_no_integer_dependency_in_minus14_to_14_box`](tests/test_phase_4d_design.py)
+  so this regression cannot recur silently. See
+  [PHASE_OPERATOR_SUPPLEMENT_4D §13.1.4](../../PHASE_OPERATOR_SUPPLEMENT_4D.md)
+  for the full story.
+
+- **`research/chess4d_phase_design.py`** — design search +
+  brute-force `[-14, 14]^4` dependency verifier. Ported from
+  [`docs/othello-maths/research/coprime_generators.py`](../../../othello-maths/research/coprime_generators.py)
+  and extended to 4 axes.
+
+- **Test suites** (under `python/tests/`):
+  - `test_phase_4d_design.py` — 15 tests: C1 coprime, C2 image
+    bijection, C3 non-subgroup, C4 derived-gen distinctness,
+    **C5 [-14,14]^4 integer-dep-freedom**, plus O&C-mobility
+    cross-checks.
+  - `test_phase_4d_unobstructed.py` — 24 tests including the
+    Phase B structural gate at 4096 origins × 9 piece configs
+    against `tables_4d.X_targets` (36,864 set-equality
+    assertions).
+  - `test_phase_4d_occupation_aware.py` — Phase C+E gate at
+    44,803 (state, origin, piece) cases against the
+    `python-chess4d-oana-chiru` oracle. ~3 minutes runtime.
+  - `test_phase_4d_check_detection.py` — 232 tests covering both
+    `_no_pawns` and pawn-aware variants, plus 7 hand-built
+    targeted check constructions (rook on x-axis, knight (2,1)
+    leap, bishop xy-diagonal, queen zw-diagonal, blocked rook,
+    W-axis pawn check, Y-axis pawn check).
+
+- **Cross-pollination from `docs/othello-maths/`**:
+  - The *coprimality is necessary but not sufficient* discipline
+    (Patch 2 of
+    [`CHESS_NOTEBOOK_PHASE_1C_PATCHES.md`](../../../othello-maths/CHESS_NOTEBOOK_PHASE_1C_PATCHES.md))
+    motivates Phase A's full image-bijection check.
+  - The Z_2 channel framing for axis-tagged pieces (§3 Option B
+    of [`OTHELLO_PHASE_OP_PREFLIGHT.md`](../../../othello-maths/OTHELLO_PHASE_OP_PREFLIGHT.md))
+    aligns with the encoder's existing W/Y antisym pawn channel
+    split. Phase E's pawn capture geometry (xw / xy plane) is
+    the natural lift.
+
+- **Immolation suite extensions** (`tests/test_smoke_e2e.py`):
+  - `test_4d_phase_operators_smoke` — touch each P_X4 operator on
+    a sample origin; assert O&C interior mobilities and
+    rook ∪ bishop = queen.
+  - `test_4d_phase_check_detection_smoke` — initial position has
+    no check from either color, both `_no_pawns` and full paths.
+  - `test_no_unwired_stubs_in_shipped_python_or_c` — meta-test
+    walks the shipped sources and fails if any function still
+    contains `cmd_todo("...")` (C) or `_not_implemented(...)`
+    (Python) — the regression class that shipped 12 unwired CLI
+    commands in v1.2.3.
+
+### Changed
+
+- **`safety_field.compute_safety_field` no longer accepts
+  `include_pawns`**. The §9o safety-field hypothesis (ΔS tracks
+  engine-Δeval) was tested in v1.0 and produced a null result
+  (`ρ ≈ 0`) — see
+  [`chess_spectral_research_notebook.md`](../../chess_spectral_research_notebook.md)
+  §9o. The `include_pawns` parameter was originally added in
+  v1.2.4 as a "future hook" for the symmetric-pawn-Laplacian
+  extension (with `True` raising `NotImplementedError` to avoid
+  the silent-discard mode it had in v1.2.3). With the parent
+  hypothesis confirmed dead, reserving the hook adds maintenance
+  cost without benefit; the parameter is removed. The default
+  `include_pawns=False` math is preserved verbatim for §9o
+  reproducibility. Closes v1.2.4 inventory item #14 with a
+  documented "rejected — failed exploration" outcome rather than
+  a deferred wiring.
+
+- **`pyproject.toml::[project.optional-dependencies] test`** adds
+  `python-chess4d-oana-chiru>=0.3.3` so the Phase C/D gates can
+  import the oracle. *Not* in main `dependencies` (would create
+  a circular install — `python-chess4d-oana-chiru[spectral]`
+  already depends on `chess-spectral`). The phase operator
+  package itself is pure-stdlib for unobstructed reach;
+  `chess4d` is imported lazily inside Solution A and the
+  reverse-cast functions, so the package still works without the
+  test extra installed.
+
+### Documentation
+
+- **New: `docs/chess-maths/PHASE_OPERATOR_SUPPLEMENT_4D.md`** —
+  occupies the §13 slot in the 4D notebook, mirrors the 2D
+  supplement's structure (§13.1 design / §13.2 ops / §13.3
+  empty-board gate / §13.4 occupation-aware / §13.5 check
+  detection / §13.6 pawn axis / §13.7 transfer summary / §13.8
+  cross-pollination credits).
+- **`docs/chess-maths/chess_spectral_4d_notebook.md`** appends a
+  high-level "Phase operators (v1.2)" pointer to the new
+  supplement.
+- **`docs/othello-maths/CHESS_NOTEBOOK_PHASE_1C_PATCHES.md`**
+  status header notes partial application (Patch 2 propagated to
+  PHASE_OPERATOR_SUPPLEMENT_4D §13.1.4 + §13.8; Patches 1, 3-6
+  still pending propagation into the 2D notebook in a follow-up
+  PR).
+
 ## [1.2.6] — 2026-04-27
 
 Security patch closing CodeQL alert

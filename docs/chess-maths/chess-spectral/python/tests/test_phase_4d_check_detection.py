@@ -34,7 +34,9 @@ chess4d = pytest.importorskip(
 )
 
 from chess_spectral.phase_operators_4d import (
+    move_leaves_king_in_check_4d,
     move_leaves_king_in_check_4d_no_pawns,
+    phasecast_is_check_4d,
     phasecast_is_check_4d_no_pawns,
 )
 
@@ -100,6 +102,29 @@ def _naive_non_pawn_check(state, color) -> bool:
     return False
 
 
+def _naive_full_check(state, color) -> bool:
+    """Reference oracle for the pawn-aware case: True iff any enemy
+    piece (including pawns) reaches any of ``color``'s kings.
+
+    Equivalent to ``chess4d.in_check(color, state.board)`` (verified
+    by ``test_naive_full_check_matches_chess4d_in_check`` below); we
+    use this naive form so the comparison loop is symmetric with the
+    ``_no_pawns`` path.
+    """
+    opposite = chess4d.Color(1 - color)
+    king_squares = set(chess4d.kings_of(color, state.board))
+    if not king_squares:
+        return False
+    for sq, piece in state.board.pieces_of(opposite):
+        gen = (chess4d.pawn_moves
+               if piece.piece_type == chess4d.types.PieceType.PAWN
+               else _PIECE_GENS[piece.piece_type])
+        for move in gen(sq, opposite, state.board):
+            if move.to_sq in king_squares:
+                return True
+    return False
+
+
 # ─── parametrized gate ──────────────────────────────────────────────
 
 
@@ -118,6 +143,40 @@ def test_phasecast_no_pawns_matches_naive_oracle(state_idx, color):
     assert cast_result == naive_result, (
         f"state={state_idx} color={color.name}: "
         f"phasecast={cast_result} naive={naive_result}"
+    )
+
+
+@pytest.mark.parametrize("color", [chess4d.Color.WHITE, chess4d.Color.BLACK])
+@pytest.mark.parametrize("state_idx", range(_CORPUS_SIZE))
+def test_phasecast_pawn_aware_matches_naive_oracle(state_idx, color):
+    """Pawn-aware reverse-cast vs full naive enumerator on the seeded
+    corpus.
+    """
+    state = _CORPUS[state_idx]
+    cast_result = phasecast_is_check_4d(state, color)
+    naive_result = _naive_full_check(state, color)
+    assert cast_result == naive_result, (
+        f"state={state_idx} color={color.name}: "
+        f"phasecast_full={cast_result} naive_full={naive_result}"
+    )
+
+
+@pytest.mark.parametrize("color", [chess4d.Color.WHITE, chess4d.Color.BLACK])
+@pytest.mark.parametrize("state_idx", range(min(10, _CORPUS_SIZE)))
+def test_naive_full_check_matches_chess4d_in_check(state_idx, color):
+    """Sanity: our naive oracle agrees with chess4d's own ``in_check``.
+
+    Restricted to the first 10 positions to keep the run fast — the
+    oracle correctness only needs a small sample to be confident.
+    Failures here mean my naive enumerator missed something, not
+    that the phasecast is wrong.
+    """
+    state = _CORPUS[state_idx]
+    naive = _naive_full_check(state, color)
+    chess4d_oracle = chess4d.in_check(color, state.board)
+    assert naive == chess4d_oracle, (
+        f"state={state_idx} color={color.name}: "
+        f"naive={naive} chess4d.in_check={chess4d_oracle}"
     )
 
 
@@ -303,6 +362,82 @@ def test_targeted_constructions_exercise_true_branch():
     assert true_count >= 3 and false_count >= 1, (
         "targeted set should exercise both True and False branches"
     )
+
+
+# ─── pawn-attacker constructions (Phase E) ──────────────────────────
+
+
+def _make_pawn_check_w_axis():
+    """Black W-pawn attacks a white king via the xw-plane diagonal.
+
+    The white king at (4, 0, 5, 4) is attacked by a black W-axis pawn
+    at (5, 0, 5, 5) — pawn captures at (5-1, 0, 5, 5-1) = (4, 0, 5, 4)
+    by O&C §3.10 Def 13 (forward sign -1 for black, |Δx|=1).
+    """
+    gs = chess4d.initial_position()
+    king_sq = chess4d.Square4D(4, 0, 5, 4)
+    assert gs.board.occupant(king_sq).piece_type == chess4d.types.PieceType.KING
+    pawn_sq = chess4d.Square4D(5, 0, 5, 5)
+    if gs.board.occupant(pawn_sq) is not None:
+        gs.board.remove(pawn_sq)
+    gs.board.place(
+        pawn_sq,
+        chess4d.Piece(
+            chess4d.Color.BLACK,
+            chess4d.types.PieceType.PAWN,
+            pawn_axis=chess4d.types.PawnAxis.W,
+        ),
+    )
+    return gs
+
+
+def _make_pawn_check_y_axis():
+    """Black Y-pawn attacks a white king via the xy-plane diagonal.
+
+    Black Y-pawn at (5, 1, 5, 4) captures at (5±1, 0, 5, 4); the
+    -x diagonal hits the white king at (4, 0, 5, 4).
+    """
+    gs = chess4d.initial_position()
+    king_sq = chess4d.Square4D(4, 0, 5, 4)
+    assert gs.board.occupant(king_sq).piece_type == chess4d.types.PieceType.KING
+    pawn_sq = chess4d.Square4D(5, 1, 5, 4)
+    if gs.board.occupant(pawn_sq) is not None:
+        gs.board.remove(pawn_sq)
+    gs.board.place(
+        pawn_sq,
+        chess4d.Piece(
+            chess4d.Color.BLACK,
+            chess4d.types.PieceType.PAWN,
+            pawn_axis=chess4d.types.PawnAxis.Y,
+        ),
+    )
+    return gs
+
+
+_PAWN_TARGETED = {
+    "pawn_check_w_axis": _make_pawn_check_w_axis(),
+    "pawn_check_y_axis": _make_pawn_check_y_axis(),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_PAWN_TARGETED.keys()))
+def test_pawn_attacker_constructions_phasecast_full(name):
+    """Pawn-aware ``phasecast_is_check_4d`` finds pawn attackers that
+    the no-pawns variant misses.
+    """
+    state = _PAWN_TARGETED[name]
+    # No-pawns variant: should be False (no non-pawn enemy reaches
+    # any king in these constructions).
+    assert phasecast_is_check_4d_no_pawns(state, chess4d.Color.WHITE) is False, (
+        f"{name}: no-pawn phasecast unexpectedly True; setup may "
+        "have introduced an unintended non-pawn attacker"
+    )
+    # Pawn-aware variant: should be True (the constructed black pawn
+    # IS a check).
+    cast = phasecast_is_check_4d(state, chess4d.Color.WHITE)
+    naive = _naive_full_check(state, chess4d.Color.WHITE)
+    assert cast is True, f"{name}: phasecast_full={cast} expected True"
+    assert naive is True, f"{name}: naive_full={naive} expected True"
 
 
 # ─── move_leaves_king_in_check_4d_no_pawns coverage ─────────────────

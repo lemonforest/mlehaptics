@@ -34,9 +34,43 @@ if TYPE_CHECKING:  # pragma: no cover
     from chess4d import GameState, Color
 
 from .phase_operators_4d import (
-    AXIS_GENS, MODULUS_4D, P_king4, P_knight4, phi4,
+    AXIS_GENS, GEN_X, GEN_Y, GEN_W, MODULUS_4D,
+    P_king4, P_knight4, phi4,
 )
 from .phase_to_coords_4d import PHI_TO_XYZW
+
+
+def _pawn_threat_phases_on_king(
+    king_phi: int, king_color_white: bool,
+) -> frozenset[int]:
+    """Phases from which an opposite-color pawn could attack a king
+    at ``king_phi``.
+
+    Reverse-cast equivalent: a white king is attacked by a black pawn
+    sitting on a black-pawn-capture-source square. Black pawns
+    capture in the −axis forward direction (their forward sign), so
+    a black-pawn capture INTO the king's phase originates at
+    ``king_phi + (axis-forward)``. White pawns mirror.
+
+    Per O&C §3.10 Def 13: pawn captures are restricted to the
+    (x-axis, forward-axis) 2-plane. For each enemy axis (W or Y),
+    the threat squares are:
+
+        white king + black pawn (axis=w):
+            (kx + g_x + g_w, kx - g_x + g_w) — pawn at (k_x±1, k_y, k_z, k_w+1)
+            i.e., black W-pawn one square +w from king, ±1 in x.
+        white king + black pawn (axis=y):
+            (kx + g_x + g_y, kx - g_x + g_y) — pawn one square +y from king.
+        black king + white pawn:
+            mirror with -g_w / -g_y.
+    """
+    sign = +1 if king_color_white else -1
+    return frozenset({
+        (king_phi + GEN_X + sign * GEN_W) % MODULUS_4D,
+        (king_phi - GEN_X + sign * GEN_W) % MODULUS_4D,
+        (king_phi + GEN_X + sign * GEN_Y) % MODULUS_4D,
+        (king_phi - GEN_X + sign * GEN_Y) % MODULUS_4D,
+    })
 
 
 def phasecast_is_check_4d_no_pawns(
@@ -185,19 +219,83 @@ def move_leaves_king_in_check_4d_no_pawns(
     """Return True if applying ``move`` would leave any of the moving
     side's kings attacked by a non-pawn enemy piece.
 
-    Implemented as: push the move on a copy of the state, run
-    ``phasecast_is_check_4d_no_pawns`` on the post-move state, pop.
+    Implemented as: push the move, run
+    :func:`phasecast_is_check_4d_no_pawns` on the post-move state, pop.
 
     The ``_no_pawns`` suffix follows
-    ``phasecast_is_check_4d_no_pawns`` — Phase E will add the
-    pawn-aware form.
+    :func:`phasecast_is_check_4d_no_pawns` — see
+    :func:`move_leaves_king_in_check_4d` for the pawn-aware form.
     """
     state.push(move)
     try:
-        # After ``push``, ``side_to_move`` is the *opponent*. The
-        # mover (whose kings we're checking) is the previous side.
         import chess4d
         mover_color = chess4d.Color(1 - state.side_to_move)
         return phasecast_is_check_4d_no_pawns(state, mover_color)
+    finally:
+        state.pop()
+
+
+# ─── pawn-aware forms (Phase E) ─────────────────────────────────────
+
+
+def phasecast_is_check_4d(
+    state: "GameState",
+    color: "Color",
+) -> bool:
+    """Return True if any of ``color``'s kings is attacked by ANY
+    enemy piece (including pawns) in ``state``.
+
+    Pawn-aware extension of :func:`phasecast_is_check_4d_no_pawns`:
+    after the non-pawn passes, casts the inverse pawn-capture
+    operator outward from each king and intersects with
+    opposite-color pawn occupation.
+    """
+    # Non-pawn fast path. If any non-pawn attacker is found we're
+    # done; only fall through to pawn checks otherwise.
+    if phasecast_is_check_4d_no_pawns(state, color):
+        return True
+
+    import chess4d
+    from chess4d.types import PieceType
+
+    opposite = chess4d.Color(1 - color)
+    king_color_white = (color == chess4d.Color.WHITE)
+
+    # Enemy pawn phases (any axis — the threat-phase set covers both
+    # W- and Y-oriented pawns; geometric self-consistency handles the
+    # axis filter automatically).
+    enemy_pawn_phases = {
+        phi4(sq.x, sq.y, sq.z, sq.w)
+        for sq, piece in state.board.pieces_of(opposite)
+        if piece.piece_type == PieceType.PAWN
+    }
+    if not enemy_pawn_phases:
+        return False
+
+    for king_sq in chess4d.kings_of(color, state.board):
+        king_phi = phi4(king_sq.x, king_sq.y, king_sq.z, king_sq.w)
+        threats = _pawn_threat_phases_on_king(king_phi, king_color_white)
+        if threats & enemy_pawn_phases:
+            return True
+
+    return False
+
+
+def move_leaves_king_in_check_4d(
+    state: "GameState",
+    move: "Move4D",
+) -> bool:
+    """Return True if applying ``move`` would leave any of the moving
+    side's kings attacked by ANY enemy piece (including pawns).
+
+    Pawn-aware version of :func:`move_leaves_king_in_check_4d_no_pawns`.
+    Intended as the legality filter for full pseudo-legal → legal
+    move pipelines (e.g., Phase F's immolation suite extensions).
+    """
+    state.push(move)
+    try:
+        import chess4d
+        mover_color = chess4d.Color(1 - state.side_to_move)
+        return phasecast_is_check_4d(state, mover_color)
     finally:
         state.pop()

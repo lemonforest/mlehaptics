@@ -161,9 +161,45 @@ The test is parametrized in [`tests/test_phase_4d_unobstructed.py`](chess-spectr
 
 ## §13.6. Pawn Axis Handling (Phase E)
 
-> Will be populated by Phase E. Expected:
->
-> Per O&C Definition 11, pawns are oriented along Y or W axis only (never Z). The phase op's pawn capture geometry on the (axis, perpendicular-axis) plane, resolved against either the source paper or a documented best-fit consistent with the 2D capture pattern.
+Per O&C §3.10 Def 11, pawns are W- or Y-oriented (never Z). Per Def 13, captures are restricted to the **2-plane spanned by the x-axis and the pawn's forward axis** — XZ, YZ, ZW captures are not legal.
+
+### §13.6.1 Phase shifts
+
+For each (color, axis) pair the capture phase shifts are:
+
+| Color | Axis | Forward shift | Capture shifts                                       |
+|-------|------|---------------|------------------------------------------------------|
+| WHITE | W    | `+g_w`        | `(+g_x + g_w) mod M`, `(-g_x + g_w) mod M`           |
+| WHITE | Y    | `+g_y`        | `(+g_x + g_y) mod M`, `(-g_x + g_y) mod M`           |
+| BLACK | W    | `-g_w`        | `(+g_x - g_w) mod M`, `(-g_x - g_w) mod M`           |
+| BLACK | Y    | `-g_y`        | `(+g_x - g_y) mod M`, `(-g_x - g_y) mod M`           |
+
+These are a strict subset of the bishop's 24 plane-diagonal shifts (specifically the four xw and four xy diagonals). The phase op emits all geometric capture targets; off-board candidates are dropped by `phase_set_to_board`. Up to 2 captures per pawn (left- and right-x diagonals on the forward-axis side).
+
+### §13.6.2 Where the rule comes from
+
+Lifted directly from `chess4d.geometry.PAWN_CAPTURES` (the python-chess4d-oana-chiru reference implementation), which itself encodes O&C §3.10 Def 13. Both `P_pawn4_white(include_captures=True)` and the corresponding chess4d generator are tested against each other in `test_phase_4d_occupation_aware.py` and `test_phase_4d_unobstructed.py`.
+
+### §13.6.3 Reverse-cast in is_check
+
+`phasecast_is_check_4d` extends the Phase D `_no_pawns` form by computing the inverse pawn-capture phase set from each king. For a white king at `φ_k`:
+- Black W-pawns capturing INTO `φ_k` originate at `(φ_k + g_x + g_w)` and `(φ_k - g_x + g_w)` (i.e., one square +w and ±1 in x).
+- Black Y-pawns originate at `(φ_k + g_x + g_y)` and `(φ_k - g_x + g_y)`.
+
+Black king mirrors with the W/Y signs flipped. The threat set is 4 phases per king (2 axes × 2 x-sides), intersected with the set of opposite-color pawn occupations.
+
+### §13.6.4 What v1 covers
+
+- Forward push (single + double from starting rank).
+- Diagonal capture with axis-aware target plane.
+- Color sign (white +, black −).
+
+### §13.6.5 What v1 does NOT cover
+
+- **En passant.** Per O&C §3.10 Def 15 it requires the ep-target state from the previous move; deferred to a future phase, mirroring the 2D supplement's deferral. The chess4d `pawn_moves` likewise excludes ep (its `legal_moves` includes ep via a separate path).
+- **Promotion.** A move-level concern (the move metadata changes), not a phase-shift concern. The phase op produces forward/capture destinations regardless of whether the target rank is the promotion rank; the legality pipeline is responsible for tagging the move with the resulting promotion piece.
+
+These are documented gaps — not silent ones. The `_no_pawns` variants of `phasecast_is_check_4d` and `move_leaves_king_in_check_4d` remain available for ablations or contexts where pawn detection isn't desired.
 
 ---
 
