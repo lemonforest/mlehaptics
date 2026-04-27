@@ -1,8 +1,13 @@
 name: chess-spectral-publish
 
-# Builds the ``chess-spectral`` sdist + wheel from
-# ``docs/chess-maths/chess-spectral/python/`` and publishes them to PyPI
-# via trusted publishing (OIDC) for a given ``chess-spectral-v*`` tag.
+# Build platform-specific binary wheels (via cibuildwheel) plus an sdist
+# for the ``chess-spectral`` package and publish them to PyPI via
+# trusted publishing (OIDC) on a ``chess-spectral-v*`` tag.
+#
+# v1.2.4 added native binary bundling via scikit-build-core; the wheel
+# now includes ``spectral`` + ``spectral_4d`` under
+# ``chess_spectral/_native/``. That requires per-OS / per-Python-version
+# wheels — hence the cibuildwheel matrix below.
 #
 # Triggers:
 #   * ``push`` on ``chess-spectral-v*`` tags — ONLY fires when the tag
@@ -11,7 +16,7 @@ name: chess-spectral-publish
 #     anti-recursion guard). The autotag workflow compensates by
 #     dispatching this workflow explicitly after it pushes the tag.
 #   * ``workflow_dispatch`` — manual fallback. Pick the tag (e.g.
-#     ``chess-spectral-v1.1.2``) in the Ref dropdown and click Run.
+#     ``chess-spectral-v1.2.4``) in the Ref dropdown and click Run.
 #
 # Trusted publisher configuration (one-time, done by a human on pypi.org):
 #   Project:           chess-spectral
@@ -27,8 +32,77 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build-and-publish:
+  build-wheels:
+    name: wheel • ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+        python: ["310", "311", "312", "313"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel via cibuildwheel
+        uses: pypa/cibuildwheel@v2.21
+        with:
+          package-dir: docs/chess-maths/chess-spectral/python
+        env:
+          # Build only the matrix's Python; cibuildwheel handles the
+          # cp/abi/platform combinatorics. CPython only — PyPy is out
+          # of scope for the C-binary-bundling story.
+          CIBW_BUILD: "cp${{ matrix.python }}-*"
+          CIBW_SKIP: "*-musllinux_*"
+          # Per-wheel test: import the package and run the FEN4 + e2e
+          # parity tests. Skip aarch64/arm64 wheel testing where the
+          # build runner can't execute the wheel natively.
+          CIBW_TEST_REQUIRES: "pytest numpy scipy"
+          CIBW_TEST_COMMAND: >
+            pytest {package}/../python/tests/test_fen4_parity.py
+            {package}/../python/tests/test_e2e_spectralz4_parity.py
+            {package}/../python/tests/test_2d_cli_parity.py -q
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-cp${{ matrix.python }}
+          path: wheelhouse/*.whl
+
+  build-sdist:
+    name: sdist
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build
+      - name: Build sdist
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: python -m build --sdist
+      - name: Twine metadata check
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check --strict dist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: docs/chess-maths/chess-spectral/python/dist/*.tar.gz
+
+  publish:
+    name: publish to PyPI
+    needs: [build-wheels, build-sdist]
+    runs-on: ubuntu-latest
+    # Publish only on tag-push or workflow_dispatch on a tag ref; never
+    # on PR / branch dispatches.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chess-spectral-v'))
     environment:
       name: pypi
       url: https://pypi.org/project/chess-spectral/
@@ -38,27 +112,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/download-artifact@v4
         with:
-          python-version: "3.12"
-
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip build twine
-
-      - name: Build sdist and wheel
-        working-directory: docs/chess-maths/chess-spectral/python
-        run: python -m build
-
-      - name: Twine metadata check
-        working-directory: docs/chess-maths/chess-spectral/python
-        run: python -m twine check --strict dist/*
+          path: artifacts
 
       - name: Verify tag matches pyproject version
         shell: bash
         run: |
           python3 <<'PY'
           import os, re, tomllib, sys
-          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "chess-spectral-v1.1.2"
+          tag = os.environ["GITHUB_REF_NAME"]  # e.g. "chess-spectral-v1.2.4"
           m = re.fullmatch(r"chess-spectral-v(\d+\.\d+\.\d+)", tag)
           if not m:
               print(f"::error::Tag {tag!r} does not match chess-spectral-vX.Y.Z")
@@ -75,7 +138,13 @@ jobs:
           print(f"Tag and pyproject agree: {tag_version}")
           PY
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Collect wheels + sdist into dist/
+        run: |
+          mkdir -p dist
+          find artifacts -name '*.whl' -exec cp {} dist/ \;
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+          ls -la dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: docs/chess-maths/chess-spectral/python/dist
+          packages-dir: dist

@@ -9,9 +9,9 @@ B_4 hyperoctahedral symmetry group and the ruleset of Oana & Chiru
 v1.1.1 splits the pawn antisymmetric channel into W-axis (FA_PAWN_W)
 and Y-axis (FA_PAWN_Y) sub-channels per Oana & Chiru Definition 11;
 encoding_dim grew from 40 960 (v1.0) to 45 056, and the spectralz
-frame format bumped from v3 to v4. See plan file
-`when-we-need-to-spicy-seahorse.md` and docs/chess-maths/
-chess_spectral_4d_notebook.md for design notes.
+frame format bumped from v3 to v4. See [ROADMAP.md](../../ROADMAP.md)
+for the current command surface and
+docs/chess-maths/chess_spectral_4d_notebook.md for design notes.
 
 Discover the CLI with:
 

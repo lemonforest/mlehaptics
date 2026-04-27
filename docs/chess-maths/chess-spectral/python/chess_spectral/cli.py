@@ -25,9 +25,22 @@ Commands (symmetric with the C side):
                run_corpus_sweep.py for a fetched corpus, but on a PGN
                you already have on disk.
 
-    version    Print version / format info.
+    compare    <a.spectral[z]> <b.spectral[z]>
+               Cosine-similarity report between two .spectral files.
 
-Not yet implemented: query, analyze, heatmap, compare.
+    query      <file.spectral[z]> --ply N
+               Print 10-channel breakdown at ply N.
+
+    heatmap    <file.spectral[z]> --ply N --channel A1
+               ANSI 8x8 heatmap of one channel at one ply.
+
+    analyze    <file.spectral[z]>
+               Per-game peak / drop / crisis ply (JSON; mirrors C output).
+
+    export     <file.spectral[z]> [-o out.json]
+               Dump frames to JSON for the web viewer.
+
+    version    Print version / format info.
 """
 from __future__ import annotations
 
@@ -70,22 +83,42 @@ _DEFAULT_RESULTS_ROOT = os.path.abspath(os.path.join(
     HERE, os.pardir, os.pardir, os.pardir, "results"))
 
 
-def _find_c_binary() -> str | None:
-    """Locate the native spectral binary built from chess-spectral/src/.
-    Checks (1) CS_SPECTRAL_BIN env var, (2) standard CMake Release/Debug
-    output paths under chess-spectral/build/. Returns None if no binary
-    is found — callers should fall back to the Python encoder."""
-    env = os.environ.get("CS_SPECTRAL_BIN")
+def _find_native_binary(name: str, env_var: str) -> str | None:
+    """Locate a native binary by name. Search order (v1.2.4):
+      (1) ``$<env_var>`` environment variable (if set and is a file)
+      (2) wheel-bundled location: ``<package>/_native/<name>{.exe}``
+          (populated by scikit-build-core when building the wheel)
+      (3) repo-build paths: ``<repo>/build/{Release,Debug}/<name>{.exe}``
+          (developer workflow)
+
+    Returns None if the binary is not found in any of those locations.
+    Callers are expected to fall back to the Python implementation."""
+    env = os.environ.get(env_var)
     if env and os.path.isfile(env):
         return env
+    suffix = ".exe" if os.name == "nt" else ""
+    # (2) wheel-bundled
+    wheel_native = os.path.join(HERE, "_native", f"{name}{suffix}")
+    if os.path.isfile(wheel_native):
+        return wheel_native
+    # (3) developer repo build
     build_root = os.path.abspath(os.path.join(
         HERE, os.pardir, os.pardir, "build"))
-    suffix = ".exe" if os.name == "nt" else ""
     for sub in ("Release", "Debug", ""):
-        cand = os.path.join(build_root, sub, f"spectral{suffix}")
+        cand = os.path.join(build_root, sub, f"{name}{suffix}")
         if os.path.isfile(cand):
             return cand
     return None
+
+
+def _find_c_binary() -> str | None:
+    """2D spectral binary. Honors $CS_SPECTRAL_BIN. See _find_native_binary."""
+    return _find_native_binary("spectral", "CS_SPECTRAL_BIN")
+
+
+def _find_c_binary_4d() -> str | None:
+    """4D spectral_4d binary. Honors $CS_SPECTRAL_4D_BIN. See _find_native_binary."""
+    return _find_native_binary("spectral_4d", "CS_SPECTRAL_4D_BIN")
 
 
 # ─── Filename derivation helpers ────────────────────────────────────────
@@ -455,6 +488,218 @@ def cmd_version(_args: argparse.Namespace) -> int:
     return 0
 
 
+# ─── 2D commands wired in v1.2.4 (compare/query/heatmap/analyze/export) ──
+#
+# Native Python implementations, so that the C↔Python parity tests in
+# python/tests/test_2d_cli_parity.py compare two independent code paths.
+# The numeric outputs (compare summary, analyze JSON, query channel
+# energies) match the C binary byte-for-byte modulo float-formatter
+# conventions documented in each command's helper.
+
+_2D_CHANNELS = (
+    ("A1", 0), ("A2", 64), ("B1", 128), ("B2", 192), ("E", 256),
+    ("F1", 320), ("F2", 384), ("F3", 448), ("FA", 512), ("FD", 576),
+)
+_BOARD_DIM_2D = 64
+_ENCODING_DIM_2D = 640
+
+
+def _read_all_encodings_2d(path: str):
+    """Returns (header, encodings) where encodings is shape (n_plies, 640)."""
+    from chess_spectral import read_all
+    hdr, frames = read_all(path)
+    arr = np.empty((hdr.n_plies, _ENCODING_DIM_2D), dtype=np.float32)
+    for i, fr in enumerate(frames):
+        arr[i] = fr.encoding
+    return hdr, frames, arr
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    hdr_a, _, ea = _read_all_encodings_2d(args.a)
+    hdr_b, _, eb = _read_all_encodings_2d(args.b)
+    if hdr_a.n_plies != hdr_b.n_plies:
+        print(f"compare: ply counts differ ({hdr_a.n_plies} vs {hdr_b.n_plies}); "
+              f"comparing first {min(hdr_a.n_plies, hdr_b.n_plies)} plies",
+              file=sys.stderr)
+    n = min(hdr_a.n_plies, hdr_b.n_plies)
+    if n == 0:
+        print("compare: n_plies=0 (nothing to compare)")
+        return 0
+    # Per-ply cosine in float64 to match the C binary's accumulation type.
+    a64 = ea[:n].astype(np.float64)
+    b64 = eb[:n].astype(np.float64)
+    dot = np.einsum("ij,ij->i", a64, b64)
+    na = np.linalg.norm(a64, axis=1)
+    nb = np.linalg.norm(b64, axis=1)
+    denom = na * nb
+    cos = np.where(denom > 0.0, dot / np.where(denom > 0.0, denom, 1.0), 1.0)
+    cmin = float(cos.min())
+    cmean = float(cos.mean())
+    cmax = float(cos.max())
+    cmin_ply = int(cos.argmin())
+    print(f"compare: n_plies={n}  cos_min={cmin:.4f} (ply={cmin_ply})  "
+          f"cos_mean={cmean:.4f}  cos_max={cmax:.4f}")
+    return 0
+
+
+def cmd_query_2d(args: argparse.Namespace) -> int:
+    hdr, frames, _ = _read_all_encodings_2d(args.input)
+    ply = args.ply
+    if ply < 0 or ply >= hdr.n_plies:
+        print(f"query: ply {ply} out of range (n_plies={hdr.n_plies})",
+              file=sys.stderr)
+        return 3
+    fr = frames[ply]
+    print(f"ply {fr.ply}  move_from={fr.move_from}  move_to={fr.move_to}  "
+          f"promo={fr.move_promo}  flags={fr.move_flags}")
+    total = 0.0
+    enc = fr.encoding.astype(np.float64)
+    for name, start in _2D_CHANNELS:
+        E = float(np.sum(enc[start:start + _BOARD_DIM_2D] ** 2))
+        total += E
+        print(f"  E_{name:<3s} = {E:12.4f}   dims {start:3d}..{start + _BOARD_DIM_2D - 1:3d}")
+    print(f"  E_total= {total:12.4f}")
+    return 0
+
+
+def cmd_heatmap(args: argparse.Namespace) -> int:
+    chan_idx = -1
+    for i, (name, _start) in enumerate(_2D_CHANNELS):
+        if name == args.channel:
+            chan_idx = i
+            break
+    if chan_idx < 0:
+        print(f"heatmap: unknown channel {args.channel!r} "
+              "(valid: A1,A2,B1,B2,E,F1,F2,F3,FA,FD)", file=sys.stderr)
+        return 2
+    hdr, frames, _ = _read_all_encodings_2d(args.input)
+    if args.ply < 0 or args.ply >= hdr.n_plies:
+        print(f"heatmap: ply {args.ply} out of range (n_plies={hdr.n_plies})",
+              file=sys.stderr)
+        return 3
+    fr = frames[args.ply]
+    name, start = _2D_CHANNELS[chan_idx]
+    block = fr.encoding[start:start + _BOARD_DIM_2D]
+    absmax = float(max(abs(block.min()), abs(block.max()), 1e-20))
+    print(f"heatmap: {args.input} ply={fr.ply} channel={name} absmax={absmax:.4f}")
+    glyphs = " .,:-=+*#@"
+    for r in range(8):
+        print(f"  {8 - r}  ", end="")
+        for c in range(8):
+            v = float(block[r * 8 + c])
+            a = abs(v) / absmax
+            bucket = min(int(a * 8.0), 8)
+            ch = glyphs[bucket]
+            col = 36 if v >= 0 else 31  # cyan + / red -
+            print(f"\x1b[{col}m{ch}\x1b[0m ", end="")
+        print()
+    print("     a b c d e f g h")
+    return 0
+
+
+def cmd_analyze(args: argparse.Namespace) -> int:
+    """Per-game spectral arc summary. Emits JSON matching the C binary
+    byte-for-byte (same field order, same %.6f formatting). Heuristics
+    follow chess_spectral_research_notebook.md §p.1636-1648 (ΔA₁
+    derivative analysis)."""
+    hdr, frames, _ = _read_all_encodings_2d(args.input)
+    if hdr.n_plies == 0:
+        print('{"n_plies":0}')
+        return 0
+
+    a1_peak = -1.0
+    a1_peak_ply = 0
+    dA1_drop = 0.0
+    dA1_drop_ply = 0
+    abs_dA1_max = 0.0
+    crisis_ply = 0
+    e_total_max = 0.0
+    e_total_max_ply = 0
+
+    prev_a1 = None
+    for fr in frames:
+        enc = fr.encoding.astype(np.float64)
+        E_A1 = float(np.sum(enc[0:_BOARD_DIM_2D] ** 2))
+        if E_A1 > a1_peak:
+            a1_peak = E_A1
+            a1_peak_ply = fr.ply
+        E_total = 0.0
+        for _name, s in _2D_CHANNELS:
+            E_total += float(np.sum(enc[s:s + _BOARD_DIM_2D] ** 2))
+        if E_total > e_total_max:
+            e_total_max = E_total
+            e_total_max_ply = fr.ply
+        if prev_a1 is not None:
+            d = enc[0:_BOARD_DIM_2D] - prev_a1
+            dA1 = float(np.sqrt(float(np.sum(d * d))))
+            prev_E_A1 = float(np.sum(prev_a1 ** 2))
+            dA1_signed = -dA1 if E_A1 < prev_E_A1 else dA1
+            if dA1_signed < dA1_drop:
+                dA1_drop = dA1_signed
+                dA1_drop_ply = fr.ply
+            abs_d = abs(dA1_signed)
+            if abs_d > abs_dA1_max:
+                abs_dA1_max = abs_d
+                crisis_ply = fr.ply
+        prev_a1 = enc[0:_BOARD_DIM_2D].copy()
+
+    # Match C printf(...) format byte-for-byte.
+    print("{")
+    print(f"  \"n_plies\":         {hdr.n_plies},")
+    print(f"  \"a1_peak_ply\":     {a1_peak_ply},")
+    print(f"  \"a1_peak_value\":   {a1_peak:.6f},")
+    print(f"  \"a1_drop_ply\":     {dA1_drop_ply},")
+    print(f"  \"a1_drop_value\":   {dA1_drop:.6f},")
+    print(f"  \"crisis_ply\":      {crisis_ply},")
+    print(f"  \"abs_dA1_max\":     {abs_dA1_max:.6f},")
+    print(f"  \"e_total_max_ply\": {e_total_max_ply},")
+    print(f"  \"e_total_max\":     {e_total_max:.6f}")
+    print("}")
+    return 0
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    """Emit JSON for the web viewer. Mirrors the C binary's format
+    exactly so test_2d_cli_parity.py can byte-compare."""
+    hdr, frames, _ = _read_all_encodings_2d(args.input)
+    out_fp = sys.stdout if not args.output or args.output == "-" else \
+        open(args.output, "w", encoding="utf-8")
+    try:
+        out_fp.write("{\n")
+        out_fp.write(f"  \"version\": {hdr.version},\n")
+        out_fp.write(f"  \"encoding_dim\": {hdr.encoding_dim},\n")
+        out_fp.write(f"  \"n_plies\": {hdr.n_plies},\n")
+        out_fp.write("  \"channels\": [")
+        for i, (name, start) in enumerate(_2D_CHANNELS):
+            sep = "" if i == 0 else ","
+            out_fp.write(f"{sep}{{\"name\":\"{name}\",\"start\":{start},"
+                         f"\"end\":{start + _BOARD_DIM_2D - 1}}}")
+        out_fp.write("],\n  \"frames\": [")
+        for i, fr in enumerate(frames):
+            sep = "" if i == 0 else ","
+            out_fp.write(f"{sep}\n    {{")
+            out_fp.write(f"\"ply\":{fr.ply},\"move_from\":{fr.move_from},"
+                         f"\"move_to\":{fr.move_to},")
+            out_fp.write(f"\"promo\":{fr.move_promo},\"flags\":{fr.move_flags},")
+            out_fp.write("\"channel_energies\":{")
+            enc = fr.encoding.astype(np.float64)
+            for j, (name, start) in enumerate(_2D_CHANNELS):
+                csep = "" if j == 0 else ","
+                E = float(np.sum(enc[start:start + _BOARD_DIM_2D] ** 2))
+                out_fp.write(f"{csep}\"{name}\":{E:.6f}")
+            out_fp.write("},\"encoding\":[")
+            for k in range(_ENCODING_DIM_2D):
+                esep = "" if k == 0 else ","
+                # %.6g matches C's printf("%.6g") precisely.
+                out_fp.write(f"{esep}{float(fr.encoding[k]):.6g}")
+            out_fp.write("]}")
+        out_fp.write("\n  ]\n}\n")
+    finally:
+        if out_fp is not sys.stdout:
+            out_fp.close()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="spectral_py",
@@ -546,6 +791,53 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ver = sub.add_parser("version", help="Print version info")
     p_ver.set_defaults(func=cmd_version)
+
+    # ─── 2D commands wired in v1.2.4 ───
+    p_cmp = sub.add_parser(
+        "compare",
+        help="Cosine-similarity report between two .spectral files",
+    )
+    p_cmp.add_argument("a", help="first .spectral or .spectralz file")
+    p_cmp.add_argument("b", help="second .spectral or .spectralz file")
+    p_cmp.set_defaults(func=cmd_compare)
+
+    p_qry = sub.add_parser(
+        "query", help="Print 10-channel breakdown at ply N",
+    )
+    p_qry.add_argument("input", help="game.spectral or .spectralz")
+    p_qry.add_argument("--ply", type=int, required=True,
+                       help="ply index (0-based)")
+    p_qry.set_defaults(func=cmd_query_2d)
+
+    p_hm = sub.add_parser(
+        "heatmap", help="ANSI 8x8 of one channel at one ply",
+    )
+    p_hm.add_argument("input", help="game.spectral or .spectralz")
+    p_hm.add_argument("--ply", type=int, required=True,
+                      help="ply index (0-based)")
+    p_hm.add_argument("--channel", default="A1",
+                      help="channel name: A1,A2,B1,B2,E,F1,F2,F3,FA,FD")
+    p_hm.set_defaults(func=cmd_heatmap)
+
+    p_ana = sub.add_parser(
+        "analyze",
+        help="Per-game JSON summary (A1 peak/drop/crisis ply)",
+        description=(
+            "Per-game spectral arc summary mirroring the C binary "
+            "byte-for-byte. Heuristics: chess_spectral_research_notebook.md "
+            "§p.1636-1648 (ΔA₁ derivative analysis)."
+        ),
+    )
+    p_ana.add_argument("input", help="game.spectral or .spectralz")
+    p_ana.set_defaults(func=cmd_analyze)
+
+    p_exp = sub.add_parser(
+        "export", help="Dump frames to JSON for the web viewer",
+    )
+    p_exp.add_argument("input", help="game.spectral or .spectralz")
+    p_exp.add_argument("-o", "--output",
+                       help="output JSON path (default: stdout)")
+    p_exp.set_defaults(func=cmd_export)
 
     return ap
 

@@ -37,14 +37,13 @@ REPO_SPECTRAL = PY_DIR.parent                 # chess-spectral
 FIXTURE_PACK = HERE / "fixtures" / "fixtures_4d.npz"
 JSONL_PATH   = HERE / "fixtures" / "positions_4d.jsonl"
 
-# Channels that have real C impls at the current milestone. Full set
-# at v1.1.1/P6 — every channel is gated at TOL, including both pawn-
-# axis sub-channels after the FA_PAWN split.
+# All 11 channels have real C impls at v1.1.1+; every channel is gated
+# at TOL. (The previous STUBBED_CHANNELS machinery was removed in v1.2.4
+# along with the corresponding stub-vs-real comparison branch — see
+# AUDIT inventory item #17.)
 GATED_CHANNELS = {"A1", "STD4_X", "STD4_Y", "STD4_Z", "STD4_W",
                   "FIB_SYM_1", "FIB_SYM_2", "FIB_SYM_3",
                   "FA_PAWN_W", "FA_PAWN_Y", "FD_DIAG"}
-# Channels whose C-side is still a zero stub. Empty at v1.1.1/P6.
-STUBBED_CHANNELS: set[str] = set()
 
 # Tolerance rationale: see test_c_py_parity.py. 1e-10 is ~4 orders below
 # observable float32 noise; anything above is formula drift, not
@@ -124,7 +123,7 @@ def run_parity() -> int:
 
         delta = np.abs(c_enc - py_enc)
 
-        # 1) Gated channels (real C impl) must agree within TOL.
+        # All channels have real C impls; each must agree within TOL.
         failed_gated = []
         for ch in GATED_CHANNELS:
             s, e = ch_slice[ch]
@@ -132,43 +131,20 @@ def run_parity() -> int:
             if d > TOL:
                 failed_gated.append((ch, d))
 
-        # 2) Stubbed channels (C writes zero). Python may also be zero
-        #    (then delta == 0 and the equality holds) OR nonzero (then
-        #    C's zero diverges; that's expected at P2b and we skip the
-        #    comparison with an informational note).
-        stub_present_nonzero = []
-        for ch in STUBBED_CHANNELS:
-            s, e = ch_slice[ch]
-            c_slab = c_enc[s:e]
-            py_slab = py_enc[s:e]
-            if np.any(c_slab != 0.0):
-                # C stub must be identically zero at P2b.
-                failed_gated.append((ch, float(np.abs(c_slab).max())))
-                continue
-            if float(np.abs(py_slab).max()) > 0.0:
-                stub_present_nonzero.append(ch)
-
         status = "ok"
         if failed_gated:
             status = "FAIL"
             total_fail += 1
-        per_fixture_status.append((name, status, failed_gated,
-                                   stub_present_nonzero))
+        per_fixture_status.append((name, status, failed_gated))
 
     # Report.
     print()
     print(f"{'fixture':<28s} {'status':<6s} detail")
     print("-" * 72)
-    for name, status, failed, stubs in per_fixture_status:
-        detail_parts = []
+    for name, status, failed in per_fixture_status:
         if failed:
-            detail_parts.append("FAILED gated: "
-                                + ", ".join(f"{c}={d:.3g}" for c, d in failed))
-        if stubs:
-            detail_parts.append("stub-zero vs py-nonzero (lifted in P4): "
-                                + ",".join(stubs))
-        detail = "; ".join(detail_parts) if detail_parts else "all gated "
-        if not detail_parts:
+            detail = "FAILED: " + ", ".join(f"{c}={d:.3g}" for c, d in failed)
+        else:
             detail = "all gated channels within tol"
         print(f"{name:<28s} {status:<6s} {detail}")
 

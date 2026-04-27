@@ -304,7 +304,8 @@ def encode_4d(pos4: Dict[int, PieceValue],
     PIECE_ADJ = tables['PIECE_ADJ']      # type: ignore[assignment]
     # Sorted occupied-square iteration. Load-bearing for C parity: the C
     # port accumulates in ascending square order, and float64 summation
-    # is not associative. See plan: "when-we-need-to-spicy-seahorse" P0.
+    # is not associative. See ROADMAP.md and src/cs_fiber_sym_4d.c for
+    # the matching ordering on the C side.
     sorted_items = sorted(pos4.items(), key=lambda kv: int(kv[0]))
     for d in range(3):
         fc = np.zeros(CHANNEL_DIM, dtype=np.float64)

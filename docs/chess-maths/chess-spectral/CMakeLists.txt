@@ -77,9 +77,10 @@ add_custom_target(codegen
 )
 
 # ─── 4D encoder (v1.1 port) ─────────────────────────────────────────────────
-# Separate static lib + binary; zero shared TUs with the 2D paths. Per-channel
-# stubs in P2a zero-fill; P2b/P3/P4 replace them with real impls under the
-# same cs_encoder_4d.h contract.
+# Separate static lib + binary; zero shared TUs with the 2D paths.
+# All 11 channels are real (verified by python/tests/test_c_py_parity_4d.py
+# at TOL=1e-10). cs_fen_4d.c (v1.2.4) parses the FEN4 v1 placement literal
+# documented in docs/FEN4_FORMAT.md.
 add_library(cs_core_4d STATIC
     src/cs_signal_4d.c
     src/cs_a1_4d.c
@@ -88,14 +89,17 @@ add_library(cs_core_4d STATIC
     src/cs_pawn_anti_4d.c
     src/cs_fiber_sym_4d.c
     src/cs_encoder_4d.c
+    src/cs_fen_4d.c
+    src/cs_frame_4d.c
     src/cs_tables_data_4d.c
 )
 target_include_directories(cs_core_4d PUBLIC include)
 
 add_executable(spectral_4d
     src/main_4d.c
+    src/cs_gzip.c
 )
-target_link_libraries(spectral_4d PRIVATE cs_core_4d)
+target_link_libraries(spectral_4d PRIVATE cs_core_4d miniz)
 
 add_custom_target(codegen_4d
     COMMAND ${CMAKE_COMMAND} -E echo "Running 4D codegen scripts..."
@@ -104,3 +108,15 @@ add_custom_target(codegen_4d
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Regenerate 4D C tables and reference test vectors from Python"
 )
+
+# ─── scikit-build-core wheel install ────────────────────────────────────────
+# When building under scikit-build-core (i.e. `pip install .` or
+# `python -m build`), SKBUILD is defined and we install spectral +
+# spectral_4d binaries inside the wheel under chess_spectral/_native/.
+# The Python `_find_native_binary` helper (cli.py) checks that path
+# before falling back to repo-build paths.
+if(DEFINED SKBUILD)
+    install(TARGETS spectral spectral_4d
+            RUNTIME DESTINATION chess_spectral/_native
+            COMPONENT chess_spectral_native)
+endif()

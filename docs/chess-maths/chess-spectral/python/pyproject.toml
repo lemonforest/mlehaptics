@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.24"]
-build-backend = "hatchling.build"
+requires = ["scikit-build-core>=0.10", "cmake>=3.23"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "chess-spectral"
-version = "1.2.3"
+version = "1.2.4"
 description = "Spectral lattice-fermion encoder for 2D and 4D chess (D4 / B4 symmetry, graph-Laplacian eigenbasis, 640-dim / 45 056-dim HDC)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -47,14 +47,40 @@ Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-math
 chess-spectral = "chess_spectral.cli:main"
 chess-spectral-4d = "chess_spectral_4d.cli:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["chess_spectral", "chess_spectral_4d"]
+[tool.scikit-build]
+# CMake source dir is the parent of python/ — that's where CMakeLists.txt
+# lives. Build the spectral + spectral_4d native binaries and install
+# them into chess_spectral/_native (see _find_c_binary in cli.py).
+cmake.source-dir = ".."
+cmake.version = ">=3.23"
+cmake.build-type = "Release"
 
-[tool.hatch.build.targets.sdist]
-include = [
-    "/chess_spectral",
-    "/chess_spectral_4d",
-    "/README.md",
-    "/CHANGELOG.md",
-    "/pyproject.toml",
+# Python packages to include in the wheel (alongside the CMake-installed
+# native binaries).
+wheel.packages = ["chess_spectral", "chess_spectral_4d"]
+
+# Make the wheel reproducible across rebuilds by stamping mtimes.
+wheel.exclude = ["*.pyc", "__pycache__"]
+
+# Sdist contents (pure-Python sources + CMake config). The full C tree
+# lives one directory up; we slot it in as a sub-include so `pip install
+# chess-spectral` can compile from sdist.
+sdist.include = [
+    "chess_spectral/**",
+    "chess_spectral_4d/**",
+    "README.md",
+    "CHANGELOG.md",
+    "pyproject.toml",
+    "../CMakeLists.txt",
+    "../CMakePresets.json",
+    "../include/**",
+    "../src/**",
+    "../vendor/**",
+    "../ROADMAP.md",
+    "../docs/**",
+]
+sdist.exclude = [
+    "../build/**",
+    "../.pytest_cache/**",
+    "**/__pycache__/**",
 ]
