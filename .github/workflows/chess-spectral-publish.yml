@@ -68,7 +68,11 @@ jobs:
           # Per-wheel test: import the package and run the FEN4 + e2e
           # parity tests. Skip aarch64/arm64 wheel testing where the
           # build runner can't execute the wheel natively.
-          CIBW_TEST_REQUIRES: "pytest numpy scipy"
+          #
+          # scipy is pinned <1.17 — see chess-spectral-ci.yml for the
+          # rationale (no Windows wheels for 1.17.x → cibuildwheel
+          # would try to build from source with MinGW and fail).
+          CIBW_TEST_REQUIRES: "pytest numpy 'scipy>=1.13,<1.17'"
           CIBW_TEST_COMMAND: >
             pytest {package}/../python/tests/test_fen4_parity.py
             {package}/../python/tests/test_e2e_spectralz4_parity.py

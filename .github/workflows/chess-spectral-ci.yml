@@ -122,7 +122,13 @@ jobs:
           # so the verify-wheels guardrail also catches integration bugs
           # in the wheel-bundled native binary path (cli.py:_find_c_binary
           # → wheel _native/ dir lookup).
-          CIBW_TEST_REQUIRES: "pytest numpy scipy"
+          #
+          # scipy is pinned <1.17 because 1.17.x didn't ship Windows
+          # binary wheels for cp310-cp313 at the time of this release;
+          # cibuildwheel would otherwise try to compile scipy from source
+          # in its test isolation env and fail (no MSVC available).
+          # Drop the pin once scipy 1.17+ has a Windows wheel matrix.
+          CIBW_TEST_REQUIRES: "pytest numpy 'scipy>=1.13,<1.17'"
           CIBW_TEST_COMMAND: >
             pytest {package}/../python/tests/test_fen4_parity.py
             {package}/../python/tests/test_e2e_spectralz4_parity.py
