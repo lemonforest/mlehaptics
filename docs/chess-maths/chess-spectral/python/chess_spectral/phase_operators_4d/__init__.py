@@ -29,6 +29,12 @@ from .phase_to_coords_4d import (
     invert, phase_set_to_board,
 )
 
+# Note: occupation_aware_a_4d depends on the optional ``chess4d``
+# package. We import it lazily so this package stays importable in
+# environments without the test extra installed. The Phase C tests
+# use ``pytest.importorskip("chess4d")`` to skip cleanly.
+from .occupation_aware_a_4d import occupation_aware_moves_a_4d
+
 __all__ = [
     # phase_operators_4d
     "MODULUS_4D", "GEN_X", "GEN_Y", "GEN_Z", "GEN_W", "AXIS_GENS",
@@ -40,4 +46,6 @@ __all__ = [
     # phase_to_coords_4d
     "Coord4D", "PHI_TO_XYZW", "XYZW_TO_PHI",
     "invert", "phase_set_to_board",
+    # occupation_aware_a_4d
+    "occupation_aware_moves_a_4d",
 ]

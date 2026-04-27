@@ -34,6 +34,12 @@ dependencies = ["numpy", "scipy"]
 
 [project.optional-dependencies]
 corpus = ["chess"]
+# Test-only deps for the 4D phase-operator validation gates (Phase C/D
+# of the 4D phase-ops plan): python-chess4d-oana-chiru is the Python
+# reference implementation of Oana & Chiru (2026), used as the spatial
+# move-generation oracle by tests/test_phase_4d_occupation_aware.py
+# and tests/test_phase_4d_check_detection.py. Not pulled into wheels.
+test = ["python-chess4d-oana-chiru>=0.3.3"]
 
 [project.urls]
 Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/chess-maths/chess-spectral/python"
