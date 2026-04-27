@@ -245,12 +245,50 @@ def write_cs_tables_data_c():
 # MAIN
 # ============================================================================
 
+def write_committed_tables_npz():
+    """Write the same table values that go into ``cs_tables_data.c``
+    out as a numpy ``.npz`` so the Python encoder can load identical
+    values at runtime — eliminating the cross-platform skew that arose
+    when Python computed its own tables via scipy/LAPACK on each
+    machine. See `chess_spectral.tables._committed_tables_path`.
+
+    Source values: imported at the top of this script from
+    `chess_spectral.tables`, which is the same single-source-of-truth
+    we pull C-side numbers from. Both outputs are therefore guaranteed
+    bit-identical to each other when this script runs."""
+    out_dir = os.path.join(PKG_DIR, 'chess_spectral')
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, '_committed_tables.npz')
+    # Pull the same in-memory values codegen used. EVALS_GRID,
+    # EVECS_GRID, FIBER_BASIS aren't emitted into the C table file
+    # (they're internal to Python's encoder) but must be saved here
+    # so Python doesn't fall through to the recompute path.
+    from chess_spectral.tables import (
+        EVALS_GRID, EVECS_GRID, FIBER_BASIS,
+        LOCAL_FIBER_3D, LOCAL_ADJ_ROWS,
+        PAWN_ANTI_FIBER, DIAG_DEV, VERSION as TABLES_VERSION,
+    )
+    np.savez_compressed(
+        path,
+        version=np.str_(TABLES_VERSION),
+        EVALS_GRID=EVALS_GRID,
+        EVECS_GRID=EVECS_GRID,
+        FIBER_BASIS=FIBER_BASIS,
+        LOCAL_FIBER_3D=LOCAL_FIBER_3D,
+        LOCAL_ADJ_ROWS=LOCAL_ADJ_ROWS,
+        PAWN_ANTI_FIBER=PAWN_ANTI_FIBER,
+        DIAG_DEV=DIAG_DEV,
+    )
+    print(f"Wrote {path} ({os.path.getsize(path) / 1024:.1f} KB)")
+
+
 def main():
     os.makedirs(INC_DIR, exist_ok=True)
     os.makedirs(SRC_DIR, exist_ok=True)
     write_cs_tables_h()
     write_cs_fiber_tables_h()
     write_cs_tables_data_c()
+    write_committed_tables_npz()
     print()
     print(f"SPECTRAL_VALS (P,N,B,R,Q,K) = {SPECTRAL_VALS}")
     print(f"TRAD_VALS     (P,N,B,R,Q,K) = {TRAD_VALS}")

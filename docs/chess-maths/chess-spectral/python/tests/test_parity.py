@@ -146,27 +146,19 @@ def test_csv_matches_c_byte_for_byte(parity_fixture):
 
 
 def test_encoder_starting_position_channel_energies():
-    """Sanity: encode the starting position with the C binary, then verify
-    Python's channel-energy computation agrees on the same encoding.
-
-    History (v1.2.4): the prior version of this test asserted hard-coded
-    expected values produced by the Python encoder on whichever machine
-    last regenerated them. That made the test platform-fragile because
-    the Python encoder builds its own runtime tables via scipy/LAPACK,
-    and degenerate eigenspace bases differ across BLAS backends — so
-    F1 / F2 / F3 / FA energies are not deterministic across platforms.
-    The C encoder doesn't have this problem (its tables are codegen'd
-    and committed in cs_tables_data.c), so we use the C binary as the
-    deterministic reference and only assert that Python AGREES with C
-    on the same machine. See AUDIT inventory items #24b, #22.
+    """Sanity: encode the starting position with the C binary, read it
+    back via Python, and assert the channel energies agree with what
+    Python's direct encode_640() produces. Both code paths now load
+    identical tables from committed source (C from cs_tables_data.c,
+    Python from _committed_tables.npz), so this test is strict and
+    cross-platform-deterministic.
 
     Asserts:
-      1. C-encoded → Python-computed energies match C-computed energies
-         byte-for-byte (the actual parity claim).
-      2. A1 == 0 and FD == 0 on the starting position (D4 / diagonal-
-         deviation invariants — these are platform-deterministic
-         structural properties, not numerical accidents).
-      3. E_total > 0 (something was encoded).
+      1. C-encoded → Python-computed energies match Python-direct-
+         computed energies within float32 noise (~1e-4).
+      2. A1 == 0 and FD == 0 on the starting position (D4-orbit and
+         diagonal-deviation structural invariants).
+      3. E_total > 0.
     """
     from chess_spectral import read_all, channel_energies
     c_bin = _find_c_binary()
@@ -190,36 +182,39 @@ def test_encoder_starting_position_channel_energies():
         subprocess.run([str(c_bin), "encode", nd_path, "-o", sp_path],
                        check=True, capture_output=True)
 
-        # Read the C-encoded frame; compute energies via Python's
-        # channel_energies (which is a pure sum-of-squares, no encoder
-        # tables involved).
+        # Read the C-encoded frame; compute energies via Python.
+        from chess_spectral import encode_640, fen_to_pos
         _hdr, frames = read_all(sp_path)
         assert len(frames) == 1
-        E = channel_energies(frames[0].encoding)
+        E_from_c = channel_energies(frames[0].encoding)
 
-        # Structural invariants (platform-deterministic — these don't
-        # depend on which BLAS backend computed the encoder tables):
-        # A1 must be 0 on the starting position because the D4-orbit
-        # average of white piece values minus black piece values
-        # cancels symmetrically. FD must be 0 because no rooks sit on
-        # diagonals at game start. These two are the cleanest things
-        # we can assert without tying the test to a specific platform's
-        # scipy/LAPACK output.
-        assert abs(E["A1"]) < 1e-6, (
-            f"A1 should be 0 on starting position (D4-orbit average of "
-            f"matched white/black pieces cancels), got {E['A1']}"
+        # Direct Python encoding from the same FEN. Now uses committed
+        # tables, so the result must match C within float32 noise.
+        py_enc = encode_640(fen_to_pos(starting_fen))
+        E_direct = channel_energies(py_enc)
+
+        for name in ("A1", "A2", "B1", "B2", "E", "F1", "F2", "F3", "FA", "FD"):
+            assert abs(E_direct[name] - E_from_c[name]) < 1e-4, (
+                f"{name}: Python direct={E_direct[name]} vs Python from "
+                f"C-encoded={E_from_c[name]} — committed tables should "
+                f"give parity within float32 noise"
+            )
+
+        # Structural invariants on the starting position.
+        assert abs(E_from_c["A1"]) < 1e-6, (
+            f"A1 should be 0 on starting position, got {E_from_c['A1']}"
         )
-        assert abs(E["FD"]) < 1e-6, (
-            f"FD (diagonal-deviation channel) should be 0 on starting "
-            f"position (no rooks on diagonals), got {E['FD']}"
+        assert abs(E_from_c["FD"]) < 1e-6, (
+            f"FD should be 0 on starting position, got {E_from_c['FD']}"
         )
 
-        # All other channels are non-negative (they're sums of squares).
         for name in ("A2", "B1", "B2", "E", "F1", "F2", "F3", "FA"):
-            assert E[name] >= 0.0, f"{name} should be non-negative, got {E[name]}"
+            assert E_from_c[name] >= 0.0, (
+                f"{name} should be non-negative, got {E_from_c[name]}"
+            )
 
         # Encoding is non-trivial.
-        total = sum(E.values())
+        total = sum(E_from_c.values())
         assert total > 100.0, f"E_total suspiciously small: {total}"
     finally:
         for p in (nd_path, sp_path):

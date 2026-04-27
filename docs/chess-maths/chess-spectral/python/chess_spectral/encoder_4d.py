@@ -177,22 +177,81 @@ def _pawn_axis(value: PieceValue) -> str:
 _CACHE: Dict[str, object] = {}
 
 
+def _committed_tables_4d_path():
+    """Path to the committed-with-the-package 4D table data, written
+    by ``codegen/emit_tables_4d.py`` in lockstep with
+    ``src/cs_tables_data_4d.c``. When present, it's the authoritative
+    source: same values as C, eliminates cross-platform skew. See
+    chess_spectral.tables._committed_tables_path for the 2D analog."""
+    from pathlib import Path
+    return Path(__file__).parent / "_committed_tables_4d.npz"
+
+
+def _try_load_committed_4d() -> bool:
+    """Populate _CACHE from the committed npz if present. Returns
+    True on success, False if the file is missing or malformed (caller
+    falls through to runtime computation)."""
+    path = _committed_tables_4d_path()
+    if not path.exists():
+        return False
+    try:
+        from scipy.sparse import csr_matrix
+        with np.load(path, allow_pickle=False) as data:
+            _CACHE['coord_resid'] = data['coord_resid']
+            _CACHE['W_ANTI_DCT']  = data['W_ANTI_DCT']
+            _CACHE['Y_ANTI_DCT']  = data['Y_ANTI_DCT']
+            _CACHE['DIAG_DEV']    = data['DIAG_DEV']
+            _CACHE['FIBER_LOCAL'] = data['FIBER_LOCAL']
+            _CACHE['P_A1'] = csr_matrix(
+                (data['P_A1_data'], data['P_A1_indices'],
+                 data['P_A1_indptr']),
+                shape=tuple(data['P_A1_shape']),
+            )
+            piece_chars = [c.item() for c in data['PIECE_ADJ_chars']]
+            _CACHE['PIECE_ADJ'] = [
+                csr_matrix(
+                    (data[f'PIECE_ADJ_{ch}_data'],
+                     data[f'PIECE_ADJ_{ch}_indices'],
+                     data[f'PIECE_ADJ_{ch}_indptr']),
+                    shape=tuple(data[f'PIECE_ADJ_{ch}_shape']),
+                )
+                for ch in piece_chars
+            ]
+        return True
+    except (OSError, KeyError, ValueError):
+        # Malformed npz — clear partial state and let caller recompute.
+        _CACHE.clear()
+        return False
+
+
 def _load_tables() -> Dict[str, object]:
     """Build & cache the expensive static tables the encoder needs.
 
-    P_A1           sparse (4096,4096) orbit projector
-    coord_resid    (4, 4096) std-4D coord residual masks
-    W_ANTI_DCT     (8, 8) factored pawn antisymmetric fiber (see
-                   tables_4d.w_anti_dct_block for the algebraic
-                   derivation; equivalent to the 8x8 w-block of the
-                   dense 4096x4096 PAWN_ANTI_FIB)
-    DIAG_DEV       (6, 4096) per-piece mode-space diag deviations
-    FIBER_LOCAL    (5, 4096, 3) per-(piece, square) fiber coordinates
-    PIECE_ADJ      list of 5 CSR sparse adjacencies (knight, bishop,
-                   rook, queen, king)
+    Search order:
+      1. Committed npz at ``_committed_tables_4d.npz`` (preferred — same
+         values as the C encoder; cross-platform deterministic).
+      2. Runtime computation via tables_4d primitives (fallback when
+         committed npz is absent — uses local scipy/LAPACK and may
+         produce different basis choices than C on non-codegen
+         platforms).
+
+    Cache contents:
+      P_A1           sparse (4096,4096) orbit projector
+      coord_resid    (4, 4096) std-4D coord residual masks
+      W_ANTI_DCT     (8, 8) factored pawn antisymmetric fiber (see
+                     tables_4d.w_anti_dct_block for the algebraic
+                     derivation; equivalent to the 8x8 w-block of the
+                     dense 4096x4096 PAWN_ANTI_FIB)
+      Y_ANTI_DCT     (8, 8) Y-axis equivalent
+      DIAG_DEV       (6, 4096) per-piece mode-space diag deviations
+      FIBER_LOCAL    (5, 4096, 3) per-(piece, square) fiber coordinates
+      PIECE_ADJ      list of 5 CSR sparse adjacencies (N, B, R, Q, K)
 
     Subsequent calls return the cached dict."""
     if _CACHE:
+        return _CACHE
+
+    if _try_load_committed_4d():
         return _CACHE
 
     # 1. A_1 orbit projector (sparse)

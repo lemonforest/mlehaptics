@@ -102,56 +102,23 @@ def run_parity() -> int:
     delta = np.abs(c_enc - py_enc)
     max_abs = float(delta.max())
 
-    # Cross-platform parity model (v1.2.4):
-    #
-    #   - On Windows (the codegen-source platform), C and Python use
-    #     the same scipy/MKL output for encoder tables and per-element
-    #     parity holds at TOL = 1e-10.
-    #   - On Linux / macOS, Python's runtime tables come from a
-    #     different BLAS backend (OpenBLAS / Accelerate). For DEGENERATE
-    #     fiber subspaces, scipy.linalg.eigh picks a different
-    #     orthonormal basis. Per-element values can drift by ~O(1) on
-    #     macOS arm64 (observed). But channel ENERGIES (sum of squares
-    #     within each channel block) are basis-invariant and DO match
-    #     within float32 noise everywhere.
-    #
-    # So the strict per-element check runs only on Windows, and the
-    # cross-platform check is on per-frame channel energies.
-    PER_ELEMENT_TOL = 1e-10
-    ENERGY_TOL = 1e-2  # generous float32 + cross-BLAS slack
-    on_codegen_platform = sys.platform == "win32"
+    # Tolerance rationale: float32 frames store encodings with ~6e-8
+    # ULP at O(1). Both encoders load identical tables from committed
+    # source (C from cs_tables_data.c, Python from
+    # _committed_tables.npz), so the only remaining drift is float-
+    # summation order between Python's numpy loops and C's serial
+    # loops. 1e-10 stays comfortably under any plausible accumulation
+    # noise.
+    TOL = 1e-10
 
-    if on_codegen_platform and max_abs > PER_ELEMENT_TOL:
-        print(f"FAIL per-element: max |C - Py| = {max_abs:.6g} "
-              f"(tol={PER_ELEMENT_TOL:.0e}) on codegen-source platform",
-              file=sys.stderr)
+    if max_abs > TOL:
+        print(f"FAIL numerical: max |C - Py| = {max_abs:.6g} "
+              f"(tol={TOL:.0e})", file=sys.stderr)
         for name, start in CHANNELS:
             ch_delta = delta[:, start:start + BOARD_DIM].max()
-            if ch_delta > PER_ELEMENT_TOL:
+            if ch_delta > TOL:
                 print(f"  channel {name}: max delta {ch_delta:.6g}",
                       file=sys.stderr)
-        return 1
-
-    # Energy parity (cross-platform). Channel energies are basis-
-    # invariant under orthonormal change of basis, so they must agree
-    # whether or not C and Python picked the same basis.
-    energy_max = 0.0
-    energy_worst = ("", 0.0)
-    for name, start in CHANNELS:
-        c_E = (c_enc[:, start:start + BOARD_DIM].astype(np.float64) ** 2
-               ).sum(axis=1)
-        py_E = (py_enc[:, start:start + BOARD_DIM].astype(np.float64) ** 2
-                ).sum(axis=1)
-        ch_E_diff = float(np.abs(c_E - py_E).max())
-        if ch_E_diff > energy_max:
-            energy_max = ch_E_diff
-            energy_worst = (name, ch_E_diff)
-    if energy_max > ENERGY_TOL:
-        print(f"FAIL channel-energy: worst diff = {energy_worst[1]:.3e} "
-              f"in channel {energy_worst[0]} (tol={ENERGY_TOL:.0e}). "
-              f"Energies are basis-invariant — this indicates a real "
-              f"encoder bug, not a cross-platform table-skew.",
-              file=sys.stderr)
         return 1
 
     mv_mismatch = sum(
@@ -165,20 +132,9 @@ def run_parity() -> int:
               file=sys.stderr)
         return 1
 
-    if on_codegen_platform:
-        msg = (f"OK [strict]: {len(c_frames)} frames × {c_hdr.encoding_dim} "
-               f"dims  max |delta|={max_abs:.2g} (< {PER_ELEMENT_TOL:.0e} "
-               f"per-element tol); channel-energy max diff "
-               f"{energy_max:.2g}; move metadata identical")
-    else:
-        msg = (f"OK [energy]: {len(c_frames)} frames × {c_hdr.encoding_dim} "
-               f"dims; channel-energy max diff {energy_max:.2g} "
-               f"(< {ENERGY_TOL:.0e} tol); per-element check skipped "
-               f"(non-codegen platform — Python BLAS picks different "
-               f"orthonormal basis for degenerate fiber subspaces; "
-               f"energies are basis-invariant); max raw |delta|={max_abs:.2g} "
-               f"reported for diagnostics; move metadata identical")
-    print(msg)
+    print(f"OK: {len(c_frames)} frames × {c_hdr.encoding_dim} dims  "
+          f"max |delta|={max_abs:.2g} (< {TOL:.0e} tolerance); "
+          f"move metadata identical")
     return 0
 
 
