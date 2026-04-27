@@ -165,40 +165,39 @@ def _run_c_encode_fen4(fen4: str, output: Path,
 @_REQUIRES_C
 @pytest.mark.parametrize("fen4", VALID_FIXTURES)
 def test_c_python_parity_plain(fen4, tmp_path):
-    """For each valid fixture, plain (uncompressed) .spectral4 bytes
-    written by C and Python must be byte-identical."""
+    """For each valid fixture, plain (uncompressed) .spectral4 from C
+    and Python must agree:
+      - byte-for-byte on the 256-byte header
+      - byte-for-byte on per-frame metadata (14 B/frame)
+      - numerically within 1e-4 (float32) on per-frame encoding floats
+
+    The encoding-floats relaxation accommodates the cross-platform
+    Python-runtime-tables vs committed-C-tables skew documented in
+    `_parity_helpers.py`. On the codegen-source platform (Windows MKL),
+    agreement is byte-for-byte; on Linux OpenBLAS / macOS Accelerate
+    the encoding floats can drift by a few ulp."""
+    from tests._parity_helpers import assert_spectral4d_close
     c_out  = tmp_path / "c.spectral4"
     py_out = tmp_path / "py.spectral4"
     _run_c_encode_fen4(fen4, c_out)
     _run_python_encode_fen4(fen4, py_out)
-    c_bytes  = c_out.read_bytes()
-    py_bytes = py_out.read_bytes()
-    assert len(c_bytes) == len(py_bytes), (
-        f"size mismatch: c={len(c_bytes)} py={len(py_bytes)}"
-    )
-    assert c_bytes == py_bytes, (
-        f"byte mismatch (sizes equal): first diff at "
-        f"offset {next(i for i,(a,b) in enumerate(zip(c_bytes,py_bytes)) if a!=b)}"
-    )
+    assert_spectral4d_close(c_out, py_out)
 
 
 @_REQUIRES_C
 @pytest.mark.parametrize("fen4", VALID_FIXTURES)
 def test_c_python_parity_gzipped(fen4, tmp_path):
     """For each valid fixture, the gzip-decompressed payload from C and
-    Python must be byte-identical. The gzip wrapper itself is not
-    compared (miniz vs Python gzip differ in the OS / XFL / compression-
+    Python must agree under the same parity contract as the plain
+    test (see test_c_python_parity_plain). The gzip wrapper itself is
+    not compared (miniz vs Python gzip differ in OS / XFL / compression-
     level header bytes, which is normal and outside our parity scope)."""
+    from tests._parity_helpers import assert_spectral4d_close
     c_out  = tmp_path / "c.spectralz4"
     py_out = tmp_path / "py.spectralz4"
     _run_c_encode_fen4(fen4, c_out, compress=True)
     _run_python_encode_fen4(fen4, py_out, compress=True)
-    c_decompressed  = gzip.open(c_out,  "rb").read()
-    py_decompressed = gzip.open(py_out, "rb").read()
-    assert c_decompressed == py_decompressed, (
-        f"decompressed bytes mismatch: c={len(c_decompressed)} bytes, "
-        f"py={len(py_decompressed)} bytes"
-    )
+    assert_spectral4d_close(c_out, py_out, gz=True)
 
 
 @_REQUIRES_C

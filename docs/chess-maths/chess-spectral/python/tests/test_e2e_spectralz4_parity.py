@@ -142,23 +142,23 @@ def _run_python_encode(input_path: Path, output: Path,
 @_REQUIRES_C
 @pytest.mark.parametrize("lines", NDJSON4_FIXTURES)
 def test_c_python_parity_plain(lines, tmp_path):
-    """For each NDJSON4 fixture, plain (uncompressed) .spectral4 bytes
-    written by C and Python must be byte-identical."""
+    """For each NDJSON4 fixture, plain (uncompressed) .spectral4 from
+    C and Python must agree:
+      - byte-for-byte on the 256-byte header
+      - byte-for-byte on per-frame metadata (14 B/frame)
+      - numerically within 1e-4 (float32) on per-frame encoding floats
+
+    See _parity_helpers.py for the rationale on encoding-float
+    tolerance (cross-platform Python-runtime-tables vs committed-C-
+    tables skew)."""
+    from tests._parity_helpers import assert_spectral4d_close
     src = tmp_path / "input.ndjson4"
     _write_ndjson4(lines, src)
     c_out  = tmp_path / "c.spectral4"
     py_out = tmp_path / "py.spectral4"
     _run_c_encode(src, c_out)
     _run_python_encode(src, py_out)
-    c_bytes  = c_out.read_bytes()
-    py_bytes = py_out.read_bytes()
-    assert len(c_bytes) == len(py_bytes), (
-        f"size mismatch: c={len(c_bytes)} py={len(py_bytes)}"
-    )
-    assert c_bytes == py_bytes, (
-        f"first diff at offset "
-        f"{next(i for i,(a,b) in enumerate(zip(c_bytes,py_bytes)) if a!=b)}"
-    )
+    assert_spectral4d_close(c_out, py_out)
 
 
 # ─── gzipped (.spectralz4) parity ─────────────────────────────────────
@@ -168,21 +168,18 @@ def test_c_python_parity_plain(lines, tmp_path):
 @pytest.mark.parametrize("lines", NDJSON4_FIXTURES)
 def test_c_python_parity_gzipped(lines, tmp_path):
     """For each NDJSON4 fixture, the gzip-decompressed payload from C
-    and Python must be byte-identical. The gzip wrapper bytes are not
-    compared (miniz vs Python gzip differ in OS / XFL / level fields,
+    and Python must agree under the same parity contract as the plain
+    test (see test_c_python_parity_plain). The gzip wrapper bytes are
+    not compared (miniz vs Python gzip differ in OS / XFL / level fields,
     which is normal and outside the parity contract)."""
+    from tests._parity_helpers import assert_spectral4d_close
     src = tmp_path / "input.ndjson4"
     _write_ndjson4(lines, src)
     c_out  = tmp_path / "c.spectralz4"
     py_out = tmp_path / "py.spectralz4"
     _run_c_encode(src, c_out, compress=True)
     _run_python_encode(src, py_out, compress=True)
-    c_decompressed  = gzip.open(c_out,  "rb").read()
-    py_decompressed = gzip.open(py_out, "rb").read()
-    assert c_decompressed == py_decompressed, (
-        f"decompressed bytes mismatch: c={len(c_decompressed)} bytes, "
-        f"py={len(py_decompressed)} bytes"
-    )
+    assert_spectral4d_close(c_out, py_out, gz=True)
 
 
 # ─── csv determinism ─────────────────────────────────────────────────
