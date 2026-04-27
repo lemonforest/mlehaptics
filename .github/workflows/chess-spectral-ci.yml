@@ -15,6 +15,14 @@ on:
       - ".github/workflows/chess-spectral-ci.yml"
   workflow_dispatch: {}
 
+# Default token permissions: read-only on the repo contents. Neither
+# job here writes to the repo (no commits, no releases, no comments) —
+# all artifacts are uploaded via actions/upload-artifact, which doesn't
+# need write permissions on `contents`. Explicit declaration satisfies
+# GHAS / CodeQL "Workflow does not contain permissions" alert.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: ${{ matrix.os }} • py${{ matrix.python }} • ${{ matrix.preset }}

@@ -31,6 +31,14 @@ on:
       - "chess-spectral-v*"
   workflow_dispatch: {}
 
+# Default token permissions: read-only. The build-wheels and build-sdist
+# jobs only need to read the repo and upload artifacts (which doesn't
+# require write permissions on `contents`). The `publish` job overrides
+# this to add `id-token: write` for PyPI trusted publishing — see its
+# job-level `permissions:` block below.
+permissions:
+  contents: read
+
 jobs:
   build-wheels:
     name: wheel • ${{ matrix.os }} • py${{ matrix.python }}

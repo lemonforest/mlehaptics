@@ -11,6 +11,17 @@ else()
     add_compile_options(-Wall -Wextra -O2)
 endif()
 
+# libm: GNU/Linux requires explicit -lm to link sqrt/fabs/etc. MSVC links
+# the math runtime implicitly; macOS Clang resolves libm via libSystem
+# (linking -lm there is a harmless no-op). We expose a single
+# CS_MATH_LIB variable and link it from each executable that uses
+# <math.h>.
+if(UNIX)
+    set(CS_MATH_LIB m)
+else()
+    set(CS_MATH_LIB "")
+endif()
+
 # Vendored miniz (public domain, RFC 1950/1951). Only the low-level
 # deflate/inflate streaming APIs are needed — ZIP archive support
 # (miniz_zip.c) is intentionally excluded.
@@ -42,7 +53,7 @@ add_executable(spectral
     src/cs_gzip.c
     src/cs_temporal.c
 )
-target_link_libraries(spectral PRIVATE cs_core miniz)
+target_link_libraries(spectral PRIVATE cs_core miniz ${CS_MATH_LIB})
 
 # Bake the absolute path of the PGN bridge into the binary so `spectral`
 # can auto-invoke it without the user wiring up PATH / env vars. Can be
@@ -62,7 +73,7 @@ add_executable(cs_test
     src/cs_frame.c
     src/cs_gzip.c
 )
-target_link_libraries(cs_test PRIVATE cs_core miniz)
+target_link_libraries(cs_test PRIVATE cs_core miniz ${CS_MATH_LIB})
 target_include_directories(cs_test PRIVATE test)
 
 enable_testing()
@@ -99,7 +110,7 @@ add_executable(spectral_4d
     src/main_4d.c
     src/cs_gzip.c
 )
-target_link_libraries(spectral_4d PRIVATE cs_core_4d miniz)
+target_link_libraries(spectral_4d PRIVATE cs_core_4d miniz ${CS_MATH_LIB})
 
 add_custom_target(codegen_4d
     COMMAND ${CMAKE_COMMAND} -E echo "Running 4D codegen scripts..."

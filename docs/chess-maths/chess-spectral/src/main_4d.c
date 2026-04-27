@@ -96,16 +96,9 @@ static int cmd_version(void)
     return 0;
 }
 
-static int cmd_todo(const char *name)
-{
-    /* Retained for future stubs; no commands route here at v1.2.4 (all
-     * advertised commands are wired). See ROADMAP.md for status. */
-    fprintf(stderr,
-        "spectral_4d %s: not yet implemented.\n"
-        "  See ROADMAP.md for status of this command.\n",
-        name);
-    return 4;
-}
+/* (cmd_todo was deleted in v1.2.4 — all advertised commands are now
+ * wired. If a new stub is needed in the future, restore this helper
+ * from git history; the 2D src/main.c retains the same pattern.) */
 
 /* ─── encode-fixture (parity-test surface) ─────────────────────────────── */
 
