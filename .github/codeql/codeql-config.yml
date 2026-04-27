@@ -1,0 +1,39 @@
+name: "chess-spectral CodeQL config"
+
+# Scope CodeQL to the code we actually ship + the source it was built
+# from. The docs/chess-maths/ root holds research / analysis scripts
+# that aren't part of any released package — including some that use
+# Python features (e.g. unicode-heavy docstrings, module-scope research
+# narratives) that trigger parser quirks in CodeQL's Python extractor
+# even though CPython 3.9–3.14 parse them cleanly.
+#
+# Trigger that motivated this config: post-merge CodeQL run on PR #62
+# reported a parse-error status on docs/chess-maths/chess_d4_direct.py
+# even though `python -m py_compile` succeeds at every Python version
+# we test against. The file is a one-shot research script, not part
+# of `chess-spectral` or `chess-spectral-4d` shipping code.
+#
+# We keep CodeQL's c-cpp scope wide (the chess-spectral C encoder is
+# the actual security surface that gets compiled into wheels), and
+# limit Python scope to the two packages we publish to PyPI plus the
+# antikythera-maths research package (which has its own CI).
+
+paths:
+  # chess-spectral Python packages (the wheel content)
+  - "docs/chess-maths/chess-spectral/python/chess_spectral/**"
+  - "docs/chess-maths/chess-spectral/python/chess_spectral_4d/**"
+  # chess-spectral C source (compiled into the wheel)
+  - "docs/chess-maths/chess-spectral/src/**"
+  - "docs/chess-maths/chess-spectral/include/**"
+  # antikythera-maths package (separately published)
+  - "docs/antikythera-maths/python/**"
+
+paths-ignore:
+  # Vendored third-party code (miniz)
+  - "docs/chess-maths/chess-spectral/vendor/**"
+  # Build artifacts (shouldn't be in git but defensive)
+  - "**/build/**"
+  - "**/__pycache__/**"
+  # Test fixtures and generated data
+  - "**/tests/fixtures/**"
+  - "**/_committed_tables*.npz"
