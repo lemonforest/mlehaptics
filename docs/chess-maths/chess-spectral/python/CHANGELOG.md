@@ -5,6 +5,48 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] — 2026-04-27
+
+Re-attempt of the v1.2.4 release. The 1.2.4 tag's publish workflow
+hung indefinitely on GitHub Actions' macos-13 (Intel) runner queue
+and never reached the PyPI upload step. No 1.2.4 wheels exist on
+PyPI. v1.2.5 is the same package contents as v1.2.4 with a working
+publish pipeline.
+
+### Fixed
+
+- **Publish workflow drops macos-13 from the wheel matrix.** Apple's
+  Intel Mac line is in deprecation; GitHub Actions macos-13 runner
+  capacity is severely constrained — runs queue 1+ hour without ever
+  starting. Matrix shrinks 4 OS × 4 Python = 16 cells to 3 OS × 4
+  Python = 12 cells (`ubuntu-latest`, `macos-14`, `windows-latest`).
+  The chess-spectral source still works on Intel Macs; users on that
+  platform get the sdist (compiles in ~20 s with cmake + a C
+  compiler) instead of a pre-built wheel.
+
+- **CodeQL Default Setup → Advanced Setup.** Default Setup was
+  triggering a parse-error status on
+  `docs/chess-maths/chess_d4_direct.py` — a research script that's
+  not part of any released package. The file parses cleanly under
+  CPython 3.9–3.14 (`py_compile` + `ast.parse` succeed at every
+  feature_version); CodeQL's specific Python extractor has a quirk
+  with it. Default Setup also ran `c-cpp` analysis with
+  `build-mode: none` (buildless extraction → less accurate results)
+  because our `CMakeLists.txt` isn't at the repo root. New
+  `.github/workflows/codeql.yml` runs CodeQL with `build-mode:
+  manual` for c-cpp (full cmake build before extract → tracing
+  extraction → full type/include coverage) and honors
+  `.github/codeql/codeql-config.yml`, which scopes Python analysis
+  to the actual shipped packages (`chess_spectral/**`,
+  `chess_spectral_4d/**`) plus the antikythera-maths package.
+  Research scripts under `docs/chess-maths/` are out of scope.
+
+### No source changes from 1.2.4
+
+The chess-spectral source tree (encoder math, CLI commands, table
+data, immolation suite) is byte-identical to 1.2.4. Only CI/release
+infrastructure changed.
+
 ## [1.2.4] — 2026-04-25
 
 Wires every advertised CLI command and ships the native binaries inside
