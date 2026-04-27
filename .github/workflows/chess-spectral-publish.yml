@@ -68,6 +68,10 @@ jobs:
           # and we don't ship 32-bit. musllinux: skipped for parity with
           # CI verify-wheels.
           CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
+          # See chess-spectral-ci.yml for the manylinux_2_28 rationale
+          # (scipy 1.17+ dropped manylinux2014 wheel support).
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
           # Per-wheel test: import the package and run the FEN4 + e2e
           # parity tests. Skip aarch64/arm64 wheel testing where the
           # build runner can't execute the wheel natively.

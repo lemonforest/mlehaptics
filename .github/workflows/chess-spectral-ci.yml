@@ -123,6 +123,14 @@ jobs:
           #              version, and we don't ship 32-bit Windows
           # - linux i686: same scipy story; AMD64 is enough
           CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
+          # Use manylinux_2_28 (RHEL 8 / glibc 2.28) instead of the
+          # default manylinux2014. Required for scipy 1.17+, which
+          # dropped manylinux2014 wheel support and ships only
+          # manylinux_2_28 — without this bump, pip falls back to
+          # building scipy from source inside the older container
+          # and fails (no LAPACK / BLAS dev headers in manylinux2014).
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
           # Run the same per-wheel parity tests the publish workflow runs,
           # so the verify-wheels guardrail also catches integration bugs
           # in the wheel-bundled native binary path (cli.py:_find_c_binary
