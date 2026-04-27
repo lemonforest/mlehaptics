@@ -194,10 +194,16 @@ def test_encoder_starting_position_channel_energies():
         E_direct = channel_energies(py_enc)
 
         for name in ("A1", "A2", "B1", "B2", "E", "F1", "F2", "F3", "FA", "FD"):
-            assert abs(E_direct[name] - E_from_c[name]) < 1e-4, (
+            # Channel energies are sums of squared float32 values
+            # (~O(1e3) typical magnitude × 64 dims). Float32 ULP at
+            # O(1e3) is ~6e-5; the energy sum can drift by ~6e-5 × 64
+            # ≈ 4e-3 between Python's vectorized reduction and C's
+            # serial loop. Pick 1e-2 as the tolerance ceiling (still
+            # 5 orders below typical channel energies).
+            assert abs(E_direct[name] - E_from_c[name]) < 1e-2, (
                 f"{name}: Python direct={E_direct[name]} vs Python from "
                 f"C-encoded={E_from_c[name]} — committed tables should "
-                f"give parity within float32 noise"
+                f"give parity within float-summation drift"
             )
 
         # Structural invariants on the starting position.
