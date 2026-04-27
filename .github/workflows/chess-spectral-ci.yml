@@ -117,7 +117,12 @@ jobs:
           # cp312 only — we're sanity-checking the wheel-build pipeline,
           # not the full Python-version matrix.
           CIBW_BUILD: "cp312-*"
-          CIBW_SKIP: "*-musllinux_*"
+          # Skip:
+          # - musllinux: no demand, scipy wheels limited
+          # - win32:     no scipy Windows i686 wheels at any recent
+          #              version, and we don't ship 32-bit Windows
+          # - linux i686: same scipy story; AMD64 is enough
+          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
           # Run the same per-wheel parity tests the publish workflow runs,
           # so the verify-wheels guardrail also catches integration bugs
           # in the wheel-bundled native binary path (cli.py:_find_c_binary

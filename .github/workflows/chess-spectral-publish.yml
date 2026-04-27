@@ -64,7 +64,10 @@ jobs:
           # cp/abi/platform combinatorics. CPython only — PyPy is out
           # of scope for the C-binary-bundling story.
           CIBW_BUILD: "cp${{ matrix.python }}-*"
-          CIBW_SKIP: "*-musllinux_*"
+          # Skip 32-bit Windows / Linux: scipy doesn't ship i686 wheels,
+          # and we don't ship 32-bit. musllinux: skipped for parity with
+          # CI verify-wheels.
+          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
           # Per-wheel test: import the package and run the FEN4 + e2e
           # parity tests. Skip aarch64/arm64 wheel testing where the
           # build runner can't execute the wheel natively.
