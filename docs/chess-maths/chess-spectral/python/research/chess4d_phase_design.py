@@ -331,48 +331,59 @@ def report(record: dict) -> None:
           f"{d['cross_category_unique']}")
 
 
-def construct_mixed_radix_tower(seed_w: int = 3) -> dict:
-    """Directly construct a valid (M, g_x, g_y, g_z, g_w) tuple via the
-    mixed-radix tower discipline (the 4D analogue of 2D's (67, 7) on
-    Z_640 — see PHASE_OPERATOR_SUPPLEMENT.md §11.2).
+def construct_mixed_radix_tower(
+    seed_w: int = 3, ladder_coeff: int = 14,
+) -> dict:
+    """Directly construct a valid (M, g_x, g_y, g_z, g_w) tuple via
+    the mixed-radix tower discipline (the 4D analogue of 2D's
+    (67, 7) on Z_640 — see PHASE_OPERATOR_SUPPLEMENT.md §11.2).
 
-    Tower bounds (sufficient for C2 by integer linear independence
-    of distinct primes):
+    Two ladder coefficients matter:
+
+      * ``ladder_coeff=7``: original Phase A bound. Each generator
+        > 7 * (sum of smaller). Sufficient for C2 image bijection on
+        [0, 7]^4 (no nonzero Δ ∈ [-7, 7]^4 has Σ Δ·g = 0). **NOT
+        SUFFICIENT** for Phase B operator-aliasing-freedom — the
+        structural gate caught a 191 = 10·g_w + 7·g_z dependency at
+        the original (1523, 191, 23, 3) tuple, with Δ_w = -10 ∈
+        [-14, 14] but ∉ [-7, 7].
+      * ``ladder_coeff=14``: Phase B refinement. Each generator >
+        14 * (sum of smaller). Guarantees no [-14, 14]^4 integer
+        dependency (the box that captures cross-piece operator-shift
+        differences). Brute-forced verified by
+        ``has_dep_in_box(g, 14)``.
+
+    Default is ``ladder_coeff=14`` (the production design). Pass
+    ``ladder_coeff=7`` to reproduce the original Phase A construction
+    that the test gate forced us to refine.
+
+    Tower bounds:
 
         g_w = seed_w prime
-        g_z >= 7*g_w + 1, smallest admissible prime
-        g_y >= 7*(g_w + g_z) + 1, smallest admissible prime
-        g_x >= 7*(g_w + g_z + g_y) + 1, smallest admissible prime
-        M   >= 7*sum + 1, smallest M coprime to all four primes
-
-    Below the 7*sum+1 threshold for M, C2 may still hold by mod
-    arithmetic but no longer follows from the integer argument; we
-    pick the cleanest provable choice rather than the absolute
-    smallest. The 2D analogue M = 640 satisfies 7 * (67 + 7) = 518 <
-    640.
-
-    This construction is the recommended way to design φ_4d. The
-    brute-force ``search_4d_design`` is kept as a verification
-    fallback, but for any reasonable prime_limit it will return the
-    same tuple this constructor produces.
+        g_z >= ladder_coeff*g_w + 1, smallest admissible prime
+        g_y >= ladder_coeff*(g_w + g_z) + 1
+        g_x >= ladder_coeff*(g_w + g_z + g_y) + 1
+        M   >= 7*sum + 7*(g_x + g_y) + 1, smallest prime coprime to
+              all four primes (the 7*sum+max_bishop_shift+1 lower
+              bound prevents wraparound for any operator shift)
     """
     g_w = seed_w
     if not _is_prime_simple(g_w):
         raise ValueError(f"seed_w={seed_w} must be prime")
 
-    g_z = _next_prime_above(7 * g_w + 1)
-    g_y = _next_prime_above(7 * (g_w + g_z) + 1)
-    g_x = _next_prime_above(7 * (g_w + g_z + g_y) + 1)
+    g_z = _next_prime_above(ladder_coeff * g_w + 1)
+    g_y = _next_prime_above(ladder_coeff * (g_w + g_z) + 1)
+    g_x = _next_prime_above(ladder_coeff * (g_w + g_z + g_y) + 1)
     s = g_w + g_z + g_y + g_x
 
-    # Smallest M >= 7*sum+1 that is coprime to all four primes. We
-    # prefer M itself prime where possible — it gives a clean
-    # algebraic structure (Z_M is a field), and any large M coprime
-    # to four small primes will be prime more often than not by the
-    # prime-counting density.
-    M = 7 * s + 1
+    # Smallest M > 7*sum + max_bishop_shift that is prime + coprime.
+    # max_bishop_shift = 7*(g_x + g_y); M ensures no wraparound for
+    # any single-operator shift.
+    max_bishop_shift = 7 * (g_x + g_y)
+    M = 7 * s + max_bishop_shift + 1
     while True:
-        if all(M % p != 0 for p in (g_w, g_z, g_y, g_x)):
+        if (_is_prime_simple(M) and
+            all(M % p != 0 for p in (g_w, g_z, g_y, g_x))):
             break
         M += 1
 
@@ -382,7 +393,33 @@ def construct_mixed_radix_tower(seed_w: int = 3) -> dict:
         "sum": s,
         "method": "mixed_radix_tower",
         "seed_w": seed_w,
+        "ladder_coeff": ladder_coeff,
     }
+
+
+def has_dep_in_box(
+    g: tuple[int, ...], box_max: int,
+) -> tuple[int, ...] | None:
+    """Brute-force check: is there a nonzero
+    (Δ_0, Δ_1, ..., Δ_{n-1}) ∈ [-box_max, +box_max]^n
+    with Σ Δ_i · g_i = 0?
+
+    Returns the smallest such Δ (by sum-of-absolute-values) if found,
+    else None. Used as the Phase B verification gate (with box_max=14).
+    """
+    n = len(g)
+    best: tuple[int, ...] | None = None
+    best_score = float("inf")
+    from itertools import product as _product
+    for delta in _product(range(-box_max, box_max + 1), repeat=n):
+        if all(d == 0 for d in delta):
+            continue
+        if sum(d * gi for d, gi in zip(delta, g)) == 0:
+            score = sum(abs(d) for d in delta)
+            if score < best_score:
+                best = delta
+                best_score = score
+    return best
 
 
 def _is_prime_simple(n: int) -> bool:

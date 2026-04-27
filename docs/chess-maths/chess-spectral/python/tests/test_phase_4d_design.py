@@ -212,6 +212,59 @@ def test_c4_knight_disjoint_from_single_step_pieces():
     )
 
 
+# ─── C5 — operator-aliasing freedom on [-14, 14]^4 ──────────────────
+#
+# Phase B refinement. C2 (image bijection on [0, 7]^4) ensures
+# origin uniqueness — no two distinct lattice coords share a phase.
+# But operator shifts (rook ±k·g_axis, bishop ±k·plane_diag, etc.)
+# emit phase shifts whose corresponding "intended" displacement may
+# go off-board. When the intended displacement IS off-board, the
+# phase op's shift can still happen to equal phi(D) - phi(O) for some
+# IN-board destination D ≠ O + intended_Δ — because their integer
+# difference (D - O) - intended_Δ is a Δ ∈ [-14, 14]^4 with
+# Σ Δ · g = 0.
+#
+# Concrete failure that motivated this constraint: Phase A's first
+# attempt at (1523, 191, 23, 3) had 191 = 10·3 + 7·23, so
+# Δ = (0, +1, -7, -10) gives Σ Δ·g = 0 with Δ_w = -10 ∈ [-14, 14].
+# A rook +7·g_w shift (intended +7 along w) from origin (0, 0, 7, 3)
+# inverted to (0, 1, 0, 0) — a non-rook destination — because
+# phi(0, 0, 7, 3) + 7·g_w = phi(0, 1, 0, 0) by exactly that identity.
+# Bumping the mixed-radix ladder coefficient from 7 to 14 made the
+# tuple (9719, 647, 43, 3) clean.
+
+
+def test_c5_no_integer_dependency_in_minus14_to_14_box():
+    """No nonzero Δ ∈ [-14, 14]^4 satisfies Σ Δ_i · g_i = 0 in
+    integers. This is the operator-aliasing freedom condition: piece
+    operators emit shifts in [-7, 7] per component, so differences
+    between two operator shifts span [-14, 14]^4.
+
+    Brute-force enumeration over 29^4 = 707281 candidates. Slow but
+    once — runs in ~3 seconds on the dev machine. If this assertion
+    fails, the design must be re-derived with a wider mixed-radix
+    ladder coefficient (Phase B used 14; Phase A's original 7 was
+    insufficient).
+    """
+    from itertools import product
+    g = (GX, GY, GZ, GW)
+    box_max = 14
+    found: list[tuple[int, int, int, int]] = []
+    for delta in product(range(-box_max, box_max + 1), repeat=4):
+        if all(d == 0 for d in delta):
+            continue
+        if sum(d * gi for d, gi in zip(delta, g)) == 0:
+            found.append(delta)
+            if len(found) >= 3:
+                break
+    assert not found, (
+        f"integer dependency in [-14, 14]^4: {found}. "
+        f"This will cause cross-piece destination aliasing in "
+        f"Phase B. Re-derive with construct_mixed_radix_tower("
+        f"ladder_coeff=14) (or higher)."
+    )
+
+
 # ─── O&C mobility sanity checks ─────────────────────────────────────
 
 

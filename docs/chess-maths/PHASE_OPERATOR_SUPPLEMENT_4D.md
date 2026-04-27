@@ -42,42 +42,53 @@ C4 keeps each per-piece operator's destination set unambiguous and ensures the k
 ### §13.1.3 The chosen tuple
 
 ```
-(M, g_x, g_y, g_z, g_w) = (12181, 1523, 191, 23, 3)
+(M, g_x, g_y, g_z, g_w) = (145451, 9719, 647, 43, 3)
 ```
 
-Constructed via the **mixed-radix tower discipline** in [`research/chess4d_phase_design.py`](chess-spectral/python/research/chess4d_phase_design.py):
+Constructed via the **mixed-radix tower with ladder coefficient 14** in [`research/chess4d_phase_design.py`](chess-spectral/python/research/chess4d_phase_design.py):
 
 ```
-g_w = 3                          # smallest admissible prime
-g_z = next_prime(7·g_w + 1)      = next_prime(22) = 23
-g_y = next_prime(7·(g_w+g_z)+1)  = next_prime(183) = 191
-g_x = next_prime(7·sum_lower+1)  = next_prime(1520) = 1523
-sum = 1740
-M   = next coprime above 7·sum+1 = next coprime above 12181 = 12181
-      (12181 = 13·937; coprime to 3, 23, 191, 1523)
+g_w = 3                              # smallest admissible prime
+g_z = next_prime(14·g_w + 1)         = next_prime(43)   = 43
+g_y = next_prime(14·(g_w + g_z) + 1) = next_prime(645)  = 647
+g_x = next_prime(14·sum_lower + 1)   = next_prime(9703) = 9719
+sum = 10412
+M   = next prime > 7·sum + 7·(g_x + g_y) coprime to all = 145451
 ```
 
-The construction is the 4D analogue of the 2D pattern `(M, p, q) = (640, 67, 7)` with `7·8 + 7 = 63 < 67 < 640`, which mirrors the (recursive) tower bound here. By integer linear independence of distinct primes, no nonzero `Δ ∈ [-7,7]^4` satisfies `Σ Δ_i · g_i = 0`; combined with `|Σ Δ_i · g_i| ≤ 7·sum = 12180 < M`, modular reduction is a no-op and C2 is automatic.
+The construction is the 4D analogue of the 2D pattern `(M, p, q) = (640, 67, 7)` with `8·7 = 56 < 67`. Each generator dominates `14·` (sum-of-smaller), and by integer linear independence of distinct primes, no nonzero `Δ ∈ [-14,14]^4` satisfies `Σ Δ_i · g_i = 0`. Combined with `|Σ Δ_i · g_i| ≤ 14·sum = 145768`, the choice `M = 145451 ≥ 7·sum + 7·(g_x + g_y) + 1 = 145451` ensures no operator-shift wraparound for any single-piece phase shift.
 
-**Brute-force fallback search.** The repo's [`research/chess4d_phase_design.py`](chess-spectral/python/research/chess4d_phase_design.py) also retains a numpy-vectorized brute-force search over M ∈ [4097, 16384] with `prime_limit=200`. That search finds nothing — *not because no design exists*, but because every valid 4-tuple has at least one prime > 200 (the tower's `g_x = 1523` exceeds the search ceiling). The search is kept as a verification tool: extending `prime_limit` to 2000 and running it would re-discover the tower's tuple. The directed mixed-radix construction is the canonical answer.
+### §13.1.4 The Phase B refinement (why ladder_coeff = 14, not 7)
 
-**Per-constraint verification** (output of `python research/chess4d_phase_design.py`):
+The original Phase A construction used **ladder_coeff = 7** — the bound for `[-7, 7]^4` origin-bijection. That tuple `(M=12181, g_x=1523, g_y=191, g_z=23, g_w=3)` passed all four Phase A constraints (C1–C4) but failed Phase B's structural gate (4096 origins × 9 piece configs against `tables_4d.X_targets`) at every single piece config.
 
-| Constraint                    | Result                              |
-|-------------------------------|-------------------------------------|
-| C1 (coprime g_i to M)         | ✓ all four                          |
-| C2 (image bijection)          | ✓ 4096 distinct phases mod 12181    |
-| C3 (image not a subgroup)     | ✓ random-pair-sum escape detected   |
-| C4 axis shifts (8 distinct)   | ✓                                   |
-| C4 plane-diag shifts (24)     | ✓                                   |
-| C4 knight shifts (48)         | ✓                                   |
-| C4 king shifts (80)           | ✓                                   |
-| C4 knight ∩ {axis ∪ pd ∪ king}| ∅ (knight uses ±2; others ±1)       |
-| Total derived shifts          | 160 (axis ⊂ king and pd ⊂ king by  |
-|                               | construction; 80 + 48 distinct = 128|
-|                               | plus knight-to-king disjointness)   |
+**Root cause.** Operator shifts have components in `[-7, 7]` per axis; the difference between two operator shifts spans `[-14, 14]^4`. An integer linear dependency `Σ Δ·g = 0` with `Δ ∈ [-14, 14]^4 \ {0}` manifests as cross-piece destination aliasing. The original tuple had `g_y = 10·g_w + 7·g_z` (literally `191 = 30 + 161`), giving `Δ = (0, +1, -7, -10)` with `Σ Δ·g = 0` and `Δ_w = -10 ∈ [-14, 14]` (but `∉ [-7, 7]`).
 
-Constants pinned in [`chess_spectral/phase_operators_4d/phase_operators_4d.py`](chess-spectral/python/chess_spectral/phase_operators_4d/phase_operators_4d.py) as `MODULUS_4D = 12181`, `GEN_X = 1523`, `GEN_Y = 191`, `GEN_Z = 23`, `GEN_W = 3`. Validated by [`tests/test_phase_4d_design.py`](chess-spectral/python/tests/test_phase_4d_design.py) — 14 tests, all pass.
+**Concrete failure.** A rook `+7·g_w` shift (intended `+7` along the w-axis) from origin `(0, 0, 7, 3)` inverted to `(0, 1, 0, 0)` — a non-rook destination — because `phi(0, 0, 7, 3) + 7·g_w = phi(0, 1, 0, 0)` exactly by the dependency above. The rook operator was claiming bishop-plane-diagonal squares as legal destinations.
+
+**The fix.** Widen the ladder coefficient from 7 to 14 in `construct_mixed_radix_tower()`, then verify by brute-force enumeration over `(2·14+1)⁴ = 707281` candidates that no nonzero `Δ ∈ [-14, 14]^4` has `Σ Δ·g = 0`. The new tuple `(M=145451, g_x=9719, g_y=647, g_z=43, g_w=3)` is dep-free in `[-14, 14]^4` (and trivially in `[-7, 7]^4`).
+
+**The lesson.** C1–C4 (Phase A) ensure origin uniqueness. Phase B's structural gate adds a fifth constraint — call it **C5: operator-aliasing freedom** — that requires `[-14, 14]^4` dep-freedom. C5 is now codified in `test_phase_4d_design.test_c5_no_integer_dependency_in_minus14_to_14_box` so any future re-derivation that violates it fails loudly.
+
+The 2D supplement's `(67, 7) on Z_640` design satisfies `8·7 = 56 < 67`, which is the same structural bound at a smaller scale — operator shifts in 2D are 2-axis, not 4-axis, so the `[-N, N]^2` box is naturally narrower. Both designs are the same construction; the 4D version needs the wider ladder to handle 4-axis cross-mixing.
+
+### §13.1.5 Per-constraint verification (post-refinement)
+
+Output of `python research/chess4d_phase_design.py`:
+
+| Constraint                                | Result                                  |
+|-------------------------------------------|-----------------------------------------|
+| C1 (coprime g_i to M)                     | ✓ all four                              |
+| C2 (image bijection)                      | ✓ 4096 distinct phases mod 145451       |
+| C3 (image not a subgroup)                 | ✓ random-pair-sum escape detected       |
+| C4 axis shifts (8 distinct)               | ✓                                       |
+| C4 plane-diag shifts (24)                 | ✓                                       |
+| C4 knight shifts (48)                     | ✓                                       |
+| C4 king shifts (80)                       | ✓                                       |
+| C4 knight ∩ {axis ∪ pd ∪ king}            | ∅ (knight uses ±2; others ±1)           |
+| **C5 ([-14, 14]^4 integer-dep-freedom)**  | **✓ brute-forced 707k candidates**      |
+
+Constants pinned in [`chess_spectral/phase_operators_4d/phase_operators_4d.py`](chess-spectral/python/chess_spectral/phase_operators_4d/phase_operators_4d.py) as `MODULUS_4D = 145451`, `GEN_X = 9719`, `GEN_Y = 647`, `GEN_Z = 43`, `GEN_W = 3`. Validated by [`tests/test_phase_4d_design.py`](chess-spectral/python/tests/test_phase_4d_design.py) (15 tests including C5) and [`tests/test_phase_4d_unobstructed.py`](chess-spectral/python/tests/test_phase_4d_unobstructed.py) (20 tests including the 4096-origin × 9-piece-config structural gate).
 
 ### §13.1.4 What this hypothesis would establish if confirmed
 
@@ -91,27 +102,44 @@ If P_p (Phase B) reproduces `tables_4d.X_targets` set-equal at every origin (Pha
 
 ## §13.2. Phase Operator Specifications
 
-> Will be populated by Phase B. Expected structure mirrors 2D §11.2:
+Implemented in [`chess_spectral.phase_operators_4d.phase_operators_4d`](chess-spectral/python/chess_spectral/phase_operators_4d/phase_operators_4d.py). All operators return `frozenset[int]` of phase residues mod `MODULUS_4D = 145451`. Boundary clipping is handled by [`phase_to_coords_4d.phase_set_to_board`](chess-spectral/python/chess_spectral/phase_operators_4d/phase_to_coords_4d.py) which inverts via the precomputed `PHI_TO_XYZW` lookup.
 
-- §13.2.1 Coordinate conventions (φ_4d as defined in §13.1).
-- §13.2.2 P_rook4 — 8 axis generators, k ∈ ±{1..7}, 28 destinations interior.
-- §13.2.3 P_bishop4 — 24 plane-diagonal generators, 6 plane choices × 4 sign combos × 7 distances; 2 connected components by parity (matches `tables_4d.bishop4_targets` connectivity).
-- §13.2.4 P_queen4 = P_rook4 ∪ P_bishop4.
-- §13.2.5 P_king4 — 80 shifts (3⁴ - 1 ternary sign vectors).
-- §13.2.6 P_knight4 — 48 shifts (12 ordered axis pairs × 4 sign combos).
-- §13.2.7 P_pawn4_white/black, parameterized by axis ∈ {'w', 'y'} per O&C Definition 11.
-- §13.2.8 What's included and what's not.
+| Operator | Shift count | Construction |
+|---|---|---|
+| `P_rook4(φ)` | up to 56 (interior 28) | `±k·g_axis` for k=1..7 on each of 4 axes |
+| `P_bishop4(φ)` | up to 168 | `±k·(±g_i ± g_j)` for k=1..7 over 6 plane pairs × 4 sign combos |
+| `P_queen4(φ)` | up to 224 | `P_rook4 ∪ P_bishop4` (disjoint by construction) |
+| `P_king4(φ)` | 80 (interior) | `Σ ε_i · g_i` for `ε ∈ {-1,0,+1}^4 \ {0}` |
+| `P_knight4(φ)` | 48 (interior) | `±2·g_i ± g_j` for 12 ordered axis pairs × 4 sign combos |
+| `P_pawn4_white(φ, axis, on_starting_rank, include_captures)` | 1 or 2 | `+g_axis` (single) or `+g_axis + 2·g_axis` (double from start rank); `axis ∈ {'w', 'y'}` per O&C Def 11 |
+| `P_pawn4_black(φ, ...)` | 1 or 2 | mirror with `−g_axis` |
+
+What's included and what's not:
+
+- **Included:** unobstructed reach for each piece from any origin. The mathematics is pure phase arithmetic mod `MODULUS_4D`.
+- **Not included:** occupation-aware ray truncation (Phase C), check / checkmate (Phase D), pawn diagonal captures (Phase E — `include_captures=True` raises `NotImplementedError` so the failure is loud, not silent).
 
 ---
 
-## §13.3. Experiment 1: Equivalence on Empty Board (Phase B gate)
+## §13.3. Experiment 1: Equivalence on Empty Board (Phase B structural gate)
 
-> Will be populated by Phase B. Expected:
->
-> For each piece p ∈ {R, B, Q, K, N, P_w_white, P_w_black, P_y_white, P_y_black} and every origin (x,y,z,w) ∈ [0,7]^4, the φ_4d-derived destination set equals `tables_4d.X_targets(x,y,z,w)`.
->
-> 4096 origins × 9 piece configs = 36 864 cell tests. Pass count:
-> X / 36 864.
+For each piece p ∈ {R, B, Q, N, K, P_w_white, P_w_black, P_y_white, P_y_black} and every origin (x, y, z, w) ∈ [0, 7]⁴ (4096 squares), the φ_4d-derived destination set equals `tables_4d.X_targets(x, y, z, w)`. Total cell tests: **4096 × 9 = 36,864 set-equality assertions, all pass**.
+
+The test is parametrized in [`tests/test_phase_4d_unobstructed.py`](chess-spectral/python/tests/test_phase_4d_unobstructed.py)::`test_phase_op_matches_spatial_oracle_on_all_4096_origins[piece]`, with one parametrization per piece. On failure, the test reports the first three mismatched `(origin, missing_in_phase, extra_in_phase)` triples — actionable.
+
+**The §13.3 gate is the structural pass/fail gate for the whole construction.** It confirmed (after the refinement story above) that the 4D O&C piece geometry is fully captured by the φ_4d coprime cyclic phase structure. The supporting derivation tests:
+
+| Test | Status | What it confirms |
+|---|---|---|
+| `test_rook_interior_mobility_is_28` | ✓ | O&C section 3 rook degree |
+| `test_king_interior_mobility_is_80` | ✓ | O&C section 3 king degree (3⁴ - 1) |
+| `test_knight_interior_mobility_is_48` | ✓ | O&C section 3 knight degree |
+| `test_bishop_two_components_via_parity` | ✓ | O&C section 3 bishop parity partition (matches `tables_4d.bishop4_targets`) |
+| `test_queen_equals_rook_union_bishop` | ✓ | A_queen = A_rook + A_bishop (disjoint edge support) |
+| `test_w_pawn_white_double_push_from_starting_rank` | ✓ | (3,3,3,1) → {(3,3,3,2), (3,3,3,3)} on +w axis |
+| `test_y_pawn_white_double_push_from_starting_rank` | ✓ | (3,1,3,3) → {(3,2,3,3), (3,3,3,3)} on +y axis |
+| `test_pawn_capture_geometry_is_phase_e_punt` | ✓ | `include_captures=True` raises `NotImplementedError` (loud failure for the unimplemented surface) |
+| `test_pawn_axis_z_is_rejected` | ✓ | `axis='z'` raises `ValueError` per O&C Def 11 |
 
 ---
 
