@@ -1253,11 +1253,96 @@ The specification is **selectively consistent with G-H8's setting-mode reading**
 
 The hypothesis space has narrowed.  G-H8's specific prediction — synchronised-input differentials in the missing planetary plate — is now the leading candidate for what the missing bronze actually does.  Falsification path §11.6.15.6 should be tightened: look for **paired planetary chains computing the same quantity** in any extension of [research/gear_database.py](research/gear_database.py)'s `MESH_EDGES`.  Two chains that converge on a single differential output reading "drift between them" is the signature.
 
+### 11.6.16 Seasonal observability — the *why* of field-programmability
+
+The architectural-mode hypotheses §11.6.10–§11.6.15 (crank-as-clutch, reverse-cranking, selective lock, carrier gears, setting-mode gears) all share a load-bearing assumption: **the operator periodically re-anchors planetary pointers against the sky.**  But none of them, by themselves, answer the question *why* a Hellenistic instrument-maker would design for periodic re-setting rather than for once-and-done predictive autonomy.  The answer is the simplest one possible — and it is *not* a new astronomical claim.  It is, however, a new framing of an old observational fact.
+
+#### 11.6.16.1 The astronomical fact (well-established baseline)
+
+Planets are not all observable at the same time.  Each planet has a **visibility window** gated by its angular separation from the Sun:
+
+| Planet | Synodic period | Invisible window per cycle | Max solar elongation |
+|---|---|---:|---:|
+| Mercury | ~116 d | 2–3 weeks per apparition | 18–28° |
+| Venus | 584 d | ~2 mo (sup. conj.) / ~2 wk (inf. conj.) | 45–47° |
+| Mars | 780 d | several weeks near conjunction | n/a |
+| Jupiter | ~399 d | ~2–3 months | n/a |
+| Saturn | ~378 d | ~2–3 months | n/a |
+
+This is **baseline Hellenistic observational reality**, not a hypothesis.  Heliacal rising/setting events were tracked in MUL.APIN (~1000 BCE) and in Babylonian astronomical diaries from 652 BCE onward.  Every Greek astronomer-user of the mechanism would have known empirically that Mercury hides in solar glare for weeks, that outer planets disappear at conjunction, and that re-acquiring a planet's position requires *waiting for the sky to give it back*.
+
+The Antikythera mechanism itself encodes this knowledge directly: its **parapegma** (front-plate astronomical calendar) lists "morning rising" and "evening setting" of stars — heliacal events optimised for Rhodes (~36°N).  Seasonal observability is *literally on the device.*
+
+#### 11.6.16.2 The novel framing (the linkage)
+
+What is *new* — per the prior-art literature scan summarised in [figures/seasonal_observability_priorart.md](figures/seasonal_observability_priorart.md) — is the connection between this observational fact and the mechanism's mechanical architecture.  The literature documents each piece independently:
+
+- **Voulgaris et al. 2022** ([arXiv 2203.15045](https://arxiv.org/abs/2203.15045), [arXiv 2207.12009](https://arxiv.org/abs/2207.12009)) confirms the device required initial calibration and that back-plate inscriptions describe **pointer-setting procedures**.
+- **Smithsonian / Freeth analysis** documents that Mars pointer errors of up to 38° **"are not due to inaccuracies in gearing ratios but rather inadequacies in the Greek theory of planetary movements"** — i.e. the worst-case errors are theoretical, not mechanical.
+- **The parapegma** explicitly encodes heliacal rising/setting as primary front-plate content.
+- **Jones & Iversen 2019** establishes the device was built for users with advanced astronomical knowledge.
+
+But **no published paper makes the connection**: that the architectural choice of selective engagement (§11.6.10–§11.6.15) is the *natural design response* to the fact that theoretical-accuracy limits collapse to operational-irrelevance whenever the affected planet is invisible.  This integrated framing is the genuinely novel contribution of this notebook.
+
+The argument runs:
+
+1. **The Greek theory of planetary motion has bounded accuracy.**  Mars peak error 38° (Smithsonian, attributed to theory not mechanics).  No Hellenistic gear-train can do better than the theory it instantiates.
+2. **The worst-error epochs cluster near solar conjunction** — when Mars's heliocentric longitude relative to Earth changes most rapidly and the equant model is least accurate.
+3. **Solar conjunction = invisibility.**  At the worst-error epoch, the planet is in solar glare and the operator cannot observe its position regardless of what the mechanism predicts.
+4. **The operator can re-anchor at heliacal rising** — when the planet emerges from solar glare and is once again observable.  At that moment, the operator reads the planet's true sky position, sets the dial to match, and the mechanism's accumulated theoretical error resets to zero.
+5. **Therefore field-programmability is not a flexibility feature; it is a structural design choice that converts a theoretical-accuracy ceiling into an operationally-acceptable one.**  The mechanism only needs to be accurate over a single visibility window (weeks to months), not over decades of autonomous prediction.
+
+This re-frames the Mars 38° error from *embarrassing limit of Greek astronomy* to *acceptable design margin for an observation-supplemented instrument.*  The architectural hypotheses (clutch + setting wheels + selective lock) become the natural mechanical implementation of this design philosophy.
+
+#### 11.6.16.3 Era-plausibility of the rationale
+
+The design rationale is **moderately plausible** in Hellenistic context — see [figures/seasonal_calibration_viability.md](figures/seasonal_calibration_viability.md) for the full assessment.  Supporting factors:
+
+- Heliacal events were observable to ±1–3 days under clear skies (sufficient for dial re-setting).
+- Babylonian Goal-Year texts demonstrate observation-supplemented prediction practice (47-year cycles for Mars, 59-year for Saturn, etc.).
+- Ctesibius's water clocks (3rd c. BCE) were **adjusted seasonally** by adding/removing outflow water — direct precedent for "operator periodically re-tunes the instrument to match the season."
+- Astrolabes required field calibration with multi-plate systems for different latitudes.
+- The Antikythera's b1-b2 differential is the **internal precedent** for a setting-mode element (the planet gear in a differential).
+
+Limiting factor: no preserved astronomical text *explicitly* recommends re-setting mechanical instruments at heliacal events.  The hypothesis is a plausible extrapolation from documented practice, not a documented practice itself.
+
+#### 11.6.16.4 Implications for the H-battery
+
+Seasonal observability is not directly a computational hypothesis (it is a rationale, not a numerical claim), so it does not add a new H-battery row.  But it strengthens the interpretation of three existing rows:
+
+- **E-H2** (uniform Mars encoder peak ≥ 150°): the failure of uniform-rate Mars is *expected and acceptable*, because the worst-error window coincides with invisibility.
+- **E-H4** (Ptolemy equant peak in 30°–50° band): this is the design margin the operator absorbs via re-setting at the next heliacal rising — not a flaw to engineer around.
+- **G-H8** (paired-chain enumeration PASS at 4/5 planets): the existence of low-bronze-cost alternative chains (Venus 5/8, Mercury 104/33, Mars 83/78) is what *enables* the operator to set against any of several attested period-relations — different chains for different epochs, all selectable via setting-mode interfaces.
+
+In effect, **§11.6.16 is the missing link between the empirical results (E-H2/E-H4/G-H8) and the architectural hypotheses (§11.6.10–§11.6.15).**  The architectural moves only make sense if periodic re-setting is the design philosophy; periodic re-setting only makes sense if the sky is the available reference; the sky is only available within visibility windows.  All three layers are mutually load-bearing.
+
+#### 11.6.16.5 Falsifiers and confirmers
+
+**Would CONFIRM the seasonal-observability framing:**
+
+- An inscription on the back-cover plates referencing a planet-specific re-setting procedure tied to heliacal rising (e.g. "when Mars first appears in the morning sky after [event], turn the planet pointer to [position]").
+- A wear-pattern analysis showing that planet-dial setting interfaces (if identified) show wear concentrated in counts consistent with synodic-cycle re-setting (e.g. ~once per Mars synodic period, ~once per Venus apparition).
+- Discovery that the parapegma's heliacal events are ordered or grouped to match the device's planet-dial layout — i.e. front-plate visibility cues line up with the dials they cue.
+
+**Would REFUTE:**
+
+- An inscription explicitly stating the device runs autonomously and should not be adjusted between calibrations.
+- Evidence that all surviving planet-relevant gears were trunk-loaded continuously (no setting-mode signature).
+- A demonstration that Greek theory of Mars motion was sufficiently accurate that no re-setting would ever be needed in practice (would reduce the rationale's force).
+
+#### 11.6.16.6 Status
+
+**RATIONALE (not hypothesis).**  Seasonal observability itself is well-established astronomical fact.  The novel contribution is the **integrated framing**: connecting (i) theoretical-accuracy ceilings, (ii) visibility-window gating, and (iii) selective-engagement architecture, as three layers of a single design philosophy.  Per the prior-art search, this integration appears unpublished.  Per the viability assessment, the rationale is moderately plausible in Hellenistic context.
+
+This subsection serves as the *why* that motivates the *what* in §11.6.10–§11.6.15.  Without seasonal observability, the field-programmable architecture is a curiosity; with it, the architecture is the natural design response to how the Hellenistic sky actually presents itself to an observer.
+
 ---
 
 ## 12. Computability audit (April 25, 2026)
 
 A structured audit of all 33 hypotheses articulated in this thread (the original 25-row H-battery + the 8 architectural-mode hypotheses §10–§11.6.15) is in [figures/hypothesis_computability_audit.md](figures/hypothesis_computability_audit.md).
+
+(§11.6.16's seasonal-observability framing is a *rationale*, not a hypothesis, so it does not appear in the audit count.  See [figures/seasonal_observability_priorart.md](figures/seasonal_observability_priorart.md) and [figures/seasonal_calibration_viability.md](figures/seasonal_calibration_viability.md) for its supporting research.)
 
 ### 12.1 Headline summary
 
@@ -1308,6 +1393,8 @@ The 8 architectural-mode hypotheses do not all compete; many compose:
 §11.6.14 G-H7 (carriers) is weakened relative to G-H8 by lower evidence burden.
 
 The leading composite reading: **clock-style setting via a clutch toggle (§11.6.10) + setting-mode wheels (§11.6.15) + per-subsystem selective lock (§11.6.12)** — all complementary, all consistent with the periphery rule (§11.6.6), all consistent with the "missing gears are mostly small peripheral elements that didn't structurally support the main bronze stack."
+
+All three architectural moves are *motivated by* the seasonal-observability rationale articulated in §11.6.16: the operator's ability to re-anchor a planet's pointer against the sky during its visibility window is what makes selective-engagement architecture the natural design choice rather than a curiosity.  The architectural layer (§11.6.10/12/15) is *what* the device does; the rationale layer (§11.6.16) is *why* a Hellenistic instrument-maker would design it that way.
 
 The single most valuable next compute step (Priority 1 in §12.2) directly tests the load-bearing claim of this composite reading.
 
