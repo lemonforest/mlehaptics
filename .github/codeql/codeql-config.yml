@@ -27,6 +27,14 @@ paths:
   - "docs/chess-maths/chess-spectral/include/**"
   # antikythera-maths package (separately published)
   - "docs/antikythera-maths/python/**"
+  # GitHub Actions workflows + composite actions — the `actions`
+  # CodeQL language analyzes these (workflow YAML, embedded shell
+  # scripts in `run:` blocks). Without this entry the actions
+  # analyzer fails with "CodeQL detected code written in GitHub
+  # Actions but could not process any of it" — the paths filter
+  # globally excluded the .github/workflows/ tree it needs to read.
+  - ".github/workflows/**"
+  - ".github/actions/**"
 
 paths-ignore:
   # Vendored third-party code (miniz)
