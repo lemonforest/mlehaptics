@@ -46,7 +46,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+        # macos-13 (Intel x86_64) is intentionally excluded: GitHub Actions
+        # macos-13 runner capacity is severely constrained as Apple deprecates
+        # Intel Macs, and we observed runs queuing for 1+ hour without ever
+        # starting (PR #62 publish run #6). Apple-Silicon coverage via
+        # macos-14 is sufficient for the macOS user base; Intel Mac users
+        # can build from sdist (we ship one alongside the wheels) or use
+        # Rosetta with a manylinux x86_64 wheel under Docker.
+        os: [ubuntu-latest, macos-14, windows-latest]
         python: ["310", "311", "312", "313"]
     steps:
       - uses: actions/checkout@v4
