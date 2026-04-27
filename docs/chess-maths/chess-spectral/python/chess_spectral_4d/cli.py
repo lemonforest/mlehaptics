@@ -4,20 +4,21 @@
 Every subcommand exposes `--help`. This is the discovery contract for the
 4D tooling: run `--help` first, always.
 
-Subcommands (v1 skeleton):
+Subcommands:
 
     tables-verify   Run validation gates from each implementation phase.
                     --phase 1 checks piece mobility on Z_8^4 (rook=28,
                     king=80, knight=48, bishop 2 components).
-    encode-fen4     Encode a single 4D position literal to a v3 .spectralz.
-                    (stubbed; needs encoder_4d + frame_4d)
-    encode-moves4   Encode a JSONL move log to v3 .spectralz.
+    encode-fen4     Encode a FEN4 v1 literal (docs/FEN4_FORMAT.md) to a
+                    single-frame v4 .spectralz4. Output is byte-identical
+                    to the C `spectral_4d encode-fen4` binary.
+    encode-moves4   Encode a JSONL move log to a v4 .spectralz4.
                     Schema: one JSON object per line with fields
                     {ply, from:[x,y,z,w], to:[x,y,z,w], promo, flags}.
-                    (stubbed; needs encoder_4d + frame_4d)
+                    (stubbed; awaits 4D move semantics in Phase B.)
     corpus-gen      Wrap N JSONL move logs into a corpus folder mirroring
-                    the 2D `spectral_py corpus` layout. (stubbed)
-    version         Print version + v3 magic/format info.
+                    the 2D `spectral_py corpus` layout. (stubbed; Phase B.)
+    version         Print version + v3/v4 magic/format info.
 
 Exit codes:
     0   success
@@ -28,7 +29,11 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import gzip
+import json
 import sys
+from pathlib import Path
+from typing import Iterable, Iterator, Tuple
 
 from chess_spectral_4d import (
     VERSION,
@@ -37,6 +42,8 @@ from chess_spectral_4d import (
     N_DIMENSIONS_4D,
 )
 from chess_spectral import frame_4d as _frame_4d
+from chess_spectral import fen_4d as _fen_4d
+from chess_spectral.encoder_4d import encode_4d as _encode_4d
 
 SPECTRALZ_MAGIC = _frame_4d.SPECTRALZ_MAGIC.decode("ascii")
 SPECTRALZ_VERSION = _frame_4d.SPECTRALZ_VERSION
@@ -49,8 +56,7 @@ SPECTRALZ_V3_MAGIC = SPECTRALZ_MAGIC
 def _not_implemented(cmd: str, what: str) -> int:
     print(
         f"{cmd}: {what} is not yet implemented in this build.\n"
-        f"       See plan file when-we-need-to-spicy-seahorse.md "
-        f"for phase order.",
+        f"       See ROADMAP.md for the phase order.",
         file=sys.stderr,
     )
     return 4
@@ -122,19 +128,231 @@ def _run_phase_gate(phase: str, fn_name: str, verbose: bool) -> int:
 # --- encode-fen4 ---------------------------------------------------------
 
 def cmd_encode_fen4(args: argparse.Namespace) -> int:
-    return _not_implemented("encode-fen4", "4D FEN encoder")
+    """Parse a FEN4 v1 literal, encode to 45056 float32, write a one-frame
+    v4 .spectralz4 (optionally gzip-compressed). Output byte-identical to
+    the C `spectral_4d encode-fen4` binary."""
+    try:
+        pos4 = _fen_4d.parse(args.fen4)
+    except _fen_4d.Fen4ParseError as e:
+        print(f"encode-fen4: {e}", file=sys.stderr)
+        return 3
+
+    enc = _encode_4d(pos4)
+
+    frame_bytes = ENCODING_DIM_4D * 4 + _frame_4d.FRAME_TAIL_BYTES
+    header = _frame_4d.pack_header(ENCODING_DIM_4D, frame_bytes, n_plies=1)
+    frame = _frame_4d.pack_frame(
+        enc, ply=0,
+        from_sq=(0, 0, 0, 0), to_sq=(0, 0, 0, 0),
+        promo=0, flags=0,
+        encoding_dim=ENCODING_DIM_4D,
+    )
+    payload = header + frame
+
+    output = args.output
+    if not output or output == "-":
+        if args.compress:
+            print("encode-fen4: -z requires --output <path>; "
+                  "cannot gzip-stream to stdout", file=sys.stderr)
+            return 2
+        sys.stdout.buffer.write(payload)
+        sys.stdout.buffer.flush()
+        return 0
+
+    out_path = Path(output)
+    if args.compress:
+        # `mtime=0` makes gzip output deterministic across runs (no
+        # timestamp drift), which is mandatory for byte-for-byte parity
+        # with the C side. The C writer (cs_gzip.c) also writes mtime=0.
+        with gzip.GzipFile(filename=str(out_path), mode="wb",
+                           mtime=0) as fp:
+            fp.write(payload)
+    else:
+        out_path.write_bytes(payload)
+    return 0
 
 
 # --- encode-moves4 -------------------------------------------------------
 
+def _iter_ndjson4(path: Path) -> Iterator[Tuple[int, dict]]:
+    """Yield (line_no, parsed_json_obj) for each non-skipped line in
+    `path`. Lines containing 'bridge_version' are skipped (matching
+    the 2D producer convention). Malformed JSON lines are skipped with
+    a warning to stderr."""
+    with open(path, "r", encoding="utf-8") as fp:
+        for line_no, line in enumerate(fp, start=1):
+            line = line.strip()
+            if not line or "bridge_version" in line:
+                continue
+            try:
+                yield line_no, json.loads(line)
+            except json.JSONDecodeError as e:
+                print(f"encode-moves4: line {line_no}: JSON decode error: {e}",
+                      file=sys.stderr)
+                continue
+
+
+def _frame_from_record(rec: dict, fallback_ply: int):
+    """Build a Frame4D from one NDJSON4 record. Returns (frame, error)
+    where error is None on success or a string describing the parse
+    failure (caller skips the line)."""
+    fen4 = rec.get("fen4")
+    if not isinstance(fen4, str):
+        return None, "missing 'fen4' field"
+    try:
+        pos4 = _fen_4d.parse(fen4)
+    except _fen_4d.Fen4ParseError as e:
+        return None, str(e)
+    enc = _encode_4d(pos4)
+
+    def _coord(rec, key):
+        v = rec.get(key)
+        if isinstance(v, list) and len(v) == 4 and all(
+            isinstance(x, int) and 0 <= x <= 255 for x in v
+        ):
+            return tuple(v)
+        return (0, 0, 0, 0)
+
+    ply = rec.get("ply")
+    if not isinstance(ply, int) or ply < 0:
+        ply = fallback_ply
+    return _frame_4d.Frame4D(
+        encoding=enc,
+        ply=ply,
+        from_sq=_coord(rec, "move_from"),
+        to_sq=_coord(rec, "move_to"),
+        promo=int(rec.get("promo", 0)) & 0xFF,
+        flags=int(rec.get("flags", 0)) & 0xFF,
+    ), None
+
+
 def cmd_encode_moves4(args: argparse.Namespace) -> int:
-    return _not_implemented("encode-moves4", "JSONL move-log encoder")
+    """Encode an NDJSON4 ply-log to a v4 .spectralz4 file. Each line is
+    one position represented by a FEN4 v1 literal (see
+    docs/NDJSON4_FORMAT.md). Output is byte-identical (decompressed) to
+    `spectral_4d encode`."""
+    src = Path(args.moves)
+    if not src.is_file():
+        print(f"encode-moves4: input not found: {src}", file=sys.stderr)
+        return 3
+
+    output = args.output
+    if not output:
+        print("encode-moves4: missing --output <path>", file=sys.stderr)
+        return 2
+
+    frames = []
+    n_skipped = 0
+    for line_no, rec in _iter_ndjson4(src):
+        fr, err = _frame_from_record(rec, fallback_ply=len(frames))
+        if err:
+            print(f"encode-moves4: line {line_no}: {err}", file=sys.stderr)
+            n_skipped += 1
+            continue
+        # Optional --start / --count ply gating, matching the existing
+        # argparse surface (defaults: start=0, count=0=no-limit).
+        if args.start and fr.ply < args.start:
+            continue
+        if args.count and len(frames) >= args.count:
+            break
+        frames.append(fr)
+
+    if not frames:
+        print("encode-moves4: warning — no plies written "
+              "(empty input or all FEN4 parse errors)", file=sys.stderr)
+
+    frame_bytes = ENCODING_DIM_4D * 4 + _frame_4d.FRAME_TAIL_BYTES
+    header = _frame_4d.pack_header(ENCODING_DIM_4D, frame_bytes,
+                                   n_plies=len(frames))
+    out_path = Path(output)
+    if args.compress:
+        with gzip.GzipFile(filename=str(out_path), mode="wb",
+                           mtime=0) as fp:
+            fp.write(header)
+            for fr in frames:
+                fp.write(_frame_4d.pack_frame(
+                    fr.encoding, fr.ply, fr.from_sq, fr.to_sq,
+                    fr.promo, fr.flags, encoding_dim=ENCODING_DIM_4D,
+                ))
+    else:
+        with open(out_path, "wb") as fp:
+            fp.write(header)
+            for fr in frames:
+                fp.write(_frame_4d.pack_frame(
+                    fr.encoding, fr.ply, fr.from_sq, fr.to_sq,
+                    fr.promo, fr.flags, encoding_dim=ENCODING_DIM_4D,
+                ))
+    return 0
 
 
 # --- corpus-gen ----------------------------------------------------------
 
 def cmd_corpus_gen(args: argparse.Namespace) -> int:
-    return _not_implemented("corpus-gen", "4D corpus builder")
+    """Wrap N NDJSON4 ply-logs into a corpus folder mirroring the layout
+    used by the 2D `chess-spectral corpus`. For each input game:
+
+        <results_root>/<run_id>/
+            ndjson/<stem>.ndjson    (copy of the input)
+            spectralz/<stem>.spectralz4
+        <results_root>/<run_id>/manifest.json   (per-game metadata)
+
+    Honors --limit to cap the number of games processed."""
+    games = [Path(g) for g in args.games]
+    missing = [g for g in games if not g.is_file()]
+    if missing:
+        for m in missing:
+            print(f"corpus-gen: input not found: {m}", file=sys.stderr)
+        return 3
+
+    if args.limit and args.limit > 0:
+        games = games[: args.limit]
+
+    if not args.run_id or not args.results_root:
+        print("corpus-gen: --run-id and --results-root are required",
+              file=sys.stderr)
+        return 2
+
+    run_dir = Path(args.results_root) / args.run_id
+    ndjson_dir = run_dir / "ndjson"
+    spectralz_dir = run_dir / "spectralz"
+    ndjson_dir.mkdir(parents=True, exist_ok=True)
+    spectralz_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest: list[dict] = []
+    for idx, src in enumerate(games):
+        stem = f"game_{idx:03d}"
+        # Copy the source NDJSON into the corpus.
+        dst_ndjson = ndjson_dir / f"{stem}.ndjson"
+        dst_ndjson.write_bytes(src.read_bytes())
+
+        # Encode to .spectralz4 by re-using cmd_encode_moves4 directly.
+        dst_spectralz = spectralz_dir / f"{stem}.spectralz4"
+        class _Args:
+            pass
+        eargs = _Args()
+        eargs.moves = str(dst_ndjson)
+        eargs.output = str(dst_spectralz)
+        eargs.compress = True
+        eargs.start = 0
+        eargs.count = 0
+        rc = cmd_encode_moves4(eargs)
+        manifest.append({
+            "index": idx,
+            "stem": stem,
+            "source": str(src),
+            "ndjson": f"ndjson/{stem}.ndjson",
+            "spectralz": f"spectralz/{stem}.spectralz4",
+            "encode_rc": rc,
+        })
+
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"run_id": args.run_id, "n_games": len(games),
+                    "games": manifest}, indent=2),
+        encoding="utf-8",
+    )
+    print(f"corpus-gen: wrote {len(games)} games to {run_dir}",
+          file=sys.stderr)
+    return 0
 
 
 # --- version -------------------------------------------------------------
@@ -155,9 +373,10 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="chess_spectral_4d.cli",
         description=(
-            "CLI for the 4D chess-spectral encoder "
-            "(B4 symmetry, Z_8^4 lattice). v1 is Python-only; C port "
-            "is v1.1."
+            "CLI for the 4D chess-spectral encoder (B4 symmetry, Z_8^4 "
+            "lattice; Oana & Chiru 2026). Mirrors the C `spectral_4d` "
+            "binary; encode-fen4 / encode-moves4 / corpus-gen produce "
+            "byte-identical output to their C counterparts."
         ),
     )
     # Optional subcommand so bare invocation prints full help, matching
@@ -191,30 +410,42 @@ def build_parser() -> argparse.ArgumentParser:
     # encode-fen4
     p_fen = sub.add_parser(
         "encode-fen4",
-        help="Encode a single 4D position literal to a v3 .spectralz",
+        help="Encode a FEN4 v1 literal to a single-frame v4 .spectralz4",
+        description=(
+            "Parse a FEN4 v1 placement literal (see docs/FEN4_FORMAT.md), "
+            "encode it to 45 056 float32 via encode_4d, and write a "
+            "single-frame v4 .spectralz4. Output is byte-identical to the "
+            "C binary `spectral_4d encode-fen4`."
+        ),
     )
-    p_fen.add_argument("--fen", required=True,
-                       help="4D position literal (format TBD in v1.1)")
-    p_fen.add_argument("-o", "--output", help="output path")
+    p_fen.add_argument("--fen4", required=True,
+                       help="FEN4 v1 literal, e.g. '4d-fen v1: K@0,0,0,0; "
+                            "k@7,7,7,7'")
+    p_fen.add_argument("-o", "--output",
+                       help="output path; '-' or omitted writes raw bytes "
+                            "to stdout (incompatible with -z)")
     p_fen.add_argument("-z", "--compress", action="store_true",
-                       help="gzip the output")
+                       help="gzip the output (RFC 1952, mtime=0 for "
+                            "deterministic bytes)")
     p_fen.set_defaults(func=cmd_encode_fen4)
 
     # encode-moves4
     p_mv = sub.add_parser(
         "encode-moves4",
-        help="Encode a JSONL move log to a v3 .spectralz",
+        help="Encode an NDJSON4 ply-log to a v4 .spectralz4",
         description=(
-            "Encode a JSONL move log (schema cs4d-moves/v1) to a v3 "
-            ".spectralz. One JSON object per line: "
-            "{ply, from:[x,y,z,w], to:[x,y,z,w], promo, flags}."
+            "Encode an NDJSON4 ply-log (one FEN4 v1 literal per line) to "
+            "a v4 .spectralz4. See docs/NDJSON4_FORMAT.md for the schema. "
+            "Each line: {ply, fen4, move_from?, move_to?, promo?, flags?}. "
+            "Output is decompressed-byte-identical to `spectral_4d encode`."
         ),
     )
     p_mv.add_argument("--moves", required=True,
-                      help="path to .jsonl move log")
-    p_mv.add_argument("-o", "--output", help="output path")
+                      help="path to NDJSON4 ply-log (one FEN4 per line)")
+    p_mv.add_argument("-o", "--output",
+                      help="output .spectral4 / .spectralz4 path")
     p_mv.add_argument("-z", "--compress", action="store_true",
-                      help="gzip the output")
+                      help="gzip the output (RFC 1952, mtime=0)")
     p_mv.add_argument("--start", type=int, default=0,
                       help="skip to ply N (0-indexed) before encoding")
     p_mv.add_argument("--count", type=int, default=0,
@@ -224,10 +455,10 @@ def build_parser() -> argparse.ArgumentParser:
     # corpus-gen
     p_cor = sub.add_parser(
         "corpus-gen",
-        help="Wrap N JSONL move logs into a viewer-ready corpus folder",
+        help="Wrap N NDJSON4 ply-logs into a viewer-ready corpus folder",
     )
     p_cor.add_argument("--games", required=True, nargs="+",
-                       help="one or more JSONL move-log paths")
+                       help="one or more NDJSON4 ply-log paths")
     p_cor.add_argument("--run-id",
                        help="output folder name under --results-root")
     p_cor.add_argument("--results-root",

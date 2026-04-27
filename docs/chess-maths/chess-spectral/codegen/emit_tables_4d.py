@@ -469,6 +469,54 @@ def write_cs_tables_data_4d_c() -> None:
     print(f"Wrote {path}")
 
 
+# ─── Committed npz (Python ↔ C SSOT pivot) ─────────────────────────────────
+
+
+def write_committed_tables_4d_npz() -> None:
+    """Write the same values that go into ``cs_tables_data_4d.c`` out
+    as a numpy ``.npz`` so chess_spectral.encoder_4d._load_tables() can
+    load identical values at runtime — eliminating the cross-platform
+    Python-vs-C table-skew (see the 2D side at
+    codegen/emit_tables.py:write_committed_tables_npz).
+
+    Sparse PIECE_ADJ matrices are stored as a flat (data, indices,
+    indptr, shape) tuple per piece char so reload only needs scipy at
+    decode time, not encode."""
+    PKG_DIR = os.path.abspath(os.path.join(REPO, 'python'))
+    out_dir = os.path.join(PKG_DIR, 'chess_spectral')
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, '_committed_tables_4d.npz')
+
+    # The orbit projector is the only thing the encoder needs from the
+    # B_4 orbit decomposition at runtime. ORBIT_OF / ORBIT_MEMBERS /
+    # ORBIT_INV_SIZE are C-side only.
+    P_A1 = t4.b4_a1_orbit_projector()
+
+    payload: dict = {
+        'version':           np.str_('1.1.1'),
+        'coord_resid':       COORD_RESID,
+        'W_ANTI_DCT':        W_ANTI_DCT,
+        'Y_ANTI_DCT':        Y_ANTI_DCT,
+        'DIAG_DEV':          DIAG_DEV_4D.astype(np.float64),
+        'FIBER_LOCAL':       FIBER_LOCAL_4D.astype(np.float64),
+        'P_A1_data':         P_A1.tocsr().data,
+        'P_A1_indices':      P_A1.tocsr().indices.astype(np.int32),
+        'P_A1_indptr':       P_A1.tocsr().indptr.astype(np.int32),
+        'P_A1_shape':        np.array(P_A1.shape, dtype=np.int32),
+        'PIECE_ADJ_chars':   np.array(FIBER_PIECE_CHARS),
+    }
+    for ch, A in zip(FIBER_PIECE_CHARS, PIECE_ADJACENCIES):
+        csr = A.tocsr()
+        payload[f'PIECE_ADJ_{ch}_data']    = csr.data.astype(np.float64)
+        payload[f'PIECE_ADJ_{ch}_indices'] = csr.indices.astype(np.int32)
+        payload[f'PIECE_ADJ_{ch}_indptr']  = csr.indptr.astype(np.int32)
+        payload[f'PIECE_ADJ_{ch}_shape']   = np.array(csr.shape,
+                                                       dtype=np.int32)
+
+    np.savez_compressed(path, **payload)
+    print(f"Wrote {path} ({os.path.getsize(path) / 1024:.1f} KB)")
+
+
 # ─── Main ───────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -477,6 +525,7 @@ def main() -> None:
     write_cs_tables_4d_h()
     write_cs_fiber_tables_4d_h()
     write_cs_tables_data_4d_c()
+    write_committed_tables_4d_npz()
     print()
     orbit_sizes = sorted({len(orb) for orb in _orbits})
     print(f"B_4 orbits:          {N_ORBITS} classes, sizes {orbit_sizes}")

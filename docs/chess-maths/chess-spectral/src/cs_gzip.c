@@ -2,6 +2,27 @@
  *
  * Wraps miniz's raw-deflate streaming API (windowBits = -15) and hand-rolls
  * the gzip header/trailer per RFC 1952. No dependency on the host's zlib.
+ *
+ * ── miniz dependency surface (v1.2.4) ─────────────────────────────────
+ * This file is the ONLY consumer of vendor/miniz/. The miniz APIs we
+ * actually call are:
+ *   - mz_inflateInit2 / mz_inflate / mz_inflateEnd  (raw deflate decode)
+ *   - mz_deflateInit2 / mz_deflate / mz_deflateEnd  (raw deflate encode)
+ *   - mz_crc32                                       (gzip trailer CRC)
+ *
+ * We deliberately do NOT use:
+ *   - The miniz callback APIs (vendor/miniz/miniz.h:33 — "not implemented")
+ *   - The miniz ZIP archive APIs (vendor/miniz/miniz_zip.{h,c})
+ *     CMakeLists.txt sets MINIZ_NO_ARCHIVE_APIS to keep them out of the
+ *     build; see vendor/miniz/miniz_zip.c TODOs (zip64, central-dir
+ *     limits, etc.) — those are upstream concerns, not ours.
+ *   - The miniz higher-level helpers like mz_compress / mz_uncompress
+ *     (they don't expose the raw-deflate windowBits we need for gzip
+ *     wrapping).
+ *
+ * If a future contributor needs more miniz functionality, please verify
+ * that the API isn't on the "not implemented" list before adopting it.
+ * See vendor/miniz/miniz.h line 33 for the upstream caveats.
  */
 #include <stdint.h>
 #include <stdio.h>

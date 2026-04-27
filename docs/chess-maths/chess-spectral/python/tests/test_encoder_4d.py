@@ -253,14 +253,21 @@ def test_pawn_antisym_factored_structure_w_axis():
     everywhere else in that channel; FA_PAWN_Y is all-zero. This is
     the algebraic invariant the factored form (and the C encoder port)
     must preserve. See encoder_4d.encode_4d channels 8-9 and
-    tables_4d.w_anti_dct_block."""
+    tables_4d.w_anti_dct_block.
+
+    v1.2.4: compares against the encoder's CACHED table (loaded from
+    the committed npz), not a fresh `t4.w_anti_dct_block()` call.
+    Calling the latter would give different signs on macOS Accelerate
+    vs Windows MKL for any degenerate eigensubspace — exactly the
+    issue the committed-tables architecture eliminates between C and
+    Python; this test must use the same source."""
     sx, sy, sz, sw = 3, 3, 3, 3
     s = _sq(sx, sy, sz, sw)
     v = enc_mod.encode_4d({s: ('P', 'w')})
     fa_w = v[8 * 4096:9 * 4096]
     fa_y = v[9 * 4096:10 * 4096]
     base = (sx << 9) | (sy << 6) | (sz << 3)
-    W = t4.w_anti_dct_block()
+    W = enc_mod._load_tables()['W_ANTI_DCT']
     # Inside the (sx,sy,sz,*) w-ray: 8 modes match W_ANTI_DCT[sw]
     np.testing.assert_allclose(
         fa_w[base:base + 8].astype(np.float64), W[sw],
@@ -294,7 +301,9 @@ def test_pawn_antisym_factored_structure_y_axis():
     base = (sx << 9) | (sz << 3) | sw
     # Stride-64 y-ray indices: (sx, j, sz, sw) for j in 0..7.
     y_ray = np.array([base | (j << 6) for j in range(8)])
-    Y = t4.y_anti_dct_block()
+    # See _w_axis test docstring: use the encoder's committed cache,
+    # not a fresh `t4.y_anti_dct_block()` (BLAS-dependent signs).
+    Y = enc_mod._load_tables()['Y_ANTI_DCT']
     np.testing.assert_allclose(
         fa_y[y_ray].astype(np.float64), Y[sy],
         atol=1e-6, err_msg='y-axis ray mismatches Y_ANTI_DCT[sy]'

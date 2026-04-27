@@ -3,18 +3,17 @@
 Mirrors the shape of [tables.py] but operates on the Z_8^4 hypercubic
 lattice (4096 squares) under the B_4 hyperoctahedral symmetry group.
 Paired with [../chess_spectral_4d/cli.py], which exposes the phase-N
-validation gates used to check each implementation stage before moving
-on.
+validation gates used to check each implementation stage.
 
 Piece movement definitions follow Oana & Chiru, "On a Four-Dimensional
 Chess Model," AppliedMath 6(3):48, 2026 — see section 3.
 
-Phase 1 deliverables (this file): piece target generators,
-build_adjacency_4d, verify_phase1.
-
-Phase 2-4 deliverables (to follow): P8 eigenbasis, B_4 group action
-and irrep projection, fiber bundle construction. Placeholders left
-intentionally for the phase gates.
+Status (v1.1.1+): all encoder tables are real and tested. P8
+eigenbasis, B_4 group action / irrep projection, and the rank-3
+fiber bundle are all implemented and pass C↔Python parity at
+TOL=1e-10 (see python/tests/test_c_py_parity_4d.py). The phase
+gates remain as the validation entry-point for any future schema
+revision.
 """
 from __future__ import annotations
 

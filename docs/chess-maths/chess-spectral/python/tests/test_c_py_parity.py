@@ -102,12 +102,13 @@ def run_parity() -> int:
     delta = np.abs(c_enc - py_enc)
     max_abs = float(delta.max())
 
-    # Tolerance rationale: float32 frames store encodings with ~6e-8 ULP
-    # at O(1). Corpus-scale runs show rare last-bit differences of
-    # O(1e-16) between the two backends (accumulation-order effects on
-    # denormal values). Anything above 1e-10 is not accumulation noise
-    # and indicates a real formula drift — 4 orders of magnitude below
-    # what would be observable in any downstream analysis.
+    # Tolerance rationale: float32 frames store encodings with ~6e-8
+    # ULP at O(1). Both encoders load identical tables from committed
+    # source (C from cs_tables_data.c, Python from
+    # _committed_tables.npz), so the only remaining drift is float-
+    # summation order between Python's numpy loops and C's serial
+    # loops. 1e-10 stays comfortably under any plausible accumulation
+    # noise.
     TOL = 1e-10
 
     if max_abs > TOL:

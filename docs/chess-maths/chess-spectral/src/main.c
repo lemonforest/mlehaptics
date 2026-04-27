@@ -1,7 +1,7 @@
 /* main.c — `spectral` CLI entry point.
  *
  * Commands are listed by `spectral --help`. Only a subset is implemented today;
- * unimplemented commands print a clear TODO message and exit non-zero so shell
+ * unimplemented commands (none at v1.2.4) print a clear TODO message and exit non-zero so shell
  * pipelines fail loudly instead of silently producing empty output.
  *
  * PGN ingestion flow (three equivalent entry paths):
@@ -47,15 +47,15 @@ static void print_usage(FILE *fp)
         "    spectral --help | -h | -? | /? | help\n"
         "\n"
         "COMMANDS:\n"
-        "    encode      Encode a PGN / NDJSON / URL stream into a .spectral file  [IMPLEMENTED]\n"
-        "    encode-fen  Encode a single FEN and print 640 floats to stdout         [IMPLEMENTED]\n"
-        "    csv         Export per-ply channel energies to CSV (LLM-friendly)      [IMPLEMENTED]\n"
-        "    query       Print spectral decomposition at ply N                      [stub — see plan]\n"
-        "    analyze     Per-game summary (peaks, crises, complexity arc)           [stub — see plan]\n"
-        "    compare     Cosine-compare two .spectral files                         [stub — see plan]\n"
-        "    heatmap     ANSI 8x8 heatmap of a single channel at ply N              [stub — see plan]\n"
-        "    play        Interactive ply-by-ply viewer                              [stub — see plan]\n"
-        "    export      Export a .spectral file to JSON for the web viewer         [stub — see plan]\n"
+        "    encode      Encode a PGN / NDJSON / URL stream into a .spectral file\n"
+        "    encode-fen  Encode a single FEN and print 640 floats to stdout\n"
+        "    csv         Export per-ply channel energies to CSV (LLM-friendly)\n"
+        "    query       Print spectral decomposition at ply N\n"
+        "    analyze     Per-game summary (A1 peak, drop, crisis ply; JSON)\n"
+        "    compare     Cosine-compare two .spectral files\n"
+        "    heatmap     ANSI 8x8 heatmap of a single channel at ply N\n"
+        "    play        Ply-by-ply viewer (--ply N for detail; default lists all)\n"
+        "    export      Export a .spectral file to JSON for the web viewer\n"
         "    version     Print encoder version and dimensions\n"
         "    help        Print this message\n"
         "\n"
@@ -105,23 +105,23 @@ static void print_usage(FILE *fp)
         "\n"
         "    query <file.spectral> --ply <N>\n"
         "        Print full spectral decomposition at ply N: channel energies,\n"
-        "        delta breakdown, fiber coordinates. [not yet implemented]\n"
+        "        delta breakdown, fiber coordinates.\n"
         "\n"
         "    heatmap <file.spectral> --ply <N> --channel <A1|A2|B1|B2|E|F1|F2|F3|FA|FD>\n"
         "        Render an ANSI-colored 8x8 projection of the selected channel\n"
         "        at the given ply. FA = antisymmetric pawn channel (dims 512-575).\n"
-        "        FD = diagonal deviation (dims 576-639). [not yet implemented]\n"
+        "        FD = diagonal deviation (dims 576-639).\n"
         "\n"
         "    analyze <file.spectral>\n"
         "        Per-game summary: A1 peak ply, fiber peak, max |delta_a1|\n"
-        "        (crisis detection), overall complexity arc. [not yet implemented]\n"
+        "        (crisis detection), overall complexity arc.\n"
         "\n"
         "    compare <a.spectral> <b.spectral>\n"
         "        Cosine similarity of temporal history vectors; per-ply\n"
-        "        alignment of A1 trajectories. [not yet implemented]\n"
+        "        alignment of A1 trajectories.\n"
         "\n"
         "    export <file.spectral> -o <out.json>\n"
-        "        Dump frames as JSON for the web viewer. [not yet implemented]\n"
+        "        Dump frames as JSON for the web viewer.\n"
         "\n"
         "EXIT CODES:\n"
         "    0  success\n"
@@ -724,16 +724,478 @@ static int cmd_csv(int argc, char **argv)
     return 0;
 }
 
-/* ─── stubs for not-yet-implemented commands ───────────────────────────── */
+/* ─── compare (cosine similarity between two .spectral files) ──────────── */
 
-static int cmd_todo(const char *name)
+static int read_all_encodings(const char *path, float **out_buf,
+                              uint32_t *out_n_plies)
 {
-    fprintf(stderr,
-        "spectral %s: not yet implemented.\n"
-        "  See the implementation plan for the design (ticklish-dreaming-platypus.md).\n"
-        "  Tracking: critical path (encode/tests) is complete; this command is a stub.\n",
-        name);
-    return 4;
+    FILE *fp = NULL;
+    if (cs_open_read_transparent(path, &fp) != 0 || !fp) return -1;
+    cs_file_header_t hdr;
+    if (cs_file_read_header(fp, &hdr) != 0) { fclose(fp); return -2; }
+    float *buf = (float *)malloc((size_t)hdr.n_plies
+                                 * CS_ENCODING_DIM * sizeof(float));
+    if (!buf) { fclose(fp); return -3; }
+    cs_spectral_frame_t fr;
+    for (uint32_t p = 0; p < hdr.n_plies; p++) {
+        if (cs_file_read_frame(fp, &fr) != 0) {
+            free(buf); fclose(fp); return -4;
+        }
+        memcpy(&buf[(size_t)p * CS_ENCODING_DIM], fr.encoding,
+               sizeof(fr.encoding));
+    }
+    fclose(fp);
+    *out_buf = buf;
+    *out_n_plies = hdr.n_plies;
+    return 0;
+}
+
+static int cmd_compare(int argc, char **argv)
+{
+    const char *a = NULL, *b = NULL;
+    for (int i = 0; i < argc; i++) {
+        if (argv[i][0] == '-') continue;
+        if (!a) a = argv[i];
+        else if (!b) b = argv[i];
+    }
+    if (!a || !b) {
+        fprintf(stderr, "compare: usage: spectral compare A.spectral[z] B.spectral[z]\n");
+        return 2;
+    }
+    float *ea = NULL, *eb = NULL;
+    uint32_t na = 0, nb = 0;
+    if (read_all_encodings(a, &ea, &na) != 0) {
+        fprintf(stderr, "compare: cannot read %s\n", a); return 3;
+    }
+    if (read_all_encodings(b, &eb, &nb) != 0) {
+        fprintf(stderr, "compare: cannot read %s\n", b); free(ea); return 3;
+    }
+    if (na != nb) {
+        fprintf(stderr, "compare: ply counts differ (%u vs %u); "
+                "comparing first %u plies\n", na, nb, na < nb ? na : nb);
+    }
+    uint32_t n = na < nb ? na : nb;
+
+    /* Aggregate stats: min, mean, max cosine + ply with min cosine. */
+    double cmin = 2.0, cmax = -2.0, csum = 0.0;
+    uint32_t cmin_ply = 0;
+    for (uint32_t p = 0; p < n; p++) {
+        double dot = 0.0, na2 = 0.0, nb2 = 0.0;
+        const float *fa = &ea[(size_t)p * CS_ENCODING_DIM];
+        const float *fb = &eb[(size_t)p * CS_ENCODING_DIM];
+        for (int i = 0; i < CS_ENCODING_DIM; i++) {
+            double x = (double)fa[i], y = (double)fb[i];
+            dot += x * y; na2 += x * x; nb2 += y * y;
+        }
+        double denom = sqrt(na2) * sqrt(nb2);
+        double cos = (denom > 0.0) ? (dot / denom) : 1.0;
+        if (cos < cmin) { cmin = cos; cmin_ply = p; }
+        if (cos > cmax) cmax = cos;
+        csum += cos;
+    }
+
+    if (n > 0) {
+        double cmean = csum / (double)n;
+        printf("compare: n_plies=%u  cos_min=%.4f (ply=%u)  "
+               "cos_mean=%.4f  cos_max=%.4f\n",
+               n, cmin, cmin_ply, cmean, cmax);
+    } else {
+        printf("compare: n_plies=0 (nothing to compare)\n");
+    }
+
+    free(ea); free(eb);
+    return 0;
+}
+
+/* ─── query (frame at ply N — channel breakdown) ───────────────────────── */
+
+static int cmd_query(int argc, char **argv)
+{
+    const char *input = NULL;
+    int ply = -1;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "--ply") == 0 && i + 1 < argc) {
+            ply = atoi(argv[++i]);
+        } else if (argv[i][0] != '-' && !input) {
+            input = argv[i];
+        }
+    }
+    if (!input || ply < 0) {
+        fprintf(stderr, "query: usage: spectral query <file.spectral[z]> --ply N\n");
+        return 2;
+    }
+    FILE *fp = NULL;
+    if (cs_open_read_transparent(input, &fp) != 0 || !fp) {
+        fprintf(stderr, "query: cannot open %s\n", input); return 3;
+    }
+    cs_file_header_t hdr;
+    if (cs_file_read_header(fp, &hdr) != 0) {
+        fclose(fp); fprintf(stderr, "query: bad header\n"); return 3;
+    }
+    if ((uint32_t)ply >= hdr.n_plies) {
+        fclose(fp);
+        fprintf(stderr, "query: ply %d out of range (n_plies=%u)\n",
+                ply, hdr.n_plies);
+        return 3;
+    }
+    if (cs_file_seek_frame(fp, (uint32_t)ply, &hdr) != 0) {
+        fclose(fp); fprintf(stderr, "query: seek failed\n"); return 3;
+    }
+    cs_spectral_frame_t fr;
+    if (cs_file_read_frame(fp, &fr) != 0) {
+        fclose(fp); fprintf(stderr, "query: read failed\n"); return 3;
+    }
+    fclose(fp);
+
+    printf("ply %u  move_from=%u  move_to=%u  promo=%u  flags=%u\n",
+           fr.ply, fr.move_from, fr.move_to, fr.move_promo, fr.move_flags);
+    double total = 0.0;
+    for (int c = 0; c < 10; c++) {
+        double E = sum_sq_f(&fr.encoding[CS_CHANNELS[c].start], CS_BOARD_DIM);
+        total += E;
+        printf("  E_%-3s = %12.4f   dims %3d..%3d\n",
+               CS_CHANNELS[c].name, E,
+               CS_CHANNELS[c].start,
+               CS_CHANNELS[c].start + CS_BOARD_DIM - 1);
+    }
+    printf("  E_total= %12.4f\n", total);
+    return 0;
+}
+
+/* ─── heatmap (ANSI 8x8 of one channel at ply N) ───────────────────────── */
+
+static int cmd_heatmap(int argc, char **argv)
+{
+    const char *input = NULL;
+    const char *channel = "A1";
+    int ply = -1;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "--ply") == 0 && i + 1 < argc) {
+            ply = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--channel") == 0 && i + 1 < argc) {
+            channel = argv[++i];
+        } else if (argv[i][0] != '-' && !input) {
+            input = argv[i];
+        }
+    }
+    if (!input || ply < 0) {
+        fprintf(stderr, "heatmap: usage: spectral heatmap <file> --ply N --channel A1\n");
+        return 2;
+    }
+    int chan_idx = -1;
+    for (int c = 0; c < 10; c++) {
+        if (strcmp(channel, CS_CHANNELS[c].name) == 0) { chan_idx = c; break; }
+    }
+    if (chan_idx < 0) {
+        fprintf(stderr, "heatmap: unknown channel '%s' (valid: A1,A2,B1,B2,E,F1,F2,F3,FA,FD)\n",
+                channel);
+        return 2;
+    }
+
+    FILE *fp = NULL;
+    if (cs_open_read_transparent(input, &fp) != 0 || !fp) {
+        fprintf(stderr, "heatmap: cannot open %s\n", input); return 3;
+    }
+    cs_file_header_t hdr;
+    if (cs_file_read_header(fp, &hdr) != 0) {
+        fclose(fp); fprintf(stderr, "heatmap: bad header\n"); return 3;
+    }
+    if ((uint32_t)ply >= hdr.n_plies) {
+        fclose(fp);
+        fprintf(stderr, "heatmap: ply %d out of range (n_plies=%u)\n",
+                ply, hdr.n_plies);
+        return 3;
+    }
+    if (cs_file_seek_frame(fp, (uint32_t)ply, &hdr) != 0) {
+        fclose(fp); return 3;
+    }
+    cs_spectral_frame_t fr;
+    if (cs_file_read_frame(fp, &fr) != 0) {
+        fclose(fp); return 3;
+    }
+    fclose(fp);
+
+    const float *block = &fr.encoding[CS_CHANNELS[chan_idx].start];
+    double absmax = 0.0;
+    for (int i = 0; i < 64; i++) {
+        double a = fabs((double)block[i]);
+        if (a > absmax) absmax = a;
+    }
+    if (absmax == 0.0) absmax = 1.0;  /* avoid division by zero */
+
+    /* Map |value| / absmax → ANSI 256-color gradient (16..51 = blue->cyan->green->yellow->red).
+     * Sign indicated by background color: + bright, - dim.
+     * Convention: row 0 = rank 8 (matches encoder_512.py / cs_fen_parse). */
+    printf("heatmap: %s ply=%u channel=%s absmax=%.4f\n",
+           input, fr.ply, channel, absmax);
+    for (int r = 0; r < 8; r++) {
+        printf("  %d  ", 8 - r);
+        for (int c = 0; c < 8; c++) {
+            double v = (double)block[r * 8 + c];
+            double a = fabs(v) / absmax;
+            int bucket = (int)(a * 8.0);  /* 0..8 */
+            if (bucket > 8) bucket = 8;
+            const char *glyph = " .,:-=+*#@"[bucket] ? &" .,:-=+*#@"[bucket] : "@";
+            char ch = glyph[0];
+            int col = (v >= 0) ? 36 : 31;  /* cyan for +, red for - */
+            printf("\x1b[%dm%c\x1b[0m ", col, ch);
+        }
+        printf("\n");
+    }
+    printf("     a b c d e f g h\n");
+    return 0;
+}
+
+/* ─── analyze (per-game peaks/crises/complexity arc) ───────────────────── */
+
+/* Per the chess_spectral_research_notebook.md §p.1636-1648 ("ΔA₁ derivative
+ * analysis"), the canonical signals are:
+ *   - A₁ peak ply: ply with max E_A1 (positions of highest complexity)
+ *   - A₁ drop ply: ply with most-negative ΔA₁ (the simplification event,
+ *     "complexity *break*"). The notebook table at p.1640-1646 is the
+ *     reference output format.
+ *   - Crisis ply: |drop_ply| with the largest magnitude ΔA₁.
+ */
+static int cmd_analyze(int argc, char **argv)
+{
+    const char *input = NULL;
+    for (int i = 0; i < argc; i++) {
+        if (argv[i][0] != '-' && !input) input = argv[i];
+    }
+    if (!input) {
+        fprintf(stderr, "analyze: usage: spectral analyze <file.spectral[z]>\n");
+        return 2;
+    }
+    FILE *fp = NULL;
+    if (cs_open_read_transparent(input, &fp) != 0 || !fp) {
+        fprintf(stderr, "analyze: cannot open %s\n", input); return 3;
+    }
+    cs_file_header_t hdr;
+    if (cs_file_read_header(fp, &hdr) != 0) {
+        fclose(fp); fprintf(stderr, "analyze: bad header\n"); return 3;
+    }
+    if (hdr.n_plies == 0) {
+        fclose(fp); printf("{\"n_plies\":0}\n"); return 0;
+    }
+
+    double e_a1_peak = -1.0;
+    uint32_t a1_peak_ply = 0;
+    double dA1_drop = 0.0;       /* most-negative ΔA₁ */
+    uint32_t dA1_drop_ply = 0;
+    double abs_dA1_max = 0.0;     /* largest |ΔA₁| → "crisis" */
+    uint32_t crisis_ply = 0;
+    double e_total_max = 0.0;
+    uint32_t e_total_max_ply = 0;
+
+    cs_spectral_frame_t fr;
+    float prev_a1[CS_BOARD_DIM];
+    int have_prev = 0;
+
+    for (uint32_t p = 0; p < hdr.n_plies; p++) {
+        if (cs_file_read_frame(fp, &fr) != 0) break;
+        double E_A1 = sum_sq_f(&fr.encoding[0], CS_BOARD_DIM);
+        if (E_A1 > e_a1_peak) { e_a1_peak = E_A1; a1_peak_ply = fr.ply; }
+
+        double E_total = 0.0;
+        for (int c = 0; c < 10; c++) {
+            E_total += sum_sq_f(&fr.encoding[CS_CHANNELS[c].start],
+                                CS_BOARD_DIM);
+        }
+        if (E_total > e_total_max) {
+            e_total_max = E_total; e_total_max_ply = fr.ply;
+        }
+
+        if (have_prev) {
+            double ssq = 0.0;
+            for (int i = 0; i < CS_BOARD_DIM; i++) {
+                double d = (double)fr.encoding[i] - (double)prev_a1[i];
+                ssq += d * d;
+            }
+            double dA1_signed = sqrt(ssq);
+            /* sign: did the A₁ energy drop or rise? */
+            double prev_E_A1 = sum_sq_f(prev_a1, CS_BOARD_DIM);
+            if (E_A1 < prev_E_A1) dA1_signed = -dA1_signed;
+            if (dA1_signed < dA1_drop) {
+                dA1_drop = dA1_signed; dA1_drop_ply = fr.ply;
+            }
+            double abs_d = dA1_signed < 0 ? -dA1_signed : dA1_signed;
+            if (abs_d > abs_dA1_max) {
+                abs_dA1_max = abs_d; crisis_ply = fr.ply;
+            }
+        }
+        memcpy(prev_a1, &fr.encoding[0], sizeof(prev_a1));
+        have_prev = 1;
+    }
+    fclose(fp);
+
+    /* Output as compact JSON for downstream tooling.
+     * peak_ply + drop_ply + crisis_ply mirror the notebook §p.1640-1646
+     * table columns; e_total_max_ply is added as a useful general signal. */
+    printf("{\n");
+    printf("  \"n_plies\":         %u,\n", hdr.n_plies);
+    printf("  \"a1_peak_ply\":     %u,\n", a1_peak_ply);
+    printf("  \"a1_peak_value\":   %.6f,\n", e_a1_peak);
+    printf("  \"a1_drop_ply\":     %u,\n", dA1_drop_ply);
+    printf("  \"a1_drop_value\":   %.6f,\n", dA1_drop);
+    printf("  \"crisis_ply\":      %u,\n", crisis_ply);
+    printf("  \"abs_dA1_max\":     %.6f,\n", abs_dA1_max);
+    printf("  \"e_total_max_ply\": %u,\n", e_total_max_ply);
+    printf("  \"e_total_max\":     %.6f\n", e_total_max);
+    printf("}\n");
+    return 0;
+}
+
+/* ─── export (.spectral → JSON for web viewer) ─────────────────────────── */
+
+static int cmd_export(int argc, char **argv)
+{
+    const char *input = NULL;
+    const char *output = NULL;
+    for (int i = 0; i < argc; i++) {
+        if ((strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0)
+            && i + 1 < argc) {
+            output = argv[++i];
+        } else if (argv[i][0] != '-' && !input) {
+            input = argv[i];
+        }
+    }
+    if (!input) {
+        fprintf(stderr, "export: usage: spectral export <file.spectral[z]> [-o out.json]\n");
+        return 2;
+    }
+    FILE *fp = NULL;
+    if (cs_open_read_transparent(input, &fp) != 0 || !fp) {
+        fprintf(stderr, "export: cannot open %s\n", input); return 3;
+    }
+    cs_file_header_t hdr;
+    if (cs_file_read_header(fp, &hdr) != 0) {
+        fclose(fp); fprintf(stderr, "export: bad header\n"); return 3;
+    }
+    FILE *fout = stdout;
+    int close_fout = 0;
+    if (output && strcmp(output, "-") != 0) {
+        fout = fopen(output, "w");
+        if (!fout) {
+            fclose(fp); fprintf(stderr, "export: cannot create %s\n", output);
+            return 3;
+        }
+        close_fout = 1;
+    }
+
+    /* JSON schema (for the web viewer at lemonforest.github.io/chess-maths-viewer):
+     *   {"version": 2, "encoding_dim": 640, "n_plies": N,
+     *    "channels": [{"name":"A1","start":0,"end":63}, ...],
+     *    "frames": [{"ply":N, "move_from":0xFF, "move_to":0xFF,
+     *                "channel_energies": {"A1": x, ...}, "encoding": [...]}, ...]}
+     */
+    fprintf(fout, "{\n");
+    fprintf(fout, "  \"version\": %u,\n", hdr.version);
+    fprintf(fout, "  \"encoding_dim\": %u,\n", hdr.encoding_dim);
+    fprintf(fout, "  \"n_plies\": %u,\n", hdr.n_plies);
+    fprintf(fout, "  \"channels\": [");
+    for (int c = 0; c < 10; c++) {
+        fprintf(fout, "%s{\"name\":\"%s\",\"start\":%d,\"end\":%d}",
+                c == 0 ? "" : ",",
+                CS_CHANNELS[c].name, CS_CHANNELS[c].start,
+                CS_CHANNELS[c].start + CS_BOARD_DIM - 1);
+    }
+    fprintf(fout, "],\n  \"frames\": [");
+
+    cs_spectral_frame_t fr;
+    for (uint32_t p = 0; p < hdr.n_plies; p++) {
+        if (cs_file_read_frame(fp, &fr) != 0) break;
+        fprintf(fout, "%s\n    {", p == 0 ? "" : ",");
+        fprintf(fout, "\"ply\":%u,\"move_from\":%u,\"move_to\":%u,",
+                fr.ply, fr.move_from, fr.move_to);
+        fprintf(fout, "\"promo\":%u,\"flags\":%u,",
+                fr.move_promo, fr.move_flags);
+        fprintf(fout, "\"channel_energies\":{");
+        for (int c = 0; c < 10; c++) {
+            double E = sum_sq_f(&fr.encoding[CS_CHANNELS[c].start],
+                                CS_BOARD_DIM);
+            fprintf(fout, "%s\"%s\":%.6f",
+                    c == 0 ? "" : ",", CS_CHANNELS[c].name, E);
+        }
+        fprintf(fout, "},\"encoding\":[");
+        for (int i = 0; i < CS_ENCODING_DIM; i++) {
+            fprintf(fout, "%s%.6g",
+                    i == 0 ? "" : ",", (double)fr.encoding[i]);
+        }
+        fprintf(fout, "]}");
+    }
+    fprintf(fout, "\n  ]\n}\n");
+
+    fclose(fp);
+    if (close_fout) fclose(fout);
+    return 0;
+}
+
+/* ─── play (non-interactive ply-by-ply viewer) ─────────────────────────── */
+
+/* Per the plan ("consider trimming to a non-interactive --ply N --next/--prev
+ * style"), the v1.2.4 implementation is non-interactive: it lists all
+ * plies with one-line summaries by default, or shows a single ply with
+ * --ply N (delegates to query). Interactive mode is deferred. */
+static int cmd_play(int argc, char **argv)
+{
+    const char *input = NULL;
+    int ply = -1;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "--ply") == 0 && i + 1 < argc) {
+            ply = atoi(argv[++i]);
+        } else if (argv[i][0] != '-' && !input) {
+            input = argv[i];
+        }
+    }
+    if (!input) {
+        fprintf(stderr, "play: usage: spectral play <file.spectral[z]> [--ply N]\n");
+        return 2;
+    }
+    if (ply >= 0) {
+        /* Single-ply mode delegates to query for the detailed breakdown. */
+        char ply_str[32];
+        snprintf(ply_str, sizeof(ply_str), "%d", ply);
+        char *q_argv[] = { (char *)input, "--ply", ply_str, NULL };
+        return cmd_query(3, q_argv);
+    }
+
+    /* List mode: one line per ply with E_total + dist_prev + cos_prev. */
+    FILE *fp = NULL;
+    if (cs_open_read_transparent(input, &fp) != 0 || !fp) {
+        fprintf(stderr, "play: cannot open %s\n", input); return 3;
+    }
+    cs_file_header_t hdr;
+    if (cs_file_read_header(fp, &hdr) != 0) {
+        fclose(fp); fprintf(stderr, "play: bad header\n"); return 3;
+    }
+    printf("%-6s %-8s %-8s %-8s %-12s\n",
+           "ply", "from", "to", "cos_prev", "E_total");
+    cs_spectral_frame_t fr;
+    float prev[CS_ENCODING_DIM];
+    int have_prev = 0;
+    for (uint32_t p = 0; p < hdr.n_plies; p++) {
+        if (cs_file_read_frame(fp, &fr) != 0) break;
+        double E = 0.0;
+        for (int c = 0; c < 10; c++) {
+            E += sum_sq_f(&fr.encoding[CS_CHANNELS[c].start], CS_BOARD_DIM);
+        }
+        double cos = 1.0;
+        if (have_prev) {
+            double dot = 0.0, n_a = 0.0, n_b = 0.0;
+            for (int i = 0; i < CS_ENCODING_DIM; i++) {
+                double a = (double)fr.encoding[i], b = (double)prev[i];
+                dot += a * b; n_a += a * a; n_b += b * b;
+            }
+            double denom = sqrt(n_a) * sqrt(n_b);
+            cos = denom > 0.0 ? dot / denom : 1.0;
+        }
+        printf("%-6u %-8u %-8u %-8.4f %-12.4f\n",
+               fr.ply, fr.move_from, fr.move_to, cos, E);
+        memcpy(prev, fr.encoding, sizeof(prev));
+        have_prev = 1;
+    }
+    fclose(fp);
+    return 0;
 }
 
 /* ─── dispatch ─────────────────────────────────────────────────────────── */
@@ -756,12 +1218,12 @@ int main(int argc, char **argv)
     if (strcmp(argv[1], "encode-fen") == 0) return cmd_encode_fen(argc - 2, argv + 2);
     if (strcmp(argv[1], "encode")     == 0) return cmd_encode    (argc - 2, argv + 2);
     if (strcmp(argv[1], "csv")        == 0) return cmd_csv       (argc - 2, argv + 2);
-    if (strcmp(argv[1], "query")      == 0) return cmd_todo("query");
-    if (strcmp(argv[1], "analyze")    == 0) return cmd_todo("analyze");
-    if (strcmp(argv[1], "compare")    == 0) return cmd_todo("compare");
-    if (strcmp(argv[1], "heatmap")    == 0) return cmd_todo("heatmap");
-    if (strcmp(argv[1], "play")       == 0) return cmd_todo("play");
-    if (strcmp(argv[1], "export")     == 0) return cmd_todo("export");
+    if (strcmp(argv[1], "query")      == 0) return cmd_query  (argc - 2, argv + 2);
+    if (strcmp(argv[1], "analyze")    == 0) return cmd_analyze (argc - 2, argv + 2);
+    if (strcmp(argv[1], "compare")    == 0) return cmd_compare (argc - 2, argv + 2);
+    if (strcmp(argv[1], "heatmap")    == 0) return cmd_heatmap (argc - 2, argv + 2);
+    if (strcmp(argv[1], "play")       == 0) return cmd_play    (argc - 2, argv + 2);
+    if (strcmp(argv[1], "export")     == 0) return cmd_export  (argc - 2, argv + 2);
 
     fprintf(stderr, "spectral: unknown command '%s'\n\n", argv[1]);
     print_usage(stderr);

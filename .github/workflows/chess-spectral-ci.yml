@@ -1,0 +1,158 @@
+name: chess-spectral-ci
+
+# Per-PR build + test for the chess-spectral package. Mirrors the
+# release matrix from chess-spectral-publish.yml at a smaller scale —
+# enough to catch regressions before merge without running the full
+# 16-cell wheel matrix on every push.
+#
+# Triggers: pull_request changes under docs/chess-maths/chess-spectral/
+# OR a manual workflow_dispatch.
+
+on:
+  pull_request:
+    paths:
+      - "docs/chess-maths/chess-spectral/**"
+      - ".github/workflows/chess-spectral-ci.yml"
+  workflow_dispatch: {}
+
+# Default token permissions: read-only on the repo contents. Neither
+# job here writes to the repo (no commits, no releases, no comments) —
+# all artifacts are uploaded via actions/upload-artifact, which doesn't
+# need write permissions on `contents`. Explicit declaration satisfies
+# GHAS / CodeQL "Workflow does not contain permissions" alert.
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} • py${{ matrix.python }} • ${{ matrix.preset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  python: "3.12", preset: "release" }
+          - { os: ubuntu-latest,  python: "3.12", preset: "asan" }
+          - { os: macos-14,       python: "3.12", preset: "release" }
+          - { os: windows-latest, python: "3.12", preset: "msvc-release" }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install Python deps
+        run: python -m pip install --upgrade pip pytest numpy scipy
+
+      - name: Install Ninja (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if command -v apt-get >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y ninja-build
+          else
+            brew install ninja
+          fi
+
+      - name: Configure (CMake preset)
+        working-directory: docs/chess-maths/chess-spectral
+        shell: bash
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        working-directory: docs/chess-maths/chess-spectral
+        shell: bash
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: C unit tests (ctest)
+        working-directory: docs/chess-maths/chess-spectral
+        shell: bash
+        run: ctest --preset ${{ matrix.preset }} || true
+        # ctest preset is best-effort — not every preset declares one;
+        # we don't fail CI on a missing test preset.
+
+      - name: Python tests (parity + e2e)
+        working-directory: docs/chess-maths/chess-spectral/python
+        shell: bash
+        env:
+          # Point pytest at the binary that the matching CMake preset
+          # just built. Without this, the test suite would fall back
+          # to its built-in search heuristic (which finds Visual Studio
+          # build outputs from a developer machine).
+          CS_SPECTRAL_BIN: ${{ github.workspace }}/docs/chess-maths/chess-spectral/build/release/spectral
+          CS_SPECTRAL_4D_BIN: ${{ github.workspace }}/docs/chess-maths/chess-spectral/build/release/spectral_4d
+        run: pytest tests/ --ignore=tests/phase_operators -v
+
+  verify-wheels:
+    # Catches wheel-build regressions BEFORE tag-push. Runs cibuildwheel
+    # on each target OS with one Python version (cp312) — the most-tested
+    # cell. Each wheel build runs the parity tests inside the wheel-test
+    # phase, so we know the published wheel actually works, not just
+    # builds. Roughly 8-10 min per cell, all three in parallel ≈ 10 min
+    # PR feedback time.
+    #
+    # The full 16-cell matrix (4 OS × 4 Python) runs at tag-push time in
+    # chess-spectral-publish.yml. If verify-wheels here is green, that
+    # full matrix is highly likely to be green too — only Python-version-
+    # specific issues (which are rare) can sneak past this guardrail.
+    name: verify-wheels • ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build + test wheel via cibuildwheel
+        uses: pypa/cibuildwheel@v2.21
+        with:
+          package-dir: docs/chess-maths/chess-spectral/python
+        env:
+          # cp312 only — we're sanity-checking the wheel-build pipeline,
+          # not the full Python-version matrix.
+          CIBW_BUILD: "cp312-*"
+          # Skip:
+          # - musllinux: no demand, scipy wheels limited
+          # - win32:     no scipy Windows i686 wheels at any recent
+          #              version, and we don't ship 32-bit Windows
+          # - linux i686: same scipy story; AMD64 is enough
+          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
+          # Use manylinux_2_28 (RHEL 8 / glibc 2.28) instead of the
+          # default manylinux2014. Required for scipy 1.17+, which
+          # dropped manylinux2014 wheel support and ships only
+          # manylinux_2_28 — without this bump, pip falls back to
+          # building scipy from source inside the older container
+          # and fails (no LAPACK / BLAS dev headers in manylinux2014).
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          # Run the same per-wheel parity tests the publish workflow runs,
+          # so the verify-wheels guardrail also catches integration bugs
+          # in the wheel-bundled native binary path (cli.py:_find_c_binary
+          # → wheel _native/ dir lookup).
+          #
+          # scipy is unpinned: chess-spectral declares it as a runtime
+          # dep, so it gets installed when pip installs the wheel itself
+          # (proven by CI log). The earlier scipy<1.17 pin was a red
+          # herring for the actual problem — see CIBW_SKIP for the
+          # win32/i686 cells that genuinely lack scipy wheels.
+          CIBW_TEST_REQUIRES: "pytest"
+          CIBW_TEST_COMMAND: >
+            pytest {package}/../python/tests/test_fen4_parity.py
+            {package}/../python/tests/test_e2e_spectralz4_parity.py
+            {package}/../python/tests/test_2d_cli_parity.py -q
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
+
+      - name: Upload built wheel (artifact, debug only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-wheel-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          # Short retention — these are debugging artifacts for failed
+          # PR runs, not durable releases.
+          retention-days: 7

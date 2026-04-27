@@ -5,6 +5,125 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] — 2026-04-25
+
+Wires every advertised CLI command and ships the native binaries inside
+the wheel. Patch-level because every wired command was already in the
+help text and module docstrings — `1.2.3` users had a reasonable
+expectation they worked. This release closes the gap between what was
+promised and what shipped.
+
+See [ROADMAP.md](../ROADMAP.md) for the current command surface.
+
+### Added — Phase A (FEN4 + single-position encoding)
+
+- **FEN4 v1 placement-literal format** — see [docs/FEN4_FORMAT.md](../docs/FEN4_FORMAT.md).
+  Compact, human-readable 4D position literal: `4d-fen v1: K@0,0,0,0;
+  k@7,7,7,7; Pw@1,2,3,4`. Pawn axis (W or Y) is mandatory per
+  Oana & Chiru Definition 11.
+- **C FEN4 parser** in `include/cs_fen_4d.h` + `src/cs_fen_4d.c`.
+- **Python FEN4 parser** in `chess_spectral.fen_4d` (`parse`,
+  `Fen4ParseError`, `parse_to_jsonl_obj`).
+- **C 4D frame I/O** in `include/cs_frame_4d.h` + `src/cs_frame_4d.c`
+  (header + frame + read/write helpers, byte-equivalent to
+  `python/chess_spectral/frame_4d.py`).
+- **`spectral_4d encode-fen4`** (was `cmd_todo` stub) and
+  **`chess-spectral-4d encode-fen4`** (was `_not_implemented` stub).
+  Both produce byte-identical 1-frame v4 `.spectralz4` files.
+- **57 FEN4 parity tests** in `tests/test_fen4_parity.py` covering
+  parser accept/reject + C↔Python byte equivalence (plain + gzipped).
+
+### Added — Phase B (bulk encoding + corpus)
+
+- **NDJSON4 ply-log format** — see [docs/NDJSON4_FORMAT.md](../docs/NDJSON4_FORMAT.md).
+  One FEN4 per line + optional move metadata. No move replay (mirrors
+  the 2D NDJSON pipeline).
+- **`spectral_4d encode`** (was stub) — NDJSON4 → v4 `.spectralz4` bulk
+  encoder. Header backfill, optional gzip via `cs_gzip`.
+- **`spectral_4d csv`** (was stub) — per-ply 11-channel energies +
+  dist/cos/dA1 + 8-coord move metadata.
+- **`chess-spectral-4d encode-moves4`** (was stub) — Python sibling of
+  the C `encode`. Renamed `--fen` → `--fen4` in `encode-fen4` for clarity.
+- **`chess-spectral-4d corpus-gen`** (was stub) — wraps N NDJSON4
+  ply-logs into a corpus folder + manifest.json.
+- **15 e2e parity tests** in `tests/test_e2e_spectralz4_parity.py`
+  covering bulk encode + csv determinism.
+
+### Added — Phase C (2D CLI completion)
+
+- **`spectral compare`** — cosine-similarity report between two
+  .spectral files (min/mean/max + ply with min cosine).
+- **`spectral query`** — 10-channel energy breakdown at a given ply.
+- **`spectral heatmap`** — ANSI 8×8 heatmap of one channel at one ply.
+- **`spectral analyze`** — JSON summary of A1 peak / drop / crisis ply.
+  Heuristics from `chess_spectral_research_notebook.md` §p.1636-1648
+  (ΔA₁ derivative analysis).
+- **`spectral export`** — full .spectral → JSON dump for the web viewer.
+- **`spectral play`** — ply-by-ply listing (non-interactive; defers
+  the interactive viewer to a follow-up).
+- **Python wrappers** for all five (compare, query, heatmap, analyze,
+  export) registered as `spectral_py` subcommands. Output byte-identical
+  to the C side.
+- **14 2D CLI parity tests** in `tests/test_2d_cli_parity.py`.
+
+### Fixed
+
+- **`compute_safety_field(include_pawns=True)` no longer silently
+  produces the `False` answer**. The `include_pawns` parameter was
+  previously discarded with `del include_pawns # TODO: ...` (AUDIT
+  inventory item #14). It now raises `NotImplementedError` with a
+  pointer to the tracking issue. Default behavior (`include_pawns=False`)
+  is unchanged.
+- **`test_encoder_starting_position_channel_energies` had stale expected
+  values** for B1 / B2 (45.2825 / 45.2825 — likely from a pre-PATCH-6
+  audit version). Both C and Python encoders now agree on
+  B1=0.0 / B2=19.8450; the test was updated to match (AUDIT #24b).
+- **Parity test no longer silently skips when fixtures absent**
+  (AUDIT #22). `tests/test_parity.py` now generates a synthetic
+  3-ply fixture using the C binary if the Carlsen-Caruana cache isn't
+  available, ensuring real assertions run in CI.
+
+### Changed
+
+- **Build system: hatchling → scikit-build-core**. The wheel now
+  includes the `spectral` and `spectral_4d` native binaries inside
+  `chess_spectral/_native/`. PyPI users get the ~38× C encoder
+  speedup automatically.
+- **`_find_c_binary` extended** to look in the wheel `_native/` dir
+  before falling back to repo build paths. New `_find_c_binary_4d` for
+  the 4D binary.
+- **CMakePresets.json** added with `release` / `dev-debug` / `asan` /
+  `msvc-release` presets (per [AUDIT_2026-04.md F-07](../AUDIT_2026-04.md)).
+- **GitHub Actions**: existing `chess-spectral-publish.yml` rewritten
+  in place to use cibuildwheel (matrix: linux/macos/windows ×
+  py3.10–3.13) — preserves the trusted-publisher binding and the
+  autotag dispatch path. New `chess-spectral-ci.yml` adds per-PR
+  build + test on representative cells PLUS a `verify-wheels` job
+  that runs cibuildwheel (cp312 only, all 3 OSes) on every PR — this
+  catches wheel-build regressions before tag-push so the publish
+  workflow doesn't discover scikit-build-core / cibuildwheel config
+  bugs at release time.
+- **`STUBBED_CHANNELS` machinery removed** from
+  `tests/test_c_py_parity_4d.py` (~40 lines) — no channels have been
+  stubbed since v1.1.1/P6 (AUDIT #17).
+- **Stale scaffolding comments removed** from `CMakeLists.txt`,
+  `src/cs_encoder_4d.c`, and `python/chess_spectral/tables_4d.py`
+  (AUDIT #15, #16, #18).
+- **Broken plan-file references** (`when-we-need-to-spicy-seahorse.md`,
+  `ticklish-dreaming-platypus.md`) replaced with pointers to the
+  new [ROADMAP.md](../ROADMAP.md) (AUDIT #19, #20, #21).
+- **`miniz` dependency surface documented** at the top of
+  `src/cs_gzip.c` — explicitly lists which miniz APIs we use and
+  which we deliberately avoid (AUDIT #25).
+
+### Tests
+
+- Total: **156 passing**, 0 skipped (was 27 + 3 skipped before this
+  release). 86 of those are new in v1.2.4 (FEN4 + e2e + 2D CLI parity).
+- C↔Python byte-for-byte parity now gated end-to-end for both 2D and
+  4D encoders, including 1-frame and N-frame `.spectralz` / `.spectralz4`
+  files.
+
 ## [1.2.3] — 2026-04-24
 
 Restores the `[corpus]`-optional contract documented in 1.2.x.

@@ -51,8 +51,13 @@ def compute_safety_field(pos, *, include_pawns: bool = False) -> dict:
         Square convention: ``sq(r,c) = r*8 + c`` with row 0 = rank 8
         (matches ``chess_spectral.fen_to_pos`` and the encoder).
     include_pawns : bool
-        Reserved. When True, pawns would contribute to coverage via a
-        symmetric-pawn Laplacian. Not yet wired — has no effect today.
+        Reserved. When True, pawns would contribute to coverage via the
+        symmetric-pawn Laplacian (PAWN_SYM_FIBER). **Not yet wired**: as
+        of v1.2.4, passing ``True`` raises ``NotImplementedError`` rather
+        than silently producing the same answer as ``False``. The
+        ``False`` (default) path is fully implemented and stable; the
+        ``True`` path is reserved for a future release that factors
+        PAWN_SYM_FIBER out of the encoder. See AUDIT inventory item #14.
 
     Returns
     -------
@@ -64,8 +69,13 @@ def compute_safety_field(pos, *, include_pawns: bool = False) -> dict:
         hanging     : [sq, ...] where safety < 0
         most_exposed: sq with the most-negative weighted (biggest capture reward)
     """
+    if include_pawns:
+        raise NotImplementedError(
+            "compute_safety_field(include_pawns=True) is not yet wired. "
+            "PAWN_SYM_FIBER must be factored out of the encoder before "
+            "this path can be enabled. Tracking: AUDIT inventory #14."
+        )
     pos = _normalize_pos(pos)
-    del include_pawns  # TODO: wire PAWN_SYM_FIBER when it's factored out
 
     cov_w = np.zeros(BOARD_DIM)
     cov_b = np.zeros(BOARD_DIM)
