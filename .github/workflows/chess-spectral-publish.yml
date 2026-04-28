@@ -54,7 +54,11 @@ jobs:
         # can build from sdist (we ship one alongside the wheels) or use
         # Rosetta with a manylinux x86_64 wheel under Docker.
         os: [ubuntu-latest, macos-14, windows-latest]
-        python: ["310", "311", "312", "313"]
+        # Python 3.14 added 2026-04-28: ~6 months after 3.14.0 release,
+        # ecosystem (numpy/scipy/cibuildwheel/scikit-build-core) all
+        # have stable cp314 wheels. Matrix grows from 3 OS × 4 Python
+        # = 12 cells to 3 × 5 = 15 cells per release.
+        python: ["310", "311", "312", "313", "314"]
     steps:
       - uses: actions/checkout@v4
 

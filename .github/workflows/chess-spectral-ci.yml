@@ -92,10 +92,11 @@ jobs:
     # builds. Roughly 8-10 min per cell, all three in parallel ≈ 10 min
     # PR feedback time.
     #
-    # The full 16-cell matrix (4 OS × 4 Python) runs at tag-push time in
-    # chess-spectral-publish.yml. If verify-wheels here is green, that
-    # full matrix is highly likely to be green too — only Python-version-
-    # specific issues (which are rare) can sneak past this guardrail.
+    # The full 15-cell matrix (3 OS × 5 Python — cp310..cp314) runs at
+    # tag-push time in chess-spectral-publish.yml. If verify-wheels
+    # here is green, that full matrix is highly likely to be green too —
+    # only Python-version-specific issues (which are rare) can sneak
+    # past this guardrail.
     name: verify-wheels • ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
