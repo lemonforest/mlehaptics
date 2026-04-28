@@ -20,7 +20,25 @@ Reading a game file produced by either the C or Python encoder:
     (161, 640)
 """
 
-__version__ = "1.2.3"
+# Derive the package version from the installed dist's metadata
+# rather than hardcoding it. Hardcoding drifts: between v1.2.3 and
+# v1.3.1, six version bumps to pyproject.toml landed without
+# updating this string, so `chess_spectral.__version__` claimed
+# "1.2.3" while `importlib.metadata.version("chess-spectral")`
+# correctly reported the actual installed version. Dynamic
+# derivation makes the two impossible to disagree.
+#
+# Editable / development checkouts that haven't been `pip install
+# -e .`'d still get a sentinel string rather than crashing.
+from importlib.metadata import (
+    PackageNotFoundError as _PkgNotFound,
+    version as _pkg_version,
+)
+try:
+    __version__ = _pkg_version("chess-spectral")
+except _PkgNotFound:
+    __version__ = "0.0.0+unknown"
+del _pkg_version, _PkgNotFound
 
 from .encoder import (
     encode_640,
