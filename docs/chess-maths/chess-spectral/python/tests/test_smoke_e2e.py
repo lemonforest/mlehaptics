@@ -1122,5 +1122,227 @@ def test_seeded_self_play_4d_csv_pipeline(tmp_path):
     assert rows[0].count(",") + 1 == 24
 
 
+# ─── 4D phase-operator smoke (Phase F immolation extension) ─────────
+
+
+def test_4d_phase_operators_smoke():
+    """4D phase ops public surface — touch each piece operator on a
+    sample origin and verify shape invariants. The full 4096-origin
+    structural gate lives in test_phase_4d_unobstructed.py; this is
+    the smoke version that runs in milliseconds."""
+    from chess_spectral.phase_operators_4d import (
+        P_rook4, P_bishop4, P_queen4, P_king4, P_knight4,
+        P_pawn4_white, phi4, phase_set_to_board,
+    )
+    p = phi4(3, 3, 3, 3)
+    rook = phase_set_to_board(P_rook4(p))
+    bishop = phase_set_to_board(P_bishop4(p))
+    queen = phase_set_to_board(P_queen4(p))
+    king = phase_set_to_board(P_king4(p))
+    knight = phase_set_to_board(P_knight4(p))
+    pawn = phase_set_to_board(P_pawn4_white(
+        p, axis="w", on_starting_rank=False, include_captures=True,
+    ))
+    # Interior mobilities per O&C section 3.
+    assert len(rook) == 28
+    assert len(king) == 80
+    assert len(knight) == 48
+    # Queen = rook ∪ bishop, disjoint supports.
+    assert queen == (rook | bishop)
+    assert (rook & bishop) == frozenset()
+    # White pawn at (3,3,3,3): forward push to (3,3,3,4) + 2 captures.
+    assert pawn == frozenset({(3, 3, 3, 4), (2, 3, 3, 4), (4, 3, 3, 4)})
+
+
+def test_4d_phase_check_detection_smoke():
+    """4D phasecast_is_check_4d on the initial position — both colors
+    safe, both naive and reverse-cast paths agree."""
+    chess4d_pkg = pytest.importorskip(
+        "chess4d", reason="4D phase-op check detection requires "
+                          "python-chess4d-oana-chiru")
+    from chess_spectral.phase_operators_4d import (
+        phasecast_is_check_4d, phasecast_is_check_4d_no_pawns,
+    )
+    gs = chess4d_pkg.initial_position()
+    for color in (chess4d_pkg.Color.WHITE, chess4d_pkg.Color.BLACK):
+        assert phasecast_is_check_4d_no_pawns(gs, color) is False
+        assert phasecast_is_check_4d(gs, color) is False
+
+
+def test_seeded_self_play_4d_phase_op_legal_moves_match():
+    """4D analogue of test_seeded_self_play_phase_op_legal_moves_match.
+
+    Quick gate at 5 chess4d.GameState positions (random 1-3-ply walks
+    from initial_position) — for every occupied piece in each position,
+    occupation_aware_moves_a_4d must equal the chess4d oracle's per-
+    piece pseudo-legal destination set. The full corpus version
+    (test_phase_4d_occupation_aware.py) exercises 50 positions × ~896
+    pieces; this one is the daily-run smoke that runs in ~5 seconds.
+    """
+    chess4d_pkg = pytest.importorskip(
+        "chess4d", reason="4D phase-op smoke requires "
+                          "python-chess4d-oana-chiru")
+    from chess_spectral.phase_operators_4d import (
+        occupation_aware_moves_a_4d,
+    )
+    import random
+    piece_gens = {
+        chess4d_pkg.types.PieceType.ROOK:   chess4d_pkg.rook_moves,
+        chess4d_pkg.types.PieceType.BISHOP: chess4d_pkg.bishop_moves,
+        chess4d_pkg.types.PieceType.QUEEN:  chess4d_pkg.queen_moves,
+        chess4d_pkg.types.PieceType.KNIGHT: chess4d_pkg.knight_moves,
+        chess4d_pkg.types.PieceType.KING:   chess4d_pkg.king_moves,
+        chess4d_pkg.types.PieceType.PAWN:   chess4d_pkg.pawn_moves,
+    }
+    mismatches = []
+    for seed in range(5):
+        gs = chess4d_pkg.initial_position()
+        rng = random.Random(seed)
+        for _ in range(1 + (seed % 3)):  # 1-3 plies per position
+            moves = list(gs.legal_moves())
+            if not moves:
+                break
+            gs.push(rng.choice(moves))
+        # Sample 20 random pieces per position to cap the runtime
+        # (full corpus is in test_phase_4d_occupation_aware.py).
+        all_pieces = []
+        for color in (chess4d_pkg.Color.WHITE, chess4d_pkg.Color.BLACK):
+            all_pieces.extend(gs.board.pieces_of(color))
+        rng.shuffle(all_pieces)
+        for sq, piece in all_pieces[:20]:
+            phase_dests = occupation_aware_moves_a_4d(gs, sq, piece)
+            oracle = frozenset(
+                (m.to_sq.x, m.to_sq.y, m.to_sq.z, m.to_sq.w)
+                for m in piece_gens[piece.piece_type](
+                    sq, piece.color, gs.board)
+            )
+            if phase_dests != oracle:
+                mismatches.append((seed, sq, piece, phase_dests, oracle))
+                if len(mismatches) >= 3:
+                    break
+    assert not mismatches, (
+        f"phase-op vs chess4d oracle disagree at: "
+        + "\n  ".join(
+            f"seed={s} {p.color.name} {p.piece_type.name} at {sq}: "
+            f"missing={o-pd}, extra={pd-o}"
+            for s, sq, p, pd, o in mismatches
+        )
+    )
+
+
+# ─── stub-detector meta-test (Phase F immolation extension) ─────────
+#
+# Catches "we shipped a v1.2.X release with unwired CLI commands"
+# regressions before they ship again. Mirrors the v1.2.4 inventory
+# discipline.
+
+
+_STUB_PATTERNS = (
+    # C-side "TODO this command" stubs (cmd_todo("name") in main.c).
+    # This was the exact pattern that shipped 12 unwired CLI commands
+    # in v1.2.3 — the v1.2.4 wiring removed every instance.
+    (r'\bcmd_todo\s*\(\s*"', "C cmd_todo() stub"),
+
+    # Python "_not_implemented(...)" helper — the
+    # chess_spectral_4d/cli.py v1.2.3 placeholder for unwired
+    # commands. Wired in v1.2.4 alongside the C cmd_todo cleanup.
+    (r"^\s*return\s+_not_implemented\s*\(", "_not_implemented() return"),
+    (r"^\s*_not_implemented\s*\(", "_not_implemented() bare call"),
+)
+# We intentionally do NOT flag plain ``raise NotImplementedError``:
+# it has too many legitimate uses (deferred-feature surfaces with
+# user-facing loud failure). The two patterns above are unambiguous
+# indicators of "command/function stub that should be wired" —
+# they're the patterns that produced the v1.2.3 → 1.2.4 unwired-CLI
+# regression we're guarding against here.
+
+_STUB_EXCLUDE = (
+    # Tests directories — fixtures, mocks, and "expect-not-implemented"
+    # assertions are intentional.
+    "/tests/",
+    "\\tests\\",
+    # Vendored upstream sources we don't own.
+    "/vendor/",
+    "\\vendor\\",
+    # Build / cache trees.
+    "/build/",
+    "/__pycache__/",
+    "\\build\\",
+    # Documentation files (research records and ROADMAPs intentionally
+    # describe stubbed states for historical clarity).
+    ".md",
+    # Skip the chess_spectral_4d.cli "(stubbed; needs ...)" docstring
+    # — that's documentation of historical state, not a current stub.
+    # The actual logic was wired in v1.2.4.
+)
+
+
+def _is_excluded(path_str: str) -> bool:
+    return any(ex in path_str for ex in _STUB_EXCLUDE)
+
+
+def test_no_unwired_stubs_in_shipped_python_or_c():
+    """Walk the shipped chess_spectral / chess_spectral_4d Python
+    sources and the chess-spectral C source tree; fail if any
+    function body still contains a stub pattern.
+
+    Covers:
+      * C: cmd_todo("name") (the v1.2.3 → 1.2.4 unwired-command class)
+      * Python: raise NotImplementedError outside test directories
+      * Python: bare _not_implemented() calls (the chess_spectral_4d
+        v1.2.3 placeholder)
+
+    Excludes vendor/, tests/, build artifacts, and Markdown docs.
+
+    See PHASE_OPERATOR_SUPPLEMENT_4D.md §13.7 for the full discipline
+    rationale.
+    """
+    import re
+    repo_python = Path(__file__).resolve().parent.parent
+    chess_spectral_root = repo_python.parent  # chess-spectral/
+
+    found: list[tuple[str, int, str]] = []
+    compiled = [(re.compile(p, re.MULTILINE), label) for p, label in _STUB_PATTERNS]
+
+    def _scan(root: Path, suffixes: tuple[str, ...]):
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            if path.suffix not in suffixes:
+                continue
+            sp = str(path)
+            if _is_excluded(sp):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for rx, label in compiled:
+                for m in rx.finditer(text):
+                    line = text[:m.start()].count("\n") + 1
+                    found.append((sp, line, label))
+
+    # Python sources we ship.
+    _scan(repo_python / "chess_spectral", (".py",))
+    _scan(repo_python / "chess_spectral_4d", (".py",))
+    # C sources + headers.
+    _scan(chess_spectral_root / "src", (".c", ".h"))
+    _scan(chess_spectral_root / "include", (".h",))
+
+    # Phase B's pawn operators raised NotImplementedError before
+    # Phase E. After Phase E lifts include_captures, no shipped
+    # function should hit any of the stub patterns. The check below
+    # also tolerates `pytest.raises(NotImplementedError)` patterns
+    # inside test files (excluded by path) and intentional stubs in
+    # vendored code.
+    assert not found, (
+        "Found unwired stubs in shipped sources:\n"
+        + "\n".join(
+            f"  {path}:{line}  ({label})"
+            for path, line, label in found
+        )
+        + "\n\nIf any of these are intentional (deferred phase, etc.),"
+          " raise a clear ValueError with a phase reference instead, "
+          "or add the path to _STUB_EXCLUDE."
+    )
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

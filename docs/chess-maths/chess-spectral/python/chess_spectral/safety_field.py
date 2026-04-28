@@ -1,9 +1,27 @@
 """
 safety_field — per-piece defensive coherence from fiber coupling.
 
-Computes a scalar ``S`` per position that sums, over every piece j, the
-magnitude-value-weighted difference between friendly and enemy movement-
-graph coverage of j's square:
+**Status: failed exploration, retained as historical reference.**
+The §9o blunder-detection hypothesis (ΔS across a move tracks
+engine-Δeval) was tested on two GM games and produced a null
+result (``ρ ≈ 0``). The notebook documents the failure mode at
+chess_spectral_research_notebook.md §9o:
+
+    "The scalar safety field does NOT correlate with engine
+     evaluation. The safety field measures aggregate movement-
+     graph coverage — how much of the board's topology each side
+     controls. This is a Level 2 (structural) measurement. It
+     cannot detect pins, forks, discovered attacks, or overloaded
+     defenders, all of which are Level 3 (specific edge
+     conjunctions requiring search)."
+
+The module is kept so the §9o experiment is reproducible. It is
+NOT a recommended building block for new spectral-chess work; new
+analyses should consult the §11 phase-operator framework or the
+4D Oana-Chiru work in PHASE_OPERATOR_SUPPLEMENT_4D.md.
+
+What it computes (preserved verbatim from the original
+implementation):
 
     coverage_side[s] = Σ_{piece i on side, T_i ∈ {N,B,R,Q,K}}
                            |val(T_i)| · LOCAL_ADJ_ROWS[pidx_i, s_i][s]
@@ -14,13 +32,14 @@ graph coverage of j's square:
     S_black    = Σ weighted_j  (black pieces)
     S_total    = S_white − S_black
 
-Pawns are included as defended targets but skipped as coverage sources
-(they're not in SHORT_PFNS / _FIBER_IDX). Pass ``include_pawns=True``
-to reserve the hook for a later symmetric-pawn-Laplacian contribution.
-
-The hypothesis (docs/chess-maths/SAFETY_FIELD.md): ΔS across a move
-tracks engine-Δeval. Blunders spectrally isolate a piece from its
-defensive network and ΔS drops.
+Pawns are included as defended targets but skipped as coverage
+sources (they're not in SHORT_PFNS / _FIBER_IDX). The previous
+``include_pawns=True`` extension hook (intended to wire the
+symmetric-pawn Laplacian as a future contribution per v1.2.4
+inventory item #14) is removed in this release: the parent
+hypothesis already failed, so reserving the hook for a parameter
+that wouldn't have helped anyway adds maintenance cost without
+benefit.
 """
 from __future__ import annotations
 
@@ -41,8 +60,13 @@ def _normalize_pos(pos) -> dict[int, str]:
     return {int(k): v for k, v in pos.items()}
 
 
-def compute_safety_field(pos, *, include_pawns: bool = False) -> dict:
+def compute_safety_field(pos) -> dict:
     """Compute the per-piece and total spectral safety field.
+
+    See module docstring for the §9o failed-hypothesis context. This
+    function is preserved so the §9o experiment is reproducible; the
+    previous ``include_pawns`` future-extension hook has been removed
+    because the parent hypothesis didn't validate.
 
     Parameters
     ----------
@@ -50,14 +74,6 @@ def compute_safety_field(pos, *, include_pawns: bool = False) -> dict:
         Square index → piece char. Uppercase = white, lowercase = black.
         Square convention: ``sq(r,c) = r*8 + c`` with row 0 = rank 8
         (matches ``chess_spectral.fen_to_pos`` and the encoder).
-    include_pawns : bool
-        Reserved. When True, pawns would contribute to coverage via the
-        symmetric-pawn Laplacian (PAWN_SYM_FIBER). **Not yet wired**: as
-        of v1.2.4, passing ``True`` raises ``NotImplementedError`` rather
-        than silently producing the same answer as ``False``. The
-        ``False`` (default) path is fully implemented and stable; the
-        ``True`` path is reserved for a future release that factors
-        PAWN_SYM_FIBER out of the encoder. See AUDIT inventory item #14.
 
     Returns
     -------
@@ -69,12 +85,6 @@ def compute_safety_field(pos, *, include_pawns: bool = False) -> dict:
         hanging     : [sq, ...] where safety < 0
         most_exposed: sq with the most-negative weighted (biggest capture reward)
     """
-    if include_pawns:
-        raise NotImplementedError(
-            "compute_safety_field(include_pawns=True) is not yet wired. "
-            "PAWN_SYM_FIBER must be factored out of the encoder before "
-            "this path can be enabled. Tracking: AUDIT inventory #14."
-        )
     pos = _normalize_pos(pos)
 
     cov_w = np.zeros(BOARD_DIM)
