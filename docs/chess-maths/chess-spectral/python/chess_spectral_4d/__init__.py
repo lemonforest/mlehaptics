@@ -18,8 +18,27 @@ Discover the CLI with:
     python -m chess_spectral_4d.cli --help
 """
 
-VERSION = "1.1.3"
-__version__ = VERSION  # PEP 396 alias; VERSION kept for cli.py back-compat
+# Single source of truth: the dist version in pyproject.toml. Both
+# `chess_spectral` and `chess_spectral_4d` derive `__version__`
+# dynamically from importlib.metadata so they always agree with each
+# other and with the installed wheel. (Pre-1.3.2, this package
+# carried a separate "encoder format version" string that drifted
+# from the dist version — having two version concepts caused more
+# confusion than the artifact-protocol nuance was worth.)
+#
+# `VERSION` is preserved as an alias for back-compat with any
+# downstream callers that imported the old name.
+from importlib.metadata import (
+    PackageNotFoundError as _PkgNotFound,
+    version as _pkg_version,
+)
+try:
+    __version__ = _pkg_version("chess-spectral")
+except _PkgNotFound:
+    __version__ = "0.0.0+unknown"
+del _pkg_version, _PkgNotFound
+
+VERSION = __version__
 ENCODING_DIM_4D = 45056   # 11 channels x 4096 eigenmodes (v1.1.1)
 N_CHANNELS_4D = 11
 BOARD_SIDE_4D = 8
