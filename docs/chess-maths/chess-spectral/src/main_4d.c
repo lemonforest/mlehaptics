@@ -318,8 +318,16 @@ static const char *json_find_field(const char *line, const char *key)
     return p;
 }
 
-/* Extract "key":"<value>" into dst. dst_size includes NUL. Returns 0
- * on success, -1 if key not found or value isn't a string. */
+/* Extract "key":"<value>" into dst. dst_size includes NUL. Returns:
+ *    0  success
+ *   -1  key not found, or value isn't a string
+ *   -2  value would overflow dst (length excluding NUL >= dst_size)
+ *
+ * Pre-1.3.2 the overflow case silently truncated and returned 0,
+ * which converted "FEN4 too long" failures into "FEN4 has bad
+ * coordinate" errors downstream — the user spent time bisecting
+ * coord values for what was really a buffer-size issue. The new
+ * -2 return makes the failure mode explicit. */
 static int json_str_field4(const char *line, const char *key,
                            char *dst, size_t dst_size)
 {
@@ -332,7 +340,7 @@ static int json_str_field4(const char *line, const char *key,
     while (*q && *q != '"') q++;
     if (*q != '"') return -1;
     size_t n = (size_t)(q - p);
-    if (n + 1 > dst_size) n = dst_size - 1;
+    if (n + 1 > dst_size) return -2;  /* explicit overflow signal */
     memcpy(dst, p, n);
     dst[n] = '\0';
     return 0;
@@ -556,22 +564,68 @@ static int cmd_encode(int argc, char **argv)
     cs_encoding_4d_t enc;
     cs_spectral_frame_4d_t fr;
 
-    /* NDJSON4 lines can hold a fairly large FEN4 (each piece is
-     * ~12-15 bytes; max 32 pieces at v1.2.4 — call it 1 KiB worst-case
-     * for FEN4 + a few hundred bytes of metadata). 8 KiB is comfortable
-     * headroom. */
-    char buf[8192];
+    /* Heap-allocated line buffer + FEN4 buffer. Both have to be
+     * large enough to hold the worst-case full-board 4D position:
+     *
+     *   FEN4 string for 4096 occupied squares with short piece
+     *   records (e.g. "R@7,7,7,7", 9 chars) plus separators ≈ 45 KiB;
+     *   with longer pawn records ("Pw@7,7,7,7", 11 chars) ≈ 55 KiB.
+     *
+     *   The wrapping NDJSON line is the FEN4 plus JSON envelope:
+     *   {"ply":N,"fen4":"<...>","move_from":[...],...}
+     *   ≈ FEN4 size + ~200 bytes of metadata.
+     *
+     * Sizes chosen with ~10 KiB headroom each for future format
+     * additions (extra piece flags, longer piece-axis names, etc.).
+     *
+     * Pre-1.3.2 these were 8 KiB and 2 KiB stack buffers; the FEN4
+     * buffer's silent truncation produced misleading "bad coord"
+     * errors on real chess4d corpora. Heap-allocated so we don't
+     * push the function's stack frame past Windows' default
+     * thread-stack limit (cs_spectral_frame_4d_t is already
+     * ~180 KiB on the stack for `fr`).
+     *
+     * IMPORTANT: every `return` after this point MUST free both
+     * buffers or they leak. There are exactly two: the gzip-failure
+     * path and the normal success path; both are inline below. If
+     * you add a new return between the malloc and the function's
+     * end, free both buffers first. */
+    enum { LINE_BUF_SIZE = 80 * 1024, FEN4_BUF_SIZE = 64 * 1024 };
+    char *buf  = (char *)malloc(LINE_BUF_SIZE);
+    char *fen4 = (char *)malloc(FEN4_BUF_SIZE);
+    if (!buf || !fen4) {
+        free(buf);
+        free(fen4);
+        if (fin != stdin) fclose(fin);
+        fclose(fout);
+        fprintf(stderr, "encode: out of memory allocating line/FEN4 "
+                        "buffers (need %d + %d KiB)\n",
+                LINE_BUF_SIZE / 1024, FEN4_BUF_SIZE / 1024);
+        return 3;
+    }
+
     uint32_t n_plies = 0;
     uint32_t line_no = 0;
 
-    while (fgets(buf, sizeof(buf), fin)) {
+    while (fgets(buf, LINE_BUF_SIZE, fin)) {
         line_no++;
         if (strstr(buf, "bridge_version")) continue;
 
-        char fen4[2048];
-        if (json_str_field4(buf, "fen4", fen4, sizeof(fen4)) != 0) continue;
+        int rc = json_str_field4(buf, "fen4", fen4, FEN4_BUF_SIZE);
+        if (rc == -2) {
+            /* Buffer overflow — surface a clearer error than the
+             * downstream FEN4 parser's "bad coord" we'd otherwise
+             * get from a half-truncated string. */
+            fprintf(stderr,
+                "encode: line %u: FEN4 string longer than %d KiB; "
+                "rebuild with a larger FEN4_BUF_SIZE in cmd_encode "
+                "(src/main_4d.c) if your corpus genuinely needs it\n",
+                line_no, FEN4_BUF_SIZE / 1024);
+            continue;
+        }
+        if (rc != 0) continue;  /* key not found, line is metadata */
 
-        int rc = cs_fen_4d_parse(fen4, &pos);
+        rc = cs_fen_4d_parse(fen4, &pos);
         if (rc != 0) {
             fprintf(stderr, "encode: FEN4 parse error %d at line %u\n",
                     rc, line_no);
@@ -629,6 +683,8 @@ static int cmd_encode(int argc, char **argv)
         if (cs_file_write_gzip(output, fout) != 0) {
             fprintf(stderr, "encode: gzip to %s failed\n", output);
             fclose(fout);
+            free(fen4);
+            free(buf);
             return 3;
         }
     }
@@ -638,6 +694,8 @@ static int cmd_encode(int argc, char **argv)
         fprintf(stderr, "encode: warning — no plies written "
                 "(empty input or all FEN4 parse errors)\n");
     }
+    free(fen4);
+    free(buf);
     return 0;
 }
 

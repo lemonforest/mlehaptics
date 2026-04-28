@@ -431,6 +431,76 @@ def test_4d_encode_bulk_ndjson(tmp_path):
 
 
 @_REQUIRES_C_4D
+@pytest.mark.parametrize("description,n_pieces", [
+    ("short_10_pieces_under_old_2KiB_boundary", 10),
+    ("long_300_pieces_above_old_2KiB_boundary", 300),
+])
+def test_4d_encode_fen4_matches_encode_ndjson4_byte_for_byte(
+    description, n_pieces, tmp_path
+):
+    """The two C 4D encode paths — `encode-fen4 --fen4 STRING` (points
+    directly at argv, no buffer copy) and `encode -i NDJSON4` (copies
+    each line into a fixed buffer before parsing) — must produce
+    byte-identical .spectral4 output for the same FEN4 position.
+
+    This is a regression catch for the v1.3.1 buffer-truncation bug
+    (see test_encode_long_fen4.py for the full story): pre-1.3.2 the
+    bulk path silently truncated FEN4 input at 2048 bytes while
+    encode-fen4 was unaffected, so the two paths produced wildly
+    different output for the same position. Byte-equivalence is the
+    invariant that makes that class of bug impossible to ship again.
+
+    The 300-piece variant lands clearly above the original 2048-byte
+    boundary; if any future change to either path drifts the encoding,
+    it shows up here as a byte-mismatch rather than as a misleading
+    parse error or as silent corpus corruption.
+    """
+    # Build a deterministic FEN4 with `n_pieces` rooks on distinct
+    # squares of Z_8^4. Same recipe as the focused regression test
+    # in test_encode_long_fen4.py but inlined here so the immolation
+    # suite stays self-contained.
+    pieces = []
+    for i in range(n_pieces):
+        x = (i // 512) % 8
+        y = (i // 64) % 8
+        z = (i // 8) % 8
+        w = i % 8
+        pieces.append(f"R@{x},{y},{z},{w}")
+    fen4 = "4d-fen v1: " + "; ".join(pieces)
+
+    # Path A: encode-fen4 (single-position writer; --fen4 points at argv)
+    out_a = tmp_path / "via_fen4.spectral4"
+    _run_c_4d(["encode-fen4", "--fen4", fen4, "-o", str(out_a)])
+
+    # Path B: encode (NDJSON4 → .spectral4; FEN4 copied into the line buf)
+    nd = tmp_path / "in.ndjson4"
+    nd.write_text(
+        json.dumps({"ply": 0, "fen4": fen4}) + "\n",
+        encoding="utf-8",
+    )
+    out_b = tmp_path / "via_ndjson4.spectral4"
+    # No -z: gzip headers carry a timestamp that differs between runs,
+    # which would defeat byte-equivalence. Both encoder paths produce
+    # raw .spectral4 here, then we compare bytes directly.
+    _run_c_4d(["encode", str(nd), "-o", str(out_b)])
+
+    bytes_a = out_a.read_bytes()
+    bytes_b = out_b.read_bytes()
+    assert len(bytes_a) == len(bytes_b), (
+        f"{description}: encode-fen4 produced {len(bytes_a)} bytes, "
+        f"encode NDJSON4 produced {len(bytes_b)} bytes (FEN4 was "
+        f"{len(fen4)} bytes)"
+    )
+    assert bytes_a == bytes_b, (
+        f"{description}: encode-fen4 and encode-NDJSON4 paths produced "
+        f"different bytes for the same FEN4 (length={len(fen4)}). "
+        f"This is the v1.3.1 truncation-bug class — investigate "
+        f"json_str_field4 / cmd_encode (src/main_4d.c) and "
+        f"cmd_encode_fen4's write_one_frame helper."
+    )
+
+
+@_REQUIRES_C_4D
 def test_4d_csv_per_ply_energies(tmp_path):
     """csv on a multi-ply .spectralz4 emits 1 header row + N data rows
     with the documented 24-column layout."""

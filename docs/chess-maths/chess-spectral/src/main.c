@@ -197,6 +197,15 @@ static int cmd_encode_fen(int argc, char **argv)
  * `dst` (dst_size including the NUL). Returns 0 on success, -1 if not found.
  * FEN never contains quotes or backslashes, so a straight substring scan is
  * sufficient for the pgn_bridge format. */
+/* Extract "key":"<value>" into dst. dst_size includes NUL. Returns:
+ *    0  success
+ *   -1  key not found, or key/needle name too long for `needle[64]`
+ *   -2  value would overflow dst (length excluding NUL >= dst_size)
+ *
+ * Pre-1.3.2 the overflow case silently truncated and returned 0,
+ * mirroring the 4D json_str_field4 of the same era. The 4D side hit
+ * this in real-world use (4D startpos > 2 KiB tripped a 2 KiB
+ * buffer); the 2D side never has, but we fix the pattern in lockstep. */
 static int json_str_field(const char *line, const char *key,
                           char *dst, size_t dst_size)
 {
@@ -209,7 +218,7 @@ static int json_str_field(const char *line, const char *key,
     const char *q = strchr(p, '"');
     if (!q) return -1;
     size_t n = (size_t)(q - p);
-    if (n + 1 > dst_size) n = dst_size - 1;
+    if (n + 1 > dst_size) return -2;  /* explicit overflow signal */
     memcpy(dst, p, n);
     dst[n] = '\0';
     return 0;
@@ -590,8 +599,21 @@ static int cmd_encode(int argc, char **argv)
         /* Skip bridge header (first non-empty line may contain "bridge_version"). */
         if (strstr(buf, "bridge_version")) continue;
 
-        char fen[128];
-        if (json_str_field(buf, "fen", fen, sizeof(fen)) != 0) continue;
+        /* Standard 2D FEN is ~88 bytes max for any legal position
+         * (six rank-row strings plus side-to-move / castling / ep /
+         * halfmove / fullmove), so 128 was tight but always
+         * sufficient in practice. We grow to 8 KiB anyway so an
+         * unusual or malformed input gets the same loud overflow
+         * error as the 4D side rather than silent truncation. */
+        char fen[8192];
+        int rc_field = json_str_field(buf, "fen", fen, sizeof(fen));
+        if (rc_field == -2) {
+            fprintf(stderr,
+                "encode: line %u: FEN string longer than 8 KiB\n",
+                line_no);
+            continue;
+        }
+        if (rc_field != 0) continue;  /* key not found */
 
         int ply = -1;
         (void)json_int_field(buf, "ply", &ply);

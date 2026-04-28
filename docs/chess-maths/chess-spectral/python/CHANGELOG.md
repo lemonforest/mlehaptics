@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`spectral_4d encode` (NDJSON4 → .spectralz4) no longer truncates
+  FEN4 input at 2048 bytes.** Pre-1.3.2 the bulk encode path used a
+  2 KiB stack buffer for each FEN4 string, plus an 8 KiB stack
+  buffer for each NDJSON line. Real chess4d positions serialize to
+  ~9.4 KiB at startpos and well above for any in-game position, so
+  the bulk path was effectively unusable for the chess4d corpus —
+  it produced a header-only `.spectralz4` (256 bytes) and a
+  misleading `FEN4 parse error -4` (`CODE_BAD_COORD`) on stderr.
+  The single-position writer (`encode-fen4`) was unaffected because
+  it points directly at `argv` with no buffer copy. Fix:
+    - The internal FEN4 buffer in `cmd_encode` grew from 2 KiB stack
+      to 64 KiB heap; the line buffer grew from 8 KiB stack to 80
+      KiB heap. Both buffers are paired with `free()` calls on every
+      exit path.
+    - `json_str_field4` now returns `-2` on overflow (instead of
+      silently truncating to fit). The caller emits a clear
+      `"FEN4 string longer than 64 KiB"` error, so any future
+      hypothetical overflow surfaces as actionable diagnostic
+      output rather than as a misleading parse failure downstream.
+    - The same fix is applied to the 2D `spectral encode` path
+      (`json_str_field` returns `-2` on overflow; the 2D `fen[]`
+      buffer grew from 128 to 8192 bytes — 2D FENs are short, but
+      the silent-truncate failure mode was identical).
+  New regression tests: [`test_encode_long_fen4.py`](tests/test_encode_long_fen4.py)
+  pins the 193-piece originally-broken case and the 4096-piece
+  worst-case fully-loaded board. The immolation suite
+  ([`test_smoke_e2e.py`](tests/test_smoke_e2e.py)) now asserts
+  byte-equivalence between the two C 4D encode paths
+  (`encode-fen4 --fen4 STRING` vs `encode -i NDJSON4`) at both
+  short and long-FEN4 sizes — the invariant that makes the
+  truncation bug impossible to ship again.
+
 - **`chess_spectral.__version__` no longer drifts from the dist
   version.** Pre-1.3.2 the string was hardcoded at `"1.2.3"` and
   never updated across six successive `pyproject.toml` bumps
