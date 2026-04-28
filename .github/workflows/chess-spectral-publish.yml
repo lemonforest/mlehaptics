@@ -124,9 +124,88 @@ jobs:
           name: sdist
           path: docs/chess-maths/chess-spectral/python/dist/*.tar.gz
 
+  build-pure-wheel:
+    # Pure-Python `py3-none-any` wheel for environments that can't
+    # run our platform-specific binaries — primarily Pyodide / micropip
+    # in browsers (mobile + desktop). The Pyodide runtime is
+    # single-process WASM with no fork/exec, so subprocess'd binaries
+    # don't work; the pure wheel uses the Python encoder paths
+    # exclusively (verified bit-for-bit against C output by
+    # test_c_py_parity*).
+    #
+    # Built via hatchling instead of scikit-build-core. The build
+    # uses pyproject-pure.toml (which lives alongside the canonical
+    # pyproject.toml in the package dir); we copy it over the main
+    # pyproject in a checkout-local staging step, build, then restore.
+    # The version in pyproject-pure.toml MUST match the main
+    # pyproject's version; the publish job's tag-version check covers
+    # both via grep.
+    name: pure-python wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify pyproject-pure.toml version matches main
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: |
+          python3 <<'PY'
+          import sys, tomllib
+          with open("pyproject.toml", "rb") as f:
+              main_v = tomllib.load(f)["project"]["version"]
+          with open("pyproject-pure.toml", "rb") as f:
+              pure_v = tomllib.load(f)["project"]["version"]
+          if main_v != pure_v:
+              print(f"::error::pyproject.toml version {main_v!r} != "
+                    f"pyproject-pure.toml version {pure_v!r}. Bump them "
+                    "together; the pure-wheel + platform-wheel pair must "
+                    "agree on version.")
+              sys.exit(1)
+          print(f"versions agree: {main_v}")
+          PY
+
+      - name: Stage pure pyproject and build wheel
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: |
+          # Swap pyproject.toml -> pyproject-pure.toml so hatchling's
+          # build backend picks it up. Restore in a `finally` so the
+          # checkout is unmodified for downstream jobs (artifact
+          # uploads run on this same checkout).
+          set -euo pipefail
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip build hatchling
+          python -m build --wheel
+          ls -la dist/
+          # Sanity: ensure the wheel has 'py3-none-any' tag.
+          if ! ls dist/chess_spectral-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel, did not find one"
+            exit 1
+          fi
+          # Sanity: ensure no _native/ binaries leaked into the wheel.
+          if python -m zipfile -l dist/*-py3-none-any.whl | grep -E '_native/|\.exe$|\.so$|\.dll$|\.dylib$'; then
+            echo "::error::native binaries leaked into pure wheel"
+            exit 1
+          fi
+          echo "pure-wheel sanity checks passed"
+
+      - name: Twine metadata check
+        working-directory: docs/chess-maths/chess-spectral/python
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check --strict dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-pure
+          path: docs/chess-maths/chess-spectral/python/dist/*py3-none-any.whl
+
   publish:
     name: publish to PyPI
-    needs: [build-wheels, build-sdist]
+    needs: [build-wheels, build-sdist, build-pure-wheel]
     runs-on: ubuntu-latest
     # Publish only on tag-push or workflow_dispatch on a tag ref; never
     # on PR / branch dispatches.
