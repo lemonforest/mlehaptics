@@ -5,6 +5,40 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`chess_spectral.__version__` no longer drifts from the dist
+  version.** Pre-1.3.2 the string was hardcoded at `"1.2.3"` and
+  never updated across six successive `pyproject.toml` bumps
+  (1.2.4, 1.2.5, 1.2.6, 1.3.0, 1.3.1). Users on v1.3.1 who imported
+  `chess_spectral.__version__` saw "1.2.3" while
+  `importlib.metadata.version("chess-spectral")` correctly reported
+  "1.3.1". Both `chess_spectral.__version__` and
+  `chess_spectral_4d.__version__` now derive dynamically from
+  `importlib.metadata`; they cannot drift again.
+
+### Changed
+
+- **`chess_spectral_4d.VERSION` is now an alias for
+  `__version__`** (the dist version). Pre-1.3.2 it carried a
+  separate "encoder format version" string ("1.1.3") that bumped on
+  protocol changes — but the two version concepts caused more
+  confusion than the artifact-protocol distinction was worth, with
+  multiple dist releases shipping while VERSION stayed pinned.
+  Collapsed to a single source of truth (the dist version in
+  `pyproject.toml`). `chess-spectral-4d version` will now print the
+  dist version in its banner instead of "1.1.3".
+
+### Added
+
+- **`tests/test_version_consistency.py`** pins three regression
+  assertions: `chess_spectral.__version__`,
+  `chess_spectral_4d.__version__`, and `chess_spectral_4d.VERSION`
+  must all equal `importlib.metadata.version("chess-spectral")`.
+  Future hardcoding regressions fail at test time.
+
 ## [1.3.1] — 2026-04-28 (unreleased)
 
 Two distribution improvements riding on one patch release. No API
