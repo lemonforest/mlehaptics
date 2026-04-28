@@ -1414,5 +1414,108 @@ def test_no_unwired_stubs_in_shipped_python_or_c():
     )
 
 
+# ─── version-drift meta-test (Phase F immolation extension) ─────────
+#
+# Catches "we shipped a release with a hardcoded version literal that
+# drifted from the dist version" before it ships again. The pre-1.3.2
+# instance: between v1.2.3 and v1.3.1, six pyproject.toml bumps landed
+# without ever updating the `__version__ = "1.2.3"` literal in
+# chess_spectral/__init__.py, so users on v1.3.1 saw
+# `chess_spectral.__version__ == "1.2.3"` while
+# `importlib.metadata.version("chess-spectral")` correctly reported
+# "1.3.1". PR #71 fixed it dynamically (importlib.metadata-derived);
+# this test pins the fix so the pattern can't regress.
+#
+# A second class of drift this catches: pyproject.toml and
+# pyproject-pure.toml falling out of sync. They MUST agree — both
+# generate wheels for the same package on PyPI, and the publish
+# workflow already grep-asserts equality. Adding the assertion here
+# makes the failure mode visible at test time, before CI.
+
+
+def test_no_hardcoded_version_strings_drift_in_shipped_python():
+    """Walk shipped Python sources for `__version__ = "X.Y.Z"`
+    literals; fail if any is found other than the documented
+    `"0.0.0+unknown"` fallback sentinel. Per PEP 396 + the v1.3.2
+    contract, `__version__` must derive dynamically from
+    `importlib.metadata.version("chess-spectral")` — see
+    `chess_spectral/__init__.py` for the canonical pattern.
+
+    Two pyproject.toml files coexist (the scikit-build-core platform
+    build and the hatchling pure-Python build). Their `version`
+    fields MUST match — they both produce wheels for the same PyPI
+    package — and bumping one without the other has been a recurring
+    footgun. Asserted here too.
+    """
+    import re
+    import tomllib
+
+    repo_python = Path(__file__).resolve().parent.parent
+    chess_spectral_root = repo_python.parent  # chess-spectral/
+
+    # ── Both pyproject.toml files must agree on `version` ────────
+    with open(repo_python / "pyproject.toml", "rb") as f:
+        v_main = tomllib.load(f)["project"]["version"]
+    with open(repo_python / "pyproject-pure.toml", "rb") as f:
+        v_pure = tomllib.load(f)["project"]["version"]
+    assert v_main == v_pure, (
+        f"pyproject.toml says version={v_main!r} but "
+        f"pyproject-pure.toml says version={v_pure!r}; the two MUST "
+        f"agree (both files generate wheels for the same PyPI "
+        f"package). Bump both, or the publish workflow's "
+        f"version-equality grep will reject the release."
+    )
+
+    # ── No hardcoded `__version__ = "X.Y.Z"` in shipped sources ──
+    # The legitimate fallback sentinel ("0.0.0+unknown", returned
+    # when the package isn't pip-installed) is the only literal
+    # assignment allowed; anything else means someone reintroduced
+    # the v1.2.3 → 1.3.1 drift pattern.
+    pattern = re.compile(
+        r'^\s*__version__\s*=\s*["\']([^"\']+)["\']',
+        re.MULTILINE,
+    )
+    _ALLOWED_LITERAL = "0.0.0+unknown"
+    found: list[tuple[str, int, str]] = []
+    for pkg in ("chess_spectral", "chess_spectral_4d"):
+        for path in (repo_python / pkg).rglob("*.py"):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for m in pattern.finditer(text):
+                literal = m.group(1)
+                if literal == _ALLOWED_LITERAL:
+                    continue
+                line = text[:m.start()].count("\n") + 1
+                found.append((str(path), line, literal))
+
+    assert not found, (
+        "Found hardcoded __version__ literals in shipped Python "
+        "sources:\n"
+        + "\n".join(
+            f"  {path}:{line}  __version__ = {literal!r}"
+            for path, line, literal in found
+        )
+        + "\n\nPer PEP 396 + the v1.3.2 contract, __version__ must "
+        f"derive from importlib.metadata.version('chess-spectral'). "
+        f"See chess_spectral/__init__.py for the canonical pattern. "
+        f"The only literal assignment allowed is the fallback "
+        f"sentinel `__version__ = {_ALLOWED_LITERAL!r}` for "
+        "uninstalled / source-tree-only invocations."
+    )
+
+    # Sanity check: the canonical __init__.py we point users at must
+    # itself NOT contain a literal "X.Y.Z" assignment for __version__,
+    # only the fallback. If this fails, the canonical pattern itself
+    # broke and we'd never have noticed.
+    init = (repo_python / "chess_spectral" / "__init__.py").read_text(
+        encoding="utf-8")
+    init_lits = pattern.findall(init)
+    assert init_lits == [_ALLOWED_LITERAL], (
+        f"chess_spectral/__init__.py contains unexpected "
+        f"__version__ literal(s) {init_lits!r}; expected exactly "
+        f"the fallback {_ALLOWED_LITERAL!r}. The canonical "
+        "dynamic-derivation pattern was edited away."
+    )
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

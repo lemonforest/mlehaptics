@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] — 2026-04-28
+
+Two correctness fixes that ride together: the v1.3.1 corpus-encoding
+bug (the user-reported `FEN4 parse error -4` truncation) and the
+long-running `__version__` string drift. No API change.
+
 ### Fixed
 
 - **`spectral_4d encode` (NDJSON4 → .spectralz4) no longer truncates
@@ -71,7 +77,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must all equal `importlib.metadata.version("chess-spectral")`.
   Future hardcoding regressions fail at test time.
 
-## [1.3.1] — 2026-04-28 (unreleased)
+- **Immolation suite version-drift guard**
+  ([`test_smoke_e2e.py::test_no_hardcoded_version_strings_drift_in_shipped_python`](tests/test_smoke_e2e.py)).
+  Walks shipped Python sources and fails on any
+  `__version__ = "X.Y.Z"` literal other than the documented
+  `"0.0.0+unknown"` fallback, AND asserts that `pyproject.toml` and
+  `pyproject-pure.toml` agree on the dist version. This is the
+  structural backstop for the `__version__` drift bug: even if a
+  future contributor reintroduces a hardcoded literal, the release
+  gate catches it. Pre-1.3.2 our drift-catching only ran when the
+  package was pip-installed; this one runs against the source tree.
+
+- **README's stale `('1.1.3', '1.1.3')` literal example output**
+  replaced with a bump-resistant equality check (`__version__ ==
+  __version__` between the two packages, plus a comment pointing at
+  `importlib.metadata`). The literal was already wrong by 1.1.4; the
+  drift was invisible because no test scrutinised README contents.
+
+## [1.3.1] — 2026-04-28
 
 Two distribution improvements riding on one patch release. No API
 or behavior change for users on supported platforms; this is purely

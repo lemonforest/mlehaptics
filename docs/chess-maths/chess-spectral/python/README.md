@@ -47,8 +47,10 @@ Both packages also expose `__version__`:
 
 ```python
 >>> import chess_spectral, chess_spectral_4d
->>> chess_spectral.__version__, chess_spectral_4d.__version__
-('1.1.3', '1.1.3')
+>>> chess_spectral.__version__ == chess_spectral_4d.__version__
+True   # both derive from the installed dist version (PEP 396); they
+       # cannot drift from each other or from
+       # importlib.metadata.version("chess-spectral")
 ```
 
 ### In-place (no install)
