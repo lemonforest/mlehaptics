@@ -115,7 +115,7 @@ jobs:
           python-version: "3.12"
 
       - name: Build + test wheel via cibuildwheel
-        uses: pypa/cibuildwheel@v3
+        uses: pypa/cibuildwheel@v3.4
         with:
           package-dir: docs/chess-maths/chess-spectral/python
         env:
