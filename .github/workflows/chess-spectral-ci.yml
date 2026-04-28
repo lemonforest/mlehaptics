@@ -85,24 +85,28 @@ jobs:
         run: pytest tests/ --ignore=tests/phase_operators -v
 
   verify-wheels:
-    # Catches wheel-build regressions BEFORE tag-push. Runs cibuildwheel
-    # on each target OS with one Python version (cp312) — the most-tested
-    # cell. Each wheel build runs the parity tests inside the wheel-test
-    # phase, so we know the published wheel actually works, not just
-    # builds. Roughly 8-10 min per cell, all three in parallel ≈ 10 min
-    # PR feedback time.
+    # Catches wheel-build regressions BEFORE tag-push by mirroring the
+    # full chess-spectral-publish.yml matrix (3 OS × 5 Python =
+    # 15 cells) on every PR. Each wheel build runs the parity tests
+    # inside the wheel-test phase, so we know the published wheel
+    # actually works, not just builds.
     #
-    # The full 15-cell matrix (3 OS × 5 Python — cp310..cp314) runs at
-    # tag-push time in chess-spectral-publish.yml. If verify-wheels
-    # here is green, that full matrix is highly likely to be green too —
-    # only Python-version-specific issues (which are rare) can sneak
-    # past this guardrail.
-    name: verify-wheels • ${{ matrix.os }}
+    # Wall time is ~10 min (matrix runs in parallel). Compute is ~150
+    # runner-minutes per PR but for public repos GitHub Actions is
+    # unlimited — no billing impact. The previous narrower
+    # "ubuntu/macos/windows × cp312" design saved compute we don't pay
+    # for, in exchange for letting Python-version-specific publish
+    # failures slip through. After v1.3.1 hit exactly that mode of
+    # failure (cibuildwheel v2.21 didn't recognise cp314, full publish
+    # matrix never got tested at PR time, tag-push was the first sign
+    # of breakage), we mirror the publish matrix here.
+    name: verify-wheels • ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["310", "311", "312", "313", "314"]
     steps:
       - uses: actions/checkout@v4
 
@@ -111,13 +115,13 @@ jobs:
           python-version: "3.12"
 
       - name: Build + test wheel via cibuildwheel
-        uses: pypa/cibuildwheel@v2.21
+        uses: pypa/cibuildwheel@v3.4
         with:
           package-dir: docs/chess-maths/chess-spectral/python
         env:
-          # cp312 only — we're sanity-checking the wheel-build pipeline,
-          # not the full Python-version matrix.
-          CIBW_BUILD: "cp312-*"
+          # Build only the matrix's Python; cibuildwheel handles the
+          # cp/abi/platform combinatorics. Mirrors publish.yml.
+          CIBW_BUILD: "cp${{ matrix.python }}-*"
           # Skip:
           # - musllinux: no demand, scipy wheels limited
           # - win32:     no scipy Windows i686 wheels at any recent
@@ -152,7 +156,7 @@ jobs:
       - name: Upload built wheel (artifact, debug only)
         uses: actions/upload-artifact@v4
         with:
-          name: verify-wheel-${{ matrix.os }}
+          name: verify-wheel-${{ matrix.os }}-cp${{ matrix.python }}
           path: wheelhouse/*.whl
           # Short retention — these are debugging artifacts for failed
           # PR runs, not durable releases.
