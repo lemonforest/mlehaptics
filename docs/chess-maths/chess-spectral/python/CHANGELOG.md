@@ -144,10 +144,16 @@ public API surface (`chess_spectral.phase_operators_4d`).
   high-level "Phase operators (v1.2)" pointer to the new
   supplement.
 - **`docs/othello-maths/CHESS_NOTEBOOK_PHASE_1C_PATCHES.md`**
-  status header notes partial application (Patch 2 propagated to
-  PHASE_OPERATOR_SUPPLEMENT_4D §13.1.4 + §13.8; Patches 1, 3-6
-  still pending propagation into the 2D notebook in a follow-up
-  PR).
+  status header updated to **FULLY APPLIED** with citations. A
+  PR-closure audit confirmed all six patches were already present
+  in [`chess_spectral_research_notebook.md`](../../chess_spectral_research_notebook.md)
+  (Patches 1-5 at the documented section locations; Patch 6's D₄
+  character-table audit was applied with the corrected B₁ / B₂
+  rows in [`chess_d4_direct.py`](../../chess_d4_direct.py) and
+  [`chess_spectral/tables.py`](chess_spectral/tables.py)). A
+  programmatic class-constancy verifier reproducing the audit was
+  run and reported PASS for all five irrep rows. The Othello
+  orphan-data loop is closed; no follow-up PR needed.
 
 ## [1.2.6] — 2026-04-27
 

@@ -710,11 +710,13 @@ Highlights:
   [`docs/othello-maths/`](../othello-maths/): the *coprimality is
   necessary but not sufficient* discipline (Patch 2 of
   CHESS_NOTEBOOK_PHASE_1C_PATCHES.md) was the lesson that drove
-  the C5 design constraint. The same Othello patches still need to
-  be propagated back into the 2D notebook
-  ([`chess_spectral_research_notebook.md`](chess_spectral_research_notebook.md))
-  in a follow-up PR — those Phase 1c findings sit there as
-  orphaned data.
+  the C5 design constraint. **All six patches** from that document
+  are also already present in the 2D notebook
+  ([`chess_spectral_research_notebook.md`](chess_spectral_research_notebook.md));
+  PR #67 verified this and updated the orphan-doc status header
+  to *FULLY APPLIED* with citations to the §9f / §10.4 / §10.10 /
+  §10.12 / §10.13 / §9a landing locations. The Othello-to-chess
+  propagation loop is closed.
 
 ---
 

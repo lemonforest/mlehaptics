@@ -1,26 +1,51 @@
 # Claude Code: Chess Notebook Phase 1c Propagation Patches
 
-## Status (2026-04-27)
+## Status (2026-04-28)
 
-**PARTIAL APPLICATION.** Patch 2's *coprimality is necessary but not
-sufficient* discipline was lifted into the chess-maths research
-record at
-[`chess-maths/PHASE_OPERATOR_SUPPLEMENT_4D.md`](../chess-maths/PHASE_OPERATOR_SUPPLEMENT_4D.md)
-§13.1.4 (the Phase B refinement story) and §13.8 (cross-pollination
-credits) during the 4D phase-operator landing in
-[`chess-spectral/4d-phase-operators` PR #67](https://github.com/lemonforest/mlehaptics/pull/67).
-The 4-tuple Diophantine extension (the 4D analogue of the (3, 7) mod
-1024 counter-example below) is now codified as constraint **C5** in
-[`tests/test_phase_4d_design.py::test_c5_no_integer_dependency_in_minus14_to_14_box`](../chess-maths/chess-spectral/python/tests/test_phase_4d_design.py).
+**FULLY APPLIED.** All six patches landed in
+[`chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md)
+ahead of the 4D phase-operator PR. A 2026-04-27 audit during
+[PR #67](https://github.com/lemonforest/mlehaptics/pull/67) initially
+flagged the 2D notebook as needing follow-up work, but a careful
+re-read confirmed every patch was already in place:
 
-**Still pending propagation into the 2D notebook**
-([`chess-maths/chess_spectral_research_notebook.md`](../chess-maths/chess_spectral_research_notebook.md)):
-Patches 1, 3, 4, 5, 6 — the §10.4 grid-topology theorem upgrade,
-§9f coprimality clarification (the textual edit, not the
-discipline), the §10.13 reversi-scripts addendum, and the audit
-items on §10.10 / §11.5. Tracking: open a follow-up PR titled
-`docs/2D-notebook: apply CHESS_NOTEBOOK_PHASE_1C_PATCHES propagations`
-once the 4D phase-operator PR lands.
+| Patch | Where it landed in the 2D notebook |
+|---|---|
+| **1** — §10.4 grid-topology theorem upgrade | Line 2174: "**The Frobenius-orthogonality is a grid-topology theorem, not an empirical coincidence.**" |
+| **2** — §9f coprimality clarification | Line 1498: "**Generator-selection requirement (subtlety discovered by the Othello Phase 1 pass).**" — verbatim NEW block from this doc. |
+| **3** — §10.13 Phase 1c addendum | Line 2369: "### 10.13. Phase 1c addendum — reversi-scripts integration (2026-04-22)" — full subsection per spec. |
+| **4** — §10.10 item 3 annotation | Line 2274: "**Status: CONFIRMED as a conditional effect (2026-04-22)**" — appended to the existing item 3 paragraph. |
+| **5** — §10.12 sheaf observation tighten | Line 2337: "Paired with the §10.13 Phase 1c finding that Shannon `I_move` correlates with `n_legal_moves` at ρ = +0.814..." |
+| **6** — D₄ character-table audit | Outcome: **PASS, with the previously-broken table already corrected**. The corrected character rows live in [`chess_d4_direct.py:71-72`](../chess-maths/chess_d4_direct.py) and [`chess_spectral/tables.py:154-155`](../chess-maths/chess-spectral/python/chess_spectral/tables.py); the audit note is at the 2D notebook's §9a around line 1219 ("**Audit note (2026-04-23, PATCH 6 outcome).**"). The downstream impact is documented at lines 1601-1630 — corrected B₂ partial ρ went from a buggy +0.461 (collapsed onto B₁) to +0.490 (genuine separate channel), and the previously-null "combined breaking" hypothesis is now confirmed at ρ = -0.310 (p = 0.022). |
+
+The 4D phase-operator PR's reference to "Patches 1, 3-6 still pending" was a misread of the orphan-data state; PR #67 was updated post-merge-prep to reflect the actual fully-applied status.
+
+### Patch 6 audit reproduction
+
+A standalone class-constancy verifier was run during PR #67's
+closure (2026-04-28) against the corrected character table:
+
+```
+Element ordering (per chess_d4_direct.py:50-55):
+  {e, C4, C2, C4^-1, sigma_v, sigma_h, sigma_d, sigma_d_prime}
+
+Documented conjugacy classes: [{0}, {1, 3}, {2}, {4, 5}, {6, 7}]
+
+PASS  A1 = [1, 1, 1, 1, 1, 1, 1, 1]                  -> class-constant
+PASS  A2 = [1, 1, 1, 1, -1, -1, -1, -1]              -> class-constant
+PASS  B1 = [1, -1, 1, -1, 1, 1, -1, -1]              -> class-constant
+PASS  B2 = [1, -1, 1, -1, -1, -1, 1, 1]              -> class-constant
+PASS  E  = [2, 0, -2, 0, 0, 0, 0, 0]                 -> class-constant
+
+Conjugacy verified by direct permutation conjugation:
+  class [1, 3]: g3 = g4 * g1 * g4^-1 [check]
+  class [4, 5]: g5 = g1 * g4 * g1^-1 [check]
+  class [6, 7]: g7 = g1 * g6 * g1^-1 [check]
+
+OVERALL: PASS - chess D4 character table is class-consistent
+```
+
+No further action needed.
 
 ## Context
 
