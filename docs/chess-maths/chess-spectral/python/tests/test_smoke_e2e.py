@@ -1169,6 +1169,67 @@ def test_4d_phase_check_detection_smoke():
         assert phasecast_is_check_4d(gs, color) is False
 
 
+def test_seeded_self_play_4d_phase_op_legal_moves_match():
+    """4D analogue of test_seeded_self_play_phase_op_legal_moves_match.
+
+    Quick gate at 5 chess4d.GameState positions (random 1-3-ply walks
+    from initial_position) — for every occupied piece in each position,
+    occupation_aware_moves_a_4d must equal the chess4d oracle's per-
+    piece pseudo-legal destination set. The full corpus version
+    (test_phase_4d_occupation_aware.py) exercises 50 positions × ~896
+    pieces; this one is the daily-run smoke that runs in ~5 seconds.
+    """
+    chess4d_pkg = pytest.importorskip(
+        "chess4d", reason="4D phase-op smoke requires "
+                          "python-chess4d-oana-chiru")
+    from chess_spectral.phase_operators_4d import (
+        occupation_aware_moves_a_4d,
+    )
+    import random
+    piece_gens = {
+        chess4d_pkg.types.PieceType.ROOK:   chess4d_pkg.rook_moves,
+        chess4d_pkg.types.PieceType.BISHOP: chess4d_pkg.bishop_moves,
+        chess4d_pkg.types.PieceType.QUEEN:  chess4d_pkg.queen_moves,
+        chess4d_pkg.types.PieceType.KNIGHT: chess4d_pkg.knight_moves,
+        chess4d_pkg.types.PieceType.KING:   chess4d_pkg.king_moves,
+        chess4d_pkg.types.PieceType.PAWN:   chess4d_pkg.pawn_moves,
+    }
+    mismatches = []
+    for seed in range(5):
+        gs = chess4d_pkg.initial_position()
+        rng = random.Random(seed)
+        for _ in range(1 + (seed % 3)):  # 1-3 plies per position
+            moves = list(gs.legal_moves())
+            if not moves:
+                break
+            gs.push(rng.choice(moves))
+        # Sample 20 random pieces per position to cap the runtime
+        # (full corpus is in test_phase_4d_occupation_aware.py).
+        all_pieces = []
+        for color in (chess4d_pkg.Color.WHITE, chess4d_pkg.Color.BLACK):
+            all_pieces.extend(gs.board.pieces_of(color))
+        rng.shuffle(all_pieces)
+        for sq, piece in all_pieces[:20]:
+            phase_dests = occupation_aware_moves_a_4d(gs, sq, piece)
+            oracle = frozenset(
+                (m.to_sq.x, m.to_sq.y, m.to_sq.z, m.to_sq.w)
+                for m in piece_gens[piece.piece_type](
+                    sq, piece.color, gs.board)
+            )
+            if phase_dests != oracle:
+                mismatches.append((seed, sq, piece, phase_dests, oracle))
+                if len(mismatches) >= 3:
+                    break
+    assert not mismatches, (
+        f"phase-op vs chess4d oracle disagree at: "
+        + "\n  ".join(
+            f"seed={s} {p.color.name} {p.piece_type.name} at {sq}: "
+            f"missing={o-pd}, extra={pd-o}"
+            for s, sq, p, pd, o in mismatches
+        )
+    )
+
+
 # ─── stub-detector meta-test (Phase F immolation extension) ─────────
 #
 # Catches "we shipped a v1.2.X release with unwired CLI commands"

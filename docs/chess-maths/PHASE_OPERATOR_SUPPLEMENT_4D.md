@@ -205,11 +205,55 @@ These are documented gaps — not silent ones. The `_no_pawns` variants of `phas
 
 ## §13.7. Discussion — what transferred from 2D, what's new at 4D
 
-> Will be populated alongside §13.6. Expected highlights:
->
-> - The coprime cyclic phase encoding lifts cleanly from 2D's Z_640 to 4D's Z_M. Constraint catalog is identical in form, only the dimension grows.
-> - The validation oracle differs: 2D used `python-chess` legal moves; 4D uses our own `tables_4d.X_targets` + a 4D occupancy-aware spatial movegen. The 4D phase op is therefore validated against an in-repo reference, not an external one.
-> - The pawn axis (W vs Y) is a Z₂ tag on the pawn polarization state. The 2D pawn has only a color tag (one Z₂); the 4D pawn has color × axis (two Z₂s). The encoder already uses this — channels 8 (W-axis antisym) and 9 (Y-axis antisym) are the two Z₂ sub-channels. The phase op inherits the structure.
+### §13.7.1 What transferred cleanly
+
+- **The coprime cyclic phase encoding lifts cleanly from Z_640 to Z_145451.** Constraint catalog is identical in form (C1–C4), only the ladder coefficient widens (7 → 14) to handle 4-axis cross-mixing.
+- **The Solution A discipline (phase op ∩ oracle) lifts directly.** Where 2D used `python-chess`, 4D uses [`python-chess4d-oana-chiru`](https://pypi.org/project/python-chess4d-oana-chiru/) — same shape, different oracle.
+- **Multi-king reverse-cast** matches the 2D `phase_check_detection` shape; the only addition is iterating over all of mover's kings (per O&C §3.4 Def 3) rather than the unique king of 2D chess.
+- **Pawn-axis as Z_2 tag** mirrors the encoder's W/Y antisym channel split. Phase E's capture geometry (xw / xy plane) is the natural lift of the encoder's structure.
+
+### §13.7.2 What's genuinely new at 4D
+
+- **C5: operator-aliasing freedom on `[-14, 14]^4`.** This constraint doesn't exist in the 2D supplement because 2D has only 2 axes; bounded integer dependencies are rare with two distinct coprime primes. In 4D the 4-prime mixing makes them common and easy to miss — Phase A's first attempt hit one. Codified in `test_phase_4d_design.py::test_c5_no_integer_dependency_in_minus14_to_14_box` so the regression cannot recur.
+- **No external oracle.** 2D `python-chess` is C-accelerated bitboards. 4D `python-chess4d-oana-chiru` is pure Python — same language as our phase op. This makes 4D wall-clock comparisons more meaningful (both paths face the same CPython cost model) but doesn't help us evaluate the phase-vs-bitboard tradeoff at all.
+
+### §13.7.3 Wall-clock benchmark (per-position move generation)
+
+Measured by [`research/bench_phase_vs_spatial.py`](chess-spectral/python/research/bench_phase_vs_spatial.py) at the standard initial position, ~32 pieces in 2D / ~896 in 4D. Median of 20 runs after warmup; CPython 3.12 on Windows. **Lower is better.**
+
+| Configuration                                             | Median (µs) | Ratio vs oracle |
+|-----------------------------------------------------------|------------:|-----------------|
+| 2D: `python-chess.Board.legal_moves` (full)               |       143   | 1.00× (oracle)  |
+| 2D: phase op Solution A, no castling                      |     3,692   | **25.8× slower** |
+| 2D: phase op Solution A + castling king-safety walk       |     4,479   | **31.3× slower** |
+| 4D: `chess4d` per-piece pseudo-legal (no check filter)    |    14,508   | 1.00× (oracle)  |
+| 4D: `chess4d.GameState.legal_moves` (full + check filter) |   216,758   | 14.9× slower    |
+| 4D: phase op Solution A, no castling                      |    49,888   | **3.4× slower** |
+
+**Reading the numbers.**
+
+- **2D is dominated by the bitboard / pure-Python gap.** `python-chess` is C-accelerated; the phase op is pure-Python set arithmetic. The 26–31× gap is the constant-factor cost of CPython, not an algorithmic loss for phase math.
+- **2D castling adds ~22% to the phase op** (3,692 → 4,479 µs). The king-safety walk per castle right is the visible cost — every transit square requires a phase-cast attack check.
+- **4D phase op is 3.4× slower than chess4d's per-piece pseudo-legal** generators. This is the cleanest apples-to-apples comparison (both pure Python, neither has check filtering). The phase op pays for double work: phase generation + oracle filter (Solution A is intentionally wasteful by design — it's a *correctness* tool). A phase-native truncation (Solution B / C — see §11.4 in the 2D supplement for the original discussion) might close some of that gap, but Solution A is what landed in v1.3.0.
+- **chess4d's full `legal_moves` is 15× slower than its own pseudo-legal** because of the multi-king check filter — 28 kings × per-move check verification adds up fast. This is intrinsic to O&C 4D chess, not a chess4d implementation issue.
+
+**The castling extrapolation Steven asked about.**
+
+The 2D phase op's castling overhead is ~22% (king-safety walk × 1 king × O(transit) attack checks). In 4D, **multi-king semantics multiply that cost by ~28**: every safety check during castling must verify *all* of the mover's kings remain safe (paper §3.4 Def 3 — "no king of the moving side is attacked afterwards"). So if 4D phase op castling were implemented, it would likely add **~28 × 22% ≈ 6× overhead** to the un-castled phase op time per position (admittedly with castling itself being a small fraction of total moves, but the per-castle-decision cost is large).
+
+### §13.7.4 Was "phased maths faster than spatial maths" right?
+
+**No, not in pure Python.** In 4D where both paths are pure Python, phase math is 3.4× *slower* than spatial math at the per-position level, because Solution A pays for both the phase candidates and the oracle filter. Even if Solutions B / C were implemented (phase-native truncation, no oracle), the constant factors of modular arithmetic + dict lookups are roughly comparable to the constant factors of ray-walking + bound checks. There's no obvious algorithmic win.
+
+**Where phase math could plausibly win.**
+
+1. **C / SIMD implementation with 64-bit modular ops.** Phase math sits naturally in 64-bit ints; bitboards in 4D would need 4096-bit operations (no native SIMD support on most CPUs). A future C 4D move generator might find phase math the easier path to vectorize.
+2. **Vectorized over many positions** (e.g., a batch of game-tree leaves). The phase op's lookup table is a single flat dict; a numpy-style batched rewrite might amortize the per-call Python overhead. Spatial generators have more position-dependent control flow.
+3. **As a representation for similarity / coordinate-free reasoning**, which is the *original* §11 motivation — not for raw move-gen speed.
+
+**The right framing.** Phase math is a **correctness and structural-claim** tool: it lets us say "the 4D O&C piece geometry is fully captured by the φ_4d coprime cyclic phase structure" with a 36,864-assertion proof (the Phase B structural gate). For raw move-generation speed in 4D, the path forward is a C bitboard-style implementation, not an optimized phase op. Phase math validates the bitboard's correctness; bitboards run the searches.
+
+Steven's "I might be losing that bet with myself" — yes, in pure Python; and the path to "actually faster" is C, not algorithmic refinement of the Python phase op.
 
 ---
 
