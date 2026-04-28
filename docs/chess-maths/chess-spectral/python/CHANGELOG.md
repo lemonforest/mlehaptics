@@ -5,22 +5,59 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.1] — 2026-04-28 (unreleased)
+
+Two distribution improvements riding on one patch release. No API
+or behavior change for users on supported platforms; this is purely
+about widening the set of *installable* environments.
 
 ### Added
+
+- **`py3-none-any` pure-Python wheel.** The chess-spectral release
+  now ships a pure-Python wheel alongside the platform-specific
+  wheels. This unblocks installation in environments that can't run
+  our bundled `_native/spectral{.exe}` binaries:
+  - **Pyodide / micropip** in browsers (mobile + desktop). The
+    Pyodide runtime is single-process WASM with no `fork`/`exec`,
+    so even a WASM build of our binaries couldn't be `subprocess`'d.
+    The pure wheel uses the Python encoder paths exclusively —
+    bit-for-bit equivalent to the C output (verified by
+    `test_c_py_parity*`).
+  - **Less-common platforms** where we don't ship a platform wheel
+    (fresh Linux ARM, BSDs, etc.). pip falls through to the pure
+    wheel after exhausting platform candidates.
+
+  Per-release artifact count goes from 15 platform wheels + sdist
+  (16) to 15 platform wheels + 1 pure wheel + sdist (17). Built via
+  hatchling (a separate [`pyproject-pure.toml`](pyproject-pure.toml))
+  because scikit-build-core's primary contract is platform wheels.
+  See the new `build-pure-wheel` job in
+  [`chess-spectral-publish.yml`](../../../.github/workflows/chess-spectral-publish.yml)
+  for the build invocation. Verified locally: the pure wheel
+  installs cleanly in a fresh venv; CLI commands work via Python
+  fallback; `_find_c_binary()` correctly returns `None`; 4D phase
+  ops + encoder produce expected outputs.
+
+  **Performance note for pure-wheel users.** The Python encoder is
+  ~30-60× slower than the C binary on most workloads. For Pyodide
+  hover-renderer use cases (one preview encoding per hover, often
+  with delta caching per
+  [`bench_incremental_encoding.py`](research/bench_incremental_encoding.py)),
+  this is well within interactive budget. For batch corpus encoding
+  on a fresh ARM box, users will notice the slowdown; we recommend
+  building from sdist (which the platform wheel pipeline does)
+  instead.
 
 - **Python 3.14 wheels.** The cibuildwheel matrix in
   [`.github/workflows/chess-spectral-publish.yml`](../../../.github/workflows/chess-spectral-publish.yml)
   was missing a cp314 entry — an oversight from the v1.2.4 publish-
   pipeline build-out (set up before 3.14 was released). Adding 314
-  to the matrix grows the per-release wheel count from 12 to 15
-  (3 OS × 5 Python). The corresponding `Programming Language ::
-  Python :: 3.14` classifier is added to `pyproject.toml`.
+  to the matrix grows the per-release platform-wheel count from 12
+  to 15 (3 OS × 5 Python). The corresponding
+  `Programming Language :: Python :: 3.14` classifier is added to
+  `pyproject.toml` and `pyproject-pure.toml`.
 
-  Riding on the next patch / minor release; no version bump for
-  this matrix expansion alone (additive, no behavioral change).
-
-## [1.3.0] — 2026-04-28 (unreleased)
+## [1.3.0] — 2026-04-28
 
 Adds the **chess4d-OC phase-operator move engine** — the 4D analogue
 of the 2D `chess_spectral.phase_operators` package — validated
