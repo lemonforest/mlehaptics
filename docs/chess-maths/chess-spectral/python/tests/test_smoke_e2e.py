@@ -431,6 +431,76 @@ def test_4d_encode_bulk_ndjson(tmp_path):
 
 
 @_REQUIRES_C_4D
+@pytest.mark.parametrize("description,n_pieces", [
+    ("short_10_pieces_under_old_2KiB_boundary", 10),
+    ("long_300_pieces_above_old_2KiB_boundary", 300),
+])
+def test_4d_encode_fen4_matches_encode_ndjson4_byte_for_byte(
+    description, n_pieces, tmp_path
+):
+    """The two C 4D encode paths — `encode-fen4 --fen4 STRING` (points
+    directly at argv, no buffer copy) and `encode -i NDJSON4` (copies
+    each line into a fixed buffer before parsing) — must produce
+    byte-identical .spectral4 output for the same FEN4 position.
+
+    This is a regression catch for the v1.3.1 buffer-truncation bug
+    (see test_encode_long_fen4.py for the full story): pre-1.3.2 the
+    bulk path silently truncated FEN4 input at 2048 bytes while
+    encode-fen4 was unaffected, so the two paths produced wildly
+    different output for the same position. Byte-equivalence is the
+    invariant that makes that class of bug impossible to ship again.
+
+    The 300-piece variant lands clearly above the original 2048-byte
+    boundary; if any future change to either path drifts the encoding,
+    it shows up here as a byte-mismatch rather than as a misleading
+    parse error or as silent corpus corruption.
+    """
+    # Build a deterministic FEN4 with `n_pieces` rooks on distinct
+    # squares of Z_8^4. Same recipe as the focused regression test
+    # in test_encode_long_fen4.py but inlined here so the immolation
+    # suite stays self-contained.
+    pieces = []
+    for i in range(n_pieces):
+        x = (i // 512) % 8
+        y = (i // 64) % 8
+        z = (i // 8) % 8
+        w = i % 8
+        pieces.append(f"R@{x},{y},{z},{w}")
+    fen4 = "4d-fen v1: " + "; ".join(pieces)
+
+    # Path A: encode-fen4 (single-position writer; --fen4 points at argv)
+    out_a = tmp_path / "via_fen4.spectral4"
+    _run_c_4d(["encode-fen4", "--fen4", fen4, "-o", str(out_a)])
+
+    # Path B: encode (NDJSON4 → .spectral4; FEN4 copied into the line buf)
+    nd = tmp_path / "in.ndjson4"
+    nd.write_text(
+        json.dumps({"ply": 0, "fen4": fen4}) + "\n",
+        encoding="utf-8",
+    )
+    out_b = tmp_path / "via_ndjson4.spectral4"
+    # No -z: gzip headers carry a timestamp that differs between runs,
+    # which would defeat byte-equivalence. Both encoder paths produce
+    # raw .spectral4 here, then we compare bytes directly.
+    _run_c_4d(["encode", str(nd), "-o", str(out_b)])
+
+    bytes_a = out_a.read_bytes()
+    bytes_b = out_b.read_bytes()
+    assert len(bytes_a) == len(bytes_b), (
+        f"{description}: encode-fen4 produced {len(bytes_a)} bytes, "
+        f"encode NDJSON4 produced {len(bytes_b)} bytes (FEN4 was "
+        f"{len(fen4)} bytes)"
+    )
+    assert bytes_a == bytes_b, (
+        f"{description}: encode-fen4 and encode-NDJSON4 paths produced "
+        f"different bytes for the same FEN4 (length={len(fen4)}). "
+        f"This is the v1.3.1 truncation-bug class — investigate "
+        f"json_str_field4 / cmd_encode (src/main_4d.c) and "
+        f"cmd_encode_fen4's write_one_frame helper."
+    )
+
+
+@_REQUIRES_C_4D
 def test_4d_csv_per_ply_energies(tmp_path):
     """csv on a multi-ply .spectralz4 emits 1 header row + N data rows
     with the documented 24-column layout."""
@@ -1341,6 +1411,109 @@ def test_no_unwired_stubs_in_shipped_python_or_c():
         + "\n\nIf any of these are intentional (deferred phase, etc.),"
           " raise a clear ValueError with a phase reference instead, "
           "or add the path to _STUB_EXCLUDE."
+    )
+
+
+# ─── version-drift meta-test (Phase F immolation extension) ─────────
+#
+# Catches "we shipped a release with a hardcoded version literal that
+# drifted from the dist version" before it ships again. The pre-1.3.2
+# instance: between v1.2.3 and v1.3.1, six pyproject.toml bumps landed
+# without ever updating the `__version__ = "1.2.3"` literal in
+# chess_spectral/__init__.py, so users on v1.3.1 saw
+# `chess_spectral.__version__ == "1.2.3"` while
+# `importlib.metadata.version("chess-spectral")` correctly reported
+# "1.3.1". PR #71 fixed it dynamically (importlib.metadata-derived);
+# this test pins the fix so the pattern can't regress.
+#
+# A second class of drift this catches: pyproject.toml and
+# pyproject-pure.toml falling out of sync. They MUST agree — both
+# generate wheels for the same package on PyPI, and the publish
+# workflow already grep-asserts equality. Adding the assertion here
+# makes the failure mode visible at test time, before CI.
+
+
+def test_no_hardcoded_version_strings_drift_in_shipped_python():
+    """Walk shipped Python sources for `__version__ = "X.Y.Z"`
+    literals; fail if any is found other than the documented
+    `"0.0.0+unknown"` fallback sentinel. Per PEP 396 + the v1.3.2
+    contract, `__version__` must derive dynamically from
+    `importlib.metadata.version("chess-spectral")` — see
+    `chess_spectral/__init__.py` for the canonical pattern.
+
+    Two pyproject.toml files coexist (the scikit-build-core platform
+    build and the hatchling pure-Python build). Their `version`
+    fields MUST match — they both produce wheels for the same PyPI
+    package — and bumping one without the other has been a recurring
+    footgun. Asserted here too.
+    """
+    import re
+    import tomllib
+
+    repo_python = Path(__file__).resolve().parent.parent
+    chess_spectral_root = repo_python.parent  # chess-spectral/
+
+    # ── Both pyproject.toml files must agree on `version` ────────
+    with open(repo_python / "pyproject.toml", "rb") as f:
+        v_main = tomllib.load(f)["project"]["version"]
+    with open(repo_python / "pyproject-pure.toml", "rb") as f:
+        v_pure = tomllib.load(f)["project"]["version"]
+    assert v_main == v_pure, (
+        f"pyproject.toml says version={v_main!r} but "
+        f"pyproject-pure.toml says version={v_pure!r}; the two MUST "
+        f"agree (both files generate wheels for the same PyPI "
+        f"package). Bump both, or the publish workflow's "
+        f"version-equality grep will reject the release."
+    )
+
+    # ── No hardcoded `__version__ = "X.Y.Z"` in shipped sources ──
+    # The legitimate fallback sentinel ("0.0.0+unknown", returned
+    # when the package isn't pip-installed) is the only literal
+    # assignment allowed; anything else means someone reintroduced
+    # the v1.2.3 → 1.3.1 drift pattern.
+    pattern = re.compile(
+        r'^\s*__version__\s*=\s*["\']([^"\']+)["\']',
+        re.MULTILINE,
+    )
+    _ALLOWED_LITERAL = "0.0.0+unknown"
+    found: list[tuple[str, int, str]] = []
+    for pkg in ("chess_spectral", "chess_spectral_4d"):
+        for path in (repo_python / pkg).rglob("*.py"):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for m in pattern.finditer(text):
+                literal = m.group(1)
+                if literal == _ALLOWED_LITERAL:
+                    continue
+                line = text[:m.start()].count("\n") + 1
+                found.append((str(path), line, literal))
+
+    assert not found, (
+        "Found hardcoded __version__ literals in shipped Python "
+        "sources:\n"
+        + "\n".join(
+            f"  {path}:{line}  __version__ = {literal!r}"
+            for path, line, literal in found
+        )
+        + "\n\nPer PEP 396 + the v1.3.2 contract, __version__ must "
+        f"derive from importlib.metadata.version('chess-spectral'). "
+        f"See chess_spectral/__init__.py for the canonical pattern. "
+        f"The only literal assignment allowed is the fallback "
+        f"sentinel `__version__ = {_ALLOWED_LITERAL!r}` for "
+        "uninstalled / source-tree-only invocations."
+    )
+
+    # Sanity check: the canonical __init__.py we point users at must
+    # itself NOT contain a literal "X.Y.Z" assignment for __version__,
+    # only the fallback. If this fails, the canonical pattern itself
+    # broke and we'd never have noticed.
+    init = (repo_python / "chess_spectral" / "__init__.py").read_text(
+        encoding="utf-8")
+    init_lits = pattern.findall(init)
+    assert init_lits == [_ALLOWED_LITERAL], (
+        f"chess_spectral/__init__.py contains unexpected "
+        f"__version__ literal(s) {init_lits!r}; expected exactly "
+        f"the fallback {_ALLOWED_LITERAL!r}. The canonical "
+        "dynamic-derivation pattern was edited away."
     )
 
 
