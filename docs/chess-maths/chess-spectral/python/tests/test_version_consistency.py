@@ -8,54 +8,77 @@ kept reporting "1.2.3" via ``__version__`` while
 the actual dist. The fix derives ``__version__`` dynamically; this
 test pins the contract so the two strings can't drift again.
 
-For ``chess_spectral_4d``, the ``VERSION`` constant is the *encoder
-format version* (used by cli.py for the format banner) and is
-intentionally separate from the dist version. ``__version__`` is
-the PEP 396 dist-version and should match ``importlib.metadata``.
+This test runs in two CI contexts:
+
+  1. Inside a wheel-test phase (verify-wheels / publish): the wheel
+     is pip-installed, so ``importlib.metadata.version("chess-spectral")``
+     succeeds and returns the dist version. The test asserts that
+     ``__version__`` matches.
+  2. Against a source tree without ``pip install -e .`` (the
+     `build / test` job that runs CMake + pytest directly): no dist
+     metadata is registered. ``importlib.metadata`` raises
+     ``PackageNotFoundError``; the package's own fallback returns
+     ``"0.0.0+unknown"``. The test asserts the sentinel matches.
+
+Both contexts validate the dynamic-derivation contract — the second
+context just exercises the fallback path instead of the happy path.
 """
 from __future__ import annotations
 
 import importlib.metadata
 
 
-def test_chess_spectral_version_matches_dist():
+def _dist_version_or_none() -> str | None:
+    """Return the installed dist version of `chess-spectral`, or
+    None if the package isn't pip-installed (e.g., source-tree-only
+    pytest invocations like the `build / test` job)."""
+    try:
+        return importlib.metadata.version("chess-spectral")
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+_DIST = _dist_version_or_none()
+_FALLBACK = "0.0.0+unknown"
+
+
+def test_chess_spectral_version_matches_dist_or_fallback():
     """``chess_spectral.__version__`` equals the installed dist
-    version. Pre-1.3.2 this was hardcoded and drifted; after the
-    fix it derives from ``importlib.metadata``."""
+    version (when installed) or the sentinel fallback (when run
+    against a non-installed source tree)."""
     import chess_spectral
-    expected = importlib.metadata.version("chess-spectral")
+    expected = _DIST if _DIST is not None else _FALLBACK
     assert chess_spectral.__version__ == expected, (
-        f"chess_spectral.__version__ = {chess_spectral.__version__!r} "
-        f"but the installed dist is {expected!r}. The package's "
-        "`__version__` derives from importlib.metadata; if this "
-        "assertion fails, the dynamic-derivation pattern in "
-        "chess_spectral/__init__.py is broken."
+        f"chess_spectral.__version__ = {chess_spectral.__version__!r}; "
+        f"expected {expected!r} (installed dist: {_DIST!r}). The "
+        "dynamic-derivation pattern in chess_spectral/__init__.py "
+        "broke."
     )
 
 
-def test_chess_spectral_4d_version_matches_dist():
+def test_chess_spectral_4d_version_matches_dist_or_fallback():
     """``chess_spectral_4d.__version__`` equals the installed dist
-    version (NOT the encoder format ``VERSION`` constant)."""
+    version (NOT the old encoder-format VERSION constant)."""
     import chess_spectral_4d
-    expected = importlib.metadata.version("chess-spectral")
+    expected = _DIST if _DIST is not None else _FALLBACK
     assert chess_spectral_4d.__version__ == expected, (
         f"chess_spectral_4d.__version__ = "
-        f"{chess_spectral_4d.__version__!r} but the installed dist is "
-        f"{expected!r}. PEP 396 says __version__ should reflect the "
-        "package version, not the internal encoder-format version."
+        f"{chess_spectral_4d.__version__!r}; expected {expected!r} "
+        f"(installed dist: {_DIST!r}). PEP 396 says __version__ "
+        "should reflect the package version; the dynamic-derivation "
+        "pattern in chess_spectral_4d/__init__.py broke."
     )
 
 
-def test_chess_spectral_4d_VERSION_alias_matches_dist():
+def test_chess_spectral_4d_VERSION_alias_matches_version():
     """``VERSION`` is preserved as a back-compat alias for
-    ``__version__`` (downstream callers may have imported the old
-    name). Pre-1.3.2 it carried an encoder-format version that
-    drifted from the dist; collapsed to the dist version for the
-    same reason ``__version__`` did."""
+    ``__version__``. Pre-1.3.2 it was a separate encoder-format
+    version string that drifted from the dist; post-1.3.2 the two
+    are aliased and must always agree."""
     import chess_spectral_4d
-    expected = importlib.metadata.version("chess-spectral")
-    assert chess_spectral_4d.VERSION == expected, (
+    assert chess_spectral_4d.VERSION == chess_spectral_4d.__version__, (
         f"chess_spectral_4d.VERSION = {chess_spectral_4d.VERSION!r} "
-        f"but the installed dist is {expected!r}. VERSION is now an "
-        "alias for __version__; both should equal the dist version."
+        f"but __version__ = {chess_spectral_4d.__version__!r}. "
+        "VERSION is now an alias for __version__; the two must "
+        "agree regardless of install state."
     )
