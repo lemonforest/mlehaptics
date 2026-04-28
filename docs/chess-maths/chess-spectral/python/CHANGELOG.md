@@ -5,6 +5,21 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Python 3.14 wheels.** The cibuildwheel matrix in
+  [`.github/workflows/chess-spectral-publish.yml`](../../../.github/workflows/chess-spectral-publish.yml)
+  was missing a cp314 entry — an oversight from the v1.2.4 publish-
+  pipeline build-out (set up before 3.14 was released). Adding 314
+  to the matrix grows the per-release wheel count from 12 to 15
+  (3 OS × 5 Python). The corresponding `Programming Language ::
+  Python :: 3.14` classifier is added to `pyproject.toml`.
+
+  Riding on the next patch / minor release; no version bump for
+  this matrix expansion alone (additive, no behavioral change).
+
 ## [1.3.0] — 2026-04-28 (unreleased)
 
 Adds the **chess4d-OC phase-operator move engine** — the 4D analogue
