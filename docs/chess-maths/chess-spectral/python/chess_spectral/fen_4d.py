@@ -176,6 +176,88 @@ def parse(fen4: str) -> Dict[int, PieceValue]:
             return pos  # trailing ';' is permitted
 
 
+def serialize(pos: Dict[int, PieceValue]) -> str:
+    """Serialize a position dict back to a FEN4 v1 placement literal.
+
+    Inverse of :func:`parse`. The round-trip property holds for any
+    valid position::
+
+        parse(serialize(p)) == p
+
+    The produced output is canonical: pieces are emitted in ascending
+    square-index order, separated by ``"; "`` (a semicolon followed by
+    a single space). Empty positions serialize to just the prefix
+    string ``"4d-fen v1:"``.
+
+    Parameters
+    ----------
+    pos
+        Position dict as produced by :func:`parse` — keys are linear
+        square indices (``((x*8+y)*8+z)*8+w``), values are either a
+        single-character piece string (non-pawns) or a ``(color, axis)``
+        tuple (pawns; ``color`` ∈ ``{'P', 'p'}``, ``axis`` ∈ ``{'w',
+        'y'}``).
+
+    Returns
+    -------
+    str
+        A valid FEN4 v1 placement literal accepted by :func:`parse`.
+
+    Raises
+    ------
+    ValueError
+        If a square index is out of range ``[0, 4096)``, a piece value
+        is malformed, or a pawn carries an invalid axis.
+    """
+    if not pos:
+        return PREFIX
+    parts: list[str] = []
+    for sq in sorted(pos.keys()):
+        if not isinstance(sq, int) or sq < 0 or sq >= 4096:
+            raise ValueError(
+                f"square index {sq!r} out of range [0, 4096)"
+            )
+        value = pos[sq]
+        # decode square back to (x, y, z, w)
+        w = sq % 8
+        z = (sq // 8) % 8
+        y = (sq // 64) % 8
+        x = (sq // 512) % 8
+
+        if isinstance(value, tuple):
+            if len(value) != 2:
+                raise ValueError(
+                    f"pawn value at square {sq} must be a 2-tuple, "
+                    f"got {value!r}"
+                )
+            color, axis = value
+            if color not in ("P", "p"):
+                raise ValueError(
+                    f"pawn color at square {sq} must be 'P' or 'p', "
+                    f"got {color!r}"
+                )
+            if axis not in _AXIS_LETTERS:
+                raise ValueError(
+                    f"pawn axis at square {sq} must be 'w' or 'y', "
+                    f"got {axis!r}"
+                )
+            piece_str = f"{color}{axis}"
+        elif isinstance(value, str):
+            if value not in _NON_PAWN:
+                raise ValueError(
+                    f"non-pawn value at square {sq} must be one of "
+                    f"{sorted(_NON_PAWN)}, got {value!r}"
+                )
+            piece_str = value
+        else:
+            raise ValueError(
+                f"unsupported piece value type at square {sq}: "
+                f"{type(value).__name__}"
+            )
+        parts.append(f"{piece_str}@{x},{y},{z},{w}")
+    return f"{PREFIX} " + "; ".join(parts)
+
+
 def parse_to_jsonl_obj(fen4: str) -> Dict[str, str]:
     """Parse a FEN4 string and return the JSONL fixture-style ``"pieces"``
     object — keys are stringified square indices, values are 1-char
