@@ -158,11 +158,24 @@ For raw move-rule logic (legal-move generation, check detection) on
 
 ## Quick start (QM extension, v1.5+)
 
-`chess_spectral.qm_4d` lifts the 45 056-dim float32 encoder output to
-a normalized complex amplitude `ψ ∈ ℂ^{45056}`, exposes the 11-channel
-decomposition as a built-in projection-valued measure (PVM), and builds
-five Hermitian piece-reach observables (rook / bishop / queen / king /
-knight) on the per-channel `ℂ^{4096}` factor:
+The QM extension ships in **two layers**, mirroring the standard
+physics split:
+
+- **Kinematics** — `chess_spectral.qm_4d`. *What* states and operators
+  look like: state space, observables, measurement structure, the
+  `B_4` group action. Lifts encoder output to `ψ ∈ ℂ^{45056}`, exposes
+  the 11-channel decomposition as a built-in projection-valued measure
+  (PVM), builds five Hermitian piece-reach observables (rook / bishop /
+  queen / king / knight) on the per-channel `ℂ^{4096}` factor, and
+  ships the 384-element `B_4` unitary representation as a cached LUT.
+- **Dynamics** — `chess_spectral.qm_4d_dynamics`. *How* states change:
+  the 11 per-channel `u_move_*` builders for move-as-unitary
+  transitions (discrete) plus `evolve_under_h0` for Zeno-style
+  continuous time evolution between move boundaries.
+
+Consumers that want a Pyodide-JSON-shaped surface use the
+`chess_spectral.qm_4d_bridge` dispatch layer described in the next
+section.
 
 ```python
 >>> from chess_spectral.fen_4d import parse
@@ -171,7 +184,9 @@ knight) on the per-channel `ℂ^{4096}` factor:
 ...     prob_channel, measure_channel_distribution,
 ...     channel_projector,
 ...     H_rook_4, H_bishop_4, H_queen_4, H_king_4, H_knight_4,
-...     expectation, is_normalized,
+...     measure_observable_distribution,
+...     b4_unitary_rep_4096, b4_unitary_rep_full,
+...     expectation, is_normalized, is_hermitian, is_unitary,
 ... )
 
 >>> pos = parse("4d-fen v1: K@4,0,0,0; k@4,7,7,7; R@0,0,0,0")
@@ -190,6 +205,13 @@ True
 
 # ⟨ψ|H_rook|ψ⟩ on the rook channel block
 >>> # expectation(H_rook_4, psi[0:4096])    # H_piece_4 is sparse 4096x4096
+
+# Born-rule eigenbasis distribution: |⟨φ_k|ψ⟩|² grouped by eigenvalue
+>>> # eigvals, probs = measure_observable_distribution(H_rook_4, psi[0:4096])
+
+# B_4 group action (384 elements). 4096-dim per-channel block, or the
+# I_11 ⊗ U_4096(g) Kronecker extension to the full 45 056-dim space.
+>>> # U = b4_unitary_rep_full(g)            # cached; sparse 45056x45056
 ```
 
 The Hermitian piece-reach observables `H_rook_4`, `H_bishop_4`,
@@ -200,6 +222,14 @@ spectra (Hermiticity verified at floating residual ~5e-15; Pre-flight
 Hermiticity under the standard inner product (directed push) — the
 pseudo-Hermitian `η`-metric construction is deferred to v1.7+ per
 [ADR-005](../docs/adr/qm_4d/ADR-005-pawn-pseudo-hermitian-eta-metric.md).
+
+`b4_unitary_rep_4096(g)` and `b4_unitary_rep_full(g)` realize the
+order-384 hyperoctahedral group as sparse unitaries on `ℂ^{4096}` and
+`ℂ^{45056}` respectively (the latter is `I_{11} ⊗ U_{4096}(g)` — same
+B_4 action applied independently to each of the 11 channels). Both are
+cached per group element. `measure_observable_distribution(H, ψ)`
+diagonalizes any Hermitian observable on `ℂ^{4096}` and returns the
+Born-rule probability distribution over distinct eigenvalues.
 
 **Move-as-unitary dynamics** (Phase 4, Track B) live in
 `chess_spectral.qm_4d_dynamics`. The module ships per-channel builders
@@ -359,10 +389,17 @@ gates this in CI.
     pyproject.toml                 # PEP 621 packaging metadata
     tests/                         # pytest suite (see test count below)
 
-**Test count (post-v1.4):** 102 fast tests + 44 876 parametric
-phase-operator tests + 260 pawn-axis / phase-4d-check / phase-4d-
-unobstructed tests + 92 2D phase_operators tests + 210 v1.4 game-state
-tests. Run via `pytest docs/chess-maths/chess-spectral/python/tests/`.
+**Test count (post-v1.5):** 45 895 tests collected. Breakdown:
+~44 876 parametric 4D phase-operator tests (the bulk), 81-test
+end-to-end immolation suite (`test_smoke_e2e.py`, expanded from 41
+for v1.5 surface coverage), 272 v1.5 QM tests across the kinematic
+front-end (`test_qm_4d.py`, `test_qm_4d_z2_grading.py`), the Track B
+B1..B5 dynamics gates (`test_qm_4d_dynamics_b{1,2,3a,3b,3c,3d,5}.py`),
+and the §17.1/§17.5 bridge surface (`test_qm_4d_bridge_v15.py`),
+plus 102 fast tests, 260 pawn-axis / phase-4d-check / phase-4d-
+unobstructed tests, 92 2D phase_operators tests, and 210 v1.4
+game-state tests. Run via
+`pytest docs/chess-maths/chess-spectral/python/tests/`.
 
 ## Phase operators (2D, §11)
 
@@ -464,8 +501,18 @@ encoded bytes equal the Python-produced bytes.
   for the 4D-specific research record (encoder injectivity, B_4
   spectral identity, qm_4d pre-flight findings).
 - **Track B ADRs** — [`docs/adr/qm_4d/`](../docs/adr/qm_4d/) for the
-  design record of the v1.5 QM extension (ADR-001..ADR-005 plus the
-  Phase 3.5 probe-results amendments).
+  design record of the v1.5 QM extension:
+  - ADR-001 phase convention for unitary moves
+  - ADR-002 time-evolution semantics (continuous H_0 between move
+    boundaries; `evolve_under_h0`)
+  - ADR-003 per-channel move transformation (+ Phase 3.5
+    orbit-restriction amendment for cross-orbit STD4 / FIB_SYM
+    measurement-only re-encode)
+  - ADR-004 Z_2 superselection structure (side-to-move sign
+    multiplier, resolves the 8-collision encoder hash issue)
+  - ADR-005 pawn pseudo-Hermitian η-metric (deferred to v1.7+)
+  - `PHASE_3_5_PROBE_RESULTS.md` — empirical probe record that drove
+    the ADR-003 amendment.
 - **Pawn-axis split (v1.1.1)** — Oana & Chiru Definition 11; the
   encoder splits the pawn antisymmetric channel into W-axis and
   Y-axis sub-channels (`FA_PAWN_W`, `FA_PAWN_Y`) and grew from
