@@ -661,18 +661,31 @@ def test_b1_capture_move_raises_not_implemented(imbalanced_position):
     )
 
 
-def test_b1_apply_move_qm_stub_raises(imbalanced_position):
-    """The bridge-surface stub raises NotImplementedError pointing
-    at the B2-B5 milestones (full applyMoveQm requires all 11
-    channels)."""
+def test_b1_apply_move_qm_returns_assembled_dict(imbalanced_position):
+    """After B3d/e the bridge no longer raises NotImplementedError
+    for non-capture moves; it returns the assembled per-channel dict
+    with all 11 channel entries (A_1 + STD4_* + FA_PAWN_* + FIB_SYM_*
+    + FD_DIAG). This test verifies the A_1 entry is present and is a
+    csr_matrix (the strict path; A_1 always returns an operator,
+    never a marker dict).
+    """
     move = ((1, 2, 3, 4), (1, 2, 3, 5))
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.apply_move_qm(imbalanced_position, move)
-    msg = str(excinfo.value)
-    assert ("B2" in msg or "B3" in msg or "B5" in msg), (
-        f"apply_move_qm stub error should reference the B-series "
-        f"milestones; got: {msg}"
+    result = dyn.apply_move_qm(imbalanced_position, move)
+    assert isinstance(result, dict), (
+        f"apply_move_qm should return a dict; got "
+        f"{type(result).__name__}"
     )
+    # A_1 entry: always a csr_matrix (the projector-sandwich
+    # construction, regardless of orbit dichotomy).
+    assert 'A1' in result, (
+        f"A1 entry missing from bridge dict; got keys "
+        f"{sorted(result.keys())}"
+    )
+    a1_entry = result['A1']
+    assert sp.isspmatrix_csr(a1_entry), (
+        f"A_1 should be csr_matrix; got {type(a1_entry).__name__}"
+    )
+    assert a1_entry.shape == (4096, 4096)
 
 
 # ====================================================================

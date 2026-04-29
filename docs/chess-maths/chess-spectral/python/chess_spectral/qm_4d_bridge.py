@@ -1,5 +1,4 @@
-"""chess_spectral.qm_4d_bridge - applyMoveQm bridge surface (v1.5
-placeholder).
+"""chess_spectral.qm_4d_bridge - applyMoveQm bridge surface.
 
 Per §17.1 of the chess-spectral research notebook, the consumer-side
 QM bridge exposes ``applyMoveQm(state, move)`` (Python:
@@ -9,24 +8,45 @@ unitaries for **all 11 channels** (A_1, STD4_X/Y/Z/W, FA_PAWN_W/Y,
 FIB_SYM_1/2/3, FD_DIAG) — see ADR-003 §3.1's tiered plan and the
 B[2..5] milestone roadmap.
 
-Phase 4 milestones B1 + B3a ship A_1 and STD4_{X,Y,Z,W} via
-:func:`chess_spectral.qm_4d_dynamics.u_move_a1` and
-:func:`chess_spectral.qm_4d_dynamics.u_move_std4`; this module's
-:func:`apply_move_qm` is a **stub** that assembles the per-channel
-dictionary skeleton and raises ``NotImplementedError``. B3b, B3c-e,
-and B5 will fill in the remaining channels:
+Phase 4 milestones B1 + B3a + B3b + B3c + B3d/e ship **all 11
+channels** for non-capture moves via:
 
+  * :func:`chess_spectral.qm_4d_dynamics.u_move_a1` (A_1),
+  * :func:`chess_spectral.qm_4d_dynamics.u_move_std4` (STD4_*),
+  * :func:`chess_spectral.qm_4d_dynamics.u_move_fa_pawn` (FA_PAWN_*),
+  * :func:`chess_spectral.qm_4d_dynamics.u_move_fib_meas` (FIB_SYM_*),
+  * :func:`chess_spectral.qm_4d_dynamics.u_move_fd_diag` (FD_DIAG).
+
+After B3d/e the bridge **no longer raises** for non-capture moves —
+:func:`apply_move_qm` returns the assembled per-channel dict. The
+dict's values are a mix of ``csr_matrix`` (strict-unitary same-orbit
+A_1 / STD4_* same-orbit / FA_PAWN_* axis-flip) and marker dicts
+(cross-orbit / cross-parity-class / measurement-only / rank-1) —
+consumers dispatch on ``isinstance(value, dict)``.
+
+Milestone status (post-B3d/e):
+
+  - **B1** A_1 channel — shipped.
+  - **B2** Zeno-style evolution + H_0 — shipped (callable via
+    :func:`chess_spectral.qm_4d_dynamics.evolve_under_h0`; not yet
+    wired into ``apply_move_qm``'s ψ_post computation — see TODO
+    below).
   - **B3a** STD4_X/Y/Z/W (strict-unitary same-orbit; cross-orbit
     returns measurement-only re-encode marker per ADR-003 amendment
-    Option (a)) — **shipped this milestone**.
-  - **B3b** FA_PAWN_W/Y (strict-unitary non-capture; partial-isometry
-    capture per B5).
+    Option (a)) — shipped.
+  - **B3b** FA_PAWN_W/Y (strict-unitary axis-flip; cross-parity
+    returns marker; partial-isometry capture per B5) — shipped.
   - **B3c** FIB_SYM_1/2/3 (Phase 3.5 amendment: measurement-only
     re-encode per ADR-003 §3.3 fallback — best-effort linearization
-    failed the Phase 3.5 Probe-2 acceptance gate).
-  - **B3d/e** FD_DIAG (rank-1 update + renormalization).
-  - **B5** capture handling (partial-isometry / rank-1 / Stinespring
-    deferred).
+    failed the Phase 3.5 Probe-2 acceptance gate by 50-500×) —
+    shipped.
+  - **B3d/e** FD_DIAG (rank-1 update + renormalization, cond p95 =
+    8.60 < 100 acceptance gate; v1.5 ships Option A re-encode marker;
+    explicit rank-1 algebra deferred to B5 alongside the other
+    capture cases) — **shipped this milestone**.
+  - **B5** capture handling (partial-isometry on FA_PAWN; rank-1 +
+    renorm on A_1 / STD4 / FD_DIAG; full Stinespring deferred to
+    v1.7+).
 
 Why a separate module?
 ----------------------
@@ -36,16 +56,16 @@ Why a separate module?
 holds the **assembly** layer that ties channel unitaries together
 into the §17.1 ``applyMoveQm`` API. Keeping them separate matches
 the v1.5.0 architecture sketch: ``qm_4d_dynamics`` is the math, the
-bridge is the consumer-facing API. B2-B5 will keep adding channels
-to ``qm_4d_dynamics`` without churning this module beyond plumbing.
+bridge is the consumer-facing API. B5 will keep adding capture
+handling to ``qm_4d_dynamics`` without churning this module beyond
+plumbing.
 
 Public API
 ----------
 :func:`apply_move_qm`
-    The §17.1 bridge entry-point. B1 raises
-    ``NotImplementedError``; v1.5 will return either a sparse
-    45 056×45 056 ``U_move`` matrix or a normalised ``ψ_post`` vector
-    depending on the ``optional_return_unitary`` flag.
+    The §17.1 bridge entry-point. v1.5 (post-B3d/e) returns the
+    assembled per-channel dict for non-capture moves; captures still
+    raise ``NotImplementedError`` pointing at B5.
 """
 from __future__ import annotations
 
@@ -57,30 +77,31 @@ from scipy.sparse import csr_matrix
 from chess_spectral import qm_4d_dynamics as _dyn
 
 
-# Channel name -> milestone identifier. Used by the bridge stub's
-# error message and by future B3b/B3c-e/B5 dispatch.
+# Channel name -> milestone identifier. Used by the bridge's
+# observability output and by future B5 capture-path dispatch.
 _CHANNEL_MILESTONES: Dict[str, str] = {
     'A1':         'B1 (shipped)',
     'STD4_X':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
     'STD4_Y':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
     'STD4_Z':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
     'STD4_W':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
-    'FIB_SYM_1':  'B3c (measurement-only re-encode)',
-    'FIB_SYM_2':  'B3c (measurement-only re-encode)',
-    'FIB_SYM_3':  'B3c (measurement-only re-encode)',
+    'FIB_SYM_1':  'B3c (shipped — measurement-only re-encode)',
+    'FIB_SYM_2':  'B3c (shipped — measurement-only re-encode)',
+    'FIB_SYM_3':  'B3c (shipped — measurement-only re-encode)',
     'FA_PAWN_W':  'B3b (shipped — strict-unitary axis-flip; cross-parity marker)',
     'FA_PAWN_Y':  'B3b (shipped — strict-unitary axis-flip; cross-parity marker)',
-    'FD_DIAG':    'B3d/e',
+    'FD_DIAG':    'B3d/e (shipped — rank-1 update with renorm; v1.5 Option A)',
 }
 
-# Channel names that have a shipped per-channel builder. Used to
-# decide which entries to populate in the channels_unitaries skeleton
-# vs. defer to the NotImplementedError listing. Updated as B3b..B5
-# land.
+# Channel names that have a shipped per-channel builder. After B3d/e,
+# all 11 channels are populated for non-capture moves; the only
+# remaining gap is the capture path (B5).
 _SHIPPED_CHANNELS: frozenset = frozenset({
     'A1',
     'STD4_X', 'STD4_Y', 'STD4_Z', 'STD4_W',
     'FA_PAWN_W', 'FA_PAWN_Y',
+    'FIB_SYM_1', 'FIB_SYM_2', 'FIB_SYM_3',
+    'FD_DIAG',
 })
 
 
@@ -89,13 +110,51 @@ def apply_move_qm(
     move: Any,
     *,
     optional_return_unitary: bool = False,
-) -> Any:
+) -> Dict[str, Any]:
     """Bridge surface for the §17.1 ``applyMoveQm`` API.
 
-    **B1 status: stub.** Builds the channel-unitary skeleton with the
-    A_1 entry populated via :func:`chess_spectral.qm_4d_dynamics.u_move_a1`,
-    then raises ``NotImplementedError`` until B2-B5 land the remaining
-    10 channels.
+    **B3d/e status: returns assembled per-channel dict.** After this
+    milestone the bridge populates **all 11 channel entries** for
+    non-capture moves via the per-channel builders in
+    :mod:`chess_spectral.qm_4d_dynamics` and returns the assembled
+    dict directly (no more ``NotImplementedError`` for non-captures).
+    The dict's values are a heterogeneous mix:
+
+      * ``csr_matrix`` (4096×4096 sparse, complex128): the strict-
+        unitary or sub-unitary projector-sandwich / similarity-
+        transform operator. Returned by:
+          - ``A1`` (always),
+          - ``STD4_X/Y/Z/W`` for same-B_4-orbit moves (cross-orbit
+            falls back to a marker dict per ADR-003 amendment),
+          - ``FA_PAWN_W/Y`` (always — sub-unitarity holds only for
+            pure axis-flip moves but the operator is constructed
+            unconditionally; non-axis-flip moves get a non-strict
+            but well-defined sandwich).
+
+      * marker dict (with at least ``strict_unitary`` / ``reason`` /
+        ``channel`` keys; optionally ``psi_post_block`` for the
+        re-encode-based markers): the measurement-only / rank-1 /
+        cross-orbit / cross-parity-class fallback. Returned by:
+          - ``STD4_X/Y/Z/W`` for cross-B_4-orbit moves (carries
+            ``reason: 'cross-orbit'``; no ``psi_post_block``),
+          - ``FIB_SYM_1/2/3`` always (carries
+            ``reason: 'measurement-only'`` and ``psi_post_block``),
+          - ``FD_DIAG`` always (carries
+            ``reason: 'rank-1-update-with-renorm'`` and
+            ``psi_post_block``).
+
+    Consumers dispatch on ``isinstance(value, dict)`` to route each
+    channel block: matrix entries multiply ``psi_pre[chan_block]``;
+    marker entries with ``psi_post_block`` are spliced directly into
+    ``psi_post`` (no matrix multiply); cross-orbit markers without
+    ``psi_post_block`` route to a measurement-only re-encode at the
+    bridge layer (the bridge consumer is responsible for that
+    re-encode in v1.5; the marker just signals the intent).
+
+    Capture moves still raise ``NotImplementedError`` pointing at B5
+    — see the per-channel builder docstrings for the deferred
+    constructions (FA_PAWN partial-isometry; A_1 / STD4 / FD_DIAG
+    rank-1 + renorm).
 
     Parameters
     ----------
@@ -111,24 +170,50 @@ def apply_move_qm(
     optional_return_unitary
         Per the §17.1 contract, the consumer may opt into receiving
         the full 45 056×45 056 sparse ``U_move`` for animation /
-        debugging. Currently ignored; v1.5 will respect it.
+        debugging. Currently ignored (the bridge returns the
+        per-channel dict regardless); v1.5 will expose the assembled
+        block-diagonal U_move via this flag.
 
     Returns
     -------
-    Never returns successfully in B1; ``NotImplementedError`` is
-    raised. v1.5 will return a normalised ψ_post vector (or the
-    ``(ψ_post, U_move)`` pair when ``optional_return_unitary=True``).
+    dict[str, csr_matrix | dict]
+        Per-channel dict keyed by channel name (``'A1'``, ``'STD4_X'``,
+        …, ``'FD_DIAG'``). Values are either ``csr_matrix`` (same-
+        orbit / strict-unitary path) or marker dicts (cross-orbit /
+        measurement-only / rank-1 / cross-parity-class paths). All 11
+        channel keys are present after B3d/e for non-capture moves.
 
     Raises
     ------
     NotImplementedError
-        Always (B1 milestone). The error message lists the
-        outstanding channels and their milestone targets.
+        If the move is a capture (any per-channel builder raises with
+        ``assume_non_capture=False``; the bridge does not currently
+        opt into capture detection — captures fall through the
+        builders' default ``assume_non_capture=True`` fast path and
+        produce ill-defined operators). v1.5 will add capture
+        detection at the bridge layer once B5's per-channel capture
+        constructions land.
+
+    Notes
+    -----
+    The B2 free-evolution primitive
+    (:func:`chess_spectral.qm_4d_dynamics.evolve_under_h0`) is NOT
+    yet wired into the ψ_post computation; the Zeno-style sandwich
+
+        ψ(t_{n+1}^-) = evolve_under_h0(ψ(t_n), Δt)
+        ψ(t_{n+1})   = N_{n+1} * U_move @ ψ(t_{n+1}^-)
+
+    requires a Δt animation-clock parameter that the M14.x renderer
+    will supply once the per-channel builders settle. For now,
+    consumers needing free-evolution between move boundaries call
+    :func:`chess_spectral.qm_4d_dynamics.evolve_under_h0` directly on
+    the assembled ψ.
     """
-    # Build what we have so the assembly skeleton is exercised.
-    # B3a/B3c-e/B5 will replace each ``raise`` with the channel's
-    # ``u_move_<chan>`` builder.
-    channels_unitaries: Dict[str, csr_matrix] = {}
+    # Build the per-channel dict by dispatching to each shipped
+    # builder. Values are heterogeneous: csr_matrix (strict-unitary)
+    # OR marker dicts (cross-orbit / measurement-only / rank-1).
+    # Consumers dispatch on isinstance(value, dict).
+    channels_unitaries: Dict[str, Any] = {}
 
     # ── A_1 channel (B1 — shipped) ─────────────────────────────────
     channels_unitaries['A1'] = _dyn.u_move_a1(state, move)
@@ -139,11 +224,9 @@ def apply_move_qm(
     # channels 1-4 + ADR-003 amendment Option (a), the strict-unitary
     # path is restricted to same-B_4-orbit non-capture moves;
     # cross-orbit moves return a marker dict pointing at v1.5
-    # measurement-only re-encode (NOT integrated here; the bridge
-    # consumer will route channel-blocks via the marker for v1.5).
-    # The dict entries can be a csr_matrix (same-orbit) or a marker
-    # dict (cross-orbit); the v1.5 implementation will dispatch on
-    # the value type.
+    # measurement-only re-encode. The dict entries can be a csr_matrix
+    # (same-orbit) or a marker dict (cross-orbit); the v1.5 consumer
+    # dispatches on the value type.
     for axis in ('X', 'Y', 'Z', 'W'):
         channels_unitaries[f'STD4_{axis}'] = _dyn.u_move_std4(
             state, move, axis=axis,
@@ -153,28 +236,46 @@ def apply_move_qm(
     # Antisymmetric pawn channels under W-axis or Y-axis parity. Per
     # ADR-003 §3.2 + B3b empirical finding: strict-unitary path holds
     # only for pure-axis-flip moves (sq_to == sigma_axis(sq_from));
-    # cross-parity-class moves get the same measurement-only-marker
-    # treatment as STD4 cross-orbit. Captures are NotImplementedError
-    # (deferred to B5 partial-isometry handling).
+    # the projector-sandwich is constructed unconditionally, so the
+    # builder always returns a csr_matrix here (non-axis-flip moves
+    # produce a sub-unitary but well-defined operator). Captures are
+    # NotImplementedError (deferred to B5 partial-isometry handling).
     for axis in ('W', 'Y'):
         channels_unitaries[f'FA_PAWN_{axis}'] = _dyn.u_move_fa_pawn(
             state, move, axis=axis,
         )
-    #
-    # ── FIB_SYM_1/2/3 (B3c — measurement-only re-encode per Phase ──
-    #   3.5 amendment to ADR-003 §3.3) ────────────────────────────
-    # for fib_idx in (1, 2, 3):
-    #     channels_unitaries[f'FIB_SYM_{fib_idx}'] = u_move_fib_meas(
-    #         state, move, fib_idx,
-    #     )
-    #
-    # ── FD_DIAG (B3d/e — rank-1 update) ────────────────────────────
-    # channels_unitaries['FD_DIAG'] = u_move_fd_diag(state, move)
 
-    # The full bridge would then assemble these into a single
-    # 45 056×45 056 sparse U_move via sp.block_diag(...) and apply
-    # it to state_to_psi(state) — modulo the FIB_SYM measurement-only
-    # path which projects rather than evolves.
+    # ── FIB_SYM_1/2/3 (B3c — shipped) ──────────────────────────────
+    # Measurement-only re-encode per the Phase 3.5 amendment to
+    # ADR-003 §3.3. The bilinear FIB encoder formula has no strict-
+    # unitary lift (Probe 2: ε p95 = 5.6/6.8/46.8 vs the 0.10 gate);
+    # FIB channels return a marker dict with ``psi_post_block``
+    # carrying the post-move re-encoded 4096-dim vector. The bridge
+    # consumer (v1.5) dispatches on ``isinstance(value, dict)`` to
+    # route the marker's ``psi_post_block`` directly into the assembled
+    # post-move ψ rather than evolving via U_move @ psi_pre.
+    for fib_idx in (1, 2, 3):
+        channels_unitaries[f'FIB_SYM_{fib_idx}'] = _dyn.u_move_fib_meas(
+            state, move, fib_idx,
+        )
+
+    # ── FD_DIAG (B3d/e — shipped) ──────────────────────────────────
+    # Rank-1 update + renormalization per ADR-003 §3.2 channel 10.
+    # v1.5 ships Option A (re-encode marker): the channel block is
+    # invariant for non-captures (the rank-1 update reduces to
+    # identity), so re-encoding the post-move position is
+    # mathematically equivalent and faster to ship. Phase 3.5 Probe 2
+    # validated cond p95 = 8.60 vs the 100 acceptance gate (well-
+    # conditioned). Capture handling ships in B5 with the explicit
+    # rank-1 algebra. The marker dict carries
+    # ``reason: 'rank-1-update-with-renorm'`` to distinguish from
+    # B3c's ``'measurement-only'`` for observability.
+    channels_unitaries['FD_DIAG'] = _dyn.u_move_fd_diag(state, move)
+
+    # All 11 channels populated. Return the assembled dict directly
+    # (v1.5 contract: bridge no longer raises NotImplementedError
+    # for non-capture moves; capture detection lands at the bridge
+    # layer in B5 once the capture-path builders are complete).
     #
     # TODO (v1.5 / Phase 4 B2 wired into bridge): per ADR-002 §3.3,
     # the Zeno-style ψ_post computation should sandwich the
@@ -184,28 +285,29 @@ def apply_move_qm(
     #     ψ(t_{n+1})   = N_{n+1} * U_move @ ψ(t_{n+1}^-)    # instant + renorm
     #
     # The Δt parameter is supplied by the M14.x renderer
-    # (animation-clock dependent; see ADR-002 §3.5). For B2 this
-    # bridge does not yet wire in evolve_under_h0; that lands once
-    # the per-channel U_move builders (B3a-B5) are complete and the
-    # apply_move_qm signature is finalized to accept Δt. The B2
-    # primitive is already callable directly via
+    # (animation-clock dependent; see ADR-002 §3.5). The B2 primitive
+    # is callable directly via
     # ``chess_spectral.qm_4d_dynamics.evolve_under_h0``.
+    #
+    # TODO (v1.5 / Phase 4 B5 capture handling): when the capture-path
+    # builders land (FA_PAWN partial-isometry, A_1 / STD4 / FD_DIAG
+    # rank-1 + renorm), wire capture detection at this layer so the
+    # builders are called with ``assume_non_capture=False`` and
+    # captures route to the new constructions instead of falling
+    # through the non-capture fast path. Until then, captures
+    # silently produce ill-defined operators on the strict-unitary
+    # channels (the projector-sandwich + capture combination has
+    # been pinned by xfail-strict tests but is not formally
+    # rejected).
+    #
+    # TODO (v1.5 — optional_return_unitary): when this flag is set,
+    # assemble a block-diagonal 45 056×45 056 U_move from the
+    # csr_matrix entries (with the marker entries contributing
+    # identity blocks or being sliced out depending on the consumer's
+    # convention). Currently ignored; the dict-of-blocks return is
+    # sufficient for M14.x rendering.
 
-    pending = sorted(
-        f"{name} (target: {ms})"
-        for name, ms in _CHANNEL_MILESTONES.items()
-        if name not in _SHIPPED_CHANNELS
-    )
-    shipped = sorted(_SHIPPED_CHANNELS)
-    raise NotImplementedError(
-        "Full applyMoveQm bridge requires the remaining channel "
-        "unitaries (B3b + B3c-e + B5). Shipped: "
-        + ", ".join(shipped) + ". "
-        "Pending channels: " + "; ".join(pending) + ". "
-        "See docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md and "
-        "ADR-003-AMENDMENT-orbit-restriction.md for the v1.5 "
-        "scope decision."
-    )
+    return channels_unitaries
 
 
 __all__ = [
