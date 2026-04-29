@@ -62,6 +62,12 @@ through the Pyodide worker.
 
 #### Track A kinematic QM front-end (`chess_spectral.qm_4d`)
 
+The kinematic layer — state space, observables, measurement structure,
+and symmetry / group action. *What* the QM picture's states and
+operators look like. The dynamics — *how* states evolve, including
+both move-as-unitary and continuous time evolution — live in the
+sibling `qm_4d_dynamics` module described below.
+
 - **`state_to_psi(state, side_to_move)`** — encoder output cast to
   `complex128` ψ ∈ ℂ^45056, L2-normalized, with Z_2 superselection
   via the side-to-move sign multiplier (resolves the 8-collision
@@ -83,6 +89,14 @@ through the Pyodide worker.
   on ℂ^4096; Kronecker-extension to ℂ^45056 via `b4_unitary_rep_full`.
   384-element cached LUT.
 
+#### Track B Phase 4 dynamics (`chess_spectral.qm_4d_dynamics`)
+
+The dynamics layer — *how* states evolve under both continuous time
+(`evolve_under_h0`) and discrete move-as-unitary transitions (the 11
+per-channel `u_move_*` builders). The pre-conditions — what states
+and observables look like — live in the sibling `qm_4d` module
+described above.
+
 - **`evolve_under_h0(psi, t, *, channel=None)`** — Zeno-style time
   evolution under H_0 = -Δ_{P_8^4} via `scipy.sparse.linalg.expm_multiply`.
   Norm-preserving, energy-conserving, time-reversal-symmetric.
@@ -90,7 +104,7 @@ through the Pyodide worker.
   the `tables_4d.kron_sum4_eigvals` Pre-flight 3 verification at
   1.30e-13 residual.
 
-#### Track B Phase 4 channel builders (`chess_spectral.qm_4d_dynamics`)
+The 11 per-channel move-as-unitary builders:
 
 - **All 11 per-channel `u_move_*` builders** for non-capture AND
   capture moves:
