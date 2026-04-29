@@ -709,7 +709,16 @@ def build_parser() -> argparse.ArgumentParser:
     # `python spectral_py.py` with no args, rather than a terse error.
     sub = ap.add_subparsers(dest="cmd")
 
-    p_csv = sub.add_parser("csv", help="Export .spectral[z] to CSV")
+    p_csv = sub.add_parser(
+        "csv",
+        help="Export .spectral[z] to CSV",
+        description=(
+            "Read a .spectral or .spectralz file and emit the chat-friendly "
+            "17-column CSV (per-ply inter-frame metrics + 10 channel "
+            "energies). Auto-detects a sibling NDJSON for eval/clk/nag "
+            "merge unless --no-meta is given."
+        ),
+    )
     p_csv.add_argument("input", help="game.spectral or game.spectralz")
     p_csv.add_argument("-o", "--output",
                        help="output .csv path (default: <input>.csv)")
@@ -726,6 +735,13 @@ def build_parser() -> argparse.ArgumentParser:
         "encode",
         help="Encode PGN / NDJSON / URL → .spectral[z] "
              "(mirrors the C `spectral encode` CLI)",
+        description=(
+            "Encode a PGN / NDJSON / URL stream into a v2 .spectral file. "
+            "With --pgn / --url, auto-pipes through pgn_bridge.py "
+            "(supports --pgn-start / --pgn-count for multi-game slicing). "
+            "With -z, writes gzip-compressed output. Mirrors the C "
+            "`spectral encode` CLI byte-for-byte."
+        ),
     )
     p_enc.add_argument("-i", "--input",
                        help="pre-produced NDJSON (from pgn_bridge.py)")
@@ -748,7 +764,16 @@ def build_parser() -> argparse.ArgumentParser:
                        help="gzip the output in place")
     p_enc.set_defaults(func=cmd_encode)
 
-    p_fen = sub.add_parser("encode-fen", help="Encode single FEN → 1-frame file")
+    p_fen = sub.add_parser(
+        "encode-fen",
+        help="Encode single FEN → 1-frame file",
+        description=(
+            "Encode a single FEN string to a one-ply .spectral file. "
+            "Output is byte-identical (modulo gzip framing) to the C "
+            "`spectral encode-fen` binary; gzip output is inferred from "
+            "an .spectralz suffix if -z is not given explicitly."
+        ),
+    )
     p_fen.add_argument("--fen", required=True, help="FEN string")
     p_fen.add_argument("-o", "--output", help="output path (default single.spectral)")
     p_fen.add_argument("-z", "--compress", action="store_true",
@@ -789,20 +814,40 @@ def build_parser() -> argparse.ArgumentParser:
                             f"(default: {_DEFAULT_RESULTS_ROOT})")
     p_cor.set_defaults(func=cmd_corpus)
 
-    p_ver = sub.add_parser("version", help="Print version info")
+    p_ver = sub.add_parser(
+        "version",
+        help="Print version info",
+        description=(
+            "Print the spectral_py CLI version, the .spectral file-format "
+            "version, and the encoding dimensionality. Useful for "
+            "matching a wheel against expected C-side output."
+        ),
+    )
     p_ver.set_defaults(func=cmd_version)
 
     # ─── 2D commands wired in v1.2.4 ───
     p_cmp = sub.add_parser(
         "compare",
         help="Cosine-similarity report between two .spectral files",
+        description=(
+            "Print per-ply cosine similarity statistics between two "
+            ".spectral / .spectralz files (min, mean, max + ply of min). "
+            "Float64 accumulation matches the C binary's reduction order; "
+            "ply counts may differ — only the common prefix is compared."
+        ),
     )
     p_cmp.add_argument("a", help="first .spectral or .spectralz file")
     p_cmp.add_argument("b", help="second .spectral or .spectralz file")
     p_cmp.set_defaults(func=cmd_compare)
 
     p_qry = sub.add_parser(
-        "query", help="Print 10-channel breakdown at ply N",
+        "query",
+        help="Print 10-channel breakdown at ply N",
+        description=(
+            "Print the 10-channel energy breakdown (A1, A2, B1, B2, E, "
+            "F1, F2, F3, FA, FD) for a single ply, along with move "
+            "metadata. Output format mirrors the C binary."
+        ),
     )
     p_qry.add_argument("input", help="game.spectral or .spectralz")
     p_qry.add_argument("--ply", type=int, required=True,
@@ -810,7 +855,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_qry.set_defaults(func=cmd_query_2d)
 
     p_hm = sub.add_parser(
-        "heatmap", help="ANSI 8x8 of one channel at one ply",
+        "heatmap",
+        help="ANSI 8x8 of one channel at one ply",
+        description=(
+            "Render an ANSI-colored 8x8 heatmap of one of the 10 spectral "
+            "channels (A1/A2/B1/B2/E/F1/F2/F3/FA/FD) at one ply. Cyan = "
+            "positive, red = negative, glyph density tracks magnitude "
+            "relative to the slice's absmax."
+        ),
     )
     p_hm.add_argument("input", help="game.spectral or .spectralz")
     p_hm.add_argument("--ply", type=int, required=True,
@@ -832,7 +884,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_ana.set_defaults(func=cmd_analyze)
 
     p_exp = sub.add_parser(
-        "export", help="Dump frames to JSON for the web viewer",
+        "export",
+        help="Dump frames to JSON for the web viewer",
+        description=(
+            "Dump every frame in a .spectral / .spectralz file to JSON, "
+            "in the format consumed by the chess-maths-viewer web app. "
+            "Output is byte-identical to the C `spectral export` binary "
+            "modulo float-formatter conventions (%.6g, see source)."
+        ),
     )
     p_exp.add_argument("input", help="game.spectral or .spectralz")
     p_exp.add_argument("-o", "--output",
