@@ -61,6 +61,8 @@ from .attacks_pawn import (
     PAWN_ATTACKS_W_WHITE, PAWN_ATTACKS_W_BLACK,
     PAWN_ATTACKS_Y_WHITE, PAWN_ATTACKS_Y_BLACK,
 )
+from .move import Move4D, PIECE_CHARS, PROMOTION_TARGETS
+from .board import Board4D, UndoInfo
 
 __all__ = [
     "Bitboard4D",
@@ -82,4 +84,7 @@ __all__ = [
     "PAWN_PUSH_Y_WHITE", "PAWN_PUSH_Y_BLACK",
     "PAWN_ATTACKS_W_WHITE", "PAWN_ATTACKS_W_BLACK",
     "PAWN_ATTACKS_Y_WHITE", "PAWN_ATTACKS_Y_BLACK",
+    # game state
+    "Move4D", "Board4D", "UndoInfo",
+    "PIECE_CHARS", "PROMOTION_TARGETS",
 ]
