@@ -1,0 +1,99 @@
+{
+  "primary_variant_label": "double_push=True, captures=True",
+  "primary_variant_results": {
+    "label": "double_push=True, captures=True",
+    "include_double_push": true,
+    "include_captures": true,
+    "M_pawn_w_white_nnz": 10368,
+    "asymmetric_nnz": 20736,
+    "pseudo_hermiticity_residuals": {
+      "P_w": 32.0,
+      "P_y": 144.0,
+      "J_op": 32.0,
+      "I": 144.0
+    },
+    "best_eta": "P_w",
+    "best_residual": 32.0,
+    "P_w_passes": false,
+    "duality_P_w_M_P_w_eq_M_black_residual": 0.0,
+    "transpose_eq_M_black_residual": 32.0,
+    "spectrum_max_imag": 0.0,
+    "spectrum_real_max": 0.0,
+    "spectrum_real_min": 0.0,
+    "spectrum_real_within_tol": true
+  },
+  "all_variant_results": [
+    {
+      "label": "double_push=True, captures=True",
+      "include_double_push": true,
+      "include_captures": true,
+      "M_pawn_w_white_nnz": 10368,
+      "asymmetric_nnz": 20736,
+      "pseudo_hermiticity_residuals": {
+        "P_w": 32.0,
+        "P_y": 144.0,
+        "J_op": 32.0,
+        "I": 144.0
+      },
+      "best_eta": "P_w",
+      "best_residual": 32.0,
+      "P_w_passes": false,
+      "duality_P_w_M_P_w_eq_M_black_residual": 0.0,
+      "transpose_eq_M_black_residual": 32.0,
+      "spectrum_max_imag": 0.0,
+      "spectrum_real_max": 0.0,
+      "spectrum_real_min": 0.0,
+      "spectrum_real_within_tol": true
+    },
+    {
+      "label": "double_push=False, captures=True",
+      "include_double_push": false,
+      "include_captures": true,
+      "M_pawn_w_white_nnz": 9856,
+      "asymmetric_nnz": 19712,
+      "pseudo_hermiticity_residuals": {
+        "P_w": 0.0,
+        "P_y": 140.39943019827396,
+        "J_op": 0.0,
+        "I": 140.39943019827396
+      },
+      "best_eta": "P_w",
+      "best_residual": 0.0,
+      "P_w_passes": true,
+      "duality_P_w_M_P_w_eq_M_black_residual": 0.0,
+      "transpose_eq_M_black_residual": 0.0,
+      "spectrum_max_imag": 0.0,
+      "spectrum_real_max": 0.0,
+      "spectrum_real_min": 0.0,
+      "spectrum_real_within_tol": true
+    },
+    {
+      "label": "double_push=False, captures=False",
+      "include_double_push": false,
+      "include_captures": false,
+      "M_pawn_w_white_nnz": 3584,
+      "asymmetric_nnz": 7168,
+      "pseudo_hermiticity_residuals": {
+        "P_w": 0.0,
+        "P_y": 84.6640419540669,
+        "J_op": 0.0,
+        "I": 84.6640419540669
+      },
+      "best_eta": "P_w",
+      "best_residual": 0.0,
+      "P_w_passes": true,
+      "duality_P_w_M_P_w_eq_M_black_residual": 0.0,
+      "transpose_eq_M_black_residual": 0.0,
+      "spectrum_max_imag": 0.0,
+      "spectrum_real_max": 0.0,
+      "spectrum_real_min": 0.0,
+      "spectrum_real_within_tol": true
+    }
+  ],
+  "best_overall_residual": 0.0,
+  "best_overall_variant_label": "double_push=False, captures=True",
+  "best_overall_eta": "P_w",
+  "acceptance_p_w_pseudo_hermitian": false,
+  "acceptance_spectrum_real": true,
+  "acceptance_overall": false
+}

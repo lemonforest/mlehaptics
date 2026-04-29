@@ -1,0 +1,145 @@
+{
+  "total_moves_sampled": 200,
+  "j_symmetric_move_count": 0,
+  "j_symmetric_fraction": 0.0,
+  "per_channel": {
+    "A1": {
+      "channel_idx": 0,
+      "naive_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "minus_sign_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "commutator_percentiles": {
+        "p5": 2.8284271247461903,
+        "p50": 2.8284271247461903,
+        "p95": 2.8284271247461903,
+        "max": 2.8284271247461903,
+        "mean": 2.828427124746191,
+        "n": 200
+      }
+    },
+    "STD4_X": {
+      "channel_idx": 1,
+      "naive_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "minus_sign_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "commutator_percentiles": {
+        "p5": 2.8284271247461903,
+        "p50": 2.8284271247461903,
+        "p95": 2.8284271247461903,
+        "max": 2.8284271247461903,
+        "mean": 2.828427124746191,
+        "n": 200
+      }
+    },
+    "STD4_Y": {
+      "channel_idx": 2,
+      "naive_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "minus_sign_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "commutator_percentiles": {
+        "p5": 2.8284271247461903,
+        "p50": 2.8284271247461903,
+        "p95": 2.8284271247461903,
+        "max": 2.8284271247461903,
+        "mean": 2.828427124746191,
+        "n": 200
+      }
+    },
+    "STD4_Z": {
+      "channel_idx": 3,
+      "naive_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "minus_sign_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "commutator_percentiles": {
+        "p5": 2.8284271247461903,
+        "p50": 2.8284271247461903,
+        "p95": 2.8284271247461903,
+        "max": 2.8284271247461903,
+        "mean": 2.828427124746191,
+        "n": 200
+      }
+    },
+    "STD4_W": {
+      "channel_idx": 4,
+      "naive_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "minus_sign_anti_commutator_percentiles": {
+        "p5": 127.96874618437113,
+        "p50": 127.96874618437113,
+        "p95": 127.96874618437113,
+        "max": 127.96874618437113,
+        "mean": 127.96874618437116,
+        "n": 200
+      },
+      "commutator_percentiles": {
+        "p5": 2.8284271247461903,
+        "p50": 2.8284271247461903,
+        "p95": 2.8284271247461903,
+        "max": 2.8284271247461903,
+        "mean": 2.828427124746191,
+        "n": 200
+      }
+    }
+  },
+  "all_strict_channels_pass_naive": false,
+  "all_strict_channels_pass_minus": false,
+  "method_notes": "Per-channel U_move = e^(i*theta_c) * swap(o, d); anti-commutator residual ||U J + J U||_F. ADR-004 \u00a73.4 predicts this should be 0. We test (a) the naive lift, (b) the naive lift with global -1 prefactor (representing the implicit side-to-move sign from state_to_psi), and (c) the commutator (UJ - JU) as a diagnostic for whether U commutes with J (which would be the opposite of the ADR-004 prediction). For the swap permutation lift, neither (a) nor (b) can satisfy strict anti-commutation in general because the swap matrix has only non-negative real entries and the anti-commutator with any positive permutation J is never zero unless the support of UJ + JU happens to be empty (which would require the swap and J to interact in a very special way)."
+}
