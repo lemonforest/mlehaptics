@@ -50,6 +50,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with informative message, expectation real for Hermitian, and
   spectral-decomposition Born weights sum to ‖ψ‖².
 
+- **`chess_spectral.engine` and `chess_spectral_4d.engine`** — Phase 6
+  evaluator/search/tournament namespaces (v1.6 PR-2). Bootstraps the
+  engine package skeleton with the **material evaluator** (the first
+  of the three §16.1 evaluator families):
+
+  Public API (mirrored at both 2D and 4D):
+  - `chess_spectral.engine.eval.material.evaluate(position,
+    side_to_move, *, values='spectral') -> float` — material score
+    from side-to-move's perspective. `values` accepts `'spectral'`
+    (default; uses `tables.SPECTRAL_VALS`), `'standard'` (textbook
+    `tables.VALS` 1/3/3.5/5/9/100), or a custom `{piece_char: float}`
+    dict (pieces absent from the dict score 0; useful for ablations).
+  - `chess_spectral.engine.eval.material.evaluate_white(position, *,
+    values='spectral') -> float` — convenience: always white's
+    perspective, no side-to-move flip. For HUD displays / corpus
+    statistics.
+  - `chess_spectral_4d.engine.eval.material.evaluate(...)` — 4D
+    analogue. Strips pawn axis (`('P', 'w')` → `'P'`) before value
+    lookup; legacy single-char `'P'`/`'p'` accepted without warning
+    spam (search loops would otherwise drown in deprecation noise).
+
+  No encoder call, no scipy, no math beyond integer addition. Pure
+  baseline that the spectral / QM evaluators (PR-3 / PR-4) are
+  empirically tested *against* in the §16 self-play tournament. The
+  evaluator-API contract (`evaluate(position, side_to_move) -> float`,
+  side-to-move-flipped, deterministic) is now established for the
+  search core (PR-5) to consume.
+
+  Test surface: 27 unit tests in `tests/test_engine_material.py`
+  covering empty / starting / lopsided positions, side-to-move sign
+  flipping, all three value-table modes, custom dict ablation, 4D
+  pawn-axis stripping, legacy single-char pawn acceptance, unknown
+  piece chars score 0, unknown table strings raise `ValueError`,
+  cross-dim consistency (a rook is worth the same in 2D and 4D), and
+  namespace re-export sanity.
+
 ## [1.5.0] — 2026-04-29
 
 The QM-extension release. Adds **chess_spectral.qm_4d** (Track A
