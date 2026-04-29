@@ -456,6 +456,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_cor = sub.add_parser(
         "corpus-gen",
         help="Wrap N NDJSON4 ply-logs into a viewer-ready corpus folder",
+        description=(
+            "Wrap N NDJSON4 ply-logs into a corpus folder mirroring the 2D "
+            "`chess-spectral corpus` layout: ndjson/<game>.ndjson, "
+            "spectralz/<game>.spectralz4, and a manifest.json with "
+            "per-game metadata. Honors --limit to cap processed games."
+        ),
     )
     p_cor.add_argument("--games", required=True, nargs="+",
                        help="one or more NDJSON4 ply-log paths")
@@ -468,7 +474,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_cor.set_defaults(func=cmd_corpus_gen)
 
     # version
-    p_ver = sub.add_parser("version", help="Print version + format info")
+    p_ver = sub.add_parser(
+        "version",
+        help="Print version + format info",
+        description=(
+            "Print the chess_spectral_4d package version, the .spectralz4 "
+            "magic and on-disk version, the encoding dimensionality "
+            "(45 056 = 8^4 * 11), and the lattice geometry (n_dimensions=4, "
+            "board_dim_side=8). Useful for verifying byte-format parity "
+            "against the C `spectral_4d` binary."
+        ),
+    )
     p_ver.set_defaults(func=cmd_version)
 
     return ap
