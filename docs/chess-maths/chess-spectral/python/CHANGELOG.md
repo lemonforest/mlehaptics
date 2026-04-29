@@ -7,6 +7,165 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] — API gaps for Phase 5b / chess4D-OC bridge surface
+
+Closes the nine API gaps captured in research notebook §16.9 + §17.3
+(the chess4D-OC consumer's wish-list before Phase 6 engine work
+begins). All of v1.3.x's existing API and tests remain green; this
+release is purely additive.
+
+### Added
+
+- **FEN4 round-trip — `chess_spectral.fen_4d.serialize(pos) -> str`.**
+  Inverse of `parse`. Round-trip property: `parse(serialize(p)) == p`
+  for any valid position. Output is canonical (pieces sorted by
+  ascending square index, separated by `"; "`); empty positions
+  serialize to just `"4d-fen v1:"` (the bare prefix). Closes §16.9
+  #4. Tested in `tests/test_fen4_round_trip.py` against:
+  the 15 fixture positions (`tests/fixtures/positions_4d.jsonl`),
+  100 seeded random self-play positions, the 4096-piece
+  every-cell stress case, and the empty-position + canonical-form
+  invariants.
+
+- **State-load API — `chess_spectral_4d.bridge.load_state(fen4)`.**
+  Wraps `fen_4d.parse` + `GameState4D.from_fen4` and returns either
+  `{"ok": True, "state": GameState4D}` on success or `{"ok":
+  False, "error": "..."}` on parse failure. Closes §16.9 #5.
+  Tested in `tests/test_load_state_4d.py` with encoding-parity vs
+  direct `parse()` on 4 fixture FENs and round-trip via
+  `state.to_fen4()`.
+
+- **Promotion-piece argument — `apply_move(state, from_sq, to_sq,
+  *, promote_to='Q')`** (new module
+  `chess_spectral_4d.apply_move`). Default `'Q'` matches the
+  v1.3.x silent auto-queen behavior; accepts any of `'Q'`, `'R'`,
+  `'B'`, `'N'` (case-insensitive). Color is inferred from the
+  moving pawn (white pawn → uppercase, black pawn → lowercase).
+  Promotion is triggered iff the moving piece is a pawn and the
+  destination is on the appropriate "promotion rank" for the
+  pawn's `(color, axis)`; `promote_to` is silently ignored on
+  non-promotion moves (matches python-chess semantics). Closes
+  §16.9 #1. Tested in `tests/test_apply_move_promotion_4d.py`
+  with all four targets × white/black × W-axis/Y-axis pawns,
+  plus encoded-vector reflects-promoted-piece checks.
+
+- **Move-history plumbing — `chess_spectral_4d.move_history`.**
+  New `Move4D` (frozen dataclass record), `MoveHistory4D`
+  (append-only ply list with side-to-move, half-move-clock, and
+  position-hash table), and `GameState4D` (position + history
+  bundle). Position hashing for repetition tracking uses SHA-256
+  of `serialize(pos)` plus the side-to-move byte (deterministic,
+  collision-resistant in practice; no Zobrist tables to maintain).
+  Side-to-move and half-move clock are tracked **on the history
+  container, not on the position dict** — keeps the encoder's
+  input contract unchanged. Closes §16.9 #2 prerequisite.
+
+- **Threefold-repetition detection.** Triggered when any
+  `(position, side-to-move)` hash count reaches
+  `THREEFOLD_THRESHOLD = 3`. Reachable via
+  `gs.history.repetition_count(pos)` and through
+  `bridge.get_draw_status` (priority: threefold > 50-move >
+  insufficient > stalemate). Closes §16.9 #2. Tested in
+  `tests/test_game_state_4d.py` with a deterministic 8-ply A→B→A→B
+  cycle (3 occurrences of the starting position) — draw fires at
+  ply 8.
+
+- **50-move-rule detection.** `MoveHistory4D.half_move_clock`
+  resets to 0 on any pawn move OR capture (FIDE Article 9.3) and
+  increments otherwise. Threshold `FIFTY_MOVE_THRESHOLD = 100`
+  (50 full moves). Reachable via `gs.history.half_move_clock` and
+  through `bridge.get_draw_status`. Closes §16.9 #3. Tested with
+  a 100-half-move two-king walk through 51 unique squares per
+  side (no threefold contamination).
+
+- **Insufficient-material classification (2D) —
+  `bridge.is_insufficient_material_2d(pos_2d)`.** Matches
+  python-chess: K-vs-K, K+B-vs-K, K+N-vs-K, and K+B-vs-K+B with
+  bishops on same-color squares all classify as `True`; K+P,
+  K+R, K+Q, two-knights-one-side, and opposite-color KBKB all
+  classify as `False`. Closes the 2D half of the new §17.3 row.
+  4D analog (`is_insufficient_material_4d`) raises
+  `NotImplementedError` — the bishop "color class" rule on Z_8^4
+  is an open design question deferred to a future ADR.
+
+- **`getDrawStatus()` bridge method —
+  `bridge.get_draw_status(state, *, has_legal_moves=...)`.**
+  Returns `{"ok": True, "status": <one of 'none', 'threefold',
+  'fifty-move', 'insufficient', 'stalemate'>}`. Detection priority:
+  threefold > 50-move > insufficient > stalemate. Stalemate
+  detection requires the caller to pass `has_legal_moves=True`
+  or `False`; if `None` is passed (default) and no other draw
+  fires, the function raises `NotImplementedError` rather than
+  silently mis-classifying a stalemate as `'none'`. The 4D
+  legal-moves observable is wired in v1.5+ (Track A's QM
+  roadmap); 2D callers can compute the boolean via python-chess
+  and pass it through. Closes §17.3 row 1.
+
+- **`getMoveHistory()` bridge method —
+  `bridge.get_move_history(state)`.** Returns
+  `{"ok": True, "moves": [<Move4D.to_dict()>, ...]}`. Each entry
+  carries `ply`, `from`, `to`, `piece`, `halfMoveClock`, plus
+  optional `promoteTo` and `capturedPiece` keys. Pyodide-bridge
+  friendly (no internal types leak out; pure-Python lists +
+  dicts + ints). Closes §17.3 row 2.
+
+- **Castling + en-passant regression suite — chess4d 0.4 audit.**
+  `tests/test_castling_ep_4d_regression.py` (8 tests; ~7 pass + 1
+  path-dependent skip on a typical run) exercises chess4d's
+  castling-rights bookkeeping, EP-target tracking, and Move4D flag
+  surface. Findings documented in
+  `python/research/chess4d_castling_ep_audit.md`: chess4d 0.4
+  handles both edge cases correctly through its `legal_moves()`
+  generator; no silent-corruption bugs found, no regression patch
+  needed. Closes §17.3 castling + EP rows.
+
+### Test count delta
+
+The new test files add **210 passing tests + 1 path-dependent
+skip** on top of the v1.3.2 baseline. Breakdown:
+
+| File | Passing | Skipped |
+|---|---|---|
+| `test_fen4_round_trip.py` | 130 | 0 |
+| `test_load_state_4d.py` | 16 | 0 |
+| `test_apply_move_promotion_4d.py` | 26 | 0 |
+| `test_game_state_4d.py` | 31 | 0 |
+| `test_castling_ep_4d_regression.py` | 7 | 1 |
+| **Total** | **210** | **1** |
+
+All v1.3.2 tests continue to pass — 102 tests in the fast subset
+(`test_version_consistency`, `test_roundtrip_4d`, `test_fen4_parity`,
+`test_encoder_4d`); 44 876 in the parametric phase-operator suites;
+260 in the pawn-axis / phase-4d-check / phase-4d-unobstructed
+suites; 92 in the 2D phase_operators suite. No regressions.
+
+### Bridge contract pinned in `chess_spectral_4d/__init__.py`
+
+The new public surface is exposed at the top level:
+
+    GameState4D, Move4D, MoveHistory4D       # game-state types
+    SIDE_WHITE, SIDE_BLACK                   # side-to-move
+    coord_to_sq, sq_to_coord                 # 4D ↔ linear index
+    position_hash_key                        # repetition hash
+    apply_move                               # state-application
+    bridge                                   # Pyodide-bridge module
+
+with the FEN4 serializer at `chess_spectral.fen_4d.serialize`.
+
+### Deferred to future minors
+
+- **4D insufficient-material classification.** Open design question
+  on the bishop "color class" rule for Z_8^4. v1.4.0 ships the 2D
+  version (`is_insufficient_material_2d`) and a placeholder
+  `is_insufficient_material_4d` that raises `NotImplementedError`.
+  Tracked for a v1.5.x or v1.6.x ADR.
+- **4D stalemate detection.** Requires the QM legal-moves
+  observable currently being built in Track A. v1.4.0's
+  `get_draw_status` accepts `has_legal_moves: bool` to defer the
+  decision to the caller; the boolean will become a `state.has_legal_moves`
+  property in v1.5+ when the legal-move generator is wired
+  through.
+
 ## [1.3.2] — 2026-04-28
 
 Two correctness fixes that ride together: the v1.3.1 corpus-encoding
@@ -69,7 +228,7 @@ long-running `__version__` string drift. No API change.
   `pyproject.toml`). `chess-spectral-4d version` will now print the
   dist version in its banner instead of "1.1.3".
 
-### Added
+### Added (continued)
 
 - **`tests/test_version_consistency.py`** pins three regression
   assertions: `chess_spectral.__version__`,

@@ -73,6 +73,28 @@ from chess_spectral.frame_4d import (
     SPECTRALZ_VERSION,
 )
 
+# ─── v1.4.0 — game-state surface ───────────────────────────────────
+# Move history, side-to-move, 50-move clock, threefold-repetition
+# tracking, FEN4 round-trip, and the consumer-facing bridge methods
+# all live in chess_spectral_4d/. See chess_spectral_4d.bridge for
+# the Pyodide-bridge surface (load_state, get_draw_status,
+# get_move_history) and chess_spectral_4d.apply_move for the
+# move-application surface (apply_move(state, from_sq, to_sq,
+# promote_to='Q')). The FEN4 serializer is in
+# chess_spectral.fen_4d.serialize.
+from chess_spectral_4d.move_history import (
+    GameState4D,
+    Move4D,
+    MoveHistory4D,
+    SIDE_WHITE,
+    SIDE_BLACK,
+    coord_to_sq,
+    sq_to_coord,
+    position_hash_key,
+)
+from chess_spectral_4d.apply_move import apply_move
+from chess_spectral_4d import bridge
+
 __all__ = [
     # Version + constants
     "VERSION",
@@ -96,4 +118,15 @@ __all__ = [
     "read_spectralz_v4",
     "SPECTRALZ_MAGIC",
     "SPECTRALZ_VERSION",
+    # v1.4.0 — game-state surface
+    "GameState4D",
+    "Move4D",
+    "MoveHistory4D",
+    "SIDE_WHITE",
+    "SIDE_BLACK",
+    "coord_to_sq",
+    "sq_to_coord",
+    "position_hash_key",
+    "apply_move",
+    "bridge",
 ]
