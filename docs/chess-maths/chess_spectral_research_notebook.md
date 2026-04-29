@@ -2819,6 +2819,55 @@ The line is bright: **chess-spectral exposes capabilities; chess4D-OC chooses ho
 
 ---
 
+## 18. Phase 3.5 Probe Results: Empirical Validation of Track B ADRs
+
+> **Date:** 2026-04-29. **Authoritative results doc:** [`chess-spectral/docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md`](chess-spectral/docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md). **Probe scripts:** [`chess-spectral/python/research/track_b_*_probe.py`](chess-spectral/python/research/) (4 files). All probes run deterministically in ~50s and produce reproducible JSON / MD outputs.
+
+After the 5 Track B ADRs landed in PR #74, we ran four prototype probes against the kinematic qm_4d substrate to empirically validate each ADR's gate before Phase 4 implementation begins. Three probes returned amendments, two passed clean. The probe-results doc is now the authoritative source for Phase 4's design surface; the original ADRs are preserved as the design record at the time of decision.
+
+### 18.1. Per-probe findings, ranked by significance
+
+**Probe 4 (ADR-004 Z_2 superselection / U_move parity) — FAIL by 30 orders of magnitude.** Anti-commutator residual `‖U_move · J_op + J_op · U_move‖` measured at p95 ≈ **128** vs the 1e-10 acceptance gate. The diagnosis: `{J_op, U_move} = 0` is mathematically impossible for the swap-permutation construction in ADR-001 / ADR-003 — for non-J-symmetric moves (essentially all real moves), the swap matrix and central-inversion don't commute or anti-commute as algebraic operators on ℂ^4096. The Z_2 sector flip happens at the state-vector layer, not the operator-algebra layer. **Resolution:** weaken ADR-004 §3.4 — the parity sector change is mediated by `state_to_psi`'s side-to-move sign multiplier (per Pre-flight 1's Z_2 superselection finding), and the per-channel `Π_c` and `U_move` are not required to formally anti-commute with `J_op`. Documentation/design clarification with no architectural change. Phase 4 B4's test suite must verify state-level parity, not operator-level anti-commutation.
+
+**Probe 2 (ADR-003 linearization quality) — FAIL on FIB by 50–500×.** ε p95 measured at 5.6 / 6.8 / 46.8 for FIB_SYM_1 / 2 / 3 vs the 0.10 gate. Root cause: the **occupancy-change term** (origin's `contrib_k` disappears, destination's appears) is structurally non-linear in `delta_sig`; no Jacobian J_c can capture it because the perturbation isn't infinitesimal in the right space. The linearization model assumes `δψ = J_c · δposition`, but the true map is *piecewise* with a non-smooth boundary at every move. **Resolution:** ship FIB channels under ADR-003 §3.3's measurement-only re-encode fallback in v1.5 — apply the move classically, re-encode the post-move position, project channel-wise. This is honest within the QM formalism (a measurement-then-evolution sequence) and matches the ADR's documented fallback. The "best-effort linearization" path is closed for FIB channels in v1.5; revisit in v1.7+ if a linearization-friendly reformulation surfaces. FD_DIAG (cond p95 = 8.6 vs 100 gate) ✅ ships as designed.
+
+**Probe 3 (ADR-005 pawn pseudo-Hermiticity) — PARTIAL PASS.** M_pawn is nilpotent (full spectrum is zero — pawn pushes terminate at the boundary), so PT-realness `|Im(spec)| ≤ 1e-10` is trivially satisfied. The pseudo-Hermiticity gate `M^T = P_w · M · P_w⁻¹` holds **exactly** (residual 0) for the single-push variant, but **fails** for the full operator including double-push (residual 32.0). The duality `P_w · M_white · P_w = M_black` is exact in all variants — strongest structural identity in the pawn algebra. **Resolution:** decompose `M_pawn_w_white = M_single_push + M_double_push`; apply η-metric only to `M_single_push` (which is strictly P_w-pseudo-Hermitian). Treat `M_double_push` as a separate non-pseudo-Hermitian rank-deficient operator outside the QM framework. v1.5's Hermitian-part projection (`H_pawn_*_herm = (M + M^T)/2`) ships unchanged; v1.6+ promotion path remains open with the decomposition correction documented.
+
+**Probe 1 (ADR-001 phase distinguishability) — PASS at 100%.** All 9,500 (move_A, move_B) inner-product overlaps below the 0.99 distinguishability threshold; 73.6% below the strong-distinguishability threshold of 0.50. The Aaronson escape valve is empirically open: channel-distinct phases produce real interference, not notational restatement of classical permutations. **Ship as-is.**
+
+### 18.2. What this means for the QM extension's claim of "real quantum content"
+
+Probe 1's 73.6% strong-distinguishability rate is the empirical answer to the methodological worry from §15.6 and §16.7's Aaronson-critique discussion. A QM-rebrand of classical lattice data CAN be tested: if it produces interference patterns that classical permutations don't, it carries genuine quantum content. The Phase 1 spectral-identity result + the Phase 3.5 phase-distinguishability result together establish that chess-spectral's QM extension is more than notation — the channels are an irreducibly quantum decomposition (irrep-typed eigenbasis of (Δ, B_4 commutant) per Pre-flight 3) AND moves act as channel-distinguishable unitaries (Probe 1).
+
+This does not, on its own, make the QM extension *useful* outside chess. Per §15's honest scope ("modest niche, useful infrastructure"), the value is in the toolkit, not the metaphysics. But it does close the door on the strongest version of the Aaronson critique: at minimum, our channel-as-PVM measurements distinguish moves, which is more than a basis-aligned PVM on basis-aligned states could ever do.
+
+### 18.3. ADR amendment summary
+
+| ADR | Original status | Phase 3.5 outcome | Amendment |
+|---|---|---|---|
+| 001 | Proposed | ✅ PASS | None — accepted as written |
+| 002 | Proposed | ✅ PASS (no probe needed) | None — accepted as written |
+| 003 | Proposed | ⚠️ FIB FAIL, FD_DIAG PASS | FIB channels switch to measurement-only re-encode (§3.3 fallback path) for v1.5 |
+| 004 | Proposed | ⚠️ FAIL by 30 orders | §3.4 weakened to sector-flip-via-state_to_psi; no operator-anti-commutation requirement |
+| 005 | Proposed | ⚠️ PARTIAL | Decompose M_pawn = M_single + M_double; η-metric on single-push only; v1.5 Hermitian-projection unchanged |
+
+### 18.4. Phase 4 readiness post-amendments
+
+| Milestone | Status | Notes |
+|---|---|---|
+| **B1** A_1 channel move-as-permutation | ✅ Unblocked | Ships against ADR-001 (✅) + ADR-003 (✅ for strict channels) |
+| **B2** Zeno-style evolution + H_0 | ✅ Unblocked | ADR-002 (✅) — no probe; not gated |
+| **B3a** strict A_1 + STD4 channels | ✅ Unblocked | With ADR-004 §3.4 caveat — no anti-commutation tests |
+| **B3b** pawn-antisym channels | ✅ Unblocked | Same caveat |
+| **B3c** FIB_SYM 1/2/3 | ⚠️ Revised path | **Measurement-only re-encode** in v1.5 (per ADR-003 §3.3 fallback) |
+| **B3d/e** FD_DIAG | ✅ Unblocked | Rank-1 update path validated |
+| **B4** Z_2 grading + tests | ⚠️ Revised | §3.4 amendment must propagate to test design |
+| **B5** pawn observables | ⚠️ Revised | v1.5 Hermitian-projection unchanged; v1.6+ uses M_single / M_double decomposition |
+
+**Net assessment:** all 5 milestones are unblocked in the sense that none requires a redesign. Three need documentation amendments (now landed in [`PHASE_3_5_PROBE_RESULTS.md`](chess-spectral/docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md)) and corresponding test-design adjustments. Phase 4 implementation can begin immediately on B1.
+
+---
+
 ## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary
 
 This notebook contains claims and constructions that span several technical vocabularies: spectral graph theory, vector symbolic architectures, representation theory of finite groups, lattice field theory, signal processing, and the specific jargon of MRI pulse design, chess analysis, and music acoustics have all appeared at various points. The mathematical content is consistent across these vocabularies — it has to be, because it's the same underlying structure being described — but the *expression* of that content has not been consistent, and the research process has depended on that inconsistency rather than suffered from it. This section documents the methodology because it is the most important structural fact about how the work was produced.

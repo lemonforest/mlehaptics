@@ -1,0 +1,380 @@
+{
+  "n_positions": 50,
+  "n_moves_per_pos": 20,
+  "total_pairs": 9500,
+  "overlap_percentiles": {
+    "p5": 0.06507968328213302,
+    "p25": 0.18381463221826008,
+    "p50": 0.3248044078953861,
+    "p75": 0.5132124458811487,
+    "p95": 0.7592748608412785
+  },
+  "fraction_below_0.99": 1.0,
+  "fraction_below_0.50": 0.735578947368421,
+  "pass_acceptance": true,
+  "per_position_summary": [
+    {
+      "position_idx": 0,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.22180512762395665,
+      "overlap_max": 0.6083250160054029
+    },
+    {
+      "position_idx": 1,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.24499045078734216,
+      "overlap_max": 0.8986113493822576
+    },
+    {
+      "position_idx": 2,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.306916184011231,
+      "overlap_max": 0.8674795605400742
+    },
+    {
+      "position_idx": 3,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.43251676244654774,
+      "overlap_max": 0.901318722116262
+    },
+    {
+      "position_idx": 4,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3118554862309133,
+      "overlap_max": 0.931530278813152
+    },
+    {
+      "position_idx": 5,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.2149125469311896,
+      "overlap_max": 0.8628148238393025
+    },
+    {
+      "position_idx": 6,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.36084229867930434,
+      "overlap_max": 0.9379237789639258
+    },
+    {
+      "position_idx": 7,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.35146314948633434,
+      "overlap_max": 0.8869378754011117
+    },
+    {
+      "position_idx": 8,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.24747377611734753,
+      "overlap_max": 0.7161205331226874
+    },
+    {
+      "position_idx": 9,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.33661976773585955,
+      "overlap_max": 0.7103437724559063
+    },
+    {
+      "position_idx": 10,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.4100162969416118,
+      "overlap_max": 0.8353159854958917
+    },
+    {
+      "position_idx": 11,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.23063011714309947,
+      "overlap_max": 0.7851100499872783
+    },
+    {
+      "position_idx": 12,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.223864829444694,
+      "overlap_max": 0.6971573852337911
+    },
+    {
+      "position_idx": 13,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.2570363888731614,
+      "overlap_max": 0.7922572568499684
+    },
+    {
+      "position_idx": 14,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.29803775840488156,
+      "overlap_max": 0.8691373197636099
+    },
+    {
+      "position_idx": 15,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.258418338034749,
+      "overlap_max": 0.9535264099902991
+    },
+    {
+      "position_idx": 16,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.4771968426545019,
+      "overlap_max": 0.883073746140951
+    },
+    {
+      "position_idx": 17,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3046899467762084,
+      "overlap_max": 0.7417232703187583
+    },
+    {
+      "position_idx": 18,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.4677029029489953,
+      "overlap_max": 0.95858617459474
+    },
+    {
+      "position_idx": 19,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.32248747770884434,
+      "overlap_max": 0.8817525383874407
+    },
+    {
+      "position_idx": 20,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.43234664220777463,
+      "overlap_max": 0.8614128215612723
+    },
+    {
+      "position_idx": 21,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.35829160708611263,
+      "overlap_max": 0.9422178505350289
+    },
+    {
+      "position_idx": 22,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.5093387817899716,
+      "overlap_max": 0.9383127227509249
+    },
+    {
+      "position_idx": 23,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.26312636855639826,
+      "overlap_max": 0.787698358005545
+    },
+    {
+      "position_idx": 24,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.20066920850746675,
+      "overlap_max": 0.9509665626446123
+    },
+    {
+      "position_idx": 25,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.41856500986585876,
+      "overlap_max": 0.92070607309212
+    },
+    {
+      "position_idx": 26,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.22566895346893584,
+      "overlap_max": 0.8559481070670782
+    },
+    {
+      "position_idx": 27,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.5689176156836777,
+      "overlap_max": 0.9433551246041753
+    },
+    {
+      "position_idx": 28,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.23811073021071721,
+      "overlap_max": 0.7617757182316017
+    },
+    {
+      "position_idx": 29,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.333786224840814,
+      "overlap_max": 0.9277422644254497
+    },
+    {
+      "position_idx": 30,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.40484103383034725,
+      "overlap_max": 0.9175709819731015
+    },
+    {
+      "position_idx": 31,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.2783541370236734,
+      "overlap_max": 0.9190077352878561
+    },
+    {
+      "position_idx": 32,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.26138553553285426,
+      "overlap_max": 0.8127768149109043
+    },
+    {
+      "position_idx": 33,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.22353712017704386,
+      "overlap_max": 0.8236364685634987
+    },
+    {
+      "position_idx": 34,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.5169781012456052,
+      "overlap_max": 0.9242589791176673
+    },
+    {
+      "position_idx": 35,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.2856975724603636,
+      "overlap_max": 0.9142099153743245
+    },
+    {
+      "position_idx": 36,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3504991445741513,
+      "overlap_max": 0.922646984254593
+    },
+    {
+      "position_idx": 37,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.416656393001557,
+      "overlap_max": 0.9598263867809578
+    },
+    {
+      "position_idx": 38,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.1326355223676398,
+      "overlap_max": 0.8623769876369258
+    },
+    {
+      "position_idx": 39,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.35830758501968163,
+      "overlap_max": 0.8852177268430925
+    },
+    {
+      "position_idx": 40,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3001871587761865,
+      "overlap_max": 0.8001113670885903
+    },
+    {
+      "position_idx": 41,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3713998354626541,
+      "overlap_max": 0.8996200427911273
+    },
+    {
+      "position_idx": 42,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.40638051414938786,
+      "overlap_max": 0.8957758064018803
+    },
+    {
+      "position_idx": 43,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.4666353023561356,
+      "overlap_max": 0.898557872675624
+    },
+    {
+      "position_idx": 44,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3593357949673901,
+      "overlap_max": 0.8796590666146067
+    },
+    {
+      "position_idx": 45,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3849802819509991,
+      "overlap_max": 0.9042741148307893
+    },
+    {
+      "position_idx": 46,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.31031840914893033,
+      "overlap_max": 0.8546861187726736
+    },
+    {
+      "position_idx": 47,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.23176353549560236,
+      "overlap_max": 0.8299722981797552
+    },
+    {
+      "position_idx": 48,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.3681927709303515,
+      "overlap_max": 0.8536104254095654
+    },
+    {
+      "position_idx": 49,
+      "n_moves": 20,
+      "n_pairs": 190,
+      "overlap_50pct": 0.23025047052170244,
+      "overlap_max": 0.7401964232703141
+    }
+  ],
+  "channel_phase_formulas": {
+    "0": "A1: theta=0",
+    "1": "STD4_X: theta=(pi/4)*(x'-x)",
+    "2": "STD4_Y: theta=(pi/4)*(y'-y)",
+    "3": "STD4_Z: theta=(pi/4)*(z'-z)",
+    "4": "STD4_W: theta=(pi/4)*(w'-w)",
+    "5": "FIB_SYM_1: theta=(2pi/3)*d_path",
+    "6": "FIB_SYM_2: theta=(4pi/3)*d_path",
+    "7": "FIB_SYM_3: theta=(2pi)*d_path",
+    "8": "FA_PAWN_W: theta=(pi/2)*sgn(w'-w)",
+    "9": "FA_PAWN_Y: theta=(pi/2)*sgn(y'-y)",
+    "10": "FD_DIAG: theta=pi if diagonal_step else 0"
+  }
+}

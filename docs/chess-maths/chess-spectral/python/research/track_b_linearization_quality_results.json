@@ -1,0 +1,69 @@
+{
+  "n_positions": 50,
+  "n_moves_per_pos": 20,
+  "fib_epsilon_percentiles": {
+    "FIB_SYM_1": {
+      "p5": 0.0,
+      "p25": 0.23462818683322822,
+      "p50": 0.7793218393216773,
+      "p75": 2.0870984307425147,
+      "p95": 5.637374674660453,
+      "max": 19.381336031573575,
+      "n": 934
+    },
+    "FIB_SYM_2": {
+      "p5": 0.0,
+      "p25": 0.19418093588666133,
+      "p50": 1.0030494521408748,
+      "p75": 2.264585049962599,
+      "p95": 6.819225113382781,
+      "max": 24.685129520489255,
+      "n": 934
+    },
+    "FIB_SYM_3": {
+      "p5": 0.0,
+      "p25": 0.07860549033023602,
+      "p50": 0.7044387901701733,
+      "p75": 4.113769878805589,
+      "p95": 46.755079319343565,
+      "max": 386.1495421214122,
+      "n": 934
+    }
+  },
+  "fib_pass_per_channel": {
+    "FIB_SYM_1": false,
+    "FIB_SYM_2": false,
+    "FIB_SYM_3": false
+  },
+  "fib_pass_all": false,
+  "fd_diag_invariance_residual_percentiles": {
+    "p5": 0.0,
+    "p25": 0.0,
+    "p50": 0.0,
+    "p75": 0.7490341455362886,
+    "p95": 1.4160668834392742,
+    "max": 3.6889548255452675,
+    "n": 1000
+  },
+  "fd_diag_capture_cond_percentiles": {
+    "p5": 1.3358184752500022,
+    "p25": 1.9325248924345142,
+    "p50": 4.43600359402075,
+    "p75": 6.068071310330773,
+    "p95": 8.596398496831616,
+    "max": 9.09077016870834,
+    "n": 1000
+  },
+  "fd_diag_capture_rank1_scale_percentiles": {
+    "p5": 0.33581847644516183,
+    "p25": 0.9325248924345141,
+    "p50": 2.932524893721316,
+    "p75": 5.43600359402075,
+    "p95": 9.596398496831616,
+    "max": 9.596398496831616,
+    "n": 1000
+  },
+  "fd_diag_pass": true,
+  "overall_pass_acceptance": false,
+  "method_notes": "FIB epsilon = ||v_pre + J_c @ delta_sig - v_post|| / ||v_post||. Linearization J_c is computed analytically from the encoder's bilinear formula at pos_pre. Acceptance: 95th percentile <= 0.10. FD_DIAG invariance residual: pos_pre vs pos_post channel-block L2 difference (analytical prediction matches actual within float precision for non-capture moves). For captures, we evaluate the rank-1 update's cond via the analytic spectrum (I + uv^T has cond = (1+||u||||v||) / (1-||u||||v||) when ||u||||v|| < 1; capped at 1e6 if >= 1.). Acceptance: 95th percentile cond <= 100."
+}
