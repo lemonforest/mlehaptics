@@ -317,9 +317,10 @@ phase from Option D.
 
 2. **Berry phase v1.7+ extension.** If §16 self-play tournament finds that
    QM-evaluator with Option D underperforms — i.e., chess-relevance is
-   *less* than spectral evaluator at L4/L8/L16 — revisit whether
-   path-integral phase (Option B) on sliders adds discriminative signal.
-   This becomes a Phase 7 question, not a Phase 4 question.
+   *less* than spectral evaluator at the representative depths the
+   tournament harness exercises — revisit whether path-integral phase
+   (Option B) on sliders adds discriminative signal. This becomes a
+   Phase 7 question, not a Phase 4 question.
 
 3. **Phase calibration via tournament.** Phase 7's learned-weight
    experiments (§16.8) could *fit* the rational multipliers in §3.1
