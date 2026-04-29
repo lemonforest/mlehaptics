@@ -31,10 +31,18 @@ classifiers = [
     "Topic :: Games/Entertainment :: Board Games",
     "Typing :: Typed",
 ]
-dependencies = ["numpy", "scipy"]
+# `chess` (python-chess) was promoted from a `[corpus]` optional extra
+# to a runtime dependency in v1.6 alongside the engine.search package
+# (PR-5). The engine's 2D search core uses chess.Board for move
+# generation -- it's no longer optional. python-chess is a small,
+# mature, pure-Python library (~1 MB, no native deps), Pyodide-
+# compatible. The `[corpus]` extra below is retained as a no-op for
+# back-compat with existing `pip install chess-spectral[corpus]`
+# invocations.
+dependencies = ["numpy", "scipy", "chess"]
 
 [project.optional-dependencies]
-corpus = ["chess"]
+corpus = ["chess"]   # no-op alias post-v1.6; chess is now a runtime dep
 # Test-only deps for the 4D phase-operator validation gates (Phase C/D
 # of the 4D phase-ops plan): python-chess4d-oana-chiru is the Python
 # reference implementation of Oana & Chiru (2026), used as the spatial
