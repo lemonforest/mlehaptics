@@ -6,7 +6,12 @@ state psi in C^45056, exposes Hermitian piece-reach observables, the
 11-channel projection-valued measure, and Born-rule helpers.
 
 This is the KINEMATIC-only layer (Phase 2 / Track A). Full
-move-as-unitary dynamics live in Track B (qm_4d_dynamics, planned).
+move-as-unitary dynamics live in Track B
+(:mod:`chess_spectral.qm_4d_dynamics`). As of Phase 4 milestone B1,
+that sibling module ships the A_1-channel move unitary via
+``u_move_a1`` and a ``apply_move_qm`` bridge-surface stub; the
+remaining 10 channels (STD4_*, FA_PAWN_*, FIB_SYM_*, FD_DIAG) land in
+B2-B5 per ADR-003's tiered plan.
 
 Design references:
   - Cross-disciplinary motivation:
