@@ -142,6 +142,21 @@ def apply_move_qm(
     # 45 056×45 056 sparse U_move via sp.block_diag(...) and apply
     # it to state_to_psi(state) — modulo the FIB_SYM measurement-only
     # path which projects rather than evolves.
+    #
+    # TODO (v1.5 / Phase 4 B2 wired into bridge): per ADR-002 §3.3,
+    # the Zeno-style ψ_post computation should sandwich the
+    # instantaneous U_move with continuous H_0 evolution:
+    #
+    #     ψ(t_{n+1}^-) = evolve_under_h0(ψ(t_n), Δt)        # pre-move drift
+    #     ψ(t_{n+1})   = N_{n+1} * U_move @ ψ(t_{n+1}^-)    # instant + renorm
+    #
+    # The Δt parameter is supplied by the M14.x renderer
+    # (animation-clock dependent; see ADR-002 §3.5). For B2 this
+    # bridge does not yet wire in evolve_under_h0; that lands once
+    # the per-channel U_move builders (B3a-B5) are complete and the
+    # apply_move_qm signature is finalized to accept Δt. The B2
+    # primitive is already callable directly via
+    # ``chess_spectral.qm_4d_dynamics.evolve_under_h0``.
 
     pending = sorted(
         f"{name} (target: {ms})"

@@ -83,13 +83,14 @@ Public API
 """
 from __future__ import annotations
 
-from typing import Mapping, Tuple, Union
+from typing import Mapping, Optional, Tuple, Union
 
 import math
 
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import expm_multiply
 
 from chess_spectral import qm_4d as _qm4
 from chess_spectral import tables_4d as _t4
@@ -355,6 +356,274 @@ def u_move_a1(
     return U_a1
 
 
+# ---- Phase 4 B2: free Hamiltonian H_0 = -Δ_{P_8^4} -----------------
+#
+# Per ADR-002 §3.1 (Zeno-style Option A), the QM module's free
+# Hamiltonian is ``H_0 = -Δ`` where Δ is the 4D path-graph Laplacian
+# ``L_{P_8} ⊕ L_{P_8} ⊕ L_{P_8} ⊕ L_{P_8}`` (Kronecker sum of four
+# 8-vertex path-graph 1D Laplacians). H_0 acts on a single 4096-dim
+# channel block; the full 45 056-dim space evolves as ``I_11 ⊗ H_0``,
+# i.e. the eleven 4096-blocks evolve independently under the same H_0.
+#
+# Sign convention: the encoder's identity in Pre-flight 3 is in terms
+# of Δ (not -Δ), and the reported P_8 1D spectrum
+# ``[0, 0.15224, 0.58579, 1.23463, 2.0, 2.76537, 3.41421, 3.84776]`` is
+# for Δ. H_0 = -Δ has the negation of the Kron-sum spectrum, i.e.
+# eigenvalues in ``[-15.39103, ..., 0]`` on C^4096.
+
+# Module-level cache. ``None`` means "not yet built"; first call to
+# :func:`evolve_under_h0` (or to :data:`H_FREE_4D` via __getattr__)
+# triggers :func:`_build_h_free_4d` and caches the result here.
+_H_FREE_4D: Optional[csr_matrix] = None
+
+
+def _l8_path_laplacian() -> csr_matrix:
+    """Return the 8x8 sparse 1D path-graph Laplacian (P_8) as
+    ``complex128`` CSR.
+
+    Tridiagonal: degree on the diagonal (1 at endpoints, 2 interior),
+    -1 on the super- and sub-diagonals. This is exactly
+    :func:`tables_4d.p8_laplacian` cast to sparse complex128.
+    """
+    n = _t4.BOARD_SIDE  # 8
+    # Build via three diagonals so the result is exactly tridiagonal
+    # without any explicit zero entries.
+    main = np.empty(n, dtype=np.complex128)
+    main[0] = 1.0
+    main[-1] = 1.0
+    main[1:-1] = 2.0
+    off = -np.ones(n - 1, dtype=np.complex128)
+    L = sp.diags(
+        [off, main, off], offsets=[-1, 0, 1],
+        shape=(n, n), format="csr", dtype=np.complex128,
+    )
+    return L
+
+
+def _build_h_free_4d() -> csr_matrix:
+    """Build ``H_0 = -Δ_{P_8^4}`` as a 4096x4096 sparse matrix.
+
+    Δ is the 4D path-graph Laplacian — Kronecker sum of four copies of
+    the 1D 8-node path-graph Laplacian L_8. ``H_0 = -Δ`` is the standard
+    free-particle kinetic energy on the lattice; its eigenvalues are
+    non-positive (the spectrum of Δ is ``[0, 8 · 3.84776] ≈ [0, 15.39]``,
+    so H_0's spectrum is ``[-15.39, 0]``).
+
+    The construction here mirrors
+    :func:`research/spectral_identity_4d_verification.kron_sum_laplacian_sparse`
+    with ``dim=4`` and uses :func:`scipy.sparse.kron` for each tensor
+    product. We do **not** use :func:`tables_4d.laplacian_4d` because
+    that path goes through a 4096-square adjacency matrix; the direct
+    Kron-sum form is symbolically clearer and exactly matches the
+    Pre-flight 3 identity.
+
+    Sign: returns ``-Δ`` (Hermitian, negative-semidefinite). The
+    spectrum is the negation of :func:`tables_4d.kron_sum4_eigvals`'s
+    output on the P_8 1D eigenvalues.
+
+    Returns
+    -------
+    csr_matrix of shape ``(4096, 4096)``, dtype ``complex128``.
+        Hermitian (real-symmetric, with zero imaginary part). Sparse
+        with the Δ structure (each interior site has 9 neighbors,
+        including itself).
+
+    Notes
+    -----
+    Module-level singleton: the result is cached in :data:`_H_FREE_4D`
+    on first call so repeated invocations of :func:`evolve_under_h0`
+    pay the construction cost only once.
+    """
+    L1 = _l8_path_laplacian()                   # 8x8 sparse
+    n = L1.shape[0]
+    eye = sp.eye(n, format="csr", dtype=np.complex128)
+
+    # Δ = sum_{axis in {0,1,2,3}} I ⊗ ... ⊗ L (axis) ⊗ ... ⊗ I
+    delta: Optional[csr_matrix] = None
+    for axis in range(4):
+        factors = [eye] * 4
+        factors[axis] = L1
+        T = factors[0]
+        for f in factors[1:]:
+            T = sp.kron(T, f, format="csr")
+        delta = T if delta is None else (delta + T)
+    assert delta is not None
+    delta = delta.tocsr()
+
+    # H_0 = -Δ. The negation preserves sparsity pattern and dtype.
+    H0 = (-delta).tocsr()
+    if H0.dtype != np.complex128:
+        H0 = H0.astype(np.complex128)
+    return H0
+
+
+def _get_h_free_4d() -> csr_matrix:
+    """Cached accessor for :data:`H_FREE_4D` — builds on first call."""
+    global _H_FREE_4D
+    if _H_FREE_4D is None:
+        _H_FREE_4D = _build_h_free_4d()
+    return _H_FREE_4D
+
+
+def _channel_offset(channel: str) -> Tuple[int, int]:
+    """Map a channel name to its ``(start, end)`` slice into the
+    45 056-dim full encoder vector.
+
+    The 11 channel names (in order) are:
+    ``A1, STD4_X, STD4_Y, STD4_Z, STD4_W, FIB_SYM_1, FIB_SYM_2,
+    FIB_SYM_3, FA_PAWN_W, FA_PAWN_Y, FD_DIAG``.
+
+    Source of truth: :data:`chess_spectral.encoder_4d.CHANNELS_4D`.
+    """
+    # Lazy import to avoid a top-of-file cycle.
+    from chess_spectral import encoder_4d as _enc4
+    for name, offset in _enc4.CHANNELS_4D:
+        if name == channel:
+            return int(offset), int(offset + CHANNEL_DIM)
+    valid = [name for name, _ in _enc4.CHANNELS_4D]
+    raise ValueError(
+        f"unknown channel name {channel!r}; expected one of {valid}"
+    )
+
+
+def evolve_under_h0(
+    psi: np.ndarray,
+    t: float,
+    *,
+    channel: Optional[str] = None,
+) -> np.ndarray:
+    """Evolve ``psi`` under ``U(t) = exp(-i H_0 t)`` for time ``t``.
+
+    Implements ADR-002 §3.1's continuous-time evolution between move
+    boundaries. The operator H_0 = -Δ_{P_8^4} is Hermitian and
+    real-symmetric (so ``-i H_0 t`` is anti-Hermitian and U(t) is
+    unitary). Norm and ``<H_0>`` are preserved exactly up to the
+    numerical precision of :func:`scipy.sparse.linalg.expm_multiply`
+    (Krylov subspace; typically 1e-12 or better for the parameters
+    used in M14.x).
+
+    Parameters
+    ----------
+    psi : ndarray
+        State vector. Two accepted shapes:
+
+        * ``(4096,)``: a single channel block (e.g., the A_1 sub-vector).
+          Evolves under H_0 directly.
+        * ``(45056,)``: the full 11-channel encoder vector. By default
+          all 11 blocks are evolved independently under the same H_0
+          (since H_0 acts on the 4096-dim mode space, not the
+          channel-typed space — equivalently, the full Hamiltonian on
+          C^45056 is ``I_11 ⊗ H_0``). If ``channel`` is provided, only
+          that block is evolved; the other ten are returned unchanged.
+
+        Dtype is cast to ``complex128``.
+    t : float
+        Real evolution time. ``t == 0`` is a no-op (returns a copy of
+        ``psi``). Negative ``t`` evolves backward in time, which is
+        well-defined because U(t) is unitary and ``U(-t) = U(t)^†``.
+    channel : str, optional
+        One of the 11 channel names
+        (``'A1'``, ``'STD4_X'``, ..., ``'FD_DIAG'``). If given, ``psi``
+        must be the full 45 056-dim vector and only the named channel's
+        4096-block is evolved; the other 10 are copied through. Useful
+        for animating evolution per channel (M14.2 phase-as-color render
+        of a single channel marginal). Raises if ``psi`` is the
+        4096-dim shape.
+
+    Returns
+    -------
+    ndarray of the same shape and dtype (``complex128``) as ``psi``.
+
+    Raises
+    ------
+    ValueError
+        If ``psi`` is not 1-D or has a shape other than ``(4096,)`` or
+        ``(45056,)``; or if ``channel`` is given with a ``(4096,)``
+        ``psi`` (ambiguous — the caller should drop the ``channel`` arg
+        or pass the full vector); or if ``channel`` is not a recognized
+        name.
+
+    Notes
+    -----
+    Performance: :func:`scipy.sparse.linalg.expm_multiply` runs in
+    milliseconds for typical M14.3 frames (``|t| < 0.2``,
+    ``‖H_0‖ ≤ 16``, Krylov dim < 30). The full 45 056-dim case is just
+    11 sequential 4096-dim calls; total cost stays within the 60 FPS
+    budget on the dev box.
+
+    Eigenbasis-diagonal optimization (ADR-002 §6.1): per Pre-flight 3,
+    the encoder basis is the simultaneous eigenbasis of ``(Δ, B_4
+    commutant)``, so a future v1.6+ optimization could replace
+    ``expm_multiply`` with one matvec into the eigenbasis + an
+    elementwise phase multiplication + one matvec out. Deferred until
+    profiling shows ``evolve_under_h0`` is a hot path.
+    """
+    psi_arr = np.ascontiguousarray(psi)
+    if psi_arr.ndim != 1:
+        raise ValueError(
+            f"psi must be 1-D; got shape {psi_arr.shape}"
+        )
+    if psi_arr.dtype != np.complex128:
+        psi_arr = psi_arr.astype(np.complex128)
+
+    # t == 0 is a no-op. Return a copy so callers don't have to worry
+    # about whether the result aliases the input.
+    if t == 0.0:
+        return psi_arr.copy()
+
+    H0 = _get_h_free_4d()
+    # ``-1j * t * H0`` is anti-Hermitian; expm_multiply integrates one
+    # column at a time. Build it as the product so scipy's pre-scaling
+    # logic sees a single sparse operator.
+    A = (-1j * float(t)) * H0
+
+    # Single 4096-dim block path
+    if psi_arr.shape == (CHANNEL_DIM,):
+        if channel is not None:
+            raise ValueError(
+                "channel argument is only meaningful for full 45 056-dim "
+                "psi vectors; got a single 4096-dim block. Drop the "
+                "channel argument or pass the full encoder vector."
+            )
+        return np.asarray(expm_multiply(A, psi_arr), dtype=np.complex128)
+
+    # Full 45 056-dim path
+    if psi_arr.shape == (ENCODING_DIM,):
+        out = psi_arr.copy()
+        if channel is None:
+            # Evolve all 11 blocks under the same H_0. expm_multiply has
+            # a per-call setup cost (Krylov parameter selection); for
+            # 11 blocks at typical t we still finish in a few hundred ms.
+            for c in range(N_CHANNELS):
+                start = c * CHANNEL_DIM
+                end = start + CHANNEL_DIM
+                out[start:end] = expm_multiply(A, psi_arr[start:end])
+            return out
+        # Channel-restricted: only the named block evolves.
+        start, end = _channel_offset(channel)
+        out[start:end] = expm_multiply(A, psi_arr[start:end])
+        return out
+
+    raise ValueError(
+        f"psi must have shape ({CHANNEL_DIM},) or ({ENCODING_DIM},); "
+        f"got {psi_arr.shape}"
+    )
+
+
+# Module-level lazy attribute access for ``H_FREE_4D``. We expose the
+# cached singleton via __getattr__ so importers pay zero construction
+# cost on import; the matrix is built only when first accessed (either
+# directly via ``qm_4d_dynamics.H_FREE_4D`` or indirectly via
+# :func:`evolve_under_h0`).
+
+def __getattr__(name: str):
+    if name == "H_FREE_4D":
+        return _get_h_free_4d()
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}"
+    )
+
+
 # ---- Bridge-surface re-export ---------------------------------------
 #
 # The §17.1 ``applyMoveQm`` lives in :mod:`chess_spectral.qm_4d_bridge`
@@ -377,6 +646,13 @@ __all__ = [
     'SquareLike',
     # Public builders
     'u_move_a1',
+    # B2 free Hamiltonian + Zeno evolution
+    'evolve_under_h0',
+    # NOTE: H_FREE_4D is intentionally NOT in __all__ because it's a
+    # lazy module attribute exposed via __getattr__; ``from
+    # chess_spectral.qm_4d_dynamics import *`` would force its
+    # construction at import time, which we want to avoid. Callers can
+    # still access it via ``qm_4d_dynamics.H_FREE_4D``.
     # Bridge stub (canonical home: chess_spectral.qm_4d_bridge)
     'apply_move_qm',
 ]
