@@ -1,22 +1,36 @@
 """chess_spectral.qm_4d_dynamics - Track B move-as-unitary dynamics.
 
-Phase 4 milestones B1 + B2 + B3a + B3b + B3c + B3d/e are shipped
-here. This module is Track B's per-channel math hub; it sits beside
-:mod:`chess_spectral.qm_4d` (Track A kinematic) per the convention
-announced in ADR-002.
+Phase 4 milestones B1 + B2 + B3a + B3b + B3c + B3d/e + **B5** are
+shipped here. This module is Track B's per-channel math hub; it sits
+beside :mod:`chess_spectral.qm_4d` (Track A kinematic) per the
+convention announced in ADR-002.
 
 Shipped here:
   - **B1** :func:`u_move_a1` — A_1 channel projector-sandwich
-    (same-orbit strict; cross-orbit non-trivial residual).
+    (same-orbit strict; cross-orbit non-trivial residual). **B5
+    capture path** ships an Option A re-encode marker
+    (``reason='capture-rank-1-with-renorm'`` + ``psi_post_block`` +
+    ``captured_piece``).
   - **B2** :data:`H_FREE_4D` and :func:`evolve_under_h0` — Zeno
     free-evolution between move boundaries (ADR-002 §3.1).
   - **B3a** :func:`u_move_std4` — STD4_X/Y/Z/W per ADR-003 §3.1's
     similarity-transform form, restricted to same-B_4-orbit non-capture
     moves per the ADR-003 amendment's Option (a). Cross-orbit moves
     return a marker dict pointing at the v1.5 measurement-only
-    re-encode.
+    re-encode. **B5 capture path** ships an Option A re-encode marker
+    (``reason='capture-rank-1-with-renorm'`` + ``psi_post_block`` +
+    ``captured_piece``); the capture path is independent of orbit
+    dichotomy — both same-orbit and cross-orbit captures route
+    through the same marker.
   - **B3b** :func:`u_move_fa_pawn` — pawn antisymmetric channels
     (FA_PAWN_W/Y) via the axis-parity-odd projector sandwich.
+    **B5 capture path** ships an Option A re-encode marker with
+    partial-isometry semantics
+    (``reason='capture-partial-isometry'`` + ``psi_post_block`` +
+    ``captured_piece``) per ADR-003 §3.1 channels 8-9 (the captured
+    pawn's 8-mode block is removed by the swap, so ``||U @ psi|| <
+    ||psi||``; renormalisation is folded into the L2 normalisation
+    at the :func:`state_to_psi` layer).
   - **B3c** :func:`u_move_fib_meas` — FIB_SYM_1/2/3 via the
     **measurement-only re-encode** path per the Phase 3.5 amendment
     to ADR-003 §3.3. **Structurally distinct from B1/B3a/B3b: no
@@ -24,31 +38,48 @@ Shipped here:
     dict with ``psi_post_block`` (a 4096-dim complex128 vector)
     computed by applying the move classically, re-encoding the
     post-move position via :func:`chess_spectral.qm_4d.state_to_psi`,
-    and slicing the FIB channel block. See "B3c: FIB_SYM_1/2/3"
-    section below for the detailed rationale.
-  - **B3d/e** (this milestone) :func:`u_move_fd_diag` — FD_DIAG
-    (channel 10, the diagonal-deviation / rook-shadow channel).
-    **Structurally distinct again**: per ADR-003 §3.2 channel 10's
-    derivation, the FD_DIAG block is **invariant under non-capture,
-    same-piece-type moves** (the per-piece DIAG_DEV row is unchanged
-    when one piece moves between empty squares; the encoded sum
+    and slicing the FIB channel block. **B5 capture path** uses the
+    same Option A re-encode construction with
+    ``reason='capture-measurement-only'`` (the bilinear FIB encoder
+    formula has no strict-unitary lift for captures or non-captures,
+    so both ship via measurement-only re-encode). See "B3c:
+    FIB_SYM_1/2/3" section below for the detailed rationale.
+  - **B3d/e** :func:`u_move_fd_diag` — FD_DIAG (channel 10, the
+    diagonal-deviation / rook-shadow channel). **Structurally
+    distinct again**: per ADR-003 §3.2 channel 10's derivation, the
+    FD_DIAG block is **invariant under non-capture, same-piece-type
+    moves** (the per-piece DIAG_DEV row is unchanged when one piece
+    moves between empty squares; the encoded sum
     ``out[k] = Σ sig[s] * DIAG_DEV[piece_row(s), k]`` is preserved
     because the same DIAG_DEV row contributes the same vector — only
     which square contributes ``sig[s]`` changes, and that does not
-    affect the channel sum). The v1.5 implementation uses the **rank-1
-    update + renormalization path** (validated by Phase 3.5 Probe 2:
-    cond p95 = 8.60 vs the 100 acceptance gate) under the **Option A**
-    construction: the function returns a marker dict carrying
-    ``psi_post_block`` via re-encoding the post-move position. For
-    non-captures the rank-1 update reduces to identity (the channel
-    is invariant), so re-encoding is mathematically equivalent to
-    applying the rank-1 operator and faster to ship in v1.5. Captures
-    use the explicit rank-1 update + renormalization path and ship in
-    B5. See "B3d/e: FD_DIAG" section below for the rationale.
-
-Subsequent milestones still pending:
-  - **B5**: capture-move handling (partial isometry on FA_PAWN;
-    rank-1 update on FD_DIAG; full Stinespring deferred to v1.7+).
+    affect the channel sum). The v1.5 implementation uses the
+    **rank-1 update + renormalization path** (validated by Phase 3.5
+    Probe 2: cond p95 = 8.60 vs the 100 acceptance gate) under the
+    **Option A** construction: the function returns a marker dict
+    carrying ``psi_post_block`` via re-encoding the post-move
+    position. For non-captures the rank-1 update reduces to identity
+    (the channel is invariant), so re-encoding is mathematically
+    equivalent. **B5 capture path** uses the same Option A re-encode
+    with ``reason='capture-rank-1-with-renorm'``; the rank-1 update
+    is non-trivial for captures (the destination's DIAG_DEV row
+    changes from the captured piece's row to the moving piece's row)
+    but Option A re-encoding via :func:`state_to_psi` reproduces it
+    exactly. See "B3d/e: FD_DIAG" section below for the rationale.
+  - **B5** capture handling — **shipped this milestone**. Each of
+    the 11 channels above accepts ``assume_non_capture=False`` and
+    routes captures through an Option A re-encode marker that drops
+    the captured piece's contribution from the post-move encoder
+    input. The marker dict carries the channel-specific ``reason``
+    string (``'capture-rank-1-with-renorm'`` for A_1 / STD4 /
+    FD_DIAG, ``'capture-partial-isometry'`` for FA_PAWN, and
+    ``'capture-measurement-only'`` for FIB_SYM) plus a
+    ``captured_piece`` field exposing which piece value was removed.
+    Phase 3.5 Probe-3's amended ADR-005 lineage (decompose
+    M_pawn = M_single + M_double for the η = P_w pseudo-Hermitian
+    metric) is exposed via the structural-API helper
+    :func:`_pawn_observable_decomp`. Explicit rank-1 / partial-
+    isometry / Stinespring algebra is deferred to v1.7+.
 
 The B1 + B2 + B3a + B3b + B3c + B3d/e shipped surface covers **all
 11 channels for non-capture moves**: A_1, STD4_{X,Y,Z,W},
@@ -615,6 +646,27 @@ def _is_capture(state_pre, from_idx: int, to_idx: int) -> bool:
     return to_idx in pos
 
 
+def _get_captured_piece(state_pre, to_idx: int):
+    """Return the piece at ``to_idx`` in ``state_pre``, or ``None`` if
+    the destination is empty.
+
+    Used by the B5 capture-path builders to populate the marker dict's
+    ``captured_piece`` field so consumers can reason about which piece
+    type was removed (this matters for the FA_PAWN partial-isometry
+    semantics where the captured pawn's 8-mode block is removed; see
+    ADR-003 §3.1 channels 8-9). The piece value is returned in the
+    encoder's input schema (string for non-pawns, ``(color, axis)``
+    tuple for pawns; see :mod:`chess_spectral.encoder_4d`).
+    """
+    pos = getattr(state_pre, "position", state_pre)
+    if not isinstance(pos, Mapping):
+        raise TypeError(
+            f"state_pre must be a position dict or have a .position "
+            f"attribute; got {type(state_pre).__name__}"
+        )
+    return pos.get(to_idx)
+
+
 def _build_swap_4096(from_idx: int, to_idx: int) -> csr_matrix:
     """4096x4096 sparse permutation matrix that swaps the basis
     vectors at ``from_idx`` and ``to_idx`` and is identity elsewhere.
@@ -680,8 +732,10 @@ def u_move_a1(
     move,
     *,
     assume_non_capture: bool = True,
-) -> csr_matrix:
-    """Build the A_1-channel move unitary as a 4096x4096 sparse matrix.
+    side_to_move_post: bool = True,
+) -> Union[csr_matrix, Dict[str, object]]:
+    """Build the A_1-channel move unitary as a 4096x4096 sparse matrix
+    (non-capture path) or return a marker dict (B5 capture path).
 
     Construction (per ADR-001 §3.1 + ADR-003 §3.1, projector-sandwich
     form clarified by the B1 user-spec):
@@ -701,6 +755,25 @@ def u_move_a1(
     ``U_a1.conj().T @ U_a1 == P_A1`` exactly — see the module
     docstring's "Phase 3.5 Probe-Result Amendments" section.
 
+    **B5 capture path (Option A re-encode marker).** When
+    ``assume_non_capture=False`` and the move IS a capture, the function
+    returns a marker dict carrying ``psi_post_block`` computed via
+    re-encoding the post-capture position through
+    :func:`chess_spectral.qm_4d.state_to_psi`. Per ADR-003 §3.1's note
+    that the A_1 capture is a "partial-isometry — destination basis
+    vector keeps its index but the source signal value replaces the
+    captured signal value", the capture changes the encoded sum by
+    swapping ``sig[d] = sig_captured`` with ``sig[d] = sig_pre[o]``.
+    Re-encoding via :func:`state_to_psi` reproduces this exactly (the
+    captured square's contribution to the A_1 sum is replaced by the
+    moving piece's contribution at the destination), and the post-
+    capture renormalization per ADR-002 §3.4 is folded into
+    :func:`state_to_psi`'s L2 normalisation. The marker dict carries
+    ``reason='capture-rank-1-with-renorm'`` per the ADR-005 amendment
+    lineage (the rank-1 update + renormalisation form applies to A_1
+    captures by the same algebra as FD_DIAG: a single basis vector's
+    coefficient changes between pre- and post-capture).
+
     Parameters
     ----------
     state_pre
@@ -711,9 +784,9 @@ def u_move_a1(
         * Object with ``.position`` attribute holding such a dict
           (e.g., :class:`chess_spectral_4d.GameState4D`).
 
-        Used here only to detect whether the move is a capture; the
-        A_1 lift's structure depends on the move endpoints alone (not
-        on the rest of the position).
+        Used both for capture detection (the destination-occupancy
+        check) and for the B5 capture path (the entire post-move
+        position is needed for the re-encode).
     move
         Move endpoints. Accepted forms:
 
@@ -724,28 +797,52 @@ def u_move_a1(
           accepted endpoint forms).
     assume_non_capture
         If ``True`` (default), the caller asserts the move is a
-        non-capture; capture detection is performed only for the safety
-        check in capture-mode (when ``False``). If ``False`` and the
-        move IS a capture, ``NotImplementedError`` is raised pointing
-        at the B5 milestone (capture handling).
+        non-capture; capture detection is skipped and the
+        projector-sandwich operator is constructed unconditionally.
+        If ``False`` and the move IS a capture, the **B5 capture path**
+        runs (returns a marker dict with ``psi_post_block``). If
+        ``False`` and the move is NOT a capture, the strict-unitary
+        operator is returned just like the ``True`` case.
+    side_to_move_post : bool, optional
+        Side-to-move AFTER the move is applied (``True`` = white,
+        ``False`` = black). Forwarded to :func:`state_to_psi` on the
+        capture path; controls the Z_2 superselection sign on the
+        re-encoded psi (Pre-flight 1 / ADR-004 §3.4 amendment). Default
+        ``True`` for consistency with the other B5-aware builders.
+        Ignored on the non-capture path (the projector-sandwich
+        operator is independent of side-to-move; the consumer applies
+        side-to-move at the assembled-ψ level via :func:`state_to_psi`).
 
     Returns
     -------
-    csr_matrix of shape ``(4096, 4096)``, dtype ``complex128``.
+    csr_matrix of shape ``(4096, 4096)``, dtype ``complex128``, when
+    the move is a non-capture (or when ``assume_non_capture=True``).
+
+    dict (the B5 capture marker) of the form::
+
+        {
+            'strict_unitary': False,
+            'reason': 'capture-rank-1-with-renorm',
+            'channel': 'A1',
+            'psi_post_block': ndarray[complex128, (4096,)],
+            'sq_from': int,
+            'sq_to': int,
+            'captured_piece': PieceValue,
+        }
+
+    when ``assume_non_capture=False`` and the move IS a capture. The
+    bridge consumer dispatches on ``isinstance(value, dict)`` to
+    splice ``psi_post_block`` into the post-move ψ rather than
+    multiplying ``U_a1 @ psi_pre[A_1_block]``.
 
     Raises
     ------
-    NotImplementedError
-        If ``assume_non_capture=False`` and the move captures a piece.
-        Capture handling for the A_1 channel is deferred to Phase 4
-        milestone B5 (per ADR-002 capture renormalization +
-        ADR-003 §3.1's note that A_1's swap "maps `e_d` to `e_d` —
-        destination square's value updates from `sig_captured` to
-        `sig_pre[o]`", which is a non-unitary partial-isometry case
-        that needs the B5 framework).
     TypeError
         If ``state_pre`` or ``move`` cannot be normalised to the
         expected forms.
+    ValueError
+        If ``assume_non_capture=False`` and the pre-move position
+        has no piece at ``from_idx`` (a malformed move).
     """
     from_idx, to_idx = _coerce_move(move)
 
@@ -755,17 +852,26 @@ def u_move_a1(
         # path the bridge surface uses when move legality has already
         # been validated upstream.
         if _is_capture(state_pre, from_idx, to_idx):
-            raise NotImplementedError(
-                "Capture moves on the A_1 channel are deferred to "
-                "Phase 4 milestone B5 (capture handling). See ADR-002 "
-                "(time-evolution semantics + capture renormalization) "
-                "and ADR-003 §3.1 (the A_1 capture path is a "
-                "partial-isometry — destination basis vector keeps "
-                "its index but the source signal value replaces the "
-                "captured signal value). B1 ships non-capture moves "
-                "only; pass assume_non_capture=True if you have "
-                "already filtered captures upstream."
+            # B5 capture path: Option A re-encode marker.
+            captured = _get_captured_piece(state_pre, to_idx)
+            pos_post = _apply_move_to_position(
+                state_pre, from_idx, to_idx,
             )
+            psi_post_full = _qm4.state_to_psi(pos_post, side_to_move_post)
+            start = A1_CHANNEL_IDX * CHANNEL_DIM
+            end = start + CHANNEL_DIM
+            psi_post_block = np.asarray(
+                psi_post_full[start:end], dtype=np.complex128,
+            ).copy()
+            return {
+                'strict_unitary': False,
+                'reason': 'capture-rank-1-with-renorm',
+                'channel': 'A1',
+                'psi_post_block': psi_post_block,
+                'sq_from': int(from_idx),
+                'sq_to': int(to_idx),
+                'captured_piece': captured,
+            }
 
     # Step 1: 4096-dim swap (the underlying basis permutation).
     U_swap = _build_swap_4096(from_idx, to_idx)
@@ -1032,9 +1138,11 @@ def u_move_std4(
     axis: str,
     *,
     assume_non_capture: bool = True,
+    side_to_move_post: bool = True,
 ) -> Union[csr_matrix, Dict[str, object]]:
     """Build the STD4_{X,Y,Z,W}-channel move unitary for a same-B_4-orbit
-    non-capture move; return a marker dict for cross-orbit moves.
+    non-capture move; return a marker dict for cross-orbit moves or for
+    the B5 capture path.
 
     Construction (per ADR-001 §3.1 + ADR-003 §3.1 channels 1-4,
     **same-orbit only** per the ADR-003 amendment Option (a)):
@@ -1051,12 +1159,24 @@ def u_move_std4(
     The ADR-001 phase factor ``theta_a = (pi/4) * delta_a`` (signed
     axis displacement) is applied as a global scalar on the operator.
 
+    **B5 capture path (Option A re-encode marker).** When
+    ``assume_non_capture=False`` and the move IS a capture, the function
+    returns a marker dict carrying ``psi_post_block`` computed via
+    re-encoding the post-capture position. Per ADR-003 §3.1 channels
+    1-4, the STD4 capture is a partial-isometry (the captured square's
+    ``coord_resid * sig`` contribution at the destination is replaced
+    by the moving piece's contribution); re-encoding via
+    :func:`state_to_psi` reproduces this exactly. The marker carries
+    ``reason='capture-rank-1-with-renorm'`` (the rank-1 algebra applies
+    on the channel block per the ADR-005 amendment lineage).
+
     Parameters
     ----------
     state_pre
         Pre-move state. Same form as :func:`u_move_a1`: position dict
         ``{sq_index: piece_value}`` or object with a ``.position``
-        attribute. Used here only for the capture-detection guard.
+        attribute. Used both for the capture-detection guard and (on
+        the B5 capture path) for the re-encode.
     move
         Move endpoints. Same form as :func:`u_move_a1`: 2-tuple of
         endpoints (each int or 4-tuple) or a Move4D-like object.
@@ -1064,9 +1184,15 @@ def u_move_std4(
         One of ``'X'``, ``'Y'``, ``'Z'``, ``'W'`` (channels 1-4).
     assume_non_capture
         If ``True`` (default), the caller asserts the move is a
-        non-capture; capture detection is performed only when
-        ``False``. STD4 captures are partial-isometry per ADR-003 §3.1
-        and ship in B5.
+        non-capture; capture detection is skipped. If ``False`` and
+        the move IS a capture, the B5 capture path runs (returns a
+        marker dict with ``psi_post_block``). If ``False`` and the
+        move is NOT a capture, the same-orbit / cross-orbit dispatch
+        proceeds as in the ``True`` case.
+    side_to_move_post : bool, optional
+        Side-to-move AFTER the move is applied. Forwarded to
+        :func:`state_to_psi` on the B5 capture path. Ignored on the
+        non-capture path. Default ``True``.
 
     Returns
     -------
@@ -1094,14 +1220,30 @@ def u_move_std4(
     measurement-only re-encode path established in the ADR-003
     amendment.
 
+    dict (the B5 capture marker) of the form::
+
+        {
+            'strict_unitary': False,
+            'reason': 'capture-rank-1-with-renorm',
+            'channel': 'STD4_<axis>',
+            'psi_post_block': ndarray[complex128, (4096,)],
+            'sq_from': int,
+            'sq_to': int,
+            'captured_piece': PieceValue,
+        }
+
+    when ``assume_non_capture=False`` and the move IS a capture. The
+    capture-path marker is returned **regardless of orbit dichotomy**
+    (cross-orbit captures route through the same Option A re-encode
+    path; the marker omits the orbit fields and carries ``captured_piece``
+    instead).
+
     Raises
     ------
-    NotImplementedError
-        If ``assume_non_capture=False`` and the move captures a piece.
-        STD4 capture handling is a partial-isometry case and is
-        deferred to Phase 4 milestone B5 per ADR-002 / ADR-003 §3.1.
     ValueError
-        If ``axis`` is not one of ``'X'``, ``'Y'``, ``'Z'``, ``'W'``.
+        If ``axis`` is not one of ``'X'``, ``'Y'``, ``'Z'``, ``'W'``;
+        or if ``assume_non_capture=False`` and the pre-move position
+        has no piece at ``from_idx``.
     TypeError
         If ``state_pre`` or ``move`` cannot be normalised.
     """
@@ -1114,16 +1256,27 @@ def u_move_std4(
 
     if not assume_non_capture:
         if _is_capture(state_pre, from_idx, to_idx):
-            raise NotImplementedError(
-                f"Capture moves on the STD4_{axis} channel are "
-                "deferred to Phase 4 milestone B5 (capture handling). "
-                "See ADR-002 (capture renormalization) and ADR-003 "
-                "§3.1 channels 1-4 (STD4 capture is a partial-isometry "
-                "since the captured square's coord_resid contribution "
-                "vanishes from the destination). B3a ships non-capture "
-                "moves only; pass assume_non_capture=True if you have "
-                "already filtered captures upstream."
+            # B5 capture path: Option A re-encode marker.
+            captured = _get_captured_piece(state_pre, to_idx)
+            pos_post = _apply_move_to_position(
+                state_pre, from_idx, to_idx,
             )
+            psi_post_full = _qm4.state_to_psi(pos_post, side_to_move_post)
+            chan_idx = _STD4_CHANNEL_IDX[axis]
+            start = chan_idx * CHANNEL_DIM
+            end = start + CHANNEL_DIM
+            psi_post_block = np.asarray(
+                psi_post_full[start:end], dtype=np.complex128,
+            ).copy()
+            return {
+                'strict_unitary': False,
+                'reason': 'capture-rank-1-with-renorm',
+                'channel': f'STD4_{axis}',
+                'psi_post_block': psi_post_block,
+                'sq_from': int(from_idx),
+                'sq_to': int(to_idx),
+                'captured_piece': captured,
+            }
 
     # Step 0: ADR-003 amendment Option (a) — restrict strict-unitary
     # to same-B_4-orbit moves. Cross-orbit moves return a marker dict
@@ -1323,9 +1476,11 @@ def u_move_fa_pawn(
     axis: str,
     *,
     assume_non_capture: bool = True,
-) -> csr_matrix:
+    side_to_move_post: bool = True,
+) -> Union[csr_matrix, Dict[str, object]]:
     """Build the FA_PAWN_{W,Y}-channel move unitary as a 4096x4096
-    sparse matrix.
+    sparse matrix (non-capture path) or return a marker dict (B5
+    capture path).
 
     Construction (per ADR-001 §3.1 + ADR-003 §3.1, projector-sandwich
     form per the B3b user-spec):
@@ -1348,12 +1503,26 @@ def u_move_fa_pawn(
     "B3b: FA_PAWN_W / FA_PAWN_Y — antisymmetric pawn channels"
     section.
 
+    **B5 capture path (Option A re-encode marker, partial-isometry
+    semantics).** Per ADR-003 §3.1 channels 8-9, the FA_PAWN capture
+    is a partial-isometry: the captured pawn's 8-mode block is removed
+    by the swap, so ``||U @ psi|| < ||psi||``. The B5 path returns a
+    marker dict carrying ``psi_post_block`` computed via re-encoding
+    the post-capture position. The captured pawn's contribution is
+    automatically dropped by :func:`state_to_psi` (the captured pawn
+    is no longer in ``pos_post``); the post-capture renormalisation
+    per ADR-002 §3.4 is folded into the L2 normalisation at the
+    state_to_psi layer. The marker carries
+    ``reason='capture-partial-isometry'`` to distinguish the FA_PAWN
+    capture algebra from the rank-1 form used by A_1 / STD4 / FD_DIAG.
+
     Parameters
     ----------
     state_pre
         Pre-move state. Same form as :func:`u_move_a1`: position dict
         ``{sq_index: piece_value}`` or object with a ``.position``
-        attribute. Used here only for the capture-detection guard.
+        attribute. Used both for capture detection and (on the B5
+        capture path) for the re-encode.
     move
         Move endpoints. Same form as :func:`u_move_a1`: 2-tuple of
         endpoints (each int or 4-tuple) or Move4D-like object.
@@ -1362,24 +1531,41 @@ def u_move_fa_pawn(
         (FA_PAWN_Y block, channel 9).
     assume_non_capture
         If ``True`` (default), the caller asserts the move is a
-        non-capture; capture detection is performed only for the
-        safety check in capture-mode (``False``). If ``False`` and
-        the move IS a capture, ``NotImplementedError`` is raised
-        pointing at the B5 milestone (capture handling).
+        non-capture; capture detection is skipped. If ``False`` and
+        the move IS a capture, the B5 capture path runs (returns a
+        marker dict with ``psi_post_block``). If ``False`` and the
+        move is NOT a capture, the projector-sandwich operator is
+        returned just like the ``True`` case.
+    side_to_move_post : bool, optional
+        Side-to-move AFTER the move is applied. Forwarded to
+        :func:`state_to_psi` on the B5 capture path. Ignored on the
+        non-capture path. Default ``True``.
 
     Returns
     -------
-    csr_matrix of shape ``(4096, 4096)``, dtype ``complex128``.
+    csr_matrix of shape ``(4096, 4096)``, dtype ``complex128``, when
+    the move is a non-capture (or when ``assume_non_capture=True``).
+
+    dict (the B5 capture marker) of the form::
+
+        {
+            'strict_unitary': False,
+            'reason': 'capture-partial-isometry',
+            'channel': 'FA_PAWN_<axis>',
+            'psi_post_block': ndarray[complex128, (4096,)],
+            'sq_from': int,
+            'sq_to': int,
+            'captured_piece': PieceValue,
+        }
+
+    when ``assume_non_capture=False`` and the move IS a capture.
 
     Raises
     ------
-    NotImplementedError
-        If ``assume_non_capture=False`` and the move captures a piece.
-        FA_PAWN capture handling is a partial-isometry case (the
-        captured pawn's 8-mode block is removed) and is deferred to
-        Phase 4 milestone B5 per ADR-002 / ADR-003 §3.1.
     ValueError
-        If ``axis`` is not one of ``'W'``, ``'Y'``.
+        If ``axis`` is not one of ``'W'``, ``'Y'``; or if
+        ``assume_non_capture=False`` and the pre-move position has
+        no piece at ``from_idx``.
     TypeError
         If ``state_pre`` or ``move`` cannot be normalised.
     """
@@ -1392,17 +1578,32 @@ def u_move_fa_pawn(
 
     if not assume_non_capture:
         if _is_capture(state_pre, from_idx, to_idx):
-            raise NotImplementedError(
-                f"Capture moves on the FA_PAWN_{axis} channel are "
-                "deferred to Phase 4 milestone B5 (capture handling). "
-                "See ADR-002 (capture renormalization) and ADR-003 "
-                "§3.1 channels 8-9 (FA_PAWN capture is a partial-"
-                "isometry: the captured pawn's 8-mode block is "
-                "removed by the swap, so ||U @ psi|| < ||psi||). "
-                "B3b ships non-capture moves only; pass "
-                "assume_non_capture=True if you have already filtered "
-                "captures upstream."
+            # B5 capture path: Option A re-encode marker, partial-
+            # isometry semantics per ADR-003 §3.1 channels 8-9.
+            captured = _get_captured_piece(state_pre, to_idx)
+            pos_post = _apply_move_to_position(
+                state_pre, from_idx, to_idx,
             )
+            psi_post_full = _qm4.state_to_psi(pos_post, side_to_move_post)
+            chan_idx = (
+                FA_PAWN_W_CHANNEL_IDX
+                if axis == 'W'
+                else FA_PAWN_Y_CHANNEL_IDX
+            )
+            start = chan_idx * CHANNEL_DIM
+            end = start + CHANNEL_DIM
+            psi_post_block = np.asarray(
+                psi_post_full[start:end], dtype=np.complex128,
+            ).copy()
+            return {
+                'strict_unitary': False,
+                'reason': 'capture-partial-isometry',
+                'channel': f'FA_PAWN_{axis}',
+                'psi_post_block': psi_post_block,
+                'sq_from': int(from_idx),
+                'sq_to': int(to_idx),
+                'captured_piece': captured,
+            }
 
     # Step 1: 4096-dim swap (the underlying basis permutation).
     U_swap = _build_swap_4096(from_idx, to_idx)
@@ -1422,6 +1623,236 @@ def u_move_fa_pawn(
     if U.dtype != np.complex128:
         U = U.astype(np.complex128)
     return U
+
+
+# ---- Phase 4 B5: M_pawn = M_single + M_double decomposition --------
+#
+# Per the Phase 3.5 Probe-3 amendment to ADR-005 §3.3, the lifted pawn
+# move operator ``M_pawn`` (built from
+# :func:`phase_operators_4d.P_pawn4_white` lifted to a 4096×4096
+# incidence matrix on the board basis) **is NOT pseudo-Hermitian under
+# η = P_w as a single operator**. Probe 3 measured the residual
+# ``‖M^T − P_w · M · P_w⁻¹‖_F`` for three variants:
+#
+#   | Variant                              | Residual    | Outcome     |
+#   |--------------------------------------|-------------|-------------|
+#   | Full (push + double-push + captures) | 32.0        | ❌ FAIL     |
+#   | Single-push + captures (no double)   | 0.000e+00   | ✅ PASS     |
+#   | Single-push only                     | 0.000e+00   | ✅ PASS     |
+#
+# Diagnosis: ADR-005 §3.3.1's claim ``M_white^T = M_black`` (which
+# implies pseudo-Hermiticity under η = P_w via ``P_w · M_white · P_w =
+# M_black = M_white^T``) **holds in the no-double-push idealisation**.
+# The starting-rank double-push contributes a non-transposable rank
+# component (a pawn on rank 1 can double-push to rank 3, but a pawn on
+# rank 3 cannot double-push to rank 5 — no double-push from rank 3).
+# This breaks the transpose identity by Frobenius residual 32.0.
+#
+# **Amendment to ADR-005 (Phase 3.5):** Decompose
+#
+#   M_pawn = M_single + M_double
+#
+# where:
+#   - **M_single** is the single-push + captures matrix (no double-push).
+#     Pseudo-Hermitian under η = P_w at residual = 0.0; safe to lift to
+#     a v1.6+ pseudo-Hermitian observable.
+#   - **M_double** is the double-push-only matrix (origin on starting
+#     rank → destination two squares forward; no captures, no
+#     single-push). η-breaking; treated separately as a non-pseudo-
+#     Hermitian rank-deficient operator outside the QM framework.
+#
+# This decomposition lets v1.6+ promote the η = P_w pseudo-Hermitian
+# observable for the dominant single-push + captures algebra, while the
+# starting-rank double-push (~14% of legal pawn moves; only operative
+# from the 2nd / 7th rank) is handled separately. The probe re-derives
+# this decomposition empirically and the helpers below cache the
+# matrices for v1.6+ consumers.
+#
+# **v1.5 scope:** the decomposition is exposed as a structural API
+# (``_pawn_observable_decomp(axis)``) so the v1.6+ pseudo-Hermitian
+# promotion has a stable lookup point. The matrices themselves are
+# computed lazily via the same construction used in
+# ``research/track_b_pawn_pt_symmetry_probe.py`` (Phase 3.5), so the
+# probe's residual = 0.0 result is reproducible at runtime.
+
+# Module-level cache: each axis ('W' / 'Y') maps to a dict
+# ``{'single': csr_matrix, 'double': csr_matrix, 'eta': csr_matrix}``.
+# Built lazily on first call to :func:`_pawn_observable_decomp` to
+# avoid the 4096×4096 sparse construction at import time.
+_PAWN_OBS_DECOMP: Dict[str, Dict[str, csr_matrix]] = {}
+
+
+# Map FA_PAWN axis letter -> lower-case axis tag accepted by
+# :func:`phase_operators_4d.phase_operators_4d.P_pawn4_white`.
+_FA_PAWN_AXIS_LOWER: Mapping[str, str] = {
+    'W': 'w',
+    'Y': 'y',
+}
+
+
+def _build_m_pawn_white_axis(
+    axis: str,
+    *,
+    include_double_push: bool,
+    include_captures: bool,
+) -> csr_matrix:
+    """Build the white-pawn move incidence matrix as a 4096×4096
+    sparse complex128 CSR.
+
+    ``M[t, s] = 1`` iff the white pawn at ``coord(s)`` can move to
+    ``coord(t)`` via :func:`phase_operators_4d.phase_operators_4d.
+    P_pawn4_white` for the given ``axis`` (``'W'`` or ``'Y'``). Off-
+    board destinations are dropped via the ``PHI_TO_XYZW`` lookup.
+
+    Mirrors the construction used in the Phase 3.5 Probe-3 driver
+    (``research/track_b_pawn_pt_symmetry_probe.py``) so the
+    decomposition's pseudo-Hermiticity residual reproduces empirically
+    at runtime. Cast to ``complex128`` for downstream dtype invariants
+    (the probe uses float64; we promote here for compatibility with
+    the rest of the qm_4d_dynamics module).
+    """
+    if axis not in _FA_PAWN_AXIS_LOWER:
+        raise ValueError(
+            f"axis must be one of {sorted(_FA_PAWN_AXIS_LOWER)}; "
+            f"got {axis!r}"
+        )
+    # Lazy imports to keep the module import surface minimal.
+    from chess_spectral.phase_operators_4d.phase_operators_4d import (
+        P_pawn4_white, phi4,
+    )
+    from chess_spectral.phase_operators_4d.phase_to_coords_4d import (
+        PHI_TO_XYZW,
+    )
+    axis_lower = _FA_PAWN_AXIS_LOWER[axis]
+    axis_idx = _FA_PAWN_AXIS_INDEX[axis]   # 1 for Y, 3 for W
+    # White pawn starting rank: row 1 along the pawn's forward axis.
+    starting_rank = 1
+    rows: list = []
+    cols: list = []
+    for s in range(N_SQUARES):
+        coord = _t4.rc4(s)
+        if include_double_push:
+            on_starting = (coord[axis_idx] == starting_rank)
+        else:
+            on_starting = False
+        origin_phi = phi4(*coord)
+        try:
+            phases = P_pawn4_white(
+                origin_phi, axis=axis_lower,
+                on_starting_rank=on_starting,
+                include_captures=include_captures,
+            )
+        except Exception:  # pragma: no cover  (defensive: phi4 surface)
+            continue
+        for p in phases:
+            tcoord = PHI_TO_XYZW.get(p)
+            if tcoord is None:
+                continue
+            t = _t4.sq4(*tcoord)
+            rows.append(t)
+            cols.append(s)
+    if not rows:
+        return sp.csr_matrix(
+            (N_SQUARES, N_SQUARES), dtype=np.complex128,
+        )
+    data = np.ones(len(rows), dtype=np.complex128)
+    return sp.csr_matrix(
+        (data, (np.asarray(rows), np.asarray(cols))),
+        shape=(N_SQUARES, N_SQUARES),
+        dtype=np.complex128,
+    )
+
+
+def _build_m_pawn_single(axis: str) -> csr_matrix:
+    """Build the **single-push + captures** white-pawn matrix per the
+    Phase 3.5 Probe-3 decomposition (η = P_w pseudo-Hermitian residual
+    = 0.0).
+
+    Equals ``M_pawn_white(axis, include_double_push=False,
+    include_captures=True)``. This is the part of ``M_pawn`` that
+    satisfies ``M_single^T = P_axis · M_single · P_axis⁻¹`` exactly
+    (the η-pseudo-Hermitian piece per ADR-005 §3.3.1's amended claim).
+
+    Cached at module level keyed by ``axis`` so repeated lookups (e.g.,
+    from v1.6+ pseudo-Hermitian observable construction) pay the
+    construction cost only once.
+    """
+    return _build_m_pawn_white_axis(
+        axis, include_double_push=False, include_captures=True,
+    )
+
+
+def _build_m_pawn_double(axis: str) -> csr_matrix:
+    """Build the **double-push-only** white-pawn matrix per the Phase
+    3.5 Probe-3 decomposition (η-breaking residual ≠ 0).
+
+    Computed as
+    ``M_full(axis) - M_single(axis)``: the full pawn matrix minus the
+    single-push + captures piece. The result has nonzero entries only
+    for double-push moves (origin on the starting rank → destination
+    two squares forward along the pawn's axis). This is the part of
+    ``M_pawn`` that violates the pseudo-Hermiticity condition under
+    η = P_axis (a pawn on the starting rank can double-push, but a
+    pawn on the destination rank cannot double-push back; the
+    transpose identity is broken).
+
+    Treated separately from ``M_single`` in the v1.6+ pseudo-Hermitian
+    observable construction (η-metric applies only to ``M_single``;
+    ``M_double`` is handled as a non-pseudo-Hermitian rank-deficient
+    operator outside the QM framework per ADR-005's Phase 3.5
+    amendment).
+    """
+    M_full = _build_m_pawn_white_axis(
+        axis, include_double_push=True, include_captures=True,
+    )
+    M_single = _build_m_pawn_single(axis)
+    M_double = (M_full - M_single).tocsr()
+    M_double.eliminate_zeros()
+    return M_double
+
+
+def _pawn_observable_decomp(
+    axis: str,
+) -> Dict[str, csr_matrix]:
+    """Return the M_single / M_double / eta decomposition for the
+    given pawn axis, per the Phase 3.5 Probe-3 amendment to ADR-005.
+
+    The output dict has three keys:
+
+      * ``'single'`` (csr_matrix, 4096×4096, complex128): the single-
+        push + captures matrix per :func:`_build_m_pawn_single`.
+        Satisfies ``M_single^T = eta · M_single · eta⁻¹`` exactly
+        (residual ≤ 1e-12 in tests; Phase 3.5 Probe-3 measured 0.0).
+      * ``'double'`` (csr_matrix, 4096×4096, complex128): the double-
+        push-only matrix per :func:`_build_m_pawn_double`. η-breaking
+        (the transpose identity does not hold).
+      * ``'eta'`` (csr_matrix, 4096×4096, complex128): the η operator
+        for this axis. For axis ``'W'``, ``eta = P_w`` (the W-axis
+        parity flip ``(x,y,z,w) → (x,y,z,7-w)``); for axis ``'Y'``,
+        ``eta = P_y``. Both are sparse permutation matrices with
+        ``eta^2 = I``, hence Hermitian and self-inverse. Reuses the
+        cached :func:`_get_sigma_fa_pawn` accessor.
+
+    Cached at module level keyed by ``axis``. v1.6+ pseudo-Hermitian
+    observable construction (when promoted from ADR-005's stub status)
+    will consume this dict directly.
+    """
+    if axis not in _FA_PAWN_AXIS_INDEX:
+        raise ValueError(
+            f"pawn axis must be one of {_FA_PAWN_AXES}; got {axis!r}"
+        )
+    if axis in _PAWN_OBS_DECOMP:
+        return _PAWN_OBS_DECOMP[axis]
+    # eta = sigma_axis (the axis-parity-flip permutation; reuses the
+    # cached accessor used by P_FA_PAWN_axis = (I - sigma_axis) / 2).
+    eta = _get_sigma_fa_pawn(axis)
+    decomp: Dict[str, csr_matrix] = {
+        'single': _build_m_pawn_single(axis),
+        'double': _build_m_pawn_double(axis),
+        'eta': eta,
+    }
+    _PAWN_OBS_DECOMP[axis] = decomp
+    return decomp
 
 
 # ---- Phase 4 B3c: FIB_SYM_{1,2,3} measurement-only re-encode --------
@@ -1672,22 +2103,21 @@ def u_move_fib_meas(
 
     from_idx, to_idx = _coerce_move(move)
 
+    # Detect capture for the marker's reason / captured_piece field.
+    # The construction itself is identical to the non-capture path
+    # (Option A re-encode), but the marker fields differ so consumers
+    # can reason about which moves dropped probability mass.
+    captured = None
+    is_capture = False
     if not assume_non_capture:
-        if _is_capture(state_pre, from_idx, to_idx):
-            raise NotImplementedError(
-                f"Capture moves on the FIB_SYM_{fib_idx} channel are "
-                "deferred to Phase 4 milestone B5 (capture handling). "
-                "See ADR-002 (capture renormalization) and the Phase "
-                "3.5 amendment to ADR-003 §3.3 (FIB measurement-only "
-                "path is non-capture-only in v1.5; capture handling "
-                "needs the partial-isometry / Stinespring framework "
-                "from B5/v1.7+). B3c ships non-capture moves only; "
-                "pass assume_non_capture=True if you have already "
-                "filtered captures upstream."
-            )
+        is_capture = _is_capture(state_pre, from_idx, to_idx)
+        if is_capture:
+            captured = _get_captured_piece(state_pre, to_idx)
 
     # Step 1: Apply the move classically at the dict level. Mirrors
-    # chess_spectral_4d.apply_move's non-capture path. Does NOT mutate
+    # chess_spectral_4d.apply_move's non-capture path; for captures the
+    # destination piece is silently overwritten (the captured piece's
+    # contribution is dropped from the encoder input). Does NOT mutate
     # state_pre; produces a fresh dict.
     pos_post = _apply_move_to_position(state_pre, from_idx, to_idx)
 
@@ -1712,6 +2142,24 @@ def u_move_fib_meas(
     # type uniformly. ``psi_post_block`` is the canonical "measurement
     # result" — keep its shape (4096,) consistent with the channel
     # block dimension.
+    #
+    # B5 capture path: when assume_non_capture=False and the move IS a
+    # capture, swap the reason to 'capture-measurement-only' and
+    # populate captured_piece. The construction is otherwise identical
+    # (the FIB encoder formula is bilinear, so neither captures nor
+    # non-captures admit a strict-unitary linearization — the Phase
+    # 3.5 amendment ships measurement-only re-encode for both cases).
+    if is_capture:
+        return {
+            'strict_unitary': False,
+            'reason': 'capture-measurement-only',
+            'channel': f'FIB_SYM_{fib_idx}',
+            'psi_post_block': psi_post_block,
+            'sq_from': int(from_idx),
+            'sq_to': int(to_idx),
+            'captured_piece': captured,
+        }
+
     return {
         'strict_unitary': False,
         'reason': 'measurement-only',
@@ -1922,29 +2370,24 @@ def u_move_fd_diag(
     """
     from_idx, to_idx = _coerce_move(move)
 
+    # Detect capture for the marker's reason / captured_piece field.
+    # The Option A re-encode construction is identical for captures
+    # and non-captures; only the marker labels differ.
+    captured = None
+    is_capture = False
     if not assume_non_capture:
-        if _is_capture(state_pre, from_idx, to_idx):
-            raise NotImplementedError(
-                "Capture moves on the FD_DIAG channel are deferred "
-                "to Phase 4 milestone B5 (capture handling). See "
-                "ADR-002 (capture renormalization) and ADR-003 §3.2 "
-                "channel 10 (FD_DIAG capture is a rank-1 update + "
-                "renormalization: the destination square's "
-                "DIAG_DEV[piece_row(p'), :] contribution becomes "
-                "DIAG_DEV[piece_row(p), :], producing a rank-1 "
-                "perturbation of the channel block; renormalize per "
-                "ADR-002 §3.4 to restore ‖ψ‖ = 1). Phase 3.5 Probe 2 "
-                "validated the rank-1 update is well-conditioned "
-                "(cond p95 = 8.60 vs the 100 acceptance gate). "
-                "B3d/e ships non-capture moves only; pass "
-                "assume_non_capture=True if you have already "
-                "filtered captures upstream."
-            )
+        is_capture = _is_capture(state_pre, from_idx, to_idx)
+        if is_capture:
+            captured = _get_captured_piece(state_pre, to_idx)
 
     # Step 1: Apply the move classically at the dict level. Re-uses
     # B3c's helper which mirrors chess_spectral_4d.apply_move's
-    # non-capture path. Does NOT mutate state_pre; produces a fresh
-    # dict.
+    # non-capture path; for captures the destination piece is silently
+    # overwritten (which is exactly the right semantics for the
+    # FD_DIAG rank-1 update — the captured piece's DIAG_DEV row drops
+    # out and is replaced by the moving piece's DIAG_DEV row at the
+    # same destination square). Does NOT mutate state_pre; produces a
+    # fresh dict.
     pos_post = _apply_move_to_position(state_pre, from_idx, to_idx)
 
     # Step 2: Re-encode via state_to_psi. Full 45 056-dim L2-normalized
@@ -1971,6 +2414,24 @@ def u_move_fd_diag(
     # result), and the rank-1 update reduces to identity. The reason
     # string distinguishes B3d/e's path from B3c's so the bridge can
     # log which channels used which fallback.
+    #
+    # B5 capture path: same Option A re-encode (the rank-1 update
+    # becomes non-trivial for captures, but Option A re-encoding the
+    # post-capture position via state_to_psi reproduces the rank-1
+    # update + renormalisation exactly per ADR-002 §3.4). Marker
+    # carries reason='capture-rank-1-with-renorm' (matches the A_1 /
+    # STD4 capture reason for consistency across the rank-1 channels).
+    if is_capture:
+        return {
+            'strict_unitary': False,
+            'reason': 'capture-rank-1-with-renorm',
+            'channel': 'FD_DIAG',
+            'psi_post_block': psi_post_block,
+            'sq_from': int(from_idx),
+            'sq_to': int(to_idx),
+            'captured_piece': captured,
+        }
+
     return {
         'strict_unitary': False,
         'reason': 'rank-1-update-with-renorm',

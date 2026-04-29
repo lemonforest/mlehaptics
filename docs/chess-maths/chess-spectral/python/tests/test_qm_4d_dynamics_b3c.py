@@ -354,35 +354,43 @@ def test_b3c_marker_dict_accepts_tuple_endpoints(imbalanced_position):
 
 
 # ====================================================================
-#  Test 4: Captures raise NotImplementedError
+#  Test 4: Captures handled (B5 — Option A measurement-only re-encode)
 # ====================================================================
 #
-# Same pattern as B1 / B3a / B3b: assume_non_capture=False with a
-# capture move raises NotImplementedError pointing at B5.
+# Pre-B5: ``u_move_fib_meas(..., assume_non_capture=False)`` raised
+# NotImplementedError on captures.
+# Post-B5: returns the same Option A re-encode marker as non-captures,
+# but with ``reason='capture-measurement-only'`` and a
+# ``captured_piece`` field. Comprehensive B5 coverage in
+# :mod:`tests.test_qm_4d_dynamics_b5`.
 
 @pytest.mark.parametrize("fib_idx", [1, 2, 3])
-def test_b3c_capture_raises_not_implemented(fib_idx, imbalanced_position):
-    """Capture moves with assume_non_capture=False raise
-    NotImplementedError pointing at the B5 milestone.
-    """
+def test_b3c_capture_returns_marker_dict(fib_idx, imbalanced_position):
+    """Capture moves with assume_non_capture=False return the Option A
+    re-encode marker (capture-measurement-only)."""
     # Pick a from-square that is occupied; pick a to-square that is
     # also occupied. This is a capture per _is_capture's definition.
     occupied = sorted(imbalanced_position.keys())
     assert len(occupied) >= 2, "fixture must have >= 2 pieces for capture test"
     s = occupied[0]
     t = occupied[1]
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.u_move_fib_meas(
-            imbalanced_position, (s, t),
-            fib_idx=fib_idx, assume_non_capture=False,
-        )
-    msg = str(excinfo.value)
-    assert 'B5' in msg, (
-        f"NotImplementedError should mention B5; got: {msg}"
+    cap_result = dyn.u_move_fib_meas(
+        imbalanced_position, (s, t),
+        fib_idx=fib_idx, assume_non_capture=False,
     )
-    assert f'FIB_SYM_{fib_idx}' in msg, (
-        f"NotImplementedError should name the channel; got: {msg}"
+    assert isinstance(cap_result, dict), (
+        f"B5 capture path should return marker dict; got "
+        f"{type(cap_result).__name__}"
     )
+    assert cap_result['strict_unitary'] is False
+    assert cap_result['reason'] == 'capture-measurement-only', (
+        f"FIB_SYM_{fib_idx} capture reason should be "
+        f"'capture-measurement-only'; got {cap_result['reason']!r}"
+    )
+    assert cap_result['channel'] == f'FIB_SYM_{fib_idx}'
+    assert cap_result['captured_piece'] == imbalanced_position[t]
+    assert cap_result['psi_post_block'].shape == (4096,)
+    assert cap_result['psi_post_block'].dtype == np.complex128
 
 
 @pytest.mark.parametrize("fib_idx", [1, 2, 3])
