@@ -684,17 +684,25 @@ def test_b3b_projector_properties(axis):
 
 
 # ====================================================================
-#  Test 6: Capture-move NotImplementedError
+#  Test 6: Capture-move handling (B5 — Option A partial-isometry)
 # ====================================================================
+#
+# Pre-B5: ``u_move_fa_pawn(state, capture_move, axis,
+# assume_non_capture=False)`` raised ``NotImplementedError``.
+# Post-B5: returns the Option A re-encode marker with
+# ``reason='capture-partial-isometry'`` (per ADR-003 §3.1 channels
+# 8-9: the captured pawn's 8-mode block is removed by the swap, so
+# ``||U @ psi|| < ||psi||``; renormalisation is folded into
+# state_to_psi). Comprehensive B5 coverage in
+# :mod:`tests.test_qm_4d_dynamics_b5`.
 
 @pytest.mark.parametrize("axis", ["W", "Y"])
-def test_b3b_capture_move_raises_not_implemented(
+def test_b3b_capture_move_returns_marker_dict(
     axis, imbalanced_position,
 ):
     """``u_move_fa_pawn(state, capture_move, axis,
-    assume_non_capture=False)`` raises ``NotImplementedError`` with a
-    B5 pointer.
-    """
+    assume_non_capture=False)`` after B5 returns a marker dict
+    (partial-isometry semantics; captured pawn 8-mode block dropped)."""
     pos = imbalanced_position
     occ = sorted(pos.keys())
     assert len(occ) >= 2
@@ -703,22 +711,28 @@ def test_b3b_capture_move_raises_not_implemented(
     # Default assume_non_capture=True: build succeeds (capture not
     # checked, fast path)
     U = dyn.u_move_fa_pawn(pos, (f_idx, t_idx), axis=axis)
+    assert sp.isspmatrix_csr(U) or hasattr(U, 'shape'), (
+        f"non-capture-mode default should return csr_matrix"
+    )
     assert U.shape == (4096, 4096)
 
-    # With assume_non_capture=False: must raise
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.u_move_fa_pawn(
-            pos, (f_idx, t_idx), axis=axis, assume_non_capture=False,
-        )
-    msg = str(excinfo.value)
-    assert "B5" in msg, (
-        f"FA_PAWN_{axis} capture-move NotImplementedError should "
-        f"reference B5; got: {msg}"
+    # B5 capture path: returns the Option A re-encode marker.
+    cap_result = dyn.u_move_fa_pawn(
+        pos, (f_idx, t_idx), axis=axis, assume_non_capture=False,
     )
-    assert ("ADR-002" in msg or "ADR-003" in msg), (
-        f"FA_PAWN_{axis} capture-move NotImplementedError should "
-        f"reference an ADR; got: {msg}"
+    assert isinstance(cap_result, dict), (
+        f"B5 capture path should return marker dict; got "
+        f"{type(cap_result).__name__}"
     )
+    assert cap_result['strict_unitary'] is False
+    assert cap_result['reason'] == 'capture-partial-isometry', (
+        f"FA_PAWN_{axis} capture reason should be "
+        f"'capture-partial-isometry'; got {cap_result['reason']!r}"
+    )
+    assert cap_result['channel'] == f'FA_PAWN_{axis}'
+    assert cap_result['captured_piece'] == pos[t_idx]
+    assert cap_result['psi_post_block'].shape == (4096,)
+    assert cap_result['psi_post_block'].dtype == np.complex128
 
 
 # ====================================================================

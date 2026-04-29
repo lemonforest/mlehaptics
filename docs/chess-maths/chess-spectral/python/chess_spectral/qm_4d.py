@@ -99,6 +99,34 @@ def state_to_psi(position: Dict[int, _enc4.PieceValue],
     """Encode a chess position to a normalized complex amplitude
     psi in C^ENCODING_DIM = C^45056.
 
+    Z_2 sector convention
+    ---------------------
+    Per ADR-004 §3.2 (formalized) and the Phase 3.5 amendment to §3.4
+    (PHASE_3_5_PROBE_RESULTS.md, Probe 4), this function is the
+    **canonical Z_2 sector-flip mechanism** for the QM extension. The
+    encoded vector is multiplied by:
+
+      * +1 for ``side_to_move=True``  (white-to-move; H_+ sector)
+      * -1 for ``side_to_move=False`` (black-to-move; H_- sector)
+
+    Equivalently, ``state_to_psi(state, white) == -state_to_psi(state,
+    black)`` exactly (sign-flip implementation, not a unitary
+    rotation). The Z_2 grading thus lives at the **state-vector
+    level**, NOT at the operator level: per-channel U_move operators
+    (B1's `u_move_a1`, B3a's `u_move_std4`, B3b's `u_move_fa_pawn`)
+    are **not** required to formally anti-commute with J_op (the
+    central-inversion permutation matrix). This was the rejected
+    ADR-004 §3.4 original requirement, killed by Probe 4's empirical
+    finding that ``{U_move, J_op} = 0`` is mathematically impossible
+    for the swap-permutation construction.
+
+    Test surface: the positive-side complement (state_to_psi IS the
+    sector-flip mechanism) lives in
+    :mod:`tests.test_qm_4d_z2_grading`; the negative-side complement
+    (per-channel U_move does NOT operator-anti-commute with J_op) lives
+    in the corresponding ``test_b1/_b3a/_b3b_no_anti_commutation_with_J_op``
+    tests in the per-channel B1/B3a/B3b test modules.
+
     Parameters
     ----------
     position : dict {sq4_index -> piece value}
@@ -106,12 +134,11 @@ def state_to_psi(position: Dict[int, _enc4.PieceValue],
         a tuple ('P'/'p', axis) or a legacy single char (legacy emits
         a DeprecationWarning from encode_4d).
     side_to_move : bool
-        True = white to move, False = black to move. The encoded
-        vector is multiplied by +1 for white, -1 for black -- this is
-        the Z_2 superselection charge from Pre-flight 1. The (central
-        inversion + color flip) involution that breaks injectivity on
-        synthetic anti-podal-king configurations is now resolved by
-        the side-to-move parity.
+        True = white to move, False = black to move. See "Z_2 sector
+        convention" above. The (central inversion + color flip)
+        involution that breaks encoder injectivity on synthetic
+        anti-podal-king configurations is resolved by the side-to-move
+        parity per Pre-flight 1.
 
     Returns
     -------

@@ -629,12 +629,27 @@ def test_b1_no_anti_commutation_with_J_op(imbalanced_position):
 
 
 # ====================================================================
-#  Test 6: Capture-move NotImplementedError
+#  Test 6: Capture-move handling (B5 — Option A re-encode marker)
 # ====================================================================
+#
+# Pre-B5: ``u_move_a1(state, capture_move, assume_non_capture=False)``
+# raised ``NotImplementedError``.
+#
+# Post-B5: returns a marker dict carrying ``psi_post_block`` (the
+# Option A re-encode of the post-capture position) and a
+# ``captured_piece`` field. The dict shape composes with the other
+# B5-aware builders (FA_PAWN partial-isometry, FIB measurement-only,
+# FD_DIAG rank-1) so the bridge dispatches uniformly. Detailed B5
+# tests live in :mod:`tests.test_qm_4d_dynamics_b5`; this test pins
+# the basic shape contract for the A_1 channel here.
 
-def test_b1_capture_move_raises_not_implemented(imbalanced_position):
+def test_b1_capture_move_returns_marker_dict(imbalanced_position):
     """``u_move_a1(state, capture_move, assume_non_capture=False)``
-    raises ``NotImplementedError`` with a B5 pointer."""
+    after B5 returns a marker dict carrying ``psi_post_block`` and
+    ``captured_piece``. (Pre-B5 this used to raise
+    ``NotImplementedError`` — the migration is documented in the test
+    docstring; comprehensive B5 coverage lives in
+    :mod:`tests.test_qm_4d_dynamics_b5`.)"""
     pos = imbalanced_position
     # Pick any two occupied squares; from -> to is therefore a capture.
     occ = sorted(pos.keys())
@@ -645,20 +660,30 @@ def test_b1_capture_move_raises_not_implemented(imbalanced_position):
     # u_move_a1 builds the unitary anyway — capture detection is
     # opt-in for B1 (the bridge can rely on upstream filtering).
     U = dyn.u_move_a1(pos, (from_idx, to_idx))
+    assert sp.isspmatrix_csr(U), (
+        f"non-capture-mode default should return csr_matrix; got "
+        f"{type(U).__name__}"
+    )
     assert U.shape == (4096, 4096)
 
-    # With assume_non_capture=False, the call MUST refuse.
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.u_move_a1(pos, (from_idx, to_idx), assume_non_capture=False)
-    msg = str(excinfo.value)
-    # The error message should point at the B5 milestone.
-    assert "B5" in msg, (
-        f"capture-move NotImplementedError should reference B5; got: {msg}"
+    # B5 capture path: assume_non_capture=False on a capture move now
+    # returns a marker dict (Option A re-encode).
+    result = dyn.u_move_a1(
+        pos, (from_idx, to_idx), assume_non_capture=False,
     )
-    assert ("ADR-002" in msg or "ADR-003" in msg), (
-        f"capture-move NotImplementedError should reference an ADR; "
-        f"got: {msg}"
+    assert isinstance(result, dict), (
+        f"B5 capture path should return a marker dict; got "
+        f"{type(result).__name__}"
     )
+    assert result['strict_unitary'] is False
+    assert result['reason'] == 'capture-rank-1-with-renorm', (
+        f"A_1 capture reason should be 'capture-rank-1-with-renorm'; "
+        f"got {result['reason']!r}"
+    )
+    assert result['channel'] == 'A1'
+    assert result['captured_piece'] == pos[to_idx]
+    assert result['psi_post_block'].shape == (4096,)
+    assert result['psi_post_block'].dtype == np.complex128
 
 
 def test_b1_apply_move_qm_returns_assembled_dict(imbalanced_position):

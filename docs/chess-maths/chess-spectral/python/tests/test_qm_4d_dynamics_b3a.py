@@ -693,15 +693,22 @@ def test_b3a_per_axis_isolation(
 
 
 # ====================================================================
-#  Test 9: Capture-move NotImplementedError
+#  Test 9: Capture-move handling (B5 — Option A re-encode marker)
 # ====================================================================
+#
+# Pre-B5: ``u_move_std4(state, capture_move, axis,
+# assume_non_capture=False)`` raised ``NotImplementedError``.
+# Post-B5: returns the Option A re-encode marker. Comprehensive B5
+# coverage in :mod:`tests.test_qm_4d_dynamics_b5`; this test pins the
+# basic shape contract for STD4_{X,Y,Z,W}.
 
 @pytest.mark.parametrize('axis', ['X', 'Y', 'Z', 'W'])
-def test_b3a_capture_raises_not_implemented(
+def test_b3a_capture_returns_marker_dict(
     axis, imbalanced_position,
 ):
     """`u_move_std4(state, capture_move, axis, assume_non_capture=False)`
-    raises NotImplementedError pointing at B5."""
+    after B5 returns a marker dict carrying ``psi_post_block`` and
+    ``captured_piece``."""
     pos = imbalanced_position
     occ = sorted(pos.keys())
     # Pick two occupied squares -> capture
@@ -712,14 +719,26 @@ def test_b3a_capture_raises_not_implemented(
     # both are valid in the assume_non_capture=True fast path.
     assert sp.isspmatrix_csr(result) or isinstance(result, dict)
 
-    # With assume_non_capture=False, must refuse for capture moves.
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.u_move_std4(
-            pos, (from_idx, to_idx), axis, assume_non_capture=False,
-        )
-    msg = str(excinfo.value)
-    assert "B5" in msg
-    assert ("ADR-002" in msg or "ADR-003" in msg)
+    # B5 capture path: assume_non_capture=False on a capture move
+    # returns the Option A re-encode marker. The marker carries
+    # captured_piece (matches state_pre[to_idx]) and a 4096-dim
+    # psi_post_block.
+    cap_result = dyn.u_move_std4(
+        pos, (from_idx, to_idx), axis, assume_non_capture=False,
+    )
+    assert isinstance(cap_result, dict), (
+        f"B5 capture path should return marker dict; got "
+        f"{type(cap_result).__name__}"
+    )
+    assert cap_result['strict_unitary'] is False
+    assert cap_result['reason'] == 'capture-rank-1-with-renorm', (
+        f"STD4 capture reason should be 'capture-rank-1-with-renorm'; "
+        f"got {cap_result['reason']!r}"
+    )
+    assert cap_result['channel'] == f'STD4_{axis}'
+    assert cap_result['captured_piece'] == pos[to_idx]
+    assert cap_result['psi_post_block'].shape == (4096,)
+    assert cap_result['psi_post_block'].dtype == np.complex128
 
 
 # ====================================================================

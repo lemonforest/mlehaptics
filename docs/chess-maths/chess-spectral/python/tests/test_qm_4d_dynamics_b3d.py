@@ -494,32 +494,36 @@ def test_b3d_non_capture_invariance(imbalanced_position):
 # Same pattern as B1 / B3a / B3b / B3c: assume_non_capture=False with
 # a capture move raises NotImplementedError pointing at B5.
 
-def test_b3d_capture_raises_not_implemented(imbalanced_position):
-    """Capture moves with assume_non_capture=False raise
-    NotImplementedError pointing at the B5 milestone.
+def test_b3d_capture_returns_marker_dict(imbalanced_position):
+    """Capture moves with assume_non_capture=False return the Option A
+    re-encode marker (capture-rank-1-with-renorm).
 
-    Verifies the message references B5 and ADR-003 §3.2 (the rank-1
-    update + renormalization construction for the capture path).
+    Pre-B5 this raised NotImplementedError; post-B5 the FD_DIAG capture
+    path uses the same Option A re-encode construction as non-captures,
+    differing only in the ``reason`` string and the ``captured_piece``
+    field. Comprehensive B5 coverage in
+    :mod:`tests.test_qm_4d_dynamics_b5`.
     """
     occupied = sorted(imbalanced_position.keys())
     assert len(occupied) >= 2, "fixture must have >= 2 pieces for capture test"
     s = occupied[0]
     t = occupied[1]
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.u_move_fd_diag(
-            imbalanced_position, (s, t), assume_non_capture=False,
-        )
-    msg = str(excinfo.value)
-    assert 'B5' in msg, (
-        f"NotImplementedError should mention B5; got: {msg}"
+    cap_result = dyn.u_move_fd_diag(
+        imbalanced_position, (s, t), assume_non_capture=False,
     )
-    assert 'FD_DIAG' in msg, (
-        f"NotImplementedError should name the channel; got: {msg}"
+    assert isinstance(cap_result, dict), (
+        f"B5 capture path should return marker dict; got "
+        f"{type(cap_result).__name__}"
     )
-    assert 'ADR-003' in msg or 'rank-1' in msg.lower(), (
-        f"NotImplementedError should reference ADR-003 or rank-1 "
-        f"construction; got: {msg}"
+    assert cap_result['strict_unitary'] is False
+    assert cap_result['reason'] == 'capture-rank-1-with-renorm', (
+        f"FD_DIAG capture reason should be "
+        f"'capture-rank-1-with-renorm'; got {cap_result['reason']!r}"
     )
+    assert cap_result['channel'] == 'FD_DIAG'
+    assert cap_result['captured_piece'] == imbalanced_position[t]
+    assert cap_result['psi_post_block'].shape == (4096,)
+    assert cap_result['psi_post_block'].dtype == np.complex128
 
 
 def test_b3d_assume_non_capture_default_skips_check(imbalanced_position):
