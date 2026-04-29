@@ -781,23 +781,34 @@ def test_b3a_move_accepts_tuple_and_int_endpoints(imbalanced_position):
 #  Test 11: bridge integration — STD4 channels populate the dict
 # ====================================================================
 #
-# The bridge stub assembles the per-channel skeleton; with B3a shipped,
-# all four STD4_axis entries should be present (either operator or
-# marker). The stub still raises NotImplementedError because B3b/B3c-e
-# + B5 are pending.
+# After B3d/e the bridge no longer raises NotImplementedError for
+# non-capture moves; it returns the assembled per-channel dict with
+# all 11 entries populated. This test verifies the four STD4_axis
+# entries are present (each either a csr_matrix for same-orbit moves
+# or a marker dict for cross-orbit moves).
 
 def test_b3a_bridge_lists_std4_channels_as_shipped(imbalanced_position):
-    """Bridge stub claims STD4_X/Y/Z/W are shipped (alongside A1)."""
+    """Bridge returns dict with STD4_X/Y/Z/W entries (alongside A1)."""
     move = ((1, 2, 3, 4), (1, 2, 3, 5))
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.apply_move_qm(imbalanced_position, move)
-    msg = str(excinfo.value)
-    # Verify the shipped list contains STD4_*. (The exact phrasing of
-    # the message is bridge-internal but the channel names are pinned.)
-    assert 'STD4_X' in msg
-    assert 'STD4_Y' in msg
-    assert 'STD4_Z' in msg
-    assert 'STD4_W' in msg
+    result = dyn.apply_move_qm(imbalanced_position, move)
+    # B3d/e contract: bridge returns the assembled dict directly
+    # rather than raising NIE. Verify the dict shape and that all
+    # four STD4 entries are present.
+    assert isinstance(result, dict), (
+        f"apply_move_qm should return a dict; got {type(result).__name__}"
+    )
+    for axis in ('X', 'Y', 'Z', 'W'):
+        key = f'STD4_{axis}'
+        assert key in result, (
+            f"STD4_{axis} entry missing from bridge dict; got keys "
+            f"{sorted(result.keys())}"
+        )
+        # Either csr_matrix (same-orbit) or marker dict (cross-orbit).
+        val = result[key]
+        assert sp.isspmatrix_csr(val) or isinstance(val, dict), (
+            f"STD4_{axis} entry must be csr_matrix or marker dict; "
+            f"got {type(val).__name__}"
+        )
 
 
 if __name__ == "__main__":

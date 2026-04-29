@@ -874,34 +874,37 @@ def test_b3b_move_accepts_tuple_and_int_endpoints(axis, imbalanced_position):
 # ====================================================================
 
 def test_b3b_apply_move_qm_includes_pawn_channels(imbalanced_position):
-    """The bridge stub builds A_1 + FA_PAWN_W + FA_PAWN_Y entries
-    before raising NotImplementedError.
+    """After B3d/e the bridge returns the assembled dict including
+    A_1 + FA_PAWN_W + FA_PAWN_Y entries.
 
     Verifies the bridge wires in the FA_PAWN builders correctly. The
-    test inspects the NotImplementedError message to confirm A_1 and
-    both FA_PAWN axes are listed as "shipped" (and STD4_*, FIB_SYM_*,
-    FD_DIAG remain pending).
+    test inspects the returned dict to confirm both FA_PAWN axes are
+    populated as csr_matrix entries (the projector-sandwich is built
+    unconditionally for non-captures regardless of axis-flip status).
     """
     move = ((1, 2, 3, 4), (1, 2, 3, 5))
-    with pytest.raises(NotImplementedError) as excinfo:
-        dyn.apply_move_qm(imbalanced_position, move)
-    msg = str(excinfo.value)
-    # Pending channels should be the non-shipped ones.
-    assert "STD4_X" in msg, f"STD4_X should be pending; got: {msg}"
-    assert "FIB_SYM_1" in msg or "FIB_SYM" in msg, (
-        f"FIB_SYM should be pending; got: {msg}"
+    result = dyn.apply_move_qm(imbalanced_position, move)
+    # B3d/e contract: bridge returns the assembled dict directly.
+    assert isinstance(result, dict), (
+        f"apply_move_qm should return a dict; got {type(result).__name__}"
     )
-    assert "FD_DIAG" in msg, f"FD_DIAG should be pending; got: {msg}"
-    # Shipped channels should be referenced
-    shipped_referenced = (
-        "A1" in msg
-        and "FA_PAWN_W" in msg
-        and "FA_PAWN_Y" in msg
-    )
-    assert shipped_referenced, (
-        f"shipped channels A1, FA_PAWN_W, FA_PAWN_Y should be "
-        f"referenced; got: {msg}"
-    )
+    # FA_PAWN_W/Y entries should be csr_matrix (the projector-sandwich
+    # is built for all non-capture moves; cross-parity-class doesn't
+    # short-circuit to a marker like cross-orbit does for STD4).
+    for axis in ('W', 'Y'):
+        key = f'FA_PAWN_{axis}'
+        assert key in result, (
+            f"FA_PAWN_{axis} missing from bridge dict; got keys "
+            f"{sorted(result.keys())}"
+        )
+        val = result[key]
+        assert sp.isspmatrix_csr(val), (
+            f"FA_PAWN_{axis} should be csr_matrix; got "
+            f"{type(val).__name__}"
+        )
+    # A_1 should also be present and csr_matrix.
+    assert 'A1' in result
+    assert sp.isspmatrix_csr(result['A1'])
 
 
 if __name__ == "__main__":
