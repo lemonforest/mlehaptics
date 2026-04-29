@@ -38,6 +38,7 @@ correctness signal.
 from __future__ import annotations
 
 from .bitboard import Bitboard4D
+<<<<<<< HEAD
 from .attacks_nonsliding import (
     KNIGHT_ATTACKS_4D,
     KING_ATTACKS_4D,
@@ -52,3 +53,7 @@ __all__ = [
     "attacks_knight_4d",
     "attacks_king_4d",
 ]
+=======
+
+__all__ = ["Bitboard4D"]
+>>>>>>> origin/main
