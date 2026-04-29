@@ -9,13 +9,16 @@ unitaries for **all 11 channels** (A_1, STD4_X/Y/Z/W, FA_PAWN_W/Y,
 FIB_SYM_1/2/3, FD_DIAG) — see ADR-003 §3.1's tiered plan and the
 B[2..5] milestone roadmap.
 
-Phase 4 milestone B1 ships only the A_1 channel via
-:func:`chess_spectral.qm_4d_dynamics.u_move_a1`; this module's
+Phase 4 milestones B1 + B3a ship A_1 and STD4_{X,Y,Z,W} via
+:func:`chess_spectral.qm_4d_dynamics.u_move_a1` and
+:func:`chess_spectral.qm_4d_dynamics.u_move_std4`; this module's
 :func:`apply_move_qm` is a **stub** that assembles the per-channel
-dictionary skeleton and raises ``NotImplementedError``. B2-B5 will
-fill in the remaining channels:
+dictionary skeleton and raises ``NotImplementedError``. B3b, B3c-e,
+and B5 will fill in the remaining channels:
 
-  - **B3a** STD4_X/Y/Z/W (strict-unitary, per-axis phase per ADR-001).
+  - **B3a** STD4_X/Y/Z/W (strict-unitary same-orbit; cross-orbit
+    returns measurement-only re-encode marker per ADR-003 amendment
+    Option (a)) — **shipped this milestone**.
   - **B3b** FA_PAWN_W/Y (strict-unitary non-capture; partial-isometry
     capture per B5).
   - **B3c** FIB_SYM_1/2/3 (Phase 3.5 amendment: measurement-only
@@ -55,20 +58,30 @@ from chess_spectral import qm_4d_dynamics as _dyn
 
 
 # Channel name -> milestone identifier. Used by the bridge stub's
-# error message and by future B2-B5 dispatch.
+# error message and by future B3b/B3c-e/B5 dispatch.
 _CHANNEL_MILESTONES: Dict[str, str] = {
-    'A1':         'B1',          # shipped (this milestone)
-    'STD4_X':     'B3a',
-    'STD4_Y':     'B3a',
-    'STD4_Z':     'B3a',
-    'STD4_W':     'B3a',
+    'A1':         'B1 (shipped)',
+    'STD4_X':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
+    'STD4_Y':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
+    'STD4_Z':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
+    'STD4_W':     'B3a (shipped — same-orbit strict; cross-orbit marker)',
     'FIB_SYM_1':  'B3c (measurement-only re-encode)',
     'FIB_SYM_2':  'B3c (measurement-only re-encode)',
     'FIB_SYM_3':  'B3c (measurement-only re-encode)',
-    'FA_PAWN_W':  'B3b',
-    'FA_PAWN_Y':  'B3b',
+    'FA_PAWN_W':  'B3b (shipped — strict-unitary axis-flip; cross-parity marker)',
+    'FA_PAWN_Y':  'B3b (shipped — strict-unitary axis-flip; cross-parity marker)',
     'FD_DIAG':    'B3d/e',
 }
+
+# Channel names that have a shipped per-channel builder. Used to
+# decide which entries to populate in the channels_unitaries skeleton
+# vs. defer to the NotImplementedError listing. Updated as B3b..B5
+# land.
+_SHIPPED_CHANNELS: frozenset = frozenset({
+    'A1',
+    'STD4_X', 'STD4_Y', 'STD4_Z', 'STD4_W',
+    'FA_PAWN_W', 'FA_PAWN_Y',
+})
 
 
 def apply_move_qm(
@@ -113,20 +126,40 @@ def apply_move_qm(
         outstanding channels and their milestone targets.
     """
     # Build what we have so the assembly skeleton is exercised.
-    # B2-B5 will replace each ``raise`` with the channel's
+    # B3a/B3c-e/B5 will replace each ``raise`` with the channel's
     # ``u_move_<chan>`` builder.
     channels_unitaries: Dict[str, csr_matrix] = {}
 
     # ── A_1 channel (B1 — shipped) ─────────────────────────────────
     channels_unitaries['A1'] = _dyn.u_move_a1(state, move)
 
-    # ── STD4_X/Y/Z/W (B3a — pending) ───────────────────────────────
-    # for axis in ('X', 'Y', 'Z', 'W'):
-    #     channels_unitaries[f'STD4_{axis}'] = u_move_std4(state, move, axis)
-    #
-    # ── FA_PAWN_W/Y (B3b — pending; partial-isometry on capture) ───
-    # channels_unitaries['FA_PAWN_W'] = u_move_pawn_w(state, move)
-    # channels_unitaries['FA_PAWN_Y'] = u_move_pawn_y(state, move)
+    # ── STD4_X/Y/Z/W (B3a — shipped) ────────────────────────────────
+    # The four std-rep coord channels share the similarity-transform
+    # construction with axis-specific D_a / phase. Per ADR-003 §3.1
+    # channels 1-4 + ADR-003 amendment Option (a), the strict-unitary
+    # path is restricted to same-B_4-orbit non-capture moves;
+    # cross-orbit moves return a marker dict pointing at v1.5
+    # measurement-only re-encode (NOT integrated here; the bridge
+    # consumer will route channel-blocks via the marker for v1.5).
+    # The dict entries can be a csr_matrix (same-orbit) or a marker
+    # dict (cross-orbit); the v1.5 implementation will dispatch on
+    # the value type.
+    for axis in ('X', 'Y', 'Z', 'W'):
+        channels_unitaries[f'STD4_{axis}'] = _dyn.u_move_std4(
+            state, move, axis=axis,
+        )
+
+    # ── FA_PAWN_W/Y (B3b — shipped) ────────────────────────────────
+    # Antisymmetric pawn channels under W-axis or Y-axis parity. Per
+    # ADR-003 §3.2 + B3b empirical finding: strict-unitary path holds
+    # only for pure-axis-flip moves (sq_to == sigma_axis(sq_from));
+    # cross-parity-class moves get the same measurement-only-marker
+    # treatment as STD4 cross-orbit. Captures are NotImplementedError
+    # (deferred to B5 partial-isometry handling).
+    for axis in ('W', 'Y'):
+        channels_unitaries[f'FA_PAWN_{axis}'] = _dyn.u_move_fa_pawn(
+            state, move, axis=axis,
+        )
     #
     # ── FIB_SYM_1/2/3 (B3c — measurement-only re-encode per Phase ──
     #   3.5 amendment to ADR-003 §3.3) ────────────────────────────
@@ -161,13 +194,16 @@ def apply_move_qm(
     pending = sorted(
         f"{name} (target: {ms})"
         for name, ms in _CHANNEL_MILESTONES.items()
-        if name != 'A1'
+        if name not in _SHIPPED_CHANNELS
     )
+    shipped = sorted(_SHIPPED_CHANNELS)
     raise NotImplementedError(
-        "Full applyMoveQm bridge requires B2-B5 channel unitaries; "
-        "B1 ships A_1 only (see chess_spectral.qm_4d_dynamics."
-        "u_move_a1). Pending channels: " + "; ".join(pending) + ". "
-        "See docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md for the v1.5 "
+        "Full applyMoveQm bridge requires the remaining channel "
+        "unitaries (B3b + B3c-e + B5). Shipped: "
+        + ", ".join(shipped) + ". "
+        "Pending channels: " + "; ".join(pending) + ". "
+        "See docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md and "
+        "ADR-003-AMENDMENT-orbit-restriction.md for the v1.5 "
         "scope decision."
     )
 
