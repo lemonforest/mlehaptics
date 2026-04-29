@@ -7,7 +7,245 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.4.0] — API gaps for Phase 5b / chess4D-OC bridge surface
+## [1.5.0] — 2026-04-29
+
+The QM-extension release. Adds **chess_spectral.qm_4d** (Track A
+kinematic — quantum-mechanical front-end on top of the 4D encoder),
+**chess_spectral.qm_4d_dynamics** (Track B Phase 4 — full move-as-
+unitary dynamics across all 11 channels for non-capture AND capture
+moves), and **chess_spectral.qm_4d_bridge** (the §17.1 7-method
+Pyodide bridge surface plus 6 §17.5 dev/debug methods). Also
+consolidates the v1.4.0-era API gap fixes (which were prepared but
+never tagged on PyPI; rolled into this release).
+
+The chess4D-OC downstream consumer can integrate via
+`pip install chess-spectral==1.5.0` and call the new bridge methods
+through the Pyodide worker.
+
+### Added
+
+#### v1.4 API gap surface (originally prepared for v1.4.0; rolled in)
+
+- **`apply_move(state, from_sq, to_sq, *, promote_to='Q')`**
+  ([`chess_spectral_4d.apply_move`](chess_spectral_4d/apply_move.py)).
+  Promotion-piece argument with default `'Q'` for back-compat;
+  accepts any of `Q`, `R`, `B`, `N`. Closes the v1.3.x silent auto-
+  queen behavior. Tested with all four targets × white/black × W-axis
+  /Y-axis pawns.
+
+- **`MoveHistory4D` + `GameState4D` + `Move4D`**
+  ([`chess_spectral_4d.move_history`](chess_spectral_4d/move_history.py)).
+  Append-only ply-history container with side-to-move and FIDE half-
+  move-clock plumbing. SHA-256 position hashing for repetition
+  tracking. Side-to-move and clock are tracked on the history
+  container, NOT the position dict — keeps the encoder's input
+  contract unchanged.
+
+- **Threefold-repetition + 50-move-rule + insufficient-material draw
+  detection** via `chess_spectral_4d.bridge.get_draw_status(state, *,
+  has_legal_moves=...)`. Returns one of `'none' | 'threefold' |
+  'fifty-move' | 'insufficient' | 'stalemate'`. 2D insufficient-
+  material classification matches python-chess; 4D analog raises
+  `NotImplementedError` (open design question on the bishop "color
+  class" rule for Z_8^4).
+
+- **`get_move_history(state)` + `load_state(fen4)`** bridge methods —
+  Pyodide-friendly history list and FEN4 → GameState4D re-import.
+
+- **`fen_4d.serialize(pos)`** ([`chess_spectral.fen_4d`](chess_spectral/fen_4d.py)).
+  Inverse of `parse`; canonical sorted output. Round-trip property
+  `parse(serialize(p)) == p` tested across 130 fixtures.
+
+- **chess4d 0.4 castling + EP regression test** in the immolation
+  suite confirming no silent-corruption bugs in the upstream rules
+  library.
+
+#### Track A kinematic QM front-end (`chess_spectral.qm_4d`)
+
+- **`state_to_psi(state, side_to_move)`** — encoder output cast to
+  `complex128` ψ ∈ ℂ^45056, L2-normalized, with Z_2 superselection
+  via the side-to-move sign multiplier (resolves the 8-collision
+  central-inversion + color-flip kernel from Pre-flight 1).
+
+- **11-channel projection-valued measure** with Born-rule helpers:
+  `prob_channel(psi, c)`, `measure_channel_distribution(psi)`.
+
+- **Five Hermitian piece-reach observables** (`H_rook_4`, `H_bishop_4`,
+  `H_queen_4`, `H_king_4`, `H_knight_4`) — graph-adjacency matrices
+  in disguise; lazy module-level construction. Per-piece spectrum
+  bounds: rook `[-4, 28]` (integer; vertex-transitive lattice degree),
+  bishop `[-12, 54.4]`, queen `[-16, 81.9]`, king `[-22, 67.7]`,
+  knight `[-36.06, 36.06]`. Pawn observables raise
+  `NotImplementedError` pointing at Track B's pseudo-Hermitian
+  η-metric path.
+
+- **`b4_unitary_rep(g)`** — B_4 hyperoctahedral group representation
+  on ℂ^4096; Kronecker-extension to ℂ^45056 via `b4_unitary_rep_full`.
+  384-element cached LUT.
+
+- **`evolve_under_h0(psi, t, *, channel=None)`** — Zeno-style time
+  evolution under H_0 = -Δ_{P_8^4} via `scipy.sparse.linalg.expm_multiply`.
+  Norm-preserving, energy-conserving, time-reversal-symmetric.
+  `H_FREE_4D` cached singleton sparse Hamiltonian. Spectrum matches
+  the `tables_4d.kron_sum4_eigvals` Pre-flight 3 verification at
+  1.30e-13 residual.
+
+#### Track B Phase 4 channel builders (`chess_spectral.qm_4d_dynamics`)
+
+- **All 11 per-channel `u_move_*` builders** for non-capture AND
+  capture moves:
+  - `u_move_a1` (A_1 trivial irrep; strict unitary same-orbit only)
+  - `u_move_std4(state, move, axis)` for axis ∈ {X,Y,Z,W} (spatial
+    coord channels; strict unitary same-orbit + same-`|coord_resid|`)
+  - `u_move_fa_pawn(state, move, axis)` for axis ∈ {W,Y} (pawn
+    antisymmetric channels; strict unitary axis-flip pairs only)
+  - `u_move_fib_meas(state, move, fib_idx)` for fib_idx ∈ {1,2,3}
+    (FIB_SYM channels; measurement-only re-encode per Phase 3.5
+    amendment to ADR-003 §3.3)
+  - `u_move_fd_diag` (FD_DIAG; rank-1 update + renormalization, cond
+    p95 = 8.6 < 100 acceptance gate)
+
+- **Capture handling** for all channels via Option A (re-encode +
+  marker dict carrying `psi_post_block` + `captured_piece`). Capture
+  reasons: `capture-rank-1-with-renorm` (A_1, STD4_*, FD_DIAG),
+  `capture-partial-isometry` (FA_PAWN_*), `capture-measurement-only`
+  (FIB_SYM_*).
+
+- **`M_pawn = M_single + M_double` decomposition** per Phase 3.5
+  amendment to ADR-005. `_build_m_pawn_single(axis)` is P_w-pseudo-
+  Hermitian at residual 0.000e+00 (matches Probe 3); `_build_m_pawn_
+  double(axis)` accounts for the η-breaking double-push starting-rank
+  term.
+
+- **ADR-001 phase formulas** per channel family: A_1 = 1, STD4_a =
+  `e^(i × π/4 × δ_a)`, FA_PAWN_a = `e^(i × π/2 × sgn(δ_a))`.
+
+#### §17.1 Pyodide bridge surface (`chess_spectral.qm_4d_bridge`)
+
+- **7 §17.1 consumer methods**:
+  - `get_qm_state(state)` → `{ok, psi, basisDim, normSq}` with
+    ComplexArray = real+imag interleaved Float32 wire format
+  - `get_qm_density(state, piece_id=None)` → `{ok, density}`
+    (per-piece marginal raises NIE → v1.7+)
+  - `apply_move_qm(state, move)` → assembled per-channel dict
+    (csr_matrix + marker dict heterogeneous values)
+  - `apply_move_qm_full(state, move)` → assembled ψ_post via per-
+    channel dispatch (the measurement-only-re-encode dispatch logic;
+    THE key new infrastructure)
+  - `measure_at(state, coords, observable=None, *, rng=None)` →
+    Born-rule projective measurement
+  - `get_density_matrix_of(state, piece_id)` → raises NIE → v1.7+
+    (partial trace over channels)
+  - `get_probability_current(state)` → `j_p(c) = Im(ψ* ∇ψ)` field
+    via Kron-sum lattice-gradient operator (anti-Hermitian by
+    construction; integrated divergence ≈ 0)
+  - `get_qm_expectation(state, observable)` → `⟨ψ|H|ψ⟩` for named H
+
+- **6 §17.5 dev/debug methods**: `get_version`, `get_encoder_shape`,
+  `get_fen4_state`, `load_fen4`, `load_jsonl_fixture`,
+  `has_legal_moves(state, team)`.
+
+- **`complex_to_interleaved_float32`** Pyodide-bridge serialization
+  helper (the §17.1 ComplexArray wire format).
+
+#### Documentation, design records, and audits
+
+- **5 Track B Architecture Decision Records** in
+  [`docs/adr/qm_4d/`](../docs/adr/qm_4d/): ADR-001 (per-channel B_4
+  irrep phase), ADR-002 (Zeno time evolution; Stinespring deferred),
+  ADR-003 (tiered per-channel move transformation; FIB measurement-
+  only; orbit-restricted strict-unitary), ADR-004 (Z_2 superselection
+  via state_to_psi, NOT operator anti-commutation), ADR-005 (pawn
+  pseudo-Hermitian η-metric, two-tier delivery).
+
+- **Phase 3.5 prototype probes + ADR amendments**: 4 probe scripts
+  validating each ADR's design gate, plus
+  [`PHASE_3_5_PROBE_RESULTS.md`](../docs/adr/qm_4d/PHASE_3_5_PROBE_RESULTS.md)
+  documenting 3 amendments (FIB → measurement-only, ADR-004 §3.4
+  weakened to state-level parity, ADR-005 M_single/M_double
+  decomposition).
+
+- **ADR-003 §3.1 amendment** for the orbit-restricted strict-unitary
+  tier (Phase 4 B1's empirical finding):
+  [`ADR-003-AMENDMENT-orbit-restriction.md`](../docs/adr/qm_4d/ADR-003-AMENDMENT-orbit-restriction.md).
+
+- **Phase 4 B4 Z_2 grading state-level test surface** — 15 tests
+  verifying `state_to_psi` IS the canonical sector-flip mechanism;
+  complementary positive surface to the pre-existing no-anti-
+  commutation tests.
+
+- **Bridge contract documentation** — new
+  [`docs/bridge_api.md`](../docs/bridge_api.md) (704 lines): consumer-
+  facing API contract for chess4D-OC and other Pyodide consumers.
+  Tone matches `FEN4_FORMAT.md` / `NDJSON4_FORMAT.md`.
+
+- **Documentation overstrong-claim audit** —
+  [`docs/AUDIT_v1.5_DOCS.md`](../docs/AUDIT_v1.5_DOCS.md) (924 lines,
+  35 findings across STRONG / MEDIUM / WEAK severity tiers). Two
+  user-flagged claims softened inline (the "first 4D chess engine
+  ever shipped" and "must test at L4/L8/L16" phrasings); remaining
+  30 findings deferred to user review.
+
+- **`--help` discipline audit + 10 mechanical fixes** —
+  [`docs/AUDIT_v1.5_HELP_DISCIPLINE.md`](../docs/AUDIT_v1.5_HELP_DISCIPLINE.md).
+  Per the §16.4 immolation discipline rule; all 10 violations were
+  the same shape (subparser missing `description=`) and were fixed
+  inline.
+
+- **Immolation suite embiggenment**: 41 → 81 tests (+40 new) covering
+  v1.4 API gaps + Track A kinematic + Phase 4 channel builders +
+  apply_move_qm dispatch + B2 evolution + §17.1 bridge surface +
+  Pre-flight smoke. The canonical release gate now exercises every
+  v1.5 surface.
+
+### Changed
+
+- **README expanded 200 → 473 lines** with v1.5 surface: 4D quick-
+  start example, `qm_4d` / `qm_4d_dynamics` / `qm_4d_bridge` sections,
+  v1.4 API gaps section, §17.1 bridge contract section, refreshed
+  CLI section (current console-script syntax), `phase_operators_4d`
+  section (overdue from v1.3), and a "See also" cross-referencing
+  the research notebooks. Bump-resistant version-example snippet
+  preserved (uses `__version__ == __version__` equality, NOT a
+  literal version string).
+
+- **Targeted overstrong-claim softening** in research notebook §16
+  + 4D notebook + ADR-001:
+  - "first 4D chess engine ever shipped" → "we make no 'first ever'
+    claim"
+  - "must test at L4/L8/L16" → "test at multiple representative
+    depths; L4/L8/L16 are illustrative starting points"
+
+### Notes
+
+- **Phase 4 closes**; all 11 channels handle non-capture + capture
+  moves. `apply_move_qm` returns assembled per-channel dict for ALL
+  inputs; never raises NotImplementedError.
+
+- **v1.4.0 was prepared but never tagged on PyPI.** All v1.4-era
+  work (the API gap surface above) is consolidated into this v1.5.0
+  release. The semver bump is minor (1.3.2 → 1.5.0); skipping 1.4
+  reflects that no shipping artifact ever carried that version.
+
+- **Deferred to v1.6+**: Phase 6 chess engine + tournament harness
+  (search core + 3 evaluator families + self-play harness + per-depth
+  Elo sweep). The chess4D-OC consumer can integrate v1.5 in parallel
+  with v1.6 work.
+
+- **Deferred to v1.7+**: per-piece marginals (`get_qm_density(piece_id=…)`),
+  reduced density matrices (`get_density_matrix_of`), full Stinespring
+  dilation for capture handling, ADR-003 Option (b) orbit-quotient
+  refactor, ADR-005 v1.6 promotion to full η-metric pseudo-Hermitian
+  pawn observables.
+
+## [1.4.0] — never released; rolled into v1.5.0
+
+> **Note:** v1.4.0 was prepared and committed but never tagged on
+> PyPI. All v1.4-era work (the nine API gaps captured in research
+> notebook §16.9 + §17.3 — the chess4D-OC consumer's wish-list
+> before Phase 6 engine work begins) is consolidated into v1.5.0.
+> The detailed entries below are preserved as the historical record;
+> the canonical user-facing summary is the [1.5.0] section above.
 
 Closes the nine API gaps captured in research notebook §16.9 + §17.3
 (the chess4D-OC consumer's wish-list before Phase 6 engine work
