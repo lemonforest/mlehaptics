@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6 phase 6 prep
+
+- **`chess_spectral.qm_2d`** — Track A kinematic QM front-end for the
+  2D 640-dim encoder. Sibling of `chess_spectral.qm_4d` (4D, 45 056-
+  dim, shipped in v1.5.0). Closes the asymmetry surfaced during v1.6
+  Phase 6 planning: the §16 plan calls for a QM-expectation evaluator
+  on **both** 2D and 4D, but v1.5.0 only shipped the 4D side. Without
+  `qm_2d`, the §16 ship gate (per-depth Elo sweep across material ×
+  spectral × QM at 2D and 4D) cannot be met. v1.6 PR-1.
+
+  Public API (mirrors qm_4d):
+  - `state_to_psi(position, side_to_move)` — encode position to
+    L2-normalized ψ ∈ ℂ^640 with Z_2 sector flip on side-to-move.
+  - `inner_product`, `norm`, `expectation` — linear-algebra primitives.
+  - `is_normalized`, `is_hermitian`, `is_unitary` — validation
+    predicates.
+  - `d4_closure`, `d4_element_name`, `d4_unitary_rep_64`,
+    `d4_unitary_rep_full` — order-8 D_4 hyperoctahedral group action.
+    8-element cached LUT (vs B_4's 384 in 4D); `d4_unitary_rep_full`
+    is `I_10 ⊗ U_64(g)` on ℂ^640.
+  - `channel_projector(c)`, `prob_channel`, `measure_channel_distribution`
+    — 10-channel PVM (`A1`, `A2`, `B1`, `B2`, `E`, `F1`, `F2`, `F3`,
+    `FA`, `FD` × 64 modes each).
+  - `H_rook_2`, `H_bishop_2`, `H_queen_2`, `H_king_2`, `H_knight_2` —
+    sparse Hermitians on ℂ^64 built from the 8×8 piece reach
+    predicates. Lazily cached via `__getattr__`. Rook spectrum is
+    integer {-2..14} on the open `P_8 × P_8` lattice; the four others
+    are non-integer due to boundary clipping (same physics as the 4D
+    side).
+  - `H_pawn_2` — raises `NotImplementedError` with a deferral pointer
+    to a future pseudo-Hermitian / η-metric extension (mirrors qm_4d
+    ADR-005 disposition).
+  - `build_H_piece_2(piece)`, `measure_observable_distribution(H, ψ)`
+    — explicit constructors and Born-rule eigenbasis helpers.
+
+  Test surface (44 tests in `tests/test_qm_2d.py`): state-to-psi
+  shape/normalization/Z_2 parity, D_4 closure + unitary lift +
+  caching, channel PVM idempotency + orthogonality + completeness,
+  Born probabilities sum to one, all 5 Hermitian piece observables
+  Hermitian within float, rook integer spectrum verified, pawn raises
+  with informative message, expectation real for Hermitian, and
+  spectral-decomposition Born weights sum to ‖ψ‖².
+
 ## [1.5.0] — 2026-04-29
 
 The QM-extension release. Adds **chess_spectral.qm_4d** (Track A
