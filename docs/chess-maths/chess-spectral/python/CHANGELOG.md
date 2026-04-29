@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — v1.6 phase 6 prep
 
+- **Graph-Laplacian eigenbasis move-legality oracles** at both 2D
+  (`chess_spectral.spectral_legality`) and 4D
+  (`chess_spectral.spectral_legality_4d`) (v1.6 PR-6). A third
+  independent move-legality oracle alongside python-chess /
+  python-chess4d-oana-chiru (reference) and `phase_operators` /
+  `phase_operators_4d` (modular-arithmetic predicates). Demonstrates
+  that the same graph-Laplacian eigenbasis the encoder uses for
+  spectral encoding also functions as a structural lookup table for
+  move legality.
+
+  Method: each non-pawn piece has a movement adjacency matrix `A_p`
+  on the lattice (existing in `tables.py` / `tables_4d.py`); its
+  Laplacian `L_p = D_p - A_p` admits eigendecomposition; the
+  identity `A_p[i,j] = -L_p[i,j] = -Σ_k λ_k v_k[i] v_k[j]` (for
+  `i ≠ j`) lets us reconstruct reach from the eigenbasis directly.
+
+  Public API:
+  - **2D**: `is_reachable(piece, from_sq, to_sq)`,
+    `reachable_targets(piece, from_sq)`,
+    `spectral_reach_score(piece, from_sq, to_sq)`,
+    `agrees_with_phase_operators(piece)`,
+    `piece_eigendecomposition(piece) -> (eigvals, eigvecs)`,
+    `supported_pieces()`.
+  - **4D**: same surface with `_4d` suffix on piece-aware functions.
+    Eigendecomposition is lazy (4096×4096 dense; pays ~5s once per
+    piece on first call).
+
+  Coverage: knight / bishop / rook / queen / king on both
+  dimensions. Pawns are excluded — directed reach breaks
+  Hermiticity, same physics as the qm_2d / qm_4d pawn-observable
+  deferral.
+
+  This module also serves as the **in-house 4D move-generation
+  backend** for §16.2 search (avoids promoting
+  `python-chess4d-oana-chiru` from `[test]` extras to a runtime
+  dependency, which would create a circular dep with the consumer
+  side).
+
+  Test surface (40 tests in `tests/test_spectral_legality.py`):
+  - 2D: every piece × every from-square × empty-board reach
+    matches python-chess (the reference) AND `phase_operators`
+    (the modular oracle). Three independent oracles agree on every
+    move on every square.
+  - 2D: spectral reconstruction `A_ij = -Σ_k λ_k v_k[i] v_k[j]`
+    matches dense lookup at machine precision (1e-10 tolerance).
+  - 2D: eigendecomposition is real-symmetric (eigvals real,
+    eigvecs orthonormal, sorted ascending).
+  - 2D: pawns and unknown pieces raise `ValueError`; out-of-range
+    squares raise.
+  - 2D: cache identity (two queries return the same array object).
+  - 4D: reach counts on canonical positions (4D rook from
+    (4,4,4,4) reaches 28 squares = 7-per-axis × 4 axes;
+    4D king from (0,0,0,0) corner reaches 15 = 2^4-1 squares;
+    4D knight interior reaches more than corner).
+  - 4D: self-loops, pawns, out-of-range, supported pieces, cache.
+
 - **2D search core** (`chess_spectral.engine.search`) per §16.2
   (v1.6 PR-5). Standard alpha-beta game-tree search wrapping the
   §16.1 evaluator API:
