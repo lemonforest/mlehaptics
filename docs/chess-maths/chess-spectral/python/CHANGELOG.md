@@ -50,6 +50,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with informative message, expectation real for Hermitian, and
   spectral-decomposition Born weights sum to ‖ψ‖².
 
+- **Spectral channel-energy evaluator** at both 2D and 4D (v1.6 PR-3).
+  Second of the three §16.1 evaluator families. Computes
+  `score = Σ_c w_c · ‖proj_c(v)‖²` from the encoder output, where
+  `proj_c` slices the per-channel mode block (10 × 64 in 2D; 11 ×
+  4096 in 4D).
+
+  Public API (mirrored 2D + 4D):
+  - `chess_spectral.engine.eval.spectral.evaluate(position,
+    side_to_move, *, weights=None) -> float` — score from
+    side-to-move's perspective. `weights` accepts None (default
+    equal-weighting per §16.1.2's "intentionally bland defaults"
+    rationale), a `{channel_name: float}` dict, or a path to a
+    JSON weights file.
+  - `evaluate_breakdown(position, side_to_move, *, weights=None) ->
+    dict[str, float]` — per-channel score contributions (already
+    side-to-move-flipped). Sum equals `evaluate`. Required for the
+    §17.2 `evaluatePosition` bridge method's `breakdown` field that
+    the chess4D-OC HUD displays.
+  - `channel_energies(v) -> dict[str, float]` — per-channel L2
+    energies from any encoder output vector. Sum equals `‖v‖²` by
+    Plancherel. Useful for direct channel inspection.
+  - `load_weights_json(path) -> dict[str, float]` — loads per-channel
+    weights from a JSON file. Missing channels default to 1.0;
+    **unknown channel names raise `ValueError`** so a typo in a
+    weights file doesn't silently produce wrong scores.
+  - `DEFAULT_WEIGHTS` / `DEFAULT_WEIGHTS_4D` — equal 1.0 per channel.
+    Documented as intentionally non-tuned: §16's tournament harness
+    is the empirical mechanism for weight refinement, and Phase 7
+    learned-weight work is where any hand-tuning would land.
+
+  Default weights are unbiased per §16.7 — the Othello prior shows
+  spectral channel-energy weighting is structurally analogous to
+  Architecture A in the Edax-Othello archive (which won +243 Elo at
+  L6 and decayed to 0 at L10+). Whether chess shows the same
+  depth-decay is the load-bearing empirical question §16 answers.
+
+  Test surface: 27 unit tests in `tests/test_engine_spectral.py`
+  covering Plancherel sanity (sum of channel energies == ‖v‖²),
+  empty / non-empty positions, side-to-move sign flipping, default
+  vs custom weights, partial-weights default-to-1.0, JSON
+  round-trip, JSON unknown-channel raises, JSON non-dict raises,
+  breakdown sums to evaluate, 4D pawn-axis-distinguishes-channels
+  (FA_PAWN_W vs FA_PAWN_Y), and namespace re-export sanity.
+
+- **`chess_spectral.engine` and `chess_spectral_4d.engine`** — Phase 6
+  evaluator/search/tournament namespaces (v1.6 PR-2). Bootstraps the
+  engine package skeleton with the **material evaluator** (the first
+  of the three §16.1 evaluator families):
+
+  Public API (mirrored at both 2D and 4D):
+  - `chess_spectral.engine.eval.material.evaluate(position,
+    side_to_move, *, values='spectral') -> float` — material score
+    from side-to-move's perspective. `values` accepts `'spectral'`
+    (default; uses `tables.SPECTRAL_VALS`), `'standard'` (textbook
+    `tables.VALS` 1/3/3.5/5/9/100), or a custom `{piece_char: float}`
+    dict (pieces absent from the dict score 0; useful for ablations).
+  - `chess_spectral.engine.eval.material.evaluate_white(position, *,
+    values='spectral') -> float` — convenience: always white's
+    perspective, no side-to-move flip. For HUD displays / corpus
+    statistics.
+  - `chess_spectral_4d.engine.eval.material.evaluate(...)` — 4D
+    analogue. Strips pawn axis (`('P', 'w')` → `'P'`) before value
+    lookup; legacy single-char `'P'`/`'p'` accepted without warning
+    spam (search loops would otherwise drown in deprecation noise).
+
+  No encoder call, no scipy, no math beyond integer addition. Pure
+  baseline that the spectral / QM evaluators (PR-3 / PR-4) are
+  empirically tested *against* in the §16 self-play tournament. The
+  evaluator-API contract (`evaluate(position, side_to_move) -> float`,
+  side-to-move-flipped, deterministic) is now established for the
+  search core (PR-5) to consume.
+
+  Test surface: 27 unit tests in `tests/test_engine_material.py`
+  covering empty / starting / lopsided positions, side-to-move sign
+  flipping, all three value-table modes, custom dict ablation, 4D
+  pawn-axis stripping, legacy single-char pawn acceptance, unknown
+  piece chars score 0, unknown table strings raise `ValueError`,
+  cross-dim consistency (a rook is worth the same in 2D and 4D), and
+  namespace re-export sanity.
+
 ## [1.5.0] — 2026-04-29
 
 The QM-extension release. Adds **chess_spectral.qm_4d** (Track A
