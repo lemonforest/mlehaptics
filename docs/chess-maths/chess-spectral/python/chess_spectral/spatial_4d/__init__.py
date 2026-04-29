@@ -38,5 +38,17 @@ correctness signal.
 from __future__ import annotations
 
 from .bitboard import Bitboard4D
+from .attacks_nonsliding import (
+    KNIGHT_ATTACKS_4D,
+    KING_ATTACKS_4D,
+    attacks_knight_4d,
+    attacks_king_4d,
+)
 
-__all__ = ["Bitboard4D"]
+__all__ = [
+    "Bitboard4D",
+    "KNIGHT_ATTACKS_4D",
+    "KING_ATTACKS_4D",
+    "attacks_knight_4d",
+    "attacks_king_4d",
+]
