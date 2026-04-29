@@ -2418,6 +2418,407 @@ The supplement defines seven phase operators (one per polarization, §11.2), spe
 
 ---
 
+## 15. Cross-Disciplinary Applications: What Travels Beyond Chess
+
+The work in §1–§11 built a specific tool: a 4D spectral chess encoder on `Z_8^4` with `B_4` symmetry adaptation and a phase-operator move engine, producing 45 056-dim float32 vectors, byte-stable across a C and a Python implementation, parity-tested at 1e-10. The chess application is the proximate goal. This section is for the rest of it: the machinery that produced that tool — *how* we are able to do this — is broader than chess and crosses cleanly into several disciplines that don't yet have a shipping toolkit covering the same ground. Fancy stuff that travels.
+
+### 15.1. Why the toolkit crosses disciplines
+
+The math underneath is well-established. Krawtchouk polynomials, the Hamming scheme `H(d, q)`, `B_n` irrep decomposition of `L²(Z_n^d)`, graph-Laplacian eigenmodes as discrete Fourier modes, quantum walks on hypercubes — all 25-to-60+ years old. What's distinctive isn't a new theorem, it's the *combination* of:
+
+- a byte-stable, parity-tested encoder for symmetry-adapted lattice features
+- channels that simultaneously carry semantic labels (piece types) AND irrep typing, so each output dim is interpretable AND equivariant
+- pre-computed Hermitian observables (the lifted `P_piece_4` reach predicates — see §15.2(4) below)
+- with the planned `chess_spectral.qm_4d` extension, a quantum-mechanical front-end exposing `state_to_psi`, unitary moves, the Born rule, and time evolution under `H = -Δ`
+
+That combination doesn't exist on PyPI today. PyGSP is irregular-graph spectral; escnn / e3nn are equivariant ML black boxes; Qiskit is circuit-flavored; lattice QCD codes are too heavy and too domain-specific. The chess-spectral toolkit fills a small but real gap: a Python-first, byte-stable, parity-tested toolkit for `Z_n^d` Hamming-scheme analysis with `B_d` adaptation and a QM-formalism API on top.
+
+### 15.2. The enabling machinery
+
+The four pieces that make the toolkit cross-disciplinary, with pointers to where each is built:
+
+1. **The graph and its symmetry group.** The lattice is `P_8 □ P_8 □ P_8 □ P_8` — the 4D path-graph product, NOT the cycle product `C_8^4` (this matters; see §15.5 below for what changes if you swap to the torus variant). The B_4 hyperoctahedral group of order 384 acts as global lattice symmetries via [`tables_4d.b4_permutation_matrix`](chess-spectral/python/chess_spectral/tables_4d.py). Permutations are orthogonal, so this lifts to a unitary representation `π : B_4 → U(ℂ^4096)` for free.
+
+2. **The simultaneous-eigenbasis identity.** The encoder's 4096 per-channel eigenmodes are *exactly* the simultaneous eigenbasis of (Δ, B_4 commutant). This was conjectured during qm_4d scoping and verified at machine precision: max commutator norm 1.6e-13, max ‖Δv − λv‖ = 3.3e-16, every eigenspace stable under all 384 group elements (225 / 225 stable). The engineering "choice" of basis is actually a representation-theoretic theorem; full diagnostics in [`python/research/spectral_identity_4d_findings.md`](chess-spectral/python/research/spectral_identity_4d_findings.md). This is what makes the encoder canonical rather than ad-hoc — any `B_4`-equivariant function on Z_8^4 lattice configurations decomposes naturally in this basis.
+
+3. **The 11-channel decomposition as a built-in projection-valued measure.** The 11 channels (`A1`, `STD4_X/Y/Z/W`, `FIB_SYM_1/2/3`, `FA_PAWN_W`, `FA_PAWN_Y`, `FD_DIAG`) are block-disjoint orthogonal subspaces summing to the full 45 056-dim space. Each channel carries (a) a piece-type / symmetry-class semantic and (b) a B_4-irrep typing. That dual labeling is the unusual feature: downstream models get equivariance AND interpretability without engineering either separately.
+
+4. **Hermitian piece-reach observables, free of charge.** The non-pawn phase-operator predicates (`P_rook4`, `P_bishop4`, `P_queen4`, `P_king4`, `P_knight4`) lift to real-symmetric Hermitian matrices on ℂ^4096 with real spectra (Hermiticity verified at floating residual 4.7e-15 in Pre-flight 2). They are graph-adjacency matrices in disguise — reach is symmetric, so adjacency is symmetric, so the operator is Hermitian. **Phase 2's empirical full-sweep refines the spectrum bounds:** rook has the cleanest integer spectrum `[-4, 28]` (vertex-transitive lattice degree); bishop `[-12, 54.4]`, queen `[-16, 81.9]`, king `[-22, 67.7]`, knight `[-36.06, 36.06]`. Non-rook pieces have larger non-integer spectra because boundary clipping on the open Z_8^4 lattice breaks vertex-transitivity. The five `H_piece_4 = adj(P_piece_4)` observables are physically meaningful (eigenvalues are reach-centrality scores) and computationally cheap to construct. See [`python/research/phase_operators_4d_pseudo_hermitian_audit.md`](chess-spectral/python/research/phase_operators_4d_pseudo_hermitian_audit.md) and [`python/chess_spectral/qm_4d.py`](chess-spectral/python/chess_spectral/qm_4d.py).
+
+   Pawn predicates break Hermiticity (directed push) — that's where the qm_4d module's pseudo-Hermitian / PT-symmetric machinery earns its keep, with a metric operator η resolving the asymmetry. This is the natural place for Bender / Mostafazadeh constructions; the rest of the dynamics doesn't need them.
+
+5. **A built-in Z_2 superselection structure.** The encoder is invariant under the (central inversion `x → (7,7,7,7) − x` + global color flip) Z_2 involution by design. Pre-flight collision testing on 41 556 positions found exactly the fixed-point set of that involution as the 8-element collision class; real-game corpora (601 self-play + 15 fixtures) are 100% injective. The interpretation: ψ naturally lives on `configurations / Z_2`, a parity-superselection sector. See [`python/research/encoder_injectivity_4d.py`](chess-spectral/python/research/encoder_injectivity_4d.py).
+
+### 15.3. ML hooks that fall out
+
+Most of these ride on the encoder alone. The four hooks marked **(Q)** require the planned qm_4d extension.
+
+- **Frozen featurizer with built-in `B_4 ⊕ Z_2` equivariance.** Any downstream MLP / transformer / diffusion model trained on chess-spectral encodings inherits the symmetries for free. No e3nn / escnn boilerplate — `pip install chess-spectral` and treat the encoder as the first layer. The B_4 equivariance comes from §15.2(2,3); the Z_2 invariance from §15.2(5).
+- **Channels are simultaneously semantic and irrep-typed.** For interpretable equivariant ML this is rare: most equivariant networks give you irrep typing without semantic labels, or vice versa. We get both. Each output dim has a piece-type tag and a B_4-irrep tag, so attribution / probing studies are immediate.
+- **Multi-scale features without wavelets.** Laplacian eigenmodes are sorted by spectral radius, which corresponds to spatial frequency on the lattice. Low-frequency = global structure, high-frequency = local. Built-in pyramid; no wavelet construction needed; useful for curriculum learning and multi-resolution analysis.
+- **Pre-computed scalar features `⟨ψ|H_piece|ψ⟩`.** The five non-pawn Hermitian observables from §15.2(4) are drop-in scalar features for any state. No graph walk per forward pass; they're sparse matrices applied once.
+- **Free symmetry-aware data augmentation.** The Z_2 invariance from §15.2(5) means models trained on encodings don't need manual color-flip augmentation. The encoder collapses the orbit by design.
+- **Byte-stable parity-tested feature pipeline.** Determinism / reproducibility for regulated ML domains (medical imaging, finance, regulatory). The C/Python parity gate (1e-10 in float comparisons; bit-exact `tobytes()` in `.spectralz4`) makes the feature pipeline auditable in a way most ML stacks aren't.
+- **(Q) Move-as-unitary as a sequence representation.** A chess game becomes a product of unitaries `ψ_n = U_n U_{n-1} ⋯ U_1 ψ_0`, fundamentally different from "sequence of (state, move) tuples." Models predicting next-move-as-unitary in encoded space may learn structurally different things than models predicting next-state-as-vector.
+- **(Q) Born-rule loss instead of L2.** Cross-entropy on `prob_channel(ψ, c) = |⟨c|ψ⟩|²` forces models to match channel-by-channel probabilistic structure rather than per-coord distance. For generative models on lattice configurations, closer to what's actually wanted.
+- **(Q) Quantum-walk attention.** Replace softmax attention with `exp(-iHt)`-based attention on the chess graph. The graph Laplacian `H = -Δ` provides tunable spectral filters at different time scales `t`. Drop-in attention module; transferable to other graph-attention contexts.
+- **(Q) Discrete diffusion on hypercubes.** Native forward process is `ψ(t) = exp(-iHt) ψ(0)` (unitary) or `exp(-Ht) ψ(0)` (heat kernel). Diffusion models with built-in B_4 equivariance.
+
+### 15.4. Where the toolkit lands beyond chess
+
+Specific subfields where chess-spectral (with the qm_4d extension) fills a real gap, ordered by likelihood of demand:
+
+1. **Pedagogy and teaching.** Concrete, byte-stable, parity-tested Python toolkit for harmonic analysis on finite groups, graph signal processing, and quantum walks on a non-trivial lattice. Currently fragmented across SageMath snippets in research papers; no shipping educational toolkit covers Z_n^d analysis end-to-end with both engineering and physics APIs.
+2. **Hamming-scheme / association-scheme research.** Bannai–Ito readers work in SageMath / GAP / Mathematica. There's no PyPI package providing reference implementations of `H(d, q)` spectroscopy + Bose–Mesner algebra access + symmetry-adapted bases. chess-spectral is a working `H(4, 8)` implementation; the structure ports to any `H(d, q)` with modest changes (replace the 1D path-graph eigenbasis with the appropriate one).
+3. **Quantum-walk research on Hamming graphs.** The arXiv:2509.26243 audience (symmetric coined quantum walks on Hamming graphs) needs reference implementations to validate theorems against. chess-spectral with qm_4d gives them a parity-tested substrate.
+4. **Equivariant ML benchmarks and building blocks.** A concrete labeled dataset of B_4-symmetric configurations on Z_8^4 with known irrep structure and game-semantic channels. Useful for validating equivariant-NN claims.
+5. **Cross-domain transfer template.** `Z_8^4` is a specific Hamming `H(4, 8)`. The same encoder structure ports to Go-like games on `Z_n^d`, RNA secondary-structure spaces, molecular conformations on torsional grids, time-discretized trajectories. chess-spectral becomes a *template* for spectral encoders on combinatorial-configuration spaces with non-trivial symmetry.
+
+### 15.5. Adjacent variants and what changes
+
+Two natural variants point at distinct subfields:
+
+**Torus variant: `C_8^4` instead of `P_8^4`.** The 1D spectrum becomes 4 distinct eigenvalues (`2(1 − cos(2πk/8))` for k = 0..3 plus repeats), the 4D spectrum has only `O(d)` distinct eigenvalues, and the symmetry group enlarges to the wreath product `Z_8 ≀ S_4 ⋊ S_2` ≈ `B_4 ⋊ Z_8^4` (translations join the lattice symmetries). Right substrate for periodic boundary conditions: lattice QCD, periodic-image crystallography, certain quantum-walk constructions. The encoder's machinery would port directly; only the eigenvalue tables need regeneration.
+
+**Higher-q variant: `H(d, q)` for q ≥ 8.** The B_d adaptation extends naturally to wreath product `S_q ≀ S_d`. Krawtchouk polynomial families for general q provide the eigenbasis. The 11-channel decomposition would need adapting (channel count grows), but the structure is otherwise unchanged. Opens applications to larger-alphabet coding theory, larger-state combinatorial games, and generalized quantum walks.
+
+### 15.6. Honest scope: math vs. toolkit
+
+The mathematical content here is 0% novel — every individual ingredient is well-established. The toolkit packaging is ~70% novel: no single PyPI package combines what chess-spectral with qm_4d will provide. The chess-as-4D-spectral-physics framing is ~95% novel for chess specifically. **The realistic value proposition for someone outside chess is "useful infrastructure," not "new physics."** That's a real but modest niche, and it's where the toolkit's reach naturally goes.
+
+The QM extension (the planned `qm_4d` module) is *not* intended as a physics paper. The Aaronson "Read the Fine Print" critique (2015) applies directly to any straight-line QM-rebrand of classical lattice data — basis-aligned PVMs on basis-aligned states return classical readouts tautologically. The escape valves are genuine interference (`H_legal_moves` producing rankings different from the classical legal-move oracle), genuine speedups versus classical baselines, or representation-theoretic identities. The spectral identity in §15.2(2) is the cleanest of these: the encoder's basis IS the simultaneous eigenbasis of (Δ, B_4 commutant), at machine precision. That's a clean math statement, and it's the theorem underlying every claim about "B_4 equivariance for free." See the 4D notebook's *qm_4d Pre-flight Findings* section for the audit record that produced this confidence.
+
+---
+
+## 16. Position Evaluation, Search, and Self-Play Validation (Phase 6 Plan)
+
+After the QM extension ships (Tracks A + B), the natural next PR adds **engine-level validation** for the spectral / QM framework: position evaluators, a standard search stack, and a self-play tournament harness, for **both 2D and 4D**. The motivation is empirical: §3, §4, §5, §11, §15 all argue the spectral / QM machinery captures meaningful information about chess positions; a self-play tournament between (material) vs. (spectral channel-energy) vs. (QM-expectation) evaluators is the cleanest test of that claim. If spectral / QM evaluators consistently lose to material, the framework's chess-relevance is in question. If they win or hold even, that's evidence the encoded representation contains exploitable structure.
+
+### 16.1. Three evaluator families
+
+For each dimension (2D in `chess_spectral`, 4D in `chess_spectral_4d`):
+
+1. **Material baseline (`eval=material`).** Standard piece-count score with spectrally-derived piece values from §3 / [`chess_spectral_values.py`](archive/chess_spectral_values.py). Per-side sum, side-to-move negation. Pure baseline; no encoder call.
+
+2. **Spectral channel-energy weighted (`eval=spectral`).** Encode the position via `encode_4d` (or 2D `encode_640`), compute per-channel L2 energy `E_c = ‖proj_c(v)‖²` for the 11 channels (4D) or 10 channels (2D), score = Σ_c w_c E_c. Weights `w_c` are tunable: hand-tuned defaults shipped, optional load from a JSON weight file via `--eval-weights PATH`. Variants by game phase (opening / middlegame / endgame) optional and gated behind a flag.
+
+3. **QM expectation (`eval=qm`).** Build `ψ = state_to_psi(state, side_to_move)` via the planned `qm_4d` module, then score = Σ_O α_O · ⟨ψ\|O\|ψ⟩ for a configurable observable basis. Default observables: the five non-pawn `H_piece` Hermitians from §15.2(4), the 11 channel projectors `P_c` (Born probabilities), and (post-Track-B) any pseudo-Hermitian pawn observables with the chosen η-metric. `α_O` is tunable, same `--eval-weights` mechanism as the spectral evaluator.
+
+All three evaluators expose the **same API surface**: `evaluate(state, side_to_move) -> float`. This is what the search layer calls.
+
+### 16.2. Standard search stack
+
+Same architecture for both dimensions. The expensive question (move generation) differs — 2D uses `python-chess`, 4D uses `python-chess4d-oana-chiru` and/or our own `phase_operators_4d` predicates — but the search loop is identical:
+
+- **Negamax with alpha-beta pruning.** Standard.
+- **Iterative deepening** with time control. Search depth 1, 2, 3, ... until the per-move budget expires; return the best move from the deepest completed iteration.
+- **Transposition tables.** Zobrist-hashed positions → `(depth, score, best_move, bound_type)`. Bound types: EXACT, LOWER, UPPER. Two-bucket-replacement scheme.
+- **Move ordering** (critical for alpha-beta efficiency):
+  - 1. Hash move (TT-suggested) tried first
+  - 2. MVV-LVA: captures sorted by victim value descending, attacker value ascending
+  - 3. Killer moves: per-depth memory of recent beta-cutoff producers
+  - 4. History heuristic: per-(piece-type, dest-square) counters of cutoff frequency
+- **Null-move pruning.** If the side-to-move "passes" and a reduced-depth search still returns ≥ beta, prune. Disabled in zugzwang-prone endgames (configurable threshold).
+- **Quiescence search.** At leaves, extend on captures (and checks, optionally) until no forcing moves remain. Prevents the horizon effect.
+
+Standard ablations are exposed as flags so we can study which components matter for spectral / QM evaluators specifically: `--no-null-move`, `--no-killer`, `--no-mvv-lva`, `--no-tt`, `--no-quiescence`. Default: all on.
+
+### 16.3. Self-play tournament harness
+
+- Round-robin: every pair of agent configurations plays both as white and black; multi-game matches per pairing for variance reduction.
+- Termination rules: standard (checkmate, stalemate, threefold repetition where defined, 50-move rule, max plies cap). 4D repetition is deferred per `phase_operators_4d` status; max-ply cap suffices.
+- ELO tracking via standard incremental updates.
+- Logging: `.pgn` for 2D (compatible with any PGN reader), NDJSON4 for 4D (the format already in use; see [`docs/NDJSON4_FORMAT.md`](chess-spectral/docs/NDJSON4_FORMAT.md)).
+- Output: structured `tournament_results.json` (per-pairing W/D/L, per-agent ELO, per-game metadata) plus the raw game logs.
+
+### 16.4. CLI surface and the `--help` discipline
+
+Every new command must ship with a complete `--help` block. This is a discipline rule, not a polish item: `argparse` `help=` strings are the user-facing contract for any CLI addition. The immolation suite already enforces "no unwired CLI commands" ([`test_smoke_e2e.py::test_no_unwired_stubs_in_shipped_python_or_c`](chess-spectral/python/tests/test_smoke_e2e.py)); Phase 6 adds a parallel guard checking that every subcommand has non-empty `help=` text on every argument and a non-empty subcommand `description`.
+
+Planned 2D additions (`chess-spectral`):
+
+| Command | Required args | Optional |
+|---|---|---|
+| `search` | `--position FEN` (or stdin), `--depth N` or `--time T` | `--eval material\|spectral\|qm`, `--eval-weights PATH`, `--tt-size N`, `--no-null-move`, `--no-killer`, `--no-mvv-lva`, `--no-tt`, `--no-quiescence` |
+| `tournament` | `--agents A,B,C` (or `--config PATH`), `--rounds N` | `--openings PATH`, `--time-control STRING`, `--output PATH`, `--max-plies N` |
+| `play-engine` | `--engine NAME`, `--time-control STRING` | (interactive PGN exchange for human-vs-engine; optional) |
+
+Planned 4D additions (`chess-spectral-4d`): same three commands, FEN4 / NDJSON4 formats, identical evaluator / search / tournament options.
+
+Each `--help` entry must (a) name the argument, (b) explain its semantics in one line, (c) document the default. Defaults are checked by tests.
+
+### 16.5. What we expect to learn
+
+The tournament results answer specific empirical questions:
+
+- **Does spectral channel-energy evaluation correlate with position quality?** Tournament: `material` vs. `spectral_default` (hand-tuned weights). If `spectral_default` wins or holds even at equal search depth, the encoded representation contains exploitable position information. If it loses badly, weights need learning (natural follow-up: gradient descent on tournament results), or the framing is wrong.
+- **Does QM-expectation evaluation outperform either?** Tournament: `material` vs. `spectral` vs. `qm`. This isolates the value-add of the QM front-end specifically. If `qm` adds nothing over `spectral`, the QM extension is mathematically clean but practically empty (which is fine — it can still ship as the cross-disciplinary toolkit per §15, but we won't claim chess-strength benefits).
+- **Which observables matter?** Per-observable ablation in `qm` evaluator. If only `H_king` and the channel projectors carry signal, that focuses the QM module's claims. If the pseudo-Hermitian pawn observables (Track B) matter, that validates the η-metric machinery beyond aesthetic rigor.
+- **2D vs. 4D contrast.** The 4D tournament is the **first 4D chess engine ever shipped** (no prior art — `python-chess4d-oana-chiru` provides rules but not search). Even before fine-tuning, this is a notable artifact. The 2D tournament is calibration: results have to look reasonable next to standard chess engines (we are NOT trying to beat Stockfish; we are calibrating that our search + eval combine sensibly).
+
+### 16.6. Scope and dependencies
+
+Phase 6 ships AFTER:
+- Phase 2 (Track A kinematic `qm_4d`)
+- Phase 4 (Track B `qm_4d` dynamics)
+- Phase 5 (notebook merges)
+
+Estimated effort: 1500–3000 LOC across both dimensions (search core ~500 LOC each, evaluators ~300 LOC each, tournament harness ~400 LOC shared, CLI ~200 LOC each, tests ~500 LOC). The 4D engine is the bigger novelty; the 2D engine is calibration / sanity check.
+
+A natural research follow-up (Phase 7+, not committed): tune evaluator weights via self-play with policy-gradient or supervised distillation against an external strong engine (Stockfish for 2D; for 4D there is no external reference, so self-play bootstrap is the only option). That work depends on Phase 6 shipping first to establish the harness.
+
+### 16.7. Prior: Othello / Edax spectral-weights result (load-bearing)
+
+> **Source:** `edax-spectral-reversi` archive at `D:\GitHub\zen-pike-6af276` (last active 2026-04-27). FM-augmented Edax fork that integrated sheaf-spectral `D_4 × Z_2⁺` features (5 channels: A_1⁺, A_2⁺, B_1⁺, B_2⁺, E⁺ on the 64-cell Othello board) into the engine's evaluation function. Recovered by the read-only walk in this PR. Files most worth a closer reading: `docs/architecture_A.md`, `docs/spectral_math.md`, `docs/NEXT_PARADIGM.md`, `docs/path_2b_3_4_findings.md`, `docs/research_directions.md`, `docs/FINAL_SUMMARY.md`.
+
+The user's recall — "spectral weights did nothing for us" — is directionally right but understates the actual structure. The verified findings are more useful as a design constraint:
+
+**Shallow-depth positive, deep-depth negative.** Architecture A (linear spectral features) produced **~+243 Elo at L6** and captured ~50% of FM's unexplained variance at ply=10 (R² 0.352 → 0.680 on the Takizawa archive). At L10+ the signal **vanishes** entirely — deeper search subsumes the spectral contribution. The "did nothing" recall is the L10+ regime; the L6 regime says spectral weights work *very well* when the search horizon is shallow enough that the eval function actually drives move ranking.
+
+**Convergence ceiling is structural, not feature-engineering.** All three architectures tested — Architecture A (linear), B (learned bilinear latents), C (spectral-kernel replacement) — produced *identical* L6 match results (3-1-16, −269 Elo) when trained on single-ply data. The ceiling is the corpus / target-alignment, not the model. Adding bilinear or kernel structure to the linear baseline at one fixed training ply doesn't shift move rankings, because alpha-beta leaves at L6 are at ply=12 — only internal nodes ever see the trained ply=10 evaluator.
+
+**Eval-task wins do not transfer to play quality.** The "bracket" feature (pending-flip pseudo-channels) reduces eval-task RMSE by 11% (19.69 → 17.51), CV-stable across folds. **Yields 0 Elo at L6/L8/L10.** Same pattern reproduced under ridge, logistic, σ-scaling, and nonlinear BZ formulations. RMSE wins on a position-correlation task are not a proxy for match strength under alpha-beta leaf evaluation. Documented across multiple `path_*_findings.md` and `FINAL_SUMMARY.md`. **This is the single most important methodological lesson the Othello work establishes.**
+
+**Target misalignment is the binding constraint.** Refitting bracket weights against four different Takizawa-archive targets (`mean_lb`, `mean_ub`, `max_ub`, `min_lb`) produced radically different fitted weights yet *identical* play (game-1 disc count 50−14 across all variants). The target predicts conservative endgame outcome, not best-move ranking. Spectral channel weights, in this regime, are an answer to the wrong question.
+
+**Endgame move-quality signal is real and large** (+12.3 pp win-rate lift, ply 48-60, top-quintile bracket-disrupting moves vs bottom-quintile, ~4σ confidence). Did not get integrated into shipping evaluator because it requires per-move ΔE recomputation that wasn't wired in C. Open thread.
+
+#### Implications for Phase 6 design
+
+This is now the most important calibration data Phase 6 has. Direct consequences:
+
+1. **Test at multiple search depths.** A single-depth tournament conceals exactly the phenomenon Othello documented. The Phase 6 tournament harness must run at least three depths (e.g., L4 / L8 / L16 in chess; the analog of L6 / L10 / L20 in Othello) and report per-depth ELO deltas. A single-depth headline number would have hidden the +243 Elo at L6 in the Othello data; we will not repeat that mistake.
+2. **Audit the training target before fitting weights.** Hand-tuned defaults are fine for shipping. But any learned-weight follow-up (Phase 7+) must be explicit about what target it's regressing against — Stockfish eval at fixed depth, win/loss outcome, anchored-leaf evaluation, etc. — because target misalignment was the Othello binding constraint, not optimization.
+3. **Don't trust eval-task metrics as signal-of-play-strength.** The Phase 6 notebook entry on tournament results must report **Elo deltas from match play**, not RMSE / R² / channel-correlation numbers. The Othello archive shows these decouple cleanly.
+4. **The QM-expectation evaluator is the more interesting test.** Spectral channel-energy weighting is structurally close to what Othello tested and likely faces the same shallow-strong / deep-vanishing decay. The QM evaluator's `⟨ψ|H|ψ⟩` form with the §15.2(4) Hermitian piece-reach observables is *structurally different* — it's not a linear feature-energy sum, it's an expectation value of an operator in a fixed basis. Whether QM-expectation faces the same depth-decay is genuinely open. Treat that as Phase 6's headline question.
+5. **Bracket-style features deferred.** Adding pending-flip pseudo-channels analogous to Othello's "bracket" is a natural Phase 7+ direction in chess (analog: pending-capture pseudo-channels, or pin/skewer pseudo-channels). The Othello archive is clear that they buy eval-task RMSE but not Elo — replication on the chess side is interesting but not the load-bearing experiment.
+
+#### Updates to §16.5 in light of this
+
+The original §16.5 framed three empirical questions; with the Othello data in hand, they refine to:
+
+- *(modified)* Does spectral channel-energy evaluation correlate with match strength **at any search depth**? Othello prior: yes at L6, no at L10+. Chess test: per-depth ELO delta sweep at L4 / L8 / L16. Confirming the depth-decay extends a known finding; finding constant Elo delta across depths is a chess-specific positive (would point at chess's richer piece structure breaking the Othello pattern).
+- *(unchanged)* Does QM-expectation evaluation outperform either spectral or material? Now the *primary* question, since spectral's behavior is partially predicted.
+- *(modified)* Which observables matter? Per-observable ablation; Othello data warns specifically that channels with high RMSE-fit relevance may have zero Elo relevance.
+- *(unchanged)* 2D vs 4D contrast.
+- *(new)* **Per-depth signal decay curve.** Plot ELO delta vs search depth for each evaluator. This is the most informative single chart Phase 6 can produce — directly comparable to the Othello L6/L10 contrast.
+
+#### Phase 7 (learned weights) reframing
+
+If Phase 6 confirms the depth-decay pattern for spectral evaluation in chess, Phase 7's learned-weights work has two paths:
+- **(a)** Confirm the structural ceiling — re-fit per-depth and show that no weight assignment recovers Elo at deep search. Strong negative result; would shift attention entirely to QM-expectation evaluators.
+- **(b)** Demonstrate that target alignment was the bottleneck — fit against best-move outcome instead of position-evaluation outcome (the specific Othello failure mode), see if that changes the picture. Likely the more productive direction given the Othello findings.
+
+Either path is informative. Both depend on Phase 6 shipping the harness and documenting per-depth deltas first.
+
+### 16.8. Prior: Chess-side Othello research thread (`docs/othello-maths/`)
+
+> **Source:** [`docs/othello-maths/`](othello-maths/) inside this repo. Separate from the standalone zen-pike archive surveyed in §16.7. The canonical artifact is the 1845-line `othello_spectral_research_notebook.md`, plus 1011-line `PHASE_1E_FINDINGS.md`, plus ~30 research scripts in `othello-maths/research/`. This thread tested spectral hypotheses *on Othello* with the explicit purpose of informing chess-spectral. The merge-scope agent (PR-72 era) flagged that the six Patch 1C items propagated cleanly into chess; what follows are the substantive findings beyond those patches that the chess notebook had not previously absorbed.
+
+The headline reframing is sharp: §16.7 reads "convergence ceiling is structural, not feature-engineering." §16.8 says the ceiling **can move** if the feature basis is rich enough. Both are true; they're testing different things.
+
+#### 16.8.1. Architectural improvements that DID move the ceiling
+
+**Faithful sheaf bracket-classifier: +40% gain** ([`research/faithful_sheaf.py`](othello-maths/research/faithful_sheaf.py); §2e.5–§2e.6 of the othello notebook). Replacing endpoint-only restriction maps with per-cell R1/R2/R3/R4 bracket-state classifier and projecting pending-flank counts through D_4 lifted D_4-A_1(s²) partial ρ from −0.319 → −0.447 at N=2587. The lesson: the feature *basis* is the bottleneck, not the *weights*. Naive linear weights on naive occupation features are a weak ceiling; sheaf-aware features lift it substantially.
+
+**Phase-operator reweighting chain: +114% cumulative gain** (`othello_spectral/phase_operator.py`; §2e.15–§2e.16). Two-step pipeline: (a) diagonal scaling by sheaf spectral features (λ₂, entropy, kernel-dim) gives +12%; (b) learned coupling matrix via Nelder-Mead optimisation gives +114% total. The coefficients are driven by **entropy-difference** between owners. End-to-end: D_4-A_1 partial ρ −0.319 → **−0.683** (2.03× improvement). This is the most directly applicable result to chess-spectral's Phase 6 design — the QM-expectation evaluator with learned `α_O` weights on the §15.2(4) Hermitian observables is structurally close to this construction. Treat it as the prior to beat.
+
+**Move-operator toolchain: 4.9× replay speedup** with byte-identical SHA256 validation (`research/move_operator.py`, §2e.18–§2e.19). The `SheafMoveOperator` exposes `flip_count_vector` (64-dim impact ranking), `encode_post_move` (lookahead encoding without replay overhead), and 6 other public methods. Replaces per-move full-board scans with incremental sheaf-fiber updates. Direct analogue for chess Phase 6: precomputed move-impact ranking would feed MVV-LVA / killer-move heuristics with a richer signal than victim/aggressor type.
+
+**C encoder sheaf port: 25× speedup, bit-identical to Python** (`c_encoder/src/othello_spectral.c`, §2e.13). ANSI C17, clang -Wall clean. ctypes DLL path: 0.2 s vs 5.0 s Python on Barcelona 35-game corpus. 36 test cases verified at float32 (subprocess) and float64 (ctypes). Same parity-discipline pattern that chess-spectral uses. Empirically validates that the sheaf construction *can* be ported to C without precision loss — relevant if Phase 6's tournament harness needs a C engine.
+
+#### 16.8.2. Methodological lessons that refine chess-spectral's claims
+
+**Simpson's paradox between chess and Othello A_1/E structure** (§1e.7.5; `phase1e_chess_a1_e_pair.py`, `phase1e_simpson_mechanism.py`). The sign of the A_1/E correlation **flips** between the two games:
+
+|  | Within-game | Between-game | Pooled |
+|---|---|---|---|
+| Chess | −0.15 | +0.60 to +0.67 | ≈ 0 |
+| Othello magnetisation | +0.39 | −0.48 | ≈ 0 |
+| Othello occupation | −0.05 | −0.59 | ≈ −0.59 |
+
+The 50-empty −0.834 figure that previously appeared as a chess-spectral talking point is **phase-specific** (a 14-disc Othello configuration), not a general trajectory trait. **This refinement should land in chess-spectral when the §11 phase-operator supplement merges.** The broader methodological lesson: per-game analysis is necessary before claiming any A_1/E relation; the pooled correlation is a Simpson's-paradox artifact of game-phase distribution.
+
+**Trajectory memory is target-specific, not universal** (§2e.4, §1e.7.4b; `phase1e_a1_drift_by_phase.py`, `phase1e_faithful_gain_investigation.py`). Sheaf predictive gain varies systematically by target type:
+
+- **D_4-E(s²) occupation:** strong predictive gain (+0.159 in-sample, +0.157 OOS at Δ=10, N=2178). Sheaf wins.
+- **A_1⁻ magnetisation:** snapshot wins (gain −0.041 at Δ=10). Phase-localised to deep endgame.
+- **n_legal_moves:** near-zero gain; sheaf and snapshot equivalent.
+
+Mechanistically: Z_2-even features (occupation) encode trajectory structure; Z_2-odd features (magnetisation) couple to turn-order which the bracket classifier doesn't encode. **This decomposes the §1e.5 sheaf-vs-persistence question into three mechanical regimes** (§2e.14, `phase1e_s_vs_s2_asymmetry.py`):
+
+1. **Monotone targets** (ρ, empty-count, d4_a1_occ): near-trivial; predictive gain is a disc-count artifact.
+2. **Trajectory-driven** (d4_e_occ, r_disc=+0.083): genuine sheaf memory from bracket dynamics.
+3. **Turn-order-coupled** (a1_minus): sheaf captures the "what" (brackets) but not the "who" (player); snapshot wins.
+
+Application to chess-spectral: the analogous decomposition for chess channels has not been done. When Phase 6 ships the spectral evaluator, per-channel ablation should classify each of the 11 (4D) or 10 (2D) channels into these regimes — the trajectory-driven channels are where any sheaf / phase-operator learned coupling would land.
+
+**A_1 does NOT universally track strategic divergence** (§2c.2, §1e.6; `phase1e_shannon_observables.py`, `phase1e_signflip_decomposition.py`). The previously-claimed A_1 ↔ Shannon-information relation **retracts on aggregate** — global I_move vs A_1⁻ is ρ = −0.065 (noise). The +0.213 in-book correlation (p = 2×10⁻⁸, N≈676) is real but **conditioned on WTHOR opening-book coverage**, which only covers 32% of plies. Within-phase ρ ranges +0.10 to +0.25 (small); the aggregate +0.465 is between-phase Simpson structure. **A_1⁻ tracks game phase (how many discs are down), not strategic divergence.** Material refinement to land in chess-spectral when next reviewed.
+
+**Edax d=20 does NOT bridge the gap to perfect-play truth** (§1e.1; `phase1e_edax_d20_correlations.py`, `phase1e_edax_d20_tasklist.py`). D_4-A_1(s²) vs d=20 partial ρ = −0.277; vs pre-proof Edax = −0.284 (Δ = 0.007, indistinguishable). vs archive_mean_lb (perfect play) = −0.331. The spectral channel carries ground-truth information that even d=20 heuristic-leaf evaluation misses. **Direct chess implication:** if we validate chess-spectral evaluators against Stockfish at any fixed depth, we'll miss the same gap. Validation against game outcomes (win/loss/draw labels) carries strictly more information than evaluation labels at any heuristic depth.
+
+#### 16.8.3. Structural characterisations (statistical / geometric)
+
+These are descriptive findings the chess analogues haven't been computed yet — natural follow-ups for chess-spectral when Phase 6 ships and we have a tournament corpus:
+
+- **Holonomy is structurally concentrated** (§2e.10; `phase1e_holonomy_plaquettes.py`). Of 1192 enumerated loops across 7 shape families, all 105 nontrivial loops (cos = −1) are `lj_rect_Wx1` with W ≥ 3; 1087 are trivial. Path-orientation-dependent (1×H transpose gives trivial). Generalises §2.H5's single-loop observation to a complete curvature map.
+- **Flip-count and flank-chain distributions are exponential, not power-law** (§2e.8; `phase1e_flipcount_distribution.py`, `phase1e_t5_cluster_distribution.py`). T1 (flip-count): λ ≈ 0.548, mean 2.37 across 4 corpora. T5 (same-colour run length): τ ≈ 2.68, mean 2.94, max 8 — **rejects FK-BC power-law** (critical τ ≈ 2.05). Stable across N=23→2178 games and 20-year span. Strategic play does NOT shift from random-play expectation in this distributional sense.
+- **Negative T_eff is robust across methods** (§2e.9; `phase1e_t4_*` triplet). Median T_eff = −11k (Barcelona finite-diff), −22k (windowed OLS), log-transform slope −6.04. Spectral energy anticorrelates with Shannon entropy over channel distribution — mechanically consistent with Plancherel-budget mirror. Chess analogue would compute the same T_eff over 2D / 4D channel energies during games.
+- **Multivariate A_1+E near-null; A_1−E direction beats either alone** (§1e.2; `phase1e_multivariate.py`). Joint OLS (A_1+E): partial R² = 0.100. Best raw direction: ρ = +0.515 at θ = 151.75° (0.88·E − 0.47·A_1). The Plancherel mirror direction (θ = 45°) is null; the orthogonal direction (θ = 135°) carries the signal. **For chess: the analogous best-rotation in the A_1/STD4 plane has not been computed.**
+- **Predictive sheaf shows persistence-vs-sheaf crossover for A_1⁻** (§1e.5b). At short horizon (Δ=1) persistence wins (gain −0.345); at long horizon (Δ=10) sheaf wins (gain +0.098). Crossover between Δ=3 and Δ=5. **Non-stationary signature:** sheaf at t predicts better than sheaf at t+Δ — implies the dynamic encoder captures something the static encoder misses on long-horizon questions.
+
+#### 16.8.4. Open opportunities — Othello findings NOT YET transferred to chess
+
+These are the genuine "merge candidates" — substantive results that have an obvious chess analogue but aren't in chess-spectral yet:
+
+1. **In-book Shannon-information effect (Othello Patch 3).** Novel to Othello; no chess analog exists. Frame: state-richness axis = |M(s)|, strategic-structure axis = D_4 × Z_2 occupation. Test analogue: chess Stockfish-eval-divergence within / outside an opening book (Reti, KID, etc.) vs spectral channel signature. Worth a Phase 7 experiment slot.
+2. **Faithful sheaf for chess.** Define analogous bracket-state pseudo-channels for chess: pending-capture chains, pin/skewer geometry, discovered-attack potential. Should lift A_1 / STD4 partial ρ in the same way Othello's R1/R2/R3/R4 lifted theirs. Direct extension; would slot into Phase 7 (learned weights) as a richer feature basis.
+3. **Phase-operator learned coupling for chess.** The Othello Nelder-Mead-fit coupling matrix on entropy-difference is directly applicable to the QM-expectation evaluator's `α_O` weights in chess Phase 6.3. Use this as the *prior* for any learned-weights Phase 7 work — start from the Othello-style construction and only deviate if chess data demands it.
+4. **Three-regime channel decomposition.** Phase 6's per-channel ablation should classify chess channels into the (monotone / trajectory-driven / turn-order-coupled) regimes. Trajectory-driven channels are where sheaf-style architecture helps; monotone ones are tautological; turn-order-coupled ones need explicit side-to-move encoding (which we already do per Pre-flight 1's Z_2 superselection).
+5. **A_1 phase-localisation refinement.** Update any chess-spectral claim that A_1 tracks strategic divergence to the more careful "A_1 tracks game phase; per-game Simpson's analysis required before any pooled correlation claim." Specifically affects §11.5 / §11.6 of the phase-operator supplement when it merges.
+
+#### 16.8.5. How §16.8 refines §16.7's reading
+
+§16.7 said: "Convergence ceiling is structural, not feature-engineering." §16.8 says: **the structural ceiling depends on what observables you have access to.** Sheaf-aware features (faithful sheaf bracket classifier) push D_4-A_1 partial ρ from −0.319 to −0.447 (+40%); learned phase-operator coupling pushes it further to −0.683 (+114%). The absolute final correlation still doesn't reach perfect-play truth (so §16.7's L10+ Elo decay is real and not refuted), but the ceiling is not a fixed point — it's a function of (feature basis × weight-fitting strategy).
+
+**Combined working hypothesis for Phase 6 + Phase 7:**
+
+- Phase 6 ships naive linear spectral weights (analogous to zen-pike's Architecture A) and likely confirms the depth-decay pattern.
+- Phase 7's first move should NOT be "tune the linear weights better" — that path was exhausted in Othello. The first move should be **richer features** (chess analogues of faithful sheaf brackets) + **learned coupling on those features** (chess analogue of the Nelder-Mead phase-operator fit).
+- Validation target should be **game outcomes**, not Stockfish eval at fixed depth — Edax d=20 didn't bridge the perfect-play gap on Othello, and there's no reason Stockfish at any heuristic depth would do better on chess. Use win/loss/draw labels from a self-play tournament corpus as the ground truth; Stockfish evaluations are useful as a regulariser, not as the truth.
+
+### 16.9. Downstream API gaps blocking Phase 6 (from chess4D-OC consumer)
+
+A separate Claude session working on the **chess4D-OC** project (which consumes chess-spectral as a worker) flagged four gaps in the public chess-spectral API that they currently work around in JS. Two of them block Phase 6 directly; two are correctness / round-trip gaps that should ship in the same Phase 5b PR before the engine work begins.
+
+| # | Gap | Affects | Why it blocks Phase 6 (or doesn't) |
+|---|---|---|---|
+| 1 | `apply_move` auto-promotes blindly to queen; no promotion-piece argument | 2D + 4D move application | Knight underpromotion is a real chess move (tactical-puzzle staple). Engine search and tournament play must be able to evaluate it. Phase 6 prerequisite. |
+| 2 | No threefold-repetition draw detection | 2D + 4D game state | Tournament games cannot terminate correctly without this. The engine harness will play forever in cyclic positions. **Phase 6 prerequisite.** |
+| 3 | No 50-move-rule draw detection | 2D + 4D game state | Same — tournament termination. **Phase 6 prerequisite.** |
+| 4 | FEN4 round-trip: `parse` exists; `serialize` is missing | 4D state interchange | Downstream code (chess4D-OC, any web worker) can't paste an external FEN4 back into the worker. JS hand-rolls serialize today; chess-spectral should own it. Useful for `qm_4d` state-load too. |
+| 5 | State load: one-way export today; no public entry point to re-load a FEN4 string into the encoder's working state | 4D worker integration | Downstream of #4. With `serialize` shipped, the import path needs an explicit `load_state(fen4_string) -> Position` entry point. |
+
+**Phase 5b** is interpolated between Phase 4 (Track B QM dynamics) and Phase 6 (engine + tournament): a single PR closing all five gaps with regression tests. The threefold / 50-move detection is the substantive load — it requires move-history state plumbed through the existing per-ply pipeline. The FEN4 round-trip and state-load are mechanical (parse + inverse-of-parse + entry point); the auto-promote fix is a one-argument signature change with a default that preserves backward compatibility (`promotion='Q'` default).
+
+The 2D side already has most of this infrastructure via `python-chess` (which we delegate to for game-state); the 4D side is where the gaps live. Phase 5b's actual scope is therefore mostly 4D-side, with a thin 2D pass to ensure parity with the python-chess defaults.
+
+The full version-mapped bridge-surface contract (covering both Phase 5b's API gaps AND the QM/engine bridge methods the chess4D-OC consumer needs) is laid out in §17 below.
+
+---
+
+## 17. Bridge-Surface Contracts and Versioning Roadmap
+
+> **Source:** wish-list from the chess4D-OC consumer (a Claude session running in parallel that uses chess-spectral as a Pyodide worker). Captures the *exact* method signatures the consumer needs and ties each method to a chess-spectral release. This section is the contract chess-spectral commits to ship against.
+
+The version ladder past v1.3.2 (the current line) is:
+
+| Version | Scope | What ships | Bridge methods added |
+|---|---|---|---|
+| **v1.3.x** (patches) | Notebook merges + hygiene (Phase 5 PR-1..PR-5) | Docs-only; no API change | — |
+| **v1.4.0** | API gaps (Phase 5b) | Move application + game-termination + state-interchange | `getDrawStatus`, `getMoveHistory`, `applyMove(promoteTo=…)`, `serialize()` |
+| **v1.5.0** | QM extension (Phase 2 + Phase 4: Tracks A + B) | Quantum-mechanical front-end on top of encoder | 7 new (see §17.1) |
+| **v1.6.0** | Engine submodule (Phase 6) | Search + evaluators + tournament harness | 3 new (see §17.2) |
+| **v1.7.x** (later) | Learned weights + sheaf features (Phase 7+, not committed) | TBD | TBD |
+
+Patch bumps within each minor line absorb bug fixes without changing the bridge contract. Each method below is the **public Pyodide bridge surface** consumed by chess4D-OC; chess-spectral may use richer internals.
+
+### 17.1. chess-spectral 1.5 — QM extension bridge surface
+
+Seven methods. All read-only on the underlying classical state except `applyMoveQm`, which is the unitary-move path (semantically replaces the classical `applyMove` when QM mode is active). Each method maps to a milestone in the M14.x visualization tier of the consumer's plan.
+
+| Method | Args | Returns | Purpose | Phase ships in |
+|---|---|---|---|---|
+| `getQmState` | `()` | `{ ok, psi: ComplexArray, basisDim, normSq }` | Current ψ as flat real+imag interleaved Float32. Drives M14.1 raw-amplitude render, M14.2 phase-as-color, M14.3 trajectory replay. | 2 (Track A) |
+| `getQmDensity(pieceId?)` | `int?` | `{ ok, density: Float32Array(4096) }` | `\|ψ_p\|²` per cell. Without `pieceId`: full-position density. With `pieceId`: single-piece marginal (requires partial trace over channels — see infrastructure note below). M14.1. | 2 (full) + 4 (per-piece marginal) |
+| `applyMoveQm(origin, dest)` | `{x,y,z,w} × 2` | `{ ok, U_move?: ComplexMatrix }` | Apply unitary move; optionally returns the U used (for animation). M14.3. **Replaces classical `applyMove` semantics when QM mode is active.** | 4 (Track B) |
+| `measureAt(coords, observable?)` | `{x,y,z,w}, string?` | `{ ok, sampledOutcome, postCollapsePsi }` | Born-rule projective measurement at lattice coords. Default observable = position. M14.5. | 2 (Track A) |
+| `getDensityMatrixOf(pieceId)` | `int` | `{ ok, rho: ComplexMatrix, purity, rank }` | Reduced density matrix for a piece (partial trace over the rest of the system). For entanglement viz. M14.4. | 4 (needs partial-trace machinery) |
+| `getProbabilityCurrent` | `()` | `{ ok, j: Float32Array(4096 × 4) }` | `j_p(c) = Im(ψ* ∇ψ)` — probability current field on the lattice. For QM-filament viz. M14.6. | 4 (needs ∇ as a finite-difference operator on the path-graph lattice) |
+| `getQmExpectation(observable, weights?)` | `string, dict?` | `{ ok, value }` | `⟨ψ\|H\|ψ⟩` for the named observable; optional weights override defaults. Composes with engine `evaluatePosition` for the QM evaluator family. M14 + Phase 6.3. | 2 (Track A) |
+
+**Infrastructure call-out:** three of these (per-piece `getQmDensity`, `getDensityMatrixOf`, `getProbabilityCurrent`) need machinery the kinematic Track A doesn't yet build:
+
+1. **Partial trace over channels** — needed for per-piece marginals + reduced density matrices. The 11 channels are block-disjoint; partial trace over channel labels is straightforward sparse-matrix arithmetic. Add to `qm_4d.py` in Track B as `partial_trace_channels(rho, keep)` helper.
+2. **∇ as discrete operator** — needed for probability current. The lattice gradient is the difference operator across each axis; on `P_8 □ P_8 □ P_8 □ P_8` this is a stack of 4 sparse matrices (one per axis). Cheap to construct from `tables_4d`'s per-axis path-graph adjacencies. Add as `lattice_gradient_4d()` helper.
+3. **Complex matrix serialization for the Pyodide bridge** — `ComplexMatrix` and `ComplexArray` need a stable on-the-wire format. Recommendation: real+imag interleaved Float32 (matches the consumer's wishlist) with shape metadata. Add a tiny serializer in `qm_4d/bridge.py` (new file).
+
+Track A ships with `getQmState`, `getQmDensity` (full only), `measureAt`, `getQmExpectation`. Track B fills in `applyMoveQm`, the per-piece variant of `getQmDensity`, `getDensityMatrixOf`, and `getProbabilityCurrent`. The bridge-surface goal for v1.5.0 is all seven shipping together.
+
+### 17.2. chess-spectral 1.6 — engine submodule bridge surface
+
+Three methods. All Python-side; the search loop runs at native speed inside Pyodide. The engine's transposition table, Zobrist hashing, killer-move tables, etc. are **internals** — the consumer does not see them. (The wish list explicitly noted: with the engine in Python, `applyMoveQuiet` and `getZobristHash` are not needed at the bridge.)
+
+| Method | Args | Returns | Purpose | Phase ships in |
+|---|---|---|---|---|
+| `getBestMove(opts)` | `{ team, maxDepth?, timeBudgetMs?, evalType?, weights? }` | `{ ok, move: {x0,y0,z0,w0,x1,y1,z1,w1}, score, depth, elapsedMs }` | Run a full Python-side search and return the best move. One bridge round-trip per move. `evalType` selects `material` / `spectral` / `qm`. | 6.4 (search core) + 6.8 (CLI/bridge) |
+| `evaluatePosition(opts)` | `{ team, evalType, weights? }` | `{ ok, score, breakdown? }` | Evaluate the current state without searching. `breakdown` (optional) returns per-channel or per-observable contributions for live position-strength readout. | 6.1/6.2/6.3 (evaluators) + 6.8 |
+| `runTournament(opts)` | `{ pairs: [(stratA, stratB)], nGames, maxMovesPerGame? }` | `{ ok, results: [{ stratA, stratB, wins, losses, draws }] }` | Self-play tournament harness. The user-facing path for tuning channel-energy / QM-eval weights via match outcomes (per the §16.7 / §16.8 lessons that match outcomes, not eval correlations, carry the truth). | 6.7 (tournament harness) + 6.8 |
+
+Per the §16.7 finding ("test at multiple search depths"), `getBestMove` MUST allow `maxDepth` to be set to any depth in `[1, ∞)` and report `elapsedMs` accurately so the consumer can plot per-depth Elo curves directly from bridge results. The `breakdown` field on `evaluatePosition` is what the consumer's HUD displays for the M14 visualization — populating it is mandatory for the QM evaluator (per-observable contribution) and recommended for spectral (per-channel contribution).
+
+### 17.3. Additional gameplay edge cases (extends §16.9)
+
+The consumer flagged five additional gaps beyond §16.9's five. These ship in **v1.4.0** alongside the §16.9 items:
+
+| Gap | Currently | Fix |
+|---|---|---|
+| **Promotion choice** (already in §16.9 #1) | `applyMove(origin, dest)` auto-promotes blindly | Add optional `promoteTo: 'queen'\|'rook'\|'bishop'\|'knight'` arg with `'queen'` default for back-compat |
+| **Castling notation** | Castling moves sent as king-move-2-squares; `chess4d` infers from king/rook positions; doesn't fail loudly if rook moved | Verify `chess4d` 0.4 handles this correctly. Add a regression test in M3.5 corpus exercising "king moves 2 squares but rook can't castle" boundary cases |
+| **En passant** | Bridge has no special EP method; `chess4d` handles it as part of `applyMove` | Verify works correctly with our move-input format. Add EP-specific test in regression corpus |
+| **Threefold repetition** (already in §16.9 #2) | Not tracked anywhere; UI never declares the draw | Implement + expose via `getDrawStatus()` (see below) |
+| **50-move-rule** (already in §16.9 #3) | Not tracked anywhere | Implement + expose via `getDrawStatus()` |
+| **Insufficient-material draw** (NEW) | Not tracked | Detect K-vs-K, K+B-vs-K, K+N-vs-K (4D analog requires deciding on insufficient-material classification — open design question; for v1.4.0 ship 2D version + raise `NotImplementedError` for 4D until decided) |
+| **Move history JSON** (NEW) | M11.6 export builds it in JS from `MoveManager.moveHistory.toList()`; chess-spectral doesn't expose its own history | Add `getMoveHistory() → [Move4D, ...]` for symmetry; consumer can drop the JS-side hand-roll |
+
+Two new bridge methods consolidate the draw / history exposure:
+
+| Method | Args | Returns | Purpose | Ships in |
+|---|---|---|---|---|
+| `getDrawStatus()` | `()` | `{ ok, status: 'none'\|'threefold'\|'fifty-move'\|'insufficient'\|'stalemate' }` | Single call returns the active draw condition (or `'none'`). Consumer's UI uses this to declare draws cleanly without recomputing rules JS-side. | v1.4.0 |
+| `getMoveHistory()` | `()` | `{ ok, moves: [{from, to, promoteTo?, capturedPiece?, isCheck?, ...}, ...] }` | The full ply-by-ply history as the engine sees it. Lets the consumer's M11.6 export drop the JS-side hand-roll. | v1.4.0 |
+
+### 17.4. Acceptance criteria for each version's bridge-surface ship
+
+**v1.4.0 ships when** all of: `applyMove(promoteTo=…)`, `getDrawStatus()`, `getMoveHistory()`, FEN4 `serialize()`, FEN4 round-trip test (parse(serialize(p)) == p), state-load entry point, threefold/50-move/insufficient-material detection, castling+EP regression tests pass. Plus all existing v1.3.2 tests still pass (immolation suite green).
+
+**v1.5.0 ships when** all seven §17.1 methods are exposed via the Pyodide bridge, the QM-extension test suite passes (Track A's existing 43-test suite + Track B's full move-as-unitary tests), and the spectral-identity demo + bishop-wavefunction experiments still produce their machine-precision results. Plus all v1.4.0 tests still pass.
+
+**v1.6.0 ships when** all three §17.2 methods are exposed, the per-depth Elo sweep at L4/L8/L16 has been run for (material × spectral × QM) at 2D and 4D, and the §16.7 / §16.8 prior is empirically tested in the chess setting (i.e., the tournament results-notebook entry exists). Plus all v1.5.0 tests still pass.
+
+The `--help` discipline guard (immolation-suite test added in Phase 6.9) gates v1.6.0 — every CLI subcommand argument must have non-empty help text. This is the test that catches "did we ship a feature without documenting it" before users find out.
+
+### 17.5. Developer / debug bridge methods (round-2 wish list)
+
+A second pass from the consumer surfaced six additional bridge methods. These are mostly cheap / mechanical and should ship across v1.4.0 and v1.6.0 as appropriate:
+
+| Method | Args | Returns | Purpose | Ships in |
+|---|---|---|---|---|
+| `getVersion()` | `()` | `{ ok, version: str }` | Dist version string. Trivial wrapper over `chess_spectral.__version__` (which already derives dynamically from `importlib.metadata` per the v1.3.2 contract). Useful for the consumer to verify worker version on startup. | v1.4.0 |
+| `getEncoderShape()` | `()` | `{ ok, channels: [{name, offset, dim}, ...], totalDim }` | Channel names + per-channel dims + total `45 056`. Lets the consumer's visualizer validate at startup that worker version matches the expected channel set (e.g., would catch a stale worker still on v1.0's 10-channel layout shipping against a v1.5+ HUD expecting 11). Trivial wrapper over `chess_spectral_4d.CHANNELS_4D`. | v1.4.0 |
+| `getFen4State()` | `()` | `{ ok, fen4: str }` | FEN4 string of the current worker state. Thin wrapper over `fen_4d.serialize(getCurrentPosition())` once §17.3 / 5b.5 ships `serialize()`. | v1.4.0 |
+| `loadFen4(fen4String)` | `str` | `{ ok }` | Re-import a FEN4 string into the worker's working state. Already in §17.3 / 5b.6 plan; this entry just makes the bridge name explicit. | v1.4.0 |
+| `loadJsonlFixture(piecesObj)` | `dict` | `{ ok }` | Alternative to `loadFen4`: load from the in-memory `pieces` dict format used in `tests/fixtures/positions_4d.jsonl`. Shorter round-trip when the consumer already has the structured form. | v1.4.0 |
+| `hasLegalMoves(team)` | `'white' \| 'black'` | `{ ok, hasMoves: bool, count?: int }` | Boolean: does the team have any legal move? Required for **stalemate detection** in `getDrawStatus()` (no legal moves + not in check ⇒ stalemate). Replaces `gameBoard.hasLegalMoves(team)` in the consumer's JS, which currently iterates pieces synchronously. Implementation: iterate pieces of `team`, sum cardinalities of `occupation_aware_moves_a_4d` until any non-empty. Optional `count` field returns the actual move count for live HUD display. | v1.4.0 |
+| `listAvailableEvalTypes()` | `()` | `{ ok, types: ['material', 'spectral', 'qm', ...] }` | Once the engine ships, lets the consumer's UI populate the eval-type dropdown dynamically without hardcoding strings. Returns the set the engine actually supports at this version (forward-compatible: new evaluators in v1.7+ become discoverable). | v1.6.0 |
+
+**Important consequence for Phase 5b:** `hasLegalMoves(team)` is now a v1.4.0 deliverable, not deferred. This means `getDrawStatus()` can return `'stalemate'` as a real value at v1.4.0 instead of `NotImplementedError` for stalemate (the running Phase 5b agent's prompt allowed for the deferred case; if it shipped that way, a follow-up PR adds `hasLegalMoves` and removes the deferral). Ordering: implement `hasLegalMoves(team)` first, then `getDrawStatus()` consumes it. The legal-move iterator already exists conceptually in `phase_operators_4d.occupation_aware_moves_a_4d`; the bridge wrapper is just an iteration over team pieces.
+
+### 17.6. Out of scope for chess-spectral (consumer-side concerns)
+
+These were on the consumer's wish list but are explicitly **not** chess-spectral's responsibility. Recording here so the boundary is unambiguous:
+
+| Item | Whose problem | Why not chess-spectral |
+|---|---|---|
+| `localStorage` autosave / refresh-survival of game state | chess4D-OC consumer | Browser persistence is a UI / session concern. chess-spectral's job is to provide `getFen4State()` / `loadFen4(...)` so the consumer CAN persist; the act of persisting is a consumer choice. |
+| `selectPiece()` async migration in `js/main.js` | chess4D-OC consumer (M4b.1 PR) | JS-side architecture migration to await bridge calls instead of using sync `Piece.getPossibleMoves`. The chess-spectral side just needs to expose `legalMoves` / `hasLegalMoves` cleanly (which §17.5 does). |
+| `filterIllegalMoves()` async migration | chess4D-OC consumer (M4b.1 PR) | Same — chess-spectral exposes legal-move query; consumer rewrites the filter loop to use it. |
+| `Bot.js` migration to thin bridge-wrapper | chess4D-OC consumer (M13+) | Until the v1.6.0 engine ships, `Bot.js` keeps using local `Piece.getPossibleMoves` synchronously. After v1.6, `Bot.js` becomes a thin wrapper around `getBestMove`. The migration is a consumer-side refactor, not a chess-spectral feature. |
+
+The line is bright: **chess-spectral exposes capabilities; chess4D-OC chooses how to use them.** Anything UI-flavored, persistence-flavored, or consumer-architecture-flavored stays consumer-side.
+
+---
+
 ## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary
 
 This notebook contains claims and constructions that span several technical vocabularies: spectral graph theory, vector symbolic architectures, representation theory of finite groups, lattice field theory, signal processing, and the specific jargon of MRI pulse design, chess analysis, and music acoustics have all appeared at various points. The mathematical content is consistent across these vocabularies — it has to be, because it's the same underlying structure being described — but the *expression* of that content has not been consistent, and the research process has depended on that inconsistency rather than suffered from it. This section documents the methodology because it is the most important structural fact about how the work was produced.

@@ -1,0 +1,66 @@
+{
+  "starting_square": [
+    3,
+    3,
+    3,
+    3
+  ],
+  "n_initial_destinations": 78,
+  "lam_max_for_normalisation": 54.378340717693575,
+  "h_eigenvalue_range": [
+    -12.000000000000014,
+    54.378340717693575
+  ],
+  "times": [
+    0.0,
+    0.1,
+    0.5,
+    1.0,
+    2.0,
+    5.0
+  ],
+  "snapshots": [
+    {
+      "t": 0.0,
+      "expectation_H_bishop": 13.230769230769251,
+      "max_position_prob": 0.012820512820512874,
+      "support_size_eps_1e-6": 78,
+      "norm": 1.0000000000000007
+    },
+    {
+      "t": 0.1,
+      "expectation_H_bishop": 13.230769230769253,
+      "max_position_prob": 0.012810631465050175,
+      "support_size_eps_1e-6": 536,
+      "norm": 1.0000000000000009
+    },
+    {
+      "t": 0.5,
+      "expectation_H_bishop": 13.230769230769255,
+      "max_position_prob": 0.012575809588741878,
+      "support_size_eps_1e-6": 1004,
+      "norm": 1.0000000000000004
+    },
+    {
+      "t": 1.0,
+      "expectation_H_bishop": 13.230769230769258,
+      "max_position_prob": 0.0253555829852223,
+      "support_size_eps_1e-6": 1800,
+      "norm": 1.0000000000000009
+    },
+    {
+      "t": 2.0,
+      "expectation_H_bishop": 13.23076923076926,
+      "max_position_prob": 0.09038080241066594,
+      "support_size_eps_1e-6": 2048,
+      "norm": 1.0000000000000002
+    },
+    {
+      "t": 5.0,
+      "expectation_H_bishop": 13.230769230769264,
+      "max_position_prob": 0.28526011887986713,
+      "support_size_eps_1e-6": 2048,
+      "norm": 1.0000000000000007
+    }
+  ]
+}

@@ -720,7 +720,83 @@ Highlights:
 
 ---
 
-*Last updated with v1.1.1 Y/W pawn-axis split (channels 8-10 relayout,
-spectralz v4 format, cross-channel orthogonality gate at 1e-32) on
-branch `zesty-llama`. v1.2 added the φ_4d phase-operator framework;
-see PHASE_OPERATOR_SUPPLEMENT_4D.md.*
+## qm_4d Pre-flight Findings (Phase 1, 2026-04-29)
+
+Three audits completed before the planned `chess_spectral.qm_4d` quantum-mechanical front-end ships. Each lands as a finding the QM extension consumes directly. The cross-disciplinary framing of how this all travels (ML hooks, adjacent variants, target subfields) lives in the 2D notebook's [§15. Cross-Disciplinary Applications](chess_spectral_research_notebook.md#15-cross-disciplinary-applications-what-travels-beyond-chess).
+
+### Pre-flight 1 — Encoder injectivity
+
+`encode_4d` is **not strictly injective on synthetic corpora**: 8 collisions found out of 41 556 unique positions. All 8 are fixed points of the (central inversion `x → (7,7,7,7) − x` + global color flip) involution applied to anti-podal-king configurations (K@(0,0,0,0) + k@(7,7,7,7)) with one piece on the main 4D diagonal at one of {(2,2,2,2), (3,3,3,3), (4,4,4,4), (5,5,5,5)}. **Real-game corpora are 100% injective** (self-play 601/601, fixtures 15/15). Off-diagonal pieces and pawn-W axis pieces never collide.
+
+The collision class is the fixed-point set of a global Z_2 symmetry the encoder respects by design (orbit projections, fiber sums, DCT-mode aggregations all preserve it). `state_to_psi` resolves the degeneracy by taking the side-to-move bit as input (already part of any chess state). Deeper interpretation: ψ naturally lives on `configurations / Z_2` — a parity-superselection sector. See [`python/research/encoder_injectivity_4d.py`](chess-spectral/python/research/encoder_injectivity_4d.py) for the probe and the 41 556-row CSV.
+
+### Pre-flight 2 — Pseudo-Hermitian audit of `phase_operators_4d/`
+
+Strict reading: 0 linear operators, 9 predicates, 2 compositions. The phase-operator package returns `frozenset[int]` and `bool`, never vectors — they are reach predicates with operator-shaped vocabulary, not linear maps.
+
+Lift reading: when materialized as 4096×4096 matrices on the board basis, `P_rook4`, `P_bishop4`, `P_queen4`, `P_king4`, `P_knight4` are **real-symmetric Hermitian matrices with real spectra**:
+
+```
+basis n              = 4096
+nnz                  = 114688 (rook)
+real symmetric?      = True   (max |M − M^T| = 0)
+all eigs real?       = True   (max |Im(eig)| = 4.7e-15)
+```
+
+Pre-flight 2 verified the structural property (real-symmetric ⇒ Hermitian) on rook + knight. **Phase 2's full empirical sweep across all five non-pawn observables refined the per-piece spectrum bounds:**
+
+| Piece | Spectrum (`Re(eig)` range) |
+|---|---|
+| Rook | `[-4, 28]` (integer; vertex-transitive lattice degree) |
+| Bishop | `[-12, 54.4]` |
+| Queen | `[-16, 81.9]` |
+| King | `[-22, 67.7]` |
+| Knight | `[-36.06, 36.06]` |
+
+Non-rook pieces are Hermitian with **non-integer** spectra: boundary clipping on the open Z_8^4 lattice breaks vertex-transitivity, so the per-vertex degree distribution is not constant. Pre-flight 2's `[-4, 28]` figure paraphrased the rook envelope across all pieces — that paraphrase is now corrected. **Pawn predicates break Hermiticity** (directed push) — that's where the qm_4d module's pseudo-Hermitian / PT-symmetric machinery (Bender / Mostafazadeh metric operator η) earns its keep. The five non-pawn observables are free Hermitians; the kinematic `qm_4d` module ([`python/chess_spectral/qm_4d.py`](chess-spectral/python/chess_spectral/qm_4d.py)) materializes them as `H_rook_4`, `H_bishop_4`, `H_queen_4`, `H_king_4`, `H_knight_4` lazily.
+
+Renaming recommendation: keep package name (123 occurrences across 34 files; load-bearing in `__init__.py`, immolation tests, CHANGELOG history); amend docstrings to "phase reach predicates / predicate-form generators of Hermitian operators"; reserve "operator" vocabulary for the qm_4d module that exposes matrices. See [`python/research/phase_operators_4d_pseudo_hermitian_audit.md`](chess-spectral/python/research/phase_operators_4d_pseudo_hermitian_audit.md).
+
+### Pre-flight 3 — Spectral identity verification
+
+**HOLDS at machine precision.** The encoder's 4096 eigenmodes are exactly the simultaneous eigenbasis of (Δ, B_4 commutant), where `Δ = P_8 □ P_8 □ P_8 □ P_8` is the 4D path-graph Laplacian.
+
+| Diagnostic | Result |
+| --- | --- |
+| Distinct eigenvalues of Δ | 225 (4096 modes accounted for) |
+| Max multiplicity | 127 at λ = 8.0 (spectral midpoint) |
+| Encoder is Δ-eigenbasis | max ‖Δv − λv‖ = 3.3e-16 |
+| Every eigenspace B_4-stable | 225 / 225 |
+| Max ‖[π(g), P_λ]‖ over (g, λ) | 1.6e-13 |
+| Encoder columns span E_λ exactly | max ‖(I − P_λ) v_enc‖ = 6.2e-14 |
+
+P_8 1D spectrum: `[0, 0.15224, 0.58579, 1.23463, 2.0, 2.76537, 3.41421, 3.84776]`. 4D spectrum is the additive Kron-sum of four copies. Multiplicity histogram: `{1: 7, 4: 43, 6: 18, 12: 96, 24: 28, 34: 6, 42: 1, 60: 12, 64: 6, 72: 6, 76: 1, 127: 1}`, sum = 4096.
+
+The "engineering choice" of basis is a representation-theoretic theorem. Any B_4-equivariant function on Z_8^4 configurations decomposes naturally in the encoder's basis. See [`python/research/spectral_identity_4d_findings.md`](chess-spectral/python/research/spectral_identity_4d_findings.md) for full diagnostics.
+
+**Important wording correction.** This is the **path graph** `P_8` (open boundary), not the cycle graph `C_8` / Z_8 Cayley graph. The notebook has used "Z_8^4" as a coordinate-set shorthand; the underlying lattice has open boundary and full B_4 symmetry but no translation symmetry. A future torus variant on `C_8^4` would have a totally different spectrum (~4 distinct eigenvalues, exponential-mode eigenbasis, larger symmetry group `B_4 ⋊ Z_8^4` adding the translations). The 2D notebook's §15.5 covers what the torus variant unlocks.
+
+### Phase 6 plan: 4D engine + tournament harness (post-QM)
+
+After the QM extension ships (Tracks A + B), Phase 6 adds the **first 4D chess engine ever shipped** alongside its 2D counterpart: position evaluators (material, spectral channel-energy, QM-expectation), a standard search stack (alpha-beta, iterative deepening, transposition tables, MVV-LVA, killer moves, null-move pruning, quiescence), and a self-play tournament harness for empirically validating the spectral / QM framework's chess relevance. The full design — three evaluator families, search architecture, tournament protocol, CLI surface, and the `--help` documentation discipline that's mandatory for every new command — lives in 2D notebook [§16. Position Evaluation, Search, and Self-Play Validation](chess_spectral_research_notebook.md#16-position-evaluation-search-and-self-play-validation-phase-6-plan). Symmetric implementation for 2D (`chess-spectral`) and 4D (`chess-spectral-4d`); the 4D side is the bigger novelty since `python-chess4d-oana-chiru` provides rules but no engine.
+
+### Combined consequence
+
+These three results gate the qm_4d module as follows:
+
+- **Pre-flight 1** → `state_to_psi(state, side_to_move)` takes the side-to-move bit; ψ lives on `configurations / Z_2`
+- **Pre-flight 2** → free Hermitian observables for non-pawn pieces (`H_rook_4`, `H_bishop_4`, `H_queen_4`, `H_king_4`, `H_knight_4`); pawn dynamics is where the PT-machinery earns its keep
+- **Pre-flight 3** → the spectral-identity demo is locked in as experiment 1 (numerically airtight, conceptually clean, piece-agnostic, doesn't rely on chess semantics)
+
+Track A (kinematic-only qm_4d, ~500 LOC) is now unblocked. Track B (full move-as-unitary dynamics) requires additional design decisions (phase convention, time-evolution semantics, per-channel move derivation, Z_2 superselection, pawn pseudo-Hermitian metric η) documented in upcoming ADRs. The cross-disciplinary value of this stack is laid out in 2D notebook §15.
+
+---
+
+*Last updated 2026-04-29 with qm_4d Pre-flight Findings (Phase 1) on
+branch `chess-spectral/qm-4d-kinematic` (planned). Previous
+v1.3.2 (2026-04-29) shipped the 2 KiB FEN4 buffer-overflow fix +
+dynamic `__version__` derivation. v1.1.1 introduced the Y/W pawn-axis
+split (channels 8-10 relayout, spectralz v4 format, cross-channel
+orthogonality gate at 1e-32) on branch `zesty-llama`. v1.2 added the
+φ_4d phase-operator framework; see PHASE_OPERATOR_SUPPLEMENT_4D.md
+(pending merge into §13 of this notebook per the merge plan).*
