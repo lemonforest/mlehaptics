@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — v1.6 phase 6 prep
 
+- **Spectral channel-energy evaluator** at both 2D and 4D (v1.6 PR-3).
+  Second of the three §16.1 evaluator families. Computes
+  `score = Σ_c w_c · ‖proj_c(v)‖²` from the encoder output, where
+  `proj_c` slices the per-channel mode block (10 × 64 in 2D; 11 ×
+  4096 in 4D).
+
+  Public API (mirrored 2D + 4D):
+  - `chess_spectral.engine.eval.spectral.evaluate(position,
+    side_to_move, *, weights=None) -> float` — score from
+    side-to-move's perspective. `weights` accepts None (default
+    equal-weighting per §16.1.2's "intentionally bland defaults"
+    rationale), a `{channel_name: float}` dict, or a path to a
+    JSON weights file.
+  - `evaluate_breakdown(position, side_to_move, *, weights=None) ->
+    dict[str, float]` — per-channel score contributions (already
+    side-to-move-flipped). Sum equals `evaluate`. Required for the
+    §17.2 `evaluatePosition` bridge method's `breakdown` field that
+    the chess4D-OC HUD displays.
+  - `channel_energies(v) -> dict[str, float]` — per-channel L2
+    energies from any encoder output vector. Sum equals `‖v‖²` by
+    Plancherel. Useful for direct channel inspection.
+  - `load_weights_json(path) -> dict[str, float]` — loads per-channel
+    weights from a JSON file. Missing channels default to 1.0;
+    **unknown channel names raise `ValueError`** so a typo in a
+    weights file doesn't silently produce wrong scores.
+  - `DEFAULT_WEIGHTS` / `DEFAULT_WEIGHTS_4D` — equal 1.0 per channel.
+    Documented as intentionally non-tuned: §16's tournament harness
+    is the empirical mechanism for weight refinement, and Phase 7
+    learned-weight work is where any hand-tuning would land.
+
+  Default weights are unbiased per §16.7 — the Othello prior shows
+  spectral channel-energy weighting is structurally analogous to
+  Architecture A in the Edax-Othello archive (which won +243 Elo at
+  L6 and decayed to 0 at L10+). Whether chess shows the same
+  depth-decay is the load-bearing empirical question §16 answers.
+
+  Test surface: 27 unit tests in `tests/test_engine_spectral.py`
+  covering Plancherel sanity (sum of channel energies == ‖v‖²),
+  empty / non-empty positions, side-to-move sign flipping, default
+  vs custom weights, partial-weights default-to-1.0, JSON
+  round-trip, JSON unknown-channel raises, JSON non-dict raises,
+  breakdown sums to evaluate, 4D pawn-axis-distinguishes-channels
+  (FA_PAWN_W vs FA_PAWN_Y), and namespace re-export sanity.
+
 - **`chess_spectral.engine` and `chess_spectral_4d.engine`** — Phase 6
   evaluator/search/tournament namespaces (v1.6 PR-2). Bootstraps the
   engine package skeleton with the **material evaluator** (the first
