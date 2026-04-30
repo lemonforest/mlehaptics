@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "antikythera-spectral"
-version = "0.2.0"
+version = "0.2.1"
 description = "Hyperdimensional-computing encoder + Pyodide bridge for the Antikythera mechanism"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,6 +45,7 @@ antikythera-spectral = "antikythera_spectral.cli:main"
 
 [project.urls]
 Homepage    = "https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/antikythera-spectral"
+Demo        = "https://lemonforest.github.io/antikythera-mechanism-the-movie/"
 Repository  = "https://github.com/lemonforest/mlehaptics"
 Issues      = "https://github.com/lemonforest/mlehaptics/issues"
 Changelog   = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/python/CHANGELOG.md"

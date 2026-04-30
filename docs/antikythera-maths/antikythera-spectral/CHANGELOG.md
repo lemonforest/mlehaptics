@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — added after v0.2.0)
+(no entries yet — added after v0.2.1)
+
+## [0.2.1] — 2026-04-30
+
+### Added
+
+- **PyPI project URL: `Demo`** — points to <https://lemonforest.github.io/antikythera-mechanism-the-movie/>, the project's GitHub Pages site. Showed up missing on PyPI's project page after the v0.2.0 release; this patch lands it for the kiosk audience that arrives via PyPI rather than the GitHub repo.
+
+### Notes
+
+Pure metadata change. No code, no API, no behaviour difference. Wheel content is byte-identical to 0.2.0 except for `METADATA`/`RECORD` (which contain the version string and the new project URL).
 
 ## [0.2.0] — 2026-04-30
 
