@@ -181,8 +181,16 @@ class HeaderV5:
 # Identical to v2 frame body. We re-pack it here under the v5 header.
 
 
-_FRAME_2D_PACK = struct.Struct(f"<{_ENC_DIM_2D}fI4B")
-assert _FRAME_2D_PACK.size == _FRAME_BYTES_2D
+# NOTE: We intentionally do NOT use a struct.Struct(f"<{640}fI4B") packer
+# for the encoding part. struct's "f" format goes through Python float
+# (float64) on pack and unpack, which silently normalizes NaN bit
+# patterns. XOR-streamed (mode 2) frames can produce NaN-like bit
+# patterns as legitimate stored payload — those must round-trip
+# bit-exactly. We therefore use ``ndarray.tobytes()`` (byte copy) for
+# pack and ``np.frombuffer(..., dtype=np.float32).copy()`` for unpack,
+# both of which preserve all 2^32 bit patterns including NaNs.
+_MOVE_TAIL_2D_PACK = struct.Struct("<I4B")
+assert _MOVE_TAIL_2D_PACK.size == _MOVE_TAIL_2D
 
 
 def pack_frame_2d_dense(encoding: np.ndarray, ply: int,
@@ -194,12 +202,13 @@ def pack_frame_2d_dense(encoding: np.ndarray, ply: int,
         raise ValueError(
             f"2D encoding must have shape ({_ENC_DIM_2D},); got {encoding.shape}"
         )
-    return _FRAME_2D_PACK.pack(
-        *encoding.tolist(),
+    enc_bytes = encoding.tobytes()         # bit-exact float32 bytes
+    tail = _MOVE_TAIL_2D_PACK.pack(
         int(ply) & 0xFFFFFFFF,
         int(move_from) & 0xFF, int(move_to) & 0xFF,
         int(move_promo) & 0xFF, int(move_flags) & 0xFF,
     )
+    return enc_bytes + tail
 
 
 def unpack_frame_2d_dense(buf: bytes) -> Tuple[np.ndarray, int, int, int, int, int]:
@@ -207,9 +216,10 @@ def unpack_frame_2d_dense(buf: bytes) -> Tuple[np.ndarray, int, int, int, int, i
         raise ValueError(
             f"2D dense frame: got {len(buf)} bytes, expected {_FRAME_BYTES_2D}"
         )
-    vals = _FRAME_2D_PACK.unpack(buf)
-    enc = np.asarray(vals[:_ENC_DIM_2D], dtype=np.float32)
-    ply, mfrom, mto, mpromo, mflags = vals[_ENC_DIM_2D:]
+    enc = np.frombuffer(buf[: _ENC_DIM_2D * 4], dtype=np.float32).copy()
+    ply, mfrom, mto, mpromo, mflags = _MOVE_TAIL_2D_PACK.unpack(
+        buf[_ENC_DIM_2D * 4 :]
+    )
     return enc, ply, mfrom, mto, mpromo, mflags
 
 
@@ -557,6 +567,114 @@ def iter_v5_frames_per_channel(fp: BinaryIO, hdr: HeaderV5
         prev = enc
 
 
+# ─── Mode 2: XOR-streamed (PR-D scope) ──────────────────────────────
+#
+# Frame body is fixed-size, identical to mode 0 (dense): a float32
+# encoding[encoding_dim] + move-metadata tail. The DIFFERENCE is what
+# the bytes contain: each frame's float32 array is the bit-XOR of the
+# real frame's encoding with the *previous reconstructed* frame's
+# encoding, treated as uint32 arrays. Frame 0 is XOR'd against zero,
+# which yields the original frame 0 verbatim.
+#
+# Reconstruction: ``frame_N = stored[N] XOR frame_{N-1}`` (uint32 view).
+# Bit-exact, lossless. Wins because chess-encoder hypervectors are
+# largely stable per ply -- XOR produces long runs of zero bytes where
+# nothing changed, and gzip eats those runs essentially for free.
+# Empirical 4D spike: 7.23x compression on a 50-ply knight-tour fixture.
+
+
+def _xor_float32(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Bit-XOR two float32 arrays via their uint32 reinterpretations.
+    Returns a float32 array of the same shape whose bit pattern is the
+    XOR of the two inputs. Self-inverse: ``a XOR (a XOR b) == b``."""
+    if a.dtype != np.float32 or b.dtype != np.float32:
+        raise TypeError("xor: both arrays must be float32")
+    if a.shape != b.shape:
+        raise ValueError(f"xor: shape mismatch a={a.shape} b={b.shape}")
+    out_u32 = a.view(np.uint32) ^ b.view(np.uint32)
+    return out_u32.view(np.float32).copy()
+
+
+def pack_frame_xor_2d(encoding: np.ndarray, ply: int,
+                      move_from: int, move_to: int,
+                      move_promo: int, move_flags: int,
+                      *, prev_encoding: np.ndarray | None) -> bytes:
+    """Pack one mode-2 (XOR-stream) frame for 2D.
+
+    The stored encoding bytes = encoding XOR prev_encoding (uint32-wise).
+    For the very first frame, prev_encoding=None means XOR-with-zero =
+    encoding itself (no transform).
+    """
+    if prev_encoding is None:
+        stored = encoding.astype(np.float32, copy=False)
+    else:
+        stored = _xor_float32(
+            encoding.astype(np.float32, copy=False),
+            prev_encoding.astype(np.float32, copy=False),
+        )
+    return pack_frame_2d_dense(stored, ply, move_from, move_to,
+                               move_promo, move_flags)
+
+
+def pack_frame_xor_4d(encoding: np.ndarray, ply: int,
+                      from_sq: Tuple[int, int, int, int],
+                      to_sq: Tuple[int, int, int, int],
+                      promo: int, flags: int,
+                      *, prev_encoding: np.ndarray | None) -> bytes:
+    """Pack one mode-2 (XOR-stream) frame for 4D."""
+    if prev_encoding is None:
+        stored = encoding.astype(np.float32, copy=False)
+    else:
+        stored = _xor_float32(
+            encoding.astype(np.float32, copy=False),
+            prev_encoding.astype(np.float32, copy=False),
+        )
+    return pack_frame_4d_dense(stored, ply, from_sq, to_sq, promo, flags)
+
+
+def iter_v5_frames_xor_stream(fp: BinaryIO, hdr: HeaderV5
+                              ) -> Iterator[Tuple[np.ndarray, bytes]]:
+    """Stream-decode all frames in a v5 mode-2 file.
+
+    Yields (encoding, move_tail_bytes) for each ply. `encoding` is the
+    fully reconstructed real frame (cumulative XOR applied); the caller
+    decodes the move tail with the existing dense-frame unpackers.
+    """
+    if hdr.encoding_mode != MODE_XOR_STREAM:
+        raise ValueError(
+            f"iter_v5_frames_xor_stream expects encoding_mode=2; "
+            f"got {hdr.encoding_mode}"
+        )
+    if hdr.n_dimensions == 2:
+        encoding_dim = _ENC_DIM_2D
+        move_tail = _MOVE_TAIL_2D
+        frame_bytes = _FRAME_BYTES_2D
+    elif hdr.n_dimensions == 4:
+        encoding_dim = _ENC_DIM_4D
+        move_tail = _MOVE_TAIL_4D
+        frame_bytes = _FRAME_BYTES_4D
+    else:
+        raise ValueError(f"unsupported n_dimensions: {hdr.n_dimensions}")
+
+    prev: np.ndarray | None = None
+    for _ in range(hdr.n_plies):
+        chunk = fp.read(frame_bytes)
+        if len(chunk) != frame_bytes:
+            raise IOError(
+                f"truncated XOR frame: got {len(chunk)} of {frame_bytes} bytes"
+            )
+        # Slice off the encoding part; the rest is the move tail.
+        enc_bytes = chunk[: encoding_dim * 4]
+        tail = chunk[encoding_dim * 4 :]
+        stored_enc = np.frombuffer(enc_bytes, dtype=np.float32).copy()
+        if prev is None:
+            real_enc = stored_enc
+        else:
+            real_enc = _xor_float32(stored_enc, prev)
+        yield real_enc, tail
+        prev = real_enc
+
+
 # ─── Writer (mode 0 only, PR-B scope) ──────────────────────────────
 
 
@@ -797,6 +915,108 @@ def _write_v5_per_channel_common(
     return count
 
 
+# ─── Writer (mode 2: XOR-stream, PR-D scope) ────────────────────────
+
+
+def write_v5_xor_2d(
+    path: str | os.PathLike,
+    frames: Iterable[Tuple[np.ndarray, int, int, int, int, int]],
+    *,
+    compress: bool = False,
+) -> int:
+    """Write a v5 .spectralz file (2D) in XOR-stream mode (encoding_mode=2).
+
+    `frames` yields ``(encoding, ply, move_from, move_to, move_promo,
+    move_flags)`` tuples (same shape as dense / per-channel for parity).
+    Each frame's encoding is XOR'd with the previous frame's encoding
+    (uint32-wise) before being written. Frame 0 is written verbatim
+    (XOR-with-zero baseline).
+
+    The eventual ``--encoding=xor`` CLI flag (default for new writes
+    per ADR-001) routes here.
+    """
+    return _write_v5_xor_common(
+        path, frames, n_dimensions=2,
+        pack_fn=lambda f, prev: pack_frame_xor_2d(*f, prev_encoding=prev),
+        compress=compress,
+    )
+
+
+def write_v5_xor_4d(
+    path: str | os.PathLike,
+    frames: Iterable[Tuple[
+        np.ndarray, int, Tuple[int, int, int, int],
+        Tuple[int, int, int, int], int, int,
+    ]],
+    *,
+    compress: bool = False,
+) -> int:
+    """Write a v5 .spectralz4 file (4D) in XOR-stream mode."""
+    return _write_v5_xor_common(
+        path, frames, n_dimensions=4,
+        pack_fn=lambda f, prev: pack_frame_xor_4d(*f, prev_encoding=prev),
+        compress=compress,
+    )
+
+
+def _write_v5_xor_common(
+    path: str | os.PathLike,
+    frames: Iterable,
+    *,
+    n_dimensions: int,
+    pack_fn,
+    compress: bool,
+) -> int:
+    encoding_dim = _ENC_DIM_2D if n_dimensions == 2 else _ENC_DIM_4D
+
+    tmp_fd, tmp_path = tempfile.mkstemp(prefix="csv_v5_xor_", suffix=".tmp")
+    os.close(tmp_fd)
+    count = 0
+    prev_enc: np.ndarray | None = None
+    try:
+        with open(tmp_path, "wb") as out:
+            out.write(HeaderV5(
+                encoding_dim=encoding_dim, n_plies=0,
+                n_dimensions=n_dimensions, encoding_mode=MODE_XOR_STREAM,
+            ).pack())
+
+            for fr in frames:
+                out.write(pack_fn(fr, prev_enc))
+                count += 1
+                # Save the *real* (pre-XOR) encoding for the next frame.
+                enc = fr[0]
+                if enc.dtype != np.float32:
+                    enc = enc.astype(np.float32, copy=False)
+                prev_enc = enc
+
+            out.seek(0)
+            out.write(HeaderV5(
+                encoding_dim=encoding_dim, n_plies=count,
+                n_dimensions=n_dimensions, encoding_mode=MODE_XOR_STREAM,
+            ).pack())
+
+        if compress:
+            with open(tmp_path, "rb") as src, \
+                 open(path, "wb") as raw, \
+                 gzip.GzipFile(filename="", fileobj=raw,
+                               mode="wb", compresslevel=6, mtime=0) as dst:
+                while True:
+                    chunk = src.read(1 << 20)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+        else:
+            os.replace(tmp_path, path)
+            tmp_path = None
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+    return count
+
+
 __all__ = [
     "V5_MAGIC", "V5_VERSION", "V5_HEADER_SIZE",
     "MODE_DENSE", "MODE_PER_CHANNEL", "MODE_XOR_STREAM",
@@ -805,9 +1025,12 @@ __all__ = [
     "pack_frame_2d_dense", "unpack_frame_2d_dense",
     "pack_frame_4d_dense", "unpack_frame_4d_dense",
     "pack_frame_per_channel", "unpack_frame_per_channel",
+    "pack_frame_xor_2d", "pack_frame_xor_4d",
     "open_read_transparent", "peek_version",
     "read_v5_header",
     "iter_v5_frames_dense", "iter_v5_frames_per_channel",
+    "iter_v5_frames_xor_stream",
     "write_v5_dense_2d", "write_v5_dense_4d",
     "write_v5_per_channel_2d", "write_v5_per_channel_4d",
+    "write_v5_xor_2d", "write_v5_xor_4d",
 ]

@@ -29,10 +29,13 @@ from chess_spectral.frame_v5 import (  # noqa: E402
     pack_frame_2d_dense, unpack_frame_2d_dense,
     pack_frame_4d_dense, unpack_frame_4d_dense,
     pack_frame_per_channel, unpack_frame_per_channel,
+    pack_frame_xor_2d, pack_frame_xor_4d,
     write_v5_dense_2d, write_v5_dense_4d,
     write_v5_per_channel_2d, write_v5_per_channel_4d,
+    write_v5_xor_2d, write_v5_xor_4d,
     peek_version, open_read_transparent,
     read_v5_header, iter_v5_frames_dense, iter_v5_frames_per_channel,
+    iter_v5_frames_xor_stream,
 )
 
 
@@ -539,3 +542,168 @@ def test_v5_per_channel_unpack_delta_without_prev_raises():
             fp, channel_dim=64, n_channels=10, move_tail_bytes=8,
             prev_encoding=None,
         )
+
+
+# ─── Mode 2: XOR-stream (PR-D scope) ────────────────────────────────
+
+
+def test_v5_xor_stream_first_frame_is_verbatim():
+    """First frame's stored bytes should equal the original encoding
+    (XOR-with-zero baseline)."""
+    rng = np.random.default_rng(seed=700)
+    enc = rng.standard_normal(640).astype(np.float32)
+    body = pack_frame_xor_2d(enc, 0, 0, 0, 0, 0, prev_encoding=None)
+    # The leading 640 floats should match the original.
+    stored_enc = np.frombuffer(body[: 640 * 4], dtype=np.float32).copy()
+    np.testing.assert_array_equal(stored_enc, enc)
+
+
+def test_v5_xor_stream_2d_roundtrip(tmp_path):
+    """Write a 5-ply 2D file in XOR mode; read back and verify each
+    frame matches the original after cumulative XOR reconstruction."""
+    rng = np.random.default_rng(seed=701)
+    plies = [
+        (rng.standard_normal(640).astype(np.float32),
+         i, i, (i + 1) % 64, 0, 0)
+        for i in range(5)
+    ]
+    out = tmp_path / "test_xor.spectralz"
+    n = write_v5_xor_2d(out, plies, compress=False)
+    assert n == 5
+
+    fp = open_read_transparent(out)
+    try:
+        hdr = read_v5_header(fp)
+        assert hdr.encoding_mode == MODE_XOR_STREAM
+        assert hdr.n_dimensions == 2
+
+        rec = list(iter_v5_frames_xor_stream(fp, hdr))
+        assert len(rec) == 5
+        for i, (enc, tail) in enumerate(rec):
+            np.testing.assert_array_equal(enc, plies[i][0])
+            ply, _mfrom, _mto, _mpromo, _mflags = struct.unpack("<I4B", tail)
+            assert ply == i
+    finally:
+        fp.close()
+
+
+def test_v5_xor_stream_4d_roundtrip(tmp_path):
+    """4D end-to-end XOR mode round-trip."""
+    rng = np.random.default_rng(seed=702)
+    plies = [
+        (rng.standard_normal(45056).astype(np.float32), i,
+         (0, 0, 0, 0), (i % 8, 0, 0, 0), 0, 0)
+        for i in range(3)
+    ]
+    out = tmp_path / "test_xor_4d.spectralz4"
+    n = write_v5_xor_4d(out, plies, compress=False)
+    assert n == 3
+
+    fp = open_read_transparent(out)
+    try:
+        hdr = read_v5_header(fp)
+        assert hdr.encoding_mode == MODE_XOR_STREAM
+        assert hdr.n_dimensions == 4
+
+        rec = list(iter_v5_frames_xor_stream(fp, hdr))
+        for i, (enc, _tail) in enumerate(rec):
+            np.testing.assert_array_equal(enc, plies[i][0])
+    finally:
+        fp.close()
+
+
+def test_v5_xor_stable_frames_yield_zero_runs(tmp_path):
+    """If consecutive frames are bit-identical, the XOR encoding for
+    the second frame should be all-zeros — that's where the gzip
+    compression win comes from."""
+    enc = np.ones(640, dtype=np.float32)
+    plies = [(enc, 0, 0, 0, 0, 0), (enc, 1, 0, 0, 0, 0)]
+    out = tmp_path / "test_xor_stable.spectralz"
+    write_v5_xor_2d(out, plies, compress=False)
+
+    # Read raw bytes and verify second frame's encoding region is zeros.
+    fp = open_read_transparent(out)
+    try:
+        hdr = read_v5_header(fp)
+        # Skip first frame (verbatim) and read second frame's encoding.
+        fp.seek(V5_HEADER_SIZE + hdr.frame_bytes)
+        second = fp.read(640 * 4)
+        # All bytes in the encoding portion of the second frame should
+        # be zero (since enc == enc → XOR = 0).
+        assert second == b"\x00" * (640 * 4), \
+            "stable frames should produce zero-byte encoding region"
+    finally:
+        fp.close()
+
+
+def test_v5_xor_compresses_better_than_dense_on_stable_4d(tmp_path):
+    """On a workload with mostly-stable channels (the empirical chess
+    spike's profile), XOR-streamed mode should compress better than
+    dense gzipped. ADR-001 documents 4D 7.23x compression on a 50-ply
+    4D knight-tour fixture — we just check the inequality here.
+
+    Note: On 2D fixtures the compression benefit is much smaller (the
+    spike measured 1.08x), and the test fixture's 'mostly random per
+    ply' shape can flip the inequality. We test on 4D where the win
+    is robust."""
+    rng = np.random.default_rng(seed=800)
+    base = rng.standard_normal(45056).astype(np.float32)
+    plies = []
+    for i in range(8):
+        enc = base.copy()
+        # Perturb just ONE of 11 channels per ply.
+        ch = i % 11
+        enc[ch * 4096 : (ch + 1) * 4096] = rng.standard_normal(
+            4096
+        ).astype(np.float32)
+        plies.append((enc, i, (0, 0, 0, 0), (i, 0, 0, 0), 0, 0))
+
+    dense_path = tmp_path / "dense.spectralz4"
+    xor_path = tmp_path / "xor.spectralz4"
+    write_v5_dense_4d(dense_path, plies, compress=True)
+    write_v5_xor_4d(xor_path, plies, compress=True)
+
+    dense_size = dense_path.stat().st_size
+    xor_size = xor_path.stat().st_size
+    assert xor_size < dense_size, (
+        f"expected xor-gzip < dense-gzip on 4D stable workload; "
+        f"got xor={xor_size} dense={dense_size}"
+    )
+
+
+def test_v5_xor_iter_rejects_non_xor_header():
+    """iter_v5_frames_xor_stream must refuse a mode-0 / mode-1 header."""
+    h = HeaderV5(encoding_dim=640, n_plies=0, n_dimensions=2,
+                 encoding_mode=MODE_DENSE)
+    fp = tempfile.TemporaryFile()
+    try:
+        with pytest.raises(ValueError, match="encoding_mode=2"):
+            list(iter_v5_frames_xor_stream(fp, h))
+    finally:
+        fp.close()
+
+
+def test_v5_xor_lossless_for_random_floats(tmp_path):
+    """Even for completely random floats (no compression benefit), XOR
+    mode must reconstruct bit-exactly — that's the load-bearing
+    property of the design."""
+    rng = np.random.default_rng(seed=900)
+    plies = [
+        (rng.standard_normal(640).astype(np.float32) * 1e6,
+         i, 0, 0, 0, 0)
+        for i in range(7)
+    ]
+    out = tmp_path / "test_xor_random.spectralz"
+    write_v5_xor_2d(out, plies, compress=False)
+
+    fp = open_read_transparent(out)
+    try:
+        hdr = read_v5_header(fp)
+        rec = list(iter_v5_frames_xor_stream(fp, hdr))
+        for i, (enc, _tail) in enumerate(rec):
+            np.testing.assert_array_equal(
+                enc.view(np.uint32), plies[i][0].view(np.uint32),
+                err_msg=f"frame {i} reconstruction not bit-exact",
+            )
+    finally:
+        fp.close()

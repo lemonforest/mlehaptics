@@ -29,6 +29,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — v1.6 wire format unification
 
+- **v5 XOR-stream encoding (Python)** per ADR-001 (v1.6 PR-D). Mode 2
+  of three. Each frame's stored encoding bytes are the bit-XOR (uint32-
+  wise) of the real encoding with the previous reconstructed frame.
+  Frame 0 is XOR'd with zero = verbatim. The reader applies cumulative
+  XOR to reconstruct.
+
+  Wins on chess hypervectors specifically: most channels stay stable per
+  ply, so XOR yields long zero-byte runs that gzip compresses
+  essentially for free. Empirical 4D spike: **7.23× compression** vs
+  dense gzipped on a 50-ply knight-tour fixture; 2D spike was 1.08×
+  (gzip already eats most of the redundancy on the 640-dim 2D
+  encoding).
+
+  Public API additions:
+  - ``pack_frame_xor_2d`` / ``pack_frame_xor_4d``
+  - ``write_v5_xor_2d`` / ``write_v5_xor_4d``
+  - ``iter_v5_frames_xor_stream`` (cumulative-XOR streaming reader)
+
+  Frame body layout: identical to mode 0 (dense) — the bytes are just
+  XOR-encoded relative to the previous frame. This is what makes XOR
+  the leanest encoding mode (no per-frame size overhead, just bit-XOR
+  on a fixed-size payload).
+
+  7 new tests in ``test_frame_v5.py``: first-frame-verbatim invariant;
+  full 2D + 4D round-trip; bit-exact lossless reconstruction for
+  random floats (the load-bearing property — XOR results can produce
+  NaN bit patterns that must round-trip); zero-byte runs for stable
+  frames; gzip compression sanity on 4D fixture; iter rejects wrong
+  mode. Local sweep: 39/39 v5 tests pass.
+
+### Fixed — bit-exact dense pack/unpack for XOR-mode payloads
+
+- **``pack_frame_2d_dense`` / ``pack_frame_4d_dense`` now use byte-exact
+  copy (``ndarray.tobytes()`` / ``np.frombuffer``) instead of
+  ``struct.Struct(f"<{N}fI4B").pack(*tolist(), ...)``. The struct path
+  silently normalized NaN bit patterns when going through float64 in
+  ``.tolist()``, which broke XOR-stream round-trips: legitimately stored
+  NaN-shaped XOR results were losing payload bits. With the byte-exact
+  path, all 2^32 float32 bit patterns round-trip including NaNs and
+  denormals.
+
 - **v5 per-channel replacement encoding (Python)** per ADR-001 (v1.6
   PR-C). Mode 1 of three. Each frame stores only the channels that
   differ from the previous frame; the very first frame emits all
