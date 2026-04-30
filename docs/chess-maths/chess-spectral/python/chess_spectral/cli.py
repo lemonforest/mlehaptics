@@ -700,6 +700,119 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_search(args: argparse.Namespace) -> int:
+    """Run a single iterative-deepening search at the requested
+    position and print the best move + key statistics.
+
+    Drives the §16.2 search core with a single agent spec (the
+    ``--agent`` argument). The CLI surface is intentionally symmetric
+    with `tournament` so that "white spec" / "black spec" can be
+    factored out into a single shared parser.
+    """
+    import json as _json
+    import chess as _chess
+    from chess_spectral.engine.tournament.agent_spec import (
+        parse_spec, build_agent_2d,
+    )
+
+    board = _chess.Board(args.fen) if args.fen else _chess.Board()
+    spec = parse_spec(args.agent)
+    agent = build_agent_2d(spec)
+
+    result = agent.search_fn(board, agent.evaluator, agent.search_options)
+
+    out = {
+        "agent": agent.label,
+        "fen": board.fen(),
+        "best_move": result.best_move.uci() if result.best_move else None,
+        "best_score": result.best_score,
+        "depth_reached": result.depth_reached,
+        "nodes_searched": result.nodes_searched,
+        "elapsed_ms": result.elapsed_ms,
+        "pv": [m.uci() for m in result.pv],
+        "tt_hits": result.tt_hits,
+        "tt_size": result.tt_size,
+    }
+    if args.json:
+        print(_json.dumps(out, indent=2))
+    else:
+        print(f"agent: {out['agent']}")
+        print(f"fen:   {out['fen']}")
+        print(f"best:  {out['best_move']} (score={out['best_score']:.3f})")
+        print(f"depth: {out['depth_reached']}  nodes: {out['nodes_searched']}  "
+              f"time: {out['elapsed_ms']:.1f}ms")
+        if out["pv"]:
+            print("pv:    " + " ".join(out["pv"]))
+        if agent.search_options.use_tt:
+            print(f"tt:    hits={out['tt_hits']}  size={out['tt_size']}")
+    return 0
+
+
+def cmd_tournament(args: argparse.Namespace) -> int:
+    """Run a round-robin tournament between two or more agents.
+
+    Each ``--agent SPEC`` produces one configured engine. Pairs play
+    ``--n-games-per-pair`` games (alternating colors). Outputs Elo
+    ratings + per-pair scores in JSON.
+
+    The flow matches §16's ship gate: pit (evaluator, depth) cells
+    against each other, log who beat whom, compute Elo, decide ship.
+    """
+    import json as _json
+    import chess as _chess
+    from chess_spectral.engine.tournament.agent_spec import (
+        parse_spec, build_agent_2d,
+    )
+    from chess_spectral.engine.tournament import run_round_robin
+
+    if len(args.agent) < 2:
+        print("tournament: need at least 2 --agent specs", file=sys.stderr)
+        return 2
+
+    agents = [build_agent_2d(parse_spec(spec)) for spec in args.agent]
+
+    result = run_round_robin(
+        agents,
+        n_games_per_pair=args.n_games_per_pair,
+        board_factory=_chess.Board,
+        max_plies=args.max_plies,
+    )
+
+    out = {
+        "agents": [a.label for a in agents],
+        "n_games_per_pair": args.n_games_per_pair,
+        "max_plies": args.max_plies,
+        "elo": {label: round(rating, 1) for label, rating in result.final_elos.items()},
+        "pair_records": {
+            f"{a}_vs_{b}": {"wins": w, "losses": l, "draws": d}
+            for (a, b), (w, l, d) in result.pair_records.items()
+        },
+        "elapsed_ms": result.elapsed_ms,
+        "games": [
+            {
+                "white": g.white.label,
+                "black": g.black.label,
+                "score_white": g.score_white,
+                "termination": g.termination,
+                "plies": g.plies_played,
+                "elapsed_ms": g.elapsed_ms,
+            }
+            for g in result.games
+        ],
+    }
+
+    text = _json.dumps(out, indent=2)
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fp:
+            fp.write(text)
+            fp.write("\n")
+        print(f"tournament: wrote {len(result.games)} games to {args.output}",
+              file=sys.stderr)
+    else:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="spectral_py",
@@ -897,6 +1010,75 @@ def build_parser() -> argparse.ArgumentParser:
     p_exp.add_argument("-o", "--output",
                        help="output JSON path (default: stdout)")
     p_exp.set_defaults(func=cmd_export)
+
+    p_search = sub.add_parser(
+        "search",
+        help="Run §16.2 search at a given position",
+        description=(
+            "Iterative-deepening alpha-beta search. The --agent argument "
+            "is a comma-separated key=value spec, e.g.:\n\n"
+            "  evaluator=spectral,depth=4,weights=spectral_v1.json\n"
+            "  evaluator=qm,depth=3,no_quiescence,time_budget_ms=2000\n\n"
+            "Recognized keys: label, evaluator (material/spectral/qm), "
+            "depth, time_budget_ms, weights (path), quiescence_max_depth, "
+            "no_tt, no_mvv_lva, no_quiescence (boolean flags). Default "
+            "depth=4, all optimizations on."
+        ),
+    )
+    p_search.add_argument(
+        "--fen",
+        help="FEN string of the position to search (default: starting position)",
+    )
+    p_search.add_argument(
+        "--agent", required=True, metavar="SPEC",
+        help="agent spec (e.g. 'evaluator=spectral,depth=4')",
+    )
+    p_search.add_argument(
+        "--json", action="store_true",
+        help="emit machine-readable JSON instead of human summary",
+    )
+    p_search.set_defaults(func=cmd_search)
+
+    p_tour = sub.add_parser(
+        "tournament",
+        help="Run round-robin self-play tournament between agents",
+        description=(
+            "Round-robin tournament. Pass two or more --agent specs; "
+            "each pair plays --rounds-per-pair games with alternating "
+            "colors. Output is JSON with Elo ratings, wins/draws/losses, "
+            "and per-game termination + ply counts.\n\n"
+            "This is the §16 ship-gate driver: pit (evaluator, depth) "
+            "cells against each other, accumulate Elo evidence, decide "
+            "whether the spectral framework empirically beats the "
+            "material baseline.\n\n"
+            "Example -- 3-cell mini-sweep at depth 2:\n"
+            "  spectral_py tournament \\\n"
+            "    --agent 'label=mat,evaluator=material,depth=2' \\\n"
+            "    --agent 'label=spec,evaluator=spectral,depth=2' \\\n"
+            "    --agent 'label=qm,evaluator=qm,depth=2' \\\n"
+            "    --rounds-per-pair 4 -o sweep_d2.json"
+        ),
+    )
+    p_tour.add_argument(
+        "--agent", required=True, action="append", metavar="SPEC",
+        help="agent spec; repeat for each agent in the round-robin "
+             "(minimum 2; agents play each other in both colors)",
+    )
+    p_tour.add_argument(
+        "--n-games-per-pair", type=int, default=2,
+        help="games per pair (default: 2 -- one as white, one as black; "
+             "each player plays the other twice)",
+    )
+    p_tour.add_argument(
+        "--max-plies", type=int, default=200,
+        help="hard cap on plies per game (default: 200; long endgames "
+             "draw on this rule)",
+    )
+    p_tour.add_argument(
+        "-o", "--output",
+        help="write tournament JSON to FILE instead of stdout",
+    )
+    p_tour.set_defaults(func=cmd_tournament)
 
     return ap
 
