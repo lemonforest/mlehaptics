@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — v1.6 engine CLI surface
 
+- **`spectral_py sweep` ship-gate runner.** One-shot driver for the
+  §16.5 / §2787 ship-gate matrix. Builds the cross product of
+  `--evaluators` × `--depths` (default 3 × 4 = 12 cells), runs a
+  full round-robin with the same single-process tournament harness
+  as `tournament`, and emits Elo ratings + per-pair records as JSON.
+
+  ::
+
+      spectral_py sweep \
+          --evaluators material,spectral,qm \
+          --depths 1,2,3,4 \
+          --n-games-per-pair 10 \
+          --time-budget-ms 5000 \
+          -o sweep_results.json
+
+  Per-cell games are omitted from the output by default (`--include-
+  games` to add them); the aggregate `pair_records` is what the §16
+  ship-gate evaluation reads. Each cell carries the same agent
+  options; for per-cell asymmetry use `tournament` with explicit
+  `--agent` specs.
+
 - **`search` and `tournament` subcommands** wired into both
   `chess_spectral.cli` (2D) and `chess_spectral_4d.cli` (4D), driven
   by a shared **agent-spec parser** in

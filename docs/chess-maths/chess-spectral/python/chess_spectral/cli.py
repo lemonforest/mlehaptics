@@ -813,6 +813,105 @@ def cmd_tournament(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sweep(args: argparse.Namespace) -> int:
+    """Run the §16.5 / §2787 ship-gate matrix in one shot.
+
+    A "sweep" is a round-robin between every (evaluator, depth) cell
+    in the user-provided cross product. Defaults to the §16 standard:
+    3 evaluators (material / spectral / qm) × 4 depths (1, 2, 3, 4)
+    = 12 cells. Runs the same single-process tournament harness as
+    `tournament` but builds the agent list automatically.
+
+    Each cell can carry weights via --weights-spectral / --weights-qm
+    (material is unweighted). The resulting JSON is the §16 ship-
+    gate evidence.
+    """
+    import json as _json
+    import chess as _chess
+    from chess_spectral.engine.tournament.agent_spec import (
+        AgentSpec, build_agent_2d,
+    )
+    from chess_spectral.engine.tournament import run_round_robin
+
+    evaluators = [e.strip() for e in args.evaluators.split(",") if e.strip()]
+    depths = [int(d.strip()) for d in args.depths.split(",") if d.strip()]
+    if not evaluators or not depths:
+        print("sweep: --evaluators and --depths must each have ≥1 entry",
+              file=sys.stderr)
+        return 2
+
+    agents = []
+    for ev in evaluators:
+        weights_path = None
+        if ev == "spectral" and args.weights_spectral:
+            weights_path = args.weights_spectral
+        elif ev == "qm" and args.weights_qm:
+            weights_path = args.weights_qm
+        for d in depths:
+            spec = AgentSpec(
+                label=f"{ev}@{d}",
+                evaluator=ev,
+                depth=d,
+                weights=weights_path,
+                time_budget_ms=args.time_budget_ms,
+            )
+            agents.append(build_agent_2d(spec))
+
+    if len(agents) < 2:
+        print("sweep: cross-product yielded <2 agents; nothing to play",
+              file=sys.stderr)
+        return 2
+
+    result = run_round_robin(
+        agents,
+        n_games_per_pair=args.n_games_per_pair,
+        board_factory=_chess.Board,
+        max_plies=args.max_plies,
+    )
+
+    out = {
+        "evaluators": evaluators,
+        "depths": depths,
+        "n_games_per_pair": args.n_games_per_pair,
+        "max_plies": args.max_plies,
+        "elo": {label: round(rating, 1) for label, rating in result.final_elos.items()},
+        "pair_records": {
+            f"{a}_vs_{b}": {"wins": w, "losses": l, "draws": d}
+            for (a, b), (w, l, d) in result.pair_records.items()
+        },
+        "elapsed_ms": result.elapsed_ms,
+        "n_cells": len(agents),
+        "n_games": len(result.games),
+    }
+    if args.include_games:
+        out["games"] = [
+            {
+                "white": g.white.label,
+                "black": g.black.label,
+                "score_white": g.score_white,
+                "termination": g.termination,
+                "plies": g.plies_played,
+                "elapsed_ms": g.elapsed_ms,
+            }
+            for g in result.games
+        ]
+
+    text = _json.dumps(out, indent=2)
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fp:
+            fp.write(text)
+            fp.write("\n")
+        print(
+            f"sweep: {len(agents)} cells × {args.n_games_per_pair} games-per-pair "
+            f"= {len(result.games)} games in {result.elapsed_ms/1000:.1f}s; "
+            f"wrote {args.output}",
+            file=sys.stderr,
+        )
+    else:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="spectral_py",
@@ -1079,6 +1178,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="write tournament JSON to FILE instead of stdout",
     )
     p_tour.set_defaults(func=cmd_tournament)
+
+    p_sweep = sub.add_parser(
+        "sweep",
+        help="Run the §16 ship-gate matrix (evaluator × depth cross-product)",
+        description=(
+            "Run a round-robin over every (evaluator, depth) cell in the "
+            "user-supplied cross product. Defaults to the §16 standard: "
+            "3 evaluators × 4 depths = 12 cells. The single-process "
+            "tournament harness plays each pair --n-games-per-pair times "
+            "(both colors). Output is JSON with Elo ratings + per-pair "
+            "records — the §16 ship-gate evidence.\n\n"
+            "Each cell carries the same agent options (time budget, etc); "
+            "if you need per-cell asymmetry use `tournament` with "
+            "explicit --agent specs."
+        ),
+    )
+    p_sweep.add_argument(
+        "--evaluators", default="material,spectral,qm",
+        help="comma-separated evaluator names (default: material,spectral,qm)",
+    )
+    p_sweep.add_argument(
+        "--depths", default="1,2,3,4",
+        help="comma-separated search depths (default: 1,2,3,4)",
+    )
+    p_sweep.add_argument(
+        "--weights-spectral",
+        help="weights JSON file for the spectral evaluator (optional)",
+    )
+    p_sweep.add_argument(
+        "--weights-qm",
+        help="weights JSON file for the qm evaluator (optional)",
+    )
+    p_sweep.add_argument(
+        "--n-games-per-pair", type=int, default=4,
+        help="games per pair (default: 4 — small but enough for a noisy "
+             "pre-check; production runs want 10-20)",
+    )
+    p_sweep.add_argument(
+        "--max-plies", type=int, default=200,
+        help="hard cap on plies per game (default: 200)",
+    )
+    p_sweep.add_argument(
+        "--time-budget-ms", type=int, default=None,
+        help="per-move time budget in ms (applied uniformly to every "
+             "agent; useful for keeping the matrix within wall-clock "
+             "bounds)",
+    )
+    p_sweep.add_argument(
+        "--include-games", action="store_true",
+        help="include per-game records in JSON (default: omitted to keep "
+             "output compact; aggregate stats are in 'pair_records')",
+    )
+    p_sweep.add_argument(
+        "-o", "--output",
+        help="write sweep JSON to FILE instead of stdout",
+    )
+    p_sweep.set_defaults(func=cmd_sweep)
 
     return ap
 
