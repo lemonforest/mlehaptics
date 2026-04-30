@@ -1,0 +1,560 @@
+{
+  "gears": [
+    {
+      "fragment": "A",
+      "name": "a1",
+      "notes": "Uncertain; Freeth 2021 uses 48, Wright concurs.",
+      "role": "Crown gear / hand-crank input (count uncertain, ~48)",
+      "teeth": {
+        "Freeth2021": 48,
+        "Wright": 48
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "b1",
+      "notes": "Freeth 2021 argues 224 for exact Callippic alignment; Wright/Price report 223.",
+      "role": "Main sun gear, largest surviving (4-spoked)",
+      "teeth": {
+        "Freeth2021": 224,
+        "Price1974": 223,
+        "Wright": 223
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "b2",
+      "notes": "",
+      "role": "Pinion on sun gear shaft driving Metonic train",
+      "teeth": {
+        "Freeth2021": 64
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e2",
+      "notes": "",
+      "role": "Metonic train input",
+      "teeth": {
+        "Freeth2021": 32,
+        "Wright": 32
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e5",
+      "notes": "Critical prime factor; 53 = 19\u00b7235/(5\u00b795) piece of Metonic ratio.",
+      "role": "Metonic train intermediate (the famous '53' \u2014 prime factor)",
+      "teeth": {
+        "Freeth2021": 53,
+        "Wright": 53
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "k1",
+      "notes": "",
+      "role": "Metonic train intermediate",
+      "teeth": {
+        "Freeth2021": 96
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e6",
+      "notes": "",
+      "role": "Metonic train output partner (second 53-tooth wheel)",
+      "teeth": {
+        "Freeth2021": 53,
+        "Wright": 53
+      }
+    },
+    {
+      "fragment": "B",
+      "name": "l1",
+      "notes": "",
+      "role": "Metonic spiral driver",
+      "teeth": {
+        "Freeth2021": 38
+      }
+    },
+    {
+      "fragment": "B",
+      "name": "l2",
+      "notes": "",
+      "role": "Metonic spiral driver intermediate",
+      "teeth": {
+        "Freeth2021": 53
+      }
+    },
+    {
+      "fragment": "B",
+      "name": "m1",
+      "notes": "",
+      "role": "Metonic spiral output",
+      "teeth": {
+        "Freeth2021": 96
+      }
+    },
+    {
+      "fragment": "B",
+      "name": "metonic_display",
+      "notes": "Not a gear per se \u2014 235 marks on the Metonic spiral. Included so the SSOT has the count.",
+      "role": "Metonic 235-month display scale (conceptual \u2014 spiral marks)",
+      "teeth": {
+        "Freeth2021": 235
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "c1",
+      "notes": "",
+      "role": "Lunar train input from sun gear",
+      "teeth": {
+        "Freeth2021": 38,
+        "Wright": 38
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "c2",
+      "notes": "",
+      "role": "Lunar intermediate",
+      "teeth": {
+        "Freeth2021": 48,
+        "Wright": 48
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "d1",
+      "notes": "",
+      "role": "Lunar drive to pin-and-slot",
+      "teeth": {
+        "Freeth2021": 24,
+        "Wright": 24
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "d2",
+      "notes": "One of the three large primes in the mechanism (127, 223, 53). Encodes sidereal/synodic commensurability.",
+      "role": "Sidereal-month lunar gear (= 254/2)",
+      "teeth": {
+        "Freeth2021": 127,
+        "Price1974": 127,
+        "Wright": 127
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e1",
+      "notes": "",
+      "role": "Pin-and-slot drive gear A",
+      "teeth": {
+        "Freeth2021": 32
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e3",
+      "notes": "",
+      "role": "Pin-and-slot epicycle A (one of four 50-tooth wheels)",
+      "teeth": {
+        "Freeth2021": 50,
+        "Wright": 50
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e4",
+      "notes": "",
+      "role": "Pin-and-slot epicycle B",
+      "teeth": {
+        "Freeth2021": 50,
+        "Wright": 50
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "k2",
+      "notes": "",
+      "role": "Pin-and-slot epicycle C",
+      "teeth": {
+        "Freeth2021": 50,
+        "Wright": 50
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "e_eccentric",
+      "notes": "The pin-and-slot epicycle uses four 50-tooth wheels; one carries the offset pin that engages the slot of the driven wheel.",
+      "role": "Pin-and-slot epicycle D (4th 50-tooth wheel in pin-and-slot)",
+      "teeth": {
+        "Freeth2021": 50,
+        "Wright": 50
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "f1",
+      "notes": "",
+      "role": "Saros train input (another 53-tooth)",
+      "teeth": {
+        "Freeth2021": 53,
+        "Wright": 53
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "f2",
+      "notes": "",
+      "role": "Saros intermediate",
+      "teeth": {
+        "Freeth2021": 30
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "g1",
+      "notes": "",
+      "role": "Saros intermediate",
+      "teeth": {
+        "Freeth2021": 54
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "g2",
+      "notes": "",
+      "role": "Saros intermediate",
+      "teeth": {
+        "Freeth2021": 20
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "h1",
+      "notes": "",
+      "role": "Saros spiral driver",
+      "teeth": {
+        "Freeth2021": 60
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "h2",
+      "notes": "",
+      "role": "Saros spiral driver intermediate",
+      "teeth": {
+        "Freeth2021": 15
+      }
+    },
+    {
+      "fragment": "A",
+      "name": "i1",
+      "notes": "",
+      "role": "Saros spiral output",
+      "teeth": {
+        "Freeth2021": 60
+      }
+    },
+    {
+      "fragment": "B",
+      "name": "saros_display",
+      "notes": "223 is prime \u2014 one of the three large primes.  It is a genuine fact of celestial mechanics, not a design choice.",
+      "role": "Saros 223-month display scale (conceptual \u2014 spiral marks)",
+      "teeth": {
+        "Freeth2021": 223
+      }
+    },
+    {
+      "fragment": "B",
+      "name": "exeligmos_display",
+      "notes": "669 = 3 \u00b7 223.  The factor of 3 makes Exeligmos a clean harmonic of Saros.",
+      "role": "Exeligmos 669-month scale (conceptual \u2014 3 \u00d7 Saros)",
+      "teeth": {
+        "Freeth2021": 669
+      }
+    },
+    {
+      "fragment": "D",
+      "name": "frag_d_63",
+      "notes": "63 = 7\u00b79 = 7\u00b73^2.  The 7 is shared with other planetary trains per Freeth 2021 (H-A2 load-bearing).",
+      "role": "Fragment D 63-tooth gear (Venus/planetary)",
+      "teeth": {
+        "Freeth2021": 63,
+        "Wright": 63
+      }
+    },
+    {
+      "fragment": null,
+      "name": "venus_289",
+      "notes": "Not attested physically; Freeth 2021 derives 289 = 17^2 from the proposed (289, 462) period relation.  See cycle table.",
+      "role": "Venus 289-synodic-period numerator (conceptual)",
+      "teeth": {
+        "Freeth2021": 289
+      }
+    },
+    {
+      "fragment": null,
+      "name": "venus_462",
+      "notes": "462 = 2\u00b73\u00b77\u00b711; Freeth 2021 proposes shared factor 7 with other planets and shared factor 11 as the Venus-specific discriminator.",
+      "role": "Venus 462-year denominator (conceptual)",
+      "teeth": {
+        "Freeth2021": 462
+      }
+    },
+    {
+      "fragment": null,
+      "name": "saturn_427",
+      "notes": "Not attested; Freeth 2021 derives 427 = 7\u00b761 from (427, 442).",
+      "role": "Saturn 427-synodic-period numerator (conceptual)",
+      "teeth": {
+        "Freeth2021": 427
+      }
+    },
+    {
+      "fragment": null,
+      "name": "saturn_442",
+      "notes": "442 = 2\u00b713\u00b717; shared factor 17 with Venus (289 = 17^2).",
+      "role": "Saturn 442-year denominator (conceptual)",
+      "teeth": {
+        "Freeth2021": 442
+      }
+    },
+    {
+      "fragment": null,
+      "name": "mars_133",
+      "notes": "133 = 7\u00b719; 7 is shared planetary prime.",
+      "role": "Mars synodic numerator (conceptual)",
+      "teeth": {
+        "Freeth2021": 133
+      }
+    },
+    {
+      "fragment": null,
+      "name": "mars_125",
+      "notes": "125 = 5^3 (Greek was precise on Mars synodic BUT lacked equants).",
+      "role": "Mars synodic denominator (conceptual)",
+      "teeth": {
+        "Freeth2021": 125
+      }
+    },
+    {
+      "fragment": null,
+      "name": "jupiter_76",
+      "notes": "76 = 4\u00b719.  Shared factor 19 with Metonic.",
+      "role": "Jupiter synodic numerator (conceptual)",
+      "teeth": {
+        "Freeth2021": 76
+      }
+    },
+    {
+      "fragment": null,
+      "name": "jupiter_83",
+      "notes": "83 is prime.",
+      "role": "Jupiter synodic denominator (conceptual)",
+      "teeth": {
+        "Freeth2021": 83
+      }
+    },
+    {
+      "fragment": null,
+      "name": "mercury_145",
+      "notes": "145 = 5\u00b729.",
+      "role": "Mercury synodic numerator (conceptual)",
+      "teeth": {
+        "Freeth2021": 145
+      }
+    },
+    {
+      "fragment": null,
+      "name": "mercury_46",
+      "notes": "46 = 2\u00b723.",
+      "role": "Mercury synodic denominator (conceptual)",
+      "teeth": {
+        "Freeth2021": 46
+      }
+    }
+  ],
+  "groups": {
+    "lunar_train": [
+      "c1",
+      "c2",
+      "d1",
+      "d2",
+      "e1",
+      "e3",
+      "e4",
+      "k2",
+      "e_eccentric",
+      "f1",
+      "f2",
+      "g1",
+      "g2",
+      "h1",
+      "h2",
+      "i1",
+      "saros_display",
+      "exeligmos_display"
+    ],
+    "main_train": [
+      "a1",
+      "b1",
+      "b2",
+      "e2",
+      "e5",
+      "k1",
+      "e6",
+      "l1",
+      "l2",
+      "m1",
+      "metonic_display"
+    ],
+    "planetary": [
+      "frag_d_63",
+      "venus_289",
+      "venus_462",
+      "saturn_427",
+      "saturn_442",
+      "mars_133",
+      "mars_125",
+      "jupiter_76",
+      "jupiter_83",
+      "mercury_145",
+      "mercury_46"
+    ]
+  },
+  "mesh_edges": [
+    {
+      "axle": "crank -> sun",
+      "gear_a": "a1",
+      "gear_b": "b1"
+    },
+    {
+      "axle": null,
+      "gear_a": "b1",
+      "gear_b": "b2"
+    },
+    {
+      "axle": "sun -> Metonic input",
+      "gear_a": "b2",
+      "gear_b": "e2"
+    },
+    {
+      "axle": "-> first 53",
+      "gear_a": "e2",
+      "gear_b": "e5"
+    },
+    {
+      "axle": "53 -> 96",
+      "gear_a": "e5",
+      "gear_b": "k1"
+    },
+    {
+      "axle": null,
+      "gear_a": "k1",
+      "gear_b": "e6"
+    },
+    {
+      "axle": "second 53 -> 38",
+      "gear_a": "e6",
+      "gear_b": "l1"
+    },
+    {
+      "axle": null,
+      "gear_a": "l1",
+      "gear_b": "l2"
+    },
+    {
+      "axle": "53 -> 96 metonic output",
+      "gear_a": "l2",
+      "gear_b": "m1"
+    },
+    {
+      "axle": "sun -> lunar 38",
+      "gear_a": "b1",
+      "gear_b": "c1"
+    },
+    {
+      "axle": null,
+      "gear_a": "c1",
+      "gear_b": "c2"
+    },
+    {
+      "axle": "-> 24",
+      "gear_a": "c2",
+      "gear_b": "d1"
+    },
+    {
+      "axle": "24 -> 127 (sidereal)",
+      "gear_a": "d1",
+      "gear_b": "d2"
+    },
+    {
+      "axle": "127 -> 32 pin-and-slot drive",
+      "gear_a": "d2",
+      "gear_b": "e1"
+    },
+    {
+      "axle": "pin-and-slot epicycle A",
+      "gear_a": "e1",
+      "gear_b": "e3"
+    },
+    {
+      "axle": "pin-and-slot epicycle B (offset)",
+      "gear_a": "e3",
+      "gear_b": "e4"
+    },
+    {
+      "axle": "pin-and-slot epicycle C",
+      "gear_a": "e4",
+      "gear_b": "k2"
+    },
+    {
+      "axle": "53 -> 53 Saros input",
+      "gear_a": "e5",
+      "gear_b": "f1"
+    },
+    {
+      "axle": null,
+      "gear_a": "f1",
+      "gear_b": "f2"
+    },
+    {
+      "axle": "-> 54",
+      "gear_a": "f2",
+      "gear_b": "g1"
+    },
+    {
+      "axle": null,
+      "gear_a": "g1",
+      "gear_b": "g2"
+    },
+    {
+      "axle": "-> 60",
+      "gear_a": "g2",
+      "gear_b": "h1"
+    },
+    {
+      "axle": null,
+      "gear_a": "h1",
+      "gear_b": "h2"
+    },
+    {
+      "axle": "-> 60 Saros output",
+      "gear_a": "h2",
+      "gear_b": "i1"
+    }
+  ],
+  "n_gears": 40,
+  "n_mesh_edges": 24,
+  "reconstructions": [
+    "Freeth2021",
+    "Wright",
+    "Price1974"
+  ],
+  "schema_version": 1,
+  "source_module": "research.gear_database"
+}

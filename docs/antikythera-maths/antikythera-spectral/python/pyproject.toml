@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "antikythera-spectral"
+version = "0.1.0rc1"
+description = "Hyperdimensional-computing encoder + Pyodide bridge for the Antikythera mechanism"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Steven Kirkland" }]
+keywords = [
+    "antikythera",
+    "spectral",
+    "hyperdimensional-computing",
+    "ephemeris",
+    "skyfield",
+    "history-of-science",
+    "hellenistic-astronomy",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
+]
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
+plot       = ["matplotlib>=3.7"]
+hypotheses = ["scipy>=1.10"]
+all        = ["antikythera-spectral[ephemeris,plot,hypotheses]"]
+
+[project.scripts]
+antikythera-spectral = "antikythera_spectral.cli:main"
+
+[project.urls]
+Homepage    = "https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/antikythera-spectral"
+Repository  = "https://github.com/lemonforest/mlehaptics"
+Issues      = "https://github.com/lemonforest/mlehaptics/issues"
+Changelog   = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/python/CHANGELOG.md"
+"Notebook"  = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera_spectral_research_notebook.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["antikythera_spectral"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"antikythera_spectral/_data/cycles.json"             = "antikythera_spectral/_data/cycles.json"
+"antikythera_spectral/_data/gears.json"              = "antikythera_spectral/_data/gears.json"
+"antikythera_spectral/_data/anchors.json"            = "antikythera_spectral/_data/anchors.json"
+"antikythera_spectral/_data/periods.json"            = "antikythera_spectral/_data/periods.json"
+"antikythera_spectral/_data/fragments.json"          = "antikythera_spectral/_data/fragments.json"
+"antikythera_spectral/_data/basis_vectors_d940.npz"   = "antikythera_spectral/_data/basis_vectors_d940.npz"
+"antikythera_spectral/_data/basis_vectors_d13440.npz" = "antikythera_spectral/_data/basis_vectors_d13440.npz"
+"antikythera_spectral/_data/manifest.json"            = "antikythera_spectral/_data/manifest.json"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "antikythera_spectral/**",
+    "tests/**",
+    "README.md",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
+exclude = ["**/__pycache__/**", "**/*.pyc"]

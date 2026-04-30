@@ -1,0 +1,36 @@
+{
+  "files": {
+    "anchors.json": {
+      "sha256": "437cadfc650dd37b97dd720834c8d603632912cd97f1cfbe24ac31951af0d87a",
+      "size_bytes": 4268
+    },
+    "basis_vectors_d13440.npz": {
+      "sha256": "959bcb140ed19c389d47f1161436cff3993d3a798e756b7f8efa5f488804999d",
+      "size_bytes": 2799994
+    },
+    "basis_vectors_d940.npz": {
+      "sha256": "2b2c5b24140f6e7119878a37697f353b91521d45f4bf2b9dbdb3af4499b0cbae",
+      "size_bytes": 123106
+    },
+    "cycles.json": {
+      "sha256": "90220f63d4cf365f44f72af6f7ea4208c908c4dac4b1d348bb66482ff865eedd",
+      "size_bytes": 5923
+    },
+    "fragments.json": {
+      "sha256": "a46965fc790eb82fa4cd9eb6a82d84819b43e08c3f49a2126043d5f3603d9da5",
+      "size_bytes": 9533
+    },
+    "gears.json": {
+      "sha256": "e0aa54e24980430179ca34bf00358407daa6bb1da2df94c211e989508a6fb009",
+      "size_bytes": 12703
+    },
+    "periods.json": {
+      "sha256": "137a3638c5380eef775966773f34f33ad9eb636da2246473acacf0da74cc26d6",
+      "size_bytes": 9948
+    }
+  },
+  "package": "antikythera-spectral",
+  "schema_version": 1,
+  "source_commit": "665e968ab2d76d75f3d07cfd36bd98c309641b73",
+  "version": "0.1.0rc1"
+}

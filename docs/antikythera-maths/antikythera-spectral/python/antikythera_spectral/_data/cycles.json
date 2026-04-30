@@ -1,0 +1,226 @@
+{
+  "cycles": [
+    {
+      "den_factors": [
+        19
+      ],
+      "denominator": 19,
+      "mechanism_days": 6939.688382335,
+      "modern_days": 6939.60161,
+      "name": "Metonic",
+      "notes": "19 tropical years = 235 synodic months.  Mechanism encodes this exactly via the e-series (53, 96, 53).",
+      "num_factors": [
+        5,
+        47
+      ],
+      "numerator": 235,
+      "tag": "calendar"
+    },
+    {
+      "den_factors": [
+        2,
+        2,
+        19
+      ],
+      "denominator": 76,
+      "mechanism_days": 27758.75352934,
+      "modern_days": 27758.40644,
+      "name": "Callippic",
+      "notes": "4 Metonic cycles = 76 years.  Improves the Metonic approximation.",
+      "num_factors": [
+        2,
+        2,
+        5,
+        47
+      ],
+      "numerator": 940,
+      "tag": "calendar"
+    },
+    {
+      "den_factors": [],
+      "denominator": 1,
+      "mechanism_days": 1460.96876,
+      "modern_days": 1460.96876,
+      "name": "Olympic",
+      "notes": "Panhellenic games \u2014 4-year Olympiad dial.",
+      "num_factors": [
+        2,
+        2
+      ],
+      "numerator": 4,
+      "tag": "calendar"
+    },
+    {
+      "den_factors": [
+        19
+      ],
+      "denominator": 19,
+      "mechanism_days": 6585.321316003,
+      "modern_days": 6585.321316003,
+      "name": "Saros",
+      "notes": "Eclipse cycle.  223 is prime \u2014 genuine celestial-mechanics fact, not a design choice.",
+      "num_factors": [
+        223
+      ],
+      "numerator": 223,
+      "tag": "eclipse"
+    },
+    {
+      "den_factors": [
+        3
+      ],
+      "denominator": 3,
+      "mechanism_days": 19755.963948008997,
+      "modern_days": 19755.9633,
+      "name": "Exeligmos",
+      "notes": "3 Saros = 54 years.  Aligns eclipses to same time of day.",
+      "num_factors": [
+        3,
+        223
+      ],
+      "numerator": 669,
+      "tag": "eclipse"
+    },
+    {
+      "den_factors": [
+        19
+      ],
+      "denominator": 19,
+      "mechanism_days": 6939.70164,
+      "modern_days": 6939.60161,
+      "name": "SiderealMonth",
+      "notes": "254 sidereal months in 19 tropical years (via 127-tooth gear = 254/2).",
+      "num_factors": [
+        2,
+        127
+      ],
+      "numerator": 254,
+      "tag": "lunar"
+    },
+    {
+      "den_factors": [
+        19
+      ],
+      "denominator": 19,
+      "mechanism_days": 6585.357239999999,
+      "modern_days": 6939.60161,
+      "name": "DraconicMonth",
+      "notes": "Node-regression cycle; 242 draconic months ~ 19 years.  Embedded implicitly in Saros eclipse prediction.",
+      "num_factors": [
+        2,
+        11,
+        11
+      ],
+      "numerator": 242,
+      "tag": "lunar"
+    },
+    {
+      "den_factors": [
+        19
+      ],
+      "denominator": 19,
+      "mechanism_days": 6916.19205,
+      "modern_days": 6939.60161,
+      "name": "LunarAnomaly",
+      "notes": "Anomalistic-month cycle encoded by the pin-and-slot epicycle.  251 anomalistic ~ 269 synodic months ~ 8.85 years period.",
+      "num_factors": [
+        251
+      ],
+      "numerator": 251,
+      "tag": "lunar"
+    },
+    {
+      "den_factors": [
+        2,
+        23
+      ],
+      "denominator": 46,
+      "mechanism_days": 16802.6,
+      "modern_days": 16801.14074,
+      "name": "Mercury_synodic_period_relation",
+      "notes": "Freeth 2021 proposed (145, 46).  145 = 5\u00b729, 46 = 2\u00b723.",
+      "num_factors": [
+        5,
+        29
+      ],
+      "numerator": 145,
+      "tag": "planetary"
+    },
+    {
+      "den_factors": [
+        2,
+        3,
+        7,
+        11
+      ],
+      "denominator": 462,
+      "mechanism_days": 168752.87999999998,
+      "modern_days": 168741.89178,
+      "name": "Venus_synodic_period_relation",
+      "notes": "Freeth 2021 proposed (289, 462).  289 = 17^2; 462 = 2\u00b73\u00b77\u00b711.  Shared factor 7 with Mars, shared factor 17 with Saturn.",
+      "num_factors": [
+        17,
+        17
+      ],
+      "numerator": 289,
+      "tag": "planetary"
+    },
+    {
+      "den_factors": [
+        5,
+        5,
+        5
+      ],
+      "denominator": 125,
+      "mechanism_days": 103732.02,
+      "modern_days": 97492.5,
+      "name": "Mars_synodic_period_relation",
+      "notes": "Freeth 2021 proposed (133, 125) for Mars.  Here the denominator 125 is itself 125 Mars-sidereal returns rather than 125 tropical years (the deeply ambiguous case since Greek Martian theory mixed returns and years).  133 = 7\u00b719; shared factor 7 with Venus.  Mars is the 'intentionally wrong' dial \u2014 no equant in Greek theory; the residual here is dominated by the equant-less epicycle model.",
+      "num_factors": [
+        7,
+        19
+      ],
+      "numerator": 133,
+      "tag": "planetary"
+    },
+    {
+      "den_factors": [
+        83
+      ],
+      "denominator": 83,
+      "mechanism_days": 30314.88,
+      "modern_days": 30315.10177,
+      "name": "Jupiter_synodic_period_relation",
+      "notes": "Freeth 2021 proposed (76, 83).  76 = 4\u00b719; 83 prime.",
+      "num_factors": [
+        2,
+        2,
+        19
+      ],
+      "numerator": 76,
+      "tag": "planetary"
+    },
+    {
+      "den_factors": [
+        2,
+        13,
+        17
+      ],
+      "denominator": 442,
+      "mechanism_days": 161444.43,
+      "modern_days": 161437.04798,
+      "name": "Saturn_synodic_period_relation",
+      "notes": "Freeth 2021 proposed (427, 442).  427 = 7\u00b761; 442 = 2\u00b713\u00b717.  Shared factor 17 with Venus (289 = 17^2).",
+      "num_factors": [
+        7,
+        61
+      ],
+      "numerator": 427,
+      "tag": "planetary"
+    }
+  ],
+  "n_cycles": 13,
+  "schema_version": 1,
+  "source_module": "research.astronomical_cycles",
+  "source_symbol": "CYCLES"
+}
