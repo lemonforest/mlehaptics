@@ -55,9 +55,9 @@ def manifest() -> dict:
 def test_manifest_lists_every_committed_file(manifest: dict) -> None:
     """Every codegen-managed file must appear in the manifest."""
     expected: set[str] = set()
-    # _data/*.json + *.npz (excluding the manifest itself).
+    # _data/*.json (excluding the manifest itself).
     for p in _DATA_DIR.iterdir():
-        if p.suffix in {".json", ".npz"} and p.name != "manifest.json":
+        if p.suffix == ".json" and p.name != "manifest.json":
             expected.add(f"_data/{p.name}")
     # _research/*.py + README.md (codegen-emitted copies).
     if _RESEARCH_DIR.exists():
@@ -113,12 +113,11 @@ def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     for mod_name in [
         "emit_cycles", "emit_gears", "emit_anchors",
         "emit_periods", "emit_fragment_inventory",
-        "emit_basis_vectors", "emit_research_modules",
+        "emit_research_modules",
     ]:
         sys.modules.pop(mod_name, None)
 
     import emit_anchors             # noqa: E402
-    import emit_basis_vectors       # noqa: E402
     import emit_cycles              # noqa: E402
     import emit_fragment_inventory  # noqa: E402
     import emit_gears               # noqa: E402
@@ -128,11 +127,6 @@ def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     # Patch _research_modules destination to the temp dir.
     monkeypatch.setattr(emit_research_modules, "_RESEARCH_DST", tmp_research)
 
-    # Re-emit the JSON files + the basis-vector NPZ files. The latter
-    # are deterministic now thanks to emit_basis_vectors._deterministic_savez
-    # (zeroed ZIP timestamps, ZIP_STORED). Earlier versions used
-    # np.savez() which embedded current-time mtimes per entry and
-    # therefore could not be checked here.
     emit_cycles.emit()
     emit_gears.emit()
     emit_anchors.emit()
@@ -140,12 +134,8 @@ def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     emit_fragment_inventory.emit()
     emit_research_modules.emit()
 
-    import emit_basis_vectors  # noqa: E402
-    emit_basis_vectors.emit()
-
     for name in ("cycles.json", "gears.json", "anchors.json",
-                 "periods.json", "fragments.json",
-                 "basis_vectors_d940.npz", "basis_vectors_d13440.npz"):
+                 "periods.json", "fragments.json"):
         regenerated = (tmp_data / name).read_bytes()
         committed = (_DATA_DIR / name).read_bytes()
         assert regenerated == committed, (

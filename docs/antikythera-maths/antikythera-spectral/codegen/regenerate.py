@@ -39,7 +39,6 @@ from typing import Dict
 from _paths import DATA_DIR
 
 import emit_anchors
-import emit_basis_vectors
 import emit_cycles
 import emit_fragment_inventory
 import emit_gears
@@ -134,15 +133,18 @@ _EPILOG = """\
 What this writes
 ----------------
 
-    _data/cycles.json                 from research.astronomical_cycles
-    _data/gears.json                  from research.gear_database
-    _data/anchors.json                from research.hellenistic_eclipses
-    _data/periods.json                from research.historical_periods
-    _data/fragments.json              from research.gear_database (grouped by fragment)
-    _data/basis_vectors_d940.npz      deterministic HDC channel basis (D=940)
-    _data/basis_vectors_d13440.npz    deterministic HDC channel basis (D=13440)
-    _data/manifest.json               version + source-commit + per-file SHA-256
-    _research/*.py                    23 curated research modules, byte-identical copy
+    _data/cycles.json       from research.astronomical_cycles
+    _data/gears.json        from research.gear_database
+    _data/anchors.json      from research.hellenistic_eclipses
+    _data/periods.json      from research.historical_periods
+    _data/fragments.json    from research.gear_database (grouped by fragment)
+    _data/manifest.json     version + source-commit + per-file SHA-256
+    _research/*.py          23 curated research modules, byte-identical copy
+
+Note: basis-vector NPZ emission was removed (the encoder computes
+channel bases lazily from deterministic seeds; the NPZs were dead
+weight in the wheel and not cross-platform deterministic anyway
+because of BLAS floating-point order).
 
 Determinism
 -----------
@@ -153,7 +155,7 @@ Re-running with the same source state produces byte-identical output.
 ADR cross-reference
 -------------------
 
-- ADR 0004: frozen data as JSON / NPZ, never pickle
+- ADR 0004: frozen data as JSON, never pickle
 - ADR 0005: codegen yes / C no in v0.1.0
 """
 
@@ -216,12 +218,13 @@ def main(argv=None) -> int:
         _say("emitting fragments ...")
         written["_data/fragments.json"] = emit_fragment_inventory.emit()
 
-        _say("emitting basis vectors ...")
-        basis_paths = emit_basis_vectors.emit()
-        for D, p in basis_paths.items():
-            # Manifest keys use paths relative to the package root so the
-            # test can resolve them uniformly with PKG_ROOT / key.
-            written[f"_data/{p.name}"] = p
+        # Note: basis-vector NPZ emission was removed in this commit.
+        # The package's encoder computes channel bases lazily from
+        # deterministic seeds via _research.encode_ant.get_channel_basis;
+        # nothing in the wheel actually loaded the NPZ files. Shipping
+        # them was 2.6 MB of dead weight, and the underlying float
+        # values differ across platforms because BLAS / math-library
+        # floating-point arithmetic order isn't cross-platform stable.
 
     if not args.skip_research:
         _say("copying research modules into _research/ ...")
