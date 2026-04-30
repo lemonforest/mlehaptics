@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "antikythera-spectral"
-version = "0.1.0rc1"
+version = "0.1.0"
 description = "Hyperdimensional-computing encoder + Pyodide bridge for the Antikythera mechanism"
 readme = "README.md"
 requires-python = ">=3.10"
