@@ -17,6 +17,19 @@
  * C so the binary is fully self-contained. Until then the bridge is the
  * single Python seam in the pipeline.
  */
+/* Feature test: this file uses POSIX-only APIs (fdopen, pipe, fork, dup2,
+ * execvp, waitpid, _exit, STDOUT_FILENO) on the non-Windows side of the
+ * `bridge_proc_t` helpers. glibc gates fdopen behind _POSIX_C_SOURCE >=
+ * 200809L (in <stdio.h>); without this macro the prototype is invisible
+ * and the compiler defaults to assuming `int fdopen(...)`, which truncates
+ * the returned 64-bit FILE* on x86_64. The truncated pointer then crashes
+ * inside fgets() on the first read. macOS exposes POSIX symbols by default,
+ * Windows uses the _fdopen variant via _open_osfhandle, so this manifested
+ * only on Linux + glibc. Must be defined BEFORE any system header is
+ * included. (Workaround historically lived in the test_smoke_e2e.py xfail
+ * for `test_pgn_to_spectralz_real_game::xfail(linux)`.) */
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

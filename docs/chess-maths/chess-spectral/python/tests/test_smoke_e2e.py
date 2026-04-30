@@ -811,36 +811,22 @@ def test_4d_tournament_two_kings():
 # ─── PGN round-trip via pgn_bridge (requires python-chess) ──────────
 
 
-# Linux + GCC + -O2 segfault (was originally diagnosed as LTO-specific,
-# but PR #137 confirmed the segfault persists at -O2 without LTO):
-# ubuntu-latest + Release preset segfaults `spectral encode --pgn -z`
-# on this fixture across retries. Returns -11 (SIGSEGV). Always passes
-# on:
-#   - ubuntu-latest + ASAN preset (-O1 + sanitizers)
-#   - macos-14 + Release preset (Apple Clang)
-#   - windows-latest + msvc-release preset (MSVC)
-#   - all five verify-wheels matrices (cibuildwheel; wheels are -O2 too,
-#     but built with a different GCC and without --pgn input flowing
-#     through pgn_bridge.py at test time, so don't exercise the same
-#     code path)
-# So the bug is specific to GCC's -O2 pass on Linux interacting with
-# the encode-from-PGN code path, NOT LTO-specific as initially
-# suspected. v1.6.x dropped LTO from the release preset (matching
-# cibuildwheel) as a separate cleanup; the xfail stays until the
-# underlying UB is identified and fixed (next: WSL2 reproduction +
-# gdb).
-_LINUX_RELEASE_SEGFAULT = pytest.mark.xfail(
-    sys.platform.startswith("linux"),
-    reason="GCC -O2 segfault in spectral encode --pgn -z on ubuntu+release; "
-           "tracked as v1.6 follow-up. ASAN/macOS/Windows builds pass.",
-    strict=False,
-    run=True,
-)
+# Historical: ubuntu-latest + Release preset used to segfault
+# `spectral encode --pgn -z` consistently. Initially suspected to be
+# LTO/IPO; later (PR #137) confirmed the segfault still reproduced at
+# -O2 without LTO. WSL2 + gdb root-caused the actual UB: glibc gates
+# `fdopen` behind _POSIX_C_SOURCE >= 200809L, but src/main.c didn't
+# define it. So fdopen was being called as if it returned `int`,
+# truncating its 64-bit FILE* return value to 32 bits on x86_64;
+# the next fgets() on that pointer crashed in libc. Fixed in
+# src/main.c by adding `#define _POSIX_C_SOURCE 200809L` before the
+# system headers. macOS exposed POSIX symbols by default; Windows
+# used _fdopen via _open_osfhandle; so the bug only manifested on
+# Linux+glibc.
 
 
 @_REQUIRES_C
 @_REQUIRES_PYTHON_CHESS
-@_LINUX_RELEASE_SEGFAULT
 def test_pgn_to_spectralz_real_game(tmp_path):
     """Full PGN→NDJSON→.spectralz pipeline using the C `spectral
     encode --pgn` shortcut (which auto-pipes through pgn_bridge.py).
