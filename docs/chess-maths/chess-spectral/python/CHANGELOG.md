@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-04-30
+
+The v1.6 follow-up release. Closes the v1.6 deferred-items workstream
+(Track 1 = Python QM 2D parity with v1.5 4D, Track 2 = v5 unified wire
+format C-side mirror across all three encoding modes plus the CLI
+flag, Track 3 = root-cause + fix the long-standing
+`test_pgn_to_spectralz_real_game::xfail(linux)` segfault). Two
+companion docs PRs (#129 chess2d-OC misnaming, #135 README oracles
+polish) are folded in. The release ships entirely on top of v1.6.0's
+public surface — no behavior changes for existing 2D/4D users; new
+opt-in surface for `--encoding={xor,channel,full}` and the C-side v5
+reader/writer functions.
+
 ### Fixed — Linux segfault in `spectral encode --pgn -z` (POSIX feature test)
 
 **Root cause:** glibc gates `fdopen` behind `_POSIX_C_SOURCE >= 200809L`
