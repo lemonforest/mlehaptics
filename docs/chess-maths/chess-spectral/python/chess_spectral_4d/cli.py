@@ -369,6 +369,156 @@ def cmd_version(args: argparse.Namespace) -> int:
 
 # --- parser --------------------------------------------------------------
 
+def _sq4_to_coord_str(sq: int) -> str:
+    """Format a 4D flat index as 'x,y,z,w' for CLI output."""
+    side = 8
+    w = sq % side
+    z = (sq // side) % side
+    y = (sq // (side * side)) % side
+    x = (sq // (side * side * side)) % side
+    return f"{x},{y},{z},{w}"
+
+
+def cmd_search_4d(args: argparse.Namespace) -> int:
+    """4D analogue of the 2D `search` command. See spectral_py search --help.
+
+    The agent spec syntax is identical (evaluator / depth / weights /
+    ablations / etc.) — only the binding differs (chess_spectral_4d
+    modules). This is the §16's symmetric per-side configuration: a
+    user can drive 4D search with the same spec format as 2D.
+    """
+    import json as _json
+    from chess_spectral.engine.tournament.agent_spec import (
+        parse_spec, build_agent_4d,
+    )
+    from chess_spectral.spatial_4d.board import Board4D
+
+    if args.fen4:
+        board = Board4D.from_fen(args.fen4)
+    else:
+        # No 4D starting-position helper yet; require explicit fen4.
+        print(
+            "search: --fen4 required (no default starting position for "
+            "4D yet; pass an explicit FEN4 v1 literal -- see "
+            "docs/FEN4_FORMAT.md)",
+            file=sys.stderr,
+        )
+        return 2
+
+    spec = parse_spec(args.agent)
+    agent = build_agent_4d(spec)
+
+    result = agent.search_fn(board, agent.evaluator, agent.search_options)
+
+    if result.best_move is not None:
+        m = result.best_move
+        move_str = (
+            f"({_sq4_to_coord_str(m.from_sq)})->"
+            f"({_sq4_to_coord_str(m.to_sq)})"
+        )
+    else:
+        move_str = None
+
+    out = {
+        "agent": agent.label,
+        "best_move": move_str,
+        "best_score": result.best_score,
+        "depth_reached": result.depth_reached,
+        "nodes_searched": result.nodes_searched,
+        "elapsed_ms": result.elapsed_ms,
+        "tt_hits": getattr(result, "tt_hits", 0),
+        "tt_size": getattr(result, "tt_size", 0),
+    }
+    if args.json:
+        print(_json.dumps(out, indent=2))
+    else:
+        print(f"agent: {out['agent']}")
+        print(f"best:  {out['best_move']} (score={out['best_score']:.3f})")
+        print(f"depth: {out['depth_reached']}  nodes: {out['nodes_searched']}  "
+              f"time: {out['elapsed_ms']:.1f}ms")
+        if agent.search_options.use_tt:
+            print(f"tt:    hits={out['tt_hits']}  size={out['tt_size']}")
+    return 0
+
+
+def cmd_tournament_4d(args: argparse.Namespace) -> int:
+    """4D analogue of the 2D `tournament` command.
+
+    Agents are configured via the same agent-spec format. Round-robin
+    games play in 4D Board4D positions.
+
+    NOTE: the 4D move generator in pure Python is slow (~250 s for the
+    starting position's 2152-move legal set). Realistic tournaments
+    will set ``time_budget_ms`` per agent and ``--max-plies`` low.
+    """
+    import json as _json
+    from chess_spectral.engine.tournament.agent_spec import (
+        parse_spec, build_agent_4d,
+    )
+    from chess_spectral.engine.tournament import run_round_robin
+    from chess_spectral.spatial_4d.board import Board4D
+
+    if len(args.agent) < 2:
+        print("tournament: need at least 2 --agent specs", file=sys.stderr)
+        return 2
+
+    if not args.start_fen4:
+        print(
+            "tournament: --start-fen4 required (4D has no canonical "
+            "starting position; pass an explicit FEN4 v1 literal that "
+            "every game starts from -- see docs/FEN4_FORMAT.md)",
+            file=sys.stderr,
+        )
+        return 2
+
+    agents = [build_agent_4d(parse_spec(spec)) for spec in args.agent]
+    start_fen = args.start_fen4
+
+    def _board_factory():
+        return Board4D.from_fen(start_fen)
+
+    result = run_round_robin(
+        agents,
+        n_games_per_pair=args.n_games_per_pair,
+        board_factory=_board_factory,
+        max_plies=args.max_plies,
+    )
+
+    out = {
+        "agents": [a.label for a in agents],
+        "n_games_per_pair": args.n_games_per_pair,
+        "max_plies": args.max_plies,
+        "start_fen4": start_fen,
+        "elo": {label: round(rating, 1) for label, rating in result.final_elos.items()},
+        "pair_records": {
+            f"{a}_vs_{b}": {"wins": w, "losses": l, "draws": d}
+            for (a, b), (w, l, d) in result.pair_records.items()
+        },
+        "elapsed_ms": result.elapsed_ms,
+        "games": [
+            {
+                "white": g.white.label,
+                "black": g.black.label,
+                "score_white": g.score_white,
+                "termination": g.termination,
+                "plies": g.plies_played,
+                "elapsed_ms": g.elapsed_ms,
+            }
+            for g in result.games
+        ],
+    }
+    text = _json.dumps(out, indent=2)
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fp:
+            fp.write(text)
+            fp.write("\n")
+        print(f"tournament: wrote {len(result.games)} games to {args.output}",
+              file=sys.stderr)
+    else:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="chess_spectral_4d.cli",
@@ -486,6 +636,57 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     p_ver.set_defaults(func=cmd_version)
+
+    # search (4D)
+    p_search = sub.add_parser(
+        "search",
+        help="Run §16.2 search at a 4D position",
+        description=(
+            "Iterative-deepening alpha-beta search on a 4D Board4D. "
+            "Mirrors `spectral_py search` with the same agent-spec "
+            "syntax. Requires --fen4 (no 4D canonical starting position "
+            "yet; see docs/FEN4_FORMAT.md). Per-spec the user can pick "
+            "evaluator (material/spectral/qm), depth, time budget, "
+            "weights file, and ablations -- the §16's symmetric per-side "
+            "configuration surface."
+        ),
+    )
+    p_search.add_argument("--fen4", required=True,
+                          help="FEN4 v1 literal of the position to search")
+    p_search.add_argument("--agent", required=True, metavar="SPEC",
+                          help="agent spec (e.g. 'evaluator=material,depth=2')")
+    p_search.add_argument("--json", action="store_true",
+                          help="emit machine-readable JSON instead of human summary")
+    p_search.set_defaults(func=cmd_search_4d)
+
+    # tournament (4D)
+    p_tour = sub.add_parser(
+        "tournament",
+        help="Run round-robin self-play tournament between 4D agents",
+        description=(
+            "4D round-robin tournament. Each --agent SPEC produces a "
+            "configured engine (white/black are independently spec'd "
+            "per pairing); round-robin pits each pair both ways. "
+            "Output is JSON with Elo ratings + per-game records.\n\n"
+            "Realistic settings: --max-plies 20 and per-agent "
+            "time_budget_ms=5000 keep wall time bounded since pure-"
+            "Python 4D move generation is slow.\n\n"
+            "Requires --start-fen4 (no canonical 4D starting position)."
+        ),
+    )
+    p_tour.add_argument("--agent", required=True, action="append", metavar="SPEC",
+                        help="agent spec; repeat for each agent (minimum 2)")
+    p_tour.add_argument("--start-fen4", required=True,
+                        help="FEN4 v1 literal each game starts from")
+    p_tour.add_argument("--n-games-per-pair", type=int, default=2,
+                        help="games per pair (default: 2)")
+    p_tour.add_argument("--max-plies", type=int, default=20,
+                        help="hard cap on plies per game (default: 20; lower "
+                             "than 2D's 200 because pure-Python 4D move-gen "
+                             "is slow)")
+    p_tour.add_argument("-o", "--output",
+                        help="write tournament JSON to FILE instead of stdout")
+    p_tour.set_defaults(func=cmd_tournament_4d)
 
     return ap
 

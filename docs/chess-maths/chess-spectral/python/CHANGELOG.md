@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6 engine CLI surface
+
+- **`search` and `tournament` subcommands** wired into both
+  `chess_spectral.cli` (2D) and `chess_spectral_4d.cli` (4D), driven
+  by a shared **agent-spec parser** in
+  `chess_spectral.engine.tournament.agent_spec`. Per-side symmetric
+  spec syntax — white and black are independently configured. The
+  §16 ship-gate's "white=spectral@4 vs black=qm@3" pattern is a
+  first-class CLI use case. Per-spec keys: `label`, `evaluator`
+  (material/spectral/qm), `depth`, `time_budget_ms`, `weights` (path),
+  `quiescence_max_depth`, `no_tt`, `no_mvv_lva`, `no_quiescence`.
+
 ### Documentation
 
 - **New `docs/WIRE_FORMAT.md`** — canonical user-facing spec for the
