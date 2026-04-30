@@ -1,8 +1,7 @@
 """chess_spectral.engine -- 2D position evaluation, search, tournament.
 
-Phase 6 (v1.6) engine surface for the 640-dim spectral encoder. Three
-evaluator families share the API ``evaluate(position, side_to_move) ->
-float``:
+Phase 6 (v1.6) engine surface for the 640-dim spectral encoder. Mirrors
+:mod:`chess_spectral_4d.engine` (4D) in shape.
 
   * **material** -- sum of signed piece values (centipawns). Baseline.
     No encoder call.
@@ -23,14 +22,11 @@ Convention -- ``evaluate(position, side_to_move) -> float``
   Positive == side_to_move is winning. Negative == losing.
   Zero == drawn (or the evaluator has no signal).
 
-  ``position``: dict matching the encoder's input schema (sq_index ->
-    piece char for 2D; sq4_index -> PieceValue for 4D). Do not pass a
-    GameState wrapper -- use the wrapper's ``position`` accessor first.
-  ``side_to_move``: True == white to move; False == black to move.
-    Engine search loops alternate this on every ply.
-
-Stability contract -- each evaluator's score is a deterministic function
-of (position, side_to_move). No RNG; no system clock; no I/O.
+The tournament harness composes search + evaluator into Agent
+configurations and runs round-robin matches to empirically validate
+the spectral / QM framework's chess-relevance per §16.5 and the
+§2787 ship gate (per-depth Elo sweep across 3+ depths × 3
+evaluators × 2 dimensions).
 """
 from __future__ import annotations
 
