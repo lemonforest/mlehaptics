@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(empty — next item lands here)
+### Added — v1.6.x Track 1 PR-A: qm_2d_dynamics skeleton
+
+- **New `chess_spectral.qm_2d_dynamics` module** — Track B Zeno layer
+  for 2D, mirroring `qm_4d_dynamics` at d=2. Ships:
+  - `H_FREE_2D()` — the free-particle Hamiltonian `H_0 = -Δ_{P_8²}`
+    as a 64×64 sparse Hermitian matrix (Kron-sum of two `L_8`
+    path-graph Laplacians; spectrum in `[-7.7, 0]`).
+  - `evolve_under_h0(psi, t, *, channel=None)` — Zeno-style
+    continuous-time evolution `U(t) = exp(-i H_0 t)`. Accepts a
+    single 64-dim channel block or the full 640-dim ψ (broadcasts
+    `H_0` across the 10 channels via `I_{10} ⊗ H_0`); optional
+    `channel=` evolves a single named block.
+
+  This is the smallest brick of the §17.2 surface — closes the v1.5
+  asymmetry where 4D shipped the full Track B + bridge but 2D only
+  had Track A kinematics. Per-channel `u_move_*_2d` builders and
+  the qm_2d_bridge dispatch ship in subsequent v1.6.x PRs.
+
+  17 new tests in `tests/test_qm_2d_dynamics.py`: H_FREE_2D
+  Hermiticity, negative-semidefinite spectrum, [−7.7, 0] bounds;
+  `evolve_under_h0` norm + energy preservation, U(-t)∘U(t)=I,
+  per-channel broadcast match, `channel=` only touches that block;
+  error paths (wrong shape, 2-D input, ambiguous `channel=` on
+  64-dim ψ, unknown channel name).
+
+### Changed — v1.6.x: stale `--rounds-per-pair` reference in tournament help
+
+- Fixed: `spectral_py tournament --help` description text said
+  `--rounds-per-pair` but the actual flag is `--n-games-per-pair`
+  (a leftover from an early draft of the spec). User-visible only;
+  no behavior change.
+
+### Documentation — v1.6.x README refresh
+
+- **`python/README.md` (the PyPI long-description) now calls out
+  v1.6.** New "What's new in v1.6" section covering: search +
+  tournament + sweep CLI commands, the three §16.1 evaluator
+  families, the in-house 4D bitboard move generator
+  (`spatial_4d`), the graph-Laplacian legality oracle, the v5
+  unified wire format with empirical 7.23× compression on 4D, and
+  the `verify-wheels` CI gate. Cross-links to
+  [`docs/WIRE_FORMAT.md`](../docs/WIRE_FORMAT.md) for the byte-level
+  v2/v3/v4/v5 spec.
 
 ## [1.6.0] — 2026-04-30
 

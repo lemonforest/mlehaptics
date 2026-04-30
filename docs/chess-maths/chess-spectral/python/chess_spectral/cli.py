@@ -1143,7 +1143,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run round-robin self-play tournament between agents",
         description=(
             "Round-robin tournament. Pass two or more --agent specs; "
-            "each pair plays --rounds-per-pair games with alternating "
+            "each pair plays --n-games-per-pair games with alternating "
             "colors. Output is JSON with Elo ratings, wins/draws/losses, "
             "and per-game termination + ply counts.\n\n"
             "This is the §16 ship-gate driver: pit (evaluator, depth) "
@@ -1155,7 +1155,7 @@ def build_parser() -> argparse.ArgumentParser:
             "    --agent 'label=mat,evaluator=material,depth=2' \\\n"
             "    --agent 'label=spec,evaluator=spectral,depth=2' \\\n"
             "    --agent 'label=qm,evaluator=qm,depth=2' \\\n"
-            "    --rounds-per-pair 4 -o sweep_d2.json"
+            "    --n-games-per-pair 4 -o sweep_d2.json"
         ),
     )
     p_tour.add_argument(
