@@ -47,14 +47,17 @@ import emit_research_modules
 
 
 # Paths whose history determines the manifest's ``source_commit``.
-# Relative to the repo root. The manifest's source_commit is the last
-# commit that modified any of these — NOT the current HEAD — so that
-# re-running codegen on a CI build (where HEAD is some merge-commit
-# SHA) reproduces the same manifest as the developer who committed it.
+# Relative to the repo root. We only include CODEGEN INPUTS here (the
+# scripts under codegen/, plus the SSOT under research/) — NOT the
+# regenerated outputs (_data/, _research/). Otherwise the manifest's
+# source_commit becomes self-referential: a commit that updates both
+# a codegen input AND the regenerated _data/manifest.json would record
+# its own SHA, but at codegen-time the commit-in-progress doesn't yet
+# exist, so we'd record N-1; after commit it'd be N, perpetually
+# stale. Filtering to inputs only keeps the field stable across
+# regenerations that don't actually change inputs.
 _CODEGEN_PATHS = [
     "docs/antikythera-maths/antikythera-spectral/codegen/",
-    "docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/",
-    "docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_data/",
     "docs/antikythera-maths/research/",
 ]
 

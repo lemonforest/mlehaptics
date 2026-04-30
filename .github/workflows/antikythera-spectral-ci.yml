@@ -79,8 +79,16 @@ jobs:
       - name: Snapshot _data + _research SHA-256
         working-directory: docs/antikythera-maths/antikythera-spectral
         run: |
+          # Exclude manifest.json from the diff: its `source_commit`
+          # field is tautologically tied to whatever commit last
+          # touched the codegen sources, and CI's HEAD is the merge-
+          # commit SHA which won't match the committed value when the
+          # commit-in-progress also updates the manifest. The per-file
+          # SHA-256 sums in the manifest already give the integrity
+          # guarantee; we just don't compare the manifest itself here.
           find python/antikythera_spectral/_data python/antikythera_spectral/_research \
-            -type f -exec sha256sum {} \; | sort > /tmp/before.sha256
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/before.sha256
       - name: Re-run codegen
         working-directory: docs/antikythera-maths/antikythera-spectral/codegen
         run: python regenerate.py
@@ -88,5 +96,6 @@ jobs:
         working-directory: docs/antikythera-maths/antikythera-spectral
         run: |
           find python/antikythera_spectral/_data python/antikythera_spectral/_research \
-            -type f -exec sha256sum {} \; | sort > /tmp/after.sha256
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/after.sha256
           diff /tmp/before.sha256 /tmp/after.sha256
