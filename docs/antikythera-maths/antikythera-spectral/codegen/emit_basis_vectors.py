@@ -60,15 +60,26 @@ _DETERMINISTIC_DATE_TIME = (1980, 1, 1, 0, 0, 0)
 
 
 def _deterministic_savez(out_path: Path, **arrays: Any) -> None:
-    """Write a ZIP-archive .npz with all timestamps zeroed.
+    """Write a ZIP-archive .npz with all timestamps + host bytes zeroed.
 
-    Equivalent to ``np.savez(out_path, **arrays)`` but reproducible
-    across runs. Each numpy array is serialised via
-    ``np.lib.format.write_array`` to a memory buffer, then added to the
-    ZIP under ``<key>.npy`` with a fixed ``date_time``.
+    Equivalent to ``np.savez(out_path, **arrays)`` but **reproducible
+    across runs and operating systems**. Each numpy array is serialised
+    via ``np.lib.format.write_array`` to a memory buffer, then added to
+    the ZIP under ``<key>.npy`` with:
+
+    - ``date_time = (1980, 1, 1, 0, 0, 0)`` — kills the wall-clock mtime
+      Python's ``zipfile`` module would otherwise stamp into each local
+      header.
+    - ``create_system = 3`` (Unix) — Python's default is host-dependent
+      (0 = FAT/Windows, 3 = Unix). Pinning it removes the platform
+      drift the CI matrix exposes (Linux vs Windows write different
+      bytes here even with identical inputs).
+    - ``external_attr = 0o600 << 16`` — fixed POSIX file mode bits, also
+      to avoid platform variation.
+    - Sorted entry order — ``arrays.keys()`` is dict-iteration order;
+      we sort to be safe against insertion-order quirks across Python
+      versions.
     """
-    # Sort keys for deterministic entry order. Empty zip-entry headers
-    # also have a default mtime; we override that via ZipInfo.
     with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_STORED) as zf:
         for key in sorted(arrays.keys()):
             arr = arrays[key]
@@ -77,6 +88,7 @@ def _deterministic_savez(out_path: Path, **arrays: Any) -> None:
             info = zipfile.ZipInfo(filename=f"{key}.npy",
                                     date_time=_DETERMINISTIC_DATE_TIME)
             info.compress_type = zipfile.ZIP_STORED
+            info.create_system = 3  # Unix (host byte in ZIP central directory)
             info.external_attr = 0o600 << 16
             zf.writestr(info, buf.getvalue())
 

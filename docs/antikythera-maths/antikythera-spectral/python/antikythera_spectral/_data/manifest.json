@@ -5,11 +5,11 @@
       "size_bytes": 4178
     },
     "_data/basis_vectors_d13440.npz": {
-      "sha256": "4ff9fcd6fd877fea64785851a58ba92b95d9fa2f0f8f008d7df514fed909b3fe",
+      "sha256": "c88e9343062bef793d679b090d4348181bdb6abcd989deca58854e25294ca907",
       "size_bytes": 2799563
     },
     "_data/basis_vectors_d940.npz": {
-      "sha256": "0ea3c9da6ea166fc5e1aebe884e33dd9afd6b3ae07b91f97682a303a8e0a17ab",
+      "sha256": "a1278d729f752f89104705e47820bde44b6ee3524f52facb5d7ab9215c12c413",
       "size_bytes": 122775
     },
     "_data/cycles.json": {
@@ -131,6 +131,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "87d0e03375485f9c4094bcddce24fd261baab452",
+  "source_commit": "d4c2fcd9e25929d22ecf4797ab7418249d437018",
   "version": "0.1.0rc1"
 }
