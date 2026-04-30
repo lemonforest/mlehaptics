@@ -38,5 +38,34 @@ correctness signal.
 from __future__ import annotations
 
 from .bitboard import Bitboard4D
+from .attacks_nonsliding import (
+    KNIGHT_ATTACKS_4D,
+    KING_ATTACKS_4D,
+    attacks_knight_4d,
+    attacks_king_4d,
+)
+from .attacks_sliding import (
+    attacks_rook_4d,
+    attacks_bishop_4d,
+    attacks_queen_4d,
+)
+from .rays import (
+    ROOK_DIRECTIONS, BISHOP_DIRECTIONS, QUEEN_DIRECTIONS,
+    ROOK_RAYS, BISHOP_RAYS, QUEEN_RAYS,
+)
 
-__all__ = ["Bitboard4D"]
+__all__ = [
+    "Bitboard4D",
+    # non-sliding
+    "KNIGHT_ATTACKS_4D",
+    "KING_ATTACKS_4D",
+    "attacks_knight_4d",
+    "attacks_king_4d",
+    # sliding
+    "attacks_rook_4d",
+    "attacks_bishop_4d",
+    "attacks_queen_4d",
+    # rays / directions
+    "ROOK_DIRECTIONS", "BISHOP_DIRECTIONS", "QUEEN_DIRECTIONS",
+    "ROOK_RAYS", "BISHOP_RAYS", "QUEEN_RAYS",
+]
