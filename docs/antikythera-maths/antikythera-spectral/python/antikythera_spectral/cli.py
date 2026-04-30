@@ -279,102 +279,190 @@ def _make_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     # version
-    sub.add_parser("version", help="Print version + manifest info").set_defaults(func=_cmd_version)
+    v_p = sub.add_parser(
+        "version",
+        help="Print version + manifest info",
+        description="Prints the package version + the codegen manifest.",
+    )
+    v_p.set_defaults(func=_cmd_version)
 
     # encode / angle / decode
-    e = sub.add_parser("encode", help="Encode a JD as the per-dial state")
+    e = sub.add_parser(
+        "encode",
+        help="Encode a JD as the per-dial state",
+        description="Build the HDC state vector and per-dial residues for a date.",
+    )
     e.add_argument("--jd", type=float, required=True, help="Julian Day in TDB")
-    e.add_argument("--D", type=int, default=940, choices=[940, 13440])
+    e.add_argument("--D", type=int, default=940, choices=[940, 13440],
+                   help="Encoder dimension (default 940)")
     e.add_argument("--dial", type=str, default=None,
                    help="If set, output only this dial's state")
     e.set_defaults(func=_cmd_encode)
 
-    a = sub.add_parser("angle", help="Continuous dial angle at a JD")
-    a.add_argument("--jd", type=float, required=True)
-    a.add_argument("--dial", type=str, required=True)
+    a = sub.add_parser(
+        "angle",
+        help="Continuous dial angle at a JD",
+        description="D-independent dial angle in degrees.",
+    )
+    a.add_argument("--jd", type=float, required=True, help="Julian Day in TDB")
+    a.add_argument("--dial", type=str, required=True, help="dial name")
     a.set_defaults(func=_cmd_angle)
 
-    d = sub.add_parser("decode", help="Decode a saved state file")
+    d = sub.add_parser(
+        "decode",
+        help="Decode a saved state file",
+        description="Recover the residue of a dial from an .npy / .npz state vector.",
+    )
     d.add_argument("--state", type=str, required=True,
                    help="Path to .npy or .npz state file")
-    d.add_argument("--dial", type=str, required=True)
-    d.add_argument("--D", type=int, default=940, choices=[940, 13440])
+    d.add_argument("--dial", type=str, required=True, help="dial name")
+    d.add_argument("--D", type=int, default=940, choices=[940, 13440],
+                   help="Encoder dimension that produced the state (default 940)")
     d.set_defaults(func=_cmd_decode)
 
     # date subcommands
-    date = sub.add_parser("date", help="Calendar conversion")
+    date = sub.add_parser(
+        "date",
+        help="Calendar conversion (Gregorian / Julian / Athenian / Olympiad)",
+        description="Convert between Julian Day and four calendar systems.",
+    )
     date_sub = date.add_subparsers(dest="date_cmd", required=True)
-    djg = date_sub.add_parser("jd-to-gregorian")
-    djg.add_argument("jd", type=float)
+    djg = date_sub.add_parser(
+        "jd-to-gregorian",
+        help="Convert JD to proleptic Gregorian date",
+        description="Proleptic Gregorian calendar date (year, month, day, time, era).",
+    )
+    djg.add_argument("jd", type=float, help="Julian Day in TDB")
     djg.set_defaults(func=_cmd_date_jd_to_gregorian)
-    dgj = date_sub.add_parser("gregorian-to-jd")
-    dgj.add_argument("year", type=int)
-    dgj.add_argument("month", type=int)
-    dgj.add_argument("day", type=int)
+    dgj = date_sub.add_parser(
+        "gregorian-to-jd",
+        help="Convert proleptic Gregorian date to JD",
+        description="Reverse direction: build a Julian Day from a Gregorian date.",
+    )
+    dgj.add_argument("year", type=int, help="positive ordinal; era=BCE for pre-1 CE")
+    dgj.add_argument("month", type=int, help="1..12")
+    dgj.add_argument("day", type=int, help="1..31")
     dgj.add_argument("--hour", type=int, default=0)
     dgj.add_argument("--minute", type=int, default=0)
     dgj.add_argument("--second", type=int, default=0)
     dgj.add_argument("--era", choices=["CE", "BCE"], default="CE")
     dgj.set_defaults(func=_cmd_date_gregorian_to_jd)
-    djj = date_sub.add_parser("jd-to-julian")
-    djj.add_argument("jd", type=float)
+    djj = date_sub.add_parser(
+        "jd-to-julian",
+        help="Convert JD to Julian-calendar date (pre-1582 historical sources)",
+        description="Julian calendar (in use 45 BCE -- 1582-10-15 CE).",
+    )
+    djj.add_argument("jd", type=float, help="Julian Day in TDB")
     djj.set_defaults(func=_cmd_date_jd_to_julian)
-    dja = date_sub.add_parser("jd-to-athenian")
-    dja.add_argument("jd", type=float)
+    dja = date_sub.add_parser(
+        "jd-to-athenian",
+        help="Convert JD to Attic month + day (Athenian, archon=null in v0.1.0)",
+        description=(
+            "Attic-month structure (Hekatombaion .. Skirophorion). Archon "
+            "name pending v0.2.0; see ADR 0007 for the discipline."
+        ),
+    )
+    dja.add_argument("jd", type=float, help="Julian Day in TDB")
     dja.set_defaults(func=_cmd_date_jd_to_athenian)
-    djo = date_sub.add_parser("jd-to-olympiad")
-    djo.add_argument("jd", type=float)
+    djo = date_sub.add_parser(
+        "jd-to-olympiad",
+        help="Convert JD to Olympiad year (Antikythera back-dial format)",
+        description=(
+            "Olympiad number + year-in-Olympiad. Olympiad I.1 = 776 BCE. "
+            "Freeth, Jones, Steele & Bitsakis 2008 reconstruct the back dial."
+        ),
+    )
+    djo.add_argument("jd", type=float, help="Julian Day in TDB")
     djo.set_defaults(func=_cmd_date_jd_to_olympiad)
 
     # astronomy
-    v = sub.add_parser("visibility", help="Heliacal-visibility windows")
-    v.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
-    v.add_argument("--from-jd", dest="from_jd", type=float, required=True)
-    v.add_argument("--to-jd", dest="to_jd", type=float, required=True)
-    v.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
-    v.set_defaults(func=_cmd_visibility)
+    vis = sub.add_parser(
+        "visibility",
+        help="Heliacal-visibility windows for a planet over a JD range",
+        description="Returns (heliacal_rising, heliacal_setting) JD pairs.",
+    )
+    vis.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
+    vis.add_argument("--from-jd", dest="from_jd", type=float, required=True,
+                     help="Lower bound of the JD range (TDB)")
+    vis.add_argument("--to-jd", dest="to_jd", type=float, required=True,
+                     help="Upper bound of the JD range (TDB)")
+    vis.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES,
+                     help="JPL DE-kernel to load (default de421)")
+    vis.set_defaults(func=_cmd_visibility)
 
-    h = sub.add_parser("heliacal", help="Next heliacal rising of a planet")
+    h = sub.add_parser(
+        "heliacal",
+        help="Next heliacal rising of a planet after a JD",
+        description="When the planet next emerges from solar glare.",
+    )
     h.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
-    h.add_argument("--jd", type=float, required=True)
+    h.add_argument("--jd", type=float, required=True,
+                   help="Search start JD (TDB)")
     h.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     h.set_defaults(func=_cmd_heliacal)
 
-    el = sub.add_parser("elongation", help="Solar elongation at a JD")
+    el = sub.add_parser(
+        "elongation",
+        help="Solar elongation at a JD",
+        description="Angular separation (degrees) between the Sun and the target body.",
+    )
     el.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
-    el.add_argument("--jd", type=float, required=True)
+    el.add_argument("--jd", type=float, required=True, help="Julian Day in TDB")
     el.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     el.set_defaults(func=_cmd_elongation)
 
-    es = sub.add_parser("eclipses", help="Eclipse search over a JD band")
+    es = sub.add_parser(
+        "eclipses",
+        help="Eclipse search over a JD band (sky-driven syzygy enumeration)",
+        description="Scans DE-kernel ephemeris for new-moon and full-moon syzygies.",
+    )
     es.add_argument("--from-jd", dest="from_jd", type=float, required=True)
     es.add_argument("--to-jd", dest="to_jd", type=float, required=True)
-    es.add_argument("--kind", choices=["lunar", "solar", "all"], default="all")
+    es.add_argument("--kind", choices=["lunar", "solar", "all"], default="all",
+                    help="Eclipse kind filter")
     es.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     es.set_defaults(func=_cmd_eclipses_search)
 
-    ea = sub.add_parser("eclipse-anchors",
-                          help="List frozen Hellenistic / modern Saros anchors")
+    ea = sub.add_parser(
+        "eclipse-anchors",
+        help="List frozen Hellenistic / modern Saros anchors",
+        description="Reads research.hellenistic_eclipses' SSOT (no kernel needed).",
+    )
     ea.add_argument("--era", choices=["hellenistic", "modern", "all"],
-                    default="hellenistic")
+                    default="hellenistic", help="Anchor era filter")
     ea.set_defaults(func=_cmd_eclipses_anchors)
 
-    pr = sub.add_parser("periods",
-                         help="MUL.APIN / Almagest period relations")
+    pr = sub.add_parser(
+        "periods",
+        help="MUL.APIN / Almagest period relations",
+        description="Babylonian + Greek period-relation corpus with confidence tags.",
+    )
     pr.add_argument("--source", choices=["mulapin", "almagest", "all"],
-                    default="almagest")
+                    default="almagest", help="Source corpus filter")
     pr.set_defaults(func=_cmd_periods)
 
     # compare
-    cmp = sub.add_parser("compare", help="Side-by-side comparators")
+    cmp = sub.add_parser(
+        "compare",
+        help="Side-by-side comparators",
+        description="DE-kernel / Greek-model / reconstruction comparators.",
+    )
     cmp_sub = cmp.add_subparsers(dest="compare_cmd", required=True)
-    ce = cmp_sub.add_parser("ephemerides")
+    ce = cmp_sub.add_parser(
+        "ephemerides",
+        help="Position delta between two JPL kernels at the same JD/body",
+        description="Reports the delta in arcseconds, kilometers, AU.",
+    )
     ce.add_argument("--jd", type=float, required=True)
     ce.add_argument("--body", required=True, choices=_BODY_CHOICES)
     ce.add_argument("--kernel-a", required=True, choices=_KERNEL_CHOICES)
     ce.add_argument("--kernel-b", required=True, choices=_KERNEL_CHOICES)
     ce.set_defaults(func=_cmd_compare_ephemerides)
-    cm = cmp_sub.add_parser("models")
+    cm = cmp_sub.add_parser(
+        "models",
+        help="uniform / Hipparchus epicycle / Ptolemy equant residuals (Mars-only in v0.1.0)",
+        description="Compare Greek planetary models against ephemeris truth.",
+    )
     cm.add_argument("--jd", type=float, required=True)
     cm.add_argument("--body", required=True, choices=["mars"],
                     help="v0.1.0 supports 'mars' only")
@@ -384,14 +472,29 @@ def _make_parser() -> argparse.ArgumentParser:
                     choices=["uniform", "epicycle", "equant"])
     cm.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     cm.set_defaults(func=_cmd_compare_models)
-    cr = cmp_sub.add_parser("reconstructions")
+    cr = cmp_sub.add_parser(
+        "reconstructions",
+        help="Freeth / Wright / Price-1974 dial-reading disagreements",
+        description="Lists every gear where reconstructions disagree on tooth count.",
+    )
     cr.add_argument("--jd", type=float, required=True)
     cr.set_defaults(func=_cmd_compare_reconstructions)
 
     # what-if
-    wi = sub.add_parser("whatif", help="What-if encoder")
+    wi = sub.add_parser(
+        "whatif",
+        help="What-if encoder (alternative gear ratios)",
+        description=(
+            "Re-encode a dial with an arbitrary p/q ratio. Inputs gated by "
+            "ADR 0008: p, q in [1, 500], gcd(p, q) = 1, dial in DIAL_SPECS."
+        ),
+    )
     wi_sub = wi.add_subparsers(dest="whatif_cmd", required=True)
-    we = wi_sub.add_parser("encode")
+    we = wi_sub.add_parser(
+        "encode",
+        help="Encode a date with a custom p/q gear ratio",
+        description="Outputs residue + angle for the alternative ratio.",
+    )
     we.add_argument("--jd", type=float, required=True)
     we.add_argument("--dial", required=True)
     we.add_argument("--p", type=int, required=True)
@@ -399,22 +502,42 @@ def _make_parser() -> argparse.ArgumentParser:
     we.set_defaults(func=_cmd_whatif_encode)
 
     # fragment
-    fr = sub.add_parser("fragment", help="Archaeological gear inventory")
+    fr = sub.add_parser(
+        "fragment",
+        help="Archaeological gear inventory (per Antikythera fragment)",
+        description="Lists gears attested in fragments A/B/C/D + reconstructed.",
+    )
     fr_sub = fr.add_subparsers(dest="frag_cmd", required=True)
-    fi = fr_sub.add_parser("inventory")
+    fi = fr_sub.add_parser(
+        "inventory",
+        help="List gears keyed by fragment",
+        description="Reads _data/fragments.json (codegen-emitted from gear_database).",
+    )
     fi.add_argument("--id", default="all", choices=_FRAGMENT_CHOICES,
                     help="Fragment letter (A/B/C/D/reconstructed) or 'all'")
     fi.set_defaults(func=_cmd_fragment)
 
     # goal-year
-    gy = sub.add_parser("goalyear", help="Babylonian Goal-Year overlay")
+    gy = sub.add_parser(
+        "goalyear",
+        help="Babylonian Goal-Year overlay (Mars 47-yr, Saturn 59-yr, etc.)",
+        description="What a Babylonian astronomer would have predicted via the N-year cycle.",
+    )
     gy_sub = gy.add_subparsers(dest="gy_cmd", required=True)
-    gp = gy_sub.add_parser("predict")
+    gp = gy_sub.add_parser(
+        "predict",
+        help="Look up the JD that the Goal-Year cycle directs you to query",
+        description="Returns the lookup-JD = jd_query - cycle_days.",
+    )
     gp.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     gp.add_argument("--jd", type=float, required=True)
     gp.add_argument("--source", choices=["mulapin", "almagest"], default="mulapin")
     gp.set_defaults(func=_cmd_goalyear_predict)
-    gc = gy_sub.add_parser("compare")
+    gc = gy_sub.add_parser(
+        "compare",
+        help="Goal-Year prediction + encoder reading side-by-side",
+        description="Returns Babylonian-cycle prediction and the encoder's dial angle for comparison.",
+    )
     gc.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     gc.add_argument("--jd", type=float, required=True)
     gc.set_defaults(func=_cmd_goalyear_compare)
@@ -441,11 +564,20 @@ def _make_parser() -> argparse.ArgumentParser:
     h1.set_defaults(func=_cmd_hypothesis)
 
     # kernel
-    kn = sub.add_parser("kernel", help="JPL DE-kernel utilities")
+    kn = sub.add_parser(
+        "kernel",
+        help="JPL DE-kernel utilities",
+        description="List or check JPL DE-series ephemeris kernels.",
+    )
     kn_sub = kn.add_subparsers(dest="kernel_cmd", required=True)
-    kn_sub.add_parser("list",
-                       help="List allowed + locally-available kernels"
-                       ).set_defaults(func=_cmd_kernel_list)
+    kn_sub.add_parser(
+        "list",
+        help="List allowed + locally-available kernels",
+        description=(
+            "Prints the ALLOWED_KERNELS allowlist (per ADR 0003) plus any "
+            "kernels currently on disk in the local skyfield cache."
+        ),
+    ).set_defaults(func=_cmd_kernel_list)
 
     return p
 

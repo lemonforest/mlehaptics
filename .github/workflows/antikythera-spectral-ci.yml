@@ -36,6 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
           python -m pip install pytest
+          # tomllib is stdlib on 3.11+; tests + codegen both use it, so
+          # 3.10 needs the upstream `tomli` package. The conditional
+          # `python_version` marker scopes this to 3.10 only.
+          python -m pip install 'tomli; python_version < "3.11"'
       - name: Run tests
         working-directory: docs/antikythera-maths/antikythera-spectral/python
         shell: bash
