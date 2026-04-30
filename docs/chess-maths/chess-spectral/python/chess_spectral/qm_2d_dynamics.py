@@ -269,7 +269,169 @@ def evolve_under_h0(
     return out
 
 
+# ─── A_1 channel (D_4 trivial irrep) projector ─────────────────────
+#
+# P_A1 = (1/|D_4|) * sum_{g in D_4} Pi(g)  on  C^64
+#
+# Pi is the D_4 permutation action on the 64-dim lattice signal
+# space (8x8 chessboard, D_4 symmetries: 4 rotations × {identity,
+# reflection} = 8 elements). The averaged operator P_A1 is the
+# orthogonal projector onto the A_1 (trivial) irrep — the
+# totally-symmetric (rotation- and reflection-invariant) signals.
+#
+# This is the 2D analogue of `tables_4d.b4_a1_orbit_projector` (4D);
+# we construct it here from the existing `qm_2d.d4_closure` +
+# `d4_unitary_rep_64` rather than adding a tables.py builder, since
+# the 2D D_4 group is small (8 elements) and the construction is a
+# 5-line average.
+
+_P_A1_2D: Optional[csr_matrix] = None
+
+
+def _build_p_a1_2d() -> csr_matrix:
+    """Build the A_1 D_4 orbit projector on C^64.
+
+    P_A1 = (1/8) * sum_{g in D_4} Pi(g) where Pi(g) is the 64-dim
+    permutation matrix for group element g. P_A1 is real-symmetric
+    (so Hermitian as a complex matrix), idempotent (P_A1 @ P_A1 ==
+    P_A1), and orthogonal-projector-rank == number of D_4 orbits on
+    the 8x8 board (= 10).
+    """
+    from chess_spectral.qm_2d import d4_closure, d4_unitary_rep_64
+    closure = d4_closure()
+    order = len(closure)
+    assert order == 8, f"D_4 closure size {order} != 8"
+    P: Optional[csr_matrix] = None
+    for g in closure:
+        Pi = d4_unitary_rep_64(g)
+        P = Pi if P is None else (P + Pi)
+    assert P is not None
+    P = (P / order).tocsr()
+    if P.dtype != np.complex128:
+        P = P.astype(np.complex128)
+    return P
+
+
+def _get_p_a1_2d() -> csr_matrix:
+    """Cached accessor for the A_1 D_4 orbit projector P_A1 on C^64."""
+    global _P_A1_2D
+    if _P_A1_2D is None:
+        _P_A1_2D = _build_p_a1_2d()
+    return _P_A1_2D
+
+
+def P_A1_2D() -> csr_matrix:
+    """Public accessor for the A_1 D_4 orbit projector on C^64.
+
+    Returns a 64x64 sparse Hermitian projector. ``P_A1.conj().T == P_A1``
+    and ``P_A1 @ P_A1 == P_A1`` exactly (idempotent). The rank equals
+    the number of D_4 orbits on the 8x8 lattice (10).
+    """
+    return _get_p_a1_2d()
+
+
+# ─── Move-as-unitary builders (Track B) ────────────────────────────
+
+
+def _swap_unitary_2d(from_idx: int, to_idx: int) -> csr_matrix:
+    """Return the 64x64 sparse permutation that swaps basis vectors
+    ``from_idx`` and ``to_idx`` (and leaves the other 62 fixed).
+
+    This is the bare swap operator U_swap on C^64 — unitary on the
+    full space, but does NOT in general commute with the D_4 orbit
+    projector P_A1. The projector-sandwich
+    ``P_A1 @ U_swap @ P_A1`` is sub-unitary on ``range(P_A1)``;
+    strict unitarity on the A_1 subspace requires the swap to be
+    intra-orbit.
+    """
+    if not 0 <= from_idx < CHANNEL_DIM:
+        raise ValueError(
+            f"from_idx {from_idx} out of range [0, {CHANNEL_DIM})"
+        )
+    if not 0 <= to_idx < CHANNEL_DIM:
+        raise ValueError(
+            f"to_idx {to_idx} out of range [0, {CHANNEL_DIM})"
+        )
+    # Permutation matrix that swaps from_idx and to_idx.
+    perm = np.arange(CHANNEL_DIM, dtype=np.int64)
+    perm[from_idx], perm[to_idx] = to_idx, from_idx
+    rows = perm.tolist()
+    cols = list(range(CHANNEL_DIM))
+    data = [1.0 + 0j] * CHANNEL_DIM
+    return csr_matrix(
+        (data, (rows, cols)),
+        shape=(CHANNEL_DIM, CHANNEL_DIM),
+        dtype=np.complex128,
+    )
+
+
+def u_move_a1_2d(
+    from_sq: int,
+    to_sq: int,
+) -> csr_matrix:
+    """Build the A_1 channel move-as-unitary on C^64 (2D analogue of
+    :func:`chess_spectral.qm_4d_dynamics.u_move_a1`).
+
+    Construction (mirroring the 4D B1 milestone, projector-sandwich
+    form):
+
+      1. Build ``U_swap = swap(from_sq <-> to_sq)`` on ``C^64``.
+      2. Multiply by the A_1 channel phase factor (= 1.0 for the
+         trivial irrep, per ADR-001 §3.1's row "A1").
+      3. Wrap in the P_A1 projector sandwich:
+         ``U_a1 = P_A1 @ U_swap @ P_A1``.
+
+    The result ``U_a1`` is **sub-unitary** on the full C^64: zero
+    outside ``range(P_A1)`` and unitary within when ``U_swap``
+    commutes with ``P_A1`` (i.e., when ``from_sq`` and ``to_sq`` lie
+    in the same D_4 orbit). For typical chess moves (which often
+    cross orbits), ``U_a1.conj().T @ U_a1 != P_A1`` exactly — the
+    sandwich is contractive but not strict-unitary.
+
+    This is the 2D analogue of ADR-003 §3.1's amended Phase 3.5
+    finding for the 4D side: same algebra, same caveats, same
+    interpretation (suitable for channel-marginal phase rotation
+    visualizations; falls short of strict unitarity for cross-orbit
+    moves).
+
+    Capture path is deferred to v1.6.x PR-D (B5 analog).
+
+    Parameters
+    ----------
+    from_sq : int
+        Source square index in ``[0, 64)`` (8x8 = 64 squares).
+    to_sq : int
+        Destination square index in ``[0, 64)``.
+
+    Returns
+    -------
+    csr_matrix of shape ``(64, 64)``, dtype ``complex128``.
+
+    Raises
+    ------
+    ValueError
+        If either endpoint is out of range, or the move is null
+        (``from_sq == to_sq``).
+    """
+    if from_sq == to_sq:
+        raise ValueError(
+            f"u_move_a1_2d: null move ({from_sq} -> {to_sq}) is undefined"
+        )
+    U_swap = _swap_unitary_2d(from_sq, to_sq)
+    # A_1 channel phase factor is exactly 1.0 (ADR-001 §3.1 row "A1").
+    # We multiply explicitly for symmetry with future per-channel
+    # builders that have non-trivial phases.
+    phase: complex = complex(1.0, 0.0)
+    P_A1 = _get_p_a1_2d()
+    # P_A1 is real-symmetric, so P_A1.conj().T == P_A1; we don't need
+    # to explicitly conjugate the trailing sandwich.
+    U_a1 = P_A1 @ (phase * U_swap) @ P_A1
+    return U_a1.tocsr()
+
+
 __all__ = [
     "H_FREE_2D",
     "evolve_under_h0",
+    "P_A1_2D",
+    "u_move_a1_2d",
 ]

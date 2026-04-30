@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 1 PR-B: u_move_a1_2d (A_1 channel projector-sandwich)
+
+- **`P_A1_2D()`** — A_1 (D_4 trivial irrep) orbit projector on C^64.
+  `(1/8) * sum_{g in D_4} Π(g)` where Π is the 64-dim permutation
+  representation. Real-symmetric, idempotent, rank == 10 (exactly the
+  number of D_4 orbits on the 8×8 lattice — same count as the
+  encoder's per-channel split).
+
+- **`u_move_a1_2d(from_sq, to_sq)`** — A_1 channel move-as-unitary on
+  C^64, the 2D analogue of `qm_4d_dynamics.u_move_a1`. Built via the
+  projector-sandwich form: `U_a1 = P_A1 @ U_swap @ P_A1`. Sub-unitary
+  on the full C^64 (zero outside `range(P_A1)`); strict-unitary on
+  `range(P_A1)` exactly when `from_sq` and `to_sq` are in the same
+  D_4 orbit. Same algebra + same caveats as the 4D side per ADR-003
+  §3.1's amended Phase 3.5 finding.
+
+  Capture path (B5 analog) ships in v1.6.x PR-D.
+
+  11 new tests covering: P_A1 shape / Hermiticity / idempotence /
+  rank-10 / caching; u_move_a1 shape / lives-in-A_1-subspace /
+  null-move + out-of-range error paths / operator norm ≤ 1 /
+  **intra-orbit strict unitarity on range(P_A1)**.
+
 ### Added — v1.6.x Track 1 PR-A: qm_2d_dynamics skeleton
 
 - **New `chess_spectral.qm_2d_dynamics` module** — Track B Zeno layer
