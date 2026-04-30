@@ -557,7 +557,99 @@ def decode_to_jd(state_vec: Any, *,
     }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# §5.3 — Calendar conversion (5 methods, phase 4)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import dates as _dates  # noqa: E402
+
+
+def jd_to_gregorian(jd_tdb: float) -> Dict[str, Any]:
+    """Proleptic Gregorian calendar date for a Julian Day."""
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    return {"ok": True, **_dates.jd_to_gregorian(float(jd_tdb))}
+
+
+def gregorian_to_jd(year: int, month: int, day: int,
+                    hour: int = 0, minute: int = 0, second: int = 0,
+                    era: str = "CE") -> Dict[str, Any]:
+    """Julian Day for a proleptic Gregorian date.
+
+    Parameters
+    ----------
+    year, month, day : int
+        Calendar fields. ``year`` is a positive ordinal; pre-1 CE dates
+        use ``era='BCE'``.
+    hour, minute, second : int, optional
+        Time of day. Default midnight.
+    era : str, optional
+        ``'CE'`` (default) or ``'BCE'``.
+    """
+    if not isinstance(year, int) or not isinstance(month, int) or not isinstance(day, int):
+        return _err("year, month, day must all be integers")
+    if not (1 <= month <= 12):
+        return _err(f"month must be in 1..12, got {month}")
+    if not (1 <= day <= 31):
+        return _err(f"day must be in 1..31, got {day}")
+    if not (0 <= hour <= 23):
+        return _err(f"hour must be in 0..23, got {hour}")
+    if not (0 <= minute <= 59):
+        return _err(f"minute must be in 0..59, got {minute}")
+    if not (0 <= second <= 59):
+        return _err(f"second must be in 0..59, got {second}")
+    if era not in ("CE", "BCE"):
+        return _err(f"era must be 'CE' or 'BCE', got {era!r}")
+    try:
+        jd = _dates.gregorian_to_jd(year, month, day, hour, minute, second, era)
+    except (ValueError, OverflowError) as exc:
+        return _err(str(exc))
+    return {"ok": True, "jd_tdb": float(jd)}
+
+
+def jd_to_julian_calendar(jd_tdb: float) -> Dict[str, Any]:
+    """Julian-calendar (not proleptic Gregorian) date for a Julian Day.
+
+    Used for historical research where the original record is in the
+    Julian calendar (i.e. pre-1582-10-15).
+    """
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    return {"ok": True, **_dates.jd_to_julian_calendar(float(jd_tdb))}
+
+
+def jd_to_athenian(jd_tdb: float, *,
+                    archon_table: str = "attic") -> Dict[str, Any]:
+    """Approximate Attic-month + day for a Julian Day.
+
+    See ``dates.jd_to_athenian`` for caveats (uniform-synodic-month
+    model; archon name pending v0.2.0).
+    """
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    out = _dates.jd_to_athenian(float(jd_tdb), archon_table=archon_table)
+    if "ok" in out and not out["ok"]:
+        return out  # forwarded error
+    return {"ok": True, **out}
+
+
+def jd_to_olympiad(jd_tdb: float) -> Dict[str, Any]:
+    """Olympiad number + year-in-Olympiad for a Julian Day.
+
+    The Antikythera back dial displays this; Olympiad I.1 = 776-07-01
+    BCE (Olympic Games anchor).
+    """
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    return {"ok": True, **_dates.jd_to_olympiad(float(jd_tdb))}
+
+
 __all__ = [
+    # §5.1 + §5.2 (phase 3)
     "decode_dial",
     "decode_to_jd",
     "get_all_dial_metadata",
@@ -565,4 +657,10 @@ __all__ = [
     "get_dial_state",
     "get_pointer_xy",
     "get_version",
+    # §5.3 (phase 4)
+    "jd_to_gregorian",
+    "gregorian_to_jd",
+    "jd_to_julian_calendar",
+    "jd_to_athenian",
+    "jd_to_olympiad",
 ]
