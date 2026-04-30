@@ -44,6 +44,28 @@ from chess_spectral_4d import (
 from chess_spectral import frame_4d as _frame_4d
 from chess_spectral import fen_4d as _fen_4d
 from chess_spectral.encoder_4d import encode_4d as _encode_4d
+from chess_spectral.frame_v5 import (
+    write_v5_dense_4d, write_v5_per_channel_4d, write_v5_xor_4d,
+)
+
+
+# Encoding-mode dispatch for the 4D --encoding flag. Same scheme as the
+# 2D side: omit the flag for legacy v4 writes; pass --encoding={xor,
+# channel,full} to opt into v5 modes 2/1/0 respectively. ADR-001 names
+# xor as the eventual default for new writes (~7x compression on real
+# games via gzip + long zero runs); we keep v4 default until a separate
+# default-switch PR with the C-side parity migration.
+_V5_WRITERS_4D = {
+    "full":    write_v5_dense_4d,
+    "channel": write_v5_per_channel_4d,
+    "xor":     write_v5_xor_4d,
+}
+
+
+def _frame4d_to_v5_tuple(fr):
+    """Adapt a Frame4D to the (encoding, ply, from_sq, to_sq, promo,
+    flags) tuple shape that frame_v5.write_v5_*_4d writers consume."""
+    return (fr.encoding, fr.ply, fr.from_sq, fr.to_sq, fr.promo, fr.flags)
 
 SPECTRALZ_MAGIC = _frame_4d.SPECTRALZ_MAGIC.decode("ascii")
 SPECTRALZ_VERSION = _frame_4d.SPECTRALZ_VERSION
@@ -139,6 +161,28 @@ def cmd_encode_fen4(args: argparse.Namespace) -> int:
 
     enc = _encode_4d(pos4)
 
+    encoding_mode = getattr(args, "encoding", None)
+    output = args.output
+
+    if encoding_mode is not None:
+        # v5 path: dispatch through frame_v5 writer. Stdout streaming is
+        # only supported for the legacy v4 path (the v5 writer needs a
+        # seekable file to backfill n_plies in the header).
+        if not output or output == "-":
+            print("encode-fen4: --encoding requires --output <path>; "
+                  "cannot stream v5 to stdout (header is back-filled "
+                  "after the body)", file=sys.stderr)
+            return 2
+        writer = _V5_WRITERS_4D[encoding_mode]
+        frame_tuple = (enc, 0, (0, 0, 0, 0), (0, 0, 0, 0), 0, 0)
+        try:
+            writer(output, [frame_tuple], compress=args.compress)
+        except (IOError, ValueError) as e:
+            print(f"encode-fen4: {e}", file=sys.stderr)
+            return 3
+        return 0
+
+    # Legacy v4 path: byte-identical to the C `spectral_4d encode-fen4`.
     frame_bytes = ENCODING_DIM_4D * 4 + _frame_4d.FRAME_TAIL_BYTES
     header = _frame_4d.pack_header(ENCODING_DIM_4D, frame_bytes, n_plies=1)
     frame = _frame_4d.pack_frame(
@@ -149,7 +193,6 @@ def cmd_encode_fen4(args: argparse.Namespace) -> int:
     )
     payload = header + frame
 
-    output = args.output
     if not output or output == "-":
         if args.compress:
             print("encode-fen4: -z requires --output <path>; "
@@ -261,10 +304,26 @@ def cmd_encode_moves4(args: argparse.Namespace) -> int:
         print("encode-moves4: warning — no plies written "
               "(empty input or all FEN4 parse errors)", file=sys.stderr)
 
+    encoding_mode = getattr(args, "encoding", None)
+    out_path = Path(output)
+
+    if encoding_mode is not None:
+        writer = _V5_WRITERS_4D[encoding_mode]
+        try:
+            writer(
+                str(out_path),
+                (_frame4d_to_v5_tuple(fr) for fr in frames),
+                compress=args.compress,
+            )
+        except (IOError, ValueError) as e:
+            print(f"encode-moves4: {e}", file=sys.stderr)
+            return 3
+        return 0
+
+    # Legacy v4 path: byte-identical to the C `spectral_4d encode`.
     frame_bytes = ENCODING_DIM_4D * 4 + _frame_4d.FRAME_TAIL_BYTES
     header = _frame_4d.pack_header(ENCODING_DIM_4D, frame_bytes,
                                    n_plies=len(frames))
-    out_path = Path(output)
     if args.compress:
         with gzip.GzipFile(filename=str(out_path), mode="wb",
                            mtime=0) as fp:
@@ -577,6 +636,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_fen.add_argument("-z", "--compress", action="store_true",
                        help="gzip the output (RFC 1952, mtime=0 for "
                             "deterministic bytes)")
+    p_fen.add_argument("--encoding",
+                       choices=("xor", "channel", "full"),
+                       default=None,
+                       help="v5 encoding mode (opt-in). 'xor' = XOR-stream "
+                            "(per ADR-001 the eventual default for new "
+                            "writes; ~7.23x compression on real games); "
+                            "'channel' = per-channel replacement; "
+                            "'full' = v5 dense (legacy v4 frame body under "
+                            "a v5 header). Omit to keep writing v4 "
+                            ".spectralz4 byte-for-byte compatible with "
+                            "the C `spectral_4d encode-fen4` binary. "
+                            "Requires --output (cannot stream to stdout).")
     p_fen.set_defaults(func=cmd_encode_fen4)
 
     # encode-moves4
@@ -600,6 +671,13 @@ def build_parser() -> argparse.ArgumentParser:
                       help="skip to ply N (0-indexed) before encoding")
     p_mv.add_argument("--count", type=int, default=0,
                       help="encode at most K plies (0 = no limit)")
+    p_mv.add_argument("--encoding",
+                      choices=("xor", "channel", "full"),
+                      default=None,
+                      help="v5 encoding mode (opt-in). See `encode-fen4 "
+                           "--help` for mode semantics. Omit to write v4 "
+                           "byte-for-byte compatible with the C "
+                           "`spectral_4d encode` binary.")
     p_mv.set_defaults(func=cmd_encode_moves4)
 
     # corpus-gen

@@ -69,6 +69,26 @@ from chess_spectral import (
     parse_local_pgn, iter_local_pgn_games,
     write_index_csv, write_summary_md,
 )
+from chess_spectral.frame_v5 import (
+    write_v5_dense_2d, write_v5_per_channel_2d, write_v5_xor_2d,
+)
+
+
+def _frame_to_v5_2d_tuple(fr: Frame):
+    """Adapt a 2D Frame to the (encoding, ply, mfrom, mto, mpromo, mflags)
+    tuple shape that frame_v5.write_v5_*_2d writers consume."""
+    return (fr.encoding, fr.ply, fr.move_from, fr.move_to,
+            fr.move_promo, fr.move_flags)
+
+
+# Encoding-mode dispatch table for the --encoding flag. Keys are the
+# user-facing flag values; values are the v5 writer that handles them.
+# Default (no flag, legacy v2) is handled separately via write_file.
+_V5_WRITERS_2D = {
+    "full":    write_v5_dense_2d,
+    "channel": write_v5_per_channel_2d,
+    "xor":     write_v5_xor_2d,
+}
 
 VERSION = "0.1.0-py"
 
@@ -307,7 +327,16 @@ def cmd_encode(args: argparse.Namespace) -> int:
             proc, stream = _spawn_bridge(args.pgn, args.url,
                                          pgn_start, pgn_count)
             frames = _iter_ndjson_stream(stream, args.pgn or args.url)
-        n = write_file(output, frames, compress=args.compress)
+        encoding_mode = getattr(args, "encoding", None)
+        if encoding_mode is None:
+            n = write_file(output, frames, compress=args.compress)
+        else:
+            writer = _V5_WRITERS_2D[encoding_mode]
+            n = writer(
+                output,
+                (_frame_to_v5_2d_tuple(fr) for fr in frames),
+                compress=args.compress,
+            )
     except (IOError, ValueError) as e:
         print(f"encode: {e}", file=sys.stderr)
         if proc is not None:
@@ -338,8 +367,13 @@ def cmd_encode_fen(args: argparse.Namespace) -> int:
     out = args.output or "single.spectral"
     # Compress if -z given explicitly, OR if output path ends .spectralz.
     compress = bool(args.compress) or out.endswith(".spectralz")
+    encoding_mode = getattr(args, "encoding", None)
     try:
-        write_file(out, [fr], compress=compress)
+        if encoding_mode is None:
+            write_file(out, [fr], compress=compress)
+        else:
+            writer = _V5_WRITERS_2D[encoding_mode]
+            writer(out, [_frame_to_v5_2d_tuple(fr)], compress=compress)
     except (IOError, ValueError) as e:
         print(f"encode-fen: {e}", file=sys.stderr)
         return 3
@@ -974,6 +1008,18 @@ def build_parser() -> argparse.ArgumentParser:
                             "else <input>.spectral)")
     p_enc.add_argument("-z", "--compress", action="store_true",
                        help="gzip the output in place")
+    p_enc.add_argument("--encoding",
+                       choices=("xor", "channel", "full"),
+                       default=None,
+                       help="v5 encoding mode (opt-in). 'xor' = XOR-stream "
+                            "(per ADR-001 the eventual default for new "
+                            "writes; ~7x compression on real games); "
+                            "'channel' = per-channel replacement; "
+                            "'full' = v5 dense (legacy v2 frame body under "
+                            "a v5 header). Omit the flag to keep writing "
+                            "the v2 .spectral[z] format byte-for-byte "
+                            "compatible with the C `spectral encode` "
+                            "binary.")
     p_enc.set_defaults(func=cmd_encode)
 
     p_fen = sub.add_parser(
@@ -990,6 +1036,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_fen.add_argument("-o", "--output", help="output path (default single.spectral)")
     p_fen.add_argument("-z", "--compress", action="store_true",
                        help="gzip the output (inferred from .spectralz ext otherwise)")
+    p_fen.add_argument("--encoding",
+                       choices=("xor", "channel", "full"),
+                       default=None,
+                       help="v5 encoding mode (opt-in). See `encode "
+                            "--help` for mode semantics. Omit to write "
+                            "v2 byte-for-byte compatible with the C "
+                            "`spectral encode-fen` binary.")
     p_fen.set_defaults(func=cmd_encode_fen)
 
     p_cor = sub.add_parser(
