@@ -5,10 +5,19 @@ This file replaces the dangling `when-we-need-to-spicy-seahorse.md` and
 error messages. Those plan documents were never committed; this is the
 real status doc.
 
-## Current release: v1.2.4 (April 2026)
+## Current release: v1.6.0 (April 2026)
 
-**All advertised CLI commands are real.** No `[stub]` markers remain in
-either `spectral` or `spectral_4d` help output.
+The §16 ship-gate release. Search core + tournament harness + sweep
+runner ship as CLI commands; v5 unified wire format (three encoding
+modes — dense, per-channel, XOR-stream) ships at the Python read/write
+layer; in-house 4D bitboard move generator + graph-Laplacian legality
+oracle ship as runtime infrastructure for the §16.2 search.
+
+**All v1.2.4 CLI commands remain real.** No `[stub]` markers remain in
+either `spectral` or `spectral_4d` help output. v1.6 adds `search`,
+`tournament`, and `sweep` to both 2D and 4D Python CLIs (per-side
+symmetric agent specs let white and black be configured independently
+in the same single-process loop).
 
 ### 2D commands (`spectral`)
 | Command | Status | Notes |
@@ -39,6 +48,15 @@ either `spectral` or `spectral_4d` help output.
 | `encode-fen4` | ✅ wired (v1.2.4) | byte-identical to C |
 | `encode-moves4` | ✅ wired (v1.2.4) | byte-identical to C |
 | `corpus-gen` | ✅ wired (v1.2.4) | Wrap N NDJSON4 → corpus folder |
+| `search` | ✅ wired (v1.6.0) | Per-side agent spec; --fen4 required |
+| `tournament` | ✅ wired (v1.6.0) | 4D round-robin; --start-fen4 required |
+
+### v1.6.0 engine + ship-gate CLI (`spectral_py`)
+| Command | Status | Notes |
+|---------|--------|-------|
+| `search` | ✅ wired (v1.6.0) | Single-position iterative-deepening alpha-beta search |
+| `tournament` | ✅ wired (v1.6.0) | Round-robin between any agents (per-side symmetric spec) |
+| `sweep` | ✅ wired (v1.6.0) | §16.5 / §2787 ship-gate matrix runner |
 
 ---
 

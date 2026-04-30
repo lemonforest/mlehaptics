@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+(empty — next item lands here)
+
+## [1.6.0] — 2026-04-30
+
+The §16 ship-gate release. v1.5 shipped the QM extension at 4D; v1.6
+makes the framework testable end-to-end on real games at both
+dimensions: search core, tournament harness, agent-spec CLI, and the
+sweep ship-gate runner. Plus the v5 unified wire format
+(reader/writer at all three encoding modes), the in-house 4D bitboard
+move generator, the graph-Laplacian legality oracle, and a doc set
+that finally calls out the `.spectralz[4]` byte layout from the user
+side.
+
+The §16.5 / §2787 per-depth Elo sweep is the empirical gate that
+v1.6 unblocks; running it (manually, against the user's chosen
+fixture set) is now a one-line invocation
+(`spectral_py sweep --evaluators material,spectral,qm --depths 1,2,3,4 ...`).
+
 ### Tests — immolation suite augmentation
 
 - **7 new tests in `tests/test_smoke_e2e.py`** covering the v1.6
