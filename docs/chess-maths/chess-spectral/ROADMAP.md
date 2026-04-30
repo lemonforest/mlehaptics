@@ -58,54 +58,83 @@ were intentionally left out of v1.2.4's scope:
   `python/tests/test_parity.py` from the C output (it is the authority
   per AUDIT §1).
 
-## Research / illustrative threads
+## v1.7 candidates (post-v1.6 ship gate)
 
-Capturing ideas that aren't on the v1.6 critical path but are
-worth landing eventually for cross-disciplinary illustration value
-or as independent validators of existing surfaces.
+These are research-track items deliberately deferred until after the
+§16.5 / §2787 per-depth Elo sweep ships in v1.6. Each is independent
+and falsifiable.
 
-### Graph-Laplacian eigenbasis move-legality oracle
+### E-irrep directional decomposition
 
-A third independent move-legality oracle alongside `python-chess`
-(2D) / `python-chess4d-oana-chiru` (4D) and our own
-`chess_spectral.phase_operators` (modular-arithmetic predicates).
-The piece-movement adjacency matrices `A_p` already live in
-`tables.py` (2D) and `tables_4d.py` (4D); their graph Laplacians
-`L_p = D_p - A_p` admit eigendecomposition, and the spectrum acts
-as a structural lookup oracle:
+**Hypothesis.** The encoder currently exposes the D₄ E irrep as one
+64-dim vector per square — a magnitude-only summary that collapses
+the 2D internal structure. The empirical §9h′ analysis found that
+E correlates with positional weakness (signed-sum partial ρ = −0.293,
+p < 0.05 vs Stockfish eval after material control), but "weakness"
+on a chessboard has a direction. The 4D E plane (orthogonal-orbit E
+2-dim ⊕ diagonal-orbit E 2-dim) factors into four directional
+sub-channels:
 
-- `A_p[i, j] = Σ_k λ_k · v_k[i] · v_k[j]` -- if this sum is 1 the
-  move (i, j) is geometrically reachable; if 0 it is not. The
-  eigenvalue-grouping structure exposes symmetry classes of moves
-  the modular-arithmetic operators don't surface explicitly.
-- For 4D, the 4096×4096 Laplacian factors as a Kronecker sum of
-  four 8×8 path-graph Laplacians, so the eigenbasis is the same
-  DCT-II tower the encoder already uses (no new caching).
-- Validates **on an empty-board reach predicate**, not full
-  occupation-aware legality. Pair with existing occupation /
-  capture / castling / en-passant logic for a complete oracle.
-- **Demonstrates yet another way the spectral toolkit applies** --
-  the same eigenbasis used for encoding can be used for
-  legality-checking, giving the project a parallel structure
-  between "spectral encoding" and "spectral legality."
+  * `e₁ = (N − S) / √2`     — vertical asymmetry (one wing heavier)
+  * `e₂ = (E − W) / √2`     — horizontal asymmetry (kingside vs queenside)
+  * `e₃ = (NE − SW) / √2`   — main-diagonal asymmetry (a1-h8 cluster)
+  * `e₄ = (SE − NW) / √2`   — anti-diagonal asymmetry (a8-h1 cluster)
 
-May also serve as the in-house 4D move-generation backend (vs the
-`python-chess4d-oana-chiru` runtime-dep alternative; that path is
-explicitly closed because of a circular dependency that's why it's
-in the `[test]` extras only). Ships as part of the v1.6 engine arc
-as a research / production module; cross-validation gate in
-`tests/test_spectral_legality.py`.
+The bulk E channel is the L2 norm of these four sub-coefficients per
+square (lossy w.r.t. directional information).
 
-### Possible future absorption of python-chess4d-oana-chiru
+**Falsifiable prediction.** Re-run the §9h′ partial-correlation
+analysis on the four sub-coefficients separately. If they all carry
+the same correlation, bulk E was the right resolution and the
+directional info is decorative. If at least one beats −0.293 and
+at least one is near zero, the directional decomposition carries
+real signal that the bulk magnitude obscures.
 
-Open question (not committed): whether to absorb the entire 4D rule
-library (Oana & Chiru 2026) into chess-spectral as the canonical 4D
-chess implementation, vs keep it as an upstream dependency. The
-graph-Laplacian oracle is the first in-house piece of 4D rule logic;
-if absorption happens later, the oracle is part of the absorbed set.
-Trade-offs: scope creep vs single-source-of-truth + no circular-dep
-management. Decision deferred -- this note captures the framing for
-when the decision is made.
+**Phasing.**
+
+1. **v1.7-A (research script, no encoder change).** Add
+   `research/e_irrep_directional_analysis.py` that re-projects the
+   pre-channel ray data (the encoder's 8-ray intermediate, before
+   channel projection) onto e₁..e₄, computes per-square
+   sub-coefficients on the §9h′ corpus, and reports four partial
+   correlations vs Stockfish eval. **No encoder version bump; no
+   wire format impact.** This is a pure analysis pass.
+
+2. **Decision point.** Inspect the four ρ values. If signal: proceed
+   to v1.7-B. If no signal: file the result as a "bulk E was right"
+   finding and close.
+
+3. **v1.7-B (encoder version bump).** Replace the bulk E channel
+   with four directional sub-channels, taking the encoder from 10
+   channels (640 dims) to 13 channels (832 dims), 2D only initially.
+   Bumps `encoding_dim` in v5 wire format header (no struct change —
+   the dim is already a header field). The §16.1 evaluator family
+   needs re-validation against the new channel layout.
+
+4. **v1.7-C (4D analogue).** Same decomposition for the 4D encoder's
+   D₄ × Z₂-axis structure if the 2D experiment shows signal. Defer
+   until 2D is proven.
+
+**Why v1.7, not v1.6.** Encoder dimension is a breaking change to
+everything downstream of the 640-dim contract — including the §16.1
+evaluator trifecta (material/spectral/qm) just merged in PR-1..PR-4
+and the per-depth Elo sweep that's the v1.6 ship gate. We finish v1.6
+first, then start v1.7 with a clean ship-gate baseline to A/B against.
+
+### LTO/IPO segfault in `spectral encode --pgn -z` on Linux release
+
+Tracked in [python/CHANGELOG.md](python/CHANGELOG.md). Currently
+xfailed on `sys.platform.startswith("linux")` with strict=False so
+CI stays green; macOS / Windows / cibuildwheel matrix all enforce.
+Investigation hooks: `_run_c` retry helper now surfaces stdout/stderr
+in the CalledProcessError on permanent failure, so the next CI run
+on a green-elsewhere PR will give us a debug breadcrumb.
+
+To investigate: build on Linux with `-fno-strict-aliasing`, gdb the
+segfault location, then either fix the underlying UB or drop IPO from
+the release preset.
+
+---
 
 ## Format references
 
