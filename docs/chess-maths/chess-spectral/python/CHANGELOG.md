@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — CI matrix discipline
+
+- **15-cell `verify-wheels` matrix is now opt-in at PR time.** The
+  4-cell `build-and-test` job (Linux release, Linux ASAN, macOS
+  release, Windows MSVC) still runs on every PR and remains the
+  authoritative pre-merge gate (it's the one that runs the parity
+  test suite). The 15-cell `verify-wheels` matrix runs only when:
+  - `workflow_dispatch` (manual trigger), OR
+  - the PR carries the `wheel-check` label (apply on release-ship
+    PRs and any change that touches package layout / pyproject /
+    encoder dims / anything plausibly Python-version-fragile).
+  The full matrix still runs on tag push via
+  `chess-spectral-publish.yml`. **Why:** at peak v1.6 merge-train
+  load (~12 PRs in flight), the 15-cell matrix was burning ~150
+  runner-minutes per PR with most failures being transient
+  infrastructure flakes (cibuildwheel timeouts, HTTP 502 from package
+  mirrors) that had nothing to do with the change. Gating saves wall
+  time without weakening the actual ship gate (publish.yml's full
+  matrix on tag push is the load-bearing test for wheel correctness).
+
 ### Added — v1.6 wire format unification
 
 - **v5 per-channel replacement encoding (Python)** per ADR-001 (v1.6
