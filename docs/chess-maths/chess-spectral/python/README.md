@@ -47,18 +47,34 @@ The §16 ship-gate release. Headline pieces:
   `evaluate(position, side_to_move) -> float` contract — drop in any
   of them as the search heuristic.
 
-- **In-house 4D bitboard move generator** (`chess_spectral.spatial_4d`)
-  — Bitboard4D primitive, per-piece attack tables (knight, king,
-  rook, bishop, queen via magic-bitboard-style ray casting),
-  axis-typed pawn moves (Pw/Py per Oana-Chiru §3 Def 11), Board4D
-  game state, and draw rules. Validated against
-  `python-chess4d-oana-chiru` as the upstream reference oracle.
+- **Three independent in-house move-rule oracles** — each encodes
+  the same legality predicate ("is move *m* legal in position *p*?")
+  through a different mathematical lens, validated head-to-head
+  against the `python-chess[4d]` reference and against each other.
+  Not because one is more correct — they all agree on the same legal
+  set — but because each lens is a standalone artifact for studying
+  how spatial motion can be encoded:
 
-- **Graph-Laplacian eigenbasis legality oracle** (2D + 4D) — third
-  independent move-legality checker alongside python-chess[4d] and
-  the modular phase operators. Demonstrates that the same eigenbasis
-  the encoder uses for spectral encoding also functions as a
-  structural lookup table for move legality.
+  1. **Bitboard / attack-tables** (`chess_spectral.spatial_4d`) —
+     the engineering lens. Bitboard4D primitive, per-piece attack
+     tables (knight, king, rook, bishop, queen via magic-bitboard-
+     style ray casting), axis-typed pawn moves (Pw/Py per Oana-Chiru
+     §3 Def 11), Board4D game state, and draw rules. Same idea as a
+     classic chess engine, lifted to Z_8^4.
+  2. **Phase-space operators** (`chess_spectral.phase_operators`,
+     `chess_spectral.phase_operators_4d`) — the algebraic lens.
+     Per-piece move generation as group actions on a phase-space
+     representation; legality is "the candidate move is in the orbit
+     of the piece operator, intersected with the occupation oracle."
+     2D ships under §11; 4D under §13.
+  3. **Discrete-Laplacian eigenbasis oracle** (2D + 4D) — the
+     spectral lens. The lattice's discrete Laplacian (Kron-sum of
+     P_8 path-graph Laplacians; eigenvectors form a DCT-style basis)
+     doubles as a structural lookup table for move legality — the
+     **same** eigenbasis the spectral encoder uses to embed positions
+     also tells you which moves are reachable. Concrete demonstration
+     that "encode the geometry" and "encode the rules" share one
+     foundation.
 
 - **v5 unified `.spectral[z]` / `.spectralz4` wire format**
   (`chess_spectral.frame_v5`) — single 256-byte header serves both

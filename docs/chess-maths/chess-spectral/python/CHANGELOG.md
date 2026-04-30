@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation — README: name all three move-rule oracles side by side
+
+- The "What's new in v1.6" section now groups the three in-house
+  move-rule oracles into a single bullet that names them as three
+  alternative mathematical lenses on the same legality predicate:
+  bitboard / attack-tables (`spatial_4d`, engineering lens),
+  phase-space operators (`phase_operators` / `phase_operators_4d`,
+  algebraic lens), and discrete-Laplacian eigenbasis (spectral
+  lens). Renamed the third from "graph-Laplacian eigenbasis" to
+  "discrete-Laplacian eigenbasis" — same matrix (the lattice's
+  Kron-sum of P_8 path-graph Laplacians is, by definition, the
+  standard 5-point-stencil discrete Laplacian on the 8×8 / 8^4
+  grid), but more recognizable phrasing for readers from
+  physics/numerics. No behavior change; PyPI long-description only.
+
 ### Added — v1.6.x Track 2 PR-5: `--encoding={xor,channel,full}` CLI flag (2D + 4D)
 
 The final v1.6.x Track 2 PR per ADR-001's phasing. Both the 2D and 4D
