@@ -63,6 +63,10 @@ from .attacks_pawn import (
 )
 from .move import Move4D, PIECE_CHARS, PROMOTION_TARGETS
 from .board import Board4D, UndoInfo
+from .draws import (
+    is_threefold_repetition, is_fifty_move_rule,
+    is_insufficient_material, is_stalemate, is_checkmate, is_game_over,
+)
 
 __all__ = [
     "Bitboard4D",
@@ -87,4 +91,8 @@ __all__ = [
     # game state
     "Move4D", "Board4D", "UndoInfo",
     "PIECE_CHARS", "PROMOTION_TARGETS",
+    # draws
+    "is_threefold_repetition", "is_fifty_move_rule",
+    "is_insufficient_material", "is_stalemate", "is_checkmate",
+    "is_game_over",
 ]

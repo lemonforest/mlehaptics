@@ -5,6 +5,7 @@ Per ADR-001 (docs/adr/wire_format/ADR-001-v5-unified-encoding-modes.md).
 from __future__ import annotations
 
 import gzip
+import io
 import os
 import struct
 import sys
@@ -23,12 +24,15 @@ from chess_spectral import frame_v5  # noqa: E402
 from chess_spectral.frame_v5 import (  # noqa: E402
     V5_MAGIC, V5_VERSION, V5_HEADER_SIZE,
     MODE_DENSE, MODE_PER_CHANNEL, MODE_XOR_STREAM,
+    PC_FLAG_FULL,
     HeaderV5,
     pack_frame_2d_dense, unpack_frame_2d_dense,
     pack_frame_4d_dense, unpack_frame_4d_dense,
+    pack_frame_per_channel, unpack_frame_per_channel,
     write_v5_dense_2d, write_v5_dense_4d,
+    write_v5_per_channel_2d, write_v5_per_channel_4d,
     peek_version, open_read_transparent,
-    read_v5_header, iter_v5_frames_dense,
+    read_v5_header, iter_v5_frames_dense, iter_v5_frames_per_channel,
 )
 
 
@@ -309,3 +313,229 @@ def test_v5_iter_dense_rejects_non_dense_mode():
             list(iter_v5_frames_dense(fp, h))
     finally:
         fp.close()
+
+
+# ─── Mode 1: per-channel replacement (PR-C scope) ───────────────────
+
+
+def test_v5_per_channel_full_frame_2d_roundtrip():
+    """Full (independent) per-channel frame round-trips bit-exact."""
+    rng = np.random.default_rng(seed=200)
+    enc = rng.standard_normal(640).astype(np.float32)
+    tail = b"\x07\x00\x00\x00\x0c\x1c\x00\x00"  # ply=7, from=12, to=28
+    body = pack_frame_per_channel(
+        enc, tail, channel_dim=64, n_channels=10,
+        prev_encoding=None, full_frame=True,
+    )
+    fp = io.BytesIO(body)
+    rec_enc, rec_tail, was_full = unpack_frame_per_channel(
+        fp, channel_dim=64, n_channels=10, move_tail_bytes=8,
+        prev_encoding=None,
+    )
+    assert was_full is True
+    assert rec_tail == tail
+    np.testing.assert_array_equal(rec_enc, enc)
+
+
+def test_v5_per_channel_delta_2d_roundtrip():
+    """Delta frame patches just the changed channel into prev."""
+    rng = np.random.default_rng(seed=201)
+    prev = rng.standard_normal(640).astype(np.float32)
+    curr = prev.copy()
+    # Modify channel 3 only.
+    curr[3 * 64 : 4 * 64] = rng.standard_normal(64).astype(np.float32)
+
+    tail = b"\x08\x00\x00\x00\xff\xff\x00\x00"
+    body = pack_frame_per_channel(
+        curr, tail, channel_dim=64, n_channels=10,
+        prev_encoding=prev, full_frame=False,
+    )
+    # Body header: u32 body_size + u8 flags(=0) + u8 n_channels(=1).
+    # Flags byte should NOT have PC_FLAG_FULL set.
+    body_size, flags, n_chan = struct.unpack_from("<IBB", body, 0)
+    assert (flags & PC_FLAG_FULL) == 0, "delta frame should not have FULL flag"
+    assert n_chan == 1, f"only 1 channel changed, but n_chan={n_chan}"
+
+    fp = io.BytesIO(body)
+    rec_enc, rec_tail, was_full = unpack_frame_per_channel(
+        fp, channel_dim=64, n_channels=10, move_tail_bytes=8,
+        prev_encoding=prev,
+    )
+    assert was_full is False
+    assert rec_tail == tail
+    np.testing.assert_array_equal(rec_enc, curr)
+
+
+def test_v5_per_channel_no_change_emits_zero_blocks():
+    """If no channels changed, n_chan==0 and the body is just the tail."""
+    enc = np.ones(640, dtype=np.float32)
+    tail = b"\x09\x00\x00\x00\xff\xff\x00\x00"
+    body = pack_frame_per_channel(
+        enc, tail, channel_dim=64, n_channels=10,
+        prev_encoding=enc, full_frame=False,
+    )
+    body_size, flags, n_chan = struct.unpack_from("<IBB", body, 0)
+    assert n_chan == 0
+
+
+def test_v5_per_channel_4d_full_frame_roundtrip():
+    """4D full per-channel frame round-trips."""
+    rng = np.random.default_rng(seed=202)
+    enc = rng.standard_normal(45056).astype(np.float32)
+    tail = b"\x00\x00\x00\x00" + b"\x00" * 10  # 14 bytes
+    body = pack_frame_per_channel(
+        enc, tail, channel_dim=4096, n_channels=11,
+        prev_encoding=None, full_frame=True,
+    )
+    fp = io.BytesIO(body)
+    rec_enc, rec_tail, was_full = unpack_frame_per_channel(
+        fp, channel_dim=4096, n_channels=11, move_tail_bytes=14,
+        prev_encoding=None,
+    )
+    assert was_full is True
+    assert rec_tail == tail
+    np.testing.assert_array_equal(rec_enc, enc)
+
+
+def test_v5_per_channel_2d_end_to_end_write_then_read(tmp_path):
+    """Full pipeline: write a 5-ply per-channel file with mostly stable
+    channels, then read it back and verify each frame matches the
+    original encoding."""
+    rng = np.random.default_rng(seed=300)
+    plies = []
+    base = rng.standard_normal(640).astype(np.float32)
+    for i in range(5):
+        enc = base.copy()
+        # Perturb just the i-th channel each ply.
+        ch = i % 10
+        enc[ch * 64 : (ch + 1) * 64] += rng.standard_normal(64).astype(np.float32)
+        plies.append((enc, i, i, (i + 1) % 64, 0, 0))
+
+    out = tmp_path / "test_pc.spectralz"
+    n = write_v5_per_channel_2d(out, plies, compress=False)
+    assert n == 5
+
+    # peek_version must work
+    assert peek_version(out) == V5_VERSION
+
+    fp = open_read_transparent(out)
+    try:
+        hdr = read_v5_header(fp)
+        assert hdr.encoding_mode == MODE_PER_CHANNEL
+        assert hdr.n_plies == 5
+
+        rec_frames = list(iter_v5_frames_per_channel(fp, hdr))
+        assert len(rec_frames) == 5
+
+        for i, (rec_enc, rec_tail, was_full) in enumerate(rec_frames):
+            np.testing.assert_array_equal(rec_enc, plies[i][0])
+            # First frame must be FULL; rest should be deltas.
+            if i == 0:
+                assert was_full is True
+            else:
+                assert was_full is False
+            # Tail starts with ply (u32 little-endian)
+            ply, mfrom, mto, mpromo, mflags = struct.unpack("<I4B", rec_tail)
+            assert ply == i
+    finally:
+        fp.close()
+
+
+def test_v5_per_channel_2d_compresses_better_than_dense(tmp_path):
+    """Sanity: per-channel mode produces a smaller file than dense mode
+    on a workload with mostly-stable channels (the spike's empirical
+    case). This is a regression sanity check, not a precise compression
+    ratio assertion."""
+    rng = np.random.default_rng(seed=400)
+    base = rng.standard_normal(640).astype(np.float32)
+    plies = []
+    for i in range(10):
+        enc = base.copy()
+        # Only one channel changes per ply.
+        enc[(i % 10) * 64 : ((i % 10) + 1) * 64] = rng.standard_normal(
+            64
+        ).astype(np.float32)
+        plies.append((enc, i, 0, 0, 0, 0))
+
+    dense_path = tmp_path / "dense.spectralz"
+    pc_path = tmp_path / "pc.spectralz"
+    write_v5_dense_2d(dense_path, plies, compress=False)
+    write_v5_per_channel_2d(pc_path, plies, compress=False)
+
+    dense_size = dense_path.stat().st_size
+    pc_size = pc_path.stat().st_size
+    # Per-channel should be smaller (only first frame is full; rest emit
+    # 1 channel per ply ≈ 256 bytes payload + 8 header).
+    assert pc_size < dense_size, (
+        f"expected per-channel < dense, got pc={pc_size} dense={dense_size}"
+    )
+
+
+def test_v5_per_channel_4d_end_to_end_write_then_read(tmp_path):
+    """4D end-to-end: write 3-ply per-channel file, read back."""
+    rng = np.random.default_rng(seed=500)
+    base = rng.standard_normal(45056).astype(np.float32)
+    plies = []
+    for i in range(3):
+        enc = base.copy()
+        # Perturb channel `i` only.
+        enc[i * 4096 : (i + 1) * 4096] += rng.standard_normal(4096).astype(np.float32)
+        plies.append((enc, i, (0, 0, 0, 0), (i, 0, 0, 0), 0, 0))
+
+    out = tmp_path / "test_pc_4d.spectralz4"
+    n = write_v5_per_channel_4d(out, plies, compress=False)
+    assert n == 3
+
+    fp = open_read_transparent(out)
+    try:
+        hdr = read_v5_header(fp)
+        assert hdr.encoding_mode == MODE_PER_CHANNEL
+        assert hdr.n_dimensions == 4
+
+        rec_frames = list(iter_v5_frames_per_channel(fp, hdr))
+        assert len(rec_frames) == 3
+        for i, (rec_enc, _tail, _was_full) in enumerate(rec_frames):
+            np.testing.assert_array_equal(rec_enc, plies[i][0])
+    finally:
+        fp.close()
+
+
+def test_v5_per_channel_iter_rejects_dense_header():
+    """iter_v5_frames_per_channel must refuse to read mode-0 file."""
+    h = HeaderV5(encoding_dim=640, n_plies=0, n_dimensions=2,
+                 encoding_mode=MODE_DENSE)
+    fp = tempfile.TemporaryFile()
+    try:
+        with pytest.raises(ValueError, match="encoding_mode=1"):
+            list(iter_v5_frames_per_channel(fp, h))
+    finally:
+        fp.close()
+
+
+def test_v5_per_channel_pack_rejects_bad_shape():
+    """pack_frame_per_channel rejects encoding with wrong shape."""
+    enc = np.zeros(100, dtype=np.float32)  # wrong: should be 640 for 2D
+    with pytest.raises(ValueError, match="shape"):
+        pack_frame_per_channel(
+            enc, b"\x00" * 8, channel_dim=64, n_channels=10,
+            full_frame=True,
+        )
+
+
+def test_v5_per_channel_unpack_delta_without_prev_raises():
+    """A delta frame requires prev_encoding; unpack must raise if
+    prev_encoding is None and the frame's FULL flag is not set."""
+    rng = np.random.default_rng(seed=600)
+    prev = rng.standard_normal(640).astype(np.float32)
+    curr = prev.copy()
+    curr[0] = 999.0
+    body = pack_frame_per_channel(
+        curr, b"\x00" * 8, channel_dim=64, n_channels=10,
+        prev_encoding=prev, full_frame=False,
+    )
+    fp = io.BytesIO(body)
+    with pytest.raises(ValueError, match="prev_encoding"):
+        unpack_frame_per_channel(
+            fp, channel_dim=64, n_channels=10, move_tail_bytes=8,
+            prev_encoding=None,
+        )
