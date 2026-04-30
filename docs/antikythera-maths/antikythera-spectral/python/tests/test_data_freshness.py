@@ -128,20 +128,24 @@ def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     # Patch _research_modules destination to the temp dir.
     monkeypatch.setattr(emit_research_modules, "_RESEARCH_DST", tmp_research)
 
-    # Re-emit the JSON files.
+    # Re-emit the JSON files + the basis-vector NPZ files. The latter
+    # are deterministic now thanks to emit_basis_vectors._deterministic_savez
+    # (zeroed ZIP timestamps, ZIP_STORED). Earlier versions used
+    # np.savez() which embedded current-time mtimes per entry and
+    # therefore could not be checked here.
     emit_cycles.emit()
     emit_gears.emit()
     emit_anchors.emit()
     emit_periods.emit()
     emit_fragment_inventory.emit()
     emit_research_modules.emit()
-    # Skip basis vectors in determinism test — they're written by numpy
-    # and depend on numpy version's internal NPZ-zip metadata which is
-    # not stable across runs (numpy bug). manifest_sha_matches handles
-    # those.
+
+    import emit_basis_vectors  # noqa: E402
+    emit_basis_vectors.emit()
 
     for name in ("cycles.json", "gears.json", "anchors.json",
-                 "periods.json", "fragments.json"):
+                 "periods.json", "fragments.json",
+                 "basis_vectors_d940.npz", "basis_vectors_d13440.npz"):
         regenerated = (tmp_data / name).read_bytes()
         committed = (_DATA_DIR / name).read_bytes()
         assert regenerated == committed, (

@@ -1,0 +1,29 @@
+# Codegen-managed text files must be byte-identical across platforms.
+# The package's _data/manifest.json carries SHA-256 sums; on Windows
+# without this rule, autocrlf=true would commit CRLF and POSIX
+# checkouts would see LF, breaking every SHA in the manifest.
+#
+# Force LF on every codegen-emitted text file. NPZ archives are binary.
+
+python/antikythera_spectral/_data/*.json    text eol=lf
+python/antikythera_spectral/_data/*.npz     binary
+python/antikythera_spectral/_research/*.py  text eol=lf
+python/antikythera_spectral/_research/*.md  text eol=lf
+
+# Manifest itself.
+python/antikythera_spectral/_data/manifest.json text eol=lf
+
+# CHANGELOG / README / docs are text; LF on every platform for diff
+# stability (PyPI renders these regardless of EOL style).
+README.md            text eol=lf
+CHANGELOG.md         text eol=lf
+ROADMAP.md           text eol=lf
+docs/**/*.md         text eol=lf
+docs/**/*.py         text eol=lf
+codegen/*.py         text eol=lf
+bridge/*.py          text eol=lf
+python/README.md     text eol=lf
+python/CHANGELOG.md  text eol=lf
+python/pyproject.toml text eol=lf
+python/antikythera_spectral/*.py text eol=lf
+python/tests/*.py    text eol=lf

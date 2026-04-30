@@ -47,9 +47,8 @@ def emit() -> Path:
         "modern": [anchor_to_dict(a) for a in MODERN_SAROS_ANCHORS],
     }
 
-    out_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    out_path.write_bytes(
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
     return out_path
 

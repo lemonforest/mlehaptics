@@ -104,25 +104,30 @@ def emit() -> List[Path]:
     written: List[Path] = []
     for src in _included_files():
         dst = _RESEARCH_DST / src.name
-        shutil.copy2(src, dst)
+        # Read the source as bytes, normalise CRLF to LF, then write.
+        # shutil.copy2 would preserve the source's line endings, which
+        # vary per OS / per git autocrlf setting; the manifest's SHA-256
+        # checks would then fail on CI runners with different settings.
+        # (See .gitattributes for the corresponding git-side
+        # normalisation.)
+        raw = src.read_bytes().replace(b"\r\n", b"\n")
+        dst.write_bytes(raw)
         written.append(dst)
 
     # Drop a README pointing at the SSOT.
     readme = _RESEARCH_DST / "README.md"
-    readme.write_text(
-        (
-            "# antikythera-spectral _research/\n\n"
-            "**Auto-generated. Do not edit.**\n\n"
-            "These files are exact copies of selected modules from\n"
-            "`docs/antikythera-maths/research/` (the SSOT). They ship in\n"
-            "the wheel so that consumers who `pip install antikythera-spectral`\n"
-            "without the monorepo can still drive the encoder.\n\n"
-            "To refresh: run `python codegen/regenerate.py`.\n"
-            "Drift between this directory and the SSOT is caught by\n"
-            "`test_data_freshness.py`.\n"
-        ),
-        encoding="utf-8",
+    readme_text = (
+        "# antikythera-spectral _research/\n\n"
+        "**Auto-generated. Do not edit.**\n\n"
+        "These files are exact copies of selected modules from\n"
+        "`docs/antikythera-maths/research/` (the SSOT). They ship in\n"
+        "the wheel so that consumers who `pip install antikythera-spectral`\n"
+        "without the monorepo can still drive the encoder.\n\n"
+        "To refresh: run `python codegen/regenerate.py`.\n"
+        "Drift between this directory and the SSOT is caught by\n"
+        "`test_data_freshness.py`.\n"
     )
+    readme.write_bytes(readme_text.encode("utf-8"))
     written.append(readme)
 
     return written

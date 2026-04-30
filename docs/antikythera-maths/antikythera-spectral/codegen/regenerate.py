@@ -47,21 +47,64 @@ import emit_periods
 import emit_research_modules
 
 
+# Paths whose history determines the manifest's ``source_commit``.
+# Relative to the repo root. The manifest's source_commit is the last
+# commit that modified any of these — NOT the current HEAD — so that
+# re-running codegen on a CI build (where HEAD is some merge-commit
+# SHA) reproduces the same manifest as the developer who committed it.
+_CODEGEN_PATHS = [
+    "docs/antikythera-maths/antikythera-spectral/codegen/",
+    "docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_research/",
+    "docs/antikythera-maths/antikythera-spectral/python/antikythera_spectral/_data/",
+    "docs/antikythera-maths/research/",
+]
+
+
 def _git_commit() -> str:
-    """Return the current HEAD commit hash, or ``'unknown'`` on failure.
+    """Return the source-commit hash for the manifest.
 
-    Wrapped in try/except because:
+    Resolution order:
 
-    - some CI runners do shallow checkouts where ``git`` works but
-      certain rev-parses fail,
-    - someone might run codegen from a release tarball with no .git.
+    1. ``ANTIKYTHERA_SOURCE_COMMIT`` env var (CI / build-system override)
+    2. Last commit that touched any of ``_CODEGEN_PATHS`` (deterministic)
+    3. ``"unknown"`` if no git history is available
+
+    Why not ``git rev-parse HEAD``: on a CI build, HEAD is the merge-
+    commit SHA, not the commit that last touched the codegen sources.
+    The manifest must reproduce the same SHA on every checkout that
+    has the same source state, so we walk the history of the codegen
+    paths instead.
     """
+    import os
+
+    override = os.environ.get("ANTIKYTHERA_SOURCE_COMMIT")
+    if override:
+        return override.strip()
+
+    # Run from the repo root to make the rev-list paths resolve.
+    repo_root = Path(__file__).resolve().parents[3]
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-list", "-n1", "HEAD", "--"] + _CODEGEN_PATHS,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=5,
+            cwd=str(repo_root),
+        ).strip()
+        if out:
+            return out
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        pass
+
+    # Last-ditch fallback: HEAD. Better than "unknown" for a fresh
+    # repo where the codegen sources haven't been committed yet.
     try:
         out = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
             stderr=subprocess.DEVNULL,
             text=True,
             timeout=5,
+            cwd=str(repo_root),
         ).strip()
         return out or "unknown"
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
@@ -218,9 +261,10 @@ def main(argv=None) -> int:
         },
     }
     manifest_path = DATA_DIR / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    # write_bytes for cross-platform LF (see codegen/emit_cycles.py for
+    # the discussion).
+    manifest_path.write_bytes(
+        (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
 
     print(f"--- done; {len(written)} files + manifest in {DATA_DIR} ---")

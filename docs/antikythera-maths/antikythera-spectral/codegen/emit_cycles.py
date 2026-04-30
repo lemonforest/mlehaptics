@@ -48,9 +48,12 @@ def emit() -> Path:
         "cycles": [cycle_to_dict(c) for c in CYCLES],
     }
 
-    out_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    # write_bytes (not write_text) so we get LF on every platform —
+    # write_text on Windows translates \n to \r\n, which would invalidate
+    # the manifest's SHA-256 sums on Linux/macOS CI runners after git
+    # normalises line endings (.gitattributes text eol=lf).
+    out_path.write_bytes(
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
     return out_path
 

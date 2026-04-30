@@ -67,9 +67,8 @@ def emit() -> Path:
         "mesh_edges": [mesh_to_dict(e) for e in MESH_EDGES],
     }
 
-    out_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    out_path.write_bytes(
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
     return out_path
 

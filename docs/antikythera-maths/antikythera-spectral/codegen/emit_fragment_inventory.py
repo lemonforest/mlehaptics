@@ -56,9 +56,8 @@ def emit() -> Path:
         "fragments": dict(by_fragment),
     }
 
-    out_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    out_path.write_bytes(
+        (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
     )
     return out_path
 

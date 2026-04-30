@@ -18,6 +18,14 @@ Each NPZ keys an array per supported dial:
 - ``meta``                 — JSON-encoded dict: ``{D, n_dials, dial_names,
                               gram_max_offdiag}``.
 
+The output bytes are **deterministic across runs and platforms**. We
+write the underlying ZIP archive ourselves with zeroed entry timestamps
+(``date_time = (1980, 1, 1, 0, 0, 0)``) and ZIP_STORED compression
+because numpy's ``savez`` uses the current wall-clock for each entry's
+local-header mtime, which would change every run. ADR 0005's codegen
+discipline requires byte-identical output for ``test_data_freshness``
+to remain meaningful.
+
 Run::
 
     python codegen/emit_basis_vectors.py
@@ -25,7 +33,9 @@ Run::
 
 from __future__ import annotations
 
+import io
 import json
+import zipfile
 from pathlib import Path
 from typing import Any, Dict
 
@@ -42,6 +52,33 @@ from research.encode_ant import (  # noqa: E402
     get_channel_basis,
     supported_dials,
 )
+
+
+# The ZIP epoch numpy uses for npz; we override per entry so the local
+# headers don't carry the current wall-clock time.
+_DETERMINISTIC_DATE_TIME = (1980, 1, 1, 0, 0, 0)
+
+
+def _deterministic_savez(out_path: Path, **arrays: Any) -> None:
+    """Write a ZIP-archive .npz with all timestamps zeroed.
+
+    Equivalent to ``np.savez(out_path, **arrays)`` but reproducible
+    across runs. Each numpy array is serialised via
+    ``np.lib.format.write_array`` to a memory buffer, then added to the
+    ZIP under ``<key>.npy`` with a fixed ``date_time``.
+    """
+    # Sort keys for deterministic entry order. Empty zip-entry headers
+    # also have a default mtime; we override that via ZipInfo.
+    with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_STORED) as zf:
+        for key in sorted(arrays.keys()):
+            arr = arrays[key]
+            buf = io.BytesIO()
+            np.lib.format.write_array(buf, np.asarray(arr), allow_pickle=False)
+            info = zipfile.ZipInfo(filename=f"{key}.npy",
+                                    date_time=_DETERMINISTIC_DATE_TIME)
+            info.compress_type = zipfile.ZIP_STORED
+            info.external_attr = 0o600 << 16
+            zf.writestr(info, buf.getvalue())
 
 
 def _emit_for_d(D: int, label: str) -> Path:
@@ -65,9 +102,13 @@ def _emit_for_d(D: int, label: str) -> Path:
         "gram_max_offdiag": float(gram_max),
         "source_module": "research.encode_ant",
     }
-    arrays["meta"] = np.array(json.dumps(meta, sort_keys=True), dtype=object)
+    # Store meta as a uint8 array of UTF-8 bytes rather than an object
+    # array, so the npz can be written with allow_pickle=False (ADR 0004
+    # forbids pickle anywhere in the package's frozen data).
+    meta_bytes = json.dumps(meta, sort_keys=True).encode("utf-8")
+    arrays["meta"] = np.frombuffer(meta_bytes, dtype=np.uint8)
 
-    np.savez(out_path, **arrays)
+    _deterministic_savez(out_path, **arrays)
     return out_path
 
 
