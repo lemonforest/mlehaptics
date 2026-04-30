@@ -53,6 +53,16 @@ from .rays import (
     ROOK_DIRECTIONS, BISHOP_DIRECTIONS, QUEEN_DIRECTIONS,
     ROOK_RAYS, BISHOP_RAYS, QUEEN_RAYS,
 )
+from .attacks_pawn import (
+    pawn_pushes_4d,
+    attacks_pawn_4d,
+    PAWN_PUSH_W_WHITE, PAWN_PUSH_W_BLACK,
+    PAWN_PUSH_Y_WHITE, PAWN_PUSH_Y_BLACK,
+    PAWN_ATTACKS_W_WHITE, PAWN_ATTACKS_W_BLACK,
+    PAWN_ATTACKS_Y_WHITE, PAWN_ATTACKS_Y_BLACK,
+)
+from .move import Move4D, PIECE_CHARS, PROMOTION_TARGETS
+from .board import Board4D, UndoInfo
 
 __all__ = [
     "Bitboard4D",
@@ -68,4 +78,13 @@ __all__ = [
     # rays / directions
     "ROOK_DIRECTIONS", "BISHOP_DIRECTIONS", "QUEEN_DIRECTIONS",
     "ROOK_RAYS", "BISHOP_RAYS", "QUEEN_RAYS",
+    # pawn (axis-typed: w / y per Oana-Chiru Def 11)
+    "pawn_pushes_4d", "attacks_pawn_4d",
+    "PAWN_PUSH_W_WHITE", "PAWN_PUSH_W_BLACK",
+    "PAWN_PUSH_Y_WHITE", "PAWN_PUSH_Y_BLACK",
+    "PAWN_ATTACKS_W_WHITE", "PAWN_ATTACKS_W_BLACK",
+    "PAWN_ATTACKS_Y_WHITE", "PAWN_ATTACKS_Y_BLACK",
+    # game state
+    "Move4D", "Board4D", "UndoInfo",
+    "PIECE_CHARS", "PROMOTION_TARGETS",
 ]
