@@ -92,7 +92,9 @@ docs/antikythera-maths/antikythera-spectral/
 │       ├── 0005-codegen-no-c-yet.md
 │       ├── 0006-stateless-bridge-no-server-state.md
 │       ├── 0007-athenian-calendar-conversion-fidelity.md
-│       └── 0008-whatif-mode-bounded-input.md
+│       ├── 0008-whatif-mode-bounded-input.md
+│       ├── 0009-single-branch-rollout.md
+│       └── 0010-testpypi-pre-merge-gating.md
 │
 └── python/
     ├── pyproject.toml              # hatchling, pure-Python wheel; readme = "README.md" → this dir's README
@@ -403,18 +405,58 @@ ADR `0003-ephemeris-allowlist-codeql.md` documents the discipline so a future co
 
 ## 8. PyPI publish workflow
 
-New file: `.github/workflows/antikythera-spectral-publish.yml`. Mirrors `chess-spectral-publish.yml` minus cibuildwheel (no native code) and minus the dual `pyproject-pure.toml` step.
+Two workflow files, both new:
 
-**Triggers**: `push` on tag `antikythera-spectral-v*`, `workflow_dispatch`.
+### 8.1 `.github/workflows/antikythera-spectral-publish.yml`
+
+Mirrors `chess-spectral-publish.yml` minus cibuildwheel (no native code) and minus the dual `pyproject-pure.toml` step.
+
+**Triggers**:
+- `push` on tag `antikythera-spectral-v*` → publishes to **PyPI** (production).
+- `workflow_dispatch` with `target` input ∈ `{testpypi, pypi}` → publishes to chosen target. Default: `testpypi` (so accidental hits don't burn a real release).
 
 **Jobs**:
 1. **build-wheel** — single ubuntu-latest job; pure Python = `py3-none-any`.
 2. **build-sdist** — same job, parallel.
-3. **publish** — depends on both, runs only on tag-push or workflow_dispatch on a tag ref, uses OIDC trusted publishing (PyPI environment named `pypi`).
+3. **publish** — depends on both. The target environment is selected from the dispatch input or defaults to `pypi` for tag-push events. Uses OIDC trusted publishing.
 
-**Tag-version check**: parses tag (`antikythera-spectral-vX.Y.Z`) and verifies it matches `python/pyproject.toml`'s `[project].version`. Mismatch → fail (mirrors chess-spectral's `_check_versions.py` step).
+**Two GitHub environments**:
+- `pypi` — production. Trusted publisher on `pypi.org` (✅ done).
+- `testpypi` — staging. Trusted publisher on `test.pypi.org` (one-time setup, separate from `pypi`).
 
-**One-time setup**: human creates trusted publisher on pypi.org. Project: `antikythera-spectral`, Owner: `lemonforest`, Repo: `mlehaptics`, Workflow filename: `antikythera-spectral-publish.yml`, Environment name: `pypi`.
+**Tag-version check**: parses tag (`antikythera-spectral-vX.Y.Z`) and verifies it matches `python/pyproject.toml`'s `[project].version`. Mismatch → fail.
+
+### 8.2 `.github/workflows/antikythera-spectral-autotag.yml`
+
+Mirror of [`chess-spectral-autotag.yml`](.github/workflows/chess-spectral-autotag.yml). Detects a strict-semver version bump in `python/pyproject.toml` on main and pushes the matching `antikythera-spectral-v*` tag, which fires the publish workflow. Pre-release / dev versions (`0.1.0rc1`, `0.1.0.dev0`, …) do NOT autotag — they're test-only.
+
+### 8.3 The single-PR rollout flow (per user's "test PyPI before merge" decision)
+
+The phased rollout collapses to **one feature branch + one PR + ~18 commits**, validated against TestPyPI before merge:
+
+```
+[branch antikythera-spectral-v0.1.0]
+   |
+   |-- e5acdd2  docs: plan
+   |-- ......   phase 1: skeleton + codegen
+   |-- ......   phase 2: facade re-exports
+   |-- ......   ...
+   |-- ......   phase 17: docs + readme
+   |
+   |  ┌─ workflow_dispatch (target=testpypi) →  publishes 0.1.0rc1 to test.pypi.org
+   |  │  pip install --index-url https://test.pypi.org/simple/ antikythera-spectral==0.1.0rc1
+   |  │  smoke-test the install in a clean venv + a Pyodide REPL
+   |  │  (iterate; bump rcN as needed)
+   |  │
+   |  └─ once green: bump pyproject version 0.1.0rc1 → 0.1.0, commit, push
+   |
+[merge to main]
+   |
+   |-- autotag detects 0.1.0 (strict semver) and pushes tag antikythera-spectral-v0.1.0
+   |-- publish workflow fires on tag-push → publishes 0.1.0 to pypi.org
+```
+
+The benefit: **zero version-burn on real PyPI during development**. We only push `0.1.0` to `pypi.org` once we've verified the same artifact works under `pip install` from `test.pypi.org`. ADR `0009-single-branch-rollout.md` and `0010-testpypi-pre-merge-gating.md` document this strategy.
 
 ---
 
@@ -445,7 +487,7 @@ CI: `.github/workflows/antikythera-spectral-ci.yml` runs the matrix `[ubuntu-lat
 
 ## 10. Implementation order
 
-Sequential phases. Each phase ends with green tests + a PR.
+Sequential phases. **Single feature branch (`antikythera-spectral-v0.1.0`), single PR — all phases land as commits on the same branch.** PR opens early; phases land as commits as they're written. Each commit ends with green CI; the branch is always installable. We test against TestPyPI before merging to main (see §8.3). ADR `0009`.
 
 1. **Skeleton** — directory structure (incl. `codegen/`), empty `pyproject.toml`, version stamp, `py.typed`, `__init__.py` with version-only export. CI green.
 2. **Codegen** — `codegen/emit_*.py` + `regenerate.py`. Read from `research/*.py`, write to `_data/*.json` + `_data/basis_*.npz`. `manifest.json` carries source-commit hash. `test_data_freshness.py` enforces parity.
@@ -463,10 +505,13 @@ Sequential phases. Each phase ends with green tests + a PR.
 14. **CodeQL config update** — paths in `.github/codeql/codeql-config.yml` and `.github/workflows/codeql.yml`. PR; verify CodeQL passes.
 15. **PyPI workflow** — `antikythera-spectral-publish.yml` + `antikythera-spectral-ci.yml`. Verify via `workflow_dispatch` dry-run.
 16. **Docs** — bridge_api.md, DELTA_T_MODEL.md, EPHEMERIS_KERNELS.md, CALENDAR_SYSTEMS.md, OPERATOR_WORKFLOW.md, 8 ADRs. README.md / CHANGELOG.md / ROADMAP.md.
-17. **Trusted-publisher manual setup** — ✅ **DONE** (sckirklan@gmail.com confirmed pypi.org configured for the workflow).
-18. **First tag** — `antikythera-spectral-v0.1.0`. Watch publish workflow. `pip install antikythera-spectral` from a clean venv. Acceptance gate (§15).
+17. **Docs + READMEs** — both `python/README.md` (PyPI long-description, §16) and the repo-root `docs/antikythera-maths/antikythera-spectral/README.md` (GitHub-tree landing). Bridge API contract, ADRs 0001–0010, CHANGELOG, ROADMAP.
+18. **Trusted-publisher PyPI setup** — ✅ **DONE** for `pypi`; **TODO** for `testpypi` environment (one-time human step on test.pypi.org).
+19. **TestPyPI dry run** — `workflow_dispatch` the publish workflow with `target=testpypi`, version `0.1.0rc1`. Verify in a clean venv: `pip install --index-url https://test.pypi.org/simple/ antikythera-spectral==0.1.0rc1` + Pyodide REPL smoke. Iterate `rcN` if anything's broken; the PR stays open.
+20. **Version bump → merge** — bump `python/pyproject.toml` from `0.1.0rc1` to `0.1.0`, commit on the branch, get final PR review. Merge to main.
+21. **Autotag → publish** — autotag workflow detects `0.1.0` on main, pushes tag `antikythera-spectral-v0.1.0`, publish workflow fires on tag-push, real PyPI release lands. Acceptance gate (§15).
 
-Each phase is its own PR; the scaffold lands incrementally so we don't ship a giant atomic change.
+All phases ship as commits on a single PR. The scaffold lands as a coherent v0.1.0 release rather than an incremental series — we want a clean first PyPI artifact, not a half-finished one with API gaps. Pre-merge testing happens against TestPyPI per §8.3, so we get the "verify before commit-to-main" signal without burning a real PyPI version slot.
 
 ---
 
@@ -517,18 +562,30 @@ The **ΔT discussion** lives in `docs/DELTA_T_MODEL.md`: at -200 BCE the Earth-r
 
 ## 15. Acceptance gate for v0.1.0 release
 
-- [ ] `pip install antikythera-spectral` works on a clean Python 3.12 venv.
-- [ ] `python -c "import antikythera_spectral; print(antikythera_spectral.__version__)"` prints `0.1.0`.
+Two-tier gate. The TestPyPI tier must be green BEFORE merge to main; the production tier must be green BEFORE we declare the release shipped.
+
+### 15.1 Pre-merge (verified against TestPyPI)
+
+- [ ] `pip install --index-url https://test.pypi.org/simple/ antikythera-spectral==0.1.0rc1` works on a clean Python 3.12 venv.
+- [ ] `python -c "import antikythera_spectral; print(antikythera_spectral.__version__)"` prints `0.1.0rc1`.
 - [ ] All 28 bridge methods documented in `docs/bridge_api.md` and exercised in `test_bridge_round_trip.py` with 100 % success-path coverage.
 - [ ] CodeQL: zero `py/clear-text-logging-sensitive-data` alerts; zero high-severity Python alerts.
 - [ ] CI green on Linux / macOS / Windows × Python 3.10–3.14.
-- [ ] PyPI trusted publisher configured; first tag-push succeeds end-to-end.
-- [ ] `python/README.md` renders correctly on PyPI (twine check passes, badges resolve, all sections from §16.1 present, ≤ 1500 words per §16.2).
-- [ ] At least one frontend developer can call 8+ bridge methods from a Pyodide REPL without hitting an error or a missing dependency.
+- [ ] `python/README.md` renders correctly on TestPyPI (twine check passes, badges resolve, all §16.1 sections present, ≤ 1500 words per §16.2).
+- [ ] At least one frontend developer can call 8+ bridge methods from a Pyodide REPL (using the TestPyPI artifact) without hitting an error or a missing dependency.
 - [ ] `codegen/regenerate.py` runs in <30 seconds and produces byte-identical output across two runs (deterministic basis-vector seeding).
-- [ ] `antikythera-spectral animate --from-jd 1684500 --to-jd 1685000 --step-days 1 --format spectral -o out.spectral` produces a file < 10 MB.
+- [ ] `antikythera-spectral animate --from-jd 1684500 --to-jd 1685000 --step-days 1 --format spectral -o out.spectral` produces a file < 10 MB (run from the TestPyPI install).
 
-When all ten boxes are ticked, tag `antikythera-spectral-v0.1.0` and push.
+When all nine boxes are ticked: bump `python/pyproject.toml` from `0.1.0rc1` to `0.1.0`, commit, get final PR review, merge to main.
+
+### 15.2 Post-merge (verified against PyPI)
+
+- [ ] Autotag workflow pushed `antikythera-spectral-v0.1.0` after the merge commit.
+- [ ] Publish workflow on tag-push completed successfully (wheel + sdist on `pypi.org/project/antikythera-spectral/0.1.0/`).
+- [ ] `pip install antikythera-spectral` from real PyPI works on a clean venv (we already proved equivalence via TestPyPI; this is the final confirmation).
+- [ ] GitHub Release created (autotag's release-creation step) with CHANGELOG entry as the body.
+
+When both tiers are green, v0.1.0 is shipped.
 
 ---
 
