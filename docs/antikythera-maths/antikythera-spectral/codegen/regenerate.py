@@ -32,9 +32,15 @@ import hashlib
 import json
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 from typing import Dict
+
+# tomllib is stdlib only on Python 3.11+. On 3.10 we fall back to tomli
+# (the project that became tomllib upstream); CI installs it conditionally.
+try:
+    import tomllib
+except ImportError:  # pragma: no cover - 3.10-only path
+    import tomli as tomllib
 
 from _paths import DATA_DIR
 

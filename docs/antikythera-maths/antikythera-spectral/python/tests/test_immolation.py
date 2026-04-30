@@ -44,11 +44,18 @@ import importlib
 import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 from typing import List, Set
 
 import pytest
+
+# tomllib is stdlib only on 3.11+. The CI matrix runs on 3.10 too,
+# where we fall back to tomli (the upstream of tomllib). The CI
+# workflow installs `tomli; python_version < "3.11"` accordingly.
+try:
+    import tomllib
+except ImportError:  # pragma: no cover - 3.10-only path
+    import tomli as tomllib
 
 from antikythera_spectral import bridge
 from antikythera_spectral.cli import _make_parser
