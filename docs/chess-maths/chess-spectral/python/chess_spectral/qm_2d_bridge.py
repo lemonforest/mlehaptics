@@ -4,9 +4,16 @@ The 2D analogue of :mod:`chess_spectral.qm_4d_bridge` (which ships the
 §17.1 + §17.5 methods for the 4D side). v1.5 shipped the 4D bridge;
 v1.6 shipped 2D kinematics (``qm_2d``) and v1.6.x PR-A/B added the
 2D Track B Zeno layer + A_1 channel u_move. This module wires them
-into a Pyodide-JSON-friendly call surface so consumers (chess2d-OC
-and the upcoming web visualizer) can call into the 2D QM extension
-the same way they call the 4D side.
+into a Pyodide-JSON-friendly call surface so 2D consumers (the
+upcoming chess2d Pyodide consumer + the web visualizer) can call
+into the 2D QM extension the same way chess4d-OC calls the 4D side.
+
+Note on naming: there is no "Oana-Chiru" ruleset for 2D chess —
+standard chess rules are standard, no paper-specific variant.
+"chess4d-OC" is short for "chess4d-oana-chiru", the specific 4D
+ruleset from Oana & Chiru (AppliedMath 6(3):48, 2026). The 2D
+consumer is just "chess2d" or "the 2D consumer"; it has no -OC
+suffix.
 
 Per §17.2, this module exposes capabilities; the consumer chooses
 how to use them. Anything UI-flavored, persistence-flavored, or
@@ -272,7 +279,7 @@ def get_qm_state(state: Any, *, side_to_move: bool = True) -> Dict[str, Any]:
 
     The 2D analogue of :func:`qm_4d_bridge.get_qm_state`. Drives the
     M14.x raw-amplitude / phase-as-color / trajectory render in the
-    chess2d-OC consumer.
+    2D consumer (chess4d-OC's 2D sibling).
 
     Parameters
     ----------

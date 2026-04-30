@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — naming: "chess2d-OC" was a misnaming
+
+- "chess4d-OC" is short for "chess4d-oana-chiru" — it's a specific
+  4D chess ruleset (Oana & Chiru, *AppliedMath* 6(3):48, 2026) that
+  the chess4d-OC consumer is built on. **There is no Oana-Chiru
+  ruleset for 2D chess** — standard chess rules are just standard.
+- An earlier draft of `qm_2d_bridge.py`, `qm_2d_dynamics.py`, and the
+  v1.6.x CHANGELOG entry incorrectly said "chess2d-OC" by analogy
+  with chess4d-OC. Fixed: the 2D consumer is just "chess2d" (or
+  "the 2D consumer", or "chess4d-OC's 2D sibling"). Added a clarifying
+  note in the qm_2d_bridge module docstring so future readers don't
+  re-make the mistake.
+
 ### Added — v1.6.x Track 1 PR-D: apply_move_qm dispatcher (§17.2 #4)
 
 - **`qm_2d_bridge.apply_move_qm(pre_state, post_state, *, from_sq,
@@ -78,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The 2D analogue of `qm_4d_bridge` (which shipped the §17.1 + §17.5
 methods in v1.5). Closes the consumer-facing v1.5 gap by giving
-chess2d-OC and the upcoming web visualizer a callable §17.2 surface
-on top of the v1.6 kinematic layer.
+the 2D consumer + the upcoming web visualizer a callable §17.2
+surface on top of the v1.6 kinematic layer.
 
 Methods shipped (8 of the 13 in scope; the remaining 5 require
 per-channel u_move dynamics that arrive in PR-D / PR-E):
