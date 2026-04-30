@@ -38,7 +38,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chess-spectral"
-version = "1.6.0"
+version = "1.6.1"
 description = "Spectral lattice-fermion encoder for 2D and 4D chess (D4 / B4 symmetry, graph-Laplacian eigenbasis, 640-dim / 45 056-dim HDC)"
 readme = "README.md"
 requires-python = ">=3.10"
