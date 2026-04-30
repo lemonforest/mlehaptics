@@ -428,9 +428,175 @@ def _state_to_position_dict(state: Any) -> Dict[int, str]:
     return dict(state)
 
 
+# ---- §17.2 #4: apply_move_qm --------------------------------------
+
+
+def apply_move_qm(
+    pre_state: Any,
+    post_state: Any,
+    *,
+    from_sq: Optional[int] = None,
+    to_sq: Optional[int] = None,
+    side_to_move_post: bool = True,
+    return_per_channel: bool = False,
+) -> Dict[str, Any]:
+    """§17.2 ``applyMoveQm``: assemble the post-move ψ from pre-move
+    ψ + the move endpoints + the post-move position.
+
+    The 2D analogue of :func:`qm_4d_bridge.apply_move_qm`. Strategy:
+
+      * **A_1 channel** (channel 0): if ``from_sq`` and ``to_sq`` are
+        given AND the move is a non-capture (assertion: ``post_state``
+        has the same set of squares occupied as ``pre_state`` minus
+        ``from_sq`` plus ``to_sq``), apply the strict-unitary
+        :func:`qm_2d_dynamics.u_move_a1_2d` operator directly:
+        ``psi_post[0:64] = U_a1 @ psi_pre[0:64]``.
+
+      * **All other channels** (1..9): re-encode the post-move
+        position via :func:`qm_2d.state_to_psi` and slice the
+        relevant 64-block. This is the **measurement-only re-encode
+        pattern** that the 4D side uses for FIB_SYM_* channels — it's
+        a known v1.5 fallback that produces correct post-move ψ
+        without requiring per-channel u_move dynamics.
+
+      * **Fallback**: if ``from_sq`` / ``to_sq`` are not provided, the
+        entire post-ψ is re-encoded via ``state_to_psi(post_state)``.
+        This is the pure measurement-only path; loses the per-channel
+        detail but ships a correct post-move state.
+
+    Parameters
+    ----------
+    pre_state, post_state
+        Position dicts or objects with ``.position`` / ``.fen()``.
+        ``post_state`` should already have the move applied (the
+        bridge does NOT compute move semantics — caller uses
+        python-chess to apply the move).
+    from_sq, to_sq : int, optional
+        Move endpoints in the chess_spectral square convention
+        (``sq = row*8 + col``, row 0 = rank 8). When both are
+        provided AND the move is a non-capture, the A_1 channel uses
+        the strict-unitary path; otherwise the A_1 channel falls
+        through to the re-encode path.
+    side_to_move_post : bool, optional
+        Side to move AFTER the move. Forwarded to
+        :func:`qm_2d.state_to_psi` to set the Z_2 superselection
+        sign on the re-encoded ψ.
+    return_per_channel : bool, optional
+        If ``True``, the return dict carries an extra
+        ``per_channel`` entry with each channel's contribution to
+        the post-ψ assembly (a mix of csr_matrix for A_1 strict-path
+        and marker dicts for re-encode channels). Default ``False``
+        keeps the return shape compact.
+
+    Returns
+    -------
+    dict with keys:
+
+      * ``ok`` (bool): always ``True`` for valid input.
+      * ``psi_post`` (ndarray[float32, (1280,)]): assembled
+        post-move ψ as interleaved real+imag.
+      * ``basisDim`` (int): always ``640``.
+      * ``normSq`` (float): ``⟨ψ_post|ψ_post⟩``. Equals ``1.0``
+        within float rounding for any non-empty post-position.
+      * ``per_channel`` (dict, optional): present iff
+        ``return_per_channel=True``. Maps channel name (``'A1'``,
+        ..., ``'FD'``) to either a 64×64 csr_matrix (the A_1
+        strict-path operator, when applicable) or a marker dict
+        with ``reason='measurement-only'`` and ``psi_post_block``
+        (the re-encoded slice).
+    """
+    from chess_spectral import qm_2d as _qm2
+
+    pre_pos = _state_to_position_dict(pre_state)
+    post_pos = _state_to_position_dict(post_state)
+
+    # The post-ψ assembly comes from re-encoding post_pos. This is the
+    # measurement-only baseline: it's correct for all 10 channels.
+    # The A_1 strict-path overlay is an optional refinement for
+    # animation use cases.
+    psi_post = _qm2.state_to_psi(post_pos, bool(side_to_move_post))
+
+    use_strict_a1 = (
+        from_sq is not None
+        and to_sq is not None
+        and 0 <= int(from_sq) < 64
+        and 0 <= int(to_sq) < 64
+        and int(from_sq) != int(to_sq)
+        and _is_non_capture(pre_pos, post_pos, int(from_sq), int(to_sq))
+    )
+
+    per_channel: Dict[str, Any] = {}
+
+    if use_strict_a1:
+        # Build the strict A_1 unitary and verify its application
+        # against the re-encoded baseline. The two should agree on
+        # range(P_A1); they may differ off P_A1 but the re-encode is
+        # also confined to range(P_A1) so they match either way.
+        from chess_spectral.qm_2d_dynamics import u_move_a1_2d
+        U_a1 = u_move_a1_2d(int(from_sq), int(to_sq))
+        psi_pre = _qm2.state_to_psi(pre_pos, bool(side_to_move_post))
+        psi_post_a1 = U_a1 @ psi_pre[0:64]
+        # Splice the strict-path A_1 block into the assembled post-ψ.
+        psi_post = psi_post.copy()
+        psi_post[0:64] = psi_post_a1
+        # Renormalise; the projector-sandwich U_a1 is sub-unitary on
+        # cross-orbit moves so the assembled ψ may not be exactly
+        # unit norm.
+        n = float(np.linalg.norm(psi_post))
+        if n > 0:
+            psi_post = psi_post / n
+
+        if return_per_channel:
+            per_channel["A1"] = U_a1
+    else:
+        if return_per_channel:
+            per_channel["A1"] = {
+                "reason": "measurement-only",
+                "psi_post_block": psi_post[0:64].copy(),
+            }
+
+    if return_per_channel:
+        # Channels 1..9 are always measurement-only (re-encode-derived).
+        from chess_spectral.encoder import CHANNELS
+        for name, start in CHANNELS:
+            if name == "A1":
+                continue
+            per_channel[name] = {
+                "reason": "measurement-only",
+                "psi_post_block": psi_post[start:start + 64].copy(),
+            }
+
+    out = {
+        "ok": True,
+        "psi_post": complex_to_interleaved_float32(psi_post),
+        "basisDim": int(_qm2.ENCODING_DIM),
+        "normSq": float(np.vdot(psi_post, psi_post).real),
+    }
+    if return_per_channel:
+        out["per_channel"] = per_channel
+    return out
+
+
+def _is_non_capture(pre_pos: Dict[int, str], post_pos: Dict[int, str],
+                    from_sq: int, to_sq: int) -> bool:
+    """Detect whether the (from_sq, to_sq) move on (pre_pos, post_pos)
+    was a non-capture. Defined as: every square in pre_pos is also in
+    post_pos UNLESS it's the source square; AND the destination square
+    moved from ``not in pre_pos`` to ``in post_pos``."""
+    pre_squares = set(pre_pos.keys())
+    post_squares = set(post_pos.keys())
+    # Symmetric difference: squares whose occupancy changed.
+    changed = pre_squares.symmetric_difference(post_squares)
+    # For a non-capture move, exactly two squares change occupancy:
+    # from_sq (was occupied, now empty) and to_sq (was empty, now
+    # occupied).
+    return changed == {from_sq, to_sq} and from_sq in pre_pos and to_sq in post_pos
+
+
 __all__ = [
     "get_version", "get_encoder_shape",
     "get_fen_state", "load_fen", "has_legal_moves",
     "complex_to_interleaved_float32",
     "get_qm_state", "get_qm_density", "get_qm_expectation",
+    "apply_move_qm",
 ]

@@ -21,6 +21,7 @@ from chess_spectral.qm_2d_bridge import (  # noqa: E402
     get_fen_state, load_fen, has_legal_moves,
     complex_to_interleaved_float32,
     get_qm_state, get_qm_density, get_qm_expectation,
+    apply_move_qm,
 )
 
 
@@ -213,3 +214,94 @@ def test_get_qm_expectation_observable_name_case_insensitive():
     r2 = get_qm_expectation(loaded["position"], "ROOK")
     r3 = get_qm_expectation(loaded["position"], "  Rook  ")
     assert r1["expectation"] == r2["expectation"] == r3["expectation"]
+
+
+# ─── §17.2 #4: apply_move_qm ────────────────────────────────────────
+
+
+# e2-e4 is the most-played opening move; chess_spectral square indexing
+# (row 0 = rank 8) places e2 at row 6, col 4 = sq 52; e4 at row 4,
+# col 4 = sq 36.
+_AFTER_E4_FEN = (
+    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+)
+
+
+def test_apply_move_qm_returns_normalized_post_state():
+    pre = load_fen(_STARTING_FEN)["position"]
+    post = load_fen(_AFTER_E4_FEN)["position"]
+    r = apply_move_qm(pre, post, from_sq=52, to_sq=36,
+                       side_to_move_post=False)
+    assert r["ok"] is True
+    assert r["basisDim"] == 640
+    assert abs(r["normSq"] - 1.0) < 1e-5
+    assert r["psi_post"].dtype == np.float32
+    assert r["psi_post"].shape == (1280,)
+
+
+def test_apply_move_qm_without_endpoints_falls_back_to_reencode():
+    """Without from_sq/to_sq, we get the pure measurement-only path —
+    just re-encoding the post-position. Should produce the same psi
+    as get_qm_state(post_state)."""
+    post = load_fen(_AFTER_E4_FEN)["position"]
+    pre = load_fen(_STARTING_FEN)["position"]
+    r_apply = apply_move_qm(pre, post, side_to_move_post=False)
+    r_state = get_qm_state(post, side_to_move=False)
+    np.testing.assert_array_equal(r_apply["psi_post"], r_state["psi"])
+
+
+def test_apply_move_qm_per_channel_dispatch_complete():
+    """With return_per_channel=True the dict has all 10 channel
+    entries (A1..FD). The A1 entry for a non-capture is a csr_matrix;
+    the others are marker dicts."""
+    pre = load_fen(_STARTING_FEN)["position"]
+    post = load_fen(_AFTER_E4_FEN)["position"]
+    r = apply_move_qm(
+        pre, post, from_sq=52, to_sq=36,
+        side_to_move_post=False, return_per_channel=True,
+    )
+    pc = r["per_channel"]
+    assert sorted(pc.keys()) == sorted([
+        "A1", "A2", "B1", "B2", "E", "F1", "F2", "F3", "FA", "FD"
+    ])
+    # A1: csr_matrix when strict-path applies
+    import scipy.sparse as _sp
+    assert _sp.issparse(pc["A1"]), (
+        "A1 should be a csr_matrix for non-capture moves with endpoints"
+    )
+    # Other channels: marker dicts
+    for ch in ("A2", "B1", "B2", "E", "F1", "F2", "F3", "FA", "FD"):
+        assert isinstance(pc[ch], dict), f"{ch} should be marker dict"
+        assert pc[ch]["reason"] == "measurement-only"
+        assert pc[ch]["psi_post_block"].shape == (64,)
+
+
+def test_apply_move_qm_per_channel_a1_falls_back_when_endpoints_missing():
+    """Without from_sq/to_sq, even A1 is a measurement-only marker."""
+    pre = load_fen(_STARTING_FEN)["position"]
+    post = load_fen(_AFTER_E4_FEN)["position"]
+    r = apply_move_qm(pre, post, return_per_channel=True)
+    pc = r["per_channel"]
+    assert isinstance(pc["A1"], dict)
+    assert pc["A1"]["reason"] == "measurement-only"
+
+
+def test_apply_move_qm_no_op_move_uses_reencode_path():
+    """A null move (from_sq == to_sq) is rejected as an A1-strict
+    candidate by the bridge's gate logic (use_strict_a1 evaluates
+    False), so the bridge falls back to the pure re-encode path."""
+    pre = load_fen(_STARTING_FEN)["position"]
+    r = apply_move_qm(pre, pre, from_sq=52, to_sq=52)
+    # Falls back; doesn't crash on the null-move guard.
+    assert r["ok"] is True
+    assert abs(r["normSq"] - 1.0) < 1e-5
+
+
+def test_apply_move_qm_pre_state_can_be_chess_board():
+    import chess
+    b_pre = chess.Board()
+    b_post = chess.Board(_AFTER_E4_FEN)
+    r = apply_move_qm(b_pre, b_post, from_sq=52, to_sq=36,
+                       side_to_move_post=False)
+    assert r["ok"] is True
+    assert abs(r["normSq"] - 1.0) < 1e-5
