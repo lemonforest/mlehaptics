@@ -619,6 +619,194 @@ static void test_pc_2d_reader_rejects_dense_file(void) {
     fclose(fp);
 }
 
+/* ---- XOR-stream (mode 2) full-file I/O round-trips -------------- *
+ *
+ * Mode 2 is fixed-frame-size (same layout as dense). The transform is
+ * applied at write/read time: frame 0 stored verbatim, frame N>0
+ * stored bytes = real[N].encoding XOR real[N-1].encoding (move tail
+ * unchanged). Round-trip must be byte-exact even for adversarial
+ * inputs (e.g. NaN bit patterns produced by XOR).
+ */
+
+static void test_xor_2d_round_trip_progressive(void) {
+    /* 4 frames: each frame's encoding equals the previous + a known
+     * delta in some bytes. XOR transform compresses well in real life;
+     * here we just verify byte-exact reconstruction. */
+    const uint32_t N = 4u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    uint8_t *src = (uint8_t *)calloc(total, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    /* Frame 0: encoding = repeating 0x55, tail = 0. */
+    memset(src, 0x55, fs - 8u);
+    _set_2d_move_tail(src, 0u, 0u, 0u, 0u, 0u);
+    /* Frames 1..3: clone previous, mutate first 16 bytes of encoding. */
+    for (uint32_t k = 1; k < N; ++k) {
+        uint8_t *f = src + (size_t)k * fs;
+        memcpy(f, src + (size_t)(k - 1) * fs, fs);
+        for (uint32_t b = 0; b < 16u; ++b) f[b] = (uint8_t)(0x10u * k + b);
+        _set_2d_move_tail(f, k, (uint8_t)k, (uint8_t)(k + 8u), 0u, 0u);
+    }
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_xor_stream_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "xor 2D write rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)calloc(total, 1);
+    if (!dst) { g_assertions++; g_fails++; free(src); fclose(fp); return; }
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_xor_stream_2d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "xor 2D read rc");
+    ASSERT_EQ_U32(got_n, N, "xor 2D got_n");
+    ASSERT_EQ_INT(hdr.encoding_mode, CS_V5_MODE_XOR_STREAM, "xor 2D mode");
+    ASSERT_EQ_U32(hdr.n_dimensions, 2u, "xor 2D n_dimensions");
+    g_assertions++;
+    if (memcmp(src, dst, total) != 0) {
+        fprintf(stderr, "  FAIL xor 2D bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_xor_2d_zero_delta_compression_invariant(void) {
+    /* 3 IDENTICAL frames (only ply differs). After XOR, frames 1+2
+     * should have all-zero encoding bytes on disk. We don't directly
+     * peek at the on-disk bytes here, but we verify the round-trip
+     * produces the original input — combined with the dense-frame test
+     * above, that establishes XOR + un-XOR == identity. */
+    const uint32_t N = 3u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    uint8_t *src = (uint8_t *)calloc(total, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    for (uint32_t k = 0; k < N; ++k) {
+        uint8_t *f = src + (size_t)k * fs;
+        for (size_t b = 0; b < fs - 8u; ++b) f[b] = (uint8_t)(b & 0xFFu);
+        _set_2d_move_tail(f, k, (uint8_t)k, (uint8_t)(k + 1u), 0u, 0u);
+    }
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_xor_stream_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "xor zero-delta write rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)calloc(total, 1);
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_xor_stream_2d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "xor zero-delta read rc");
+    g_assertions++;
+    if (memcmp(src, dst, total) != 0) {
+        fprintf(stderr, "  FAIL xor zero-delta bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_xor_2d_disk_layout_for_zero_delta(void) {
+    /* Direct on-disk inspection: for two identical frames, the second
+     * frame's stored ENCODING bytes (offset 256 + frame_bytes ..
+     * 256 + frame_bytes + enc_bytes) must be all zero. Move tail bytes
+     * are unaffected by XOR and remain whatever the writer received. */
+    const uint32_t N = 2u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    const size_t enc_bytes = (size_t)CS_V5_ENCODING_DIM_2D * 4u;
+    uint8_t *src = (uint8_t *)calloc(total, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    /* Frame 0 and frame 1 have identical encoding portions, distinct
+     * move tails. */
+    for (size_t b = 0; b < enc_bytes; ++b) src[b] = (uint8_t)((b * 11) & 0xFFu);
+    memcpy(src + fs, src, enc_bytes);  /* frame 1 encoding = frame 0 */
+    _set_2d_move_tail(src, 0u, 1u, 2u, 0u, 0u);
+    _set_2d_move_tail(src + fs, 1u, 3u, 4u, 0u, 0u);
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_xor_stream_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "xor disk-layout write rc");
+
+    /* Read raw bytes back from disk for inspection. */
+    rewind(fp);
+    uint8_t *raw = (uint8_t *)calloc((size_t)CS_V5_HEADER_SIZE + total, 1);
+    if (!raw) { g_assertions++; g_fails++; free(src); fclose(fp); return; }
+    size_t r = fread(raw, 1, (size_t)CS_V5_HEADER_SIZE + total, fp);
+    ASSERT_EQ_INT((int)r, (int)((size_t)CS_V5_HEADER_SIZE + total),
+                  "xor disk-layout read raw bytes");
+
+    /* Frame 1 stored encoding starts at offset CS_V5_HEADER_SIZE + fs. */
+    const uint8_t *f1_enc = raw + CS_V5_HEADER_SIZE + fs;
+    int all_zero = 1;
+    for (size_t b = 0; b < enc_bytes; ++b) {
+        if (f1_enc[b] != 0u) { all_zero = 0; break; }
+    }
+    g_assertions++;
+    if (!all_zero) {
+        fprintf(stderr, "  FAIL xor zero-delta did not produce zero bytes on disk\n");
+        g_fails++;
+    }
+
+    free(src); free(raw); fclose(fp);
+}
+
+static void test_xor_4d_single_frame(void) {
+    /* 1 frame for 4D: stored verbatim (XOR with zero). Round-trip
+     * should produce byte-exact equality. */
+    const uint32_t N = 1u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_4D;
+    uint8_t *src = (uint8_t *)malloc(fs);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+    for (size_t i = 0; i < fs; ++i) src[i] = (uint8_t)((i * 23u + 5u) & 0xFFu);
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_xor_stream_4d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "xor 4D write rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)malloc(fs);
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_xor_stream_4d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "xor 4D read rc");
+    ASSERT_EQ_U32(got_n, N, "xor 4D got_n");
+    ASSERT_EQ_U32(hdr.encoding_dim, CS_V5_ENCODING_DIM_4D, "xor 4D encoding_dim");
+    ASSERT_EQ_U32(hdr.n_dimensions, 4u, "xor 4D n_dimensions");
+    ASSERT_EQ_INT(hdr.encoding_mode, CS_V5_MODE_XOR_STREAM, "xor 4D mode");
+    g_assertions++;
+    if (memcmp(src, dst, fs) != 0) {
+        fprintf(stderr, "  FAIL xor 4D bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_xor_2d_reader_rejects_dense_file(void) {
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; return; }
+    int rc = cs_v5_write_dense_2d_file(fp, NULL, 0u);
+    ASSERT_EQ_INT(rc, 0, "write dense-empty rc");
+    rewind(fp);
+
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_xor_stream_2d_file(fp, &hdr, NULL, 0u, &got_n);
+    ASSERT_EQ_INT(rc, -8, "xor 2D reader rejects dense");
+    fclose(fp);
+}
+
+
 static void test_pc_2d_truncates_to_max_plies(void) {
     /* Write 4 plies with progressive single-channel deltas; read with
      * max_plies=2. The reader must reconstruct frames 0..1 correctly
@@ -684,6 +872,11 @@ int test_frame_v5(void) {
     test_pc_4d_single_frame();
     test_pc_2d_reader_rejects_dense_file();
     test_pc_2d_truncates_to_max_plies();
+    test_xor_2d_round_trip_progressive();
+    test_xor_2d_zero_delta_compression_invariant();
+    test_xor_2d_disk_layout_for_zero_delta();
+    test_xor_4d_single_frame();
+    test_xor_2d_reader_rejects_dense_file();
 
     printf("  %d/%d assertions passed\n",
            g_assertions - g_fails, g_assertions);

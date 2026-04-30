@@ -231,6 +231,59 @@ int cs_v5_read_per_channel_4d_file(FILE *fp,
                                     uint32_t max_plies,
                                     uint32_t *n_plies_out);
 
+
+/* ----- XOR-stream mode (mode 2) full-file I/O ---------------- *
+ *
+ * Mode 2 is fixed-frame-size like dense (mode 0). The DIFFERENCE is
+ * what the bytes contain: each frame's float32 encoding portion is
+ * the bit-XOR (uint32-view) of the real frame's encoding with the
+ * previous *reconstructed* frame's encoding. Frame 0 is XOR'd with
+ * zero (i.e. stored verbatim). The move-metadata tail is unchanged.
+ *
+ * Reconstruction: real[N] = stored[N] XOR real[N-1] (uint32 view);
+ * real[0] = stored[0]. Bit-exact, lossless. Wins because chess
+ * encoder hypervectors are largely stable per ply — XOR produces
+ * long runs of zero bytes where nothing changed, and gzip eats
+ * those for free. Empirical 4D spike: 7.23x compression on a
+ * 50-ply knight-tour fixture.
+ */
+
+/* Write a complete v5 XOR-stream (mode 2) 2D file. Caller passes a
+ * contiguous buffer of dense-equivalent frames (CS_V5_FRAME_BYTES_2D
+ * each, identical layout to cs_v5_write_dense_2d_file). The writer
+ * applies the XOR transform in-flight: frame 0 is written verbatim;
+ * subsequent frames have their encoding bytes XOR'd with the prior
+ * REAL frame's encoding bytes before write. The move tail is appended
+ * unchanged. Returns 0 on success or -7 on I/O. */
+int cs_v5_write_xor_stream_2d_file(FILE *fp,
+                                    const void *dense_encodings,
+                                    uint32_t n_plies);
+
+/* Write a complete v5 XOR-stream (mode 2) 4D file. */
+int cs_v5_write_xor_stream_4d_file(FILE *fp,
+                                    const void *dense_encodings,
+                                    uint32_t n_plies);
+
+/* Read a complete v5 XOR-stream (mode 2) 2D file. Reconstructs each
+ * frame's full dense layout (encoding + move tail) into
+ * dense_encodings_buf via cumulative XOR application. Returns 0 on
+ * success; -8 on header mode/dimension mismatch; -7 on truncation.
+ * dense_encodings_buf must be at least max_plies * CS_V5_FRAME_BYTES_2D
+ * bytes. */
+int cs_v5_read_xor_stream_2d_file(FILE *fp,
+                                   cs_v5_header_t *hdr_out,
+                                   void *dense_encodings_buf,
+                                   uint32_t max_plies,
+                                   uint32_t *n_plies_out);
+
+/* Read a complete v5 XOR-stream (mode 2) 4D file. dense_encodings_buf
+ * must be at least max_plies * CS_V5_FRAME_BYTES_4D bytes. */
+int cs_v5_read_xor_stream_4d_file(FILE *fp,
+                                   cs_v5_header_t *hdr_out,
+                                   void *dense_encodings_buf,
+                                   uint32_t max_plies,
+                                   uint32_t *n_plies_out);
+
 #ifdef __cplusplus
 }
 #endif

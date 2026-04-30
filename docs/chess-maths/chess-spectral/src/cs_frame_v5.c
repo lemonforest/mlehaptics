@@ -524,3 +524,169 @@ int cs_v5_read_per_channel_4d_file(FILE *fp,
         /*expect_n_dim=*/4u, CS_V5_ENCODING_DIM_4D, CS_V5_FRAME_BYTES_4D,
         CS_V5_N_CHANNELS_4D, CS_V5_CHANNEL_DIM_4D, CS_V5_MOVE_TAIL_4D);
 }
+
+
+/* ----- XOR-stream (mode 2) full-file I/O ---------------------- *
+ *
+ * Frame body is fixed-size, identical layout to dense (mode 0).
+ * Transform: stored_encoding[N] = real_encoding[N] XOR
+ *                                  real_encoding[N-1]   for N > 0
+ *            stored_encoding[0]  = real_encoding[0]     (XOR with zero)
+ *
+ * Move-metadata tail is appended verbatim — only the encoding bytes
+ * are XOR'd. The XOR is performed on the float32 byte representation
+ * (uint32-wise via memcpy + XOR; no float arithmetic is performed,
+ * so NaN bit patterns round-trip exactly).
+ */
+
+static void _v5_xor_encoding(uint8_t *out, const uint8_t *a,
+                              const uint8_t *b, uint32_t enc_bytes) {
+    /* Pointwise byte XOR; equivalent to uint32-view XOR for
+     * IEEE-754-compliant inputs since XOR is bit-level. */
+    for (uint32_t i = 0; i < enc_bytes; ++i) out[i] = a[i] ^ b[i];
+}
+
+static int _v5_write_xor_stream_file(FILE *fp,
+                                      uint32_t n_dimensions,
+                                      uint32_t encoding_dim,
+                                      uint32_t frame_bytes,
+                                      uint32_t move_tail_bytes,
+                                      const void *dense_encodings,
+                                      uint32_t n_plies) {
+    if (fp == NULL || (dense_encodings == NULL && n_plies > 0)) return -1;
+
+    cs_v5_header_t hdr = {
+        .magic          = CS_V5_MAGIC,
+        .version        = CS_V5_VERSION,
+        .encoding_dim   = encoding_dim,
+        .frame_bytes    = frame_bytes,
+        .n_plies        = n_plies,
+        .board_dim_side = CS_V5_BOARD_SIDE,
+        .n_dimensions   = n_dimensions,
+        .encoding_mode  = CS_V5_MODE_XOR_STREAM,
+    };
+    int rc = cs_v5_header_write(fp, &hdr);
+    if (rc != 0) return rc;
+
+    if (n_plies == 0u) return 0;
+
+    /* Bytes within one frame: enc_bytes followed by move_tail_bytes. */
+    uint32_t enc_bytes = encoding_dim * 4u;
+    /* Sanity: enc_bytes + move_tail_bytes == frame_bytes. */
+    if (enc_bytes + move_tail_bytes != frame_bytes) return -1;
+
+    const uint8_t *base = (const uint8_t *)dense_encodings;
+
+    /* Frame 0: write verbatim (stored = real, XOR-with-zero). */
+    if (fwrite(base, 1, frame_bytes, fp) != frame_bytes) return -7;
+
+    /* Frames 1..n-1: XOR encoding portion with prior frame's encoding,
+     * write XOR'd bytes followed by current frame's tail verbatim. */
+    /* Use a scratch buffer for the XOR'd encoding. We size it for the
+     * larger of 2D/4D so the same buffer works in both helpers; static
+     * is safe since cs_test is single-threaded and CLI writers run one
+     * file at a time. The buffer is ~180 KB for 4D, only allocated
+     * once per process lifetime. */
+    static uint8_t s_xor_scratch[CS_V5_ENCODING_DIM_4D * 4u];
+    if (enc_bytes > sizeof(s_xor_scratch)) return -1;  /* defensive */
+
+    for (uint32_t i = 1; i < n_plies; ++i) {
+        const uint8_t *curr = base + (size_t)i * (size_t)frame_bytes;
+        const uint8_t *prev = base + (size_t)(i - 1u) * (size_t)frame_bytes;
+        _v5_xor_encoding(s_xor_scratch, curr, prev, enc_bytes);
+        if (fwrite(s_xor_scratch, 1, enc_bytes, fp) != enc_bytes) return -7;
+        if (fwrite(curr + enc_bytes, 1, move_tail_bytes, fp)
+            != move_tail_bytes) {
+            return -7;
+        }
+    }
+    return 0;
+}
+
+int cs_v5_write_xor_stream_2d_file(FILE *fp,
+                                    const void *dense_encodings,
+                                    uint32_t n_plies) {
+    return _v5_write_xor_stream_file(
+        fp, /*n_dimensions=*/2u,
+        CS_V5_ENCODING_DIM_2D, CS_V5_FRAME_BYTES_2D, CS_V5_MOVE_TAIL_2D,
+        dense_encodings, n_plies);
+}
+
+int cs_v5_write_xor_stream_4d_file(FILE *fp,
+                                    const void *dense_encodings,
+                                    uint32_t n_plies) {
+    return _v5_write_xor_stream_file(
+        fp, /*n_dimensions=*/4u,
+        CS_V5_ENCODING_DIM_4D, CS_V5_FRAME_BYTES_4D, CS_V5_MOVE_TAIL_4D,
+        dense_encodings, n_plies);
+}
+
+static int _v5_read_xor_stream_file(FILE *fp,
+                                     cs_v5_header_t *hdr_out,
+                                     void *dense_encodings_buf,
+                                     uint32_t max_plies,
+                                     uint32_t *n_plies_out,
+                                     uint32_t expect_n_dim,
+                                     uint32_t expect_encoding_dim,
+                                     uint32_t frame_bytes,
+                                     uint32_t move_tail_bytes) {
+    if (fp == NULL) return -1;
+    cs_v5_header_t hdr;
+    int rc = cs_v5_header_read(fp, &hdr);
+    if (rc != 0) return rc;
+
+    if (hdr.n_dimensions != expect_n_dim
+        || hdr.encoding_dim != expect_encoding_dim
+        || hdr.encoding_mode != CS_V5_MODE_XOR_STREAM) {
+        return -8;
+    }
+    if (hdr_out != NULL) *hdr_out = hdr;
+
+    uint32_t n_to_read = hdr.n_plies < max_plies ? hdr.n_plies : max_plies;
+    if (n_plies_out != NULL) *n_plies_out = n_to_read;
+    if (n_to_read == 0u) return 0;
+    if (dense_encodings_buf == NULL) return -1;
+
+    uint32_t enc_bytes = expect_encoding_dim * 4u;
+    if (enc_bytes + move_tail_bytes != frame_bytes) return -1;
+
+    uint8_t *base = (uint8_t *)dense_encodings_buf;
+
+    /* Frame 0: read verbatim into base. */
+    if (fread(base, 1, frame_bytes, fp) != frame_bytes) return -7;
+
+    /* Frames 1..n_to_read-1: read stored bytes, XOR encoding portion
+     * with prev real encoding (which lives at base + (i-1)*frame_bytes
+     * since we just wrote it there), append tail. */
+    for (uint32_t i = 1; i < n_to_read; ++i) {
+        uint8_t *curr = base + (size_t)i * (size_t)frame_bytes;
+        const uint8_t *prev = base + (size_t)(i - 1u) * (size_t)frame_bytes;
+        if (fread(curr, 1, frame_bytes, fp) != frame_bytes) return -7;
+        /* In-place XOR of curr's encoding bytes with prev's encoding
+         * bytes. Tail bytes stay as read (they were never XOR'd). */
+        for (uint32_t k = 0; k < enc_bytes; ++k) curr[k] ^= prev[k];
+    }
+    return 0;
+}
+
+int cs_v5_read_xor_stream_2d_file(FILE *fp,
+                                   cs_v5_header_t *hdr_out,
+                                   void *dense_encodings_buf,
+                                   uint32_t max_plies,
+                                   uint32_t *n_plies_out) {
+    return _v5_read_xor_stream_file(
+        fp, hdr_out, dense_encodings_buf, max_plies, n_plies_out,
+        /*expect_n_dim=*/2u, CS_V5_ENCODING_DIM_2D, CS_V5_FRAME_BYTES_2D,
+        CS_V5_MOVE_TAIL_2D);
+}
+
+int cs_v5_read_xor_stream_4d_file(FILE *fp,
+                                   cs_v5_header_t *hdr_out,
+                                   void *dense_encodings_buf,
+                                   uint32_t max_plies,
+                                   uint32_t *n_plies_out) {
+    return _v5_read_xor_stream_file(
+        fp, hdr_out, dense_encodings_buf, max_plies, n_plies_out,
+        /*expect_n_dim=*/4u, CS_V5_ENCODING_DIM_4D, CS_V5_FRAME_BYTES_4D,
+        CS_V5_MOVE_TAIL_4D);
+}
