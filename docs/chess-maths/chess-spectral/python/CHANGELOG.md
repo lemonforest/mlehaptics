@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Tests — immolation suite augmentation
+
+- **7 new tests in `tests/test_smoke_e2e.py`** covering the v1.6
+  engine CLI commands: 2D `search` (all 3 evaluators from starting
+  position + arbitrary FEN), 2D `tournament` (minimal 2-agent + the
+  per-side-asymmetric §16 use case), 2D `sweep` (2×2 matrix), 4D
+  `search` (two-kings position), 4D `tournament` (two-kings start).
+  Sub-suite runs in < 5 s on a warm interpreter (depth=1, max_plies≤10).
+  Closes the immolation gap that would have let regressions in the
+  agent-spec parser or the round-robin loop slip past CI.
+
 ### Added — v1.6 engine CLI surface
 
 - **`spectral_py sweep` ship-gate runner.** One-shot driver for the
