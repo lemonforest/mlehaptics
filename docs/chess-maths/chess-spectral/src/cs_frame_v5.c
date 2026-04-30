@@ -128,3 +128,106 @@ int cs_v5_header_write(FILE *fp, const cs_v5_header_t *hdr) {
     if (n != CS_V5_HEADER_SIZE) return -7;
     return 0;
 }
+
+
+/* ----- Dense-mode (mode 0) full-file I/O ----------------------- */
+
+static int _v5_write_dense_file(FILE *fp,
+                                 uint32_t n_dimensions,
+                                 uint32_t encoding_dim,
+                                 uint32_t frame_bytes,
+                                 const void *frame_blob,
+                                 uint32_t n_plies) {
+    if (fp == NULL || (frame_blob == NULL && n_plies > 0)) return -1;
+
+    cs_v5_header_t hdr = {
+        .magic          = CS_V5_MAGIC,
+        .version        = CS_V5_VERSION,
+        .encoding_dim   = encoding_dim,
+        .frame_bytes    = frame_bytes,
+        .n_plies        = n_plies,
+        .board_dim_side = CS_V5_BOARD_SIDE,
+        .n_dimensions   = n_dimensions,
+        .encoding_mode  = CS_V5_MODE_DENSE,
+    };
+    int rc = cs_v5_header_write(fp, &hdr);
+    if (rc != 0) return rc;
+
+    if (n_plies > 0) {
+        size_t total = (size_t)frame_bytes * (size_t)n_plies;
+        size_t w = fwrite(frame_blob, 1, total, fp);
+        if (w != total) return -7;
+    }
+    return 0;
+}
+
+int cs_v5_write_dense_2d_file(FILE *fp,
+                              const void *frame_bytes,
+                              uint32_t n_plies) {
+    return _v5_write_dense_file(
+        fp, /*n_dimensions=*/2u,
+        CS_V5_ENCODING_DIM_2D, CS_V5_FRAME_BYTES_2D,
+        frame_bytes, n_plies);
+}
+
+int cs_v5_write_dense_4d_file(FILE *fp,
+                              const void *frame_bytes,
+                              uint32_t n_plies) {
+    return _v5_write_dense_file(
+        fp, /*n_dimensions=*/4u,
+        CS_V5_ENCODING_DIM_4D, CS_V5_FRAME_BYTES_4D,
+        frame_bytes, n_plies);
+}
+
+static int _v5_read_dense_file(FILE *fp,
+                                cs_v5_header_t *hdr_out,
+                                void *frame_buf,
+                                uint32_t max_plies,
+                                uint32_t *n_plies_out,
+                                uint32_t expect_n_dim,
+                                uint32_t expect_encoding_dim,
+                                uint32_t frame_bytes) {
+    if (fp == NULL) return -1;
+    cs_v5_header_t hdr;
+    int rc = cs_v5_header_read(fp, &hdr);
+    if (rc != 0) return rc;
+
+    if (hdr.n_dimensions != expect_n_dim
+        || hdr.encoding_dim != expect_encoding_dim
+        || hdr.encoding_mode != CS_V5_MODE_DENSE) {
+        return -8;
+    }
+    if (hdr_out != NULL) *hdr_out = hdr;
+
+    uint32_t n_to_read = hdr.n_plies < max_plies ? hdr.n_plies : max_plies;
+    if (n_plies_out != NULL) *n_plies_out = n_to_read;
+
+    if (n_to_read > 0 && frame_buf != NULL) {
+        size_t total = (size_t)frame_bytes * (size_t)n_to_read;
+        size_t r = fread(frame_buf, 1, total, fp);
+        if (r != total) return -7;
+    }
+    return 0;
+}
+
+int cs_v5_read_dense_2d_file(FILE *fp,
+                             cs_v5_header_t *hdr_out,
+                             void *frame_buf,
+                             uint32_t max_plies,
+                             uint32_t *n_plies_out) {
+    return _v5_read_dense_file(
+        fp, hdr_out, frame_buf, max_plies, n_plies_out,
+        /*expect_n_dim=*/2u,
+        CS_V5_ENCODING_DIM_2D, CS_V5_FRAME_BYTES_2D);
+}
+
+int cs_v5_read_dense_4d_file(FILE *fp,
+                             cs_v5_header_t *hdr_out,
+                             void *frame_buf,
+                             uint32_t max_plies,
+                             uint32_t *n_plies_out) {
+    return _v5_read_dense_file(
+        fp, hdr_out, frame_buf, max_plies, n_plies_out,
+        /*expect_n_dim=*/4u,
+        CS_V5_ENCODING_DIM_4D, CS_V5_FRAME_BYTES_4D);
+}

@@ -300,6 +300,123 @@ static void test_byte_parity_with_python(void) {
 }
 
 
+/* ---- Dense-mode (mode 0) full-file I/O round-trips -------------- */
+
+static void test_dense_2d_full_file_round_trip(void) {
+    /* Synthesize 3 frames worth of bytes (3 * 2568 = 7704 bytes total)
+     * and write them to a tmpfile under a v5 dense 2D header. Then
+     * read back and verify byte-for-byte equality. */
+    const uint32_t N = 3u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    uint8_t *src = (uint8_t *)malloc(total);
+    g_assertions++;
+    if (!src) { fprintf(stderr, "  FAIL malloc\n"); g_fails++; return; }
+    for (size_t i = 0; i < total; ++i) src[i] = (uint8_t)((i * 37u) & 0xFFu);
+
+    FILE *fp = tmpfile();
+    g_assertions++;
+    if (!fp) { fprintf(stderr, "  FAIL tmpfile\n"); g_fails++; free(src); return; }
+
+    int rc = cs_v5_write_dense_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "write_dense_2d rc");
+
+    rewind(fp);
+    uint8_t *dst = (uint8_t *)malloc(total);
+    g_assertions++;
+    if (!dst) { g_fails++; free(src); fclose(fp); return; }
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_dense_2d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "read_dense_2d rc");
+    ASSERT_EQ_U32(got_n, N, "n_plies_out");
+    ASSERT_EQ_U32(hdr.encoding_dim, CS_V5_ENCODING_DIM_2D, "header encoding_dim");
+    ASSERT_EQ_U32(hdr.n_dimensions, 2u, "header n_dimensions");
+    ASSERT_EQ_INT(hdr.encoding_mode, CS_V5_MODE_DENSE, "header encoding_mode");
+
+    g_assertions++;
+    if (memcmp(src, dst, total) != 0) {
+        fprintf(stderr, "  FAIL frame body bytes mismatch\n");
+        g_fails++;
+    }
+
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_dense_2d_truncates_to_max_plies(void) {
+    /* Write 5 frames; read with max_plies=2. Bytes for frames 0..1
+     * should match the source. */
+    const uint32_t N_WRITE = 5u, N_READ = 2u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N_WRITE;
+    uint8_t *src = (uint8_t *)malloc(total);
+    if (!src) { g_assertions++; g_fails++; return; }
+    for (size_t i = 0; i < total; ++i) src[i] = (uint8_t)((i * 13u) & 0xFFu);
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_dense_2d_file(fp, src, N_WRITE);
+    ASSERT_EQ_INT(rc, 0, "write 5-frame rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)malloc(fs * (size_t)N_READ);
+    if (!dst) { g_assertions++; g_fails++; free(src); fclose(fp); return; }
+    uint32_t got_n = 0;
+    rc = cs_v5_read_dense_2d_file(fp, NULL, dst, N_READ, &got_n);
+    ASSERT_EQ_INT(rc, 0, "read truncated rc");
+    ASSERT_EQ_U32(got_n, N_READ, "got_n clamped to max_plies");
+    g_assertions++;
+    if (memcmp(src, dst, fs * (size_t)N_READ) != 0) {
+        fprintf(stderr, "  FAIL truncated read bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_dense_4d_full_file_round_trip(void) {
+    const uint32_t N = 1u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_4D;
+    uint8_t *src = (uint8_t *)malloc(fs);
+    if (!src) { g_assertions++; g_fails++; return; }
+    for (size_t i = 0; i < fs; ++i) src[i] = (uint8_t)((i * 7u) & 0xFFu);
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_dense_4d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "write_dense_4d rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)malloc(fs);
+    if (!dst) { g_assertions++; g_fails++; free(src); fclose(fp); return; }
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_dense_4d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "read_dense_4d rc");
+    ASSERT_EQ_U32(hdr.encoding_dim, CS_V5_ENCODING_DIM_4D, "4D encoding_dim");
+    ASSERT_EQ_U32(hdr.n_dimensions, 4u, "4D n_dimensions");
+    g_assertions++;
+    if (memcmp(src, dst, fs) != 0) {
+        fprintf(stderr, "  FAIL 4D frame bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_dense_2d_reader_rejects_4d_file(void) {
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; return; }
+    int rc = cs_v5_write_dense_4d_file(fp, NULL, 0u);
+    ASSERT_EQ_INT(rc, 0, "write 4D-empty rc");
+    rewind(fp);
+
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_dense_2d_file(fp, &hdr, NULL, 0u, &got_n);
+    ASSERT_EQ_INT(rc, -8, "2D reader rejects 4D file");
+    fclose(fp);
+}
+
+
 int test_frame_v5(void) {
     g_fails = 0;
     g_assertions = 0;
@@ -313,6 +430,10 @@ int test_frame_v5(void) {
     test_unpack_rejects_bad_magic();
     test_file_round_trip();
     test_byte_parity_with_python();
+    test_dense_2d_full_file_round_trip();
+    test_dense_2d_truncates_to_max_plies();
+    test_dense_4d_full_file_round_trip();
+    test_dense_2d_reader_rejects_4d_file();
 
     printf("  %d/%d assertions passed\n",
            g_assertions - g_fails, g_assertions);

@@ -110,6 +110,54 @@ int cs_v5_header_read(FILE *fp, cs_v5_header_t *hdr);
  * exactly 256 bytes and does not seek. */
 int cs_v5_header_write(FILE *fp, const cs_v5_header_t *hdr);
 
+
+/* ----- Dense-mode (mode 0) full-file I/O ----------------------- */
+
+/* Write a complete v5 dense (mode 0) 2D file: header + n_plies *
+ * frame bodies. Each frame body is a contiguous 2568-byte block:
+ * 2560 bytes of float32 encoding + 8 bytes of move metadata
+ * (ply u32, move_from u8, move_to u8, move_promo u8, move_flags u8),
+ * matching the layout of cs_spectral_frame_t in cs_frame.h.
+ *
+ * The header is built from CS_V5_* constants + the n_plies argument
+ * — caller doesn't need to fill cs_v5_header_t. Returns 0 on success
+ * or -7 on I/O error. */
+int cs_v5_write_dense_2d_file(FILE *fp,
+                              const void *frame_bytes,
+                              uint32_t n_plies);
+
+/* Read a complete v5 dense (mode 0) 2D file. fp must be at start.
+ * Reads the header, validates dimension and mode, then reads up to
+ * `max_plies` frame bodies into `frame_buf` (must be at least
+ * `max_plies * CS_V5_FRAME_BYTES_2D` bytes). Sets *n_plies_out to
+ * the actual count read (clamped to the file's n_plies). Optional
+ * hdr_out receives the parsed header. Returns 0 on success; same
+ * negative codes as cs_v5_header_read for header errors, plus
+ * -8 if the header's n_dimensions / encoding_mode / encoding_dim
+ * don't match a 2D dense file. */
+int cs_v5_read_dense_2d_file(FILE *fp,
+                             cs_v5_header_t *hdr_out,
+                             void *frame_buf,
+                             uint32_t max_plies,
+                             uint32_t *n_plies_out);
+
+/* Write a complete v5 dense (mode 0) 4D file: header + n_plies *
+ * frame bodies. Each frame body is 180238 bytes (45056 * 4 + 14),
+ * matching cs_spectral_frame_4d_t in cs_frame_4d.h. */
+int cs_v5_write_dense_4d_file(FILE *fp,
+                              const void *frame_bytes,
+                              uint32_t n_plies);
+
+/* Read a complete v5 dense (mode 0) 4D file. Same shape as
+ * cs_v5_read_dense_2d_file but with 4D field expectations
+ * (encoding_dim=45056, n_dimensions=4). frame_buf >=
+ * max_plies * CS_V5_FRAME_BYTES_4D bytes. */
+int cs_v5_read_dense_4d_file(FILE *fp,
+                             cs_v5_header_t *hdr_out,
+                             void *frame_buf,
+                             uint32_t max_plies,
+                             uint32_t *n_plies_out);
+
 #ifdef __cplusplus
 }
 #endif

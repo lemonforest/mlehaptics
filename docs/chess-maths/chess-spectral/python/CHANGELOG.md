@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 2 PR-2: v5 C-side dense full-file I/O (2D + 4D)
+
+- **`cs_v5_write_dense_{2d,4d}_file(fp, frame_bytes, n_plies)`** —
+  high-level helpers that compose the v5 header + frame bodies into
+  a complete dense-mode (mode 0) v5 file. Caller passes a contiguous
+  byte buffer of `n_plies × CS_V5_FRAME_BYTES_{2D=2568, 4D=180238}`
+  bytes; the function fills in the header from constants and the
+  n_plies argument.
+
+- **`cs_v5_read_dense_{2d,4d}_file(fp, hdr_out, frame_buf, max_plies,
+  n_plies_out)`** — read counterpart. Validates that the header is
+  the expected dimension + dense mode (returns -8 on mismatch).
+  Reads min(file's n_plies, max_plies) frames into `frame_buf`;
+  reports the actual count via `*n_plies_out`.
+
+  4 new C-side test cases (13 new assertions, total 52) covering:
+  3-frame 2D round-trip with deterministic-pattern bytes, 5-frame
+  write + 2-frame truncated read, single 4D frame round-trip, and a
+  cross-dimension reject (a 2D reader on a 4D file returns -8).
+
 ### Added — v1.6.x Track 2 PR-1: v5 wire format C-side header
 
 - **`include/cs_frame_v5.h`** + **`src/cs_frame_v5.c`** — C-side
