@@ -811,31 +811,22 @@ def test_4d_tournament_two_kings():
 # ─── PGN round-trip via pgn_bridge (requires python-chess) ──────────
 
 
-# LTO/IPO segfault tracking: ubuntu-latest + Release preset (which
-# turns on CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE) consistently
-# segfaults `spectral encode --pgn ... -z` on this fixture across
-# 3 retries (see _run_c). The same C binary works on:
-#   - ubuntu-latest + ASAN preset (LTO disabled)
-#   - macos-14 + Release preset
-#   - windows-latest + msvc-release preset (no LTO by default)
-#   - all five verify-wheels matrices (cibuildwheel uses non-LTO)
-# So the bug is specific to GCC's IPO pass on Linux, *not* the
-# encoder code itself. We xfail here to keep the merge train moving
-# and track the investigation in v1.6's "LTO follow-up" workstream.
-# When the underlying UB is identified (or LTO is dropped from the
-# release preset in the audit follow-up), remove this xfail.
-_LTO_LINUX_SEGFAULT = pytest.mark.xfail(
-    sys.platform.startswith("linux"),
-    reason="LTO/IPO segfault in spectral encode --pgn -z on ubuntu+release; "
-           "tracked as v1.6 follow-up. ASAN/macOS/Windows builds pass.",
-    strict=False,
-    run=True,
-)
+# Historical: ubuntu-latest + Release preset used to segfault
+# `spectral encode --pgn -z` consistently. Initially suspected to be
+# LTO/IPO; later (PR #137) confirmed the segfault still reproduced at
+# -O2 without LTO. WSL2 + gdb root-caused the actual UB: glibc gates
+# `fdopen` behind _POSIX_C_SOURCE >= 200809L, but src/main.c didn't
+# define it. So fdopen was being called as if it returned `int`,
+# truncating its 64-bit FILE* return value to 32 bits on x86_64;
+# the next fgets() on that pointer crashed in libc. Fixed in
+# src/main.c by adding `#define _POSIX_C_SOURCE 200809L` before the
+# system headers. macOS exposed POSIX symbols by default; Windows
+# used _fdopen via _open_osfhandle; so the bug only manifested on
+# Linux+glibc.
 
 
 @_REQUIRES_C
 @_REQUIRES_PYTHON_CHESS
-@_LTO_LINUX_SEGFAULT
 def test_pgn_to_spectralz_real_game(tmp_path):
     """Full PGN→NDJSON→.spectralz pipeline using the C `spectral
     encode --pgn` shortcut (which auto-pipes through pgn_bridge.py).

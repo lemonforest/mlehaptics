@@ -4,12 +4,12 @@
   "configurePresets": [
     {
       "name": "release",
-      "displayName": "Release (Ninja, IPO/LTO)",
+      "displayName": "Release (Ninja)",
+      "description": "Ninja Release. IPO/LTO intentionally OFF — GCC's IPO pass on Linux segfaulted `spectral encode --pgn -z` on real PGN. cibuildwheel (which builds the shipped wheels) doesn't enable LTO either, so this preset matches the shipped artefact. To experiment locally, pass -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE on configure.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "TRUE"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {

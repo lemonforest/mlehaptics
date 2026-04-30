@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Linux segfault in `spectral encode --pgn -z` (POSIX feature test)
+
+**Root cause:** glibc gates `fdopen` behind `_POSIX_C_SOURCE >= 200809L`
+in `<stdio.h>`. `src/main.c` didn't define this macro, so `fdopen`
+was an implicit declaration and the compiler defaulted to assuming
+it returned `int`. On x86_64 that **truncated the 64-bit `FILE*`
+return value to 32 bits**, producing an invalid pointer. The next
+`fgets()` call dereferenced the truncated pointer and SIGSEGVed
+inside libc.
+
+The bug only manifested on Linux+glibc because:
+- macOS exposes POSIX symbols by default (no feature test needed)
+- Windows uses `_fdopen` via `_open_osfhandle` (different code path)
+- ASAN preset on Linux happens to compile at -O1 which preserved
+  the truncated-pointer bug pattern in a way that "happened to
+  work" — the bug was real on ASAN too, just dormant.
+
+The fix is one line:
+`#define _POSIX_C_SOURCE 200809L` before the system header includes
+in `src/main.c`. Reproduced and gdb-verified under Ubuntu 22.04 +
+GCC 11.4 + WSL2; before the fix the program crashed in
+`fgets(__stream=0x5559c2a0, ...)` (32-bit-truncated pointer) at
+`src/main.c:596`; after the fix the encode pipeline returns 0 and
+writes 88 frames as expected.
+
+The `xfail(linux)` decorator on `test_pgn_to_spectralz_real_game`
+is removed; the test now runs unconditionally. The historical
+context (LTO red herring, then GCC -O2 red herring, then the real
+diagnosis) is preserved as a comment block above the test.
+
+### Changed — drop IPO/LTO from the `release` CMake preset
+
+The `release` configure preset no longer sets
+`CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE`. Cleanup carried in the
+same PR as the segfault fix above. The release preset now matches
+what cibuildwheel does (no LTO), so the shipped `.whl` artefact is
+faithfully reproducible from the preset. The audit's F-08 LTO
+recommendation can come back later behind a `CheckIPOSupported`
+gate.
+
 ### Documentation — README: name all three move-rule oracles side by side
 
 - The "What's new in v1.6" section now groups the three in-house
