@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "antikythera-spectral"
-version = "0.1.0"
+version = "0.2.0"
 description = "Hyperdimensional-computing encoder + Pyodide bridge for the Antikythera mechanism"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -54,12 +54,13 @@ Changelog   = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikyth
 packages = ["antikythera_spectral"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"antikythera_spectral/_data/cycles.json"     = "antikythera_spectral/_data/cycles.json"
-"antikythera_spectral/_data/gears.json"      = "antikythera_spectral/_data/gears.json"
-"antikythera_spectral/_data/anchors.json"    = "antikythera_spectral/_data/anchors.json"
-"antikythera_spectral/_data/periods.json"    = "antikythera_spectral/_data/periods.json"
-"antikythera_spectral/_data/fragments.json"  = "antikythera_spectral/_data/fragments.json"
-"antikythera_spectral/_data/manifest.json"   = "antikythera_spectral/_data/manifest.json"
+"antikythera_spectral/_data/cycles.json"             = "antikythera_spectral/_data/cycles.json"
+"antikythera_spectral/_data/gears.json"              = "antikythera_spectral/_data/gears.json"
+"antikythera_spectral/_data/anchors.json"            = "antikythera_spectral/_data/anchors.json"
+"antikythera_spectral/_data/periods.json"            = "antikythera_spectral/_data/periods.json"
+"antikythera_spectral/_data/fragments.json"          = "antikythera_spectral/_data/fragments.json"
+"antikythera_spectral/_data/visibility_anchors.json" = "antikythera_spectral/_data/visibility_anchors.json"
+"antikythera_spectral/_data/manifest.json"           = "antikythera_spectral/_data/manifest.json"
 
 [tool.hatch.build.targets.sdist]
 include = [

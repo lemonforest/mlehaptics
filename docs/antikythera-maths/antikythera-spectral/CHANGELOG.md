@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — added after v0.1.0)
+(no entries yet — added after v0.2.0)
+
+## [0.2.0] — 2026-04-30
+
+**Self-contained mode** — all bridge methods except `compare_ephemerides` now work without `[ephemeris]` extras. Kiosks and Pyodide consumers can `pip install antikythera-spectral` and immediately call every method at Antikythera-grade precision (~±1 day on heliacal events, ~±5° on elongation queries). Skyfield becomes a strict opt-in for "research mode" sub-arcsec validation against modern ephemerides. ADR 0011 documents the discipline.
+
+### Added
+
+- `antikythera_spectral.visibility_algebraic` — closed-form synodic-cycle propagation for solar elongation, heliacal rising, visibility windows.
+- `antikythera_spectral.eclipses_algebraic` — Saros-cycle propagation from frozen Hellenistic + modern anchors (the device's actual job).
+- `_data/visibility_anchors.json` — per-planet anchor data (synodic period, one heliacal-rising anchor JD near J2000, threshold, max-elongation, inferior/superior bool, visibility-fraction-per-cycle).
+- ADR 0011 (algebraic default, ephemeris opt-in).
+
+### Changed
+
+- `bridge.get_visibility_windows` — new `precise=False` keyword (default). Algebraic mode always succeeds; `precise=True` uses skyfield, returns `ok=False` if kernel missing.
+- `bridge.get_next_heliacal_rising` — same `precise` switch.
+- `bridge.get_solar_elongation` — same `precise` switch.
+- `bridge.find_eclipses` — same `precise` switch (algebraic = Saros-cycle propagation; precise = sky-driven syzygy enumeration).
+- Return shapes gain a `mode: "algebraic" | "ephemeris"` field on the four affected methods.
+- CLI: `--precise` flag added to `visibility`, `heliacal`, `elongation`, `eclipses` subcommands.
+
+### Unchanged
+
+- `compare_ephemerides` is by definition a JPL-kernel diff tool — it stays ephemeris-only and requires `[ephemeris]` extras.
+- All other 30+ bridge methods were already ephemeris-free in v0.1.0.
 
 ## [0.1.0] — 2026-04-30
 

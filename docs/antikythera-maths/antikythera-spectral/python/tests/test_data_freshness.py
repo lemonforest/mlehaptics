@@ -113,16 +113,17 @@ def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     for mod_name in [
         "emit_cycles", "emit_gears", "emit_anchors",
         "emit_periods", "emit_fragment_inventory",
-        "emit_research_modules",
+        "emit_research_modules", "emit_visibility_anchors",
     ]:
         sys.modules.pop(mod_name, None)
 
-    import emit_anchors             # noqa: E402
-    import emit_cycles              # noqa: E402
-    import emit_fragment_inventory  # noqa: E402
-    import emit_gears               # noqa: E402
-    import emit_periods             # noqa: E402
-    import emit_research_modules    # noqa: E402
+    import emit_anchors                 # noqa: E402
+    import emit_cycles                  # noqa: E402
+    import emit_fragment_inventory      # noqa: E402
+    import emit_gears                   # noqa: E402
+    import emit_periods                 # noqa: E402
+    import emit_research_modules        # noqa: E402
+    import emit_visibility_anchors      # noqa: E402
 
     # Patch _research_modules destination to the temp dir.
     monkeypatch.setattr(emit_research_modules, "_RESEARCH_DST", tmp_research)
@@ -132,10 +133,12 @@ def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     emit_anchors.emit()
     emit_periods.emit()
     emit_fragment_inventory.emit()
+    emit_visibility_anchors.emit()
     emit_research_modules.emit()
 
     for name in ("cycles.json", "gears.json", "anchors.json",
-                 "periods.json", "fragments.json"):
+                 "periods.json", "fragments.json",
+                 "visibility_anchors.json"):
         regenerated = (tmp_data / name).read_bytes()
         committed = (_DATA_DIR / name).read_bytes()
         assert regenerated == committed, (

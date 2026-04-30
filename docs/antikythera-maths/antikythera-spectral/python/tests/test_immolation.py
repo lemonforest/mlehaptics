@@ -266,6 +266,7 @@ def test_every_bridge_method_documented_in_md() -> None:
 _REQUIRED_ADRS: tuple[str, ...] = (
     "0001", "0002", "0003", "0004", "0005",
     "0006", "0007", "0008", "0009", "0010",
+    "0011",
 )
 _ADR_MIN_BYTES = 500
 
@@ -305,8 +306,10 @@ def test_all_required_adrs_exist_and_are_substantial() -> None:
 _FACADE_MODULES = (
     "encoder", "decoder", "dials", "render", "ephemeris", "eclipses",
     "periods", "gears", "hypotheses",
-    "visibility", "compare", "dates", "eclipses_search", "operator",
-    "reconstructions", "whatif", "archaeology", "goalyear", "animation",
+    "visibility", "visibility_algebraic",
+    "compare", "dates", "eclipses_search", "eclipses_algebraic",
+    "operator", "reconstructions", "whatif", "archaeology",
+    "goalyear", "animation",
     "bridge", "cli",
 )
 
@@ -381,9 +384,14 @@ def test_pyproject_metadata_complete() -> None:
     assert not missing, f"pyproject.toml missing fields: {missing}"
 
     assert project["name"] == "antikythera-spectral"
-    assert project["version"].startswith("0.1."), (
-        f"unexpected version {project['version']!r}"
-    )
+    # Strict-semver MAJOR.MINOR.PATCH, optionally with a pre-release
+    # tag (rcN, devN, etc). Don't pin to a specific MINOR — that creates
+    # per-bump test churn. The version-vs-pyproject-vs-tag-agreement
+    # is enforced separately in test_pyproject_version_matches_package.
+    assert re.fullmatch(
+        r"\d+\.\d+\.\d+(rc\d+|\.dev\d+|a\d+|b\d+)?",
+        project["version"],
+    ), f"unexpected version format {project['version']!r}"
     # readme must point to a file that exists.
     readme = _PKG_DIR / project["readme"]
     assert readme.exists(), f"readme {readme} missing"

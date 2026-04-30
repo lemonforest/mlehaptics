@@ -654,9 +654,11 @@ def jd_to_olympiad(jd_tdb: float) -> Dict[str, Any]:
 
 from antikythera_spectral import (  # noqa: E402
     eclipses as _eclipses,
+    eclipses_algebraic as _eclipses_algebraic,
     eclipses_search as _eclipses_search,
     periods as _periods,
     visibility as _visibility,
+    visibility_algebraic as _visibility_algebraic,
 )
 
 
@@ -672,23 +674,45 @@ def _validate_planet(planet: Any) -> Optional[Dict[str, Any]]:
 
 
 def get_visibility_windows(jd_lo: float, jd_hi: float, planet: str,
+                            *, precise: bool = False,
                             kernel: str = "de421") -> Dict[str, Any]:
     """Heliacal-visibility windows for a planet over a JD range.
 
-    Returns ``{"ok": True, "windows": [{"rise_jd": float, "set_jd": float,
-    "duration_days": float}, ...]}`` or ``{"ok": False, "error": "..."}``.
+    Default (``precise=False``): self-contained algebraic mode using
+    per-planet anchors + synodic-cycle propagation. ±1-day Antikythera-
+    grade precision, no skyfield required. Always returns ``ok=True``.
 
-    Returns ``ok=False`` if no ephemeris kernel is available (instead of
-    raising), so callers can fall back to UNDETERMINED.
+    With ``precise=True``: skyfield-backed sample-and-threshold scan
+    against a JPL DE-kernel. Sub-arcsec precision; requires the
+    ``[ephemeris]`` extras + the chosen kernel locally. Returns
+    ``ok=False`` if the kernel isn't available.
+
+    See ADR 0011 (algebraic-default-precise-opt-in).
     """
     err = _validate_jd(jd_lo) or _validate_jd(jd_hi) or _validate_planet(planet)
     if err:
         return err
     if jd_hi <= jd_lo:
         return _err("jd_hi must be greater than jd_lo")
+
+    if not precise:
+        # Algebraic / self-contained mode.
+        windows = _visibility_algebraic.get_visibility_windows(
+            jd_lo, jd_hi, planet,
+        )
+        return {
+            "ok": True, "mode": "algebraic",
+            "planet": planet.lower(),
+            "n_windows": len(windows),
+            "windows": [
+                {"rise_jd": float(rise), "set_jd": float(set_),
+                 "duration_days": float(set_ - rise)}
+                for rise, set_ in windows
+            ],
+        }
+
     if kernel not in ("de421", "de422", "de440", "de441", "de441_part1", "de441_part2"):
         return _err(f"unsupported kernel {kernel!r}")
-
     windows = _visibility.get_visibility_windows(jd_lo, jd_hi, planet, kernel)
     if windows is None:
         return _err(
@@ -697,37 +721,47 @@ def get_visibility_windows(jd_lo: float, jd_hi: float, planet: str,
             f"{kernel}` to enable."
         )
     return {
-        "ok": True,
-        "planet": planet.lower(),
-        "kernel": kernel,
+        "ok": True, "mode": "ephemeris",
+        "planet": planet.lower(), "kernel": kernel,
         "n_windows": len(windows),
         "windows": [
-            {
-                "rise_jd": float(rise),
-                "set_jd": float(set_),
-                "duration_days": float(set_ - rise),
-            }
+            {"rise_jd": float(rise), "set_jd": float(set_),
+             "duration_days": float(set_ - rise)}
             for rise, set_ in windows
         ],
     }
 
 
 def get_next_heliacal_rising(jd_tdb: float, planet: str,
+                              *, precise: bool = False,
                               kernel: str = "de421") -> Dict[str, Any]:
-    """Next JD when `planet` emerges from solar glare after `jd_tdb`."""
+    """Next JD when `planet` emerges from solar glare after `jd_tdb`.
+
+    Default (``precise=False``): closed-form ``anchor + n*synodic``
+    propagation. Always succeeds.
+    """
     err = _validate_jd(jd_tdb) or _validate_planet(planet)
     if err:
         return err
+
+    if not precise:
+        rise = _visibility_algebraic.get_next_heliacal_rising(jd_tdb, planet)
+        return {
+            "ok": True, "mode": "algebraic",
+            "planet": planet.lower(),
+            "jd_after": float(jd_tdb),
+            "heliacal_rising_jd": float(rise),
+            "delay_days": float(rise - jd_tdb),
+        }
+
     rise = _visibility.get_next_heliacal_rising(jd_tdb, planet, kernel)
     if rise is None:
         return _err(
-            "no heliacal rising found within search window or "
-            "kernel unavailable"
+            "no heliacal rising found within search window or kernel unavailable"
         )
     return {
-        "ok": True,
-        "planet": planet.lower(),
-        "kernel": kernel,
+        "ok": True, "mode": "ephemeris",
+        "planet": planet.lower(), "kernel": kernel,
         "jd_after": float(jd_tdb),
         "heliacal_rising_jd": float(rise),
         "delay_days": float(rise - jd_tdb),
@@ -735,18 +769,31 @@ def get_next_heliacal_rising(jd_tdb: float, planet: str,
 
 
 def get_solar_elongation(jd_tdb: float, planet: str,
+                          *, precise: bool = False,
                           kernel: str = "de421") -> Dict[str, Any]:
-    """Solar elongation (degrees) for `planet` at `jd_tdb`."""
+    """Solar elongation (degrees) for `planet` at `jd_tdb`.
+
+    Default (``precise=False``): sinusoidal phase model. ~±5° accurate.
+    """
     err = _validate_jd(jd_tdb) or _validate_planet(planet)
     if err:
         return err
+
+    if not precise:
+        elong = _visibility_algebraic.get_solar_elongation_deg(jd_tdb, planet)
+        return {
+            "ok": True, "mode": "algebraic",
+            "planet": planet.lower(),
+            "jd_tdb": float(jd_tdb),
+            "elongation_deg": float(elong),
+        }
+
     elong = _visibility.get_solar_elongation_deg(jd_tdb, planet, kernel)
     if elong is None:
         return _err(f"kernel {kernel!r} not available")
     return {
-        "ok": True,
-        "planet": planet.lower(),
-        "kernel": kernel,
+        "ok": True, "mode": "ephemeris",
+        "planet": planet.lower(), "kernel": kernel,
         "jd_tdb": float(jd_tdb),
         "elongation_deg": float(elong),
     }
@@ -814,8 +861,17 @@ def get_period_relations(source: str = "almagest") -> Dict[str, Any]:
 
 def find_eclipses(jd_lo: float, jd_hi: float, *,
                    kind: str = "all",
+                   precise: bool = False,
                    kernel: str = "de421") -> Dict[str, Any]:
-    """Enumerate eclipses in [jd_lo, jd_hi] via sky-driven scan."""
+    """Enumerate eclipses in [jd_lo, jd_hi].
+
+    Default (``precise=False``): Saros-cycle propagation from the
+    frozen Hellenistic + modern anchor list. ±1-2 day accuracy across
+    -1500 BCE .. +2100 CE.
+
+    With ``precise=True``: sky-driven syzygy enumeration via skyfield
+    against a JPL DE-kernel.
+    """
     err = _validate_jd(jd_lo) or _validate_jd(jd_hi)
     if err:
         return err
@@ -824,6 +880,21 @@ def find_eclipses(jd_lo: float, jd_hi: float, *,
     if kind not in ("lunar", "solar", "all"):
         return _err(f"kind must be one of 'lunar', 'solar', 'all'; got {kind!r}")
 
+    if not precise:
+        try:
+            eclipses = _eclipses_algebraic.find_eclipses_in_range(
+                jd_lo, jd_hi, kind=kind,
+            )
+        except (ValueError, RuntimeError) as exc:
+            return _err(str(exc))
+        return {
+            "ok": True, "mode": "algebraic",
+            "jd_lo": float(jd_lo), "jd_hi": float(jd_hi),
+            "kind": kind,
+            "n_eclipses": len(eclipses),
+            "eclipses": eclipses,
+        }
+
     eclipses = _eclipses_search.find_eclipses_in_range(jd_lo, jd_hi, kind, kernel)
     if eclipses is None:
         return _err(
@@ -831,11 +902,9 @@ def find_eclipses(jd_lo: float, jd_hi: float, *,
             "or sky_driven_validation does not expose find_syzygies."
         )
     return {
-        "ok": True,
-        "jd_lo": float(jd_lo),
-        "jd_hi": float(jd_hi),
-        "kind": kind,
-        "kernel": kernel,
+        "ok": True, "mode": "ephemeris",
+        "jd_lo": float(jd_lo), "jd_hi": float(jd_hi),
+        "kind": kind, "kernel": kernel,
         "n_eclipses": len(eclipses),
         "eclipses": eclipses,
     }
