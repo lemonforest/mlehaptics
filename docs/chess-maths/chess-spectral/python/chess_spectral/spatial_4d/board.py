@@ -319,41 +319,39 @@ class Board4D:
         """Yield all legal moves for the side to move.
 
         Generates pseudo-legal moves and filters by check (pushes
-        each onto the board, checks if our king is now attacked,
-        pops). For long search loops this is the right interface
-        (matches python-chess); for performance-critical inner
-        loops, callers may prefer to call pseudo_legal_moves() and
-        filter in batch.
+        each onto the board, checks if ANY of our kings is now
+        attacked, pops). 4D Oana-Chiru has multiple kings per side
+        (28 per side from the standard initial position); a move is
+        illegal iff ANY of our kings would be attacked after it
+        (per chess4d.legality.in_check semantics).
         """
         for move in self.pseudo_legal_moves():
             self.push(move)
             try:
-                # After push, turn is now opponent's; "is_check"
-                # asks "is OUR king attacked", but our king is the
-                # one that just moved. We need to check whether
-                # the previously-moved side's king is in check.
-                # Equivalent: is the opponent (now-to-move) king
-                # NOT what we want; we want OUR (just-moved) king.
-                if not self._is_attacked(self._our_king_sq_pre_flip(),
-                                          attacker_color=self._turn):
+                if not self._any_own_king_attacked_after_push():
                     yield move
             finally:
                 self.pop()
 
-    def _our_king_sq_pre_flip(self) -> int:
-        """Return the square of the king that just moved (after
-        a push, that's the !turn side's king). Helper for the
-        check-filter in legal_moves()."""
-        # After push, _turn is the now-to-move side. The king that
-        # just moved is the OPPOSITE side's king.
+    def _any_own_king_attacked_after_push(self) -> bool:
+        """After a push, return True iff ANY king of the side that
+        just moved is attacked.
+
+        Per Oana-Chiru §3.4 Def 4: "in check iff there exists a king
+        of `color` that lies in `Att_{1−color}(board)`". For 4D
+        multi-king (28 kings per side at start), this generalizes
+        2D's single-king check.
+        """
+        # After push, _turn is now the opponent. The kings we need to
+        # check are the side that JUST moved (= !self._turn).
         moved_side = not self._turn
         king_bb = (self._white_king if moved_side
                    else self._black_king)
-        squares = king_bb.to_squares()
-        if not squares:
-            # No king on board (shouldn't happen in a real game).
-            return -1
-        return squares[0]
+        attacker_color = self._turn   # opponent attacks
+        for king_sq in king_bb.squares():
+            if self._is_attacked(king_sq, attacker_color):
+                return True
+        return False
 
     def pseudo_legal_moves(self) -> Iterator[Move4D]:
         """Yield pseudo-legal moves -- correct piece-movement +
@@ -619,14 +617,20 @@ class Board4D:
     # ---- Check detection -----------------------------------
 
     def is_check(self) -> bool:
-        """True iff the side to move's king is attacked."""
+        """True iff ANY of the side-to-move's kings is attacked.
+
+        Per Oana-Chiru §3.4 Def 4 (multi-king variant): in check iff
+        there exists a king of side-to-move that lies in the
+        opponent's attack set. Returns False when side has no kings
+        on the board (degenerate case; shouldn't occur in legal play).
+        """
         king_bb = (self._white_king if self._turn
                    else self._black_king)
-        squares = king_bb.to_squares()
-        if not squares:
-            return False
-        king_sq = squares[0]
-        return self._is_attacked(king_sq, attacker_color=not self._turn)
+        attacker_color = not self._turn
+        for king_sq in king_bb.squares():
+            if self._is_attacked(king_sq, attacker_color):
+                return True
+        return False
 
     def _is_attacked(self, sq: int, attacker_color: bool) -> bool:
         """Is sq attacked by any piece of attacker_color?"""
