@@ -18,6 +18,7 @@ sys.path.insert(0, str(PY_DIR))
 
 from chess_spectral.qm_2d_dynamics import (  # noqa: E402
     H_FREE_2D, evolve_under_h0,
+    P_A1_2D, u_move_a1_2d,
 )
 
 
@@ -185,3 +186,103 @@ def test_evolve_unknown_channel_raises():
     psi = np.zeros(640, dtype=np.complex128)
     with pytest.raises(ValueError, match="unknown channel"):
         evolve_under_h0(psi, t=0.1, channel="BOGUS")
+
+
+# ─── P_A1_2D structural properties ─────────────────────────────────
+
+
+def test_p_a1_2d_shape_and_dtype():
+    P = P_A1_2D()
+    assert P.shape == (64, 64)
+    assert P.dtype == np.complex128
+
+
+def test_p_a1_2d_hermitian():
+    """P_A1 is real-symmetric => Hermitian as a complex matrix."""
+    P = P_A1_2D()
+    diff = P - P.conj().T
+    # Allow tiny float dust from the (1/8) division
+    assert abs(diff).max() < 1e-12
+
+
+def test_p_a1_2d_idempotent():
+    """P_A1 @ P_A1 == P_A1 (orthogonal projector)."""
+    P = P_A1_2D()
+    diff = (P @ P) - P
+    assert abs(diff).max() < 1e-12
+
+
+def test_p_a1_2d_rank_equals_d4_orbit_count():
+    """The rank of P_A1 equals the number of D_4 orbits on the 8x8
+    lattice. The 8x8 board under D_4 (4 rotations × {id, reflection})
+    has exactly 10 orbits — same as the encoder's 10-channel split."""
+    P = P_A1_2D().toarray()
+    # Numerical rank: count eigenvalues > 0.5 (P is a projector with
+    # eigvals in {0, 1}; tolerance handles float arithmetic).
+    eigvals = np.linalg.eigvalsh(P)
+    rank = int((eigvals > 0.5).sum())
+    assert rank == 10, f"P_A1 rank {rank} != 10 (D_4 orbit count)"
+
+
+def test_p_a1_2d_singleton_cached():
+    P1 = P_A1_2D()
+    P2 = P_A1_2D()
+    assert P1 is P2
+
+
+# ─── u_move_a1_2d basic properties ─────────────────────────────────
+
+
+def test_u_move_a1_shape_and_dtype():
+    U = u_move_a1_2d(0, 7)
+    assert U.shape == (64, 64)
+    assert U.dtype == np.complex128
+
+
+def test_u_move_a1_lives_in_a1_subspace():
+    """U_a1 = P_A1 @ U_swap @ P_A1 has support entirely within
+    range(P_A1): both P_A1 @ U_a1 == U_a1 and U_a1 @ P_A1 == U_a1."""
+    P = P_A1_2D()
+    U = u_move_a1_2d(0, 7)
+    diff_left = (P @ U) - U
+    diff_right = (U @ P) - U
+    assert abs(diff_left).max() < 1e-12
+    assert abs(diff_right).max() < 1e-12
+
+
+def test_u_move_a1_null_move_raises():
+    with pytest.raises(ValueError, match="null move"):
+        u_move_a1_2d(5, 5)
+
+
+def test_u_move_a1_out_of_range_raises():
+    with pytest.raises(ValueError, match="out of range"):
+        u_move_a1_2d(0, 64)
+
+
+def test_u_move_a1_bounded_operator_norm():
+    """The projector-sandwich is sub-unitary: operator norm ≤ 1."""
+    U = u_move_a1_2d(0, 7).toarray()
+    # Largest singular value via SVD
+    svals = np.linalg.svd(U, compute_uv=False)
+    assert svals.max() <= 1.0 + 1e-10
+
+
+def test_u_move_a1_intra_orbit_strict_unitary_on_a1_subspace():
+    """For an intra-orbit swap the projector-sandwich is exactly
+    strict-unitary on range(P_A1). The 8 corners of the 8x8 board
+    form a single D_4 orbit (vertices). Pick two of them: a1=0 and
+    h1=7 (corners on the same rank). They are in the same orbit."""
+    # corners of the 8x8 board: 0, 7, 56, 63 (a1, h1, a8, h8)
+    U = u_move_a1_2d(0, 7)
+    P = P_A1_2D()
+    # On the A_1 subspace, U^† U = P_A1 (strict unitary on range(P)).
+    # For an intra-orbit swap, this should hold exactly. Test by
+    # checking U^† U == P (matrix equality on the support).
+    UdU = U.conj().T @ U
+    diff = UdU - P
+    # A1-subspace strict unitarity for same-orbit swaps; use a
+    # slightly looser tol to absorb float dust from the (1/8) average.
+    assert abs(diff).max() < 1e-10, (
+        f"intra-orbit U^†U != P_A1; max|diff|={abs(diff).max():.4e}"
+    )
