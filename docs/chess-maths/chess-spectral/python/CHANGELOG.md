@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **New `docs/WIRE_FORMAT.md`** — canonical user-facing spec for the
+  `.spectral[z]` / `.spectralz4` binary container. Covers all four
+  shipped versions (v2 / v3 / v4 / v5), the encoding modes within v5
+  (dense / per-channel / xor-stream), the reader-dispatch convention
+  (peek 12 bytes → route by version), backward-compat guarantees,
+  and the gzip transport wrapper. Cross-linked from ROADMAP.md and
+  python/README.md. This is the user-facing companion to the v5 design
+  ADR (`docs/adr/wire_format/ADR-001-v5-unified-encoding-modes.md`).
+
+- **python/README.md** updated to mention `frame_v5.py` alongside
+  `frame.py` (v2 legacy reader) and `frame_4d.py` (v3/v4 legacy
+  reader). Module layout section now reflects the v5 unified format
+  as the default for new writes from v1.6.
+
 ### Tracked — to be fixed in v1.6 follow-up
 
 - **LTO/IPO segfault in `spectral encode --pgn -z` on Linux release.**
