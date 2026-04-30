@@ -85,21 +85,29 @@ jobs:
         run: pytest tests/ --ignore=tests/phase_operators -v
 
   verify-wheels:
-    # Catches wheel-build regressions BEFORE tag-push by mirroring the
-    # full chess-spectral-publish.yml matrix (3 OS × 5 Python =
-    # 15 cells) on every PR. Each wheel build runs the parity tests
-    # inside the wheel-test phase, so we know the published wheel
-    # actually works, not just builds.
+    # Catches wheel-build regressions by mirroring the full
+    # chess-spectral-publish.yml matrix (3 OS × 5 Python = 15 cells).
+    # Each wheel build runs the parity tests inside the wheel-test phase,
+    # so we know the published wheel actually works, not just builds.
     #
-    # Wall time is ~10 min (matrix runs in parallel). Compute is ~150
-    # runner-minutes per PR but for public repos GitHub Actions is
-    # unlimited — no billing impact. The previous narrower
-    # "ubuntu/macos/windows × cp312" design saved compute we don't pay
-    # for, in exchange for letting Python-version-specific publish
-    # failures slip through. After v1.3.1 hit exactly that mode of
-    # failure (cibuildwheel v2.21 didn't recognise cp314, full publish
-    # matrix never got tested at PR time, tag-push was the first sign
-    # of breakage), we mirror the publish matrix here.
+    # GATE (added v1.6 cascade): the 15-cell matrix is OPT-IN at PR
+    # time, not on by default. Wall time is ~10 min and the matrix
+    # frequently flakes on transient infra (cibuildwheel timeout, HTTP
+    # 502 from package mirrors, etc.) — gating it off the default PR
+    # path stops merge-train flakes that have nothing to do with the
+    # change under review. Triggers that DO run the matrix:
+    #   - Manual `workflow_dispatch`
+    #   - PR labeled `wheel-check` (apply when touching package layout,
+    #     pyproject.toml, the encoder dimensions, or anything that
+    #     could plausibly break a per-Python-version wheel; also apply
+    #     to v1.X.Y-ship release PRs as a forcing function)
+    # The full publish matrix still runs on tag push via
+    # chess-spectral-publish.yml — that's the load-bearing gate. This
+    # job is a pre-flight, not a primary gate, so opt-in is the right
+    # default.
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'wheel-check')
     name: verify-wheels • ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
