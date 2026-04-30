@@ -45,10 +45,11 @@ jobs:
 
       - name: Install Python deps
         # `chess` (python-chess) is a runtime dep from v1.6 onward
-        # (engine.search uses chess.Board for 2D move generation;
-        # engine.tournament uses chess.pgn for PGN export). CI
-        # installs it explicitly here because we don't `pip install`
-        # the package itself -- tests run via sys.path bootstrap.
+        # (engine.search uses chess.Board for 2D move generation).
+        # Earlier this lived in the `[corpus]` extra; v1.6 promoted
+        # it to runtime. CI installs it explicitly here because we
+        # don't `pip install` the package itself -- tests run via
+        # sys.path bootstrap.
         run: python -m pip install --upgrade pip pytest numpy scipy chess
 
       - name: Install Ninja (Linux/macOS)

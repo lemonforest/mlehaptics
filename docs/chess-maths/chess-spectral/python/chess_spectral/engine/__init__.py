@@ -3,13 +3,19 @@
 Phase 6 (v1.6) engine surface for the 640-dim spectral encoder. Mirrors
 :mod:`chess_spectral_4d.engine` (4D) in shape.
 
-Submodules:
-  * ``eval`` -- the three §16.1 evaluator families (material, spectral,
-    qm). Ships in PR #88 / PR-3 / PR-4.
-  * ``search`` -- 2D negamax + alpha-beta + iterative deepening +
-    transposition tables + MVV-LVA + quiescence. Ships in PR #91.
-  * ``tournament`` -- round-robin self-play harness with ELO ratings.
-    Ships in this PR (#102).
+  * **material** -- sum of signed piece values (centipawns). Baseline.
+    No encoder call.
+  * **spectral** -- per-channel L2 energy weighted sum (10 channels x
+    64 modes). Encodes via :func:`chess_spectral.encode_640`.
+  * **qm** -- Born-rule expectation values of Hermitian observables
+    on the QM lift psi in C^640. Uses :mod:`chess_spectral.qm_2d`.
+
+The :mod:`chess_spectral.engine.search` package is the search core
+(negamax + alpha-beta + iterative deepening + transposition tables +
+move ordering + quiescence). :mod:`chess_spectral.engine.tournament`
+(PR-7) consumes both. The 4D analogue lives in
+:mod:`chess_spectral_4d.engine` with the same module layout and
+identical surface.
 
 Convention -- ``evaluate(position, side_to_move) -> float``
   Returns a real-valued score from the side-to-move's perspective.
@@ -24,32 +30,7 @@ evaluators × 2 dimensions).
 """
 from __future__ import annotations
 
-# Eager imports of the submodules that are present at the time of
-# load. eval / search / tournament each ship in separate v1.6 PRs;
-# this __init__ tolerates partial state during the merge train via
-# try/except, and registers everything available.
-try:
-    from . import eval  # noqa: F401
-except ImportError:
-    eval = None  # type: ignore
+from .eval import material, spectral, qm  # noqa: F401
+from . import search  # noqa: F401
 
-# Convenience re-export to mirror main's pre-v1.6 surface
-# (`chess_spectral.engine.material` resolved directly). Tests in
-# test_engine_material.py rely on this short form. The tuple unpack
-# handles the case where eval failed to import.
-material = eval.material if eval is not None else None  # type: ignore
-
-try:
-    from . import search  # noqa: F401
-except ImportError:
-    search = None  # type: ignore
-
-try:
-    from . import tournament  # noqa: F401
-except ImportError:
-    tournament = None  # type: ignore
-
-__all__ = [name for name, val in (
-    ("eval", eval), ("material", material),
-    ("search", search), ("tournament", tournament),
-) if val is not None]
+__all__ = ["material", "spectral", "qm", "search"]

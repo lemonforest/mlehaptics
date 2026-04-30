@@ -65,10 +65,13 @@ classifiers = [
     "Topic :: Games/Entertainment :: Board Games",
     "Typing :: Typed",
 ]
-dependencies = ["numpy", "scipy"]
+# See pyproject.toml for the rationale; `chess` is a runtime dep
+# from v1.6 onward. Pure-Python wheel keeps the same dep set as
+# the platform wheels.
+dependencies = ["numpy", "scipy", "chess"]
 
 [project.optional-dependencies]
-corpus = ["chess"]
+corpus = ["chess"]   # no-op alias post-v1.6
 test = ["python-chess4d-oana-chiru>=0.3.3"]
 
 [project.urls]
