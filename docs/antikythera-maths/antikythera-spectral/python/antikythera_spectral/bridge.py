@@ -841,6 +841,305 @@ def find_eclipses(jd_lo: float, jd_hi: float, *,
     }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# §5.5 — Operator workflow (6 methods, phase 6)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import operator as _operator  # noqa: E402
+
+
+def start_operator_session(initial_jd: float, *,
+                            D: int = D_CALLIPPIC,
+                            dials: str = "all") -> Dict[str, Any]:
+    err = _validate_jd(initial_jd) or _validate_dim(D)
+    if err:
+        return err
+    return {
+        "ok": True,
+        "state": _operator.start_session(float(initial_jd), D=D, dials=dials),
+    }
+
+
+def operator_advance(state: Dict[str, Any], delta_days: float) -> Dict[str, Any]:
+    if not isinstance(state, dict) or "schema_version" not in state:
+        return _err("state must be an OperatorState dict")
+    try:
+        new_state = _operator.advance(state, float(delta_days))
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+    return {"ok": True, "state": new_state}
+
+
+def operator_observe(state: Dict[str, Any], dial: str,
+                      observed_residue: int) -> Dict[str, Any]:
+    if not isinstance(state, dict) or "schema_version" not in state:
+        return _err("state must be an OperatorState dict")
+    err = _validate_dial_name(dial)
+    if err:
+        return err
+    if not isinstance(observed_residue, int):
+        return _err(f"observed_residue must be int, got {type(observed_residue).__name__}")
+    try:
+        new_state = _operator.observe(state, dial, observed_residue)
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+    return {"ok": True, "state": new_state}
+
+
+def operator_diagnostics(state: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(state, dict) or "schema_version" not in state:
+        return _err("state must be an OperatorState dict")
+    return {"ok": True, **_operator.diagnostics(state)}
+
+
+def set_anchor(dial: str, jd_tdb: float, observed_residue: int) -> Dict[str, Any]:
+    """Bare CalibrationDelta for a dial — for callers using the pure-functional path."""
+    err = _validate_jd(jd_tdb) or _validate_dial_name(dial)
+    if err:
+        return err
+    if not isinstance(observed_residue, int):
+        return _err(f"observed_residue must be int")
+    return {
+        "ok": True,
+        "dial": dial,
+        "jd": float(jd_tdb),
+        "observed_residue": int(observed_residue),
+    }
+
+
+def apply_anchor(state: Dict[str, Any], calibration_delta: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply a CalibrationDelta to an OperatorState (pure-functional)."""
+    if not isinstance(state, dict) or "schema_version" not in state:
+        return _err("state must be an OperatorState dict")
+    if not isinstance(calibration_delta, dict) or "dial" not in calibration_delta:
+        return _err("calibration_delta must have at least 'dial'")
+    return operator_observe(
+        state,
+        calibration_delta["dial"],
+        int(calibration_delta.get("observed_residue", 0)),
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# §5.6 — Cross-comparators (3 methods, phase 7)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import compare as _compare  # noqa: E402
+
+
+def compare_ephemerides(jd_tdb: float, body: str,
+                         kernel_a: str, kernel_b: str) -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    if body.lower() not in _compare._BODY_NAMES:
+        return _err(f"unknown body {body!r}")
+    allowed = ("de421", "de422", "de440", "de441", "de441_part1", "de441_part2")
+    if kernel_a not in allowed or kernel_b not in allowed:
+        return _err(f"kernels must be in {allowed}")
+    delta = _compare.compare_ephemerides_at_jd(jd_tdb, body, kernel_a, kernel_b)
+    if delta is None:
+        return _err(
+            f"could not load both kernels {kernel_a!r} and {kernel_b!r}; "
+            "install skyfield + run kernel download"
+        )
+    return {
+        "ok": True, "jd_tdb": float(jd_tdb), "body": body.lower(),
+        "kernel_a": kernel_a, "kernel_b": kernel_b, **delta,
+    }
+
+
+def compare_models(jd_tdb: float, body: str,
+                    model_a: str, model_b: str,
+                    kernel: str = "de421") -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    out = _compare.compare_models_at_jd(jd_tdb, body, model_a, model_b, kernel)
+    if out is None:
+        return _err(
+            "compare_models supports body='mars' only; "
+            "models must be one of {'uniform','epicycle','equant'}; "
+            "skyfield + kernel must be available."
+        )
+    return {"ok": True, **out}
+
+
+def compare_reconstructions(jd_tdb: float, *,
+                              dials: str = "all") -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    return {"ok": True, **_compare.compare_reconstructions_at_jd(jd_tdb, dials)}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# §5.7 — What-if + archaeology (3 methods, phase 8)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import (  # noqa: E402
+    archaeology as _archaeology,
+    whatif as _whatif,
+)
+
+
+def encode_with_custom_train(jd_tdb: float, dial: str, p: int, q: int) -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    try:
+        return {"ok": True, **_whatif.encode_with_custom_train(jd_tdb, dial, p, q)}
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+
+
+def compare_to_ground_truth(jd_tdb: float, dial: str, p: int, q: int) -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    try:
+        return {"ok": True, **_whatif.compare_to_ground_truth(jd_tdb, dial, p, q)}
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+
+
+def get_fragment_inventory(fragment: str = "all") -> Dict[str, Any]:
+    out = _archaeology.get_fragment_inventory(fragment)
+    if "error" in out:
+        return _err(out["error"])
+    return {"ok": True, **out}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# §5.8 — Babylonian Goal-Year overlay (2 methods, phase 9)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import goalyear as _goalyear  # noqa: E402
+
+
+def goalyear_predict(planet: str, jd_tdb: float, *,
+                      source: str = "mulapin") -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    try:
+        return {"ok": True, **_goalyear.predict(planet, jd_tdb, source=source)}
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+
+
+def goalyear_compare(planet: str, jd_tdb: float) -> Dict[str, Any]:
+    err = _validate_jd(jd_tdb)
+    if err:
+        return err
+    try:
+        return {"ok": True, **_goalyear.compare(planet, jd_tdb)}
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+
+
+# ──────────────────────────────────────────────────────────────────────
+# §5.9 — Animation export (2 methods, phase 10)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import animation as _animation  # noqa: E402
+
+
+def encode_range(jd_lo: float, jd_hi: float, *,
+                  step_days: float = 1.0,
+                  D: int = D_CALLIPPIC) -> Dict[str, Any]:
+    err = _validate_jd(jd_lo) or _validate_jd(jd_hi) or _validate_dim(D)
+    if err:
+        return err
+    if jd_hi <= jd_lo:
+        return _err("jd_hi must be greater than jd_lo")
+    if step_days <= 0:
+        return _err("step_days must be > 0")
+    try:
+        return {"ok": True, **_animation.encode_range(jd_lo, jd_hi, step_days=step_days, D=D)}
+    except ValueError as exc:
+        return _err(str(exc))
+
+
+def export_animation(jd_lo: float, jd_hi: float, step_days: float, *,
+                      format: str = "json",
+                      D: int = D_CALLIPPIC) -> Dict[str, Any]:
+    err = _validate_jd(jd_lo) or _validate_jd(jd_hi) or _validate_dim(D)
+    if err:
+        return err
+    if format not in ("json", "npz"):
+        return _err(f"format must be 'json' or 'npz', got {format!r}")
+    try:
+        payload = _animation.export_animation(
+            jd_lo, jd_hi, step_days, format=format, D=D,
+        )
+    except ValueError as exc:
+        return _err(str(exc))
+    return {
+        "ok": True,
+        "format": format,
+        "n_bytes": len(payload),
+        # Pyodide can transfer bytes directly; for JSON consumers, also
+        # provide a base64 fallback for transport over text channels.
+        "payload_b64": _b64(payload),
+    }
+
+
+def _b64(b: bytes) -> str:
+    import base64
+    return base64.b64encode(b).decode("ascii")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# §5.10 — Hypothesis battery (2 methods, phase 11)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import hypotheses as _hypotheses  # noqa: E402
+
+
+def run_hypothesis_battery(*, ephemeris: Optional[str] = None) -> Dict[str, Any]:
+    """Run all 31 H-battery rows. Skyfield-gated rows skip if ephemeris=None."""
+    rows: List[Dict[str, Any]] = []
+    details: Dict[str, Any] = {}
+    for hid in _hypotheses.ALL_HYPOTHESIS_IDS:
+        fn_name = "hypothesis_" + hid.replace("-", "_")
+        fn = getattr(_hypotheses, fn_name, None)
+        if fn is None:
+            rows.append({
+                "id": hid, "status": "UNDETERMINED",
+                "notes": f"evaluator {fn_name!r} not exposed",
+            })
+            continue
+        try:
+            row, detail = fn()
+            rows.append(dict(row))
+            details[hid] = detail
+        except Exception as exc:  # noqa: BLE001
+            rows.append({
+                "id": hid, "status": "UNDETERMINED",
+                "notes": f"evaluator raised {type(exc).__name__}: {exc!r}",
+            })
+    return {
+        "ok": True,
+        "n_rows": len(rows),
+        "rows": rows,
+        "details_keys": sorted(details.keys()),
+    }
+
+
+def get_hypothesis(id: str) -> Dict[str, Any]:
+    if id not in _hypotheses.ALL_HYPOTHESIS_IDS:
+        return _err(f"unknown hypothesis id {id!r}")
+    fn = getattr(_hypotheses, "hypothesis_" + id.replace("-", "_"), None)
+    if fn is None:
+        return _err(f"evaluator for {id!r} not exposed")
+    try:
+        row, detail = fn()
+    except Exception as exc:  # noqa: BLE001
+        return _err(f"evaluator raised {type(exc).__name__}: {exc!r}")
+    return {"ok": True, "row": dict(row), "detail": detail}
+
+
 __all__ = [
     # §5.1 + §5.2 (phase 3)
     "decode_dial",
@@ -863,4 +1162,28 @@ __all__ = [
     "get_eclipse_anchors",
     "get_period_relations",
     "find_eclipses",
+    # §5.5 (phase 6)
+    "start_operator_session",
+    "operator_advance",
+    "operator_observe",
+    "operator_diagnostics",
+    "set_anchor",
+    "apply_anchor",
+    # §5.6 (phase 7)
+    "compare_ephemerides",
+    "compare_models",
+    "compare_reconstructions",
+    # §5.7 (phase 8)
+    "encode_with_custom_train",
+    "compare_to_ground_truth",
+    "get_fragment_inventory",
+    # §5.8 (phase 9)
+    "goalyear_predict",
+    "goalyear_compare",
+    # §5.9 (phase 10)
+    "encode_range",
+    "export_animation",
+    # §5.10 (phase 11)
+    "run_hypothesis_battery",
+    "get_hypothesis",
 ]
