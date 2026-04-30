@@ -236,6 +236,66 @@ def test_4d_tournament_minimal(tmp_path):
     assert set(data["agents"]) == {"A", "B"}
 
 
+# ─── 2D sweep (§16 ship-gate matrix) ───────────────────────────────
+
+
+def test_2d_sweep_minimal_2_cells(tmp_path):
+    out_path = tmp_path / "sweep.json"
+    rc, _ = _capture_stdout_2d([
+        "sweep",
+        "--evaluators", "material",
+        "--depths", "1,2",
+        "--n-games-per-pair", "1",
+        "--max-plies", "6",
+        "-o", str(out_path),
+    ])
+    assert rc == 0
+    data = json.loads(out_path.read_text())
+    assert data["evaluators"] == ["material"]
+    assert data["depths"] == [1, 2]
+    assert data["n_cells"] == 2
+    assert data["n_games"] == 1
+    assert "elo" in data
+    assert "material@1" in data["elo"]
+    assert "material@2" in data["elo"]
+    # By default, per-game records are omitted
+    assert "games" not in data
+
+
+def test_2d_sweep_include_games_emits_per_game():
+    rc, out = _capture_stdout_2d([
+        "sweep",
+        "--evaluators", "material",
+        "--depths", "1,2",
+        "--n-games-per-pair", "1",
+        "--max-plies", "6",
+        "--include-games",
+    ])
+    assert rc == 0
+    data = json.loads(out)
+    assert "games" in data
+    assert len(data["games"]) == 1
+
+
+def test_2d_sweep_rejects_empty_evaluators():
+    rc, _ = _capture_stdout_2d([
+        "sweep",
+        "--evaluators", "",
+        "--depths", "1",
+    ])
+    assert rc == 2
+
+
+def test_2d_sweep_rejects_single_cell():
+    """One evaluator + one depth = 1 cell; can't run a tournament."""
+    rc, _ = _capture_stdout_2d([
+        "sweep",
+        "--evaluators", "material",
+        "--depths", "1",
+    ])
+    assert rc == 2
+
+
 def test_4d_tournament_white_black_different_evaluators(tmp_path):
     """The §16 4D analogue: per-side asymmetric configuration works."""
     out_path = tmp_path / "t4d_mixed.json"
