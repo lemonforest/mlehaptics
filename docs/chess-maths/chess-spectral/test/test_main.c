@@ -6,6 +6,7 @@ int test_channels_extra(void);
 int test_d4(void);
 int test_temporal(void);
 int test_gzip(void);
+int test_frame_v5(void);
 
 int main(void)
 {
@@ -30,6 +31,10 @@ int main(void)
     printf("[RUN ] test_gzip\n");
     if (test_gzip() != 0) { printf("[FAIL] test_gzip\n"); fails++; }
     else                  { printf("[ OK ] test_gzip\n"); }
+
+    printf("[RUN ] test_frame_v5\n");
+    if (test_frame_v5() != 0) { printf("[FAIL] test_frame_v5\n"); fails++; }
+    else                      { printf("[ OK ] test_frame_v5\n"); }
 
     if (fails == 0) {
         printf("\nALL TESTS PASSED\n");

@@ -69,8 +69,10 @@ add_executable(cs_test
     test/test_d4.c
     test/test_temporal.c
     test/test_gzip.c
+    test/test_frame_v5.c
     src/cs_temporal.c
     src/cs_frame.c
+    src/cs_frame_v5.c
     src/cs_gzip.c
 )
 target_link_libraries(cs_test PRIVATE cs_core miniz ${CS_MATH_LIB})
