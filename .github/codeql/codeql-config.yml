@@ -25,8 +25,12 @@ paths:
   # chess-spectral C source (compiled into the wheel)
   - "docs/chess-maths/chess-spectral/src/**"
   - "docs/chess-maths/chess-spectral/include/**"
-  # antikythera-maths package (separately published)
+  # antikythera-maths research package (separately published)
   - "docs/antikythera-maths/python/**"
+  # antikythera-spectral PyPI package + codegen tooling
+  - "docs/antikythera-maths/antikythera-spectral/python/**"
+  - "docs/antikythera-maths/antikythera-spectral/codegen/**"
+  - "docs/antikythera-maths/antikythera-spectral/bridge/**"
   # GitHub Actions workflows + composite actions — the `actions`
   # CodeQL language analyzes these (workflow YAML, embedded shell
   # scripts in `run:` blocks). Without this entry the actions
