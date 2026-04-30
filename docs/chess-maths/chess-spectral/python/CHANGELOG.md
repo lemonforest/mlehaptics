@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 2 PR-4: v5 C-side XOR-stream (mode 2) full-file I/O
+
+- **`cs_v5_write_xor_stream_{2d,4d}_file(fp, dense_encodings, n_plies)`** —
+  fixed-frame-size writer. Frame 0 is written verbatim; frame N>0
+  has its encoding bytes XOR'd in-flight against frame N-1's *real*
+  encoding (uint32-view bit XOR; move tail unchanged). Wins on chess
+  workloads where most ply-to-ply byte changes are localised — XOR
+  produces long runs of zero bytes that gzip eats for free.
+  Empirical 4D measurement: 7.23× compression on a 50-ply knight-tour
+  fixture vs. dense gzip.
+
+- **`cs_v5_read_xor_stream_{2d,4d}_file(fp, hdr_out, dense_buf,
+  max_plies, n_plies_out)`** — read counterpart. Reads each fixed-size
+  body verbatim, then in-place XORs the encoding portion against the
+  previous reconstructed frame's encoding (which is already in the
+  caller's dense_buf at offset (i-1)*frame_bytes). Frame 0 is left
+  as read. Move tail bytes are copied through unchanged.
+
+  5 new C-side test cases (25 new assertions, total 110): 4-frame 2D
+  progressive-delta round-trip, 3-frame 2D zero-delta round-trip,
+  **disk-layout invariant**: writing two identical frames produces
+  all-zero encoding bytes for frame 1 on disk (this is the property
+  that gzip exploits), single 4D round-trip, mode-mismatch reject
+  (xor reader on dense file → -8).
+
+  All three encoding modes (dense/per-channel/xor) now ship for both
+  dimensions on the C side. The `--encoding={xor,channel,full}` CLI
+  flag lands in v1.6.x Track 2 PR-5.
+
 ### Added — v1.6.x Track 2 PR-3: v5 C-side per-channel (mode 1) full-file I/O
 
 - **`cs_v5_write_per_channel_{2d,4d}_file(fp, dense_encodings,
