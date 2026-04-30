@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 1 PR-C: qm_2d_bridge §17.2 dispatch surface (skeleton)
+
+The 2D analogue of `qm_4d_bridge` (which shipped the §17.1 + §17.5
+methods in v1.5). Closes the consumer-facing v1.5 gap by giving
+chess2d-OC and the upcoming web visualizer a callable §17.2 surface
+on top of the v1.6 kinematic layer.
+
+Methods shipped (8 of the 13 in scope; the remaining 5 require
+per-channel u_move dynamics that arrive in PR-D / PR-E):
+
+  §17.5 dev/debug surface (5 methods):
+    - get_version       — package version + bridge surface tag
+    - get_encoder_shape — 640-dim, 10 channels × 64 modes
+    - get_fen_state     — Board → FEN, or position-dict → FEN
+                          (translates the chess_spectral row-flip
+                          square convention to python-chess's)
+    - load_fen          — FEN → position dict + side-to-move flag
+    - has_legal_moves   — python-chess legal-move count + check flag
+
+  §17.2 kinematic methods (3, all backed by qm_2d):
+    - get_qm_state       — ψ as Float32 interleaved real+imag
+                           (matches the §17.1 ComplexArray on-the-
+                           wire format)
+    - get_qm_density     — |ψ|² per cell summed across 10 channels
+    - get_qm_expectation — ⟨ψ|H_p|ψ⟩ for the 5 Hermitian piece-reach
+                           observables (rook/bishop/queen/king/knight)
+
+Methods deferred to PR-D / PR-E:
+    - apply_move_qm / apply_move_qm_full  — needs per-channel u_move
+                           builders + capture path
+    - measure_at, get_density_matrix_of, get_probability_current —
+                           need partial-trace / density-matrix
+                           machinery (defer to v1.7+ per the 4D
+                           pattern)
+
+Each method returns a Pyodide-JSON-friendly dict with at least an
+`ok` key. ψ is serialised as Float32 interleaved real+imag (real,
+imag, real, imag, ...) — same on-the-wire format as 4D, so the
+chess4D-OC consumer's M14.x WebGL renderer reads either via
+``Float32Array``.
+
+Bug fix included: the position-dict round-trip path translates
+chess_spectral's square indexing (row 0 = rank 8, sq 0 = a8) to
+python-chess's (row 0 = rank 1, sq 0 = a1). An earlier draft of the
+bridge naively passed sq indices through, producing legal-move
+counts of 4 (knight-only) instead of the canonical 20 from the
+starting position.
+
+23 new tests in `tests/test_qm_2d_bridge.py` covering all 8 methods,
+the ComplexArray serialiser, and the convention-translation
+regression guard.
+
 ### Added — v1.6.x Track 1 PR-B: u_move_a1_2d (A_1 channel projector-sandwich)
 
 - **`P_A1_2D()`** — A_1 (D_4 trivial irrep) orbit projector on C^64.
