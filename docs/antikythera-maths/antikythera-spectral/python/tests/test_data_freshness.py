@@ -1,9 +1,9 @@
-"""``_data/*.json`` and basis NPZs must match what codegen would produce.
+"""Committed ``_data/`` and ``_research/`` must match what codegen would produce.
 
-Re-runs the codegen orchestrator into a temporary directory and
-asserts byte-identical output against the committed ``_data/``. Catches
-drift between ``research/*.py`` source and the package's frozen-data
-exports.
+Re-runs the codegen orchestrator and asserts byte-identical output
+against the committed package state. Catches drift between
+``research/*.py`` source and the package's frozen-data exports + the
+copied research-module tree.
 
 Run with::
 
@@ -27,7 +27,9 @@ _HERE = Path(__file__).resolve()
 _PKG_DIR = _HERE.parents[1]
 _PROJECT_ROOT = _PKG_DIR.parent
 _CODEGEN = _PROJECT_ROOT / "codegen"
-_DATA_DIR = _PKG_DIR / "antikythera_spectral" / "_data"
+_PKG_ROOT = _PKG_DIR / "antikythera_spectral"
+_DATA_DIR = _PKG_ROOT / "_data"
+_RESEARCH_DIR = _PKG_ROOT / "_research"
 
 
 def _sha256(p: Path) -> str:
@@ -40,7 +42,7 @@ def _sha256(p: Path) -> str:
 
 @pytest.fixture(scope="module")
 def manifest() -> dict:
-    """Load the committed manifest (asserts the file exists)."""
+    """Load the committed manifest (skips if missing)."""
     p = _DATA_DIR / "manifest.json"
     if not p.exists():
         pytest.skip(
@@ -51,9 +53,17 @@ def manifest() -> dict:
 
 
 def test_manifest_lists_every_committed_file(manifest: dict) -> None:
-    """Every JSON / NPZ in ``_data/`` must appear in the manifest."""
-    expected = {p.name for p in _DATA_DIR.iterdir()
-                if p.suffix in {".json", ".npz"} and p.name != "manifest.json"}
+    """Every codegen-managed file must appear in the manifest."""
+    expected: set[str] = set()
+    # _data/*.json + *.npz (excluding the manifest itself).
+    for p in _DATA_DIR.iterdir():
+        if p.suffix in {".json", ".npz"} and p.name != "manifest.json":
+            expected.add(f"_data/{p.name}")
+    # _research/*.py + README.md (codegen-emitted copies).
+    if _RESEARCH_DIR.exists():
+        for p in _RESEARCH_DIR.iterdir():
+            if p.is_file():
+                expected.add(f"_research/{p.name}")
     listed = set(manifest["files"].keys())
     missing = expected - listed
     extra = listed - expected
@@ -63,65 +73,89 @@ def test_manifest_lists_every_committed_file(manifest: dict) -> None:
 
 def test_manifest_sha_matches_committed_files(manifest: dict) -> None:
     """SHA-256 of every committed file must match the manifest's record."""
-    for name, entry in manifest["files"].items():
-        p = _DATA_DIR / name
-        assert p.exists(), f"manifest references {name}, but file is missing"
+    for rel_path, entry in manifest["files"].items():
+        p = _PKG_ROOT / rel_path
+        assert p.exists(), f"manifest references {rel_path}, but file is missing"
         assert entry["size_bytes"] == p.stat().st_size, (
-            f"{name}: manifest size {entry['size_bytes']} != "
+            f"{rel_path}: manifest size {entry['size_bytes']} != "
             f"actual {p.stat().st_size}"
         )
         assert entry["sha256"] == _sha256(p), (
-            f"{name}: manifest SHA does not match committed file. "
+            f"{rel_path}: manifest SHA does not match committed file. "
             "Re-run `python codegen/regenerate.py` to refresh."
         )
 
 
 def test_codegen_is_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Re-running codegen into a temp dir must reproduce the committed JSON.
+    """Re-running codegen reproduces every committed file byte-identically.
 
     Skipped if the research-scaffold imports aren't available (which can
-    happen in a wheel-only test environment without the monorepo). The
-    test is the strict-CI guardrail; in dev / CI builds we run it.
+    happen in a wheel-only test environment without the monorepo).
     """
-    # Inject a temp DATA_DIR by monkeypatching the codegen helper.
     if str(_CODEGEN) not in sys.path:
         sys.path.insert(0, str(_CODEGEN))
     import _paths  # noqa: WPS433 - codegen-internal helper
 
-    # Make the research/ tree importable before we ask for it (codegen
-    # scripts do this via _paths.ensure_research_importable on every
-    # invocation; we replicate that here).
     _paths.ensure_research_importable()
     pytest.importorskip("research.astronomical_cycles")
 
-    monkeypatch.setattr(_paths, "DATA_DIR", tmp_path)
+    # Codegen writes to two roots: _DATA_DIR and _RESEARCH_DIR. To run a
+    # clean re-emission we patch both, point them at tmp_path subtrees,
+    # and then byte-compare against the committed copies.
+    tmp_data = tmp_path / "_data"
+    tmp_research = tmp_path / "_research"
+    tmp_data.mkdir()
+    tmp_research.mkdir()
+
+    monkeypatch.setattr(_paths, "DATA_DIR", tmp_data)
 
     # Force a re-import of the emitters with the patched DATA_DIR.
     for mod_name in [
         "emit_cycles", "emit_gears", "emit_anchors",
-        "emit_periods", "emit_fragment_inventory", "emit_basis_vectors",
+        "emit_periods", "emit_fragment_inventory",
+        "emit_basis_vectors", "emit_research_modules",
     ]:
         sys.modules.pop(mod_name, None)
 
-    import emit_anchors  # noqa: E402
-    import emit_cycles   # noqa: E402
+    import emit_anchors             # noqa: E402
+    import emit_basis_vectors       # noqa: E402
+    import emit_cycles              # noqa: E402
     import emit_fragment_inventory  # noqa: E402
-    import emit_gears    # noqa: E402
-    import emit_periods  # noqa: E402
+    import emit_gears               # noqa: E402
+    import emit_periods             # noqa: E402
+    import emit_research_modules    # noqa: E402
 
-    # Re-emit the JSON files (NPZ handled in a separate test below).
+    # Patch _research_modules destination to the temp dir.
+    monkeypatch.setattr(emit_research_modules, "_RESEARCH_DST", tmp_research)
+
+    # Re-emit the JSON files.
     emit_cycles.emit()
     emit_gears.emit()
     emit_anchors.emit()
     emit_periods.emit()
     emit_fragment_inventory.emit()
+    emit_research_modules.emit()
+    # Skip basis vectors in determinism test — they're written by numpy
+    # and depend on numpy version's internal NPZ-zip metadata which is
+    # not stable across runs (numpy bug). manifest_sha_matches handles
+    # those.
 
     for name in ("cycles.json", "gears.json", "anchors.json",
                  "periods.json", "fragments.json"):
-        regenerated = (tmp_path / name).read_bytes()
+        regenerated = (tmp_data / name).read_bytes()
         committed = (_DATA_DIR / name).read_bytes()
         assert regenerated == committed, (
-            f"{name}: codegen output does not match committed file. "
-            "Either run `python codegen/regenerate.py` to refresh, "
-            "or revert the research/*.py change that caused the drift."
+            f"_data/{name}: codegen output does not match committed file."
         )
+
+    if _RESEARCH_DIR.exists():
+        for committed_path in _RESEARCH_DIR.iterdir():
+            if not committed_path.is_file():
+                continue
+            regen_path = tmp_research / committed_path.name
+            assert regen_path.exists(), (
+                f"_research/{committed_path.name}: codegen failed to emit"
+            )
+            assert regen_path.read_bytes() == committed_path.read_bytes(), (
+                f"_research/{committed_path.name}: codegen output does not match"
+            )

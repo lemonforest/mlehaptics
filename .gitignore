@@ -107,3 +107,4 @@ docs/othello-maths/results/*_log.txt
 
 # Windows import lib from encode_cli.exe build
 docs/othello-maths/research/othello_spectral/c_encoder/encode_cli.lib
+*.bsp

@@ -40,6 +40,7 @@ import emit_cycles
 import emit_fragment_inventory
 import emit_gears
 import emit_periods
+import emit_research_modules
 
 
 def _git_commit() -> str:
@@ -88,29 +89,39 @@ def main() -> int:
 
     written: Dict[str, Path] = {}
 
+    # Manifest keys are paths relative to the package root
+    # (antikythera_spectral/), so callers can resolve them as
+    # `PKG_ROOT / key` regardless of subdir.
     print("emitting cycles ...")
-    written["cycles.json"] = emit_cycles.emit()
+    written["_data/cycles.json"] = emit_cycles.emit()
 
     print("emitting gears ...")
-    written["gears.json"] = emit_gears.emit()
+    written["_data/gears.json"] = emit_gears.emit()
 
     print("emitting anchors ...")
-    written["anchors.json"] = emit_anchors.emit()
+    written["_data/anchors.json"] = emit_anchors.emit()
 
     print("emitting periods ...")
-    written["periods.json"] = emit_periods.emit()
+    written["_data/periods.json"] = emit_periods.emit()
 
     print("emitting fragments ...")
-    written["fragments.json"] = emit_fragment_inventory.emit()
+    written["_data/fragments.json"] = emit_fragment_inventory.emit()
 
     print("emitting basis vectors ...")
     basis_paths = emit_basis_vectors.emit()
     for D, p in basis_paths.items():
-        written[p.name] = p
+        # Manifest keys use paths relative to the package root so the test
+        # can resolve them uniformly with PKG_ROOT / key.
+        written[f"_data/{p.name}"] = p
+
+    print("copying research modules into _research/ ...")
+    research_paths = emit_research_modules.emit()
+    for p in research_paths:
+        written[f"_research/{p.name}"] = p
 
     print("writing manifest ...")
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "package": "antikythera-spectral",
         "version": _package_version(),
         "source_commit": _git_commit(),

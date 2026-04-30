@@ -1,36 +1,136 @@
 {
   "files": {
-    "anchors.json": {
+    "_data/anchors.json": {
       "sha256": "437cadfc650dd37b97dd720834c8d603632912cd97f1cfbe24ac31951af0d87a",
       "size_bytes": 4268
     },
-    "basis_vectors_d13440.npz": {
+    "_data/basis_vectors_d13440.npz": {
       "sha256": "959bcb140ed19c389d47f1161436cff3993d3a798e756b7f8efa5f488804999d",
       "size_bytes": 2799994
     },
-    "basis_vectors_d940.npz": {
+    "_data/basis_vectors_d940.npz": {
       "sha256": "2b2c5b24140f6e7119878a37697f353b91521d45f4bf2b9dbdb3af4499b0cbae",
       "size_bytes": 123106
     },
-    "cycles.json": {
+    "_data/cycles.json": {
       "sha256": "90220f63d4cf365f44f72af6f7ea4208c908c4dac4b1d348bb66482ff865eedd",
       "size_bytes": 5923
     },
-    "fragments.json": {
+    "_data/fragments.json": {
       "sha256": "a46965fc790eb82fa4cd9eb6a82d84819b43e08c3f49a2126043d5f3603d9da5",
       "size_bytes": 9533
     },
-    "gears.json": {
+    "_data/gears.json": {
       "sha256": "e0aa54e24980430179ca34bf00358407daa6bb1da2df94c211e989508a6fb009",
       "size_bytes": 12703
     },
-    "periods.json": {
+    "_data/periods.json": {
       "sha256": "137a3638c5380eef775966773f34f33ad9eb636da2246473acacf0da74cc26d6",
       "size_bytes": 9948
+    },
+    "_research/README.md": {
+      "sha256": "0c18540c2a82260331024a2bfac2f2db161a7c70d3f2956b4271e18c1af6ca42",
+      "size_bytes": 442
+    },
+    "_research/__init__.py": {
+      "sha256": "be756c321a83cd12e6c1574c9e53219beda21961bab5069fc7763e79b8b207d3",
+      "size_bytes": 326
+    },
+    "_research/astronomical_cycles.py": {
+      "sha256": "416d585234499a770b0d5f6903e7a349aef83fab077cb4fae35c617755d0a248",
+      "size_bytes": 14235
+    },
+    "_research/astronomical_ground_truth.py": {
+      "sha256": "2dbe33cab1564360a8b8db0ea44e517d332c5ad71d737daf92726428c1d6952d",
+      "size_bytes": 19266
+    },
+    "_research/consolidated_tests.py": {
+      "sha256": "86fc0dbd9513c315e9017ee59e32e006087f6bb2857b0cd0374be42d256f9817",
+      "size_bytes": 65436
+    },
+    "_research/cyclic_group_algebra.py": {
+      "sha256": "5c40305a4b3b2c7250e44b45a9b49026126d4b413b13ae92ff48bdb2b0a0ba0e",
+      "size_bytes": 12489
+    },
+    "_research/dial_decoder.py": {
+      "sha256": "4f8ada0cfaaf1c5d0a9cd0a9b0db000bcc82664b9a15030cf4df2e9fd9625b3e",
+      "size_bytes": 12810
+    },
+    "_research/encode_ant.py": {
+      "sha256": "fed66e6832babdc556f90837318a4b42e7e626384061f369a04c3000c563cc94",
+      "size_bytes": 20988
+    },
+    "_research/ephemeris_loader.py": {
+      "sha256": "0797c4f1e525435114f837afc0a003689c1f72a774ea1578007737f78abeecbf",
+      "size_bytes": 14347
+    },
+    "_research/equant_encoder.py": {
+      "sha256": "1c036a517cd40e63e86874c5b84b9a7fe68057934267ac790fe0f5514811d965",
+      "size_bytes": 24555
+    },
+    "_research/gear_database.py": {
+      "sha256": "c551f47cd5192fe69b0a320d751468802474974564125dafa0427040902343c6",
+      "size_bytes": 17329
+    },
+    "_research/gear_noise_models.py": {
+      "sha256": "5fc49ce35c5a6497c52b3a166cb57c39aa178a1605d95b5a786fd4de808353df",
+      "size_bytes": 11480
+    },
+    "_research/gear_topology.py": {
+      "sha256": "e9332649ce6666b9e958b3bfff740d566fc0dbe5362801016446fdd9743680bd",
+      "size_bytes": 33113
+    },
+    "_research/hellenistic_eclipses.py": {
+      "sha256": "0750647ff790aaea97caa1103d4c130b79edd8c77f28d48d597097d0cfed1a4b",
+      "size_bytes": 13152
+    },
+    "_research/historical_cross_reference.py": {
+      "sha256": "fec164f5e98848b5b9ff8e0d5f6421eabd1a0bebb2e4f6307f3e54bdbaafbec8",
+      "size_bytes": 18490
+    },
+    "_research/historical_periods.py": {
+      "sha256": "a1fab95daa350b28312e8547b579166055cfec39d88eec207c444a6a0600e71d",
+      "size_bytes": 19829
+    },
+    "_research/manufacturing_tolerance.py": {
+      "sha256": "bb24601568d556f3fedd985fa5392a81ee0ae4d6ff2072befd4be375acef0d12",
+      "size_bytes": 32402
+    },
+    "_research/packing_analysis.py": {
+      "sha256": "8af2fe7d417d403f7cb62255d389f933e6118f58f156b18a304f0d83d04b062d",
+      "size_bytes": 12565
+    },
+    "_research/paired_chain_search.py": {
+      "sha256": "6de9f7093bce0335c2022b49a23a176408dd1e761a0a642fe29e9030401b2004",
+      "size_bytes": 18497
+    },
+    "_research/pareto_analysis.py": {
+      "sha256": "75e9610daca9cc1ed4861193494dd90468e977e3393a9ce8058b885afce839e2",
+      "size_bytes": 25790
+    },
+    "_research/pin_and_slot.py": {
+      "sha256": "aee6c59c2b6993ee116036acaf7644d4915439a673060acd34764f23ed619f28",
+      "size_bytes": 14116
+    },
+    "_research/rational_approximation.py": {
+      "sha256": "fed85dd09b8fd278adb0673c9317ef0578c41edc65511487266b10d3b05235d4",
+      "size_bytes": 10210
+    },
+    "_research/rendering.py": {
+      "sha256": "603eb58c97fa05ec19eb7a847aae2f1dfddf905b6b2214bb9dce98a3df866429",
+      "size_bytes": 10006
+    },
+    "_research/selective_lock_search.py": {
+      "sha256": "bd29a4f68819f76b892186cbdcd2e26d1c025e1d9ad0d63dd806de616c1f49af",
+      "size_bytes": 12021
+    },
+    "_research/sky_driven_validation.py": {
+      "sha256": "ede2bed35558f7d005e60a68ceaf2051cb88cd1b7afba5bcbec14806eb1b4863",
+      "size_bytes": 20352
     }
   },
   "package": "antikythera-spectral",
-  "schema_version": 1,
-  "source_commit": "665e968ab2d76d75f3d07cfd36bd98c309641b73",
+  "schema_version": 2,
+  "source_commit": "6c4161b56f6422474ba341572c98758a01183e2d",
   "version": "0.1.0rc1"
 }
