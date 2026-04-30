@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 2 PR-5: `--encoding={xor,channel,full}` CLI flag (2D + 4D)
+
+The final v1.6.x Track 2 PR per ADR-001's phasing. Both the 2D and 4D
+encode CLIs now accept an opt-in `--encoding` flag that routes through
+the v5 unified writer:
+
+- `chess_spectral.cli encode` and `encode-fen`: `--encoding={xor,
+  channel,full}`
+- `chess_spectral_4d.cli encode-fen4` and `encode-moves4`:
+  `--encoding={xor,channel,full}` (requires `--output`; the v5 writer
+  back-fills `n_plies` in the header so it cannot stream to stdout).
+
+Modes:
+- `xor` (mode 2): bit-XOR delta from the previous frame.
+  ADR-001 names this as the eventual default for new writes
+  (~7.23× compression on real games via long zero runs that gzip
+  eats for free, measured on a 50-ply 4D knight-tour fixture).
+- `channel` (mode 1): per-channel replacement. Emits only channels
+  that changed since the previous frame; the first frame is always
+  a FULL block.
+- `full` (mode 0): v5 dense — same frame body as v2/v4 but under a
+  v5 header. Useful as a research-platform escape hatch for
+  byte-for-byte parity testing with prior tools.
+
+**Default behavior unchanged.** Omit `--encoding` and the writer
+falls through to the existing v2 / v4 writers byte-for-byte. The
+default switch to `xor` (per ADR-001) is tracked as a separate v1.7
+follow-up gated on full C-side parity migration so v2/v4 readers
+continue to work on existing infrastructure.
+
+12 new tests in `tests/test_cli_encoding_flag.py`: omit-flag default
+still writes v2 / v4; each `--encoding=<mode>` writes the right v5
+mode byte (offset 32 of the 256-byte v5 header) at the right
+n_dimensions; the v5 xor and channel single-frame round-trips parse
+correctly via `iter_v5_frames_*`; 4D requires-output guard.
+
 ### Added — v1.6.x Track 2 PR-4: v5 C-side XOR-stream (mode 2) full-file I/O
 
 - **`cs_v5_write_xor_stream_{2d,4d}_file(fp, dense_encodings, n_plies)`** —
