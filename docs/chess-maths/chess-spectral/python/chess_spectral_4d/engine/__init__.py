@@ -17,6 +17,7 @@ contract.
 from __future__ import annotations
 
 from .eval import material  # noqa: F401
+from . import search        # noqa: F401
 
 # search may not yet be merged when this package is imported
 # from a stacked branch; tolerate ImportError until PR-7-I lands.
