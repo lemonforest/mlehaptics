@@ -1,0 +1,137 @@
+name: antikythera-spectral-autotag
+
+# Creates and pushes an annotated ``antikythera-spectral-vX.Y.Z`` tag
+# (plus matching GitHub Release) whenever ``docs/antikythera-maths/
+# antikythera-spectral/python/pyproject.toml`` on the default branch
+# reaches a strict-semver version that doesn't yet have a tag. No-ops
+# on pre-release / dev versions (0.1.0rc1, 0.1.0.dev0, …) — those are
+# explicitly test-only per ADR 0009.
+#
+# Mirror of chess-spectral-autotag.yml; tag namespace is
+# ``antikythera-spectral-v*`` (not ``v*``) so the two PyPI packages
+# can coexist in this monorepo without clobbering each other's tag
+# space.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/antikythera-maths/antikythera-spectral/python/pyproject.toml"
+      - "docs/antikythera-maths/antikythera-spectral/CHANGELOG.md"
+      - "docs/antikythera-maths/antikythera-spectral/python/CHANGELOG.md"
+      - ".github/workflows/antikythera-spectral-autotag.yml"
+
+# Only one tagging run at a time.
+concurrency:
+  group: antikythera-spectral-autotag
+  cancel-in-progress: false
+
+jobs:
+  maybe-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push tags + create releases
+      actions: write    # dispatch antikythera-spectral-publish.yml
+    steps:
+      - name: Checkout with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version and CHANGELOG notes
+        id: ver
+        shell: bash
+        run: |
+          python3 <<'PY' >> "$GITHUB_OUTPUT"
+          import re
+          import tomllib
+
+          PKG_DIR = "docs/antikythera-maths/antikythera-spectral"
+          PYPROJECT = f"{PKG_DIR}/python/pyproject.toml"
+          CHANGELOG = f"{PKG_DIR}/CHANGELOG.md"
+          TAG_PREFIX = "antikythera-spectral-v"
+
+          with open(PYPROJECT, "rb") as f:
+              version = tomllib.load(f)["project"]["version"]
+
+          if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+              # Pre-release / dev markers do NOT autotag — test only.
+              print(f"skip=true")
+              print(f"reason=non-strict-semver::{version}")
+              raise SystemExit(0)
+
+          tag = f"{TAG_PREFIX}{version}"
+          print(f"skip=false")
+          print(f"version={version}")
+          print(f"tag={tag}")
+
+          try:
+              content = open(CHANGELOG, encoding="utf-8").read()
+          except FileNotFoundError:
+              content = ""
+          pattern = rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)"
+          m = re.search(pattern, content, re.MULTILINE | re.DOTALL)
+          notes = (m.group(1).strip() if m else "").strip()
+          print("notes<<CHANGELOG_EOF")
+          print(notes)
+          print("CHANGELOG_EOF")
+          PY
+
+      - name: Report skip
+        if: steps.ver.outputs.skip == 'true'
+        run: |
+          echo "::notice::Skipping auto-tag: ${{ steps.ver.outputs.reason }}"
+
+      - name: Check whether tag already exists
+        id: exists
+        if: steps.ver.outputs.skip == 'false'
+        shell: bash
+        run: |
+          tag='${{ steps.ver.outputs.tag }}'
+          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $tag does not exist; will create."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create annotated tag + push
+        if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          NOTES: ${{ steps.ver.outputs.notes }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$NOTES" ]; then
+            printf '%s\n\n%s\n' "$TAG" "$NOTES" > /tmp/tag-msg
+          else
+            printf '%s\n' "$TAG" > /tmp/tag-msg
+          fi
+          git tag -a "$TAG" -F /tmp/tag-msg
+          git push origin "$TAG"
+
+      - name: Publish GitHub Release
+        if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          NOTES: ${{ steps.ver.outputs.notes }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" --title "$TAG" --notes "Auto-tagged by CI on push to main."
+          fi
+
+      - name: Dispatch publish workflow
+        if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          gh workflow run antikythera-spectral-publish.yml --ref "$TAG"

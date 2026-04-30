@@ -25,6 +25,7 @@ on:
     paths:
       - "docs/chess-maths/chess-spectral/**"
       - "docs/antikythera-maths/python/**"
+      - "docs/antikythera-maths/antikythera-spectral/**"
       - ".github/codeql/**"
       - ".github/workflows/codeql.yml"
   pull_request:
@@ -32,6 +33,7 @@ on:
     paths:
       - "docs/chess-maths/chess-spectral/**"
       - "docs/antikythera-maths/python/**"
+      - "docs/antikythera-maths/antikythera-spectral/**"
       - ".github/codeql/**"
       - ".github/workflows/codeql.yml"
   schedule:

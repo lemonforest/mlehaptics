@@ -1,0 +1,235 @@
+{
+  "almagest": [
+    {
+      "citation": "IX.3 (Toomer 1984, p.424)",
+      "denominator": 42,
+      "interpretation_confidence": "FIRM",
+      "numerator": 37,
+      "phenomenon": "Mars synodic returns",
+      "provenance_note": "Ptolemy: '37 Mars synodic returns in 79 Egyptian years + 3.16 days' -> reduces to (37, 42) after the year/return rearrangement.  Toomer's reading.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "IX.3 (Toomer 1984, p.424)",
+      "denominator": 59,
+      "interpretation_confidence": "FIRM",
+      "numerator": 57,
+      "phenomenon": "Saturn synodic returns",
+      "provenance_note": "57 Saturn synodic returns in 59 Egyptian years.  Identical to MUL.APIN.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "IX.3 (Toomer 1984, p.424)",
+      "denominator": 71,
+      "interpretation_confidence": "FIRM",
+      "numerator": 65,
+      "phenomenon": "Jupiter synodic returns",
+      "provenance_note": "65 Jupiter synodic returns in 71 Egyptian years.  Identical to MUL.APIN.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "IX.3 (Toomer 1984, p.425)",
+      "denominator": 8,
+      "interpretation_confidence": "FIRM",
+      "numerator": 5,
+      "phenomenon": "Venus synodic returns",
+      "provenance_note": "Five Venus returns in 8 years; same ratio MUL.APIN gives.  The 8-year cycle is the canonical small-prime calendrical anchor.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "IX.3 (Toomer 1984, p.425)",
+      "denominator": 13,
+      "interpretation_confidence": "FIRM",
+      "numerator": 8,
+      "phenomenon": "Venus synodic returns (refined)",
+      "provenance_note": "Ptolemy's refined Venus relation; 8 returns in ~13 years (more precise than 5/8).  Both kept for ablation.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "IX.3 (Toomer 1984, p.425)",
+      "denominator": 46,
+      "interpretation_confidence": "FIRM",
+      "numerator": 145,
+      "phenomenon": "Mercury synodic returns",
+      "provenance_note": "145 Mercury synodic returns in 46 Egyptian years.  Note the primes (5, 29, 23, 2) -- not the same set Antikythera uses.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "IV.2 (Toomer 1984, p.175)",
+      "denominator": 269,
+      "interpretation_confidence": "FIRM",
+      "numerator": 251,
+      "phenomenon": "Lunar synodic / anomalistic period (Saros family)",
+      "provenance_note": "251 synodic = 269 anomalistic months.  Critical for the Antikythera lunar pin-and-slot (Fragment B).  Both 251 and 269 are primes -- a load-bearing prime-spectrum entry.",
+      "source": "Almagest",
+      "unit_den": "anomalistic months",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "IV.2 (Toomer 1984, p.176)",
+      "denominator": 18,
+      "interpretation_confidence": "FIRM",
+      "numerator": 223,
+      "phenomenon": "Saros eclipse period (mechanism IV-VI)",
+      "provenance_note": "223 synodic months = 18 years + 11.32 days (the Saros).  Prime 223 appears in the Antikythera Saros dial.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "IV.2 (Toomer 1984, p.175)",
+      "denominator": 19,
+      "interpretation_confidence": "FIRM",
+      "numerator": 235,
+      "phenomenon": "Metonic cycle (synodic months / solar years)",
+      "provenance_note": "Same 235/19 as MUL.APIN; Greek inheritance is direct.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "III.1 (Toomer 1984, p.131)",
+      "denominator": 1,
+      "interpretation_confidence": "FIRM",
+      "numerator": 365,
+      "phenomenon": "Tropical year approximation",
+      "provenance_note": "Idealised 365-day year (Egyptian calendar).  Trivial but anchors small-prime tally (5, 73).",
+      "source": "Almagest",
+      "unit_den": "solar year",
+      "unit_num": "days (truncated)"
+    },
+    {
+      "citation": "VI.4 (Toomer 1984, p.275)",
+      "denominator": 54,
+      "interpretation_confidence": "FIRM",
+      "numerator": 669,
+      "phenomenon": "Exeligmos (3 Saros) eclipse cycle",
+      "provenance_note": "Three Saros = 669 synodic months = 54 years + 33.97 days.  Reduces to (223, 18); kept un-reduced to retain factor of 3.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "IV.2 (Toomer 1984, p.176)",
+      "denominator": 76,
+      "interpretation_confidence": "FIRM",
+      "numerator": 940,
+      "phenomenon": "Callippic cycle (4 Metonic, 1-day correction)",
+      "provenance_note": "4 Metonic cycles = 940 months / 76 years - 1 day.  Reduces to (235, 19); kept un-reduced for the factor-of-4 audit.",
+      "source": "Almagest",
+      "unit_den": "solar years",
+      "unit_num": "synodic months"
+    }
+  ],
+  "confidence_levels": [
+    "FIRM",
+    "RECONSTRUCTED",
+    "DISPUTED"
+  ],
+  "mulapin": [
+    {
+      "citation": "Tablet 2 ii.10-12 (Hunger & Pingree 1989, p.77)",
+      "denominator": 19,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "numerator": 235,
+      "phenomenon": "Metonic-precursor lunar/solar cycle",
+      "provenance_note": "MUL.APIN's intercalation rules already encode the 19-year cycle as a calendrical regularity; the 235-month equivalence is implicit in lunation counts.  Reading as (235, 19) is a modern interpretation per Britton 2010.",
+      "source": "MUL.APIN",
+      "unit_den": "solar years",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "Tablet 2 i.30-37 (Hunger & Pingree 1989, p.66-69)",
+      "denominator": 59,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "numerator": 57,
+      "phenomenon": "Saturn synodic returns within solar years",
+      "provenance_note": "MUL.APIN tracks Saturn first/last visibility; the 59-year Saturn period derives by counting synodic events.  Same ratio Ptolemy reports in Almagest IX.3 - strong continuity.",
+      "source": "MUL.APIN",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "Tablet 2 i.44-67 (Hunger & Pingree 1989, p.70-73)",
+      "denominator": 8,
+      "interpretation_confidence": "FIRM",
+      "numerator": 5,
+      "phenomenon": "Venus 8-year synodic period",
+      "provenance_note": "Explicitly attested: 5 Venus synodic returns in 8 solar years, with the ~2.5-day shortfall noted.  The mechanism's Venus train inherits this ratio.",
+      "source": "MUL.APIN",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "Tablet 2 ii.30-42 (Hunger & Pingree 1989, p.83-85)",
+      "denominator": 18,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "numerator": 38,
+      "phenomenon": "Pre-Saros lunar eclipse warning period",
+      "provenance_note": "MUL.APIN does not explicitly state the Saros (223 months) but tracks 18-year eclipse-possibility windows.  Modern reading per Steele 2000.",
+      "source": "MUL.APIN",
+      "unit_den": "solar years",
+      "unit_num": "possible eclipse intervals"
+    },
+    {
+      "citation": "Tablet 1 ii.36-iii.12 (Hunger & Pingree 1989, p.40-49)",
+      "denominator": 1,
+      "interpretation_confidence": "FIRM",
+      "numerator": 12,
+      "phenomenon": "Lunar visibility / months-per-year",
+      "provenance_note": "Twelve-month idealised year is foundational to MUL.APIN's calendar.  Trivial ratio but anchors the small-prime spectrum.",
+      "source": "MUL.APIN",
+      "unit_den": "ideal year",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "Tablet 2 ii.13-17 (Hunger & Pingree 1989, p.79)",
+      "denominator": 47,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "numerator": 22,
+      "phenomenon": "Mars synodic returns approximation",
+      "provenance_note": "MUL.APIN's Mars first/last visibility records imply roughly this ratio; less precise than Ptolemy's later 79/151.  Includes the prime 47, also load-bearing in the Antikythera.",
+      "source": "MUL.APIN",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    },
+    {
+      "citation": "Tablet 1 ii.4-12 (Hunger & Pingree 1989, p.36)",
+      "denominator": 254,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "numerator": 235,
+      "phenomenon": "Sidereal lunar month / synodic month ratio (implicit)",
+      "provenance_note": "Implicit in the intercalation logic: 235 synodic months = 254 sidereal months over 19 years.  Same ratio in the Antikythera's lunar dial.",
+      "source": "MUL.APIN",
+      "unit_den": "sidereal months",
+      "unit_num": "synodic months"
+    },
+    {
+      "citation": "Tablet 2 i.9-24 (Hunger & Pingree 1989, p.62-65)",
+      "denominator": 71,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "numerator": 65,
+      "phenomenon": "Jupiter synodic returns",
+      "provenance_note": "Jupiter visibility records imply 65 synodic returns in ~71 solar years.  Identical to Ptolemy IX.3 - again strong continuity Babylon -> Greek.",
+      "source": "MUL.APIN",
+      "unit_den": "solar years",
+      "unit_num": "synodic returns"
+    }
+  ],
+  "n_almagest": 12,
+  "n_mulapin": 8,
+  "schema_version": 1,
+  "source_module": "research.historical_periods"
+}

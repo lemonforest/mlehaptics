@@ -1,0 +1,90 @@
+{
+  "hellenistic": [
+    {
+      "almagest_ref": "IV.6",
+      "date_iso": "-382-12-23",
+      "eclipse_type": "L",
+      "espenak_id": null,
+      "interpretation_confidence": "FIRM",
+      "jd": 1637849.625,
+      "location": "Babylon",
+      "note": "Lunar eclipse during the archonship of Phanostratus.  Almagest IV.6 anchors the Babylonian lunar theory on this observation; Toomer 1984 p.206.  JD DE422-corrected from hand-curated 1637860.0 (shift -10.375 d).  Phase at corrected JD: 179.90 deg (full moon, lunar eclipse confirmed)."
+    },
+    {
+      "almagest_ref": null,
+      "date_iso": "-200-09-22",
+      "eclipse_type": "S",
+      "espenak_id": "#04978",
+      "interpretation_confidence": "FIRM",
+      "jd": 1684523.0,
+      "location": "Mediterranean basin",
+      "note": "Solar eclipse near the construction window of the Antikythera mechanism.  Not in the Almagest list but well-attested via NASA catalog; the natural choice for a 'mechanism-era' anchor.  JD DE422-corrected from hand-curated 1684532.5 (shift -9.500 d).  Phase at corrected JD: 0.26 deg (new moon, solar eclipse confirmed)."
+    },
+    {
+      "almagest_ref": "V.14",
+      "date_iso": "-134-04-08",
+      "eclipse_type": "L",
+      "espenak_id": null,
+      "interpretation_confidence": "FIRM",
+      "jd": 1709106.812,
+      "location": "Rhodes",
+      "note": "Hipparchus' own observation of a lunar eclipse, load-bearing for his lunar parallax determination.  Toomer 1984 p.253.  JD DE422-corrected from hand-curated 1709093.5 (shift +13.312 d).  Phase at corrected JD: 180.12 deg (full moon, lunar eclipse confirmed).  This is the anchor whose ~half-synodic-month JD error (12 deg phase mid-cycle) caused E-H1b's earlier FAIL."
+    },
+    {
+      "almagest_ref": "IV.9",
+      "date_iso": "-141-07-20",
+      "eclipse_type": "L",
+      "espenak_id": null,
+      "interpretation_confidence": "FIRM",
+      "jd": 1721066.562,
+      "location": "Babylon",
+      "note": "Babylonian lunar eclipse from the Almagest IV.9 triplet (used together with two later eclipses to derive the lunar anomalistic period).  Toomer 1984 p.211-213.  JD DE422-corrected from hand-curated 1721054.0 (shift +12.562 d).  Phase at corrected JD: 179.67 deg (full moon, lunar eclipse confirmed)."
+    },
+    {
+      "almagest_ref": null,
+      "date_iso": "-000-12-09",
+      "eclipse_type": "L",
+      "espenak_id": null,
+      "interpretation_confidence": "RECONSTRUCTED",
+      "jd": 1764270.0,
+      "location": "Alexandria",
+      "note": "Augustan-era anchor reconstructed from Ptolemy's running observations.  Bridges the Almagest-IV/V era anchors with the Almagest-VI late-Hellenistic ones.  JD DE422-corrected from hand-curated 1764266.5 (shift +3.500 d).  Phase at corrected JD: 179.78 deg (full moon, lunar eclipse confirmed)."
+    },
+    {
+      "almagest_ref": "VI.5",
+      "date_iso": "+0125-04-05",
+      "eclipse_type": "L",
+      "espenak_id": null,
+      "interpretation_confidence": "FIRM",
+      "jd": 1789547.875,
+      "location": "Alexandria",
+      "note": "Late-Hellenistic anchor that brackets the era under validation.  Almagest VI.5 records the eclipse with explicit timing.  Toomer 1984 p.301.  JD DE422-corrected from hand-curated 1789535.5 (shift +12.375 d).  Phase at corrected JD: 179.89 deg (full moon, lunar eclipse confirmed)."
+    }
+  ],
+  "modern": [
+    {
+      "almagest_ref": null,
+      "date_iso": "1999-08-11",
+      "eclipse_type": "S",
+      "espenak_id": "#09518",
+      "interpretation_confidence": "FIRM",
+      "jd": 2451402.0,
+      "location": "Europe (totality across Cornwall, France, Romania)",
+      "note": "The well-attested 1999 European total solar eclipse."
+    },
+    {
+      "almagest_ref": null,
+      "date_iso": "2017-08-21",
+      "eclipse_type": "S",
+      "espenak_id": "#09551",
+      "interpretation_confidence": "FIRM",
+      "jd": 2457986.5,
+      "location": "North America (Great American Eclipse)",
+      "note": "Exactly one Saros (~6585.32 days) after the 1999 anchor; structural pair check for the encoder."
+    }
+  ],
+  "n_hellenistic": 6,
+  "n_modern": 2,
+  "schema_version": 1,
+  "source_module": "research.hellenistic_eclipses"
+}

@@ -1,0 +1,101 @@
+name: antikythera-spectral-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/antikythera-maths/antikythera-spectral/**"
+      - ".github/workflows/antikythera-spectral-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/antikythera-maths/antikythera-spectral/**"
+      - ".github/workflows/antikythera-spectral-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test • ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install package + dev tools
+        working-directory: docs/antikythera-maths/antikythera-spectral/python
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest
+      - name: Run tests
+        working-directory: docs/antikythera-maths/antikythera-spectral/python
+        shell: bash
+        run: pytest tests/ -q
+
+  build-verify:
+    name: wheel + sdist build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel + sdist
+        working-directory: docs/antikythera-maths/antikythera-spectral/python
+        run: |
+          python -m pip install --upgrade pip build hatchling twine
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Verify wheel contents
+        working-directory: docs/antikythera-maths/antikythera-spectral/python
+        run: |
+          set -euo pipefail
+          python -m zipfile -l dist/*.whl | grep -F "_data/manifest.json"
+          python -m zipfile -l dist/*.whl | grep -F "_research/encode_ant.py"
+
+  codegen-determinism:
+    name: codegen reproducibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install editable
+        working-directory: docs/antikythera-maths/antikythera-spectral/python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest
+      - name: Snapshot _data + _research SHA-256
+        working-directory: docs/antikythera-maths/antikythera-spectral
+        run: |
+          # Exclude manifest.json from the diff: its `source_commit`
+          # field is tautologically tied to whatever commit last
+          # touched the codegen sources, and CI's HEAD is the merge-
+          # commit SHA which won't match the committed value when the
+          # commit-in-progress also updates the manifest. The per-file
+          # SHA-256 sums in the manifest already give the integrity
+          # guarantee; we just don't compare the manifest itself here.
+          find python/antikythera_spectral/_data python/antikythera_spectral/_research \
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/before.sha256
+      - name: Re-run codegen
+        working-directory: docs/antikythera-maths/antikythera-spectral/codegen
+        run: python regenerate.py
+      - name: Verify byte-identical output
+        working-directory: docs/antikythera-maths/antikythera-spectral
+        run: |
+          find python/antikythera_spectral/_data python/antikythera_spectral/_research \
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/after.sha256
+          diff /tmp/before.sha256 /tmp/after.sha256
