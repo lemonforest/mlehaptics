@@ -33,6 +33,12 @@ try:
 except ImportError:
     eval = None  # type: ignore
 
+# Convenience re-export to mirror main's pre-v1.6 surface
+# (`chess_spectral.engine.material` resolved directly). Tests in
+# test_engine_material.py rely on this short form. The tuple unpack
+# handles the case where eval failed to import.
+material = eval.material if eval is not None else None  # type: ignore
+
 try:
     from . import search  # noqa: F401
 except ImportError:
@@ -44,5 +50,6 @@ except ImportError:
     tournament = None  # type: ignore
 
 __all__ = [name for name, val in (
-    ("eval", eval), ("search", search), ("tournament", tournament),
+    ("eval", eval), ("material", material),
+    ("search", search), ("tournament", tournament),
 ) if val is not None]
