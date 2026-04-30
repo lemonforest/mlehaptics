@@ -44,7 +44,12 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Install Python deps
-        run: python -m pip install --upgrade pip pytest numpy scipy
+        # `chess` (python-chess) is a runtime dep from v1.6 onward
+        # (engine.search uses chess.Board for 2D move generation;
+        # engine.tournament uses chess.pgn for PGN export). CI
+        # installs it explicitly here because we don't `pip install`
+        # the package itself -- tests run via sys.path bootstrap.
+        run: python -m pip install --upgrade pip pytest numpy scipy chess
 
       - name: Install Ninja (Linux/macOS)
         if: runner.os != 'Windows'
