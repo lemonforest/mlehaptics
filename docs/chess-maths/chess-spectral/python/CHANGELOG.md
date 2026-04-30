@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 2 PR-1: v5 wire format C-side header
+
+- **`include/cs_frame_v5.h`** + **`src/cs_frame_v5.c`** — C-side
+  mirror of the v5 unified wire format header reader/writer. Packs
+  the 256-byte v5 header struct (`cs_v5_header_t`), peeks the version
+  field from a stream, and reads/writes via stdio. Mirrors
+  `python/chess_spectral/frame_v5.py` byte-for-byte.
+
+  31 C-side assertions in `test/test_frame_v5.c` covering: 2D dense
+  + 4D XOR-stream pack/unpack round-trips, reserved-bytes zero-fill,
+  4 validation rejection paths (bad n_dimensions / encoding_mode /
+  dim-mismatch / bad magic), file round-trip, and a load-bearing
+  **byte-parity test** asserting the C-produced 256-byte buffer
+  equals Python's `HeaderV5.pack()` output for a fixed fixture.
+
+  Frame-body reader/writer for the three encoding modes (dense /
+  per-channel / XOR-stream) ships in subsequent v1.6.x Track 2 PRs;
+  the `--encoding=` CLI flag wiring lands in the final Track 2 PR.
+
 ### Added — v1.6.x Track 1 PR-C: qm_2d_bridge §17.2 dispatch surface (skeleton)
 
 The 2D analogue of `qm_4d_bridge` (which shipped the §17.1 + §17.5
