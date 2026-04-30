@@ -58,6 +58,55 @@ were intentionally left out of v1.2.4's scope:
   `python/tests/test_parity.py` from the C output (it is the authority
   per AUDIT §1).
 
+## Research / illustrative threads
+
+Capturing ideas that aren't on the v1.6 critical path but are
+worth landing eventually for cross-disciplinary illustration value
+or as independent validators of existing surfaces.
+
+### Graph-Laplacian eigenbasis move-legality oracle
+
+A third independent move-legality oracle alongside `python-chess`
+(2D) / `python-chess4d-oana-chiru` (4D) and our own
+`chess_spectral.phase_operators` (modular-arithmetic predicates).
+The piece-movement adjacency matrices `A_p` already live in
+`tables.py` (2D) and `tables_4d.py` (4D); their graph Laplacians
+`L_p = D_p - A_p` admit eigendecomposition, and the spectrum acts
+as a structural lookup oracle:
+
+- `A_p[i, j] = Σ_k λ_k · v_k[i] · v_k[j]` -- if this sum is 1 the
+  move (i, j) is geometrically reachable; if 0 it is not. The
+  eigenvalue-grouping structure exposes symmetry classes of moves
+  the modular-arithmetic operators don't surface explicitly.
+- For 4D, the 4096×4096 Laplacian factors as a Kronecker sum of
+  four 8×8 path-graph Laplacians, so the eigenbasis is the same
+  DCT-II tower the encoder already uses (no new caching).
+- Validates **on an empty-board reach predicate**, not full
+  occupation-aware legality. Pair with existing occupation /
+  capture / castling / en-passant logic for a complete oracle.
+- **Demonstrates yet another way the spectral toolkit applies** --
+  the same eigenbasis used for encoding can be used for
+  legality-checking, giving the project a parallel structure
+  between "spectral encoding" and "spectral legality."
+
+May also serve as the in-house 4D move-generation backend (vs the
+`python-chess4d-oana-chiru` runtime-dep alternative; that path is
+explicitly closed because of a circular dependency that's why it's
+in the `[test]` extras only). Ships as part of the v1.6 engine arc
+as a research / production module; cross-validation gate in
+`tests/test_spectral_legality.py`.
+
+### Possible future absorption of python-chess4d-oana-chiru
+
+Open question (not committed): whether to absorb the entire 4D rule
+library (Oana & Chiru 2026) into chess-spectral as the canonical 4D
+chess implementation, vs keep it as an upstream dependency. The
+graph-Laplacian oracle is the first in-house piece of 4D rule logic;
+if absorption happens later, the oracle is part of the absorbed set.
+Trade-offs: scope creep vs single-source-of-truth + no circular-dep
+management. Decision deferred -- this note captures the framing for
+when the decision is made.
+
 ## Format references
 
 - [docs/FEN4_FORMAT.md](docs/FEN4_FORMAT.md) — FEN4 v1 placement literal
