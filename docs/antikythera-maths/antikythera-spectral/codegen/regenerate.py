@@ -2,7 +2,10 @@
 
 Usage::
 
-    python codegen/regenerate.py
+    python codegen/regenerate.py            # run all emitters
+    python codegen/regenerate.py --quiet    # suppress per-emitter output
+    python codegen/regenerate.py --skip-research   # data only, no _research/
+    python codegen/regenerate.py --skip-data       # _research/ only, no _data/
 
 Side effects:
 
@@ -24,6 +27,7 @@ comparing.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -83,8 +87,69 @@ def _sha256(p: Path) -> str:
     return h.hexdigest()
 
 
-def main() -> int:
-    print("--- antikythera-spectral codegen ---")
+_EPILOG = """\
+What this writes
+----------------
+
+    _data/cycles.json                 from research.astronomical_cycles
+    _data/gears.json                  from research.gear_database
+    _data/anchors.json                from research.hellenistic_eclipses
+    _data/periods.json                from research.historical_periods
+    _data/fragments.json              from research.gear_database (grouped by fragment)
+    _data/basis_vectors_d940.npz      deterministic HDC channel basis (D=940)
+    _data/basis_vectors_d13440.npz    deterministic HDC channel basis (D=13440)
+    _data/manifest.json               version + source-commit + per-file SHA-256
+    _research/*.py                    23 curated research modules, byte-identical copy
+
+Determinism
+-----------
+
+Re-running with the same source state produces byte-identical output.
+``test_data_freshness.py`` asserts this; CI runs it on every PR.
+
+ADR cross-reference
+-------------------
+
+- ADR 0004: frozen data as JSON / NPZ, never pickle
+- ADR 0005: codegen yes / C no in v0.1.0
+"""
+
+
+def _make_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="codegen/regenerate.py",
+        description=(
+            "Regenerate _data/*.json + _data/basis_*.npz + _research/*.py "
+            "from research/*.py (the SSOT). Writes _data/manifest.json with "
+            "package version + git commit + per-file SHA-256 sums."
+        ),
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true",
+        help="Suppress per-emitter output (only print the final summary)",
+    )
+    parser.add_argument(
+        "--skip-research", action="store_true",
+        help="Skip the _research/ module copy step (regenerate _data/ only)",
+    )
+    parser.add_argument(
+        "--skip-data", action="store_true",
+        help="Skip the _data/ JSON+NPZ emit (regenerate _research/ only)",
+    )
+    return parser
+
+
+def main(argv=None) -> int:
+    args = _make_parser().parse_args(argv)
+    quiet = args.quiet
+
+    def _say(msg: str) -> None:
+        if not quiet:
+            print(msg)
+
+    _say("--- antikythera-spectral codegen ---")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     written: Dict[str, Path] = {}
@@ -92,34 +157,53 @@ def main() -> int:
     # Manifest keys are paths relative to the package root
     # (antikythera_spectral/), so callers can resolve them as
     # `PKG_ROOT / key` regardless of subdir.
-    print("emitting cycles ...")
-    written["_data/cycles.json"] = emit_cycles.emit()
+    if not args.skip_data:
+        _say("emitting cycles ...")
+        written["_data/cycles.json"] = emit_cycles.emit()
 
-    print("emitting gears ...")
-    written["_data/gears.json"] = emit_gears.emit()
+        _say("emitting gears ...")
+        written["_data/gears.json"] = emit_gears.emit()
 
-    print("emitting anchors ...")
-    written["_data/anchors.json"] = emit_anchors.emit()
+        _say("emitting anchors ...")
+        written["_data/anchors.json"] = emit_anchors.emit()
 
-    print("emitting periods ...")
-    written["_data/periods.json"] = emit_periods.emit()
+        _say("emitting periods ...")
+        written["_data/periods.json"] = emit_periods.emit()
 
-    print("emitting fragments ...")
-    written["_data/fragments.json"] = emit_fragment_inventory.emit()
+        _say("emitting fragments ...")
+        written["_data/fragments.json"] = emit_fragment_inventory.emit()
 
-    print("emitting basis vectors ...")
-    basis_paths = emit_basis_vectors.emit()
-    for D, p in basis_paths.items():
-        # Manifest keys use paths relative to the package root so the test
-        # can resolve them uniformly with PKG_ROOT / key.
-        written[f"_data/{p.name}"] = p
+        _say("emitting basis vectors ...")
+        basis_paths = emit_basis_vectors.emit()
+        for D, p in basis_paths.items():
+            # Manifest keys use paths relative to the package root so the
+            # test can resolve them uniformly with PKG_ROOT / key.
+            written[f"_data/{p.name}"] = p
 
-    print("copying research modules into _research/ ...")
-    research_paths = emit_research_modules.emit()
-    for p in research_paths:
-        written[f"_research/{p.name}"] = p
+    if not args.skip_research:
+        _say("copying research modules into _research/ ...")
+        research_paths = emit_research_modules.emit()
+        for p in research_paths:
+            written[f"_research/{p.name}"] = p
 
-    print("writing manifest ...")
+    if args.skip_research or args.skip_data:
+        # Partial regeneration: the manifest covers both halves, so
+        # writing it now would lose SHAs for the un-regenerated portion.
+        # Bail out with a warning so the user knows to run the full
+        # cycle before committing.
+        print(
+            f"--- partial run (skip_data={args.skip_data} "
+            f"skip_research={args.skip_research}); manifest NOT updated ---"
+        )
+        print(f"--- {len(written)} files written ---")
+        print(
+            "warning: manifest.json is now stale; "
+            "run `python regenerate.py` (full) before committing.",
+            file=sys.stderr,
+        )
+        return 0
+
+    _say("writing manifest ...")
     manifest = {
         "schema_version": 2,
         "package": "antikythera-spectral",

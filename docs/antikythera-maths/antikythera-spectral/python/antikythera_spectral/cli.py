@@ -17,7 +17,16 @@ import sys
 from typing import Any, Dict, List, Optional
 
 from antikythera_spectral import bridge
+from antikythera_spectral.ephemeris import ALLOWED_KERNELS
 from antikythera_spectral.version import __version__
+from antikythera_spectral.visibility import SUPPORTED_PLANETS
+
+# Frozen choice lists for argparse. Keeping them out of the parser
+# helpers so the lists are easy to grep for.
+_KERNEL_CHOICES = list(ALLOWED_KERNELS)
+_PLANET_CHOICES = list(SUPPORTED_PLANETS)
+_BODY_CHOICES = list(SUPPORTED_PLANETS) + ["sun", "moon"]
+_FRAGMENT_CHOICES = ["A", "B", "C", "D", "reconstructed", "all"]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -214,6 +223,43 @@ def _cmd_kernel_list(args: argparse.Namespace) -> int:
 # Parser construction
 # ──────────────────────────────────────────────────────────────────────
 
+_TOPLEVEL_EPILOG = """\
+Examples
+--------
+
+    # Encode a date and read the Mars dial.
+    antikythera-spectral encode --jd 1684500.0 --dial Mars_synodic_period_relation
+
+    # Convert REFERENCE_JD to Olympiad coordinates (Antikythera back-dial format).
+    antikythera-spectral date jd-to-olympiad 1684595.0
+
+    # When does Mars next emerge from solar glare? (needs DE421 on disk)
+    antikythera-spectral heliacal --planet mars --jd 1684500.0
+
+    # Compare DE421 vs DE441 on Mars at J2000 (both kernels needed locally).
+    antikythera-spectral compare ephemerides --jd 2451545.0 --body mars \\
+                          --kernel-a de421 --kernel-b de441_part1
+
+    # What if we used Venus 5/8 instead of Freeth's 289/462?
+    antikythera-spectral whatif encode --jd 1684500.0 \\
+                          --dial Venus_synodic_period_relation --p 5 --q 8
+
+    # Run the full 31-row H-battery, emit CSV.
+    antikythera-spectral hypotheses --csv-out -
+
+    # Export an animation (10 yr at 30-day step) for a web viewer.
+    antikythera-spectral animate --from-jd 1684500 --to-jd 1688150 \\
+                          --step-days 30 --format json -o animation.json
+
+References
+----------
+
+- Bridge API contract: docs/bridge_api.md
+- Hypothesis battery: notebook §11 (../antikythera_spectral_research_notebook.md)
+- Plan + ADRs: docs/adr/
+"""
+
+
 def _make_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="antikythera-spectral",
@@ -224,6 +270,7 @@ def _make_parser() -> argparse.ArgumentParser:
             "and compare ephemeris kernels / Greek planetary models / "
             "reconstructions side-by-side."
         ),
+        epilog=_TOPLEVEL_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--version", action="version",
@@ -281,29 +328,29 @@ def _make_parser() -> argparse.ArgumentParser:
 
     # astronomy
     v = sub.add_parser("visibility", help="Heliacal-visibility windows")
-    v.add_argument("--planet", required=True)
+    v.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     v.add_argument("--from-jd", dest="from_jd", type=float, required=True)
     v.add_argument("--to-jd", dest="to_jd", type=float, required=True)
-    v.add_argument("--kernel", default="de421")
+    v.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     v.set_defaults(func=_cmd_visibility)
 
     h = sub.add_parser("heliacal", help="Next heliacal rising of a planet")
-    h.add_argument("--planet", required=True)
+    h.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     h.add_argument("--jd", type=float, required=True)
-    h.add_argument("--kernel", default="de421")
+    h.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     h.set_defaults(func=_cmd_heliacal)
 
     el = sub.add_parser("elongation", help="Solar elongation at a JD")
-    el.add_argument("--planet", required=True)
+    el.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     el.add_argument("--jd", type=float, required=True)
-    el.add_argument("--kernel", default="de421")
+    el.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     el.set_defaults(func=_cmd_elongation)
 
     es = sub.add_parser("eclipses", help="Eclipse search over a JD band")
     es.add_argument("--from-jd", dest="from_jd", type=float, required=True)
     es.add_argument("--to-jd", dest="to_jd", type=float, required=True)
     es.add_argument("--kind", choices=["lunar", "solar", "all"], default="all")
-    es.add_argument("--kernel", default="de421")
+    es.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     es.set_defaults(func=_cmd_eclipses_search)
 
     ea = sub.add_parser("eclipse-anchors",
@@ -323,18 +370,19 @@ def _make_parser() -> argparse.ArgumentParser:
     cmp_sub = cmp.add_subparsers(dest="compare_cmd", required=True)
     ce = cmp_sub.add_parser("ephemerides")
     ce.add_argument("--jd", type=float, required=True)
-    ce.add_argument("--body", required=True)
-    ce.add_argument("--kernel-a", required=True)
-    ce.add_argument("--kernel-b", required=True)
+    ce.add_argument("--body", required=True, choices=_BODY_CHOICES)
+    ce.add_argument("--kernel-a", required=True, choices=_KERNEL_CHOICES)
+    ce.add_argument("--kernel-b", required=True, choices=_KERNEL_CHOICES)
     ce.set_defaults(func=_cmd_compare_ephemerides)
     cm = cmp_sub.add_parser("models")
     cm.add_argument("--jd", type=float, required=True)
-    cm.add_argument("--body", required=True)
+    cm.add_argument("--body", required=True, choices=["mars"],
+                    help="v0.1.0 supports 'mars' only")
     cm.add_argument("--model-a", required=True,
                     choices=["uniform", "epicycle", "equant"])
     cm.add_argument("--model-b", required=True,
                     choices=["uniform", "epicycle", "equant"])
-    cm.add_argument("--kernel", default="de421")
+    cm.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
     cm.set_defaults(func=_cmd_compare_models)
     cr = cmp_sub.add_parser("reconstructions")
     cr.add_argument("--jd", type=float, required=True)
@@ -354,7 +402,7 @@ def _make_parser() -> argparse.ArgumentParser:
     fr = sub.add_parser("fragment", help="Archaeological gear inventory")
     fr_sub = fr.add_subparsers(dest="frag_cmd", required=True)
     fi = fr_sub.add_parser("inventory")
-    fi.add_argument("--id", default="all",
+    fi.add_argument("--id", default="all", choices=_FRAGMENT_CHOICES,
                     help="Fragment letter (A/B/C/D/reconstructed) or 'all'")
     fi.set_defaults(func=_cmd_fragment)
 
@@ -362,12 +410,12 @@ def _make_parser() -> argparse.ArgumentParser:
     gy = sub.add_parser("goalyear", help="Babylonian Goal-Year overlay")
     gy_sub = gy.add_subparsers(dest="gy_cmd", required=True)
     gp = gy_sub.add_parser("predict")
-    gp.add_argument("--planet", required=True)
+    gp.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     gp.add_argument("--jd", type=float, required=True)
     gp.add_argument("--source", choices=["mulapin", "almagest"], default="mulapin")
     gp.set_defaults(func=_cmd_goalyear_predict)
     gc = gy_sub.add_parser("compare")
-    gc.add_argument("--planet", required=True)
+    gc.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     gc.add_argument("--jd", type=float, required=True)
     gc.set_defaults(func=_cmd_goalyear_compare)
 
