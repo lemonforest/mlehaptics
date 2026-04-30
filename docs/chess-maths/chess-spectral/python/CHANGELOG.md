@@ -9,7 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — v1.6 phase 6 prep
 
-- **`chess_spectral.qm_2d`** — Track A kinematic QM front-end for the
+- **QM-expectation evaluator** at both 2D and 4D (v1.6 PR-4). Third
+  and final §16.1 evaluator family. Computes
+  `score = Σ_p α_p · ⟨ψ|(I_n ⊗ H_p)|ψ⟩` where ψ is the QM lift of
+  the encoder output (qm_2d / qm_4d), `H_p` is the per-channel
+  Hermitian piece-reach observable for piece p (rook / bishop /
+  queen / king / knight; pawns deferred per qm_4d ADR-005). The
+  lifted operator is computed channel-by-channel for memory
+  efficiency (no 640×640 / 45 056×45 056 materialization).
+
+  Public API (mirrored 2D + 4D, identical to spectral evaluator
+  contract):
+  - `chess_spectral.engine.eval.qm.evaluate(position, side_to_move,
+    *, weights=None) -> float`
+  - `evaluate_breakdown(...)` — per-piece contributions for the
+    §17.2 `evaluatePosition.breakdown` HUD field.
+  - `observable_expectations(psi) -> dict[piece_name, float]` — raw
+    `⟨ψ|(I⊗H_p)|ψ⟩` per piece.
+  - `load_weights_json(path)` — same validation discipline as the
+    spectral evaluator: typo'd piece names raise `ValueError`.
+  - `DEFAULT_WEIGHTS` / `PIECE_NAMES` (2D); `DEFAULT_WEIGHTS_4D` /
+    `PIECE_NAMES_4D` (4D). Default weight = 1.0 per piece;
+    intentionally unbiased per §16's empirical-tournament-as-truth
+    discipline.
+
+  All three §16.1 evaluator families now ship with the same API
+  contract (`evaluate(position, side_to_move) -> float`,
+  side-to-move-flipped, deterministic). The §16 self-play
+  tournament harness (PR-7) can iterate over all three uniformly.
+
+  **§16.7 framing:** the QM-expectation form `⟨ψ|O|ψ⟩` is
+  *structurally different* from the spectral evaluator's linear
+  channel-energy sum. Whether QM faces the same depth-decay the
+  Othello prior documented for spectral weighting is genuinely open
+  per §16.7's design notes — that's the load-bearing empirical
+  question §16's tournament harness will answer.
+
+  Test surface: 30 unit tests in `tests/test_engine_qm.py` covering
+  observable-expectation API (real-valued, shape-checked, zero-psi
+  graceful), evaluator core (empty / non-empty / side-to-move
+  flip / weights), JSON round-trip + validation, breakdown
+  consistency (sum = evaluate, sign-flip), 4D anti-podal-kings
+  graceful zero (encoder-kernel handling), API surface, and
+  cross-evaluator-family signature consistency.
+
+- **Spectral channel-energy evaluator** at both 2D and 4D (v1.6 PR-3).
   2D 640-dim encoder. Sibling of `chess_spectral.qm_4d` (4D, 45 056-
   dim, shipped in v1.5.0). Closes the asymmetry surfaced during v1.6
   Phase 6 planning: the §16 plan calls for a QM-expectation evaluator
