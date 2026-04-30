@@ -648,6 +648,199 @@ def jd_to_olympiad(jd_tdb: float) -> Dict[str, Any]:
     return {"ok": True, **_dates.jd_to_olympiad(float(jd_tdb))}
 
 
+# ──────────────────────────────────────────────────────────────────────
+# §5.4 — Astronomical observables (6 methods, phase 5)
+# ──────────────────────────────────────────────────────────────────────
+
+from antikythera_spectral import (  # noqa: E402
+    eclipses as _eclipses,
+    eclipses_search as _eclipses_search,
+    periods as _periods,
+    visibility as _visibility,
+)
+
+
+def _validate_planet(planet: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(planet, str):
+        return _err(f"planet must be a string, got {type(planet).__name__}")
+    if planet.lower() not in _visibility.SUPPORTED_PLANETS:
+        return _err(
+            f"unknown planet {planet!r}; "
+            f"valid: {list(_visibility.SUPPORTED_PLANETS)}"
+        )
+    return None
+
+
+def get_visibility_windows(jd_lo: float, jd_hi: float, planet: str,
+                            kernel: str = "de421") -> Dict[str, Any]:
+    """Heliacal-visibility windows for a planet over a JD range.
+
+    Returns ``{"ok": True, "windows": [{"rise_jd": float, "set_jd": float,
+    "duration_days": float}, ...]}`` or ``{"ok": False, "error": "..."}``.
+
+    Returns ``ok=False`` if no ephemeris kernel is available (instead of
+    raising), so callers can fall back to UNDETERMINED.
+    """
+    err = _validate_jd(jd_lo) or _validate_jd(jd_hi) or _validate_planet(planet)
+    if err:
+        return err
+    if jd_hi <= jd_lo:
+        return _err("jd_hi must be greater than jd_lo")
+    if kernel not in ("de421", "de422", "de440", "de441", "de441_part1", "de441_part2"):
+        return _err(f"unsupported kernel {kernel!r}")
+
+    windows = _visibility.get_visibility_windows(jd_lo, jd_hi, planet, kernel)
+    if windows is None:
+        return _err(
+            f"ephemeris kernel {kernel!r} not available; "
+            "install skyfield + run `antikythera-spectral kernel download "
+            f"{kernel}` to enable."
+        )
+    return {
+        "ok": True,
+        "planet": planet.lower(),
+        "kernel": kernel,
+        "n_windows": len(windows),
+        "windows": [
+            {
+                "rise_jd": float(rise),
+                "set_jd": float(set_),
+                "duration_days": float(set_ - rise),
+            }
+            for rise, set_ in windows
+        ],
+    }
+
+
+def get_next_heliacal_rising(jd_tdb: float, planet: str,
+                              kernel: str = "de421") -> Dict[str, Any]:
+    """Next JD when `planet` emerges from solar glare after `jd_tdb`."""
+    err = _validate_jd(jd_tdb) or _validate_planet(planet)
+    if err:
+        return err
+    rise = _visibility.get_next_heliacal_rising(jd_tdb, planet, kernel)
+    if rise is None:
+        return _err(
+            "no heliacal rising found within search window or "
+            "kernel unavailable"
+        )
+    return {
+        "ok": True,
+        "planet": planet.lower(),
+        "kernel": kernel,
+        "jd_after": float(jd_tdb),
+        "heliacal_rising_jd": float(rise),
+        "delay_days": float(rise - jd_tdb),
+    }
+
+
+def get_solar_elongation(jd_tdb: float, planet: str,
+                          kernel: str = "de421") -> Dict[str, Any]:
+    """Solar elongation (degrees) for `planet` at `jd_tdb`."""
+    err = _validate_jd(jd_tdb) or _validate_planet(planet)
+    if err:
+        return err
+    elong = _visibility.get_solar_elongation_deg(jd_tdb, planet, kernel)
+    if elong is None:
+        return _err(f"kernel {kernel!r} not available")
+    return {
+        "ok": True,
+        "planet": planet.lower(),
+        "kernel": kernel,
+        "jd_tdb": float(jd_tdb),
+        "elongation_deg": float(elong),
+    }
+
+
+def get_eclipse_anchors(era: str = "hellenistic") -> Dict[str, Any]:
+    """Frozen Hellenistic / modern Saros anchor list with citations."""
+    if era not in ("hellenistic", "modern", "all"):
+        return _err(
+            f"era must be one of 'hellenistic', 'modern', 'all'; got {era!r}"
+        )
+    if era == "hellenistic":
+        anchors = list(_eclipses.HELLENISTIC_ANCHORS)
+    elif era == "modern":
+        anchors = list(_eclipses.MODERN_SAROS_ANCHORS)
+    else:
+        anchors = list(_eclipses.HELLENISTIC_ANCHORS) + list(_eclipses.MODERN_SAROS_ANCHORS)
+    return {
+        "ok": True,
+        "era": era,
+        "n_anchors": len(anchors),
+        "anchors": [
+            {
+                "jd": float(a.jd),
+                "date_iso": str(a.date_iso),
+                "eclipse_type": str(a.eclipse_type),
+                "almagest_ref": str(a.almagest_ref) if hasattr(a, "almagest_ref") else "",
+                "espenak_id": str(a.espenak_id) if hasattr(a, "espenak_id") else "",
+                "location": str(a.location) if hasattr(a, "location") else "",
+                "interpretation_confidence": str(getattr(a, "interpretation_confidence", "")),
+                "note": str(getattr(a, "note", "")),
+            }
+            for a in anchors
+        ],
+    }
+
+
+def get_period_relations(source: str = "almagest") -> Dict[str, Any]:
+    """Frozen MUL.APIN / Almagest period relations."""
+    if source not in ("mulapin", "almagest", "all"):
+        return _err(
+            f"source must be one of 'mulapin', 'almagest', 'all'; got {source!r}"
+        )
+    relations = _periods.periods_by_source(source)
+    return {
+        "ok": True,
+        "source": source,
+        "n_relations": len(relations),
+        "relations": [
+            {
+                "source": str(r.source),
+                "phenomenon": str(r.phenomenon),
+                "numerator": int(r.numerator),
+                "denominator": int(r.denominator),
+                "unit_num": str(r.unit_num) if hasattr(r, "unit_num") else "",
+                "unit_den": str(r.unit_den) if hasattr(r, "unit_den") else "",
+                "citation": str(r.citation),
+                "interpretation_confidence": str(r.interpretation_confidence),
+                "provenance_note": str(getattr(r, "provenance_note", "")),
+            }
+            for r in relations
+        ],
+    }
+
+
+def find_eclipses(jd_lo: float, jd_hi: float, *,
+                   kind: str = "all",
+                   kernel: str = "de421") -> Dict[str, Any]:
+    """Enumerate eclipses in [jd_lo, jd_hi] via sky-driven scan."""
+    err = _validate_jd(jd_lo) or _validate_jd(jd_hi)
+    if err:
+        return err
+    if jd_hi <= jd_lo:
+        return _err("jd_hi must be greater than jd_lo")
+    if kind not in ("lunar", "solar", "all"):
+        return _err(f"kind must be one of 'lunar', 'solar', 'all'; got {kind!r}")
+
+    eclipses = _eclipses_search.find_eclipses_in_range(jd_lo, jd_hi, kind, kernel)
+    if eclipses is None:
+        return _err(
+            f"ephemeris kernel {kernel!r} not available, "
+            "or sky_driven_validation does not expose find_syzygies."
+        )
+    return {
+        "ok": True,
+        "jd_lo": float(jd_lo),
+        "jd_hi": float(jd_hi),
+        "kind": kind,
+        "kernel": kernel,
+        "n_eclipses": len(eclipses),
+        "eclipses": eclipses,
+    }
+
+
 __all__ = [
     # §5.1 + §5.2 (phase 3)
     "decode_dial",
@@ -663,4 +856,11 @@ __all__ = [
     "jd_to_julian_calendar",
     "jd_to_athenian",
     "jd_to_olympiad",
+    # §5.4 (phase 5)
+    "get_visibility_windows",
+    "get_next_heliacal_rising",
+    "get_solar_elongation",
+    "get_eclipse_anchors",
+    "get_period_relations",
+    "find_eclipses",
 ]
