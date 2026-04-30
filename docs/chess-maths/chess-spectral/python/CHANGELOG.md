@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 2 PR-3: v5 C-side per-channel (mode 1) full-file I/O
+
+- **`cs_v5_write_per_channel_{2d,4d}_file(fp, dense_encodings,
+  n_plies)`** — write a v5 mode-1 file from a contiguous buffer of
+  dense-equivalent frames. The writer emits frame 0 as a FULL block
+  (all `CS_V5_N_CHANNELS_{2D=10,4D=11}` channels written) and then for
+  each subsequent frame compares each channel byte-exact against the
+  previous dense frame and emits only the channels that differ. The
+  move-metadata tail is appended verbatim after each body.
+
+- **`cs_v5_read_per_channel_{2d,4d}_file(fp, hdr_out, dense_buf,
+  max_plies, n_plies_out)`** — read counterpart. Reconstructs each
+  frame's full dense layout from per-channel deltas (seeded by FULL
+  block, then iteratively patched). Validates body geometry: returns
+  `-9` on a malformed body (bad channel idx, body-size mismatch, or a
+  non-leading delta frame missing prev state); `-8` on header
+  mode/dimension mismatch; `-7` on truncation.
+
+  New constants in `cs_frame_v5.h`: `CS_V5_PC_FLAG_FULL=0x01`,
+  `CS_V5_N_CHANNELS_{2D=10,4D=11}`, `CS_V5_CHANNEL_DIM_{2D=64,4D=4096}`,
+  `CS_V5_PC_HEADER_SIZE=6`, `CS_V5_PC_BLOCK_PREFIX=2`,
+  `CS_V5_MOVE_TAIL_{2D=8,4D=14}`.
+
+  6 new C-side test cases (33 new assertions, total 85) covering:
+  4-frame 2D progressive single-channel deltas (full + 3 deltas),
+  3-frame zero-delta (frames 1 & 2 emit 0 channels), 2-frame
+  all-channels-changed, single 4D frame round-trip, mode-mismatch
+  reject (mode-1 reader on a mode-0 file → -8), and 4-write/2-read
+  truncation.
+
+  XOR-stream (mode 2) reader/writer ships in subsequent v1.6.x Track 2
+  PR-4; `--encoding={xor,channel,full}` CLI flag lands in the final
+  Track 2 PR.
+
 ### Fixed — naming: "chess2d-OC" was a misnaming
 
 - "chess4d-OC" is short for "chess4d-oana-chiru" — it's a specific

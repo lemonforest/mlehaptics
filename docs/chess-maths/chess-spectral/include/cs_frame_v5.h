@@ -50,6 +50,26 @@ extern "C" {
 #define CS_V5_ENCODING_DIM_4D     45056u
 #define CS_V5_FRAME_BYTES_2D      (CS_V5_ENCODING_DIM_2D * 4u + 8u)   /* 2568 */
 #define CS_V5_FRAME_BYTES_4D      (CS_V5_ENCODING_DIM_4D * 4u + 14u)  /* 180238 */
+#define CS_V5_MOVE_TAIL_2D        8u    /* ply(u32) + 4*u8 (from/to/promo/flags) */
+#define CS_V5_MOVE_TAIL_4D        14u   /* ply(u32) + 8*u8 + promo(u8) + flags(u8) */
+
+/* Per-dimension channel layout for mode 1 (per-channel replacement).
+ * Mirrors qm_2d._H_CHANNELS / encoder_4d._CHANNEL_NAMES. */
+#define CS_V5_N_CHANNELS_2D       10u
+#define CS_V5_N_CHANNELS_4D       11u
+#define CS_V5_CHANNEL_DIM_2D      (CS_V5_ENCODING_DIM_2D / CS_V5_N_CHANNELS_2D)   /* 64 */
+#define CS_V5_CHANNEL_DIM_4D      (CS_V5_ENCODING_DIM_4D / CS_V5_N_CHANNELS_4D)   /* 4096 */
+
+/* Per-channel frame body (mode 1) layout:
+ *   u32 body_size              // bytes following the body_size field itself
+ *   u8  flags                  // bit 0 = CS_V5_PC_FLAG_FULL (independent frame)
+ *   u8  n_channels_present     // 0..N_channels
+ *   [u8 channel_idx, u8 reserved, float32 buffer[channel_dim]] * n_present
+ *   <move-metadata tail>       // 8 B (2D) or 14 B (4D); same as mode 0
+ */
+#define CS_V5_PC_FLAG_FULL        0x01u
+#define CS_V5_PC_HEADER_SIZE      6u   /* u32 body_size + u8 flags + u8 n_chan */
+#define CS_V5_PC_BLOCK_PREFIX     2u   /* u8 channel_idx + u8 reserved */
 
 /* The v5 header lives in 256 bytes total. The first 33 bytes carry
  * the actual fields; the remaining 223 are reserved padding. We use
@@ -157,6 +177,59 @@ int cs_v5_read_dense_4d_file(FILE *fp,
                              void *frame_buf,
                              uint32_t max_plies,
                              uint32_t *n_plies_out);
+
+
+/* ----- Per-channel mode (mode 1) full-file I/O ---------------- */
+
+/* Write a complete v5 per-channel (mode 1) 2D file: header + n_plies *
+ * variable-length bodies. The caller passes a contiguous buffer of
+ * dense-equivalent 2D frames (CS_V5_FRAME_BYTES_2D each = 2568 bytes:
+ * float32 encoding[640] + 8-byte move tail), the same layout used by
+ * cs_v5_write_dense_2d_file. The writer:
+ *   - emits frame 0 as a FULL block (flags & PC_FLAG_FULL = 1, all
+ *     CS_V5_N_CHANNELS_2D channels written)
+ *   - for frames 1..n-1, compares against the previous dense frame
+ *     channel-by-channel (bit-exact float32 via uint32 view) and emits
+ *     only the channels that differ
+ *   - appends the 8-byte move-metadata tail after each body's
+ *     channels block
+ *
+ * Returns 0 on success or -7 on I/O error. */
+int cs_v5_write_per_channel_2d_file(FILE *fp,
+                                     const void *dense_encodings,
+                                     uint32_t n_plies);
+
+/* Write a complete v5 per-channel (mode 1) 4D file. Same shape as
+ * cs_v5_write_per_channel_2d_file but with 4D layout:
+ * CS_V5_N_CHANNELS_4D=11 channels, CS_V5_CHANNEL_DIM_4D=4096 dim each,
+ * CS_V5_FRAME_BYTES_4D=180238 input frame size, 14-byte move tail. */
+int cs_v5_write_per_channel_4d_file(FILE *fp,
+                                     const void *dense_encodings,
+                                     uint32_t n_plies);
+
+/* Read a complete v5 per-channel (mode 1) 2D file. Reconstructs each
+ * frame's full dense encoding from per-channel deltas and writes the
+ * dense frame body (encoding + move tail = 2568 bytes) into
+ * dense_encodings_buf. Same usage pattern as cs_v5_read_dense_2d_file
+ * but consuming a mode-1 file.
+ *
+ * Returns 0 on success; -8 if file isn't 2D mode-1; -7 on truncation;
+ * -9 on malformed body (bad channel index, body_size mismatch, or a
+ * non-leading delta frame missing prev_encoding state). */
+int cs_v5_read_per_channel_2d_file(FILE *fp,
+                                    cs_v5_header_t *hdr_out,
+                                    void *dense_encodings_buf,
+                                    uint32_t max_plies,
+                                    uint32_t *n_plies_out);
+
+/* Read a complete v5 per-channel (mode 1) 4D file. Same shape as
+ * cs_v5_read_per_channel_2d_file but with 4D layout. dense_encodings_buf
+ * must be at least max_plies * CS_V5_FRAME_BYTES_4D bytes. */
+int cs_v5_read_per_channel_4d_file(FILE *fp,
+                                    cs_v5_header_t *hdr_out,
+                                    void *dense_encodings_buf,
+                                    uint32_t max_plies,
+                                    uint32_t *n_plies_out);
 
 #ifdef __cplusplus
 }

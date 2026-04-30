@@ -417,6 +417,250 @@ static void test_dense_2d_reader_rejects_4d_file(void) {
 }
 
 
+/* ---- Per-channel (mode 1) full-file I/O round-trips ------------- *
+ *
+ * We synthesize "dense-equivalent" inputs in the 2568-byte 2D layout:
+ *   bytes 0..2559 = float32 encoding[640]  (10 channels × 64 dim)
+ *   bytes 2560..2567 = move tail (ply u32 + 4 u8)
+ * The writer computes per-channel deltas and emits the variable-size
+ * mode-1 body; the reader reconstructs the dense layout and we check
+ * byte-for-byte equality. */
+
+static void _set_channel(uint8_t *frame, uint32_t channel_idx, uint8_t value) {
+    /* Set all 64 floats (256 bytes) of one channel in a 2D dense
+     * frame to the same byte pattern. Channel layout: channel i
+     * occupies bytes [i*256 .. (i+1)*256). */
+    memset(frame + channel_idx * 256u, value, 256u);
+}
+
+static void _set_2d_move_tail(uint8_t *frame, uint32_t ply,
+                               uint8_t mfrom, uint8_t mto,
+                               uint8_t mpromo, uint8_t mflags) {
+    uint8_t *t = frame + (size_t)CS_V5_ENCODING_DIM_2D * 4u;
+    t[0] = (uint8_t)(ply & 0xFFu);
+    t[1] = (uint8_t)((ply >> 8) & 0xFFu);
+    t[2] = (uint8_t)((ply >> 16) & 0xFFu);
+    t[3] = (uint8_t)((ply >> 24) & 0xFFu);
+    t[4] = mfrom; t[5] = mto; t[6] = mpromo; t[7] = mflags;
+}
+
+static void test_pc_2d_round_trip_progressive_deltas(void) {
+    /* 4 frames: frame 0 has channel 0 = 0xAA, all others 0. Then each
+     * subsequent frame mutates one additional channel. The reader must
+     * reconstruct each frame to its full dense form. */
+    const uint32_t N = 4u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    uint8_t *src = (uint8_t *)calloc(total, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    /* Build the source frames. */
+    for (uint32_t k = 0; k < N; ++k) {
+        uint8_t *f = src + (size_t)k * fs;
+        /* Carry forward all previously-set channels by mutating: each
+         * frame inherits all channel values from the previous frame
+         * (since calloc'd, frame 0 starts at zero everywhere). */
+        if (k > 0) memcpy(f, src + (size_t)(k - 1) * fs, fs);
+        _set_channel(f, k, (uint8_t)(0xA0u + k));
+        _set_2d_move_tail(f, /*ply=*/k, (uint8_t)k, (uint8_t)(k + 1), 0u, 0u);
+    }
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_per_channel_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "pc write 2D rc");
+
+    rewind(fp);
+    uint8_t *dst = (uint8_t *)calloc(total, 1);
+    if (!dst) { g_assertions++; g_fails++; free(src); fclose(fp); return; }
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_per_channel_2d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "pc read 2D rc");
+    ASSERT_EQ_U32(got_n, N, "pc 2D n_plies_out");
+    ASSERT_EQ_INT(hdr.encoding_mode, CS_V5_MODE_PER_CHANNEL, "pc 2D mode");
+    ASSERT_EQ_U32(hdr.n_dimensions, 2u, "pc 2D n_dimensions");
+
+    g_assertions++;
+    if (memcmp(src, dst, total) != 0) {
+        fprintf(stderr, "  FAIL pc 2D frame bytes mismatch\n");
+        g_fails++;
+    }
+
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_pc_2d_zero_delta_frames(void) {
+    /* 3 frames, all identical encoding. Frame 0 is FULL; frames 1+2
+     * should encode 0 channels. Round-trip must reconstruct all frames
+     * byte-exact. */
+    const uint32_t N = 3u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    uint8_t *src = (uint8_t *)calloc(total, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    for (uint32_t k = 0; k < N; ++k) {
+        uint8_t *f = src + (size_t)k * fs;
+        for (uint32_t c = 0; c < CS_V5_N_CHANNELS_2D; ++c) {
+            _set_channel(f, c, (uint8_t)(0x10u + c));
+        }
+        /* Move tails differ — those don't participate in delta logic. */
+        _set_2d_move_tail(f, k, (uint8_t)k, (uint8_t)(k + 16u), 0u, 0u);
+    }
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_per_channel_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "pc zero-delta write rc");
+
+    rewind(fp);
+    uint8_t *dst = (uint8_t *)calloc(total, 1);
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_per_channel_2d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "pc zero-delta read rc");
+    ASSERT_EQ_U32(got_n, N, "pc zero-delta n_plies");
+    g_assertions++;
+    if (memcmp(src, dst, total) != 0) {
+        fprintf(stderr, "  FAIL pc zero-delta bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_pc_2d_all_channels_change(void) {
+    /* 2 frames, every channel changed in frame 1. n_present should be
+     * CS_V5_N_CHANNELS_2D for both frames (frame 0 = FULL, frame 1 =
+     * full delta). Round-trip must still be byte-exact. */
+    const uint32_t N = 2u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total = fs * (size_t)N;
+    uint8_t *src = (uint8_t *)calloc(total, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    /* Frame 0 = all 0xAA. Frame 1 = all 0xBB. */
+    memset(src, 0xAA, fs - 8u);
+    _set_2d_move_tail(src, 0u, 0u, 0u, 0u, 0u);
+    memset(src + fs, 0xBB, fs - 8u);
+    _set_2d_move_tail(src + fs, 1u, 1u, 1u, 0u, 0u);
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_per_channel_2d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "pc all-change write rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)calloc(total, 1);
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_per_channel_2d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "pc all-change read rc");
+    ASSERT_EQ_U32(got_n, N, "pc all-change n_plies");
+    g_assertions++;
+    if (memcmp(src, dst, total) != 0) {
+        fprintf(stderr, "  FAIL pc all-change bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_pc_4d_single_frame(void) {
+    /* 1 frame for 4D: full block with 11 channels × 4096 dim float32 +
+     * 14-byte move tail. Just check the round-trip works at 4D
+     * dimensions. */
+    const uint32_t N = 1u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_4D;
+    uint8_t *src = (uint8_t *)malloc(fs);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+    /* Distinct deterministic pattern in each byte. */
+    for (size_t i = 0; i < fs; ++i) src[i] = (uint8_t)((i * 19u + 3u) & 0xFFu);
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_per_channel_4d_file(fp, src, N);
+    ASSERT_EQ_INT(rc, 0, "pc 4D write rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)malloc(fs);
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_per_channel_4d_file(fp, &hdr, dst, N, &got_n);
+    ASSERT_EQ_INT(rc, 0, "pc 4D read rc");
+    ASSERT_EQ_U32(got_n, N, "pc 4D n_plies");
+    ASSERT_EQ_U32(hdr.encoding_dim, CS_V5_ENCODING_DIM_4D, "pc 4D encoding_dim");
+    ASSERT_EQ_U32(hdr.n_dimensions, 4u, "pc 4D n_dimensions");
+    ASSERT_EQ_INT(hdr.encoding_mode, CS_V5_MODE_PER_CHANNEL, "pc 4D mode");
+    g_assertions++;
+    if (memcmp(src, dst, fs) != 0) {
+        fprintf(stderr, "  FAIL pc 4D bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+static void test_pc_2d_reader_rejects_dense_file(void) {
+    /* A mode-0 (dense) 2D file should be rejected by the mode-1
+     * reader with -8 (mode mismatch). */
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; return; }
+    int rc = cs_v5_write_dense_2d_file(fp, NULL, 0u);
+    ASSERT_EQ_INT(rc, 0, "write dense-empty rc");
+    rewind(fp);
+
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_per_channel_2d_file(fp, &hdr, NULL, 0u, &got_n);
+    ASSERT_EQ_INT(rc, -8, "pc 2D reader rejects dense");
+    fclose(fp);
+}
+
+static void test_pc_2d_truncates_to_max_plies(void) {
+    /* Write 4 plies with progressive single-channel deltas; read with
+     * max_plies=2. The reader must reconstruct frames 0..1 correctly
+     * (and stop, leaving the rest of the stream unconsumed). */
+    const uint32_t N_WRITE = 4u, N_READ = 2u;
+    const size_t fs = (size_t)CS_V5_FRAME_BYTES_2D;
+    const size_t total_write = fs * (size_t)N_WRITE;
+    const size_t total_read = fs * (size_t)N_READ;
+    uint8_t *src = (uint8_t *)calloc(total_write, 1);
+    g_assertions++;
+    if (!src) { g_fails++; return; }
+
+    for (uint32_t k = 0; k < N_WRITE; ++k) {
+        uint8_t *f = src + (size_t)k * fs;
+        if (k > 0) memcpy(f, src + (size_t)(k - 1) * fs, fs);
+        _set_channel(f, k, (uint8_t)(0x50u + k));
+        _set_2d_move_tail(f, k, (uint8_t)k, (uint8_t)(k + 1), 0u, 0u);
+    }
+
+    FILE *fp = tmpfile();
+    if (!fp) { g_assertions++; g_fails++; free(src); return; }
+    int rc = cs_v5_write_per_channel_2d_file(fp, src, N_WRITE);
+    ASSERT_EQ_INT(rc, 0, "pc trunc write rc");
+    rewind(fp);
+
+    uint8_t *dst = (uint8_t *)calloc(total_read, 1);
+    cs_v5_header_t hdr;
+    uint32_t got_n = 0;
+    rc = cs_v5_read_per_channel_2d_file(fp, &hdr, dst, N_READ, &got_n);
+    ASSERT_EQ_INT(rc, 0, "pc trunc read rc");
+    ASSERT_EQ_U32(got_n, N_READ, "pc trunc got_n");
+    /* hdr.n_plies should still report the full file count (4), not 2. */
+    ASSERT_EQ_U32(hdr.n_plies, N_WRITE, "pc trunc hdr.n_plies");
+    g_assertions++;
+    if (memcmp(src, dst, total_read) != 0) {
+        fprintf(stderr, "  FAIL pc truncated read bytes mismatch\n");
+        g_fails++;
+    }
+    free(src); free(dst); fclose(fp);
+}
+
+
 int test_frame_v5(void) {
     g_fails = 0;
     g_assertions = 0;
@@ -434,6 +678,12 @@ int test_frame_v5(void) {
     test_dense_2d_truncates_to_max_plies();
     test_dense_4d_full_file_round_trip();
     test_dense_2d_reader_rejects_4d_file();
+    test_pc_2d_round_trip_progressive_deltas();
+    test_pc_2d_zero_delta_frames();
+    test_pc_2d_all_channels_change();
+    test_pc_4d_single_frame();
+    test_pc_2d_reader_rejects_dense_file();
+    test_pc_2d_truncates_to_max_plies();
 
     printf("  %d/%d assertions passed\n",
            g_assertions - g_fails, g_assertions);
