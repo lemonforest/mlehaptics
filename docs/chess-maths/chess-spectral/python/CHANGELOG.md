@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — CI matrix discipline
+
+- **15-cell `verify-wheels` matrix is now opt-in at PR time.** The
+  4-cell `build-and-test` job (Linux release, Linux ASAN, macOS
+  release, Windows MSVC) still runs on every PR and remains the
+  authoritative pre-merge gate (it's the one that runs the parity
+  test suite). The 15-cell `verify-wheels` matrix runs only when:
+  - `workflow_dispatch` (manual trigger), OR
+  - the PR carries the `wheel-check` label (apply on release-ship
+    PRs and any change that touches package layout / pyproject /
+    encoder dims / anything plausibly Python-version-fragile).
+  The full matrix still runs on tag push via
+  `chess-spectral-publish.yml`. **Why:** at peak v1.6 merge-train
+  load (~12 PRs in flight), the 15-cell matrix was burning ~150
+  runner-minutes per PR with most failures being transient
+  infrastructure flakes (cibuildwheel timeouts, HTTP 502 from package
+  mirrors) that had nothing to do with the change. Gating saves wall
+  time without weakening the actual ship gate (publish.yml's full
+  matrix on tag push is the load-bearing test for wheel correctness).
+
+### Added — v1.6 wire format unification
+
+- **v5 unified wire format reader/writer (Python, dense mode)** per
+  ADR-001 (v1.6 PR-B). New ``chess_spectral.frame_v5`` module ships the
+  256-byte v5 header that supersedes v2 (.spectralz) and v4
+  (.spectralz4). Header carries explicit ``n_dimensions`` (2 or 4)
+  and ``encoding_mode`` (0=dense, 1=per-channel, 2=XOR-stream); the
+  three-mode dispatch is what makes a single header serve both 2D and
+  4D files at every encoding level.
+
+  Public API:
+  - ``HeaderV5`` dataclass (``pack`` / ``unpack`` / sanity checks)
+  - ``pack_frame_2d_dense`` / ``unpack_frame_2d_dense`` — same body as
+    v2 dense, just carried under v5's header
+  - ``pack_frame_4d_dense`` / ``unpack_frame_4d_dense`` — same body as v4
+  - ``write_v5_dense_2d`` / ``write_v5_dense_4d`` — full file writer
+    in mode 0 (the eventual ``--encoding=full`` flag's effect)
+  - ``peek_version`` — auto-detects v2/v4/v5 by reading 12 bytes
+  - ``open_read_transparent`` — gzip-aware fp opener
+  - ``read_v5_header`` / ``iter_v5_frames_dense`` — streaming reader
+
+  PR-B implements **dense (mode 0) only** and the version-dispatch
+  surface. Modes 1 (per-channel replacement) + 2 (XOR-stream) ship in
+  PR-C / PR-D; the C-side mirror in PR-E; CLI wiring in PR-F.
+
+  Backward compat: legacy v2/v4 readers in ``frame.py`` /
+  ``frame_4d.py`` stay forever; existing files keep working
+  unmodified. v5 writer produces a different header but the dense
+  frame body bytes are identical to v2/v4, so a v5 file decoded as
+  raw frames matches its v2/v4 equivalent byte-for-byte (modulo the
+  header).
+
 ### Added — v1.6 phase 6 prep
 
 - **QM-expectation evaluator** at both 2D and 4D (v1.6 PR-4). Third
