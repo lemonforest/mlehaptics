@@ -27,10 +27,12 @@ The §16.1 evaluator ``qm`` shipped in v1.6 (2D + 4D) and consumes only
 the **kinematic** layer (:mod:`qm_2d` / :mod:`qm_4d`) — it computes
 expectation values of static observables, not move-as-unitary dynamics.
 The dynamics layer is needed by the §17 Pyodide bridge consumers
-(chess4d-OC, the upcoming chess2d-OC), which animate per-channel
-phase rotations across move boundaries. v1.5 shipped the 4D dynamics
-+ bridge; v1.6 shipped 2D kinematics; v1.6.x closes the asymmetry by
-shipping the 2D dynamics + bridge.
+(chess4d-OC for 4D — short for chess4d-oana-chiru, the specific
+ruleset from Oana & Chiru 2026; and the upcoming 2D consumer using
+standard chess rules), which animate per-channel phase rotations
+across move boundaries. v1.5 shipped the 4D dynamics + bridge;
+v1.6 shipped 2D kinematics; v1.6.x closes the asymmetry by shipping
+the 2D dynamics + bridge.
 
 Design references
 -----------------
