@@ -811,31 +811,23 @@ def test_4d_tournament_two_kings():
 # ─── PGN round-trip via pgn_bridge (requires python-chess) ──────────
 
 
-# LTO/IPO segfault tracking: ubuntu-latest + Release preset (which
-# turns on CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE) consistently
-# segfaults `spectral encode --pgn ... -z` on this fixture across
-# 3 retries (see _run_c). The same C binary works on:
+# Historical LTO/IPO segfault: ubuntu-latest + Release preset (which
+# previously turned on CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE)
+# consistently segfaulted `spectral encode --pgn ... -z` on this
+# fixture across 3 retries. The same C binary always passed on:
 #   - ubuntu-latest + ASAN preset (LTO disabled)
 #   - macos-14 + Release preset
 #   - windows-latest + msvc-release preset (no LTO by default)
 #   - all five verify-wheels matrices (cibuildwheel uses non-LTO)
-# So the bug is specific to GCC's IPO pass on Linux, *not* the
-# encoder code itself. We xfail here to keep the merge train moving
-# and track the investigation in v1.6's "LTO follow-up" workstream.
-# When the underlying UB is identified (or LTO is dropped from the
-# release preset in the audit follow-up), remove this xfail.
-_LTO_LINUX_SEGFAULT = pytest.mark.xfail(
-    sys.platform.startswith("linux"),
-    reason="LTO/IPO segfault in spectral encode --pgn -z on ubuntu+release; "
-           "tracked as v1.6 follow-up. ASAN/macOS/Windows builds pass.",
-    strict=False,
-    run=True,
-)
+# Resolution (v1.6.x): IPO/LTO dropped from the release preset to
+# match cibuildwheel — see CMakePresets.json. The xfail decorator
+# was removed once CI confirmed Linux release builds were green
+# again. The audit's F-08 LTO recommendation can come back later
+# behind a CheckIPOSupported gate + a proper isolation of the UB.
 
 
 @_REQUIRES_C
 @_REQUIRES_PYTHON_CHESS
-@_LTO_LINUX_SEGFAULT
 def test_pgn_to_spectralz_real_game(tmp_path):
     """Full PGN→NDJSON→.spectralz pipeline using the C `spectral
     encode --pgn` shortcut (which auto-pipes through pgn_bridge.py).

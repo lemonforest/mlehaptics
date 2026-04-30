@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — drop IPO/LTO from the `release` CMake preset
+
+The `release` configure preset no longer sets
+`CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE`. Resolves the long-standing
+v1.6 follow-up: GCC's IPO pass on Linux consistently segfaulted
+`spectral encode --pgn -z` on real PGN inputs (see the comment block
+above `test_pgn_to_spectralz_real_game` in `tests/test_smoke_e2e.py`
+for the full matrix). The same binary always passed under ASAN,
+macOS Release, MSVC Release, and the cibuildwheel matrix that
+produces the published wheels — none of which enable LTO.
+
+The release preset now matches what cibuildwheel does, so the
+shipped `.whl` artefact is faithfully reproducible from the preset.
+The `xfail(linux)` decorator on `test_pgn_to_spectralz_real_game`
+was removed; the test now runs unconditionally and is expected to
+pass on Linux Release CI.
+
+The audit's F-08 LTO recommendation can come back later behind a
+`CheckIPOSupported` gate + a proper isolation of the underlying UB
+(suspected strict-aliasing in the encode/gzip path; was never
+isolated since the segfault only reproduces on Linux+GCC IPO).
+
 ### Documentation — README: name all three move-rule oracles side by side
 
 - The "What's new in v1.6" section now groups the three in-house
