@@ -7,27 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed — drop IPO/LTO from the `release` CMake preset
+### Changed — drop IPO/LTO from the `release` CMake preset
 
 The `release` configure preset no longer sets
-`CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE`. Resolves the long-standing
-v1.6 follow-up: GCC's IPO pass on Linux consistently segfaulted
-`spectral encode --pgn -z` on real PGN inputs (see the comment block
-above `test_pgn_to_spectralz_real_game` in `tests/test_smoke_e2e.py`
-for the full matrix). The same binary always passed under ASAN,
-macOS Release, MSVC Release, and the cibuildwheel matrix that
-produces the published wheels — none of which enable LTO.
+`CMAKE_INTERPROCEDURAL_OPTIMIZATION=TRUE`. The release preset now
+matches what cibuildwheel does (no LTO), so the shipped `.whl`
+artefact is faithfully reproducible from the preset. The audit's
+F-08 LTO recommendation can come back later behind a
+`CheckIPOSupported` gate.
 
-The release preset now matches what cibuildwheel does, so the
-shipped `.whl` artefact is faithfully reproducible from the preset.
-The `xfail(linux)` decorator on `test_pgn_to_spectralz_real_game`
-was removed; the test now runs unconditionally and is expected to
-pass on Linux Release CI.
-
-The audit's F-08 LTO recommendation can come back later behind a
-`CheckIPOSupported` gate + a proper isolation of the underlying UB
-(suspected strict-aliasing in the encode/gzip path; was never
-isolated since the segfault only reproduces on Linux+GCC IPO).
+**This does NOT fix the Linux segfault.** Initially diagnosed as
+LTO-specific, but CI on this PR confirmed the segfault still
+reproduces on `ubuntu-latest + release` at `-O2` without LTO. The
+bug is a GCC `-O2` (or higher) interaction with the encode-from-PGN
+code path, not LTO-specific. The `xfail(linux)` decorator on
+`test_pgn_to_spectralz_real_game` stays in place; the corresponding
+comment in `tests/test_smoke_e2e.py` now records the correct
+diagnosis and the LTO drop is documented as a separate cleanup.
+Next step (WSL2 + gdb) tracked as the v1.6 follow-up.
 
 ### Documentation — README: name all three move-rule oracles side by side
 
