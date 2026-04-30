@@ -1,0 +1,51 @@
+{
+  "doc": "Per-planet anchors for self-contained algebraic visibility / heliacal-rising mode (precise=False default in v0.2.0). Each planet has one observed heliacal-rising JD (computed once via skyfield + DE421 near J2000) plus a synodic period; algebraic propagation gives any other event as anchor + n*synodic, accurate to within ~1 day at Hellenistic-era epochs (limited by \u0394T, not by approximation error). For sub-arcsec precision, install with [ephemeris] and pass precise=True. ADR 0011 documents the algebraic-default discipline.",
+  "planets": {
+    "jupiter": {
+      "anchor_provenance": "computed via skyfield + DE421 near J2000",
+      "heliacal_rising_anchor_jd": 2451687.7617,
+      "heliacal_threshold_deg": 11.0,
+      "is_inferior": false,
+      "max_solar_elongation_deg": 180.0,
+      "synodic_period_days": 398.884,
+      "visibility_fraction_per_cycle": 0.93
+    },
+    "mars": {
+      "anchor_provenance": "computed via skyfield + DE421 near J2000",
+      "heliacal_rising_anchor_jd": 2451769.8441,
+      "heliacal_threshold_deg": 13.0,
+      "is_inferior": false,
+      "max_solar_elongation_deg": 180.0,
+      "synodic_period_days": 779.9361,
+      "visibility_fraction_per_cycle": 0.95
+    },
+    "mercury": {
+      "anchor_provenance": "computed via skyfield + DE421 near J2000 (linear search forward from JD 2451545.0)",
+      "heliacal_rising_anchor_jd": 2451587.9489,
+      "heliacal_threshold_deg": 18.0,
+      "is_inferior": true,
+      "max_solar_elongation_deg": 27.8,
+      "synodic_period_days": 115.8775,
+      "visibility_fraction_per_cycle": 0.4
+    },
+    "saturn": {
+      "anchor_provenance": "computed via skyfield + DE421 near J2000",
+      "heliacal_rising_anchor_jd": 2451690.7173,
+      "heliacal_threshold_deg": 13.0,
+      "is_inferior": false,
+      "max_solar_elongation_deg": 180.0,
+      "synodic_period_days": 378.0917,
+      "visibility_fraction_per_cycle": 0.93
+    },
+    "venus": {
+      "anchor_provenance": "computed via skyfield + DE421 near J2000",
+      "heliacal_rising_anchor_jd": 2451732.1571,
+      "heliacal_threshold_deg": 7.0,
+      "is_inferior": true,
+      "max_solar_elongation_deg": 47.0,
+      "synodic_period_days": 583.9214,
+      "visibility_fraction_per_cycle": 0.95
+    }
+  },
+  "schema_version": 1
+}

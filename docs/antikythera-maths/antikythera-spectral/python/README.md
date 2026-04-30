@@ -16,16 +16,18 @@ The HDC framing this package implements: every gear is a faithful representation
 pip install antikythera-spectral
 ```
 
-The base install pulls only `numpy` — sufficient for the encoder, decoder, frozen-data accessors, and the H-battery rows that don't need a JPL ephemeris.
+The base install pulls only `numpy` and is **fully self-contained** as of v0.2.0 — every bridge method works out of the box, including visibility windows, heliacal-rising prediction, eclipse search, and solar-elongation queries (using algebraic synodic-cycle propagation; ~±1 day Antikythera-grade precision). No JPL ephemeris kernel required.
 
-Optional extras:
+Optional extras for sub-arcsec-precision validation against modern ephemerides:
 
 ```bash
-pip install "antikythera-spectral[ephemeris]"    # adds skyfield + jplephem
+pip install "antikythera-spectral[ephemeris]"    # adds skyfield + jplephem; pass precise=True
 pip install "antikythera-spectral[hypotheses]"   # adds scipy (for chi-square in H-H1)
 pip install "antikythera-spectral[plot]"         # adds matplotlib
 pip install "antikythera-spectral[all]"          # everything above
 ```
+
+In algebraic mode (the default), the four sky-truth bridge methods accept `precise=False` (the default) and use frozen per-planet anchors + closed-form propagation. With `precise=True` they switch to skyfield + a JPL DE-kernel for sub-arcsec accuracy. See [ADR 0011](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/docs/adr/0011-algebraic-default-precise-opt-in.md) for the discipline.
 
 ### Pyodide / micropip (in-browser)
 

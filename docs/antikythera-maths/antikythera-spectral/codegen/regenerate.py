@@ -50,6 +50,7 @@ import emit_fragment_inventory
 import emit_gears
 import emit_periods
 import emit_research_modules
+import emit_visibility_anchors
 
 
 # Paths whose history determines the manifest's ``source_commit``.
@@ -226,6 +227,9 @@ def main(argv=None) -> int:
 
         _say("emitting fragments ...")
         written["_data/fragments.json"] = emit_fragment_inventory.emit()
+
+        _say("emitting visibility anchors ...")
+        written["_data/visibility_anchors.json"] = emit_visibility_anchors.emit()
 
         # Note: basis-vector NPZ emission was removed in this commit.
         # The package's encoder computes channel bases lazily from

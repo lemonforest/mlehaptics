@@ -20,6 +20,10 @@
       "sha256": "ee4c971f2eac1d91d88547c188e50169d1585067e9c6cc78a11eac7253280b25",
       "size_bytes": 9713
     },
+    "_data/visibility_anchors.json": {
+      "sha256": "b11adae820e3a07b9af1771d6d6adcdc329ea38d9e2192823c88d4090628823c",
+      "size_bytes": 2288
+    },
     "_research/README.md": {
       "sha256": "1573f28baea2378ea3974dcb93e8f843d44ba480478d2c8564b343d2ea399e60",
       "size_bytes": 430
@@ -123,6 +127,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "3d4b5127f896470729162be81d59c83bb54339a8",
-  "version": "0.1.0"
+  "source_commit": "0ddc709bed0858b2911840359ab1ee1363b398a9",
+  "version": "0.2.0"
 }

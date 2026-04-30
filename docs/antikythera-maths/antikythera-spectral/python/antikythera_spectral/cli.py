@@ -108,21 +108,27 @@ def _cmd_date_jd_to_olympiad(args: argparse.Namespace) -> int:
 
 def _cmd_visibility(args: argparse.Namespace) -> int:
     return _emit(bridge.get_visibility_windows(
-        args.from_jd, args.to_jd, args.planet, args.kernel,
+        args.from_jd, args.to_jd, args.planet,
+        precise=args.precise, kernel=args.kernel,
     ))
 
 
 def _cmd_heliacal(args: argparse.Namespace) -> int:
-    return _emit(bridge.get_next_heliacal_rising(args.jd, args.planet, args.kernel))
+    return _emit(bridge.get_next_heliacal_rising(
+        args.jd, args.planet, precise=args.precise, kernel=args.kernel,
+    ))
 
 
 def _cmd_elongation(args: argparse.Namespace) -> int:
-    return _emit(bridge.get_solar_elongation(args.jd, args.planet, args.kernel))
+    return _emit(bridge.get_solar_elongation(
+        args.jd, args.planet, precise=args.precise, kernel=args.kernel,
+    ))
 
 
 def _cmd_eclipses_search(args: argparse.Namespace) -> int:
     return _emit(bridge.find_eclipses(
-        args.from_jd, args.to_jd, kind=args.kind, kernel=args.kernel,
+        args.from_jd, args.to_jd, kind=args.kind,
+        precise=args.precise, kernel=args.kernel,
     ))
 
 
@@ -387,7 +393,11 @@ def _make_parser() -> argparse.ArgumentParser:
     vis.add_argument("--to-jd", dest="to_jd", type=float, required=True,
                      help="Upper bound of the JD range (TDB)")
     vis.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES,
-                     help="JPL DE-kernel to load (default de421)")
+                     help="JPL DE-kernel (only used when --precise)")
+    vis.add_argument("--precise", action="store_true",
+                     help=("Use skyfield + JPL DE-kernel (sub-arcsec; needs "
+                           "[ephemeris] extras). Default uses algebraic "
+                           "synodic-cycle propagation (±1 day, no kernel needed)."))
     vis.set_defaults(func=_cmd_visibility)
 
     h = sub.add_parser(
@@ -398,7 +408,10 @@ def _make_parser() -> argparse.ArgumentParser:
     h.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     h.add_argument("--jd", type=float, required=True,
                    help="Search start JD (TDB)")
-    h.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
+    h.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES,
+                   help="JPL DE-kernel (only used when --precise)")
+    h.add_argument("--precise", action="store_true",
+                   help="Use skyfield (default: closed-form algebraic propagation)")
     h.set_defaults(func=_cmd_heliacal)
 
     el = sub.add_parser(
@@ -408,7 +421,10 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     el.add_argument("--planet", required=True, choices=_PLANET_CHOICES)
     el.add_argument("--jd", type=float, required=True, help="Julian Day in TDB")
-    el.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
+    el.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES,
+                    help="JPL DE-kernel (only used when --precise)")
+    el.add_argument("--precise", action="store_true",
+                    help="Use skyfield (default: sinusoidal phase model, ±5°)")
     el.set_defaults(func=_cmd_elongation)
 
     es = sub.add_parser(
@@ -420,7 +436,11 @@ def _make_parser() -> argparse.ArgumentParser:
     es.add_argument("--to-jd", dest="to_jd", type=float, required=True)
     es.add_argument("--kind", choices=["lunar", "solar", "all"], default="all",
                     help="Eclipse kind filter")
-    es.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
+    es.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES,
+                    help="JPL DE-kernel (only used when --precise)")
+    es.add_argument("--precise", action="store_true",
+                    help=("Use skyfield sky-driven syzygy enumeration. Default uses "
+                          "Saros-cycle propagation from frozen anchors (±1-2 days)."))
     es.set_defaults(func=_cmd_eclipses_search)
 
     ea = sub.add_parser(
