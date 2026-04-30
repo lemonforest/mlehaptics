@@ -27,7 +27,20 @@ What it covers (organized by surface):
       csv (per-ply 11-channel energies).
 
     4D Python CLI (chess_spectral_4d):
-      encode-fen4, encode-moves4, corpus-gen, tables-verify.
+      encode-fen4, encode-moves4, corpus-gen, tables-verify,
+      search, tournament.
+
+    §16 engine CLI (v1.6):
+      2D `spectral_py search` — all 3 evaluators (material/spectral/qm)
+        produce a legal move from the starting position; --fen accepts
+        an arbitrary position.
+      2D `spectral_py tournament` — round-robin between 2 agents;
+        per-side asymmetric specs (white=spectral, black=qm) are
+        independently configured (the §16 ship-gate property).
+      2D `spectral_py sweep` — cross-product (evaluators × depths)
+        round-robin; produces Elo + pair_records JSON.
+      4D `chess_spectral_4d search` / `tournament` — same surface,
+        requires explicit fen4.
 
     2D phase-spatial validator chain (3 layers):
       python-chess (external, well-tested)
@@ -669,6 +682,130 @@ def test_4d_tables_verify_all_phases():
         assert f"tables-verify phase {phase}: PASS" in out, (
             f"phase {phase} did not pass:\n{out}"
         )
+
+
+# ─── §16 engine CLI smoke (search / tournament / sweep) ─────────────
+#
+# v1.6 ships the §16.2 search core and the §16 tournament harness as
+# CLI commands. The immolation suite covers them so a future regression
+# in the agent-spec parser or the round-robin loop fails the gate.
+#
+# These tests use very low depths (1) and very low ply caps (≤ 10) so
+# the suite stays fast: each search runs in < 100 ms; full sub-suite
+# completes in < 5 s on a warm interpreter.
+
+
+def test_2d_search_default_starting_position():
+    """`spectral_py search` from the default starting position with
+    every evaluator family produces a legal move."""
+    for ev in ("material", "spectral", "qm"):
+        rc, out = _run_py(["search", "--agent",
+                            f"evaluator={ev},depth=1", "--json"])
+        assert rc == 0, f"search/{ev} failed:\n{out}"
+        data = json.loads(out)
+        assert data["agent"] == f"{ev}@1"
+        assert data["depth_reached"] == 1
+        assert data["best_move"] is not None, (
+            f"{ev}: starting position should yield a legal move"
+        )
+
+
+def test_2d_search_explicit_fen():
+    """`spectral_py search --fen` accepts an arbitrary FEN."""
+    rc, out = _run_py([
+        "search", "--fen",
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "--agent", "label=test,evaluator=material,depth=1", "--json",
+    ])
+    assert rc == 0, f"search --fen failed:\n{out}"
+    data = json.loads(out)
+    assert data["agent"] == "test"
+
+
+def test_2d_tournament_minimal():
+    """`spectral_py tournament` round-robin with two agents."""
+    rc, out = _run_py([
+        "tournament",
+        "--agent", "label=A,evaluator=material,depth=1",
+        "--agent", "label=B,evaluator=material,depth=2",
+        "--n-games-per-pair", "1",
+        "--max-plies", "10",
+    ])
+    assert rc == 0, f"tournament failed:\n{out}"
+    data = json.loads(out)
+    assert set(data["agents"]) == {"A", "B"}
+    assert "elo" in data
+    assert "pair_records" in data
+    assert len(data["games"]) == 1
+
+
+def test_2d_tournament_per_side_asymmetric_evaluators():
+    """The §16 use case: white=spectral, black=qm in the same
+    single-process tournament loop. Asserts the per-side spec
+    plumbing is wired end-to-end."""
+    rc, out = _run_py([
+        "tournament",
+        "--agent", "label=spec,evaluator=spectral,depth=1",
+        "--agent", "label=qm,evaluator=qm,depth=1",
+        "--n-games-per-pair", "1",
+        "--max-plies", "6",
+    ])
+    assert rc == 0, f"asymmetric tournament failed:\n{out}"
+    data = json.loads(out)
+    g = data["games"][0]
+    assert {g["white"], g["black"]} == {"spec", "qm"}, (
+        "white and black must be configured independently"
+    )
+
+
+def test_2d_sweep_2x2_matrix():
+    """`spectral_py sweep` cross-product (2 evaluators × 2 depths =
+    4 cells, 1 game per pair). Smallest non-trivial sweep."""
+    rc, out = _run_py([
+        "sweep",
+        "--evaluators", "material,spectral",
+        "--depths", "1,2",
+        "--n-games-per-pair", "1",
+        "--max-plies", "6",
+    ])
+    assert rc == 0, f"sweep failed:\n{out}"
+    data = json.loads(out)
+    assert data["n_cells"] == 4   # 2 evaluators × 2 depths
+    assert set(data["elo"].keys()) == {
+        "material@1", "material@2", "spectral@1", "spectral@2"
+    }
+
+
+_TWO_KINGS_FEN4_SMOKE = "4d-fen v1: K@0,0,0,0; k@7,7,7,7"
+
+
+def test_4d_search_two_kings():
+    """4D `search` analogue. Uses two kings on opposite corners so
+    move-gen is trivial (~16 moves total)."""
+    rc, out = _run_py_4d([
+        "search", "--fen4", _TWO_KINGS_FEN4_SMOKE,
+        "--agent", "evaluator=material,depth=1", "--json",
+    ])
+    assert rc == 0, f"4D search failed:\n{out}"
+    data = json.loads(out)
+    assert data["agent"] == "material@1"
+    assert data["depth_reached"] == 1
+
+
+def test_4d_tournament_two_kings():
+    """4D `tournament` analogue: 2 agents, 1 game-per-pair, 4 ply max."""
+    rc, out = _run_py_4d([
+        "tournament",
+        "--start-fen4", _TWO_KINGS_FEN4_SMOKE,
+        "--agent", "label=A,evaluator=material,depth=1",
+        "--agent", "label=B,evaluator=material,depth=1",
+        "--n-games-per-pair", "1",
+        "--max-plies", "4",
+    ])
+    assert rc == 0, f"4D tournament failed:\n{out}"
+    data = json.loads(out)
+    assert data["start_fen4"] == _TWO_KINGS_FEN4_SMOKE
+    assert set(data["agents"]) == {"A", "B"}
 
 
 # ─── PGN round-trip via pgn_bridge (requires python-chess) ──────────
