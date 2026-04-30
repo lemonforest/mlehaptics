@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6 engine CLI surface
+
+- **`search` and `tournament` subcommands** wired into both
+  `chess_spectral.cli` (2D) and `chess_spectral_4d.cli` (4D), driven
+  by a shared **agent-spec parser** in
+  ``chess_spectral.engine.tournament.agent_spec``. The CLI surface
+  is **per-side symmetric**: the same `evaluator=…,depth=…,weights=…,
+  no_tt,…` syntax configures white and black independently, so a
+  tournament round can pit (e.g.) white=spectral@4 against
+  black=qm@3 in the same single-process loop.
+
+  This is what §16's ship gate needs: pit (evaluator, depth) cells
+  against each other, log who beat whom, compute Elo. The
+  `--n-games-per-pair` × N-agent round-robin produces the matrix.
+
+  2D `spectral_py search` example::
+
+      spectral_py search --fen "<FEN>" \
+          --agent 'evaluator=spectral,depth=4,weights=spectral_v1.json'
+
+  2D `spectral_py tournament` example (3-cell mini-sweep)::
+
+      spectral_py tournament \
+          --agent 'label=mat,evaluator=material,depth=2' \
+          --agent 'label=spec,evaluator=spectral,depth=2' \
+          --agent 'label=qm,evaluator=qm,depth=2' \
+          --n-games-per-pair 4 -o sweep_d2.json
+
+  4D analogues (`chess_spectral_4d.cli search` / `tournament`)
+  require an explicit `--fen4` / `--start-fen4` since 4D has no
+  canonical starting position; otherwise the spec syntax is
+  identical.
+
+  Test surface: 36 new tests in
+  ``tests/test_agent_spec.py`` (21 — parser + bind + per-side
+  asymmetric config) and ``tests/test_cli_search_tournament.py`` (15
+  — 2D search variants, 2D tournament round-robin + asymmetric
+  evaluators, 4D analogues, JSON output, file output, error paths).
+
 ### Tracked — to be fixed in v1.6 follow-up
 
 - **LTO/IPO segfault in `spectral encode --pgn -z` on Linux release.**
