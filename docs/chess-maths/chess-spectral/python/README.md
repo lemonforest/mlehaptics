@@ -1,11 +1,17 @@
 # chess_spectral (Python)
 
 Python reference implementations of the **640-dim 2D** and **45 056-dim
-4D** spectral chess encoders, plus the v1.5 **quantum-mechanical
-front-end** (`chess_spectral.qm_4d` + `qm_4d_dynamics` + `qm_4d_bridge`).
+4D** spectral chess encoders, plus the **quantum-mechanical front-end**
+(2D + 4D kinematics; 4D dynamics shipped in v1.5, 2D dynamics in v1.6.x),
+the v1.6 **§16 search + tournament + sweep** engine surface, and the
+**v5 unified wire format** (three encoding modes — dense / per-channel
+replacement / XOR-stream — with empirical 7.23× compression on 4D
+fixtures vs dense gzipped).
+
 Sibling of the C17 port in `../src/`. Use the Python package for REPL /
-LLM / notebook analysis and Pyodide-bridge consumers; use the C
-binaries for batch throughput.
+LLM / notebook analysis, Pyodide-bridge consumers, and the §16
+ship-gate matrix runner; use the C binaries for batch encoding
+throughput.
 
 The pieces ship under two top-level packages:
 
@@ -17,6 +23,61 @@ The pieces ship under two top-level packages:
   `chess_spectral_4d.bridge` module). Splits cleanly from the
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
+
+## What's new in v1.6 (April 2026)
+
+The §16 ship-gate release. Headline pieces:
+
+- **Search core, tournament harness, and sweep ship-gate runner**
+  ship as CLI commands at both 2D and 4D. Per-side symmetric agent
+  specs let white and black be configured independently in the same
+  single-process tournament loop:
+
+  ```bash
+  spectral_py sweep \
+      --evaluators material,spectral,qm \
+      --depths 1,2,3,4 \
+      --n-games-per-pair 10 \
+      --time-budget-ms 5000 \
+      -o sweep.json
+  ```
+
+- **Three §16.1 evaluator families** (`material`, `spectral`, `qm`)
+  ship at both 2D and 4D with a uniform
+  `evaluate(position, side_to_move) -> float` contract — drop in any
+  of them as the search heuristic.
+
+- **In-house 4D bitboard move generator** (`chess_spectral.spatial_4d`)
+  — Bitboard4D primitive, per-piece attack tables (knight, king,
+  rook, bishop, queen via magic-bitboard-style ray casting),
+  axis-typed pawn moves (Pw/Py per Oana-Chiru §3 Def 11), Board4D
+  game state, and draw rules. Validated against
+  `python-chess4d-oana-chiru` as the upstream reference oracle.
+
+- **Graph-Laplacian eigenbasis legality oracle** (2D + 4D) — third
+  independent move-legality checker alongside python-chess[4d] and
+  the modular phase operators. Demonstrates that the same eigenbasis
+  the encoder uses for spectral encoding also functions as a
+  structural lookup table for move legality.
+
+- **v5 unified `.spectral[z]` / `.spectralz4` wire format**
+  (`chess_spectral.frame_v5`) — single 256-byte header serves both
+  2D and 4D via explicit `n_dimensions` field. Three encoding modes
+  selected by `encoding_mode`: dense (= legacy v2/v4 frame body),
+  per-channel replacement (variable-size, ~2.84× compression on 4D
+  stable workloads), and XOR-stream (fixed-size, **7.23× compression
+  on 4D** vs dense gzipped). See
+  [`docs/WIRE_FORMAT.md`](../docs/WIRE_FORMAT.md) for the byte-level
+  spec covering all four shipped versions (v2/v3/v4/v5) and the
+  reader-dispatch convention.
+
+- **CI gate**: the 15-cell `verify-wheels` matrix is now opt-in via
+  the `wheel-check` PR label (was running on every PR; saves ~150
+  runner-min/PR while keeping the publish-time matrix as the
+  load-bearing wheel-correctness gate).
+
+For the full release history see
+[`CHANGELOG.md`](CHANGELOG.md).
 
 Both packages share a single dist version derived from
 `importlib.metadata`; see [Install](#install) below.
