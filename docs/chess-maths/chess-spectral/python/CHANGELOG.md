@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — v1.6.x Track 1 PR-D: apply_move_qm dispatcher (§17.2 #4)
+
+- **`qm_2d_bridge.apply_move_qm(pre_state, post_state, *, from_sq,
+  to_sq, side_to_move_post, return_per_channel)`**. Closes the v1.5
+  `applyMoveQm` analogue at 2D. Hybrid dispatch:
+  - **A_1 channel**: strict-unitary path via
+    `qm_2d_dynamics.u_move_a1_2d` when `from_sq` + `to_sq` are
+    given AND the pre/post positions confirm a non-capture move.
+    Falls back to the measurement-only re-encode otherwise.
+  - **Channels 1..9 (A2/B1/B2/E/F1-3/FA/FD)**: measurement-only
+    re-encode via `qm_2d.state_to_psi(post_state)`. Same v1.5 4D
+    pattern used for FIB_SYM_* channels — known correct,
+    consumer-ready, doesn't require per-channel u_move builders
+    that need design specs we don't have for non-A_1 2D channels.
+
+  Returns a Pyodide-friendly dict with the assembled post-ψ as
+  Float32 interleaved real+imag (matches the §17.1 ComplexArray
+  format), the basis dim (640), and `<psi|psi>` for normalization
+  verification. Optional `return_per_channel=True` exposes the
+  per-channel dispatch (csr_matrix for A_1 strict-path; marker
+  dicts with `reason='measurement-only'` and `psi_post_block` for
+  the others).
+
+  6 new tests in `tests/test_qm_2d_bridge.py`: e2-e4 round-trip
+  (normalization), strict A_1 path vs re-encode fallback, complete
+  per-channel dispatch (10 channels with the right types), null-move
+  guard, chess.Board acceptance.
+
 ### Added — v1.6.x Track 2 PR-2: v5 C-side dense full-file I/O (2D + 4D)
 
 - **`cs_v5_write_dense_{2d,4d}_file(fp, frame_bytes, n_plies)`** —
