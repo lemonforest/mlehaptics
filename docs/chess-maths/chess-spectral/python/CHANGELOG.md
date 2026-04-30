@@ -34,6 +34,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — v1.6 wire format unification
 
+- **v5 per-channel replacement encoding (Python)** per ADR-001 (v1.6
+  PR-C). Mode 1 of three. Each frame stores only the channels that
+  differ from the previous frame; the very first frame emits all
+  channels with a FULL flag (so the reader has a baseline). Wins on
+  workloads where most channels are stable across plies — the v1.6
+  spike measured 4D 2.84× compression vs dense gzipped on a 50-ply
+  knight-tour fixture.
+
+  Public API additions:
+  - ``pack_frame_per_channel`` / ``unpack_frame_per_channel``
+  - ``write_v5_per_channel_2d`` / ``write_v5_per_channel_4d``
+  - ``iter_v5_frames_per_channel`` (streaming reconstructor)
+
+  Frame body layout per ply: u32 body_size + u8 flags + u8
+  n_channels_present + (channel_idx u8 + reserved u8 + channel buffer
+  float32[channel_dim]) × n_channels_present + move-metadata tail
+  (8 B 2D / 14 B 4D, same as mode 0). Channels are reshaped from the
+  encoder's flat output (10×64=640 for 2D; 11×4096=45056 for 4D).
+
+  10 new tests in ``python/tests/test_frame_v5.py``: full-frame and
+  delta-frame round-trips for 2D + 4D; no-change frame emits zero
+  channels; end-to-end write-then-read; sanity that mode 1 produces a
+  smaller file than mode 0 on stable-channel workloads; negative
+  tests on shape mismatch + missing prev for delta unpack.
+
 - **v5 unified wire format reader/writer (Python, dense mode)** per
   ADR-001 (v1.6 PR-B). New ``chess_spectral.frame_v5`` module ships the
   256-byte v5 header that supersedes v2 (.spectralz) and v4
