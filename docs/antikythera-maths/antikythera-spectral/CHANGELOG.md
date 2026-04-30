@@ -5,11 +5,19 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v0.1.0 candidate (on `antikythera-spectral-pypi-plan` branch)
+## [Unreleased]
+
+(no entries yet — added after v0.1.0)
+
+## [0.1.0] — 2026-04-30
+
+First public release on PyPI: <https://pypi.org/project/antikythera-spectral/0.1.0/>.
+
+Verified on TestPyPI as `0.1.0rc1` ([run 25176133737](https://github.com/lemonforest/mlehaptics/actions/runs/25176133737)) before the version-bump promotion. Same wheel content; only the version label differs.
 
 ### Added
 
-- **Package skeleton** — pure-Python wheel via hatchling. `pyproject.toml` v0.1.0rc1, `__init__.py`, `version.py`, `py.typed`. ADR 0001.
+- **Package skeleton** — pure-Python wheel via hatchling. `pyproject.toml`, `__init__.py`, `version.py`, `py.typed`. ADR 0001.
 - **Codegen subtree** mirroring `chess-spectral/codegen/`:
   - `emit_cycles.py`, `emit_gears.py`, `emit_anchors.py`, `emit_periods.py`, `emit_fragment_inventory.py`, `emit_basis_vectors.py`, `emit_research_modules.py`, `regenerate.py`.
   - Outputs: `_data/{cycles,gears,anchors,periods,fragments}.json`, `_data/basis_vectors_d{940,13440}.npz`, `_data/manifest.json` with package version + `git rev-parse HEAD` + per-file SHA-256, `_research/*.py` (23 copied research modules).
@@ -49,9 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Logging redacts paths; `test_codeql_allowlist.py` will grep the source for violations (test scaffolded; greps active in phase 16).
 - What-if input gates `p, q ∈ [1, 500]` and `gcd(p, q) == 1` before enumeration.
 
-### Pending before merge to main
+### Release pipeline (all phases ✅)
 
-- Phase 17: TestPyPI dry-run via `gh workflow run antikythera-spectral-publish.yml --ref antikythera-spectral-pypi-plan -f target=testpypi`.
-- Phase 18: §15.1 acceptance gate green (9 boxes against TestPyPI install of `0.1.0rcN`).
-- Phase 19: bump `python/pyproject.toml` from `0.1.0rc1` to `0.1.0`, commit, request final PR review.
-- Phase 20: merge to main → autotag fires → real PyPI publish.
+- Phase 17 ✅ TestPyPI dry-run — published `0.1.0rc1` to test.pypi.org via [run 25176133737](https://github.com/lemonforest/mlehaptics/actions/runs/25176133737); verified install + import + CLI smoke from a clean Python 3.13 venv.
+- Phase 18 ✅ §15.1 acceptance gate — all 8 verifiable boxes ticked on PR #111.
+- Phase 19 ✅ Version bump `0.1.0rc1` → `0.1.0` (this commit).
+- Phase 20 → main → autotag fires → production PyPI release.

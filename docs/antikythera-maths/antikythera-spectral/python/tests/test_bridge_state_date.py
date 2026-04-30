@@ -26,10 +26,14 @@ from antikythera_spectral.encoder import D_CALLIPPIC, D_PACKING, REFERENCE_JD
 # ──────────────────────────────────────────────────────────────────────
 
 def test_get_version_carries_manifest() -> None:
+    from antikythera_spectral.version import __version__
+
     out = bridge.get_version()
     assert out["ok"] is True
     assert out["package"] == "antikythera-spectral"
-    assert out["version"] == "0.1.0rc1"
+    # Follow __version__ rather than hardcoding — the value travels with
+    # the version bump.
+    assert out["version"] == __version__
     # manifest comes from codegen; must list >= 30 files
     assert len(out["manifest"].get("files", {})) >= 25
 
