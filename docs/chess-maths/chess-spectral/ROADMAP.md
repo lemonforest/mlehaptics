@@ -138,7 +138,10 @@ the release preset.
 
 ## Format references
 
+- [docs/WIRE_FORMAT.md](docs/WIRE_FORMAT.md) — `.spectral[z]` / `.spectralz4` binary container (v2 / v3 / v4 / v5; reader dispatch)
 - [docs/FEN4_FORMAT.md](docs/FEN4_FORMAT.md) — FEN4 v1 placement literal
 - [docs/NDJSON4_FORMAT.md](docs/NDJSON4_FORMAT.md) — NDJSON4 ply-log schema
+- [docs/adr/wire_format/ADR-001-v5-unified-encoding-modes.md](docs/adr/wire_format/ADR-001-v5-unified-encoding-modes.md)
+  — design rationale + phasing for the v5 unified format
 - [chess_spectral_research_notebook.md](../chess_spectral_research_notebook.md)
   — Mathematical foundations + analyze heuristics

@@ -369,7 +369,8 @@ gates this in CI.
       phase_operators/             # 2D §11 phase-space move generator (1.2.0+)
 
       encoder_4d.py                # encode_4d(pos4) → float32(45056,)
-      frame_4d.py                  # v4 .spectralz4 binary I/O
+      frame_4d.py                  # v3/v4 .spectralz4 binary I/O (legacy reader)
+      frame_v5.py                  # v5 unified wire format (2D + 4D, 3 encoding modes; default for new writes from v1.6)
       tables_4d.py                 # B_4 group, lattice tables, eigenmodes
       fen_4d.py                    # FEN4 v1 placement-literal parser + serialize
       phase_operators_4d/          # 4D §13 phase-operator move engine (1.3.0+)
