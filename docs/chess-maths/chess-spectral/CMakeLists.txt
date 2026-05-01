@@ -122,6 +122,29 @@ add_custom_target(codegen_4d
     COMMENT "Regenerate 4D C tables and reference test vectors from Python"
 )
 
+# ─── 1.7.0 D2 M2.1 — native fast-path for spatial_4d.Bitboard4D ────────────
+# Shared library (not an executable) compiled from src/cs_bitboard4d.c.
+# Loaded at import time by chess_spectral._native_bitboard4d via ctypes.
+# Pure-Python Bitboard4D continues to work as fallback when this .so/.dll
+# isn't present (sdist install without C toolchain, Pyodide WASM-less
+# install, etc.).
+add_library(cs_bitboard4d SHARED src/cs_bitboard4d.c)
+target_include_directories(cs_bitboard4d PUBLIC include)
+# Hide internal symbols on POSIX so only the cs_bb4_* API is exported.
+if(NOT MSVC)
+    set_target_properties(cs_bitboard4d PROPERTIES
+        C_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
+endif()
+# Force the standard `lib` prefix off on Windows (DLL convention) so
+# the file is `cs_bitboard4d.dll`, matching what the ctypes wrapper
+# looks for. POSIX gets the conventional `libcs_bitboard4d.so` /
+# `libcs_bitboard4d.dylib` from CMake defaults.
+if(WIN32)
+    set_target_properties(cs_bitboard4d PROPERTIES PREFIX "")
+endif()
+
 # ─── scikit-build-core wheel install ────────────────────────────────────────
 # When building under scikit-build-core (i.e. `pip install .` or
 # `python -m build`), SKBUILD is defined and we install spectral +
@@ -131,5 +154,11 @@ add_custom_target(codegen_4d
 if(DEFINED SKBUILD)
     install(TARGETS spectral spectral_4d
             RUNTIME DESTINATION chess_spectral/_native
+            COMPONENT chess_spectral_native)
+    # 1.7.0 D2 M2.1 — also ship the bitboard shared library.
+    # RUNTIME for Windows DLLs, LIBRARY for POSIX .so/.dylib.
+    install(TARGETS cs_bitboard4d
+            RUNTIME DESTINATION chess_spectral/_native
+            LIBRARY DESTINATION chess_spectral/_native
             COMPONENT chess_spectral_native)
 endif()
