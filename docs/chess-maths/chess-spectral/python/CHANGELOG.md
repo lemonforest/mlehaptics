@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] — 2026-05-01
+
+Closes the 1.8.0 wishlist's tier-1.4 (`initial_position()` factory)
+by lifting the canonical Oana-Chiru §3.3 4D starting layout into
+this package as the authoritative source. No API breaks vs. 1.8.0.
+
+### Why this is its own release
+
+The 1.8.0 PR (#152) deferred the canonical-start factory because
+no FEN4 string for it lived anywhere in this repo — the value had
+been "made up" downstream and the chess4D-OC visualizer was using
+its own hand-rolled fixture. Now that the upstream paper's §3.3
+spec ("4D Initial Position Specification") has been transcribed
+into a programmatic constructor, the package itself can serve as
+the canonical source going forward.
+
+### Added — Canonical 4D initial position (wishlist tier 1.4)
+
+- New module `chess_spectral_4d.initial_position` containing:
+  - `STARTING_FEN4` — the canonical 4D Oana-Chiru initial position
+    as a FEN4 v1 placement literal. **896 pieces** total: 448 white
+    + 448 black, **28 kings per side**. Byte-stable across Python
+    versions (`fen_4d.serialize` sorts pieces by ascending square
+    index).
+  - `initial_position() -> GameState4D` — factory that constructs
+    a fresh `GameState4D` at the canonical layout. Equivalent to
+    `GameState4D.from_fen(STARTING_FEN4)`; exists for ergonomics
+    and so the chess4D-OC visualizer can drop its hand-rolled
+    fixture-loading shim.
+  - `central_slices()`, `white_only_slices()`, `black_only_slices()`,
+    `empty_slices()` — helper sets that return the (z, w) slice
+    classifications from §3.3:
+    - `|C| = 4` (z ∈ {3, 4}, w ∈ {3, 4})
+    - `|W_only| = 24`
+    - `|B_only| = 24`
+    - `|E| = 12`
+    - Total: 64 ✓
+- All five symbols re-exported at the top level
+  (`from chess_spectral_4d import STARTING_FEN4, initial_position`).
+
+### Implementation notes
+
+- Uses 0-indexed FEN4 v1 coordinates throughout (paper §3.3 uses
+  1-indexed; subtraction-by-1 documented in the module docstring
+  and the slice helpers).
+- Pawn axis assignment per Definition 11: even file (x ∈ {0, 2, 4,
+  6}) → Y-oriented (`Py` / `py`); odd file (x ∈ {1, 3, 5, 7}) →
+  W-oriented (`Pw` / `pw`).
+- Standard 2D back-rank on each non-empty slice: R N B Q K B N R
+  at y=0 (white) or y=7 (black).
+
+### Added — 24 immolation tests for the canonical layout
+
+`tests/test_initial_position_4d.py` locks down:
+- Slice cardinalities (4 / 24 / 24 / 12) and pairwise disjointness.
+- Slice union covers all 64 (z, w) pairs.
+- Total piece counts (896, 448 / 448).
+- 28 kings per side.
+- 224 pawns per side (8 per non-empty slice × 28 slices).
+- Per-slice structure (central has both colors, empty has none,
+  white-only has no lowercase, black-only has no uppercase).
+- Back-rank order R-N-B-Q-K-B-N-R parameterized over multiple
+  slices.
+- Pawn axis assignment by file parity, every non-empty slice.
+- FEN4 round-trip (`from_fen(STARTING_FEN4).to_fen() == STARTING_FEN4`).
+- `initial_position().to_fen() == STARTING_FEN4`.
+- Side-to-move starts as `SIDE_WHITE`.
+- **`STARTING_FEN4` SHA-256 hash locked** — any layout drift
+  surfaces here with a clear "intentional? update both this hash
+  and the §3.3 reference in `initial_position.py`" message.
+
+The 1.7.1 README "What's new in v{X.Y}" gate still passes; this
+release re-uses the existing v1.8 section in the README rather
+than adding a new "v1.8.1" section (the two ship under the same
+v1.8 line).
+
 ## [1.8.0] — 2026-05-01
 
 The chess4D-OC visualizer's M11.40 unblocker release. Tier-1 of the
