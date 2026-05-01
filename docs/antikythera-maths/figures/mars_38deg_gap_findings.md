@@ -2,7 +2,7 @@
 
 **Status:** Research finding (this branch).
 **Date:** 2026-05-01
-**Code:** [`research/mars_38deg_gap_analysis.py`](../research/mars_38deg_gap_analysis.py) — seven analyses, all running against analytic Kepler 2-body ground truth (no JPL kernel needed).
+**Code:** [`research/mars_38deg_gap_analysis.py`](../research/mars_38deg_gap_analysis.py) — eight analyses, all running against analytic Kepler 2-body ground truth (no JPL kernel needed).
 
 ## TL;DR
 
@@ -15,7 +15,7 @@ The notebook's claim "we haven't tried to model the Greek epicycle" is **stale**
 - **The 10° gap is not a math bug.** Our `_equation_of_center_equant` reproduces Ptolemy IX.5's max equation (11°33' = 11.55°) to within 0.18°. Implementation is correct.
 - **The gap is partly phase-alignment, partly metric-choice.** Our default `MarsParams.epoch_lon_deg = 297.4°` and `epoch_anomaly_deg = 41.6°` are propagated from Almagest IX.6's anchor, with a few-degree apsidal-line drift over 2200 years. The new EpochFitter (#6) closes ~50° of the unfit 95° peak; the residual ~13° to F&J's 38° is best read as **F&J's 38° being a mean-style summary, not a peak** — our refit equant has mean 18°, refit bronze 27°, both *below* F&J's 38° as means. F&J's "nearly 38° at the retrogrades" reads as "pre-Hipparchian planetary models miss by ~zodiac sign on average," which all our models reproduce.
 
-## What the seven sub-analyses showed
+## What the eight sub-analyses showed
 
 ### #1 — Provenance (literature audit)
 
@@ -120,7 +120,31 @@ Numerical sanity check: `mars_longitude_bronze` (the projection from gear-ratio 
 
 **Verdict: ✅ PASS.** All parity diffs are at the level of 64-bit float roundoff. The bronze projection IS the analytic eccentric-deferent equation of center, derived through a different route (algebra of the gear ratios projected to spatial pointer angle, vs. explicit equation-of-center geometry). This is a positive sanity check on the project's "model gears via algebra/eigenbasis, then project to spatial motion" framing — see [`docs/antikythera-maths/CLAUDE.md`](../CLAUDE.md).
 
-## What's actually wrong (the structural diagnosis, post-#6)
+### #8 — PeakFitter (peak-objective companion to #6)
+
+#6 minimised RMS; the residual ~13° from F&J's 38° was diagnosed as "F&J's number is a mean-style summary, not a peak." #8 directly tests that diagnosis: refit the same `(epoch_lon, epoch_anomaly, mm_lon, mm_anomaly)` 4-tuple but with **objective = max\|residual\|** (peak), not RMS.
+
+| Model | base_params | start peak | **fit peak** | fit mean | fit RMS |
+|---|---|---:|---:|---:|---:|
+| bronze | `FREETH_2012_MARS_PARAMS` | 95.56° | **46.86°** | 27.45° | 30.73° |
+| epicycle-only | `PTOLEMY_MARS_PARAMS` | 99.30° | **44.01°** | 25.56° | 28.66° |
+| equant | `PTOLEMY_MARS_PARAMS` | 102.60° | **45.07°** | 26.63° | 29.83° |
+
+**Findings:**
+
+1. **Peak-objective fits land in the 44–47° band** — about 5–10° tighter than #6's RMS-fit peaks (51–60°), but ~6–9° still above F&J's 38°.
+2. **Partial confirmation of #6's metric-choice diagnosis.** Peak-objective DOES help (peak drops, RMS rises slightly — symmetric trade-off to #6). But it doesn't fully close the gap on this window.
+3. **Most plausible residual cause: reference frame.** The 6–9° we still can't close is most likely Kepler-2-body neglecting a few-arcsec/day of lunar perturbation on Earth's barycentre + Jupiter's perturbation on Mars — accumulating to a few degrees over 13 yr. F&J use JPL Horizons (effectively DE441 at this era), which includes those. Replacing our reference with DE441 is the natural next probe.
+4. **Together #6 and #8 bracket the (peak, mean) Pareto front of how Hellenistic Mars models match 1st-century-BC reality under epoch-anchor freedom.** The trade-off is small but real: ~5–10° of peak vs ~1–3° of RMS, depending on model sophistication.
+
+| Objective | bronze peak | bronze mean | epicycle-only peak | epicycle-only mean | equant peak | equant mean |
+|---|---:|---:|---:|---:|---:|---:|
+| #6 RMS | 51.44° | 26.69° | 56.00° | 22.47° | 60.37° | 18.32° |
+| #8 peak | 46.86° | 27.45° | 44.01° | 25.56° | 45.07° | 26.63° |
+
+The peak / mean trade-off is most pronounced for equant: 60° → 45° peak (15° drop) at the cost of 18° → 27° mean (9° rise). Bronze has the flattest trade (51° → 47° peak, 27° → 27° mean — almost no cost).
+
+## What's actually wrong (the structural diagnosis, post-#6 + #8)
 
 Our `equant_encoder.MarsParams` has:
 
@@ -138,22 +162,29 @@ We do propagate via mean motion — but the propagation accumulates a few degree
 
 **Initial framing** (pre-#6): "When the apsidal line is offset by Δ, every retrograde's MODEL JD shifts by ~ Δ × (synodic period / 360°) = Δ × 2.16 days/deg. A 25° apsidal offset puts the model's retrograde 54 days off from reality's." This *is* part of what's happening, and #6's refit confirms it: closing the epoch / mean-motion misalignment drops peak from 95° to 51-60° (~50° improvement).
 
-**Refined framing** (post-#6): the residual ~13° gap from F&J's 38° is *not* further phase misalignment — Nelder-Mead refit doesn't close it. It's most plausibly a peak-vs-mean metric mismatch: F&J's "nearly 38°" tracks our *mean* error (refit equant: 18°; refit bronze: 27°; both *below* F&J's 38°), not our peak. As a mean summary, "38° at the retrogrades" reads as "pre-Hipparchian planetary models miss by ~zodiac sign on average across this window" — which all our models reproduce.
+**Refined framing** (post-#6): the residual ~13° gap from F&J's 38° is *not* further phase misalignment — Nelder-Mead refit doesn't close it.
 
-Per Freeth & Jones: their figure assumes "a 'perfect' period relation for Mars." The "perfect" — i.e. retrograde-aligned — period is what *exposes* the theoretical model error rather than burying it under cycle-accumulated phase drift. Our refit Nelder-Mead is doing the same thing F&J did with their hand-anchored period choice, but optimised against shape RMS. The remaining mismatch is metric definition (peak vs mean), not modelling.
+**Further refined** (post-#8): peak-objective Nelder-Mead drops peak to 44–47° (about 5–10° tighter than RMS-fit) but doesn't recover the full 38°. The ~6–9° that remains after switching objective is most plausibly **reference-frame difference**: Kepler-2-body neglects lunar perturbations on Earth's barycentre and Jupiter's perturbation on Mars (a few arcsec/day, accumulating to a few degrees over 13 yr). F&J use JPL Horizons, which includes those.
+
+So the unfit 95° peak decomposes as roughly:
+- **~50°** epoch / mean-motion misalignment (closed by #6 RMS-fit)
+- **~5°** peak-vs-mean trade-off (closed by #8 peak-fit, on top of #6)
+- **~6–9°** Kepler-2-body vs JPL Horizons reference-frame difference (not yet closed)
+- residual modelling fidelity within F&J's stated uncertainty
+
+Per Freeth & Jones: their figure assumes "a 'perfect' period relation for Mars." The "perfect" — i.e. retrograde-aligned — period is what *exposes* the theoretical model error rather than burying it under cycle-accumulated phase drift. Our refit Nelder-Mead is doing the same thing F&J did with their hand-anchored period choice — under both #6 (RMS) and #8 (peak) objectives — and the bracketed (peak, mean) Pareto front is the right summary of how Hellenistic Mars models match 1st-century-BC reality.
 
 ## Recommended follow-up (next research session, not in this PR)
 
-#6 above did not produce the expected ~38° peak — instead it landed at 51-60° peak with much-reduced mean (18-27°). Two natural follow-ups:
+After #6 (RMS-objective fit) and #8 (peak-objective fit), one natural follow-up remains:
 
-1. **Peak-objective refit.** Replace RMS objective with peak objective (max\|residual\|) to test whether a peak-minimising fit lands at F&J's 38°. Non-smooth, so use Nelder-Mead with a softened max (e.g. `mean(top-5 |residual|)`), or a CMA-ES variant. Estimated effort: ~30 LOC, an hour.
-2. **JPL Horizons reference instead of Kepler 2-body.** Our current Kepler 2-body propagation neglects lunar perturbations on Earth's barycentre (~few arcsec/day at this era) and Jupiter's perturbation on Mars's mean motion (~tens of arcsec). Replacing the reference with `de441` ephemeris would test whether F&J's 38° is partly a consequence of using JPL Horizons' richer dynamics. Estimated effort: ~80 LOC if we already have the kernel; otherwise add a kernel-fetch helper.
+1. **JPL Horizons / DE441 reference instead of Kepler 2-body.** Our current Kepler 2-body propagation neglects lunar perturbations on Earth's barycentre (~few arcsec/day at this era) and Jupiter's perturbation on Mars's mean motion (~tens of arcsec). The 6–9° residual gap between #8's peak-fits (44–47°) and F&J's 38° is most plausibly that. Replacing the reference with `de441` would test the hypothesis directly. Estimated effort: ~80 LOC if `astronomical_ground_truth.py`'s skyfield path already has the kernel; otherwise add a kernel-fetch helper.
 
-Both are parameter / reference-frame choices, not new modelling — in scope per [`docs/antikythera-maths/CLAUDE.md`](../CLAUDE.md). Defer to a future session unless a contributor wants to chase the peak-objective branch sooner.
+This is a reference-frame choice, not new modelling — in scope per [`docs/antikythera-maths/CLAUDE.md`](../CLAUDE.md). Defer to a future session.
 
 The appropriate notebook framing now is:
 
-> "Our equant implementation is mathematically correct (matches Ptolemy IX.5's max equation of center to <0.5°), and its bronze projection through the gear-ratio pin-and-slot transform agrees with the analytic equation-of-center to ~10⁻¹³ deg (a numerical-precision parity check). On F&J's 1st-century-BC window the unfit equant's mean shape error is 37.8° — within 0.2° of F&J's documented 38° — but its global peak is 102° because the encoder's `MarsParams` epoch values aren't retrograde-aligned with -53 BCE. The new EpochFitter (#6) closes ~50° of the unfit peak; the residual ~13° from F&J's number reads as F&J's '38°' being a mean-style summary rather than a peak (refit equant has mean 18°, *below* F&J's 38°). The 'phase misalignment is the entire 60° gap' framing was directionally right but quantitatively incomplete — it's ~50° phase + ~13° peak-vs-mean metric choice."
+> "Our equant implementation is mathematically correct (matches Ptolemy IX.5's max equation of center to <0.5°), and its bronze projection through the gear-ratio pin-and-slot transform agrees with the analytic equation-of-center to ~10⁻¹³ deg (a numerical-precision parity check). On F&J's 1st-century-BC window the unfit equant's mean shape error is 37.8° — within 0.2° of F&J's documented 38° — but its global peak is 102° because the encoder's `MarsParams` epoch values aren't retrograde-aligned with -53 BCE. The EpochFitter pair (#6 RMS-objective, #8 peak-objective) brackets the (peak, mean) Pareto front: #6 closes ~50° of the unfit peak (peak 51-60°, mean 18-27°); #8 drops peak a further ~5-10° (peak 44-47°). The remaining 6-9° gap from F&J's 38° is most plausibly the Kepler-2-body vs JPL Horizons reference-frame difference. The original 'phase misalignment is the entire 60° gap' framing was directionally right but quantitatively incomplete; the refined decomposition is **~50° phase + ~5° peak-vs-mean + ~6-9° reference-frame**."
 
 ## Sources
 
