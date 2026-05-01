@@ -7,32 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-05-01
+
+PyPI long-description hotfix on top of 1.7.0. Pure-docs / pure-test
+release; no API or behavior changes.
+
+### Why a 1.7.1 hotfix
+
+1.7.0 wheels on PyPI shipped with a stale long-description: the
+README forward-referenced v1.7 items as "deferred to v1.7+" and
+lacked a "What's new in v1.7" section, both leftover from the v1.6
+vantage point. The polish + immolation entries below in the [1.7.0]
+section *did* ship in PyPI 1.7.0; the README inconsistency was
+caught only during pre-publish review of the README itself, after
+1.7.0 had already auto-published. 1.7.1 is the corrective
+publication. **Provenance note:** the `chess-spectral-v1.7.0` git
+tag points one commit past the actual 1.7.0 PyPI build (the tag was
+inadvertently advanced when this README/immolation PR merged); the
+PyPI 1.7.0 wheels were built from the `chess-spectral-v1.7.0` tag
+*before* this advance, i.e. commit `2e66712`. 1.7.1 ships the
+forward-rolled state cleanly so future archeology resolves to the
+1.7.1 tag for the README + new immolation gate.
+
 ### Documentation — README v1.7 surface refresh (PyPI long-description)
 
 Three deferral targets that previously read "deferred to v1.7+"
-were forward-rolled to "v1.8+" now that v1.7.0 is shipping —
+were forward-rolled to "v1.8+" now that v1.7 is shipping —
 ADR-005 pawn pseudo-Hermitian η-metric, `get_density_matrix_of`,
 and `get_qm_density(piece_id=...)`. These are all genuinely still
-deferred (v1.7.0 didn't ship the partial-trace machinery they need;
-the v1.7.0 scope was the chess4D-OC visualizer wishlist, not the
-QM bridge backlog). The "v1.7+" framing was stale on the PyPI
-long-description from v1.6's vantage point; "v1.8+" is forward-
-accurate.
+deferred (v1.7 didn't ship the partial-trace machinery they need;
+the v1.7 scope was the chess4D-OC visualizer wishlist, not the QM
+bridge backlog). The "v1.7+" framing was stale on the PyPI long-
+description from v1.6's vantage point; "v1.8+" is forward-accurate.
 
 Also added a **"What's new in v1.7"** section above "What's new in
-v1.6", calling out the four headline 1.7 pieces:
-- `time_budget_ms` honored mid-iteration + new `SearchResult.timed_out`
-- Native bitboard fast-path (`cs_bitboard4d`, ~16× iteration)
-- `Board4D.legal_moves()` algorithmic refactor (~12.7×)
-- Cumulative ~125× on the chess4D-OC visualizer's reported
-  `legal_moves()` ~250s pain point at the dense 28-king start
-- `HAS_NATIVE_BITBOARD` exposed at top-level for downstream
-  consumer flag-checking
+v1.6", calling out the four headline 1.7 pieces (time-budget mid-
+iteration; native bitboard fast-path with ~16× iteration; legal-move
+algorithmic refactor with ~12.7×; cumulative ~125× on the visualizer
+pain point; `HAS_NATIVE_BITBOARD` top-level export). The package
+summary line now mentions the v1.7 fast-path + budget honoring.
 
-The PyPI long-description package summary line now mentions the
-v1.7 fast-path + budget honoring.
+### Fixed — FEN4 parser tolerates optional `/` between pawn color and axis
 
-### Added — 1.7.0 release-pipeline polish (immolation embiggening + downstream surface)
+Both Python (`chess_spectral.fen_4d.parse`) and C
+(`cs_fen_4d_parse`) now accept `P/w@x,y,z,w` as equivalent to
+`Pw@x,y,z,w`. Pre-1.7.1 a literal slash in this position raised
+`Fen4ParseError` / returned `-3` from the C parser. The slash form
+is more readable for humans hand-authoring FEN4 strings — a
+reasonable accommodation, mirroring the FEN family's tolerance of
+common syntactic variations elsewhere.
+
+The serializer (`fen_4d.serialize`) continues to emit the canonical
+no-slash form, so round-tripping a `P/w@`-input preserves the
+slash-less representation on output. Both forms are byte-identical
+under the C `spectral_4d encode-fen4` pipeline (parity verified by
+new tests in `tests/test_fen4_parity.py`).
+
+8 new tests across the Python parser and C-Python parity layer:
+- 4 slash-form fixtures added to the parameterized
+  `VALID_FIXTURES` list (`P/w`, `P/y`, `p/w`, `p/y` plus a
+  mixed-slash-and-no-slash fixture).
+- `test_python_parser_slash_form_equivalent_to_no_slash` —
+  parameterized over (color, axis); asserts both forms parse to
+  the same dict.
+- `test_c_python_parity_slash_form_pawn` — same parameterization;
+  asserts the C `spectral_4d encode-fen4` writes byte-identical
+  `.spectral4` for both forms.
+
+### Added — Immolation README gate (catches the v1.7+ deferral / missing-section bug pattern automatically)
+
+- New test in `tests/test_smoke_e2e.py`:
+  `test_immolation_readme_announces_current_version` hard-asserts
+  that the README has a `## What's new in v{major}.{minor}` section
+  matching the current pyproject version. Catches the bug class
+  that motivated this 1.7.1 hotfix. Read the version directly via
+  regex (no `tomllib` import — Python 3.10 reachability).
+- The same test ALSO emits an advisory `[immolation] LLM doc-scrub
+  candidates in README.md` block listing any `deferred to v{X.Y}+`
+  mentions where (X,Y) is at or below the current version. Output
+  is formatted as `file:line: text` triples, deliberately structured
+  as friendly LLM input for the next doc-scrub pass. Does NOT fail
+  the test (false-positive risk on legitimate "still-deferred-since-
+  v1.5" historical notes); zero output is the steady state. Future
+  release-cycle PRs that introduce stale forward-references will
+  surface them on the merge train rather than at pre-publish review.
+
+## [1.7.0] — 2026-05-01
+
+### Added — release-pipeline polish (immolation embiggening + downstream surface)
+
+These items shipped in PyPI 1.7.0 (post-tag, via the polish-tag
+advance documented in the 1.7.1 provenance note above).
 
 - **`HAS_NATIVE_BITBOARD` re-exported at the top-level `chess_spectral`
   package**, so downstream consumers (the chess4D-OC visualizer and
@@ -79,7 +144,7 @@ so-far best move within ~0.5s grace. Affected surfaces:
   paragraph) — also calls out the cumulative ~125× speedup on the
   dense start vs 1.6.x.
 
-## [1.7.0] — 2026-05-01
+### Original 1.7.0 release notes
 
 The chess4D-OC visualizer's reported user-facing-pain-points release.
 Two upstream improvements to chess-spectral 1.6.1's 4D engine
