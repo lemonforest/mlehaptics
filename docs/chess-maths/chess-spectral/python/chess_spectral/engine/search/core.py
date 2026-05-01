@@ -61,8 +61,12 @@ class SearchOptions:
 class SearchResult:
     """Outcome of a :func:`search` call.
 
-    ``best_move`` is None only when ``board.is_game_over()`` was true
-    on entry (no legal moves to recommend).
+    ``best_move`` is None only when no legal moves were available
+    (true checkmate / stalemate / game-over). When the search aborts
+    via the ``time_budget_ms`` deadline mid-iteration, ``best_move``
+    is the best move from whichever iteration produced one — possibly
+    a partial iteration; callers should consult ``timed_out`` to
+    distinguish "natural completion" from "stopped at deadline."
     """
     best_move: Optional[chess.Move]
     best_score: float
@@ -72,6 +76,11 @@ class SearchResult:
     pv: List[chess.Move] = field(default_factory=list)
     tt_hits: int = 0
     tt_size: int = 0
+    # 1.6.2: True if the iterative-deepening loop aborted because the
+    # ``time_budget_ms`` deadline elapsed mid-iteration. ``depth_reached``
+    # is still the deepest FULLY-completed iteration; ``best_move`` may
+    # come from a partial iteration deeper than that.
+    timed_out: bool = False
 
 
 # ---- Negamax with alpha-beta --------------------------------------
@@ -103,6 +112,41 @@ def _terminal_score(board: chess.Board, ply_from_root: int) -> float:
     return 0.0
 
 
+def _deadline_passed(state: _SearchState) -> bool:
+    """Cheap deadline check, called on every node entry.
+
+    1.6.2: Replaces the previous ``state.nodes % 1024 == 0`` gate.
+    ``time.monotonic()`` is ~100ns; per-node search cost is dominated
+    by move-gen at dense positions (~120ms/move at 4D 28-king start),
+    so checking every node adds <1% overhead and gives us responsive
+    deadline enforcement instead of waiting up to 1024 nodes."""
+    return (state.deadline_s is not None
+            and time.monotonic() > state.deadline_s)
+
+
+def _materialize_legal_moves(state: _SearchState,
+                              board: chess.Board) -> List[chess.Move]:
+    """Materialize ``board.legal_moves`` with a deadline check
+    after each yielded move.
+
+    Replaces ``list(board.legal_moves)`` so a tight ``time_budget_ms``
+    can interrupt move generation. Always collects at least one move
+    when the position has legal moves — the deadline check is skipped
+    on the first yield so the root iteration has at least one
+    candidate to score (per the 1.6.2 user spec: best_move is never
+    None when legal moves exist).
+
+    On abort returns the partial list (>=1 move); callers check
+    ``state.aborted`` and treat it as a non-exhaustive sample."""
+    moves: List[chess.Move] = []
+    for move in board.legal_moves:
+        if moves and _deadline_passed(state):
+            state.aborted = True
+            break
+        moves.append(move)
+    return moves
+
+
 def _negamax(state: _SearchState,
              board: chess.Board,
              depth: int,
@@ -112,14 +156,12 @@ def _negamax(state: _SearchState,
     """Negamax-with-alpha-beta. Returns score from side-to-move's POV."""
     state.nodes += 1
 
-    # Time-budget short-circuit. We check periodically (every 1k
-    # nodes) to keep the overhead trivial.
-    if (state.deadline_s is not None
-            and state.nodes % 1024 == 0
-            and time.monotonic() > state.deadline_s):
+    # 1.6.2: every-node deadline check (was every-1024). See
+    # ``_deadline_passed`` for the rationale.
+    if _deadline_passed(state):
         state.aborted = True
         # Return a benign score; the iterative-deepening wrapper
-        # discards aborted iterations.
+        # picks up partial-iteration progress at the root.
         return 0.0
 
     # Terminal node check (checkmate / stalemate / draw rules).
@@ -153,9 +195,13 @@ def _negamax(state: _SearchState,
             )
         return state.evaluator(board_to_position(board), board.turn)
 
-    # Generate and order moves.
-    moves: List[chess.Move] = list(board.legal_moves)
-    if state.options.use_mvv_lva:
+    # 1.6.2: deadline-aware materialization. On abort partway,
+    # ``moves`` is partial and ordering is skipped (it'd be bogus on
+    # a non-exhaustive sample anyway).
+    moves = _materialize_legal_moves(state, board)
+    if state.aborted and not moves:
+        return 0.0
+    if state.options.use_mvv_lva and not state.aborted:
         moves = order_moves(board, moves, tt_move=tt_move)
 
     best_score = -INF
@@ -288,10 +334,12 @@ def search(board: chess.Board,
         state.aborted = False
         nodes_at_iter_start = state.nodes
 
-        # Root search: iterate moves explicitly so we can track the
-        # best move (interior _negamax doesn't expose this).
-        moves = list(board.legal_moves)
-        if options.use_mvv_lva:
+        # 1.6.2: deadline-aware root materialization, same pattern as
+        # interior _negamax. Without this a tight budget at a high-
+        # branching position can spend the entire budget inside
+        # ``list(board.legal_moves)`` and never enter the score loop.
+        moves = _materialize_legal_moves(state, board)
+        if not state.aborted and options.use_mvv_lva:
             # Try the previous-iteration best move first if any.
             tt_move = None
             if tt is not None:
@@ -305,24 +353,44 @@ def search(board: chess.Board,
         alpha, beta = -INF, INF
 
         for move in moves:
+            # Per-move deadline check at the root: critical for tight
+            # budgets where one ``_negamax(depth-1)`` call can cost
+            # seconds. Skipped on the first move so we always score
+            # at least one (best_move non-None guarantee).
+            if iter_best_move is not None and _deadline_passed(state):
+                state.aborted = True
+                break
             board.push(move)
             score = -_negamax(state, board, depth - 1, -beta, -alpha,
                               ply_from_root=1)
             board.pop()
-            if state.aborted:
-                break
+            # Adopt the score even when state.aborted is set — _negamax's
+            # 0.0 sentinel is fine as a fallback so partial-iteration
+            # progress is preserved.
             if score > iter_best_score:
                 iter_best_score = score
                 iter_best_move = move
                 if score > alpha:
                     alpha = score
+            if state.aborted:
+                break
             # No beta cutoff at root: we want to evaluate every move
             # at depth 1+ to identify the best one (root window is
             # always (-INF, INF)).
 
         if state.aborted:
-            # Discard this iteration's partial results; keep what
-            # the previous iteration produced.
+            # 1.6.2: KEEP the partial-iteration best move when timing
+            # out. Previously we discarded the partial result and used
+            # the previous fully-completed iteration; that meant a
+            # ``time_budget_ms=2000`` at a slow position returned
+            # ``best_move=None``. Now we carry forward whatever the
+            # partial iteration produced (if any).
+            if iter_best_move is not None:
+                best_move = iter_best_move
+                best_score = iter_best_score
+                # depth_reached stays at the previous fully-completed
+                # iteration's depth — the partial-iteration result is
+                # at depth `depth` but flagged via timed_out.
             break
 
         # Iteration completed: commit results.
@@ -353,4 +421,5 @@ def search(board: chess.Board,
         pv=pv,
         tt_hits=tt.hits if tt is not None else 0,
         tt_size=len(tt) if tt is not None else 0,
+        timed_out=state.aborted,
     )

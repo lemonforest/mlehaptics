@@ -51,6 +51,13 @@ class SearchResult:
     pv: List[Move4D] = field(default_factory=list)
     tt_hits: int = 0
     tt_size: int = 0
+    # 1.6.2: True if the search aborted because the
+    # ``time_budget_ms`` deadline elapsed mid-iteration.
+    # ``best_move`` is the best move found so far (possibly from a
+    # partial iteration); ``depth_reached`` is the deepest FULLY-
+    # completed iteration. ``best_move is None`` only when the
+    # position has no legal moves.
+    timed_out: bool = False
 
 
 @dataclass
@@ -78,6 +85,45 @@ def _is_terminal(board: Board4D) -> bool:
     return True
 
 
+def _deadline_passed(state: _SearchState) -> bool:
+    """Cheap deadline check. ``time.monotonic()`` is ~100ns, dwarfed
+    by the per-move-gen cost (~120ms at the 28-king starting position),
+    so we can afford to check on every node entry rather than gating
+    by ``state.nodes % 1024``. The 1024-gate added latency proportional
+    to per-node cost, which at dense 4D positions made the deadline
+    check effectively unreachable mid-iteration."""
+    return (state.deadline_s is not None
+            and time.monotonic() > state.deadline_s)
+
+
+def _materialize_legal_moves(state: _SearchState,
+                              board: Board4D) -> List[Move4D]:
+    """Materialize ``board.legal_moves()`` with a deadline check
+    after each yield.
+
+    Replaces ``list(board.legal_moves())`` so a tight ``time_budget_ms``
+    can interrupt move generation. At dense 28-king positions a full
+    legal-move set takes ~250s; bailing partway gives the search at
+    least a few moves to evaluate before the deadline.
+
+    Always collects at least one move when the position has legal
+    moves — the deadline check is skipped on the first yield. This
+    guarantees that the root iteration has at least one candidate
+    move to score, so ``best_move`` is never None when legal moves
+    exist (per the 1.6.2 user spec).
+
+    On abort, returns the partial list (>=1 move). The caller must
+    check ``state.aborted`` and treat it as a non-exhaustive sample.
+    """
+    moves: List[Move4D] = []
+    for move in board.legal_moves():
+        if moves and _deadline_passed(state):
+            state.aborted = True
+            break
+        moves.append(move)
+    return moves
+
+
 def _negamax(state: _SearchState,
              board: Board4D,
              depth: int,
@@ -86,9 +132,8 @@ def _negamax(state: _SearchState,
              ply_from_root: int) -> float:
     state.nodes += 1
 
-    if (state.deadline_s is not None
-            and state.nodes % 1024 == 0
-            and time.monotonic() > state.deadline_s):
+    # 1.6.2: every-node deadline check, not every-1024.
+    if _deadline_passed(state):
         state.aborted = True
         return 0.0
 
@@ -118,8 +163,13 @@ def _negamax(state: _SearchState,
             )
         return state.evaluator(board.to_position_dict(), board.turn)
 
-    moves: List[Move4D] = list(board.legal_moves())
-    if state.options.use_mvv_lva:
+    # 1.6.2: deadline-aware materialization. If we abort partway the
+    # caller receives a partial moves list; we still try to score them
+    # so the partial-iteration result is preserved at the root.
+    moves = _materialize_legal_moves(state, board)
+    if state.aborted and not moves:
+        return 0.0
+    if state.options.use_mvv_lva and not state.aborted:
         moves = order_moves(board, moves, tt_move=tt_move)
 
     best_score = -INF
@@ -199,8 +249,12 @@ def search(board: Board4D,
     for depth in range(1, options.max_depth + 1):
         state.aborted = False
 
-        moves = list(board.legal_moves())
-        if options.use_mvv_lva:
+        # 1.6.2: deadline-aware materialization at root, same as in
+        # interior _negamax. If we abort during move-gen, ``moves`` is
+        # whatever subset we collected; we score those and use the
+        # partial-iteration best_move on exit.
+        moves = _materialize_legal_moves(state, board)
+        if not state.aborted and options.use_mvv_lva:
             tt_move = None
             if tt is not None:
                 entry = tt.lookup(board)
@@ -213,19 +267,42 @@ def search(board: Board4D,
         alpha, beta = -INF, INF
 
         for move in moves:
+            # Per-move deadline check at the root: critical for tight
+            # budgets where a single ``_negamax(depth-1)`` call can
+            # cost seconds. Skipped on the first move to guarantee at
+            # least one root move is scored even on a tight budget
+            # (so ``best_move`` is non-None when legal moves exist).
+            if iter_best_move is not None and _deadline_passed(state):
+                state.aborted = True
+                break
             board.push(move)
             score = -_negamax(state, board, depth - 1, -beta, -alpha,
                               ply_from_root=1)
             board.pop()
-            if state.aborted:
-                break
+            # Even when state.aborted is set inside _negamax (deadline
+            # tripped during recursion), the move's score has been
+            # computed (or is the 0.0 sentinel from a depth-0 abort);
+            # adopt it as iter_best_move if it improves on the running
+            # best so we always have something to return.
             if score > iter_best_score:
                 iter_best_score = score
                 iter_best_move = move
                 if score > alpha:
                     alpha = score
+            if state.aborted:
+                break
 
         if state.aborted:
+            # 1.6.2: KEEP the partial-iteration best move when timing
+            # out, so callers get something rather than the previous
+            # iteration's already-stale answer. Only adopt if the
+            # partial iteration scored at least one move.
+            if iter_best_move is not None:
+                best_move = iter_best_move
+                best_score = iter_best_score
+                # depth_reached stays at the previous fully-completed
+                # iteration's depth — the partial-iteration result is
+                # at depth `depth` but flagged via timed_out.
             break
 
         best_move = iter_best_move
@@ -250,4 +327,5 @@ def search(board: Board4D,
         pv=[],   # PV extraction TODO
         tt_hits=tt.hits if tt is not None else 0,
         tt_size=len(tt) if tt is not None else 0,
+        timed_out=state.aborted,
     )

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0rc1] — 2026-04-30 (TestPyPI only)
+
+First milestone of the **chess-spectral 1.7.0** release pipeline addressing
+the chess4D-OC visualizer's user-facing-pain-points report. **D1 only**
+(time-budget bug fix); D2 (C-extension hot path) lands in 1.7.0rcN as it
+progresses, with rc bumps after each milestone hitting TestPyPI for
+verification. Final 1.7.0 promotes to production PyPI once D2 is complete.
+
+Released to TestPyPI ONLY (the 1.7.0rc tag does NOT match the autotag
+workflow's strict-semver regex; manual dispatch with
+``gh workflow run chess-spectral-publish.yml -f target=testpypi``).
+
+### Fixed (D1)
+
+- `chess_spectral.engine.search.search` and `chess_spectral_4d.engine.search.search`: `time_budget_ms` is now honored mid-iteration, not just between iterations. Previously the deadline was checked only every 1024 nodes inside `_negamax`, AND `list(board.legal_moves())` materialized eagerly — at dense 4D positions a tight budget could blow past by the cost of a full move-list materialization (~250s at the 28-king starting position). Fix:
+  - Every-node deadline check at top of `_negamax` (was every-1024).
+  - `_materialize_legal_moves` helper iterates the legal-move generator with a deadline check between each yield, returning a partial list on abort.
+  - Root iteration loop checks the deadline before each candidate move; partial-iteration `iter_best_move` is preserved on time-out instead of being discarded.
+  - First yielded move always survives the deadline check (so positions with legal moves always have a non-None `best_move`, even on a 5ms budget).
+
+### Added
+
+- `SearchResult.timed_out: bool` — True when the search aborted because the `time_budget_ms` deadline elapsed mid-iteration. `depth_reached` remains the deepest FULLY-completed iteration; `best_move` may come from a partial iteration deeper than that. False when the iteration completes naturally at `max_depth`.
+
+### Tests
+
+- New: `test_search_time_budget_honored_with_slow_evaluator` (2D + 4D parallel) — uses a synthetic 50ms-per-leaf evaluator to verify a 2000ms budget aborts within a 500ms grace, with `timed_out=True` and `best_move != None`.
+- New: `test_search_time_budget_no_legal_moves_returns_none` (2D) — confirms `best_move=None` is reserved for true game-over, not for tight budgets.
+- New: `test_search_natural_completion_sets_timed_out_false` (4D).
+- Updated: `test_search_time_budget_aborts_early` (4D) — accepts the new semantic that `depth_reached=0` is valid when even the first iteration's materialization aborts.
+
+### Acknowledgments
+
+Reported via the chess4D-OC visualizer's user-facing-pain-points issue. Pure-Python performance of 4D move-gen at dense positions is the underlying issue; `chess-spectral 1.7.0` will address it via a C-extension hot path. This 1.6.2 release fixes the budget-honoring discipline so partial-iteration progress is preserved while we wait on the native code.
+
 ## [1.6.1] — 2026-04-30
 
 The v1.6 follow-up release. Closes the v1.6 deferred-items workstream

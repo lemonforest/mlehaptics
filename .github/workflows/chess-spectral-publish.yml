@@ -29,7 +29,14 @@ on:
   push:
     tags:
       - "chess-spectral-v*"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Publish target"
+        required: true
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
 
 # Default token permissions: read-only. The build-wheels and build-sdist
 # jobs only need to read the repo and upload artifacts (which doesn't
@@ -204,7 +211,7 @@ jobs:
           path: docs/chess-maths/chess-spectral/python/dist/*py3-none-any.whl
 
   publish:
-    name: publish to PyPI
+    name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
     needs: [build-wheels, build-sdist, build-pure-wheel]
     runs-on: ubuntu-latest
     # Publish only on tag-push or workflow_dispatch on a tag ref; never
@@ -213,8 +220,11 @@ jobs:
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chess-spectral-v'))
     environment:
-      name: pypi
-      url: https://pypi.org/project/chess-spectral/
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }}
+      url: >-
+        ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+            && 'https://test.pypi.org/project/chess-spectral/'
+            || 'https://pypi.org/project/chess-spectral/' }}
     permissions:
       id-token: write  # OIDC token for PyPI trusted publishing
       contents: read
@@ -225,7 +235,8 @@ jobs:
         with:
           path: artifacts
 
-      - name: Verify tag matches pyproject version
+      - name: Verify tag matches pyproject version (tag-push only)
+        if: github.event_name == 'push'
         shell: bash
         run: |
           python3 <<'PY'
@@ -254,6 +265,15 @@ jobs:
           find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
           ls -la dist/
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish to TestPyPI
+        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
