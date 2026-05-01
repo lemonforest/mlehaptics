@@ -24,6 +24,17 @@
 
 #include <stddef.h>
 
+/* MSVC popcount intrinsic. Pulled in unconditionally on MSVC builds
+ * (rather than from inside the popcount64 body) because the C++
+ * frontend treats `#include` inside a function body more strictly
+ * than the C frontend. The header is harmless on non-x64 MSVC
+ * targets (no AVX/SSE-only declarations referenced). On gcc / clang
+ * the __builtin_popcountll path is taken and this header isn't
+ * needed. */
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+#include <intrin.h>
+#endif
+
 /* Note: deliberately NOT including <string.h>. MSVC + Windows SDK
  * 10.0.26100 + strict C17 (CMAKE_C_EXTENSIONS OFF) trips a known
  * compiler bug where <string.h> -> <malloc.h> chain pulls in C23-era
@@ -34,13 +45,23 @@
  * by avoiding the entire memcpy/memcmp surface and writing the
  * 64-uint64 byte-compare inline. Trivial loop; identical perf. */
 
+/* MSVC route: this file is compiled as C++ on MSVC (see CMakeLists)
+ * to sidestep the SAL-annotation / SIMD-intrinsic dialect mismatch
+ * the strict-C MSVC frontend hits against Windows SDK 10.0.26100+.
+ * The header wraps its API in `extern "C"`, but the function
+ * DEFINITIONS need a matching extern "C" block here so name mangling
+ * doesn't break the ABI when the file goes through the C++ frontend.
+ * On C compilers the block is invisible (no __cplusplus). */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Population count of one 64-bit word. */
 static inline int popcount64(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_popcountll(x);
 #elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
-    /* MSVC intrinsic; _M_X64 is 64-bit Windows. */
-    #include <intrin.h>
+    /* MSVC intrinsic; <intrin.h> included at the top of the file. */
     return (int) __popcnt64(x);
 #else
     /* Software popcount: SWAR algorithm (Hacker's Delight 5-1). */
@@ -138,3 +159,7 @@ int cs_bb4_intersects(const uint64_t *a, const uint64_t *b) {
 int cs_bb4_abi_version(void) {
     return CS_BB4_ABI_VERSION;
 }
+
+#ifdef __cplusplus
+}  /* extern "C" */
+#endif

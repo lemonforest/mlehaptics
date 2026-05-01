@@ -144,18 +144,26 @@ endif()
 if(WIN32)
     set_target_properties(cs_bitboard4d PROPERTIES PREFIX "")
 endif()
-# Per-target compile options to sidestep an MSVC + Windows SDK 10.0.22000+
-# bug. The SDK's <malloc.h> uses C23-era SAL annotations that MSVC's
-# strict /std:c17 mode mis-parses (errors on identifiers like `_Ptr`,
-# `_Memory`, `_Size`). malloc.h gets pulled in implicitly by MSVC's DLL
-# build setup. Three switches together resolve it:
-#   - /Zc:preprocessor: conformant preprocessor required for SDK SAL macros
-#   - /std:clatest: bypass strict C17, use latest C dialect
-# These don't affect the strict-C17 cs_core / spectral targets (set
-# per-target rather than globally).
-set_target_properties(cs_bitboard4d PROPERTIES C_EXTENSIONS ON)
+# MSVC + Windows SDK 10.0.26100 dialect mismatch: every /std:c* mode
+# the MSVC C frontend supports (c11, c17, clatest) chokes on
+# function-like macro expansion in the SDK's <malloc.h> SAL annotations
+# AND the compiler's own <immintrin.h> SIMD intrinsic prototypes —
+# both transitively pulled in by <stdint.h> / <intrin.h>. Errors look
+# like `'_Ptr': undeclared identifier`, `'_Memory': undeclared
+# identifier`, `'__x': undeclared identifier` (the macro parameters
+# leak when the strict-C frontend decides the macro body is malformed).
+#
+# The C++ frontend handles these headers cleanly because it has full
+# C++23 conformance and a more capable preprocessor. The cs_bb4_*
+# source is plain bit-twiddling — no C99-only syntax, no compound
+# literals, no designated initializers — so compiling it as C++ on
+# MSVC is a one-line workaround. The header already wraps its API in
+# `extern "C"`, so callers don't see any difference.
+#
+# Linux / macOS / Pyodide still build cs_bitboard4d as C (gcc / clang
+# compile the strict-C17 source unchanged).
 if(MSVC)
-    target_compile_options(cs_bitboard4d PRIVATE /Zc:preprocessor /std:clatest)
+    set_source_files_properties(src/cs_bitboard4d.c PROPERTIES LANGUAGE CXX)
 endif()
 
 # ─── scikit-build-core wheel install ────────────────────────────────────────
