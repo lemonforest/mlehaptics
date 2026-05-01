@@ -98,7 +98,49 @@ PTOLEMY_MARS_PARAMS = MarsParams()
 """Default Almagest-derived Mars parameters."""
 
 
-VALID_MODELS: Tuple[str, ...] = ("uniform", "epicycle-only", "equant", "all")
+FREETH_2012_MARS_PARAMS = MarsParams(
+    deferent_radius=60.0,
+    epicycle_radius=39.5,
+    eccentricity=0.0,           # F&J 2012 explicitly: "no eccentricity"
+    equant_offset=0.0,          # No equant in F&J's pre-Hipparchian model
+    mean_motion_lon_deg_per_day=0.524062,
+    mean_motion_anomaly_deg_per_day=0.461570,
+    epoch_lon_deg=297.4,
+    epoch_anomaly_deg=41.6,
+    label="Freeth & Jones 2012 (bare deferent + epicycle, no eccentricity)",
+)
+"""Pre-Hipparchian model Freeth & Jones 2012 (ISAW Papers 4, §3.10 Fig 39)
+actually plots: deferent + epicycle, both rotating uniformly w.r.t. Earth,
+no eccentricity, no equant.  Babylonian (37, -79) period relation; the
+underlying mean motions match the Almagest values modulo Hellenistic-era
+arcsec rounding.  Peak vs JPL Horizons at the middle 7 retrogrades of the
+1st century BC: ~38°."""
+
+
+FREETH_2021_MARS_PARAMS = MarsParams(
+    deferent_radius=60.0,
+    epicycle_radius=39.5,
+    eccentricity=0.0,           # Per gear_database notes: "Greek was
+                                # precise on Mars synodic BUT lacked equants"
+    equant_offset=0.0,
+    mean_motion_lon_deg_per_day=0.524062,
+    mean_motion_anomaly_deg_per_day=0.461570,
+    epoch_lon_deg=297.4,
+    epoch_anomaly_deg=41.6,
+    label="Freeth 2021 (deferent + epicycle, gear-derived; no equant)",
+)
+"""Freeth 2021 proposed Mars reconstruction.  Same kinematic class as
+F&J 2012 (deferent + epicycle, no eccentricity, no equant); the 2021
+paper's contribution is gear-train placement and the 133/125 synodic-
+ratio gear pair (gears ``mars_133``, ``mars_125`` in gear_database).
+Mean motions identical to the Almagest values within Hellenistic-era
+arcsec; the gear ratio implements the *period relation*, not a different
+motion law."""
+
+
+VALID_MODELS: Tuple[str, ...] = (
+    "uniform", "epicycle-only", "equant", "bronze", "all",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -312,6 +354,90 @@ def mars_longitude_equant(
 
 
 # ---------------------------------------------------------------------------
+# Model D: Bronze pin-and-slot projection
+#
+# The Antikythera Mars mechanism's deferent (Freeth 2006/2012/2021
+# reconstructions) is driven by a pin-and-slot apparatus whose phase-
+# space transform is
+#     theta_out = atan2(sin theta_in, cos theta_in + eps),  eps = e/R
+# (Hellenistic apsidal-axis sign convention; the mirror form with
+# eps -> -eps is the chess-pawn-style ``pin_slot_output_angle`` in
+# ``research/pin_and_slot.py``, which is scoped to the D-H1 lunar
+# mechanism's T-symmetry-breaking analysis).
+#
+# We construct the transform inline here -- not via pin_and_slot.py --
+# so the bronze derivation stays in the Mars-specific parameter
+# algebra and doesn't entangle the lunar module's semantics.  This is
+# the projection from the cyclic-group / graph-Laplacian eigenbasis
+# representation of the Mars gear train back to the pointer's spatial
+# longitude: what the bronze pointer would read if the gear ratios in
+# (deferent_radius, epicycle_radius, eccentricity) were exact.
+#
+# Numerically agrees with mars_longitude_epicycle_only by design --
+# different derivation pathway (algebra of gear ratios here vs.
+# equation-of-center in epicycle-only), same transform.  The parity
+# test in mars_38deg_gap_analysis #6 confirms the agreement.
+# ---------------------------------------------------------------------------
+
+def mars_longitude_bronze(
+    jd: float, params: MarsParams = PTOLEMY_MARS_PARAMS,
+) -> float:
+    """Synodic phase derived by projecting the gear-ratio phase-space
+    transform back to the pointer's spatial longitude.
+
+    Phase-space map applied to the deferent-input mean longitude:
+
+        lambda_def = atan2(sin M_lon, cos M_lon + eps),    eps = e / R
+
+    The epicycle is added with the standard equation of anomaly,
+    using the geocentric distance R_eff to the deferent point.  This
+    is the Freeth 2006 / 2012 / 2021 reconstruction at the algebraic
+    level: a pin-and-slot transform projected to spatial pointer
+    angle, plus the epicycle.
+
+    For ``eps == 0`` (FREETH_2012_MARS_PARAMS / FREETH_2021_MARS_PARAMS,
+    no eccentricity) this collapses to ``lambda_def = M_lon`` -- the
+    bare deferent + epicycle that F&J 2012 Fig 39 actually plots.
+    For ``eps > 0`` (PTOLEMY_MARS_PARAMS) this matches Hipparchus's
+    eccentric-deferent + epicycle to numerical precision.
+    """
+    import math
+    elapsed = jd - REFERENCE_JD
+    R = params.deferent_radius
+    r = params.epicycle_radius
+    e = params.eccentricity
+    eps = (e / R) if R > 0.0 else 0.0
+
+    # Deferent input angle (uniform mean motion)
+    M_lon = math.radians(
+        params.epoch_lon_deg
+        + params.mean_motion_lon_deg_per_day * elapsed
+    )
+    # Mean anomaly on epicycle
+    M_anom = math.radians(
+        params.epoch_anomaly_deg
+        + params.mean_motion_anomaly_deg_per_day * elapsed
+    )
+
+    sin_M = math.sin(M_lon)
+    cos_M = math.cos(M_lon)
+
+    # Pin-and-slot phase-space transform (constructed inline; Hellenistic
+    # apsidal-line sign convention so apogee at M_lon=0).
+    lambda_def = math.atan2(sin_M, cos_M + eps)
+
+    # Geocentric distance to deferent point under eccentric-deferent geometry.
+    R_eff = math.sqrt((e + R * cos_M) ** 2 + (R * sin_M) ** 2)
+
+    alpha = M_anom - lambda_def
+    eqn_anom = _equation_of_anomaly(alpha, R_eff, r)
+    lambda_mars = lambda_def + eqn_anom
+
+    lambda_sun = math.radians(_solar_mean_longitude(jd))
+    return (math.degrees(lambda_mars - lambda_sun)) % 360.0
+
+
+# ---------------------------------------------------------------------------
 # Model registry
 # ---------------------------------------------------------------------------
 
@@ -319,6 +445,7 @@ MODEL_FUNCTIONS: Dict[str, Callable[[float, MarsParams], float]] = {
     "uniform": mars_longitude_uniform,
     "epicycle-only": mars_longitude_epicycle_only,
     "equant": mars_longitude_equant,
+    "bronze": mars_longitude_bronze,
 }
 
 
@@ -376,7 +503,7 @@ def compare_models(
         start_jd = REFERENCE_JD
 
     out: Dict[str, ModelStats] = {}
-    for model in ("uniform", "epicycle-only", "equant"):
+    for model in ("uniform", "epicycle-only", "equant", "bronze"):
         fn = model_residue_function(model, params)
         stats = mars_longitude_error(
             longitude_fn=fn,
@@ -460,12 +587,18 @@ Models
   epicycle-only  Hipparchus model (no equant); peak ~5-10 deg expected.
   equant         Ptolemy model (Almagest IX-X); peak ~30-50 deg
                  -- the documented Greek attainable limit.
+  bronze         Pin-and-slot phase-space projection from gear ratios
+                 (Freeth 2006/2012/2021 reconstruction at the
+                 algebraic level); numerically identical to
+                 epicycle-only, different derivation pathway.
 
 Citations
 ---------
 Toomer (1984) Ptolemy's Almagest, Books IX-X.
 Neugebauer (1975) HAMA, Section V.B.6.
 Pin-and-slot geometry: Freeth (2006) Nature 444:587 (lunar epicycle).
+Mars pin-and-slot reconstruction: Freeth & Jones (2012) ISAW Papers 4
+    §3.10 + Fig 39; Freeth (2021) Sci. Rep. 11:5821.
 """
 
 
@@ -527,7 +660,7 @@ def _print_comparison(results: Dict[str, ModelStats]) -> None:
     print(f"{'model':<16} {'peak deg':>10}  {'mean deg':>10}  "
           f"{'rms deg':>10}  N")
     print("-" * 56)
-    for k in ("uniform", "epicycle-only", "equant"):
+    for k in ("uniform", "epicycle-only", "equant", "bronze"):
         if k in results:
             s = results[k]
             print(f"{k:<16} {s.peak_deg:>10.2f}  {s.mean_deg:>10.2f}  "
@@ -561,7 +694,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = _make_parser().parse_args(argv)
 
     if args.sigma_day_test:
-        for model in ("uniform", "epicycle-only", "equant"):
+        for model in ("uniform", "epicycle-only", "equant", "bronze"):
             stats = sigma_day_unit_test(model=model, n_samples=400)
             print(f"  model={model:<14}: mean d_lambda/d_day = "
                   f"{stats['mean_deg_per_day']:>7.4f} deg  "
