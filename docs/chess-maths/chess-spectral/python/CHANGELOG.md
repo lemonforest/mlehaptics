@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.2] — 2026-04-30
+## [1.7.0rc1] — 2026-04-30 (TestPyPI only)
 
-**Bug fix release.** No API changes; behaviour fix only. Per a
-chess4D-OC visualizer issue report.
+First milestone of the **chess-spectral 1.7.0** release pipeline addressing
+the chess4D-OC visualizer's user-facing-pain-points report. **D1 only**
+(time-budget bug fix); D2 (C-extension hot path) lands in 1.7.0rcN as it
+progresses, with rc bumps after each milestone hitting TestPyPI for
+verification. Final 1.7.0 promotes to production PyPI once D2 is complete.
 
-### Fixed
+Released to TestPyPI ONLY (the 1.7.0rc tag does NOT match the autotag
+workflow's strict-semver regex; manual dispatch with
+``gh workflow run chess-spectral-publish.yml -f target=testpypi``).
+
+### Fixed (D1)
 
 - `chess_spectral.engine.search.search` and `chess_spectral_4d.engine.search.search`: `time_budget_ms` is now honored mid-iteration, not just between iterations. Previously the deadline was checked only every 1024 nodes inside `_negamax`, AND `list(board.legal_moves())` materialized eagerly — at dense 4D positions a tight budget could blow past by the cost of a full move-list materialization (~250s at the 28-king starting position). Fix:
   - Every-node deadline check at top of `_negamax` (was every-1024).

@@ -139,10 +139,18 @@ jobs:
         # Tags pushed by GITHUB_TOKEN don't fire ``on: push`` workflows
         # (GitHub's anti-recursion guard). Explicitly dispatch the
         # publish workflow against the new tag so it runs anyway.
+        #
+        # MUST pass ``-f target=pypi``: the publish workflow's
+        # ``target`` input defaults to ``testpypi`` (intentional safety
+        # for manual / accidental dispatches), but autotag-driven
+        # invocations always represent a strict-semver release and
+        # belong on production PyPI. (Same fix pattern as antikythera-
+        # spectral PR #136.)
         if: steps.ver.outputs.skip == 'false' && steps.exists.outputs.exists == 'false'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.ver.outputs.tag }}
         run: |
-          gh workflow run chess-spectral-publish.yml --ref "$TAG"
+          gh workflow run chess-spectral-publish.yml \
+              --ref "$TAG" -f target=pypi
