@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — 1.7.0 release-pipeline polish (immolation embiggening + downstream surface)
+
+- **`HAS_NATIVE_BITBOARD` re-exported at the top-level `chess_spectral`
+  package**, so downstream consumers (the chess4D-OC visualizer and
+  similar Pyodide / desktop apps) can `from chess_spectral import
+  HAS_NATIVE_BITBOARD` to badge "native fast-path active" / fall back
+  cleanly when the native lib isn't present (sdist install, Pyodide
+  WASM-less, ABI mismatch). Previously only reachable as
+  `chess_spectral.spatial_4d.bitboard.HAS_NATIVE_BITBOARD` — the
+  longer path is preserved as a backward-compat alias.
+
+- **Four new tests in the immolation suite** (`tests/test_smoke_e2e.py`)
+  covering the 1.7.0 D1 + D2 cohort:
+  - `test_immolation_search_honors_time_budget_mid_iteration` —
+    a tight `time_budget_ms` on a dense 28-king position must return
+    within budget + 0.5s grace with a non-None `best_move`. Catches
+    a regression to the pre-1.7.0 between-iterations-only check.
+  - `test_immolation_search_result_has_timed_out_field` — structural
+    sanity check on the `SearchResult.timed_out` field that downstream
+    consumers depend on to distinguish natural completion from
+    deadline exit.
+  - `test_immolation_has_native_bitboard_flag_exposed_at_top_level` —
+    `from chess_spectral import HAS_NATIVE_BITBOARD` works, the flag
+    is in `__all__`, and reads as a bool. Catches accidental demotion
+    of the flag to a sub-package-only export.
+  - `test_immolation_native_bitboard_iteration_parity_when_available` —
+    when `HAS_NATIVE_BITBOARD` is True, `Bitboard4D.to_squares()`
+    output matches a pure-Python reference recompute. Skipped on
+    sdist / Pyodide builds where native isn't present. Catches
+    marshaling regressions in `cs_bb4_to_squares` or its ctypes
+    wrapper.
+
+### Changed — CLI `--help` text refreshed for 1.7.0 mid-iteration honoring
+
+The `time_budget_ms` agent-spec key and the `--time-budget-ms` sweep
+flag now mention the 1.7.0 behavior: the deadline is checked at every
+search node (not just between iterative-deepening iterations), so
+even a tight budget on a dense position returns the deepest-completed-
+so-far best move within ~0.5s grace. Affected surfaces:
+
+- `chess_spectral.cli search` description
+- `chess_spectral.cli sweep --time-budget-ms` help
+- `chess_spectral.engine.tournament.agent_spec` module docstring
+- `chess_spectral_4d.cli tournament` description ("Realistic settings"
+  paragraph) — also calls out the cumulative ~125× speedup on the
+  dense start vs 1.6.x.
+
 ## [1.7.0] — 2026-05-01
 
 The chess4D-OC visualizer's reported user-facing-pain-points release.

@@ -747,8 +747,14 @@ def build_parser() -> argparse.ArgumentParser:
             "per pairing); round-robin pits each pair both ways. "
             "Output is JSON with Elo ratings + per-game records.\n\n"
             "Realistic settings: --max-plies 20 and per-agent "
-            "time_budget_ms=5000 keep wall time bounded since pure-"
-            "Python 4D move generation is slow.\n\n"
+            "time_budget_ms=5000 keep wall time bounded. The budget "
+            "is honored mid-iteration (1.7.0+): the deadline is "
+            "checked at every node, so even a 5s budget on the dense "
+            "28-king start returns the deepest-completed move within "
+            "~5.5s instead of running depth-1 to completion (~510s "
+            "pre-1.7.0 on pure-Python 4D move-gen). Combined with "
+            "the 1.7.0 native bitboard fast-path the same dense "
+            "start runs ~125× faster end-to-end vs. 1.6.x.\n\n"
             "Requires --start-fen4 (no canonical 4D starting position)."
         ),
     )
