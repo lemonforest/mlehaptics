@@ -23,7 +23,16 @@
 #include "cs_bitboard4d.h"
 
 #include <stddef.h>
-#include <string.h>
+
+/* Note: deliberately NOT including <string.h>. MSVC + Windows SDK
+ * 10.0.26100 + strict C17 (CMAKE_C_EXTENSIONS OFF) trips a known
+ * compiler bug where <string.h> -> <malloc.h> chain pulls in C23-era
+ * SAL annotations that strict C17 mis-parses (errors on `_Ptr`,
+ * `_Memory`, `_Size` identifiers). The bug doesn't reproduce with
+ * MSVC + older SDKs or with extensions enabled, but the existing
+ * tree's CMakeLists pins strict C17 globally, so we work around it
+ * by avoiding the entire memcpy/memcmp surface and writing the
+ * 64-uint64 byte-compare inline. Trivial loop; identical perf. */
 
 /* Population count of one 64-bit word. */
 static inline int popcount64(uint64_t x) {
@@ -112,7 +121,11 @@ int cs_bb4_is_full(const uint64_t *bits) {
 }
 
 int cs_bb4_equals(const uint64_t *a, const uint64_t *b) {
-    return memcmp(a, b, CS_BB4_N_WORDS * sizeof(uint64_t)) == 0;
+    /* Inline byte-compare; see top-of-file note for why memcmp is avoided. */
+    for (size_t i = 0; i < CS_BB4_N_WORDS; ++i) {
+        if (a[i] != b[i]) return 0;
+    }
+    return 1;
 }
 
 int cs_bb4_intersects(const uint64_t *a, const uint64_t *b) {
