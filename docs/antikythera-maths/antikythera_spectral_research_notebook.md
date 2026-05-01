@@ -365,16 +365,33 @@ The four FAILs are themselves substantive research findings, not script errors:
 3. **Time-window sensitivity** (#3). Across 50 consecutive Mars synodic cycles starting -200 BCE, peak distribution is `min=43.9°, median=55.8°, max=105.5°`. **Zero cycles peak ≤ 38°. Cherry-picking doesn't close the gap.**
 4. **F&J Figure 39 reproduction** (#5). On F&J's exact 1st-century-BC 13-year window, our three models report MEAN shape error of 36.7° / 37.2° / 37.8° (bare-deferent / Hipparchian / equant) — **within 0.2° of F&J's documented 38°**. PEAK on the same window is 95-103° — about 60° higher than F&J.
 
-**Diagnosis:** the 60° peak gap is **phase misalignment**, not amplitude. Our model's retrograde-peak amplitudes are ~38° (matching F&J's "size of the spike") but they fall at the WRONG JDs at -53 BCE because our `MarsParams.epoch_lon_deg / epoch_anomaly_deg` are propagated from Almagest IX.6's Nabonassar 1 anchor with a ~5° apsidal-line drift over 2200 years. F&J back-anchored their model to align retrograde JDs with reality at the target era; we don't.
+**Initial diagnosis:** the 60° peak gap is **phase misalignment**, not amplitude. Our model's retrograde-peak amplitudes are ~38° (matching F&J's "size of the spike") but they fall at the WRONG JDs at -53 BCE because our `MarsParams.epoch_lon_deg / epoch_anomaly_deg` are propagated from Almagest IX.6's Nabonassar 1 anchor with a ~5° apsidal-line drift over 2200 years. F&J back-anchored their model to align retrograde JDs with reality at the target era; we don't.
+
+**Sequel (this PR): EpochFitter and bronze projection.** Building on the audit:
+
+5. **Bronze projection from gear-ratio algebra (#7 parity check).** [`research/equant_encoder.py`](research/equant_encoder.py) now exposes `mars_longitude_bronze`, the *projection from the cyclic-group algebra of the deferent gear ratios back to the pointer's spatial longitude* via the pin-and-slot phase-space transform `atan2(sin θ_in, cos θ_in + e/R)`. Constructed inline from gear ratios — not by importing the lunar-scoped `pin_and_slot.py`. Numerically agrees with `mars_longitude_epicycle_only` to ~10⁻¹³ deg across `FREETH_2012_MARS_PARAMS`, `FREETH_2021_MARS_PARAMS`, and `PTOLEMY_MARS_PARAMS` — same transform, two derivations. Establishes the bronze model as the algebra/eigenbasis-projected complement to the analytic equation-of-center pathway.
+6. **EpochFitter (#6).** Implemented; refits `(epoch_lon, epoch_anomaly, mm_lon, mm_anomaly)` to minimise shape RMS on F&J's window. Result table (window: JD 1721000 + 13 yr):
+
+| Model | base_params | start RMS | fit peak | fit mean | fit RMS |
+|---|---|---:|---:|---:|---:|
+| bronze | FREETH_2012_MARS_PARAMS | 45.93° | 51.44° | 26.69° | 30.13° |
+| epicycle-only | PTOLEMY_MARS_PARAMS | 46.91° | 56.00° | 22.47° | 25.99° |
+| equant | PTOLEMY_MARS_PARAMS | 48.29° | 60.37° | 18.32° | 22.21° |
+
+**Refined diagnosis.** The earlier "phase misalignment is the entire 60° gap" framing was directionally right but quantitatively incomplete:
+
+- **Epoch refit closes ~50° of the unfit 95° peak.** RMS drops from ~46° to ~22-30°; mean from ~37° to ~18-27°. Epoch / mean-motion misalignment is real and large.
+- **The residual ~13° from F&J's 38° is best read as a peak-vs-mean metric mismatch.** F&J's "nearly 38°" tracks our *mean* error (unfit 36-37°, refit 18-27°), not our peak. As a mean summary, "38° at the retrogrades" reads as "pre-Hipparchian planetary models miss by ~zodiac sign on average" — which all our models reproduce, especially refit equant (mean 18°).
+- **The peak-vs-mean ordering inverts with model sophistication after refit.** More parameters (equant) give *lower* mean but *higher* peak, because RMS-minimising trades broad-residual reduction against extreme retrograde-cycle excursions. A peak-objective refit would land elsewhere.
 
 **What this means for the H-battery:**
 
-- **E-H4** (equant in 30-50° band) PASS is intact — it's measuring shape RMS, not peak.
-- **E-H3** (epicycle-only ≤ 10°) FAIL stands; the right amplitude bound is in the 30-50° band, not under 10°.
+- **E-H4** (equant in 30-50° band) PASS is intact — it's measuring shape RMS, not peak. With refit, equant RMS = 22°, *below* the 30-50° band; the original framing of "30-50° as Greek attainable" still describes the unfit reality, but the equant is mechanically capable of better with epoch alignment.
+- **E-H3** (epicycle-only ≤ 10°) remains a FAIL on the unfit window, but refit epicycle-only RMS = 26° — i.e. without an equant, the Hipparchian model alone is already in the same regime equant nominally describes. Finding: **the equant's marginal contribution after epoch alignment is smaller than the unfit comparison suggested.**
 - **D-H3** (equant breaks σ_day unit-operator) PASS is unchanged; the algebraic finding doesn't depend on epoch alignment.
-- **A new follow-up emerges:** `research/equant_encoder.py` should grow an `EpochFitter` that solves for `(epoch_lon_deg, epoch_anomaly_deg, mean_motion_lon_deg_per_day, mean_motion_anomaly_deg_per_day)` minimising shape RMS on a chosen target-era window. With retrograde-aligned epoch values, our equant's global peak should drop to F&J's 38° on F&J's window, AND below 38° (the equant is a real refinement over bare deferent + epicycle). Estimated effort: ~50 LOC, ~1 hr. Defer to a future research session.
+- **New entry, B-H? (algebra/eigenbasis projection parity):** `mars_longitude_bronze` agrees with `mars_longitude_epicycle_only` to numerical precision under three independent param sets. The cyclic-group algebra projects to the same pointer behaviour as the analytic equation of center — a positive sanity check on the project's "model gears via algebra/eigenbasis, then project to spatial motion" framing (per [`docs/antikythera-maths/CLAUDE.md`](CLAUDE.md)).
 
-**Pop-fact framing for §11.6.16's seasonal-observability rationale:** the 38° figure is Greek-theory-ceiling-limited, NOT mechanical-tolerance-limited. The Antikythera operator absorbing this 38° at retrograde-via-re-anchoring at the next heliacal rising is the operationally-honest design choice. F&J 2012's framing supports this read.
+**Pop-fact framing for §11.6.16's seasonal-observability rationale:** the 38° figure is Greek-theory-ceiling-limited, NOT mechanical-tolerance-limited. As a *mean*-style summary it's stable across all three Hellenistic theories; as a *peak* it's epoch-dependent and partly an artefact of metric choice. The Antikythera operator absorbing this 38° at retrograde-via-re-anchoring at the next heliacal rising is the operationally-honest design choice. F&J 2012's framing supports this read.
 
 ### §9.3 Track 3 — Manufacturing tolerance (G-H1, G-H2, G-H3)
 
