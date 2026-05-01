@@ -74,6 +74,16 @@ from typing import Iterable, Iterator, List
 
 import numpy as np
 
+# 1.7.0 D2 M2.1: optional native fast-path. The module always imports,
+# even if the C library isn't present; ``HAS_NATIVE_BITBOARD`` reports
+# whether the fast-path is actually wired. Method-level integration
+# (popcount, bitwise ops via native) lands in M2.2; M2.1 is just the
+# foundation: build hookup + ctypes wrapper + the flag.
+try:
+    from chess_spectral._native_bitboard4d import HAS_NATIVE as HAS_NATIVE_BITBOARD
+except ImportError:  # pragma: no cover - belt-and-suspenders
+    HAS_NATIVE_BITBOARD = False
+
 
 # Lattice geometry constants (mirror tables_4d).
 BOARD_SIDE: int = 8
