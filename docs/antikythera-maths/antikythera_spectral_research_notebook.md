@@ -187,7 +187,11 @@ DE421's coverage (1900-01-01 through 2050-01-01) is too narrow for the build pro
 **Computed:** Peak error **179.88°**, mean 87.73° over one synodic period. **FAILED** the 30°-50° band.
 **Status:** PARTIAL. **Tag:** FAILED for the build-prompt prediction; the *modelling gap* is the load-bearing finding.
 
-The encoder uses a **uniform residue advance** with period 779.94 days (mean Mars synodic). The Greek mechanism uses **deferent + epicycle** (no equant). Both diverge from skyfield reality at retrograde, but the Greek model's divergence is bounded at ~38° while uniform advance can wrap to ~180°. This is the *expected* outcome: our encoder is strictly worse than the Greek epicycle model. To match the documented 38°, the encoder would need to model the Greek epicycle — a future research extension. This is the project's first clearly **FAILED** hypothesis at the encoder level, and it's a useful one: it tells us where the "designed-in" structure of the bronze mechanism exceeds what a pure phase-space encoder reproduces.
+The encoder uses a **uniform residue advance** with period 779.94 days (mean Mars synodic). The Greek mechanism uses **deferent + epicycle** (no equant). Both diverge from skyfield reality at retrograde, but the Greek model's divergence is bounded at ~38° while uniform advance can wrap to ~180°. This is the *expected* outcome: our encoder is strictly worse than the Greek epicycle model.
+
+**v0.2.0 update (Track 2):** [`research/equant_encoder.py`](research/equant_encoder.py) implements the Hipparchian eccentric-deferent + epicycle and the Ptolemaic equant; both are tested in §9.2 below. They achieve 51.48° and 48.66° peak respectively against DE422.
+
+**v0.2.1 update (Mars 38° gap audit):** the documented "38°" originates in **Freeth & Jones 2012, ISAW Papers 4 §3.10 + Figure 39**, measured against JPL Horizons across the *middle seven retrogrades of Mars in the 1st century BC* (~13-year window) using a **bare deferent + epicycle** model (no eccentricity, no equant) with a "perfect" — i.e. retrograde-aligned — period relation. Our encoder's `MarsParams.epoch_lon_deg / epoch_anomaly_deg` are approximate Almagest-derived values that do not retrograde-align with reality at -53 BCE. On F&J's window our equant model's MEAN shape error is **37.8°** — within 0.2° of F&J's 38° — but its global peak is inflated to ~100° because of phase misalignment between our model's retrograde JDs and reality's. The 38° peak is recoverable via an epoch-fitter that re-anchors `MarsParams` to align retrograde JDs at the target era. Full audit: [`figures/mars_38deg_gap_findings.md`](figures/mars_38deg_gap_findings.md).
 
 ### §2.F Open exploration
 
@@ -209,7 +213,9 @@ D_LCM is the cleanest-possible HDC ambient: every cycle becomes a single residue
 **Computed:** 3 of 13 cycles have > 0.1% residual error vs modern ephemeris. Mars dominant (6239 days, ~17 years).
 **Status:** UNDETERMINED. **Tag:** OPEN.
 
-The Mars residual reflects Greek astronomical theory's ceiling, not a Greek manufacturing failure. Other "failed" cycles (DraconicMonth, LunarAnomaly) reflect the mechanism's choice of low-tooth-budget approximations. A follow-up could distinguish: which residuals are Greek-theory-limited (cannot be improved without equants), vs which are budget-limited (improvable with more bronze)?
+The Mars residual reflects Greek astronomical theory's ceiling, not a Greek manufacturing failure. Other "failed" cycles (DraconicMonth, LunarAnomaly) reflect the mechanism's choice of low-tooth-budget approximations.
+
+**v0.2.0 update:** the Greek-theory ceiling is now quantified — see §9.2's Track 2 (Hipparchian + equant models). **v0.2.1 update:** the "documented 38° Mars peak" framing is from Freeth & Jones 2012 and refers to a *retrograde-aligned* model on a 13-year 1st-century-BC window; see [`figures/mars_38deg_gap_findings.md`](figures/mars_38deg_gap_findings.md) for the full audit.
 
 ---
 
@@ -267,7 +273,7 @@ See [ANTIKYTHERA_PHASE_OP_PREFLIGHT.md](ANTIKYTHERA_PHASE_OP_PREFLIGHT.md) for t
 E-H1 and E-H2 details in §2.E. Summary:
 
 - **E-H1**: PASS for the Saros cycle period (modern era, 3/3 anchor + Saros syzygies match within ±1 day). Hellenistic-era absolute placement deferred to a DE422 ephemeris load.
-- **E-H2**: PARTIAL — peak Mars angular error 179.88° vs the documented mechanism's 38°. The encoder's pure-residue advance is strictly worse than the Greek deferent + epicycle model; matching the documented 38° would require encoding the Greek epicycle.
+- **E-H2**: PARTIAL — peak Mars angular error 179.88° vs the documented mechanism's 38°. The encoder's pure-residue advance is strictly worse than the Greek deferent + epicycle model. **v0.2.0 (Track 2)** added the Greek epicycle: 51.48° (Hipparchian) / 48.66° (Ptolemaic equant) peak vs DE422. **v0.2.1 audit** ([`figures/mars_38deg_gap_findings.md`](figures/mars_38deg_gap_findings.md)) traced the residual ~10° gap to retrograde phase-misalignment: F&J's 38° is the peak of a *retrograde-aligned* model on a 13-year 1st-century-BC window, while our encoder propagates Almagest's anchor forward via mean motion (accumulating a ~50° JD offset on retrograde peaks at -53 BCE). On F&J's window, our equant's MEAN shape error is 37.8° — within 0.2° of F&J's 38°. Closing the global-peak gap requires an epoch-fitter that re-anchors `MarsParams` to retrograde-align at the target era.
 
 ---
 
@@ -345,6 +351,30 @@ The four FAILs are themselves substantive research findings, not script errors:
 | equant        |    48.66 |    25.29 |   28.62 |
 
 **Surprise finding:** the equant's marginal improvement over the eccentric-deferent + epicycle model is small — only ~3° peak / ~1° mean / ~1° RMS. Most of the Greek attainable accuracy is in the *eccentric-deferent + epicycle* combination (the Apollonius-Hipparchus form); the equant is a refinement, not a step-change. **E-H4 (equant in 30-50° band) PASS** at 48.66°. **E-H3 (epicycle-only ≤ 10°) FAIL** because the threshold was set on the build-prompt's a-priori intuition that turned out to be too optimistic. The right reading is: **both Greek planetary models converge near the documented 38° Mars-error band**; the architectural distinction (with vs without equant) is observable in σ_day anharmonicity (D-H3) but barely in peak longitude error.
+
+#### §9.2.1 The 38° gap — audited and resolved
+
+**Context.** The phrase "documented 38°" recurs in §6 (E-H2), §2.F (F-E3), and §11 (seasonal-observability framing). v0.2.1 traced its provenance ([`figures/mars_38deg_gap_findings.md`](figures/mars_38deg_gap_findings.md)) and quantified our residual gap.
+
+**Origin of the 38°:** Freeth, T. & Jones, A. (2012), "The Cosmos in the Antikythera Mechanism," *ISAW Papers* 4, §3.10 + Figure 39 — peak ecliptic-longitude error vs **JPL Horizons** across the **middle seven retrogrades of Mars in the 1st century BC** (~13-year window). The model is a **bare deferent + epicycle** (no eccentricity, no equant) with a *perfect* — i.e. retrograde-aligned — period relation. Even simpler than Hipparchus's eccentric form.
+
+**Four-part audit:**
+
+1. **Implementation correctness** (`research/mars_38deg_gap_analysis.py` #4). Our `_equation_of_center_equant` peaks at 11.37° at M=90° vs Ptolemy IX.5's tabulated 11°33' (= 11.55°) — agreement to 0.18°. **Math is correct.**
+2. **Parameter sensitivity** (#2). Sweeping `(R, r, e)` ±10–15% around Almagest IX.5 canonical (343 grid points): peak shape error stays in `[50.46°, 53.34°]`. **Parameter variation closes ~1° of the gap; not the dominant factor.**
+3. **Time-window sensitivity** (#3). Across 50 consecutive Mars synodic cycles starting -200 BCE, peak distribution is `min=43.9°, median=55.8°, max=105.5°`. **Zero cycles peak ≤ 38°. Cherry-picking doesn't close the gap.**
+4. **F&J Figure 39 reproduction** (#5). On F&J's exact 1st-century-BC 13-year window, our three models report MEAN shape error of 36.7° / 37.2° / 37.8° (bare-deferent / Hipparchian / equant) — **within 0.2° of F&J's documented 38°**. PEAK on the same window is 95-103° — about 60° higher than F&J.
+
+**Diagnosis:** the 60° peak gap is **phase misalignment**, not amplitude. Our model's retrograde-peak amplitudes are ~38° (matching F&J's "size of the spike") but they fall at the WRONG JDs at -53 BCE because our `MarsParams.epoch_lon_deg / epoch_anomaly_deg` are propagated from Almagest IX.6's Nabonassar 1 anchor with a ~5° apsidal-line drift over 2200 years. F&J back-anchored their model to align retrograde JDs with reality at the target era; we don't.
+
+**What this means for the H-battery:**
+
+- **E-H4** (equant in 30-50° band) PASS is intact — it's measuring shape RMS, not peak.
+- **E-H3** (epicycle-only ≤ 10°) FAIL stands; the right amplitude bound is in the 30-50° band, not under 10°.
+- **D-H3** (equant breaks σ_day unit-operator) PASS is unchanged; the algebraic finding doesn't depend on epoch alignment.
+- **A new follow-up emerges:** `research/equant_encoder.py` should grow an `EpochFitter` that solves for `(epoch_lon_deg, epoch_anomaly_deg, mean_motion_lon_deg_per_day, mean_motion_anomaly_deg_per_day)` minimising shape RMS on a chosen target-era window. With retrograde-aligned epoch values, our equant's global peak should drop to F&J's 38° on F&J's window, AND below 38° (the equant is a real refinement over bare deferent + epicycle). Estimated effort: ~50 LOC, ~1 hr. Defer to a future research session.
+
+**Pop-fact framing for §11.6.16's seasonal-observability rationale:** the 38° figure is Greek-theory-ceiling-limited, NOT mechanical-tolerance-limited. The Antikythera operator absorbing this 38° at retrograde-via-re-anchoring at the next heliacal rising is the operationally-honest design choice. F&J 2012's framing supports this read.
 
 ### §9.3 Track 3 — Manufacturing tolerance (G-H1, G-H2, G-H3)
 
