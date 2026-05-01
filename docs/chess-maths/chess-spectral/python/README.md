@@ -3,10 +3,12 @@
 Python reference implementations of the **640-dim 2D** and **45 056-dim
 4D** spectral chess encoders, plus the **quantum-mechanical front-end**
 (2D + 4D kinematics; 4D dynamics shipped in v1.5, 2D dynamics in v1.6.x),
-the v1.6 **§16 search + tournament + sweep** engine surface, and the
+the v1.6 **§16 search + tournament + sweep** engine surface, the
 **v5 unified wire format** (three encoding modes — dense / per-channel
 replacement / XOR-stream — with empirical 7.23× compression on 4D
-fixtures vs dense gzipped).
+fixtures vs dense gzipped), and the v1.7 **native bitboard fast-path**
++ **time-budget mid-iteration honoring** (cumulative ~125× speedup on
+dense `legal_moves()` calls vs v1.6).
 
 Sibling of the C17 port in `../src/`. Use the Python package for REPL /
 LLM / notebook analysis, Pyodide-bridge consumers, and the §16
@@ -23,6 +25,56 @@ The pieces ship under two top-level packages:
   `chess_spectral_4d.bridge` module). Splits cleanly from the
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
+
+## What's new in v1.7 (May 2026)
+
+The chess4D-OC visualizer wishlist release. Headline pieces:
+
+- **`SearchOptions.time_budget_ms` honored mid-iteration**
+  (`chess_spectral_4d.engine.search`). Previously the deadline was
+  checked only between iterative-deepening iterations — a 5-second
+  budget on the dense 28-king starting position could overrun by
+  ~100× before depth-1 alone completed. v1.7 threads the deadline
+  into the alpha-beta inner loop and returns the deepest-completed-
+  so-far best move on deadline exit. New `SearchResult.timed_out:
+  bool` field distinguishes deadline-exit from natural completion.
+
+- **Native bitboard fast-path** (`chess_spectral.spatial_4d`,
+  `cs_bitboard4d` shared library). Pure-C primitives for the
+  4096-bit `Bitboard4D` — popcount, bitwise AND/OR/XOR/NOT/sub,
+  per-square set/clear/toggle/test, predicates, and the load-bearing
+  `cs_bb4_to_squares` iteration helper (per-bit LSB extraction in
+  C plus `b &= b - 1` clear, all without crossing the ctypes boundary
+  per square). Ships in the wheel under `chess_spectral/_native/`;
+  loaded via ctypes at import. Pure-Python `Bitboard4D` continues to
+  work as fallback (sdist install, Pyodide / micropip) — verified by
+  a dedicated `fallback-test` CI job. `Bitboard4D.to_squares()` /
+  `.squares()` route through the native helper when
+  `chess_spectral.HAS_NATIVE_BITBOARD` is True; **~16× faster**
+  iteration on dense bitboards.
+
+- **`Board4D.legal_moves()` algorithmic refactor.** The legal-move
+  filter at the dense 28-king start position previously called
+  `_is_attacked` once per own king (K=28 calls, each iterating all
+  N opponent attackers from scratch). v1.7 iterates attackers once
+  and tests `king_bb.intersects(attack_set)` per attacker, short-
+  circuiting on the first hit — same per-op cost (O(1) bitboard
+  test) but one call replaces K. **~12.7× faster** on the
+  representative non-in-check 264-piece position.
+
+- **Cumulative wishlist outcome.** The chess4D-OC visualizer's
+  reported `legal_moves()` ~250s pain point at the standard 28-king
+  start is now ~2s on the same hardware (**~125× faster**) with
+  no API changes. Time-budget-checked search now respects user
+  budgets within ~0.5s grace regardless of position density.
+
+- **Downstream consumer flag.** `HAS_NATIVE_BITBOARD` is exposed
+  at the top-level `chess_spectral` package — consumers can do
+  `from chess_spectral import HAS_NATIVE_BITBOARD` to badge "native
+  fast-path active" or fall back cleanly when the native lib isn't
+  present.
+
+For the full release history see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## What's new in v1.6 (April 2026)
 
@@ -297,7 +349,7 @@ They are real-symmetric on `ℂ^{4096}` with integer / near-integer
 spectra (Hermiticity verified at floating residual ~5e-15; Pre-flight
 2 in [`qm_4d.py`](chess_spectral/qm_4d.py)). Pawn observables break
 Hermiticity under the standard inner product (directed push) — the
-pseudo-Hermitian `η`-metric construction is deferred to v1.7+ per
+pseudo-Hermitian `η`-metric construction is deferred to v1.8+ per
 [ADR-005](../docs/adr/qm_4d/ADR-005-pawn-pseudo-hermitian-eta-metric.md).
 
 `b4_unitary_rep_4096(g)` and `b4_unitary_rep_full(g)` realize the
@@ -394,12 +446,15 @@ captures both succeed via the channels' B5 capture-path branches. See
 docstrings and [`qm_4d_dynamics.py`](chess_spectral/qm_4d_dynamics.py)
 for the per-channel construction details.
 
-**Deferred to v1.7+:**
+**Deferred to v1.8+:**
 - `get_density_matrix_of` (reduced density matrix; needs partial-
   trace machinery on channel labels).
 - `get_qm_density(piece_id=...)` (per-piece marginal; same blocker).
 
-Both raise `NotImplementedError` with a pointer to the v1.7 milestone.
+Both raise `NotImplementedError` with a pointer to the v1.8+ milestone.
+(v1.7.0 shipped the D1 / D2 native fast-path workstream — see the
+"What's new in v1.7" section below — and rolled the partial-trace
+work to a follow-up.)
 
 ## CLI
 
@@ -588,7 +643,7 @@ encoded bytes equal the Python-produced bytes.
     measurement-only re-encode)
   - ADR-004 Z_2 superselection structure (side-to-move sign
     multiplier, resolves the 8-collision encoder hash issue)
-  - ADR-005 pawn pseudo-Hermitian η-metric (deferred to v1.7+)
+  - ADR-005 pawn pseudo-Hermitian η-metric (deferred to v1.8+)
   - `PHASE_3_5_PROBE_RESULTS.md` — empirical probe record that drove
     the ADR-003 amendment.
 - **Pawn-axis split (v1.1.1)** — Oana & Chiru Definition 11; the
