@@ -7,6 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-05-01
+
+The chess4D-OC visualizer's M11.40 unblocker release. Tier-1 of the
+[upstream wishlist](https://github.com/lemonforest/chess-maths-viewer)
+ships in 1.8.0; tier-2 (ψ-driven density / current, partial-trace
+density matrices) follows in 1.8.1+ once the η-metric machinery
+lands. No API breaks vs. 1.7.x — every addition is opt-in surface on
+top of the existing `GameState4D` / `Move4D` / engine `search`.
+
+### Added — `GameState4D` consumer surface (chess4D-OC tier 1)
+
+Previously `chess_spectral_4d.GameState4D` was a position+history
+*snapshot* — consumers had to round-trip through FEN4 to mutate it.
+1.8.0 promotes it to a persistent mutation type that mirrors
+`python-chess.Board`'s push/pop ergonomics, which lets the chess4D-
+OC worker drop its `python-chess4d-oana-chiru` runtime dep.
+
+**Tier 1.1 — push / pop**
+
+- `GameState4D.push(move) -> Move4D` — apply a move, mutating in
+  place. Accepts either a `Move4D` (pulls `from_sq` / `to_sq` /
+  `promote_to`) or a `((from_xyzw), (to_xyzw))` /
+  `((from_xyzw), (to_xyzw), promote_to)` tuple. Returns the recorded
+  `Move4D` so callers can grab capture / promotion metadata.
+- `GameState4D.pop() -> Move4D` — undo the last move. Restores
+  `position`, half-move clock, side-to-move, and decrements the
+  threefold-repetition counter for the position being left.
+  Raises `IndexError` if history is empty (parallel to
+  `chess.Board.pop()`'s contract).
+
+`MoveHistory4D` gains `initial_fen4` and `initial_side_to_move`
+fields, set in `record_initial_position`, so `pop()` can rewind
+the very first ply without the consumer threading the initial
+state separately.
+
+**Tier 1.2 — board view + accessors**
+
+- `GameState4D.board` — read-only `_BoardView4D` proxy over the
+  live position dict. Methods: `occupant(sq)`, `pieces_of(side)`,
+  `__contains__`, `__len__`. The view does not copy or freeze the
+  underlying state — push / pop mutations are reflected
+  immediately.
+- `GameState4D.occupant(sq)` and `GameState4D.pieces_of(side)`
+  — same accessors, exposed directly on the state for consumers
+  who want to skip the `.board` indirection. `sq` accepts both
+  the linear `int` index and the `(x,y,z,w)` `Coord4D` tuple.
+
+**Tier 1.3 — `to_fen` / `from_fen` aliases**
+
+`GameState4D.to_fen()` and `GameState4D.from_fen(fen4, ...)`
+delegate to the existing `to_fen4` / `from_fen4`. Symmetric with
+`python-chess.Board.{to,from}_fen`. The 1.7.1 slash-tolerant FEN4
+form (`P/w@`) is accepted on both names.
+
+**Tier 1.6 — encoder-shaped iterator**
+
+- `GameState4D.iter_pieces() -> Iterator[Tuple[int, PieceValue]]`
+  yields `(sq_idx, piece_value)` pairs in the format
+  `chess_spectral.encoder_4d.encode_4d` consumes directly:
+  `dict(state.iter_pieces())` is exactly the encoder's input.
+  The chess4D-OC worker's `_state_to_pos4` collapses to a one-liner.
+
+### Added — engine + game-state predicates (chess4D-OC tier 3)
+
+**Tier 3.1 — `search()` accepts `GameState4D` directly**
+
+`chess_spectral_4d.engine.search.search` now accepts either a
+`Board4D` (existing surface) or a `GameState4D`. When a state is
+passed, the search constructs a transient `Board4D` from
+`state.position` + `state.side_to_move` and dispatches normally;
+the chess4D-OC worker can drop its `Board4D.from_fen(state.to_fen4())`
+hop. Implementation duck-types (looks for `.position` and
+`.side_to_move`) so the engine's import graph stays one-way.
+
+**Tier 3.2 — `is_check` / `is_checkmate` / `is_stalemate`**
+
+- `GameState4D.is_check()` — wraps `Board4D.is_check()`.
+- `GameState4D.is_checkmate()` — in check AND no legal move.
+  Uses `next(iter(legal_moves), None)` so it bails on the first
+  legal move; cost is `O(legal-move generation)` worst case
+  (~2s at the dense 28-king start after 1.7.0's fast-paths).
+- `GameState4D.is_stalemate()` — NOT in check AND no legal move.
+
+These let the chess4D-OC visualizer route through the upstream
+package instead of reimplementing the predicates in JS.
+
+### Deferred to 1.8.1+
+
+- **Tier 1.4 — `initial_position()` factory**: needs the canonical
+  Oana-Chiru 28-king start FEN4 string. Until it lands as a
+  documented constant, consumers should pass their own FEN4 to
+  `GameState4D.from_fen(fen4)`. Tracked.
+- **Tier 2.1 — `get_qm_density_from_psi` / `get_probability_current
+  _from_psi`**: ψ-driven density / current for the M14.4c entanglement-
+  viz layer. Needs factoring of the existing `get_qm_density` to
+  expose the ψ → density step.
+- **Tier 2.2 — `get_density_matrix_of` (M14.3 blocker)**: still
+  raises `NotImplementedError` per ADR-005 (η-metric construction).
+
+### Added — 16 immolation tests for the new surface
+
+`tests/test_gamestate4d_consumer_surface.py` covers every Tier 1.1
+/ 1.2 / 1.3 / 1.5 / 1.6 / 3.1 / 3.2 contract, asserting both the
+shape (return types, signatures) and at least one concrete behaviour
+per item. Hard gate — chess4D-OC's M11.40 PR will fail loudly if any
+of these regress.
+
+The existing `test_immolation_readme_announces_current_version`
+gate (1.7.1) auto-checks the README has a "What's new in v1.8"
+section before the 1.8.0 wheel ships.
+
 ## [1.7.1] — 2026-05-01
 
 PyPI long-description hotfix on top of 1.7.0. Pure-docs / pure-test

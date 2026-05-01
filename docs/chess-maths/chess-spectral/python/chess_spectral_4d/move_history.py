@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from chess_spectral import fen_4d as _fen_4d
 
@@ -202,6 +202,12 @@ class MoveHistory4D:
     side_to_move: int = SIDE_WHITE
     half_move_clock: int = 0
     position_counts: Dict[str, int] = field(default_factory=dict)
+    # 1.8.0: FEN4 of the position before any moves were appended.
+    # Captured at ``record_initial_position`` time so ``GameState4D.pop()``
+    # can restore the position when the history empties out (i.e. when
+    # the consumer pops the very first move).
+    initial_fen4: Optional[str] = None
+    initial_side_to_move: int = SIDE_WHITE
 
     def record_initial_position(
         self, pos: Position4D, side_to_move: int = SIDE_WHITE,
@@ -218,6 +224,8 @@ class MoveHistory4D:
                 "moves are appended"
             )
         self.side_to_move = side_to_move
+        self.initial_fen4 = _fen_4d.serialize(pos)
+        self.initial_side_to_move = side_to_move
         key = position_hash_key(pos, side_to_move)
         self.position_counts[key] = 1
 
@@ -344,3 +352,313 @@ class GameState4D:
         level (side-to-move is *not* encoded by FEN4 v1, intentionally
         — Phase 5b keeps that out of the wire format)."""
         return _fen_4d.serialize(self.position)
+
+    # ─── 1.8.0: short-name aliases (chess4D-OC wishlist 1.3) ────────
+
+    @classmethod
+    def from_fen(
+        cls, fen4: str, side_to_move: int = SIDE_WHITE,
+    ) -> "GameState4D":
+        """Alias for :meth:`from_fen4`. Symmetric with python-chess's
+        ``Board.from_fen`` and the chess4D-OC visualizer's expected
+        consumer surface (1.8.0 wishlist tier 1.3). The slash-tolerant
+        FEN4 form (1.7.1+, e.g. ``P/w@``) is accepted on this path.
+        """
+        return cls.from_fen4(fen4, side_to_move=side_to_move)
+
+    def to_fen(self) -> str:
+        """Alias for :meth:`to_fen4`. The serializer always emits the
+        canonical no-slash form regardless of how the input was
+        parsed; round-tripping a slash-form FEN4 collapses it to the
+        canonical form on output (1.8.0 wishlist tier 1.3)."""
+        return self.to_fen4()
+
+    # ─── 1.8.0: push / pop (chess4D-OC wishlist 1.1) ────────────────
+    #
+    # ``push`` is a thin wrapper around :func:`apply_move` that accepts
+    # either a :class:`Move4D` (we read its ``from_sq`` / ``to_sq`` /
+    # ``promote_to``) or a 2-tuple of coordinates. Returns the recorded
+    # ``Move4D`` so callers can grab capture / promotion metadata.
+    #
+    # ``pop`` rewinds the last ply by re-parsing the FEN4 the move
+    # records as ``fen4_after`` of the *previous* move (or the initial
+    # FEN4 if this was the first ply). The recorded ``Move4D`` is
+    # returned for callers that need to undo / re-encode.
+
+    def push(
+        self,
+        move: "Union[Move4D, Tuple[Coord4D, Coord4D], Tuple[Coord4D, Coord4D, Optional[str]]]",
+        *,
+        promote_to: Optional[str] = None,
+    ) -> Move4D:
+        """Apply a move, mutating the state in place. Returns the
+        recorded :class:`Move4D`.
+
+        The 2- or 3-tuple form lets the chess4D-OC worker do
+        ``state.push((from_sq, to_sq))`` without constructing a Move4D
+        on the JS side; promote_to defaults to ``'Q'`` (matching the
+        v1.3.x silent auto-queen behaviour).
+
+        Raises ``ValueError`` for any of the same conditions as
+        :func:`apply_move` (no piece on origin, bad coord, bad
+        promote_to, etc.). The chess4D-OC tracker references this as
+        wishlist tier 1.1.
+        """
+        # Local import avoids a circular dependency with apply_move.
+        from chess_spectral_4d.apply_move import apply_move
+
+        if isinstance(move, Move4D):
+            from_sq = move.from_sq
+            to_sq = move.to_sq
+            recorded_promote = move.promote_to or promote_to or "Q"
+        elif isinstance(move, tuple) and 2 <= len(move) <= 3:
+            from_sq = move[0]
+            to_sq = move[1]
+            tup_promote = move[2] if len(move) == 3 else None
+            recorded_promote = tup_promote or promote_to or "Q"
+        else:
+            raise TypeError(
+                "push: move must be a Move4D or a "
+                "((fx,fy,fz,fw), (tx,ty,tz,tw)[, promote_to]) tuple; "
+                f"got {type(move).__name__}: {move!r}"
+            )
+        return apply_move(self, from_sq, to_sq, promote_to=recorded_promote)
+
+    def pop(self) -> Move4D:
+        """Undo the last move; returns the popped :class:`Move4D` so
+        callers can recover capture / promotion metadata.
+
+        Restores ``self.position`` to the snapshot before the popped
+        move, decrements the threefold-repetition count for the
+        position we just left, restores the half-move clock, and
+        flips ``side_to_move`` back. The popped ``Move4D`` is removed
+        from ``self.history.moves``.
+
+        Raises
+        ------
+        IndexError
+            If the history is empty (no prior move to undo). The
+            chess4D-OC consumer should treat this as the bottom of
+            its undo stack, parallel to ``chess.Board.pop()``'s
+            behaviour at game start.
+        """
+        if not self.history.moves:
+            raise IndexError(
+                "pop from empty move history (no prior move to undo)"
+            )
+
+        last_move = self.history.moves[-1]
+
+        # 1. Decrement repetition counter for the current (post-last-move)
+        #    position. The key is keyed on the *side-to-move* AT the
+        #    state we're leaving, which is the post-flip side stored in
+        #    self.history.side_to_move right now.
+        leave_key = position_hash_key(
+            self.position, self.history.side_to_move,
+        )
+        cur = self.history.position_counts.get(leave_key, 0)
+        if cur <= 1:
+            self.history.position_counts.pop(leave_key, None)
+        else:
+            self.history.position_counts[leave_key] = cur - 1
+
+        # 2. Pop the move from the history list.
+        self.history.moves.pop()
+
+        # 3. Restore the prior position. If the popped move was the
+        #    first ply, restore from the recorded initial FEN4. If the
+        #    initial_fen4 is missing (old MoveHistory4D constructed
+        #    pre-1.8.0 without record_initial_position calling the
+        #    serializer), fall back to re-deriving from a fresh empty
+        #    state — the consumer can always re-load via from_fen4.
+        if self.history.moves:
+            prev = self.history.moves[-1]
+            self.position = _fen_4d.parse(prev.fen4_after)
+            self.history.half_move_clock = prev.half_move_clock_after
+        else:
+            init_fen = self.history.initial_fen4
+            if init_fen is None:
+                # Should be unreachable for any GameState4D constructed
+                # via the public API (from_fen4 always records the
+                # initial FEN4). Belt-and-suspenders only.
+                raise RuntimeError(
+                    "GameState4D.pop: history has no moves and "
+                    "no recorded initial_fen4; this state was "
+                    "not constructed via from_fen4 / from_fen."
+                )
+            self.position = _fen_4d.parse(init_fen)
+            self.history.half_move_clock = 0
+
+        # 4. Flip side-to-move back. The popped move was played by the
+        #    side OPPOSITE the current self.history.side_to_move; after
+        #    pop, that opposite side is once again to move.
+        self.history.side_to_move = _other_side(self.history.side_to_move)
+
+        return last_move
+
+    # ─── 1.8.0: piece accessors (chess4D-OC wishlist 1.2) ───────────
+
+    @property
+    def board(self) -> "_BoardView4D":
+        """A read-only view of the current piece placement, exposing
+        the ``occupant`` / ``pieces_of`` accessors the chess4D-OC
+        worker uses (wishlist tier 1.2).
+
+        The view is a thin facade over ``self.position`` — it does
+        not copy or freeze the dict, so changes to ``self.position``
+        (e.g. via :meth:`push` / :meth:`pop`) are reflected
+        immediately. Construct a new view per access; the
+        construction cost is negligible.
+        """
+        return _BoardView4D(self)
+
+    def occupant(
+        self, sq: "Union[int, Coord4D]",
+    ) -> Optional["PieceValue"]:
+        """Piece value at ``sq`` (linear index *or* (x,y,z,w) coord),
+        or ``None`` if empty. Wishlist tier 1.2."""
+        if isinstance(sq, tuple):
+            sq = coord_to_sq(sq)
+        return self.position.get(sq)
+
+    def pieces_of(
+        self, side: int,
+    ) -> "List[Tuple[Coord4D, PieceValue]]":
+        """Return all (coord, piece-value) pairs for ``side``
+        (``SIDE_WHITE`` or ``SIDE_BLACK``). The list is materialized
+        eagerly so the consumer can iterate without caring about
+        concurrent mutation. Wishlist tier 1.2."""
+        if side not in (SIDE_WHITE, SIDE_BLACK):
+            raise ValueError(
+                f"side must be SIDE_WHITE (0) or SIDE_BLACK (1), got {side!r}"
+            )
+        out: List[Tuple[Coord4D, PieceValue]] = []
+        for sq, value in self.position.items():
+            # Pawn values are (color, axis) tuples; non-pawn values are
+            # single-char strings. Color is uppercase = white, lowercase
+            # = black.
+            if isinstance(value, tuple):
+                color = value[0]
+            else:
+                color = value
+            piece_color = SIDE_WHITE if color.isupper() else SIDE_BLACK
+            if piece_color == side:
+                out.append((sq_to_coord(sq), value))
+        return out
+
+    # ─── 1.8.0: encoder-shaped iter (chess4D-OC wishlist 1.6) ───────
+
+    def iter_pieces(self) -> "Iterator[Tuple[int, PieceValue]]":
+        """Yield ``(sq_idx, piece_value)`` pairs in the format
+        ``chess_spectral.encoder_4d.encode_4d`` consumes — the
+        chess4D-OC worker's ``_state_to_pos4`` collapses to
+        ``dict(state.iter_pieces())``. Wishlist tier 1.6.
+
+        The iteration order matches the underlying ``self.position``
+        dict's order (insertion order on CPython 3.7+); callers that
+        need a deterministic ordering can sort by ``sq_idx``.
+        """
+        for sq, value in self.position.items():
+            yield sq, value
+
+    @property
+    def side_to_move(self) -> int:
+        """Side that will play the next move (``SIDE_WHITE`` or
+        ``SIDE_BLACK``). Forwarded from ``self.history.side_to_move``
+        for the chess4D-OC ``state.side_to_move`` consumer surface."""
+        return self.history.side_to_move
+
+    # ─── 1.8.0: check / mate / stalemate predicates (wishlist 3.2) ──
+    #
+    # Implemented via a transient :class:`chess_spectral.spatial_4d.
+    # Board4D` constructed from the live ``self.position``. The
+    # Board4D is GC-eligible right after the call returns; we do not
+    # cache it on ``self`` because legal-move generation depends on
+    # board state freshness and we'd rather pay a small construction
+    # cost than gate cache invalidation through every ``push`` /
+    # ``pop`` / ``apply_move`` call site.
+
+    def _to_board(self) -> "object":
+        """Return a fresh Board4D mirroring this state's position +
+        side-to-move. Used by the check / mate / stalemate predicates;
+        not exposed publicly because the engine-level Board4D
+        consumes its own private API surface (legal_moves, push, pop)
+        that diverges from this module's GameState4D conventions."""
+        from chess_spectral.spatial_4d import Board4D  # noqa: WPS433
+        return Board4D.from_position_dict(
+            self.position, turn=(self.history.side_to_move == SIDE_WHITE),
+        )
+
+    def is_check(self) -> bool:
+        """True iff the side-to-move has any king attacked. Mirrors
+        :meth:`chess_spectral.spatial_4d.Board4D.is_check`. Wishlist
+        tier 3.2."""
+        return self._to_board().is_check()
+
+    def is_checkmate(self) -> bool:
+        """True iff the side-to-move is in check AND has no legal
+        move out of it. Wishlist tier 3.2.
+
+        Cost: O(legal-move generation) — at the dense 28-king start
+        this is ~2s after 1.7.0's native bitboard + algorithmic
+        fast-path. Cache the result if calling repeatedly on the
+        same state.
+        """
+        board = self._to_board()
+        if not board.is_check():
+            return False
+        # No need to fully materialize the move list — the first
+        # legal move is enough to falsify checkmate. ``next(iter, None)``
+        # bails early.
+        return next(iter(board.legal_moves()), None) is None
+
+    def is_stalemate(self) -> bool:
+        """True iff the side-to-move is NOT in check AND has no legal
+        move (so the only "options" would all be illegal — typically
+        because every move leaves a king attacked). Wishlist tier
+        3.2. Cost is the same as :meth:`is_checkmate`."""
+        board = self._to_board()
+        if board.is_check():
+            return False
+        return next(iter(board.legal_moves()), None) is None
+
+
+# ─── 1.8.0: lightweight Board view (wishlist tier 1.2) ───────────────
+
+
+class _BoardView4D:
+    """Read-only view over a :class:`GameState4D`'s current
+    placement, exposing the wishlist's tier 1.2 access surface
+    (``board.occupant(sq)`` and ``board.pieces_of(color)``).
+
+    Implemented as a thin proxy over the underlying
+    ``GameState4D.position`` dict so iteration / lookup don't copy.
+    The chess4D-OC worker only reads from this view — there is
+    intentionally no setter; mutation of the board goes through
+    :meth:`GameState4D.push` / :meth:`GameState4D.pop`.
+    """
+
+    __slots__ = ("_state",)
+
+    def __init__(self, state: "GameState4D") -> None:
+        self._state = state
+
+    def occupant(
+        self, sq: "Union[int, Coord4D]",
+    ) -> Optional["PieceValue"]:
+        """Piece value at ``sq`` (linear index *or* (x,y,z,w) coord),
+        or ``None`` if empty."""
+        return self._state.occupant(sq)
+
+    def pieces_of(
+        self, side: int,
+    ) -> "List[Tuple[Coord4D, PieceValue]]":
+        """All ``(coord, piece-value)`` pairs for ``side``."""
+        return self._state.pieces_of(side)
+
+    def __contains__(self, sq: "Union[int, Coord4D]") -> bool:
+        return self.occupant(sq) is not None
+
+    def __len__(self) -> int:
+        """Number of occupied squares."""
+        return len(self._state.position)

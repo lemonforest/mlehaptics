@@ -6,9 +6,11 @@ Python reference implementations of the **640-dim 2D** and **45 056-dim
 the v1.6 **§16 search + tournament + sweep** engine surface, the
 **v5 unified wire format** (three encoding modes — dense / per-channel
 replacement / XOR-stream — with empirical 7.23× compression on 4D
-fixtures vs dense gzipped), and the v1.7 **native bitboard fast-path**
+fixtures vs dense gzipped), the v1.7 **native bitboard fast-path**
 + **time-budget mid-iteration honoring** (cumulative ~125× speedup on
-dense `legal_moves()` calls vs v1.6).
+dense `legal_moves()` calls vs v1.6), and the v1.8 **`GameState4D`
+push/pop + board accessors + check predicates** consumer surface
+(chess4D-OC visualizer M11.40 unblocker).
 
 Sibling of the C17 port in `../src/`. Use the Python package for REPL /
 LLM / notebook analysis, Pyodide-bridge consumers, and the §16
@@ -25,6 +27,66 @@ The pieces ship under two top-level packages:
   `chess_spectral_4d.bridge` module). Splits cleanly from the
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
+
+## What's new in v1.8 (May 2026)
+
+The chess4D-OC visualizer's **M11.40 unblocker** release. Tier-1
+of the upstream wishlist ships in 1.8.0 — `GameState4D` graduates
+from a position+history snapshot to a persistent mutation type,
+mirroring `python-chess.Board`'s push/pop ergonomics so the
+chess4D-OC worker can drop the `python-chess4d-oana-chiru`
+runtime dep. No API breaks vs. 1.7.x — every addition is opt-in
+surface.
+
+- **`GameState4D.push(move)` / `GameState4D.pop()`** — apply /
+  undo a ply, mutating in place. `push` accepts a `Move4D` or a
+  `((from_xyzw), (to_xyzw)[, promote_to])` tuple. `pop` raises
+  `IndexError` on an empty history (parallel to
+  `chess.Board.pop()`'s contract). Returns the recorded /
+  popped `Move4D` so callers can recover capture / promotion
+  metadata.
+
+- **`GameState4D.board` view** — read-only proxy over the live
+  position dict. Exposes `occupant(sq)` and `pieces_of(side)`
+  accessors plus `__contains__` and `__len__`. `sq` accepts both
+  the linear `int` and the `(x,y,z,w)` `Coord4D` tuple. The view
+  does not copy — push / pop mutations are reflected
+  immediately.
+
+- **`GameState4D.to_fen()` / `GameState4D.from_fen(fen4)`** —
+  symmetric aliases for `to_fen4` / `from_fen4` (the 1.7.1
+  slash-tolerant FEN4 form is accepted on both names).
+
+- **`GameState4D.iter_pieces()`** — yields `(sq_idx, piece_value)`
+  tuples in the format `chess_spectral.encoder_4d.encode_4d`
+  consumes directly. `dict(state.iter_pieces())` is a one-liner
+  replacement for the chess4D-OC worker's previous
+  `_state_to_pos4` helper.
+
+- **`chess_spectral_4d.engine.search.search()` accepts
+  `GameState4D`** — same `SearchResult` shape as before; the
+  engine constructs a transient `Board4D` internally. Drops the
+  `Board4D.from_fen(state.to_fen4())` hop chess4D-OC was
+  previously paying per search call.
+
+- **`GameState4D.is_check()` / `is_checkmate()` / `is_stalemate()`**
+  — wraps `Board4D.is_check()` plus a short-circuit
+  legal-moves probe for mate / stalemate. `is_checkmate` /
+  `is_stalemate` bail on the first legal move via
+  `next(iter(...), None)`, so the dense-position cost is
+  `O(legal-move generation)` worst case — about 2s at the dense
+  28-king start with the 1.7.0 native bitboard fast-path active.
+
+- **16 new immolation tests** in
+  `tests/test_gamestate4d_consumer_surface.py` lock down the
+  contract shape and at least one concrete behaviour per
+  wishlist item. Hard gate — chess4D-OC's M11.40 PR will fail
+  loudly if any of these regress.
+
+Tier-2 (ψ-driven density / current, partial-trace density
+matrices) and the canonical `initial_position()` factory are
+deferred to 1.8.1+; consumers should continue passing their
+own FEN4 to `GameState4D.from_fen(fen4)` until then.
 
 ## What's new in v1.7 (May 2026)
 
