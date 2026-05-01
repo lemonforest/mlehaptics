@@ -2723,6 +2723,115 @@ def test_immolation_has_native_bitboard_flag_exposed_at_top_level():
     )
 
 
+def test_immolation_readme_announces_current_version():
+    """1.7.0 immolation: the PyPI long-description README must include
+    a ``## What's new in v{major}.{minor}`` section matching the
+    pyproject version.
+
+    Catches the bug pattern that surfaced in pre-publish review of
+    chess-spectral 1.7.0: the long-description still framed v1.7
+    items as "deferred to v1.7+" while we were actively shipping
+    1.7.0 as the current release. PyPI users land on the README
+    expecting a "what changed" lede; if the section is missing, the
+    headline pieces of the release are invisible to anyone who
+    doesn't dig into ``CHANGELOG.md``.
+
+    Hard assert: section heading is present.
+
+    Advisory (does NOT fail the test): the test also collects
+    "potentially stale" forward-reference patterns — "deferred to
+    v{X.Y}+" mentions where (X,Y) is at or below the current
+    major.minor. Those are almost certainly stale by the time we
+    ship v{X.Y}.0; anything still deferred should point at v{X.(Y+1)}
+    or beyond. The output is printed as a block of file:line:text
+    triples, deliberately formatted as friendly LLM input for the
+    next doc-scrub pass — the fix here is human / LLM judgment, not
+    something a test can mechanize without false positives. A run with
+    zero advisory output is the desired steady state.
+    """
+    import re
+    from pathlib import Path
+
+    here = Path(__file__).resolve()
+    pkg_root = here.parents[1]   # python/
+    pyproject = pkg_root / "pyproject.toml"
+    readme = pkg_root / "README.md"
+
+    # Avoid importing tomllib (3.11+) so this test is reachable on
+    # Python 3.10 too. The version line is canonically simple in
+    # this package's pyproject — `version = "X.Y.Z..."` — and the
+    # release-pipeline already grep-asserts the same pattern in
+    # chess-spectral-publish.yml's "Verify tag matches pyproject
+    # version" step. If the format changes we'll catch the drift in
+    # both places.
+    pyproject_text = pyproject.read_text(encoding="utf-8")
+    vmatch = re.search(
+        r'^version\s*=\s*"([^"]+)"', pyproject_text, flags=re.MULTILINE,
+    )
+    assert vmatch, "could not find version = \"...\" in pyproject.toml"
+    version = vmatch.group(1)
+
+    # Strip rc / dev / a / b suffixes so a 1.7.0rc4 release still
+    # expects "What's new in v1.7" (the section spans the whole
+    # 1.7.x line).
+    m = re.match(r"(\d+)\.(\d+)", version)
+    assert m, f"unexpected version format in pyproject.toml: {version!r}"
+    base = f"{m.group(1)}.{m.group(2)}"
+
+    text = readme.read_text(encoding="utf-8")
+
+    expected_section = f"What's new in v{base}"
+    assert expected_section in text, (
+        f"README.md is missing a '{expected_section}' section, but "
+        f"pyproject version is {version!r}. Add a section calling "
+        f"out the headline changes shipped in this release; the PyPI "
+        f"long-description is the first thing consumers read after "
+        f"`pip install chess-spectral`. Mirror the structure of the "
+        f"existing 'What's new in v1.6' / 'What's new in v1.7' "
+        f"sections — bullets per headline piece, brief framing of the "
+        f"user-visible change. Then update CHANGELOG.md alongside it."
+    )
+
+    # Advisory: collect "deferred to v{X.Y}+" mentions where (X,Y)
+    # is the current version or below. These are almost certainly
+    # stale forward-references. Print a friendly LLM-readable block
+    # so the next doc-scrub pass can fix them in batch. Does NOT
+    # fail the test — false-positive risk is non-zero (e.g., a
+    # legitimate "still-deferred-since-v1.5" historical note).
+    cur = (int(m.group(1)), int(m.group(2)))
+    suspect: list[tuple[int, str]] = []
+    for hit in re.finditer(r"deferred to v(\d+)\.(\d+)\+?", text):
+        ref = (int(hit.group(1)), int(hit.group(2)))
+        if ref <= cur:
+            line_no = text[:hit.start()].count("\n") + 1
+            # 80-char window around the match for context.
+            line_start = text.rfind("\n", 0, hit.start()) + 1
+            line_end = text.find("\n", hit.end())
+            line_text = text[line_start:line_end if line_end != -1 else None]
+            suspect.append((line_no, line_text.strip()))
+
+    if suspect:
+        # Stable, parseable LLM input format: line:text per row,
+        # preceded by a one-line summary banner. The next doc-scrub
+        # pass can feed this directly to a model with a single
+        # "forward-roll these references" prompt.
+        print(
+            f"\n[immolation] LLM doc-scrub candidates in README.md "
+            f"(current pyproject version v{base}, "
+            f"{len(suspect)} mention(s) at or below v{base}):"
+        )
+        for ln, ln_text in suspect:
+            print(f"  README.md:{ln}: {ln_text}")
+        print(
+            "  --- end LLM doc-scrub candidates ---\n"
+            "  Each entry above is a 'deferred to v{X.Y}+' mention "
+            f"that points at v{base} or earlier — likely stale now "
+            f"that v{base}.x is shipping. Forward-roll to the next "
+            "milestone (or remove if the deferred work has actually "
+            "shipped). This is advisory; the test passes regardless."
+        )
+
+
 def test_immolation_native_bitboard_iteration_parity_when_available():
     """1.7.0 D2 / M2.2: when ``HAS_NATIVE_BITBOARD`` is True, the
     ``Bitboard4D.to_squares()`` native fast-path produces the same
