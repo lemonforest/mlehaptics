@@ -95,6 +95,20 @@ from chess_spectral_4d.move_history import (
 from chess_spectral_4d.apply_move import apply_move
 from chess_spectral_4d import bridge
 
+# 1.8.1: canonical Oana-Chiru §3.3 initial position. Lifted to the
+# top-level so consumers can ``from chess_spectral_4d import
+# initial_position, STARTING_FEN4`` without caring about the
+# physical module layout. See chess_spectral_4d.initial_position
+# for the full §3.3 specification.
+from chess_spectral_4d.initial_position import (
+    STARTING_FEN4,
+    initial_position,
+    central_slices,
+    white_only_slices,
+    black_only_slices,
+    empty_slices,
+)
+
 __all__ = [
     # Version + constants
     "VERSION",
@@ -129,4 +143,11 @@ __all__ = [
     "position_hash_key",
     "apply_move",
     "bridge",
+    # 1.8.1 — canonical 4D initial position
+    "STARTING_FEN4",
+    "initial_position",
+    "central_slices",
+    "white_only_slices",
+    "black_only_slices",
+    "empty_slices",
 ]

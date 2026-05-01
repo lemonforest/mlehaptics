@@ -83,10 +83,21 @@ surface.
   wishlist item. Hard gate — chess4D-OC's M11.40 PR will fail
   loudly if any of these regress.
 
+**1.8.1 update — canonical 4D initial position landed.**
+`chess_spectral_4d.initial_position()` returns a fresh
+`GameState4D` at the Oana-Chiru §3.3 4D starting layout (896
+pieces total: 448 white + 448 black, 28 kings per side).
+`STARTING_FEN4` exposes the same layout as a FEN4 v1 string for
+consumers that want a literal. Slice helpers
+(`central_slices()`, `white_only_slices()`, `black_only_slices()`,
+`empty_slices()`) expose the §3.3 (z, w) classification with
+`|C| = 4`, `|W_only| = 24`, `|B_only| = 24`, `|E| = 12`. 24 new
+immolation tests including a SHA-256 hash lock on the canonical
+FEN4 string.
+
 Tier-2 (ψ-driven density / current, partial-trace density
-matrices) and the canonical `initial_position()` factory are
-deferred to 1.8.1+; consumers should continue passing their
-own FEN4 to `GameState4D.from_fen(fen4)` until then.
+matrices) is still deferred — needs the η-metric machinery from
+ADR-005.
 
 ## What's new in v1.7 (May 2026)
 
