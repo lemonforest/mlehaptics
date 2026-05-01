@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-05-01
+
+The chess4D-OC visualizer's reported user-facing-pain-points release.
+Two upstream improvements to chess-spectral 1.6.1's 4D engine
+performance, both shipped on top of v1.6.1's public surface — no
+behavior changes for existing 2D/4D users; new opt-in surface where
+applicable.
+
+### Headline improvements
+
+| Improvement | Before (1.6.1) | After (1.7.0) | Speedup |
+|---|---|---|---|
+| `search(...)` honors `time_budget_ms` mid-iteration | budget checked between iterations only — depth-1 at the dense start could run for ~510s on a 5s budget | budget checked at every node + partial-iteration result returned | budget honored within 0.5s grace |
+| `Bitboard4D.to_squares()` / `squares()` (the move-gen iterator hot path) | pure-Python `b & -b` loop | native `cs_bb4_to_squares` C primitive | ~16× |
+| `Board4D.legal_moves()` at the dense 28-king start | per-king redundant attacker iteration | one-pass attacker iteration with bitboard intersect on K kings simultaneously | ~12.7× (262× cumulative vs pure-Python rc1) |
+
+The cumulative effect on the wishlist's reported pain point — the
+chess4D-OC visualizer's ~250s `legal_moves()` at the standard 28-king
+starting position — is **~125× faster** in 1.7.0 (from ~250s down to
+~2s on the same hardware), with no API changes.
+
+### Native fast-path infrastructure (D2)
+
+- **`include/cs_bitboard4d.h` + `src/cs_bitboard4d.c`** — pure-C
+  primitives for the 4096-bit Bitboard4D over the Z_8^4 lattice.
+  Build hookup via CMake + scikit-build-core; the shared library
+  ships in the wheel under `chess_spectral/_native/` and is loaded
+  via ctypes at import. Pure-Python `Bitboard4D` continues to work
+  as fallback (sdist install, Pyodide / micropip) — verified by a
+  dedicated `fallback-test` CI job.
+- **`cs_bb4_to_squares`** is the load-bearing speedup. Per-bit LSB
+  extraction in C (`__builtin_ctzll` / `_BitScanForward64` / SWAR
+  fallback) plus `b &= b - 1` clear, all without crossing the ctypes
+  boundary per square. `Bitboard4D.to_squares()` and `squares()`
+  route through it when `HAS_NATIVE_BITBOARD` is True.
+- **C ABI version stamp** (`cs_bb4_abi_version` returns 2) so the
+  Python wrapper can refuse mismatched binaries.
+- **Wheel guardrails** — every published wheel runs
+  `test_native_bitboard4d.py` at install time; a separate sanity
+  check grep-asserts `cs_bitboard4d.{so,dll,dylib}` is present in
+  each wheel before the artefact is uploaded. `verify-wheels` at
+  per-PR CI mirrors the publish matrix.
+
+### Search ergonomics (D1)
+
+- **`SearchOptions.time_budget_ms` honored mid-iteration.** The
+  iterative-deepening driver checks the deadline at every
+  `_alpha_beta` node entry, not just between iterations. On
+  expiry, returns the partial best-move from the deepest
+  fully-completed iteration with `SearchResult.timed_out=True`.
+- New field: `SearchResult.timed_out: bool` distinguishes natural
+  completion (`max_depth` reached) from deadline exit. Existing
+  callers see no API change; opt-in to the new field as needed.
+
+### Algorithmic improvements
+
+- **Legal-move filter** rewritten from "K calls × N attackers each"
+  to "one pass over N attackers, intersect with all K kings per
+  step, short-circuit on first hit". Same per-op cost as the OLD
+  `_is_attacked` (both are O(1) bitboard tests on 4096-bit ints),
+  but tests all K kings in one bitboard op instead of K bit tests.
+  Pareto win on every input we measured.
+
+### Known limitations / deferred to v1.7.x or v1.8
+
+- **Pyodide native WASM build of cs_bitboard4d.so** is deferred. The
+  existing `py3-none-any` pure-Python wheel already serves Pyodide
+  consumers correctly (just without the native speedup). A WASM
+  build would need emscripten + pyodide-build infrastructure and is
+  tracked as M2.5 if there's user demand.
+- **`_alpha_beta` inner loop in C** is deferred. The wishlist
+  ranked it the lowest-priority piece of the native scope; the
+  algorithmic refactor in M2.3 plus native iteration covers most of
+  the user-visible benefit. M2.6 if it turns out to matter.
+
+### Tests
+
+- 249 spatial_4d / move-gen / native-bitboard tests pass.
+- `fallback-test` CI job verifies `HAS_NATIVE_BITBOARD=False` plus
+  226 spatial_4d tests when the native lib isn't available.
+- The cibuildwheel matrix exercises the native path on every wheel
+  build (3 OS × 5 Python = 15 cells) on tag push.
+
 ## [1.7.0rc4] — 2026-05-01 (TestPyPI only)
 
 **M2.3 — algorithmic hot-path: batch attacker test for legal-move
