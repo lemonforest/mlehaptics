@@ -98,11 +98,44 @@ jobs:
           # deps when the wheel is installed; only pytest needs to be
           # added explicitly here.
           CIBW_TEST_REQUIRES: "pytest"
+          # 1.7.0 M2.4: also run the native-bitboard tests so the
+          # cs_bitboard4d shared library bundled under
+          # chess_spectral/_native/ is actually exercised in the
+          # wheel. test_bitboard4d_to_squares_uses_native + the raw
+          # ABI / popcount / iteration tests assert HAS_NATIVE_BITBOARD
+          # is True at wheel-install time and that the C path produces
+          # the same results as the pure-Python reference. Without this
+          # the wheel could silently ship a non-loadable .so/.dll/.dylib
+          # (cf. the M2.1 hidden-visibility regression that wasn't caught
+          # until M2.2 because every native test skipped on
+          # `if not HAS_NATIVE`).
           CIBW_TEST_COMMAND: >
             pytest {package}/../python/tests/test_fen4_parity.py
             {package}/../python/tests/test_e2e_spectralz4_parity.py
-            {package}/../python/tests/test_2d_cli_parity.py -q
+            {package}/../python/tests/test_2d_cli_parity.py
+            {package}/../python/tests/test_native_bitboard4d.py -q
           CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
+
+      - name: Sanity-check native bitboard library is in the wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          for whl in wheelhouse/*.whl; do
+            echo "=== $whl ==="
+            # Look for cs_bitboard4d.{so,dll,dylib} under any path in
+            # the wheel. The install path is chess_spectral/_native/,
+            # but we accept any location to be tolerant of layout
+            # changes.
+            if ! python -m zipfile -l "$whl" \
+                 | grep -E 'cs_bitboard4d\.(so|dll|dylib)|libcs_bitboard4d\.(so|dylib)' \
+                 ; then
+              echo "::error::wheel $whl does NOT contain cs_bitboard4d native library"
+              echo "    contents:"
+              python -m zipfile -l "$whl"
+              exit 1
+            fi
+          done
+          echo "all wheels contain cs_bitboard4d native library"
 
       - uses: actions/upload-artifact@v4
         with:

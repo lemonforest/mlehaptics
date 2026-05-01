@@ -71,14 +71,28 @@ def _find_library() -> Optional[Path]:
         candidates.insert(0, Path(env))
 
     # In-tree dev: chess-spectral/build/* is where CMake puts artefacts.
+    # Different generators land the artefact in different subdirs:
+    #   - Ninja (cmake --preset release): build/release/libcs_bitboard4d.so
+    #   - Ninja (cmake --preset asan):    build/asan/libcs_bitboard4d.so
+    #   - Visual Studio (msvc-release):   build/Release/cs_bitboard4d.dll
+    # We search them all so test_native_bitboard4d.py picks up the
+    # in-tree build whichever preset the developer ran.
     build_dir = Path(__file__).resolve().parents[2] / "build"
     if build_dir.exists():
+        # 1. Direct under build/ (rare, only when -B build is used).
         for name in _candidate_library_names():
             candidates.append(build_dir / name)
-        # CMake on Windows typically places into build/Release/.
-        for cfg in ("Release", "Debug"):
+        # 2. Common preset subdirs (lowercase-named Ninja presets +
+        #    uppercase-named MSBuild configs).
+        for cfg in ("release", "asan", "dev-debug",
+                    "Release", "Debug", "RelWithDebInfo"):
             for name in _candidate_library_names():
                 candidates.append(build_dir / cfg / name)
+        # 3. Discovered subdirs: any *.so/*.dll/*.dylib at any depth
+        #    under build/. Cheap last-resort glob — only runs once at
+        #    import.
+        for name in _candidate_library_names():
+            candidates.extend(build_dir.rglob(name))
 
     for p in candidates:
         if p.exists():
