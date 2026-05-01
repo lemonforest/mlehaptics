@@ -156,6 +156,47 @@ int cs_bb4_intersects(const uint64_t *a, const uint64_t *b) {
     return 0;
 }
 
+/* Index of the lowest set bit (0..63). Caller guarantees x != 0. */
+static inline int ctz64(uint64_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_ctzll(x);
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64))
+    /* MSVC intrinsic; <intrin.h> included at the top of the file. */
+    unsigned long idx;
+    _BitScanForward64(&idx, x);
+    return (int) idx;
+#else
+    /* Software: De Bruijn sequence. Hacker's Delight 5-3.
+     * 64-bit De Bruijn constant 0x03f79d71b4cb0a89; table maps
+     * the high 6 bits of (lsb * constant) to the bit index. */
+    static const int kDebruijn64Index[64] = {
+         0,  1, 56,  2, 57, 49, 28,  3,
+        61, 58, 42, 50, 38, 29, 17,  4,
+        62, 47, 59, 36, 45, 43, 51, 22,
+        53, 39, 33, 30, 24, 18, 12,  5,
+        63, 55, 48, 27, 60, 41, 37, 16,
+        46, 35, 44, 21, 52, 32, 23, 11,
+        54, 26, 40, 15, 34, 20, 31, 10,
+        25, 14, 19,  9, 13,  8,  7,  6
+    };
+    uint64_t lsb = x & (uint64_t)(-(int64_t)x);
+    return kDebruijn64Index[(lsb * 0x03f79d71b4cb0a89ULL) >> 58];
+#endif
+}
+
+int cs_bb4_to_squares(int *out_squares, const uint64_t *bits) {
+    int count = 0;
+    for (size_t w = 0; w < CS_BB4_N_WORDS; ++w) {
+        uint64_t b = bits[w];
+        int word_offset = (int) (w * 64);
+        while (b) {
+            out_squares[count++] = word_offset + ctz64(b);
+            b &= b - 1;  /* clear lowest set bit */
+        }
+    }
+    return count;
+}
+
 int cs_bb4_abi_version(void) {
     return CS_BB4_ABI_VERSION;
 }

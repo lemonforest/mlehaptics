@@ -70,18 +70,34 @@ Numpy interop:
 """
 from __future__ import annotations
 
+import ctypes
 from typing import Iterable, Iterator, List
 
 import numpy as np
 
 # 1.7.0 D2 M2.1: optional native fast-path. The module always imports,
 # even if the C library isn't present; ``HAS_NATIVE_BITBOARD`` reports
-# whether the fast-path is actually wired. Method-level integration
-# (popcount, bitwise ops via native) lands in M2.2; M2.1 is just the
-# foundation: build hookup + ctypes wrapper + the flag.
+# whether the fast-path is actually wired.
+#
+# M2.2 (this file): wire ``Bitboard4D.squares`` / ``to_squares`` to
+# the native ``cs_bb4_to_squares`` when available. The native helper
+# extracts all set-bit indices in one ctypes call (LSB intrinsics +
+# ``b &= b - 1`` clear, all in C), amortizing marshaling overhead
+# over the entire bitboard. Crossover for the marshaling is around
+# popcount ~5; chess attack/occupancy bitboards routinely have
+# popcounts of 20+ at the dense 28-king start, so the native path
+# wins on the hot move-gen path.
+#
+# We deliberately do NOT route ``__or__`` / ``__and__`` / ``__xor__``
+# through native — CPython's native-C int operators on 4096-bit ints
+# already use digit-level SWAR in ``Objects/longobject.c``, faster
+# than the ctypes round trip would be. Only multi-bit operations like
+# iteration benefit from C.
 try:
-    from chess_spectral._native_bitboard4d import HAS_NATIVE as HAS_NATIVE_BITBOARD
+    from chess_spectral import _native_bitboard4d as _native_bb
+    HAS_NATIVE_BITBOARD: bool = _native_bb.HAS_NATIVE
 except ImportError:  # pragma: no cover - belt-and-suspenders
+    _native_bb = None
     HAS_NATIVE_BITBOARD = False
 
 
@@ -354,10 +370,16 @@ class Bitboard4D:
     def squares(self) -> Iterator[int]:
         """Yield set square indices in ascending order.
 
-        Uses ``int.bit_length()`` and lowest-set-bit isolation
-        (``b & -b``) for O(popcount) iteration. Faster than
-        ``[s for s in range(4096) if self._bits & (1 << s)]``.
+        Pure-Python path uses ``int.bit_length()`` and lowest-set-bit
+        isolation (``b & -b``) for O(popcount) iteration — faster
+        than ``[s for s in range(4096) if self._bits & (1 << s)]``.
         """
+        if HAS_NATIVE_BITBOARD:
+            # Hot generator: yield from the native list rather than
+            # repeating the C call. The list build is amortized over
+            # all squares.
+            yield from self._to_squares_native()
+            return
         b = self._bits
         while b:
             lsb = b & -b           # isolate lowest set bit
@@ -365,7 +387,32 @@ class Bitboard4D:
             b &= b - 1             # clear lowest set bit
 
     def to_squares(self) -> List[int]:
+        if HAS_NATIVE_BITBOARD:
+            return self._to_squares_native()
         return list(self.squares())
+
+    def _to_squares_native(self) -> List[int]:
+        """Native fast-path for ``squares() / to_squares()``.
+
+        Marshaling: ``int.to_bytes(512, 'little')`` is C-implemented
+        in CPython (~1 µs for 4096 bits). ``ctypes.c_uint64.from_buffer
+        copy`` is another ~1 µs. The cs_bb4_to_squares call itself is
+        microseconds even on a fully-set bitboard (4096 ctz + clear
+        operations in tight C). Returning Python ints from a
+        ``ctypes.c_int`` array is C-implemented as well.
+
+        For sparse bitboards (popcount under ~5), the pure-Python
+        generator is competitive; for dense ones (the chess
+        move-gen hot path), the native path is several × faster.
+        """
+        # Convert 4096-bit Python int → 64 × uint64 little-endian.
+        data = self._bits.to_bytes(N_SQUARES // 8, "little")
+        words = (ctypes.c_uint64 * 64).from_buffer_copy(data)
+        out = (ctypes.c_int * N_SQUARES)()
+        n = _native_bb.LIB.cs_bb4_to_squares(out, words)
+        # ``list(out)`` materializes all N_SQUARES ints; slice trims.
+        # Slicing a ctypes array is C-fast and yields Python ints.
+        return list(out[:n])
 
     def __iter__(self) -> Iterator[int]:
         return self.squares()

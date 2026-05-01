@@ -64,11 +64,33 @@ int cs_bb4_is_full(const uint64_t *bits);
 int cs_bb4_equals(const uint64_t *a, const uint64_t *b);
 int cs_bb4_intersects(const uint64_t *a, const uint64_t *b);
 
+/* Iteration: fill ``out_squares[]`` with the indices of set bits, in
+ * ascending order. Returns the number of indices written (==
+ * cs_bb4_popcount(bits)).
+ *
+ * The caller MUST ensure ``out_squares`` has room for at least
+ * CS_BB4_N_SQUARES (=4096) ints — the worst case is a fully-set
+ * bitboard. Practical bitboards are usually sparse (popcount under
+ * a few dozen), but the safe-allocation discipline matches numpy's
+ * convention for output buffers.
+ *
+ * This is the load-bearing speedup over pure Python's
+ * ``Bitboard4D.squares()`` generator: per-bit LSB extraction in C
+ * (``__builtin_ctzll`` / ``_BitScanForward64`` / SWAR fallback)
+ * + ``b &= b - 1`` clear, all without crossing the ctypes boundary
+ * per square. One ctypes call per bitboard amortizes the marshaling
+ * overhead. */
+int cs_bb4_to_squares(int *out_squares, const uint64_t *bits);
+
 /* Version stamp for the native ABI. The Python wrapper checks this
  * matches its expected version before dispatching ops; on mismatch
- * the fallback path is used. Bump on incompatible changes. */
+ * the fallback path is used. Bump on incompatible changes.
+ *
+ * Version history:
+ *   1: initial primitives (popcount, bitwise, predicates).
+ *   2: added cs_bb4_to_squares for native iteration (1.7.0 M2.2). */
 int cs_bb4_abi_version(void);
-#define CS_BB4_ABI_VERSION 1
+#define CS_BB4_ABI_VERSION 2
 
 #ifdef __cplusplus
 }  /* extern "C" */

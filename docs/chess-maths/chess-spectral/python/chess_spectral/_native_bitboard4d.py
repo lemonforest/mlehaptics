@@ -32,7 +32,11 @@ N_SQUARES: int = 4096
 
 # Bumped on incompatible C ABI changes; must match CS_BB4_ABI_VERSION
 # in cs_bitboard4d.h.
-EXPECTED_ABI_VERSION: int = 1
+#
+# Version history:
+#   1: initial primitives (popcount, bitwise, predicates).
+#   2: added cs_bb4_to_squares for native iteration (1.7.0 M2.2).
+EXPECTED_ABI_VERSION: int = 2
 
 
 def _candidate_library_names() -> list[str]:
@@ -117,6 +121,12 @@ def _bind(lib: ctypes.CDLL) -> None:
     for name in ("cs_bb4_equals", "cs_bb4_intersects"):
         getattr(lib, name).argtypes = [cu64_p, cu64_p]
         getattr(lib, name).restype = ctypes.c_int
+
+    # M2.2: native iteration. fills out_squares[] with the indices of
+    # set bits, ascending. Returns the count written. Caller must
+    # allocate at least N_SQUARES (=4096) ints worst-case.
+    lib.cs_bb4_to_squares.argtypes = [ctypes.POINTER(ctypes.c_int), cu64_p]
+    lib.cs_bb4_to_squares.restype = ctypes.c_int
 
     lib.cs_bb4_abi_version.argtypes = []
     lib.cs_bb4_abi_version.restype = ctypes.c_int

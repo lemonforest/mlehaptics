@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0rc3] — 2026-05-01 (TestPyPI only)
+
+**M2.2 — native iteration fast-path + M2.1 visibility bug fix.** Wires
+the foundation laid in M2.1 to a real speedup on the chess
+move-generation hot path, and unblocks the previously-shipped (but
+silently inert) M2.1 native primitives.
+
+### Fixed
+
+- **M2.1 visibility regression: cs_bb4_* symbols were hidden, not
+  exported.** The M2.1 CMakeLists set `C_VISIBILITY_PRESET=hidden` on
+  the `cs_bitboard4d` target intending to keep internal helpers
+  private — but the only "internal" symbols in this TU are
+  `static inline` helpers (`popcount64`, `ctz64`) that are never
+  linker-visible regardless of the property. With hidden visibility,
+  the entire `cs_bb4_*` API ended up hidden too: `dlsym()` returned
+  NULL at Python ctypes load time, and `HAS_NATIVE_BITBOARD` silently
+  stayed `False` even when the wheel shipped a working `.so`/`.dll`.
+  The native-only tests in `test_native_bitboard4d.py` noticed via
+  their `if not HAS_NATIVE: skip` guards, so M2.1 CI passed without
+  exercising the native code path. M2.2 drops the hidden-visibility
+  setting; the cs_bb4_* API now exports correctly.
+  (`docs/chess-maths/chess-spectral/CMakeLists.txt`)
+
+### Added
+
+- **`int cs_bb4_to_squares(int *out_squares, const uint64_t *bits)`**
+  — native iteration. Fills `out_squares[]` with the indices of set
+  bits, ascending. Returns the count written. Caller must allocate
+  at least `CS_BB4_N_SQUARES` (=4096) ints worst-case. Uses the LSB
+  intrinsic (`__builtin_ctzll` / `_BitScanForward64` / De Bruijn
+  fallback) plus `b &= b - 1` clear, all in C. One ctypes call per
+  bitboard amortizes the marshaling overhead.
+- **`Bitboard4D.to_squares()` and `Bitboard4D.squares()`** now route
+  through the native helper when `HAS_NATIVE_BITBOARD` is True.
+  Marshaling uses `int.to_bytes(512, 'little')` (C-implemented in
+  CPython, ~1 µs) plus `ctypes.c_uint64.from_buffer_copy` (~1 µs);
+  total per-call overhead ~5 µs, amortized over the entire
+  bitboard. **Microbenchmark on 50 dense (popcount-2000) + 500
+  sparse (popcount-24) bitboards: 130 ms pure-Python → 8 ms native
+  (~16×).**
+- **C ABI version bump 1 → 2** to flag the new `cs_bb4_to_squares`
+  symbol. The Python wrapper checks the version at load time and
+  silently falls back to pure-Python on a mismatch (rebuild your
+  binary or accept the slow path).
+
+### Not changed (deliberate)
+
+We intentionally did NOT route `__or__` / `__and__` / `__xor__` /
+`popcount` through the native path. CPython's native-C int operators
+on 4096-bit ints already use digit-level SWAR in `Objects/longobject.c`
+— faster than the ctypes round trip would be. The ~10 µs of marshaling
+per call (Python int → uint64[64] → ctypes call → uint64[64] → Python
+int) dominates over the ~50 ns CPython int op for these primitives.
+Only multi-bit operations like iteration (where one ctypes call
+amortizes over many bits) benefit from native dispatch.
+
 ## [1.7.0rc2] — 2026-04-30 (TestPyPI only)
 
 **M2.1 — D2 prep: native bitboard primitives + build hookup.** Foundation
