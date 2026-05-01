@@ -90,6 +90,15 @@ from .phase_operators import (
     move_leaves_king_in_check,
 )
 
+# 1.7.0 D2: native fast-path availability flag, re-exported from
+# chess_spectral.spatial_4d.bitboard so downstream consumers (the
+# chess4D-OC visualizer and similar) can do
+#   ``from chess_spectral import HAS_NATIVE_BITBOARD``
+# to badge "native fast-path active" / fall back to a slower-but-
+# correct UI path when native isn't available (sdist install with
+# no C toolchain, Pyodide / micropip, ABI mismatch).
+from .spatial_4d.bitboard import HAS_NATIVE_BITBOARD
+
 __all__ = [
     # Encoder
     "encode_640", "channel_energies", "normalize_pos", "CHANNELS",
@@ -123,4 +132,6 @@ __all__ = [
     "available_castles",
     "phasecast_is_check",
     "move_leaves_king_in_check",
+    # 1.7.0 D2: native fast-path availability (downstream consumer flag).
+    "HAS_NATIVE_BITBOARD",
 ]

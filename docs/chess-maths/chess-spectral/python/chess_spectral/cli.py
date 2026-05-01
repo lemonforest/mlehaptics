@@ -1174,7 +1174,14 @@ def build_parser() -> argparse.ArgumentParser:
             "Recognized keys: label, evaluator (material/spectral/qm), "
             "depth, time_budget_ms, weights (path), quiescence_max_depth, "
             "no_tt, no_mvv_lva, no_quiescence (boolean flags). Default "
-            "depth=4, all optimizations on."
+            "depth=4, all optimizations on.\n\n"
+            "time_budget_ms (1.7.0+): the deadline is checked at every "
+            "node, not just between iterative-deepening iterations, so "
+            "even a tight budget on a dense position returns the deepest-"
+            "completed-so-far best move within ~0.5s grace. The result's "
+            "``timed_out`` field tells the caller whether the search "
+            "exited on the deadline (vs. completing naturally at "
+            "max_depth)."
         ),
     )
     p_search.add_argument(
@@ -1276,7 +1283,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--time-budget-ms", type=int, default=None,
         help="per-move time budget in ms (applied uniformly to every "
              "agent; useful for keeping the matrix within wall-clock "
-             "bounds)",
+             "bounds). Honored mid-iteration in 1.7.0+: the deadline "
+             "is checked at every search node, so the budget is "
+             "respected within ~0.5s grace regardless of position "
+             "density.",
     )
     p_sweep.add_argument(
         "--include-games", action="store_true",

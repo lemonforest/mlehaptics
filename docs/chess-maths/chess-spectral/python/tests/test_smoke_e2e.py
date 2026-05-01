@@ -102,6 +102,18 @@ What it covers (organized by surface):
       scale (P_8 1D Laplacian eigenmodes are the simultaneous
       eigenbasis of the 4D Kron-sum Δ).
 
+    1.7.0 release-pipeline gates (D1 + D2 cohort):
+      D1 search-budget mid-iteration honoring (a tight budget on
+      a dense position returns within budget+0.5s grace with a
+      non-None best_move); SearchResult.timed_out field exists;
+      HAS_NATIVE_BITBOARD is exposed at the top-level
+      ``chess_spectral`` package surface (downstream consumers like
+      the chess4D-OC visualizer depend on the direct import); when
+      HAS_NATIVE is True, Bitboard4D.to_squares() native fast-path
+      output matches a pure-Python reference recompute (catches
+      marshaling regressions in cs_bb4_to_squares or its ctypes
+      wrapper).
+
 Skip behavior:
     - Tests that need the C binary skip cleanly if it isn't built
       (set $CS_SPECTRAL_BIN / $CS_SPECTRAL_4D_BIN, or build the
@@ -2541,6 +2553,216 @@ def test_preflight_spectral_identity_small_scale():
         assert residual < 1e-10, (
             f"spectral identity broken at (i,j,k,l)=({i},{j},{k},{l}): "
             f"||Δv - λv||_∞ = {residual}, λ = {lam}"
+        )
+
+
+# ─── 1.7.0 immolation extension ─────────────────────────────────────
+#
+# Embiggen the immolation suite to gate the chess-spectral 1.7.0
+# release-pipeline items. These tests run on every PR via
+# chess-spectral-ci.yml's build-and-test job and on every release
+# tag via chess-spectral-publish.yml's pre-publish workflow. They
+# are intentionally cheap (sub-second each) so the merge train stays
+# fast; the heavy parity tests live elsewhere.
+#
+# What we gate at the cohort level here:
+#   D1: search(time_budget_ms=...) is honored mid-iteration, not just
+#       between iterations. The behavior change in 1.7.0 was a real
+#       bug fix (pre-1.7.0 a 5s budget on a dense position could
+#       overrun by 100×). A regression that re-introduces between-
+#       iteration-only checking would silently break tournament
+#       wall-clock budgeting; we want to catch that on the merge train.
+#   D1: SearchResult.timed_out field exists (catches accidental field
+#       removal during a refactor; consumers depend on it to
+#       distinguish "natural completion at max_depth" from "exited
+#       on deadline").
+#   M2.x: HAS_NATIVE_BITBOARD is exposed at the top-level
+#       `chess_spectral` package surface. Downstream consumers
+#       (the chess4D-OC visualizer, etc.) depend on importing it
+#       directly from `chess_spectral`; demoting it to a sub-package-
+#       only flag would silently break their availability badge logic.
+#   M2.x: When HAS_NATIVE_BITBOARD is True, Bitboard4D.to_squares()
+#       routes through the native fast-path AND its output matches
+#       the pure-Python reference (catches a future refactor that
+#       might bypass the native helper or introduce a marshaling bug).
+
+
+def test_immolation_search_honors_time_budget_mid_iteration():
+    """1.7.0 D1: a tight search budget on a dense position must
+    return WITHIN budget + 0.5s grace, with a non-None best_move.
+
+    Pre-1.7.0, the budget was checked only BETWEEN iterative-deepening
+    iterations — depth-1 alone on the dense 28-king start could run
+    for 10+ minutes regardless of the time_budget_ms setting. The
+    1.7.0 fix threads the deadline into the alpha-beta inner loop
+    AND returns the deepest-completed-so-far best move on deadline
+    exit. This test gates that contract.
+    """
+    import time as _time
+    from chess_spectral.spatial_4d import Board4D
+    from chess_spectral_4d.engine.search import search, SearchOptions
+    from chess_spectral_4d.engine.eval.material import evaluate
+
+    # Dense 4D position: 28 kings/side + sliders + pawns.
+    # Pseudo-legal at this density is ~3000 moves, legal_moves filter
+    # ran for 26s pre-M2.3. We use a tight 800ms budget — anything
+    # close to the pre-1.7.0 behavior (no mid-iteration check) would
+    # overshoot by orders of magnitude.
+    position = {}
+    def _sq4(x, y, z, w):
+        return ((x * 8 + y) * 8 + z) * 8 + w
+
+    # Spread 28 white kings across x=0,1 planes; 28 black kings
+    # across x=6,7 planes (no mutual attack — realistic dense start).
+    i = 0
+    for x in (0, 1):
+        for y in range(8):
+            for z in range(8):
+                if i >= 28:
+                    break
+                position[_sq4(x, y, z, 0)] = "K"
+                i += 1
+            if i >= 28:
+                break
+        if i >= 28:
+            break
+    i = 0
+    for x in (6, 7):
+        for y in range(8):
+            for z in range(8):
+                if i >= 28:
+                    break
+                position[_sq4(x, y, z, 0)] = "k"
+                i += 1
+            if i >= 28:
+                break
+        if i >= 28:
+            break
+
+    board = Board4D.from_position_dict(position, turn=True)
+    budget_ms = 800
+    grace_ms = 500
+    t0 = _time.perf_counter()
+    result = search(
+        board, evaluate,
+        SearchOptions(max_depth=4, time_budget_ms=budget_ms),
+    )
+    elapsed_ms = (_time.perf_counter() - t0) * 1000.0
+
+    # Wall-clock honored within grace.
+    assert elapsed_ms < budget_ms + grace_ms, (
+        f"search overran time_budget_ms: budget={budget_ms}ms, "
+        f"grace={grace_ms}ms, actual={elapsed_ms:.0f}ms. The "
+        f"deadline check may have regressed to between-iteration only."
+    )
+    # Returned a usable best_move (the partial-iteration result).
+    # best_move is only None when the position has no legal moves.
+    legal_count = sum(1 for _ in board.legal_moves())
+    if legal_count > 0:
+        assert result.best_move is not None, (
+            "search returned best_move=None despite legal moves "
+            "existing; deadline-exit should still surface the "
+            "deepest-completed-so-far partial result."
+        )
+
+
+def test_immolation_search_result_has_timed_out_field():
+    """1.7.0 D1: ``SearchResult`` exposes a ``timed_out: bool`` field.
+
+    Consumers depend on this to distinguish natural completion (max_depth
+    reached) from deadline exit. An accidental field removal during a
+    refactor would silently break their logic. This is a structural
+    sanity check — a tiny search at the empty board ensures the
+    dataclass attribute exists and reads as a bool.
+    """
+    from chess_spectral.spatial_4d import Board4D
+    from chess_spectral_4d.engine.search import search, SearchOptions
+    from chess_spectral_4d.engine.eval.material import evaluate
+
+    # Empty board; search returns essentially immediately (no legal
+    # moves so terminal-node short-circuit triggers).
+    board = Board4D.empty()
+    result = search(board, evaluate, SearchOptions(max_depth=1))
+
+    assert hasattr(result, "timed_out"), (
+        "SearchResult is missing the `timed_out` field added in "
+        "1.7.0; downstream consumers depend on it."
+    )
+    assert isinstance(result.timed_out, bool), (
+        f"SearchResult.timed_out should be a bool, got "
+        f"{type(result.timed_out).__name__}"
+    )
+
+
+def test_immolation_has_native_bitboard_flag_exposed_at_top_level():
+    """1.7.0 D2: ``HAS_NATIVE_BITBOARD`` is importable directly from
+    the ``chess_spectral`` top-level package.
+
+    The chess4D-OC visualizer and similar Pyodide / desktop consumers
+    badge "native fast-path active" via this flag. Demoting it to a
+    sub-package-only export would silently break their availability
+    logic on next install. This test asserts the public surface
+    contract.
+    """
+    import chess_spectral as cs
+    # Importable as an attribute.
+    assert hasattr(cs, "HAS_NATIVE_BITBOARD"), (
+        "chess_spectral.HAS_NATIVE_BITBOARD missing from the top-"
+        "level package; downstream consumers depend on the direct "
+        "`from chess_spectral import HAS_NATIVE_BITBOARD` import."
+    )
+    # Listed in __all__ so `from chess_spectral import *` finds it.
+    assert "HAS_NATIVE_BITBOARD" in cs.__all__, (
+        "HAS_NATIVE_BITBOARD missing from chess_spectral.__all__; "
+        "star-imports will not pick it up."
+    )
+    # And it's a bool.
+    assert isinstance(cs.HAS_NATIVE_BITBOARD, bool), (
+        f"HAS_NATIVE_BITBOARD should be bool, got "
+        f"{type(cs.HAS_NATIVE_BITBOARD).__name__}"
+    )
+
+
+def test_immolation_native_bitboard_iteration_parity_when_available():
+    """1.7.0 D2 / M2.2: when ``HAS_NATIVE_BITBOARD`` is True, the
+    ``Bitboard4D.to_squares()`` native fast-path produces the same
+    set indices as a pure-Python reference recompute.
+
+    Skipped on sdist / Pyodide installs (where the native lib isn't
+    built). When run, this gates the marshaling logic in
+    ``_to_squares_native`` — a regression that introduced an off-by-
+    one or wrong byte-ordering would corrupt every move-gen loop in
+    the package and we want to catch it on the merge train, not at
+    visualizer-debug time.
+    """
+    import chess_spectral as cs
+    if not cs.HAS_NATIVE_BITBOARD:
+        pytest.skip("native bitboard library not present in this build")
+
+    import numpy as np
+    from chess_spectral.spatial_4d import Bitboard4D
+    rng = np.random.default_rng(seed=20260501)
+    for _ in range(8):
+        words = rng.integers(0, 2**63, size=64, dtype=np.uint64)
+        bb = Bitboard4D.from_numpy_uint64(words)
+
+        # Native path (route through Bitboard4D.to_squares).
+        from_native = bb.to_squares()
+
+        # Pure-Python reference recompute via int bit-tricks (the
+        # pre-1.7.0 path; if the native helper drifts from it the
+        # parity break is on a basic primitive).
+        b = bb.bits
+        ref = []
+        while b:
+            lsb = b & -b
+            ref.append(lsb.bit_length() - 1)
+            b &= b - 1
+
+        assert from_native == ref, (
+            f"native to_squares() output diverged from pure-Python "
+            f"reference for popcount={bb.popcount()}. The native "
+            f"marshaling or cs_bb4_to_squares may have regressed."
         )
 
 

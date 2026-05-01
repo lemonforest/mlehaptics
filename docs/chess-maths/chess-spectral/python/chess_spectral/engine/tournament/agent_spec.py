@@ -30,7 +30,14 @@ keys:
   - ``label``                  display name (default: ``<evaluator>@<depth>``)
   - ``evaluator``              ``material`` | ``spectral`` | ``qm``  (required)
   - ``depth``                  integer search depth (default: 4)
-  - ``time_budget_ms``         integer milliseconds; 0/unset = no budget
+  - ``time_budget_ms``         integer milliseconds; 0/unset = no budget.
+                               Honored mid-iteration in 1.7.0+: the
+                               deadline is checked at every search
+                               node, so the budget is respected within
+                               ~0.5s grace regardless of position
+                               density. ``SearchResult.timed_out``
+                               flags deadline-exit vs. natural
+                               completion.
   - ``weights``                path to weights JSON (spectral / qm only)
   - ``no_tt``                  flag, disables transposition table
   - ``no_mvv_lva``             flag, disables MVV-LVA move ordering
