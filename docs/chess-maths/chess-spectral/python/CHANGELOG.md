@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0rc2] — 2026-04-30 (TestPyPI only)
+
+**M2.1 — D2 prep: native bitboard primitives + build hookup.** Foundation
+milestone for the C-extension hot path. The `cs_bitboard4d` shared library
+ships in the wheel (`chess_spectral/_native/`); the Python ctypes wrapper
+loads it at import; `chess_spectral.spatial_4d.bitboard.HAS_NATIVE_BITBOARD`
+flags availability. Pure-Python `Bitboard4D` continues to work unchanged
+(method-level integration lands in M2.2).
+
+### Added
+
+- `include/cs_bitboard4d.h` + `src/cs_bitboard4d.c` — pure-C primitives:
+  popcount, bitwise AND/OR/XOR/NOT/sub, set/clear/toggle/test square,
+  empty/full predicates, equals, intersects. ABI version stamp
+  (`CS_BB4_ABI_VERSION = 1`) with version-mismatch fallback.
+- `chess_spectral/_native_bitboard4d.py` — ctypes wrapper.
+  `HAS_NATIVE` reports whether the library loaded; on failure the
+  module still imports, exposes `LOAD_ERROR` explaining why, and
+  callers fall back to pure Python.
+- `chess_spectral.spatial_4d.bitboard.HAS_NATIVE_BITBOARD` flag,
+  re-exported from the wrapper so callers don't need to import the
+  private module.
+- `tests/test_native_bitboard4d.py` — 8 tests. 3 always run (module
+  imports, flag consistency, error reporting); 5 skip when native
+  isn't built (covering popcount, bitwise ops, per-square ops,
+  predicates against numpy uint64[64] inputs).
+
+### Build
+
+- `CMakeLists.txt`: new `add_library(cs_bitboard4d SHARED ...)` target.
+  POSIX hides internal symbols via `C_VISIBILITY_PRESET hidden`; Windows
+  drops the `lib` prefix to produce `cs_bitboard4d.dll` matching the
+  ctypes wrapper's lookup order.
+- `if(DEFINED SKBUILD)`: install `cs_bitboard4d` into
+  `chess_spectral/_native/` alongside `spectral` / `spectral_4d`.
+
+### What's deferred
+
+- M2.2 (next): wire `Bitboard4D.popcount`, `__or__`/`__and__`/etc.
+  through the native fast-path when `HAS_NATIVE_BITBOARD`.
+- M2.3: `_alpha_beta` inner loop in C.
+- M2.4: cibuildwheel + Pyodide build + sdist-only fallback CI job.
+
 ## [1.7.0rc1] — 2026-04-30 (TestPyPI only)
 
 First milestone of the **chess-spectral 1.7.0** release pipeline addressing
