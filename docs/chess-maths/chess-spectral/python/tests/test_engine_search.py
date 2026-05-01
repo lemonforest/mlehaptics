@@ -227,6 +227,67 @@ def test_search_time_budget_long_completes():
         max_depth=2, time_budget_ms=60_000.0,
     ))
     assert result.depth_reached == 2
+    # 1.6.2: timed_out=False when iteration completes naturally.
+    assert result.timed_out is False
+
+
+# ---- Time budget mid-iteration honoring (1.6.2 fix) -----------------
+
+
+def test_search_time_budget_honored_with_slow_evaluator():
+    """1.6.2: budget must be honored mid-iteration, not just between iterations.
+
+    Uses a slow synthetic evaluator (sleeps per leaf) so the test is
+    deterministic regardless of the host's move-gen speed. The
+    pre-1.6.2 behavior was to discard the partial iteration entirely
+    and return ``best_move=None``; the fix preserves the partial-
+    iteration best move and sets ``timed_out=True``.
+    """
+    import time as _time
+
+    def slow_eval(pos, side):
+        # 50ms per leaf evaluation. At max_depth=8 the search would
+        # explore millions of nodes without a budget; with a 2000ms
+        # budget we should abort within a few hundred leaf evaluations.
+        _time.sleep(0.05)
+        return 0.0
+
+    b = chess.Board()
+    start = _time.monotonic()
+    result = search(b, slow_eval, SearchOptions(
+        max_depth=8, time_budget_ms=2000.0,
+    ))
+    elapsed_ms = (_time.monotonic() - start) * 1000.0
+
+    # Must respect the budget within a 500ms grace period.
+    assert elapsed_ms < 2500.0, (
+        f"elapsed={elapsed_ms:.0f}ms exceeded budget 2000ms by >500ms"
+    )
+    # Must have flagged the time-out.
+    assert result.timed_out is True
+    # Must have at least one root move scored (partial-iteration
+    # result), so best_move is not None.
+    assert result.best_move is not None
+    assert result.best_move in b.legal_moves
+    # ``elapsed_ms`` field on the result also reflects the actual
+    # wall clock.
+    assert result.elapsed_ms < 2500.0
+
+
+def test_search_time_budget_no_legal_moves_returns_none():
+    """When the position has no legal moves (true game-over), best_move
+    is None even with a generous budget. ``timed_out`` is False."""
+    # Fool's-mate position: black is checkmated.
+    b = chess.Board(
+        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
+    )
+    assert b.is_game_over()
+    result = search(b, material.evaluate, SearchOptions(
+        max_depth=4, time_budget_ms=5000.0,
+    ))
+    assert result.best_move is None
+    assert result.timed_out is False
+    assert result.depth_reached == 0
 
 
 # ---- Cross-evaluator ------------------------------------------------

@@ -136,14 +136,73 @@ def test_search_all_ablations_off():
 
 
 def test_search_time_budget_aborts_early():
-    """Tight budget aborts before reaching max_depth."""
+    """Tight budget aborts before reaching max_depth.
+
+    1.6.2 semantics: ``depth_reached`` is the deepest FULLY-completed
+    iteration; with a 5ms budget on a 4D position even depth 1 may
+    not fully complete, so we accept depth_reached >= 0 and check
+    the time-out flag + partial-iteration result instead.
+    """
     b = _three_piece_board()
     r = search(b, _trivial_eval,
                SearchOptions(max_depth=10, time_budget_ms=5))
-    # At least depth 1 should finish before 5ms in this tiny position.
-    # The budget bounds the search.
-    assert r.depth_reached >= 1
     assert r.depth_reached < 10
+    # Either depth 1 fully completed (depth_reached >= 1, no timeout),
+    # or it didn't (depth_reached == 0 with timeout flagged + a
+    # partial-iteration best_move preserved).
+    if r.depth_reached >= 1:
+        assert r.timed_out is False or r.best_move is not None
+    else:
+        assert r.timed_out is True
+        assert r.best_move is not None  # partial-iteration result
+
+
+def test_search_time_budget_honored_with_slow_evaluator():
+    """1.6.2 fix: budget honored mid-iteration, not just between iterations.
+
+    Pre-1.6.2 the deadline was only checked every 1024 nodes inside
+    _negamax AND `list(board.legal_moves())` materialized eagerly,
+    so a tight budget at a position with slow move-gen could blow
+    past the budget by the cost of a full move-list materialization
+    (250s at the 28-king starting position). The fix threads the
+    deadline check into every node entry and into the materialize
+    loop, so we abort partway through move-gen and preserve any
+    partial-iteration root scores.
+
+    A slow synthetic evaluator stands in for the slow move-gen so
+    this test is portable / fast.
+    """
+    import time as _time
+
+    def slow_eval(pos_dict, side_to_move):
+        # 50ms per leaf eval. With max_depth=8 over a few legal moves,
+        # this would normally take many seconds; the 2000ms budget
+        # must stop it.
+        _time.sleep(0.05)
+        return 0.0
+
+    b = _three_piece_board()
+    start = _time.monotonic()
+    r = search(b, slow_eval,
+               SearchOptions(max_depth=8, time_budget_ms=2000.0))
+    elapsed_ms = (_time.monotonic() - start) * 1000.0
+
+    # Must respect the budget within a 500ms grace period.
+    assert elapsed_ms < 2500.0, (
+        f"elapsed={elapsed_ms:.0f}ms exceeded budget 2000ms by >500ms"
+    )
+    assert r.timed_out is True
+    # Partial-iteration result must be preserved (non-None best_move).
+    assert r.best_move is not None
+
+
+def test_search_natural_completion_sets_timed_out_false():
+    """Without budget pressure, timed_out=False."""
+    b = _three_piece_board()
+    r = search(b, _trivial_eval,
+               SearchOptions(max_depth=2, time_budget_ms=60_000.0))
+    assert r.timed_out is False
+    assert r.depth_reached == 2
 
 
 # ---- Determinism ---------------------------------------
