@@ -205,20 +205,46 @@ def _negamax(state: _SearchState,
     return best_score
 
 
-def search(board: Board4D,
+def search(board,
            evaluator: Callable[[Dict[int, object], bool], float],
            options: Optional[SearchOptions] = None) -> SearchResult:
     """Iterative-deepening alpha-beta search on a 4D Board4D.
+
+    1.8.0+: also accepts a :class:`chess_spectral_4d.GameState4D`
+    directly (chess4D-OC wishlist tier 3.1). When a GameState4D is
+    passed, the search converts to a transient ``Board4D`` from
+    ``state.position`` + ``state.side_to_move`` before dispatching;
+    callers using the 4D engine directly can skip the FEN4 hop. The
+    returned ``SearchResult.best_move`` is still a
+    ``chess_spectral.spatial_4d.Move4D`` (engine-native) regardless
+    of the input type.
 
     Same surface as :func:`chess_spectral.engine.search.search` (2D).
     See that module's docstring for parameter details.
 
     Note on perf: 4D move generation in pure Python is slow (~250s
-    for the 28-king starting position's 2152-move legal set). For
-    practical search depths use shallow positions or set
-    ``time_budget_ms`` to bound runtime; the engine respects the
-    budget and returns the deepest completed iteration.
+    for the 28-king starting position's 2152-move legal set; ~2s
+    after the 1.7.0 native bitboard fast-path). For practical
+    search depths use shallow positions or set ``time_budget_ms`` to
+    bound runtime; the engine respects the budget and returns the
+    deepest completed iteration.
     """
+    # 1.8.0 GameState4D adapter (wishlist tier 3.1). Duck-type rather
+    # than isinstance so the import graph stays one-way: the engine
+    # depends on Board4D, not on the move_history module. Anything
+    # with .position (dict) and .side_to_move (int) is treated as a
+    # GameState4D-like adapter target.
+    if not isinstance(board, Board4D) and hasattr(board, "position"):
+        state = board
+        side_to_move = getattr(state, "side_to_move", None)
+        # GameState4D's side_to_move is an int (SIDE_WHITE=0,
+        # SIDE_BLACK=1); Board4D's _turn is a bool (True=white).
+        turn_white = (side_to_move == 0) if isinstance(side_to_move, int) \
+                     else bool(side_to_move)
+        board = Board4D.from_position_dict(
+            state.position, turn=turn_white,
+        )
+
     if options is None:
         options = SearchOptions()
 
