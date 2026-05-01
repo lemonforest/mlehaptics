@@ -175,6 +175,86 @@ def test_native_predicates():
     assert LIB.cs_bb4_intersects(full_p, full_p) == 1
 
 
+@requires_native
+def test_native_to_squares_matches_python():
+    """1.7.0 M2.2: cs_bb4_to_squares output matches the pure-Python
+    generator for a range of bitboard shapes (empty, single, sparse,
+    dense, fully-set)."""
+    import ctypes
+
+    test_cases: list[Bitboard4D] = [
+        Bitboard4D.empty(),
+        Bitboard4D.from_square(0),
+        Bitboard4D.from_square(4095),
+        Bitboard4D.from_squares([0, 1, 2, 3, 1024, 2048, 4095]),
+        Bitboard4D.from_squares(range(0, 4096, 7)),     # 586 squares
+        Bitboard4D.full(),                              # 4096 squares
+    ]
+
+    rng = np.random.default_rng(seed=42)
+    for _ in range(5):
+        words = rng.integers(0, 2**63, size=N_WORDS, dtype=np.uint64)
+        test_cases.append(Bitboard4D.from_numpy_uint64(words))
+
+    for bb in test_cases:
+        # Pure-Python reference: re-derive the squares via int bit-tricks
+        # without going through to_squares (which now routes to native).
+        py_squares = []
+        b = bb.bits
+        while b:
+            lsb = b & -b
+            py_squares.append(lsb.bit_length() - 1)
+            b &= b - 1
+
+        # Native call.
+        words = bb.to_numpy_uint64()
+        words_p = words.ctypes.data_as(ctypes.POINTER(ctypes.c_uint64))
+        out = (ctypes.c_int * N_SQUARES)()
+        n = LIB.cs_bb4_to_squares(out, words_p)
+
+        c_squares = list(out[:n])
+
+        assert n == len(py_squares), (
+            f"native count {n} != Python count {len(py_squares)} for "
+            f"bb popcount={bb.popcount()}"
+        )
+        assert c_squares == py_squares, (
+            f"native squares disagree with Python for bb popcount="
+            f"{bb.popcount()}"
+        )
+
+
+@requires_native
+def test_bitboard4d_to_squares_uses_native():
+    """``Bitboard4D.to_squares()`` and ``squares()`` produce the same
+    output whether routing through native or pure-Python. Compares
+    HAS_NATIVE-on results against an explicit pure-Python recompute."""
+    rng = np.random.default_rng(seed=99)
+    for _ in range(8):
+        words = rng.integers(0, 2**63, size=N_WORDS, dtype=np.uint64)
+        bb = Bitboard4D.from_numpy_uint64(words)
+
+        # to_squares(): full list, native if HAS_NATIVE.
+        from_method = bb.to_squares()
+
+        # Reference recompute.
+        b = bb.bits
+        ref = []
+        while b:
+            lsb = b & -b
+            ref.append(lsb.bit_length() - 1)
+            b &= b - 1
+
+        assert from_method == ref, (
+            f"Bitboard4D.to_squares() disagrees with reference: "
+            f"popcount={bb.popcount()}"
+        )
+
+        # squares() generator: identical when fully consumed.
+        from_iter = list(bb.squares())
+        assert from_iter == ref
+
+
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------

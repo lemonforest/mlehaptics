@@ -130,13 +130,19 @@ add_custom_target(codegen_4d
 # install, etc.).
 add_library(cs_bitboard4d SHARED src/cs_bitboard4d.c)
 target_include_directories(cs_bitboard4d PUBLIC include)
-# Hide internal symbols on POSIX so only the cs_bb4_* API is exported.
-if(NOT MSVC)
-    set_target_properties(cs_bitboard4d PROPERTIES
-        C_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN ON
-    )
-endif()
+# NOTE (1.7.0 M2.2): we deliberately do NOT set
+# C_VISIBILITY_PRESET=hidden here. The previous M2.1 commit set it
+# expecting the cs_bb4_* API to keep "default" visibility while
+# internal helpers got hidden — but the only "internal" symbols in
+# this TU are `static inline` helpers (popcount64, ctz64) which are
+# never linker-visible regardless. With C_VISIBILITY_PRESET=hidden,
+# the entire cs_bb4_* API ended up hidden too, dlsym() returned NULL
+# at Python ctypes load time, and HAS_NATIVE silently stayed False.
+# The native-tests in tests/test_native_bitboard4d.py noticed via
+# their `if not HAS_NATIVE: skip` guards, but the wheel shipped a
+# .so that couldn't actually be called. Default visibility (CMake's
+# default) exports the cs_bb4_* API correctly; the static-inline
+# helpers stay private without any extra annotation.
 # Force the standard `lib` prefix off on Windows (DLL convention) so
 # the file is `cs_bitboard4d.dll`, matching what the ctypes wrapper
 # looks for. POSIX gets the conventional `libcs_bitboard4d.so` /
