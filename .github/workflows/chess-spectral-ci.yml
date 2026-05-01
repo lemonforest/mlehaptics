@@ -161,11 +161,32 @@ jobs:
           # herring for the actual problem — see CIBW_SKIP for the
           # win32/i686 cells that genuinely lack scipy wheels.
           CIBW_TEST_REQUIRES: "pytest"
+          # 1.7.0 M2.4: include the native-bitboard tests so the
+          # wheel-bundled cs_bitboard4d shared library is exercised
+          # at verify time. See chess-spectral-publish.yml for the
+          # rationale (we don't want a silently-non-loadable .so/.dll).
           CIBW_TEST_COMMAND: >
             pytest {package}/../python/tests/test_fen4_parity.py
             {package}/../python/tests/test_e2e_spectralz4_parity.py
-            {package}/../python/tests/test_2d_cli_parity.py -q
+            {package}/../python/tests/test_2d_cli_parity.py
+            {package}/../python/tests/test_native_bitboard4d.py -q
           CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
+
+      - name: Sanity-check native bitboard library is in the wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          for whl in wheelhouse/*.whl; do
+            echo "=== $whl ==="
+            if ! python -m zipfile -l "$whl" \
+                 | grep -E 'cs_bitboard4d\.(so|dll|dylib)|libcs_bitboard4d\.(so|dylib)' \
+                 ; then
+              echo "::error::wheel $whl does NOT contain cs_bitboard4d native library"
+              python -m zipfile -l "$whl"
+              exit 1
+            fi
+          done
+          echo "all wheels contain cs_bitboard4d native library"
 
       - name: Upload built wheel (artifact, debug only)
         uses: actions/upload-artifact@v4
@@ -175,3 +196,65 @@ jobs:
           # Short retention — these are debugging artifacts for failed
           # PR runs, not durable releases.
           retention-days: 7
+
+  fallback-test:
+    # 1.7.0 M2.4: verify the pure-Python fallback path still works
+    # for consumers who can't load the native bitboard library.
+    # Targets:
+    #   * Pyodide / micropip (single-process WASM, no .so loading)
+    #   * sdist install on a host without C toolchain
+    #   * Future: ABI mismatch (HAS_NATIVE=False because the binary
+    #     reports the wrong cs_bb4_abi_version)
+    #
+    # Method: skip the C build entirely. With no .so/.dll in
+    # build/* and no CS_BITBOARD4D_LIB env var, _native_bitboard4d
+    # sets HAS_NATIVE=False and the pure-Python Bitboard4D path is
+    # used. We verify HAS_NATIVE=False explicitly, then run the
+    # spatial_4d tests to confirm correctness.
+    name: fallback (pure-Python, no native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps (no chess-spectral install)
+        # Match the per-PR build-and-test job's deps so the test suite
+        # runs the same way, just without a native library on disk.
+        run: python -m pip install --upgrade pip pytest numpy scipy chess
+
+      - name: Verify HAS_NATIVE_BITBOARD is False (no .so/.dll built)
+        working-directory: docs/chess-maths/chess-spectral/python
+        shell: bash
+        run: |
+          python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          from chess_spectral._native_bitboard4d import HAS_NATIVE, LOAD_ERROR
+          assert HAS_NATIVE is False, (
+              f'expected HAS_NATIVE=False without a build, got True. '
+              f'A stale build/ directory may be polluting the search '
+              f'path; check _find_library.'
+          )
+          assert LOAD_ERROR, 'LOAD_ERROR should explain why native was unavailable'
+          print(f'OK: HAS_NATIVE=False as expected; LOAD_ERROR={LOAD_ERROR!r}')
+          "
+
+      - name: Run spatial_4d test suite with pure-Python fallback
+        working-directory: docs/chess-maths/chess-spectral/python
+        shell: bash
+        run: |
+          # The native-bitboard tests skip cleanly when HAS_NATIVE is
+          # False (3 tests pass — module-imports / flag-consistent /
+          # load-error-set; 7 tests skip). The spatial_4d tests run
+          # against pure-Python Bitboard4D.
+          python3 -m pytest \
+              tests/test_spatial_4d_attacks_nonsliding.py \
+              tests/test_spatial_4d_attacks_pawn.py \
+              tests/test_spatial_4d_attacks_sliding.py \
+              tests/test_spatial_4d_bitboard.py \
+              tests/test_spatial_4d_board.py \
+              tests/test_spatial_4d_draws.py \
+              tests/test_native_bitboard4d.py \
+              -q

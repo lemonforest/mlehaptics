@@ -71,12 +71,31 @@ def _find_library() -> Optional[Path]:
         candidates.insert(0, Path(env))
 
     # In-tree dev: chess-spectral/build/* is where CMake puts artefacts.
+    # Different generators land the artefact in different subdirs:
+    #   - Ninja (cmake --preset release): build/release/libcs_bitboard4d.so
+    #   - Visual Studio (msvc-release):   build/Release/cs_bitboard4d.dll
+    # We search a curated list of optimization-build subdirs.
+    #
+    # Sanitizer builds (asan, ubsan, msan, tsan) are DELIBERATELY
+    # excluded: their .so/.dll is instrumented and depends on the
+    # sanitizer runtime being loaded first (e.g. via LD_PRELOAD or
+    # the sanitizer's own __attribute__((constructor)) machinery).
+    # ctypes-loading a sanitizer-instrumented library into a
+    # non-instrumented Python process either fails outright or
+    # produces nondeterministic crashes; the C-side ctest preset is
+    # the right way to exercise sanitizer builds, not the Python
+    # native fast-path. Same reasoning applies to dev-debug (-O0
+    # compiled, no expectation of being fast or stable for the
+    # ctypes path). If you want to exercise the ctypes path under
+    # asan, set CS_BITBOARD4D_LIB explicitly and run Python under
+    # `LD_PRELOAD=$(gcc -print-file-name=libasan.so) python ...`.
     build_dir = Path(__file__).resolve().parents[2] / "build"
     if build_dir.exists():
+        # 1. Direct under build/ (rare, only when -B build is used).
         for name in _candidate_library_names():
             candidates.append(build_dir / name)
-        # CMake on Windows typically places into build/Release/.
-        for cfg in ("Release", "Debug"):
+        # 2. Optimization-build preset subdirs only (no asan / debug).
+        for cfg in ("release", "Release", "RelWithDebInfo"):
             for name in _candidate_library_names():
                 candidates.append(build_dir / cfg / name)
 
