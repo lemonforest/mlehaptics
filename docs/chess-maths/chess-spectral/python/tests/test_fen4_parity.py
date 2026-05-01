@@ -87,6 +87,16 @@ VALID_FIXTURES = [
         id="whitespace-and-newlines",
     ),
     pytest.param("4d-fen v1: K@0,0,0,0;", id="trailing-semicolon"),
+    # 1.7.1+: slash separator between pawn color and axis is accepted.
+    # Both forms must parse to the same dict (separately tested below).
+    pytest.param("4d-fen v1: P/w@0,1,2,3", id="white-w-axis-pawn-slash"),
+    pytest.param("4d-fen v1: P/y@0,1,2,3", id="white-y-axis-pawn-slash"),
+    pytest.param("4d-fen v1: p/w@7,6,5,4", id="black-w-axis-pawn-slash"),
+    pytest.param("4d-fen v1: p/y@7,6,5,4", id="black-y-axis-pawn-slash"),
+    pytest.param(
+        "4d-fen v1: K@0,0,0,0; P/w@0,1,0,0; p/y@7,6,7,7",
+        id="mixed-slash-and-non-slash",
+    ),
 ]
 
 
@@ -219,6 +229,51 @@ def test_c_python_parity_rejects(fen4, expected_code, tmp_path):
     # Python must also fail (raises Fen4ParseError → cmd handler returns 3)
     with pytest.raises(fen_4d.Fen4ParseError):
         fen_4d.parse(fen4)
+
+
+# ─── 1.7.1: slash-separator equivalence for pawn axis specs ───────────
+
+
+@pytest.mark.parametrize("axis", ["w", "y"])
+@pytest.mark.parametrize("color", ["P", "p"])
+def test_python_parser_slash_form_equivalent_to_no_slash(color, axis):
+    """1.7.1+: ``P/w@x,y,z,w`` must parse to the same dict as
+    ``Pw@x,y,z,w``. The slash separator is a hand-author readability
+    accommodation; the canonical form remains slash-less, which is
+    what serialize() emits.
+    """
+    coords = "1,2,3,4"
+    no_slash = f"4d-fen v1: {color}{axis}@{coords}"
+    with_slash = f"4d-fen v1: {color}/{axis}@{coords}"
+    a = fen_4d.parse(no_slash)
+    b = fen_4d.parse(with_slash)
+    assert a == b, (
+        f"slash-form did not parse equivalently to no-slash form:\n"
+        f"  {no_slash!r}  -> {a}\n"
+        f"  {with_slash!r} -> {b}"
+    )
+
+
+@_REQUIRES_C
+@pytest.mark.parametrize("axis", ["w", "y"])
+@pytest.mark.parametrize("color", ["P", "p"])
+def test_c_python_parity_slash_form_pawn(color, axis, tmp_path):
+    """1.7.1+: the C parser must also accept the slash form, and
+    produce a .spectralz4 byte-equivalent to the no-slash form."""
+    coords = "1,2,3,4"
+    no_slash = f"4d-fen v1: {color}{axis}@{coords}"
+    with_slash = f"4d-fen v1: {color}/{axis}@{coords}"
+
+    out_no_slash = tmp_path / "no_slash.spectral4"
+    out_with_slash = tmp_path / "with_slash.spectral4"
+    _run_c_encode_fen4(no_slash, out_no_slash, compress=False)
+    _run_c_encode_fen4(with_slash, out_with_slash, compress=False)
+    # Byte-equal: both forms describe the same position; the encoder
+    # output for them must be identical.
+    assert out_no_slash.read_bytes() == out_with_slash.read_bytes(), (
+        f"C-encoded .spectralz4 from slash form differs from "
+        f"no-slash form for {color}/{axis} (and shouldn't)."
+    )
 
 
 if __name__ == "__main__":

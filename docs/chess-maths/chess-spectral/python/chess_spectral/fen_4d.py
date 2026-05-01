@@ -89,19 +89,37 @@ def _parse_coord(s: str, i: int) -> Tuple[Tuple[int, int, int, int], int]:
 
 
 def _parse_piece_spec(s: str, i: int) -> Tuple[PieceValue, int]:
-    """Parse a piece spec starting at i. Returns (value, new_index)."""
+    """Parse a piece spec starting at i. Returns (value, new_index).
+
+    1.7.1+: accepts an *optional* ``'/'`` separator between the pawn
+    color char and its axis letter. Both ``Pw@...`` (canonical) and
+    ``P/w@...`` (slash-separated) parse to the same value. The slash
+    form is more readable for humans hand-authoring FEN4 strings —
+    a reasonable accommodation, mirroring chess.com / lichess's
+    tolerance of common syntactic variations in FEN. The serializer
+    in :func:`serialize` continues to emit the canonical no-slash
+    form, so round-tripping a ``P/w@``-input preserves the slash-
+    less representation on output.
+    """
     if i >= len(s):
         raise Fen4ParseError(CODE_BAD_PIECE, i,
                              "expected piece spec, got end-of-input")
     c = s[i]
-    # Pawns: must carry an axis suffix.
+    # Pawns: must carry an axis suffix, optionally preceded by '/'.
     if c == 'P' or c == 'p':
-        if i + 1 >= len(s) or s[i + 1] not in _AXIS_LETTERS:
+        # Skip an optional '/' separator. This is the 1.7.1
+        # tolerance — pre-1.7.1 a literal 'P/w@...' raised
+        # CODE_BAD_PIECE on the slash since we read s[i+1] directly.
+        axis_idx = i + 1
+        if axis_idx < len(s) and s[axis_idx] == '/':
+            axis_idx += 1
+        if axis_idx >= len(s) or s[axis_idx] not in _AXIS_LETTERS:
             raise Fen4ParseError(CODE_BAD_PIECE, i,
                                  f"pawn {c!r} must be followed by axis "
-                                 f"letter ('w' or 'y'), got "
-                                 f"{s[i+1:i+2]!r}")
-        return (c, s[i + 1]), i + 2
+                                 f"letter ('w' or 'y'), optionally with "
+                                 f"a leading '/' separator; got "
+                                 f"{s[i+1:axis_idx+1]!r}")
+        return (c, s[axis_idx]), axis_idx + 1
     # Non-pawn pieces: single char.
     if c in _NON_PAWN:
         return c, i + 1

@@ -52,6 +52,11 @@ static int parse_coord(const char **pp, int out[4])
  * past the spec and writes the piece char into *piece_out and the pawn
  * axis into *axis_out (CS_PAWN_AXIS_W for non-pawns; meaningful only
  * for pawns). Returns 0 on success, -3 on malformed spec.
+ *
+ * 1.7.1+: accepts an optional '/' separator between the pawn color
+ * char and its axis letter — both "Pw@..." (canonical) and
+ * "P/w@..." (slash-separated) parse to the same value. The Python
+ * parser in chess_spectral/fen_4d.py mirrors this tolerance.
  */
 static int parse_piece_spec(const char **pp,
                             int8_t *piece_out, uint8_t *axis_out)
@@ -60,14 +65,17 @@ static int parse_piece_spec(const char **pp,
     char c = *p;
     *axis_out = CS_PAWN_AXIS_W;
 
-    /* White / black pawns: must carry an axis suffix. */
+    /* White / black pawns: must carry an axis suffix, optionally
+     * preceded by '/'. */
     if (c == 'P' || c == 'p') {
-        char a = *(p + 1);
+        const char *axis_p = p + 1;
+        if (*axis_p == '/') axis_p++;   /* tolerate "P/w" */
+        char a = *axis_p;
         if (a == 'w') *axis_out = CS_PAWN_AXIS_W;
         else if (a == 'y') *axis_out = CS_PAWN_AXIS_Y;
         else return -3;
         *piece_out = (int8_t)c;
-        *pp = p + 2;
+        *pp = axis_p + 1;
         return 0;
     }
 

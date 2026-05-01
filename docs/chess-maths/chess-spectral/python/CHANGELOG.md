@@ -47,6 +47,33 @@ algorithmic refactor with ~12.7×; cumulative ~125× on the visualizer
 pain point; `HAS_NATIVE_BITBOARD` top-level export). The package
 summary line now mentions the v1.7 fast-path + budget honoring.
 
+### Fixed — FEN4 parser tolerates optional `/` between pawn color and axis
+
+Both Python (`chess_spectral.fen_4d.parse`) and C
+(`cs_fen_4d_parse`) now accept `P/w@x,y,z,w` as equivalent to
+`Pw@x,y,z,w`. Pre-1.7.1 a literal slash in this position raised
+`Fen4ParseError` / returned `-3` from the C parser. The slash form
+is more readable for humans hand-authoring FEN4 strings — a
+reasonable accommodation, mirroring the FEN family's tolerance of
+common syntactic variations elsewhere.
+
+The serializer (`fen_4d.serialize`) continues to emit the canonical
+no-slash form, so round-tripping a `P/w@`-input preserves the
+slash-less representation on output. Both forms are byte-identical
+under the C `spectral_4d encode-fen4` pipeline (parity verified by
+new tests in `tests/test_fen4_parity.py`).
+
+8 new tests across the Python parser and C-Python parity layer:
+- 4 slash-form fixtures added to the parameterized
+  `VALID_FIXTURES` list (`P/w`, `P/y`, `p/w`, `p/y` plus a
+  mixed-slash-and-no-slash fixture).
+- `test_python_parser_slash_form_equivalent_to_no_slash` —
+  parameterized over (color, axis); asserts both forms parse to
+  the same dict.
+- `test_c_python_parity_slash_form_pawn` — same parameterization;
+  asserts the C `spectral_4d encode-fen4` writes byte-identical
+  `.spectral4` for both forms.
+
 ### Added — Immolation README gate (catches the v1.7+ deferral / missing-section bug pattern automatically)
 
 - New test in `tests/test_smoke_e2e.py`:
