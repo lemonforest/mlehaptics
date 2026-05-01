@@ -144,6 +144,19 @@ endif()
 if(WIN32)
     set_target_properties(cs_bitboard4d PROPERTIES PREFIX "")
 endif()
+# Per-target compile options to sidestep an MSVC + Windows SDK 10.0.22000+
+# bug. The SDK's <malloc.h> uses C23-era SAL annotations that MSVC's
+# strict /std:c17 mode mis-parses (errors on identifiers like `_Ptr`,
+# `_Memory`, `_Size`). malloc.h gets pulled in implicitly by MSVC's DLL
+# build setup. Three switches together resolve it:
+#   - /Zc:preprocessor: conformant preprocessor required for SDK SAL macros
+#   - /std:clatest: bypass strict C17, use latest C dialect
+# These don't affect the strict-C17 cs_core / spectral targets (set
+# per-target rather than globally).
+set_target_properties(cs_bitboard4d PROPERTIES C_EXTENSIONS ON)
+if(MSVC)
+    target_compile_options(cs_bitboard4d PRIVATE /Zc:preprocessor /std:clatest)
+endif()
 
 # ─── scikit-build-core wheel install ────────────────────────────────────────
 # When building under scikit-build-core (i.e. `pip install .` or
