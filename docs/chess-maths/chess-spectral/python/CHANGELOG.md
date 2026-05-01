@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation — README v1.7 surface refresh (PyPI long-description)
+
+Three deferral targets that previously read "deferred to v1.7+"
+were forward-rolled to "v1.8+" now that v1.7.0 is shipping —
+ADR-005 pawn pseudo-Hermitian η-metric, `get_density_matrix_of`,
+and `get_qm_density(piece_id=...)`. These are all genuinely still
+deferred (v1.7.0 didn't ship the partial-trace machinery they need;
+the v1.7.0 scope was the chess4D-OC visualizer wishlist, not the
+QM bridge backlog). The "v1.7+" framing was stale on the PyPI
+long-description from v1.6's vantage point; "v1.8+" is forward-
+accurate.
+
+Also added a **"What's new in v1.7"** section above "What's new in
+v1.6", calling out the four headline 1.7 pieces:
+- `time_budget_ms` honored mid-iteration + new `SearchResult.timed_out`
+- Native bitboard fast-path (`cs_bitboard4d`, ~16× iteration)
+- `Board4D.legal_moves()` algorithmic refactor (~12.7×)
+- Cumulative ~125× on the chess4D-OC visualizer's reported
+  `legal_moves()` ~250s pain point at the dense 28-king start
+- `HAS_NATIVE_BITBOARD` exposed at top-level for downstream
+  consumer flag-checking
+
+The PyPI long-description package summary line now mentions the
+v1.7 fast-path + budget honoring.
+
 ### Added — 1.7.0 release-pipeline polish (immolation embiggening + downstream surface)
 
 - **`HAS_NATIVE_BITBOARD` re-exported at the top-level `chess_spectral`
