@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0rc4] — 2026-05-01 (TestPyPI only)
+
+**M2.3 — algorithmic hot-path: batch attacker test for legal-move
+filter.** Pareto speedup of `Board4D.legal_moves()` at the dense
+28-king start position. Pure-Python algorithmic change; no native
+code added.
+
+### Changed
+
+- `Board4D._any_own_king_attacked_after_push` now iterates attackers
+  *once* and per-attacker tests `king_bb.intersects(attack_set)`,
+  short-circuiting on the first attacker that hits any king.
+  Previously: K calls × N attackers each (one `_is_attacked` per
+  king, each iterating all attackers separately). Now: O(N) per
+  push with the same short-circuit behaviour.
+
+  **Profiling (1.7.0rc3 baseline) showed
+  `_any_own_king_attacked_after_push` was ~60% of total
+  `legal_moves()` cost on a representative non-in-check 264-piece
+  position (28 kings/side + sliders + 56 pawns/side). Microbench:**
+
+  | Position | rc3 (old per-king) | rc4 (new) | speedup |
+  |---|---|---|---|
+  | Non-in-check, 264 pieces | 26 022 ms | 2 043 ms | **12.7×** |
+  | Pathological dense (kings in mutual attack) | 686 ms | 432 ms | 1.6× |
+
+  Both cases improved (Pareto win). The realistic case (the wishlist's
+  reported chess4D-OC visualizer pain point) sees the bigger gain
+  because the OLD path's K-fold redundancy hurt most when no king
+  was attacked yet.
+
+  Implementation note: the shape of the new code closely mirrors the
+  pre-existing `_is_attacked`, with `if sq in attack_set` swapped for
+  `if king_bb.intersects(attack_set)`. Same per-op cost (both are
+  O(1) bitboard tests on 4096-bit ints), but one call replaces K.
+
+  All 249 spatial_4d-related tests + apply_move + castling + native-
+  bitboard tests pass unchanged. No API changes.
+
 ## [1.7.0rc3] — 2026-05-01 (TestPyPI only)
 
 **M2.2 — native iteration fast-path + M2.1 visibility bug fix.** Wires
