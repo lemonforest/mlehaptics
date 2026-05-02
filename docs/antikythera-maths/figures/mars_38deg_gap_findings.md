@@ -2,7 +2,7 @@
 
 **Status:** Research finding (this branch).
 **Date:** 2026-05-01
-**Code:** [`research/mars_38deg_gap_analysis.py`](../research/mars_38deg_gap_analysis.py) — nine analyses; #1-#8 run against analytic Kepler 2-body ground truth (no JPL kernel needed); #9 reruns the key #5/#6/#8 trio against JPL DE422 / DE441 (skips gracefully if no kernel cached).
+**Code:** [`research/mars_38deg_gap_analysis.py`](../research/mars_38deg_gap_analysis.py) — ten analyses; #1-#8 run against analytic Kepler 2-body ground truth (no JPL kernel needed); #9 reruns the key #5/#6/#8 trio against JPL DE422 / DE441; #10 restricts evaluation to F&J's "middle 7 retrogrades" sub-windows (skips gracefully if no DE kernel).
 
 ## TL;DR
 
@@ -14,10 +14,11 @@ The notebook's claim "we haven't tried to model the Greek epicycle" is **stale**
 - The documented "Antikythera Mars peak ~38°" comes from **Freeth & Jones 2012, ISAW Papers 4, §3.10 + Figure 39**, measured against JPL Horizons across the **middle seven retrogrades of Mars in the 1st century BC** (~13-year window, ~-53 BCE). Their model is a *bare* deferent + epicycle (no eccentricity, no equant) — even simpler than Hipparchus. Captured as `FREETH_2012_MARS_PARAMS` (with `FREETH_2021_MARS_PARAMS` for the gear-train reconstruction; same kinematic class).
 - **The 10° gap is not a math bug.** Our `_equation_of_center_equant` reproduces Ptolemy IX.5's max equation (11°33' = 11.55°) to within 0.18°. Implementation is correct.
 - **The gap is partly phase-alignment, partly metric-choice, plus a small reference-frame shift.** Our default `MarsParams.epoch_lon_deg = 297.4°` and `epoch_anomaly_deg = 41.6°` are propagated from Almagest IX.6's anchor with a few-degree apsidal-line drift over 2200 years.
-- **The cleanest reading of F&J's 38°** (post-#9): it is the **unfit mean shape error against JPL DE422** of all three Hellenistic Mars models on the 1st-century-BC window. Section A of #9 shows: bare deferent + epicycle 37.18°, Hipparchian 37.86°, equant 38.62° — clustered around F&J's 38° within 1°. F&J's "nearly 38° at the retrogrades" reads as "Greek planetary theory misses by an average of ~zodiac sign across this window," which is exactly what all three Hellenistic Mars models do against the actual sky.
-- **The peak interpretation is also recoverable, but only with anchor-fit + reference change + retrograde-subset selection.** Each of #6 / #8 / #9 closes ~50° / ~5° / ~1-2° of the unfit 95° peak. The remaining ~5° is most plausibly F&J's specific "middle 7 retrogrades" being a narrower subset than our 13-yr window's worst excursion.
+- **The cleanest reading of F&J's 38°** (post-#10): it is the **unfit RMS shape error of the bare deferent + epicycle on the middle 7 retrogrades vs JPL DE422 = 38.85°**, within 0.85° of F&J's documented value. All three pieces of F&J's setup matter — model = bare deferent + epicycle (no eccentricity, no equant); reference = JPL Horizons (DE422); subset = the 7 retrograde sub-windows themselves. Match all three and F&J's "nearly 38°" reproduces almost exactly without any fitting.
+- **A close runner-up reading** (post-#9): full-window unfit MEAN vs DE422 = 37-39° across all three Hellenistic models. Slightly less faithful to F&J's prose ("at the retrogrades"), but easier to compute (no opposition detection needed) and lands at the same number.
+- **The peak interpretation is recoverable but ranges across [27°, 47°] depending on subset and objective.** When restricted to retrograde sub-windows AND fitted (#10 Section B), peaks land at 27-37° — *below* F&J's 38°, meaning the Hellenistic models are mathematically capable of better than 38° on this window when the anchor is chosen freely. F&J's 38° is the *unfit* statistic.
 
-## What the nine sub-analyses showed
+## What the ten sub-analyses showed
 
 ### #1 — Provenance (literature audit)
 
@@ -186,7 +187,58 @@ Best peak-fit against DE422: **42.49°** (epicycle-only, peak objective). With K
 
 Both the peak interpretation (~38° via #6 + #8 + #9 + retrograde-subset selection) and the mean interpretation (~38° directly from Section A) are coherent; F&J's "38°" is true under both metric choices but cleanest as a mean.
 
-## What's actually wrong (the structural diagnosis, post-#6 + #8 + #9)
+### #10 — F&J "middle 7 retrogrades" subset probe (final closure)
+
+#9 left a residual ~5° from F&J's 38° as a peak. F&J explicitly say "middle SEVEN retrogrades in 1st century BC, ~13-yr window" — not the full 13-yr span we evaluated. #10 detects 7 oppositions in a 15-yr window centred on -53 BCE (JD 1721423.5), restricts evaluation to ±35-day retrograde sub-windows around each, and re-runs the comparisons.
+
+**The 7 oppositions found** (DE422-detected, span 12.86 yr from first to last):
+
+| # | JD | yr from -53 BCE |
+|---:|---:|---:|
+| 1 | 1718935.4 | -6.81 |
+| 2 | 1719712.3 | -4.68 |
+| 3 | 1720512.1 | -2.50 |
+| 4 | 1721319.2 | -0.29 |
+| 5 | 1722101.1 | +1.86 |
+| 6 | 1722869.8 | +3.96 |
+| 7 | 1723634.1 | +6.05 |
+
+**Section A — unfit shape error on retrograde subset (vs DE422):**
+
+| Model | Peak deg | Mean deg | **RMS deg** |
+|---|---:|---:|---:|
+| bare deferent + epicycle (`FREETH_2012_MARS_PARAMS`, ε=0) | 80.53 | 33.03 | **38.85** |
+| bronze projection (`FREETH_2012_MARS_PARAMS`) | 80.53 | 33.03 | **38.85** |
+| Hipparchian eccentric-deferent (`PTOLEMY_MARS_PARAMS`) | 80.50 | 34.99 | 40.83 |
+| bronze projection (`PTOLEMY_MARS_PARAMS`) | 80.50 | 34.99 | 40.83 |
+| Ptolemaic equant + bisection (`PTOLEMY_MARS_PARAMS`) | 81.56 | 37.03 | 42.85 |
+
+**🎯 The bare-deferent's unfit RMS on the retrograde subset is 38.85° — within 0.85° of F&J's documented "nearly 38°."** This is the cleanest direct reproduction of F&J's claim across all ten analyses. F&J's "nearly 38° at the retrogrades" reads cleanest as **"unfit RMS of the bare deferent + epicycle (perfect period) on the middle 7 retrogrades vs JPL Horizons."**
+
+**Section B — RMS-fit + peak-fit on retrograde subset (vs DE422):**
+
+| Model | base_params | obj | start | fit peak | fit mean | fit RMS |
+|---|---|---|---:|---:|---:|---:|
+| bronze | `FREETH_2012_MARS_PARAMS` | rms | 38.85 | 29.82 | 14.74 | 16.80 |
+| bronze | `FREETH_2012_MARS_PARAMS` | peak | 80.53 | 32.32 | 14.96 | 17.20 |
+| epicycle-only | `PTOLEMY_MARS_PARAMS` | rms | 40.83 | **27.51** | 14.47 | 16.46 |
+| epicycle-only | `PTOLEMY_MARS_PARAMS` | peak | 80.50 | 36.82 | 15.74 | 18.65 |
+| equant | `PTOLEMY_MARS_PARAMS` | rms | 42.85 | 30.01 | 14.38 | 16.48 |
+| equant | `PTOLEMY_MARS_PARAMS` | peak | 81.56 | **29.38** | 14.61 | 16.85 |
+
+**All peak-objective fits land *below* F&J's 38°** (range: 27.51° – 36.82°). This is consistent with F&J's number being the *unfit* statistic: when the anchor is allowed to vary, the Hellenistic models can do better than 38° even on the retrograde subset.
+
+**Three coherent readings of "38°" across the ten analyses:**
+
+| Reading | Statistic | Value | Comment |
+|---|---|---:|---|
+| (a) Full-window unfit MEAN vs DE422 (#9 Section A) | mean of \|residual\| | 37-39° | clustered tightly across all three models |
+| **(b) Retrograde-subset unfit RMS vs DE422 (#10 Section A)** | **RMS of \|residual\|** | **38.85°** | **bare deferent; matches F&J prose most literally** |
+| (c) Full-window peak-objective fit (#8 + #9) | max of \|residual\| | 42-47° | fitted, lands close |
+
+**(b) is the most literal reading of F&J's prose** — they explicitly say "at the retrogrades" and "perfect period." (a) is a close runner-up that doesn't require opposition detection. (c) is a fitted statistic and lands ~5–10° above F&J's number; not the cleanest match.
+
+## What's actually wrong (the structural diagnosis, post-#6 + #8 + #9 + #10)
 
 Our `equant_encoder.MarsParams` has:
 
@@ -208,7 +260,9 @@ We do propagate via mean motion — but the propagation accumulates a few degree
 
 **Further refined** (post-#8): peak-objective Nelder-Mead drops peak to 44–47° (about 5–10° tighter than RMS-fit) but doesn't recover the full 38°. The ~6–9° that remains after switching objective was hypothesised to be **reference-frame difference** (F&J use JPL Horizons; we used Kepler 2-body).
 
-**Settled** (post-#9): switching reference Kepler → DE422 closes only ~1–2° of the residual peak gap, much less than the hypothesised 6–9°. **The dominant residual was metric choice, not reference frame.** What #9 *does* show cleanly is the mean reading: the unfit MEAN error against DE422 is 37–39° across all three Hellenistic Mars models, matching F&J's 38° to within 1°. F&J's "nearly 38°" is the unfit mean shape error against JPL Horizons.
+**Settled** (post-#9): switching reference Kepler → DE422 closes only ~1–2° of the residual peak gap, much less than the hypothesised 6–9°. **The dominant residual was metric choice, not reference frame.** What #9 *does* show cleanly is the mean reading: the unfit MEAN error against DE422 is 37–39° across all three Hellenistic Mars models, matching F&J's 38° to within 1°.
+
+**Final settlement** (post-#10): with all three pieces of F&J's setup matched (bare deferent + epicycle / DE422 reference / 7-retrograde subset), the **unfit RMS error is 38.85°** — within 0.85° of F&J's "nearly 38°." This is the most literal reproduction of F&J's prose. F&J's number is an unfit shape statistic, not a fitted peak.
 
 Final decomposition of the unfit ~95° peak:
 - **~50°** epoch / mean-motion misalignment (closed by #6 RMS-fit)
@@ -225,15 +279,17 @@ Both are "true." F&J's prose strongly implies the peak reading; the underlying n
 
 ## Recommended follow-up (next research session, not in this PR)
 
-After #6 (RMS-objective fit), #8 (peak-objective fit), and #9 (DE422 reference), one minor follow-up remains:
+The 38° gap is now closed from multiple independent angles. No remaining deferred items at the same priority level. Possible adjacent probes if a contributor wants to chase them:
 
-1. **F&J "middle 7 retrogrades" subset selection.** Our 13-yr window evaluation includes ~7 retrogrades total (matching F&J's count) but doesn't restrict to F&J's specific subset — they presumably picked the 7 retrogrades closest to the centre of the 1st century BC, excluding tail effects. The remaining ~5° peak gap (#9 best peak-fit 42.49° vs F&J 38°) is most plausibly that. Effort: low (~30 LOC, restrict the JD list to retrograde-centred sub-windows). Importance: low — the mean reading already lands at 38° without subset selection.
+- **Apply the same #5–#10 framework to Venus / Mercury / Jupiter / Saturn.** Their documented theoretical-error figures (smaller than Mars's 38° because their orbits are less eccentric / less retrograde-prone) would benefit from the same audit. Effort: moderate; the analysis scaffold is now reusable.
+- **Sweep over named MarsParams variants under #10.** Adding `FREETH_2021_MARS_PARAMS` to Section B might surface differences in the gear-train reconstruction that are invisible at the parameter-set level. Effort: low (one extra row).
+- **Cross-reference to the H-battery rows.** E-H4's PASS / E-H3's FAIL framing predates the EpochFitter findings; the marginal-equant-contribution question (does equant help meaningfully after epoch alignment?) deserves an explicit H-battery row. Effort: low.
 
-This is a window-selection choice, not new modelling — in scope per [`docs/antikythera-maths/CLAUDE.md`](../CLAUDE.md). Defer to a future session unless someone wants to chase it.
+These are all in scope per [`docs/antikythera-maths/CLAUDE.md`](../CLAUDE.md).
 
 The appropriate notebook framing now is:
 
-> "Our equant implementation is mathematically correct (matches Ptolemy IX.5's max equation of center to <0.5°), and its bronze projection through the gear-ratio pin-and-slot transform agrees with the analytic equation-of-center to ~10⁻¹³ deg (a numerical-precision parity check). On F&J's 1st-century-BC window, the **unfit mean shape error against JPL DE422 is 37.18° / 37.86° / 38.62°** (bare deferent / Hipparchian / equant) — clustered tightly around F&J's documented 38° within 1°. **F&J's 38° is the unfit mean shape error against JPL Horizons of the Hellenistic Mars models on the 1st-century-BC window — not a fitted statistic, just the average miss of Greek planetary theory measured against the actual sky.** The peak interpretation is also recoverable: #6 (RMS-objective fit) + #8 (peak-objective fit) + #9 (DE422 reference) close 50° + 5° + 1-2° of the unfit ~95° peak, leaving ~5° residual most plausibly attributable to F&J's specific 'middle 7 retrogrades' being a narrower subset than our 13-yr window. Both readings are coherent; the mean reading is cleaner and requires no fitting."
+> "F&J's documented 38° Mars peak error reproduces directly as the unfit RMS shape error of the bare deferent + epicycle (their pre-Hipparchian model, perfect period) on the middle 7 retrogrades of the 1st century BC vs JPL DE422 — 38.85°, within 0.85°. All three pieces of their setup matter: model = bare deferent + epicycle (no eccentricity, no equant); reference = JPL Horizons; subset = the 7 retrograde sub-windows. A close runner-up reading is the full-window unfit mean (37–39° across all three Hellenistic models). Our equant implementation is mathematically correct (matches Ptolemy IX.5's max equation of center to <0.5°), and the bronze projection through the gear-ratio pin-and-slot transform agrees with the analytic equation-of-center to ~10⁻¹³ deg (a numerical-precision parity check). When the anchor is fitted freely (#6, #8, #9, #10 Section B), peaks land in [27°, 47°] — F&J's 38° is the *unfit* statistic, and the Hellenistic models are mathematically capable of better when the anchor is chosen to optimise."
 
 ## Sources
 
