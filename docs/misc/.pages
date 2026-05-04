@@ -1,0 +1,46 @@
+# awesome-pages config for docs/misc/.
+#
+# This directory holds the UTLP (Universal Time Lord Protocol) corpus
+# plus a handful of cross-cutting research notes. The default
+# alphabetical sort buries UTLP_Executive_Summary.md after a long tail
+# of supplements and ancillary files; this `.pages` file fixes the
+# reading order so a docs reader can start from the executive summary
+# and walk down through the spec, supplements, and prior art.
+
+title: UTLP & cross-cutting research
+
+nav:
+  # ── UTLP core ────────────────────────────────────────────────────
+  - UTLP_Executive_Summary.md
+  - UTLP_Specification.md
+
+  # Technical supplements (S1: Genesis election, S2: phase alignment,
+  # S3: trust ledger, S4: immunity).
+  - UTLP_Technical_Supplement_S1.md
+  - UTLP_Technical_Supplement_S2.md
+  - UTLP_Technical_Supplement_S3.md
+  - UTLP_Technical_Supplement_S4.md
+
+  # Position-from-timing addendum.
+  - UTLP_Addendum_Reference_Frame_Independent_Positioning.md
+  - RFIP_Technical_Specification.md
+
+  # ── Companion specs ──────────────────────────────────────────────
+  - SMSP_Technical_Specification.md
+  - Connectionless_Distributed_Timing_Prior_Art.md
+  - Distributed_Sensing_Lab_Manual.md
+  - Python_Reference_Implementation.md
+
+  # ── Cross-cutting research notes ─────────────────────────────────
+  - hdc_as_instruments.md
+  - Spectral_Convergence_Conjecture.md
+  - Integrative_Capacity_AI_Synthesis_Alignment.md
+  - proprioceptive_spatial_construction.md
+  - simulation_lucid_phenotype.md
+  - simulation_lucid_phenotype_companion_piece.md
+  - claims_appendix.md
+
+  # ── Omnibus ──────────────────────────────────────────────────────
+  # 14k+ lines; kept last because it's a one-stop reference, not a
+  # starting point.
+  - UTLP_RFIP_Complete_Documentation_Suite.md
