@@ -9,6 +9,9 @@
 build/
 build_output.log
 
+# MkDocs build output (mlehaptics docs site)
+/site/
+
 # ESP-IDF
 sdkconfig
 sdkconfig.old

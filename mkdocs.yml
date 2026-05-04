@@ -1,0 +1,231 @@
+site_name: mlehaptics research
+site_description: >
+  Research repository covering the EMDR Pulser firmware, antikythera /
+  ephemerides / chess / othello / logo / addressing-maths spectral
+  projects, and the cross-cutting HDC framework that ties them
+  together.
+site_url: https://mlehaptics.readthedocs.io/
+site_author: Steven Kirkland & contributors
+
+repo_url: https://github.com/lemonforest/mlehaptics
+repo_name: lemonforest/mlehaptics
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+# ───────────────────────────────────────────────────────────────────
+# Theme
+# ───────────────────────────────────────────────────────────────────
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - content.action.view
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+
+# ───────────────────────────────────────────────────────────────────
+# Plugins
+# ───────────────────────────────────────────────────────────────────
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - awesome-pages:
+      collapse_single_pages: false
+      strict: false
+
+# ───────────────────────────────────────────────────────────────────
+# Markdown extensions
+# ───────────────────────────────────────────────────────────────────
+
+markdown_extensions:
+  # Standard Python-Markdown extensions.
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      title: On this page
+
+  # PyMdown Extensions — covers the heavy lifting (math, code, mermaid,
+  # tabbed content, task lists, etc.).
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# ───────────────────────────────────────────────────────────────────
+# Math (MathJax via arithmatex generic)
+# ───────────────────────────────────────────────────────────────────
+
+extra_javascript:
+  - assets/javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+# ───────────────────────────────────────────────────────────────────
+# Files / directories to exclude from the build
+# ───────────────────────────────────────────────────────────────────
+#
+# Notes:
+# - Agent-instruction files (CLAUDE.md / GEMINI.md) are explicitly
+#   excluded — they're authoring guidelines for LLMs working in this
+#   repo, not user-facing documentation.
+# - Python source under docs/ (research scaffolding, codegen, package
+#   trees) is left in place so its file URLs still resolve as static
+#   assets, but excluded from auto-nav by awesome-pages's *.md filter.
+# - Build artifacts (__pycache__, .pio, .pytest_cache, dist/, build/,
+#   wheelhouse/) are excluded outright.
+
+exclude_docs: |
+  # Agent-instruction files (LLM authoring guidelines, not user docs).
+  CLAUDE.md
+  GEMINI.md
+  **/CLAUDE.md
+  **/GEMINI.md
+
+  # Build / cache directories.
+  **/__pycache__/
+  **/.pytest_cache/
+  **/.pio/
+  **/build/
+  **/dist/
+  **/wheelhouse/
+  **/*.egg-info/
+
+  # Source code under docs/ — kept in the repo, not surfaced as static
+  # assets in the docs site (the site renders the .md narrative; the
+  # source is browsable via the GitHub repo links).
+  **/*.py
+  **/*.pyc
+  **/*.c
+  **/*.h
+  **/*.toml
+  **/*.gitkeep
+  **/*.gitignore
+  **/py.typed
+  **/.typed
+
+  # Datasets / large generated content. The DE-kernels alone are
+  # ~3.3 GB; PGN / spectralz / CSV / NDJSON datasets add up too.
+  **/*.bsp
+  **/*.pgn
+  **/*.spectralz
+  **/*.ndjson
+  **/*.npz
+  **/*.npy
+  **/*.csv
+  **/*.csv.bz2
+  **/*.pkl
+  **/skyfield_data/
+  **/dataset/
+  **/dataset-place/
+  **/datasets/
+  **/results/
+  **/_data/
+  **/research/__pycache__/
+  **/_research/__pycache__/
+
+  # Wheel-side mirrors: the `_research/` tree under each spectral
+  # package is a codegen copy of the canonical `research/` Python.
+  # The originals are excluded above; the mirrors don't add value to
+  # the docs site either.
+  **/python/*_spectral/_research/
+  **/python/*_spectral_4d/_research/
+
+  # Misc: SVG assets are kept; PNG/JPG are kept (in docs/images/);
+  # other raster/binary not handled above gets the catch-all per-ext
+  # rules above.
+
+# ───────────────────────────────────────────────────────────────────
+# Strictness — RTD builds with `--strict` by default; mirror that locally.
+# ───────────────────────────────────────────────────────────────────
+
+# `validation`: complain in build logs but don't fail the build for
+# anything except absolute-link breakage. Research notebooks have a
+# lot of cross-references that may resolve in their original
+# checkout but not under mkdocs's docs_dir-rooted serving — we want
+# warnings, not hard failures.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+# ───────────────────────────────────────────────────────────────────
+# Footer / extras
+# ───────────────────────────────────────────────────────────────────
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/lemonforest/mlehaptics
+      name: GitHub
+  generator: false
+  status:
+    new: Recently added
+    deprecated: Deprecated
+
+copyright: >
+  Hardware: CERN-OHL-S v2 · Software: GPL-3.0-or-later
