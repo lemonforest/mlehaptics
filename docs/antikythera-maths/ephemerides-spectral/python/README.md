@@ -89,6 +89,19 @@ ephemerides-spectral breathing --jd 2458850.0
 # Override resonance: 3:2 Neptune-Pluto
 ephemerides-spectral breathing --jd 2451545.0 \
     --pair-a neptune --pair-b pluto --n-a 3 --n-b 2
+
+# Mars Sol Date / Mars Coordinated Time at a JD (v0.3.0)
+ephemerides-spectral time-mars --jd 2451549.5     # → MSD ≈ 44795.99
+ephemerides-spectral time-mars --msd 50000        # invert: MSD → JD_UTC
+
+# Mean lunar synodic + sidereal age/phase at a JD (v0.3.0)
+ephemerides-spectral time-lunar --jd 2451545.0
+
+# Lunar-time kernel metadata (LTE440 + LTC status; v0.3.0)
+ephemerides-spectral lunar-kernels
+
+# Resonance-derived natural cyclic group (v0.3.0)
+ephemerides-spectral natural-group     # → Z_30 = Z_2 × Z_3 × Z_5
 ```
 
 All sub-commands emit JSON to stdout; pass `--no-pretty` (top-level flag, before the sub-command) for compact single-line output suitable for piping into `jq` or downstream tooling. Every response carries an `ok` field; `ok: false` returns exit code 1 with an `error` message.
@@ -111,6 +124,13 @@ bridge.get_local_view(jd_tdb=2451545.0, body="earth", lat=51.5, lon=-0.1)
 bridge.get_eclipse_probability(jd_tdb=2451545.0)
 bridge.list_couplings()                          # Laplacian fibers
 bridge.get_breathing_modulation(jd_tdb=2451545.0)  # Phase 9 LUT inspector
+
+# v0.3.0 surface
+bridge.jd_to_mars_time(jd_utc=2451549.5)         # MSD + MTC (Allison & McEwen 2000)
+bridge.mars_time_to_jd(msd=50000)                # MSD → JD_UTC inverse
+bridge.get_lunar_phase(jd_tdb=2451545.0)         # mean synodic + sidereal phase
+bridge.list_lunar_kernels()                      # LTE440 metadata + LTC status
+bridge.get_natural_resonance_group()             # Z_30 = Z_2 × Z_3 × Z_5
 ```
 
 Every bridge method returns a Pyodide-JSON-serialisable dict with `ok: True/False`. Caller-side errors return `{ok: False, error: "..."}` rather than raising — designed for crossing the Python/JS boundary cleanly.
@@ -142,13 +162,73 @@ The BIP backend is the natural production target for embedded use:
 
 Instead of searching 3.3 GB of Chebyshev coefficients, these devices evolve the entire Sol Star System phase-space using integer additions and a 4 KB cosine table.
 
+## Honest accuracy: DE441 full-epoch sweep (v0.3.0)
+
+`research/de441_sweep.py` runs the BIP integer-ALU encoder at 15 sample points spanning **J2000 ± 14,000 yr** (just inside DE441's ~30,000-yr coverage window) and compares per-body ecliptic-longitude residues against DE441 ground truth. Results — sorted by max error, descending:
+
+| Body | n | median (rad) | p95 (rad) | max (rad) | max (deg) |
+| :--- | --: | --: | --: | --: | --: |
+| jupiter | 15 | 1.357 | 2.937 | 3.070 | 175.92 |
+| saturn  | 15 | 1.415 | 2.990 | 3.062 | 175.46 |
+| neptune | 15 | 0.691 | 2.748 | 2.778 | 159.18 |
+| pluto   | 15 | 0.791 | 2.524 | 2.721 | 155.92 |
+| moon    | 15 | 1.084 | 2.559 | 2.670 | 153.00 |
+| mercury | 15 | 0.356 | 1.444 | 1.461 |  83.74 |
+| mars    | 15 | 0.117 | 0.250 | 0.253 |  14.52 |
+| uranus  | 15 | 0.047 | 0.120 | 0.141 |   8.06 |
+| venus   | 15 | 0.024 | 0.114 | 0.124 |   7.11 |
+| earth   | 15 | 0.011 | 0.104 | 0.115 |   6.59 |
+
+Earth phase error scales roughly linearly with horizon:
+
+| Δt (yr) | Earth err (deg) |
+| --: | --: |
+| 0     | 0.000  |
+| ±1    | 0.001–0.004 |
+| ±10   | 0.006–0.008 |
+| ±100  | 0.065–0.069 |
+| ±1000 | 0.65–0.68   |
+| ±5000 | 2.93–3.31   |
+| ±10000 | 4.70–5.71  |
+| ±14000 | 5.48–6.59  |
+
+### Three regimes, honestly named
+
+- **Sub-10° at multi-millennium horizons (Earth, Venus, Uranus):** bodies whose mean motion + small eccentricity + the static gravitational fiber couplings approximate the actual orbit well. Earth benefits from being the calibration body for Mercury's PN diagonal.
+- **Tens of degrees (Mars 14.5°, Mercury 83.7°):** dynamics include eccentricity + long-period perturbations the Phase-9 model captures only partially. Mars has no resonance entry; Mercury's PN diagonal is *linear* whereas its actual perihelion precession at multi-millennium scales has higher-order terms.
+- **Phase-scrambled (Jupiter, Saturn, Neptune, Pluto, Moon all hit >150°):** bodies whose secular drift is dominated by resonant perturbations the Phase-9 model approximates phenomenologically. The `α = 0.1` modulation depth is the right *order of magnitude* but wrong-in-detail; over ±14,000 yr that wrong-detail accumulates to a ~3 rad phase deficit.
+
+This measures **how much of multi-millennium ephemeris our v0.3.0 model captures**, not how accurate the BIP encoder is at its design horizon. v0.3.0 is calibrated for the ±20-yr horizon (0.0002 rad ≈ 0.012° Earth phase floor); the multi-millennium errors are the cost of running a model trained for short-horizon dynamics far past its design point. **The v0.4+ first-principles per-resonance α derivation is the planned fix** — see ROADMAP.
+
+## Encoding timings (BIP integer-ALU path, default `D = 65536`)
+
+| Δt (yr) | encode wall time |
+| --: | --: |
+| 0      | 0.2 ms |
+| ±1     | 0.7–1.3 ms |
+| ±10    | 4.2–6.8 ms |
+| ±100   | 44.7–45.8 ms |
+| ±1000  | 447–483 ms |
+| ±5000  | 2.38–2.44 s |
+| ±10000 | 4.34–4.44 s |
+| ±14000 | 6.18–6.37 s |
+
+Linear in `|Δt|` — one 30-day chunk per integration step. At the v0.1.0 design horizon (±20 yr, ~243 chunks) the encode is ~1.85 ms; at ±14,000 yr (~170k chunks) it's ~6.4 s. Median across the sweep: **447 ms**; max: **6.4 s**.
+
 ## Status
 
-* **v0.1.0 (alpha):** Phase 5–9 research code mirrored into the wheel; CLI + bridge surface stable. RC published to TestPyPI; PyPI release pending broader DE441 kernel validation.
-* **Roadmap:**
-  - Extend Phase 9 breathing couplings beyond J–S 5:2 (Neptune–Pluto 3:2, Io–Europa 1:2, Earth–Moon precession, Trojans).
-  - Bit-serial hardware port (Verilog/SystemC) — the cosine LUT becomes block RAM, the `omega * step` becomes a fixed-precision multiplier.
-  - CORDIC topocentric rendering (the cosine LUT is half of a CORDIC kernel).
+* **v0.3.0** *(current)* — Mars Sol Date / Mars Coordinated Time, mean lunar primitives, LTE440 awareness, DE441 full-epoch sweep, natural-resonance gear group. See [`CHANGELOG.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides-spectral/CHANGELOG.md) for the full v0.3.0 entry.
+* **v0.2.0** — Phase 9 coverage extension to four resonance pairs (J–S 5:2, N–P 3:2, Io–Europa 2:1, Europa–Ganymede 2:1).
+* **v0.1.0** — first PyPI release. 26-body Sol Star System Laplacian + Phase 9 breathing couplings + ALU-native BIP encoder.
+
+## Roadmap
+
+* **v0.4+ first-principles per-resonance α** — replaces phenomenological `α = 0.1` with values derived from a Hamilton/Delaunay-variable Lagrangian (Lie-series perturbation theory around each resonance). The DE441 sweep above is the empirical motivation: bodies inside the resonance set phase-scramble at multi-millennium horizons because their `α` values are wrong-in-detail.
+* **v0.4+ DE441 vs DE442 spectral error signature** *(experiment)* — build two BIP instruments, one calibrated only from DE441, one only from DE442; encode the same JD on both; project the per-body residue deltas onto the encoder's eigenbasis. If the deltas have a coherent spectral signature, DE442's corrections to DE441 live in a specific eigenmode subspace — which means we could *predict* where ephemeris error correction is structurally needed without needing the corrected kernel.
+* **v0.5+ CORDIC topocentric rendering** — the cosine LUT is half a CORDIC kernel; the rotation half can subsume the topocentric `lat / lon` observer-bind, taking that path off the FPU entirely.
+* **v0.5+ LTC (Lunar Coordinated Time)** — pending NASA + international space-agency standardisation (target ~2026–2028 per April 2024 White House directive). LTE440 (Lin et al. 2025) ships the underlying SPICE-format conversion ephemeris with 0.15 ns accuracy through 2050; the bridge gains an `LTC` namespace mirroring `MarsTime` once the LTC epoch + day-length convention are formalised.
+* **Phase 10 resonance coverage** — Jupiter–Uranus 7:1, Saturn–Uranus 3:1, Saros / Metonic / Earth–Moon precession entries. Each adds a row to the `RESONANCES` table; the integer-LUT machinery is shared.
+* **Bit-serial hardware port** (Verilog/SystemC) — the cosine LUT becomes block RAM, the `omega * step` becomes a fixed-precision multiplier.
 
 ## License
 

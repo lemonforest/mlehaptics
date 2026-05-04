@@ -90,6 +90,7 @@ The prototype successfully:
 - **Multi-Millennium Sweep:** Re-derive the historical anchors for the Metonic and Saros cycles against the DE441 "Sky Ground Truth", with breathing couplings active.
 - **CORDIC Topocentric Rendering:** The cosine LUT is the first half of a CORDIC observer-binding pipeline; the rotation half can subsume the topocentric `lat/lon` bind.
 - **First-Principles Phase-9 Derivation:** v0.1.0's $\alpha = 0.1$ J–S breathing depth is phenomenological. Deriving the modulation depth from a Hamilton/Delaunay-variable Lagrangian (with Lie-series perturbation theory around the 5:2 resonance) would replace the placeholder with a first-principles value. Connects to the adaptive-Kuramoto literature on derived-from-physics PDDP rules (cf. §1.4).
+- **DE441 vs DE442 spectral error signature** *(v0.4+ research experiment)*: build two BIP instruments calibrated *separately* from DE441 and DE442; encode the same JD on both; project per-body residue deltas onto the Laplacian eigenbasis. Hypothesis: DE442's corrections to DE441 occupy a coherent eigenmode subspace — the spectral signature of the kernel update. If we can find a correlate, we can **predict** where ephemeris error correction is structurally needed without having the corrected kernel in hand. The natural-coprime decomposition from §6 would be the basis for that prediction.
 
 ## 4. Release History
 
