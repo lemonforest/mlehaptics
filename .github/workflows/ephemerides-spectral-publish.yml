@@ -1,0 +1,165 @@
+name: ephemerides-spectral-publish
+
+# Build a pure-Python wheel (py3-none-any) + sdist for ``ephemerides-spectral``
+# and publish to PyPI (production) or TestPyPI (staging) via OIDC trusted
+# publishing.
+#
+# Convention mirrors antikythera-spectral-publish.yml — same pure-Python
+# layout, same OIDC environments, same tag-version verification.
+#
+# Triggers:
+#
+#   * push of an ``ephemerides-spectral-v*`` tag → publishes to ``pypi``
+#     (production). If you autotag via GITHUB_TOKEN you'll need the
+#     same ``gh workflow run`` recipe the chess/antikythera workflows
+#     use (GitHub's anti-recursion guard suppresses workflow_run on
+#     bot-pushed tags).
+#   * workflow_dispatch with ``target ∈ {testpypi, pypi}`` → publishes
+#     to chosen target. Default is ``testpypi`` so an accidental click
+#     can't burn a real PyPI version while we're in the RC stage.
+#
+# Trusted-publisher entries (one-time setup on each target):
+#
+#   * pypi.org      project=ephemerides-spectral, env=pypi
+#   * test.pypi.org project=ephemerides-spectral, env=testpypi
+#
+# Until those PyPI/TestPyPI projects exist, you can dry-run the
+# build-only jobs by selecting a tag in workflow_dispatch and
+# letting the publish job skip via the ``if:`` guard.
+
+on:
+  push:
+    tags:
+      - "ephemerides-spectral-v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Publish target"
+        required: true
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheel:
+    name: build wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build hatchling
+      - name: Build pure-Python wheel
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: python -m build --wheel
+      - name: Sanity-check wheel name + contents
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          set -euo pipefail
+          if ! ls dist/ephemerides_spectral-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel"
+            exit 1
+          fi
+          # Wheel must contain the codegen output (frozen research snapshots
+          # + manifest) so installs from PyPI work without skyfield_data.
+          python -m zipfile -l dist/*.whl | grep -F "_data/manifest.json"
+          python -m zipfile -l dist/*.whl | grep -F "_research/laplacian.py"
+          python -m zipfile -l dist/*.whl | grep -F "_research/ephemeris_reference_instrument.py"
+      - name: Twine metadata check
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check --strict dist/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: docs/antikythera-maths/ephemerides-spectral/python/dist/*.whl
+
+  build-sdist:
+    name: build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build
+      - name: Build sdist
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: python -m build --sdist
+      - name: Twine metadata check
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python -m pip install --upgrade twine
+          python -m twine check --strict dist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: docs/antikythera-maths/ephemerides-spectral/python/dist/*.tar.gz
+
+  publish:
+    name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
+    needs: [build-wheel, build-sdist]
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ephemerides-spectral-v'))
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }}
+      url: >-
+        ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+            && 'https://test.pypi.org/project/ephemerides-spectral/'
+            || 'https://pypi.org/project/ephemerides-spectral/' }}
+    permissions:
+      id-token: write   # OIDC token for PyPI trusted publishing
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Verify tag matches pyproject (tag-push only)
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import os, re, tomllib, sys
+          tag = os.environ["GITHUB_REF_NAME"]
+          m = re.fullmatch(r"ephemerides-spectral-v(\d+\.\d+\.\d+)", tag)
+          if not m:
+              print(f"::error::tag {tag!r} does not match ephemerides-spectral-vX.Y.Z")
+              sys.exit(1)
+          tag_version = m.group(1)
+          path = "docs/antikythera-maths/ephemerides-spectral/python/pyproject.toml"
+          with open(path, "rb") as f:
+              pyver = tomllib.load(f)["project"]["version"]
+          if tag_version != pyver:
+              print(f"::error::tag {tag_version!r} != pyproject {pyver!r}")
+              sys.exit(1)
+          print(f"tag and pyproject agree: {tag_version}")
+          PY
+
+      - name: Collect into dist/
+        run: |
+          mkdir -p dist
+          find artifacts -name '*.whl' -exec cp {} dist/ \;
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+          ls -la dist/
+
+      - name: Publish to TestPyPI
+        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

@@ -38,16 +38,22 @@ The project is scaffolded as a standalone PyPI-ready package with:
 - `bridge.py`: Pyodide-JSON contract for web frontend integration.
 - `_research/`: Deterministic snapshots of the core instrument logic.
 - `codegen/`: Automatic manifest and data freezing infrastructure.
-
 ### 2.2 Results
 The prototype successfully:
 - Extracts true ecliptic longitude from JPL kernels.
 - Maintains hypervector integrity (Norm=1.0) through frame shifts.
 - Detects proximity-based gravitational interaction terms.
-- **RBS-HDC Advancement:** Verified a 305x speedup using FPU-less integer arithmetic while maintaining 0.0002 rad precision over a 20-year window.
+- **RBS-HDC Advancement:** Verified a 305× speedup using FPU-less integer arithmetic.
+- **Structural Limit Identified:** Confirmed a ~0.0002 rad error floor (Phase 8) due to the static LTI Laplacian assumption and Newtonian mean-motion constraints.
+- **Phase 9 Breathing Couplings:** Replaced the static off-diagonal weights with phase-dependent modulation via an integer cosine LUT (1024 × `int32`, Q1.14). The Jupiter–Saturn 5:2 resonance term is now implemented end-to-end without leaving the integer ALU.
+- **Fixed-Point Discipline:** All angular frequencies are stored as signed `int64` in residues/day (Q-format with `MODULO = 2^32` residues per revolution); the Q-format underflow guard, pre-flight bounds check, and scoped overflow trap are documented in `resonant_bit_serialized_hdc_evaluation.md` §8.3–§8.4.
+- **Cross-pollination:** chess-spectral §20.13–§20.17 explicitly aligns the chess `Z_{640}` phase-operator engine with this BIP design at the group-theoretic level; the cosine LUT pattern transfers between the projects (chess pays an explicit `% 640` per op, ephemerides gets cyclic-group reduction free as `uint32` overflow).
 
 ## 3. Future Tracks
-- **Download DE441:** Scale the validation suite to the full 3.3GB JPL kernel.
-- **Resonant Bit-Serialized Optimization:** Port the BIP (Bit-Interleaved Phases) logic to bit-serial hardware simulations (Verilog/SystemC).
-- **Multi-Millennium Sweep:** Re-derive the historical anchors for the Metonic and Saros cycles against the DE441 "Sky Ground Truth."
-- **N-Body Fiber Optimization:** Refine the off-diagonal coupling matrices to match the precision of modern numerical integrators.
+
+- **Download DE441:** Scale the validation suite to the full 3.3 GB JPL kernel.
+- **Phase 9 Coverage:** Extend breathing couplings beyond the J–S 5:2 term: Neptune–Pluto 3:2, Io–Europa 1:2, Earth–Moon precession, and the Jovian Trojans. Each adds one entry in the resonance table; the LUT machinery is shared.
+- **Resonant Bit-Serialized Hardware:** Port the BIP integer-only evolution to bit-serial hardware simulations (Verilog/SystemC). The cosine LUT becomes block RAM; the `omega * step` multiply becomes a fixed-precision multiplier.
+- **Multi-Millennium Sweep:** Re-derive the historical anchors for the Metonic and Saros cycles against the DE441 "Sky Ground Truth", with breathing couplings active.
+- **CORDIC Topocentric Rendering:** The cosine LUT is the first half of a CORDIC observer-binding pipeline; the rotation half can subsume the topocentric `lat/lon` bind.
+- **PyPI Release:** `ephemerides-spectral-publish.yml` ships TestPyPI dispatch + tag-push to PyPI via OIDC trusted publishing; release-candidate builds exercise both wheel and sdist before any public version is cut.

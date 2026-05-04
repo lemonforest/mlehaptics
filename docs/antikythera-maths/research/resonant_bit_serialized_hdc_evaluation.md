@@ -89,12 +89,56 @@ We explored the effect of increasing the hypervector dimension $D$ on resonance 
 - **ALU-Native Resilience**: The system maintains machine-precision 32-bit phase discretization across all dimensions. The 0.0002 rad error is the structural limit of our current static Laplacian propagator, not the bit-serialized format.
 - **Kernel Synthesis**: DE441 and DE442 synthesis remains coherent within the 1MB lattice; the differences between kernels are currently sub-threshold relative to the propagator drift.
 
-## 8. Feasibility Conclusion
-...
+### 7.1 The Structural Limit (Newtonian/LTI)
+The current 0.0002 rad (~0.01°) residual error represents the **Structural Limit** of the Phase 8 model. This limit arises from two primary factors:
+1.  **LTI Assumption**: The `SolarSystemLaplacian` is currently a Linear Time-Invariant (LTI) system. It uses a static snapshot of gravitational couplings, ignoring the fact that off-diagonal interaction strengths "breathe" with the epochs.
+2.  **Newtonian Limit**: The model follows purely Newtonian mean motions. At this level of precision, General Relativistic effects (time dilation, frame-dragging) start to bleed through as phase drift.
 
-The RBS-HDC approach is **highly feasible** and provides a rigorous path to FPU-less celestial mechanics. It transforms the $D=65536$ complex phase space into a high-dimensional "Gear Train" where each bit-serial dimension acts as a microscopic gear, maintaining the "Antikythera Spirit" in a modern silicon context.
+## 8. Phase 9: Dynamic Perturbations & Relativistic Friction
+
+Phase 9 attacks the LTI limit (§7.1) by making the `SolarSystemLaplacian` *breathe* — off-diagonal couplings now modulate with the resonant phase difference between the bodies they connect, and a small Post-Newtonian correction is applied to the diagonal (Mercury's 43"/century relativistic precession is the canonical entry).
+
+### 8.1 Breathing Couplings (Algebraic Form)
+The static fiber coupling $W_{ij}$ between two bodies is replaced by a phase-dependent form:
+
+$$W_{ij}(t) = W_{ij}^{(0)} \cdot \left(1 + \alpha \cos(n_{ij} \phi_i(t) - m_{ij} \phi_j(t))\right)$$
+
+where $(n_{ij}, m_{ij})$ is the resonance ratio (e.g. $5{:}2$ for the Jupiter–Saturn Great Conjunction) and $\alpha$ is the modulation depth (10% in the prototype). This is the "fiber bundle" framing applied at the level of the propagator: the connection form depends on where in the bundle you are, not just on the static graph topology.
+
+### 8.2 ALU-Native Implementation
+The breathing term is implemented without exiting the integer ALU. The continuous $\cos(\cdot)$ is replaced by a precomputed integer cosine LUT (1024 × `int32`, Q1.14 amplitude) keyed on the top 10 bits of the residue $(n_{ij} \phi_i - m_{ij} \phi_j) \bmod 2^{32}$. The modulation is then applied as integer scaling:
+
+```python
+nudge = base_nudge + (NUM * base_nudge * cos_q14) // (DEN * AMP)
+```
+
+— all integer ops, zero FPU calls in the inner loop. The LUT itself fits in 4 KB, three orders of magnitude smaller than the 256 KB hypervector it modulates.
+
+### 8.3 Fixed-Point Frequency Discipline
+Mean motions are stored as signed `int64` in **residues per day** (Q-format: `MODULO = 2^32` residues per revolution). The conversion is:
+
+$$\omega_{\text{int}} = \mathrm{round}\left(\frac{\omega_{\text{rad/day}}}{2\pi} \cdot 2^{32}\right)$$
+
+Range/precision properties:
+- Earth's mean motion → ~11.76 M residues/day; Phobos (smallest period) → ~13.5 G residues/day.
+- The pre-flight bounds check rejects `|delta_t| > 6.8 × 10^8 days` (~1.86 Myr) so `omega * delta_t` cannot saturate `int64`.
+- Q-format underflow (frequencies that round to zero residues/day) emits a `RuntimeWarning` at construction time. The floor is ~13 Gyr period — never trips for real bodies, but the guard exists so the assumption is checkable.
+
+### 8.4 Overflow Discipline
+The encode path distinguishes two kinds of overflow:
+- **Signed `int64` saturation** in `omega * step`: a real bug. Wrapped in `np.errstate(over='raise')`, raised as `OverflowError` with a useful message.
+- **Unsigned `uint64` wraparound** on the phase accumulator: *intentional* — the cyclic-group reduction we want. Run under `np.errstate(over='ignore')` plus `warnings.filterwarnings(..., 'overflow encountered')` so callers who promote `RuntimeWarning` to error don't see spurious noise.
+
+The combination is: pre-flight bounds check (primary defense) + scoped `errstate` (catches genuine overflow) + lenient cyclic-group context (preserves the modular-arithmetic semantics).
+
+## 9. Conclusion
+
+The RBS-HDC approach is **highly feasible** and provides a rigorous path to FPU-less celestial mechanics. It transforms the $D=65536$ complex phase space into a high-dimensional "Gear Train" where each bit-serial dimension acts as a microscopic gear, maintaining the "Antikythera Spirit" in a modern silicon context. Phase 9 extends that gear train with phase-dependent fiber couplings: the breathing Laplacian is the modular-arithmetic version of a connection form, integrated as integer chunks plus a single fractional-day remainder.
+
+**Cross-pollination note.** The chess-spectral `Z_{640}` phase-operator engine (§20.13–§20.17 of the chess notebook) is algebraically isomorphic to this BIP design at the group level. The two projects differ only in the modulus: chess uses a non-power-of-2 ($640 = 2^7 \cdot 5$) and pays an explicit `% 640` per op; ephemerides uses $2^{32}$ and gets cyclic-group reduction for free as `uint32` overflow. The off-diagonal LUT pattern documented here transfers directly.
 
 **Next Steps**:
-- Implement a `FixedPointSolarSystemLaplacian` in `ephemerides-spectral`.
-- Benchmark the precision of 16-bit vs 32-bit phase discretization against JPL DE422.
-- Explore CORDIC-based topocentric rendering for mobile/edge displays.
+- Re-measure the $0.0002$ rad floor with breathing couplings active across the full 26-body Laplacian (Phase 9 currently exercises only the J–S 5:2 term).
+- Add resonance entries for Neptune–Pluto $3{:}2$, Io–Europa $1{:}2$, Earth–Moon (precession), and the Trojan asteroids.
+- Benchmark 16-bit vs 32-bit phase discretization against JPL DE442 across a 200-year window.
+- Explore CORDIC-based topocentric rendering for mobile/edge displays (the cosine LUT is the first step; CORDIC handles the trickier topocentric transforms).

@@ -21,6 +21,7 @@ _INCLUDED_MODULES: List[str] = [
     "ephemeris_loader.py",
     "bodies.py",
     "laplacian.py",
+    "bip_instrument.py",
 ]
 
 def emit() -> List[Path]:

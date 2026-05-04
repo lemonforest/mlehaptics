@@ -140,18 +140,37 @@ class EphemerisHDCInstrument:
         return phases
 
     def encode_state(self, date_jd: float) -> np.ndarray:
-        """Evolve phases using Laplacian and encode as HDC state vector."""
+        """Evolve phases using Breathing Laplacian and encode as HDC state vector."""
         delta_t = date_jd - REFERENCE_JD
         
-        # 1. First-Principles Evolution (Algebraic)
-        # psi(t) = exp(-i L t) psi(0)
-        evolved_phases = self.laplacian.evolve_state(self.initial_phases, delta_t)
+        # 1. First-Principles Evolution (Iterative Breathing)
+        # We evolve in chunks to update the dynamic couplings
+        # 365.25 / 12 ~= 30 day chunks
+        chunk_size = 30.0 
+        num_chunks = int(abs(delta_t) / chunk_size)
+        step = chunk_size if delta_t > 0 else -chunk_size
         
+        current_phases = self.initial_phases.copy()
+        from scipy.linalg import expm
+
+        for _ in range(num_chunks):
+            L_dyn = self.laplacian.get_dynamic_laplacian(current_phases)
+            U = expm(-1j * L_dyn * step)
+            psi = U @ np.exp(1j * current_phases)
+            current_phases = np.angle(psi)
+            
+        # Final partial step
+        remainder = delta_t - (num_chunks * step)
+        if abs(remainder) > 1e-6:
+            L_dyn = self.laplacian.get_dynamic_laplacian(current_phases)
+            U = expm(-1j * L_dyn * remainder)
+            psi = U @ np.exp(1j * current_phases)
+            current_phases = np.angle(psi)
+
         # 2. HDC Superposition
         state = np.zeros(self.D, dtype=np.complex128)
         for i, name in enumerate(self.body_names):
-            # Phase to residue
-            residue = int((evolved_phases[i] / (2.0 * np.pi)) * self.D) % self.D
+            residue = int((current_phases[i] / (2.0 * np.pi)) * self.D) % self.D
             basis = self.channel_bases[name]
             state += np.roll(basis, residue)
             
@@ -232,7 +251,7 @@ def main():
     # Inspect the off-diagonal coupling in the Laplacian
     idx_j = instrument.laplacian.body_to_idx["jupiter"]
     idx_s = instrument.laplacian.body_to_idx["saturn"]
-    coupling = instrument.laplacian.L[idx_j, idx_s]
+    coupling = instrument.laplacian.L_static[idx_j, idx_s]
     print(f"Jupiter-Saturn Fiber Strength: {np.abs(coupling):.2e} rad/day")
     
     print("\nObserver View: Mars (0°N, 0°E)")

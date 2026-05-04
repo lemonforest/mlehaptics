@@ -28,7 +28,7 @@ def main():
 
     print("writing manifest ...")
     manifest = {
-        "package": "de441-spectral",
+        "package": "ephemerides-spectral",
         "version": "0.1.0",
         "files": {
             name: {"size_bytes": p.stat().st_size, "sha256": _sha256(p)}
