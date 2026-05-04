@@ -1,0 +1,32 @@
+# Read the Docs configuration file
+# https://docs.readthedocs.io/en/stable/config-file/v2.html
+#
+# Builds the mkdocs site at https://mlehaptics.readthedocs.io/.
+# Pinned to ubuntu-24.04 + Python 3.12 to match the wheel build
+# matrix used by the chess-spectral / antikythera-spectral /
+# ephemerides-spectral PyPI publish workflows.
+
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+
+# Build with mkdocs (the `mkdocs:` key tells RTD to use mkdocs as the
+# documentation generator; without this key RTD assumes Sphinx).
+mkdocs:
+  configuration: mkdocs.yml
+  # RTD passes --strict to mkdocs by default. We've configured per-rule
+  # validation in mkdocs.yml (validation: warn for everything that
+  # isn't a hard error) so --strict won't trip over the research
+  # notebooks' historical link conventions.
+  fail_on_warning: false
+
+python:
+  install:
+    - requirements: requirements-docs.txt
+
+# Default formats besides HTML.  pdf/epub builds are off because the
+# notebooks are large; toggle on once formatting is stable.
+formats: []
