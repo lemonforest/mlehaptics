@@ -1,4 +1,4 @@
-"""chess_spectral_4d.bridge — Pyodide-bridge surface for v1.4.0.
+"""chess_spectral_4d.bridge — Pyodide-bridge surface for v1.4.0+.
 
 This module is the consumer-facing entry point that the ``chess4D-OC``
 worker (running chess-spectral inside Pyodide) calls into. Every
@@ -13,6 +13,24 @@ Methods added in v1.4.0 (see notebook §17.3):
     * :func:`get_move_history`  — full ply history as plain dicts.
     * :func:`is_insufficient_material_2d`
                                  — 2D K-vs-K, K+B-vs-K, K+N-vs-K.
+
+Methods added in v1.9.0 (sheet aux block — see notebook §19):
+
+    * :func:`get_sheet_state`              — extract the 11-dim
+                                              non-Markovian sheet
+                                              state from a GameState4D
+                                              (or a python-chess Board
+                                              for 2D consumers).
+    * :func:`encode_sheet_aux`             — serialize a sheet state
+                                              to the 11-dim aux block
+                                              as a plain ``list[float]``
+                                              (numpy-free across the
+                                              WASM boundary).
+    * :func:`decode_sheet_aux_from_vector` — given an encoder vector
+                                              (as a list of floats) and
+                                              the offset of the aux
+                                              block, return the
+                                              decoded sheet state.
 
 Methods deferred from v1.4.0 (will ship in later minors):
 
@@ -306,3 +324,166 @@ def get_move_history(
         plain dicts; an empty game returns an empty list.
     """
     return {"ok": True, "moves": state.history.to_list()}
+
+
+# ─── 1.9.0 — non-Markovian sheet aux block bridge surface ───────────
+
+
+def _sheet_state_to_dict(state: "object") -> Dict[str, object]:
+    """Plain-dict shape for a SheetState. Used by both
+    :func:`get_sheet_state` and :func:`decode_sheet_aux_from_vector`."""
+    return {
+        "castling_wk": bool(state.castling_wk),
+        "castling_wq": bool(state.castling_wq),
+        "castling_bk": bool(state.castling_bk),
+        "castling_bq": bool(state.castling_bq),
+        "ep_file": state.ep_file,  # int or None
+        "side_to_move_white": bool(state.side_to_move_white),
+        "halfmove_clock": int(state.halfmove_clock),
+        "repetition_count": int(state.repetition_count),
+    }
+
+
+def get_sheet_state(
+    state_or_board: "object",
+) -> Dict[str, object]:
+    """Extract the 11-dim non-Markovian sheet state from a 4D
+    :class:`GameState4D` or a 2D ``python-chess.Board``.
+
+    Dispatches by type — ``GameState4D`` lifts via
+    :meth:`SheetState.from_game_state_4d` (castling/EP slots forced
+    to neutral per the Oana-Chiru ruleset); a python-chess Board
+    lifts via :meth:`SheetState.from_chess_board` (full state).
+
+    Parameters
+    ----------
+    state_or_board
+        Either a :class:`chess_spectral_4d.GameState4D` or a
+        ``python-chess.Board`` instance.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "sheet": {...}}`` on success, where ``sheet``
+        is a plain dict with eight named fields (castling × 4,
+        ``ep_file``, ``side_to_move_white``, ``halfmove_clock``,
+        ``repetition_count``). ``{"ok": False, "error": "..."}`` on
+        unrecognized input type.
+    """
+    from chess_spectral.sheets import SheetState
+    if isinstance(state_or_board, GameState4D):
+        sheet = SheetState.from_game_state_4d(state_or_board)
+    else:
+        # Try the python-chess path. We don't import chess at module
+        # load time (chess-spectral works without python-chess for
+        # 4D-only consumers, see __init__.py header), so we sniff for
+        # the Board's duck-typed surface here.
+        if not (hasattr(state_or_board, "has_kingside_castling_rights")
+                and hasattr(state_or_board, "ep_square")):
+            return {
+                "ok": False,
+                "error": (
+                    "get_sheet_state: input is neither a GameState4D "
+                    "nor a python-chess Board"
+                ),
+            }
+        sheet = SheetState.from_chess_board(state_or_board)
+    return {"ok": True, "sheet": _sheet_state_to_dict(sheet)}
+
+
+def encode_sheet_aux(
+    sheet_dict: Dict[str, object],
+) -> Dict[str, object]:
+    """Serialize a sheet dict (as returned by :func:`get_sheet_state`)
+    to the 11-dim aux block as a plain ``list[float]``.
+
+    Numpy-free on the return path — the aux array is converted to a
+    Python list before crossing the WASM boundary.
+
+    Parameters
+    ----------
+    sheet_dict
+        Dict with the eight named fields used by SheetState. Must
+        contain ``castling_wk``, ``castling_wq``, ``castling_bk``,
+        ``castling_bq``, ``ep_file`` (int or None),
+        ``side_to_move_white``, ``halfmove_clock``,
+        ``repetition_count``.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "aux": [11 floats]}`` on success, or
+        ``{"ok": False, "error": "..."}`` on missing / malformed
+        fields.
+    """
+    from chess_spectral.sheets import SheetState, encode_aux_block
+    try:
+        sheet = SheetState(
+            castling_wk=bool(sheet_dict["castling_wk"]),
+            castling_wq=bool(sheet_dict["castling_wq"]),
+            castling_bk=bool(sheet_dict["castling_bk"]),
+            castling_bq=bool(sheet_dict["castling_bq"]),
+            ep_file=(None if sheet_dict.get("ep_file") is None
+                     else int(sheet_dict["ep_file"])),
+            side_to_move_white=bool(sheet_dict["side_to_move_white"]),
+            halfmove_clock=int(sheet_dict["halfmove_clock"]),
+            repetition_count=int(sheet_dict["repetition_count"]),
+        )
+    except (KeyError, TypeError, ValueError) as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    aux = encode_aux_block(sheet)
+    return {"ok": True, "aux": [float(x) for x in aux]}
+
+
+def decode_sheet_aux_from_vector(
+    vec: List[float],
+    offset: int,
+) -> Dict[str, object]:
+    """Given an encoder vector (as a plain list of floats) and the
+    aux-block offset, decode the 11-dim sheet block back to a sheet
+    dict.
+
+    For 2D vectors, ``offset`` should be ``640`` (or the value of
+    :data:`chess_spectral.SHEET_OFFSET_2D`); for 4D, ``45056``. The
+    function does its own bounds-check and returns ``{"ok": False}``
+    if the vector isn't long enough.
+
+    Parameters
+    ----------
+    vec
+        The encoder output as a plain list of floats. The aux block
+        starts at index ``offset``.
+    offset
+        Index where the 11-dim aux block begins. For 2D = 640;
+        4D = 45056.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "sheet": {...}}`` with the same shape as
+        :func:`get_sheet_state`, or ``{"ok": False, "error": "..."}``
+        if the vector is malformed.
+    """
+    import numpy as np
+    from chess_spectral.sheets import (
+        SHEET_AUX_DIM, decode_sheet_state,
+    )
+    needed = offset + SHEET_AUX_DIM
+    if not isinstance(vec, (list, tuple)) and not hasattr(vec, "__len__"):
+        return {
+            "ok": False,
+            "error": f"decode_sheet_aux_from_vector: vec must be a "
+                     f"sequence of floats; got {type(vec).__name__}",
+        }
+    if len(vec) < needed:
+        return {
+            "ok": False,
+            "error": (
+                f"decode_sheet_aux_from_vector: vector length "
+                f"{len(vec)} insufficient for aux block at offset "
+                f"{offset} (need at least {needed})"
+            ),
+        }
+    arr = np.asarray(vec, dtype=np.float64)
+    sheet = decode_sheet_state(arr, offset)
+    return {"ok": True, "sheet": _sheet_state_to_dict(sheet)}

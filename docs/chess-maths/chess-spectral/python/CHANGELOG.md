@@ -123,14 +123,66 @@ the vector.
 - `from_game_state_4d` factory: castling/EP slots zero per
   ruleset; halfmove + side-to-move + repetition populated.
 
+### Added — Bridge surface for sheet aux block (Pyodide / chess4D-OC)
+
+The `chess_spectral_4d.bridge` module gains three new functions
+that round out the sheet-block surface for the `chess4D-OC` worker
+and any other Pyodide / WASM consumer. The bridge contract holds
+("plain dict, no numpy across WASM"); aux blocks cross the boundary
+as plain `list[float]`.
+
+- `bridge.get_sheet_state(state_or_board)` — extract the 11-dim
+  non-Markovian sheet state from a `GameState4D` or a
+  `python-chess.Board`. Dispatches by type. Returns
+  `{"ok": True, "sheet": {...}}` with eight named fields.
+- `bridge.encode_sheet_aux(sheet_dict)` — serialize a sheet dict
+  to the 11-dim aux block as a plain `list[float]`. Returns
+  `{"ok": True, "aux": [11 floats]}`.
+- `bridge.decode_sheet_aux_from_vector(vec, offset)` — given an
+  encoder vector (as a list of floats; numpy-free path) and the
+  aux-block offset (640 for 2D, 45056 for 4D), decode the aux
+  block back to a sheet dict. Returns
+  `{"ok": True, "sheet": {...}}` or `{"ok": False, "error": "..."}`
+  on a too-short vector.
+- 13 immolation tests in `tests/test_bridge_sheets.py` cover the
+  factory dispatch (4D GameState4D + 2D python-chess Board), the
+  numpy-free return path, missing-field and short-vector error
+  handling, and the full E2E composition (state → get → encode →
+  decode round-trip).
+
+### Added — `encode_2d` alias (future-proof against dim-count changes)
+
+- `chess_spectral.encode_2d` is a permanent alias of
+  `chess_spectral.encode_640`. Both names map to the same function
+  in 1.9.0 and forward; `encode_640` is preserved for backward
+  compatibility but the dim count (640) is **not a stable contract**
+  — sheets bumped output to 651 already, future channel
+  embiggening or non-Markov-state extensions may bump it further.
+  New consumer code should prefer `encode_2d` (mirroring the 4D
+  path's `encode_4d`) and query `chess_spectral.ENCODING_DIM` or
+  `enc.shape[0]` rather than hardcoding 640. See notebook §19.11
+  for the full future-work plan.
+
 ### Notebook updates
 
-`docs/chess-maths/chess_spectral_research_notebook.md` §19.10
-added — "Empirical bound: depth-1 bitboard floor" — captures the
-empirical finding that closes the speed thesis, recharacterizes
-1.9.0 as a representation-only ship, and notes the regimes where
-sheet blocks remain valuable (saved-corpus retrieval, Pyodide
-contexts without a python-chess Board, transmission contracts).
+`docs/chess-maths/chess_spectral_research_notebook.md` gained:
+
+- **§19.9** — implementation update: S-spike-1 shipped in 1.9.0
+  with the 11-dim aux block as designed.
+- **§19.10** — "Empirical bound: depth-1 bitboard floor": captures
+  Steven's "we won't beat bitboards at depth 1" lemma, closes the
+  speed thesis, recharacterizes 1.9.0 as a representation-only
+  ship, and names the regimes where sheet blocks remain valuable
+  (saved-corpus retrieval, Pyodide contexts without a python-chess
+  Board, transmission contracts).
+- **§19.11** — "Future work: dim-count is not a stable contract;
+  rename `encode_640` → `encode_2d`": documents three forces on the
+  encoder shape (sheet enrichment beyond Phase 1, channel
+  embiggening, bit-serialized HDC enrichment per the antikythera
+  /DE441 reference), recommends the future-proof API patterns
+  (`encode_2d`, `ENCODING_DIM` query, `CHANNELS` iteration), and
+  notes that no rename of `encode_4d` is needed since `4d` already
+  factors out the dim-pinning.
 
 ## [1.8.1] — 2026-05-01
 

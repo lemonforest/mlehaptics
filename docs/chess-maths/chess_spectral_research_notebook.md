@@ -3012,6 +3012,28 @@ For all but the last row, the sheet block can match but cannot beat the bitboard
 
 **What this means for the §19 phasing table.** S-spike-1 shipped (1.9.0). S-spike-2 (wire format integration) is deferred until a downstream consumer needs it — most likely the v5.1 mode-2 extension when chess4D-OC adopts it. S-spike-3 (search-engine integration with sheet weights) is closed as not-recommended: the sheet channels carry *categorical* information (rights are alive or dead), and the search evaluator's per-channel-energy weighting is *continuous* — they're not the same kind of object, and forcing one into the other would lose information without clear benefit. If a future search-engine evaluator wants castling-aware scoring, the natural move is a separate `eval=spectral+sheets` evaluator family (§16.1 already names the pattern), not a weighted-channel hook into the existing `eval=spectral` path. That's a Phase 7+ design question.
 
+### 19.11. Future work — encoder dim count is not a stable contract; rename `encode_640` → `encode_2d`
+
+**Date:** 2026-05-04. **Status:** Future-work note, not a roadmap commitment. Prompted by the §19 sheet block landing, which itself is the first concrete example of why the dim count of the 2D encoder is not stable across versions.
+
+The 2D encoder's primary entry point is currently named `encode_640`, where 640 = 10 channels × 64 board cells (D₄ irrep × DCT-mode product). The function name pins downstream consumers to the assumption that the output dim is and will remain 640. That assumption is at minimum already wrong with sheets (640 → 651 when `sheets=` is supplied), and is likely to weaken further as the encoder evolves:
+
+1. **Sheet block enrichment beyond Phase 1.** §19.4 splits the 11-dim Phase 1 sheet into "XOR-lite" (9 dims) and "Z₁₀₁ Fourier" (2 dims) carriers. A Phase 2 / Phase 3 sheet might add channels for non-Markovian state we haven't modeled yet — e.g., en-route promotion bookkeeping, Chess960 castling-rook-positions for Fischer Random support, draw-by-agreement protocol state, or any of the variants from the Oana-Chiru §3.6-§3.11 ruleset-preserving subgroup. Each of those changes the aux-block dim count and thus the total output dim.
+
+2. **Channel embiggening.** The §1 / §3 / §11 spectral analysis is *not* committed to 10 channels. The current 10 = 5 D₄ irreps + 3 symmetric fiber + 1 antisymmetric (pawn) + 1 diagonal (rook shadow). Future work might add: ψ-driven QM density / current channels (deferred Tier 2.1, §17.1), per-piece partial-trace density-matrix channels (Tier 2.2, §17.1), or channels derived from the bit-serialized HDC representation (§20). Each of those would increase the channel count and thus the per-channel-times-board-dim product.
+
+3. **Bit-serialized enrichment.** The §20 BSHDC spike found, via the antikythera-spectral / DE441 reference, that bit-serialization is not necessarily lossy after a basis change — it can ENRICH the data set by exposing structure that was hidden in the float32 magnitudes. (DE441: 3.3 GB raw → 1 MB physics → 256 KB bit-serialized, with >300× speedup AND ~0.01% precision loss across random sweeps.) It is uncertain whether that enrichment translates to a discrete board game with non-Markovian state, but the §19 sheet block is itself a concrete instance of "the encoder needed to grow to capture structure that wasn't in the previous shape." The §20 spike's B-spike-1 (4-bit nibble side-car) would change the per-vector storage from 640 × 4 bytes = 2.56 KB to 640 × 0.5 bytes = 320 bytes — a 8× reduction at the byte-count level, but the structural unit is still "10 channels × 64 cells" — until it isn't, because some future basis change might pack channels differently in bit-serialized form than in float32 form.
+
+The takeaway for downstream API users: **the dim count is not a stable contract**. Consumers must:
+
+- **Query `chess_spectral.ENCODING_DIM` (or check `enc.shape[0]`) at call time** rather than hardcoding 640.
+- **Iterate channels via `chess_spectral.CHANNELS`** rather than slicing fixed 64-dim windows. The CHANNELS list is the source of truth for the channel layout; channel boundaries and counts may both change.
+- **Use `encode_2d(pos, ...)`** (1.9.0+) rather than `encode_640(pos, ...)`. Both names map to the same function in 1.9.0 and the legacy name will remain as a permanent alias, but new consumer code should adopt the version-stable name. The `encode_2d` name mirrors the 4D path's `encode_4d` and survives any future channel/dim changes in a way the size-pinned name cannot.
+
+This decoupling work is intentionally not scheduled — there is no roadmap commitment to actually change the channel layout or grow the dim count. The recommendation is purely about **API stability against future change**: if and when the encoder's shape moves, the consumer code that adopted the version-stable patterns above will not break.
+
+A symmetric note for `encode_4d`: the name already factors out dim-pinning (`4d` is the *dimensionality of the lattice*, not the output dim), so no rename is recommended on that side. The 45 056-dim 4D output IS pinned to "11 channels × 4096 modes" by the same coupling caveat — `chess_spectral_4d.ENCODING_DIM_4D` and the corresponding `CHANNELS_4D` list are the queries that survive any future change. (Note the `ENCODING_DIM_4D` constant, 45056, has the same dim-shifted-on-sheet-add behavior: with `sheets=` it grows to 45067. Consumers should read the array's shape, not the constant.)
+
 ---
 
 ## 20. Bit-Serialized Hyperdimensional Computing as a Resonant Object (Spike — May 2026)

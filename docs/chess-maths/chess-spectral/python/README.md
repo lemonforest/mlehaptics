@@ -75,12 +75,33 @@ The §19 spike's Phase-1 sheet block ships as a
   tags; JSON format structured. Uses `Board4D.legal_moves()` (the
   native 4D move-gen via graph-Laplacian-derived primitives).
 
-- **40 new immolation tests** lock the sheet round-trip (every
+- **Pyodide-bridge surface for sheets** — `chess_spectral_4d.bridge`
+  gains `get_sheet_state`, `encode_sheet_aux`, and
+  `decode_sheet_aux_from_vector`. The bridge contract holds
+  ("plain dict, no numpy across the WASM boundary"); aux blocks
+  cross as `list[float]`. `chess4D-OC` and any other browser /
+  Pyodide consumer can now reason about castling rights / EP /
+  halfmove / repetition without reconstructing a `python-chess.Board`
+  or a `GameState4D` worker-side.
+
+- **`encode_2d` future-proof alias** — `from chess_spectral import
+  encode_2d` (1.9.0+) is the recommended name going forward,
+  mirroring the 4D path's `encode_4d`. `encode_640` remains as a
+  permanent alias, but the **dim count is not a stable contract**
+  — sheets already bumped 640 → 651, and future channel
+  enrichment (per the §20 BSHDC spike's antikythera-spectral
+  reference) or further non-Markov state extensions may move it
+  again. Query `ENCODING_DIM` (or check `enc.shape`) and iterate
+  channels via `CHANNELS` rather than hardcoding 640. See
+  notebook §19.11 for the full future-work note.
+
+- **53 new immolation tests** lock the sheet round-trip (every
   legal halfmove value, every castling combination, every EP
   file), the encoder integration (base preservation + aux at
   correct offset), the factory lifts (`from_chess_board`,
-  `from_game_state_4d`), and the CLI smoke surface for both 2D
-  and 4D legal-move enumeration.
+  `from_game_state_4d`), the CLI smoke surface for both 2D and 4D
+  legal-move enumeration, and the bridge round-trip
+  (state → get → encode → decode) for both dimensions.
 
 ## What's new in v1.8 (May 2026)
 

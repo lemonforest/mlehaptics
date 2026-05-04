@@ -196,6 +196,35 @@ def encode_640(pos, *, vals=None, sheets=None) -> np.ndarray:
     return out
 
 
+# 1.9.0 — future-proof alias.
+#
+# ``encode_640`` couples the function name to a specific output
+# dimension (10 channels × 64 board cells = 640). That coupling is
+# fine for the v1.x line but it pins downstream consumers to assume
+# the dim count is stable. Two cases where it might not be:
+#
+#   1. A future `embiggening` for richer non-Markovian or sheet data,
+#      analogous to the Z_101 halfmove Fourier carrier — we may want
+#      to extend channel granularity beyond the current 10 × 64.
+#   2. The bit-serialized HDC / resonant-object spike (notebook §20)
+#      found in the antikythera-spectral / DE441 work that bit-
+#      serialization can ENRICH the data set after a basis change
+#      (from 3.3 GB raw → 1 MB physics → 256 KB bit-serialized,
+#      with >300x speedup and ~0.01% precision loss). It is uncertain
+#      whether that result translates to a discrete board game with
+#      a non-Markovian sheet, but the §19 sheet block is itself a
+#      concrete example of why the dim count is not a stable
+#      contract — adding sheets bumped 640 → 651.
+#
+# ``encode_2d`` is the recommended name going forward; it mirrors
+# the 4D path's ``encode_4d`` naming. ``encode_640`` is preserved as
+# a permanent alias for backward compatibility but new code should
+# prefer ``encode_2d`` and query :data:`ENCODING_DIM` (or check the
+# returned array's ``shape``) rather than hardcoding 640. See
+# notebook §19.11 for the future-work plan.
+encode_2d = encode_640
+
+
 def channel_energies(enc: np.ndarray) -> dict[str, float]:
     """||channel||² for each of the 10 channels, keyed by name."""
     return {name: float(np.dot(enc[start:start + BOARD_DIM],

@@ -42,6 +42,7 @@ del _pkg_version, _PkgNotFound
 
 from .encoder import (
     encode_640,
+    encode_2d,  # 1.9.0 — future-proof alias of encode_640 (see §19.11)
     channel_energies,
     normalize_pos,
     CHANNELS,
@@ -124,7 +125,8 @@ from .spatial_4d.bitboard import HAS_NATIVE_BITBOARD
 
 __all__ = [
     # Encoder
-    "encode_640", "channel_energies", "normalize_pos", "CHANNELS",
+    "encode_640", "encode_2d",
+    "channel_energies", "normalize_pos", "CHANNELS",
     "BOARD_DIM", "ENCODING_DIM", "SPECTRAL_VALS", "VALS",
     "PAWN_ANTI_FIBER", "DIAG_DEV",
     # Frame I/O
