@@ -118,6 +118,30 @@ def _cmd_breathing(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_time_mars(args: argparse.Namespace) -> int:
+    if args.msd is not None:
+        return _emit(
+            bridge.mars_time_to_jd(args.msd, leap_seconds=args.leap_seconds),
+            pretty=args.pretty,
+        )
+    return _emit(
+        bridge.jd_to_mars_time(args.jd, leap_seconds=args.leap_seconds),
+        pretty=args.pretty,
+    )
+
+
+def _cmd_time_lunar(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_lunar_phase(args.jd), pretty=args.pretty)
+
+
+def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
+
+
+def _cmd_natural_group(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_natural_resonance_group(), pretty=args.pretty)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Parser construction
 # ──────────────────────────────────────────────────────────────────────
@@ -401,6 +425,103 @@ def _make_parser() -> argparse.ArgumentParser:
     br.add_argument("--kernel", choices=_KERNEL_CHOICES, default="de441",
                     help="JPL DE-kernel (default 'de441')")
     br.set_defaults(func=_cmd_breathing)
+
+    # time-mars
+    tm = sub.add_parser(
+        "time-mars",
+        help="Mars Sol Date + Mars Coordinated Time at a JD (or invert)",
+        description=(
+            "Convert UTC Julian Date to Mars Sol Date (MSD) + Mars "
+            "Coordinated Time (MTC) per Allison & McEwen 2000. "
+            "Use --msd to invert (MSD -> JD_UTC). The default leap-"
+            "second offset (37 s) is the IERS Bulletin C value from "
+            "Jan 2017, unchanged through 2026."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-mars --jd 2451549.5    # MSD reference\n"
+            "  ephemerides-spectral time-mars --jd 2461165.0    # today-ish\n"
+            "  ephemerides-spectral time-mars --msd 50000       # MSD -> JD"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tm_group = tm.add_mutually_exclusive_group(required=True)
+    tm_group.add_argument("--jd", type=float, default=None,
+                          help="UTC Julian Date to convert to MSD + MTC")
+    tm_group.add_argument("--msd", type=float, default=None,
+                          help="Mars Sol Date to invert back to JD_UTC")
+    tm.add_argument("--leap-seconds", dest="leap_seconds", type=int,
+                    default=37,
+                    help="TAI - UTC offset, seconds (default 37)")
+    tm.set_defaults(func=_cmd_time_mars)
+
+    # time-lunar
+    tl = sub.add_parser(
+        "time-lunar",
+        help="Mean synodic + sidereal lunar age/phase at a JD",
+        description=(
+            "Returns mean lunar synodic and sidereal age (days since "
+            "the J2000-anchored reference new moon) and phase ([0,1)). "
+            "These are the bronze-dial primitives — fixed-period "
+            "approximations sufficient for HDC encoding and Saros-"
+            "class navigation. For arc-second-class precision use "
+            "the JPL ephemeris path via `encode --jd ...` and read "
+            "the moon residue."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-lunar --jd 2451545.0   # J2000\n"
+            "  ephemerides-spectral time-lunar --jd 2461165.0   # today-ish"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tl.add_argument("--jd", type=float, required=True,
+                    help="Julian Date in TDB")
+    tl.set_defaults(func=_cmd_time_lunar)
+
+    # lunar-kernels
+    lk = sub.add_parser(
+        "lunar-kernels",
+        help="Lunar-time / lunar-orientation kernel metadata (LTE440, etc.)",
+        description=(
+            "v0.3.0 ships *awareness* of LTE440 (Lin et al. 2025) "
+            "— SPICE-format Lunar Time Ephemeris on DE440, accuracy "
+            "0.15 ns through 2050. The kernel must be staged "
+            "separately (github.com/xlucn/LTE440 releases); "
+            "ephemerides-spectral does not auto-download. When LTC "
+            "(Lunar Coordinated Time) is finalised by NASA + "
+            "international agencies, this command becomes the "
+            "runtime surface for LTC <-> UTC <-> JD_TDB."
+        ),
+    )
+    lk.set_defaults(func=_cmd_lunar_kernels)
+
+    # natural-group
+    ng = sub.add_parser(
+        "natural-group",
+        help="Resonance-derived natural cyclic group (LCM, CRT prime factorisation)",
+        description=(
+            "Reads the Phase 9 RESONANCES table and returns the natural "
+            "cyclic group the resonances themselves demand — distinct "
+            "from the encoder's architectural Z_{2^32} modulus. For "
+            "each pair (n_a, m_b) the per-pair natural cycle is "
+            "lcm(n_a, m_b); the aggregate is LCM across pairs. By CRT "
+            "the aggregate factors into prime cyclic groups: those are "
+            "the natural coprimes the resonance topology lives in. "
+            "See research notebook §6 for the full discussion + the "
+            "connection to chess-spectral's non-Markovian sheaf."
+        ),
+        epilog=(
+            "On the v0.3.0 four-resonance set:\n"
+            "  J-S 5:2 -> lcm(5,2)=10\n"
+            "  N-P 3:2 -> lcm(3,2)=6\n"
+            "  Io-Eu 2:1 -> lcm(2,1)=2\n"
+            "  Eu-Ga 2:1 -> lcm(2,1)=2\n"
+            "  Aggregate: lcm(10, 6, 2, 2) = 30 = 2 x 3 x 5"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ng.set_defaults(func=_cmd_natural_group)
 
     return p
 

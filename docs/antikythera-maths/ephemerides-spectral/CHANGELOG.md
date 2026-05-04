@@ -7,7 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.2.0)
+(no entries yet — next entries land after v0.3.0)
+
+## [0.3.0] — 2026-05-04
+
+Time scales beyond Earth + DE441 full-epoch sweep + the natural-resonance gear group.
+
+### Added
+
+- **`research/time_scales.py`** — Mars Sol Date / Mars Coordinated Time per Allison & McEwen 2000 (`jd_to_msd` / `msd_to_jd` with documented leap-second handling); mean lunar synodic + sidereal age/phase primitives (`jd_to_lunar`, `MarsTime`, `LunarTime` dataclasses).
+- **Bridge methods** (Pyodide-friendly JSON surface):
+  - `bridge.jd_to_mars_time(jd_utc, leap_seconds=37)` → `{ok, jd_utc, msd, mtc_hours, mtc_seconds, sol_number, leap_seconds}`
+  - `bridge.mars_time_to_jd(msd, leap_seconds=37)` → MSD → JD_UTC inverse
+  - `bridge.get_lunar_phase(jd_tdb)` → synodic + sidereal age/phase
+  - `bridge.list_lunar_kernels()` → LTE440 metadata + `ltc_status` flag
+  - `bridge.get_natural_resonance_group()` → resonance-derived natural cyclic group (LCM, CRT prime factorisation)
+- **`LUNAR_KERNELS = ("lte440",)`** — registers LTE440 (Lin et al. 2025, A&A 704 A76) as a known lunar-time ephemeris. Metadata only; no auto-download. The kernel is ~100 MB and must be staged separately from `github.com/xlucn/LTE440` releases when needed.
+- **CLI subcommands**:
+  - `time-mars --jd 2451545.0` (or `--msd 50000`) — Mars Sol Date / Mars Coordinated Time
+  - `time-lunar --jd 2451545.0` — mean lunar synodic + sidereal phase
+  - `lunar-kernels` — LTE440 metadata + LTC status
+  - `natural-group` — resonance-derived natural cyclic group
+- **`research/de441_sweep.py`** — runs the BIP encoder across J2000 ± 14,000 yr (15 sample points) against DE441 truth; writes `results/de441_sweep_summary.json` + `results/de441_sweep_table.md`.
+- **[`figures/de441_full_sweep.md`](../figures/de441_full_sweep.md)** — honest interpretation of the sweep. Earth / Venus / Uranus stay <10° at multi-millennium horizons; Mars 14°; Mercury 84°; Jupiter / Saturn / Neptune / Pluto / Moon all hit >150° — the structural-limit signature of phenomenological `α = 0.1`. Documents the three follow-ups that would each visibly improve specific bodies (per-resonance derived α, higher-order PN for Mercury, more resonance entries).
+
+### Notebook updates
+
+- New §6: **Natural gear group, leaf structure, concert frequency** — distinguishes the encoder's architectural `Z_{2^32}` modulus from the resonance-derived natural cyclic group `Z_30 = Z_2 × Z_3 × Z_5`. Connects to chess-spectral §19's non-Markovian sheaf framing (let structure come from the data, don't impose it via the encoding).
+- New §7: **Time scales** — JD vs MSD/MTC vs lunar primitives vs LTC roadmap.
+- §4 Release History extended with the v0.3.0 entry.
+
+### Roadmap
+
+- **LTC (Lunar Coordinated Time)** deferred to v0.4+ — pending NASA + international agencies' formal definition (target ~2026–2028 per the April 2024 White House directive). LTE440 ships the underlying SPICE-format conversion ephemeris; the bridge will gain runtime LTC↔UTC↔JD_TDB conversions when the standard lands.
+- **First-principles per-resonance α** — replaces the phenomenological `α = 0.1` with values from a Hamilton/Delaunay-variable Lagrangian. The DE441 sweep documents *why* this matters: bodies inside the resonance set (Jupiter, Saturn, Neptune, Pluto, Moon) phase-scramble at multi-millennium horizons because their `α` values are wrong-in-detail.
+
+### C port
+
+- Header version macro bumped to `0.3.0` (`include/ephemerides_spectral.h`).
+- No C-side functional changes; the time-scale conversions and natural-group introspection are Python-side surface.
 
 ## [0.2.0] — 2026-05-04
 
