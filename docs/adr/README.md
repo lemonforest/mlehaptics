@@ -2,7 +2,7 @@
 
 This directory contains all Architecture Decision Records for the EMDR Bilateral Stimulation Device project.
 
-**Format:** [MADR 4.0.0](https://adr.github.io/madr/) (Markdown Any Decision Records)
+**Format:** [MADR 4.0.0](https://adr.github.io/madr/) (Markdown Architectural Decision Records)
 **Migration Date:** 2025-11-21
 **Status:** ✅ Migrated from monolithic `docs/architecture_decisions.md`
 
