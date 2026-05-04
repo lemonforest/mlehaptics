@@ -1,0 +1,10 @@
+title: Research scaffolding
+
+# The Python research modules are excluded from the build (see
+# mkdocs.yml exclude_docs); only the *.md narratives surface here.
+# Currently just one major doc — the RBS-HDC evaluation that drove
+# Phase 9 design.
+
+nav:
+  - resonant_bit_serialized_hdc_evaluation.md
+  - ...

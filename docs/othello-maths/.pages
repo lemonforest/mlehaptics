@@ -1,0 +1,16 @@
+title: Othello mathematics
+
+# Research notebook leads; phase-by-phase plans + findings follow;
+# instructional and prompt docs at the bottom.
+
+nav:
+  - othello_spectral_research_notebook.md
+  - PHASE_1C_PLAN.md
+  - PHASE_1E_FINDINGS.md
+  - research
+  - results
+  - dataset
+  - OTHELLO_SPECTRAL_INSTRUCTIONS.md
+  - OTHELLO_SPECTRAL_BUILD_PROMPT.md
+  - OTHELLO_PHASE_OP_PREFLIGHT.md
+  - CHESS_NOTEBOOK_PHASE_1C_PATCHES.md

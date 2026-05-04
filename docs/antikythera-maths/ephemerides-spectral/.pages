@@ -1,0 +1,14 @@
+title: ephemerides-spectral package
+
+# Standard package layout. The c/ port (ANSI C BIP encoder, byte-
+# exact parity with the Python reference) sits beside the python/
+# wheel.
+
+nav:
+  - README.md
+  - ROADMAP.md
+  - CHANGELOG.md
+  - python
+  - c
+  - codegen
+  - bridge

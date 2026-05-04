@@ -1,0 +1,13 @@
+title: Package docs
+
+# Wire-format and bridge-API references first (consumer-facing),
+# then audit history and ADRs.
+
+nav:
+  - bridge_api.md
+  - WIRE_FORMAT.md
+  - FEN4_FORMAT.md
+  - NDJSON4_FORMAT.md
+  - AUDIT_v1.5_DOCS.md
+  - AUDIT_v1.5_HELP_DISCIPLINE.md
+  - adr

@@ -1,0 +1,15 @@
+title: antikythera-spectral package
+
+# Standard package layout: README first (top-level orientation),
+# then ROADMAP (advertised vs shipped), then CHANGELOG (per-version
+# detail). docs/ subdirectory has the bridge API contract + ADRs +
+# format references; codegen/ + bridge/ + python/ follow.
+
+nav:
+  - README.md
+  - ROADMAP.md
+  - CHANGELOG.md
+  - docs
+  - python
+  - codegen
+  - bridge

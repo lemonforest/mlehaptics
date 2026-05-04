@@ -1,0 +1,13 @@
+title: Figures & findings
+
+# Reading order: the headline empirical findings first, then the
+# audit / dossier / priorart docs that contextualise them.
+
+nav:
+  - mars_38deg_gap_findings.md
+  - bit_alu_findings.md
+  - hypothesis_computability_audit.md
+  - clutch_evidence_dossier.md
+  - seasonal_calibration_viability.md
+  - seasonal_observability_priorart.md
+  - research_audit_report.md

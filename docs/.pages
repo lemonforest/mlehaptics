@@ -1,0 +1,55 @@
+# awesome-pages config for the docs/ root.
+#
+# Without this file mkdocs's nav at the top level would be a flat
+# alphabetical list of all 18 root-level .md files plus every
+# subdirectory — which makes the Material `navigation.tabs` bar
+# unreadable. This file groups them into logical sections so the
+# tab bar reads like:
+#
+#   Home · EMDR research · Bilateral timing & sync · Architecture & dev
+#       · Reference · Antikythera · Chess · Othello · Logo
+#       · UTLP & cross-cutting research · ADRs · Archive
+#
+# When you add a new top-level .md file under docs/, decide which
+# section it belongs to and append it to the relevant nav entry.
+
+nav:
+  - Home: index.md
+
+  - EMDR research:
+      - EMDR_bilateral_stimulation_Evidence-based_parameters_for_clinical_practice.md
+      - EMDR_Slow_BLS_Research_Frontier.md
+
+  - Bilateral timing & sync:
+      - Bilateral_Time_Sync_Protocol_Technical_Report.md
+      - Achieving_sub_1ms_time_synchronization_over_BLE_on_ESP32.md
+      - Advanced_Architectural_Analysis_Bilateral_Pattern_Playback.md
+      - Bilateral_Pattern_Playback_Plus_UTLP_Integration_Plan.md
+      - bilateral_pattern_playback_architecture.md
+      - Emergency_Vehicle_Light_Sync_Proven_Architectures_for_ESP32_Adaptation.md
+      - 802.11mc_FTM_Reconnaissance_Report.md
+
+  - Architecture & dev:
+      - architecture_decisions.md
+      - ESP-NOW_vs_BLE_Power_Analysis.md
+      - ESP_IDF_BUILD_CONSTRAINTS.md
+      - ESP_IDF_SOURCE_SELECTION.md
+      - CONNECTION_HEALTH_METRIC_PROPOSAL.md
+      - RESEARCH_PLATFORM_FEATURES.md
+
+  - Reference:
+      - ai_context.md
+      - requirements_spec.md
+      - KNOWN_ISSUES.md
+
+  # Major sub-projects in alphabetical order; each has its own
+  # .pages file controlling internal ordering.
+  - antikythera-maths
+  - chess-maths
+  - othello-maths
+  - logo-maths
+
+  # Cross-cutting + archival.
+  - misc
+  - adr
+  - archive

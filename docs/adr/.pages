@@ -1,0 +1,10 @@
+title: Architecture Decision Records
+
+# README.md is the index; everything else is numerically ordered
+# (0001-, 0002-, ...) so the default sort already does the right
+# thing for the per-ADR pages. The explicit nav: pin just makes the
+# README come first.
+
+nav:
+  - README.md
+  - ...

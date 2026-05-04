@@ -61,6 +61,26 @@ See [`ephemerides_spectral_research_notebook.md` §1.4](antikythera-maths/epheme
 | `ephemerides-spectral` | [![PyPI](https://img.shields.io/pypi/v/ephemerides-spectral.svg)](https://pypi.org/project/ephemerides-spectral/) | `pip install ephemerides-spectral` |
 | `chess-spectral` | [![PyPI](https://img.shields.io/pypi/v/chess-spectral.svg)](https://pypi.org/project/chess-spectral/) | `pip install chess-spectral` |
 
+## Live demos & companion projects
+
+External resources that aren't part of this repo but are referenced from it:
+
+| Resource | What it is |
+| :--- | :--- |
+| [MLE Haptics PWA](https://lemonforest.github.io/mlehaptics-pwa/) | Web Bluetooth control app for the EMDR pulser — device configuration + monitoring + pattern playback |
+| [Chess-maths The Movie](https://lemonforest.github.io/chess-maths-the-movie/) | In-browser spectral-analysis instrument for chess corpora produced by `chess-spectral` |
+| [python-chess4d-oana-chiru](https://github.com/lemonforest/python-chess4d-oana-chiru) | Python implementation of Oana & Chiru's 4D chess (companion repo to `chess-spectral` 4D) |
+| [mlehaptics.org](https://mlehaptics.org) | Project landing site |
+
+## EMDR clinical research
+
+The EMDR pulser operates within evidence-based bilateral-stimulation parameters. The clinical literature behind those parameters lives in two research docs:
+
+| Document | Scope |
+| :--- | :--- |
+| [Evidence-Based Parameters for Clinical Practice](EMDR_bilateral_stimulation_Evidence-based_parameters_for_clinical_practice.md) | EMDRIA guidelines · 0.5–2 Hz frequency range · modality comparisons (eye movements *d* = 0.41–0.91) · brainwave entrainment · contraindications · commercial device specs |
+| [The Slow Frequency Research Frontier](EMDR_Slow_BLS_Research_Frontier.md) | Sub-0.5 Hz BLS as an undefined research gap · cardiac coherence (0.1 Hz) · breathing synchronization (0.25 Hz) · infraslow oscillations · proposed frequency taxonomy |
+
 ## Architecture decision records
 
 The EMDR firmware project tracks design choices as ADRs under [`adr/`](adr/README.md). Each ADR documents one decision, its context, the alternatives considered, and the consequences. The math research projects also keep ADRs alongside their packages (see [`antikythera-spectral/docs/adr/`](https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/antikythera-spectral/docs/adr/)).
