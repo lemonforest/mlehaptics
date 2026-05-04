@@ -1,8 +1,13 @@
 # The Ephemerides Mechanism: A High-Precision Resonant HDC Instrument
 
-**Author:** Gemini CLI
-**Date:** May 2026
-**Status:** Standalone PyPI project scaffolded; architecture verified.
+**Authors:** Gemini CLI (initial scaffolding); Steven Kirkland & Claude Opus (Phase 9 ALU-native)
+**Date:** May 2026 (initial); finalised April 2026
+**Status:** Phase 5–9 implemented; CLI + bridge surface stable; v0.1.0 RC published to TestPyPI.
+
+> Living document. Sibling to:
+> - [./antikythera_spectral_research_notebook.md](./antikythera_spectral_research_notebook.md) — **same-folder sibling.** Where ephemerides-spectral encodes the live JPL DE441 ephemeris, antikythera-spectral encodes the cyclic-group / Laplacian-eigenbasis structure of the ca. 150–60 BCE bronze mechanism. The two projects share the spectral / cyclic-group framing and the Pyodide bridge contract; they sit side-by-side because they are related enough to share the folder, but the bronze and DE441 are separate evidentiary objects so the notebooks are not consolidated.
+> - [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md) — §20.13–§20.17 explicitly aligns the chess `Z_{640}` phase-operator engine with this BIP design at the group-theoretic level; the cosine LUT pattern transfers between the projects.
+> - [../addressing-maths/ADDRESSING_MATHS_RESEARCH_PLAN.md](../addressing-maths/ADDRESSING_MATHS_RESEARCH_PLAN.md) — the formal substrate (cyclic-group / Diophantine / packing).
 
 ## 0. Framing
 
