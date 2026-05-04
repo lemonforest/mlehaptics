@@ -162,6 +162,74 @@ jobs:
               tests/test_data_freshness.py \
               -q
 
+  pure-wheel-build:
+    # Always-on lightweight build of the Pyodide / WASM `py3-none-any`
+    # wheel. The publish workflow's `build-pure-wheel` job swaps in
+    # `pyproject-pure.toml` (hatchling backend) and runs `python -m
+    # build --wheel`; we mirror exactly that here so any TOML-syntax
+    # / hatchling-config drift in `pyproject-pure.toml` fails on the
+    # PR, not at release time.
+    #
+    # Background: v0.3.1 shipped a `pyproject-pure.toml` with
+    # `tool.hatch.build.targets.wheel.exclude` written as a TOML
+    # table; hatchling requires an array of strings, so the publish
+    # workflow's `build-pure-wheel` job failed and the publish step
+    # was skipped (it `needs:` all three build jobs). Always-on build
+    # of this wheel from the PR catches that class of regression
+    # before it can block a release.
+    name: pure-wheel build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify pyproject-pure.toml version matches main
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python3 <<'PY'
+          import sys
+          try:
+              import tomllib
+          except ImportError:
+              import tomli as tomllib  # type: ignore[no-redef]
+          with open("pyproject.toml", "rb") as f:
+              main_v = tomllib.load(f)["project"]["version"]
+          with open("pyproject-pure.toml", "rb") as f:
+              pure_v = tomllib.load(f)["project"]["version"]
+          if main_v != pure_v:
+              print(f"::error::pyproject.toml version {main_v!r} != "
+                    f"pyproject-pure.toml version {pure_v!r}. Bump them "
+                    "together; the pure-wheel + platform-wheel pair must "
+                    "agree on version.")
+              sys.exit(1)
+          print(f"versions agree: {main_v}")
+          PY
+
+      - name: Stage pure pyproject and build wheel
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          set -euo pipefail
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip build hatchling twine
+          python -m build --wheel
+          ls -la dist/
+          if ! ls dist/ephemerides_spectral-*-py3-none-any.whl 1>/dev/null 2>&1; then
+            echo "::error::expected a py3-none-any wheel, did not find one"
+            exit 1
+          fi
+          # Sanity: ensure no _native/ binaries leaked into the pure wheel.
+          if python -m zipfile -l dist/*-py3-none-any.whl \
+              | grep -E '_native/.*\.(so|dll|dylib)|\.exe$'; then
+            echo "::error::native binaries leaked into pure wheel"
+            exit 1
+          fi
+          python -m twine check --strict dist/*.whl
+          echo "pure-wheel sanity checks passed"
+
   verify-wheels:
     # Mirrors ephemerides-spectral-publish.yml at full size: 3 OS x
     # 5 Python = 15 cells of cibuildwheel. Each cell builds the
