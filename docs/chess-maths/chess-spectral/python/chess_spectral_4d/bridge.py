@@ -625,3 +625,86 @@ def decode_sheet_state_from_bip(
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
     sheet = decode_sheet_state_bip(bip)
     return {"ok": True, "sheet": _sheet_state_to_dict(sheet)}
+
+
+# ─── 1.12.0 — Encoder BIP-hybrid bridge surface ─────────────────────
+
+
+def encode_position_2d_bip_hybrid(
+    pos: "Dict[int, str] | Dict[str, str]",
+    magnitude_bits: int = 8,
+) -> Dict[str, object]:
+    """BIP-hybrid encode a 2D position; return integer fields only
+    (numpy-free across the WASM boundary).
+
+    Parameters
+    ----------
+    pos
+        Encoder-format position dict (``{sq: piece_char}``).
+    magnitude_bits
+        4 or 8. Default 8 (the §20.15 acceptance gate).
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "hybrid": {"sign_packed_bytes": list[int],
+        "magnitude_scales": list[float],
+        "magnitudes_bytes": list[int],
+        "magnitude_bits": int}}`` on success, or ``{"ok": False,
+        "error": "..."}`` on malformed input.
+    """
+    from chess_spectral.encoder_bip_hybrid import (
+        encode_2d_bip_hybrid, VALID_MAGNITUDE_BITS,
+    )
+    if magnitude_bits not in VALID_MAGNITUDE_BITS:
+        return {
+            "ok": False,
+            "error": f"magnitude_bits must be in {VALID_MAGNITUDE_BITS}",
+        }
+    try:
+        h = encode_2d_bip_hybrid(pos, magnitude_bits=magnitude_bits)
+    except (ValueError, KeyError, TypeError) as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    return {
+        "ok": True,
+        "hybrid": {
+            "sign_packed_bytes": list(h.sign_packed),
+            "magnitude_scales": [float(x) for x in h.magnitude_scales],
+            "magnitudes_bytes": [int(x) for x in h.magnitudes],
+            "magnitude_bits": int(h.magnitude_bits),
+        },
+    }
+
+
+def encode_position_4d_bip_hybrid(
+    pos4: "Dict[int, object]",
+    magnitude_bits: int = 8,
+) -> Dict[str, object]:
+    """4D analog of :func:`encode_position_2d_bip_hybrid`.
+
+    Note: the magnitudes_bytes list is large for 4D (45056 entries
+    at 8-bit, 22528 at 4-bit) — Pyodide consumers should consider
+    binary transport (TypedArray) rather than the JSON-list form
+    for hot paths.
+    """
+    from chess_spectral.encoder_bip_hybrid import (
+        encode_4d_bip_hybrid, VALID_MAGNITUDE_BITS,
+    )
+    if magnitude_bits not in VALID_MAGNITUDE_BITS:
+        return {
+            "ok": False,
+            "error": f"magnitude_bits must be in {VALID_MAGNITUDE_BITS}",
+        }
+    try:
+        h = encode_4d_bip_hybrid(pos4, magnitude_bits=magnitude_bits)
+    except (ValueError, KeyError, TypeError) as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    return {
+        "ok": True,
+        "hybrid": {
+            "sign_packed_bytes": list(h.sign_packed),
+            "magnitude_scales": [float(x) for x in h.magnitude_scales],
+            "magnitudes_bytes": [int(x) for x in h.magnitudes],
+            "magnitude_bits": int(h.magnitude_bits),
+        },
+    }

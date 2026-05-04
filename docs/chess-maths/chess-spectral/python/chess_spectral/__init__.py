@@ -119,6 +119,29 @@ from .sheets import (
     decode_sheet_state,
 )
 
+# 1.12.0 — Encoder BIP-hybrid (notebook §20.18). Sign × magnitude
+# factoring per channel: sign packs as 1 bit per dim (algebraically
+# exact); magnitude quantizes to 4 or 8 bits per dim with per-channel
+# scaling. ~3.4× compression at 8-bit, ~5.8× at 4-bit (2D);
+# correspondingly for 4D. Cosine-sim ≥99.99% at 8-bit on the
+# acceptance corpus; 4D 4-bit research finding documented in §20.18.
+from .encoder_bip_hybrid import (
+    SpectralBIPHybrid2D,
+    SpectralBIPHybrid4D,
+    encode_2d_bip_hybrid,
+    decode_2d_bip_hybrid,
+    encode_4d_bip_hybrid,
+    decode_4d_bip_hybrid,
+    cosine_similarity_hybrid_2d,
+    cosine_similarity_hybrid_4d,
+    round_trip_cosine_sim_2d,
+    round_trip_cosine_sim_4d,
+    storage_bytes_2d as bip_hybrid_storage_bytes_2d,
+    storage_bytes_4d as bip_hybrid_storage_bytes_4d,
+    DEFAULT_MAGNITUDE_BITS,
+    VALID_MAGNITUDE_BITS,
+)
+
 # 1.10.0 — Bit-Interleaved Phases (BIP) encoding for the sheet block
 # (notebook §20.14, §20.16). Round-trip exact integer-native form:
 # uint16 categorical + uint8 halfmove = 3 bytes per position vs the
@@ -195,6 +218,21 @@ __all__ = [
     "ep_phase_from_ep_file",
     "phase_only_pseudo_legal_moves",
     "PROMOTION_TARGETS",
+    # 1.12.0 — Encoder BIP-hybrid
+    "SpectralBIPHybrid2D",
+    "SpectralBIPHybrid4D",
+    "encode_2d_bip_hybrid",
+    "decode_2d_bip_hybrid",
+    "encode_4d_bip_hybrid",
+    "decode_4d_bip_hybrid",
+    "cosine_similarity_hybrid_2d",
+    "cosine_similarity_hybrid_4d",
+    "round_trip_cosine_sim_2d",
+    "round_trip_cosine_sim_4d",
+    "bip_hybrid_storage_bytes_2d",
+    "bip_hybrid_storage_bytes_4d",
+    "DEFAULT_MAGNITUDE_BITS",
+    "VALID_MAGNITUDE_BITS",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
     # 1.9.0 — non-Markovian sheet aux block (representation completeness)

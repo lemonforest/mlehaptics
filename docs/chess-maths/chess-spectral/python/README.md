@@ -28,6 +28,50 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.12 (May 2026)
+
+The §20.15 third-tier ship: **encoder BIP-hybrid** — sign × magnitude
+factoring for the spectral encoder. Sign packs as 1 bit per dim
+(algebraically exact); magnitude quantizes to 4 or 8 bits per dim
+with per-channel scaling. Cosine-sim ≥ 99.99% at 8-bit on both 2D
+and 4D acceptance corpora. No breaking changes vs 1.11.x; `encode_640`
+/ `encode_4d` defaults unchanged.
+
+- **Storage**: 760 bytes (2D) / 50 KB (4D) at 8-bit, vs 2,560 / 180
+  KB float32 — about **3.4-3.6× compression** with negligible
+  cosine-sim loss. At 4-bit: 440 / 28 KB → **5.8-6.4× compression**;
+  passes acceptance for 2D, lands just under 99.5% for 4D (research
+  finding documented in §20.18).
+
+- **`encode_2d_bip_hybrid` / `encode_4d_bip_hybrid`** — new public
+  API. Returns `SpectralBIPHybrid2D` / `SpectralBIPHybrid4D`
+  dataclasses with three integer fields: `sign_packed` (bytes),
+  `magnitude_scales` (per-channel float32 norms), `magnitudes`
+  (uint8 — packed nibbles for 4-bit, plain bytes for 8-bit).
+
+- **`decode_2d_bip_hybrid` / `decode_4d_bip_hybrid`** — reconstruct
+  float64 vector. Lossy at the magnitude-quantization level; sign
+  storage is exact.
+
+- **`cosine_similarity_hybrid_*`** — pair-wise distance metric for
+  hybrid vectors. Approximates the float32 baseline within 1%
+  absolute deviation at 8-bit.
+
+- **Bridge surface** — `chess_spectral_4d.bridge.{encode_position_2d_bip_hybrid,
+  encode_position_4d_bip_hybrid}` for chess4D-OC / Pyodide consumers.
+  Returns plain Python int/list across the WASM boundary.
+
+- **62 immolation tests** lock the §20.15 acceptance gate (8-bit on
+  2D + 4D), the sign-bit storage exactness, the per-channel
+  magnitude bounds, the 4D 4-bit research finding (sim ∈ [0.99,
+  0.999]), the pair-wise cosine-sim approximation, and the 4-bit
+  nibble packing round trip.
+
+This is **B-spike-2** in the §20.15 three-tier phasing. B-spike-1a
+(sheet-block BIP) shipped in 1.10.0; B-spike-1b (ALU-native phase
+engine) shipped in 1.11.0; B-spike-3 (search-engine integration)
+remains parked.
+
 ## What's new in v1.11 (May 2026)
 
 The §20.15 second-tier ship: **ALU-native phase-operator move

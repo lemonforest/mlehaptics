@@ -7,6 +7,150 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] — 2026-05-04
+
+B-spike-2 from notebook §20.15 ships: **encoder BIP-hybrid** —
+sign × magnitude factoring across the spectral encoder's per-dim
+output. New module `chess_spectral.encoder_bip_hybrid`. Sign packs
+as 1 bit per dim (algebraically exact); magnitude quantizes to
+4 or 8 bits per dim with per-channel scaling. **§20.15 acceptance
+gate met**: cosine-sim ≥ 99.5% median + ≥ 95% worst-case on 2D
+and 4D test corpora at 8-bit magnitude. No breaking changes vs
+1.11.x; existing `encode_640` / `encode_4d` API unchanged.
+
+### Why this is the 1.12.0 ship
+
+§20.15's three-tier B-spike phasing's third leg. After 1.10.0
+shipped sheet-block BIP (B-spike-1a) and 1.11.0 shipped the
+ALU-native phase-operator engine (B-spike-1b), the encoder
+hybrid is the natural next step — it answers the §20.12 question
+of whether the encoder's per-channel magnitude data is
+quantizable to integer-native form without losing the cosine-sim
+discriminative power downstream consumers depend on.
+
+The empirical answer: **yes at 8-bit per dim, with comfortable
+margin** (median 0.999996, worst 0.999996 on the 7-FEN 2D
+corpus; 0.999979 on canonical Oana-Chiru 4D startpos).
+
+### Empirical finding worth recording
+
+**4-bit hybrid passes for 2D but lands just below the 99.5%
+threshold for 4D** (4D canonical OC: 0.994358). Notebook §20.18
+documents this as a research finding: the 45,056-dim 4D encoder
+accumulates more cumulative quantization error at 4-bit than the
+640-dim 2D encoder does, even though per-dim relative error is
+the same. 8-bit is the safe default for 4D; 4-bit is suitable
+for 2D where the 5.8× compression matters and ~0.1% cosine-sim
+degradation is acceptable.
+
+### Storage budget
+
+| Encoding | 2D bytes | 4D bytes | 2D compression | 4D compression |
+|---|---|---|---|---|
+| float32 baseline | 2560 | 180,224 | 1× | 1× |
+| BIP-hybrid 8-bit | 760 | 50,732 | **3.4×** | **3.6×** |
+| BIP-hybrid 4-bit | 440 | 28,204 | **5.8×** | **6.4×** |
+
+Sign bits: 80 / 5,632 bytes (1 bit per dim). Magnitude scales:
+40 / 44 bytes (10 / 11 channels × 4-byte float32). Magnitude
+payload: 320-640 bytes (2D) / 22-45 KB (4D) depending on bit
+budget.
+
+### Added — `chess_spectral.encoder_bip_hybrid` module
+
+- `SpectralBIPHybrid2D` / `SpectralBIPHybrid4D` dataclasses (frozen).
+  Three integer/byte-array fields per instance: `sign_packed` (bytes),
+  `magnitude_scales` (np.ndarray float32, per-channel), `magnitudes`
+  (np.ndarray uint8 — packed nibbles for 4-bit, plain bytes for 8-bit).
+- `encode_2d_bip_hybrid(pos, *, magnitude_bits=8, vals=None)` — encodes
+  via `encode_640` then factors. Returns `SpectralBIPHybrid2D`.
+- `encode_4d_bip_hybrid(pos4, *, magnitude_bits=8, vals=None)` — 4D
+  analog. Returns `SpectralBIPHybrid4D`.
+- `decode_2d_bip_hybrid(hybrid)` / `decode_4d_bip_hybrid(hybrid)` —
+  reconstruct float64 vector. Lossy at the magnitude-quantization
+  level; sign-bit storage is exact (decoded sign matches original
+  on every dim where decoded magnitude is non-zero).
+- `cosine_similarity_hybrid_2d(a, b)` / `cosine_similarity_hybrid_4d`
+  — pair-wise cosine similarity between two hybrid vectors via
+  decode then dot product. Returns 0.0 if either vector has zero
+  norm.
+- `round_trip_cosine_sim_2d(pos, *, magnitude_bits=...)` /
+  `round_trip_cosine_sim_4d(pos4, ...)` — the §20.15 acceptance
+  metric. Compares the float32 baseline vs the hybrid round-trip
+  reconstruction.
+- `bip_hybrid_storage_bytes_2d(magnitude_bits)` /
+  `bip_hybrid_storage_bytes_4d(magnitude_bits)` — documented
+  storage budget in bytes per position.
+- Layout constants: `DEFAULT_MAGNITUDE_BITS = 8`,
+  `VALID_MAGNITUDE_BITS = (4, 8)`, `N_CHANNELS_2D = 10`,
+  `CHANNEL_DIM_2D = 64`, `N_CHANNELS_4D = 11`,
+  `CHANNEL_DIM_4D = 4096`.
+
+### Added — bridge surface (`chess_spectral_4d.bridge`)
+
+- `bridge.encode_position_2d_bip_hybrid(pos, magnitude_bits=8)` —
+  hybrid-encode a 2D position. Returns
+  `{"hybrid": {"sign_packed_bytes": list[int],
+  "magnitude_scales": list[float], "magnitudes_bytes": list[int],
+  "magnitude_bits": int}}`. Plain Python lists across the WASM
+  boundary.
+- `bridge.encode_position_4d_bip_hybrid(pos4, magnitude_bits=8)` —
+  4D analog. Note: 4D magnitudes_bytes is 22,528 entries at 4-bit /
+  45,056 at 8-bit. Pyodide consumers should consider TypedArray
+  binary transport rather than JSON-list serialization for hot
+  paths.
+
+### Added — 62 immolation tests in `tests/test_encoder_bip_hybrid.py`
+
+- Storage budget verification (matches documented values per
+  bit budget).
+- Sign-bit packing / unpacking round-trip (640-bit and 45056-bit).
+- 4-bit nibble packing / unpacking round-trip.
+- 2D round-trip shape + dtype + per-channel magnitude bounds.
+- **Sign bit storage exact across the corpus** at every magnitude
+  budget (the load-bearing BIP-clean property).
+- **§20.15 acceptance gate** at 8-bit on the 7-FEN 2D corpus
+  (median + worst-case ≥ 99.5% / 95%).
+- 4-bit 2D acceptance test (also passes; the empirical finding
+  from §20.18).
+- 4D round-trip on canonical Oana-Chiru §3.3 startpos.
+- 4D 8-bit acceptance gate.
+- **4D 4-bit research finding lock** — sim is in [0.99, 0.999]
+  band; if it shifts, investigate.
+- Pair-wise cosine-sim (`cosine_similarity_hybrid_*`) approximates
+  the float baseline within 1% absolute deviation.
+- Self-similarity ≈ 1.0 (sanity check).
+- Zero-vector round trip exactly preserves zeros.
+- Error cases: invalid `magnitude_bits` raises ValueError;
+  `storage_bytes_*` rejects non-(4,8).
+
+### Notebook updates
+
+- §20.18 — implementation update for B-spike-2 with the empirical
+  acceptance numbers, the 4D 4-bit finding, the per-channel
+  optimization opportunities deferred to 1.13.0+, and cross-
+  pollination notes for ephemerides-spectral.
+- §20.19 — joint progress summary table across §20: B-spike-1a /
+  1b / 2 shipped; 3 / 4 parked.
+
+### What this 1.12.0 does NOT do
+
+- Does not implement per-channel optimizations from §20.12. A1 /
+  FA / E channels could benefit from non-uniform encoding (skip
+  sign for A1, skip magnitude for FA, complex-int for E). 1.13.0+
+  if empirically motivated.
+- Does not enter the v5 wire format. Wire-format integration (v5
+  mode 2 XOR-stream is a natural fit for the sign-portion bit
+  pattern) deferred per §19.12 + §20.16; picks up when a consumer
+  needs persisted hybrid frames.
+- Does not implement B-spike-3 (search-engine evaluator hot path
+  with hybrid vectors). Independent ship; depends on §16 search
+  integration surface.
+- Does not modify `encode_640` / `encode_4d` defaults. Existing
+  API surface unchanged. C parity tests pass.
+- Does not modify the 1.10.0 sheet block or 1.11.0 phase-operator
+  engine.
+
 ## [1.11.0] — 2026-05-04
 
 B-spike-1b from notebook §20.15 ships: **ALU-native phase-operator
