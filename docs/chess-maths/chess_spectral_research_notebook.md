@@ -3034,6 +3034,34 @@ This decoupling work is intentionally not scheduled — there is no roadmap comm
 
 A symmetric note for `encode_4d`: the name already factors out dim-pinning (`4d` is the *dimensionality of the lattice*, not the output dim), so no rename is recommended on that side. The 45 056-dim 4D output IS pinned to "11 channels × 4096 modes" by the same coupling caveat — `chess_spectral_4d.ENCODING_DIM_4D` and the corresponding `CHANNELS_4D` list are the queries that survive any future change. (Note the `ENCODING_DIM_4D` constant, 45056, has the same dim-shifted-on-sheet-add behavior: with `sheets=` it grows to 45067. Consumers should read the array's shape, not the constant.)
 
+### 19.12. Sheets and the v5 wire format — deferred by design
+
+**Date:** 2026-05-04. **Status:** Implementation decision recorded for `chess-spectral` 1.9.1 ship. The 1.9.0 sheet block (§19.9) lives only in memory; the v5 wire format does NOT carry the 11-dim aux block. v5 frames store the base `encoding_dim` floats per ply (640 for 2D, 45056 for 4D), without sheet data.
+
+This is a deliberate split between in-memory and on-disk representations, not an oversight. The reasoning:
+
+1. **The existing corpus pattern preserves source.** `corpus.py` and `corpus-gen` store the original PGN / NDJSON alongside the `.spectralz` in a corpus folder layout. The source game record carries castling rights, EP target, halfmove clock, and full move history natively — a full FEN includes all the non-Markov state, and a PGN preserves the entire game's evolution of that state ply by ply. Consumers needing sheet state at read time can re-derive it from the source via `SheetState.from_chess_board(chess.Board(fen))` for any ply, with bit-exact agreement to what `encode_2d(pos, sheets=...)` would have produced at encode time.
+
+2. **Sheets are an in-memory representation feature, not a transmission feature.** §19 framed sheets as *completeness-for-saved-vectors* — but "saved" there refers to the consumer's own storage layer (HDF5, pickle, in-process caches), not specifically `.spectralz` files. Different storage layers have different cost / convenience tradeoffs; the wire format's job is to ship the spectral payload, and the consumer's job is to ship whatever sidecar metadata they need alongside.
+
+3. **No downstream consumer currently needs persisted sheet frames.** chess4D-OC consumes sheets in-memory via `chess_spectral_4d.bridge.get_sheet_state` / `encode_sheet_aux` / `decode_sheet_aux_from_vector`. The corpus pipeline doesn't need sheets in the spectral payload because the source game record is already preserved. Designing a wire-format extension before there's a real consumer would over-fit the design — the §19 future-work table (§19.7's S-spike-2) already noted this is "deferred until a downstream consumer needs it."
+
+4. **The path forward is open, not closed.** v5's 256-byte header has 223 reserved bytes. The natural extension when persistent sheet frames are needed:
+   - Add `aux_dim` (uint8) — number of aux dims, 0 = no sheet block
+   - Add `aux_offset` (uint32) — byte offset of the aux block in the frame body
+   - Older v5 readers see `aux_dim=0` and continue to read `encoding_dim` floats per frame
+   - New readers with `aux_dim>0` read the additional dims at the documented offset
+   This is a backward-compatible extension that doesn't disturb existing files.
+
+**The two encode paths diverge intentionally.** A 1.9.1+ consumer's choice:
+
+| Path | API | Output | Best for |
+|---|---|---|---|
+| In-memory representation | `encode_2d(pos, sheets=...)` | 651-dim ndarray | Pyodide / chess4D-OC; downstream consumers wanting self-sufficient vectors; cosine-similarity search where the full 11 aux dims are part of the comparison |
+| On-disk transmission | `encode_2d(pos)` (no `sheets=`) → `write_v5_*` | `.spectralz` with 640 floats per ply, no aux | Long-term storage; corpus folders; any pipeline where the source PGN / FEN is preserved alongside |
+
+For the rare case where a consumer wants both — encode WITH sheets AND persist — the recommendation in 1.9.1 is to ship the aux blocks as a sidecar JSON file alongside the `.spectralz`. When that pattern starts to feel forced (i.e., when many consumers want the same thing), the wire format extension above lands cleanly.
+
 ---
 
 ## 20. Bit-Serialized Hyperdimensional Computing as a Resonant Object (Spike — May 2026)

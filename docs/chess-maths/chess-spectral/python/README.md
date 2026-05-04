@@ -103,6 +103,20 @@ The §19 spike's Phase-1 sheet block ships as a
   legal-move enumeration, and the bridge round-trip
   (state → get → encode → decode) for both dimensions.
 
+**1.9.1 update — README polish + v5 wire format design decision.**
+Quick-start example switched from `encode_640` to the
+future-proof `encode_2d` alias (the 640-dim count is no longer a
+stable contract — see §19.11). PyPI project links gain a
+`Roadmap` entry pointing at
+[`ROADMAP.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess-spectral/ROADMAP.md).
+v5 wire format officially documented as **not** carrying the sheet
+aux block — sheets ride alongside in-memory vectors, and on-disk
+the source PGN / NDJSON / FEN sidecar already carries the
+non-Markov state. See [`frame_v5.py`](https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess-spectral/python/chess_spectral/frame_v5.py)
+header note + notebook §19.12 for full rationale and the future-
+extension path (223 reserved bytes in the v5 header give plenty
+of room when a consumer eventually needs persisted sheet frames).
+
 ## What's new in v1.8 (May 2026)
 
 The chess4D-OC visualizer's **M11.40 unblocker** release. Tier-1
@@ -360,17 +374,20 @@ The legacy workflow still works: every test and analysis script uses
 `pytest docs/chess-maths/chess-spectral/python/tests/` runs without any
 install.
 
-## Quick start (2D, 640-dim)
+## Quick start (2D)
 
 ```python
 >>> from chess_spectral import (
-...     encode_640, channel_energies, read_encodings, fen_to_pos,
+...     encode_2d, channel_energies, read_encodings, fen_to_pos,
+...     ENCODING_DIM, CHANNELS,
 ... )
 
 >>> pos = fen_to_pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
->>> enc = encode_640(pos)
+>>> enc = encode_2d(pos)
 >>> enc.shape
 (640,)
+>>> ENCODING_DIM   # don't hardcode 640; the dim count may grow (see §19.11)
+640
 
 >>> channel_energies(enc)
 {'A1': 0.0, 'A2': 19.845, 'B1': 45.2825, 'B2': 45.2825,
@@ -642,7 +659,7 @@ gates this in CI.
 
     chess_spectral/                # 2D + 4D encoder math + QM extension
       __init__.py                  # __version__ via importlib.metadata
-      encoder.py                   # encode_640(pos) → np.ndarray(640,)
+      encoder.py                   # encode_2d(pos) → np.ndarray (encode_640 = legacy alias)
       frame.py                     # v2 .spectral[z] binary I/O + transparent gzip
       csv_export.py                # dist_prev / cos_prev / energies CSV
       cli.py                       # `chess-spectral` (2D CLI)
