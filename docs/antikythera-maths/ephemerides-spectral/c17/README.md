@@ -62,6 +62,22 @@ Override `CC` and `STD` for cross-compilation:
 make CC=arm-none-eabi-gcc STD=c11 CFLAGS="-mthumb -mcpu=cortex-m7 -O2"
 ```
 
+### Windows / Git Bash + MinGW
+
+If your local toolchain is older MinGW (gcc < 8) the `-std=c17` flag isn't
+recognised yet — but the source itself is C11-compliant, so falling back is
+just a flag toggle:
+
+```bash
+# In Git Bash with C:\MinGW on PATH
+mingw32-make CC=gcc STD=c11 test     # build + run C smoke tests
+mingw32-make CC=gcc STD=c11 parity   # build + run cross-language parity
+```
+
+Same `Makefile`, same source, same const tables, same parity result. The
+`STD` default flips to `c17` on toolchains that support it (gcc ≥ 8,
+clang ≥ 7) — most embedded cross-compilers from the past five years.
+
 ## Embedded usage
 
 The encoder is reentrant and allocates nothing on the heap. Stack
