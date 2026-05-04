@@ -28,6 +28,81 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.9 (May 2026)
+
+The §19 spike's Phase-1 sheet block ships as a
+**representation-completeness** feature alongside a new
+`legal-moves` CLI command for both 2D and 4D. No API breaks vs.
+1.8.x; every addition is opt-in surface.
+
+- **Non-Markovian sheet aux block**
+  (`from chess_spectral import SheetState, encode_aux_block`) — the
+  11-dim aux block carries castling rights, en-passant target,
+  side-to-move, half-move clock, and repetition count alongside the
+  base encoder vector. Opt in via the new `sheets=` kwarg on
+  `encode_640(pos, sheets=...)` and `encode_4d(pos4, sheets=...)`;
+  output dimension grows from 640 → 651 (2D) and 45056 → 45067
+  (4D), with the base dims byte-identical to legacy / C encoder
+  output. Lift state from `python-chess` via
+  `SheetState.from_chess_board(board)` or from a 4D `GameState4D`
+  via `SheetState.from_game_state_4d(state)`. Half-move clock uses
+  a `Z_101` Fourier carrier preserving clock-distance fidelity;
+  round-trip exact for every integer `[0, 100]`.
+
+- **Representation only — no speed claim.** Notebook §19.10
+  documents the depth-1 bitboard floor: `python-chess`'s
+  `has_castling_rights` is one int-AND, and float→int conversion
+  from a numpy slice can't undercut it. The same logic holds for
+  `Board4D.halfmove_clock >= 100` and the hash-table threefold-
+  repetition lookup. The sheet block's value is making encoder
+  vectors self-sufficient for downstream consumers of saved /
+  transmitted vectors (chess4D-OC, Pyodide pipelines, batch
+  retrieval over saved corpora) — not raw runtime speed.
+
+- **`legal-moves` CLI command (2D)** — `chess-spectral legal-moves
+  --fen "<fen>" [--format uci|san|json] [--with-sheets]` enumerates
+  the side-to-move's legal moves. Default UCI output, one move per
+  line; JSON format includes per-move flags (capture / castling /
+  en-passant / promotion) plus optional sheet block. Stdin support
+  via `--fen -`. Uses `python-chess` for legal-move generation.
+
+- **`legal-moves` CLI command (4D)** — `chess-spectral-4d
+  legal-moves --fen4 "<fen4>" [--format compact|json]
+  [--with-sheets] [--side-to-move white|black] [--halfmove-clock N]
+  [--fullmove-number N]` enumerates legal moves at a 4D-OC
+  position. Default compact format `x,y,z,w->x,y,z,w` with `DP`
+  (double push), `EP` (en-passant capture), and `=Q` (promotion)
+  tags; JSON format structured. Uses `Board4D.legal_moves()` (the
+  native 4D move-gen via graph-Laplacian-derived primitives).
+
+- **Pyodide-bridge surface for sheets** — `chess_spectral_4d.bridge`
+  gains `get_sheet_state`, `encode_sheet_aux`, and
+  `decode_sheet_aux_from_vector`. The bridge contract holds
+  ("plain dict, no numpy across the WASM boundary"); aux blocks
+  cross as `list[float]`. `chess4D-OC` and any other browser /
+  Pyodide consumer can now reason about castling rights / EP /
+  halfmove / repetition without reconstructing a `python-chess.Board`
+  or a `GameState4D` worker-side.
+
+- **`encode_2d` future-proof alias** — `from chess_spectral import
+  encode_2d` (1.9.0+) is the recommended name going forward,
+  mirroring the 4D path's `encode_4d`. `encode_640` remains as a
+  permanent alias, but the **dim count is not a stable contract**
+  — sheets already bumped 640 → 651, and future channel
+  enrichment (per the §20 BSHDC spike's antikythera-spectral
+  reference) or further non-Markov state extensions may move it
+  again. Query `ENCODING_DIM` (or check `enc.shape`) and iterate
+  channels via `CHANNELS` rather than hardcoding 640. See
+  notebook §19.11 for the full future-work note.
+
+- **53 new immolation tests** lock the sheet round-trip (every
+  legal halfmove value, every castling combination, every EP
+  file), the encoder integration (base preservation + aux at
+  correct offset), the factory lifts (`from_chess_board`,
+  `from_game_state_4d`), the CLI smoke surface for both 2D and 4D
+  legal-move enumeration, and the bridge round-trip
+  (state → get → encode → decode) for both dimensions.
+
 ## What's new in v1.8 (May 2026)
 
 The chess4D-OC visualizer's **M11.40 unblocker** release. Tier-1

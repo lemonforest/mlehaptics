@@ -346,6 +346,123 @@ def cmd_encode_moves4(args: argparse.Namespace) -> int:
 
 # --- corpus-gen ----------------------------------------------------------
 
+def cmd_legal_moves_4d(args: argparse.Namespace) -> int:
+    """1.9.0 — enumerate legal moves at a 4D FEN4 position.
+
+    Parses a FEN4 v1 placement literal, constructs a Board4D, and
+    emits the side-to-move's legal moves as JSON (default) or as
+    one line per move in compact ``from→to`` 4D-coord form.
+
+    The 4D-OC ruleset does not include castling (see
+    ``chess_spectral.spatial_4d.board`` header); en-passant captures,
+    pawn double-push, and pawn promotion ARE part of the ruleset and
+    are flagged in the JSON output. Per move flags:
+
+      ``is_double_push`` — pawn's two-square initial push (sets EP
+                            target on the following ply).
+      ``is_ep_capture``  — en-passant capture (the captured pawn is
+                            on a different square than ``to``).
+      ``is_promotion``   — pawn reached promotion plane; ``promotion``
+                            field carries target piece type.
+    """
+    from chess_spectral.spatial_4d.board import Board4D
+
+    fen4 = args.fen4
+    if fen4 == "-":
+        fen4 = sys.stdin.read().strip()
+    if not fen4:
+        print("legal-moves: --fen4 is required (or pass '-' to read "
+              "from stdin)", file=sys.stderr)
+        return 2
+
+    try:
+        board = Board4D.from_fen(fen4)
+    except _fen_4d.Fen4ParseError as e:
+        print(f"legal-moves: invalid FEN4 ({e})", file=sys.stderr)
+        return 3
+
+    # Override defaults from from_fen() if the caller passed game-state
+    # flags. Board4D.from_fen ignores these because FEN4 v1 is
+    # placement-only; we expose them as separate flags so the
+    # legal-move output reflects the actual game state being tested.
+    if args.side_to_move is not None:
+        board._turn = (args.side_to_move == "white")
+    if args.halfmove_clock is not None:
+        board._halfmove_clock = int(args.halfmove_clock)
+    if args.fullmove_number is not None:
+        board._fullmove_number = int(args.fullmove_number)
+
+    moves = list(board.legal_moves())
+
+    # Lazy-import sq->coord so the test gets the same canonical
+    # mapping the encoder uses (see chess_spectral_4d.coord_to_sq /
+    # sq_to_coord).
+    from chess_spectral_4d import sq_to_coord
+
+    fmt = args.format
+    if fmt == "json":
+        result: dict[str, object] = {
+            "fen4": fen4,
+            "side_to_move": "white" if board._turn else "black",
+            "halfmove_clock": board._halfmove_clock,
+            "fullmove_number": board._fullmove_number,
+            "n_moves": len(moves),
+            "moves": [
+                {
+                    "from": list(sq_to_coord(int(m.from_sq))),
+                    "to": list(sq_to_coord(int(m.to_sq))),
+                    "from_sq": int(m.from_sq),
+                    "to_sq": int(m.to_sq),
+                    "promotion": m.promotion,
+                    "is_double_push": bool(m.is_double_push),
+                    "is_ep_capture": bool(m.is_ep_capture),
+                }
+                for m in moves
+            ],
+        }
+        if args.with_sheets:
+            from chess_spectral.sheets import SheetState, encode_aux_block
+            # 4D-OC: castling/EP slots are always zero per the
+            # ruleset; only halfmove + side-to-move + repetition are
+            # populated. Repetition count is 0 here (no game history
+            # available from a single FEN4).
+            state = SheetState(
+                side_to_move_white=board._turn,
+                halfmove_clock=board._halfmove_clock,
+                repetition_count=0,
+            )
+            aux = encode_aux_block(state)
+            result["sheet_state"] = {
+                "castling_wk": False,
+                "castling_wq": False,
+                "castling_bk": False,
+                "castling_bq": False,
+                "ep_file": None,
+                "side_to_move_white": state.side_to_move_white,
+                "halfmove_clock": state.halfmove_clock,
+                "repetition_count": state.repetition_count,
+                "aux_block_11d": [float(x) for x in aux],
+            }
+        json.dump(result, sys.stdout, separators=(",", ":"))
+        sys.stdout.write("\n")
+    else:  # default: compact 'from→to' lines
+        for m in moves:
+            f = sq_to_coord(int(m.from_sq))
+            t = sq_to_coord(int(m.to_sq))
+            extras: list[str] = []
+            if m.is_double_push:
+                extras.append("DP")
+            if m.is_ep_capture:
+                extras.append("EP")
+            if m.promotion is not None:
+                extras.append(f"={m.promotion}")
+            tag = (" " + ",".join(extras)) if extras else ""
+            print(f"{f[0]},{f[1]},{f[2]},{f[3]}->"
+                  f"{t[0]},{t[1]},{t[2]},{t[3]}{tag}")
+
+    return 0
+
+
 def cmd_corpus_gen(args: argparse.Namespace) -> int:
     """Wrap N NDJSON4 ply-logs into a corpus folder mirroring the layout
     used by the 2D `chess-spectral corpus`. For each input game:
@@ -679,6 +796,49 @@ def build_parser() -> argparse.ArgumentParser:
                            "byte-for-byte compatible with the C "
                            "`spectral_4d encode` binary.")
     p_mv.set_defaults(func=cmd_encode_moves4)
+
+    # legal-moves (1.9.0)
+    p_lm = sub.add_parser(
+        "legal-moves",
+        help="Enumerate legal moves at a 4D FEN4 position",
+        description=(
+            "Enumerate the side-to-move's legal moves at a 4D position "
+            "given by FEN4 v1 placement literal "
+            "(see docs/FEN4_FORMAT.md). Output format selectable via "
+            "--format: 'compact' (default — one move per line in 4D-"
+            "coord 'x,y,z,w->x,y,z,w' form, with DP/EP/=Q tags for "
+            "double-push, en-passant, and promotion respectively) or "
+            "'json' (structured output). With --with-sheets, the JSON "
+            "output also includes the 1.9.0 non-Markovian sheet aux "
+            "block (castling/EP slots are always zero in 4D-OC per "
+            "the ruleset; halfmove + side-to-move are populated). "
+            "FEN4 v1 is placement-only; pass --side-to-move / "
+            "--halfmove-clock explicitly when those affect the legal "
+            "move set."
+        ),
+    )
+    p_lm.add_argument(
+        "--fen4", required=True,
+        help="FEN4 v1 placement literal (or '-' to read from stdin)")
+    p_lm.add_argument(
+        "--format", choices=("compact", "json"), default="compact",
+        help="output format: 'compact' (default, one line per move) "
+             "or 'json' (structured)")
+    p_lm.add_argument(
+        "--with-sheets", action="store_true",
+        help="(JSON format only) also emit the 11-dim non-Markovian "
+             "sheet aux block alongside the move list")
+    p_lm.add_argument(
+        "--side-to-move", choices=("white", "black"), default=None,
+        help="override side-to-move (FEN4 v1 is placement-only; "
+             "default is white)")
+    p_lm.add_argument(
+        "--halfmove-clock", type=int, default=None,
+        help="override halfmove clock (default 0)")
+    p_lm.add_argument(
+        "--fullmove-number", type=int, default=None,
+        help="override fullmove number (default 1)")
+    p_lm.set_defaults(func=cmd_legal_moves_4d)
 
     # corpus-gen
     p_cor = sub.add_parser(

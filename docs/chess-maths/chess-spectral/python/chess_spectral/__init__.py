@@ -42,6 +42,7 @@ del _pkg_version, _PkgNotFound
 
 from .encoder import (
     encode_640,
+    encode_2d,  # 1.9.0 — future-proof alias of encode_640 (see §19.11)
     channel_energies,
     normalize_pos,
     CHANNELS,
@@ -90,6 +91,29 @@ from .phase_operators import (
     move_leaves_king_in_check,
 )
 
+# 1.9.0 — non-Markovian sheet aux block (representation completeness;
+# no speed claim — see notebook §19.10 for the empirical depth-1
+# bitboard floor that closes the speed thesis). The aux block carries
+# castling rights, EP target, side-to-move, halfmove clock, and
+# repetition count for downstream consumers of saved/transmitted
+# vectors.
+from .sheets import (
+    SheetState,
+    SHEET_AUX_DIM,
+    SHEET_OFFSET_2D,
+    SHEET_OFFSET_4D,
+    HALFMOVE_PERIOD,
+    REPETITION_CLAIM_THRESHOLD,
+    FIFTY_MOVE_THRESHOLD,
+    encode_aux_block,
+    decode_castling_rights,
+    decode_ep_file,
+    decode_side_to_move_white,
+    decode_repetition_count,
+    decode_halfmove_clock,
+    decode_sheet_state,
+)
+
 # 1.7.0 D2: native fast-path availability flag, re-exported from
 # chess_spectral.spatial_4d.bitboard so downstream consumers (the
 # chess4D-OC visualizer and similar) can do
@@ -101,7 +125,8 @@ from .spatial_4d.bitboard import HAS_NATIVE_BITBOARD
 
 __all__ = [
     # Encoder
-    "encode_640", "channel_energies", "normalize_pos", "CHANNELS",
+    "encode_640", "encode_2d",
+    "channel_energies", "normalize_pos", "CHANNELS",
     "BOARD_DIM", "ENCODING_DIM", "SPECTRAL_VALS", "VALS",
     "PAWN_ANTI_FIBER", "DIAG_DEV",
     # Frame I/O
@@ -134,4 +159,19 @@ __all__ = [
     "move_leaves_king_in_check",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
+    # 1.9.0 — non-Markovian sheet aux block (representation completeness)
+    "SheetState",
+    "SHEET_AUX_DIM",
+    "SHEET_OFFSET_2D",
+    "SHEET_OFFSET_4D",
+    "HALFMOVE_PERIOD",
+    "REPETITION_CLAIM_THRESHOLD",
+    "FIFTY_MOVE_THRESHOLD",
+    "encode_aux_block",
+    "decode_castling_rights",
+    "decode_ep_file",
+    "decode_side_to_move_white",
+    "decode_repetition_count",
+    "decode_halfmove_clock",
+    "decode_sheet_state",
 ]

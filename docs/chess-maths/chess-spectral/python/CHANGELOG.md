@@ -7,6 +7,183 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-05-04
+
+Lands the §19 spike's Phase-1 sheet block (notebook §19, May 2026)
+as a **representation-completeness** feature, plus a new
+`legal-moves` CLI command for both 2D and 4D — the gap-filler that
+closes the "no command-line legal-move-gen" hole flagged on the
+1.9.0 prep thread.
+
+### Why this is the 1.9.0 representation-only ship
+
+The §19 spike originally proposed sheet blocks as a candidate speed
+optimization for the non-spatial-geometry move operators (castling,
+en passant). Empirical analysis of the 2D pipeline (notebook §19.10)
+confirms the depth-1 floor: `python-chess`'s
+`board.has_castling_rights()` is one int-AND, the same lookup the
+sheet block would need to do via float→int conversion plus numpy
+slice. We can't undercut that floor at single-position scale, and
+the same logic holds against `Board4D.halfmove_clock >= 100` and the
+hash-table threefold-repetition lookup. **1.9.0 ships sheet blocks
+as a representation-only feature, not a speed feature.** No speedup
+claim in the API surface, no benchmark harness, no fast-path
+early-exit logic. The value is making encoder vectors self-
+sufficient for downstream consumers of saved/transmitted vectors —
+chess4D-OC, Pyodide pipelines, batch retrieval — that don't want
+to reconstruct a python-chess `Board` or a `GameState4D` alongside
+the vector.
+
+### Added — Sheet aux block (§19 representation-only)
+
+- New module `chess_spectral.sheets` with the 11-dim non-Markovian
+  aux block:
+  - `SheetState` dataclass (castling rights × 4, EP file, side to
+    move, halfmove clock, repetition count).
+  - `SheetState.from_chess_board(board)` factory lifts state from a
+    `python-chess` Board (castling rights via
+    `has_kingside_castling_rights` / `has_queenside_castling_rights`,
+    EP file from `ep_square`, halfmove from `halfmove_clock`,
+    repetition via `is_repetition`).
+  - `SheetState.from_game_state_4d(state)` factory lifts state from
+    `chess_spectral_4d.GameState4D`. Castling and EP slots are
+    forced to neutral values per the Oana-Chiru ruleset (no
+    castling, no en passant — see `spatial_4d/board.py` header);
+    halfmove + side-to-move + repetition are populated.
+  - `encode_aux_block(state) -> np.ndarray` — serialize to the
+    11-dim float64 aux block. Halfmove encoded via Z_101 Fourier
+    carrier (cos / sin pair) preserving clock-distance fidelity;
+    castling / EP / side-to-move / repetition stored as direct
+    binary or small-integer slots.
+  - `decode_*` getters for individual slots and `decode_sheet_state`
+    for the full round-trip recovery. Half-move recovery rounds to
+    the nearest integer in [0, 100]; round-trip exact for all 101
+    legal values.
+- All eight sheets symbols re-exported at the top level
+  (`from chess_spectral import SheetState, encode_aux_block, ...`).
+- Layout constants: `SHEET_AUX_DIM = 11`, `SHEET_OFFSET_2D = 640`,
+  `SHEET_OFFSET_4D = 45056`. Indexed slot positions
+  (`SLOT_CASTLING_WK`, ..., `SLOT_HALFMOVE_SIN`, `SLOT_RESERVED`)
+  are part of the wire contract; consumers should use the named
+  constants instead of magic numbers.
+
+### Added — Encoder hooks for sheet aux block
+
+- `encode_640(pos, sheets=...)` — opt-in kwarg; when supplied,
+  appends the 11-dim aux block, producing a 651-dim float64 vector.
+  The first 640 dims are bit-for-bit identical to legacy / C
+  encoder output (test_c_py_parity unchanged); aux ride at offset
+  `SHEET_OFFSET_2D = 640`.
+- `encode_4d(pos4, sheets=...)` — same opt-in kwarg; produces a
+  45067-dim float32 vector. Aux block is cast to float32 for dtype
+  consistency with the base encoder. First 45056 dims unchanged
+  (test_c_py_parity_4d unchanged); aux at offset `SHEET_OFFSET_4D`.
+- Default behavior of both functions is bit-for-bit unchanged from
+  pre-1.9.0 — the `sheets` kwarg is opt-in and the legacy 640 / 45056
+  output is the default.
+
+### Added — `legal-moves` CLI command (closes the gap on the 1.9.0 prep thread)
+
+- `chess-spectral legal-moves --fen "<fen>" [--format uci|san|json]
+  [--with-sheets]` — enumerate the side-to-move's legal moves at a
+  2D position. Default UCI output (one move per line); JSON format
+  includes per-move flags (capture / castling / en-passant /
+  promotion) plus optional sheet block. Stdin via `--fen -`. Uses
+  `python-chess` for legal-move generation.
+- `chess-spectral-4d legal-moves --fen4 "<fen4>" [--format
+  compact|json] [--with-sheets] [--side-to-move ...] [--halfmove-
+  clock N] [--fullmove-number N]` — analog for 4D-OC. Default
+  compact format `x,y,z,w->x,y,z,w` with DP/EP/=Q tags for double-
+  push, en-passant, and promotion; JSON output structured. Uses
+  `Board4D.legal_moves()` (the native 4D move-gen via the graph-
+  Laplacian-derived primitives).
+- 12 immolation tests in `tests/test_legal_moves_cli.py` cover the
+  startpos move counts, JSON structure, sheet-block presence,
+  stdin input, and bad-FEN handling for both dimensions.
+
+### Added — 28 immolation tests for the sheet aux block
+
+`tests/test_sheets_aux_block.py` locks down:
+- Aux block shape (11,) + dtype (float64).
+- Default-state aux values (cos(0)=1, sin(0)=0, all other slots 0).
+- Castling rights round-trip (8 parametrized combinations).
+- EP file round-trip (None + files 0..7, 9 parametrized cases).
+- Half-move clock round-trip for **every integer [0, 100]** (101
+  parametrized cases) — exact recovery via atan2 + rounding.
+- Half-move > 100 clamps to 100 (50-move rule has triggered).
+- Half-move carrier always on the unit circle (cos² + sin² ≈ 1).
+- Side-to-move round-trip (both directions).
+- Repetition count round-trip (0/1/2) and clamping for values > 2.
+- Aggregate `decode_sheet_state` full round-trip.
+- 2D encoder integration: shape, dtype, base-preservation,
+  aux-at-offset.
+- 4D encoder integration: same four checks, with float32 dtype.
+- `from_chess_board` factory lifts python-chess state correctly
+  (startpos, post-double-push EP target, halfmove clock advance).
+- `from_game_state_4d` factory: castling/EP slots zero per
+  ruleset; halfmove + side-to-move + repetition populated.
+
+### Added — Bridge surface for sheet aux block (Pyodide / chess4D-OC)
+
+The `chess_spectral_4d.bridge` module gains three new functions
+that round out the sheet-block surface for the `chess4D-OC` worker
+and any other Pyodide / WASM consumer. The bridge contract holds
+("plain dict, no numpy across WASM"); aux blocks cross the boundary
+as plain `list[float]`.
+
+- `bridge.get_sheet_state(state_or_board)` — extract the 11-dim
+  non-Markovian sheet state from a `GameState4D` or a
+  `python-chess.Board`. Dispatches by type. Returns
+  `{"ok": True, "sheet": {...}}` with eight named fields.
+- `bridge.encode_sheet_aux(sheet_dict)` — serialize a sheet dict
+  to the 11-dim aux block as a plain `list[float]`. Returns
+  `{"ok": True, "aux": [11 floats]}`.
+- `bridge.decode_sheet_aux_from_vector(vec, offset)` — given an
+  encoder vector (as a list of floats; numpy-free path) and the
+  aux-block offset (640 for 2D, 45056 for 4D), decode the aux
+  block back to a sheet dict. Returns
+  `{"ok": True, "sheet": {...}}` or `{"ok": False, "error": "..."}`
+  on a too-short vector.
+- 13 immolation tests in `tests/test_bridge_sheets.py` cover the
+  factory dispatch (4D GameState4D + 2D python-chess Board), the
+  numpy-free return path, missing-field and short-vector error
+  handling, and the full E2E composition (state → get → encode →
+  decode round-trip).
+
+### Added — `encode_2d` alias (future-proof against dim-count changes)
+
+- `chess_spectral.encode_2d` is a permanent alias of
+  `chess_spectral.encode_640`. Both names map to the same function
+  in 1.9.0 and forward; `encode_640` is preserved for backward
+  compatibility but the dim count (640) is **not a stable contract**
+  — sheets bumped output to 651 already, future channel
+  embiggening or non-Markov-state extensions may bump it further.
+  New consumer code should prefer `encode_2d` (mirroring the 4D
+  path's `encode_4d`) and query `chess_spectral.ENCODING_DIM` or
+  `enc.shape[0]` rather than hardcoding 640. See notebook §19.11
+  for the full future-work plan.
+
+### Notebook updates
+
+`docs/chess-maths/chess_spectral_research_notebook.md` gained:
+
+- **§19.9** — implementation update: S-spike-1 shipped in 1.9.0
+  with the 11-dim aux block as designed.
+- **§19.10** — "Empirical bound: depth-1 bitboard floor": captures
+  Steven's "we won't beat bitboards at depth 1" lemma, closes the
+  speed thesis, recharacterizes 1.9.0 as a representation-only
+  ship, and names the regimes where sheet blocks remain valuable
+  (saved-corpus retrieval, Pyodide contexts without a python-chess
+  Board, transmission contracts).
+- **§19.11** — "Future work: dim-count is not a stable contract;
+  rename `encode_640` → `encode_2d`": documents three forces on the
+  encoder shape (sheet enrichment beyond Phase 1, channel
+  embiggening, bit-serialized HDC enrichment per the antikythera
+  /DE441 reference), recommends the future-proof API patterns
+  (`encode_2d`, `ENCODING_DIM` query, `CHANNELS` iteration), and
+  notes that no rename of `encode_4d` is needed since `4d` already
+  factors out the dim-pinning.
+
 ## [1.8.1] — 2026-05-01
 
 Closes the 1.8.0 wishlist's tier-1.4 (`initial_position()` factory)
