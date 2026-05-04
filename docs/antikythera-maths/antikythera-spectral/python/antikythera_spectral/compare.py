@@ -71,19 +71,58 @@ def compare_ephemerides_at_jd(jd_tdb: float, body: str,
     }
 
 
+_VALID_MODEL_NAMES = ("uniform", "epicycle", "equant", "bronze")
+"""Public model name aliases accepted by compare_models_at_jd.  Note
+'epicycle' here aliases to mars_longitude_epicycle_only in the
+research module; 'bronze' is the algebra/eigenbasis-projected
+companion (see ADR 0012)."""
+
+
 def compare_models_at_jd(jd_tdb: float, body: str,
                           model_a: str, model_b: str,
-                          kernel: str = "de421") -> Optional[Dict[str, Any]]:
+                          kernel: str = "de421",
+                          params: str = "ptolemy") -> Optional[Dict[str, Any]]:
     """Per-Greek-model longitude-error comparison against ephemeris truth.
 
-    Currently supports body='mars' only (the only body with all three
-    Greek models implemented in research.equant_encoder). Returns
-    ``None`` if the body isn't supported or skyfield/kernel unavailable.
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian Date (TDB) at which to query both models and the
+        ephemeris truth.
+    body : str
+        Currently supports ``"mars"`` only (the only body with all
+        Greek models implemented in research.equant_encoder).
+    model_a, model_b : str
+        Choices: ``"uniform" | "epicycle" | "equant" | "bronze"``.  See
+        ``antikythera_spectral.mars_models`` for the model semantics.
+        ``"bronze"`` is the algebra/eigenbasis projection of the
+        gear-ratio cyclic-group representation; numerically agrees with
+        ``"epicycle"`` to ~1e-13 deg (different derivation pathway,
+        same transform — see ADR 0012).
+    kernel : str
+        JPL DE-kernel name (default ``"de421"``).
+    params : str
+        Mars param-set name; one of ``"ptolemy"`` (Almagest IX-X
+        canonical, e=6, equant_offset=12), ``"freeth_2012"`` (F&J 2012
+        bare deferent + epicycle, e=0, no equant), or ``"freeth_2021"``
+        (Freeth 2021 reconstruction, same kinematic class as 2012).
+        Default ``"ptolemy"`` keeps the v0.2.x behaviour.
+
+    Returns
+    -------
+    dict or None
+        ``None`` if body unsupported, model name unknown, params
+        unknown, or skyfield/kernel unavailable.  Otherwise a dict
+        with model_a / model_b longitudes, residuals vs truth, and
+        their pairwise difference.
     """
     if body.lower() != "mars":
         return None
-    if model_a not in ("uniform", "epicycle", "equant") or \
-       model_b not in ("uniform", "epicycle", "equant"):
+    if model_a not in _VALID_MODEL_NAMES or model_b not in _VALID_MODEL_NAMES:
+        return None
+    try:
+        from antikythera_spectral import mars_models
+    except ImportError:
         return None
     try:
         from antikythera_spectral._research import equant_encoder as eq
@@ -92,6 +131,11 @@ def compare_models_at_jd(jd_tdb: float, body: str,
     try:
         from antikythera_spectral._research.ephemeris_loader import load_ephemeris
     except ImportError:
+        return None
+
+    try:
+        param_obj = mars_models.get_params(params)
+    except ValueError:
         return None
 
     bundle = load_ephemeris(kernel)
@@ -108,15 +152,14 @@ def compare_models_at_jd(jd_tdb: float, body: str,
     truth_lon = float(astrometric.ecliptic_latlon()[1].degrees)
 
     def _model_lon(name):
-        params = getattr(eq, "PTOLEMY_MARS_PARAMS", None)
-        if params is None:
-            return None
         if name == "uniform":
-            return float(eq.mars_longitude_uniform(jd_tdb, params))
+            return float(eq.mars_longitude_uniform(jd_tdb, param_obj))
         if name == "epicycle":
-            return float(eq.mars_longitude_epicycle_only(jd_tdb, params))
+            return float(eq.mars_longitude_epicycle_only(jd_tdb, param_obj))
         if name == "equant":
-            return float(eq.mars_longitude_equant(jd_tdb, params))
+            return float(eq.mars_longitude_equant(jd_tdb, param_obj))
+        if name == "bronze":
+            return float(eq.mars_longitude_bronze(jd_tdb, param_obj))
         return None
 
     lon_a = _model_lon(model_a)
@@ -130,6 +173,7 @@ def compare_models_at_jd(jd_tdb: float, body: str,
     return {
         "model_a": model_a,
         "model_b": model_b,
+        "params": params,
         "truth_lon_deg": truth_lon,
         "model_a_lon_deg": lon_a,
         "model_b_lon_deg": lon_b,

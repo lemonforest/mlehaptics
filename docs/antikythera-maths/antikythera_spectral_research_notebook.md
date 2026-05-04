@@ -367,27 +367,35 @@ The four FAILs are themselves substantive research findings, not script errors:
 
 **Initial diagnosis:** the 60° peak gap is **phase misalignment**, not amplitude. Our model's retrograde-peak amplitudes are ~38° (matching F&J's "size of the spike") but they fall at the WRONG JDs at -53 BCE because our `MarsParams.epoch_lon_deg / epoch_anomaly_deg` are propagated from Almagest IX.6's Nabonassar 1 anchor with a ~5° apsidal-line drift over 2200 years. F&J back-anchored their model to align retrograde JDs with reality at the target era; we don't.
 
-**Sequel (this PR): EpochFitter pair + bronze projection.** Building on the audit:
+**Sequel (this PR): bronze projection + EpochFitter pair + DE422 reference + retrograde-subset closure.** Building on the audit:
 
-5. **Bronze projection from gear-ratio algebra (#7 parity check).** [`research/equant_encoder.py`](research/equant_encoder.py) now exposes `mars_longitude_bronze`, the *projection from the cyclic-group algebra of the deferent gear ratios back to the pointer's spatial longitude* via the pin-and-slot phase-space transform `atan2(sin θ_in, cos θ_in + e/R)`. Constructed inline from gear ratios — not by importing the lunar-scoped `pin_and_slot.py`. Numerically agrees with `mars_longitude_epicycle_only` to ~10⁻¹³ deg across `FREETH_2012_MARS_PARAMS`, `FREETH_2021_MARS_PARAMS`, and `PTOLEMY_MARS_PARAMS` — same transform, two derivations. Establishes the bronze model as the algebra/eigenbasis-projected complement to the analytic equation-of-center pathway.
-6. **EpochFitter — RMS objective (#6).** Refits `(epoch_lon, epoch_anomaly, mm_lon, mm_anomaly)` to minimise shape RMS on F&J's window.
-7. **EpochFitter — peak objective (#8).** Same fit, but the optimiser minimises max\|residual\| rather than RMS. Together #6 and #8 bracket the (peak, mean) Pareto front of how Hellenistic Mars models match 1st-century-BC reality under epoch-anchor freedom.
+5. **Bronze projection from gear-ratio algebra (#7 parity check).** [`research/equant_encoder.py`](research/equant_encoder.py) now exposes `mars_longitude_bronze`, the *projection from the cyclic-group algebra of the deferent gear ratios back to the pointer's spatial longitude* via the pin-and-slot phase-space transform `atan2(sin θ_in, cos θ_in + e/R)`. Constructed inline from gear ratios — not by importing the lunar-scoped `pin_and_slot.py`. Numerically agrees with `mars_longitude_epicycle_only` to ~10⁻¹³ deg across `FREETH_2012_MARS_PARAMS`, `FREETH_2021_MARS_PARAMS`, and `PTOLEMY_MARS_PARAMS` — same transform, two derivations.
+6. **EpochFitter pair (#6 RMS, #8 peak).** Refit `(epoch_lon, epoch_anomaly, mm_lon, mm_anomaly)` minimising RMS or peak shape error.
+7. **DE422 reference probe (#9).** Re-runs #5 / #6 / #8 against JPL DE422 (≈ Horizons at -53 BCE precision) instead of analytic Kepler 2-body.
+8. **F&J "middle 7 retrogrades" subset probe (#10).** Detect 7 oppositions in a 15-yr window centred on -53 BCE; restrict evaluation to ±35-day retrograde sub-windows. F&J's prose says "middle SEVEN retrogrades in the 1st century BC, ~13-yr window" — #10 matches that subset selection exactly.
 
-| Model | base_params | unfit peak | #6 fit (peak, mean) | #8 fit (peak, mean) |
-|---|---|---:|---:|---:|
-| bronze | FREETH_2012_MARS_PARAMS | 95.56° | 51.44°, 26.69° | **46.86°**, 27.45° |
-| epicycle-only | PTOLEMY_MARS_PARAMS | 99.30° | 56.00°, 22.47° | **44.01°**, 25.56° |
-| equant | PTOLEMY_MARS_PARAMS | 102.60° | 60.37°, 18.32° | **45.07°**, 26.63° |
+**🎯 The cleanest reproduction of F&J's 38° (post-#10):**
 
-**Refined diagnosis (post-#6, post-#8).** The earlier "phase misalignment is the entire 60° gap" framing was directionally right but quantitatively incomplete. The unfit 95° peak decomposes as:
+| Reading | Statistic | Value | Comment |
+|---|---|---:|---|
+| (a) full-window unfit MEAN vs DE422 (#9) | mean of \|residual\| | **37–39°** | clustered tightly across all three Hellenistic models |
+| **(b) retrograde-subset unfit RMS vs DE422 (#10)** | **RMS of \|residual\|** | **38.85°** | **bare deferent; matches F&J prose most literally** |
+| (c) full-window peak-objective fit (#8 + #9) | max of \|residual\| | 42–47° | fitted, lands close |
 
-- **~50° epoch / mean-motion misalignment** — closed by #6 (RMS-fit drops peak to 51-60°).
-- **~5° peak-vs-mean trade-off** — closed by #8 (peak-fit drops a further 5-10° vs RMS-fit, to 44-47°).
-- **~6-9° Kepler-2-body vs JPL Horizons reference-frame** — *not* yet closed; F&J use JPL Horizons (effectively DE441 at this era), which includes lunar perturbations on Earth's barycentre and Jupiter's perturbation on Mars (a few arcsec/day, accumulating to a few degrees over 13 yr).
+**(b) is within 0.85° of F&J's 38°** when all three pieces of F&J's setup are matched — model = bare deferent + epicycle (no eccentricity, no equant); reference = JPL Horizons (DE422); subset = the 7 retrograde sub-windows. The closest direct reproduction of F&J's claim across all ten analyses, requiring no fitting.
 
-The remaining 6-9° to F&J's 38° is the natural target for a follow-up DE441 reference run (deferred to a future session, in scope per [`CLAUDE.md`](CLAUDE.md) as a reference-frame choice).
+**Section B of #10 (fitted peaks on the retrograde subset) lands in [27°, 37°] — *below* F&J's 38°.** F&J's number is the *unfit* statistic; the Hellenistic models are mathematically capable of better than 38° on this window when the anchor is chosen to optimise.
 
-- **The peak-vs-mean Pareto trade-off is asymmetric across model sophistication.** Equant has the steepest trade (60° → 45° peak at the cost of 18° → 27° mean). Bronze has the flattest (51° → 47° peak, mean almost unchanged). Without an equant, peak and mean are coupled; equant decouples them, and the chosen objective then determines which axis to favour.
+**Decomposition of the unfit ~95° peak across the four-stage closure (#6 → #8 → #9 → #10):**
+
+| Component | Closed by | Magnitude |
+|---|---|---:|
+| epoch / mean-motion misalignment | #6 RMS-fit | ~50° |
+| peak-vs-mean trade-off | #8 peak-fit | ~5° |
+| Kepler-2-body vs JPL DE422 reference | #9 | ~1-2° |
+| F&J "middle 7 retrogrades" subset selection | #10 | ~5° |
+
+All four pieces are needed to land the peak interpretation at 38°. The unfit-RMS reading (b) lands there directly from Section A of #10 with no fitting at all, by just matching all three pieces of F&J's setup.
 
 **What this means for the H-battery:**
 

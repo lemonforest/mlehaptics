@@ -145,7 +145,8 @@ def _read_manifest() -> Dict[str, Any]:
 # §5.1 — State ← date (5 methods)
 # ──────────────────────────────────────────────────────────────────────
 
-def get_dial_state(jd_tdb: float, *, D: int = D_CALLIPPIC) -> Dict[str, Any]:
+def get_dial_state(jd_tdb: float, *, D: int = D_CALLIPPIC,
+                    backend: str = "bit") -> Dict[str, Any]:
     """Encode a date as the per-dial residue state plus the HDC vector.
 
     Parameters
@@ -156,36 +157,44 @@ def get_dial_state(jd_tdb: float, *, D: int = D_CALLIPPIC) -> Dict[str, Any]:
     D : int, optional
         Encoder dimension. Must be ``940`` (Callippic) or ``13440``
         (packing). Default: 940.
+    backend : str, optional
+        HDC backend (v0.3.0). Default ``"bit"`` (the bit-packed binary
+        ALU; ADR 0012); pass ``"complex128"`` for the v0.2.x reference
+        encoder shape (interleaved Float32). Both backends compute the
+        same dial residues / angles; only the ``state`` field shape
+        differs.
 
     Returns
     -------
     dict
-        ::
+        Dial residues + angles are backend-independent.  The ``state``
+        sub-dict shape depends on ``backend``:
 
-            {
-                "ok": True,
-                "jd_tdb": float,
-                "D": int,
-                "dials": {
-                    "<name>": {
-                        "residue": int,
-                        "modulus": int,
-                        "angle_deg": float,
-                        "cycle_period_days": float | None,
-                        "supported_at_d": bool,
-                    },
-                    ...
-                },
-                "state": {
-                    "shape": [int],          # [D]
-                    "dtype": "complex128",
-                    "interleaved_f32": list[float],  # length 2*D, real+imag interleaved
-                },
+        ``backend == "bit"`` (default in v0.3.0)::
+
+            "state": {
+                "shape": [int],            # [n_words] = ceil(D/64)
+                "dtype": "uint64",
+                "n_bits": int,             # = D (top-word padding excluded)
+                "packed_uint64": list[int],# length n_words; LSB-first bit layout
             }
 
-    The ``state.interleaved_f32`` array is in the format the web UI
-    can hand to a ``Float32Array`` for shader uniforms. Per ADR
-    ``0002-bridge-api-shape.md``.
+        ``backend == "complex128"`` (v0.2.x compatibility)::
+
+            "state": {
+                "shape": [int],                # [D]
+                "dtype": "complex128",
+                "interleaved_f32": list[float],# length 2*D, real+imag interleaved
+            }
+
+    The full envelope adds ``"backend": str`` so consumers can dispatch.
+
+    The ``state.interleaved_f32`` array (complex128 backend only) is in
+    the format the web UI can hand to a ``Float32Array`` for shader
+    uniforms.  ``state.packed_uint64`` (bit backend) is a list of
+    Python ``int`` (each ≤ 2⁶⁴-1; JS consumers can either use ``BigInt``
+    or split each word into two ``uint32``).  Per ADR
+    ``0002-bridge-api-shape.md`` and ADR ``0012-algebra-eigenbasis-vs-cad-scope.md``.
     """
     err = _validate_jd(jd_tdb)
     if err:
@@ -193,14 +202,11 @@ def get_dial_state(jd_tdb: float, *, D: int = D_CALLIPPIC) -> Dict[str, Any]:
     err = _validate_dim(D)
     if err:
         return err
+    if backend not in ("bit", "complex128"):
+        return _err(
+            f"backend must be 'bit' or 'complex128'; got {backend!r}"
+        )
     jd = float(jd_tdb)
-
-    if D == D_CALLIPPIC:
-        state = encode_ant_callippic(jd)
-    else:
-        state = encode_ant_packing(jd)
-
-    interleaved = _interleave_complex(state)
 
     dials_out: Dict[str, Dict[str, Any]] = {}
     for spec in DIAL_SPECS:
@@ -214,16 +220,35 @@ def get_dial_state(jd_tdb: float, *, D: int = D_CALLIPPIC) -> Dict[str, Any]:
             "supported_at_d": bool(spec.is_supported(D)),
         }
 
+    if backend == "bit":
+        from antikythera_spectral.bit_alu import encode_ant_bit
+        state = encode_ant_bit(jd, D)
+        state_dict: Dict[str, Any] = {
+            "shape": [int(state.size)],
+            "dtype": "uint64",
+            "n_bits": int(D),
+            "packed_uint64": [int(w) for w in state],
+        }
+    else:
+        # complex128 (v0.2.x compatibility shape)
+        if D == D_CALLIPPIC:
+            state = encode_ant_callippic(jd)
+        else:
+            state = encode_ant_packing(jd)
+        interleaved = _interleave_complex(state)
+        state_dict = {
+            "shape": [int(state.size)],
+            "dtype": "complex128",
+            "interleaved_f32": interleaved.tolist(),
+        }
+
     return {
         "ok": True,
         "jd_tdb": jd,
         "D": int(D),
+        "backend": backend,
         "dials": dials_out,
-        "state": {
-            "shape": [int(state.size)],
-            "dtype": "complex128",
-            "interleaved_f32": interleaved.tolist(),
-        },
+        "state": state_dict,
     }
 
 
@@ -386,18 +411,49 @@ def get_version() -> Dict[str, Any]:
 # §5.2 — Date ← state (2 methods)
 # ──────────────────────────────────────────────────────────────────────
 
-def _coerce_state(state_vec: Any, D: int) -> np.ndarray:
-    """Accept several state representations and return a complex128 array.
+def _coerce_state(state_vec: Any, D: int) -> "tuple[np.ndarray, str]":
+    """Accept several state representations and return ``(array, backend)``.
+
+    Returned ``backend`` ∈ ``{"complex128", "bit"}``; the array dtype is
+    ``complex128[D]`` for the former and ``uint64[ceil(D/64)]`` for the
+    latter.  Callers dispatch on ``backend`` to pick the right decoder.
 
     Supported inputs:
 
+    Complex128 (v0.2.x reference encoder):
+
     - numpy.ndarray of shape ``(D,)`` and dtype complex128
     - numpy.ndarray / list of length ``2*D`` interleaved real+imag floats
-    - dict ``{"interleaved_f32": [...]}`` (the bridge's own output format)
+    - dict ``{"dtype": "complex128", "interleaved_f32": [...]}``
+    - dict ``{"interleaved_f32": [...]}`` (legacy, no ``dtype`` field)
+    - dict ``{"real": [...], "imag": [...]}``
+
+    Bit-packed (v0.3.0 default):
+
+    - numpy.ndarray of dtype uint64 and length ``ceil(D/64)``
+    - dict ``{"dtype": "uint64", "packed_uint64": [...], "n_bits": D}``
 
     Raises ``ValueError`` on any other shape / type.
     """
+    # ----- Dict envelope (the bridge's own output format) -----
     if isinstance(state_vec, dict):
+        dtype_hint = state_vec.get("dtype")
+        if dtype_hint == "uint64" or "packed_uint64" in state_vec:
+            packed = state_vec.get("packed_uint64")
+            if packed is None:
+                raise ValueError(
+                    "uint64 state dict must have 'packed_uint64' key"
+                )
+            arr = np.asarray(packed, dtype=np.uint64)
+            from antikythera_spectral.bit_alu import n_words
+            expected = n_words(D)
+            if arr.size != expected:
+                raise ValueError(
+                    f"packed_uint64 must have length n_words(D)={expected}, "
+                    f"got {arr.size}"
+                )
+            return arr, "bit"
+        # complex128 path
         if "interleaved_f32" in state_vec:
             state_vec = state_vec["interleaved_f32"]
         elif "real" in state_vec and "imag" in state_vec:
@@ -408,39 +464,68 @@ def _coerce_state(state_vec: Any, D: int) -> np.ndarray:
                     f"state real/imag must have length {D}, "
                     f"got {real.size}/{imag.size}"
                 )
-            return real.astype(np.complex128) + 1j * imag.astype(np.complex128)
+            return (
+                real.astype(np.complex128) + 1j * imag.astype(np.complex128),
+                "complex128",
+            )
         else:
             raise ValueError(
-                "state dict must have 'interleaved_f32' or 'real'+'imag' keys"
+                "state dict must have 'interleaved_f32', 'real'+'imag', "
+                "or 'packed_uint64' keys"
             )
 
+    # ----- Bare numpy / list -----
     arr = np.asarray(state_vec)
+
+    # Bit-packed: uint64 array of length n_words(D).
+    if arr.dtype == np.uint64:
+        from antikythera_spectral.bit_alu import n_words
+        expected = n_words(D)
+        if arr.size != expected:
+            raise ValueError(
+                f"uint64 state must have length n_words(D)={expected}, "
+                f"got {arr.size}"
+            )
+        return arr.astype(np.uint64, copy=False), "bit"
+
+    # Complex128 array.
     if np.iscomplexobj(arr):
         if arr.size != D:
             raise ValueError(
                 f"complex state must have length D={D}, got {arr.size}"
             )
-        return arr.astype(np.complex128, copy=False)
+        return arr.astype(np.complex128, copy=False), "complex128"
 
-    # Flat real array; expect interleaved real+imag of length 2*D.
-    arr = arr.astype(np.float32, copy=False).ravel()
-    if arr.size != 2 * D:
+    # Flat real array; expect interleaved real+imag of length 2*D
+    # (legacy v0.2.x serialisation).
+    arr_f = arr.astype(np.float32, copy=False).ravel()
+    if arr_f.size != 2 * D:
         raise ValueError(
-            f"interleaved state must have length 2*D={2 * D}, got {arr.size}"
+            f"interleaved state must have length 2*D={2 * D}, got {arr_f.size}"
         )
-    return arr[0::2].astype(np.complex128) + 1j * arr[1::2].astype(np.complex128)
+    return (
+        arr_f[0::2].astype(np.complex128) + 1j * arr_f[1::2].astype(np.complex128),
+        "complex128",
+    )
 
 
 def decode_dial(state_vec: Any, dial: str, *,
                 D: int = D_CALLIPPIC) -> Dict[str, Any]:
     """Decode the residue of a single dial from a state vector.
 
+    Auto-detects the backend from the input shape (v0.3.0): a
+    ``uint64`` array / dict-with-``packed_uint64`` is decoded via the
+    bit-ALU's argmax-similarity decoder, complex128 via the dense
+    decoder.
+
     Parameters
     ----------
     state_vec : numpy.ndarray | list | dict
-        Complex128 array of length D, OR interleaved real+imag Float32
-        of length 2*D, OR ``{"interleaved_f32": [...]}`` (the bridge's
-        own output shape).
+        Bit-packed (v0.3.0 default): ``uint64`` array of length
+        ``ceil(D/64)`` OR ``{"dtype": "uint64", "packed_uint64": [...]}``.
+
+        Complex128 (v0.2.x reference): array of length D, OR interleaved
+        real+imag Float32 of length 2*D, OR ``{"interleaved_f32": [...]}``.
     dial : str
         Dial name; must be in ``get_all_dial_metadata().dials[*].name``.
     D : int, optional
@@ -449,7 +534,10 @@ def decode_dial(state_vec: Any, dial: str, *,
     Returns
     -------
     dict
-        ``{"ok": True, "dial": str, "D": int, "recovered_residue": int}``
+        ``{"ok": True, "dial": str, "D": int, "backend": str,
+        "recovered_residue": int}``.  ``backend`` reports which
+        decoder ran ("bit" or "complex128") so the caller can confirm
+        the dispatch was as expected.
     """
     err = _validate_dim(D)
     if err:
@@ -464,12 +552,24 @@ def decode_dial(state_vec: Any, dial: str, *,
             f"dial {dial!r} not supported at D={D}"
         )
     try:
-        state = _coerce_state(state_vec, D)
+        state, backend = _coerce_state(state_vec, D)
     except (TypeError, ValueError) as exc:
         return _err(str(exc))
 
     try:
-        recovered = decode_dial_dense(state, dial, D)
+        if backend == "bit":
+            from antikythera_spectral.bit_alu import decode_dial_bit
+            dial_idx = next(
+                i for i, s in enumerate(DIAL_SPECS) if s.name == dial
+            )
+            # The encoder rotates the basis by ``spec.residue(jd, D)`` ∈
+            # [0, D) (not by ``spec.integer_residue(jd)`` which is in
+            # [0, modulus)).  Decode must scan the same [0, D) range.
+            recovered, _sim = decode_dial_bit(
+                state, D, dial_idx, modulus=int(D),
+            )
+        else:
+            recovered = decode_dial_dense(state, dial, D)
     except UnsupportedDialError as exc:
         return _err(str(exc))
 
@@ -477,6 +577,7 @@ def decode_dial(state_vec: Any, dial: str, *,
         "ok": True,
         "dial": dial,
         "D": int(D),
+        "backend": backend,
         "recovered_residue": int(recovered),
     }
 
@@ -522,9 +623,29 @@ def decode_to_jd(state_vec: Any, *,
     if err:
         return err
     try:
-        state = _coerce_state(state_vec, D)
+        state, backend = _coerce_state(state_vec, D)
     except (TypeError, ValueError) as exc:
         return _err(str(exc))
+
+    # Backend dispatch: bit-ALU uses argmax-similarity decode, complex128
+    # uses dense FHRR decode.  Both encoders rotate per-dial bases by
+    # ``spec.residue(jd, D)`` ∈ [0, D) (the D-bin residue), so both
+    # decoders produce per-dial residues in [0, D).  The wrapper hides
+    # the dispatch difference; downstream conversion to days uses the
+    # full D-bin denominator either way.
+    if backend == "bit":
+        from antikythera_spectral.bit_alu import decode_dial_bit
+        def _decode_one(spec):
+            dial_idx = next(
+                i for i, s in enumerate(DIAL_SPECS) if s.name == spec.name
+            )
+            r, _sim = decode_dial_bit(
+                state, D, dial_idx, modulus=int(D),
+            )
+            return int(r)
+    else:
+        def _decode_one(spec):
+            return int(decode_dial_dense(state, spec.name, D))
 
     estimates: Dict[str, float] = {}
     for spec in DIAL_SPECS:
@@ -533,7 +654,7 @@ def decode_to_jd(state_vec: Any, *,
         if spec.cycle_period_days is None or spec.cycle_period_days <= 0:
             continue
         try:
-            recovered = decode_dial_dense(state, spec.name, D)
+            recovered = _decode_one(spec)
         except (UnsupportedDialError, ValueError):
             continue
         # recovered ∈ [0, D); convert to phase fraction, then to days.
@@ -550,6 +671,7 @@ def decode_to_jd(state_vec: Any, *,
     return {
         "ok": True,
         "D": int(D),
+        "backend": backend,
         "reference_jd": float(reference_jd),
         "estimates": {k: float(v) for k, v in estimates.items()},
         "median_jd": float(median),
@@ -1020,15 +1142,31 @@ def compare_ephemerides(jd_tdb: float, body: str,
 
 def compare_models(jd_tdb: float, body: str,
                     model_a: str, model_b: str,
-                    kernel: str = "de421") -> Dict[str, Any]:
+                    kernel: str = "de421",
+                    params: str = "ptolemy") -> Dict[str, Any]:
+    """Compare two Hellenistic Mars models against ephemeris truth.
+
+    ``models`` may be any of {'uniform', 'epicycle', 'equant', 'bronze'}.
+    'bronze' is the algebra/eigenbasis projection of the gear-ratio
+    cyclic-group representation -- numerically equivalent to 'epicycle'
+    but derived through a different pathway (see ADR 0012).
+
+    ``params`` may be any of {'ptolemy', 'freeth_2012', 'freeth_2021'}.
+    Defaults to 'ptolemy' for v0.2.x backward-compatibility; pass
+    'freeth_2012' or 'freeth_2021' to test alternate reconstruction
+    parameter sets.
+    """
     err = _validate_jd(jd_tdb)
     if err:
         return err
-    out = _compare.compare_models_at_jd(jd_tdb, body, model_a, model_b, kernel)
+    out = _compare.compare_models_at_jd(
+        jd_tdb, body, model_a, model_b, kernel, params=params,
+    )
     if out is None:
         return _err(
             "compare_models supports body='mars' only; "
-            "models must be one of {'uniform','epicycle','equant'}; "
+            "models must be one of {'uniform','epicycle','equant','bronze'}; "
+            "params must be one of {'ptolemy','freeth_2012','freeth_2021'}; "
             "skyfield + kernel must be available."
         )
     return {"ok": True, **out}
