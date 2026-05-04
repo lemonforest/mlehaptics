@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] — 2026-05-04
+
+Polish on top of v1.9.0. README PyPI examples updated to use the
+future-proof `encode_2d` alias, Roadmap link added to PyPI project
+URLs, v5 wire format design decision recorded (sheets do **not**
+ride in v5; in-memory and on-disk paths diverge intentionally —
+see notebook §19.12). No code-behavior changes — encoder defaults
+remain bit-for-bit identical to 1.9.0 / C parity.
+
+### Changed
+
+- **README.md** quick-start example uses `encode_2d` (the 1.9.0
+  future-proof alias) instead of `encode_640`. Layout block in the
+  README directory tree similarly switched. Section heading
+  "Quick start (2D, 640-dim)" → "Quick start (2D)" since 640 is
+  no longer a stable contract (sheets bumped 640 → 651, future
+  channel embiggening may move it again — see notebook §19.11).
+  The example now demonstrates querying `ENCODING_DIM` rather
+  than hardcoding the value.
+- **`pyproject.toml` + `pyproject-pure.toml`** add a
+  `Roadmap` entry to `[project.urls]` pointing at
+  [`docs/chess-maths/chess-spectral/ROADMAP.md`](../ROADMAP.md).
+  PyPI surfaces this as a project-link badge alongside Homepage /
+  Repository / Issues / Changelog / Notebook (2D) / Notebook (4D).
+- **`ROADMAP.md`** refreshed from a stale "Current release: v1.6.0"
+  to a v1.9.1 + 1.9.0 + 1.8.x + 1.7.x retrospective; v1.7-era
+  candidates section relabeled to "v1.10+ candidates and parked
+  spikes" with concrete pointers to S-spike-2 (sheet wire format),
+  B-spike-1 (BSHDC side-car), Tier 2.1/2.2 (η-metric machinery),
+  and the API-stability adoption pattern from §19.11.
+
+### Added
+
+- **`frame_v5.py` module-docstring section "Sheets and v5 (1.9.1+
+  design decision)"** — documents that v5 frames do not carry the
+  sheet aux block; rationale (existing corpus pattern preserves
+  source, sheets are in-memory representation feature, no
+  downstream consumer needs persisted sheet frames yet); future
+  extension path (223 reserved bytes in the v5 header are
+  available for `aux_dim` / `aux_offset` fields when a consumer
+  needs them); recommended sidecar JSON pattern in the meantime.
+- **Notebook §19.12** — "Sheets and the v5 wire format — deferred
+  by design" — captures the same decision for the research record,
+  with the in-memory-vs-on-disk path table that consumers should
+  reference.
+
 ## [1.9.0] — 2026-05-04
 
 Lands the §19 spike's Phase-1 sheet block (notebook §19, May 2026)

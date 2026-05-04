@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "chess-spectral"
-version = "1.9.0"
+version = "1.9.1"
 description = "Spectral lattice-fermion encoder for 2D and 4D chess (D4 / B4 symmetry, graph-Laplacian eigenbasis, 640-dim / 45 056-dim HDC)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,6 +55,7 @@ Homepage = "https://github.com/lemonforest/mlehaptics/tree/main/docs/chess-maths
 Repository = "https://github.com/lemonforest/mlehaptics"
 Issues = "https://github.com/lemonforest/mlehaptics/issues"
 Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess-spectral/python/CHANGELOG.md"
+Roadmap = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess-spectral/ROADMAP.md"
 "Notebook (2D)" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_research_notebook.md"
 "Notebook (4D)" = "https://github.com/lemonforest/mlehaptics/blob/main/docs/chess-maths/chess_spectral_4d_notebook.md"
 

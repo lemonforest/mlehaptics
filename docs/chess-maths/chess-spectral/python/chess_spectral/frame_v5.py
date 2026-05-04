@@ -38,6 +38,56 @@ PR-E: C-side mirror.
 PR-F: CLI wiring of ``--encoding={xor,channel,full}`` flags.
 
 Reference: docs/adr/wire_format/ADR-001-v5-unified-encoding-modes.md
+
+Sheets and v5 (1.9.1+ design decision)
+======================================
+
+The 1.9.0 sheet aux block (``chess_spectral.sheets``) is a
+**representation-only** feature for in-memory encoder vectors —
+``encode_2d(pos, sheets=...)`` returns 651 dims (640 base + 11 aux),
+but the v5 wire format does NOT carry the aux block. v5 frames store
+the base ``encoding_dim`` floats (640 for 2D, 45056 for 4D) per ply,
+without sheet data.
+
+Rationale:
+
+  1. Existing corpus pattern preserves source. The corpus-gen
+     workflow (see :mod:`chess_spectral.corpus`) stores PGN / NDJSON
+     alongside the .spectralz; the source game record carries
+     castling rights, EP target, halfmove clock, and move history
+     natively (full FEN includes the non-Markov state). Consumers
+     who need sheet state at read time should re-derive it from the
+     source via ``SheetState.from_chess_board(chess.Board(fen))``,
+     not from the .spectralz.
+
+  2. Sheets are an in-memory representation feature, not a
+     transmission feature. The §19 spike framed sheets as
+     completeness-for-saved-vectors — but "saved" there means
+     "consumer's own storage" (HDF5, pickle, etc.), not
+     specifically the v5 wire format.
+
+  3. No downstream consumer needs persisted sheet frames yet.
+     chess4D-OC consumes sheets in-memory via
+     :mod:`chess_spectral_4d.bridge`. The corpus pipeline doesn't
+     need sheets in the spectral payload because the source game
+     record is already preserved.
+
+  4. The 223 reserved bytes in the v5 header give plenty of room
+     for a future ``sheet_aux_dim`` field if a consumer eventually
+     needs persisted sheet frames. The natural addition would be:
+       * ``aux_dim``  uint8 (number of aux dims, 0 = no sheet block)
+       * ``aux_offset`` uint32 (byte offset in frame body, derived
+                               from frame_bytes - aux_dim*4 - tail)
+     Older v5 readers see ``aux_dim=0`` and continue to read
+     ``encoding_dim`` floats per frame; new readers with
+     ``aux_dim>0`` read the additional dims at the documented
+     offset. This is a straightforward backward-compatible
+     extension when needed.
+
+For now: encode WITH sheets in memory for richer downstream
+analysis; encode WITHOUT sheets when persisting to .spectralz; the
+two paths intentionally diverge here. See notebook §19.12 for the
+full design rationale.
 """
 from __future__ import annotations
 
