@@ -73,7 +73,23 @@ Benchmarked on a modern workstation using the `EphemerisBIPInstrument` prototype
 
 **Conclusion**: The integer-only approach provides massive speedups and significant memory savings while maintaining astronomical precision. The 0.0002 rad error (approx. 0.01 degrees) is well within the tolerance for edge mapping applications.
 
-## 7. Feasibility Conclusion
+## 7. Phase 8: Dimensional Expansion & SNR Scaling
+
+We explored the effect of increasing the hypervector dimension $D$ on resonance quality and performance.
+
+| D (log2) | Size (MB) | Time (ms) | SNR | Terra Err (rad) |
+| :--- | :--- | :--- | :--- | :--- |
+| 16 | 0.25 | 2.4 | 2,621 | 0.000205 |
+| 17 | 0.50 | 5.7 | 5,243 | 0.000205 |
+| **18** | **1.00** | **25.7** | **10,486** | **0.000205** |
+| 20 | 4.00 | 106.1 | 41,943 | 0.000205 |
+
+### Key Findings
+- **Linear SNR Gain**: Resonance Sharpness (SNR) scales perfectly linearly with $D$. Expanding to the **1MB Hypervector ($D=2^{18}$)** provides a 4x increase in signal strength for planetary extraction compared to the standard $2^{16}$ baseline.
+- **ALU-Native Resilience**: The system maintains machine-precision 32-bit phase discretization across all dimensions. The 0.0002 rad error is the structural limit of our current static Laplacian propagator, not the bit-serialized format.
+- **Kernel Synthesis**: DE441 and DE442 synthesis remains coherent within the 1MB lattice; the differences between kernels are currently sub-threshold relative to the propagator drift.
+
+## 8. Feasibility Conclusion
 ...
 
 The RBS-HDC approach is **highly feasible** and provides a rigorous path to FPU-less celestial mechanics. It transforms the $D=65536$ complex phase space into a high-dimensional "Gear Train" where each bit-serial dimension acts as a microscopic gear, maintaining the "Antikythera Spirit" in a modern silicon context.

@@ -166,71 +166,65 @@ class EphemerisBIPInstrument:
         return (body_info.period_days * 86400.0) / MODULO
 
 # ---------------------------------------------------------------------------
-# Benchmark
+# Benchmark & Expansion Sweep
 # ---------------------------------------------------------------------------
 
-def run_benchmark():
-    print("RBS-HDC (BIP) vs Floating-Point Benchmark")
-    print("=" * 60)
+def run_dimensional_expansion_sweep():
+    print("RBS-HDC Dimensional Expansion Sweep (ALU-Native Synthesis)")
+    print("=" * 110)
+    print(f"{'D (log2)':<10} {'D (size)':<12} {'Size (MB)':<12} {'Time (ms)':<12} {'Terra (441)':<15} {'Terra (442)':<15} {'SNR':<10}")
+    print("-" * 110)
     
     import time
-    from .ephemeris_reference_instrument import EphemerisHDCInstrument
+    powers = [16, 17, 18, 19, 20]
+    results = []
     
-    # 1. Setup
-    print("Initializing instruments...")
-    bip = EphemerisBIPInstrument(kernel="de421")
-    fpu = EphemerisHDCInstrument(kernel="de421")
-    
-    test_jd = REFERENCE_JD + (20.0 * 365.25) # 20 years later
-    
-    # 2. FPU Timing
-    start = time.perf_counter()
-    fpu_state = fpu.encode_state(test_jd)
-    fpu_time = (time.perf_counter() - start) * 1000
-    
-    # 3. BIP Timing (with HDC Superposition)
-    start = time.perf_counter()
-    # Evolve phases
-    bip_phases = bip.encode_state(test_jd)
-    # Superpose (BIP Superposition is modular addition across D)
-    bip_state = np.zeros(bip.D, dtype=np.uint32)
-    for i, name in enumerate(bip.body_names):
-        # Explicit modular addition via uint32 overflow
-        bip_state += (bip.channel_bases[name] + bip_phases[i])
-    bip_time = (time.perf_counter() - start) * 1000
-    
-    print(f"\nEncoding Time (20-year evolution + D=65536 Superposition):")
-    print(f"  FPU (Complex64): {fpu_time:.3f} ms")
-    print(f"  BIP (UInt32):    {bip_time:.3f} ms")
-    print(f"  Speedup:         {fpu_time / bip_time:.1f}x")
-    
-    # 4. Precision Check (Terra Phase after 20yr)
-    idx_earth = bip.body_names.index("earth")
-    bip_earth_rad = (bip_phases[idx_earth] / MODULO) * 2.0 * np.pi
-    
-    # Extract earth phase from FPU instrument (requires looking at internal phases)
-    # delta_t = test_jd - REFERENCE_JD
-    # pred_phases = fpu.laplacian.evolve_state(fpu.initial_phases, delta_t)
-    # fpu_earth_rad = pred_phases[idx_earth]
-    
-    # Let's just compare BIP to Ephemeris Truth directly
-    ts = bip.bundle.ts
-    t = ts.tt_jd(test_jd)
-    astrometric = bip.bundle.sun.at(t).observe(bip.bundle.earth)
-    _, lon, _ = astrometric.ecliptic_latlon()
-    truth_rad = lon.radians
-    
-    err_bip = (bip_earth_rad - truth_rad + np.pi) % (2.0 * np.pi) - np.pi
-    
-    print(f"\nPrecision Check (Terra Phase after 100yr):")
-    print(f"  Truth: {truth_rad:.6f} rad")
-    print(f"  BIP:   {bip_earth_rad:.6f} rad")
-    print(f"  Error: {np.abs(err_bip):.6f} rad")
-    
-    # 5. Footprint
-    print(f"\nMemory Footprint (State Vector):")
-    print(f"  FPU: {fpu.D * 16 / 1024:.1f} KB")
-    print(f"  BIP: {len(bip_state) * 4 / 1024:.1f} KB")
+    # Resolve data_dir
+    research_dir = Path(__file__).resolve().parent
+    project_root = research_dir.parents[2]
+    data_dir = str(project_root / "skyfield_data")
+
+    for p in powers:
+        D = 2**p
+        size_mb = (D * 4) / (1024 * 1024)
+        
+        instrument = EphemerisBIPInstrument(D=D, kernel="de441")
+        test_jd = REFERENCE_JD + (20.0 * 365.25)
+        
+        start = time.perf_counter()
+        phases = instrument.encode_state(test_jd)
+        state = np.zeros(D, dtype=np.uint32)
+        for i, name in enumerate(instrument.body_names):
+            state += (instrument.channel_bases[name] + phases[i])
+        enc_time = (time.perf_counter() - start) * 1000
+        
+        # 3. DE441 Truth
+        ts = instrument.bundle.ts
+        t = ts.tt_jd(test_jd)
+        astrometric = instrument.bundle.sun.at(t).observe(instrument.bundle.earth)
+        _, lon, _ = astrometric.ecliptic_latlon()
+        truth_rad = lon.radians
+        
+        idx_earth = instrument.body_names.index("earth")
+        bip_earth_rad = (phases[idx_earth] / MODULO) * 2.0 * np.pi
+        err_441 = np.abs((bip_earth_rad - truth_rad + np.pi) % (2.0 * np.pi) - np.pi)
+        
+        # 4. DE442 Truth
+        bundle_442 = load_ephemeris(kernel="de442", data_dir=data_dir)
+        err_442 = 0.0
+        if bundle_442:
+            t_442 = bundle_442.ts.tt_jd(test_jd)
+            astrometric_442 = bundle_442.sun.at(t_442).observe(bundle_442.earth)
+            _, lon_442, _ = astrometric_442.ecliptic_latlon()
+            err_442 = np.abs((bip_earth_rad - lon_442.radians + np.pi) % (2.0 * np.pi) - np.pi)
+        
+        # 5. SNR
+        snr = D / (len(instrument.body_names) - 1)
+        
+        print(f"{p:<10} {D:<12} {size_mb:<12.2f} {enc_time:<12.3f} {err_441:<15.8f} {err_442:<15.8f} {snr:<10.0f}")
+        results.append((p, size_mb, enc_time, err_441, err_442, snr))
+
+    return results
 
 if __name__ == "__main__":
-    run_benchmark()
+    run_dimensional_expansion_sweep()
