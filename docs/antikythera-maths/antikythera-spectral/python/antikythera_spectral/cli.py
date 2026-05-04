@@ -61,13 +61,14 @@ def _cmd_version(args: argparse.Namespace) -> int:
 
 
 def _cmd_encode(args: argparse.Namespace) -> int:
-    out = bridge.get_dial_state(args.jd, D=args.D)
+    out = bridge.get_dial_state(args.jd, D=args.D, backend=args.backend)
     if args.dial and out.get("ok"):
         # Filter to one dial.
         d = out["dials"].get(args.dial)
         if d is None:
             return _emit({"ok": False, "error": f"unknown dial {args.dial!r}"})
         return _emit({"ok": True, "jd_tdb": out["jd_tdb"], "D": out["D"],
+                       "backend": out.get("backend"),
                        "dial": args.dial, **d})
     return _emit(out)
 
@@ -303,13 +304,23 @@ def _make_parser() -> argparse.ArgumentParser:
     e = sub.add_parser(
         "encode",
         help="Encode a JD as the per-dial state",
-        description="Build the HDC state vector and per-dial residues for a date.",
+        description=(
+            "Build the HDC state vector and per-dial residues for a date.  "
+            "v0.3.0 default backend is 'bit' (bit-packed binary HV; ADR "
+            "0012); pass --backend complex128 for the v0.2.x reference "
+            "encoder shape (interleaved Float32)."
+        ),
     )
     e.add_argument("--jd", type=float, required=True, help="Julian Day in TDB")
     e.add_argument("--D", type=int, default=940, choices=[940, 13440],
                    help="Encoder dimension (default 940)")
     e.add_argument("--dial", type=str, default=None,
                    help="If set, output only this dial's state")
+    e.add_argument("--backend", default="bit",
+                   choices=["bit", "complex128"],
+                   help=("HDC backend (v0.3.0); default 'bit' is the "
+                         "bit-packed binary ALU per ADR 0012. "
+                         "'complex128' is the v0.2.x reference encoder."))
     e.set_defaults(func=_cmd_encode)
 
     a = sub.add_parser(

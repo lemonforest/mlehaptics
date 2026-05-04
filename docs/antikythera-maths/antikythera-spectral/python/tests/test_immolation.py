@@ -47,6 +47,7 @@ import sys
 from pathlib import Path
 from typing import List, Set
 
+import numpy as np
 import pytest
 
 # tomllib is stdlib only on 3.11+. The CI matrix runs on 3.10 too,
@@ -796,6 +797,158 @@ def test_bridge_api_md_mentions_bronze_and_params() -> None:
     )
     assert "params" in bapi, (
         "docs/bridge_api.md must mention the params kwarg (v0.3.0)"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# N. Default-backend flip (v0.3.0 — Option A/B/C)
+# ──────────────────────────────────────────────────────────────────────
+#
+# v0.3.0 flips the package default from the complex128 reference encoder
+# to the bit-packed binary HDC ALU. These tests pin the flip at release-
+# gate level: top-level `default_encode` must default to bit, the bridge
+# methods must default to bit, the CLI must accept `--backend`, and the
+# v0.2.x complex128 path must remain reachable for backward compatibility.
+
+def test_default_encode_top_level_export() -> None:
+    """``antikythera_spectral.default_encode`` is a top-level export and
+    its default backend is ``"bit"``."""
+    import antikythera_spectral as asp
+
+    assert "default_encode" in asp.__all__
+    assert "DEFAULT_BACKEND" in asp.__all__
+    assert asp.DEFAULT_BACKEND == "bit", (
+        f"DEFAULT_BACKEND is {asp.DEFAULT_BACKEND!r}; v0.3.0 must default "
+        "to 'bit' per ADR 0012."
+    )
+
+
+def test_default_encode_returns_uint64_at_default_backend() -> None:
+    """default_encode(jd) returns a packed-uint64 array (bit backend by
+    default)."""
+    import antikythera_spectral as asp
+    from antikythera_spectral.bit_alu import n_words
+
+    arr = asp.default_encode(1684500.0)
+    assert arr.dtype == np.dtype("uint64"), (
+        f"default_encode(jd) returned dtype {arr.dtype}; expected uint64"
+    )
+    assert arr.shape == (n_words(940),), (
+        f"default_encode(jd) shape {arr.shape}; expected ({n_words(940)},)"
+    )
+
+
+def test_default_encode_complex128_explicit_still_works() -> None:
+    """Backwards-compat: passing backend='complex128' returns the v0.2.x
+    encoder shape."""
+    import antikythera_spectral as asp
+
+    arr = asp.default_encode(1684500.0, backend="complex128")
+    assert np.iscomplexobj(arr), (
+        f"default_encode(..., backend='complex128') returned dtype "
+        f"{arr.dtype}; expected complex"
+    )
+    assert arr.shape == (940,)
+
+
+def test_bridge_get_dial_state_default_backend_is_bit() -> None:
+    """v0.3.0 default: bridge.get_dial_state returns a uint64 / packed
+    state vector when no backend is specified."""
+    out = bridge.get_dial_state(1684500.0)
+    assert out["ok"] is True
+    assert out.get("backend") == "bit", (
+        f"bridge.get_dial_state default backend is {out.get('backend')!r}; "
+        "v0.3.0 must default to 'bit'."
+    )
+    state = out["state"]
+    assert state["dtype"] == "uint64"
+    assert "packed_uint64" in state
+    assert "n_bits" in state and state["n_bits"] == 940
+
+
+def test_bridge_get_dial_state_complex128_opt_out_still_works() -> None:
+    """Backwards-compat: backend='complex128' returns the v0.2.x shape."""
+    out = bridge.get_dial_state(1684500.0, backend="complex128")
+    assert out["ok"] is True
+    assert out["backend"] == "complex128"
+    assert out["state"]["dtype"] == "complex128"
+    assert "interleaved_f32" in out["state"]
+    assert len(out["state"]["interleaved_f32"]) == 2 * 940
+
+
+def test_bridge_decode_dial_auto_detects_backend() -> None:
+    """``decode_dial`` should dispatch on the input shape: a uint64
+    state goes to the bit decoder, a complex128 state to the dense
+    decoder.  Round-trip must work under both backends and the
+    response must report which decoder ran."""
+    for backend in ("bit", "complex128"):
+        encoded = bridge.get_dial_state(
+            1684500.0 + 1234.5, backend=backend,
+        )
+        out = bridge.decode_dial(encoded["state"], "Metonic", D=940)
+        assert out["ok"] is True, f"backend={backend}: {out}"
+        assert out["backend"] == backend, (
+            f"decode_dial dispatched to {out['backend']!r}, "
+            f"expected {backend!r}"
+        )
+        assert 0 <= out["recovered_residue"] < 940
+
+
+def test_bridge_decode_to_jd_auto_detects_backend() -> None:
+    """``decode_to_jd`` must auto-detect the backend the same way
+    ``decode_dial`` does."""
+    for backend in ("bit", "complex128"):
+        encoded = bridge.get_dial_state(
+            1684500.0 + 365.25 * 19, backend=backend,
+        )
+        out = bridge.decode_to_jd(encoded["state"], D=940)
+        assert out["ok"] is True, f"backend={backend}: {out}"
+        assert out["backend"] == backend
+
+
+def test_cli_encode_subcommand_has_backend_kwarg() -> None:
+    """The `encode` subcommand must accept --backend with bit/complex128
+    choices and must default to 'bit'."""
+    parser = _make_parser()
+    encode_parser = _find_subcommand(parser, ["encode"])
+    assert encode_parser is not None, "`encode` subcommand not found"
+    help_text = encode_parser.format_help()
+    assert "--backend" in help_text, (
+        "`encode --help` must expose --backend (v0.3.0)"
+    )
+    assert "bit" in help_text and "complex128" in help_text
+    # Walk the parser's defaults to confirm 'bit' is the default.
+    backend_action = next(
+        (a for a in encode_parser._actions
+         if any("--backend" == s for s in a.option_strings)),
+        None,
+    )
+    assert backend_action is not None
+    assert backend_action.default == "bit", (
+        f"--backend default is {backend_action.default!r}; "
+        "v0.3.0 must default to 'bit'."
+    )
+
+
+def test_changelog_030_mentions_default_backend_flip() -> None:
+    """The [0.3.0] CHANGELOG section must explicitly mention the
+    default-backend flip so consumers see the breaking-ish change."""
+    changelog = (_PROJECT_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [0.3.0]" in changelog
+    after = changelog.split("## [0.3.0]", 1)[1]
+    next_section = after.find("\n## [")
+    section = after[:next_section] if next_section >= 0 else after
+    # Phrase that signals the flip; guard against a too-tight literal
+    # by accepting any of a few plausible phrasings.
+    flip_phrases = (
+        "default-backend flip", "default-backend",
+        "default backend", "now the package default",
+        "package default",
+    )
+    assert any(p.lower() in section.lower() for p in flip_phrases), (
+        "CHANGELOG [0.3.0] section must mention the default-backend flip "
+        "(any of: 'default-backend flip', 'default backend', 'package "
+        "default')."
     )
 
 

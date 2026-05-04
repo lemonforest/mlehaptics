@@ -41,12 +41,25 @@ The full Bridge API is available from a Pyodide REPL with no server-side Python.
 ## Quick start (Python)
 
 ```python
->>> from antikythera_spectral import bridge
+>>> from antikythera_spectral import bridge, default_encode
 >>> result = bridge.get_dial_state(jd_tdb=1684500.0)   # ~205 BCE
 >>> result['ok']
 True
 >>> result['dials']['mars']['angle_deg']
 247.3
+>>> result['state']['dtype']        # v0.3.0: bridge default flipped to bit-packed
+'uint64'
+>>> result['backend']
+'bit'
+
+# Top-level shortcut for "encode any date as a hypervector" (v0.3.0):
+# default backend is the bit-packed ALU; pass backend="complex128" for the
+# legacy reference encoder. See ADR 0012 for the algebra-first rationale.
+>>> hv = default_encode(1684500.0)
+>>> hv.dtype
+dtype('uint64')
+>>> hv.shape
+(15,)                              # ceil(940/64) packed words = 120 B (vs 15 KB)
 
 # Mars planetary models (v0.3.0): four longitude models × three named
 # reconstruction param sets. The `bronze` model is the algebra/eigenbasis
@@ -106,6 +119,7 @@ antikythera-spectral hypotheses --csv-out -
 - **Compare ephemeris kernels** — DE421 vs DE441 vs DE441_part1 deltas at a chosen JD/body in arc-seconds, kilometers, AU.
 - **Run Hellenistic Mars planetary models** (`antikythera_spectral.mars_models`, v0.3.0): four longitude models (uniform, epicycle-only, equant, **bronze** — the gear-ratio cyclic-group projection through the pin-and-slot phase-space transform) under three named param sets (Ptolemy / Almagest IX-X, Freeth & Jones 2012, Freeth 2021). `mars_models.fj_38deg_finding()` reproduces F&J 2012 Fig 39's "nearly 38°" Mars peak error directly from the bare deferent + epicycle on the middle 7 retrogrades of the 1st century BC vs JPL DE422 (lands at 38.85° within 0.85°). See [ADR 0012](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/docs/adr/0012-algebra-eigenbasis-vs-cad-scope.md) for the algebra-first scope discipline; full audit in [`figures/mars_38deg_gap_findings.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/figures/mars_38deg_gap_findings.md).
 - **Use the bit-packed binary HDC ALU** (`antikythera_spectral.bit_alu`, v0.3.0): a second encoder backend where every operation reduces to integer bit-ops (XOR, popcount, shift) on packed `uint64` words — no floating point, no complex multiplies, no matrix work. 125× smaller per hypervector than the `complex128` reference (120 B vs 15 KB at D=940); 2–10× faster `bind` scaling with D. Same algebraic substrate (cyclic-group representation of the dials), pure-bitwise primitives. The cleanest possible incarnation of ADR 0012's algebra-first discipline. Benchmark + cycle-alignment analysis (solar vs sidereal day for `permute = sigma_day` — solar wins) in [`figures/bit_alu_findings.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/figures/bit_alu_findings.md).
+- **Encode without picking a backend** (`antikythera_spectral.default_encode`, v0.3.0): one-liner that returns a hypervector under the package's default backend (the bit-packed ALU, per ADR 0012). Pass `backend="complex128"` to recover the legacy reference shape. The bridge's `get_dial_state` / `decode_dial` / `decode_to_jd` likewise default to the bit-packed backend in v0.3.0, with explicit `backend="complex128"` opt-out for v0.2.x consumers.
 - **Run the 31-row hypothesis battery** that drives the research notebook, get JSON / CSV output.
 - **Override gear ratios** (what-if mode) — re-encode with arbitrary p/q to explore alternative period relations like the canonical Venus 5/8.
 - **Inventory by fragment** (archaeological mode) — list which gears are attested in fragments A/B/C/D vs reconstructed by Freeth.
@@ -117,6 +131,8 @@ antikythera-spectral hypotheses --csv-out -
 [`docs/bridge_api.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/docs/bridge_api.md) is the consumer-facing contract. 28 methods grouped by purpose; each returns a Pyodide-JSON-serializable `{"ok": True, ...}` dict. Numpy arrays in return values are real-valued (`Float32` for amplitude payloads) so JS consumers can use `new Float32Array(...)` directly.
 
 v0.3.0 extends `bridge.compare_models` with the `bronze` model name and a new optional `params` argument (`"ptolemy"` / `"freeth_2012"` / `"freeth_2021"`); v0.2.x callers continue to work unchanged. Direct Python access to the new Mars / bit-ALU primitives is via the `antikythera_spectral.mars_models` and `antikythera_spectral.bit_alu` facades — these are not part of the bridge contract (no Pyodide JSON serialization needed; numpy arrays / floats / dicts).
+
+**v0.3.0 default-backend flip.** `bridge.get_dial_state` now returns a bit-packed state by default — the `state` sub-dict has `dtype: "uint64"`, `shape: [n_words]` (= `ceil(D/64)`), `n_bits: D`, and `packed_uint64: list[int]`. `bridge.decode_dial` / `decode_to_jd` auto-detect the backend from the input shape (uint64 array → bit decoder; complex128 / interleaved-Float32 → reference decoder). v0.2.x consumers pass `backend="complex128"` to recover the legacy interleaved-Float32 shape; nothing else changes in the API. The dial residues / angles in the response are backend-independent.
 
 ## Hypothesis battery
 

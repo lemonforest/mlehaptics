@@ -131,6 +131,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "1baba857aaf6b49e2e80db3b61c5cad29d6db10c",
+  "source_commit": "c272fd8cabb651abd300fef0548fa69689e86ed2",
   "version": "0.3.0"
 }
