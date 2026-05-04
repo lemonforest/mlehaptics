@@ -3580,7 +3580,62 @@ The "8-generator coprimality" referenced in §1, §9o, and §20.7 — clarified 
 
 **Implication for cross-pollination with ephemerides-spectral.** §20.10's antikythera prototype uses `Z_{2^32}` because `2^32` is a power-of-2 cyclic group with overflow semantics that match `uint32` hardware natively. `Z_640` doesn't get that "free overflow" — every `(a + b) % MODULUS` in the chess phase-operator engine is an explicit modulo op. The structural shape is the same (integer addition over a finite cyclic group), but the per-operation cost has a small fixed overhead in chess that ephemerides avoids. Worth noting if the two projects converge on a shared bit-resonant carrier design later.
 
-### 20.18. Sibling project — `ephemerides-spectral`
+### 20.18. B-spike-2 implementation update — encoder BIP-hybrid shipped in 1.12.0
+
+**Date:** 2026-05-04. **Shipped:** chess-spectral 1.12.0. **Scope:** the third of the §20.15 three-tier B-spikes — the encoder BIP-hybrid with sign × magnitude factoring. New module `chess_spectral.encoder_bip_hybrid`; new public API `encode_2d_bip_hybrid` / `decode_2d_bip_hybrid` / `encode_4d_bip_hybrid` / `decode_4d_bip_hybrid` plus `cosine_similarity_hybrid_*` distance utilities.
+
+**Design choice for first ship — blanket sign × magnitude.** §20.12 named per-channel optimization opportunities (A1 is pure magnitude with no informative sign; FA is pure sign with no informative magnitude; E is genuinely 2-D phase). The 1.12.0 ship uses **uniform sign × magnitude treatment per dim** — every dim packs sign as 1 bit and magnitude at the configurable bit budget. Per-channel optimization is parked as 1.13.0+ work; the empirical question this ship answers is whether the uniform encoding hits the §20.15 acceptance gate, and the answer is yes (with one footnote, below).
+
+**Per-channel magnitude scaling.** Channel energies span several orders of magnitude (A1 ≈ 0 at startpos; F1/F2/F3 fiber gradients in the hundreds-to-thousands range). A single global magnitude scale would force small-magnitude channels into the quantization noise floor. The 1.12.0 implementation stores `max(abs(magnitude))` per channel as a `float32` scale (40 bytes 2D / 44 bytes 4D total) and quantizes per-channel relative to that scale. Each channel gets uniform relative precision regardless of its absolute magnitude range.
+
+**Storage budget.**
+
+| Encoding | 2D bytes | 4D bytes | 2D compression | 4D compression |
+|---|---|---|---|---|
+| float32 baseline | 2560 | 180,224 | 1× | 1× |
+| BIP-hybrid 8-bit | 760 | 50,732 | 3.4× | 3.6× |
+| BIP-hybrid 4-bit | 440 | 28,204 | 5.8× | 6.4× |
+
+Sign bits: 80 bytes (2D) / 5,632 bytes (4D). Magnitude scales: 40 bytes / 44 bytes. Magnitude payload: 320-640 bytes (2D) / 22-45 KB (4D) depending on bit budget.
+
+**§20.15 acceptance gate — corpus results.**
+
+Tested on 7 representative 2D FENs (opening, middlegame, endgame, EP-active, promotion-imminent) plus the canonical Oana-Chiru §3.3 4D startpos:
+
+| Encoding | 2D median | 2D worst | 4D (canonical OC) | Gate |
+|---|---|---|---|---|
+| 8-bit hybrid | 0.999996 | 0.999996 | 0.999979 | ✅ PASS both |
+| 4-bit hybrid | 0.998924 | 0.998729 | **0.994358** | ⚠️ 4D 4-bit just under 99.5% |
+
+**The empirical finding worth recording.** **At 4-bit, the 4D encoder lands at 0.994358 — about 0.4% below the 99.5% median threshold.** It clears the 95% worst-case threshold easily. The 2D 4-bit case passes both thresholds. The mechanism: the 45,056-dim 4D encoder accumulates more cumulative quantization error at 4-bit than the 640-dim 2D encoder at the same per-dim bit budget. Per-dim relative quantization error is the same (roughly 1/(2^bits - 1)), but the dot-product norm incorporates `sqrt(N)` more dim-pairs in 4D than 2D, and the cosine-sim error compounds.
+
+**Practical recommendation.** Default to 8-bit (`magnitude_bits=8`) unless storage is a hard constraint. 8-bit clears both acceptance thresholds for both 2D and 4D with margin to spare. 4-bit is suitable for 2D consumers where the 5.8× compression matters and the ~0.1% cosine-sim degradation is acceptable. For 4D + 4-bit, consumers should validate against their downstream similarity threshold; the 0.994 result might be acceptable for retrieval-style applications but is below the §20.15 gate as written.
+
+**Sign-bit storage is exact, decoded-sign agreement is bounded by quantization-to-zero.** The sign bit stored in `sign_packed` is bit-for-bit identical to the original sign for every dim. However, when a dim's magnitude rounds to zero during quantization (small-magnitude dims under low-bit budgets), the **decoded** value loses its sign — the decoded result is `0.0` regardless of the stored sign bit. This is documented as expected behavior (test `test_immolation_2d_decoded_sign_matches_where_magnitude_nonzero` locks the property: sign agreement on dims where the decoded magnitude is non-zero); the load-bearing claim is that the **storage** is sign-exact (test `test_immolation_2d_sign_bit_preserved_exactly`).
+
+**What 1.12.0 does NOT cover.**
+
+- **Per-channel optimizations from §20.12.** A1 (pure magnitude — sign bit always 0; could skip), FA (pure sign — magnitude always uninformative; could skip the magnitude byte), E (genuinely 2-D phase — could pack as complex int rather than sign × magnitude). Estimated savings if all three optimizations applied: ~10-15% additional compression. 1.13.0+ work.
+- **Wire format integration.** v5 mode 2 (XOR-stream) was designed for the bit-XOR-friendly portion of encoder vectors. The hybrid sign portion is exactly the kind of bit pattern mode 2 compresses well — successive plies' sign bits XOR to mostly-zero deltas. Not implemented in 1.12.0; deferred per the §19.12 + §20.16 design that wire-format integration follows consumer demand.
+- **B-spike-3** (search-engine evaluator hot path with hybrid vectors). Tournament A vs B at equal depth: float spectral vs hybrid spectral. Acceptance: tournament ELO within noise + ≥10× wall-clock speedup. Not started; depends on the §16 search engine integration surface.
+
+**Cross-pollination notes for ephemerides-spectral.** The chess hybrid encoding intentionally keeps the magnitude portion as quantized integer rather than embedding into the BIP `Z_{2^K}` group. This is structurally different from antikythera's `bip_instrument.py` which uses pure phase encoding because celestial mechanics is purely-phase by physical construction (each body's amplitude is constant; only phase varies with time). Chess channels carry both phase and magnitude information; the hybrid is the chess-shaped answer to the same general question of "how do we get ALU-native HDC without losing channel-energy information." The two projects share the binary-int-arithmetic substrate but diverge on what's quantized vs what's exact.
+
+### 20.19. Joint progress summary across §20
+
+After 1.12.0 ships, the §20.15 phasing table looks like this:
+
+| Phase | Status | Version | Acceptance |
+|---|---|---|---|
+| B-spike-1a | ✅ shipped | 1.10.0 | 87,264-case bit-exact round trip on sheet block |
+| B-spike-1b | ✅ shipped | 1.11.0 | parametrized parity vs python-chess pseudo_legal_moves on 8-FEN corpus |
+| **B-spike-2** | **✅ shipped** | **1.12.0** | **cosine-sim ≥ 99.5% median + ≥ 95% worst-case at 8-bit on 2D and 4D corpora** |
+| B-spike-3 | parked | (1.13.0+) | tournament ELO within noise + ≥10× wall-clock speedup |
+| B-spike-4 | parked | unscheduled | full pure-phase rewrite — high risk, blocked behind 1a/1b/2 acceptance |
+
+Three of the five phases shipped within ~3 days from the §20 spike's first sketch. The chess-side BSHDC stack is now substantially complete for representation purposes; B-spike-3's tournament-driven validation is the natural next ship if a downstream consumer cares about runtime speedup at search-evaluation scale. B-spike-4 remains parked behind clear empirical motivation.
+
+### 20.20. Sibling project — `ephemerides-spectral`
 
 The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:
 
@@ -3590,7 +3645,7 @@ The "antikythera prototype" referenced from §20.10 onward grew up into its own 
 
 Where the chess engine encodes a discrete board topology (`Z_640`), `ephemerides-spectral` encodes the live JPL DE441 ephemeris over `Z_{2^32}`. Phase 9 of that project ships the breathing-Laplacian construction sketched in §20.10–§20.12: the off-diagonal gravitational fiber couplings modulate as `cos(n_a·φ_a − n_b·φ_b)`, evaluated through a 1024-entry `int32` cosine LUT (Q1.14, 4 KB). Same cyclic-group integer ALU, same Q-format discipline, same overflow envelope philosophy as the chess `phase_operators` engine — just with a power-of-2 modulus that turns the modular reduction into free `uint32` overflow.
 
-The two projects are intentionally not merged: the chess and ephemeris evidentiary objects are different (a board game's rule structure vs the gravitational N-body problem), and consolidating them would muddle the per-project hypothesis batteries. They are, however, expected to share the *encoding-pattern* layer over time — the cosine LUT, the Q-format scaling rules, the int64 saturation envelope check, and the cyclic-group binding semantics are project-agnostic and worth porting as-needed.
+The §20.18 cross-pollination note above gives the chess-side framing for why the two projects diverge on what's quantized vs what's exact (chess channels carry both phase and magnitude; ephemerides is pure-phase). The two projects are intentionally not merged — chess and ephemeris evidentiary objects are different (a board game's rule structure vs the gravitational N-body problem), and consolidating would muddle the per-project hypothesis batteries — but they are expected to share the *encoding-pattern* layer over time. The cosine LUT, the Q-format scaling rules, the int64 saturation envelope check, and the cyclic-group binding semantics are project-agnostic and worth porting as-needed.
 
 ---
 

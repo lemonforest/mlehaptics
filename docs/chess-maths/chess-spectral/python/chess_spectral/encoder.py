@@ -1,6 +1,14 @@
 """
-encode_640 — reference Python implementation of the 640-dim spectral
-chess encoder that the C17 port mirrors.
+encode_2d (alias: encode_640) — reference Python implementation of
+the 640-dim spectral chess encoder that the C17 port mirrors.
+
+The function name ``encode_2d`` is the 1.9.0+ recommended public
+name; ``encode_640`` is preserved as a permanent alias. New
+consumer code should prefer ``encode_2d`` and query
+``chess_spectral.ENCODING_DIM`` (or ``enc.shape[0]``) rather than
+hardcoding 640 — the dim count is not a stable contract per
+notebook §19.11 (sheets bumped 640 → 651 already; future channel
+embiggening or bit-serialized variants may move it again).
 
 Channel layout (10 channels × 64 dims = 640):
     A1, A2, B1, B2, E         — D4 irreps (via Serre's character formula)
@@ -27,6 +35,21 @@ Position format (`pos`):
 
     Convenience: int keys can also be passed as str — NDJSON payloads
     use `{"0":"R", ...}`. normalize_pos() handles both.
+
+Optional kwargs:
+    ``sheets`` (1.9.0+) — append the 11-dim non-Markovian aux block
+    (castling rights, EP target, halfmove clock, side-to-move,
+    repetition count). See ``chess_spectral.SheetState``. Default
+    ``None`` keeps the 640-dim output bit-for-bit compatible with
+    pre-1.9.0 versions and the C side.
+
+Adjacent encoders / hybrid forms (1.10.0+):
+    * ``chess_spectral.encode_2d_bip_hybrid(pos, magnitude_bits=8)``
+      — sign × magnitude factoring; ~3.4× compression at 8-bit
+      (notebook §20.18).
+    * ``chess_spectral.SheetStateBIP`` and
+      ``chess_spectral.encode_sheet_state_bip(state)`` —
+      integer-native sheet block (3 bytes vs 88 bytes float64).
 """
 from __future__ import annotations
 
@@ -46,8 +69,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
         "    python spectral_py.py version\n"
         "\n"
         "Programmatic use:\n"
-        "    >>> from chess_spectral import encode_640, channel_energies, fen_to_pos\n"
-        "    >>> enc = encode_640(fen_to_pos(\"...\"))   # shape (640,)\n",
+        "    >>> from chess_spectral import encode_2d, channel_energies, fen_to_pos\n"
+        "    >>> enc = encode_2d(fen_to_pos(\"...\"))   # shape (640,)\n",
         file=sys.stderr,
     )
     sys.exit(2)

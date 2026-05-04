@@ -1,12 +1,12 @@
-"""chess_spectral — Python reference for the 640-dim spectral chess
-encoder. Sibling of the C17 port in ../src/. Use this for REPL / LLM
-analysis; use the C binary for batch throughput.
+"""chess_spectral — Python reference for the spectral chess encoder.
+Sibling of the C17 port in ../src/. Use this for REPL / LLM analysis;
+use the C binary for batch throughput.
 
-Quick start:
+Quick start (2D, 640-dim spectral payload):
 
-    >>> from chess_spectral import encode_640, channel_energies, fen_to_pos
+    >>> from chess_spectral import encode_2d, channel_energies, fen_to_pos
     >>> pos = fen_to_pos("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    >>> enc = encode_640(pos)
+    >>> enc = encode_2d(pos)
     >>> enc.shape
     (640,)
     >>> channel_energies(enc)
@@ -18,6 +18,31 @@ Reading a game file produced by either the C or Python encoder:
     >>> hdr, arr = read_encodings("game.spectralz")   # transparent gzip
     >>> arr.shape
     (161, 640)
+
+What's in the package (1.12.0):
+
+  * 2D encoder (10 channels × 64 dims = 640) and 4D encoder
+    (11 channels × 4096 dims = 45,056). Use ``encode_2d`` (1.9.0+
+    future-proof alias of ``encode_640``) and ``encode_4d``. Query
+    ``ENCODING_DIM`` / ``enc.shape[0]`` rather than hardcoding the
+    dim count — see notebook §19.11.
+  * **Sheet aux block** (1.9.0+): non-Markovian state (castling,
+    EP, halfmove clock, repetition, side-to-move). Float64 path:
+    ``encode_2d(pos, sheets=...)`` extends the vector by 11 dims.
+    BIP-encoded path (1.10.0+): ``SheetStateBIP`` packs the same
+    content into 3 bytes (uint16 + uint8). 29× compression with
+    bit-exact round trip.
+  * **ALU-native phase-operator engine** (1.11.0+):
+    ``phase_only_pseudo_legal_moves(pos, side_to_move_white,
+    ep_file=...)`` for Pyodide / WASM consumers. Pure integer
+    arithmetic over Z_640; no python-chess dependency.
+  * **Encoder BIP-hybrid** (1.12.0+): ``encode_2d_bip_hybrid`` /
+    ``encode_4d_bip_hybrid`` factor each dim as sign × magnitude.
+    3.4× compression at 8-bit, 5.8× at 4-bit. Cosine-sim ≥99.99%
+    on acceptance corpus; suitable for Pyodide / batched corpora.
+
+The notebook ``docs/chess-maths/chess_spectral_research_notebook.md``
+has the full theory; §19, §20 cover the BIP / sheet / ALU work.
 """
 
 # Derive the package version from the installed dist's metadata
@@ -119,6 +144,29 @@ from .sheets import (
     decode_sheet_state,
 )
 
+# 1.12.0 — Encoder BIP-hybrid (notebook §20.18). Sign × magnitude
+# factoring per channel: sign packs as 1 bit per dim (algebraically
+# exact); magnitude quantizes to 4 or 8 bits per dim with per-channel
+# scaling. ~3.4× compression at 8-bit, ~5.8× at 4-bit (2D);
+# correspondingly for 4D. Cosine-sim ≥99.99% at 8-bit on the
+# acceptance corpus; 4D 4-bit research finding documented in §20.18.
+from .encoder_bip_hybrid import (
+    SpectralBIPHybrid2D,
+    SpectralBIPHybrid4D,
+    encode_2d_bip_hybrid,
+    decode_2d_bip_hybrid,
+    encode_4d_bip_hybrid,
+    decode_4d_bip_hybrid,
+    cosine_similarity_hybrid_2d,
+    cosine_similarity_hybrid_4d,
+    round_trip_cosine_sim_2d,
+    round_trip_cosine_sim_4d,
+    storage_bytes_2d as bip_hybrid_storage_bytes_2d,
+    storage_bytes_4d as bip_hybrid_storage_bytes_4d,
+    DEFAULT_MAGNITUDE_BITS,
+    VALID_MAGNITUDE_BITS,
+)
+
 # 1.10.0 — Bit-Interleaved Phases (BIP) encoding for the sheet block
 # (notebook §20.14, §20.16). Round-trip exact integer-native form:
 # uint16 categorical + uint8 halfmove = 3 bytes per position vs the
@@ -195,6 +243,21 @@ __all__ = [
     "ep_phase_from_ep_file",
     "phase_only_pseudo_legal_moves",
     "PROMOTION_TARGETS",
+    # 1.12.0 — Encoder BIP-hybrid
+    "SpectralBIPHybrid2D",
+    "SpectralBIPHybrid4D",
+    "encode_2d_bip_hybrid",
+    "decode_2d_bip_hybrid",
+    "encode_4d_bip_hybrid",
+    "decode_4d_bip_hybrid",
+    "cosine_similarity_hybrid_2d",
+    "cosine_similarity_hybrid_4d",
+    "round_trip_cosine_sim_2d",
+    "round_trip_cosine_sim_4d",
+    "bip_hybrid_storage_bytes_2d",
+    "bip_hybrid_storage_bytes_4d",
+    "DEFAULT_MAGNITUDE_BITS",
+    "VALID_MAGNITUDE_BITS",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
     # 1.9.0 — non-Markovian sheet aux block (representation completeness)
