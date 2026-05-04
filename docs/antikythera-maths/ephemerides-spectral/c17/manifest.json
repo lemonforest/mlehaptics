@@ -1,0 +1,24 @@
+{
+  "cosine_lut_amp": 16384,
+  "cosine_lut_size": 1024,
+  "files": {
+    "es_bodies.c": {
+      "sha256": "ff945ce09bccf37c93ef9083110d341608e40f6aa8adfbe2a5110a9753d6be38",
+      "size_bytes": 3128
+    },
+    "es_cosine_lut.c": {
+      "sha256": "f74214073c37b6fde1f9109216d0bd9daec5fc857bc5a2d0c9c60e3c721e7a06",
+      "size_bytes": 9198
+    },
+    "es_laplacian.c": {
+      "sha256": "e56f8eadafbb8a15c92066b5e41110894c6fbde87e3b1f4bd1bf9dd0c0063e46",
+      "size_bytes": 2225
+    }
+  },
+  "k_bits": 32,
+  "modulo": 4294967296,
+  "n_bodies": 26,
+  "package": "ephemerides-spectral-c17",
+  "reference_jd": 2451545.0,
+  "version": "0.1.0"
+}
