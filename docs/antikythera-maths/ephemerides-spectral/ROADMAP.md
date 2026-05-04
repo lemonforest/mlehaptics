@@ -21,7 +21,6 @@ version).
 | v0.3.x | **First-principles Phase 9 derivation.** Replace the phenomenological `α = 0.1` modulation depth with values derived from a Hamilton/Delaunay-variable Lagrangian (Lie-series perturbation theory around each resonance). Connects to the adaptive-Kuramoto literature on derived-from-physics PDDP rules. |
 | v0.4.x | **CORDIC topocentric rendering.** The cosine LUT is half a CORDIC kernel; the rotation half can subsume the topocentric `lat/lon` observer-bind, taking that path off the FPU. |
 | later | **Multi-millennium sweep against DE441.** Re-derive Metonic + Saros anchors against the full 3.3 GB DE441 with breathing couplings active. Propagator drift floor (~0.0002 rad at +20 yr in v0.1.0 against DE421) re-measured at +200 yr / +2000 yr horizons. |
-| later | **ANSI C17 BIP source port.** Embedded-friendly C kernel for the integer-only `encode_state` path; bodies + ω + couplings + initial phases codegen-emitted as `const`. Targets ESP32 / Cortex-M / RISC-V; no FPU, no Skyfield, no Python at runtime. |
 
 ## Phase status (carried over from v0.1.0 plan)
 
@@ -37,7 +36,7 @@ version).
 | 11 — First-principles modulation depths | ⏳ v0.3.x | Replace phenomenological α with Lagrangian-derived values. |
 | 12 — CORDIC topocentric | ⏳ v0.4.x | Observer-bind off the FPU. |
 | 13 — DE441 multi-millennium sweep | ⏳ later | Re-anchor Metonic + Saros against full 3.3 GB kernel. |
-| 14 — ANSI C17 BIP | ⏳ later | Embedded-friendly integer-only kernel. |
+| 14 — C BIP source port | ✅ shipped (alongside v0.1.0) | Embedded-friendly integer-only kernel; byte-exact parity with the Python reference at +20 yr; codegen reads from the same Python research SSOT. Lives at [`c/`](c/). |
 
 ## Bridge ↔ CLI parity
 

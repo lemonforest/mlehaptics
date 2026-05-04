@@ -1,8 +1,10 @@
 /*
- * ephemerides-spectral — ANSI C17 BIP encoder
+ * ephemerides-spectral — C BIP encoder
  *
  * ALU-native integer-only port of the Phase 9 breathing Laplacian /
  * BIP encode_state path from the Python `ephemerides-spectral` package.
+ * Source compiles cleanly under -std=c11 / c17; the Makefile defaults
+ * to c17, drops to c11 for older toolchains.
  *
  * Targets: ESP32 / Cortex-M / RISC-V — anywhere with int64 arithmetic
  * and no FPU. No libm, no malloc, no Skyfield, no Python at runtime.

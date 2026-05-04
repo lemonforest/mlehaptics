@@ -1,5 +1,5 @@
 /*
- * test_es_encode.c — smoke test for the C17 BIP encoder.
+ * test_es_encode.c — smoke test for the C BIP encoder.
  *
  * Sanity-checks:
  *   1. es_version() returns "0.1.0".
@@ -190,7 +190,7 @@ int main(void) {
         fprintf(stderr, "%d test(s) FAILED\n", failed);
         return 1;
     }
-    printf("all C17 smoke tests PASSED (%u bodies, version %s)\n",
+    printf("all C smoke tests PASSED (%u bodies, version %s)\n",
            ES_N_BODIES, es_version());
     emit_parity_payload();
     return 0;

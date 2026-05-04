@@ -1,4 +1,4 @@
-"""Codegen: emit the C17 tables (bodies, omega_diag, initial phases,
+"""Codegen: emit the C tables (bodies, omega_diag, initial phases,
 couplings, cosine LUT) from the canonical Python research modules.
 
 Reads from ../../research/{bodies, laplacian, bip_instrument}.py and
@@ -9,7 +9,7 @@ Run after any change to the research modules:
     python emit_c_tables.py
 
 The output is a deterministic C source — same Python research code
-=> same C tables => same SHAs. The c17/ tree carries a manifest.json
+=> same C tables => same SHAs. The c/ tree carries a manifest.json
 sibling to the Python wheel's so consumers can verify the C tables
 came from a known research-tree commit.
 """
@@ -23,11 +23,11 @@ import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-_C17_ROOT = _HERE.parent
-_PY_RESEARCH = _C17_ROOT.parents[1] / "research"
+_C_ROOT = _HERE.parent
+_PY_RESEARCH = _C_ROOT.parents[1] / "research"
 
 # Make the Python research modules importable.
-sys.path.insert(0, str(_C17_ROOT.parents[1]))
+sys.path.insert(0, str(_C_ROOT.parents[1]))
 
 from research.bodies import BODIES                              # noqa: E402
 from research.bip_instrument import (                           # noqa: E402
@@ -198,7 +198,7 @@ def _sha256(p: Path) -> str:
 
 
 def main() -> None:
-    src = _C17_ROOT / "src"
+    src = _C_ROOT / "src"
     src.mkdir(parents=True, exist_ok=True)
 
     bodies_path = src / "es_bodies.c"
@@ -218,7 +218,7 @@ def main() -> None:
     # Sibling to the Python wheel's _data/manifest.json: SHAs of the
     # emitted C tables so embedded consumers can verify.
     manifest = {
-        "package": "ephemerides-spectral-c17",
+        "package": "ephemerides-spectral-c",
         "version": "0.1.0",
         "reference_jd": REFERENCE_JD,
         "k_bits": K_BITS,
@@ -231,7 +231,7 @@ def main() -> None:
             for p in [bodies_path, laplacian_path, lut_path]
         },
     }
-    manifest_path = _C17_ROOT / "manifest.json"
+    manifest_path = _C_ROOT / "manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

@@ -1,16 +1,20 @@
-# ephemerides-spectral — ANSI C17 BIP encoder
+# ephemerides-spectral — C BIP encoder
 
 Embedded-friendly C kernel for the integer-only Phase 9 `encode_state`
 path. Direct port of `EphemerisBIPInstrument._encode_state_impl` from the
 Python `ephemerides-spectral` package; **byte-exact parity** with the
 Python reference encoder over the +20 yr smoke-test horizon.
 
-## Why C17
+The source is C11-compliant; the Makefile defaults `STD=c17` (the
+latest standard) but accepts `STD=c11` for older toolchains
+(MinGW gcc < 8, etc.). No language features beyond C11 are used.
+
+## Why C
 
 The Python BIP encoder is already integer-only — `(φ₁ + φ₂) mod 2³²`
 hits `uint32` overflow directly with no FPU calls. Porting that path to
-ANSI C17 makes it directly drop-in for embedded targets that don't ship
-a Python runtime: ESP32, Cortex-M, RISC-V, FPGA softcores. **No libm
+C makes it directly drop-in for embedded targets that don't ship a
+Python runtime: ESP32, Cortex-M, RISC-V, FPGA softcores. **No libm
 inside the chunk loop**, no malloc, no Skyfield, no Python at runtime.
 The single float touchpoint is `delta_t_days`, consumed once at the
 top of `es_encode_state`.
@@ -18,7 +22,7 @@ top of `es_encode_state`.
 ## Layout
 
 ```
-c17/
+c/
 ├── include/ephemerides_spectral.h   # public C API
 ├── src/
 │   ├── es_encode.c                  # encode_state, hand-written
@@ -38,7 +42,7 @@ c17/
 ## Build & test
 
 ```bash
-cd c17
+cd c
 
 # Build the static library + smoke test binary
 make
@@ -65,8 +69,7 @@ make CC=arm-none-eabi-gcc STD=c11 CFLAGS="-mthumb -mcpu=cortex-m7 -O2"
 ### Windows / Git Bash + MinGW
 
 If your local toolchain is older MinGW (gcc < 8) the `-std=c17` flag isn't
-recognised yet — but the source itself is C11-compliant, so falling back is
-just a flag toggle:
+recognised yet — drop to `c11`:
 
 ```bash
 # In Git Bash with C:\MinGW on PATH
@@ -74,9 +77,9 @@ mingw32-make CC=gcc STD=c11 test     # build + run C smoke tests
 mingw32-make CC=gcc STD=c11 parity   # build + run cross-language parity
 ```
 
-Same `Makefile`, same source, same const tables, same parity result. The
-`STD` default flips to `c17` on toolchains that support it (gcc ≥ 8,
-clang ≥ 7) — most embedded cross-compilers from the past five years.
+Same `Makefile`, same source, same const tables, same parity result. Modern
+toolchains (gcc ≥ 8, clang ≥ 7 — every embedded cross-compiler from the past
+five years) take the default `STD=c17` unchanged.
 
 ## Embedded usage
 
@@ -123,7 +126,7 @@ on all 26 phases. Floor-division semantics (`Python a // b` vs
 
 ## Status
 
-* **v0.1.0** (2026-05-04) — initial C17 port. 9 smoke tests pass; 26
+* **v0.1.0** (2026-05-04) — initial C port. 9 smoke tests pass; 26
   bodies match the Python reference byte-for-byte at +20 yr from
   J2000. Phase 9 breathing-coupling table currently wires only the
   Jupiter-Saturn 5:2 entry (matches Python v0.1.0).

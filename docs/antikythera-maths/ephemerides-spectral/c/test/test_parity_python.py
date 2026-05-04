@@ -1,10 +1,10 @@
-"""C17 ↔ Python parity test for ephemerides-spectral.
+"""C ↔ Python parity test for ephemerides-spectral.
 
-Builds and runs the C17 smoke test, parses its PARITY_PAYLOAD line,
+Builds and runs the C smoke test, parses its PARITY_PAYLOAD line,
 encodes the same JD with the Python reference, and asserts byte-for-
 byte agreement on the per-body uint32 phase residues.
 
-Run from the c17/ directory or anywhere else; paths are absolute.
+Run from the c/ directory or anywhere else; paths are absolute.
 
     python test/test_parity_python.py
 
@@ -21,8 +21,8 @@ import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-_C17_ROOT = _HERE.parent
-_PROJECT_ROOT = _C17_ROOT.parents[1]      # docs/antikythera-maths
+_C_ROOT = _HERE.parent
+_PROJECT_ROOT = _C_ROOT.parents[1]      # docs/antikythera-maths
 _REPO_ROOT = _PROJECT_ROOT.parents[1]     # repo root
 
 # Make the Python research modules importable.
@@ -31,15 +31,15 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 
 def _build_c_test() -> Path:
     """Compile the C smoke test if needed; return the binary path."""
-    out = _C17_ROOT / "build" / ("test_es_encode.exe" if os.name == "nt" else "test_es_encode")
+    out = _C_ROOT / "build" / ("test_es_encode.exe" if os.name == "nt" else "test_es_encode")
     out.parent.mkdir(parents=True, exist_ok=True)
 
     cc = os.environ.get("CC", "gcc")
     # Try -std=c17 first (newer toolchains); fall back to -std=c11
     # for older ones (the source is C11-compatible).
-    sources = [str(p) for p in (_C17_ROOT / "src").glob("*.c")]
-    sources.append(str(_C17_ROOT / "test" / "test_es_encode.c"))
-    include = str(_C17_ROOT / "include")
+    sources = [str(p) for p in (_C_ROOT / "src").glob("*.c")]
+    sources.append(str(_C_ROOT / "test" / "test_es_encode.c"))
+    include = str(_C_ROOT / "include")
 
     for std in ("c17", "c11"):
         cmd = [cc, f"-std={std}", "-Wall", "-Wextra", "-Wpedantic", "-O2",

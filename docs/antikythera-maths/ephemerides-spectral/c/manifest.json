@@ -18,7 +18,7 @@
   "k_bits": 32,
   "modulo": 4294967296,
   "n_bodies": 26,
-  "package": "ephemerides-spectral-c17",
+  "package": "ephemerides-spectral-c",
   "reference_jd": 2451545.0,
   "version": "0.1.0"
 }

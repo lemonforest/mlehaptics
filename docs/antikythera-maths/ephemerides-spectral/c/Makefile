@@ -1,4 +1,4 @@
-# ephemerides-spectral C17 BIP encoder — Makefile
+# ephemerides-spectral C BIP encoder — Makefile
 #
 # Targets:
 #   all      build the static library + smoke-test binary
