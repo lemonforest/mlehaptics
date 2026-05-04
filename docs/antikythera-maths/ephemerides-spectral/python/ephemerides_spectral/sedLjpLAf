@@ -1,0 +1,86 @@
+"""CLI for de441-spectral."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from typing import Any, Dict
+
+from de441_spectral import bridge
+
+def _emit(result: Dict[str, Any]) -> int:
+    sys.stdout.write(json.dumps(result, indent=2, sort_keys=True))
+    sys.stdout.write("\n")
+    return 0 if result.get("ok") is not False else 1
+
+def main():
+    p = argparse.ArgumentParser(
+        prog="de441-spectral",
+        description="""
+DE441 Spectral: High-precision HDC Solar System Instrument.
+
+This tool implements a First-Principles Graph Laplacian model of the solar system,
+encoding celestial bodies (planets, moons, asteroids) as resonant phases in 
+a high-dimensional circular complex space (D=65536).
+
+Instead of direct spatial geometry, the system evolves purely in phase-space
+using a unitary propagator derived from the mass-weighted interaction topology.
+        """,
+        epilog="""
+HDC Configuration:
+  D = 65536 (2^16) - Complex hypervector dimension.
+  Bases = Unit-norm circular complex hypervectors.
+  Binding = Element-wise complex multiplication (Unitary).
+  Geometry = Projected from residues on coprime roll axes (67, 7).
+
+Ephemeris Support:
+  Default kernel: DE441 (calibration fallback to DE421).
+  Supports local topocentric views from any planet or major moon.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    sub = p.add_subparsers(dest="cmd", required=True, title="Commands", metavar="<command>")
+
+    # encode
+    e = sub.add_parser(
+        "encode", 
+        help="Encode the global barycentric state of the solar system.",
+        description="Computes the algebraic system state at a specific Julian Date (TDB).",
+        epilog="Example: de441-spectral encode --jd 2451545.0 (J2000 epoch)"
+    )
+    e.add_argument("--jd", type=float, required=True, help="Julian Date in TDB (Barycentric Dynamical Time).")
+    e.set_defaults(func=lambda args: _emit(bridge.get_system_state(args.jd)))
+
+    # local-view
+    lv = sub.add_parser(
+        "local-view", 
+        help="Encode a local topocentric view from a geographic position.",
+        description="""
+Extracts a 'Local View' hypervector by binding a unitary Observer Operator 
+to the global system state. This encodes the perspective of an observer 
+at a specific lat/lon on a chosen celestial body.
+        """,
+        epilog="Example: de441-spectral local-view --jd 2451545.0 --body earth --lat 51.5 --lon -0.1"
+    )
+    lv.add_argument("--jd", type=float, required=True, help="Julian Date (TDB).")
+    lv.add_argument("--body", required=True, help="Body name (e.g., 'earth', 'mars', 'titan').")
+    lv.add_argument("--lat", type=float, required=True, help="Geographic latitude (-90 to 90).")
+    lv.add_argument("--lon", type=float, required=True, help="Geographic longitude (-180 to 360).")
+    lv.set_defaults(func=lambda args: _emit(bridge.get_local_view(args.jd, args.body, args.lat, args.lon)))
+
+    # eclipse
+    ec = sub.add_parser(
+        "eclipse", 
+        help="Detect syzygy (eclipse) probability via spectral alignment.",
+        description="Calculates the alignment of the system state with a Syzygy Operator.",
+        epilog="Returns a scalar probability [0.0, 1.0] representing alignment strength."
+    )
+    ec.add_argument("--jd", type=float, required=True, help="Julian Date (TDB).")
+    ec.set_defaults(func=lambda args: _emit(bridge.get_eclipse_probability(args.jd)))
+
+    args = p.parse_args()
+    return args.func(args)
+
+if __name__ == "__main__":
+    sys.exit(main())

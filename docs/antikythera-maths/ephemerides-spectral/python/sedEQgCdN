@@ -1,0 +1,28 @@
+# de441-spectral
+
+> **High-precision HDC reference instrument for the solar system based on JPL DE441.**
+
+## Overview
+
+`de441-spectral` is an implementation of a resonant hyperdimensional computing (HDC) instrument that encodes the barycentric state of the solar system using high-precision ephemeris data from NASA's JPL DE441 kernel.
+
+It extends the theoretical framework established in the Antikythera Mechanism research to provide:
+- **High-Precision Encoding:** Circular complex hypervectors ($D=65536$) representing planetary phases.
+- **Gravitational Perturbations:** Modeled as off-diagonal fiber couplings (interaction terms).
+- **Observer-Agnostic Views:** Unitary binding to generate topocentric views from any position in the solar system.
+- **Eclipse/Syzygy Detection:** Spectral operators for syzygy prediction via dot-product alignment.
+
+## Installation
+
+```bash
+pip install de441-spectral
+```
+
+For ephemeris support:
+```bash
+pip install "de441-spectral[ephemeris]"
+```
+
+## License
+
+GPL-3.0-or-later.
