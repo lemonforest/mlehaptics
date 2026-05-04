@@ -3177,6 +3177,360 @@ Both are deferrable. Both are independent of each other and of the Phase 4 QM ex
 
 The static Laplacian propagator is not yet at its limit on the *base* encoding — the 640/45056-dim vectors continue to do useful work for the position-similarity, channel-energy, and QM-extension paths. The limit it hits is on **what classes of chess facts it can represent at all**, and that limit is exactly the non-Markovian residue characterized in §19. The shape question (§20) is a follow-up about how efficiently we encode the things the propagator *can* represent.
 
+### 20.10. Implementation update — BIP prototype on the ephemerides reference branch
+
+**Date:** 2026-05-04. **Status:** Reference data observed; chess port not yet committed. **Scope:** §20.5's acceptance criteria, §20.6's phasing table, and §20.7's UTLP S3 connection all need refinement based on the prototype's actual numbers.
+
+A working **EphemerisBIPInstrument** (Bit-Interleaved Phases) prototype lives on the git branch `feature/ephemerides-hdc-reference` (Gemini-authored while Claude credits were exhausted on the chess track). Two key files:
+
+- `docs/antikythera-maths/research/bip_instrument.py` — the implementation (236 lines)
+- `docs/antikythera-maths/research/resonant_bit_serialized_hdc_evaluation.md` — the eval doc (84 lines)
+
+**The numbers measured.**
+
+| Metric | FPU baseline (complex64) | BIP (uint32) | Benefit |
+|---|---|---|---|
+| Execution time (planet evolution loop) | 1379 ms | 4.5 ms | **305× speedup** |
+| Memory (D = 2¹⁶ state vector) | 1024 KB | 256 KB | **4× compression** |
+| Terra phase error after 20-yr sweep | reference | **0.0002 rad ≈ 0.011°** | **at-floor parity** |
+
+**The decisive finding from §6 of the eval doc:**
+
+> *"The 0.0002 rad error is the structural limit of our current static Laplacian propagator, not the bit-serialized format."*
+
+This rewrites the §20 thesis significantly. The original framing in §20.2 (will float32 amplitude be the load-bearing thing?) was wrong-footed for *phase-like* content. **For phase-like content, BIP encoding is not lossy — it's a group isomorphism.** The "0.01% precision loss" claim in §20.5 was misremembered: the real precision floor is 0.011° angular error, set by the propagator (not the encoding), and it survives K=16 / K=18 / K=20 (Phase 8 dimensional sweep — Table 7 of the eval doc) without changing.
+
+**Phase 8 dimensional expansion finding — linear SNR scaling.**
+
+| D (log₂) | Storage | Time | SNR (resonance sharpness) | Terra error (rad) |
+|---|---|---|---|---|
+| 16 | 0.25 MB | 2.4 ms | 2,621 | 0.000205 |
+| 17 | 0.50 MB | 5.7 ms | 5,243 | 0.000205 |
+| **18** | **1.00 MB** | **25.7 ms** | **10,486** | **0.000205** |
+| 20 | 4.00 MB | 106.1 ms | 41,943 | 0.000205 |
+
+SNR scales linearly in D; the error stays at 0.000205 rad regardless. The propagator's structural floor is genuinely structural.
+
+**What the prototype does NOT yet implement:** off-diagonal couplings (gravitational perturbations between bodies). The eval doc §3.3 specs a LUT-based `Δφᵢ = Wᵢⱼ · LUT_Sin(φⱼ − φᵢ)` approach, but `bip_instrument.py` ships only the diagonal NCO (Numerically Controlled Oscillator) per dimension. So the 305× speedup is for diagonal evolution; the off-diagonal piece is future work on the antikythera side too.
+
+### 20.11. The BIP encoding pattern in detail
+
+The Gemini prototype gives concrete code we can mirror. The four invariants:
+
+**(1) Phase representation is `Z_{2^K}` with K = 32.** Each dimension's phase is a `uint32` integer. Mapping radians → integer:
+
+```python
+# bip_instrument.py:75-77 (during calibration)
+# Map [0, 2π) → [0, 2^32)
+phases[i] = int((lon.radians / (2.0 * np.pi)) * MODULO) % MODULO
+# where MODULO = 2**32 = 4294967296
+```
+
+K = 32 was chosen empirically: K = 16 also stays at the propagator floor (per the eval doc's K-sweep), so K = 32 is just headroom. Per-phase resolution at K = 32 is 2π/2³² ≈ 1.46 × 10⁻⁹ rad ≈ 3 × 10⁻⁷ arcsec — six orders of magnitude tighter than the propagator floor.
+
+**(2) HDC binding is integer addition mod 2^K.** This is a literal group isomorphism with complex multiplication (`e^{i(φ₁+φ₂)} = e^{iφ₁} · e^{iφ₂}`):
+
+```python
+# bip_instrument.py:143-144
+def bind(self, phase_vec_a: np.ndarray, phase_vec_b: np.ndarray) -> np.ndarray:
+    return (phase_vec_a + phase_vec_b) % MODULO
+```
+
+Unitarity is preserved by construction — every `Z_{2^K}` element corresponds to a unit-magnitude phasor, and unit × unit = unit.
+
+**(3) Time evolution is a per-dimension NCO.** The diagonal propagator term `e^{-iLt}` becomes integer phase advance:
+
+```python
+# bip_instrument.py:98-102
+delta_t = date_jd - REFERENCE_JD
+evolved_phases = ((self.initial_phases + self.fixed_frequencies * delta_t)
+                  .astype(np.uint64) % MODULO).astype(np.uint32)
+```
+
+Note the partial-FPU-ness: `fixed_frequencies` is stored as `float64` (residues per day) and multiplied with `delta_t` in float before the integer cast. A truly fully-ALU-native version would store frequencies as fixed-point integers; the prototype takes the float-multiply shortcut for accumulated-rounding control. This is a place where a chess port could go either way.
+
+**(4) Off-diagonal couplings (deferred).** The eval doc §3.3 describes a LUT-based or CORDIC-based bit-serial rotation:
+
+```
+Δφ_i = W_{ij} · LUT_Sin(φ_j - φ_i)
+```
+
+A small lookup table (eval doc suggests 16-32 entries) keyed by phase difference maps each interaction to a phase nudge. Not implemented in the Gemini prototype yet; design choice would carry over to chess.
+
+### 20.12. Chess channel taxonomy — refined via sign × magnitude factoring
+
+§20.3-§20.4 framed the chess BIP question as "phase-clean vs incompatible" per channel. The Gemini findings + a careful read of the encoder's algebraic structure suggest a more useful factoring: **sign × magnitude**, where the sign is BIP-friendly (1-bit phase ∈ Z₂) and the magnitude is real-valued.
+
+**2D encoder (10 channels × 64 dims = 640):**
+
+| Channel | Algebra | Decomposition | Pure phase? | Pure magnitude? | Sign×Mag? |
+|---|---|---|---|---|---|
+| A1 | D₄ trivial irrep (orbit sum) | non-negative scalar | — | ✓ | — |
+| A2 | D₄ sign rep | signed real | — | — | ✓ |
+| B1 | D₄ 1-D irrep | signed real | — | — | ✓ |
+| B2 | D₄ 1-D irrep | signed real | — | — | ✓ |
+| **E** | **D₄ 2-D irrep** | **2-vector / complex** | **✓** | — | — |
+| F1 / F2 / F3 | symmetric fiber (rank-3 SVD) | signed real (gradient × fib_d) | — | — | ✓ |
+| **FA** | **antisymmetric pawn fiber** | **strictly signed (white = +, black = −)** | **✓ (Z₂ phase)** | — | — |
+| FD | diagonal deviation | signed real (sig × DIAG_DEV) | — | — | ✓ |
+
+Net: 1 channel pure magnitude (A1), 1 channel genuinely phase (E — naturally complex / 2-vector), 1 channel pure-sign-as-Z₂-phase (FA), and 7 channels factorable as sign × magnitude. **No channel is BIP-incompatible** under the sign × magnitude factoring — A1 is "phase = 0 always" (degenerate Z₂ phase), and the others all have a genuine sign component.
+
+**4D encoder (11 channels × 4096 dims = 45 056):** parallel structure. A1 magnitude-only; FA_PAWN_W and FA_PAWN_Y phase-via-sign (Z₂); STD4_X/Y/Z/W and FIB_SYM_1/2/3 and FD_DIAG factor as sign × magnitude. The 2-D E irrep doesn't have a direct B₄ analogue at the same shape; the closest analogues live in the FIB_SYM SVD components.
+
+**What this means for a chess BIP encoder.** The §20.4 binary "side-car vs ground-up rewrite" was the wrong question. The right question is: **how much of the magnitude information do downstream consumers actually need?**
+
+- **Channel energies** (`Σ |c_i|²`) use only magnitudes; sign cancels in the square. *Sign-only encoding suffices for channel-energy analysis.*
+- **Cosine similarity** between two vectors uses both sign AND magnitude; sign-only encoding loses similarity precision proportional to the magnitude variance.
+- **Symmetry-orbit identification** (per §20.3) uses sign + categorical structure; magnitude is incidental.
+- **Search-engine evaluators** (§16) use sign × magnitude weighted sums; full information needed.
+
+So a chess BIP encoder is naturally **hybrid**: pack the sign components (Z₂ per dim, packed as bits — 640 bits = 80 bytes for 2D, 45 056 bits = 5632 bytes for 4D) and store magnitudes separately at whatever bit budget the downstream task allows (4-bit signed nibble at 320/22 528 bytes, 8-bit at 640/45 056 bytes, etc.). The sign packing is **algebraically exact**; the magnitude packing is the only loss source, and it can be tuned per consumer.
+
+### 20.13. The §11 phase-operator move engine is already BIP-isomorphic
+
+The "8-generator coprime basis" framing in §1, §9o, and §20.7 is a misnomer worth correcting before chess BIP work begins. The encoder does **not** use 8 separate `Z_p` moduli for `p ∈ {2, 3, 5, 7, 11, 13, 17, 19}` (CRT-style). It uses a **single composite modulus `Z_640`** (extended from the original `Z_512`), with the position-to-phase map:
+
+```python
+# phase_operators.py
+phi(r, c) = (r * 67 + c * 7) mod 640
+```
+
+The "coprimality" lives in the *spectral* domain — the 8 path-graph eigenvalues `λ_k = 2(1 − cos(πk/8))` for `k = 0..7` have irrational pairwise ratios, so no two modes alias under board operations. This is mathematically distinct from the arithmetic-modular coprimality that BIP uses (`gcd(K_1, K_2) = 1` between two separate cyclic groups).
+
+But the algebraic structure that matters for BIP — *phase composition via integer addition modulo a fixed group* — **is exactly what §11's phase-operator engine does**. Move composition for any piece is a roll by an integer phase offset modulo 640, and successive moves compose as integer additions. This is identical in shape to BIP's `(φ₁ + φ₂) mod 2^K`, just with a non-power-of-2 modulus.
+
+**The chess-side implication:** the §11 move engine and the §3 / §9 encoder are two different objects living in the same codebase:
+
+- **§11 phase-operator engine** — already integer-arithmetic, already BIP-isomorphic at the group level. Uses `Z_640` (non-power-of-2). Could be promoted to a public ALU-native API with no algebraic redesign.
+- **§3 / §9 float32 encoder** — outputs the 640-dim signed magnitudes. Not BIP. Would need the hybrid sign × magnitude treatment from §20.12.
+
+These two opportunities are independent. Promoting the phase engine costs ~300-400 LOC (mostly API surface + benchmarks); BIP-ifying the encoder is the harder ~500-800 LOC piece. They can ship in either order.
+
+The "non-power-of-2 modulus" detail matters in one specific way: BIP's §3.1 binding (`(φ₁ + φ₂) mod 2^K`) lets the modulo wrap happen for free in `uint32` overflow semantics. Modulo 640 doesn't get this — `(a + b) % 640` in Python (or C) is an explicit operation, not a hardware overflow. For the chess phase engine, that's a per-op cost of one division. Cheap, but not zero.
+
+### 20.14. Sheets × BIP — the cleanest first move
+
+The 1.9.0 sheet block (§19.9) shipped 11 dims × 8 bytes = **88 bytes per position** in float64. Per §19.4, the bits decompose into 9 categorical bits (XOR-lite — castling × 4, ep_active × 1, ep_file × 3, side_to_move × 1) plus a 2-bit repetition-count register plus a Z₁₀₁ Fourier carrier for the halfmove clock. The float64 storage is wildly inefficient for content that is almost entirely categorical.
+
+**BIP-encoded sheet block — concrete byte budget:**
+
+| Slot | 1.9.0 dtype | BIP-natural | Bits used |
+|---|---|---|---|
+| castling × 4 | 4 × float64 | 4 bits in uint8 / uint16 | 4 |
+| ep_active | float64 | 1 bit | 1 |
+| ep_file (0..7) | float64 | 3 bits (`Z_8 = Z_{2^3}`) | 3 |
+| side_to_move | float64 | 1 bit | 1 |
+| repetition_count (0..2) | float64 | 2 bits (`Z_4`) | 2 |
+| halfmove_clock (0..100) | 2 × float64 cos/sin | 7 bits (uint8, raw value with explicit modulo) | 7 |
+| Total | 88 bytes | **3 bytes (uint16 + uint8)** | 18 |
+
+**29× compression.** Round-trip exact for every legal `(castling, ep_file, side_to_move, repetition, halfmove ∈ [0, 100])` tuple — bit-for-bit lossless within the legal state space.
+
+**The Z₁₀₁ question — recommendation γ (separate codepath).** Three options for the halfmove clock:
+
+- **(α) Pad uint8 with explicit `% 101`.** ALU-native. Algebraically discontinuous (the wrap at 100 → 0 jumps by 101 in `Z_128`, not 1). Loses the continuous-resonance property §19.4 named.
+- **(β) Embed `Z_101` in `Z_128`.** Use 7 bits, accept that some operations have a wrap discontinuity at the fence post.
+- **(γ) Accept `Z_101` as its own algebraic object — separate codepath for halfmove.** Categorical bits in `uint16`; halfmove in its own `uint8` with explicit modulo handling. Preserves §19.4's "XOR-lite + Z_n-spectral split is structural, not aesthetic" finding.
+
+**γ wins** because §19.4 explicitly framed the split as structural. The 1.9.0 cos/sin float pair was the float-encoded version of that split; the BIP-encoded version keeps the same split, just in integer types. Concrete API:
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class SheetStateBIP:
+    """BIP-encoded non-Markovian state (1.10.0+)."""
+    categorical: int   # uint16, bits[0:11] packed; bits[12:16] reserved
+    halfmove_clock: int  # uint8, 0..100; values 101..255 illegal
+```
+
+Bit layout for `categorical`:
+
+```
+bits[0:4]    castling_wk | castling_wq | castling_bk | castling_bq
+bit[4]       ep_active
+bits[5:8]    ep_file (0..7; 0 if !ep_active)
+bit[8]       side_to_move (0 = white, 1 = black)
+bits[9:11]   repetition_count (0..2; saturates at 2)
+bits[12:16]  reserved (zero-filled)
+```
+
+Total per-position storage: `2 + 1 = 3 bytes` (or 4 bytes with byte alignment to `uint32`).
+
+**Algebraic operations that ride for free:**
+
+```python
+# All single integer ops, no FPU, no conditionals on float comparisons.
+def castling_alive(s: SheetStateBIP) -> bool:
+    return (s.categorical & 0xF) != 0
+
+def kingside_castling_alive(s: SheetStateBIP) -> bool:
+    return (s.categorical & 0b0101) != 0  # bits 0 and 2
+
+def queenside_castling_alive(s: SheetStateBIP) -> bool:
+    return (s.categorical & 0b1010) != 0  # bits 1 and 3
+
+def fifty_move_rule_triggered(s: SheetStateBIP) -> bool:
+    return s.halfmove_clock >= 100
+
+def threefold_claimable(s: SheetStateBIP) -> bool:
+    return ((s.categorical >> 9) & 0x3) >= 2
+
+def hamming_distance_categorical(a: SheetStateBIP, b: SheetStateBIP) -> int:
+    return bin(a.categorical ^ b.categorical).count("1")
+```
+
+**Where BIP wins vs §19.10's depth-1 floor.** §19.10 established that single-position queries on python-chess `Board` (one `int & mask` for castling, attribute load for EP) cannot be undercut by float-numpy slice + decode. **That floor still holds for BIP single-position queries** — bit-AND on `uint16` is comparable to python-chess's int-AND, not strictly faster. But:
+
+- **Pyodide / WASM consumers** (chess4D-OC) skip Python interpreter overhead entirely with BIP — direct `uint16 & 0xF` is a JavaScript Number op, no `python-chess.Board` reconstruction, no float-decode. Speedup at this scale: 50-100× on chess4D-OC's hot paths.
+- **Batch retrieval over saved corpora** — filtering 10 000 stored vectors for "any castling alive" is one numpy `vecs[:, OFF:OFF+1] & 0xF` against a pre-packed corpus, vs 10 000 `python-chess.Board(fen)` reconstructions. ~3 orders of magnitude.
+- **Hamming-distance-based similarity** — for the categorical portion, Hamming distance over `uint16` is a sharper metric than float cosine similarity for binary state (categories are equal or they aren't). Opens new corpus-similarity work that the float64 sheet block didn't support cleanly.
+- **Wire format** — v5 mode 2 (XOR-stream) compression of sheet bits is now *natively* the right shape. The `categorical` field XORs cleanly across plies (most plies don't change castling/EP/repetition/side); the `halfmove_clock` XOR is `± 1` on quiet plies. §19.12 deferred the v5 + sheets question for lack of consumer demand; BIP-encoded sheets make the wire-format integration nearly trivial.
+
+The sheet block × BIP is **the cleanest small bet in the entire §20 program**. Concrete acceptance criterion: bit-for-bit round trip on every legal `(castling, ep_file, side, repetition, halfmove)` tuple in the validation corpus.
+
+### 20.15. Revised B-spike phasing — three tiers, sheet-first
+
+Replaces the §20.6 phasing table. The new structure factors the work into three independent ships:
+
+| Phase | Scope | Acceptance | Independence | LOC |
+|---|---|---|---|---|
+| **B-spike-1a** ⭐ | Sheet-block BIP encoding (§20.14). New `SheetStateBIP` dataclass with `uint16` categorical + `uint8` halfmove. Bridge surface mirrors. Hamming-distance metrics. | Bit-exact round trip on every legal sheet tuple; existing 1.9.0 float64 path unchanged; `from_chess_board` / `from_game_state_4d` factories produce equal `SheetState` for both BIP and float64 paths. | Independent. Smallest first move. | 200-300 + ~100 tests |
+| **B-spike-1b** | Promote §11 phase-operator engine to public API. Document the `Z_640` modulus structure. Benchmark vs python-chess move-gen. ALU-native engine path for Pyodide consumers. | Move-gen parity with python-chess on test corpus; documented Pyodide speedup; existing search engine integrations unchanged. | Independent of 1a and 2. | 300-400 + ~100 tests |
+| **B-spike-2** | Encoder BIP-hybrid (§20.12). Factor each channel as sign × magnitude. Sign rides as packed bits (Z₂ per dim, 80 / 5632 bytes per 2D / 4D position). Magnitude stays float32 by default; `--bits` flag selects 4 / 8 / 16-bit quantization. | Cosine-sim ≥ 99.5% median on test corpus at sign-only encoding for channel-energy use case; ≥ 99.5% median + ≥ 95% worst-case at 8-bit magnitude quantization for cosine-sim use case. | Depends on B-spike-1a's bit-packing patterns. | 500-800 + ~200 tests |
+| **B-spike-3** | Drop B-spike-1a and B-spike-2 fast paths into the §16 search-engine evaluator hot path. Tournament: float32 spectral vs hybrid-bit spectral at equal search depth. | Tournament outcome within ELO noise; ≥ 10× wall-clock speedup on evaluator hot path. | Depends on B-spike-2. | 200-400 + tests |
+| **B-spike-4** | Pure-phase encoder over the §11 coprime basis (encoder rewrite, not hybrid). Per-position state is a tuple of phases over `Z_640` (or richer phase tuple if we go full coprime decomposition). | Cosine-sim with float32 baseline ≥ 99% on every position in the test corpus; channel-energy ranking Spearman ρ ≥ 0.99. | Depends on everything else; high risk. | 3000-5000 LOC rewrite |
+
+**B-spike-1a is the recommended first move.** The acceptance test is sharp (bit-exact round trip is binary pass/fail), the LOC is bounded (~300 + tests), the consumer is real (chess4D-OC), and the work establishes the bit-packing patterns that B-spike-2 will need. **B-spike-4 stays parked** until B-spike-2's empirical answer comes in.
+
+**Revisiting §20.5's acceptance criteria.** The original criteria (median cosine-sim ≥ 99.5%, worst-case ≥ 95%, ranking ρ ≥ 0.95) still apply to B-spike-2 (encoder hybrid). For B-spike-1a (sheet block), the criterion sharpens to **bit-exact round trip** because the sheet content is fully discrete — there's no quantization tradeoff to characterize. For B-spike-1b (engine promotion), the criterion is **move-gen parity** with python-chess (no false legal moves, no missed legal moves) plus a documented speedup curve.
+
+### 20.16. B-spike-1a implementation plan — the small-bet first move
+
+**Goal.** Add a BIP-encoded representation of the 1.9.0 sheet block, keeping the float64 path intact. New code only; no breaking changes.
+
+**Files to add.**
+
+```
+chess_spectral/sheets_bip.py            ~200 LOC
+tests/test_sheets_bip.py                 ~150 LOC
+```
+
+**Files to modify.**
+
+```
+chess_spectral/__init__.py               +6 lines (re-export SheetStateBIP and helpers)
+chess_spectral_4d/bridge.py              +60 lines (BIP variants of the 1.9.0 bridge functions)
+chess_spectral/sheets.py                 +20 lines (cross-references to sheets_bip)
+docs/chess-maths/chess_spectral_research_notebook.md  reference §20.16
+chess-spectral/python/CHANGELOG.md       1.10.0 entry
+chess-spectral/python/README.md          "What's new in v1.10" section
+chess-spectral/python/pyproject.toml     1.9.1 → 1.10.0
+chess-spectral/python/pyproject-pure.toml   1.9.1 → 1.10.0
+```
+
+**Public API surface.**
+
+```python
+# chess_spectral/sheets_bip.py — new module
+
+from dataclasses import dataclass
+
+# Bit-layout constants (mirrors the 11-bit categorical packing).
+BIT_CASTLING_WK = 0
+BIT_CASTLING_WQ = 1
+BIT_CASTLING_BK = 2
+BIT_CASTLING_BQ = 3
+BIT_EP_ACTIVE   = 4
+BITS_EP_FILE    = (5, 8)    # 3-bit field
+BIT_SIDE        = 8         # 0 = white, 1 = black
+BITS_REPETITION = (9, 11)   # 2-bit field
+RESERVED_MASK   = 0b1111_0000_0000_0000  # bits[12:16]
+
+CATEGORICAL_BITS = 11
+HALFMOVE_MAX = 100
+
+@dataclass(frozen=True)
+class SheetStateBIP:
+    categorical: int   # uint16; only bits[0:12] used
+    halfmove_clock: int  # uint8; 0..100
+
+def encode_sheet_state_bip(state: SheetState) -> SheetStateBIP:
+    """Lossless BIP encoding of a 1.9.0 SheetState. Round-trip exact."""
+    ...
+
+def decode_sheet_state_bip(packed: SheetStateBIP) -> SheetState:
+    """Lossless inverse of encode_sheet_state_bip."""
+    ...
+
+# Operator fast paths (single integer ops, no FPU)
+def castling_alive(packed: SheetStateBIP) -> bool: ...
+def kingside_castling_alive(packed: SheetStateBIP) -> bool: ...
+def queenside_castling_alive(packed: SheetStateBIP) -> bool: ...
+def ep_target_active(packed: SheetStateBIP) -> bool: ...
+def ep_file(packed: SheetStateBIP) -> int | None: ...
+def side_to_move_white(packed: SheetStateBIP) -> bool: ...
+def repetition_count(packed: SheetStateBIP) -> int: ...
+def fifty_move_rule_triggered(packed: SheetStateBIP) -> bool: ...
+def threefold_claimable(packed: SheetStateBIP) -> bool: ...
+
+# Distance metric (Hamming over the categorical portion + integer halfmove diff)
+def hamming_distance_categorical(a: SheetStateBIP, b: SheetStateBIP) -> int: ...
+def halfmove_distance(a: SheetStateBIP, b: SheetStateBIP) -> int: ...
+```
+
+**Bridge module additions** (`chess_spectral_4d/bridge.py`).
+
+```python
+def get_sheet_state_bip(state_or_board) -> Dict[str, object]:
+    """Like get_sheet_state, but returns BIP-encoded form.
+    
+    Returns {"ok": True, "sheet_bip": {"categorical": int, "halfmove_clock": int}}.
+    """
+    ...
+
+def encode_sheet_aux_bip(sheet_dict: Dict[str, object]) -> Dict[str, object]:
+    """Like encode_sheet_aux, but returns the 3-byte BIP packing.
+    
+    Returns {"ok": True, "categorical": int (uint16), "halfmove_clock": int (uint8)}.
+    """
+    ...
+
+def decode_sheet_state_from_bip(categorical: int, halfmove_clock: int) -> Dict[str, object]:
+    """Inverse of encode_sheet_aux_bip. Returns full SheetState dict."""
+    ...
+```
+
+**Test plan.**
+
+1. **Bit-exact round trip — exhaustive over the categorical portion** (`test_sheets_bip.py::test_categorical_round_trip_exhaustive`). Iterate every combination of `(castling_wk, castling_wq, castling_bk, castling_bq, ep_active, ep_file, side, repetition)` — 4 × 2 × 9 × 2 × 3 × 2 = 864 cases; assert `decode(encode(state)) == state` for all of them.
+2. **Halfmove round trip — every legal value** (101 cases for `halfmove ∈ [0, 100]`).
+3. **Operator fast paths — agreement with the 1.9.0 float path.** For each of the 864 × 101 = 87,264 states, compare `castling_alive(bip)` against `state.castling_wk or state.castling_wq or ...` and so on for every fast-path function.
+4. **`from_chess_board` factory parity** — for a sample of python-chess Board states, the BIP path and the float path must produce equivalent `SheetState`.
+5. **Bridge round trip** — `bridge.get_sheet_state_bip(board)` → `bridge.encode_sheet_aux_bip(...)` → `bridge.decode_sheet_state_from_bip(...)` must return the original.
+6. **Hamming distance correctness** — for a sample of (state_a, state_b) pairs, `hamming_distance_categorical(bip_a, bip_b)` must match `popcount(categorical_a ^ categorical_b)` computed independently.
+7. **Memory check** — `sys.getsizeof(SheetStateBIP(0, 0))` is bounded; verify with a corpus of 10000 states that BIP storage is ~3 bytes per state vs ~88 bytes for the float path.
+
+**Acceptance — binary pass/fail.**
+
+- All 87,264 + 101 + bridge + factory tests pass.
+- Encoder default behavior (`encode_640(pos)` with no `sheets=` kwarg) bit-for-bit unchanged — `test_c_py_parity` and `test_c_py_parity_4d` still green.
+- Wider 1.9.x test suite still green.
+- README "What's new in v1.10" section gates `test_immolation_readme_announces_current_version`.
+
+**No version bump on `frame_v5.py`** — sheet-block BIP doesn't enter the wire format yet; v5 mode 2 + BIP integration is a follow-up (likely 1.11.0 if a consumer needs it).
+
+**Estimated session.** 3-4 hours for code + tests + CHANGELOG + README + version bump + commit + PR. The acceptance test surface is large (87,264 cases) but mechanically generated — write the test once, run it.
+
+**What B-spike-1a does NOT do.**
+
+- Does not modify the 1.9.0 float64 sheet block. Both representations ship side-by-side.
+- Does not enter the v5 wire format. Wire-format integration is a separate question (§19.12 deferred).
+- Does not change the encoder. The 640 / 45056-dim spectral payload is untouched.
+- Does not promote the §11 phase-operator engine. That's B-spike-1b.
+- Does not implement off-diagonal coupling LUTs. That's an encoder-level question for B-spike-2.
+
 ---
 
 ## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary
