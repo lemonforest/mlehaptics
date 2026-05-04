@@ -262,11 +262,15 @@ def test_every_bridge_method_documented_in_md() -> None:
 # D. ADR completeness
 # ──────────────────────────────────────────────────────────────────────
 
-# ADRs we promise exist for v0.1.0. Adding a new ADR? extend this list.
+# ADRs we promise exist. Adding a new ADR? extend this list.
+#   0001-0010: v0.1.0
+#   0011:      v0.2.0  (algebraic default, ephemeris opt-in)
+#   0012:      v0.3.0  (algebra/eigenbasis modelling, not CAD/fabrication)
 _REQUIRED_ADRS: tuple[str, ...] = (
     "0001", "0002", "0003", "0004", "0005",
     "0006", "0007", "0008", "0009", "0010",
     "0011",
+    "0012",
 )
 _ADR_MIN_BYTES = 500
 
@@ -310,6 +314,8 @@ _FACADE_MODULES = (
     "compare", "dates", "eclipses_search", "eclipses_algebraic",
     "operator", "reconstructions", "whatif", "archaeology",
     "goalyear", "animation",
+    # v0.3.0 additions
+    "mars_models", "bit_alu",
     "bridge", "cli",
 )
 
@@ -467,3 +473,358 @@ def test_no_unscoped_todo_or_fixme_in_public_code() -> None:
         + "\n  ".join(leaks)
         + "\n\nEither resolve them or scope: 'TODO(v0.2): ...'"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# J. ALU optimisation contracts (v0.3.0 — bit_alu release-gate)
+# ──────────────────────────────────────────────────────────────────────
+#
+# The v0.3.0 bit-packed HDC ALU advertises specific optimisation
+# claims (memory, bind speed, algebraic invariants).  These tests
+# pin the claims at release-gate level: not "the unit tests pass"
+# (that's covered by tests/test_bit_alu.py) but "if someone
+# 'optimises' the bit ALU and accidentally regresses below the
+# advertised contract, we catch it before tagging."
+#
+# Tolerance bands are deliberately loose so CI noise doesn't flake
+# them — a 100× memory claim becomes a "≥ 50×" gate; a 2× bind speedup
+# claim becomes a "≥ 1.2× at D=940, ≥ 3× at D=13440" gate.  If we ever
+# tighten the marketing claim we tighten the gate too.
+
+_BIT_ALU_MEMORY_RATIO_FLOOR = 50.0
+"""Bit-ALU HV must be at least 50× smaller than complex128 HV.  The
+real ratio is ~125× at D=940 (15 KB / 120 B); 50× leaves margin for
+any uint128 / packed-array refactor that might land in v0.4.x without
+violating the marketing claim."""
+
+
+def test_bit_alu_memory_contract() -> None:
+    """Bit-ALU hypervector at D=940 / D=13440 must be at least
+    ``_BIT_ALU_MEMORY_RATIO_FLOOR`` × smaller than the complex128
+    reference.  Catches any regression that breaks the bit-packing.
+    """
+    from antikythera_spectral import bit_alu
+    for D in (940, 13440):
+        cx_bytes = D * 16  # complex128 = 16 bytes per element
+        bit_bytes = bit_alu.n_words(D) * 8  # uint64 = 8 bytes per word
+        ratio = cx_bytes / bit_bytes
+        assert ratio >= _BIT_ALU_MEMORY_RATIO_FLOOR, (
+            f"D={D}: bit_alu HV is {bit_bytes} B vs complex128 {cx_bytes} B "
+            f"(ratio {ratio:.1f}×); release-gate floor is "
+            f"{_BIT_ALU_MEMORY_RATIO_FLOOR}× — the bit packing has regressed."
+        )
+
+
+def test_bit_alu_bind_speed_contract() -> None:
+    """Bit-ALU bind must be measurably faster than complex128 multiply
+    at the dimensions we ship (D=940 + D=13440).
+
+    Tolerance is wide: D=940 must be ≥ 1.2× faster, D=13440 must be
+    ≥ 3× faster.  The actual numbers (per ``figures/bit_alu_findings.md``)
+    are ~2.4× and ~9.9×; the gate is loose enough that CI noise won't
+    flake it but tight enough to catch any "let's just use complex
+    multiplies for clarity" regression.
+    """
+    import time
+    import numpy as np
+    from antikythera_spectral import bit_alu
+
+    rng = np.random.default_rng(0)
+    floors = {940: 1.2, 13440: 3.0}
+    reps = 2000
+
+    for D, floor in floors.items():
+        # Reference: complex128 multiply.
+        a_ref = (rng.standard_normal(D) + 1j * rng.standard_normal(D)).astype(
+            np.complex128
+        )
+        b_ref = (rng.standard_normal(D) + 1j * rng.standard_normal(D)).astype(
+            np.complex128
+        )
+        # Bit ALU: XOR.
+        a_bit = bit_alu.random_hv(D, rng)
+        b_bit = bit_alu.random_hv(D, rng)
+
+        # Warm.
+        _ = a_ref * b_ref
+        _ = bit_alu.bind(a_bit, b_bit)
+
+        t0 = time.perf_counter()
+        for _ in range(reps):
+            _ = a_ref * b_ref
+        t_ref = time.perf_counter() - t0
+
+        t0 = time.perf_counter()
+        for _ in range(reps):
+            _ = bit_alu.bind(a_bit, b_bit)
+        t_bit = time.perf_counter() - t0
+
+        speedup = t_ref / max(t_bit, 1e-12)
+        assert speedup >= floor, (
+            f"D={D}: bit_alu bind {t_bit*1e6/reps:.2f} µs/op vs "
+            f"complex128 multiply {t_ref*1e6/reps:.2f} µs/op "
+            f"(speedup {speedup:.2f}×); release-gate floor is {floor}× — "
+            "the ALU optimisation has regressed."
+        )
+
+
+def test_bit_alu_algebraic_invariants_release_gate() -> None:
+    """Smoke check on algebraic identities at release time.  The unit
+    tests (tests/test_bit_alu.py) cover this in detail; this is a
+    cohort-level "does the bit ALU still implement HDC?" check.
+    """
+    import numpy as np
+    from antikythera_spectral import bit_alu
+
+    rng = np.random.default_rng(0)
+    D = 940
+    a = bit_alu.random_hv(D, rng)
+    b = bit_alu.random_hv(D, rng)
+
+    # 1. XOR-bind is involutive.
+    ab = bit_alu.bind(a, b)
+    assert bit_alu.hamming_distance(bit_alu.bind(ab, b), a) == 0, (
+        "bit_alu.bind has lost involution"
+    )
+
+    # 2. permute by D returns the input.
+    rotated = a
+    for _ in range(D):
+        rotated = bit_alu.permute(rotated, 1, D)
+    assert bit_alu.hamming_distance(rotated, a) == 0, (
+        "bit_alu.permute period != D"
+    )
+
+    # 3. similarity extremes.
+    assert abs(bit_alu.similarity(a, a, D) - 1.0) < 1e-12, (
+        "self-similarity != 1"
+    )
+    # Complement of a (within D bits) ≡ −a in bipolar.
+    not_a = a.copy()
+    for w in range(len(not_a)):
+        not_a[w] = ~not_a[w] & np.uint64(0xFFFFFFFFFFFFFFFF)
+    used_in_top = D - 64 * (bit_alu.n_words(D) - 1)
+    if used_in_top < 64:
+        not_a[-1] &= np.uint64((1 << used_in_top) - 1)
+    assert abs(bit_alu.similarity(a, not_a, D) - (-1.0)) < 1e-12, (
+        "complement-similarity != -1"
+    )
+
+
+def test_bit_alu_encoder_returns_packed_uint64() -> None:
+    """``encode_ant_bit`` must return a packed uint64 array of the
+    correct shape -- the public-API contract for the ALU encoder."""
+    import numpy as np
+    from antikythera_spectral import bit_alu
+    from antikythera_spectral._research.encode_ant import REFERENCE_JD
+
+    for D in (940, 13440):
+        state = bit_alu.encode_ant_bit(REFERENCE_JD + 100.0, D)
+        assert state.dtype == np.uint64, (
+            f"D={D}: encode_ant_bit returned dtype {state.dtype}, "
+            "expected uint64"
+        )
+        assert state.shape == (bit_alu.n_words(D),), (
+            f"D={D}: encode_ant_bit shape {state.shape}, "
+            f"expected ({bit_alu.n_words(D)},)"
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# K. Mars-models surface (v0.3.0 — bronze + named param sets)
+# ──────────────────────────────────────────────────────────────────────
+
+def test_mars_models_facade_exposes_named_param_sets() -> None:
+    """Three reconstruction-source param sets must be reachable via
+    ``mars_models.PARAM_SETS`` and must distinguish on eccentricity /
+    equant_offset.  Catches any silent collapse to a single param set.
+    """
+    from antikythera_spectral import mars_models
+
+    expected_keys = {"ptolemy", "freeth_2012", "freeth_2021"}
+    actual_keys = set(mars_models.PARAM_SETS.keys())
+    assert actual_keys == expected_keys, (
+        f"PARAM_SETS keys {actual_keys} != expected {expected_keys}"
+    )
+
+    # Ptolemy must have the canonical Almagest values; Freeth variants
+    # must have eccentricity = equant = 0.
+    p = mars_models.PARAM_SETS["ptolemy"]
+    f12 = mars_models.PARAM_SETS["freeth_2012"]
+    f21 = mars_models.PARAM_SETS["freeth_2021"]
+    assert p.eccentricity == 6.0 and p.equant_offset == 12.0, (
+        "PTOLEMY_MARS_PARAMS not at Almagest IX-X canonical values"
+    )
+    assert f12.eccentricity == 0.0 and f12.equant_offset == 0.0, (
+        "FREETH_2012_MARS_PARAMS must be (e=0, equant=0)"
+    )
+    assert f21.eccentricity == 0.0 and f21.equant_offset == 0.0, (
+        "FREETH_2021_MARS_PARAMS must be (e=0, equant=0)"
+    )
+
+
+def test_compare_models_at_jd_accepts_bronze_and_params() -> None:
+    """The compare-facade signature must accept bronze + params."""
+    from antikythera_spectral import compare
+    sig = inspect_signature(compare.compare_models_at_jd)
+    assert "params" in sig.parameters, (
+        "compare_models_at_jd must accept `params` keyword (v0.3.0)"
+    )
+
+
+def test_bridge_compare_models_accepts_params() -> None:
+    """bridge.compare_models must surface the new params keyword."""
+    sig = inspect_signature(bridge.compare_models)
+    assert "params" in sig.parameters, (
+        "bridge.compare_models must accept `params` keyword (v0.3.0)"
+    )
+
+
+def test_mars_models_fj_38deg_finding_contract() -> None:
+    """``fj_38deg_finding()`` must return the documented dict shape
+    when a DE kernel is cached.  Skipped cleanly otherwise.
+    """
+    from antikythera_spectral._research.ephemeris_loader import load_ephemeris
+    if not any(load_ephemeris(k) is not None
+               for k in ("de422", "de441_part1", "de441")):
+        pytest.skip("no DE-series kernel cached; FJ-38° contract not testable")
+
+    from antikythera_spectral import mars_models
+    finding = mars_models.fj_38deg_finding()
+
+    expected_keys = {
+        "rms_deg", "mean_deg", "peak_deg",
+        "oppositions_jd", "n_samples", "kernel_used",
+        "fj_documented_deg", "residual_deg", "model",
+    }
+    missing = expected_keys - set(finding.keys())
+    assert not missing, (
+        f"fj_38deg_finding missing keys: {missing}"
+    )
+    # Numerical contract: lands within 1° of F&J's documented 38°.
+    assert finding["fj_documented_deg"] == 38.0
+    assert finding["residual_deg"] <= 1.0, (
+        f"FJ-38° residual {finding['residual_deg']:.2f}° exceeds 1° gate"
+    )
+    assert len(finding["oppositions_jd"]) == 7
+    assert finding["kernel_used"] in ("de422", "de441_part1", "de441")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# L. CLI exposes v0.3.0 surfaces
+# ──────────────────────────────────────────────────────────────────────
+
+def test_cli_compare_models_help_lists_bronze_and_params() -> None:
+    """`compare models --help` must list the bronze model and the
+    new --params choices.  Catches silent regression of the v0.3.0
+    CLI extension.
+    """
+    parser = _make_parser()
+    # Walk the subcommand tree to find `compare models`.
+    cmp_parser = _find_subcommand(parser, ["compare", "models"])
+    assert cmp_parser is not None, (
+        "`compare models` subcommand not found in CLI parser"
+    )
+    help_text = cmp_parser.format_help()
+    assert "bronze" in help_text, (
+        "`compare models --help` must mention 'bronze' model"
+    )
+    assert "freeth_2012" in help_text, (
+        "`compare models --help` must mention 'freeth_2012' params choice"
+    )
+    assert "freeth_2021" in help_text, (
+        "`compare models --help` must mention 'freeth_2021' params choice"
+    )
+    assert "ptolemy" in help_text.lower(), (
+        "`compare models --help` must mention 'ptolemy' params choice"
+    )
+
+
+def test_cli_top_level_help_mentions_v030_themes() -> None:
+    """Top-level `--help` description must point users at the v0.3.0
+    additions (bronze / mars_models / bit_alu).
+    """
+    parser = _make_parser()
+    desc = (parser.description or "").lower()
+    for token in ("bronze", "mars_models", "bit_alu"):
+        assert token in desc, (
+            f"Top-level CLI description must mention {token!r}; "
+            "current description does not surface v0.3.0 additions."
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# M. README + CHANGELOG + bridge_api references
+# ──────────────────────────────────────────────────────────────────────
+
+def test_readme_mentions_mars_models_and_bit_alu() -> None:
+    """python/README.md (PyPI long-description) must surface both
+    v0.3.0 facades."""
+    readme = (_PKG_DIR / "README.md").read_text(encoding="utf-8")
+    for token in ("mars_models", "bit_alu", "bronze",
+                  "FREETH_2012_MARS_PARAMS",
+                  "fj_38deg_finding"):
+        assert token in readme, (
+            f"python/README.md must mention {token!r} (v0.3.0 surface)"
+        )
+
+
+def test_changelog_030_section_present_with_both_themes() -> None:
+    """CHANGELOG.md must have a [0.3.0] section that mentions both
+    themes (mars_models AND bit_alu)."""
+    changelog = (_PROJECT_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [0.3.0]" in changelog, (
+        "CHANGELOG.md missing [0.3.0] section header"
+    )
+    # Slice to the [0.3.0] section.
+    after = changelog.split("## [0.3.0]", 1)[1]
+    next_section = after.find("\n## [")
+    section = after[:next_section] if next_section >= 0 else after
+    for token in ("mars_models", "bit_alu", "bronze",
+                  "FREETH_2012_MARS_PARAMS"):
+        assert token in section, (
+            f"CHANGELOG [0.3.0] section must mention {token!r}"
+        )
+
+
+def test_bridge_api_md_mentions_bronze_and_params() -> None:
+    """docs/bridge_api.md must reflect that compare_models accepts
+    `bronze` + `params`."""
+    bapi = (_DOCS_DIR / "bridge_api.md").read_text(encoding="utf-8")
+    assert "bronze" in bapi, (
+        "docs/bridge_api.md must mention the bronze model (v0.3.0)"
+    )
+    assert "params" in bapi, (
+        "docs/bridge_api.md must mention the params kwarg (v0.3.0)"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Helpers used by the v0.3.0 tests
+# ──────────────────────────────────────────────────────────────────────
+
+def inspect_signature(fn):
+    """Lazy import of ``inspect.signature`` to keep test-collection
+    overhead trivial; alias kept descriptive for clarity at the call
+    site."""
+    import inspect
+    return inspect.signature(fn)
+
+
+def _find_subcommand(parser, path):
+    """Walk a nested argparse subparser tree by command names.
+
+    ``path`` is a list of subcommand names, e.g. ``["compare", "models"]``;
+    returns the leaf parser or ``None`` if any segment is missing.
+    """
+    cur = parser
+    for name in path:
+        sub_actions = [a for a in cur._actions
+                       if isinstance(a, argparse._SubParsersAction)]
+        if not sub_actions:
+            return None
+        choices = sub_actions[0].choices
+        cur = choices.get(name)
+        if cur is None:
+            return None
+    return cur
