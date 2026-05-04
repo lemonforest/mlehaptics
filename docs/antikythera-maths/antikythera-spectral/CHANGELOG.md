@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — added after v0.2.1)
+(no entries yet — next entries land after v0.3.0)
+
+## [0.3.0] — 2026-05-02
+
+**Mars planetary models — bronze projection + named param sets.** New `mars_models` facade exposes the four Mars longitude models (uniform, epicycle-only, equant, **bronze**) together with three reconstruction-source-specific parameter sets (`PTOLEMY_MARS_PARAMS`, `FREETH_2012_MARS_PARAMS`, `FREETH_2021_MARS_PARAMS`). The new `bronze` model is the algebra/eigenbasis projection of the gear-ratio cyclic-group representation back to the pointer's spatial longitude — same transform as `epicycle-only` but derived through the pin-and-slot phase-space map applied inline. Consistent with the research-scaffold's Mars 38° gap audit (PR #153 / 10-analysis decomposition); see [`docs/antikythera-maths/figures/mars_38deg_gap_findings.md`](../figures/mars_38deg_gap_findings.md).
+
+### Added
+
+- **`antikythera_spectral.mars_models` facade** — re-exports `mars_longitude_uniform`, `mars_longitude_epicycle_only`, `mars_longitude_equant`, `mars_longitude_bronze`, plus the three named param sets. ADR 0012 documents the algebra-first scope discipline. New module sits alongside the existing 16 facades; not exposed via top-level `antikythera_spectral.*` (matches established per-module facade pattern).
+- **`mars_longitude_bronze`** — the cyclic-group / graph-Laplacian eigenbasis projection of the deferent gear ratios via the pin-and-slot phase-space transform `atan2(sin θ, cos θ + e/R)`. Constructed inline (not by importing `_research/pin_and_slot.py`, whose semantics are scoped to the D-H1 lunar mechanism). Numerically agrees with `mars_longitude_epicycle_only` to ~10⁻¹³ deg under all three named param sets — same transform, two derivation pathways. Pinned by `tests/test_mars_models.py::test_bronze_parity`.
+- **`PTOLEMY_MARS_PARAMS`** — Almagest IX-X canonical: R=60, r=39.5, e=6, equant_offset=12, Almagest IX.6 mean motions.
+- **`FREETH_2012_MARS_PARAMS`** — Freeth & Jones 2012 (ISAW Papers 4 §3.10 + Fig 39) pre-Hipparchian: bare deferent + epicycle, no eccentricity, no equant. The setup behind F&J's "nearly 38°" Mars peak error.
+- **`FREETH_2021_MARS_PARAMS`** — Freeth 2021 (Sci. Rep. 11:5821) reconstruction. Same kinematic class as F&J 2012; gear-train-derived 133/125 synodic ratio. Bundled as a label-distinct param set.
+- **`mars_models.fj_38deg_finding()`** — lazy, kernel-conditional reproduction of F&J 2012 Fig 39's "nearly 38°" Mars peak error from the bare deferent + epicycle on the middle 7 retrogrades vs JPL DE422. Returns the unfit RMS shape error (~38.85°, within 1° of F&J's 38°), the 7 opposition JDs, and the kernel used. Raises `RuntimeError` if no DE-series kernel is cached.
+- **ADR 0012** — algebra/eigenbasis modelling, not CAD/fabrication. Documents the scope discipline that runs through `mars_longitude_bronze`, the new param sets, and the audit refactor below.
+- **Tests:** `tests/test_mars_models.py` — 9 tests covering facade smoke, param-set distinction, get_params resolver, bronze parity (parametrised over the three param sets), and kernel-conditional FJ-38° fact reproduction.
+
+### Changed
+
+- **`compare.compare_models_at_jd`** accepts `"bronze"` as a model name and a new optional `params: str = "ptolemy"` argument selecting among `{"ptolemy", "freeth_2012", "freeth_2021"}`. v0.2.x callers continue to work unchanged.
+- **`bridge.compare_models`** mirrors the above change. New optional `params` keyword; `"bronze"` added to documented model whitelist.
+- **Audit refactor: phase-math forms throughout the equant_encoder.** `mars_longitude_epicycle_only`, `mars_longitude_equant`, and `mars_longitude_bronze` now express their geocentric-distance / equation-of-center math via law-of-cosines / pure-trig forms (`R_eff = sqrt(e² + R² + 2eR cos M)`, `atan2(R' sin M, 2e + R' cos M)`) rather than via Cartesian `(px, py)` decomposition. Mathematically a no-op — the Almagest IX.5 cross-check (peak 11.3654° at M=90°), bronze parity (1.14e-13 deg), and F&J Fig 39 reproduction (95.56° / 99.30° / 102.60° peaks) all reproduce exactly. The change makes the algebra-first framing explicit at the implementation level (ADR 0012). Same change propagated to the bundled `_research/equant_encoder.py` via codegen.
+
+### Notes
+
+- **Mars 38° gap audit** (research scaffold, PR #153). v0.3.0's `mars_models` is the public surface for the package consumers; the full ten-analysis decomposition lives in [`figures/mars_38deg_gap_findings.md`](../figures/mars_38deg_gap_findings.md). Three coherent readings of F&J's "nearly 38°" emerge from the audit; the cleanest is **unfit RMS of bare deferent + epicycle on the retrograde subset vs DE422 = 38.85° within 0.85° of F&J's number** — directly accessible via `mars_models.fj_38deg_finding()`.
 
 ## [0.2.1] — 2026-04-30
 

@@ -61,8 +61,8 @@
       "size_bytes": 13944
     },
     "_research/equant_encoder.py": {
-      "sha256": "3b664f4e0cdc68a36e25fcd8c50b7d65b7900f55c23a358aa948385a53d04bc9",
-      "size_bytes": 29697
+      "sha256": "0b03063fd0d64ab7dba7843db8b63c640359a727a69bfd6bd01882bbc6cc2fe1",
+      "size_bytes": 31444
     },
     "_research/gear_database.py": {
       "sha256": "9397a443e324369f7fd2ea7c41083029185bbd7fe625e82f71ee960d59ab9004",
@@ -127,6 +127,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "e288d1fb45e1f2be83d6d45c95df0521eeb02ed5",
-  "version": "0.2.1"
+  "source_commit": "6075299bb1029c291c61db6698dddb5a900e58bf",
+  "version": "0.3.0"
 }

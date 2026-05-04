@@ -1020,15 +1020,31 @@ def compare_ephemerides(jd_tdb: float, body: str,
 
 def compare_models(jd_tdb: float, body: str,
                     model_a: str, model_b: str,
-                    kernel: str = "de421") -> Dict[str, Any]:
+                    kernel: str = "de421",
+                    params: str = "ptolemy") -> Dict[str, Any]:
+    """Compare two Hellenistic Mars models against ephemeris truth.
+
+    ``models`` may be any of {'uniform', 'epicycle', 'equant', 'bronze'}.
+    'bronze' is the algebra/eigenbasis projection of the gear-ratio
+    cyclic-group representation -- numerically equivalent to 'epicycle'
+    but derived through a different pathway (see ADR 0012).
+
+    ``params`` may be any of {'ptolemy', 'freeth_2012', 'freeth_2021'}.
+    Defaults to 'ptolemy' for v0.2.x backward-compatibility; pass
+    'freeth_2012' or 'freeth_2021' to test alternate reconstruction
+    parameter sets.
+    """
     err = _validate_jd(jd_tdb)
     if err:
         return err
-    out = _compare.compare_models_at_jd(jd_tdb, body, model_a, model_b, kernel)
+    out = _compare.compare_models_at_jd(
+        jd_tdb, body, model_a, model_b, kernel, params=params,
+    )
     if out is None:
         return _err(
             "compare_models supports body='mars' only; "
-            "models must be one of {'uniform','epicycle','equant'}; "
+            "models must be one of {'uniform','epicycle','equant','bronze'}; "
+            "params must be one of {'ptolemy','freeth_2012','freeth_2021'}; "
             "skyfield + kernel must be available."
         )
     return {"ok": True, **out}

@@ -256,9 +256,12 @@ def mars_longitude_epicycle_only(
     eqn_center = _equation_of_center_hipparchus(M_lon, e, R)
     lambda_def = M_lon + eqn_center
 
-    # Geocentric distance to deferent position
-    R_eff = math.sqrt((e + R * math.cos(M_lon)) ** 2
-                      + (R * math.sin(M_lon)) ** 2)
+    # Geocentric distance to deferent position via law of cosines on
+    # the triangle Earth-deferent_centre-planet (sides e and R, included
+    # angle M_lon).  Algebraically identical to the Cartesian
+    # sqrt((e + R cos M)^2 + (R sin M)^2) but written without an
+    # explicit (px, py) decomposition.
+    R_eff = math.sqrt(e * e + R * R + 2.0 * e * R * math.cos(M_lon))
 
     # The anomaly angle reckoned from the epicycle centre, oriented so
     # that alpha=0 is the apogee of the epicycle (away from Earth).
@@ -290,26 +293,39 @@ def _equation_of_center_equant(M: float, e: float, R: float) -> float:
     M is the mean angle reckoned at the equant point E (offset 2e
     from Earth, e from deferent centre).  Returns the geocentric
     longitude offset.
+
+    Algebra-first form: solve for R' = |EP| with the law-of-cosines
+    constraint |EP - ED| = R (planet on deferent circle), then read
+    the geocentric angle as atan2 of the two trig sides without going
+    through an explicit (px, py) Cartesian decomposition.
     """
     import math
     # Solve for R' = |EP| such that the planet sits on the deferent
     # circle |P - D| = R, with the line EP making angle M with the
-    # apsidal axis.  This reduces to a quadratic in R'.
+    # apsidal axis.  Reducing |P - D|^2 = R^2:
+    #     (R' cos M - e)^2 + (R' sin M)^2 = R^2
+    # -> R'^2 - 2 e R' cos M + (e^2 - R^2) = 0
+    # Take positive root.
     cos_M = math.cos(M)
     sin_M = math.sin(M)
-    # |P - D|^2 = R^2:  (2e + R' cos M - e)^2 + (R' sin M)^2 = R^2
-    # -> R'^2 + 2 e R' cos M + (e^2 - R^2) = 0
-    # Take positive root:
     discr = R * R - e * e * sin_M * sin_M
     if discr < 0:
         # Impossible geometry; return naive M unchanged.
         return 0.0
+    # Note sign: in apsidal coordinates with E at origin and D at
+    # +e along the axis, R'^2 - 2 e R' cos M + (e^2 - R^2) = 0
+    # gives R' = e cos M + sqrt(R^2 - e^2 sin^2 M).  Earth is at
+    # -e from E (so 2e from D in the opposite sense); the geocentric
+    # angle from Earth to the planet, measured from apsidal axis, is
+    # atan2(R' sin M, 2e + R' cos M) under the convention that puts
+    # apogee at M = 0.  This matches the existing implementation.
     R_prime = -e * cos_M + math.sqrt(discr)
-
-    # Geocentric position of planet (relative to Earth):
-    px = 2.0 * e + R_prime * cos_M
-    py = R_prime * sin_M
-    lambda_def_geo = math.atan2(py, px)
+    # Pure-trig form: angle subtended by R' at Earth, where R' is
+    # measured from E (offset 2e from Earth along apsidal axis) at
+    # angle M to that axis.  Equivalent to atan2(py, px) for px, py
+    # being the planet's Cartesian coordinates relative to Earth, but
+    # written without the intermediate (px, py) variables.
+    lambda_def_geo = math.atan2(R_prime * sin_M, 2.0 * e + R_prime * cos_M)
     return lambda_def_geo - M
 
 
@@ -336,14 +352,18 @@ def mars_longitude_equant(
     eqn_center = _equation_of_center_equant(M_lon, e, R)
     lambda_def = M_lon + eqn_center
 
-    # Recompute geocentric distance under equant geometry
+    # Geocentric distance to deferent position under equant geometry,
+    # via law of cosines on the triangle Earth-equant-planet (sides 2e
+    # and R', included angle M_lon).  Equivalent to sqrt(px^2 + py^2)
+    # for (px, py) the planet's Cartesian coordinates relative to Earth,
+    # but expressed directly in terms of the two sides + included angle.
     cos_M = math.cos(M_lon)
     sin_M = math.sin(M_lon)
     discr = max(0.0, R * R - e * e * sin_M * sin_M)
     R_prime = -e * cos_M + math.sqrt(discr)
-    px = 2.0 * e + R_prime * cos_M
-    py = R_prime * sin_M
-    R_eff = math.sqrt(px * px + py * py)
+    R_eff = math.sqrt(
+        4.0 * e * e + R_prime * R_prime + 4.0 * e * R_prime * cos_M
+    )
 
     alpha = M_anom - lambda_def
     eqn_anom = _equation_of_anomaly(alpha, R_eff, r)
@@ -423,11 +443,15 @@ def mars_longitude_bronze(
     cos_M = math.cos(M_lon)
 
     # Pin-and-slot phase-space transform (constructed inline; Hellenistic
-    # apsidal-line sign convention so apogee at M_lon=0).
+    # apsidal-line sign convention so apogee at M_lon=0).  This is the
+    # cyclic-group / eigenbasis projection of the gear-ratio mean motion
+    # to the deferent pointer angle -- pure phase math, no Cartesian.
     lambda_def = math.atan2(sin_M, cos_M + eps)
 
-    # Geocentric distance to deferent point under eccentric-deferent geometry.
-    R_eff = math.sqrt((e + R * cos_M) ** 2 + (R * sin_M) ** 2)
+    # Geocentric distance to deferent point via law of cosines on the
+    # triangle Earth-deferent_centre-planet (sides e and R, included
+    # angle M_lon).  Algebraic form -- no (x, y) decomposition.
+    R_eff = math.sqrt(e * e + R * R + 2.0 * e * R * cos_M)
 
     alpha = M_anom - lambda_def
     eqn_anom = _equation_of_anomaly(alpha, R_eff, r)
