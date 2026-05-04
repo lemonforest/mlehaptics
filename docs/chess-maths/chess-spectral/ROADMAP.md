@@ -7,7 +7,48 @@ real status doc. Per-release detail lives in
 [python/CHANGELOG.md](python/CHANGELOG.md); this doc is the strategic
 view.
 
-## Current release: v1.9.1 (May 2026)
+## Current release: v1.12.0 (May 2026)
+
+**B-spike-2 from notebook §20.15** — encoder BIP-hybrid (sign ×
+magnitude factoring per dim). Sign packs as 1 bit per dim
+(algebraically exact); magnitude quantizes to 4 or 8 bits per dim
+with per-channel scaling. New `chess_spectral.encoder_bip_hybrid`
+module; `encode_2d_bip_hybrid` / `encode_4d_bip_hybrid` public API.
+~3.4× compression at 8-bit, 5.8× at 4-bit. Cosine-sim ≥ 99.99% on
+the §20.15 acceptance corpus (median 0.999996 / worst 0.999996 on
+2D 7-FEN corpus; 0.999979 on 4D canonical Oana-Chiru). 4D 4-bit
+research finding documented in §20.18 (lands at 0.994358 — below
+99.5% but above 95%). No breaking changes vs 1.11.x.
+
+## v1.11.0 (May 2026) — B-spike-1b: ALU-native phase-operator engine
+
+Promote the §11 phase-operator engine — already integer-arithmetic
+over `Z_640` per §20.13 — to a stable public API with no
+`python-chess` dependency on the hot path.
+`phase_only_pseudo_legal_moves(pos, side_to_move_white,
+ep_file=...)` is the integration entry point. Pure ALU-native
+pseudo-legal move generation for Pyodide / WASM consumers; ~190 µs
+per startpos call (~2.5× slower than Cython python-chess but
+structurally faster than the Solution-B-per-piece-loop). 26
+immolation tests including parity vs `board.pseudo_legal_moves`
+on an 8-FEN corpus. Notebook §20.17 documents the `Z_640` wire
+contract as public API.
+
+## v1.10.0 (May 2026) — B-spike-1a: BIP-encoded sheet block
+
+Integer-native form of the 1.9.0 non-Markovian sheet block.
+`SheetStateBIP` dataclass packs the 11-dim float64 aux block (88
+bytes per position) into 3 bytes (uint16 categorical + uint8
+halfmove). 29× compression with bit-exact round trip on the legal
+state space (87,264 cases verified exhaustively). Operator fast
+paths (`castling_alive`, `kingside_castling_alive`,
+`fifty_move_rule_triggered`, `threefold_claimable`) via single
+integer ops. Hamming-distance similarity metric for corpus
+similarity. Per §19.10's depth-1 floor still holds for single-
+position queries; BIP wins are at scale (Pyodide / batch / wire
+format).
+
+## v1.9.1 (May 2026) — README polish + v5 sheet design decision
 
 Polish on top of v1.9.0. README PyPI examples updated to use the
 future-proof `encode_2d` alias; Roadmap link added to PyPI project
@@ -126,6 +167,9 @@ findings.
 
 ### Sheet-block follow-ons (notebook §19)
 
+- **S-spike-1 — sheet aux block.** ✅ Shipped in v1.9.0. 11-dim
+  float64 aux block carrying castling rights, EP target,
+  side-to-move, halfmove clock, repetition count.
 - **S-spike-2 — wire format integration for sheets.** Currently
   deferred. Sheets are an in-memory representation feature; on
   disk, non-Markov state lives in PGN / NDJSON / FEN sidecars
@@ -145,19 +189,55 @@ findings.
 
 ### BSHDC / bit-serialization (notebook §20)
 
-- **B-spike-1 — side-car bit-serialized encoder.** 4-bit signed
-  nibble per dim, opt-in via separate `encode_2d_bits` /
-  `encode_4d_bits` functions. Acceptance criteria: cosine-sim
-  ≥ 99.5% median, ≥ 95% worst case; channel-energy Spearman
-  ρ ≥ 0.95. Reference data point: antikythera-spectral / DE441
-  saw 3.3 GB → 1 MB → 256 KB (8× over the float32 path) with
-  ~0.01% precision loss AND structurally enriched data after
-  basis change. Uncertain how that result translates to a
-  discrete board game with non-Markovian state; the side-car
-  experiment is the empirical test.
-- **B-spike-2..4 — quantization sweep, fast-path replacement,
-  ground-up bit-resonant encoder.** Sequenced behind B-spike-1's
-  acceptance test.
+The §20.15 three-tier B-spike phasing's status as of v1.12.0:
+
+- **B-spike-1a — sheet-block BIP encoding.** ✅ Shipped in v1.10.0.
+  Integer-native form (uint16 + uint8 = 3 bytes) for the 1.9.0
+  88-byte float64 sheet block. 29× compression with bit-exact
+  round trip on the legal state space (87,264 cases). See
+  notebook §20.14 / §20.16 for design + implementation plan.
+- **B-spike-1b — ALU-native phase-operator engine.** ✅ Shipped
+  in v1.11.0. `phase_only_pseudo_legal_moves(pos,
+  side_to_move_white, ep_file=...)` integration entry point with
+  no python-chess dependency on the hot path. Z_640 wire contract
+  documented in notebook §20.13 / §20.17. Parity vs
+  `board.pseudo_legal_moves` on an 8-FEN corpus locks the
+  acceptance gate.
+- **B-spike-2 — encoder BIP-hybrid.** ✅ Shipped in v1.12.0. Sign
+  × magnitude factoring per dim. 3.4× / 5.8× compression at
+  8-bit / 4-bit. §20.15 acceptance gate met at 8-bit; 4D 4-bit
+  research finding documented in §20.18 (lands at 0.994 — below
+  99.5% but above 95%).
+- **B-spike-3 — search-engine evaluator hot path with hybrid
+  vectors.** Parked. Tournament: float32 spectral vs hybrid
+  spectral at equal search depth. Acceptance: tournament ELO
+  within noise + ≥ 10× wall-clock speedup on the evaluator hot
+  path. Picks up when a §16-aware consumer wants the runtime
+  speedup empirically validated.
+- **B-spike-4 — pure-phase encoder rewrite.** Parked. ~3000-5000
+  LOC rewrite eliminating float32 from the encoder path entirely.
+  High risk; gated behind clear empirical motivation (which
+  B-spike-2's success at preserving cosine-sim already partially
+  provides — but a full rewrite still wants stronger justification).
+
+### Per-channel optimization opportunities (notebook §20.12, deferred to 1.13.0+)
+
+The 1.12.0 BIP-hybrid uses uniform sign × magnitude treatment per
+dim. Three channels could benefit from non-uniform encoding:
+
+- **A1 (D₄ trivial irrep, pure magnitude).** Sign is always
+  zero / non-negative; the sign bit is uninformative. Skipping
+  saves ~64 bits (2D) / 4096 bits (4D).
+- **FA channels (antisymmetric pawn fiber, pure sign).**
+  Magnitude is uniform within sign; the magnitude byte is
+  uninformative. Skipping saves ~64 bytes (2D) / per-channel
+  bytes for FA_PAWN_W and FA_PAWN_Y in 4D.
+- **E channel (D₄ 2-D irrep, genuinely complex).** Could benefit
+  from a complex-int packing rather than sign × magnitude.
+
+Estimated savings if all three optimizations applied: ~10-15%
+additional compression. 1.13.0+ work if the per-dim uniformity
+of 1.12.0's sign × magnitude proves to be the dominant cost.
 
 ### API stability (notebook §19.11)
 
