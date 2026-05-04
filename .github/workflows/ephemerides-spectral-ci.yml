@@ -1,0 +1,127 @@
+name: ephemerides-spectral-ci
+
+# Mirrors antikythera-spectral-ci.yml at the same path-filter discipline:
+# this workflow only runs when the ephemerides-spectral subtree changes,
+# so unrelated PRs don't pay the kernel-load cost.
+#
+# Three jobs:
+#
+#   test                  3 OS x 5 Python = 15 cells of pytest tests/
+#   wheel + sdist build   build via hatchling, twine check --strict
+#   codegen reproducibility
+#                         re-run codegen/regenerate.py and assert no
+#                         _research/* or _data/* (excluding manifest.json)
+#                         change. Catches the same kind of latent drift
+#                         we hit in PR #171 on antikythera-spectral.
+#
+# Triggered also on changes to the SHARED research/ tree because
+# ephemerides-spectral's codegen mirrors several modules from there
+# (bodies.py, laplacian.py, ephemeris_loader.py, bip_instrument.py,
+# ephemeris_reference_instrument.py, time_scales.py).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/antikythera-maths/ephemerides-spectral/**"
+      - "docs/antikythera-maths/research/**"
+      - ".github/workflows/ephemerides-spectral-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/antikythera-maths/ephemerides-spectral/**"
+      - "docs/antikythera-maths/research/**"
+      - ".github/workflows/ephemerides-spectral-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test • ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install package + dev tools
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[ephemeris,tests]"
+          # tomllib is stdlib on 3.11+; codegen uses it on 3.10 via tomli.
+          python -m pip install 'tomli; python_version < "3.11"'
+      - name: Run tests
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        shell: bash
+        run: pytest tests/ -q
+
+  build-verify:
+    name: wheel + sdist build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel + sdist
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python -m pip install --upgrade pip build hatchling twine
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Verify wheel contents
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          set -euo pipefail
+          # Manifest must be present.
+          python -m zipfile -l dist/*.whl | grep -F "_data/manifest.json"
+          # Frozen research-module snapshot (the BIP encoder, the
+          # state-dependent Laplacian, time-scale conversions).
+          python -m zipfile -l dist/*.whl | grep -F "_research/bip_instrument.py"
+          python -m zipfile -l dist/*.whl | grep -F "_research/laplacian.py"
+          python -m zipfile -l dist/*.whl | grep -F "_research/ephemeris_reference_instrument.py"
+          python -m zipfile -l dist/*.whl | grep -F "_research/time_scales.py"
+
+  codegen-determinism:
+    name: codegen reproducibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install editable
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[ephemeris,tests]"
+      - name: Snapshot _data + _research SHA-256
+        working-directory: docs/antikythera-maths/ephemerides-spectral
+        run: |
+          # Exclude manifest.json from the diff: its `version` /
+          # source-commit fields are tautologically tied to the
+          # commit-in-progress and CI's checkout SHA differs from the
+          # committed value. The per-file SHA-256 sums INSIDE the
+          # manifest still give the integrity guarantee — we just
+          # don't compare the manifest file itself here.
+          find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/before.sha256
+      - name: Re-run codegen
+        working-directory: docs/antikythera-maths/ephemerides-spectral/codegen
+        run: python regenerate.py
+      - name: Verify byte-identical output
+        working-directory: docs/antikythera-maths/ephemerides-spectral
+        run: |
+          find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/after.sha256
+          diff /tmp/before.sha256 /tmp/after.sha256
