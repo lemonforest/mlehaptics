@@ -45,6 +45,13 @@ from ephemerides_spectral._research.bip_instrument import (
     MODULO,
 )
 from ephemerides_spectral._research.bodies import BODIES
+from ephemerides_spectral._research.laplacian import RESONANCES
+from ephemerides_spectral._research.time_scales import (
+    DEFAULT_LEAP_SECONDS,
+    jd_to_lunar,
+    jd_to_msd,
+    msd_to_jd,
+)
 from ephemerides_spectral.version import __version__
 
 
@@ -55,7 +62,18 @@ from ephemerides_spectral.version import __version__
 DEFAULT_BACKEND: str = "bip"
 SUPPORTED_BACKENDS: Tuple[str, ...] = ("bip", "complex128")
 SUPPORTED_BODIES: Tuple[str, ...] = tuple(sorted(BODIES.keys()))
+
+#: JPL DE-series planetary kernels recognised by the loader.
 ALLOWED_KERNELS: Tuple[str, ...] = ("de421", "de440", "de441", "de442")
+
+#: Lunar-time kernels recognised in metadata. v0.3.0 lists LTE440
+#: (Lin et al. 2025; SPICE-format Lunar Time Ephemeris on DE440)
+#: but does not auto-load it — the .bsp file must be staged
+#: separately by the user (see github.com/xlucn/LTE440 releases).
+#: When NASA + international agencies finalise LTC (Lunar
+#: Coordinated Time), this list and bridge.list_lunar_kernels
+#: become the surface for runtime LTC resolution.
+LUNAR_KERNELS: Tuple[str, ...] = ("lte440",)
 
 _DATA_DIR: Path = Path(__file__).resolve().parent / "_data"
 
@@ -219,17 +237,226 @@ def list_bodies() -> Dict[str, Any]:
 
 
 def list_kernels() -> Dict[str, Any]:
-    """List allowed JPL DE-kernels.
+    """List recognised JPL DE-kernels (planetary) and lunar-time kernels.
 
     Returns
     -------
     dict
-        ``{"ok": True, "allowed": ["de421", "de440", "de441", "de442"]}``.
-        Actual on-disk availability is determined when the instrument
-        is constructed; the loader falls back to ``de421`` if a
-        higher-resolution kernel is missing (unless ``force_high_res``).
+        ``{"ok": True, "planetary": ["de421", "de440", "de441",
+        "de442"], "lunar_time": ["lte440"]}``. Actual on-disk
+        availability is determined when the instrument is
+        constructed; the loader falls back to ``de421`` if a
+        higher-resolution planetary kernel is missing (unless
+        ``force_high_res``). Lunar-time kernels are listed for
+        metadata purposes only — see :func:`list_lunar_kernels`.
     """
-    return {"ok": True, "allowed": list(ALLOWED_KERNELS)}
+    return {
+        "ok": True,
+        "planetary": list(ALLOWED_KERNELS),
+        "lunar_time": list(LUNAR_KERNELS),
+        # Backwards-compat: v0.1.0–v0.2.0 callers expect ``allowed``.
+        "allowed": list(ALLOWED_KERNELS),
+    }
+
+
+def list_lunar_kernels() -> Dict[str, Any]:
+    """Lunar-time / lunar-orientation kernel metadata.
+
+    v0.3.0 ships *awareness* of LTE440 (Lin et al. 2025, A&A 704
+    A76) — the SPICE-format lunar time ephemeris on DE440 that
+    provides TCL ↔ TCB ↔ TDB conversions with 0.15 ns accuracy
+    through 2050. The kernel must be staged separately
+    (``github.com/xlucn/LTE440`` releases); ephemerides-spectral
+    does not auto-download.
+
+    When NASA + international space agencies finalise LTC (Lunar
+    Coordinated Time, target ~2026–2028 per the April 2024
+    White House directive), this method becomes the runtime
+    surface for LTC ↔ UTC ↔ JD_TDB conversions.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "kernels": [{"name": ..., "purpose": ...,
+        "source": ..., "size_mb": ..., "accuracy": ...}], "ltc_status": ...}``.
+    """
+    kernels = [
+        {
+            "name": "lte440",
+            "purpose": "Lunar Time Ephemeris on DE440; TCL ↔ TCB ↔ TDB",
+            "source": "https://github.com/xlucn/LTE440",
+            "publication": "Lin et al. (2025), A&A 704, A76",
+            "size_mb": 100,
+            "accuracy_ns": 0.15,
+            "validity_through": "2050",
+        },
+    ]
+    return {
+        "ok": True,
+        "kernels": kernels,
+        "ltc_status": (
+            "LTC (Lunar Coordinated Time) formal definition pending "
+            "(NASA + international agencies, target ~2026–2028 per "
+            "April 2024 White House directive). LTE440 is the "
+            "underlying ephemeris when LTC arrives."
+        ),
+    }
+
+
+def jd_to_mars_time(jd_utc: float,
+                    leap_seconds: int = DEFAULT_LEAP_SECONDS) -> Dict[str, Any]:
+    """Convert UTC Julian Date → Mars Sol Date + Mars Coordinated Time.
+
+    Implements Allison & McEwen 2000:
+
+        MSD = (JD_UTC + (TAI - UTC)/86400 - 2405522.0025054) / 1.0274912517
+
+    Parameters
+    ----------
+    jd_utc : float
+        Julian Date in UTC.
+    leap_seconds : int, default 37
+        TAI − UTC offset in seconds. Authoritative source: IERS
+        Bulletin C. The Jan 2017 value (37) is unchanged through
+        2026.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_utc": ..., "msd": ..., "mtc_hours": ...,
+        "mtc_seconds": ..., "sol_number": ..., "leap_seconds": ...}``
+    """
+    err = _validate_jd(jd_utc)
+    if err is not None:
+        # _validate_jd uses jd_tdb in its message but the envelope
+        # is the same.
+        return {**err, "error": err["error"].replace("jd_tdb", "jd_utc")}
+    if not isinstance(leap_seconds, int):
+        return _err(f"leap_seconds must be an int, got {type(leap_seconds).__name__}")
+    mars = jd_to_msd(float(jd_utc), leap_seconds=leap_seconds)
+    return {
+        "ok": True,
+        "leap_seconds": int(leap_seconds),
+        **mars.to_dict(),
+    }
+
+
+def mars_time_to_jd(msd: float,
+                    leap_seconds: int = DEFAULT_LEAP_SECONDS) -> Dict[str, Any]:
+    """Inverse of :func:`jd_to_mars_time` — MSD → JD_UTC."""
+    try:
+        f = float(msd)
+    except (TypeError, ValueError):
+        return _err(f"msd must be a number, got {type(msd).__name__}")
+    if not math.isfinite(f):
+        return _err(f"msd must be finite, got {f}")
+    if not isinstance(leap_seconds, int):
+        return _err(f"leap_seconds must be an int, got {type(leap_seconds).__name__}")
+    jd_utc = msd_to_jd(f, leap_seconds=leap_seconds)
+    return {
+        "ok": True,
+        "msd": f,
+        "jd_utc": float(jd_utc),
+        "leap_seconds": int(leap_seconds),
+    }
+
+
+def get_natural_resonance_group() -> Dict[str, Any]:
+    """The natural cyclic group derived from the Phase 9 RESONANCES table.
+
+    This is the *resonance-derived* gear group — the cyclic structure the
+    bodies actually live in by virtue of their integer mean-motion ratios,
+    as distinct from the architectural ``Z_{2^32}`` modulus the encoder
+    imposes for `uint32`-overflow convenience. See research notebook §6
+    for the full discussion.
+
+    For each resonance pair `(n_a, m_b)`, the per-pair natural cycle is
+    `lcm(n_a, m_b)`. The aggregate natural modulus is the LCM across all
+    pair-LCMs. By the Chinese Remainder Theorem, the aggregate modulus
+    factors into a product of prime cyclic groups.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "resonances": [{"a", "b", "n_a", "m_b", "pair_lcm"}],
+        "natural_modulus": int, "prime_factors": [int],
+        "interpretation": str}``.
+    """
+    from math import gcd
+
+    def _lcm(a: int, b: int) -> int:
+        return a * b // gcd(a, b)
+
+    def _prime_factors(n: int) -> List[int]:
+        factors: List[int] = []
+        d = 2
+        while d * d <= n:
+            while n % d == 0:
+                if not factors or factors[-1] != d:
+                    factors.append(d)
+                n //= d
+            d += 1
+        if n > 1:
+            factors.append(n)
+        return factors
+
+    rows: List[Dict[str, Any]] = []
+    aggregate = 1
+    for r in RESONANCES:
+        pair_lcm = _lcm(int(r.n_a), int(r.m_b))
+        rows.append({
+            "a": r.body_a,
+            "b": r.body_b,
+            "n_a": int(r.n_a),
+            "m_b": int(r.m_b),
+            "pair_lcm": pair_lcm,
+            "label": r.label,
+        })
+        aggregate = _lcm(aggregate, pair_lcm)
+
+    factors = _prime_factors(aggregate)
+    return {
+        "ok": True,
+        "resonances": rows,
+        "natural_modulus": int(aggregate),
+        "prime_factors": factors,
+        "interpretation": (
+            f"{aggregate}-tooth natural gear; CRT-isomorphic to "
+            + " x ".join(f"Z_{p}" for p in factors)
+            + ". This is the resonance-derived cyclic structure; the "
+            "encoder's architectural modulus is Z_{2^32}. See "
+            "research notebook §6 for the distinction."
+        ),
+        "encoder_modulus": MODULO,
+        "natural_divides_encoder": MODULO % aggregate == 0,
+        "gcd_natural_encoder": gcd(aggregate, MODULO),
+    }
+
+
+def get_lunar_phase(jd_tdb: float) -> Dict[str, Any]:
+    """Mean synodic + sidereal lunar age/phase at a JD (TDB).
+
+    These are the bronze-dial primitives — fixed-period
+    approximations sufficient for HDC encoding and Saros-class
+    navigation. For arc-second-class precision use the JPL
+    ephemeris path (``get_system_state`` → moon residue) which
+    has the perturbation series baked in.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_tdb": ..., "synodic_age_days": ...,
+        "synodic_phase": ..., "sidereal_age_days": ...,
+        "sidereal_phase": ...}``
+    """
+    err = _validate_jd(jd_tdb)
+    if err is not None:
+        return err
+    lunar = jd_to_lunar(float(jd_tdb))
+    return {
+        "ok": True,
+        **lunar.to_dict(),
+    }
 
 
 def get_resolution(body: str = "earth", D: int = 65536) -> Dict[str, Any]:
@@ -522,13 +749,19 @@ __all__ = [
     "SUPPORTED_BACKENDS",
     "SUPPORTED_BODIES",
     "ALLOWED_KERNELS",
+    "LUNAR_KERNELS",
     "get_version",
     "list_bodies",
     "list_kernels",
+    "list_lunar_kernels",
     "list_couplings",
     "get_resolution",
     "get_system_state",
     "get_local_view",
     "get_eclipse_probability",
     "get_breathing_modulation",
+    "jd_to_mars_time",
+    "mars_time_to_jd",
+    "get_lunar_phase",
+    "get_natural_resonance_group",
 ]

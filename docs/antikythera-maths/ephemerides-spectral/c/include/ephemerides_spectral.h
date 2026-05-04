@@ -246,9 +246,9 @@ double es_residue_to_radians(uint32_t residue);
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 2
+#define ES_VERSION_MINOR 3
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.2.0"
+#define ES_VERSION_STRING "0.3.0"
 
 const char *es_version(void);
 

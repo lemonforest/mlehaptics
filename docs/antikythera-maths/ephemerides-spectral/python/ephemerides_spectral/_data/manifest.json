@@ -23,8 +23,12 @@
     "_research/laplacian.py": {
       "sha256": "d6408942889e2ef339dc77f85f41eb802164d9314b191af823f9d7c41a1a48ff",
       "size_bytes": 10174
+    },
+    "_research/time_scales.py": {
+      "sha256": "e54993d49450696819c25361bf49091c02cbf5cd06dea146bc826775df57dc49",
+      "size_bytes": 9151
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

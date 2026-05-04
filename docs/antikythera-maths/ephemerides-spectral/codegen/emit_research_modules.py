@@ -22,6 +22,7 @@ _INCLUDED_MODULES: List[str] = [
     "bodies.py",
     "laplacian.py",
     "bip_instrument.py",
+    "time_scales.py",
 ]
 
 def emit() -> List[Path]:
