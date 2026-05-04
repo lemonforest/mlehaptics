@@ -114,6 +114,34 @@ from .sheets import (
     decode_sheet_state,
 )
 
+# 1.10.0 — Bit-Interleaved Phases (BIP) encoding for the sheet block
+# (notebook §20.14, §20.16). Round-trip exact integer-native form:
+# uint16 categorical + uint8 halfmove = 3 bytes per position vs the
+# 1.9.0 float64 path's 88 bytes (29× compression). Operator fast
+# paths via single integer ops; Hamming-distance metrics for corpus
+# similarity. Pyodide / batch / wire-format wins; depth-1 floor
+# (§19.10) still applies for single-position queries.
+from .sheets_bip import (
+    SheetStateBIP,
+    encode_sheet_state_bip,
+    decode_sheet_state_bip,
+    # Operator fast paths
+    castling_alive,
+    kingside_castling_alive,
+    queenside_castling_alive,
+    white_castling_alive,
+    black_castling_alive,
+    ep_target_active,
+    ep_file as ep_file_from_bip,
+    side_to_move_white as side_to_move_white_from_bip,
+    repetition_count as repetition_count_from_bip,
+    fifty_move_rule_triggered,
+    threefold_claimable,
+    # Distance metrics
+    hamming_distance_categorical,
+    halfmove_distance,
+)
+
 # 1.7.0 D2: native fast-path availability flag, re-exported from
 # chess_spectral.spatial_4d.bitboard so downstream consumers (the
 # chess4D-OC visualizer and similar) can do
@@ -174,4 +202,21 @@ __all__ = [
     "decode_repetition_count",
     "decode_halfmove_clock",
     "decode_sheet_state",
+    # 1.10.0 — BIP-encoded sheet block (uint16 + uint8, 3 bytes total)
+    "SheetStateBIP",
+    "encode_sheet_state_bip",
+    "decode_sheet_state_bip",
+    "castling_alive",
+    "kingside_castling_alive",
+    "queenside_castling_alive",
+    "white_castling_alive",
+    "black_castling_alive",
+    "ep_target_active",
+    "ep_file_from_bip",
+    "side_to_move_white_from_bip",
+    "repetition_count_from_bip",
+    "fifty_move_rule_triggered",
+    "threefold_claimable",
+    "hamming_distance_categorical",
+    "halfmove_distance",
 ]

@@ -32,6 +32,24 @@ Methods added in v1.9.0 (sheet aux block — see notebook §19):
                                               block, return the
                                               decoded sheet state.
 
+Methods added in v1.10.0 (BIP-encoded sheet block — see notebook §20.14):
+
+    * :func:`get_sheet_state_bip`        — extract the BIP-encoded
+                                            sheet state (``uint16``
+                                            categorical + ``uint8``
+                                            half-move) from a
+                                            GameState4D or
+                                            python-chess Board. 3 bytes
+                                            per position vs 1.9.0's
+                                            88-byte float aux block.
+    * :func:`encode_sheet_aux_bip`       — serialize a sheet dict to
+                                            the BIP form; integer
+                                            return path, no numpy.
+    * :func:`decode_sheet_state_from_bip` — inverse of
+                                            ``encode_sheet_aux_bip``;
+                                            validates input ranges
+                                            before decoding.
+
 Methods deferred from v1.4.0 (will ship in later minors):
 
     * Stalemate detection — needs the QM/legal-moves observable
@@ -486,4 +504,124 @@ def decode_sheet_aux_from_vector(
         }
     arr = np.asarray(vec, dtype=np.float64)
     sheet = decode_sheet_state(arr, offset)
+    return {"ok": True, "sheet": _sheet_state_to_dict(sheet)}
+
+
+# ─── 1.10.0 — BIP-encoded sheet block bridge surface ────────────────
+
+
+def get_sheet_state_bip(
+    state_or_board: "object",
+) -> Dict[str, object]:
+    """Extract the 11-dim non-Markovian sheet state from a 4D
+    :class:`GameState4D` or a 2D ``python-chess.Board``, returned in
+    BIP-encoded form (``uint16`` categorical + ``uint8`` halfmove).
+
+    Wraps :func:`get_sheet_state` and feeds the result through
+    :func:`encode_sheet_state_bip`. Useful for downstream consumers
+    (chess4D-OC, batch retrieval pipelines) that want the integer-
+    native form directly.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "sheet_bip": {"categorical": int,
+        "halfmove_clock": int}}`` on success, or ``{"ok": False,
+        "error": "..."}`` on unrecognized input type.
+    """
+    from chess_spectral.sheets import SheetState
+    from chess_spectral.sheets_bip import encode_sheet_state_bip
+    if isinstance(state_or_board, GameState4D):
+        sheet = SheetState.from_game_state_4d(state_or_board)
+    else:
+        if not (hasattr(state_or_board, "has_kingside_castling_rights")
+                and hasattr(state_or_board, "ep_square")):
+            return {
+                "ok": False,
+                "error": (
+                    "get_sheet_state_bip: input is neither a "
+                    "GameState4D nor a python-chess Board"
+                ),
+            }
+        sheet = SheetState.from_chess_board(state_or_board)
+    bip = encode_sheet_state_bip(sheet)
+    return {
+        "ok": True,
+        "sheet_bip": {
+            "categorical": int(bip.categorical),
+            "halfmove_clock": int(bip.halfmove_clock),
+        },
+    }
+
+
+def encode_sheet_aux_bip(
+    sheet_dict: Dict[str, object],
+) -> Dict[str, object]:
+    """Serialize a sheet dict (as returned by :func:`get_sheet_state`)
+    to its BIP-encoded form.
+
+    Numpy-free on the return path — both ``categorical`` and
+    ``halfmove_clock`` cross the WASM boundary as plain Python
+    integers.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "categorical": int (uint16), "halfmove_clock":
+        int (uint8)}`` on success, or ``{"ok": False, "error": "..."}``
+        on missing / malformed fields.
+    """
+    from chess_spectral.sheets import SheetState
+    from chess_spectral.sheets_bip import encode_sheet_state_bip
+    try:
+        sheet = SheetState(
+            castling_wk=bool(sheet_dict["castling_wk"]),
+            castling_wq=bool(sheet_dict["castling_wq"]),
+            castling_bk=bool(sheet_dict["castling_bk"]),
+            castling_bq=bool(sheet_dict["castling_bq"]),
+            ep_file=(None if sheet_dict.get("ep_file") is None
+                     else int(sheet_dict["ep_file"])),
+            side_to_move_white=bool(sheet_dict["side_to_move_white"]),
+            halfmove_clock=int(sheet_dict["halfmove_clock"]),
+            repetition_count=int(sheet_dict["repetition_count"]),
+        )
+    except (KeyError, TypeError, ValueError) as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    bip = encode_sheet_state_bip(sheet)
+    return {
+        "ok": True,
+        "categorical": int(bip.categorical),
+        "halfmove_clock": int(bip.halfmove_clock),
+    }
+
+
+def decode_sheet_state_from_bip(
+    categorical: int,
+    halfmove_clock: int,
+) -> Dict[str, object]:
+    """Decode a BIP-encoded sheet block back to a full sheet dict.
+
+    Inverse of :func:`encode_sheet_aux_bip`. Validates that the
+    inputs are within the legal BIP ranges (``categorical`` in
+    [0, 65535] with reserved bits zero; ``halfmove_clock`` in
+    [0, 100]) before decoding.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "sheet": {...}}`` with the same eight-field
+        shape as :func:`get_sheet_state`, or ``{"ok": False,
+        "error": "..."}`` on invalid input.
+    """
+    from chess_spectral.sheets_bip import (
+        SheetStateBIP, decode_sheet_state_bip,
+    )
+    try:
+        bip = SheetStateBIP(
+            categorical=int(categorical),
+            halfmove_clock=int(halfmove_clock),
+        )
+    except (ValueError, TypeError) as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    sheet = decode_sheet_state_bip(bip)
     return {"ok": True, "sheet": _sheet_state_to_dict(sheet)}
