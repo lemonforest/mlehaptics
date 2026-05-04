@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .bodies import BODIES, Body
-from .laplacian import SolarSystemLaplacian
+from .laplacian import SolarSystemLaplacian, RESONANCES
 from .ephemeris_loader import load_ephemeris, EphemerisBundle
 
 # ---------------------------------------------------------------------------
@@ -291,15 +291,25 @@ class EphemerisBIPInstrument:
         with np.errstate(over="raise", invalid="raise"):
             trunk_step = (omega * np.int64(step_signed)).astype(np.int64)
 
-        # Pre-resolve indices and fixed-point coupling for the J-S 5:2 term.
-        idx_j = self.body_to_idx.get("jupiter")
-        idx_s = self.body_to_idx.get("saturn")
-        if idx_j is not None and idx_s is not None:
-            coupling_js = self._get_scaled_coupling("jupiter", "saturn")
-            base_nudge = coupling_js * step_signed     # int, residues/chunk
-        else:
-            coupling_js = 0
-            base_nudge = 0
+        # Pre-resolve resonance entries: (idx_a, idx_b, n_a, m_b, base_nudge)
+        # where base_nudge = scaled_coupling * step_signed in residues/chunk.
+        # Skipping any pair whose bodies aren't in BODIES (defensive — the
+        # current 26-body roster covers all four wired resonances).
+        resonance_table: List[Tuple[int, int, int, int, int]] = []
+        for r in RESONANCES:
+            if r.body_a not in self.body_to_idx or r.body_b not in self.body_to_idx:
+                continue
+            ia = self.body_to_idx[r.body_a]
+            ib = self.body_to_idx[r.body_b]
+            scaled = self._get_scaled_coupling(r.body_a, r.body_b)
+            if scaled == 0:
+                # No static weight to modulate — the breathing path would
+                # be a no-op. _define_couplings ensures every resonance
+                # pair has a non-zero weight, so this is a hard guard
+                # against silent drift.
+                continue
+            base_nudge = scaled * step_signed
+            resonance_table.append((ia, ib, r.n_a, r.m_b, base_nudge))
 
         # Wrap the accumulator hot loop in an errstate that *ignores* uint64
         # wraparound — wraparound IS the modular reduction here. Also use
@@ -314,11 +324,14 @@ class EphemerisBIPInstrument:
                 #    Final reduction to Z_{2^32} happens once at the end.
                 curr_phases = curr_phases + trunk_step_u64
 
-                # 2. Breathing coupling — pure integer LUT.
-                if base_nudge != 0:
-                    phi_j = int(curr_phases[idx_j] & np.uint64(MODULO - 1))
-                    phi_s = int(curr_phases[idx_s] & np.uint64(MODULO - 1))
-                    res_phase = (5 * phi_j - 2 * phi_s) & (MODULO - 1)
+                # 2. Breathing coupling — pure integer LUT, walked over
+                #    the full RESONANCES table. v0.1.0 wired only J-S 5:2;
+                #    v0.2.0 adds Neptune-Pluto 3:2, Io-Europa 2:1,
+                #    Europa-Ganymede 2:1.
+                for ia, ib, n_a, m_b, base_nudge in resonance_table:
+                    phi_a = int(curr_phases[ia] & np.uint64(MODULO - 1))
+                    phi_b = int(curr_phases[ib] & np.uint64(MODULO - 1))
+                    res_phase = (n_a * phi_a - m_b * phi_b) & (MODULO - 1)
 
                     # cos_lut returns Q1.14 int in [-AMP, +AMP].
                     # Modulation depth: 1 + (NUM/DEN) * cos.
@@ -330,8 +343,8 @@ class EphemerisBIPInstrument:
                     nudge = base_nudge + breath
 
                     nudge_u64 = np.uint64(np.int64(nudge))
-                    curr_phases[idx_j] = curr_phases[idx_j] + nudge_u64
-                    curr_phases[idx_s] = curr_phases[idx_s] + nudge_u64
+                    curr_phases[ia] = curr_phases[ia] + nudge_u64
+                    curr_phases[ib] = curr_phases[ib] + nudge_u64
 
             # Sub-chunk remainder: one float multiply for the final
             # fractional-day fragment. The signed multiply runs under

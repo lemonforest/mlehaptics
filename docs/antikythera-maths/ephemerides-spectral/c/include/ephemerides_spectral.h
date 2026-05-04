@@ -240,10 +240,15 @@ double es_residue_to_radians(uint32_t residue);
  * Version
  * ------------------------------------------------------------------ */
 
+/* Version: MUST match python/pyproject.toml's [project].version. The
+ * manifest.json emitted by codegen reads from pyproject.toml as SSOT
+ * (see codegen/emit_c_tables.py); this header is hand-written so the
+ * two need to be bumped together at release time.
+ */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 1
+#define ES_VERSION_MINOR 2
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.1.0"
+#define ES_VERSION_STRING "0.2.0"
 
 const char *es_version(void);
 

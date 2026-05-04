@@ -76,7 +76,10 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
 
 /* Phase 9 off-diagonal coupling table. */
 const es_coupling_t es_couplings[] = {
-    { .idx_a = 9, .idx_b = 18, .n_a = 5, .m_b = 2, .weight_rpd = -1188733LL }, /* Jupiter-Saturn 5:2 */
+    { .idx_a = 9, .idx_b = 18, .n_a = 5, .m_b = 2, .weight_rpd = -1188733LL }, /* Jupiter-Saturn 5:2 (Great Conjunction) */
+    { .idx_a = 13, .idx_b = 16, .n_a = 3, .m_b = 2, .weight_rpd = -1322LL }, /* Neptune-Pluto 3:2 (orbital resonance) */
+    { .idx_a = 8, .idx_b = 5, .n_a = 2, .m_b = 1, .weight_rpd = -7488LL }, /* Io-Europa 2:1 (Laplace pair 1) */
+    { .idx_a = 5, .idx_b = 6, .n_a = 2, .m_b = 1, .weight_rpd = -9667LL }, /* Europa-Ganymede 2:1 (Laplace pair 2) */
 };
 
-const size_t es_n_couplings = 1;
+const size_t es_n_couplings = 4;

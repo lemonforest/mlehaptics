@@ -93,5 +93,53 @@ The prototype successfully:
 
 ## 4. Release History
 
+* **v0.2.0** — 2026-05-04. **Phase 9 coverage extension.** The hardcoded Jupiter–Saturn 5:2 entry is promoted to a structured `RESONANCES` SSOT table in `research/laplacian.py`. Three new resonance pairs join it: **Neptune–Pluto 3:2** (orbital), **Io–Europa 2:1** + **Europa–Ganymede 2:1** (the two pairwise legs of the Jovian 4:2:1 Laplace resonance). The reference encoder (`get_dynamic_laplacian`), the BIP encoder (`encode_state`), and the C codegen (`emit_c_tables.py`) all walk the same table. Modulation depth `α = 0.1` remains global across all four resonances; per-resonance values from a Hamilton/Delaunay-variable Lagrangian are deferred to v0.3.x. C port: `es_n_couplings` grows 1 → 4; byte-for-byte parity with Python preserved across all 26 bodies at +20 yr. Live: <https://pypi.org/project/ephemerides-spectral/0.2.0/>.
 * **v0.1.0** — 2026-05-04. First PyPI release. Phases 5–9 frozen into the wheel: 26-body Sol Star System Laplacian, LTI propagator (Phase 8 baseline), state-dependent breathing couplings (Phase 9), ALU-native BIP encoder (305× speedup, 256 KB state), integer cosine LUT for the off-diagonal modulation, fixed-point Q-format frequency discipline, scoped overflow trap. Two backends: `bip` (default, integer ALU) and `complex128` (FPU reference). Rich CLI (9 subcommands) + Pyodide-friendly bridge. Live: <https://pypi.org/project/ephemerides-spectral/0.1.0/>.
 * **v0.1.0rc1** — 2026-05-04. TestPyPI release candidate. Round-tripped clean; published under OIDC trusted publishing. Live: <https://test.pypi.org/project/ephemerides-spectral/0.1.0rc1/>.
+
+## 5. Phase 10: Resonance coverage (v0.2.0)
+
+Phase 9 (v0.1.0) wired exactly one off-diagonal modulation: Jupiter–Saturn 5:2. Phase 10 promotes that single entry to a SSOT table and adds three more pairs.
+
+### 5.1 The RESONANCES table
+
+```python
+# research/laplacian.py
+RESONANCES: List[Resonance] = [
+    Resonance("jupiter", "saturn",   5, 2, "Jupiter-Saturn 5:2 (Great Conjunction)"),
+    Resonance("neptune", "pluto",    3, 2, "Neptune-Pluto 3:2 (orbital resonance)"),
+    Resonance("io",      "europa",   2, 1, "Io-Europa 2:1 (Laplace pair 1)"),
+    Resonance("europa",  "ganymede", 2, 1, "Europa-Ganymede 2:1 (Laplace pair 2)"),
+]
+```
+
+Each entry parameterises an off-diagonal weight modulation:
+
+$$W_{ab}(\phi) = W_{ab}^{(0)} \cdot \bigl(1 + \alpha \cos(n_a \phi_a - m_b \phi_b)\bigr)$$
+
+with $\alpha = 0.1$ global across all four entries in v0.2.0. The four pairs were chosen because each is a real, named mean-motion resonance in the solar system:
+
+| Resonance | Bodies | Status in solar-system literature |
+| :--- | :--- | :--- |
+| 5:2 | Jupiter, Saturn | "Great Conjunction"; long-period libration in J–S semi-major axes due to mutual perturbation. |
+| 3:2 | Neptune, Pluto | Pluto is in a stable 3:2 resonance with Neptune that prevents close approach despite Pluto's eccentric orbit. |
+| 2:1 | Io, Europa | First leg of the Laplace 4:2:1 resonance. Io completes 2 orbits per Europa orbit. |
+| 2:1 | Europa, Ganymede | Second leg of the Laplace resonance. Europa completes 2 orbits per Ganymede orbit. |
+
+### 5.2 Modelling discipline (and what v0.2.0 still owes)
+
+The convention $\cos(n_a \phi_a - m_b \phi_b)$ is the **fast** anti-resonant combination, not the canonical slow resonant angle $m_b \phi_a - n_a \phi_b$. The cosine is symmetric, so under modulation the two are equivalent at the envelope level — but the *frequency* of the breathing differs. v0.2.0 keeps the v0.1.0 J–S convention (faster body's multiplier first) so the Jupiter–Saturn modulation is byte-for-byte identical to v0.1.0; the new entries follow the same convention.
+
+A first-principles derivation (v0.3.x) would:
+
+1. Start from the gravitational two-body Hamiltonian, expand around each near-resonance using Lie-series perturbation theory in Delaunay variables.
+2. Extract the dominant resonance harmonic — for J–S 5:2 this is the slow combination $2\lambda_J - 5\lambda_S - 3\varpi_S$ (with $\varpi_S$ Saturn's longitude of perihelion).
+3. Read off the coefficient (which gives $\alpha$ per resonance, derived not phenomenological).
+
+That programme is documented in the ROADMAP and not in v0.2.0's scope.
+
+### 5.3 Verification
+
+* The 0.0002 rad Earth phase floor at +20 yr against DE421 is preserved (Earth doesn't appear in any of the four resonance entries).
+* Encoded phase residues for Io / Europa / Ganymede / Neptune / Pluto shift relative to v0.1.0 because their modulation is now active.
+* C port (`c/src/es_laplacian.c`) carries `es_n_couplings = 4`; `make parity` reports byte-for-byte agreement with the Python encoder across all 26 bodies.
