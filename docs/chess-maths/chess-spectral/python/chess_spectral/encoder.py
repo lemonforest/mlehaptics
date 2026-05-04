@@ -125,7 +125,7 @@ def _fiber_diagonal(pos: dict[int, str], sig: np.ndarray) -> np.ndarray:
     return out
 
 
-def encode_640(pos, *, vals=None) -> np.ndarray:
+def encode_640(pos, *, vals=None, sheets=None) -> np.ndarray:
     """Encode a position to a 640-dim spectral vector.
 
     Parameters
@@ -136,10 +136,20 @@ def encode_640(pos, *, vals=None) -> np.ndarray:
         Piece-value table. Defaults to SPECTRAL_VALS (mean-degree
         normalization), matching the C encoder. Pass VALS for the
         traditional {P=1, Q=9, K=100} heuristic.
+    sheets : SheetState or None, optional (1.9.0+)
+        If supplied, append the 11-dim non-Markovian aux block (see
+        :mod:`chess_spectral.sheets`) to the 640-dim base, producing a
+        651-dim output. The base 640 dims are byte-identical to the
+        legacy output and to the C encoder; the aux block carries
+        castling rights, EP target, side-to-move, halfmove clock, and
+        repetition count for downstream consumers of saved/transmitted
+        vectors. Default ``None`` keeps the legacy 640-dim output bit-
+        for-bit compatible with pre-1.9.0 versions and the C side.
 
     Returns
     -------
-    np.ndarray, shape (640,), dtype float64
+    np.ndarray, dtype float64
+        Shape ``(640,)`` if ``sheets`` is None (default), else ``(651,)``.
     """
     pos = normalize_pos(pos)
     if vals is None:
@@ -147,7 +157,14 @@ def encode_640(pos, *, vals=None) -> np.ndarray:
 
     sig = board_signal(pos, vals=vals)
 
-    out = np.empty(ENCODING_DIM, dtype=np.float64)
+    # Allocate base 640 dims; concatenated aux is appended below if
+    # sheets is supplied. Allocating up-front and writing in-place
+    # avoids a second allocation+copy on the hot path.
+    if sheets is None:
+        out = np.empty(ENCODING_DIM, dtype=np.float64)
+    else:
+        from .sheets import SHEET_AUX_DIM, encode_aux_block
+        out = np.empty(ENCODING_DIM + SHEET_AUX_DIM, dtype=np.float64)
 
     # Channels 0-4: D4 irreps
     for i, name in enumerate(['A1', 'A2', 'B1', 'B2', 'E']):
@@ -172,6 +189,9 @@ def encode_640(pos, *, vals=None) -> np.ndarray:
 
     # Channel 9: diagonal deviation
     out[576:640] = _fiber_diagonal(pos, sig)
+
+    if sheets is not None:
+        out[ENCODING_DIM:ENCODING_DIM + SHEET_AUX_DIM] = encode_aux_block(sheets)
 
     return out
 

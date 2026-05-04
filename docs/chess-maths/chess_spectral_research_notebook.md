@@ -2975,6 +2975,43 @@ S-spike-1 is independent of Phase 4 (QM dynamics) and can ship in v1.9 alongside
 - **Does not solve threefold repetition's unbounded history.** The 1-bit repetition flag is sufficient to *trigger* a draw claim's availability, but tracking the position-by-position history that produces the flag is the search engine's job, not the encoder's. The encoder consumes a flag derived externally; the encoder does not maintain the history.
 - **Does not commit to S-spike implementation.** This spike's purpose is to capture the analysis. Whether to ship S-spike-1 in v1.9 is a Phase 6 / Phase 7 product decision, not a notebook decision.
 
+### 19.9. Implementation update — S-spike-1 shipped in v1.9.0 as representation-only
+
+**Date:** 2026-05-04.
+
+S-spike-1 (the Phase 1 minimal sheet block) shipped in `chess-spectral` 1.9.0. Implementation surface as designed: 11-dim aux block, opt-in via `encode_640(pos, sheets=...)` / `encode_4d(pos4, sheets=...)`, Path A direct concatenation. The 4D ship populates only the halfmove / side-to-move / repetition slots — castling and EP slots are zero by construction, since 4D-OC has neither in its ruleset (per `chess_spectral.spatial_4d.board.py` header). 28 immolation tests in `test_sheets_aux_block.py` lock the round-trip + encoder integration; the C-parity tests pass unchanged because the default encoder behavior is bit-for-bit identical to pre-1.9.0.
+
+What did NOT ship in 1.9.0: the sheet-aware fast-path for `available_castles` (the proposed S-spike-3 evaluator hook), and the empirical-speedup benchmark harness. §19.10 below explains why.
+
+### 19.10. Empirical bound: the depth-1 bitboard floor closes the speed thesis
+
+**Date:** 2026-05-04. **Conclusion:** sheet blocks ship as a representation feature, not a speed feature.
+
+The §19 design originally floated S-spike-3 as a Phase 6 search-engine integration that would weight the sheet channels alongside the existing channel-energy weights — implicitly inviting a "does the sheet block speed up move-operator queries?" question. During 1.9.0 implementation prep, that question received its empirical answer before the benchmark was written.
+
+**The depth-1 floor.** For a single-position query, the cost-relevant operations are:
+
+| Operator | Existing fast path (per call) | Sheet-block alternative |
+|---|---|---|
+| `board.has_castling_rights(WHITE)` (python-chess) | one `int & mask`, ~50 ns | float-numpy slice + `>= 0.5`, > 50 ns |
+| `board.ep_square is not None` (python-chess) | attribute load, ~30 ns | `aux[4] >= 0.5`, similar |
+| `board.halfmove_clock` (python-chess) | int attribute load | `decode_halfmove_clock(vec)` involves `atan2` + `round` |
+| `Board4D._halfmove_clock >= 100` (4D native) | one int comparison | same as above |
+| `state.history.repetition_count(state.position)` (4D) | hash-table lookup | int aux-slot read; comparable per call |
+| `available_castles(board)` (chess-spectral phase-op) | up to 12 python-chess calls in the no-rights case | 4 aux-slot reads → early-exit |
+
+For all but the last row, the sheet block can match but cannot beat the bitboard / int-attribute floor. For `available_castles`, the sheet block CAN win in the no-rights case (avoiding ~1 µs of Python-call overhead per call across 12 python-chess interactions) — but `python-chess` already short-circuits internally on `has_castling_rights` before doing any attack-map work, so the win is bounded by the *Python-call overhead of our own wrapper*, not by genuine algorithmic savings. At depth 1, this is a small constant-factor effect that does not justify shipping a parallel "sheet-aware" code path with its own correctness contract and test surface.
+
+**Where the sheet block's value DOES live.** The representation-completeness argument from §19.2 / §19.5 / §19.6 is intact: sheet blocks make encoder vectors *self-sufficient* for downstream consumers of saved or transmitted vectors, where reconstructing a python-chess `Board` or a `GameState4D` from the underlying FEN / FEN4 to query non-Markov state is the *expensive* operation. Specifically:
+
+- **Saved-corpus retrieval.** A precomputed corpus of N encoded vectors stored in HDF5 / on-disk numpy arrays. To filter to "positions where any castling right is alive" without sheet blocks, the consumer must reparse N FENs into Board objects — Python-loop per position. With sheet blocks, the same query is a vectorized `vecs[:, 640:644].any(axis=1)` over the in-memory array, ~3 orders of magnitude faster at scale.
+- **Pyodide / browser environments.** Pyodide's single-process WASM runtime cannot subprocess to native binaries and pays per-call overhead on every Python-level function. Maintaining a parallel `python-chess.Board` object alongside encoder vectors doubles memory and serialization cost for chess4D-OC's downstream visualizer paths. Sheet blocks cut this to zero — the encoder vector carries everything the consumer needs.
+- **Transmission contracts.** Wire formats that ship encoder vectors over a network (the v5 frame format with XOR-stream mode 2, prospectively the `.spectralz4` format for 4D corpora) currently lose castling / EP / halfmove / repetition state at the format boundary. Adding sheet blocks closes that hole at no cost to the existing channel-energy / cosine-similarity contract.
+
+**The "we won't beat bitboards at depth 1" lemma.** Source: Steven, 2026-05-04, on the 1.9.0 prep thread. Generalizes to: *for any operator whose existing implementation is a single-int comparison or hash-table lookup, a float-numpy-slice-plus-decode alternative cannot undercut it at single-call latency*. The alternative is at best comparable, more typically slightly slower, because numpy slicing has interpreter overhead per call that competes against pure-C int operations. This lemma applies uniformly across castling rights, EP target, halfmove threshold check, and repetition lookup. It does NOT apply to *batched / vectorized* operations across many positions, where numpy SIMD over a stack of stored vectors crushes per-position Python — that's the regime where sheet blocks earn their CHANGELOG entry. 1.9.0 ships the representation feature; the batched-retrieval case study lives in downstream consumer projects (chess4D-OC; future `chess-spectral query` corpus filters).
+
+**What this means for the §19 phasing table.** S-spike-1 shipped (1.9.0). S-spike-2 (wire format integration) is deferred until a downstream consumer needs it — most likely the v5.1 mode-2 extension when chess4D-OC adopts it. S-spike-3 (search-engine integration with sheet weights) is closed as not-recommended: the sheet channels carry *categorical* information (rights are alive or dead), and the search evaluator's per-channel-energy weighting is *continuous* — they're not the same kind of object, and forcing one into the other would lose information without clear benefit. If a future search-engine evaluator wants castling-aware scoring, the natural move is a separate `eval=spectral+sheets` evaluator family (§16.1 already names the pattern), not a weighted-channel hook into the existing `eval=spectral` path. That's a Phase 7+ design question.
+
 ---
 
 ## 20. Bit-Serialized Hyperdimensional Computing as a Resonant Object (Spike — May 2026)
