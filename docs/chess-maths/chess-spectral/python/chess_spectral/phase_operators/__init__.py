@@ -26,6 +26,8 @@ from .phase_to_coords import (
 from .occupation_field import (
     WHITE_CHARGE, BLACK_CHARGE, OccupiedPhase,
     occupation_field_from_board, ep_phase_from_board,
+    occupation_field_from_pos_dict,  # 1.11.0 — ALU-native adapter
+    ep_phase_from_ep_file,             # 1.11.0 — ALU-native adapter
     king_destinations, knight_destinations, pawn_destinations,
     is_own_charge,
 )
@@ -38,6 +40,11 @@ from .castling import (
 )
 from .phase_check_detection import (
     phasecast_is_check, move_leaves_king_in_check,
+)
+# 1.11.0 — ALU-native integration entry point (B-spike-1b)
+from .alu_native import (
+    phase_only_pseudo_legal_moves,
+    PROMOTION_TARGETS,
 )
 
 __all__ = [
@@ -52,6 +59,8 @@ __all__ = [
     # occupation_field
     "WHITE_CHARGE", "BLACK_CHARGE", "OccupiedPhase",
     "occupation_field_from_board", "ep_phase_from_board",
+    "occupation_field_from_pos_dict",  # 1.11.0
+    "ep_phase_from_ep_file",            # 1.11.0
     "king_destinations", "knight_destinations", "pawn_destinations",
     "is_own_charge",
     # occupation_aware_{a,b,c}
@@ -63,4 +72,7 @@ __all__ = [
     "available_castles", "castle_king_destinations",
     # phase_check_detection
     "phasecast_is_check", "move_leaves_king_in_check",
+    # 1.11.0 — ALU-native integration entry point (B-spike-1b)
+    "phase_only_pseudo_legal_moves",
+    "PROMOTION_TARGETS",
 ]

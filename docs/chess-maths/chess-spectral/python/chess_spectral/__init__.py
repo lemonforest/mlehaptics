@@ -89,6 +89,11 @@ from .phase_operators import (
     available_castles,
     phasecast_is_check,
     move_leaves_king_in_check,
+    # 1.11.0 — ALU-native phase-operator engine (B-spike-1b)
+    occupation_field_from_pos_dict,
+    ep_phase_from_ep_file,
+    phase_only_pseudo_legal_moves,
+    PROMOTION_TARGETS,
 )
 
 # 1.9.0 — non-Markovian sheet aux block (representation completeness;
@@ -185,6 +190,11 @@ __all__ = [
     "available_castles",
     "phasecast_is_check",
     "move_leaves_king_in_check",
+    # 1.11.0 — ALU-native phase-operator engine (B-spike-1b)
+    "occupation_field_from_pos_dict",
+    "ep_phase_from_ep_file",
+    "phase_only_pseudo_legal_moves",
+    "PROMOTION_TARGETS",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
     # 1.9.0 — non-Markovian sheet aux block (representation completeness)

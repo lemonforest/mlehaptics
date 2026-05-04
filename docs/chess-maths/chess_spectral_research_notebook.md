@@ -3531,6 +3531,55 @@ def decode_sheet_state_from_bip(categorical: int, halfmove_clock: int) -> Dict[s
 - Does not promote the §11 phase-operator engine. That's B-spike-1b.
 - Does not implement off-diagonal coupling LUTs. That's an encoder-level question for B-spike-2.
 
+### 20.17. B-spike-1b implementation update — `Z_640` engine promoted to public ALU-native API
+
+**Date:** 2026-05-04. **Shipped:** chess-spectral 1.11.0. **Scope:** the second of the §20.15 three-tier B-spikes — promote the §11 phase-operator engine (already integer-arithmetic at the core) to a stable public API with no `python-chess` dependency on the hot path.
+
+The audit in §20.13 established that the engine is already BIP-isomorphic at the group-theoretic level: phase composition is integer addition modulo `Z_640`, identical in shape to BIP's `(φ_1 + φ_2) mod 2^K`. What was missing for downstream consumers was an **integration entry point that didn't require a python-chess `Board` argument**. The existing `occupation_aware_moves_{a,b,c}` all took a Board for the occupation-field derivation + EP-square lookup + castling-rights check, even though Solutions B and C of §11.4 are pure phase arithmetic on a `dict[phase, charge]` occupation field.
+
+**The 1.11.0 ship.** Three new public functions:
+
+- `occupation_field_from_pos_dict(pos)` — encoder-format adapter for the occupation field. Accepts both int- and str-keyed dicts. Returns the same `dict[phase_int, charge]` as `occupation_field_from_board`, but without a python-chess round-trip.
+- `ep_phase_from_ep_file(ep_file, side_to_move_white)` — derive the EP target's phase from the file index + side-to-move. Mirrors the 1.9.0 `SheetState.ep_file` semantics (white-to-move ⇒ EP target on rank 5; black-to-move ⇒ rank 2).
+- `phase_only_pseudo_legal_moves(pos, side_to_move_white, *, ep_file=None)` — the integration entry point. Iterates the side-to-move's pieces, computes per-piece destination sets via Solution B's phase-arithmetic, returns a flat list of `(from_sq, to_sq, promotion_char)` tuples in encoder sq convention. **Pure ALU-native — no python-chess, no numpy, no float.**
+
+**Acceptance gate.** `tests/test_phase_operator_alu_native.py` includes an exhaustive parity test against `board.pseudo_legal_moves` (excluding castles) on a representative corpus of 8 FENs spanning opening, middlegame, endgame, EP-active, and promotion-imminent positions. All move sets match exactly. 26 tests total; pass on first implementation.
+
+**The benchmark.**
+
+Diagnostic, not competitive. python-chess's `pseudo_legal_moves` is Cython-accelerated bitboard; the ALU-native path is pure-Python integer arithmetic. Recorded numbers (1000 iters per call site, modern workstation):
+
+| Position | python-chess | Solution B (per-piece × 16) | **ALU-native** |
+|---|---|---|---|
+| Opening (startpos) | 72.6 µs | 1967 µs | **187.8 µs** |
+| Middlegame (Italian, both castled) | 81.5 µs | 2145 µs | **250.4 µs** |
+| Endgame (K+R vs K) | 22.7 µs | 79.3 µs | **40.6 µs** |
+
+ALU-native is ~2-3× slower than Cython python-chess (expected) but **structurally faster than the existing Solution-B-per-piece-loop** because it builds the occupation field once per position instead of per-piece. The "Solution B column" times reflect the cost of repeatedly calling `occupation_field_from_board` from the `occupation_aware_moves_b` adapter — `phase_only_pseudo_legal_moves` skips that overhead.
+
+**What 1.11.0 does NOT cover.** Documented as scope for a 1.12.0+ follow-up:
+
+- **Castling.** Pure-phase castling generation needs an attack map (for the "king does not pass through attacked square" check) plus castling-rights tracking. Both representable in `Z_640` integer arithmetic but a heavier lift; deferred until a consumer needs it.
+- **Check filter.** `phasecast_is_check` already does ALU-native check detection internally but currently takes a `python-chess.Board` input. Refactoring to accept an occupation-by-piece-type dict (i.e., distinguishing "rook at this phase" from "queen at this phase") completes the closure. Until that lands, `phase_only_pseudo_legal_moves` returns truly pseudo-legal moves; consumers wanting check-filtered legal moves should pair with the existing `phasecast_is_check`.
+
+**The `Z_640` wire contract.** This subsection canonicalizes the contract for downstream consumers:
+
+| Constant | Value | Role |
+|---|---|---|
+| `MODULUS` | 640 | The cyclic group `Z_640` for phase composition |
+| `ROW_GEN` | 67 | Rank-direction generator |
+| `COL_GEN` | 7 | File-direction generator |
+| `DIAG_NE_SW_GEN` | 74 = 67+7 | NE-SW diagonal generator |
+| `DIAG_NW_SE_GEN` | 60 = 67-7 | NW-SE diagonal generator |
+| `KNIGHT_SHIFTS` | 8-tuple | Phase shifts for the 8 knight L-moves |
+| `KING_SHIFTS` | 8-tuple | Phase shifts for the 8 king/queen-step moves |
+
+`phi(r, c) = (r * 67 + c * 7) % 640` is the canonical position encoding, with `r` = chess rank (0..7, 0 = rank 1) and `c` = chess file (0..7, 0 = file a). All of these are part of `chess_spectral.phase_operators`'s public API starting in 1.11.0; they do not move without a major version bump.
+
+The "8-generator coprimality" referenced in §1, §9o, and §20.7 — clarified in §20.13 — is a **spectral** property (the 8 path-graph eigenvalues `λ_k = 2(1 - cos(πk/8))` for `k = 0..7` have irrational pairwise ratios so no modes alias), **not** an arithmetic-modular CRT decomposition. The encoder uses a single composite `Z_640` modulus, not 8 separate `Z_p` rings. This is the engine's BIP-relevant structure even though `640 = 2^7 · 5` is not a power of 2.
+
+**Implication for cross-pollination with ephemerides-spectral.** §20.10's antikythera prototype uses `Z_{2^32}` because `2^32` is a power-of-2 cyclic group with overflow semantics that match `uint32` hardware natively. `Z_640` doesn't get that "free overflow" — every `(a + b) % MODULUS` in the chess phase-operator engine is an explicit modulo op. The structural shape is the same (integer addition over a finite cyclic group), but the per-operation cost has a small fixed overhead in chess that ephemerides avoids. Worth noting if the two projects converge on a shared bit-resonant carrier design later.
+
 ---
 
 ## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary

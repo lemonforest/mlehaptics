@@ -7,6 +7,149 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] — 2026-05-04
+
+B-spike-1b from notebook §20.15 ships: **ALU-native phase-operator
+move generator**. The §11 phase-operator engine — already
+integer-arithmetic at the core, already BIP-isomorphic at the
+group-theoretic level over `Z_640` — gains a public integration
+entry point that doesn't require a `python-chess.Board` argument.
+Pure ALU-native pseudo-legal move generation for Pyodide / WASM /
+non-Python downstream consumers. No breaking changes vs 1.10.x;
+existing API surface unchanged.
+
+### Why this is the 1.11.0 ship
+
+The §20.13 audit established that the engine was already
+BIP-isomorphic — phase composition is integer addition modulo
+`Z_640`, identical in shape to BIP's `(φ_1 + φ_2) mod 2^K`. What
+was missing for downstream consumers was the integration entry
+point. Existing `occupation_aware_moves_{a,b,c}` all required a
+Board argument because they derived the occupation field, EP
+square, and castling-rights state from python-chess. Solutions B
+and C of §11.4 are pure phase arithmetic on `dict[phase, charge]`
+occupation fields; they just didn't have a public adapter that
+fed them encoder-format input directly.
+
+### Added — `occupation_field_from_pos_dict` and `ep_phase_from_ep_file`
+
+Two pure-phase adapters in
+`chess_spectral.phase_operators.occupation_field`:
+
+- `occupation_field_from_pos_dict(pos)` — encoder-format
+  `{sq: piece_char}` → `{phase: charge}`. Counterpart of the
+  existing `occupation_field_from_board(board)`. Accepts both
+  int- and str-keyed pos dicts (NDJSON convention).
+- `ep_phase_from_ep_file(ep_file, side_to_move_white)` — derive
+  the EP target's phase from the file index + side-to-move.
+  Mirrors the 1.9.0 `SheetState.ep_file` semantics (white-to-move
+  ⇒ EP target on rank 5; black-to-move ⇒ rank 2).
+
+### Added — `phase_only_pseudo_legal_moves` integration entry point
+
+New module `chess_spectral.phase_operators.alu_native` exporting:
+
+- `phase_only_pseudo_legal_moves(pos, side_to_move_white, *,
+  ep_file=None) -> list[(from_sq, to_sq, promo)]` — pure
+  ALU-native pseudo-legal move generator. Iterates pieces of the
+  side to move, dispatches to the per-piece destination
+  computations from Solution B, expands pawn promotions into 4
+  target moves (Q/R/B/N).
+- `PROMOTION_TARGETS` — `('Q', 'R', 'B', 'N')`, the canonical
+  promotion-target ordering.
+
+**Pseudo-legal in the python-chess sense:** respects piece
+geometry, occupation (own-piece blocking, opposite-charge
+capture), pawn double-push from starting rank, en passant,
+promotion. Does NOT include castling (deferred — needs attack
+map) or check filtering (deferred — needs occupation-by-piece-type
+refactor of `phasecast_is_check`).
+
+### Acceptance gate — parity vs `python-chess.pseudo_legal_moves`
+
+`tests/test_phase_operator_alu_native.py` includes a parametrized
+parity test against `board.pseudo_legal_moves` on a representative
+8-FEN corpus (opening, middlegame, endgame, EP-active,
+promotion-imminent). For every position, the move set returned by
+`phase_only_pseudo_legal_moves` matches `board.pseudo_legal_moves`
+exactly after excluding castles. **All 26 tests pass on first
+implementation.**
+
+### Diagnostic benchmark
+
+`tests/bench_phase_operator_movegen.py` measures absolute cost vs
+the existing paths:
+
+| Position | python-chess | Solution B (per-piece × 16) | **ALU-native** |
+|---|---|---|---|
+| Opening (startpos) | ~73 µs | ~1970 µs | **~190 µs** |
+| Middlegame (Italian, both castled) | ~82 µs | ~2150 µs | **~250 µs** |
+| Endgame (K+R vs K) | ~23 µs | ~80 µs | **~41 µs** |
+
+ALU-native is ~2-3× slower than Cython python-chess (expected),
+but **structurally faster than Solution-B-per-piece-loop**
+because it builds the occupation field once per position instead
+of per-piece. The value is **portability** (no python-chess
+dependency on the hot path), not raw speed against Cython.
+
+### Documented `Z_640` wire contract (notebook §20.17)
+
+The constants `MODULUS`, `ROW_GEN`, `COL_GEN`, `DIAG_NE_SW_GEN`,
+`DIAG_NW_SE_GEN`, `KNIGHT_SHIFTS`, `KING_SHIFTS` are now part of
+the public API surface (re-exported from
+`chess_spectral.phase_operators`). They do not move without a
+major version bump.
+
+§20.17 also reiterates the §20.13 clarification that the
+"8-generator coprimality" is a **spectral** property (irrational
+pairwise eigenvalue ratios), not an arithmetic-modular CRT
+decomposition. The engine uses a single composite `Z_640`
+modulus, not 8 separate `Z_p` rings. `Z_640` does not get the
+"free overflow" semantics that BIP encoding gets in `Z_{2^32}`
+(notebook §20.11) — every `(a + b) % MODULUS` is an explicit
+modulo op, cheap but not zero. Worth noting for cross-pollination
+with the antikythera-spectral / ephemerides-spectral BIP work
+which uses the power-of-2 path.
+
+### Added — 26 immolation tests in `tests/test_phase_operator_alu_native.py`
+
+- Encoder-sq ↔ chess (rank, file) round trip for all 64 squares.
+- `occupation_field_from_pos_dict` parity with
+  `occupation_field_from_board` on 8 representative FENs.
+- `ep_phase_from_ep_file` parity with `ep_phase_from_board` on
+  EP-active positions (post-1.e4, post-1.e4 d5).
+- **The acceptance gate**: parametrized parity vs python-chess
+  pseudo-legal moves (excluding castles) on the 8-FEN corpus.
+- Targeted edge cases: pawn promotion expansion (4 targets),
+  EP capture only with `ep_file` supplied, side-to-move
+  filtering, str-keyed pos dict acceptance, pseudo-legal count
+  at startpos = 20.
+
+### What this 1.11.0 does NOT do
+
+- Does not change the existing `occupation_aware_moves_{a,b,c}`
+  functions. They retain their Board-fronted signatures for
+  back-compat.
+- Does not implement castling in the ALU-native path. Pure-phase
+  castling generation is doable but needs an attack map; deferred
+  to a 1.12.0+ follow-up when a consumer needs it.
+- Does not refactor `phasecast_is_check` to take an occupation
+  dict directly. Still takes a Board; the ALU-native path's
+  output is pseudo-legal-without-check-filter. Caller is
+  responsible for downstream check filtering until the refactor
+  lands.
+- Does not modify the encoder. The 640 / 45056-dim spectral
+  payload is untouched. C parity tests pass unchanged.
+- Does not implement BIP for the encoder channels (B-spike-2;
+  next ship in the §20.15 phasing).
+
+### Notebook updates
+
+- `chess_spectral_research_notebook.md` §20.17 — implementation
+  update for B-spike-1b: scope, acceptance, benchmark numbers,
+  Z_640 wire contract, what's deferred for 1.12.0+, cross-
+  pollination notes for ephemerides-spectral.
+
 ## [1.10.0] — 2026-05-04
 
 B-spike-1a from notebook §20.16 ships: **BIP-encoded sheet block**
