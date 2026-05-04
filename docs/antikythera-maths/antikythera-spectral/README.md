@@ -2,10 +2,7 @@
 
 Hyperdimensional-computing encoder + Pyodide bridge for the Antikythera mechanism.
 
-> **Status:** v0.1.0 in active development on the
-> [`antikythera-spectral-pypi-plan`](https://github.com/lemonforest/mlehaptics/tree/antikythera-spectral-pypi-plan)
-> branch. Not yet on PyPI. Plan document:
-> [`../ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md`](../ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md).
+> **Status:** v0.3.0 on PyPI ([`antikythera-spectral`](https://pypi.org/project/antikythera-spectral/)). Active development. v0.3.0 lands the `mars_models` facade (bronze projection + Freeth-reconstruction param sets, ADR 0012) and the `bit_alu` facade (bit-packed binary HDC ALU; the new package default, with `backend="complex128"` available as v0.2.x opt-out). See [`CHANGELOG.md`](CHANGELOG.md) for per-version detail and [`../ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md`](../ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md) for the original v0.1.0 release plan.
 
 ## Subtree layout
 
@@ -40,5 +37,6 @@ file is regenerable from the `research/*.py` source, and
 ## See also
 
 - The [research notebook](../antikythera_spectral_research_notebook.md) for the project narrative.
-- The [hypothesis battery](../results/phase1_hypotheses.csv) (31 rows, current as of v0.2.0 of the research scaffold).
-- The [planning document](../ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md) for v0.1.0 release scope and rollout strategy.
+- The [hypothesis battery](../results/phase1_hypotheses.csv) (31 rows; the v0.3.0 research-scaffold rows include the Mars 38° gap audit decomposition — see [`figures/mars_38deg_gap_findings.md`](../figures/mars_38deg_gap_findings.md)).
+- The [bit-ALU benchmark + cycle-alignment investigation](../figures/bit_alu_findings.md) (v0.3.0).
+- The [planning document](../ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md) for v0.1.0 release scope (preserved as historical context; v0.2.0 / v0.3.0 deliverables tracked in [`CHANGELOG.md`](CHANGELOG.md) and [`ROADMAP.md`](ROADMAP.md)).

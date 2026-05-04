@@ -45,8 +45,10 @@ The full Bridge API is available from a Pyodide REPL with no server-side Python.
 >>> result = bridge.get_dial_state(jd_tdb=1684500.0)   # ~205 BCE
 >>> result['ok']
 True
->>> result['dials']['mars']['angle_deg']
-247.3
+>>> round(result['dials']['Metonic']['angle_deg'], 2)
+355.07
+>>> result['dials']['Mars_synodic_period_relation']['modulus']
+133
 >>> result['state']['dtype']        # v0.3.0: bridge default flipped to bit-packed
 'uint64'
 >>> result['backend']
@@ -66,10 +68,10 @@ dtype('uint64')
 # projection of the gear-ratio cyclic-group representation through the
 # pin-and-slot phase-space transform — see ADR 0012.
 >>> from antikythera_spectral import mars_models
->>> mars_models.mars_longitude_bronze(
+>>> round(mars_models.mars_longitude_bronze(
 ...     1721000.0, mars_models.FREETH_2012_MARS_PARAMS
-... )
-167.41
+... ), 2)
+124.09
 
 # Reproduce F&J 2012 Fig 39's "nearly 38°" Mars peak error from
 # the bare deferent + epicycle on the middle 7 retrogrades vs
@@ -128,11 +130,25 @@ antikythera-spectral hypotheses --csv-out -
 
 ## Bridge API
 
-[`docs/bridge_api.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/docs/bridge_api.md) is the consumer-facing contract. 28 methods grouped by purpose; each returns a Pyodide-JSON-serializable `{"ok": True, ...}` dict. Numpy arrays in return values are real-valued (`Float32` for amplitude payloads) so JS consumers can use `new Float32Array(...)` directly.
+[`docs/bridge_api.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/antikythera-spectral/docs/bridge_api.md) is the consumer-facing contract. 28 methods grouped by purpose; each returns a Pyodide-JSON-serializable `{"ok": True, ...}` dict. State-vector payloads serialise differently per backend: `backend="bit"` (v0.3.0 default) ships `state.packed_uint64` as a JSON list of integers (each ≤ 2⁶⁴-1; JS consumers can use `BigInt` or split into `uint32` pairs), while `backend="complex128"` ships `state.interleaved_f32` as `[re0, im0, re1, im1, …]` length 2·D so JS can wrap it directly in a `Float32Array`. Per-dial residues / angles are floats / ints either way and fit standard JSON.
 
 v0.3.0 extends `bridge.compare_models` with the `bronze` model name and a new optional `params` argument (`"ptolemy"` / `"freeth_2012"` / `"freeth_2021"`); v0.2.x callers continue to work unchanged. Direct Python access to the new Mars / bit-ALU primitives is via the `antikythera_spectral.mars_models` and `antikythera_spectral.bit_alu` facades — these are not part of the bridge contract (no Pyodide JSON serialization needed; numpy arrays / floats / dicts).
 
 **v0.3.0 default-backend flip.** `bridge.get_dial_state` now returns a bit-packed state by default — the `state` sub-dict has `dtype: "uint64"`, `shape: [n_words]` (= `ceil(D/64)`), `n_bits: D`, and `packed_uint64: list[int]`. `bridge.decode_dial` / `decode_to_jd` auto-detect the backend from the input shape (uint64 array → bit decoder; complex128 / interleaved-Float32 → reference decoder). v0.2.x consumers pass `backend="complex128"` to recover the legacy interleaved-Float32 shape; nothing else changes in the API. The dial residues / angles in the response are backend-independent.
+
+## Two HDC backends, one algebra
+
+The package ships two HDC backends — `complex128` (FHRR-style; the v0.2.x reference) and `bit_alu` (BSC-style; the v0.3.0 default). Both implement the **same algebraic substrate**: a cyclic-group representation of the Antikythera dials. We provide both deliberately because they sit at different points on a structural-fidelity / representation-theoretic-fidelity axis:
+
+- **`bit_alu`** shares two structural properties with the bronze mechanism that `complex128` does not. The state space is finite (`{0,1}^D` vs `ℂ^D`), and the operations (XOR, popcount, bit-rotate) are exact at the representation level rather than floating-point approximations. The bronze realises ℤ/Nℤ literally — a 53-tooth gear has 53 distinguishable rotational positions, full stop — and the binary substrate parallels that discrete substrate one level up the abstraction stack. Hardware-irreducible binary HDC is a real engineering literature (Kanerva 2009 §3 motivates BSC on this basis; Schmuck/Benini/Rahimi 2019 build bit-serial accelerators with no multiplier).
+
+- **`complex128`** is closer to the *representation-theoretic eigenbasis*. Pontryagin duality on a finite cyclic group gives the complex characters `e^{2πi·k/N}` as the natural orthonormal basis; FHRR-style binding via complex multiplication is exactly the convolution-on-characters story. So if you ask "what is the textbook eigenbasis of ℤ/Nℤ?" — that's the complex backend's home.
+
+**Important caveat we want to flag.** Neither backend matches the bronze's actual *tooth count*. Both are holographic abstractions at dimension `D = 940` or `13440`, vastly larger than any single gear's tooth count (max ~250). The bit-ALU's discreteness is a *representation-level* parallel, not a *mechanism-level* identity. We are not claiming the bit ALU is "the" irreducible bit-level translation of the Antikythera mechanism — the mechanism is irreducibly *integer-on-cyclic-groups*, and binary HDC is one of several discrete encodings of that, not a privileged one.
+
+**Why both ship.** The bit ALU is the v0.3.0 default because, in the ADR-0012 algebra-first discipline, "no FPU calls anywhere in the encode/decode path" is a meaningful purity property: floating-point introduces concepts (ULP, gradual underflow, NaN) that have zero counterpart in bronze gearing. The complex128 backend is preserved because the H-battery's algebraic identities (B-H1 round-trip, σ_day unit-operator) are most naturally stated in the FHRR / character-of-cyclic-group language, and because the complex Gaussian basis has cleaner decode behaviour for cross-talk-sensitive H-battery rows.
+
+References for the framing: Kanerva (2009, *Cognitive Computation* 1:139); Plate (1995, *IEEE TNN* 6); Schlegel/Neubert/Protzel (2022, *AI Review* 55:4523, BSC vs FHRR comparison); Schmuck/Benini/Rahimi (2019, *ACM JETC* 15, hardware-binary HDC). For the bronze: Freeth et al. 2006 *Nature* 444:587; Freeth & Jones 2012 *ISAW Papers* 4; Freeth et al. 2021 *Sci. Rep.* 11:5821.
 
 ## Hypothesis battery
 
@@ -171,7 +187,7 @@ If `antikythera-spectral` contributes to a paper or write-up, please cite both t
   title = {antikythera-spectral: Hyperdimensional-computing model of the Antikythera mechanism},
   year = {2026},
   url = {https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/antikythera-spectral},
-  version = {0.1.0}
+  version = {0.3.0}
 }
 ```
 
