@@ -28,6 +28,60 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.10 (May 2026)
+
+The §20 BSHDC spike's first ship: **BIP-encoded sheet block**.
+Integer-native form of the 1.9.0 non-Markovian aux block that
+packs the same content into 3 bytes (vs 88 bytes float64) with a
+bit-exact round trip on the legal state space. ALU-native operator
+fast paths for Pyodide / chess4D-OC / batch retrieval consumers.
+No breaking changes vs 1.9.x; both representations ride side-by-side.
+
+- **`SheetStateBIP` dataclass** — `categorical: uint16` + `halfmove_clock: uint8`.
+  ~29× smaller than the 1.9.0 float64 path. Round-trip exact
+  for all 87,264 legal sheet states (864 categorical × 101
+  half-move) — verified exhaustively in
+  `tests/test_sheets_bip.py`. The Z₁₀₁ half-move stays in its
+  own `uint8` slot per §19.4's "structural split" finding (no
+  embedding into Z₁₂₈ that would introduce a wrap discontinuity).
+
+- **Operator fast paths** — single-integer-op queries against the
+  categorical portion: `castling_alive`, `kingside_castling_alive`,
+  `ep_target_active`, `fifty_move_rule_triggered`,
+  `threefold_claimable`, etc. Each is a bit-mask + comparison,
+  no FPU.
+
+- **Distance metrics** — `hamming_distance_categorical(a, b)`
+  for corpus-similarity retrieval where binary state distinctions
+  matter (sharper than float cosine-sim for the categorical
+  portion). `halfmove_distance(a, b)` for the integer Z₁₀₁ slot.
+
+- **Bridge surface** — `chess_spectral_4d.bridge.get_sheet_state_bip` /
+  `encode_sheet_aux_bip` / `decode_sheet_state_from_bip`. All
+  numpy-free across the WASM boundary; integers cross the
+  Pyodide bridge directly.
+
+- **Where BIP wins**: Pyodide / WASM consumers (50-100×), batch
+  retrieval over saved corpora (~3 orders of magnitude),
+  Hamming-distance corpus filtering, future v5 mode-2 XOR-stream
+  wire format compression. **Where it doesn't**: single-position
+  depth-1 queries (per §19.10's bitboard floor — bit-shift +
+  AND can't undercut python-chess's `int & mask` either).
+
+- **35 new immolation tests** (`tests/test_sheets_bip.py`) lock
+  the 87,264-case exhaustive round trip, the 8-operator parity
+  vs the 1.9.0 SheetState path, the Hamming-distance behavior
+  (including the subtle case that rep=1 vs rep=2 differ in 2
+  bits, not 1, due to binary representation), the bridge
+  round-trip, and the python-chess + GameState4D factory
+  parities.
+
+This is **B-spike-1a** in the notebook §20.15 three-tier phasing.
+B-spike-1b (promote §11 phase-operator engine to public API)
+remains independent and can ship separately. B-spike-2 (encoder
+BIP-hybrid) depends on the bit-packing patterns this 1.10.0
+establishes.
+
 ## What's new in v1.9 (May 2026)
 
 The §19 spike's Phase-1 sheet block ships as a

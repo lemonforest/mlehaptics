@@ -7,6 +7,152 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] — 2026-05-04
+
+B-spike-1a from notebook §20.16 ships: **BIP-encoded sheet block**
+(integer-native form of the 1.9.0 non-Markovian aux block, ~29×
+compression with bit-exact round trip on the legal state space).
+No breaking changes vs 1.9.x. Same algebraic content, smaller
+storage footprint, ALU-native operator fast paths.
+
+### Why this is the 1.10.0 ship
+
+The 1.9.0 sheet block ships an 11-dim float64 aux block (88 bytes
+per position) for content that is overwhelmingly *categorical* —
+4 castling bits + 1 EP-active + 3 EP-file + 1 side-to-move +
+2 repetition + Z₁₀₁ halfmove (cos/sin pair). The new BIP
+representation packs the same content into **3 bytes** (uint16
+categorical + uint8 halfmove). Notebook §20.10-§20.16 captures
+the prior art (Gemini's `bip_instrument.py` antikythera prototype:
+305× speedup, 0.011° error = static-Laplacian propagator floor,
+NOT bit-serialization loss) and the chess synthesis (sheets are
+unique to chess; ephemerides has no non-Markov state to learn
+from). The first move of the §20.15 three-tier B-spike phasing.
+
+### Where BIP wins vs the 1.9.0 float path
+
+- **Pyodide / chess4D-OC consumers** — direct uint16 bit-ops are
+  native to JavaScript Number / WASM; no Python interpreter
+  overhead, no `python-chess.Board` reconstruction. ~50-100×.
+- **Batch retrieval over saved corpora** — filtering 10,000
+  stored vectors for "any castling alive" is one numpy
+  `cats[:] & 0xF` against a packed corpus, vs 10,000
+  `python-chess.Board(fen)` reconstructions. ~3 orders of magnitude.
+- **Hamming-distance similarity** on the categorical portion is
+  sharper than float cosine-sim for binary state.
+- **Wire format** — v5 mode-2 XOR-stream compression of sheet
+  bits is now natively the right shape. Each ply changes few
+  categorical bits; `categorical XOR previous_categorical` is
+  mostly zero, compresses well.
+
+### Where BIP does NOT win — depth-1 floor still holds
+
+Per §19.10, single-position queries on python-chess (one
+`int & mask` for castling, one attribute load for EP) cannot be
+undercut by float-numpy slice + decode. **The same floor applies
+to BIP's bit-shift + AND.** Both are at the per-call latency
+floor. BIP's wins are at scale, not at single-call latency.
+
+### Added — `chess_spectral.sheets_bip` module
+
+- `SheetStateBIP` dataclass (frozen): two integer fields
+  (`categorical: uint16`, `halfmove_clock: uint8`). Bounds-checked
+  on construction (rejects out-of-range values, non-zero reserved
+  bits).
+- `encode_sheet_state_bip(state) -> SheetStateBIP` — convert
+  1.9.0 `SheetState` to BIP form. Edge-case handling matches
+  1.9.0 (clamp halfmove > 100, saturate repetition > 2,
+  ep_file=None encodes as ep_active=0 + ep_file=0).
+- `decode_sheet_state_bip(packed) -> SheetState` — lossless
+  inverse on the legal state space.
+- **Round-trip exact**: 87,264 cases verified by
+  `tests/test_sheets_bip.py` (864 categorical × 101 halfmove).
+
+### Added — operator fast paths
+
+Single-integer-op queries against the categorical portion:
+
+- `castling_alive(packed) -> bool` — any castling right alive
+- `kingside_castling_alive(packed)` / `queenside_castling_alive`
+- `white_castling_alive` / `black_castling_alive`
+- `ep_target_active(packed) -> bool` — ep_active bit
+- `ep_file_from_bip(packed) -> Optional[int]` — file 0..7 or None
+- `side_to_move_white_from_bip(packed) -> bool`
+- `repetition_count_from_bip(packed) -> int` — 0/1/2
+- `fifty_move_rule_triggered(packed) -> bool` — halfmove ≥ 100
+- `threefold_claimable(packed) -> bool` — repetition ≥ 2
+
+Each is a single bit-mask + comparison; no FPU, no Python-loop
+overhead.
+
+### Added — distance metrics
+
+- `hamming_distance_categorical(a, b) -> int` — Hamming distance
+  over the 11 categorical bits. Useful for corpus-similarity
+  retrieval where binary state distinctions matter (positions
+  with different castling rights vs same).
+- `halfmove_distance(a, b) -> int` — absolute integer difference
+  of half-move clocks (one-sided metric on Z₁₀₁).
+
+### Added — bridge surface (`chess_spectral_4d.bridge`)
+
+Three new functions for chess4D-OC / Pyodide consumers; numpy-
+free across the WASM boundary:
+
+- `bridge.get_sheet_state_bip(state_or_board)` — returns
+  `{"ok": True, "sheet_bip": {"categorical": int,
+  "halfmove_clock": int}}`. Dispatches on `GameState4D` vs
+  python-chess Board.
+- `bridge.encode_sheet_aux_bip(sheet_dict)` — serialize a sheet
+  dict to BIP form. Returns `{"categorical": int (uint16),
+  "halfmove_clock": int (uint8)}`.
+- `bridge.decode_sheet_state_from_bip(categorical, halfmove_clock)`
+  — inverse. Validates input ranges before decoding.
+
+### Added — 33 immolation tests in `tests/test_sheets_bip.py`
+
+- Exhaustive 87,264-case round trip (864 categorical × 101
+  halfmove) — the load-bearing acceptance gate.
+- Operator fast-path parity vs the 1.9.0 SheetState across the
+  full state space (8 operators × 864 × 6 halfmove samples).
+- Edge cases: ep_file=None, halfmove clamp at 100, repetition
+  saturation at 2, reserved-bit zero invariant.
+- Distance metrics: Hamming self-distance zero, Hamming castling
+  one-bit diff, full-state distance counts correctly accounting
+  for binary representation of the repetition field (rep=2 sets
+  only bit 10, not 2 bits).
+- python-chess Board factory parity (startpos, post-e4 EP).
+- 4D `GameState4D` factory parity (canonical Oana-Chiru §3.3
+  startpos).
+- Bridge round trip (state → encode → decode → equality).
+- Bridge error cases (missing fields, invalid ranges,
+  unrecognized input types).
+
+### What this 1.10.0 does NOT do
+
+- Does not modify the 1.9.0 float64 sheet block. Both
+  representations ship side-by-side.
+- Does not enter the v5 wire format. Wire-format integration
+  (the natural follow-up given mode-2 XOR-stream's affinity for
+  the BIP categorical packing) is still deferred per §19.12;
+  picks up when a downstream consumer needs persisted BIP-
+  encoded sheet frames.
+- Does not change the encoder. The 640 / 45056-dim spectral
+  payload is untouched. C parity tests pass unchanged.
+- Does not promote the §11 phase-operator engine to public API.
+  That's B-spike-1b in the §20.15 phasing; independent of this
+  ship and can land separately when prioritized.
+- Does not implement BIP for the encoder channels themselves.
+  That's B-spike-2 (encoder hybrid), which depends on the
+  bit-packing patterns this 1.10.0 establishes.
+
+### Notebook updates
+
+§20.10-§20.16 already shipped in PR #159 (the research artifact
+preceding this implementation). 1.10.0 ships against the §20.16
+implementation plan as written; no additional notebook updates
+needed for this version.
+
 ## [1.9.1] — 2026-05-04
 
 Polish on top of v1.9.0. README PyPI examples updated to use the
