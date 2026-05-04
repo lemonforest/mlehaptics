@@ -40,6 +40,10 @@
       "sha256": "74d5c1de3550be33e605a5e0e5c695f84fc741bcaddd7d1ab82c4d85d0860ea5",
       "size_bytes": 18766
     },
+    "_research/bit_alu.py": {
+      "sha256": "67c680afed30cf0c44e13f26d0e5a0b067678a1edb892275477a4fd69f03466f",
+      "size_bytes": 16679
+    },
     "_research/consolidated_tests.py": {
       "sha256": "ed67c39c8126e006dd233042139b9c6913dfe3db675e19e74fe6f57945187b87",
       "size_bytes": 63870
@@ -127,6 +131,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "6075299bb1029c291c61db6698dddb5a900e58bf",
+  "source_commit": "1baba857aaf6b49e2e80db3b61c5cad29d6db10c",
   "version": "0.3.0"
 }
