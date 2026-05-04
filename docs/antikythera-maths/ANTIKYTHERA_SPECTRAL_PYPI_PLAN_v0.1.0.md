@@ -531,7 +531,7 @@ After folding the original v0.2 set in, the following remain on the backlog:
 
 ## 12. DE-kernel comparator note
 
-JPL has not released DE442, DE443, or DE444 (as of 2026-04-29). Current sequence: DE438, DE440, DE441 — DE441 (Park et al. 2021) is the long-coverage current best.
+JPL has not released DE442, DE443, or DE441 (as of 2026-04-29). Current sequence: DE438, DE440, DE441 — DE441 (Park et al. 2021) is the long-coverage current best.
 
 `compare_ephemerides(jd, body, kernel_a, kernel_b)` covers any pair of allowlisted kernels. The genuinely useful Hellenistic-era comparison is **DE441 vs DE422** (both reach -200 BCE) or **DE441 vs DE421** (long vs modern-only, to show the modern-only kernel breaks down outside 1899–2053).
 

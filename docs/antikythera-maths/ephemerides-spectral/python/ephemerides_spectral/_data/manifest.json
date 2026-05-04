@@ -1,0 +1,30 @@
+{
+  "files": {
+    "_research/__init__.py": {
+      "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
+      "size_bytes": 318
+    },
+    "_research/bip_instrument.py": {
+      "sha256": "f8d1961b6b167cf7b2aa8a83ba03502b84c0a0e69e49e92e453c8153036e40e4",
+      "size_bytes": 18963
+    },
+    "_research/bodies.py": {
+      "sha256": "c1ce3810d2a7a3b5935966e8f5d61b5b7ccbba0f2831b6043150d3b543f5b186",
+      "size_bytes": 1998
+    },
+    "_research/ephemeris_loader.py": {
+      "sha256": "cc025d703e393d6062a94a6a0427400736dc5bd0ef213db217c762ae67946b7b",
+      "size_bytes": 14878
+    },
+    "_research/ephemeris_reference_instrument.py": {
+      "sha256": "90f5bfbb94090644a3237a0bcc7f54eb9c96ff01a96d1ac9fc846d5b5b98b464",
+      "size_bytes": 10897
+    },
+    "_research/laplacian.py": {
+      "sha256": "3cd93c7adbc8e732f580552463bbd7e7488999639aa4e004f3e057e8d7e09ad3",
+      "size_bytes": 6088
+    }
+  },
+  "package": "ephemerides-spectral",
+  "version": "0.1.0rc1"
+}

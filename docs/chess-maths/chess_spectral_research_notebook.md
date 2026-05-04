@@ -3635,6 +3635,18 @@ After 1.12.0 ships, the §20.15 phasing table looks like this:
 
 Three of the five phases shipped within ~3 days from the §20 spike's first sketch. The chess-side BSHDC stack is now substantially complete for representation purposes; B-spike-3's tournament-driven validation is the natural next ship if a downstream consumer cares about runtime speedup at search-evaluation scale. B-spike-4 remains parked behind clear empirical motivation.
 
+### 20.20. Sibling project — `ephemerides-spectral`
+
+The "antikythera prototype" referenced from §20.10 onward grew up into its own standalone project, `ephemerides-spectral`, which now lives beside the antikythera-spectral notebook in the same folder:
+
+- **Notebook:** [`../antikythera-maths/ephemerides_spectral_research_notebook.md`](../antikythera-maths/ephemerides_spectral_research_notebook.md)
+- **Package:** [`../antikythera-maths/ephemerides-spectral/`](../antikythera-maths/ephemerides-spectral/) (`pip install ephemerides-spectral`)
+- **Evaluation note:** [`../antikythera-maths/research/resonant_bit_serialized_hdc_evaluation.md`](../antikythera-maths/research/resonant_bit_serialized_hdc_evaluation.md)
+
+Where the chess engine encodes a discrete board topology (`Z_640`), `ephemerides-spectral` encodes the live JPL DE441 ephemeris over `Z_{2^32}`. Phase 9 of that project ships the breathing-Laplacian construction sketched in §20.10–§20.12: the off-diagonal gravitational fiber couplings modulate as `cos(n_a·φ_a − n_b·φ_b)`, evaluated through a 1024-entry `int32` cosine LUT (Q1.14, 4 KB). Same cyclic-group integer ALU, same Q-format discipline, same overflow envelope philosophy as the chess `phase_operators` engine — just with a power-of-2 modulus that turns the modular reduction into free `uint32` overflow.
+
+The §20.18 cross-pollination note above gives the chess-side framing for why the two projects diverge on what's quantized vs what's exact (chess channels carry both phase and magnitude; ephemerides is pure-phase). The two projects are intentionally not merged — chess and ephemeris evidentiary objects are different (a board game's rule structure vs the gravitational N-body problem), and consolidating would muddle the per-project hypothesis batteries — but they are expected to share the *encoding-pattern* layer over time. The cosine LUT, the Q-format scaling rules, the int64 saturation envelope check, and the cyclic-group binding semantics are project-agnostic and worth porting as-needed.
+
 ---
 
 ## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary
