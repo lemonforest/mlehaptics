@@ -1,0 +1,23 @@
+title: Antikythera mathematics
+
+# Two research notebooks (the bronze antikythera mechanism and the
+# JPL DE441 ephemerides instrument) flanked by their PyPI packages
+# (antikythera-spectral, ephemerides-spectral) and the underlying
+# research code. Older planning / instructions docs come last.
+
+nav:
+  - antikythera_spectral_research_notebook.md
+  - ephemerides_spectral_research_notebook.md
+  - antikythera-spectral
+  - ephemerides-spectral
+  - research
+  - figures
+  - results
+  - scripts
+  # Planning + agent-handoff docs at the bottom; useful for project
+  # archaeology but not high-priority reading.
+  - ANTIKYTHERA_SPECTRAL_INSTRUCTIONS.md
+  - ANTIKYTHERA_SPECTRAL_PYPI_PLAN_v0.1.0.md
+  - ANTIKYTHERA_SPECTRAL_BUILD_PROMPT.md
+  - ANTIKYTHERA_PHASE_OP_PREFLIGHT.md
+  - SESSION_HANDOFF.md

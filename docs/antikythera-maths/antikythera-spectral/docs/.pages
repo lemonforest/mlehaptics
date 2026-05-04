@@ -1,0 +1,12 @@
+title: Package docs
+
+# bridge_api is the highest-traffic page in this subdir; everything
+# else is supporting reference material.
+
+nav:
+  - bridge_api.md
+  - CALENDAR_SYSTEMS.md
+  - DELTA_T_MODEL.md
+  - EPHEMERIS_KERNELS.md
+  - OPERATOR_WORKFLOW.md
+  - adr

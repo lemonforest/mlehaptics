@@ -21,6 +21,24 @@ Every strand reads as an instance of a single mathematical pattern:
 
 Power-of-2 moduli (`Z_{2^32}` for ephemerides) collapse the modular reduction into free `uint32` overflow — the architecture of choice for embedded targets. Non-power-of-2 moduli (`Z_640` for chess) pay an explicit `% n` per op but unlock different symmetries in the spectral domain. The same algebraic machinery, two cost-model trade-offs.
 
+## UTLP — the cross-cutting protocol
+
+The **Universal Time Lord Protocol** is the timing primitive that ties the EMDR firmware to the broader research thread. It's a transport-agnostic, *connectionless* time-synchronisation protocol: distributed nodes share a common "atomic time" reference without pairing or handshaking, by emitting and listening to short broadcast chirps. Any node can become Genesis; consensus is local; no master required.
+
+UTLP is what lets the EMDR pulser hit ±100μs bilateral coordination over ESP-NOW. The protocol itself is general — applicable to any swarm of broadcast-capable nodes — and the chirp pattern (3-burst beacons that yield offset, drift, and stability in one transaction) sits in the same spectral family as the cyclic-group encoders above. See [`docs/misc/`](misc/UTLP_Executive_Summary.md) for the full corpus:
+
+| Document | What it covers |
+| :--- | :--- |
+| [Executive summary](misc/UTLP_Executive_Summary.md) | 30-second architecture, the layer stack, the seismic-chirp beacon |
+| [Specification](misc/UTLP_Specification.md) | Full protocol spec |
+| [Supplement S1](misc/UTLP_Technical_Supplement_S1.md) – [S4](misc/UTLP_Technical_Supplement_S4.md) | Genesis election, phase alignment, trust ledger, immunity |
+| [Reference-frame-independent positioning addendum](misc/UTLP_Addendum_Reference_Frame_Independent_Positioning.md) + [RFIP spec](misc/RFIP_Technical_Specification.md) | Position from timing alone |
+| [SMSP spec](misc/SMSP_Technical_Specification.md) | Sister Multi-Strand Protocol — the sensing-side companion |
+| [Connectionless distributed timing — prior art](misc/Connectionless_Distributed_Timing_Prior_Art.md) | Survey of related work |
+| [Python reference implementation](misc/Python_Reference_Implementation.md) | Side-car implementation for testing |
+| [Distributed sensing lab manual](misc/Distributed_Sensing_Lab_Manual.md) | Field-test setup |
+| [Complete documentation suite](misc/UTLP_RFIP_Complete_Documentation_Suite.md) | 14k-line omnibus reference |
+
 ### Sibling-folder discipline
 
 `antikythera-spectral` and `ephemerides-spectral` live in the same folder (`docs/antikythera-maths/`) because they share the cyclic-group / Laplacian-eigenbasis framing and the Pyodide bridge contract. They are *not* consolidated: the bronze mechanism and the JPL DE441 ephemeris are separate evidentiary objects, and merging the per-project hypothesis batteries would muddle the claim structure. The research notebooks cross-link explicitly.
@@ -42,6 +60,26 @@ See [`ephemerides_spectral_research_notebook.md` §1.4](antikythera-maths/epheme
 | `antikythera-spectral` | [![PyPI](https://img.shields.io/pypi/v/antikythera-spectral.svg)](https://pypi.org/project/antikythera-spectral/) | `pip install antikythera-spectral` |
 | `ephemerides-spectral` | [![PyPI](https://img.shields.io/pypi/v/ephemerides-spectral.svg)](https://pypi.org/project/ephemerides-spectral/) | `pip install ephemerides-spectral` |
 | `chess-spectral` | [![PyPI](https://img.shields.io/pypi/v/chess-spectral.svg)](https://pypi.org/project/chess-spectral/) | `pip install chess-spectral` |
+
+## Live demos & companion projects
+
+External resources that aren't part of this repo but are referenced from it:
+
+| Resource | What it is |
+| :--- | :--- |
+| [MLE Haptics PWA](https://lemonforest.github.io/mlehaptics-pwa/) | Web Bluetooth control app for the EMDR pulser — device configuration + monitoring + pattern playback |
+| [Chess-maths The Movie](https://lemonforest.github.io/chess-maths-the-movie/) | In-browser spectral-analysis instrument for chess corpora produced by `chess-spectral` |
+| [python-chess4d-oana-chiru](https://github.com/lemonforest/python-chess4d-oana-chiru) | Python implementation of Oana & Chiru's 4D chess (companion repo to `chess-spectral` 4D) |
+| [mlehaptics.org](https://mlehaptics.org) | Project landing site |
+
+## EMDR clinical research
+
+The EMDR pulser operates within evidence-based bilateral-stimulation parameters. The clinical literature behind those parameters lives in two research docs:
+
+| Document | Scope |
+| :--- | :--- |
+| [Evidence-Based Parameters for Clinical Practice](EMDR_bilateral_stimulation_Evidence-based_parameters_for_clinical_practice.md) | EMDRIA guidelines · 0.5–2 Hz frequency range · modality comparisons (eye movements *d* = 0.41–0.91) · brainwave entrainment · contraindications · commercial device specs |
+| [The Slow Frequency Research Frontier](EMDR_Slow_BLS_Research_Frontier.md) | Sub-0.5 Hz BLS as an undefined research gap · cardiac coherence (0.1 Hz) · breathing synchronization (0.25 Hz) · infraslow oscillations · proposed frequency taxonomy |
 
 ## Architecture decision records
 

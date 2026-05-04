@@ -1,0 +1,20 @@
+title: Chess mathematics
+
+# Two notebooks (2D and 4D) lead, then the chess-spectral package,
+# then the supplements and instructional docs.
+
+nav:
+  - chess_spectral_research_notebook.md
+  - chess_spectral_4d_notebook.md
+  - chess-spectral
+  - phase_operators
+  - ENCODERS.md
+  - dimensional_piece_composites.md
+  - PHASE_OPERATOR_SUPPLEMENT.md
+  - PHASE_OPERATOR_SUPPLEMENT_12.md
+  - PHASE_OPERATOR_SUPPLEMENT_4D.md
+  - ADDRESSING_MATHS_APPENDIX.md
+  - CHESS_SPECTRAL_INSTRUCTIONS.md
+  - dataset
+  - dataset-place
+  - prompts
