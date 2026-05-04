@@ -20,7 +20,7 @@ Both backends implement the same algebraic substrate (cyclic-group representatio
 ### Key Capabilities
 
 - **Graph Laplacian Propagator:** Diagonal content = Newtonian mean motions + Mercury 43"/century post-Newtonian correction. Off-diagonal = gravitational fiber couplings (planet-sun, moon-planet, J–S 5:2 resonance, asteroid-Jupiter).
-- **Phase 9 Breathing Couplings:** Off-diagonal weights modulate with the resonant phase difference `cos(n_a·φ_a − n_b·φ_b)`. Implemented end-to-end without FPU using a 1024-entry `int32` cosine LUT (Q1.14 amplitude, 4 KB).
+- **Phase 9 "Breathing" Couplings:** Off-diagonal weights modulate with the resonant phase difference `cos(n_a·φ_a − n_b·φ_b)`. Formally a **state-dependent (non-autonomous) graph Laplacian** / **adaptive Kuramoto-family network with phase-difference-dependent coupling** — see the [research notebook §1.4](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides_spectral_research_notebook.md#14-mathematical-positioning-of-the-breathing-laplacian) for the full positioning across spectral-graph-theory / dynamical-systems / DNLS-on-a-graph vocabularies. Implemented end-to-end without FPU using a 1024-entry `int32` cosine LUT (Q1.14 amplitude, 4 KB).
 - **Sol Star System Roster:** 26 bodies — Sun, planets (incl. Pluto), 12 major moons, 4 main-belt asteroids.
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors at any (lat, lon) on any body.
 - **Spectral Syzygy Detection:** Inner product with the Syzygy Operator (Sun + Moon + lunar Node) gives an eclipse / conjunction probability.

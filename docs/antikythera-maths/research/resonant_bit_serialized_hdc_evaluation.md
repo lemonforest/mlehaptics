@@ -101,9 +101,11 @@ Phase 9 attacks the LTI limit (§7.1) by making the `SolarSystemLaplacian` *brea
 ### 8.1 Breathing Couplings (Algebraic Form)
 The static fiber coupling $W_{ij}$ between two bodies is replaced by a phase-dependent form:
 
-$$W_{ij}(t) = W_{ij}^{(0)} \cdot \left(1 + \alpha \cos(n_{ij} \phi_i(t) - m_{ij} \phi_j(t))\right)$$
+$$W_{ij}(\phi) = W_{ij}^{(0)} \cdot \left(1 + \alpha \cos(n_{ij} \phi_i - m_{ij} \phi_j)\right)$$
 
 where $(n_{ij}, m_{ij})$ is the resonance ratio (e.g. $5{:}2$ for the Jupiter–Saturn Great Conjunction) and $\alpha$ is the modulation depth (10% in the prototype). This is the "fiber bundle" framing applied at the level of the propagator: the connection form depends on where in the bundle you are, not just on the static graph topology.
+
+**Mathematical positioning.** The Phase-9 phrase "breathing Laplacian" is a project codename. The formal name is **state-dependent (non-autonomous) graph Laplacian**: the matrix $L = L(\phi(t))$ depends on the current state, so $\dot\psi = -i L(\phi)\,\psi$ is no longer a single matrix exponential but a chunk-wise integration. Equivalently, in the dynamical-systems literature this is an **adaptive Kuramoto-family network with phase-difference-dependent coupling (PDDP)**: standard Kuramoto fixes $K_{ij}$ and varies $\phi$; we let $K_{ij}$ be a smooth function of $(\phi_i, \phi_j)$. The **vibrating-lattice intuition** (the instantaneous spectrum of $L(\phi)$ defines phonon-like normal modes at each instant) is correct as a static-snapshot picture; the dynamics, however, is 1st-order phase rotation rather than 2nd-order Newtonian, so "vibrating lattice" describes the snapshot but not the flow. See the ephemerides notebook §1.4 for the full positioning across the three vocabularies (spectral graph theory / dynamical systems / DNLS-on-a-graph) and the connection to nonlinear-mode bookkeeping a future Hamilton/Delaunay derivation would unlock.
 
 ### 8.2 ALU-Native Implementation
 The breathing term is implemented without exiting the integer ALU. The continuous $\cos(\cdot)$ is replaced by a precomputed integer cosine LUT (1024 × `int32`, Q1.14 amplitude) keyed on the top 10 bits of the residue $(n_{ij} \phi_i - m_{ij} \phi_j) \bmod 2^{32}$. The modulation is then applied as integer scaling:

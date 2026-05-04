@@ -2,7 +2,7 @@
 
 **Authors:** Gemini CLI (initial scaffolding); Steven Kirkland & Claude Opus (Phase 9 ALU-native)
 **Date:** May 2026 (initial); finalised April 2026
-**Status:** Phase 5–9 implemented; CLI + bridge surface stable; v0.1.0 RC published to TestPyPI.
+**Status:** Phase 5–9 implemented; CLI + bridge surface stable. **v0.1.0 shipped to PyPI on 2026-05-04** — `pip install ephemerides-spectral`.
 
 > Living document. Sibling to:
 > - [./antikythera_spectral_research_notebook.md](./antikythera_spectral_research_notebook.md) — **same-folder sibling.** Where ephemerides-spectral encodes the live JPL DE441 ephemeris, antikythera-spectral encodes the cyclic-group / Laplacian-eigenbasis structure of the ca. 150–60 BCE bronze mechanism. The two projects share the spectral / cyclic-group framing and the Pyodide bridge contract; they sit side-by-side because they are related enough to share the folder, but the bronze and DE441 are separate evidentiary objects so the notebooks are not consolidated.
@@ -36,6 +36,34 @@ Eclipses and conjunctions are not "searched" in the traditional sense; they are 
 $$P_{syzygy} = \langle H_{sys}, S \rangle$$
 This treats high-precision astronomical events as primary spectral signatures within the HDC space.
 
+### 1.4 Mathematical positioning of the "breathing Laplacian"
+
+The Phase-9 phrase **"breathing Laplacian"** is a project codename. This subsection names the formal mathematical objects so a reader from spectral graph theory, dynamical systems, or solid-state physics can place the construction in the literature their discipline already proves theorems about.
+
+**The static piece.** The Phase-8 Laplacian is a Hermitian matrix on the body-interaction graph $G = (V, E)$ with $|V| = 26$ bodies:
+
+$$L_{\text{LTI}} = L_{\text{trunk}} + L_{\text{PN}} + L_{\text{static}}$$
+
+where $L_{\text{trunk}}$ is the diagonal of mean motions $\omega_i = 2\pi / P_i$, $L_{\text{PN}}$ is the Mercury post-Newtonian correction, and $L_{\text{static}}$ is the symmetric off-diagonal of gravitational fiber weights. Evolution is the Schrödinger-like flow $\psi(t) = e^{-i L_{\text{LTI}} t} \psi(0)$ on the cyclic-group manifold.
+
+**The dynamic piece.** Phase 9 promotes the off-diagonal weights to functions of the current phase state:
+
+$$W_{ij}(\phi) = W_{ij}^{(0)} \cdot \bigl(1 + \alpha \cos(n_{ij} \phi_i - m_{ij} \phi_j)\bigr)$$
+
+so the Laplacian itself becomes state-dependent: $L = L(\phi(t))$. The flow is no longer a single matrix exponential — it is integrated chunk-wise in 30-day steps with $L$ recomputed each chunk.
+
+**What this is, in three vocabularies.**
+
+* **Spectral graph theory / linear algebra.** A **state-dependent (non-autonomous) graph Laplacian.** The instantaneous spectrum of $L(\phi(t))$ defines the system's normal modes at each instant; the dynamics evolves through these modes as $\phi$ re-organises. This is the "vibrating-lattice" intuition formalised — at every instant we have a bona-fide lattice with bona-fide phonon-like modes; what changes is the Hamiltonian itself.
+
+* **Dynamical systems / synchronisation theory.** An **adaptive Kuramoto-family network with phase-difference-dependent (PDDP) coupling.** Standard Kuramoto fixes $K_{ij}$ and varies $\phi$; we vary both, with $K_{ij}$ a smooth function of $(\phi_i, \phi_j)$. The literature calls this *adaptive coupling* or *plastic coupling*, with a substantial body of synchronisation-resilience results we can lean on (Berner et al. on adaptive phase oscillators; Sakaguchi-style PDDP rules).
+
+* **Physics framing.** A **resonance-modulated coupling** of phase oscillators, structurally analogous to the **Discrete Nonlinear Schrödinger / Gross-Pitaevskii equation on a graph** in the limit where amplitudes are pinned to unit norm and only phases evolve. The coupling kernel $\cos(n\phi_i - m\phi_j)$ is the standard $n{:}m$-resonance lobe; that we model the J–S 5:2 with $\alpha = 0.1$ is a phenomenological choice, not derived from a Lagrangian. A first-principles derivation would route through Hamilton's equations on the Delaunay variables — out of scope for v0.1.0; flagged as future work.
+
+**Why "breathing" is metaphor, not vocabulary.** The codename captures the rhythm — coupling strengths inhale and exhale with the resonant-phase angle — but it does not connect to the literature's existing theorems. **State-dependent graph Laplacian** is the name to grep for in spectral-graph papers; **adaptive Kuramoto network** is the name to grep for in synchronisation papers; **vibrating lattice** captures the right *intuition* (phonon-like instantaneous spectrum) but is a 2nd-order Newtonian framing, whereas our flow is 1st-order phase rotation. We use "breathing" in headings and section labels for project continuity, and the precise vocabulary in prose so future readers can find their way out of our codename and into the canonical literature.
+
+**What about a true vibrating-lattice formulation?** The Phase-8 propagator $e^{-iLt}$ on the cyclic-group manifold is *isomorphic* to the linear-phonon propagator on a 1D ring lattice in the eigenmode basis: each mode rotates at its eigenvalue. The Phase-9 modification then plays the role of *phonon–phonon scattering* (anharmonic coupling). If we ever want to study energy transfer between modes — Fermi-Pasta-Ulam-Tsingou-style equipartition, soliton-on-a-ring, etc. — that is the framing to import. v0.1.0 stops short of any nonlinear-mode bookkeeping; we evolve in the body-index basis, not the eigenmode basis.
+
 ## 2. Implementation & Validation
 
 ### 2.1 The ephemerides-spectral Package
@@ -61,4 +89,9 @@ The prototype successfully:
 - **Resonant Bit-Serialized Hardware:** Port the BIP integer-only evolution to bit-serial hardware simulations (Verilog/SystemC). The cosine LUT becomes block RAM; the `omega * step` multiply becomes a fixed-precision multiplier.
 - **Multi-Millennium Sweep:** Re-derive the historical anchors for the Metonic and Saros cycles against the DE441 "Sky Ground Truth", with breathing couplings active.
 - **CORDIC Topocentric Rendering:** The cosine LUT is the first half of a CORDIC observer-binding pipeline; the rotation half can subsume the topocentric `lat/lon` bind.
-- **PyPI Release:** `ephemerides-spectral-publish.yml` ships TestPyPI dispatch + tag-push to PyPI via OIDC trusted publishing; release-candidate builds exercise both wheel and sdist before any public version is cut.
+- **First-Principles Phase-9 Derivation:** v0.1.0's $\alpha = 0.1$ J–S breathing depth is phenomenological. Deriving the modulation depth from a Hamilton/Delaunay-variable Lagrangian (with Lie-series perturbation theory around the 5:2 resonance) would replace the placeholder with a first-principles value. Connects to the adaptive-Kuramoto literature on derived-from-physics PDDP rules (cf. §1.4).
+
+## 4. Release History
+
+* **v0.1.0** — 2026-05-04. First PyPI release. Phases 5–9 frozen into the wheel: 26-body Sol Star System Laplacian, LTI propagator (Phase 8 baseline), state-dependent breathing couplings (Phase 9), ALU-native BIP encoder (305× speedup, 256 KB state), integer cosine LUT for the off-diagonal modulation, fixed-point Q-format frequency discipline, scoped overflow trap. Two backends: `bip` (default, integer ALU) and `complex128` (FPU reference). Rich CLI (9 subcommands) + Pyodide-friendly bridge. Live: <https://pypi.org/project/ephemerides-spectral/0.1.0/>.
+* **v0.1.0rc1** — 2026-05-04. TestPyPI release candidate. Round-tripped clean; published under OIDC trusted publishing. Live: <https://test.pypi.org/project/ephemerides-spectral/0.1.0rc1/>.
