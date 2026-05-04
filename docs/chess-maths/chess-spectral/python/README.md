@@ -28,6 +28,62 @@ The pieces ship under two top-level packages:
   encoder so the 4D-rules concerns don't bleed into the spectral
   math.
 
+## What's new in v1.11 (May 2026)
+
+The §20.15 second-tier ship: **ALU-native phase-operator move
+generator**. The §11 phase-operator engine — already integer-
+arithmetic at the core, already BIP-isomorphic at the group-
+theoretic level over `Z_640` — gains a public integration entry
+point that doesn't require a `python-chess.Board` argument. Pure
+ALU-native pseudo-legal move generation for Pyodide / WASM /
+non-Python downstream consumers. No breaking changes vs 1.10.x.
+
+- **`phase_only_pseudo_legal_moves(pos, side_to_move_white,
+  ep_file=...)`** — new integration entry point. Iterates the
+  side-to-move's pieces, computes per-piece destination sets via
+  Solution B's phase-arithmetic, returns a flat list of
+  `(from_sq, to_sq, promotion_char)` tuples in encoder sq
+  convention. Pseudo-legal in the python-chess sense (respects
+  piece geometry, occupation, double-push, en passant, promotion
+  expansion); caller filters check.
+
+- **`occupation_field_from_pos_dict` + `ep_phase_from_ep_file`** —
+  pure-phase adapters that skip python-chess entirely. Counterparts
+  of the existing `occupation_field_from_board` and
+  `ep_phase_from_board`; consumers that have a position dict +
+  side-to-move + ep_file (e.g., from a 1.10.0 BIP-encoded sheet
+  block) can build the occupation field directly without
+  reconstructing a Board.
+
+- **Acceptance gate**: parity vs `board.pseudo_legal_moves` on a
+  representative 8-FEN corpus (opening, middlegame, endgame,
+  EP-active, promotion-imminent). All move sets match exactly
+  modulo castles (deferred to 1.12.0+). 26 tests, pass on first
+  implementation.
+
+- **Documented `Z_640` wire contract** (notebook §20.17). The
+  constants `MODULUS`, `ROW_GEN`, `COL_GEN`, `DIAG_NE_SW_GEN`,
+  `DIAG_NW_SE_GEN`, `KNIGHT_SHIFTS`, `KING_SHIFTS` are part of
+  the public API and don't move without a major version bump.
+
+- **Diagnostic benchmark**
+  (`tests/bench_phase_operator_movegen.py`) — ~190 µs at startpos
+  for ALU-native vs ~73 µs for python-chess Cython (~2.5× ratio,
+  expected). Structurally faster than Solution-B-per-piece-loop
+  because the occupation field is built once per position instead
+  of per-piece. Value is **portability**, not raw speed.
+
+- **Deferred** to a 1.12.0+ follow-up: castling generation in the
+  ALU-native path (needs attack map), check-filter refactor of
+  `phasecast_is_check` (currently takes a Board input). Consumers
+  wanting check-filtered legal moves should pair the 1.11.0
+  pseudo-legal output with the existing `phasecast_is_check`.
+
+This is **B-spike-1b** in the notebook §20.15 three-tier phasing.
+B-spike-1a (sheet-block BIP) shipped in 1.10.0; B-spike-2
+(encoder BIP-hybrid) is the next ship and depends on the
+bit-packing patterns 1.10.0 established.
+
 ## What's new in v1.10 (May 2026)
 
 The §20 BSHDC spike's first ship: **BIP-encoded sheet block**.
