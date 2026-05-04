@@ -23,7 +23,7 @@ Both backends implement the same algebraic substrate (cyclic-group representatio
 - **Phase 9 "Breathing" Couplings:** Off-diagonal weights modulate with the resonant phase difference `cos(n_a·φ_a − n_b·φ_b)`. Formally a **state-dependent (non-autonomous) graph Laplacian** / **adaptive Kuramoto-family network with phase-difference-dependent coupling** — see the [research notebook §1.4](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides_spectral_research_notebook.md#14-mathematical-positioning-of-the-breathing-laplacian) for the full positioning across spectral-graph-theory / dynamical-systems / DNLS-on-a-graph vocabularies. Implemented end-to-end without FPU using a 1024-entry `int32` cosine LUT (Q1.14 amplitude, 4 KB).
 - **Sol Star System Roster:** 26 bodies — Sun, planets (incl. Pluto), 12 major moons, 4 main-belt asteroids.
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors at any (lat, lon) on any body.
-- **Spectral Syzygy Detection:** Inner product with the Syzygy Operator (Sun + Moon + lunar Node) gives an eclipse / conjunction probability.
+- **Spectral Syzygy Detection (point-evaluation, v0.3.0):** Inner product with the Syzygy Operator (Sun + Moon + lunar Node) gives an eclipse / conjunction probability *at a given JD*. **Limitation:** this is the encode-then-check pattern — the wrong way to use the encoder for searching syzygies in a window. The HDC-native pattern uses the natural cyclic-group decomposition (Saros / Metonic / synodic month) to enumerate candidate JDs *without* per-JD encoding, then confirms via spectral projection. v0.4+ ROADMAP item: replace the point-evaluation surface with a window search.
 
 ### Resolution Scaling
 
@@ -77,7 +77,8 @@ ephemerides-spectral encode --jd 2451545.0 --backend complex128
 # Topocentric view from London at J2000
 ephemerides-spectral local-view --jd 2451545.0 --body earth --lat 51.5 --lon -0.1
 
-# Syzygy alignment probability
+# Syzygy alignment probability AT a JD (point evaluation; encode-then-check)
+# v0.4+ ROADMAP: window search via the natural cyclic-group decomposition
 ephemerides-spectral eclipse --jd 2451545.0
 
 # Off-diagonal couplings (Laplacian fiber bundle)
@@ -225,6 +226,7 @@ Linear in `|Δt|` — one 30-day chunk per integration step. At the v0.1.0 desig
 
 * **v0.4+ first-principles per-resonance α** — replaces phenomenological `α = 0.1` with values derived from a Hamilton/Delaunay-variable Lagrangian (Lie-series perturbation theory around each resonance). The DE441 sweep above is the empirical motivation: bodies inside the resonance set phase-scramble at multi-millennium horizons because their `α` values are wrong-in-detail.
 * **v0.4+ DE441 vs DE442 spectral error signature** *(experiment)* — build two BIP instruments, one calibrated only from DE441, one only from DE442; encode the same JD on both; project the per-body residue deltas onto the encoder's eigenbasis. If the deltas have a coherent spectral signature, DE442's corrections to DE441 live in a specific eigenmode subspace — which means we could *predict* where ephemeris error correction is structurally needed without needing the corrected kernel.
+* **v0.4+ spectral syzygy window search** — replaces the v0.3.0 point-evaluation `eclipse --jd` (encode-then-check) with a `find-syzygies --from-jd ... --to-jd ...` window search that uses the encoder's natural cyclic-group decomposition (Saros 6585.32 d, Metonic 19 yr, synodic month 29.53 d, lunar nodes 18.6 yr). The bronze antikythera's Saros dial doesn't encode-and-check either — it just turns gears whose ratios *are* the Saros cycle. The HDC-native pattern is to enumerate window-multiples of the slow modes in closed form from the Q-format `omega` values, then confirm each candidate by spectral projection. This reduces the cost from `O(window_days × encode_cost)` to `O(n_syzygies × confirmation_cost)`.
 * **v0.5+ CORDIC topocentric rendering** — the cosine LUT is half a CORDIC kernel; the rotation half can subsume the topocentric `lat / lon` observer-bind, taking that path off the FPU entirely.
 * **v0.5+ LTC (Lunar Coordinated Time)** — pending NASA + international space-agency standardisation (target ~2026–2028 per April 2024 White House directive). LTE440 (Lin et al. 2025) ships the underlying SPICE-format conversion ephemeris with 0.15 ns accuracy through 2050; the bridge gains an `LTC` namespace mirroring `MarsTime` once the LTC epoch + day-length convention are formalised.
 * **Phase 10 resonance coverage** — Jupiter–Uranus 7:1, Saturn–Uranus 3:1, Saros / Metonic / Earth–Moon precession entries. Each adds a row to the `RESONANCES` table; the integer-LUT machinery is shared.
