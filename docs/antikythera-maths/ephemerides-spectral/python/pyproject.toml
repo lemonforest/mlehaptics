@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ephemerides-spectral"
-version = "0.1.0"
+version = "0.1.0rc1"
 description = "High-precision HDC reference instrument for the solar system based on JPL DE441"
 readme = "README.md"
 requires-python = ">=3.10"
