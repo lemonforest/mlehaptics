@@ -72,7 +72,7 @@ consumers use `new Float32Array(...)` directly. See ADR 0002.
 | Method | Notes |
 |---|---|
 | `compare_ephemerides(jd_tdb, body, kernel_a, kernel_b)` | DE-kernel delta |
-| `compare_models(jd_tdb, body, model_a, model_b, kernel='de421')` | uniform/epicycle/equant; Mars-only in v0.1.0 |
+| `compare_models(jd_tdb, body, model_a, model_b, kernel='de421', params='ptolemy')` | Mars-only.  `model_*` ∈ {uniform, epicycle, equant, **bronze**} (bronze added v0.3.0).  `params` ∈ {ptolemy, freeth_2012, freeth_2021} (added v0.3.0; default `'ptolemy'` for backward-compat). |
 | `compare_reconstructions(jd_tdb, *, dials='all')` | Freeth/Wright/Price disagreements |
 
 ### §5.7 — What-if + archaeology (ADR 0008)
