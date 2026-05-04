@@ -3,9 +3,50 @@
 This file replaces the dangling `when-we-need-to-spicy-seahorse.md` and
 `ticklish-dreaming-platypus.md` references that previously appeared in
 error messages. Those plan documents were never committed; this is the
-real status doc.
+real status doc. Per-release detail lives in
+[python/CHANGELOG.md](python/CHANGELOG.md); this doc is the strategic
+view.
 
-## Current release: v1.6.0 (April 2026)
+## Current release: v1.9.1 (May 2026)
+
+Polish on top of v1.9.0. README PyPI examples updated to use the
+future-proof `encode_2d` alias; Roadmap link added to PyPI project
+URLs; v5 wire format officially documented as **not** carrying sheet
+aux blocks (sheets ride alongside in-memory vectors and live in
+PGN / NDJSON / FEN sidecars on disk; see `frame_v5.py` header note +
+notebook §19.12 for rationale).
+
+## v1.9.0 (May 2026) — sheets aux block + legal-moves CLI
+
+Representation-completeness ship for the four non-Markovian chess
+facts (castling rights, EP target, side-to-move, halfmove clock,
+repetition count). 11-dim aux block opt-in via
+`encode_2d(pos, sheets=...)` and `encode_4d(pos4, sheets=...)`.
+Pyodide-bridge surface for chess4D-OC consumers. New `legal-moves`
+CLI for both 2D and 4D. Notebook §19.10 captures the empirical
+finding that closes the speed thesis (depth-1 bitboard floor); 1.9.0
+ships representation-only, no speed claim. See
+[python/CHANGELOG.md](python/CHANGELOG.md) for detail.
+
+## v1.8.x (April-May 2026) — 4D ship-line
+
+v1.8.0 — chess4D-OC visualizer M11.40 unblocker (`GameState4D`
+push/pop/board surface; `is_check` / `is_checkmate` / `is_stalemate`;
+search() accepts `GameState4D`).
+v1.8.1 — canonical Oana-Chiru §3.3 starting position
+(`STARTING_FEN4`, `initial_position()`, slice helpers; SHA-256
+hash-locked test gate).
+
+## v1.7.x (April 2026) — surface polish
+
+v1.7.0 — D2 native-bitboard fast-path availability flag
+(`HAS_NATIVE_BITBOARD`); v5 wire format mode-2 XOR-stream as the
+default (~7× compression).
+v1.7.1 — FEN4 parser tolerance for an optional slash between pawn
+color and axis; PyPI long-description hotfix; immolation README
+gate enforcing "What's new in v{X.Y}" section per release.
+
+## v1.6.0 (April 2026) — original §16 ship-gate
 
 The §16 ship-gate release. Search core + tournament harness + sweep
 runner ship as CLI commands; v5 unified wire format (three encoding
@@ -76,11 +117,74 @@ were intentionally left out of v1.2.4's scope:
   `python/tests/test_parity.py` from the C output (it is the authority
   per AUDIT §1).
 
-## v1.7 candidates (post-v1.6 ship gate)
+## Future work (v1.10+ candidates and parked spikes)
+
+Items in this section are research-track or design-track work that
+hasn't shipped yet. None of these are commitments — each is
+independent and may be deferred or closed based on empirical
+findings.
+
+### Sheet-block follow-ons (notebook §19)
+
+- **S-spike-2 — wire format integration for sheets.** Currently
+  deferred. Sheets are an in-memory representation feature; on
+  disk, non-Markov state lives in PGN / NDJSON / FEN sidecars
+  (the existing corpus-gen layout already preserves the source
+  game record). Wire-format integration becomes worthwhile when
+  a downstream consumer needs to persist encoder vectors WITH
+  sheet aux blocks — most likely the v5.1 mode-2 XOR-stream
+  extension when chess4D-OC adopts persisted-vector retrieval.
+  Header has 223 reserved bytes for the necessary fields; no
+  struct change required.
+- **S-spike-3 — sheet-aware search-engine evaluator.** Closed as
+  not-recommended. Sheet channels are categorical (rights alive
+  or dead); search evaluator weights are continuous. A separate
+  `eval=spectral+sheets` evaluator family is the right shape if
+  sheet-aware scoring is wanted; weighted-channel hooks into the
+  existing `eval=spectral` path would lose information.
+
+### BSHDC / bit-serialization (notebook §20)
+
+- **B-spike-1 — side-car bit-serialized encoder.** 4-bit signed
+  nibble per dim, opt-in via separate `encode_2d_bits` /
+  `encode_4d_bits` functions. Acceptance criteria: cosine-sim
+  ≥ 99.5% median, ≥ 95% worst case; channel-energy Spearman
+  ρ ≥ 0.95. Reference data point: antikythera-spectral / DE441
+  saw 3.3 GB → 1 MB → 256 KB (8× over the float32 path) with
+  ~0.01% precision loss AND structurally enriched data after
+  basis change. Uncertain how that result translates to a
+  discrete board game with non-Markovian state; the side-car
+  experiment is the empirical test.
+- **B-spike-2..4 — quantization sweep, fast-path replacement,
+  ground-up bit-resonant encoder.** Sequenced behind B-spike-1's
+  acceptance test.
+
+### API stability (notebook §19.11)
+
+- **Adopt `encode_2d`** in all new consumer code; query
+  `chess_spectral.ENCODING_DIM` (or `enc.shape[0]`) and iterate
+  channels via `chess_spectral.CHANNELS` rather than hardcoding
+  640. The dim count is not a stable contract — sheets bumped
+  640 → 651 already, and channel embiggening (Tier 2.1/2.2,
+  ψ-driven density / partial-trace channels) or BSHDC enrichment
+  may move it again. `encode_640` remains a permanent alias.
+
+### QM extension Tier 2 (deferred — η-metric machinery)
+
+- **Tier 2.1 — `get_qm_density_from_psi` /
+  `get_probability_current_from_psi`.** Needs ADR-005's pawn
+  pseudo-Hermitian η-metric to be implementation-complete.
+  Probe 3's PARTIAL PASS finding (notebook §18.1) has a known
+  decomposition path (M_pawn = M_single + M_double; η-metric
+  on single-push only) that hasn't landed yet.
+- **Tier 2.2 — partial-trace density matrix per piece type.**
+  Same gating.
+
+### v1.7-era candidates (mostly shipped, one parked)
 
 These are research-track items deliberately deferred until after the
-§16.5 / §2787 per-depth Elo sweep ships in v1.6. Each is independent
-and falsifiable.
+§16.5 / §2787 per-depth Elo sweep shipped in v1.6. Most landed in
+v1.7-1.9; the E-irrep directional decomposition is still open.
 
 ### E-irrep directional decomposition
 

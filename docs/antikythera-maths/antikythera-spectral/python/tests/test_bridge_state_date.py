@@ -38,10 +38,36 @@ def test_get_version_carries_manifest() -> None:
     assert len(out["manifest"].get("files", {})) >= 25
 
 
-def test_get_dial_state_shape_callippic() -> None:
+def test_get_dial_state_default_backend_is_bit_callippic() -> None:
+    """v0.3.0 default: bridge.get_dial_state returns a bit-packed state
+    when ``backend`` is unspecified.  Wire shape: ceil(D/64) uint64 words
+    plus an ``n_bits`` field so decoders know the unmasked length."""
     out = bridge.get_dial_state(REFERENCE_JD, D=D_CALLIPPIC)
     assert out["ok"] is True
     assert out["D"] == D_CALLIPPIC
+    assert out["backend"] == "bit"
+    assert out["state"]["dtype"] == "uint64"
+    # 940 bits / 64 = 14.69 -> 15 words
+    expected_words = (D_CALLIPPIC + 63) // 64
+    assert out["state"]["shape"] == [expected_words]
+    assert out["state"]["n_bits"] == D_CALLIPPIC
+    assert len(out["state"]["packed_uint64"]) == expected_words
+    # All packed words must fit in uint64.
+    for w in out["state"]["packed_uint64"]:
+        assert 0 <= w < (1 << 64)
+    # at least 10 dials produce residues
+    assert len(out["dials"]) >= 10
+
+
+def test_get_dial_state_shape_callippic() -> None:
+    """v0.2.x compatibility: backend='complex128' returns the original
+    shape (length-D complex128 packed as interleaved Float32)."""
+    out = bridge.get_dial_state(
+        REFERENCE_JD, D=D_CALLIPPIC, backend="complex128",
+    )
+    assert out["ok"] is True
+    assert out["D"] == D_CALLIPPIC
+    assert out["backend"] == "complex128"
     assert out["state"]["shape"] == [D_CALLIPPIC]
     assert out["state"]["dtype"] == "complex128"
     # interleaved is 2*D float32 entries
@@ -54,9 +80,12 @@ def test_get_dial_state_shape_callippic() -> None:
 
 
 def test_get_dial_state_shape_packing() -> None:
-    out = bridge.get_dial_state(REFERENCE_JD, D=D_PACKING)
+    out = bridge.get_dial_state(
+        REFERENCE_JD, D=D_PACKING, backend="complex128",
+    )
     assert out["ok"] is True
     assert out["D"] == D_PACKING
+    assert out["backend"] == "complex128"
     assert out["state"]["shape"] == [D_PACKING]
     assert len(out["state"]["interleaved_f32"]) == 2 * D_PACKING
 
@@ -107,9 +136,26 @@ def test_get_all_dial_metadata() -> None:
     assert "supported_dims" in metonic
 
 
-def test_decode_dial_round_trip() -> None:
+def test_decode_dial_round_trip_bit() -> None:
+    """v0.3.0 default: bit-packed encode/decode round-trip on Metonic."""
     state = bridge.get_dial_state(REFERENCE_JD + 1234.5, D=D_CALLIPPIC)
     assert state["ok"]
+    assert state["backend"] == "bit"
+    out = bridge.decode_dial(state["state"], "Metonic", D=D_CALLIPPIC)
+    assert out["ok"] is True
+    assert out["dial"] == "Metonic"
+    assert out["backend"] == "bit"
+    # The decoder returns the D-quantised residue ∈ [0, D).
+    assert 0 <= out["recovered_residue"] < D_CALLIPPIC
+
+
+def test_decode_dial_round_trip_complex128() -> None:
+    """v0.2.x compatibility: explicit backend='complex128' still round-trips."""
+    state = bridge.get_dial_state(
+        REFERENCE_JD + 1234.5, D=D_CALLIPPIC, backend="complex128",
+    )
+    assert state["ok"]
+    assert state["backend"] == "complex128"
     # Decode Metonic from the interleaved Float32
     out = bridge.decode_dial(
         {"interleaved_f32": state["state"]["interleaved_f32"]},
@@ -118,6 +164,7 @@ def test_decode_dial_round_trip() -> None:
     )
     assert out["ok"] is True
     assert out["dial"] == "Metonic"
+    assert out["backend"] == "complex128"
     # The recovered residue should approximately match the encoded one;
     # exact match not guaranteed due to dense-encoder cross-talk, but
     # within ±5 quantization steps is reasonable.
@@ -129,20 +176,55 @@ def test_decode_dial_round_trip() -> None:
     assert encoded >= 0
 
 
+def test_decode_dial_bit_and_complex_agree() -> None:
+    """Both backends should recover the same D-bin residue (modulo
+    any decoder-noise differences).  Both encoders rotate the basis
+    by ``spec.residue(jd, D)``, and both decoders are argmax over
+    rotation candidates."""
+    jd = REFERENCE_JD + 1234.5
+    bit_state = bridge.get_dial_state(jd, D=D_CALLIPPIC)
+    cx_state = bridge.get_dial_state(jd, D=D_CALLIPPIC, backend="complex128")
+    bit_out = bridge.decode_dial(bit_state["state"], "Metonic",
+                                  D=D_CALLIPPIC)
+    cx_out = bridge.decode_dial(cx_state["state"], "Metonic",
+                                 D=D_CALLIPPIC)
+    assert bit_out["ok"] and cx_out["ok"]
+    # The two decoders run on independent bases (binary vs Gaussian
+    # complex), so exact agreement isn't guaranteed.  At D=940 with
+    # ~10 dials they typically agree to within 3 quantisation steps.
+    diff = abs(bit_out["recovered_residue"] - cx_out["recovered_residue"])
+    diff = min(diff, D_CALLIPPIC - diff)
+    assert diff <= 5, (
+        f"bit vs complex128 decoders disagreed by {diff} steps: "
+        f"bit={bit_out['recovered_residue']}, "
+        f"cx={cx_out['recovered_residue']}"
+    )
+
+
 def test_decode_to_jd_inverts_encode() -> None:
     target_jd = REFERENCE_JD + 365.25 * 19  # one Metonic cycle later
-    state = bridge.get_dial_state(target_jd, D=D_CALLIPPIC)
-    assert state["ok"]
+    # Test BOTH backends round-trip via decode_to_jd.
+    for backend in ("bit", "complex128"):
+        state = bridge.get_dial_state(
+            target_jd, D=D_CALLIPPIC, backend=backend,
+        )
+        assert state["ok"]
 
-    # Pass the complex array directly via numpy
-    interleaved = np.asarray(state["state"]["interleaved_f32"], dtype=np.float32)
-    out = bridge.decode_to_jd(interleaved, D=D_CALLIPPIC)
-    assert out["ok"] is True
-    # Median across dials should land within a Metonic-cycle modulus
-    # of the target. (Per-dial dense-decoder noise is real; the test
-    # is a smoke check, not a precision guarantee.)
-    assert isinstance(out["median_jd"], float)
-    assert out["spread_days"] >= 0.0
+        if backend == "complex128":
+            # Pass the complex array directly via numpy (legacy API path).
+            interleaved = np.asarray(
+                state["state"]["interleaved_f32"], dtype=np.float32,
+            )
+            out = bridge.decode_to_jd(interleaved, D=D_CALLIPPIC)
+        else:
+            out = bridge.decode_to_jd(state["state"], D=D_CALLIPPIC)
+        assert out["ok"] is True, f"backend={backend}: {out}"
+        assert out["backend"] == backend
+        # Median across dials should land within a Metonic-cycle modulus
+        # of the target. (Per-dial dense-decoder noise is real; the test
+        # is a smoke check, not a precision guarantee.)
+        assert isinstance(out["median_jd"], float)
+        assert out["spread_days"] >= 0.0
 
 
 # ──────────────────────────────────────────────────────────────────────

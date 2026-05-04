@@ -42,6 +42,7 @@ del _pkg_version, _PkgNotFound
 
 from .encoder import (
     encode_640,
+    encode_2d,  # 1.9.0 — future-proof alias of encode_640 (see §19.11)
     channel_energies,
     normalize_pos,
     CHANNELS,
@@ -88,6 +89,62 @@ from .phase_operators import (
     available_castles,
     phasecast_is_check,
     move_leaves_king_in_check,
+    # 1.11.0 — ALU-native phase-operator engine (B-spike-1b)
+    occupation_field_from_pos_dict,
+    ep_phase_from_ep_file,
+    phase_only_pseudo_legal_moves,
+    PROMOTION_TARGETS,
+)
+
+# 1.9.0 — non-Markovian sheet aux block (representation completeness;
+# no speed claim — see notebook §19.10 for the empirical depth-1
+# bitboard floor that closes the speed thesis). The aux block carries
+# castling rights, EP target, side-to-move, halfmove clock, and
+# repetition count for downstream consumers of saved/transmitted
+# vectors.
+from .sheets import (
+    SheetState,
+    SHEET_AUX_DIM,
+    SHEET_OFFSET_2D,
+    SHEET_OFFSET_4D,
+    HALFMOVE_PERIOD,
+    REPETITION_CLAIM_THRESHOLD,
+    FIFTY_MOVE_THRESHOLD,
+    encode_aux_block,
+    decode_castling_rights,
+    decode_ep_file,
+    decode_side_to_move_white,
+    decode_repetition_count,
+    decode_halfmove_clock,
+    decode_sheet_state,
+)
+
+# 1.10.0 — Bit-Interleaved Phases (BIP) encoding for the sheet block
+# (notebook §20.14, §20.16). Round-trip exact integer-native form:
+# uint16 categorical + uint8 halfmove = 3 bytes per position vs the
+# 1.9.0 float64 path's 88 bytes (29× compression). Operator fast
+# paths via single integer ops; Hamming-distance metrics for corpus
+# similarity. Pyodide / batch / wire-format wins; depth-1 floor
+# (§19.10) still applies for single-position queries.
+from .sheets_bip import (
+    SheetStateBIP,
+    encode_sheet_state_bip,
+    decode_sheet_state_bip,
+    # Operator fast paths
+    castling_alive,
+    kingside_castling_alive,
+    queenside_castling_alive,
+    white_castling_alive,
+    black_castling_alive,
+    ep_target_active,
+    ep_file as ep_file_from_bip,
+    side_to_move_white as side_to_move_white_from_bip,
+    repetition_count as repetition_count_from_bip,
+    fifty_move_rule_triggered,
+    threefold_claimable,
+    # Distance metrics
+    hamming_distance_categorical,
+    halfmove_distance,
 )
 
 # 1.7.0 D2: native fast-path availability flag, re-exported from
@@ -101,7 +158,8 @@ from .spatial_4d.bitboard import HAS_NATIVE_BITBOARD
 
 __all__ = [
     # Encoder
-    "encode_640", "channel_energies", "normalize_pos", "CHANNELS",
+    "encode_640", "encode_2d",
+    "channel_energies", "normalize_pos", "CHANNELS",
     "BOARD_DIM", "ENCODING_DIM", "SPECTRAL_VALS", "VALS",
     "PAWN_ANTI_FIBER", "DIAG_DEV",
     # Frame I/O
@@ -132,6 +190,43 @@ __all__ = [
     "available_castles",
     "phasecast_is_check",
     "move_leaves_king_in_check",
+    # 1.11.0 — ALU-native phase-operator engine (B-spike-1b)
+    "occupation_field_from_pos_dict",
+    "ep_phase_from_ep_file",
+    "phase_only_pseudo_legal_moves",
+    "PROMOTION_TARGETS",
     # 1.7.0 D2: native fast-path availability (downstream consumer flag).
     "HAS_NATIVE_BITBOARD",
+    # 1.9.0 — non-Markovian sheet aux block (representation completeness)
+    "SheetState",
+    "SHEET_AUX_DIM",
+    "SHEET_OFFSET_2D",
+    "SHEET_OFFSET_4D",
+    "HALFMOVE_PERIOD",
+    "REPETITION_CLAIM_THRESHOLD",
+    "FIFTY_MOVE_THRESHOLD",
+    "encode_aux_block",
+    "decode_castling_rights",
+    "decode_ep_file",
+    "decode_side_to_move_white",
+    "decode_repetition_count",
+    "decode_halfmove_clock",
+    "decode_sheet_state",
+    # 1.10.0 — BIP-encoded sheet block (uint16 + uint8, 3 bytes total)
+    "SheetStateBIP",
+    "encode_sheet_state_bip",
+    "decode_sheet_state_bip",
+    "castling_alive",
+    "kingside_castling_alive",
+    "queenside_castling_alive",
+    "white_castling_alive",
+    "black_castling_alive",
+    "ep_target_active",
+    "ep_file_from_bip",
+    "side_to_move_white_from_bip",
+    "repetition_count_from_bip",
+    "fifty_move_rule_triggered",
+    "threefold_claimable",
+    "hamming_distance_categorical",
+    "halfmove_distance",
 ]

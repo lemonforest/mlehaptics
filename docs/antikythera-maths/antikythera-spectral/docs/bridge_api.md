@@ -22,9 +22,9 @@ consumers use `new Float32Array(...)` directly. See ADR 0002.
 
 | Method | Returns |
 |---|---|
-| `get_dial_state(jd_tdb, *, D=940)` | Per-dial residues + HDC vector (interleaved Float32) |
+| `get_dial_state(jd_tdb, *, D=940, backend='bit')` | Per-dial residues + HDC vector. **v0.3.0 default-backend flip:** `backend='bit'` (default) returns `state` as `{dtype: 'uint64', shape: [n_words], n_bits: D, packed_uint64: list[int]}`; `backend='complex128'` returns the v0.2.x `{dtype: 'complex128', shape: [D], interleaved_f32: list[float]}` shape.  The envelope adds `'backend': str` so consumers can dispatch.  Dial residues / angles are backend-independent. |
 | `get_dial_angle(jd_tdb, dial)` | Continuous angle (D-independent) |
-| `get_pointer_xy(jd_tdb, *, layout='dial' \| 'spatial', D=940)` | Per-dial render coords |
+| `get_pointer_xy(jd_tdb, *, layout='dial' \| 'spatial', D=940)` | Per-dial render coords (always uses the complex128 path internally; backend keyword not exposed because the return is rendering coords, not raw state) |
 | `get_all_dial_metadata()` | List of supported dials with cycle info |
 | `get_version()` | Package version + frozen-data manifest |
 
@@ -32,8 +32,8 @@ consumers use `new Float32Array(...)` directly. See ADR 0002.
 
 | Method | Returns |
 |---|---|
-| `decode_dial(state_vec, dial, *, D=940)` | Recovered residue |
-| `decode_to_jd(state_vec, *, D=940, reference_jd=REFERENCE_JD)` | Median JD across dials |
+| `decode_dial(state_vec, dial, *, D=940)` | Recovered residue.  **Auto-detects the backend** from the input shape (v0.3.0): `uint64` array / dict-with-`packed_uint64` → bit-ALU decoder; `complex128` / interleaved-Float32 → dense FHRR decoder.  Response includes `'backend': str` so the caller can confirm the dispatch.  Both decoders return D-bin residues in `[0, D)`. |
+| `decode_to_jd(state_vec, *, D=940, reference_jd=REFERENCE_JD)` | Median JD across dials.  Same auto-detect dispatch as `decode_dial`; response includes `'backend': str`. |
 
 ### §5.3 — Calendar conversion
 
@@ -72,7 +72,7 @@ consumers use `new Float32Array(...)` directly. See ADR 0002.
 | Method | Notes |
 |---|---|
 | `compare_ephemerides(jd_tdb, body, kernel_a, kernel_b)` | DE-kernel delta |
-| `compare_models(jd_tdb, body, model_a, model_b, kernel='de421')` | uniform/epicycle/equant; Mars-only in v0.1.0 |
+| `compare_models(jd_tdb, body, model_a, model_b, kernel='de421', params='ptolemy')` | Mars-only.  `model_*` ∈ {uniform, epicycle, equant, **bronze**} (bronze added v0.3.0).  `params` ∈ {ptolemy, freeth_2012, freeth_2021} (added v0.3.0; default `'ptolemy'` for backward-compat). |
 | `compare_reconstructions(jd_tdb, *, dials='all')` | Freeth/Wright/Price disagreements |
 
 ### §5.7 — What-if + archaeology (ADR 0008)

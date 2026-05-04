@@ -125,7 +125,7 @@ def _fiber_diagonal(pos: dict[int, str], sig: np.ndarray) -> np.ndarray:
     return out
 
 
-def encode_640(pos, *, vals=None) -> np.ndarray:
+def encode_640(pos, *, vals=None, sheets=None) -> np.ndarray:
     """Encode a position to a 640-dim spectral vector.
 
     Parameters
@@ -136,10 +136,20 @@ def encode_640(pos, *, vals=None) -> np.ndarray:
         Piece-value table. Defaults to SPECTRAL_VALS (mean-degree
         normalization), matching the C encoder. Pass VALS for the
         traditional {P=1, Q=9, K=100} heuristic.
+    sheets : SheetState or None, optional (1.9.0+)
+        If supplied, append the 11-dim non-Markovian aux block (see
+        :mod:`chess_spectral.sheets`) to the 640-dim base, producing a
+        651-dim output. The base 640 dims are byte-identical to the
+        legacy output and to the C encoder; the aux block carries
+        castling rights, EP target, side-to-move, halfmove clock, and
+        repetition count for downstream consumers of saved/transmitted
+        vectors. Default ``None`` keeps the legacy 640-dim output bit-
+        for-bit compatible with pre-1.9.0 versions and the C side.
 
     Returns
     -------
-    np.ndarray, shape (640,), dtype float64
+    np.ndarray, dtype float64
+        Shape ``(640,)`` if ``sheets`` is None (default), else ``(651,)``.
     """
     pos = normalize_pos(pos)
     if vals is None:
@@ -147,7 +157,14 @@ def encode_640(pos, *, vals=None) -> np.ndarray:
 
     sig = board_signal(pos, vals=vals)
 
-    out = np.empty(ENCODING_DIM, dtype=np.float64)
+    # Allocate base 640 dims; concatenated aux is appended below if
+    # sheets is supplied. Allocating up-front and writing in-place
+    # avoids a second allocation+copy on the hot path.
+    if sheets is None:
+        out = np.empty(ENCODING_DIM, dtype=np.float64)
+    else:
+        from .sheets import SHEET_AUX_DIM, encode_aux_block
+        out = np.empty(ENCODING_DIM + SHEET_AUX_DIM, dtype=np.float64)
 
     # Channels 0-4: D4 irreps
     for i, name in enumerate(['A1', 'A2', 'B1', 'B2', 'E']):
@@ -173,7 +190,39 @@ def encode_640(pos, *, vals=None) -> np.ndarray:
     # Channel 9: diagonal deviation
     out[576:640] = _fiber_diagonal(pos, sig)
 
+    if sheets is not None:
+        out[ENCODING_DIM:ENCODING_DIM + SHEET_AUX_DIM] = encode_aux_block(sheets)
+
     return out
+
+
+# 1.9.0 — future-proof alias.
+#
+# ``encode_640`` couples the function name to a specific output
+# dimension (10 channels × 64 board cells = 640). That coupling is
+# fine for the v1.x line but it pins downstream consumers to assume
+# the dim count is stable. Two cases where it might not be:
+#
+#   1. A future `embiggening` for richer non-Markovian or sheet data,
+#      analogous to the Z_101 halfmove Fourier carrier — we may want
+#      to extend channel granularity beyond the current 10 × 64.
+#   2. The bit-serialized HDC / resonant-object spike (notebook §20)
+#      found in the antikythera-spectral / DE441 work that bit-
+#      serialization can ENRICH the data set after a basis change
+#      (from 3.3 GB raw → 1 MB physics → 256 KB bit-serialized,
+#      with >300x speedup and ~0.01% precision loss). It is uncertain
+#      whether that result translates to a discrete board game with
+#      a non-Markovian sheet, but the §19 sheet block is itself a
+#      concrete example of why the dim count is not a stable
+#      contract — adding sheets bumped 640 → 651.
+#
+# ``encode_2d`` is the recommended name going forward; it mirrors
+# the 4D path's ``encode_4d`` naming. ``encode_640`` is preserved as
+# a permanent alias for backward compatibility but new code should
+# prefer ``encode_2d`` and query :data:`ENCODING_DIM` (or check the
+# returned array's ``shape``) rather than hardcoding 640. See
+# notebook §19.11 for the future-work plan.
+encode_2d = encode_640
 
 
 def channel_energies(enc: np.ndarray) -> dict[str, float]:

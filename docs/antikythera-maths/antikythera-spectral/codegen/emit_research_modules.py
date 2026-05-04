@@ -54,6 +54,7 @@ _INCLUDED_MODULES: List[str] = [
     "__init__.py",
     "astronomical_cycles.py",
     "astronomical_ground_truth.py",
+    "bit_alu.py",
     "consolidated_tests.py",
     "cyclic_group_algebra.py",
     "dial_decoder.py",

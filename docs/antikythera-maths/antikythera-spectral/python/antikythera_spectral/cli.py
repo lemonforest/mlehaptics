@@ -61,13 +61,14 @@ def _cmd_version(args: argparse.Namespace) -> int:
 
 
 def _cmd_encode(args: argparse.Namespace) -> int:
-    out = bridge.get_dial_state(args.jd, D=args.D)
+    out = bridge.get_dial_state(args.jd, D=args.D, backend=args.backend)
     if args.dial and out.get("ok"):
         # Filter to one dial.
         d = out["dials"].get(args.dial)
         if d is None:
             return _emit({"ok": False, "error": f"unknown dial {args.dial!r}"})
         return _emit({"ok": True, "jd_tdb": out["jd_tdb"], "D": out["D"],
+                       "backend": out.get("backend"),
                        "dial": args.dial, **d})
     return _emit(out)
 
@@ -149,6 +150,7 @@ def _cmd_compare_ephemerides(args: argparse.Namespace) -> int:
 def _cmd_compare_models(args: argparse.Namespace) -> int:
     return _emit(bridge.compare_models(
         args.jd, args.body, args.model_a, args.model_b, args.kernel,
+        params=args.params,
     ))
 
 
@@ -273,8 +275,14 @@ def _make_parser() -> argparse.ArgumentParser:
             "Hyperdimensional-computing model of the Antikythera mechanism. "
             "Encode any date as a state vector across the mechanism's dials, "
             "decode states back to dates, run the 31-row hypothesis battery, "
-            "and compare ephemeris kernels / Greek planetary models / "
-            "reconstructions side-by-side."
+            "and compare ephemeris kernels / Hellenistic Mars planetary "
+            "models / reconstructions side-by-side. "
+            "v0.3.0 adds the 'bronze' Mars model + Freeth-reconstruction "
+            "named param sets (use `compare models --model-a bronze "
+            "--params freeth_2012`); see also the importable "
+            "`antikythera_spectral.mars_models` and "
+            "`antikythera_spectral.bit_alu` (bit-packed binary HDC ALU) "
+            "facades for Python-level access."
         ),
         epilog=_TOPLEVEL_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -296,13 +304,23 @@ def _make_parser() -> argparse.ArgumentParser:
     e = sub.add_parser(
         "encode",
         help="Encode a JD as the per-dial state",
-        description="Build the HDC state vector and per-dial residues for a date.",
+        description=(
+            "Build the HDC state vector and per-dial residues for a date.  "
+            "v0.3.0 default backend is 'bit' (bit-packed binary HV; ADR "
+            "0012); pass --backend complex128 for the v0.2.x reference "
+            "encoder shape (interleaved Float32)."
+        ),
     )
     e.add_argument("--jd", type=float, required=True, help="Julian Day in TDB")
     e.add_argument("--D", type=int, default=940, choices=[940, 13440],
                    help="Encoder dimension (default 940)")
     e.add_argument("--dial", type=str, default=None,
                    help="If set, output only this dial's state")
+    e.add_argument("--backend", default="bit",
+                   choices=["bit", "complex128"],
+                   help=("HDC backend (v0.3.0); default 'bit' is the "
+                         "bit-packed binary ALU per ADR 0012. "
+                         "'complex128' is the v0.2.x reference encoder."))
     e.set_defaults(func=_cmd_encode)
 
     a = sub.add_parser(
@@ -480,17 +498,38 @@ def _make_parser() -> argparse.ArgumentParser:
     ce.set_defaults(func=_cmd_compare_ephemerides)
     cm = cmp_sub.add_parser(
         "models",
-        help="uniform / Hipparchus epicycle / Ptolemy equant residuals (Mars-only in v0.1.0)",
-        description="Compare Greek planetary models against ephemeris truth.",
+        help=("uniform / epicycle / equant / bronze residuals "
+              "(Mars-only; bronze + named param sets new in v0.3.0)"),
+        description=(
+            "Compare Hellenistic Mars planetary models against ephemeris "
+            "truth.  Models: 'uniform' (encoder baseline), 'epicycle' "
+            "(Hipparchus eccentric-deferent + epicycle), 'equant' (Ptolemy "
+            "Almagest IX-X bisected eccentricity), 'bronze' (algebra/"
+            "eigenbasis projection of the gear-ratio cyclic-group "
+            "representation; numerically identical to 'epicycle' but "
+            "derived through the inline pin-and-slot phase-space transform "
+            "-- see ADR 0012).  Param sets: 'ptolemy' (Almagest IX-X "
+            "canonical, e=6, equant_offset=12), 'freeth_2012' (F&J 2012 "
+            "bare deferent + epicycle, no eccentricity, no equant), "
+            "'freeth_2021' (Freeth 2021 reconstruction, same kinematic "
+            "class)."
+        ),
     )
     cm.add_argument("--jd", type=float, required=True)
     cm.add_argument("--body", required=True, choices=["mars"],
-                    help="v0.1.0 supports 'mars' only")
+                    help="v0.3.0 supports 'mars' only")
     cm.add_argument("--model-a", required=True,
-                    choices=["uniform", "epicycle", "equant"])
+                    choices=["uniform", "epicycle", "equant", "bronze"],
+                    help="first model to compare")
     cm.add_argument("--model-b", required=True,
-                    choices=["uniform", "epicycle", "equant"])
-    cm.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES)
+                    choices=["uniform", "epicycle", "equant", "bronze"],
+                    help="second model to compare")
+    cm.add_argument("--kernel", default="de421", choices=_KERNEL_CHOICES,
+                    help="JPL DE-kernel to use as ephemeris truth")
+    cm.add_argument("--params", default="ptolemy",
+                    choices=["ptolemy", "freeth_2012", "freeth_2021"],
+                    help=("Mars param set; default 'ptolemy' = "
+                          "Almagest IX-X canonical (v0.3.0)"))
     cm.set_defaults(func=_cmd_compare_models)
     cr = cmp_sub.add_parser(
         "reconstructions",

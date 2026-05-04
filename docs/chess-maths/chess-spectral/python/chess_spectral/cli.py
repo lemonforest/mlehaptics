@@ -17,6 +17,13 @@ Commands (symmetric with the C side):
     encode-fen --fen "<fen>" [-o single.spectral]
                Encode a single FEN string to a one-ply .spectral file.
 
+    legal-moves --fen "<fen>" [--format uci|san|json] [--with-sheets]
+               (1.9.0+) Enumerate legal moves at a 2D position. With
+               --with-sheets and --format json, also emits the 11-dim
+               non-Markovian sheet aux block (castling rights, EP
+               target, halfmove clock, repetition count, side to
+               move). Requires python-chess.
+
     corpus     --pgn PATH [PATH ...] [--run-id NAME] [--results-root DIR]
                Wrap one or more local PGNs as a corpus-layout folder
                consumable by the chess-maths-viewer (web app
@@ -379,6 +386,92 @@ def cmd_encode_fen(args: argparse.Namespace) -> int:
         return 3
     tag = " (gzip)" if compress else ""
     print(f"encode-fen: wrote 1 frame to {out}{tag}", file=sys.stderr)
+    return 0
+
+
+def cmd_legal_moves(args: argparse.Namespace) -> int:
+    """1.9.0 — enumerate legal moves at a 2D position.
+
+    Reads a FEN (positional or from stdin via ``-``), constructs a
+    python-chess Board, and emits the side-to-move's legal moves in
+    one of three formats: UCI lines (default, one per line), JSON
+    object (``--format json``), or SAN lines (``--format san``).
+
+    Optionally also emits the non-Markovian sheet aux block as JSON
+    via ``--with-sheets``, useful for downstream consumers that want
+    the full 11-dim block alongside the move list.
+    """
+    try:
+        import chess
+    except ImportError:
+        print(
+            "legal-moves: python-chess is required for 2D legal-move "
+            "generation; install with `pip install chess`",
+            file=sys.stderr,
+        )
+        return 4
+
+    fen = args.fen
+    if fen == "-":
+        fen = sys.stdin.read().strip()
+    if not fen:
+        print("legal-moves: --fen is required (or pass '-' to read "
+              "from stdin)", file=sys.stderr)
+        return 2
+
+    try:
+        board = chess.Board(fen)
+    except ValueError as e:
+        print(f"legal-moves: invalid FEN ({e})", file=sys.stderr)
+        return 3
+
+    fmt = args.format
+    moves = list(board.legal_moves)
+
+    if fmt == "json":
+        # Stable JSON shape — consumers can grep `.moves[].uci` etc.
+        result: dict[str, object] = {
+            "fen": fen,
+            "side_to_move": "white" if board.turn == chess.WHITE else "black",
+            "n_moves": len(moves),
+            "moves": [
+                {
+                    "uci": m.uci(),
+                    "san": board.san(m),
+                    "from": chess.SQUARE_NAMES[m.from_square],
+                    "to": chess.SQUARE_NAMES[m.to_square],
+                    "is_capture": board.is_capture(m),
+                    "is_castling": board.is_castling(m),
+                    "is_en_passant": board.is_en_passant(m),
+                    "is_promotion": m.promotion is not None,
+                }
+                for m in moves
+            ],
+        }
+        if args.with_sheets:
+            from chess_spectral.sheets import SheetState, encode_aux_block
+            state = SheetState.from_chess_board(board)
+            aux = encode_aux_block(state)
+            result["sheet_state"] = {
+                "castling_wk": state.castling_wk,
+                "castling_wq": state.castling_wq,
+                "castling_bk": state.castling_bk,
+                "castling_bq": state.castling_bq,
+                "ep_file": state.ep_file,
+                "side_to_move_white": state.side_to_move_white,
+                "halfmove_clock": state.halfmove_clock,
+                "repetition_count": state.repetition_count,
+                "aux_block_11d": [float(x) for x in aux],
+            }
+        json.dump(result, sys.stdout, separators=(",", ":"))
+        sys.stdout.write("\n")
+    elif fmt == "san":
+        for m in moves:
+            print(board.san(m))
+    else:  # default: uci
+        for m in moves:
+            print(m.uci())
+
     return 0
 
 
@@ -1044,6 +1137,37 @@ def build_parser() -> argparse.ArgumentParser:
                             "v2 byte-for-byte compatible with the C "
                             "`spectral encode-fen` binary.")
     p_fen.set_defaults(func=cmd_encode_fen)
+
+    p_lm = sub.add_parser(
+        "legal-moves",
+        help="Enumerate legal moves at a 2D FEN position",
+        description=(
+            "Enumerate the side-to-move's legal moves at a position "
+            "given by FEN. Output format selectable via --format: "
+            "'uci' (default — one move per line as e.g. e2e4), 'san' "
+            "(standard algebraic notation, one per line), or 'json' "
+            "(structured output with from/to squares and "
+            "capture/castling/en-passant/promotion flags). "
+            "With --with-sheets, the JSON output also includes the "
+            "1.9.0 non-Markovian sheet aux block (11-dim float "
+            "vector + decoded SheetState fields), useful for "
+            "downstream consumers reasoning about castling rights / "
+            "EP target / halfmove clock / repetition state without "
+            "reconstructing a Board. python-chess is required."
+        ),
+    )
+    p_lm.add_argument(
+        "--fen", required=True,
+        help="FEN string (or '-' to read from stdin)")
+    p_lm.add_argument(
+        "--format", choices=("uci", "san", "json"), default="uci",
+        help="output format: 'uci' (default, one move per line), "
+             "'san', or 'json' (structured)")
+    p_lm.add_argument(
+        "--with-sheets", action="store_true",
+        help="(JSON format only) also emit the 11-dim non-Markovian "
+             "sheet aux block alongside the move list")
+    p_lm.set_defaults(func=cmd_legal_moves)
 
     p_cor = sub.add_parser(
         "corpus",

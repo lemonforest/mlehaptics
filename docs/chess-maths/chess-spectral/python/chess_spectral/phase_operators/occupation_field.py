@@ -57,6 +57,105 @@ def occupation_field_from_board(board: "chess.Board") -> dict[int, int]:
     return out
 
 
+# 1.11.0 — encoder-format pos dict adapter (B-spike-1b, ALU-native).
+#
+# The encoder's standard position format is ``{sq: piece_char}`` with
+# ``sq = row * 8 + col`` where row 0 = rank 8 (Black's back rank) and
+# col 0 = file a — see :func:`chess_spectral.fen_to_pos` for the
+# canonical conversion. python-chess uses a different square
+# convention (sq 0 = a1, rank 0 = white's back rank), so a translation
+# is needed when the encoder's pos format meets the phase-operator
+# (rank, file) convention.
+
+def _encoder_sq_to_chess_rc(sq: int) -> tuple[int, int]:
+    """Encoder sq (row-major from a8=0) → (chess_rank, chess_file).
+
+    chess_rank ∈ [0, 7] with 0 = rank 1 (white's back rank).
+    chess_file ∈ [0, 7] with 0 = file a.
+    """
+    encoder_row = sq // 8
+    encoder_col = sq % 8
+    chess_rank = 7 - encoder_row
+    chess_file = encoder_col
+    return chess_rank, chess_file
+
+
+def _chess_rc_to_encoder_sq(r: int, c: int) -> int:
+    """Inverse of :func:`_encoder_sq_to_chess_rc`."""
+    encoder_row = 7 - r
+    return encoder_row * 8 + c
+
+
+def occupation_field_from_pos_dict(
+    pos: "dict[int, str] | dict[str, str]",
+) -> dict[int, int]:
+    """Convert an encoder-format position dict to a phase-native
+    occupation field. ALU-native counterpart of
+    :func:`occupation_field_from_board` — no python-chess required.
+
+    Parameters
+    ----------
+    pos
+        Encoder-format position: ``{sq: piece_char}`` where ``sq``
+        is row-major from a8=0 (sq 0 = a8, sq 63 = h1) and
+        ``piece_char`` is uppercase for white, lowercase for black,
+        from the set ``{P, N, B, R, Q, K}``. Accepts both int-keyed
+        and str-keyed dicts (NDJSON convention).
+
+    Returns
+    -------
+    dict[int, int]
+        ``{phase_int: charge}`` where ``charge ∈ {+1 (white),
+        -1 (black)}``. Identical in shape and semantics to
+        :func:`occupation_field_from_board`'s return value, so
+        downstream phase-operator functions accept either input
+        path interchangeably.
+    """
+    out: dict[int, int] = {}
+    for sq, piece_char in pos.items():
+        sq_int = int(sq) if isinstance(sq, str) else sq
+        rank, file = _encoder_sq_to_chess_rc(sq_int)
+        charge = WHITE_CHARGE if piece_char.isupper() else BLACK_CHARGE
+        out[phi(rank, file)] = charge
+    return out
+
+
+def ep_phase_from_ep_file(
+    ep_file: "int | None",
+    side_to_move_white: bool,
+) -> "int | None":
+    """ALU-native counterpart of :func:`ep_phase_from_board` — derive
+    the EP target square's phase from an integer file index.
+
+    The EP target rank is determined by side-to-move:
+
+      * White to move: black just played a 2-step pawn push; the EP
+        target sits on rank 5 (0-indexed = sixth rank from white's
+        perspective, behind the black pawn).
+      * Black to move: white just played a 2-step pawn push; EP
+        target sits on rank 2 (0-indexed = third rank from white's
+        perspective, behind the white pawn).
+
+    Parameters
+    ----------
+    ep_file
+        File index 0..7 (a..h) of the EP target, or ``None`` if there
+        is no EP target on the current ply. Matches the sheet-block
+        ``SheetState.ep_file`` field semantics (1.9.0+).
+    side_to_move_white
+        ``True`` if it is white to move, ``False`` for black.
+
+    Returns
+    -------
+    int | None
+        Phase ``∈ [0, 640)`` of the EP target square, or ``None``.
+    """
+    if ep_file is None:
+        return None
+    ep_rank = 5 if side_to_move_white else 2
+    return phi(ep_rank, ep_file)
+
+
 def is_own_charge(occupation: dict[int, int], phase: int,
                   mover_charge: int) -> bool | None:
     charge = occupation.get(phase % MODULUS)

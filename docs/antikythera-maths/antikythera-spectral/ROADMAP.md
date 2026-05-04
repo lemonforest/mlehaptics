@@ -6,7 +6,25 @@ discipline: every entry the help text advertises is either ✅ wired
 (real implementation behind it) or ⏳ pending (planned for a specific
 version).
 
-## Current release: v0.1.0rc1 (in development on `antikythera-spectral-pypi-plan` branch)
+## Released versions
+
+| Version | Date | Headline |
+|---|---|---|
+| **v0.3.0** | 2026-05-02 | Mars planetary models + bit-packed HDC ALU + default-backend flip. New `mars_models` and `bit_alu` facades; bronze projection + Freeth-reconstruction param sets; `compare.compare_models_at_jd` and `bridge.compare_models` accept `bronze` + `params`; ADR 0012 (algebra/eigenbasis vs CAD scope); Mars 38° gap audit reproduced as `mars_models.fj_38deg_finding()`; bit-ALU benchmark + cycle-alignment investigation. **Default backend flipped to `bit`** across `default_encode`, `bridge.get_dial_state` / `decode_dial` / `decode_to_jd`, and the CLI; `backend="complex128"` available as v0.2.x opt-out. **186 tests passing** (50 immolation including 23 v0.3.0 release-gate rows; 16 default-backend tests; 10 bit-ALU primitive tests; 9 mars_models tests). |
+| v0.2.1 | 2026-04-30 | PyPI metadata hotfix (project URL `Demo` → kiosk site). |
+| v0.2.0 | 2026-04-30 | Self-contained mode: visibility / heliacal / elongation / eclipses all default to algebraic propagation; skyfield optional via `[ephemeris]` extras. ADR 0011. |
+| v0.1.0 | 2026-04-30 | First public release on PyPI. 28-method bridge, 9 facade modules, codegen with provenance manifest, 31-row H-battery, CLI console script. |
+
+## Next planned
+
+| Version | Theme |
+|---|---|
+| v0.4.x | Numpy-fast `bit_alu.permute` + `np.bitwise_count`-backed similarity (close the few remaining bit-ALU operations that still trail the float reference). H-battery rows for the bit-ALU encoder (does it pass the same B-H1 / E-H1 round-trip checks as the complex128 encoder?). |
+| later | Apply the #5–#10 Mars-gap framework to Venus / Mercury / Jupiter / Saturn (each has its own theoretical-error figure worth auditing under the same discipline). |
+
+The phase table below is preserved for historical context — most entries shipped during v0.1.0 / v0.2.0 / v0.3.0 even though the inline status says "pending."
+
+## Current release: v0.3.0 (released 2026-05-02)
 
 ### Phase status
 

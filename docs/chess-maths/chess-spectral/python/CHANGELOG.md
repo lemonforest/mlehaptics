@@ -7,6 +7,518 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] — 2026-05-04
+
+B-spike-1b from notebook §20.15 ships: **ALU-native phase-operator
+move generator**. The §11 phase-operator engine — already
+integer-arithmetic at the core, already BIP-isomorphic at the
+group-theoretic level over `Z_640` — gains a public integration
+entry point that doesn't require a `python-chess.Board` argument.
+Pure ALU-native pseudo-legal move generation for Pyodide / WASM /
+non-Python downstream consumers. No breaking changes vs 1.10.x;
+existing API surface unchanged.
+
+### Why this is the 1.11.0 ship
+
+The §20.13 audit established that the engine was already
+BIP-isomorphic — phase composition is integer addition modulo
+`Z_640`, identical in shape to BIP's `(φ_1 + φ_2) mod 2^K`. What
+was missing for downstream consumers was the integration entry
+point. Existing `occupation_aware_moves_{a,b,c}` all required a
+Board argument because they derived the occupation field, EP
+square, and castling-rights state from python-chess. Solutions B
+and C of §11.4 are pure phase arithmetic on `dict[phase, charge]`
+occupation fields; they just didn't have a public adapter that
+fed them encoder-format input directly.
+
+### Added — `occupation_field_from_pos_dict` and `ep_phase_from_ep_file`
+
+Two pure-phase adapters in
+`chess_spectral.phase_operators.occupation_field`:
+
+- `occupation_field_from_pos_dict(pos)` — encoder-format
+  `{sq: piece_char}` → `{phase: charge}`. Counterpart of the
+  existing `occupation_field_from_board(board)`. Accepts both
+  int- and str-keyed pos dicts (NDJSON convention).
+- `ep_phase_from_ep_file(ep_file, side_to_move_white)` — derive
+  the EP target's phase from the file index + side-to-move.
+  Mirrors the 1.9.0 `SheetState.ep_file` semantics (white-to-move
+  ⇒ EP target on rank 5; black-to-move ⇒ rank 2).
+
+### Added — `phase_only_pseudo_legal_moves` integration entry point
+
+New module `chess_spectral.phase_operators.alu_native` exporting:
+
+- `phase_only_pseudo_legal_moves(pos, side_to_move_white, *,
+  ep_file=None) -> list[(from_sq, to_sq, promo)]` — pure
+  ALU-native pseudo-legal move generator. Iterates pieces of the
+  side to move, dispatches to the per-piece destination
+  computations from Solution B, expands pawn promotions into 4
+  target moves (Q/R/B/N).
+- `PROMOTION_TARGETS` — `('Q', 'R', 'B', 'N')`, the canonical
+  promotion-target ordering.
+
+**Pseudo-legal in the python-chess sense:** respects piece
+geometry, occupation (own-piece blocking, opposite-charge
+capture), pawn double-push from starting rank, en passant,
+promotion. Does NOT include castling (deferred — needs attack
+map) or check filtering (deferred — needs occupation-by-piece-type
+refactor of `phasecast_is_check`).
+
+### Acceptance gate — parity vs `python-chess.pseudo_legal_moves`
+
+`tests/test_phase_operator_alu_native.py` includes a parametrized
+parity test against `board.pseudo_legal_moves` on a representative
+8-FEN corpus (opening, middlegame, endgame, EP-active,
+promotion-imminent). For every position, the move set returned by
+`phase_only_pseudo_legal_moves` matches `board.pseudo_legal_moves`
+exactly after excluding castles. **All 26 tests pass on first
+implementation.**
+
+### Diagnostic benchmark
+
+`tests/bench_phase_operator_movegen.py` measures absolute cost vs
+the existing paths:
+
+| Position | python-chess | Solution B (per-piece × 16) | **ALU-native** |
+|---|---|---|---|
+| Opening (startpos) | ~73 µs | ~1970 µs | **~190 µs** |
+| Middlegame (Italian, both castled) | ~82 µs | ~2150 µs | **~250 µs** |
+| Endgame (K+R vs K) | ~23 µs | ~80 µs | **~41 µs** |
+
+ALU-native is ~2-3× slower than Cython python-chess (expected),
+but **structurally faster than Solution-B-per-piece-loop**
+because it builds the occupation field once per position instead
+of per-piece. The value is **portability** (no python-chess
+dependency on the hot path), not raw speed against Cython.
+
+### Documented `Z_640` wire contract (notebook §20.17)
+
+The constants `MODULUS`, `ROW_GEN`, `COL_GEN`, `DIAG_NE_SW_GEN`,
+`DIAG_NW_SE_GEN`, `KNIGHT_SHIFTS`, `KING_SHIFTS` are now part of
+the public API surface (re-exported from
+`chess_spectral.phase_operators`). They do not move without a
+major version bump.
+
+§20.17 also reiterates the §20.13 clarification that the
+"8-generator coprimality" is a **spectral** property (irrational
+pairwise eigenvalue ratios), not an arithmetic-modular CRT
+decomposition. The engine uses a single composite `Z_640`
+modulus, not 8 separate `Z_p` rings. `Z_640` does not get the
+"free overflow" semantics that BIP encoding gets in `Z_{2^32}`
+(notebook §20.11) — every `(a + b) % MODULUS` is an explicit
+modulo op, cheap but not zero. Worth noting for cross-pollination
+with the antikythera-spectral / ephemerides-spectral BIP work
+which uses the power-of-2 path.
+
+### Added — 26 immolation tests in `tests/test_phase_operator_alu_native.py`
+
+- Encoder-sq ↔ chess (rank, file) round trip for all 64 squares.
+- `occupation_field_from_pos_dict` parity with
+  `occupation_field_from_board` on 8 representative FENs.
+- `ep_phase_from_ep_file` parity with `ep_phase_from_board` on
+  EP-active positions (post-1.e4, post-1.e4 d5).
+- **The acceptance gate**: parametrized parity vs python-chess
+  pseudo-legal moves (excluding castles) on the 8-FEN corpus.
+- Targeted edge cases: pawn promotion expansion (4 targets),
+  EP capture only with `ep_file` supplied, side-to-move
+  filtering, str-keyed pos dict acceptance, pseudo-legal count
+  at startpos = 20.
+
+### What this 1.11.0 does NOT do
+
+- Does not change the existing `occupation_aware_moves_{a,b,c}`
+  functions. They retain their Board-fronted signatures for
+  back-compat.
+- Does not implement castling in the ALU-native path. Pure-phase
+  castling generation is doable but needs an attack map; deferred
+  to a 1.12.0+ follow-up when a consumer needs it.
+- Does not refactor `phasecast_is_check` to take an occupation
+  dict directly. Still takes a Board; the ALU-native path's
+  output is pseudo-legal-without-check-filter. Caller is
+  responsible for downstream check filtering until the refactor
+  lands.
+- Does not modify the encoder. The 640 / 45056-dim spectral
+  payload is untouched. C parity tests pass unchanged.
+- Does not implement BIP for the encoder channels (B-spike-2;
+  next ship in the §20.15 phasing).
+
+### Notebook updates
+
+- `chess_spectral_research_notebook.md` §20.17 — implementation
+  update for B-spike-1b: scope, acceptance, benchmark numbers,
+  Z_640 wire contract, what's deferred for 1.12.0+, cross-
+  pollination notes for ephemerides-spectral.
+
+## [1.10.0] — 2026-05-04
+
+B-spike-1a from notebook §20.16 ships: **BIP-encoded sheet block**
+(integer-native form of the 1.9.0 non-Markovian aux block, ~29×
+compression with bit-exact round trip on the legal state space).
+No breaking changes vs 1.9.x. Same algebraic content, smaller
+storage footprint, ALU-native operator fast paths.
+
+### Why this is the 1.10.0 ship
+
+The 1.9.0 sheet block ships an 11-dim float64 aux block (88 bytes
+per position) for content that is overwhelmingly *categorical* —
+4 castling bits + 1 EP-active + 3 EP-file + 1 side-to-move +
+2 repetition + Z₁₀₁ halfmove (cos/sin pair). The new BIP
+representation packs the same content into **3 bytes** (uint16
+categorical + uint8 halfmove). Notebook §20.10-§20.16 captures
+the prior art (Gemini's `bip_instrument.py` antikythera prototype:
+305× speedup, 0.011° error = static-Laplacian propagator floor,
+NOT bit-serialization loss) and the chess synthesis (sheets are
+unique to chess; ephemerides has no non-Markov state to learn
+from). The first move of the §20.15 three-tier B-spike phasing.
+
+### Where BIP wins vs the 1.9.0 float path
+
+- **Pyodide / chess4D-OC consumers** — direct uint16 bit-ops are
+  native to JavaScript Number / WASM; no Python interpreter
+  overhead, no `python-chess.Board` reconstruction. ~50-100×.
+- **Batch retrieval over saved corpora** — filtering 10,000
+  stored vectors for "any castling alive" is one numpy
+  `cats[:] & 0xF` against a packed corpus, vs 10,000
+  `python-chess.Board(fen)` reconstructions. ~3 orders of magnitude.
+- **Hamming-distance similarity** on the categorical portion is
+  sharper than float cosine-sim for binary state.
+- **Wire format** — v5 mode-2 XOR-stream compression of sheet
+  bits is now natively the right shape. Each ply changes few
+  categorical bits; `categorical XOR previous_categorical` is
+  mostly zero, compresses well.
+
+### Where BIP does NOT win — depth-1 floor still holds
+
+Per §19.10, single-position queries on python-chess (one
+`int & mask` for castling, one attribute load for EP) cannot be
+undercut by float-numpy slice + decode. **The same floor applies
+to BIP's bit-shift + AND.** Both are at the per-call latency
+floor. BIP's wins are at scale, not at single-call latency.
+
+### Added — `chess_spectral.sheets_bip` module
+
+- `SheetStateBIP` dataclass (frozen): two integer fields
+  (`categorical: uint16`, `halfmove_clock: uint8`). Bounds-checked
+  on construction (rejects out-of-range values, non-zero reserved
+  bits).
+- `encode_sheet_state_bip(state) -> SheetStateBIP` — convert
+  1.9.0 `SheetState` to BIP form. Edge-case handling matches
+  1.9.0 (clamp halfmove > 100, saturate repetition > 2,
+  ep_file=None encodes as ep_active=0 + ep_file=0).
+- `decode_sheet_state_bip(packed) -> SheetState` — lossless
+  inverse on the legal state space.
+- **Round-trip exact**: 87,264 cases verified by
+  `tests/test_sheets_bip.py` (864 categorical × 101 halfmove).
+
+### Added — operator fast paths
+
+Single-integer-op queries against the categorical portion:
+
+- `castling_alive(packed) -> bool` — any castling right alive
+- `kingside_castling_alive(packed)` / `queenside_castling_alive`
+- `white_castling_alive` / `black_castling_alive`
+- `ep_target_active(packed) -> bool` — ep_active bit
+- `ep_file_from_bip(packed) -> Optional[int]` — file 0..7 or None
+- `side_to_move_white_from_bip(packed) -> bool`
+- `repetition_count_from_bip(packed) -> int` — 0/1/2
+- `fifty_move_rule_triggered(packed) -> bool` — halfmove ≥ 100
+- `threefold_claimable(packed) -> bool` — repetition ≥ 2
+
+Each is a single bit-mask + comparison; no FPU, no Python-loop
+overhead.
+
+### Added — distance metrics
+
+- `hamming_distance_categorical(a, b) -> int` — Hamming distance
+  over the 11 categorical bits. Useful for corpus-similarity
+  retrieval where binary state distinctions matter (positions
+  with different castling rights vs same).
+- `halfmove_distance(a, b) -> int` — absolute integer difference
+  of half-move clocks (one-sided metric on Z₁₀₁).
+
+### Added — bridge surface (`chess_spectral_4d.bridge`)
+
+Three new functions for chess4D-OC / Pyodide consumers; numpy-
+free across the WASM boundary:
+
+- `bridge.get_sheet_state_bip(state_or_board)` — returns
+  `{"ok": True, "sheet_bip": {"categorical": int,
+  "halfmove_clock": int}}`. Dispatches on `GameState4D` vs
+  python-chess Board.
+- `bridge.encode_sheet_aux_bip(sheet_dict)` — serialize a sheet
+  dict to BIP form. Returns `{"categorical": int (uint16),
+  "halfmove_clock": int (uint8)}`.
+- `bridge.decode_sheet_state_from_bip(categorical, halfmove_clock)`
+  — inverse. Validates input ranges before decoding.
+
+### Added — 33 immolation tests in `tests/test_sheets_bip.py`
+
+- Exhaustive 87,264-case round trip (864 categorical × 101
+  halfmove) — the load-bearing acceptance gate.
+- Operator fast-path parity vs the 1.9.0 SheetState across the
+  full state space (8 operators × 864 × 6 halfmove samples).
+- Edge cases: ep_file=None, halfmove clamp at 100, repetition
+  saturation at 2, reserved-bit zero invariant.
+- Distance metrics: Hamming self-distance zero, Hamming castling
+  one-bit diff, full-state distance counts correctly accounting
+  for binary representation of the repetition field (rep=2 sets
+  only bit 10, not 2 bits).
+- python-chess Board factory parity (startpos, post-e4 EP).
+- 4D `GameState4D` factory parity (canonical Oana-Chiru §3.3
+  startpos).
+- Bridge round trip (state → encode → decode → equality).
+- Bridge error cases (missing fields, invalid ranges,
+  unrecognized input types).
+
+### What this 1.10.0 does NOT do
+
+- Does not modify the 1.9.0 float64 sheet block. Both
+  representations ship side-by-side.
+- Does not enter the v5 wire format. Wire-format integration
+  (the natural follow-up given mode-2 XOR-stream's affinity for
+  the BIP categorical packing) is still deferred per §19.12;
+  picks up when a downstream consumer needs persisted BIP-
+  encoded sheet frames.
+- Does not change the encoder. The 640 / 45056-dim spectral
+  payload is untouched. C parity tests pass unchanged.
+- Does not promote the §11 phase-operator engine to public API.
+  That's B-spike-1b in the §20.15 phasing; independent of this
+  ship and can land separately when prioritized.
+- Does not implement BIP for the encoder channels themselves.
+  That's B-spike-2 (encoder hybrid), which depends on the
+  bit-packing patterns this 1.10.0 establishes.
+
+### Notebook updates
+
+§20.10-§20.16 already shipped in PR #159 (the research artifact
+preceding this implementation). 1.10.0 ships against the §20.16
+implementation plan as written; no additional notebook updates
+needed for this version.
+
+## [1.9.1] — 2026-05-04
+
+Polish on top of v1.9.0. README PyPI examples updated to use the
+future-proof `encode_2d` alias, Roadmap link added to PyPI project
+URLs, v5 wire format design decision recorded (sheets do **not**
+ride in v5; in-memory and on-disk paths diverge intentionally —
+see notebook §19.12). No code-behavior changes — encoder defaults
+remain bit-for-bit identical to 1.9.0 / C parity.
+
+### Changed
+
+- **README.md** quick-start example uses `encode_2d` (the 1.9.0
+  future-proof alias) instead of `encode_640`. Layout block in the
+  README directory tree similarly switched. Section heading
+  "Quick start (2D, 640-dim)" → "Quick start (2D)" since 640 is
+  no longer a stable contract (sheets bumped 640 → 651, future
+  channel embiggening may move it again — see notebook §19.11).
+  The example now demonstrates querying `ENCODING_DIM` rather
+  than hardcoding the value.
+- **`pyproject.toml` + `pyproject-pure.toml`** add a
+  `Roadmap` entry to `[project.urls]` pointing at
+  [`docs/chess-maths/chess-spectral/ROADMAP.md`](../ROADMAP.md).
+  PyPI surfaces this as a project-link badge alongside Homepage /
+  Repository / Issues / Changelog / Notebook (2D) / Notebook (4D).
+- **`ROADMAP.md`** refreshed from a stale "Current release: v1.6.0"
+  to a v1.9.1 + 1.9.0 + 1.8.x + 1.7.x retrospective; v1.7-era
+  candidates section relabeled to "v1.10+ candidates and parked
+  spikes" with concrete pointers to S-spike-2 (sheet wire format),
+  B-spike-1 (BSHDC side-car), Tier 2.1/2.2 (η-metric machinery),
+  and the API-stability adoption pattern from §19.11.
+
+### Added
+
+- **`frame_v5.py` module-docstring section "Sheets and v5 (1.9.1+
+  design decision)"** — documents that v5 frames do not carry the
+  sheet aux block; rationale (existing corpus pattern preserves
+  source, sheets are in-memory representation feature, no
+  downstream consumer needs persisted sheet frames yet); future
+  extension path (223 reserved bytes in the v5 header are
+  available for `aux_dim` / `aux_offset` fields when a consumer
+  needs them); recommended sidecar JSON pattern in the meantime.
+- **Notebook §19.12** — "Sheets and the v5 wire format — deferred
+  by design" — captures the same decision for the research record,
+  with the in-memory-vs-on-disk path table that consumers should
+  reference.
+
+## [1.9.0] — 2026-05-04
+
+Lands the §19 spike's Phase-1 sheet block (notebook §19, May 2026)
+as a **representation-completeness** feature, plus a new
+`legal-moves` CLI command for both 2D and 4D — the gap-filler that
+closes the "no command-line legal-move-gen" hole flagged on the
+1.9.0 prep thread.
+
+### Why this is the 1.9.0 representation-only ship
+
+The §19 spike originally proposed sheet blocks as a candidate speed
+optimization for the non-spatial-geometry move operators (castling,
+en passant). Empirical analysis of the 2D pipeline (notebook §19.10)
+confirms the depth-1 floor: `python-chess`'s
+`board.has_castling_rights()` is one int-AND, the same lookup the
+sheet block would need to do via float→int conversion plus numpy
+slice. We can't undercut that floor at single-position scale, and
+the same logic holds against `Board4D.halfmove_clock >= 100` and the
+hash-table threefold-repetition lookup. **1.9.0 ships sheet blocks
+as a representation-only feature, not a speed feature.** No speedup
+claim in the API surface, no benchmark harness, no fast-path
+early-exit logic. The value is making encoder vectors self-
+sufficient for downstream consumers of saved/transmitted vectors —
+chess4D-OC, Pyodide pipelines, batch retrieval — that don't want
+to reconstruct a python-chess `Board` or a `GameState4D` alongside
+the vector.
+
+### Added — Sheet aux block (§19 representation-only)
+
+- New module `chess_spectral.sheets` with the 11-dim non-Markovian
+  aux block:
+  - `SheetState` dataclass (castling rights × 4, EP file, side to
+    move, halfmove clock, repetition count).
+  - `SheetState.from_chess_board(board)` factory lifts state from a
+    `python-chess` Board (castling rights via
+    `has_kingside_castling_rights` / `has_queenside_castling_rights`,
+    EP file from `ep_square`, halfmove from `halfmove_clock`,
+    repetition via `is_repetition`).
+  - `SheetState.from_game_state_4d(state)` factory lifts state from
+    `chess_spectral_4d.GameState4D`. Castling and EP slots are
+    forced to neutral values per the Oana-Chiru ruleset (no
+    castling, no en passant — see `spatial_4d/board.py` header);
+    halfmove + side-to-move + repetition are populated.
+  - `encode_aux_block(state) -> np.ndarray` — serialize to the
+    11-dim float64 aux block. Halfmove encoded via Z_101 Fourier
+    carrier (cos / sin pair) preserving clock-distance fidelity;
+    castling / EP / side-to-move / repetition stored as direct
+    binary or small-integer slots.
+  - `decode_*` getters for individual slots and `decode_sheet_state`
+    for the full round-trip recovery. Half-move recovery rounds to
+    the nearest integer in [0, 100]; round-trip exact for all 101
+    legal values.
+- All eight sheets symbols re-exported at the top level
+  (`from chess_spectral import SheetState, encode_aux_block, ...`).
+- Layout constants: `SHEET_AUX_DIM = 11`, `SHEET_OFFSET_2D = 640`,
+  `SHEET_OFFSET_4D = 45056`. Indexed slot positions
+  (`SLOT_CASTLING_WK`, ..., `SLOT_HALFMOVE_SIN`, `SLOT_RESERVED`)
+  are part of the wire contract; consumers should use the named
+  constants instead of magic numbers.
+
+### Added — Encoder hooks for sheet aux block
+
+- `encode_640(pos, sheets=...)` — opt-in kwarg; when supplied,
+  appends the 11-dim aux block, producing a 651-dim float64 vector.
+  The first 640 dims are bit-for-bit identical to legacy / C
+  encoder output (test_c_py_parity unchanged); aux ride at offset
+  `SHEET_OFFSET_2D = 640`.
+- `encode_4d(pos4, sheets=...)` — same opt-in kwarg; produces a
+  45067-dim float32 vector. Aux block is cast to float32 for dtype
+  consistency with the base encoder. First 45056 dims unchanged
+  (test_c_py_parity_4d unchanged); aux at offset `SHEET_OFFSET_4D`.
+- Default behavior of both functions is bit-for-bit unchanged from
+  pre-1.9.0 — the `sheets` kwarg is opt-in and the legacy 640 / 45056
+  output is the default.
+
+### Added — `legal-moves` CLI command (closes the gap on the 1.9.0 prep thread)
+
+- `chess-spectral legal-moves --fen "<fen>" [--format uci|san|json]
+  [--with-sheets]` — enumerate the side-to-move's legal moves at a
+  2D position. Default UCI output (one move per line); JSON format
+  includes per-move flags (capture / castling / en-passant /
+  promotion) plus optional sheet block. Stdin via `--fen -`. Uses
+  `python-chess` for legal-move generation.
+- `chess-spectral-4d legal-moves --fen4 "<fen4>" [--format
+  compact|json] [--with-sheets] [--side-to-move ...] [--halfmove-
+  clock N] [--fullmove-number N]` — analog for 4D-OC. Default
+  compact format `x,y,z,w->x,y,z,w` with DP/EP/=Q tags for double-
+  push, en-passant, and promotion; JSON output structured. Uses
+  `Board4D.legal_moves()` (the native 4D move-gen via the graph-
+  Laplacian-derived primitives).
+- 12 immolation tests in `tests/test_legal_moves_cli.py` cover the
+  startpos move counts, JSON structure, sheet-block presence,
+  stdin input, and bad-FEN handling for both dimensions.
+
+### Added — 28 immolation tests for the sheet aux block
+
+`tests/test_sheets_aux_block.py` locks down:
+- Aux block shape (11,) + dtype (float64).
+- Default-state aux values (cos(0)=1, sin(0)=0, all other slots 0).
+- Castling rights round-trip (8 parametrized combinations).
+- EP file round-trip (None + files 0..7, 9 parametrized cases).
+- Half-move clock round-trip for **every integer [0, 100]** (101
+  parametrized cases) — exact recovery via atan2 + rounding.
+- Half-move > 100 clamps to 100 (50-move rule has triggered).
+- Half-move carrier always on the unit circle (cos² + sin² ≈ 1).
+- Side-to-move round-trip (both directions).
+- Repetition count round-trip (0/1/2) and clamping for values > 2.
+- Aggregate `decode_sheet_state` full round-trip.
+- 2D encoder integration: shape, dtype, base-preservation,
+  aux-at-offset.
+- 4D encoder integration: same four checks, with float32 dtype.
+- `from_chess_board` factory lifts python-chess state correctly
+  (startpos, post-double-push EP target, halfmove clock advance).
+- `from_game_state_4d` factory: castling/EP slots zero per
+  ruleset; halfmove + side-to-move + repetition populated.
+
+### Added — Bridge surface for sheet aux block (Pyodide / chess4D-OC)
+
+The `chess_spectral_4d.bridge` module gains three new functions
+that round out the sheet-block surface for the `chess4D-OC` worker
+and any other Pyodide / WASM consumer. The bridge contract holds
+("plain dict, no numpy across WASM"); aux blocks cross the boundary
+as plain `list[float]`.
+
+- `bridge.get_sheet_state(state_or_board)` — extract the 11-dim
+  non-Markovian sheet state from a `GameState4D` or a
+  `python-chess.Board`. Dispatches by type. Returns
+  `{"ok": True, "sheet": {...}}` with eight named fields.
+- `bridge.encode_sheet_aux(sheet_dict)` — serialize a sheet dict
+  to the 11-dim aux block as a plain `list[float]`. Returns
+  `{"ok": True, "aux": [11 floats]}`.
+- `bridge.decode_sheet_aux_from_vector(vec, offset)` — given an
+  encoder vector (as a list of floats; numpy-free path) and the
+  aux-block offset (640 for 2D, 45056 for 4D), decode the aux
+  block back to a sheet dict. Returns
+  `{"ok": True, "sheet": {...}}` or `{"ok": False, "error": "..."}`
+  on a too-short vector.
+- 13 immolation tests in `tests/test_bridge_sheets.py` cover the
+  factory dispatch (4D GameState4D + 2D python-chess Board), the
+  numpy-free return path, missing-field and short-vector error
+  handling, and the full E2E composition (state → get → encode →
+  decode round-trip).
+
+### Added — `encode_2d` alias (future-proof against dim-count changes)
+
+- `chess_spectral.encode_2d` is a permanent alias of
+  `chess_spectral.encode_640`. Both names map to the same function
+  in 1.9.0 and forward; `encode_640` is preserved for backward
+  compatibility but the dim count (640) is **not a stable contract**
+  — sheets bumped output to 651 already, future channel
+  embiggening or non-Markov-state extensions may bump it further.
+  New consumer code should prefer `encode_2d` (mirroring the 4D
+  path's `encode_4d`) and query `chess_spectral.ENCODING_DIM` or
+  `enc.shape[0]` rather than hardcoding 640. See notebook §19.11
+  for the full future-work plan.
+
+### Notebook updates
+
+`docs/chess-maths/chess_spectral_research_notebook.md` gained:
+
+- **§19.9** — implementation update: S-spike-1 shipped in 1.9.0
+  with the 11-dim aux block as designed.
+- **§19.10** — "Empirical bound: depth-1 bitboard floor": captures
+  Steven's "we won't beat bitboards at depth 1" lemma, closes the
+  speed thesis, recharacterizes 1.9.0 as a representation-only
+  ship, and names the regimes where sheet blocks remain valuable
+  (saved-corpus retrieval, Pyodide contexts without a python-chess
+  Board, transmission contracts).
+- **§19.11** — "Future work: dim-count is not a stable contract;
+  rename `encode_640` → `encode_2d`": documents three forces on the
+  encoder shape (sheet enrichment beyond Phase 1, channel
+  embiggening, bit-serialized HDC enrichment per the antikythera
+  /DE441 reference), recommends the future-proof API patterns
+  (`encode_2d`, `ENCODING_DIM` query, `CHANNELS` iteration), and
+  notes that no rename of `encode_4d` is needed since `4d` already
+  factors out the dim-pinning.
+
 ## [1.8.1] — 2026-05-01
 
 Closes the 1.8.0 wishlist's tier-1.4 (`initial_position()` factory)

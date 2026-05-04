@@ -325,6 +325,8 @@ def board_signal_4d(pos4: Dict[int, PieceValue],
 
 def encode_4d(pos4: Dict[int, PieceValue],
               vals: Optional[Dict[str, float]] = None,
+              *,
+              sheets=None,
               ) -> np.ndarray:
     """Encode a 4D position to a 45056-dim float32 vector.
 
@@ -332,7 +334,22 @@ def encode_4d(pos4: Dict[int, PieceValue],
         are single chars; pawn values are ('color', 'axis') tuples
         where axis is 'y' or 'w' (v1.1.1 Oana & Chiru schema; legacy
         single-char pawn values accepted with DeprecationWarning).
-    Returns float32 array of shape (45056,).
+    sheets : SheetState or None, optional (1.9.0+)
+        If supplied, append the 11-dim non-Markovian aux block (see
+        :mod:`chess_spectral.sheets`) to the 45056-dim base, producing
+        a 45067-dim output. Castling and EP slots are zero by
+        construction (the Oana-Chiru ruleset has neither — see
+        ``spatial_4d/board.py``); the half-move clock, side-to-move,
+        and repetition slots are populated. The aux block is cast to
+        float32 to match the base encoder's dtype. Default ``None``
+        keeps the legacy 45056-dim output bit-for-bit compatible with
+        pre-1.9.0 versions and with the C ``spectral_4d`` binary.
+
+    Returns
+    -------
+    np.ndarray, dtype float32
+        Shape ``(45056,)`` if ``sheets`` is None (default),
+        else ``(45067,)``.
     """
     tables = _load_tables()
     sig = board_signal_4d(pos4, vals=vals)
@@ -443,6 +460,22 @@ def encode_4d(pos4: Dict[int, PieceValue],
         row = _DIAG_DEV_ROW[_piece_char(pval)]
         diag_ch += sig[int(k)] * DIAG_DEV[row]  # type: ignore[index]
     out[10 * CHANNEL_DIM:11 * CHANNEL_DIM] = diag_ch.astype(np.float32)
+
+    if sheets is not None:
+        # Concat the 11-dim aux block (cast to float32 to match base
+        # dtype). See :mod:`chess_spectral.sheets` for layout details.
+        # 4D-OC has no castling and no EP per the ruleset, so those
+        # slots will be zero in any SheetState lifted via
+        # SheetState.from_game_state_4d() — but we don't enforce that
+        # here; if a caller hand-constructs a SheetState with
+        # castling/EP slots set, we serialize them faithfully.
+        from .sheets import SHEET_AUX_DIM, encode_aux_block
+        aux = encode_aux_block(sheets).astype(np.float32)
+        out_with_aux = np.empty(
+            ENCODING_DIM_4D + SHEET_AUX_DIM, dtype=np.float32)
+        out_with_aux[:ENCODING_DIM_4D] = out
+        out_with_aux[ENCODING_DIM_4D:] = aux
+        return out_with_aux
 
     return out
 

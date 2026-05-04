@@ -2870,6 +2870,718 @@ This does not, on its own, make the QM extension *useful* outside chess. Per §1
 
 ---
 
+## 19. Multi-Sheeted Riemann Encoding for Non-Markovian Rules (Spike — May 2026)
+
+> **Date:** 2026-05-03. **Status:** Research spike — investigation complete, no implementation committed. **Companion spike:** §20 (BSHDC). **Framing source:** Steven, 2026-05-03: *"we will reach a structural limit of our current static laplacian propagator, at some point, and can then begin find where our shape might be fixed but doesn't need to be, where more data might live."* This section addresses the second clause — *where more data might live* — by mapping the small set of chess facts the static graph-Laplacian propagator structurally cannot reach, and asking whether they want to live as additional sheets of a covering space over the existing 640-dim / 45056-dim base.
+
+### 19.1. The structural limit the propagator hits
+
+The 640-dim 2D encoder and 45056-dim 4D encoder both compute their channels from a *position-only* observable: piece-occupancy vectors fed through D₄- (2D) or B₄- (4D) irrep projectors of a static graph Laplacian. Every dimension of the encoded vector is a function of the current board, full stop. This is exactly the modeling assumption that makes the spectral-fiber-bundle apparatus of §3-§11 work: the Hilbert space is `ℂ^{|V|}`, and pieces are perturbations of a single time-independent base operator.
+
+Chess, as a game, has four facts that are not functions of the current board:
+
+1. **Castling rights** (4 bits per side: K-side / Q-side × white / black). Once a king or its rooks move, the relevant bit is lost forever; the position can return to its pre-move arrangement (rare but legal under the placement-only FEN), and the right does not return with it.
+2. **En-passant target square** (5 bits: file 0-7 + a "no EP" sentinel, or 0-63 if encoded by square). Set on the half-move *after* a double-push pawn move, cleared on the half-move *after* that. Strictly history-of-length-1.
+3. **Half-move clock** (7 bits, range 0-100, modular under the 50-move rule). Increments every quiet ply, resets on captures and pawn moves.
+4. **Threefold-repetition state** (effectively unbounded — the entire game-history trace, since any position seen twice before in this game now triggers a draw claim).
+
+These four are the **non-Markovian residue** of chess: state that lives in the game's history rather than its position. The static Laplacian cannot see any of them. The encoder's current behavior is to silently project them out (FEN4 v1 is placement-only by design — see [`FEN4_FORMAT.md`](chess-spectral/docs/FEN4_FORMAT.md) — and 2D FEN parses but ignores the trailing fields when handed to `encode_640`). For position-similarity work this is fine; for rule-correct move generation and for any downstream search engine (§16) it is not.
+
+### 19.2. The Riemann-sheet metaphor and what it actually buys
+
+A multi-sheeted Riemann surface, in the complex-analysis sense, is a covering space `π: \tilde{X} → X` where the same point of the base `X` corresponds to multiple distinct points of `\tilde{X}`, distinguished by branch data (which sheet you're on). Functions that are multi-valued on `X` become single-valued on `\tilde{X}`. The standard examples — `√z`, `log z`, the modular j-function — all use sheet-identity to carry information that the base coordinate alone does not determine.
+
+Applied to chess: the 64-square board (2D) or 4096-cell hypercube (4D) is the base; the encoder's vector space is a function on the base; the **non-Markovian state is the branch data**. A position with white-K-side castling rights and the same position without those rights are two distinct points of `\tilde{X}` that project to the same point of `X`. The encoder needs to be a function on `\tilde{X}`, not on `X`, to be able to distinguish them.
+
+This is conceptually clean. The implementation question is: *how many sheets do we actually need, and what does the sheet-coordinate look like as a thing the encoder can consume?*
+
+### 19.3. Sheet-cardinality budget
+
+Worst-case naive sheet count is the product of all four factors' state spaces:
+
+| Fact | State space | Bits |
+|---|---|---|
+| Castling rights | 2⁴ = 16 | 4 |
+| EP target | 9 (file 0-7 ∪ none) | 4 |
+| Half-move clock | 101 (0-100) | 7 |
+| Repetition state | bounded by game length, ≤ ~5900 plies in adjudicated play | ≥ 13 |
+
+Total cartesian product: 16 × 9 × 101 × ≥8192 ≈ **≥120 million sheets**, dominated by repetition. This is unworkable as direct sheet enumeration, and naive concatenation `[base_vector ‖ sheet_id]` gives the encoder no useful gradient information about which non-Markovian facts matter for which downstream task.
+
+The structural observation is that the four facts decompose by *algebraic type*, not by joint cardinality:
+
+- **Castling rights, EP target, repetition-saw-this-position**: one-shot binary or low-cardinality categorical. **XOR-lite.** A 4-bit castling vector and a 64-bit "have I seen this position before" Bloom-style sketch both compose under XOR with the natural "now I have lost this right" / "now I have seen this position one more time" updates. They want bit-resonant carriers — see §20 for the natural encoding family.
+- **Half-move clock**: integer in `Z_{101}`, with the absorbing boundary at 100. Exactly the kind of bounded cyclic group that already has a clean spectral representation in this notebook's basis: a `Z_{101}` Fourier mode over the half-move counter is a single complex unit-magnitude carrier that the channel-energy machinery of §9 already knows how to consume. **Z_n-spectral.**
+
+This decomposition collapses the 120M-sheet count to two structural strata:
+
+| Stratum | Facts | Bits / dims needed | Carrier shape |
+|---|---|---|---|
+| **XOR-lite sheet** | Castling (4 bits), EP target (4 bits), repetition-flag (1 bit, plus optional 2-bit count) | 9-11 bits | Bit-vector with XOR update; suitable for direct concatenation as an aux block |
+| **Z_n-spectral sheet** | Half-move clock | 1 complex carrier (2 real dims) | `exp(2πi · halfmove / 101)` as a unit-modulus eigenmode |
+
+Three of the four non-Markovian facts are pure-XOR-lite at the bit level. The fourth is naturally a Z_{101} spectral mode. Total aux dimensionality recommended for Phase 1 minimal sheet: **11 dimensions** (9 bits XOR + 2 dims `Z_{101}` Fourier). Direct concatenation against the existing 640 / 45056-dim base is sufficient.
+
+### 19.4. XOR-lite vs Z_n-spectral: why the split is structural, not aesthetic
+
+The split is forced by the update law of each fact:
+
+- **Castling rights** are *destroyed*, never created. The update law on the 4-bit vector is `bits ← bits AND mask(move)` where `mask` zeros bits whose precondition the move broke. This is a monotone-decreasing operator under XOR composition — i.e., `bits XOR mask_complement = bits OR mask_complement_complement = ...` — which fits an XOR-stream wire format directly and is exactly the structure mode 2 of [v5 frame format](chess-spectral/python/chess_spectral/frame_v5.py) was designed for.
+- **EP target** has period 1: it's set on ply N after a double-push and cleared on ply N+1 unconditionally. This is a transient bit pattern, *not* a state with memory. XOR with a "decay-after-one-ply" overlay schedule trivially captures it.
+- **Repetition flag / count** is monotone-increasing as the game progresses, but only a *counter* — and the relevant claim threshold is 3, so 2 bits suffice. Update law: `count ← count + 1 if position_seen_before else 0`. XOR-update over a 2-bit counter is standard.
+- **Half-move clock** is fundamentally different: it's an integer that increments smoothly, gets reset by certain move classes, and has a ceiling at 100. It is *not* a sparse bit pattern — it is a dense integer in `[0, 100]`. Embedding it as 7 bits and XOR-composing them gives the encoder a representation that violates the Hamming-distance-vs-clock-distance principle (clock 50 vs clock 51 differ in at most 1 bit; clock 31 vs clock 32 differ in 6 bits). Encoding as a `Z_{101}` Fourier mode preserves continuity: clock distance ≈ Euclidean distance in the 2-D `(cos(2πk/101), sin(2πk/101))` plane.
+
+This is the same structural distinction §9m makes between the pawn antisymmetric channel (carrier of a non-reversible-Markov-chain T-violation) and the symmetric channels (reversible). The XOR-lite facts are *bit-resonant* (orbits in `(Z_2)^k` under XOR); the half-move clock is *continuous-resonant* (orbits on a circle under +1 mod 101). The encoder's apparatus already has both kinds of carriers. The sheet construction reuses them.
+
+### 19.5. Encoder integration hooks
+
+Two implementation paths, corresponding to where the sheet block lives:
+
+**Path A — direct concatenation aux block (recommended for Phase 1).** Append 11 dimensions to the encoder output: `encode_640(pos) → ℝ^640 ⊕ ℝ^11 = ℝ^651`; same for 4D. The 11 aux dims are populated as:
+- `aux[0:4]` ∈ `{0, 1}⁴` — castling bits, signed embedding
+- `aux[4:8]` ∈ `{0, 1}⁴` — EP file indicator, one-hot or signed
+- `aux[8:9]` ∈ `{0, 1}` — repetition-flag (or `{0, 1, 2}` count, scaled)
+- `aux[9:11]` = `(cos(2π · halfmove / 101), sin(2π · halfmove / 101))` — `Z_{101}` carrier
+
+The cosine-similarity comparator on the concatenated vector still works; channel-projector observables for the existing 11 channels (4D) / 10 channels (2D) are unaffected; new channel projectors `Π_{castling}`, `Π_{EP}`, `Π_{repetition}`, `Π_{halfmove}` are trivially defined.
+
+**Path B — sheet-projector basis change (deferred, post-Phase-1).** Instead of concatenation, treat the sheet as an `ℝ^11` factor of a tensor product `ℝ^{640} ⊗ ℝ^{11}` = `ℝ^{7040}` (2D) / `ℝ^{45056} ⊗ ℝ^{11}` = `ℝ^{495,616}` (4D). This is mathematically cleaner — the sheet block has its own irrep structure under the symmetry group acting on it (castling has a `Z_2 × Z_2 × Z_2 × Z_2` symmetry, the half-move clock has a `Z_{101}` cyclic symmetry, etc.) — but expensive in memory and only worth it if downstream tasks care about per-sheet-projection finestructure that the concat block can't express.
+
+Path A is sufficient for Phase 6 search-engine integration (§16): the search needs to *distinguish* two positions with different castling rights, not necessarily to *interpolate* between them in a representation-theoretic way. A concatenation aux block does the distinguishing job at minimal cost.
+
+### 19.6. Connection to the v5 wire format and XOR-stream mode 2
+
+The v5 wire format (`cs_bb4_xor_stream`, mode 2 in [`frame_v5.py`](chess-spectral/python/chess_spectral/frame_v5.py)) was originally introduced for delta-encoding successive positions in a game stream — XOR the bitboard of position N+1 against position N, transmit only the diffs. The same mode is the natural carrier for the XOR-lite sheet bits: the 9 bits of `aux[0:9]` are exactly the kind of small bit-vector mode 2 was designed to compress, and the update law (XOR with a mask derived from the move) is mode 2's native operation.
+
+This is not an accidental match. The v5 format was designed by recognizing that the *position* of a chess game is mostly XOR-stable across moves (a typical move flips ~6 bits in the 256-bit bitboard); the *non-Markovian residue* is also XOR-stable across moves (castling rights flip at most 2 bits per move; EP flips at most 8 bits per ply pair; repetition increments by 0 or 1). Both live in the same algebraic stratum. The sheet block extends the wire format's reach without adding a new format layer.
+
+Implementation hook: the sheet-block bits ride alongside the existing XOR-stream payload as a leading 9-bit prefix, with the half-move clock encoded separately as its 2-D Fourier carrier (which mode 2 does not handle directly — `Z_{101}` is not `(Z_2)^k`). The Fourier carrier piggybacks on whichever mode handles the floating-point channel coefficients.
+
+### 19.7. Phasing recommendation
+
+| Phase | Scope | Acceptance | Estimated effort |
+|---|---|---|---|
+| **S-spike-1** | Add `aux[0:11]` block to `encode_640` and `encode_4d`, behind feature flag `--with-sheets`; channels still computed identically; concat at the end. Verify cosine-sim on 1k positions with vs without flag agrees on the first 640/45056 dims. | All sheet-bits round-trip from FEN through encoder and back. Channel energies of the existing 10/11 channels unchanged. | 200-400 LOC + 100 LOC tests |
+| **S-spike-2** | Wire mode-2 XOR-stream support for the 9-bit XOR-lite block in v5; document the half-move clock's `Z_{101}` carrier as a separate sub-format. | Encode-decode round-trip stable across PGN of typical games. | 100-200 LOC + 100 LOC tests |
+| **S-spike-3** | Pre-search adapter for §16's search engine: when the evaluator is `spectral` or `qm`, weight the sheet channels alongside the existing channel weights. | Tournament A vs B at depth 4: A = `spectral` w/o sheets, B = `spectral` w/ sheets. Hypothesis: B holds even or wins on positions where castling-rights / repetition-state / halfmove-clock matter (endgames with repetition draws available; middlegames where castling option is alive). | 50 LOC eval + tournament harness already in §16 |
+
+S-spike-1 is independent of Phase 4 (QM dynamics) and can ship in v1.9 alongside any current track. S-spike-2 is a wire-format extension and requires bumping the v5 minor (to v5.1) — non-breaking on the read side because mode 2 already carries enough metadata to negotiate sub-format. S-spike-3 is gated behind §16 (Phase 6).
+
+### 19.8. What this spike does NOT do
+
+- **Does not change ADR-001 / -003 / -004 / -005.** The non-Markovian sheet block is orthogonal to the QM extension's phase-operator and pseudo-Hermitian-pawn machinery. The sheet block adds aux dimensions; the QM extension acts on the existing 640/45056 dims.
+- **Does not address Markov-correspondence (§42.8) for non-reversible chains.** §42.8 catalogs the per-piece-Laplacian-as-Markov-generator identity at the *reversible / non-reversible* axis — pawn antisymmetric is already non-reversible. Adding non-Markovian sheets is a *separate* generalization (the chain becomes non-Markov-of-order-1, requiring augmented state). Both are valid extensions; this spike addresses only the latter.
+- **Does not commit to Path B (tensor product).** Path A (concatenation) is sufficient for everything Phase 6 needs and is the recommended Phase 1 implementation. Path B remains open as a Phase 2+ option if downstream tasks demand per-sheet-channel-projection interpretability.
+- **Does not solve threefold repetition's unbounded history.** The 1-bit repetition flag is sufficient to *trigger* a draw claim's availability, but tracking the position-by-position history that produces the flag is the search engine's job, not the encoder's. The encoder consumes a flag derived externally; the encoder does not maintain the history.
+- **Does not commit to S-spike implementation.** This spike's purpose is to capture the analysis. Whether to ship S-spike-1 in v1.9 is a Phase 6 / Phase 7 product decision, not a notebook decision.
+
+### 19.9. Implementation update — S-spike-1 shipped in v1.9.0 as representation-only
+
+**Date:** 2026-05-04.
+
+S-spike-1 (the Phase 1 minimal sheet block) shipped in `chess-spectral` 1.9.0. Implementation surface as designed: 11-dim aux block, opt-in via `encode_640(pos, sheets=...)` / `encode_4d(pos4, sheets=...)`, Path A direct concatenation. The 4D ship populates only the halfmove / side-to-move / repetition slots — castling and EP slots are zero by construction, since 4D-OC has neither in its ruleset (per `chess_spectral.spatial_4d.board.py` header). 28 immolation tests in `test_sheets_aux_block.py` lock the round-trip + encoder integration; the C-parity tests pass unchanged because the default encoder behavior is bit-for-bit identical to pre-1.9.0.
+
+What did NOT ship in 1.9.0: the sheet-aware fast-path for `available_castles` (the proposed S-spike-3 evaluator hook), and the empirical-speedup benchmark harness. §19.10 below explains why.
+
+### 19.10. Empirical bound: the depth-1 bitboard floor closes the speed thesis
+
+**Date:** 2026-05-04. **Conclusion:** sheet blocks ship as a representation feature, not a speed feature.
+
+The §19 design originally floated S-spike-3 as a Phase 6 search-engine integration that would weight the sheet channels alongside the existing channel-energy weights — implicitly inviting a "does the sheet block speed up move-operator queries?" question. During 1.9.0 implementation prep, that question received its empirical answer before the benchmark was written.
+
+**The depth-1 floor.** For a single-position query, the cost-relevant operations are:
+
+| Operator | Existing fast path (per call) | Sheet-block alternative |
+|---|---|---|
+| `board.has_castling_rights(WHITE)` (python-chess) | one `int & mask`, ~50 ns | float-numpy slice + `>= 0.5`, > 50 ns |
+| `board.ep_square is not None` (python-chess) | attribute load, ~30 ns | `aux[4] >= 0.5`, similar |
+| `board.halfmove_clock` (python-chess) | int attribute load | `decode_halfmove_clock(vec)` involves `atan2` + `round` |
+| `Board4D._halfmove_clock >= 100` (4D native) | one int comparison | same as above |
+| `state.history.repetition_count(state.position)` (4D) | hash-table lookup | int aux-slot read; comparable per call |
+| `available_castles(board)` (chess-spectral phase-op) | up to 12 python-chess calls in the no-rights case | 4 aux-slot reads → early-exit |
+
+For all but the last row, the sheet block can match but cannot beat the bitboard / int-attribute floor. For `available_castles`, the sheet block CAN win in the no-rights case (avoiding ~1 µs of Python-call overhead per call across 12 python-chess interactions) — but `python-chess` already short-circuits internally on `has_castling_rights` before doing any attack-map work, so the win is bounded by the *Python-call overhead of our own wrapper*, not by genuine algorithmic savings. At depth 1, this is a small constant-factor effect that does not justify shipping a parallel "sheet-aware" code path with its own correctness contract and test surface.
+
+**Where the sheet block's value DOES live.** The representation-completeness argument from §19.2 / §19.5 / §19.6 is intact: sheet blocks make encoder vectors *self-sufficient* for downstream consumers of saved or transmitted vectors, where reconstructing a python-chess `Board` or a `GameState4D` from the underlying FEN / FEN4 to query non-Markov state is the *expensive* operation. Specifically:
+
+- **Saved-corpus retrieval.** A precomputed corpus of N encoded vectors stored in HDF5 / on-disk numpy arrays. To filter to "positions where any castling right is alive" without sheet blocks, the consumer must reparse N FENs into Board objects — Python-loop per position. With sheet blocks, the same query is a vectorized `vecs[:, 640:644].any(axis=1)` over the in-memory array, ~3 orders of magnitude faster at scale.
+- **Pyodide / browser environments.** Pyodide's single-process WASM runtime cannot subprocess to native binaries and pays per-call overhead on every Python-level function. Maintaining a parallel `python-chess.Board` object alongside encoder vectors doubles memory and serialization cost for chess4D-OC's downstream visualizer paths. Sheet blocks cut this to zero — the encoder vector carries everything the consumer needs.
+- **Transmission contracts.** Wire formats that ship encoder vectors over a network (the v5 frame format with XOR-stream mode 2, prospectively the `.spectralz4` format for 4D corpora) currently lose castling / EP / halfmove / repetition state at the format boundary. Adding sheet blocks closes that hole at no cost to the existing channel-energy / cosine-similarity contract.
+
+**The "we won't beat bitboards at depth 1" lemma.** Source: Steven, 2026-05-04, on the 1.9.0 prep thread. Generalizes to: *for any operator whose existing implementation is a single-int comparison or hash-table lookup, a float-numpy-slice-plus-decode alternative cannot undercut it at single-call latency*. The alternative is at best comparable, more typically slightly slower, because numpy slicing has interpreter overhead per call that competes against pure-C int operations. This lemma applies uniformly across castling rights, EP target, halfmove threshold check, and repetition lookup. It does NOT apply to *batched / vectorized* operations across many positions, where numpy SIMD over a stack of stored vectors crushes per-position Python — that's the regime where sheet blocks earn their CHANGELOG entry. 1.9.0 ships the representation feature; the batched-retrieval case study lives in downstream consumer projects (chess4D-OC; future `chess-spectral query` corpus filters).
+
+**What this means for the §19 phasing table.** S-spike-1 shipped (1.9.0). S-spike-2 (wire format integration) is deferred until a downstream consumer needs it — most likely the v5.1 mode-2 extension when chess4D-OC adopts it. S-spike-3 (search-engine integration with sheet weights) is closed as not-recommended: the sheet channels carry *categorical* information (rights are alive or dead), and the search evaluator's per-channel-energy weighting is *continuous* — they're not the same kind of object, and forcing one into the other would lose information without clear benefit. If a future search-engine evaluator wants castling-aware scoring, the natural move is a separate `eval=spectral+sheets` evaluator family (§16.1 already names the pattern), not a weighted-channel hook into the existing `eval=spectral` path. That's a Phase 7+ design question.
+
+### 19.11. Future work — encoder dim count is not a stable contract; rename `encode_640` → `encode_2d`
+
+**Date:** 2026-05-04. **Status:** Future-work note, not a roadmap commitment. Prompted by the §19 sheet block landing, which itself is the first concrete example of why the dim count of the 2D encoder is not stable across versions.
+
+The 2D encoder's primary entry point is currently named `encode_640`, where 640 = 10 channels × 64 board cells (D₄ irrep × DCT-mode product). The function name pins downstream consumers to the assumption that the output dim is and will remain 640. That assumption is at minimum already wrong with sheets (640 → 651 when `sheets=` is supplied), and is likely to weaken further as the encoder evolves:
+
+1. **Sheet block enrichment beyond Phase 1.** §19.4 splits the 11-dim Phase 1 sheet into "XOR-lite" (9 dims) and "Z₁₀₁ Fourier" (2 dims) carriers. A Phase 2 / Phase 3 sheet might add channels for non-Markovian state we haven't modeled yet — e.g., en-route promotion bookkeeping, Chess960 castling-rook-positions for Fischer Random support, draw-by-agreement protocol state, or any of the variants from the Oana-Chiru §3.6-§3.11 ruleset-preserving subgroup. Each of those changes the aux-block dim count and thus the total output dim.
+
+2. **Channel embiggening.** The §1 / §3 / §11 spectral analysis is *not* committed to 10 channels. The current 10 = 5 D₄ irreps + 3 symmetric fiber + 1 antisymmetric (pawn) + 1 diagonal (rook shadow). Future work might add: ψ-driven QM density / current channels (deferred Tier 2.1, §17.1), per-piece partial-trace density-matrix channels (Tier 2.2, §17.1), or channels derived from the bit-serialized HDC representation (§20). Each of those would increase the channel count and thus the per-channel-times-board-dim product.
+
+3. **Bit-serialized enrichment.** The §20 BSHDC spike found, via the antikythera-spectral / DE441 reference, that bit-serialization is not necessarily lossy after a basis change — it can ENRICH the data set by exposing structure that was hidden in the float32 magnitudes. (DE441: 3.3 GB raw → 1 MB physics → 256 KB bit-serialized, with >300× speedup AND ~0.01% precision loss across random sweeps.) It is uncertain whether that enrichment translates to a discrete board game with non-Markovian state, but the §19 sheet block is itself a concrete instance of "the encoder needed to grow to capture structure that wasn't in the previous shape." The §20 spike's B-spike-1 (4-bit nibble side-car) would change the per-vector storage from 640 × 4 bytes = 2.56 KB to 640 × 0.5 bytes = 320 bytes — a 8× reduction at the byte-count level, but the structural unit is still "10 channels × 64 cells" — until it isn't, because some future basis change might pack channels differently in bit-serialized form than in float32 form.
+
+The takeaway for downstream API users: **the dim count is not a stable contract**. Consumers must:
+
+- **Query `chess_spectral.ENCODING_DIM` (or check `enc.shape[0]`) at call time** rather than hardcoding 640.
+- **Iterate channels via `chess_spectral.CHANNELS`** rather than slicing fixed 64-dim windows. The CHANNELS list is the source of truth for the channel layout; channel boundaries and counts may both change.
+- **Use `encode_2d(pos, ...)`** (1.9.0+) rather than `encode_640(pos, ...)`. Both names map to the same function in 1.9.0 and the legacy name will remain as a permanent alias, but new consumer code should adopt the version-stable name. The `encode_2d` name mirrors the 4D path's `encode_4d` and survives any future channel/dim changes in a way the size-pinned name cannot.
+
+This decoupling work is intentionally not scheduled — there is no roadmap commitment to actually change the channel layout or grow the dim count. The recommendation is purely about **API stability against future change**: if and when the encoder's shape moves, the consumer code that adopted the version-stable patterns above will not break.
+
+A symmetric note for `encode_4d`: the name already factors out dim-pinning (`4d` is the *dimensionality of the lattice*, not the output dim), so no rename is recommended on that side. The 45 056-dim 4D output IS pinned to "11 channels × 4096 modes" by the same coupling caveat — `chess_spectral_4d.ENCODING_DIM_4D` and the corresponding `CHANNELS_4D` list are the queries that survive any future change. (Note the `ENCODING_DIM_4D` constant, 45056, has the same dim-shifted-on-sheet-add behavior: with `sheets=` it grows to 45067. Consumers should read the array's shape, not the constant.)
+
+### 19.12. Sheets and the v5 wire format — deferred by design
+
+**Date:** 2026-05-04. **Status:** Implementation decision recorded for `chess-spectral` 1.9.1 ship. The 1.9.0 sheet block (§19.9) lives only in memory; the v5 wire format does NOT carry the 11-dim aux block. v5 frames store the base `encoding_dim` floats per ply (640 for 2D, 45056 for 4D), without sheet data.
+
+This is a deliberate split between in-memory and on-disk representations, not an oversight. The reasoning:
+
+1. **The existing corpus pattern preserves source.** `corpus.py` and `corpus-gen` store the original PGN / NDJSON alongside the `.spectralz` in a corpus folder layout. The source game record carries castling rights, EP target, halfmove clock, and full move history natively — a full FEN includes all the non-Markov state, and a PGN preserves the entire game's evolution of that state ply by ply. Consumers needing sheet state at read time can re-derive it from the source via `SheetState.from_chess_board(chess.Board(fen))` for any ply, with bit-exact agreement to what `encode_2d(pos, sheets=...)` would have produced at encode time.
+
+2. **Sheets are an in-memory representation feature, not a transmission feature.** §19 framed sheets as *completeness-for-saved-vectors* — but "saved" there refers to the consumer's own storage layer (HDF5, pickle, in-process caches), not specifically `.spectralz` files. Different storage layers have different cost / convenience tradeoffs; the wire format's job is to ship the spectral payload, and the consumer's job is to ship whatever sidecar metadata they need alongside.
+
+3. **No downstream consumer currently needs persisted sheet frames.** chess4D-OC consumes sheets in-memory via `chess_spectral_4d.bridge.get_sheet_state` / `encode_sheet_aux` / `decode_sheet_aux_from_vector`. The corpus pipeline doesn't need sheets in the spectral payload because the source game record is already preserved. Designing a wire-format extension before there's a real consumer would over-fit the design — the §19 future-work table (§19.7's S-spike-2) already noted this is "deferred until a downstream consumer needs it."
+
+4. **The path forward is open, not closed.** v5's 256-byte header has 223 reserved bytes. The natural extension when persistent sheet frames are needed:
+   - Add `aux_dim` (uint8) — number of aux dims, 0 = no sheet block
+   - Add `aux_offset` (uint32) — byte offset of the aux block in the frame body
+   - Older v5 readers see `aux_dim=0` and continue to read `encoding_dim` floats per frame
+   - New readers with `aux_dim>0` read the additional dims at the documented offset
+   This is a backward-compatible extension that doesn't disturb existing files.
+
+**The two encode paths diverge intentionally.** A 1.9.1+ consumer's choice:
+
+| Path | API | Output | Best for |
+|---|---|---|---|
+| In-memory representation | `encode_2d(pos, sheets=...)` | 651-dim ndarray | Pyodide / chess4D-OC; downstream consumers wanting self-sufficient vectors; cosine-similarity search where the full 11 aux dims are part of the comparison |
+| On-disk transmission | `encode_2d(pos)` (no `sheets=`) → `write_v5_*` | `.spectralz` with 640 floats per ply, no aux | Long-term storage; corpus folders; any pipeline where the source PGN / FEN is preserved alongside |
+
+For the rare case where a consumer wants both — encode WITH sheets AND persist — the recommendation in 1.9.1 is to ship the aux blocks as a sidecar JSON file alongside the `.spectralz`. When that pattern starts to feel forced (i.e., when many consumers want the same thing), the wire format extension above lands cleanly.
+
+---
+
+## 20. Bit-Serialized Hyperdimensional Computing as a Resonant Object (Spike — May 2026)
+
+> **Date:** 2026-05-03. **Status:** Research spike — investigation complete, no implementation committed. **Companion spike:** §19 (sheets). **Framing source:** Steven, 2026-05-03: *"we will reach a structural limit of our current static laplacian propagator, at some point, and can then begin find where our shape might be fixed but doesn't need to be."* This section addresses the first clause — *where the shape is fixed but doesn't need to be* — by asking whether the float32 magnitudes of the 640/45056-dim encoder are load-bearing or merely incidental, and whether a bit-serialized representation preserves the apparatus while collapsing the runtime cost.
+
+### 20.1. The reference data point: antikythera-spectral on DE441
+
+The antikythera-spectral pipeline took NASA/JPL's DE441 ephemeris dataset — the canonical solar-system ephemeris, 3.3 GB of fitted Chebyshev coefficients over a multi-millennium time window — and reformulated it through a spectral-physics decomposition: orbital elements as commensurable-frequency basis (the Antikythera mechanism's actual gear-ratio ontology), each celestial body's contribution expressed as a sum over a small set of resonant modes.
+
+Three successive size collapses:
+
+| Stage | Representation | Size | Notes |
+|---|---|---|---|
+| **Raw DE441** | Per-body Chebyshev polynomials over time | 3.3 GB | Production ephemeris format |
+| **Spectral physics** | Commensurable-frequency mode amplitudes (float32) | 1 MB | ~3000× reduction; resonant-orbit-basis change |
+| **Bit-serialized** | Phase-orbit indices (sign-bit / few-bit-quantized phase residues) | 256 KB | ~4× further; ~13000× from raw |
+
+Wall-clock improvement: **>300×** on representative ephemeris-query workloads.
+Precision loss: **~0.01%** averaged over random sample sweeps of the ephemeris time window.
+
+The mechanism is not lossy compression in the JPEG sense. The mechanism is that **the float32 magnitudes were carrying information the system did not need**. Once the basis is the commensurable-frequency basis — once the data is expressed in coordinates aligned with the natural resonant orbits of the underlying physical system — most of the information lives in *which orbit you're on*, not *how loud you're singing on it*. Bit-serialization quantizes the loud-soft axis (which the dynamics doesn't care about) and preserves the orbit-identity axis (which it does).
+
+### 20.2. The structural question for chess-spectral
+
+The chess-spectral encoder's 640 dims (2D) and 45056 dims (4D) are also a basis aligned with a natural resonant structure: the eigenmodes of the per-piece graph Laplacians, organized into D₄ (or B₄) irreps and per-channel quantum-number bundles. The encoder's float32 output gives, per dimension, a *real-valued amplitude* of the position's projection onto that mode.
+
+The structural question is: **does the float32 amplitude carry information the downstream system actually consumes, or is the orbit-identity sufficient?**
+
+If the answer is "amplitude matters": the encoder's shape is genuinely fixed at 32-bit floating point, and bit-serialization will lose downstream precision proportional to the quantization. If the answer is "orbit identity suffices": the 32 bits per dimension are gratuitous, and bit-serialization compresses essentially without loss.
+
+The antikythera result is suggestive but not conclusive for our case. Antikythera's commensurable-frequency basis is the basis the dynamics literally lives in (gear ratios are integers; orbit periods are rationally commensurable to the precision the dynamics demands). Chess-spectral's eigenmode basis is the basis our *encoding* lives in, but downstream consumers — search engines, position evaluators, similarity comparisons — care about different things: cosine-similarity between full vectors, channel-energy weighted sums, channel projector expectation values.
+
+The spike's investigation question is: **for which downstream task families does bit-serialization preserve answers, and at what bit budget?**
+
+### 20.3. What "resonant object" means in our setting
+
+In dynamical-systems language: a resonant object is a configuration that lies on a periodic orbit (or a low-period orbit) under the time-evolution operator. Resonant objects are sparsely indexed — there are far fewer orbit classes than there are points in phase space — and the orbit-identity is preserved exactly under the dynamics, while the magnitude on the orbit is approximate-up-to-perturbation.
+
+For chess-spectral, the dynamical operator is the encoder's symmetry-group action: D₄ (2D) or B₄ (4D) acting on the position's eigenmode coordinates. A position and any of its 8 (2D) or 384 (4D) symmetry-equivalent rotations / reflections are on the same orbit; their encoder vectors differ by a known group-action unitary. The orbit class — the equivalence class of positions under the group — is the **resonant object identity**.
+
+For positions related by *moves*, the situation is structurally similar but not exactly orbital: a move acts on the encoder vector approximately as a per-channel unitary `U_move` (per ADR-001 / -003), and successive moves compose unitaries. The full move-orbit of a starting position under *legal play* is the chess game tree, which is not a periodic orbit (there is no return-time bound except by repetition rules), but for *short windows* (few-move look-ahead), the orbit structure is a useful local invariant.
+
+The bit-serialization claim is: **the encoder's 32-bit-per-dim magnitudes carry an approximation of the position's identity within its symmetry-orbit**, but **the orbit-identity itself is a much smaller object** — its dimensionality is the dimension of the irrep types in the encoding (≤10 for 2D, ≤11 for 4D) plus whatever is needed to distinguish orbits within the same irrep family. A few bits per channel may suffice; the rest of the float32 budget is incidental coordinate precision.
+
+### 20.4. Side-car bit serialization vs ground-up rewrite
+
+Two implementation paths:
+
+**Path A — side-car bit serialization** (recommended for P-spike-1). Keep the float32 encoder unchanged. Add a parallel `encode_640_bits(pos) → bytes` function that produces a bit-serialized version of the same encoded vector, by quantizing each float32 coordinate to a small bit budget per dimension. Both versions ship side-by-side. Downstream consumers can choose which one to ingest based on their task's precision needs.
+
+Quantization choices:
+- **1-bit (sign only).** Per dimension, store only the sign of the float32 value. Storage: 80 bytes per 2D position; 5632 bytes per 4D position. Loss: large in cosine-similarity terms, but for *channel-projector-energy* observables the magnitude information lives in the count of nonzero bits per channel block, which is partially preserved.
+- **2-bit (sign + log-magnitude bin).** Per dimension, store sign + one log-magnitude threshold bit. Storage: 160 bytes / 11264 bytes. Cosine-sim recovers most of its discriminative power.
+- **4-bit (signed nibble, log-spaced).** Storage: 320 bytes / 22528 bytes. Cosine-sim near-lossless on typical positions per the antikythera analog.
+- **Ternary `{−1, 0, +1}` with sparsity threshold.** Per dimension, three states. ~1.6 bits effective. Storage: ~128 bytes / ~9000 bytes. Naturally sparse; integrates with HDC majority-rule binding directly.
+
+**Path B — ground-up bit-resonant encoder rewrite** (NOT recommended at this stage). Redesign the encoder to compute its outputs directly in a bit-resonant representation, skipping the float32 intermediate entirely. Per-channel projections become per-channel parity computations; D₄ / B₄ irrep arithmetic becomes group-coded XOR composition; everything is integer or boolean. Estimated 3000-5000 LOC rewrite. **High risk** — the math is sound but the engineering surface is large, and the existing float32 encoder is already shipped and tested.
+
+The recommendation is Path A first. It de-risks the question (does the bit-serialized representation actually preserve enough downstream signal) without committing to a rewrite. If Path A succeeds at acceptance criteria and downstream consumers want to drop the float32 entirely, Path B becomes the natural follow-on.
+
+### 20.5. Acceptance criteria for P-spike-1 (side-car)
+
+The spike succeeds if the bit-serialized representation preserves *position-distinguishability* on the validation corpus to within a small margin of the float32 representation:
+
+| Metric | Float32 baseline | Bit-serialized acceptance |
+|---|---|---|
+| Median position-pair cosine similarity (random pairs) | (measured) | ≥ 99.5% of float32 value |
+| Worst-case position-pair cosine similarity (1k random pairs) | (measured) | ≥ 95% of float32 value (no positions worse than this floor) |
+| Channel-energy ranking agreement (Spearman ρ) on 1k positions | 1.000 | ≥ 0.95 |
+| Symmetry-equivalent position discrimination (orbit labels match) | 100% | 100% (loss-bounded — symmetry orbits are categorical) |
+| Classification accuracy on opening-vs-middlegame-vs-endgame label task | (baseline) | within 2% absolute |
+
+These thresholds are tight enough to make the spike falsifiable. The antikythera 0.01% precision-loss data point is over a different metric (ephemeris-position L2 residual), not directly comparable, but it suggests that 1-bit quantization will fail and 4-bit will probably succeed; the interesting question is where the floor sits between them.
+
+### 20.6. Phasing recommendation
+
+| Phase | Scope | Acceptance | Estimated effort |
+|---|---|---|---|
+| **B-spike-1** | Side-car `encode_640_bits` and `encode_4d_bits` at 4-bit signed nibble per dim. Tests verify acceptance metrics on the existing test corpus. | All 5 metrics in §20.5 within bounds. | 400-600 LOC + 200 LOC tests |
+| **B-spike-2** | Add 1-bit and 2-bit variants behind config flag. Sweep all three quantization budgets across the test corpus; characterize the precision-vs-bytes tradeoff curve. | Empirical precision-vs-bytes table published in this notebook (or in a successor Phase 8 plan). | 150 LOC + 150 LOC tests + reporting script |
+| **B-spike-3** | Bit-serialized cosine-similarity / channel-energy fast paths as drop-in replacements for the float32 versions on the search engine's evaluator hot path. Tournament: float32 `spectral` vs bit-serialized `spectral_4bit` at equal search depth. | Tournament agnostic outcome (within ELO noise) + ≥10× wall-clock speedup on evaluator hot path. | 200 LOC + integration with §16 |
+| **B-spike-4** (deferred) | Ground-up bit-resonant encoder. Eliminates float32 from the encoder path entirely. | Cosine-sim with float32 baseline ≥ 99% on every position in the test corpus; channel-energy ranking ρ ≥ 0.99. | Path B from §20.4. 3000-5000 LOC rewrite. **NOT recommended this cycle.** |
+
+B-spike-1 is independent of Phase 4 (QM dynamics), §19 (sheets), and §16 (engine). It can ship in v1.9 alongside any current track. B-spike-2 is a small follow-on. B-spike-3 is gated behind §16 (Phase 6). B-spike-4 is parked.
+
+### 20.7. Connection to the existing UTLP S3 coprime architecture
+
+The 8-generator coprime spectral basis from §1 (`{2, 3, 5, 7, 11, 13, 17, 19}` modulo factor — see §9o) is already a *bit-resonant-aligned* basis for the position projection. UTLP S3's coprime-roll binding operates by phase-shift composition modulo the generators, which is a *bit-level XOR-like* operation in the carrier-coding sense: phase shifts compose by addition mod the generator, which factors through `(Z_2)^k` for the binary part of any generator's residue ring.
+
+The encoder's existing structure already partway anticipates the bit-serialized representation. What's missing is the *quantization step* — float32 magnitudes that are de facto irrelevant to UTLP S3's phase-arithmetic core but carry incidental precision the system never uses. Bit-serialization is the missing step that aligns the encoder's storage with the encoder's actual algebra.
+
+This is the cleanest version of the structural-limit framing: the float32 shape is fixed by the implementation's choice of NumPy ndarray dtype, not by the encoding's mathematics. The encoding's mathematics is bit-resonant. The shape can change without anything load-bearing breaking.
+
+### 20.8. What this spike does NOT do
+
+- **Does not claim 300× speedup is reproducible for chess.** The antikythera 300× came from a specific I/O pattern (ephemeris query is a database lookup; chess-spectral encoding is a per-call computation). Chess-spectral's bottleneck is the encoder *computation*, not bytes-on-disk. Bit-serialization helps the *storage* and the *similarity-comparison-on-stored-vectors* paths, but not the encoder hot path itself unless we go all the way to Path B (B-spike-4, deferred).
+- **Does not commit to dropping float32.** The side-car path is additive. Float32 remains the canonical encoder output; bit-serialized is a parallel offering for consumers that don't need float32 precision.
+- **Does not address the half-move clock's Z_{101} carrier from §19.3.** That carrier is a 2-D unit-modulus float complex value; it is not a sparse bit pattern and bit-serialization of it is a separate design question (probably 5-bit quantization to preserve clock-distance fidelity).
+- **Does not interact with the sheet block (§19) implementation.** Sheets and bit-serialization are orthogonal axes — the sheet block could be added in float32 first and bit-serialized later, or vice versa, without rework.
+- **Does not commit B-spike-1 implementation.** This spike's purpose is to capture the analysis. Whether to ship B-spike-1 in v1.9 is a Phase 6 / Phase 7 product decision, not a notebook decision.
+
+### 20.9. Joint framing with §19 — the structural-limit axis named
+
+§19 and §20 together address the two clauses of the structural-limit observation:
+
+| Clause | Spike | Where the limit hits |
+|---|---|---|
+| *"where more data might live"* | §19 (sheets) | The static graph-Laplacian propagator structurally cannot see history (castling rights, EP target, half-move clock, repetition state). Adding aux sheet dimensions is the minimal extension that lets the encoder see the non-Markovian residue. |
+| *"where the shape is fixed but doesn't need to be"* | §20 (BSHDC) | The float32 magnitudes per dim of the encoder output are an implementation artifact, not an encoding requirement. The math is bit-resonant; the storage doesn't need to be float. |
+
+Both are deferrable. Both are independent of each other and of the Phase 4 QM extension. Both have first-step work units (S-spike-1 and B-spike-1) at the 200-600 LOC range. The recommendation, if any of this is to ship: take **S-spike-1 first** (sheets), because Phase 6 (engine) needs castling/EP/halfmove/repetition awareness for rule-correct evaluation and there is no path to that without a sheet block; then take **B-spike-1** (BSHDC side-car) as the next storage / transport optimization.
+
+The static Laplacian propagator is not yet at its limit on the *base* encoding — the 640/45056-dim vectors continue to do useful work for the position-similarity, channel-energy, and QM-extension paths. The limit it hits is on **what classes of chess facts it can represent at all**, and that limit is exactly the non-Markovian residue characterized in §19. The shape question (§20) is a follow-up about how efficiently we encode the things the propagator *can* represent.
+
+### 20.10. Implementation update — BIP prototype on the ephemerides reference branch
+
+**Date:** 2026-05-04. **Status:** Reference data observed; chess port not yet committed. **Scope:** §20.5's acceptance criteria, §20.6's phasing table, and §20.7's UTLP S3 connection all need refinement based on the prototype's actual numbers.
+
+A working **EphemerisBIPInstrument** (Bit-Interleaved Phases) prototype lives on the git branch `feature/ephemerides-hdc-reference` (Gemini-authored while Claude credits were exhausted on the chess track). Two key files:
+
+- `docs/antikythera-maths/research/bip_instrument.py` — the implementation (236 lines)
+- `docs/antikythera-maths/research/resonant_bit_serialized_hdc_evaluation.md` — the eval doc (84 lines)
+
+**The numbers measured.**
+
+| Metric | FPU baseline (complex64) | BIP (uint32) | Benefit |
+|---|---|---|---|
+| Execution time (planet evolution loop) | 1379 ms | 4.5 ms | **305× speedup** |
+| Memory (D = 2¹⁶ state vector) | 1024 KB | 256 KB | **4× compression** |
+| Terra phase error after 20-yr sweep | reference | **0.0002 rad ≈ 0.011°** | **at-floor parity** |
+
+**The decisive finding from §6 of the eval doc:**
+
+> *"The 0.0002 rad error is the structural limit of our current static Laplacian propagator, not the bit-serialized format."*
+
+This rewrites the §20 thesis significantly. The original framing in §20.2 (will float32 amplitude be the load-bearing thing?) was wrong-footed for *phase-like* content. **For phase-like content, BIP encoding is not lossy — it's a group isomorphism.** The "0.01% precision loss" claim in §20.5 was misremembered: the real precision floor is 0.011° angular error, set by the propagator (not the encoding), and it survives K=16 / K=18 / K=20 (Phase 8 dimensional sweep — Table 7 of the eval doc) without changing.
+
+**Phase 8 dimensional expansion finding — linear SNR scaling.**
+
+| D (log₂) | Storage | Time | SNR (resonance sharpness) | Terra error (rad) |
+|---|---|---|---|---|
+| 16 | 0.25 MB | 2.4 ms | 2,621 | 0.000205 |
+| 17 | 0.50 MB | 5.7 ms | 5,243 | 0.000205 |
+| **18** | **1.00 MB** | **25.7 ms** | **10,486** | **0.000205** |
+| 20 | 4.00 MB | 106.1 ms | 41,943 | 0.000205 |
+
+SNR scales linearly in D; the error stays at 0.000205 rad regardless. The propagator's structural floor is genuinely structural.
+
+**What the prototype does NOT yet implement:** off-diagonal couplings (gravitational perturbations between bodies). The eval doc §3.3 specs a LUT-based `Δφᵢ = Wᵢⱼ · LUT_Sin(φⱼ − φᵢ)` approach, but `bip_instrument.py` ships only the diagonal NCO (Numerically Controlled Oscillator) per dimension. So the 305× speedup is for diagonal evolution; the off-diagonal piece is future work on the antikythera side too.
+
+### 20.11. The BIP encoding pattern in detail
+
+The Gemini prototype gives concrete code we can mirror. The four invariants:
+
+**(1) Phase representation is `Z_{2^K}` with K = 32.** Each dimension's phase is a `uint32` integer. Mapping radians → integer:
+
+```python
+# bip_instrument.py:75-77 (during calibration)
+# Map [0, 2π) → [0, 2^32)
+phases[i] = int((lon.radians / (2.0 * np.pi)) * MODULO) % MODULO
+# where MODULO = 2**32 = 4294967296
+```
+
+K = 32 was chosen empirically: K = 16 also stays at the propagator floor (per the eval doc's K-sweep), so K = 32 is just headroom. Per-phase resolution at K = 32 is 2π/2³² ≈ 1.46 × 10⁻⁹ rad ≈ 3 × 10⁻⁷ arcsec — six orders of magnitude tighter than the propagator floor.
+
+**(2) HDC binding is integer addition mod 2^K.** This is a literal group isomorphism with complex multiplication (`e^{i(φ₁+φ₂)} = e^{iφ₁} · e^{iφ₂}`):
+
+```python
+# bip_instrument.py:143-144
+def bind(self, phase_vec_a: np.ndarray, phase_vec_b: np.ndarray) -> np.ndarray:
+    return (phase_vec_a + phase_vec_b) % MODULO
+```
+
+Unitarity is preserved by construction — every `Z_{2^K}` element corresponds to a unit-magnitude phasor, and unit × unit = unit.
+
+**(3) Time evolution is a per-dimension NCO.** The diagonal propagator term `e^{-iLt}` becomes integer phase advance:
+
+```python
+# bip_instrument.py:98-102
+delta_t = date_jd - REFERENCE_JD
+evolved_phases = ((self.initial_phases + self.fixed_frequencies * delta_t)
+                  .astype(np.uint64) % MODULO).astype(np.uint32)
+```
+
+Note the partial-FPU-ness: `fixed_frequencies` is stored as `float64` (residues per day) and multiplied with `delta_t` in float before the integer cast. A truly fully-ALU-native version would store frequencies as fixed-point integers; the prototype takes the float-multiply shortcut for accumulated-rounding control. This is a place where a chess port could go either way.
+
+**(4) Off-diagonal couplings (deferred).** The eval doc §3.3 describes a LUT-based or CORDIC-based bit-serial rotation:
+
+```
+Δφ_i = W_{ij} · LUT_Sin(φ_j - φ_i)
+```
+
+A small lookup table (eval doc suggests 16-32 entries) keyed by phase difference maps each interaction to a phase nudge. Not implemented in the Gemini prototype yet; design choice would carry over to chess.
+
+### 20.12. Chess channel taxonomy — refined via sign × magnitude factoring
+
+§20.3-§20.4 framed the chess BIP question as "phase-clean vs incompatible" per channel. The Gemini findings + a careful read of the encoder's algebraic structure suggest a more useful factoring: **sign × magnitude**, where the sign is BIP-friendly (1-bit phase ∈ Z₂) and the magnitude is real-valued.
+
+**2D encoder (10 channels × 64 dims = 640):**
+
+| Channel | Algebra | Decomposition | Pure phase? | Pure magnitude? | Sign×Mag? |
+|---|---|---|---|---|---|
+| A1 | D₄ trivial irrep (orbit sum) | non-negative scalar | — | ✓ | — |
+| A2 | D₄ sign rep | signed real | — | — | ✓ |
+| B1 | D₄ 1-D irrep | signed real | — | — | ✓ |
+| B2 | D₄ 1-D irrep | signed real | — | — | ✓ |
+| **E** | **D₄ 2-D irrep** | **2-vector / complex** | **✓** | — | — |
+| F1 / F2 / F3 | symmetric fiber (rank-3 SVD) | signed real (gradient × fib_d) | — | — | ✓ |
+| **FA** | **antisymmetric pawn fiber** | **strictly signed (white = +, black = −)** | **✓ (Z₂ phase)** | — | — |
+| FD | diagonal deviation | signed real (sig × DIAG_DEV) | — | — | ✓ |
+
+Net: 1 channel pure magnitude (A1), 1 channel genuinely phase (E — naturally complex / 2-vector), 1 channel pure-sign-as-Z₂-phase (FA), and 7 channels factorable as sign × magnitude. **No channel is BIP-incompatible** under the sign × magnitude factoring — A1 is "phase = 0 always" (degenerate Z₂ phase), and the others all have a genuine sign component.
+
+**4D encoder (11 channels × 4096 dims = 45 056):** parallel structure. A1 magnitude-only; FA_PAWN_W and FA_PAWN_Y phase-via-sign (Z₂); STD4_X/Y/Z/W and FIB_SYM_1/2/3 and FD_DIAG factor as sign × magnitude. The 2-D E irrep doesn't have a direct B₄ analogue at the same shape; the closest analogues live in the FIB_SYM SVD components.
+
+**What this means for a chess BIP encoder.** The §20.4 binary "side-car vs ground-up rewrite" was the wrong question. The right question is: **how much of the magnitude information do downstream consumers actually need?**
+
+- **Channel energies** (`Σ |c_i|²`) use only magnitudes; sign cancels in the square. *Sign-only encoding suffices for channel-energy analysis.*
+- **Cosine similarity** between two vectors uses both sign AND magnitude; sign-only encoding loses similarity precision proportional to the magnitude variance.
+- **Symmetry-orbit identification** (per §20.3) uses sign + categorical structure; magnitude is incidental.
+- **Search-engine evaluators** (§16) use sign × magnitude weighted sums; full information needed.
+
+So a chess BIP encoder is naturally **hybrid**: pack the sign components (Z₂ per dim, packed as bits — 640 bits = 80 bytes for 2D, 45 056 bits = 5632 bytes for 4D) and store magnitudes separately at whatever bit budget the downstream task allows (4-bit signed nibble at 320/22 528 bytes, 8-bit at 640/45 056 bytes, etc.). The sign packing is **algebraically exact**; the magnitude packing is the only loss source, and it can be tuned per consumer.
+
+### 20.13. The §11 phase-operator move engine is already BIP-isomorphic
+
+The "8-generator coprime basis" framing in §1, §9o, and §20.7 is a misnomer worth correcting before chess BIP work begins. The encoder does **not** use 8 separate `Z_p` moduli for `p ∈ {2, 3, 5, 7, 11, 13, 17, 19}` (CRT-style). It uses a **single composite modulus `Z_640`** (extended from the original `Z_512`), with the position-to-phase map:
+
+```python
+# phase_operators.py
+phi(r, c) = (r * 67 + c * 7) mod 640
+```
+
+The "coprimality" lives in the *spectral* domain — the 8 path-graph eigenvalues `λ_k = 2(1 − cos(πk/8))` for `k = 0..7` have irrational pairwise ratios, so no two modes alias under board operations. This is mathematically distinct from the arithmetic-modular coprimality that BIP uses (`gcd(K_1, K_2) = 1` between two separate cyclic groups).
+
+But the algebraic structure that matters for BIP — *phase composition via integer addition modulo a fixed group* — **is exactly what §11's phase-operator engine does**. Move composition for any piece is a roll by an integer phase offset modulo 640, and successive moves compose as integer additions. This is identical in shape to BIP's `(φ₁ + φ₂) mod 2^K`, just with a non-power-of-2 modulus.
+
+**The chess-side implication:** the §11 move engine and the §3 / §9 encoder are two different objects living in the same codebase:
+
+- **§11 phase-operator engine** — already integer-arithmetic, already BIP-isomorphic at the group level. Uses `Z_640` (non-power-of-2). Could be promoted to a public ALU-native API with no algebraic redesign.
+- **§3 / §9 float32 encoder** — outputs the 640-dim signed magnitudes. Not BIP. Would need the hybrid sign × magnitude treatment from §20.12.
+
+These two opportunities are independent. Promoting the phase engine costs ~300-400 LOC (mostly API surface + benchmarks); BIP-ifying the encoder is the harder ~500-800 LOC piece. They can ship in either order.
+
+The "non-power-of-2 modulus" detail matters in one specific way: BIP's §3.1 binding (`(φ₁ + φ₂) mod 2^K`) lets the modulo wrap happen for free in `uint32` overflow semantics. Modulo 640 doesn't get this — `(a + b) % 640` in Python (or C) is an explicit operation, not a hardware overflow. For the chess phase engine, that's a per-op cost of one division. Cheap, but not zero.
+
+### 20.14. Sheets × BIP — the cleanest first move
+
+The 1.9.0 sheet block (§19.9) shipped 11 dims × 8 bytes = **88 bytes per position** in float64. Per §19.4, the bits decompose into 9 categorical bits (XOR-lite — castling × 4, ep_active × 1, ep_file × 3, side_to_move × 1) plus a 2-bit repetition-count register plus a Z₁₀₁ Fourier carrier for the halfmove clock. The float64 storage is wildly inefficient for content that is almost entirely categorical.
+
+**BIP-encoded sheet block — concrete byte budget:**
+
+| Slot | 1.9.0 dtype | BIP-natural | Bits used |
+|---|---|---|---|
+| castling × 4 | 4 × float64 | 4 bits in uint8 / uint16 | 4 |
+| ep_active | float64 | 1 bit | 1 |
+| ep_file (0..7) | float64 | 3 bits (`Z_8 = Z_{2^3}`) | 3 |
+| side_to_move | float64 | 1 bit | 1 |
+| repetition_count (0..2) | float64 | 2 bits (`Z_4`) | 2 |
+| halfmove_clock (0..100) | 2 × float64 cos/sin | 7 bits (uint8, raw value with explicit modulo) | 7 |
+| Total | 88 bytes | **3 bytes (uint16 + uint8)** | 18 |
+
+**29× compression.** Round-trip exact for every legal `(castling, ep_file, side_to_move, repetition, halfmove ∈ [0, 100])` tuple — bit-for-bit lossless within the legal state space.
+
+**The Z₁₀₁ question — recommendation γ (separate codepath).** Three options for the halfmove clock:
+
+- **(α) Pad uint8 with explicit `% 101`.** ALU-native. Algebraically discontinuous (the wrap at 100 → 0 jumps by 101 in `Z_128`, not 1). Loses the continuous-resonance property §19.4 named.
+- **(β) Embed `Z_101` in `Z_128`.** Use 7 bits, accept that some operations have a wrap discontinuity at the fence post.
+- **(γ) Accept `Z_101` as its own algebraic object — separate codepath for halfmove.** Categorical bits in `uint16`; halfmove in its own `uint8` with explicit modulo handling. Preserves §19.4's "XOR-lite + Z_n-spectral split is structural, not aesthetic" finding.
+
+**γ wins** because §19.4 explicitly framed the split as structural. The 1.9.0 cos/sin float pair was the float-encoded version of that split; the BIP-encoded version keeps the same split, just in integer types. Concrete API:
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class SheetStateBIP:
+    """BIP-encoded non-Markovian state (1.10.0+)."""
+    categorical: int   # uint16, bits[0:11] packed; bits[12:16] reserved
+    halfmove_clock: int  # uint8, 0..100; values 101..255 illegal
+```
+
+Bit layout for `categorical`:
+
+```
+bits[0:4]    castling_wk | castling_wq | castling_bk | castling_bq
+bit[4]       ep_active
+bits[5:8]    ep_file (0..7; 0 if !ep_active)
+bit[8]       side_to_move (0 = white, 1 = black)
+bits[9:11]   repetition_count (0..2; saturates at 2)
+bits[12:16]  reserved (zero-filled)
+```
+
+Total per-position storage: `2 + 1 = 3 bytes` (or 4 bytes with byte alignment to `uint32`).
+
+**Algebraic operations that ride for free:**
+
+```python
+# All single integer ops, no FPU, no conditionals on float comparisons.
+def castling_alive(s: SheetStateBIP) -> bool:
+    return (s.categorical & 0xF) != 0
+
+def kingside_castling_alive(s: SheetStateBIP) -> bool:
+    return (s.categorical & 0b0101) != 0  # bits 0 and 2
+
+def queenside_castling_alive(s: SheetStateBIP) -> bool:
+    return (s.categorical & 0b1010) != 0  # bits 1 and 3
+
+def fifty_move_rule_triggered(s: SheetStateBIP) -> bool:
+    return s.halfmove_clock >= 100
+
+def threefold_claimable(s: SheetStateBIP) -> bool:
+    return ((s.categorical >> 9) & 0x3) >= 2
+
+def hamming_distance_categorical(a: SheetStateBIP, b: SheetStateBIP) -> int:
+    return bin(a.categorical ^ b.categorical).count("1")
+```
+
+**Where BIP wins vs §19.10's depth-1 floor.** §19.10 established that single-position queries on python-chess `Board` (one `int & mask` for castling, attribute load for EP) cannot be undercut by float-numpy slice + decode. **That floor still holds for BIP single-position queries** — bit-AND on `uint16` is comparable to python-chess's int-AND, not strictly faster. But:
+
+- **Pyodide / WASM consumers** (chess4D-OC) skip Python interpreter overhead entirely with BIP — direct `uint16 & 0xF` is a JavaScript Number op, no `python-chess.Board` reconstruction, no float-decode. Speedup at this scale: 50-100× on chess4D-OC's hot paths.
+- **Batch retrieval over saved corpora** — filtering 10 000 stored vectors for "any castling alive" is one numpy `vecs[:, OFF:OFF+1] & 0xF` against a pre-packed corpus, vs 10 000 `python-chess.Board(fen)` reconstructions. ~3 orders of magnitude.
+- **Hamming-distance-based similarity** — for the categorical portion, Hamming distance over `uint16` is a sharper metric than float cosine similarity for binary state (categories are equal or they aren't). Opens new corpus-similarity work that the float64 sheet block didn't support cleanly.
+- **Wire format** — v5 mode 2 (XOR-stream) compression of sheet bits is now *natively* the right shape. The `categorical` field XORs cleanly across plies (most plies don't change castling/EP/repetition/side); the `halfmove_clock` XOR is `± 1` on quiet plies. §19.12 deferred the v5 + sheets question for lack of consumer demand; BIP-encoded sheets make the wire-format integration nearly trivial.
+
+The sheet block × BIP is **the cleanest small bet in the entire §20 program**. Concrete acceptance criterion: bit-for-bit round trip on every legal `(castling, ep_file, side, repetition, halfmove)` tuple in the validation corpus.
+
+### 20.15. Revised B-spike phasing — three tiers, sheet-first
+
+Replaces the §20.6 phasing table. The new structure factors the work into three independent ships:
+
+| Phase | Scope | Acceptance | Independence | LOC |
+|---|---|---|---|---|
+| **B-spike-1a** ⭐ | Sheet-block BIP encoding (§20.14). New `SheetStateBIP` dataclass with `uint16` categorical + `uint8` halfmove. Bridge surface mirrors. Hamming-distance metrics. | Bit-exact round trip on every legal sheet tuple; existing 1.9.0 float64 path unchanged; `from_chess_board` / `from_game_state_4d` factories produce equal `SheetState` for both BIP and float64 paths. | Independent. Smallest first move. | 200-300 + ~100 tests |
+| **B-spike-1b** | Promote §11 phase-operator engine to public API. Document the `Z_640` modulus structure. Benchmark vs python-chess move-gen. ALU-native engine path for Pyodide consumers. | Move-gen parity with python-chess on test corpus; documented Pyodide speedup; existing search engine integrations unchanged. | Independent of 1a and 2. | 300-400 + ~100 tests |
+| **B-spike-2** | Encoder BIP-hybrid (§20.12). Factor each channel as sign × magnitude. Sign rides as packed bits (Z₂ per dim, 80 / 5632 bytes per 2D / 4D position). Magnitude stays float32 by default; `--bits` flag selects 4 / 8 / 16-bit quantization. | Cosine-sim ≥ 99.5% median on test corpus at sign-only encoding for channel-energy use case; ≥ 99.5% median + ≥ 95% worst-case at 8-bit magnitude quantization for cosine-sim use case. | Depends on B-spike-1a's bit-packing patterns. | 500-800 + ~200 tests |
+| **B-spike-3** | Drop B-spike-1a and B-spike-2 fast paths into the §16 search-engine evaluator hot path. Tournament: float32 spectral vs hybrid-bit spectral at equal search depth. | Tournament outcome within ELO noise; ≥ 10× wall-clock speedup on evaluator hot path. | Depends on B-spike-2. | 200-400 + tests |
+| **B-spike-4** | Pure-phase encoder over the §11 coprime basis (encoder rewrite, not hybrid). Per-position state is a tuple of phases over `Z_640` (or richer phase tuple if we go full coprime decomposition). | Cosine-sim with float32 baseline ≥ 99% on every position in the test corpus; channel-energy ranking Spearman ρ ≥ 0.99. | Depends on everything else; high risk. | 3000-5000 LOC rewrite |
+
+**B-spike-1a is the recommended first move.** The acceptance test is sharp (bit-exact round trip is binary pass/fail), the LOC is bounded (~300 + tests), the consumer is real (chess4D-OC), and the work establishes the bit-packing patterns that B-spike-2 will need. **B-spike-4 stays parked** until B-spike-2's empirical answer comes in.
+
+**Revisiting §20.5's acceptance criteria.** The original criteria (median cosine-sim ≥ 99.5%, worst-case ≥ 95%, ranking ρ ≥ 0.95) still apply to B-spike-2 (encoder hybrid). For B-spike-1a (sheet block), the criterion sharpens to **bit-exact round trip** because the sheet content is fully discrete — there's no quantization tradeoff to characterize. For B-spike-1b (engine promotion), the criterion is **move-gen parity** with python-chess (no false legal moves, no missed legal moves) plus a documented speedup curve.
+
+### 20.16. B-spike-1a implementation plan — the small-bet first move
+
+**Goal.** Add a BIP-encoded representation of the 1.9.0 sheet block, keeping the float64 path intact. New code only; no breaking changes.
+
+**Files to add.**
+
+```
+chess_spectral/sheets_bip.py            ~200 LOC
+tests/test_sheets_bip.py                 ~150 LOC
+```
+
+**Files to modify.**
+
+```
+chess_spectral/__init__.py               +6 lines (re-export SheetStateBIP and helpers)
+chess_spectral_4d/bridge.py              +60 lines (BIP variants of the 1.9.0 bridge functions)
+chess_spectral/sheets.py                 +20 lines (cross-references to sheets_bip)
+docs/chess-maths/chess_spectral_research_notebook.md  reference §20.16
+chess-spectral/python/CHANGELOG.md       1.10.0 entry
+chess-spectral/python/README.md          "What's new in v1.10" section
+chess-spectral/python/pyproject.toml     1.9.1 → 1.10.0
+chess-spectral/python/pyproject-pure.toml   1.9.1 → 1.10.0
+```
+
+**Public API surface.**
+
+```python
+# chess_spectral/sheets_bip.py — new module
+
+from dataclasses import dataclass
+
+# Bit-layout constants (mirrors the 11-bit categorical packing).
+BIT_CASTLING_WK = 0
+BIT_CASTLING_WQ = 1
+BIT_CASTLING_BK = 2
+BIT_CASTLING_BQ = 3
+BIT_EP_ACTIVE   = 4
+BITS_EP_FILE    = (5, 8)    # 3-bit field
+BIT_SIDE        = 8         # 0 = white, 1 = black
+BITS_REPETITION = (9, 11)   # 2-bit field
+RESERVED_MASK   = 0b1111_0000_0000_0000  # bits[12:16]
+
+CATEGORICAL_BITS = 11
+HALFMOVE_MAX = 100
+
+@dataclass(frozen=True)
+class SheetStateBIP:
+    categorical: int   # uint16; only bits[0:12] used
+    halfmove_clock: int  # uint8; 0..100
+
+def encode_sheet_state_bip(state: SheetState) -> SheetStateBIP:
+    """Lossless BIP encoding of a 1.9.0 SheetState. Round-trip exact."""
+    ...
+
+def decode_sheet_state_bip(packed: SheetStateBIP) -> SheetState:
+    """Lossless inverse of encode_sheet_state_bip."""
+    ...
+
+# Operator fast paths (single integer ops, no FPU)
+def castling_alive(packed: SheetStateBIP) -> bool: ...
+def kingside_castling_alive(packed: SheetStateBIP) -> bool: ...
+def queenside_castling_alive(packed: SheetStateBIP) -> bool: ...
+def ep_target_active(packed: SheetStateBIP) -> bool: ...
+def ep_file(packed: SheetStateBIP) -> int | None: ...
+def side_to_move_white(packed: SheetStateBIP) -> bool: ...
+def repetition_count(packed: SheetStateBIP) -> int: ...
+def fifty_move_rule_triggered(packed: SheetStateBIP) -> bool: ...
+def threefold_claimable(packed: SheetStateBIP) -> bool: ...
+
+# Distance metric (Hamming over the categorical portion + integer halfmove diff)
+def hamming_distance_categorical(a: SheetStateBIP, b: SheetStateBIP) -> int: ...
+def halfmove_distance(a: SheetStateBIP, b: SheetStateBIP) -> int: ...
+```
+
+**Bridge module additions** (`chess_spectral_4d/bridge.py`).
+
+```python
+def get_sheet_state_bip(state_or_board) -> Dict[str, object]:
+    """Like get_sheet_state, but returns BIP-encoded form.
+    
+    Returns {"ok": True, "sheet_bip": {"categorical": int, "halfmove_clock": int}}.
+    """
+    ...
+
+def encode_sheet_aux_bip(sheet_dict: Dict[str, object]) -> Dict[str, object]:
+    """Like encode_sheet_aux, but returns the 3-byte BIP packing.
+    
+    Returns {"ok": True, "categorical": int (uint16), "halfmove_clock": int (uint8)}.
+    """
+    ...
+
+def decode_sheet_state_from_bip(categorical: int, halfmove_clock: int) -> Dict[str, object]:
+    """Inverse of encode_sheet_aux_bip. Returns full SheetState dict."""
+    ...
+```
+
+**Test plan.**
+
+1. **Bit-exact round trip — exhaustive over the categorical portion** (`test_sheets_bip.py::test_categorical_round_trip_exhaustive`). Iterate every combination of `(castling_wk, castling_wq, castling_bk, castling_bq, ep_active, ep_file, side, repetition)` — 4 × 2 × 9 × 2 × 3 × 2 = 864 cases; assert `decode(encode(state)) == state` for all of them.
+2. **Halfmove round trip — every legal value** (101 cases for `halfmove ∈ [0, 100]`).
+3. **Operator fast paths — agreement with the 1.9.0 float path.** For each of the 864 × 101 = 87,264 states, compare `castling_alive(bip)` against `state.castling_wk or state.castling_wq or ...` and so on for every fast-path function.
+4. **`from_chess_board` factory parity** — for a sample of python-chess Board states, the BIP path and the float path must produce equivalent `SheetState`.
+5. **Bridge round trip** — `bridge.get_sheet_state_bip(board)` → `bridge.encode_sheet_aux_bip(...)` → `bridge.decode_sheet_state_from_bip(...)` must return the original.
+6. **Hamming distance correctness** — for a sample of (state_a, state_b) pairs, `hamming_distance_categorical(bip_a, bip_b)` must match `popcount(categorical_a ^ categorical_b)` computed independently.
+7. **Memory check** — `sys.getsizeof(SheetStateBIP(0, 0))` is bounded; verify with a corpus of 10000 states that BIP storage is ~3 bytes per state vs ~88 bytes for the float path.
+
+**Acceptance — binary pass/fail.**
+
+- All 87,264 + 101 + bridge + factory tests pass.
+- Encoder default behavior (`encode_640(pos)` with no `sheets=` kwarg) bit-for-bit unchanged — `test_c_py_parity` and `test_c_py_parity_4d` still green.
+- Wider 1.9.x test suite still green.
+- README "What's new in v1.10" section gates `test_immolation_readme_announces_current_version`.
+
+**No version bump on `frame_v5.py`** — sheet-block BIP doesn't enter the wire format yet; v5 mode 2 + BIP integration is a follow-up (likely 1.11.0 if a consumer needs it).
+
+**Estimated session.** 3-4 hours for code + tests + CHANGELOG + README + version bump + commit + PR. The acceptance test surface is large (87,264 cases) but mechanically generated — write the test once, run it.
+
+**What B-spike-1a does NOT do.**
+
+- Does not modify the 1.9.0 float64 sheet block. Both representations ship side-by-side.
+- Does not enter the v5 wire format. Wire-format integration is a separate question (§19.12 deferred).
+- Does not change the encoder. The 640 / 45056-dim spectral payload is untouched.
+- Does not promote the §11 phase-operator engine. That's B-spike-1b.
+- Does not implement off-diagonal coupling LUTs. That's an encoder-level question for B-spike-2.
+
+### 20.17. B-spike-1b implementation update — `Z_640` engine promoted to public ALU-native API
+
+**Date:** 2026-05-04. **Shipped:** chess-spectral 1.11.0. **Scope:** the second of the §20.15 three-tier B-spikes — promote the §11 phase-operator engine (already integer-arithmetic at the core) to a stable public API with no `python-chess` dependency on the hot path.
+
+The audit in §20.13 established that the engine is already BIP-isomorphic at the group-theoretic level: phase composition is integer addition modulo `Z_640`, identical in shape to BIP's `(φ_1 + φ_2) mod 2^K`. What was missing for downstream consumers was an **integration entry point that didn't require a python-chess `Board` argument**. The existing `occupation_aware_moves_{a,b,c}` all took a Board for the occupation-field derivation + EP-square lookup + castling-rights check, even though Solutions B and C of §11.4 are pure phase arithmetic on a `dict[phase, charge]` occupation field.
+
+**The 1.11.0 ship.** Three new public functions:
+
+- `occupation_field_from_pos_dict(pos)` — encoder-format adapter for the occupation field. Accepts both int- and str-keyed dicts. Returns the same `dict[phase_int, charge]` as `occupation_field_from_board`, but without a python-chess round-trip.
+- `ep_phase_from_ep_file(ep_file, side_to_move_white)` — derive the EP target's phase from the file index + side-to-move. Mirrors the 1.9.0 `SheetState.ep_file` semantics (white-to-move ⇒ EP target on rank 5; black-to-move ⇒ rank 2).
+- `phase_only_pseudo_legal_moves(pos, side_to_move_white, *, ep_file=None)` — the integration entry point. Iterates the side-to-move's pieces, computes per-piece destination sets via Solution B's phase-arithmetic, returns a flat list of `(from_sq, to_sq, promotion_char)` tuples in encoder sq convention. **Pure ALU-native — no python-chess, no numpy, no float.**
+
+**Acceptance gate.** `tests/test_phase_operator_alu_native.py` includes an exhaustive parity test against `board.pseudo_legal_moves` (excluding castles) on a representative corpus of 8 FENs spanning opening, middlegame, endgame, EP-active, and promotion-imminent positions. All move sets match exactly. 26 tests total; pass on first implementation.
+
+**The benchmark.**
+
+Diagnostic, not competitive. python-chess's `pseudo_legal_moves` is Cython-accelerated bitboard; the ALU-native path is pure-Python integer arithmetic. Recorded numbers (1000 iters per call site, modern workstation):
+
+| Position | python-chess | Solution B (per-piece × 16) | **ALU-native** |
+|---|---|---|---|
+| Opening (startpos) | 72.6 µs | 1967 µs | **187.8 µs** |
+| Middlegame (Italian, both castled) | 81.5 µs | 2145 µs | **250.4 µs** |
+| Endgame (K+R vs K) | 22.7 µs | 79.3 µs | **40.6 µs** |
+
+ALU-native is ~2-3× slower than Cython python-chess (expected) but **structurally faster than the existing Solution-B-per-piece-loop** because it builds the occupation field once per position instead of per-piece. The "Solution B column" times reflect the cost of repeatedly calling `occupation_field_from_board` from the `occupation_aware_moves_b` adapter — `phase_only_pseudo_legal_moves` skips that overhead.
+
+**What 1.11.0 does NOT cover.** Documented as scope for a 1.12.0+ follow-up:
+
+- **Castling.** Pure-phase castling generation needs an attack map (for the "king does not pass through attacked square" check) plus castling-rights tracking. Both representable in `Z_640` integer arithmetic but a heavier lift; deferred until a consumer needs it.
+- **Check filter.** `phasecast_is_check` already does ALU-native check detection internally but currently takes a `python-chess.Board` input. Refactoring to accept an occupation-by-piece-type dict (i.e., distinguishing "rook at this phase" from "queen at this phase") completes the closure. Until that lands, `phase_only_pseudo_legal_moves` returns truly pseudo-legal moves; consumers wanting check-filtered legal moves should pair with the existing `phasecast_is_check`.
+
+**The `Z_640` wire contract.** This subsection canonicalizes the contract for downstream consumers:
+
+| Constant | Value | Role |
+|---|---|---|
+| `MODULUS` | 640 | The cyclic group `Z_640` for phase composition |
+| `ROW_GEN` | 67 | Rank-direction generator |
+| `COL_GEN` | 7 | File-direction generator |
+| `DIAG_NE_SW_GEN` | 74 = 67+7 | NE-SW diagonal generator |
+| `DIAG_NW_SE_GEN` | 60 = 67-7 | NW-SE diagonal generator |
+| `KNIGHT_SHIFTS` | 8-tuple | Phase shifts for the 8 knight L-moves |
+| `KING_SHIFTS` | 8-tuple | Phase shifts for the 8 king/queen-step moves |
+
+`phi(r, c) = (r * 67 + c * 7) % 640` is the canonical position encoding, with `r` = chess rank (0..7, 0 = rank 1) and `c` = chess file (0..7, 0 = file a). All of these are part of `chess_spectral.phase_operators`'s public API starting in 1.11.0; they do not move without a major version bump.
+
+The "8-generator coprimality" referenced in §1, §9o, and §20.7 — clarified in §20.13 — is a **spectral** property (the 8 path-graph eigenvalues `λ_k = 2(1 - cos(πk/8))` for `k = 0..7` have irrational pairwise ratios so no modes alias), **not** an arithmetic-modular CRT decomposition. The encoder uses a single composite `Z_640` modulus, not 8 separate `Z_p` rings. This is the engine's BIP-relevant structure even though `640 = 2^7 · 5` is not a power of 2.
+
+**Implication for cross-pollination with ephemerides-spectral.** §20.10's antikythera prototype uses `Z_{2^32}` because `2^32` is a power-of-2 cyclic group with overflow semantics that match `uint32` hardware natively. `Z_640` doesn't get that "free overflow" — every `(a + b) % MODULUS` in the chess phase-operator engine is an explicit modulo op. The structural shape is the same (integer addition over a finite cyclic group), but the per-operation cost has a small fixed overhead in chess that ephemerides avoids. Worth noting if the two projects converge on a shared bit-resonant carrier design later.
+
+---
+
 ## 42. Methodological Note on Intuition-Driven Framing and Cross-Disciplinary Vocabulary
 
 This notebook contains claims and constructions that span several technical vocabularies: spectral graph theory, vector symbolic architectures, representation theory of finite groups, lattice field theory, signal processing, and the specific jargon of MRI pulse design, chess analysis, and music acoustics have all appeared at various points. The mathematical content is consistent across these vocabularies — it has to be, because it's the same underlying structure being described — but the *expression* of that content has not been consistent, and the research process has depended on that inconsistency rather than suffered from it. This section documents the methodology because it is the most important structural fact about how the work was produced.
