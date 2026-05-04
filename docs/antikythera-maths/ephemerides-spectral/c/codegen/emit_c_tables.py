@@ -22,14 +22,32 @@ import math
 import sys
 from pathlib import Path
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover
+    import tomli as tomllib  # type: ignore
+
 _HERE = Path(__file__).resolve().parent
 _C_ROOT = _HERE.parent
 _PY_RESEARCH = _C_ROOT.parents[1] / "research"
+_PYPROJECT = _C_ROOT.parent / "python" / "pyproject.toml"
 
 # Make the Python research modules importable.
 sys.path.insert(0, str(_C_ROOT.parents[1]))
 
+
+def _package_version() -> str:
+    """Read the package version from the Python wheel's pyproject.toml.
+
+    SSOT discipline: the Python wheel and the C port share a version
+    number; the C manifest reads it from the same source so they can't
+    drift.
+    """
+    data = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))
+    return str(data["project"]["version"])
+
 from research.bodies import BODIES                              # noqa: E402
+from research.laplacian import RESONANCES                       # noqa: E402
 from research.bip_instrument import (                           # noqa: E402
     EphemerisBIPInstrument,
     MODULO,
@@ -122,20 +140,27 @@ def _emit_laplacian(path: Path) -> None:
         omega_rows.append(f"    {int(inst.omega_diag[i])}, /* {name} */")
         init_rows.append(f"    {int(inst.initial_phases_int[i])}u, /* {name} */")
 
-    # Couplings — v0.1.0 wires only the J-S 5:2 entry. Future versions
-    # add Neptune-Pluto 3:2, Io-Europa 1:2, etc. via the same machinery.
+    # Couplings — v0.2.0 walks the SSOT RESONANCES table.
+    # v0.1.0 only had Jupiter-Saturn 5:2; v0.2.0 adds Neptune-Pluto 3:2
+    # and the two Laplace-resonance pairs (Io-Europa 2:1,
+    # Europa-Ganymede 2:1).
     couplings = []
-    if "jupiter" in inst.body_to_idx and "saturn" in inst.body_to_idx:
-        idx_j = inst.body_to_idx["jupiter"]
-        idx_s = inst.body_to_idx["saturn"]
-        weight_rpd = inst._get_scaled_coupling("jupiter", "saturn")
+    for r in RESONANCES:
+        if r.body_a not in inst.body_to_idx or r.body_b not in inst.body_to_idx:
+            continue
+        weight_rpd = inst._get_scaled_coupling(r.body_a, r.body_b)
+        if weight_rpd == 0:
+            # No static weight => breathing path is a no-op. Skip the
+            # entry rather than emitting a zero-weight row that the
+            # C inner loop would still iterate.
+            continue
         couplings.append({
-            "idx_a": idx_j,
-            "idx_b": idx_s,
-            "n_a": 5,
-            "m_b": 2,
+            "idx_a": inst.body_to_idx[r.body_a],
+            "idx_b": inst.body_to_idx[r.body_b],
+            "n_a": r.n_a,
+            "m_b": r.m_b,
             "weight_rpd": weight_rpd,
-            "label": "Jupiter-Saturn 5:2",
+            "label": r.label,
         })
 
     coupling_rows = []
@@ -219,7 +244,7 @@ def main() -> None:
     # emitted C tables so embedded consumers can verify.
     manifest = {
         "package": "ephemerides-spectral-c",
-        "version": "0.1.0",
+        "version": _package_version(),
         "reference_jd": REFERENCE_JD,
         "k_bits": K_BITS,
         "modulo": int(MODULO),
