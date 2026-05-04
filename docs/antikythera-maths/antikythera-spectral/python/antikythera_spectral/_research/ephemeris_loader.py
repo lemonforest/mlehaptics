@@ -107,6 +107,22 @@ KERNEL_CATALOG: Dict[str, KernelSpec] = {
                      "useful for Antikythera-era anchors; included for "
                      "completeness."),
     ),
+    "de440": KernelSpec(
+        name="de440",
+        filename="de440.bsp",
+        coverage_jd=(2287184.5, 2688976.5),
+        coverage_iso=("+1550-01-01", "+2650-01-01"),
+        size_mb=114,
+        description="JPL DE440: Modern high-precision standard (1550-2650).",
+    ),
+    "de442": KernelSpec(
+        name="de442",
+        filename="de442.bsp",
+        coverage_jd=(2287184.5, 2688976.5),
+        coverage_iso=("+1550-01-01", "+2650-01-01"),
+        size_mb=114,
+        description="JPL DE442: High-precision standard (Released 2025).",
+    ),
 }
 
 
@@ -204,22 +220,29 @@ def load_ephemeris(
                    else loader(kernel_file))
         else:
             eph = loader(spec.filename)
+        def _get(key_list):
+            for k in key_list:
+                try: return eph[k]
+                except KeyError: continue
+            return None
+
         bundle = EphemerisBundle(
             kernel_name=kernel,
             eph=eph,
             ts=ts,
-            earth=eph["earth"],
-            sun=eph["sun"],
-            moon=eph["moon"],
-            mars=eph["mars"],
-            venus=eph["venus"],
-            mercury=eph["mercury barycenter"],
-            jupiter=eph["jupiter barycenter"],
-            saturn=eph["saturn barycenter"],
+            earth=_get(["earth", "EARTH", 399, 3]),
+            sun=_get(["sun", "SUN", 10]),
+            moon=_get(["moon", "MOON", 301]),
+            mars=_get(["mars", "MARS", 499, 4]),
+            venus=_get(["venus", "VENUS", 299, 2]),
+            mercury=_get(["mercury", "MERCURY", 199, 1]),
+            jupiter=_get(["jupiter barycenter", "JUPITER BARYCENTER", 5]),
+            saturn=_get(["saturn barycenter", "SATURN BARYCENTER", 6]),
         )
         _BUNDLE_CACHE[cache_key] = bundle
         return bundle
-    except Exception:
+    except Exception as exc:
+        print(f"DEBUG: load_ephemeris failed: {exc}")
         _BUNDLE_CACHE[cache_key] = None
         return None
 
