@@ -23,6 +23,7 @@ _INCLUDED_MODULES: List[str] = [
     "laplacian.py",
     "bip_instrument.py",
     "time_scales.py",
+    "syzygy_window.py",
 ]
 
 def emit() -> List[Path]:

@@ -6,9 +6,10 @@
 
 `ephemerides-spectral` is a hyperdimensional-computing instrument that encodes the barycentric state of our star system using high-precision ephemeris data (NASA JPL DE441 / DE442) as resonant phases over a graph Laplacian.
 
-Two interchangeable backends ship with the package:
+Three interchangeable backends ship with the package:
 
-* **`bip`** *(default)* — bit-serialised integer ALU. Phase composition lives in the cyclic group `Z_{2^32}`; binding is `(φ_1 + φ_2) mod 2^32`, which is implicit `uint32` overflow — no FPU in the hot path. 305× faster than the FPU reference; 256 KB state at `D=65536`.
+* **`bip`** *(default)* — bit-serialised integer ALU in pure Python. Phase composition lives in the cyclic group `Z_{2^32}`; binding is `(φ_1 + φ_2) mod 2^32`, which is implicit `uint32` overflow — no FPU in the hot path. 305× faster than the FPU reference; 256 KB state at `D=65536`. Always available.
+* **`c`** *(v0.3.1+)* — native C library (`libephemerides_spectral.{so,dll,dylib}`) bundled in the platform wheel under `_native/`, loaded via ctypes. **Byte-for-byte identical** phase residues to `bip`; **~1000× speedup** on the chunk loop (encode at +20 yr: 46 ms Python → 0.04 ms C). Falls back transparently to `bip` if the binary isn't loadable (sdist installs without a C toolchain, Pyodide / WASM, the pure-Python fallback wheel).
 * **`complex128`** — FPU reference encoder with unit-norm complex Gaussian bases. Used for the algebraic identities (Syzygy operator, observer binding) and as a regression baseline.
 
 Both backends implement the same algebraic substrate (cyclic-group representation of celestial phase-space, graph-Laplacian eigenbasis); they trade precision for speed.
@@ -103,6 +104,12 @@ ephemerides-spectral lunar-kernels
 
 # Resonance-derived natural cyclic group (v0.3.0)
 ephemerides-spectral natural-group     # → Z_30 = Z_2 × Z_3 × Z_5
+
+# Spectral-native syzygy window search (v0.3.1+)
+# Replaces the v0.3.0 point-evaluation `eclipse --jd` for window queries.
+# ~1000× faster than encode-then-check; uses the closed-form Saros /
+# Metonic / synodic / draconic-month enumeration.
+ephemerides-spectral find-syzygies --from-jd 2460311 --to-jd 2460676
 ```
 
 All sub-commands emit JSON to stdout; pass `--no-pretty` (top-level flag, before the sub-command) for compact single-line output suitable for piping into `jq` or downstream tooling. Every response carries an `ok` field; `ok: false` returns exit code 1 with an `error` message.

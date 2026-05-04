@@ -247,10 +247,28 @@ double es_residue_to_radians(uint32_t residue);
  */
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 3
-#define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.3.0"
+#define ES_VERSION_PATCH 1
+#define ES_VERSION_STRING "0.3.1"
 
 const char *es_version(void);
+
+/* ABI version. Increment whenever the wire format of any exported
+ * function changes (struct field added/removed, parameter type
+ * changed, semantics altered). The Python ctypes shim verifies
+ * this at load time and refuses to load a mismatched binary.
+ *
+ * v1: initial v0.3.1 release. es_encode_state, es_encode_at_jd,
+ *     es_body_index, es_cos_lut, es_residue_to_radians, es_version.
+ *     ES_N_BODIES = 26.
+ */
+#define ES_ABI_VERSION 1
+int es_abi_version(void);
+
+/* Compile-time body count, exposed as a function for the Python
+ * loader so the ctypes shim can size buffers without parsing the
+ * header.
+ */
+int es_n_bodies(void);
 
 #ifdef __cplusplus
 }

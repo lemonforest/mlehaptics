@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.3.0)
+(no entries yet — next entries land after v0.3.1)
+
+## [0.3.1] — 2026-05-04
+
+C-in-wheel + spectral syzygy window search + DE441 error-spectrum FFT.
+
+### Added — native C backend
+
+- **scikit-build-core** build system replaces hatchling for the platform wheels. CMake compiles `c/src/{es_encode,es_bodies,es_laplacian,es_cosine_lut}.c` into `libephemerides_spectral.{so,dll,dylib}` and bundles the binary under `ephemerides_spectral/_native/` in the wheel.
+- **`ephemerides_spectral._native_bip`** — `ctypes` shim that loads the bundled binary, verifies the ABI version (v1) at load time, and exposes `HAS_NATIVE`, `LIB_PATH`, `encode_state`, `encode_at_jd`, `native_version`. Caller-side guard discipline: check `HAS_NATIVE` before invoking; transparent fallback to pure-Python BIP if the binary isn't loadable (sdist installs without a C toolchain, Pyodide / WASM, the pure-Python fallback wheel).
+- **`backend="c"`** dispatch in `default_encode()` and `bridge.get_system_state()`. Byte-for-byte identical phase residues to `backend="bip"` (verified by `tests/test_native_parity.py`'s 12-cell three-way parity test); **~1000× speedup** on the chunk loop (encode at +20 yr: 46.5 ms Python → 0.04 ms C). Falls back transparently to `"bip"` when the binary isn't present.
+- **`pyproject-pure.toml`** for the Pyodide / WASM `py3-none-any` fallback wheel. Same package name + version as the platform wheel; sanity-checks ensure no `_native/` binaries leak in. Built by the publish workflow's `build-pure-wheel` job alongside the platform-specific `cibuildwheel` matrix.
+- **C ABI accessors** in the header: `es_abi_version()`, `es_n_bodies()`. ABI bumps are wire-format breaks; the Python shim refuses to load mismatched binaries.
+- **C banker's-rounding** (`es_banker_round`) added to `es_encode.c` to match numpy's `np.round` half-to-even semantics in the sub-day remainder step. Required for byte-exact parity with the Python BIP encoder when the multiplication produces an exact half-integer (verified at the +/-1 yr parity test cases).
+- **`ephemerides-spectral-publish.yml`** rewritten to a `cibuildwheel`-style matrix: 3 OS × 5 Python = 15 platform-specific wheels + sdist + pure-Python wheel.
+- **`.gitattributes`** unchanged from v0.3.0 (already in place); CMake-generated build artifacts excluded from sdist.
+
+### Added — spectral syzygy window search
+
+- **`research/syzygy_window.py`** — `find_syzygies(jd_lo, jd_hi, kind, threshold)`. Enumerates candidate syzygies in closed form by walking new-moon and full-moon multiples of the synodic month + confirming against the draconic-month phase. **HDC-native** pattern: cost goes from `O(window_days × encode)` to `O(n_syzygies × confirmation)` because syzygies are rare events on the calendar (~5/yr combined solar+lunar).
+- **`bridge.find_syzygies(jd_lo, jd_hi, kind, threshold, max_candidates)`** wraps the research-side function with input validation + Pyodide-friendly JSON return shape.
+- **CLI `find-syzygies --from-jd ... --to-jd ... [--kind] [--threshold]`**.
+- The v0.3.0 point-evaluation `eclipse --jd` (`bridge.get_eclipse_probability(jd_tdb)`) is **kept for backward compatibility** but documented as the deprecated encode-then-check pattern. The bronze antikythera's Saros dial doesn't encode-and-check either — it turns gears whose ratios *are* the Saros cycle.
+
+### Added — DE441 error-spectrum FFT
+
+- **`research/de441_error_spectrum.py`** — uniform-spaced sweep + per-body FFT of the linear-detrended residual against DE441 truth. Native C path used when available (1024 samples × 6 ms = ~6 s total; otherwise 315 s on Python).
+- **`figures/de441_error_spectrum_analysis.md`** — hand-curated interpretation of the peaks. Headline: **Jupiter–Saturn show identical 9.56-yr peaks at ±45° amplitude** — that's the smoking-gun missing-coupling signal, the empirical motivation for v0.4+'s first-principles α derivation. The current Phase-9 `α = 0.1` undershoots the actual J–S libration depth by ~5×.
+- Outer planets (Uranus, Neptune, Pluto) peak at their own orbital periods — Q-format precision floor signals, not Phase-9 missing-coupling signals; addressed by `K_BITS > 32` future work.
+- Mars at 7.96 yr / 3.45° suggests a missing Mars–Saturn coupling. Mercury at 10.69 yr / 9.19° suggests higher-order PN beat with Jupiter.
+
+### Changed
+
+- `SUPPORTED_BACKENDS` now includes `"c"`. Backwards compatible: `"bip"` and `"complex128"` still work unchanged.
+- `bridge.get_system_state(backend="c", ...)` returns `backend="c"` on success or `backend="bip"` on transparent fallback (the new `backend_requested` field always preserves the original ask).
+
+### Notes
+
+- v0.3.1 is the first release with platform-specific wheels. Expect **15 wheels** on the PyPI release page (3 OS × 5 Python) plus 1 sdist plus 1 pure-Python wheel for Pyodide.
+- Encode timings on the C path: 0.2 ms at J2000; 0.04 ms at +20 yr; ~6 ms at +1000 yr; ~6 ms at +14000 yr (chunk loop is so cheap the body iteration dominates). The DE441 sweep that took 6.4 s in Python at +14,000 yr lands well under 10 ms in C.
+- The eclipse-prediction story now has two surfaces: the v0.3.0 point-evaluation `eclipse --jd` (kept; cheap; appropriate for "what's the alignment at this single JD") and the v0.3.1 `find-syzygies --from-jd … --to-jd …` (HDC-native window search; appropriate for everything else).
 
 ## [0.3.0] — 2026-05-04
 

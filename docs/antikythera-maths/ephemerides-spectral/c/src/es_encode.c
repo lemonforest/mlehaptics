@@ -56,6 +56,42 @@ static inline int64_t es_floor_div(int64_t a, int64_t b) {
     return q;
 }
 
+/* Banker's rounding (round-half-to-even) for double -> int64.
+ *
+ * C's `round()` is round-half-away-from-zero; numpy's `np.round`
+ * is banker's (half-to-even). The sub-day remainder step in
+ * encode_state hits exact half-integer results often enough for
+ * this difference to break byte-exact parity by 1 ULP on specific
+ * JDs (verified at ±1 yr in the v0.3.1 native parity tests).
+ *
+ * Implementation: add 0.5 with truncation toward zero only when
+ * the half-tie would land on an even integer; otherwise round up
+ * the absolute value as `round()` would. Keeps integer arithmetic
+ * once the rounding decision is made — no floating-point comparison
+ * after the fact.
+ */
+static inline int64_t es_banker_round(double x) {
+    /* Truncation toward zero gives us the integer below |x|. */
+    double sign = (x >= 0.0) ? 1.0 : -1.0;
+    double abs_x = sign * x;
+    int64_t truncated = (int64_t)abs_x;
+    double frac = abs_x - (double)truncated;
+
+    /* Strict less-than / greater-than first; only the exact half
+     * needs banker's-rounding tie-break.
+     */
+    int64_t rounded;
+    if (frac < 0.5) {
+        rounded = truncated;
+    } else if (frac > 0.5) {
+        rounded = truncated + 1;
+    } else {
+        /* Exact half: round to the nearest even integer. */
+        rounded = (truncated % 2 == 0) ? truncated : truncated + 1;
+    }
+    return (sign > 0.0) ? rounded : -rounded;
+}
+
 /* Body-name lookup: O(N) but N=26. Returns ES_N_BODIES on miss. */
 size_t es_body_index(const char *name) {
     if (name == NULL) {
@@ -176,12 +212,14 @@ es_status_t es_encode_state(double delta_t_days,
     if (remainder_days > 0.0) {
         const double remainder_signed = (double)sign * remainder_days;
         for (size_t i = 0; i < ES_N_BODIES; ++i) {
-            /* round() is libm; called O(N) times outside the hot loop.
-             * Embedded targets without libm can replace with their own
-             * nearest-integer rounding; the result fits in int64 by
-             * the bounds check above.
+            /* Banker's rounding (half-to-even) to match numpy's
+             * np.round; called O(N) times outside the hot loop.
+             * Necessary for byte-exact parity with the Python BIP
+             * encoder when the multiplication produces an exact
+             * half-integer (verified at the v0.3.1 +/- 1 yr parity
+             * test cases).
              */
-            const int64_t rem_step = (int64_t)round(
+            const int64_t rem_step = es_banker_round(
                 (double)es_omega_diag[i] * remainder_signed);
             curr_phases[i] += (uint64_t)rem_step;
         }
@@ -205,4 +243,12 @@ es_status_t es_encode_at_jd(double jd_tdb,
 
 const char *es_version(void) {
     return ES_VERSION_STRING;
+}
+
+int es_abi_version(void) {
+    return ES_ABI_VERSION;
+}
+
+int es_n_bodies(void) {
+    return (int)ES_N_BODIES;
 }

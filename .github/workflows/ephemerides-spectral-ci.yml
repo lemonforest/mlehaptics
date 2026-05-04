@@ -64,7 +64,7 @@ jobs:
         run: pytest tests/ -q
 
   build-verify:
-    name: wheel + sdist build
+    name: wheel + sdist build (Linux platform wheel)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,21 +74,48 @@ jobs:
       - name: Build wheel + sdist
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         run: |
-          python -m pip install --upgrade pip build hatchling twine
+          python -m pip install --upgrade pip build scikit-build-core cmake twine
           python -m build
           python -m twine check --strict dist/*
       - name: Verify wheel contents
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         run: |
           set -euo pipefail
+          WHEEL=$(ls dist/*.whl)
           # Manifest must be present.
-          python -m zipfile -l dist/*.whl | grep -F "_data/manifest.json"
-          # Frozen research-module snapshot (the BIP encoder, the
-          # state-dependent Laplacian, time-scale conversions).
-          python -m zipfile -l dist/*.whl | grep -F "_research/bip_instrument.py"
-          python -m zipfile -l dist/*.whl | grep -F "_research/laplacian.py"
-          python -m zipfile -l dist/*.whl | grep -F "_research/ephemeris_reference_instrument.py"
-          python -m zipfile -l dist/*.whl | grep -F "_research/time_scales.py"
+          python -m zipfile -l "$WHEEL" | grep -F "_data/manifest.json"
+          # Frozen research-module snapshot.
+          python -m zipfile -l "$WHEEL" | grep -F "_research/bip_instrument.py"
+          python -m zipfile -l "$WHEEL" | grep -F "_research/laplacian.py"
+          python -m zipfile -l "$WHEEL" | grep -F "_research/ephemeris_reference_instrument.py"
+          python -m zipfile -l "$WHEEL" | grep -F "_research/time_scales.py"
+          # v0.3.1: native binary must ship in the platform wheel.
+          python -m zipfile -l "$WHEEL" | grep -E '_native/(lib)?ephemerides_spectral\.(so|dll|dylib)'
+          # Sanity: the wheel is platform-tagged (not py3-none-any).
+          if echo "$WHEEL" | grep -q 'py3-none-any'; then
+            echo "::error::expected platform-tagged wheel; got py3-none-any"
+            exit 1
+          fi
+      - name: Smoke-test native load
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet "$(ls dist/*.whl)[ephemeris,tests]"
+          # Run from a neutral cwd so we exercise the installed wheel,
+          # not the source-tree package.
+          cd /tmp
+          python -c "
+          from ephemerides_spectral import _native_bip, default_encode
+          from ephemerides_spectral.version import __version__
+          assert _native_bip.HAS_NATIVE, f'HAS_NATIVE False: {_native_bip.LOAD_ERROR}'
+          assert _native_bip.native_version() == __version__
+          # Three-way parity at +20 yr.
+          jd = 2451545.0 + 20 * 365.25
+          py = default_encode(jd, backend='bip', kernel='de421')
+          c  = default_encode(jd, backend='c',   kernel='de421')
+          assert (py == c).all(), 'native parity mismatch at +20 yr'
+          print('native smoke: PASS', _native_bip.LIB_PATH)
+          "
 
   codegen-determinism:
     name: codegen reproducibility

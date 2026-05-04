@@ -1,11 +1,22 @@
 [build-system]
-requires = ["scikit-build-core>=0.10", "cmake>=3.23"]
-build-backend = "scikit_build_core.build"
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+# Pure-Python wheel (py3-none-any). Built for Pyodide / WASM / no-C
+# environments where the scikit-build-core CMake compile in
+# pyproject.toml can't run. Same package name + version; the
+# difference is wheel-tag (py3-none-any vs platform-specific).
+#
+# The wheel-publish workflow swaps this in temporarily during the
+# build-pure-wheel job (and asserts the version matches the main
+# pyproject.toml's version via a tag-version-check step).
+#
+# Mirrors chess-spectral/python/pyproject-pure.toml.
 
 [project]
 name = "ephemerides-spectral"
 version = "0.3.1"
-description = "High-precision HDC reference instrument for the solar system based on JPL DE441 (with native C backend)"
+description = "High-precision HDC reference instrument for the solar system based on JPL DE441 (pure-Python build for Pyodide / WASM)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
@@ -50,44 +61,12 @@ Notebook    = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikyth
 [project.scripts]
 ephemerides-spectral = "ephemerides_spectral.cli:main"
 
-# ───────────────────────────────────────────────────────────────────
-# scikit-build-core
-# ───────────────────────────────────────────────────────────────────
-#
-# CMake source dir is the parent of python/ — that's where
-# CMakeLists.txt lives. The build compiles libephemerides_spectral
-# from c/src/*.c and installs it into ephemerides_spectral/_native/
-# (see _native_bip.py for the runtime discovery shim).
+[tool.hatch.build.targets.wheel]
+packages = ["ephemerides_spectral"]
 
-[tool.scikit-build]
-cmake.source-dir = ".."
-cmake.version = ">=3.23"
-cmake.build-type = "Release"
+[tool.hatch.build.targets.wheel.force-include]
+"ephemerides_spectral/_data/manifest.json" = "ephemerides_spectral/_data/manifest.json"
 
-# Python package included in the wheel alongside the CMake-installed
-# native binary.
-wheel.packages = ["ephemerides_spectral"]
-
-# Make the wheel reproducible across rebuilds.
-wheel.exclude = ["*.pyc", "__pycache__"]
-
-# Sdist contents (pure-Python sources + CMake config + the C tree
-# one directory up). `pip install ephemerides-spectral` from sdist
-# can compile the C library locally.
-sdist.include = [
-    "ephemerides_spectral/**",
-    "tests/**",
-    "README.md",
-    "CHANGELOG.md",
-    "pyproject.toml",
-    "../CMakeLists.txt",
-    "../c/include/**",
-    "../c/src/**",
-    "../README.md",
-    "../ROADMAP.md",
-]
-sdist.exclude = [
-    "../c/build/**",
-    "../.pytest_cache/**",
-    "**/__pycache__/**",
-]
+# Exclude any _native/ directory if it leaked in from a prior build.
+[tool.hatch.build.targets.wheel.exclude]
+"ephemerides_spectral/_native/*" = true

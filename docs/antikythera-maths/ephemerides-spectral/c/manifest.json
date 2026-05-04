@@ -20,5 +20,5 @@
   "n_bodies": 26,
   "package": "ephemerides-spectral-c",
   "reference_jd": 2451545.0,
-  "version": "0.3.0"
+  "version": "0.3.1"
 }

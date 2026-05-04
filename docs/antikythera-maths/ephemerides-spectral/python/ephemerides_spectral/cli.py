@@ -142,6 +142,16 @@ def _cmd_natural_group(args: argparse.Namespace) -> int:
     return _emit(bridge.get_natural_resonance_group(), pretty=args.pretty)
 
 
+def _cmd_find_syzygies(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.find_syzygies(
+            args.from_jd, args.to_jd,
+            kind=args.kind, threshold=args.threshold,
+        ),
+        pretty=args.pretty,
+    )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Parser construction
 # ──────────────────────────────────────────────────────────────────────
@@ -522,6 +532,39 @@ def _make_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ng.set_defaults(func=_cmd_natural_group)
+
+    # find-syzygies (v0.3.1)
+    fs = sub.add_parser(
+        "find-syzygies",
+        help="Spectral-native syzygy window search (HDC-native; not encode-then-check)",
+        description=(
+            "Enumerates candidate syzygies in a JD window in closed "
+            "form by walking new/full moon multiples of the synodic "
+            "month + confirming against the draconic-month phase. "
+            "Replaces the v0.3.0 point-evaluation `eclipse --jd` "
+            "pattern for window searches: cost goes from O(window_days "
+            "× encode) to O(n_syzygies × confirmation), typically "
+            "100-1000× faster for multi-decade windows since syzygies "
+            "are rare events on the calendar (~5/yr combined solar+lunar)."
+        ),
+        epilog=(
+            "Example: find solar/lunar syzygies in 2024 (UTC ≈ JD 2460311 to 2460676):\n"
+            "  ephemerides-spectral find-syzygies --from-jd 2460311 --to-jd 2460676\n\n"
+            "For arc-second-class precision (totality, location, partial-vs-total)\n"
+            "confirm each returned candidate against a JPL ephemeris via skyfield."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    fs.add_argument("--from-jd", dest="from_jd", type=float, required=True,
+                    help="Window lower bound in JD (TDB)")
+    fs.add_argument("--to-jd", dest="to_jd", type=float, required=True,
+                    help="Window upper bound in JD (TDB)")
+    fs.add_argument("--kind", choices=["solar", "lunar", "all"], default="all",
+                    help="Syzygy kind filter (default 'all')")
+    fs.add_argument("--threshold", type=float, default=0.05,
+                    help=("Score cutoff [0, 0.5]; 0.05 ≈ total-class "
+                          "(default), 0.1 ≈ partial-class"))
+    fs.set_defaults(func=_cmd_find_syzygies)
 
     return p
 

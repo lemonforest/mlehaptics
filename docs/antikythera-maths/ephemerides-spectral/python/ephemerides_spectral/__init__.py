@@ -33,10 +33,22 @@ from ephemerides_spectral.version import __version__
 
 DEFAULT_BACKEND: str = "bip"
 """Module-level default for ``default_encode`` and the bridge's
-``backend`` keyword. ``"bip"`` is the bit-serialised integer ALU (305×
-speedup, 256 KB state, 0.0002 rad floor). ``"complex128"`` is the FPU
-reference encoder, kept for the algebraic identities (Syzygy operator,
-observer binding, regression baseline)."""
+``backend`` keyword.
+
+Three backends are supported:
+
+* ``"bip"`` (default) — pure-Python bit-serialised integer ALU.
+  Always available; 305× speedup vs the FPU reference; 256 KB state
+  at D=65536; 0.0002 rad Earth-phase floor at +20 yr.
+* ``"complex128"`` — FPU complex128 reference encoder. Used for the
+  algebraic identities (Syzygy operator, observer binding) and as
+  the regression baseline.
+* ``"c"`` (v0.3.1+) — native BIP encoder via the bundled C library.
+  Byte-for-byte identical phases to ``"bip"``, faster hot loop.
+  Falls back transparently to ``"bip"`` if the binary isn't loadable
+  (sdist installs without a C toolchain, Pyodide / WASM, the
+  pure-Python fallback wheel).
+"""
 
 
 def default_encode(
@@ -81,13 +93,28 @@ def default_encode(
         )
         inst = EphemerisBIPInstrument(D=int(D), kernel=kernel)
         return inst.encode_state(float(jd))
+    if backend == "c":
+        from ephemerides_spectral import _native_bip
+        if _native_bip.HAS_NATIVE:
+            from ephemerides_spectral._research.ephemeris_reference_instrument import (
+                REFERENCE_JD,
+            )
+            return _native_bip.encode_state(float(jd) - REFERENCE_JD)
+        # Transparent fallback — same shape as backend="bip".
+        from ephemerides_spectral._research.bip_instrument import (
+            EphemerisBIPInstrument,
+        )
+        inst = EphemerisBIPInstrument(D=int(D), kernel=kernel)
+        return inst.encode_state(float(jd))
     if backend == "complex128":
         from ephemerides_spectral._research.ephemeris_reference_instrument import (
             EphemerisHDCInstrument,
         )
         inst_ref = EphemerisHDCInstrument(D=int(D), kernel=kernel)
         return inst_ref.encode_state(float(jd))
-    raise ValueError(f"backend must be 'bip' or 'complex128'; got {backend!r}")
+    raise ValueError(
+        f"backend must be 'bip', 'complex128', or 'c'; got {backend!r}"
+    )
 
 
 __all__ = [

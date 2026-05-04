@@ -52,6 +52,9 @@ from ephemerides_spectral._research.time_scales import (
     jd_to_msd,
     msd_to_jd,
 )
+from ephemerides_spectral._research.syzygy_window import (
+    find_syzygies as _find_syzygies_impl,
+)
 from ephemerides_spectral.version import __version__
 
 
@@ -60,7 +63,21 @@ from ephemerides_spectral.version import __version__
 # ──────────────────────────────────────────────────────────────────────
 
 DEFAULT_BACKEND: str = "bip"
-SUPPORTED_BACKENDS: Tuple[str, ...] = ("bip", "complex128")
+
+#: Encoder backends recognised by the bridge / CLI.
+#:
+#: * ``"bip"`` (default) — pure-Python BIP encoder. Always available;
+#:   guaranteed correct.
+#: * ``"complex128"`` — FPU complex128 reference encoder. Always
+#:   available; used for the algebraic identities (Syzygy operator,
+#:   observer binding) and as a regression baseline.
+#: * ``"c"`` — native BIP encoder via the bundled `_native/` shared
+#:   library (v0.3.1+). Requires the C path to have loaded
+#:   successfully — see ``ephemerides_spectral._native_bip.HAS_NATIVE``.
+#:   Byte-for-byte identical phases to ``"bip"``, faster on the
+#:   hot loop. Falls back to ``"bip"`` if the binary is missing
+#:   (sdist installs without a C toolchain, Pyodide / WASM, etc.).
+SUPPORTED_BACKENDS: Tuple[str, ...] = ("bip", "complex128", "c")
 SUPPORTED_BODIES: Tuple[str, ...] = tuple(sorted(BODIES.keys()))
 
 #: JPL DE-series planetary kernels recognised by the loader.
@@ -433,6 +450,76 @@ def get_natural_resonance_group() -> Dict[str, Any]:
     }
 
 
+def find_syzygies(jd_lo: float,
+                  jd_hi: float,
+                  *,
+                  kind: str = "all",
+                  threshold: float = 0.05,
+                  max_candidates: int = 1000) -> Dict[str, Any]:
+    """Spectral-native syzygy window search (v0.3.1+).
+
+    Replaces the v0.3.0 point-evaluation pattern (encode-then-check
+    at a single JD via ``get_eclipse_probability``). Enumerates
+    candidate syzygies in [jd_lo, jd_hi] (TDB) by walking new-moon
+    and full-moon multiples of the synodic month and confirming
+    against the draconic-month phase. Closed-form, no per-JD
+    encoding — cost is `O(n_syzygies)` instead of `O(window_days)`.
+
+    Parameters
+    ----------
+    jd_lo, jd_hi : float
+        Window boundaries in JD (TDB).
+    kind : {"solar", "lunar", "all"}, default "all"
+        ``"solar"`` filters to new-moon syzygies; ``"lunar"`` to
+        full-moon; ``"all"`` returns both kinds.
+    threshold : float, default 0.05
+        Score cutoff (root-sum-square of synodic + draconic phase
+        residuals). 0.05 catches total-class eclipses; 0.1 catches
+        partials too.
+    max_candidates : int, default 1000
+        Safety cap for very-loose thresholds + multi-millennium windows.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "n_candidates": int, "candidates":
+        [{"jd_tdb", "kind", "synodic_phase_resid",
+        "draconic_phase_resid", "score"}, ...]}``.
+        Candidates are ordered by JD ascending; lower score = stronger
+        syzygy alignment. For arc-second-class precision (which
+        eclipse, total vs partial, location of totality) confirm each
+        candidate against a JPL ephemeris via skyfield.
+    """
+    for v in (_validate_jd(jd_lo), _validate_jd(jd_hi)):
+        if v is not None:
+            return v
+    if kind not in ("solar", "lunar", "all"):
+        return _err(f"kind must be 'solar' / 'lunar' / 'all', got {kind!r}")
+    try:
+        f_threshold = float(threshold)
+    except (TypeError, ValueError):
+        return _err(f"threshold must be a number, got {type(threshold).__name__}")
+    if not (0.0 < f_threshold <= 0.5):
+        return _err(f"threshold must be in (0, 0.5], got {f_threshold}")
+    try:
+        candidates = _find_syzygies_impl(
+            float(jd_lo), float(jd_hi),
+            kind=kind, threshold=f_threshold,
+            max_candidates=int(max_candidates),
+        )
+    except (ValueError, RuntimeError) as exc:
+        return _err(str(exc))
+    return {
+        "ok": True,
+        "jd_lo": float(jd_lo),
+        "jd_hi": float(jd_hi),
+        "kind": kind,
+        "threshold": f_threshold,
+        "n_candidates": len(candidates),
+        "candidates": [c.to_dict() for c in candidates],
+    }
+
+
 def get_lunar_phase(jd_tdb: float) -> Dict[str, Any]:
     """Mean synodic + sidereal lunar age/phase at a JD (TDB).
 
@@ -540,21 +627,35 @@ def get_system_state(
         return _err(f"D must be a positive power of 2, got {D!r}")
     try:
         jd = float(jd_tdb)
-        if backend == "bip":
+        if backend == "bip" or backend == "c":
             inst = _get_bip(kernel=kernel, force_high_res=force_high_res)
-            phases = inst.encode_state(jd)
-            # Bundle into HDC state for downstream similarity ops.
-            state = np.zeros(D, dtype=np.uint32)
-            for i, name in enumerate(inst.body_names):
-                # encode_state may return at the instrument's native D;
-                # for the per-body-residue payload we don't need to
-                # re-bundle here — the residues themselves are the
-                # primary product.
-                pass
+            backend_used = "bip"
+            phases = None
+
+            if backend == "c":
+                # Try the native path first; fall through to pure-
+                # Python on missing binary or load error.
+                from ephemerides_spectral import _native_bip
+                if _native_bip.HAS_NATIVE:
+                    try:
+                        phases = _native_bip.encode_state(jd - REFERENCE_JD)
+                        backend_used = "c"
+                    except OverflowError as native_exc:
+                        # Native rejected the input — surface the same
+                        # error shape the Python path would.
+                        return _err(f"overflow (native): {native_exc}")
+                # Else: HAS_NATIVE is False (e.g. pure-Python wheel,
+                # missing C toolchain on sdist install, Pyodide).
+                # Fall through to the Python encoder.
+
+            if phases is None:
+                phases = inst.encode_state(jd)
+
             return {
                 "ok": True,
                 "jd_tdb": jd,
-                "backend": "bip",
+                "backend": backend_used,
+                "backend_requested": backend,
                 "D": int(inst.D),
                 "kernel": kernel,
                 "bodies": list(inst.body_names),
@@ -764,4 +865,5 @@ __all__ = [
     "mars_time_to_jd",
     "get_lunar_phase",
     "get_natural_resonance_group",
+    "find_syzygies",
 ]
