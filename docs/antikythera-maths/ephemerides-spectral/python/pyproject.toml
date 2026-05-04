@@ -31,6 +31,13 @@ dependencies = ["numpy>=1.24"]
 ephemeris  = ["skyfield>=1.46", "jplephem>=2.21"]
 tests      = ["pytest>=7.0"]
 
+[project.urls]
+Homepage    = "https://github.com/lemonforest/mlehaptics/tree/main/docs/antikythera-maths/ephemerides-spectral"
+Repository  = "https://github.com/lemonforest/mlehaptics"
+Issues      = "https://github.com/lemonforest/mlehaptics/issues"
+Changelog   = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides-spectral/python/CHANGELOG.md"
+Notebook    = "https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides_spectral_research_notebook.md"
+
 [project.scripts]
 ephemerides-spectral = "ephemerides_spectral.cli:main"
 
