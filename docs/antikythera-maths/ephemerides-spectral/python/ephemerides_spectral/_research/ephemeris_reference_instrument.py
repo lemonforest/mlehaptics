@@ -196,20 +196,44 @@ class EphemerisHDCInstrument:
 # ---------------------------------------------------------------------------
 
 def main():
-    print("Ephemerides HDC Reference Instrument — First-Principles Prototype")
+    print("Ephemerides HDC Reference Instrument — Sol Star System Phase Space")
     print("=" * 60)
     
+    # 1. Initialize
     instrument = EphemerisHDCInstrument(D=D_DEFAULT, kernel="de441")
+    print(f"Instrument calibrated with {len(instrument.body_names)} bodies.")
     
-    print(f"Instrument initialized with {len(instrument.body_names)} bodies.")
-    print(f"Calibration successful at J2000 epoch.")
-    
+    # 2. Modern Snapshot
     test_jd = REFERENCE_JD + 365.25 # 1 year later
     print(f"\nEncoding state at JD {test_jd} (1 year from J2000)...")
     h_state = instrument.encode_state(test_jd)
-    print(f"H_state norm: {np.linalg.norm(h_state):.4f}")
+    print(f"Terra Resolution: {instrument.get_body_temporal_resolution('earth'):.2f} sec/residue")
     
-    print(f"\nEclipse Probability: {instrument.get_eclipse_probability(h_state):.4f}")
+    # 3. Phase 5: Historical Anchor Validation (The Metonic Resonance)
+    print(f"\n[Phase 5] Metonic Cycle Validation (19-year Lunar Resonance)")
+    print("-" * 60)
+    # 19 solar years is almost exactly 235 lunar months.
+    # We check if the lunar phase at t and t + 19yr aligns.
+    h_start = instrument.encode_state(REFERENCE_JD)
+    h_metonic = instrument.encode_state(REFERENCE_JD + 19 * 365.25)
+    
+    # Extract Lunar component alignment
+    luna_basis = instrument.channel_bases["moon"]
+    # (Simplified alignment check via dot product projection)
+    proj_start = np.abs(np.vdot(h_start, luna_basis))
+    proj_metonic = np.abs(np.vdot(h_metonic, luna_basis))
+    print(f"Lunar Resonance (t=0): {proj_start:.4f}")
+    print(f"Lunar Resonance (t=19yr): {proj_metonic:.4f}")
+    print(f"Resonance Delta: {np.abs(proj_metonic - proj_start):.6f}")
+
+    # 4. Phase 6: Higher-Order Perturbations (The Jupiter-Saturn Fiber)
+    print(f"\n[Phase 6] Higher-Order Perturbations (Gas Giant Couplings)")
+    print("-" * 60)
+    # Inspect the off-diagonal coupling in the Laplacian
+    idx_j = instrument.laplacian.body_to_idx["jupiter"]
+    idx_s = instrument.laplacian.body_to_idx["saturn"]
+    coupling = instrument.laplacian.L[idx_j, idx_s]
+    print(f"Jupiter-Saturn Fiber Strength: {np.abs(coupling):.2e} rad/day")
     
     print("\nObserver View: Mars (0°N, 0°E)")
     v_local = instrument.bind_observer(h_state, "mars", 0.0, 0.0)

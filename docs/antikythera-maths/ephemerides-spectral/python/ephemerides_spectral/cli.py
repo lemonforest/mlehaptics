@@ -43,6 +43,11 @@ Temporal Resolution (at D=65,536):
   - Mars Resolution: ~905.7 seconds (~15.09 minutes).
   - Luna (Moon) Resolution: ~36.0 seconds (~0.6 minutes).
 
+  Variable Resolution:
+    1 residue shift (tick) scales with D.
+    At D=2^19 (~524k), Terra resolution is ~1 minute.
+    At D=2^25 (~33M), Terra resolution is ~1 second.
+
   Cross-referencing times between bodies is instantaneous via residue mapping.
 
 Ephemeris Support:

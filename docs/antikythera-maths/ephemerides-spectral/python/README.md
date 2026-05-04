@@ -12,7 +12,16 @@ Built on first-principles algebraic dynamics, it treats celestial bodies not as 
 
 - **Graph Laplacian Propagator:** System evolution driven by $e^{-i L t}$, where diagonal content represents mean motions and off-diagonal fibers model gravitational perturbations.
 - **Sol Star System Roster:** Includes the Sun, all planets, major moons (Luna, Galilean moons, Titan, etc.), and the asteroid belt (Ceres, Vesta).
-- **Terra Time Resolution:** At $D=65536$, provides a temporal granularity of ~8.02 minutes per residue shift.
+- **Terra Time Resolution:** At the default $D=65536$, provides a temporal granularity of ~8.02 minutes per residue shift.
+
+### Resolution Scaling
+
+The temporal resolution of a "residue shift" (pluck+rotate) is inversely proportional to the hypervector dimension $D$. You can adjust the "tick" size of the instrument by scaling $D$:
+
+- **Minute Resolution ($D \approx 2^{19}$):** 1 residue shift $\approx 1$ Terra minute.
+- **Second Resolution ($D \approx 2^{25}$):** 1 residue shift $\approx 1$ Terra second.
+
+This allows the instrument to be tuned for either high-cadence local events or extremely high-performance long-term galactic mapping.
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors from any position in the system.
 - **Spectral Syzygy Detection:** Instantaneous eclipse and conjunction probability via dot-product alignment with spectral operators.
 
