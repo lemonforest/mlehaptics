@@ -49,6 +49,16 @@ C-in-wheel + spectral syzygy window search + DE441 error-spectrum FFT.
 - Encode timings on the C path: 0.2 ms at J2000; 0.04 ms at +20 yr; ~6 ms at +1000 yr; ~6 ms at +14000 yr (chunk loop is so cheap the body iteration dominates). The DE441 sweep that took 6.4 s in Python at +14,000 yr lands well under 10 ms in C.
 - The eclipse-prediction story now has two surfaces: the v0.3.0 point-evaluation `eclipse --jd` (kept; cheap; appropriate for "what's the alignment at this single JD") and the v0.3.1 `find-syzygies --from-jd … --to-jd …` (HDC-native window search; appropriate for everything else).
 
+### CI shape (chess-spectral parity)
+
+- Per-PR runs **4 always-on cells** (`build-and-test`: 3 OS × py3.12 + 1 min-Python cell on Linux), `codegen-determinism` (single Linux job), and `fallback-test` (pure-Python no-native path on Linux). Wall time on the green path is ~3 min per PR.
+- The full **15-cell `verify-wheels`** matrix (3 OS × 5 Python via `cibuildwheel`) plus a Linux platform-wheel + sdist `verify-build-artefacts` job are **opt-in** at PR time via the `wheel-check` label or `workflow_dispatch`. Apply the label when touching package layout, `pyproject.toml`, scikit-build-core config, the C source tree, or any `vX.Y.Z`-ship release PR.
+- The full matrix still runs unconditionally on tag push via `ephemerides-spectral-publish.yml` — the load-bearing release gate is unchanged.
+
+### Known limitations
+
+- **Sdist standalone build broken when no toolchain is present.** The published sdist contains the C source tree and `CMakeLists.txt` at the parent of the python/ project (mirrored via `[tool.scikit-build] sdist.include = ["../CMakeLists.txt", "../c/**", ...]`), but the parent-relative `cmake.source-dir = ".."` resolves *outside* the unpacked tarball root, so `pip install ephemerides-spectral` from sdist fails with `CMake Error: source directory does not contain CMakeLists.txt`. The 15 platform wheels cover essentially all consumers (3 OS × 5 Python, x86_64 + arm64); users on platforms without a wheel (Linux musllinux, exotic ARM) currently can't fall back to source build. Tracked as a v0.4 cleanup — likely co-locates the C tree under `python/` so `source-dir = "."`. CI's wheel-build path uses `python -m build --wheel` and `python -m build --sdist` as separate invocations to avoid the broken sdist-round-trip codepath.
+
 ## [0.3.0] — 2026-05-04
 
 Time scales beyond Earth + DE441 full-epoch sweep + the natural-resonance gear group.

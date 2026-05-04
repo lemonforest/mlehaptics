@@ -1,23 +1,16 @@
 name: ephemerides-spectral-ci
 
-# Mirrors antikythera-spectral-ci.yml at the same path-filter discipline:
-# this workflow only runs when the ephemerides-spectral subtree changes,
-# so unrelated PRs don't pay the kernel-load cost.
+# Per-PR build + test for the ephemerides-spectral package. Mirrors
+# chess-spectral-ci.yml: a small always-on matrix (4 cells) that
+# catches regressions on the default PR path, plus a label-gated
+# 15-cell wheel matrix that mirrors the publish workflow for the
+# changes that actually warrant it (pyproject.toml, encoder layout,
+# C tree edits).
 #
-# Three jobs:
-#
-#   test                  3 OS x 5 Python = 15 cells of pytest tests/
-#   wheel + sdist build   build via hatchling, twine check --strict
-#   codegen reproducibility
-#                         re-run codegen/regenerate.py and assert no
-#                         _research/* or _data/* (excluding manifest.json)
-#                         change. Catches the same kind of latent drift
-#                         we hit in PR #171 on antikythera-spectral.
-#
-# Triggered also on changes to the SHARED research/ tree because
-# ephemerides-spectral's codegen mirrors several modules from there
-# (bodies.py, laplacian.py, ephemeris_loader.py, bip_instrument.py,
-# ephemeris_reference_instrument.py, time_scales.py).
+# Triggers: pull_request changes under
+# docs/antikythera-maths/ephemerides-spectral/** OR the shared
+# research/ tree (codegen mirrors several modules from there) OR a
+# manual workflow_dispatch.
 
 on:
   push:
@@ -32,66 +25,265 @@ on:
       - "docs/antikythera-maths/ephemerides-spectral/**"
       - "docs/antikythera-maths/research/**"
       - ".github/workflows/ephemerides-spectral-ci.yml"
+  workflow_dispatch: {}
 
+# Default token permissions: read-only on the repo contents. None of
+# the jobs here writes to the repo (no commits, no releases, no
+# comments) — all artifacts are uploaded via actions/upload-artifact,
+# which doesn't need write permissions on `contents`.
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: test • ${{ matrix.os }} • py${{ matrix.python }}
+  build-and-test:
+    # 4 cells, always-on. Mirrors chess-spectral's pre-PR shape:
+    # one Python (3.12) across the three target OSes plus a
+    # min-supported-Python (3.10) cell on Linux to catch tomllib /
+    # syntax / typing regressions that only show up on the floor.
+    name: ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-14, windows-latest]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - { os: ubuntu-latest,  python: "3.12" }
+          - { os: macos-14,       python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+          - { os: ubuntu-latest,  python: "3.10" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+
       - name: Install package + dev tools
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         shell: bash
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[ephemeris,tests]"
-          # tomllib is stdlib on 3.11+; codegen uses it on 3.10 via tomli.
+          # tomllib is stdlib on 3.11+; codegen + version-agreement
+          # tests use tomli on 3.10.
           python -m pip install 'tomli; python_version < "3.11"'
+
       - name: Run tests
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         shell: bash
         run: pytest tests/ -q
 
-  build-verify:
-    name: wheel + sdist build (Linux platform wheel)
+  codegen-determinism:
+    # Lightweight always-on guard. Re-run codegen and assert the
+    # _research/ + _data/ mirrors are byte-identical (excluding
+    # manifest.json, whose version field is tied to the in-progress
+    # commit SHA). Catches the latent-drift class of bug we hit in
+    # PR #171 on antikythera-spectral.
+    name: codegen reproducibility
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build wheel + sdist
+      - name: Install editable
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[ephemeris,tests]"
+      - name: Snapshot _data + _research SHA-256
+        working-directory: docs/antikythera-maths/ephemerides-spectral
+        run: |
+          find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/before.sha256
+      - name: Re-run codegen
+        working-directory: docs/antikythera-maths/ephemerides-spectral/codegen
+        run: python regenerate.py
+      - name: Verify byte-identical output
+        working-directory: docs/antikythera-maths/ephemerides-spectral
+        run: |
+          find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
+            -type f -not -name manifest.json \
+            -exec sha256sum {} \; | sort > /tmp/after.sha256
+          diff /tmp/before.sha256 /tmp/after.sha256
+
+  fallback-test:
+    # Pyodide / WASM / sdist-on-no-toolchain path. The package falls
+    # back to the pure-Python BIP encoder when the bundled native
+    # library can't load. We verify HAS_NATIVE=False is set (because
+    # we never built the C library here) and that the pure-Python
+    # path still encodes correctly.
+    name: fallback (pure-Python, no native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime deps only (no editable install)
+        # Skip `pip install -e .` so scikit-build-core never invokes
+        # CMake — _native/ ends up empty and the loader has to fall
+        # back. We add the source tree to sys.path explicitly in the
+        # smoke-test step.
+        run: python -m pip install --upgrade pip pytest numpy skyfield jplephem
+
+      - name: Verify HAS_NATIVE=False without a build
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          python -c "
+          from ephemerides_spectral import _native_bip
+          assert _native_bip.HAS_NATIVE is False, (
+              f'expected HAS_NATIVE=False without a build, got True. '
+              f'A stale _native/ directory may be polluting the load '
+              f'path; check _find_library.'
+          )
+          assert _native_bip.LOAD_ERROR, 'LOAD_ERROR should explain why native unavailable'
+          print(f'OK: HAS_NATIVE=False; LOAD_ERROR={_native_bip.LOAD_ERROR!r}')
+          "
+
+      - name: Run pure-Python BIP encode + parity-shape tests
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        shell: bash
+        env:
+          # Make ephemerides_spectral importable without invoking the
+          # scikit-build-core build (which would build the C library
+          # and defeat the no-native test premise).
+          PYTHONPATH: ${{ github.workspace }}/docs/antikythera-maths/ephemerides-spectral/python
+        run: |
+          # Tests that don't require the native binary path. The
+          # native-parity test_native_parity.py skips cleanly when
+          # HAS_NATIVE is False; we don't run it here.
+          python -m pytest \
+              tests/test_facades.py \
+              tests/test_immolation.py \
+              tests/test_data_freshness.py \
+              -q
+
+  verify-wheels:
+    # Mirrors ephemerides-spectral-publish.yml at full size: 3 OS x
+    # 5 Python = 15 cells of cibuildwheel. Each cell builds the
+    # platform wheel AND runs the per-wheel test command (native
+    # parity + facade + immolation), so a green run here means the
+    # published artefact actually loads its bundled native library.
+    #
+    # GATE (chess-spectral pattern): OPT-IN at PR time, not on by
+    # default. Wall time is ~10–15 min and the matrix flakes on
+    # transient infra (cibuildwheel timeouts, mirror 502s) — gating
+    # off the default path stops merge-train flakes that have nothing
+    # to do with the change under review. Triggers that DO run it:
+    #   * Manual workflow_dispatch
+    #   * PR labeled `wheel-check` (apply when touching package layout,
+    #     pyproject.toml, scikit-build-core config, the C source tree,
+    #     or anything that could plausibly break a per-Python wheel;
+    #     also apply to vX.Y.Z release PRs as a forcing function)
+    # The full publish matrix still runs on tag push via
+    # ephemerides-spectral-publish.yml — that's the load-bearing
+    # gate. This job is a pre-flight, not a primary gate.
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'wheel-check')
+    name: verify-wheels • ${{ matrix.os }} • py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["310", "311", "312", "313", "314"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build + test wheel via cibuildwheel
+        uses: pypa/cibuildwheel@v3.4
+        with:
+          package-dir: docs/antikythera-maths/ephemerides-spectral/python
+        env:
+          CIBW_BUILD: "cp${{ matrix.python }}-*"
+          CIBW_SKIP: "*-musllinux_* *-win32 *_i686"
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+          CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          CIBW_TEST_REQUIRES: "pytest skyfield jplephem"
+          CIBW_TEST_COMMAND: >
+            pytest {package}/tests/test_native_parity.py
+            {package}/tests/test_immolation.py
+            {package}/tests/test_facades.py -q
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
+
+      - name: Sanity-check native library is in the wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          for whl in wheelhouse/*.whl; do
+            echo "=== $whl ==="
+            if ! python -m zipfile -l "$whl" \
+                 | grep -E '_native/(lib)?ephemerides_spectral\.(so|dll|dylib)' \
+                 ; then
+              echo "::error::wheel $whl does NOT contain native library"
+              python -m zipfile -l "$whl"
+              exit 1
+            fi
+          done
+          echo "all wheels contain native library"
+
+      - name: Upload built wheel (artifact, debug only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-wheel-${{ matrix.os }}-cp${{ matrix.python }}
+          path: wheelhouse/*.whl
+          # Short retention — debugging artefacts for failed PR runs,
+          # not durable releases.
+          retention-days: 7
+
+  verify-build-artefacts:
+    # Linux-only: build a single platform wheel + sdist with `python
+    # -m build`, twine-check both, then install the wheel from a
+    # neutral cwd and exercise the native load path. Splitting wheel
+    # and sdist into separate `python -m build` invocations avoids
+    # the sdist→wheel round-trip — that round-trip fails because our
+    # CMakeLists.txt lives at the package's parent dir (sdist preserves
+    # the path, but the unpacked tarball ends up with the wrong layout
+    # for scikit-build-core's source-dir resolution).
+    #
+    # Same `wheel-check` gate as verify-wheels: this is the cheaper
+    # but still-meaningful pre-flight when the full 15-cell matrix
+    # is overkill.
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'wheel-check')
+    name: build artefacts (Linux platform wheel + sdist)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         run: |
           python -m pip install --upgrade pip build scikit-build-core cmake twine
-          python -m build
-          python -m twine check --strict dist/*
+          python -m build --wheel
+      - name: Build sdist
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: python -m build --sdist
+      - name: Twine metadata check
+        working-directory: docs/antikythera-maths/ephemerides-spectral/python
+        run: python -m twine check --strict dist/*
       - name: Verify wheel contents
         working-directory: docs/antikythera-maths/ephemerides-spectral/python
         run: |
           set -euo pipefail
           WHEEL=$(ls dist/*.whl)
-          # Manifest must be present.
           python -m zipfile -l "$WHEEL" | grep -F "_data/manifest.json"
-          # Frozen research-module snapshot.
           python -m zipfile -l "$WHEEL" | grep -F "_research/bip_instrument.py"
           python -m zipfile -l "$WHEEL" | grep -F "_research/laplacian.py"
           python -m zipfile -l "$WHEEL" | grep -F "_research/ephemeris_reference_instrument.py"
           python -m zipfile -l "$WHEEL" | grep -F "_research/time_scales.py"
-          # v0.3.1: native binary must ship in the platform wheel.
           python -m zipfile -l "$WHEEL" | grep -E '_native/(lib)?ephemerides_spectral\.(so|dll|dylib)'
-          # Sanity: the wheel is platform-tagged (not py3-none-any).
           if echo "$WHEEL" | grep -q 'py3-none-any'; then
             echo "::error::expected platform-tagged wheel; got py3-none-any"
             exit 1
@@ -109,46 +301,9 @@ jobs:
           from ephemerides_spectral.version import __version__
           assert _native_bip.HAS_NATIVE, f'HAS_NATIVE False: {_native_bip.LOAD_ERROR}'
           assert _native_bip.native_version() == __version__
-          # Three-way parity at +20 yr.
           jd = 2451545.0 + 20 * 365.25
           py = default_encode(jd, backend='bip', kernel='de421')
           c  = default_encode(jd, backend='c',   kernel='de421')
           assert (py == c).all(), 'native parity mismatch at +20 yr'
           print('native smoke: PASS', _native_bip.LIB_PATH)
           "
-
-  codegen-determinism:
-    name: codegen reproducibility
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install editable
-        working-directory: docs/antikythera-maths/ephemerides-spectral/python
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[ephemeris,tests]"
-      - name: Snapshot _data + _research SHA-256
-        working-directory: docs/antikythera-maths/ephemerides-spectral
-        run: |
-          # Exclude manifest.json from the diff: its `version` /
-          # source-commit fields are tautologically tied to the
-          # commit-in-progress and CI's checkout SHA differs from the
-          # committed value. The per-file SHA-256 sums INSIDE the
-          # manifest still give the integrity guarantee — we just
-          # don't compare the manifest file itself here.
-          find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
-            -type f -not -name manifest.json \
-            -exec sha256sum {} \; | sort > /tmp/before.sha256
-      - name: Re-run codegen
-        working-directory: docs/antikythera-maths/ephemerides-spectral/codegen
-        run: python regenerate.py
-      - name: Verify byte-identical output
-        working-directory: docs/antikythera-maths/ephemerides-spectral
-        run: |
-          find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
-            -type f -not -name manifest.json \
-            -exec sha256sum {} \; | sort > /tmp/after.sha256
-          diff /tmp/before.sha256 /tmp/after.sha256
