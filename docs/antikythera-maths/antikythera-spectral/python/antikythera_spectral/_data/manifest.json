@@ -61,8 +61,8 @@
       "size_bytes": 20450
     },
     "_research/ephemeris_loader.py": {
-      "sha256": "cf62d3d4d0eef6d85a4d805a096a0286bbd743726513d6c2e68a45f18c924324",
-      "size_bytes": 13944
+      "sha256": "cc025d703e393d6062a94a6a0427400736dc5bd0ef213db217c762ae67946b7b",
+      "size_bytes": 14878
     },
     "_research/equant_encoder.py": {
       "sha256": "0b03063fd0d64ab7dba7843db8b63c640359a727a69bfd6bd01882bbc6cc2fe1",
@@ -131,6 +131,6 @@
   },
   "package": "antikythera-spectral",
   "schema_version": 2,
-  "source_commit": "c272fd8cabb651abd300fef0548fa69689e86ed2",
+  "source_commit": "2ffa5f9ae6e8f368eaf358d25b48f4f602d04c7e",
   "version": "0.3.0"
 }
