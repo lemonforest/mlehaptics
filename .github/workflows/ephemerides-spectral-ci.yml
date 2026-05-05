@@ -52,6 +52,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Diagnostic: emit `github.event.action` + label state at workflow
+  # start so we can see which event-action survives vs gets cancelled
+  # when `gh pr create --label wheel-check` fires both `opened` and
+  # `labeled` events. Once we have a couple of PRs of data we'll know
+  # whether to drop one trigger type or guard with a job-level `if`.
+  # Cost: ~1 second per run; runs as a separate job so it isn't tied
+  # to the matrix's success/failure.
+  trigger-diagnostic:
+    name: trigger-diagnostic (event=${{ github.event.action }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log triggering event metadata
+        run: |
+          echo "github.event_name = ${{ github.event_name }}"
+          echo "github.event.action = ${{ github.event.action }}"
+          echo "github.run_id = ${{ github.run_id }}"
+          echo "github.run_attempt = ${{ github.run_attempt }}"
+          echo "labels at fire time:"
+          echo '${{ toJson(github.event.pull_request.labels.*.name) }}'
+          echo "concurrency_group = ${{ github.workflow }}-${{ github.ref }}"
+
   build-and-test:
     # 4 cells, always-on. Mirrors chess-spectral's pre-PR shape:
     # one Python (3.12) across the three target OSes plus a
