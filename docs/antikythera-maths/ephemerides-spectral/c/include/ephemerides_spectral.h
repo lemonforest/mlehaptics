@@ -348,8 +348,8 @@ int es_get_patch_at(size_t idx, es_patch_t *out);
  */
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 5
-#define ES_VERSION_PATCH 2
-#define ES_VERSION_STRING "0.5.2"
+#define ES_VERSION_PATCH 3
+#define ES_VERSION_STRING "0.5.3"
 
 const char *es_version(void);
 
