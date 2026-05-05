@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.2)
+(no entries yet — next entries land after v0.9.3)
+
+## [0.9.3] — 2026-05-05
+
+**PyPI-facing README staleness sweep + CI freshness check (docs-only).** No API or encoder changes; no ABI bump.
+
+### Why this exists
+
+User flagged the Status and Roadmap sections of the PyPI README as stale during the v0.9.2 ship — and they were right. The Status block ended at v0.6.1 (8 versions back); the Roadmap still listed Tier 2b "in progress" (shipped v0.7.0), Sol Venusian/Mercurian Time as upcoming (shipped v0.8.0), and the ITN pathway / `find-tubes` query as upcoming (shipped v0.8.1). Plus leftover `--body earth` examples from before v0.9.0 renamed Earth → Terra.
+
+The broader question — *can CI catch this?* — has a clean answer: yes, for the mechanically-checkable invariants. So this ship does both: refreshes the README *and* installs the CI discipline that prevents the same drift next time.
+
+### Fixed (the sweep itself)
+
+- **Status section** brought up to date through v0.9.3. The 8-version gap was the most egregious staleness; closing it required adding entries for v0.7.0, v0.8.0, v0.8.1, v0.9.0, v0.9.1, v0.9.2, v0.9.3.
+- **Status banner** added under the H1 (`Status: v0.9.3 — production-ready`). Now pinned to `__version__` by the freshness test.
+- **Roadmap section** pruned of items that have shipped (Tier 2b, Sol Venusian/Mercurian Time, ITN pathway / `find-tubes`); reorganised to lead with the genuinely-still-ahead items (first-principles per-resonance α, Hyperion follow-up, remaining 4 broken moons, Sol Moon Times, DE441 vs DE442 experiment, heteroclinic-tube extension, LTC, Phase 10 resonance coverage).
+- **Leftover earth-body CLI examples** corrected to `terra` (caught by the new test as part of Invariant 3).
+- **Phase 9 heading** inverted from `"Breathing" Couplings` to `Adaptive Couplings (a.k.a. "breathing")` — matches the v0.9.2 CLI rename and leads with the mainstream-literature term (Gross & Blasius 2008, "Adaptive coevolutionary networks") while keeping the visual metaphor for readers who know it that way.
+
+### Added (drift prevention)
+
+`python/tests/test_readme_freshness.py` enforces three invariants:
+
+1. Every version with a CHANGELOG entry must have a bullet in the README Status section (and the reverse — no inventing unreleased versions in the README).
+2. The `Status: vX.Y.Z` banner *and* the `*(current)*` marker must both equal `__version__`. Same pattern as `test_native_version_string_matches_package_version` (which pins the C-side `ES_VERSION_STRING` to the Python `__version__`).
+3. Every body name in a CLI example (matched by `--body|--departure|--target|--pair-a|--pair-b NAME` regex) must be in `SUPPORTED_BODIES`.
+
+Plus a sanity check: the body-name regex must find at least one match (catches the empty-passing-test failure mode if the README ever stops shipping CLI examples).
+
+What CI cannot enforce — prose accuracy, judgment about Roadmap scope, "is this a good example" — stays in human review.
+
+### Discipline lineage
+
+- `test_native_version_string_matches_package_version` (C ↔ Python version pinning).
+- `test_parity_smoke.py::PARITY_TARGETS` (every bridge function classified; drift fails CI).
+- `test_readme_freshness.py` (this release): same model, applied to docs.
+
+The pattern: enumerate what must be true, fail loudly on drift, leave judgment to humans.
+
+### Migration
+
+None. Docs-only release; existing scripts and bridge calls unchanged.
 
 ## [0.9.2] — 2026-05-05
 
