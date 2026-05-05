@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.5)
+(no entries yet — next entries land after v0.6.0)
+
+## [0.6.0] — 2026-05-05
+
+**C/Python parity Tier 1 + always-on parity smoke test (ABI v3).** Two encoder-touching bridge methods that were previously Python-only now have C twins, and a new test scaffolds C/Python parity discipline as a durable guarantee. ABI bumps v2 → v3 (additive — encoder hot path is unchanged; ``backend="c"`` produces byte-identical / float-ULP-equal output for every parity-flagged bridge method).
+
+### Added — C entry points (ABI v3)
+
+- ``es_breathing_modulation(delta_t_days, idx_a, idx_b, n_a, n_b, …)`` — exposes the resonant-pair phase residue + integer-LUT modulation factor at a single JD. Same arithmetic that lives inside ``es_encode_state``'s breathing inner loop, evaluated at one (jd, body_pair, n_lobes) without running the full encode.
+- ``es_find_syzygies(jd_lo, jd_hi, kind, threshold, max_candidates, out_buf, out_capacity, *out_count)`` — fixed-period synodic + draconic month enumeration. No encoder calls; pure modular arithmetic mirroring ``_research/syzygy_window.py`` 1:1. New ``es_syzygy_t`` struct.
+- New ``es_status_t`` codes: ``ES_ERR_INVALID_INDEX = 4``, ``ES_ERR_INVALID_KIND = 5``, ``ES_ERR_INVALID_THRESHOLD = 6``.
+
+### Added — bridge dispatch
+
+Both ``bridge.get_breathing_modulation`` and ``bridge.find_syzygies`` accept ``backend="auto"`` (default), ``"bip"`` (pure-Python), or ``"c"`` (native). Auto picks ``"c"`` when the native binary is loaded, else falls back to ``"bip"``. The result dict carries a ``backend`` field for callers that want to know which path executed.
+
+### Added — `tests/test_parity_smoke.py`
+
+The **always-on parity guard.** Every public function in ``bridge.py`` is classified in a ``PARITY_TARGETS`` table by status:
+
+| status | meaning |
+|---|---|
+| ``parity`` | both backends implemented; outputs must match within tolerance |
+| ``python_only`` | pure-Python by design (closed-form time scales, metadata getters) |
+| ``tier1_skip`` | C port pending in Tier 1 (none remain after v0.6.0) |
+| ``tier2_skip`` | C port pending in Tier 2 (HD-state architectural lift, v0.7.0) |
+
+Two drift-detection sub-tests force the table to stay current:
+- ``test_parity_smoke_spec_covers_bridge_surface`` — every public ``bridge.*`` function MUST be in PARITY_TARGETS or in the explicit non-parity allowlist; adding a new bridge method without a parity classification fails CI.
+- ``test_parity_smoke_no_orphan_targets`` — every PARITY_TARGETS entry must correspond to a real bridge function; deleting a function without removing its entry fails CI.
+
+This is the discipline the user asked for: "if we always smoke all python things, we know to always smoke the same C things."
+
+### Tier 2 still pending
+
+Two methods remain ``tier2_skip`` after v0.6.0: ``get_local_view`` and ``get_eclipse_probability``. Both operate on the FPU complex128 hyperdimensional state (D=65536); the C side currently exposes only the 38-body Q-format integer phases. Lifting the C runtime to carry the HD state via channel-basis emission at codegen time is a larger architectural change targeted at v0.7.0. The smoke test marks both as skipped with the tier-2 reason; the Python paths still work as before.
+
+### Discipline
+
+- The parity smoke test runs in every CI cell. Pure-Python fallback runs the python_only entries; native cells exercise the parity entries with both backends and assert equality.
+- Status downgrades (``parity`` → ``tier{1,2}_skip``) are forbidden — they hide regressions. If parity breaks, fix the underlying drift, don't reclassify.
+- Adding a new encoder-touching bridge method now requires (a) a paired C entry point OR (b) a justified ``python_only`` rationale.
+
+### Tests
+
+- 22 new parametrized parity smoke tests (one per PARITY_TARGETS entry) plus the 2 drift-detection sub-tests.
+- 64 active tests pass; 6 skipped (4 cibuildwheel-only native parity ladders + 2 Tier 2 skips).
+
+### Notes
+
+- Encoder hot path is **byte-identical** to v0.5.5. With no patches active, ``get_system_state(backend="c")`` returns the same uint32[38] as v0.5.5 (regression test pinned).
+- The four anchor constants for syzygy enumeration (synodic / draconic months + two reference JDs) are mirrored from ``_research/syzygy_window.py`` into ``c/src/es_parity.c`` as static const. The parity smoke test catches drift between the two if either side ever changes.
 
 ## [0.5.5] — 2026-05-05
 

@@ -39,7 +39,7 @@ import ctypes
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -51,7 +51,10 @@ import numpy as np
 #   v2 — v0.4.1: diagnosed-fiber overlay (es_patch_t struct +
 #       es_apply_patch / es_clear_patches / es_n_active_patches /
 #       es_get_patch_at).
-EXPECTED_ABI_VERSION: int = 2
+#   v3 — v0.6.0: C/Python parity Tier 1 (es_breathing_modulation,
+#       es_syzygy_t struct + es_find_syzygies). Encoder hot path
+#       unchanged; net-new entry points only.
+EXPECTED_ABI_VERSION: int = 3
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
@@ -92,6 +95,33 @@ ES_OK = 0
 ES_ERR_DELTA_OUT_OF_RANGE = 1
 ES_ERR_NULL_OUTPUT = 2
 ES_ERR_NON_FINITE_INPUT = 3
+ES_ERR_INVALID_INDEX = 4         # v0.6.0 (ABI v3)
+ES_ERR_INVALID_KIND = 5          # v0.6.0
+ES_ERR_INVALID_THRESHOLD = 6     # v0.6.0
+
+
+# ABI v3 (v0.6.0) — Tier 1 parity surface.
+ES_SYZYGY_KIND_SOLAR = 0
+ES_SYZYGY_KIND_LUNAR = 1
+ES_SYZYGY_KIND_FILTER_SOLAR = 0
+ES_SYZYGY_KIND_FILTER_LUNAR = 1
+ES_SYZYGY_KIND_FILTER_ALL = 2
+
+
+class EsSyzygy(ctypes.Structure):
+    """Wire-format mirror of ``es_syzygy_t`` from the C header.
+
+    Field order MUST match the C struct exactly.
+    """
+    _fields_ = [
+        ("jd_tdb", ctypes.c_double),
+        ("kind", ctypes.c_int32),
+        # NOTE: 4-byte padding here in C; ctypes inserts it automatically
+        # because the next field is c_double which is 8-byte aligned.
+        ("synodic_phase_resid", ctypes.c_double),
+        ("draconic_phase_resid", ctypes.c_double),
+        ("score", ctypes.c_double),
+    ]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -185,6 +215,35 @@ def _bind(lib: ctypes.CDLL) -> None:
     # int es_get_patch_at(size_t idx, es_patch_t *out)
     lib.es_get_patch_at.argtypes = [ctypes.c_size_t, ctypes.POINTER(EsPatch)]
     lib.es_get_patch_at.restype = ctypes.c_int
+
+    # ABI v3 (v0.6.0) — Tier 1 parity surface.
+    # es_status_t es_breathing_modulation(
+    #     double delta_t_days, size_t body_idx_a, size_t body_idx_b,
+    #     int n_a, int n_b,
+    #     uint32_t *out_phase, int32_t *out_cos_q14, double *out_modulation)
+    lib.es_breathing_modulation.argtypes = [
+        ctypes.c_double,
+        ctypes.c_size_t, ctypes.c_size_t,
+        ctypes.c_int, ctypes.c_int,
+        ctypes.POINTER(ctypes.c_uint32),
+        ctypes.POINTER(ctypes.c_int32),
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.es_breathing_modulation.restype = ctypes.c_int
+
+    # es_status_t es_find_syzygies(
+    #     double jd_lo, double jd_hi, int kind,
+    #     double threshold, size_t max_candidates,
+    #     es_syzygy_t *out_buf, size_t out_capacity,
+    #     size_t *out_count)
+    lib.es_find_syzygies.argtypes = [
+        ctypes.c_double, ctypes.c_double,
+        ctypes.c_int,
+        ctypes.c_double, ctypes.c_size_t,
+        ctypes.POINTER(EsSyzygy), ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_size_t),
+    ]
+    lib.es_find_syzygies.restype = ctypes.c_int
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -368,6 +427,101 @@ def native_n_active_patches() -> int:
     return int(LIB.es_n_active_patches())
 
 
+# ──────────────────────────────────────────────────────────────────────
+# C/Python parity Tier 1 surface (ABI v3, v0.6.0)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def native_breathing_modulation(delta_t_days: float, body_idx_a: int,
+                                body_idx_b: int, n_a: int, n_b: int,
+                                ) -> Tuple[int, int, float]:
+    """Resonant-pair breathing modulation at a single JD.
+
+    Returns ``(phase_residue, cos_q14, modulation_factor)``.
+
+    Raises RuntimeError on any non-OK status from the C side.
+    Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
+    """
+    if not HAS_NATIVE:
+        raise RuntimeError(
+            "native_breathing_modulation called without native library"
+        )
+    assert LIB is not None
+    out_phase = ctypes.c_uint32(0)
+    out_cos_q14 = ctypes.c_int32(0)
+    out_modulation = ctypes.c_double(0.0)
+    rc = int(LIB.es_breathing_modulation(
+        ctypes.c_double(float(delta_t_days)),
+        ctypes.c_size_t(int(body_idx_a)),
+        ctypes.c_size_t(int(body_idx_b)),
+        ctypes.c_int(int(n_a)),
+        ctypes.c_int(int(n_b)),
+        ctypes.byref(out_phase),
+        ctypes.byref(out_cos_q14),
+        ctypes.byref(out_modulation),
+    ))
+    if rc != ES_OK:
+        raise RuntimeError(
+            f"es_breathing_modulation returned status {rc}"
+        )
+    return int(out_phase.value), int(out_cos_q14.value), float(out_modulation.value)
+
+
+def native_find_syzygies(jd_lo: float, jd_hi: float, *,
+                         kind: int = ES_SYZYGY_KIND_FILTER_ALL,
+                         threshold: float = 0.05,
+                         max_candidates: int = 1000,
+                         out_capacity: int = 1024,
+                         ) -> List[Dict[str, Any]]:
+    """Enumerate syzygy candidates in [jd_lo, jd_hi] (TDB).
+
+    Returns a list of dicts with keys jd_tdb, kind ('solar'/'lunar'),
+    synodic_phase_resid, draconic_phase_resid, score.
+
+    Raises RuntimeError on any non-OK status from the C side.
+    Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
+
+    The ``out_capacity`` parameter sizes the internal C-side buffer.
+    If the actual count exceeds capacity, the result is truncated to
+    capacity (matches behaviour of `max_candidates`); callers can
+    raise ``out_capacity`` to recover.
+    """
+    if not HAS_NATIVE:
+        raise RuntimeError(
+            "native_find_syzygies called without native library"
+        )
+    assert LIB is not None
+    capacity = max(1, min(int(out_capacity), int(max_candidates)))
+    buf = (EsSyzygy * capacity)()
+    out_count = ctypes.c_size_t(0)
+    rc = int(LIB.es_find_syzygies(
+        ctypes.c_double(float(jd_lo)),
+        ctypes.c_double(float(jd_hi)),
+        ctypes.c_int(int(kind)),
+        ctypes.c_double(float(threshold)),
+        ctypes.c_size_t(int(max_candidates)),
+        buf,
+        ctypes.c_size_t(capacity),
+        ctypes.byref(out_count),
+    ))
+    if rc != ES_OK:
+        raise RuntimeError(f"es_find_syzygies returned status {rc}")
+    n = int(out_count.value)
+    n = min(n, capacity)
+    out: List[Dict[str, Any]] = []
+    for i in range(n):
+        e = buf[i]
+        kind_str = "solar" if e.kind == ES_SYZYGY_KIND_SOLAR else "lunar"
+        out.append({
+            "jd_tdb": float(e.jd_tdb),
+            "kind": kind_str,
+            "synodic_phase_resid": float(e.synodic_phase_resid),
+            "draconic_phase_resid": float(e.draconic_phase_resid),
+            "score": float(e.score),
+        })
+    return out
+
+
 __all__ = [
     "HAS_NATIVE",
     "LIB",
@@ -380,6 +534,12 @@ __all__ = [
     "ES_PATCH_KIND_COUPLED_SINUSOID",
     "ES_MAX_PATCHES",
     "EsPatch",
+    "EsSyzygy",
+    "ES_SYZYGY_KIND_SOLAR",
+    "ES_SYZYGY_KIND_LUNAR",
+    "ES_SYZYGY_KIND_FILTER_SOLAR",
+    "ES_SYZYGY_KIND_FILTER_LUNAR",
+    "ES_SYZYGY_KIND_FILTER_ALL",
     "encode_state",
     "encode_at_jd",
     "native_version",
@@ -387,4 +547,6 @@ __all__ = [
     "native_apply_coupled_patch",
     "native_clear_patches",
     "native_n_active_patches",
+    "native_breathing_modulation",
+    "native_find_syzygies",
 ]

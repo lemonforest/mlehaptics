@@ -534,7 +534,8 @@ def find_syzygies(jd_lo: float,
                   *,
                   kind: str = "all",
                   threshold: float = 0.05,
-                  max_candidates: int = 1000) -> Dict[str, Any]:
+                  max_candidates: int = 1000,
+                  backend: str = "auto") -> Dict[str, Any]:
     """Spectral-native syzygy window search (v0.3.1+).
 
     Replaces the v0.3.0 point-evaluation pattern (encode-then-check
@@ -569,7 +570,8 @@ def find_syzygies(jd_lo: float,
         eclipse, total vs partial, location of totality) confirm each
         candidate against a JPL ephemeris via skyfield.
     """
-    for v in (_validate_jd(jd_lo), _validate_jd(jd_hi)):
+    for v in (_validate_jd(jd_lo), _validate_jd(jd_hi),
+              _validate_backend(backend)):
         if v is not None:
             return v
     if kind not in ("solar", "lunar", "all"):
@@ -580,12 +582,31 @@ def find_syzygies(jd_lo: float,
         return _err(f"threshold must be a number, got {type(threshold).__name__}")
     if not (0.0 < f_threshold <= 0.5):
         return _err(f"threshold must be in (0, 0.5], got {f_threshold}")
+    from ephemerides_spectral import _native_bip
+    if backend == "auto":
+        backend = "c" if _native_bip.HAS_NATIVE else "bip"
     try:
-        candidates = _find_syzygies_impl(
-            float(jd_lo), float(jd_hi),
-            kind=kind, threshold=f_threshold,
-            max_candidates=int(max_candidates),
-        )
+        if backend == "c" and _native_bip.HAS_NATIVE:
+            kind_filter = {
+                "solar": _native_bip.ES_SYZYGY_KIND_FILTER_SOLAR,
+                "lunar": _native_bip.ES_SYZYGY_KIND_FILTER_LUNAR,
+                "all":   _native_bip.ES_SYZYGY_KIND_FILTER_ALL,
+            }[kind]
+            cand_dicts = _native_bip.native_find_syzygies(
+                float(jd_lo), float(jd_hi),
+                kind=kind_filter, threshold=f_threshold,
+                max_candidates=int(max_candidates),
+                out_capacity=int(max_candidates),
+            )
+            backend_str = "c"
+        else:
+            candidates = _find_syzygies_impl(
+                float(jd_lo), float(jd_hi),
+                kind=kind, threshold=f_threshold,
+                max_candidates=int(max_candidates),
+            )
+            cand_dicts = [c.to_dict() for c in candidates]
+            backend_str = "bip"
     except (ValueError, RuntimeError) as exc:
         return _err(str(exc))
     return {
@@ -594,8 +615,9 @@ def find_syzygies(jd_lo: float,
         "jd_hi": float(jd_hi),
         "kind": kind,
         "threshold": f_threshold,
-        "n_candidates": len(candidates),
-        "candidates": [c.to_dict() for c in candidates],
+        "n_candidates": len(cand_dicts),
+        "candidates": cand_dicts,
+        "backend": backend_str,
     }
 
 
@@ -875,6 +897,7 @@ def get_breathing_modulation(
     pair: Tuple[str, str] = ("jupiter", "saturn"),
     n_lobes: Tuple[int, int] = (5, 2),
     kernel: str = "de441",
+    backend: str = "auto",
 ) -> Dict[str, Any]:
     """Inspect the Phase 9 breathing-coupling modulation at a given JD.
 
@@ -882,45 +905,69 @@ def get_breathing_modulation(
     a body pair and returns the integer-LUT cosine modulation, plus a
     float reference value for calibration.
 
+    Parameters
+    ----------
+    backend : {"auto", "bip", "c"}, default "auto"
+        ``"bip"`` runs the pure-Python integer encoder + LUT lookup.
+        ``"c"`` calls ``es_breathing_modulation`` in the native binary.
+        ``"auto"`` picks ``"c"`` when the native binary is loaded,
+        otherwise falls back to ``"bip"``.
+
     Returns
     -------
     dict
         ``{"ok": True, "jd_tdb": ..., "pair": ["jupiter", "saturn"],
             "n_lobes": [5, 2], "phase_residue": ..., "cos_lut_q14": ...,
-            "cos_float": ..., "modulation_factor": ...}``
+            "cos_float": ..., "modulation_factor": ...,
+            "backend": "bip" | "c"}``
     """
     a, b = pair
     n_a, n_b = n_lobes
     for v in (_validate_jd(jd_tdb), _validate_body(a), _validate_body(b),
-              _validate_kernel(kernel)):
+              _validate_kernel(kernel), _validate_backend(backend)):
         if v: return v
+    from ephemerides_spectral import _native_bip
+    if backend == "auto":
+        backend = "c" if _native_bip.HAS_NATIVE else "bip"
     try:
         inst = _get_bip(kernel=kernel)
-        phases = inst.encode_state(float(jd_tdb))
         idx_a = inst.body_to_idx[a.lower()]
         idx_b = inst.body_to_idx[b.lower()]
-        phi_a = int(phases[idx_a])
-        phi_b = int(phases[idx_b])
-        res_phase = (n_a * phi_a - n_b * phi_b) & (MODULO - 1)
-        # LUT lookup
-        from ephemerides_spectral._research.bip_instrument import (
-            cos_lut, COSINE_LUT_AMP,
-        )
-        cos_q14 = cos_lut(res_phase, n_lobes=1)
-        # Float reference for calibration
-        cos_f = math.cos(2.0 * math.pi * res_phase / MODULO)
-        # Default 10% breathing depth
-        modulation = 1.0 + 0.1 * (cos_q14 / COSINE_LUT_AMP)
+        if backend == "c" and _native_bip.HAS_NATIVE:
+            from ephemerides_spectral._research.bip_instrument import (
+                COSINE_LUT_AMP, REFERENCE_JD,
+            )
+            phase_residue, cos_q14, modulation = (
+                _native_bip.native_breathing_modulation(
+                    float(jd_tdb) - REFERENCE_JD,
+                    int(idx_a), int(idx_b),
+                    int(n_a), int(n_b),
+                )
+            )
+            backend_str = "c"
+        else:
+            phases = inst.encode_state(float(jd_tdb))
+            phi_a = int(phases[idx_a])
+            phi_b = int(phases[idx_b])
+            phase_residue = (n_a * phi_a - n_b * phi_b) & (MODULO - 1)
+            from ephemerides_spectral._research.bip_instrument import (
+                cos_lut, COSINE_LUT_AMP,
+            )
+            cos_q14 = cos_lut(phase_residue, n_lobes=1)
+            modulation = 1.0 + 0.1 * (cos_q14 / COSINE_LUT_AMP)
+            backend_str = "bip"
+        cos_f = math.cos(2.0 * math.pi * phase_residue / MODULO)
         return {
             "ok": True,
             "jd_tdb": float(jd_tdb),
             "pair": [a, b],
             "n_lobes": [n_a, n_b],
-            "phase_residue": int(res_phase),
+            "phase_residue": int(phase_residue),
             "cos_lut_q14": int(cos_q14),
             "cos_lut_amp": int(COSINE_LUT_AMP),
             "cos_float": float(cos_f),
             "modulation_factor": float(modulation),
+            "backend": backend_str,
         }
     except (RuntimeError, ValueError, OverflowError) as exc:
         return _err(str(exc))

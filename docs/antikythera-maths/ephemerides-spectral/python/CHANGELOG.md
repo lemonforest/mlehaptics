@@ -10,7 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.5)
+(no entries yet — next entries land after v0.6.0)
+
+## [0.6.0] — 2026-05-05
+
+**C/Python parity Tier 1 + always-on parity smoke test (ABI v3).** Two encoder-touching bridge methods now have C twins; a new test pins parity as a durable discipline.
+
+### Added — backend dispatch on existing bridge methods
+
+`bridge.get_breathing_modulation(...)` and `bridge.find_syzygies(...)` both accept `backend={"auto", "bip", "c"}` (default `"auto"` picks C when available). Result dicts carry a `backend` field. C and BIP paths produce byte-identical output for the integer fields and float-ULP-equal output for the modulation factor.
+
+### Added — `tests/test_parity_smoke.py`
+
+The always-on parity guard. Every public `bridge.*` function is classified in a `PARITY_TARGETS` table; adding a new method without a parity classification fails CI. Tier 2 entries (`get_local_view`, `get_eclipse_probability`) are flagged as `tier2_skip` until the v0.7.0 hyperdimensional-state-in-C lift lands.
+
+### ABI
+
+`ES_ABI_VERSION` bumped 2 → 3. Encoder hot path is unchanged. Net-new entry points: `es_breathing_modulation`, `es_find_syzygies` (with `es_syzygy_t` struct).
+
+### Notes
+
+- 64 active tests pass on the v0.6.0 build; 6 skipped (4 cibuildwheel-only + 2 Tier 2 stubs).
+- No body roster change. With no patches active, `get_system_state(backend="c")` returns the same uint32[38] as v0.5.5 (regression test pinned).
 
 ## [0.5.5] — 2026-05-05
 
