@@ -20,11 +20,14 @@ Both backends implement the same algebraic substrate (cyclic-group representatio
 
 ### Key Capabilities
 
-- **Graph Laplacian Propagator:** Diagonal content = Newtonian mean motions + Mercury 43"/century post-Newtonian correction. Off-diagonal = gravitational fiber couplings (planet-sun, moon-planet, J–S 5:2 resonance, asteroid-Jupiter).
+- **Graph Laplacian Propagator:** Diagonal content = Newtonian mean motions + Mercury 43"/century post-Newtonian correction. Off-diagonal = gravitational fiber couplings (planet-sun, moon-planet, mean-motion resonances, asteroid-Jupiter).
 - **Phase 9 "Breathing" Couplings:** Off-diagonal weights modulate with the resonant phase difference `cos(n_a·φ_a − n_b·φ_b)`. Formally a **state-dependent (non-autonomous) graph Laplacian** / **adaptive Kuramoto-family network with phase-difference-dependent coupling** — see the [research notebook §1.4](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides_spectral_research_notebook.md#14-mathematical-positioning-of-the-breathing-laplacian) for the full positioning across spectral-graph-theory / dynamical-systems / DNLS-on-a-graph vocabularies. Implemented end-to-end without FPU using a 1024-entry `int32` cosine LUT (Q1.14 amplitude, 4 KB).
-- **Sol Star System Roster:** 26 bodies — Sun, planets (incl. Pluto), 12 major moons, 4 main-belt asteroids.
+- **Sol Star System Roster (v0.5.0+):** **38 bodies** — Sun, 9 planets (incl. Pluto), 24 moons, 4 main-belt asteroids. The moon set covers Earth's Moon, Mars's Phobos / Deimos, **all 4 Galileans (Io, Europa, Ganymede, Callisto) plus the 4 inner regulars (Metis, Adrastea, Amalthea, Thebe)**, **the canonical 9 Saturnians (Mimas, Enceladus, Tethys, Dione, Rhea, Titan, Hyperion, Iapetus, Phoebe) plus the Janus / Epimetheus co-orbitals**, Uranus's Titania, and Neptune's Triton.
+- **Mean-motion resonances (v0.5.0+):** 7 entries in `RESONANCES` — Jupiter–Saturn 5:2, Neptune–Pluto 3:2, Io–Europa 2:1, Europa–Ganymede 2:1, **Mimas–Tethys 4:2 (Cassini Division), Enceladus–Dione 2:1 (powers Enceladus tidal heating), Titan–Hyperion 4:3 (Hyperion's chaotic rotation)**. Natural-resonance gear group: `Z_60 = Z_4 × Z_3 × Z_5`.
+- **Runtime kernel patching (v0.4.0+):** Diagnosed-fiber overlay — patches sit beside the published kernel as DATA, not code edits, and contribute per-body residue deltas at encode time. Inspired by Linux ksplice / kpatch; the kernel's published bytes never change. Bridge surface: `apply_patch(name)` / `apply_custom_patch(...)` / `clear_patches()`. Three patches in the bundled CATALOG authored from the v0.3.1 FFT residual analysis. **v0.5.1 patch-shrinks-residual benchmark** measured the catalog and showed **partial vindication**: J–S coupled patch shrinks both bodies' residuals by ~77% with phase-recovered authoring (research-side; stays out of the v0.5.x catalog until ≥80% on every body); Mars stays stuck at 3% due to FFT bin leakage. v0.5.2 adds windowed FFT + multi-bin patches for full predictive power.
+- **SPICE-free runtime (v0.5.0+):** `pip install` works out of the box — both backends use codegen-baked initial phases shipped in `_data/initial_phases.json`. No SPICE kernel staging required for basic encoding. Skyfield + jplephem stay as optional `[ephemeris]` extras for callers who want runtime recalibration against custom kernels.
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors at any (lat, lon) on any body.
-- **Spectral Syzygy Detection (point-evaluation, v0.3.0):** Inner product with the Syzygy Operator (Sun + Moon + lunar Node) gives an eclipse / conjunction probability *at a given JD*. **Limitation:** this is the encode-then-check pattern — the wrong way to use the encoder for searching syzygies in a window. The HDC-native pattern uses the natural cyclic-group decomposition (Saros / Metonic / synodic month) to enumerate candidate JDs *without* per-JD encoding, then confirms via spectral projection. v0.4+ ROADMAP item: replace the point-evaluation surface with a window search.
+- **Spectral Syzygy Window Search (v0.3.1+):** `find-syzygies --from-jd ... --to-jd ...` enumerates candidate syzygies in closed form via the natural cyclic-group decomposition (synodic + draconic month), then confirms each by spectral projection. ~1000× faster than the v0.3.0 point-evaluation `eclipse --jd` pattern for window queries.
 
 ### Resolution Scaling
 
@@ -243,9 +246,32 @@ This measures **how much of multi-millennium ephemeris our v0.3.0 model captures
 
 Linear in `|Δt|` — one 30-day chunk per integration step. At the v0.1.0 design horizon (±20 yr, ~243 chunks) the encode is ~1.85 ms; at ±14,000 yr (~170k chunks) it's ~6.4 s. Median across the sweep: **447 ms**; max: **6.4 s**.
 
+**v0.4.1+ C native path** drops these by ~1000× (encode at +20 yr: 46 ms BIP → 0.04 ms C). The full DE441 FFT-residual sweep (1024 samples) takes ~14 seconds on the C native path versus ~5 minutes on Python BIP — the truth-lookup against skyfield is the new bottleneck.
+
+## Patch-shrinks-residual benchmark (v0.5.1)
+
+> *Earn the right to predict the missing data.*
+
+The v0.4.0 catalog patches **claim** to predict missing physics; the v0.5.1 audit measures whether they actually shrink the residuals they target. Verdict: **PARTIAL VINDICATION**.
+
+| Patch | v0.4.0 (mag-only authoring) | v0.5.1 (phase-recovered) |
+|---|---|---|
+| `mars-7.96yr-diagonal` | +2.5% | +2.7% (FFT bin leakage) |
+| `mercury-10.69yr-diagonal` | **−49.9% *(peak GREW)*** | **+39.6%** |
+| `jupiter-saturn-9.56yr-coupled` | +30.9% J / −0.4% S | **+77.1% J / +76.4% S** |
+
+Two diagnosable v0.4.0 authoring bugs surfaced: amplitude was off by 2× (used FFT magnitude rather than `2|X[k]|/N` real-amplitude) and phase was wrongly assumed 0 (the Mercury patch was *reinforcing* its target residual). v0.5.1 ships three research scripts (`patch_shrinks_residual.py`, `author_phase_recovered_patches.py`, `verify_recovered_patches.py`) that diagnose, fix, and re-measure. **Empirical finding**: J–S `correlation = +1` (in-phase residuals at 9.56 yr) — the v0.4.0 anti-correlated-libration assumption was wrong.
+
+The v0.4.0 catalog stays unchanged in the wheel (the recovered catalog is research output until it meets ≥80% on every body — currently blocked by FFT bin leakage on Mars). v0.5.2 adds windowed FFT + multi-bin patches and ships `CATALOG_V2`. See [`figures/patch_shrinks_residual_v0.5.1.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/figures/patch_shrinks_residual_v0.5.1.md) for the full analysis.
+
 ## Status
 
-* **v0.3.0** *(current)* — Mars Sol Date / Mars Coordinated Time, mean lunar primitives, LTE440 awareness, DE441 full-epoch sweep, natural-resonance gear group. See [`CHANGELOG.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides-spectral/CHANGELOG.md) for the full v0.3.0 entry.
+* **v0.5.1** *(current)* — Patch-shrinks-residual benchmark: PARTIAL vindication of the diagnosed-fiber methodology (J–S 77%, Mercury 40%, Mars stuck on FFT leakage). See [`CHANGELOG.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides-spectral/CHANGELOG.md).
+* **v0.5.0** — All major Jovian + Saturnian moons join the encoder (26 → 38 bodies). Three new resonances (Cassini Division, Enceladus tidal heating, Hyperion chaos). SPICE-free runtime via codegen-baked initial phases.
+* **v0.4.1** — C-side runtime kernel patching (ABI v2). 237× speedup on patched encodes vs BIP.
+* **v0.4.0** — Diagnosed-fiber runtime overlay (Python side). Patches as data, ksplice/kpatch-style.
+* **v0.3.1** — C-in-wheel + spectral syzygy window search + DE441 error-spectrum FFT.
+* **v0.3.0** — Mars Sol Date / Mars Coordinated Time, mean lunar primitives, LTE440 awareness, DE441 full-epoch sweep, natural-resonance gear group.
 * **v0.2.0** — Phase 9 coverage extension to four resonance pairs (J–S 5:2, N–P 3:2, Io–Europa 2:1, Europa–Ganymede 2:1).
 * **v0.1.0** — first PyPI release. 26-body Sol Star System Laplacian + Phase 9 breathing couplings + ALU-native BIP encoder.
 

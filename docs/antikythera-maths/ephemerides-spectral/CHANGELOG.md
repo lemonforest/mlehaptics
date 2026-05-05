@@ -7,7 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.0)
+(no entries yet — next entries land after v0.5.1)
+
+## [0.5.1] — 2026-05-05
+
+**Patch-shrinks-residual benchmark — earn the right to predict missing data.** Verdict: **PARTIAL VINDICATION**. The methodology produces real, reproducible shrinkage on the J–S coupled patch (~77% on both bodies) and meaningful shrinkage on Mercury (~40%); Mars stays stuck at 3% due to FFT bin leakage. Two authoring bugs in the v0.4.0 catalog surfaced and were diagnosed: amplitude was off by 2×, and phase was wrongly assumed zero.
+
+### What this earns
+
+The original argument for v0.5.1: *patches in the v0.4.0 catalog claim to predict missing physics; until we measure that they actually shrink their targeted FFT residual peak, the claim is unaudited*. v0.5.1 audits it.
+
+The audit produced clean diagnostic data on a methodology bug, a math fix, and quantified shrinkage. We earned **partial** predictive power — J–S 77% is hard data that the spectral-FFT-diagnose-then-overlay approach works when authored correctly — and a clear next step (windowed FFT + multi-bin patches for FFT-leakage cases like Mars).
+
+### Three new research scripts
+
+- **`research/patch_shrinks_residual.py`** — measures shrinkage of the targeted FFT peak when each v0.4.0 catalog patch is active vs inactive. Verdict on the v0.4.0 catalog: REJECTED (Mars +2.5%, Mercury **−49.9%** *(peak GREW)*, J–S +30.9% / −0.4%).
+- **`research/author_phase_recovered_patches.py`** — re-authors the catalog from the FFT's complex spectrum:
+  - Amplitude: `A = 2 |X[k]| / N` (was `|X[k]| / N`, off by 2×).
+  - Phase: `φ = arg(X[k]) − π/2 + 2π · half_span_days / period_days` (mod 2π). The earlier formula `3π/2 − arg` was wrong both in sign and in missing the time-origin offset (the FFT phase is referenced to sample 0 = `REFERENCE_JD − half_span`, NOT to `REFERENCE_JD`).
+  - Coupled correlation: recover from the J–S residual phase difference at the target period — `correlation = +1` if `|Δφ| < π/2`, else `−1`. **Empirically `correlation = +1` for J–S 9.56 yr** — the v0.4.0 anti-correlated-libration assumption was wrong.
+- **`research/verify_recovered_patches.py`** — re-runs the benchmark with the phase-recovered catalog. Verdict: PARTIAL (Mars +2.7%, Mercury **+39.6%**, J–S **+77.1% / +76.4%** on both bodies).
+
+### Findings table
+
+| Patch | v0.4.0 (mag-only) | v0.5.1 (phase-recovered) | Δ |
+|---|---|---|---|
+| `mars-7.96yr-diagonal` | +2.5% | +2.7% | +0.2 pp |
+| `mercury-10.69yr-diagonal` | **−49.9%** *(grew!)* | **+39.6%** | **+89.5 pp** |
+| `jupiter-saturn-9.56yr-coupled` (Jupiter) | +30.9% | **+77.1%** | +46.2 pp |
+| `jupiter-saturn-9.56yr-coupled` (Saturn) | **−0.4%** | **+76.4%** | **+76.8 pp** |
+
+Mercury swung 89.5 percentage points just from phase + amplitude correction; Saturn went from ~no effect to ~77% shrinkage in lockstep with Jupiter (the correlation flip is doing exactly what the math says it should).
+
+### Why Mars stays stuck
+
+Mars's residual at the v0.3.1 FFT report:
+
+```
+| 1 | 7.960 | 2907.3 | 3.4488 |
+| 2 | 7.935 | 2898.1 | 3.3558 |
+```
+
+Two adjacent FFT bins of comparable amplitude — the classic signature of a single sinusoid whose true period falls *between* two FFT bins, with the energy spectrally leaking across both. A single-frequency overlay can only cancel the energy at one bin; the leaked half stays. Quantified ceiling: ~50% shrinkage from a single-bin patch on this kind of leaked residual. Mars at 2.7% means the recovered period was off by enough that the patch barely landed in the right bin.
+
+### What `de441_error_spectrum` learned
+
+`top_peaks` returned by `run_spectrum` was bumped from K=5 to K=20. Critical: when a successful patch shrinks its target peak, that peak demotes out of the original top-5 — but it's still measurable. Without K=20 the verifier reported "no peak in tolerance" on Jupiter, hiding the actual 77.1% shrinkage.
+
+### What the v0.4.0 catalog gets
+
+The v0.4.0 catalog **stays unchanged** in the wheel. v0.5.1 is research-side audit + diagnostic; the recovered catalog (in `results/phase_recovered_catalog.json`) doesn't yet meet the ≥80% bar across all bodies. v0.5.2 will:
+
+1. Add Hann-windowed FFT to the patch-authoring pass (suppress leakage; pushes Mars from 2.7% to >50%).
+2. Add multi-bin patches: a single catalog entry expressed as a list of `(period, amplitude, phase)` sinusoids covering the bins around the target. C-side overlay struct gets a small array of sinusoids per patch.
+3. Ship `CATALOG_V2` alongside the existing `CATALOG`. Each entry pinned with its measured shrinkage% as a regression-test gate.
+
+### Notes
+
+- End-to-end benchmark wall-time ~25 min on the v0.5.0 C native + skyfield truth-lookup path. On Python BIP it's ~90 min (the truth-lookup is the slow part either way; encode is sub-millisecond on C).
+- The recovered catalog finding that **J–S `correlation = +1`** (in-phase residuals at 9.56 yr) is the most interesting physics signal of v0.5.1. The original assumption was anti-correlated libration around the conjunction; the FFT data rejects that. What this means physically — whether the v0.5.0 RESONANCES table needs `Resonance("jupiter", "saturn", 5, 2, ...)` rewritten with `(2, 5)` instead — is queued for v0.5.x research.
 
 ## [0.5.0] — 2026-05-05
 

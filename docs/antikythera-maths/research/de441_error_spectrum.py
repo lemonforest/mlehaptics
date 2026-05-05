@@ -211,7 +211,10 @@ def run_spectrum(kernel: str = "de441",
                                    1.0 / freqs_per_yr, np.inf)
 
         # Top-K peaks excluding DC.
-        K = 5
+        # K bumped 5 -> 20 in v0.5.1 so the patch-shrinks-residual
+        # benchmark can still find the targeted peak after a successful
+        # patch demotes it out of the original top-5.
+        K = 20
         peak_idx = np.argsort(amps[1:])[-K:][::-1] + 1  # offset to skip DC
         peaks = [
             {
