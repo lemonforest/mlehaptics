@@ -94,6 +94,14 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "compare": lambda a, b: a["phases_uint32"] == b["phases_uint32"],
     },
     # ── Tier 1 ports (v0.6.0): C twin shipped ────────────────────────
+    # ── v0.8.1 ITN pathway (find-tubes): Python BIP only; C twin queued ─
+    "find_itn_pathways": {
+        "status": "tier1_skip",
+        "tier": 1,
+        "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 5*365.25,
+                      "departure": "earth", "target": "mars",
+                      "threshold": 0.05},
+    },
     "find_syzygies": {
         "status": "parity",
         "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 365.25,

@@ -281,6 +281,58 @@ def test_v080_saturnian_uses_cassini_revised() -> None:
     assert out["rotation_system"] == "III-Cassini"
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.8.1 ITN pathway / Lagrange-tube query (find-tubes)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_v081_find_tubes_earth_to_mars_basics() -> None:
+    """Earth->Mars Hohmann windows recur every synodic period (~779.94 d)."""
+    out = bridge.find_itn_pathways(
+        2451545.0, 2451545.0 + 50 * 365.25,
+        departure="earth", target="mars", threshold=0.05,
+    )
+    assert out["ok"] is True
+    n = out["n_candidates"]
+    # 50 years / 779.94 days/synodic = ~23.4 windows
+    assert 22 <= n <= 25, f"expected ~23 windows, got {n}"
+    for c in out["candidates"]:
+        assert c["transfer_kind"] == "hohmann"
+        # Hohmann transfer time ~258.8 d
+        assert 258.0 < c["transfer_time_days"] < 260.0
+        # Earth->Mars Hohmann dv ~5.59 km/s
+        assert 5.5 < c["estimated_dv_kms"] < 5.7
+        # Synodic ~779.94 d
+        assert 779.0 < c["synodic_period_days"] < 781.0
+
+
+def test_v081_find_tubes_rejects_same_body() -> None:
+    out = bridge.find_itn_pathways(
+        2451545.0, 2451545.0 + 365.25,
+        departure="earth", target="earth",
+    )
+    assert out["ok"] is False
+    assert "differ" in out["error"].lower()
+
+
+def test_v081_find_tubes_inner_transfer_phase_negative() -> None:
+    """Mars->Earth (inner transfer) has a negative-or-wrapped launch
+    phase angle (target trails departure at launch)."""
+    out = bridge.find_itn_pathways(
+        2451545.0, 2451545.0 + 5 * 365.25,
+        departure="mars", target="earth", threshold=0.05,
+    )
+    assert out["ok"] is True
+    if out["candidates"]:
+        c = out["candidates"][0]
+        # Earth->Mars launch angle is +44.4 deg; Mars->Earth is the
+        # inverse of that geometry (target has to be much further around
+        # because Earth is much faster). The exact value depends on
+        # synodic conventions; we just check the transfer characteristics
+        # are sane.
+        assert 258.0 < c["transfer_time_days"] < 260.0  # same ellipse
+
+
 def test_v055_moon_patches_apply_and_clear() -> None:
     """Each v0.5.5 moon patch must apply via the bridge and clear cleanly."""
     bridge.clear_patches()

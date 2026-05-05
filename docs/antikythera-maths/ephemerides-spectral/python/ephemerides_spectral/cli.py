@@ -190,6 +190,17 @@ def _cmd_time_neptune(args: argparse.Namespace) -> int:
     return _emit(bridge.jd_to_sol_neptunian_time(args.jd), pretty=args.pretty)
 
 
+def _cmd_find_tubes(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.find_itn_pathways(
+            args.from_jd, args.to_jd,
+            departure=args.departure, target=args.target,
+            threshold=args.threshold, max_candidates=args.max_candidates,
+        ),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -796,6 +807,56 @@ def _make_parser() -> argparse.ArgumentParser:
     tn_g.add_argument("--nsd", type=float, default=None,
                        help="Neptune sol-date count to invert back to JD_TDB")
     tn.set_defaults(func=_cmd_time_neptune)
+
+    # find-tubes (v0.8.1) — ITN pathway / Lagrange-tube query
+    ft = sub.add_parser(
+        "find-tubes",
+        help="ITN pathway query: enumerate Hohmann transfer windows in a JD range",
+        description=(
+            "Enumerate launch windows in [from-jd, to-jd] (TDB) for a\n"
+            "Hohmann transfer from `--departure` to `--target`. Mirrors\n"
+            "find-syzygies's discipline: closed-form synodic-period\n"
+            "enumeration anchored at the Hohmann launch geometry, no\n"
+            "encoder calls.\n"
+            "\n"
+            "First-cut implementation. Future versions add low-energy /\n"
+            "heteroclinic-tube candidates under the same surface; the\n"
+            "transfer_kind field reserves room for them ('hohmann' for\n"
+            "now). The user-friendly framing: 'surfing the perturbations'\n"
+            "via the Solar System's natural cyclic structure.\n"
+            "\n"
+            "References:\n"
+            "  - Koon, Lo, Marsden, Ross 2011 (the canonical ITN text)\n"
+            "  - Lo's Genesis spacecraft trajectory work (1997)"
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral find-tubes --from-jd 2451545.0 --to-jd 2470000.0 \\\n"
+            "      --departure earth --target mars\n"
+            "  # All Mars windows in J2000 + 50yr at default tight (3.6deg) threshold\n"
+            "\n"
+            "  ephemerides-spectral find-tubes --from-jd 2452000.0 --to-jd 2456000.0 \\\n"
+            "      --departure earth --target jupiter --threshold 0.05\n"
+            "  # Earth->Jupiter windows, looser 9deg threshold"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ft.add_argument("--from-jd", dest="from_jd", type=float, required=True,
+                    help="Window start in JD (TDB)")
+    ft.add_argument("--to-jd", dest="to_jd", type=float, required=True,
+                    help="Window end in JD (TDB)")
+    ft.add_argument("--departure", required=True,
+                    help="Departure body name (e.g. earth, mars)")
+    ft.add_argument("--target", required=True,
+                    help="Target body name (e.g. mars, jupiter)")
+    ft.add_argument("--threshold", type=float, default=0.02,
+                    help="Phase residual cutoff in (0, 1]; |residual|/pi. "
+                         "0.02 = ~3.6 deg tight; 0.05 = ~9 deg looser. "
+                         "Default 0.02.")
+    ft.add_argument("--max-candidates", dest="max_candidates",
+                    type=int, default=1000,
+                    help="Max candidates returned (safety cap)")
+    ft.set_defaults(func=_cmd_find_tubes)
 
     # lunar-kernels
     lk = sub.add_parser(

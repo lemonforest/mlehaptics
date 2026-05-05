@@ -7,7 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.8.0)
+(no entries yet — next entries land after v0.8.1)
+
+## [0.8.1] — 2026-05-05
+
+**ITN pathway / Lagrange-tube query — `find-tubes` first cut.** "Surfing the perturbations": closed-form Hohmann transfer-window enumeration mirroring the v0.3.1 `find-syzygies` discipline. Pure-Python implementation; C twin queued for a follow-up minor (the parity smoke marks `find_itn_pathways` as `tier1_skip`).
+
+### Why "surfing the perturbations"
+
+The Solar System is a natural symphony of overlapping cyclic groups (mean motions, synodic periods, Lagrange-point manifolds). A Hohmann transfer window is the **simplest case of surfing that natural structure** — the lowest-Δv way to ride a planet's orbit out to the next one. v0.8.1 exposes the closed-form math that reads "when does a window open?" from the existing v0.5.0+ initial-phase data + Kepler's 3rd law. No CR3BP integration; no manifold computation. The `transfer_kind` field reserves room for low-energy / heteroclinic-tube candidates as future versions add CR3BP-grade gateway designations.
+
+### Added — research
+
+- `_research/itn_window.py`: `ITNCandidate` dataclass + helpers (`hohmann_transfer_time_days`, `hohmann_launch_phase_angle_rad`, `hohmann_total_dv_kms`, `synodic_period_days`) + `find_itn_pathways` enumeration. Reads body initial phases from `_data/initial_phases.json` (codegen-baked v0.5.0+ output); no encoder calls.
+
+### Added — bridge surface
+
+- `bridge.find_itn_pathways(jd_lo, jd_hi, departure, target, threshold, max_candidates, backend)`. Returns the standard `{ok, candidates, ...}` shape. Each candidate carries `jd_tdb`, `transfer_kind` ("hohmann"), `transfer_time_days`, `launch_phase_angle_deg`, `actual_phase_angle_deg`, `phase_residual_deg`, `score`, `estimated_dv_kms`, `synodic_period_days`, `gateway_lp` ("transfer-ellipse" placeholder).
+
+### Added — CLI
+
+- `find-tubes --from-jd ... --to-jd ... --departure earth --target mars` (plus `--threshold` + `--max-candidates`). Full `--help` epilog with examples spanning Mars + Jupiter targets.
+
+### Sanity values
+
+Earth → Mars at default threshold 0.02 over J2000 + 50 yr returns 23 windows (synodic period 779.94 d). Each window: transfer time 258.87 d, total Δv 5.594 km/s. Matches textbook Hohmann math to 0.01% on time and 0.1% on Δv.
+
+### Future (the C twin + CR3BP layers)
+
+- **C twin** mirroring `find-syzygies` (ABI bump v5 → v6, follow-up minor). `find_itn_pathways` then flips from `tier1_skip` to `parity` in the smoke.
+- **L1/L2 gateway designation + Jacobi constant** per CR3BP geometry. `gateway_lp` graduates from `"transfer-ellipse"` placeholder to a real Lagrange-point label.
+- **Multi-leg heteroclinic chains** — Sun-Earth L2 → Sun-Mars L1 → Mars surface, etc. Combinatorial enumeration over the gateway graph.
+- **Energy-budget filtering** — only emit candidates whose cumulative Δv fits a caller-supplied budget.
+- **Ballistic-capture windows** at planetary L1 — Belbruno-style low-energy capture, generalised.
+
+### Tests
+
+- 3 new immolation tests: Earth→Mars windows + characteristics, same-body rejection, Mars→Earth (inner) transfer geometry.
+- 107 active tests pass (was 104 in v0.8.0); 5 skipped (4 cibuildwheel + 1 new `tier1_skip` for `find_itn_pathways`).
+
+### References
+
+- Koon, Lo, Marsden, Ross — *Dynamical Systems, the Three-Body Problem and Space Mission Design* (2011), the canonical ITN text.
+- Lo (1997) — Genesis spacecraft trajectory design via L1/L2 manifolds.
+- Conley (1968) — manifold-connection theorems, the math foundation.
 
 ## [0.8.0] — 2026-05-05
 
@@ -68,7 +111,7 @@ ABI is unchanged — no C twin needed; these are pure-Python time-scale formulas
   - `test_v080_jovian_uses_system_iii`
   - `test_v080_saturnian_uses_cassini_revised`
 
-102 active tests pass (was 84 in v0.7.0); 4 skipped (cibuildwheel-only native parity ladders).
+104 active tests pass (was 84 in v0.7.0); 4 skipped (cibuildwheel-only native parity ladders).
 
 ### Subagent verification
 

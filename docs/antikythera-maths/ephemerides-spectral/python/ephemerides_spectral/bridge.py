@@ -84,6 +84,9 @@ from ephemerides_spectral._research.time_scales import (
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
 )
+from ephemerides_spectral._research.itn_window import (
+    find_itn_pathways as _find_itn_pathways_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -722,6 +725,112 @@ def sol_neptunian_time_to_jd(nsd: float) -> Dict[str, Any]:
     """Inverse on the Neptune sol-date count."""
     return _scalar_inverse(nsd, "nsd",
                            neptunian_time_to_jd, "nsd")
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.8.x — ITN pathway / Lagrange-tube query (find-tubes)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def find_itn_pathways(jd_lo: float,
+                      jd_hi: float,
+                      *,
+                      departure: str,
+                      target: str,
+                      threshold: float = 0.02,
+                      max_candidates: int = 1000,
+                      backend: str = "auto") -> Dict[str, Any]:
+    """Enumerate Hohmann transfer windows between two bodies.
+
+    First-cut implementation of the ITN pathway query — mirrors
+    v0.3.1's ``find-syzygies`` discipline. Closed-form synodic-
+    period enumeration anchored at the Hohmann launch geometry
+    (target leads departure by ``π − n_target × T_hohmann`` for
+    outer transfers, or trails by the same magnitude for inner
+    transfers). Each candidate carries a transfer-time + Δv
+    estimate.
+
+    The Hohmann window is the lowest-effort transfer between two
+    bodies and the natural first ITN target. Future extensions
+    will layer ``backend="c"`` (ABI bump) and additional
+    ``transfer_kind`` values for low-energy / heteroclinic-tube
+    candidates as the CR3BP manifold computation lands.
+
+    Parameters
+    ----------
+    jd_lo, jd_hi : float
+        Window boundaries in JD (TDB).
+    departure, target : str
+        Body names. Both must orbit the Sun (planet, dwarf-planet,
+        or asteroid).
+    threshold : float, default 0.02
+        Score cutoff in (0, 1]. ``score = |phase_residual| / π``.
+        0.02 → tight window (~3.6° of ideal Hohmann phase angle).
+        0.05 → wider (~9°).
+    max_candidates : int, default 1000
+        Safety cap.
+    backend : {"auto", "bip", "c"}, default "auto"
+        Forward-compatibility hook. v0.8.x ships only the Python
+        impl (``"bip"``); the ``"c"`` path will land in a follow-up
+        version with ABI bump. ``"auto"`` selects the available
+        path; today that means ``"bip"`` either way.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_lo": ..., "jd_hi": ..., "departure": ...,
+        "target": ..., "threshold": ..., "n_candidates": int,
+        "candidates": [{"jd_tdb", "transfer_kind", "transfer_time_days",
+        "launch_phase_angle_deg", "actual_phase_angle_deg",
+        "phase_residual_deg", "score", "estimated_dv_kms",
+        "synodic_period_days", "gateway_lp"}, ...],
+        "backend": "bip"}``.
+    """
+    for v in (_validate_jd(jd_lo), _validate_jd(jd_hi),
+              _validate_body(departure), _validate_body(target)):
+        if v is not None:
+            return v
+    # backend is forward-compatibility only in v0.8.1 — accept any of
+    # {"auto", "bip", "c"} and dispatch to "bip" (the only impl).
+    if backend not in ("auto", "bip", "c"):
+        return _err(
+            f"backend must be 'auto'/'bip'/'c', got {backend!r}"
+        )
+    if departure.lower() == target.lower():
+        return _err("departure and target must differ")
+    try:
+        f_threshold = float(threshold)
+    except (TypeError, ValueError):
+        return _err(
+            f"threshold must be a number, got {type(threshold).__name__}"
+        )
+    if not (0.0 < f_threshold <= 1.0):
+        return _err(f"threshold must be in (0, 1], got {f_threshold}")
+    # backend dispatch — v0.8.x only ships the BIP path; "auto"/"c"
+    # both fall back to the Python impl. The C twin will land in a
+    # follow-up minor with the standard bridge dispatch pattern.
+    chosen = "bip"
+    try:
+        candidates = _find_itn_pathways_impl(
+            float(jd_lo), float(jd_hi),
+            departure=departure.lower(),
+            target=target.lower(),
+            threshold=f_threshold,
+            max_candidates=int(max_candidates),
+        )
+    except (ValueError, RuntimeError) as exc:
+        return _err(str(exc))
+    return {
+        "ok": True,
+        "jd_lo": float(jd_lo),
+        "jd_hi": float(jd_hi),
+        "departure": departure.lower(),
+        "target": target.lower(),
+        "threshold": f_threshold,
+        "n_candidates": len(candidates),
+        "candidates": [c.to_dict() for c in candidates],
+        "backend": chosen,
+    }
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
