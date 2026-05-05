@@ -7,7 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.3)
+(no entries yet — next entries land after v0.10.0)
+
+## [0.10.0] — 2026-05-05
+
+**Sol Terra-Luna Time (STLT) — system-level clock for the Terra-Luna pair, with Meton's 432 BCE summer solstice as the default epoch.** First Sol Time member with a non-J2000 default anchor. Phase B of task #95.
+
+### Why this matters
+
+Most of the Sol Time series silently borrows J2000.0 from Terra. The user noticed this during the v0.9.x sweep: *"if we don't already, we should do this for all celestial bodies, except for Terra, because JD."* STLT is the first deliverable on that principle — the first Sol Time member whose default epoch is celestially significant in its own right rather than a Terra-modern borrowing.
+
+The choice fell on **Meton of Athens's summer solstice (27 June 432 BCE proleptic Julian)** for three converging reasons:
+
+1. *Empirical center of mass.* The user proposed scoring a "combo" candidate: the midpoint of the Hipparchus-Babylonian eclipse archive (Mardokempad 721 BCE + Hipparchus 141 BCE). The Phase A research script (`research/lunar_epoch_candidates.py`) confirms this midpoint lands within **+240 days of Meton's solstice — same year, eight months later**. Greek mathematical astronomy's eclipse archive is centred on Meton's lifetime.
+
+2. *Cycle alignment.* The Antikythera mechanism's Metonic dial encodes the 19-year Metonic cycle (235 synodic months ≈ 19 tropical years, off by ~2 hours). STLT anchored at Meton's solstice anchors at the cycle the device measures, not just the Saros eclipse anchor of one of its other dials.
+
+3. *Algebraic resonance.* The `Z_5` factor of our `Z_60 = Z_4 × Z_3 × Z_5` natural-resonance group is the Metonic-aligned component. Meton's anchor sits on the encoder's algebraic spine.
+
+This is a **house-epoch design choice**, *not* a claim to be NASA's eventual LCT (Lunar Coordinated Time) standard. LCT remains its own roadmap item; when standardised per the April 2024 White House directive, we add it as a sibling.
+
+### Phase A research (committed first; this release ships Phase B)
+
+`research/lunar_epoch_candidates.py` scores five candidates against the spectral kernel + skyfield ground truth and dumps a markdown report (`figures/lunar_epoch_candidates.md`):
+
+| Candidate | JD_TDB | Kernel match | Notes |
+|---|---|---|---|
+| Antikythera 205 BCE solar eclipse (Freeth & Jones 2012) | 1646782.49 | 0.49 d offset, score 0.197 rad | Saros-dial anchor; project namesake |
+| **Meton 432 BCE summer solstice** | 1645528.00 | **1.19° from solstice (epoch-of-date)** | Date validated; *default epoch* |
+| Hipparchus 141 BCE lunar eclipse (Almagest VI.5) | 1669949.24 | 0.18 d offset, score 0.033 rad | Tightest spectral match |
+| Mardokempad 721 BCE lunar eclipse (Almagest IV.6) | 1458155.86 | 0.52 d offset, score 0.008 rad | Earliest Babylonian record; remarkable spectral fidelity at 2700 yr |
+| Hipparchus-Babylonian transmission midpoint (derived) | 1564052.90 | +240 d from Meton | **Confirms Meton sits at Greek astronomy's empirical center of mass** |
+
+Discoveries in the script's commentary worth carrying forward:
+- Solar-longitude solstice diagnostics need an *epoch-of-date* precession correction; ~33° at 2400 yr otherwise dominates the offset.
+- Encoder drift at 2700-yr horizons can move predicted eclipse times tens of days. Window scales accordingly.
+- `bridge.find_syzygies` had the same `backend="auto"` latent-bug class fixed for `get_breathing_modulation` in v0.9.2. Caught + fixed in this ship.
+
+### Phase B (this release)
+
+**API surface:**
+- `bridge.jd_to_sol_terra_luna_time(jd_tdb, *, epoch="meton")` and `bridge.sol_terra_luna_time_to_jd(synodic_count, *, epoch="meton")`.
+- The five `epoch` keywords: `meton`, `antikythera`, `hipparchus`, `mardokempad`, `j2000`. Each maps to its corresponding JD_TDB constant.
+- New CLI subcommand `ephemerides-spectral time-terra-luna --jd <X>` with `--epoch <name>`.
+
+**Out of scope (deferred):**
+- C twin (parity smoke marks both new bridge methods `python_only`; C port queued for a future minor).
+- Replacing the J2000 default on the *other* Sol Time members (Venus, Mercury, Mars, Luna, Neptune still use J2000 / calendar conventions). The user's principle ("celestial anchors for non-Terra bodies") will roll out body-by-body.
+- Sol Proper Time (SPrT) — gravitational + kinematic time dilation per body / per (lat, lon). User-asked during this ship; captured as task #97 for v0.11.x+.
+
+**Discipline carried forward:**
+- Manifest regenerated via the project's official `codegen/regenerate.py`.
+- README freshness tests caught the v0.9.3-banner-still-says-v0.9.3 drift the moment the version bumped — exactly what they were designed for.
+- Both new bridge methods land in `PARITY_TARGETS`; bridge-surface coverage stays complete.
+
+### Migration
+
+None. Existing scripts and bridge calls unchanged. STLT is purely additive.
 
 ## [0.9.3] — 2026-05-05
 

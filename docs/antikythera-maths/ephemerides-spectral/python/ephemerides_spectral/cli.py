@@ -216,6 +216,27 @@ def _cmd_time_luna(args: argparse.Namespace) -> int:
     return _emit(bridge.jd_to_sol_luna_time(args.jd), pretty=args.pretty)
 
 
+def _cmd_time_terra_luna(args: argparse.Namespace) -> int:
+    """v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair.
+
+    Default epoch is Meton's summer solstice (27 June 432 BCE) — the
+    foundational Greek lunar-solar reconciliation anchor. Pass
+    ``--epoch <name>`` to switch to one of the other historical anchors:
+    ``antikythera`` (205 BCE solar eclipse), ``hipparchus`` (141 BCE
+    lunar eclipse), ``mardokempad`` (721 BCE Babylonian lunar eclipse),
+    or ``j2000`` (modern Terra-borrowed reference).
+    """
+    if args.synodic_count is not None:
+        return _emit(
+            bridge.sol_terra_luna_time_to_jd(args.synodic_count, epoch=args.epoch),
+            pretty=args.pretty,
+        )
+    return _emit(
+        bridge.jd_to_sol_terra_luna_time(args.jd, epoch=args.epoch),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_find_tubes(args: argparse.Namespace) -> int:
     return _emit(
         bridge.find_itn_pathways(
@@ -937,6 +958,75 @@ def _make_parser() -> argparse.ArgumentParser:
     tl2_g.add_argument("--lsd-solar", dest="lsd_solar", type=float, default=None,
                         help="Luna solar (synodic) day count to invert back to JD_TDB")
     tl2.set_defaults(func=_cmd_time_luna)
+
+    # time-terra-luna (v0.10.0) — Sol Terra-Luna Time (STLT)
+    #
+    # System-level clock for the Terra-Luna pair. First Sol Time member
+    # whose default epoch is NOT J2000.0 / Terra-borrowed: ships with
+    # Meton's summer solstice (27 Jun 432 BCE) as the default house
+    # epoch, with four other Greek-historical alternatives via --epoch.
+    from ephemerides_spectral.bridge import STLT_EPOCHS, STLT_DEFAULT_EPOCH
+    _STLT_EPOCH_CHOICES = sorted(STLT_EPOCHS)
+
+    ttl = sub.add_parser(
+        "time-terra-luna",
+        help="Sol Terra-Luna Time (STLT) at a JD — Terra-Luna system clock",
+        description=(
+            "Convert JD (TDB) to Sol Terra-Luna Time (STLT) — a\n"
+            "system-level clock for the Terra-Luna pair, with the\n"
+            "synodic month (29.530589 days) as the natural unit.\n"
+            "Saros (18.03 yr) and Metonic (19.00 yr) cycle counts come\n"
+            "along for free.\n"
+            "\n"
+            "First Sol Time in the package whose DEFAULT epoch is not\n"
+            "J2000.0 / Terra-borrowed. Default is Meton of Athens's\n"
+            "summer solstice (27 June 432 BCE) — the calibration\n"
+            "anchor of the Metonic cycle (235 synodic months ≈ 19\n"
+            "tropical years). Greek mathematical astronomy's center of\n"
+            "mass: the Hipparchus-Babylonian eclipse-archive midpoint\n"
+            "lands within +240 days of Meton's solstice (same year).\n"
+            "\n"
+            "Available epochs (--epoch <name>):\n"
+            "  meton        Meton's summer solstice 432 BCE  (default)\n"
+            "  antikythera  Antikythera Saros eclipse 205 BCE\n"
+            "  hipparchus   Hipparchus's lunar eclipse 141 BCE\n"
+            "  mardokempad  Babylonian lunar eclipse 721 BCE\n"
+            "  j2000        Modern reference (Terra-borrowed)\n"
+            "\n"
+            "DISTINCT from SLT (Luna's surface clock), Sol Lunar Time\n"
+            "(Luna's phase observed from Terra), and STT (Terra's\n"
+            "surface clock). STLT is the *system-level* (Sun-Terra-\n"
+            "Luna pair) clock — natural home for eclipses, conjunctions,\n"
+            "and Saros / Metonic cycle counts.\n"
+            "\n"
+            "House-epoch design choice; not a claim to be NASA's\n"
+            "eventual LCT (Lunar Coordinated Time) standard.\n"
+            "\n"
+            "Use --synodic-count to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  # Default Meton epoch — synodic count from 432 BCE solstice\n"
+            "  ephemerides-spectral time-terra-luna --jd 2451545.0\n\n"
+            "  # Antikythera Saros anchor (Freeth & Jones 2012)\n"
+            "  ephemerides-spectral time-terra-luna --jd 2451545.0 --epoch antikythera\n\n"
+            "  # Modern J2000 reference\n"
+            "  ephemerides-spectral time-terra-luna --jd 2451545.0 --epoch j2000\n\n"
+            "  # Inverse: synodic count back to JD_TDB (Meton epoch)\n"
+            "  ephemerides-spectral time-terra-luna --synodic-count 27294.31"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ttl_g = ttl.add_mutually_exclusive_group(required=True)
+    ttl_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Terra-Luna Time")
+    ttl_g.add_argument("--synodic-count", dest="synodic_count", type=float, default=None,
+                       help="Synodic-month count (since the chosen epoch) "
+                            "to invert back to JD_TDB")
+    ttl.add_argument("--epoch", choices=_STLT_EPOCH_CHOICES,
+                     default=STLT_DEFAULT_EPOCH,
+                     help=f"Historical anchor (default {STLT_DEFAULT_EPOCH!r})")
+    ttl.set_defaults(func=_cmd_time_terra_luna)
 
     # find-tubes (v0.8.1) — ITN pathway / Lagrange-tube query
     ft = sub.add_parser(

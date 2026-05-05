@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Dict, Tuple
 
 
 # ───────────────────────────────────────────────────────────────────
@@ -1089,6 +1089,195 @@ def luna_time_to_jd(lsd_solar: float) -> float:
     return LUNAT_EPOCH_JD_TDB + float(lsd_solar) * LUNA_SOLAR_DAY_DAYS
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Sol Terra-Luna Time (v0.10.0) — STLT
+# ──────────────────────────────────────────────────────────────────────
+#
+# A *system-level* clock for the Terra-Luna pair. The natural unit is
+# the synodic month — the period from one Sun-Terra-Luna alignment of a
+# given relative phase to the next (e.g., new moon to new moon, full
+# moon to full moon). 29.530588853 Earth-days.
+#
+# Distinct from the existing Luna-related Sol Times:
+#
+#   * SLT (Sol Luna Time): Luna's surface clock, Luna's tidally-locked
+#     frame.
+#   * Sol Lunar Time (jd_to_lunar): Luna's phase observed from Terra.
+#   * STT (Sol Terra Time): Terra's surface clock.
+#
+# None of those is the natural home for *system events* (eclipses,
+# conjunctions, oppositions). STLT is. A solar eclipse is a Sun-Terra-
+# Luna syzygy — a single-parameter event in the Terra-Luna pair frame.
+#
+# STLT is the *first* Sol Time in the package whose default epoch is
+# NOT J2000.0 / borrowed-from-Terra. Per task #95, the project ships
+# STLT with **Meton's summer solstice (27 June 432 BCE)** as the
+# default house epoch. Rationale (see also notebook §7.4):
+#
+#   * Meton sits at the empirical center of mass of Greek astronomical
+#     tradition: the Hipparchus-Babylonian eclipse-archive midpoint
+#     (Mardokempad 721 BCE + Hipparchus 141 BCE) lands within +240 days
+#     of his solstice — same year, eight months later. Independent
+#     numerical confirmation that Meton sits at the temporal center of
+#     the cycle Greek astronomy was built on.
+#
+#   * Meton's 432 BCE summer solstice is the calibration anchor of the
+#     Metonic cycle (235 synodic months ≈ 19 tropical years, off by
+#     ~2 hours). The Antikythera mechanism's Metonic dial encodes this
+#     cycle; STLT anchored at Meton's solstice is anchored at the cycle
+#     the Antikythera ultimately measures.
+#
+#   * Resonance with the encoder algebra: `Z_5` of our `Z_60 = Z_4 ×
+#     Z_3 × Z_5` natural-resonance group is the Metonic-aligned
+#     component (5-fold cyclic factor in the lunar-solar reconciliation).
+#
+# Alternative epochs are exposed via the `epoch` parameter so callers
+# who want a different anchor (Antikythera 205 BCE; Hipparchus 141 BCE;
+# Mardokempad 721 BCE; J2000) can pick it. Frame is *house epoch*, NOT
+# a claim to be NASA's eventual LCT (Lunar Coordinated Time) standard,
+# which is still pending standardisation per the April 2024 White House
+# directive. When LCT lands, we add it as a sibling epoch.
+
+#: Synodic month — STLT's natural unit (Sun-Terra-Luna pair phase
+#: cycle). Same as LUNA_SOLAR_DAY_DAYS but kept distinct for clarity:
+#: in the SLT context this length is a *day on Luna's surface*; in the
+#: STLT context it's the *system phase cycle* — same number, different
+#: semantic.
+STLT_SYNODIC_MONTH_DAYS:    float = 29.530588853
+
+#: Saros eclipse cycle — 223 synodic months. The Antikythera mechanism's
+#: Saros dial enumerates this cycle.
+STLT_SAROS_CYCLE_DAYS:      float = 223.0 * 29.530588853
+
+#: Metonic cycle — 235 synodic months ≈ 19 tropical years, off by ~2 h.
+#: The lunar-solar reconciliation Meton calibrated. The Antikythera
+#: mechanism's Metonic dial enumerates this cycle.
+STLT_METONIC_CYCLE_DAYS:    float = 235.0 * 29.530588853
+
+#: STLT epoch candidates. Default is "meton" — Meton of Athens's summer
+#: solstice on 27 June 432 BCE (proleptic Julian). See notebook §7.4
+#: for the choice rationale and `research/lunar_epoch_candidates.py`
+#: for the numerical scoring of all five candidates.
+#:
+#: All JDs are the **calendar-date noon** in the proleptic Julian
+#: calendar (the convention NASA's Five Millennium Catalog of Solar
+#: Eclipses uses for pre-1582 dates). For solar / lunar candidates,
+#: our `find_syzygies` confirms each lands within 1 day of an actual
+#: eclipse — see `figures/lunar_epoch_candidates.md` for the offsets.
+#: We anchor at the calendar JD (well-attested historically), not the
+#: kernel-match JD (which has small offsets from multi-millennium
+#: encoder drift) — the calendar date is what gives an epoch its
+#: meaning for counting synodic months.
+STLT_EPOCH_METON_JD_TDB:        float = 1563813.0   # Meton's solstice 27 Jun 432 BCE noon proleptic Julian
+STLT_EPOCH_ANTIKYTHERA_JD_TDB:  float = 1646782.0   # Solar eclipse 23 Aug 205 BCE noon
+STLT_EPOCH_HIPPARCHUS_JD_TDB:   float = 1669949.5   # Lunar eclipse 25 Jan 141 BCE  (mid-evening per Almagest)
+STLT_EPOCH_MARDOKEMPAD_JD_TDB:  float = 1458156.4   # Babylonian lunar eclipse 19 Mar 721 BCE  (cuneiform evening record)
+STLT_EPOCH_J2000_JD_TDB:        float = 2451545.0   # Modern reference (Terra-borrowed)
+
+#: Map from epoch-name keyword to its JD_TDB. Used by the CLI / bridge
+#: ``epoch=`` parameter to pick an alternative anchor.
+STLT_EPOCHS: Dict[str, float] = {
+    "meton":        STLT_EPOCH_METON_JD_TDB,
+    "antikythera":  STLT_EPOCH_ANTIKYTHERA_JD_TDB,
+    "hipparchus":   STLT_EPOCH_HIPPARCHUS_JD_TDB,
+    "mardokempad":  STLT_EPOCH_MARDOKEMPAD_JD_TDB,
+    "j2000":        STLT_EPOCH_J2000_JD_TDB,
+}
+
+#: Default STLT epoch — Meton's summer solstice 432 BCE.
+STLT_DEFAULT_EPOCH: str = "meton"
+
+
+@dataclass(frozen=True)
+class TerraLunaTime:
+    """Sol Terra-Luna Time (STLT) at a given JD (TDB).
+
+    System-level clock for the Terra-Luna pair, anchored at a
+    historically resonant Greek epoch (default: Meton's solstice
+    432 BCE). Synodic month is the natural unit; Saros (18.03 yr) and
+    Metonic (19.00 yr) cycle counts come along for free.
+    """
+    jd_tdb: float
+    epoch_name: str
+    epoch_jd_tdb: float
+    days_since_epoch: float
+    synodic_count:   float       # synodic-month count since the epoch
+    synodic_phase:   float       # fractional part of synodic_count, [0, 1)
+    saros_count:     float       # Saros-cycle count since the epoch
+    saros_phase:     float
+    metonic_count:   float       # Metonic-cycle count since the epoch
+    metonic_phase:   float
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":           float(self.jd_tdb),
+            "epoch_name":       str(self.epoch_name),
+            "epoch_jd_tdb":     float(self.epoch_jd_tdb),
+            "days_since_epoch": float(self.days_since_epoch),
+            "synodic_count":    float(self.synodic_count),
+            "synodic_phase":    float(self.synodic_phase),
+            "saros_count":      float(self.saros_count),
+            "saros_phase":      float(self.saros_phase),
+            "metonic_count":    float(self.metonic_count),
+            "metonic_phase":    float(self.metonic_phase),
+        }
+
+
+def jd_to_terra_luna_time(
+    jd_tdb: float,
+    *,
+    epoch: str = STLT_DEFAULT_EPOCH,
+) -> TerraLunaTime:
+    """JD (TDB) → Sol Terra-Luna Time (STLT).
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian Date in TDB.
+    epoch : str, default ``"meton"``
+        One of ``STLT_EPOCHS``: ``"meton"`` (default; 27 Jun 432 BCE
+        summer solstice), ``"antikythera"`` (23 Aug 205 BCE solar
+        eclipse, Saros dial anchor), ``"hipparchus"`` (25 Jan 141 BCE
+        lunar eclipse), ``"mardokempad"`` (19 Mar 721 BCE lunar eclipse,
+        earliest Babylonian record), or ``"j2000"`` (modern, Terra-
+        borrowed reference).
+    """
+    if epoch not in STLT_EPOCHS:
+        raise ValueError(
+            f"epoch must be one of {sorted(STLT_EPOCHS)}, got {epoch!r}"
+        )
+    epoch_jd = STLT_EPOCHS[epoch]
+    delta = float(jd_tdb) - epoch_jd
+    syn = delta / STLT_SYNODIC_MONTH_DAYS
+    sar = delta / STLT_SAROS_CYCLE_DAYS
+    met = delta / STLT_METONIC_CYCLE_DAYS
+    return TerraLunaTime(
+        jd_tdb=float(jd_tdb),
+        epoch_name=epoch,
+        epoch_jd_tdb=float(epoch_jd),
+        days_since_epoch=float(delta),
+        synodic_count=syn,
+        synodic_phase=syn - math.floor(syn),
+        saros_count=sar,
+        saros_phase=sar - math.floor(sar),
+        metonic_count=met,
+        metonic_phase=met - math.floor(met),
+    )
+
+
+def terra_luna_time_to_jd(
+    synodic_count: float,
+    *,
+    epoch: str = STLT_DEFAULT_EPOCH,
+) -> float:
+    """Inverse on the synodic-month count."""
+    if epoch not in STLT_EPOCHS:
+        raise ValueError(
+            f"epoch must be one of {sorted(STLT_EPOCHS)}, got {epoch!r}"
+        )
+    return STLT_EPOCHS[epoch] + float(synodic_count) * STLT_SYNODIC_MONTH_DAYS
+
+
 __all__ = [
     "MARS_SOL_PER_JD",
     "MSD_EPOCH_JD",
@@ -1169,4 +1358,18 @@ __all__ = [
     "saturnian_time_to_jd",
     "jd_to_neptunian_time",
     "neptunian_time_to_jd",
+    # v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair.
+    "STLT_SYNODIC_MONTH_DAYS",
+    "STLT_SAROS_CYCLE_DAYS",
+    "STLT_METONIC_CYCLE_DAYS",
+    "STLT_EPOCH_METON_JD_TDB",
+    "STLT_EPOCH_ANTIKYTHERA_JD_TDB",
+    "STLT_EPOCH_HIPPARCHUS_JD_TDB",
+    "STLT_EPOCH_MARDOKEMPAD_JD_TDB",
+    "STLT_EPOCH_J2000_JD_TDB",
+    "STLT_EPOCHS",
+    "STLT_DEFAULT_EPOCH",
+    "TerraLunaTime",
+    "jd_to_terra_luna_time",
+    "terra_luna_time_to_jd",
 ]
