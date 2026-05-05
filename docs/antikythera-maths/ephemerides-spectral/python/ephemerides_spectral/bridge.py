@@ -53,11 +53,33 @@ from ephemerides_spectral._research.time_scales import (
     URANUS_ORBITAL_PERIOD_YEARS,
     URANUS_SIDEREAL_DAY_HOURS,
     SUT_EPOCH_JD_TDB,
+    # v0.8.0 Sol Symphony Times.
+    VENUS_SIDEREAL_DAY_DAYS, VENUS_SOLAR_DAY_DAYS,
+    VENUS_ORBITAL_PERIOD_YEARS, VENUS_AXIAL_TILT_DEG, VST_EPOCH_JD_TDB,
+    MERCURY_SIDEREAL_DAY_DAYS, MERCURY_SOLAR_DAY_DAYS,
+    MERCURY_ORBITAL_PERIOD_YEARS, MERCURY_AXIAL_TILT_DEG, MERT_EPOCH_JD_TDB,
+    PLUTO_SIDEREAL_DAY_DAYS, PLUTO_ORBITAL_PERIOD_YEARS,
+    PLUTO_AXIAL_TILT_DEG, PST_EPOCH_JD_TDB,
+    SOL_CARRINGTON_DAY_DAYS, SOL_AXIAL_TILT_DEG, SOL_T_EPOCH_JD_TDB,
+    JUPITER_SYS_III_DAY_DAYS, JUPITER_ORBITAL_PERIOD_YEARS,
+    JUPITER_AXIAL_TILT_DEG, JOVT_EPOCH_JD_TDB,
+    SATURN_SYS_III_DAY_DAYS, SATURN_ORBITAL_PERIOD_YEARS,
+    SATURN_AXIAL_TILT_DEG, SATT_EPOCH_JD_TDB,
+    NEPTUNE_SIDEREAL_DAY_DAYS, NEPTUNE_ORBITAL_PERIOD_YEARS,
+    NEPTUNE_AXIAL_TILT_DEG, NEPT_EPOCH_JD_TDB,
     jd_to_lunar,
     jd_to_msd,
     jd_to_uranian_time,
     msd_to_jd,
     uranian_time_to_jd,
+    jd_to_venusian_time, venusian_time_to_jd,
+    jd_to_mercurian_time, mercurian_time_to_jd,
+    jd_to_plutonian_time, plutonian_time_to_jd,
+    jd_to_sol_sol_time as _jd_to_sol_sol_time,
+    sol_sol_time_to_jd as _sol_sol_time_to_jd,
+    jd_to_jovian_time, jovian_time_to_jd,
+    jd_to_saturnian_time, saturnian_time_to_jd,
+    jd_to_neptunian_time, neptunian_time_to_jd,
 )
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
@@ -455,6 +477,251 @@ def sol_uranian_time_to_jd(usd: float) -> Dict[str, Any]:
         "usd": f,
         "jd_tdb": float(uranian_time_to_jd(f)),
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.8.0 — Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn
+# ──────────────────────────────────────────────────────────────────────
+#
+# Each body's "Sol Time" exposes its rotation phase + orbital phase
+# anchored at a conventional epoch (J2000, IAU prime meridian, etc.).
+# These complement the established Sol Mars Time (MSD/MTC) and Sol
+# Lunar Time (synodic+sidereal phase) by extending the natural-symphony
+# framing to every body in the encoder roster.
+#
+# Naming hierarchy convention (for future moon ports):
+# - Established planet/star times: "Sol <Adjective> Time" (Sol Mars,
+#   Sol Lunar, Sol Uranian, Sol Venusian, Sol Mercurian, Sol Plutonian,
+#   Sol Jovian, Sol Saturnian, Sol Sol).
+# - Future moon times follow parent-body hierarchy:
+#   "Sol <Parent>-<Body> Time" (e.g., Sol Pluto-Charon Time, Sol
+#   Jupiter-Io Time, Sol Earth-Moon Time). Established conventions
+#   (Sol Lunar = Earth-Moon shorthand) are kept.
+
+
+def _scalar_inverse(value: Any, name: str, impl: Any,
+                    out_field: str) -> Dict[str, Any]:
+    """Shared validation + inversion for the *_to_jd bridge methods."""
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return _err(f"{name} must be a number, got {type(value).__name__}")
+    if not math.isfinite(f):
+        return _err(f"{name} must be finite, got {f}")
+    return {
+        "ok": True,
+        out_field: f,
+        "jd_tdb": float(impl(f)),
+    }
+
+
+def jd_to_sol_venusian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Venusian Time. Venus is retrograde with sidereal
+    day = 243.0 Earth-days (longer than its 224.7-day year), so the
+    sidereal vs. solar day distinction matters: the dataclass exposes
+    both, with the solar day (116.75 Earth-days) as the natural
+    "what time is it on Venus" coordinate."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_venusian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "J2000.0 (no IAU VSD convention; mirroring MSD)",
+            "jd_tdb": float(VST_EPOCH_JD_TDB),
+            "sidereal_day_days": float(VENUS_SIDEREAL_DAY_DAYS),
+            "solar_day_days": float(VENUS_SOLAR_DAY_DAYS),
+            "orbital_period_years": float(VENUS_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(VENUS_AXIAL_TILT_DEG),
+        },
+    }
+
+
+def sol_venusian_time_to_jd(vsd_solar: float) -> Dict[str, Any]:
+    """Inverse on the Venus solar-day count (`vsd_solar`)."""
+    return _scalar_inverse(vsd_solar, "vsd_solar",
+                           venusian_time_to_jd, "vsd_solar")
+
+
+def jd_to_sol_mercurian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Mercurian Time. Mercury's 3:2 spin-orbit resonance
+    means the solar day = 2 Mercury years exactly. Both sidereal and
+    solar day phase are exposed; the solar day is the natural answer
+    to "what time is it on Mercury" because that's what an observer
+    on the surface experiences."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_mercurian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "J2000.0 with IAU prime meridian at Hun Kal crater",
+            "jd_tdb": float(MERT_EPOCH_JD_TDB),
+            "sidereal_day_days": float(MERCURY_SIDEREAL_DAY_DAYS),
+            "solar_day_days": float(MERCURY_SOLAR_DAY_DAYS),
+            "orbital_period_years": float(MERCURY_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(MERCURY_AXIAL_TILT_DEG),
+            "spin_orbit_resonance": "3:2 (solar day = 2 × year exactly)",
+        },
+    }
+
+
+def sol_mercurian_time_to_jd(mer_sd_solar: float) -> Dict[str, Any]:
+    """Inverse on the Mercury solar-day count."""
+    return _scalar_inverse(mer_sd_solar, "mer_sd_solar",
+                           mercurian_time_to_jd, "mer_sd_solar")
+
+
+def jd_to_sol_plutonian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Plutonian Time. Pluto's tidally-locked Pluto-Charon
+    system rotates as one; the IAU-2015 prime meridian convention
+    anchors at the sub-Charon point. Anchor: New Horizons closest
+    approach 2015-07-14 (JD 2457217.0)."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_plutonian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "New Horizons closest approach 2015-07-14",
+            "jd_tdb": float(PST_EPOCH_JD_TDB),
+            "sidereal_day_days": float(PLUTO_SIDEREAL_DAY_DAYS),
+            "orbital_period_years": float(PLUTO_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(PLUTO_AXIAL_TILT_DEG),
+            "note": "Pluto-Charon mutually tidally locked; system rotates as one",
+        },
+    }
+
+
+def sol_plutonian_time_to_jd(psd: float) -> Dict[str, Any]:
+    """Inverse on the Pluto sol-date count."""
+    return _scalar_inverse(psd, "psd",
+                           plutonian_time_to_jd, "psd")
+
+
+def jd_to_sol_sol_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Sol Time. The Sun's own time, in the Carrington
+    rotation system: integer Carrington Rotation Number (CRN) starting
+    at CRN 1 on 1853-11-09 (JD 2398167.4), each rotation = 25.38 Earth-
+    days at ~16° solar latitude. The Sun has differential rotation
+    (equator ~24.47 d, poles ~38 d); 25.38 d is the conventional
+    reference. Galactic-orbit phase (~219 Myr period) is included for
+    completeness but is too slow for any practical use."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = _jd_to_sol_sol_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "Carrington Rotation 1 (1853-11-09)",
+            "jd_tdb": float(SOL_T_EPOCH_JD_TDB),
+            "carrington_day_days": float(SOL_CARRINGTON_DAY_DAYS),
+            "axial_tilt_deg": float(SOL_AXIAL_TILT_DEG),
+            "note": ("Sun has differential rotation; 25.38 d is the "
+                     "Carrington reference at ~16° latitude"),
+        },
+    }
+
+
+def sol_sol_time_to_jd(crn: float) -> Dict[str, Any]:
+    """Inverse on the Carrington Rotation Number (CRN)."""
+    return _scalar_inverse(crn, "crn", _sol_sol_time_to_jd, "crn")
+
+
+def jd_to_sol_jovian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Jovian Time. Jupiter has differential rotation;
+    we use System III (magnetic-field-axis rotation, 9h 55m 30s) per
+    IAU. System I (equatorial cloud features, 9h 50m 30s) and System
+    II (higher-latitude clouds, 9h 55m 41s) are not exposed here. Anchor:
+    System III 1965.0 reference epoch."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_jovian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "System III 1965.0 reference (IAU/Riddle-Warwick)",
+            "jd_tdb": float(JOVT_EPOCH_JD_TDB),
+            "sys_iii_day_days": float(JUPITER_SYS_III_DAY_DAYS),
+            "orbital_period_years": float(JUPITER_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(JUPITER_AXIAL_TILT_DEG),
+            "rotation_system_options": ["I (equatorial clouds)",
+                                        "II (mid-latitude clouds)",
+                                        "III (magnetic field — used here)"],
+        },
+    }
+
+
+def sol_jovian_time_to_jd(jsd: float) -> Dict[str, Any]:
+    """Inverse on the Jupiter sol-date count."""
+    return _scalar_inverse(jsd, "jsd",
+                           jovian_time_to_jd, "jsd")
+
+
+def jd_to_sol_saturnian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Saturnian Time. Uses the Cassini-revised System
+    III rotation period (10h 32m 35s ± 13s, Mankovich et al. 2019 ApJ
+    871:1) — the older Voyager-derived 10h 39m 22.4s is now superseded.
+    Saturn's rotation rate was determined via ring seismology, not
+    moon orbits — Sol Saturnian Time is fully independent of the
+    Saturnian moon set. Anchor: J2000.0."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_saturnian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "J2000.0",
+            "jd_tdb": float(SATT_EPOCH_JD_TDB),
+            "sys_iii_day_days": float(SATURN_SYS_III_DAY_DAYS),
+            "orbital_period_years": float(SATURN_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(SATURN_AXIAL_TILT_DEG),
+            "source": ("Mankovich et al. 2019 ApJ 871:1 — ring "
+                       "seismology, supersedes Voyager value"),
+        },
+    }
+
+
+def sol_saturnian_time_to_jd(ssd: float) -> Dict[str, Any]:
+    """Inverse on the Saturn sol-date count."""
+    return _scalar_inverse(ssd, "ssd",
+                           saturnian_time_to_jd, "ssd")
+
+
+def jd_to_sol_neptunian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Neptunian Time. Voyager 2 (1989) measured Neptune's
+    System III rotation period as 16h 6m 36s ± 3s; that's still the
+    canonical value. Prograde rotation, mid-range axial tilt (28.32°).
+    Year = 164.79 Earth-years. Anchor: J2000.0."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_neptunian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "J2000.0",
+            "jd_tdb": float(NEPT_EPOCH_JD_TDB),
+            "sidereal_day_days": float(NEPTUNE_SIDEREAL_DAY_DAYS),
+            "orbital_period_years": float(NEPTUNE_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(NEPTUNE_AXIAL_TILT_DEG),
+            "source": ("Voyager 2 1989 magnetic-field tilt-tracking; "
+                       "no Cassini-equivalent ring-seismology mission "
+                       "to Neptune yet"),
+        },
+    }
+
+
+def sol_neptunian_time_to_jd(nsd: float) -> Dict[str, Any]:
+    """Inverse on the Neptune sol-date count."""
+    return _scalar_inverse(nsd, "nsd",
+                           neptunian_time_to_jd, "nsd")
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

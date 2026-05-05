@@ -10,7 +10,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.7.0)
+(no entries yet — next entries land after v0.8.0)
+
+## [0.8.0] — 2026-05-05
+
+**Sol Symphony Times: 7 new planetary/stellar time systems** — Venus, Mercury, Pluto, Sol (the Sun), Jupiter, Saturn, Neptune join the Sol Time series.
+
+### Added — bridge surface
+
+14 new methods: `jd_to_sol_<body>_time(jd_tdb)` + `sol_<body>_time_to_jd(...)` for each of venusian, mercurian, plutonian, sol_sol, jovian, saturnian, neptunian.
+
+### Added — CLI
+
+7 new subcommands: `time-venus`, `time-mercury`, `time-pluto`, `time-sol`, `time-jupiter`, `time-saturn`, `time-neptune`. Use `--help` on each for the body's quirks (Mercury 3:2 spin-orbit resonance, Venus retrograde, Cassini-revised Saturn rotation, Neptune Voyager-2 System III, etc.).
+
+### Naming hierarchy
+
+Established: `Sol <Adjective> Time` (Sol Mars, Sol Lunar, Sol Uranian, etc.). Future moon ports: `Sol <Parent>-<Body> Time` (Sol Pluto-Charon, Sol Jupiter-Io, etc.).
+
+### ABI
+
+Unchanged at v5. These are pure-Python time-scale formulas; no C twin needed.
+
+### Tests
+
+102 active tests pass (was 84 in v0.7.0); 4 skipped (cibuildwheel-only).
 
 ## [0.7.0] — 2026-05-05
 

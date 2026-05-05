@@ -183,6 +183,77 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_uranian_time",
         "kwargs_py": {"usd": 0.0},
     },
+    # v0.8.0 Sol Symphony Times — pure-Python sidereal/solar arithmetic.
+    "jd_to_sol_venusian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Venusian Time (retrograde, sidereal+solar day)",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_venusian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_venusian_time",
+        "kwargs_py": {"vsd_solar": 0.0},
+    },
+    "jd_to_sol_mercurian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Mercurian Time (3:2 spin-orbit resonance)",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_mercurian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_mercurian_time",
+        "kwargs_py": {"mer_sd_solar": 0.0},
+    },
+    "jd_to_sol_plutonian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Plutonian Time (Pluto-Charon system)",
+        "kwargs_py": {"jd_tdb": 2457217.0},
+    },
+    "sol_plutonian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_plutonian_time",
+        "kwargs_py": {"psd": 0.0},
+    },
+    "jd_to_sol_sol_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Sol Time (Carrington rotation system)",
+        "kwargs_py": {"jd_tdb": 2398167.4},
+    },
+    "sol_sol_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_sol_time",
+        "kwargs_py": {"crn": 1.0},
+    },
+    "jd_to_sol_jovian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Jovian Time (Jupiter System III magnetic-field rotation)",
+        "kwargs_py": {"jd_tdb": 2444000.5},
+    },
+    "sol_jovian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jovian_time",
+        "kwargs_py": {"jsd": 0.0},
+    },
+    "jd_to_sol_saturnian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Saturnian Time (Cassini-revised System III)",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturnian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturnian_time",
+        "kwargs_py": {"ssd": 0.0},
+    },
+    "jd_to_sol_neptunian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Neptunian Time (Voyager 2 System III)",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_neptunian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_neptunian_time",
+        "kwargs_py": {"nsd": 0.0},
+    },
     "get_natural_resonance_group": {
         "status": "python_only",
         "rationale": "metadata about the RESONANCES table; pure-Python",
