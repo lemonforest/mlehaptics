@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.11.0)
+(no entries yet — next entries land after v0.11.1)
+
+## [0.11.1] — 2026-05-05
+
+**Research notebook hygiene: backfill §7.4 (STLT) and §7.5 (SPrT); refresh Status banner.** Documentation-only release.
+
+### Why this exists
+
+User noticed during the v0.11.0 SPrT ship: *"just double checking, we added GR to our research notebook too?"* — and the answer was no. Both v0.10.0 STLT and v0.11.0 SPrT shipped with full bridge / CLI / test surfaces but without their notebook §7.x sections. The existing freshness checks (`tests/test_readme_freshness.py`) cover the README — they don't see the research notebook.
+
+### Fixed
+
+- **Notebook §7.4 added — Sol Terra-Luna Time (STLT).** Covers the system-clock framing, the Meton 432 BCE default-epoch choice, the Hipparchus-Babylonian-midpoint convergence story, the `Z₅` algebraic-spine connection, the available alternative epochs, the house-epoch-vs-NASA-LCT framing, and the bridge / CLI surface.
+- **Notebook §7.5 added — Sol Proper Time (SPrT).** Covers the per-body diagonal-fiber framing (extending Mercury's existing 43″/century PN diagonal to all 38 bodies), the two leading-order components (`GM/(R·c²)` + `v_orb²/(2c²)`), the validation table against six published values, the user's transparent `--proper` UX, the two-implementation discipline, and the deferred items (rotational kinematic, J₂ oblateness, frame dragging).
+- **Notebook Status banner refreshed.** Was stale at v0.7.0; now reads v0.11.1 with the headline-state summary.
+- **Notebook Release History block backfilled** with v0.9.2, v0.9.3, v0.10.0, v0.11.0, and v0.11.1 entries (was ending at v0.9.1).
+
+### Discipline
+
+- New task #98 captured: a soft-warning "docs probably need updating" check on PRs. Would have caught the v0.10.0 / v0.11.0 gaps automatically.
+
+### Migration
+
+None. Documentation-only.
 
 ## [0.11.0] — 2026-05-05
 

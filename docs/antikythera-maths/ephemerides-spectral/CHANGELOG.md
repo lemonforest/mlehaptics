@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.11.0)
+(no entries yet — next entries land after v0.11.1)
+
+## [0.11.1] — 2026-05-05
+
+**Research notebook hygiene — backfill §7.4 (STLT) and §7.5 (SPrT); refresh Status banner.** Documentation-only release; no API, no encoder, no ABI changes.
+
+### Why this exists
+
+User asked during the v0.11.0 SPrT ship close: *"just double checking, we added GR to our research notebook too?"* — and the honest answer was no. Both v0.10.0 STLT and v0.11.0 SPrT shipped with full bridge / CLI / test surfaces but neither updated `docs/antikythera-maths/ephemerides_spectral_research_notebook.md`. The freshness invariants from v0.9.3 (`tests/test_readme_freshness.py`) cover the PyPI README; they don't audit the notebook.
+
+This release closes the specific gap. Task #98 captures the broader follow-on: a soft-warning "docs probably need updating" check on every PR that touches code but not docs — would have caught this gap automatically.
+
+### What's in the notebook now
+
+**§7.4 — Sol Terra-Luna Time (STLT) — v0.10.0:**
+- The system-clock framing (Sun-Terra-Luna pair, synodic month as natural unit; distinct from SLT, Sol Lunar Time, STT).
+- The Meton 432 BCE default-epoch choice + the Hipparchus-Babylonian-midpoint convergence story (the user's "combo" candidate that lands within +240 days of Meton's solstice — same year, eight months later).
+- The four alternative epochs (Antikythera 205 BCE, Hipparchus 141 BCE, Mardokempad 721 BCE, J2000).
+- The `Z₅` natural-resonance-group connection (Metonic-aligned cyclic factor of `Z₆₀ = Z₄ × Z₃ × Z₅`).
+- The house-epoch-vs-NASA-LCT framing (LCT remains its own roadmap item; STLT is the project's house anchor until standardisation lands).
+- Bridge / CLI surface examples.
+
+**§7.5 — Sol Proper Time (SPrT) — v0.11.0:**
+- The per-body diagonal-fiber framing — extends Mercury's existing 43″/century PN diagonal to all 38 bodies.
+- The two leading-order components (`gr_surface = GM/(R·c²)` and `kinematic_orbital = v_orb²/(2c²)`), with the closed-form rate equation.
+- A per-body table for the leading bodies (Sun 2.12×10⁻⁶ → Pluto 1.33×10⁻¹⁰).
+- Validation against six published values to within 0.30 % rel err (the same six checks Phase A scores in `figures/proper_time_rates.md`).
+- The user's transparent `--proper` UX, with code examples for the bridge primitive + the CLI.
+- The two-implementation discipline (Phase A independent script + Phase B canonical primitive — same pattern STLT used).
+- Out-of-scope items deferred to v0.12.0+ (rotational kinematic, J₂ oblateness, frame dragging).
+- Why this matters in spectral terms (the diagonal-fiber framing in vocabulary continuous with the rest of the notebook).
+
+### Status banner refreshed
+
+Was stale at v0.7.0; now reads v0.11.1 with the up-to-date headline-state summary covering Phase 5–9 implementation, body-roster expansion, parity Tier 1/2a/2b, Sol Symphony Times, body-identity rename, Sol Time naming overhaul, adaptive synonym, STLT, and SPrT.
+
+### Release-history block backfilled
+
+The §4 Release History block was ending at v0.9.1; now extends through v0.11.1 with entries for v0.9.2 (adaptive synonym + breathing-bug fix), v0.9.3 (PyPI README sweep + freshness check), v0.10.0 (STLT), v0.11.0 (SPrT), and v0.11.1 (this release).
+
+### Migration
+
+None. Documentation-only release.
 
 ## [0.11.0] — 2026-05-05
 
