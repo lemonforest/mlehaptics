@@ -237,6 +237,99 @@ static inline uint32_t es_bind(uint32_t a, uint32_t b) {
 double es_residue_to_radians(uint32_t residue);
 
 /* ------------------------------------------------------------------ *
+ * Diagnosed-fiber runtime overlay (v0.4.1, ABI v2)
+ * ------------------------------------------------------------------ *
+ *
+ * Patches are an additive layer on top of the published spectral
+ * kernel — DATA, not code edits. The encode path consults the
+ * registry AFTER the base loop has finished and contributes per-body
+ * residue deltas BEFORE the final cyclic-group reduction. The base
+ * encoder bytes never change.
+ *
+ * Two patch kinds, mirroring the Python `diagnosed_fibers` module:
+ *
+ *   ES_PATCH_KIND_SINUSOID:
+ *      diagonal — adds A * sin(2*pi * dt / period + phi) to one body
+ *      (`body_idx_a`). `body_idx_b` and `correlation` are ignored.
+ *
+ *   ES_PATCH_KIND_COUPLED_SINUSOID:
+ *      off-diagonal — adds A * sin(...) to body_a, and
+ *      `correlation` * A * sin(...) to body_b.
+ *      `correlation` must be +1 or -1.
+ *
+ * Capacity: ES_MAX_PATCHES (32). `es_apply_patch` returns
+ * ES_ERR_PATCH_FULL when the registry is at capacity.
+ *
+ * Threading: NOT thread-safe. The registry is a process-global state
+ * shared by all callers; serialise apply/clear/encode from the caller
+ * side if you have multiple threads. Encoding alone IS reentrant
+ * (no mutation), but a concurrent apply/clear from another thread
+ * could split a patch's contribution mid-encode.
+ *
+ * Floating-point note: the patch evaluation calls libm `sin()` via
+ * the standard <math.h>. This is the ONLY libm dependency in the
+ * encode path; it only fires when patches are active. If you've
+ * compiled in a libm-free environment, leave the patch registry
+ * empty (the default) and the libm reference is not pulled in.
+ */
+
+#define ES_MAX_PATCHES      32
+#define ES_PATCH_NAME_MAX   64
+
+typedef enum {
+    ES_PATCH_KIND_SINUSOID         = 0,
+    ES_PATCH_KIND_COUPLED_SINUSOID = 1,
+} es_patch_kind_t;
+
+typedef struct {
+    int32_t  kind;                          /* es_patch_kind_t */
+    char     name[ES_PATCH_NAME_MAX];
+    int32_t  body_idx_a;                    /* [0, ES_N_BODIES); -1 = unused */
+    int32_t  body_idx_b;                    /* coupled only; -1 for sinusoid */
+    double   amplitude_deg;
+    double   period_days;
+    double   phase_rad;
+    int32_t  correlation;                   /* +1 or -1; coupled only        */
+} es_patch_t;
+
+/* Status codes specific to the patch registry. Returned by
+ * es_apply_patch / es_get_patch_at. Values disjoint from
+ * es_status_t so callers can distinguish patch errors at the API
+ * boundary without losing the original status enum.
+ */
+#define ES_ERR_PATCH_FULL           100  /* registry at capacity            */
+#define ES_ERR_PATCH_DUPLICATE_NAME 101  /* same name already active        */
+#define ES_ERR_PATCH_BAD_KIND       102  /* unknown kind value              */
+#define ES_ERR_PATCH_BAD_INDEX      103  /* body_idx out of [0, N_BODIES)   */
+#define ES_ERR_PATCH_BAD_PARAM      104  /* period <= 0, |correlation| != 1 */
+#define ES_ERR_PATCH_OUT_OF_RANGE   105  /* es_get_patch_at: idx >= count   */
+
+/* Apply a patch into the registry. Validates kind, body indices, and
+ * that the period_days > 0; for coupled-sinusoid kind, also checks
+ * correlation in {-1, +1}.
+ *
+ * Returns ES_OK on success, or one of the ES_ERR_PATCH_* codes.
+ * The patch is COPIED — the caller can free its argument after the
+ * call returns.
+ */
+int es_apply_patch(const es_patch_t *patch);
+
+/* Clear every active patch. Returns the count of patches that were
+ * cleared (always >= 0). Idempotent: calling on an empty registry
+ * returns 0 with no side effects.
+ */
+size_t es_clear_patches(void);
+
+/* Number of patches currently in the registry. */
+size_t es_n_active_patches(void);
+
+/* Read-back accessor: copies the patch at `idx` into `*out`.
+ * Returns ES_OK on success, ES_ERR_PATCH_OUT_OF_RANGE if idx is past
+ * the end, ES_ERR_NULL_OUTPUT if `out` is NULL.
+ */
+int es_get_patch_at(size_t idx, es_patch_t *out);
+
+/* ------------------------------------------------------------------ *
  * Version
  * ------------------------------------------------------------------ */
 
@@ -247,8 +340,8 @@ double es_residue_to_radians(uint32_t residue);
  */
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 4
-#define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.4.0"
+#define ES_VERSION_PATCH 1
+#define ES_VERSION_STRING "0.4.1"
 
 const char *es_version(void);
 
@@ -260,8 +353,16 @@ const char *es_version(void);
  * v1: initial v0.3.1 release. es_encode_state, es_encode_at_jd,
  *     es_body_index, es_cos_lut, es_residue_to_radians, es_version.
  *     ES_N_BODIES = 26.
+ *
+ * v2: v0.4.1 — diagnosed-fiber runtime overlay.
+ *     Added: es_patch_t struct, es_apply_patch, es_clear_patches,
+ *     es_n_active_patches, es_get_patch_at. The encode-state path
+ *     consults the patch registry AFTER the base loop and BEFORE
+ *     the final cyclic-group reduction, mirroring the Python BIP
+ *     encoder's overlay step. With no patches active the encode is
+ *     byte-identical to v0.4.0 (and to the Python BIP encoder).
  */
-#define ES_ABI_VERSION 1
+#define ES_ABI_VERSION 2
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python

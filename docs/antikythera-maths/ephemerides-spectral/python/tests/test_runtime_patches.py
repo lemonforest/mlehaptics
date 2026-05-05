@@ -170,21 +170,71 @@ def test_apply_duplicate_name_raises() -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Property 6: C backend falls back to BIP when patches are active
+# Property 6: C backend handles overlay natively (v0.4.1+, ABI v2)
+#
+# Falls back to BIP only when the native binary isn't loaded (sdist
+# without C toolchain, Pyodide). When loaded, the C-side patch
+# registry mirrors the Python one and produces byte-identical phases.
 # ──────────────────────────────────────────────────────────────────────
 
-def test_c_backend_falls_back_when_patches_active() -> None:
-    # We can't assert backend_used == "c" universally because the
-    # native binary may not be present in the test environment. But
-    # we CAN assert: with patches active, backend_used is never "c"
-    # (overlay isn't yet implemented C-side).
+def test_c_backend_handles_overlay_when_loaded() -> None:
+    from ephemerides_spectral import _native_bip
     bridge.apply_patch("mars-7.96yr-diagonal")
     out = bridge.get_system_state(TEST_JD, backend="c", kernel=KERNEL)
     assert out["ok"], out
     assert out["backend_requested"] == "c"
-    assert out["backend"] == "bip", (
-        f"with patches active, C backend must fall back to bip; got {out['backend']}"
+    if _native_bip.HAS_NATIVE:
+        assert out["backend"] == "c", (
+            f"native loaded; C backend should apply overlay natively. "
+            f"Got backend={out['backend']!r}"
+        )
+    else:
+        assert out["backend"] == "bip", (
+            f"no native loaded; C backend must fall back to bip. "
+            f"Got backend={out['backend']!r}"
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Property 6b (v0.4.1): cross-backend byte-exact parity with patches
+# ──────────────────────────────────────────────────────────────────────
+
+def test_cross_backend_parity_with_patches() -> None:
+    """BIP and C must produce byte-identical phases under overlay."""
+    from ephemerides_spectral import _native_bip
+    if not _native_bip.HAS_NATIVE:
+        pytest.skip("native not loaded; cross-backend parity untestable")
+    for name in [
+        "mars-7.96yr-diagonal",
+        "mercury-10.69yr-diagonal",
+        "jupiter-saturn-9.56yr-coupled",
+    ]:
+        bridge.apply_patch(name)
+    bip = bridge.get_system_state(TEST_JD, backend="bip", kernel=KERNEL)
+    c = bridge.get_system_state(TEST_JD, backend="c", kernel=KERNEL)
+    assert bip["backend"] == "bip"
+    assert c["backend"] == "c"
+    assert bip["phases_uint32"] == c["phases_uint32"], (
+        "BIP and C must produce byte-identical phases under overlay"
     )
+
+
+def test_native_registry_in_sync_with_python() -> None:
+    """After every apply / clear, native and Python registries agree on n_active."""
+    from ephemerides_spectral import _native_bip
+    if not _native_bip.HAS_NATIVE:
+        pytest.skip("native not loaded")
+    assert _native_bip.native_n_active_patches() == 0
+    bridge.apply_patch("mars-7.96yr-diagonal")
+    assert _native_bip.native_n_active_patches() == 1
+    bridge.apply_patch("mercury-10.69yr-diagonal")
+    assert _native_bip.native_n_active_patches() == 2
+    # Duplicate-name rejection on the C side too.
+    dup = bridge.apply_patch("mars-7.96yr-diagonal")
+    assert dup["ok"] is False
+    assert _native_bip.native_n_active_patches() == 2  # no leak
+    bridge.clear_patches()
+    assert _native_bip.native_n_active_patches() == 0
 
 
 # ──────────────────────────────────────────────────────────────────────

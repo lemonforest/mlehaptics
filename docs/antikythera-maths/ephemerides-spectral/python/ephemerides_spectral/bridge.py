@@ -634,25 +634,22 @@ def get_system_state(
             phases = None
 
             if backend == "c":
-                # Try the native path first; fall through to pure-
-                # Python on missing binary, load error, OR active
-                # diagnosed-fiber patches (the C backend doesn't yet
-                # implement the v0.4.0 runtime overlay; falling back
-                # to BIP guarantees correctness — overlay deltas are
-                # applied on the Python side).
+                # v0.4.1: native path supports the diagnosed-fiber
+                # overlay. The Python registry is mirrored into the
+                # C-side registry on every apply_patch / clear_patches
+                # call (see _mirror_patch_to_native), so the C encode
+                # produces byte-identical phases to the Python BIP
+                # encoder regardless of patches. Falls through to
+                # pure-Python only when the native binary isn't
+                # present (sdist install without toolchain, Pyodide).
                 from ephemerides_spectral import _native_bip
-                if _native_bip.HAS_NATIVE and not _patches.has_active_patches():
+                if _native_bip.HAS_NATIVE:
                     try:
                         phases = _native_bip.encode_state(jd - REFERENCE_JD)
                         backend_used = "c"
                     except OverflowError as native_exc:
-                        # Native rejected the input — surface the same
-                        # error shape the Python path would.
                         return _err(f"overflow (native): {native_exc}")
-                # Else: HAS_NATIVE is False (pure-Python wheel, missing
-                # C toolchain on sdist install, Pyodide), OR runtime
-                # patches are active (fall back to BIP for the overlay).
-                # The Python encoder runs below.
+                # Else: HAS_NATIVE is False — fall through to BIP.
 
             if phases is None:
                 phases = inst.encode_state(jd)
@@ -852,7 +849,7 @@ def get_breathing_modulation(
 
 
 # ──────────────────────────────────────────────────────────────────────
-# v0.4.0 — runtime kernel patching surface
+# v0.4.0 — runtime kernel patching surface (v0.4.1: C-side overlay)
 # ──────────────────────────────────────────────────────────────────────
 #
 # Diagnosed-fiber patches let callers OVERLAY corrections onto the
@@ -864,14 +861,89 @@ def get_breathing_modulation(
 # Discipline:
 #   * Patches are data, not code edits — versionable + shareable.
 #   * Multiple patches stack; sinusoidal kinds compose order-independently.
-#   * The C backend (``backend="c"``) doesn't yet implement the
-#     overlay; with patches active, ``get_system_state`` transparently
-#     falls back to ``backend="bip"`` (correctness > speed).
+#   * v0.4.1: ``backend="c"`` natively supports the overlay (ABI v2).
+#     The Python registry and the C-side registry are kept in sync —
+#     every ``apply_patch`` mirrors to C; ``clear_patches`` clears
+#     both. Byte-for-byte identical phases between BIP and C with
+#     patches active.
 #   * Patches don't propagate across processes — they're an in-process
 #     registry. Re-apply on each fresh interpreter.
 
 #: JSON-friendly names for the bundled CATALOG patches.
 CATALOG_PATCHES: Tuple[str, ...] = tuple(sorted(_patches.CATALOG.keys()))
+
+
+def _body_index(name: str) -> int:
+    """Return the C-side body index for a Python body name; -1 if not found.
+
+    Mirrors ``EphemerisBIPInstrument.body_to_idx`` — the order is the
+    sorted body-name list, identical between Python and the C codegen.
+    """
+    try:
+        return SUPPORTED_BODIES.index(name)
+    except ValueError:
+        return -1
+
+
+def _mirror_patch_to_native(patch: _patches.Patch) -> Optional[str]:
+    """Apply a Python Patch into the C-side registry.
+
+    Returns ``None`` on success (or when no native is loaded — the
+    Python overlay handles encode-time deltas in that case). Returns
+    a human-readable error string when the C side rejected (capacity,
+    duplicate name, bad index, bad param).
+
+    The bridge's ``apply_patch`` / ``apply_custom_patch`` must call
+    this AFTER the Python registry has accepted the patch; on a
+    non-None return, revert the Python-side change so the two
+    registries never drift.
+    """
+    from ephemerides_spectral import _native_bip
+    if not _native_bip.HAS_NATIVE:
+        return None
+    if isinstance(patch, _patches.SinusoidPatch):
+        idx = _body_index(patch.body)
+        rc = _native_bip.native_apply_sinusoid_patch(
+            name=patch.name, body_idx=idx,
+            amplitude_deg=patch.amplitude_deg,
+            period_days=patch.period_days,
+            phase_rad=patch.phase_rad,
+        )
+    elif isinstance(patch, _patches.CoupledSinusoidPatch):
+        idx_a = _body_index(patch.body_a)
+        idx_b = _body_index(patch.body_b)
+        rc = _native_bip.native_apply_coupled_patch(
+            name=patch.name, body_idx_a=idx_a, body_idx_b=idx_b,
+            amplitude_deg=patch.amplitude_deg,
+            period_days=patch.period_days,
+            phase_rad=patch.phase_rad,
+            correlation=patch.correlation,
+        )
+    else:
+        return f"unknown patch type {type(patch).__name__!r}"
+    if rc == 0:
+        return None
+    if rc == _native_bip.ES_ERR_PATCH_FULL:
+        return f"native registry at capacity (ES_MAX_PATCHES={_native_bip.ES_MAX_PATCHES})"
+    if rc == _native_bip.ES_ERR_PATCH_DUPLICATE_NAME:
+        return f"native registry already has a patch named {patch.name!r}"
+    if rc == _native_bip.ES_ERR_PATCH_BAD_INDEX:
+        return f"native registry rejected patch {patch.name!r}: bad body index"
+    if rc == _native_bip.ES_ERR_PATCH_BAD_PARAM:
+        return f"native registry rejected patch {patch.name!r}: bad param (period or correlation)"
+    if rc == _native_bip.ES_ERR_PATCH_BAD_KIND:
+        return f"native registry rejected patch {patch.name!r}: unknown kind"
+    return f"native registry rejected patch {patch.name!r}: status={rc}"
+
+
+def _native_clear_patches() -> int:
+    """Wipe the C-side patch registry; returns the prior count.
+
+    Wraps ``_native_bip.native_clear_patches`` so callers don't need
+    to import the shim module.
+    """
+    from ephemerides_spectral import _native_bip
+    return _native_bip.native_clear_patches()
 
 
 def list_catalog_patches() -> Dict[str, Any]:
@@ -904,6 +976,11 @@ def apply_patch(patch_name: str) -> Dict[str, Any]:
     See ``list_catalog_patches`` for available names. Same patch
     cannot be applied twice (raises ``ValueError`` underneath; we
     surface as ``{"ok": False}``).
+
+    v0.4.1: also mirrors into the C-side registry so ``backend="c"``
+    can apply the overlay natively. If the C side rejects the patch
+    (capacity exceeded, etc.), the Python side is reverted so the
+    two registries never drift.
     """
     if not isinstance(patch_name, str):
         return _err(f"patch_name must be a string, got {type(patch_name).__name__}")
@@ -916,6 +993,19 @@ def apply_patch(patch_name: str) -> Dict[str, Any]:
         )
     except ValueError as exc:
         return _err(str(exc))
+    # Mirror to C; revert Python-side on failure to keep registries in sync.
+    native_err = _mirror_patch_to_native(patch)
+    if native_err is not None:
+        # Roll back the Python registry — find and remove this patch by name.
+        for active in _patches.snapshot():
+            if active.name == patch.name:
+                # No public per-item remove; clear+reapply remaining.
+                remaining = [p for p in _patches.snapshot() if p.name != patch.name]
+                _patches.clear_patches()
+                for p in remaining:
+                    _patches.apply_patch(p)
+                break
+        return _err(native_err)
     return {
         "ok": True,
         "applied": _patches._patch_to_dict(patch),
@@ -982,6 +1072,14 @@ def apply_custom_patch(
         _patches.apply_patch(patch)
     except (ValueError, TypeError) as exc:
         return _err(str(exc))
+    # Mirror to C; revert on failure.
+    native_err = _mirror_patch_to_native(patch)
+    if native_err is not None:
+        remaining = [p for p in _patches.snapshot() if p.name != patch.name]
+        _patches.clear_patches()
+        for p in remaining:
+            _patches.apply_patch(p)
+        return _err(native_err)
     return {
         "ok": True,
         "applied": _patches._patch_to_dict(patch),
@@ -990,9 +1088,10 @@ def apply_custom_patch(
 
 
 def clear_patches() -> Dict[str, Any]:
-    """Remove all active runtime patches; return the count cleared."""
-    n = _patches.clear_patches()
-    return {"ok": True, "cleared": int(n)}
+    """Remove all active runtime patches from both Python and C registries."""
+    n_py = _patches.clear_patches()
+    _native_clear_patches()  # idempotent; no-op if no native loaded
+    return {"ok": True, "cleared": int(n_py)}
 
 
 __all__ = [

@@ -70,7 +70,11 @@ static inline int64_t es_floor_div(int64_t a, int64_t b) {
  * once the rounding decision is made — no floating-point comparison
  * after the fact.
  */
-static inline int64_t es_banker_round(double x) {
+/* External linkage so es_patches.c can call this for the overlay
+ * delta-rounding (must match the BIP encoder's banker's rounding
+ * for byte-exact patch parity with the Python overlay).
+ */
+int64_t es_banker_round(double x) {
     /* Truncation toward zero gives us the integer below |x|. */
     double sign = (x >= 0.0) ? 1.0 : -1.0;
     double abs_x = sign * x;
@@ -91,6 +95,15 @@ static inline int64_t es_banker_round(double x) {
     }
     return (sign > 0.0) ? rounded : -rounded;
 }
+
+/* Forward declaration of the overlay hook implemented in es_patches.c.
+ * Internal to the library; not exposed in the public header. The
+ * encoder calls this after the base loop to sum any active
+ * diagnosed-fiber patch contributions into the phase accumulator
+ * before the final cyclic-group reduction.
+ */
+void es_apply_overlay_to_phases(double delta_t_days,
+                                uint64_t curr_phases[ES_N_BODIES]);
 
 /* Body-name lookup: O(N) but N=26. Returns ES_N_BODIES on miss. */
 size_t es_body_index(const char *name) {
@@ -224,6 +237,15 @@ es_status_t es_encode_state(double delta_t_days,
             curr_phases[i] += (uint64_t)rem_step;
         }
     }
+
+    /* ---- v0.4.1 diagnosed-fiber runtime overlay --------------- */
+    /* Mirrors the Python BIP encoder's overlay step. With no
+     * patches active this call is a single early-return; with
+     * patches active the per-body deltas are summed onto the
+     * accumulator before the final cyclic-group reduction below.
+     * The base encoder bytes never change.
+     */
+    es_apply_overlay_to_phases(delta_t_days, curr_phases);
 
     /* ---- final reduction to Z_{2^32} ---- */
     for (size_t i = 0; i < ES_N_BODIES; ++i) {

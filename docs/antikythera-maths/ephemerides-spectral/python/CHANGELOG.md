@@ -10,7 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.4.0)
+(no entries yet — next entries land after v0.4.1)
+
+## [0.4.1] — 2026-05-05
+
+C-side runtime kernel patching (ABI v2). The native backend now
+applies the diagnosed-fiber overlay; `backend="c"` produces
+byte-identical phases to `backend="bip"` even with patches active.
+
+### Added
+
+- **C-side patch registry** (`c/src/es_patches.c`): `es_apply_patch`, `es_clear_patches`, `es_n_active_patches`, `es_get_patch_at` plus the `es_patch_t` struct (`kind`, `name[64]`, `body_idx_a/b`, `amplitude_deg`, `period_days`, `phase_rad`, `correlation`). Capacity `ES_MAX_PATCHES = 32`.
+- **Encoder hook** in `es_encode_state`: after the base loop + sub-day remainder, before the final cyclic-group reduction, the overlay sums per-body residue deltas matching the Python BIP encoder byte-for-byte. Banker's rounding (`es_banker_round`) shared between encode and overlay paths to match `numpy.round` half-to-even semantics.
+- **Python ctypes shim** (`_native_bip.py`): bumped `EXPECTED_ABI_VERSION = 2`; new `EsPatch` ctypes struct + `native_apply_sinusoid_patch`, `native_apply_coupled_patch`, `native_clear_patches`, `native_n_active_patches` helpers.
+- **Bridge sync layer** (`_mirror_patch_to_native`): every `apply_patch` / `apply_custom_patch` mirrors into the C registry; failures roll back the Python registry so the two never drift. `clear_patches` clears both.
+
+### Changed
+
+- **`backend="c"` no longer falls back to `"bip"` when patches are active.** With the native binary loaded, the C path applies the overlay natively. Falls back to BIP only when `_native_bip.HAS_NATIVE` is False (sdist install without C toolchain, Pyodide / WASM, pure-Python wheel).
+- **Performance**: encoded with 3 patches active, the C path runs at **~46 μs** vs **~10.8 ms** on the BIP path — a **237× speedup**. Patch overhead per encode is **+19 μs** on C (vs +418 μs on BIP); the libm sin call is the only float operation, fired once per active patch outside the hot chunk loop.
+
+### Tests
+
+- New `test_cross_backend_parity_with_patches` — asserts BIP and C produce byte-identical `phases_uint32` for all three catalog patches stacked on a representative JD.
+- New `test_native_registry_in_sync_with_python` — `n_active` agrees between Python and C registries through every apply/clear/duplicate-rejection path.
+- Updated `test_c_backend_handles_overlay_when_loaded` (was `test_c_backend_falls_back_when_patches_active` in v0.4.0): the v0.4.0 fallback property is replaced by the v0.4.1 native-overlay property; falls back only when no native is loaded.
+
+### Notes
+
+- ABI v2 is a wire-format break vs ABI v1 (v0.3.1). Any consumer holding a v0.3.1 native binary alongside a v0.4.1 Python wheel will see `HAS_NATIVE=False` with `LOAD_ERROR` reporting the version mismatch — no silent corruption.
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.4.1 entry.
 
 ## [0.4.0] — 2026-05-05
 

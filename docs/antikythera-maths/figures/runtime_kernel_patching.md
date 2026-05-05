@@ -51,20 +51,24 @@ keep the bones unchanged.
 
 | Component | Status |
 |---|---|
-| `DiagnosedPatch` dataclass + module-level registry (`apply_patch`, `clear_patches`, `list_patches`, `snapshot`, `evaluate_active_patches`) | ✅ |
-| Bridge surface (`bridge.apply_patch` / `apply_custom_patch` / `list_active_patches` / `list_catalog_patches` / `clear_patches`) | ✅ |
-| CLI (`patches catalog` / `patches active` / `patches apply --name` / `patches clear`) | ✅ |
-| BIP encoder runtime-overlay integration (overlay summed AFTER base encode, BEFORE final cyclic-group reduction) | ✅ |
-| Catalog of three patches authored from the v0.3.1 FFT analysis (Mars 7.96 yr diagonal; Mercury 10.69 yr diagonal; Jupiter–Saturn 9.56 yr coupled with `correlation=-1`) | ✅ |
-| Tests pinning the structural properties (clear-restores-byte-identical; diagonal-patches-don't-leak; coupled-anti-correlated; composition-independent) | ✅ |
-| C-side overlay (`es_apply_patch` ABI surface) | ⏳ deferred to v0.4.x phase F (ABI v2 bump) |
+| `DiagnosedPatch` dataclass + module-level registry (`apply_patch`, `clear_patches`, `list_patches`, `snapshot`, `evaluate_active_patches`) | ✅ v0.4.0 |
+| Bridge surface (`bridge.apply_patch` / `apply_custom_patch` / `list_active_patches` / `list_catalog_patches` / `clear_patches`) | ✅ v0.4.0 |
+| CLI (`patches catalog` / `patches active` / `patches apply --name` / `patches clear`) | ✅ v0.4.0 |
+| BIP encoder runtime-overlay integration (overlay summed AFTER base encode, BEFORE final cyclic-group reduction) | ✅ v0.4.0 |
+| Catalog of three patches authored from the v0.3.1 FFT analysis (Mars 7.96 yr diagonal; Mercury 10.69 yr diagonal; Jupiter–Saturn 9.56 yr coupled with `correlation=-1`) | ✅ v0.4.0 |
+| Tests pinning the structural properties (clear-restores-byte-identical; diagonal-patches-don't-leak; coupled-anti-correlated; composition-independent) | ✅ v0.4.0 |
+| **C-side overlay** (`es_apply_patch` / `es_clear_patches` / `es_n_active_patches` / `es_get_patch_at`, ABI v2) | ✅ **v0.4.1** |
+| Cross-backend byte-exact parity test (BIP and C identical phases under overlay) | ✅ v0.4.1 |
+| Sync layer (Python registry mirrors into C; rollback on rejection) | ✅ v0.4.1 |
 
-While the C-side overlay is unimplemented, calls to
-`bridge.get_system_state(..., backend="c")` with active patches
-**transparently fall back to the BIP backend**. Correctness over
-speed. The fallback is a single-cycle test
-(`_patches.has_active_patches()`); zero overhead when the registry
-is empty.
+In v0.4.0 the C backend transparently fell back to BIP when patches
+were active. In v0.4.1 the native binary carries its own patch
+registry, mirrored into via the bridge sync layer; `backend="c"`
+applies the overlay natively at **~46 μs / encode with 3 patches
+active** (vs ~10.8 ms on BIP — a **237× speedup**). With no native
+loaded — sdist install without C toolchain, Pyodide, the pure-Python
+fallback wheel — the overlay still runs Python-side and the BIP
+backend handles everything.
 
 ## Patch-contribution shape — at a JD ladder
 
@@ -206,12 +210,11 @@ ephemerides-spectral patches clear
 
 ## What's next
 
-- **v0.4.x phase F**: C-side overlay (`es_apply_patch`, ABI v2). The
-  C native path will iterate a side-table of registered patches
-  after the base encode loop, mirroring the BIP encoder's overlay
-  step. ABI bumps to v2; the Python ctypes shim refuses mismatched
-  binaries.
-- **v0.5.x first-principles α**: replaces the empirical sinusoidal
+- ~~**v0.4.x phase F**: C-side overlay~~ — **shipped in v0.4.1**. The
+  ABI v2 surface (`es_apply_patch` / `es_clear_patches` /
+  `es_n_active_patches` / `es_get_patch_at`) is live; cross-backend
+  byte-exact parity verified.
+- **v0.4.x first-principles α**: replaces the empirical sinusoidal
   patches with derived modulation depths from Lie-series perturbation
   theory around each resonance. The patches in this catalog are
   expected to *shrink in amplitude* once the underlying physics is
