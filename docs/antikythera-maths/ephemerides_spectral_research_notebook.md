@@ -301,6 +301,50 @@ Until then the `lunar-kernels` CLI subcommand returns the LTE440 metadata + the 
 - **No relativistic time-scale conversions** (TT ↔ TDB ↔ TCB ↔ TCG). Skyfield handles these natively when it has the kernel; we don't reimplement.
 - **No proleptic calendar conversions** for Mars or Moon. The Mars Sol number is the natural integer Mars-day index; Mars-calendar variants (Darian, Utopian, etc.) are out of scope.
 
+### 7.3 Sol Uranian Time (SUT) — v0.5.4
+
+The third planetary time system in the package. Uranus is conspicuously absent from §6's natural-resonance gear group: its 84.02-yr orbit doesn't sit in a clean integer mean-motion resonance with any other body in the Sol Star System; its 97.77° axial tilt makes it qualitatively different from every other planet (rotates "on its side"); its rotation is *retrograde* relative to its orbital motion. Sol Uranian Time therefore lives in **its own cyclic group**, separate from the Z₆₀ of v0.5.0.
+
+**Three independent cycles**, partitioned by physics:
+
+| Cycle | Magnitude | Earth-equivalent |
+| :--- | ---: | :--- |
+| Sidereal day (USD unit) | 17.24 h | ~0.71833 d |
+| Solar day | ~17.24 h (essentially equal to sidereal at 84-yr orbit) | trivially different |
+| Orbital season (one of 4) | 21.005 yr | one quarter of an orbit |
+| Orbital year | 84.02 yr | one full orbit |
+
+The "natural harmonic" for Uranus is therefore *not* a single LCM as it is for the resonance set in §6 (Z_60 = lcm of pair-LCMs). Uranus's three cycles are essentially incommensurate — the sidereal day and orbital period give 1 Uranian year ≈ 42,721.81 USD, which doesn't decompose into small integer factors. The "harmonic" instead lives in the **discrete season partition**: the 4 seasons (north-pole-summer, descending equinox, south-pole-summer, ascending equinox) come from the 4-fold geometric symmetry of solstice / equinox configurations, not from any number-theoretic structure.
+
+**Anchor**: 2007-12-16 northern equinox (JD 2454451.0). Sun crossed Uranus's equator going from north-summer (1985) toward south-summer (2028).
+
+**Surface**:
+
+```python
+bridge.jd_to_sol_uranian_time(jd_tdb=2454451.0)
+# {
+#   "ok": True,
+#   "jd_tdb": 2454451.0,
+#   "usd": 0.0,                     # Uranian Sol Date, sidereal-day count
+#   "sut_hours": 0.0,               # time-of-day on Uranus, 0-24
+#   "sut_seconds": 0.0,             # SUT in Earth-seconds-since-midnight
+#   "orbital_phase": 0.0,           # [0, 1) since SUT epoch
+#   "season": "northern-autumn",    # one of 4
+#   "years_since_epoch": 0.0,
+#   "retrograde": True,             # Uranus rotates backward
+#   "epoch": {"jd_tdb": 2454451.0, "sidereal_day_hours": 17.24, ...}
+# }
+
+bridge.sol_uranian_time_to_jd(usd=4046.45)   # invert
+# {"ok": True, "usd": 4046.45, "jd_tdb": 2457358.55}
+```
+
+CLI: `ephemerides-spectral time-uranus --jd 2454451.0` (or `--usd 4046.45` to invert). Full `--help` includes the natural-harmonic discussion + concrete examples spanning J2000, the SUT epoch, and a current-day reference.
+
+**Retrograde flag**. Uranus rotates retrograde — the rotation direction is *backwards* relative to its orbital motion. The v0.5.4 encoder still advances `omega = +2π/P` for all bodies, so the encoded longitude doesn't track Uranus's actual sky position over time the way it does for prograde rotators; the `retrograde=True` flag makes this asymmetry visible to consumers but doesn't *fix* it. Phoebe's continued ~104° RMS in the v0.5.3 moon FFT sweep (also retrograde — it's a captured Centaur) is the same root cause. A sign-aware-omega encoder is queued as a v0.5.x roadmap entry; the SUT surface will benefit automatically.
+
+**Why this matters in spectral terms**. The §1.4 vocabulary names the breathing Laplacian as "state-dependent discrete Ricci curvature." Sol Uranian Time is a clean *external coordinate* against which to measure that curvature for the Uranian sub-system: when v0.5.x adds Titania-vs-Oberon resonance entries (or the four other major Uranian moons — Miranda, Ariel, Umbriel, Oberon), their breathing-coupling dynamics will be parameterised against SUT, not against Earth's UTC or JD. The "Sol Uranian Time" framing is therefore the right *parametric coordinate* for the Uranus-system fragment of the larger Laplacian, the same way MSD/MTC is the right coordinate for the Mars-system fragment.
+
 ## 8. Diagnosed-fiber runtime overlay (v0.4.0+ architecture)
 
 > **Patches as data, not code edits — overlay, not bones-mutation.**

@@ -7,7 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.3)
+(no entries yet — next entries land after v0.5.4)
+
+## [0.5.4] — 2026-05-05
+
+**Sol Uranian Time (SUT)** — third planetary time system in the package, alongside Mars Sol Date / Mars Coordinated Time (Allison & McEwen 2000) and lunar synodic / sidereal phase. CLI `--help` audit across all subcommands.
+
+### Why a Uranus time system
+
+The notebook §6 natural-resonance gear group (Z_30 in v0.2.0, Z_60 in v0.5.0) is anchored in the integer mean-motion ratios that sit in `RESONANCES`. **Uranus is conspicuously absent from that group.** Its orbital period (84.02 yr) doesn't sit in a clean mean-motion resonance with any other body in the Sol Star System; its axial tilt (97.77°) is too extreme for the planet-on-equator approximations the other planets share; its rotation is retrograde. Sol Uranian Time **lives in its own cyclic group** — one anchored to Uranus's three independent cycles (sidereal day, solar day, orbital season) that don't share natural-coprime structure with anything else in the Sol Star System.
+
+The "Sol" prefix marks the family: Sol Mars Time (MSD/MTC), Sol Lunar Time (synodic/sidereal phase), Sol Uranian Time (SUT/USD). All share Julian Date as their Earth-side reference; their cyclic groups are otherwise independent.
+
+### Added — research/time_scales.py
+
+- `UranianTime` dataclass with `jd_tdb`, `usd`, `sut_hours`, `sut_seconds`, `orbital_phase`, `season`, `years_since_epoch`, `retrograde`.
+- `jd_to_uranian_time(jd_tdb) → UranianTime` — primary conversion.
+- `uranian_time_to_jd(usd) → JD_TDB` — inverse on the USD field (orbital season is uniquely determined by USD given the SUT epoch, so no information loss).
+- Module-level constants: `URANUS_SIDEREAL_DAY_HOURS = 17.24`, `URANUS_ORBITAL_PERIOD_DAYS = 30688.5`, `URANUS_AXIAL_TILT_DEG = 97.77`, `SUT_EPOCH_JD_TDB = 2454451.0`, `URANIAN_SEASONS = ("northern-autumn", "southern-summer", "northern-spring", "northern-summer")`.
+
+### Added — bridge surface
+
+- `bridge.jd_to_sol_uranian_time(jd_tdb)` returns a Pyodide-friendly JSON dict with the fields above plus an `epoch` block carrying the IAU/NASA fact-sheet constants. Failure mode: `{ok: False, error: ...}` for invalid JD.
+- `bridge.sol_uranian_time_to_jd(usd)` is the inverse.
+
+### Added — CLI
+
+- `ephemerides-spectral time-uranus --jd <JD>` (or `--usd <USD>` to invert). Full `--help` epilog with examples spanning J2000, the SUT epoch (2007-12-16 northern equinox, JD 2454451.0), and a current-day reference. Inline natural-harmonic discussion in the description block.
+
+### CLI `--help` audit (all subcommands)
+
+The `patches` subcommand group from v0.4.0 had stale text claiming "the C native backend doesn't yet implement the overlay" (true at v0.4.0; superseded by v0.4.1's ABI v2 + v0.5.2's CATALOG_V2). v0.5.4 corrects that and adds explicit `description` + `epilog` blocks with concrete examples to every `patches catalog/active/apply/clear` subcommand.
+
+Every subcommand now has:
+- A short `help` line for the parent `--help` listing.
+- A multi-line `description` explaining what the command does + when to use it.
+- An `epilog` with at least one concrete `ephemerides-spectral <cmd> ...` example.
+
+`time-uranus` follows the same pattern by default — natural mirror of `time-mars` / `time-lunar`.
+
+### Tests
+
+6 new immolation tests for SUT (epoch round-trip, retrograde flag, season partition boundary, USD uniform-advance, bridge surface presence). All 27 active tests pass; 18 skipped (cibuildwheel-only native parity).
+
+### Notes
+
+- The function names use the **adjective form** (`jd_to_uranian_time`, mirroring `jd_to_lunar`). The proper noun `Uranus` shows up only in module-level constants where it identifies the body itself.
+- Uranus rotates **retrograde**; the encoder still advances `omega = +2π/P` for all bodies. Surfacing the `retrograde=True` flag makes the asymmetry visible but doesn't fix it. Phoebe's continued ~104° RMS in the v0.5.3 moon FFT sweep is the same root cause; sign-aware-omega is queued for v0.5.x.
+- No body-roster change. v0.5.4 is purely additive on the time-scale + CLI-help surface.
 
 ## [0.5.3] — 2026-05-05
 

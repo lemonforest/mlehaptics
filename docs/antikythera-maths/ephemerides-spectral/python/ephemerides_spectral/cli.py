@@ -134,6 +134,12 @@ def _cmd_time_lunar(args: argparse.Namespace) -> int:
     return _emit(bridge.get_lunar_phase(args.jd), pretty=args.pretty)
 
 
+def _cmd_time_uranus(args: argparse.Namespace) -> int:
+    if args.usd is not None:
+        return _emit(bridge.sol_uranian_time_to_jd(args.usd), pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_uranian_time(args.jd), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -505,6 +511,46 @@ def _make_parser() -> argparse.ArgumentParser:
                     help="Julian Date in TDB")
     tl.set_defaults(func=_cmd_time_lunar)
 
+    # time-uranus (v0.5.4)
+    tu = sub.add_parser(
+        "time-uranus",
+        help="Sol Uranian Time (USD + SUT) + orbital season at a JD (or invert)",
+        description=(
+            "Convert JD (TDB) to Sol Uranian Time. The third planetary "
+            "time system in the package alongside Mars (MSD/MTC) and "
+            "lunar synodic/sidereal phase. Three independent cycles:\n"
+            "  - USD (Uranian Sol Date): Uranian sidereal days since the "
+            "    SUT epoch (2007-12-16 northern equinox). 1 USD ~= 17.24 h.\n"
+            "  - SUT (Sol Uranian Time): time-of-day at Uranus's prime "
+            "    meridian, 0-24 hours. 1 Uranian hour ~= 43.1 Earth-min.\n"
+            "  - Orbital phase + season: Uranus's 84.02-yr orbit is "
+            "    partitioned into 4 ~21-yr seasons. Anchored at the 2007 "
+            "    northern equinox. Uranus rotates retrograde (the rotation "
+            "    direction is backwards relative to its orbital motion); "
+            "    the result carries `retrograde=True`.\n"
+            "Use --usd to invert (USD -> JD_TDB)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-uranus --jd 2451545.0    # J2000\n"
+            "  ephemerides-spectral time-uranus --jd 2454451.0    # SUT epoch (2007 equinox)\n"
+            "  ephemerides-spectral time-uranus --jd 2461165.0    # today-ish\n"
+            "  ephemerides-spectral time-uranus --usd 4046.45     # USD -> JD_TDB\n\n"
+            "Sol Uranian Time and Mars Sol Date are independent: their cyclic\n"
+            "groups don't share natural-coprime structure (Uranus does not\n"
+            "sit in a clean integer mean-motion resonance with anything in\n"
+            "the Sol Star System). See research notebook §7 for the\n"
+            "natural-harmonic discussion + the 4-season geometry."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tu_group = tu.add_mutually_exclusive_group(required=True)
+    tu_group.add_argument("--jd", type=float, default=None,
+                          help="JD (TDB) to convert to Sol Uranian Time")
+    tu_group.add_argument("--usd", type=float, default=None,
+                          help="Uranian Sol Date to invert back to JD_TDB")
+    tu.set_defaults(func=_cmd_time_uranus)
+
     # lunar-kernels
     lk = sub.add_parser(
         "lunar-kernels",
@@ -582,21 +628,29 @@ def _make_parser() -> argparse.ArgumentParser:
                           "(default), 0.1 ≈ partial-class"))
     fs.set_defaults(func=_cmd_find_syzygies)
 
-    # patches (v0.4.0) — runtime kernel-patching surface
+    # patches (v0.4.0+) — runtime kernel-patching surface
     pp = sub.add_parser(
         "patches",
-        help="Diagnosed-fiber runtime overlay (v0.4.0). Apply / list / clear "
+        help="Diagnosed-fiber runtime overlay (v0.4.0+). Apply / list / clear "
              "Fourier corrections without mutating the published kernel.",
         description=(
             "Diagnosed-fiber patches are runtime overlays on the spectral "
-            "kernel: data, not code edits, summed onto the encoded phases "
+            "kernel: DATA, not code edits, summed onto the encoded phases "
             "AFTER the base encode loop. The published kernel bytes never "
-            "change. Three patches in the bundled CATALOG are authored from "
-            "v0.3.1's de441_error_spectrum FFT analysis (Mars 7.96 yr, "
-            "Mercury 10.69 yr, Jupiter-Saturn 9.56 yr coupled).\n\n"
-            "Note: the C native backend doesn't yet implement the overlay; "
-            "with patches active, `encode --backend c` falls back to `bip` "
-            "(correctness > speed). v0.4.x phase F adds the C-side ABI."
+            "change.\n\n"
+            "Both backends apply the overlay (v0.4.1 native ABI v2 + "
+            "Python BIP). With v0.5.2's CATALOG_V2 (LS-fit, vindicated), "
+            "Mars/Mercury/Jupiter-Saturn patches drop their targeted FFT "
+            "residual peak by >=96%. Six total patches in the bundled "
+            "catalogs (3 v0.4.0 magnitude-only + 3 v0.5.2 LS-fit `-v2`)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral patches catalog\n"
+            "  ephemerides-spectral patches apply --name jupiter-saturn-9.56yr-coupled-v2\n"
+            "  ephemerides-spectral patches active\n"
+            "  ephemerides-spectral patches clear\n\n"
+            "Use `patches <op> --help` for sub-command detail."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -608,8 +662,23 @@ def _make_parser() -> argparse.ArgumentParser:
         help="List the bundled diagnosed-fiber patch catalog.",
         description=(
             "Each entry includes name + kind + targeted body / coupling, "
-            "amplitude (deg) at the FFT residual peak, period (days), and "
-            "free-text notes describing the suspected missing physics."
+            "amplitude (deg), period (days), phase (rad), and free-text "
+            "notes describing the suspected missing physics + (for v0.5.2 "
+            "`-v2` entries) the measured shrinkage% of the targeted FFT "
+            "residual peak."
+        ),
+        epilog=(
+            "Example:\n"
+            "  ephemerides-spectral patches catalog\n\n"
+            "The combined catalog has 6 entries:\n"
+            "  v0.4.0 (magnitude-only authoring; superseded):\n"
+            "    mars-7.96yr-diagonal\n"
+            "    mercury-10.69yr-diagonal\n"
+            "    jupiter-saturn-9.56yr-coupled\n"
+            "  v0.5.2 (LS-fit, measured-vindicated):\n"
+            "    mars-7.96yr-diagonal-v2              99.2% shrinkage\n"
+            "    mercury-10.69yr-diagonal-v2          99.9% shrinkage\n"
+            "    jupiter-saturn-9.56yr-coupled-v2     97.6% / 96.0% (J / S)"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -618,6 +687,15 @@ def _make_parser() -> argparse.ArgumentParser:
     pp_active = pp_sub.add_parser(
         "active",
         help="List the currently-active runtime patches.",
+        description=(
+            "Patches are an in-process registry; they don't persist "
+            "across interpreter restarts. Each fresh `python` invocation "
+            "starts with no active patches."
+        ),
+        epilog=(
+            "Example:\n"
+            "  ephemerides-spectral patches active"
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     pp_active.set_defaults(func=_cmd_patches_active)
@@ -626,10 +704,16 @@ def _make_parser() -> argparse.ArgumentParser:
         "apply",
         help="Load a named CATALOG patch into the overlay registry.",
         description=(
-            "Example:\n"
-            "  ephemerides-spectral patches apply --name mars-7.96yr-diagonal\n\n"
             "Same patch cannot be applied twice — clear first if you mean "
-            "to replace it."
+            "to replace it. The patch is mirrored into both the Python "
+            "BIP registry and the C-side native registry (ABI v2); "
+            "byte-for-byte identical phases on both backends."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral patches apply --name mars-7.96yr-diagonal-v2\n"
+            "  ephemerides-spectral patches apply --name jupiter-saturn-9.56yr-coupled-v2\n\n"
+            "Use `patches catalog` to see all available patch names."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -640,6 +724,15 @@ def _make_parser() -> argparse.ArgumentParser:
     pp_clear = pp_sub.add_parser(
         "clear",
         help="Remove every active runtime patch.",
+        description=(
+            "Wipes both the Python BIP registry and the C-side native "
+            "registry. After this the encoder is byte-identical to the "
+            "published kernel (no overlay deltas applied)."
+        ),
+        epilog=(
+            "Example:\n"
+            "  ephemerides-spectral patches clear"
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     pp_clear.set_defaults(func=_cmd_patches_clear)
