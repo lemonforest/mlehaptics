@@ -3,22 +3,22 @@
   "cosine_lut_size": 1024,
   "files": {
     "es_bodies.c": {
-      "sha256": "ff945ce09bccf37c93ef9083110d341608e40f6aa8adfbe2a5110a9753d6be38",
-      "size_bytes": 3128
+      "sha256": "a3b6909e4318b1b5fad3b309a06acdcce3cbef2c722e437fd7a14f9886253b09",
+      "size_bytes": 4366
     },
     "es_cosine_lut.c": {
       "sha256": "f74214073c37b6fde1f9109216d0bd9daec5fc857bc5a2d0c9c60e3c721e7a06",
       "size_bytes": 9198
     },
     "es_laplacian.c": {
-      "sha256": "33575cf849890abb33394c90938e3537ee4e1ce3ac07f62361f666e5056c800a",
-      "size_bytes": 2596
+      "sha256": "736c70b5268fce830f46cc694877847075c4f63787673b2796248c0dbe6523e6",
+      "size_bytes": 3580
     }
   },
   "k_bits": 32,
   "modulo": 4294967296,
-  "n_bodies": 26,
+  "n_bodies": 38,
   "package": "ephemerides-spectral-c",
   "reference_jd": 2451545.0,
-  "version": "0.3.1"
+  "version": "0.5.0"
 }

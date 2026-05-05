@@ -1,16 +1,20 @@
 {
   "files": {
+    "_data/initial_phases.json": {
+      "sha256": "7682de92cd85004210a60e0794c6f8076f9cf767ee7fcd48872197885685e714",
+      "size_bytes": 2940
+    },
     "_research/__init__.py": {
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
       "size_bytes": 318
     },
     "_research/bip_instrument.py": {
-      "sha256": "61625a009e484e5dbbdd6c094b9975634bf28ba068860f905728aa4911e50903",
-      "size_bytes": 21118
+      "sha256": "a36bab9cff1aa251f845d7188df8d0d37102b61a1919886d6a6180ba4b70e8a1",
+      "size_bytes": 24813
     },
     "_research/bodies.py": {
-      "sha256": "c1ce3810d2a7a3b5935966e8f5d61b5b7ccbba0f2831b6043150d3b543f5b186",
-      "size_bytes": 1998
+      "sha256": "50066b91fc1e34aba8bc5e81139f189f3dc70319b159847095308a468f937b9d",
+      "size_bytes": 3406
     },
     "_research/diagnosed_fibers.py": {
       "sha256": "fbf884732a48f9774a9783d1c83b83b180a63c0908493ceff6f7ce98d47026da",
@@ -25,8 +29,8 @@
       "size_bytes": 10897
     },
     "_research/laplacian.py": {
-      "sha256": "d6408942889e2ef339dc77f85f41eb802164d9314b191af823f9d7c41a1a48ff",
-      "size_bytes": 10174
+      "sha256": "b14d5e4dc6490e879c062374b4f75fbeacfdb46a4cdaf7e8a0953e86f6534552",
+      "size_bytes": 12233
     },
     "_research/syzygy_window.py": {
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
@@ -38,5 +42,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.4.1"
+  "version": "0.5.0"
 }

@@ -69,9 +69,11 @@ def test_default_encode_native_matches_python(delta_t_yr: float) -> None:
         REFERENCE_JD,
     )
     jd = REFERENCE_JD + delta_t_yr * 365.25
+    from ephemerides_spectral._research.bodies import BODIES
+    expected_n = len(BODIES)
     py_phases = default_encode(jd, backend="bip", kernel="de421")
     c_phases = default_encode(jd, backend="c", kernel="de421")
-    assert py_phases.shape == c_phases.shape == (26,)
+    assert py_phases.shape == c_phases.shape == (expected_n,)
     assert py_phases.dtype == c_phases.dtype, "dtypes must match"
     # Byte-for-byte agreement.
     assert (py_phases == c_phases).all(), (

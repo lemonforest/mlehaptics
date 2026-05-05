@@ -2,8 +2,8 @@
 
 - Kernel: **de441** (loaded as `de441`)
 - Sample grid: **1024** samples @ **900.0 d** cadence (span ≈ **2523.2 yr** centered on J2000)
-- Native encoder used: **False**
-- Total encode + truth-lookup time: **314.9 s** (307.5 ms/sample)
+- Native encoder used: **True**
+- Total encode + truth-lookup time: **14.6 s** (14.2 ms/sample)
 
 Per-body spectrum: linear slope (the v0.3.0 sweep's headline drift) detrended; FFT'd; top 5 modulation peaks (excluding DC) reported.
 

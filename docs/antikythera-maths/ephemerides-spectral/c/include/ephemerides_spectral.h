@@ -54,11 +54,19 @@ extern "C" {
  * Compile-time constants
  * ------------------------------------------------------------------ */
 
-/* Number of bodies in the Sol Star System Laplacian (sun + 9 planets +
- * 12 major moons + 4 main-belt asteroids). Pinned by the codegen-
- * emitted body table in es_bodies.c.
+/* Number of bodies in the Sol Star System Laplacian.
+ *
+ *   v0.1.0 baseline (26):  sun + 9 planets + 12 major moons + 4 asteroids
+ *   v0.5.0 expansion (+12): Jupiter inner regulars (Metis, Adrastea,
+ *                           Amalthea, Thebe) + classical Saturnians
+ *                           (Mimas, Tethys, Dione, Hyperion, Iapetus,
+ *                           Phoebe) + Saturn co-orbitals (Janus,
+ *                           Epimetheus). Total: 38.
+ *
+ * Pinned by the codegen-emitted body table in es_bodies.c via
+ * _Static_assert. Name field is 16 bytes including NUL.
  */
-#define ES_N_BODIES        26u
+#define ES_N_BODIES        38u
 
 /* Phase-residue cyclic group: Z_{2^32}. Power-of-2 modulus = free
  * uint32 overflow.
@@ -339,9 +347,9 @@ int es_get_patch_at(size_t idx, es_patch_t *out);
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 4
-#define ES_VERSION_PATCH 1
-#define ES_VERSION_STRING "0.4.1"
+#define ES_VERSION_MINOR 5
+#define ES_VERSION_PATCH 0
+#define ES_VERSION_STRING "0.5.0"
 
 const char *es_version(void);
 

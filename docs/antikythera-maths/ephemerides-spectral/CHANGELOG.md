@@ -7,7 +7,110 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.4.1)
+(no entries yet — next entries land after v0.5.0)
+
+## [0.5.0] — 2026-05-05
+
+**The Galilean marshaling: all major Jovian and Saturnian moons join the encoder.** Body count grows from 26 → 38 (+12 moons). Three famous Saturnian resonances wired into the breathing Laplacian. SPICE-free runtime — `pip install` and encode immediately.
+
+### Architecture: SPICE-free runtime via codegen-baked initial phases
+
+v0.4.1 left a UX gap: the C path baked initial phases at codegen time (no SPICE needed at runtime), but the Python BIP path calibrated at runtime via skyfield and silently zeroed-out when no SPICE kernel was staged. The two backends agreed only when SPICE was on disk.
+
+v0.5.0 closes the gap: a new codegen step (`codegen/emit_initial_phases.py`) emits `_data/initial_phases.json` carrying the SAME calibrated values the C codegen uses. `EphemerisBIPInstrument._calibrate_initial_phases` consults this JSON first; only falls back to live SPICE calibration when the JSON is missing (research source tree, or codegen-time itself building the JSON).
+
+Result: `pip install ephemerides-spectral` works out of the box for both backends. Skyfield + jplephem stay as optional dependencies (`[ephemeris]` extra) for callers who want runtime recalibration against custom kernels.
+
+### Added — 12 new bodies (26 → 38)
+
+**Jovian inner regulars (4 new)** — orbit inside Io, between the rings and the Galileans:
+
+| Body     | Period (d) | Mass (Earth=1) |
+|---|---|---|
+| Metis     | 0.2948 | 6.3e-12 |
+| Adrastea  | 0.2983 | 3.4e-12 |
+| Amalthea  | 0.4982 | 3.5e-10 |
+| Thebe     | 0.6745 | 7.5e-11 |
+
+Metis (P=0.2948 d) is the new shortest-period body in the roster — was Phobos at 0.3189 d. The Q-format frequency multiply still has plenty of headroom (~1.46e10 residues/day vs the 9.22e18 int64 ceiling × ~1.86 Myr envelope).
+
+**Classical Saturnian moons (6 new)** — completes the canonical 9 with v0.1.0's Enceladus, Rhea, Titan:
+
+| Body     | Period (d) | Mass (Earth=1) |
+|---|---|---|
+| Mimas     | 0.9424 | 6.31e-9  |
+| Tethys    | 1.888  | 1.04e-7  |
+| Dione     | 2.737  | 1.83e-7  |
+| Hyperion  | 21.276 | 9.36e-9  |
+| Iapetus   | 79.331 | 3.02e-7  |
+| Phoebe    | 550.31 | 1.39e-9  |
+
+Phoebe is irregular (retrograde, captured-Centaur origin); included because it's a major moon by mass / size. Period given as forward, which slightly mis-encodes the orbit direction — a v0.5.x note.
+
+**Saturn co-orbitals (2 new)** — share an orbit and swap places every ~4 years:
+
+| Body       | Period (d) | Mass (Earth=1) |
+|---|---|---|
+| Janus       | 0.6945 | 3.16e-10 |
+| Epimetheus  | 0.6943 | 8.97e-11 |
+
+Their periods differ by only 0.0002 d — they're the closest Q-format-frequency pair in the roster. Future work (v0.5.x): add a Janus-Epimetheus 1:1 horseshoe-orbit "resonance" entry.
+
+### Added — 3 new Saturnian / Jovian resonances (RESONANCES, 4 → 7)
+
+`research/laplacian.py::RESONANCES` is now:
+
+| Pair | Ratio | Label |
+|---|---|---|
+| Jupiter–Saturn | 5:2 | Great Conjunction |
+| Neptune–Pluto | 3:2 | orbital resonance |
+| Io–Europa | 2:1 | Laplace pair 1 |
+| Europa–Ganymede | 2:1 | Laplace pair 2 |
+| **Mimas–Tethys** | **4:2** | **Cassini Division libration** *(new)* |
+| **Enceladus–Dione** | **2:1** | **Enceladus tidal-heating power source** *(new)* |
+| **Titan–Hyperion** | **4:3** | **Hyperion chaotic rotation source** *(new)* |
+
+Each new entry has a non-zero static-coupling weight in `_define_couplings` (1e-3 × √(m_a × m_b), matching the Galilean inter-moon scaling).
+
+### Changed — natural-resonance group: Z_30 → Z_60
+
+The resonance-derived natural cyclic group:
+
+- **v0.2.0 / v0.4.x** (4 resonances): `lcm(10, 6, 2, 2) = 30 = 2 × 3 × 5` → `Z_30`
+- **v0.5.0** (7 resonances): `lcm(10, 6, 2, 2, 4, 2, 12) = 60 = 2² × 3 × 5` → `Z_60`
+
+Same prime factor *set* {2, 3, 5}, but the multiplicity of 2 grew from 1 to 2 because the Titan-Hyperion 4:3 contributes `lcm(4, 3) = 12`. Distinct from the encoder's architectural modulus `Z_{2^32}` — the natural group is what the resonance physics implies; the encoder modulus is a Q-format choice.
+
+### Added — codegen-baked initial phases (`_data/initial_phases.json`)
+
+- New `codegen/emit_initial_phases.py` module: builds `EphemerisBIPInstrument` once with SPICE staged at codegen time, snapshots `initial_phases_int` to JSON. Same kernel (de441) the C codegen now uses.
+- `EphemerisBIPInstrument._load_baked_initial_phases()` returns the baked array if its body roster matches the live `BODIES` dict; refuses stale data on roster drift (so adding a body without re-running codegen surfaces immediately, not silently).
+- `regenerate.py` runs `emit_initial_phases.emit()` as part of the orchestrator. `_data/manifest.json` now lists 10 frozen-data files (was 9): the 8 research modules + manifest + `initial_phases.json`.
+- C codegen (`c/codegen/emit_c_tables.py`) standardised on `kernel="de441"` (was "de421") so the C-side `es_initial_phases[]` and the Python-side JSON agree byte-exactly. Documented in the codegen's source comment.
+
+### Changed — C side: ES_N_BODIES = 38
+
+- Header bump: `c/include/ephemerides_spectral.h` defines `ES_N_BODIES = 38u`. Body count change is *not* an ABI break — ABI v2 carries field-format and function-signature stability, not a static count. The `_Static_assert(ES_N_BODIES == N)` in the codegen-emitted `es_bodies.c` catches drift between the header and the actual table.
+- Fully re-emitted `c/src/es_bodies.c` (38 entries), `c/src/es_laplacian.c` (38 omegas + 38 initial phases + 7 couplings).
+
+### Tests
+
+- `test_native_parity.py::test_default_encode_native_matches_python` shape assertion now derives `expected_n` from the live `BODIES` dict — auto-tracks future roster growth.
+- `test_immolation.py::test_natural_resonance_group_returns_z60` (renamed): asserts modulus = 60 + prime factors {2, 3, 5}.
+
+### Notes
+
+- v0.4.0 catalog patches (`mars-7.96yr-diagonal`, `mercury-10.69yr-diagonal`, `jupiter-saturn-9.56yr-coupled`) still apply cleanly on the 38-body roster — they target bodies that haven't moved in the canonical sort order.
+
+### Pre-ship DE441 FFT sweep
+
+Per user instruction ("don't ship before we sweep against DE441 and look for signals to FFT"), the per-body FFT residual analysis was re-run on the v0.5.0 38-body encoder before tagging. Result: **every peak amplitude byte-identical to v0.3.1** for the 10 DE441-coverable bodies (Earth, Jupiter, Mars, Mercury, Moon, Neptune, Pluto, Saturn, Uranus, Venus).
+
+Why no signal change: the v0.5.0 expansion adds moons + moon-internal resonances; none of the new RESONANCES entries put a *planet* on either side of the breathing modulation, so planet phases receive no v0.5.0-specific perturbation. The v0.4.0 catalog patches (Mars 7.96 yr, Mercury 10.69 yr, J-S 9.56 yr) remain the right targets; no new patches needed for the validated bodies.
+
+The new moons themselves (Galileans + classical Saturnians) cannot be FFT-validated yet: DE441 only ships planet barycenters + Sun + Earth + Moon, so the moons use a period-based fallback at codegen time. v0.5.x will pull in `mar097.bsp` / `jup340.bsp` / `sat441.bsp` so the moons get real ephemeris truth and the FFT can surface any new smoking-gun peaks they reveal.
+
+Bonus: with the v0.4.1 C native path plus v0.5.0's SPICE-free init phases, the full sweep dropped from **314.9 s → 14.6 s** — a 21× speedup at no precision cost. See [`figures/de441_error_spectrum_v0.5.0.md`](figures/de441_error_spectrum_v0.5.0.md) for the full pre/post comparison.
 
 ## [0.4.1] — 2026-05-05
 

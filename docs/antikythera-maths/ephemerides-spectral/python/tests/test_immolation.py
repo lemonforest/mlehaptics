@@ -68,11 +68,19 @@ def test_bridge_has_v030_surface() -> None:
     assert not missing, f"missing v0.3.0 surface in bridge.__all__: {missing}"
 
 
-def test_natural_resonance_group_returns_z30() -> None:
-    """The four-resonance v0.2.0 set must yield Z_30 = Z_2 × Z_3 × Z_5."""
+def test_natural_resonance_group_returns_z60() -> None:
+    """v0.5.0 seven-resonance set yields Z_60 = Z_4 × Z_3 × Z_5.
+
+    The Saturnian additions (Mimas-Tethys 4:2, Enceladus-Dione 2:1,
+    Titan-Hyperion 4:3) bump the natural modulus from 30 (v0.2.0)
+    to 60 — the Titan-Hyperion 4:3 contributes lcm(4,3) = 12,
+    introducing the factor of 4 (= 2²) over the v0.2.0 modulus of 30.
+    Prime factor SET is unchanged at {2, 3, 5}, but the multiplicity
+    of 2 grew from 1 to 2.
+    """
     out = bridge.get_natural_resonance_group()
     assert out["ok"] is True
-    assert out["natural_modulus"] == 30
+    assert out["natural_modulus"] == 60
     assert out["prime_factors"] == [2, 3, 5]
 
 

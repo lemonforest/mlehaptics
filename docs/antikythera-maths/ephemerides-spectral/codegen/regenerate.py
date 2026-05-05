@@ -19,6 +19,7 @@ else:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
 import emit_research_modules
+import emit_initial_phases
 from _paths import DATA_DIR
 
 _PYPROJECT: Path = Path(__file__).resolve().parents[1] / "python" / "pyproject.toml"
@@ -51,6 +52,10 @@ def main() -> None:
     research_paths = emit_research_modules.emit()
     for p in research_paths:
         written[f"_research/{p.name}"] = p
+
+    print("emitting initial-phases JSON (SPICE-free BIP fallback) ...")
+    init_phases_path = emit_initial_phases.emit()
+    written[f"_data/{init_phases_path.name}"] = init_phases_path
 
     print("writing manifest ...")
     manifest = {
