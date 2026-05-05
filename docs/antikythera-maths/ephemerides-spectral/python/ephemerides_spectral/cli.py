@@ -18,7 +18,9 @@ Subcommands
 * ``local-view`` — topocentric observer-bound view
 * ``eclipse`` — syzygy probability via spectral alignment
 * ``couplings`` — list off-diagonal Laplacian fiber couplings
-* ``breathing`` — Phase 9 breathing-coupling LUT modulation at a JD
+* ``adaptive`` — Phase 9 state-dependent (adaptive / "breathing")
+  coupling LUT modulation at a JD. ``breathing`` is an accepted
+  hidden synonym for users who prefer the visual metaphor.
 
 Use ``ephemerides-spectral <command> --help`` for per-subcommand detail.
 """
@@ -108,7 +110,12 @@ def _cmd_couplings(args: argparse.Namespace) -> int:
     return _emit(bridge.list_couplings(), pretty=args.pretty)
 
 
-def _cmd_breathing(args: argparse.Namespace) -> int:
+def _cmd_adaptive(args: argparse.Namespace) -> int:
+    """Phase 9 state-dependent (adaptive) coupling modulation.
+
+    Also reachable via the hidden ``breathing`` subcommand for users
+    who prefer the visual metaphor — same handler, identical output.
+    """
     return _emit(
         bridge.get_breathing_modulation(
             args.jd, pair=(args.pair_a, args.pair_b),
@@ -116,6 +123,11 @@ def _cmd_breathing(args: argparse.Namespace) -> int:
         ),
         pretty=args.pretty,
     )
+
+
+# Backwards-compatible synonym kept so test fixtures and callers that
+# import _cmd_breathing keep working. Equivalent to _cmd_adaptive.
+_cmd_breathing = _cmd_adaptive
 
 
 def _cmd_time_mars(args: argparse.Namespace) -> int:
@@ -263,9 +275,11 @@ at D=65536). Two interchangeable backends:
 
   * 'bip' (default)    — bit-serialised integer ALU, 305x speedup,
                          pure-integer cyclic-group reduction via uint32
-                         overflow. Phase 9 breathing couplings (Jupiter-
-                         Saturn 5:2 resonance) handled with an integer
-                         cosine LUT — no FPU in the hot path.
+                         overflow. Phase 9 adaptive couplings (Jupiter-
+                         Saturn 5:2 resonance) — also called "breathing"
+                         couplings in the visual / informal register —
+                         handled with an integer cosine LUT, no FPU in
+                         the hot path.
   * 'complex128'       — FPU complex128 reference encoder; same
                          algebraic structure, used for regression and
                          the Syzygy / observer-binding operators.
@@ -277,9 +291,13 @@ The system Laplacian decomposes as:
   * Off-diagonal   — gravitational fiber couplings (planet-sun,
                      moon-planet, J-S resonance, asteroid-Jupiter).
 
-Phase 9 (breathing) modulates the off-diagonal weights with the
-resonant phase difference cos(n_a*phi_a - n_b*phi_b) via a 1024-entry
-int32 cosine LUT (Q1.14 amplitude, 4 KB).
+Phase 9 (adaptive / "breathing") modulates the off-diagonal weights
+with the resonant phase difference cos(n_a*phi_a - n_b*phi_b) via a
+1024-entry int32 cosine LUT (Q1.14 amplitude, 4 KB). The construction
+is a state-dependent (non-autonomous) graph Laplacian — adaptive in
+the network-science sense (Gross & Blasius 2008, adaptive Kuramoto)
+and informally "breathing" because the couplings inhale/exhale with
+the relative resonant phase.
 """
 
 _TOPLEVEL_EPILOG = """\
@@ -292,8 +310,8 @@ Examples
     # All 26 bodies in the Sol Star System Laplacian
     ephemerides-spectral bodies
 
-    # Earth temporal resolution at the default D=65536
-    ephemerides-spectral resolution --body earth
+    # Terra temporal resolution at the default D=65536
+    ephemerides-spectral resolution --body terra
 
     # Encode J2000 with the integer ALU backend (default)
     ephemerides-spectral encode --jd 2451545.0
@@ -302,7 +320,7 @@ Examples
     ephemerides-spectral encode --jd 2451545.0 --backend complex128
 
     # Topocentric view from London at J2000
-    ephemerides-spectral local-view --jd 2451545.0 --body earth \\
+    ephemerides-spectral local-view --jd 2451545.0 --body terra \\
                           --lat 51.5 --lon -0.1
 
     # Syzygy alignment probability at a JD
@@ -311,12 +329,15 @@ Examples
     # Off-diagonal couplings (Laplacian fiber bundle)
     ephemerides-spectral couplings
 
-    # Phase 9 breathing modulation for Jupiter-Saturn 5:2 at +20 yr
-    ephemerides-spectral breathing --jd 2458850.0
+    # Phase 9 adaptive modulation for Jupiter-Saturn 5:2 at +20 yr
+    ephemerides-spectral adaptive --jd 2458850.0
 
     # Override resonance: 3:2 Neptune-Pluto
-    ephemerides-spectral breathing --jd 2451545.0 \\
+    ephemerides-spectral adaptive --jd 2451545.0 \\
                           --pair-a neptune --pair-b pluto --n-a 3 --n-b 2
+
+    # `breathing` is an accepted hidden synonym (same handler):
+    ephemerides-spectral breathing --jd 2458850.0
 
 References
 ----------
@@ -406,8 +427,8 @@ def _make_parser() -> argparse.ArgumentParser:
         ),
         epilog="Example: ephemerides-spectral resolution --body mars --D 65536",
     )
-    r.add_argument("--body", default="earth", choices=_BODY_CHOICES,
-                   help="Body name (default 'earth')")
+    r.add_argument("--body", default="terra", choices=_BODY_CHOICES,
+                   help="Body name (default 'terra')")
     r.add_argument("--D", type=int, default=65536,
                    help="Hypervector dimension (default 65536)")
     r.set_defaults(func=_cmd_resolution)
@@ -453,7 +474,7 @@ def _make_parser() -> argparse.ArgumentParser:
         ),
         epilog=(
             "Example: ephemerides-spectral local-view --jd 2451545.0 \\\n"
-            "                --body earth --lat 51.5 --lon -0.1"
+            "                --body terra --lat 51.5 --lon -0.1"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -497,41 +518,77 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     cp.set_defaults(func=_cmd_couplings)
 
-    # breathing
-    br = sub.add_parser(
-        "breathing",
-        help="Phase 9 breathing-coupling LUT modulation at a JD",
+    # adaptive (primary) + breathing (hidden synonym)
+    #
+    # Phase 9 modulates the off-diagonal Laplacian weights with the
+    # resonant phase difference cos(n_a*phi_a - n_b*phi_b). This is a
+    # state-dependent (non-autonomous) graph Laplacian — adaptive in
+    # the network-science sense (Gross & Blasius 2008, adaptive Kuramoto
+    # coupling). Informally we call it "breathing" because the couplings
+    # inhale/exhale with the relative resonant phase. `adaptive` is the
+    # primary subcommand; `breathing` is preserved as a hidden synonym
+    # for users who prefer the visual metaphor — same handler, same args.
+
+    def _add_adaptive_args(p: argparse.ArgumentParser) -> None:
+        p.add_argument("--jd", type=float, required=True,
+                       help="Julian Date in TDB")
+        p.add_argument("--pair-a", dest="pair_a", default="jupiter",
+                       choices=_BODY_CHOICES, help="First body of the pair")
+        p.add_argument("--pair-b", dest="pair_b", default="saturn",
+                       choices=_BODY_CHOICES, help="Second body of the pair")
+        p.add_argument("--n-a", dest="n_a", type=int, default=5,
+                       help="Resonance multiplier on phi_a (default 5)")
+        p.add_argument("--n-b", dest="n_b", type=int, default=2,
+                       help="Resonance multiplier on phi_b (default 2)")
+        p.add_argument("--kernel", choices=_KERNEL_CHOICES, default="de441",
+                       help="JPL DE-kernel (default 'de441')")
+        p.set_defaults(func=_cmd_adaptive)
+
+    ad = sub.add_parser(
+        "adaptive",
+        help="Phase 9 adaptive (a.k.a. 'breathing') coupling LUT at a JD",
         description=(
             "Computes the resonant phase n_a*phi_a - n_b*phi_b (mod "
             "2^32) for a body pair at a JD, then evaluates the integer "
             "cosine LUT (Q1.14, 1024 entries). Returns both the LUT "
-            "value and a float reference for calibration."
+            "value and a float reference for calibration. The "
+            "construction is a state-dependent (non-autonomous) graph "
+            "Laplacian — adaptive in the adaptive-networks / adaptive-"
+            "Kuramoto sense (Gross & Blasius 2008). The visual / "
+            "informal name is 'breathing' couplings; the `breathing` "
+            "subcommand is an accepted hidden synonym (same handler)."
         ),
         epilog=(
             "Examples:\n"
             "  # Default Jupiter-Saturn 5:2 resonance\n"
-            "  ephemerides-spectral breathing --jd 2451545.0\n\n"
+            "  ephemerides-spectral adaptive --jd 2451545.0\n\n"
             "  # Neptune-Pluto 3:2 resonance\n"
-            "  ephemerides-spectral breathing --jd 2451545.0 \\\n"
+            "  ephemerides-spectral adaptive --jd 2451545.0 \\\n"
             "         --pair-a neptune --pair-b pluto --n-a 3 --n-b 2\n\n"
             "  # Io-Europa 1:2 (note ordering: smaller multiplier first)\n"
-            "  ephemerides-spectral breathing --jd 2451545.0 \\\n"
-            "         --pair-a europa --pair-b io --n-a 1 --n-b 2"
+            "  ephemerides-spectral adaptive --jd 2451545.0 \\\n"
+            "         --pair-a europa --pair-b io --n-a 1 --n-b 2\n\n"
+            "  # `breathing` is an accepted hidden synonym:\n"
+            "  ephemerides-spectral breathing --jd 2451545.0"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    br.add_argument("--jd", type=float, required=True, help="Julian Date in TDB")
-    br.add_argument("--pair-a", dest="pair_a", default="jupiter",
-                    choices=_BODY_CHOICES, help="First body of the pair")
-    br.add_argument("--pair-b", dest="pair_b", default="saturn",
-                    choices=_BODY_CHOICES, help="Second body of the pair")
-    br.add_argument("--n-a", dest="n_a", type=int, default=5,
-                    help="Resonance multiplier on phi_a (default 5)")
-    br.add_argument("--n-b", dest="n_b", type=int, default=2,
-                    help="Resonance multiplier on phi_b (default 2)")
-    br.add_argument("--kernel", choices=_KERNEL_CHOICES, default="de441",
-                    help="JPL DE-kernel (default 'de441')")
-    br.set_defaults(func=_cmd_breathing)
+    _add_adaptive_args(ad)
+
+    # Hidden synonym: invisible in `--help` (help=argparse.SUPPRESS) but
+    # fully functional when typed. Kept for visual-metaphor users and
+    # backwards compatibility with v0.9.1 and earlier scripts.
+    br = sub.add_parser(
+        "breathing",
+        help=argparse.SUPPRESS,
+        description=(
+            "Hidden synonym for `adaptive`. Phase 9 state-dependent "
+            "coupling modulation. See `ephemerides-spectral adaptive "
+            "--help` for the canonical help text."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    _add_adaptive_args(br)
 
     # time-mars
     tm = sub.add_parser(
@@ -905,12 +962,12 @@ def _make_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  ephemerides-spectral find-tubes --from-jd 2451545.0 --to-jd 2470000.0 \\\n"
-            "      --departure earth --target mars\n"
+            "      --departure terra --target mars\n"
             "  # All Mars windows in J2000 + 50yr at default tight (3.6deg) threshold\n"
             "\n"
             "  ephemerides-spectral find-tubes --from-jd 2452000.0 --to-jd 2456000.0 \\\n"
-            "      --departure earth --target jupiter --threshold 0.05\n"
-            "  # Earth->Jupiter windows, looser 9deg threshold"
+            "      --departure terra --target jupiter --threshold 0.05\n"
+            "  # Terra->Jupiter windows, looser 9deg threshold"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -919,7 +976,7 @@ def _make_parser() -> argparse.ArgumentParser:
     ft.add_argument("--to-jd", dest="to_jd", type=float, required=True,
                     help="Window end in JD (TDB)")
     ft.add_argument("--departure", required=True,
-                    help="Departure body name (e.g. earth, mars)")
+                    help="Departure body name (e.g. terra, mars)")
     ft.add_argument("--target", required=True,
                     help="Target body name (e.g. mars, jupiter)")
     ft.add_argument("--threshold", type=float, default=0.02,

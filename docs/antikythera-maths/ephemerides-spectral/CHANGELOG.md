@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.1)
+(no entries yet — next entries land after v0.9.2)
+
+## [0.9.2] — 2026-05-05
+
+**CLI: `adaptive` is the primary subcommand for state-dependent coupling modulation; `breathing` retained as a hidden synonym.** No bridge-API changes, no encoder hot-path changes — purely a CLI surface adjustment plus help-text cleanup.
+
+### The framing
+
+What we call "breathing couplings" in the visual / informal register is, in mainstream network-science vocabulary, an **adaptive** coupling: a state-dependent (non-autonomous) graph Laplacian whose edge weights co-evolve with the system's own resonant phases. The literature term traces to *Gross & Blasius 2008* ("Adaptive coevolutionary networks") and the **adaptive Kuramoto** family of models — exactly the regime our Phase 9 LUT modulation occupies. We were already in that literature; we just hadn't said so out loud.
+
+`breathing` is kept because the visual metaphor (the couplings inhale/exhale with the relative resonant phase) is what readers grok intuitively, and we don't want to take that away from anyone who sees it that way. It's now a hidden synonym (invisible in `--help` listings, fully functional when typed) — not deprecated, not going away.
+
+### Added
+
+- `ephemerides-spectral adaptive` — primary subcommand for Phase 9 state-dependent coupling LUT modulation. Help text references the adaptive-networks literature (Gross & Blasius 2008, adaptive Kuramoto).
+- `ephemerides-spectral breathing` — hidden synonym (registered with `help=argparse.SUPPRESS`); identical handler, identical args, identical output. Cross-referenced from `adaptive --help`'s epilog so users discover the equivalence without it cluttering the toplevel help listing.
+
+### Fixed
+
+- `ephemerides-spectral resolution` default body changed from `earth` (no longer in the body roster post-v0.9.0) to `terra`; example strings, `--departure earth` examples in `find-tubes`, and `local-view --body earth` example all corrected to `terra`. Help text and `--body` validation are now self-consistent.
+- Toplevel description and example block reflect the v0.9.0 / v0.9.1 body-identity rename throughout (no more orphaned `--body earth` examples).
+- **Latent bug, pre-existing since v0.8.0:** `bridge.get_breathing_modulation(..., backend="auto")` (the function's own default value) was rejected by `_validate_backend`, because `SUPPORTED_BACKENDS = ("bip", "complex128", "c")` does not include the `"auto"` sentinel. Any caller — including the `breathing` CLI subcommand — that didn't override `backend=` would receive `{"ok": False, "error": "backend must be one of [...], got 'auto'"}`. The fix resolves `"auto"` → concrete backend (`"c"` if native is loaded, else `"bip"`) before validation, matching the function's own docstring contract. New `tests/test_cli_adaptive_alias.py::test_adaptive_and_breathing_produce_identical_output` is the regression test.
+
+### Internal
+
+- Subparser registration factored through a shared `_add_adaptive_args` helper so `adaptive` and `breathing` are mechanically guaranteed to accept identical arguments — no drift possible.
+- `_cmd_breathing` retained as a thin alias of `_cmd_adaptive` for any external caller importing it directly from `ephemerides_spectral.cli`.
+
+### Migration
+
+None required for users. Both `adaptive` and `breathing` work identically. Existing scripts continue to function unchanged.
 
 ## [0.9.1] — 2026-05-05
 

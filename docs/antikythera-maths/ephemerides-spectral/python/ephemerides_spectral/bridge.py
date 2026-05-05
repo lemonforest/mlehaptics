@@ -1511,12 +1511,17 @@ def get_breathing_modulation(
     """
     a, b = pair
     n_a, n_b = n_lobes
-    for v in (_validate_jd(jd_tdb), _validate_body(a), _validate_body(b),
-              _validate_kernel(kernel), _validate_backend(backend)):
-        if v: return v
+    # Resolve "auto" before validation: SUPPORTED_BACKENDS is the
+    # concrete-backend roster ({"bip", "complex128", "c"}), and "auto"
+    # is a CLI-friendly sentinel that picks the best available concrete
+    # backend at call time. Doing the resolution first lets us reuse
+    # _validate_backend without polluting it with the sentinel.
     from ephemerides_spectral import _native_bip
     if backend == "auto":
         backend = "c" if _native_bip.HAS_NATIVE else "bip"
+    for v in (_validate_jd(jd_tdb), _validate_body(a), _validate_body(b),
+              _validate_kernel(kernel), _validate_backend(backend)):
+        if v: return v
     try:
         inst = _get_bip(kernel=kernel)
         idx_a = inst.body_to_idx[a.lower()]
