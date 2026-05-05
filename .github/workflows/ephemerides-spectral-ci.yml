@@ -20,6 +20,13 @@ on:
       - "docs/antikythera-maths/research/**"
       - ".github/workflows/ephemerides-spectral-ci.yml"
   pull_request:
+    # Default types are [opened, synchronize, reopened]. Add `labeled`
+    # so applying the `wheel-check` label re-triggers the workflow —
+    # the verify-wheels / verify-build-artefacts jobs gate on
+    # `contains(labels, 'wheel-check')`, evaluated at run-start time.
+    # Without `labeled` here, applying the label after PR open would
+    # leave those jobs skipped until a new commit lands.
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
     paths:
       - "docs/antikythera-maths/ephemerides-spectral/**"
