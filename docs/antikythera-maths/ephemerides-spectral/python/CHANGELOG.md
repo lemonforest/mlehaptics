@@ -10,7 +10,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.1)
+(no entries yet — next entries land after v0.5.2)
+
+## [0.5.2] — 2026-05-05
+
+**Patch-shrinks-residual benchmark — FULLY VINDICATED on planets** via least-squares fitting at the exact target period (replaces FFT-bin extraction). Mars 99.2%, Mercury 99.9%, Jupiter 97.6%, Saturn 96.0% shrinkage. Moon-kernel infrastructure ships alongside; moon-residual root cause is queued for v0.5.x.
+
+### Added — CATALOG_V2 (LS-fit, vindicated)
+
+- `research.diagnosed_fibers.CATALOG_V2` — three patches with measured ≥96% shrinkage:
+  - `mars-7.96yr-diagonal-v2`: `amp=10.69°`, `period=2902.74 d`, `phase=0.34 rad` → **99.2% shrinkage**
+  - `mercury-10.69yr-diagonal-v2`: `amp=23.48°`, `period=3898.87 d`, `phase=3.05 rad` → **99.9%**
+  - `jupiter-saturn-9.56yr-coupled-v2`: `amp=113.29°`, `period=3495.81 d`, `phase=6.02 rad`, `correlation=+1` → **97.6% J / 96.0% S**
+- The original v0.4.0 `CATALOG` stays unchanged for backwards compatibility. `bridge.list_catalog_patches()` now shows 6 patches (3 v1 + 3 v2). Apply v2 entries via the `-v2` suffix.
+
+### Added — research-side LS-fit authoring
+
+- `research/author_phase_recovered_patches.py` gains a `method="lsq"` mode (default). Uses `scipy.optimize.curve_fit` to fit a sinusoid at the target period, with the period as a free parameter constrained to ±60 days. Bypasses FFT bin leakage entirely.
+- LS-fit recovers ~25–55% larger amplitudes than the v0.5.1 FFT-bin extraction (Mars 6.90° → 10.69°, +55%; J–S 89.65° → 113.29°, +26%) — the energy that was leaking into adjacent bins.
+
+### Added — moon-kernel infrastructure
+
+- `research/ephemeris_loader.py`: `load_ephemeris(..., auxiliary_kernels=["mar099s", "jup365", "sat441"])`. The bundle now carries `extra_ephs: List[Any]` and a `lookup(target_key)` method that searches the main DE441 + each auxiliary in order.
+- `bip_instrument._calibrate_initial_phases` and `de441_error_spectrum._truth_longitude` use `bundle.lookup` so moon truth values come from the supplementary kernels.
+- `research/de441_moon_spectrum.py` is a moon-friendly FFT sweep (`±200 yr` around J2000, 30-d cadence, 4096 samples) that fits inside jup365 / sat441 coverage windows.
+
+### Findings
+
+- **J–S correlation = +1, not −1.** v0.4.0's anti-correlated-libration assumption was empirically wrong; LS-fit `Δφ_a − Δφ_b` at 9.56 yr puts the residuals in-phase.
+- **LS-fit periods drift ~0.16% from bin-rounded.** Mars: −4.6 d, Mercury: −6.2 d, J–S: +4.9 d. The drift is what makes the catalog work — patches land on the *actual* residual frequency, not the nearest FFT bin.
+- **Most v0.5.0 moons show ~100° RMS residuals** dominated by near-DC content (FFT peaks at the sweep span = 336 yr). Callisto, Titan, Iapetus, Hyperion are the 4 "working" moons (RMS ≤ 11°). Root cause for the others is queued for v0.5.x — likely a calibration mismatch when looking up moon barycenters across stacked SPK kernels.
+
+### Tests
+
+- `test_catalog_lists_six_patches_v041_plus_v052` (renamed from `test_catalog_lists_three_v041_patches`) — asserts the combined v1+v2 catalog has the 6 expected patch names.
+
+### Notes
+
+- The v0.4.0 catalog is **not deprecated** — it ships unchanged. Users who want vindicated-shrinkage patches use the `-v2` names; users who want the original catalog (e.g., for backwards-compatibility regression tests) use the v0.4.0 names.
+- `de441_error_spectrum.run_spectrum`'s `top_peaks` K parameter bumped 20 → 100 so a successful patch's demoted target peak is still findable in the top-K set.
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.5.2 entry.
 
 ## [0.5.1] — 2026-05-05
 

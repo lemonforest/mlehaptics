@@ -143,6 +143,13 @@ class EphemerisBundle:
     skyfield installed.  Callers that touch the fields require skyfield
     to be present at runtime; if it is not, ``load_ephemeris`` returns
     ``None`` upstream.
+
+    v0.5.2: ``extra_ephs`` is a list of supplementary skyfield SPK
+    objects loaded alongside the main planetary kernel — typically
+    moon-satellite kernels (mar099s, jup365, sat441) so the
+    de441_error_spectrum sweep can validate the new Galilean / Saturnian
+    moons against ephemeris truth. The ``lookup`` method searches the
+    main ``eph`` first, then each ``extra_ephs`` in order.
     """
 
     kernel_name: str
@@ -156,6 +163,36 @@ class EphemerisBundle:
     mercury: Any
     jupiter: Any
     saturn: Any
+    extra_ephs: List[Any] = None  # type: ignore[assignment]
+    extra_kernel_names: List[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        # Normalise mutable defaults so callers that didn't pass
+        # the lists still get sane attributes.
+        if self.extra_ephs is None:
+            object.__setattr__(self, "extra_ephs", [])
+        if self.extra_kernel_names is None:
+            object.__setattr__(self, "extra_kernel_names", [])
+
+    def lookup(self, target_key: str) -> Any:
+        """Return the skyfield target for `target_key`, searching the
+        main `eph` first, then each `extra_ephs` in order.
+
+        Raises `KeyError` if no loaded kernel has a target with that
+        name. Used by `_truth_longitude` in `de441_error_spectrum.py`
+        to look up moon barycenters that DE441 doesn't carry but
+        `mar099s` / `jup365` / `sat441` do.
+        """
+        for src in [self.eph] + (self.extra_ephs or []):
+            try:
+                return src[target_key]
+            except (KeyError, ValueError):
+                continue
+        raise KeyError(
+            f"target {target_key!r} not in main kernel "
+            f"{self.kernel_name!r} or any of "
+            f"{self.extra_kernel_names!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +215,7 @@ def load_ephemeris(
     kernel: str = "de441",
     kernel_file: Optional[str] = None,
     data_dir: Optional[str] = None,
+    auxiliary_kernels: Optional[List[str]] = None,
 ) -> Optional[EphemerisBundle]:
     """Load (or fetch from cache) a JPL DE-series kernel via skyfield.
 
@@ -199,7 +237,8 @@ def load_ephemeris(
         ``None`` on any failure (skyfield missing, file absent, bad
         format).  Never raises — callers downstream emit ``UNDETERMINED``.
     """
-    cache_key = (kernel, kernel_file)
+    aux_tuple = tuple(auxiliary_kernels or ())
+    cache_key = (kernel, kernel_file, aux_tuple)  # type: ignore[assignment]
     if cache_key in _BUNDLE_CACHE:
         return _BUNDLE_CACHE[cache_key]
 
@@ -226,6 +265,29 @@ def load_ephemeris(
                 except KeyError: continue
             return None
 
+        # Load auxiliary moon kernels alongside the main planetary
+        # kernel. Each is a separate skyfield SpiceKernel; the
+        # EphemerisBundle.lookup() method searches them in order.
+        # Files are taken to be filenames (in data_dir) — same
+        # convention as the main kernel's `spec.filename`.
+        extra_ephs: List[Any] = []
+        extra_kernel_names: List[str] = []
+        for aux_name in (auxiliary_kernels or []):
+            try:
+                if aux_name.endswith(".bsp"):
+                    aux_eph = loader(aux_name)
+                else:
+                    aux_eph = loader(aux_name + ".bsp")
+                extra_ephs.append(aux_eph)
+                extra_kernel_names.append(aux_name)
+            except Exception as exc:
+                # Don't fail the whole load on a single missing aux
+                # kernel — log and continue. The bundle will still
+                # work for whatever bodies the main kernel + remaining
+                # aux kernels cover.
+                print(f"DEBUG: auxiliary kernel {aux_name!r} failed to "
+                      f"load: {exc}; continuing without it.")
+
         bundle = EphemerisBundle(
             kernel_name=kernel,
             eph=eph,
@@ -238,6 +300,8 @@ def load_ephemeris(
             mercury=_get(["mercury", "MERCURY", 199, 1]),
             jupiter=_get(["jupiter barycenter", "JUPITER BARYCENTER", 5]),
             saturn=_get(["saturn barycenter", "SATURN BARYCENTER", 6]),
+            extra_ephs=extra_ephs,
+            extra_kernel_names=extra_kernel_names,
         )
         _BUNDLE_CACHE[cache_key] = bundle
         return bundle

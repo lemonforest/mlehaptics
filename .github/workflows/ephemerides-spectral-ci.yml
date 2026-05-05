@@ -80,10 +80,22 @@ jobs:
 
   codegen-determinism:
     # Lightweight always-on guard. Re-run codegen and assert the
-    # _research/ + _data/ mirrors are byte-identical (excluding
-    # manifest.json, whose version field is tied to the in-progress
-    # commit SHA). Catches the latent-drift class of bug we hit in
-    # PR #171 on antikythera-spectral.
+    # _research/ mirrors are byte-identical. Catches the latent-drift
+    # class of bug we hit in PR #171 on antikythera-spectral.
+    #
+    # Exclusions (all in _data/):
+    #   * manifest.json — version field is tied to the in-progress
+    #     commit SHA; per-file SHA-256 sums INSIDE it still give the
+    #     integrity guarantee we want.
+    #   * initial_phases.json (v0.5.2+) — depends on auxiliary moon
+    #     kernels (mar099s / jup365 / sat441, ~1.5 GB combined)
+    #     which CI doesn't stage. Without them the codegen falls
+    #     back to the period-based stub for moons; with them it uses
+    #     real ephemeris truth. CI-side codegen produces a different
+    #     hash than the dev-side one. The CHECKED-IN copy is the
+    #     authoritative one (built on the dev box with all kernels);
+    #     the test_data_freshness pytest enforces SHA agreement at
+    #     wheel install time.
     name: codegen reproducibility
     runs-on: ubuntu-latest
     steps:
@@ -100,7 +112,9 @@ jobs:
         working-directory: docs/antikythera-maths/ephemerides-spectral
         run: |
           find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
-            -type f -not -name manifest.json \
+            -type f \
+            -not -name manifest.json \
+            -not -name initial_phases.json \
             -exec sha256sum {} \; | sort > /tmp/before.sha256
       - name: Re-run codegen
         working-directory: docs/antikythera-maths/ephemerides-spectral/codegen
@@ -109,7 +123,9 @@ jobs:
         working-directory: docs/antikythera-maths/ephemerides-spectral
         run: |
           find python/ephemerides_spectral/_data python/ephemerides_spectral/_research \
-            -type f -not -name manifest.json \
+            -type f \
+            -not -name manifest.json \
+            -not -name initial_phases.json \
             -exec sha256sum {} \; | sort > /tmp/after.sha256
           diff /tmp/before.sha256 /tmp/after.sha256
 

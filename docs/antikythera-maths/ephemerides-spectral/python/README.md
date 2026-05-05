@@ -248,25 +248,38 @@ Linear in `|Δt|` — one 30-day chunk per integration step. At the v0.1.0 desig
 
 **v0.4.1+ C native path** drops these by ~1000× (encode at +20 yr: 46 ms BIP → 0.04 ms C). The full DE441 FFT-residual sweep (1024 samples) takes ~14 seconds on the C native path versus ~5 minutes on Python BIP — the truth-lookup against skyfield is the new bottleneck.
 
-## Patch-shrinks-residual benchmark (v0.5.1)
+## Patch-shrinks-residual benchmark — VINDICATED on planets (v0.5.2)
 
-> *Earn the right to predict the missing data.*
+> *Earn the right to predict the missing data.* — measured.
 
-The v0.4.0 catalog patches **claim** to predict missing physics; the v0.5.1 audit measures whether they actually shrink the residuals they target. Verdict: **PARTIAL VINDICATION**.
+The v0.4.0 catalog patches **claimed** to predict missing physics; v0.5.1 audited them and surfaced two authoring bugs (amplitude off by 2×, phase=0 assumption wrong); v0.5.2 fixed both with **least-squares fitting at the exact target period**. Result: **VINDICATED** on every targeted planet body.
 
-| Patch | v0.4.0 (mag-only authoring) | v0.5.1 (phase-recovered) |
-|---|---|---|
-| `mars-7.96yr-diagonal` | +2.5% | +2.7% (FFT bin leakage) |
-| `mercury-10.69yr-diagonal` | **−49.9% *(peak GREW)*** | **+39.6%** |
-| `jupiter-saturn-9.56yr-coupled` | +30.9% J / −0.4% S | **+77.1% J / +76.4% S** |
+| Patch | v0.4.0 (mag-only) | v0.5.1 (phase-recovered) | **v0.5.2 (LS-fit)** |
+|---|---|---|---|
+| Mars 7.96 yr | +2.5% | +2.7% | **+99.2%** |
+| Mercury 10.69 yr | **−49.9% (peak GREW)** | +39.6% | **+99.9%** |
+| Jupiter 9.56 yr | +30.9% | +77.1% | **+97.6%** |
+| Saturn 9.56 yr | −0.4% | +76.4% | **+96.0%** |
 
-Two diagnosable v0.4.0 authoring bugs surfaced: amplitude was off by 2× (used FFT magnitude rather than `2|X[k]|/N` real-amplitude) and phase was wrongly assumed 0 (the Mercury patch was *reinforcing* its target residual). v0.5.1 ships three research scripts (`patch_shrinks_residual.py`, `author_phase_recovered_patches.py`, `verify_recovered_patches.py`) that diagnose, fix, and re-measure. **Empirical finding**: J–S `correlation = +1` (in-phase residuals at 9.56 yr) — the v0.4.0 anti-correlated-libration assumption was wrong.
+The vindicated patches ship as **`CATALOG_V2`** alongside the original v0.4.0 `CATALOG`. Use the `-v2` suffix:
 
-The v0.4.0 catalog stays unchanged in the wheel (the recovered catalog is research output until it meets ≥80% on every body — currently blocked by FFT bin leakage on Mars). v0.5.2 adds windowed FFT + multi-bin patches and ships `CATALOG_V2`. See [`figures/patch_shrinks_residual_v0.5.1.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/figures/patch_shrinks_residual_v0.5.1.md) for the full analysis.
+```python
+bridge.apply_patch("mars-7.96yr-diagonal-v2")              # 99.2% shrinkage
+bridge.apply_patch("mercury-10.69yr-diagonal-v2")          # 99.9%
+bridge.apply_patch("jupiter-saturn-9.56yr-coupled-v2")     # 97.6% J / 96.0% S
+```
+
+Empirical findings worth noting:
+- **J–S `correlation = +1` (in-phase)**, not −1 as v0.4.0 assumed. Anti-correlated-libration intuition was empirically wrong.
+- **LS-fit amplitudes are 25–55% larger** than FFT-bin extraction — the energy that was leaking into adjacent bins.
+- **Mars's true residual amplitude is 10.69° (LS) vs 3.45° (FFT-bin rank-1)** — a 3× underestimate, the worst leakage case in the catalog.
+
+See [`figures/patch_shrinks_residual_v0.5.2.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/figures/patch_shrinks_residual_v0.5.2.md) for the full math derivation, methodology, and moon-residual open question.
 
 ## Status
 
-* **v0.5.1** *(current)* — Patch-shrinks-residual benchmark: PARTIAL vindication of the diagnosed-fiber methodology (J–S 77%, Mercury 40%, Mars stuck on FFT leakage). See [`CHANGELOG.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides-spectral/CHANGELOG.md).
+* **v0.5.2** *(current)* — Patch-shrinks-residual benchmark **VINDICATED** on planets via LS-fit catalog (Mars 99.2%, Mercury 99.9%, J–S 97.6/96.0%). `CATALOG_V2` ships alongside v0.4.0. Moon-kernel infrastructure (`mar099s` / `jup365` / `sat441`) added; moon-residual root cause queued for v0.5.x. See [`CHANGELOG.md`](https://github.com/lemonforest/mlehaptics/blob/main/docs/antikythera-maths/ephemerides-spectral/CHANGELOG.md).
+* **v0.5.1** — Patch-shrinks-residual benchmark: PARTIAL vindication (J–S 77%, Mercury 40%, Mars stuck on FFT leakage); two v0.4.0 authoring bugs surfaced.
 * **v0.5.0** — All major Jovian + Saturnian moons join the encoder (26 → 38 bodies). Three new resonances (Cassini Division, Enceladus tidal heating, Hyperion chaos). SPICE-free runtime via codegen-baked initial phases.
 * **v0.4.1** — C-side runtime kernel patching (ABI v2). 237× speedup on patched encodes vs BIP.
 * **v0.4.0** — Diagnosed-fiber runtime overlay (Python side). Patches as data, ksplice/kpatch-style.

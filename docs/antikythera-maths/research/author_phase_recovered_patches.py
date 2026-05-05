@@ -192,6 +192,91 @@ def _bin_at_period(periods_yr: np.ndarray, target_yr: float) -> int:
     return int(np.argmin(finite))
 
 
+def _lsq_fit_sinusoid(
+    jd_grid: np.ndarray,
+    residual_rad: np.ndarray,
+    target_period_days: float,
+    period_search_window_days: float = 60.0,
+) -> Dict:
+    """Least-squares fit ``A·sin(2π·(t − REFERENCE_JD)/P + φ)`` to the
+    residual signal at ``target_period_days``.
+
+    Unlike FFT-bin extraction, this returns the patch parameters at
+    the EXACT period that minimises the residual — bypasses the
+    FFT-bin-leakage problem that left Mars stuck at 2.7% shrinkage in
+    v0.5.1.
+
+    Two-stage fit:
+
+    1. Fix the period at ``target_period_days`` and linearly solve
+       for the cosine + sine coefficients (``a`` and ``b`` such that
+       ``residual ≈ a·sin(ω·t) + b·cos(ω·t)``). Closed-form via
+       least-squares; gives an initial amplitude ≈ ``√(a² + b²)``.
+
+    2. Run scipy.curve_fit with the period as a free parameter
+       constrained to ``[target − window, target + window]``. The
+       fitted period is what the catalog patch stores.
+
+    The patch overlay form ``A · sin(2π·δt/P + φ)`` is rederived
+    from ``a·sin(ωt) + b·cos(ωt) = A·sin(ωt + φ)`` with
+    ``A = √(a² + b²)`` and ``φ = atan2(b, a)``.
+    """
+    from scipy.optimize import curve_fit
+
+    delta_t_days = jd_grid - REFERENCE_JD
+
+    # Stage 1: closed-form least-squares with period fixed.
+    omega = 2.0 * math.pi / target_period_days
+    sin_t = np.sin(omega * delta_t_days)
+    cos_t = np.cos(omega * delta_t_days)
+    one = np.ones_like(delta_t_days)
+    # Design matrix [sin, cos, 1, t] — fit linear trend too.
+    M = np.column_stack([sin_t, cos_t, one, delta_t_days])
+    coeffs, *_ = np.linalg.lstsq(M, residual_rad, rcond=None)
+    a, b = coeffs[0], coeffs[1]
+    A_initial = math.sqrt(a * a + b * b)
+    phi_initial = math.atan2(b, a)
+
+    # Stage 2: scipy refinement with period as free param.
+    def model(t, A, P, phi, c0, c1):
+        return A * np.sin(2.0 * np.pi * t / P + phi) + c0 + c1 * t
+
+    p0 = [A_initial, target_period_days, phi_initial,
+          float(np.mean(residual_rad)), 0.0]
+    bounds = (
+        [0.0, target_period_days - period_search_window_days,
+         -2.0 * math.pi, -math.pi, -1e-3],
+        [math.pi, target_period_days + period_search_window_days,
+         2.0 * math.pi, math.pi, 1e-3],
+    )
+    try:
+        popt, _ = curve_fit(model, delta_t_days, residual_rad,
+                            p0=p0, bounds=bounds, maxfev=10000)
+        A_fit, P_fit, phi_fit, _c0, _c1 = popt
+        # Normalise phi into [0, 2π).
+        phi_fit = phi_fit % (2.0 * math.pi)
+        # Cancellation phase: patch must oppose the residual, so flip sign.
+        phi_cancel = (phi_fit + math.pi) % (2.0 * math.pi)
+        method = "scipy.curve_fit"
+    except (RuntimeError, ValueError):
+        # Fall back to closed-form if curve_fit fails to converge.
+        A_fit = A_initial
+        P_fit = target_period_days
+        phi_fit = phi_initial % (2.0 * math.pi)
+        phi_cancel = (phi_fit + math.pi) % (2.0 * math.pi)
+        method = "closed-form (curve_fit failed)"
+
+    return {
+        "amplitude_deg": float(math.degrees(A_fit)),
+        "period_days": float(P_fit),
+        "fit_phase_rad": float(phi_fit),
+        "cancellation_phase_rad": float(phi_cancel),
+        "method": method,
+        "initial_amplitude_deg": float(math.degrees(A_initial)),
+        "search_window_days": float(period_search_window_days),
+    }
+
+
 def _recover_patch(
     spectrum: np.ndarray,
     periods_yr: np.ndarray,
@@ -308,63 +393,144 @@ def _recover_coupled_patch(
 def author_patches(
     n_samples: int = N_SAMPLES_DEFAULT,
     cadence_days: float = CADENCE_DAYS_DEFAULT,
+    method: str = "lsq",
 ) -> Dict:
     """Run the encoder, recover phases, and emit the phase-recovered
     catalog.
-    """
-    print("\n=== Phase-recovered catalog authoring ===\n", flush=True)
-    errors, _, inst = _gather_residuals(n_samples, cadence_days)
-    cadence_yr = cadence_days / 365.25
 
-    # Per-body complex FFT cache.
-    fft_cache: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-    for body, arr in errors.items():
-        if np.all(np.isnan(arr)):
-            continue
-        fft_cache[body] = _detrend_and_fft(arr, n_samples, cadence_yr)
+    Parameters
+    ----------
+    method : {"lsq", "fft"}
+        ``"lsq"`` (default, v0.5.2) — least-squares fit a sinusoid at
+        the target period directly to the residual time series. The
+        catalog patch records the fitted period (which can drift up
+        to ±60 d from the bin-rounded period). Bypasses FFT bin
+        leakage entirely.
+
+        ``"fft"`` (v0.5.1) — extract amplitude / phase from the FFT's
+        complex bin closest to the target period. Period is
+        bin-rounded; subject to leakage when the actual residual
+        period falls between bins (which is what kept Mars stuck at
+        2.7% shrinkage).
+    """
+    if method not in {"lsq", "fft"}:
+        raise ValueError(f"unknown method {method!r}; expected 'lsq' or 'fft'")
+    print(f"\n=== Phase-recovered catalog authoring (method={method}) ===\n",
+          flush=True)
+    errors, jd_grid, inst = _gather_residuals(n_samples, cadence_days)
+    cadence_yr = cadence_days / 365.25
 
     out: Dict = {
         "n_samples": n_samples,
         "cadence_days": cadence_days,
+        "method": method,
         "patches": {},
     }
+
+    if method == "fft":
+        # FFT-bin extraction (v0.5.1 path).
+        fft_cache: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        for body, arr in errors.items():
+            if np.all(np.isnan(arr)):
+                continue
+            fft_cache[body] = _detrend_and_fft(arr, n_samples, cadence_yr)
+        for patch_name, target in PATCH_TARGETS.items():
+            if target["kind"] == "sinusoid":
+                body = target["body"]
+                if body not in fft_cache:
+                    out["patches"][patch_name] = {"error": f"no FFT for {body}"}
+                    continue
+                spec, periods = fft_cache[body]
+                rec = _recover_patch(spec, periods,
+                                     target["expected_period_yr"],
+                                     n_samples, cadence_days)
+                out["patches"][patch_name] = {
+                    "kind": "sinusoid",
+                    "body": body,
+                    "amplitude_deg": rec["fft_amplitude_deg"],
+                    "period_days": rec["bin_period_yr"] * 365.25,
+                    "phase_rad": rec["cancellation_phase_rad"],
+                    "_diagnostic": rec,
+                }
+            elif target["kind"] == "coupled-sinusoid":
+                body_a, body_b = target["body_a"], target["body_b"]
+                if body_a not in fft_cache or body_b not in fft_cache:
+                    out["patches"][patch_name] = {"error": "missing FFT"}
+                    continue
+                spec_a, periods = fft_cache[body_a]
+                spec_b, _ = fft_cache[body_b]
+                rec = _recover_coupled_patch(
+                    spec_a, spec_b, periods,
+                    target["expected_period_yr"], n_samples, cadence_days,
+                )
+                out["patches"][patch_name] = {
+                    "kind": "coupled-sinusoid",
+                    "body_a": body_a, "body_b": body_b,
+                    "amplitude_deg": rec["amp_mean_deg"],
+                    "period_days": fft_cache[body_a][1][rec["body_a"]["bin_k"]] * 365.25,
+                    "phase_rad": rec["anchor_cancellation_phase_rad"],
+                    "correlation": rec["correlation"],
+                    "_diagnostic": rec,
+                }
+        return out
+
+    # method == "lsq": time-domain least-squares fitting.
     for patch_name, target in PATCH_TARGETS.items():
+        target_period_days = target["expected_period_yr"] * 365.25
+
         if target["kind"] == "sinusoid":
             body = target["body"]
-            if body not in fft_cache:
-                out["patches"][patch_name] = {"error": f"no FFT for {body}"}
+            if body not in errors:
+                out["patches"][patch_name] = {"error": f"no residual for {body}"}
                 continue
-            spec, periods = fft_cache[body]
-            rec = _recover_patch(spec, periods, target["expected_period_yr"], n_samples, cadence_days)
+            arr = errors[body]
+            if np.all(np.isnan(arr)):
+                out["patches"][patch_name] = {"error": f"all-nan residual for {body}"}
+                continue
+            arr_clean = np.where(np.isnan(arr), 0.0, arr)
+            rec = _lsq_fit_sinusoid(jd_grid, arr_clean, target_period_days)
             out["patches"][patch_name] = {
                 "kind": "sinusoid",
                 "body": body,
-                "amplitude_deg": rec["fft_amplitude_deg"],
-                "period_days": rec["bin_period_yr"] * 365.25,
+                "amplitude_deg": rec["amplitude_deg"],
+                "period_days": rec["period_days"],
                 "phase_rad": rec["cancellation_phase_rad"],
                 "_diagnostic": rec,
             }
         elif target["kind"] == "coupled-sinusoid":
             body_a, body_b = target["body_a"], target["body_b"]
-            if body_a not in fft_cache or body_b not in fft_cache:
-                out["patches"][patch_name] = {"error": "missing FFT"}
+            if body_a not in errors or body_b not in errors:
+                out["patches"][patch_name] = {"error": "missing residual"}
                 continue
-            spec_a, periods = fft_cache[body_a]
-            spec_b, _ = fft_cache[body_b]
-            rec = _recover_coupled_patch(
-                spec_a, spec_b, periods,
-                target["expected_period_yr"], n_samples, cadence_days,
-            )
+            arr_a = np.where(np.isnan(errors[body_a]), 0.0, errors[body_a])
+            arr_b = np.where(np.isnan(errors[body_b]), 0.0, errors[body_b])
+            rec_a = _lsq_fit_sinusoid(jd_grid, arr_a, target_period_days)
+            rec_b = _lsq_fit_sinusoid(jd_grid, arr_b, target_period_days)
+            # Coupled patch uses one shared sinusoid applied with
+            # `correlation` to body_b. Pick correlation from the
+            # phase difference:
+            #   |Δφ| < π/2 → correlation = +1 (in-phase)
+            #   |Δφ| > π/2 → correlation = -1 (anti-phase)
+            delta_phi = (rec_a["fit_phase_rad"] - rec_b["fit_phase_rad"]) % (2.0 * math.pi)
+            if delta_phi > math.pi:
+                delta_phi -= 2.0 * math.pi
+            correlation = 1 if abs(delta_phi) < math.pi / 2.0 else -1
+            # Use body_a's amplitude as anchor; body_b will be partially
+            # cancelled depending on amp ratio + phase agreement. If
+            # amplitudes differ, ship the mean as the "best fit".
+            amp_anchor = 0.5 * (rec_a["amplitude_deg"] + rec_b["amplitude_deg"])
             out["patches"][patch_name] = {
                 "kind": "coupled-sinusoid",
                 "body_a": body_a, "body_b": body_b,
-                "amplitude_deg": rec["amp_mean_deg"],
-                # Use body_a's bin period for the catalog entry (both
-                # bodies share the same FFT grid).
-                "period_days": fft_cache[body_a][1][rec["body_a"]["bin_k"]] * 365.25,
-                "phase_rad": rec["anchor_cancellation_phase_rad"],
-                "correlation": rec["correlation"],
-                "_diagnostic": rec,
+                "amplitude_deg": amp_anchor,
+                "period_days": rec_a["period_days"],
+                "phase_rad": rec_a["cancellation_phase_rad"],
+                "correlation": correlation,
+                "_diagnostic": {
+                    "body_a": rec_a, "body_b": rec_b,
+                    "delta_phi_rad": float(delta_phi),
+                    "correlation_chosen": correlation,
+                },
             }
     return out
 

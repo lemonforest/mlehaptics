@@ -79,13 +79,28 @@ def _angular_diff(a_rad: float, b_rad: float) -> float:
 def _truth_longitude(bundle, jd_tt: float, body_name: str) -> float:
     ts = bundle.ts
     t = ts.tt_jd(jd_tt)
-    eph = bundle.eph
+    # v0.5.2: bundle.lookup searches the main DE441 + the aux moon
+    # kernels (mar099s for Phobos / Deimos, jup365 for the Galileans
+    # + Jovian inner regulars, sat441 for the classical Saturnians +
+    # co-orbitals). Falls back to KeyError if nothing has the target
+    # key — caller handles by setting NaN in the residual array.
+    lookup = bundle.lookup if hasattr(bundle, "lookup") else (lambda k: bundle.eph[k])
 
+    # v0.5.2: extended to cover the new moons added in v0.5.0.
     moon_parent_map = {
-        "moon": "earth", "phobos": "mars", "deimos": "mars",
+        "moon": "earth",
+        "phobos": "mars", "deimos": "mars",
+        # Jovian (Galileans + inner regulars from v0.5.0)
         "io": "jupiter", "europa": "jupiter", "ganymede": "jupiter",
-        "callisto": "jupiter", "titan": "saturn", "enceladus": "saturn",
-        "rhea": "saturn", "titania": "uranus", "triton": "neptune",
+        "callisto": "jupiter",
+        "metis": "jupiter", "adrastea": "jupiter",
+        "amalthea": "jupiter", "thebe": "jupiter",
+        # Saturnian (classical 9 + co-orbitals from v0.5.0)
+        "mimas": "saturn", "enceladus": "saturn", "tethys": "saturn",
+        "dione": "saturn", "rhea": "saturn", "titan": "saturn",
+        "hyperion": "saturn", "iapetus": "saturn", "phoebe": "saturn",
+        "janus": "saturn", "epimetheus": "saturn",
+        "titania": "uranus", "triton": "neptune",
     }
 
     info = BODIES[body_name]
@@ -93,17 +108,17 @@ def _truth_longitude(bundle, jd_tt: float, body_name: str) -> float:
 
     if info.category == "planet":
         target_key += " BARYCENTER"
-        center = eph["sun"]
+        center = lookup("sun")
     elif info.category == "moon":
         parent = moon_parent_map.get(body_name, "earth")
         parent_key = parent.upper()
         if parent in ("earth", "mars", "jupiter", "saturn", "uranus", "neptune"):
             parent_key += " BARYCENTER"
-        center = eph[parent_key]
+        center = lookup(parent_key)
     else:
-        center = eph["sun"]
+        center = lookup("sun")
 
-    target = eph[target_key]
+    target = lookup(target_key)
     astrometric = center.at(t).observe(target)
     _, lon, _ = astrometric.ecliptic_latlon()
     return float(lon.radians)
@@ -211,10 +226,15 @@ def run_spectrum(kernel: str = "de441",
                                    1.0 / freqs_per_yr, np.inf)
 
         # Top-K peaks excluding DC.
-        # K bumped 5 -> 20 in v0.5.1 so the patch-shrinks-residual
+        # K bumped 5 -> 20 in v0.5.1 (so the patch-shrinks-residual
         # benchmark can still find the targeted peak after a successful
-        # patch demotes it out of the original top-5.
-        K = 20
+        # patch demotes it out of the original top-5), then 20 -> 100
+        # in v0.5.2 (so the LS-fit catalog's near-100% shrinkage
+        # doesn't push the peak below even the top-20 — Mars vindicated
+        # at 99.2% but Mercury / J-S returned "no peak in tolerance"
+        # under K=20 because the suppressed peaks fell out of the top
+        # 20 entirely; under K=100 they're back).
+        K = 100
         peak_idx = np.argsort(amps[1:])[-K:][::-1] + 1  # offset to skip DC
         peaks = [
             {

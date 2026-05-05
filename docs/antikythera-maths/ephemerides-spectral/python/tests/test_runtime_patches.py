@@ -314,15 +314,22 @@ def test_apply_custom_bad_correlation_returns_error() -> None:
 # Catalog visibility
 # ──────────────────────────────────────────────────────────────────────
 
-def test_catalog_lists_three_v041_patches() -> None:
+def test_catalog_lists_six_patches_v041_plus_v052() -> None:
+    """v0.5.2: combined catalog has 3 v1 + 3 v2 entries (LS-fit recovered)."""
     out = bridge.list_catalog_patches()
     assert out["ok"] is True
     names = {p["name"] for p in out["patches"]}
-    assert names == {
+    expected = {
+        # v0.4.0 magnitude-only catalog (kept for backwards compat).
         "mars-7.96yr-diagonal",
         "mercury-10.69yr-diagonal",
         "jupiter-saturn-9.56yr-coupled",
+        # v0.5.2 phase-recovered + LS-fit catalog (vindicated >=96% shrinkage).
+        "mars-7.96yr-diagonal-v2",
+        "mercury-10.69yr-diagonal-v2",
+        "jupiter-saturn-9.56yr-coupled-v2",
     }
+    assert names == expected
     # Each entry must carry kind, amplitude, period, notes.
     for p in out["patches"]:
         assert p["kind"] in {"sinusoid", "coupled-sinusoid"}
