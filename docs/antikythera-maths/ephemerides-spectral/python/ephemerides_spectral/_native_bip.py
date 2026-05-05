@@ -54,7 +54,10 @@ import numpy as np
 #   v3 — v0.6.0: C/Python parity Tier 1 (es_breathing_modulation,
 #       es_syzygy_t struct + es_find_syzygies). Encoder hot path
 #       unchanged; net-new entry points only.
-EXPECTED_ABI_VERSION: int = 3
+#   v4 — v0.6.1: Tier 2a foundation (es_complex64_t struct,
+#       es_channel_basis, splitmix64 plumbing). Encoder hot path
+#       unchanged.
+EXPECTED_ABI_VERSION: int = 4
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
@@ -106,6 +109,19 @@ ES_SYZYGY_KIND_LUNAR = 1
 ES_SYZYGY_KIND_FILTER_SOLAR = 0
 ES_SYZYGY_KIND_FILTER_LUNAR = 1
 ES_SYZYGY_KIND_FILTER_ALL = 2
+
+
+class EsComplex64(ctypes.Structure):
+    """Wire-format mirror of ``es_complex64_t`` (Tier 2a / ABI v4).
+
+    Two contiguous floats (real, imag); 8 bytes per element. Matches
+    numpy's ``complex64`` so callers can read the ctypes buffer
+    directly into a numpy array without copying.
+    """
+    _fields_ = [
+        ("real", ctypes.c_float),
+        ("imag", ctypes.c_float),
+    ]
 
 
 class EsSyzygy(ctypes.Structure):
@@ -244,6 +260,15 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.POINTER(ctypes.c_size_t),
     ]
     lib.es_find_syzygies.restype = ctypes.c_int
+
+    # ABI v4 (v0.6.1) — Tier 2a foundation: channel-basis emission.
+    # es_status_t es_channel_basis(uint64_t seed, es_complex64_t *out, size_t D)
+    lib.es_channel_basis.argtypes = [
+        ctypes.c_uint64,
+        ctypes.POINTER(EsComplex64),
+        ctypes.c_size_t,
+    ]
+    lib.es_channel_basis.restype = ctypes.c_int
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -522,6 +547,34 @@ def native_find_syzygies(jd_lo: float, jd_hi: float, *,
     return out
 
 
+def native_channel_basis(seed: int, D: int) -> Any:
+    """Generate a deterministic complex64 channel basis of dimension D.
+
+    Returns a numpy array of dtype `complex64`, length `D`. Bit-
+    identical to the Python-side `_research/portable_prng.splitmix64_phases`
+    output passed through `exp(1j*phi)` and cast to complex64.
+
+    Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
+    """
+    if not HAS_NATIVE:
+        raise RuntimeError(
+            "native_channel_basis called without native library"
+        )
+    assert LIB is not None
+    import numpy as np
+    buf = (EsComplex64 * D)()
+    rc = int(LIB.es_channel_basis(
+        ctypes.c_uint64(int(seed) & ((1 << 64) - 1)),
+        buf,
+        ctypes.c_size_t(int(D)),
+    ))
+    if rc != ES_OK:
+        raise RuntimeError(f"es_channel_basis returned status {rc}")
+    # Reinterpret the raw buffer as numpy complex64 without copy.
+    arr = np.frombuffer(buf, dtype=np.complex64).copy()
+    return arr
+
+
 __all__ = [
     "HAS_NATIVE",
     "LIB",
@@ -535,6 +588,7 @@ __all__ = [
     "ES_MAX_PATCHES",
     "EsPatch",
     "EsSyzygy",
+    "EsComplex64",
     "ES_SYZYGY_KIND_SOLAR",
     "ES_SYZYGY_KIND_LUNAR",
     "ES_SYZYGY_KIND_FILTER_SOLAR",
@@ -549,4 +603,5 @@ __all__ = [
     "native_n_active_patches",
     "native_breathing_modulation",
     "native_find_syzygies",
+    "native_channel_basis",
 ]

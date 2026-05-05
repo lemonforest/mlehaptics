@@ -431,6 +431,63 @@ es_status_t es_find_syzygies(double jd_lo,
                              size_t *out_count);
 
 /* ------------------------------------------------------------------ *
+ * C/Python parity Tier 2a (v0.6.1, ABI v4) — channel basis foundation
+ * ------------------------------------------------------------------ *
+ *
+ * Tier 2 brings the FPU-side hyperdimensional state into C so
+ * `bridge.get_local_view` and `bridge.get_eclipse_probability` get
+ * matching backend="c" paths. Phase 2a is the foundation:
+ *
+ *   - `es_complex64_t`: shared complex-pair representation. Two
+ *     contiguous `float` (real, imag); 8 bytes per element. Matches
+ *     numpy's `complex64` so callers can read the result directly.
+ *
+ *   - `es_channel_basis(seed, out, D)`: fills `out[D]` with the
+ *     deterministic random unit-magnitude complex hypervector
+ *     constructed from `seed` via splitmix64.
+ *
+ * Why complex64 not complex128: a D=65536 hypervector is 1 MB at
+ * complex128 vs 512 KB at complex64. The basis-byte values are
+ * generated from a uniform-2π PRNG — float32 precision is ample for
+ * the basis itself; the consumer can promote to complex128 if any
+ * downstream op needs the extra precision. Phase 2b (the actual HD
+ * encode / observer-bind / eclipse projection) will pick complex64
+ * for in-C state and complex128 for the boundary with Python's
+ * scipy-bound paths.
+ *
+ * The `es_channel_basis` function does NOT divide by sqrt(D). The
+ * Python ref instrument's `_initialize_bases` divides by sqrt(D) at
+ * basis construction; that scaling is applied by the caller in C
+ * when needed (typically by the HD-encode pipeline or the observer-
+ * bind path) to keep the C-side basis primitive minimal.
+ */
+
+typedef struct {
+    float real;
+    float imag;
+} es_complex64_t;
+
+/* Fill `out[D]` with the unit-magnitude complex hypervector
+ * `exp(1j * uniform(0, 2π))` for each element, seeded from `seed`.
+ *
+ * `seed` is the 64-bit splitmix64 seed; the Python side uses
+ * `seed = 2026 + body_index` for the body channel bases, `seed = 9999`
+ * for the topocentric coord basis, `seed = 777` for the syzygy node
+ * basis. (The integer constants are SSOT in the Python ref instrument
+ * and mirrored at the call site, not here.)
+ *
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if `out == NULL`.
+ *
+ * Bit-parity: matches `_research/portable_prng.splitmix64_phases(seed, D)`
+ * followed by `[exp(1j * φ) for φ in phases]` byte-for-byte (modulo
+ * complex64 vs complex128 casting; the float32 truncation is
+ * deterministic).
+ */
+es_status_t es_channel_basis(uint64_t seed,
+                             es_complex64_t *out,
+                             size_t D);
+
+/* ------------------------------------------------------------------ *
  * Version
  * ------------------------------------------------------------------ */
 
@@ -441,8 +498,8 @@ es_status_t es_find_syzygies(double jd_lo,
  */
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 6
-#define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.6.0"
+#define ES_VERSION_PATCH 1
+#define ES_VERSION_STRING "0.6.1"
 
 const char *es_version(void);
 
@@ -469,8 +526,14 @@ const char *es_version(void);
  *     hot path is unchanged — these are net-new entry points. With
  *     no patches active the encode-state output is byte-identical
  *     to v2 (and to the Python BIP encoder).
+ *
+ * v4: v0.6.1 — C/Python parity Tier 2a foundation (channel bases).
+ *     Added: es_complex64_t struct, es_channel_basis. Splitmix64
+ *     PRNG plumbing (es_prng.h, internal). Encoder hot path is
+ *     unchanged. Tier 2b (the actual HD encode + observer-bind +
+ *     eclipse projection) bumps to ABI v5 in v0.7.0.
  */
-#define ES_ABI_VERSION 3
+#define ES_ABI_VERSION 4
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python

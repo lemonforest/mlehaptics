@@ -7,7 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.6.0)
+(no entries yet — next entries land after v0.6.1)
+
+## [0.6.1] — 2026-05-05
+
+**C/Python parity Tier 2a foundation (ABI v4).** Lays the groundwork for the v0.7.0 hyperdimensional-state-in-C work. No bridge surface change; no encoder behaviour change. The `tier2_skip` parity smoke entries stay as-is — phase 2a is the *foundation*, phase 2b (HD encode + observer-bind + eclipse projection) flips them to `parity` in v0.7.0.
+
+### Why a separate phase 2a
+
+Tier 2 needs **byte-identical channel-basis hypervectors** between Py and C. The Python ref instrument was originally seeded via `numpy.random.default_rng(seed).uniform(0, 2π, D)`, which is PCG64-DXSM internally — reproducing that bit-exactly in C is brittle. Switched both sides to **splitmix64** (six lines, identical output across any IEEE-754 platform). The basis byte values change vs v0.6.0 (Python tests don't pin them; non-breaking).
+
+### Added — C surface (ABI v4)
+
+- `c/include/es_prng.h` + `c/src/es_prng.c`: portable splitmix64 PRNG. `es_splitmix64_next(uint64_t *state)`, `es_splitmix64_uniform_2pi(uint64_t u)`. Bit-identical to the Python `_research/portable_prng` module.
+- `c/src/es_channel_bases.c`: `es_channel_basis(seed, out, D)` fills a complex64[D] hypervector deterministically from `seed`.
+- `es_complex64_t` typedef in the public header — `{float real; float imag;}`, 8 bytes, matches numpy's complex64 wire format so consumers can `np.frombuffer` directly.
+
+### Added — Python
+
+- `_research/portable_prng.py`: splitmix64 mirror. Same six lines, same conversion to [0, 2π).
+- `_native_bip.native_channel_basis(seed, D)`: ctypes wrapper returning a `numpy.complex64` array.
+- `tests/test_channel_basis_parity.py`: 10 parity tests pinning byte-identical agreement between Py + C across N=38 body seeds and D ∈ {1024, 65536}, plus splitmix64 standalone parity (first 4 outputs match the canonical Vigna 2013 reference).
+
+### Codegen
+
+`emit_research_modules.py` includes `portable_prng.py`; manifest regenerated.
+
+### Tests
+
+74 active tests pass (was 64 in v0.6.0); 6 skipped (4 cibuildwheel-only + 2 Tier 2b stubs).
+
+### Tier 2 design doc
+
+`TIER2_DESIGN.md` lays out the three-phase delivery plan:
+- **Phase 2a (this release)** — channel-basis foundation: portable PRNG, `es_channel_basis`, parity-pinned. ✅
+- **Phase 2b (v0.7.0)** — `es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`. Bridge dispatch on backend. Parity smoke flips both Tier 2 entries to `parity`.
+- **Phase 2c (v0.7.x)** — research instrument decision: retire matrix-expm path, or keep as `backend="fpu-ref"` for three-way parity.
 
 ## [0.6.0] — 2026-05-05
 
