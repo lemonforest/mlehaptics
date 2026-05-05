@@ -314,8 +314,8 @@ def test_apply_custom_bad_correlation_returns_error() -> None:
 # Catalog visibility
 # ──────────────────────────────────────────────────────────────────────
 
-def test_catalog_lists_six_patches_v041_plus_v052() -> None:
-    """v0.5.2: combined catalog has 3 v1 + 3 v2 entries (LS-fit recovered)."""
+def test_catalog_lists_v041_plus_v052_plus_v055() -> None:
+    """v0.5.5: combined catalog has 3 v1 + 3 v2 (planet) + 5 v2 (moon) entries."""
     out = bridge.list_catalog_patches()
     assert out["ok"] is True
     names = {p["name"] for p in out["patches"]}
@@ -324,10 +324,16 @@ def test_catalog_lists_six_patches_v041_plus_v052() -> None:
         "mars-7.96yr-diagonal",
         "mercury-10.69yr-diagonal",
         "jupiter-saturn-9.56yr-coupled",
-        # v0.5.2 phase-recovered + LS-fit catalog (vindicated >=96% shrinkage).
+        # v0.5.2 phase-recovered + LS-fit catalog (vindicated >=96% shrinkage on planets).
         "mars-7.96yr-diagonal-v2",
         "mercury-10.69yr-diagonal-v2",
         "jupiter-saturn-9.56yr-coupled-v2",
+        # v0.5.5 LS-fit catalog (Phase C: vindicated >=93% shrinkage on moons).
+        "dione-1.06yr-diagonal-v2",
+        "tethys-0.38yr-diagonal-v2",
+        "enceladus-0.39yr-diagonal-v2",
+        "titan-0.69yr-diagonal-v2",
+        "iapetus-0.22yr-diagonal-v2",
     }
     assert names == expected
     # Each entry must carry kind, amplitude, period, notes.
