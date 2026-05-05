@@ -788,22 +788,78 @@ def get_local_view(
     lon: float,
     *,
     kernel: str = "de441",
+    backend: str = "auto",
+    D: int = 4096,
 ) -> Dict[str, Any]:
     """Encode a topocentric view from a geographic position on a body.
 
-    Returns
-    -------
-    dict
-        ``{"ok": True, "jd_tdb": ..., "body": ..., "lat": ..., "lon": ...,
-            "state_interleaved_f32": [...]}``.
+    Parameters
+    ----------
+    backend : {"auto", "bip", "c", "fpu-ref"}, default "auto"
+        ``"bip"`` runs the Python BIP-and-lift HD pipeline (v0.7.0+):
+            BIP integer encode → splitmix64 channel bases → roll + sum.
+        ``"c"`` calls the matching native pipeline. Byte-identical to
+            ``"bip"`` within float-ULP.
+        ``"fpu-ref"`` runs the original FPU complex128 matrix-expm
+            propagation path (`EphemerisHDCInstrument.encode_state`).
+            Different bytes from ``"bip"`` / ``"c"`` (different
+            propagation algorithm); kept for backwards compatibility.
+        ``"auto"`` picks ``"c"`` when the native binary is loaded,
+            otherwise falls back to ``"bip"``.
+    D : int, default 4096
+        HD vector dimension. Only used for ``backend in {"auto","bip","c"}``;
+        the FPU-ref path uses the instrument's configured D.
     """
     for v in (_validate_jd(jd_tdb), _validate_body(body),
-              _validate_lat_lon(lat, lon), _validate_kernel(kernel)):
+              _validate_lat_lon(lat, lon), _validate_kernel(kernel),
+              _validate_backend(backend)):
         if v: return v
+    from ephemerides_spectral import _native_bip
+    chosen = backend
+    if chosen == "auto":
+        chosen = "c" if _native_bip.HAS_NATIVE else "bip"
+    if chosen not in {"bip", "c", "fpu-ref"}:
+        return _err(
+            f"backend must be 'auto'/'bip'/'c'/'fpu-ref', got {backend!r}"
+        )
     try:
-        inst = _get_ref(kernel=kernel)
-        sys_state = inst.encode_state(float(jd_tdb))
-        local = inst.bind_observer(sys_state, body, float(lat), float(lon))
+        if chosen == "fpu-ref":
+            inst = _get_ref(kernel=kernel)
+            sys_state = inst.encode_state(float(jd_tdb))
+            local = inst.bind_observer(sys_state, body, float(lat), float(lon))
+            return {
+                "ok": True,
+                "jd_tdb": float(jd_tdb),
+                "body": body,
+                "lat": float(lat),
+                "lon": float(lon),
+                "kernel": kernel,
+                "backend": "fpu-ref",
+                "D": int(inst.D),
+                "state_interleaved_f32": _interleave_complex(local),
+            }
+        # BIP-and-lift path (Python or C).
+        inst_bip = _get_bip(kernel=kernel)
+        body_idx = inst_bip.body_to_idx[body.lower()]
+        if chosen == "c" and _native_bip.HAS_NATIVE:
+            from ephemerides_spectral._research.bip_instrument import REFERENCE_JD
+            sys_hd = _native_bip.native_encode_state_hd(
+                float(jd_tdb) - REFERENCE_JD, int(D),
+            )
+            local = _native_bip.native_bind_observer(
+                sys_hd, int(body_idx), float(lat), float(lon),
+            )
+            backend_str = "c"
+        else:
+            from ephemerides_spectral._research.bip_hd_lift import (
+                encode_state_hd as _py_encode_state_hd,
+                bind_observer as _py_bind_observer,
+            )
+            phases = inst_bip.encode_state(float(jd_tdb))
+            sys_hd = _py_encode_state_hd(phases, int(D))
+            local = _py_bind_observer(sys_hd, int(body_idx),
+                                      float(lat), float(lon), int(D))
+            backend_str = "bip"
         return {
             "ok": True,
             "jd_tdb": float(jd_tdb),
@@ -811,6 +867,8 @@ def get_local_view(
             "lat": float(lat),
             "lon": float(lon),
             "kernel": kernel,
+            "backend": backend_str,
+            "D": int(D),
             "state_interleaved_f32": _interleave_complex(local),
         }
     except (RuntimeError, ValueError) as exc:
@@ -821,26 +879,74 @@ def get_eclipse_probability(
     jd_tdb: float,
     *,
     kernel: str = "de441",
+    backend: str = "auto",
+    D: int = 4096,
 ) -> Dict[str, Any]:
     """Syzygy probability via spectral alignment with the Syzygy Operator.
+
+    Parameters
+    ----------
+    backend : {"auto", "bip", "c", "fpu-ref"}, default "auto"
+        Same semantics as `get_local_view`.
+    D : int, default 4096
+        HD vector dimension for the BIP-and-lift backends.
 
     Returns
     -------
     dict
-        ``{"ok": True, "jd_tdb": ..., "probability": [0..1]}``.
-        The probability is the magnitude of the inner product between
-        the system state and the Syzygy Operator (Sun/Moon/Node).
+        ``{"ok": True, "jd_tdb": ..., "probability": [0..1], "backend": ...}``.
     """
-    for v in (_validate_jd(jd_tdb), _validate_kernel(kernel)):
+    for v in (_validate_jd(jd_tdb), _validate_kernel(kernel),
+              _validate_backend(backend)):
         if v: return v
+    from ephemerides_spectral import _native_bip
+    chosen = backend
+    if chosen == "auto":
+        chosen = "c" if _native_bip.HAS_NATIVE else "bip"
+    if chosen not in {"bip", "c", "fpu-ref"}:
+        return _err(
+            f"backend must be 'auto'/'bip'/'c'/'fpu-ref', got {backend!r}"
+        )
     try:
-        inst = _get_ref(kernel=kernel)
-        state = inst.encode_state(float(jd_tdb))
-        prob = inst.get_eclipse_probability(state)
+        if chosen == "fpu-ref":
+            inst = _get_ref(kernel=kernel)
+            state = inst.encode_state(float(jd_tdb))
+            prob = inst.get_eclipse_probability(state)
+            return {
+                "ok": True,
+                "jd_tdb": float(jd_tdb),
+                "kernel": kernel,
+                "backend": "fpu-ref",
+                "probability": float(prob),
+            }
+        # BIP-and-lift path.
+        inst_bip = _get_bip(kernel=kernel)
+        sun_idx = inst_bip.body_to_idx["sun"]
+        moon_idx = inst_bip.body_to_idx["moon"]
+        if chosen == "c" and _native_bip.HAS_NATIVE:
+            from ephemerides_spectral._research.bip_instrument import REFERENCE_JD
+            sys_hd = _native_bip.native_encode_state_hd(
+                float(jd_tdb) - REFERENCE_JD, int(D),
+            )
+            prob = _native_bip.native_get_eclipse_probability(
+                sys_hd, int(sun_idx), int(moon_idx),
+            )
+            backend_str = "c"
+        else:
+            from ephemerides_spectral._research.bip_hd_lift import (
+                encode_state_hd as _py_encode_state_hd,
+                eclipse_probability as _py_eclipse_probability,
+            )
+            phases = inst_bip.encode_state(float(jd_tdb))
+            sys_hd = _py_encode_state_hd(phases, int(D))
+            prob = _py_eclipse_probability(sys_hd, int(D),
+                                           int(sun_idx), int(moon_idx))
+            backend_str = "bip"
         return {
             "ok": True,
             "jd_tdb": float(jd_tdb),
             "kernel": kernel,
+            "backend": backend_str,
             "probability": float(prob),
         }
     except (RuntimeError, ValueError) as exc:

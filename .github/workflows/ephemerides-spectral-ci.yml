@@ -41,6 +41,16 @@ on:
 permissions:
   contents: read
 
+# Cancel any older run for the same ref when a newer event fires.
+# Without this, opening a PR with `--label wheel-check` triggers BOTH
+# a `pull_request:opened` event AND a `pull_request:labeled` event,
+# each starting its own workflow run — the older `opened` run wastes
+# minutes computing the same matrix the `labeled` run will produce.
+# Same protection covers the `synchronize` (push to PR) case.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     # 4 cells, always-on. Mirrors chess-spectral's pre-PR shape:

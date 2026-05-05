@@ -127,17 +127,30 @@ PARITY_TARGETS: Dict[str, Dict] = {
             and abs(a["modulation_factor"] - b["modulation_factor"]) < 1e-15
         ),
     },
-    # ── Tier 2 ports (v0.7.0): hyperdimensional state in C ───────────
+    # ── Tier 2b ports (v0.7.0): HD pipeline in C ─────────────────────
     "get_local_view": {
-        "status": "tier2_skip",
-        "tier": 2,
+        "status": "parity",
         "kwargs_py": {"jd_tdb": 2451545.0, "body": "mars",
-                      "lat": 0.0, "lon": 0.0},
+                      "lat": 0.0, "lon": 0.0, "backend": "bip", "D": 4096},
+        "kwargs_c":  {"jd_tdb": 2451545.0, "body": "mars",
+                      "lat": 0.0, "lon": 0.0, "backend": "c", "D": 4096},
+        # Compare interleaved state vector within float-tolerance.
+        # Float32 round-off + 38-body sum accumulation gives a worst-
+        # case ULP order around 1e-5; the tolerance is generous.
+        "compare": lambda a, b: (
+            len(a["state_interleaved_f32"]) == len(b["state_interleaved_f32"])
+            and max(
+                abs(x - y) for x, y in zip(
+                    a["state_interleaved_f32"], b["state_interleaved_f32"]
+                )
+            ) < 1e-5
+        ),
     },
     "get_eclipse_probability": {
-        "status": "tier2_skip",
-        "tier": 2,
-        "kwargs_py": {"jd_tdb": 2451545.0},
+        "status": "parity",
+        "kwargs_py": {"jd_tdb": 2451545.0, "backend": "bip", "D": 4096},
+        "kwargs_c":  {"jd_tdb": 2451545.0, "backend": "c", "D": 4096},
+        "compare": lambda a, b: abs(a["probability"] - b["probability"]) < 1e-7,
     },
     # ── Pure-Python by design (no C path warranted) ──────────────────
     "get_resolution": {

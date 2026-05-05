@@ -488,6 +488,109 @@ es_status_t es_channel_basis(uint64_t seed,
                              size_t D);
 
 /* ------------------------------------------------------------------ *
+ * C/Python parity Tier 2b (v0.7.0, ABI v5) — HD encode + observer-bind
+ * + eclipse projection
+ * ------------------------------------------------------------------ *
+ *
+ * Three new entry points so the FPU-side hyperdimensional surface gets
+ * a `backend="c"` path. The Python-and-C agreement is the BIP-and-lift
+ * pipeline:
+ *
+ *   1. Encode 38 × uint32 phase residues via the existing
+ *      `es_encode_state` (BIP integer encoder).
+ *   2. For each body, lift its phase to the D-dim hypervector by
+ *      rolling the deterministic channel basis (from `es_channel_basis`
+ *      with seed = ES_BODY_BASIS_SEED_BASE + body_idx).
+ *   3. Sum the rolled bases, normalise.
+ *
+ * Observer-bind and eclipse projection are pure HDC algebra (no SPICE,
+ * no skyfield) — same code on both sides modulo language conventions.
+ *
+ * The Python BIP-and-lift path lives in
+ * `_research/bip_hd_lift.py`; the parity smoke test pins the two
+ * paths to within float-ULP. The original FPU matrix-expm path
+ * (`EphemerisHDCInstrument.encode_state`) is kept as `backend=
+ * "fpu-ref"` for backwards compat — it produces a different state
+ * vector (different propagation algorithm) and is NOT C-twinned.
+ */
+
+/* SSOT seeds — mirror `_research/bip_hd_lift` constants. The Python
+ * side uses these same integer values so the channel bases agree
+ * byte-for-byte across both runtimes.
+ */
+#define ES_BODY_BASIS_SEED_BASE        ((uint64_t)2026)
+#define ES_OBSERVER_COORD_BASIS_SEED   ((uint64_t)9999)
+#define ES_SYZYGY_NODE_BASIS_SEED      ((uint64_t)777)
+
+/* Coprime weights for the observer-bind roll. Same as
+ * `ephemeris_reference_instrument.COPRIME_LAT/LON`.
+ */
+#define ES_COPRIME_LAT 67
+#define ES_COPRIME_LON 7
+
+/* Encode the system at delta_t and lift to a D-dim hypervector.
+ *
+ * Calls `es_encode_state` for the 38 × uint32 phase residues, then for
+ * each body rolls its channel basis (seed = ES_BODY_BASIS_SEED_BASE +
+ * body_idx) by `round((phi/2^32) * D) mod D`, divides by sqrt(D), and
+ * sums into `out_state`. Final state is normalised to unit norm.
+ *
+ * `out_state` must have capacity for D `es_complex64_t` entries.
+ *
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if `out_state` is NULL;
+ * propagates failure from `es_encode_state`.
+ */
+es_status_t es_encode_state_hd(double delta_t_days,
+                               es_complex64_t *out_state,
+                               size_t D);
+
+/* Bind a topocentric observer at (lat_deg, lon_deg) on body_idx into
+ * the HD state.
+ *
+ *   lat_res = int((lat + 90)/180 * D) mod D
+ *   lon_res = int((lon + 180)/360 * D) mod D
+ *   coord_op = roll(channel_basis(ES_OBSERVER_COORD_BASIS_SEED, D),
+ *                   (lat_res * ES_COPRIME_LAT + lon_res * ES_COPRIME_LON) mod D)
+ *   observer_op = (body_basis / sqrt(D)) * coord_op
+ *   out[k] = state[k] * observer_op[k] * sqrt(D)
+ *
+ * Pure HDC algebra. No SPICE, no skyfield.
+ *
+ * `out_state` may overlap with `state_in` (in-place is supported).
+ *
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT on NULL ptrs;
+ * ES_ERR_INVALID_INDEX if body_idx >= ES_N_BODIES;
+ * ES_ERR_NON_FINITE_INPUT for NaN/inf lat/lon.
+ */
+es_status_t es_bind_observer(const es_complex64_t *state_in,
+                             size_t body_idx,
+                             double lat_deg,
+                             double lon_deg,
+                             es_complex64_t *out_state,
+                             size_t D);
+
+/* Eclipse probability via the syzygy operator.
+ *
+ *   sun_b   = channel_basis(ES_BODY_BASIS_SEED_BASE + sun_body_idx, D)
+ *   moon_b  = channel_basis(ES_BODY_BASIS_SEED_BASE + moon_body_idx, D)
+ *   node_b  = channel_basis(ES_SYZYGY_NODE_BASIS_SEED, D) / sqrt(D)
+ *   s_op    = (sun_b + moon_b) / sqrt(D) + node_b
+ *   s_op   /= |s_op|
+ *   *out_prob = | <state, s_op> |   (sum-of-conj-product magnitude)
+ *
+ * Body-index resolution (which body is "sun", which is "moon") happens
+ * at the call site — the function doesn't parse names. The Python
+ * bridge resolves them via `es_body_index("sun")` / `("moon")`.
+ *
+ * Returns ES_OK on success; usual error codes for null/oob/non-finite.
+ */
+es_status_t es_get_eclipse_probability(const es_complex64_t *state,
+                                       size_t D,
+                                       size_t sun_body_idx,
+                                       size_t moon_body_idx,
+                                       double *out_prob);
+
+/* ------------------------------------------------------------------ *
  * Version
  * ------------------------------------------------------------------ */
 
@@ -497,9 +600,9 @@ es_status_t es_channel_basis(uint64_t seed,
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 6
-#define ES_VERSION_PATCH 1
-#define ES_VERSION_STRING "0.6.1"
+#define ES_VERSION_MINOR 7
+#define ES_VERSION_PATCH 0
+#define ES_VERSION_STRING "0.7.0"
 
 const char *es_version(void);
 
@@ -532,8 +635,17 @@ const char *es_version(void);
  *     PRNG plumbing (es_prng.h, internal). Encoder hot path is
  *     unchanged. Tier 2b (the actual HD encode + observer-bind +
  *     eclipse projection) bumps to ABI v5 in v0.7.0.
+ *
+ * v5: v0.7.0 — C/Python parity Tier 2b (HD pipeline).
+ *     Added: es_encode_state_hd, es_bind_observer,
+ *     es_get_eclipse_probability + ES_BODY_BASIS_SEED_BASE /
+ *     ES_OBSERVER_COORD_BASIS_SEED / ES_SYZYGY_NODE_BASIS_SEED /
+ *     ES_COPRIME_LAT / ES_COPRIME_LON constants. Encoder hot path
+ *     unchanged. Parity smoke flips both Tier 2 entries from
+ *     `tier2_skip` to `parity` -- every encoder-touching bridge
+ *     method now has a paired C path.
  */
-#define ES_ABI_VERSION 4
+#define ES_ABI_VERSION 5
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python

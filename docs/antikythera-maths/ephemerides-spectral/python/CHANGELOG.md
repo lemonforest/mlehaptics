@@ -10,7 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.6.1)
+(no entries yet — next entries land after v0.7.0)
+
+## [0.7.0] — 2026-05-05
+
+**C/Python parity Tier 2b: HD pipeline in C (ABI v5).** The architectural lift announced in v0.6.1 lands. Three new C entry points (`es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`) plus bridge dispatch on `backend={"auto","bip","c","fpu-ref"}` for `get_local_view` and `get_eclipse_probability`. Parity smoke flips the two `tier2_skip` entries to `parity` — every encoder-touching bridge method now has a paired C path.
+
+### Added
+
+- `bridge.get_local_view(..., backend="auto"|"bip"|"c"|"fpu-ref", D=4096)` and `bridge.get_eclipse_probability(..., backend=..., D=4096)` accept a `backend` param. Result dicts carry a `backend` field.
+- Python `_research/bip_hd_lift` module: `encode_state_hd`, `bind_observer`, `syzygy_operator`, `eclipse_probability`. Pure-Python implementations matching the C entry points.
+- Native wrappers: `_native_bip.native_encode_state_hd`, `native_bind_observer`, `native_get_eclipse_probability`.
+
+### Behaviour change
+
+Default behaviour of `get_local_view` and `get_eclipse_probability` changes from FPU matrix-expm output to BIP-and-lift output. Different algorithms; **different state vectors**. The bridge contract (`{ok, state_interleaved_f32, probability, ...}`) is unchanged. Pass `backend="fpu-ref"` to get pre-v0.7.0 behaviour.
+
+### Tests
+
+- New `tests/test_hd_parity.py` — 8 byte-parity tests Python BIP-and-lift ↔ C.
+- Parity smoke: 22/22 pass; **zero tier_skip entries remaining**.
+
+84 active tests pass; 4 skipped (cibuildwheel-only).
 
 ## [0.6.1] — 2026-05-05
 

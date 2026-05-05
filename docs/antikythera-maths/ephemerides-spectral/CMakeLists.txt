@@ -41,6 +41,7 @@ add_library(ephemerides_spectral SHARED
     c/src/es_parity.c
     c/src/es_prng.c
     c/src/es_channel_bases.c
+    c/src/es_hd_state.c
 )
 target_include_directories(ephemerides_spectral PUBLIC c/include)
 target_link_libraries(ephemerides_spectral PRIVATE ${ES_MATH_LIB})

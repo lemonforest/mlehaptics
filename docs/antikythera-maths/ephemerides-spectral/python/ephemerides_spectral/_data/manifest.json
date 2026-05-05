@@ -8,6 +8,10 @@
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
       "size_bytes": 318
     },
+    "_research/bip_hd_lift.py": {
+      "sha256": "f43f919048a29205ad36b8238fffde89723f65e2c67161bb7a52d69798fad709",
+      "size_bytes": 8153
+    },
     "_research/bip_instrument.py": {
       "sha256": "073e344d431b0a929d7610cdc63fe82d315f4886fd3155b2a2d21af4e1641249",
       "size_bytes": 25487
@@ -46,5 +50,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.6.1"
+  "version": "0.7.0"
 }
