@@ -10,7 +10,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.3)
+(no entries yet — next entries land after v0.5.4)
+
+## [0.5.4] — 2026-05-05
+
+**Sol Uranian Time (SUT)** — third planetary time system, alongside Mars Sol Date / Mars Coordinated Time and lunar synodic / sidereal phase. Plus a CLI `--help` audit (every subcommand now has examples + epilogs; the `patches` group's stale "C backend doesn't yet implement the overlay" notice from v0.4.0 is replaced with the v0.5.2 catalog-V2 reality).
+
+### Added — Sol Uranian Time
+
+- `research/time_scales.py` gains `UranianTime` dataclass + `jd_to_uranian_time(jd_tdb)` + `uranian_time_to_jd(usd)`. Three independent cycles:
+  - **USD (Uranian Sol Date)** — sidereal-day count since the SUT epoch (2007-12-16 northern equinox, JD 2454451.0). 1 USD = 17.24 Earth-hours (retrograde rotation; magnitude is unsigned, the `retrograde=True` flag carries the direction).
+  - **SUT (Sol Uranian Time)** — time-of-day at Uranus's prime meridian, 0–24 hours. 1 Uranian hour ≈ 43.1 Earth-minutes.
+  - **Orbital phase + season** — Uranus's 84.02-yr orbit partitioned into 4 ~21-yr seasons. Anchored at the 2007 northern equinox. Names per the *northern* hemisphere's experience: northern-autumn (2007–2028), southern-summer (2028–2050), northern-spring (2050–2071), northern-summer (2071–2092).
+- `bridge.jd_to_sol_uranian_time(jd_tdb)` and `bridge.sol_uranian_time_to_jd(usd)`. Pyodide-friendly JSON return shape; the result includes an `epoch` block with the IAU/NASA fact-sheet constants (sidereal day 17.24 h, orbital period 84.02 yr, axial tilt 97.77°).
+- CLI `ephemerides-spectral time-uranus --jd ...` (or `--usd ...` to invert). Full `--help` epilog with examples.
+
+### Why "Sol" prefix matters
+
+The natural-harmonic framing (notebook §6, §7): Uranus's three independent cycles (sidereal day, solar day, orbital season) don't share clean coprime structure with anything else in the Sol Star System — Uranus doesn't participate in any wired RESONANCES entry, and its orbital period (84 yr) isn't an integer multiple of any nearby body's. **Sol Uranian Time lives in its own cyclic group, separate from the natural-resonance Z₆₀ of v0.5.0**. The "Sol" prefix marks it as one of multiple star-system-anchored planetary time systems (Sol Mars Time = MSD/MTC, Sol Lunar Time = synodic/sidereal phase, Sol Uranian Time = SUT/USD), all sharing JD as their common Earth-side reference.
+
+### CLI `--help` audit
+
+Every subcommand has been touched. Material updates:
+
+- `patches` parent description corrected to reflect v0.4.1 + v0.5.2 (was: "C native backend doesn't yet implement the overlay" — outdated).
+- `patches catalog` epilog now lists all 6 catalog entries (3 v0.4.0 magnitude-only + 3 v0.5.2 LS-fit `-v2` with measured shrinkage% per entry).
+- `patches active`, `patches apply --name ...`, `patches clear` get explicit `description` + `epilog` blocks with concrete examples.
+- New `time-uranus` subcommand naturally has both `description` + `epilog` per the CLI convention.
+
+### Tests
+
+6 new tests in `test_immolation.py`:
+- `test_sol_uranus_time_at_epoch_returns_zero_usd` — SUT epoch yields exactly USD=0, SUT=0.0 hr, season=northern-autumn.
+- `test_sol_uranus_time_round_trip` — JD → USD → JD round-trips to within ULP.
+- `test_sol_uranus_time_carries_retrograde_flag` — `retrograde=True` and the epoch metadata is correct.
+- `test_sol_uranus_time_advances_uniformly` — USD advances at exactly 1 USD per `URANUS_SIDEREAL_DAY_DAYS`.
+- `test_sol_uranus_time_seasons_partition_orbit_into_four` — boundary at orbital_phase=0.25 transitions from northern-autumn to southern-summer.
+- `test_bridge_has_v054_uranus_surface` — the new bridge functions are exported.
+
+27 active tests pass total (was 21 in v0.5.3); 18 skipped (cibuildwheel-only native parity).
+
+### Notes
+
+- The function names follow Python adjective-form convention: `jd_to_uranian_time` (mirrors `jd_to_lunar`), `bridge.jd_to_sol_uranian_time`. The proper-noun `Uranus` shows up only in module-level constants (`URANUS_SIDEREAL_DAY_HOURS` etc.) where it identifies the body itself.
+- Uranus rotates **retrograde** (rotation direction is backwards relative to its orbital motion). v0.5.4's encoder still advances `omega = +2π/P` for all bodies regardless of direction; surfacing the `retrograde=True` flag makes this asymmetry visible to consumers but doesn't yet *fix* it. Phoebe's continued ~104° RMS in the v0.5.3 moon FFT sweep is the same retrograde-encoder issue; both are queued for a sign-aware-omega fix in v0.5.x.
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.5.4 entry.
 
 ## [0.5.3] — 2026-05-05
 

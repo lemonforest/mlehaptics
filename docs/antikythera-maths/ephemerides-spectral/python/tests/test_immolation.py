@@ -68,6 +68,16 @@ def test_bridge_has_v030_surface() -> None:
     assert not missing, f"missing v0.3.0 surface in bridge.__all__: {missing}"
 
 
+def test_bridge_has_v054_uranus_surface() -> None:
+    """The v0.5.4 Sol Uranus Time surface must be present."""
+    expected = {
+        "jd_to_sol_uranian_time",
+        "sol_uranian_time_to_jd",
+    }
+    missing = expected - set(bridge.__all__)
+    assert not missing, f"missing v0.5.4 surface in bridge.__all__: {missing}"
+
+
 def test_natural_resonance_group_returns_z60() -> None:
     """v0.5.0 seven-resonance set yields Z_60 = Z_4 × Z_3 × Z_5.
 
@@ -92,3 +102,68 @@ def test_mars_time_round_trip_at_reference() -> None:
     inverse = bridge.mars_time_to_jd(forward["msd"])
     assert inverse["ok"] is True
     assert abs(inverse["jd_utc"] - 2451549.5) < 1e-9
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Uranus Time (v0.5.4)
+# ──────────────────────────────────────────────────────────────────────
+
+def test_sol_uranus_time_at_epoch_returns_zero_usd() -> None:
+    """At the SUT epoch (2007 northern equinox, JD 2454451.0) the
+    Uranian Sol Date should be exactly zero, the SUT time-of-day
+    should be exactly 0.0 hours, and the orbital phase should be 0.0
+    (the start of the season cycle)."""
+    out = bridge.jd_to_sol_uranian_time(2454451.0)
+    assert out["ok"] is True
+    assert abs(out["usd"]) < 1e-9
+    assert abs(out["sut_hours"]) < 1e-9
+    assert abs(out["orbital_phase"]) < 1e-9
+    assert out["season"] == "northern-autumn"
+    assert out["retrograde"] is True
+
+
+def test_sol_uranus_time_round_trip() -> None:
+    """JD → USD → JD must round-trip to within ULP."""
+    jd = 2451545.0  # J2000
+    fwd = bridge.jd_to_sol_uranian_time(jd)
+    assert fwd["ok"] is True
+    inv = bridge.sol_uranian_time_to_jd(fwd["usd"])
+    assert inv["ok"] is True
+    assert abs(inv["jd_tdb"] - jd) < 1e-6
+
+
+def test_sol_uranus_time_carries_retrograde_flag() -> None:
+    """Uranus rotates retrograde; the result must surface that fact."""
+    out = bridge.jd_to_sol_uranian_time(2451545.0)
+    assert out["retrograde"] is True
+    # And the epoch metadata must surface the axial tilt + period.
+    epoch = out["epoch"]
+    assert epoch["sidereal_day_hours"] == 17.24
+    assert abs(epoch["orbital_period_years"] - 84.0205) < 0.01
+    assert epoch["axial_tilt_deg"] == 97.77
+    assert epoch["season_names"] == [
+        "northern-autumn", "southern-summer",
+        "northern-spring", "northern-summer",
+    ]
+
+
+def test_sol_uranus_time_advances_uniformly() -> None:
+    """USD should advance uniformly: dt = sidereal_day_days for 1 USD."""
+    epoch = 2454451.0
+    sidereal_day_d = 17.24 / 24.0
+    out0 = bridge.jd_to_sol_uranian_time(epoch + 1.0 * sidereal_day_d)
+    assert abs(out0["usd"] - 1.0) < 1e-9
+    out1 = bridge.jd_to_sol_uranian_time(epoch + 100.0 * sidereal_day_d)
+    assert abs(out1["usd"] - 100.0) < 1e-9
+
+
+def test_sol_uranus_time_seasons_partition_orbit_into_four() -> None:
+    """Four seasons span the orbit; the boundary at orbital_phase=0.25
+    transitions from northern-autumn to southern-summer."""
+    epoch = 2454451.0
+    P_orbital = 30688.5
+    quarter = P_orbital / 4
+    out_q1 = bridge.jd_to_sol_uranian_time(epoch + quarter * 0.99)
+    out_q2 = bridge.jd_to_sol_uranian_time(epoch + quarter * 1.01)
+    assert out_q1["season"] == "northern-autumn"
+    assert out_q2["season"] == "southern-summer"

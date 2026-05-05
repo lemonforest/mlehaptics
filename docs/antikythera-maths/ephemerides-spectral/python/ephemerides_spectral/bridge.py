@@ -48,9 +48,16 @@ from ephemerides_spectral._research.bodies import BODIES
 from ephemerides_spectral._research.laplacian import RESONANCES
 from ephemerides_spectral._research.time_scales import (
     DEFAULT_LEAP_SECONDS,
+    URANIAN_SEASONS,
+    URANUS_AXIAL_TILT_DEG,
+    URANUS_ORBITAL_PERIOD_YEARS,
+    URANUS_SIDEREAL_DAY_HOURS,
+    SUT_EPOCH_JD_TDB,
     jd_to_lunar,
     jd_to_msd,
+    jd_to_uranian_time,
     msd_to_jd,
+    uranian_time_to_jd,
 )
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
@@ -376,6 +383,77 @@ def mars_time_to_jd(msd: float,
         "msd": f,
         "jd_utc": float(jd_utc),
         "leap_seconds": int(leap_seconds),
+    }
+
+
+def jd_to_sol_uranian_time(jd_tdb: float) -> Dict[str, Any]:
+    """Convert JD (TDB) → Sol Uranian Time (USD + SUT) + orbital season state.
+
+    The third planetary time system in the package alongside Mars Sol Date
+    (Allison & McEwen 2000) and lunar synodic / sidereal phase. Uranus's
+    "natural harmonic" pairs three independent cycles:
+
+    1. **Uranian Sol Date (USD)** — count of mean Uranian sidereal days
+       since the SUT epoch (2007-12-16 northern equinox). One Uranian
+       sidereal day = 17.24 h (retrograde rotation; we carry magnitude
+       + a ``retrograde=True`` flag).
+    2. **Sol Uranian Time (SUT)** — fractional part of USD expressed as
+       hours [0, 24) at Uranus's prime meridian. One Uranian hour
+       = 17.24 / 24 ≈ 43.1 Earth-minutes.
+    3. **Orbital phase + season** — Uranus's 84.02-yr orbit partitioned
+       into 4 equal seasons (~21 yr each). Anchored at the 2007 northern
+       equinox; named per the configuration the *northern* hemisphere
+       experiences.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian Date in TDB. Use ``REFERENCE_JD = 2451545.0`` for J2000.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_tdb": ..., "usd": ..., "sut_hours": ...,
+        "sut_seconds": ..., "orbital_phase": ..., "season": ...,
+        "years_since_epoch": ..., "retrograde": True,
+        "epoch": {"description": "Uranus 2007 northern equinox",
+                  "jd_tdb": 2454451.0, "axial_tilt_deg": 97.77}}``.
+    """
+    err = _validate_jd(jd_tdb)
+    if err is not None:
+        return err
+    sut = jd_to_uranian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **sut.to_dict(),
+        "epoch": {
+            "description": "Uranus 2007 northern equinox",
+            "jd_tdb": float(SUT_EPOCH_JD_TDB),
+            "sidereal_day_hours": float(URANUS_SIDEREAL_DAY_HOURS),
+            "orbital_period_years": float(URANUS_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(URANUS_AXIAL_TILT_DEG),
+            "season_names": list(URANIAN_SEASONS),
+        },
+    }
+
+
+def sol_uranian_time_to_jd(usd: float) -> Dict[str, Any]:
+    """Inverse of :func:`jd_to_sol_uranian_time` for the ``usd`` field.
+
+    Returns ``JD_TDB``. The orbital-season layer is uniquely determined
+    by ``usd × URANUS_SIDEREAL_DAY_DAYS / URANUS_ORBITAL_PERIOD_DAYS``
+    given the SUT epoch — no information loss.
+    """
+    try:
+        f = float(usd)
+    except (TypeError, ValueError):
+        return _err(f"usd must be a number, got {type(usd).__name__}")
+    if not math.isfinite(f):
+        return _err(f"usd must be finite, got {f}")
+    return {
+        "ok": True,
+        "usd": f,
+        "jd_tdb": float(uranian_time_to_jd(f)),
     }
 
 
@@ -1114,6 +1192,8 @@ __all__ = [
     "get_breathing_modulation",
     "jd_to_mars_time",
     "mars_time_to_jd",
+    "jd_to_sol_uranian_time",
+    "sol_uranian_time_to_jd",
     "get_lunar_phase",
     "get_natural_resonance_group",
     "find_syzygies",
