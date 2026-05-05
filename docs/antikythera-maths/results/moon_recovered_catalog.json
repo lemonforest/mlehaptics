@@ -1,0 +1,110 @@
+{
+  "cadence_days": 30.0,
+  "method": "lsq",
+  "n_samples": 4096,
+  "patches": {
+    "dione-1.06yr-diagonal": {
+      "_diagnostic": {
+        "amplitude_deg": 3.5738212651958574,
+        "cancellation_phase_rad": 1.502695267428976,
+        "fit_phase_rad": 4.644287921018769,
+        "initial_amplitude_deg": 2.458757172223542,
+        "method": "scipy.curve_fit",
+        "period_days": 387.0395162600779,
+        "search_window_days": 60.0
+      },
+      "amplitude_deg": 3.5738212651958574,
+      "body": "dione",
+      "fft_baseline_amp_deg": 1.1678,
+      "kind": "sinusoid",
+      "period_days": 387.0395162600779,
+      "phase_rad": 1.502695267428976
+    },
+    "enceladus-0.39yr-diagonal": {
+      "_diagnostic": {
+        "amplitude_deg": 3.575126820765172,
+        "cancellation_phase_rad": 1.3155984165358836,
+        "fit_phase_rad": 4.457191070125677,
+        "initial_amplitude_deg": 3.158532707470778,
+        "method": "scipy.curve_fit",
+        "period_days": 141.9444320565557,
+        "search_window_days": 60.0
+      },
+      "amplitude_deg": 3.575126820765172,
+      "body": "enceladus",
+      "fft_baseline_amp_deg": 1.5196,
+      "kind": "sinusoid",
+      "period_days": 141.9444320565557,
+      "phase_rad": 1.3155984165358836
+    },
+    "hyperion-0.20yr-diagonal": {
+      "_diagnostic": {
+        "amplitude_deg": 11.645871055359413,
+        "cancellation_phase_rad": 0.9629349446966975,
+        "fit_phase_rad": 4.104527598286491,
+        "initial_amplitude_deg": 8.273832592396536,
+        "method": "scipy.curve_fit",
+        "period_days": 72.41877795595671,
+        "search_window_days": 60.0
+      },
+      "amplitude_deg": 11.645871055359413,
+      "body": "hyperion",
+      "fft_baseline_amp_deg": 5.4392,
+      "kind": "sinusoid",
+      "period_days": 72.41877795595671,
+      "phase_rad": 0.9629349446966975
+    },
+    "iapetus-0.22yr-diagonal": {
+      "_diagnostic": {
+        "amplitude_deg": 3.2635505493530177,
+        "cancellation_phase_rad": 3.672494748667922,
+        "fit_phase_rad": 0.5309020950781285,
+        "initial_amplitude_deg": 1.1755398889670003,
+        "method": "scipy.curve_fit",
+        "period_days": 79.33602060907299,
+        "search_window_days": 60.0
+      },
+      "amplitude_deg": 3.2635505493530177,
+      "body": "iapetus",
+      "fft_baseline_amp_deg": 1.5758,
+      "kind": "sinusoid",
+      "period_days": 79.33602060907299,
+      "phase_rad": 3.672494748667922
+    },
+    "tethys-0.38yr-diagonal": {
+      "_diagnostic": {
+        "amplitude_deg": 3.57332459720122,
+        "cancellation_phase_rad": 1.1054085019605644,
+        "fit_phase_rad": 4.2470011555503575,
+        "initial_amplitude_deg": 3.1991742280782054,
+        "method": "scipy.curve_fit",
+        "period_days": 138.23989218054535,
+        "search_window_days": 60.0
+      },
+      "amplitude_deg": 3.57332459720122,
+      "body": "tethys",
+      "fft_baseline_amp_deg": 1.7511,
+      "kind": "sinusoid",
+      "period_days": 138.23989218054535,
+      "phase_rad": 1.1054085019605644
+    },
+    "titan-0.69yr-diagonal": {
+      "_diagnostic": {
+        "amplitude_deg": 3.3129932488796623,
+        "cancellation_phase_rad": 0.29291903654068463,
+        "fit_phase_rad": 3.4345116901304773,
+        "initial_amplitude_deg": 3.24674565193214,
+        "method": "scipy.curve_fit",
+        "period_days": 252.74176415670908,
+        "search_window_days": 60.0
+      },
+      "amplitude_deg": 3.3129932488796623,
+      "body": "titan",
+      "fft_baseline_amp_deg": 1.5645,
+      "kind": "sinusoid",
+      "period_days": 252.74176415670908,
+      "phase_rad": 0.29291903654068463
+    }
+  },
+  "window": "moon-friendly (\u00b1200 yr, 30 d cadence)"
+}

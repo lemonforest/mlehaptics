@@ -167,3 +167,57 @@ def test_sol_uranus_time_seasons_partition_orbit_into_four() -> None:
     out_q2 = bridge.jd_to_sol_uranian_time(epoch + quarter * 1.01)
     assert out_q1["season"] == "northern-autumn"
     assert out_q2["season"] == "southern-summer"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.5.5 — moon catalog patches (Phase C)
+# ──────────────────────────────────────────────────────────────────────
+
+_V055_MOON_PATCHES = (
+    "dione-1.06yr-diagonal-v2",
+    "tethys-0.38yr-diagonal-v2",
+    "enceladus-0.39yr-diagonal-v2",
+    "titan-0.69yr-diagonal-v2",
+    "iapetus-0.22yr-diagonal-v2",
+)
+
+
+def test_v055_moon_patches_present_in_catalog() -> None:
+    """The 5 vindicated moon patches must appear in the bundled catalog."""
+    out = bridge.list_catalog_patches()
+    assert out["ok"] is True
+    catalog_names = {p["name"] for p in out["patches"]}
+    for name in _V055_MOON_PATCHES:
+        assert name in catalog_names, f"missing {name} from bundled catalog"
+
+
+def test_v055_moon_patches_carry_measured_shrinkage() -> None:
+    """Each v0.5.5 moon patch's notes string must pin its measured
+    shrinkage% — the same regression-test gate the v0.5.2 planet
+    patches carry."""
+    out = bridge.list_catalog_patches()
+    by_name = {p["name"]: p for p in out["patches"]}
+    for name in _V055_MOON_PATCHES:
+        notes = by_name[name].get("notes", "")
+        assert "MEASURED SHRINKAGE" in notes, (
+            f"{name} missing measured-shrinkage gate in notes"
+        )
+        assert "Phase C" in notes, f"{name} missing Phase C provenance"
+
+
+def test_v055_moon_patches_apply_and_clear() -> None:
+    """Each v0.5.5 moon patch must apply via the bridge and clear cleanly."""
+    bridge.clear_patches()
+    try:
+        for name in _V055_MOON_PATCHES:
+            applied = bridge.apply_patch(name)
+            assert applied["ok"] is True, f"apply {name} failed: {applied}"
+        active = bridge.list_active_patches()
+        active_names = {p["name"] for p in active["patches"]}
+        for name in _V055_MOON_PATCHES:
+            assert name in active_names
+        cleared = bridge.clear_patches()
+        assert cleared["ok"] is True
+        assert cleared["cleared"] >= len(_V055_MOON_PATCHES)
+    finally:
+        bridge.clear_patches()

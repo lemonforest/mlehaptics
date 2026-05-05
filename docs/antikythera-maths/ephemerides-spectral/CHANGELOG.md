@@ -7,7 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.4)
+(no entries yet — next entries land after v0.5.5)
+
+## [0.5.5] — 2026-05-05
+
+**Moon catalog patches (Phase C).** Five LS-fit-vindicated moon patches join `CATALOG_V2`. With the v0.5.3 high-precision sidereal periods removing the dominant secular drift, the residual moon spectrum is now decomposable into clean dominant peaks — exactly the regime where the v0.5.2 LS-fit methodology earns its 96-99% shrinkage on planets.
+
+### Added — `CATALOG_V2` (5 entries)
+
+Each carries `MEASURED SHRINKAGE` in its `notes` field (the v0.5.2 regression-test convention):
+
+| name | body | period | amp | shrinkage | RMS Δ |
+|---|---|---:|---:|---:|---:|
+| `dione-1.06yr-diagonal-v2` | dione | 387.04 d | 3.57° | **98.2%** | 2.535° → 0.199° |
+| `tethys-0.38yr-diagonal-v2` | tethys | 138.24 d | 3.57° | **93.8%** | 2.944° → 1.511° |
+| `enceladus-0.39yr-diagonal-v2` | enceladus | 141.94 d | 3.58° | **98.9%** | 2.569° → 0.458° |
+| `titan-0.69yr-diagonal-v2` | titan | 252.74 d | 3.31° | **95.5%** | 3.388° → 2.447° |
+| `iapetus-0.22yr-diagonal-v2` | iapetus | 79.34 d | 3.26° | **98.6%** | 2.497° → 0.954° |
+
+LS-fit recovered amplitudes are 2-3× the FFT-bin baselines — same bin-leakage pattern that v0.5.2 documented on planets, vindicating the methodology a second time on a completely different bodyset.
+
+### Hyperion: PARTIAL (75.2%, single sinusoid not enough)
+
+The Hyperion `0.20yr-diagonal` patch shrinks the targeted 72.4-d peak by 75.2% (5.44° → 1.35°), shy of the 80% catalog gate. Hyperion is the canonical chaotic-rotator (Wisdom 1984); its FFT shows multiple sub-peaks near 72d (rank 1 at 5.44°, rank 3 at 1.39°, rank 5 at 1.30°) — the quasiperiodic-not-sinusoidal signature. A single LS-fit sinusoid hits the methodological ceiling there. **Queued as v0.5.x research:** either a multi-component patch (the v0.5.2 multi-bin idea, now motivated by physics not bin leakage) or a coupled Titan-Hyperion 4:3 patch (v0.5.0 wired the resonance into `RESONANCES` but never calibrated the coupling strength). Hyperion stays out of `CATALOG_V2` until one of those passes the 80% bar.
+
+### Added — research scripts
+
+- `research/author_moon_patches.py` — moon-targeted LS-fit author. Reuses `_lsq_fit_sinusoid` from the planet author; uses the moon-friendly window (4096 × 30d) so the supplementary `jup365` / `sat441` kernels cover the FFT span.
+- `research/verify_moon_patches.py` — patch-shrinks-residual verifier. 7 sweeps (1 baseline + 6 patches); the verdict gate matches the v0.5.2 planet path.
+- `research/de441_moon_spectrum.gather_moon_residuals(...)` — extracted from `run_moon_spectrum` so both author + verify share the residual-gathering loop without re-emitting FFT structure each time.
+
+### Outputs
+
+- `results/moon_recovered_catalog.json` — recovered patch params per target.
+- `results/verify_moon_patches.{json,md}` — measured shrinkage per patch.
+- `figures/moon_catalog_patches_v0.5.5.md` — narrative writeup of the methodology second-vindication.
+
+### Tests
+
+3 new immolation tests for the v0.5.5 moon-patch surface:
+- `test_v055_moon_patches_present_in_catalog` — all 5 entries reachable via `bridge.list_catalog_patches`.
+- `test_v055_moon_patches_carry_measured_shrinkage` — each entry's `notes` includes the `MEASURED SHRINKAGE` regression-test gate + Phase C provenance.
+- `test_v055_moon_patches_apply_and_clear` — full apply/active/clear round-trip via the bridge surface.
+
+44 active tests pass on the v0.5.5 build (was 41 in v0.5.4); 4 skipped (cibuildwheel-only native parity).
+
+### Notes
+
+- Phase C completes the v0.5.x moon programme (Phase A diagnosis → Phase B period fix → Phase C catalog patches). The remaining 4 unfixed moons (metis / thebe / rhea / phoebe) are physics-specific — Phoebe needs a sign-aware retrograde encoder, Metis needs an authoritative period, Thebe + Rhea look perturbation-driven. None of those gate Phase C.
+- The methodology is now **vindicated twice** on completely independent body sets: v0.5.2 planets (4 patches at 96-99%), v0.5.5 moons (5 patches at 93-99%). Bin leakage applies the same way (LS-fit amps 2-3× the FFT-bin baselines) on bodies orbiting the Sun and bodies orbiting Saturn.
 
 ## [0.5.4] — 2026-05-05
 

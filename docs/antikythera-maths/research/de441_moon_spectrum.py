@@ -39,7 +39,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -51,6 +51,14 @@ from research.de441_error_spectrum import (
 )
 from research.bip_instrument import EphemerisBIPInstrument, MODULO, REFERENCE_JD
 from research.bodies import BODIES
+
+__all__ = [
+    "N_SAMPLES_MOONS",
+    "CADENCE_DAYS_MOONS",
+    "gather_moon_residuals",
+    "run_moon_spectrum",
+    "main",
+]
 
 try:
     from ephemerides_spectral import _native_bip
@@ -64,16 +72,30 @@ N_SAMPLES_MOONS: int = 4096
 CADENCE_DAYS_MOONS: float = 30.0
 
 
-def run_moon_spectrum(
+def gather_moon_residuals(
     n_samples: int = N_SAMPLES_MOONS,
     cadence_days: float = CADENCE_DAYS_MOONS,
-) -> Dict:
-    """Run the FFT sweep with the moon-friendly window.
+) -> Tuple[Dict[str, np.ndarray], np.ndarray, EphemerisBIPInstrument, float, bool]:
+    """Encode the system over the moon-friendly window and return raw
+    per-body angular-residual arrays.
 
-    Same FFT pipeline as `de441_error_spectrum.run_spectrum`, but
-    without the 90% coverage filter — bodies with ANY valid samples
-    are FFT'd over the valid subset (NaN-filled samples are ignored
-    via detrending + zero-fill).
+    Used by `run_moon_spectrum` for the FFT pipeline AND by
+    `author_moon_patches` / `verify_moon_patches` for time-domain
+    LS-fitting at targeted moon residual peaks.
+
+    Returns
+    -------
+    errors : Dict[str, np.ndarray]
+        Per-body signed angular residual (rad). NaN where the body
+        is out of the auxiliary kernel's coverage window at that JD.
+    jd_grid : np.ndarray
+        The JD sample grid (length n_samples).
+    inst : EphemerisBIPInstrument
+        The configured instrument (carries body_to_idx + bundle).
+    elapsed : float
+        Encode + truth-lookup wall-clock seconds.
+    use_native : bool
+        Whether the C native encoder was available.
     """
     inst = EphemerisBIPInstrument(
         D=2**12, kernel="de441", force_high_res=True,
@@ -119,6 +141,25 @@ def run_moon_spectrum(
     elapsed = time.perf_counter() - t0
     print(f"  encode + truth lookup: {elapsed:.1f}s "
           f"({elapsed*1000/n_samples:.1f} ms/sample)", flush=True)
+
+    return errors, jd_grid, inst, elapsed, use_native
+
+
+def run_moon_spectrum(
+    n_samples: int = N_SAMPLES_MOONS,
+    cadence_days: float = CADENCE_DAYS_MOONS,
+) -> Dict:
+    """Run the FFT sweep with the moon-friendly window.
+
+    Same FFT pipeline as `de441_error_spectrum.run_spectrum`, but
+    without the 90% coverage filter — bodies with ANY valid samples
+    are FFT'd over the valid subset (NaN-filled samples are ignored
+    via detrending + zero-fill).
+    """
+    errors, _jd_grid, inst, elapsed, use_native = gather_moon_residuals(
+        n_samples=n_samples, cadence_days=cadence_days,
+    )
+    bundle = inst.bundle
 
     # FFT per body. Lower the coverage threshold from 90% to 50% so
     # bodies with shorter aux-kernel windows still show up — but mark
@@ -172,7 +213,7 @@ def run_moon_spectrum(
         "kernel_requested": "de441",
         "kernel_actual": bundle.kernel_name,
         "auxiliary_kernels": bundle.extra_kernel_names,
-        "n_bodies": len(bodies),
+        "n_bodies": len(errors),
         "n_samples": n_samples,
         "cadence_days": cadence_days,
         "span_years": float(n_samples * cadence_days / 365.25),
