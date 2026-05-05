@@ -2,7 +2,7 @@
 
 **Authors:** Gemini CLI (initial scaffolding); Steven Kirkland & Claude Opus (Phase 9 ALU-native)
 **Date:** May 2026 (initial); finalised April 2026
-**Status:** Phase 5–9 implemented; CLI + bridge surface stable; runtime kernel patching shipped (Python overlay v0.4.0; C-side ABI v2 v0.4.1); body roster expanded to 38 (v0.5.0 — Galileans + classical Saturnians + Jovian inner regulars + Janus / Epimetheus); SPICE-free runtime (v0.5.0); **patch-shrinks-residual benchmark VINDICATED on planets** via least-squares fitting (v0.5.2 — Mars 99.2%, Mercury 99.9%, Jupiter 97.6%, Saturn 96.0%); high-precision moon periods (v0.5.3 — 13 of 17 moons fixed); Sol Uranian Time as the third planetary time system (v0.5.4); **moon catalog patches VINDICATED** (v0.5.5 — 5 of 6 moon targets at 93-99% shrinkage); **C/Python parity Tier 1** (v0.6.0 — ABI v3; `find_syzygies` + `get_breathing_modulation` C twins + always-on parity smoke); **Tier 2a foundation** (v0.6.1 — ABI v4; portable splitmix64 PRNG + `es_channel_basis` byte-identical Py↔C); **Tier 2b — full HD pipeline in C** (v0.7.0 — ABI v5; `es_encode_state_hd` + `es_bind_observer` + `es_get_eclipse_probability`; **every encoder-touching bridge method now has a paired C path; zero `tier_skip` entries in the parity smoke**). **v0.7.0 shipped to PyPI on 2026-05-05** — `pip install ephemerides-spectral`.
+**Status:** v0.11.1 (current). Living modular package. Headline state: 38-body roster (v0.5.0 — Galileans + classical Saturnians + Jovian inner regulars + Janus / Epimetheus); SPICE-free runtime (v0.5.0); **patch-shrinks-residual benchmark VINDICATED on planets** (v0.5.2 — Mars 99.2 %, Mercury 99.9 %, Jupiter 97.6 %, Saturn 96.0 %) and **on moons** (v0.5.5 — 5 of 6 targets 93–99 %); **C/Python parity** Tier 1 + Tier 2a + Tier 2b complete (v0.6.0 / v0.6.1 / v0.7.0 — every encoder-touching bridge method has a paired C path, zero `tier_skip` entries). **Sol Symphony Times** (v0.8.0 — Mercury / Venus / Mars / Jupiter / Saturn / Uranus / Neptune / Pluto / Sol); **ITN pathway find-tubes** (v0.8.1); **body-identity rename** Earth→Terra / Moon→Luna (v0.9.0 BREAKING) and **Sol Time naming overhaul** (v0.9.1 — Latin proper nouns for rocky bodies + Sun + Luna; adjective forms for gas/ice giants); **CLI `adaptive` synonym** for the breathing/Phase-9 LUT (v0.9.2 — matches Gross & Blasius adaptive-networks vocabulary). **STLT — Sol Terra-Luna Time** (v0.10.0 — first Sol Time member with a non-J2000 default epoch; Meton's 432 BCE summer solstice; see §7.4). **SPrT — Sol Proper Time** (v0.11.0 — gravitational + orbital-kinematic time dilation, applied transparently via `--proper` on every `time-*` subcommand; six published validations to 0.30 %; see §7.5). v0.11.1 (this notebook revision) backfills §7.4 and §7.5 + refreshes this Status banner. **Live on PyPI**: `pip install ephemerides-spectral`.
 
 > Living document. Sibling to:
 > - [./antikythera_spectral_research_notebook.md](./antikythera_spectral_research_notebook.md) — **same-folder sibling.** Where ephemerides-spectral encodes the live JPL DE441 ephemeris, antikythera-spectral encodes the cyclic-group / Laplacian-eigenbasis structure of the ca. 150–60 BCE bronze mechanism. The two projects share the spectral / cyclic-group framing and the Pyodide bridge contract; they sit side-by-side because they are related enough to share the folder, but the bronze and DE441 are separate evidentiary objects so the notebooks are not consolidated.
@@ -115,6 +115,11 @@ The prototype successfully:
 
 ## 4. Release History
 
+* **v0.11.1** — 2026-05-05. **Research notebook hygiene: backfill §7.4 (STLT) and §7.5 (SPrT) sections that landed without their notebook coverage in v0.10.0 and v0.11.0; refresh the Status banner; add v0.9.2 → v0.11.1 entries to Release History.** Documentation-only release; no API surface change. Triggered by the user noticing that v0.10.0 and v0.11.0 shipped without their notebook sections — the freshness checks (`tests/test_readme_freshness.py`) cover the README but not the notebook. v0.11.1 closes that specific gap; task #98 captures the broader follow-on (a soft "docs probably need updating" warning on PRs that touch code without touching docs). 171 active tests pass; identical to v0.11.0 (no test changes). Live: <https://pypi.org/project/ephemerides-spectral/0.11.1/>.
+* **v0.11.0** — 2026-05-05. **Sol Proper Time (SPrT) — gravitational + orbital-kinematic time dilation, applied transparently via `--proper` on every `time-*` subcommand.** Per-body diagonal-fiber GR correction extending Mercury's existing 43″/century PN diagonal to all 38 bodies. New `bridge.get_proper_time_rate(body, ...)` + `bridge.compare_proper_times(a, b, ...)` primitives + standalone `time-proper` CLI subcommand. Same physics, applied transparently — the user's framing was *"gravitational time dilation fiber so users don't even need to know anything extra had to happen in the back end."* Six published values (Earth GR / Sun GR / Mars GR / Pluto GR / Earth orbital kinematic / Mars-vs-Earth GR-only difference) reproduced to within 0.30 %. **Curiosity rover 0.0175 s/Earth-year Mars-Terra figure verified inline**; combined-effect (GR + orbital kinematic) is 0.0710 s/yr. Two-implementation discipline (Phase A independent script + Phase B canonical primitive, validated against the same six numbers) is the project's house pattern now. New `surface_radius_km` per body in `bodies.py`. **See §7.5.** 171 active tests pass. Live: <https://pypi.org/project/ephemerides-spectral/0.11.0/>.
+* **v0.10.0** — 2026-05-05. **Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair, with Meton's 432 BCE summer solstice as the default epoch.** First Sol Time member with a non-J2000 default anchor. New `bridge.jd_to_sol_terra_luna_time(jd_tdb, *, epoch="meton")` + inverse; new CLI `time-terra-luna` with `--epoch {meton, antikythera, hipparchus, mardokempad, j2000}`. The "combo" candidate test (the user's suggestion to score the Hipparchus-Babylonian eclipse-archive midpoint as a derived candidate) **independently confirms the choice**: the midpoint lands within +240 days of Meton's solstice — same year, eight months later. Greek mathematical astronomy's eclipse archive is centred on Meton's lifetime. Phase A research script + markdown report at `figures/lunar_epoch_candidates.md`. Latent bug fixed in passing: `find_syzygies(backend="auto")` was rejected by `_validate_backend` (same class as v0.9.2's `get_breathing_modulation` fix). House-epoch design choice; not a claim to be NASA's eventual LCT. **See §7.4.** 143 tests pass. Live: <https://pypi.org/project/ephemerides-spectral/0.10.0/>.
+* **v0.9.3** — 2026-05-05. **PyPI-facing README staleness sweep + CI freshness check.** Status section refreshed (8 versions of accumulated drift — block ended at v0.6.1, now runs through v0.9.3). Roadmap section pruned of items that have shipped (Tier 2b, Sol Venusian/Mercurian Time, ITN pathway / `find-tubes`); reorganised to lead with genuinely-still-ahead work. Leftover earth-body CLI examples corrected to `terra`. **Drift-prevention:** new `tests/test_readme_freshness.py` enforces three invariants — every CHANGELOG version must appear in the README Status section; the `Status: vX.Y.Z` banner under the H1 must equal `__version__`; every CLI body-name flag in an example must reference a name in `SUPPORTED_BODIES`. Same modular discipline as `test_native_version_string_matches_package_version` and `test_parity_smoke.py::PARITY_TARGETS` — enumerate the truth, fail on drift. Docs-only release; no API or encoder changes. 124 tests pass. Live: <https://pypi.org/project/ephemerides-spectral/0.9.3/>.
+* **v0.9.2** — 2026-05-05. **CLI: `adaptive` is the primary subcommand for state-dependent coupling modulation; `breathing` is preserved as a hidden synonym (`help=argparse.SUPPRESS`).** What we call "breathing couplings" in the visual / informal register is, in mainstream network-science vocabulary, an **adaptive** coupling — a state-dependent (non-autonomous) graph Laplacian whose edge weights co-evolve with the system's own resonant phases (Gross & Blasius 2008, "Adaptive coevolutionary networks"; the adaptive Kuramoto family). Both names work; new users discover `adaptive` via `--help`, visual-metaphor users keep typing `breathing`. Latent bug fixed in passing: `bridge.get_breathing_modulation(backend="auto")` was rejected by `_validate_backend` (the sentinel isn't in `SUPPORTED_BACKENDS`); resolved before validation now, matching the docstring contract. Help-text cleanup: leftover `--body earth` / `--departure earth` examples corrected to `terra` after v0.9.0/v0.9.1. 118 tests pass. Live: <https://pypi.org/project/ephemerides-spectral/0.9.2/>.
 * **v0.9.1** — 2026-05-05. **Sol Time naming convention overhaul + Sol Terra Time + Sol Luna Time.** Direct Latin proper noun (Mercury, Venus, Pluto, Terra, Luna, Sol) for rocky bodies + Sun + Luna; established adjective form (Jovian, Saturnian, Uranian, Neptunian) for gas/ice giants. **Renames (BREAKING):** `jd_to_sol_mercurian_time` → `jd_to_sol_mercury_time` (and `MercurianTime` → `MercuryTime`); same for Venus and Pluto. **New (additive):** Sol Terra Time (STT, Terra's surface clock; sidereal 23h 56m 4s, solar 24h) and Sol Luna Time (SLT, Luna's tidally-locked surface clock; sidereal=orbital=27.32 d, solar=synodic=29.53 d). SLT is **distinct from** Sol Lunar Time (`get_lunar_phase`) — same body, different observer frame. Each bridge return's `epoch:` block carries an `abbreviation` field (SMeT, SVT, STT, SLT, SUT, SNT, SJT, SST, SPT, SSoT). The naming framing: *"Returning to the giants whose shoulders we stand on. We've always had a lunar orbit and a lunar eclipse. We've all had terrain and terrestrial animals. We're just putting the books back in their dewey decimal spot."* 111 active tests pass. Live: <https://pypi.org/project/ephemerides-spectral/0.9.1/>.
 * **v0.9.0** — 2026-05-05. **Body identity rename: `moon` → `luna`, `earth` → `terra` (BREAKING CHANGE).** Latin proper nouns for the body-identity strings (`BODIES["luna"]`, `BODIES["terra"]`); the generic English words (`moon` for any natural satellite, `earth` for soil/ground) are no longer privileged as the proper noun for specific bodies. JPL/skyfield kernel boundary handled via `EphemerisBundle.lookup()` which translates internal terra/luna → JPL EARTH/MOON. Encoder hot path byte-identical to v0.8.1; only string conventions changed. v0.9.1 ships the matching Sol Time naming overhaul (Sol Mercurian → Sol Mercury, Sol Venusian → Sol Venus, Sol Plutonian → Sol Pluto; new Sol Terra Time + Sol Luna Time; gas/ice giant adjective forms kept). 107 active tests pass; 5 skipped (4 cibuildwheel-only + 1 `tier1_skip` `find_itn_pathways`). Live: <https://pypi.org/project/ephemerides-spectral/0.9.0/>.
 * **v0.8.1** — 2026-05-05. **ITN pathway / Lagrange-tube query — `find-tubes` first cut.** "Surfing the perturbations": closed-form Hohmann transfer-window enumeration mirroring v0.3.1's `find-syzygies` discipline. Pure-Python (the C twin lands in a follow-up minor with ABI bump). Earth → Mars sanity at threshold 0.02 over J2000 + 50 yr returns 23 windows; each carries 258.87-d transfer time and 5.594 km/s Δv — matching textbook Hohmann to 0.01% / 0.1%. The `gateway_lp` field is a placeholder for future CR3BP L1/L2 gateway designation; `transfer_kind = "hohmann"` reserves room for low-energy / heteroclinic-tube candidates as future versions add the manifold computation. References: Koon-Lo-Marsden-Ross 2011; Lo's Genesis trajectory work; Conley 1968. Live: <https://pypi.org/project/ephemerides-spectral/0.8.1/>.
@@ -356,6 +361,132 @@ CLI: `ephemerides-spectral time-uranus --jd 2454451.0` (or `--usd 4046.45` to in
 **Retrograde flag**. Uranus rotates retrograde — the rotation direction is *backwards* relative to its orbital motion. The v0.5.4 encoder still advances `omega = +2π/P` for all bodies, so the encoded longitude doesn't track Uranus's actual sky position over time the way it does for prograde rotators; the `retrograde=True` flag makes this asymmetry visible to consumers but doesn't *fix* it. Phoebe's continued ~104° RMS in the v0.5.3 moon FFT sweep (also retrograde — it's a captured Centaur) is the same root cause. A sign-aware-omega encoder is queued as a v0.5.x roadmap entry; the SUT surface will benefit automatically.
 
 **Why this matters in spectral terms**. The §1.4 vocabulary names the breathing Laplacian as "state-dependent discrete Ricci curvature." Sol Uranian Time is a clean *external coordinate* against which to measure that curvature for the Uranian sub-system: when v0.5.x adds Titania-vs-Oberon resonance entries (or the four other major Uranian moons — Miranda, Ariel, Umbriel, Oberon), their breathing-coupling dynamics will be parameterised against SUT, not against Earth's UTC or JD. The "Sol Uranian Time" framing is therefore the right *parametric coordinate* for the Uranus-system fragment of the larger Laplacian, the same way MSD/MTC is the right coordinate for the Mars-system fragment.
+
+### 7.4 Sol Terra-Luna Time (STLT) — v0.10.0
+
+The first Sol Time member with a *system-level* (Sun–Terra–Luna pair) frame, and the first whose **default epoch is not J2000.0**. STLT's natural unit is the synodic month (29.530589 days); Saros (18.03 yr eclipse cycle) and Metonic (19.00 yr lunar–solar reconciliation cycle) counts come along for free as multiples of the synodic month.
+
+**Why a *system* clock?** None of the existing Luna-related Sol Times are the right home for a system event like an eclipse:
+
+- **SLT** (Sol Luna Time) is Luna's tidally-locked surface frame.
+- **Sol Lunar Time** (`get_lunar_phase`) is Luna's phase as observed from Terra.
+- **STT** (Sol Terra Time) is Terra's surface frame.
+
+A solar eclipse is a Sun–Terra–Luna syzygy — a single-parameter event in the Terra–Luna *pair* frame. STLT fills the gap. The naming-hierarchy slot generalises: rocky bodies + Sun + Luna get direct Latin proper nouns; gas/ice giants get adjective forms; **pairs get hyphenated proper nouns** (Sol Terra-Luna; future Sol Pluto-Charon; Sol Jupiter-Io).
+
+**Default epoch: Meton of Athens's summer solstice, 27 June 432 BCE** (proleptic Julian). Meton calibrated his 19-year cycle (235 synodic months ≈ 19 tropical years, off by ~2 hours) against this exact solstice — the foundational Greek lunar–solar-reconciliation observation and the cycle the Antikythera mechanism's Metonic dial encodes.
+
+The choice is empirically validated by `research/lunar_epoch_candidates.py`. The user proposed scoring the **Hipparchus–Babylonian eclipse-archive midpoint** as a "combo" candidate: the arithmetic mean of the JDs of the earliest Babylonian eclipse Hipparchus cited (Mardokempad's first regnal year, 19 March 721 BCE per Almagest IV.6) and Hipparchus's own calibration eclipse (25 January 141 BCE per Almagest VI.5). That midpoint lands within **+240 days of Meton's solstice** — *same year*, eight months later. Greek mathematical astronomy's eclipse archive sits centred on Meton's lifetime; the midpoint test confirms his anchor numerically without circularity.
+
+| Candidate | JD_TDB | Spectral / solstice score | Role |
+|---|---|---|---|
+| Antikythera Saros anchor (Freeth & Jones 2012) | 1646782.0 | 0.49 d offset, score 0.197 rad | Project-namesake; Saros-dial start |
+| **Meton 432 BCE summer solstice** | **1563813.0** | **1.19° from solstice (epoch-of-date)** | **Default; Metonic-dial origin** |
+| Hipparchus 141 BCE lunar eclipse | 1669949.5 | 0.18 d offset, score 0.033 rad | Tightest spectral match |
+| Mardokempad 721 BCE lunar eclipse | 1458156.4 | 0.52 d offset, score 0.008 rad | Earliest Babylonian record |
+| Hipparchus–Babylonian midpoint (derived) | ~1564053 | +240 d from Meton — same year | Independent confirmation |
+
+The four non-default epochs ship as named alternatives (`epoch="antikythera" / "hipparchus" / "mardokempad" / "j2000"`); `j2000` is kept for parity with the rest of the Sol Time series.
+
+**House-epoch framing — *not* NASA LCT**. NASA's Lunar Coordinated Time is still pending standardisation per the April 2024 White House directive (target ~2026–2028). When LCT lands we add it as a sibling epoch keyword. Until then STLT carries the project's own historically-anchored zero.
+
+**Surface**:
+
+```python
+bridge.jd_to_sol_terra_luna_time(jd_tdb=2451545.0)
+# Default Meton epoch
+# {
+#   "ok": True,
+#   "jd_tdb": 2451545.0,
+#   "epoch_name": "meton",
+#   "epoch_jd_tdb": 1563813.0,
+#   "days_since_epoch": ...,
+#   "synodic_count": ...,         # synodic-month count since 432 BCE solstice
+#   "synodic_phase": [0, 1),
+#   "saros_count": ...,           # Saros cycle (18.03 yr)
+#   "saros_phase": [0, 1),
+#   "metonic_count": ...,         # Metonic cycle (19.00 yr) — Meton's own cycle
+#   "metonic_phase": [0, 1),
+#   "epoch": {"description": ..., "abbreviation": "STLT", ...}
+# }
+
+bridge.jd_to_sol_terra_luna_time(jd_tdb=2451545.0, epoch="antikythera")
+# Switch to the Saros-dial anchor (23 Aug 205 BCE solar eclipse)
+```
+
+CLI: `ephemerides-spectral time-terra-luna --jd 2451545.0` (default Meton); `--epoch <name>` to switch anchors. `--synodic-count <N>` inverts.
+
+**Why this matters in spectral terms.** The Metonic cycle is the natural emergent factor in our `Z₆₀ = Z₄ × Z₃ × Z₅` resonance group from §6: `Z₅` is the Metonic-aligned component (5-fold cyclic factor of the lunar–solar reconciliation). Anchoring STLT at Meton's solstice puts the system-clock zero on the encoder's algebraic spine — the moment in time where the `Z₅` component aligns with its modern-conventional reference. Future v0.10.x extensions to other pair times (Sol Pluto-Charon, Sol Jupiter-Io) inherit the same hierarchy: each pair's natural epoch is whatever calibration moment that resonance was anchored at, not J2000 by default.
+
+### 7.5 Sol Proper Time (SPrT) — v0.11.0
+
+A *per-body diagonal fiber* extending the Mercury 43″/century PN correction from §1 to every body in the roster. The user's framing during the v0.10.0 ship: *"can we simply add `--proper` as a line arg to invoke gravitational time dilation fiber so that users don't even need to know anything extra had to happen in the back end?"* That's exactly what shipped — opt-in, transparent, applied uniformly to every `time-*` CLI subcommand.
+
+**Two leading-order components per body**, both positive (clocks tick slower than at infinity / in the barycentric frame):
+
+1. **Surface gravitational time dilation** = `GM/(R·c²)` at the body's surface. The same |Φ|/c² scalar that Mercury's PN diagonal already captures for orbital perihelion precession, reused here for surface clock-rate. Per-body diagonal fiber on the Laplacian.
+
+2. **Mean orbital kinematic time dilation** = `v_orb²/(2c²)` from Kepler's third law. Leading-order Special Relativity dilation due to orbital motion in the barycentric frame.
+
+Total clock rate of a stationary body-surface clock relative to TCB:
+
+$$\text{rate} = 1 - \frac{GM}{Rc^2} - \frac{v_{\text{orb}}^2}{2c^2} + O(c^{-4})$$
+
+The cross-coupled $O(c^{-4})$ terms (general post-Newtonian) and the rotational kinematic ($\omega \times R$) are deferred to v0.12.0+; SPrT v0.11.0 captures the leading two terms exactly.
+
+**Validated against six published numbers** to within 0.30 % rel err — Earth GR (Ashby 2003 / GPS), Sun GR, Mars GR (Genova et al. 2014 / Curiosity rover), Pluto GR, Earth orbital kinematic, and the Mars-vs-Terra GR-only difference (the famous **0.0175 s/Earth-year** Curiosity figure). The combined GR + orbital-kinematic Mars–Terra difference is **0.0710 s/Earth-year** — ~4× larger than GR-alone because Mars's slower 1.524-AU orbital velocity adds dilation in the *same* direction as its weaker gravitational well.
+
+| Body | GR surface | Kinematic orbital | Total | Cite |
+|---|---|---|---|---|
+| Sun | 2.12×10⁻⁶ | 0 | 2.12×10⁻⁶ | Largest well in roster |
+| Jupiter | 2.02×10⁻⁸ | 9.5×10⁻¹⁰ | 2.11×10⁻⁸ | |
+| Saturn | 7.25×10⁻⁹ | 5.2×10⁻¹⁰ | 7.76×10⁻⁹ | |
+| Terra | 6.96×10⁻¹⁰ | 4.94×10⁻⁹ | 5.63×10⁻⁹ | Ashby 2003 |
+| Venus | 5.97×10⁻¹⁰ | 6.82×10⁻⁹ | 7.42×10⁻⁹ | |
+| Mars | 1.40×10⁻¹⁰ | 3.24×10⁻⁹ | 3.38×10⁻⁹ | Genova 2014 |
+| Mercury | 1.01×10⁻¹⁰ | 1.27×10⁻⁸ | 1.29×10⁻⁸ | Fastest planet |
+| Luna | 3.14×10⁻¹¹ | 5.79×10⁻¹² | 3.72×10⁻¹¹ | |
+| Pluto | 8.14×10⁻¹² | 1.25×10⁻¹⁰ | 1.33×10⁻¹⁰ | Smallest planet GR |
+
+**The diagonal-fiber framing.** The off-diagonal Laplacian weights of §1 encode *orbital coupling strength* (rate of phase evolution between bodies). They're proportional to `GM_other/r²` — gravitational *acceleration* magnitudes, vector-quantity. SPrT's `gr_surface` is the *scalar potential* at the body's surface — `GM_self/R`, one integration away from the off-diagonal weights but pointing at a different observable: clock rates rather than orbital phases. Both are diagonal fibers (per-body), and adding them to the Laplacian at the same architectural slot keeps the spectral-graph framing coherent.
+
+**Surface — three opt-in surfaces**:
+
+```python
+# Standalone "what's the rate" query
+bridge.get_proper_time_rate(body="mars")
+# {"ok": True, "body": "mars", "rate_relative_to_reference": 0.999...,
+#  "components": {"gr_surface": 1.40e-10, "kinematic_orbital": 3.24e-9, ...},
+#  "abbreviation": "SPrT"}
+
+# Two-body comparison + drift per Earth-year
+bridge.compare_proper_times("mars", "terra")
+# {"ok": True, "rate_ratio_a_over_b": ...,
+#  "seconds_per_earth_year": -0.0710,    # Mars ticks faster by this
+#  "components_a": {...}, "components_b": {...}}
+
+# CLI --proper flag — uniform across every time-* subcommand
+# Same answer, but proper-time-corrected:
+ephemerides-spectral time-mars --jd 2451545.0 --proper
+ephemerides-spectral time-terra-luna --jd 2451545.0 --epoch meton --proper
+ephemerides-spectral time-sol --jd 2451545.0 --proper
+
+# CLI standalone rate query
+ephemerides-spectral time-proper --body sun                    # 2.12e-6
+ephemerides-spectral time-proper --body mars --compare-to terra
+```
+
+The `--proper` flag adds `<count>_proper` sibling fields to existing Sol Time results (e.g., `msd_proper` on `time-mars`) plus a `proper_time` metadata block — the user gets the corrected count without learning a new function or thinking about GR.
+
+**Two-implementation discipline.** Phase A (`research/proper_time_rates.py`) implements the formulas independently, validates against the six canonical figures, dumps a markdown report. Phase B (`_research/proper_time.py`, the package primitive `--proper` calls) has its own implementation, validated by `tests/test_sprt.py` against the same six figures. Both agree to within 0.30 %. If either drifts, the other catches it — same "two implementations and a pin" pattern as `test_native_version_string_matches` (C ↔ Python version pinning).
+
+**Out of scope for v0.11.0** (deferred to v0.12.0+):
+
+- **Surface rotational kinematic** (`ω × R` at the body's surface latitude). For most bodies orbital dominates; for the Sun it's the inverse — the Sun barely moves in the barycentric frame but its surface rotates at ~2 km/s. Adding rotational kinematic per body needs an `ω` column in `bodies.py` (already in `time_scales.py` for the bodies with their own Sol Times; cross-referencing is the v0.12.0 work).
+- **J₂ oblateness corrections** (~10⁻¹⁵ scale spatial variation on Terra). The `--lat`/`--lon` flags are already accepted for forward compatibility; v0.11.0 ignores them. Adding `J2_oblateness` per body in `bodies.py` lets the (lat, lon)-dependent term kick in for that precision tier.
+- **Frame dragging** (Lense-Thirring; ~10⁻¹⁵ at Earth-Moon scale). Skip until needed.
+
+**Why this matters in spectral terms.** Mercury's existing 43″/century PN diagonal is the *only* GR fiber in the v0.10.0 Laplacian — a one-off correction tied to Mercury's perihelion. SPrT generalises: every body gets a diagonal GR fiber for its surface clock rate. The architectural slot (per-body, scalar, additive on the diagonal) is the same; the physical observable (clock rate vs. perihelion advance) is different but co-derived from the same underlying potential. Future work — adding rotational kinematic, J₂ oblateness, frame dragging — extends the same diagonal-fiber slot rather than introducing new architectural layers. The pattern is *"every body's GR contribution to the Laplacian, made queryable."*
 
 ## 8. Diagnosed-fiber runtime overlay (v0.4.0+ architecture)
 
