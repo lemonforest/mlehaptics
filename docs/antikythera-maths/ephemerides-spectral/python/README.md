@@ -28,6 +28,7 @@ Both backends implement the same algebraic substrate (cyclic-group representatio
 - **SPICE-free runtime (v0.5.0+):** `pip install` works out of the box — both backends use codegen-baked initial phases shipped in `_data/initial_phases.json`. No SPICE kernel staging required for basic encoding. Skyfield + jplephem stay as optional `[ephemeris]` extras for callers who want runtime recalibration against custom kernels.
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors at any (lat, lon) on any body.
 - **Spectral Syzygy Window Search (v0.3.1+):** `find-syzygies --from-jd ... --to-jd ...` enumerates candidate syzygies in closed form via the natural cyclic-group decomposition (synodic + draconic month), then confirms each by spectral projection. ~1000× faster than the v0.3.0 point-evaluation `eclipse --jd` pattern for window queries.
+- **ITN Pathway / Lagrange-Tube Query (v0.8.1+):** `find-tubes --from-jd ... --to-jd ... --departure earth --target mars` enumerates Hohmann transfer windows via the same closed-form `find-syzygies` discipline. "Surfing the perturbations" — the natural cyclic structure tells you when launch windows open without integrating any trajectories. First-cut Hohmann math; future versions layer low-energy / heteroclinic-tube candidates under the same surface (`transfer_kind` field reserves room). References: Koon-Lo-Marsden-Ross 2011; Lo's Genesis trajectory work.
 - **Sol Symphony Times (v0.3.0 + v0.5.4 + v0.8.0):** every body in the Sol Star System has a "Sol Time" exposing its rotational + orbital cycles anchored to a conventional epoch — Mars Sol Date / Mars Coordinated Time (Allison & McEwen 2000), Sol Lunar Time (Earth's Moon synodic + sidereal phase), Sol Uranian Time (USD/SUT, anchored at the 2007 northern equinox), Sol Venusian, Sol Mercurian, Sol Plutonian, Sol Sol (the Sun, Carrington rotation system), Sol Jovian (Jupiter System III magnetic-field rotation), Sol Saturnian (Cassini-revised System III), Sol Neptunian (Voyager-2 System III). **The Solar System is a natural symphony of overlapping clocks**; Sol Time is just the package telling you what time it is on each body so you can correlate that body's local clock with JD. Naming hierarchy for future moon ports: `Sol <Parent>-<Body> Time` (e.g., Sol Pluto-Charon Time).
 
 ### Resolution Scaling
@@ -121,6 +122,13 @@ ephemerides-spectral time-sol --jd 2451545.0      # Sun's own Carrington Rotatio
 ephemerides-spectral time-jupiter --jd 2444000.5
 ephemerides-spectral time-saturn --jd 2451545.0
 ephemerides-spectral time-neptune --jd 2451545.0
+
+# ITN pathway / Lagrange-tube query (v0.8.1) — Hohmann transfer windows
+# "surfing the perturbations" via closed-form synodic enumeration
+ephemerides-spectral find-tubes --from-jd 2451545.0 --to-jd 2470000.0 \
+    --departure earth --target mars
+# Output: 23 Earth->Mars windows over ~50 years, each with transfer time
+# (~258.9 days) + total Δv (~5.59 km/s)
 
 # Lunar-time kernel metadata (LTE440 + LTC status; v0.3.0)
 ephemerides-spectral lunar-kernels

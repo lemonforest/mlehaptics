@@ -10,7 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.8.0)
+(no entries yet — next entries land after v0.8.1)
+
+## [0.8.1] — 2026-05-05
+
+**ITN pathway / Lagrange-tube query — `find-tubes` first cut.** "Surfing the perturbations": closed-form Hohmann transfer-window enumeration mirroring the v0.3.1 `find-syzygies` discipline. Pure-Python; C twin queued for a follow-up minor.
+
+### Added
+
+- `bridge.find_itn_pathways(jd_lo, jd_hi, departure, target, ...)` — Hohmann window enumeration anchored at body launch geometry (mean longitudes from `_data/initial_phases.json`).
+- CLI `find-tubes` subcommand.
+
+### Sanity
+
+Earth → Mars at threshold 0.02 over J2000 + 50 yr returns 23 windows; each carries 258.87-d transfer time and 5.594 km/s total Δv. Matches textbook Hohmann to 0.01% / 0.1%.
+
+### Tests
+
+- 3 new immolation tests; 107 active tests pass; 5 skipped (4 cibuildwheel + 1 `tier1_skip` for `find_itn_pathways` pending the C twin).
 
 ## [0.8.0] — 2026-05-05
 
@@ -34,7 +51,7 @@ Unchanged at v5. These are pure-Python time-scale formulas; no C twin needed.
 
 ### Tests
 
-102 active tests pass (was 84 in v0.7.0); 4 skipped (cibuildwheel-only).
+104 active tests pass (was 84 in v0.7.0); 4 skipped (cibuildwheel-only).
 
 ## [0.7.0] — 2026-05-05
 
