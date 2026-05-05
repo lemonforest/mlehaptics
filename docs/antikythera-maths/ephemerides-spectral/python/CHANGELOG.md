@@ -10,7 +10,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.11.1)
+(no entries yet — next entries land after v0.11.2)
+
+## [0.11.2] — 2026-05-05
+
+**JPL Power-of-Ten audit baseline for the C library.** Audit-only release — no code changes; documents violations and pins counts in CI as a one-way ratchet.
+
+### Why this exists
+
+User suggestion captured during v0.9.3: *"work we should do, maybe its own version path, impose JPL C standard on ourselves."* The C library is targeted at embedded deployment (ESP32, Cortex-M) per the README's "Microcontroller Compatibility" section; JPL Power-of-Ten is the embedded-C gold standard for safety-critical code (Holzmann 2006). The library is small enough (~2.1k LOC across 11 files) that retrofitting is tractable.
+
+### Audit results
+
+102 mechanically-detectable violations across the codebase:
+
+| Rule | Description | Violations |
+|---|---|--:|
+| 1 | No goto / setjmp / longjmp / recursion | **5** (all goto in `es_hd_state.c` cleanup pattern) |
+| 2 | Fixed loop bounds | 0 ✅ |
+| 3 | No dynamic allocation after init | **29** (all in `es_hd_state.c` HD pipeline) |
+| 4 | Functions ≤ 60 lines | **4** (`es_encode_state` 109; `es_find_syzygies` 99; `es_bind_observer` 86; `es_get_eclipse_probability` 71) |
+| 5 | ≥ 2 assertions per function (avg) | **64-assertion shortfall** (0 across 32 functions) |
+| 8 | Limited preprocessor | 0 ✅ |
+| 9 | No function pointers | 0 ✅ |
+
+Rules 6, 7, 10 are not mechanically detectable; manual audit deferred to v0.11.3+.
+
+### Added
+
+- **`c/JPL_AUDIT.md`** — full human-readable audit document. Rule-by-rule violation breakdown with line numbers, fix paths, and the v0.11.3+ ship roadmap.
+- **`tests/test_jpl_audit.py`** — pytest ratchet pinning all mechanically-detectable counts. 11 passing checks + 1 expected-skip (Rule 5 density gate). Same drift-detection pattern as `test_native_version_string_matches_package_version` and `test_readme_freshness.py`.
+
+### Discipline
+
+- Adding a new violation requires updating the pin upward AND explicit justification in the PR description.
+- Removing a violation should drop the pin in the same PR; the test emits a warning if a pin can be ratcheted down.
+- The Rule 5 density test is gated as `pytest.skip` until v0.11.5; flipping to passing is the gate that proves the v0.11.5 work landed.
+
+### Roadmap
+
+| Version | Focus |
+|---|---|
+| v0.11.3 | Rule 1 + Rule 3 fixes — refactor `es_hd_state.c` HD pipeline (combined `goto` + `malloc` removal via static / caller-supplied buffers). |
+| v0.11.4 | Rule 4 — split the 4 long functions into <60-line factors. |
+| v0.11.5 | Rule 5 — add 64+ assertions across the 32 functions; gate behind `#ifndef NDEBUG`. |
+| v0.11.6 | Rule 10 — cross-platform pedantic-build CI matrix. |
+| v0.11.7 | Rules 6 + 7 — manual variable-scope and return-value audits. |
+
+### Migration
+
+None. Audit-only release.
 
 ## [0.11.1] — 2026-05-05
 

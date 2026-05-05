@@ -1,0 +1,293 @@
+# JPL Power-of-Ten Audit — ephemerides-spectral C library
+
+**Standard:** Holzmann, G. J. (2006). "The Power of Ten — Rules for Developing Safety Critical Code." *IEEE Computer* 39(6), 95-99.
+
+**Audited at:** v0.11.2 baseline (the audit-only ship; no code changes yet).
+
+**Scope:** 11 source files (~2.1k LOC) under `c/src/*.c` and `c/include/*.h`.
+
+**Discipline:** This document is the audit record. Live counts are pinned in [`tests/test_jpl_audit.py`](../python/tests/test_jpl_audit.py) as a one-way ratchet — violation counts can only go DOWN, never UP, in PR review. Adding a new violation requires updating the pin upward AND an explicit justification in the PR description.
+
+This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-quality minors; each fix lands as its own commit, drops the pin, and reduces the recorded total.
+
+---
+
+## Summary
+
+| Rule | Description | Violations | Status |
+|---|---|--:|---|
+| 1 | No goto / setjmp / longjmp / recursion | **5** | ❌ — all `goto` in `es_hd_state.c` cleanup pattern |
+| 2 | Fixed loop bounds | 0 | ✅ — no `while(1)` / `for(;;)` |
+| 3 | No dynamic allocation after init | **29** | ❌ — full HD pipeline allocates D-dim buffers per call |
+| 4 | Functions ≤ 60 lines | **4** | ❌ — `es_encode_state` 109; `es_find_syzygies` 99; `es_bind_observer` 86; `es_get_eclipse_probability` 71 |
+| 5 | ≥ 2 assertions per function (avg) | **64 short** | ❌ — 0 assertions across 32 functions |
+| 6 | Smallest possible scope for data | manual | ⚠ — defer to v0.11.3 manual audit |
+| 7 | Check return values, validate parameters | manual | ⚠ — partial; bridge sites validate, internal sites mixed |
+| 8 | Limited preprocessor (header includes + simple macros only) | 0 | ✅ — no multi-line macros |
+| 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | ✅ — no function pointers found |
+| 10 | Compile clean at most-pedantic warning level | unknown | ⚠ — Rule 10 audit deferred to v0.11.3 (cross-platform tooling) |
+
+**Headline:** the architecture is mostly Power-of-Ten-aligned. The major gaps are concentrated in `es_hd_state.c` (Rule 1 + Rule 3 — the HD pipeline's `malloc`/`free`/`goto out` cleanup pattern) and across the codebase as a whole on Rule 5 (assertion density). Rules 2, 8, 9 already pass.
+
+**Total mechanically-detectable violations: 102.** The pinned ratchet test allows this number to go DOWN; PRs that increase it fail.
+
+---
+
+## Rule 1 — Restrict control flow
+
+> *"Restrict all code to very simple control flow constructs — do not use goto statements, setjmp or longjmp constructs, and direct or indirect recursion."*
+
+### Violations: 5
+
+All in `c/src/es_hd_state.c`. Cleanup-on-error pattern:
+
+```c
+es_complex64_t *basis = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
+es_complex64_t *rolled = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
+if (!basis || !rolled) {
+    free(basis); free(rolled);
+    return ES_ERR_NULL_OUTPUT;
+}
+rc = es_channel_basis(seed, basis, D);
+if (rc != ES_OK) goto out;
+rc = roll_complex64(basis, rolled, phase, D);
+if (rc != ES_OK) goto out;
+// ...
+out:
+    free(basis);
+    free(rolled);
+    return rc;
+```
+
+| Site | Function | Pattern |
+|---|---|---|
+| `es_hd_state.c:186` | `es_encode_state_hd` | `goto out` for cleanup of `basis` + `rolled` |
+| `es_hd_state.c:189` | `es_encode_state_hd` | (continued) |
+| `es_hd_state.c:274` | `es_get_eclipse_probability` | `goto out` for cleanup of `sun_b` + `moon_b` + `node_b` + `s_op` |
+| `es_hd_state.c:277` | `es_get_eclipse_probability` | (continued) |
+| `es_hd_state.c:279` | `es_get_eclipse_probability` | (continued) |
+
+**Fix path (v0.11.3+):** restructure cleanup into the same site as allocation. Two clean approaches:
+
+1. **Static buffers:** if D is known at compile time (it usually is for embedded targets), replace `malloc(D * sizeof(...))` with stack-allocated arrays. This also removes Rule 3 violations for the same sites — combined fix.
+2. **Inline cleanup:** unroll the goto chain with `if (rc != ES_OK) { free(...); return rc; }` at each step. Verbose but JPL-compliant. Slightly higher branch count but each branch is local.
+
+### setjmp / longjmp: 0
+### Recursion: 0 (manual inspection — no function calls itself)
+
+---
+
+## Rule 2 — All loops must have fixed bounds
+
+> *"All loops must have a fixed upper-bound. It must be trivially possible for a checking tool to prove statically that a preset upper-bound on the number of iterations of a loop cannot be exceeded."*
+
+### Violations: 0
+
+No `while(1)`, `for(;;)`, or other unbounded loop constructs. Every loop in the codebase has a static upper bound (`ES_N_BODIES`, `ES_COSINE_LUT_SIZE`, `D`, `n_bodies`, etc.) provable by inspection.
+
+✅ **Pass.**
+
+---
+
+## Rule 3 — No dynamic allocation after initialization
+
+> *"Do not use dynamic memory allocation after initialization."*
+
+### Violations: 29
+
+All in `c/src/es_hd_state.c`. Each HD-pipeline entry point (`es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`) allocates D-dimensional `es_complex64_t` buffers per call:
+
+| Function | Per-call allocations | Lines |
+|---|---|---|
+| `es_encode_state_hd` | 2 (`basis`, `rolled`) | 111-127, 141-142 |
+| `es_bind_observer` | 3 (`body_basis`, `coord_basis`, `coord_op`) | 176-180, 237-239 |
+| `es_get_eclipse_probability` | 4 (`sun_b`, `moon_b`, `node_b`, `s_op`) | 263-268 |
+
+Total: ~9 `malloc` calls + ~9 mirrored `free` calls + a few error-path `free`s = **29 dynamic-allocation references**.
+
+**Fix path (v0.11.3+):**
+
+- For embedded targets (ESP32 / Cortex-M), D is set at compile time. Replace runtime `malloc(D * sizeof(es_complex64_t))` with static arrays sized at compile time. Combined with the Rule 1 fix this removes both classes of violation for the HD pipeline.
+- For dynamic-D library use (Pyodide, Python-side), static-allocation is harder. Alternative: caller-supplied buffer pattern — function signatures take pre-allocated `out_basis`, `out_rolled` etc. as parameters, so allocation is the caller's concern (and can be done once at init).
+- Both patterns are JPL-compliant; the static-buffer one is cleaner for embedded, the caller-supplied one is cleaner for the Python ctypes shim.
+
+---
+
+## Rule 4 — Function bodies ≤ 60 lines
+
+> *"No function should be longer than what can be printed on a single sheet of paper in a standard reference format with one line per statement and one line per declaration."*
+
+Convention: 60 lines max (typical printable page; matches Holzmann's intent).
+
+### Violations: 4
+
+| Lines | File | Function |
+|---|---|---|
+| **109** | `c/src/es_encode.c` | `es_encode_state` |
+| **99** | `c/src/es_parity.c` | `es_find_syzygies` |
+| **86** | `c/src/es_hd_state.c` | `es_bind_observer` |
+| **71** | `c/src/es_hd_state.c` | `es_get_eclipse_probability` |
+
+`es_encode_state` is the encoder hot path; refactoring requires care to preserve the Phase 9 breathing-couplings inner-loop semantics. `es_find_syzygies` is the syzygy-window-search closed-form enumeration. Both are doing real work; the line count reflects the algorithm's natural unit, not gratuitous length.
+
+**Fix path (v0.11.3+):** factor each into 2-3 sub-functions along natural seams. Example for `es_encode_state`:
+
+- `es_encode_state_chunk_loop` — the 30-day chunk-walking loop body (~50 lines)
+- `es_encode_state_apply_breathing` — the off-diagonal breathing modulation per chunk (~30 lines)
+- `es_encode_state` — top-level: validate, set up, drive the chunk loop, finalise (~30 lines)
+
+Same pattern for `es_find_syzygies` (split into synodic-walk + draconic-confirm + score-and-emit).
+
+---
+
+## Rule 5 — Average of 2+ assertions per function
+
+> *"The assertion density of the code should average to a minimum of two assertions per function. Assertions are used to check for anomalous conditions that should never happen in real-life executions."*
+
+### Current state
+
+- **Total functions:** 32
+- **Total `assert(...)` calls:** 0
+- **Assertions required (2/function avg):** 64
+- **Shortfall:** 64
+
+### Violation: 64
+
+The codebase has **zero** assertions. Every function is a Rule 5 violation by inspection.
+
+**Fix path (v0.11.3+):**
+
+Per Holzmann, assertions should check:
+- Pre-conditions on parameters (caller contract) — even when already validated by `if (!ptr) return ERR;`, an `assert(ptr != NULL);` documents the contract for static analysis.
+- Post-conditions on results (callee contract) — `assert(rc == ES_OK || rc < ES_MAX_STATUS);`.
+- Loop invariants — `assert(i < ES_N_BODIES);` inside the body-iteration loop.
+- Range invariants — `assert(D > 0 && (D & (D-1)) == 0);` (D is a power of 2).
+
+Targeted addition pattern:
+- One pre-condition + one post-condition per function = 64 assertions, hitting the 2/function avg exactly.
+- For the encoder hot path, gate behind `#ifndef NDEBUG` so production builds with `-DNDEBUG` strip them — assertions are a *development* tool, not a runtime cost.
+
+---
+
+## Rule 6 — Smallest possible scope for data
+
+> *"Data objects must be declared at the smallest possible level of scope."*
+
+### Status: ⚠ Manual audit deferred to v0.11.3
+
+This rule is not mechanically detectable without semantic analysis. Spot-check on `es_encode.c::es_encode_state`:
+
+```c
+es_status_t es_encode_state(...) {
+    int64_t omega_int;
+    uint32_t phase;
+    int64_t step;
+    // ...
+    for (size_t i = 0; i < n_bodies; ++i) {
+        omega_int = es_omega_diag[i];      // declared at function scope
+        phase = phases_init[i];            // declared at function scope
+        // ...
+    }
+}
+```
+
+Function-scope declarations should mostly be loop-scope. Likely 5-10 violations across `es_encode.c` + `es_parity.c`. Pinned as a **manual rule with TBD count** — the v0.11.3+ fix work scans + relocates declarations.
+
+---
+
+## Rule 7 — Check all return values; validate all parameters
+
+> *"The return value of non-void functions must be checked by each calling function and the validity of parameters must be checked inside each function."*
+
+### Status: ⚠ Partial; manual audit needed
+
+**Bridge entry points** (`es_encode_state`, `es_find_syzygies`, etc.) validate parameters cleanly with `ES_ERR_*` returns. ✅
+
+**Internal helpers** (`es_floor_div`, `phase_uint32_to_residue`, etc.) take pre-validated inputs and don't re-check. This is JPL-acceptable IFF the caller documents the precondition (Rule 5 assertions help here).
+
+**Return-value checking by callers:** `bridge.py`'s ctypes shim checks every `es_status_t` return. Internal C-side calls are mostly checked but a manual audit will likely find 5-15 sites where `rc` is assigned but not checked before the next call.
+
+**Pinned as a manual rule with TBD count.**
+
+---
+
+## Rule 8 — Limited preprocessor
+
+> *"The use of the preprocessor must be limited to the inclusion of header files and simple macro definitions. Token pasting, variable argument lists (ellipses), and recursive macro calls are not permitted. All macros must expand into complete syntactic units. The use of conditional compilation directives is often also dubious, but cannot always be avoided."*
+
+### Violations: 0
+
+- No multi-line macros (`#define X foo \\` continuation lines).
+- No token-pasting (`##`).
+- No variadic macros (`__VA_ARGS__`).
+- No recursive macros.
+- Conditional compilation limited to `#ifndef ES_*_H` header guards + `#ifdef __cplusplus` extern-C wrappers.
+- All macros are simple constants (`#define ES_N_BODIES 38u`) or simple inline expansions (`#define ES_MODULO_MASK 0xFFFFFFFFu`).
+
+✅ **Pass.**
+
+---
+
+## Rule 9 — Pointer use restricted
+
+> *"The use of pointers should be restricted. Specifically, no more than one level of dereferencing is allowed. Pointer dereference operations may not be hidden in macro definitions or inside typedef declarations. Function pointers are not permitted."*
+
+### Violations: 0
+
+- No function pointers anywhere in the codebase.
+- No multi-level dereferencing (`**ptr`, `(*ptr)->member`) in expressions — pointers are always taken to single-element scope.
+- No pointer dereferences inside macro definitions.
+- No pointer dereferences hidden by typedefs (e.g. `typedef struct Foo *FooHandle` patterns).
+
+✅ **Pass.**
+
+---
+
+## Rule 10 — Compile clean at most-pedantic warning level
+
+> *"All code must be compiled, from the first day of development, with all compiler warnings enabled at the compiler's most pedantic setting. All code must compile with these settings without any warnings. All code must be checked daily with at least one, but preferably more than one, state-of-the-art static source code analyzer and should pass the analyses with zero warnings."*
+
+### Status: ⚠ Audit deferred to v0.11.3
+
+Cross-platform tooling for `-Wall -Wextra -Wpedantic` (gcc/clang) vs. `/W4 /Wall` (MSVC) needs the audit script to detect the host toolchain and apply the right flag set. Initial probe on the v0.11.2 cmake configuration hit MSBuild project-file errors that are not directly Rule-10-related.
+
+**Fix path (v0.11.3):**
+
+1. Add a CMake target option `ES_PEDANTIC=ON/OFF` that emits the right strict flags for the detected compiler.
+2. Add a CI matrix job that builds with `ES_PEDANTIC=ON` and **fails** on any warning. Same `-Werror`-equivalent discipline as the existing `test_native_version_string_matches_package_version` pin.
+3. Document the resulting violation count here and pin it in the ratchet test.
+
+For now, the existing CI matrix (Linux gcc, macOS clang, Windows MSVC) builds cleanly at default warning levels — warnings exist, but unknown count.
+
+---
+
+## Discipline (the v0.11.2 ship)
+
+This audit document is paired with [`tests/test_jpl_audit.py`](../python/tests/test_jpl_audit.py), which encodes the violation counts above as **pinned baselines**. Every PR runs the test as part of the regular suite:
+
+- Counts at or below the pin → **pass**.
+- Counts above the pin → **fail** (a new violation slipped in; PR must either fix it or update the pin upward with explicit justification).
+
+Same modular discipline as the other v0.x.x freshness/parity invariants:
+- `test_native_version_string_matches_package_version` — C ↔ Python version pin.
+- `test_parity_smoke.py::PARITY_TARGETS` — every bridge function classified.
+- `test_readme_freshness.py` — Status / banner / CLI body-name examples in the PyPI README.
+- `test_jpl_audit.py` *(this ship)* — JPL Power-of-Ten violation counts.
+
+The pattern: enumerate the truth, fail loudly on drift, reduce on improvement.
+
+---
+
+## Roadmap
+
+| Version | Focus |
+|---|---|
+| **v0.11.2** *(this ship)* | Audit-only. Document violations; pin counts in CI as a one-way ratchet. No code changes. |
+| v0.11.3 | **Rule 1 + Rule 3 fixes** — refactor `es_hd_state.c` HD pipeline to remove `goto` + `malloc`. Combined fix using static buffers for embedded targets / caller-supplied buffers for dynamic-D library use. |
+| v0.11.4 | **Rule 4 fixes** — split the 4 long functions into JPL-compliant <60-line factors. |
+| v0.11.5 | **Rule 5 fixes** — add 64+ assertions across the 32 functions to hit the 2/function average. Gate behind `#ifndef NDEBUG`. |
+| v0.11.6 | **Rule 10 audit** — cross-platform pedantic-build CI matrix; document warning counts; iterate. |
+| v0.11.7 | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking. |
+| v0.12.0 | First non-audit minor (deferred during the v0.11.x JPL push). Probably the Kinematics module from #99. |
+
+Each v0.11.x rule-fix ship updates this audit document AND drops the corresponding pin in `test_jpl_audit.py`.

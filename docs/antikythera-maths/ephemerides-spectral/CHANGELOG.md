@@ -7,7 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.11.1)
+(no entries yet — next entries land after v0.11.2)
+
+## [0.11.2] — 2026-05-05
+
+**JPL Power-of-Ten audit baseline for the C library.** Audit-only release; no API, no encoder, no ABI changes; pure docs + test discipline.
+
+### Why this exists
+
+User suggestion during v0.9.3: *"work we should do, maybe its own version path, impose JPL C standard on ourselves."* The library targets embedded deployment (ESP32, Cortex-M); JPL Power-of-Ten is the embedded-C gold standard for safety-critical code (Holzmann 2006, *IEEE Computer* 39(6)). At ~2.1k LOC across 11 files the codebase is small enough to retrofit cleanly. v0.11.2 ships the *audit baseline* — documenting current state and pinning the violation counts in CI as a one-way ratchet. Rule-by-rule fixes ship as separate v0.11.3+ minors.
+
+### Audit results
+
+**102 mechanically-detectable violations** across the codebase, dominated by two clusters in `es_hd_state.c` (the HD pipeline) and a uniform Rule-5 deficit:
+
+| Rule | What it forbids | Violations |
+|---|---|--:|
+| 1 | `goto`, `setjmp`, `longjmp`, recursion | **5** (all `goto out` cleanup pattern in `es_hd_state.c`) |
+| 2 | unbounded loops (`while(1)`, `for(;;)`) | 0 ✅ |
+| 3 | dynamic allocation after init (`malloc`/`calloc`/`realloc`/`free`) | **29** (all in `es_hd_state.c`) |
+| 4 | functions over 60 lines | **4**: `es_encode_state` 109, `es_find_syzygies` 99, `es_bind_observer` 86, `es_get_eclipse_probability` 71 |
+| 5 | <2 assertions per function (avg) | **64-assertion shortfall** (0 / 32 functions) |
+| 8 | multi-line / token-pasting / variadic macros | 0 ✅ |
+| 9 | function pointers, multi-deref, hidden derefs | 0 ✅ |
+
+The architecture is mostly Power-of-Ten-aligned. The major gaps are concentrated:
+
+- **Rule 1 + Rule 3** in the HD pipeline (`es_hd_state.c`'s `es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`). The `malloc`/`free` D-dimensional buffers are tied to the `goto out` cleanup pattern; both fix together by switching to caller-supplied buffers (clean for ctypes use) or static stack arrays (clean for embedded). Combined ship in v0.11.3.
+- **Rule 4** in 4 long functions. Each is doing real work (encoder hot path; syzygy enumeration; observer bind; eclipse projection) — refactor along natural seams in v0.11.4.
+- **Rule 5** is uniform: 0 assertions across the codebase. v0.11.5 adds 64+ targeted assertions.
+
+### Added
+
+- **`c/JPL_AUDIT.md`** — full human-readable audit. Rule-by-rule violations with line numbers, fix paths, references to Holzmann 2006, and the v0.11.3 → v0.11.7 roadmap.
+- **`python/tests/test_jpl_audit.py`** — pytest ratchet pinning every mechanically-detectable count. 11 passing checks + 1 expected-skip (Rule 5 density gate that flips to passing when v0.11.5 lands).
+
+### Discipline carried forward
+
+The pinned-baseline pattern joins the project's existing CI invariants:
+
+| Invariant | What it pins |
+|---|---|
+| `test_native_version_string_matches_package_version` | C `ES_VERSION_STRING` ↔ Python `__version__` |
+| `test_parity_smoke.py::PARITY_TARGETS` | Every bridge function classified |
+| `test_readme_freshness.py` | Status / banner / CLI body-name examples |
+| **`test_jpl_audit.py`** *(this ship)* | **JPL Power-of-Ten violation counts (one-way ratchet)** |
+
+Same model: enumerate the truth, fail loudly on drift, allow ratcheting toward improvement.
+
+### Discoveries documented
+
+- **Recursion: 0** (manual inspection — no function calls itself).
+- **`while(1)` / `for(;;)`: 0** — every loop has a static upper bound.
+- **No function pointers anywhere** — the codebase happens to already pass Rule 9.
+- **No multi-line macros** — Rule 8 already passes.
+
+### Roadmap
+
+| Version | Rules to fix |
+|---|---|
+| v0.11.3 | Rule 1 + Rule 3 (combined HD-pipeline refactor — static / caller-supplied buffers) |
+| v0.11.4 | Rule 4 (split 4 long functions) |
+| v0.11.5 | Rule 5 (≥64 assertions, gated by `#ifndef NDEBUG`) |
+| v0.11.6 | Rule 10 (cross-platform `-Wall -Wextra -Wpedantic` CI matrix) |
+| v0.11.7 | Rules 6 + 7 (manual variable-scope + return-value audits) |
+| v0.12.0+ | Resume feature work (Kinematics from #99, etc.) |
+
+Each rule-fix ship updates `c/JPL_AUDIT.md` and ratchets the corresponding pin in `test_jpl_audit.py` downward.
+
+### Migration
+
+None. Audit-only release. Existing scripts and bridge calls unchanged. 182 tests pass (was 171 in v0.11.1 + 11 new audit tests + 1 skip).
 
 ## [0.11.1] — 2026-05-05
 
