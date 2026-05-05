@@ -10,7 +10,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.2)
+(no entries yet — next entries land after v0.9.3)
+
+## [0.9.3] — 2026-05-05
+
+**PyPI-facing README staleness sweep + CI freshness check.** Docs-only — no API or encoder changes.
+
+### Why now
+
+User flagged the Status and Roadmap sections of the PyPI-facing README as stale. The Status block ended at v0.6.1 — eight versions back. The Roadmap listed Tier 2b "in progress" (shipped in v0.7.0), Sol Venusian/Mercurian Time as upcoming (shipped in v0.8.0; renamed in v0.9.1), and the ITN pathway / `find-tubes` query as upcoming (shipped in v0.8.1). Plus leftover `--body earth` example strings from before the v0.9.0 body-identity rename.
+
+### Fixed (manual sweep)
+
+- **Status section refreshed** with v0.7.0 → v0.9.3 entries. Current marker moved to v0.9.3.
+- **Banner added** under the H1: `**Status: v0.9.3 — production-ready.**` Now pinned to `__version__` by the new freshness test.
+- **Roadmap section pruned** of shipped items (Tier 2b, Sol Venusian/Mercurian Time, ITN pathway). Items genuinely still ahead retained and reorganized: first-principles per-resonance α, Hyperion follow-up, remaining 4 broken moons, Sol Moon Times, DE441 vs DE442 spectral error signature, heteroclinic-tube extension to `find-tubes`, LTC, Phase 10 resonance coverage, multi-millennium DE441 sweep, Doxygen, bit-serial hardware port.
+- **Leftover earth-body CLI example strings** corrected to `terra` (in the `find-tubes` cheat-sheet and in Key Capabilities prose).
+- **Phase 9 heading** inverted from `Phase 9 "Breathing" Couplings` → `Phase 9 Adaptive Couplings (a.k.a. "breathing")` matching the v0.9.2 CLI rename. Also updated the Cosine LUT row in the memory-footprint table.
+- **Stale "v0.4+ ROADMAP: window search" comment** in the CLI cheat-sheet removed — `find-syzygies` shipped in v0.3.1.
+
+### Added (drift prevention)
+
+`tests/test_readme_freshness.py` enforces three invariants on every PR:
+
+1. **Status section completeness.** Every released version in the package CHANGELOG must have a corresponding bullet under the README's `## Status` section. Reverse direction also enforced (no inventing unreleased versions in the README).
+2. **Current-version stamp accuracy.** The `Status: vX.Y.Z` banner under the H1 *and* the `*(current)*` marker in the Status section must both equal `__version__`. Same pattern as `test_native_version_string_matches_package_version`.
+3. **CLI body-name validity.** Every body name appearing after a body-flag in a CLI example (`--body NAME`, `--departure NAME`, `--target NAME`, `--pair-a NAME`, `--pair-b NAME`) must be in `SUPPORTED_BODIES`. Catches the v0.9.0 fallout pattern: examples pointing at body names that have been removed from the roster.
+
+What this does *not* enforce: prose accuracy, Roadmap correctness, whether examples are *good* examples. Those stay in human review. Same modular discipline as `test_parity_smoke.py::PARITY_TARGETS` — enumerate the mechanically-checkable truth, fail loudly on drift.
+
+### Migration
+
+None. Docs-only release; no API surface changes.
 
 ## [0.9.2] — 2026-05-05
 
