@@ -81,7 +81,7 @@ The package ships a rich `ephemerides-spectral` console script. Use `--help` on 
 ```bash
 ephemerides-spectral --help
 ephemerides-spectral encode --help
-ephemerides-spectral breathing --help
+ephemerides-spectral adaptive --help
 ```
 
 ### Sub-command Cheat-Sheet
@@ -112,12 +112,20 @@ ephemerides-spectral eclipse --jd 2451545.0
 # Off-diagonal couplings (Laplacian fiber bundle)
 ephemerides-spectral couplings
 
-# Phase 9 breathing modulation (Jupiter-Saturn 5:2 by default)
-ephemerides-spectral breathing --jd 2458850.0
+# Phase 9 adaptive (a.k.a. "breathing") coupling modulation
+# (Jupiter-Saturn 5:2 by default). Both `adaptive` and `breathing`
+# work — `adaptive` is the canonical name (matches the adaptive-
+# networks / adaptive-Kuramoto literature, Gross & Blasius 2008);
+# `breathing` is the visual-metaphor synonym, kept for users who
+# learned the couplings as inhaling/exhaling with the resonant phase.
+ephemerides-spectral adaptive --jd 2458850.0
 
 # Override resonance: 3:2 Neptune-Pluto
-ephemerides-spectral breathing --jd 2451545.0 \
+ephemerides-spectral adaptive --jd 2451545.0 \
     --pair-a neptune --pair-b pluto --n-a 3 --n-b 2
+
+# Synonym (same handler, identical output):
+ephemerides-spectral breathing --jd 2458850.0
 
 # Mars Sol Date / Mars Coordinated Time at a JD (v0.3.0)
 ephemerides-spectral time-mars --jd 2451549.5     # → MSD ≈ 44795.99

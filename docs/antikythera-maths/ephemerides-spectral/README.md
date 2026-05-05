@@ -65,7 +65,9 @@ pip install "ephemerides-spectral[ephemeris]==0.1.0"
 ephemerides-spectral --help
 ephemerides-spectral version
 ephemerides-spectral encode --jd 2451545.0
-ephemerides-spectral breathing --jd 2451545.0   # Phase 9 LUT inspector
+ephemerides-spectral adaptive --jd 2451545.0    # Phase 9 LUT inspector
+                                                # (`breathing` is a hidden
+                                                # synonym; same handler)
 ```
 
 See the [PyPI README](python/README.md) for the full CLI cheat-sheet and

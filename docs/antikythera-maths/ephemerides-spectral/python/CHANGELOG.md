@@ -10,7 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.1)
+(no entries yet — next entries land after v0.9.2)
+
+## [0.9.2] — 2026-05-05
+
+**CLI: `adaptive` is the primary name for Phase 9 state-dependent coupling modulation; `breathing` retained as a hidden synonym.** No public-API changes, no encoder hot-path changes.
+
+### Added
+
+- `ephemerides-spectral adaptive` — primary subcommand. Matches the adaptive-networks vocabulary (Gross & Blasius 2008; adaptive Kuramoto): a state-dependent graph Laplacian whose edge weights co-evolve with node phases.
+
+### Changed
+
+- `ephemerides-spectral breathing` — now registered with `help=argparse.SUPPRESS`. Invisible in `--help` listings, fully functional when typed. Cross-referenced from `adaptive --help`'s epilog and from the toplevel `--help`.
+
+### Fixed
+
+- `resolution --body` default and example strings updated `earth` → `terra` (consistent with the v0.9.0 body roster). `find-tubes` and `local-view` examples likewise corrected. The CLI help and `--body` validation are now self-consistent.
+- **Latent bug since v0.8.0:** `get_breathing_modulation(backend="auto")` (its own default) was rejected by the `_validate_backend` check; any caller that didn't pass an explicit `backend=` got an "ok: false" error. `"auto"` is now resolved to a concrete backend before validation, matching the docstring. The CLI's `breathing` (now `adaptive`) subcommand was the principal victim.
+
+### Internal
+
+- Subparser argument registration factored through a shared helper so `adaptive` and `breathing` cannot drift apart.
+- `_cmd_breathing` kept as an alias of `_cmd_adaptive` for external imports.
+
+### Migration
+
+None required. Both `adaptive` and `breathing` work; existing scripts unchanged.
 
 ## [0.9.1] — 2026-05-05
 
