@@ -7,7 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.6.1)
+(no entries yet — next entries land after v0.7.0)
+
+## [0.7.0] — 2026-05-05
+
+**C/Python parity Tier 2b — full HD pipeline in C (ABI v5).** The architectural lift announced in v0.6.1's `TIER2_DESIGN.md` lands. Three new C entry points + bridge dispatch on `backend={"auto","bip","c","fpu-ref"}` for `get_local_view` and `get_eclipse_probability`. The parity smoke test's two `tier2_skip` entries flip to `parity` — **every encoder-touching bridge method now has a paired C path**. The discipline announced at v0.6.0 ("if we always smoke all python things, we know to always smoke the same C things") is fully realised.
+
+### Added — C surface (ABI v5)
+
+- ``es_encode_state_hd(delta_t_days, complex64 *out, D)`` — calls the existing `es_encode_state` for the 38 × uint32 phase residues, lifts each via the splitmix64 channel basis (`es_channel_basis(2026 + body_idx, ..., D)`), divides by sqrt(D), sums into the accumulator, normalises.
+- ``es_bind_observer(state_in, body_idx, lat, lon, state_out, D)`` — pure HDC algebra: integer-encode (lat, lon), build a coord_op via `np.roll(channel_basis(9999), (lat·67 + lon·7) mod D)`, multiply elementwise, scale by `sqrt(D)`. No SPICE, no skyfield.
+- ``es_get_eclipse_probability(state, D, sun_idx, moon_idx, *out_prob)`` — builds the syzygy operator (sun + moon channel bases / sqrt(D) plus node basis from seed=777 / sqrt(D)), normalises, returns `|<state, s_op>|`.
+- New SSOT macros: ``ES_BODY_BASIS_SEED_BASE``, ``ES_OBSERVER_COORD_BASIS_SEED``, ``ES_SYZYGY_NODE_BASIS_SEED``, ``ES_COPRIME_LAT``, ``ES_COPRIME_LON``.
+
+### Added — Python
+
+- ``_research/bip_hd_lift.py`` — pure-Python BIP-and-lift pipeline. ``encode_state_hd``, ``bind_observer``, ``syzygy_operator``, ``eclipse_probability``. Mirrors the C path step-for-step using the splitmix64 portable PRNG from v0.6.1. The Python BIP-and-lift output and the C ``es_encode_state_hd`` output agree within float-ULP.
+- ``_native_bip.native_encode_state_hd``, ``native_bind_observer``, ``native_get_eclipse_probability`` — ctypes wrappers returning `numpy.complex64` arrays.
+- New ``backend`` parameter on ``bridge.get_local_view`` and ``bridge.get_eclipse_probability``: ``"auto"`` (default) / ``"bip"`` / ``"c"`` go through the new BIP-and-lift HD path; ``"fpu-ref"`` keeps the original ``EphemerisHDCInstrument.encode_state`` matrix-expm propagation for backwards compatibility. Both return a ``backend`` field in the result dict.
+
+### Behaviour change
+
+Default behaviour of `bridge.get_local_view` and `bridge.get_eclipse_probability` changes from FPU-matrix-expm to BIP-and-lift output. The two paths produce **different state vectors** because they use different propagation algorithms:
+
+- **BIP-and-lift** (v0.7.0+ default): integer-Q-format chunked propagation + LUT-based breathing + lift via channel bases. Fast, deterministic, byte-identical to the C twin within float-ULP.
+- **FPU-ref** (pre-v0.7.0 default; opt-in via `backend="fpu-ref"`): scipy.linalg.expm matrix propagation. Captures second-order Laplacian effects but no C twin.
+
+Tests don't pin specific bytes for these methods; the bridge contract (returns ok=True with state vector + probability scalar) is unchanged. Numerical values differ between v0.6.1 and v0.7.0 default output. Callers that need v0.6.1's exact bytes should pass ``backend="fpu-ref"``.
+
+### Tests
+
+- New ``tests/test_hd_parity.py`` — 8 byte-parity tests pinning Python BIP-and-lift ↔ C agreement on `encode_state_hd`, `bind_observer` (parametrized over 4 lat/lon points + body combinations), `eclipse_probability`. Tolerance: 1e-5 on state vectors, 1e-7 on the scalar probability — both well above the empirical ~1e-9 diff observed.
+- ``tests/test_parity_smoke.py`` `tier2_skip` entries flipped to ``parity``. **22/22 parametrized parity smoke tests pass; 0 tier_skip entries remain.**
+
+84 active tests pass; 4 skipped (cibuildwheel-only native parity ladders).
+
+### Discipline reached
+
+| version | parity scope |
+|---|---|
+| v0.5.x | encoder hot path (BIP ↔ C byte-identical, pinned by `test_native_parity`) |
+| v0.6.0 | + `find_syzygies` + `get_breathing_modulation` |
+| v0.6.1 | + channel-basis foundation (splitmix64) |
+| **v0.7.0** | + **HD pipeline (encode_state_hd, bind_observer, eclipse_probability)** |
+
+The PARITY_TARGETS table is the SSOT for what's at parity. As of v0.7.0 every entry is either `parity` (8 entries) or `python_only` (12 entries); zero `tier{1,2}_skip` outstanding.
+
+### Next: phase 2c (deferred)
+
+The `TIER2_DESIGN.md` document mentioned a phase 2c — deciding whether to retire the FPU matrix-expm path or keep it as `backend="fpu-ref"`. v0.7.0 ships with the second choice (kept). The matrix-expm path captures second-order Laplacian effects the BIP integer encoder doesn't; whether that matters for any downstream consumer is empirically open. Phase 2c will measure path divergence on the DE441 sweep and decide.
 
 ## [0.6.1] — 2026-05-05
 

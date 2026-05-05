@@ -57,7 +57,11 @@ import numpy as np
 #   v4 — v0.6.1: Tier 2a foundation (es_complex64_t struct,
 #       es_channel_basis, splitmix64 plumbing). Encoder hot path
 #       unchanged.
-EXPECTED_ABI_VERSION: int = 4
+#   v5 — v0.7.0: Tier 2b HD pipeline. es_encode_state_hd,
+#       es_bind_observer, es_get_eclipse_probability + body-basis /
+#       observer-coord / syzygy-node seed constants. Encoder hot
+#       path unchanged.
+EXPECTED_ABI_VERSION: int = 5
 
 # Mirrors c/include/ephemerides_spectral.h.
 ES_PATCH_NAME_MAX: int = 64
@@ -269,6 +273,38 @@ def _bind(lib: ctypes.CDLL) -> None:
         ctypes.c_size_t,
     ]
     lib.es_channel_basis.restype = ctypes.c_int
+
+    # ABI v5 (v0.7.0) — Tier 2b: HD encode + observer-bind + eclipse projection.
+    # es_status_t es_encode_state_hd(double, es_complex64_t *out, size_t D)
+    lib.es_encode_state_hd.argtypes = [
+        ctypes.c_double,
+        ctypes.POINTER(EsComplex64),
+        ctypes.c_size_t,
+    ]
+    lib.es_encode_state_hd.restype = ctypes.c_int
+
+    # es_status_t es_bind_observer(const es_complex64_t *state_in,
+    #                               size_t body_idx, double lat, double lon,
+    #                               es_complex64_t *out, size_t D)
+    lib.es_bind_observer.argtypes = [
+        ctypes.POINTER(EsComplex64),
+        ctypes.c_size_t,
+        ctypes.c_double, ctypes.c_double,
+        ctypes.POINTER(EsComplex64),
+        ctypes.c_size_t,
+    ]
+    lib.es_bind_observer.restype = ctypes.c_int
+
+    # es_status_t es_get_eclipse_probability(const es_complex64_t *state,
+    #                                         size_t D, size_t sun_idx,
+    #                                         size_t moon_idx, double *out)
+    lib.es_get_eclipse_probability.argtypes = [
+        ctypes.POINTER(EsComplex64),
+        ctypes.c_size_t,
+        ctypes.c_size_t, ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.es_get_eclipse_probability.restype = ctypes.c_int
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -547,6 +583,87 @@ def native_find_syzygies(jd_lo: float, jd_hi: float, *,
     return out
 
 
+def native_encode_state_hd(delta_t_days: float, D: int) -> Any:
+    """Run the C-side BIP encode + lift to D-dim hypervector.
+
+    Returns a `numpy.complex64` array of length D (unit-norm).
+
+    Caller-side guard required: only invoke when ``HAS_NATIVE`` is True.
+    """
+    if not HAS_NATIVE:
+        raise RuntimeError(
+            "native_encode_state_hd called without native library"
+        )
+    assert LIB is not None
+    import numpy as np
+    buf = (EsComplex64 * D)()
+    rc = int(LIB.es_encode_state_hd(
+        ctypes.c_double(float(delta_t_days)),
+        buf,
+        ctypes.c_size_t(int(D)),
+    ))
+    if rc != ES_OK:
+        raise RuntimeError(f"es_encode_state_hd returned status {rc}")
+    return np.frombuffer(buf, dtype=np.complex64).copy()
+
+
+def native_bind_observer(state: Any, body_idx: int, lat_deg: float,
+                         lon_deg: float) -> Any:
+    """Run the C-side topocentric observer-bind.
+
+    `state` must be a numpy `complex64` array; the returned array is
+    the same shape.
+    """
+    if not HAS_NATIVE:
+        raise RuntimeError(
+            "native_bind_observer called without native library"
+        )
+    assert LIB is not None
+    import numpy as np
+    state_c64 = np.ascontiguousarray(state, dtype=np.complex64)
+    D = int(state_c64.shape[0])
+    in_buf = state_c64.ctypes.data_as(ctypes.POINTER(EsComplex64))
+    out_buf = (EsComplex64 * D)()
+    rc = int(LIB.es_bind_observer(
+        in_buf,
+        ctypes.c_size_t(int(body_idx)),
+        ctypes.c_double(float(lat_deg)),
+        ctypes.c_double(float(lon_deg)),
+        out_buf,
+        ctypes.c_size_t(D),
+    ))
+    if rc != ES_OK:
+        raise RuntimeError(f"es_bind_observer returned status {rc}")
+    return np.frombuffer(out_buf, dtype=np.complex64).copy()
+
+
+def native_get_eclipse_probability(state: Any, sun_body_idx: int,
+                                    moon_body_idx: int) -> float:
+    """Run the C-side syzygy projection. Returns scalar probability."""
+    if not HAS_NATIVE:
+        raise RuntimeError(
+            "native_get_eclipse_probability called without native library"
+        )
+    assert LIB is not None
+    import numpy as np
+    state_c64 = np.ascontiguousarray(state, dtype=np.complex64)
+    D = int(state_c64.shape[0])
+    in_buf = state_c64.ctypes.data_as(ctypes.POINTER(EsComplex64))
+    out_prob = ctypes.c_double(0.0)
+    rc = int(LIB.es_get_eclipse_probability(
+        in_buf,
+        ctypes.c_size_t(D),
+        ctypes.c_size_t(int(sun_body_idx)),
+        ctypes.c_size_t(int(moon_body_idx)),
+        ctypes.byref(out_prob),
+    ))
+    if rc != ES_OK:
+        raise RuntimeError(
+            f"es_get_eclipse_probability returned status {rc}"
+        )
+    return float(out_prob.value)
+
+
 def native_channel_basis(seed: int, D: int) -> Any:
     """Generate a deterministic complex64 channel basis of dimension D.
 
@@ -604,4 +721,7 @@ __all__ = [
     "native_breathing_modulation",
     "native_find_syzygies",
     "native_channel_basis",
+    "native_encode_state_hd",
+    "native_bind_observer",
+    "native_get_eclipse_probability",
 ]
