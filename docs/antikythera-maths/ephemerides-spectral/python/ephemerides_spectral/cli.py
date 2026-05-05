@@ -83,6 +83,11 @@ def _emit_proper(result: Dict[str, Any], args: argparse.Namespace) -> int:
             result, args.subcommand_name,
             frame=getattr(args, "frame", "heliocentric_ecliptic"),
         )
+    if getattr(args, "dynamics", False):
+        result = bridge.apply_dynamics_correction(
+            result, args.subcommand_name,
+            frame=getattr(args, "frame", "heliocentric_ecliptic"),
+        )
     return _emit(result, pretty=args.pretty)
 
 
@@ -317,6 +322,43 @@ def _cmd_kinematics(args: argparse.Namespace) -> int:
     )
 
 
+# ── v0.13.0 Sol Dynamics — system energy / forces / per-body energy budgets
+
+def _cmd_dynamics(args: argparse.Namespace) -> int:
+    """v0.13.0 Sol Dynamics — system aggregate, per-body energies, or pair forces.
+
+    Three query modes:
+      - default: system-level aggregate (KE / PE / total / L partitions)
+      - --body X: that body's energy budget (KE + PE + total)
+      - --body X --from Y: gravitational force on X from Y
+    """
+    if args.from_body is not None:
+        if args.body is None:
+            return _emit(
+                {"ok": False,
+                 "error": "--from <Y> requires --body <X>"},
+                pretty=args.pretty,
+            )
+        return _emit(
+            bridge.get_force_between(
+                args.body, args.from_body,
+                jd_tdb=args.jd, frame=args.frame,
+            ),
+            pretty=args.pretty,
+        )
+    if args.body is not None:
+        return _emit(
+            bridge.get_body_energies(
+                args.body, jd_tdb=args.jd, frame=args.frame,
+            ),
+            pretty=args.pretty,
+        )
+    return _emit(
+        bridge.get_dynamics(jd_tdb=args.jd, frame=args.frame),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_find_tubes(args: argparse.Namespace) -> int:
     return _emit(
         bridge.find_itn_pathways(
@@ -517,6 +559,24 @@ def _add_proper_flags(parser: argparse.ArgumentParser) -> None:
         help="Reference frame for the kinematic state (default "
              "'heliocentric_ecliptic'). v0.12.0 ships circular Kepler "
              "approximation; both frames produce the same elements.",
+    )
+    # v0.13.0 — Sol Dynamics --dynamics flag, added uniformly to every
+    # time-* subcommand the same way --proper and --state are. When
+    # set, augments the time output with a `dynamics` block (KE, PE,
+    # total energy, is_bound) for the subcommand's canonical body.
+    dyn_grp = parser.add_argument_group(
+        "kinematic dynamics (v0.13.0)",
+        "Augment the result with a Sol Dynamics block for the "
+        "subcommand's canonical body (no-op without --dynamics). "
+        "Implementation lives in `bridge.apply_dynamics_correction`; "
+        "output gains a `dynamics` block with KE / PE / total energy.",
+    )
+    dyn_grp.add_argument(
+        "--dynamics", action="store_true",
+        help="Apply Sol Dynamics augmentation. Adds a `dynamics` "
+             "block with kinetic energy, potential energy, total "
+             "energy, and is_bound flag. Same body as --state and "
+             "--proper.",
     )
 
 
@@ -1284,6 +1344,61 @@ def _make_parser() -> argparse.ArgumentParser:
                       default="heliocentric_ecliptic",
                       help="Reference frame (default 'heliocentric_ecliptic').")
     kine.set_defaults(func=_cmd_kinematics)
+
+    # dynamics (v0.13.0) — Sol Dynamics standalone subcommand
+    dyn = sub.add_parser(
+        "dynamics",
+        help="Sol Dynamics — system energy budget, per-body energies, or pair forces",
+        description=(
+            "Three query modes selected by which flags you pass:\n"
+            "\n"
+            "  default       System aggregate: total KE + PE + total E,\n"
+            "                is_bound, angular-momentum partitions\n"
+            "                (Jupiter holds ~61.5%, outer planets ~99.84%).\n"
+            "\n"
+            "  --body X      That body's energy budget: KE + PE + total E.\n"
+            "                Heliocentric PE for Sol-orbiting bodies;\n"
+            "                parent-centric PE for moons.\n"
+            "\n"
+            "  --body X --from Y\n"
+            "                Newtonian gravitational force ON body X FROM body Y.\n"
+            "                v0.13.0 reports magnitude only; 3D vectors\n"
+            "                queued for v0.13.x with the position decoder.\n"
+            "\n"
+            "Mirror of chess-spectral's `qm_*_dynamics.py` *dynamics*\n"
+            "layer — Hamiltonian + evolution + force / energy queries.\n"
+            "Counterpart to v0.12.0's Sol Kinematics.\n"
+            "\n"
+            "Validated against published Solar-System totals: total\n"
+            "energy < 0 (system bound), Earth-Sun force ≈ 3.54e22 N at\n"
+            "1 AU, Sun KE / Mc² ≈ 8.6e-16."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  # System totals\n"
+            "  ephemerides-spectral dynamics\n\n"
+            "  # Mars's energy budget\n"
+            "  ephemerides-spectral dynamics --body mars\n\n"
+            "  # Force on Mars from Jupiter\n"
+            "  ephemerides-spectral dynamics --body mars --from jupiter\n\n"
+            "  # Earth-Sun force (validation reference)\n"
+            "  ephemerides-spectral dynamics --body terra --from sun"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    dyn.add_argument("--body", choices=_BODY_CHOICES, default=None,
+                     help="Body to query (omit for system aggregate).")
+    dyn.add_argument("--from", dest="from_body",
+                     choices=_BODY_CHOICES, default=None,
+                     help="If set with --body, return force on body from this body.")
+    dyn.add_argument("--jd", type=float, default=None,
+                     help="JD (TDB) — accepted for forward compat; v0.13.0 "
+                          "uses mean orbital elements regardless.")
+    dyn.add_argument("--frame",
+                     choices=("heliocentric_ecliptic", "parent_centric"),
+                     default="heliocentric_ecliptic",
+                     help="Reference frame (default 'heliocentric_ecliptic').")
+    dyn.set_defaults(func=_cmd_dynamics)
 
     # find-tubes (v0.8.1) — ITN pathway / Lagrange-tube query
     ft = sub.add_parser(

@@ -24,6 +24,10 @@
       "sha256": "4b7c1fbbdce7014d7b0e6c086bb543e399e1ba00d03eb2fc8c579aa1daad7fd2",
       "size_bytes": 21602
     },
+    "_research/dynamics.py": {
+      "sha256": "693ca209643a84fef67346b3ec042986766394afc962e38b568e526dbb4296b3",
+      "size_bytes": 19504
+    },
     "_research/ephemeris_loader.py": {
       "sha256": "59cc22dd5162449cd8c753b95fc64ba0d69fad0288f3964e2bdc1845c553453f",
       "size_bytes": 19110
@@ -62,5 +66,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.12.0"
+  "version": "0.13.0"
 }

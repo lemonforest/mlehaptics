@@ -107,6 +107,11 @@ from ephemerides_spectral._research.kinematics import (
     get_full_system_state as _get_full_system_state_impl,
     get_kinematic_state as _get_kinematic_state_impl,
 )
+from ephemerides_spectral._research.dynamics import (
+    get_body_energies as _get_body_energies_impl,
+    get_dynamics as _get_dynamics_impl,
+    get_force_between as _get_force_between_impl,
+)
 from ephemerides_spectral._research.bodies import BODIES as _BODIES
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
@@ -1382,6 +1387,153 @@ def apply_state_correction(
         "note": (f"Mean orbital state for {body_key} (circular Kepler "
                  f"approximation; v0.12.0). Per-JD eccentricity "
                  f"corrections deferred to v0.12.x."),
+    }
+    return result
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.13.0 Sol Dynamics — system energy, forces, evolution
+# ──────────────────────────────────────────────────────────────────────
+#
+# The dynamics counterpart to v0.12.0's Sol Kinematics. Mirrors chess-
+# spectral's `qm_*_dynamics.py` (Hamiltonian + evolution + force /
+# energy queries) at the orbital-mechanics scale.
+#
+# Where Kinematics describes *what is* (positions, velocities,
+# kinetic energies, angular momenta), Dynamics describes *what changes
+# things* — potential energies, gravitational forces, the Hamiltonian
+# (the existing Laplacian!), the time-evolution operator (the existing
+# `bip_instrument.encode_state`).
+#
+# Validation pinned by `tests/test_dynamics.py` against the same audit
+# numbers as Kinematics, plus dynamics-specific pins:
+#
+#   Total system energy < 0 (system is gravitationally bound)
+#   Sun's KE / Mc² < 1e-12 (Sun barely moves)
+#   Earth-Sun force = G M_sun M_earth / a_earth² ≈ 3.54×10²² N
+#   Mars-Jupiter force at mean separation ≈ 1.2×10¹⁷ N
+
+
+def get_dynamics(
+    *,
+    jd_tdb: Optional[float] = None,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """System-level dynamics aggregate at a JD.
+
+    Returns kinetic + potential + total energies (system-bound check),
+    angular-momentum partitions (Jupiter / outer-planets fractions),
+    and Sun's barycentric KE fraction. v0.13.0 reuses the v0.12.0
+    Kinematics machinery for the per-body states + adds the PE
+    computation.
+    """
+    if frame not in KINEMATICS_SUPPORTED_FRAMES:
+        return _err(
+            f"frame must be one of {list(KINEMATICS_SUPPORTED_FRAMES)}, "
+            f"got {frame!r}"
+        )
+    state = _get_dynamics_impl(jd_tdb=jd_tdb, frame=frame)
+    out: Dict[str, Any] = {"ok": True, **state.to_dict()}
+    out["abbreviation"] = "Sol-D"
+    return out
+
+
+def get_force_between(
+    body_a: str,
+    body_b: str,
+    *,
+    jd_tdb: Optional[float] = None,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """Newtonian gravitational force between two bodies.
+
+    Returns the force *on body_a from body_b*. v0.13.0 reports
+    magnitude only; 3D vectors deferred to v0.13.x.
+    """
+    if body_a not in _BODIES:
+        return _err(
+            f"body_a must be one of {sorted(_BODIES)}, got {body_a!r}"
+        )
+    if body_b not in _BODIES:
+        return _err(
+            f"body_b must be one of {sorted(_BODIES)}, got {body_b!r}"
+        )
+    if frame not in KINEMATICS_SUPPORTED_FRAMES:
+        return _err(
+            f"frame must be one of {list(KINEMATICS_SUPPORTED_FRAMES)}, "
+            f"got {frame!r}"
+        )
+    contrib = _get_force_between_impl(
+        body_a, body_b, jd_tdb=jd_tdb, frame=frame,
+    )
+    out: Dict[str, Any] = {"ok": True, **contrib.to_dict()}
+    out["abbreviation"] = "Sol-D"
+    return out
+
+
+def get_body_energies(
+    body: str,
+    *,
+    jd_tdb: Optional[float] = None,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """Per-body kinetic + potential + total energy budget."""
+    if body not in _BODIES:
+        return _err(
+            f"body must be one of {sorted(_BODIES)}, got {body!r}"
+        )
+    if frame not in KINEMATICS_SUPPORTED_FRAMES:
+        return _err(
+            f"frame must be one of {list(KINEMATICS_SUPPORTED_FRAMES)}, "
+            f"got {frame!r}"
+        )
+    energies = _get_body_energies_impl(body, jd_tdb=jd_tdb, frame=frame)
+    out: Dict[str, Any] = {"ok": True, **energies.to_dict()}
+    out["abbreviation"] = "Sol-D"
+    return out
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.13.0 Sol Time `--dynamics` post-processor
+# ──────────────────────────────────────────────────────────────────────
+
+
+def apply_dynamics_correction(
+    result: Dict[str, Any],
+    subcommand: str,
+    *,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """Augment a Sol Time bridge result with a `dynamics` block.
+
+    Used by the CLI when `--dynamics` is set on a `time-*` subcommand.
+    No-op on error responses or unknown subcommands. Mirrors
+    `apply_state_correction` for the v0.12.0 `--state` flag and
+    `apply_proper_correction` for the v0.11.0 `--proper` flag.
+    """
+    if not result.get("ok"):
+        return result
+    if subcommand not in _SPRT_COMMAND_MAP:
+        return result
+    body_key, _ = _SPRT_COMMAND_MAP[subcommand]
+    energies = get_body_energies(body_key, frame=frame)
+    if not energies.get("ok"):
+        return result
+    result["dynamics"] = {
+        "applied": True,
+        "body": body_key,
+        "frame": frame,
+        "abbreviation": "Sol-D",
+        "kinetic_energy_j": energies.get("kinetic_energy_j"),
+        "potential_energy_j": energies.get("potential_energy_j"),
+        "total_energy_j": energies.get("total_energy_j"),
+        "is_bound": (
+            energies.get("total_energy_j") is not None
+            and energies.get("total_energy_j") < 0
+        ),
+        "note": (f"Energy budget for {body_key} (circular Kepler PE; "
+                 f"v0.13.0). 3D forces and time-evolution operator "
+                 f"deferred to v0.13.x."),
     }
     return result
 
