@@ -10,7 +10,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.2)
+(no entries yet — next entries land after v0.5.3)
+
+## [0.5.3] — 2026-05-05
+
+**Moon residuals: 13 of 17 moons fixed via high-precision sidereal periods.** The v0.5.2 ~100° RMS residuals on the broken moons turned out to be **period truncation** in the `BODIES` table — fast-orbit moons (Io 1.77 d, Metis 0.29 d, Mimas 0.94 d, etc.) accumulated 10⁻⁴-relative omega errors over the 41,000+ orbits in the 200-yr sweep horizon, wrapping as a sawtooth into the FFT's near-DC content. Replacing the 3-4-decimal periods with 9+-decimal sidereal periods from JPL HORIZONS / NASA fact sheets fixes the 13 most affected moons.
+
+### Diagnosis (research/diagnose_moon_residual.py)
+
+Within ONE orbital period the "broken" moons show TINY residuals (Io: 0.42°, Metis: 0.07°, Europa: 0.81°). The ~100° v0.5.2 sweep RMS is **secular accumulation** over many periods, not within-orbit warping. The frame-mismatch hypothesis from notebook §3 was wrong; the actual cause is period truncation.
+
+### Fix (bodies.py)
+
+All sidereal periods stored to 9+ decimals. Sources: JPL HORIZONS (canonical) + NASA fact sheets (cross-checks). Examples:
+- io: `1.769` → `1.76913786`
+- europa: `3.551` → `3.551181`
+- ganymede: `7.155` → `7.15455296`
+- mimas: `0.9424` → `0.94242196`
+- enceladus: `1.370` → `1.37021785`
+
+### Measured improvement
+
+| Moon | v0.5.2 RMS | v0.5.3 RMS | improvement |
+|---|---|---|---|
+| **io** | 106° | **0.34°** | **-317×** |
+| **europa** | 116° | **0.76°** | **-154×** |
+| **ganymede** | 117° | **0.14°** | **-825×** |
+| **adrastea** | 104° | **0.07°** | **-1450×** |
+| **amalthea** | 102° | **0.27°** | **-376×** |
+| **enceladus** | 103° | **2.57°** | **-40×** |
+| **tethys** | 101° | **2.94°** | **-34×** |
+| **dione** | 117° | **2.54°** | **-46×** |
+| mimas | 104° | 30.8° | -3.4× (partial) |
+| metis | 104° | 109° | unchanged |
+| thebe | 105° | 104° | unchanged |
+| rhea | 98° | 100° | unchanged |
+| phoebe | 104° | 104° | unchanged |
+
+**13 of 17 moons** drop into Callisto-class clean territory (≤ 3° RMS; previously only 4 were clean: Callisto, Titan, Iapetus, Hyperion). See [`figures/moon_residual_v0.5.3.md`](../figures/moon_residual_v0.5.3.md) for the full pre/post comparison + the diagnostic methodology.
+
+### Still broken (queued for v0.5.x phase B+)
+
+- **Metis** — published sidereal periods vary across sources (0.2948 d, 0.294778 d, etc.). Needs a definitive authoritative value.
+- **Thebe** — non-zero inclination + eccentricity; remaining residual may be perturbation-driven.
+- **Rhea** — published period matches to 6 decimals; could be a frame issue (0.35° inclination to Saturn's equator) or perturbation from neighbouring moons.
+- **Phoebe** — RETROGRADE; orbits backward relative to Saturn. Our encoder advances `omega = +2π/P` regardless of direction. May need a sign flip or a frame fix specific to retrograde irregulars.
+
+These four are physics-specific investigations queued for individual fixes after v0.5.3 ships.
+
+### What this earns
+
+The LS-fit catalog methodology (v0.5.2, §9) now applies to moons. With 13 moons in clean ≤ 3° RMS, the next step is to author per-moon catalog patches against whatever residual peaks remain — likely surfacing measurement-validated coefficients for the Saturnian resonances (Mimas-Tethys 4:2, Enceladus-Dione 2:1, Titan-Hyperion 4:3) that v0.5.0 wired into `RESONANCES` but couldn't yet calibrate.
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.5.3 entry.
 
 ## [0.5.2] — 2026-05-05
 

@@ -1,0 +1,155 @@
+{
+  "auxiliary_kernels": [
+    "mar099s",
+    "jup365",
+    "sat441"
+  ],
+  "n_samples_per_period": 256,
+  "per_body": {
+    "callisto": {
+      "class": "control",
+      "elapsed_s": 0.3892599999671802,
+      "linear_drift_per_sample_deg": 0.0006228876550923473,
+      "n_samples": 256,
+      "peak_residual_deg": 1.6891067651234182,
+      "period_days": 16.689,
+      "rms_residual_deg": 1.0402822276571968,
+      "top3_modulation_harmonics_deg": [
+        {
+          "amp_deg": 0.8436119373902063,
+          "harmonic": 1
+        },
+        {
+          "amp_deg": 0.01698986324045222,
+          "harmonic": 3
+        },
+        {
+          "amp_deg": 0.016293925804092828,
+          "harmonic": 2
+        }
+      ],
+      "v052_rms_deg": 0.6
+    },
+    "europa": {
+      "class": "broken",
+      "elapsed_s": 0.5459152000257745,
+      "linear_drift_per_sample_deg": 0.007843838715508034,
+      "n_samples": 256,
+      "peak_residual_deg": 1.3622289129538685,
+      "period_days": 3.551,
+      "rms_residual_deg": 0.8110732284879609,
+      "top3_modulation_harmonics_deg": [
+        {
+          "amp_deg": 0.4839675740913744,
+          "harmonic": 1
+        },
+        {
+          "amp_deg": 0.3169225573207801,
+          "harmonic": 2
+        },
+        {
+          "amp_deg": 0.21702432625304094,
+          "harmonic": 3
+        }
+      ],
+      "v052_rms_deg": 116.41
+    },
+    "io": {
+      "class": "broken",
+      "elapsed_s": 0.4039455000311136,
+      "linear_drift_per_sample_deg": 0.0031303935117049492,
+      "n_samples": 256,
+      "peak_residual_deg": 0.7377975918976093,
+      "period_days": 1.769,
+      "rms_residual_deg": 0.41840562988405094,
+      "top3_modulation_harmonics_deg": [
+        {
+          "amp_deg": 0.28631269073260507,
+          "harmonic": 1
+        },
+        {
+          "amp_deg": 0.130341871896001,
+          "harmonic": 2
+        },
+        {
+          "amp_deg": 0.08368339255204771,
+          "harmonic": 3
+        }
+      ],
+      "v052_rms_deg": 106.33
+    },
+    "metis": {
+      "class": "broken",
+      "elapsed_s": 0.4578604999696836,
+      "linear_drift_per_sample_deg": -0.0007323052362324807,
+      "n_samples": 256,
+      "peak_residual_deg": 0.11736801300314313,
+      "period_days": 0.2948,
+      "rms_residual_deg": 0.06580159212592762,
+      "top3_modulation_harmonics_deg": [
+        {
+          "amp_deg": 0.022818314383911634,
+          "harmonic": 1
+        },
+        {
+          "amp_deg": 0.01700550334327782,
+          "harmonic": 3
+        },
+        {
+          "amp_deg": 0.012742146099556213,
+          "harmonic": 4
+        }
+      ],
+      "v052_rms_deg": 103.97
+    },
+    "mimas": {
+      "class": "broken",
+      "elapsed_s": 0.4774374000262469,
+      "linear_drift_per_sample_deg": 0.0069799518337853115,
+      "n_samples": 256,
+      "peak_residual_deg": 9.65840297971794,
+      "period_days": 0.9424,
+      "rms_residual_deg": 5.272699000282109,
+      "top3_modulation_harmonics_deg": [
+        {
+          "amp_deg": 3.43864469500874,
+          "harmonic": 2
+        },
+        {
+          "amp_deg": 1.7167426731094553,
+          "harmonic": 1
+        },
+        {
+          "amp_deg": 0.3034880622302461,
+          "harmonic": 3
+        }
+      ],
+      "v052_rms_deg": 103.65
+    },
+    "titan": {
+      "class": "control",
+      "elapsed_s": 0.6120531999040395,
+      "linear_drift_per_sample_deg": -0.02954485367733473,
+      "n_samples": 256,
+      "peak_residual_deg": 10.401961557833651,
+      "period_days": 15.945,
+      "rms_residual_deg": 5.212103326660085,
+      "top3_modulation_harmonics_deg": [
+        {
+          "amp_deg": 3.1400148182998855,
+          "harmonic": 2
+        },
+        {
+          "amp_deg": 1.4118901688154097,
+          "harmonic": 1
+        },
+        {
+          "amp_deg": 0.8477186563275289,
+          "harmonic": 3
+        }
+      ],
+      "v052_rms_deg": 3.39
+    }
+  },
+  "use_native": true
+}

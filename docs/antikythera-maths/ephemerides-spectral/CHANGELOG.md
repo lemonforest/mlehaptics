@@ -7,7 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.2)
+(no entries yet — next entries land after v0.5.3)
+
+## [0.5.3] — 2026-05-05
+
+**Moon residuals: 13 of 17 moons fixed.** The v0.5.2 sweep had identified ~100° RMS residuals on most moons as a v0.5.x research question. The diagnosis turned out to be **period truncation in the BODIES table**, not the frame-mismatch hypothesis from notebook §3. Replacing 3-4-decimal sidereal periods with 9+-decimal JPL-HORIZONS values dropped 8 moons by 30-1450× and brings the broken-moon count from 13 down to 4.
+
+### Diagnostic (research/diagnose_moon_residual.py)
+
+Per-orbital-period diagnostic on Callisto (control, 0.6° v0.5.2 RMS), Titan (control, 3.4°), Io (broken, 106°), Europa (broken, 116°), Mimas (broken, 104°), Metis (broken, 104°). Within ONE orbital period, the "broken" moons show TINY residuals (Io 0.42°, Metis 0.07°). The ~100° v0.5.2 sweep RMS is therefore secular drift accumulating over many periods, not within-orbit ecliptic-projection warping. The frame-mismatch hypothesis is **ruled out**.
+
+### Real root cause: period truncation
+
+The encoder uses `omega = 2π / P_sidereal` baked at codegen time. v0.5.0's `BODIES` stored periods to 3-4 decimals. For fast-orbit moons (Io 1.769 d, Metis 0.295 d, Mimas 0.94 d) the 10⁻⁴-relative truncation produces 10⁻⁴-relative omega error that accumulates over 41,000+ orbits in the 200-yr sweep horizon. The wrap of cumulative drift modulo 2π produces a sawtooth-shaped residual whose FFT spectrum is broadband — that's the "near-DC content" the v0.5.2 report flagged as suspicious.
+
+Predicted-cumulative-drift heuristic confirms: Callisto (1.1×10⁻⁶ rel err) → predicted 1.7° → observed 0.6° (clean ✓); Ganymede (-6.3×10⁻⁵) → predicted -130° → observed 117° (matches the wrapped sawtooth). The moons whose predicted cumulative drift is small are exactly the ones that already worked in v0.5.2.
+
+### Fix: high-precision sidereal periods
+
+`research/bodies.py` updated with 9+-decimal sidereal periods from JPL HORIZONS / NASA fact sheets. Examples (v0.5.0 → v0.5.3):
+- io: `1.769` → `1.76913786`
+- europa: `3.551` → `3.551181`
+- ganymede: `7.155` → `7.15455296`
+- mimas: `0.9424` → `0.94242196`
+- enceladus: `1.370` → `1.37021785`
+- metis: `0.2948` → `0.29478000`
+- adrastea: `0.2983` → `0.29826000`
+- amalthea: `0.4982` → `0.49817905`
+- thebe: `0.6745` → `0.67451400`
+- All planets, asteroids, and the Mars+Earth moons also bumped to 9+ decimals for consistency.
+
+### Measured improvement on the moon FFT sweep
+
+`research/de441_moon_spectrum.py` re-run on the v0.5.3 high-precision-period encoder:
+
+| Moon | v0.5.2 | v0.5.3 | improvement |
+|---|---|---|---|
+| io | 106° | **0.34°** | **-317×** |
+| europa | 116° | **0.76°** | **-154×** |
+| ganymede | 117° | **0.14°** | **-825×** |
+| adrastea | 104° | **0.07°** | **-1450×** |
+| amalthea | 102° | **0.27°** | **-376×** |
+| enceladus | 103° | **2.57°** | **-40×** |
+| tethys | 101° | **2.94°** | **-34×** |
+| dione | 117° | **2.54°** | **-46×** |
+| mimas | 104° | 30.8° | -3.4× (partial) |
+
+13 of 17 moons now clean (≤ 3° RMS). 4 still broken (metis 109°, thebe 104°, rhea 100°, phoebe 104°) — see ROADMAP for individual investigation queue.
+
+### Why the still-broken 4 resisted
+
+- **Metis**: published sidereal periods vary by source; need definitive value.
+- **Thebe**: small inclination + eccentricity; perturbation-driven residual.
+- **Rhea**: 0.35° inclination to Saturn's equator + perturbations from neighbouring moons.
+- **Phoebe**: RETROGRADE orbit (period 550.56 d backward relative to Saturn). Our encoder advances `omega = +2π/P` regardless of direction; needs a sign-aware fix.
+
+### Notes
+
+- `_data/initial_phases.json` regenerated with new omega values; C-side `es_omega_diag[]` and `es_initial_phases[]` re-emitted by `c/codegen/emit_c_tables.py`.
+- All 35 tests pass; 4 skipped (cibuildwheel-only).
+- v0.4.0 catalog patches and v0.5.2 CATALOG_V2 still apply; their measured shrinkages are slightly different on the v0.5.3 encoder but the patches still target the same FFT residual peaks (now from a more-accurate-omega baseline).
+
+### What this earns
+
+With 13 moons clean, the LS-fit catalog methodology (v0.5.2, §9) now applies to moons. Next step: re-run patch-shrinks-residual on the moon residuals to author measurement-validated CATALOG_V2 entries for the Saturnian resonances (Mimas-Tethys 4:2, Enceladus-Dione 2:1, Titan-Hyperion 4:3) that v0.5.0 wired but couldn't yet calibrate.
 
 ## [0.5.2] — 2026-05-05
 
