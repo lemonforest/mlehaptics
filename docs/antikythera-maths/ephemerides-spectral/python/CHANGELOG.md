@@ -10,7 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.8.1)
+(no entries yet — next entries land after v0.9.0)
+
+## [0.9.0] — 2026-05-05
+
+**Body identity rename: `moon` → `luna`, `earth` → `terra`. BREAKING CHANGE.**
+
+The body-identity strings now use Latin proper nouns. The generic English nouns are no longer privileged — `moon` is the category for any natural satellite, `earth` is the substance/ground.
+
+### Migration
+
+Anywhere your code references body identity by string, change:
+```python
+bridge.body_to_idx["earth"]    # before
+bridge.body_to_idx["moon"]     # before
+bridge.list_bodies()            # contained "earth"/"moon"
+```
+to:
+```python
+bridge.body_to_idx["terra"]    # after
+bridge.body_to_idx["luna"]     # after
+bridge.list_bodies()            # contains "terra"/"luna"
+```
+
+### What stays the same
+
+- Category strings (`category == "moon"`) — moon is the generic category, not Luna's identity
+- Adjective forms (`lunar`, `terran`/`terrestrial`)
+- JPL/skyfield kernel identifiers (`"earth"`, `"moon"`, 399, 301)
+- Encoded phase residues (uint32 output unchanged at the same JD)
+
+### Tests
+
+107 active tests pass; 5 skipped (4 cibuildwheel + 1 `tier1_skip` `find_itn_pathways`).
 
 ## [0.8.1] — 2026-05-05
 

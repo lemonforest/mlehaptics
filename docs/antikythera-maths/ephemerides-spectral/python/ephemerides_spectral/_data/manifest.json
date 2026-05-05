@@ -1,7 +1,7 @@
 {
   "files": {
     "_data/initial_phases.json": {
-      "sha256": "e02b1457842734abc04357c0157d914c60959845016c03c6b1c183bc82fc7674",
+      "sha256": "5ce6e05d3cf9887dc4c3d22f02fdbc60a88d87343abea47851c9a6c050a1743f",
       "size_bytes": 2939
     },
     "_research/__init__.py": {
@@ -13,31 +13,31 @@
       "size_bytes": 8153
     },
     "_research/bip_instrument.py": {
-      "sha256": "073e344d431b0a929d7610cdc63fe82d315f4886fd3155b2a2d21af4e1641249",
-      "size_bytes": 25487
+      "sha256": "01dfb9227af6edba99eb2e05c0eb1ebfd29e21e3e5e78a9586d23d1670a24c2f",
+      "size_bytes": 25588
     },
     "_research/bodies.py": {
-      "sha256": "58c51516bbdd0ca872bad15983b61c5786693a708c684911b9823183f2a389ff",
-      "size_bytes": 4245
+      "sha256": "5a144d1954433641a2a44cefce519d5f3488e9aac85a2a3833268328a93f649e",
+      "size_bytes": 4400
     },
     "_research/diagnosed_fibers.py": {
       "sha256": "4b7c1fbbdce7014d7b0e6c086bb543e399e1ba00d03eb2fc8c579aa1daad7fd2",
       "size_bytes": 21602
     },
     "_research/ephemeris_loader.py": {
-      "sha256": "4d78c11ae44357b3472cbdce50dd3c71c1a672869f437c0d57d589aa7c56a8b2",
-      "size_bytes": 17927
+      "sha256": "59cc22dd5162449cd8c753b95fc64ba0d69fad0288f3964e2bdc1845c553453f",
+      "size_bytes": 19110
     },
     "_research/ephemeris_reference_instrument.py": {
-      "sha256": "90f5bfbb94090644a3237a0bcc7f54eb9c96ff01a96d1ac9fc846d5b5b98b464",
-      "size_bytes": 10897
+      "sha256": "9b0db0f91f428a4b0cfcbdf8b9dba30c871b0f3faebdc062a7aff8024a4d6e51",
+      "size_bytes": 11035
     },
     "_research/itn_window.py": {
       "sha256": "0f0f50e543d497d21e9d46590ca7cab304527583131b76273ae9d26da844e3d0",
       "size_bytes": 15149
     },
     "_research/laplacian.py": {
-      "sha256": "b14d5e4dc6490e879c062374b4f75fbeacfdb46a4cdaf7e8a0953e86f6534552",
+      "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
       "size_bytes": 12233
     },
     "_research/portable_prng.py": {
@@ -54,5 +54,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.8.1"
+  "version": "0.9.0"
 }

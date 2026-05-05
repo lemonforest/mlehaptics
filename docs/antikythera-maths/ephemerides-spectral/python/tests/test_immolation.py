@@ -290,7 +290,7 @@ def test_v081_find_tubes_earth_to_mars_basics() -> None:
     """Earth->Mars Hohmann windows recur every synodic period (~779.94 d)."""
     out = bridge.find_itn_pathways(
         2451545.0, 2451545.0 + 50 * 365.25,
-        departure="earth", target="mars", threshold=0.05,
+        departure="terra", target="mars", threshold=0.05,
     )
     assert out["ok"] is True
     n = out["n_candidates"]
@@ -309,7 +309,7 @@ def test_v081_find_tubes_earth_to_mars_basics() -> None:
 def test_v081_find_tubes_rejects_same_body() -> None:
     out = bridge.find_itn_pathways(
         2451545.0, 2451545.0 + 365.25,
-        departure="earth", target="earth",
+        departure="terra", target="terra",
     )
     assert out["ok"] is False
     assert "differ" in out["error"].lower()
@@ -320,7 +320,7 @@ def test_v081_find_tubes_inner_transfer_phase_negative() -> None:
     phase angle (target trails departure at launch)."""
     out = bridge.find_itn_pathways(
         2451545.0, 2451545.0 + 5 * 365.25,
-        departure="mars", target="earth", threshold=0.05,
+        departure="mars", target="terra", threshold=0.05,
     )
     assert out["ok"] is True
     if out["candidates"]:

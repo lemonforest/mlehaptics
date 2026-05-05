@@ -75,7 +75,7 @@ def _truth_longitude(bundle, jd_tt: float, body_name: str) -> float:
     eph = bundle.eph
 
     moon_parent_map = {
-        "moon": "earth", "phobos": "mars", "deimos": "mars",
+        "luna": "terra", "phobos": "mars", "deimos": "mars",
         "io": "jupiter", "europa": "jupiter", "ganymede": "jupiter",
         "callisto": "jupiter", "titan": "saturn", "enceladus": "saturn",
         "rhea": "saturn", "titania": "uranus", "triton": "neptune",
@@ -83,21 +83,32 @@ def _truth_longitude(bundle, jd_tt: float, body_name: str) -> float:
 
     target_key = body_name.upper()
     # Planets / asteroids use barycenters; sun is sun; moons use parent.
+    # v0.9.0: skyfield kernel still uses JPL conventions ("EARTH", "MOON")
+    # but our internal body identity is "terra"/"luna"; we translate at
+    # the kernel boundary via a small alias map below.
     from research.bodies import BODIES
     info = BODIES[body_name]
+
+    # JPL/skyfield uses "EARTH" / "MOON" regardless of our internal naming.
+    _JPL_ALIAS = {"TERRA BARYCENTER": "EARTH BARYCENTER", "TERRA": "EARTH",
+                  "LUNA": "MOON"}
 
     if info.category == "planet":
         target_key += " BARYCENTER"
         center = eph["sun"]
     elif info.category == "moon":
-        parent = moon_parent_map.get(body_name, "earth")
+        parent = moon_parent_map.get(body_name, "terra")
         parent_key = parent.upper()
-        if parent in ("earth", "mars", "jupiter", "saturn", "uranus", "neptune"):
+        if parent in ("terra", "mars", "jupiter", "saturn", "uranus", "neptune"):
             parent_key += " BARYCENTER"
+        parent_key = _JPL_ALIAS.get(parent_key, parent_key)
         center = eph[parent_key]
     else:
         center = eph["sun"]
 
+    # Translate internal body identity ("TERRA", "LUNA") to JPL kernel
+    # convention before doing the eph lookup.
+    target_key = _JPL_ALIAS.get(target_key, target_key)
     target = eph[target_key]
     astrometric = center.at(t).observe(target)
     _, lon, _ = astrometric.ecliptic_latlon()

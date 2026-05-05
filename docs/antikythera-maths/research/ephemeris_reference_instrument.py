@@ -95,7 +95,7 @@ class EphemerisHDCInstrument:
         # Planets orbit the Sun
         # Moons orbit their parents
         moon_parent_map = {
-            "moon": "earth",
+            "luna": "terra",
             "phobos": "mars", "deimos": "mars",
             "io": "jupiter", "europa": "jupiter", "ganymede": "jupiter", "callisto": "jupiter",
             "titan": "saturn", "enceladus": "saturn", "rhea": "saturn",
@@ -112,19 +112,21 @@ class EphemerisHDCInstrument:
                 target_key = name.upper()
                 if body_info.category == "planet":
                     target_key += " BARYCENTER"
-                target = self.bundle.eph[target_key]
-                
+                # v0.9.0: bundle.lookup translates internal terra/luna
+                # to JPL-side EARTH/MOON; eph[] direct access doesn't.
+                target = self.bundle.lookup(target_key)
+
                 # 2. Resolve Observer (Center of Orbit)
                 if body_info.category == "planet":
-                    center = self.bundle.eph["sun"]
+                    center = self.bundle.lookup("sun")
                 elif body_info.category == "moon":
-                    parent_name = moon_parent_map.get(name, "earth")
+                    parent_name = moon_parent_map.get(name, "terra")
                     parent_key = parent_name.upper()
-                    if parent_name in ["earth", "mars", "jupiter", "saturn", "uranus", "neptune"]:
+                    if parent_name in ["terra", "mars", "jupiter", "saturn", "uranus", "neptune"]:
                          parent_key += " BARYCENTER"
-                    center = self.bundle.eph[parent_key]
+                    center = self.bundle.lookup(parent_key)
                 else:
-                    center = self.bundle.eph["sun"]
+                    center = self.bundle.lookup("sun")
                 
                 # 3. Observe
                 astrometric = center.at(t).observe(target)
@@ -202,7 +204,7 @@ class EphemerisHDCInstrument:
         rng = np.random.default_rng(777)
         node_basis = np.exp(1j * rng.uniform(0, 2*np.pi, self.D)) / np.sqrt(self.D)
         # Alignment of Sun and Moon
-        s_op = self.channel_bases["sun"] + self.channel_bases["moon"] + node_basis
+        s_op = self.channel_bases["sun"] + self.channel_bases["luna"] + node_basis
         s_op /= np.linalg.norm(s_op)
         return s_op
 
@@ -237,7 +239,7 @@ def main():
     h_metonic = instrument.encode_state(REFERENCE_JD + 19 * 365.25)
     
     # Extract Lunar component alignment
-    luna_basis = instrument.channel_bases["moon"]
+    luna_basis = instrument.channel_bases["luna"]
     # (Simplified alignment check via dot product projection)
     proj_start = np.abs(np.vdot(h_start, luna_basis))
     proj_metonic = np.abs(np.vdot(h_metonic, luna_basis))

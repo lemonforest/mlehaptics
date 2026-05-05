@@ -1298,7 +1298,7 @@ def get_eclipse_probability(
         # BIP-and-lift path.
         inst_bip = _get_bip(kernel=kernel)
         sun_idx = inst_bip.body_to_idx["sun"]
-        moon_idx = inst_bip.body_to_idx["moon"]
+        moon_idx = inst_bip.body_to_idx["luna"]
         if chosen == "c" and _native_bip.HAS_NATIVE:
             from ephemerides_spectral._research.bip_instrument import REFERENCE_JD
             sys_hd = _native_bip.native_encode_state_hd(

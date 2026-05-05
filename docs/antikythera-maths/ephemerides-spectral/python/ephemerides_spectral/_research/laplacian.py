@@ -166,7 +166,7 @@ class SolarSystemLaplacian:
         # Secondary: Moons to their parent planets
         # v0.5.0: Jovian inner regulars + classical Saturnians + co-orbitals.
         moon_map = {
-            "moon": "earth",
+            "luna": "terra",
             "phobos": "mars", "deimos": "mars",
             # Jovian moons
             "metis": "jupiter", "adrastea": "jupiter",

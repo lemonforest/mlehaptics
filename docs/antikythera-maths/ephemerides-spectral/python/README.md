@@ -72,7 +72,7 @@ ephemerides-spectral version
 ephemerides-spectral bodies
 
 # Earth temporal resolution at the default D=65536
-ephemerides-spectral resolution --body earth
+ephemerides-spectral resolution --body terra
 
 # Encode J2000 with the integer ALU backend (default)
 ephemerides-spectral encode --jd 2451545.0
@@ -81,7 +81,7 @@ ephemerides-spectral encode --jd 2451545.0
 ephemerides-spectral encode --jd 2451545.0 --backend complex128
 
 # Topocentric view from London at J2000
-ephemerides-spectral local-view --jd 2451545.0 --body earth --lat 51.5 --lon -0.1
+ephemerides-spectral local-view --jd 2451545.0 --body terra --lat 51.5 --lon -0.1
 
 # Syzygy alignment probability AT a JD (point evaluation; encode-then-check)
 # v0.4+ ROADMAP: window search via the natural cyclic-group decomposition
@@ -172,7 +172,7 @@ bridge.get_version()                             # version + manifest
 bridge.list_bodies()                             # 38-body roster (v0.5.0+)
 bridge.get_resolution(body="mars", D=65536)      # sec/residue
 bridge.get_system_state(jd_tdb=2451545.0)        # encode + per-body residues
-bridge.get_local_view(jd_tdb=2451545.0, body="earth", lat=51.5, lon=-0.1)
+bridge.get_local_view(jd_tdb=2451545.0, body="terra", lat=51.5, lon=-0.1)
 bridge.get_eclipse_probability(jd_tdb=2451545.0)
 bridge.list_couplings()                          # Laplacian fibers
 bridge.get_breathing_modulation(jd_tdb=2451545.0)  # Phase 9 LUT inspector
@@ -192,7 +192,7 @@ bridge.get_natural_resonance_group()             # Z_60 = Z_4 × Z_3 × Z_5 (v0.
 bridge.list_catalog_patches()                    # bundled CATALOG (11 patches)
 bridge.apply_patch("jupiter-saturn-9.56yr-coupled-v2")  # vindicated v0.5.2 entry
 bridge.apply_custom_patch(name="my-patch", kind="sinusoid",
-                          body="earth", amplitude_deg=0.93,
+                          body="terra", amplitude_deg=0.93,
                           period_days=1940.2)    # FFT-diagnosed custom patch
 bridge.list_active_patches()                     # what's currently overlaid
 bridge.clear_patches()                           # wipe back to byte-exact baseline

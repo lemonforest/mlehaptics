@@ -88,7 +88,7 @@ def _truth_longitude(bundle, jd_tt: float, body_name: str) -> float:
 
     # v0.5.2: extended to cover the new moons added in v0.5.0.
     moon_parent_map = {
-        "moon": "earth",
+        "luna": "terra",
         "phobos": "mars", "deimos": "mars",
         # Jovian (Galileans + inner regulars from v0.5.0)
         "io": "jupiter", "europa": "jupiter", "ganymede": "jupiter",
@@ -110,9 +110,9 @@ def _truth_longitude(bundle, jd_tt: float, body_name: str) -> float:
         target_key += " BARYCENTER"
         center = lookup("sun")
     elif info.category == "moon":
-        parent = moon_parent_map.get(body_name, "earth")
+        parent = moon_parent_map.get(body_name, "terra")
         parent_key = parent.upper()
-        if parent in ("earth", "mars", "jupiter", "saturn", "uranus", "neptune"):
+        if parent in ("terra", "mars", "jupiter", "saturn", "uranus", "neptune"):
             parent_key += " BARYCENTER"
         center = lookup(parent_key)
     else:
