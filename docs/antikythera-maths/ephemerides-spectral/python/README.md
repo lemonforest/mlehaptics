@@ -102,11 +102,17 @@ ephemerides-spectral time-mars --msd 50000        # invert: MSD → JD_UTC
 # Mean lunar synodic + sidereal age/phase at a JD (v0.3.0)
 ephemerides-spectral time-lunar --jd 2451545.0
 
+# Sol Uranian Time (v0.5.4) — third planetary time system alongside Mars + Lunar
+# USD (sidereal-day count since 2007 northern equinox), SUT (Uranian time-of-day),
+# orbital phase + season, retrograde flag.
+ephemerides-spectral time-uranus --jd 2454451.0   # → USD = 0.0 at SUT epoch
+ephemerides-spectral time-uranus --usd 4046       # invert: USD → JD_TDB
+
 # Lunar-time kernel metadata (LTE440 + LTC status; v0.3.0)
 ephemerides-spectral lunar-kernels
 
-# Resonance-derived natural cyclic group (v0.3.0)
-ephemerides-spectral natural-group     # → Z_30 = Z_2 × Z_3 × Z_5
+# Resonance-derived natural cyclic group (v0.3.0; expanded to Z_60 in v0.5.0)
+ephemerides-spectral natural-group     # → Z_60 = Z_4 × Z_3 × Z_5
 
 # Spectral-native syzygy window search (v0.3.1+)
 # Replaces the v0.3.0 point-evaluation `eclipse --jd` for window queries.
@@ -117,11 +123,13 @@ ephemerides-spectral find-syzygies --from-jd 2460311 --to-jd 2460676
 # Diagnosed-fiber runtime kernel patching (v0.4.0+)
 # Patches sit beside the published kernel as DATA, not code edits, and
 # contribute per-body residue deltas at encode time. The kernel's
-# published bytes never change. Three patches in the bundled CATALOG
-# authored from v0.3.1's de441_error_spectrum FFT (Mars 7.96 yr,
-# Mercury 10.69 yr, Jupiter–Saturn 9.56 yr coupled).
+# published bytes never change. Bundled catalog (11 patches as of v0.5.5):
+#   v0.4.0 originals (3): mars-7.96yr-diagonal, mercury-10.69yr-diagonal,
+#                         jupiter-saturn-9.56yr-coupled
+#   v0.5.2 LS-fit recovered (3, planets ≥96% shrinkage): same names with -v2 suffix
+#   v0.5.5 LS-fit moons (5, ≥93% shrinkage): dione/tethys/enceladus/titan/iapetus -v2
 ephemerides-spectral patches catalog
-ephemerides-spectral patches apply --name jupiter-saturn-9.56yr-coupled
+ephemerides-spectral patches apply --name jupiter-saturn-9.56yr-coupled-v2
 ephemerides-spectral patches active
 ephemerides-spectral patches clear
 ```
@@ -152,16 +160,29 @@ bridge.jd_to_mars_time(jd_utc=2451549.5)         # MSD + MTC (Allison & McEwen 2
 bridge.mars_time_to_jd(msd=50000)                # MSD → JD_UTC inverse
 bridge.get_lunar_phase(jd_tdb=2451545.0)         # mean synodic + sidereal phase
 bridge.list_lunar_kernels()                      # LTE440 metadata + LTC status
-bridge.get_natural_resonance_group()             # Z_30 = Z_2 × Z_3 × Z_5
+bridge.get_natural_resonance_group()             # Z_60 = Z_4 × Z_3 × Z_5 (v0.5.0+)
 
 # v0.4.0 surface — runtime kernel patching (overlay on the spectral kernel)
-bridge.list_catalog_patches()                    # bundled CATALOG (3 patches)
-bridge.apply_patch("mars-7.96yr-diagonal")       # load from CATALOG
+# Catalog grows over time; v0.6.1 ships 11 entries:
+#   v0.4.0 originals (3): mars/mercury/jupiter-saturn at FFT-magnitude amplitudes
+#   v0.5.2 LS-fit recovered (3, planets at ≥96% shrinkage): -v2 suffix
+#   v0.5.5 LS-fit moons (5, ≥93% shrinkage): dione/tethys/enceladus/titan/iapetus -v2
+bridge.list_catalog_patches()                    # bundled CATALOG (11 patches)
+bridge.apply_patch("jupiter-saturn-9.56yr-coupled-v2")  # vindicated v0.5.2 entry
 bridge.apply_custom_patch(name="my-patch", kind="sinusoid",
                           body="earth", amplitude_deg=0.93,
                           period_days=1940.2)    # FFT-diagnosed custom patch
 bridge.list_active_patches()                     # what's currently overlaid
 bridge.clear_patches()                           # wipe back to byte-exact baseline
+
+# v0.5.4 surface — Sol Uranian Time
+bridge.jd_to_sol_uranian_time(jd_tdb=2454451.0)  # USD + SUT + season + retrograde
+bridge.sol_uranian_time_to_jd(usd=4046.0)        # USD → JD_TDB inverse
+
+# v0.6.0 Tier 1 parity surface — both methods accept backend={"auto","bip","c"}
+bridge.find_syzygies(jd_lo=2451545.0, jd_hi=2451545.0+365.25, backend="c")
+bridge.get_breathing_modulation(jd_tdb=2451545.0, pair=("jupiter","saturn"),
+                                n_lobes=(5, 2), backend="c")
 ```
 
 Every bridge method returns a Pyodide-JSON-serialisable dict with `ok: True/False`. Caller-side errors return `{ok: False, error: "..."}` rather than raising — designed for crossing the Python/JS boundary cleanly.
@@ -278,7 +299,12 @@ See [the v0.5.2 patch-shrinks-residual analysis](https://mlehaptics.readthedocs.
 
 ## Status
 
-* **v0.5.2** *(current)* — Patch-shrinks-residual benchmark **VINDICATED** on planets via LS-fit catalog (Mars 99.2%, Mercury 99.9%, J–S 97.6/96.0%). `CATALOG_V2` ships alongside v0.4.0. Moon-kernel infrastructure (`mar099s` / `jup365` / `sat441`) added; moon-residual root cause queued for v0.5.x. See the [project CHANGELOG](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/ephemerides-spectral/CHANGELOG/) and [package CHANGELOG](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/ephemerides-spectral/python/CHANGELOG/).
+* **v0.6.1** *(current)* — **Tier 2a foundation: portable channel-basis PRNG (ABI v4).** Splitmix64 PRNG bit-identical between Python + C; `es_channel_basis(seed, out, D)` produces byte-identical complex64 hypervectors on both sides. Foundation for v0.7.0's HD encode + observer-bind + eclipse projection. No bridge surface change. See the [project CHANGELOG](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/ephemerides-spectral/CHANGELOG/) and [package CHANGELOG](https://mlehaptics.readthedocs.io/en/latest/antikythera-maths/ephemerides-spectral/python/CHANGELOG/).
+* **v0.6.0** — **C/Python parity Tier 1 + always-on parity smoke test (ABI v3).** `find_syzygies` and `get_breathing_modulation` now have C twins; bridge dispatches on `backend={"auto","bip","c"}`. New `tests/test_parity_smoke.py` enumerates every encoder-touching `bridge.*` method in a `PARITY_TARGETS` table — adding a new bridge method without a parity classification fails CI.
+* **v0.5.5** — **Moon catalog patches (Phase C).** Five LS-fit-vindicated moon entries join `CATALOG_V2`: dione (98.2%), tethys (93.8%), enceladus (98.9%), titan (95.5%), iapetus (98.6%). Methodology vindicated **twice** on independent body sets: planets at 96-99%, moons at 93-99%; same bin-leakage signature both times. Hyperion lands at 75% (chaotic rotation; quasiperiodic-not-sinusoidal); queued for multi-component or coupled T-H 4:3 follow-up.
+* **v0.5.4** — **Sol Uranian Time (SUT)** — third planetary time system alongside Mars Sol Date / Mars Coordinated Time and lunar synodic + sidereal phase. CLI `--help` audit across all subcommands.
+* **v0.5.3** — **Moon residuals: 13 of 17 fixed.** Period-truncation root cause confirmed via per-orbital-period diagnostic (frame-mismatch hypothesis ruled out). Fix: 9+-decimal sidereal periods from JPL HORIZONS / NASA fact sheets. Galileans drop from 100°→<1° RMS; 4 still broken (metis / thebe / rhea / phoebe — physics-specific follow-ups).
+* **v0.5.2** — Patch-shrinks-residual benchmark **VINDICATED** on planets via LS-fit catalog (Mars 99.2%, Mercury 99.9%, J–S 97.6/96.0%). `CATALOG_V2` ships alongside v0.4.0. Moon-kernel infrastructure (`mar099s` / `jup365` / `sat441`) added.
 * **v0.5.1** — Patch-shrinks-residual benchmark: PARTIAL vindication (J–S 77%, Mercury 40%, Mars stuck on FFT leakage); two v0.4.0 authoring bugs surfaced.
 * **v0.5.0** — All major Jovian + Saturnian moons join the encoder (26 → 38 bodies). Three new resonances (Cassini Division, Enceladus tidal heating, Hyperion chaos). SPICE-free runtime via codegen-baked initial phases.
 * **v0.4.1** — C-side runtime kernel patching (ABI v2). 237× speedup on patched encodes vs BIP.
@@ -290,12 +316,16 @@ See [the v0.5.2 patch-shrinks-residual analysis](https://mlehaptics.readthedocs.
 
 ## Roadmap
 
-* **v0.4+ first-principles per-resonance α** — replaces phenomenological `α = 0.1` with values derived from a Hamilton/Delaunay-variable Lagrangian (Lie-series perturbation theory around each resonance). The DE441 sweep above is the empirical motivation: bodies inside the resonance set phase-scramble at multi-millennium horizons because their `α` values are wrong-in-detail.
-* **v0.4+ DE441 vs DE442 spectral error signature** *(experiment)* — build two BIP instruments, one calibrated only from DE441, one only from DE442; encode the same JD on both; project the per-body residue deltas onto the encoder's eigenbasis. If the deltas have a coherent spectral signature, DE442's corrections to DE441 live in a specific eigenmode subspace — which means we could *predict* where ephemeris error correction is structurally needed without needing the corrected kernel.
-* **v0.4+ spectral syzygy window search** — replaces the v0.3.0 point-evaluation `eclipse --jd` (encode-then-check) with a `find-syzygies --from-jd ... --to-jd ...` window search that uses the encoder's natural cyclic-group decomposition (Saros 6585.32 d, Metonic 19 yr, synodic month 29.53 d, lunar nodes 18.6 yr). The bronze antikythera's Saros dial doesn't encode-and-check either — it just turns gears whose ratios *are* the Saros cycle. The HDC-native pattern is to enumerate window-multiples of the slow modes in closed form from the Q-format `omega` values, then confirm each candidate by spectral projection. This reduces the cost from `O(window_days × encode_cost)` to `O(n_syzygies × confirmation_cost)`.
-* **v0.5+ CORDIC topocentric rendering** — the cosine LUT is half a CORDIC kernel; the rotation half can subsume the topocentric `lat / lon` observer-bind, taking that path off the FPU entirely.
-* **v0.5+ LTC (Lunar Coordinated Time)** — pending NASA + international space-agency standardisation (target ~2026–2028 per April 2024 White House directive). LTE440 (Lin et al. 2025) ships the underlying SPICE-format conversion ephemeris with 0.15 ns accuracy through 2050; the bridge gains an `LTC` namespace mirroring `MarsTime` once the LTC epoch + day-length convention are formalised.
+* **v0.7.0 — C/Python parity Tier 2b** *(in progress)* — `es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`. Bridge dispatches `get_local_view` and `get_eclipse_probability` on `backend={"auto","bip","c"}`. The parity smoke test's two `tier2_skip` entries flip to `parity` when this lands. ABI v4 → v5. Subsumes the older "CORDIC topocentric rendering" idea — observer-bind in C is the deliverable.
+* **v0.5.x — Hyperion follow-up** — multi-component patch or coupled `titan-hyperion-4to3-coupled-v2`. The single-sinusoid Hyperion patch hits 75% (chaos ceiling); a coupled / multi-component patch should clear the 80% gate.
+* **v0.5.x — Remaining 4 broken moons** (metis / thebe / rhea / phoebe). Phoebe needs sign-aware retrograde encoder; Metis needs an authoritative period; Thebe + Rhea look perturbation-driven.
+* **Sol Venusian + Sol Mercurian Time** — two more planetary time systems alongside Mars / Lunar / Uranian. Venus rotates retrograde with sidereal day = 243 Earth-days (longer than its year); Mercury is in 3:2 spin-orbit resonance (solar day = 2 Mercury-years).
+* **First-principles per-resonance α** — replaces phenomenological `α = 0.1` with values derived from a Hamilton/Delaunay-variable Lagrangian (Lie-series perturbation theory around each resonance). The DE441 sweep is the empirical motivation: bodies inside the resonance set phase-scramble at multi-millennium horizons because their `α` values are wrong-in-detail. The v0.5.5 LS-fit catalog patches are the *empirical* analog — Fourier-correction overlays that first-principles `α` should ultimately make redundant for bodies inside the resonance set.
+* **DE441 vs DE442 spectral error signature** *(experiment)* — build two BIP instruments, one calibrated only from DE441, one only from DE442; encode the same JD on both; project the per-body residue deltas onto the encoder's eigenbasis. If the deltas have a coherent spectral signature, DE442's corrections to DE441 live in a specific eigenmode subspace — which means we could *predict* where ephemeris error correction is structurally needed without needing the corrected kernel.
+* **ITN pathway / Lagrange-tube query** *(`find-tubes` style surface)* — mirror the `find-syzygies` discipline for the Interplanetary Transport Network — the stable/unstable manifolds of Lyapunov / halo orbits around L1/L2/L3 of each Sun-planet (and planet-moon) CR3BP. References: Koon, Lo, Marsden, Ross 2011; Lo's Genesis / WMAP trajectory work; Conley's 1968 manifold-connection theorems.
+* **LTC (Lunar Coordinated Time)** *(v0.7+ or later)* — pending NASA + international space-agency standardisation (target ~2026–2028 per April 2024 White House directive). LTE440 (Lin et al. 2025) ships the underlying SPICE-format conversion ephemeris with 0.15 ns accuracy through 2050; the bridge gains an `LTC` namespace mirroring `MarsTime` once the LTC epoch + day-length convention are formalised.
 * **Phase 10 resonance coverage** — Jupiter–Uranus 7:1, Saturn–Uranus 3:1, Saros / Metonic / Earth–Moon precession entries. Each adds a row to the `RESONANCES` table; the integer-LUT machinery is shared.
+* **Multi-millennium DE441 sweep** with the v0.5+ resonance-corrected encoder. Re-derive Metonic and Saros anchors against the full 3.3 GB DE441 with breathing couplings active.
 * **Bit-serial hardware port** (Verilog/SystemC) — the cosine LUT becomes block RAM, the `omega * step` becomes a fixed-precision multiplier.
 
 ## License
