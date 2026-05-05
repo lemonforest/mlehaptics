@@ -10,7 +10,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.3)
+(no entries yet — next entries land after v0.10.0)
+
+## [0.10.0] — 2026-05-05
+
+**Sol Terra-Luna Time (STLT) — system-level clock for the Terra-Luna pair, with Meton's 432 BCE summer solstice as the default epoch.** First Sol Time member with a non-J2000 default anchor.
+
+### The framing
+
+What we call "STLT" is a *system-level* clock — natural unit is the synodic month (29.530589 days), natural references are eclipse cycles (Saros 18.03 yr) and solar-lunar reconciliation cycles (Metonic 19.00 yr). The existing Sol Time series anchored individual bodies (Sol Mars, Sol Venus, ...); STLT anchors the *pair*.
+
+The default epoch is **Meton of Athens's summer solstice on 27 June 432 BCE proleptic Julian** — the calibration anchor of the Metonic cycle, the lunar-solar reconciliation Greek mathematical astronomy was built on. This choice is independently validated by `research/lunar_epoch_candidates.py`: the Hipparchus-Babylonian eclipse-archive midpoint (Mardokempad 721 BCE + Hipparchus 141 BCE) lands within +240 days of Meton's solstice — *same year*, eight months later. Greek astronomy's eclipse archive is centred on Meton's lifetime; the "combo" candidate test confirms his anchor numerically.
+
+This is a **house-epoch design choice** — not a claim to be NASA's eventual Lunar Coordinated Time (LCT) standard, which is still pending standardisation per the April 2024 White House directive. When LCT lands, we add it as a sibling epoch.
+
+### Added
+
+**Python API:**
+- `bridge.jd_to_sol_terra_luna_time(jd_tdb, *, epoch="meton")` → `{epoch_name, epoch_jd_tdb, days_since_epoch, synodic_count, synodic_phase, saros_count, saros_phase, metonic_count, metonic_phase, ...}`. The full epoch metadata block carries the abbreviation `"STLT"`, the cycle constants, and the available-epochs roster.
+- `bridge.sol_terra_luna_time_to_jd(synodic_count, *, epoch="meton")` — inverse on the synodic-month count.
+- `_research/time_scales.py`: `TerraLunaTime` dataclass, `jd_to_terra_luna_time`, `terra_luna_time_to_jd`, plus the constant set: `STLT_SYNODIC_MONTH_DAYS`, `STLT_SAROS_CYCLE_DAYS`, `STLT_METONIC_CYCLE_DAYS`, `STLT_EPOCH_{METON,ANTIKYTHERA,HIPPARCHUS,MARDOKEMPAD,J2000}_JD_TDB`, `STLT_EPOCHS`, `STLT_DEFAULT_EPOCH`.
+
+**CLI:**
+- `ephemerides-spectral time-terra-luna --jd <X>` (canonical) — defaults to Meton's epoch; `--epoch {meton,antikythera,hipparchus,mardokempad,j2000}` switches anchors.
+- `--synodic-count <N>` inverts: synodic-month count → JD_TDB.
+
+**Available epochs:**
+- `meton` (default) — Meton's summer solstice 432 BCE.
+- `antikythera` — solar eclipse 23 Aug 205 BCE; Antikythera mechanism Saros-dial anchor (Freeth & Jones 2012).
+- `hipparchus` — Hipparchus's lunar eclipse 25 Jan 141 BCE (Almagest VI.5).
+- `mardokempad` — Babylonian lunar eclipse 19 Mar 721 BCE (Almagest IV.6); the foundational Babylonian record Hipparchus calibrated against.
+- `j2000` — modern reference, Terra-borrowed.
+
+**Research:**
+- `research/lunar_epoch_candidates.py` — the Phase A scoring script. Enumerates all five candidates against the spectral kernel (`find_syzygies`) + skyfield ground truth, dumps a markdown report under `figures/lunar_epoch_candidates.md`. Also handles solstice diagnostics with epoch-of-date precession correction (~33° at 2400 yr) so candidate validation isn't dominated by precession noise.
+
+### Fixed
+
+- `bridge.find_syzygies(backend="auto")` was rejected by `_validate_backend` — same latent bug class fixed for `get_breathing_modulation` in v0.9.2 (`SUPPORTED_BACKENDS` doesn't include the `"auto"` sentinel). Now resolves `"auto"` → concrete backend before validation, matching the docstring contract. Caught while writing the research script; fixed in passing.
+
+### Discipline
+
+- Both new bridge methods classified in `tests/test_parity_smoke.py::PARITY_TARGETS` as `python_only` (pure-Python time-scale formula; C twin queued).
+- Manifest regenerated via the project's official `codegen/regenerate.py` — no hand-edited SHAs.
+- `tests/test_readme_freshness.py` invariants enforced: Status section + banner + CLI body-name examples.
+
+### Migration
+
+None required. Existing scripts and bridge calls unchanged. STLT is purely additive.
 
 ## [0.9.3] — 2026-05-05
 

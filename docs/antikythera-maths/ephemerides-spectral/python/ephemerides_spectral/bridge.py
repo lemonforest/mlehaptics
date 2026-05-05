@@ -87,6 +87,12 @@ from ephemerides_spectral._research.time_scales import (
     LUNA_ORBITAL_PERIOD_DAYS, LUNA_AXIAL_TILT_DEG, LUNAT_EPOCH_JD_TDB,
     jd_to_terra_time, terra_time_to_jd,
     jd_to_luna_time, luna_time_to_jd,
+    # v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair.
+    STLT_SYNODIC_MONTH_DAYS, STLT_SAROS_CYCLE_DAYS, STLT_METONIC_CYCLE_DAYS,
+    STLT_EPOCH_METON_JD_TDB, STLT_EPOCH_ANTIKYTHERA_JD_TDB,
+    STLT_EPOCH_HIPPARCHUS_JD_TDB, STLT_EPOCH_MARDOKEMPAD_JD_TDB,
+    STLT_EPOCH_J2000_JD_TDB, STLT_EPOCHS, STLT_DEFAULT_EPOCH,
+    jd_to_terra_luna_time, terra_luna_time_to_jd,
 )
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
@@ -834,6 +840,145 @@ def sol_luna_time_to_jd(lsd_solar: float) -> Dict[str, Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair
+# ──────────────────────────────────────────────────────────────────────
+#
+# A *system-level* time scale: the natural unit is the synodic month
+# (29.530589 days), and the default epoch is **Meton's summer solstice
+# 27 June 432 BCE** — the foundational Greek lunar-solar-reconciliation
+# anchor. STLT is the first Sol Time in the package whose default
+# epoch is NOT J2000.0 / Terra-borrowed.
+#
+# The choice rationale lives in notebook §7.4 and is independently
+# validated by `research/lunar_epoch_candidates.py` (Phase A of #95):
+# the Hipparchus-Babylonian eclipse-archive midpoint (Mardokempad
+# 721 BCE + Hipparchus 141 BCE) lands within +240 days of Meton's
+# solstice — *same year*. Greek mathematical astronomy's eclipse
+# archive sits centred on Meton's lifetime.
+
+#: Description used in epoch-block returns for each STLT epoch alias.
+_STLT_EPOCH_DESCRIPTIONS: Dict[str, str] = {
+    "meton":        "Meton of Athens summer solstice, 27 June 432 BCE proleptic Julian — the calibration anchor of the 19-year Metonic cycle (235 synodic months ≈ 19 tropical years).",
+    "antikythera":  "Antikythera mechanism Saros-dial anchor: solar eclipse 23 August 205 BCE (Freeth & Jones 2012, 'The Cosmos in the Antikythera Mechanism').",
+    "hipparchus":   "Hipparchus's calibration lunar eclipse, 25 January 141 BCE (Almagest VI.5).",
+    "mardokempad":  "Earliest Babylonian eclipse Ptolemy cites (Almagest IV.6): lunar eclipse from Mardokempad's first regnal year, 19 March 721 BCE — the foundational record Hipparchus calibrated against.",
+    "j2000":        "J2000.0 — modern reference epoch, Terra-borrowed.",
+}
+
+
+def jd_to_sol_terra_luna_time(
+    jd_tdb: float,
+    *,
+    epoch: str = STLT_DEFAULT_EPOCH,
+) -> Dict[str, Any]:
+    """JD (TDB) → Sol Terra-Luna Time (STLT).
+
+    System-level clock for the Terra-Luna pair. Synodic month
+    (29.530589 days) is the natural unit; Saros (18.03 yr) and Metonic
+    (19.00 yr) cycle counts come along for free.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian Date in TDB.
+    epoch : str, default ``"meton"``
+        Which historical anchor to count from. One of:
+
+        - ``"meton"`` *(default)* — Meton's summer solstice, 27 June
+          432 BCE. The cycle the Antikythera mechanism's Metonic dial
+          encodes; Greek astronomy's center of mass.
+        - ``"antikythera"`` — solar eclipse 23 August 205 BCE, the
+          Antikythera mechanism's Saros-dial anchor (Freeth & Jones
+          2012). Project namesake.
+        - ``"hipparchus"`` — Hipparchus's calibration lunar eclipse,
+          25 January 141 BCE (Almagest VI.5).
+        - ``"mardokempad"`` — earliest Babylonian eclipse Ptolemy cites,
+          19 March 721 BCE (Almagest IV.6). Pre-Greek anchor.
+        - ``"j2000"`` — modern reference, Terra-borrowed (matches the
+          existing Sol Time pattern).
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_tdb": ..., "epoch_name": "meton",
+            "epoch_jd_tdb": 1645528.0, "days_since_epoch": ...,
+            "synodic_count": ..., "synodic_phase": ...,
+            "saros_count": ..., "saros_phase": ...,
+            "metonic_count": ..., "metonic_phase": ...,
+            "epoch": {description, jd_tdb, synodic_month_days, ...,
+            abbreviation: "STLT"}}``.
+
+    Notes
+    -----
+    STLT is the first Sol Time member with a default epoch that is *not*
+    J2000.0. The `epoch` parameter lets callers swap in any of the four
+    Greek-historical alternatives or fall back to J2000 for parity with
+    the rest of the Sol Time series. House-epoch design choice; not a
+    claim to be NASA's eventual Lunar Coordinated Time (LCT) standard.
+    """
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    if epoch not in STLT_EPOCHS:
+        return _err(
+            f"epoch must be one of {sorted(STLT_EPOCHS)}, got {epoch!r}"
+        )
+    out = jd_to_terra_luna_time(float(jd_tdb), epoch=epoch)
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "name": epoch,
+            "description": _STLT_EPOCH_DESCRIPTIONS[epoch],
+            "jd_tdb": float(STLT_EPOCHS[epoch]),
+            "synodic_month_days":  float(STLT_SYNODIC_MONTH_DAYS),
+            "saros_cycle_days":    float(STLT_SAROS_CYCLE_DAYS),
+            "metonic_cycle_days":  float(STLT_METONIC_CYCLE_DAYS),
+            "abbreviation": "STLT",
+            "available_epochs": sorted(STLT_EPOCHS),
+            "default_epoch": STLT_DEFAULT_EPOCH,
+            "note": ("STLT is a system-level (Sun-Terra-Luna pair) "
+                     "clock, distinct from SLT (Luna's surface clock), "
+                     "STT (Terra's surface clock), and Sol Lunar Time "
+                     "(Luna's phase observed from Terra). Default epoch "
+                     "is Meton's solstice 432 BCE — not J2000."),
+        },
+    }
+
+
+def sol_terra_luna_time_to_jd(
+    synodic_count: float,
+    *,
+    epoch: str = STLT_DEFAULT_EPOCH,
+) -> Dict[str, Any]:
+    """Inverse on the synodic-month count.
+
+    Parameters
+    ----------
+    synodic_count : float
+        Number of synodic months since the chosen epoch.
+    epoch : str, default ``"meton"``
+        See ``jd_to_sol_terra_luna_time`` for the full list of accepted
+        epoch names.
+    """
+    if epoch not in STLT_EPOCHS:
+        return _err(
+            f"epoch must be one of {sorted(STLT_EPOCHS)}, got {epoch!r}"
+        )
+    try:
+        sc = float(synodic_count)
+    except (TypeError, ValueError):
+        return _err(
+            f"synodic_count must be a number, got {type(synodic_count).__name__}"
+        )
+    return {
+        "ok": True,
+        "jd_tdb": terra_luna_time_to_jd(sc, epoch=epoch),
+        "epoch_name": epoch,
+        "synodic_count": sc,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
 # v0.8.x — ITN pathway / Lagrange-tube query (find-tubes)
 # ──────────────────────────────────────────────────────────────────────
 
@@ -1052,6 +1197,13 @@ def find_syzygies(jd_lo: float,
         eclipse, total vs partial, location of totality) confirm each
         candidate against a JPL ephemeris via skyfield.
     """
+    # Resolve backend="auto" before _validate_backend, matching the v0.9.2
+    # fix for get_breathing_modulation. SUPPORTED_BACKENDS is the
+    # concrete-backend roster; "auto" is the CLI-friendly sentinel that
+    # picks the best available concrete backend at call time.
+    from ephemerides_spectral import _native_bip
+    if backend == "auto":
+        backend = "c" if _native_bip.HAS_NATIVE else "bip"
     for v in (_validate_jd(jd_lo), _validate_jd(jd_hi),
               _validate_backend(backend)):
         if v is not None:
@@ -1064,9 +1216,6 @@ def find_syzygies(jd_lo: float,
         return _err(f"threshold must be a number, got {type(threshold).__name__}")
     if not (0.0 < f_threshold <= 0.5):
         return _err(f"threshold must be in (0, 0.5], got {f_threshold}")
-    from ephemerides_spectral import _native_bip
-    if backend == "auto":
-        backend = "c" if _native_bip.HAS_NATIVE else "bip"
     try:
         if backend == "c" and _native_bip.HAS_NATIVE:
             kind_filter = {

@@ -49,10 +49,10 @@
       "size_bytes": 8796
     },
     "_research/time_scales.py": {
-      "sha256": "d52bdc5db9c6743d691374743578dd4d1ce690a9b89dbb8a677fbe99874f4942",
-      "size_bytes": 48322
+      "sha256": "486b54dbdece7119211016ca4a43fe45e0c9f3a6f2e595bbc6a98236729907e5",
+      "size_bytes": 57446
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.9.1"
+  "version": "0.10.0"
 }
