@@ -28,6 +28,7 @@ Both backends implement the same algebraic substrate (cyclic-group representatio
 - **SPICE-free runtime (v0.5.0+):** `pip install` works out of the box — both backends use codegen-baked initial phases shipped in `_data/initial_phases.json`. No SPICE kernel staging required for basic encoding. Skyfield + jplephem stay as optional `[ephemeris]` extras for callers who want runtime recalibration against custom kernels.
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors at any (lat, lon) on any body.
 - **Spectral Syzygy Window Search (v0.3.1+):** `find-syzygies --from-jd ... --to-jd ...` enumerates candidate syzygies in closed form via the natural cyclic-group decomposition (synodic + draconic month), then confirms each by spectral projection. ~1000× faster than the v0.3.0 point-evaluation `eclipse --jd` pattern for window queries.
+- **Sol Symphony Times (v0.3.0 + v0.5.4 + v0.8.0):** every body in the Sol Star System has a "Sol Time" exposing its rotational + orbital cycles anchored to a conventional epoch — Mars Sol Date / Mars Coordinated Time (Allison & McEwen 2000), Sol Lunar Time (Earth's Moon synodic + sidereal phase), Sol Uranian Time (USD/SUT, anchored at the 2007 northern equinox), Sol Venusian, Sol Mercurian, Sol Plutonian, Sol Sol (the Sun, Carrington rotation system), Sol Jovian (Jupiter System III magnetic-field rotation), Sol Saturnian (Cassini-revised System III). **The Solar System is a natural symphony of overlapping clocks**; Sol Time is just the package telling you what time it is on each body so you can correlate that body's local clock with JD. Naming hierarchy for future moon ports: `Sol <Parent>-<Body> Time` (e.g., Sol Pluto-Charon Time).
 
 ### Resolution Scaling
 
@@ -107,6 +108,18 @@ ephemerides-spectral time-lunar --jd 2451545.0
 # orbital phase + season, retrograde flag.
 ephemerides-spectral time-uranus --jd 2454451.0   # → USD = 0.0 at SUT epoch
 ephemerides-spectral time-uranus --usd 4046       # invert: USD → JD_TDB
+
+# Sol Symphony Times (v0.8.0) — Venus, Mercury, Pluto, Sol (the Sun!),
+# Jupiter, Saturn each have their own "Sol Time" exposing rotational + orbital phase.
+# Each handles its body's quirks: Mercury's 3:2 spin-orbit resonance, Venus's
+# retrograde rotation (sidereal day > year!), Sol's differential rotation
+# (Carrington system), Jupiter System III, Saturn Cassini-revised System III.
+ephemerides-spectral time-venus --jd 2451545.0
+ephemerides-spectral time-mercury --jd 2451545.0  # 3:2 resonance: solar day = 2 × year
+ephemerides-spectral time-pluto --jd 2457217.0    # New Horizons closest approach
+ephemerides-spectral time-sol --jd 2451545.0      # Sun's own Carrington Rotation Number
+ephemerides-spectral time-jupiter --jd 2444000.5
+ephemerides-spectral time-saturn --jd 2451545.0
 
 # Lunar-time kernel metadata (LTE440 + LTC status; v0.3.0)
 ephemerides-spectral lunar-kernels

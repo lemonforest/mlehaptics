@@ -423,6 +423,453 @@ def uranian_time_to_jd(usd: float) -> float:
     return SUT_EPOCH_JD_TDB + float(usd) * URANUS_SIDEREAL_DAY_DAYS
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Sol Venusian Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Venus is famously slow + retrograde. Its sidereal day is 243.02 Earth-
+# days — *longer than its 224.7-day year* — so an observer standing on
+# Venus sees the Sun rise in the west, take 116.75 Earth-days to cross
+# the sky, and set in the east. The sidereal day and solar day are
+# both useful, depending on whether you want "how long does Venus take
+# to spin once relative to the stars" (sidereal) or "how long between
+# successive sunrises" (solar).
+#
+# Anchor: J2000.0 (JD 2451545.0). No IAU-blessed VSD convention exists;
+# we mirror the Mars Sol Date convention (count of sols since epoch)
+# so callers get a uniform interface across the Sol Time family.
+
+VENUS_SIDEREAL_DAY_DAYS:    float = 243.0226   # Earth days, retrograde
+VENUS_SOLAR_DAY_DAYS:       float = 116.7500   # Earth days (synodic)
+VENUS_ORBITAL_PERIOD_DAYS:  float = 224.701
+VENUS_ORBITAL_PERIOD_YEARS: float = VENUS_ORBITAL_PERIOD_DAYS / 365.25
+VENUS_AXIAL_TILT_DEG:       float = 177.36     # tilt > 90° → retrograde
+VST_EPOCH_JD_TDB:           float = 2451545.0  # J2000.0
+
+
+@dataclass(frozen=True)
+class VenusianTime:
+    """Sol Venusian Time at a given JD (TDB)."""
+    jd_tdb: float
+    vsd_sidereal: float       # Venus sidereal-day count since J2000
+    vsd_solar:    float       # Venus solar-day count since J2000
+    vst_hours:    float       # solar-day time-of-day, [0, 24) Venus-hours
+    orbital_phase: float
+    years_since_epoch: float
+    retrograde: bool = True
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "vsd_sidereal":      float(self.vsd_sidereal),
+            "vsd_solar":         float(self.vsd_solar),
+            "vst_hours":         float(self.vst_hours),
+            "orbital_phase":     float(self.orbital_phase),
+            "years_since_epoch": float(self.years_since_epoch),
+            "retrograde":        bool(self.retrograde),
+        }
+
+
+def jd_to_venusian_time(jd_tdb: float) -> VenusianTime:
+    """JD (TDB) → Sol Venusian Time."""
+    delta = float(jd_tdb) - VST_EPOCH_JD_TDB
+    vsd_sid = delta / VENUS_SIDEREAL_DAY_DAYS
+    vsd_sol = delta / VENUS_SOLAR_DAY_DAYS
+    sol_frac = vsd_sol - math.floor(vsd_sol)
+    years = delta / VENUS_ORBITAL_PERIOD_DAYS
+    return VenusianTime(
+        jd_tdb=float(jd_tdb),
+        vsd_sidereal=vsd_sid,
+        vsd_solar=vsd_sol,
+        vst_hours=sol_frac * 24.0,
+        orbital_phase=years - math.floor(years),
+        years_since_epoch=years,
+        retrograde=True,
+    )
+
+
+def venusian_time_to_jd(vsd_solar: float) -> float:
+    """Inverse on the Venus solar-day count."""
+    return VST_EPOCH_JD_TDB + float(vsd_solar) * VENUS_SOLAR_DAY_DAYS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Mercurian Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Mercury is in 3:2 spin-orbit resonance: it rotates exactly 3 times
+# every 2 orbits. Consequence: the *solar* day on Mercury is exactly
+# 2 Mercury years long — **a Mercury day is two Mercury years**.
+#
+# Three independent cycles all need to be exposed:
+#
+#   sidereal_day = 58.6462 Earth days   one rotation rel. to stars
+#   solar_day    = 175.9842 Earth days  one rotation rel. to Sun
+#                                        = 2 × Mercury year
+#   year         = 87.9691 Earth days   one orbit
+#
+# The natural "what time is it on Mercury" answer uses solar-day
+# coordinates (because that's what an observer experiences). The
+# sidereal field is the spin-physics primitive.
+#
+# Anchor: J2000.0 with the IAU-defined prime meridian at the Hun Kal
+# crater (W=20° at J2000).
+
+MERCURY_SIDEREAL_DAY_DAYS:    float = 58.6462
+MERCURY_SOLAR_DAY_DAYS:       float = 175.9842   # = 2 × MERCURY_ORBITAL_PERIOD_DAYS
+MERCURY_ORBITAL_PERIOD_DAYS:  float = 87.9691
+MERCURY_ORBITAL_PERIOD_YEARS: float = MERCURY_ORBITAL_PERIOD_DAYS / 365.25
+MERCURY_AXIAL_TILT_DEG:       float = 0.034
+MERT_EPOCH_JD_TDB:            float = 2451545.0  # J2000.0
+
+
+@dataclass(frozen=True)
+class MercurianTime:
+    """Sol Mercurian Time at a given JD (TDB).
+
+    Carries both sidereal-day and solar-day phase coordinates because
+    Mercury's 3:2 spin-orbit resonance makes neither alone tell the
+    full story.
+    """
+    jd_tdb: float
+    mer_sd_sidereal: float    # sidereal-day count since J2000
+    mer_sd_solar:    float    # solar-day count since J2000 (= 2 × year count)
+    mer_t_hours:     float    # solar-day time-of-day, [0, 24) Mercury-hours
+    orbital_phase:   float    # year fraction, [0, 1)
+    mercury_years_since_epoch: float
+    retrograde: bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":           float(self.jd_tdb),
+            "mer_sd_sidereal":  float(self.mer_sd_sidereal),
+            "mer_sd_solar":     float(self.mer_sd_solar),
+            "mer_t_hours":      float(self.mer_t_hours),
+            "orbital_phase":    float(self.orbital_phase),
+            "mercury_years_since_epoch": float(self.mercury_years_since_epoch),
+            "retrograde":       bool(self.retrograde),
+        }
+
+
+def jd_to_mercurian_time(jd_tdb: float) -> MercurianTime:
+    """JD (TDB) → Sol Mercurian Time."""
+    delta = float(jd_tdb) - MERT_EPOCH_JD_TDB
+    sid = delta / MERCURY_SIDEREAL_DAY_DAYS
+    sol = delta / MERCURY_SOLAR_DAY_DAYS
+    sol_frac = sol - math.floor(sol)
+    years = delta / MERCURY_ORBITAL_PERIOD_DAYS
+    return MercurianTime(
+        jd_tdb=float(jd_tdb),
+        mer_sd_sidereal=sid,
+        mer_sd_solar=sol,
+        mer_t_hours=sol_frac * 24.0,
+        orbital_phase=years - math.floor(years),
+        mercury_years_since_epoch=years,
+        retrograde=False,
+    )
+
+
+def mercurian_time_to_jd(mer_sd_solar: float) -> float:
+    """Inverse on the Mercury solar-day count."""
+    return MERT_EPOCH_JD_TDB + float(mer_sd_solar) * MERCURY_SOLAR_DAY_DAYS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Plutonian Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Pluto's sidereal day is 6.3872 Earth-days. The Pluto-Charon system
+# is mutually tidally locked — Charon's orbital period equals Pluto's
+# rotation period exactly. The IAU-2015 prime-meridian convention
+# anchors at the sub-Charon point.
+#
+# Pluto's tilt of 122.53° is similar to Uranus's 97.77° — extreme
+# enough to give Pluto Uranian-style seasons each ~62 Earth-years
+# long. We expose `orbital_phase` and `years_since_epoch` but skip
+# the season-name discretisation for now (TODO: a future version can
+# add it once the IAU/JPL season-naming convention is settled).
+#
+# Anchor: 2015-07-14 (New Horizons closest approach, JD 2457217.0).
+
+PLUTO_SIDEREAL_DAY_DAYS:    float = 6.3872
+PLUTO_ORBITAL_PERIOD_DAYS:  float = 90560.0
+PLUTO_ORBITAL_PERIOD_YEARS: float = PLUTO_ORBITAL_PERIOD_DAYS / 365.25
+PLUTO_AXIAL_TILT_DEG:       float = 122.53
+PST_EPOCH_JD_TDB:           float = 2457217.0
+
+
+@dataclass(frozen=True)
+class PlutonianTime:
+    """Sol Plutonian Time at a given JD (TDB)."""
+    jd_tdb: float
+    psd:    float
+    pst_hours: float
+    pst_seconds: float
+    orbital_phase: float
+    years_since_epoch: float
+    retrograde: bool = True
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "psd":               float(self.psd),
+            "pst_hours":         float(self.pst_hours),
+            "pst_seconds":       float(self.pst_seconds),
+            "orbital_phase":     float(self.orbital_phase),
+            "years_since_epoch": float(self.years_since_epoch),
+            "retrograde":        bool(self.retrograde),
+        }
+
+
+def jd_to_plutonian_time(jd_tdb: float) -> PlutonianTime:
+    """JD (TDB) → Sol Plutonian Time."""
+    delta = float(jd_tdb) - PST_EPOCH_JD_TDB
+    psd = delta / PLUTO_SIDEREAL_DAY_DAYS
+    sol_frac = psd - math.floor(psd)
+    years = delta / PLUTO_ORBITAL_PERIOD_DAYS
+    return PlutonianTime(
+        jd_tdb=float(jd_tdb),
+        psd=psd,
+        pst_hours=sol_frac * 24.0,
+        pst_seconds=sol_frac * PLUTO_SIDEREAL_DAY_DAYS * 86400.0,
+        orbital_phase=years - math.floor(years),
+        years_since_epoch=years,
+        retrograde=True,
+    )
+
+
+def plutonian_time_to_jd(psd: float) -> float:
+    """Inverse on the Pluto sol-date count."""
+    return PST_EPOCH_JD_TDB + float(psd) * PLUTO_SIDEREAL_DAY_DAYS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Sol Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# The Sun's own time. The Sun has no solid surface — it's a plasma
+# ball with differential rotation (equator ~24.47 d, mid-latitudes
+# ~25.38 d, poles ~38 d). We use the **Carrington rotation period**
+# (25.38 d at 16° latitude) as the conventional reference, matching
+# all of solar-physics literature. The "Carrington Rotation Number"
+# (CRN) is an integer counter that started at CRN 1 on 1853-11-09
+# and increments every 25.38 Earth-days.
+#
+# Galactic orbital period (~225 Myr) is included for completeness
+# but is too slow for any practical phase calculation.
+#
+# Anchor: Carrington Rotation 1 epoch (1853-11-09, JD 2398167.4).
+
+SOL_CARRINGTON_DAY_DAYS:    float = 25.38       # Carrington rotation period
+SOL_GALACTIC_PERIOD_DAYS:   float = 8.0e10      # ~219 million years
+SOL_AXIAL_TILT_DEG:         float = 7.25
+SOL_T_EPOCH_JD_TDB:         float = 2398167.4   # CRN 1 start
+
+
+@dataclass(frozen=True)
+class SolSolTime:
+    """Sol Sol Time at a given JD (TDB).
+
+    Carrington-system time. The Sun has no IAU prime meridian (no
+    solid surface), so the Carrington system anchored at CRN 1 is
+    the conventional reference. The differential rotation means that
+    sunspots near the equator drift forward relative to CRN, and
+    sunspots near the poles drift backward — the 25.38-day period
+    matches the rotation at ~16° latitude only.
+    """
+    jd_tdb: float
+    crn: float                # Carrington Rotation Number (integer.fraction)
+    crn_integer: int          # floor of CRN
+    rotation_phase: float     # [0, 1) within the current rotation
+    rotation_hours: float     # [0, 24) Sol-hours within the current rotation
+    galactic_phase: float     # [0, 1) of one ~219 Myr galactic orbit; informational
+    years_since_galactic_epoch: float
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":          float(self.jd_tdb),
+            "crn":             float(self.crn),
+            "crn_integer":     int(self.crn_integer),
+            "rotation_phase":  float(self.rotation_phase),
+            "rotation_hours":  float(self.rotation_hours),
+            "galactic_phase":  float(self.galactic_phase),
+            "years_since_galactic_epoch": float(self.years_since_galactic_epoch),
+        }
+
+
+def jd_to_sol_sol_time(jd_tdb: float) -> SolSolTime:
+    """JD (TDB) → Sol Sol Time (Carrington system)."""
+    delta = float(jd_tdb) - SOL_T_EPOCH_JD_TDB
+    crn = 1.0 + delta / SOL_CARRINGTON_DAY_DAYS
+    crn_int = int(math.floor(crn))
+    rot_frac = crn - math.floor(crn)
+    galactic_years = delta / SOL_GALACTIC_PERIOD_DAYS * (
+        SOL_GALACTIC_PERIOD_DAYS / 365.25
+    )
+    return SolSolTime(
+        jd_tdb=float(jd_tdb),
+        crn=crn,
+        crn_integer=crn_int,
+        rotation_phase=rot_frac,
+        rotation_hours=rot_frac * 24.0,
+        galactic_phase=(delta / SOL_GALACTIC_PERIOD_DAYS) - math.floor(
+            delta / SOL_GALACTIC_PERIOD_DAYS
+        ),
+        years_since_galactic_epoch=galactic_years,
+    )
+
+
+def sol_sol_time_to_jd(crn: float) -> float:
+    """Inverse on the Carrington Rotation Number."""
+    return SOL_T_EPOCH_JD_TDB + (float(crn) - 1.0) * SOL_CARRINGTON_DAY_DAYS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Jovian Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Jupiter has differential rotation just like the Sun. Three reference
+# systems exist:
+#
+#   System I    9h 50m 30s  cloud features at the equator (±10° lat)
+#   System II   9h 55m 41s  cloud features at higher latitudes
+#   System III  9h 55m 30s  magnetic field axis (the "official" rate
+#                            per IAU; what's used in solar-system
+#                            geodesy)
+#
+# We use System III, matching IAU practice. Jupiter has no moon
+# dependency — System III rotation is observed via decametric radio
+# emission tied to the magnetic field, which is intrinsic to Jupiter.
+# Its moons orbit Jupiter but contribute nothing to its rotation rate.
+#
+# Anchor: System III 1965.0 reference epoch (JD 2444000.5, ~1979).
+
+JUPITER_SYS_III_DAY_DAYS:    float = 0.41354    # 9h 55m 29.71s
+JUPITER_ORBITAL_PERIOD_DAYS: float = 4332.589
+JUPITER_ORBITAL_PERIOD_YEARS: float = JUPITER_ORBITAL_PERIOD_DAYS / 365.25
+JUPITER_AXIAL_TILT_DEG:      float = 3.13
+JOVT_EPOCH_JD_TDB:           float = 2444000.5  # System III 1965.0
+
+
+@dataclass(frozen=True)
+class JovianTime:
+    """Sol Jovian Time at a given JD (TDB) — System III."""
+    jd_tdb: float
+    jsd: float
+    jst_hours: float
+    jst_seconds: float
+    orbital_phase: float
+    years_since_epoch: float
+    retrograde: bool = False
+    rotation_system: str = "III"
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "jsd":               float(self.jsd),
+            "jst_hours":         float(self.jst_hours),
+            "jst_seconds":       float(self.jst_seconds),
+            "orbital_phase":     float(self.orbital_phase),
+            "years_since_epoch": float(self.years_since_epoch),
+            "retrograde":        bool(self.retrograde),
+            "rotation_system":   str(self.rotation_system),
+        }
+
+
+def jd_to_jovian_time(jd_tdb: float) -> JovianTime:
+    """JD (TDB) → Sol Jovian Time (System III)."""
+    delta = float(jd_tdb) - JOVT_EPOCH_JD_TDB
+    jsd = delta / JUPITER_SYS_III_DAY_DAYS
+    sol_frac = jsd - math.floor(jsd)
+    years = delta / JUPITER_ORBITAL_PERIOD_DAYS
+    return JovianTime(
+        jd_tdb=float(jd_tdb),
+        jsd=jsd,
+        jst_hours=sol_frac * 24.0,
+        jst_seconds=sol_frac * JUPITER_SYS_III_DAY_DAYS * 86400.0,
+        orbital_phase=years - math.floor(years),
+        years_since_epoch=years,
+        retrograde=False,
+        rotation_system="III",
+    )
+
+
+def jovian_time_to_jd(jsd: float) -> float:
+    """Inverse on the Jupiter sol-date count."""
+    return JOVT_EPOCH_JD_TDB + float(jsd) * JUPITER_SYS_III_DAY_DAYS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Saturnian Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Saturn's System III rotation period was historically 10h 39m 22.4s
+# (Voyager 1980 magnetic-field tilt-tracking). Mankovich et al. (2019,
+# ApJ 871:1) revised this to 10h 32m 35s ± 13s using Cassini ring
+# seismology — the rings act as a giant seismometer for Saturn's
+# interior modes. We use the Cassini-revised value.
+#
+# Saturn has no moon dependency for its rotation either; ring
+# seismology yields the rotation rate from interior gravity-mode
+# eigenfrequencies, which depend only on Saturn's interior structure.
+#
+# Anchor: J2000.0.
+
+SATURN_SYS_III_DAY_DAYS:    float = 0.43932     # 10h 32m 35s (Cassini-revised)
+SATURN_ORBITAL_PERIOD_DAYS: float = 10759.22
+SATURN_ORBITAL_PERIOD_YEARS: float = SATURN_ORBITAL_PERIOD_DAYS / 365.25
+SATURN_AXIAL_TILT_DEG:      float = 26.73
+SATT_EPOCH_JD_TDB:          float = 2451545.0   # J2000.0
+
+
+@dataclass(frozen=True)
+class SaturnianTime:
+    """Sol Saturnian Time at a given JD (TDB) — System III (Cassini-revised)."""
+    jd_tdb: float
+    ssd: float
+    sst_hours: float
+    sst_seconds: float
+    orbital_phase: float
+    years_since_epoch: float
+    retrograde: bool = False
+    rotation_system: str = "III-Cassini"
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "ssd":               float(self.ssd),
+            "sst_hours":         float(self.sst_hours),
+            "sst_seconds":       float(self.sst_seconds),
+            "orbital_phase":     float(self.orbital_phase),
+            "years_since_epoch": float(self.years_since_epoch),
+            "retrograde":        bool(self.retrograde),
+            "rotation_system":   str(self.rotation_system),
+        }
+
+
+def jd_to_saturnian_time(jd_tdb: float) -> SaturnianTime:
+    """JD (TDB) → Sol Saturnian Time (System III, Cassini-revised)."""
+    delta = float(jd_tdb) - SATT_EPOCH_JD_TDB
+    ssd = delta / SATURN_SYS_III_DAY_DAYS
+    sol_frac = ssd - math.floor(ssd)
+    years = delta / SATURN_ORBITAL_PERIOD_DAYS
+    return SaturnianTime(
+        jd_tdb=float(jd_tdb),
+        ssd=ssd,
+        sst_hours=sol_frac * 24.0,
+        sst_seconds=sol_frac * SATURN_SYS_III_DAY_DAYS * 86400.0,
+        orbital_phase=years - math.floor(years),
+        years_since_epoch=years,
+        retrograde=False,
+        rotation_system="III-Cassini",
+    )
+
+
+def saturnian_time_to_jd(ssd: float) -> float:
+    """Inverse on the Saturn sol-date count."""
+    return SATT_EPOCH_JD_TDB + float(ssd) * SATURN_SYS_III_DAY_DAYS
+
+
 __all__ = [
     "MARS_SOL_PER_JD",
     "MSD_EPOCH_JD",
@@ -437,12 +884,62 @@ __all__ = [
     "URANUS_AXIAL_TILT_DEG",
     "SUT_EPOCH_JD_TDB",
     "URANIAN_SEASONS",
+    # v0.8.0 Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn.
+    "VENUS_SIDEREAL_DAY_DAYS",
+    "VENUS_SOLAR_DAY_DAYS",
+    "VENUS_ORBITAL_PERIOD_DAYS",
+    "VENUS_ORBITAL_PERIOD_YEARS",
+    "VENUS_AXIAL_TILT_DEG",
+    "VST_EPOCH_JD_TDB",
+    "MERCURY_SIDEREAL_DAY_DAYS",
+    "MERCURY_SOLAR_DAY_DAYS",
+    "MERCURY_ORBITAL_PERIOD_DAYS",
+    "MERCURY_ORBITAL_PERIOD_YEARS",
+    "MERCURY_AXIAL_TILT_DEG",
+    "MERT_EPOCH_JD_TDB",
+    "PLUTO_SIDEREAL_DAY_DAYS",
+    "PLUTO_ORBITAL_PERIOD_DAYS",
+    "PLUTO_ORBITAL_PERIOD_YEARS",
+    "PLUTO_AXIAL_TILT_DEG",
+    "PST_EPOCH_JD_TDB",
+    "SOL_CARRINGTON_DAY_DAYS",
+    "SOL_GALACTIC_PERIOD_DAYS",
+    "SOL_AXIAL_TILT_DEG",
+    "SOL_T_EPOCH_JD_TDB",
+    "JUPITER_SYS_III_DAY_DAYS",
+    "JUPITER_ORBITAL_PERIOD_DAYS",
+    "JUPITER_ORBITAL_PERIOD_YEARS",
+    "JUPITER_AXIAL_TILT_DEG",
+    "JOVT_EPOCH_JD_TDB",
+    "SATURN_SYS_III_DAY_DAYS",
+    "SATURN_ORBITAL_PERIOD_DAYS",
+    "SATURN_ORBITAL_PERIOD_YEARS",
+    "SATURN_AXIAL_TILT_DEG",
+    "SATT_EPOCH_JD_TDB",
     "MarsTime",
     "LunarTime",
     "UranianTime",
+    "VenusianTime",
+    "MercurianTime",
+    "PlutonianTime",
+    "SolSolTime",
+    "JovianTime",
+    "SaturnianTime",
     "jd_to_msd",
     "msd_to_jd",
     "jd_to_lunar",
     "jd_to_uranian_time",
     "uranian_time_to_jd",
+    "jd_to_venusian_time",
+    "venusian_time_to_jd",
+    "jd_to_mercurian_time",
+    "mercurian_time_to_jd",
+    "jd_to_plutonian_time",
+    "plutonian_time_to_jd",
+    "jd_to_sol_sol_time",
+    "sol_sol_time_to_jd",
+    "jd_to_jovian_time",
+    "jovian_time_to_jd",
+    "jd_to_saturnian_time",
+    "saturnian_time_to_jd",
 ]

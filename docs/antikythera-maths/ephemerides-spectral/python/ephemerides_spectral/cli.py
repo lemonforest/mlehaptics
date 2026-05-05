@@ -140,6 +140,49 @@ def _cmd_time_uranus(args: argparse.Namespace) -> int:
     return _emit(bridge.jd_to_sol_uranian_time(args.jd), pretty=args.pretty)
 
 
+# ── v0.8.0 Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn
+
+def _cmd_time_venus(args: argparse.Namespace) -> int:
+    if args.vsd_solar is not None:
+        return _emit(bridge.sol_venusian_time_to_jd(args.vsd_solar),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_venusian_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_mercury(args: argparse.Namespace) -> int:
+    if args.mer_sd_solar is not None:
+        return _emit(bridge.sol_mercurian_time_to_jd(args.mer_sd_solar),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_mercurian_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_pluto(args: argparse.Namespace) -> int:
+    if args.psd is not None:
+        return _emit(bridge.sol_plutonian_time_to_jd(args.psd),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_plutonian_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_sol(args: argparse.Namespace) -> int:
+    if args.crn is not None:
+        return _emit(bridge.sol_sol_time_to_jd(args.crn), pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_sol_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_jupiter(args: argparse.Namespace) -> int:
+    if args.jsd is not None:
+        return _emit(bridge.sol_jovian_time_to_jd(args.jsd),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_jovian_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_saturn(args: argparse.Namespace) -> int:
+    if args.ssd is not None:
+        return _emit(bridge.sol_saturnian_time_to_jd(args.ssd),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_saturnian_time(args.jd), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -550,6 +593,174 @@ def _make_parser() -> argparse.ArgumentParser:
     tu_group.add_argument("--usd", type=float, default=None,
                           help="Uranian Sol Date to invert back to JD_TDB")
     tu.set_defaults(func=_cmd_time_uranus)
+
+    # ── v0.8.0 Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn
+
+    # time-venus
+    tv = sub.add_parser(
+        "time-venus",
+        help="Sol Venusian Time at a JD (sidereal + solar day phase)",
+        description=(
+            "Convert JD (TDB) to Sol Venusian Time. Venus's sidereal day\n"
+            "(243.0 Earth-days) is LONGER than its 224.7-day year, so the\n"
+            "sidereal vs. solar day distinction matters: the result\n"
+            "carries both. Solar day = 116.75 Earth-days = the natural\n"
+            "answer to 'what time is it on Venus' (one sunrise to next).\n"
+            "Venus rotates retrograde; the result carries `retrograde=True`.\n"
+            "Use --vsd-solar to invert (Venus solar-day count -> JD_TDB)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-venus --jd 2451545.0     # J2000 (anchor)\n"
+            "  ephemerides-spectral time-venus --vsd-solar 100    # 100 solar days past J2000\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tv_g = tv.add_mutually_exclusive_group(required=True)
+    tv_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Venusian Time")
+    tv_g.add_argument("--vsd-solar", dest="vsd_solar", type=float, default=None,
+                       help="Venus solar-day count to invert back to JD_TDB")
+    tv.set_defaults(func=_cmd_time_venus)
+
+    # time-mercury
+    tm2 = sub.add_parser(
+        "time-mercury",
+        help="Sol Mercurian Time at a JD (3:2 spin-orbit resonance)",
+        description=(
+            "Convert JD (TDB) to Sol Mercurian Time. Mercury is in 3:2\n"
+            "spin-orbit resonance: the solar day = 2 Mercury years exactly.\n"
+            "Sidereal day = 58.65 Earth-days, solar day = 175.98 Earth-days,\n"
+            "year = 87.97 Earth-days. The result carries both sidereal-day\n"
+            "and solar-day phase coordinates.\n"
+            "Use --mer-sd-solar to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-mercury --jd 2451545.0       # J2000 (anchor)\n"
+            "  ephemerides-spectral time-mercury --mer-sd-solar 50    # 50 solar days past J2000"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tm2_g = tm2.add_mutually_exclusive_group(required=True)
+    tm2_g.add_argument("--jd", type=float, default=None,
+                        help="JD (TDB) to convert to Sol Mercurian Time")
+    tm2_g.add_argument("--mer-sd-solar", dest="mer_sd_solar",
+                        type=float, default=None,
+                        help="Mercury solar-day count to invert back to JD_TDB")
+    tm2.set_defaults(func=_cmd_time_mercury)
+
+    # time-pluto
+    tp = sub.add_parser(
+        "time-pluto",
+        help="Sol Plutonian Time at a JD (Pluto-Charon system rotation)",
+        description=(
+            "Convert JD (TDB) to Sol Plutonian Time. Pluto sidereal day =\n"
+            "6.39 Earth-days; year = 248 Earth-years. The Pluto-Charon\n"
+            "system is mutually tidally locked — Charon's orbital period\n"
+            "equals Pluto's rotation period exactly. IAU-2015 anchors the\n"
+            "prime meridian at the sub-Charon point. Pluto's tilt of 122.5°\n"
+            "puts it in the retrograde-rotation regime (similar to Uranus).\n"
+            "Use --psd to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-pluto --jd 2457217.0    # New Horizons closest approach (anchor)\n"
+            "  ephemerides-spectral time-pluto --jd 2451545.0    # J2000\n"
+            "  ephemerides-spectral time-pluto --psd 365         # 365 Pluto-sols past anchor"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tp_g = tp.add_mutually_exclusive_group(required=True)
+    tp_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Plutonian Time")
+    tp_g.add_argument("--psd", type=float, default=None,
+                       help="Pluto sol-date count to invert back to JD_TDB")
+    tp.set_defaults(func=_cmd_time_pluto)
+
+    # time-sol (the Sun's own time, Carrington system)
+    ts = sub.add_parser(
+        "time-sol",
+        help="Sol Sol Time — the Sun's own time, Carrington rotation system",
+        description=(
+            "Convert JD (TDB) to Sol Sol Time. The Sun has no IAU prime\n"
+            "meridian (no solid surface), so the Carrington Rotation Number\n"
+            "(CRN) is the conventional reference: integer counter starting\n"
+            "at CRN 1 on 1853-11-09, each rotation = 25.38 Earth-days at\n"
+            "~16° solar latitude. The Sun has differential rotation (equator\n"
+            "~24.47 d, poles ~38 d); 25.38 d is the Carrington reference.\n"
+            "Use --crn to invert (CRN -> JD_TDB)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-sol --jd 2398167.4    # CRN 1 epoch (anchor)\n"
+            "  ephemerides-spectral time-sol --jd 2451545.0    # J2000 (~CRN 1956)\n"
+            "  ephemerides-spectral time-sol --jd 2461165.0    # today-ish\n"
+            "  ephemerides-spectral time-sol --crn 2300        # CRN -> JD_TDB"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ts_g = ts.add_mutually_exclusive_group(required=True)
+    ts_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Sol Time")
+    ts_g.add_argument("--crn", type=float, default=None,
+                       help="Carrington Rotation Number to invert back to JD_TDB")
+    ts.set_defaults(func=_cmd_time_sol)
+
+    # time-jupiter
+    tj = sub.add_parser(
+        "time-jupiter",
+        help="Sol Jovian Time at a JD (Jupiter System III magnetic-field rotation)",
+        description=(
+            "Convert JD (TDB) to Sol Jovian Time using System III rotation\n"
+            "(magnetic-field axis, 9h 55m 30s — the IAU standard). System I\n"
+            "(equatorial cloud features) and System II (mid-latitude clouds)\n"
+            "have different rates and are not exposed here. Year = 11.86\n"
+            "Earth-years.\n"
+            "Use --jsd to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-jupiter --jd 2444000.5   # System III 1965.0 (anchor)\n"
+            "  ephemerides-spectral time-jupiter --jd 2451545.0   # J2000\n"
+            "  ephemerides-spectral time-jupiter --jsd 1000       # 1000 Jovian sols past anchor"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tj_g = tj.add_mutually_exclusive_group(required=True)
+    tj_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Jovian Time")
+    tj_g.add_argument("--jsd", type=float, default=None,
+                       help="Jupiter sol-date count (System III) to invert back to JD_TDB")
+    tj.set_defaults(func=_cmd_time_jupiter)
+
+    # time-saturn
+    tsat = sub.add_parser(
+        "time-saturn",
+        help="Sol Saturnian Time at a JD (Cassini-revised System III)",
+        description=(
+            "Convert JD (TDB) to Sol Saturnian Time using the Cassini-revised\n"
+            "System III rotation period (10h 32m 35s, Mankovich et al. 2019\n"
+            "ApJ 871:1 — supersedes the older Voyager value of 10h 39m 22.4s).\n"
+            "Saturn's rotation rate was determined via ring seismology, not\n"
+            "moon orbits — Sol Saturnian Time is fully independent of any\n"
+            "Saturnian moon set. Year = 29.46 Earth-years.\n"
+            "Use --ssd to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-saturn --jd 2451545.0   # J2000 (anchor)\n"
+            "  ephemerides-spectral time-saturn --jd 2461165.0   # today-ish\n"
+            "  ephemerides-spectral time-saturn --ssd 5000       # 5000 Saturnian sols past J2000"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tsat_g = tsat.add_mutually_exclusive_group(required=True)
+    tsat_g.add_argument("--jd", type=float, default=None,
+                         help="JD (TDB) to convert to Sol Saturnian Time")
+    tsat_g.add_argument("--ssd", type=float, default=None,
+                         help="Saturn sol-date count to invert back to JD_TDB")
+    tsat.set_defaults(func=_cmd_time_saturn)
 
     # lunar-kernels
     lk = sub.add_parser(

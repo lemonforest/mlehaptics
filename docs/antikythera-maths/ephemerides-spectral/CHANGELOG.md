@@ -7,7 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.7.0)
+(no entries yet — next entries land after v0.8.0)
+
+## [0.8.0] — 2026-05-05
+
+**Sol Symphony Times: 6 new planetary/stellar time systems.** Venus, Mercury, Pluto, Sol (the Sun!), Jupiter, and Saturn join Mars / Lunar / Uranian as Sol Time members. The natural-symphony framing: every body in the encoder roster has a rotational + orbital cycle that ticks in its own cyclic group; the Sol Time series exposes the JD ↔ local-time mapping for each.
+
+Pure-Python additions (no encoder, no C twin needed); ABI unchanged.
+
+### Added — research/time_scales.py
+
+| body | dataclass | sidereal day | year | anchor | retrograde |
+|---|---|---:|---:|---|:---:|
+| Venus | `VenusianTime` | 243.0226 d | 224.701 d | J2000.0 | ✓ |
+| Mercury | `MercurianTime` | 58.6462 d | 87.9691 d | J2000.0 (Hun Kal) | |
+| Pluto | `PlutonianTime` | 6.3872 d | 90,560 d | 2015 New Horizons | ✓ |
+| Sol (Sun) | `SolSolTime` | 25.38 d (Carrington) | ~219 Myr (galactic) | CRN 1 (1853) | |
+| Jupiter | `JovianTime` | 0.41354 d (System III) | 4332.589 d | 1965.0 epoch | |
+| Saturn | `SaturnianTime` | 0.43932 d (Cassini-revised) | 10,759.22 d | J2000.0 | |
+
+Each ships with `jd_to_*_time(jd_tdb)` + `*_time_to_jd(...)` inverse plus module-level constants (sidereal/solar day, orbital period, axial tilt, anchor JD).
+
+**Special quirks handled:**
+- **Mercury 3:2 spin-orbit resonance** — solar day = 175.98 Earth-days = 2 Mercury-years exactly. The `MercurianTime` dataclass exposes both `mer_sd_sidereal` AND `mer_sd_solar` because either alone hides the resonance.
+- **Venus retrograde + sidereal > year** — sidereal day = 243.0 Earth-days is *longer than* the 224.7-day year. The `VenusianTime` dataclass exposes both `vsd_sidereal` AND `vsd_solar` (= 116.75 Earth-days = synodic).
+- **Sol differential rotation** — Carrington 25.38 d at ~16° latitude is the conventional reference; equator ~24.47 d, poles ~38 d. The `SolSolTime` dataclass exposes the Carrington Rotation Number (CRN) integer counter.
+- **Saturn Cassini ring-seismology revision** — Mankovich et al. 2019 ApJ 871:1 revised System III from 10h 39m 22.4s (Voyager) to 10h 32m 35s ± 13s. We use the revised value.
+
+### Added — bridge surface (12 methods)
+
+`bridge.jd_to_sol_*_time(jd_tdb)` + `bridge.sol_*_time_to_jd(...)` for venusian / mercurian / plutonian / sol_sol / jovian / saturnian. Each returns the dataclass dict plus an `epoch` block carrying the constants.
+
+### Added — CLI (6 subcommands)
+
+`time-venus`, `time-mercury`, `time-pluto`, `time-sol`, `time-jupiter`, `time-saturn`. Each follows the v0.5.4 `--help` audit pattern with concrete examples.
+
+### Naming hierarchy convention (for future moon ports)
+
+Established planet/star times: `Sol <Adjective> Time` — Sol Mars, Sol Lunar (Earth's Moon by historical convention), Sol Uranian, Sol Venusian, Sol Mercurian, Sol Plutonian, Sol Jovian, Sol Saturnian, Sol Sol.
+
+Future moon times follow parent-body hierarchy: `Sol <Parent>-<Body> Time` — e.g., Sol Pluto-Charon Time, Sol Jupiter-Io Time, Sol Earth-Moon Time. Established conventional names (Sol Lunar = Earth-Moon shorthand) are kept; new moon time systems land under the hierarchy convention so consumers always know which body's surface clock the answer refers to.
+
+### Why a stand-alone minor bump
+
+v0.8.0 instead of v0.7.1 because:
+1. The bridge surface adds 12 new methods (significant new API).
+2. The CLI adds 6 new subcommands.
+3. The naming-hierarchy convention is a contract, not a tweak.
+
+ABI is unchanged — no C twin needed; these are pure-Python time-scale formulas. Existing C/Python parity discipline holds: all 12 new bridge methods are classified as `python_only` in the parity smoke (rationale field documents the closed-form arithmetic).
+
+### Tests
+
+- 6 new immolation tests in test_immolation.py:
+  - `test_v080_sol_symphony_round_trips_at_epoch` (each body's JD↔sol_date round-trips)
+  - `test_v080_sol_sol_crn_starts_at_one` (CRN epoch convention)
+  - `test_v080_mercury_3to2_spin_orbit_resonance` (spin-orbit resonance honored)
+  - `test_v080_venus_retrograde_flag`
+  - `test_v080_jovian_uses_system_iii`
+  - `test_v080_saturnian_uses_cassini_revised`
+
+102 active tests pass (was 84 in v0.7.0); 4 skipped (cibuildwheel-only native parity ladders).
+
+### Subagent verification
+
+Used a research subagent to confirm the gas-giant rotation rates (Jupiter System III, Saturn Cassini-revised System III) are observationally derived independently of moon orbital data — so Sol Jovian Time and Sol Saturnian Time can ship without first implementing the moons of Jupiter/Saturn. Confirmed: System III is read off magnetospheric radio emissions (Jupiter) or ring seismology (Saturn). Moons of those gas giants are a separate future task.
 
 ## [0.7.0] — 2026-05-05
 

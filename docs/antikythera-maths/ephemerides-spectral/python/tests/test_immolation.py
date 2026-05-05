@@ -205,6 +205,80 @@ def test_v055_moon_patches_carry_measured_shrinkage() -> None:
         assert "Phase C" in notes, f"{name} missing Phase C provenance"
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.8.0 Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_v080_sol_symphony_round_trips_at_epoch() -> None:
+    """Each new Sol Time returns sol_date=0 at its epoch JD, and the
+    inverse returns the epoch JD exactly."""
+    cases = [
+        # (forward, inverse, epoch_jd, sol_date_field, sol_date_arg_name)
+        (bridge.jd_to_sol_venusian_time, bridge.sol_venusian_time_to_jd,
+         2451545.0, "vsd_solar", "vsd_solar"),
+        (bridge.jd_to_sol_mercurian_time, bridge.sol_mercurian_time_to_jd,
+         2451545.0, "mer_sd_solar", "mer_sd_solar"),
+        (bridge.jd_to_sol_plutonian_time, bridge.sol_plutonian_time_to_jd,
+         2457217.0, "psd", "psd"),
+        (bridge.jd_to_sol_jovian_time, bridge.sol_jovian_time_to_jd,
+         2444000.5, "jsd", "jsd"),
+        (bridge.jd_to_sol_saturnian_time, bridge.sol_saturnian_time_to_jd,
+         2451545.0, "ssd", "ssd"),
+    ]
+    for fwd, inv, epoch_jd, field, arg_name in cases:
+        f = fwd(epoch_jd)
+        assert f["ok"] is True
+        assert abs(f[field]) < 1e-9, f"{fwd.__name__} not zero at epoch"
+        b = inv(**{arg_name: f[field]})
+        assert b["ok"] is True
+        assert abs(b["jd_tdb"] - epoch_jd) < 1e-6, (
+            f"{inv.__name__} round-trip drift"
+        )
+
+
+def test_v080_sol_sol_crn_starts_at_one() -> None:
+    """Carrington Rotation Number = 1 at the CRN 1 epoch (1853-11-09)."""
+    f = bridge.jd_to_sol_sol_time(2398167.4)
+    assert f["ok"] is True
+    assert abs(f["crn"] - 1.0) < 1e-9
+    assert f["crn_integer"] == 1
+    inv = bridge.sol_sol_time_to_jd(1.0)
+    assert inv["ok"] is True
+    assert abs(inv["jd_tdb"] - 2398167.4) < 1e-6
+
+
+def test_v080_mercury_3to2_spin_orbit_resonance() -> None:
+    """Mercury solar day is exactly 2 Mercury years (3:2 resonance).
+    Round to high precision: solar_day_days / orbital_period_days ≈ 2.0."""
+    out = bridge.jd_to_sol_mercurian_time(2451545.0)
+    epoch = out["epoch"]
+    ratio = epoch["solar_day_days"] / (
+        epoch["orbital_period_years"] * 365.25
+    )
+    assert abs(ratio - 2.0) < 1e-3, (
+        f"Mercury 3:2 spin-orbit resonance not honored: ratio={ratio}"
+    )
+
+
+def test_v080_venus_retrograde_flag() -> None:
+    """Venus rotates retrograde."""
+    out = bridge.jd_to_sol_venusian_time(2451545.0)
+    assert out["retrograde"] is True
+
+
+def test_v080_jovian_uses_system_iii() -> None:
+    """Sol Jovian Time uses System III rotation (magnetic field, IAU)."""
+    out = bridge.jd_to_sol_jovian_time(2444000.5)
+    assert out["rotation_system"] == "III"
+
+
+def test_v080_saturnian_uses_cassini_revised() -> None:
+    """Sol Saturnian Time uses Cassini-revised (Mankovich 2019) System III."""
+    out = bridge.jd_to_sol_saturnian_time(2451545.0)
+    assert out["rotation_system"] == "III-Cassini"
+
+
 def test_v055_moon_patches_apply_and_clear() -> None:
     """Each v0.5.5 moon patch must apply via the bridge and clear cleanly."""
     bridge.clear_patches()
