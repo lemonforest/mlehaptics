@@ -38,6 +38,7 @@ add_library(ephemerides_spectral SHARED
     c/src/es_laplacian.c
     c/src/es_cosine_lut.c
     c/src/es_patches.c
+    c/src/es_parity.c
 )
 target_include_directories(ephemerides_spectral PUBLIC c/include)
 target_link_libraries(ephemerides_spectral PRIVATE ${ES_MATH_LIB})

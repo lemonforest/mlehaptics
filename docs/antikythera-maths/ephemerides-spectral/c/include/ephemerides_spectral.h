@@ -110,6 +110,9 @@ typedef enum {
     ES_ERR_DELTA_OUT_OF_RANGE   = 1, /* |delta_t_days| > ES_DELTA_DAYS_LIMIT */
     ES_ERR_NULL_OUTPUT          = 2, /* phases_out == NULL                  */
     ES_ERR_NON_FINITE_INPUT     = 3, /* delta_t_days is NaN or +/-inf       */
+    ES_ERR_INVALID_INDEX        = 4, /* body index >= ES_N_BODIES (v0.6.0) */
+    ES_ERR_INVALID_KIND         = 5, /* syzygy kind not in {0,1,2} (v0.6.0) */
+    ES_ERR_INVALID_THRESHOLD    = 6, /* threshold not in (0, 0.5] (v0.6.0)  */
 } es_status_t;
 
 /* Body category enum (mirrors the Python `Body.category` field). */
@@ -338,6 +341,96 @@ size_t es_n_active_patches(void);
 int es_get_patch_at(size_t idx, es_patch_t *out);
 
 /* ------------------------------------------------------------------ *
+ * C/Python parity Tier 1 (v0.6.0, ABI v3)
+ * ------------------------------------------------------------------ *
+ *
+ * Two new entry points so the bridge's Python-only methods get a C
+ * twin. The byte-identical-or-ULP-matching parity discipline is
+ * pinned by tests/test_parity_smoke.py — every encoder-touching
+ * bridge method has a paired (Python, C) test that compares output.
+ *
+ * es_breathing_modulation: exposes the resonant-pair phase residue +
+ *   integer-cosine-LUT modulation that lives inside es_encode_state's
+ *   inner off-diagonal loop. Same arithmetic, evaluated at one JD
+ *   without running the full encode.
+ *
+ * es_find_syzygies: enumerates new-moon / full-moon syzygies in a
+ *   JD window via fixed-period synodic + draconic month arithmetic.
+ *   No encoder calls; pure modular reduction. Mirrors the Python
+ *   `_research/syzygy_window.py` algorithm 1:1.
+ */
+
+/* Resonant-pair breathing modulation at a single JD.
+ *
+ *   delta_t_days     = jd_tdb - ES_REFERENCE_JD
+ *   body_idx_a/b     = indices into es_bodies (e.g. via es_body_index)
+ *   n_a / n_b        = resonance multiplicities (e.g. (5, 2) for J-S)
+ *   *out_phase       = (n_a * phi_a - n_b * phi_b) mod 2^32
+ *   *out_cos_q14     = es_cos_lut(*out_phase, 1) — the integer LUT value
+ *   *out_modulation  = 1 + 0.1 * (cos_q14 / ES_COSINE_LUT_AMP) — the
+ *                      breathing factor multiplying the static off-
+ *                      diagonal coupling weight at this JD
+ *
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT on null pointer args;
+ * ES_ERR_INVALID_INDEX on out-of-bounds body indices;
+ * ES_ERR_NON_FINITE_INPUT on NaN/inf delta_t_days.
+ */
+es_status_t es_breathing_modulation(double delta_t_days,
+                                    size_t body_idx_a,
+                                    size_t body_idx_b,
+                                    int n_a,
+                                    int n_b,
+                                    uint32_t *out_phase,
+                                    int32_t *out_cos_q14,
+                                    double *out_modulation);
+
+/* Syzygy candidate (one entry per detected event). Mirrors the Python
+ * SyzygyCandidate dataclass:
+ *   jd_tdb            = candidate JD (TDB)
+ *   kind              = 0 for solar (new moon), 1 for lunar (full moon)
+ *   synodic_phase_resid = always 0 by enumeration construction
+ *   draconic_phase_resid = how close to a node-crossing (0 = exact)
+ *   score             = sqrt(syn^2 + drc^2); lower is stronger
+ */
+#define ES_SYZYGY_KIND_SOLAR  0
+#define ES_SYZYGY_KIND_LUNAR  1
+
+typedef struct {
+    double  jd_tdb;
+    int32_t kind;
+    double  synodic_phase_resid;
+    double  draconic_phase_resid;
+    double  score;
+} es_syzygy_t;
+
+/* Enumerate syzygies in [jd_lo, jd_hi] (TDB).
+ *
+ *   kind:           0 = solar only, 1 = lunar only, 2 = both ("all")
+ *   threshold:      score cutoff in (0, 0.5]
+ *   max_candidates: hard cap; enumeration stops at this many
+ *   out_buf:        caller-provided buffer of capacity `out_capacity`
+ *                   es_syzygy_t entries
+ *   *out_count:     number written (may be < out_capacity OR
+ *                   max_candidates)
+ *
+ * Returns ES_OK on success. Truncates silently if more candidates
+ * exist than out_capacity (caller can detect this via `*out_count
+ * == out_capacity`).
+ */
+#define ES_SYZYGY_KIND_FILTER_SOLAR  0
+#define ES_SYZYGY_KIND_FILTER_LUNAR  1
+#define ES_SYZYGY_KIND_FILTER_ALL    2
+
+es_status_t es_find_syzygies(double jd_lo,
+                             double jd_hi,
+                             int kind,
+                             double threshold,
+                             size_t max_candidates,
+                             es_syzygy_t *out_buf,
+                             size_t out_capacity,
+                             size_t *out_count);
+
+/* ------------------------------------------------------------------ *
  * Version
  * ------------------------------------------------------------------ */
 
@@ -347,9 +440,9 @@ int es_get_patch_at(size_t idx, es_patch_t *out);
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 5
-#define ES_VERSION_PATCH 5
-#define ES_VERSION_STRING "0.5.5"
+#define ES_VERSION_MINOR 6
+#define ES_VERSION_PATCH 0
+#define ES_VERSION_STRING "0.6.0"
 
 const char *es_version(void);
 
@@ -369,8 +462,15 @@ const char *es_version(void);
  *     the final cyclic-group reduction, mirroring the Python BIP
  *     encoder's overlay step. With no patches active the encode is
  *     byte-identical to v0.4.0 (and to the Python BIP encoder).
+ *
+ * v3: v0.6.0 — C/Python parity Tier 1.
+ *     Added: es_breathing_modulation, es_syzygy_t struct, es_find_syzygies,
+ *     ES_SYZYGY_KIND_* + ES_SYZYGY_KIND_FILTER_* constants. Encoder
+ *     hot path is unchanged — these are net-new entry points. With
+ *     no patches active the encode-state output is byte-identical
+ *     to v2 (and to the Python BIP encoder).
  */
-#define ES_ABI_VERSION 2
+#define ES_ABI_VERSION 3
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python
