@@ -94,6 +94,13 @@ from ephemerides_spectral._research.time_scales import (
     STLT_EPOCH_J2000_JD_TDB, STLT_EPOCHS, STLT_DEFAULT_EPOCH,
     jd_to_terra_luna_time, terra_luna_time_to_jd,
 )
+from ephemerides_spectral._research.proper_time import (
+    DEFAULT_REFERENCE as SPRT_DEFAULT_REFERENCE,
+    SUPPORTED_REFERENCES as SPRT_SUPPORTED_REFERENCES,
+    compare_proper_times as _compare_proper_times,
+    get_proper_time_rate as _get_proper_time_rate_impl,
+)
+from ephemerides_spectral._research.bodies import BODIES as _BODIES
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
 )
@@ -976,6 +983,201 @@ def sol_terra_luna_time_to_jd(
         "epoch_name": epoch,
         "synodic_count": sc,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.11.0 Sol Proper Time (SPrT) — gravitational + kinematic time dilation
+# ──────────────────────────────────────────────────────────────────────
+#
+# Per-body proper-time rate vs. TCB (barycentric coordinate time).
+# Two leading-order components: surface gravitational dilation
+# (GM/(R·c²)) and orbital kinematic dilation (v_orb²/(2c²)).
+#
+# The user-facing surface is exposed two ways:
+#
+#   1. Standalone `get_proper_time_rate(body, ...)` — returns the rate
+#      directly, for queries like "how fast does a Mars-surface clock
+#      tick relative to TCB."
+#
+#   2. The CLI `--proper` flag on every existing `time-*` subcommand —
+#      transparently applies the body's proper-time correction to the
+#      Sol Time count, attaching a `proper_time` block to the output.
+#      "Same answer, but proper-time-corrected for this body."
+#
+# Validated against six published values (Earth GR, Sun GR, Mars GR,
+# Pluto GR, Earth orbital kinematic, Mars-vs-Earth GR difference) to
+# within 0.30 % — see `tests/test_sprt.py` and the Phase A audit
+# script `research/proper_time_rates.py` for the validation discipline.
+
+#: The `body` argument's accepted set — all 38 bodies in the roster.
+_SPRT_BODY_KEYS = sorted(_BODIES)
+
+
+def get_proper_time_rate(
+    body: str,
+    *,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    jd_tdb: Optional[float] = None,
+    reference: str = SPRT_DEFAULT_REFERENCE,
+) -> Dict[str, Any]:
+    """Compute the leading-order proper-time rate for a body vs. TCB.
+
+    Wraps `_research.proper_time.get_proper_time_rate` with the bridge
+    error-dict convention.
+
+    Parameters
+    ----------
+    body : str
+        A body key in `BODIES`.
+    lat, lon : float, optional
+        Surface latitude / longitude in degrees. v0.11.0 ignores these
+        (J₂ oblateness is deferred to v0.12.0+); accepted for forward
+        compatibility so callers can already write
+        `get_proper_time_rate("terra", lat=51.5, lon=-0.1)` and have
+        it pass through cleanly.
+    jd_tdb : float, optional
+        Julian Date in TDB. v0.11.0 uses each body's mean orbital
+        velocity (no per-JD eccentricity correction); accepted for
+        forward compatibility.
+    reference : str, default ``"tcb"``
+        Reference time scale. ``"tcb"`` and ``"tdb"`` accepted; produce
+        the same numerical answer at v0.11.0 precision.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "body": ..., "reference": "tcb",
+            "rate_relative_to_reference": ...,
+            "components": {gr_surface, kinematic_orbital, j2_oblateness, total},
+            "orbital_velocity_kms": ..., "parent_body": ..., "abbreviation": "SPrT"}``.
+        On error: ``{"ok": False, "error": "..."}``.
+    """
+    if not isinstance(body, str) or body not in _BODIES:
+        return _err(
+            f"body must be one of {_SPRT_BODY_KEYS}, got {body!r}"
+        )
+    if reference not in SPRT_SUPPORTED_REFERENCES:
+        return _err(
+            f"reference must be one of {list(SPRT_SUPPORTED_REFERENCES)}, "
+            f"got {reference!r}"
+        )
+    rate = _get_proper_time_rate_impl(
+        body, lat=lat, lon=lon, jd_tdb=jd_tdb, reference=reference,
+    )
+    out: Dict[str, Any] = {"ok": True, **rate.to_dict()}
+    out["abbreviation"] = "SPrT"
+    return out
+
+
+def compare_proper_times(
+    body_a: str,
+    body_b: str,
+    *,
+    reference: str = SPRT_DEFAULT_REFERENCE,
+) -> Dict[str, Any]:
+    """Compare two bodies' proper-time rates against TCB.
+
+    Returns the rate ratio plus a "drift per Earth-year" diagnostic —
+    the most intuitive number for human comparison.
+
+    Convention: positive `seconds_per_earth_year` means body_a's
+    surface clocks tick *slower* than body_b's (consistent with TCB
+    convention "more dilation = lower rate").
+    """
+    if body_a not in _BODIES:
+        return _err(
+            f"body_a must be one of {_SPRT_BODY_KEYS}, got {body_a!r}"
+        )
+    if body_b not in _BODIES:
+        return _err(
+            f"body_b must be one of {_SPRT_BODY_KEYS}, got {body_b!r}"
+        )
+    if reference not in SPRT_SUPPORTED_REFERENCES:
+        return _err(
+            f"reference must be one of {list(SPRT_SUPPORTED_REFERENCES)}, "
+            f"got {reference!r}"
+        )
+    return {"ok": True, "abbreviation": "SPrT",
+            **_compare_proper_times(body_a, body_b, reference=reference)}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.11.0 Sol Time `--proper` post-processor
+# ──────────────────────────────────────────────────────────────────────
+#
+# Each Sol Time bridge function (`jd_to_sol_*_time`) returns a dict
+# with one or more "count" fields (msd, lsd_solar, synodic_count, ...).
+# When the CLI's `--proper` flag is set, the corresponding count fields
+# get a `<field>_proper` sibling that's the count multiplied by the
+# body's proper-time rate, plus a `proper_time` metadata block.
+#
+# This keeps the existing time-* bridge surface untouched (the
+# `--proper` correction is purely additive at the CLI layer) and lets
+# the user transparently opt into the GR + kinematic correction
+# without learning a new function or subcommand. It's the "users
+# don't even need to know anything extra had to happen in the back
+# end" UX the user asked for.
+
+#: Map from Sol Time CLI subcommand → (canonical body for SPrT, list of
+#: count fields to apply the proper-time correction to).
+_SPRT_COMMAND_MAP: Dict[str, Tuple[str, Tuple[str, ...]]] = {
+    "time-mars":       ("mars",    ("msd",)),
+    "time-lunar":      ("luna",    ("synodic_phase", "sidereal_phase")),
+    "time-uranus":     ("uranus",  ("usd",)),
+    "time-venus":      ("venus",   ("vsd_solar", "vsd_sidereal")),
+    "time-mercury":    ("mercury", ("mer_sd_solar", "mer_sd_sidereal")),
+    "time-pluto":      ("pluto",   ("psd",)),
+    "time-sol":        ("sun",     ("crn",)),
+    "time-jupiter":    ("jupiter", ("jsd",)),
+    "time-saturn":     ("saturn",  ("ssd",)),
+    "time-neptune":    ("neptune", ("nsd",)),
+    "time-terra":      ("terra",   ("tsd_solar", "tsd_sidereal")),
+    "time-luna":       ("luna",    ("lsd_solar", "lsd_sidereal")),
+    "time-terra-luna": ("terra",   ("synodic_count", "saros_count", "metonic_count")),
+}
+
+
+def apply_proper_correction(
+    result: Dict[str, Any],
+    subcommand: str,
+    *,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    reference: str = SPRT_DEFAULT_REFERENCE,
+) -> Dict[str, Any]:
+    """Augment a Sol Time bridge result with proper-time-corrected counts.
+
+    Used by the CLI when `--proper` is set. No-op (returns the input
+    unchanged) if the result is an error response or if the subcommand
+    isn't in the SPrT command map.
+    """
+    if not result.get("ok"):
+        return result
+    if subcommand not in _SPRT_COMMAND_MAP:
+        return result
+    body_key, count_fields = _SPRT_COMMAND_MAP[subcommand]
+    rate_result = get_proper_time_rate(
+        body_key, lat=lat, lon=lon, reference=reference,
+    )
+    if not rate_result.get("ok"):
+        return result
+    rate = rate_result["rate_relative_to_reference"]
+    for field in count_fields:
+        if field in result and isinstance(result[field], (int, float)):
+            result[f"{field}_proper"] = float(result[field]) * rate
+    result["proper_time"] = {
+        "applied": True,
+        "body": body_key,
+        "rate_relative_to_reference": rate,
+        "components": rate_result["components"],
+        "reference": rate_result["reference"],
+        "abbreviation": "SPrT",
+        "note": (f"Proper-time correction for {body_key}: count_proper = "
+                 f"count × {rate:.12g}. v0.11.0 captures GR surface + "
+                 f"orbital kinematic; J₂ oblateness deferred."),
+    }
+    return result
 
 
 # ──────────────────────────────────────────────────────────────────────

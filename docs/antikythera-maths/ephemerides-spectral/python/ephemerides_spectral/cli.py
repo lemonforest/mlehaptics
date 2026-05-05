@@ -60,6 +60,27 @@ def _emit(result: Dict[str, Any], *, pretty: bool = True) -> int:
     return 0 if result.get("ok") is not False else 1
 
 
+def _emit_proper(result: Dict[str, Any], args: argparse.Namespace) -> int:
+    """Emit a Sol Time bridge result, optionally applying ``--proper``.
+
+    When ``args.proper`` is set, the result is augmented in place with
+    proper-time-corrected count fields (`<field>_proper`) and a
+    `proper_time` metadata block, transparently to the user. The
+    correction body and count-field set are looked up from the
+    canonical map in `bridge.apply_proper_correction`, keyed by
+    ``args.subcommand_name`` (set via `set_defaults(...)` on each
+    time-* subparser).
+    """
+    if getattr(args, "proper", False):
+        result = bridge.apply_proper_correction(
+            result, args.subcommand_name,
+            lat=getattr(args, "lat", None),
+            lon=getattr(args, "lon", None),
+            reference=getattr(args, "reference", "tcb"),
+        )
+    return _emit(result, pretty=args.pretty)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Subcommand implementations
 # ──────────────────────────────────────────────────────────────────────
@@ -136,20 +157,20 @@ def _cmd_time_mars(args: argparse.Namespace) -> int:
             bridge.mars_time_to_jd(args.msd, leap_seconds=args.leap_seconds),
             pretty=args.pretty,
         )
-    return _emit(
+    return _emit_proper(
         bridge.jd_to_mars_time(args.jd, leap_seconds=args.leap_seconds),
-        pretty=args.pretty,
+        args,
     )
 
 
 def _cmd_time_lunar(args: argparse.Namespace) -> int:
-    return _emit(bridge.get_lunar_phase(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.get_lunar_phase(args.jd), args)
 
 
 def _cmd_time_uranus(args: argparse.Namespace) -> int:
     if args.usd is not None:
         return _emit(bridge.sol_uranian_time_to_jd(args.usd), pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_uranian_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_uranian_time(args.jd), args)
 
 
 # ── v0.8.0 Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn
@@ -158,62 +179,62 @@ def _cmd_time_venus(args: argparse.Namespace) -> int:
     if args.vsd_solar is not None:
         return _emit(bridge.sol_venus_time_to_jd(args.vsd_solar),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_venus_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_venus_time(args.jd), args)
 
 
 def _cmd_time_mercury(args: argparse.Namespace) -> int:
     if args.mer_sd_solar is not None:
         return _emit(bridge.sol_mercury_time_to_jd(args.mer_sd_solar),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_mercury_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_mercury_time(args.jd), args)
 
 
 def _cmd_time_pluto(args: argparse.Namespace) -> int:
     if args.psd is not None:
         return _emit(bridge.sol_pluto_time_to_jd(args.psd),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_pluto_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_pluto_time(args.jd), args)
 
 
 def _cmd_time_sol(args: argparse.Namespace) -> int:
     if args.crn is not None:
         return _emit(bridge.sol_sol_time_to_jd(args.crn), pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_sol_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_sol_time(args.jd), args)
 
 
 def _cmd_time_jupiter(args: argparse.Namespace) -> int:
     if args.jsd is not None:
         return _emit(bridge.sol_jovian_time_to_jd(args.jsd),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_jovian_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_jovian_time(args.jd), args)
 
 
 def _cmd_time_saturn(args: argparse.Namespace) -> int:
     if args.ssd is not None:
         return _emit(bridge.sol_saturnian_time_to_jd(args.ssd),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_saturnian_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_saturnian_time(args.jd), args)
 
 
 def _cmd_time_neptune(args: argparse.Namespace) -> int:
     if args.nsd is not None:
         return _emit(bridge.sol_neptunian_time_to_jd(args.nsd),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_neptunian_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_neptunian_time(args.jd), args)
 
 
 def _cmd_time_terra(args: argparse.Namespace) -> int:
     if args.tsd_solar is not None:
         return _emit(bridge.sol_terra_time_to_jd(args.tsd_solar),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_terra_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_terra_time(args.jd), args)
 
 
 def _cmd_time_luna(args: argparse.Namespace) -> int:
     if args.lsd_solar is not None:
         return _emit(bridge.sol_luna_time_to_jd(args.lsd_solar),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_luna_time(args.jd), pretty=args.pretty)
+    return _emit_proper(bridge.jd_to_sol_luna_time(args.jd), args)
 
 
 def _cmd_time_terra_luna(args: argparse.Namespace) -> int:
@@ -231,8 +252,33 @@ def _cmd_time_terra_luna(args: argparse.Namespace) -> int:
             bridge.sol_terra_luna_time_to_jd(args.synodic_count, epoch=args.epoch),
             pretty=args.pretty,
         )
-    return _emit(
+    return _emit_proper(
         bridge.jd_to_sol_terra_luna_time(args.jd, epoch=args.epoch),
+        args,
+    )
+
+
+# ── v0.11.0 Sol Proper Time (SPrT) — standalone rate-only query
+
+def _cmd_time_proper(args: argparse.Namespace) -> int:
+    """v0.11.0 Sol Proper Time — gravitational + kinematic time-dilation rate.
+
+    Standalone "just give me the rate" surface, complementary to the
+    ``--proper`` flag on every other ``time-*`` subcommand. With
+    ``--compare-to <body>``, returns the rate ratio + drift per
+    Earth-year between two bodies — the most intuitive number for
+    human comparison.
+    """
+    if args.compare_to is not None:
+        return _emit(
+            bridge.compare_proper_times(args.body, args.compare_to,
+                                        reference=args.reference),
+            pretty=args.pretty,
+        )
+    return _emit(
+        bridge.get_proper_time_rate(
+            args.body, lat=args.lat, lon=args.lon, reference=args.reference,
+        ),
         pretty=args.pretty,
     )
 
@@ -376,6 +422,43 @@ REFERENCE_JD = 2451545.0 (J2000.0). The BIP int64 envelope tolerates
 |jd - REFERENCE_JD| up to ~1.86 Myr, well beyond the DE441 epoch
 (-13200 BCE .. +17200 CE).
 """
+
+
+def _add_proper_flags(parser: argparse.ArgumentParser) -> None:
+    """Add the v0.11.0 ``--proper``/``--lat``/``--lon``/``--reference`` flag set.
+
+    Called on every ``time-*`` subparser so every Sol Time gets a
+    transparent proper-time-correction option without ceremony.
+    """
+    grp = parser.add_argument_group(
+        "proper-time correction (v0.11.0)",
+        "Apply gravitational + orbital-kinematic time dilation for the "
+        "body's surface (no-op without --proper). Implementation lives "
+        "in `bridge.apply_proper_correction`; output gains "
+        "`<count>_proper` sibling fields and a `proper_time` block.",
+    )
+    grp.add_argument(
+        "--proper", action="store_true",
+        help="Apply Sol Proper Time (SPrT) correction. Augments the "
+             "result with proper-time-corrected count fields and a "
+             "`proper_time` metadata block. v0.11.0 captures GR surface + "
+             "orbital kinematic; J2 oblateness deferred.",
+    )
+    grp.add_argument(
+        "--lat", type=float, default=None,
+        help="Surface latitude in degrees (forward-compat for J2 "
+             "oblateness; v0.11.0 ignores).",
+    )
+    grp.add_argument(
+        "--lon", type=float, default=None,
+        help="Surface longitude in degrees (forward-compat for J2 "
+             "oblateness; v0.11.0 ignores).",
+    )
+    grp.add_argument(
+        "--reference", choices=("tcb", "tdb"), default="tcb",
+        help="Reference time scale (default 'tcb', barycentric "
+             "coordinate time per IAU 2000).",
+    )
 
 
 def _make_parser() -> argparse.ArgumentParser:
@@ -638,7 +721,8 @@ def _make_parser() -> argparse.ArgumentParser:
     tm.add_argument("--leap-seconds", dest="leap_seconds", type=int,
                     default=37,
                     help="TAI - UTC offset, seconds (default 37)")
-    tm.set_defaults(func=_cmd_time_mars)
+    _add_proper_flags(tm)
+    tm.set_defaults(func=_cmd_time_mars, subcommand_name="time-mars")
 
     # time-lunar
     tl = sub.add_parser(
@@ -662,7 +746,8 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     tl.add_argument("--jd", type=float, required=True,
                     help="Julian Date in TDB")
-    tl.set_defaults(func=_cmd_time_lunar)
+    _add_proper_flags(tl)
+    tl.set_defaults(func=_cmd_time_lunar, subcommand_name="time-lunar")
 
     # time-uranus (v0.5.4)
     tu = sub.add_parser(
@@ -702,7 +787,8 @@ def _make_parser() -> argparse.ArgumentParser:
                           help="JD (TDB) to convert to Sol Uranian Time")
     tu_group.add_argument("--usd", type=float, default=None,
                           help="Uranian Sol Date to invert back to JD_TDB")
-    tu.set_defaults(func=_cmd_time_uranus)
+    _add_proper_flags(tu)
+    tu.set_defaults(func=_cmd_time_uranus, subcommand_name="time-uranus")
 
     # ── v0.8.0 Sol Symphony Times: Venus, Mercury, Pluto, Sol, Jupiter, Saturn
 
@@ -731,7 +817,8 @@ def _make_parser() -> argparse.ArgumentParser:
                        help="JD (TDB) to convert to Sol Venusian Time")
     tv_g.add_argument("--vsd-solar", dest="vsd_solar", type=float, default=None,
                        help="Venus solar-day count to invert back to JD_TDB")
-    tv.set_defaults(func=_cmd_time_venus)
+    _add_proper_flags(tv)
+    tv.set_defaults(func=_cmd_time_venus, subcommand_name="time-venus")
 
     # time-mercury
     tm2 = sub.add_parser(
@@ -758,7 +845,8 @@ def _make_parser() -> argparse.ArgumentParser:
     tm2_g.add_argument("--mer-sd-solar", dest="mer_sd_solar",
                         type=float, default=None,
                         help="Mercury solar-day count to invert back to JD_TDB")
-    tm2.set_defaults(func=_cmd_time_mercury)
+    _add_proper_flags(tm2)
+    tm2.set_defaults(func=_cmd_time_mercury, subcommand_name="time-mercury")
 
     # time-pluto
     tp = sub.add_parser(
@@ -786,7 +874,8 @@ def _make_parser() -> argparse.ArgumentParser:
                        help="JD (TDB) to convert to Sol Plutonian Time")
     tp_g.add_argument("--psd", type=float, default=None,
                        help="Pluto sol-date count to invert back to JD_TDB")
-    tp.set_defaults(func=_cmd_time_pluto)
+    _add_proper_flags(tp)
+    tp.set_defaults(func=_cmd_time_pluto, subcommand_name="time-pluto")
 
     # time-sol (the Sun's own time, Carrington system)
     ts = sub.add_parser(
@@ -815,7 +904,8 @@ def _make_parser() -> argparse.ArgumentParser:
                        help="JD (TDB) to convert to Sol Sol Time")
     ts_g.add_argument("--crn", type=float, default=None,
                        help="Carrington Rotation Number to invert back to JD_TDB")
-    ts.set_defaults(func=_cmd_time_sol)
+    _add_proper_flags(ts)
+    ts.set_defaults(func=_cmd_time_sol, subcommand_name="time-sol")
 
     # time-jupiter
     tj = sub.add_parser(
@@ -842,7 +932,8 @@ def _make_parser() -> argparse.ArgumentParser:
                        help="JD (TDB) to convert to Sol Jovian Time")
     tj_g.add_argument("--jsd", type=float, default=None,
                        help="Jupiter sol-date count (System III) to invert back to JD_TDB")
-    tj.set_defaults(func=_cmd_time_jupiter)
+    _add_proper_flags(tj)
+    tj.set_defaults(func=_cmd_time_jupiter, subcommand_name="time-jupiter")
 
     # time-saturn
     tsat = sub.add_parser(
@@ -870,7 +961,8 @@ def _make_parser() -> argparse.ArgumentParser:
                          help="JD (TDB) to convert to Sol Saturnian Time")
     tsat_g.add_argument("--ssd", type=float, default=None,
                          help="Saturn sol-date count to invert back to JD_TDB")
-    tsat.set_defaults(func=_cmd_time_saturn)
+    _add_proper_flags(tsat)
+    tsat.set_defaults(func=_cmd_time_saturn, subcommand_name="time-saturn")
 
     # time-neptune
     tn = sub.add_parser(
@@ -898,7 +990,8 @@ def _make_parser() -> argparse.ArgumentParser:
                        help="JD (TDB) to convert to Sol Neptunian Time")
     tn_g.add_argument("--nsd", type=float, default=None,
                        help="Neptune sol-date count to invert back to JD_TDB")
-    tn.set_defaults(func=_cmd_time_neptune)
+    _add_proper_flags(tn)
+    tn.set_defaults(func=_cmd_time_neptune, subcommand_name="time-neptune")
 
     # time-terra (v0.9.1) — Sol Terra Time (STT)
     tt = sub.add_parser(
@@ -925,7 +1018,8 @@ def _make_parser() -> argparse.ArgumentParser:
                        help="JD (TDB) to convert to Sol Terra Time")
     tt_g.add_argument("--tsd-solar", dest="tsd_solar", type=float, default=None,
                        help="Terra solar-day count to invert back to JD_TDB")
-    tt.set_defaults(func=_cmd_time_terra)
+    _add_proper_flags(tt)
+    tt.set_defaults(func=_cmd_time_terra, subcommand_name="time-terra")
 
     # time-luna (v0.9.1) — Sol Luna Time (SLT)
     tl2 = sub.add_parser(
@@ -957,7 +1051,8 @@ def _make_parser() -> argparse.ArgumentParser:
                         help="JD (TDB) to convert to Sol Luna Time")
     tl2_g.add_argument("--lsd-solar", dest="lsd_solar", type=float, default=None,
                         help="Luna solar (synodic) day count to invert back to JD_TDB")
-    tl2.set_defaults(func=_cmd_time_luna)
+    _add_proper_flags(tl2)
+    tl2.set_defaults(func=_cmd_time_luna, subcommand_name="time-luna")
 
     # time-terra-luna (v0.10.0) — Sol Terra-Luna Time (STLT)
     #
@@ -1026,7 +1121,60 @@ def _make_parser() -> argparse.ArgumentParser:
     ttl.add_argument("--epoch", choices=_STLT_EPOCH_CHOICES,
                      default=STLT_DEFAULT_EPOCH,
                      help=f"Historical anchor (default {STLT_DEFAULT_EPOCH!r})")
-    ttl.set_defaults(func=_cmd_time_terra_luna)
+    _add_proper_flags(ttl)
+    ttl.set_defaults(func=_cmd_time_terra_luna, subcommand_name="time-terra-luna")
+
+    # time-proper (v0.11.0) — Sol Proper Time standalone rate-only query
+    _SPRT_BODY_CHOICES = sorted(SUPPORTED_BODIES)
+    tprop = sub.add_parser(
+        "time-proper",
+        help="Sol Proper Time (SPrT) rate at a body, vs. TCB / TDB",
+        description=(
+            "Compute the leading-order proper-time rate for a body's\n"
+            "surface clock relative to TCB (barycentric coordinate time).\n"
+            "\n"
+            "Two components, both positive (clocks tick slower):\n"
+            "  - gr_surface       = GM/(R*c²)         (gravitational well)\n"
+            "  - kinematic_orbital = v_orb²/(2c²)     (SR time dilation)\n"
+            "\n"
+            "rate = 1 - gr_surface - kinematic_orbital\n"
+            "\n"
+            "With --compare-to <body>, returns the rate ratio + drift per\n"
+            "Earth-year between two bodies — the most intuitive number for\n"
+            "human comparison.\n"
+            "\n"
+            "Complementary to the --proper flag on every other time-*\n"
+            "subcommand (which APPLIES the correction to a Sol Time count).\n"
+            "Same physics, different surface."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  # Mars surface vs. TCB — 3.38e-9 fractional rate (clocks slower).\n"
+            "  ephemerides-spectral time-proper --body mars\n\n"
+            "  # Sun surface — biggest dilation in the roster.\n"
+            "  ephemerides-spectral time-proper --body sun\n\n"
+            "  # Compare two bodies — Mars vs Terra: ~0.071 s/Earth-year.\n"
+            "  ephemerides-spectral time-proper --body mars --compare-to terra\n\n"
+            "  # With (lat, lon) — forward-compat for J2 oblateness (v0.11.0 ignores).\n"
+            "  ephemerides-spectral time-proper --body terra --lat 51.5 --lon -0.1"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tprop.add_argument("--body", required=True, choices=_SPRT_BODY_CHOICES,
+                       help="Body to query.")
+    tprop.add_argument("--compare-to", dest="compare_to", default=None,
+                       choices=_SPRT_BODY_CHOICES,
+                       help="If set, return the rate ratio + drift "
+                            "between --body and this body.")
+    tprop.add_argument("--lat", type=float, default=None,
+                       help="Surface latitude in degrees (forward-compat; "
+                            "v0.11.0 ignores).")
+    tprop.add_argument("--lon", type=float, default=None,
+                       help="Surface longitude in degrees (forward-compat; "
+                            "v0.11.0 ignores).")
+    tprop.add_argument("--reference", choices=("tcb", "tdb"), default="tcb",
+                       help="Reference time scale (default 'tcb').")
+    tprop.set_defaults(func=_cmd_time_proper)
 
     # find-tubes (v0.8.1) — ITN pathway / Lagrange-tube query
     ft = sub.add_parser(
