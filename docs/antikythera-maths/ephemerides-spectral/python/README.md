@@ -66,7 +66,7 @@ ephemerides-spectral breathing --help
 # Package version + frozen-data manifest
 ephemerides-spectral version
 
-# All 26 bodies in the Sol Star System Laplacian
+# All 38 bodies in the Sol Star System Laplacian
 ephemerides-spectral bodies
 
 # Earth temporal resolution at the default D=65536
@@ -134,12 +134,12 @@ All sub-commands emit JSON to stdout; pass `--no-pretty` (top-level flag, before
 from ephemerides_spectral import default_encode, bridge
 
 # One-liner: encode a JD as a system state under the default backend.
-state = default_encode(jd=2451545.0)            # uint32[26] residues (BIP)
+state = default_encode(jd=2451545.0)            # uint32[38] residues (BIP)
 state = default_encode(jd=2451545.0, backend="complex128")  # complex128[D]
 
 # JSON-friendly bridge surface (Pyodide / web frontend)
 bridge.get_version()                             # version + manifest
-bridge.list_bodies()                             # 26-body roster
+bridge.list_bodies()                             # 38-body roster (v0.5.0+)
 bridge.get_resolution(body="mars", D=65536)      # sec/residue
 bridge.get_system_state(jd_tdb=2451545.0)        # encode + per-body residues
 bridge.get_local_view(jd_tdb=2451545.0, body="earth", lat=51.5, lon=-0.1)
@@ -176,8 +176,8 @@ Every bridge method returns a Pyodide-JSON-serialisable dict with `ok: True/Fals
 | :---------------------- | :----------- | :---------- | :------------------------------------------- |
 | **State (BIP)**         | `uint32[D]`  | **256 KB**  | At `D=65536`; pure cyclic-group residues.    |
 | **State (complex128)**  | `complex128` | **1.0 MB**  | At `D=65536`; FPU reference encoder.         |
-| **Channel Bases**       | mixed        | **~26 MB**  | Full 26-body roster; pageable from Flash.    |
-| **Laplacian (`L`)**     | `complex128` | **< 15 KB** | 26 × 26 interaction matrix.                  |
+| **Channel Bases**       | mixed        | **~38 MB**  | Full 38-body roster (v0.5.0+); pageable from Flash. |
+| **Laplacian (`L`)**     | `complex128` | **< 25 KB** | 38 × 38 interaction matrix.                  |
 | **Cosine LUT (Phase 9)** | `int32[1024]` | **4 KB**    | Off-diagonal breathing modulation.           |
 | **DE441 Truth**         | BSP          | **3,300 MB** | Original JPL source (calibration only).     |
 
@@ -187,7 +187,7 @@ Every bridge method returns a Pyodide-JSON-serialisable dict with `ok: True/Fals
 
 The BIP backend is the natural production target for embedded use:
 
-- **ESP32-S3 / ESP32-C6** (8 MB+ PSRAM): full 26-body BIP state in PSRAM, microsecond-latency phase updates via `uint32` adds.
+- **ESP32-S3 / ESP32-C6** (8 MB+ PSRAM): full 38-body BIP state in PSRAM, microsecond-latency phase updates via `uint32` adds.
 - **ARM Cortex-M7** (Teensy 4.1, etc.): integer multiply-accumulate suits the `omega * delta_t` step path natively; cosine LUT fits in tightly-coupled memory.
 - **RISC-V / Edge AI accelerators:** `(φ_1 + φ_2) mod 2^32` is a single uint32 add — directly mappable to vector-extension lanes.
 
