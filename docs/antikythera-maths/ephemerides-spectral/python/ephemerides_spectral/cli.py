@@ -152,6 +152,22 @@ def _cmd_find_syzygies(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_patches_catalog(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_catalog_patches(), pretty=args.pretty)
+
+
+def _cmd_patches_active(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_active_patches(), pretty=args.pretty)
+
+
+def _cmd_patches_apply(args: argparse.Namespace) -> int:
+    return _emit(bridge.apply_patch(args.name), pretty=args.pretty)
+
+
+def _cmd_patches_clear(args: argparse.Namespace) -> int:
+    return _emit(bridge.clear_patches(), pretty=args.pretty)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Parser construction
 # ──────────────────────────────────────────────────────────────────────
@@ -565,6 +581,68 @@ def _make_parser() -> argparse.ArgumentParser:
                     help=("Score cutoff [0, 0.5]; 0.05 ≈ total-class "
                           "(default), 0.1 ≈ partial-class"))
     fs.set_defaults(func=_cmd_find_syzygies)
+
+    # patches (v0.4.0) — runtime kernel-patching surface
+    pp = sub.add_parser(
+        "patches",
+        help="Diagnosed-fiber runtime overlay (v0.4.0). Apply / list / clear "
+             "Fourier corrections without mutating the published kernel.",
+        description=(
+            "Diagnosed-fiber patches are runtime overlays on the spectral "
+            "kernel: data, not code edits, summed onto the encoded phases "
+            "AFTER the base encode loop. The published kernel bytes never "
+            "change. Three patches in the bundled CATALOG are authored from "
+            "v0.3.1's de441_error_spectrum FFT analysis (Mars 7.96 yr, "
+            "Mercury 10.69 yr, Jupiter-Saturn 9.56 yr coupled).\n\n"
+            "Note: the C native backend doesn't yet implement the overlay; "
+            "with patches active, `encode --backend c` falls back to `bip` "
+            "(correctness > speed). v0.4.x phase F adds the C-side ABI."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pp_sub = pp.add_subparsers(dest="patch_cmd", required=True,
+                                title="Patch operations", metavar="<op>")
+
+    pp_catalog = pp_sub.add_parser(
+        "catalog",
+        help="List the bundled diagnosed-fiber patch catalog.",
+        description=(
+            "Each entry includes name + kind + targeted body / coupling, "
+            "amplitude (deg) at the FFT residual peak, period (days), and "
+            "free-text notes describing the suspected missing physics."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pp_catalog.set_defaults(func=_cmd_patches_catalog)
+
+    pp_active = pp_sub.add_parser(
+        "active",
+        help="List the currently-active runtime patches.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pp_active.set_defaults(func=_cmd_patches_active)
+
+    pp_apply = pp_sub.add_parser(
+        "apply",
+        help="Load a named CATALOG patch into the overlay registry.",
+        description=(
+            "Example:\n"
+            "  ephemerides-spectral patches apply --name mars-7.96yr-diagonal\n\n"
+            "Same patch cannot be applied twice — clear first if you mean "
+            "to replace it."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pp_apply.add_argument("--name", required=True,
+                          help="Catalog patch name (use `patches catalog` to list)")
+    pp_apply.set_defaults(func=_cmd_patches_apply)
+
+    pp_clear = pp_sub.add_parser(
+        "clear",
+        help="Remove every active runtime patch.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pp_clear.set_defaults(func=_cmd_patches_clear)
 
     return p
 

@@ -46,6 +46,7 @@ from typing import Dict, List, Optional, Tuple
 from .bodies import BODIES, Body
 from .laplacian import SolarSystemLaplacian, RESONANCES
 from .ephemeris_loader import load_ephemeris, EphemerisBundle
+from . import diagnosed_fibers as _patches
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -247,6 +248,12 @@ class EphemerisBIPInstrument:
           silent saturation in ``omega * step`` is converted to a hard error.
         * The uint64 phase accumulation runs OUTSIDE that errstate because
           its wraparound *is* the cyclic-group reduction we want.
+
+        v0.4.0: after the base encode, ``diagnosed_fibers.evaluate_active_patches``
+        is queried; any active runtime patches contribute residue deltas
+        that are summed onto the phase accumulator BEFORE the final
+        ``& (MODULO - 1)`` reduction. With no patches active the encode
+        is byte-identical to v0.3.1.
         """
         delta_t_days = float(date_jd - REFERENCE_JD)
         if not np.isfinite(delta_t_days):
@@ -261,14 +268,14 @@ class EphemerisBIPInstrument:
                 f"saturate. Stay inside the DE441 epoch or chunk the request."
             )
         try:
-            return self._encode_state_impl(delta_t_days)
+            return self._encode_state_impl(delta_t_days, date_jd=date_jd)
         except FloatingPointError as exc:
             # FloatingPointError = np.errstate(over='raise') firing on int64.
             raise OverflowError(
                 f"Integer overflow in BIP encode_state(date_jd={date_jd}): {exc}"
             ) from exc
 
-    def _encode_state_impl(self, delta_t_days: float) -> np.ndarray:
+    def _encode_state_impl(self, delta_t_days: float, *, date_jd: float) -> np.ndarray:
         # Integer chunk count + signed integer step direction.
         # delta_t_days has fractional sub-day content; we keep that as
         # a single trailing "remainder" step so the chunked loop only
@@ -356,6 +363,20 @@ class EphemerisBIPInstrument:
                         omega * (sign * remainder_days)
                     ).astype(np.int64)
                 curr_phases = curr_phases + remainder_step.astype(np.uint64)
+
+            # v0.4.0 runtime kernel patching — overlay step.
+            # Active diagnosed-fiber patches contribute per-body residue
+            # deltas that are SUMMED into the phase accumulator BEFORE
+            # the final cyclic-group reduction. Patches don't mutate
+            # the base encoder state; they're applied as an overlay so
+            # the published kernel bytes never change. With zero patches
+            # active this loop is a no-op and the encode is byte-identical
+            # to v0.3.1.
+            if _patches.has_active_patches():
+                overlay = _patches.evaluate_active_patches(date_jd, self.body_to_idx)
+                for body_idx, delta_residue in overlay.items():
+                    delta_u64 = np.uint64(np.int64(int(delta_residue)))
+                    curr_phases[body_idx] = curr_phases[body_idx] + delta_u64
 
         return (curr_phases & np.uint64(MODULO - 1)).astype(np.uint32)
 
