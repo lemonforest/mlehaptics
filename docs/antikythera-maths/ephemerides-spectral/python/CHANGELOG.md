@@ -10,7 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.6.0)
+(no entries yet — next entries land after v0.6.1)
+
+## [0.6.1] — 2026-05-05
+
+**Tier 2a foundation: portable channel-basis PRNG (ABI v4).** Groundwork for the v0.7.0 hyperdimensional-state-in-C work. No bridge surface change; no encoder behaviour change.
+
+### What's in
+
+- New C entry point `es_channel_basis(seed, out, D)` fills a deterministic complex64[D] channel-basis hypervector. New `es_complex64_t` typedef.
+- New `_research/portable_prng.py` module: splitmix64 PRNG, bit-identical to the C `es_splitmix64_next`.
+- New `tests/test_channel_basis_parity.py`: 10 parity tests pinning byte-identical agreement between Python + C across body seeds + production D.
+
+### Why splitmix64
+
+Reproducing numpy's PCG64-DXSM + uniform conversion exactly in C is brittle (~200 LOC; numpy bumps could break parity). Splitmix64 is six lines, identical across any IEEE-754 platform. Basis byte values change vs v0.6.0; not breaking (no test pinned them).
+
+### Tier 2b (v0.7.0)
+
+Once the foundation is solid, `es_encode_state_hd` + `es_bind_observer` + `es_get_eclipse_probability` land alongside bridge dispatch on `get_local_view` and `get_eclipse_probability`. Parity smoke flips both `tier2_skip` entries to `parity`. See `TIER2_DESIGN.md` in the source repo for the full plan.
+
+### Tests
+
+74 active tests pass; 6 skipped (4 cibuildwheel-only + 2 Tier 2b stubs).
 
 ## [0.6.0] — 2026-05-05
 

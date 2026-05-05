@@ -32,6 +32,10 @@
       "sha256": "b14d5e4dc6490e879c062374b4f75fbeacfdb46a4cdaf7e8a0953e86f6534552",
       "size_bytes": 12233
     },
+    "_research/portable_prng.py": {
+      "sha256": "e1629999c1d35ab00324a2c96e3798867bbe26ce6a903064dac5395b82820cee",
+      "size_bytes": 2902
+    },
     "_research/syzygy_window.py": {
       "sha256": "c38e417818ba80c97ecb45d6daf122175385cce4d66378d048784a5a4cc3eb33",
       "size_bytes": 8796
@@ -42,5 +46,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.6.0"
+  "version": "0.6.1"
 }

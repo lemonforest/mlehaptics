@@ -25,6 +25,7 @@ _INCLUDED_MODULES: List[str] = [
     "time_scales.py",
     "syzygy_window.py",
     "diagnosed_fibers.py",
+    "portable_prng.py",
 ]
 
 def emit() -> List[Path]:
