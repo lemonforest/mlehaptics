@@ -10,7 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.4)
+(no entries yet — next entries land after v0.5.5)
+
+## [0.5.5] — 2026-05-05
+
+**Moon catalog patches (Phase C).** Five LS-fit-vindicated moon patches join `CATALOG_V2`, completing the v0.5.x moon programme.
+
+### Added — `CATALOG_V2`
+
+| name | body | period | amp | shrinkage |
+|---|---|---:|---:|---:|
+| `dione-1.06yr-diagonal-v2` | dione | 387.04 d | 3.57° | **98.2%** |
+| `tethys-0.38yr-diagonal-v2` | tethys | 138.24 d | 3.57° | **93.8%** |
+| `enceladus-0.39yr-diagonal-v2` | enceladus | 141.94 d | 3.58° | **98.9%** |
+| `titan-0.69yr-diagonal-v2` | titan | 252.74 d | 3.31° | **95.5%** |
+| `iapetus-0.22yr-diagonal-v2` | iapetus | 79.34 d | 3.26° | **98.6%** |
+
+Apply via `bridge.apply_patch("dione-1.06yr-diagonal-v2")` etc. Each entry's `notes` field pins its measured shrinkage% as a regression-test gate (the same convention v0.5.2 established for planet patches).
+
+### Hyperion: PARTIAL (75.2%)
+
+Hyperion's chaotic rotation (Wisdom 1984) shows quasiperiodic-not-sinusoidal residual structure: multiple sub-peaks near 72d. Single LS-fit sinusoid hits the methodological ceiling there. Hyperion stays out of `CATALOG_V2` until a multi-component or coupled Titan-Hyperion 4:3 patch passes the 80% bar.
+
+### Notes
+
+- The methodology is now vindicated **twice** on independent body sets: v0.5.2 planets (4 patches at 96-99%), v0.5.5 moons (5 patches at 93-99%). LS-fit amplitudes consistently 2-3× the FFT-bin baselines on both.
+- No body roster change. v0.5.5 is purely additive on `CATALOG_V2`.
 
 ## [0.5.4] — 2026-05-05
 

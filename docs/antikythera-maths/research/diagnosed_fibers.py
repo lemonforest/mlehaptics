@@ -411,6 +411,81 @@ CATALOG_V2: Dict[str, Patch] = {
             "in-phase coupled patch should."
         ),
     ),
+    # ──────────────────────────────────────────────────────────────────
+    # v0.5.5 (Phase C) — moon catalog patches authored from the v0.5.3
+    # corrected residuals via the same LS-fit pipeline that vindicated
+    # the planet patches. 5 of 6 moon targets land ≥93%; Hyperion (the
+    # canonical chaotic rotator) tops out at 75% with a single sinusoid
+    # and is queued for a follow-up multi-component or coupled-T-H patch.
+    # ──────────────────────────────────────────────────────────────────
+    "dione-1.06yr-diagonal-v2": SinusoidPatch(
+        name="dione-1.06yr-diagonal-v2",
+        body="dione",
+        amplitude_deg=3.5738,
+        period_days=387.04,
+        phase_rad=1.5027,
+        notes=(
+            "v0.5.5 (Phase C) LS-fit recovery against the v0.5.3 corrected "
+            "moon residuals. Targets Dione's dominant 387.04-d peak. "
+            "Recovered amp 3.57 deg (vs FFT-bin 1.17 deg, 3x bin leakage). "
+            "MEASURED SHRINKAGE: 98.2% (1.17 deg -> 0.02 deg); RMS residual "
+            "2.535 deg -> 0.199 deg in the v0.5.5 verify-moon-patches "
+            "benchmark."
+        ),
+    ),
+    "tethys-0.38yr-diagonal-v2": SinusoidPatch(
+        name="tethys-0.38yr-diagonal-v2",
+        body="tethys",
+        amplitude_deg=3.5733,
+        period_days=138.24,
+        phase_rad=1.1054,
+        notes=(
+            "v0.5.5 (Phase C). Tethys's dominant 138.24-d peak. "
+            "Recovered amp 3.57 deg (vs FFT-bin 1.75 deg, 2x bin leakage). "
+            "MEASURED SHRINKAGE: 93.8% (1.75 deg -> 0.11 deg); RMS residual "
+            "2.944 deg -> 1.511 deg."
+        ),
+    ),
+    "enceladus-0.39yr-diagonal-v2": SinusoidPatch(
+        name="enceladus-0.39yr-diagonal-v2",
+        body="enceladus",
+        amplitude_deg=3.5751,
+        period_days=141.94,
+        phase_rad=1.3156,
+        notes=(
+            "v0.5.5 (Phase C). Enceladus's dominant 141.94-d peak. "
+            "Recovered amp 3.58 deg (vs FFT-bin 1.52 deg, 2.4x bin leakage). "
+            "MEASURED SHRINKAGE: 98.9% (1.52 deg -> 0.02 deg); RMS residual "
+            "2.569 deg -> 0.458 deg. The patched peak demoted below "
+            "the K-th-strongest patched peak (upper bound)."
+        ),
+    ),
+    "titan-0.69yr-diagonal-v2": SinusoidPatch(
+        name="titan-0.69yr-diagonal-v2",
+        body="titan",
+        amplitude_deg=3.3130,
+        period_days=252.74,
+        phase_rad=0.2929,
+        notes=(
+            "v0.5.5 (Phase C). Titan's dominant 252.74-d peak. "
+            "Recovered amp 3.31 deg (vs FFT-bin 1.56 deg, 2.1x bin leakage). "
+            "MEASURED SHRINKAGE: 95.5% (1.56 deg -> 0.07 deg); RMS residual "
+            "3.388 deg -> 2.447 deg."
+        ),
+    ),
+    "iapetus-0.22yr-diagonal-v2": SinusoidPatch(
+        name="iapetus-0.22yr-diagonal-v2",
+        body="iapetus",
+        amplitude_deg=3.2636,
+        period_days=79.34,
+        phase_rad=3.6725,
+        notes=(
+            "v0.5.5 (Phase C). Iapetus's dominant 79.34-d peak. "
+            "Recovered amp 3.26 deg (vs FFT-bin 1.58 deg, 2.1x bin leakage). "
+            "MEASURED SHRINKAGE: 98.6% (1.58 deg -> 0.02 deg); RMS residual "
+            "2.497 deg -> 0.954 deg."
+        ),
+    ),
 }
 
 
