@@ -10,7 +10,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.10.0)
+(no entries yet — next entries land after v0.11.0)
+
+## [0.11.0] — 2026-05-05
+
+**Sol Proper Time (SPrT) — gravitational + orbital-kinematic time dilation, applied transparently via `--proper` on every `time-*` subcommand.**
+
+### The framing
+
+The user asked: *"can we simply add `--proper` as a line arg to invoke gravitational time dilation fiber so that users don't even need to know anything extra had to happen in the back end?"*
+
+That's exactly what shipped. `--proper` is opt-in (default off, no behavior change for v0.10.0 callers); when set, it augments any Sol Time bridge result with proper-time-corrected count fields (`<count>_proper`) plus a `proper_time` metadata block. Same physics as Mercury's existing 43″/century PN diagonal correction; SPrT extends the per-body diagonal-fiber treatment to every body in the roster.
+
+### Validated against published values
+
+Six leading-order checks, all within 0.30 % rel err:
+
+| Check | Computed | Expected | Source |
+|---|---|---|---|
+| Earth surface GR | 6.961e-10 | 6.95e-10 | Ashby 2003 / GPS clock corrections |
+| Sun surface GR | 2.123e-6 | 2.12e-6 | Standard solar physics |
+| Mars surface GR | 1.400e-10 | 1.40e-10 | Genova et al. 2014 / Curiosity rover |
+| Pluto surface GR | 8.136e-12 | 8.15e-12 | New Horizons mission planning |
+| Terra orbital kinematic | 4.935e-9 | 4.95e-9 | v_terra² / (2c²) standard |
+| Mars-vs-Terra GR difference | 5.561e-10 | 5.56e-10 | The 0.0175 s/Earth-year Curiosity figure |
+
+### Added
+
+**Python API:**
+- `bridge.get_proper_time_rate(body, *, lat=None, lon=None, jd_tdb=None, reference="tcb")` — leading-order rate vs. TCB / TDB. Returns `{components: {gr_surface, kinematic_orbital, j2_oblateness, total}, rate_relative_to_reference, ...}`.
+- `bridge.compare_proper_times(body_a, body_b, *, reference="tcb")` — rate ratio + drift per Earth-year between two bodies.
+- `bridge.apply_proper_correction(result, subcommand, ...)` — post-processor used by the CLI's `--proper` flag.
+- `_research/proper_time.py`: `ProperTimeRate` dataclass + the same primitives at the research-module layer.
+- `Body.surface_radius_km` field — volumetric mean radius in km, populated for all 38 bodies in the roster.
+
+**CLI:**
+- `--proper`, `--lat`, `--lon`, `--reference` flags added uniformly to **every** `time-*` subcommand via the shared `_add_proper_flags` helper. Default off → v0.10.0 callers see no change.
+- `time-proper` standalone subcommand for the rate-only query: `--body <X>` for a single body's rate, `--compare-to <Y>` for the two-body drift figure.
+
+**Examples:**
+```bash
+# Proper-time-corrected Mars Sol Date
+ephemerides-spectral time-mars --jd 2451545.0 --proper
+
+# Proper-time-corrected STLT synodic count
+ephemerides-spectral time-terra-luna --jd 2451545.0 --epoch meton --proper
+
+# Standalone rate query — Mars vs. TCB
+ephemerides-spectral time-proper --body mars
+
+# Two-body comparison — Mars-Terra clock-rate difference
+ephemerides-spectral time-proper --body mars --compare-to terra
+```
+
+### Discipline
+
+- 32+ new SPrT tests in `tests/test_sprt.py` pin the validation set + every component + the CLI surfaces.
+- Three new bridge methods classified `python_only` in `tests/test_parity_smoke.py::PARITY_TARGETS` (C twin queued).
+- Manifest regenerated via `codegen/regenerate.py`.
+- `proper_time.py` added to `_INCLUDED_MODULES` in `codegen/emit_research_modules.py` so the package codegen picks it up alongside the other research modules.
+- `tests/test_readme_freshness.py` invariants caught the v0.10.0-banner-still-says-v0.10.0 drift the moment the version bumped.
+
+### Out of scope (deferred to v0.12.0+)
+
+- Surface rotational kinematic (`ω × R`) — for most bodies the orbital term dominates; for the Sun, rotational dominates.
+- J₂ oblateness corrections (~10⁻¹⁵ scale) — `--lat` / `--lon` already accepted for forward compatibility; v0.11.0 ignores them.
+- Frame dragging (Lense-Thirring) — ~10⁻¹⁵ at Earth-Moon scale; skip until needed.
+
+### Migration
+
+None. Existing scripts and bridge calls are unchanged. SPrT is purely additive.
 
 ## [0.10.0] — 2026-05-05
 

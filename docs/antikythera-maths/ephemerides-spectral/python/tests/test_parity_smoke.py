@@ -292,6 +292,21 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_terra_luna_time",
         "kwargs_py": {"synodic_count": 0.0},
     },
+    "get_proper_time_rate": {
+        "status": "python_only",
+        "rationale": "v0.11.0 Sol Proper Time (SPrT) — leading-order GR + orbital kinematic dilation per body. Pure-Python time-scale formula; C twin queued. The same physics as Mercury's existing 43\"/century PN diagonal correction, applied per-body.",
+        "kwargs_py": {"body": "terra"},
+    },
+    "compare_proper_times": {
+        "status": "python_only",
+        "rationale": "v0.11.0 SPrT — ratio of two bodies' proper-time rates plus 'drift per Earth-year' diagnostic for human comparison.",
+        "kwargs_py": {"body_a": "terra", "body_b": "mars"},
+    },
+    "apply_proper_correction": {
+        "status": "python_only",
+        "rationale": "v0.11.0 SPrT post-processor — augments a Sol Time bridge result with proper-time-corrected count fields. CLI-layer concern; tested end-to-end via test_sprt.py.",
+        "kwargs_py": {"result": {"ok": True, "msd": 1000.0}, "subcommand": "time-mars"},
+    },
     "get_natural_resonance_group": {
         "status": "python_only",
         "rationale": "metadata about the RESONANCES table; pure-Python",

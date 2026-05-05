@@ -28,6 +28,7 @@ _INCLUDED_MODULES: List[str] = [
     "portable_prng.py",
     "bip_hd_lift.py",
     "itn_window.py",
+    "proper_time.py",
 ]
 
 def emit() -> List[Path]:

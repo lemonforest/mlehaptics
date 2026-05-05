@@ -7,7 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.10.0)
+(no entries yet — next entries land after v0.11.0)
+
+## [0.11.0] — 2026-05-05
+
+**Sol Proper Time (SPrT) — gravitational + orbital-kinematic time dilation, applied transparently via `--proper` on every `time-*` subcommand.**
+
+### Why this exists
+
+The user asked, while we were closing v0.10.0 (STLT): *"does our off-diagonal allow us to know when local gravity might dilate relative to some other body? how do we deal with this sort of thing? like even earth has an imperfect G field."* Then a follow-up: *"can we simply add `--proper` as a line arg to invoke gravitational time dilation fiber so that users don't even need to know anything extra had to happen in the back end?"*
+
+The honest answer to the first question is **no, not directly** — our off-diagonal Laplacian weights encode orbital coupling strength, not the scalar gravitational potential field. But they're one integration away. SPrT closes the gap: per-body GR diagonal corrections (analogous to Mercury's existing 43″/century PN term), exposed transparently through a `--proper` flag the user opts into. *"Same answer, but proper-time-corrected for this body."*
+
+### Two implementations agreeing on six published numbers (Phase A + B)
+
+Phase A (`research/proper_time_rates.py`, committed first in this PR's research branch) implements the formulas independently and validates against six canonical figures. Phase B (`_research/proper_time.py`, the package primitive that `--proper` calls) has its own implementation, validated against the same six figures by `tests/test_sprt.py`. Both agree to within 0.30 % — if either drifts, the other catches it.
+
+| Validation pin | Computed | Expected | Source |
+|---|---|---|---|
+| Earth surface GR | 6.961×10⁻¹⁰ | 6.95×10⁻¹⁰ | GPS clock corrections (Ashby 2003) |
+| Sun surface GR | 2.123×10⁻⁶ | 2.12×10⁻⁶ | Largest gravitational well in roster |
+| Mars surface GR | 1.400×10⁻¹⁰ | 1.40×10⁻¹⁰ | Curiosity rover (Genova et al. 2014) |
+| Pluto surface GR | 8.136×10⁻¹² | 8.15×10⁻¹² | New Horizons mission planning |
+| Terra orbital kinematic | 4.935×10⁻⁹ | 4.95×10⁻⁹ | v_terra² / (2c²) standard |
+| **Mars-vs-Terra GR-only difference** | **5.561×10⁻¹⁰** | **5.56×10⁻¹⁰** | **The 0.0175 s/Earth-year Curiosity figure** |
+
+### Headline numerical results
+
+- **Sun surface vs. Terra surface (GR only):** 3,049× larger gravitational dilation. Largest well in the roster.
+- **Mars surface vs. Terra surface — two different comparisons:**
+  - *GR only*: Mars surface clocks tick faster by 0.0175 s/Earth-year. The figure cited in Curiosity navigation papers.
+  - *GR + orbital kinematic*: Mars surface clocks tick faster by 0.0710 s/Earth-year. This is what `--proper` actually applies — Mars's slower orbital velocity adds dilation in the same direction as the GR effect, ~4× more than GR alone.
+- **Luna surface vs. Terra surface (GR only):** Luna ticks faster by 6.65×10⁻¹⁰ — Apollo-era atomic-clock comparisons resolved this.
+
+### Added
+
+**Bridge surface:**
+- `bridge.get_proper_time_rate(body, *, lat=None, lon=None, jd_tdb=None, reference="tcb")` — single-body rate query.
+- `bridge.compare_proper_times(body_a, body_b, *, reference="tcb")` — two-body comparison + drift per Earth-year.
+- `bridge.apply_proper_correction(result, subcommand, ...)` — internal post-processor used by the CLI's `--proper` flag. Augments existing Sol Time results with `<count>_proper` siblings and a `proper_time` metadata block.
+
+**CLI surface — uniform `--proper` flag:**
+- `--proper`, `--lat`, `--lon`, `--reference` added to **every** `time-*` subcommand (13 of them, including STLT) via a shared `_add_proper_flags` helper. Default off → v0.10.0 behaviour preserved exactly for callers who don't opt in.
+- New `time-proper` standalone subcommand: `--body <X>` for the rate-only query, `--compare-to <Y>` for the two-body drift figure. Complementary to the `--proper` flag.
+
+**Data:**
+- `Body.surface_radius_km` field added to `bodies.py`. Volumetric mean radii for all 38 bodies, sourced from NASA fact sheets / JPL HORIZONS small-body database.
+
+**Research:**
+- `research/proper_time_rates.py` (Phase A audit). Independent implementation; validates against the six published values; dumps `figures/proper_time_rates.md`.
+- `research/proper_time.py` (Phase B canonical primitive, codegened into the package's `_research/`).
+
+### Fixed
+
+None — purely additive release. v0.10.0 behaviour preserved when `--proper` is not set.
+
+### Discipline carried forward
+
+- 32+ new SPrT tests in `tests/test_sprt.py` — six validation pins identical to Phase A's report + every primitive + every CLI surface.
+- Three new bridge methods classified `python_only` in `tests/test_parity_smoke.py::PARITY_TARGETS`.
+- `proper_time.py` registered in `codegen/emit_research_modules.py::_INCLUDED_MODULES` so the codegen pipeline picks it up alongside the other research modules.
+- `tests/test_readme_freshness.py` caught the v0.10.0-banner-still-says-v0.10.0 drift exactly when the version bumped — proving (again) the discipline works.
+- The Phase A → Phase B → Phase A-as-independent-validation loop is the same cycle we ran for STLT; it's becoming the project's house pattern for adding new physics modules.
+
+### Migration
+
+None. Existing scripts and bridge calls are unchanged. SPrT is purely additive.
 
 ## [0.10.0] — 2026-05-05
 

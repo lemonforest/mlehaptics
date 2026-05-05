@@ -71,6 +71,13 @@ if str(_PKG_PARENT) not in sys.path:
 
 from ephemerides_spectral._research.bodies import BODIES  # noqa: E402
 
+# Note: Phase A intentionally re-implements the rate formulas here
+# rather than importing from `_research.proper_time` (the canonical
+# v0.11.0 primitive). Two independent implementations agreeing on six
+# published values to 0.30 % is the regression discipline; if either
+# one drifts the other catches it. `tests/test_sprt.py` pins the same
+# six checks against the canonical primitive directly.
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Physical constants (SI, IAU 2015 conventions)
