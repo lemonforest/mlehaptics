@@ -35,7 +35,7 @@ BODIES: Dict[str, Body] = {
     # Planets — sidereal periods from JPL HORIZONS / NASA fact sheets
     "mercury": Body("Mercury",    87.96925980, 0.0553, "planet"),
     "venus":   Body("Venus",     224.70079922, 0.815,  "planet"),
-    "earth":   Body("Earth",     365.25636300, 1.0,    "planet"),
+    "terra":   Body("Terra",     365.25636300, 1.0,    "planet"),
     "mars":    Body("Mars",      686.97970000, 0.107,  "planet"),
     "jupiter": Body("Jupiter",  4332.58900000, 317.8,  "planet"),
     "saturn":  Body("Saturn",  10759.22000000, 95.16,  "planet"),
@@ -43,8 +43,10 @@ BODIES: Dict[str, Body] = {
     "neptune": Body("Neptune", 60182.00000000, 17.15,  "planet"),
     "pluto":   Body("Pluto",   90560.00000000, 0.00218, "planet"),
 
-    # ---- Earth's moon — synodic / sidereal precision per JPL HORIZONS ----
-    "moon": Body("Moon", 27.32166156, 0.0123, "moon"),
+    # ---- Terra's moon (Luna) — synodic / sidereal precision per JPL HORIZONS ----
+    # `luna` is the body identity (proper noun); `"moon"` (the 4th arg) is the
+    # category, generic across all natural satellites in the roster.
+    "luna": Body("Luna", 27.32166156, 0.0123, "moon"),
 
     # ---- Mars's moons ----
     "phobos": Body("Phobos", 0.31891023, 1.7e-9,  "moon"),

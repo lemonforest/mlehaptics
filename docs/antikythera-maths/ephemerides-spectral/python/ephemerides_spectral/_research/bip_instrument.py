@@ -252,7 +252,7 @@ class EphemerisBIPInstrument:
         phases = np.zeros(len(self.body_names), dtype=np.uint32)
         
         moon_parent_map = {
-            "moon": "earth",
+            "luna": "terra",
             "phobos": "mars", "deimos": "mars",
             # Jovian moons — Galileans + inner regulars (v0.5.0)
             "metis": "jupiter", "adrastea": "jupiter",
@@ -272,20 +272,22 @@ class EphemerisBIPInstrument:
         for i, name in enumerate(self.body_names):
             body_info = BODIES.get(name)
             if not body_info: continue
-            
+
             try:
                 target_key = name.upper()
                 if body_info.category == "planet": target_key += " BARYCENTER"
                 # v0.5.2: bundle.lookup searches main + auxiliary
                 # ephemerides (mar099s, jup365, sat441 for moons).
+                # v0.9.0: bundle.lookup translates internal terra/luna
+                # to JPL-side EARTH/MOON.
                 target = self.bundle.lookup(target_key)
 
                 if body_info.category == "planet":
                     center = self.bundle.lookup("sun")
                 elif body_info.category == "moon":
-                    parent_name = moon_parent_map.get(name, "earth")
+                    parent_name = moon_parent_map.get(name, "terra")
                     parent_key = parent_name.upper()
-                    if parent_name in ["earth", "mars", "jupiter", "saturn", "uranus", "neptune"]:
+                    if parent_name in ["terra", "mars", "jupiter", "saturn", "uranus", "neptune"]:
                          parent_key += " BARYCENTER"
                     center = self.bundle.lookup(parent_key)
                 else:
@@ -472,7 +474,7 @@ class EphemerisBIPInstrument:
         """FPU-less binding: Modular addition."""
         return (phase_vec_a + phase_vec_b) % MODULO
 
-    def get_resolution(self, body: str = "earth") -> float:
+    def get_resolution(self, body: str = "terra") -> float:
         """Seconds per 1-unit residue shift."""
         body_info = BODIES.get(body.lower())
         if not body_info or body_info.period_days <= 0: return 0.0
@@ -518,7 +520,7 @@ def run_dimensional_expansion_sweep():
         _, lon, _ = astrometric.ecliptic_latlon()
         truth_rad = lon.radians
         
-        idx_earth = instrument.body_names.index("earth")
+        idx_earth = instrument.body_names.index("terra")
         bip_earth_rad = (phases[idx_earth] / MODULO) * 2.0 * np.pi
         err_441 = np.abs((bip_earth_rad - truth_rad + np.pi) % (2.0 * np.pi) - np.pi)
         

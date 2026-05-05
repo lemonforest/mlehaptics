@@ -247,14 +247,14 @@ def test_apply_custom_sinusoid_patch() -> None:
     out = bridge.apply_custom_patch(
         name="earth-test-1deg-100yr",
         kind="sinusoid",
-        body="earth",
+        body="terra",
         amplitude_deg=1.0,
         period_days=36525.0,
         notes="unit-test patch",
     )
     assert out["ok"]
     patched = _encode()
-    earth_idx = base["bodies"].index("earth")
+    earth_idx = base["bodies"].index("terra")
     delta = _signed(
         int(patched["phases_uint32"][earth_idx])
         - int(base["phases_uint32"][earth_idx])
@@ -293,7 +293,7 @@ def test_apply_custom_coupled_patch() -> None:
 
 def test_apply_custom_bad_kind_returns_error() -> None:
     out = bridge.apply_custom_patch(
-        name="nope", kind="quadratic", body="earth",
+        name="nope", kind="quadratic", body="terra",
         amplitude_deg=1.0, period_days=100.0,
     )
     assert out["ok"] is False

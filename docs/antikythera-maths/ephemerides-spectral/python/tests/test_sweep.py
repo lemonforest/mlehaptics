@@ -44,26 +44,28 @@ def test_phase_drift_sweep(kernel_name: str):
                 target_key = name.upper()
                 if body_info.category == "planet":
                     target_key += " BARYCENTER"
-                target = instrument.bundle.eph[target_key]
-                
+                # v0.9.0: bundle.lookup translates internal terra/luna
+                # to JPL-side EARTH/MOON.
+                target = instrument.bundle.lookup(target_key)
+
                 # 2. Resolve Center (Matches calibration)
                 if body_info.category == "planet":
-                    center = instrument.bundle.eph["sun"]
+                    center = instrument.bundle.lookup("sun")
                 elif body_info.category == "moon":
                     # Simple heuristic mapping
-                    parent_name = "earth"
+                    parent_name = "terra"
                     if name in ["phobos", "deimos"]: parent_name = "mars"
                     elif name in ["io", "europa", "ganymede", "callisto"]: parent_name = "jupiter"
                     elif name in ["titan", "enceladus", "rhea"]: parent_name = "saturn"
                     elif name == "titania": parent_name = "uranus"
                     elif name == "triton": parent_name = "neptune"
-                    
+
                     parent_key = parent_name.upper()
-                    if parent_name in ["earth", "mars", "jupiter", "saturn", "uranus", "neptune"]:
+                    if parent_name in ["terra", "mars", "jupiter", "saturn", "uranus", "neptune"]:
                          parent_key += " BARYCENTER"
-                    center = instrument.bundle.eph[parent_key]
+                    center = instrument.bundle.lookup(parent_key)
                 else:
-                    center = instrument.bundle.eph["sun"]
+                    center = instrument.bundle.lookup("sun")
 
                 astrometric = center.at(t).observe(target)
                 _, lon, _ = astrometric.ecliptic_latlon()

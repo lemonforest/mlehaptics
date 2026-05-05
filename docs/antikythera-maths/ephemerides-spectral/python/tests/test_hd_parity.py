@@ -79,10 +79,10 @@ def test_hd_encode_state_byte_close(py_phases, D, jd_J2000) -> None:
 
 
 @pytest.mark.parametrize("body,lat,lon", [
-    ("earth", 51.5, -0.1),    # London
-    ("earth", -33.9, 151.2),  # Sydney
+    ("terra", 51.5, -0.1),    # London
+    ("terra", -33.9, 151.2),  # Sydney
     ("mars", 0.0, 0.0),       # equator/prime
-    ("moon", 45.0, 90.0),     # off-grid coord
+    ("luna", 45.0, 90.0),     # off-grid coord
 ])
 def test_hd_bind_observer_byte_close(py_phases, D, jd_J2000, bip_inst,
                                      body, lat, lon) -> None:
@@ -102,7 +102,7 @@ def test_hd_eclipse_probability_close(py_phases, D, jd_J2000, bip_inst) -> None:
     py_state = py_encode_state_hd(py_phases, D)
     c_state = _native_bip.native_encode_state_hd(jd_J2000 - REFERENCE_JD, D)
     sun_idx = bip_inst.body_to_idx["sun"]
-    moon_idx = bip_inst.body_to_idx["moon"]
+    moon_idx = bip_inst.body_to_idx["luna"]
     py_prob = py_eclipse_probability(py_state, D, sun_idx, moon_idx)
     c_prob = _native_bip.native_get_eclipse_probability(
         c_state, sun_idx, moon_idx,

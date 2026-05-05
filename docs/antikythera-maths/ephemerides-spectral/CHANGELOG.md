@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.8.1)
+(no entries yet — next entries land after v0.9.0)
+
+## [0.9.0] — 2026-05-05
+
+**Body identity rename: `moon` → `luna`, `earth` → `terra`. BREAKING CHANGE.**
+
+User framing: "If we can say things like Lunar Orbit, we can call it Luna and the word moon isn't taken away from all moons" + "earth shall no longer be privileged and should be known as Terra."
+
+The body-identity strings in `BODIES`, `bridge.list_bodies()`, `bridge.body_to_idx`, `_data/initial_phases.json`, and the C-side `es_bodies` table now use the Latin proper nouns. The generic English nouns (`moon` for any natural satellite, `earth` for soil/ground) are no longer privileged as proper nouns of specific bodies.
+
+### What changes
+
+- `BODIES["moon"]` → `BODIES["luna"]` (display: `"Luna"`)
+- `BODIES["earth"]` → `BODIES["terra"]` (display: `"Terra"`)
+- All callers using `body="earth"` or `body="moon"` must update to `body="terra"` / `body="luna"`
+- `bridge.list_bodies()` returns the new keys
+- C-side `es_body_index("terra")` / `es_body_index("luna")` (the strings `"earth"` and `"moon"` no longer resolve to body indices)
+- Sample states: `_data/initial_phases.json` re-keyed; encoded uint32 phase residues unchanged at the same JD (only the dict key changed)
+
+### What stays the same
+
+- **Category strings**: `Body(..., "moon")` (the 4th arg) is the category for any natural satellite. `category == "moon"` checks across the codebase work as before (Phobos, Io, Titan, etc. all carry `category="moon"`).
+- **Adjective forms**: `lunar` (adjective from Luna), `terran`/`terrestrial` (adjective from Terra). Existing time functions like `get_lunar_phase` keep their names — `lunar` is Luna's adjective, naturally.
+- **JPL/skyfield identifiers**: external API (kernels, HORIZONS) still uses `"moon"` / `"MOON"` / `301` / `"earth"` / `"EARTH"` / `399`. The translation happens at the kernel boundary in `EphemerisBundle.lookup()` via a small `_to_jpl_name` alias map. Internal code uses `terra` / `luna`; external lookups stay JPL-conventional.
+- **Encoder hot path**: byte-identical phase residues at the same JD. The rename touches body-identity strings only; the integer Q-format encoder produces the same uint32 output.
+
+### Migration
+
+Anywhere your code says:
+```python
+bridge.body_to_idx["earth"]   # before
+bridge.list_bodies()           # contained "earth"/"moon"
+```
+
+Change to:
+```python
+bridge.body_to_idx["terra"]   # after
+bridge.list_bodies()           # contains "terra"/"luna"
+```
+
+### Why this is a v0.9.0 minor bump (not v1.0.0)
+
+Per semver-for-0.x, breaking changes can land in a minor bump while the project is pre-1.0. The actual encoder behavior is unchanged (same phase residues; same Laplacian; same patches). Only the body-identity string convention changed.
+
+### Tests
+
+107 active tests pass (was 107 in v0.8.1); 5 skipped (4 cibuildwheel-only + 1 `tier1_skip` for `find_itn_pathways`).
+
+### Coming up in v0.9.1
+
+The Sol Time naming convention overhaul (per user's body-name + abbreviation table): `Sol Mercurian Time` → `Sol Mercury Time`, `Sol Venusian Time` → `Sol Venus Time`, `Sol Plutonian Time` → `Sol Pluto Time`, plus new `Sol Terra Time` + `Sol Luna Time` as Phase A of the Sol Moon Times completion roadmap. Gas/ice giant adjective forms (Jovian, Saturnian, Uranian, Neptunian) are kept — they're deeply established in astronomical tradition.
 
 ## [0.8.1] — 2026-05-05
 

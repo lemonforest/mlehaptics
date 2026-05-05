@@ -99,7 +99,7 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "tier1_skip",
         "tier": 1,
         "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 5*365.25,
-                      "departure": "earth", "target": "mars",
+                      "departure": "terra", "target": "mars",
                       "threshold": 0.05},
     },
     "find_syzygies": {
@@ -164,7 +164,7 @@ PARITY_TARGETS: Dict[str, Dict] = {
     "get_resolution": {
         "status": "python_only",
         "rationale": "pure analytic; (body, D) → seconds-per-residue, no encoder calls",
-        "kwargs_py": {"body": "earth", "D": 65536},
+        "kwargs_py": {"body": "terra", "D": 65536},
     },
     "get_lunar_phase": {
         "status": "python_only",
