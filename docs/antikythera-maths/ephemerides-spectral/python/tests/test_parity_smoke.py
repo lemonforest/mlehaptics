@@ -284,7 +284,7 @@ PARITY_TARGETS: Dict[str, Dict] = {
     },
     "jd_to_sol_terra_luna_time": {
         "status": "python_only",
-        "rationale": "v0.10.0 Sol Terra-Luna Time (STLT) — system-level clock for the Terra-Luna pair, default epoch = Meton's 432 BCE summer solstice. First Sol Time member with non-J2000 default anchor. Pure-Python time-scale formula; C twin queued.",
+        "rationale": "v0.10.0 Sol Terra-Luna Time (STLT) — anchored Lunar time using the synodic month as the natural unit (the 'Terra-Luna' in the name follows the moons-stuck-to-parent `Sol <Parent>-<Body> Time` convention). Default epoch = Meton's 432 BCE summer solstice. First Sol Time member with non-J2000 default anchor. Pure-Python time-scale formula; C twin queued.",
         "kwargs_py": {"jd_tdb": 2451545.0},
     },
     "sol_terra_luna_time_to_jd": {

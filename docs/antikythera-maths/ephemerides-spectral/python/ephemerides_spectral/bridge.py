@@ -87,7 +87,7 @@ from ephemerides_spectral._research.time_scales import (
     LUNA_ORBITAL_PERIOD_DAYS, LUNA_AXIAL_TILT_DEG, LUNAT_EPOCH_JD_TDB,
     jd_to_terra_time, terra_time_to_jd,
     jd_to_luna_time, luna_time_to_jd,
-    # v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair.
+    # v0.10.0 Sol Terra-Luna Time (STLT) — anchored Lunar time using the synodic month.
     STLT_SYNODIC_MONTH_DAYS, STLT_SAROS_CYCLE_DAYS, STLT_METONIC_CYCLE_DAYS,
     STLT_EPOCH_METON_JD_TDB, STLT_EPOCH_ANTIKYTHERA_JD_TDB,
     STLT_EPOCH_HIPPARCHUS_JD_TDB, STLT_EPOCH_MARDOKEMPAD_JD_TDB,
@@ -859,7 +859,7 @@ def sol_luna_time_to_jd(lsd_solar: float) -> Dict[str, Any]:
 
 
 # ──────────────────────────────────────────────────────────────────────
-# v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair
+# v0.10.0 Sol Terra-Luna Time (STLT) — anchored Lunar time using the synodic month
 # ──────────────────────────────────────────────────────────────────────
 #
 # A *system-level* time scale: the natural unit is the synodic month
@@ -892,7 +892,9 @@ def jd_to_sol_terra_luna_time(
 ) -> Dict[str, Any]:
     """JD (TDB) → Sol Terra-Luna Time (STLT).
 
-    System-level clock for the Terra-Luna pair. Synodic month
+    Anchored Lunar time using the synodic month as the natural unit
+    (Luna's phase observed from Terra; the "Terra-Luna" in the name
+    follows the moons-stuck-to-parent convention). Synodic month
     (29.530589 days) is the natural unit; Saros (18.03 yr) and Metonic
     (19.00 yr) cycle counts come along for free.
 
@@ -955,11 +957,13 @@ def jd_to_sol_terra_luna_time(
             "abbreviation": "STLT",
             "available_epochs": sorted(STLT_EPOCHS),
             "default_epoch": STLT_DEFAULT_EPOCH,
-            "note": ("STLT is a system-level (Sun-Terra-Luna pair) "
-                     "clock, distinct from SLT (Luna's surface clock), "
-                     "STT (Terra's surface clock), and Sol Lunar Time "
-                     "(Luna's phase observed from Terra). Default epoch "
-                     "is Meton's solstice 432 BCE — not J2000."),
+            "note": ("STLT is anchored Lunar time (synodic-month "
+                     "count from a historical epoch). The 'Terra-Luna' "
+                     "in the name follows the moons-stuck-to-parent "
+                     "convention. Distinct from SLT (Luna's surface "
+                     "clock), STT (Terra's surface clock), and Sol "
+                     "Lunar Time (Luna's phase observed from Terra). "
+                     "Default epoch is Meton's solstice 432 BCE — not J2000."),
         },
     }
 

@@ -364,7 +364,7 @@ CLI: `ephemerides-spectral time-uranus --jd 2454451.0` (or `--usd 4046.45` to in
 
 ### 7.4 Sol Terra-Luna Time (STLT) — v0.10.0
 
-The first Sol Time member with a *system-level* (Sun–Terra–Luna pair) frame, and the first whose **default epoch is not J2000.0**. STLT's natural unit is the synodic month (29.530589 days); Saros (18.03 yr eclipse cycle) and Metonic (19.00 yr lunar–solar reconciliation cycle) counts come along for free as multiples of the synodic month.
+**Anchored Lunar time** using the synodic month (29.530589 days) as the natural unit, and the first Sol Time member whose **default epoch is not J2000.0**. The "Terra-Luna" in the name follows the **moons-stuck-to-parent** convention from v0.9.1: every moon's primary Sol Time is named `Sol <Parent>-<Body> Time` to keep the gravitational-binding relationship visible in the time hierarchy. STLT is Luna's primary entry under that convention; future moon ports (Sol Pluto-Charon Time, Sol Jupiter-Io Time, Sol Saturn-Titan Time, ...) follow the same pattern. Saros (18.03 yr eclipse cycle) and Metonic (19.00 yr lunar–solar reconciliation cycle) counts come along for free as multiples of the synodic month.
 
 **Why a *system* clock?** None of the existing Luna-related Sol Times are the right home for a system event like an eclipse:
 

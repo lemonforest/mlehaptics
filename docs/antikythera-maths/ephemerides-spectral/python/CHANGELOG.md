@@ -10,7 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.0)
+(no entries yet — next entries land after v0.13.1)
+
+## [0.13.1] — 2026-05-05
+
+**SPICE feature-gap audit + STLT-naming hygiene.** Docs-only release.
+
+### SPICE feature-gap audit (#101)
+
+User question (during v0.11.2 ship close): *"What do we do now that SPICE does slower? Does SPICE do things we might be able to do but don't? If so, will it be worth some API compatible bridge?"*
+
+Answer in `figures/spice_feature_audit.md`: three-column comparison of what we do faster, what we do that SPICE doesn't, and what SPICE does that we don't. **Recommendation: skip the SPICE-API compat bridge.** Document the gap (this audit). Re-evaluate when the four high-value gaps land (light-time + stellar aberration; frame transformations; full Kepler elements; per-body pole orientation) — probably still skip, since at that point our surface stands on its own.
+
+Spawned v0.14.x backlog from the audit:
+- Light-time + stellar-aberration corrections (high value, moderate cost).
+- Canonical frame-transform primitive (medium value, medium cost).
+- Full Kepler elements on `KinematicState` (eccentricity, inclination, etc. — high value).
+- Per-body pole orientation (PCK-equivalent; small ship).
+
+### STLT naming hygiene
+
+User flagged that the abbreviation table listed Luna's primary Sol Time as **SLT (Sol Luna Time, surface clock)**, but per the moons-stuck-to-parent `Sol <Parent>-<Body> Time` convention from v0.9.1 it should be **STLT (Sol Terra-Luna Time)**. Fixed:
+
+- README abbreviation table: Luna row promoted from `SLT / time-luna` to `STLT / time-terra-luna`. Followed by an explanatory paragraph about the moons-stuck-to-parent convention; SLT is preserved as a secondary alternative for the surface-clock case.
+- Active code comments + docstrings (bridge.py / cli.py / time_scales.py / lunar_epoch_candidates.py / test_parity_smoke.py): drop "system clock for the Terra-Luna pair" framing in favour of "anchored Lunar time using the synodic month."
+- Notebook §7.4 living description rewritten with the moons-stuck-to-parent framing.
+- v0.10.0 CHANGELOG entries preserved as historical artefacts (they describe how STLT was *framed at the time*, not how shipped behaviour was; the shipped API is unchanged).
+
+### Migration
+
+None. Documentation-only release; no API, no encoder, no CLI behaviour change. The STLT name and CLI subcommand (`time-terra-luna`) and bridge methods (`get_sol_terra_luna_time`) are unchanged.
 
 ## [0.13.0] — 2026-05-05
 
