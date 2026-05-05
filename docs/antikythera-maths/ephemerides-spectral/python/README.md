@@ -110,6 +110,17 @@ ephemerides-spectral natural-group     # → Z_30 = Z_2 × Z_3 × Z_5
 # ~1000× faster than encode-then-check; uses the closed-form Saros /
 # Metonic / synodic / draconic-month enumeration.
 ephemerides-spectral find-syzygies --from-jd 2460311 --to-jd 2460676
+
+# Diagnosed-fiber runtime kernel patching (v0.4.0+)
+# Patches sit beside the published kernel as DATA, not code edits, and
+# contribute per-body residue deltas at encode time. The kernel's
+# published bytes never change. Three patches in the bundled CATALOG
+# authored from v0.3.1's de441_error_spectrum FFT (Mars 7.96 yr,
+# Mercury 10.69 yr, Jupiter–Saturn 9.56 yr coupled).
+ephemerides-spectral patches catalog
+ephemerides-spectral patches apply --name jupiter-saturn-9.56yr-coupled
+ephemerides-spectral patches active
+ephemerides-spectral patches clear
 ```
 
 All sub-commands emit JSON to stdout; pass `--no-pretty` (top-level flag, before the sub-command) for compact single-line output suitable for piping into `jq` or downstream tooling. Every response carries an `ok` field; `ok: false` returns exit code 1 with an `error` message.
@@ -139,6 +150,15 @@ bridge.mars_time_to_jd(msd=50000)                # MSD → JD_UTC inverse
 bridge.get_lunar_phase(jd_tdb=2451545.0)         # mean synodic + sidereal phase
 bridge.list_lunar_kernels()                      # LTE440 metadata + LTC status
 bridge.get_natural_resonance_group()             # Z_30 = Z_2 × Z_3 × Z_5
+
+# v0.4.0 surface — runtime kernel patching (overlay on the spectral kernel)
+bridge.list_catalog_patches()                    # bundled CATALOG (3 patches)
+bridge.apply_patch("mars-7.96yr-diagonal")       # load from CATALOG
+bridge.apply_custom_patch(name="my-patch", kind="sinusoid",
+                          body="earth", amplitude_deg=0.93,
+                          period_days=1940.2)    # FFT-diagnosed custom patch
+bridge.list_active_patches()                     # what's currently overlaid
+bridge.clear_patches()                           # wipe back to byte-exact baseline
 ```
 
 Every bridge method returns a Pyodide-JSON-serialisable dict with `ok: True/False`. Caller-side errors return `{ok: False, error: "..."}` rather than raising — designed for crossing the Python/JS boundary cleanly.

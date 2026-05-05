@@ -5,12 +5,16 @@
       "size_bytes": 318
     },
     "_research/bip_instrument.py": {
-      "sha256": "0775839ed3926b30bdc363854e872d369b867742b7342c5517832fb36d4c7a09",
-      "size_bytes": 19837
+      "sha256": "61625a009e484e5dbbdd6c094b9975634bf28ba068860f905728aa4911e50903",
+      "size_bytes": 21118
     },
     "_research/bodies.py": {
       "sha256": "c1ce3810d2a7a3b5935966e8f5d61b5b7ccbba0f2831b6043150d3b543f5b186",
       "size_bytes": 1998
+    },
+    "_research/diagnosed_fibers.py": {
+      "sha256": "fbf884732a48f9774a9783d1c83b83b180a63c0908493ceff6f7ce98d47026da",
+      "size_bytes": 13755
     },
     "_research/ephemeris_loader.py": {
       "sha256": "cc025d703e393d6062a94a6a0427400736dc5bd0ef213db217c762ae67946b7b",
@@ -34,5 +38,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.3.1"
+  "version": "0.4.0"
 }

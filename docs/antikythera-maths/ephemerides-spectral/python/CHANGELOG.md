@@ -10,7 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.3.1)
+(no entries yet — next entries land after v0.4.0)
+
+## [0.4.0] — 2026-05-05
+
+Runtime kernel patching — diagnosed-fiber overlay on the spectral kernel.
+
+### Added
+
+- **Diagnosed-fiber runtime overlay** — `bridge.apply_patch(name)` / `apply_custom_patch(...)` / `list_active_patches()` / `list_catalog_patches()` / `clear_patches()`. Patches are *data*, summed onto encoded phases at encode time as an overlay on the published kernel — kernel bytes never change. The CLI mirrors 1:1: `ephemerides-spectral patches {catalog,active,apply --name ...,clear}`.
+- **Patch catalog** authored from v0.3.1's `de441_error_spectrum` FFT analysis: `mars-7.96yr-diagonal` (3.45° amplitude); `mercury-10.69yr-diagonal` (9.19°); `jupiter-saturn-9.56yr-coupled` (45° anti-correlated, the smoking-gun J–S 5:2 libration depth).
+- **Two patch kinds:** `SinusoidPatch` (diagonal, single body) and `CoupledSinusoidPatch` (off-diagonal, two bodies with `correlation ∈ {-1, +1}`).
+- **`figures/runtime_kernel_patching.md`** + `research/demo_runtime_patches.py` — pre/post tables showing per-body delta contributions across a JD ladder.
+
+### Changed
+
+- **`backend="c"` falls back to `"bip"` when patches are active.** Correctness over speed; the C-side overlay (ABI v2) lands in v0.4.x phase F.
+- **BIP encoder integration:** `_encode_state_impl` queries `diagnosed_fibers.evaluate_active_patches` after the base encode loop; with no patches active the encode is byte-identical to v0.3.1 (pinned by a regression test).
+- **Codegen ships `_research/diagnosed_fibers.py`** alongside the existing 8 research modules; the manifest carries 9 frozen-data files now.
+
+### Tests
+
+- `tests/test_runtime_patches.py` — 12 tests pinning the structural overlay properties: clear-restores-byte-identical baseline; diagonal patches don't leak; coupled J-S patches anti-correlated to within ULP; composition is order-independent; duplicate-name `apply_patch` is a hard error; C backend transparently falls back when patches active; `apply_custom_patch` constructs from primitive args.
+
+### Notes
+
+- Patches are **empirical Fourier corrections**, not first-principles physics. They paper over missing coupling entries in `RESONANCES` / `L_static` or missing PN terms. v0.5.x's first-principles α derivation should ultimately replace them.
+- The runtime registry is **in-process** — re-apply on each fresh interpreter. Each Python invocation starts with no active patches.
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.4.0 entry.
 
 ## [0.3.1] — 2026-05-04
 

@@ -26,6 +26,7 @@ _BRIDGE_CONSTANTS = frozenset({
     "SUPPORTED_BODIES",
     "ALLOWED_KERNELS",
     "LUNAR_KERNELS",
+    "CATALOG_PATCHES",  # v0.4.0 — bundled patch names tuple
 })
 
 

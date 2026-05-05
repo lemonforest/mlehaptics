@@ -7,7 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.3.1)
+(no entries yet — next entries land after v0.4.0)
+
+## [0.4.0] — 2026-05-05
+
+Runtime kernel patching — diagnosed-fiber overlay on the spectral kernel.
+
+### Architecture: overlay, not bones-mutation
+
+The spectral kernel — the static `RESONANCES` table, the Laplacian construction, the integer Q-format frequencies — is the **published truth**. We don't mutate it to chase residuals.
+
+Patches are **overlays**. They live in a module-level registry, are authored as data (not code edits), and contribute per-body residue deltas at encode time AFTER the base encode loop has finished. The base encoder bytes never change. Inspired by Linux ksplice / kpatch.
+
+This is the application surface for the v0.4.x diagnosed-fiber-patches roadmap entry: patches are *authored* from FFT residual peaks (per the v0.3.1 `de441_error_spectrum` analysis), but *applied* via the overlay so the published kernel hash stays pinned forever. A bricked patch is unloadable / disposable; the kernel keeps shipping clean.
+
+### Added — `diagnosed_fibers` runtime overlay
+
+- **`research/diagnosed_fibers.py`** — `DiagnosedPatch` dataclass family (`SinusoidPatch` for diagonal, `CoupledSinusoidPatch` for off-diagonal pairs); module-level `_ACTIVE` registry (RLock-guarded); `apply_patch` / `clear_patches` / `list_patches` / `snapshot` / `evaluate_active_patches` / `has_active_patches` / `apply_catalog_patch`; bundled `CATALOG` keyed by patch name. Mirrors to `_research/diagnosed_fibers.py` via codegen so it ships in the wheel.
+- **`bridge.apply_patch(name)`** loads a named CATALOG entry; **`bridge.apply_custom_patch(name=, kind=, body=..., amplitude_deg=..., period_days=..., ...)`** constructs a patch from JSON-friendly primitive args (Pyodide-safe); **`bridge.list_active_patches()`** / **`bridge.list_catalog_patches()`** / **`bridge.clear_patches()`** mirror the registry surface.
+- **CLI** (`patches` subcommand group):
+  - `ephemerides-spectral patches catalog` — list bundled patches with metadata
+  - `ephemerides-spectral patches apply --name ...` — load a named patch
+  - `ephemerides-spectral patches active` — list currently-active patches
+  - `ephemerides-spectral patches clear` — wipe all patches
+- **BIP encoder runtime-overlay integration** — `_encode_state_impl` queries `diagnosed_fibers.evaluate_active_patches(date_jd, body_to_idx)` after the base encode loop; per-body deltas are added to `curr_phases` BEFORE the final `& (MODULO - 1)` reduction. Wraparound is the cyclic-group reduction we want; correctness verified by `test_runtime_patches.py::test_clear_restores_byte_identical_baseline`.
+
+### Added — patch CATALOG (v0.4.0 baseline, three patches)
+
+Each entry was authored directly from a v0.3.1 FFT residual peak — see [`figures/de441_error_spectrum_analysis.md`](figures/de441_error_spectrum_analysis.md) for the source data and [`figures/runtime_kernel_patching.md`](figures/runtime_kernel_patching.md) for the per-patch contribution shape across a JD ladder.
+
+- **`mars-7.96yr-diagonal`** — `SinusoidPatch(body="mars", amplitude_deg=3.45, period_days=2907.3)`. Targets Mars's rank-1 FFT peak (suspect: missing Mars-Saturn or Mars-Jupiter sub-resonance not in the v0.2.0 RESONANCES table).
+- **`mercury-10.69yr-diagonal`** — `SinusoidPatch(body="mercury", amplitude_deg=9.19, period_days=3905.1)`. Targets Mercury's rank-1 peak (suspect: higher-order PN beat with Jupiter that the v0.1.0 43"/century PN entry doesn't capture).
+- **`jupiter-saturn-9.56yr-coupled`** — `CoupledSinusoidPatch(body_a="jupiter", body_b="saturn", amplitude_deg=45.0, period_days=3490.9, correlation=-1)`. The smoking-gun missing-coupling signal: J and S show identical 9.56-yr peaks at ~45° amplitude. The v0.2.0 `α=0.1` modulation depth undershoots the actual J–S 5:2 libration by ~5×; the anti-correlated coupled patch shrinks both peaks simultaneously (libration is +Jupiter / −Saturn around the conjunction).
+
+### Changed
+
+- **C native backend (`backend="c"`) transparently falls back to `"bip"` when patches are active.** The C-side overlay isn't yet implemented — fallback guarantees correctness while the C ABI v2 surface is designed for v0.4.x phase F. Zero overhead when the registry is empty (`has_active_patches()` is a single-cycle empty-list check).
+- **`bridge.get_system_state()`** returns `backend="bip"` (not `"c"`) when the C backend was requested but patches forced a fallback. The new `backend_requested` field always preserves the original ask.
+- **Codegen ships 9 modules now** (was 8): added `_research/diagnosed_fibers.py`. The manifest's per-file SHA-256 sums update accordingly; `test_data_freshness.py` enforces the new module is present.
+
+### Tests
+
+- New `tests/test_runtime_patches.py` — 12 tests pinning every structural property of the overlay:
+  1. `apply` + `clear` round-trip is byte-identical to baseline
+  2. diagonal patch shifts only the targeted body
+  3. composition of two disjoint-body patches is order-independent
+  4. coupled J-S patch is anti-correlated to within cyclic-group ULP
+  5. duplicate-name `apply_patch` is a hard error (no silent shadow)
+  6. `backend="c"` falls back to `"bip"` when patches are active
+  7. `apply_custom_patch` constructs sinusoid + coupled-sinusoid kinds
+  8. unknown kinds + invalid `correlation` are surfaced as `{ok: False}`
+  9. `list_catalog_patches` carries name / kind / amplitude / period / notes
+  10. fresh process starts with `n_active=0`
+- `test_immolation.py` — added `CATALOG_PATCHES` to the `_BRIDGE_CONSTANTS` set (it's a tuple, not a callable).
+
+### Documentation
+
+- **`figures/runtime_kernel_patching.md`** — overlay design rationale, ksplice/kpatch comparison, per-patch contribution tables, what-this-doesn't-claim section (patches are empirical Fourier corrections, not first-principles physics; v0.5.x's α derivation should ultimately replace them).
+- **`figures/runtime_kernel_patching_demo.md`** — reproducible per-patch JD-ladder output from `python -m research.demo_runtime_patches`.
+- **`research/demo_runtime_patches.py`** — small reproducible demonstration (D=4096 for speed); shows the patch contribution shape across `[-20, -5, 0, +5, +20]` yr from REFERENCE_JD.
+
+### CI
+
+- `pure-wheel-build` job promoted to always-on (added in the v0.3.1 hotfix). Mirrors the publish workflow's `build-pure-wheel` step exactly so any TOML-syntax / hatchling-config drift in `pyproject-pure.toml` fails on the PR, not at release time.
 
 ## [0.3.1] — 2026-05-04
 

@@ -55,6 +55,7 @@ from ephemerides_spectral._research.time_scales import (
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
 )
+from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
 
@@ -634,9 +635,13 @@ def get_system_state(
 
             if backend == "c":
                 # Try the native path first; fall through to pure-
-                # Python on missing binary or load error.
+                # Python on missing binary, load error, OR active
+                # diagnosed-fiber patches (the C backend doesn't yet
+                # implement the v0.4.0 runtime overlay; falling back
+                # to BIP guarantees correctness — overlay deltas are
+                # applied on the Python side).
                 from ephemerides_spectral import _native_bip
-                if _native_bip.HAS_NATIVE:
+                if _native_bip.HAS_NATIVE and not _patches.has_active_patches():
                     try:
                         phases = _native_bip.encode_state(jd - REFERENCE_JD)
                         backend_used = "c"
@@ -644,9 +649,10 @@ def get_system_state(
                         # Native rejected the input — surface the same
                         # error shape the Python path would.
                         return _err(f"overflow (native): {native_exc}")
-                # Else: HAS_NATIVE is False (e.g. pure-Python wheel,
-                # missing C toolchain on sdist install, Pyodide).
-                # Fall through to the Python encoder.
+                # Else: HAS_NATIVE is False (pure-Python wheel, missing
+                # C toolchain on sdist install, Pyodide), OR runtime
+                # patches are active (fall back to BIP for the overlay).
+                # The Python encoder runs below.
 
             if phases is None:
                 phases = inst.encode_state(jd)
@@ -845,12 +851,157 @@ def get_breathing_modulation(
         return _err(str(exc))
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.4.0 — runtime kernel patching surface
+# ──────────────────────────────────────────────────────────────────────
+#
+# Diagnosed-fiber patches let callers OVERLAY corrections onto the
+# spectral kernel at encode time without mutating the published
+# kernel bytes. Patches are authored from FFT residual peaks (see
+# v0.3.1's ``de441_error_spectrum``); the bundled CATALOG carries
+# three patches derived from that analysis.
+#
+# Discipline:
+#   * Patches are data, not code edits — versionable + shareable.
+#   * Multiple patches stack; sinusoidal kinds compose order-independently.
+#   * The C backend (``backend="c"``) doesn't yet implement the
+#     overlay; with patches active, ``get_system_state`` transparently
+#     falls back to ``backend="bip"`` (correctness > speed).
+#   * Patches don't propagate across processes — they're an in-process
+#     registry. Re-apply on each fresh interpreter.
+
+#: JSON-friendly names for the bundled CATALOG patches.
+CATALOG_PATCHES: Tuple[str, ...] = tuple(sorted(_patches.CATALOG.keys()))
+
+
+def list_catalog_patches() -> Dict[str, Any]:
+    """List the bundled diagnosed-fiber patch catalog.
+
+    Each entry includes the patch's metadata + ``notes`` describing
+    the FFT peak it targets and the suspected missing physics.
+    """
+    return {
+        "ok": True,
+        "patches": [
+            _patches._patch_to_dict(p)
+            for p in (_patches.CATALOG[name] for name in CATALOG_PATCHES)
+        ],
+    }
+
+
+def list_active_patches() -> Dict[str, Any]:
+    """List the currently-active runtime overlay patches."""
+    return {
+        "ok": True,
+        "patches": _patches.list_patches(),
+        "n_active": len(_patches.snapshot()),
+    }
+
+
+def apply_patch(patch_name: str) -> Dict[str, Any]:
+    """Load a named bundled patch into the runtime overlay registry.
+
+    See ``list_catalog_patches`` for available names. Same patch
+    cannot be applied twice (raises ``ValueError`` underneath; we
+    surface as ``{"ok": False}``).
+    """
+    if not isinstance(patch_name, str):
+        return _err(f"patch_name must be a string, got {type(patch_name).__name__}")
+    try:
+        patch = _patches.apply_catalog_patch(patch_name)
+    except KeyError:
+        return _err(
+            f"unknown catalog patch {patch_name!r}; "
+            f"available: {list(CATALOG_PATCHES)}"
+        )
+    except ValueError as exc:
+        return _err(str(exc))
+    return {
+        "ok": True,
+        "applied": _patches._patch_to_dict(patch),
+        "n_active": len(_patches.snapshot()),
+    }
+
+
+def apply_custom_patch(
+    *,
+    name: str,
+    kind: str,
+    body: Optional[str] = None,
+    body_a: Optional[str] = None,
+    body_b: Optional[str] = None,
+    amplitude_deg: float = 0.0,
+    period_days: float = 0.0,
+    phase_rad: float = 0.0,
+    correlation: int = -1,
+    notes: str = "",
+) -> Dict[str, Any]:
+    """Construct + apply a user-authored patch from primitive args.
+
+    Pyodide-friendly: takes only JSON-serialisable scalars. Use this
+    when you've FFT-diagnosed your own residual peak and want to
+    test a Fourier correction without authoring it as a dataclass.
+
+    ``kind="sinusoid"`` requires ``body``; ``kind="coupled-sinusoid"``
+    requires ``body_a`` and ``body_b``.
+    """
+    if not isinstance(name, str) or not name:
+        return _err("patch name must be a non-empty string")
+    try:
+        if kind == "sinusoid":
+            if not isinstance(body, str):
+                return _err("sinusoid patch requires `body` (str)")
+            patch: _patches.Patch = _patches.SinusoidPatch(
+                name=name, body=body,
+                amplitude_deg=float(amplitude_deg),
+                period_days=float(period_days),
+                phase_rad=float(phase_rad),
+                notes=str(notes),
+            )
+        elif kind == "coupled-sinusoid":
+            if not (isinstance(body_a, str) and isinstance(body_b, str)):
+                return _err(
+                    "coupled-sinusoid patch requires `body_a` and `body_b` (str)"
+                )
+            patch = _patches.CoupledSinusoidPatch(
+                name=name, body_a=body_a, body_b=body_b,
+                amplitude_deg=float(amplitude_deg),
+                period_days=float(period_days),
+                phase_rad=float(phase_rad),
+                correlation=int(correlation),
+                notes=str(notes),
+            )
+        else:
+            return _err(
+                f"unknown patch kind {kind!r}; "
+                f"expected 'sinusoid' or 'coupled-sinusoid'"
+            )
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+    try:
+        _patches.apply_patch(patch)
+    except (ValueError, TypeError) as exc:
+        return _err(str(exc))
+    return {
+        "ok": True,
+        "applied": _patches._patch_to_dict(patch),
+        "n_active": len(_patches.snapshot()),
+    }
+
+
+def clear_patches() -> Dict[str, Any]:
+    """Remove all active runtime patches; return the count cleared."""
+    n = _patches.clear_patches()
+    return {"ok": True, "cleared": int(n)}
+
+
 __all__ = [
     "DEFAULT_BACKEND",
     "SUPPORTED_BACKENDS",
     "SUPPORTED_BODIES",
     "ALLOWED_KERNELS",
     "LUNAR_KERNELS",
+    "CATALOG_PATCHES",
     "get_version",
     "list_bodies",
     "list_kernels",
@@ -866,4 +1017,9 @@ __all__ = [
     "get_lunar_phase",
     "get_natural_resonance_group",
     "find_syzygies",
+    "list_catalog_patches",
+    "list_active_patches",
+    "apply_patch",
+    "apply_custom_patch",
+    "clear_patches",
 ]
