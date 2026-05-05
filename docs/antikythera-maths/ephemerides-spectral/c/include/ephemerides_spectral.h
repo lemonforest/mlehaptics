@@ -600,9 +600,9 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
  * two need to be bumped together at release time.
  */
 #define ES_VERSION_MAJOR 0
-#define ES_VERSION_MINOR 12
+#define ES_VERSION_MINOR 13
 #define ES_VERSION_PATCH 0
-#define ES_VERSION_STRING "0.12.0"
+#define ES_VERSION_STRING "0.13.0"
 
 const char *es_version(void);
 

@@ -322,6 +322,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "v0.12.0 Sol Kinematics post-processor — augments a Sol Time bridge result with a kinematic_state block via the CLI's --state flag. Mirrors apply_proper_correction.",
         "kwargs_py": {"result": {"ok": True, "msd": 1000.0}, "subcommand": "time-mars"},
     },
+    "get_dynamics": {
+        "status": "python_only",
+        "rationale": "v0.13.0 Sol Dynamics — system-level KE / PE / total energy + angular momentum partitions. Pure-Python; mirrors chess-spectral's qm_*_dynamics.py *dynamics* layer.",
+        "kwargs_py": {},
+    },
+    "get_force_between": {
+        "status": "python_only",
+        "rationale": "v0.13.0 Sol Dynamics — Newtonian gravitational force between two bodies. Validated against the textbook 3.54e22 N Earth-Sun figure.",
+        "kwargs_py": {"body_a": "terra", "body_b": "sun"},
+    },
+    "get_body_energies": {
+        "status": "python_only",
+        "rationale": "v0.13.0 Sol Dynamics — per-body KE + PE + total energy budget.",
+        "kwargs_py": {"body": "mars"},
+    },
+    "apply_dynamics_correction": {
+        "status": "python_only",
+        "rationale": "v0.13.0 Sol Dynamics post-processor — augments a Sol Time bridge result with a dynamics block (KE/PE/total_E/is_bound) via the CLI's --dynamics flag. Mirrors apply_state_correction and apply_proper_correction.",
+        "kwargs_py": {"result": {"ok": True, "msd": 1000.0}, "subcommand": "time-mars"},
+    },
     "get_natural_resonance_group": {
         "status": "python_only",
         "rationale": "metadata about the RESONANCES table; pure-Python",

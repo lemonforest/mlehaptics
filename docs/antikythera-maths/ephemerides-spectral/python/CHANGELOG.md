@@ -10,7 +10,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.12.0)
+(no entries yet — next entries land after v0.13.0)
+
+## [0.13.0] — 2026-05-05
+
+**Sol Dynamics — system energy, gravitational forces, per-body energy budgets — augmented onto every `time-*` subcommand via `--dynamics`.**
+
+Counterpart to v0.12.0's Sol Kinematics; mirrors chess-spectral's `qm_*_dynamics.py` *dynamics* layer (Hamiltonian + force / energy queries). The Phase A audit data already covered both halves (`figures/kinematics_dynamics_audit.md`); v0.13.0 ships the second canonical primitive (`_research/dynamics.py`) + bridge + CLI.
+
+### Validated against textbook values
+
+- **Earth-Sun gravitational force = 3.542×10²² N** at 1.000 AU, vs. textbook 3.54×10²² N (0.01 % rel err) — the most-cited validation value in classical mechanics.
+- **Total system energy = −1.98×10³⁵ J** (negative ⇒ gravitationally bound) ✓.
+- **Virial theorem holds**: total E = PE / 2 to within 0.5 % (circular-orbit constraint).
+- **Sun's KE / Mc² = 8.6×10⁻¹⁶**, well below the 1×10⁻¹² noise floor for "Sun barely moves in barycentric frame."
+- **Newton's 3rd law**: F_ab = F_ba symmetric to floating-point precision.
+- **Inverse-square law**: F = G M m / r² verified explicitly.
+
+### Added
+
+**Bridge:**
+- `bridge.get_dynamics(*, jd_tdb=None, frame=...)` — system aggregate (KE, PE, total E, is_bound, L partitions).
+- `bridge.get_force_between(body_a, body_b, ...)` — Newtonian pair force.
+- `bridge.get_body_energies(body, ...)` — per-body KE + PE + total energy budget.
+- `bridge.apply_dynamics_correction(result, subcommand, ...)` — CLI `--dynamics` post-processor.
+- `_research/dynamics.py`: `BodyEnergies`, `ForceContribution`, `DynamicsState` dataclasses + Phase B canonical primitives.
+
+**CLI:**
+- New `dynamics` subcommand with three query modes:
+  - `dynamics` — system aggregate (default)
+  - `dynamics --body <X>` — per-body energy budget
+  - `dynamics --body <X> --from <Y>` — gravitational force on X from Y
+- `--dynamics` flag added uniformly to every `time-*` subcommand.
+
+**Examples:**
+```bash
+# System totals
+ephemerides-spectral dynamics
+
+# Mars's energy budget
+ephemerides-spectral dynamics --body mars
+
+# Force on Mars from Jupiter (validates the textbook formula)
+ephemerides-spectral dynamics --body mars --from jupiter
+
+# Earth-Sun reference (3.54e22 N at 1 AU)
+ephemerides-spectral dynamics --body terra --from sun
+
+# All three augmenting flags compose
+ephemerides-spectral time-mars --jd 2451545.0 --state --proper --dynamics
+```
+
+### Discipline
+
+- 34 new tests in `tests/test_dynamics.py` pin the validation set + every primitive + the CLI surfaces.
+- Four new bridge methods classified `python_only` in `PARITY_TARGETS`.
+- `dynamics.py` registered in `codegen/emit_research_modules.py::_INCLUDED_MODULES`.
+
+### Out of scope (deferred)
+
+- **3D force vectors.** v0.13.0 reports magnitudes only; needs the position-vector decoder (queued for v0.13.x).
+- **Tidal forces.** Body-extended-by-radius differential pull. v0.13.x with the per-body internal-Laplacian work (#103).
+- **Lyapunov / chaos indicator.** Needs full state evolution + variation propagation; v0.13.x.
+- **`evolve(state, dt)` named primitive.** The existing `bip_instrument.encode_state(jd_tdb)` IS the evolution; v0.13.0 doesn't wrap it as a separate function.
+- **C twin.** Parity smoke marks new methods `python_only`.
+
+### Migration
+
+None. Sol Dynamics is purely additive.
 
 ## [0.12.0] — 2026-05-05
 

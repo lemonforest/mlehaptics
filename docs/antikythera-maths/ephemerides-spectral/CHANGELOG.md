@@ -7,7 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.12.0)
+(no entries yet — next entries land after v0.13.0)
+
+## [0.13.0] — 2026-05-05
+
+**Sol Dynamics — completes the Kinematics + Dynamics split.** v0.12.0 shipped Kinematics; v0.13.0 ships Dynamics. Together they mirror chess-spectral's `qm_*.py` (kinematics) + `qm_*_dynamics.py` (dynamics) at the orbital-mechanics scale.
+
+### Why this exists
+
+Pair-completion of the user's earlier *"We now need to add Kinematics and Dynamics"*. The Phase A audit (`research/kinematics_dynamics_audit.py`) covers both halves; v0.13.0 ships the second canonical primitive + bridge + CLI without needing a new Phase A.
+
+### What's queryable now
+
+```python
+# System-level (the full aggregate)
+bridge.get_dynamics()
+# → {is_bound: True, total_energy_j: -1.98e35,
+#    fraction_in_jupiter: 0.6151, ...}
+
+# Per-body energy budget
+bridge.get_body_energies("mars")
+# → {kinetic_energy_j, potential_energy_j, total_energy_j: -1.86e32}
+
+# Pair-wise force (the textbook 3.54e22 N validation)
+bridge.get_force_between("terra", "sun")
+# → {force_magnitude_n: 3.542e22, distance_m: 1.49e11, ...}
+```
+
+```bash
+# CLI — three modes selected by which flags you pass
+ephemerides-spectral dynamics                                # system aggregate
+ephemerides-spectral dynamics --body mars                    # per-body budget
+ephemerides-spectral dynamics --body mars --from jupiter     # pair force
+
+# --dynamics flag uniform across every time-* subcommand
+ephemerides-spectral time-mars --jd 2451545.0 --dynamics
+
+# All three v0.11+ augmenting flags compose
+ephemerides-spectral time-mars --jd 2451545.0 --state --proper --dynamics
+```
+
+### Validation pins
+
+| Pin | Computed | Expected | Source |
+|---|---|---|---|
+| Earth-Sun force | 3.542×10²² N | 3.54×10²² | Textbook (every classical mechanics ref) |
+| Total system energy | −1.98×10³⁵ J | < 0 (bound) | Standard |
+| Virial theorem | total E = PE / 2 | within 0.5 % | Circular-orbit constraint |
+| Newton's 3rd law | F_ab = F_ba | exact | Symmetry |
+| Sun KE / Mc² | 8.6×10⁻¹⁶ | < 10⁻¹² | Sun barely moves |
+
+### Three-flag composability
+
+The v0.11.0 `--proper`, v0.12.0 `--state`, and v0.13.0 `--dynamics` flags are uniform across every `time-*` subcommand and *all three compose without conflict*:
+
+- `--proper` adds GR + kinematic time dilation (proper-time-corrected counts).
+- `--state` adds the Kinematics block (orbital velocity, semi-major axis, KE, L).
+- `--dynamics` adds the Dynamics block (KE + PE + total E + is_bound).
+
+Different physical observables, different blocks in the result, no interaction between them. Same modular pattern as `_add_proper_flags` factoring all three.
+
+### Added
+
+**Python API:**
+- `bridge.get_dynamics(...)`, `bridge.get_force_between(...)`, `bridge.get_body_energies(...)`, `bridge.apply_dynamics_correction(...)`.
+- `_research/dynamics.py` — Phase B canonical primitive (`BodyEnergies`, `ForceContribution`, `DynamicsState`).
+
+**CLI:**
+- `dynamics` subcommand with three query modes.
+- `--dynamics` flag uniform across every `time-*` subcommand.
+
+### Discipline carried forward
+
+- 34 new tests in `tests/test_dynamics.py` pin every validation value + the CLI surfaces (including the three-flag-compose test).
+- Four new bridge methods classified `python_only` in `PARITY_TARGETS`.
+- `dynamics.py` registered in `codegen/emit_research_modules.py`.
+- README freshness invariants caught the v0.12.0-banner-still-says-v0.12.0 drift the moment the version bumped — exactly what they're for.
+
+### Out of scope (deferred)
+
+- **3D force vectors** (v0.13.x) — needs the position-vector decoder.
+- **Tidal forces** (v0.13.x or later, with #103 per-body internal Laplacian).
+- **Lyapunov / chaos indicator** (v0.13.x — needs full state evolution + variation propagation).
+- **`evolve(state, dt)` named primitive** — `bip_instrument.encode_state(jd)` IS the evolution; v0.13.0 doesn't wrap it as a separate function.
+- **C twin** — parity smoke marks new methods `python_only`.
+
+### Migration
+
+None. Sol Dynamics is purely additive.
 
 ## [0.12.0] — 2026-05-05
 
