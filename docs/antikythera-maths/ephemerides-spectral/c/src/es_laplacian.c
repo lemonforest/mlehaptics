@@ -58,39 +58,39 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
 
 /* Initial phase residues at REFERENCE_JD = J2000.0 (uint32). */
 const uint32_t es_initial_phases[ES_N_BODIES] = {
-    2273467434u, /* adrastea */
-    3855297822u, /* amalthea */
-    3691731431u, /* callisto */
+    2537566963u, /* adrastea */
+    614115372u, /* amalthea */
+    954923981u, /* callisto */
     3601440527u, /* ceres */
-    384268650u, /* deimos */
-    651228143u, /* dione */
+    3548135658u, /* deimos */
+    3696779743u, /* dione */
     1197504024u, /* earth */
-    3887415654u, /* enceladus */
+    3763270410u, /* enceladus */
     1028738385u, /* epimetheus */
-    2502474608u, /* europa */
-    3532618104u, /* ganymede */
+    2533952976u, /* europa */
+    2622888258u, /* ganymede */
     270682330u, /* hygiea */
-    3613457162u, /* hyperion */
-    3163823711u, /* iapetus */
-    2709544094u, /* io */
+    982362469u, /* hyperion */
+    2568594452u, /* iapetus */
+    213641777u, /* io */
     1737776544u, /* janus */
     432980277u, /* jupiter */
     4288313135u, /* mars */
     3027660005u, /* mercury */
-    4178414587u, /* metis */
-    3274092216u, /* mimas */
+    1959161098u, /* metis */
+    3849210381u, /* mimas */
     2664333966u, /* moon */
     3626000180u, /* neptune */
     257290448u, /* pallas */
-    3950184720u, /* phobos */
-    3623378671u, /* phoebe */
+    3077019855u, /* phobos */
+    2303995502u, /* phoebe */
     2989119291u, /* pluto */
-    1325184685u, /* rhea */
+    2149643563u, /* rhea */
     545464656u, /* saturn */
     0u, /* sun */
-    3512409695u, /* tethys */
-    3534035358u, /* thebe */
-    336701732u, /* titan */
+    3809851868u, /* tethys */
+    2233542473u, /* thebe */
+    1682107609u, /* titan */
     2490350897u, /* titania */
     1071366693u, /* triton */
     3775006485u, /* uranus */

@@ -869,8 +869,9 @@ def get_breathing_modulation(
 #   * Patches don't propagate across processes — they're an in-process
 #     registry. Re-apply on each fresh interpreter.
 
-#: JSON-friendly names for the bundled CATALOG patches.
-CATALOG_PATCHES: Tuple[str, ...] = tuple(sorted(_patches.CATALOG.keys()))
+#: JSON-friendly names for the bundled CATALOG + CATALOG_V2 patches.
+#: v0.5.2: combined view of v0.4.0 (mag-only) + v0.5.2 (LS-fit, vindicated).
+CATALOG_PATCHES: Tuple[str, ...] = tuple(sorted(_patches.COMBINED_CATALOG.keys()))
 
 
 def _body_index(name: str) -> int:
@@ -956,7 +957,7 @@ def list_catalog_patches() -> Dict[str, Any]:
         "ok": True,
         "patches": [
             _patches._patch_to_dict(p)
-            for p in (_patches.CATALOG[name] for name in CATALOG_PATCHES)
+            for p in (_patches.COMBINED_CATALOG[name] for name in CATALOG_PATCHES)
         ],
     }
 

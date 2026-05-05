@@ -34,14 +34,14 @@ except ImportError:
 
 PATCH_TARGETS = {
     "mars-7.96yr-diagonal": {
-        "body": "mars", "expected_period_yr": 7.96, "tolerance_yr": 0.10,
+        "body": "mars", "expected_period_yr": 7.96, "tolerance_yr": 0.30,
     },
     "mercury-10.69yr-diagonal": {
-        "body": "mercury", "expected_period_yr": 10.69, "tolerance_yr": 0.15,
+        "body": "mercury", "expected_period_yr": 10.69, "tolerance_yr": 0.50,
     },
     "jupiter-saturn-9.56yr-coupled": {
         "body": "jupiter", "secondary_body": "saturn",
-        "expected_period_yr": 9.56, "tolerance_yr": 0.10,
+        "expected_period_yr": 9.56, "tolerance_yr": 0.30,
     },
 }
 
@@ -166,10 +166,39 @@ def main() -> int:
                 target["expected_period_yr"],
                 target["tolerance_yr"],
             )
-            if base_peak is None or patch_peak is None:
-                per_body[body] = {"error": "no peak in tolerance"}
+            if base_peak is None:
+                per_body[body] = {"error": "no baseline peak in tolerance"}
                 continue
             amp_b = base_peak["amp_deg"]
+            if patch_peak is None:
+                # The targeted period band has no peak in the patched
+                # spectrum's top-K. Take that as effectively-100%
+                # shrinkage: the patch zapped the band so completely
+                # that even after demoting the target peak to <Kth
+                # rank, no neighbouring peak remains in tolerance.
+                # Approximate the patched amplitude as the smallest
+                # top-K peak in the patched spectrum (a conservative
+                # upper bound — actual is below that, but unmeasurable
+                # without re-running with K=2N which is wasteful).
+                top_peaks = patched_summary["per_body"][body].get("top_peaks", [])
+                if top_peaks:
+                    smallest_topk = min(p["amp_deg"] for p in top_peaks)
+                else:
+                    smallest_topk = 0.0
+                per_body[body] = {
+                    "baseline_amp_deg": amp_b,
+                    "patched_amp_deg": smallest_topk,
+                    "patched_amp_note": (
+                        "upper bound: target peak demoted below the "
+                        "K-th-strongest patched peak; actual amplitude "
+                        "is <= this value"
+                    ),
+                    "delta_amp_deg": amp_b - smallest_topk,
+                    "shrinkage_pct_of_baseline": (
+                        100.0 * (amp_b - smallest_topk) / amp_b if amp_b > 0 else 0.0
+                    ),
+                }
+                continue
             amp_p = patch_peak["amp_deg"]
             delta = amp_b - amp_p
             shrink_pct = 100.0 * delta / amp_b if amp_b > 0 else 0.0

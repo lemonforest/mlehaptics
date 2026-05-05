@@ -336,23 +336,112 @@ CATALOG: Dict[str, Patch] = {
 }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# CATALOG_V2 — phase-recovered, LS-fit, measured-vindicated (v0.5.2)
+# ──────────────────────────────────────────────────────────────────────
+#
+# v0.4.0 catalog patches were authored from FFT magnitudes only. The
+# v0.5.1 patch-shrinks-residual benchmark measured them and found the
+# methodology had two bugs (amplitude off by 2×, phase wrongly assumed
+# 0) and one wrong assumption (J-S correlation = +1, not -1).
+#
+# v0.5.2's LS-fit catalog fixes both:
+#   - amplitude/period/phase/correlation extracted via `scipy.optimize
+#     .curve_fit` on a sinusoid at the target period (not from the
+#     FFT-bin magnitude); skips bin leakage entirely
+#   - the cancellation phase is the fitted phase + π (anti-phase)
+#
+# All four targeted bodies hit ≥96% shrinkage in the verifier
+# (Mars 99.2%, Mercury 99.9%, Jupiter 97.6%, Saturn 96.0%). The
+# original v0.4.0 catalog stays in CATALOG for backwards compatibility;
+# CATALOG_V2 is the *measured-to-work* set.
+#
+# Each entry's `notes` field carries the measured shrinkage% as a
+# regression-test gate. Future catalog additions should pin their
+# measured shrinkage the same way.
+CATALOG_V2: Dict[str, Patch] = {
+    "mars-7.96yr-diagonal-v2": SinusoidPatch(
+        name="mars-7.96yr-diagonal-v2",
+        body="mars",
+        amplitude_deg=10.6890,
+        period_days=2902.74,
+        phase_rad=0.3378,  # cancellation phase: fitted + π, mod 2π
+        notes=(
+            "v0.5.2 LS-fit recovery against the v0.5.0 38-body encoder. "
+            "Targets Mars's 7.96 yr FFT residual peak; LS fit recovered "
+            "amp 10.69 deg (vs FFT-bin-only 3.45 deg, off by 3x due to "
+            "bin leakage), period 2902.74 d (-4.6 d from bin-rounded). "
+            "MEASURED SHRINKAGE: 99.2% (3.45 deg -> 0.03 deg) in the "
+            "v0.5.2 verify-recovered-patches benchmark."
+        ),
+    ),
+    "mercury-10.69yr-diagonal-v2": SinusoidPatch(
+        name="mercury-10.69yr-diagonal-v2",
+        body="mercury",
+        amplitude_deg=23.4815,
+        period_days=3898.87,
+        phase_rad=3.0538,
+        notes=(
+            "v0.5.2 LS-fit recovery against the v0.5.0 38-body encoder. "
+            "Mercury's 10.69 yr peak; LS recovered amp 23.48 deg (vs "
+            "FFT-bin 9.19 deg) and period 3898.87 d (-6.2 d from "
+            "bin-rounded 3905.08 d). The original v0.4.0 patch had "
+            "phase=0 which actively REINFORCED the residual (-50% "
+            "shrinkage); v0.5.2's phase=3.05 rad (175 deg) is the "
+            "cancellation phase. MEASURED SHRINKAGE: 99.9% (9.19 deg "
+            "-> 0.008 deg)."
+        ),
+    ),
+    "jupiter-saturn-9.56yr-coupled-v2": CoupledSinusoidPatch(
+        name="jupiter-saturn-9.56yr-coupled-v2",
+        body_a="jupiter",
+        body_b="saturn",
+        amplitude_deg=113.2947,
+        period_days=3495.81,
+        phase_rad=6.0191,
+        correlation=+1,  # IN-PHASE, NOT anti-correlated as v0.4.0 assumed
+        notes=(
+            "v0.5.2 LS-fit recovery against the v0.5.0 38-body encoder. "
+            "EMPIRICAL FINDING: J-S residuals at 9.56 yr are IN-PHASE "
+            "(correlation = +1), NOT anti-correlated as the v0.4.0 "
+            "libration assumption had it. Recovered amp 113.29 deg "
+            "(vs FFT-bin 45 deg). MEASURED SHRINKAGE: Jupiter 97.6%, "
+            "Saturn 96.0% in the v0.5.2 verify-recovered-patches "
+            "benchmark — both peaks collapsed in lockstep, the way an "
+            "in-phase coupled patch should."
+        ),
+    ),
+}
+
+
+#: Combined view of all bundled catalogs. Keys from CATALOG and
+#: CATALOG_V2 are disjoint (the v2 entries carry the ``-v2`` suffix).
+COMBINED_CATALOG: Dict[str, Patch] = {**CATALOG, **CATALOG_V2}
+
+
 def get_catalog() -> Dict[str, Patch]:
-    """Return a copy of the bundled patch catalog."""
-    return dict(CATALOG)
+    """Return a copy of every bundled patch (v1 + v2 combined).
+
+    v0.4.0 entries (no suffix) stay for backwards compatibility.
+    v0.5.2 entries (``-v2`` suffix) are the measured-to-work set —
+    each has ≥96% shrinkage on its targeted FFT residual peak.
+    """
+    return dict(COMBINED_CATALOG)
 
 
 def apply_catalog_patch(name: str) -> Patch:
     """Load a named bundled patch into the overlay registry.
 
-    Returns the patch object that was applied. Raises ``KeyError``
-    if no catalog entry has that name; raises ``ValueError`` if it's
-    already active (same as ``apply_patch``).
+    Looks up `name` in the combined catalog (v1 + v2). Returns the
+    patch object that was applied. Raises ``KeyError`` if no catalog
+    entry has that name; raises ``ValueError`` if it's already active
+    (same as ``apply_patch``).
     """
-    if name not in CATALOG:
+    if name not in COMBINED_CATALOG:
         raise KeyError(
             f"no catalog patch named {name!r}; "
-            f"available: {sorted(CATALOG.keys())}"
+            f"available: {sorted(COMBINED_CATALOG.keys())}"
         )
-    patch = CATALOG[name]
+    patch = COMBINED_CATALOG[name]
     apply_patch(patch)
     return patch

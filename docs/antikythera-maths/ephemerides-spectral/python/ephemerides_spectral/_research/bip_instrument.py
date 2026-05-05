@@ -116,14 +116,26 @@ class EphemerisBIPInstrument:
         project_root = research_dir.parents[2]
         data_dir = str(project_root / "skyfield_data")
 
-        # 1. Ephemeris
+        # 1. Ephemeris.
+        # v0.5.2: try to load the supplementary moon kernels too. If
+        # they're not on disk, ephemeris_loader logs a debug message
+        # and continues without them — the bundle is still functional
+        # for the planetary bodies, and moons fall back to the
+        # period-based initial-phase stub as in v0.5.1.
+        _SATELLITE_KERNELS = ["mar099s", "jup365", "sat441"]
         try:
-            self.bundle: Optional[EphemerisBundle] = load_ephemeris(kernel=kernel, data_dir=data_dir)
+            self.bundle: Optional[EphemerisBundle] = load_ephemeris(
+                kernel=kernel, data_dir=data_dir,
+                auxiliary_kernels=_SATELLITE_KERNELS,
+            )
         except ValueError:
             self.bundle = None
         if self.bundle is None:
             if force_high_res: raise RuntimeError("High-res kernel missing.")
-            self.bundle = load_ephemeris(kernel="de421", data_dir=data_dir)
+            self.bundle = load_ephemeris(
+                kernel="de421", data_dir=data_dir,
+                auxiliary_kernels=_SATELLITE_KERNELS,
+            )
         
         # 2. HDC Bases & Calibration
         self.channel_bases = self._initialize_bases()
@@ -264,19 +276,21 @@ class EphemerisBIPInstrument:
             try:
                 target_key = name.upper()
                 if body_info.category == "planet": target_key += " BARYCENTER"
-                target = self.bundle.eph[target_key]
-                
+                # v0.5.2: bundle.lookup searches main + auxiliary
+                # ephemerides (mar099s, jup365, sat441 for moons).
+                target = self.bundle.lookup(target_key)
+
                 if body_info.category == "planet":
-                    center = self.bundle.eph["sun"]
+                    center = self.bundle.lookup("sun")
                 elif body_info.category == "moon":
                     parent_name = moon_parent_map.get(name, "earth")
                     parent_key = parent_name.upper()
                     if parent_name in ["earth", "mars", "jupiter", "saturn", "uranus", "neptune"]:
                          parent_key += " BARYCENTER"
-                    center = self.bundle.eph[parent_key]
+                    center = self.bundle.lookup(parent_key)
                 else:
-                    center = self.bundle.eph["sun"]
-                
+                    center = self.bundle.lookup("sun")
+
                 astrometric = center.at(t).observe(target)
                 _, lon, _ = astrometric.ecliptic_latlon()
                 # Map [0, 2pi) -> [0, MODULO)

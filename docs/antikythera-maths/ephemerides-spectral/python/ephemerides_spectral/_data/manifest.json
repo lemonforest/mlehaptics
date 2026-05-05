@@ -1,28 +1,28 @@
 {
   "files": {
     "_data/initial_phases.json": {
-      "sha256": "7682de92cd85004210a60e0794c6f8076f9cf767ee7fcd48872197885685e714",
-      "size_bytes": 2940
+      "sha256": "213f7bde0acf9d2224934ed330fbd4e87af409387aa62ac28ecd8623e99f7450",
+      "size_bytes": 2939
     },
     "_research/__init__.py": {
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
       "size_bytes": 318
     },
     "_research/bip_instrument.py": {
-      "sha256": "a36bab9cff1aa251f845d7188df8d0d37102b61a1919886d6a6180ba4b70e8a1",
-      "size_bytes": 24813
+      "sha256": "073e344d431b0a929d7610cdc63fe82d315f4886fd3155b2a2d21af4e1641249",
+      "size_bytes": 25487
     },
     "_research/bodies.py": {
       "sha256": "50066b91fc1e34aba8bc5e81139f189f3dc70319b159847095308a468f937b9d",
       "size_bytes": 3406
     },
     "_research/diagnosed_fibers.py": {
-      "sha256": "fbf884732a48f9774a9783d1c83b83b180a63c0908493ceff6f7ce98d47026da",
-      "size_bytes": 13755
+      "sha256": "3fe1225cabcea3551de3ae4894156955641c52d53afa5ada5399907b989d3b6b",
+      "size_bytes": 18132
     },
     "_research/ephemeris_loader.py": {
-      "sha256": "cc025d703e393d6062a94a6a0427400736dc5bd0ef213db217c762ae67946b7b",
-      "size_bytes": 14878
+      "sha256": "4d78c11ae44357b3472cbdce50dd3c71c1a672869f437c0d57d589aa7c56a8b2",
+      "size_bytes": 17927
     },
     "_research/ephemeris_reference_instrument.py": {
       "sha256": "90f5bfbb94090644a3237a0bcc7f54eb9c96ff01a96d1ac9fc846d5b5b98b464",
@@ -42,5 +42,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.5.1"
+  "version": "0.5.2"
 }

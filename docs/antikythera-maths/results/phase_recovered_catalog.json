@@ -1,71 +1,70 @@
 {
   "cadence_days": 900.0,
+  "method": "lsq",
   "n_samples": 1024,
   "patches": {
     "jupiter-saturn-9.56yr-coupled": {
       "_diagnostic": {
-        "amp_mean_deg": 89.65022075645939,
-        "anchor_cancellation_phase_rad": 6.021728665172674,
         "body_a": {
-          "bin_k": 264,
-          "bin_period_yr": 9.557588202352063,
-          "cancellation_phase_rad": 6.021728665172674,
-          "fft_amplitude_deg": 89.26654983176876,
-          "fft_phase_rad": 1.3093396847880128,
-          "half_span_days": 460800.0,
-          "psi_at_sample_zero_rad": 6.021728665172702
+          "amplitude_deg": 113.11710734348921,
+          "cancellation_phase_rad": 6.019070762379063,
+          "fit_phase_rad": 2.87747810878927,
+          "initial_amplitude_deg": 96.72624264371838,
+          "method": "scipy.curve_fit",
+          "period_days": 3495.805556271709,
+          "search_window_days": 60.0
         },
         "body_b": {
-          "bin_k": 264,
-          "bin_period_yr": 9.557588202352063,
-          "cancellation_phase_rad": 6.154425817255202,
-          "fft_amplitude_deg": 90.03389168115002,
-          "fft_phase_rad": 1.4420368368705974,
-          "half_span_days": 460800.0,
-          "psi_at_sample_zero_rad": 6.154425817255287
+          "amplitude_deg": 113.47225623867166,
+          "cancellation_phase_rad": 6.1480562092771045,
+          "fit_phase_rad": 3.0064635556873114,
+          "initial_amplitude_deg": 97.45207065879941,
+          "method": "scipy.curve_fit",
+          "period_days": 3495.7501327050536,
+          "search_window_days": 60.0
         },
-        "correlation": 1,
-        "delta_phi_rad": -0.13269715208258503
+        "correlation_chosen": 1,
+        "delta_phi_rad": -0.12898544689804137
       },
-      "amplitude_deg": 89.65022075645939,
+      "amplitude_deg": 113.29468179108044,
       "body_a": "jupiter",
       "body_b": "saturn",
       "correlation": 1,
       "kind": "coupled-sinusoid",
-      "period_days": 3490.909090909091,
-      "phase_rad": 6.021728665172674
+      "period_days": 3495.805556271709,
+      "phase_rad": 6.019070762379063
     },
     "mars-7.96yr-diagonal": {
       "_diagnostic": {
-        "bin_k": 317,
-        "bin_period_yr": 7.959631815208026,
-        "cancellation_phase_rad": 0.342644652768648,
-        "fft_amplitude_deg": 6.897597412868735,
-        "fft_phase_rad": -1.2281516740263485,
-        "half_span_days": 460800.0,
-        "psi_at_sample_zero_rad": 3.484237306358341
+        "amplitude_deg": 10.689000925963606,
+        "cancellation_phase_rad": 0.3378338016984497,
+        "fit_phase_rad": 3.4794264552882423,
+        "initial_amplitude_deg": 6.697855262082586,
+        "method": "scipy.curve_fit",
+        "period_days": 2902.741918559475,
+        "search_window_days": 60.0
       },
-      "amplitude_deg": 6.897597412868735,
+      "amplitude_deg": 10.689000925963606,
       "body": "mars",
       "kind": "sinusoid",
-      "period_days": 2907.2555205047315,
-      "phase_rad": 0.342644652768648
+      "period_days": 2902.741918559475,
+      "phase_rad": 0.3378338016984497
     },
     "mercury-10.69yr-diagonal": {
       "_diagnostic": {
-        "bin_k": 236,
-        "bin_period_yr": 10.691539345004001,
-        "cancellation_phase_rad": 3.0519605024795595,
-        "fft_amplitude_deg": 18.382303329966952,
-        "fft_phase_rad": -1.6604284779052476,
-        "half_span_days": 460800.0,
-        "psi_at_sample_zero_rad": 3.0519605024794423
+        "amplitude_deg": 23.481517538789372,
+        "cancellation_phase_rad": 3.0537888984470403,
+        "fit_phase_rad": 6.195381552036833,
+        "initial_amplitude_deg": 19.210298424609363,
+        "method": "scipy.curve_fit",
+        "period_days": 3898.8664491737973,
+        "search_window_days": 60.0
       },
-      "amplitude_deg": 18.382303329966952,
+      "amplitude_deg": 23.481517538789372,
       "body": "mercury",
       "kind": "sinusoid",
-      "period_days": 3905.0847457627115,
-      "phase_rad": 3.0519605024795595
+      "period_days": 3898.8664491737973,
+      "phase_rad": 3.0537888984470403
     }
   }
 }
