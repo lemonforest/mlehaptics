@@ -46,8 +46,46 @@ import numpy as np
 
 # Mirror of ``ES_ABI_VERSION`` in the C header. Bump in lockstep with
 # the C side whenever the wire format of any exported function
-# changes. v1 = the v0.3.1 baseline.
-EXPECTED_ABI_VERSION: int = 1
+# changes.
+#   v1 — v0.3.1 baseline (encode-only surface).
+#   v2 — v0.4.1: diagnosed-fiber overlay (es_patch_t struct +
+#       es_apply_patch / es_clear_patches / es_n_active_patches /
+#       es_get_patch_at).
+EXPECTED_ABI_VERSION: int = 2
+
+# Mirrors c/include/ephemerides_spectral.h.
+ES_PATCH_NAME_MAX: int = 64
+ES_MAX_PATCHES: int = 32
+ES_PATCH_KIND_SINUSOID: int = 0
+ES_PATCH_KIND_COUPLED_SINUSOID: int = 1
+
+# Patch registry status codes (es_apply_patch / es_get_patch_at).
+ES_ERR_PATCH_FULL: int = 100
+ES_ERR_PATCH_DUPLICATE_NAME: int = 101
+ES_ERR_PATCH_BAD_KIND: int = 102
+ES_ERR_PATCH_BAD_INDEX: int = 103
+ES_ERR_PATCH_BAD_PARAM: int = 104
+ES_ERR_PATCH_OUT_OF_RANGE: int = 105
+
+
+class EsPatch(ctypes.Structure):
+    """Wire-format mirror of ``es_patch_t`` from the C header.
+
+    Field order MUST match the C struct exactly. Any field-order or
+    type drift here vs the ABI v2 layout would silently corrupt
+    patch registration; the field layout is locked in by the C
+    side's ``ES_ABI_VERSION = 2`` and the load-time abi-version check.
+    """
+    _fields_ = [
+        ("kind", ctypes.c_int32),
+        ("name", ctypes.c_char * ES_PATCH_NAME_MAX),
+        ("body_idx_a", ctypes.c_int32),
+        ("body_idx_b", ctypes.c_int32),
+        ("amplitude_deg", ctypes.c_double),
+        ("period_days", ctypes.c_double),
+        ("phase_rad", ctypes.c_double),
+        ("correlation", ctypes.c_int32),
+    ]
 
 #: Status codes from ``es_status_t``.
 ES_OK = 0
@@ -130,6 +168,23 @@ def _bind(lib: ctypes.CDLL) -> None:
     # int es_n_bodies(void)
     lib.es_n_bodies.argtypes = []
     lib.es_n_bodies.restype = ctypes.c_int
+
+    # ABI v2 (v0.4.1) — diagnosed-fiber overlay.
+    # int es_apply_patch(const es_patch_t *)
+    lib.es_apply_patch.argtypes = [ctypes.POINTER(EsPatch)]
+    lib.es_apply_patch.restype = ctypes.c_int
+
+    # size_t es_clear_patches(void)
+    lib.es_clear_patches.argtypes = []
+    lib.es_clear_patches.restype = ctypes.c_size_t
+
+    # size_t es_n_active_patches(void)
+    lib.es_n_active_patches.argtypes = []
+    lib.es_n_active_patches.restype = ctypes.c_size_t
+
+    # int es_get_patch_at(size_t idx, es_patch_t *out)
+    lib.es_get_patch_at.argtypes = [ctypes.c_size_t, ctypes.POINTER(EsPatch)]
+    lib.es_get_patch_at.restype = ctypes.c_int
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -232,6 +287,87 @@ def native_version() -> Optional[str]:
     return raw.decode("ascii") if raw else None
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Diagnosed-fiber runtime overlay (ABI v2)
+# ──────────────────────────────────────────────────────────────────────
+#
+# These helpers are called from `bridge.apply_patch` / `clear_patches`
+# to keep the C-side registry in sync with the Python-side one. The
+# bridge mutates Python first, then mirrors to C; if C rejects (e.g.
+# capacity exceeded) the bridge reverts the Python-side change so the
+# two registries never drift.
+#
+# Each helper is a no-op when ``HAS_NATIVE`` is False — pure-Python /
+# Pyodide users are unaffected.
+
+
+def native_apply_sinusoid_patch(name: str, body_idx: int,
+                                amplitude_deg: float, period_days: float,
+                                phase_rad: float = 0.0) -> int:
+    """Mirror a sinusoid patch into the C-side registry.
+
+    Returns ``ES_OK`` (0) on success, otherwise one of
+    ``ES_ERR_PATCH_FULL`` / ``DUPLICATE_NAME`` / ``BAD_INDEX`` /
+    ``BAD_PARAM`` / ``BAD_KIND``.
+
+    No-op (returns ``ES_OK`` immediately) if HAS_NATIVE is False.
+    """
+    if not HAS_NATIVE:
+        return ES_OK
+    assert LIB is not None
+    patch = EsPatch(
+        kind=ES_PATCH_KIND_SINUSOID,
+        name=name.encode("utf-8")[: ES_PATCH_NAME_MAX - 1],
+        body_idx_a=int(body_idx),
+        body_idx_b=-1,
+        amplitude_deg=float(amplitude_deg),
+        period_days=float(period_days),
+        phase_rad=float(phase_rad),
+        correlation=0,
+    )
+    return int(LIB.es_apply_patch(ctypes.byref(patch)))
+
+
+def native_apply_coupled_patch(name: str, body_idx_a: int, body_idx_b: int,
+                               amplitude_deg: float, period_days: float,
+                               phase_rad: float = 0.0,
+                               correlation: int = -1) -> int:
+    """Mirror a coupled-sinusoid patch into the C-side registry."""
+    if not HAS_NATIVE:
+        return ES_OK
+    assert LIB is not None
+    patch = EsPatch(
+        kind=ES_PATCH_KIND_COUPLED_SINUSOID,
+        name=name.encode("utf-8")[: ES_PATCH_NAME_MAX - 1],
+        body_idx_a=int(body_idx_a),
+        body_idx_b=int(body_idx_b),
+        amplitude_deg=float(amplitude_deg),
+        period_days=float(period_days),
+        phase_rad=float(phase_rad),
+        correlation=int(correlation),
+    )
+    return int(LIB.es_apply_patch(ctypes.byref(patch)))
+
+
+def native_clear_patches() -> int:
+    """Wipe the C-side patch registry. Returns prior count.
+
+    No-op (returns 0) if HAS_NATIVE is False.
+    """
+    if not HAS_NATIVE:
+        return 0
+    assert LIB is not None
+    return int(LIB.es_clear_patches())
+
+
+def native_n_active_patches() -> int:
+    """Number of patches currently in the C-side registry; 0 if no native."""
+    if not HAS_NATIVE:
+        return 0
+    assert LIB is not None
+    return int(LIB.es_n_active_patches())
+
+
 __all__ = [
     "HAS_NATIVE",
     "LIB",
@@ -240,7 +376,15 @@ __all__ = [
     "N_BODIES",
     "LOAD_ERROR",
     "EXPECTED_ABI_VERSION",
+    "ES_PATCH_KIND_SINUSOID",
+    "ES_PATCH_KIND_COUPLED_SINUSOID",
+    "ES_MAX_PATCHES",
+    "EsPatch",
     "encode_state",
     "encode_at_jd",
     "native_version",
+    "native_apply_sinusoid_patch",
+    "native_apply_coupled_patch",
+    "native_clear_patches",
+    "native_n_active_patches",
 ]

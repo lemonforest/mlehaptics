@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.4.0)
+(no entries yet — next entries land after v0.4.1)
+
+## [0.4.1] — 2026-05-05
+
+C-side runtime kernel patching (ABI v2). Native overlay surface; cross-backend byte-exact parity with patches active.
+
+### Architecture: completing the v0.4.0 overlay design
+
+v0.4.0 shipped the diagnosed-fiber overlay on the BIP (pure-Python) encoder and gated `backend="c"` to fall back to BIP when patches were active. v0.4.1 closes that gap: the native C library now carries its own patch registry, and the encode-state path consults it after the base loop / before the final reduction, mirroring the BIP encoder's overlay step exactly.
+
+The Python and C registries are kept in lockstep via a sync layer in the bridge: every `apply_patch` mirrors into both; `clear_patches` clears both; rejection on either side rolls back the other. Two registries, one source of truth, byte-exact parity verified.
+
+### Added — C-side overlay (`es_patches.c`)
+
+- **`es_patch_t` struct** with `kind` (sinusoid / coupled-sinusoid), `name[64]`, `body_idx_a/b`, `amplitude_deg`, `period_days`, `phase_rad`, `correlation`. Plain-data layout for stable ctypes binding.
+- **Registry API**: `es_apply_patch(const es_patch_t *)`, `es_clear_patches()`, `es_n_active_patches()`, `es_get_patch_at(idx, *out)`. Status codes for capacity / duplicate-name / bad-index / bad-param errors. Capacity `ES_MAX_PATCHES = 32`.
+- **Encoder hook** in `es_encode_state`: `es_apply_overlay_to_phases(delta_t_days, curr_phases)` runs after the sub-day remainder step, before the final `& MODULO_MASK` reduction. Zero-cost when registry is empty (single early-return).
+- **Banker's rounding sharing**: `es_banker_round` (was `static inline` in `es_encode.c`) is now external linkage so `es_patches.c` can match Python's `round()` half-to-even semantics on the overlay delta. Required for byte-exact parity.
+
+### Added — ABI v2 ctypes binding
+
+- `EXPECTED_ABI_VERSION = 2` in `_native_bip.py`. The load-time check refuses any binary reporting a different ABI — silent corruption from a stale wheel can't happen.
+- `EsPatch` ctypes structure mirroring `es_patch_t` field-for-field; locked by the load-time ABI assertion.
+- High-level helpers: `native_apply_sinusoid_patch(name, body_idx, amplitude_deg, period_days, phase_rad)`, `native_apply_coupled_patch(name, body_idx_a, body_idx_b, amplitude_deg, period_days, phase_rad, correlation)`, `native_clear_patches()`, `native_n_active_patches()`. All no-ops when `HAS_NATIVE=False`.
+
+### Added — bridge sync layer
+
+- **`_mirror_patch_to_native(patch)`** — applies a Python `Patch` into the C-side registry by name + integer body index; rolls back the Python-side change on C-side rejection so registries can't drift. Called from `apply_patch` and `apply_custom_patch`.
+- **`_native_clear_patches()`** — wraps the native helper; called from `clear_patches` after the Python-side wipe.
+- **`_body_index(name)`** — resolves a Python body name to its integer index, mirroring the canonical sorted body order baked into the C codegen.
+
+### Changed
+
+- **`backend="c"` now applies the overlay natively** when the binary is loaded. The v0.4.0 fallback gate on `_patches.has_active_patches()` is removed. Falls back to BIP only when `HAS_NATIVE=False`.
+- **Performance** with 3 catalog patches active (encoded at +20 yr against DE421):
+  - `backend="bip"` — 10.8 ms / encode (+418 μs vs no-patches)
+  - `backend="c"`   — 0.046 ms / encode (+19 μs vs no-patches)
+  - **C is 237× faster than BIP** with patches active.
+- **Test `test_c_backend_falls_back_when_patches_active`** renamed to `test_c_backend_handles_overlay_when_loaded` and asserts the v0.4.1 behavior (native applies overlay; falls back only when not loaded).
+
+### Tests
+
+- **`test_cross_backend_parity_with_patches`** — encodes `TEST_JD = J2000 + 20 yr` with all 3 catalog patches active on both backends; asserts `bip["phases_uint32"] == c["phases_uint32"]` byte-for-byte.
+- **`test_native_registry_in_sync_with_python`** — verifies `n_active` agrees between registries through apply / clear / duplicate-rejection paths.
+
+### ABI breakage (intentional)
+
+ABI v1 (v0.3.1, v0.4.0) → ABI v2 (v0.4.1). Any v0.4.1 Python wheel paired with a v0.3.1 native binary will refuse to load native (`HAS_NATIVE=False` with a clear `LOAD_ERROR` message); the package falls back to pure-Python BIP. PyPI ships matching Python+C versions in every wheel, so consumers using `pip install ephemerides-spectral==0.4.1` always get a matched pair.
+
+### Build
+
+- `CMakeLists.txt` adds `c/src/es_patches.c` to the shared library sources. `WINDOWS_EXPORT_ALL_SYMBOLS ON` already in place; the new exports surface automatically. No new build flags / no toolchain version bumps.
 
 ## [0.4.0] — 2026-05-05
 
