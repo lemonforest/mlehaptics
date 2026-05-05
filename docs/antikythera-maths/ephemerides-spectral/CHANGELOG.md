@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.8.0] — 2026-05-05
 
-**Sol Symphony Times: 6 new planetary/stellar time systems.** Venus, Mercury, Pluto, Sol (the Sun!), Jupiter, and Saturn join Mars / Lunar / Uranian as Sol Time members. The natural-symphony framing: every body in the encoder roster has a rotational + orbital cycle that ticks in its own cyclic group; the Sol Time series exposes the JD ↔ local-time mapping for each.
+**Sol Symphony Times: 7 new planetary/stellar time systems.** Venus, Mercury, Pluto, Sol (the Sun!), Jupiter, Saturn, and Neptune join Mars / Lunar / Uranian as Sol Time members. The natural-symphony framing: every body in the encoder roster has a rotational + orbital cycle that ticks in its own cyclic group; the Sol Time series exposes the JD ↔ local-time mapping for each.
 
 Pure-Python additions (no encoder, no C twin needed); ABI unchanged.
 
@@ -25,6 +25,7 @@ Pure-Python additions (no encoder, no C twin needed); ABI unchanged.
 | Sol (Sun) | `SolSolTime` | 25.38 d (Carrington) | ~219 Myr (galactic) | CRN 1 (1853) | |
 | Jupiter | `JovianTime` | 0.41354 d (System III) | 4332.589 d | 1965.0 epoch | |
 | Saturn | `SaturnianTime` | 0.43932 d (Cassini-revised) | 10,759.22 d | J2000.0 | |
+| Neptune | `NeptunianTime` | 0.67125 d (Voyager-2 System III) | 60,182 d | J2000.0 | |
 
 Each ships with `jd_to_*_time(jd_tdb)` + `*_time_to_jd(...)` inverse plus module-level constants (sidereal/solar day, orbital period, axial tilt, anchor JD).
 
@@ -34,17 +35,17 @@ Each ships with `jd_to_*_time(jd_tdb)` + `*_time_to_jd(...)` inverse plus module
 - **Sol differential rotation** — Carrington 25.38 d at ~16° latitude is the conventional reference; equator ~24.47 d, poles ~38 d. The `SolSolTime` dataclass exposes the Carrington Rotation Number (CRN) integer counter.
 - **Saturn Cassini ring-seismology revision** — Mankovich et al. 2019 ApJ 871:1 revised System III from 10h 39m 22.4s (Voyager) to 10h 32m 35s ± 13s. We use the revised value.
 
-### Added — bridge surface (12 methods)
+### Added — bridge surface (14 methods)
 
-`bridge.jd_to_sol_*_time(jd_tdb)` + `bridge.sol_*_time_to_jd(...)` for venusian / mercurian / plutonian / sol_sol / jovian / saturnian. Each returns the dataclass dict plus an `epoch` block carrying the constants.
+`bridge.jd_to_sol_*_time(jd_tdb)` + `bridge.sol_*_time_to_jd(...)` for venusian / mercurian / plutonian / sol_sol / jovian / saturnian / neptunian. Each returns the dataclass dict plus an `epoch` block carrying the constants.
 
-### Added — CLI (6 subcommands)
+### Added — CLI (7 subcommands)
 
-`time-venus`, `time-mercury`, `time-pluto`, `time-sol`, `time-jupiter`, `time-saturn`. Each follows the v0.5.4 `--help` audit pattern with concrete examples.
+`time-venus`, `time-mercury`, `time-pluto`, `time-sol`, `time-jupiter`, `time-saturn`, `time-neptune`. Each follows the v0.5.4 `--help` audit pattern with concrete examples.
 
 ### Naming hierarchy convention (for future moon ports)
 
-Established planet/star times: `Sol <Adjective> Time` — Sol Mars, Sol Lunar (Earth's Moon by historical convention), Sol Uranian, Sol Venusian, Sol Mercurian, Sol Plutonian, Sol Jovian, Sol Saturnian, Sol Sol.
+Established planet/star times: `Sol <Adjective> Time` — Sol Mars, Sol Lunar (Earth's Moon by historical convention), Sol Uranian, Sol Venusian, Sol Mercurian, Sol Plutonian, Sol Jovian, Sol Saturnian, Sol Neptunian, Sol Sol.
 
 Future moon times follow parent-body hierarchy: `Sol <Parent>-<Body> Time` — e.g., Sol Pluto-Charon Time, Sol Jupiter-Io Time, Sol Earth-Moon Time. Established conventional names (Sol Lunar = Earth-Moon shorthand) are kept; new moon time systems land under the hierarchy convention so consumers always know which body's surface clock the answer refers to.
 

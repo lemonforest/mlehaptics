@@ -244,6 +244,16 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_saturnian_time",
         "kwargs_py": {"ssd": 0.0},
     },
+    "jd_to_sol_neptunian_time": {
+        "status": "python_only",
+        "rationale": "v0.8.0 Sol Neptunian Time (Voyager 2 System III)",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_neptunian_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_neptunian_time",
+        "kwargs_py": {"nsd": 0.0},
+    },
     "get_natural_resonance_group": {
         "status": "python_only",
         "rationale": "metadata about the RESONANCES table; pure-Python",

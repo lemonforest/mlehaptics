@@ -183,6 +183,13 @@ def _cmd_time_saturn(args: argparse.Namespace) -> int:
     return _emit(bridge.jd_to_sol_saturnian_time(args.jd), pretty=args.pretty)
 
 
+def _cmd_time_neptune(args: argparse.Namespace) -> int:
+    if args.nsd is not None:
+        return _emit(bridge.sol_neptunian_time_to_jd(args.nsd),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_neptunian_time(args.jd), pretty=args.pretty)
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -761,6 +768,34 @@ def _make_parser() -> argparse.ArgumentParser:
     tsat_g.add_argument("--ssd", type=float, default=None,
                          help="Saturn sol-date count to invert back to JD_TDB")
     tsat.set_defaults(func=_cmd_time_saturn)
+
+    # time-neptune
+    tn = sub.add_parser(
+        "time-neptune",
+        help="Sol Neptunian Time at a JD (Voyager 2 magnetic-field rotation)",
+        description=(
+            "Convert JD (TDB) to Sol Neptunian Time. Neptune's System III\n"
+            "rotation period (16h 6m 36s ± 3s) was measured by Voyager 2\n"
+            "in 1989 from magnetic-field tilt-tracking; still the canonical\n"
+            "value (no Cassini-equivalent ring seismology mission to Neptune\n"
+            "yet). Prograde rotation, axial tilt 28.32°, year = 164.79 Earth-\n"
+            "years. Anchor: J2000.0.\n"
+            "Use --nsd to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-neptune --jd 2451545.0   # J2000 (anchor)\n"
+            "  ephemerides-spectral time-neptune --jd 2461165.0   # today-ish\n"
+            "  ephemerides-spectral time-neptune --nsd 5000       # 5000 Neptunian sols past J2000"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tn_g = tn.add_mutually_exclusive_group(required=True)
+    tn_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Neptunian Time")
+    tn_g.add_argument("--nsd", type=float, default=None,
+                       help="Neptune sol-date count to invert back to JD_TDB")
+    tn.set_defaults(func=_cmd_time_neptune)
 
     # lunar-kernels
     lk = sub.add_parser(

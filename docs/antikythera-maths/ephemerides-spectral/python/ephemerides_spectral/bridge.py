@@ -65,6 +65,8 @@ from ephemerides_spectral._research.time_scales import (
     JUPITER_AXIAL_TILT_DEG, JOVT_EPOCH_JD_TDB,
     SATURN_SYS_III_DAY_DAYS, SATURN_ORBITAL_PERIOD_YEARS,
     SATURN_AXIAL_TILT_DEG, SATT_EPOCH_JD_TDB,
+    NEPTUNE_SIDEREAL_DAY_DAYS, NEPTUNE_ORBITAL_PERIOD_YEARS,
+    NEPTUNE_AXIAL_TILT_DEG, NEPT_EPOCH_JD_TDB,
     jd_to_lunar,
     jd_to_msd,
     jd_to_uranian_time,
@@ -77,6 +79,7 @@ from ephemerides_spectral._research.time_scales import (
     sol_sol_time_to_jd as _sol_sol_time_to_jd,
     jd_to_jovian_time, jovian_time_to_jd,
     jd_to_saturnian_time, saturnian_time_to_jd,
+    jd_to_neptunian_time, neptunian_time_to_jd,
 )
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
@@ -689,6 +692,36 @@ def sol_saturnian_time_to_jd(ssd: float) -> Dict[str, Any]:
     """Inverse on the Saturn sol-date count."""
     return _scalar_inverse(ssd, "ssd",
                            saturnian_time_to_jd, "ssd")
+
+
+def jd_to_sol_neptunian_time(jd_tdb: float) -> Dict[str, Any]:
+    """JD (TDB) → Sol Neptunian Time. Voyager 2 (1989) measured Neptune's
+    System III rotation period as 16h 6m 36s ± 3s; that's still the
+    canonical value. Prograde rotation, mid-range axial tilt (28.32°).
+    Year = 164.79 Earth-years. Anchor: J2000.0."""
+    err = _validate_jd(jd_tdb)
+    if err is not None: return err
+    out = jd_to_neptunian_time(float(jd_tdb))
+    return {
+        "ok": True,
+        **out.to_dict(),
+        "epoch": {
+            "description": "J2000.0",
+            "jd_tdb": float(NEPT_EPOCH_JD_TDB),
+            "sidereal_day_days": float(NEPTUNE_SIDEREAL_DAY_DAYS),
+            "orbital_period_years": float(NEPTUNE_ORBITAL_PERIOD_YEARS),
+            "axial_tilt_deg": float(NEPTUNE_AXIAL_TILT_DEG),
+            "source": ("Voyager 2 1989 magnetic-field tilt-tracking; "
+                       "no Cassini-equivalent ring-seismology mission "
+                       "to Neptune yet"),
+        },
+    }
+
+
+def sol_neptunian_time_to_jd(nsd: float) -> Dict[str, Any]:
+    """Inverse on the Neptune sol-date count."""
+    return _scalar_inverse(nsd, "nsd",
+                           neptunian_time_to_jd, "nsd")
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:

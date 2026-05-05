@@ -870,6 +870,80 @@ def saturnian_time_to_jd(ssd: float) -> float:
     return SATT_EPOCH_JD_TDB + float(ssd) * SATURN_SYS_III_DAY_DAYS
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Sol Neptunian Time (v0.8.0)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Neptune's sidereal day is 16h 6m 36s = 0.67125 Earth-days, defined
+# by the magnetic-field rotation (System III since Voyager 2 1989).
+# Prograde rotation, mid-range axial tilt (28.32°). Year is 164.79
+# Earth-years.
+#
+# Anchor: J2000.0. No obvious natural epoch like Uranus's 2007
+# northern equinox; J2000 mirrors Saturn's choice.
+
+NEPTUNE_SIDEREAL_DAY_DAYS:    float = 0.67125
+NEPTUNE_ORBITAL_PERIOD_DAYS:  float = 60182.0
+NEPTUNE_ORBITAL_PERIOD_YEARS: float = NEPTUNE_ORBITAL_PERIOD_DAYS / 365.25
+NEPTUNE_AXIAL_TILT_DEG:       float = 28.32
+NEPT_EPOCH_JD_TDB:            float = 2451545.0  # J2000.0
+
+
+@dataclass(frozen=True)
+class NeptunianTime:
+    """Sol Neptunian Time at a given JD (TDB).
+
+    Voyager-2 measured Neptune's System III rotation period as
+    16h 6m 36s ± 3s in 1989. Subsequent observations have not
+    materially revised the value (no Cassini-equivalent ring
+    seismology mission to Neptune yet — when one happens, this
+    constant may need a Mankovich-style update).
+    """
+    jd_tdb: float
+    nsd: float
+    nst_hours: float
+    nst_seconds: float
+    orbital_phase: float
+    years_since_epoch: float
+    retrograde: bool = False
+    rotation_system: str = "III"
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "nsd":               float(self.nsd),
+            "nst_hours":         float(self.nst_hours),
+            "nst_seconds":       float(self.nst_seconds),
+            "orbital_phase":     float(self.orbital_phase),
+            "years_since_epoch": float(self.years_since_epoch),
+            "retrograde":        bool(self.retrograde),
+            "rotation_system":   str(self.rotation_system),
+        }
+
+
+def jd_to_neptunian_time(jd_tdb: float) -> NeptunianTime:
+    """JD (TDB) → Sol Neptunian Time."""
+    delta = float(jd_tdb) - NEPT_EPOCH_JD_TDB
+    nsd = delta / NEPTUNE_SIDEREAL_DAY_DAYS
+    sol_frac = nsd - math.floor(nsd)
+    years = delta / NEPTUNE_ORBITAL_PERIOD_DAYS
+    return NeptunianTime(
+        jd_tdb=float(jd_tdb),
+        nsd=nsd,
+        nst_hours=sol_frac * 24.0,
+        nst_seconds=sol_frac * NEPTUNE_SIDEREAL_DAY_DAYS * 86400.0,
+        orbital_phase=years - math.floor(years),
+        years_since_epoch=years,
+        retrograde=False,
+        rotation_system="III",
+    )
+
+
+def neptunian_time_to_jd(nsd: float) -> float:
+    """Inverse on the Neptune sol-date count."""
+    return NEPT_EPOCH_JD_TDB + float(nsd) * NEPTUNE_SIDEREAL_DAY_DAYS
+
+
 __all__ = [
     "MARS_SOL_PER_JD",
     "MSD_EPOCH_JD",
@@ -916,6 +990,11 @@ __all__ = [
     "SATURN_ORBITAL_PERIOD_YEARS",
     "SATURN_AXIAL_TILT_DEG",
     "SATT_EPOCH_JD_TDB",
+    "NEPTUNE_SIDEREAL_DAY_DAYS",
+    "NEPTUNE_ORBITAL_PERIOD_DAYS",
+    "NEPTUNE_ORBITAL_PERIOD_YEARS",
+    "NEPTUNE_AXIAL_TILT_DEG",
+    "NEPT_EPOCH_JD_TDB",
     "MarsTime",
     "LunarTime",
     "UranianTime",
@@ -925,6 +1004,7 @@ __all__ = [
     "SolSolTime",
     "JovianTime",
     "SaturnianTime",
+    "NeptunianTime",
     "jd_to_msd",
     "msd_to_jd",
     "jd_to_lunar",
@@ -942,4 +1022,6 @@ __all__ = [
     "jovian_time_to_jd",
     "jd_to_saturnian_time",
     "saturnian_time_to_jd",
+    "jd_to_neptunian_time",
+    "neptunian_time_to_jd",
 ]

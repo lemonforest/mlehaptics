@@ -225,6 +225,8 @@ def test_v080_sol_symphony_round_trips_at_epoch() -> None:
          2444000.5, "jsd", "jsd"),
         (bridge.jd_to_sol_saturnian_time, bridge.sol_saturnian_time_to_jd,
          2451545.0, "ssd", "ssd"),
+        (bridge.jd_to_sol_neptunian_time, bridge.sol_neptunian_time_to_jd,
+         2451545.0, "nsd", "nsd"),
     ]
     for fwd, inv, epoch_jd, field, arg_name in cases:
         f = fwd(epoch_jd)
