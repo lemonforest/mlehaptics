@@ -189,10 +189,15 @@ jobs:
           # Tests that don't require the native binary path. The
           # native-parity test_native_parity.py skips cleanly when
           # HAS_NATIVE is False; we don't run it here.
+          # test_parity_smoke.py is the C/Python parity SSOT — its
+          # python_only entries must pass in this fallback cell so
+          # we catch drift in the bridge surface even when no native
+          # binary is available.
           python -m pytest \
               tests/test_facades.py \
               tests/test_immolation.py \
               tests/test_data_freshness.py \
+              tests/test_parity_smoke.py \
               -q
 
   pure-wheel-build:
@@ -309,9 +314,19 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
           CIBW_TEST_REQUIRES: "pytest skyfield jplephem"
+          # test_parity_smoke.py is the C/Python parity SSOT — exercising
+          # it inside the cibuildwheel test environment ensures both
+          # python_only AND parity entries pass against the actual
+          # platform-specific native binary, catching drift that
+          # source-build cells alone wouldn't surface.
+          # test_hd_parity.py + test_channel_basis_parity.py pin the
+          # Tier 2a/2b byte-parity contracts; same logic.
           CIBW_TEST_COMMAND: >
             pytest {package}/tests/test_native_parity.py
             {package}/tests/test_immolation.py
+            {package}/tests/test_parity_smoke.py
+            {package}/tests/test_channel_basis_parity.py
+            {package}/tests/test_hd_parity.py
             {package}/tests/test_facades.py -q
           CIBW_TEST_SKIP: "*-macosx_arm64 *-*linux_aarch64"
 
