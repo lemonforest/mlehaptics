@@ -7,7 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.0)
+(no entries yet — next entries land after v0.9.1)
+
+## [0.9.1] — 2026-05-05
+
+**Sol Time naming convention overhaul + Sol Terra Time + Sol Luna Time.** The Sol Time series gets a uniform indexing convention: direct Latin proper noun (Mercury, Venus, Pluto, Terra, Luna, Sol) for rocky bodies + Sun + Luna; established adjective form (Jovian, Saturnian, Uranian, Neptunian) for the gas/ice giants where the adjective is deeply established in astronomical tradition. Each bridge return now carries an `abbreviation` field per the user's indexing table.
+
+Two new time systems join: **Sol Terra Time (STT)** — Terra's own surface clock — and **Sol Luna Time (SLT)** — Luna's surface clock, distinct from the existing **Sol Lunar Time** (`get_lunar_phase`) which returns Luna's synodic+sidereal phase as observed from Terra.
+
+### The naming framing
+
+> *"Returning to the giants whose shoulders we stand on. We've always had a lunar orbit and a lunar eclipse. We've all had terrain and terrestrial animals. We're just putting the books back in their dewey decimal spot. We no longer kow tow for the sake of leaning forward."*
+
+The adjective forms `lunar`, `terrestrial`, `terran` were always derived from the proper nouns Luna and Terra — the language already carried the convention. The body-identity strings now reflect what the language always implied. Generic English `moon` and `earth` return to their generic meanings.
+
+### Renames (BREAKING)
+
+| Before | After | Abbrev |
+|---|---|---|
+| `jd_to_sol_mercurian_time` | `jd_to_sol_mercury_time` | SMeT |
+| `jd_to_sol_venusian_time` | `jd_to_sol_venus_time` | SVT |
+| `jd_to_sol_plutonian_time` | `jd_to_sol_pluto_time` | SPT |
+| `MercurianTime` | `MercuryTime` | |
+| `VenusianTime` | `VenusTime` | |
+| `PlutonianTime` | `PlutoTime` | |
+
+Same for the `*_time_to_jd` inverses. The CLI subcommands (`time-mercury`, `time-venus`, `time-pluto`) already used the body-name form — only the underlying Python identifiers changed.
+
+### Kept (gas/ice giants, established astronomical tradition)
+
+| Body | Function name | Abbrev |
+|---|---|---|
+| Jupiter | `jd_to_sol_jovian_time` | SJT |
+| Saturn | `jd_to_sol_saturnian_time` | SST |
+| Uranus | `jd_to_sol_uranian_time` | SUT |
+| Neptune | `jd_to_sol_neptunian_time` | SNT |
+
+### New time systems (additive)
+
+- **Sol Terra Time (STT)** — `bridge.jd_to_sol_terra_time(jd_tdb)`, CLI `time-terra`. Terra's surface clock anchored at J2000 with Greenwich prime meridian. Sidereal day = 23h 56m 4s = 0.99726957 Earth-days; solar day = 24h = 1.0 Earth-day (by definition).
+- **Sol Luna Time (SLT)** — `bridge.jd_to_sol_luna_time(jd_tdb)`, CLI `time-luna`. Luna's surface clock, tidally locked so sidereal day = orbital period = 27.32 d; solar day = synodic month = 29.53 d. **Distinct from Sol Lunar Time** (`get_lunar_phase`), which is Luna's synodic+sidereal phase as observed from Terra. Same body, different observer frame.
+
+### Abbreviation field (additive)
+
+Every Sol Time bridge return's `epoch:` block now carries an `"abbreviation": "<short>"` field per the user's indexing table:
+
+| Body | Abbrev |
+|---|---|
+| Mercury | SMeT |
+| Venus | SVT |
+| Terra | STT |
+| Luna | SLT |
+| Mars | (kept as MSD via `MarsTime`; no abbreviation field on the existing surface — additive in v0.9.x patch) |
+| Jupiter | SJT |
+| Saturn | SST |
+| Uranus | SUT |
+| Neptune | SNT |
+| Pluto | SPT |
+| Sol | SSoT |
+
+### Tests
+
+111 active tests pass (was 107 in v0.9.0); 5 skipped (4 cibuildwheel-only + 1 `tier1_skip` `find_itn_pathways`).
 
 ## [0.9.0] — 2026-05-05
 

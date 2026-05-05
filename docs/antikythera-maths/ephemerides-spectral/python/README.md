@@ -29,7 +29,29 @@ Both backends implement the same algebraic substrate (cyclic-group representatio
 - **Observer-Agnostic Views:** Unitary binding to generate topocentric "Local View" hypervectors at any (lat, lon) on any body.
 - **Spectral Syzygy Window Search (v0.3.1+):** `find-syzygies --from-jd ... --to-jd ...` enumerates candidate syzygies in closed form via the natural cyclic-group decomposition (synodic + draconic month), then confirms each by spectral projection. ~1000× faster than the v0.3.0 point-evaluation `eclipse --jd` pattern for window queries.
 - **ITN Pathway / Lagrange-Tube Query (v0.8.1+):** `find-tubes --from-jd ... --to-jd ... --departure earth --target mars` enumerates Hohmann transfer windows via the same closed-form `find-syzygies` discipline. "Surfing the perturbations" — the natural cyclic structure tells you when launch windows open without integrating any trajectories. First-cut Hohmann math; future versions layer low-energy / heteroclinic-tube candidates under the same surface (`transfer_kind` field reserves room). References: Koon-Lo-Marsden-Ross 2011; Lo's Genesis trajectory work.
-- **Sol Symphony Times (v0.3.0 + v0.5.4 + v0.8.0):** every body in the Sol Star System has a "Sol Time" exposing its rotational + orbital cycles anchored to a conventional epoch — Mars Sol Date / Mars Coordinated Time (Allison & McEwen 2000), Sol Lunar Time (Earth's Moon synodic + sidereal phase), Sol Uranian Time (USD/SUT, anchored at the 2007 northern equinox), Sol Venusian, Sol Mercurian, Sol Plutonian, Sol Sol (the Sun, Carrington rotation system), Sol Jovian (Jupiter System III magnetic-field rotation), Sol Saturnian (Cassini-revised System III), Sol Neptunian (Voyager-2 System III). **The Solar System is a natural symphony of overlapping clocks**; Sol Time is just the package telling you what time it is on each body so you can correlate that body's local clock with JD. Naming hierarchy for future moon ports: `Sol <Parent>-<Body> Time` (e.g., Sol Pluto-Charon Time).
+- **Sol Symphony Times (v0.3.0 + v0.5.4 + v0.8.0 + v0.9.1):** every body in the Sol Star System has a "Sol Time" exposing its rotational + orbital cycles anchored to a conventional epoch — Mars Sol Date / Mars Coordinated Time (Allison & McEwen 2000), Sol Lunar Time (Luna's synodic + sidereal phase observed from Terra), Sol Uranian Time (USD/SUT, anchored at the 2007 northern equinox), Sol Venus / Sol Mercury / Sol Pluto / Sol Terra / Sol Luna (rocky bodies + Sun + Luna in direct Latin proper-noun form), Sol Sol (the Sun, Carrington rotation system), Sol Jovian / Sol Saturnian / Sol Neptunian (gas/ice giants in established adjective form). **The Solar System is a natural symphony of overlapping clocks**; Sol Time is just the package telling you what time it is on each body so you can correlate that body's local clock with JD. Naming hierarchy for future moon ports: `Sol <Parent>-<Body> Time` (e.g., Sol Pluto-Charon Time).
+
+### Naming convention (v0.9.x)
+
+The body-identity strings use Latin proper nouns: `terra`, `luna`. The generic English words `earth` (= soil, ground) and `moon` (= any natural satellite) return to their generic meanings.
+
+> *"Returning to the giants whose shoulders we stand on. We've always had a lunar orbit and a lunar eclipse. We've all had terrain and terrestrial animals. We're just putting the books back in their dewey decimal spot. We no longer kow tow for the sake of leaning forward."*
+
+The adjective forms `lunar`, `terran`, `terrestrial` always derived from `Luna` and `Terra` — the language already carried the convention. v0.9.0 made the body-identity strings reflect what the language always implied. v0.9.1 extends this to the Sol Time series itself: rocky bodies + Sun + Luna use direct Latin proper nouns; gas/ice giants keep the established astronomical adjective forms (Jovian, Saturnian, Uranian, Neptunian).
+
+| Body | Sol Time | Abbrev | CLI |
+|---|---|---|---|
+| Mercury | Sol Mercury Time | SMeT | `time-mercury` |
+| Venus | Sol Venus Time | SVT | `time-venus` |
+| Terra | Sol Terra Time | STT | `time-terra` |
+| Mars | Sol Mars Time (= MSD/MTC) | SMaT | `time-mars` |
+| Luna | Sol Luna Time | SLT | `time-luna` |
+| Jupiter | Sol Jovian Time | SJT | `time-jupiter` |
+| Saturn | Sol Saturnian Time | SST | `time-saturn` |
+| Uranus | Sol Uranian Time | SUT | `time-uranus` |
+| Neptune | Sol Neptunian Time | SNT | `time-neptune` |
+| Pluto | Sol Pluto Time | SPT | `time-pluto` |
+| Sol | Sol Sol Time | SSoT | `time-sol` |
 
 ### Resolution Scaling
 
@@ -122,6 +144,15 @@ ephemerides-spectral time-sol --jd 2451545.0      # Sun's own Carrington Rotatio
 ephemerides-spectral time-jupiter --jd 2444000.5
 ephemerides-spectral time-saturn --jd 2451545.0
 ephemerides-spectral time-neptune --jd 2451545.0
+
+# Sol Terra Time (v0.9.1) — Terra's surface clock
+# Sidereal day 23h 56m 4s (rotation rel. stars), solar day 24h (rel. Sun)
+ephemerides-spectral time-terra --jd 2451545.0    # J2000 anchor
+
+# Sol Luna Time (v0.9.1) — Luna's surface clock
+# Tidally locked: sidereal=orbital=27.32d, solar=synodic=29.53d
+# DISTINCT from Sol Lunar Time (time-lunar) which gives Luna's phase observed from Terra
+ephemerides-spectral time-luna --jd 2451545.0     # J2000 anchor
 
 # ITN pathway / Lagrange-tube query (v0.8.1) — Hohmann transfer windows
 # "surfing the perturbations" via closed-form synodic enumeration

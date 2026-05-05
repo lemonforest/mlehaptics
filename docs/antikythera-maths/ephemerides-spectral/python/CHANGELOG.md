@@ -10,7 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.9.0)
+(no entries yet — next entries land after v0.9.1)
+
+## [0.9.1] — 2026-05-05
+
+**Sol Time naming convention overhaul + Sol Terra Time + Sol Luna Time.**
+
+> *"Returning to the giants whose shoulders we stand on. We've always had a lunar orbit and a lunar eclipse. We've all had terrain and terrestrial animals. We're just putting the books back in their dewey decimal spot."*
+
+### Renames (BREAKING)
+
+`Sol Mercurian/Venusian/Plutonian Time` → `Sol Mercury/Venus/Pluto Time`. Function names, dataclasses, and bridge methods all updated. Gas/ice giants (Jovian, Saturnian, Uranian, Neptunian) keep adjective forms — those are deeply established in astronomical tradition.
+
+### New time systems (additive)
+
+- **Sol Terra Time (STT)** — Terra's own surface clock; `bridge.jd_to_sol_terra_time(jd_tdb)`, CLI `time-terra`.
+- **Sol Luna Time (SLT)** — Luna's surface clock; `bridge.jd_to_sol_luna_time(jd_tdb)`, CLI `time-luna`. **Distinct from Sol Lunar Time** (`get_lunar_phase`) which gives Luna's phase as observed from Terra.
+
+### Abbreviation field
+
+Each Sol Time bridge return's `epoch:` block now carries `"abbreviation": "STT"` / `"SLT"` / `"SVT"` / etc. per the user's indexing table.
+
+### Tests
+
+111 active tests pass; 5 skipped (4 cibuildwheel + 1 `tier1_skip`).
 
 ## [0.9.0] — 2026-05-05
 
