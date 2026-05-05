@@ -10,7 +10,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.5.0)
+(no entries yet — next entries land after v0.5.1)
+
+## [0.5.1] — 2026-05-05
+
+Patch-shrinks-residual benchmark — earn the right to predict missing
+data. Verdict: **PARTIAL** (J–S ~77%, Mercury ~40%, Mars stuck at 3%
+due to FFT bin leakage). The v0.4.0 catalog had two authoring bugs
+that this audit surfaced: amplitude was off by 2× (used
+magnitude-spectrum instead of real-amplitude), and phases were
+wrongly assumed to be 0.
+
+### Added — research-side benchmarking
+
+- `research/patch_shrinks_residual.py` — runs the v0.5.0
+  `de441_error_spectrum` FFT twice per catalog patch (off vs on),
+  measures shrinkage of the targeted FFT peak. Reports verdict per
+  patch and overall.
+- `research/author_phase_recovered_patches.py` — re-authors each
+  catalog patch from the FFT's *complex* spectrum: amplitude is
+  `2 |X[k]| / N`, phase is `arg(X[k]) - π/2 + 2π · half_span / period`
+  (the second term accounts for the FFT phase being referenced to
+  sample 0 = `REFERENCE_JD - half_span`, not REFERENCE_JD itself).
+  Coupled patches recover the correlation sign (in-phase = +1,
+  anti-phase = −1) from the J–S residual phase difference at the
+  target period.
+- `research/verify_recovered_patches.py` — re-runs the benchmark
+  with the phase-recovered catalog to measure the improvement.
+
+### Findings — `figures/patch_shrinks_residual_v0.5.1.md`
+
+| Patch | v0.4.0 (mag-only) | v0.5.1 (recovered) |
+|---|---|---|
+| `mars-7.96yr-diagonal` | +2.5% | +2.7% (still stuck) |
+| `mercury-10.69yr-diagonal` | **−49.9% (peak GREW)** | **+39.6%** |
+| `jupiter-saturn-9.56yr-coupled` | +30.9% J / −0.4% S | **+77.1% J / +76.4% S** |
+
+Mercury swung 138 percentage points; J–S went from one-sided to
+balanced ~77% shrinkage on both bodies after the correlation flip
+(`−1 → +1`). Mars stays stuck because its 7.96 yr signal smears
+across two adjacent FFT bins (rank-1 at 7.960 yr / 3.45° and rank-2
+at 7.935 yr / 3.36°) — a single-frequency patch can't cancel
+FFT-leaked energy. Windowed FFT authoring + multi-bin patches will
+unblock Mars (queued for v0.5.2+).
+
+### Critical methodology bugs surfaced (v0.4.0 catalog)
+
+- **Amplitude off by 2×.** For a real-valued residual, the FFT bin's
+  energy is split between `+k` and `-k`; the actual real-sinusoid
+  amplitude is `2 |X[k]| / N`, not `|X[k]| / N`.
+- **Phase assumed 0.** Magnitude-only authoring discards phase.
+  Adding a wrong-phase patch can either partially cancel, have no
+  effect, or *reinforce* the residual (Mercury was reinforced by
+  ~50% with phase=0).
+- **J–S correlation was wrong.** v0.4.0 set `correlation = −1`
+  (anti-correlated libration). The recovered phase difference says
+  `correlation = +1` (in-phase). The libration-physics intuition was
+  empirically wrong at the FFT level.
+
+### Notes
+
+- The v0.4.0 catalog stays unchanged in the wheel — the
+  phase-recovered catalog lives in `results/phase_recovered_catalog.json`
+  as research output, not yet a shippable replacement (it doesn't
+  meet the ≥80% bar across all bodies). v0.5.2 will unblock Mars via
+  windowed FFT and ship a `CATALOG_V2`.
+- `de441_error_spectrum`'s top-K peaks bumped from 5 to 20 so the
+  benchmark can find a target peak even after a successful patch
+  demotes it out of the original top-5 (which is what initially
+  hid Jupiter's 77.1% shrinkage as "no peak in tolerance").
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.5.1 entry.
 
 ## [0.5.0] — 2026-05-05
 

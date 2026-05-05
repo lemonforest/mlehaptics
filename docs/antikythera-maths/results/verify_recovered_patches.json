@@ -1,0 +1,60 @@
+{
+  "overall_verdict": "PARTIAL",
+  "per_patch": [
+    {
+      "average_shrinkage_pct_of_baseline": 2.6983038085329807,
+      "patch_name": "mars-7.96yr-diagonal",
+      "per_body": {
+        "mars": {
+          "baseline_amp_deg": 3.448798706434368,
+          "delta_amp_deg": 0.09305906684435472,
+          "patched_amp_deg": 3.355739639590013,
+          "shrinkage_pct_of_baseline": 2.6983038085329807
+        }
+      },
+      "recovered_amplitude_deg": 6.897597412868735,
+      "recovered_correlation": null,
+      "recovered_phase_rad": 0.342644652768648,
+      "verdict": "REJECTED"
+    },
+    {
+      "average_shrinkage_pct_of_baseline": 39.649200500366774,
+      "patch_name": "mercury-10.69yr-diagonal",
+      "per_body": {
+        "mercury": {
+          "baseline_amp_deg": 9.191151664983474,
+          "delta_amp_deg": 3.6442181519420966,
+          "patched_amp_deg": 5.5469335130413775,
+          "shrinkage_pct_of_baseline": 39.649200500366774
+        }
+      },
+      "recovered_amplitude_deg": 18.382303329966952,
+      "recovered_correlation": null,
+      "recovered_phase_rad": 3.0519605024795595,
+      "verdict": "REJECTED"
+    },
+    {
+      "average_shrinkage_pct_of_baseline": 76.75242917470436,
+      "patch_name": "jupiter-saturn-9.56yr-coupled",
+      "per_body": {
+        "jupiter": {
+          "baseline_amp_deg": 44.63327491588438,
+          "delta_amp_deg": 34.39294059851459,
+          "patched_amp_deg": 10.240334317369786,
+          "shrinkage_pct_of_baseline": 77.0567265416471
+        },
+        "saturn": {
+          "baseline_amp_deg": 45.01694584057501,
+          "delta_amp_deg": 34.41461409203146,
+          "patched_amp_deg": 10.602331748543557,
+          "shrinkage_pct_of_baseline": 76.44813180776164
+        }
+      },
+      "recovered_amplitude_deg": 89.65022075645939,
+      "recovered_correlation": 1,
+      "recovered_phase_rad": 6.021728665172674,
+      "verdict": "PARTIAL"
+    }
+  ],
+  "vindication_threshold_pct": 80.0
+}
