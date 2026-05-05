@@ -100,6 +100,13 @@ from ephemerides_spectral._research.proper_time import (
     compare_proper_times as _compare_proper_times,
     get_proper_time_rate as _get_proper_time_rate_impl,
 )
+from ephemerides_spectral._research.kinematics import (
+    DEFAULT_FRAME as KINEMATICS_DEFAULT_FRAME,
+    SUPPORTED_FRAMES as KINEMATICS_SUPPORTED_FRAMES,
+    AU_M as _KINEMATICS_AU_M,
+    get_full_system_state as _get_full_system_state_impl,
+    get_kinematic_state as _get_kinematic_state_impl,
+)
 from ephemerides_spectral._research.bodies import BODIES as _BODIES
 from ephemerides_spectral._research.syzygy_window import (
     find_syzygies as _find_syzygies_impl,
@@ -1176,6 +1183,205 @@ def apply_proper_correction(
         "note": (f"Proper-time correction for {body_key}: count_proper = "
                  f"count × {rate:.12g}. v0.11.0 captures GR surface + "
                  f"orbital kinematic; J₂ oblateness deferred."),
+    }
+    return result
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.12.0 Sol Kinematics — per-body orbital state
+# ──────────────────────────────────────────────────────────────────────
+#
+# Static encoding of orbital state — semi-major axis, mean orbital
+# velocity, kinetic energy, angular momentum — for every body in the
+# 38-body roster. Mirrors chess-spectral's `qm_2d.py` / `qm_4d.py`
+# *kinematics* layer (static observables, no time-evolution).
+#
+# v0.12.0 implements the circular-orbit Kepler-mean approximation
+# (same math as `proper_time.py` for SPrT's kinematic dilation term);
+# eccentricity / inclination corrections ship as v0.12.x refinements.
+# Per-JD evolution + force vectors + energy budgets are the v0.13.0
+# *Dynamics* counterpart.
+#
+# Validation pinned by `tests/test_kinematics.py` against the same
+# 9 published Solar-System values that the Phase A audit script
+# (`research/kinematics_dynamics_audit.py`) verifies independently:
+#
+#   Mercury / Earth / Mars / Jupiter / Pluto orbital velocities
+#   (within 1.1 / 0.02 / 0.25 / 0.08 / 0.02 % of NASA fact sheets)
+#   Total system energy < 0 (system is bound)
+#   Jupiter holds ~61% of total angular momentum
+#   Outer planets hold ~99.84% of planetary angular momentum
+#   Sun KE / Mc² < 1e-12 (Sun barely moves in barycentric frame)
+
+
+def get_kinematic_state(
+    body: str,
+    *,
+    jd_tdb: Optional[float] = None,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """Mean orbital kinematic state for one body.
+
+    Parameters
+    ----------
+    body : str
+        A body key in `BODIES` (e.g. ``"mars"``, ``"luna"``, ``"sun"``).
+    jd_tdb : float, optional
+        Julian Date in TDB. v0.12.0 ignores this (uses mean orbital
+        elements; no per-JD eccentricity correction); accepted for
+        forward compatibility.
+    frame : str, default ``"heliocentric_ecliptic"``
+        Reference frame. ``"heliocentric_ecliptic"`` and
+        ``"parent_centric"`` accepted; both report the same orbital
+        elements at v0.12.0 precision (the keyword reserves room for
+        v0.12.x-style barycentric or J2000-ICRS frame switching).
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "body": ..., "frame": ..., "parent": ...,
+            "mass_kg": ..., "semi_major_axis_au": ..., "orbital_velocity_km_s": ...,
+            "orbital_period_days": ..., "kinetic_energy_j": ...,
+            "angular_momentum_z_kg_m2_s": ..., "abbreviation": "Sol-K"}``.
+        On error: ``{"ok": False, "error": "..."}``.
+
+    For the Sun the orbital fields are zeroed and a `note` is set
+    ("Body has period_days = 0 in BODIES table; ...") — the Sun's
+    barycentric motion is dominated by Sun-Jupiter wobble (~12 m/s
+    peak), two orders of magnitude below this approximation's noise
+    floor.
+    """
+    if not isinstance(body, str) or body not in _BODIES:
+        return _err(
+            f"body must be one of {sorted(_BODIES)}, got {body!r}"
+        )
+    if frame not in KINEMATICS_SUPPORTED_FRAMES:
+        return _err(
+            f"frame must be one of {list(KINEMATICS_SUPPORTED_FRAMES)}, "
+            f"got {frame!r}"
+        )
+    state = _get_kinematic_state_impl(body, jd_tdb=jd_tdb, frame=frame)
+    out: Dict[str, Any] = {"ok": True, **state.to_dict()}
+    out["abbreviation"] = "Sol-K"
+    return out
+
+
+def get_full_system_state(
+    *,
+    jd_tdb: Optional[float] = None,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """Kinematic state for every body in the 38-body roster.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "frame": ..., "n_bodies": 38, "n_with_state": 37,
+            "bodies": {body_key: KinematicState_dict, ...},
+            "totals": {total_kinetic_energy_j, total_angular_momentum_z, ...},
+            "abbreviation": "Sol-K"}``.
+
+    The `totals` block aggregates the per-body computations into the
+    Solar-System-level numbers used by the Phase A audit (Jupiter's
+    fraction of total L; outer-planet fraction; system bound check
+    requires the dynamics surface in v0.13.0 to add potential energy).
+    """
+    if frame not in KINEMATICS_SUPPORTED_FRAMES:
+        return _err(
+            f"frame must be one of {list(KINEMATICS_SUPPORTED_FRAMES)}, "
+            f"got {frame!r}"
+        )
+    states = _get_full_system_state_impl(jd_tdb=jd_tdb, frame=frame)
+    bodies_dict = {key: s.to_dict() for key, s in states.items()}
+    # System-level aggregates
+    n_with_state = sum(1 for s in states.values() if s.note is None)
+    total_ke = sum(s.kinetic_energy_j for s in states.values() if s.note is None)
+    total_lz = sum(s.angular_momentum_z_kg_m2_s for s in states.values() if s.note is None)
+    # Planet vs. total split (the "Jupiter holds ~61%" headline)
+    planet_lz = sum(
+        s.angular_momentum_z_kg_m2_s
+        for body_key, s in states.items()
+        if s.note is None and _BODIES[body_key].category == "planet"
+    )
+    jupiter_lz = states["jupiter"].angular_momentum_z_kg_m2_s if "jupiter" in states else 0.0
+    outer_lz = sum(
+        states[k].angular_momentum_z_kg_m2_s
+        for k in ("jupiter", "saturn", "uranus", "neptune")
+        if k in states and states[k].note is None
+    )
+    return {
+        "ok": True,
+        "frame": frame,
+        "n_bodies": len(_BODIES),
+        "n_with_state": n_with_state,
+        "abbreviation": "Sol-K",
+        "totals": {
+            "total_kinetic_energy_j": float(total_ke),
+            "total_angular_momentum_z_kg_m2_s": float(total_lz),
+            "planet_angular_momentum_z_kg_m2_s": float(planet_lz),
+            "jupiter_angular_momentum_z_kg_m2_s": float(jupiter_lz),
+            "outer_planets_angular_momentum_z_kg_m2_s": float(outer_lz),
+            "fraction_in_planets":
+                float(planet_lz / total_lz) if total_lz else 0.0,
+            "fraction_in_jupiter":
+                float(jupiter_lz / total_lz) if total_lz else 0.0,
+            "fraction_in_outer_planets_of_planet_total":
+                float(outer_lz / planet_lz) if planet_lz else 0.0,
+        },
+        "bodies": bodies_dict,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.12.0 Sol Time `--state` post-processor
+# ──────────────────────────────────────────────────────────────────────
+#
+# Each Sol Time bridge function (`jd_to_sol_*_time`) returns a dict
+# describing *time*. The CLI's `--state` flag (analogous to v0.11.0's
+# `--proper`) augments that with a `kinematic_state` block — same body
+# the Sol Time refers to, its orbital state at the JD.
+#
+# Same canonical-body lookup as the SPrT post-processor; reuses the
+# `_SPRT_COMMAND_MAP` body keys (Mars time → Mars; STLT → Terra,
+# since STLT is observed-from-Terra; etc.).
+
+
+def apply_state_correction(
+    result: Dict[str, Any],
+    subcommand: str,
+    *,
+    frame: str = KINEMATICS_DEFAULT_FRAME,
+) -> Dict[str, Any]:
+    """Augment a Sol Time bridge result with a `kinematic_state` block.
+
+    Used by the CLI when `--state` is set on a `time-*` subcommand.
+    No-op (returns input unchanged) on error responses or unknown
+    subcommands. Mirrors `apply_proper_correction` for the SPrT
+    `--proper` flag.
+    """
+    if not result.get("ok"):
+        return result
+    if subcommand not in _SPRT_COMMAND_MAP:
+        return result
+    body_key, _ = _SPRT_COMMAND_MAP[subcommand]
+    state_result = get_kinematic_state(body_key, frame=frame)
+    if not state_result.get("ok"):
+        return result
+    result["kinematic_state"] = {
+        "applied": True,
+        "body": body_key,
+        "frame": frame,
+        "abbreviation": "Sol-K",
+        # Pull the headline numbers up to the top level of the block;
+        # callers that just want "where is Mars right now" don't need
+        # to drill into the nested dict.
+        "orbital_velocity_km_s": state_result.get("orbital_velocity_km_s"),
+        "semi_major_axis_au": state_result.get("semi_major_axis_au"),
+        "kinetic_energy_j": state_result.get("kinetic_energy_j"),
+        "angular_momentum_z_kg_m2_s": state_result.get("angular_momentum_z_kg_m2_s"),
+        "note": (f"Mean orbital state for {body_key} (circular Kepler "
+                 f"approximation; v0.12.0). Per-JD eccentricity "
+                 f"corrections deferred to v0.12.x."),
     }
     return result
 

@@ -307,6 +307,21 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "v0.11.0 SPrT post-processor — augments a Sol Time bridge result with proper-time-corrected count fields. CLI-layer concern; tested end-to-end via test_sprt.py.",
         "kwargs_py": {"result": {"ok": True, "msd": 1000.0}, "subcommand": "time-mars"},
     },
+    "get_kinematic_state": {
+        "status": "python_only",
+        "rationale": "v0.12.0 Sol Kinematics — per-body mean orbital state from Kepler's third law. Pure-Python time-scale formula; C twin queued. Mirrors chess-spectral's qm_*.py (kinematics) layer.",
+        "kwargs_py": {"body": "mars"},
+    },
+    "get_full_system_state": {
+        "status": "python_only",
+        "rationale": "v0.12.0 Sol Kinematics — full 38-body roster + system totals (Jupiter L fraction, etc.).",
+        "kwargs_py": {},
+    },
+    "apply_state_correction": {
+        "status": "python_only",
+        "rationale": "v0.12.0 Sol Kinematics post-processor — augments a Sol Time bridge result with a kinematic_state block via the CLI's --state flag. Mirrors apply_proper_correction.",
+        "kwargs_py": {"result": {"ok": True, "msd": 1000.0}, "subcommand": "time-mars"},
+    },
     "get_natural_resonance_group": {
         "status": "python_only",
         "rationale": "metadata about the RESONANCES table; pure-Python",

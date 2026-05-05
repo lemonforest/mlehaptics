@@ -78,6 +78,11 @@ def _emit_proper(result: Dict[str, Any], args: argparse.Namespace) -> int:
             lon=getattr(args, "lon", None),
             reference=getattr(args, "reference", "tcb"),
         )
+    if getattr(args, "state", False):
+        result = bridge.apply_state_correction(
+            result, args.subcommand_name,
+            frame=getattr(args, "frame", "heliocentric_ecliptic"),
+        )
     return _emit(result, pretty=args.pretty)
 
 
@@ -283,6 +288,35 @@ def _cmd_time_proper(args: argparse.Namespace) -> int:
     )
 
 
+# ── v0.12.0 Sol Kinematics — orbital state queries
+
+def _cmd_kinematics(args: argparse.Namespace) -> int:
+    """v0.12.0 Sol Kinematics — per-body or full-system orbital state.
+
+    Standalone "give me the orbital state" surface, complementary to
+    the ``--state`` flag on every ``time-*`` subcommand. With
+    ``--all``, dumps every body in the 38-body roster + system totals
+    (Jupiter angular-momentum fraction, etc.).
+    """
+    if args.all:
+        return _emit(
+            bridge.get_full_system_state(jd_tdb=args.jd, frame=args.frame),
+            pretty=args.pretty,
+        )
+    if args.body is None:
+        return _emit(
+            {"ok": False,
+             "error": "must specify --body <name> or --all"},
+            pretty=args.pretty,
+        )
+    return _emit(
+        bridge.get_kinematic_state(
+            args.body, jd_tdb=args.jd, frame=args.frame,
+        ),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_find_tubes(args: argparse.Namespace) -> int:
     return _emit(
         bridge.find_itn_pathways(
@@ -458,6 +492,31 @@ def _add_proper_flags(parser: argparse.ArgumentParser) -> None:
         "--reference", choices=("tcb", "tdb"), default="tcb",
         help="Reference time scale (default 'tcb', barycentric "
              "coordinate time per IAU 2000).",
+    )
+    # v0.12.0 — Sol Kinematics --state flag, added uniformly to every
+    # time-* subcommand the same way --proper is. When set, augments
+    # the time output with a `kinematic_state` block (orbital velocity,
+    # semi-major axis, kinetic energy, angular momentum) for the
+    # subcommand's canonical body.
+    state_grp = parser.add_argument_group(
+        "kinematic state (v0.12.0)",
+        "Augment the result with a Sol Kinematics block for the "
+        "subcommand's canonical body (no-op without --state). "
+        "Implementation lives in `bridge.apply_state_correction`; "
+        "output gains a `kinematic_state` block.",
+    )
+    state_grp.add_argument(
+        "--state", action="store_true",
+        help="Apply Sol Kinematics augmentation. Adds a "
+             "`kinematic_state` block with orbital velocity, "
+             "semi-major axis, kinetic energy, angular momentum.",
+    )
+    state_grp.add_argument(
+        "--frame", choices=("heliocentric_ecliptic", "parent_centric"),
+        default="heliocentric_ecliptic",
+        help="Reference frame for the kinematic state (default "
+             "'heliocentric_ecliptic'). v0.12.0 ships circular Kepler "
+             "approximation; both frames produce the same elements.",
     )
 
 
@@ -1175,6 +1234,56 @@ def _make_parser() -> argparse.ArgumentParser:
     tprop.add_argument("--reference", choices=("tcb", "tdb"), default="tcb",
                        help="Reference time scale (default 'tcb').")
     tprop.set_defaults(func=_cmd_time_proper)
+
+    # kinematics (v0.12.0) — Sol Kinematics standalone subcommand
+    kine = sub.add_parser(
+        "kinematics",
+        help="Sol Kinematics — orbital state for one body or the full system",
+        description=(
+            "Compute mean orbital kinematic state — semi-major axis,\n"
+            "orbital velocity, kinetic energy, angular momentum — for a\n"
+            "single body or the full 38-body roster.\n"
+            "\n"
+            "v0.12.0 implements the circular-orbit Kepler-mean approximation\n"
+            "from Kepler's third law (same math as `proper_time.py`'s\n"
+            "kinematic-dilation term). Eccentricity / inclination corrections\n"
+            "ship as v0.12.x refinements; per-JD evolution + force vectors +\n"
+            "energy budgets ship as v0.13.0 *Dynamics*.\n"
+            "\n"
+            "Mirror of chess-spectral's `qm_2d.py`/`qm_4d.py` *kinematics*\n"
+            "layer — static observables, no time-evolution.\n"
+            "\n"
+            "Validated against published NASA fact-sheet velocities for\n"
+            "Mercury / Earth / Mars / Jupiter / Pluto to within 0.02-1.1 %\n"
+            "and the Solar-System angular-momentum decomposition (Jupiter\n"
+            "holds ~61 %; outer planets hold ~99.84 % of planet total)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  # Mars's mean orbital state\n"
+            "  ephemerides-spectral kinematics --body mars\n\n"
+            "  # Full system at J2000 with totals\n"
+            "  ephemerides-spectral kinematics --all\n\n"
+            "  # Specific JD (currently no-op — v0.12.0 uses mean elements)\n"
+            "  ephemerides-spectral kinematics --body terra --jd 2451545.0\n\n"
+            "  # Pair-centric frame (moons; v0.12.0 same elements as default)\n"
+            "  ephemerides-spectral kinematics --body luna --frame parent_centric"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    kine.add_argument("--body", choices=_BODY_CHOICES, default=None,
+                      help="Body to query (omit if using --all).")
+    kine.add_argument("--all", action="store_true",
+                      help="Return state for every body in the 38-body "
+                           "roster, plus system-level totals.")
+    kine.add_argument("--jd", type=float, default=None,
+                      help="JD (TDB) — accepted for forward compat; "
+                           "v0.12.0 uses mean orbital elements regardless.")
+    kine.add_argument("--frame",
+                      choices=("heliocentric_ecliptic", "parent_centric"),
+                      default="heliocentric_ecliptic",
+                      help="Reference frame (default 'heliocentric_ecliptic').")
+    kine.set_defaults(func=_cmd_kinematics)
 
     # find-tubes (v0.8.1) — ITN pathway / Lagrange-tube query
     ft = sub.add_parser(
