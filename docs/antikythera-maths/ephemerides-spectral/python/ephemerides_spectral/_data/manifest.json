@@ -36,6 +36,10 @@
       "sha256": "0f0f50e543d497d21e9d46590ca7cab304527583131b76273ae9d26da844e3d0",
       "size_bytes": 15149
     },
+    "_research/kinematics.py": {
+      "sha256": "e8b6341c582490cc488db441a2f2f470c63aaa7f251f3567768b189fee17d0a2",
+      "size_bytes": 13185
+    },
     "_research/laplacian.py": {
       "sha256": "a3fac93db9102c04c280c81cc96f48921a209bb6cb27fc4b3616483d0f44a9a8",
       "size_bytes": 12233
@@ -58,5 +62,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.11.2"
+  "version": "0.12.0"
 }

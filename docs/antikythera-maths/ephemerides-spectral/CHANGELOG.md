@@ -7,7 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.11.2)
+(no entries yet — next entries land after v0.12.0)
+
+## [0.12.0] — 2026-05-05
+
+**Sol Kinematics — per-body orbital state, augmented onto every `time-*` subcommand via `--state`.** First half of the Kinematics + Dynamics split modelled on chess-spectral's `qm_*.py` (kinematics) + `qm_*_dynamics.py` (dynamics) pattern.
+
+### Why this exists
+
+User suggestion (during v0.11.0 SPrT close): *"We now need to add Kinematics and Dynamics."* And: *"we can check our chess spectral where we have done this."* Chess-spectral's pattern translates 1:1: Kinematics layer = static observables (state, mass, orbital elements, expectation values); Dynamics layer = Hamiltonian + evolution + forces + energies. v0.12.0 ships the Kinematics half; v0.13.0 ships Dynamics.
+
+### What's queryable now
+
+Per body — `bridge.get_kinematic_state("mars")`:
+- Mass, semi-major axis, mean orbital velocity (Kepler's third law from sidereal period + central-body GM).
+- Kinetic energy `0.5 m v²`.
+- Angular momentum `m·v·r` (z-component, prograde +).
+
+System-level — `bridge.get_full_system_state()`:
+- All 38 bodies plus aggregate totals: total kinetic energy, total angular momentum, fraction of L in Jupiter, fraction in outer planets.
+
+CLI — `--state` flag uniform across every `time-*` subcommand:
+```bash
+ephemerides-spectral kinematics --body mars
+ephemerides-spectral kinematics --all
+ephemerides-spectral time-mars --jd 2451545.0 --state
+ephemerides-spectral time-mars --jd 2451545.0 --state --proper   # composes
+```
+
+### Validated against published values
+
+Phase A research script + Phase B canonical primitive agree on 9 published Solar-System values to within 0.02-2.5 %:
+
+| Check | Computed | Expected |
+|---|---|---|
+| Mercury orbital v | 47.87 km/s | 47.36 (1.1 %) |
+| Earth orbital v | 29.785 km/s | 29.78 (0.02 %) |
+| Mars orbital v | 24.13 km/s | 24.07 (0.25 %) |
+| Jupiter orbital v | 13.06 km/s | 13.07 (0.08 %) |
+| Pluto orbital v | 4.741 km/s | 4.74 (0.02 %) |
+| **Jupiter fraction of total L** | **61.5 %** | ~61 % |
+| **Outer planets fraction of planet L** | **99.84 %** | ~99 % |
+| Sun KE / Mc² | 8.6×10⁻¹⁶ | <10⁻¹² |
+
+The "Jupiter holds ~61 % of system angular momentum" / "outer planets hold ~99.84 % of planet L" facts are the headline reason this surface is worth shipping — it makes computable a piece of Solar-System mechanics most people don't know off the top of their heads.
+
+### Added
+
+**Bridge surface:**
+- `bridge.get_kinematic_state(body, *, jd_tdb=None, frame=...)` → single body.
+- `bridge.get_full_system_state(*, jd_tdb=None, frame=...)` → all 38 bodies + totals.
+- `bridge.apply_state_correction(result, subcommand, *, frame=...)` — internal CLI `--state` post-processor.
+
+**CLI:**
+- `--state` flag uniformly added to every `time-*` subcommand via the existing `_add_proper_flags` helper.
+- `--frame` flag with values `heliocentric_ecliptic` (default) and `parent_centric`.
+- `kinematics --body <X>` / `kinematics --all` standalone subcommand.
+
+**Research:**
+- `research/kinematics.py` — Phase B canonical primitive (the dataclass + math). Codegened into `_research/kinematics.py`.
+- `research/kinematics_dynamics_audit.py` (committed in v0.11.x research branch; merged with this ship) — Phase A independent reference implementation.
+
+### Discipline carried forward
+
+The Phase A → Phase B → ship cycle is now the project's house pattern for adding new physics modules. Same as STLT (#95) and SPrT (#97). Two-implementation discipline: if either drifts, the other catches it.
+
+### Out of scope (deferred)
+
+- **Eccentricity / inclination corrections** (v0.12.x). Real Mars eccentricity 0.0934 means actual perihelion velocity is ~26.4 km/s, aphelion 21.9 km/s. v0.12.0 reports the mean.
+- **Position vectors at a specific JD** (v0.12.1). The encoder's phase residues already encode this; needs a heliocentric Cartesian decoder.
+- **Forces / energies / evolution operators** — those go in v0.13.0 *Sol Dynamics*.
+- **C twin** — parity smoke marks all three new bridge methods `python_only`.
+
+### Migration
+
+None. Existing scripts and bridge calls unchanged. Sol Kinematics is purely additive.
 
 ## [0.11.2] — 2026-05-05
 

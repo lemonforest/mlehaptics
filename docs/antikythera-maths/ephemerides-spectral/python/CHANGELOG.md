@@ -10,7 +10,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.11.2)
+(no entries yet — next entries land after v0.12.0)
+
+## [0.12.0] — 2026-05-05
+
+**Sol Kinematics — per-body orbital state, transparently augmented onto every `time-*` subcommand via `--state`.**
+
+### The framing
+
+Mirror of chess-spectral's `qm_2d.py` / `qm_4d.py` *kinematics* layer (static observables, no time-evolution). The user pointed at the chess-spectral pattern: *"we can check our chess spectral where we have done this."* Translates 1:1 to ephemerides-spectral as v0.12.0 (Kinematics) + v0.13.0 (Dynamics, coming).
+
+`--state` is opt-in (default off, no behavior change for v0.11.x callers); when set, augments any `time-*` bridge result with a `kinematic_state` block carrying orbital velocity, semi-major axis, kinetic energy, and angular momentum for the subcommand's canonical body.
+
+### Validated against published values
+
+Same 9 pins the Phase A audit script (`research/kinematics_dynamics_audit.py`) verifies — agreeing with `_research/kinematics.py` to within 0.02-2.5 %:
+
+| Check | Computed | Expected | Source |
+|---|---|---|---|
+| Mercury orbital v | 47.87 km/s | 47.36 | NASA fact sheet |
+| Earth orbital v | 29.785 km/s | 29.78 | Standard |
+| Mars orbital v | 24.13 km/s | 24.07 | NASA fact sheet |
+| Jupiter orbital v | 13.06 km/s | 13.07 | NASA fact sheet |
+| Pluto orbital v | 4.741 km/s | 4.74 | NASA fact sheet |
+| **Jupiter fraction of total L** | **61.5 %** | ~61 % | Standard tables |
+| **Outer planets fraction of planet L** | **99.84 %** | ~99 % | Standard tables |
+
+### Added
+
+- `bridge.get_kinematic_state(body, *, jd_tdb=None, frame=...)` → per-body orbital state.
+- `bridge.get_full_system_state(...)` → all 38 bodies + system totals.
+- `bridge.apply_state_correction(result, subcommand, ...)` — CLI `--state` post-processor.
+- `_research/kinematics.py` — `KinematicState` dataclass + Phase B canonical primitive.
+- CLI `--state`/`--frame` flags added to every `time-*` subcommand.
+- CLI `kinematics --body <X>` / `kinematics --all` standalone subcommand.
+
+### Out of scope (deferred to v0.12.x or v0.13.0)
+
+- Eccentricity / inclination corrections (v0.12.x).
+- Position vectors at a specific JD — phase decoder (v0.12.1).
+- Acceleration / forces / energies / evolution — v0.13.0 *Dynamics* counterpart.
+- C twin (parity smoke marks new methods `python_only`).
+
+### Migration
+
+None. Sol Kinematics is purely additive.
 
 ## [0.11.2] — 2026-05-05
 
