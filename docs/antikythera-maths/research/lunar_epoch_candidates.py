@@ -3,7 +3,8 @@
 Task #95 — find a celestially-significant, Greek-historically-attested
 epoch for Sol Terra-Luna Time, additive to the existing J2000 anchor
 that most Sol Time members borrow from Terra. STLT is the first Sol
-Time member with a *system-level* (Sun-Terra-Luna pair) clock, so a
+Time member following the moons-stuck-to-parent `Sol <Parent>-<Body>
+Time` convention (Luna's primary lunar-time entry), so a
 historically-anchored zero is more natural than borrowing J2000 from
 modern astronomy.
 

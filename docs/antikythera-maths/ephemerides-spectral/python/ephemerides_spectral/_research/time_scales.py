@@ -1093,21 +1093,33 @@ def luna_time_to_jd(lsd_solar: float) -> float:
 # Sol Terra-Luna Time (v0.10.0) — STLT
 # ──────────────────────────────────────────────────────────────────────
 #
-# A *system-level* clock for the Terra-Luna pair. The natural unit is
-# the synodic month — the period from one Sun-Terra-Luna alignment of a
-# given relative phase to the next (e.g., new moon to new moon, full
-# moon to full moon). 29.530588853 Earth-days.
+# Anchored Lunar time using the synodic month as the natural unit
+# (Luna's phase observed from Terra; the synodic month is the period
+# from one Sun-Terra-Luna alignment of a given relative phase to the
+# next — e.g., new moon to new moon, full moon to full moon — at
+# 29.530588853 Earth-days).
+#
+# The "Terra-Luna" in the name follows the **moons-stuck-to-parent**
+# convention from v0.9.1: every moon's primary Sol Time is named
+# `Sol <Parent>-<Body> Time` to make the gravitational-binding
+# relationship visible in the time hierarchy. STLT is Luna's primary
+# entry under that convention; future moon ports (Sol Pluto-Charon
+# Time, Sol Jupiter-Io Time, etc.) follow the same pattern — see
+# task #86.
 #
 # Distinct from the existing Luna-related Sol Times:
 #
-#   * SLT (Sol Luna Time): Luna's surface clock, Luna's tidally-locked
-#     frame.
-#   * Sol Lunar Time (jd_to_lunar): Luna's phase observed from Terra.
+#   * SLT (Sol Luna Time): Luna's surface clock — sidereal=orbital=
+#     27.32 d, solar=synodic=29.53 d, anchored at J2000. The right
+#     surface for "what time is it on Luna's prime meridian."
+#   * Sol Lunar Time (jd_to_lunar): Luna's phase observed from Terra
+#     at a JD (returns the phase, not a count).
 #   * STT (Sol Terra Time): Terra's surface clock.
 #
-# None of those is the natural home for *system events* (eclipses,
-# conjunctions, oppositions). STLT is. A solar eclipse is a Sun-Terra-
-# Luna syzygy — a single-parameter event in the Terra-Luna pair frame.
+# STLT is the *count* (cumulative synodic-month count from a historical
+# epoch) where Sol Lunar Time is the *phase* (current value at a JD)
+# and SLT is the *clock* (rate at Luna's surface). The three are
+# complementary, not redundant.
 #
 # STLT is the *first* Sol Time in the package whose default epoch is
 # NOT J2000.0 / borrowed-from-Terra. Per task #95, the project ships
@@ -1138,11 +1150,12 @@ def luna_time_to_jd(lsd_solar: float) -> float:
 # which is still pending standardisation per the April 2024 White House
 # directive. When LCT lands, we add it as a sibling epoch.
 
-#: Synodic month — STLT's natural unit (Sun-Terra-Luna pair phase
-#: cycle). Same as LUNA_SOLAR_DAY_DAYS but kept distinct for clarity:
-#: in the SLT context this length is a *day on Luna's surface*; in the
-#: STLT context it's the *system phase cycle* — same number, different
-#: semantic.
+#: Synodic month — STLT's natural unit (Luna's phase observed from
+#: Terra, period from one Sun-Terra-Luna alignment of a given relative
+#: phase to the next). Same length as LUNA_SOLAR_DAY_DAYS but kept
+#: distinct for clarity: in the SLT context this length is a *day on
+#: Luna's surface*; in the STLT context it's the *count unit* —
+#: same number, different semantic.
 STLT_SYNODIC_MONTH_DAYS:    float = 29.530588853
 
 #: Saros eclipse cycle — 223 synodic months. The Antikythera mechanism's
@@ -1192,7 +1205,9 @@ STLT_DEFAULT_EPOCH: str = "meton"
 class TerraLunaTime:
     """Sol Terra-Luna Time (STLT) at a given JD (TDB).
 
-    System-level clock for the Terra-Luna pair, anchored at a
+    Anchored Lunar time using the synodic month as the natural unit
+    ('Terra-Luna' in the name follows the moons-stuck-to-parent
+    naming convention). Anchored at a
     historically resonant Greek epoch (default: Meton's solstice
     432 BCE). Synodic month is the natural unit; Saros (18.03 yr) and
     Metonic (19.00 yr) cycle counts come along for free.
@@ -1358,7 +1373,7 @@ __all__ = [
     "saturnian_time_to_jd",
     "jd_to_neptunian_time",
     "neptunian_time_to_jd",
-    # v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair.
+    # v0.10.0 Sol Terra-Luna Time (STLT) — anchored Lunar time using the synodic month.
     "STLT_SYNODIC_MONTH_DAYS",
     "STLT_SAROS_CYCLE_DAYS",
     "STLT_METONIC_CYCLE_DAYS",

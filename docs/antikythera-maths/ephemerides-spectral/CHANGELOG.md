@@ -7,7 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.0)
+(no entries yet — next entries land after v0.13.1)
+
+## [0.13.1] — 2026-05-05
+
+**SPICE feature-gap audit + STLT-naming hygiene.** Docs-only release; no API, no encoder, no ABI changes.
+
+### SPICE feature-gap audit — task #101 (research-only)
+
+User question during v0.11.2: *"What do we do now that SPICE does slower? Does SPICE do things we might be able to do but don't? If so, will it be worth some API compatible bridge?"*
+
+Output: `figures/spice_feature_audit.md` — three-column feature comparison + compat-bridge analysis. **Recommendation: skip the SPICE-API compat bridge.**
+
+Three columns documented:
+- **What we do faster than SPICE** — encode hot loop ~1000×, eclipse-window enumeration via `find-syzygies`, find-tubes Hohmann windows, 256 KB BIP state vs. 3.3 GB DE441, Pyodide / WASM compatibility.
+- **What we do that SPICE does not** — Phase 9 adaptive (breathing) couplings, the entire Sol Symphony Times series (STLT / SPrT / Sol Kinematics / Sol Dynamics), runtime kernel patching, adaptive-Kuramoto / state-dependent graph Laplacian framing.
+- **What SPICE does that we don't** — frame transformations, light-time + stellar-aberration corrections (`spkpos` with `LT+S`), high-precision pole / spin orientation (PCK kernels), comprehensive Kepler-element sets (`oscelt`), spacecraft trajectories (mission SPK), CK orientation kernels, multi-body N-body integration, exotic time-scale conversions.
+
+The compat-bridge analysis: option (A) pure SPICE-API stub fails because light-time / aberration is the whole point of `spkpos` and we don't have it; option (B) wrapper with similar names is what we already have (`get_kinematic_state` etc.); option (C) document the conversion table and skip the bridge — recommended.
+
+Spawned v0.14.x backlog: light-time + stellar-aberration; canonical `bridge.frame_transform`; full Kepler elements on `KinematicState`; per-body pole RA/Dec + prime-meridian rotation rate.
+
+### STLT naming hygiene
+
+User flagged two related issues:
+
+1. **"system clock for the Terra-Luna pair"** framing in active code comments + docstrings is misleading. STLT is *anchored Lunar time using the synodic month* — Luna's phase observed from Terra, anchored at a Greek-historical event. "Pair" suggests center-of-mass-of-pair, libration, or similar joint-state observable; that's not what STLT measures.
+
+2. **The abbreviation table** in `python/README.md` listed Luna's primary Sol Time as SLT (surface clock). Per the moons-stuck-to-parent `Sol <Parent>-<Body> Time` convention from v0.9.1 (*"Naming hierarchy for future moon ports"*), Luna's primary entry should follow the Parent-Body form — so STLT goes in the table, not SLT. SLT is preserved as a secondary alternative for the surface-clock case.
+
+Fixed in active code; CHANGELOG entries for v0.10.0 (which describe how STLT was framed *at the time*) are preserved as historical artefacts. The shipped behaviour is unchanged.
+
+**Future moon Sol Times** (Sol Pluto-Charon Time, Sol Jupiter-Io Time, Sol Saturn-Titan Time, etc.) will follow the same `Sol <Parent>-<Body> Time` naming — task #86.
+
+### Discipline
+
+This ship answered two of the user's open questions in one PR:
+- "What does SPICE do that we don't?" → audit answers it concretely.
+- "Is the 'pair' framing right for STLT?" → no, fixed.
+
+The README freshness check caught the v0.13.0-banner-still-says-v0.13.0 drift the moment the version bumped — exactly what it's for.
+
+### Migration
+
+None. Documentation-only release. The STLT name (`Sol Terra-Luna Time`), CLI subcommand (`time-terra-luna`), bridge methods (`get_sol_terra_luna_time`), and constant set (`STLT_*`) are all unchanged.
 
 ## [0.13.0] — 2026-05-05
 

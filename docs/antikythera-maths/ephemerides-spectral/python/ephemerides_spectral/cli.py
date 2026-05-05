@@ -248,7 +248,7 @@ def _cmd_time_luna(args: argparse.Namespace) -> int:
 
 
 def _cmd_time_terra_luna(args: argparse.Namespace) -> int:
-    """v0.10.0 Sol Terra-Luna Time (STLT) — system clock for the Terra-Luna pair.
+    """v0.10.0 Sol Terra-Luna Time (STLT) — anchored Lunar time, synodic-month count.
 
     Default epoch is Meton's summer solstice (27 June 432 BCE) — the
     foundational Greek lunar-solar reconciliation anchor. Pass
@@ -1175,7 +1175,9 @@ def _make_parser() -> argparse.ArgumentParser:
 
     # time-terra-luna (v0.10.0) — Sol Terra-Luna Time (STLT)
     #
-    # System-level clock for the Terra-Luna pair. First Sol Time member
+    # Anchored Lunar time using the synodic month — primary lunar-time
+    # entry per the moons-stuck-to-parent `Sol <Parent>-<Body> Time`
+    # convention. First Sol Time member
     # whose default epoch is NOT J2000.0 / Terra-borrowed: ships with
     # Meton's summer solstice (27 Jun 432 BCE) as the default house
     # epoch, with four other Greek-historical alternatives via --epoch.
@@ -1184,11 +1186,12 @@ def _make_parser() -> argparse.ArgumentParser:
 
     ttl = sub.add_parser(
         "time-terra-luna",
-        help="Sol Terra-Luna Time (STLT) at a JD — Terra-Luna system clock",
+        help="Sol Terra-Luna Time (STLT) at a JD — anchored Lunar time, synodic-month count",
         description=(
-            "Convert JD (TDB) to Sol Terra-Luna Time (STLT) — a\n"
-            "system-level clock for the Terra-Luna pair, with the\n"
-            "synodic month (29.530589 days) as the natural unit.\n"
+            "Convert JD (TDB) to Sol Terra-Luna Time (STLT) — anchored\n"
+            "Lunar time using the synodic month (29.530589 days) as\n"
+            "the natural unit. The 'Terra-Luna' in the name follows the\n"
+            "moons-stuck-to-parent `Sol <Parent>-<Body> Time` convention.\n"
             "Saros (18.03 yr) and Metonic (19.00 yr) cycle counts come\n"
             "along for free.\n"
             "\n"
