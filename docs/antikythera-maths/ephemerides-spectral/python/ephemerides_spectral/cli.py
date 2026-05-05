@@ -144,23 +144,23 @@ def _cmd_time_uranus(args: argparse.Namespace) -> int:
 
 def _cmd_time_venus(args: argparse.Namespace) -> int:
     if args.vsd_solar is not None:
-        return _emit(bridge.sol_venusian_time_to_jd(args.vsd_solar),
+        return _emit(bridge.sol_venus_time_to_jd(args.vsd_solar),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_venusian_time(args.jd), pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_venus_time(args.jd), pretty=args.pretty)
 
 
 def _cmd_time_mercury(args: argparse.Namespace) -> int:
     if args.mer_sd_solar is not None:
-        return _emit(bridge.sol_mercurian_time_to_jd(args.mer_sd_solar),
+        return _emit(bridge.sol_mercury_time_to_jd(args.mer_sd_solar),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_mercurian_time(args.jd), pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_mercury_time(args.jd), pretty=args.pretty)
 
 
 def _cmd_time_pluto(args: argparse.Namespace) -> int:
     if args.psd is not None:
-        return _emit(bridge.sol_plutonian_time_to_jd(args.psd),
+        return _emit(bridge.sol_pluto_time_to_jd(args.psd),
                      pretty=args.pretty)
-    return _emit(bridge.jd_to_sol_plutonian_time(args.jd), pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_pluto_time(args.jd), pretty=args.pretty)
 
 
 def _cmd_time_sol(args: argparse.Namespace) -> int:
@@ -188,6 +188,20 @@ def _cmd_time_neptune(args: argparse.Namespace) -> int:
         return _emit(bridge.sol_neptunian_time_to_jd(args.nsd),
                      pretty=args.pretty)
     return _emit(bridge.jd_to_sol_neptunian_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_terra(args: argparse.Namespace) -> int:
+    if args.tsd_solar is not None:
+        return _emit(bridge.sol_terra_time_to_jd(args.tsd_solar),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_terra_time(args.jd), pretty=args.pretty)
+
+
+def _cmd_time_luna(args: argparse.Namespace) -> int:
+    if args.lsd_solar is not None:
+        return _emit(bridge.sol_luna_time_to_jd(args.lsd_solar),
+                     pretty=args.pretty)
+    return _emit(bridge.jd_to_sol_luna_time(args.jd), pretty=args.pretty)
 
 
 def _cmd_find_tubes(args: argparse.Namespace) -> int:
@@ -807,6 +821,65 @@ def _make_parser() -> argparse.ArgumentParser:
     tn_g.add_argument("--nsd", type=float, default=None,
                        help="Neptune sol-date count to invert back to JD_TDB")
     tn.set_defaults(func=_cmd_time_neptune)
+
+    # time-terra (v0.9.1) — Sol Terra Time (STT)
+    tt = sub.add_parser(
+        "time-terra",
+        help="Sol Terra Time (STT) at a JD — Earth's surface clock",
+        description=(
+            "Convert JD (TDB) to Sol Terra Time. Terra's surface clock\n"
+            "anchored at J2000.0 with Greenwich as the prime meridian.\n"
+            "  sidereal day = 23h 56m 4s = 0.99726957 Earth-days\n"
+            "  solar day    = 24h        = 1.0 Earth-day (by definition)\n"
+            "  year         = 365.256 Earth-days\n"
+            "Use --tsd-solar to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-terra --jd 2451545.0   # J2000 (anchor)\n"
+            "  ephemerides-spectral time-terra --jd 2461165.0   # today-ish\n"
+            "  ephemerides-spectral time-terra --tsd-solar 5000 # 5000 Terra solar days past J2000"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tt_g = tt.add_mutually_exclusive_group(required=True)
+    tt_g.add_argument("--jd", type=float, default=None,
+                       help="JD (TDB) to convert to Sol Terra Time")
+    tt_g.add_argument("--tsd-solar", dest="tsd_solar", type=float, default=None,
+                       help="Terra solar-day count to invert back to JD_TDB")
+    tt.set_defaults(func=_cmd_time_terra)
+
+    # time-luna (v0.9.1) — Sol Luna Time (SLT)
+    tl2 = sub.add_parser(
+        "time-luna",
+        help="Sol Luna Time (SLT) at a JD — Luna's surface clock",
+        description=(
+            "Convert JD (TDB) to Sol Luna Time. Luna's surface clock,\n"
+            "tidally locked to Terra so sidereal day = orbital period.\n"
+            "  sidereal day = orbital period = 27.32 Earth-days\n"
+            "  solar day    = synodic month  = 29.53 Earth-days\n"
+            "Anchored at J2000.0 with the IAU 2015 prime meridian at\n"
+            "the sub-Terra point.\n"
+            "\n"
+            "DISTINCT FROM Sol Lunar Time (`time-lunar`), which returns\n"
+            "Luna's synodic + sidereal phase as observed from Terra.\n"
+            "Same body, different observer frame.\n"
+            "Use --lsd-solar to invert."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  ephemerides-spectral time-luna --jd 2451545.0     # J2000 (anchor)\n"
+            "  ephemerides-spectral time-luna --jd 2461165.0     # today-ish\n"
+            "  ephemerides-spectral time-luna --lsd-solar 100    # 100 Luna synodic days past J2000"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    tl2_g = tl2.add_mutually_exclusive_group(required=True)
+    tl2_g.add_argument("--jd", type=float, default=None,
+                        help="JD (TDB) to convert to Sol Luna Time")
+    tl2_g.add_argument("--lsd-solar", dest="lsd_solar", type=float, default=None,
+                        help="Luna solar (synodic) day count to invert back to JD_TDB")
+    tl2.set_defaults(func=_cmd_time_luna)
 
     # find-tubes (v0.8.1) — ITN pathway / Lagrange-tube query
     ft = sub.add_parser(

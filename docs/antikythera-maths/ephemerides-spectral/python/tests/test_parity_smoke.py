@@ -192,34 +192,34 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "kwargs_py": {"usd": 0.0},
     },
     # v0.8.0 Sol Symphony Times — pure-Python sidereal/solar arithmetic.
-    "jd_to_sol_venusian_time": {
+    "jd_to_sol_venus_time": {
         "status": "python_only",
         "rationale": "v0.8.0 Sol Venusian Time (retrograde, sidereal+solar day)",
         "kwargs_py": {"jd_tdb": 2451545.0},
     },
-    "sol_venusian_time_to_jd": {
+    "sol_venus_time_to_jd": {
         "status": "python_only",
-        "rationale": "inverse of jd_to_sol_venusian_time",
+        "rationale": "inverse of jd_to_sol_venus_time",
         "kwargs_py": {"vsd_solar": 0.0},
     },
-    "jd_to_sol_mercurian_time": {
+    "jd_to_sol_mercury_time": {
         "status": "python_only",
         "rationale": "v0.8.0 Sol Mercurian Time (3:2 spin-orbit resonance)",
         "kwargs_py": {"jd_tdb": 2451545.0},
     },
-    "sol_mercurian_time_to_jd": {
+    "sol_mercury_time_to_jd": {
         "status": "python_only",
-        "rationale": "inverse of jd_to_sol_mercurian_time",
+        "rationale": "inverse of jd_to_sol_mercury_time",
         "kwargs_py": {"mer_sd_solar": 0.0},
     },
-    "jd_to_sol_plutonian_time": {
+    "jd_to_sol_pluto_time": {
         "status": "python_only",
         "rationale": "v0.8.0 Sol Plutonian Time (Pluto-Charon system)",
         "kwargs_py": {"jd_tdb": 2457217.0},
     },
-    "sol_plutonian_time_to_jd": {
+    "sol_pluto_time_to_jd": {
         "status": "python_only",
-        "rationale": "inverse of jd_to_sol_plutonian_time",
+        "rationale": "inverse of jd_to_sol_pluto_time",
         "kwargs_py": {"psd": 0.0},
     },
     "jd_to_sol_sol_time": {
@@ -261,6 +261,26 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "rationale": "inverse of jd_to_sol_neptunian_time",
         "kwargs_py": {"nsd": 0.0},
+    },
+    "jd_to_sol_terra_time": {
+        "status": "python_only",
+        "rationale": "v0.9.1 Sol Terra Time (STT) — Terra's surface clock",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_terra_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_terra_time",
+        "kwargs_py": {"tsd_solar": 0.0},
+    },
+    "jd_to_sol_luna_time": {
+        "status": "python_only",
+        "rationale": "v0.9.1 Sol Luna Time (SLT) — Luna's surface clock; distinct from Sol Lunar Time (which gives synodic+sidereal phase observed from Terra)",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_luna_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_luna_time",
+        "kwargs_py": {"lsd_solar": 0.0},
     },
     "get_natural_resonance_group": {
         "status": "python_only",

@@ -215,11 +215,11 @@ def test_v080_sol_symphony_round_trips_at_epoch() -> None:
     inverse returns the epoch JD exactly."""
     cases = [
         # (forward, inverse, epoch_jd, sol_date_field, sol_date_arg_name)
-        (bridge.jd_to_sol_venusian_time, bridge.sol_venusian_time_to_jd,
+        (bridge.jd_to_sol_venus_time, bridge.sol_venus_time_to_jd,
          2451545.0, "vsd_solar", "vsd_solar"),
-        (bridge.jd_to_sol_mercurian_time, bridge.sol_mercurian_time_to_jd,
+        (bridge.jd_to_sol_mercury_time, bridge.sol_mercury_time_to_jd,
          2451545.0, "mer_sd_solar", "mer_sd_solar"),
-        (bridge.jd_to_sol_plutonian_time, bridge.sol_plutonian_time_to_jd,
+        (bridge.jd_to_sol_pluto_time, bridge.sol_pluto_time_to_jd,
          2457217.0, "psd", "psd"),
         (bridge.jd_to_sol_jovian_time, bridge.sol_jovian_time_to_jd,
          2444000.5, "jsd", "jsd"),
@@ -253,7 +253,7 @@ def test_v080_sol_sol_crn_starts_at_one() -> None:
 def test_v080_mercury_3to2_spin_orbit_resonance() -> None:
     """Mercury solar day is exactly 2 Mercury years (3:2 resonance).
     Round to high precision: solar_day_days / orbital_period_days ≈ 2.0."""
-    out = bridge.jd_to_sol_mercurian_time(2451545.0)
+    out = bridge.jd_to_sol_mercury_time(2451545.0)
     epoch = out["epoch"]
     ratio = epoch["solar_day_days"] / (
         epoch["orbital_period_years"] * 365.25
@@ -265,7 +265,7 @@ def test_v080_mercury_3to2_spin_orbit_resonance() -> None:
 
 def test_v080_venus_retrograde_flag() -> None:
     """Venus rotates retrograde."""
-    out = bridge.jd_to_sol_venusian_time(2451545.0)
+    out = bridge.jd_to_sol_venus_time(2451545.0)
     assert out["retrograde"] is True
 
 

@@ -448,7 +448,7 @@ VST_EPOCH_JD_TDB:           float = 2451545.0  # J2000.0
 
 
 @dataclass(frozen=True)
-class VenusianTime:
+class VenusTime:
     """Sol Venusian Time at a given JD (TDB)."""
     jd_tdb: float
     vsd_sidereal: float       # Venus sidereal-day count since J2000
@@ -470,14 +470,14 @@ class VenusianTime:
         }
 
 
-def jd_to_venusian_time(jd_tdb: float) -> VenusianTime:
+def jd_to_venus_time(jd_tdb: float) -> VenusTime:
     """JD (TDB) → Sol Venusian Time."""
     delta = float(jd_tdb) - VST_EPOCH_JD_TDB
     vsd_sid = delta / VENUS_SIDEREAL_DAY_DAYS
     vsd_sol = delta / VENUS_SOLAR_DAY_DAYS
     sol_frac = vsd_sol - math.floor(vsd_sol)
     years = delta / VENUS_ORBITAL_PERIOD_DAYS
-    return VenusianTime(
+    return VenusTime(
         jd_tdb=float(jd_tdb),
         vsd_sidereal=vsd_sid,
         vsd_solar=vsd_sol,
@@ -488,7 +488,7 @@ def jd_to_venusian_time(jd_tdb: float) -> VenusianTime:
     )
 
 
-def venusian_time_to_jd(vsd_solar: float) -> float:
+def venus_time_to_jd(vsd_solar: float) -> float:
     """Inverse on the Venus solar-day count."""
     return VST_EPOCH_JD_TDB + float(vsd_solar) * VENUS_SOLAR_DAY_DAYS
 
@@ -524,7 +524,7 @@ MERT_EPOCH_JD_TDB:            float = 2451545.0  # J2000.0
 
 
 @dataclass(frozen=True)
-class MercurianTime:
+class MercuryTime:
     """Sol Mercurian Time at a given JD (TDB).
 
     Carries both sidereal-day and solar-day phase coordinates because
@@ -551,14 +551,14 @@ class MercurianTime:
         }
 
 
-def jd_to_mercurian_time(jd_tdb: float) -> MercurianTime:
+def jd_to_mercury_time(jd_tdb: float) -> MercuryTime:
     """JD (TDB) → Sol Mercurian Time."""
     delta = float(jd_tdb) - MERT_EPOCH_JD_TDB
     sid = delta / MERCURY_SIDEREAL_DAY_DAYS
     sol = delta / MERCURY_SOLAR_DAY_DAYS
     sol_frac = sol - math.floor(sol)
     years = delta / MERCURY_ORBITAL_PERIOD_DAYS
-    return MercurianTime(
+    return MercuryTime(
         jd_tdb=float(jd_tdb),
         mer_sd_sidereal=sid,
         mer_sd_solar=sol,
@@ -569,7 +569,7 @@ def jd_to_mercurian_time(jd_tdb: float) -> MercurianTime:
     )
 
 
-def mercurian_time_to_jd(mer_sd_solar: float) -> float:
+def mercury_time_to_jd(mer_sd_solar: float) -> float:
     """Inverse on the Mercury solar-day count."""
     return MERT_EPOCH_JD_TDB + float(mer_sd_solar) * MERCURY_SOLAR_DAY_DAYS
 
@@ -599,7 +599,7 @@ PST_EPOCH_JD_TDB:           float = 2457217.0
 
 
 @dataclass(frozen=True)
-class PlutonianTime:
+class PlutoTime:
     """Sol Plutonian Time at a given JD (TDB)."""
     jd_tdb: float
     psd:    float
@@ -621,13 +621,13 @@ class PlutonianTime:
         }
 
 
-def jd_to_plutonian_time(jd_tdb: float) -> PlutonianTime:
+def jd_to_pluto_time(jd_tdb: float) -> PlutoTime:
     """JD (TDB) → Sol Plutonian Time."""
     delta = float(jd_tdb) - PST_EPOCH_JD_TDB
     psd = delta / PLUTO_SIDEREAL_DAY_DAYS
     sol_frac = psd - math.floor(psd)
     years = delta / PLUTO_ORBITAL_PERIOD_DAYS
-    return PlutonianTime(
+    return PlutoTime(
         jd_tdb=float(jd_tdb),
         psd=psd,
         pst_hours=sol_frac * 24.0,
@@ -638,7 +638,7 @@ def jd_to_plutonian_time(jd_tdb: float) -> PlutonianTime:
     )
 
 
-def plutonian_time_to_jd(psd: float) -> float:
+def pluto_time_to_jd(psd: float) -> float:
     """Inverse on the Pluto sol-date count."""
     return PST_EPOCH_JD_TDB + float(psd) * PLUTO_SIDEREAL_DAY_DAYS
 
@@ -944,6 +944,151 @@ def neptunian_time_to_jd(nsd: float) -> float:
     return NEPT_EPOCH_JD_TDB + float(nsd) * NEPTUNE_SIDEREAL_DAY_DAYS
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Sol Terra Time (v0.9.1) — STT
+# ──────────────────────────────────────────────────────────────────────
+#
+# Earth's own surface clock, anchored at J2000.0 with prime meridian
+# at Greenwich. Notable distinctions:
+#   sidereal day = 23h 56m 4s = 0.99726957 Earth-days  (rotation rel. to stars)
+#   solar day    = 24h         = 1.0 Earth-day         (rotation rel. to Sun)
+#   year         = 365.25636300 Earth-days             (sidereal year)
+#
+# The 3m 56s/day difference between sidereal and solar arises because
+# Terra moves ~1° around its orbit per day, so it rotates ~361° between
+# successive solar noons but only 360° between successive star transits.
+
+TERRA_SIDEREAL_DAY_DAYS:    float = 0.99726957
+TERRA_SOLAR_DAY_DAYS:       float = 1.0
+TERRA_ORBITAL_PERIOD_DAYS:  float = 365.256363
+TERRA_ORBITAL_PERIOD_YEARS: float = TERRA_ORBITAL_PERIOD_DAYS / 365.25
+TERRA_AXIAL_TILT_DEG:       float = 23.4393
+TERRAT_EPOCH_JD_TDB:        float = 2451545.0  # J2000.0
+
+
+@dataclass(frozen=True)
+class TerraTime:
+    """Sol Terra Time (STT) at a given JD (TDB)."""
+    jd_tdb: float
+    tsd_sidereal: float       # Terra sidereal-day count since J2000
+    tsd_solar:    float       # Terra solar-day count since J2000 (= JD - epoch)
+    stt_hours:    float       # solar-day time-of-day, [0, 24) Terra-hours
+    orbital_phase: float
+    years_since_epoch: float
+    retrograde: bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "tsd_sidereal":      float(self.tsd_sidereal),
+            "tsd_solar":         float(self.tsd_solar),
+            "stt_hours":         float(self.stt_hours),
+            "orbital_phase":     float(self.orbital_phase),
+            "years_since_epoch": float(self.years_since_epoch),
+            "retrograde":        bool(self.retrograde),
+        }
+
+
+def jd_to_terra_time(jd_tdb: float) -> TerraTime:
+    """JD (TDB) → Sol Terra Time (STT)."""
+    delta = float(jd_tdb) - TERRAT_EPOCH_JD_TDB
+    tsd_sid = delta / TERRA_SIDEREAL_DAY_DAYS
+    tsd_sol = delta / TERRA_SOLAR_DAY_DAYS
+    sol_frac = tsd_sol - math.floor(tsd_sol)
+    years = delta / TERRA_ORBITAL_PERIOD_DAYS
+    return TerraTime(
+        jd_tdb=float(jd_tdb),
+        tsd_sidereal=tsd_sid,
+        tsd_solar=tsd_sol,
+        stt_hours=sol_frac * 24.0,
+        orbital_phase=years - math.floor(years),
+        years_since_epoch=years,
+        retrograde=False,
+    )
+
+
+def terra_time_to_jd(tsd_solar: float) -> float:
+    """Inverse on the Terra solar-day count."""
+    return TERRAT_EPOCH_JD_TDB + float(tsd_solar) * TERRA_SOLAR_DAY_DAYS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Sol Luna Time (v0.9.1) — SLT
+# ──────────────────────────────────────────────────────────────────────
+#
+# Luna's surface clock. Tidally locked to Terra, so:
+#   sidereal day = orbital period = 27.32166156 Earth-days
+#   solar day    = synodic month = 29.530588853 Earth-days
+#                  (one Luna sunrise to next; longer than sidereal because
+#                  Terra-Luna system also moves around Sol during the cycle)
+#
+# DISTINCT FROM Sol Lunar Time (jd_to_lunar): that returns Luna's
+# synodic + sidereal phase as observed from Terra (lunar age, etc.).
+# Sol Luna Time is the local clock on Luna's surface — different
+# semantic.
+#
+# Anchor: J2000.0 with the IAU 2015 prime meridian at the sub-Terra
+# point (Luna is tidally locked, so the same hemisphere always faces
+# Terra; the prime meridian is the longitude where Terra is overhead).
+
+LUNA_SIDEREAL_DAY_DAYS:    float = 27.32166156
+LUNA_SOLAR_DAY_DAYS:       float = 29.530588853   # synodic month
+LUNA_ORBITAL_PERIOD_DAYS:  float = 27.32166156    # = sidereal day (tidally locked)
+LUNA_AXIAL_TILT_DEG:       float = 6.687          # w.r.t. ecliptic
+LUNAT_EPOCH_JD_TDB:        float = 2451545.0      # J2000.0
+
+
+@dataclass(frozen=True)
+class LunaTime:
+    """Sol Luna Time (SLT) at a given JD (TDB).
+
+    Distinct from Sol Lunar Time (`jd_to_lunar`), which returns Luna's
+    synodic + sidereal phase as observed from Terra. SLT is the local
+    surface clock on Luna.
+    """
+    jd_tdb: float
+    lsd_sidereal: float       # Luna sidereal-day count since J2000
+    lsd_solar:    float       # Luna solar (synodic) day count since J2000
+    slt_hours:    float       # solar-day time-of-day, [0, 24) Luna-hours
+    orbital_phase: float      # phase around Terra, [0, 1)
+    luna_orbits_since_epoch: float
+    retrograde: bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":            float(self.jd_tdb),
+            "lsd_sidereal":      float(self.lsd_sidereal),
+            "lsd_solar":         float(self.lsd_solar),
+            "slt_hours":         float(self.slt_hours),
+            "orbital_phase":     float(self.orbital_phase),
+            "luna_orbits_since_epoch": float(self.luna_orbits_since_epoch),
+            "retrograde":        bool(self.retrograde),
+        }
+
+
+def jd_to_luna_time(jd_tdb: float) -> LunaTime:
+    """JD (TDB) → Sol Luna Time (SLT)."""
+    delta = float(jd_tdb) - LUNAT_EPOCH_JD_TDB
+    lsd_sid = delta / LUNA_SIDEREAL_DAY_DAYS
+    lsd_sol = delta / LUNA_SOLAR_DAY_DAYS
+    sol_frac = lsd_sol - math.floor(lsd_sol)
+    orbits = delta / LUNA_ORBITAL_PERIOD_DAYS
+    return LunaTime(
+        jd_tdb=float(jd_tdb),
+        lsd_sidereal=lsd_sid,
+        lsd_solar=lsd_sol,
+        slt_hours=sol_frac * 24.0,
+        orbital_phase=orbits - math.floor(orbits),
+        luna_orbits_since_epoch=orbits,
+        retrograde=False,
+    )
+
+
+def luna_time_to_jd(lsd_solar: float) -> float:
+    """Inverse on the Luna solar (synodic) day count."""
+    return LUNAT_EPOCH_JD_TDB + float(lsd_solar) * LUNA_SOLAR_DAY_DAYS
+
+
 __all__ = [
     "MARS_SOL_PER_JD",
     "MSD_EPOCH_JD",
@@ -998,9 +1143,9 @@ __all__ = [
     "MarsTime",
     "LunarTime",
     "UranianTime",
-    "VenusianTime",
-    "MercurianTime",
-    "PlutonianTime",
+    "VenusTime",
+    "MercuryTime",
+    "PlutoTime",
     "SolSolTime",
     "JovianTime",
     "SaturnianTime",
@@ -1010,12 +1155,12 @@ __all__ = [
     "jd_to_lunar",
     "jd_to_uranian_time",
     "uranian_time_to_jd",
-    "jd_to_venusian_time",
-    "venusian_time_to_jd",
-    "jd_to_mercurian_time",
-    "mercurian_time_to_jd",
-    "jd_to_plutonian_time",
-    "plutonian_time_to_jd",
+    "jd_to_venus_time",
+    "venus_time_to_jd",
+    "jd_to_mercury_time",
+    "mercury_time_to_jd",
+    "jd_to_pluto_time",
+    "pluto_time_to_jd",
     "jd_to_sol_sol_time",
     "sol_sol_time_to_jd",
     "jd_to_jovian_time",
