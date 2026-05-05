@@ -158,6 +158,51 @@ class EphemerisBIPInstrument:
             )
         return omega_int
 
+    def _load_baked_initial_phases(self) -> Optional[np.ndarray]:
+        """Load codegen-baked initial phases from `_data/initial_phases.json`.
+
+        Returns the per-body uint32 phase array if the JSON is present
+        AND its body roster matches this instrument's body roster
+        exactly; otherwise returns None and the caller falls through
+        to live SPICE calibration. Body-roster mismatch (e.g., user
+        adding a body in the research source without re-running
+        codegen) should not silently use stale baked values.
+        """
+        # The JSON is shipped beside this module under the wheel layout:
+        #   ephemerides_spectral/_research/bip_instrument.py     (this)
+        #   ephemerides_spectral/_data/initial_phases.json       (sibling)
+        # In the research source tree (no wheel install), the JSON
+        # doesn't exist and we fall through to SPICE calibration —
+        # exactly what codegen needs to BUILD the JSON in the first
+        # place.
+        import json
+        candidates: List[Path] = []
+        here = Path(__file__).resolve().parent
+        # Wheel layout: _research/ next to _data/
+        candidates.append(here.parent / "_data" / "initial_phases.json")
+        # Research source-tree layout: docs/.../ephemerides-spectral/python/ephemerides_spectral/_data/
+        candidates.append(here.parents[2] / "ephemerides-spectral" / "python"
+                          / "ephemerides_spectral" / "_data" / "initial_phases.json")
+        for path in candidates:
+            if not path.exists():
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            baked_names = list(payload.get("body_names", []))
+            if baked_names != list(self.body_names):
+                # Body-roster drift — refuse to use stale baked values.
+                continue
+            phases_dict = payload.get("initial_phases", {})
+            arr = np.zeros(len(self.body_names), dtype=np.uint32)
+            for i, name in enumerate(self.body_names):
+                if name not in phases_dict:
+                    return None  # roster mismatch
+                arr[i] = np.uint32(int(phases_dict[name]))
+            return arr
+        return None
+
     def _initialize_bases(self) -> Dict[str, np.ndarray]:
         bases = {}
         for i, body in enumerate(self.body_names):
@@ -168,19 +213,48 @@ class EphemerisBIPInstrument:
         return bases
 
     def _calibrate_initial_phases(self, jd: float) -> np.ndarray:
-        """Calibrate the phase angles (mapped to Z_{2^K}) from ephemeris truth."""
+        """Calibrate the phase angles (mapped to Z_{2^K}) from ephemeris truth.
+
+        Resolution order:
+        1. Codegen-baked ``_data/initial_phases.json`` from the wheel
+           (when present). This is the published-kernel SSOT — the
+           SAME values the C codegen bakes into ``es_initial_phases[]``,
+           so Python BIP and native C are byte-identical even when no
+           SPICE kernel is staged at runtime.
+        2. Live SPICE calibration via skyfield (when the bundle loaded).
+           Used at codegen time to GENERATE the JSON; also used if a
+           caller explicitly wants to recalibrate against a different
+           kernel.
+        3. Zero phases (last-resort fallback only fires if the wheel
+           shipped without ``_data/initial_phases.json`` — broken
+           install).
+        """
+        baked = self._load_baked_initial_phases()
+        if baked is not None:
+            return baked
         if self.bundle is None:
             return np.zeros(len(self.body_names), dtype=np.uint32)
-        
+
         ts = self.bundle.ts
         t = ts.tt_jd(jd)
         phases = np.zeros(len(self.body_names), dtype=np.uint32)
         
         moon_parent_map = {
-            "moon": "earth", "phobos": "mars", "deimos": "mars",
-            "io": "jupiter", "europa": "jupiter", "ganymede": "jupiter", "callisto": "jupiter",
-            "titan": "saturn", "enceladus": "saturn", "rhea": "saturn",
-            "titania": "uranus", "triton": "neptune"
+            "moon": "earth",
+            "phobos": "mars", "deimos": "mars",
+            # Jovian moons — Galileans + inner regulars (v0.5.0)
+            "metis": "jupiter", "adrastea": "jupiter",
+            "amalthea": "jupiter", "thebe": "jupiter",
+            "io": "jupiter", "europa": "jupiter",
+            "ganymede": "jupiter", "callisto": "jupiter",
+            # Saturnian moons — classical 9 + co-orbitals (v0.5.0)
+            "mimas": "saturn", "enceladus": "saturn",
+            "tethys": "saturn", "dione": "saturn", "rhea": "saturn",
+            "titan": "saturn", "hyperion": "saturn",
+            "iapetus": "saturn", "phoebe": "saturn",
+            "janus": "saturn", "epimetheus": "saturn",
+            # Uranus / Neptune
+            "titania": "uranus", "triton": "neptune",
         }
 
         for i, name in enumerate(self.body_names):

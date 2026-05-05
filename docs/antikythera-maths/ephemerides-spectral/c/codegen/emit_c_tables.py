@@ -126,7 +126,13 @@ def _emit_laplacian(path: Path) -> None:
     Embedded targets at runtime use these constants directly; they
     have no skyfield dependency.
     """
-    inst = EphemerisBIPInstrument(D=2**16, kernel="de421")  # kernel-agnostic for these tables
+    # Use de441 for the highest-resolution calibration; the Python
+    # wheel codegen (regenerate.py / emit_initial_phases.py) does the
+    # same. Standardising on de441 across both sides guarantees
+    # byte-identical initial phases between the C side's
+    # ``es_initial_phases[]`` and the wheel's
+    # ``_data/initial_phases.json``.
+    inst = EphemerisBIPInstrument(D=2**16, kernel="de441")
     sorted_names = sorted(BODIES.keys())
 
     # Sanity: instrument's body order must match the bodies table.

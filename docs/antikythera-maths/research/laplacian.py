@@ -68,6 +68,12 @@ RESONANCES: List[Resonance] = [
     Resonance("neptune",  "pluto",    3, 2, "Neptune-Pluto 3:2 (orbital resonance)"),
     Resonance("io",       "europa",   2, 1, "Io-Europa 2:1 (Laplace pair 1)"),
     Resonance("europa",   "ganymede", 2, 1, "Europa-Ganymede 2:1 (Laplace pair 2)"),
+    # v0.5.0: famous Saturnian resonances now that the bodies are wired.
+    # `(n_a, m_b)` chosen so n_a × P_a = m_b × P_b expresses the
+    # mean-motion lock (a faster than b -> n_a > m_b).
+    Resonance("mimas",     "tethys",   4, 2, "Mimas-Tethys 4:2 (Cassini Division)"),
+    Resonance("enceladus", "dione",    2, 1, "Enceladus-Dione 2:1 (powers Enceladus tidal heating)"),
+    Resonance("titan",     "hyperion", 4, 3, "Titan-Hyperion 4:3 (Hyperion chaotic rotation source)"),
 ]
 
 class SolarSystemLaplacian:
@@ -158,15 +164,28 @@ class SolarSystemLaplacian:
                 couplings.append(("sun", name, weight))
                 
         # Secondary: Moons to their parent planets
+        # v0.5.0: Jovian inner regulars + classical Saturnians + co-orbitals.
         moon_map = {
             "moon": "earth",
             "phobos": "mars", "deimos": "mars",
-            "io": "jupiter", "europa": "jupiter", "ganymede": "jupiter", "callisto": "jupiter",
-            "titan": "saturn", "enceladus": "saturn", "rhea": "saturn",
+            # Jovian moons
+            "metis": "jupiter", "adrastea": "jupiter",
+            "amalthea": "jupiter", "thebe": "jupiter",
+            "io": "jupiter", "europa": "jupiter",
+            "ganymede": "jupiter", "callisto": "jupiter",
+            # Saturnian moons (classical + co-orbitals)
+            "mimas": "saturn", "enceladus": "saturn",
+            "tethys": "saturn", "dione": "saturn", "rhea": "saturn",
+            "titan": "saturn", "hyperion": "saturn",
+            "iapetus": "saturn", "phoebe": "saturn",
+            "janus": "saturn", "epimetheus": "saturn",
+            # Uranus / Neptune
             "titania": "uranus",
-            "triton": "neptune"
+            "triton": "neptune",
         }
         for moon, planet in moon_map.items():
+            if moon not in BODIES:
+                continue
             weight = 1e-4 * np.sqrt(BODIES[moon].mass_earth * BODIES[planet].mass_earth)
             couplings.append((planet, moon, weight))
             
@@ -195,6 +214,22 @@ class SolarSystemLaplacian:
             1e-3 * np.sqrt(BODIES["io"].mass_earth * BODIES["europa"].mass_earth)))
         couplings.append(("europa", "ganymede",
             1e-3 * np.sqrt(BODIES["europa"].mass_earth * BODIES["ganymede"].mass_earth)))
+
+        # v0.5.0: famous Saturnian mean-motion resonances. The static
+        # weight here is what the Phase 9 breathing modulation scales;
+        # without a non-zero entry the breathing path would be a no-op
+        # (and bip_instrument's _encode_state_impl would silently
+        # discard the resonance). Inter-moon weights use the same 1e-3
+        # scaling factor as the Galileans.
+        if "mimas" in BODIES and "tethys" in BODIES:
+            couplings.append(("mimas", "tethys",
+                1e-3 * np.sqrt(BODIES["mimas"].mass_earth * BODIES["tethys"].mass_earth)))
+        if "enceladus" in BODIES and "dione" in BODIES:
+            couplings.append(("enceladus", "dione",
+                1e-3 * np.sqrt(BODIES["enceladus"].mass_earth * BODIES["dione"].mass_earth)))
+        if "titan" in BODIES and "hyperion" in BODIES:
+            couplings.append(("titan", "hyperion",
+                1e-3 * np.sqrt(BODIES["titan"].mass_earth * BODIES["hyperion"].mass_earth)))
 
         # Asteroids to Jupiter (no Phase 9 modulation; static perturbation only)
         for ast in ["ceres", "vesta", "pallas", "hygiea"]:

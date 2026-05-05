@@ -1,11 +1,11 @@
 {
   "cadence_days": 900.0,
-  "encode_seconds": 314.9276354999747,
+  "encode_seconds": 14.554756500059739,
   "kernel_actual": "de441",
   "kernel_requested": "de441",
-  "n_bodies": 25,
+  "n_bodies": 37,
   "n_samples": 1024,
-  "native_available": false,
+  "native_available": true,
   "per_body": {
     "earth": {
       "linear_slope_deg_per_yr": 0.000344237330516454,

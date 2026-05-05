@@ -10,7 +10,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.4.1)
+(no entries yet — next entries land after v0.5.0)
+
+## [0.5.0] — 2026-05-05
+
+The Galilean marshaling: all major Jovian and Saturnian moons join the encoder. Body count grows from 26 to **38**. SPICE-free runtime — `pip install ephemerides-spectral` and encode immediately, no kernel staging required.
+
+### Added — 12 new bodies
+
+- **Jovian inner regulars (4)**: Metis, Adrastea, Amalthea, Thebe. Periods 0.30–0.67 d (Metis is the new shortest-period body in the roster — was Phobos at 0.32 d).
+- **Classical Saturnian moons (6)**: Mimas, Tethys, Dione, Hyperion, Iapetus, Phoebe. Together with v0.1.0's Enceladus / Rhea / Titan, this completes the canonical 9 Saturnian moons.
+- **Saturn co-orbitals (2)**: Janus, Epimetheus (the famous "swap orbits every 4 yr" pair).
+
+### Added — 3 new resonances
+
+- **Mimas–Tethys 4:2** (the libration that maintains the Cassini Division)
+- **Enceladus–Dione 2:1** (powers Enceladus's tidal heating + plumes)
+- **Titan–Hyperion 4:3** (source of Hyperion's chaotic rotation)
+
+The natural-resonance cyclic group expands from **Z_30** (v0.2.0–v0.4.x: lcm(10, 6, 2, 2)) to **Z_60** (v0.5.0: lcm(10, 6, 2, 2, 4, 2, 12)). Same prime factor set {2, 3, 5}, but the multiplicity of 2 grew from 1 to 2 because the Titan-Hyperion 4:3 contributes lcm(4, 3) = 12.
+
+### Added — SPICE-free BIP runtime
+
+- New codegen step (`codegen/emit_initial_phases.py`) emits `_data/initial_phases.json` containing the calibrated initial phases at REFERENCE_JD = J2000.0. Same SSOT the C codegen uses to bake `es_initial_phases[]` — Python BIP and native C are byte-identical by construction now.
+- `EphemerisBIPInstrument._calibrate_initial_phases` now consults `_data/initial_phases.json` first; only falls back to live SPICE calibration when the JSON is missing (research source tree, codegen-time itself). The silent zero-phase fallback when no SPICE was staged is gone.
+- `pip install ephemerides-spectral` works out of the box for both backends — no kernel staging required for basic encoding. Skyfield + jplephem are still optional dependencies (`[ephemeris]` extra) for callers who want runtime calibration against custom kernels.
+
+### Changed
+
+- **`ES_N_BODIES = 38`** in the C header (was 26). Fully regenerated `c/src/es_bodies.c`, `c/src/es_laplacian.c`, `_data/initial_phases.json`, `_data/manifest.json`. ABI v2 unchanged (the body count is in the header, not the wire format).
+- **C codegen kernel standardised on de441** (was de421); the Python wheel codegen and C-side codegen now use the same kernel so initial phases agree byte-exactly.
+- **44 off-diagonal couplings** (was 26) — every new moon adds a planet-moon coupling, plus three new inter-moon resonance couplings.
+
+### Tests
+
+- `test_native_parity.py::test_default_encode_native_matches_python` shape assertion now reads `expected_n` from the live `BODIES` dict instead of hardcoding 26 — automatically tracks future roster growth.
+- `test_immolation.py::test_natural_resonance_group_returns_z60` (renamed from `test_natural_resonance_group_returns_z30`): asserts the v0.5.0 resonance set yields modulus 60 with prime factors {2, 3, 5}.
+
+### Notes
+
+- v0.4.0 catalog patches still work — `mars-7.96yr-diagonal`, `mercury-10.69yr-diagonal`, `jupiter-saturn-9.56yr-coupled` apply unchanged on the v0.5.0 38-body roster.
+- **Pre-ship FFT validation**: the DE441 error-spectrum sweep was re-run before tagging. Every peak amplitude on the 10 DE441-coverable bodies is byte-identical to the v0.3.1 baseline (the v0.5.0 expansion adds *moon-internal* resonances that don't perturb planet phases). The v0.4.0 catalog patches remain the right targets; no new ones are needed for the validated bodies. Sweep time dropped from 314.9 s → 14.6 s (21× faster) thanks to the v0.4.1 C native + v0.5.0 SPICE-free init phases.
+- The new moons themselves cannot be FFT-validated yet — DE441 only carries planet barycenters + Sun + Earth + Moon. Supplementary-kernel codegen (`mar097` / `jup340` / `sat441`) is queued for v0.5.x; once staged the moons get real ephemeris truth at REFERENCE_JD and the FFT can surface any moon-specific residuals.
+
+See the [project CHANGELOG](../CHANGELOG.md) for the full v0.5.0 entry.
 
 ## [0.4.1] — 2026-05-05
 
