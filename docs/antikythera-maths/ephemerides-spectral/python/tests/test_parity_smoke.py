@@ -113,6 +113,15 @@ PARITY_TARGETS: Dict[str, Dict] = {
                       "departure": "terra", "target": "mars",
                       "intermediates": []},
     },
+    # ── v0.18.0 Body Architecture (resonance-weighted gateway-graph
+    # Laplacian Fiedler partition; inner/outer system classification).
+    # Pure-Python; no C twin planned -- the eigendecomposition runs on
+    # numpy.linalg.eigh and the call cost is microseconds, well below
+    # any threshold where a C twin would be useful. See notebook §13.8.
+    "body_architecture": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     "find_syzygies": {
         "status": "parity",
         "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 365.25,

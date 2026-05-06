@@ -7,7 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.17.0)
+(no entries yet — next entries land after v0.18.0)
+
+## [0.18.0] — 2026-05-06
+
+**Body Architecture: inner/outer system classification of heliocentric bodies via the resonance-weighted gateway-graph Laplacian Fiedler partition.** First spectral-architecture surface in the bridge — the v0.17.x research output (notebook §13.8) promoted to a stable ship API. Pure-Python addition; **no ABI bump** (second consecutive ship since v0.13.x with no ABI movement; `ES_ABI_VERSION = 8` unchanged from v0.17.0).
+
+### What ships
+
+| Surface | Function / subcommand | Description |
+|---|---|---|
+| Pythonic API | `_research.body_architecture.compute_body_architecture(bodies=None)` | Returns full classification dict |
+| Bridge dict API | `bridge.body_architecture(target=None)` | Pyodide-compatible — full partition by default; single-body record if `target` given |
+| CLI | `body-architecture` | Flags: `--target <name>` (optional single-body lookup), `--pretty` |
+
+### Algorithm
+
+1. For each unordered pair `(i, j)` of heliocentric bodies, compute the period ratio `r = min(P_i, P_j) / max(P_i, P_j) ∈ (0, 1]` and the best small-integer rational `(p, q)` approximation via `_best_rational_approx(r, max_int=30)` — the same v0.17.0 ITN-chain primitive used for per-leg resonance signatures.
+2. Form the symmetric edge weight `w_ij = exp(-|r - p/q| / 0.005) / (p + q)`. Strong low-order locks (Jupiter-Saturn 2:5, Neptune-Pluto 2:3, Ceres-Pallas 1:1) score high; spurious near-rationals are suppressed by the residual term.
+3. Build the combinatorial Laplacian `L = D - W`. Compute eigendecomposition. Take the Fiedler eigenvector (eigenvector of the second-smallest eigenvalue λ₂).
+4. Apply the sign convention: the body with the shortest sidereal period (mercury, in the default roster) is forced to have a positive Fiedler entry. This makes the inner/outer label assignment reproducible across platforms regardless of LAPACK pivoting.
+5. Classify: positive Fiedler entry ⇒ "inner"; negative ⇒ "outer".
+
+### Default classification (13-body heliocentric Tier-1 roster)
+
+| Class | Bodies (sorted by Fiedler-vector entry) | Period range (d) |
+|---|---|---|
+| Outer (5) | pluto (−0.585), neptune (−0.585), uranus (−0.137), jupiter (−0.078), saturn (−0.042) | 4332 – 90560 |
+| Inner (8) | hygiea (+0.093), pallas (+0.137), ceres (+0.139), vesta (+0.158), mars (+0.171), terra (+0.197), venus (+0.202), mercury (+0.329) | 88 – 2031 |
+
+The cyclic-group encoder discovers the canonical inner/outer system division — the asteroid-belt boundary — without being told it exists. Pluto and Neptune share the deepest entry (−0.585) via their well-known 2:3 mean-motion lock dragging both deep into the outer cluster.
+
+### Research origin
+
+Notebook §13.8 ("the resonance-weighted Laplacian"). The §13 thread compared four edge weightings:
+
+* **inv_dv** (§13 baseline) — Spearman ρ = +0.743 vs empirical Δv from `find_itn_chains`; partition isolates mercury alone (Mercury-isolation indicator).
+* **inv_synodic** (§13 control) — Spearman ρ = −0.301; dominated by pallas/ceres near-degeneracy.
+* **resonance** (§13.8) — Spearman ρ = +0.632; partition is the canonical inner/outer split — the architectural finding shipped here.
+* **hybrid_dv_resonance** (§13.9) — Spearman ρ = +0.857 (clears the §13.7 ship bar); Matthews φ = +0.298 (below the partition bar). Vindicates the multiplicative-hybrid hypothesis for a *continuous* Fiedler-distance Δv predictor; queued for v0.18.x or v0.19.0 as `bridge.predict_itn_accessibility` once a Fiedler-distance → Δv regression is calibrated.
+
+### Test count
+
+658 pass, 41 skipped (was 622 + 41 in v0.17.0; +36 new — 34 in `tests/test_body_architecture.py` covering: default-roster shape + canonical inner-8/outer-5 partition + Pluto-Neptune deepest-entry pin + Mercury-largest-positive sign-convention pin + Fiedler-value sort order + λ₂ positivity + determinism + error paths (empty / duplicates / unknown body / zero-period body) + 13 single-body class lookups via `pytest.mark.parametrize` + bridge surface (full + single + case-insensitive + rejection) + CLI surface (full + target + `--help`) + 2 parity-smoke entries).
+
+### Migration
+
+Pure-additive on the Python bridge and the CLI. No existing call sites change. Native callers see `ES_ABI_VERSION = 8` unchanged. `ES_VERSION_STRING` bumps `0.17.0 → 0.18.0`.
 
 ## [0.17.0] — 2026-05-06
 

@@ -86,6 +86,7 @@ if hasattr(sys.stdout, "reconfigure"):
 # --------------------------------------------------------------------------
 from ephemerides_spectral import bridge
 from ephemerides_spectral._research.itn_window import (
+    _best_rational_approx,
     hohmann_total_dv_kms,
     synodic_period_days,
 )
@@ -131,6 +132,23 @@ HELIOCENTRIC_BODIES: List[str] = [
 EPS_DV_KMS: float = 1.0e-3
 EPS_SYN_DAYS: float = 1.0e-3
 
+# Resonance-weighted Laplacian (v0.17.x §13.8 follow-up). Uses the same
+# small-integer rational approximation primitive that v0.17.0 ITN chains
+# carry as the per-leg "resonance signature": the best (p, q) with
+# 1 ≤ p, q ≤ RESONANCE_MAX_INT minimising |period_min/period_max - p/q|.
+# Weight combines low-order bias (1/(p+q) — strong resonances 1:2, 2:5
+# dominate over Diophantine-luck near-rationals like 15:29) with
+# residual-quality (exp(-residual/scale) — penalises ratios that
+# happen to land near a low-order rational without a true period lock).
+# RESONANCE_MAX_INT=30 matches v0.17.0 _best_rational_approx default
+# (preserves consistency with the chain signatures shipped in the
+# bridge.find_itn_chains output). RESONANCE_RESIDUAL_SCALE=0.005 puts
+# the half-decay point at ~0.5% mismatch — Earth-Mars 8:15 residual
+# 0.24% lands at exp(-0.48)≈0.62 (kept), Saturn-Uranus 7:20 residual
+# 1.3% lands at exp(-2.6)≈0.07 (suppressed).
+RESONANCE_MAX_INT: int = 30
+RESONANCE_RESIDUAL_SCALE: float = 5.0e-3
+
 # Sentinel for "no chain found within budget". Used in scatter plots.
 NO_CHAIN_DV_KMS: float = float("inf")
 
@@ -143,6 +161,27 @@ FIGURES_DIR: Path = _THIS_DIR.parent / "figures"
 # Graph construction.
 # --------------------------------------------------------------------------
 
+def _resonance_strength(p_i: float, p_j: float) -> float:
+    """Strong-resonance weight for a body pair.
+
+    Uses the v0.17.0 ``_best_rational_approx`` primitive (max_int=30,
+    matching the chain-signature convention) on
+    ``min(p_i, p_j) / max(p_i, p_j) ∈ (0, 1]``. Returns
+    ``exp(-residual / RESONANCE_RESIDUAL_SCALE) / (p + q)`` where
+    ``residual = |ratio - p/q|`` and ``(p, q)`` is the best small-
+    integer rational. Tight low-order locks (Jupiter/Saturn 2:5,
+    Terra/Jupiter 1:12) score high; spurious low-order matches
+    (Uranus/Neptune ~1:2, Mercury/Jupiter ~1:30) are suppressed by
+    the residual term.
+    """
+    ratio = min(p_i, p_j) / max(p_i, p_j)
+    p, q = _best_rational_approx(ratio, max_int=RESONANCE_MAX_INT)
+    if (p, q) == (0, 0):
+        return 0.0
+    residual = abs(ratio - p / q)
+    return math.exp(-residual / RESONANCE_RESIDUAL_SCALE) / float(p + q)
+
+
 def build_weight_matrix(
     bodies: List[str],
     weighting: str,
@@ -152,12 +191,24 @@ def build_weight_matrix(
     Parameters
     ----------
     bodies : list of body names; W is indexed in this order.
-    weighting : one of {"inv_dv", "inv_synodic"}.
+    weighting : one of {"inv_dv", "inv_synodic", "resonance",
+        "hybrid_dv_resonance"}.
 
         * ``"inv_dv"`` — ``w_ij = 1 / (Δv_ij + EPS_DV_KMS)`` where Δv_ij
           is the closed-form total Hohmann Δv between bodies i and j.
         * ``"inv_synodic"`` — ``w_ij = 1 / (T_syn_ij + EPS_SYN_DAYS)``
           using the closed-form synodic period (in days).
+        * ``"resonance"`` — ``w_ij = exp(-residual/scale) / (p+q)``
+          where ``(p, q)`` is the best small-integer rational
+          approximation of the period ratio. The BIP cyclic-group
+          encoder's native metric — small-integer resonances are the
+          gear-ratio primitives the §6 encoder is built on.
+        * ``"hybrid_dv_resonance"`` — ``w_ij = w_dv * w_resonance``
+          (multiplicative). The §13.9 hybrid: pairs that are *both*
+          cost-cheap *and* resonance-locked (Earth-Mars, Jupiter-
+          Saturn) get multiplicatively stronger edges than either pure
+          metric provides; pairs that are cost-cheap but resonance-
+          unrelated (or vice versa) get a damped weight.
 
     Returns
     -------
@@ -175,6 +226,11 @@ def build_weight_matrix(
             elif weighting == "inv_synodic":
                 t_syn = synodic_period_days(p_i, p_j)
                 w = 1.0 / (t_syn + EPS_SYN_DAYS)
+            elif weighting == "resonance":
+                w = _resonance_strength(p_i, p_j)
+            elif weighting == "hybrid_dv_resonance":
+                dv = hohmann_total_dv_kms(p_i, p_j)
+                w = (1.0 / (dv + EPS_DV_KMS)) * _resonance_strength(p_i, p_j)
             else:
                 raise ValueError(f"unknown weighting {weighting!r}")
             W[i, j] = w
@@ -511,10 +567,14 @@ def main() -> int:
         f"      ground truth: {n_finite_pairs}/{n_pairs} pairs feasible\n"
     )
 
-    # 2. Two weightings.
+    # 2. Four weightings: inv_dv (primary, §13), inv_synodic (control,
+    #    §13), resonance (§13.8 BIP cyclic-group encoder's native
+    #    metric), hybrid_dv_resonance (§13.9 multiplicative hybrid).
     print("[2/3] Building gateway Laplacians + Fiedler eigenvectors...")
     summaries = []
-    for weighting in ("inv_dv", "inv_synodic"):
+    for weighting in (
+        "inv_dv", "inv_synodic", "resonance", "hybrid_dv_resonance"
+    ):
         s = run_one_weighting(bodies, weighting, obs_dv_matrix)
         summaries.append(s)
         cm = s["confusion_matrix"]
@@ -551,20 +611,29 @@ def main() -> int:
     print("-" * 64)
     rho_dv = summaries[0]["rho_spearman"]
     rho_syn = summaries[1]["rho_spearman"]
-    primary_rho = rho_dv  # primary predictor: inv_dv weighting
+    rho_res = summaries[2]["rho_spearman"]
+    rho_hyb = summaries[3]["rho_spearman"]
+    # Primary predictor is the §13.9 hybrid (cost × resonance). If it
+    # clears the §13.7 ship bar (ρ ≥ 0.85 with Matthews φ ≥ 0.6), the
+    # gateway-graph spectrum graduates to a v0.18.0 ship surface.
+    primary_rho = rho_hyb
     if not math.isfinite(primary_rho):
         verdict = "DEGENERATE — too few feasible pairs for Spearman"
+    elif primary_rho >= 0.85:
+        verdict = "SHIP CANDIDATE — hybrid Fiedler clears v0.18.0 ship bar (ρ ≥ 0.85)"
     elif primary_rho >= 0.7:
-        verdict = "STRONG SUPPORT — Fiedler distance predicts Δv (ρ ≥ 0.7)"
+        verdict = "STRONG SUPPORT — hybrid Fiedler predicts Δv (ρ ≥ 0.7)"
     elif primary_rho >= 0.4:
-        verdict = "PARTIAL SUPPORT — Fiedler captures gross structure (0.4 ≤ ρ < 0.7)"
+        verdict = "PARTIAL SUPPORT — hybrid Fiedler captures gross structure (0.4 ≤ ρ < 0.7)"
     elif primary_rho >= 0.2:
-        verdict = "WEAK SUPPORT — Fiedler weakly correlates (0.2 ≤ ρ < 0.4)"
+        verdict = "WEAK SUPPORT — hybrid Fiedler weakly correlates (0.2 ≤ ρ < 0.4)"
     else:
-        verdict = "NULL RESULT — Fiedler does not predict empirical Δv (ρ < 0.2)"
+        verdict = "NULL RESULT — hybrid Fiedler does not predict empirical Δv (ρ < 0.2)"
     print(f"VERDICT: {verdict}")
-    print(f"  primary (inv_dv  weighting) Spearman ρ = {rho_dv:+.3f}")
-    print(f"  control (inv_syn weighting) Spearman ρ = {rho_syn:+.3f}")
+    print(f"  §13.9 (hybrid_dv_resonance)  Spearman ρ = {rho_hyb:+.3f}")
+    print(f"  §13.8 (resonance         )   Spearman ρ = {rho_res:+.3f}")
+    print(f"  §13   (inv_dv  baseline  )   Spearman ρ = {rho_dv:+.3f}")
+    print(f"  §13   (inv_syn control   )   Spearman ρ = {rho_syn:+.3f}")
     print(f"  See figures in {FIGURES_DIR.resolve()}")
     return 0
 

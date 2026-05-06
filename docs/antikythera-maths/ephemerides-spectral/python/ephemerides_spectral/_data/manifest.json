@@ -20,6 +20,10 @@
       "sha256": "baf75251aa8d89a1d810dec955b1b53a4d4dc466e248ba75ade428248ce415d7",
       "size_bytes": 10432
     },
+    "_research/body_architecture.py": {
+      "sha256": "a5bdcaeca175883c4bcf7a9658c601d06ca84bc2057d523947dfbadfbac1e42a",
+      "size_bytes": 9767
+    },
     "_research/diagnosed_fibers.py": {
       "sha256": "4b7c1fbbdce7014d7b0e6c086bb543e399e1ba00d03eb2fc8c579aa1daad7fd2",
       "size_bytes": 21602
@@ -66,5 +70,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.17.0"
+  "version": "0.18.0"
 }
