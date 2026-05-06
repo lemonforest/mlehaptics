@@ -1146,3 +1146,140 @@ Avoid the term — or qualify it heavily — when:
 * Describing low-rank approximations whose error metric is *not* an explicit boundary-side spectral quantity. "Compressed" or "sparse" is the right word for those; "holographic" should imply a recoverable-bulk-from-boundary map with a defined error.
 
 The macro-scale holographic framing is the cleanest single-sentence answer to "what is this project's spectral apparatus *for*?": the body-graph spectrum is a low-dimensional boundary representation that determines (within a measurable error) the bulk dynamics of the system it indexes. §13 is the first quantitative realisation of that framing on a non-trivial bulk question (multi-leg ITN accessibility); §14 names what §13 was doing.
+
+## 15. Stellar Forge + galaxy-scale lift — feasibility scoping for v1.0.0 / v2.0.0
+
+This section is **research-only scoping**, not a ship. It evaluates two hypothetical major-version-bump targets that have been raised informally:
+
+1. **Star-system scale.** Could the package's spectral primitives (`bridge.body_architecture`, `bridge.predict_itn_accessibility`, `bridge.find_itn_chains`, the `BODIES` roster, Sol Time, SPrT, Sol Kinematics) plug into a procedural-star-system worldgen — specifically, the **Stellar Forge** that Dr Kay Ross worked on at Frontier Developments — as inputs, outputs, or building blocks for the kind of system catalogue Stellar Forge produces?
+2. **Galaxy scale.** Is a Milky-Way-scale lift of the same apparatus *technically feasible* given publicly available astrometric data (JPL DE441, Hipparcos, Gaia DR3, etc.), or does the apparatus break in essential ways once the central potential ceases to be heliocentric?
+
+Both questions sit downstream of §13's body-graph Laplacian work. §13 demonstrated that the body-graph spectrum (under hybrid `inv_dv × resonance` weighting) does encode the heliocentric-system architecture; §14 asks whether that argument scales out to *other* systems and *galactic* dynamics.
+
+### 15.1 Stellar Forge — what it actually is
+
+**Identification.** Dr Kay Ross is a former research physicist (Lancaster University, with collaboration at Fermilab) who joined Frontier Developments and was a lead physicist on the **Stellar Forge** — the procedural-generation engine that produces the ≈ 400 billion star systems populating the 1:1-scale Milky Way galaxy in Elite: Dangerous. The Stellar Forge is part of Frontier's proprietary Cobra engine and **is not open-source**; there is no public source code, design doc, or formal API. What is documented sits in PC Gamer / Space.com developer interviews, the Elite Dangerous fan-wiki, and the Frontier forums (Discovery Scanner Q&A streams). The Wikipedia / 80.lv / Frontier-forum coverage is consistent on the basics but light on technical detail.
+
+**What it generates.** From the public coverage:
+
+* **Real-star seed catalogue.** The Hipparcos and Gliese stellar catalogues seed ≈ 160,000 systems with real-star astrometry (positions, proper motions, photometric types). These are the "ground truth" entries that match the night sky.
+* **Procedural infill** for the remaining ≈ 400 billion. The infill claims to use "first-principles" formation: a nebular-collapse simulation runs from initial chemical composition + total angular momentum + metallicity, aggregates matter into one or more central bodies, then partitions residual matter into planets, moons, asteroid fields, with derived properties (mass, radius, temperature, atmospheric composition, orbital elements).
+* **Galactic-scale dust** — the dust distribution is concentrated on the galactic plane to match real-Milky-Way absorption, and the bulge / Sagittarius A\* / spiral-arm density structure is reproduced visually so that the sky from any in-game position matches what observers would actually see.
+* **Planetary surfaces** — terrain, atmospheric chemistry, base maps (the Horizons / Odyssey expansions extended this to walkable planet surfaces).
+
+**What it does NOT generate.** Galactic dynamics is *visual*, not *dynamical*. Stellar Forge does not (publicly) report star *orbits around the Galactic Centre*, does not simulate Lindblad resonances or spiral-density-wave dynamics, and does not provide a kinematic 6-D phase space for its 400-billion-star roster (just static positions + proper motions for the 160 k seeded ones). Its scope-cap is **per-system internal dynamics + global photometric / dust geometry**; galactic-disc orbital evolution is out of scope.
+
+**API surface.** No first-party Stellar Forge API is exposed. Third-party projects scrape the Elite Dangerous client journal files (EDDN, EDSM, EDDB, Inara, EDAstro) and aggregate per-system Stellar-Forge outputs into queryable datasets. EDDN is the canonical live-stream pipeline; EDSM is the canonical archived database. So a downstream analytic tool would consume *EDDN/EDSM JSON*, not call Stellar Forge directly. The Stellar Forge itself is sealed behind the Cobra engine.
+
+### 15.2 Where ephemerides-spectral primitives would slot in (or fail to)
+
+If a future tool wanted to take Stellar-Forge-generated systems and run our spectral primitives against them, the candidate slots are:
+
+* **`BODIES`-roster substitution.** Trivially feasible *per system*. A Stellar Forge system's planet roster — sidereal periods, masses, surface radii — is exactly the dataclass shape `BODIES[name] = Body(name, period_days, mass_earth, category, surface_radius_km)` already accepts. Treating each generated system as its own `BODIES` instance and running `body_architecture` / `predict_itn_accessibility` / `find_itn_chains` against *its* heliocentric (per-star-centric) graph is mechanically straightforward; the Hohmann + Laplacian + Fiedler math is generic over any heliocentric body roster.
+* **`bridge.body_architecture` analogue.** The §13.8 resonance-Fiedler partition (inner-vs-outer system) **lifts cleanly** to any star system whose planets have well-defined sidereal periods. If Stellar Forge produces a system with eight planets and three asteroid belts, our existing Laplacian construction would identify its inner / outer partition without modification. This is the strongest "slot-in" of the four bridge surfaces.
+* **`bridge.find_itn_chains` analogue.** Also lifts cleanly *per star system*. The closed-form Hohmann is a per-system query and does not depend on which star you orbit — only on the per-system semi-major axes and the local µ = G M\_★. Replace the Sun's GM with Stellar Forge's central-star GM, and the existing `itn_window.hohmann_total_dv_kms` runs verbatim. Result: an ITN-chain catalogue per generated system.
+* **`Sol Time` / SPrT analogue.** Sol Time (`time_scales.py`) is a relativistic time-scale stack for our specific solar system (TT/TDB/TCB/TCG offsets are tied to Earth's gravitational potential and orbital state). The general construction is *per-system* — every star system has its own analogue — but the **calibration constants are not generic**: TCG and TT differ by 6.969 × 10⁻¹⁰, a number specific to Earth's geoid. Lifting requires re-deriving each system's barycentre / stellar-surface / habitable-body trio. Mechanically possible; per-system cost is real but bounded.
+* **`Sol Kinematics`.** Same story: per-system, with re-derivation cost; the framework generalises but the constants do not.
+
+**Verdict for §15.2:** The per-system spectral primitives **lift cleanly** to any star-system catalogue (Stellar Forge or otherwise) for which sidereal periods, masses, and a central-star µ are available. This is the **strong slot-in** — and it is *exactly* what §13's body-graph Laplacian was implicitly generic over. EDDN/EDSM JSON ingestion would be the bridge.
+
+What does **not** slot in is anything cross-system: there is no meaningful Hohmann transfer between star systems (interstellar Δv is dominated by stellar escape velocity and Galactic-disc kinematics, not Hohmann arithmetic), so `find_itn_chains` and `predict_itn_accessibility` *cannot* run on a Stellar-Forge-galactic-roster vertex set without redefinition. The galactic-scale Δv geometry is a different problem.
+
+### 15.3 Galactic-scale data sources — what the public datasets actually offer
+
+The user's framing was "do we have enough data to model our galaxy with JPL data". JPL DE441 itself does not extend to galactic scale — it is a heliocentric ephemeris of Solar-System bodies plus 343 large asteroids, and stops at the heliocentric reference frame. The galactic-scale data live in stellar catalogues, not planetary ephemerides:
+
+| Dataset | Total sources | 5-param astrometry | 6-D phase space (incl. RV) | Typical precision |
+| :--- | ---: | ---: | ---: | :--- |
+| **Gaia DR3** (2022) | 1,811,709,771 | 585 M (5-param) + 882 M (6-param) ≈ **1.47 B** | **33,812,183** | 0.02–0.03 mas (G < 15); 0.5 mas @ G = 20 |
+| **Gaia GCNS** (within 100 pc) | 331,312 | ≈ 100% | subset (~70 k with RV) | sub-mas |
+| **Hipparcos** (1997) | 117,955 | ≈ 100% | subset (~8 k with RV) | ~1 mas |
+| **Tycho-2** | 2,539,913 | position + PM only | none | 7-60 mas |
+| **2MASS** | ~ 470 M | photometry only | none | n/a (no astrometric solution) |
+| **APOGEE / RAVE / GALAH** | ~ 3-5 M total | RV + chemistry only | RV component | spectroscopic |
+
+**The headline number for our purposes** is the **33.8 million Gaia DR3 stars with a complete 6-D phase-space solution** (position + parallax + 2-D proper motion + radial velocity). This is what would power any spectral / Laplacian / kinematic-graph analysis at galactic scale. Within 100 pc the Gaia GCNS catalogue holds 331,312 stars; that is the natural "nearby" sub-sample (≥ 92% complete down to spectral type M9, per the GCNS paper).
+
+**What about galactic-disc orbital periods?** Unlike heliocentric bodies, galactic-disc stars do not have a sidereal period in the BIP-encoder sense — but they *do* have a galactocentric orbital frequency Ω(R) (the angular speed at galactocentric radius R) and an epicyclic frequency κ(R) (the radial-oscillation rate around the guiding-centre orbit). Both are derivable from Gaia DR3 6-D phase space *if* a Galactic potential model is assumed (the standard MWPotential2014 / McMillan 2017 / similar parametrisations). At the Sun's galactocentric radius R\_☉ ≈ 8.2 kpc, Ω\_☉ ≈ 28 km/s/kpc → orbital period T\_☉ ≈ 225 Myr; κ\_☉/Ω\_☉ ≈ √2 (cold-disc limit), so a typical disc star executes ≈ √2 ≈ 1.4 radial oscillations per azimuthal orbit in the rotating frame.
+
+This *does* give the BIP / cyclic-group encoder a candidate "period" observable for galactic-disc stars: T\_orbit(R) = 2π / Ω(R), or alternatively the ratio Ω/κ as a per-star feature. **But the 1.4 ratio is not a small-integer rational** — and that's the early warning that the Antikythera-style integer-resonance encoding is going to struggle here. More on this in §15.4.
+
+### 15.4 What the BODIES / Laplacian / Fiedler / ITN apparatus does and does not lift to galactic scale
+
+Working through the §13-level apparatus piece by piece, with verdicts:
+
+* **`BODIES` roster lift to e.g. `MILKY_WAY_BODIES`.** Mechanically feasible — the dataclass shape is generic. A `MILKY_WAY_BODIES` keyed on Gaia source IDs with `period_days = 2π / Ω(R)` derived from Gaia 6-D phase space is constructible. The 33.8 M sources with full RV give a ceiling; the 331 k GCNS within 100 pc give a tractable starting roster. **Verdict: lifts.**
+* **Body-graph Laplacian construction.** A complete 13-vertex graph at heliocentric scale becomes a complete 331,312-vertex graph (or sparse k-NN graph) at GCNS scale. Memory: a dense 331 k × 331 k float64 Laplacian is ≈ 0.87 TB — infeasible. A sparse k-NN Laplacian (k = 50 nearest neighbours in 6-D phase space) is ≈ 130 MB — fine. **Verdict: lifts, but requires a sparse-graph reformulation that §13 did not need at 13-vertex scale.**
+* **Fiedler-partition / spectral-clustering.** This is precisely the question the Gaia DR3 moving-groups literature has been asking — and answering, with DBSCAN, MGwave wavelet decomposition, Friends-of-Friends, and (occasionally) graph-Laplacian / spectral-clustering methods. The recent literature (Antoja et al. 2023; Lucchini et al. 2023; arXiv:2512.09078 *Unsupervised Kinematic Dissection of the Solar Neighborhood*, December 2025) recovers Hyades / Pleiades / Sirius / Hercules / Coma streams as kinematic over-densities in the (U, V, W) velocity-space DBSCAN clustering. **The spectral-Laplacian approach is a less-explored variant of this same problem.** A graph-Laplacian moving-group classifier is not novel-in-kind but would be a competitive contribution to the literature. **Verdict: lifts, with an existing literature to slot into, not invent.**
+* **Hohmann-Δv weighted edges + `find_itn_chains`.** Does not lift. Interstellar Δv is dominated by stellar escape velocity (≈ 42 km/s from Earth's orbit; at galactic-disc scales, escape from the Galaxy is ≈ 550 km/s) and by relative-velocity matching between moving groups (Hercules–Pleiades have a ≈ 30 km/s relative drift). Hohmann arithmetic — which presumes a single shared central potential — does not apply to a graph whose vertices are stars with their *own* deep wells. **Verdict: does not lift. The naive translation is wrong physics.**
+* **Resonance-weighted edges (§13.8) at galactic scale.** Galactic dynamics has its own resonance literature: **Lindblad resonances** (inner-Lindblad ILR: Ω − κ/m = Ω\_p; outer-Lindblad OLR: Ω + κ/m = Ω\_p) are the standard galactic-disc analogues of mean-motion resonances. The Milky Way bar's OLR is observed beyond the solar circle and is the dynamical driver of several Gaia moving groups (Hercules, in particular, is generally interpreted as the OLR of the bar). **The cyclic-group `n_a φ_a − m_b φ_b ≈ 0` formalism *does* describe Lindblad resonances** — this is structurally the same algebra. A resonance-weighted Laplacian on (Ω, κ) per Gaia DR3 disc star, with edge weight `exp(−|m(Ω_i − Ω_p) − κ_i| / scale)` for some bar pattern speed Ω\_p, is a credible spectral approach to bar-OLR-driven moving-group classification. **Verdict: lifts at the algebra level — but with a critical caveat: the Galactic potential and bar pattern speed Ω\_p are model-dependent inputs** (they don't come from Gaia directly; they come from a Galactic-dynamics fit). This is a different epistemic regime from the heliocentric BIP encoder, which gets sidereal periods directly from JPL HORIZONS and treats them as ground truth.
+* **Sol Time / SPrT (gravitational time-dilation).** Lifts conceptually (every star has its own proper-time stack relative to the Galactic-Centre frame, and stars deep in the bulge potential run measurably slower than disc stars by ≈ 10⁻⁹ — the analogue of the GR component of SPrT), but is *not* the natural galactic-scale observable. Galactic dynamics doesn't typically care about per-star proper-time offsets. **Verdict: lifts but is uninteresting at galactic scale.**
+* **ITN chains / Lagrange-highway searching.** Does not lift. The CR3BP per-Sun-planet rotating-frame structure (§12) presumes a hierarchical Sun-dominated potential with planetary perturbers. The galactic potential is not hierarchical in this sense — disc stars feel the smoothed gravitational potential of the bar + bulge + dark-matter halo + spiral arms, all dynamically active on overlapping timescales. There is no useful "Lagrange-point" structure at galactic scale. **Verdict: does not lift.**
+
+**Summary of the lift table:**
+
+| Apparatus | Lifts to galactic scale? | Notes |
+| :--- | :--- | :--- |
+| `BODIES` roster shape | Yes | Re-key on Gaia source ID |
+| Body-graph Laplacian | Yes (sparse k-NN) | Memory-bound; need sparse formulation |
+| Fiedler / spectral clustering | Yes | Established Gaia-DR3 moving-groups literature |
+| Hohmann-Δv edges / ITN chains | **No** | Wrong physics — different potential |
+| Resonance edges (Lindblad analogue) | Yes (with caveat) | Requires Galactic-potential + Ω\_p model |
+| Sol Time / SPrT | Conceptually yes | Uninteresting at galactic scale |
+| Lagrange-highway / CR3BP | **No** | Galactic potential not hierarchical |
+
+So roughly half the apparatus lifts; half does not. The half that lifts is the part that was already generic (graph Laplacian, spectral clustering, integer-resonance algebra). The half that does not lift is the part that was specifically heliocentric celestial mechanics (Hohmann, Lagrange).
+
+### 15.5 Candidate ship surfaces for v1.0.0 / v2.0.0
+
+Three honest framings, with verdicts:
+
+**(A) "Per-system spectral worldgen primitive" — v1.0.0.** Ship a `bridge.system_architecture(BODIES_dict)` surface that takes any `BODIES`-shaped dict (Stellar Forge, hand-built, exoplanet catalogue, etc.) and returns the §13.8-style resonance-Fiedler partition. Reasonable, small scope, generalises §13.8 cleanly, ties to a real downstream consumer (Stellar-Forge-derived JSON, exoplanet catalogues like the NASA Exoplanet Archive). **Verdict: feasible, low-risk, useful. This is the strong v1.0.0 candidate — it's what §13.8 was implicitly already doing, just with the heliocentric-roster baked-in dependency lifted.**
+
+**(B) "Galactic-scale moving-group classifier" — v2.0.0.** Ship a `bridge.gaia_moving_groups(gaia_subselection)` surface that takes a Gaia DR3 6-D phase-space subselection (e.g. the 331 k GCNS catalogue) and returns a sparse-Laplacian Fiedler-style spectral clustering of moving groups. **Verdict: feasible but enters a crowded literature.** DBSCAN / MGwave / FoF approaches dominate. A graph-Laplacian Fiedler classifier would be a *contribution*, not a *novelty*; the differentiator would have to be the cyclic-group / Lindblad-resonance edge-weighting, which is a credible novelty if it produces moving groups that the existing methods miss or sharpens the bar-OLR-driven Hercules-stream interpretation. This is a real research contribution but would need genuine astrophysics co-authors to validate against literature ground truth. The lift is technically feasible; the framing of it as "v2.0.0 of an Antikythera spectral library" rather than "a Gaia-DR3 moving-groups paper" is the harder question.
+
+**(C) "Galaxy-scale procedural worldgen engine" — what the user originally framed as the big-bump target.** This conflates (A) and (B) and a Stellar-Forge-style infill engine. Building a Stellar-Forge-equivalent (procedural per-system formation simulation from nebular collapse) is **not what the package does** — the package consumes pre-existing rosters and computes spectral structure on them. Stellar Forge is *generative*; the package is *analytic*. Lifting to a generative engine would be a different project. **Verdict: don't ship this framing.** The package's strength is *reading structure out of an existing roster*; pretending it generates the roster is a category error.
+
+### 15.6 Verdict + recommendation
+
+**Headline.** The spectral framework is **not** tied so deeply to celestial-mechanics-of-the-solar-system that it can't lift, but it **is** scoped narrower than "procedural worldgen / galaxy-scale modelling engine" implies. The lift that genuinely works is **per-system spectral classification** (the §13.8 architecture-Fiedler primitive, generalised over `BODIES`-roster shape) and **galactic-scale moving-group spectral clustering** (Lindblad-resonance-weighted Laplacian on Gaia DR3 6-D phase space). The lift that does *not* work is anything Hohmann / Lagrange-based at galactic scale (wrong physics) or generative procedural worldgen (wrong project archetype).
+
+**Recommendation: scope-limited yes.**
+
+* **Ship v1.0.0 around (A): per-system spectral primitives** as a Stellar-Forge-friendly ingestion surface. Headline deliverable: `bridge.system_architecture(roster)` accepting an arbitrary `BODIES`-shaped dict (e.g. EDSM-derived JSON for a Stellar-Forge system) and returning the resonance-Fiedler inner/outer partition + ITN-chain catalogue + body-architecture report. This is a small, principled, technically clean v1.0.0 that lifts the implicit heliocentric assumption of v0.18.x to "any per-system roster" — a clean major version because it's a roster-shape generalisation, not a feature flood.
+* **Defer v2.0.0** until either (a) the per-system v1.0.0 has a real downstream consumer (Stellar-Forge ingest pipeline, exoplanet catalogue ingest, Kerbal-Space-Program-style game integration, etc.) demonstrating the surface earns its keep, or (b) the galactic-scale Lindblad-Laplacian prototype (B) has a non-trivial result that competes with the existing Gaia DR3 moving-groups literature on its own terms. Either is at least 6 months of work; neither should be done speculatively.
+* **Don't ship (C).** A "galaxy-scale procedural worldgen engine" is not what this package is. The honest version of that pitch would require a procedural generator, which is a separate project. Marketing v1.0.0 / v2.0.0 as that ambition would over-promise.
+
+**What's not known.**
+
+* Whether a spectral Lindblad-resonance Fiedler classifier on Gaia DR3 produces *new* moving-group classifications that the existing DBSCAN / wavelet / FoF methods miss. Without running the prototype, this is speculation. The §13.8 result on a 13-body roster does not extrapolate cleanly to a 331 k-vertex graph.
+* Whether the EDDN / EDSM JSON format actually exposes everything (sidereal periods, masses) needed to populate a `BODIES`-shaped dict from Stellar Forge outputs. The wiki coverage suggests yes; verifying requires touching the EDDN schema.
+* Whether the surface-radius / SPrT slot — which we keep as a per-body field for our existing Sol-Time stack — is something Stellar Forge actually exposes for its procedural bodies, or only for the 160 k Hipparcos / Gliese seeded ones. If the field is missing from the procedural infill, the SPrT pieces would fall back to default-zero handling (acceptable but worth flagging).
+* Whether `Sol Kinematics` has anything novel to say at galactic scale beyond what the existing Gaia DR3 6-D-phase-space literature already covers. Probably not; this is the candidate we'd most expect to be subsumed by existing astrophysics.
+
+### 15.7 References
+
+Stellar Forge / Elite: Dangerous procedural generation:
+* Elite Dangerous Wiki, "Stellar Forge". <https://elite-dangerous.fandom.com/wiki/Stellar_Forge>
+* Hall, Charlie. "Space Adventure 'Elite: Dangerous' Simulates Milky Way in Stunning and Accurate Detail." Space.com, 2016. <https://www.space.com/31366-elite-dangerous-stellar-forge-interview.html>
+* "Generating The Universe in Elite: Dangerous." 80 Level. <https://80.lv/articles/generating-the-universe-in-elite-dangerous>
+* "Meet the Team — Kay Ross." Frontier Forums. <https://forums.frontier.co.uk/threads/meet-the-team-kay-ross.521191/>
+* EDDN (Elite: Dangerous Data Network), the canonical third-party live-stream of Stellar-Forge-derived per-system data. <https://github.com/EDCD/EDDN>
+
+Gaia DR3 / nearby-stars catalogues:
+* Gaia Collaboration, "Gaia Data Release 3", ESA Cosmos. <https://www.cosmos.esa.int/web/gaia/dr3> — 1.81 B sources, 1.47 B astrometric, 33.8 M with RV.
+* Smart, R. L., et al. "Gaia Early Data Release 3 — The Gaia Catalogue of Nearby Stars" (GCNS). *A&A* 649, A6 (2021). <https://www.aanda.org/articles/aa/full_html/2021/05/aa39498-20/aa39498-20.html> — 331,312 stars within 100 pc.
+* Creevey, O. L., et al. "Gaia Data Release 3 — Apsis II. Stellar parameters." *A&A* 674, A26 (2023). <https://www.aanda.org/articles/aa/full_html/2023/06/aa43919-22/aa43919-22.html>
+
+Gaia DR3 moving groups / kinematic substructure:
+* Lucchini, S., et al. "New stellar velocity substructures from Gaia DR3 proper motions." *MNRAS* 519, 1989 (2023). <https://academic.oup.com/mnras/article/519/2/1989/6909073>
+* Antoja, T., et al. "Gaia DR3 view of dynamical substructure in the stellar halo near the Sun." *A&A* 670, A92 (2023). <https://www.aanda.org/articles/aa/full_html/2023/02/aa44546-22/aa44546-22.html>
+* "Unsupervised Kinematic Dissection of the Solar Neighborhood: Identifying Stellar Moving Groups with Gaia DR3." arXiv:2512.09078 (December 2025). <https://arxiv.org/abs/2512.09078>
+
+Lindblad resonances / galactic-disc dynamics:
+* "Lindblad resonance." Wikipedia. <https://en.wikipedia.org/wiki/Lindblad_resonance>
+* Monari, G., et al. "Modelling resonances and orbital chaos in disk galaxies — Application to a Milky Way spiral model." *A&A* 600, A47 (2017). <https://www.aanda.org/articles/aa/full_html/2017/01/aa28895-16/aa28895-16.html>
+* Struck, C. "Lindblad Zones: resonant eccentric orbits to aid bar and spiral formation in galaxy discs." *MNRAS* 450, 2217 (2015). <https://academic.oup.com/mnras/article/450/2/2217/986086>
+* Kormendy, J. "A heuristic introduction to bars and spiral structure." NED Level-5 review. <https://ned.ipac.caltech.edu/level5/Sept14/Kormendy/Kormendy4.html>
+
+Disclaimer on coverage: Stellar Forge is closed-source proprietary technology; all claims about its internals are derived from developer interviews and fan-wiki coverage, not source. Gaia DR3 numbers cited are from the ESA Cosmos public summary as of June 2022 release; subsequent re-releases (DR4 in preparation) may revise these counts upward.
