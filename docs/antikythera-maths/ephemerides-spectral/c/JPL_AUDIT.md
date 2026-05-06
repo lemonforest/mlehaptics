@@ -14,22 +14,22 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 
 ## Summary
 
-| Rule | Description | Violations | Status |
-|---|---|--:|---|
-| 1 | No goto / setjmp / longjmp / recursion | **5** | ❌ — all `goto` in `es_hd_state.c` cleanup pattern |
-| 2 | Fixed loop bounds | 0 | ✅ — no `while(1)` / `for(;;)` |
-| 3 | No dynamic allocation after init | **29** | ❌ — full HD pipeline allocates D-dim buffers per call |
-| 4 | Functions ≤ 60 lines | **4** | ❌ — `es_encode_state` 109; `es_find_syzygies` 99; `es_bind_observer` 86; `es_get_eclipse_probability` 71 |
-| 5 | ≥ 2 assertions per function (avg) | **64 short** | ❌ — 0 assertions across 32 functions |
-| 6 | Smallest possible scope for data | manual | ⚠ — defer to v0.11.3 manual audit |
-| 7 | Check return values, validate parameters | manual | ⚠ — partial; bridge sites validate, internal sites mixed |
-| 8 | Limited preprocessor (header includes + simple macros only) | 0 | ✅ — no multi-line macros |
-| 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | ✅ — no function pointers found |
-| 10 | Compile clean at most-pedantic warning level | unknown | ⚠ — Rule 10 audit deferred to v0.11.3 (cross-platform tooling) |
+| Rule | Description | v0.11.2 baseline | Current | Status |
+|---|---|--:|--:|---|
+| 1 | No goto / setjmp / longjmp / recursion | 5 | **0** | ✅ — fixed in v0.13.4 (caller-supplied-scratch refactor in `es_hd_state.c`) |
+| 2 | Fixed loop bounds | 0 | 0 | ✅ — no `while(1)` / `for(;;)` |
+| 3 | No dynamic allocation after init | 29 | **0** | ✅ — fixed in v0.13.4 (C library no longer calls `malloc`/`free` after init; HD pipeline takes caller-supplied scratch) |
+| 4 | Functions ≤ 60 lines | 4 | 4 | ❌ — `es_encode_state` 109; `es_find_syzygies` 99; `es_bind_observer` ~88; `es_get_eclipse_probability` ~73. Queued for v0.13.5. |
+| 5 | ≥ 2 assertions per function (avg) | 64 short | 64 short | ❌ — 0 assertions across 32 functions. Queued for v0.13.6. |
+| 6 | Smallest possible scope for data | manual | manual | ⚠ — defer to v0.13.8 manual audit |
+| 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.8. |
+| 8 | Limited preprocessor (header includes + simple macros only) | 0 | 0 | ✅ — no multi-line macros |
+| 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | 0 | ✅ — no function pointers found |
+| 10 | Compile clean at most-pedantic warning level | unknown | unknown | ⚠ — Rule 10 audit deferred to v0.13.7 (cross-platform tooling) |
 
-**Headline:** the architecture is mostly Power-of-Ten-aligned. The major gaps are concentrated in `es_hd_state.c` (Rule 1 + Rule 3 — the HD pipeline's `malloc`/`free`/`goto out` cleanup pattern) and across the codebase as a whole on Rule 5 (assertion density). Rules 2, 8, 9 already pass.
+**Headline:** v0.13.4 closes the largest mechanical-violation cluster in the codebase. Rule 1 + Rule 3 dropped from `5 + 29 = 34` violations to **0**, both eliminated by the same refactor (caller-supplied scratch in the HD pipeline removes the `malloc`/`free` calls and incidentally the `goto`-cleanup pattern they were guarding). Remaining gaps: Rule 4 (4 long functions, queued v0.13.5), Rule 5 (assertion density, queued v0.13.6).
 
-**Total mechanically-detectable violations: 102.** The pinned ratchet test allows this number to go DOWN; PRs that increase it fail.
+**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.4 68.** The pinned ratchet test allows this number to go DOWN; PRs that increase it fail.
 
 ---
 
@@ -37,7 +37,7 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 
 > *"Restrict all code to very simple control flow constructs — do not use goto statements, setjmp or longjmp constructs, and direct or indirect recursion."*
 
-### Violations: 5
+### Violations: 0 *(baseline 5; fixed in v0.13.4)*
 
 All in `c/src/es_hd_state.c`. Cleanup-on-error pattern:
 
@@ -67,10 +67,22 @@ out:
 | `es_hd_state.c:277` | `es_get_eclipse_probability` | (continued) |
 | `es_hd_state.c:279` | `es_get_eclipse_probability` | (continued) |
 
-**Fix path (v0.11.3+):** restructure cleanup into the same site as allocation. Two clean approaches:
+### v0.13.4 fix shipped
 
-1. **Static buffers:** if D is known at compile time (it usually is for embedded targets), replace `malloc(D * sizeof(...))` with stack-allocated arrays. This also removes Rule 3 violations for the same sites — combined fix.
-2. **Inline cleanup:** unroll the goto chain with `if (rc != ES_OK) { free(...); return rc; }` at each step. Verbose but JPL-compliant. Slightly higher branch count but each branch is local.
+The combined Rule 1 + Rule 3 fix made all three HD-pipeline entry points take caller-supplied scratch buffers as additional pointer parameters. The Python ctypes shim (`_native_bip.py`) allocates the scratch alongside the existing `out_state` buffer; the user-facing bridge API is unchanged.
+
+```c
+/* v0.13.4 (ABI v6) signature: */
+es_status_t es_encode_state_hd(
+    double delta_t_days,
+    es_complex64_t *out_state,
+    es_complex64_t *scratch_basis,    /* [D], caller-supplied */
+    es_complex64_t *scratch_rolled,   /* [D], caller-supplied */
+    size_t D
+);
+```
+
+With no buffers to free, the cleanup-on-error path collapses to plain early-return. Result: zero `goto`s, zero `malloc`/`free`, both Rule 1 and Rule 3 satisfied in one refactor. Encoder math is byte-identical to ABI v5 (parity smoke verifies).
 
 ### setjmp / longjmp: 0
 ### Recursion: 0 (manual inspection — no function calls itself)
@@ -93,7 +105,7 @@ No `while(1)`, `for(;;)`, or other unbounded loop constructs. Every loop in the 
 
 > *"Do not use dynamic memory allocation after initialization."*
 
-### Violations: 29
+### Violations: 0 *(baseline 29; fixed in v0.13.4)*
 
 All in `c/src/es_hd_state.c`. Each HD-pipeline entry point (`es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`) allocates D-dimensional `es_complex64_t` buffers per call:
 
@@ -105,11 +117,13 @@ All in `c/src/es_hd_state.c`. Each HD-pipeline entry point (`es_encode_state_hd`
 
 Total: ~9 `malloc` calls + ~9 mirrored `free` calls + a few error-path `free`s = **29 dynamic-allocation references**.
 
-**Fix path (v0.11.3+):**
+### v0.13.4 fix shipped
 
-- For embedded targets (ESP32 / Cortex-M), D is set at compile time. Replace runtime `malloc(D * sizeof(es_complex64_t))` with static arrays sized at compile time. Combined with the Rule 1 fix this removes both classes of violation for the HD pipeline.
-- For dynamic-D library use (Pyodide, Python-side), static-allocation is harder. Alternative: caller-supplied buffer pattern — function signatures take pre-allocated `out_basis`, `out_rolled` etc. as parameters, so allocation is the caller's concern (and can be done once at init).
-- Both patterns are JPL-compliant; the static-buffer one is cleaner for embedded, the caller-supplied one is cleaner for the Python ctypes shim.
+The caller-supplied-scratch pattern was chosen over static buffers because D is set at runtime by the Python bridge (typically D=65536, but configurable). Static buffers sized for the worst-case D would have wasted memory on lower-D paths and forced a recompile to expand the cap; caller-supplied scratch keeps the C library D-agnostic.
+
+The 29 `malloc`/`calloc`/`realloc`/`free` references in `es_hd_state.c` collapsed to 0; the file no longer needs `<stdlib.h>` (`malloc`/`free` were the only consumers). The Python ctypes shim allocates the scratch buffers via `(EsComplex64 * D)()` once per call alongside the existing `out_state` allocation — no observable change in heap pressure (Python was always heap-allocating the output buffer; the C library was duplicating the allocation strategy from C side).
+
+ABI v5 → v6: the wire format of all three HD-pipeline entry points changed (extra pointer params); the encoder math is byte-identical and the parity smoke test pins both paths to within float-ULP. The pure-Python BIP encoder is unaffected.
 
 ---
 

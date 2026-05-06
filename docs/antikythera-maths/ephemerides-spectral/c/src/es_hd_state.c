@@ -1,6 +1,7 @@
-/* es_hd_state.c — hyperdimensional state pipeline (Tier 2b, v0.7.0).
+/* es_hd_state.c — hyperdimensional state pipeline (Tier 2b, v0.7.0;
+ * caller-supplied-scratch refactor v0.13.4 → ABI v6).
  *
- * Three new public entry points + a few internal helpers. The pipeline
+ * Three public entry points + a few internal helpers. The pipeline
  * mirrors `_research/bip_hd_lift.py` 1:1; the parity smoke test pins
  * the two paths to within float-ULP.
  *
@@ -8,17 +9,27 @@
  *   es_bind_observer         Topocentric observer-bind via HDC algebra
  *   es_get_eclipse_probability   Project state onto syzygy operator
  *
- * These functions allocate working buffers on the heap (one D-dim
- * complex64 buffer per body for the channel basis, plus a few
- * D-dim scratch buffers for the rolled / multiplied state). The
- * allocation cost is bounded by D * sizeof(complex64) * O(1) per call;
- * at D=65536 that's 512 KB per scratch buffer.
+ * v0.13.4 — JPL Power-of-Ten Rule 1 + Rule 3 fixes.
+ * Pre-v0.13.4 each entry point allocated D-dim complex64 scratch
+ * buffers via malloc/free (Rule 3) and used `goto out` to centralise
+ * the cleanup-on-error path (Rule 1). The refactor makes scratch
+ * caller-supplied, which removes both classes of violation in one
+ * pass: the C library no longer calls malloc/free after init, and
+ * the cleanup-on-error path collapses to plain early-return because
+ * there are no buffers to free. No `stdlib.h` include needed; no
+ * `goto` keywords; no dynamic allocation. The math is byte-identical
+ * to ABI v5.
+ *
+ * Scratch buffers must have capacity for D es_complex64_t entries
+ * each. Contents on entry are ignored, on return are unspecified.
+ * The Python ctypes shim allocates them once per call alongside the
+ * existing `out_state` buffer, so the user-facing bridge API is
+ * unchanged from v0.7.0.
  */
 
 #include "ephemerides_spectral.h"
 
 #include <math.h>
-#include <stdlib.h>
 #include <string.h>
 
 /* ──────────────────────────────────────────────────────────────────
@@ -92,9 +103,11 @@ static void complex64_scale_inplace(es_complex64_t *state,
 
 es_status_t es_encode_state_hd(double delta_t_days,
                                es_complex64_t *out_state,
+                               es_complex64_t *scratch_basis,
+                               es_complex64_t *scratch_rolled,
                                size_t D)
 {
-    if (out_state == NULL) {
+    if (out_state == NULL || scratch_basis == NULL || scratch_rolled == NULL) {
         return ES_ERR_NULL_OUTPUT;
     }
     if (D == 0) {
@@ -106,40 +119,29 @@ es_status_t es_encode_state_hd(double delta_t_days,
     es_status_t rc = es_encode_state(delta_t_days, phases);
     if (rc != ES_OK) return rc;
 
-    /* 2. Allocate a per-body channel-basis scratch + a rolled scratch.
-     *    Reuse them across bodies. */
-    es_complex64_t *basis = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    es_complex64_t *rolled = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    if (basis == NULL || rolled == NULL) {
-        free(basis); free(rolled);
-        return ES_ERR_NULL_OUTPUT;  /* OOM — same code as null-out */
-    }
-
-    /* 3. Zero the accumulator. */
+    /* 2. Zero the accumulator. */
     memset(out_state, 0, D * sizeof(es_complex64_t));
 
     const double sqrt_D = sqrt((double)D);
     const double inv_sqrt_D = 1.0 / sqrt_D;
 
+    /* 3. For each body, fill scratch_basis + scratch_rolled, accumulate. */
     for (size_t b = 0; b < ES_N_BODIES; ++b) {
         const uint64_t seed = ES_BODY_BASIS_SEED_BASE + (uint64_t)b;
-        rc = es_channel_basis(seed, basis, D);
-        if (rc != ES_OK) { free(basis); free(rolled); return rc; }
+        rc = es_channel_basis(seed, scratch_basis, D);
+        if (rc != ES_OK) return rc;
 
         const size_t residue = phase_uint32_to_residue(phases[b], D);
-        roll_complex64(basis, residue, rolled, D);
+        roll_complex64(scratch_basis, residue, scratch_rolled, D);
 
-        /* Accumulate `rolled / sqrt(D)` into out_state. */
+        /* Accumulate `scratch_rolled / sqrt(D)` into out_state. */
         for (size_t k = 0; k < D; ++k) {
             out_state[k].real = (float)((double)out_state[k].real
-                                        + (double)rolled[k].real * inv_sqrt_D);
+                                        + (double)scratch_rolled[k].real * inv_sqrt_D);
             out_state[k].imag = (float)((double)out_state[k].imag
-                                        + (double)rolled[k].imag * inv_sqrt_D);
+                                        + (double)scratch_rolled[k].imag * inv_sqrt_D);
         }
     }
-
-    free(basis);
-    free(rolled);
 
     /* 4. Normalise. */
     const double n = complex64_norm(out_state, D);
@@ -158,9 +160,14 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
                              double lat_deg,
                              double lon_deg,
                              es_complex64_t *out_state,
+                             es_complex64_t *scratch_body_basis,
+                             es_complex64_t *scratch_coord_basis,
+                             es_complex64_t *scratch_coord_op,
                              size_t D)
 {
-    if (state_in == NULL || out_state == NULL) {
+    if (state_in == NULL || out_state == NULL
+        || scratch_body_basis == NULL || scratch_coord_basis == NULL
+        || scratch_coord_op == NULL) {
         return ES_ERR_NULL_OUTPUT;
     }
     if (!isfinite(lat_deg) || !isfinite(lon_deg)) {
@@ -173,20 +180,12 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
         return ES_ERR_INVALID_INDEX;
     }
 
-    es_complex64_t *body_basis = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    es_complex64_t *coord_basis = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    es_complex64_t *coord_op = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    if (body_basis == NULL || coord_basis == NULL || coord_op == NULL) {
-        free(body_basis); free(coord_basis); free(coord_op);
-        return ES_ERR_NULL_OUTPUT;
-    }
-
     es_status_t rc = es_channel_basis(
-        ES_BODY_BASIS_SEED_BASE + (uint64_t)body_idx, body_basis, D);
-    if (rc != ES_OK) goto out;
+        ES_BODY_BASIS_SEED_BASE + (uint64_t)body_idx, scratch_body_basis, D);
+    if (rc != ES_OK) return rc;
 
-    rc = es_channel_basis(ES_OBSERVER_COORD_BASIS_SEED, coord_basis, D);
-    if (rc != ES_OK) goto out;
+    rc = es_channel_basis(ES_OBSERVER_COORD_BASIS_SEED, scratch_coord_basis, D);
+    if (rc != ES_OK) return rc;
 
     /* lat_res = int((lat+90)/180 * D) mod D
      * lon_res = int((lon+180)/360 * D) mod D
@@ -205,7 +204,7 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
 
     const size_t shift = (lat_res * (size_t)ES_COPRIME_LAT
                           + lon_res * (size_t)ES_COPRIME_LON) % D;
-    roll_complex64(coord_basis, shift, coord_op, D);
+    roll_complex64(scratch_coord_basis, shift, scratch_coord_op, D);
 
     /* observer_op = (body_basis / sqrt(D)) * coord_op       (elementwise complex mul)
      * out[k]      = state[k] * observer_op[k] * sqrt(D)
@@ -216,10 +215,10 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
     const double sqrt_D = sqrt((double)D);
     const double inv_sqrt_D = 1.0 / sqrt_D;
     for (size_t k = 0; k < D; ++k) {
-        const double br = (double)body_basis[k].real * inv_sqrt_D;
-        const double bi = (double)body_basis[k].imag * inv_sqrt_D;
-        const double cr = (double)coord_op[k].real;
-        const double ci = (double)coord_op[k].imag;
+        const double br = (double)scratch_body_basis[k].real * inv_sqrt_D;
+        const double bi = (double)scratch_body_basis[k].imag * inv_sqrt_D;
+        const double cr = (double)scratch_coord_op[k].real;
+        const double ci = (double)scratch_coord_op[k].imag;
         /* observer_op = body_basis_scaled * coord_op  (complex mul) */
         const double or_ = br * cr - bi * ci;
         const double oi = br * ci + bi * cr;
@@ -232,12 +231,7 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
         out_state[k].imag = (float)(mi * sqrt_D);
     }
 
-    rc = ES_OK;
-out:
-    free(body_basis);
-    free(coord_basis);
-    free(coord_op);
-    return rc;
+    return ES_OK;
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -248,9 +242,15 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
                                        size_t D,
                                        size_t sun_body_idx,
                                        size_t moon_body_idx,
+                                       es_complex64_t *scratch_sun_b,
+                                       es_complex64_t *scratch_moon_b,
+                                       es_complex64_t *scratch_node_b,
+                                       es_complex64_t *scratch_s_op,
                                        double *out_prob)
 {
-    if (state == NULL || out_prob == NULL) {
+    if (state == NULL || out_prob == NULL
+        || scratch_sun_b == NULL || scratch_moon_b == NULL
+        || scratch_node_b == NULL || scratch_s_op == NULL) {
         return ES_ERR_NULL_OUTPUT;
     }
     if (sun_body_idx >= ES_N_BODIES || moon_body_idx >= ES_N_BODIES) {
@@ -260,41 +260,32 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
         return ES_ERR_INVALID_INDEX;
     }
 
-    es_complex64_t *sun_b = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    es_complex64_t *moon_b = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    es_complex64_t *node_b = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    es_complex64_t *s_op = (es_complex64_t *)malloc(D * sizeof(es_complex64_t));
-    if (sun_b == NULL || moon_b == NULL || node_b == NULL || s_op == NULL) {
-        free(sun_b); free(moon_b); free(node_b); free(s_op);
-        return ES_ERR_NULL_OUTPUT;
-    }
-
     es_status_t rc = es_channel_basis(
-        ES_BODY_BASIS_SEED_BASE + (uint64_t)sun_body_idx, sun_b, D);
-    if (rc != ES_OK) goto out;
+        ES_BODY_BASIS_SEED_BASE + (uint64_t)sun_body_idx, scratch_sun_b, D);
+    if (rc != ES_OK) return rc;
     rc = es_channel_basis(
-        ES_BODY_BASIS_SEED_BASE + (uint64_t)moon_body_idx, moon_b, D);
-    if (rc != ES_OK) goto out;
-    rc = es_channel_basis(ES_SYZYGY_NODE_BASIS_SEED, node_b, D);
-    if (rc != ES_OK) goto out;
+        ES_BODY_BASIS_SEED_BASE + (uint64_t)moon_body_idx, scratch_moon_b, D);
+    if (rc != ES_OK) return rc;
+    rc = es_channel_basis(ES_SYZYGY_NODE_BASIS_SEED, scratch_node_b, D);
+    if (rc != ES_OK) return rc;
 
     const double sqrt_D = sqrt((double)D);
     const double inv_sqrt_D = 1.0 / sqrt_D;
 
     /* s_op = (sun_b + moon_b) / sqrt(D) + node_b / sqrt(D) */
     for (size_t k = 0; k < D; ++k) {
-        const double r = ((double)sun_b[k].real
-                          + (double)moon_b[k].real
-                          + (double)node_b[k].real) * inv_sqrt_D;
-        const double i = ((double)sun_b[k].imag
-                          + (double)moon_b[k].imag
-                          + (double)node_b[k].imag) * inv_sqrt_D;
-        s_op[k].real = (float)r;
-        s_op[k].imag = (float)i;
+        const double r = ((double)scratch_sun_b[k].real
+                          + (double)scratch_moon_b[k].real
+                          + (double)scratch_node_b[k].real) * inv_sqrt_D;
+        const double i = ((double)scratch_sun_b[k].imag
+                          + (double)scratch_moon_b[k].imag
+                          + (double)scratch_node_b[k].imag) * inv_sqrt_D;
+        scratch_s_op[k].real = (float)r;
+        scratch_s_op[k].imag = (float)i;
     }
     /* Normalise. */
-    const double n = complex64_norm(s_op, D);
-    if (n > 0.0) complex64_scale_inplace(s_op, D, n);
+    const double n = complex64_norm(scratch_s_op, D);
+    if (n > 0.0) complex64_scale_inplace(scratch_s_op, D, n);
 
     /* prob = |<state, s_op>| = |sum conj(state[k]) * s_op[k]|
      * (numpy.vdot is conj-on-first-arg) */
@@ -302,16 +293,13 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
     for (size_t k = 0; k < D; ++k) {
         const double sr = (double)state[k].real;
         const double si = (double)state[k].imag;
-        const double or_ = (double)s_op[k].real;
-        const double oi = (double)s_op[k].imag;
+        const double or_ = (double)scratch_s_op[k].real;
+        const double oi = (double)scratch_s_op[k].imag;
         /* conj(state) * s_op = (sr - i*si) * (or + i*oi)
          *                   = (sr*or + si*oi) + i*(sr*oi - si*or) */
         acc_r += sr * or_ + si * oi;
         acc_i += sr * oi - si * or_;
     }
     *out_prob = sqrt(acc_r * acc_r + acc_i * acc_i);
-    rc = ES_OK;
-out:
-    free(sun_b); free(moon_b); free(node_b); free(s_op);
-    return rc;
+    return ES_OK;
 }

@@ -7,7 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.3)
+(no entries yet — next entries land after v0.13.4)
+
+## [0.13.4] — 2026-05-05
+
+**JPL Power-of-Ten Rule 1 + Rule 3 fixes** — first code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence (renumbered from v0.11.3-v0.11.7 in v0.13.2). Caller-supplied-scratch refactor of `c/src/es_hd_state.c` eliminates both classes of violation in one pass. ABI v5 → v6 (mechanical; encoder math byte-identical).
+
+### Fixed
+
+- **Rule 1 (no `goto`)** baseline 5 → **0**. The five `goto out` cleanup statements in `es_hd_state.c` (`es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`) are gone. With the buffers no longer owned by the C function, the cleanup-on-error paths collapse to plain early-return.
+
+- **Rule 3 (no dynamic allocation after init)** baseline 29 → **0**. No `malloc`/`calloc`/`realloc`/`free` anywhere in the C library after init. `es_hd_state.c` no longer includes `<stdlib.h>`. The HD pipeline takes caller-supplied scratch buffers; the Python ctypes shim allocates them alongside the existing `out_state` (no observable heap-pressure change).
+
+### Changed (ABI v5 → v6)
+
+Three public C entries gained scratch-buffer pointer parameters:
+
+| Function | New params |
+|---|---|
+| `es_encode_state_hd` | `+scratch_basis`, `+scratch_rolled` |
+| `es_bind_observer` | `+scratch_body_basis`, `+scratch_coord_basis`, `+scratch_coord_op` |
+| `es_get_eclipse_probability` | `+scratch_sun_b`, `+scratch_moon_b`, `+scratch_node_b`, `+scratch_s_op` |
+
+`ES_ABI_VERSION` bumped 5 → 6. Stale binaries fail at import (`EXPECTED_ABI_VERSION` mismatch); standard upgrade refreshes both halves.
+
+### Why combined
+
+Both violations clustered in the same 318-line file — every `malloc` was paired with a `free` in a `goto out:` cleanup block. Removing one class of violation (`malloc`) removed the *reason* for the other (`goto`). One refactor, two rules satisfied, one ABI bump, one parity-smoke run, one ship. Splitting the work into two PRs would have meant either: (a) Rule 1 first, leaving the malloc/free pairs but inlining the cleanup at every error site (verbose, larger diff); or (b) Rule 3 first, leaving the gotos as no-ops (silly). Combined fix is the natural unit.
+
+### User-facing impact
+
+**None.** Python bridge surface is unchanged. The scratch allocation lives in `_native_bip.py`'s `native_*` helpers, one layer below `bridge.py`. Same call sites, same return shapes, byte-identical math.
+
+### Migration
+
+- **Pure-Python users**: zero change.
+- **Direct C-API consumers (rare)**: rebuild against v0.13.4 headers; pass scratch pointers per the new signatures (see `c/include/ephemerides_spectral.h` ABI-history comment).
+- **Standard PyPI users**: `pip install -U ephemerides-spectral`.
+
+### Audit ratchet (`tests/test_jpl_audit.py`)
+
+| Pin | v0.11.2 baseline | v0.13.4 |
+|---|--:|--:|
+| `PIN_RULE_1_GOTO` | 5 | **0** |
+| `PIN_RULE_3_DYNAMIC_ALLOC` | 29 | **0** |
+
+Total mechanically-detectable violations: **102 → 68** (33% of the audit baseline cleared). Remaining: Rule 4 (4 long functions, v0.13.5), Rule 5 (64 assertions short, v0.13.6), Rule 10 (pedantic-build matrix, v0.13.7), Rules 6+7 (manual scope + return-value audits, v0.13.8).
+
+250 tests pass, 5 skipped.
 
 ## [0.13.3] — 2026-05-05
 

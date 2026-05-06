@@ -10,7 +10,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.3)
+(no entries yet — next entries land after v0.13.4)
+
+## [0.13.4] — 2026-05-05
+
+**JPL Power-of-Ten Rule 1 + Rule 3 fixes** — first code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. Caller-supplied-scratch refactor of the HD pipeline removes both classes of violation in one pass. ABI v5 → v6 (mechanical wire-format change; encoder math byte-identical).
+
+### Fixed
+
+- **Rule 1 (no `goto`)** — 5 occurrences → **0**. The five `goto out` statements in `es_hd_state.c`'s cleanup-on-error pattern (`es_encode_state_hd`, `es_bind_observer`, `es_get_eclipse_probability`) are gone. With the buffers no longer owned by the C function, there's nothing to free on error paths — they collapse to plain early-return.
+
+- **Rule 3 (no dynamic allocation after init)** — 29 occurrences → **0**. The C library no longer calls `malloc`/`calloc`/`realloc`/`free` anywhere after init. `es_hd_state.c` no longer includes `<stdlib.h>`. The HD pipeline's three entry points take caller-supplied scratch buffers as additional pointer parameters; the Python ctypes shim allocates the scratch alongside the existing `out_state` buffer (no observable change in heap pressure — Python was already heap-allocating the output buffer).
+
+### Changed (ABI break — v5 → v6)
+
+Three public C entry points gained scratch-buffer parameters:
+
+| Function | New parameters |
+|---|---|
+| `es_encode_state_hd` | `+scratch_basis`, `+scratch_rolled` |
+| `es_bind_observer` | `+scratch_body_basis`, `+scratch_coord_basis`, `+scratch_coord_op` |
+| `es_get_eclipse_probability` | `+scratch_sun_b`, `+scratch_moon_b`, `+scratch_node_b`, `+scratch_s_op` |
+
+Each scratch buffer must have capacity for D `es_complex64_t` entries; contents on entry are ignored, on return are unspecified.
+
+`ES_ABI_VERSION` 5 → 6. The ctypes shim refuses to load any binary with a mismatched ABI, so a stale `_native/ephemerides_spectral.dll` from v0.13.3 will fail loudly at import time rather than silently corrupt memory. Standard `pip install --force-reinstall ephemerides-spectral` (or `cmake --build` for source-tree dev) refreshes the binary.
+
+### User-facing impact
+
+**None.** The Python bridge API (`bridge.py`'s `get_local_view`, `get_eclipse_probability`, `default_encode(..., backend="c")`) is unchanged — the scratch allocation lives in the ctypes shim (`_native_bip.py`'s `native_*` helpers), one layer below the bridge surface. Same call sites, same return shapes, same numpy dtypes, byte-identical math.
+
+### Audit ratchet
+
+`tests/test_jpl_audit.py` pins ratcheted DOWN:
+
+| Pin | v0.11.2 baseline | v0.13.4 |
+|---|--:|--:|
+| `PIN_RULE_1_GOTO` | 5 | **0** |
+| `PIN_RULE_3_DYNAMIC_ALLOC` | 29 | **0** |
+
+Total mechanically-detectable violations: **102 → 68** (-34, 33% of the audit baseline cleared in one ship). Remaining: Rule 4 (4 long functions, queued v0.13.5) + Rule 5 (64 assertions short, queued v0.13.6).
+
+### Migration
+
+- **Pure-Python users (no C extension)**: zero change. Pyodide / WASM / sdist-without-toolchain installs are unaffected.
+- **Direct C-API consumers (rare)**: rebuild against v0.13.4 headers; pass scratch pointers per the new signatures. See `c/include/ephemerides_spectral.h` ABI-history comment for the exact field list.
+- **Standard PyPI users**: `pip install -U ephemerides-spectral` refreshes the wheel; the bundled native binary matches the bundled Python.
+
+250 tests pass, 5 skipped (unchanged).
 
 ## [0.13.3] — 2026-05-05
 

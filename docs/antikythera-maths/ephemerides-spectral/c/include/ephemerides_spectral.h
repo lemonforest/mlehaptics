@@ -535,13 +535,19 @@ es_status_t es_channel_basis(uint64_t seed,
  * body_idx) by `round((phi/2^32) * D) mod D`, divides by sqrt(D), and
  * sums into `out_state`. Final state is normalised to unit norm.
  *
- * `out_state` must have capacity for D `es_complex64_t` entries.
+ * `out_state`, `scratch_basis`, and `scratch_rolled` must each have
+ * capacity for D `es_complex64_t` entries. `scratch_*` buffers are
+ * caller-supplied to keep the C library JPL-Power-of-Ten Rule 3 clean
+ * (no dynamic allocation after init); contents on entry are ignored
+ * and on return are unspecified.
  *
- * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if `out_state` is NULL;
- * propagates failure from `es_encode_state`.
+ * Returns ES_OK on success; ES_ERR_NULL_OUTPUT if any required
+ * pointer is NULL; propagates failure from `es_encode_state`.
  */
 es_status_t es_encode_state_hd(double delta_t_days,
                                es_complex64_t *out_state,
+                               es_complex64_t *scratch_basis,
+                               es_complex64_t *scratch_rolled,
                                size_t D);
 
 /* Bind a topocentric observer at (lat_deg, lon_deg) on body_idx into
@@ -557,6 +563,8 @@ es_status_t es_encode_state_hd(double delta_t_days,
  * Pure HDC algebra. No SPICE, no skyfield.
  *
  * `out_state` may overlap with `state_in` (in-place is supported).
+ * `scratch_body_basis`, `scratch_coord_basis`, and `scratch_coord_op`
+ * are caller-supplied buffers of D `es_complex64_t` entries each (Rule 3).
  *
  * Returns ES_OK on success; ES_ERR_NULL_OUTPUT on NULL ptrs;
  * ES_ERR_INVALID_INDEX if body_idx >= ES_N_BODIES;
@@ -567,6 +575,9 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
                              double lat_deg,
                              double lon_deg,
                              es_complex64_t *out_state,
+                             es_complex64_t *scratch_body_basis,
+                             es_complex64_t *scratch_coord_basis,
+                             es_complex64_t *scratch_coord_op,
                              size_t D);
 
 /* Eclipse probability via the syzygy operator.
@@ -582,12 +593,20 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
  * at the call site — the function doesn't parse names. The Python
  * bridge resolves them via `es_body_index("sun")` / `("moon")`.
  *
+ * `scratch_sun_b`, `scratch_moon_b`, `scratch_node_b`, and
+ * `scratch_s_op` are caller-supplied buffers of D `es_complex64_t`
+ * entries each (Rule 3).
+ *
  * Returns ES_OK on success; usual error codes for null/oob/non-finite.
  */
 es_status_t es_get_eclipse_probability(const es_complex64_t *state,
                                        size_t D,
                                        size_t sun_body_idx,
                                        size_t moon_body_idx,
+                                       es_complex64_t *scratch_sun_b,
+                                       es_complex64_t *scratch_moon_b,
+                                       es_complex64_t *scratch_node_b,
+                                       es_complex64_t *scratch_s_op,
                                        double *out_prob);
 
 /* ------------------------------------------------------------------ *
@@ -601,8 +620,8 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
  */
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 13
-#define ES_VERSION_PATCH 3
-#define ES_VERSION_STRING "0.13.3"
+#define ES_VERSION_PATCH 4
+#define ES_VERSION_STRING "0.13.4"
 
 const char *es_version(void);
 
@@ -644,8 +663,28 @@ const char *es_version(void);
  *     unchanged. Parity smoke flips both Tier 2 entries from
  *     `tier2_skip` to `parity` -- every encoder-touching bridge
  *     method now has a paired C path.
+ *
+ * v6: v0.13.4 — JPL Power-of-Ten Rule 1 + Rule 3 fixes.
+ *     The three HD-pipeline entries gain caller-supplied scratch
+ *     buffer parameters so the C library no longer calls malloc/free
+ *     after init (Rule 3) and no longer needs the goto-cleanup
+ *     pattern (Rule 1). Encoder math is byte-identical to v5; only
+ *     the wire format changed (extra pointer params).
+ *
+ *       es_encode_state_hd:        +scratch_basis, +scratch_rolled
+ *       es_bind_observer:          +scratch_body_basis,
+ *                                  +scratch_coord_basis,
+ *                                  +scratch_coord_op
+ *       es_get_eclipse_probability:+scratch_sun_b, +scratch_moon_b,
+ *                                  +scratch_node_b, +scratch_s_op
+ *
+ *     Each scratch buffer must have capacity for D es_complex64_t
+ *     entries; contents on entry ignored, on return unspecified.
+ *     The Python ctypes shim allocates these once per call alongside
+ *     the existing `out_state` buffer, so the user-facing bridge API
+ *     is unchanged.
  */
-#define ES_ABI_VERSION 5
+#define ES_ABI_VERSION 6
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python
