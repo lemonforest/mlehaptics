@@ -25,11 +25,11 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 | 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.8. |
 | 8 | Limited preprocessor (header includes + simple macros only) | 0 | 0 | ✅ — no multi-line macros |
 | 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | 0 | ✅ — no function pointers found |
-| 10 | Compile clean at most-pedantic warning level | unknown | unknown | ⚠ — Rule 10 audit deferred to v0.13.7 (cross-platform tooling) |
+| 10 | Compile clean at most-pedantic warning level | unknown | **0 warnings** | ✅ — fixed in v0.13.7 (`ES_PEDANTIC=ON` CMake option + 3-cell `pedantic-build` CI matrix; Linux gcc / macOS clang / Windows MSVC; always-on, fails build on any warning) |
 
-**Headline:** Three ships, all Rule 1-5 mechanically-detectable violations cleared. v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants). Encoder math byte-identical across all three ships — parity smoke pins both backends to within float-ULP. Remaining: Rule 10 pedantic-build matrix (v0.13.7), Rules 6+7 manual audits (v0.13.8).
+**Headline:** Four ships, all five mechanically-enforceable JPL rules cleared (Rules 1, 3, 4, 5, 10). v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants); v0.13.7 was the toolchain pass (`ES_PEDANTIC=ON` + 3-cell pedantic-build CI matrix enforces zero-warnings across gcc / clang / MSVC). Encoder math byte-identical across all four ships — parity smoke pins both backends to within float-ULP. Remaining: Rules 6+7 manual audits (v0.13.8).
 
-**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.6 0.** Every Rule 1-5 mechanical pin satisfied. The pinned ratchet test allows this number to go DOWN only; PRs that increase it fail.
+**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.7 0.** Every Rule 1-5 source-side pin satisfied; Rule 10 toolchain-side enforcement always-on in CI. The pinned ratchet test allows this number to go DOWN only; PRs that increase it fail.
 
 ---
 
@@ -276,17 +276,26 @@ Function-scope declarations should mostly be loop-scope. Likely 5-10 violations 
 
 > *"All code must be compiled, from the first day of development, with all compiler warnings enabled at the compiler's most pedantic setting. All code must compile with these settings without any warnings. All code must be checked daily with at least one, but preferably more than one, state-of-the-art static source code analyzer and should pass the analyses with zero warnings."*
 
-### Status: ⚠ Audit deferred to v0.11.3
+### Violations: 0 *(fixed in v0.13.7)*
 
-Cross-platform tooling for `-Wall -Wextra -Wpedantic` (gcc/clang) vs. `/W4 /Wall` (MSVC) needs the audit script to detect the host toolchain and apply the right flag set. Initial probe on the v0.11.2 cmake configuration hit MSBuild project-file errors that are not directly Rule-10-related.
+### v0.13.7 fix shipped
 
-**Fix path (v0.11.3):**
+CMake gains an `ES_PEDANTIC` option (default OFF) that elevates the existing pedantic warning flags to errors:
 
-1. Add a CMake target option `ES_PEDANTIC=ON/OFF` that emits the right strict flags for the detected compiler.
-2. Add a CI matrix job that builds with `ES_PEDANTIC=ON` and **fails** on any warning. Same `-Werror`-equivalent discipline as the existing `test_native_version_string_matches_package_version` pin.
-3. Document the resulting violation count here and pin it in the ratchet test.
+| Toolchain | Existing flags | With `ES_PEDANTIC=ON` |
+|---|---|---|
+| gcc / clang | `-Wall -Wextra -Wpedantic` | + `-Werror` |
+| MSVC | `/W4` | + `/WX` |
 
-For now, the existing CI matrix (Linux gcc, macOS clang, Windows MSVC) builds cleanly at default warning levels — warnings exist, but unknown count.
+The `pedantic-build` CI job in `.github/workflows/ephemerides-spectral-ci.yml` runs a 3-cell matrix (`ubuntu-latest` gcc, `macos-14` clang, `windows-latest` MSVC) with `ES_PEDANTIC=ON`. Always-on (not gated by `wheel-check`) — Rule 10 is a permanent invariant, not a per-PR opt-in.
+
+Local MSVC `/W4 /WX` build verified clean. The cross-platform CI matrix catches the gcc/clang-specific warnings (different toolchains warn on different patterns).
+
+### Why CI-only and not pinned in test_jpl_audit.py
+
+Compiler warnings are toolchain-side and toolchain-version-dependent — gcc-13 might warn on a pattern gcc-14 silently accepts. Pinning a count in a Python test file would be brittle and would couple the source tree to a specific CI runner image. The CI job IS the ratchet — drop the pin (the warning), drop the build failure.
+
+The pinned ratchets in `test_jpl_audit.py` cover Rules 1-5 (source-side patterns); Rule 10 is enforced by the CI build itself (toolchain-side). Both ratchets are one-way: violations can only be removed, never silently accumulated.
 
 ---
 

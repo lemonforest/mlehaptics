@@ -16,6 +16,10 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stddef.h>     /* NULL — required under -Wpedantic / strict C11
+                           when only <math.h> + <assert.h> are included.
+                           MSVC's <assert.h> transitively pulls in NULL,
+                           but gcc / clang in pedantic mode do not. */
 
 #define ES_PRNG_INC  ((uint64_t)0x9E3779B97F4A7C15ULL)
 #define ES_PRNG_M1   ((uint64_t)0xBF58476D1CE4E5B9ULL)

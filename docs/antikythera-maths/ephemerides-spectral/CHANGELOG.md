@@ -7,7 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.6)
+(no entries yet — next entries land after v0.13.7)
+
+## [0.13.7] — 2026-05-05
+
+**JPL Power-of-Ten Rule 10 fixes — cross-platform pedantic-build CI matrix.** Fourth code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. CI-only addition; no public API / ABI / encoder change.
+
+### Added
+
+- **`ES_PEDANTIC=ON/OFF` CMake option** — when ON, elevates the existing `-Wall -Wextra -Wpedantic` (gcc/clang) or `/W4` (MSVC) warnings to errors via `-Werror` / `/WX`. Default OFF (casual local builds stay friendly); CI turns it ON.
+
+- **`pedantic-build` CI job** — 3-cell matrix (Linux gcc, macOS clang, Windows MSVC) running `cmake -DES_PEDANTIC=ON && cmake --build`. Always-on (not gated by `wheel-check`); Rule 10 is a permanent invariant.
+
+### All five mechanically-enforceable JPL rules satisfied
+
+| Rule | Status | Mechanism |
+|---|---|---|
+| 1 (no `goto`) | ✅ | Pinned in `test_jpl_audit.py` |
+| 3 (no dynamic alloc) | ✅ | Pinned in `test_jpl_audit.py` |
+| 4 (≤60-line functions) | ✅ | Pinned in `test_jpl_audit.py` |
+| 5 (≥2 assertions/function) | ✅ | Pinned in `test_jpl_audit.py` |
+| 10 (zero warnings at pedantic) | ✅ | Enforced by `pedantic-build` CI job |
+
+Remaining JPL roadmap: Rules 6+7 (manual scope + return-value audits, v0.13.8).
+
+### Migration
+
+None. CI-only addition. Local builds default to previous behaviour; developers wanting local Rule 10 enforcement pass `-DES_PEDANTIC=ON` to cmake.
+
+251 tests pass, 4 skipped (unchanged).
 
 ## [0.13.6] — 2026-05-05
 

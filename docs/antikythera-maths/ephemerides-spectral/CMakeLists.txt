@@ -17,6 +17,34 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic -O2)
 endif()
 
+# ──────────────────────────────────────────────────────────────────────
+# JPL Power-of-Ten Rule 10 — pedantic-build option (v0.13.7).
+#
+# When ES_PEDANTIC=ON, elevate the existing Wall/Wextra/Wpedantic
+# (gcc/clang) or /W4 (MSVC) warnings to ERRORS so any new warning
+# fails the build. Off by default so casual local builds stay
+# friendly; the CI matrix at .github/workflows/ephemerides-spectral-ci.yml
+# turns it on so the published artefact is always Rule-10-clean.
+#
+# Holzmann's original rule: "All code must compile, from the first day
+# of development, with all compiler warnings enabled at the compiler's
+# most pedantic setting. All code must compile with these settings
+# without any warnings."
+#
+# Same modular discipline as test_jpl_audit.py's other pinned ratchets:
+# enumerate the truth (zero warnings under pedantic flags), fail loudly
+# on drift.
+# ──────────────────────────────────────────────────────────────────────
+option(ES_PEDANTIC "Treat compiler warnings as errors (JPL Rule 10)" OFF)
+if(ES_PEDANTIC)
+    if(MSVC OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
+        add_compile_options(/WX)
+    else()
+        add_compile_options(-Werror)
+    endif()
+    message(STATUS "ES_PEDANTIC=ON — compiler warnings will fail the build")
+endif()
+
 # libm: GNU/Linux requires explicit -lm to link round/fabs/isfinite.
 # MSVC links the math runtime implicitly; macOS Clang resolves libm
 # via libSystem (linking -lm there is a harmless no-op).
