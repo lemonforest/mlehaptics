@@ -855,3 +855,106 @@ The v0.17.x research thesis: **does the gateway-graph Laplacian's Fiedler partit
 * Lo (1997) — Genesis spacecraft trajectory design via L1/L2 manifolds (the first practical use of ITN for a real mission).
 * Anderson & Lo (2009) — *Role of invariant manifolds in low-thrust trajectory design.* JGCD. (Cited from secondary sources; verify before quoting.)
 * García & Gómez (2007) — *About the WSB.* Celest. Mech. (Cited from secondary sources; verify before quoting.)
+
+## 13. Gateway-graph Laplacian — Fiedler-partition vs empirical low-Δv accessibility
+
+This section reports a research-only prototype that tests the v0.17.x thesis stated at the close of §12.3:
+
+> Does the body-body graph Laplacian's Fiedler partition agree with empirical low-Δv ITN accessibility classes?
+
+The empirical ground truth is the v0.17.0 `find_itn_chains` Dijkstra search; the spectral side is a freshly-built **gateway-graph Laplacian** (separate from the §1.4 / `laplacian.py` mass-coupled breathing Laplacian — different vocabulary, different edge-weight semantics). Code lives at [`research/gateway_graph_laplacian.py`](research/gateway_graph_laplacian.py); figures at [`figures/gateway_laplacian_*.png`](figures/).
+
+> **Naming note.** §12.2 is the v0.16.x recommendation slot; this section is appended as §13 rather than §12.5 because the result graduates the thesis from "research scoping" (the §12 thread) to "first-light empirical validation" (its own section).
+
+### 13.1 Hypothesis
+
+The body-body graph Laplacian's Fiedler eigenvector — the eigenvector of the second-smallest eigenvalue λ₂, the algebraic-connectivity mode — *predicts* which heliocentric `(departure, target)` pairs admit cheap multi-leg ITN chains. The Fiedler vector's sign bipartitions the vertex set; pairs *within* a partition should be cheaper to chain than pairs *across* the partition. More finely, the Fiedler-vector Euclidean distance `|f₂[i] − f₂[j]|` should rank-correlate with the empirical minimum cumulative Δv from `find_itn_chains`.
+
+If the prediction holds, a closed-form spectral-only query becomes a fast first-pass filter before the costly Dijkstra search; if it fails, the negative result sharpens the boundary on what graph-Laplacian eigenstructure does and does not capture about orbital mechanics.
+
+### 13.2 Construction
+
+**Vertex set.** Heliocentric bodies only — planets (mercury, venus, terra, mars, jupiter, saturn, uranus, neptune, pluto) plus main-belt asteroids (ceres, vesta, pallas, hygiea). 13 vertices. The Sun is excluded because it is the central potential, not a transit node — every Hohmann transfer threads its gravity well, so its "edges" would dominate every weight matrix and trivialise the spectral structure. Moons are excluded because v0.17.0 has no parent-frame Δv model: a Hohmann transfer from `terra` to `phobos` would need to account for Mars's gravity well at arrival, which is not in the closed-form heliocentric Hohmann.
+
+**Edge weighting.** The graph is complete on 13 vertices (78 unordered pairs). Two weightings tested:
+
+1. **Inverse Hohmann Δv** — `w_ij = 1 / (Δv_ij + ε)`, where `Δv_ij` is the closed-form heliocentric Hohmann total Δv from `itn_window.hohmann_total_dv_kms`. Cheaper transfers ⇒ stronger graph edges. This is the *cost* metric and is most directly aligned with what `find_itn_chains` minimises.
+2. **Inverse synodic period** — `w_ij = 1 / (T_syn_ij + ε)`, where `T_syn_ij = 2π / |n_i − n_j|`. Short synodic period ⇒ frequent launch windows. This is a *cadence* metric, orthogonal to (1): two bodies on similar orbits have a long synodic period (rare windows) but a small Hohmann Δv (cheap when a window exists). Including it as a control disambiguates whether any spectral signal from (1) is just "any reasonable graph metric" or specifically the cost geometry.
+
+The `(ε)` floor (`1e-3 km/s`, `1e-3 days`) is well below the noise floor (smallest Hohmann in the roster is mercury → venus at ≈ 5 km/s) and is present only to avoid divide-by-zero on conceivable degenerate inputs. The combinatorial Laplacian `L = D − W` is then symmetric positive-semidefinite by construction.
+
+### 13.3 Spectral predictor
+
+Two predictors derived from the Fiedler eigenvector `f₂` (eigenvector of λ₂ from `np.linalg.eigh(L)`):
+
+* **Fiedler partition** — `sign(f₂[i]) == sign(f₂[j])` ⇒ "within partition" (predicted-cheap class); else "across partition" (predicted-expensive class). The simplest possible spectral predictor — a one-bit summary of the Fiedler vector. Validated against an observed median split via a 2×2 confusion matrix and the Matthews correlation coefficient φ.
+* **Fiedler distance** — `d_F(i, j) = |f₂[i] − f₂[j]|`, the 1-D Euclidean distance in the Fiedler-vector embedding. A continuous spectral predictor; validated against observed Δv via Spearman rank correlation ρ.
+
+This is the canonical first-cut spectral predictor pair; both are computable from one eigendecomposition of a 13×13 symmetric matrix (microseconds). If either succeeds, deeper predictors (full diffusion distance, k-eigenvector spectral embedding) become worth trying.
+
+### 13.4 Empirical ground truth
+
+For each of the 78 unordered pairs `(i, j)`, the prototype calls `bridge.find_itn_chains` in *both* directions (Hohmann Δv is direction-symmetric in the closed-form model, but multi-leg chain composition through intermediates is not necessarily so) and records `min(min_dv_forward, min_dv_reverse)` as the per-pair empirical accessibility metric. Parameters:
+
+```python
+bridge.find_itn_chains(
+    jd_lo=2451545.0,                     # J2000.0 (TDB)
+    jd_hi=2451545.0 + 50 * 365.25,       # +50 years
+    departure=i, target=j,
+    max_legs=3, dv_budget_kms=30.0,
+    tof_budget_days=20 * 365.25,
+    threshold=0.1, max_chains=50,
+)
+```
+
+Pairs that return no chain within the (Δv, TOF, threshold) budget are recorded as `+inf` (sentinel `NO_CHAIN_DV_KMS`). The 50-year sweep is comfortable for the inner system (≈ 25 Earth-Mars synodic periods, 4 Earth-Jupiter, 2 Earth-Saturn) but tight for the outer system; "no chain" therefore conflates two failure modes — *no chain exists in the budget* and *no chain exists in this 50-year window*. Both are reported as expensive in the confusion matrix.
+
+Wall-clock for the full 78-pair sweep (both directions): ≈ 110 s on the development host (single-thread Python, ESP-IDF host build env). Cached to disk by the prototype for re-runs.
+
+### 13.5 Result
+
+| Predictor | weighting | Spearman ρ (Δv vs Fiedler dist) | Matthews φ (within vs cheap) | n_finite | n_inf |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| Fiedler distance + partition | **inv_dv (primary)** | **+0.743** | **+0.336** | 53 | 25 |
+| Fiedler distance + partition | inv_synodic (control) | −0.301 | +0.083 | 53 | 25 |
+
+Median Δv on the 53 feasible pairs: **11.19 km/s**. The inv_dv confusion matrix (median split):
+
+|                          | within-partition | across-partition |
+| :---                     | ---:             | ---:             |
+| **observed cheap (≤ 11.19)**   | 25               | 2                |
+| **observed expensive (> 11.19)** | 31               | 20               |
+
+**Fiedler partition (inv_dv weighting):** mercury alone in the positive partition (`f₂[mercury] = +0.952`, with venus marginally positive at +0.033); all eleven other bodies in the negative partition (`f₂` values clustered tightly between −0.034 and −0.101). The Fiedler vector is essentially a Mercury-isolation indicator.
+
+**Inv_synodic Fiedler partition** (control): {pallas, vesta, mars, terra, venus, mercury} negative vs {ceres, hygiea, jupiter, saturn, uranus, neptune, pluto} positive — but with `f₂` magnitude collapsed onto pallas (−0.71) and ceres (+0.70); everyone else within 10⁻³ of zero. The synodic-period Laplacian is dominated by the near-degeneracy of pallas / ceres orbital periods (1681 d / 1686 d), which buys you essentially no information about Δv accessibility — confirmed by the negative Spearman.
+
+Figures: [`gateway_laplacian_fiedler_dv_inv_dv.png`](figures/gateway_laplacian_fiedler_dv_inv_dv.png) (scatter, ρ = +0.743) and [`gateway_laplacian_partition_inv_dv.png`](figures/gateway_laplacian_partition_inv_dv.png) (Fiedler bar chart isolating mercury); the inv_synodic counterparts are also written for completeness.
+
+### 13.6 Interpretation
+
+The +0.743 Spearman headline is real but the Fiedler partition tells a narrower story than the rank correlation alone suggests:
+
+* **What the spectrum is detecting.** The inv_dv Fiedler vector identifies mercury as a singleton outlier — the body whose Hohmann Δv to *every other heliocentric body* is uniformly large (mercury sits deep in the Sun's gravity well; matching its 47.4 km/s circular velocity from any outer orbit is expensive). The Fiedler partition is therefore a "deep-gravity-well isolation" indicator, not a finer "cheap-chain neighbourhood" indicator. The 25 across-partition pairs (mercury or venus paired with anything ≥ mars) are uniformly expensive (median Δv ≈ 18 km/s); the 35 finite within-partition pairs span the entire range from 1.2 km/s (e.g. saturn-uranus) to 28 km/s (e.g. pluto-jupiter).
+
+* **Why the Spearman is still high.** Sorting all 53 feasible pairs by Fiedler distance puts the 18 cross-partition pairs (high Fiedler distance, high Δv) at the top of both rankings; this alone drives a large fraction of the rank correlation. The within-partition tail (35 pairs, all at Fiedler distance ≲ 0.06) carries most of the remaining Δv variance, which the Fiedler partition does *not* resolve.
+
+* **What this means for ship.** A Fiedler-partition-only predictor would correctly flag "mercury (and venus) trips are uniformly expensive — skip them unless you have a fat budget" but would say nothing useful about whether `terra → ceres` is cheaper than `terra → jupiter`. That's a useful first-pass filter (it eliminates 25 / 78 ≈ 32% of pairs from consideration with two false negatives — the saturn / uranus pairs the Dijkstra found feasible at high Δv) but it is not a substitute for the Dijkstra search.
+
+* **Why the inv_synodic control fails.** The inv_synodic weighting up-weights body pairs whose *windows are frequent*, not whose *transfers are cheap*. The pallas / ceres near-resonance (T_syn ≈ 5.6 × 10⁵ d, an order of magnitude larger than typical because their periods are nearly identical) becomes a Fiedler-vector black hole that absorbs the signal. The negative ρ confirms that the inv_dv result is not "any spectral metric works" — it is specifically the cost-geometry encoded in the inverse-Δv weighting that delivers the predictive signal.
+
+* **Refinements worth a v0.17.x follow-up:**
+  * **Two-eigenvector embedding.** Project bodies onto `(f₂, f₃)` and re-measure Spearman on the 2-D Euclidean distance. The single Fiedler vector collapses everything-not-mercury into a tight cluster; the next eigenvector might separate the inner-vs-outer distinction inside that cluster.
+  * **Diffusion distance.** `d_t(i, j) = ‖exp(−t L) e_i − exp(−t L) e_j‖` for some characteristic time t. Captures multi-step accessibility (the Dijkstra search is, after all, multi-leg) in a way the single Fiedler vector cannot.
+  * **Mercury-removed sub-graph.** Strip mercury (the dominant outlier) and re-run; see whether the Fiedler vector on the 12-body sub-graph splits the inner vs outer system in a way that does correlate with intra-cluster Δv variance.
+  * **Resonance-weighted edges.** Instead of inv-Hohmann or inv-synodic, weight by `w_ij = exp(−|p_i / p_j − p_best/q_best|)` for the best small-integer rational approximation. The BIP / cyclic-group native metric — closer to Almagest period-ratios than to Hohmann mechanics. Ties this work back to §12 / §11.6.
+
+* **Where the §12.3 framing lands.** §12.3 asked whether "the ITN is implicit in the body-roster gear ratios." The +0.743 Spearman is consistent with that claim *at the partition-level* — the body-graph spectrum does encode at least the deep-vs-shallow heliocentric structure. It is not strong enough to claim the spectrum encodes the full ITN tube structure (the within-partition variance is unresolved). The CR3BP literature's per-Sun-planet rotating-frame analysis remains necessary for finer accessibility predictions; the spectral lens has earned its keep as a *coarse classifier*, not (yet) as a *full ITN predictor*.
+
+### 13.7 Recommendation
+
+**Ship as v0.17.x research-output (notebook-only).** This section + the prototype script + the four figures are the v0.17.x research deliverable. The Spearman is strong enough to publish but the predictor's actionable scope (mercury isolation) is too narrow to justify a `bridge.predict_itn_accessibility` ship surface — a partition-only first-pass filter would surprise users who expected it to discriminate finer than "is mercury involved or not."
+
+**Defer ship of a spectral-only ITN query** to v0.18.0 or later, gated on at least one of the §13.6 refinements (two-eigenvector embedding, diffusion distance, resonance-weighted edges) lifting the Spearman past 0.85 *with* a Matthews φ past 0.6 — the bar at which the spectrum genuinely competes with the Dijkstra rather than weakly anticipating it. Until then, `find_itn_chains` remains the canonical query and this section serves as the baseline result that the next iteration tries to beat.
+
+**Open question for v0.17.x scoping.** The most natural next step is the **resonance-weighted Laplacian** because it ties the gateway-graph thread directly to the BIP cyclic-group encoder's primary surface (notebook §6) and to the architectural-mode work (§11.6). If a Laplacian whose edges are integer-resonance-strength weighted produces a Fiedler vector that splits inner-vs-outer or cheap-chain-clusters more sharply than the inv-Hohmann one does, the spectral-ITN claim acquires a second leg of evidence and becomes worth a real ship surface. That is the v0.17.x or v0.17.y scoping question.

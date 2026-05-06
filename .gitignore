@@ -74,6 +74,7 @@ src/CMakeLists.txt
 
 docs/chess-maths/stockfish/
 docs/chess-maths/.pgn_cache/
+docs/antikythera-maths/research/_cache/
 docs/chess-maths/**/*.7z
 docs/chess-maths/results/*_logs/
 docs/chess-maths/results/delta_sigma_*/
