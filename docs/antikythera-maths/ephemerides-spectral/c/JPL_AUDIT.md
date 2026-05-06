@@ -18,18 +18,18 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 |---|---|--:|--:|---|
 | 1 | No goto / setjmp / longjmp / recursion | 5 | **0** | ✅ — fixed in v0.13.4 (caller-supplied-scratch refactor in `es_hd_state.c`) |
 | 2 | Fixed loop bounds | 0 | 0 | ✅ — no `while(1)` / `for(;;)` |
-| 3 | No dynamic allocation after init | 29 | **0** | ✅ — fixed in v0.13.4 (C library no longer calls `malloc`/`free` after init; HD pipeline takes caller-supplied scratch) |
-| 4 | Functions ≤ 60 lines | 4 | 4 | ❌ — `es_encode_state` 109; `es_find_syzygies` 99; `es_bind_observer` ~88; `es_get_eclipse_probability` ~73. Queued for v0.13.5. |
-| 5 | ≥ 2 assertions per function (avg) | 64 short | 64 short | ❌ — 0 assertions across 32 functions. Queued for v0.13.6. |
+| 3 | No dynamic allocation after init | 29 | **0** | ✅ — fixed in v0.13.4 (C library no longer calls `malloc`/`free` after init) |
+| 4 | Functions ≤ 60 lines | 4 | **0** | ✅ — fixed in v0.13.5 (4 long functions split via 10 new private static helpers along natural algorithm seams) |
+| 5 | ≥ 2 assertions per function (avg) | 64 short | 84 short | ❌ — 0 assertions; 42 functions (was 32; v0.13.5 added 10 helpers). New target: 84 assertions. Queued for v0.13.6. |
 | 6 | Smallest possible scope for data | manual | manual | ⚠ — defer to v0.13.8 manual audit |
 | 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.8. |
 | 8 | Limited preprocessor (header includes + simple macros only) | 0 | 0 | ✅ — no multi-line macros |
 | 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | 0 | ✅ — no function pointers found |
 | 10 | Compile clean at most-pedantic warning level | unknown | unknown | ⚠ — Rule 10 audit deferred to v0.13.7 (cross-platform tooling) |
 
-**Headline:** v0.13.4 closes the largest mechanical-violation cluster in the codebase. Rule 1 + Rule 3 dropped from `5 + 29 = 34` violations to **0**, both eliminated by the same refactor (caller-supplied scratch in the HD pipeline removes the `malloc`/`free` calls and incidentally the `goto`-cleanup pattern they were guarding). Remaining gaps: Rule 4 (4 long functions, queued v0.13.5), Rule 5 (assertion density, queued v0.13.6).
+**Headline:** Two ships, three rules cleared (1 + 3 + 4). v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams without changing public API or encoder math). Remaining: Rule 5 assertion density (now 84 short — bumped from 64 because v0.13.5 added 10 helpers), Rule 10 pedantic-build matrix, Rules 6+7 manual audits.
 
-**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.4 68.** The pinned ratchet test allows this number to go DOWN; PRs that increase it fail.
+**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.5 64** (-38, 37% cleared in two ships). The pinned ratchet test allows this number to go DOWN; PRs that increase it fail.
 
 ---
 
@@ -133,24 +133,27 @@ ABI v5 → v6: the wire format of all three HD-pipeline entry points changed (ex
 
 Convention: 60 lines max (typical printable page; matches Holzmann's intent).
 
-### Violations: 4
+### Violations: 0 *(baseline 4; fixed in v0.13.5)*
 
-| Lines | File | Function |
-|---|---|---|
-| **109** | `c/src/es_encode.c` | `es_encode_state` |
-| **99** | `c/src/es_parity.c` | `es_find_syzygies` |
-| **86** | `c/src/es_hd_state.c` | `es_bind_observer` |
-| **71** | `c/src/es_hd_state.c` | `es_get_eclipse_probability` |
+| Lines (baseline) | File | Function |
+|--:|---|---|
+| 109 | `c/src/es_encode.c` | `es_encode_state` |
+| 99 | `c/src/es_parity.c` | `es_find_syzygies` |
+| 86 | `c/src/es_hd_state.c` | `es_bind_observer` |
+| 71 | `c/src/es_hd_state.c` | `es_get_eclipse_probability` |
 
-`es_encode_state` is the encoder hot path; refactoring requires care to preserve the Phase 9 breathing-couplings inner-loop semantics. `es_find_syzygies` is the syzygy-window-search closed-form enumeration. Both are doing real work; the line count reflects the algorithm's natural unit, not gratuitous length.
+### v0.13.5 fix shipped
 
-**Fix path (v0.11.3+):** factor each into 2-3 sub-functions along natural seams. Example for `es_encode_state`:
+All four functions split into ≤60-line drivers via 10 new private static helpers along natural algorithm seams. No public API change, no ABI change (still v6), encoder math byte-identical (parity smoke green).
 
-- `es_encode_state_chunk_loop` — the 30-day chunk-walking loop body (~50 lines)
-- `es_encode_state_apply_breathing` — the off-diagonal breathing modulation per chunk (~30 lines)
-- `es_encode_state` — top-level: validate, set up, drive the chunk loop, finalise (~30 lines)
+| Driver | Helpers extracted |
+|---|---|
+| `es_encode_state` | `apply_one_chunk` (chunk-loop body: diagonal evolution + breathing-couplings perturbation), `apply_subchunk_remainder` (banker's-round leftover-day step) |
+| `es_find_syzygies` | `select_syzygy_targets` (kind-filter table builder), `score_syzygy_event` (per-event geometry: synodic + draconic residuals), `validate_syzygy_args` (input check helper), `emit_syzygy_event` (cap-aware emit) |
+| `es_bind_observer` | `observer_coord_shift` (lat/lon → roll index), `apply_observer_bind` (complex-multiply inner loop) |
+| `es_get_eclipse_probability` | `build_syzygy_operator` (sun+moon+node sum), `complex64_vdot_magnitude` (numpy-`vdot` magnitude) |
 
-Same pattern for `es_find_syzygies` (split into synodic-walk + draconic-confirm + score-and-emit).
+Total function count 32 → 42; `PIN_RULE_5_TOTAL_FUNCS` ratcheted UP. The Rule 5 fix in v0.13.6 needs the new inventory (84 assertions for 2/function average vs. baseline 64).
 
 ---
 

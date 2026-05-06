@@ -125,44 +125,16 @@ static double modular_distance_to_zero(double x)
     return (a < b) ? a : b;
 }
 
-es_status_t es_find_syzygies(double jd_lo,
-                             double jd_hi,
-                             int kind,
-                             double threshold,
-                             size_t max_candidates,
-                             es_syzygy_t *out_buf,
-                             size_t out_capacity,
-                             size_t *out_count)
+/* Build the (kind, syn-target) pair list for the requested kind
+ * filter. Returns the number of target rows populated (1 or 2 in
+ * practice — see ES_SYZYGY_KIND_FILTER_*). target_kinds + target_syn
+ * are caller-supplied buffers of capacity 2.
+ */
+static int select_syzygy_targets(int kind,
+                                 int target_kinds[2],
+                                 double target_syn[2])
 {
-    if (out_buf == NULL || out_count == NULL) {
-        return ES_ERR_NULL_OUTPUT;
-    }
-    if (!isfinite(jd_lo) || !isfinite(jd_hi)) {
-        return ES_ERR_NON_FINITE_INPUT;
-    }
-    if (kind != ES_SYZYGY_KIND_FILTER_SOLAR
-        && kind != ES_SYZYGY_KIND_FILTER_LUNAR
-        && kind != ES_SYZYGY_KIND_FILTER_ALL) {
-        return ES_ERR_INVALID_KIND;
-    }
-    if (!(threshold > 0.0 && threshold <= 0.5)) {
-        return ES_ERR_INVALID_THRESHOLD;
-    }
-    if (jd_hi < jd_lo) {
-        *out_count = 0;
-        return ES_OK; /* empty window — match Python which raises but
-                       * the bridge maps that to {ok: False}; here we
-                       * defensively return zero candidates. The Python
-                       * bridge already validated jd_hi >= jd_lo before
-                       * calling. */
-    }
-
-    /* Targets: (kind_id, syn_target) pairs. We unroll the two-target
-     * loop so the inner body stays branchless.
-     */
     int n_targets = 0;
-    int  target_kinds[2];
-    double target_syn[2];
     if (kind == ES_SYZYGY_KIND_FILTER_SOLAR || kind == ES_SYZYGY_KIND_FILTER_ALL) {
         target_kinds[n_targets] = ES_SYZYGY_KIND_SOLAR;
         target_syn[n_targets]   = 0.0;
@@ -173,54 +145,131 @@ es_status_t es_find_syzygies(double jd_lo,
         target_syn[n_targets]   = 0.5;
         ++n_targets;
     }
+    return n_targets;
+}
+
+/* Score a single candidate event at jd. The synodic residual is
+ * exactly 0 by enumeration; the draconic residual is computed
+ * relative to the August 1999 solar-eclipse anchor, exploiting the
+ * ascending/descending-node symmetry (distance to phase = 0 mod 0.5).
+ * Returns the geometric score (sqrt of summed squared residuals);
+ * out_syn_resid and out_drc_resid are filled for the caller's struct.
+ */
+static double score_syzygy_event(double jd,
+                                 double *out_syn_resid,
+                                 double *out_drc_resid)
+{
+    const double syn_resid = 0.0;
+    const double drc_offset = pos_mod(jd - SOLAR_ECLIPSE_REFERENCE_JD_TDB,
+                                      DRACONIC_MONTH_DAYS);
+    const double drc_phase  = drc_offset / DRACONIC_MONTH_DAYS;
+    const double drc_resid  = modular_distance_to_zero(pos_mod(drc_phase * 2.0, 1.0)) / 2.0;
+    *out_syn_resid = syn_resid;
+    *out_drc_resid = drc_resid;
+    return sqrt(syn_resid * syn_resid + drc_resid * drc_resid);
+}
+
+/* Emit one matching event into the caller's out_buf if there's room
+ * (silently increment past the cap so the caller can detect overflow
+ * via count > capacity, matching the Python bridge's pre-allocation
+ * sizing). Returns 1 if the caller-supplied max_candidates cap has
+ * been reached and the walk should terminate, else 0.
+ */
+static int emit_syzygy_event(double jd, int kind_id,
+                             double syn_resid, double drc_resid, double score,
+                             es_syzygy_t *out_buf, size_t out_capacity,
+                             size_t max_candidates, size_t *count)
+{
+    if (*count < out_capacity) {
+        out_buf[*count].jd_tdb               = jd;
+        out_buf[*count].kind                 = kind_id;
+        out_buf[*count].synodic_phase_resid  = syn_resid;
+        out_buf[*count].draconic_phase_resid = drc_resid;
+        out_buf[*count].score                = score;
+    }
+    ++(*count);
+    return (*count >= max_candidates) ? 1 : 0;
+}
+
+/* Validate es_find_syzygies inputs. Returns ES_OK if all checks pass
+ * AND the window is non-empty; returns a non-OK status on validation
+ * failure; returns ES_OK with *out_window_empty=1 when the window is
+ * legitimately empty (jd_hi < jd_lo) — in that case the caller should
+ * write *out_count = 0 and bail.
+ */
+static es_status_t validate_syzygy_args(double jd_lo, double jd_hi,
+                                        int kind, double threshold,
+                                        const es_syzygy_t *out_buf,
+                                        const size_t *out_count,
+                                        int *out_window_empty)
+{
+    *out_window_empty = 0;
+    if (out_buf == NULL || out_count == NULL) return ES_ERR_NULL_OUTPUT;
+    if (!isfinite(jd_lo) || !isfinite(jd_hi)) return ES_ERR_NON_FINITE_INPUT;
+    if (kind != ES_SYZYGY_KIND_FILTER_SOLAR
+        && kind != ES_SYZYGY_KIND_FILTER_LUNAR
+        && kind != ES_SYZYGY_KIND_FILTER_ALL) {
+        return ES_ERR_INVALID_KIND;
+    }
+    if (!(threshold > 0.0 && threshold <= 0.5)) return ES_ERR_INVALID_THRESHOLD;
+    if (jd_hi < jd_lo) {
+        /* Empty window — match Python which raises but the bridge maps
+         * that to {ok: False}; here we defensively return zero.
+         */
+        *out_window_empty = 1;
+    }
+    return ES_OK;
+}
+
+es_status_t es_find_syzygies(double jd_lo,
+                             double jd_hi,
+                             int kind,
+                             double threshold,
+                             size_t max_candidates,
+                             es_syzygy_t *out_buf,
+                             size_t out_capacity,
+                             size_t *out_count)
+{
+    int window_empty = 0;
+    const es_status_t vrc = validate_syzygy_args(jd_lo, jd_hi, kind, threshold,
+                                                  out_buf, out_count,
+                                                  &window_empty);
+    if (vrc != ES_OK) return vrc;
+    if (window_empty) {
+        *out_count = 0;
+        return ES_OK;
+    }
+
+    /* (kind_id, syn-target) pair list — at most two rows. */
+    int    target_kinds[2];
+    double target_syn[2];
+    const int n_targets = select_syzygy_targets(kind, target_kinds, target_syn);
 
     /* Start at the first new moon >= jd_lo. */
     const double n_start_d = ceil((jd_lo - LUNAR_REFERENCE_NEW_MOON_JD_TDB) / SYNODIC_MONTH_DAYS);
     const double n_end_d   = floor((jd_hi - LUNAR_REFERENCE_NEW_MOON_JD_TDB) / SYNODIC_MONTH_DAYS);
 
-    size_t count = 0;
     if (n_end_d < n_start_d) {
         *out_count = 0;
         return ES_OK;
     }
 
+    size_t count = 0;
     for (double n = n_start_d; n <= n_end_d; n += 1.0) {
         const double jd_new_moon = LUNAR_REFERENCE_NEW_MOON_JD_TDB + n * SYNODIC_MONTH_DAYS;
-
         for (int t = 0; t < n_targets; ++t) {
             const double jd = jd_new_moon + target_syn[t] * SYNODIC_MONTH_DAYS;
             if (jd < jd_lo || jd > jd_hi) continue;
-
-            /* Synodic phase residual is exactly 0 by enumeration. */
-            const double syn_resid = 0.0;
-
-            /* Draconic phase relative to August 1999 anchor. Eclipse
-             * geometry is symmetric across ascending/descending nodes,
-             * so we look at distance to phase = 0 modulo 0.5.
-             */
-            const double drc_offset = pos_mod(jd - SOLAR_ECLIPSE_REFERENCE_JD_TDB,
-                                              DRACONIC_MONTH_DAYS);
-            const double drc_phase  = drc_offset / DRACONIC_MONTH_DAYS;
-            const double drc_resid  = modular_distance_to_zero(pos_mod(drc_phase * 2.0, 1.0)) / 2.0;
-
-            const double score = sqrt(syn_resid * syn_resid + drc_resid * drc_resid);
-            if (score < threshold) {
-                if (count < out_capacity) {
-                    out_buf[count].jd_tdb               = jd;
-                    out_buf[count].kind                 = target_kinds[t];
-                    out_buf[count].synodic_phase_resid  = syn_resid;
-                    out_buf[count].draconic_phase_resid = drc_resid;
-                    out_buf[count].score                = score;
-                }
-                ++count;
-                if (count >= max_candidates) {
-                    *out_count = (count > out_capacity) ? out_capacity : count;
-                    return ES_OK;
-                }
+            double syn_resid, drc_resid;
+            const double score = score_syzygy_event(jd, &syn_resid, &drc_resid);
+            if (score >= threshold) continue;
+            if (emit_syzygy_event(jd, target_kinds[t], syn_resid, drc_resid, score,
+                                  out_buf, out_capacity, max_candidates, &count)) {
+                *out_count = (count > out_capacity) ? out_capacity : count;
+                return ES_OK;
             }
         }
     }
-
     *out_count = (count > out_capacity) ? out_capacity : count;
     return ES_OK;
 }

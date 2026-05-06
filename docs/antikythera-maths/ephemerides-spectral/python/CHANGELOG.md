@@ -10,7 +10,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.4)
+(no entries yet — next entries land after v0.13.5)
+
+## [0.13.5] — 2026-05-05
+
+**JPL Power-of-Ten Rule 4 fixes — long-function splits.** Second code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. Pure refactor: no public API change, no ABI change (still v6), encoder math byte-identical (parity smoke is the gate).
+
+### Fixed
+
+- **Rule 4 (function bodies ≤ 60 lines)** count drops **4 → 0**. The four offenders identified in the v0.11.2 audit are factored into JPL-compliant sub-functions along natural algorithm seams:
+
+  | File | Function | Before | After (driver) | New static helpers |
+  |---|---|--:|--:|---|
+  | `es_encode.c` | `es_encode_state` | 109 | ≤60 | `apply_one_chunk` (chunk-loop body), `apply_subchunk_remainder` (banker's-round leftover step) |
+  | `es_parity.c` | `es_find_syzygies` | 99 | ≤60 | `select_syzygy_targets` (kind-filter table), `score_syzygy_event` (per-event geometry), `validate_syzygy_args` (input checks), `emit_syzygy_event` (count + cap handling) |
+  | `es_hd_state.c` | `es_bind_observer` | 78 | ≤60 | `observer_coord_shift` (lat/lon → roll index), `apply_observer_bind` (complex-mul inner loop) |
+  | `es_hd_state.c` | `es_get_eclipse_probability` | 65 | ≤60 | `build_syzygy_operator` (sun+moon+node sum), `complex64_vdot_magnitude` (numpy-`vdot` magnitude) |
+
+  10 new static internal helpers; total function count 32 → 42 (`PIN_RULE_5_TOTAL_FUNCS` ratcheted UP — Rule 5 work in v0.13.6 needs the larger inventory).
+
+### Why static helpers (not public API)
+
+The new factors are private to their .c files — they're internal seams, not new ABI surface. No header changes, no Python-side updates, no parity tests to update. The Python ctypes shim doesn't even know they exist. Public entry points (`es_encode_state`, `es_find_syzygies`, `es_bind_observer`, `es_get_eclipse_probability`) keep their v0.13.4 signatures.
+
+### Audit ratchet
+
+`tests/test_jpl_audit.py` pins ratcheted:
+
+| Pin | v0.11.2 baseline | v0.13.4 | v0.13.5 |
+|---|--:|--:|--:|
+| `PIN_RULE_4_LONG_FUNCTIONS` | 4 | 4 | **0** |
+| `PIN_RULE_5_TOTAL_FUNCS` | 32 | 32 | **42** *(ratcheted UP — Rule 5 needs the new inventory)* |
+
+Total mechanically-detectable violations: **102 → 64** (37% of audit baseline cleared across v0.13.4 + v0.13.5). Remaining: Rule 5 (assertion density, v0.13.6), Rule 10 (pedantic-build matrix, v0.13.7), Rules 6+7 (manual audits, v0.13.8).
+
+### Migration
+
+None. Pure internal refactor; no API/ABI/test surface change. 250 tests pass, 5 skipped.
 
 ## [0.13.4] — 2026-05-05
 

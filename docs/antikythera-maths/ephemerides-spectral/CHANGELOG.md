@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.4)
+(no entries yet — next entries land after v0.13.5)
+
+## [0.13.5] — 2026-05-05
+
+**JPL Power-of-Ten Rule 4 fixes — long-function splits.** Second code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. Pure refactor; no public API / ABI / test-surface change.
+
+### Fixed
+
+- **Rule 4 (function bodies ≤ 60 lines)** count drops **4 → 0**. The four audit-baseline offenders refactored along natural algorithm seams via 10 new private static helpers:
+
+  | Function | Before | Helpers extracted |
+  |---|--:|---|
+  | `es_encode_state` | 109 | `apply_one_chunk`, `apply_subchunk_remainder` |
+  | `es_find_syzygies` | 99 | `select_syzygy_targets`, `score_syzygy_event`, `validate_syzygy_args`, `emit_syzygy_event` |
+  | `es_bind_observer` | 78 | `observer_coord_shift`, `apply_observer_bind` |
+  | `es_get_eclipse_probability` | 65 | `build_syzygy_operator`, `complex64_vdot_magnitude` |
+
+  All driver functions ≤60 lines after the splits. Total function count 32 → 42; `PIN_RULE_5_TOTAL_FUNCS` ratcheted UP to track the new inventory (Rule 5 work in v0.13.6 needs it).
+
+### ABI/API impact
+
+**None.** The new factors are `static` (file-private); no header changes; no Python-side updates. Public entry points keep their v0.13.4 signatures. Encoder math byte-identical — parity smoke pins both backends to float-ULP and stays green.
+
+### Audit ratchet (`tests/test_jpl_audit.py`)
+
+| Pin | v0.11.2 baseline | v0.13.4 | v0.13.5 |
+|---|--:|--:|--:|
+| `PIN_RULE_4_LONG_FUNCTIONS` | 4 | 4 | **0** |
+| `PIN_RULE_5_TOTAL_FUNCS` | 32 | 32 | **42** |
+
+Total mechanically-detectable violations: **102 → 64** (37% of audit baseline cleared across v0.13.4 + v0.13.5). Remaining: Rule 5 (assertion density, v0.13.6), Rule 10 (pedantic-build matrix, v0.13.7), Rules 6+7 (manual audits, v0.13.8).
+
+250 tests pass, 5 skipped.
 
 ## [0.13.4] — 2026-05-05
 

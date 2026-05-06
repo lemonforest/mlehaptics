@@ -10,6 +10,12 @@ History:
   - v0.13.4: Rule 1 (goto) 5 → 0 and Rule 3 (dynamic alloc) 29 → 0
              via the `es_hd_state.c` caller-supplied-scratch refactor
              (combined fix; ABI v5 → v6).
+  - v0.13.5: Rule 4 (long functions) 4 → 0 by splitting the long
+             functions in es_encode.c, es_parity.c, and es_hd_state.c
+             into <60-line factors via 10 new static helpers.
+             PIN_RULE_5_TOTAL_FUNCS bumped 32 → 42 to track the new
+             helper count (Rule 5 work in v0.13.6 will need the
+             larger function inventory).
 
 Same modular discipline as `test_native_version_string_matches_package_version`,
 `test_parity_smoke.py::PARITY_TARGETS`, and `test_readme_freshness.py`:
@@ -71,7 +77,9 @@ PIN_RULE_2_UNBOUNDED:      int = 0
 PIN_RULE_3_DYNAMIC_ALLOC:  int = 0
 
 #: Rule 4 — functions ≤ 60 lines.
-PIN_RULE_4_LONG_FUNCTIONS: int = 4
+#: v0.13.5: 4 → 0 (long functions split via 10 new static helpers in
+#: es_encode.c, es_parity.c, es_hd_state.c).
+PIN_RULE_4_LONG_FUNCTIONS: int = 0
 
 #: Rule 5 — ≥ 2 assertions per function (averaged). Total assertion
 #: count across the codebase. Pinned as the assertion total; the
@@ -81,7 +89,8 @@ PIN_RULE_5_ASSERTIONS:     int = 0
 #: average enforcement. Pinned because adding functions changes the
 #: required assertion count; if a PR adds functions it should ALSO
 #: add proportional assertions to keep the average above 2.
-PIN_RULE_5_TOTAL_FUNCS:    int = 32
+#: v0.13.5: 32 → 42 (10 new static helpers from the Rule 4 splits).
+PIN_RULE_5_TOTAL_FUNCS:    int = 42
 
 #: Rule 8 — limited preprocessor: no multi-line macros.
 PIN_RULE_8_MULTILINE_MACROS: int = 0
