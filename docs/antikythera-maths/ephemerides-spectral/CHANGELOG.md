@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.14.0)
+(no entries yet — next entries land after v0.14.1)
+
+## [0.14.1] — 2026-05-06
+
+**Sol Moon Times: Saturnians (11 moons) + abbreviation policy switch (4-letter → 6-letter).** Second slice of task `` `#86` ``. The abbreviation contingency policy from v0.14.0's ROADMAP fired exactly as predicted: Saturnians introduced two collisions under the v0.14.0 4-letter pattern (Tethys + Titan; Enceladus + Epimetheus) → uniform switch across all Sol Moon Times.
+
+### Saturnian moons added (11)
+
+Mimas (SSaMiT), Enceladus (SSaEnT), Tethys (SSaTeT), Dione (SSaDiT), Rhea (SSaRhT), Titan (SSaTiT), Hyperion (SSaHyT), Iapetus (SSaIaT), Phoebe (SSaPhT), Janus (SSaJaT), Epimetheus (SSaEpT).
+
+### Galilean abbreviations retroactively renamed
+
+`SJIT → SJuIoT`, `SJET → SJuEuT`, `SJGT → SJuGaT`, `SJCT → SJuCaT`. Python function names + CLI subcommand names + return-shape unchanged; only the `epoch.abbreviation` string changes.
+
+### Resonance witnesses
+
+Tests verify Mimas-Tethys 4:2 (Cassini Division), Enceladus-Dione 2:1 (Enceladus tidal heating), Titan-Hyperion 4:3 (Hyperion chaotic rotation), and the Janus-Epimetheus co-orbital pair.
+
+### Hyperion footnote
+
+The only known major moon NOT in tidal lock — `sidereal_period_days` references its orbital period in our convention; rotation-phase coupling is decoupled, an open research direction.
+
+### Test count
+
+399 pass, 4 skipped (was 294 + 4 in v0.14.0).
 
 ## [0.14.0] — 2026-05-05
 

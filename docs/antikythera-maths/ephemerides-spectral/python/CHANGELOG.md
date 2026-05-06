@@ -10,7 +10,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.14.0)
+(no entries yet — next entries land after v0.14.1)
+
+## [0.14.1] — 2026-05-06
+
+**Sol Moon Times: Saturnians (11 moons) + abbreviation policy switch (4-letter → 6-letter).** Second slice of task `` `#86` ``. The abbreviation collision contingency documented in v0.14.0's ROADMAP fired exactly as predicted: when the 11 Saturnians joined the per-moon abbreviation namespace, two collisions surfaced under the v0.14.0 4-letter `S<Planet><Moon>T` pattern (Tethys + Titan both 'T' → both `SSTT`; Enceladus + Epimetheus both 'E' → both `SSET`). Per the ROADMAP "Naming convention contingencies" policy, the switch applies **uniformly across all Sol Moon Times** — Galileans retroactively renamed too.
+
+### Added — 11 Saturnian Sol Moon Times
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Mimas | Sol Saturn-Mimas Time | **SSaMiT** | `time-saturn-mimas` |
+| Enceladus | Sol Saturn-Enceladus Time | **SSaEnT** | `time-saturn-enceladus` |
+| Tethys | Sol Saturn-Tethys Time | **SSaTeT** | `time-saturn-tethys` |
+| Dione | Sol Saturn-Dione Time | **SSaDiT** | `time-saturn-dione` |
+| Rhea | Sol Saturn-Rhea Time | **SSaRhT** | `time-saturn-rhea` |
+| Titan | Sol Saturn-Titan Time | **SSaTiT** | `time-saturn-titan` |
+| Hyperion | Sol Saturn-Hyperion Time | **SSaHyT** | `time-saturn-hyperion` |
+| Iapetus | Sol Saturn-Iapetus Time | **SSaIaT** | `time-saturn-iapetus` |
+| Phoebe | Sol Saturn-Phoebe Time | **SSaPhT** | `time-saturn-phoebe` |
+| Janus | Sol Saturn-Janus Time | **SSaJaT** | `time-saturn-janus` |
+| Epimetheus | Sol Saturn-Epimetheus Time | **SSaEpT** | `time-saturn-epimetheus` |
+
+### Changed — Galilean abbreviations retroactively renamed
+
+| Body | Before (v0.14.0) | After (v0.14.1+) |
+|---|---|---|
+| Io | `SJIT` | **`SJuIoT`** |
+| Europa | `SJET` | **`SJuEuT`** |
+| Ganymede | `SJGT` | **`SJuGaT`** |
+| Callisto | `SJCT` | **`SJuCaT`** |
+
+The `epoch.abbreviation` field changes; **Python function names, CLI subcommand names, and bridge return-shape are unchanged**. Callers reading the abbreviation as a label (e.g., for display, comparison, or storage) will see the new 6-letter form starting from v0.14.1.
+
+### Why the switch had to be uniform
+
+Mixed conventions across moons (Galileans 4-letter, Saturnians 6-letter) would have been worse than either pure convention — readers would constantly need to remember which family uses which length. The ROADMAP policy was explicit about this: *"When a single collision triggers the policy switch, the change applies uniformly to all Sol Moon Times in the package."*
+
+### Resonance witnesses (in tests, not in dicts)
+
+The Saturnian families have several known mean-motion resonances:
+
+| Resonance | Form | Significance |
+|---|---|---|
+| Mimas-Tethys 4:2 | `n_Mimas / n_Tethys ≈ 2.0` | Opens the Cassini Division |
+| Enceladus-Dione 2:1 | `n_Enc / n_Dione ≈ 2.0` | Powers Enceladus's tidal heating + cryovolcanism |
+| Titan-Hyperion 4:3 | `n_Titan / n_Hyp ≈ 1.333` | Drives Hyperion's chaotic rotation |
+| Janus-Epimetheus | period ratio ≈ 1.0 | Co-orbital horseshoe orbit (~4-yr swap) |
+
+Each resonance has a witness test in `test_saturnian_sol_moon_times.py`. The per-moon dict carries only `sidereal_count` / `sidereal_phase` — pair-relations stay out of the dict (consistent with the v0.14.0 Galilean Laplace-resonance handling).
+
+### Hyperion footnote
+
+Hyperion's chaotic rotation means rotation period ≠ orbital period (it's the only known major moon NOT in tidal lock). The `sidereal_period_days` field references the orbital period in our convention; the rotation-phase coupling is non-trivially decoupled and an open research direction. This is documented in the bridge docstring, the CLI help text, and the test module.
+
+### Roadmap update
+
+`ROADMAP.md`'s "Naming convention contingencies" section is updated from forward-looking ("if collisions arise") to *triggered* ("v0.14.1 invoked the fallback policy"), with the specific Tethys/Titan and Enceladus/Epimetheus collisions called out as the trigger.
+
+### Test count
+
+399 tests pass, 4 skipped (was 294 + 4 in v0.14.0; +105 new — 99 Saturnian tests + parity-smoke registrations + 6 cross-family abbreviation-uniqueness checks).
+
+### Migration
+
+- **Python function names**: unchanged. `bridge.jd_to_sol_jupiter_io_time(...)` still works the same way.
+- **CLI subcommand names**: unchanged. `time-jupiter-io --jd ...` still works the same way.
+- **Return-shape**: unchanged. The `epoch.abbreviation` STRING changes from `"SJIT"` to `"SJuIoT"` etc. Callers parsing this field for display / comparison need to update.
+- **No API/encoder/ABI changes**.
 
 ## [0.14.0] — 2026-05-05
 
