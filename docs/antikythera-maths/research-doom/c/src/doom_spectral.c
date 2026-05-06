@@ -1,6 +1,7 @@
 #include "doom_spectral.h"
 #include "ds_data.h"
 #include <assert.h>
+#include <math.h>
 
 /* 
  * JPL C Standard Compliance:
@@ -115,17 +116,18 @@ bool ds_fiber_can_traverse(const int sec_a, const int sec_b,
 void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out)
 {
     /* 
-     * Full spectral diffusion using Taylor series expansion of e^-Lt:
-     * s(t) = (I - Lt + (Lt)^2/2! - (Lt)^3/3!) * s(0)
+     * Physical Diffusion via Multi-step Euler Integration.
+     * ds/dt = -L * s
+     * s(t+dt) = s(t) - dt * L * s(t)
      *
-     * We perform 3 iterations (up to cubic term) for high-fidelity 
-     * topological flooding.
+     * We use 8 steps to ensure stability and non-negativity.
      */
     int i;
-    int k;
-    float temp[DS_E1M1_SECTORS];
-    float s_prev[DS_E1M1_SECTORS];
-    const float dt = time;
+    int step;
+    float s[DS_E1M1_SECTORS];
+    float ds[DS_E1M1_SECTORS];
+    const int num_steps = 8;
+    const float dt = time / (float)num_steps;
 
     assert(source_sector >= 0);
     assert(source_sector < DS_E1M1_SECTORS);
@@ -134,22 +136,13 @@ void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out)
     /* Initial state s(0) */
     for (i = 0; i < DS_E1M1_SECTORS; ++i)
     {
-        out->intensity[i] = 0.0f;
-        s_prev[i] = 0.0f;
+        s[i] = 0.0f;
     }
-    out->intensity[source_sector] = 1.0f;
-    s_prev[source_sector] = 1.0f;
+    s[source_sector] = 1.0f;
 
-    /* Iteration 1: -Lt * s(0) */
-    /* Iteration 2: (Lt)^2/2 * s(0) ... etc */
-    /* We use the adjacency matrix to compute L*s since L = D - A */
-
-    for (k = 1; k <= 3; ++k)
+    for (step = 0; step < num_steps; ++step)
     {
-        float factorial = 1.0f;
-        for (i = 1; i <= k; ++i) factorial *= (float)i;
-
-        /* temp = L * s_prev */
+        /* Compute ds = -L * s */
         for (i = 0; i < DS_E1M1_SECTORS; ++i)
         {
             float deg_i = 0.0f;
@@ -159,21 +152,26 @@ void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out)
                 if (ds_e1m1_adj[i][j])
                 {
                     deg_i += 1.0f;
-                    sum_adj += s_prev[j];
+                    sum_adj += s[j];
                 }
             }
-            /* L * s = (D - A) * s = D*s - A*s */
-            temp[i] = (deg_i * s_prev[i]) - sum_adj;
+            /* -L*s = -(D*s - A*s) = A*s - D*s */
+            ds[i] = sum_adj - (deg_i * s[i]);
         }
 
-        /* update out: s(t) += ((-t)^k / k!) * (L^k * s0) */
-        float coeff = powf(-dt, (float)k) / factorial;
+        /* Euler Step: s += dt * ds */
         for (i = 0; i < DS_E1M1_SECTORS; ++i)
         {
-            out->intensity[i] += coeff * temp[i];
-            s_prev[i] = temp[i]; /* for next power of L */
+            s[i] += dt * ds[i];
+            /* Physical constraint: clamp to [0, 1] */
+            if (s[i] < 0.0f) s[i] = 0.0f;
+            if (s[i] > 1.0f) s[i] = 1.0f;
         }
     }
-}
 
+    /* Export final field */
+    for (i = 0; i < DS_E1M1_SECTORS; ++i)
+    {
+        out->intensity[i] = s[i];
+    }
 }

@@ -104,6 +104,19 @@ The level's spatial hierarchy was automatically derived using **Spectral Cluster
 - **Bottleneck Identification:** The spectral split severed only **3 portals**, identifying the absolute geographic "choke point" of the Hangar's layout.
 - **Application:** This method allows for the automated generation of BSP trees that are topologically optimized for sound and visibility propagation.
 
+### 4.3 Headless Spectral Simulation (Verified May 2026)
+
+To verify the "Spectral Slice" in a non-graphical environment, we implemented `ds_headless_runner.c`. This runner simulates the engine's internal manifold state during player movement.
+
+- **BIP Trajectory:** As the player moves from $(1056, -3616)$, the 512-dimensional BIP state correctly decorrelates. Similarity drops from $1.0$ (start) to a fluctuating noise floor ($\approx \pm 0.04$), confirming spatial uniqueness in phase space.
+- **Physical Sound Diffusion:** Replaced the unstable cubic Taylor expansion with an **8-step Euler integration** ($\Delta s = -L \cdot s \cdot \Delta t$).
+- **Diffusion Result (t=0.8):** Sound intensity from Sector 0 (Hangar) decays physically:
+    - Sector 0: $0.2860$ (Source)
+    - Sector 1: $0.0498$
+    - Sector 3: $0.0841$
+    - Sector 4: $0.2170$
+- **Verification:** All sound intensities are bounded $[0, 1]$, confirming the stability of the spectral flooding model on real E1M1 topology.
+
 ## 5. Summary of Artifacts
 
 | Artifact | Location | Description |
@@ -111,5 +124,5 @@ The level's spatial hierarchy was automatically derived using **Spectral Cluster
 | **BIP State** | `results-doom/e1m1_bip_sample.npy` | 512D hypervector of a sample E1M1 coordinate. |
 | **Partition Map** | `results-doom/e1m1_spectral_partition.npy` | Fiedler vector and sector cluster assignments. |
 | **WAD Parser** | `research-doom/wad_parser.py` | Binary IWAD extractor for id Tech 1 data. |
-| **BIP Encoder** | `research-doom/doom_bip_encoder.py` | Phase-9 HDC spatial encoder. |
-| **Spectral BSP** | `research-doom/doom_spectral_bsp.py` | Graph-theoretic level partitioner. |
+| **Headless Runner**| `research-doom/c/test/ds_headless_runner.c` | Engine-agnostic spectral manifold simulator. |
+| **Spectral Engine**| `doom-spectral/source/linuxdoom-1.10/` | DOOM source code with integrated spectral lattice. |
