@@ -1480,6 +1480,160 @@ spin-orbit lock collapses these into a single timescale)."""
 sol_pluto_charon_time_to_jd = _moon_time_to_jd_response("charon", "SPlChT")
 sol_pluto_charon_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Charon (mutually tidally locked with Pluto; sidereal period = mutual rotation period)."
 
+# ── v0.16.0 Tier-1 BODIES expansion (43 → 52) ────────────────────────
+#
+# Saturnian Lagrange trojans (4): Telesto + Calypso ride at Tethys's
+# L4 + L5; Helene + Polydeuces ride at Dione's L4 + L5. Each shares
+# its host moon's sidereal period EXACTLY (1:1 mean-motion lock at
+# the L4/L5 fixed points of the Saturn-host CR3BP), giving the
+# body-graph Laplacian a multiplicity-2 degeneracy at the host's
+# frequency. The natural intersection point with v0.16.x's
+# resonance-graph multi-leg find_itn_chains.
+
+jd_to_sol_saturn_telesto_time = _moon_time_response("telesto", _SATURNIAN_PARENT, "SSaTeT2", "Sol Saturn-Telesto Time")
+jd_to_sol_saturn_telesto_time.__doc__ = """JD (TDB) → Sol Saturn-Telesto Time.
+
+Tethys L4 trojan. Discovered Smith / Reitsema / Larson / Fountain 1980.
+Period 1.88780216 d -- IDENTICAL to Tethys's. The first L4 entry in
+BODIES; the body-graph Laplacian acquires a multiplicity-2 eigenvalue
+at the Tethys frequency 2π/1.88780216 d⁻¹.
+
+NOTE on abbreviation: SSaTeT collides with the v0.14.1-shipped Tethys
+abbreviation (SSaTeT). The trojan therefore takes the suffixed form
+**SSaTeT2** to distinguish them; this is the first invocation of the
+suffix-disambiguation policy reserved in v0.14.1's roadmap for cases
+where two moons of the SAME parent share their first-two-letters
+(here: Tethys vs Telesto, both 'Te'). The suffix '2' marks the L4
+trojan; Calypso (L5) gets SSaTeT3 by the same rule."""
+sol_saturn_telesto_time_to_jd = _moon_time_to_jd_response("telesto", "SSaTeT2")
+sol_saturn_telesto_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Telesto (Tethys L4 trojan; period locked to Tethys's)."
+
+jd_to_sol_saturn_calypso_time = _moon_time_response("calypso", _SATURNIAN_PARENT, "SSaCaT", "Sol Saturn-Calypso Time")
+jd_to_sol_saturn_calypso_time.__doc__ = """JD (TDB) → Sol Saturn-Calypso Time (SSaCaT).
+
+Tethys L5 trojan. Discovered Pascu / Seidelmann / Baum / Currie 1980.
+Period 1.88780216 d -- IDENTICAL to Tethys's and Telesto's. Forms an
+L4/L5 pair with Telesto.
+
+Mass ~10⁻¹² Earth (radius ~9.6 km, irregular shape); the trojan slot
+is a Lagrange-point identity, not a mass argument. The Laplacian
+multiplicity-2 degeneracy at the Tethys frequency is the spectral
+content the trojan slot earns."""
+sol_saturn_calypso_time_to_jd = _moon_time_to_jd_response("calypso", "SSaCaT")
+sol_saturn_calypso_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Calypso (Tethys L5 trojan; period locked to Tethys's)."
+
+jd_to_sol_saturn_helene_time = _moon_time_response("helene", _SATURNIAN_PARENT, "SSaHeT", "Sol Saturn-Helene Time")
+jd_to_sol_saturn_helene_time.__doc__ = """JD (TDB) → Sol Saturn-Helene Time (SSaHeT).
+
+Dione L4 trojan. Discovered Laques / Lecacheux 1980 (visually from the
+Pic du Midi during a Saturn ring-plane crossing). Period 2.73691500 d
+-- IDENTICAL to Dione's. Cassini (2010) close flyby imaged a heavily
+regolith-coated surface with curious "downhill"-streaming patterns.
+
+Largest of the four Saturnian trojans (radius ~17.5 km, mass ~2e-12
+Earth)."""
+sol_saturn_helene_time_to_jd = _moon_time_to_jd_response("helene", "SSaHeT")
+sol_saturn_helene_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Helene (Dione L4 trojan; period locked to Dione's)."
+
+jd_to_sol_saturn_polydeuces_time = _moon_time_response("polydeuces", _SATURNIAN_PARENT, "SSaPoT", "Sol Saturn-Polydeuces Time")
+jd_to_sol_saturn_polydeuces_time.__doc__ = """JD (TDB) → Sol Saturn-Polydeuces Time (SSaPoT).
+
+Dione L5 trojan. Discovered Murray et al. 2004 (Cassini imagery).
+Period 2.73691500 d -- IDENTICAL to Dione's and Helene's. Forms an
+L4/L5 pair with Helene.
+
+Smallest body in the v0.16.0 ship (radius ~1.3 km, mass ~4e-15
+Earth) -- a "moonlet" by most categorisations -- but the Lagrange-
+point identity earns the slot regardless of mass. Notable for
+having an unusually wide libration amplitude around L5 (~32°),
+suggesting a relatively recent capture or perturbation event."""
+sol_saturn_polydeuces_time_to_jd = _moon_time_to_jd_response("polydeuces", "SSaPoT")
+sol_saturn_polydeuces_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Polydeuces (Dione L5 trojan; period locked to Dione's; wide libration amplitude ~32°)."
+
+# Jovian irregular moons (3) — Himalia (largest prograde) + Pasiphae /
+# Sinope (the second retrograde marker beyond Triton).
+jd_to_sol_jupiter_himalia_time = _moon_time_response("himalia", _GALILEAN_PARENT, "SJuHiT", "Sol Jupiter-Himalia Time")
+jd_to_sol_jupiter_himalia_time.__doc__ = """JD (TDB) → Sol Jupiter-Himalia Time (SJuHiT).
+
+Largest Jovian irregular moon (radius ~85 km). Discovered C. D. Perrine
+1904. Period 250.566 d -- prograde, sits cleanly between Callisto
+(16.7 d) and the long-period retrograde captures Pasiphae/Sinope
+(743 / 759 d). Eponym of the Himalia group of irregular Jovian
+satellites (Lysithea, Elara, Leda, Dia all share similar orbital
+characteristics, suggesting common-progenitor capture).
+
+Mass ~1.1e-9 Earth -- a real spectral contributor to the Jovian
+sub-graph, distinct from the dust-grain class of the inner regulars."""
+sol_jupiter_himalia_time_to_jd = _moon_time_to_jd_response("himalia", "SJuHiT")
+sol_jupiter_himalia_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Himalia (largest Jovian prograde irregular)."
+
+jd_to_sol_jupiter_pasiphae_time = _moon_time_response("pasiphae", _GALILEAN_PARENT, "SJuPaT", "Sol Jupiter-Pasiphae Time")
+jd_to_sol_jupiter_pasiphae_time.__doc__ = """JD (TDB) → Sol Jupiter-Pasiphae Time (SJuPaT).
+
+Jovian retrograde irregular. Discovered P. J. Melotte 1908. Period
+743.63 d, RETROGRADE -- inclination ~141°, deep into retrograde
+territory. Eponym of the Pasiphae group of retrograde captures
+(Sinope, Carpo, Sponde, Megaclite, etc., all sharing similar
+near-resonant orbital characteristics that suggest fragmentation
+of a common progenitor body).
+
+Encoder convention: BODIES['pasiphae'].period_days is positive (we
+encode omega = +2π/P for ALL bodies regardless of orbital direction;
+retrograde-ness is metadata, not a sign flip in the time-scale
+primitive). Same convention as Triton (v0.14.2) and Sol Uranian
+Time (v0.5.4)."""
+sol_jupiter_pasiphae_time_to_jd = _moon_time_to_jd_response("pasiphae", "SJuPaT")
+sol_jupiter_pasiphae_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Pasiphae (Jovian retrograde irregular; period encoded positive per encoder convention)."
+
+jd_to_sol_jupiter_sinope_time = _moon_time_response("sinope", _GALILEAN_PARENT, "SJuSiT", "Sol Jupiter-Sinope Time")
+jd_to_sol_jupiter_sinope_time.__doc__ = """JD (TDB) → Sol Jupiter-Sinope Time (SJuSiT).
+
+Jovian retrograde irregular. Discovered S. B. Nicholson 1914. Period
+758.90 d, RETROGRADE -- inclination ~153°. Member of the Pasiphae
+group; near-resonant with Pasiphae itself (orbital periods differ
+by ~2%).
+
+Encoder convention same as Pasiphae: positive period_days, retrograde
+metadata-only."""
+sol_jupiter_sinope_time_to_jd = _moon_time_to_jd_response("sinope", "SJuSiT")
+sol_jupiter_sinope_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Sinope (Jovian retrograde irregular; period encoded positive per encoder convention)."
+
+# Neptunian sub-graph completion (2) — Proteus + Nereid.
+jd_to_sol_neptune_proteus_time = _moon_time_response("proteus", _NEPTUNIAN_PARENT, "SNePrT", "Sol Neptune-Proteus Time")
+jd_to_sol_neptune_proteus_time.__doc__ = """JD (TDB) → Sol Neptune-Proteus Time (SNePrT).
+
+Neptune's second-largest moon (radius ~210 km, near-spherical despite
+sitting below the canonical hydrostatic-equilibrium threshold for icy
+bodies). Discovered Voyager 2 imagery 1989. Period 1.122 d -- fills
+the Neptune sub-graph between Triton (5.88 d) and the inner-Neptunian
+close-packed cluster (Naiad / Thalassa / Despina / Galatea / Larissa,
+all <0.6 d, all deferred to a future thematic shepherd-cluster ship).
+
+Surface dominated by the giant Pharos crater (radius ~75 km, ~13× the
+moon's radius -- a near-fatal impact); near-spherical shape suggests
+a post-impact gravitational rebound."""
+sol_neptune_proteus_time_to_jd = _moon_time_to_jd_response("proteus", "SNePrT")
+sol_neptune_proteus_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Proteus (Neptune's second-largest moon)."
+
+jd_to_sol_neptune_nereid_time = _moon_time_response("nereid", _NEPTUNIAN_PARENT, "SNeNeT", "Sol Neptune-Nereid Time")
+jd_to_sol_neptune_nereid_time.__doc__ = """JD (TDB) → Sol Neptune-Nereid Time (SNeNeT).
+
+Neptune's third-largest moon (radius ~170 km). Discovered G. P. Kuiper
+1949. Period 360.13619 d -- almost exactly one terrestrial year (which
+is a numerical coincidence, not a resonance). Eccentricity 0.749, the
+HIGHEST of any major moon in the solar system -- ranges from 1.4 Gm
+(perigee) to 9.7 Gm (apogee). Likely a captured asteroid or KBO whose
+post-capture orbit has been pumped by chaotic libration with Triton.
+
+Spectrally interesting because the 360-day period extends Neptune's
+low-frequency tail dramatically -- before v0.16.0 the longest
+Neptunian period was Triton's 5.88 d. SNeNeT is also the first Sol
+Time wrapper whose name has a 'self-collision' (NeNe — Neptune's
+Nereid); cute, not a problem (the suffix policy isn't triggered
+because there's only one such moon)."""
+sol_neptune_nereid_time_to_jd = _moon_time_to_jd_response("nereid", "SNeNeT")
+sol_neptune_nereid_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Nereid (most eccentric major moon orbit, e=0.749)."
+
 
 # ──────────────────────────────────────────────────────────────────────
 # v0.11.0 Sol Proper Time (SPrT) — gravitational + kinematic time dilation

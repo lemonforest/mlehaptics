@@ -10,7 +10,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.15.0)
+(no entries yet — next entries land after v0.16.0)
+
+## [0.16.0] — 2026-05-06
+
+**BODIES Tier-1 expansion (43 → 52): Lagrange trojans + retrograde irregulars + Neptune sub-graph completion.** Themed per the post-v0.15.0 audit (research notebook §11). Adds 9 new bodies + 9 forward + 9 inverse bridge wrappers + 9 CLI subcommands.
+
+### Added — Saturnian Lagrange trojans (4) — first L4/L5 entries in BODIES
+
+| Body | Sol Time | Abbrev | CLI | Host (L4/L5) |
+|---|---|---|---|---|
+| Telesto | Sol Saturn-Telesto Time | **SSaTeT2** | `time-saturn-telesto` | Tethys L4 |
+| Calypso | Sol Saturn-Calypso Time | **SSaCaT** | `time-saturn-calypso` | Tethys L5 |
+| Helene | Sol Saturn-Helene Time | **SSaHeT** | `time-saturn-helene` | Dione L4 |
+| Polydeuces | Sol Saturn-Polydeuces Time | **SSaPoT** | `time-saturn-polydeuces` | Dione L5 |
+
+Each trojan's sidereal period is **byte-identical** to its host moon's (Tethys: 1.88780216 d; Dione: 2.73691500 d). The body-graph Laplacian acquires a multiplicity-2 eigenvalue at the host's frequency. Natural intersection point with v0.16.x's resonance-graph multi-leg find_itn_chains.
+
+### Added — Jovian irregulars (3)
+
+| Body | Sol Time | Abbrev | CLI | Notes |
+|---|---|---|---|---|
+| Himalia | Sol Jupiter-Himalia Time | **SJuHiT** | `time-jupiter-himalia` | Largest Jovian irregular (radius ~85 km), prograde, Perrine 1904 |
+| Pasiphae | Sol Jupiter-Pasiphae Time | **SJuPaT** | `time-jupiter-pasiphae` | RETROGRADE (i~141°), Melotte 1908 |
+| Sinope | Sol Jupiter-Sinope Time | **SJuSiT** | `time-jupiter-sinope` | RETROGRADE (i~153°), Nicholson 1914; near-resonant with Pasiphae |
+
+Pasiphae and Sinope are the second retrograde marker beyond Triton (v0.14.2). Encoder convention: positive period_days; retrograde-ness is metadata.
+
+### Added — Neptune sub-graph completion (2)
+
+| Body | Sol Time | Abbrev | CLI | Notes |
+|---|---|---|---|---|
+| Proteus | Sol Neptune-Proteus Time | **SNePrT** | `time-neptune-proteus` | Neptune's second-largest moon (~210 km), Voyager 2 1989 |
+| Nereid | Sol Neptune-Nereid Time | **SNeNeT** | `time-neptune-nereid` | Most eccentric major-moon orbit in solar system (e=0.749), Kuiper 1949 |
+
+### First invocation of suffix-disambiguation policy
+
+The v0.14.1 6-letter `S<Planet2><Moon2>T` policy reserved a fallback for the case where two moons of the *same parent* share their first-two-letters. v0.16.0 hits exactly that case: **Tethys** (`SSaTeT`, shipped v0.14.1) vs **Telesto** (`SSaTeT2`, shipped v0.16.0). The suffix '2' is the disambiguator. Calypso's moon-prefix (`Ca`) is distinct from Tethys's (`Te`) so no Calypso suffix was needed.
+
+### C-side wire-format change
+
+ABI v7 → v8. `ES_N_BODIES` 43 → 52; native binary rebuilt; parity-smoke ratchet ratcheted. Existing wheels at ABI 7 are not interoperable with v0.16.0 callers; v0.16.0 wheels ship with the rebuilt native.
+
+### Test count
+
+601 pass, 41 skipped (was 514 + 41 in v0.15.0; +23 new — 12 Saturnian-trojan + 9 Jovian-irregular + 2 expanded Neptunian + 18 parity-smoke entries + parity-smoke tier-shape variations).
 
 ## [0.15.0] — 2026-05-06
 

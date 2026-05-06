@@ -7,7 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.15.0)
+(no entries yet — next entries land after v0.16.0)
+
+## [0.16.0] — 2026-05-06
+
+**BODIES Tier-1 expansion (43 → 52): Lagrange trojans + retrograde irregulars + Neptune sub-graph completion.** Themed per the post-v0.15.0 audit in research notebook §11.
+
+### BODIES additions (9 new bodies, 43 → 52)
+
+#### Saturnian Lagrange trojans (4) — first L4/L5 entries in BODIES
+
+| Body | Host | L-point | Period (d) | Mass (Earth) | Discoverer / year |
+|---|---|---|---|---|---|
+| Telesto | Tethys | L4 | 1.88780216 | 4.0e-12 | Smith / Reitsema / Larson / Fountain, 1980 |
+| Calypso | Tethys | L5 | 1.88780216 | 1.2e-12 | Pascu / Seidelmann / Baum / Currie, 1980 |
+| Helene | Dione | L4 | 2.73691500 | 1.9e-12 | Laques / Lecacheux, 1980 |
+| Polydeuces | Dione | L5 | 2.73691500 | 4.4e-15 | Murray et al. (Cassini), 2004 |
+
+Each trojan's sidereal period is **byte-identical** to its host moon's. The body-graph Laplacian therefore acquires a multiplicity-2 eigenvalue at the host's frequency — the spectral signature of the L4/L5 1:1 spin-orbit lock. This is the natural intersection point with v0.16.x's resonance-graph multi-leg find_itn_chains work.
+
+#### Jovian irregulars (3)
+
+| Body | Sense | Period (d) | Mass (Earth) | Notes |
+|---|---|---|---|---|
+| Himalia | prograde | 250.5662 | 1.10e-9 | Largest Jovian irregular (radius ~85 km); eponym of the Himalia group (Lysithea, Elara, Leda, Dia) |
+| Pasiphae | RETROGRADE (i~141°) | 743.6300 | 5.0e-12 | Eponym of the Pasiphae group of retrograde captures |
+| Sinope | RETROGRADE (i~153°) | 758.9000 | 1.3e-12 | Pasiphae-group member; near-resonant with Pasiphae (period ratio ~1.02) |
+
+Encoder convention: BODIES['pasiphae'].period_days and BODIES['sinope'].period_days are positive (omega = +2π/P for ALL bodies regardless of orbital direction; retrograde-ness is metadata, not a sign flip — same convention as Triton in v0.14.2 and Sol Uranian Time in v0.5.4).
+
+#### Neptunian sub-graph completion (2)
+
+| Body | Period (d) | Mass (Earth) | Notes |
+|---|---|---|---|
+| Proteus | 1.12231500 | 7.40e-9 | Neptune's second-largest moon (radius ~210 km, near-spherical despite small size); Voyager 2 1989 |
+| Nereid | 360.13619 | 5.10e-9 | Neptune's third-largest moon; **most eccentric major-moon orbit in the solar system** (e=0.749) |
+
+Proteus fills the Neptune sub-graph between Triton (5.88 d) and the deferred inner-Neptunian close-packed cluster (Naiad/Thalassa/Despina/Galatea/Larissa). Nereid's 360-day period extends Neptune's low-frequency tail dramatically — before v0.16.0 the longest Neptunian period was Triton's 5.88 d.
+
+### Sol Moon Times added (9)
+
+| Body | Sol Time | Abbrev | CLI |
+|---|---|---|---|
+| Telesto | Sol Saturn-Telesto Time | **SSaTeT2** | `time-saturn-telesto` |
+| Calypso | Sol Saturn-Calypso Time | **SSaCaT** | `time-saturn-calypso` |
+| Helene | Sol Saturn-Helene Time | **SSaHeT** | `time-saturn-helene` |
+| Polydeuces | Sol Saturn-Polydeuces Time | **SSaPoT** | `time-saturn-polydeuces` |
+| Himalia | Sol Jupiter-Himalia Time | **SJuHiT** | `time-jupiter-himalia` |
+| Pasiphae | Sol Jupiter-Pasiphae Time | **SJuPaT** | `time-jupiter-pasiphae` |
+| Sinope | Sol Jupiter-Sinope Time | **SJuSiT** | `time-jupiter-sinope` |
+| Proteus | Sol Neptune-Proteus Time | **SNePrT** | `time-neptune-proteus` |
+| Nereid | Sol Neptune-Nereid Time | **SNeNeT** | `time-neptune-nereid` |
+
+### First invocation of suffix-disambiguation policy
+
+The v0.14.1 6-letter `S<Planet2><Moon2>T` policy reserved a fallback for the case where two moons of the *same parent* share their first-two-letters. v0.16.0 hits exactly that case: **Tethys** (shipped v0.14.1) is `SSaTeT`; **Telesto** (shipped v0.16.0) is `SSaTeT2`. The suffix '2' marks the L4 trojan; if Calypso had also collided we'd have used '3' for the L5 (it didn't — Calypso's moon-prefix is `Ca`, distinct from Tethys's `Te`). This is the first invocation of the suffix policy in any sibling project's roster.
+
+### C-side wire-format change
+
+ABI v7 → v8. `ES_N_BODIES` 43 → 52; the `es_bodies[]`, `es_omega_diag[]`, `es_initial_phases[]`, and `es_laplacian` flat arrays expand. Native binary rebuilt; parity-smoke ratchet pinned at the new shape. Existing wheels at ABI 7 are not interoperable with v0.16.0 callers; v0.16.0 wheels ship with the rebuilt native.
+
+### Test count
+
+601 pass, 41 skipped (was 514 + 41 in v0.15.0; +23 new — 12 Saturnian-trojan + 9 Jovian-irregular + 2 expanded Neptunian + 18 parity-smoke entries + parity-smoke tier-shape variations).
+
+### Migration
+
+Python callers: pure-additive on the bridge surface; existing code unchanged. Native callers: ABI bump from 7 → 8 requires a rebuild (the C header's `ES_ABI_VERSION` constant moves in lockstep). The shipped wheel includes the rebuilt native binary at the matching ABI.
 
 ## [0.15.0] — 2026-05-06
 

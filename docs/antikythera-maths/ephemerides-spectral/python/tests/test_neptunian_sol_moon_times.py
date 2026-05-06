@@ -1,8 +1,14 @@
-"""v0.14.2 — Sol Moon Times: Neptunian (Triton).
+"""v0.14.2 + v0.16.0 — Sol Moon Times: Neptunian roster.
 
-Mirrors test_saturnian_sol_moon_times.py, scaled to one moon. Same
-invariants (J2000-zero, after-one-period, inverse round-trip, NaN/Inf
-rejection, CLI parsing, abbreviation uniqueness vs. Galileans/Saturnians).
+v0.14.2 shipped Triton alone. v0.16.0 adds Proteus (second-largest
+Neptunian, near-spherical despite small size, fills sub-graph between
+Triton's 5.88 d and the deferred inner-Neptunian close-packed cluster)
+and Nereid (most eccentric major-moon orbit in the solar system,
+e=0.749, period ~360.13 d extends Neptune's low-frequency tail).
+
+Same invariants as the v0.14.x / v0.15.0 family tests (J2000-zero,
+after-one-period, inverse round-trip, NaN/Inf rejection, CLI parsing,
+abbreviation uniqueness vs. all prior families).
 
 EDGE-CASE NOTE FOR FUTURE MAINTAINERS — TRITON IS RETROGRADE
 ============================================================
@@ -42,8 +48,14 @@ from ephemerides_spectral.cli import main as cli_main
 
 NEPTUNIANS = [
     # (body_key, abbrev, sol_time_name, jd_to_fn, to_jd_fn)
+    # v0.14.2
     ("triton", "SNeTrT", "Sol Neptune-Triton Time",
      bridge.jd_to_sol_neptune_triton_time, bridge.sol_neptune_triton_time_to_jd),
+    # v0.16.0 — Proteus + Nereid (sub-graph completion)
+    ("proteus", "SNePrT", "Sol Neptune-Proteus Time",
+     bridge.jd_to_sol_neptune_proteus_time, bridge.sol_neptune_proteus_time_to_jd),
+    ("nereid", "SNeNeT", "Sol Neptune-Nereid Time",
+     bridge.jd_to_sol_neptune_nereid_time, bridge.sol_neptune_nereid_time_to_jd),
 ]
 
 
@@ -91,10 +103,14 @@ def test_neptunian_bridge_inverse_round_trip(
 
 
 def test_neptunian_abbreviations_are_unique() -> None:
-    """Sanity: the (single) Neptunian abbreviation set is internally
-    distinct under the 6-letter `S<Planet2><Moon2>T` convention."""
+    """Sanity: every Neptunian abbreviation is internally distinct
+    under the 6-letter `S<Planet2><Moon2>T` convention. v0.14.2
+    shipped only Triton (SNeTrT); v0.16.0 added Proteus (SNePrT)
+    and Nereid (SNeNeT) — three distinct abbreviations."""
     abbrevs = {abbrev for _, abbrev, *_ in NEPTUNIANS}
-    assert len(abbrevs) == 1, f"expected 1 unique abbrev, got {abbrevs}"
+    assert len(abbrevs) == len(NEPTUNIANS), (
+        f"expected {len(NEPTUNIANS)} unique abbrevs, got {abbrevs}"
+    )
 
 
 def test_neptunian_abbreviations_dont_collide_with_galileans_or_saturnians() -> None:

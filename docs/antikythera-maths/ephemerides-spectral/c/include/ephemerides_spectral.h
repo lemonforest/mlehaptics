@@ -66,7 +66,7 @@ extern "C" {
  * Pinned by the codegen-emitted body table in es_bodies.c via
  * _Static_assert. Name field is 16 bytes including NUL.
  */
-#define ES_N_BODIES        43u
+#define ES_N_BODIES        52u
 
 /* Phase-residue cyclic group: Z_{2^32}. Power-of-2 modulus = free
  * uint32 overflow.
@@ -621,7 +621,7 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
 #define ES_VERSION_MAJOR 0
 #define ES_VERSION_MINOR 14
 #define ES_VERSION_PATCH 2
-#define ES_VERSION_STRING "0.15.0"
+#define ES_VERSION_STRING "0.16.0"
 
 const char *es_version(void);
 
@@ -684,7 +684,7 @@ const char *es_version(void);
  *     the existing `out_state` buffer, so the user-facing bridge API
  *     is unchanged.
  */
-#define ES_ABI_VERSION 7
+#define ES_ABI_VERSION 8
 int es_abi_version(void);
 
 /* Compile-time body count, exposed as a function for the Python

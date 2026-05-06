@@ -591,6 +591,100 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_pluto_charon_time (mutual tidal lock; sidereal period = mutual rotation period)",
         "kwargs_py": {"sidereal_count": 0.0},
     },
+    # v0.16.0 — Tier-1 BODIES expansion (43 → 52). Saturnian Lagrange
+    # trojans (4): first L4/L5 entries in BODIES, period IDENTICAL to
+    # host moon's. Jovian irregulars (3): Himalia + Pasiphae/Sinope
+    # retrogrades. Neptunian sub-graph completion (2): Proteus + Nereid.
+    "jd_to_sol_saturn_telesto_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SSaTeT2 — Tethys L4 trojan, period IDENTICAL to Tethys's. First invocation of v0.14.1 suffix-disambiguation policy (SSaTeT vs SSaTeT2).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_telesto_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_telesto_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_calypso_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SSaCaT — Tethys L5 trojan, period IDENTICAL to Tethys's; forms L4/L5 pair with Telesto.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_calypso_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_calypso_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_helene_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SSaHeT — Dione L4 trojan, period IDENTICAL to Dione's. Largest of the four Saturnian trojans (radius ~17.5 km).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_helene_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_helene_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_polydeuces_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SSaPoT — Dione L5 trojan, period IDENTICAL to Dione's; forms L4/L5 pair with Helene. Smallest body in v0.16.0 ship (~1.3 km radius); wide libration amplitude (~32°).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_polydeuces_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_polydeuces_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_himalia_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SJuHiT — largest Jovian irregular moon (radius ~85 km); prograde, P=250.6 d. Eponym of the Himalia group.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_himalia_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_himalia_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_pasiphae_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SJuPaT — Jovian retrograde irregular (i~141°, P=743.6 d). Second retrograde marker beyond Triton. Eponym of the Pasiphae group. Encoder convention: positive period_days; retrograde-ness is metadata.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_pasiphae_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_pasiphae_time (retrograde; period encoded positive per encoder convention)",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_sinope_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SJuSiT — Jovian retrograde irregular (i~153°, P=758.9 d). Pasiphae-group member, near-resonant with Pasiphae (period ratio ~1.02).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_sinope_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_sinope_time (retrograde; period encoded positive per encoder convention)",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_neptune_proteus_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SNePrT — Neptune's second-largest moon (~210 km, near-spherical despite small size). Voyager 2 1989. Period 1.122 d fills sub-graph between Triton (5.88 d) and the inner-Neptunian close-packed cluster.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_neptune_proteus_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_neptune_proteus_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_neptune_nereid_time": {
+        "status": "python_only",
+        "rationale": "v0.16.0 SNeNeT — Neptune's third-largest moon (~170 km). Most eccentric major-moon orbit in the solar system (e=0.749). Period 360.13 d extends Neptune's low-frequency tail dramatically.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_neptune_nereid_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_neptune_nereid_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
     "get_proper_time_rate": {
         "status": "python_only",
         "rationale": "v0.11.0 Sol Proper Time (SPrT) — leading-order GR + orbital kinematic dilation per body. Pure-Python time-scale formula; C twin queued. The same physics as Mercury's existing 43\"/century PN diagonal correction, applied per-body.",
