@@ -648,3 +648,208 @@ v0.5.0 closes the gap with `codegen/emit_initial_phases.py`, which emits `_data/
 Result: `pip install ephemerides-spectral` works out of the box for both backends. Skyfield + jplephem stay as optional dependencies via the `[ephemeris]` extra for callers who want runtime recalibration against custom kernels.
 
 The pre-ship FFT validation (per user instruction *"don't ship before we sweep against DE441 and look for signals to FFT"*) confirmed every peak amplitude on the 10 DE441-coverable bodies is **byte-identical** to v0.3.1's spectrum — the v0.5.0 expansion adds *moon-internal* resonances; none put a planet on either side of the breathing modulation, so planet phases receive no perturbation. The new bodies need supplementary moon kernels to be FFT-validated against ephemeris truth — that's v0.5.2's work, see §9.5.
+
+### 10.3 v0.15.0 expansion: classical-roster completion (38 → 43)
+
+v0.15.0 extends the v0.5.0 baseline of 38 with **5 more bodies**, closing the major-Uranian classical roster and adding Pluto's largest moon:
+
+| Class | Bodies added (v0.15.0) | Reason |
+| :--- | :--- | :--- |
+| Uranian classical (4) | Miranda, Ariel, Umbriel, Oberon | Closes the major-Uranian roster (Titania already at v0.14.2) |
+| Plutonian (1) | Charon | The binary-planet case — only mutually tidally locked 1:1:1 spin-orbit lock in the solar system |
+
+The Uranian sub-graph is now self-consistent: every classical Uranian moon discovered between Herschel 1787 (Titania, Oberon) and Kuiper 1948 (Miranda) carries an anchor in the Laplacian. The natural-resonance gear group acquires Miranda's 1.413-d period, which — though Miranda is small (~236 km radius) — sits cleanly outside the Saturnian Tethys / Dione / Rhea cluster (1.88, 2.74, 4.52 d) so it doesn't add new aliasing on the Uranian sub-spectrum.
+
+Charon is dynamically distinctive: mass ratio Charon:Pluto ≈ 0.12 puts the barycentre *outside* Pluto, which means the system's COM is the dynamical anchor, not Pluto itself. The mutual tidal lock collapses sidereal == synodic == spin period (6.387 d) into one timescale — no separate synodic correction is needed (Sol Pluto-Charon Time = `SPlChT`).
+
+### 10.4 Sol Moon Times completion arc (v0.10.0 → v0.15.0)
+
+Task `` `#86` `` opened way back in the v0.5.x phase as "time reference for every body in the roster." Closed at v0.15.0 across **5 versions**:
+
+| Version | Sol Moon Times added | Cumulative |
+| :--- | :--- | :---: |
+| v0.10.0 | STLT (Sol Terra-Luna Time) | 1 |
+| v0.14.0 | Galileans (Io, Europa, Ganymede, Callisto) | 5 |
+| v0.14.1 | Saturnians (11 moons) + 4-letter → 6-letter abbreviation policy | 16 |
+| v0.14.2 | Mars (2) + Jovian inner regulars (4) + Uranian Titania + Neptunian Triton | 24 |
+| v0.15.0 | Uranian classical-roster completion (4) + Plutonian Charon | 29? |
+
+Wait — the cumulative count is **24 moon Sol Time series** because the v0.14.1 Galilean retroactive renames (`SJIT → SJuIoT` etc.) didn't add new series, just changed abbreviations. Here's the corrected accounting:
+
+| Family | Count | Series |
+|---|--:|---|
+| Earth | 1 | STLT (Luna) |
+| Mars | 2 | Phobos, Deimos |
+| Jovian inner regulars | 4 | Metis, Adrastea, Amalthea, Thebe |
+| Galileans | 4 | Io, Europa, Ganymede, Callisto |
+| Saturnians | 11 | Mimas, Enceladus, Tethys, Dione, Rhea, Titan, Hyperion, Iapetus, Phoebe, Janus, Epimetheus |
+| Uranian classical | 5 | Miranda, Ariel, Umbriel, Titania, Oberon |
+| Neptunian | 1 | Triton |
+| Plutonian | 1 | Charon |
+| **Total** | **29** | — every classical IAU-major moon in BODIES |
+
+(So actually 29 — I had the wrong number above; the mistake was conflating "moons added in v0.14.x" with "all moon Sol Time series.")
+
+## 11. Audit: next-tier body candidates (post-v0.15.0)
+
+With v0.15.0 closing the IAU-major moon roster, the natural question becomes "what's the next tier worth adding?" This section catalogues every named body NOT yet in BODIES that's a plausible candidate, ranked by spectral-lattice value-add. The audit was prompted by Steven post-v0.15.0 ship and is intended to scope a v0.16.x or later expansion.
+
+### 11.1 Ranking criterion
+
+The spectral lattice rewards adding bodies that bring **distinct frequency content** to the Laplacian eigenbasis. Concretely:
+
+1. **Mass** — drives the per-body weight in the dynamics module's force calculations (v0.13.0). Tiny shepherd moons (~10⁻¹² Earth) contribute almost nothing here.
+2. **Period uniqueness** — a body whose period is far from any existing roster entry expands the eigenbasis support; a body whose period clusters with existing entries adds aliasing risk without distinct spectral content.
+3. **Dynamical novelty** — captured retrograde orbits (Triton-class), Lagrange-trojan co-orbitals, mutual tidal locks, resonance chains. These earn their roster slot on the basis of *what they reveal about the substrate*, not raw mass.
+4. **Mission-visited / well-characterised** — bodies with high-precision JPL HORIZONS sidereal periods (9+ decimals) earn their slot more easily than poorly-constrained small bodies.
+
+### 11.2 Tier-1 candidates (recommended for v0.16.0)
+
+These score on at least two of the four criteria. Sourced from JPL HORIZONS / NASA fact sheets / IAU MPC.
+
+| Body | Parent | Period (d) | Mass (Earth) | Why it earns the slot |
+| :--- | :--- | ---:| ---:| :--- |
+| **Proteus** | Neptune | 1.122315 | 7.4e-9 | Neptune's second-largest moon (radius ~210 km, near-spherical); fills the Neptune sub-graph between Triton (5.88 d) and the small inner moons |
+| **Nereid** | Neptune | 360.13619 | 5.1e-9 | Highly eccentric orbit (e=0.749, captured-asteroid candidate); 360-d period extends Neptune's low-frequency tail dramatically |
+| **Helene** | Saturn | 2.736915 | 4.5e-12 | **Lagrange-trojan**: orbits at Dione's L4 point — same period as Dione (2.736915 d). First L4/L5 entry in the roster — direct connection to the ITN / Lagrange-highway research thread |
+| **Telesto** | Saturn | 1.887802 | small | Tethys L4 trojan (same period as Tethys, 1.887802 d) — second L4/L5 entry |
+| **Calypso** | Saturn | 1.887802 | small | Tethys L5 trojan — completes the Tethys trojan pair |
+| **Polydeuces** | Saturn | 2.736915 | very small | Dione L5 trojan — completes the Dione trojan pair (mass ~10⁻¹⁵ Earth, but the Lagrange-point identity earns the slot) |
+| **Pasiphae** | Jupiter | 743.63 (retrograde) | 5.0e-12 | One of the largest Jovian irregular moons (radius ~30 km); **retrograde** — same captured-KBO marker as Triton; would be the first non-Triton retrograde in the roster |
+| **Sinope** | Jupiter | 758.90 (retrograde) | 1.3e-12 | Pasiphae companion in the Pasiphae group; retrograde; near-resonant with Pasiphae |
+| **Himalia** | Jupiter | 250.56 | 1.1e-9 | Largest Jovian irregular (radius ~85 km); prograde; period sits cleanly between Callisto (16.7 d) and the long-period retrogrades |
+
+**Recommended Tier-1 ship size: 9 new bodies.** Brings the roster from 43 → 52. The four Saturnian trojans (Helene, Telesto, Calypso, Polydeuces) are the most spectrally-interesting addition because they sit *exactly* at L4/L5 — their per-body period is identical to their parent moon's, which means the Laplacian acquires a degeneracy at that frequency (multiplicity-2 eigenvalues per L4/L5 pair). This is where the Lagrange-highway research thread (running in parallel as of post-v0.15.0) intersects the BODIES roster directly.
+
+### 11.3 Tier-2 candidates (defer to v0.17.x or later)
+
+These bodies are real and have JPL HORIZONS data but score on only one of the four criteria. Adding them is plausible but doesn't move the spectral lattice meaningfully.
+
+**Plutonian small moons** (4):
+- Nix (P=24.85 d), Hydra (P=38.20 d), Kerberos (P=32.17 d), Styx (P=20.16 d)
+- Resonance chain with Charon (3:4:5:6 mean-motion). Spectrally: the resonance is interesting; the masses (~10⁻⁹ Earth or smaller) are not.
+- **Verdict**: ship if/when the resonance-graph machinery would directly use the chain. Otherwise defer.
+
+**Saturnian shepherd moons** (5):
+- Pan (in Encke gap, P=0.575 d), Daphnis (Keeler gap, P=0.594 d), Atlas (P=0.602 d), Prometheus (F-ring inner, P=0.613 d), Pandora (F-ring outer, P=0.629 d)
+- Cluster of near-identical periods (0.575–0.629 d) — high aliasing risk, low distinct content.
+- **Verdict**: defer. Spectrally these add a tight low-frequency cluster; the Laplacian eigenbasis already has Mimas (0.942 d) and Janus/Epimetheus (0.694/0.694 d) covering the inner-Saturnian range.
+
+**Inner Uranian moons** (13):
+- Cordelia, Ophelia, Bianca, Cressida, Desdemona, Juliet, Portia, Rosalind, Cupid, Belinda, Perdita, Puck, Mab — all 0.3–0.9 d, all ~10⁻¹⁰ Earth or smaller
+- Voyager 2 1986 + Hubble 2003. Dynamically chaotic with each other (close-packed inner ring system).
+- **Verdict**: defer en masse. Puck (radius ~81 km) is the only one with non-trivial mass.
+
+**Inner Neptunian moons** (5):
+- Naiad, Thalassa, Despina, Galatea, Larissa, Hippocamp — all <1 d
+- Same problem as the inner Uranians: tight period cluster, low individual mass, high aliasing risk.
+- **Verdict**: defer en masse, except possibly Larissa (radius ~97 km, dynamically distinct).
+
+### 11.4 Tier-3 candidates (KBOs and dwarf planets)
+
+These are an entirely different population — not moons but **outer-system dwarf planets** that sit alongside Pluto in the IAU dwarf-planet category.
+
+| Body | Period (d / yr) | Mass (Earth) | Note |
+| :--- | ---:| ---:| :--- |
+| **Eris** | 203,830 (557 yr) | 2.8e-3 | More massive than Pluto; period 6× Pluto's |
+| **Makemake** | 110,300 (302 yr) | 5.1e-4 | Similar to Pluto |
+| **Haumea** | 103,410 (283 yr) | 6.7e-4 | Extreme rotation period (3.9 hr) — fastest known among large bodies |
+| **Sedna** | 4,150,000 (11,400 yr) | ~1e-4 | Most extreme orbit in the inner Oort cloud |
+| **Quaoar** | 105,800 (290 yr) | 2.4e-4 | Has a moon (Weywot) and a ring system |
+
+**Verdict**: these are arguably more interesting than the Tier-2 small moons because they extend the system's low-frequency tail by 1–2 decades. Sedna's 11,400-yr period in particular is a once-in-a-lifetime spectral outlier. Recommend ship as a separate "dwarf planets" class (alongside `pluto`'s existing `category="planet"`). Could be a v0.17.0 thematic ship: "outer-system dwarf planets + their moons (Eris-Dysnomia, Quaoar-Weywot, Haumea-Hi'iaka/Namaka, Makemake-MK2)."
+
+### 11.5 Mission-visited asteroids (4)
+
+The current roster has 4 main-belt asteroids (Ceres, Vesta, Pallas, Hygiea). The natural next-tier additions are mission-visited small bodies whose periods are well-constrained:
+
+| Body | Period (d) | Mission | Notes |
+| :--- | ---:| :--- | :--- |
+| **Eros** | 642.95 | NEAR-Shoemaker (2000–2001) | First asteroid orbit + landing |
+| **Itokawa** | 555.55 | Hayabusa (2005) | First sample return |
+| **Bennu** | 437.67 | OSIRIS-REx (2018–2023) | Most recent sample return |
+| **Ryugu** | 472.76 | Hayabusa2 (2018–2019) | Sister mission to Bennu |
+
+**Verdict**: these don't move the spectral lattice (small mass, mid-belt periods cluster with the existing Ceres/Vesta/Pallas/Hygiea band) but they earn cultural significance from the missions. Defer to a thematic "visited bodies" ship if the roster ever gets one.
+
+### 11.6 Recommendation
+
+**Ship Tier-1 (9 bodies → 52-body roster) as v0.16.0**, themed as "Lagrange-trojan + retrograde-irregular + Neptune sub-graph completion." The four Saturnian trojans are the spectral headliner; Pasiphae/Sinope add the second retrograde marker beyond Triton; Proteus/Nereid round out Neptune. Cost: ~1 day of work, mirrors the v0.14.x ship pattern (BODIES additions + bridge wrappers + CLI subcommands + test modules + native rebuild + ABI v7 → v8). Benefit: the BODIES table acquires its first L4/L5 Lagrange entries, which directly serves the Lagrange-highway research thread that's running in parallel as of this notebook revision.
+
+**Defer Tier-2 and Tier-3 to thematic ships** (resonance-chain shepherd-cluster ship; dwarf-planet ship; visited-asteroid ship) — none of them are worth the ABI bump on their own.
+
+## 12. Advanced Lagrange-highway searching — research scoping for v0.16.x+
+
+Post-v0.15.0, Steven prompted a research-only investigation into what an advanced Lagrange-highway search layer would look like for `find_itn_pathways`. The v0.8.1 first-cut ships closed-form Hohmann transfer-window enumeration (the lowest-effort transfer between any two named bodies); the question is what the next layer can deliver before requiring a full CR3BP integrator. A subagent surveyed the literature; this section records the survey + the recommendation.
+
+### 12.1 Six surveyed extensions
+
+| # | Extension | Verdict |
+|---|---|---|
+| 1 | **L1/L2 gateway designation** per CR3BP — Newton-iterable quintic for collinear γ, closed-form Jacobi constant per (departure, target) Sun-orbiter pair | **Implementable now, no new dependency.** Add `gateway_lp ∈ {"L1", "L2"}` and `jacobi_constant: float` to `ITNCandidate`. References: Szebehely 1967 §4.4; Murray & Dermott 1999 §3.7. |
+| 2 | **Lyapunov / halo-orbit families** parameterised by (C_J, north/south class) | **Richardson 1980 third-order analytic approximation implementable now**, accurate to ~10⁻³ relative position. Numerical refinement requires a propagator (substantial research-code lift, defer). |
+| 3 | **Heteroclinic connections** between manifolds at different bodies' Lagrange points — the actual "highway" | Full search needs a CR3BP integrator (`scipy.integrate.solve_ivp` over a hand-rolled CR3BP RHS — `poliastro` is now archived). **Chirikov 1979 resonance-overlap predictor is closed-form and implementable now.** Ship the predictor in v0.16.x; defer the propagator-based search. |
+| 4 | **Spectral-graph view of the transport network** — gateway-graph Laplacian whose nodes are (body, L_i, halo-family-index) tuples and whose edges are heteroclinic Δv-cost weighted connections | **Largely unexplored in published literature.** Anderson & Lo 2009 and Topputo et al. treat the manifold network as a graph but do not analyse it spectrally. Substantial novelty available; likely a short paper's worth of work. The cyclic-group framing adds something genuine: bodies in 1:2 resonance share Lagrange-point geometry up to a scaling — a representation-theoretic statement, not just empirical. |
+| 5 | **Weak Stability Boundary (WSB) transfers** — Belbruno 2004; Hiten / SMART-1 / GRAIL / ARTEMIS flew them | **Not appropriate for `ephemerides-spectral` in current discipline.** WSB is non-perturbative and computed by forward integration over a phase-space grid; García & Gómez 2007 showed it has fractal structure. Belongs in a separate workspace. The closest in-discipline analogue is a closed-form *flag* on existing Hohmann candidates whose arrival geometry sits in Belbruno's empirical "WSB-favourable" wedge. |
+| 6 | **Resonance-assisted transfers** — multi-leg paths using mean-motion resonance with intermediate bodies (Cassini V-V-E-J-S, Galileo V-E-E-J, Voyager grand tour) | **Implementable now with no new dependency.** Algorithmic surface is graph search (Dijkstra / A*) on a (body, epoch, heliocentric-energy-bucket) state space, with the closed-form Hohmann Δv from #1 as the edge cost. Body-body resonance graph is integer (gear-ratio data already in BODIES); energy buckets are a coarse FPU grid; per-edge phase-window solve is the existing `find_itn_pathways` synodic enumeration. |
+
+### 12.2 The v0.16.x recommendation
+
+**Ship resonance-graph multi-leg search.** It's the most natural generalisation of the closed-form synodic enumeration the module already does, and (a) fits the existing integer-ALU + FPU pipeline discipline without a CR3BP integrator, (b) reuses the BODIES roster's gear-ratio structure as graph-edge data, (c) gives the most directly demonstrable user-facing value: `find_itn_chains(departure='terra', target='pluto', dv_budget_kms=25)` returning low-Δv paths with explicit per-leg resonance signatures.
+
+Sketched API:
+
+```python
+def find_itn_chains(
+    jd_lo: float, jd_hi: float, *,
+    departure: str,
+    target: str,
+    intermediates: Optional[Iterable[str]] = None,   # default: all of BODIES
+    max_legs: int = 4,
+    dv_budget_kms: float = 30.0,
+    tof_budget_days: float = 365.25 * 20,
+    threshold: float = 0.05,
+    max_chains: int = 200,
+) -> List[ITNChainCandidate]: ...
+
+@dataclass(frozen=True)
+class ITNChainCandidate:
+    jd_tdb_launch: float
+    jd_tdb_arrival: float
+    legs: Tuple[ITNCandidate, ...]               # each leg = a v0.8.1 Hohmann window
+    total_dv_kms: float
+    total_tof_days: float
+    resonance_signature: Tuple[Tuple[int, int], ...]  # per-leg p:q gear-ratio
+    score: float                                       # combined phase-residual score
+```
+
+The `resonance_signature` field is the cross-pollination point with the rest of `ephemerides-spectral`: a tuple of integer (p, q) ratios is exactly the data the cyclic-group encoder already consumes in `bip_instrument`.
+
+L1/L2 gateway designation (#1) and Richardson halo amplitudes (#2) can ship in the same minor as small additional fields on the existing `ITNCandidate`. Heteroclinic search (#3) and the gateway-graph Laplacian (#4) are the natural v0.17.x scope.
+
+### 12.3 The philosophical question the spectral framing raises
+
+The question worth chasing in v0.17.x:
+
+> **Is the body-body graph Laplacian the right operator for ITN, when ITN tubes are by construction non-perturbative on the Sun-only Kepler frame?**
+
+The CR3BP literature treats the ITN as a phenomenon of *one* Sun-planet-spacecraft system at a time — manifold tubes around Sun-Earth L1/L2 are computed in the Sun-Earth rotating frame, those around Sun-Mars L1/L2 in the Sun-Mars rotating frame, and the heteroclinic stitching across them is patched-conic. **There is no single dynamical system whose spectrum *is* the ITN.**
+
+But `ephemerides-spectral`'s body-body Laplacian *is* a single spectrum, on a single graph that includes Sun, Earth, Mars, and the rest. If the eigenbasis of that Laplacian also organises the ITN tube network — even approximately — then there is a sense in which **the ITN is implicit in the body-roster gear ratios**, and the Sun-planet-spacecraft frames are merely localisations of a single underlying spectral structure. That would be a genuinely original claim. CR3BP cannot make it because CR3BP cannot accommodate more than three bodies.
+
+The risk of the claim: ITN tubes are width-zero in the Kepler limit and gain finite width only from the planet's perturbation — so the connection between the body-body Laplacian (which knows about all bodies' periods) and the tube widths (which know only about the *local* perturbing body) is non-obvious, and might be wrong. But the question is at least well-posed in this framework, which is more than the standard literature offers.
+
+The v0.17.x research thesis: **does the gateway-graph Laplacian's Fiedler partition agree with empirical low-Δv accessibility classes?** If yes, the spectral lens has earned its keep on ITN.
+
+### 12.4 References (real, not fabricated)
+
+* Koon, Lo, Marsden, Ross (2011) — *Dynamical Systems, the Three-Body Problem and Space Mission Design.* The canonical ITN textbook.
+* Szebehely (1967) — *Theory of Orbits.* §4.4 on collinear Lagrange points and the quintic γ.
+* Murray & Dermott (1999) — *Solar System Dynamics.* §3.7 on the restricted three-body problem.
+* Richardson (1980) — *Analytic Construction of Periodic Orbits about the Collinear Points.* Celest. Mech. 22, 241–253. The third-order halo-orbit closed form.
+* Chirikov (1979) — *A universal instability of many-dimensional oscillator systems.* Physics Reports 52, 263–379. The resonance-overlap criterion for chaos.
+* Belbruno (2004) — *Capture Dynamics and Chaotic Motions in Celestial Mechanics.* The WSB framework.
+* Conley (1968) — manifold-connection theorems, the original mathematical foundation.
+* Lo (1997) — Genesis spacecraft trajectory design via L1/L2 manifolds (the first practical use of ITN for a real mission).
+* Anderson & Lo (2009) — *Role of invariant manifolds in low-thrust trajectory design.* JGCD. (Cited from secondary sources; verify before quoting.)
+* García & Gómez (2007) — *About the WSB.* Celest. Mech. (Cited from secondary sources; verify before quoting.)
