@@ -122,6 +122,15 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
+    # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
+    # Python; no C twin planned -- the eigendecomposition is memoised at
+    # module load on a 13×13 symmetric matrix and per-query cost is a
+    # dict lookup + linear evaluation. See notebook §13.9.
+    "predict_itn_accessibility": {
+        "status": "python_only",
+        "kwargs_py": {"departure": "terra", "target": "mars"},
+    },
     "find_syzygies": {
         "status": "parity",
         "kwargs_py": {"jd_lo": 2451545.0, "jd_hi": 2451545.0 + 365.25,

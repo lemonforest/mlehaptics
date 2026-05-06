@@ -10,7 +10,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.18.0)
+(no entries yet — next entries land after v0.18.1)
+
+## [0.18.1] — 2026-05-06
+
+**`bridge.predict_itn_accessibility`: closed-form spectral Δv estimate from the §13.9 hybrid Fiedler-distance regression.** Pure-Python addition; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged from v0.18.0).
+
+### Added — Pythonic API
+
+- `_research.predict_itn_accessibility` — new module containing the hybrid-Laplacian Fiedler-distance regression promoted from research notebook §13.9 to a stable ship surface.
+- `_research.predict_itn_accessibility.predict_itn_accessibility(departure: str, target: str) -> Dict` — main entry. Returns `{ok, departure, target, fiedler_distance, predicted_dv_kms, calibration}` where `calibration` is the full provenance dict (Spearman ρ, R², MAE, LOOCV MAE, n_finite, n_inf, window). Returns `{ok: False, error: "..."}` on rejection.
+- Calibration constants exposed as module-level: `CALIBRATION_INTERCEPT_KMS`, `CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT`, `CALIBRATION_R2`, `CALIBRATION_IN_SAMPLE_MAE_KMS`, `CALIBRATION_LOOCV_MAE_KMS`, `CALIBRATION_SPEARMAN_RHO`, `CALIBRATION_N_FINITE_PAIRS`, `CALIBRATION_N_INF_PAIRS`, `CALIBRATION_WINDOW_YEARS`, `CALIBRATION_WINDOW_JD_LO`.
+
+### Added — bridge dict API (Pyodide-compatible)
+
+- `bridge.predict_itn_accessibility(departure: str, target: str) -> dict` — wraps the Pythonic entry; same return shape.
+
+### Added — CLI
+
+- `predict-itn-accessibility` subcommand — flags: `--departure`, `--target`, `--pretty`.
+
+### Calibration
+
+OLS linear fit on the §13 ground truth (50-yr `find_itn_chains` sweep at J2000, max_legs=3, dv_budget=30 km/s, threshold=0.1):
+
+| Constant | Value | Provenance |
+| :--- | ---: | :--- |
+| Intercept | **8.681 km/s** | OLS fit on n=53 finite pairs |
+| Slope | **15.617 km/s per Fiedler-unit** | OLS fit on n=53 finite pairs |
+| In-sample R² | **0.507** | 53 feasible pairs of 78 in roster |
+| In-sample MAE | **4.110 km/s** | 53 feasible pairs |
+| LOOCV MAE | **4.238 km/s** | leave-one-out cross-validation; no overfitting |
+| Spearman ρ | **+0.857** | rank correlation (calibration headline) |
+
+Calibration script: `research/calibrate_predict_itn_accessibility.py` — re-fits the constants against a re-sampled ground truth. Cache key matches `gateway_graph_laplacian._cache_path`: body roster + `50yr|dv30`.
+
+### Test count
+
+681 pass, 41 skipped (was 658 + 41; +23 new):
+- 22 in `tests/test_predict_itn_accessibility.py` (calibration pins + direction-symmetry + non-negative predictions across 156 pairs + sanity ordering Earth-Mars < Earth-Jupiter < Mercury-Pluto + intercept-as-lower-bound + calibration provenance in response + error paths + case-insensitive lower-casing + bridge + CLI)
+- 1 parity-smoke entry (`predict_itn_accessibility` classified `python_only`)
+
+### Migration
+
+Pure-additive on the Python bridge and the CLI. No existing call sites change. Native callers see `ES_ABI_VERSION = 8` unchanged. `ES_VERSION_STRING` bumps `0.18.0 → 0.18.1`.
 
 ## [0.18.0] — 2026-05-06
 

@@ -56,6 +56,10 @@
       "sha256": "e1629999c1d35ab00324a2c96e3798867bbe26ce6a903064dac5395b82820cee",
       "size_bytes": 2902
     },
+    "_research/predict_itn_accessibility.py": {
+      "sha256": "d9da5ad13f49be979e849b8c75ad2151a277062c91080aede45ea43c496da3fb",
+      "size_bytes": 11064
+    },
     "_research/proper_time.py": {
       "sha256": "2e02707ae0cfdb9b2874ad4fd6954fb15d811b2ba1296b33808061de2fe9acfa",
       "size_bytes": 9703
@@ -70,5 +74,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.18.0"
+  "version": "0.18.1"
 }
