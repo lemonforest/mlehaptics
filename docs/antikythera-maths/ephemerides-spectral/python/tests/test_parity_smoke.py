@@ -453,6 +453,90 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_saturn_epimetheus_time",
         "kwargs_py": {"sidereal_count": 0.0},
     },
+    # v0.14.2 Sol Moon Times — remaining 8 moons across 4 parent
+    # families. Same shape as Galileans (v0.14.0) and Saturnians (v0.14.1):
+    # anchored sidereal-cycle count from J2000; pure-Python time-scale
+    # formulae using each moon's sidereal period from BODIES.
+    "jd_to_sol_mars_phobos_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Mars-Phobos Time (SMaPhT). Inner Martian moon (likely captured asteroid). Sidereal period < Mars solar day → rises in the west.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_mars_phobos_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_mars_phobos_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_mars_deimos_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Mars-Deimos Time (SMaDeT). Outer Martian moon (likely captured asteroid). NOT in 4:1 mean-motion resonance with Phobos.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_mars_deimos_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_mars_deimos_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_metis_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Jupiter-Metis Time (SJuMeT). Innermost known Jovian moon; ring-shepherd of Jupiter's main ring (with Adrastea).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_metis_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_metis_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_adrastea_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Jupiter-Adrastea Time (SJuAdT). Second ring-shepherd of Jupiter's main ring (with Metis).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_adrastea_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_adrastea_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_amalthea_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Jupiter-Amalthea Time (SJuAmT). Largest Jovian inner regular (~84 km); the only one discovered before Voyager (Barnard 1892, last solar-system moon discovered visually).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_amalthea_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_amalthea_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_thebe_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Jupiter-Thebe Time (SJuThT). Outermost Jovian inner regular; orbits between Amalthea and Io.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_thebe_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_thebe_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_uranus_titania_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Uranus-Titania Time (SUrTiT). Largest Uranian moon. SUrTiT and SSaTiT (Saturn's Titan) share `Ti` moon prefix; disambiguated by parent prefix (`Ur` vs `Sa`) — exactly the v0.14.1 6-letter policy's intent.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_uranus_titania_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_uranus_titania_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_neptune_triton_time": {
+        "status": "python_only",
+        "rationale": "v0.14.2 Sol Neptune-Triton Time (SNeTrT). Largest Neptunian moon; RETROGRADE orbit (only large moon in solar system to do so) → captured Kuiper Belt object; tidally decaying → ring system in ~3.6 Gyr. Encoder convention: BODIES['triton'].period_days is positive (omega = +2π/P for ALL bodies regardless of orbital direction; retrograde is metadata).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_neptune_triton_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_neptune_triton_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
     "get_proper_time_rate": {
         "status": "python_only",
         "rationale": "v0.11.0 Sol Proper Time (SPrT) — leading-order GR + orbital kinematic dilation per body. Pure-Python time-scale formula; C twin queued. The same physics as Mercury's existing 43\"/century PN diagonal correction, applied per-body.",
