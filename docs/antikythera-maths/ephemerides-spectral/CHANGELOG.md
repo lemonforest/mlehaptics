@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.8)
+(no entries yet — next entries land after v0.13.9)
+
+## [0.13.9] — 2026-05-05
+
+**JPL Power-of-Ten Rules 6 + 7 manual audits — closes the v0.13.4-v0.13.9 rule-fix sequence. All ten rules satisfied.** Audit-only release; no code changes; 0 violations found for both rules.
+
+### Result
+
+| Rule | Cleared in | Status |
+|---|---|---|
+| 1, 3, 4, 5 | v0.13.4 / v0.13.5 / v0.13.6 | ✅ pinned in `test_jpl_audit.py` |
+| 10 | v0.13.7 | ✅ enforced by `pedantic-build` 3-cell CI matrix |
+| **6, 7** | **v0.13.9** | ✅ manual audit (this ship) |
+| 2, 8, 9 | already-passing at v0.11.2 | ✅ pinned |
+
+The v0.11.2 spot-check estimates of "5-10 + 5-15 violations" for Rules 6+7 didn't survive the incremental tightening in v0.13.4-v0.13.6 (long-function splits relocated state into helper-scope; assertion work added `const`-near-use patterns throughout; cleanup-on-error refactor unified the rc-check pattern).
+
+### Audit walked
+
+- **Rule 6**: every variable declaration across the 9 .c files. Loop iterators block-scoped; `const` declarations near use; remaining function-scope declarations are intentional (accumulators, sqrt caches, output buffers, result variables).
+- **Rule 7**: every `es_status_t` assignment (8 sites across `es_parity.c`, `es_hd_state.c`, `es_patches.c`); each checked on the next line. Numeric returns used inline. Bridge entry points runtime-validate parameters; internal helpers document caller contract via post-validation `assert()`.
+
+### Migration
+
+None. Audit-only release. 251 tests pass, 4 skipped.
 
 ## [0.13.8] — 2026-05-05
 
