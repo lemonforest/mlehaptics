@@ -1,0 +1,355 @@
+name: ephemerides-spectral-docs-check
+
+# Soft-warning workflow that flags pre-merge documentation drift on
+# ephemerides-spectral PRs. Cross-checks code-side changes against
+# the five docs files we expect to move in lockstep, posts (or
+# updates) a single PR comment summarising the drift, and DOES NOT
+# fail the build — same discipline as the existing freshness ratchet
+# (test_native_version_string_matches, test_parity_smoke::PARITY_TARGETS,
+# test_readme_freshness, test_jpl_audit), but applied at PR-time across
+# the whole docs surface rather than file-by-file inside pytest.
+#
+# Five docs files watched (the full PyPI-facing surface):
+#   1. python/README.md                          — PyPI README (status banner)
+#   2. python/CHANGELOG.md                       — package CHANGELOG (PyPI-rendered)
+#   3. CHANGELOG.md                              — project CHANGELOG (mirror of package)
+#   4. ROADMAP.md                                — roadmap / status sweep
+#   5. ephemerides_spectral_research_notebook.md — research notebook
+#
+# Code-side categories (each maps to a subset of expected docs files):
+#   * pyproject.toml / pyproject-pure.toml / version.py / c-side header
+#       version bump — expect ALL FIVE docs touched
+#   * bridge.py / cli.py — expect CHANGELOG (package + project) +
+#       README + notebook (user-facing surface change)
+#   * _research/*.py — expect notebook + CHANGELOG (research-side
+#       primitive change has to land in the notebook)
+#   * c/src/*.c, c/include/*.h — expect CHANGELOG (package + project)
+#       + parity smoke / native parity tests touched
+#
+# Opt-out: include the literal string `[skip-docs-check]` anywhere in
+# the PR body to silence the warning. Use this for trivial typos /
+# whitespace / cosmetic-only diffs that don't warrant doc churn.
+#
+# Why soft-warning, not hard-fail: forcing CHANGELOG bumps on every
+# whitespace-only diff burns the team's patience and trains people to
+# add useless filler bullets just to clear CI. The ratchet tests
+# already hard-fail on the most expensive drift modes (version-string
+# mismatch, parity-table holes, README banner staleness); this
+# workflow surfaces the *next tier* — the prose-and-narrative drift
+# that humans should review but a regex can't authoritatively
+# adjudicate.
+
+on:
+  pull_request:
+    # Same trigger types as ephemerides-spectral-ci.yml so a PR opened
+    # with `--label foo` can re-run the check via label changes if the
+    # docs status changes mid-PR. Concurrency-cancellation below caps
+    # cost.
+    types: [opened, synchronize, reopened, edited, labeled]
+    branches: [main]
+    paths:
+      - "docs/antikythera-maths/ephemerides-spectral/**"
+      - "docs/antikythera-maths/ephemerides_spectral_research_notebook.md"
+      - "docs/antikythera-maths/research/**"
+      - ".github/workflows/ephemerides-spectral-docs-check.yml"
+
+# Need PR write to post the comment; everything else is read-only.
+permissions:
+  contents: read
+  pull-requests: write
+
+# Cancel any older run for the same PR ref. Matches the cancellation
+# pattern in ephemerides-spectral-ci.yml so the trigger-diagnostic
+# table reads consistently across both workflows.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-drift:
+    name: docs drift advisory
+    runs-on: ubuntu-latest
+    # Skip cleanly when PR body opt-outs. We still want the workflow
+    # to run (so the status check shows "passed" rather than "missing"
+    # in branch-protection lists), so the skip happens at step level
+    # via `if:` guards rather than a job-level skip.
+    steps:
+      - name: Checkout PR head with full history
+        uses: actions/checkout@v4
+        with:
+          # Need history to compute `git diff` against the merge base.
+          fetch-depth: 0
+          # actions/checkout defaults to a temporary merge commit for
+          # PRs (refs/pull/N/merge). Use the PR head SHA explicitly so
+          # `git diff` operates on the actual change set, not a synthetic
+          # merge with current main.
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Detect opt-out marker
+        id: optout
+        shell: bash
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [[ "$PR_BODY" == *"[skip-docs-check]"* ]]; then
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR body contains [skip-docs-check]; docs drift advisory skipped."
+          else
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute changed files vs merge base
+        id: diff
+        if: steps.optout.outputs.skipped == 'false'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Use the actual PR base SHA. `merge-base` between base and
+          # head gives us the fork point; diffing from there avoids
+          # reporting files that were touched on main since the PR
+          # branched.
+          MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          echo "merge_base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+          git diff --name-only "$MERGE_BASE" "$HEAD_SHA" \
+              > /tmp/changed_files.txt
+          echo "Changed files:"
+          cat /tmp/changed_files.txt
+
+      - name: Classify changes and assemble advisory
+        id: advise
+        if: steps.optout.outputs.skipped == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY' > /tmp/advisory.md
+          import os
+          import sys
+          from pathlib import Path
+
+          PKG_DIR = "docs/antikythera-maths/ephemerides-spectral"
+          NOTEBOOK = "docs/antikythera-maths/ephemerides_spectral_research_notebook.md"
+
+          # The five documentation files we watch as the SSOT surface.
+          DOC_FILES = {
+              "package_readme":   f"{PKG_DIR}/python/README.md",
+              "package_changelog": f"{PKG_DIR}/python/CHANGELOG.md",
+              "project_changelog": f"{PKG_DIR}/CHANGELOG.md",
+              "roadmap":          f"{PKG_DIR}/ROADMAP.md",
+              "notebook":         NOTEBOOK,
+          }
+
+          # Friendly labels for the advisory comment.
+          DOC_LABELS = {
+              "package_readme":    "python/README.md (PyPI README)",
+              "package_changelog": "python/CHANGELOG.md (package, PyPI-rendered)",
+              "project_changelog": "CHANGELOG.md (project)",
+              "roadmap":           "ROADMAP.md",
+              "notebook":          "ephemerides_spectral_research_notebook.md",
+          }
+
+          changed = [
+              line.strip()
+              for line in Path("/tmp/changed_files.txt").read_text().splitlines()
+              if line.strip()
+          ]
+
+          touched_docs = {key for key, path in DOC_FILES.items() if path in changed}
+
+          # ── Categorise the code-side touches. Each category maps to
+          # a SET of doc keys we expect to see in `touched_docs`. The
+          # advisory reports the gap (expected − touched).
+
+          def matches_any(path: str, *prefixes_or_suffixes) -> bool:
+              return any(
+                  path.startswith(p) if p.endswith("/") else (path == p or path.endswith(p))
+                  for p in prefixes_or_suffixes
+              )
+
+          version_bump_files = [
+              f"{PKG_DIR}/python/pyproject.toml",
+              f"{PKG_DIR}/python/pyproject-pure.toml",
+              f"{PKG_DIR}/python/ephemerides_spectral/version.py",
+              f"{PKG_DIR}/c/include/ephemerides_spectral.h",
+          ]
+          bridge_files = [f"{PKG_DIR}/python/ephemerides_spectral/bridge.py"]
+          cli_files = [f"{PKG_DIR}/python/ephemerides_spectral/cli.py"]
+          research_prefix = f"{PKG_DIR}/python/ephemerides_spectral/_research/"
+          research_source_prefix = "docs/antikythera-maths/research/"
+          c_src_prefix = f"{PKG_DIR}/c/src/"
+          c_include_prefix = f"{PKG_DIR}/c/include/"
+          parity_test_files = [
+              f"{PKG_DIR}/python/tests/test_parity_smoke.py",
+              f"{PKG_DIR}/python/tests/test_native_parity.py",
+              f"{PKG_DIR}/python/tests/test_hd_parity.py",
+              f"{PKG_DIR}/python/tests/test_channel_basis_parity.py",
+          ]
+
+          findings = []  # list of (category_name, expected_set, missing_set, evidence_files)
+
+          def add_finding(name, expected, evidence):
+              missing = expected - touched_docs
+              if missing:
+                  findings.append((name, expected, missing, evidence))
+
+          # ── Version bump: the heaviest signal. Touching ANY of the
+          # version-stamp files is a release-class change and we expect
+          # all five docs to move with it.
+          version_evidence = [p for p in changed if p in version_bump_files]
+          if version_evidence:
+              add_finding(
+                  "Version bump (pyproject.toml / version.py / C header)",
+                  set(DOC_FILES.keys()),
+                  version_evidence,
+              )
+
+          # ── Bridge / CLI: user-facing surface change, expect README +
+          # both CHANGELOGs + notebook (notebook documents the primitive
+          # the bridge exposes).
+          bridge_evidence = [p for p in changed if p in bridge_files]
+          if bridge_evidence:
+              add_finding(
+                  "Python bridge surface (bridge.py)",
+                  {"package_readme", "package_changelog", "project_changelog", "notebook"},
+                  bridge_evidence,
+              )
+
+          cli_evidence = [p for p in changed if p in cli_files]
+          if cli_evidence:
+              add_finding(
+                  "CLI surface (cli.py)",
+                  {"package_readme", "package_changelog", "project_changelog"},
+                  cli_evidence,
+              )
+
+          # ── _research/ codegen mirror OR the research/ source tree
+          # (codegen pulls from research/ and emits into _research/).
+          # Expect notebook + CHANGELOGs.
+          research_evidence = [
+              p for p in changed
+              if p.startswith(research_prefix) or p.startswith(research_source_prefix)
+          ]
+          if research_evidence:
+              add_finding(
+                  "Research primitive (_research/*.py or research/*.py)",
+                  {"notebook", "package_changelog", "project_changelog"},
+                  research_evidence,
+              )
+
+          # ── C tree: expect CHANGELOGs + at least one parity test
+          # touched. Parity-test touch isn't a "doc" but it's the
+          # cross-checker so we surface it in the advisory anyway.
+          c_evidence = [
+              p for p in changed
+              if p.startswith(c_src_prefix) or p.startswith(c_include_prefix)
+          ]
+          if c_evidence:
+              add_finding(
+                  "C library (c/src/*.c or c/include/*.h)",
+                  {"package_changelog", "project_changelog"},
+                  c_evidence,
+              )
+              parity_touched = any(p in parity_test_files for p in changed)
+              if not parity_touched:
+                  findings.append((
+                      "C library — parity tests untouched",
+                      set(),
+                      set(),  # special: no missing-docs set, just a parity-test note
+                      c_evidence,
+                  ))
+
+          # ── Build advisory.
+          if not findings:
+              # Nothing to say. Emit an empty placeholder so downstream
+              # step can skip-comment cleanly.
+              print("__NO_DRIFT__")
+              raise SystemExit(0)
+
+          print("## 📋 ephemerides-spectral docs hygiene advisory")
+          print()
+          print(
+              "This is a **soft warning** — the build is green either way. "
+              "Reviewing the items below before merge keeps the PyPI-facing "
+              "docs surface aligned with the code. Add `[skip-docs-check]` "
+              "to the PR body to silence on cosmetic diffs."
+          )
+          print()
+          print("### Drift detected")
+          print()
+          for name, expected, missing, evidence in findings:
+              print(f"**{name}**")
+              if evidence:
+                  print()
+                  print("Touched files:")
+                  for ev in evidence[:8]:
+                      print(f"- `{ev}`")
+                  if len(evidence) > 8:
+                      print(f"- … {len(evidence) - 8} more")
+                  print()
+              if name.endswith("parity tests untouched"):
+                  parity_paths = [
+                      "python/tests/test_parity_smoke.py",
+                      "python/tests/test_native_parity.py",
+                      "python/tests/test_hd_parity.py",
+                      "python/tests/test_channel_basis_parity.py",
+                  ]
+                  print(
+                      "C-side change without a parity-test touch. "
+                      "Verify one of the following still covers the new behaviour, "
+                      "or extend it:"
+                  )
+                  for p in parity_paths:
+                      print(f"- `{p}`")
+                  print()
+                  continue
+              if missing:
+                  print("Expected to see updates in:")
+                  for key in sorted(missing):
+                      print(f"- `{DOC_LABELS[key]}`")
+                  print()
+
+          print("### Watched docs surface (5 files)")
+          print()
+          for key in DOC_FILES:
+              mark = "✅ touched" if key in touched_docs else "⬜ not touched"
+              print(f"- {mark} — `{DOC_LABELS[key]}`")
+          print()
+          print(
+              "_Generated by `.github/workflows/ephemerides-spectral-docs-check.yml`. "
+              "See the workflow header comment for category definitions._"
+          )
+          PY
+
+          if grep -qx "__NO_DRIFT__" /tmp/advisory.md; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No docs drift detected for ephemerides-spectral changes."
+          else
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            echo "Advisory body:"
+            echo "----"
+            cat /tmp/advisory.md
+            echo "----"
+          fi
+
+      - name: Find existing advisory comment
+        id: find_comment
+        if: steps.optout.outputs.skipped == 'false' && steps.advise.outputs.drift == 'true'
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: github-actions[bot]
+          # Marker line lives at top of advisory; greps any existing
+          # comment so we update in place rather than spamming the PR
+          # on every push.
+          body-includes: "ephemerides-spectral docs hygiene advisory"
+
+      - name: Post or update advisory comment
+        if: steps.optout.outputs.skipped == 'false' && steps.advise.outputs.drift == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/advisory.md
+          edit-mode: replace

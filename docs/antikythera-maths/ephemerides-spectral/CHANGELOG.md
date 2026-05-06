@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.2)
+(no entries yet — next entries land after v0.13.3)
+
+## [0.13.3] — 2026-05-05
+
+**Pre-merge docs+parity hygiene check** — soft-warning GitHub Actions workflow added. Closes `` `#98` `` (consolidated; absorbs `` `#87` `` + `` `#88` ``).
+
+### Added
+
+- **`.github/workflows/ephemerides-spectral-docs-check.yml`** — soft-warning workflow that posts (or updates in place) a single PR comment summarising drift between code-side touches and the five PyPI-facing docs files. Never fails the build.
+
+  Watched docs surface (5 files):
+
+  | File | Role |
+  |---|---|
+  | `python/README.md` | PyPI README (status banner + body table) |
+  | `python/CHANGELOG.md` | Package CHANGELOG (PyPI-rendered) |
+  | `CHANGELOG.md` | Project CHANGELOG (mirror) |
+  | `ROADMAP.md` | Roadmap / status sweep |
+  | `ephemerides_spectral_research_notebook.md` | Research notebook |
+
+  Code-side categories cross-checked against expected docs:
+
+  | Category | Expected docs |
+  |---|---|
+  | Version bump (`pyproject.toml` / `pyproject-pure.toml` / `version.py` / `c/include/ephemerides_spectral.h`) | All five |
+  | `bridge.py` | README + both CHANGELOGs + notebook |
+  | `cli.py` | README + both CHANGELOGs |
+  | `_research/*.py` or `research/*.py` | Notebook + both CHANGELOGs |
+  | `c/src/*.c` or `c/include/*.h` | Both CHANGELOGs + parity-test touch |
+
+  **Soft-warning, not hard-fail** — the freshness ratchet inside pytest already hard-fails on the highest-value drift modes (`test_native_version_string_matches`, `test_parity_smoke::PARITY_TARGETS`, `test_readme_freshness`, `test_jpl_audit`); this workflow surfaces the *next tier* — prose-and-narrative drift that humans should review but a regex can't authoritatively adjudicate.
+
+  **Opt-out**: include `[skip-docs-check]` anywhere in the PR body to silence on cosmetic / typo / formatting-only diffs.
+
+  **Comment idempotence**: uses `peter-evans/find-comment` + `peter-evans/create-or-update-comment` to update a single advisory in place across pushes rather than spamming the PR.
+
+  **Concurrency**: `cancel-in-progress: true` keyed by workflow + ref to absorb the `opened`+`labeled` double-fire pattern documented in `ephemerides-spectral-ci.yml`.
+
+  **Discipline absorbed**: `` `#87` `` (pre-merge C/Python parity checklist) and `` `#88` `` (pre-publish docs hygiene, RTD-aware). The mechanical halves stay in pytest (`test_parity_smoke.py`, `test_readme_freshness.py`); the broader prose / notebook / RTD sweep lands here as soft-warning advisory.
+
+### Migration
+
+None. CI-only addition. Version stamps bump 0.13.2 → 0.13.3 in lockstep across `version.py`, both `pyproject*.toml` files, and `c/include/ephemerides_spectral.h`.
 
 ## [0.13.2] — 2026-05-05
 
