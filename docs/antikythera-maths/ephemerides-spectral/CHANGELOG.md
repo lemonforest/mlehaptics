@@ -7,7 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.18.1)
+(no entries yet — next entries land after v0.18.2)
+
+## [0.18.2] — 2026-05-06
+
+**2-D `(f₂, f₃)` Fiedler-embedding upgrade for `bridge.predict_itn_accessibility`.** The §13.6 unfinished refinement applied to the v0.18.1 ship: replaces the 1-D Fiedler-distance regression with a 2-D Euclidean-embedding regression on the same hybrid Laplacian. Pure-Python additive improvement; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Calibration delta
+
+| Metric | v0.18.1 (1-D) | v0.18.2 (2-D) | Lift |
+| :--- | ---: | ---: | ---: |
+| Spearman ρ | +0.857 | +0.849 | ~unchanged |
+| In-sample R² | 0.5072 | **0.6439** | +27 % |
+| In-sample MAE | 4.110 km/s | **2.995 km/s** | **−27 %** |
+| LOOCV MAE | 4.238 km/s | **3.123 km/s** | **−26 %** |
+| LOOCV median \|err\| | not reported | **2.204 km/s** | new |
+
+Spearman unchanged because the rank ordering was already strong; the lift comes from absolute fit quality. The second eigenvector `f₃` adds resolution for within-cluster pairs that the single Fiedler vector collapsed (Earth/Venus + main-belt asteroids cluster at `f₃ > 0`; outer planets at `f₃ < 0`; mercury isolated at `f₃ ≈ −0.28`).
+
+### Updated calibration constants
+
+| Constant | v0.18.1 (1-D) | v0.18.2 (2-D) |
+| :--- | ---: | ---: |
+| `CALIBRATION_INTERCEPT_KMS` | 8.681 | **4.896** |
+| `CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT` | 15.617 | **17.319** |
+| `CALIBRATION_R2` | 0.507 | **0.644** |
+| `CALIBRATION_LOOCV_MAE_KMS` | 4.238 | **3.123** |
+
+The v0.18.1 constants are preserved as `CALIBRATION_INTERCEPT_KMS_1D_HISTORICAL` etc. for callers that pinned the v0.18.1 numbers.
+
+### Bridge response shape
+
+* Existing fields unchanged: `ok`, `departure`, `target`, `fiedler_distance` (1-D back-compat), `predicted_dv_kms`, `calibration`.
+* New fields:
+  * `embedding_distance_2d` (float) — the 2-D Euclidean distance on the `(f₂, f₃)` embedding (the production predictor input).
+  * `calibration.embedding_dim` = 2 (was implicitly 1 in v0.18.1).
+  * `calibration.lambda_3` (float) — third eigenvalue, alongside the existing `lambda_2`.
+  * `calibration.loocv_median_abs_error_kms` (float) — LOOCV median absolute error.
+  * `calibration.method` updated to "OLS linear fit on 2-D (f₂, f₃) hybrid Fiedler embedding".
+
+### Research origin
+
+Notebook §13.6 listed five untried refinements after the §13.5 inv_dv baseline. The v0.18.1 ship calibrated the §13.9 hybrid weighting in 1-D; v0.18.2 closes the §13.6 refinement #1 (two-eigenvector embedding) on top of the same hybrid weighting. New `research/two_eigenvector_fiedler_embedding.py` runs all three weightings (inv_dv, resonance, hybrid) under both 1-D and 2-D embeddings and emits the comparison table.
+
+### Test count
+
+685 pass, 41 skipped (was 681 + 41 in v0.18.1; +4 new tests in `test_predict_itn_accessibility.py`):
+- Calibration constants re-pinned to 2-D values
+- 1-D historical constants preserved + tested
+- New `embedding_distance_2d` field exposed in response
+- New `embedding_dim` + `lambda_3` + `loocv_median_abs_error_kms` calibration metadata pinned
+
+### Migration
+
+Pure-additive on the response shape (new fields added; no existing field removed or renamed). Numeric values for `predicted_dv_kms` change as expected (different regression). Callers that pinned the v0.18.1 numeric values via `CALIBRATION_INTERCEPT_KMS` etc. should either re-pin to the v0.18.2 values *or* read the v0.18.1 numbers from the new `*_1D_HISTORICAL` constants.
 
 ## [0.18.1] — 2026-05-06
 

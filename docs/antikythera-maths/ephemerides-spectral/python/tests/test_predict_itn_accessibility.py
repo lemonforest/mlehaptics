@@ -26,6 +26,7 @@ import pytest
 
 from ephemerides_spectral import bridge
 from ephemerides_spectral._research.predict_itn_accessibility import (
+    CALIBRATION_IN_SAMPLE_MAE_KMS,
     CALIBRATION_INTERCEPT_KMS,
     CALIBRATION_LOOCV_MAE_KMS,
     CALIBRATION_R2,
@@ -37,32 +38,74 @@ from ephemerides_spectral._research.predict_itn_accessibility import (
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Calibration contract — pinned at v0.18.1 ship
+# Calibration contract — pinned at v0.18.2 ship (2-D embedding upgrade)
 # ──────────────────────────────────────────────────────────────────────
 
+def test_calibration_embedding_dim_is_two() -> None:
+    """v0.18.2 ship uses the 2-D (f₂, f₃) Fiedler embedding."""
+    from ephemerides_spectral._research.predict_itn_accessibility import (
+        CALIBRATION_EMBEDDING_DIM,
+    )
+    assert CALIBRATION_EMBEDDING_DIM == 2
+
+
 def test_calibration_intercept_pinned() -> None:
-    """Intercept matches the v0.18.1 OLS fit on the §13 ground truth."""
-    assert abs(CALIBRATION_INTERCEPT_KMS - 8.680818) < 1e-5
+    """Intercept matches the v0.18.2 2-D OLS fit on the §13 ground truth."""
+    assert abs(CALIBRATION_INTERCEPT_KMS - 4.896324) < 1e-5
 
 
 def test_calibration_slope_pinned() -> None:
-    """Slope matches the v0.18.1 OLS fit on the §13 ground truth."""
-    assert abs(CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT - 15.617194) < 1e-5
+    """Slope matches the v0.18.2 2-D OLS fit on the §13 ground truth."""
+    assert abs(CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT - 17.319301) < 1e-5
 
 
 def test_calibration_r2_pinned() -> None:
-    """In-sample R² matches the v0.18.1 fit (within float tolerance)."""
-    assert abs(CALIBRATION_R2 - 0.507203) < 1e-5
+    """In-sample R² matches the v0.18.2 2-D fit (~0.64; up from v0.18.1's ~0.51)."""
+    assert abs(CALIBRATION_R2 - 0.643884) < 1e-5
 
 
 def test_calibration_loocv_mae_pinned() -> None:
-    """LOOCV MAE matches the v0.18.1 fit."""
-    assert abs(CALIBRATION_LOOCV_MAE_KMS - 4.237754) < 1e-3
+    """LOOCV MAE matches the v0.18.2 2-D fit (~3.12 km/s; down from v0.18.1's ~4.24)."""
+    assert abs(CALIBRATION_LOOCV_MAE_KMS - 3.122645) < 1e-3
+
+
+def test_calibration_in_sample_mae_dropped_27_percent() -> None:
+    """v0.18.2 ship contract: in-sample MAE materially lower than v0.18.1.
+    Old: 4.110 km/s. New: 2.995 km/s. Lift: 27% lower error."""
+    from ephemerides_spectral._research.predict_itn_accessibility import (
+        CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL,
+    )
+    assert CALIBRATION_IN_SAMPLE_MAE_KMS < CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL
+    lift_pct = 1.0 - CALIBRATION_IN_SAMPLE_MAE_KMS / CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL
+    assert lift_pct > 0.20, f"v0.18.2 MAE lift {lift_pct:.1%} below 20% threshold"
+
+
+def test_calibration_1d_historical_constants_preserved() -> None:
+    """The v0.18.1 1-D constants are exposed under *_1D_HISTORICAL names
+    so callers depending on the v0.18.1 numbers can still introspect them.
+    """
+    from ephemerides_spectral._research.predict_itn_accessibility import (
+        CALIBRATION_INTERCEPT_KMS_1D_HISTORICAL,
+        CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT_1D_HISTORICAL,
+        CALIBRATION_R2_1D_HISTORICAL,
+        CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL,
+        CALIBRATION_LOOCV_MAE_KMS_1D_HISTORICAL,
+    )
+    assert abs(CALIBRATION_INTERCEPT_KMS_1D_HISTORICAL - 8.680818) < 1e-5
+    assert abs(CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT_1D_HISTORICAL - 15.617194) < 1e-5
+    assert abs(CALIBRATION_R2_1D_HISTORICAL - 0.507203) < 1e-5
+    assert abs(CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL - 4.109664) < 1e-5
+    assert abs(CALIBRATION_LOOCV_MAE_KMS_1D_HISTORICAL - 4.237754) < 1e-3
 
 
 def test_calibration_spearman_pinned() -> None:
-    """Headline Spearman ρ from §13.9 = +0.857."""
-    assert abs(CALIBRATION_SPEARMAN_RHO - 0.857) < 1e-3
+    """Headline Spearman ρ from the 2-D embedding = +0.849.
+
+    The 2-D embedding's rank correlation is ~unchanged from v0.18.1's
+    1-D ρ = +0.857 (rank ordering was already strong); the lift comes
+    from R² and MAE, not Spearman.
+    """
+    assert abs(CALIBRATION_SPEARMAN_RHO - 0.849) < 1e-3
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -135,21 +178,39 @@ def test_intercept_is_lower_bound_predict() -> None:
     assert min_pred >= CALIBRATION_INTERCEPT_KMS - 1e-9
 
 
+def test_response_returns_both_distances() -> None:
+    """v0.18.2 returns both the 1-D back-compat fiedler_distance and the
+    2-D embedding_distance_2d. The 2-D distance is what the production
+    predictor uses; the 1-D field is preserved for callers that pinned
+    v0.18.1 numbers."""
+    r = predict_itn_accessibility("terra", "mars")
+    assert "fiedler_distance" in r
+    assert "embedding_distance_2d" in r
+    # 2-D distance ≥ 1-D distance always (1-D is a projection of the 2-D).
+    assert r["embedding_distance_2d"] >= r["fiedler_distance"] - 1e-9
+
+
 def test_calibration_metadata_in_response() -> None:
     """Every prediction returns the calibration provenance so the
-    caller can decide whether the prediction is precise enough."""
+    caller can decide whether the prediction is precise enough.
+    v0.18.2 added embedding_dim, lambda_3, and loocv_median_abs_error_kms."""
     r = predict_itn_accessibility("terra", "mars")
     assert "calibration" in r
     cal = r["calibration"]
     for key in (
-        "method", "weighting", "intercept_kms", "slope_kms_per_fiedler_unit",
-        "spearman_rho", "r2", "in_sample_mae_kms", "loocv_mae_kms",
+        "method", "weighting", "embedding_dim",
+        "intercept_kms", "slope_kms_per_fiedler_unit",
+        "spearman_rho", "r2",
+        "in_sample_mae_kms", "loocv_mae_kms",
+        "loocv_median_abs_error_kms",
         "n_finite_pairs", "n_inf_pairs", "window_years", "window_jd_lo",
+        "lambda_3",
         "lambda_2",
     ):
         assert key in cal, f"calibration response missing {key!r}"
     assert cal["weighting"] == "hybrid_dv_resonance"
-    assert cal["spearman_rho"] > 0.85
+    assert cal["spearman_rho"] > 0.84  # 2-D ρ = +0.849 (~unchanged from 1-D's +0.857)
+    assert cal["embedding_dim"] == 2
 
 
 # ──────────────────────────────────────────────────────────────────────
