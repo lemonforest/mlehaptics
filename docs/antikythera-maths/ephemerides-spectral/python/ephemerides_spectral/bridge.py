@@ -93,6 +93,8 @@ from ephemerides_spectral._research.time_scales import (
     STLT_EPOCH_HIPPARCHUS_JD_TDB, STLT_EPOCH_MARDOKEMPAD_JD_TDB,
     STLT_EPOCH_J2000_JD_TDB, STLT_EPOCHS, STLT_DEFAULT_EPOCH,
     jd_to_terra_luna_time, terra_luna_time_to_jd,
+    # v0.14.0 Sol Moon Times — generic moon-time primitive (Galileans first).
+    SOL_MOON_TIME_J2000_JD_TDB, jd_to_moon_time, moon_time_to_jd,
 )
 from ephemerides_spectral._research.proper_time import (
     DEFAULT_REFERENCE as SPRT_DEFAULT_REFERENCE,
@@ -999,6 +1001,207 @@ def sol_terra_luna_time_to_jd(
         "epoch_name": epoch,
         "synodic_count": sc,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.14.0 Sol Moon Times — Galileans (Io / Europa / Ganymede / Callisto)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Per the moons-stuck-to-parent naming convention (v0.9.1):
+#   Sol Jupiter-Io Time, Sol Jupiter-Europa Time, ...
+#
+# Each Galilean moon is tidally locked, so sidereal day = orbital
+# period = rotation period (one synchronized cycle). Anchored at
+# J2000.0 by default — historical anchors like STLT's Meton don't
+# generalise to non-Luna moons. Future ships may add Galileo's 1610
+# discovery as a non-default option.
+#
+# Naming + abbreviations:
+#
+#   Body      | Sol Time name              | Abbrev | CLI subcommand
+#   ----------|----------------------------|--------|----------------------
+#   io        | Sol Jupiter-Io Time        | SJIT   | time-jupiter-io
+#   europa    | Sol Jupiter-Europa Time    | SJET   | time-jupiter-europa
+#   ganymede  | Sol Jupiter-Ganymede Time  | SJGT   | time-jupiter-ganymede
+#   callisto  | Sol Jupiter-Callisto Time  | SJCT   | time-jupiter-callisto
+#
+# Laplace resonance (4·n_Io − 2·n_Europa − n_Ganymede ≈ 0) is a
+# property of three of the four sidereal-count series — exposed in
+# the notebook §7.6 prose, not in the per-moon dict (the Sol Time
+# stays per-body simple; the resonance is a pair-relation).
+# ──────────────────────────────────────────────────────────────────────
+
+# Each Galilean's sidereal period is the same as its orbital period
+# (tidally locked). Pulled from BODIES at call time so any future
+# precision update to BODIES propagates automatically.
+_GALILEAN_PARENT: str = "jupiter"
+
+
+def _moon_time_response(body_key: str, parent_key: str,
+                        abbrev: str, sol_time_name: str) -> Any:
+    """Internal helper for Galilean (and future moon-family) wrappers.
+
+    Closure-style — returns a function that takes (jd_tdb) and returns
+    the bridge-shaped Sol Moon Time response dict. Keeps the four
+    near-identical Galilean wrappers below thin and consistent.
+    """
+    def _impl(jd_tdb: float) -> Dict[str, Any]:
+        err = _validate_jd(jd_tdb)
+        if err is not None:
+            return err
+        if body_key not in BODIES:
+            return _err(
+                f"internal error: body {body_key!r} not in BODIES "
+                f"(this is a bug; please report)"
+            )
+        body = BODIES[body_key]
+        out = jd_to_moon_time(
+            body_key,
+            float(jd_tdb),
+            parent_name=parent_key,
+            sidereal_period_days=float(body.period_days),
+        )
+        return {
+            "ok": True,
+            **out.to_dict(),
+            "epoch": {
+                "name": "j2000",
+                "description": (
+                    "J2000.0 — modern reference epoch shared with the "
+                    "rest of the Sol Time series. Historical anchors "
+                    "(like STLT's Meton solstice) don't generalise to "
+                    "non-Luna moons."
+                ),
+                "jd_tdb": float(SOL_MOON_TIME_J2000_JD_TDB),
+                "sidereal_period_days": float(body.period_days),
+                "abbreviation": abbrev,
+                "sol_time_name": sol_time_name,
+                "parent_body": parent_key,
+                "moon_body": body_key,
+                "note": (
+                    f"{sol_time_name} ({abbrev}) is the anchored "
+                    f"sidereal-cycle count for {body.name} since "
+                    f"J2000. {body.name} is tidally locked, so "
+                    f"sidereal day = orbital period = rotation period "
+                    f"= {float(body.period_days):.6f} days."
+                ),
+            },
+        }
+    return _impl
+
+
+def _moon_time_to_jd_response(body_key: str, abbrev: str) -> Any:
+    """Inverse helper — sidereal_count -> JD (TDB)."""
+    def _impl(sidereal_count: float) -> Dict[str, Any]:
+        if body_key not in BODIES:
+            return _err(
+                f"internal error: body {body_key!r} not in BODIES"
+            )
+        body = BODIES[body_key]
+        try:
+            sc = float(sidereal_count)
+        except (TypeError, ValueError):
+            return _err(
+                f"sidereal_count must be a number, got "
+                f"{type(sidereal_count).__name__}"
+            )
+        return {
+            "ok": True,
+            "jd_tdb": moon_time_to_jd(
+                sc, sidereal_period_days=float(body.period_days)
+            ),
+            "sidereal_count": sc,
+            "body_name": body_key,
+            "abbreviation": abbrev,
+        }
+    return _impl
+
+
+jd_to_sol_jupiter_io_time = _moon_time_response(
+    "io", _GALILEAN_PARENT, "SJIT", "Sol Jupiter-Io Time"
+)
+jd_to_sol_jupiter_io_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Io Time (SJIT).
+
+    Anchored sidereal-cycle count for Io since J2000.0. Io is tidally
+    locked to Jupiter (sidereal day = orbital period = 1.769 days).
+    Innermost Galilean; participates in the 4:2:1 Laplace resonance
+    with Europa and Ganymede.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian Date in TDB.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_tdb": ..., "body_name": "io",
+            "parent_name": "jupiter", "epoch_name": "j2000",
+            "sidereal_period_days": 1.769..., "sidereal_count": ...,
+            "sidereal_phase": ..., "epoch": {...abbreviation: "SJIT"}}``.
+    """
+)
+
+sol_jupiter_io_time_to_jd = _moon_time_to_jd_response("io", "SJIT")
+sol_jupiter_io_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Io."
+)
+
+jd_to_sol_jupiter_europa_time = _moon_time_response(
+    "europa", _GALILEAN_PARENT, "SJET", "Sol Jupiter-Europa Time"
+)
+jd_to_sol_jupiter_europa_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Europa Time (SJET).
+
+    Anchored sidereal-cycle count for Europa since J2000.0. Europa
+    is tidally locked (sidereal day = orbital period = 3.551 days).
+    Middle Galilean by Laplace ordering; participates in the 4:2:1
+    resonance.
+    """
+)
+
+sol_jupiter_europa_time_to_jd = _moon_time_to_jd_response("europa", "SJET")
+sol_jupiter_europa_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Europa."
+)
+
+jd_to_sol_jupiter_ganymede_time = _moon_time_response(
+    "ganymede", _GALILEAN_PARENT, "SJGT", "Sol Jupiter-Ganymede Time"
+)
+jd_to_sol_jupiter_ganymede_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Ganymede Time (SJGT).
+
+    Anchored sidereal-cycle count for Ganymede since J2000.0. Ganymede
+    is tidally locked (sidereal day = orbital period = 7.155 days).
+    Largest moon in the solar system; outermost Galilean in the 4:2:1
+    Laplace resonance.
+    """
+)
+
+sol_jupiter_ganymede_time_to_jd = _moon_time_to_jd_response("ganymede", "SJGT")
+sol_jupiter_ganymede_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Ganymede."
+)
+
+jd_to_sol_jupiter_callisto_time = _moon_time_response(
+    "callisto", _GALILEAN_PARENT, "SJCT", "Sol Jupiter-Callisto Time"
+)
+jd_to_sol_jupiter_callisto_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Callisto Time (SJCT).
+
+    Anchored sidereal-cycle count for Callisto since J2000.0. Callisto
+    is tidally locked (sidereal day = orbital period = 16.689 days).
+    Outermost Galilean; the only one **not** participating in the
+    Laplace resonance — its mean motion is irrational with the
+    Io-Europa-Ganymede triple.
+    """
+)
+
+sol_jupiter_callisto_time_to_jd = _moon_time_to_jd_response("callisto", "SJCT")
+sol_jupiter_callisto_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Callisto."
+)
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -268,6 +268,57 @@ def _cmd_time_terra_luna(args: argparse.Namespace) -> int:
     )
 
 
+# ── v0.14.0 Sol Moon Times — Galileans (Io / Europa / Ganymede / Callisto)
+#
+# Per the moons-stuck-to-parent naming convention (v0.9.1):
+#   time-jupiter-io       → Sol Jupiter-Io Time (SJIT)
+#   time-jupiter-europa   → Sol Jupiter-Europa Time (SJET)
+#   time-jupiter-ganymede → Sol Jupiter-Ganymede Time (SJGT)
+#   time-jupiter-callisto → Sol Jupiter-Callisto Time (SJCT)
+#
+# Each is a thin wrapper around the bridge primitive — the bridge
+# closure-helpers handle the actual math.
+
+def _cmd_time_jupiter_io(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Io Time (SJIT) — anchored sidereal-cycle count for Io."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_io_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_io_time(args.jd), args)
+
+
+def _cmd_time_jupiter_europa(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Europa Time (SJET) — anchored sidereal-cycle count for Europa."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_europa_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_europa_time(args.jd), args)
+
+
+def _cmd_time_jupiter_ganymede(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Ganymede Time (SJGT) — anchored sidereal-cycle count for Ganymede."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_ganymede_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_ganymede_time(args.jd), args)
+
+
+def _cmd_time_jupiter_callisto(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Callisto Time (SJCT) — anchored sidereal-cycle count for Callisto."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_callisto_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_callisto_time(args.jd), args)
+
+
 # ── v0.11.0 Sol Proper Time (SPrT) — standalone rate-only query
 
 def _cmd_time_proper(args: argparse.Namespace) -> int:
@@ -1245,6 +1296,62 @@ def _make_parser() -> argparse.ArgumentParser:
                      help=f"Historical anchor (default {STLT_DEFAULT_EPOCH!r})")
     _add_proper_flags(ttl)
     ttl.set_defaults(func=_cmd_time_terra_luna, subcommand_name="time-terra-luna")
+
+    # time-jupiter-{io,europa,ganymede,callisto} (v0.14.0) — Galilean Sol Moon Times.
+    #
+    # Per the moons-stuck-to-parent naming convention (v0.9.1). Each is
+    # an anchored sidereal-cycle count from J2000 — no historical-epoch
+    # menu like STLT (Galileans don't have a Greek-astronomy archive;
+    # Galileo's 1610 telescopic discovery is a candidate non-default for
+    # a future ship).
+    #
+    # The four near-identical subparsers are built via a shared helper
+    # to keep them consistent — same CLI shape, same --jd/--sidereal-count
+    # mutex, same help-block format.
+    def _add_galilean_subparser(name: str, body_label: str, abbrev: str,
+                                period_days: float, handler):
+        p = sub.add_parser(
+            f"time-jupiter-{name}",
+            help=f"Sol Jupiter-{body_label} Time ({abbrev}) at a JD — anchored sidereal-cycle count",
+            description=(
+                f"Convert JD (TDB) to Sol Jupiter-{body_label} Time ({abbrev}) —\n"
+                f"anchored sidereal-cycle count for {body_label} since J2000.0.\n"
+                f"\n"
+                f"{body_label} is tidally locked to Jupiter, so:\n"
+                f"\n"
+                f"  sidereal day = orbital period = rotation period\n"
+                f"               = {period_days:.6f} days\n"
+                f"\n"
+                f"Naming follows the moons-stuck-to-parent convention\n"
+                f"(v0.9.1): the 'Jupiter-{body_label}' in the name signals\n"
+                f"that this is *the moon's* clock as a member of the\n"
+                f"Jovian system, not Jupiter's surface clock (= SJT).\n"
+                f"\n"
+                f"Use --sidereal-count to invert."
+            ),
+            epilog=(
+                f"Examples:\n"
+                f"  # Sidereal-cycle count for {body_label} at J2000\n"
+                f"  ephemerides-spectral time-jupiter-{name} --jd 2451545.0\n\n"
+                f"  # Inverse: 100 sidereal cycles back to JD_TDB\n"
+                f"  ephemerides-spectral time-jupiter-{name} --sidereal-count 100"
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("--jd", type=float, default=None,
+                       help=f"JD (TDB) to convert to Sol Jupiter-{body_label} Time")
+        g.add_argument("--sidereal-count", dest="sidereal_count",
+                       type=float, default=None,
+                       help="Sidereal-cycle count (since J2000) to invert back to JD_TDB")
+        _add_proper_flags(p)
+        p.set_defaults(func=handler, subcommand_name=f"time-jupiter-{name}")
+        return p
+
+    _add_galilean_subparser("io",       "Io",       "SJIT",  1.76913786, _cmd_time_jupiter_io)
+    _add_galilean_subparser("europa",   "Europa",   "SJET",  3.55118100, _cmd_time_jupiter_europa)
+    _add_galilean_subparser("ganymede", "Ganymede", "SJGT",  7.15455296, _cmd_time_jupiter_ganymede)
+    _add_galilean_subparser("callisto", "Callisto", "SJCT", 16.68901840, _cmd_time_jupiter_callisto)
 
     # time-proper (v0.11.0) — Sol Proper Time standalone rate-only query
     _SPRT_BODY_CHOICES = sorted(SUPPORTED_BODIES)
