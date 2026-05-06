@@ -337,6 +337,122 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_jupiter_callisto_time",
         "kwargs_py": {"sidereal_count": 0.0},
     },
+    # v0.14.1 Sol Moon Times — Saturnians (11 moons). All same shape as
+    # Galileans (anchored sidereal-cycle count from J2000); pure-Python
+    # time-scale formulae using each moon's sidereal period from BODIES.
+    # Abbreviations follow the v0.14.1 6-letter S<Planet2><Moon2>T pattern
+    # (collision-triggered policy switch when Tethys/Titan and
+    # Enceladus/Epimetheus would have collided under the v0.14.0 4-letter form).
+    "jd_to_sol_saturn_mimas_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Mimas Time (SSaMiT). Innermost classical Saturnian; Mimas-Tethys 4:2 resonance opens the Cassini Division.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_mimas_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_mimas_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_enceladus_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Enceladus Time (SSaEnT). Cryovolcanic moon with subsurface ocean; Enceladus-Dione 2:1 resonance powers tidal heating.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_enceladus_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_enceladus_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_tethys_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Tethys Time (SSaTeT). Outer member of the 4:2 Mimas-Tethys resonance.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_tethys_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_tethys_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_dione_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Dione Time (SSaDiT). Outer member of the 2:1 Enceladus-Dione resonance.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_dione_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_dione_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_rhea_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Rhea Time (SSaRhT). Second-largest Saturnian; not in any major resonance.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_rhea_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_rhea_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_titan_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Titan Time (SSaTiT). Largest Saturnian; outer member of the 4:3 Titan-Hyperion resonance.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_titan_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_titan_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_hyperion_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Hyperion Time (SSaHyT). Chaotically rotating Saturnian; orbital period referenced for the cycle count (rotation phase non-trivially decoupled).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_hyperion_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_hyperion_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_iapetus_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Iapetus Time (SSaIaT). Outermost classical Saturnian; famous two-tone albedo.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_iapetus_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_iapetus_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_phoebe_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Phoebe Time (SSaPhT). Retrograde irregular Saturnian; long ~550-day orbit.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_phoebe_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_phoebe_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_janus_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Janus Time (SSaJaT). Co-orbital with Epimetheus (~4-yr horseshoe-orbit swap).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_janus_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_janus_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_saturn_epimetheus_time": {
+        "status": "python_only",
+        "rationale": "v0.14.1 Sol Saturn-Epimetheus Time (SSaEpT). Co-orbital with Janus (~4-yr horseshoe-orbit swap).",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_saturn_epimetheus_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_saturn_epimetheus_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
     "get_proper_time_rate": {
         "status": "python_only",
         "rationale": "v0.11.0 Sol Proper Time (SPrT) — leading-order GR + orbital kinematic dilation per body. Pure-Python time-scale formula; C twin queued. The same physics as Mercury's existing 43\"/century PN diagonal correction, applied per-body.",

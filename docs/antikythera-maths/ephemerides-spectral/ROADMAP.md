@@ -10,7 +10,8 @@ version).
 
 | Version | Date | Headline |
 |---|---|---|
-| **v0.14.0** | 2026-05-05 | **Sol Moon Times: Galileans (Io / Europa / Ganymede / Callisto).** First slice of task `` `#86` ``. New generic `MoonTime` primitive in `_research/time_scales.py` + four per-Galilean bridge wrappers + four CLI subcommands (`time-jupiter-{io,europa,ganymede,callisto}`) with abbreviations **SJIT** / **SJET** / **SJGT** / **SJCT**. Default epoch is J2000.0 (STLT's Greek-historical anchors don't generalise to non-Luna moons). **Galilean Laplace-resonance witness** verified in tests (canonical `n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`; Callisto correctly outside the resonance). New `## Naming convention contingencies` section in ROADMAP documents the fallback policy if moon-letter collisions arise (uniform switch to 6-letter `S<Planet2><Moon2>T`). Pure-additive; no API/encoder/ABI changes. 294 tests pass, 4 skipped (was 251 + 4; +43 new). |
+| **v0.14.1** | 2026-05-06 | **Sol Moon Times: Saturnians (11 moons) + abbreviation policy switch (4-letter → 6-letter).** Second slice of `` `#86` ``. The contingency from v0.14.0's ROADMAP fired exactly as predicted: Saturnians introduced two collisions under the v0.14.0 4-letter `S<Planet><Moon>T` pattern (Tethys + Titan both 'T' → both `SSTT`; Enceladus + Epimetheus both 'E' → both `SSET`). Per the policy, the switch applies **uniformly across all Sol Moon Times** — Galileans retroactively renamed (`SJIT → SJuIoT`, `SJET → SJuEuT`, `SJGT → SJuGaT`, `SJCT → SJuCaT`); Saturnians ship with 6-letter abbreviations (Mimas `SSaMiT`, Enceladus `SSaEnT`, Tethys `SSaTeT`, Dione `SSaDiT`, Rhea `SSaRhT`, Titan `SSaTiT`, Hyperion `SSaHyT`, Iapetus `SSaIaT`, Phoebe `SSaPhT`, Janus `SSaJaT`, Epimetheus `SSaEpT`). Python function names + CLI subcommand names + return-shape unchanged; only the `epoch.abbreviation` string changes (callers parsing the field for display need to update). Resonance witnesses verified in tests (Mimas-Tethys 4:2 = Cassini Division; Enceladus-Dione 2:1 = tidal heating; Titan-Hyperion 4:3 = chaotic rotation; Janus-Epimetheus co-orbital). Hyperion's chaotic rotation noted in the bridge docstring + test module — `sidereal_period_days` references orbital period; rotation phase decoupled. 399 tests pass, 4 skipped (was 294 + 4; +105 new). |
+| v0.14.0 | 2026-05-05 | **Sol Moon Times: Galileans (Io / Europa / Ganymede / Callisto).** First slice of task `` `#86` ``. New generic `MoonTime` primitive in `_research/time_scales.py` + four per-Galilean bridge wrappers + four CLI subcommands (`time-jupiter-{io,europa,ganymede,callisto}`) with abbreviations **SJIT** / **SJET** / **SJGT** / **SJCT**. Default epoch is J2000.0 (STLT's Greek-historical anchors don't generalise to non-Luna moons). **Galilean Laplace-resonance witness** verified in tests (canonical `n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`; Callisto correctly outside the resonance). New `## Naming convention contingencies` section in ROADMAP documents the fallback policy if moon-letter collisions arise (uniform switch to 6-letter `S<Planet2><Moon2>T`). Pure-additive; no API/encoder/ABI changes. 294 tests pass, 4 skipped (was 251 + 4; +43 new). |
 | v0.13.10 | 2026-05-05 | **Drop `edited` from docs-check workflow trigger types — fixes post-merge double-fire.** User-flagged on PR `` `#214` `` (v0.13.9 ship): docs-check was deterministically double-firing at every merge. Root cause: GitHub web UI's "Squash and merge" fires `pull_request: edited` (merge-commit dialog) near-simultaneously with `pull_request: synchronize` (`refs/pull/N/merge` recomputed). Fix: drop `edited` from trigger types; now `[opened, synchronize, reopened, labeled]`, matching `ephemerides-spectral-ci.yml`'s narrower list. Trade-off: `[skip-docs-check]` opt-out can no longer be added retroactively; must be set up-front. CI-only change; no code / API / encoder / ABI / test changes. 251 tests pass, 4 skipped. |
 | v0.13.9 | 2026-05-05 | **JPL Power-of-Ten Rules 6 + 7 manual audits — closes the v0.13.4-v0.13.9 rule-fix sequence; ALL TEN RULES NOW SATISFIED.** Audit-only release; no code changes; **0 violations found** for both Rule 6 (smallest possible scope) and Rule 7 (check return values + validate parameters). The v0.11.2 spot-check estimates of "5-10 + 5-15" violations didn't survive the incremental tightening in v0.13.4-v0.13.6 (long-function splits, assertion-density work, cleanup-on-error refactor all happened to also tighten scope and unify the `rc`-check pattern). Audit walked every variable declaration and every `es_status_t` assignment site by hand. **All ten JPL Power-of-Ten rules satisfied**: Rules 1+3 (v0.13.4), Rule 4 (v0.13.5), Rule 5 (v0.13.6), Rule 10 (v0.13.7), Rules 6+7 (v0.13.9); Rules 2, 8, 9 already-passing at v0.11.2. 251 tests pass, 4 skipped. |
 | v0.13.8 | 2026-05-05 | **README accuracy patch — two-stage architecture clarification.** User-flagged misunderstanding about "pure ALU": the previous README listed three backends (`bip` / `c` / `complex128`) as parallel alternatives, with `complex128` annotated as "Used for the algebraic identities (Syzygy operator, observer binding) and as a regression baseline" — but since v0.7.0 (Tier 2b) the production HD path is C-side `complex64`; `complex128` is the regression baseline only (`backend="fpu-ref"`). README now splits into **two-stage architecture**: (1) phase-residue stage with three integer-ALU encoders (`bip` / `c` / `complex128` reference) producing `uint32[38]` residues, and (2) HD-pipeline stage (FPU `complex64` production / `complex128` regression) for syzygy / observer-bind / eclipse-probability. Adds a "TL;DR on pure ALU" callout: phase residues are integer ALU end-to-end; HD operations can't be (channel bases are unit-magnitude complex). **Roadmap renumber**: Rules 6+7 manual audits move v0.13.8 → v0.13.9 (last item in the JPL rule-fix sequence). Docs-only; no API / encoder / ABI / test changes. 251 tests pass, 4 skipped. |
@@ -81,20 +82,30 @@ version).
 
 ## Naming convention contingencies
 
-**Sol Time abbreviation collision plan.** The v0.14.0+ Sol Moon Times use the 4-letter abbreviation pattern `S<Planet-initial><Moon-initial>T` — e.g., **SJIT** (Sol Jupiter-Io Time), **SJET** (Sol Jupiter-Europa Time), **SJGT** (Sol Jupiter-Ganymede Time), **SJCT** (Sol Jupiter-Callisto Time).
-
-If moon-letter collisions arise as we extend across the body roster (e.g., a future system with two moons whose names share a first letter under the same parent — Saturn's Mimas and Methone, hypothetical Mars Phobos / Pasiphae moons in extended catalogs, etc.), we will fall back to a longer 2-letter-component pattern across the board:
+**Sol Time abbreviation collision plan — triggered in v0.14.1.** The v0.14.0 Sol Moon Times shipped with the 4-letter `S<Planet-initial><Moon-initial>T` pattern. The v0.14.1 Saturnians introduced two collisions: **Tethys + Titan** (both `T` under Saturn → both `SSTT`) and **Enceladus + Epimetheus** (both `E` → both `SSET`). The fallback policy fired:
 
 ```
-Current (v0.14.0):  S<Planet>< Moon>T            e.g.  SJGT  for Sol Jupiter-Ganymede Time
-Fallback policy:    S<Star?><Planet2><Moon2>T    e.g.  SJuGaT  ("Sol JUpiter-GAnymede Time")
+v0.14.0 (deprecated):  S<Planet><Moon>T            e.g.  SJGT
+v0.14.1+ (active):     S<Planet2><Moon2>T          e.g.  SJuGaT
+Multi-star fallback:   S<Star1><Planet2><Moon2>T   e.g.  S?JuGaT  (reserved for Stellar Forge — task #102)
 ```
 
-When a single collision triggers the policy switch, the change applies **uniformly** to all Sol Moon Times in the package — not just the colliding pair. Mixed conventions across moons (some 4-letter, some 6-letter) would be worse than either pure convention.
+Galilean abbreviations were retroactively renamed in v0.14.1:
 
-This is forward-looking: no collisions exist in the v0.14.0 Galilean roster (`I`/`E`/`G`/`C` all unique under Jupiter). Document the fallback now so future work has a clear precedent if the situation arises.
+| Body | v0.14.0 | v0.14.1+ |
+|---|---|---|
+| Io | `SJIT` | `SJuIoT` |
+| Europa | `SJET` | `SJuEuT` |
+| Ganymede | `SJGT` | `SJuGaT` |
+| Callisto | `SJCT` | `SJuCaT` |
 
-The same `<Star><Planet><Moon>` letter-budget logic extends to multi-star systems if `ephemerides-spectral` ever covers anything beyond Sol — e.g., the Stellar Forge feasibility task `` `#102` ``. Star initial would become a required prefix in that scenario.
+The 11 Saturnians shipped with the new 6-letter form directly (no v0.14.0 to migrate from): `SSaMiT` / `SSaEnT` / `SSaTeT` / `SSaDiT` / `SSaRhT` / `SSaTiT` / `SSaHyT` / `SSaIaT` / `SSaPhT` / `SSaJaT` / `SSaEpT` — all distinct.
+
+Subsequent moon-family ships use the 6-letter form by default. Python function names (`jd_to_sol_<parent>_<moon>_time`), CLI subcommand names (`time-<parent>-<moon>`), and bridge return-shape are NOT affected by the policy — only the `epoch.abbreviation` STRING. Callers reading the abbreviation as a display label / comparison key need to update; callers using the function names directly are unaffected.
+
+The **uniform-across-all-moons** discipline is load-bearing: mixed conventions (some 4-letter, some 6-letter) would be worse than either pure convention because readers would have to remember which family uses which length. As soon as the first collision triggers, all moons switch.
+
+The same letter-budget logic extends to multi-star systems if `ephemerides-spectral` ever covers anything beyond Sol — e.g., the Stellar Forge feasibility task `` `#102` ``. A star-initial prefix becomes required in that scenario; the existing 6-letter `S<Planet2><Moon2>T` would become 7-letter `S<Star?><Planet2><Moon2>T` (or maybe a longer combinator).
 
 ---
 

@@ -39,13 +39,16 @@ from ephemerides_spectral.cli import main as cli_main
 
 GALILEANS = [
     # (body_key, abbrev, sol_time_name, jd_to_fn, to_jd_fn)
-    ("io",       "SJIT", "Sol Jupiter-Io Time",
+    # v0.14.1: abbreviations switched 4-letter (SJIT, SJET, SJGT, SJCT) → 6-letter
+    # (SJuIoT, SJuEuT, SJuGaT, SJuCaT) per the ROADMAP "Naming convention
+    # contingencies" policy when Saturnian collisions surfaced (Tethys/Titan, Enceladus/Epimetheus).
+    ("io",       "SJuIoT", "Sol Jupiter-Io Time",
      bridge.jd_to_sol_jupiter_io_time, bridge.sol_jupiter_io_time_to_jd),
-    ("europa",   "SJET", "Sol Jupiter-Europa Time",
+    ("europa",   "SJuEuT", "Sol Jupiter-Europa Time",
      bridge.jd_to_sol_jupiter_europa_time, bridge.sol_jupiter_europa_time_to_jd),
-    ("ganymede", "SJGT", "Sol Jupiter-Ganymede Time",
+    ("ganymede", "SJuGaT", "Sol Jupiter-Ganymede Time",
      bridge.jd_to_sol_jupiter_ganymede_time, bridge.sol_jupiter_ganymede_time_to_jd),
-    ("callisto", "SJCT", "Sol Jupiter-Callisto Time",
+    ("callisto", "SJuCaT", "Sol Jupiter-Callisto Time",
      bridge.jd_to_sol_jupiter_callisto_time, bridge.sol_jupiter_callisto_time_to_jd),
 ]
 

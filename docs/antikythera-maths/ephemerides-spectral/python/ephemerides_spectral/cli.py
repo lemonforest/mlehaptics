@@ -1348,10 +1348,103 @@ def _make_parser() -> argparse.ArgumentParser:
         p.set_defaults(func=handler, subcommand_name=f"time-jupiter-{name}")
         return p
 
-    _add_galilean_subparser("io",       "Io",       "SJIT",  1.76913786, _cmd_time_jupiter_io)
-    _add_galilean_subparser("europa",   "Europa",   "SJET",  3.55118100, _cmd_time_jupiter_europa)
-    _add_galilean_subparser("ganymede", "Ganymede", "SJGT",  7.15455296, _cmd_time_jupiter_ganymede)
-    _add_galilean_subparser("callisto", "Callisto", "SJCT", 16.68901840, _cmd_time_jupiter_callisto)
+    _add_galilean_subparser("io",       "Io",       "SJuIoT",  1.76913786, _cmd_time_jupiter_io)
+    _add_galilean_subparser("europa",   "Europa",   "SJuEuT",  3.55118100, _cmd_time_jupiter_europa)
+    _add_galilean_subparser("ganymede", "Ganymede", "SJuGaT",  7.15455296, _cmd_time_jupiter_ganymede)
+    _add_galilean_subparser("callisto", "Callisto", "SJuCaT", 16.68901840, _cmd_time_jupiter_callisto)
+
+    # ── v0.14.1 Saturnian Sol Moon Times — 11 moons.
+    #
+    # Per the v0.14.1 abbreviation policy switch (4-letter → 6-letter),
+    # all moons across the package use S<Planet2><Moon2>T pattern. The
+    # CLI subcommand naming follows time-saturn-<moon>; same shared
+    # helper as the Galileans for consistency.
+    def _cmd_time_saturn_make(jd_to_fn, to_jd_fn):
+        """Closure factory — same handler shape as the four explicit
+        time-jupiter-<moon> handlers above. All 11 Saturnians use this
+        single helper (eliminates the per-moon `def _cmd_*` boilerplate).
+        """
+        def _impl(args):
+            if args.sidereal_count is not None:
+                return _emit(to_jd_fn(args.sidereal_count), pretty=args.pretty)
+            return _emit_proper(jd_to_fn(args.jd), args)
+        return _impl
+
+    def _add_saturnian_subparser(name: str, body_label: str, abbrev: str,
+                                  period_days: float, jd_to_fn, to_jd_fn):
+        p = sub.add_parser(
+            f"time-saturn-{name}",
+            help=f"Sol Saturn-{body_label} Time ({abbrev}) at a JD — anchored sidereal-cycle count",
+            description=(
+                f"Convert JD (TDB) to Sol Saturn-{body_label} Time ({abbrev}) —\n"
+                f"anchored sidereal-cycle count for {body_label} since J2000.0.\n"
+                f"\n"
+                f"{body_label} is tidally locked to Saturn"
+                + (" (rotation chaotic — orbital period referenced for cycle count)"
+                   if name == "hyperion" else "") + ", so:\n"
+                f"\n"
+                f"  sidereal day = orbital period{' (= rotation period)' if name != 'hyperion' else ''}\n"
+                f"               = {period_days:.6f} days\n"
+                f"\n"
+                f"Naming follows the moons-stuck-to-parent convention\n"
+                f"(v0.9.1) with the v0.14.1 6-letter S<Planet2><Moon2>T\n"
+                f"abbreviation pattern.\n"
+                f"\n"
+                f"Use --sidereal-count to invert."
+            ),
+            epilog=(
+                f"Examples:\n"
+                f"  ephemerides-spectral time-saturn-{name} --jd 2451545.0\n\n"
+                f"  ephemerides-spectral time-saturn-{name} --sidereal-count 100"
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("--jd", type=float, default=None,
+                       help=f"JD (TDB) to convert to Sol Saturn-{body_label} Time")
+        g.add_argument("--sidereal-count", dest="sidereal_count",
+                       type=float, default=None,
+                       help="Sidereal-cycle count (since J2000) to invert back to JD_TDB")
+        _add_proper_flags(p)
+        p.set_defaults(
+            func=_cmd_time_saturn_make(jd_to_fn, to_jd_fn),
+            subcommand_name=f"time-saturn-{name}",
+        )
+        return p
+
+    _add_saturnian_subparser("mimas",      "Mimas",      "SSaMiT",   0.94242196,
+                              bridge.jd_to_sol_saturn_mimas_time,
+                              bridge.sol_saturn_mimas_time_to_jd)
+    _add_saturnian_subparser("enceladus",  "Enceladus",  "SSaEnT",   1.37021785,
+                              bridge.jd_to_sol_saturn_enceladus_time,
+                              bridge.sol_saturn_enceladus_time_to_jd)
+    _add_saturnian_subparser("tethys",     "Tethys",     "SSaTeT",   1.88780216,
+                              bridge.jd_to_sol_saturn_tethys_time,
+                              bridge.sol_saturn_tethys_time_to_jd)
+    _add_saturnian_subparser("dione",      "Dione",      "SSaDiT",   2.73691500,
+                              bridge.jd_to_sol_saturn_dione_time,
+                              bridge.sol_saturn_dione_time_to_jd)
+    _add_saturnian_subparser("rhea",       "Rhea",       "SSaRhT",   4.51821200,
+                              bridge.jd_to_sol_saturn_rhea_time,
+                              bridge.sol_saturn_rhea_time_to_jd)
+    _add_saturnian_subparser("titan",      "Titan",      "SSaTiT",  15.94542100,
+                              bridge.jd_to_sol_saturn_titan_time,
+                              bridge.sol_saturn_titan_time_to_jd)
+    _add_saturnian_subparser("hyperion",   "Hyperion",   "SSaHyT",  21.27660925,
+                              bridge.jd_to_sol_saturn_hyperion_time,
+                              bridge.sol_saturn_hyperion_time_to_jd)
+    _add_saturnian_subparser("iapetus",    "Iapetus",    "SSaIaT",  79.32150000,
+                              bridge.jd_to_sol_saturn_iapetus_time,
+                              bridge.sol_saturn_iapetus_time_to_jd)
+    _add_saturnian_subparser("phoebe",     "Phoebe",     "SSaPhT", 550.56463600,
+                              bridge.jd_to_sol_saturn_phoebe_time,
+                              bridge.sol_saturn_phoebe_time_to_jd)
+    _add_saturnian_subparser("janus",      "Janus",      "SSaJaT",   0.69458200,
+                              bridge.jd_to_sol_saturn_janus_time,
+                              bridge.sol_saturn_janus_time_to_jd)
+    _add_saturnian_subparser("epimetheus", "Epimetheus", "SSaEpT",   0.69423500,
+                              bridge.jd_to_sol_saturn_epimetheus_time,
+                              bridge.sol_saturn_epimetheus_time_to_jd)
 
     # time-proper (v0.11.0) — Sol Proper Time standalone rate-only query
     _SPRT_BODY_CHOICES = sorted(SUPPORTED_BODIES)
