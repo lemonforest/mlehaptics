@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.14.1)
+(no entries yet — next entries land after v0.14.2)
+
+## [0.14.2] — 2026-05-06
+
+**Sol Moon Times: remaining 8 moons across 4 parent families.** Closes task `` `#86` `` for the current 38-body roster. Built via 4 parallel subagent worktrees (one per family) integrated into a single ship — first multi-agent ship in this repo.
+
+### Added — Mars (2 moons)
+
+Phobos (SMaPhT), Deimos (SMaDeT). Both likely captured asteroids (C/D-type spectral match). Phobos's sidereal period (0.319 d) is shorter than Mars's solar day (~24h 39m), so from Mars's surface Phobos rises in the **west**. Phobos/Deimos period ratio ≈ 3.96 — near 4:1 but not in mean-motion resonance.
+
+### Added — Jupiter inner regulars (4 moons)
+
+Metis (SJuMeT), Adrastea (SJuAdT), Amalthea (SJuAmT), Thebe (SJuThT). Metis + Adrastea are ring-shepherds; Amalthea was the last solar-system moon discovered by direct visual observation (E. E. Barnard, 1892).
+
+### Added — Uranus (1 moon)
+
+Titania (SUrTiT). Largest Uranian moon; only Uranian moon currently in BODIES roster — Oberon, Umbriel, Ariel, Miranda queued for a future ship. **SUrTiT vs SSaTiT** disambiguation is exactly the case the v0.14.1 6-letter policy was designed to handle.
+
+### Added — Neptune (1 moon)
+
+Triton (SNeTrT). Largest Neptunian moon; captured Kuiper Belt object; **only large moon in the solar system that orbits its planet retrograde**. Tidal deceleration is spiralling Triton inward; in ~3.6 Gyr it will become a ring system after crossing Neptune's Roche limit.
+
+### Encoder convention (Triton retrograde)
+
+`BODIES["triton"].period_days` is positive — we encode `omega = +2π/P` for ALL bodies regardless of prograde/retrograde direction; retrograde-ness is metadata, not a sign flip. Same convention as v0.5.4 Sol Uranian Time (Uranus has retrograde rotation).
+
+### Multi-agent ship (first in this repo)
+
+Subagents branched concurrent with v0.14.1 CI, each delivered: bridge wrappers + CLI subcommand + new test module + parity-smoke entries. Parent agent integrated the 4 deliverables into a single bridge.py / cli.py / parity-smoke ship (avoiding 4-way merge conflicts on shared files), copied the 4 test modules in directly, and added a generic `_add_moon_subparser` CLI helper that supersedes the v0.14.0/v0.14.1 family-specific helpers for v0.14.2 additions.
+
+### Test count
+
+497 pass, 4 skipped (was 399 + 4 in v0.14.1; +98 new).
 
 ## [0.14.1] — 2026-05-06
 
