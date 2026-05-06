@@ -607,21 +607,75 @@ boolean G_Responder (event_t* ev)
 // G_Ticker
 // Make ticcmd_ts for the players.
 //
-/* [SPECTRAL] Snapshot of secret-sector lightlevels at the moment
- * IDSPECTRAL is first activated. -1 = uninitialised / not a secret.
- * Tagged with the gametic at capture so we know to recapture after a
- * level change. */
+/* [SPECTRAL] Snapshot of secret-sector lightlevels + secret/neighbor
+ * tags. The secret-tagged sector is often behind a closed door (DOOM's
+ * renderer correctly occludes it), so we also propagate a half-amplitude
+ * pulse to the secret's graph-neighbors via ds_e1m1_adj[]. That lets
+ * the player see the hum BEFORE they can see the secret itself --
+ * which is the entire point of a "find the secret" cue. The bleed is
+ * a one-step diffusion on the spectral adjacency graph, related to
+ * but cheaper than Track 4 heat-eq propagation in the notebook. */
 static short	ds_secret_baseline[256];
+static boolean	ds_secret_was_secret[256];   /* original special==9 sectors */
+static boolean	ds_secret_is_neighbor[256];  /* graph-adjacent to a secret */
 static boolean	ds_secret_baseline_captured = false;
-static int	ds_secret_baseline_capture_levelstarttime = -1;
 
 /* Called from G_DoLoadLevel after gamestate flips to GS_LEVEL.
- * Forces the next G_DoSecretGlowTick to recapture baselines from the
- * fresh sector load. */
+ * Captures baselines + original-secret flags from the freshly-loaded
+ * sectors -- BEFORE any P_PlayerInSpecialSector tic could fire and
+ * zero the special. This way IDSPECTRAL keeps highlighting secrets
+ * even after the player has already entered them. */
 void G_SpectralResetSecretBaselines (void)
 {
-    ds_secret_baseline_captured = false;
-    ds_secret_baseline_capture_levelstarttime = -1;
+    int i;
+    /* Capture immediately if we have valid sectors. P_SetupLevel has
+     * already populated sectors[] / numsectors by the time
+     * G_DoLoadLevel reaches the call site. */
+    if (sectors != NULL && numsectors > 0 && numsectors <= 256)
+    {
+	int found = 0;
+	int neighbors = 0;
+	int j;
+	for (i = 0; i < numsectors; i++)
+	{
+	    ds_secret_was_secret[i]  = (sectors[i].special == 9);
+	    ds_secret_is_neighbor[i] = false;
+	    ds_secret_baseline[i]    = sectors[i].lightlevel;
+	    if (ds_secret_was_secret[i]) found++;
+	}
+	/* Second pass: propagate neighbor-flags one step on the spectral
+	 * adjacency graph (ds_e1m1_adj). A sector that's graph-adjacent
+	 * to ANY secret-tagged sector becomes a "neighbor" -- and will
+	 * receive a half-amplitude pulse so the hum is visible before
+	 * the player can see the secret itself. */
+	if (ds_spectral_is_registered ())
+	{
+	    for (i = 0; i < numsectors; i++)
+	    {
+		if (!ds_secret_was_secret[i]) continue;
+		for (j = 0; j < numsectors; j++)
+		{
+		    if (j == i) continue;
+		    if (!ds_secret_was_secret[j]
+			&& ds_lattice_adjacent (i, j)
+			&& !ds_secret_is_neighbor[j])
+		    {
+			ds_secret_is_neighbor[j] = true;
+			neighbors++;
+		    }
+		}
+	    }
+	}
+	ds_secret_baseline_captured = true;
+	fprintf (stderr,
+		 "[SPECTRAL] level loaded: %d secret sectors + %d "
+		 "graph-neighbor sectors registered (of %d total)\n",
+		 found, neighbors, numsectors);
+    }
+    else
+    {
+	ds_secret_baseline_captured = false;
+    }
 }
 
 /* Drive the secret-sector glow once per tic. The math (cosine
@@ -642,40 +696,45 @@ static void G_DoSecretGlowTick (void)
     if (sectors == NULL) return;
     if (!ds_spectral_is_registered ()) return;
     if (numsectors > 256) return;
+    /* baselines + which-sectors-were-originally-secret are populated
+     * in G_SpectralResetSecretBaselines() at level load, BEFORE any
+     * P_PlayerInSpecialSector tic could fire and zero the special. */
+    if (!ds_secret_baseline_captured) return;
 
-    /* On first activation: snapshot baselines for every secret-tagged
-     * sector. -1 elsewhere so we know to skip them in the pulse loop. */
-    if (ds_secretglow_is_active () && !ds_secret_baseline_captured)
-    {
-	for (i = 0; i < numsectors; i++)
-	    ds_secret_baseline[i] = (sectors[i].special == 9)
-		? sectors[i].lightlevel
-		: -1;
-	ds_secret_baseline_captured = true;
-    }
-
-    /* On deactivation: restore baselines and bail. */
+    /* On deactivation: restore baselines on every sector we touched
+     * (secret OR neighbor). Keep ds_secret_baseline_captured true
+     * across toggles so we still know the secret/neighbor sets. */
     if (!ds_secretglow_is_active ())
     {
-	if (ds_secret_baseline_captured)
-	{
-	    for (i = 0; i < numsectors; i++)
-		if (ds_secret_baseline[i] != -1)
-		    sectors[i].lightlevel = ds_secret_baseline[i];
-	    ds_secret_baseline_captured = false;
-	}
+	for (i = 0; i < numsectors; i++)
+	    if (ds_secret_was_secret[i] || ds_secret_is_neighbor[i])
+		sectors[i].lightlevel = ds_secret_baseline[i];
 	return;
     }
 
-    /* Active path: pulse each secret. Phase advances 4 units/tic at
-     * 35 Hz -> ~1.83 s per cycle. The per-sector amplitude is driven
-     * by spectral cosine similarity in ds_secretglow_pulse(). */
+    /* Active path: pulse each secret + each graph-neighbor. The
+     * neighbors get half-amplitude so the secret itself is brightest
+     * but its hum bleeds visibly into adjacent rooms. Phase advances
+     * 4 units/tic at 35 Hz -> ~1.83 s per cycle. */
     phase = (uint8_t)((gametic * 4) & 0xff);
     for (i = 0; i < numsectors; i++)
     {
 	int new_ll;
-	if (ds_secret_baseline[i] == -1) continue;
-	pulse  = (short)ds_secretglow_pulse (i, phase);
+	if (ds_secret_was_secret[i])
+	{
+	    pulse = (short)ds_secretglow_pulse (i, phase);
+	}
+	else if (ds_secret_is_neighbor[i])
+	{
+	    /* Half-amplitude diffusion bleed. Use the neighbor's own
+	     * sector_id for the BIP similarity term so hallways
+	     * leading to a secret pulse with the player's local phase. */
+	    pulse = (short)(ds_secretglow_pulse (i, phase) >> 1);
+	}
+	else
+	{
+	    continue;
+	}
 	new_ll = ds_secret_baseline[i] + pulse;
 	if (new_ll < 0)   new_ll = 0;
 	if (new_ll > 255) new_ll = 255;

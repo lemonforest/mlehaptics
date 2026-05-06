@@ -104,4 +104,12 @@ d_boolean ds_secretglow_is_active(void);
 int       ds_sin256(uint8_t phase);                   /* [-233..+233] */
 int       ds_secretglow_pulse(int sector_id, uint8_t phase);
 
+/* Returns 1 if sectors a and b are graph-adjacent in the precomputed
+ * E1M1 spectral lattice (ds_e1m1_adj), 0 otherwise. Caller is
+ * responsible for the registration check (ds_spectral_is_registered);
+ * unregistered maps return 0 unconditionally. Used by g_game.c to
+ * propagate the secret-glow pulse one hop along the spectral graph
+ * so the hum is visible in sectors adjacent to a hidden secret. */
+int       ds_lattice_adjacent(int a, int b);
+
 #endif /* DOOM_SPECTRAL_H */

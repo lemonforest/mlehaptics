@@ -583,6 +583,8 @@ ST_Responder (event_t* ev)
 	plyr->message = now_active
 	    ? "Spectral secrets: HUMMING"
 	    : "Spectral secrets: silent";
+	fprintf (stderr, "[SPECTRAL] IDSPECTRAL cheat: %s\n",
+		 now_active ? "ACTIVATED" : "deactivated");
       }
       // 'fa' cheat for killer fucking arsenal
       else if (cht_CheckCheat(&cheat_ammonokey, ev->data1))

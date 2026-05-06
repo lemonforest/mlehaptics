@@ -281,6 +281,14 @@ d_boolean ds_spectral_is_registered(void)
     return ds_lattice_registered;
 }
 
+int ds_lattice_adjacent(const int a, const int b)
+{
+    if (!ds_lattice_registered) return 0;
+    if (a < 0 || a >= DS_E1M1_SECTORS) return 0;
+    if (b < 0 || b >= DS_E1M1_SECTORS) return 0;
+    return ds_e1m1_adj[a][b] ? 1 : 0;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Secret glow (IDSPECTRAL cheat) -- spectral math primitives        */
 /* ------------------------------------------------------------------ */
@@ -324,13 +332,18 @@ int ds_sin256(uint8_t phase)
     else               return -ds_sine256_quarter[64 - i];
 }
 
-/* Per-secret-sector lightlevel pulse delta. Caller passes the player's
- * current BIP hypervector (via the engine global), the sector index,
- * and the tic-driven phase; returns a signed lightlevel offset
- * (typically +/- 56 units, clamped per-sector by the caller). The
- * hum has a baseline 8-unit amplitude even when similarity is zero,
- * so distant secrets still breathe; closer in spectral phase space
- * pushes the pulse up to ~64 units swing. */
+/* Per-secret-sector lightlevel pulse delta. Caller passes the sector
+ * index and the tic-driven phase; returns a signed lightlevel offset.
+ *
+ * Composition:
+ *   baseline_hum_amplitude     = 32 lightlevel units (always present)
+ *   similarity_gain            = up to +64 units at peak spectral
+ *                                 similarity to player's BIP HV
+ *   sin envelope               = quarter-wave LUT, [-233..+233] in Q8
+ *
+ * Total swing peaks at roughly +/- 90 units around baseline -- a
+ * full third of the 0..255 lightlevel range, unmistakable to the eye.
+ * Still pure-ALU: one tension call, one LUT lookup, three shifts. */
 int ds_secretglow_pulse(int sector_id, uint8_t phase)
 {
     int32_t tension;
@@ -338,16 +351,24 @@ int ds_secretglow_pulse(int sector_id, uint8_t phase)
     int32_t similarity_scaled;
     int     sin_val;
 
-    if (sector_id < 0 || sector_id >= DS_E1M1_SECTORS) return 0;
+    if (sector_id < 0 || sector_id >= DS_E1M1_SECTORS)
+    {
+        /* No anchor for this sector -- still hum the baseline so
+         * non-E1M1 secrets show some life if a future ds_data lattice
+         * lands. */
+        sin_val = ds_sin256(phase);
+        return (32 * sin_val) >> 8;  /* +/- ~29 units */
+    }
 
     tension = ds_get_haptic_tension(sector_id, &player_spectral_state);
     cos_sim_q16 = 65536 - tension;
     if (cos_sim_q16 < 0) cos_sim_q16 = 0;
 
-    /* Map cos similarity [0..65536] -> [0..56] gain (pure shifts). */
-    similarity_scaled = (cos_sim_q16 >> 11) + (cos_sim_q16 >> 12);
-    if (similarity_scaled > 56) similarity_scaled = 56;
+    /* Map cos similarity [0..65536] -> [0..64] gain. Pure shifts. */
+    similarity_scaled = cos_sim_q16 >> 10;
+    if (similarity_scaled > 64) similarity_scaled = 64;
 
     sin_val = ds_sin256(phase);  /* [-233..+233] */
-    return ((similarity_scaled + 8) * sin_val) >> 8;
+    /* baseline 32 units + up to 64 more from similarity. */
+    return ((similarity_scaled + 32) * sin_val) >> 8;
 }
