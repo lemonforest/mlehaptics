@@ -52,4 +52,34 @@ void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out);
 /* Returns true if an entity can transition between sectors based on Z constraints */
 d_boolean ds_fiber_can_traverse(int sec_a, int sec_b, int32_t entity_z, int32_t entity_height);
 
+/* --- Physics (Sheaf Raycast) --- */
+
+/* Bresenham line over the 128x128 MAPBLOCK grid. Currently a path-walk
+ * stub that always returns d_true once the path is exhausted; the sheaf
+ * restriction-map evaluation is reserved for a future track-3 ship.
+ * Provided here so the p_sight.c integration site links cleanly. */
+d_boolean ds_sheaf_raycast(int32_t x0, int32_t y0, int32_t x1, int32_t y1);
+
+/* --- Haptics (Tension) --- */
+
+/* Returns 16.16 fixed-point tension in [0, 1.0] = 1.0 - cosine_similarity
+ * between the entity's current hypervector and the per-sector anchor.
+ * Caller MUST gate this on a registered spectral lattice (E1M1 only at
+ * present); on unregistered maps the call is undefined. */
+int32_t ds_get_haptic_tension(int sector_id, const ds_hypervector_t *h);
+
+/* --- Map gating ---
+ *
+ * Spectral lattice tables in ds_data.h are E1M1-specific (85 sectors,
+ * precomputed phi/anchor/adjacency). The engine integration sites must
+ * call ds_spectral_is_registered() before invoking any per-sector
+ * predicate (ds_fiber_can_traverse, ds_get_haptic_tension); on
+ * unregistered maps the predicates would assert and abort.
+ *
+ * Set by p_setup.c::P_SetupLevel after sectors are loaded; takes the
+ * loaded sector count so a custom WAD with the same (episode, map)
+ * but a different sector count won't accidentally register. */
+void ds_set_current_map(int episode, int map, int sector_count);
+d_boolean ds_spectral_is_registered(void);
+
 #endif /* DOOM_SPECTRAL_H */

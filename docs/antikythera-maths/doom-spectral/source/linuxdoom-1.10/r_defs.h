@@ -131,7 +131,13 @@ typedef	struct
 
     int			linecount;
     struct line_s**	lines;	// [linecount] size
-    
+
+    // [SPECTRAL] Stable index into spectral lattice tables (ds_e1m1_*).
+    // Set in P_LoadSectors equal to the sector's load order. Used by
+    // ds_fiber_can_traverse / ds_get_haptic_tension when the current map
+    // is E1M1. -1 on maps without a registered spectral lattice.
+    int			id;
+
 } sector_t;
 
 

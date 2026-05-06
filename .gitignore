@@ -120,3 +120,13 @@ skyfield_data/
 # ephemerides_spectral/_native/`). Per-platform; not portable; not
 # shipped in source.
 docs/antikythera-maths/ephemerides-spectral/python/ephemerides_spectral/_native/
+
+# linuxdoom-1.10 build artifacts and CVS metadata (vendored from 1997
+# id Software cvsroot; per-platform .o files should not be tracked).
+docs/antikythera-maths/doom-spectral/source/linuxdoom-1.10/linux/*.o
+docs/antikythera-maths/doom-spectral/source/linuxdoom-1.10/linux/linuxxdoom
+docs/antikythera-maths/doom-spectral/source/linuxdoom-1.10/CVS/
+docs/antikythera-maths/doom-spectral/source/ipx/CVS/
+docs/antikythera-maths/doom-spectral/source/sersrc/CVS/
+docs/antikythera-maths/doom-spectral/source/sndserv/CVS/
+*.o

@@ -2,6 +2,10 @@
 #include "ds_data.h"
 #include <assert.h>
 
+/* [SPECTRAL] Player BIP hypervector. Single global; written by
+ * p_user.c once per think tick, read by ds_get_haptic_tension. */
+ds_hypervector_t player_spectral_state;
+
 /* 
  * JPL C Standard Compliance:
  * 1. No dynamic memory allocation.
@@ -143,4 +147,105 @@ void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out)
             }
         }
     }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Haptics (Tension)                                                 */
+/* ------------------------------------------------------------------ */
+
+int32_t ds_get_haptic_tension(const int sector_id, const ds_hypervector_t *const h)
+{
+    int32_t dot = 0;
+    uint32_t i;
+    const int8_t *anchor;
+    int32_t tension;
+
+    assert(sector_id >= 0);
+    assert(sector_id < DS_E1M1_SECTORS);
+    assert(h != (void *)0);
+
+    anchor = ds_e1m1_anchors[sector_id];
+
+    for (i = 0U; i < DS_BIP_DIM; ++i)
+    {
+        dot += (int32_t)(anchor[i] * h->h[i]);
+    }
+
+    /* Tension = 1.0 - similarity, in 16.16 fixed point.
+     * similarity = dot / DS_BIP_DIM (range [-1, +1])
+     * (dot / 512) * 65536 = dot * 128, so tension = 65536 - dot * 128. */
+    tension = 65536 - (dot * 128);
+    if (tension < 0)      tension = 0;
+    if (tension > 65536)  tension = 65536;
+    return tension;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Physics (Sheaf Raycast)                                            */
+/* ------------------------------------------------------------------ */
+
+d_boolean ds_sheaf_raycast(const int32_t x0, const int32_t y0,
+                           const int32_t x1, const int32_t y1)
+{
+    /* Bresenham over the 128x128 MAPBLOCK grid (>>23 from 16.16 fixed
+     * world coords; one block = 128 fracunits = 128 * 65536 raw units).
+     *
+     * Track 3 (Dynamic Sheaf Laplacian) restriction-map evaluation is
+     * deferred — for now we walk the path and return d_true so the
+     * p_sight.c fast-path is a no-op rather than a false-negative. */
+    int32_t bx0 = x0 >> 23;
+    int32_t by0 = y0 >> 23;
+    const int32_t bx1 = x1 >> 23;
+    const int32_t by1 = y1 >> 23;
+
+    const int32_t dx = (bx1 > bx0) ? (bx1 - bx0) : (bx0 - bx1);
+    /* Standard Bresenham wants dy = -|by1 - by0|. The reference
+     * implementation had a sign bug here: negation was applied to only
+     * one branch. Compute |dy| then negate once. */
+    const int32_t abs_dy = (by1 > by0) ? (by1 - by0) : (by0 - by1);
+    const int32_t dy = -abs_dy;
+    const int32_t sx = (bx0 < bx1) ? 1 : -1;
+    const int32_t sy = (by0 < by1) ? 1 : -1;
+    int32_t err = dx + dy;
+    int32_t e2;
+    int limit = 1000;  /* upper bound: blockmap diagonal ~360 blocks max */
+
+    while (limit-- > 0)
+    {
+        if (bx0 == bx1 && by0 == by1)
+        {
+            break;
+        }
+        e2 = 2 * err;
+        if (e2 >= dy) { err += dy; bx0 += sx; }
+        if (e2 <= dx) { err += dx; by0 += sy; }
+    }
+
+    return d_true;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Map gating                                                         */
+/* ------------------------------------------------------------------ */
+
+/* The spectral lattice tables in ds_data.h are E1M1-specific. On any
+ * other map the per-sector predicates would assert and abort. Engine
+ * integration sites MUST gate calls on ds_spectral_is_registered(). */
+static d_boolean ds_lattice_registered = d_false;
+
+void ds_set_current_map(const int episode, const int map,
+                        const int sector_count)
+{
+    /* Only E1M1 from the stock IWAD ships with a precomputed lattice.
+     * A custom WAD using the same (episode, map) tag but a different
+     * sector count would index the per-sector tables out of range, so
+     * the size match is part of the registration contract. */
+    ds_lattice_registered =
+        (episode == 1 && map == 1 && sector_count == DS_E1M1_SECTORS)
+        ? d_true : d_false;
+}
+
+d_boolean ds_spectral_is_registered(void)
+{
+    return ds_lattice_registered;
 }

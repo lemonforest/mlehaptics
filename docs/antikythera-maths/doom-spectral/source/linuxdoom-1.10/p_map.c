@@ -398,12 +398,18 @@ P_CheckPosition
 
     newsubsec = R_PointInSubsector (x,y);
 
-    // [SPECTRAL SLICE] Z-Fiber Manifold Check
-    if (thing->subsector && !ds_fiber_can_traverse(thing->subsector->sector->id, 
-                                                   newsubsec->sector->id, 
-                                                   thing->z, thing->height))
+    // [SPECTRAL] Z-Fiber Manifold Check. Gated on a registered spectral
+    // lattice (E1M1 only at present); on other maps this is a no-op.
+    // ds_set_current_map (called from P_SetupLevel) only registers the
+    // lattice when both sectors fit the E1M1 size bound, so the
+    // ds_fiber_can_traverse asserts cannot fire here.
+    if (ds_spectral_is_registered ()
+	&& thing->subsector
+	&& !ds_fiber_can_traverse (thing->subsector->sector->id,
+				   newsubsec->sector->id,
+				   thing->z, thing->height))
     {
-        return false;
+	return false;
     }
 
     ceilingline = NULL;

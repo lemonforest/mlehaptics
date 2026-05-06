@@ -329,12 +329,14 @@ P_CheckSight
     // Now look from eyes of t1 to any part of t2.
     sightcounts[1]++;
 
-    // [SPECTRAL SLICE] Sheaf Raycast Fast-Path
-    // Models LoS as a directed sheaf Laplacian traversing the Blockmap.
-    // If the ray absorbs entirely, we can early-out before BSP traversal.
-    if (!ds_sheaf_raycast(t1->x, t1->y, t2->x, t2->y))
+    // [SPECTRAL] Sheaf Raycast fast-path. Gated on a registered
+    // spectral lattice; the implementation is currently a Bresenham
+    // path-walk stub (always returns true) so the gate keeps the
+    // call-site cost zero on unregistered maps.
+    if (ds_spectral_is_registered ()
+	&& !ds_sheaf_raycast (t1->x, t1->y, t2->x, t2->y))
     {
-        return false;
+	return false;
     }
 
     validcount++;

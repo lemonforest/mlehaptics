@@ -271,14 +271,28 @@ void P_PlayerThink (player_t* player)
     
     P_CalcHeight (player);
 
-    // [SPECTRAL SLICE] Update BIP state
-    ds_bip_encode(player->mo->x, player->mo->y, &player->mo->spectral_state);
+    // [SPECTRAL] Update BIP state and trace haptic tension. Gated on
+    // (a) the local player only -- other players' tension is not
+    // observed, and (b) maps with a registered spectral lattice (E1M1
+    // only at present; the per-sector tables in ds_data.h would
+    // otherwise be indexed out of range).
+    if (player == &players[consoleplayer] && ds_spectral_is_registered ())
+    {
+	ds_bip_encode (player->mo->x, player->mo->y, &player_spectral_state);
 
-    // [SPECTRAL SLICE] Haptic Tension Trace
-    int32_t tension = ds_get_haptic_tension(player->mo->subsector->sector->id, &player->mo->spectral_state);
-    if (tension > 32768) { // Only log significant tension
-        printf("[HAPTIC] Sector %d Tension: %.4f\n", 
-               player->mo->subsector->sector->id, (float)tension / 65536.0f);
+	// devparm-gated trace. Without the gate, the printf would fire
+	// every think tick (35 Hz) and any TTY-attached run would tank.
+	if (devparm)
+	{
+	    int32_t tension = ds_get_haptic_tension
+		(player->mo->subsector->sector->id, &player_spectral_state);
+	    if (tension > 32768)
+	    {
+		fprintf (stderr, "[HAPTIC] sector=%d tension=%.4f\n",
+			 player->mo->subsector->sector->id,
+			 (float)tension / 65536.0f);
+	    }
+	}
     }
 
     if (player->mo->subsector->sector->special)
