@@ -10,7 +10,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.18.1)
+(no entries yet — next entries land after v0.18.2)
+
+## [0.18.2] — 2026-05-06
+
+**2-D `(f₂, f₃)` Fiedler-embedding upgrade for `bridge.predict_itn_accessibility`.** Pure-Python additive improvement; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Lift
+
+| Metric | v0.18.1 (1-D) | v0.18.2 (2-D) |
+| :--- | ---: | ---: |
+| Spearman ρ | +0.857 | +0.849 (~unchanged) |
+| R² | 0.507 | **0.644** (+27 %) |
+| In-sample MAE | 4.110 km/s | **2.995 km/s** (−27 %) |
+| LOOCV MAE | 4.238 km/s | **3.123 km/s** (−26 %) |
+
+Spearman ~unchanged (rank ordering was already strong); R² + MAE materially better.
+
+### Implementation
+
+`_research.predict_itn_accessibility` now:
+- Renames `_fiedler_with_sign` → `_eigvecs_2d_with_sign` returning `(λ₂, λ₃, f₂, f₃)`.
+- Anchors f₂ sign to shortest-period body (mercury); anchors f₃ sign to max-|f₃| entry.
+- Memoises the `(13, 2)` `_DEFAULT_EMBEDDING` matrix at module load.
+- `predict_itn_accessibility(...)` returns 2-D Euclidean distance + applies the 2-D OLS regression.
+
+### Bridge response (v0.18.2 fields)
+
+```json
+{
+  "ok": true,
+  "departure": "terra",
+  "target": "jupiter",
+  "fiedler_distance": 0.156,           // 1-D back-compat
+  "embedding_distance_2d": 0.624,      // NEW: 2-D Euclidean
+  "predicted_dv_kms": 15.70,
+  "calibration": {
+    "method": "OLS linear fit on 2-D (f₂, f₃) hybrid Fiedler embedding",
+    "weighting": "hybrid_dv_resonance",
+    "embedding_dim": 2,                 // NEW
+    "intercept_kms": 4.896324,
+    "slope_kms_per_fiedler_unit": 17.319301,
+    "r2": 0.643884,
+    "in_sample_mae_kms": 2.995,
+    "loocv_mae_kms": 3.123,
+    "loocv_median_abs_error_kms": 2.204, // NEW
+    "lambda_2": 0.013023,
+    "lambda_3": ...                      // NEW
+  }
+}
+```
+
+### Calibration constants (Pythonic API)
+
+The 2-D constants are the production calibration; the v0.18.1 1-D constants are preserved under `*_1D_HISTORICAL` names:
+
+| Constant | Value |
+| :--- | ---: |
+| `CALIBRATION_EMBEDDING_DIM` (new) | 2 |
+| `CALIBRATION_INTERCEPT_KMS` | 4.896324 |
+| `CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT` | 17.319301 |
+| `CALIBRATION_R2` | 0.643884 |
+| `CALIBRATION_IN_SAMPLE_MAE_KMS` | 2.994717 |
+| `CALIBRATION_LOOCV_MAE_KMS` | 3.122645 |
+| `CALIBRATION_LOOCV_MEDIAN_ABS_ERROR_KMS` (new) | 2.204213 |
+| `CALIBRATION_INTERCEPT_KMS_1D_HISTORICAL` | 8.680818 |
+| `CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT_1D_HISTORICAL` | 15.617194 |
+| `CALIBRATION_R2_1D_HISTORICAL` | 0.507203 |
+| `CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL` | 4.109664 |
+| `CALIBRATION_LOOCV_MAE_KMS_1D_HISTORICAL` | 4.237754 |
+
+### New research script
+
+`research/two_eigenvector_fiedler_embedding.py` — runs all three weightings (`inv_dv`, `resonance`, `hybrid`) under both 1-D and 2-D embeddings and emits the comparison table. Reads the same SHA1-keyed §13 ground-truth cache as the existing calibration script.
+
+### Test count
+
+685 pass, 41 skipped (was 681 + 41 in v0.18.1; +4 net new):
+- 4 new pinning the v0.18.2 calibration constants + the 1-D historical constants + `embedding_distance_2d` field + `embedding_dim`/`lambda_3`/`loocv_median_abs_error_kms` calibration metadata
+- All v0.18.1 sanity tests (direction-symmetry, cheap-vs-expensive ordering, non-negative predictions across 156 pairs) still pass with the new constants
+
+### Migration
+
+Pure-additive on the bridge response. Numeric `predicted_dv_kms` values change as expected (different regression). Callers pinning v0.18.1 numbers should re-pin to v0.18.2 values or read v0.18.1 numbers from the new `*_1D_HISTORICAL` constants. `ES_VERSION_STRING` bumps `0.18.1 → 0.18.2`.
 
 ## [0.18.1] — 2026-05-06
 

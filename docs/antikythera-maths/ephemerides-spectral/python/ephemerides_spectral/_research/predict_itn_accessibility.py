@@ -95,17 +95,40 @@ RESONANCE_MAX_INT: int = 30
 RESONANCE_RESIDUAL_SCALE: float = 5.0e-3
 EPS_DV_KMS: float = 1.0e-3
 
-# ---- Calibration constants (from calibrate_predict_itn_accessibility.py
-# on the §13 ground-truth sweep — 50 yr at J2000, max_legs=3, dv_budget
-# 30 km/s, threshold 0.1, 13-body heliocentric Tier-1 roster). ---------
-CALIBRATION_INTERCEPT_KMS: float = 8.680818
-CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT: float = 15.617194
-CALIBRATION_R2: float = 0.507203
-CALIBRATION_IN_SAMPLE_MAE_KMS: float = 4.109664
-CALIBRATION_LOOCV_MAE_KMS: float = 4.237754
+# ---- Calibration constants. v0.18.2 upgraded the predictor from a 1-D
+# Fiedler-distance regression to a 2-D (f₂, f₃) Euclidean-embedding
+# regression. Same Spearman rank correlation as the 1-D fit (ρ ≈ +0.85)
+# but ~27 % lower in-sample MAE and a tighter R² (0.51 → 0.64). The
+# second eigenvector f₃ adds an axis that distinguishes within-cluster
+# pairs that the single Fiedler vector collapsed; the rank ordering is
+# unchanged but the absolute Δv prediction is materially more accurate.
+#
+# Both calibrations fit on the same §13 ground truth (50 yr at J2000,
+# max_legs=3, dv_budget=30 km/s, threshold=0.1, 13-body heliocentric
+# Tier-1 roster). Production calibration (CALIBRATION_*) is the 2-D
+# embedding; the 1-D historical constants are exposed as
+# CALIBRATION_*_1D_HISTORICAL for traceability with v0.18.1 callers.
+CALIBRATION_EMBEDDING_DIM: int = 2
+
+# 1-D historical (v0.18.1) — kept for back-reference + tests.
+CALIBRATION_INTERCEPT_KMS_1D_HISTORICAL: float = 8.680818
+CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT_1D_HISTORICAL: float = 15.617194
+CALIBRATION_R2_1D_HISTORICAL: float = 0.507203
+CALIBRATION_IN_SAMPLE_MAE_KMS_1D_HISTORICAL: float = 4.109664
+CALIBRATION_LOOCV_MAE_KMS_1D_HISTORICAL: float = 4.237754
+
+# 2-D production (v0.18.2).
+CALIBRATION_INTERCEPT_KMS: float = 4.896324
+CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT: float = 17.319301
+CALIBRATION_R2: float = 0.643884
+CALIBRATION_IN_SAMPLE_MAE_KMS: float = 2.994717
+CALIBRATION_LOOCV_MAE_KMS: float = 3.122645
+CALIBRATION_LOOCV_MEDIAN_ABS_ERROR_KMS: float = 2.204213
+
+# Sample sizes (unchanged across 1-D / 2-D — same ground truth).
 CALIBRATION_N_FINITE_PAIRS: int = 53
 CALIBRATION_N_INF_PAIRS: int = 25
-CALIBRATION_SPEARMAN_RHO: float = 0.857
+CALIBRATION_SPEARMAN_RHO: float = 0.849
 CALIBRATION_WINDOW_YEARS: float = 50.0
 CALIBRATION_WINDOW_JD_LO: float = 2451545.0  # J2000.0 (TDB)
 
@@ -138,31 +161,52 @@ def _build_hybrid_laplacian(bodies: List[str]) -> np.ndarray:
     return D - W
 
 
-def _fiedler_with_sign(
+def _eigvecs_2d_with_sign(
     L: np.ndarray, bodies: List[str]
-) -> Tuple[float, np.ndarray]:
-    """Same sign convention as :mod:`body_architecture` — body of
-    shortest period forced to positive Fiedler entry."""
+) -> Tuple[float, float, np.ndarray, np.ndarray]:
+    """Return (λ₂, λ₃, f₂, f₃) with deterministic sign conventions.
+
+    f₂: same convention as :mod:`body_architecture` — body of shortest
+    period forced to positive entry.
+
+    f₃: max-|f₃| entry forced positive (no physics-anchor available; the
+    second-smallest non-trivial mode picks out a different structure
+    than the first, so a max-magnitude convention is the simplest
+    reproducible choice).
+    """
     eigvals, eigvecs = np.linalg.eigh(L)
     lam2 = float(eigvals[1])
-    f = eigvecs[:, 1].copy()
+    lam3 = float(eigvals[2])
+    f2 = eigvecs[:, 1].copy()
+    f3 = eigvecs[:, 2].copy()
     periods = np.array(
         [BODIES[name].period_days for name in bodies], dtype=np.float64
     )
     pivot = int(np.argmin(periods))
-    if f[pivot] < 0.0:
-        f = -f
-    return lam2, f
+    if f2[pivot] < 0.0:
+        f2 = -f2
+    if f3[int(np.argmax(np.abs(f3)))] < 0.0:
+        f3 = -f3
+    return lam2, lam3, f2, f3
 
 
 # Module-level memoised eigendecomposition. The default 13-body roster
-# is fixed; we eagerly compute the Fiedler vector once at module load
-# (microseconds — eigh on a 13×13 symmetric matrix). Per-pair lookups
-# are then O(1).
+# is fixed; we eagerly compute the (f₂, f₃) embedding once at module
+# load (microseconds — eigh on a 13×13 symmetric matrix). Per-pair
+# lookups are then O(1).
 _DEFAULT_LAPLACIAN: np.ndarray = _build_hybrid_laplacian(HELIOCENTRIC_BODIES)
-_DEFAULT_LAMBDA_2, _DEFAULT_FIEDLER = _fiedler_with_sign(
-    _DEFAULT_LAPLACIAN, HELIOCENTRIC_BODIES
+(
+    _DEFAULT_LAMBDA_2,
+    _DEFAULT_LAMBDA_3,
+    _DEFAULT_FIEDLER,        # f₂
+    _DEFAULT_F3,             # f₃
+) = _eigvecs_2d_with_sign(_DEFAULT_LAPLACIAN, HELIOCENTRIC_BODIES)
+
+# 2-D (f₂, f₃) embedding — production v0.18.2 predictor uses this.
+_DEFAULT_EMBEDDING: np.ndarray = np.column_stack(
+    [_DEFAULT_FIEDLER, _DEFAULT_F3]
 )
+
 _DEFAULT_BODY_INDEX: Dict[str, int] = {
     name: idx for idx, name in enumerate(HELIOCENTRIC_BODIES)
 }
@@ -250,34 +294,44 @@ def predict_itn_accessibility(
 
     i = _DEFAULT_BODY_INDEX[dep]
     j = _DEFAULT_BODY_INDEX[tgt]
-    f_i = float(_DEFAULT_FIEDLER[i])
-    f_j = float(_DEFAULT_FIEDLER[j])
-    d_F = abs(f_i - f_j)
+    # 2-D embedding distance on (f₂, f₃) — the v0.18.2 production
+    # predictor (replaces v0.18.1's 1-D |f₂[i] - f₂[j]| distance).
+    embedding_i = _DEFAULT_EMBEDDING[i]
+    embedding_j = _DEFAULT_EMBEDDING[j]
+    d_2d = float(np.linalg.norm(embedding_i - embedding_j))
+    # 1-D Fiedler distance preserved as a returned field (back-compat;
+    # callers who pinned the v0.18.1 fiedler_distance value still see
+    # the same number).
+    d_1d = abs(float(_DEFAULT_FIEDLER[i]) - float(_DEFAULT_FIEDLER[j]))
     predicted = (
         CALIBRATION_INTERCEPT_KMS
-        + CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT * d_F
+        + CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT * d_2d
     )
 
     return {
         "ok": True,
         "departure": dep,
         "target": tgt,
-        "fiedler_distance": d_F,
+        "fiedler_distance": d_1d,            # 1-D back-compat field
+        "embedding_distance_2d": d_2d,       # 2-D production distance
         "predicted_dv_kms": float(predicted),
         "calibration": {
-            "method": "OLS linear fit on hybrid Fiedler distance",
+            "method": "OLS linear fit on 2-D (f₂, f₃) hybrid Fiedler embedding",
             "weighting": "hybrid_dv_resonance",
+            "embedding_dim": CALIBRATION_EMBEDDING_DIM,
             "intercept_kms": CALIBRATION_INTERCEPT_KMS,
             "slope_kms_per_fiedler_unit": CALIBRATION_SLOPE_KMS_PER_FIEDLER_UNIT,
             "spearman_rho": CALIBRATION_SPEARMAN_RHO,
             "r2": CALIBRATION_R2,
             "in_sample_mae_kms": CALIBRATION_IN_SAMPLE_MAE_KMS,
             "loocv_mae_kms": CALIBRATION_LOOCV_MAE_KMS,
+            "loocv_median_abs_error_kms": CALIBRATION_LOOCV_MEDIAN_ABS_ERROR_KMS,
             "n_finite_pairs": CALIBRATION_N_FINITE_PAIRS,
             "n_inf_pairs": CALIBRATION_N_INF_PAIRS,
             "window_years": CALIBRATION_WINDOW_YEARS,
             "window_jd_lo": CALIBRATION_WINDOW_JD_LO,
             "lambda_2": _DEFAULT_LAMBDA_2,
+            "lambda_3": _DEFAULT_LAMBDA_3,
         },
     }
 
