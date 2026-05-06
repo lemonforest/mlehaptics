@@ -460,7 +460,17 @@ unsigned char	cheat_clev_seq[] =
 unsigned char	cheat_mypos_seq[] =
 {
     0xb2, 0x26, 0xb6, 0xba, 0x2a, 0xf6, 0xea, 0xff	// idmypos
-}; 
+};
+
+// [SPECTRAL] idspectral -- toggle the secret-sector glow driven by
+// the BIP encoder + per-sector hypervector anchors in ds_e1m1_anchors.
+// Sequence is the SCRAMBLE()-encoded byte stream for the literal
+// keypress sequence "idspectral".
+unsigned char	cheat_idspectral_seq[] =
+{
+    0xb2, 0x26, 0xea, 0x2a, 0xa6, 0xe2, 0x2e, 0x6a, 0xa2, 0x36, 0xff
+    /* i     d     s     p     e     c     t     r     a     l    end */
+};
 
 
 // Now what?
@@ -470,6 +480,7 @@ cheatseq_t	cheat_ammo = { cheat_ammo_seq, 0 };
 cheatseq_t	cheat_ammonokey = { cheat_ammonokey_seq, 0 };
 cheatseq_t	cheat_noclip = { cheat_noclip_seq, 0 };
 cheatseq_t	cheat_commercial_noclip = { cheat_commercial_noclip_seq, 0 };
+cheatseq_t	cheat_idspectral = { cheat_idspectral_seq, 0 };
 
 cheatseq_t	cheat_powerup[7] =
 {
@@ -553,12 +564,27 @@ ST_Responder (event_t* ev)
 	{
 	  if (plyr->mo)
 	    plyr->mo->health = 100;
-	  
+
 	  plyr->health = 100;
 	  plyr->message = STSTR_DQDON;
 	}
-	else 
+	else
 	  plyr->message = STSTR_DQDOFF;
+      }
+      // [SPECTRAL] 'idspectral' toggles the secret-sector glow.
+      // Drives sectors[i].lightlevel from a pulse modulated by the BIP
+      // encoder's cosine similarity vs ds_e1m1_anchors[i]. Pure ALU.
+      // Only meaningful on E1M1 (the only map with a registered
+      // spectral lattice) -- on other maps the gate is a no-op.
+      else if (cht_CheckCheat(&cheat_idspectral, ev->data1))
+      {
+	d_boolean now_active = !ds_secretglow_is_active ();
+	ds_secretglow_set_active (now_active);
+	plyr->message = now_active
+	    ? "Spectral secrets: HUMMING"
+	    : "Spectral secrets: silent";
+	fprintf (stderr, "[SPECTRAL] IDSPECTRAL cheat: %s\n",
+		 now_active ? "ACTIVATED" : "deactivated");
       }
       // 'fa' cheat for killer fucking arsenal
       else if (cht_CheckCheat(&cheat_ammonokey, ev->data1))

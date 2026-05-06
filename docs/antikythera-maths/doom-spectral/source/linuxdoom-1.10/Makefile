@@ -6,9 +6,20 @@
 #
 CC=  gcc  # gcc or g++
 
-CFLAGS=-g -Wall -DNORMALUNIX -DLINUX # -DUSEASM 
-LDFLAGS=-L/usr/X11R6/lib
-LIBS=-lXext -lX11 -lnsl -lm
+# [SPECTRAL] 1997 linuxdoom-1.10 has many 32-bit-isms baked in
+# (pointer-truncation in WAD overlay structs, sign-extended ints stored
+# back as pointers, the renderer's column / sprite / visplane data
+# layouts). Rather than port the renderer to 64-bit (the entire reason
+# Chocolate Doom and PrBoom+ exist), build the engine in 32-bit mode.
+# Requires multilib: `sudo apt install gcc-multilib libc6-dev-i386
+# libx11-dev:i386 libxext-dev:i386 libnsl-dev:i386`.
+CFLAGS=-g -Wall -m32 -DNORMALUNIX -DLINUX # -DUSEASM
+LDFLAGS=-m32 -L/usr/X11R6/lib
+# Dropped -lnsl: the i_net.c BSD sockets path uses libc directly, and
+# the 1997 link line's `-lnsl` is for SunRPC / NIS calls that the
+# engine never actually invokes. libnsl:i386 isn't installed by
+# default on Ubuntu multilib, and we don't need it.
+LIBS=-lXext -lX11 -lm
 
 # subdirectory for objects
 O=linux

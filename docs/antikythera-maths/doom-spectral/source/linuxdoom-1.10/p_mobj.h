@@ -278,15 +278,18 @@ typedef struct mobj_s
     int			lastlook;	
 
     // For nightmare respawn.
-    mapthing_t		spawnpoint;	
+    mapthing_t		spawnpoint;
 
     // Thing being chased/attacked for tracers.
-    struct mobj_s*	tracer;	
+    struct mobj_s*	tracer;
 
-    // Spectral Lattice state (Phase-9 BIP)
-    ds_hypervector_t    spectral_state;
-    
 } mobj_t;
+
+// [SPECTRAL] Player BIP hypervector. The spectral integration only
+// observes the local player, so a single 512-byte global supplants the
+// previous per-mobj field (which would have allocated ~75 KB across an
+// E1M1 thinglist for state that was only ever written for one mobj).
+extern ds_hypervector_t player_spectral_state;
 
 
 

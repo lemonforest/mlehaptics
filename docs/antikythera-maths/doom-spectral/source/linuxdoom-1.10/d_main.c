@@ -871,6 +871,10 @@ void D_DoomMain (void)
     
     printf ("%s\n",title);
 
+    // [SPECTRAL] Identify this as a spectral-fork build alongside the
+    // base linuxdoom-1.10 banner so a tester can tell at a glance.
+    printf ("                     " SPECTRAL_VERSION_STRING "\n");
+
     if (devparm)
 	printf(D_DEVSTR);
     

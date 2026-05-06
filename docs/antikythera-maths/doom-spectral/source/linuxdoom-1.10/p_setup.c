@@ -252,6 +252,8 @@ void P_LoadSectors (int lump)
 	ss->special = SHORT(ms->special);
 	ss->tag = SHORT(ms->tag);
 	ss->thinglist = NULL;
+	// [SPECTRAL] Stable load-order index for spectral lattice lookups.
+	ss->id = i;
     }
 	
     Z_Free (data);
@@ -595,13 +597,13 @@ P_SetupLevel
     wminfo.partime = 180;
     for (i=0 ; i<MAXPLAYERS ; i++)
     {
-	players[i].killcount = players[i].secretcount 
+	players[i].killcount = players[i].secretcount
 	    = players[i].itemcount = 0;
     }
 
     // Initial height of PointOfView
     // will be set by player think.
-    players[consoleplayer].viewz = 1; 
+    players[consoleplayer].viewz = 1;
 
     // Make sure all sounds are stopped before Z_FreeTags.
     S_Start ();			
@@ -645,10 +647,16 @@ P_SetupLevel
 	
     leveltime = 0;
 	
-    // note: most of this ordering is important	
+    // note: most of this ordering is important
     P_LoadBlockMap (lumpnum+ML_BLOCKMAP);
     P_LoadVertexes (lumpnum+ML_VERTEXES);
     P_LoadSectors (lumpnum+ML_SECTORS);
+    // [SPECTRAL] Register the lattice now that numsectors is known.
+    // Lattice tables in ds_data.h are E1M1-specific; ds_set_current_map
+    // refuses registration unless (episode, map, sector_count) matches
+    // the precomputed tables, so a custom WAD with the same tag but a
+    // different sector count won't accidentally engage the lattice.
+    ds_set_current_map (episode, map, numsectors);
     P_LoadSideDefs (lumpnum+ML_SIDEDEFS);
 
     P_LoadLineDefs (lumpnum+ML_LINEDEFS);

@@ -26,6 +26,7 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
@@ -76,6 +77,23 @@ boolean		doShm;
 
 XShmSegmentInfo	X_shminfo;
 int		X_shmeventtype;
+
+// [SPECTRAL] TrueColor support. Modern X servers (incl. WSLg) no longer
+// expose 8-bit PseudoColor visuals, so the original "256-color
+// PseudoColor only" assumption from 1997 fails fatally on every modern
+// display. When PseudoColor isn't available we fall back to the
+// server's native TrueColor depth (typically 24-bit) and expand the
+// engine's 8-bit indexed framebuffer to 32-bit RGBA at blit time via a
+// per-palette LUT. The renderer never sees this -- it still paints 8-bit
+// indices into screens[0], which is now allocated independently of the
+// X11 image surface.
+static boolean   X_truecolor = false;
+static uint32_t  X_palette_lut[256];
+static int       X_truecolor_depth;     // X visual depth (24 typical)
+static int       X_truecolor_bpp;       // bits per pixel in image (32 typical)
+static byte     *X_8bit_buffer = NULL;  // SCREENWIDTH*SCREENHEIGHT 8-bit
+                                        // backing store for screens[0]
+                                        // when X_truecolor
 
 // Fake mouse handling.
 // This cannot work properly w/o DGA.
@@ -480,6 +498,21 @@ void I_FinishUpdate (void)
   	Expand4 ((unsigned *)(screens[0]), (double *) (image->data));
     }
 
+    if (X_truecolor)
+    {
+	/* [SPECTRAL] LUT-expand 8-bit indexed screens[0] -> 32-bit ARGB
+	 * image->data. Single linear pass, one indexed load and one
+	 * 32-bit store per pixel. At 320x200 this is 64000 iterations,
+	 * trivial on any modern CPU; gcc -O2 vectorises this with
+	 * gather instructions on x86 SSE4.1+ but even without SIMD it
+	 * fits inside a single 35Hz tick by orders of magnitude. */
+	const byte    *src = screens[0];
+	uint32_t      *dst = (uint32_t *)image->data;
+	const int      n   = X_width * X_height;
+	for (i = 0; i < n; i++)
+	    dst[i] = X_palette_lut[src[i]];
+    }
+
     if (doShm)
     {
 
@@ -541,6 +574,24 @@ void UploadNewPalette(Colormap cmap, byte *palette)
     register int	i;
     register int	c;
     static boolean	firstcall = true;
+
+    if (X_truecolor)
+    {
+	/* [SPECTRAL] TrueColor path. Populate X_palette_lut[256] with the
+	 * gamma-corrected RGB triples packed as 0x00RRGGBB (X11 ZPixmap
+	 * order on a little-endian client). The renderer paints 8-bit
+	 * indices into screens[0]; I_FinishUpdate expands index -> pixel
+	 * via this LUT into the 32-bit XImage. */
+	for (i=0 ; i<256 ; i++)
+	{
+	    uint32_t r = gammatable[usegamma][*palette++];
+	    uint32_t g = gammatable[usegamma][*palette++];
+	    uint32_t b = gammatable[usegamma][*palette++];
+	    X_palette_lut[i] = (r << 16) | (g << 8) | b;
+	}
+	(void)firstcall; (void)c; (void)cmap;
+	return;
+    }
 
 #ifdef __cplusplus
     if (X_visualinfo.c_class == PseudoColor && X_visualinfo.depth == 8)
@@ -766,33 +817,47 @@ void I_InitGraphics(void)
 	    I_Error("Could not open display (DISPLAY=[%s])", getenv("DISPLAY"));
     }
 
-    // use the default visual 
+    // [SPECTRAL] Try the original 1997 path (8-bit PseudoColor) first
+    // for compatibility with vintage X servers; if that's not offered
+    // (which is the case on essentially every X server shipped after
+    // ~2010, including Xorg-without-libXcvt-PseudoColor and WSLg), fall
+    // back to the server's native TrueColor depth and expand the
+    // engine's 8-bit indexed framebuffer to 32-bit RGBA at blit time.
     X_screen = DefaultScreen(X_display);
-    if (!XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
-	I_Error("xdoom currently only supports 256-color PseudoColor screens");
-    X_visual = X_visualinfo.visual;
-
-    // check for the MITSHM extension
-    doShm = XShmQueryExtension(X_display);
-
-    // even if it's available, make sure it's a local connection
-    if (doShm)
+    if (XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
     {
-	if (!displayname) displayname = (char *) getenv("DISPLAY");
-	if (displayname)
-	{
-	    d = displayname;
-	    while (*d && (*d != ':')) d++;
-	    if (*d) *d = 0;
-	    if (!(!strcasecmp(displayname, "unix") || !*displayname)) doShm = false;
-	}
+	X_truecolor = false;
+	X_visual = X_visualinfo.visual;
+    }
+    else if (XMatchVisualInfo(X_display, X_screen, 24, TrueColor, &X_visualinfo)
+	  || XMatchVisualInfo(X_display, X_screen, 32, TrueColor, &X_visualinfo))
+    {
+	X_truecolor = true;
+	X_truecolor_depth = X_visualinfo.depth;
+	X_truecolor_bpp   = 32;  /* X11 always pads 24-bit visuals to 32 bpp */
+	X_visual = X_visualinfo.visual;
+    }
+    else
+    {
+	I_Error("No supported visual: need 8-bit PseudoColor or 24/32-bit "
+		"TrueColor; this server offered neither");
     }
 
-    fprintf(stderr, "Using MITSHM extension\n");
+    // [SPECTRAL] MITSHM disabled. WSLg's X server reports MITSHM as
+    // available but the shared-memory segment isn't actually accessible
+    // across the WSL/Win32 boundary, and disabling it costs us
+    // essentially nothing on a 320x200 framebuffer. Always XPutImage.
+    doShm = false;
 
-    // create the colormap
-    X_cmap = XCreateColormap(X_display, RootWindow(X_display,
-						   X_screen), X_visual, AllocAll);
+    // create the colormap; on TrueColor visuals there's no AllocAll
+    // colormap to populate (we synthesize the palette in
+    // X_palette_lut[] via I_SetPalette / UploadNewPalette), so use the
+    // default colormap instead.
+    if (X_truecolor)
+	X_cmap = DefaultColormap(X_display, X_screen);
+    else
+	X_cmap = XCreateColormap(X_display, RootWindow(X_display, X_screen),
+				 X_visual, AllocAll);
 
     // setup attributes for main window
     attribmask = CWEventMask | CWColormap | CWBorderPixel;
@@ -811,7 +876,7 @@ void I_InitGraphics(void)
 					x, y,
 					X_width, X_height,
 					0, // borderwidth
-					8, // depth
+					X_truecolor ? X_truecolor_depth : 8,
 					InputOutput,
 					X_visual,
 					attribmask,
@@ -850,64 +915,45 @@ void I_InitGraphics(void)
 		     GrabModeAsync, GrabModeAsync,
 		     X_mainWindow, None, CurrentTime);
 
-    if (doShm)
+    // [SPECTRAL] doShm is forced false above. Create a plain XImage at
+    // the visual's native depth: 8-bit ZPixmap on PseudoColor, 32-bit
+    // ZPixmap on TrueColor. On TrueColor, screens[0] is allocated
+    // independently as an 8-bit indexed backing store; the LUT
+    // expansion to 32-bit BGRA happens in I_FinishUpdate.
+    if (X_truecolor)
     {
-
-	X_shmeventtype = XShmGetEventBase(X_display) + ShmCompletion;
-
-	// create the image
-	image = XShmCreateImage(	X_display,
-					X_visual,
-					8,
-					ZPixmap,
-					0,
-					&X_shminfo,
-					X_width,
-					X_height );
-
-	grabsharedmemory(image->bytes_per_line * image->height);
-
-
-	// UNUSED
-	// create the shared memory segment
-	// X_shminfo.shmid = shmget (IPC_PRIVATE,
-	// image->bytes_per_line * image->height, IPC_CREAT | 0777);
-	// if (X_shminfo.shmid < 0)
-	// {
-	// perror("");
-	// I_Error("shmget() failed in InitGraphics()");
-	// }
-	// fprintf(stderr, "shared memory id=%d\n", X_shminfo.shmid);
-	// attach to the shared memory segment
-	// image->data = X_shminfo.shmaddr = shmat(X_shminfo.shmid, 0, 0);
-	
-
-	if (!image->data)
-	{
-	    perror("");
-	    I_Error("shmat() failed in InitGraphics()");
-	}
-
-	// get the X server to attach to it
-	if (!XShmAttach(X_display, &X_shminfo))
-	    I_Error("XShmAttach() failed in InitGraphics()");
-
+	const size_t img_bytes = (size_t)X_width * (size_t)X_height * 4;
+	image = XCreateImage(	X_display,
+				X_visual,
+				X_truecolor_depth,
+				ZPixmap,
+				0,
+				(char*)malloc(img_bytes),
+				X_width, X_height,
+				32,         /* bitmap_pad */
+				X_width*4 ); /* bytes_per_line */
     }
     else
     {
 	image = XCreateImage(	X_display,
-    				X_visual,
-    				8,
-    				ZPixmap,
-    				0,
-    				(char*)malloc(X_width * X_height),
-    				X_width, X_height,
-    				8,
-    				X_width );
-
+				X_visual,
+				8,
+				ZPixmap,
+				0,
+				(char*)malloc(X_width * X_height),
+				X_width, X_height,
+				8,
+				X_width );
     }
 
-    if (multiply == 1)
+    if (X_truecolor)
+    {
+	/* engine paints into our own 8-bit buffer; LUT-expand on blit. */
+	if (!X_8bit_buffer)
+	    X_8bit_buffer = (byte*)malloc(SCREENWIDTH * SCREENHEIGHT);
+	screens[0] = X_8bit_buffer;
+    }
+    else if (multiply == 1)
 	screens[0] = (unsigned char *) (image->data);
     else
 	screens[0] = (unsigned char *) malloc (SCREENWIDTH * SCREENHEIGHT);

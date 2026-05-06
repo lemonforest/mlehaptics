@@ -41,6 +41,8 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "p_setup.h"
 #include "p_saveg.h"
 #include "p_tick.h"
+#include "r_state.h"		/* [SPECTRAL] sectors / numsectors */
+#include "r_defs.h"		/* [SPECTRAL] sector_t */
 
 #include "d_main.h"
 
@@ -481,10 +483,13 @@ void G_DoLoadLevel (void)
 	memset (players[i].frags,0,sizeof(players[i].frags)); 
     } 
 		 
-    P_SetupLevel (gameepisode, gamemap, 0, gameskill);    
-    displayplayer = consoleplayer;		// view the guy you are playing    
-    starttime = I_GetTime (); 
-    gameaction = ga_nothing; 
+    P_SetupLevel (gameepisode, gamemap, 0, gameskill);
+    // [SPECTRAL] Reset secret-glow baselines for the new level so the
+    // next G_DoSecretGlowTick recaptures from the fresh sector load.
+    G_SpectralResetSecretBaselines ();
+    displayplayer = consoleplayer;		// view the guy you are playing
+    starttime = I_GetTime ();
+    gameaction = ga_nothing;
     Z_CheckHeap ();
     
     // clear cmd building stuff
@@ -602,15 +607,153 @@ boolean G_Responder (event_t* ev)
 // G_Ticker
 // Make ticcmd_ts for the players.
 //
-void G_Ticker (void) 
-{ 
+/* [SPECTRAL] Snapshot of secret-sector lightlevels + secret/neighbor
+ * tags. The secret-tagged sector is often behind a closed door (DOOM's
+ * renderer correctly occludes it), so we also propagate a half-amplitude
+ * pulse to the secret's graph-neighbors via ds_e1m1_adj[]. That lets
+ * the player see the hum BEFORE they can see the secret itself --
+ * which is the entire point of a "find the secret" cue. The bleed is
+ * a one-step diffusion on the spectral adjacency graph, related to
+ * but cheaper than Track 4 heat-eq propagation in the notebook. */
+static short	ds_secret_baseline[256];
+static boolean	ds_secret_was_secret[256];   /* original special==9 sectors */
+static boolean	ds_secret_is_neighbor[256];  /* graph-adjacent to a secret */
+static boolean	ds_secret_baseline_captured = false;
+
+/* Called from G_DoLoadLevel after gamestate flips to GS_LEVEL.
+ * Captures baselines + original-secret flags from the freshly-loaded
+ * sectors -- BEFORE any P_PlayerInSpecialSector tic could fire and
+ * zero the special. This way IDSPECTRAL keeps highlighting secrets
+ * even after the player has already entered them. */
+void G_SpectralResetSecretBaselines (void)
+{
+    int i;
+    /* Capture immediately if we have valid sectors. P_SetupLevel has
+     * already populated sectors[] / numsectors by the time
+     * G_DoLoadLevel reaches the call site. */
+    if (sectors != NULL && numsectors > 0 && numsectors <= 256)
+    {
+	int found = 0;
+	int neighbors = 0;
+	int j;
+	for (i = 0; i < numsectors; i++)
+	{
+	    ds_secret_was_secret[i]  = (sectors[i].special == 9);
+	    ds_secret_is_neighbor[i] = false;
+	    ds_secret_baseline[i]    = sectors[i].lightlevel;
+	    if (ds_secret_was_secret[i]) found++;
+	}
+	/* Second pass: propagate neighbor-flags one step on the spectral
+	 * adjacency graph (ds_e1m1_adj). A sector that's graph-adjacent
+	 * to ANY secret-tagged sector becomes a "neighbor" -- and will
+	 * receive a half-amplitude pulse so the hum is visible before
+	 * the player can see the secret itself. */
+	if (ds_spectral_is_registered ())
+	{
+	    for (i = 0; i < numsectors; i++)
+	    {
+		if (!ds_secret_was_secret[i]) continue;
+		for (j = 0; j < numsectors; j++)
+		{
+		    if (j == i) continue;
+		    if (!ds_secret_was_secret[j]
+			&& ds_lattice_adjacent (i, j)
+			&& !ds_secret_is_neighbor[j])
+		    {
+			ds_secret_is_neighbor[j] = true;
+			neighbors++;
+		    }
+		}
+	    }
+	}
+	ds_secret_baseline_captured = true;
+	fprintf (stderr,
+		 "[SPECTRAL] level loaded: %d secret sectors + %d "
+		 "graph-neighbor sectors registered (of %d total)\n",
+		 found, neighbors, numsectors);
+    }
+    else
+    {
+	ds_secret_baseline_captured = false;
+    }
+}
+
+/* Drive the secret-sector glow once per tic. The math (cosine
+ * similarity vs sector anchor + sin LUT phase) is in doom_spectral.c;
+ * here we walk sectors[] and apply the pulse delta to lightlevel. */
+static void G_DoSecretGlowTick (void)
+{
+    int    i;
+    short  pulse;
+    uint8_t phase;
+
+    /* Only run during actual gameplay. At title screen / intermission /
+     * finale the engine has either NULL `sectors` (early boot) or
+     * stale `sectors` from the previous level (between levels). Either
+     * way, walking sectors[i] is unsafe and used to crash the engine
+     * when IDSPECTRAL was active across a level transition. */
+    if (gamestate != GS_LEVEL) return;
+    if (sectors == NULL) return;
+    if (!ds_spectral_is_registered ()) return;
+    if (numsectors > 256) return;
+    /* baselines + which-sectors-were-originally-secret are populated
+     * in G_SpectralResetSecretBaselines() at level load, BEFORE any
+     * P_PlayerInSpecialSector tic could fire and zero the special. */
+    if (!ds_secret_baseline_captured) return;
+
+    /* On deactivation: restore baselines on every sector we touched
+     * (secret OR neighbor). Keep ds_secret_baseline_captured true
+     * across toggles so we still know the secret/neighbor sets. */
+    if (!ds_secretglow_is_active ())
+    {
+	for (i = 0; i < numsectors; i++)
+	    if (ds_secret_was_secret[i] || ds_secret_is_neighbor[i])
+		sectors[i].lightlevel = ds_secret_baseline[i];
+	return;
+    }
+
+    /* Active path: pulse each secret + each graph-neighbor. The
+     * neighbors get half-amplitude so the secret itself is brightest
+     * but its hum bleeds visibly into adjacent rooms. Phase advances
+     * 4 units/tic at 35 Hz -> ~1.83 s per cycle. */
+    phase = (uint8_t)((gametic * 4) & 0xff);
+    for (i = 0; i < numsectors; i++)
+    {
+	int new_ll;
+	if (ds_secret_was_secret[i])
+	{
+	    pulse = (short)ds_secretglow_pulse (i, phase);
+	}
+	else if (ds_secret_is_neighbor[i])
+	{
+	    /* Half-amplitude diffusion bleed. Use the neighbor's own
+	     * sector_id for the BIP similarity term so hallways
+	     * leading to a secret pulse with the player's local phase. */
+	    pulse = (short)(ds_secretglow_pulse (i, phase) >> 1);
+	}
+	else
+	{
+	    continue;
+	}
+	new_ll = ds_secret_baseline[i] + pulse;
+	if (new_ll < 0)   new_ll = 0;
+	if (new_ll > 255) new_ll = 255;
+	sectors[i].lightlevel = (short)new_ll;
+    }
+}
+
+void G_Ticker (void)
+{
     int		i;
-    int		buf; 
+    int		buf;
     ticcmd_t*	cmd;
-    
+
+    // [SPECTRAL] Drive the IDSPECTRAL secret-sector glow.
+    G_DoSecretGlowTick ();
+
     // do player reborns if needed
-    for (i=0 ; i<MAXPLAYERS ; i++) 
-	if (playeringame[i] && players[i].playerstate == PST_REBORN) 
+    for (i=0 ; i<MAXPLAYERS ; i++)
+	if (playeringame[i] && players[i].playerstate == PST_REBORN)
 	    G_DoReborn (i);
     
     // do things to change the game state
@@ -1584,13 +1727,37 @@ void G_DoPlayDemo (void)
     skill_t skill; 
     int             i, episode, map; 
 	 
-    gameaction = ga_nothing; 
-    demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
-    if ( *demo_p++ != VERSION)
+    gameaction = ga_nothing;
+    demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC);
+    /* [SPECTRAL] PCB-jumper for demo version mismatch.
+     *
+     * Stock shareware/registered DOOM IWADs ship demo lumps tagged at
+     * VERSION 109 (DOOM 1.9). linuxdoom-1.10 was forked at VERSION 110
+     * and on a strict mismatch the original code bails with an
+     * fprintf and returns ga_nothing -- which leaves the title-screen
+     * state machine half-initialised and the engine effectively
+     * unusable on every IWAD that ships in the wild.
+     *
+     * The demo format itself is byte-compatible 109<->110 (tic-command
+     * stream is unchanged; only the version-byte tag advanced). So we
+     * accept any demoversion, log a one-line note when it isn't the
+     * native VERSION, and consume the byte unchanged. This is the same
+     * jumper Chocolate Doom et al. apply.
+     */
     {
-      fprintf( stderr, "Demo is from a different game version!\n");
-      gameaction = ga_nothing;
-      return;
+	int demoversion = *demo_p++;
+	if (demoversion != VERSION)
+	{
+	    static int warned = 0;
+	    if (!warned)
+	    {
+		fprintf (stderr,
+			 "[SPECTRAL] demo version %d != engine VERSION %d "
+			 "(jumper engaged; tic-stream is byte-compatible)\n",
+			 demoversion, VERSION);
+		warned = 1;
+	    }
+	}
     }
     
     skill = *demo_p++; 

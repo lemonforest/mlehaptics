@@ -32,6 +32,7 @@ rcsid[] = "$Id: m_misc.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <ctype.h>
 
@@ -226,7 +227,11 @@ typedef struct
 {
     char*	name;
     int*	location;
-    int		defaultvalue;
+    intptr_t	defaultvalue;		// widened from int (Ubuntu/gcc-11
+					// rejects (int)<string-literal> as a
+					// load-time constant on 64-bit; the
+					// chat-macro and mousedev entries
+					// store a char* via this field)
     int		scantranslate;		// PC scan code hack
     int		untranslated;		// lousy hack
 } default_t;
@@ -261,8 +266,8 @@ default_t	defaults[] =
 #endif
 
 #ifdef LINUX
-    {"mousedev", (int*)&mousedev, (int)"/dev/ttyS0"},
-    {"mousetype", (int*)&mousetype, (int)"microsoft"},
+    {"mousedev", (int*)&mousedev, (intptr_t)"/dev/ttyS0"},
+    {"mousetype", (int*)&mousetype, (intptr_t)"microsoft"},
 #endif
 
     {"use_mouse",&usemouse, 1},
