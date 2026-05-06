@@ -268,6 +268,74 @@ def _cmd_time_terra_luna(args: argparse.Namespace) -> int:
     )
 
 
+# ── v0.14.0 Sol Moon Times — Galileans (Io / Europa / Ganymede / Callisto)
+#
+# Per the moons-stuck-to-parent naming convention (v0.9.1):
+#   time-jupiter-io       → Sol Jupiter-Io Time (SJIT)
+#   time-jupiter-europa   → Sol Jupiter-Europa Time (SJET)
+#   time-jupiter-ganymede → Sol Jupiter-Ganymede Time (SJGT)
+#   time-jupiter-callisto → Sol Jupiter-Callisto Time (SJCT)
+#
+# Each is a thin wrapper around the bridge primitive — the bridge
+# closure-helpers handle the actual math.
+
+def _cmd_time_jupiter_io(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Io Time (SJIT) — anchored sidereal-cycle count for Io."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_io_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_io_time(args.jd), args)
+
+
+def _cmd_time_jupiter_europa(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Europa Time (SJET) — anchored sidereal-cycle count for Europa."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_europa_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_europa_time(args.jd), args)
+
+
+def _cmd_time_jupiter_ganymede(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Ganymede Time (SJGT) — anchored sidereal-cycle count for Ganymede."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_ganymede_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_ganymede_time(args.jd), args)
+
+
+def _cmd_time_jupiter_callisto(args: argparse.Namespace) -> int:
+    """Sol Jupiter-Callisto Time (SJCT) — anchored sidereal-cycle count for Callisto."""
+    if args.sidereal_count is not None:
+        return _emit(
+            bridge.sol_jupiter_callisto_time_to_jd(args.sidereal_count),
+            pretty=args.pretty,
+        )
+    return _emit_proper(bridge.jd_to_sol_jupiter_callisto_time(args.jd), args)
+
+
+# ── v0.14.2 Sol Moon Times — 8 moons across 4 families.
+#
+# All four sub-families (Mars, Jupiter inner regulars, Uranus, Neptune)
+# share the same simple shape: --jd / --sidereal-count mutex; the four
+# v0.14.0/v0.14.1-style closure factories below produce the per-family
+# subcommand handlers. Subparser registration uses generic helpers
+# below the `setup_parser` function.
+
+def _make_moon_cmd(jd_to_fn, to_jd_fn):
+    """Generic factory for time-<parent>-<moon> CLI handlers."""
+    def _impl(args):
+        if args.sidereal_count is not None:
+            return _emit(to_jd_fn(args.sidereal_count), pretty=args.pretty)
+        return _emit_proper(jd_to_fn(args.jd), args)
+    return _impl
+
+
 # ── v0.11.0 Sol Proper Time (SPrT) — standalone rate-only query
 
 def _cmd_time_proper(args: argparse.Namespace) -> int:
@@ -1245,6 +1313,283 @@ def _make_parser() -> argparse.ArgumentParser:
                      help=f"Historical anchor (default {STLT_DEFAULT_EPOCH!r})")
     _add_proper_flags(ttl)
     ttl.set_defaults(func=_cmd_time_terra_luna, subcommand_name="time-terra-luna")
+
+    # time-jupiter-{io,europa,ganymede,callisto} (v0.14.0) — Galilean Sol Moon Times.
+    #
+    # Per the moons-stuck-to-parent naming convention (v0.9.1). Each is
+    # an anchored sidereal-cycle count from J2000 — no historical-epoch
+    # menu like STLT (Galileans don't have a Greek-astronomy archive;
+    # Galileo's 1610 telescopic discovery is a candidate non-default for
+    # a future ship).
+    #
+    # The four near-identical subparsers are built via a shared helper
+    # to keep them consistent — same CLI shape, same --jd/--sidereal-count
+    # mutex, same help-block format.
+    def _add_galilean_subparser(name: str, body_label: str, abbrev: str,
+                                period_days: float, handler):
+        p = sub.add_parser(
+            f"time-jupiter-{name}",
+            help=f"Sol Jupiter-{body_label} Time ({abbrev}) at a JD — anchored sidereal-cycle count",
+            description=(
+                f"Convert JD (TDB) to Sol Jupiter-{body_label} Time ({abbrev}) —\n"
+                f"anchored sidereal-cycle count for {body_label} since J2000.0.\n"
+                f"\n"
+                f"{body_label} is tidally locked to Jupiter, so:\n"
+                f"\n"
+                f"  sidereal day = orbital period = rotation period\n"
+                f"               = {period_days:.6f} days\n"
+                f"\n"
+                f"Naming follows the moons-stuck-to-parent convention\n"
+                f"(v0.9.1): the 'Jupiter-{body_label}' in the name signals\n"
+                f"that this is *the moon's* clock as a member of the\n"
+                f"Jovian system, not Jupiter's surface clock (= SJT).\n"
+                f"\n"
+                f"Use --sidereal-count to invert."
+            ),
+            epilog=(
+                f"Examples:\n"
+                f"  # Sidereal-cycle count for {body_label} at J2000\n"
+                f"  ephemerides-spectral time-jupiter-{name} --jd 2451545.0\n\n"
+                f"  # Inverse: 100 sidereal cycles back to JD_TDB\n"
+                f"  ephemerides-spectral time-jupiter-{name} --sidereal-count 100"
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("--jd", type=float, default=None,
+                       help=f"JD (TDB) to convert to Sol Jupiter-{body_label} Time")
+        g.add_argument("--sidereal-count", dest="sidereal_count",
+                       type=float, default=None,
+                       help="Sidereal-cycle count (since J2000) to invert back to JD_TDB")
+        _add_proper_flags(p)
+        p.set_defaults(func=handler, subcommand_name=f"time-jupiter-{name}")
+        return p
+
+    _add_galilean_subparser("io",       "Io",       "SJuIoT",  1.76913786, _cmd_time_jupiter_io)
+    _add_galilean_subparser("europa",   "Europa",   "SJuEuT",  3.55118100, _cmd_time_jupiter_europa)
+    _add_galilean_subparser("ganymede", "Ganymede", "SJuGaT",  7.15455296, _cmd_time_jupiter_ganymede)
+    _add_galilean_subparser("callisto", "Callisto", "SJuCaT", 16.68901840, _cmd_time_jupiter_callisto)
+
+    # ── v0.14.1 Saturnian Sol Moon Times — 11 moons.
+    #
+    # Per the v0.14.1 abbreviation policy switch (4-letter → 6-letter),
+    # all moons across the package use S<Planet2><Moon2>T pattern. The
+    # CLI subcommand naming follows time-saturn-<moon>; same shared
+    # helper as the Galileans for consistency.
+    def _cmd_time_saturn_make(jd_to_fn, to_jd_fn):
+        """Closure factory — same handler shape as the four explicit
+        time-jupiter-<moon> handlers above. All 11 Saturnians use this
+        single helper (eliminates the per-moon `def _cmd_*` boilerplate).
+        """
+        def _impl(args):
+            if args.sidereal_count is not None:
+                return _emit(to_jd_fn(args.sidereal_count), pretty=args.pretty)
+            return _emit_proper(jd_to_fn(args.jd), args)
+        return _impl
+
+    def _add_saturnian_subparser(name: str, body_label: str, abbrev: str,
+                                  period_days: float, jd_to_fn, to_jd_fn):
+        p = sub.add_parser(
+            f"time-saturn-{name}",
+            help=f"Sol Saturn-{body_label} Time ({abbrev}) at a JD — anchored sidereal-cycle count",
+            description=(
+                f"Convert JD (TDB) to Sol Saturn-{body_label} Time ({abbrev}) —\n"
+                f"anchored sidereal-cycle count for {body_label} since J2000.0.\n"
+                f"\n"
+                f"{body_label} is tidally locked to Saturn"
+                + (" (rotation chaotic — orbital period referenced for cycle count)"
+                   if name == "hyperion" else "") + ", so:\n"
+                f"\n"
+                f"  sidereal day = orbital period{' (= rotation period)' if name != 'hyperion' else ''}\n"
+                f"               = {period_days:.6f} days\n"
+                f"\n"
+                f"Naming follows the moons-stuck-to-parent convention\n"
+                f"(v0.9.1) with the v0.14.1 6-letter S<Planet2><Moon2>T\n"
+                f"abbreviation pattern.\n"
+                f"\n"
+                f"Use --sidereal-count to invert."
+            ),
+            epilog=(
+                f"Examples:\n"
+                f"  ephemerides-spectral time-saturn-{name} --jd 2451545.0\n\n"
+                f"  ephemerides-spectral time-saturn-{name} --sidereal-count 100"
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("--jd", type=float, default=None,
+                       help=f"JD (TDB) to convert to Sol Saturn-{body_label} Time")
+        g.add_argument("--sidereal-count", dest="sidereal_count",
+                       type=float, default=None,
+                       help="Sidereal-cycle count (since J2000) to invert back to JD_TDB")
+        _add_proper_flags(p)
+        p.set_defaults(
+            func=_cmd_time_saturn_make(jd_to_fn, to_jd_fn),
+            subcommand_name=f"time-saturn-{name}",
+        )
+        return p
+
+    _add_saturnian_subparser("mimas",      "Mimas",      "SSaMiT",   0.94242196,
+                              bridge.jd_to_sol_saturn_mimas_time,
+                              bridge.sol_saturn_mimas_time_to_jd)
+    _add_saturnian_subparser("enceladus",  "Enceladus",  "SSaEnT",   1.37021785,
+                              bridge.jd_to_sol_saturn_enceladus_time,
+                              bridge.sol_saturn_enceladus_time_to_jd)
+    _add_saturnian_subparser("tethys",     "Tethys",     "SSaTeT",   1.88780216,
+                              bridge.jd_to_sol_saturn_tethys_time,
+                              bridge.sol_saturn_tethys_time_to_jd)
+    _add_saturnian_subparser("dione",      "Dione",      "SSaDiT",   2.73691500,
+                              bridge.jd_to_sol_saturn_dione_time,
+                              bridge.sol_saturn_dione_time_to_jd)
+    _add_saturnian_subparser("rhea",       "Rhea",       "SSaRhT",   4.51821200,
+                              bridge.jd_to_sol_saturn_rhea_time,
+                              bridge.sol_saturn_rhea_time_to_jd)
+    _add_saturnian_subparser("titan",      "Titan",      "SSaTiT",  15.94542100,
+                              bridge.jd_to_sol_saturn_titan_time,
+                              bridge.sol_saturn_titan_time_to_jd)
+    _add_saturnian_subparser("hyperion",   "Hyperion",   "SSaHyT",  21.27660925,
+                              bridge.jd_to_sol_saturn_hyperion_time,
+                              bridge.sol_saturn_hyperion_time_to_jd)
+    _add_saturnian_subparser("iapetus",    "Iapetus",    "SSaIaT",  79.32150000,
+                              bridge.jd_to_sol_saturn_iapetus_time,
+                              bridge.sol_saturn_iapetus_time_to_jd)
+    _add_saturnian_subparser("phoebe",     "Phoebe",     "SSaPhT", 550.56463600,
+                              bridge.jd_to_sol_saturn_phoebe_time,
+                              bridge.sol_saturn_phoebe_time_to_jd)
+    _add_saturnian_subparser("janus",      "Janus",      "SSaJaT",   0.69458200,
+                              bridge.jd_to_sol_saturn_janus_time,
+                              bridge.sol_saturn_janus_time_to_jd)
+    _add_saturnian_subparser("epimetheus", "Epimetheus", "SSaEpT",   0.69423500,
+                              bridge.jd_to_sol_saturn_epimetheus_time,
+                              bridge.sol_saturn_epimetheus_time_to_jd)
+
+    # ── v0.14.2 Sol Moon Times — 8 moons across 4 parent families.
+    #
+    # Generic helper for any moon under any parent — supersedes the
+    # family-specific Galilean / Saturnian helpers above for the v0.14.2
+    # additions. (The four pre-v0.14.2 helpers are kept to avoid
+    # mass-rewriting existing PRs that didn't introduce the policy switch.)
+    def _add_moon_subparser(parent_name: str, moon_name: str,
+                             body_label: str, abbrev: str,
+                             period_days: float,
+                             jd_to_fn, to_jd_fn,
+                             extra_note: str = ""):
+        sub_name = f"time-{parent_name}-{moon_name}"
+        parent_label = parent_name.capitalize()
+        p = sub.add_parser(
+            sub_name,
+            help=f"Sol {parent_label}-{body_label} Time ({abbrev}) at a JD — anchored sidereal-cycle count",
+            description=(
+                f"Convert JD (TDB) to Sol {parent_label}-{body_label} Time ({abbrev}) —\n"
+                f"anchored sidereal-cycle count for {body_label} since J2000.0.\n"
+                f"\n"
+                f"{body_label} is tidally locked to {parent_label}, so:\n"
+                f"\n"
+                f"  sidereal day = orbital period = rotation period\n"
+                f"               = {period_days:.6f} days\n"
+                f"\n"
+                + (extra_note + "\n\n" if extra_note else "")
+                + f"Naming follows the v0.14.1 6-letter S<Planet2><Moon2>T\n"
+                f"convention; abbreviations are globally distinct across all\n"
+                f"Sol Moon Times.\n"
+                f"\n"
+                f"Use --sidereal-count to invert."
+            ),
+            epilog=(
+                f"Examples:\n"
+                f"  ephemerides-spectral {sub_name} --jd 2451545.0\n\n"
+                f"  ephemerides-spectral {sub_name} --sidereal-count 100"
+            ),
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("--jd", type=float, default=None,
+                       help=f"JD (TDB) to convert to Sol {parent_label}-{body_label} Time")
+        g.add_argument("--sidereal-count", dest="sidereal_count",
+                       type=float, default=None,
+                       help="Sidereal-cycle count (since J2000) to invert back to JD_TDB")
+        _add_proper_flags(p)
+        p.set_defaults(func=_make_moon_cmd(jd_to_fn, to_jd_fn),
+                        subcommand_name=sub_name)
+        return p
+
+    # Mars (Phobos, Deimos)
+    _add_moon_subparser(
+        "mars", "phobos", "Phobos", "SMaPhT", 0.31891023,
+        bridge.jd_to_sol_mars_phobos_time, bridge.sol_mars_phobos_time_to_jd,
+        extra_note="Likely a captured asteroid (C/D-type spectral match).\n"
+                   "Phobos's sidereal period is SHORTER than Mars's solar day,\n"
+                   "so from Mars's surface Phobos rises in the WEST.",
+    )
+    _add_moon_subparser(
+        "mars", "deimos", "Deimos", "SMaDeT", 1.26244000,
+        bridge.jd_to_sol_mars_deimos_time, bridge.sol_mars_deimos_time_to_jd,
+        extra_note="Likely a captured asteroid (C/D-type spectral match);\n"
+                   "companion to Phobos. NOT in 4:1 mean-motion resonance\n"
+                   "with Phobos despite the period ratio being ~3.96.",
+    )
+
+    # Jupiter inner regulars (Metis, Adrastea, Amalthea, Thebe)
+    _add_moon_subparser(
+        "jupiter", "metis", "Metis", "SJuMeT", 0.29478000,
+        bridge.jd_to_sol_jupiter_metis_time, bridge.sol_jupiter_metis_time_to_jd,
+        extra_note="Innermost known Jovian moon; ring-shepherd of Jupiter's\n"
+                   "main ring (with Adrastea). Discovered in Voyager 2 imagery (1979).",
+    )
+    _add_moon_subparser(
+        "jupiter", "adrastea", "Adrastea", "SJuAdT", 0.29826000,
+        bridge.jd_to_sol_jupiter_adrastea_time, bridge.sol_jupiter_adrastea_time_to_jd,
+        extra_note="Second ring-shepherd of Jupiter's main ring (with Metis).\n"
+                   "Smallest Jovian inner regular by mean radius (~8 km).\n"
+                   "Discovered in Voyager 2 imagery (1979).",
+    )
+    _add_moon_subparser(
+        "jupiter", "amalthea", "Amalthea", "SJuAmT", 0.49817905,
+        bridge.jd_to_sol_jupiter_amalthea_time, bridge.sol_jupiter_amalthea_time_to_jd,
+        extra_note="Largest Jovian inner regular (radius ~84 km); distinctly\n"
+                   "reddish color. Discovered by E. E. Barnard 1892 — the last\n"
+                   "solar-system moon discovered by direct visual observation.",
+    )
+    _add_moon_subparser(
+        "jupiter", "thebe", "Thebe", "SJuThT", 0.67451400,
+        bridge.jd_to_sol_jupiter_thebe_time, bridge.sol_jupiter_thebe_time_to_jd,
+        extra_note="Outermost Jovian inner regular; orbits between Amalthea and Io.\n"
+                   "Discovered in Voyager 1 imagery (S. Synnott, 1979).",
+    )
+
+    # Uranus (Titania)
+    _add_moon_subparser(
+        "uranus", "titania", "Titania", "SUrTiT", 8.70586900,
+        bridge.jd_to_sol_uranus_titania_time, bridge.sol_uranus_titania_time_to_jd,
+        extra_note="Largest moon of Uranus (radius ~789 km); discovered by\n"
+                   "William Herschel 1787. Currently the only Uranian moon in\n"
+                   "the BODIES roster; Oberon, Umbriel, Ariel, Miranda are\n"
+                   "queued for a future ship.\n"
+                   "\n"
+                   "NOTE: SUrTiT (Titania) and SSaTiT (Saturn's Titan) share\n"
+                   "the `Ti` moon prefix — disambiguated by the parent prefix\n"
+                   "(`Ur` vs `Sa`). Exactly the disambiguation the v0.14.1\n"
+                   "6-letter abbreviation policy was designed to provide.",
+    )
+
+    # Neptune (Triton)
+    _add_moon_subparser(
+        "neptune", "triton", "Triton", "SNeTrT", 5.87685400,
+        bridge.jd_to_sol_neptune_triton_time, bridge.sol_neptune_triton_time_to_jd,
+        extra_note="Largest Neptunian moon (radius ~1353 km — bigger than\n"
+                   "Pluto). RETROGRADE orbit — the only large moon in the\n"
+                   "solar system that orbits its planet backward; strong\n"
+                   "evidence Triton is a captured Kuiper Belt object.\n"
+                   "\n"
+                   "Tidal deceleration (because of the retrograde orbit) is\n"
+                   "spiralling Triton INWARD; in ~3.6 Gyr it will cross\n"
+                   "Neptune's Roche limit and become a ring system.\n"
+                   "\n"
+                   "Encoder convention: BODIES['triton'].period_days is\n"
+                   "positive (omega = +2π/P for ALL bodies regardless of\n"
+                   "prograde/retrograde direction; retrograde is metadata,\n"
+                   "not a sign flip). Sol Time count proceeds positive-monotonically.",
+    )
 
     # time-proper (v0.11.0) — Sol Proper Time standalone rate-only query
     _SPRT_BODY_CHOICES = sorted(SUPPORTED_BODIES)

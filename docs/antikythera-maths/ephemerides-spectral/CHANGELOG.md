@@ -7,7 +7,158 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.7)
+(no entries yet — next entries land after v0.14.2)
+
+## [0.14.2] — 2026-05-06
+
+**Sol Moon Times: remaining 8 moons across 4 parent families.** Closes task `` `#86` `` for the current 38-body roster. Built via 4 parallel subagent worktrees (one per family) integrated into a single ship — first multi-agent ship in this repo.
+
+### Added — Mars (2 moons)
+
+Phobos (SMaPhT), Deimos (SMaDeT). Both likely captured asteroids (C/D-type spectral match). Phobos's sidereal period (0.319 d) is shorter than Mars's solar day (~24h 39m), so from Mars's surface Phobos rises in the **west**. Phobos/Deimos period ratio ≈ 3.96 — near 4:1 but not in mean-motion resonance.
+
+### Added — Jupiter inner regulars (4 moons)
+
+Metis (SJuMeT), Adrastea (SJuAdT), Amalthea (SJuAmT), Thebe (SJuThT). Metis + Adrastea are ring-shepherds; Amalthea was the last solar-system moon discovered by direct visual observation (E. E. Barnard, 1892).
+
+### Added — Uranus (1 moon)
+
+Titania (SUrTiT). Largest Uranian moon; only Uranian moon currently in BODIES roster — Oberon, Umbriel, Ariel, Miranda queued for a future ship. **SUrTiT vs SSaTiT** disambiguation is exactly the case the v0.14.1 6-letter policy was designed to handle.
+
+### Added — Neptune (1 moon)
+
+Triton (SNeTrT). Largest Neptunian moon; captured Kuiper Belt object; **only large moon in the solar system that orbits its planet retrograde**. Tidal deceleration is spiralling Triton inward; in ~3.6 Gyr it will become a ring system after crossing Neptune's Roche limit.
+
+### Encoder convention (Triton retrograde)
+
+`BODIES["triton"].period_days` is positive — we encode `omega = +2π/P` for ALL bodies regardless of prograde/retrograde direction; retrograde-ness is metadata, not a sign flip. Same convention as v0.5.4 Sol Uranian Time (Uranus has retrograde rotation).
+
+### Multi-agent ship (first in this repo)
+
+Subagents branched concurrent with v0.14.1 CI, each delivered: bridge wrappers + CLI subcommand + new test module + parity-smoke entries. Parent agent integrated the 4 deliverables into a single bridge.py / cli.py / parity-smoke ship (avoiding 4-way merge conflicts on shared files), copied the 4 test modules in directly, and added a generic `_add_moon_subparser` CLI helper that supersedes the v0.14.0/v0.14.1 family-specific helpers for v0.14.2 additions.
+
+### Test count
+
+497 pass, 4 skipped (was 399 + 4 in v0.14.1; +98 new).
+
+## [0.14.1] — 2026-05-06
+
+**Sol Moon Times: Saturnians (11 moons) + abbreviation policy switch (4-letter → 6-letter).** Second slice of task `` `#86` ``. The abbreviation contingency policy from v0.14.0's ROADMAP fired exactly as predicted: Saturnians introduced two collisions under the v0.14.0 4-letter pattern (Tethys + Titan; Enceladus + Epimetheus) → uniform switch across all Sol Moon Times.
+
+### Saturnian moons added (11)
+
+Mimas (SSaMiT), Enceladus (SSaEnT), Tethys (SSaTeT), Dione (SSaDiT), Rhea (SSaRhT), Titan (SSaTiT), Hyperion (SSaHyT), Iapetus (SSaIaT), Phoebe (SSaPhT), Janus (SSaJaT), Epimetheus (SSaEpT).
+
+### Galilean abbreviations retroactively renamed
+
+`SJIT → SJuIoT`, `SJET → SJuEuT`, `SJGT → SJuGaT`, `SJCT → SJuCaT`. Python function names + CLI subcommand names + return-shape unchanged; only the `epoch.abbreviation` string changes.
+
+### Resonance witnesses
+
+Tests verify Mimas-Tethys 4:2 (Cassini Division), Enceladus-Dione 2:1 (Enceladus tidal heating), Titan-Hyperion 4:3 (Hyperion chaotic rotation), and the Janus-Epimetheus co-orbital pair.
+
+### Hyperion footnote
+
+The only known major moon NOT in tidal lock — `sidereal_period_days` references its orbital period in our convention; rotation-phase coupling is decoupled, an open research direction.
+
+### Test count
+
+399 pass, 4 skipped (was 294 + 4 in v0.14.0).
+
+## [0.14.0] — 2026-05-05
+
+**Sol Moon Times: Galileans (Io / Europa / Ganymede / Callisto).** First slice of task `` `#86` ``. Extends the Sol Time hierarchy to non-Luna moons under the moons-stuck-to-parent `Sol <Parent>-<Body> Time` naming convention from v0.9.1.
+
+### Added
+
+- **Generic moon-time primitive** (`_research/time_scales.py`): `MoonTime` dataclass + `jd_to_moon_time` factory + inverse + `SOL_MOON_TIME_J2000_JD_TDB` constant. Body-agnostic: caller supplies parent + sidereal period; bridge layer reads them from `BODIES`.
+
+- **Four per-Galilean bridge wrappers** + inverses with abbreviations **SJIT**, **SJET**, **SJGT**, **SJCT**.
+
+- **Four per-Galilean CLI subcommands**: `time-jupiter-io`, `time-jupiter-europa`, `time-jupiter-ganymede`, `time-jupiter-callisto`. Built via a shared `_add_galilean_subparser` helper — same `--jd`/`--sidereal-count` mutex, same augmenting-flag support (`--proper` / `--state` / `--dynamics`).
+
+- **35 new tests** in `tests/test_galilean_sol_moon_times.py` + 8 parity-smoke registrations (`python_only`). Covers J2000-zero, after-one-sidereal-period, inverse round-trip, NaN/Inf rejection, CLI parsing, abbreviation uniqueness, and a Galilean Laplace-resonance witness (`n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`).
+
+### Naming convention contingencies
+
+ROADMAP gains a `## Naming convention contingencies` section documenting the fallback policy if moon-letter collisions arise in future ships. Current 4-letter abbreviations are `S<Planet><Moon>T`; the fallback (when triggered) switches uniformly across all Sol Moon Times to a 6-letter `S<Planet2><Moon2>T` pattern (e.g., `SJuGaT` for Sol Jupiter-Ganymede Time). Forward-looking; no collisions yet in the v0.14.0 Galilean roster.
+
+### Test count
+
+294 tests pass, 4 skipped (was 251 + 4 in v0.13.10).
+
+### Migration
+
+None. Pure-additive. No API / encoder / ABI / encoder-test changes.
+
+## [0.13.10] — 2026-05-05
+
+**Drop `edited` from docs-check workflow trigger types — fixes post-merge double-fire.** CI-only patch; no code changes.
+
+### Why
+
+User-flagged on PR `` `#214` `` (v0.13.9 ship): the docs-check workflow was deterministically double-firing at every merge time. Two `pull_request` events at the same second on the PR's branch ~3 seconds before the merge committed; concurrency-cancel caught it (one CANCELLED, one SUCCESS) but the wasted CI churn + confusing run-history was observable.
+
+### Root cause + fix
+
+GitHub web UI's "Squash and merge" workflow fires `pull_request: edited` (merge-commit dialog populates the title/body fields) near-simultaneously with `pull_request: synchronize` (GitHub recomputes `refs/pull/N/merge`). With both event types in our workflow's `types` list, both fired runs at the same second.
+
+Fix: drop `edited` from the trigger types in `.github/workflows/ephemerides-spectral-docs-check.yml`. Now `[opened, synchronize, reopened, labeled]` — matches the narrower trigger list used by `ephemerides-spectral-ci.yml`, which never had this issue.
+
+Trade-off: `[skip-docs-check]` opt-out added retroactively (after PR open, by editing the PR body) no longer triggers a re-run; user pushes a synchronizing commit or accepts the stale advisory. Acceptable — opt-out should be set up-front.
+
+### Migration
+
+None. Workflow-only change. 251 tests pass, 4 skipped.
+
+## [0.13.9] — 2026-05-05
+
+**JPL Power-of-Ten Rules 6 + 7 manual audits — closes the v0.13.4-v0.13.9 rule-fix sequence. All ten rules satisfied.** Audit-only release; no code changes; 0 violations found for both rules.
+
+### Result
+
+| Rule | Cleared in | Status |
+|---|---|---|
+| 1, 3, 4, 5 | v0.13.4 / v0.13.5 / v0.13.6 | ✅ pinned in `test_jpl_audit.py` |
+| 10 | v0.13.7 | ✅ enforced by `pedantic-build` 3-cell CI matrix |
+| **6, 7** | **v0.13.9** | ✅ manual audit (this ship) |
+| 2, 8, 9 | already-passing at v0.11.2 | ✅ pinned |
+
+The v0.11.2 spot-check estimates of "5-10 + 5-15 violations" for Rules 6+7 didn't survive the incremental tightening in v0.13.4-v0.13.6 (long-function splits relocated state into helper-scope; assertion work added `const`-near-use patterns throughout; cleanup-on-error refactor unified the rc-check pattern).
+
+### Audit walked
+
+- **Rule 6**: every variable declaration across the 9 .c files. Loop iterators block-scoped; `const` declarations near use; remaining function-scope declarations are intentional (accumulators, sqrt caches, output buffers, result variables).
+- **Rule 7**: every `es_status_t` assignment (8 sites across `es_parity.c`, `es_hd_state.c`, `es_patches.c`); each checked on the next line. Numeric returns used inline. Bridge entry points runtime-validate parameters; internal helpers document caller contract via post-validation `assert()`.
+
+### Migration
+
+None. Audit-only release. 251 tests pass, 4 skipped.
+
+## [0.13.8] — 2026-05-05
+
+**README accuracy patch — two-stage architecture clarification.** Docs-only release; no API / encoder / ABI / test changes.
+
+### Why
+
+User flagged: *"our readme says that we use complex128 for syzygy and stuff, is that still correct? because that would mean we aren't pure ALU, right?"* The README's framing was load-bearing for the project's mental model; the `complex128` bullet was stale (true before Tier 2b shipped in v0.7.0).
+
+### Fixed
+
+- **README split into two-stage architecture** (phase-residue stage + HD-pipeline stage), making explicit that:
+  - The **encoder hot path is integer ALU end-to-end** (BIP encoder uint64/int64/uint32; no floats in the chunk loop).
+  - The **HD operations** (syzygy operator, observer-bind, eclipse-probability) lift integer residues to `complex64` and **necessarily run on FPU** — channel bases are `(cos(φ), sin(φ))` complex pairs.
+  - `complex128` is the **regression baseline only** (`backend="fpu-ref"`); the production HD path is C-side `complex64` since v0.7.0.
+- **TL;DR on "pure ALU"** added: *"The package is **not** pure-ALU end-to-end — the HD pipeline can't be, because complex bases require trigonometric channels. The integer-ALU discipline applies to the encoder hot path and is enforced by the JPL Power-of-Ten audit (Rule 10 pedantic-build matrix)."*
+- **Status banner refactored**: "Three interchangeable backends" → "Two-stage architecture: three interchangeable integer-ALU phase-residue encoders feeding an FPU `complex64` HD pipeline."
+
+### Roadmap renumber
+
+`c/JPL_AUDIT.md`: Rules 6+7 manual audits move v0.13.8 → **v0.13.9**. The v0.13.4-v0.13.8 sequence becomes v0.13.4-v0.13.9; v0.13.8 is the README hygiene patch.
+
+### Migration
+
+None. Pure docs change. 251 tests pass, 4 skipped (unchanged).
 
 ## [0.13.7] — 2026-05-05
 

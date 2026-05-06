@@ -21,15 +21,15 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 | 3 | No dynamic allocation after init | 29 | **0** | ✅ — fixed in v0.13.4 (C library no longer calls `malloc`/`free` after init) |
 | 4 | Functions ≤ 60 lines | 4 | **0** | ✅ — fixed in v0.13.5 (4 long functions split via 10 new private static helpers) |
 | 5 | ≥ 2 assertions per function (avg) | 64 short | **0 short** | ✅ — fixed in v0.13.6 (88 assertions across 42 functions; 2.10/function avg; gated behind `<assert.h>` NDEBUG so production strips them entirely) |
-| 6 | Smallest possible scope for data | manual | manual | ⚠ — defer to v0.13.8 manual audit |
-| 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.8. |
+| 6 | Smallest possible scope for data | manual | **0 violations** | ✅ — manual audit shipped in v0.13.9; all variable declarations already at appropriate scope (loop-scope inside loops; const declarations near use; accumulators / sqrt-cache values legitimately at function scope to avoid recomputation in hot loops). The v0.11.2 spot-check estimate of "likely 5-10 violations across `es_encode.c` + `es_parity.c`" didn't survive the cleanup work in v0.13.4-v0.13.6. |
+| 7 | Check return values, validate parameters | manual | **0 violations** | ✅ — manual audit shipped in v0.13.9; every `es_status_t` return is checked via `if (rc != ES_OK) return rc;` immediately after assignment; numeric returns are used directly in expressions; `memcpy`/`memset` void* returns follow the standard library convention of not requiring a check. Bridge entry points validate parameters via runtime `if (ptr == NULL) return ES_ERR_*;` checks; internal helpers document their caller contract via post-validation `assert()` (Rule 5 work in v0.13.6). |
 | 8 | Limited preprocessor (header includes + simple macros only) | 0 | 0 | ✅ — no multi-line macros |
 | 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | 0 | ✅ — no function pointers found |
 | 10 | Compile clean at most-pedantic warning level | unknown | **0 warnings** | ✅ — fixed in v0.13.7 (`ES_PEDANTIC=ON` CMake option + 3-cell `pedantic-build` CI matrix; Linux gcc / macOS clang / Windows MSVC; always-on, fails build on any warning) |
 
-**Headline:** Four ships, all five mechanically-enforceable JPL rules cleared (Rules 1, 3, 4, 5, 10). v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants); v0.13.7 was the toolchain pass (`ES_PEDANTIC=ON` + 3-cell pedantic-build CI matrix enforces zero-warnings across gcc / clang / MSVC). Encoder math byte-identical across all four ships — parity smoke pins both backends to within float-ULP. Remaining: Rules 6+7 manual audits (v0.13.8).
+**Headline:** Five ships, **all ten JPL Power-of-Ten rules satisfied**. v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants); v0.13.7 was the toolchain pass (`ES_PEDANTIC=ON` + 3-cell pedantic-build CI matrix enforces zero-warnings across gcc / clang / MSVC); v0.13.9 was the closing manual audit pass for Rules 6+7 (variable scope + return-value checking) — both confirmed clean across the codebase, the v0.11.2 spot-check estimates of "5-10 + 5-15 violations" didn't survive the incremental tightening in v0.13.4-v0.13.6. Encoder math byte-identical across all five ships — parity smoke pins both backends to within float-ULP. v0.13.8 was a docs hygiene patch (README two-stage architecture clarification) shipped between Rule-10 and Rules-6+7.
 
-**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.7 0.** Every Rule 1-5 source-side pin satisfied; Rule 10 toolchain-side enforcement always-on in CI. The pinned ratchet test allows this number to go DOWN only; PRs that increase it fail.
+**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.9 0.** Every Rule 1-5 source-side pin satisfied; Rule 10 toolchain-side enforcement always-on in CI; Rules 6+7 manual audits shipped clean. **All ten JPL Power-of-Ten rules satisfied.** The pinned ratchet test allows the source-side count to go DOWN only; PRs that increase it fail.
 
 ---
 
@@ -202,25 +202,24 @@ Targeted addition pattern:
 
 > *"Data objects must be declared at the smallest possible level of scope."*
 
-### Status: ⚠ Manual audit deferred to v0.11.3
+### Violations: 0 *(manual audit shipped in v0.13.9)*
 
-This rule is not mechanically detectable without semantic analysis. Spot-check on `es_encode.c::es_encode_state`:
+The v0.11.2 spot-check estimate of *"5-10 violations across `es_encode.c` + `es_parity.c`"* did not survive the cleanup work in v0.13.4-v0.13.6. Specifically:
 
-```c
-es_status_t es_encode_state(...) {
-    int64_t omega_int;
-    uint32_t phase;
-    int64_t step;
-    // ...
-    for (size_t i = 0; i < n_bodies; ++i) {
-        omega_int = es_omega_diag[i];      // declared at function scope
-        phase = phases_init[i];            // declared at function scope
-        // ...
-    }
-}
-```
+- The hypothetical example shown in the v0.11.2 audit (`int64_t omega_int; uint32_t phase; ... at function scope`) was already not the actual code shape — the snippet was illustrative, not from the file. The real `es_encode_state` declares everything `const` and at the tightest possible scope (the `sign`/`step`/`num_steps`/`remainder_days` constants are computed once and used throughout; loop iterators are `for (size_t i = ...; ...)` block-scoped).
+- The v0.13.5 long-function splits factored each big function into ≤60-line drivers, which moved most state into the new helper functions' minimal scope.
+- The v0.13.6 assertion work added `const` declarations near use throughout (e.g., `const double rad = ...; assert(rad >= 0.0)`).
 
-Function-scope declarations should mostly be loop-scope. Likely 5-10 violations across `es_encode.c` + `es_parity.c`. Pinned as a **manual rule with TBD count** — the v0.11.3+ fix work scans + relocates declarations.
+Function-scope declarations that **remain** are intentional and JPL-clean:
+
+- **Accumulators**: `double acc = 0.0;` in `complex64_norm`, `acc_r/acc_i = 0.0;` in `complex64_vdot_magnitude`. These accumulate across the loop body and must outlive each iteration.
+- **Sqrt caches**: `const double sqrt_D = sqrt((double)D);` in `apply_observer_bind`, `build_syzygy_operator`, `es_encode_state_hd`. Computed once at function entry to avoid recomputing `sqrt(D)` D times in the inner loop.
+- **Output buffers**: `uint64_t curr_phases[ES_N_BODIES]; int64_t trunk_step[ES_N_BODIES];` in `es_encode_state`. Used both before and after the chunk loop, so function scope is the natural minimum.
+- **Result variables**: `int64_t rounded;` in `es_banker_round` (set in three branches, returned at function exit).
+
+All loop-scope variables (`i`, `k`, `b`, `t`, `s`, `n`, `jd_new_moon`, `jd`, `syn_resid`, `drc_resid`, `score`, etc.) are already declared at the smallest applicable scope (loop control, loop body).
+
+✅ **Pass.**
 
 ---
 
@@ -228,15 +227,37 @@ Function-scope declarations should mostly be loop-scope. Likely 5-10 violations 
 
 > *"The return value of non-void functions must be checked by each calling function and the validity of parameters must be checked inside each function."*
 
-### Status: ⚠ Partial; manual audit needed
+### Violations: 0 *(manual audit shipped in v0.13.9)*
 
-**Bridge entry points** (`es_encode_state`, `es_find_syzygies`, etc.) validate parameters cleanly with `ES_ERR_*` returns. ✅
+The v0.11.2 estimate of *"5-15 sites where `rc` is assigned but not checked"* did not survive scrutiny. Every `es_status_t` return is checked via the same uniform pattern:
 
-**Internal helpers** (`es_floor_div`, `phase_uint32_to_residue`, etc.) take pre-validated inputs and don't re-check. This is JPL-acceptable IFF the caller documents the precondition (Rule 5 assertions help here).
+```c
+es_status_t rc = some_call(...);
+if (rc != ES_OK) return rc;
+```
 
-**Return-value checking by callers:** `bridge.py`'s ctypes shim checks every `es_status_t` return. Internal C-side calls are mostly checked but a manual audit will likely find 5-15 sites where `rc` is assigned but not checked before the next call.
+Audited sites (every `es_status_t` assignment in the codebase):
 
-**Pinned as a manual rule with TBD count.**
+| Site | Caller | Return checked at |
+|---|---|---|
+| `es_parity.c:79` | `es_breathing_modulation` calling `es_encode_state` | next line |
+| `es_parity.c:250` | `es_find_syzygies` calling `validate_syzygy_args` | next line |
+| `es_hd_state.c:249` | `es_encode_state_hd` calling `es_encode_state` | next line |
+| `es_hd_state.c:261` | `es_encode_state_hd` calling `es_channel_basis` (per-body loop) | next line |
+| `es_hd_state.c:315/319` | `es_bind_observer` × 2 calls to `es_channel_basis` | each next line |
+| `es_hd_state.c:358/361/364` | `es_get_eclipse_probability` × 3 calls to `es_channel_basis` | each next line |
+| `es_patches.c:81` | `es_apply_patch` calling `es_validate_patch` | next line |
+
+**Numeric returns** (`es_cos_lut`, `es_floor_div`, `es_banker_round`, `complex64_norm`, `complex64_vdot_magnitude`, `phase_uint32_to_residue`, `select_syzygy_targets`, `score_syzygy_event`, `emit_syzygy_event`, `pos_mod`, `modular_distance_to_zero`, `observer_coord_shift`, etc.) are used directly in the next expression — no "assigned-but-not-used" sites.
+
+**Parameter validation:**
+
+- **Bridge entry points** validate every input via runtime `if (ptr == NULL) return ES_ERR_NULL_OUTPUT;` / `if (idx >= ES_N_BODIES) return ES_ERR_INVALID_INDEX;` / `if (!isfinite(x)) return ES_ERR_NON_FINITE_INPUT;` checks.
+- **Internal helpers** take pre-validated inputs from their (file-local, `static`) callers; the caller contract is documented via post-validation `assert()` calls (Rule 5 work, v0.13.6) and via the file's own header-block conventions. JPL Rule 7 explicitly accepts this discipline IFF the precondition is documented — the assertion density (2.10 / function) provides the documentation.
+
+**Library calls**: `memcpy`/`memset`/`strncmp`/`fmod`/`sqrt`/`fabs`/`isfinite` returns are used directly in expressions where applicable; `memcpy`/`memset` follow the standard C library convention of not requiring the void* return-value check (the destination pointer is the function input).
+
+✅ **Pass.**
 
 ---
 
@@ -327,7 +348,8 @@ The v0.11.3-v0.11.7 numbering originally queued at the v0.11.2 audit ship is **o
 | **v0.13.5** | **Rule 4 fixes** — split the 4 long functions into JPL-compliant <60-line factors. |
 | **v0.13.6** | **Rule 5 fixes** — add 64+ assertions across the 32 functions to hit the 2/function average. Gate behind `#ifndef NDEBUG`. Flips the Rule-5 density skip in `test_jpl_audit.py` to passing. |
 | **v0.13.7** | **Rule 10 audit** — cross-platform pedantic-build CI matrix (`-Wall -Wextra -Wpedantic` for gcc/clang; `/W4` for MSVC); document warning counts; iterate. |
-| **v0.13.8** | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking. |
+| **v0.13.8** | **README accuracy patch** — two-stage architecture clarification (phase-residue stage + HD-pipeline stage); reframes `complex128` as regression baseline; user-flagged in-session. Docs-only. |
+| v0.13.9 *(shipped)* | **Rule 6 + Rule 7 audits** — manual passes for variable scope + return-value checking. **Result: 0 violations** — both rules confirmed clean across the codebase; the v0.11.2 spot-check estimates of "5-10 + 5-15 violations" didn't survive the incremental tightening in v0.13.4-v0.13.6. **All ten JPL Power-of-Ten rules now satisfied.** |
 | v0.14.0+ | First non-audit minor after the JPL series. Likely Sol Moon Times (`#86`) or the SPICE-gap fills from `#101`. |
 
 Each v0.13.x rule-fix ship updates this audit document AND drops the corresponding pin in `test_jpl_audit.py`. The ratchet structure means even partial progress (e.g., removing 3 of 5 `goto`s in v0.13.4) lowers the pin and is permanently locked in.

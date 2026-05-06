@@ -10,7 +10,317 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.7)
+(no entries yet — next entries land after v0.14.2)
+
+## [0.14.2] — 2026-05-06
+
+**Sol Moon Times: remaining 8 moons across 4 parent families** — closes task `` `#86` `` for the current 38-body roster. Built via four parallel subagent worktrees, integrated into a single ship.
+
+### Added — Mars (2 moons)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Phobos | Sol Mars-Phobos Time | **SMaPhT** | `time-mars-phobos` |
+| Deimos | Sol Mars-Deimos Time | **SMaDeT** | `time-mars-deimos` |
+
+Both likely captured asteroids (C/D-type spectral match). Phobos's sidereal period (0.319 d ≈ 7h 39m) is **shorter** than Mars's solar day (~24h 39m), so from Mars's surface Phobos rises in the **west**. Phobos/Deimos period ratio is ≈ 3.96 — near 4:1 but **not** in 4:1 mean-motion resonance (libration tolerance is parts-per-thousand; 1% off counts as not-locked).
+
+### Added — Jupiter inner regulars (4 moons)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Metis | Sol Jupiter-Metis Time | **SJuMeT** | `time-jupiter-metis` |
+| Adrastea | Sol Jupiter-Adrastea Time | **SJuAdT** | `time-jupiter-adrastea` |
+| Amalthea | Sol Jupiter-Amalthea Time | **SJuAmT** | `time-jupiter-amalthea` |
+| Thebe | Sol Jupiter-Thebe Time | **SJuThT** | `time-jupiter-thebe` |
+
+Metis + Adrastea are ring-shepherd moons of Jupiter's main ring (both orbit just outside the ring's outer edge). Amalthea is the largest (~84 km radius) and the only one discovered before Voyager (E. E. Barnard, 1892 — the last solar-system moon discovered by direct visual observation). Thebe orbits between Amalthea and Io.
+
+### Added — Uranus (1 moon: Titania)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Titania | Sol Uranus-Titania Time | **SUrTiT** | `time-uranus-titania` |
+
+Largest Uranian moon (radius ~789 km); discovered by William Herschel 1787. Currently the only Uranian moon in the BODIES roster — Oberon, Umbriel, Ariel, Miranda are queued for a future ship.
+
+**Note**: SUrTiT and SSaTiT (Saturn's Titan) share the `Ti` moon prefix but are globally distinct via the parent prefix (`Ur` vs `Sa`) — exactly the disambiguation the v0.14.1 6-letter abbreviation policy was designed to provide. Without the policy switch, both would have been `STiT` under the old 4-letter form.
+
+### Added — Neptune (1 moon: Triton)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Triton | Sol Neptune-Triton Time | **SNeTrT** | `time-neptune-triton` |
+
+Largest Neptunian moon (radius ~1353 km — bigger than Pluto). **The only large moon in the solar system that orbits its planet retrograde** — strong evidence Triton is a captured Kuiper Belt object. Tidal deceleration (because of the retrograde orbit) is spiralling Triton inward; in ~3.6 Gyr it will cross Neptune's Roche limit and become a ring system.
+
+**Encoder convention**: `BODIES["triton"].period_days` is positive (we encode `omega = +2π/P` for ALL bodies regardless of prograde/retrograde direction; retrograde-ness is metadata, not a sign flip in the time-scale primitive). Sol Time count proceeds positive-monotonically. Same convention as v0.5.4 Sol Uranian Time (Uranus has retrograde rotation).
+
+### Subagent-driven dispatch
+
+This ship was built via **4 parallel subagent worktrees** (one per family), each:
+
+- branched off main concurrent with v0.14.1 CI
+- self-contained: bridge wrappers + CLI subcommand + new test module + parity-smoke entries
+- did NOT touch version bumps, CHANGELOGs, README, ROADMAP, notebook (the parent agent integrated those)
+
+Subagents reported clean test runs in their own worktrees. The parent agent integrated the 4 deliverables into a single bridge.py / cli.py / test_parity_smoke.py edit (avoiding 4-way merge conflicts on those shared files), copied the 4 new test modules in directly, and added a generic `_add_moon_subparser` CLI helper that supersedes the v0.14.0/v0.14.1 family-specific helpers for the v0.14.2 additions.
+
+### Sol Moon Times series — current state
+
+23 moons across 6 families (every moon in the BODIES roster except Earth's Luna, which has its own STLT in v0.10.0):
+
+| Family | Count | Examples |
+|---|--:|---|
+| Galileans (Jupiter) | 4 | Io, Europa, Ganymede, Callisto |
+| Saturnians | 11 | Mimas, Enceladus, ..., Titan, ..., Janus, Epimetheus |
+| **Martians (v0.14.2)** | **2** | **Phobos, Deimos** |
+| **Jovian inner regulars (v0.14.2)** | **4** | **Metis, Adrastea, Amalthea, Thebe** |
+| **Uranian (v0.14.2)** | **1** | **Titania** |
+| **Neptunian (v0.14.2)** | **1** | **Triton** |
+| Total | **23** | |
+
+Plus Sol Terra-Luna Time (STLT) for Earth's Moon = **24 moon time series**. Future BODIES additions (Pluto-Charon, more Uranian moons, etc.) follow the same v0.14.1 6-letter convention.
+
+### Test count
+
+497 pass, 4 skipped (was 399 + 4 in v0.14.1; +98 new — 2 Martian + 4 Jovian-inner + 1 Uranian + 1 Neptunian moon-test modules + parity-smoke entries).
+
+### Migration
+
+None. Pure-additive. No API / encoder / ABI / encoder-test changes.
+
+## [0.14.1] — 2026-05-06
+
+**Sol Moon Times: Saturnians (11 moons) + abbreviation policy switch (4-letter → 6-letter).** Second slice of task `` `#86` ``. The abbreviation collision contingency documented in v0.14.0's ROADMAP fired exactly as predicted: when the 11 Saturnians joined the per-moon abbreviation namespace, two collisions surfaced under the v0.14.0 4-letter `S<Planet><Moon>T` pattern (Tethys + Titan both 'T' → both `SSTT`; Enceladus + Epimetheus both 'E' → both `SSET`). Per the ROADMAP "Naming convention contingencies" policy, the switch applies **uniformly across all Sol Moon Times** — Galileans retroactively renamed too.
+
+### Added — 11 Saturnian Sol Moon Times
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Mimas | Sol Saturn-Mimas Time | **SSaMiT** | `time-saturn-mimas` |
+| Enceladus | Sol Saturn-Enceladus Time | **SSaEnT** | `time-saturn-enceladus` |
+| Tethys | Sol Saturn-Tethys Time | **SSaTeT** | `time-saturn-tethys` |
+| Dione | Sol Saturn-Dione Time | **SSaDiT** | `time-saturn-dione` |
+| Rhea | Sol Saturn-Rhea Time | **SSaRhT** | `time-saturn-rhea` |
+| Titan | Sol Saturn-Titan Time | **SSaTiT** | `time-saturn-titan` |
+| Hyperion | Sol Saturn-Hyperion Time | **SSaHyT** | `time-saturn-hyperion` |
+| Iapetus | Sol Saturn-Iapetus Time | **SSaIaT** | `time-saturn-iapetus` |
+| Phoebe | Sol Saturn-Phoebe Time | **SSaPhT** | `time-saturn-phoebe` |
+| Janus | Sol Saturn-Janus Time | **SSaJaT** | `time-saturn-janus` |
+| Epimetheus | Sol Saturn-Epimetheus Time | **SSaEpT** | `time-saturn-epimetheus` |
+
+### Changed — Galilean abbreviations retroactively renamed
+
+| Body | Before (v0.14.0) | After (v0.14.1+) |
+|---|---|---|
+| Io | `SJIT` | **`SJuIoT`** |
+| Europa | `SJET` | **`SJuEuT`** |
+| Ganymede | `SJGT` | **`SJuGaT`** |
+| Callisto | `SJCT` | **`SJuCaT`** |
+
+The `epoch.abbreviation` field changes; **Python function names, CLI subcommand names, and bridge return-shape are unchanged**. Callers reading the abbreviation as a label (e.g., for display, comparison, or storage) will see the new 6-letter form starting from v0.14.1.
+
+### Why the switch had to be uniform
+
+Mixed conventions across moons (Galileans 4-letter, Saturnians 6-letter) would have been worse than either pure convention — readers would constantly need to remember which family uses which length. The ROADMAP policy was explicit about this: *"When a single collision triggers the policy switch, the change applies uniformly to all Sol Moon Times in the package."*
+
+### Resonance witnesses (in tests, not in dicts)
+
+The Saturnian families have several known mean-motion resonances:
+
+| Resonance | Form | Significance |
+|---|---|---|
+| Mimas-Tethys 4:2 | `n_Mimas / n_Tethys ≈ 2.0` | Opens the Cassini Division |
+| Enceladus-Dione 2:1 | `n_Enc / n_Dione ≈ 2.0` | Powers Enceladus's tidal heating + cryovolcanism |
+| Titan-Hyperion 4:3 | `n_Titan / n_Hyp ≈ 1.333` | Drives Hyperion's chaotic rotation |
+| Janus-Epimetheus | period ratio ≈ 1.0 | Co-orbital horseshoe orbit (~4-yr swap) |
+
+Each resonance has a witness test in `test_saturnian_sol_moon_times.py`. The per-moon dict carries only `sidereal_count` / `sidereal_phase` — pair-relations stay out of the dict (consistent with the v0.14.0 Galilean Laplace-resonance handling).
+
+### Hyperion footnote
+
+Hyperion's chaotic rotation means rotation period ≠ orbital period (it's the only known major moon NOT in tidal lock). The `sidereal_period_days` field references the orbital period in our convention; the rotation-phase coupling is non-trivially decoupled and an open research direction. This is documented in the bridge docstring, the CLI help text, and the test module.
+
+### Roadmap update
+
+`ROADMAP.md`'s "Naming convention contingencies" section is updated from forward-looking ("if collisions arise") to *triggered* ("v0.14.1 invoked the fallback policy"), with the specific Tethys/Titan and Enceladus/Epimetheus collisions called out as the trigger.
+
+### Test count
+
+399 tests pass, 4 skipped (was 294 + 4 in v0.14.0; +105 new — 99 Saturnian tests + parity-smoke registrations + 6 cross-family abbreviation-uniqueness checks).
+
+### Migration
+
+- **Python function names**: unchanged. `bridge.jd_to_sol_jupiter_io_time(...)` still works the same way.
+- **CLI subcommand names**: unchanged. `time-jupiter-io --jd ...` still works the same way.
+- **Return-shape**: unchanged. The `epoch.abbreviation` STRING changes from `"SJIT"` to `"SJuIoT"` etc. Callers parsing this field for display / comparison need to update.
+- **No API/encoder/ABI changes**.
+
+## [0.14.0] — 2026-05-05
+
+**Sol Moon Times: Galileans (Io / Europa / Ganymede / Callisto).** First slice of task `` `#86` `` — extends the Sol Time hierarchy to non-Luna moons under the moons-stuck-to-parent `Sol <Parent>-<Body> Time` naming convention from v0.9.1.
+
+### Added
+
+- **Generic moon-time primitive** (`_research/time_scales.py`):
+  - `MoonTime` dataclass: `body_name`, `parent_name`, `epoch_name`, `epoch_jd_tdb`, `days_since_epoch`, `sidereal_period_days`, `sidereal_count`, `sidereal_phase`.
+  - `jd_to_moon_time(body_name, jd_tdb, *, parent_name, sidereal_period_days, ...)`: body-agnostic factory. Caller-supplied parent + sidereal period (looked up at the bridge layer from `BODIES`) keeps this primitive light-weight and free of `BODIES`-table imports — same separation-of-concerns as the rest of `_research/time_scales.py`.
+  - `moon_time_to_jd(sidereal_count, *, sidereal_period_days, ...)`: inverse.
+  - `SOL_MOON_TIME_J2000_JD_TDB`: shared default epoch (J2000.0).
+
+- **Per-Galilean bridge wrappers** (`bridge.py`):
+
+  | Function | Inverse | Abbrev |
+  |---|---|---|
+  | `jd_to_sol_jupiter_io_time` | `sol_jupiter_io_time_to_jd` | **SJIT** |
+  | `jd_to_sol_jupiter_europa_time` | `sol_jupiter_europa_time_to_jd` | **SJET** |
+  | `jd_to_sol_jupiter_ganymede_time` | `sol_jupiter_ganymede_time_to_jd` | **SJGT** |
+  | `jd_to_sol_jupiter_callisto_time` | `sol_jupiter_callisto_time_to_jd` | **SJCT** |
+
+  Each returns a dict with `ok`, `jd_tdb`, `body_name`, `parent_name="jupiter"`, `epoch_name="j2000"`, `sidereal_period_days`, `sidereal_count`, `sidereal_phase`, plus an `epoch` block carrying the abbreviation, sol-time-name, parent-body, moon-body, and a per-moon note.
+
+- **Per-Galilean CLI subcommands**: `time-jupiter-io`, `time-jupiter-europa`, `time-jupiter-ganymede`, `time-jupiter-callisto`. Each takes `--jd` or `--sidereal-count` (mutex required), supports `--proper` / `--state` / `--dynamics` augmenting flags via `_add_proper_flags`. The four subparsers share a helper (`_add_galilean_subparser`) so they stay consistent.
+
+- **Test module** (`tests/test_galilean_sol_moon_times.py`): 35 tests covering generic primitive, all four bridge surfaces (J2000-zero, after-one-sidereal-period, inverse round-trip, NaN/Inf rejection), CLI parsing, abbreviation uniqueness, and the Galilean Laplace-resonance witness (canonical form `n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`; plus the assertion that Callisto is NOT in the resonance).
+
+- **Parity smoke registrations** (`tests/test_parity_smoke.py`): 8 new entries (4 forward + 4 inverse) classified as `python_only` with rationale matching the rest of the Sol Time series.
+
+### Naming convention
+
+Per v0.9.1's moons-stuck-to-parent `Sol <Parent>-<Body> Time`: the production names are *Sol Jupiter-Io Time*, *Sol Jupiter-Europa Time*, *Sol Jupiter-Ganymede Time*, *Sol Jupiter-Callisto Time*. The 4-letter abbreviations follow `S<Planet-initial><Moon-initial>T`. ROADMAP `## Naming convention contingencies` documents the fallback policy if moon-letter collisions arise in future ships (Saturnians, etc.) — switch uniformly to a 6-letter `S<Planet2><Moon2>T` pattern (e.g., `SJuGaT`).
+
+### Why default epoch is J2000
+
+STLT (v0.10.0) used Meton's 432 BCE summer solstice — a Greek-historical anchor that doesn't generalise to non-Luna moons. For Galileans, J2000 is the natural anchor: matches the rest of the Sol Time series, no civilisation has been keeping a Galilean-eclipse archive, and Galileo's own 1610 telescopic discoveries (JD ~2305448) could be a future non-default option but aren't load-bearing for v0.14.0.
+
+### Laplace resonance
+
+The 4:2:1 mean-motion resonance among Io / Europa / Ganymede (canonical form `n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`) is documented in the test module and in the per-moon docstrings. Callisto is the only Galilean **not** in the resonance — its mean motion is irrationally related to the inner triple. The Sol Time wrappers don't expose resonance metrics in the per-moon dict (the resonance is a pair-relation, not a per-body property); future analysis tooling can compose `sidereal_count` values across the inner triple to recover it.
+
+### Test count
+
+294 tests pass, 4 skipped (was 251 + 4 in v0.13.10 — +43 new: 35 Galilean tests + 8 parity-smoke entries).
+
+### Migration
+
+None. Pure-additive. No API / encoder / ABI / encoder-test surface changes.
+
+## [0.13.10] — 2026-05-05
+
+**Drop `edited` from docs-check workflow trigger types — fixes post-merge double-fire.** CI-only patch; no code / API / encoder / ABI / test changes.
+
+### Why
+
+User flagged on PR `` `#214` `` (v0.13.9 ship): the docs-check workflow was double-firing at merge time. Two `pull_request` events at the same second on the PR's branch ~3 seconds before the merge committed; concurrency-cancel caught it (one CANCELLED, one SUCCESS) but the wasted CI churn + confusing run-history was observable.
+
+### Root cause
+
+GitHub web UI's "Squash and merge" workflow fires `pull_request: edited` (the merge-commit dialog populates / saves the title + body fields) near-simultaneously with `pull_request: synchronize` (GitHub recomputes the `refs/pull/N/merge` preview ref). With both `edited` and `synchronize` in our `types` list, both events triggered runs at the same second → deterministic double-fire at every merge.
+
+### Fix
+
+Drop `edited` from the trigger types in `.github/workflows/ephemerides-spectral-docs-check.yml`:
+
+```yaml
+# Before (v0.13.3 → v0.13.9):
+types: [opened, synchronize, reopened, edited, labeled]
+
+# After (v0.13.10+):
+types: [opened, synchronize, reopened, labeled]
+```
+
+Eliminates the source of the double-fire. The CI-side workflow (`ephemerides-spectral-ci.yml`) was already on `[opened, synchronize, reopened, labeled]` and didn't have this issue.
+
+### Trade-off
+
+`[skip-docs-check]` opt-out added retroactively (after PR open, by editing the PR body) no longer triggers a re-run. User must either:
+1. Push a synchronizing commit (the natural way), or
+2. Accept the stale advisory comment
+
+Acceptable — opt-out should be set up-front in the initial PR description, not retroactively.
+
+### Migration
+
+None. Workflow-only change; CI behaviour now matches the `ephemerides-spectral-ci` workflow's narrower trigger types. 251 tests pass, 4 skipped (unchanged).
+
+## [0.13.9] — 2026-05-05
+
+**JPL Power-of-Ten Rules 6 + 7 manual audits — final patch in the v0.13.4-v0.13.9 rule-fix sequence.** Audit-only release; no code changes; **0 violations found** for both rules.
+
+### Result
+
+**All ten JPL Power-of-Ten rules now satisfied.** The five-ship sequence v0.13.4 → v0.13.5 → v0.13.6 → v0.13.7 → v0.13.9 (with v0.13.8 a docs-hygiene patch in the middle) closes out the v0.11.2 audit baseline:
+
+| Rule | Description | Cleared in | Mechanism |
+|---|---|---|---|
+| 1 | No `goto` / `setjmp` / `longjmp` / recursion | v0.13.4 | `test_jpl_audit.py` pin |
+| 2 | Fixed loop bounds | already-passing at v0.11.2 | `test_jpl_audit.py` pin |
+| 3 | No dynamic allocation after init | v0.13.4 | `test_jpl_audit.py` pin |
+| 4 | Functions ≤ 60 lines | v0.13.5 | `test_jpl_audit.py` pin |
+| 5 | ≥ 2 assertions per function (avg) | v0.13.6 | `test_jpl_audit.py` pin + density test |
+| 6 | Smallest possible scope for data | **v0.13.9** | manual audit (this ship) |
+| 7 | Check return values, validate parameters | **v0.13.9** | manual audit (this ship) |
+| 8 | Limited preprocessor | already-passing at v0.11.2 | `test_jpl_audit.py` pin |
+| 9 | Pointer dereference depth ≤ 1; no function pointers | already-passing at v0.11.2 | `test_jpl_audit.py` pin |
+| 10 | Compile clean at most-pedantic warning level | v0.13.7 | `pedantic-build` 3-cell CI matrix |
+
+### Rule 6 audit findings
+
+The v0.11.2 spot-check estimate of *"likely 5-10 violations across `es_encode.c` + `es_parity.c`"* did not survive the cleanup work in v0.13.4-v0.13.6. The illustrative snippet in the audit doc was illustrative, not actual code. Real codebase shape:
+
+- **All loop iterators**: `for (size_t i = ...; ...)` block-scoped.
+- **All `const` declarations**: at minimal scope near use (the v0.13.6 assertion work added `const double rad = ...; assert(rad >= 0.0)` patterns throughout).
+- **Function-scope declarations that remain are intentional**:
+  - **Accumulators** (`acc`, `acc_r`, `acc_i`) — must outlive each loop iteration.
+  - **Sqrt caches** (`sqrt_D`, `inv_sqrt_D`) — computed once at function entry to avoid recomputation in the inner loop.
+  - **Output buffers** (`curr_phases[]`, `trunk_step[]`) — used both before and after the chunk loop.
+  - **Result variables** (`rounded` in `es_banker_round`) — set in three branches, returned at function exit.
+
+All within Rule 6 spirit.
+
+### Rule 7 audit findings
+
+The v0.11.2 estimate of *"5-15 sites where `rc` is assigned but not checked"* did not survive scrutiny. Every `es_status_t` return is checked via the uniform pattern:
+
+```c
+es_status_t rc = some_call(...);
+if (rc != ES_OK) return rc;
+```
+
+Audit walked every `es_status_t` assignment in the codebase (8 sites across `es_parity.c`, `es_hd_state.c`, `es_patches.c`); each was checked on the next line. Numeric returns used directly in expressions (no assigned-but-not-used sites). Bridge entry points validate every parameter via runtime checks; internal helpers take pre-validated inputs documented via post-validation `assert()` (Rule 5 work in v0.13.6).
+
+### Migration
+
+None. Audit-only release; no source code changes; no API/ABI/encoder/test surface change. 251 tests pass, 4 skipped (unchanged).
+
+## [0.13.8] — 2026-05-05
+
+**README accuracy patch — two-stage architecture clarification.** Docs-only release; no API / encoder / ABI / test changes.
+
+### Why
+
+User flagged a misunderstanding triggered by the previous README framing: *"our readme says that we use complex128 for syzygy and stuff, is that still correct? because that would mean we aren't pure ALU, right?"*
+
+The README listed three backends (`bip` / `c` / `complex128`) as parallel alternatives, with `complex128` annotated as *"Used for the algebraic identities (Syzygy operator, observer binding) and as a regression baseline."* That bullet was true *before* v0.7.0, when Tier 2b shipped C-side `complex64` implementations of the HD operations. Since then the production HD path is C-side `complex64`; `complex128` is the regression baseline only (`backend="fpu-ref"`).
+
+The framing also implied "three interchangeable backends" all ran the same operation. They don't — they are three encoders for the **phase-residue stage**, plus an FPU HD pipeline that follows. The mental model was off, and the README was the load-bearing source.
+
+### Fixed
+
+- **Two-stage architecture, explicitly described**: phase-residue computation (integer ALU) + HD operations (FPU `complex64` production / `complex128` regression). Phase residues are integer ALU end-to-end; HD operations can't be (channel bases are unit-magnitude complex; `(cos(φ), sin(φ))` requires trigonometric channels).
+- **`complex128` reframed**: from "production path for syzygy / observer-bind" to "regression baseline; `backend='fpu-ref'`."
+- **"Both backends" → "All three phase-residue encoders"** typo fix (the earlier sentence had been written before `complex128` was added to the list).
+- **Status banner updated**: from "Three interchangeable backends (BIP integer ALU, native C, FPU complex128)" to a more accurate "Two-stage architecture: three interchangeable integer-ALU phase-residue encoders feeding an FPU `complex64` HD pipeline."
+- **TL;DR callout added** under the new architecture section: *"Phase residues are integer ALU end-to-end (BIP encoder hot path is uint64/int64/uint32, no floats); HD operations (syzygy / observer-bind / eclipse) lift those residues to `complex64` and run on FPU. The package is *not* pure-ALU end-to-end — the HD pipeline can't be."*
+
+### Roadmap renumber
+
+JPL_AUDIT.md: Rules 6+7 manual audits move v0.13.8 → v0.13.9 (last item in the rule-fix sequence; v0.13.8 reserved for this README hygiene patch).
+
+### Migration
+
+None. Pure docs change; no API / encoder / ABI / test surface change. 251 tests pass, 4 skipped.
 
 ## [0.13.7] — 2026-05-05
 

@@ -93,6 +93,8 @@ from ephemerides_spectral._research.time_scales import (
     STLT_EPOCH_HIPPARCHUS_JD_TDB, STLT_EPOCH_MARDOKEMPAD_JD_TDB,
     STLT_EPOCH_J2000_JD_TDB, STLT_EPOCHS, STLT_DEFAULT_EPOCH,
     jd_to_terra_luna_time, terra_luna_time_to_jd,
+    # v0.14.0 Sol Moon Times — generic moon-time primitive (Galileans first).
+    SOL_MOON_TIME_J2000_JD_TDB, jd_to_moon_time, moon_time_to_jd,
 )
 from ephemerides_spectral._research.proper_time import (
     DEFAULT_REFERENCE as SPRT_DEFAULT_REFERENCE,
@@ -999,6 +1001,407 @@ def sol_terra_luna_time_to_jd(
         "epoch_name": epoch,
         "synodic_count": sc,
     }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.14.0 Sol Moon Times — Galileans (Io / Europa / Ganymede / Callisto)
+# v0.14.1 Sol Moon Times — Saturnians (11 moons) + abbreviation policy switch
+# ──────────────────────────────────────────────────────────────────────
+#
+# Per the moons-stuck-to-parent naming convention (v0.9.1):
+#   Sol Jupiter-Io Time, Sol Saturn-Mimas Time, ...
+#
+# Each moon is tidally locked, so sidereal day = orbital period =
+# rotation period (one synchronized cycle). Anchored at J2000.0 by
+# default — historical anchors like STLT's Meton don't generalise to
+# non-Luna moons.
+#
+# **Abbreviation policy switch (v0.14.1).** v0.14.0 shipped Galileans
+# with the 4-letter `S<Planet><Moon>T` pattern (SJIT / SJET / SJGT /
+# SJCT). When v0.14.1 added the 11 Saturnians, two collisions surfaced:
+#   - Tethys + Titan: both 'T' under Saturn  → both would be SSTT
+#   - Enceladus + Epimetheus: both 'E'       → both would be SSET
+#
+# Per the ROADMAP "Naming convention contingencies" section, a single
+# collision triggers a uniform switch across ALL Sol Moon Times to the
+# 6-letter `S<Planet2><Moon2>T` pattern. Galileans retroactively
+# renamed in v0.14.1; the new convention applies to all subsequent
+# moon-family ships.
+#
+# Naming + abbreviations (v0.14.1+):
+#
+#   Body         | Sol Time name                 | Abbrev  | CLI subcommand
+#   -------------|-------------------------------|---------|------------------------
+#   io           | Sol Jupiter-Io Time           | SJuIoT  | time-jupiter-io
+#   europa       | Sol Jupiter-Europa Time       | SJuEuT  | time-jupiter-europa
+#   ganymede     | Sol Jupiter-Ganymede Time     | SJuGaT  | time-jupiter-ganymede
+#   callisto     | Sol Jupiter-Callisto Time     | SJuCaT  | time-jupiter-callisto
+#   mimas        | Sol Saturn-Mimas Time         | SSaMiT  | time-saturn-mimas
+#   enceladus    | Sol Saturn-Enceladus Time     | SSaEnT  | time-saturn-enceladus
+#   tethys       | Sol Saturn-Tethys Time        | SSaTeT  | time-saturn-tethys
+#   dione        | Sol Saturn-Dione Time         | SSaDiT  | time-saturn-dione
+#   rhea         | Sol Saturn-Rhea Time          | SSaRhT  | time-saturn-rhea
+#   titan        | Sol Saturn-Titan Time         | SSaTiT  | time-saturn-titan
+#   hyperion     | Sol Saturn-Hyperion Time      | SSaHyT  | time-saturn-hyperion
+#   iapetus      | Sol Saturn-Iapetus Time       | SSaIaT  | time-saturn-iapetus
+#   phoebe       | Sol Saturn-Phoebe Time        | SSaPhT  | time-saturn-phoebe
+#   janus        | Sol Saturn-Janus Time         | SSaJaT  | time-saturn-janus
+#   epimetheus   | Sol Saturn-Epimetheus Time    | SSaEpT  | time-saturn-epimetheus
+#
+# Laplace resonance among Io / Europa / Ganymede (canonical
+# n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0) is exposed in the test module
+# and the notebook §7.6 prose. The Saturnians have multiple known
+# resonances too (Mimas-Tethys 4:2 = Cassini Division, Enceladus-Dione
+# 2:1 powers Enceladus's tidal heating, Titan-Hyperion 4:3 driving
+# Hyperion's chaotic rotation) — same handling as Galilean Laplace:
+# pair-relations stay out of the per-moon dict.
+# ──────────────────────────────────────────────────────────────────────
+
+# Each moon's sidereal period is its orbital period (tidally locked).
+# Pulled from BODIES at call time so any future precision update to
+# BODIES propagates automatically.
+_GALILEAN_PARENT: str = "jupiter"
+_SATURNIAN_PARENT: str = "saturn"
+_MARTIAN_PARENT: str = "mars"
+_URANIAN_PARENT: str = "uranus"
+_NEPTUNIAN_PARENT: str = "neptune"
+
+
+def _moon_time_response(body_key: str, parent_key: str,
+                        abbrev: str, sol_time_name: str) -> Any:
+    """Internal helper for Galilean (and future moon-family) wrappers.
+
+    Closure-style — returns a function that takes (jd_tdb) and returns
+    the bridge-shaped Sol Moon Time response dict. Keeps the four
+    near-identical Galilean wrappers below thin and consistent.
+    """
+    def _impl(jd_tdb: float) -> Dict[str, Any]:
+        err = _validate_jd(jd_tdb)
+        if err is not None:
+            return err
+        if body_key not in BODIES:
+            return _err(
+                f"internal error: body {body_key!r} not in BODIES "
+                f"(this is a bug; please report)"
+            )
+        body = BODIES[body_key]
+        out = jd_to_moon_time(
+            body_key,
+            float(jd_tdb),
+            parent_name=parent_key,
+            sidereal_period_days=float(body.period_days),
+        )
+        return {
+            "ok": True,
+            **out.to_dict(),
+            "epoch": {
+                "name": "j2000",
+                "description": (
+                    "J2000.0 — modern reference epoch shared with the "
+                    "rest of the Sol Time series. Historical anchors "
+                    "(like STLT's Meton solstice) don't generalise to "
+                    "non-Luna moons."
+                ),
+                "jd_tdb": float(SOL_MOON_TIME_J2000_JD_TDB),
+                "sidereal_period_days": float(body.period_days),
+                "abbreviation": abbrev,
+                "sol_time_name": sol_time_name,
+                "parent_body": parent_key,
+                "moon_body": body_key,
+                "note": (
+                    f"{sol_time_name} ({abbrev}) is the anchored "
+                    f"sidereal-cycle count for {body.name} since "
+                    f"J2000. {body.name} is tidally locked, so "
+                    f"sidereal day = orbital period = rotation period "
+                    f"= {float(body.period_days):.6f} days."
+                ),
+            },
+        }
+    return _impl
+
+
+def _moon_time_to_jd_response(body_key: str, abbrev: str) -> Any:
+    """Inverse helper — sidereal_count -> JD (TDB)."""
+    def _impl(sidereal_count: float) -> Dict[str, Any]:
+        if body_key not in BODIES:
+            return _err(
+                f"internal error: body {body_key!r} not in BODIES"
+            )
+        body = BODIES[body_key]
+        try:
+            sc = float(sidereal_count)
+        except (TypeError, ValueError):
+            return _err(
+                f"sidereal_count must be a number, got "
+                f"{type(sidereal_count).__name__}"
+            )
+        return {
+            "ok": True,
+            "jd_tdb": moon_time_to_jd(
+                sc, sidereal_period_days=float(body.period_days)
+            ),
+            "sidereal_count": sc,
+            "body_name": body_key,
+            "abbreviation": abbrev,
+        }
+    return _impl
+
+
+jd_to_sol_jupiter_io_time = _moon_time_response(
+    "io", _GALILEAN_PARENT, "SJuIoT", "Sol Jupiter-Io Time"
+)
+jd_to_sol_jupiter_io_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Io Time (SJIT).
+
+    Anchored sidereal-cycle count for Io since J2000.0. Io is tidally
+    locked to Jupiter (sidereal day = orbital period = 1.769 days).
+    Innermost Galilean; participates in the 4:2:1 Laplace resonance
+    with Europa and Ganymede.
+
+    Parameters
+    ----------
+    jd_tdb : float
+        Julian Date in TDB.
+
+    Returns
+    -------
+    dict
+        ``{"ok": True, "jd_tdb": ..., "body_name": "io",
+            "parent_name": "jupiter", "epoch_name": "j2000",
+            "sidereal_period_days": 1.769..., "sidereal_count": ...,
+            "sidereal_phase": ..., "epoch": {...abbreviation: "SJIT"}}``.
+    """
+)
+
+sol_jupiter_io_time_to_jd = _moon_time_to_jd_response("io", "SJuIoT")
+sol_jupiter_io_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Io."
+)
+
+jd_to_sol_jupiter_europa_time = _moon_time_response(
+    "europa", _GALILEAN_PARENT, "SJuEuT", "Sol Jupiter-Europa Time"
+)
+jd_to_sol_jupiter_europa_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Europa Time (SJET).
+
+    Anchored sidereal-cycle count for Europa since J2000.0. Europa
+    is tidally locked (sidereal day = orbital period = 3.551 days).
+    Middle Galilean by Laplace ordering; participates in the 4:2:1
+    resonance.
+    """
+)
+
+sol_jupiter_europa_time_to_jd = _moon_time_to_jd_response("europa", "SJuEuT")
+sol_jupiter_europa_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Europa."
+)
+
+jd_to_sol_jupiter_ganymede_time = _moon_time_response(
+    "ganymede", _GALILEAN_PARENT, "SJuGaT", "Sol Jupiter-Ganymede Time"
+)
+jd_to_sol_jupiter_ganymede_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Ganymede Time (SJGT).
+
+    Anchored sidereal-cycle count for Ganymede since J2000.0. Ganymede
+    is tidally locked (sidereal day = orbital period = 7.155 days).
+    Largest moon in the solar system; outermost Galilean in the 4:2:1
+    Laplace resonance.
+    """
+)
+
+sol_jupiter_ganymede_time_to_jd = _moon_time_to_jd_response("ganymede", "SJuGaT")
+sol_jupiter_ganymede_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Ganymede."
+)
+
+jd_to_sol_jupiter_callisto_time = _moon_time_response(
+    "callisto", _GALILEAN_PARENT, "SJuCaT", "Sol Jupiter-Callisto Time"
+)
+jd_to_sol_jupiter_callisto_time.__doc__ = (
+    """JD (TDB) → Sol Jupiter-Callisto Time (SJCT).
+
+    Anchored sidereal-cycle count for Callisto since J2000.0. Callisto
+    is tidally locked (sidereal day = orbital period = 16.689 days).
+    Outermost Galilean; the only one **not** participating in the
+    Laplace resonance — its mean motion is irrational with the
+    Io-Europa-Ganymede triple.
+    """
+)
+
+sol_jupiter_callisto_time_to_jd = _moon_time_to_jd_response("callisto", "SJuCaT")
+sol_jupiter_callisto_time_to_jd.__doc__ = (
+    "Inverse: sidereal-cycle count → JD (TDB) for Callisto."
+)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.14.1 Sol Moon Times — Saturnians (11 moons)
+# ──────────────────────────────────────────────────────────────────────
+#
+# 9 classical Saturnians + 2 co-orbitals (Janus, Epimetheus).
+# All tidally locked, J2000-anchored.
+#
+# Notable resonances (for the notebook prose, not exposed in dicts):
+#   Mimas-Tethys 4:2     — Cassini Division
+#   Enceladus-Dione 2:1  — powers Enceladus's tidal heating
+#   Titan-Hyperion 4:3   — drives Hyperion's chaotic rotation
+#   Janus-Epimetheus     — co-orbital horseshoe orbit (~4 yr swap)
+# ──────────────────────────────────────────────────────────────────────
+
+# Per-body bridge wrappers, generated via the shared helpers.
+jd_to_sol_saturn_mimas_time      = _moon_time_response("mimas",      _SATURNIAN_PARENT, "SSaMiT", "Sol Saturn-Mimas Time")
+jd_to_sol_saturn_mimas_time.__doc__ = "JD (TDB) → Sol Saturn-Mimas Time (SSaMiT). Innermost classical Saturnian; participates in the 4:2 Mimas-Tethys resonance that opens the Cassini Division. Sidereal day = orbital period = 0.942 days."
+sol_saturn_mimas_time_to_jd      = _moon_time_to_jd_response("mimas",      "SSaMiT")
+sol_saturn_mimas_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Mimas."
+
+jd_to_sol_saturn_enceladus_time  = _moon_time_response("enceladus",  _SATURNIAN_PARENT, "SSaEnT", "Sol Saturn-Enceladus Time")
+jd_to_sol_saturn_enceladus_time.__doc__ = "JD (TDB) → Sol Saturn-Enceladus Time (SSaEnT). Cryovolcanic moon with a subsurface ocean; participates in the 2:1 Enceladus-Dione resonance that powers its tidal heating. Sidereal day = orbital period = 1.370 days."
+sol_saturn_enceladus_time_to_jd  = _moon_time_to_jd_response("enceladus",  "SSaEnT")
+sol_saturn_enceladus_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Enceladus."
+
+jd_to_sol_saturn_tethys_time     = _moon_time_response("tethys",     _SATURNIAN_PARENT, "SSaTeT", "Sol Saturn-Tethys Time")
+jd_to_sol_saturn_tethys_time.__doc__ = "JD (TDB) → Sol Saturn-Tethys Time (SSaTeT). Inner-zone icy Saturnian; outer member of the 4:2 Mimas-Tethys resonance. Sidereal day = orbital period = 1.888 days."
+sol_saturn_tethys_time_to_jd     = _moon_time_to_jd_response("tethys",     "SSaTeT")
+sol_saturn_tethys_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Tethys."
+
+jd_to_sol_saturn_dione_time      = _moon_time_response("dione",      _SATURNIAN_PARENT, "SSaDiT", "Sol Saturn-Dione Time")
+jd_to_sol_saturn_dione_time.__doc__ = "JD (TDB) → Sol Saturn-Dione Time (SSaDiT). Outer member of the 2:1 Enceladus-Dione resonance. Sidereal day = orbital period = 2.737 days."
+sol_saturn_dione_time_to_jd      = _moon_time_to_jd_response("dione",      "SSaDiT")
+sol_saturn_dione_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Dione."
+
+jd_to_sol_saturn_rhea_time       = _moon_time_response("rhea",       _SATURNIAN_PARENT, "SSaRhT", "Sol Saturn-Rhea Time")
+jd_to_sol_saturn_rhea_time.__doc__ = "JD (TDB) → Sol Saturn-Rhea Time (SSaRhT). Second-largest Saturnian; not in any major resonance. Sidereal day = orbital period = 4.518 days."
+sol_saturn_rhea_time_to_jd       = _moon_time_to_jd_response("rhea",       "SSaRhT")
+sol_saturn_rhea_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Rhea."
+
+jd_to_sol_saturn_titan_time      = _moon_time_response("titan",      _SATURNIAN_PARENT, "SSaTiT", "Sol Saturn-Titan Time")
+jd_to_sol_saturn_titan_time.__doc__ = "JD (TDB) → Sol Saturn-Titan Time (SSaTiT). Largest Saturnian (second-largest moon in the solar system); thick N₂/methane atmosphere; outer member of the 4:3 Titan-Hyperion resonance. Sidereal day = orbital period = 15.945 days."
+sol_saturn_titan_time_to_jd      = _moon_time_to_jd_response("titan",      "SSaTiT")
+sol_saturn_titan_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Titan."
+
+jd_to_sol_saturn_hyperion_time   = _moon_time_response("hyperion",   _SATURNIAN_PARENT, "SSaHyT", "Sol Saturn-Hyperion Time")
+jd_to_sol_saturn_hyperion_time.__doc__ = "JD (TDB) → Sol Saturn-Hyperion Time (SSaHyT). Chaotically rotating Saturnian (the only known major moon NOT in tidal lock — but the 'sidereal_period_days' field still references the orbital period; rotation phase is non-trivially decoupled, an open research direction). Inner member of the 4:3 Titan-Hyperion resonance. Orbital period = 21.277 days."
+sol_saturn_hyperion_time_to_jd   = _moon_time_to_jd_response("hyperion",   "SSaHyT")
+sol_saturn_hyperion_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Hyperion (orbital period; rotation chaotic)."
+
+jd_to_sol_saturn_iapetus_time    = _moon_time_response("iapetus",    _SATURNIAN_PARENT, "SSaIaT", "Sol Saturn-Iapetus Time")
+jd_to_sol_saturn_iapetus_time.__doc__ = "JD (TDB) → Sol Saturn-Iapetus Time (SSaIaT). Outermost classical Saturnian; famous two-tone albedo. Sidereal day = orbital period = 79.322 days."
+sol_saturn_iapetus_time_to_jd    = _moon_time_to_jd_response("iapetus",    "SSaIaT")
+sol_saturn_iapetus_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Iapetus."
+
+jd_to_sol_saturn_phoebe_time     = _moon_time_response("phoebe",     _SATURNIAN_PARENT, "SSaPhT", "Sol Saturn-Phoebe Time")
+jd_to_sol_saturn_phoebe_time.__doc__ = "JD (TDB) → Sol Saturn-Phoebe Time (SSaPhT). Retrograde irregular Saturnian (captured Centaur). Long orbit — sidereal-cycle count moves slowly. Sidereal day = orbital period = 550.565 days."
+sol_saturn_phoebe_time_to_jd     = _moon_time_to_jd_response("phoebe",     "SSaPhT")
+sol_saturn_phoebe_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Phoebe."
+
+jd_to_sol_saturn_janus_time      = _moon_time_response("janus",      _SATURNIAN_PARENT, "SSaJaT", "Sol Saturn-Janus Time")
+jd_to_sol_saturn_janus_time.__doc__ = "JD (TDB) → Sol Saturn-Janus Time (SSaJaT). Co-orbital with Epimetheus (~4-year horseshoe-orbit swap). Sidereal day = orbital period = 0.695 days."
+sol_saturn_janus_time_to_jd      = _moon_time_to_jd_response("janus",      "SSaJaT")
+sol_saturn_janus_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Janus."
+
+jd_to_sol_saturn_epimetheus_time = _moon_time_response("epimetheus", _SATURNIAN_PARENT, "SSaEpT", "Sol Saturn-Epimetheus Time")
+jd_to_sol_saturn_epimetheus_time.__doc__ = "JD (TDB) → Sol Saturn-Epimetheus Time (SSaEpT). Co-orbital with Janus (~4-year horseshoe-orbit swap). Sidereal day = orbital period = 0.694 days."
+sol_saturn_epimetheus_time_to_jd = _moon_time_to_jd_response("epimetheus", "SSaEpT")
+sol_saturn_epimetheus_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Epimetheus."
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.14.2 Sol Moon Times — Martians, Jovian inner regulars,
+#                          Uranian (Titania), Neptunian (Triton)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Eight more moons across four parent families, integrated from four
+# parallel subagent worktrees. All tidally locked, J2000-anchored.
+#
+# Naming + abbreviations (continuing the v0.14.1 6-letter convention):
+#
+#   Family               | Abbrev  | Sol Time name
+#   ---------------------|---------|----------------------------------
+#   Mars / Phobos        | SMaPhT  | Sol Mars-Phobos Time
+#   Mars / Deimos        | SMaDeT  | Sol Mars-Deimos Time
+#   Jupiter / Metis      | SJuMeT  | Sol Jupiter-Metis Time
+#   Jupiter / Adrastea   | SJuAdT  | Sol Jupiter-Adrastea Time
+#   Jupiter / Amalthea   | SJuAmT  | Sol Jupiter-Amalthea Time
+#   Jupiter / Thebe      | SJuThT  | Sol Jupiter-Thebe Time
+#   Uranus / Titania     | SUrTiT  | Sol Uranus-Titania Time
+#   Neptune / Triton     | SNeTrT  | Sol Neptune-Triton Time
+#
+# Notable physical context (in test prose, not in dicts):
+#   - Phobos sidereal period (0.319 d) is SHORTER than Mars's solar
+#     day, so from Mars's surface Phobos rises in the WEST.
+#   - Phobos / Deimos are likely captured asteroids (C/D-type spectra).
+#   - Metis + Adrastea are ring-shepherd moons of Jupiter's main ring.
+#   - Amalthea is the largest Jovian inner regular (84 km) and the only
+#     one discovered before Voyager (Barnard 1892).
+#   - Triton orbits RETROGRADE (only large moon to do so; captured
+#     Kuiper Belt object); tidally decaying — will form a ring system
+#     in ~3.6 Gyr when it crosses Neptune's Roche limit.
+#   - SUrTiT (Titania) and SSaTiT (Saturn's Titan) share the `Ti`
+#     moon-letter pair but are globally distinct via the parent prefix
+#     (`Ur` vs `Sa`) — exactly the disambiguation the v0.14.1 6-letter
+#     policy was designed to provide.
+# ──────────────────────────────────────────────────────────────────────
+
+# ── Mars (Phobos, Deimos) — likely captured asteroids
+jd_to_sol_mars_phobos_time = _moon_time_response("phobos", _MARTIAN_PARENT, "SMaPhT", "Sol Mars-Phobos Time")
+jd_to_sol_mars_phobos_time.__doc__ = "JD (TDB) → Sol Mars-Phobos Time (SMaPhT). Inner Martian moon — likely a captured asteroid (C/D-type spectral match). Sidereal period (0.319 days = 7h 39m) is SHORTER than Mars's solar day, so from Mars's surface Phobos rises in the west. Tidally locked: sidereal day = orbital period = rotation period = 0.319 days."
+sol_mars_phobos_time_to_jd = _moon_time_to_jd_response("phobos", "SMaPhT")
+sol_mars_phobos_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Phobos."
+
+jd_to_sol_mars_deimos_time = _moon_time_response("deimos", _MARTIAN_PARENT, "SMaDeT", "Sol Mars-Deimos Time")
+jd_to_sol_mars_deimos_time.__doc__ = "JD (TDB) → Sol Mars-Deimos Time (SMaDeT). Outer Martian moon — likely a captured asteroid (C/D-type spectral match), companion to Phobos. NOT in mean-motion resonance with Phobos (period ratio ≈ 3.96, near-but-not-locked 4:1). Tidally locked: sidereal day = orbital period = rotation period = 1.262 days."
+sol_mars_deimos_time_to_jd = _moon_time_to_jd_response("deimos", "SMaDeT")
+sol_mars_deimos_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Deimos."
+
+# ── Jupiter inner regulars (Metis, Adrastea, Amalthea, Thebe)
+jd_to_sol_jupiter_metis_time = _moon_time_response("metis", _GALILEAN_PARENT, "SJuMeT", "Sol Jupiter-Metis Time")
+jd_to_sol_jupiter_metis_time.__doc__ = "JD (TDB) → Sol Jupiter-Metis Time (SJuMeT). Innermost known Jovian moon; ring-shepherd of Jupiter's main ring (with Adrastea). Tidally locked: sidereal day = orbital period = 0.295 days ≈ 7.07 h. Discovered in Voyager 2 imagery (1979)."
+sol_jupiter_metis_time_to_jd = _moon_time_to_jd_response("metis", "SJuMeT")
+sol_jupiter_metis_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Metis."
+
+jd_to_sol_jupiter_adrastea_time = _moon_time_response("adrastea", _GALILEAN_PARENT, "SJuAdT", "Sol Jupiter-Adrastea Time")
+jd_to_sol_jupiter_adrastea_time.__doc__ = "JD (TDB) → Sol Jupiter-Adrastea Time (SJuAdT). Second ring-shepherd of Jupiter's main ring (with Metis); orbits fractionally outside Metis but still just outside the ring's outer edge. Smallest Jovian inner regular by mean radius (~8 km). Tidally locked: 0.298 days ≈ 7.16 h. Discovered in Voyager 2 imagery (1979)."
+sol_jupiter_adrastea_time_to_jd = _moon_time_to_jd_response("adrastea", "SJuAdT")
+sol_jupiter_adrastea_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Adrastea."
+
+jd_to_sol_jupiter_amalthea_time = _moon_time_response("amalthea", _GALILEAN_PARENT, "SJuAmT", "Sol Jupiter-Amalthea Time")
+jd_to_sol_jupiter_amalthea_time.__doc__ = "JD (TDB) → Sol Jupiter-Amalthea Time (SJuAmT). Largest Jovian inner regular (radius ~84 km); distinctly reddish color (the most coloured of the small Jovian moons). The only Jovian inner regular discovered before the Voyager era — E. E. Barnard 1892, the last solar-system moon discovered by direct visual observation. Tidally locked: sidereal day = orbital period = 0.498 days ≈ 11.96 h."
+sol_jupiter_amalthea_time_to_jd = _moon_time_to_jd_response("amalthea", "SJuAmT")
+sol_jupiter_amalthea_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Amalthea."
+
+jd_to_sol_jupiter_thebe_time = _moon_time_response("thebe", _GALILEAN_PARENT, "SJuThT", "Sol Jupiter-Thebe Time")
+jd_to_sol_jupiter_thebe_time.__doc__ = "JD (TDB) → Sol Jupiter-Thebe Time (SJuThT). Outermost Jovian inner regular; orbits between Amalthea and Io. Tidally locked: sidereal day = orbital period = 0.675 days ≈ 16.19 h. Discovered in Voyager 1 imagery (S. Synnott, 1979)."
+sol_jupiter_thebe_time_to_jd = _moon_time_to_jd_response("thebe", "SJuThT")
+sol_jupiter_thebe_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Thebe."
+
+# ── Uranus (Titania)
+jd_to_sol_uranus_titania_time = _moon_time_response("titania", _URANIAN_PARENT, "SUrTiT", "Sol Uranus-Titania Time")
+jd_to_sol_uranus_titania_time.__doc__ = "JD (TDB) → Sol Uranus-Titania Time (SUrTiT). Largest moon of Uranus (radius ~789 km); discovered by William Herschel 1787. Currently the only Uranian moon in BODIES; Oberon, Umbriel, Ariel, Miranda are queued for a future ship. Tidally locked: sidereal day = orbital period = 8.706 days. NOTE: SUrTiT and SSaTiT (Saturn's Titan) share the `Ti` moon prefix but are globally distinct via the parent prefix (`Ur` vs `Sa`) — exactly the disambiguation the v0.14.1 6-letter policy was designed to provide."
+sol_uranus_titania_time_to_jd = _moon_time_to_jd_response("titania", "SUrTiT")
+sol_uranus_titania_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Titania."
+
+# ── Neptune (Triton)
+jd_to_sol_neptune_triton_time = _moon_time_response("triton", _NEPTUNIAN_PARENT, "SNeTrT", "Sol Neptune-Triton Time")
+jd_to_sol_neptune_triton_time.__doc__ = """JD (TDB) → Sol Neptune-Triton Time (SNeTrT).
+
+Largest Neptunian moon (radius ~1353 km — bigger than Pluto). The only large
+moon in the solar system that orbits its planet RETROGRADE — strong evidence
+Triton is a captured Kuiper Belt object, not a primordial Neptunian moon.
+
+Because of the retrograde orbit, Triton experiences tidal *deceleration* (not
+acceleration like prograde moons), so it's spiraling INWARD toward Neptune;
+in ~3.6 Gyr it will cross Neptune's Roche limit and be torn apart into a
+ring system.
+
+Active geology — Voyager 2 (1989) observed nitrogen geysers; surface
+temperature ~-235°C (one of the coldest in the solar system).
+
+Tidally locked: sidereal day = orbital period = 5.877 days. Encoder
+convention: BODIES["triton"].period_days is positive (we encode omega =
++2π/P for ALL bodies regardless of prograde/retrograde direction; the
+retrograde nature is metadata, not a sign flip in the time-scale primitive)."""
+sol_neptune_triton_time_to_jd = _moon_time_to_jd_response("triton", "SNeTrT")
+sol_neptune_triton_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Triton (orbits retrograde; period encoded positive per encoder convention)."
 
 
 # ──────────────────────────────────────────────────────────────────────

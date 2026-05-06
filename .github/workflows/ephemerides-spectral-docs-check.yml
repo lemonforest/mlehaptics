@@ -41,11 +41,26 @@ name: ephemerides-spectral-docs-check
 
 on:
   pull_request:
-    # Same trigger types as ephemerides-spectral-ci.yml so a PR opened
-    # with `--label foo` can re-run the check via label changes if the
-    # docs status changes mid-PR. Concurrency-cancellation below caps
-    # cost.
-    types: [opened, synchronize, reopened, edited, labeled]
+    # Trigger types: deliberately narrower than ephemerides-spectral-ci.yml.
+    # We DO listen for `labeled` (the docs-check is informational only,
+    # but we want it to re-run on label changes for parity with the CI
+    # workflow's wheel-check gate). We DO NOT listen for `edited`:
+    #
+    # GitHub web UI's "Squash and merge" workflow fires `edited` when
+    # the merge-commit dialog populates/saves the title + body fields,
+    # often near-simultaneously with a `synchronize` event triggered by
+    # the merge-preview ref (`refs/pull/N/merge`) being recomputed. With
+    # `edited` in the types list, this caused a deterministic double-
+    # fire at every merge — concurrency-cancel caught it (one CANCELLED,
+    # one SUCCESS), but the wasted CI churn + confusing run history was
+    # observable (v0.13.9 PR #214 surfaced it). v0.13.10 drops `edited`
+    # to eliminate the source.
+    #
+    # Cost: `[skip-docs-check]` opt-out added retroactively (after PR
+    # open, by editing the PR body) won't trigger a re-run. User must
+    # either push a synchronizing commit or accept the stale advisory
+    # comment. Acceptable — opt-out should be set up-front.
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
     paths:
       - "docs/antikythera-maths/ephemerides-spectral/**"

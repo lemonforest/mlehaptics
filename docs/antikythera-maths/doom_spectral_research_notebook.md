@@ -5,9 +5,10 @@
 **Status:** Active research — translating id Tech 1 into a graph-Laplacian spectral model.
 
 > Living document. Sibling to:
-> - [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md) — The static fiber bundle and piece kinematics.
-> - [../othello-maths/othello_spectral_research_notebook.md](../othello-maths/othello_spectral_research_notebook.md) — The dynamic sheaf Laplacian (raycasting and LoS).
-> - [./ephemerides_spectral_research_notebook.md](./ephemerides_spectral_research_notebook.md) — The ALU-native $Z_{2^{32}}$ BIP encoder and Phase-9 adaptive couplings.
+> - [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md) — The static fiber bundle and piece kinematics; §20.21 frames this notebook as the fourth sibling and tabulates the Track 1 / Track 3 / Track 4 correspondences (2D Grid Laplacian; dynamic sheaf raycast; heat-equation diffusion). The chess notebook is the foundational one — it carries the full vocabulary stack and the cross-disciplinary methodological note (§42).
+> - [../othello-maths/othello_spectral_research_notebook.md](../othello-maths/othello_spectral_research_notebook.md) — The dynamic sheaf Laplacian (raycasting and LoS). Track 3 of this notebook is mathematically identical to Othello's **§10.7 ray-flanking mechanic** — the doom-spectral implementation reuses the algebra directly.
+> - [./antikythera_spectral_research_notebook.md](./antikythera_spectral_research_notebook.md) — **same-folder sibling.** The cyclic-group / Laplacian-eigenbasis structure read off the ca. 150–60 BCE Antikythera bronze; established the integer-ALU + cosine-LUT + Q-format discipline that this notebook reuses for the BSP / Sector graph.
+> - [./ephemerides_spectral_research_notebook.md](./ephemerides_spectral_research_notebook.md) — **same-folder sibling.** The ALU-native $Z_{2^{32}}$ BIP encoder and Phase-9 adaptive couplings shipped to PyPI as `ephemerides-spectral`; this notebook is the first sibling that ports the BIP/Phase-9 machinery to a non-celestial-mechanics problem (a 1993 first-person-shooter map).
 
 ## 0. Framing: 1993 Carmack Meets 2026 Spectral Graph Theory
 
@@ -94,6 +95,7 @@ We transitioned kinematics from 16.16 fixed-point to a **Phase-9 BIP (Bit-Interl
 
 - **Encoding:** Coordinates $(x, y)$ are mapped to a 512-dimensional hypervector $H \in \{-1, 1\}^{512}$ via coprime cyclic shifts (67, 7).
 - **Breathing Couplings:** To mirror the Ephemerides HDC (Jupiter-Saturn resonances), we introduced non-linear interaction energy between the X and Y axes. The cyclic shift is perturbed by a "breathing term" $(x \cdot y \bmod 512)$. This introduces harmonic resonances into the spatial manifold, causing the phase space to bend slightly based on geometric coordinates.
+- **Spatial Orthogonality:** Distant points in E1M1 (e.g., $(100, 200)$ vs $(500, 800)$) show near-zero similarity (dot product $\approx -0.015$), while adjacent points maintain a detectable correlation.
 - **Result:** Spatial progression is now represented as a trajectory in high-dimensional phase space, allowing for collision detection via dot-product thresholding.
 
 ### 4.2 Spectral BSP Partitioning (Implemented May 2026)
@@ -102,7 +104,7 @@ The level's spatial hierarchy was automatically derived using **Spectral Cluster
 
 - **Primary Cut:** The Fiedler vector ($\lambda_2 = 0.012923$) split E1M1 into two nodal domains of 39 and 46 sectors.
 - **Bottleneck Identification:** The spectral split severed only **3 portals**, identifying the absolute geographic "choke point" of the Hangar's layout.
-
+- **Application:** This method allows for the automated generation of BSP trees that are topologically optimized for sound and visibility propagation.
 ### 4.3 Physical Sound Diffusion (Refined May 2026)
 
 Replaced the unstable high-order Taylor expansion with a stable **multi-step Euler integration** of the Heat Equation:
