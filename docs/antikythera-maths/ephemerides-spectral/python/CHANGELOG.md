@@ -10,7 +10,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.8)
+(no entries yet — next entries land after v0.13.9)
+
+## [0.13.9] — 2026-05-05
+
+**JPL Power-of-Ten Rules 6 + 7 manual audits — final patch in the v0.13.4-v0.13.9 rule-fix sequence.** Audit-only release; no code changes; **0 violations found** for both rules.
+
+### Result
+
+**All ten JPL Power-of-Ten rules now satisfied.** The five-ship sequence v0.13.4 → v0.13.5 → v0.13.6 → v0.13.7 → v0.13.9 (with v0.13.8 a docs-hygiene patch in the middle) closes out the v0.11.2 audit baseline:
+
+| Rule | Description | Cleared in | Mechanism |
+|---|---|---|---|
+| 1 | No `goto` / `setjmp` / `longjmp` / recursion | v0.13.4 | `test_jpl_audit.py` pin |
+| 2 | Fixed loop bounds | already-passing at v0.11.2 | `test_jpl_audit.py` pin |
+| 3 | No dynamic allocation after init | v0.13.4 | `test_jpl_audit.py` pin |
+| 4 | Functions ≤ 60 lines | v0.13.5 | `test_jpl_audit.py` pin |
+| 5 | ≥ 2 assertions per function (avg) | v0.13.6 | `test_jpl_audit.py` pin + density test |
+| 6 | Smallest possible scope for data | **v0.13.9** | manual audit (this ship) |
+| 7 | Check return values, validate parameters | **v0.13.9** | manual audit (this ship) |
+| 8 | Limited preprocessor | already-passing at v0.11.2 | `test_jpl_audit.py` pin |
+| 9 | Pointer dereference depth ≤ 1; no function pointers | already-passing at v0.11.2 | `test_jpl_audit.py` pin |
+| 10 | Compile clean at most-pedantic warning level | v0.13.7 | `pedantic-build` 3-cell CI matrix |
+
+### Rule 6 audit findings
+
+The v0.11.2 spot-check estimate of *"likely 5-10 violations across `es_encode.c` + `es_parity.c`"* did not survive the cleanup work in v0.13.4-v0.13.6. The illustrative snippet in the audit doc was illustrative, not actual code. Real codebase shape:
+
+- **All loop iterators**: `for (size_t i = ...; ...)` block-scoped.
+- **All `const` declarations**: at minimal scope near use (the v0.13.6 assertion work added `const double rad = ...; assert(rad >= 0.0)` patterns throughout).
+- **Function-scope declarations that remain are intentional**:
+  - **Accumulators** (`acc`, `acc_r`, `acc_i`) — must outlive each loop iteration.
+  - **Sqrt caches** (`sqrt_D`, `inv_sqrt_D`) — computed once at function entry to avoid recomputation in the inner loop.
+  - **Output buffers** (`curr_phases[]`, `trunk_step[]`) — used both before and after the chunk loop.
+  - **Result variables** (`rounded` in `es_banker_round`) — set in three branches, returned at function exit.
+
+All within Rule 6 spirit.
+
+### Rule 7 audit findings
+
+The v0.11.2 estimate of *"5-15 sites where `rc` is assigned but not checked"* did not survive scrutiny. Every `es_status_t` return is checked via the uniform pattern:
+
+```c
+es_status_t rc = some_call(...);
+if (rc != ES_OK) return rc;
+```
+
+Audit walked every `es_status_t` assignment in the codebase (8 sites across `es_parity.c`, `es_hd_state.c`, `es_patches.c`); each was checked on the next line. Numeric returns used directly in expressions (no assigned-but-not-used sites). Bridge entry points validate every parameter via runtime checks; internal helpers take pre-validated inputs documented via post-validation `assert()` (Rule 5 work in v0.13.6).
+
+### Migration
+
+None. Audit-only release; no source code changes; no API/ABI/encoder/test surface change. 251 tests pass, 4 skipped (unchanged).
 
 ## [0.13.8] — 2026-05-05
 
