@@ -391,8 +391,14 @@ void I_FinishUpdate (void)
     
     }
 
-    // scales the screen size before blitting it
-    if (multiply == 2)
+    // scales the screen size before blitting it.
+    // [SPECTRAL] In TrueColor mode the LUT-expand block below already
+    // handles the multiply factor inline (block-replication into the
+    // 32-bit XImage), so skip the legacy 8-bit packed-uint32 scale
+    // loops -- they would write garbage 8-bit data into the 32-bit
+    // image surface, only to be overwritten by the LUT pass anyway.
+    // Functionally a no-op fix; this just avoids the wasted writes.
+    if (multiply == 2 && !X_truecolor)
     {
 	unsigned int *olineptrs[2];
 	unsigned int *ilineptr;
@@ -435,7 +441,7 @@ void I_FinishUpdate (void)
 	}
 
     }
-    else if (multiply == 3)
+    else if (multiply == 3 && !X_truecolor)
     {
 	unsigned int *olineptrs[3];
 	unsigned int *ilineptr;
@@ -491,7 +497,7 @@ void I_FinishUpdate (void)
 	}
 
     }
-    else if (multiply == 4)
+    else if (multiply == 4 && !X_truecolor)
     {
 	// Broken. Gotta fix this some day.
 	void Expand4(unsigned *, double *);
