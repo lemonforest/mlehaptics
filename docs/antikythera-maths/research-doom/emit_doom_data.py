@@ -18,7 +18,18 @@ def emit_c_header():
     vals, vecs = np.linalg.eigh(graph.L)
     fiedler = vecs[:, 1]
     
-    # 3. Write Header
+    # 3. Haptic Anchors
+    # Rule: Anchors for adjacent sectors should be more similar than distant ones
+    raw_anchors = rng.choice([-1, 1], size=(len(sectors), 512)).astype(float)
+    smooth_anchors = raw_anchors.copy()
+    for _ in range(3):
+        for i in range(len(sectors)):
+            neighbors = np.where(adj[i] > 0)[0]
+            if len(neighbors) > 0:
+                smooth_anchors[i] += 0.2 * np.sum(raw_anchors[neighbors], axis=0)
+    anchors = np.sign(smooth_anchors).astype(np.int8)
+
+    # 4. Write Header
     with open("docs/antikythera-maths/research-doom/c/include/ds_data.h", "w") as f:
         f.write("#ifndef DS_DATA_H\n#define DS_DATA_H\n\n")
         f.write("#include <stdint.h>\n\n")
@@ -34,6 +45,12 @@ def emit_c_header():
         f.write("static const int8_t ds_phi_y[DS_BIP_DIM] = {\n    ")
         f.write(", ".join(map(str, phi_y)))
         f.write("\n};\n\n")
+        
+        # Haptic Anchors
+        f.write("static const int8_t ds_e1m1_anchors[DS_E1M1_SECTORS][DS_BIP_DIM] = {\n")
+        for row in anchors:
+            f.write("    { " + ", ".join(map(str, row)) + " },\n")
+        f.write("};\n\n")
         
         # Sector Data
         f.write("typedef struct { int16_t floor; int16_t ceiling; } ds_sector_info_t;\n")

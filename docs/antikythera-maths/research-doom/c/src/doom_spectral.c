@@ -70,7 +70,7 @@ int32_t ds_bip_similarity(const ds_hypervector_t *const a, const ds_hypervector_
 /*  Physics (Z-Fiber)                                                 */
 /* ------------------------------------------------------------------ */
 
-bool ds_fiber_can_traverse(const int sec_a, const int sec_b, 
+d_boolean ds_fiber_can_traverse(const int sec_a, const int sec_b, 
                            const int32_t entity_z, const int32_t entity_height)
 {
     const ds_sector_info_t *s_b;
@@ -87,7 +87,7 @@ bool ds_fiber_can_traverse(const int sec_a, const int sec_b,
     /* If not adjacent in the manifold, cannot traverse */
     if (ds_e1m1_adj[sec_a][sec_b] == 0)
     {
-        return false;
+        return d_false;
     }
 
     s_b = &ds_e1m1_sectors[sec_b];
@@ -98,20 +98,53 @@ bool ds_fiber_can_traverse(const int sec_a, const int sec_b,
      */
     if (s_b->floor > (z + max_step))
     {
-        return false;
+        return d_false;
     }
 
     if (s_b->ceiling < (z + h))
     {
-        return false;
+        return d_false;
     }
 
-    return true;
+    return d_true;
 }
 
+
 /* ------------------------------------------------------------------ */
-/*  Topology (Sound Diffusion)                                         */
+/*  Haptics (Tension)                                                 */
 /* ------------------------------------------------------------------ */
+
+int32_t ds_get_haptic_tension(int sector_id, const ds_hypervector_t *const h)
+{
+    int32_t dot = 0;
+    uint32_t i;
+    const int8_t *anchor;
+
+    assert(sector_id >= 0);
+    assert(sector_id < DS_E1M1_SECTORS);
+    assert(h != (void *)0);
+
+    anchor = ds_e1m1_anchors[sector_id];
+
+    for (i = 0U; i < DS_BIP_DIM; ++i)
+    {
+        dot += (int32_t)(anchor[i] * h->h[i]);
+    }
+
+    /* 
+     * Tension = 1.0 - Similarity
+     * Sim is [-1.0, 1.0]. Tension is [0.0, 2.0].
+     * (dot / 512) is sim.
+     * Fixed point 16.16: Tension = 65536 - (dot * 128)
+     */
+    int32_t tension = 65536 - (dot * 128);
+
+    /* Clamp to [0, 1.0] range for standard haptic drivers */
+    if (tension < 0) tension = 0;
+    if (tension > 65536) tension = 65536;
+
+    return tension;
+}
 
 void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out)
 {

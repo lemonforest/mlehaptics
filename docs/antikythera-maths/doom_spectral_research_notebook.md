@@ -103,19 +103,21 @@ The level's spatial hierarchy was automatically derived using **Spectral Cluster
 - **Primary Cut:** The Fiedler vector ($\lambda_2 = 0.012923$) split E1M1 into two nodal domains of 39 and 46 sectors.
 - **Bottleneck Identification:** The spectral split severed only **3 portals**, identifying the absolute geographic "choke point" of the Hangar's layout.
 - **Application:** This method allows for the automated generation of BSP trees that are topologically optimized for sound and visibility propagation.
+### 4.3 Physical Sound Diffusion (Refined May 2026)
 
-### 4.3 Headless Spectral Simulation (Verified May 2026)
+Replaced the unstable high-order Taylor expansion with a stable **multi-step Euler integration** of the Heat Equation:
+- **Model:** $s(t+\Delta t) = s(t) - \Delta t \cdot L \cdot s(t)$.
+- **Implementation:** 8-step iterative diffusion in `doom_spectral.c`.
+- **Result:** Sound intensity remains strictly bounded within $[0, 1]$, providing a physically correct "spectral flooding" signal that naturally obeys the level's topological bottlenecks.
 
-To verify the "Spectral Slice" in a non-graphical environment, we implemented `ds_headless_runner.c`. This runner simulates the engine's internal manifold state during player movement.
+### 4.4 The Haptic Manifold: Phase Anchors (Implemented May 2026)
 
-- **BIP Trajectory:** As the player moves from $(1056, -3616)$, the 512-dimensional BIP state correctly decorrelates. Similarity drops from $1.0$ (start) to a fluctuating noise floor ($\approx \pm 0.04$), confirming spatial uniqueness in phase space.
-- **Physical Sound Diffusion:** Replaced the unstable cubic Taylor expansion with an **8-step Euler integration** ($\Delta s = -L \cdot s \cdot \Delta t$).
-- **Diffusion Result (t=0.8):** Sound intensity from Sector 0 (Hangar) decays physically:
-    - Sector 0: $0.2860$ (Source)
-    - Sector 1: $0.0498$
-    - Sector 3: $0.0841$
-    - Sector 4: $0.2170$
-- **Verification:** All sound intensities are bounded $[0, 1]$, confirming the stability of the spectral flooding model on real E1M1 topology.
+To drive the **mlehaptics** hardware, we implemented a sensory layer that translates topological state into motor tension.
+
+- **Phase Anchors:** Each sector is assigned a 512D "Anchor Hypervector" $H_{anchor}$. These anchors are diffused across the graph to maintain local phase correlation.
+- **Spectral Tension:** The "friction" experienced by the player is calculated as:
+  $Tension = 1.0 - \text{Similarity}(H_{player}, H_{anchor})$.
+- **Engine Trace:** The DOOM engine now outputs real-time `[HAPTIC]` tension signals in the player loop, enabling high-fidelity sensory feedback based on the player's resonance with the environment.
 
 ## 5. Summary of Artifacts
 
@@ -123,6 +125,9 @@ To verify the "Spectral Slice" in a non-graphical environment, we implemented `d
 | :--- | :--- | :--- |
 | **BIP State** | `results-doom/e1m1_bip_sample.npy` | 512D hypervector of a sample E1M1 coordinate. |
 | **Partition Map** | `results-doom/e1m1_spectral_partition.npy` | Fiedler vector and sector cluster assignments. |
+| **Haptic Anchors**| `results-doom/e1m1_haptic_anchors.npy` | 85 sector Phase Anchors for sensory feedback. |
 | **WAD Parser** | `research-doom/wad_parser.py` | Binary IWAD extractor for id Tech 1 data. |
-| **Headless Runner**| `research-doom/c/test/ds_headless_runner.c` | Engine-agnostic spectral manifold simulator. |
+| **Headless Runner**| `research-doom/ds_headless` | Compiled manifold simulator with rich CLI args. |
+| **Spectral Engine**| `doom-spectral/source/linuxdoom-1.10/` | DOOM source code with integrated spectral lattice. |
+
 | **Spectral Engine**| `doom-spectral/source/linuxdoom-1.10/` | DOOM source code with integrated spectral lattice. |
