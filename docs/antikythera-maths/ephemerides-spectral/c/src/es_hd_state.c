@@ -97,6 +97,112 @@ static void complex64_scale_inplace(es_complex64_t *state,
     }
 }
 
+/* (lat, lon) → shift index for the observer-coord roll.
+ *
+ *   lat_res = int((lat+90)/180 * D) mod D
+ *   lon_res = int((lon+180)/360 * D) mod D
+ *   shift   = (lat_res * ES_COPRIME_LAT
+ *             + lon_res * ES_COPRIME_LON) mod D
+ *
+ * Same conversion as Python `int(((lat+90)/180) * D) % D`. `(int)`
+ * truncates toward zero in C; for positive `lat_norm * D` this matches
+ * Python's `int(...)`. lat ∈ [-90, 90] and lon ∈ [-180, 180] keep both
+ * norms in [0, 1].
+ */
+static size_t observer_coord_shift(double lat_deg, double lon_deg, size_t D)
+{
+    const double lat_norm = (lat_deg + 90.0) / 180.0;
+    const double lon_norm = (lon_deg + 180.0) / 360.0;
+    const long long lat_raw = (long long)(lat_norm * (double)D);
+    const long long lon_raw = (long long)(lon_norm * (double)D);
+    const size_t lat_res = (size_t)(((lat_raw % (long long)D) + (long long)D) % (long long)D);
+    const size_t lon_res = (size_t)(((lon_raw % (long long)D) + (long long)D) % (long long)D);
+    return (lat_res * (size_t)ES_COPRIME_LAT
+            + lon_res * (size_t)ES_COPRIME_LON) % D;
+}
+
+/* Compute out_state[k] = state_in[k] * observer_op[k] * sqrt(D),
+ *   where observer_op[k] = (body_basis[k] / sqrt(D)) * coord_op[k].
+ *
+ * The two sqrt(D) factors cancel one of the body_basis scalings in
+ * the bind, but we keep them explicit for byte-parity with the Python
+ * side which writes them out the same way.
+ */
+static void apply_observer_bind(const es_complex64_t *state_in,
+                                const es_complex64_t *body_basis,
+                                const es_complex64_t *coord_op,
+                                es_complex64_t *out_state,
+                                size_t D)
+{
+    const double sqrt_D = sqrt((double)D);
+    const double inv_sqrt_D = 1.0 / sqrt_D;
+    for (size_t k = 0; k < D; ++k) {
+        const double br = (double)body_basis[k].real * inv_sqrt_D;
+        const double bi = (double)body_basis[k].imag * inv_sqrt_D;
+        const double cr = (double)coord_op[k].real;
+        const double ci = (double)coord_op[k].imag;
+        /* observer_op = body_basis_scaled * coord_op  (complex mul) */
+        const double or_ = br * cr - bi * ci;
+        const double oi = br * ci + bi * cr;
+        const double sr = (double)state_in[k].real;
+        const double si = (double)state_in[k].imag;
+        /* out = state * observer_op * sqrt(D) (complex mul × scalar) */
+        const double mr = sr * or_ - si * oi;
+        const double mi = sr * oi + si * or_;
+        out_state[k].real = (float)(mr * sqrt_D);
+        out_state[k].imag = (float)(mi * sqrt_D);
+    }
+}
+
+/* Build the un-normalised syzygy operator
+ *   s_op[k] = (sun_b[k] + moon_b[k] + node_b[k]) / sqrt(D)
+ * mirroring numpy:
+ *   s_op = (sun_b + moon_b) / sqrt(D) + node_b / sqrt(D)
+ *        = (sun_b + moon_b + node_b) / sqrt(D)
+ * The three-way sum + single multiply is the same float pattern; the
+ * factored form keeps it in one pass over the buffer.
+ */
+static void build_syzygy_operator(const es_complex64_t *sun_b,
+                                  const es_complex64_t *moon_b,
+                                  const es_complex64_t *node_b,
+                                  es_complex64_t *s_op,
+                                  size_t D)
+{
+    const double inv_sqrt_D = 1.0 / sqrt((double)D);
+    for (size_t k = 0; k < D; ++k) {
+        const double r = ((double)sun_b[k].real
+                          + (double)moon_b[k].real
+                          + (double)node_b[k].real) * inv_sqrt_D;
+        const double i = ((double)sun_b[k].imag
+                          + (double)moon_b[k].imag
+                          + (double)node_b[k].imag) * inv_sqrt_D;
+        s_op[k].real = (float)r;
+        s_op[k].imag = (float)i;
+    }
+}
+
+/* Magnitude of the conj-vdot inner product:
+ *   |<a, b>| = | sum conj(a[k]) * b[k] |
+ * Matches numpy.vdot(a, b) which conjugates its first argument.
+ */
+static double complex64_vdot_magnitude(const es_complex64_t *a,
+                                       const es_complex64_t *b,
+                                       size_t D)
+{
+    double acc_r = 0.0, acc_i = 0.0;
+    for (size_t k = 0; k < D; ++k) {
+        const double ar = (double)a[k].real;
+        const double ai = (double)a[k].imag;
+        const double br = (double)b[k].real;
+        const double bi = (double)b[k].imag;
+        /* conj(a) * b = (ar - i*ai) * (br + i*bi)
+         *             = (ar*br + ai*bi) + i*(ar*bi - ai*br) */
+        acc_r += ar * br + ai * bi;
+        acc_i += ar * bi - ai * br;
+    }
+    return sqrt(acc_r * acc_r + acc_i * acc_i);
+}
+
 /* ──────────────────────────────────────────────────────────────────
  * es_encode_state_hd — BIP encode + lift
  * ────────────────────────────────────────────────────────────────── */
@@ -187,50 +293,11 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
     rc = es_channel_basis(ES_OBSERVER_COORD_BASIS_SEED, scratch_coord_basis, D);
     if (rc != ES_OK) return rc;
 
-    /* lat_res = int((lat+90)/180 * D) mod D
-     * lon_res = int((lon+180)/360 * D) mod D
-     * Same conversion as Python `int(((lat+90)/180) * D) % D`.
-     */
-    const double lat_norm = (lat_deg + 90.0) / 180.0;
-    const double lon_norm = (lon_deg + 180.0) / 360.0;
-    /* `(int)` truncates toward zero in C; for positive `lat_norm * D`
-     * this matches Python's `int(...)`. Negative inputs out of range
-     * would behave differently, but lat ∈ [-90, 90] and lon ∈
-     * [-180, 180] keep both norms in [0, 1]. */
-    const long long lat_raw = (long long)(lat_norm * (double)D);
-    const long long lon_raw = (long long)(lon_norm * (double)D);
-    const size_t lat_res = (size_t)(((lat_raw % (long long)D) + (long long)D) % (long long)D);
-    const size_t lon_res = (size_t)(((lon_raw % (long long)D) + (long long)D) % (long long)D);
-
-    const size_t shift = (lat_res * (size_t)ES_COPRIME_LAT
-                          + lon_res * (size_t)ES_COPRIME_LON) % D;
+    const size_t shift = observer_coord_shift(lat_deg, lon_deg, D);
     roll_complex64(scratch_coord_basis, shift, scratch_coord_op, D);
 
-    /* observer_op = (body_basis / sqrt(D)) * coord_op       (elementwise complex mul)
-     * out[k]      = state[k] * observer_op[k] * sqrt(D)
-     * The two sqrt(D) factors cancel one of the body_basis scalings
-     * in the bind, but we keep them explicit for byte-parity with
-     * the Python side which writes them out the same way.
-     */
-    const double sqrt_D = sqrt((double)D);
-    const double inv_sqrt_D = 1.0 / sqrt_D;
-    for (size_t k = 0; k < D; ++k) {
-        const double br = (double)scratch_body_basis[k].real * inv_sqrt_D;
-        const double bi = (double)scratch_body_basis[k].imag * inv_sqrt_D;
-        const double cr = (double)scratch_coord_op[k].real;
-        const double ci = (double)scratch_coord_op[k].imag;
-        /* observer_op = body_basis_scaled * coord_op  (complex mul) */
-        const double or_ = br * cr - bi * ci;
-        const double oi = br * ci + bi * cr;
-        const double sr = (double)state_in[k].real;
-        const double si = (double)state_in[k].imag;
-        /* out = state * observer_op * sqrt(D) (complex mul × scalar) */
-        const double mr = sr * or_ - si * oi;
-        const double mi = sr * oi + si * or_;
-        out_state[k].real = (float)(mr * sqrt_D);
-        out_state[k].imag = (float)(mi * sqrt_D);
-    }
-
+    apply_observer_bind(state_in, scratch_body_basis, scratch_coord_op,
+                        out_state, D);
     return ES_OK;
 }
 
@@ -269,37 +336,11 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
     rc = es_channel_basis(ES_SYZYGY_NODE_BASIS_SEED, scratch_node_b, D);
     if (rc != ES_OK) return rc;
 
-    const double sqrt_D = sqrt((double)D);
-    const double inv_sqrt_D = 1.0 / sqrt_D;
-
-    /* s_op = (sun_b + moon_b) / sqrt(D) + node_b / sqrt(D) */
-    for (size_t k = 0; k < D; ++k) {
-        const double r = ((double)scratch_sun_b[k].real
-                          + (double)scratch_moon_b[k].real
-                          + (double)scratch_node_b[k].real) * inv_sqrt_D;
-        const double i = ((double)scratch_sun_b[k].imag
-                          + (double)scratch_moon_b[k].imag
-                          + (double)scratch_node_b[k].imag) * inv_sqrt_D;
-        scratch_s_op[k].real = (float)r;
-        scratch_s_op[k].imag = (float)i;
-    }
-    /* Normalise. */
+    build_syzygy_operator(scratch_sun_b, scratch_moon_b, scratch_node_b,
+                          scratch_s_op, D);
     const double n = complex64_norm(scratch_s_op, D);
     if (n > 0.0) complex64_scale_inplace(scratch_s_op, D, n);
 
-    /* prob = |<state, s_op>| = |sum conj(state[k]) * s_op[k]|
-     * (numpy.vdot is conj-on-first-arg) */
-    double acc_r = 0.0, acc_i = 0.0;
-    for (size_t k = 0; k < D; ++k) {
-        const double sr = (double)state[k].real;
-        const double si = (double)state[k].imag;
-        const double or_ = (double)scratch_s_op[k].real;
-        const double oi = (double)scratch_s_op[k].imag;
-        /* conj(state) * s_op = (sr - i*si) * (or + i*oi)
-         *                   = (sr*or + si*oi) + i*(sr*oi - si*or) */
-        acc_r += sr * or_ + si * oi;
-        acc_i += sr * oi - si * or_;
-    }
-    *out_prob = sqrt(acc_r * acc_r + acc_i * acc_i);
+    *out_prob = complex64_vdot_magnitude(state, scratch_s_op, D);
     return ES_OK;
 }

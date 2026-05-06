@@ -144,6 +144,70 @@ double es_residue_to_radians(uint32_t residue) {
 /*  encode_state                                                      */
 /* ------------------------------------------------------------------ */
 
+/* Apply one chunk's worth of phase evolution to `curr_phases`:
+ *   1. Diagonal evolution (cyclic addition by trunk_step in Z_{2^64}).
+ *   2. Phase 9 breathing-couplings perturbation.
+ * `step` is the signed chunk size in days (used inside the breathing
+ * inner term `cp->weight_rpd * step`); `trunk_step` is its O(N)
+ * pre-multiply.
+ *
+ * All integer ops; uint64 wraparound is the cyclic-group reduction by
+ * design. The final reduction to Z_{2^32} happens once, at the end of
+ * `es_encode_state`.
+ */
+static void apply_one_chunk(uint64_t curr_phases[ES_N_BODIES],
+                            const int64_t trunk_step[ES_N_BODIES],
+                            int64_t step)
+{
+    /* Diagonal evolution. */
+    for (size_t i = 0; i < ES_N_BODIES; ++i) {
+        curr_phases[i] += (uint64_t)trunk_step[i];
+    }
+
+    /* Phase 9 breathing-couplings perturbation. For each coupling
+     * (a, b, n_a, m_b, weight_rpd):
+     *   cos_q14 = cos_lut(n_a * phi_a - m_b * phi_b)
+     *   breath  = (NUM * base_nudge * cos_q14) / (DEN * AMP)
+     *   nudge   = base_nudge + breath
+     *   phi_a, phi_b += nudge
+     */
+    for (size_t k = 0; k < es_n_couplings; ++k) {
+        const es_coupling_t *cp = &es_couplings[k];
+        const uint32_t phi_a = (uint32_t)(curr_phases[cp->idx_a] & ES_MODULO_MASK);
+        const uint32_t phi_b = (uint32_t)(curr_phases[cp->idx_b] & ES_MODULO_MASK);
+        /* res_phase = (n_a * phi_a) - (m_b * phi_b), mod 2^32.
+         * uint32 arithmetic gives free overflow.
+         */
+        const uint32_t res_phase = (uint32_t)(cp->n_a) * phi_a
+                                 - (uint32_t)(cp->m_b) * phi_b;
+        const int32_t  cos_q14   = es_cos_lut(res_phase, 1u);
+        const int64_t  base_nudge = cp->weight_rpd * step;
+        const int64_t  breath = es_floor_div(
+            (int64_t)ES_BREATHING_NUM * base_nudge * (int64_t)cos_q14,
+            (int64_t)ES_BREATHING_DEN * (int64_t)ES_COSINE_LUT_AMP);
+        const int64_t  nudge = base_nudge + breath;
+
+        curr_phases[cp->idx_a] += (uint64_t)nudge;
+        curr_phases[cp->idx_b] += (uint64_t)nudge;
+    }
+}
+
+/* Apply the leftover sub-chunk remainder (single fractional-day step).
+ * Banker's rounding (half-to-even) matches numpy's np.round; called
+ * O(N) times outside the hot loop. Necessary for byte-exact parity
+ * with the Python BIP encoder when the multiplication produces an
+ * exact half-integer (verified at the v0.3.1 +/- 1 yr parity tests).
+ */
+static void apply_subchunk_remainder(uint64_t curr_phases[ES_N_BODIES],
+                                     double remainder_signed)
+{
+    for (size_t i = 0; i < ES_N_BODIES; ++i) {
+        const int64_t rem_step = es_banker_round(
+            (double)es_omega_diag[i] * remainder_signed);
+        curr_phases[i] += (uint64_t)rem_step;
+    }
+}
+
 es_status_t es_encode_state(double delta_t_days,
                             uint32_t phases_out[ES_N_BODIES])
 {
@@ -179,75 +243,21 @@ es_status_t es_encode_state(double delta_t_days,
         trunk_step[i] = es_omega_diag[i] * step;
     }
 
-    /* ---- the chunk loop ---- */
     for (uint64_t s = 0; s < num_steps; ++s) {
-        /* 1. Diagonal evolution: cyclic addition in Z_{2^64}. The final
-         *    reduction to Z_{2^32} happens once, at the bottom of this
-         *    function. uint64 wraparound here is the modular reduction
-         *    by design.
-         */
-        for (size_t i = 0; i < ES_N_BODIES; ++i) {
-            curr_phases[i] += (uint64_t)trunk_step[i];
-        }
-
-        /* 2. Phase 9 breathing: state-dependent coupling perturbation.
-         *    For each (a, b, n_a, m_b, weight_rpd) entry, compute
-         *
-         *       cos_q14 = cos_lut(n_a * phi_a - m_b * phi_b)
-         *       breath  = (NUM * base_nudge * cos_q14) / (DEN * AMP)
-         *       nudge   = base_nudge + breath
-         *       phi_a, phi_b += nudge
-         *
-         *    All integer ops; LUT lookup is O(1).
-         */
-        for (size_t k = 0; k < es_n_couplings; ++k) {
-            const es_coupling_t *cp = &es_couplings[k];
-            const uint32_t phi_a = (uint32_t)(curr_phases[cp->idx_a] & ES_MODULO_MASK);
-            const uint32_t phi_b = (uint32_t)(curr_phases[cp->idx_b] & ES_MODULO_MASK);
-            /* res_phase = (n_a * phi_a) - (m_b * phi_b), mod 2^32.
-             * uint32 arithmetic gives free overflow.
-             */
-            const uint32_t res_phase = (uint32_t)(cp->n_a) * phi_a
-                                     - (uint32_t)(cp->m_b) * phi_b;
-            const int32_t  cos_q14   = es_cos_lut(res_phase, 1u);
-            const int64_t  base_nudge = cp->weight_rpd * step;
-            const int64_t  breath = es_floor_div(
-                (int64_t)ES_BREATHING_NUM * base_nudge * (int64_t)cos_q14,
-                (int64_t)ES_BREATHING_DEN * (int64_t)ES_COSINE_LUT_AMP);
-            const int64_t  nudge = base_nudge + breath;
-
-            curr_phases[cp->idx_a] += (uint64_t)nudge;
-            curr_phases[cp->idx_b] += (uint64_t)nudge;
-        }
+        apply_one_chunk(curr_phases, trunk_step, step);
     }
 
-    /* ---- sub-chunk remainder (single fractional-day step) ---- */
     if (remainder_days > 0.0) {
-        const double remainder_signed = (double)sign * remainder_days;
-        for (size_t i = 0; i < ES_N_BODIES; ++i) {
-            /* Banker's rounding (half-to-even) to match numpy's
-             * np.round; called O(N) times outside the hot loop.
-             * Necessary for byte-exact parity with the Python BIP
-             * encoder when the multiplication produces an exact
-             * half-integer (verified at the v0.3.1 +/- 1 yr parity
-             * test cases).
-             */
-            const int64_t rem_step = es_banker_round(
-                (double)es_omega_diag[i] * remainder_signed);
-            curr_phases[i] += (uint64_t)rem_step;
-        }
+        apply_subchunk_remainder(curr_phases, (double)sign * remainder_days);
     }
 
-    /* ---- v0.4.1 diagnosed-fiber runtime overlay --------------- */
-    /* Mirrors the Python BIP encoder's overlay step. With no
-     * patches active this call is a single early-return; with
-     * patches active the per-body deltas are summed onto the
-     * accumulator before the final cyclic-group reduction below.
-     * The base encoder bytes never change.
+    /* v0.4.1 diagnosed-fiber runtime overlay. With no patches active
+     * this is a single early-return; with patches active the per-body
+     * deltas are summed onto the accumulator before final reduction.
      */
     es_apply_overlay_to_phases(delta_t_days, curr_phases);
 
-    /* ---- final reduction to Z_{2^32} ---- */
+    /* Final reduction to Z_{2^32}. */
     for (size_t i = 0; i < ES_N_BODIES; ++i) {
         phases_out[i] = (uint32_t)(curr_phases[i] & ES_MODULO_MASK);
     }
