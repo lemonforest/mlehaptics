@@ -10,7 +10,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.9)
+(no entries yet — next entries land after v0.13.10)
+
+## [0.13.10] — 2026-05-05
+
+**Drop `edited` from docs-check workflow trigger types — fixes post-merge double-fire.** CI-only patch; no code / API / encoder / ABI / test changes.
+
+### Why
+
+User flagged on PR `` `#214` `` (v0.13.9 ship): the docs-check workflow was double-firing at merge time. Two `pull_request` events at the same second on the PR's branch ~3 seconds before the merge committed; concurrency-cancel caught it (one CANCELLED, one SUCCESS) but the wasted CI churn + confusing run-history was observable.
+
+### Root cause
+
+GitHub web UI's "Squash and merge" workflow fires `pull_request: edited` (the merge-commit dialog populates / saves the title + body fields) near-simultaneously with `pull_request: synchronize` (GitHub recomputes the `refs/pull/N/merge` preview ref). With both `edited` and `synchronize` in our `types` list, both events triggered runs at the same second → deterministic double-fire at every merge.
+
+### Fix
+
+Drop `edited` from the trigger types in `.github/workflows/ephemerides-spectral-docs-check.yml`:
+
+```yaml
+# Before (v0.13.3 → v0.13.9):
+types: [opened, synchronize, reopened, edited, labeled]
+
+# After (v0.13.10+):
+types: [opened, synchronize, reopened, labeled]
+```
+
+Eliminates the source of the double-fire. The CI-side workflow (`ephemerides-spectral-ci.yml`) was already on `[opened, synchronize, reopened, labeled]` and didn't have this issue.
+
+### Trade-off
+
+`[skip-docs-check]` opt-out added retroactively (after PR open, by editing the PR body) no longer triggers a re-run. User must either:
+1. Push a synchronizing commit (the natural way), or
+2. Accept the stale advisory comment
+
+Acceptable — opt-out should be set up-front in the initial PR description, not retroactively.
+
+### Migration
+
+None. Workflow-only change; CI behaviour now matches the `ephemerides-spectral-ci` workflow's narrower trigger types. 251 tests pass, 4 skipped (unchanged).
 
 ## [0.13.9] — 2026-05-05
 
