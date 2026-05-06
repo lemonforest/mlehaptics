@@ -10,7 +10,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.17.0)
+(no entries yet — next entries land after v0.18.0)
+
+## [0.18.0] — 2026-05-06
+
+**Body Architecture: inner/outer system classification of heliocentric bodies via the resonance-weighted gateway-graph Laplacian Fiedler partition.** Pure-Python addition; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged from v0.17.0).
+
+### Added — Pythonic API
+
+- `_research.body_architecture` — new module containing the resonance-weighted gateway-graph Laplacian Fiedler-partition machinery promoted from research notebook §13.8 to a stable ship surface.
+- `_research.body_architecture.HELIOCENTRIC_BODIES` — frozen list of the v0.16.0 13-body Tier-1 heliocentric roster (planets + main-belt asteroids; Sun excluded; moons excluded). The default subset for `compute_body_architecture`.
+- `_research.body_architecture.INNER_CLASS = "inner"`, `OUTER_CLASS = "outer"` — class label constants.
+- `_research.body_architecture.compute_body_architecture(bodies: Optional[List[str]] = None) -> Dict` — main entry. Returns `{ok, n_bodies, lambda_2, bodies, partitions}` where `bodies` is a list of `{name, class, fiedler_value, period_days}` records (sorted by `fiedler_value` ascending) and `partitions` is `{"inner": [...], "outer": [...]}`. Raises `ValueError` on empty / duplicate / unknown / zero-period inputs.
+
+### Added — bridge dict API (Pyodide-compatible)
+
+- `bridge.body_architecture(target: Optional[str] = None) -> dict` — full partition by default; single-body record if `target` given (lower-cased; must be in the heliocentric roster). Returns `{ok: False, error: ...}` on rejection.
+
+### Added — CLI
+
+- `body-architecture` subcommand — flags: `--target <name>` (optional; if given, returns just that body's record), `--pretty`. Prints the same dict the bridge returns.
+
+### Sign-convention
+
+The Fiedler-vector sign is anchored to the shortest-period body in the input roster being positive. This makes the inner/outer label assignment reproducible across platforms regardless of LAPACK pivoting. For the default 13-body roster this means **mercury is always positive** (largest `+0.329`) and **pluto is always negative** (deepest `−0.585`).
+
+### Default classification
+
+The default 13-body heliocentric roster classifies into:
+
+* **Inner 8** (positive Fiedler entry): mercury, venus, terra, mars, vesta, ceres, pallas, hygiea
+* **Outer 5** (negative Fiedler entry): jupiter, saturn, uranus, neptune, pluto
+
+The cyclic-group encoder discovers the canonical asteroid-belt boundary without being told it exists. Pluto and Neptune share the deepest entry (`−0.585`) via their 2:3 mean-motion lock.
+
+### Research origin (notebook §13.8 + §13.9)
+
+The §13 thread tested four edge weightings on the gateway-graph Laplacian:
+
+| Weighting | Spearman ρ vs empirical Δv | Matthews φ | Notes |
+| --- | ---: | ---: | --- |
+| inv_dv (baseline) | +0.743 | +0.336 | Mercury-isolation predictor |
+| inv_synodic (control) | −0.301 | +0.083 | Pallas/Ceres degeneracy null |
+| **resonance (this ship)** | +0.632 | +0.207 | Inner/outer architectural partition |
+| hybrid_dv_resonance | **+0.857** | +0.298 | Clears continuous Spearman bar; queued |
+
+The **resonance-only Laplacian** is the source of the `body_architecture` surface — its partition is structurally the canonical inner/outer division (the architectural finding). The **hybrid `inv_dv × resonance`** (§13.9) clears the §13.7 0.85 Spearman bar but the partition Matthews φ stays below 0.6, so the hybrid result is queued for v0.18.x or v0.19.0 as a continuous Fiedler-distance → Δv predictor (`bridge.predict_itn_accessibility`) once a regression model lands.
+
+### Tests
+
+- New module `tests/test_body_architecture.py` (34 tests):
+  - **Default-roster shape** — 13 bodies, canonical inner-8 / outer-5 partition, partition sizes
+  - **Spectral pins** — Pluto + Neptune deepest negative entries (within 0.01 of each other; both below −0.5); Mercury largest positive entry; Fiedler values sorted ascending; λ₂ > 0
+  - **Determinism** — repeated calls return byte-identical Fiedler values (LAPACK sign convention nailed)
+  - **Error paths** — empty list, duplicates, unknown body name, zero-period body (Sun)
+  - **Bridge surface** — full partition, 13 parametrised single-body class lookups, case-insensitive lower-casing, rejection paths (unknown body, non-heliocentric body)
+  - **CLI surface** — full partition, `--target`, `--help`
+  - **Default-roster contract** — `HELIOCENTRIC_BODIES` is the documented v0.16.0 Tier-1 list
+- Parity-smoke spec — `body_architecture` classified as `python_only` (no C twin planned: numpy.linalg.eigh on a 13×13 symmetric matrix is microseconds, well below any threshold where a C twin would be useful).
+
+### Test count
+
+658 pass, 41 skipped (was 622 + 41 in v0.17.0; +36 new).
+
+### Migration
+
+Pure-additive on the Python bridge and the CLI. No existing call sites change. Native callers see `ES_ABI_VERSION = 8` unchanged. `ES_VERSION_STRING` bumps `0.17.0 → 0.18.0`.
 
 ## [0.17.0] — 2026-05-06
 

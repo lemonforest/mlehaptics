@@ -31,6 +31,7 @@ _INCLUDED_MODULES: List[str] = [
     "proper_time.py",
     "kinematics.py",
     "dynamics.py",
+    "body_architecture.py",
 ]
 
 def emit() -> List[Path]:

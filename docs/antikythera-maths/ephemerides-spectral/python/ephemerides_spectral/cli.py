@@ -463,6 +463,13 @@ def _cmd_find_chains(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_body_architecture(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.body_architecture(target=args.target),
+        pretty=args.pretty,
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2100,6 +2107,42 @@ def _make_parser() -> argparse.ArgumentParser:
                     help="Per-(body, epoch) cap on enumerated next-leg "
                          "windows. Keeps multi-decade horizons tractable.")
     fc.set_defaults(func=_cmd_find_chains)
+
+    # body-architecture (v0.18.0) — resonance-weighted gateway-graph
+    # Laplacian Fiedler partition (inner/outer system classification).
+    ba = sub.add_parser(
+        "body-architecture",
+        help="Inner/outer architectural classification of heliocentric bodies",
+        description=(
+            "Computes the Fiedler partition of the resonance-weighted\n"
+            "gateway-graph Laplacian on the v0.16.0 13-body heliocentric\n"
+            "Tier-1 roster (planets + main-belt asteroids). The partition\n"
+            "cleanly bipartitions the roster on the asteroid-belt\n"
+            "boundary: outer 5 = jupiter / saturn / uranus / neptune /\n"
+            "pluto; inner 8 = mercury / venus / terra / mars / vesta /\n"
+            "ceres / pallas / hygiea. The cyclic-group encoder discovers\n"
+            "the canonical inner/outer system division without being\n"
+            "told it exists -- Pluto and Neptune share the deepest\n"
+            "negative Fiedler entry via their well-known 2:3 mean-motion\n"
+            "lock. Background: research notebook section 13.8.\n"
+            "\n"
+            "Examples:\n"
+            "  # Full partition (all 13 bodies)\n"
+            "  ephemerides-spectral body-architecture\n"
+            "\n"
+            "  # Single-body class lookup\n"
+            "  ephemerides-spectral body-architecture --target terra\n"
+            "  ephemerides-spectral body-architecture --target pluto"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ba.add_argument(
+        "--target", default=None,
+        help="Body name (lower-case). If omitted, returns the full "
+             "inner/outer partition; if given, returns just that "
+             "body's record."
+    )
+    ba.set_defaults(func=_cmd_body_architecture)
 
     # lunar-kernels
     lk = sub.add_parser(

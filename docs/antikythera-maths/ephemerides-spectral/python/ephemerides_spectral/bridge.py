@@ -122,6 +122,12 @@ from ephemerides_spectral._research.itn_window import (
     find_itn_pathways as _find_itn_pathways_impl,
     find_itn_chains as _find_itn_chains_impl,
 )
+from ephemerides_spectral._research.body_architecture import (
+    HELIOCENTRIC_BODIES as _BODY_ARCH_DEFAULT,
+    INNER_CLASS as _BODY_ARCH_INNER,
+    OUTER_CLASS as _BODY_ARCH_OUTER,
+    compute_body_architecture as _compute_body_architecture_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -2415,6 +2421,88 @@ def find_itn_chains(jd_lo: float,
         "n_chains": len(chains),
         "chains": [c.to_dict() for c in chains],
         "backend": chosen,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.18.0 — Body Architecture (resonance-weighted gateway-graph
+# Laplacian Fiedler partition; inner/outer system classification)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def body_architecture(target: Optional[str] = None) -> Dict[str, Any]:
+    """Inner/outer architectural classification of heliocentric bodies.
+
+    Computes the Fiedler partition of the resonance-weighted gateway-
+    graph Laplacian on the v0.16.0 13-body heliocentric Tier-1 roster
+    (planets + main-belt asteroids; Sun excluded; moons excluded).
+    The partition cleanly bipartitions the roster on the asteroid-belt
+    boundary: outer 5 = jupiter / saturn / uranus / neptune / pluto;
+    inner 8 = mercury / venus / terra / mars / vesta / ceres / pallas
+    / hygiea.
+
+    The classification is the v0.17.x research output (notebook §13.8)
+    promoted to a stable ship surface. The cyclic-group encoder
+    discovers the canonical inner/outer system division without being
+    told it exists — Pluto and Neptune share the deepest negative
+    Fiedler entry via their well-known 2:3 mean-motion lock.
+
+    Parameters
+    ----------
+    target : str, optional. If given, return just the named body's
+        record (lower-cased; must be in the heliocentric roster); else
+        return the full partition.
+
+    Returns
+    -------
+    dict
+        Full partition (target=None):
+            ``{"ok": True, "n_bodies": 13, "lambda_2": float,
+              "bodies": [{name, class, fiedler_value, period_days}, ...],
+              "partitions": {"inner": [...], "outer": [...]}}``
+        Single-body (target=name):
+            ``{"ok": True, "name": "...", "class": "inner"|"outer",
+              "fiedler_value": float, "period_days": float,
+              "lambda_2": float}``
+        On error:
+            ``{"ok": False, "error": "..."}``
+
+    Notes
+    -----
+    Pure-Python; no ABI dependency. The Fiedler-vector sign is anchored
+    to the shortest-period body (positive ⇒ inner) so the class labels
+    are reproducible across platforms regardless of LAPACK pivoting.
+
+    Reference: notebook §13.8 (the resonance-weighting research) and
+    §13.9 (the hybrid follow-up that motivated shipping the resonance-
+    only partition as the architectural surface, while deferring the
+    hybrid-Fiedler-distance Δv predictor to v0.18.x or later).
+    """
+    try:
+        result = _compute_body_architecture_impl()
+    except (ValueError, RuntimeError) as exc:
+        return {"ok": False, "error": str(exc)}
+
+    if target is None:
+        return result
+
+    name = str(target).lower()
+    for record in result["bodies"]:
+        if record["name"] == name:
+            return {
+                "ok": True,
+                "name": record["name"],
+                "class": record["class"],
+                "fiedler_value": record["fiedler_value"],
+                "period_days": record["period_days"],
+                "lambda_2": result["lambda_2"],
+            }
+    return {
+        "ok": False,
+        "error": (
+            f"unknown body {target!r}; valid names are "
+            f"{list(_BODY_ARCH_DEFAULT)}"
+        ),
     }
 
 
