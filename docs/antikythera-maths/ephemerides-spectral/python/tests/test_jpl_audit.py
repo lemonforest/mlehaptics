@@ -16,6 +16,11 @@ History:
              PIN_RULE_5_TOTAL_FUNCS bumped 32 → 42 to track the new
              helper count (Rule 5 work in v0.13.6 will need the
              larger function inventory).
+  - v0.13.6: Rule 5 (assertion density) flipped from SKIP to PASS.
+             88 assertions across 42 functions = 2.10/function avg
+             (target ≥ 2.0). PIN_RULE_5_ASSERTIONS ratcheted 0 → 88.
+             Assertions gated behind <assert.h> NDEBUG semantics —
+             zero runtime cost in release builds.
 
 Same modular discipline as `test_native_version_string_matches_package_version`,
 `test_parity_smoke.py::PARITY_TARGETS`, and `test_readme_freshness.py`:
@@ -84,7 +89,10 @@ PIN_RULE_4_LONG_FUNCTIONS: int = 0
 #: Rule 5 — ≥ 2 assertions per function (averaged). Total assertion
 #: count across the codebase. Pinned as the assertion total; the
 #: 2/function average is enforced as a derived test below.
-PIN_RULE_5_ASSERTIONS:     int = 0
+#: v0.13.6: 0 → 88. Assertions gated behind <assert.h> NDEBUG so
+#: production builds (-DNDEBUG) strip them entirely — assertions
+#: are a development tool, not a runtime cost.
+PIN_RULE_5_ASSERTIONS:     int = 88
 #: Total functions in the codebase. Used to compute the 2/function
 #: average enforcement. Pinned because adding functions changes the
 #: required assertion count; if a PR adds functions it should ALSO

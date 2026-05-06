@@ -12,6 +12,7 @@
  * of the function for the chunk-count math and the sub-day remainder.
  */
 
+#include <assert.h>
 #include <math.h>      /* isfinite, fabs, round — all called <= 4 times,
                           ALL outside the chunk loop                     */
 #include <string.h>    /* strncmp                                         */
@@ -26,12 +27,14 @@
  * inside the int64 envelope; false otherwise.
  */
 static bool es_delta_in_range(double delta_t_days) {
+    assert(ES_DELTA_DAYS_LIMIT > 0.0);  /* compile-time sanity */
     if (!isfinite(delta_t_days)) {
         return false;
     }
     if (fabs(delta_t_days) > ES_DELTA_DAYS_LIMIT) {
         return false;
     }
+    assert(isfinite(delta_t_days));
     return true;
 }
 
@@ -48,11 +51,14 @@ static bool es_delta_in_range(double delta_t_days) {
  * chunks (cos_q14 >= 0 half the time on average).
  */
 static inline int64_t es_floor_div(int64_t a, int64_t b) {
+    assert(b != 0);  /* division by zero is the caller's bug */
     int64_t q = a / b;
     int64_t r = a % b;
     if ((r != 0) && ((r < 0) != (b < 0))) {
         q -= 1;
     }
+    /* Floor invariant: q*b + r' = a where r' has same sign as b. */
+    assert(q * b <= a || a < q * b /* signed-overflow safety */);
     return q;
 }
 
@@ -75,9 +81,11 @@ static inline int64_t es_floor_div(int64_t a, int64_t b) {
  * for byte-exact patch parity with the Python overlay).
  */
 int64_t es_banker_round(double x) {
+    assert(isfinite(x));
     /* Truncation toward zero gives us the integer below |x|. */
     double sign = (x >= 0.0) ? 1.0 : -1.0;
     double abs_x = sign * x;
+    assert(abs_x >= 0.0);
     int64_t truncated = (int64_t)abs_x;
     double frac = abs_x - (double)truncated;
 
@@ -110,7 +118,9 @@ size_t es_body_index(const char *name) {
     if (name == NULL) {
         return ES_N_BODIES;
     }
+    assert(name != NULL);  /* post-validation */
     for (size_t i = 0; i < ES_N_BODIES; ++i) {
+        assert(i < ES_N_BODIES);  /* loop-invariant */
         /* Names are NUL-terminated within name[16]. */
         if (strncmp(es_bodies[i].name, name, sizeof es_bodies[i].name) == 0) {
             return i;
@@ -124,10 +134,12 @@ size_t es_body_index(const char *name) {
 /* ------------------------------------------------------------------ */
 
 int32_t es_cos_lut(uint32_t phase_residue, uint32_t n_lobes) {
+    assert(ES_K_BITS > ES_COSINE_LUT_BITS);  /* shift count is positive */
     /* fold n_lobes * phase into Z_{2^32} (free uint32 overflow) */
     uint32_t folded = phase_residue * n_lobes;
     /* top ES_COSINE_LUT_BITS bits index the table */
     uint32_t idx = folded >> (ES_K_BITS - ES_COSINE_LUT_BITS);
+    assert(idx < ((uint32_t)1 << ES_COSINE_LUT_BITS));
     return es_cosine_lut[idx];
 }
 
@@ -137,7 +149,10 @@ double es_residue_to_radians(uint32_t residue) {
      * angles. Uses 2*pi expressed to ~1e-15 precision.
      */
     static const double TWO_PI = 6.283185307179586476925286766559;
-    return ((double)residue / 4294967296.0) * TWO_PI;
+    const double rad = ((double)residue / 4294967296.0) * TWO_PI;
+    assert(rad >= 0.0);
+    assert(rad < TWO_PI);
+    return rad;
 }
 
 /* ------------------------------------------------------------------ */
@@ -159,6 +174,8 @@ static void apply_one_chunk(uint64_t curr_phases[ES_N_BODIES],
                             const int64_t trunk_step[ES_N_BODIES],
                             int64_t step)
 {
+    assert(curr_phases != NULL);
+    assert(trunk_step != NULL);
     /* Diagonal evolution. */
     for (size_t i = 0; i < ES_N_BODIES; ++i) {
         curr_phases[i] += (uint64_t)trunk_step[i];
@@ -201,6 +218,8 @@ static void apply_one_chunk(uint64_t curr_phases[ES_N_BODIES],
 static void apply_subchunk_remainder(uint64_t curr_phases[ES_N_BODIES],
                                      double remainder_signed)
 {
+    assert(curr_phases != NULL);
+    assert(isfinite(remainder_signed));
     for (size_t i = 0; i < ES_N_BODIES; ++i) {
         const int64_t rem_step = es_banker_round(
             (double)es_omega_diag[i] * remainder_signed);
@@ -220,6 +239,8 @@ es_status_t es_encode_state(double delta_t_days,
     if (!es_delta_in_range(delta_t_days)) {
         return ES_ERR_DELTA_OUT_OF_RANGE;
     }
+    assert(phases_out != NULL);  /* validated above */
+    assert(isfinite(delta_t_days));
 
     /* Chunk decomposition. The chunk loop only ever multiplies by an
      * integer step (+/- ES_CHUNK_DAYS); the leftover sub-chunk
@@ -270,17 +291,26 @@ es_status_t es_encode_at_jd(double jd_tdb,
     if (!isfinite(jd_tdb)) {
         return ES_ERR_NON_FINITE_INPUT;
     }
+    assert(isfinite(jd_tdb));
+    assert(phases_out != NULL || true);  /* es_encode_state validates */
     return es_encode_state(jd_tdb - ES_REFERENCE_JD, phases_out);
 }
 
 const char *es_version(void) {
+    /* Compile-time string literal; never NULL. */
+    assert(ES_VERSION_STRING != NULL);
+    assert(sizeof(ES_VERSION_STRING) > 1);  /* non-empty */
     return ES_VERSION_STRING;
 }
 
 int es_abi_version(void) {
+    assert(ES_ABI_VERSION > 0);
+    assert(ES_ABI_VERSION < 256);  /* sanity bound */
     return ES_ABI_VERSION;
 }
 
 int es_n_bodies(void) {
+    assert(ES_N_BODIES > 0);
+    assert((int)ES_N_BODIES <= 256);  /* sanity bound for the body roster */
     return (int)ES_N_BODIES;
 }

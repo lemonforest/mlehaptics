@@ -19,6 +19,7 @@
 
 #include "ephemerides_spectral.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -64,6 +65,8 @@ es_status_t es_breathing_modulation(double delta_t_days,
     if (body_idx_a >= ES_N_BODIES || body_idx_b >= ES_N_BODIES) {
         return ES_ERR_INVALID_INDEX;
     }
+    assert(body_idx_a < ES_N_BODIES && body_idx_b < ES_N_BODIES);
+    assert(isfinite(delta_t_days));
 
     /* Encode the full system at delta_t and pluck the two body phases.
      * We call the public es_encode_state so that any patches active in
@@ -110,8 +113,10 @@ es_status_t es_breathing_modulation(double delta_t_days,
 /* (a mod m) wrapped into [0, m) for positive m, matching Python's % */
 static double pos_mod(double a, double m)
 {
+    assert(m > 0.0);
     double r = fmod(a, m);
     if (r < 0.0) r += m;
+    assert(r >= 0.0 && r < m + 1e-12);  /* tolerate float-rounding boundary */
     return r;
 }
 
@@ -120,9 +125,12 @@ static double pos_mod(double a, double m)
  */
 static double modular_distance_to_zero(double x)
 {
+    assert(isfinite(x));
     double a = fabs(x);
     double b = fabs(1.0 - a);
-    return (a < b) ? a : b;
+    const double r = (a < b) ? a : b;
+    assert(r >= 0.0);
+    return r;
 }
 
 /* Build the (kind, syn-target) pair list for the requested kind
@@ -134,6 +142,8 @@ static int select_syzygy_targets(int kind,
                                  int target_kinds[2],
                                  double target_syn[2])
 {
+    assert(target_kinds != NULL);
+    assert(target_syn != NULL);
     int n_targets = 0;
     if (kind == ES_SYZYGY_KIND_FILTER_SOLAR || kind == ES_SYZYGY_KIND_FILTER_ALL) {
         target_kinds[n_targets] = ES_SYZYGY_KIND_SOLAR;
@@ -159,6 +169,8 @@ static double score_syzygy_event(double jd,
                                  double *out_syn_resid,
                                  double *out_drc_resid)
 {
+    assert(out_syn_resid != NULL && out_drc_resid != NULL);
+    assert(isfinite(jd));
     const double syn_resid = 0.0;
     const double drc_offset = pos_mod(jd - SOLAR_ECLIPSE_REFERENCE_JD_TDB,
                                       DRACONIC_MONTH_DAYS);
@@ -180,6 +192,8 @@ static int emit_syzygy_event(double jd, int kind_id,
                              es_syzygy_t *out_buf, size_t out_capacity,
                              size_t max_candidates, size_t *count)
 {
+    assert(out_buf != NULL);
+    assert(count != NULL);
     if (*count < out_capacity) {
         out_buf[*count].jd_tdb               = jd;
         out_buf[*count].kind                 = kind_id;
@@ -203,6 +217,7 @@ static es_status_t validate_syzygy_args(double jd_lo, double jd_hi,
                                         const size_t *out_count,
                                         int *out_window_empty)
 {
+    assert(out_window_empty != NULL);
     *out_window_empty = 0;
     if (out_buf == NULL || out_count == NULL) return ES_ERR_NULL_OUTPUT;
     if (!isfinite(jd_lo) || !isfinite(jd_hi)) return ES_ERR_NON_FINITE_INPUT;
@@ -218,6 +233,7 @@ static es_status_t validate_syzygy_args(double jd_lo, double jd_hi,
          */
         *out_window_empty = 1;
     }
+    assert(threshold > 0.0 && threshold <= 0.5);  /* validated above */
     return ES_OK;
 }
 
@@ -239,6 +255,8 @@ es_status_t es_find_syzygies(double jd_lo,
         *out_count = 0;
         return ES_OK;
     }
+    assert(out_buf != NULL && out_count != NULL);
+    assert(threshold > 0.0 && threshold <= 0.5);
 
     /* (kind_id, syn-target) pair list — at most two rows. */
     int    target_kinds[2];
