@@ -1065,6 +1065,7 @@ _SATURNIAN_PARENT: str = "saturn"
 _MARTIAN_PARENT: str = "mars"
 _URANIAN_PARENT: str = "uranus"
 _NEPTUNIAN_PARENT: str = "neptune"
+_PLUTONIAN_PARENT: str = "pluto"  # v0.15.0
 
 
 def _moon_time_response(body_key: str, parent_key: str,
@@ -1402,6 +1403,82 @@ convention: BODIES["triton"].period_days is positive (we encode omega =
 retrograde nature is metadata, not a sign flip in the time-scale primitive)."""
 sol_neptune_triton_time_to_jd = _moon_time_to_jd_response("triton", "SNeTrT")
 sol_neptune_triton_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Triton (orbits retrograde; period encoded positive per encoder convention)."
+
+# ── v0.15.0 — Remaining Uranian moons (Miranda, Ariel, Umbriel, Oberon)
+# Titania already lives above; the four below complete the major-Uranian
+# roster. Discovery order: Titania + Oberon (Herschel 1787) → Ariel +
+# Umbriel (Lassell 1851) → Miranda (Kuiper 1948). All five orbit in the
+# Uranian equatorial plane, which sits ~98° from the ecliptic because
+# Uranus is tipped sideways; the encoder convention (omega = +2π/P
+# regardless of orbital orientation) carries through unchanged.
+jd_to_sol_uranus_miranda_time = _moon_time_response("miranda", _URANIAN_PARENT, "SUrMiT", "Sol Uranus-Miranda Time")
+jd_to_sol_uranus_miranda_time.__doc__ = """JD (TDB) → Sol Uranus-Miranda Time (SUrMiT).
+
+Smallest of Uranus's five major moons (radius ~236 km). Discovered by
+Gerard Kuiper in 1948 -- the only one of the five not discovered in the
+1700s-1800s. Surface is the most geologically chaotic in the system:
+Voyager 2 (1986) imaged 20 km cliffs (Verona Rupes, the tallest known
+in the solar system) and ridge-and-groove terrain ("coronae") that
+suggest a violent collisional past. Tidally locked.
+
+Sidereal period = 1.413 d. Sol abbreviation SUrMiT distinguishes from
+Saturn's Mimas (SSaMiT) under the v0.14.1 6-letter policy."""
+sol_uranus_miranda_time_to_jd = _moon_time_to_jd_response("miranda", "SUrMiT")
+sol_uranus_miranda_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Miranda."
+
+jd_to_sol_uranus_ariel_time = _moon_time_response("ariel", _URANIAN_PARENT, "SUrArT", "Sol Uranus-Ariel Time")
+jd_to_sol_uranus_ariel_time.__doc__ = """JD (TDB) → Sol Uranus-Ariel Time (SUrArT).
+
+Innermost of the four classical Uranian moons (radius ~579 km).
+Discovered by William Lassell, 1851. Brightest of the Uranian moons
+(highest albedo). Surface shows extensive rift valleys; possible
+cryovolcanic resurfacing. Tidally locked.
+
+Sidereal period = 2.520 d."""
+sol_uranus_ariel_time_to_jd = _moon_time_to_jd_response("ariel", "SUrArT")
+sol_uranus_ariel_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Ariel."
+
+jd_to_sol_uranus_umbriel_time = _moon_time_response("umbriel", _URANIAN_PARENT, "SUrUmT", "Sol Uranus-Umbriel Time")
+jd_to_sol_uranus_umbriel_time.__doc__ = """JD (TDB) → Sol Uranus-Umbriel Time (SUrUmT).
+
+Second of the four classical Uranian moons (radius ~585 km), discovered
+by William Lassell, 1851 (same night as Ariel). Darkest surface of the
+Uranian moons (lowest albedo) -- composition similar to a primordial
+ice/rock mix without the cryovolcanic refresh of Ariel. Tidally locked.
+
+Sidereal period = 4.144 d."""
+sol_uranus_umbriel_time_to_jd = _moon_time_to_jd_response("umbriel", "SUrUmT")
+sol_uranus_umbriel_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Umbriel."
+
+jd_to_sol_uranus_oberon_time = _moon_time_response("oberon", _URANIAN_PARENT, "SUrObT", "Sol Uranus-Oberon Time")
+jd_to_sol_uranus_oberon_time.__doc__ = """JD (TDB) → Sol Uranus-Oberon Time (SUrObT).
+
+Outermost (and second-largest) of Uranus's classical moons (radius ~761
+km). Discovered by William Herschel, 1787 -- same night as Titania.
+Heavily cratered surface with darker patches inside crater floors that
+may be cryovolcanic deposits. Tidally locked.
+
+Sidereal period = 13.463 d -- the longest of the major-Uranian roster."""
+sol_uranus_oberon_time_to_jd = _moon_time_to_jd_response("oberon", "SUrObT")
+sol_uranus_oberon_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Oberon."
+
+# ── v0.15.0 — Pluto (Charon)
+jd_to_sol_pluto_charon_time = _moon_time_response("charon", _PLUTONIAN_PARENT, "SPlChT", "Sol Pluto-Charon Time")
+jd_to_sol_pluto_charon_time.__doc__ = """JD (TDB) → Sol Pluto-Charon Time (SPlChT).
+
+Pluto's largest moon. Discovered by Jim Christy, 1978. Mutually tidally
+locked with Pluto -- both bodies show the same face to each other
+forever, the only such 1:1:1 spin-orbit lock in the solar system. The
+mass ratio (Charon:Pluto ≈ 0.12) is the highest of any moon-planet
+pair; the Pluto-Charon barycentre lies OUTSIDE Pluto, which makes the
+pair more like a *binary planet* than a planet-with-moon. New Horizons
+(2015) imaged Charon's "Mordor Macula" north-polar reddish region (an
+organic tholin deposit) and a vast equatorial canyon system.
+
+Sidereal period = mutual rotation period = 6.387 d (the synchronous
+spin-orbit lock collapses these into a single timescale)."""
+sol_pluto_charon_time_to_jd = _moon_time_to_jd_response("charon", "SPlChT")
+sol_pluto_charon_time_to_jd.__doc__ = "Inverse: sidereal-cycle count → JD (TDB) for Charon (mutually tidally locked with Pluto; sidereal period = mutual rotation period)."
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -7,7 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.14.2)
+(no entries yet — next entries land after v0.15.0)
+
+## [0.15.0] — 2026-05-06
+
+**Sol Moon Times: classical-roster completion** (Pluto-Charon + remaining major Uranian moons). BODIES roster expanded 38 → 43. Closes task `` `#86` `` for the IAU-major moon roster: every classical moon discovered between 1787 and 1948 now has a Sol Time wrapper.
+
+### BODIES additions (5 new bodies, 38 → 43)
+
+| body | category | period_days | mass (Earth) | radius (km) | discoverer / year |
+|---|---|---|---|---|---|
+| Miranda | moon | 1.41347925 | 1.10e-5 | 235.8 | Kuiper, 1948 |
+| Ariel | moon | 2.52037935 | 2.27e-4 | 578.9 | Lassell, 1851 |
+| Umbriel | moon | 4.14417500 | 2.02e-4 | 584.7 | Lassell, 1851 |
+| Oberon | moon | 13.46323907 | 5.05e-4 | 761.4 | Herschel, 1787 |
+| Charon | moon | 6.38723000 | 2.66e-4 | 606.0 | Christy, 1978 |
+
+### Sol Moon Times added (5)
+
+| body | Sol Time | abbrev | CLI |
+|---|---|---|---|
+| Miranda | Sol Uranus-Miranda Time | **SUrMiT** | `time-uranus-miranda` |
+| Ariel | Sol Uranus-Ariel Time | **SUrArT** | `time-uranus-ariel` |
+| Umbriel | Sol Uranus-Umbriel Time | **SUrUmT** | `time-uranus-umbriel` |
+| Oberon | Sol Uranus-Oberon Time | **SUrObT** | `time-uranus-oberon` |
+| Charon | Sol Pluto-Charon Time | **SPlChT** | `time-pluto-charon` |
+
+### Charon: the binary-planet case
+
+Pluto and Charon are **mutually tidally locked** — both bodies show the same face to each other forever. The only such 1:1:1 spin-orbit lock in the solar system. Charon:Pluto mass ratio (~0.12) is the highest of any moon-planet pair, and the Pluto-Charon barycentre lies *outside* Pluto, which makes the pair more like a *binary planet* than a planet-with-moon. The mutual lock collapses sidereal / synodic / spin period into a single timescale (6.387 days), so no separate synodic correction is offered.
+
+### Disambiguation
+
+**SUrMiT vs SSaMiT** is the v0.15.0 second-instance case of the same shared-moon-prefix pattern that the v0.14.2 SUrTiT/SSaTiT pair first surfaced. Both pairs are exactly the disambiguation the v0.14.1 6-letter `S<Planet2><Moon2>T` policy was designed to provide; without that switch both moons would have collapsed to the same 4-letter form. Documented inline in the new test_uranian_sol_moon_times.py::test_miranda_does_not_collide_with_saturn_mimas.
+
+### C-side wire-format change
+
+ABI v6 → v7. `ES_N_BODIES` constant 38 → 43; the `es_bodies[]`, `es_omega_diag[]`, `es_initial_phases[]`, and `es_laplacian` flat arrays all expand accordingly. Native binary rebuilt; parity-smoke ratchet pinned at the new shape. The C library no longer accepts pre-v0.15.0 callers built against ABI 6 — this is the kind of breaking change a minor version bump is for.
+
+### Test count
+
+512 pass, 41 skipped (was 497 + 4 in v0.14.2; +56 new — 5 Plutonian + 4 expanded Uranian + 10 parity-smoke entries + parity-smoke tier-shape variations).
+
+### Migration
+
+Python callers: pure-additive on the bridge surface; existing code unchanged. Native callers: ABI bump from 6 → 7 requires a rebuild (the C header's `ES_ABI_VERSION` constant moves in lockstep). The shipped wheel includes the rebuilt native binary at the matching ABI.
 
 ## [0.14.2] — 2026-05-06
 
