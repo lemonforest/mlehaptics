@@ -88,4 +88,20 @@ int32_t ds_get_haptic_tension(int sector_id, const ds_hypervector_t *h);
 void ds_set_current_map(int episode, int map, int sector_count);
 d_boolean ds_spectral_is_registered(void);
 
+/* --- Secret glow (IDSPECTRAL cheat) ---
+ *
+ * IDSPECTRAL toggle. When active, the engine (G_Ticker in g_game.c)
+ * walks sectors with special == 9 and offsets their lightlevel by
+ * ds_secretglow_pulse(sector_id, phase). Closer-in-spectral-phase
+ * sectors pulse harder. The phase is driven by gametic (35 Hz) so the
+ * hum cycles roughly every 1.8 s.
+ *
+ * The pulse math is a pure-ALU LUT lookup: cosine similarity between
+ * the player's current BIP hypervector and the sector anchor is
+ * combined with a quarter-wave sin LUT. No FPU, no allocations. */
+void      ds_secretglow_set_active(d_boolean on);
+d_boolean ds_secretglow_is_active(void);
+int       ds_sin256(uint8_t phase);                   /* [-233..+233] */
+int       ds_secretglow_pulse(int sector_id, uint8_t phase);
+
 #endif /* DOOM_SPECTRAL_H */

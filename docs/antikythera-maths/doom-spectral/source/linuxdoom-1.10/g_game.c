@@ -41,6 +41,8 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "p_setup.h"
 #include "p_saveg.h"
 #include "p_tick.h"
+#include "r_state.h"		/* [SPECTRAL] sectors / numsectors */
+#include "r_defs.h"		/* [SPECTRAL] sector_t */
 
 #include "d_main.h"
 
@@ -481,10 +483,13 @@ void G_DoLoadLevel (void)
 	memset (players[i].frags,0,sizeof(players[i].frags)); 
     } 
 		 
-    P_SetupLevel (gameepisode, gamemap, 0, gameskill);    
-    displayplayer = consoleplayer;		// view the guy you are playing    
-    starttime = I_GetTime (); 
-    gameaction = ga_nothing; 
+    P_SetupLevel (gameepisode, gamemap, 0, gameskill);
+    // [SPECTRAL] Reset secret-glow baselines for the new level so the
+    // next G_DoSecretGlowTick recaptures from the fresh sector load.
+    G_SpectralResetSecretBaselines ();
+    displayplayer = consoleplayer;		// view the guy you are playing
+    starttime = I_GetTime ();
+    gameaction = ga_nothing;
     Z_CheckHeap ();
     
     // clear cmd building stuff
@@ -602,15 +607,94 @@ boolean G_Responder (event_t* ev)
 // G_Ticker
 // Make ticcmd_ts for the players.
 //
-void G_Ticker (void) 
-{ 
+/* [SPECTRAL] Snapshot of secret-sector lightlevels at the moment
+ * IDSPECTRAL is first activated. -1 = uninitialised / not a secret.
+ * Tagged with the gametic at capture so we know to recapture after a
+ * level change. */
+static short	ds_secret_baseline[256];
+static boolean	ds_secret_baseline_captured = false;
+static int	ds_secret_baseline_capture_levelstarttime = -1;
+
+/* Called from G_DoLoadLevel after gamestate flips to GS_LEVEL.
+ * Forces the next G_DoSecretGlowTick to recapture baselines from the
+ * fresh sector load. */
+void G_SpectralResetSecretBaselines (void)
+{
+    ds_secret_baseline_captured = false;
+    ds_secret_baseline_capture_levelstarttime = -1;
+}
+
+/* Drive the secret-sector glow once per tic. The math (cosine
+ * similarity vs sector anchor + sin LUT phase) is in doom_spectral.c;
+ * here we walk sectors[] and apply the pulse delta to lightlevel. */
+static void G_DoSecretGlowTick (void)
+{
+    int    i;
+    short  pulse;
+    uint8_t phase;
+
+    /* Only run during actual gameplay. At title screen / intermission /
+     * finale the engine has either NULL `sectors` (early boot) or
+     * stale `sectors` from the previous level (between levels). Either
+     * way, walking sectors[i] is unsafe and used to crash the engine
+     * when IDSPECTRAL was active across a level transition. */
+    if (gamestate != GS_LEVEL) return;
+    if (sectors == NULL) return;
+    if (!ds_spectral_is_registered ()) return;
+    if (numsectors > 256) return;
+
+    /* On first activation: snapshot baselines for every secret-tagged
+     * sector. -1 elsewhere so we know to skip them in the pulse loop. */
+    if (ds_secretglow_is_active () && !ds_secret_baseline_captured)
+    {
+	for (i = 0; i < numsectors; i++)
+	    ds_secret_baseline[i] = (sectors[i].special == 9)
+		? sectors[i].lightlevel
+		: -1;
+	ds_secret_baseline_captured = true;
+    }
+
+    /* On deactivation: restore baselines and bail. */
+    if (!ds_secretglow_is_active ())
+    {
+	if (ds_secret_baseline_captured)
+	{
+	    for (i = 0; i < numsectors; i++)
+		if (ds_secret_baseline[i] != -1)
+		    sectors[i].lightlevel = ds_secret_baseline[i];
+	    ds_secret_baseline_captured = false;
+	}
+	return;
+    }
+
+    /* Active path: pulse each secret. Phase advances 4 units/tic at
+     * 35 Hz -> ~1.83 s per cycle. The per-sector amplitude is driven
+     * by spectral cosine similarity in ds_secretglow_pulse(). */
+    phase = (uint8_t)((gametic * 4) & 0xff);
+    for (i = 0; i < numsectors; i++)
+    {
+	int new_ll;
+	if (ds_secret_baseline[i] == -1) continue;
+	pulse  = (short)ds_secretglow_pulse (i, phase);
+	new_ll = ds_secret_baseline[i] + pulse;
+	if (new_ll < 0)   new_ll = 0;
+	if (new_ll > 255) new_ll = 255;
+	sectors[i].lightlevel = (short)new_ll;
+    }
+}
+
+void G_Ticker (void)
+{
     int		i;
-    int		buf; 
+    int		buf;
     ticcmd_t*	cmd;
-    
+
+    // [SPECTRAL] Drive the IDSPECTRAL secret-sector glow.
+    G_DoSecretGlowTick ();
+
     // do player reborns if needed
-    for (i=0 ; i<MAXPLAYERS ; i++) 
-	if (playeringame[i] && players[i].playerstate == PST_REBORN) 
+    for (i=0 ; i<MAXPLAYERS ; i++)
+	if (playeringame[i] && players[i].playerstate == PST_REBORN)
 	    G_DoReborn (i);
     
     // do things to change the game state

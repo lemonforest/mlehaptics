@@ -398,19 +398,26 @@ P_CheckPosition
 
     newsubsec = R_PointInSubsector (x,y);
 
-    // [SPECTRAL] Z-Fiber Manifold Check. Gated on a registered spectral
-    // lattice (E1M1 only at present); on other maps this is a no-op.
-    // ds_set_current_map (called from P_SetupLevel) only registers the
-    // lattice when both sectors fit the E1M1 size bound, so the
-    // ds_fiber_can_traverse asserts cannot fire here.
-    if (ds_spectral_is_registered ()
-	&& thing->subsector
-	&& !ds_fiber_can_traverse (thing->subsector->sector->id,
-				   newsubsec->sector->id,
-				   thing->z, thing->height))
-    {
-	return false;
-    }
+    // [SPECTRAL] Z-Fiber Manifold Check -- DISABLED.
+    //
+    // This hook used to call ds_fiber_can_traverse() to assert that
+    // the player can move between adjacent sectors based on the
+    // precomputed ds_e1m1_sectors floor/ceiling pair. The fundamental
+    // problem: those values are a STATIC snapshot of the WAD at
+    // extraction time. Doors, lifts, crushers, and any sector with a
+    // moving ceiling/floor have heights that change at runtime, but
+    // the static table never updates -- so as soon as a door is even
+    // momentarily closed (ceiling==floor), the gate blocks the player
+    // from passing through it FOREVER, regardless of the engine's
+    // live state.
+    //
+    // The engine's own P_CheckPosition already validates Z constraints
+    // properly via the LIVE sector_t::floorheight/ceilingheight pair
+    // (search this file for `tmceilingz`, `tmfloorz`, `MAXSTEPMOVE`).
+    // Our hook was duplicating that work badly. Track 2 of the
+    // notebook (Z-axis fiber bundle) remains a valid spectral primitive
+    // for offline analysis -- it just shouldn't gate gameplay
+    // movement.
 
     ceilingline = NULL;
     

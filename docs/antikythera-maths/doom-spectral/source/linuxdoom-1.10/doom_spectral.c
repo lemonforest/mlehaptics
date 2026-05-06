@@ -73,7 +73,7 @@ int32_t ds_bip_similarity(const ds_hypervector_t *const a, const ds_hypervector_
 /*  Physics (Z-Fiber)                                                 */
 /* ------------------------------------------------------------------ */
 
-d_boolean ds_fiber_can_traverse(const int sec_a, const int sec_b, 
+d_boolean ds_fiber_can_traverse(const int sec_a, const int sec_b,
                            const int32_t entity_z, const int32_t entity_height)
 {
     const ds_sector_info_t *s_b;
@@ -86,6 +86,19 @@ d_boolean ds_fiber_can_traverse(const int sec_a, const int sec_b,
     assert(sec_b >= 0);
     assert(sec_b < DS_E1M1_SECTORS);
     assert(h > 0);
+
+    /* Intra-sector movement is not a Z-fiber transition; let it
+     * through unconditionally. (P_CheckPosition fires this gate every
+     * step, including the overwhelming majority of steps that stay
+     * inside the same sector. ds_e1m1_adj is a strict adjacency
+     * matrix with zero diagonal -- without this short-circuit, every
+     * intra-sector movement reads adj[i][i]==0 and gets blocked,
+     * trapping the player in their spawn cell. The Z-fiber check
+     * still applies to inter-sector transitions below.) */
+    if (sec_a == sec_b)
+    {
+        return d_true;
+    }
 
     /* If not adjacent in the manifold, cannot traverse */
     if (ds_e1m1_adj[sec_a][sec_b] == 0)
@@ -266,4 +279,75 @@ void ds_set_current_map(const int episode, const int map,
 d_boolean ds_spectral_is_registered(void)
 {
     return ds_lattice_registered;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Secret glow (IDSPECTRAL cheat) -- spectral math primitives        */
+/* ------------------------------------------------------------------ */
+
+/* The per-tic sector walk lives in g_game.c (which has direct access
+ * to sector_t via the full engine header chain). doom_spectral.c
+ * exports only the spectral math primitives so this module stays
+ * self-contained and JPL-disciplined. */
+
+static d_boolean ds_secretglow_active = d_false;
+
+void ds_secretglow_set_active(const d_boolean on)
+{
+    ds_secretglow_active = on;
+}
+
+d_boolean ds_secretglow_is_active(void)
+{
+    return ds_secretglow_active;
+}
+
+/* Quarter-wave sin LUT in 16.8 fixed point (Q8); pure ALU. The full
+ * cycle is 256 phase units; at 35 Hz with phase += 4 per tic, that's
+ * one full pulse every ~1.83 s. Range: [-233..+233]. */
+static const int16_t ds_sine256_quarter[65] = {
+    0,    6,   13,   19,   25,   31,   37,   44,   50,   56,
+   62,   68,   74,   80,   86,   92,   98,  104,  109,  115,
+  121,  126,  132,  137,  142,  147,  152,  157,  162,  167,
+  171,  176,  180,  184,  188,  192,  196,  199,  203,  206,
+  209,  212,  214,  217,  219,  221,  223,  225,  227,  228,
+  229,  230,  231,  232,  232,  233,  233,  233,  233,  233,
+  233,  232,  232,  231,  230
+};
+int ds_sin256(uint8_t phase)
+{
+    uint8_t q = phase >> 6;
+    uint8_t i = phase & 0x3f;
+    if (q == 0)        return  ds_sine256_quarter[i];
+    else if (q == 1)   return  ds_sine256_quarter[64 - i];
+    else if (q == 2)   return -ds_sine256_quarter[i];
+    else               return -ds_sine256_quarter[64 - i];
+}
+
+/* Per-secret-sector lightlevel pulse delta. Caller passes the player's
+ * current BIP hypervector (via the engine global), the sector index,
+ * and the tic-driven phase; returns a signed lightlevel offset
+ * (typically +/- 56 units, clamped per-sector by the caller). The
+ * hum has a baseline 8-unit amplitude even when similarity is zero,
+ * so distant secrets still breathe; closer in spectral phase space
+ * pushes the pulse up to ~64 units swing. */
+int ds_secretglow_pulse(int sector_id, uint8_t phase)
+{
+    int32_t tension;
+    int32_t cos_sim_q16;
+    int32_t similarity_scaled;
+    int     sin_val;
+
+    if (sector_id < 0 || sector_id >= DS_E1M1_SECTORS) return 0;
+
+    tension = ds_get_haptic_tension(sector_id, &player_spectral_state);
+    cos_sim_q16 = 65536 - tension;
+    if (cos_sim_q16 < 0) cos_sim_q16 = 0;
+
+    /* Map cos similarity [0..65536] -> [0..56] gain (pure shifts). */
+    similarity_scaled = (cos_sim_q16 >> 11) + (cos_sim_q16 >> 12);
+    if (similarity_scaled > 56) similarity_scaled = 56;
+
+    sin_val = ds_sin256(phase);  /* [-233..+233] */
+    return ((similarity_scaled + 8) * sin_val) >> 8;
 }
