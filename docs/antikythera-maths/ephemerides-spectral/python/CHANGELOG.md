@@ -10,7 +10,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.14.1)
+(no entries yet — next entries land after v0.14.2)
+
+## [0.14.2] — 2026-05-06
+
+**Sol Moon Times: remaining 8 moons across 4 parent families** — closes task `` `#86` `` for the current 38-body roster. Built via four parallel subagent worktrees, integrated into a single ship.
+
+### Added — Mars (2 moons)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Phobos | Sol Mars-Phobos Time | **SMaPhT** | `time-mars-phobos` |
+| Deimos | Sol Mars-Deimos Time | **SMaDeT** | `time-mars-deimos` |
+
+Both likely captured asteroids (C/D-type spectral match). Phobos's sidereal period (0.319 d ≈ 7h 39m) is **shorter** than Mars's solar day (~24h 39m), so from Mars's surface Phobos rises in the **west**. Phobos/Deimos period ratio is ≈ 3.96 — near 4:1 but **not** in 4:1 mean-motion resonance (libration tolerance is parts-per-thousand; 1% off counts as not-locked).
+
+### Added — Jupiter inner regulars (4 moons)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Metis | Sol Jupiter-Metis Time | **SJuMeT** | `time-jupiter-metis` |
+| Adrastea | Sol Jupiter-Adrastea Time | **SJuAdT** | `time-jupiter-adrastea` |
+| Amalthea | Sol Jupiter-Amalthea Time | **SJuAmT** | `time-jupiter-amalthea` |
+| Thebe | Sol Jupiter-Thebe Time | **SJuThT** | `time-jupiter-thebe` |
+
+Metis + Adrastea are ring-shepherd moons of Jupiter's main ring (both orbit just outside the ring's outer edge). Amalthea is the largest (~84 km radius) and the only one discovered before Voyager (E. E. Barnard, 1892 — the last solar-system moon discovered by direct visual observation). Thebe orbits between Amalthea and Io.
+
+### Added — Uranus (1 moon: Titania)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Titania | Sol Uranus-Titania Time | **SUrTiT** | `time-uranus-titania` |
+
+Largest Uranian moon (radius ~789 km); discovered by William Herschel 1787. Currently the only Uranian moon in the BODIES roster — Oberon, Umbriel, Ariel, Miranda are queued for a future ship.
+
+**Note**: SUrTiT and SSaTiT (Saturn's Titan) share the `Ti` moon prefix but are globally distinct via the parent prefix (`Ur` vs `Sa`) — exactly the disambiguation the v0.14.1 6-letter abbreviation policy was designed to provide. Without the policy switch, both would have been `STiT` under the old 4-letter form.
+
+### Added — Neptune (1 moon: Triton)
+
+| Body | Sol Time name | Abbreviation | CLI |
+|---|---|---|---|
+| Triton | Sol Neptune-Triton Time | **SNeTrT** | `time-neptune-triton` |
+
+Largest Neptunian moon (radius ~1353 km — bigger than Pluto). **The only large moon in the solar system that orbits its planet retrograde** — strong evidence Triton is a captured Kuiper Belt object. Tidal deceleration (because of the retrograde orbit) is spiralling Triton inward; in ~3.6 Gyr it will cross Neptune's Roche limit and become a ring system.
+
+**Encoder convention**: `BODIES["triton"].period_days` is positive (we encode `omega = +2π/P` for ALL bodies regardless of prograde/retrograde direction; retrograde-ness is metadata, not a sign flip in the time-scale primitive). Sol Time count proceeds positive-monotonically. Same convention as v0.5.4 Sol Uranian Time (Uranus has retrograde rotation).
+
+### Subagent-driven dispatch
+
+This ship was built via **4 parallel subagent worktrees** (one per family), each:
+
+- branched off main concurrent with v0.14.1 CI
+- self-contained: bridge wrappers + CLI subcommand + new test module + parity-smoke entries
+- did NOT touch version bumps, CHANGELOGs, README, ROADMAP, notebook (the parent agent integrated those)
+
+Subagents reported clean test runs in their own worktrees. The parent agent integrated the 4 deliverables into a single bridge.py / cli.py / test_parity_smoke.py edit (avoiding 4-way merge conflicts on those shared files), copied the 4 new test modules in directly, and added a generic `_add_moon_subparser` CLI helper that supersedes the v0.14.0/v0.14.1 family-specific helpers for the v0.14.2 additions.
+
+### Sol Moon Times series — current state
+
+23 moons across 6 families (every moon in the BODIES roster except Earth's Luna, which has its own STLT in v0.10.0):
+
+| Family | Count | Examples |
+|---|--:|---|
+| Galileans (Jupiter) | 4 | Io, Europa, Ganymede, Callisto |
+| Saturnians | 11 | Mimas, Enceladus, ..., Titan, ..., Janus, Epimetheus |
+| **Martians (v0.14.2)** | **2** | **Phobos, Deimos** |
+| **Jovian inner regulars (v0.14.2)** | **4** | **Metis, Adrastea, Amalthea, Thebe** |
+| **Uranian (v0.14.2)** | **1** | **Titania** |
+| **Neptunian (v0.14.2)** | **1** | **Triton** |
+| Total | **23** | |
+
+Plus Sol Terra-Luna Time (STLT) for Earth's Moon = **24 moon time series**. Future BODIES additions (Pluto-Charon, more Uranian moons, etc.) follow the same v0.14.1 6-letter convention.
+
+### Test count
+
+497 pass, 4 skipped (was 399 + 4 in v0.14.1; +98 new — 2 Martian + 4 Jovian-inner + 1 Uranian + 1 Neptunian moon-test modules + parity-smoke entries).
+
+### Migration
+
+None. Pure-additive. No API / encoder / ABI / encoder-test changes.
 
 ## [0.14.1] — 2026-05-06
 
