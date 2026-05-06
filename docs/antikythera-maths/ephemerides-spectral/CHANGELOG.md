@@ -7,7 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.18.2)
+(no entries yet — next entries land after v0.19.0)
+
+## [0.19.0] — 2026-05-06
+
+**Sol Electromagnetic Instrument — state-at-epoch query surface for the solar-system EM sector.** Promotes notebook §16.9 to a stable ship surface. **Not a BIP encoder** — per §16.3 / §16.9.1 the rhythm-mismatch finding established that EM clocks (rotational, Carrington, solar cycle, plume duty cycles) don't form a low-order rational lattice with orbital periods, so the cyclic-group encoder discipline doesn't transplant. Pure-Python additive; **no ABI bump** (fifth consecutive ship since v0.13.x with no ABI movement).
+
+### What ships
+
+| Surface | Function / subcommand |
+|---|---|
+| Pythonic API | `_research.em_instrument.compute_em_state_at_jd / list_em_couplings / compute_em_architecture` |
+| Bridge dict API | `bridge.get_em_state(jd_tdb)` / `bridge.list_em_couplings()` / `bridge.em_architecture(target=None)` |
+| CLI | `em-state --jd-tdb X` / `em-couplings` / `em-architecture [--target X]` |
+
+### 16-body roster
+
+| Class | Count | Bodies |
+|---|---:|---|
+| star | 1 | sun |
+| magnetised | 7 | mercury, terra, jupiter, ganymede, saturn, uranus, neptune |
+| induced | 4 | venus, europa, callisto, titan |
+| unmagnetised | 4 | luna, mars, io, enceladus |
+
+### 7 pairwise EM couplings
+
+| Pair | Kind | Power | Source |
+|---|---|---:|---|
+| Jupiter ↔ Io | flux_tube | ~10¹² W | Saur 2007 / Hess et al. 2010 |
+| Saturn ↔ Enceladus | plasma_mass_loading | ~5×10⁹ W | Pontius & Hill 2006 |
+| Saturn ↔ Titan | induced_magnetosphere | ~10⁹ W | Cassini magnetometer |
+| Sun ↔ Terra | imf_reconnection | ~5×10⁹ W | Lockwood 2022 |
+| Jupiter ↔ Europa | induced_magnetosphere | ~10¹⁰ W | Khurana 1998 |
+| Jupiter ↔ Ganymede | intrinsic_field_to_intrinsic_field | ~10¹⁰ W | Kivelson 2002 |
+| Sun ↔ asteroid_belt_bulk | radiation_pressure | ~10¹⁵ W | Bottke 2006 |
+
+### Notable per-body data
+
+* **Jupiter dipole** 1.52×10²⁰ T·m³ (JRM33 Connerney 2022)
+* **Earth dipole** 7.94×10²² A·m² (IGRF-13 Alken et al. 2021)
+* **Ganymede** — only solar-system moon with confirmed intrinsic dipole (Kivelson 2002)
+* **Saturn rotation period** 0.4467 d ± 1 % (Voyager / Cassini SKR disagreement; flagged per §16.3)
+
+### Citation discipline
+
+Every numeric value carries a `source_key` pointing into a 19-entry `SOURCES` dict (DOIs / mission archives / journal refs). Tests pin the resolution: `test_every_body_source_key_resolves` + `test_every_coupling_source_key_resolves`.
+
+### Architectural choice
+
+Option B (separate sibling instrument), not Option A (kernel-patch onto celestial Laplacian). EM rhythms don't form a low-order rational lattice with orbital periods; cross-channel coupling (Io plasma → Io flux tube → DAM synchrotron) means EM should be ONE sibling instrument, not five sub-instruments. User course-correction during the §16 writing widened the scope from "magnetic-only" → "electromagnetic" before the ship.
+
+### Test count
+
+730 pass, 41 skipped (was 685 + 41 in v0.18.2; +45 net new — 46 in `tests/test_em_instrument.py` + 3 parity-smoke entries — minus a small reconciliation when rebased onto v0.18.2).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.18.2 → 0.19.0` (v0.19.0 includes the v0.18.2 2-D Fiedler-embedding upgrade for `predict_itn_accessibility` from the parallel branch — both ships landed on the same day).
 
 ## [0.18.2] — 2026-05-06
 

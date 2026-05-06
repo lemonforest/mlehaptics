@@ -122,6 +122,24 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "status": "python_only",
         "kwargs_py": {},
     },
+    # ── v0.19.0 Sol Electromagnetic Instrument (state-at-epoch query
+    # surface for the EM sector). Per notebook §16.9.1 the EM clocks
+    # don't form a low-order rational lattice with orbital periods, so
+    # the cyclic-group encoder discipline doesn't transplant. Three
+    # bridge surfaces, all pure-Python lookups + linear rotation phase
+    # advance; no C twin makes sense.
+    "get_em_state": {
+        "status": "python_only",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "list_em_couplings": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
+    "em_architecture": {
+        "status": "python_only",
+        "kwargs_py": {},
+    },
     # ── v0.18.1 predict_itn_accessibility (closed-form spectral Δv
     # estimate from the §13.9 hybrid Fiedler-distance regression). Pure-
     # Python; no C twin planned -- the eigendecomposition is memoised at
