@@ -29,6 +29,7 @@
 
 #include "ephemerides_spectral.h"
 
+#include <assert.h>
 #include <math.h>
 #include <string.h>
 
@@ -43,8 +44,11 @@
  */
 static size_t phase_uint32_to_residue(uint32_t phi, size_t D)
 {
+    assert(D > 0);
     const uint64_t prod = (uint64_t)phi * (uint64_t)D + ((uint64_t)1 << 31);
-    return (size_t)((prod >> 32) % (uint64_t)D);
+    const size_t r = (size_t)((prod >> 32) % (uint64_t)D);
+    assert(r < D);
+    return r;
 }
 
 /* Roll `src` by `shift` positions into `dst`. `dst[k] = src[(k - shift) mod D]`,
@@ -56,6 +60,9 @@ static void roll_complex64(const es_complex64_t *src,
                            es_complex64_t *dst,
                            size_t D)
 {
+    assert(src != NULL);
+    assert(dst != NULL);
+    assert(D > 0);
     /* numpy np.roll(src, shift) puts src[0] at dst[shift];
      * equivalently dst[k] = src[(k - shift) mod D]. We compute via
      * two memcpys in the common case (no wrap-around in the source).
@@ -75,12 +82,14 @@ static void roll_complex64(const es_complex64_t *src,
 /* Compute |state| via sum of squared magnitudes; used for normalisation. */
 static double complex64_norm(const es_complex64_t *state, size_t D)
 {
+    assert(state != NULL);
     double acc = 0.0;
     for (size_t k = 0; k < D; ++k) {
         const double r = (double)state[k].real;
         const double i = (double)state[k].imag;
         acc += r * r + i * i;
     }
+    assert(acc >= 0.0);
     return sqrt(acc);
 }
 
@@ -89,6 +98,8 @@ static void complex64_scale_inplace(es_complex64_t *state,
                                     size_t D,
                                     double scale)
 {
+    assert(state != NULL);
+    assert(isfinite(scale));
     if (scale == 0.0) return;
     const double inv = 1.0 / scale;
     for (size_t k = 0; k < D; ++k) {
@@ -111,14 +122,18 @@ static void complex64_scale_inplace(es_complex64_t *state,
  */
 static size_t observer_coord_shift(double lat_deg, double lon_deg, size_t D)
 {
+    assert(D > 0);
+    assert(isfinite(lat_deg) && isfinite(lon_deg));
     const double lat_norm = (lat_deg + 90.0) / 180.0;
     const double lon_norm = (lon_deg + 180.0) / 360.0;
     const long long lat_raw = (long long)(lat_norm * (double)D);
     const long long lon_raw = (long long)(lon_norm * (double)D);
     const size_t lat_res = (size_t)(((lat_raw % (long long)D) + (long long)D) % (long long)D);
     const size_t lon_res = (size_t)(((lon_raw % (long long)D) + (long long)D) % (long long)D);
-    return (lat_res * (size_t)ES_COPRIME_LAT
-            + lon_res * (size_t)ES_COPRIME_LON) % D;
+    const size_t shift = (lat_res * (size_t)ES_COPRIME_LAT
+                          + lon_res * (size_t)ES_COPRIME_LON) % D;
+    assert(shift < D);
+    return shift;
 }
 
 /* Compute out_state[k] = state_in[k] * observer_op[k] * sqrt(D),
@@ -134,6 +149,8 @@ static void apply_observer_bind(const es_complex64_t *state_in,
                                 es_complex64_t *out_state,
                                 size_t D)
 {
+    assert(state_in != NULL && body_basis != NULL);
+    assert(coord_op != NULL && out_state != NULL);
     const double sqrt_D = sqrt((double)D);
     const double inv_sqrt_D = 1.0 / sqrt_D;
     for (size_t k = 0; k < D; ++k) {
@@ -168,6 +185,9 @@ static void build_syzygy_operator(const es_complex64_t *sun_b,
                                   es_complex64_t *s_op,
                                   size_t D)
 {
+    assert(sun_b != NULL && moon_b != NULL);
+    assert(node_b != NULL && s_op != NULL);
+    assert(D > 0);
     const double inv_sqrt_D = 1.0 / sqrt((double)D);
     for (size_t k = 0; k < D; ++k) {
         const double r = ((double)sun_b[k].real
@@ -189,6 +209,8 @@ static double complex64_vdot_magnitude(const es_complex64_t *a,
                                        const es_complex64_t *b,
                                        size_t D)
 {
+    assert(a != NULL);
+    assert(b != NULL);
     double acc_r = 0.0, acc_i = 0.0;
     for (size_t k = 0; k < D; ++k) {
         const double ar = (double)a[k].real;
@@ -219,6 +241,8 @@ es_status_t es_encode_state_hd(double delta_t_days,
     if (D == 0) {
         return ES_ERR_INVALID_INDEX;
     }
+    assert(out_state != NULL && scratch_basis != NULL && scratch_rolled != NULL);
+    assert(D > 0);
 
     /* 1. BIP integer encode -> 38 phase residues. */
     uint32_t phases[ES_N_BODIES];
@@ -285,6 +309,8 @@ es_status_t es_bind_observer(const es_complex64_t *state_in,
     if (D == 0) {
         return ES_ERR_INVALID_INDEX;
     }
+    assert(body_idx < ES_N_BODIES);
+    assert(D > 0);
 
     es_status_t rc = es_channel_basis(
         ES_BODY_BASIS_SEED_BASE + (uint64_t)body_idx, scratch_body_basis, D);
@@ -326,6 +352,8 @@ es_status_t es_get_eclipse_probability(const es_complex64_t *state,
     if (D == 0) {
         return ES_ERR_INVALID_INDEX;
     }
+    assert(sun_body_idx < ES_N_BODIES && moon_body_idx < ES_N_BODIES);
+    assert(D > 0);
 
     es_status_t rc = es_channel_basis(
         ES_BODY_BASIS_SEED_BASE + (uint64_t)sun_body_idx, scratch_sun_b, D);

@@ -19,17 +19,17 @@ This is the *audit* phase. Rule-by-rule fixes ship in v0.11.3+ as separate code-
 | 1 | No goto / setjmp / longjmp / recursion | 5 | **0** | ✅ — fixed in v0.13.4 (caller-supplied-scratch refactor in `es_hd_state.c`) |
 | 2 | Fixed loop bounds | 0 | 0 | ✅ — no `while(1)` / `for(;;)` |
 | 3 | No dynamic allocation after init | 29 | **0** | ✅ — fixed in v0.13.4 (C library no longer calls `malloc`/`free` after init) |
-| 4 | Functions ≤ 60 lines | 4 | **0** | ✅ — fixed in v0.13.5 (4 long functions split via 10 new private static helpers along natural algorithm seams) |
-| 5 | ≥ 2 assertions per function (avg) | 64 short | 84 short | ❌ — 0 assertions; 42 functions (was 32; v0.13.5 added 10 helpers). New target: 84 assertions. Queued for v0.13.6. |
+| 4 | Functions ≤ 60 lines | 4 | **0** | ✅ — fixed in v0.13.5 (4 long functions split via 10 new private static helpers) |
+| 5 | ≥ 2 assertions per function (avg) | 64 short | **0 short** | ✅ — fixed in v0.13.6 (88 assertions across 42 functions; 2.10/function avg; gated behind `<assert.h>` NDEBUG so production strips them entirely) |
 | 6 | Smallest possible scope for data | manual | manual | ⚠ — defer to v0.13.8 manual audit |
 | 7 | Check return values, validate parameters | manual | manual | ⚠ — partial; bridge sites validate, internal sites mixed. Queued for v0.13.8. |
 | 8 | Limited preprocessor (header includes + simple macros only) | 0 | 0 | ✅ — no multi-line macros |
 | 9 | Pointer dereference depth ≤ 1; no function pointers | 0 | 0 | ✅ — no function pointers found |
 | 10 | Compile clean at most-pedantic warning level | unknown | unknown | ⚠ — Rule 10 audit deferred to v0.13.7 (cross-platform tooling) |
 
-**Headline:** Two ships, three rules cleared (1 + 3 + 4). v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams without changing public API or encoder math). Remaining: Rule 5 assertion density (now 84 short — bumped from 64 because v0.13.5 added 10 helpers), Rule 10 pedantic-build matrix, Rules 6+7 manual audits.
+**Headline:** Three ships, all Rule 1-5 mechanically-detectable violations cleared. v0.13.4 was the structural cleanup (caller-supplied scratch removed `malloc`/`free` and the `goto`-cleanup pattern they were guarding); v0.13.5 was the formatting cleanup (10 new private static helpers split the 4 long functions along natural algorithm seams); v0.13.6 was the documentation pass (88 assertions across 42 functions documenting pre-conditions, post-conditions, and invariants). Encoder math byte-identical across all three ships — parity smoke pins both backends to within float-ULP. Remaining: Rule 10 pedantic-build matrix (v0.13.7), Rules 6+7 manual audits (v0.13.8).
 
-**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.5 64** (-38, 37% cleared in two ships). The pinned ratchet test allows this number to go DOWN; PRs that increase it fail.
+**Mechanically-detectable violations: v0.11.2 baseline 102 → v0.13.6 0.** Every Rule 1-5 mechanical pin satisfied. The pinned ratchet test allows this number to go DOWN only; PRs that increase it fail.
 
 ---
 
@@ -161,14 +161,26 @@ Total function count 32 → 42; `PIN_RULE_5_TOTAL_FUNCS` ratcheted UP. The Rule 
 
 > *"The assertion density of the code should average to a minimum of two assertions per function. Assertions are used to check for anomalous conditions that should never happen in real-life executions."*
 
-### Current state
+### v0.13.6 fix shipped
 
-- **Total functions:** 32
-- **Total `assert(...)` calls:** 0
-- **Assertions required (2/function avg):** 64
-- **Shortfall:** 64
+- **Total functions:** 42 (post-v0.13.5)
+- **Total `assert(...)` calls:** 88
+- **Average:** 2.10 assertions / function (target ≥2.0) ✅
+- **Shortfall:** **0**
 
-### Violation: 64
+| File | Assertions / Functions | Density |
+|---|--:|--:|
+| `es_channel_bases.c` | 2 / 1 | 2.00 |
+| `es_encode.c` | 26 / 13 | 2.00 |
+| `es_hd_state.c` | 25 / 11 | 2.27 |
+| `es_parity.c` | 16 / 8 | 2.00 |
+| `es_patches.c` | 15 / 7 | 2.14 |
+| `es_prng.c` | 4 / 2 | 2.00 |
+| **Total** | **88 / 42** | **2.10** |
+
+The previously-skipped `test_rule_5_density_meets_2_per_function` ratchet test now PASSES.
+
+### Historical baseline (v0.11.2): 64 short
 
 The codebase has **zero** assertions. Every function is a Rule 5 violation by inspection.
 

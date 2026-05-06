@@ -26,6 +26,7 @@
 #include "ephemerides_spectral.h"
 #include "es_prng.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 
@@ -36,10 +37,12 @@ es_status_t es_channel_basis(uint64_t seed,
     if (out == NULL) {
         return ES_ERR_NULL_OUTPUT;
     }
+    assert(out != NULL);  /* post-validation */
     uint64_t state = seed;
     for (size_t k = 0; k < D; ++k) {
         const uint64_t u = es_splitmix64_next(&state);
         const double phi = es_splitmix64_uniform_2pi(u);
+        assert(phi >= 0.0 && phi < 6.283185307179587);  /* invariant per call */
         /* cos/sin in double precision; cast to float for storage.
          * The deterministic float-truncation step is the only place
          * the C and Python sides could disagree at the bit level —

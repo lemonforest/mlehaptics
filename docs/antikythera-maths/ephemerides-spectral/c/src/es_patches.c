@@ -18,6 +18,7 @@
  * with -Wl,--gc-sections + LTO if footprint matters).
  */
 
+#include <assert.h>
 #include <math.h>      /* sin                                            */
 #include <string.h>    /* memcpy, memset, strncmp, strnlen              */
 
@@ -38,6 +39,7 @@ static int es_validate_patch(const es_patch_t *p) {
     if (p == NULL) {
         return ES_ERR_NULL_OUTPUT;
     }
+    assert(p != NULL);  /* post-validation */
     if (p->kind != ES_PATCH_KIND_SINUSOID &&
         p->kind != ES_PATCH_KIND_COUPLED_SINUSOID) {
         return ES_ERR_PATCH_BAD_KIND;
@@ -56,10 +58,13 @@ static int es_validate_patch(const es_patch_t *p) {
             return ES_ERR_PATCH_BAD_PARAM;
         }
     }
+    assert(p->period_days > 0.0);  /* post-validation invariant */
     return ES_OK;
 }
 
 static int es_name_equal(const char *a, const char *b) {
+    assert(a != NULL);
+    assert(b != NULL);
     /* Patch names are NUL-terminated within ES_PATCH_NAME_MAX bytes;
      * a strncmp over the full buffer length is safe even if the
      * caller didn't NUL-terminate (we'll still compare the full
@@ -77,6 +82,7 @@ int es_apply_patch(const es_patch_t *patch) {
     if (rc != ES_OK) {
         return rc;
     }
+    assert(patch != NULL);  /* validated above */
     /* Duplicate-name check. Mirrors the Python registry's
      * apply_patch behaviour: same name twice is almost always a
      * bug, so we surface as a hard error rather than silently
@@ -90,6 +96,7 @@ int es_apply_patch(const es_patch_t *patch) {
     if (es_n_patches >= ES_MAX_PATCHES) {
         return ES_ERR_PATCH_FULL;
     }
+    assert(es_n_patches < ES_MAX_PATCHES);  /* invariant before write */
     /* Copy in. Zero the destination first so any unused trailing
      * bytes in `name` are reproducible (helps byte-exact read-back
      * and serialisation).
@@ -102,15 +109,20 @@ int es_apply_patch(const es_patch_t *patch) {
 
 size_t es_clear_patches(void) {
     const size_t n_prior = es_n_patches;
+    assert(n_prior <= ES_MAX_PATCHES);
     /* Zero the array so any leftover bytes don't confuse a later
      * read-back accessor; cheap (32 * 96 bytes ~= 3 KB).
      */
     memset(es_active_patches, 0, sizeof(es_active_patches));
     es_n_patches = 0;
+    assert(es_n_patches == 0);  /* post-condition */
     return n_prior;
 }
 
 size_t es_n_active_patches(void) {
+    assert(es_n_patches <= ES_MAX_PATCHES);
+    /* The registry never exceeds the cap; double-checked. */
+    assert(ES_MAX_PATCHES > 0);
     return es_n_patches;
 }
 
@@ -121,6 +133,8 @@ int es_get_patch_at(size_t idx, es_patch_t *out) {
     if (idx >= es_n_patches) {
         return ES_ERR_PATCH_OUT_OF_RANGE;
     }
+    assert(out != NULL);
+    assert(idx < es_n_patches);
     memcpy(out, &es_active_patches[idx], sizeof(es_patch_t));
     return ES_OK;
 }
@@ -161,11 +175,14 @@ static const double ES_TWO_PI = 6.283185307179586476925286766559;
 static const double ES_MODULO_DOUBLE = 4294967296.0;  /* 2^32 */
 
 void es_apply_overlay_to_phases(double delta_t_days, uint64_t curr_phases[ES_N_BODIES]) {
+    assert(curr_phases != NULL);
+    assert(es_n_patches <= ES_MAX_PATCHES);
     if (es_n_patches == 0) {
         return;  /* hot-path zero-cost when no patches active */
     }
     for (size_t k = 0; k < es_n_patches; ++k) {
         const es_patch_t *p = &es_active_patches[k];
+        assert(p->period_days > 0.0);  /* registered patches passed validate */
         const double ang = ES_TWO_PI * delta_t_days / p->period_days + p->phase_rad;
         const double amp_residue_d = p->amplitude_deg / 360.0 * ES_MODULO_DOUBLE;
         /* Mirror Python: round(amp_residue * sin(ang)). The

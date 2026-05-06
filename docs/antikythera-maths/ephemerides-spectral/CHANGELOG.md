@@ -7,7 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.5)
+(no entries yet — next entries land after v0.13.6)
+
+## [0.13.6] — 2026-05-05
+
+**JPL Power-of-Ten Rule 5 fixes — assertion density at 2/function average.** Third code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. Pure additive instrumentation; no public API/ABI/test-surface change.
+
+### Fixed
+
+- **Rule 5 (≥2 assertions per function avg)** flips from 0 → **88 assertions / 42 functions = 2.10/function** (target ≥2.0). The `test_rule_5_density_meets_2_per_function` ratchet test flips from SKIP to **PASS**.
+
+  Distribution: `es_channel_bases` 2 / 1, `es_encode` 26 / 13, `es_hd_state` 25 / 11, `es_parity` 16 / 8, `es_patches` 15 / 7, `es_prng` 4 / 2. (`es_bodies`, `es_cosine_lut`, `es_laplacian` are pure data tables with no function bodies.)
+
+### Coverage strategy
+
+Per Holzmann's Power-of-Ten paper:
+- **Pre-conditions on parameters**: post-validation `assert(ptr != NULL)`; `assert(idx < N_BODIES)`; `assert(isfinite(input))`.
+- **Post-conditions on results**: assert magnitude ≥ 0; assert phase < 2π; assert state advanced.
+- **Invariants**: `assert(D > 0)`; `assert(n_patches <= ES_MAX_PATCHES)`; `assert(ES_VERSION > 0)`.
+
+### Zero runtime cost
+
+All assertions use standard `<assert.h>` — no-op when `NDEBUG` is defined. Production builds (`-DNDEBUG`) strip them. Assertions are development-time documentation that doubles as static-analysis precondition spec.
+
+### Audit ratchet (`tests/test_jpl_audit.py`)
+
+| Pin | v0.11.2 baseline | v0.13.5 | v0.13.6 |
+|---|--:|--:|--:|
+| `PIN_RULE_5_ASSERTIONS` | 0 | 0 | **88** |
+
+**Total mechanically-detectable violations: 102 → 0** — every Rule 1-5 violation in the v0.11.2 audit baseline cleared in three ships (v0.13.4 + v0.13.5 + v0.13.6). Remaining JPL roadmap: Rule 10 (pedantic-build matrix, v0.13.7), Rules 6+7 (manual scope + return-value audits, v0.13.8).
+
+250 tests pass, 4 skipped (was 5; Rule 5 density skip is gone).
 
 ## [0.13.5] — 2026-05-05
 

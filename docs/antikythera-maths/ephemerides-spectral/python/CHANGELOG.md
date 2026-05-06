@@ -10,7 +10,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.5)
+(no entries yet — next entries land after v0.13.6)
+
+## [0.13.6] — 2026-05-05
+
+**JPL Power-of-Ten Rule 5 fixes — assertion density at 2/function average.** Third code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. Pure additive instrumentation: no public API change, no ABI change (still v6), encoder math byte-identical — parity smoke pins both backends to within float-ULP and stays green.
+
+### Fixed
+
+- **Rule 5 (≥2 assertions per function avg)** density flips from 0.0 (audit baseline) to **2.10**. **88 assertions** added across the 42 functions (target ≥2 × 42 = 84). The previously-skipped `test_rule_5_density_meets_2_per_function` ratchet test now **PASSES**.
+
+  Per-file distribution:
+
+  | File | Assertions / Functions | Density |
+  |---|--:|--:|
+  | `es_channel_bases.c` | 2 / 1 | 2.00 |
+  | `es_encode.c` | 26 / 13 | 2.00 |
+  | `es_hd_state.c` | 25 / 11 | 2.27 |
+  | `es_parity.c` | 16 / 8 | 2.00 |
+  | `es_patches.c` | 15 / 7 | 2.14 |
+  | `es_prng.c` | 4 / 2 | 2.00 |
+  | **Total** | **88 / 42** | **2.10** |
+
+### Coverage strategy
+
+Per Holzmann's original Power-of-Ten paper, assertions document anomalous-condition checks. Three categories applied:
+
+- **Pre-conditions on parameters**: assert pointer non-NULL after runtime `if (ptr == NULL) return ERR;` check (documents post-validation invariant); assert index < N_BODIES; assert input finite.
+- **Post-conditions on results**: assert output non-negative for magnitudes/norms; assert output bounded (e.g. `phi < 2π`); assert state advanced exactly once.
+- **Invariants**: assert `D > 0`; assert `n_patches ≤ ES_MAX_PATCHES`; assert constants positive.
+
+### Zero runtime cost
+
+All assertions use the standard `<assert.h>` macro, which is a no-op when `NDEBUG` is defined. Production builds (`-DNDEBUG`) strip them entirely. Assertions are a *development-time* documentation tool that doubles as static-analysis-friendly precondition spec — not a runtime check.
+
+### Audit ratchet
+
+`tests/test_jpl_audit.py` pins ratcheted:
+
+| Pin | v0.11.2 baseline | v0.13.5 | v0.13.6 |
+|---|--:|--:|--:|
+| `PIN_RULE_5_ASSERTIONS` | 0 | 0 | **88** *(ratcheted UP — count must only increase)* |
+
+`test_rule_5_density_meets_2_per_function` flips from SKIP to **PASS**. Total mechanically-detectable violations: **102 → 0** — every Rule 1-5 violation in the v0.11.2 audit baseline now cleared in three ships. Remaining JPL roadmap: Rule 10 (pedantic-build matrix, v0.13.7), Rules 6+7 (manual scope + return-value audits, v0.13.8).
+
+### Migration
+
+None. Pure instrumentation; no API/ABI/test surface change; runtime behaviour unchanged in release builds. 250 tests pass, 4 skipped (was 5; Rule 5 density skip is gone).
 
 ## [0.13.5] — 2026-05-05
 
