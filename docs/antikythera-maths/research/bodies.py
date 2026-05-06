@@ -76,6 +76,15 @@ BODIES: Dict[str, Body] = {
     "ganymede": Body("Ganymede",  7.15455296, 0.025, "moon", surface_radius_km=2_634.1),
     "callisto": Body("Callisto", 16.68901840, 0.018, "moon", surface_radius_km=2_410.3),
 
+    # ---- Jovian irregular moons (v0.16.0) ----
+    # Highly inclined orbits (~150°+ for the retrogrades, ~28° for the
+    # progrades). Captured-asteroid origin is standard interpretation.
+    # Encoder convention from v0.5.4 / v0.14.2: omega = +2π/P regardless
+    # of orbital direction; retrograde-ness is metadata, not a sign flip.
+    "himalia":   Body("Himalia",   250.5662000,  1.10e-9, "moon", surface_radius_km=85.0),
+    "pasiphae":  Body("Pasiphae",  743.6300000,  5.00e-12, "moon", surface_radius_km=30.0),
+    "sinope":    Body("Sinope",    758.9000000,  1.30e-12, "moon", surface_radius_km=19.0),
+
     # ---- Classical Saturnian moons + Janus / Epimetheus co-orbitals ----
     "mimas":      Body("Mimas",       0.94242196, 6.31e-9, "moon", surface_radius_km=198.2),
     "enceladus":  Body("Enceladus",   1.37021785, 1.81e-5, "moon", surface_radius_km=252.1),
@@ -88,6 +97,21 @@ BODIES: Dict[str, Body] = {
     "phoebe":     Body("Phoebe",    550.56463600, 1.39e-9, "moon", surface_radius_km=106.5),
     "janus":      Body("Janus",       0.69458200, 3.16e-10, "moon", surface_radius_km=89.5),
     "epimetheus": Body("Epimetheus",  0.69423500, 8.97e-11, "moon", surface_radius_km=58.1),
+
+    # ---- Saturnian Lagrange trojans (v0.16.0) ----
+    # First L4/L5 entries in BODIES. Each pair shares its host moon's
+    # sidereal period exactly (1:1 mean-motion lock at the L4/L5 fixed
+    # points of the Saturn-host CR3BP), giving the body-graph Laplacian
+    # a multiplicity-2 degeneracy at the host's frequency. This is the
+    # natural intersection point with the v0.16.x resonance-graph
+    # multi-leg find_itn_chains work (notebook §12).
+    #
+    # Telesto + Calypso ride at Tethys's L4 + L5 respectively.
+    # Helene + Polydeuces ride at Dione's L4 + L5 respectively.
+    "telesto":     Body("Telesto",     1.88780216, 4.0e-12,  "moon", surface_radius_km=12.4),
+    "calypso":     Body("Calypso",     1.88780216, 1.2e-12,  "moon", surface_radius_km=9.6),
+    "helene":      Body("Helene",      2.73691500, 1.9e-12,  "moon", surface_radius_km=17.5),
+    "polydeuces":  Body("Polydeuces",  2.73691500, 4.4e-15,  "moon", surface_radius_km=1.3),
 
     # ---- Uranian classical moons ----
     # All five major moons discovered between 1787 and 1948. Sidereal
@@ -110,6 +134,22 @@ BODIES: Dict[str, Body] = {
     # Belt object. Encoder convention: positive omega; retrograde-ness
     # is metadata, not a sign flip in the time-scale primitive.
     "triton":  Body("Triton",   5.87685400,  0.00359, "moon", surface_radius_km=1_353.4),
+
+    # Proteus is Neptune's second-largest moon (radius ~210 km,
+    # near-spherical despite being below the canonical hydrostatic-
+    # equilibrium threshold for icy bodies). Discovered by Voyager 2
+    # in 1989. Period 1.122 d -- fills the Neptune sub-graph between
+    # Triton (5.88 d) and the inner-Neptunian close-packed cluster
+    # (Naiad/Thalassa/Despina/Galatea/Larissa, all <0.6 d).
+    "proteus": Body("Proteus",  1.12231500,  7.40e-9, "moon", surface_radius_km=210.0),
+
+    # Nereid has the most eccentric orbit of any major moon in the
+    # solar system (e=0.749) -- discovered by Kuiper in 1949,
+    # likely a captured asteroid or KBO that's been in a chaotic-
+    # libration eccentricity-pumping regime since capture. Period
+    # 360.13 d -- almost exactly one terrestrial year, which is a
+    # spectral coincidence not a resonance.
+    "nereid":  Body("Nereid",  360.13619000,  5.10e-9, "moon", surface_radius_km=170.0),
 
     # ---- Plutonian moon ----
     # Charon is mutually tidally locked with Pluto -- both bodies show

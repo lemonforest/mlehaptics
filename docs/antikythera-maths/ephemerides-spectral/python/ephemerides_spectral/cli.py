@@ -1654,6 +1654,127 @@ def _make_parser() -> argparse.ArgumentParser:
                    "synchronous lock collapses these into a single timescale).",
     )
 
+    # ── v0.16.0 Tier-1 BODIES expansion (43 → 52) ────────────────────
+    # Saturnian Lagrange trojans (4) — first L4/L5 entries in BODIES.
+
+    _add_moon_subparser(
+        "saturn", "telesto", "Telesto", "SSaTeT2", 1.88780216,
+        bridge.jd_to_sol_saturn_telesto_time, bridge.sol_saturn_telesto_time_to_jd,
+        extra_note="TETHYS L4 TROJAN. Discovered Smith / Reitsema /\n"
+                   "Larson / Fountain 1980. Period IDENTICAL to Tethys's\n"
+                   "(1.88780216 d) — the first L4 entry in BODIES. The\n"
+                   "body-graph Laplacian acquires a multiplicity-2\n"
+                   "eigenvalue at 2π/1.88780216 d⁻¹.\n"
+                   "\n"
+                   "NOTE: SSaTeT2 carries the suffix '2' to distinguish\n"
+                   "from Tethys's existing SSaTeT (both share 'Te' as\n"
+                   "the moon-prefix). First invocation of the suffix-\n"
+                   "disambiguation policy from v0.14.1's roadmap.",
+    )
+
+    _add_moon_subparser(
+        "saturn", "calypso", "Calypso", "SSaCaT", 1.88780216,
+        bridge.jd_to_sol_saturn_calypso_time, bridge.sol_saturn_calypso_time_to_jd,
+        extra_note="TETHYS L5 TROJAN. Discovered Pascu / Seidelmann /\n"
+                   "Baum / Currie 1980. Period IDENTICAL to Tethys's;\n"
+                   "forms an L4/L5 pair with Telesto.\n"
+                   "\n"
+                   "Mass ~10⁻¹² Earth — the trojan slot is a Lagrange-\n"
+                   "point identity, not a mass argument.",
+    )
+
+    _add_moon_subparser(
+        "saturn", "helene", "Helene", "SSaHeT", 2.73691500,
+        bridge.jd_to_sol_saturn_helene_time, bridge.sol_saturn_helene_time_to_jd,
+        extra_note="DIONE L4 TROJAN. Discovered Laques / Lecacheux 1980\n"
+                   "(visually from the Pic du Midi during a Saturn ring-\n"
+                   "plane crossing). Period IDENTICAL to Dione's\n"
+                   "(2.73691500 d). Largest of the four Saturnian trojans\n"
+                   "(radius ~17.5 km).",
+    )
+
+    _add_moon_subparser(
+        "saturn", "polydeuces", "Polydeuces", "SSaPoT", 2.73691500,
+        bridge.jd_to_sol_saturn_polydeuces_time, bridge.sol_saturn_polydeuces_time_to_jd,
+        extra_note="DIONE L5 TROJAN. Discovered Murray et al. 2004\n"
+                   "(Cassini imagery). Period IDENTICAL to Dione's; forms\n"
+                   "an L4/L5 pair with Helene.\n"
+                   "\n"
+                   "Smallest body in the v0.16.0 ship (radius ~1.3 km) —\n"
+                   "a 'moonlet' by most categorisations. Notable for an\n"
+                   "unusually wide libration amplitude around L5 (~32°).",
+    )
+
+    # Jovian irregular moons (3).
+    _add_moon_subparser(
+        "jupiter", "himalia", "Himalia", "SJuHiT", 250.5662000,
+        bridge.jd_to_sol_jupiter_himalia_time, bridge.sol_jupiter_himalia_time_to_jd,
+        extra_note="Largest Jovian irregular moon (radius ~85 km).\n"
+                   "Discovered C. D. Perrine 1904. Prograde, sits between\n"
+                   "Callisto (16.7 d) and the long-period retrograde\n"
+                   "captures Pasiphae/Sinope (743 / 759 d).\n"
+                   "\n"
+                   "Eponym of the Himalia group of irregular Jovian\n"
+                   "satellites (Lysithea, Elara, Leda, Dia all share\n"
+                   "similar orbital characteristics).",
+    )
+
+    _add_moon_subparser(
+        "jupiter", "pasiphae", "Pasiphae", "SJuPaT", 743.6300000,
+        bridge.jd_to_sol_jupiter_pasiphae_time, bridge.sol_jupiter_pasiphae_time_to_jd,
+        extra_note="Jovian RETROGRADE irregular (inclination ~141°).\n"
+                   "Discovered P. J. Melotte 1908. Eponym of the Pasiphae\n"
+                   "group of retrograde captures.\n"
+                   "\n"
+                   "Encoder convention: BODIES['pasiphae'].period_days is\n"
+                   "positive (omega = +2π/P for ALL bodies regardless of\n"
+                   "orbital direction; retrograde-ness is metadata, not\n"
+                   "a sign flip). Same convention as Triton (v0.14.2).",
+    )
+
+    _add_moon_subparser(
+        "jupiter", "sinope", "Sinope", "SJuSiT", 758.9000000,
+        bridge.jd_to_sol_jupiter_sinope_time, bridge.sol_jupiter_sinope_time_to_jd,
+        extra_note="Jovian RETROGRADE irregular (inclination ~153°).\n"
+                   "Discovered S. B. Nicholson 1914. Member of the\n"
+                   "Pasiphae group; near-resonant with Pasiphae itself\n"
+                   "(orbital periods differ by ~2%).\n"
+                   "\n"
+                   "Encoder convention same as Pasiphae: positive\n"
+                   "period_days, retrograde metadata-only.",
+    )
+
+    # Neptunian sub-graph completion (2).
+    _add_moon_subparser(
+        "neptune", "proteus", "Proteus", "SNePrT", 1.12231500,
+        bridge.jd_to_sol_neptune_proteus_time, bridge.sol_neptune_proteus_time_to_jd,
+        extra_note="Neptune's SECOND-largest moon (radius ~210 km, near-\n"
+                   "spherical despite sitting below the canonical\n"
+                   "hydrostatic-equilibrium threshold for icy bodies).\n"
+                   "Discovered Voyager 2 imagery 1989. Period 1.122 d —\n"
+                   "fills the Neptune sub-graph between Triton (5.88 d)\n"
+                   "and the inner-Neptunian close-packed cluster.\n"
+                   "\n"
+                   "Surface dominated by the giant Pharos crater (radius\n"
+                   "~75 km, ~13× the moon's radius — a near-fatal impact).",
+    )
+
+    _add_moon_subparser(
+        "neptune", "nereid", "Nereid", "SNeNeT", 360.13619000,
+        bridge.jd_to_sol_neptune_nereid_time, bridge.sol_neptune_nereid_time_to_jd,
+        extra_note="Neptune's THIRD-largest moon (radius ~170 km).\n"
+                   "Discovered G. P. Kuiper 1949. Period 360.13 d —\n"
+                   "almost exactly one terrestrial year (numerical\n"
+                   "coincidence, not a resonance).\n"
+                   "\n"
+                   "Eccentricity 0.749, the HIGHEST of any major moon in\n"
+                   "the solar system. Likely captured asteroid/KBO with\n"
+                   "post-capture orbit pumped by chaotic libration with\n"
+                   "Triton. The 360-day period extends Neptune's low-\n"
+                   "frequency tail dramatically (before v0.16.0 the\n"
+                   "longest Neptunian period was Triton's 5.88 d).",
+    )
+
     # time-proper (v0.11.0) — Sol Proper Time standalone rate-only query
     _SPRT_BODY_CHOICES = sorted(SUPPORTED_BODIES)
     tprop = sub.add_parser(

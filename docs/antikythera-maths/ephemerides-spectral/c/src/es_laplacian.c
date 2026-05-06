@@ -20,6 +20,7 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
     8621332623, /* amalthea */
     1704095574, /* ariel */
     257352901, /* callisto */
+    2275115151, /* calypso */
     2554049, /* ceres */
     672430349, /* charon */
     3402115979, /* deimos */
@@ -28,6 +29,8 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
     6186618790, /* epimetheus */
     1209447588, /* europa */
     600312461, /* ganymede */
+    1569273177, /* helene */
+    17141048, /* himalia */
     2114706, /* hygiea */
     201863335, /* hyperion */
     54146320, /* iapetus */
@@ -41,14 +44,20 @@ const int64_t es_omega_diag[ES_N_BODIES] = {
     4557371834, /* mimas */
     3038578243, /* miranda */
     71366, /* neptune */
+    11925953, /* nereid */
     319014412, /* oberon */
     2547430, /* pallas */
+    5775678, /* pasiphae */
     13467637260, /* phobos */
     7801023, /* phoebe */
     47427, /* pluto */
+    1569273177, /* polydeuces */
+    3826882200, /* proteus */
     950590033, /* rhea */
     399189, /* saturn */
+    5659464, /* sinope */
     0, /* sun */
+    2275115151, /* telesto */
     11758775, /* terra */
     2275115151, /* tethys */
     6367499112, /* thebe */
@@ -67,6 +76,7 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     614115372u, /* amalthea */
     3835590588u, /* ariel */
     954923981u, /* callisto */
+    481889435u, /* calypso */
     3597717137u, /* ceres */
     3206571533u, /* charon */
     3548135658u, /* deimos */
@@ -75,6 +85,8 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     3594951378u, /* epimetheus */
     2533952976u, /* europa */
     2622888258u, /* ganymede */
+    481803649u, /* helene */
+    90833842u, /* himalia */
     270682330u, /* hygiea */
     982362469u, /* hyperion */
     2568594452u, /* iapetus */
@@ -88,14 +100,20 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
     3849210381u, /* mimas */
     2840715143u, /* miranda */
     3626000180u, /* neptune */
+    1168202796u, /* nereid */
     3296855918u, /* oberon */
     257290448u, /* pallas */
+    3121869374u, /* pasiphae */
     3077019855u, /* phobos */
     2303995502u, /* phoebe */
     2989119291u, /* pluto */
+    481970894u, /* polydeuces */
+    1979799237u, /* proteus */
     2149643563u, /* rhea */
     545464656u, /* saturn */
+    1686520298u, /* sinope */
     0u, /* sun */
+    481859913u, /* telesto */
     1197504024u, /* terra */
     3809851868u, /* tethys */
     2233542473u, /* thebe */
@@ -110,12 +128,12 @@ const uint32_t es_initial_phases[ES_N_BODIES] = {
 
 /* Phase 9 off-diagonal coupling table. */
 const es_coupling_t es_couplings[] = {
-    { .idx_a = 17, .idx_b = 31, .n_a = 5, .m_b = 2, .weight_rpd = -1188733LL }, /* Jupiter-Saturn 5:2 (Great Conjunction) */
-    { .idx_a = 24, .idx_b = 29, .n_a = 3, .m_b = 2, .weight_rpd = -1322LL }, /* Neptune-Pluto 3:2 (orbital resonance) */
-    { .idx_a = 15, .idx_b = 10, .n_a = 2, .m_b = 1, .weight_rpd = -7488LL }, /* Io-Europa 2:1 (Laplace pair 1) */
-    { .idx_a = 10, .idx_b = 11, .n_a = 2, .m_b = 1, .weight_rpd = -9667LL }, /* Europa-Ganymede 2:1 (Laplace pair 2) */
-    { .idx_a = 8, .idx_b = 7, .n_a = 2, .m_b = 1, .weight_rpd = -1LL }, /* Enceladus-Dione 2:1 (powers Enceladus tidal heating) */
-    { .idx_a = 36, .idx_b = 13, .n_a = 4, .m_b = 3, .weight_rpd = -10LL }, /* Titan-Hyperion 4:3 (Hyperion chaotic rotation source) */
+    { .idx_a = 20, .idx_b = 38, .n_a = 5, .m_b = 2, .weight_rpd = -1188733LL }, /* Jupiter-Saturn 5:2 (Great Conjunction) */
+    { .idx_a = 27, .idx_b = 34, .n_a = 3, .m_b = 2, .weight_rpd = -1322LL }, /* Neptune-Pluto 3:2 (orbital resonance) */
+    { .idx_a = 18, .idx_b = 11, .n_a = 2, .m_b = 1, .weight_rpd = -7488LL }, /* Io-Europa 2:1 (Laplace pair 1) */
+    { .idx_a = 11, .idx_b = 12, .n_a = 2, .m_b = 1, .weight_rpd = -9667LL }, /* Europa-Ganymede 2:1 (Laplace pair 2) */
+    { .idx_a = 9, .idx_b = 8, .n_a = 2, .m_b = 1, .weight_rpd = -1LL }, /* Enceladus-Dione 2:1 (powers Enceladus tidal heating) */
+    { .idx_a = 45, .idx_b = 16, .n_a = 4, .m_b = 3, .weight_rpd = -10LL }, /* Titan-Hyperion 4:3 (Hyperion chaotic rotation source) */
 };
 
 const size_t es_n_couplings = 6;

@@ -14,13 +14,14 @@
 
 #include "ephemerides_spectral.h"
 
-_Static_assert(ES_N_BODIES == 43, "body count mismatch — re-run emit_c_tables.py and rebuild");
+_Static_assert(ES_N_BODIES == 52, "body count mismatch — re-run emit_c_tables.py and rebuild");
 
 const es_body_t es_bodies[ES_N_BODIES] = {
     { .name = "adrastea", .period_days = 0.29826, .mass_earth = 3.4e-12, .category = ES_CATEGORY_MOON },
     { .name = "amalthea", .period_days = 0.49817905, .mass_earth = 3.5e-10, .category = ES_CATEGORY_MOON },
     { .name = "ariel", .period_days = 2.52037935, .mass_earth = 0.000227, .category = ES_CATEGORY_MOON },
     { .name = "callisto", .period_days = 16.6890184, .mass_earth = 0.018, .category = ES_CATEGORY_MOON },
+    { .name = "calypso", .period_days = 1.88780216, .mass_earth = 1.2e-12, .category = ES_CATEGORY_MOON },
     { .name = "ceres", .period_days = 1681.631, .mass_earth = 0.00015, .category = ES_CATEGORY_ASTEROID },
     { .name = "charon", .period_days = 6.38723, .mass_earth = 0.000266, .category = ES_CATEGORY_MOON },
     { .name = "deimos", .period_days = 1.26244, .mass_earth = 2.4e-10, .category = ES_CATEGORY_MOON },
@@ -29,6 +30,8 @@ const es_body_t es_bodies[ES_N_BODIES] = {
     { .name = "epimetheus", .period_days = 0.694235, .mass_earth = 8.97e-11, .category = ES_CATEGORY_MOON },
     { .name = "europa", .period_days = 3.551181, .mass_earth = 0.008, .category = ES_CATEGORY_MOON },
     { .name = "ganymede", .period_days = 7.15455296, .mass_earth = 0.025, .category = ES_CATEGORY_MOON },
+    { .name = "helene", .period_days = 2.736915, .mass_earth = 1.9e-12, .category = ES_CATEGORY_MOON },
+    { .name = "himalia", .period_days = 250.5662, .mass_earth = 1.1e-09, .category = ES_CATEGORY_MOON },
     { .name = "hygiea", .period_days = 2031.0, .mass_earth = 1.4e-05, .category = ES_CATEGORY_ASTEROID },
     { .name = "hyperion", .period_days = 21.27660925, .mass_earth = 9.36e-09, .category = ES_CATEGORY_MOON },
     { .name = "iapetus", .period_days = 79.3215, .mass_earth = 3.02e-07, .category = ES_CATEGORY_MOON },
@@ -42,14 +45,20 @@ const es_body_t es_bodies[ES_N_BODIES] = {
     { .name = "mimas", .period_days = 0.94242196, .mass_earth = 6.31e-09, .category = ES_CATEGORY_MOON },
     { .name = "miranda", .period_days = 1.41347925, .mass_earth = 1.1e-05, .category = ES_CATEGORY_MOON },
     { .name = "neptune", .period_days = 60182.0, .mass_earth = 17.15, .category = ES_CATEGORY_PLANET },
+    { .name = "nereid", .period_days = 360.13619, .mass_earth = 5.1e-09, .category = ES_CATEGORY_MOON },
     { .name = "oberon", .period_days = 13.46323907, .mass_earth = 0.000505, .category = ES_CATEGORY_MOON },
     { .name = "pallas", .period_days = 1686.0, .mass_earth = 3.4e-05, .category = ES_CATEGORY_ASTEROID },
+    { .name = "pasiphae", .period_days = 743.63, .mass_earth = 5e-12, .category = ES_CATEGORY_MOON },
     { .name = "phobos", .period_days = 0.31891023, .mass_earth = 1.7e-09, .category = ES_CATEGORY_MOON },
     { .name = "phoebe", .period_days = 550.564636, .mass_earth = 1.39e-09, .category = ES_CATEGORY_MOON },
     { .name = "pluto", .period_days = 90560.0, .mass_earth = 0.00218, .category = ES_CATEGORY_PLANET },
+    { .name = "polydeuces", .period_days = 2.736915, .mass_earth = 4.4e-15, .category = ES_CATEGORY_MOON },
+    { .name = "proteus", .period_days = 1.122315, .mass_earth = 7.4e-09, .category = ES_CATEGORY_MOON },
     { .name = "rhea", .period_days = 4.518212, .mass_earth = 0.000385, .category = ES_CATEGORY_MOON },
     { .name = "saturn", .period_days = 10759.22, .mass_earth = 95.16, .category = ES_CATEGORY_PLANET },
+    { .name = "sinope", .period_days = 758.9, .mass_earth = 1.3e-12, .category = ES_CATEGORY_MOON },
     { .name = "sun", .period_days = 0.0, .mass_earth = 333000.0, .category = ES_CATEGORY_STAR },
+    { .name = "telesto", .period_days = 1.88780216, .mass_earth = 4e-12, .category = ES_CATEGORY_MOON },
     { .name = "terra", .period_days = 365.256363, .mass_earth = 1.0, .category = ES_CATEGORY_PLANET },
     { .name = "tethys", .period_days = 1.88780216, .mass_earth = 1.04e-07, .category = ES_CATEGORY_MOON },
     { .name = "thebe", .period_days = 0.674514, .mass_earth = 7.5e-11, .category = ES_CATEGORY_MOON },

@@ -1,8 +1,8 @@
 {
   "files": {
     "_data/initial_phases.json": {
-      "sha256": "3a4b3c8d1071132f8d71257e5a8917dbd0cb51e278c8166dcb99c631ffa9db75",
-      "size_bytes": 3269
+      "sha256": "613f067ebe27f87d5aba618cd9f08678fd9ec6fbc4ac1764ff42792291c89915",
+      "size_bytes": 3877
     },
     "_research/__init__.py": {
       "sha256": "db9aee31f02bec4b3a46a1c4cdc6ccfb8f3c978a3e1d2946d5ced260812b89c8",
@@ -17,8 +17,8 @@
       "size_bytes": 25588
     },
     "_research/bodies.py": {
-      "sha256": "11f65bc5e8fa2088697365ec2ddba57bfd235542a094aaebe20f60801c439128",
-      "size_bytes": 7903
+      "sha256": "baf75251aa8d89a1d810dec955b1b53a4d4dc466e248ba75ade428248ce415d7",
+      "size_bytes": 10432
     },
     "_research/diagnosed_fibers.py": {
       "sha256": "4b7c1fbbdce7014d7b0e6c086bb543e399e1ba00d03eb2fc8c579aa1daad7fd2",
@@ -66,5 +66,5 @@
     }
   },
   "package": "ephemerides-spectral",
-  "version": "0.14.2"
+  "version": "0.15.0"
 }
