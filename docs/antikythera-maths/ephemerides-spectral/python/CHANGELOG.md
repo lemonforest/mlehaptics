@@ -10,7 +10,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.2)
+(no entries yet — next entries land after v0.13.3)
+
+## [0.13.3] — 2026-05-05
+
+**Pre-merge docs+parity hygiene check** — soft-warning GitHub Actions workflow that flags PRs whose code-side changes don't move the docs surface in lockstep. Closes `` `#98` `` (consolidated; absorbs `` `#87` `` + `` `#88` ``).
+
+### Added
+
+- **`` `#98` ``** — `.github/workflows/ephemerides-spectral-docs-check.yml` posts (or updates in place) a single PR comment summarising drift between code-side touches and the five documentation files we treat as the PyPI-facing SSOT surface:
+
+  | Watched doc | Role |
+  |---|---|
+  | `python/README.md` | PyPI README (status banner + body table) |
+  | `python/CHANGELOG.md` | Package CHANGELOG (PyPI-rendered) |
+  | `CHANGELOG.md` | Project CHANGELOG (mirror) |
+  | `ROADMAP.md` | Roadmap / status sweep |
+  | `ephemerides_spectral_research_notebook.md` | Research notebook |
+
+  Categories cross-checked against expected docs:
+
+  | Code-side category | Expected docs |
+  |---|---|
+  | Version bump (`pyproject.toml` / `pyproject-pure.toml` / `version.py` / `c/include/ephemerides_spectral.h`) | All five |
+  | `bridge.py` (Python bridge surface) | README + both CHANGELOGs + notebook |
+  | `cli.py` (CLI surface) | README + both CHANGELOGs |
+  | `_research/*.py` or `research/*.py` (codegen source / mirror) | Notebook + both CHANGELOGs |
+  | `c/src/*.c` or `c/include/*.h` (C library) | Both CHANGELOGs + parity-test touch |
+
+  **Soft-warning, not hard-fail.** The freshness ratchet inside pytest already hard-fails on the highest-value drift modes (`test_native_version_string_matches`, `test_parity_smoke::PARITY_TARGETS`, `test_readme_freshness`, `test_jpl_audit`); this workflow surfaces the *next tier* — prose-and-narrative drift that humans should review but a regex can't authoritatively adjudicate. Forcing CHANGELOG bumps on every whitespace diff would burn patience and breed filler bullets.
+
+  **Opt-out**: include `[skip-docs-check]` anywhere in the PR body to silence on cosmetic / typo / formatting-only diffs.
+
+  **Comment idempotence**: uses `peter-evans/find-comment` + `peter-evans/create-or-update-comment` so the same advisory is updated in place across pushes rather than spamming the PR.
+
+  **Concurrency**: matches `ephemerides-spectral-ci.yml`'s `cancel-in-progress: true` group keyed by workflow + ref so the `opened`+`labeled` double-fire pattern documented in that workflow's header doesn't double up here either.
+
+### Migration
+
+None. CI-only addition; no source / API / ABI / encoder / test changes. The four version-stamp files (`version.py`, `pyproject.toml`, `pyproject-pure.toml`, `c/include/ephemerides_spectral.h`) bump from 0.13.2 → 0.13.3 in lockstep as usual.
 
 ## [0.13.2] — 2026-05-05
 
