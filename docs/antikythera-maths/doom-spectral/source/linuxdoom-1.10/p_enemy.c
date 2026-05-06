@@ -160,14 +160,22 @@ P_NoiseAlert
 ( mobj_t*	target,
   mobj_t*	emmiter )
 {
-    // [SPECTRAL SLICE] Topological Sound Diffusion
-    ds_sound_field_t field;
-    ds_diffuse_sound(emmiter->subsector->sector->id, 0.8f, &field);
-    
-    // Log spectral awareness for the source sector
-    int32_t awareness = ds_calculate_monster_awareness(emmiter->subsector->sector->id, &field);
-    printf("[AI] Sector %d Awareness Signal: %.4f\n", 
-           emmiter->subsector->sector->id, (float)awareness / 65536.0f);
+    // [SPECTRAL] Topological sound diffusion. Gated on a registered
+    // spectral lattice (E1M1 only at present); the diffusion + awareness
+    // calls index ds_e1m1_* tables and would assert-abort on other maps.
+    // The trace is devparm-gated to keep the console quiet on a normal
+    // run -- monster yells fire frequently in heavy combat.
+    if (devparm && ds_spectral_is_registered ())
+    {
+	ds_sound_field_t field;
+	int32_t awareness;
+	ds_diffuse_sound (emmiter->subsector->sector->id, 0.8f, &field);
+	awareness = ds_calculate_monster_awareness
+	    (emmiter->subsector->sector->id, &field);
+	fprintf (stderr, "[AI] sector=%d awareness=%.4f\n",
+		 emmiter->subsector->sector->id,
+		 (float)awareness / 65536.0f);
+    }
 
     soundtarget = target;
     validcount++;

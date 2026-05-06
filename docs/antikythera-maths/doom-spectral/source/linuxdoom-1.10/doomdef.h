@@ -32,6 +32,16 @@
 // DOOM version
 enum { VERSION =  110 };
 
+// [SPECTRAL] doom-spectral fork version. Bump on any change to the
+// spectral integration (encoder, lattice tables, gating). The base
+// engine version above stays at 110 -- it's the linuxdoom-1.10 source
+// tree we vendored. The string form is what the engine prints on
+// startup so a player can tell which spectral build they're running.
+#define SPECTRAL_VERSION_MAJOR 0
+#define SPECTRAL_VERSION_MINOR 1
+#define SPECTRAL_VERSION_PATCH 0
+#define SPECTRAL_VERSION_STRING "doom-spectral 0.1.0 (linuxdoom-1.10 base)"
+
 
 // Game mode handling - identify IWAD version
 //  to handle IWAD dependend animations etc.
@@ -308,23 +318,31 @@ typedef enum
 #include "g_game.h"
 
 // All external data is defined here.
-#include "doomdata.h"
+//  *** Intentionally NOT included here — doomdata.h includes doomdef.h,
+//  *** so re-entering through doomdef would create a header cycle when
+//  *** doomdef pulls in p_mobj.h (which references mapthing_t, defined
+//  *** later in doomdata.h). The .c files that need doomdata's types
+//  *** include it directly.
+//#include "doomdata.h"
 
 // All important printed strings.
 // Language selection (message strings).
 #include "dstrings.h"
 
 // Player is a special actor.
-struct player_s;
+//struct player_s;
 
 
-#include "d_items.h"
-#include "d_player.h"
-#include "p_mobj.h"
-#include "d_net.h"
+//  *** Subsystem aggregate headers — NOT included here for the same
+//  *** cycle-avoidance reason as doomdata.h. The .c files that need
+//  *** these include them directly. ***
+//#include "d_items.h"
+//#include "d_player.h"
+//#include "p_mobj.h"
+//#include "d_net.h"
 
 // PLAY
-#include "p_tick.h"
+//#include "p_tick.h"
 
 
 

@@ -47,6 +47,12 @@ typedef struct {
 /* Diffuses sound across the sector graph */
 void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out);
 
+/* Per-sector monster awareness from a diffused sound field, returned
+ * as 16.16 fixed-point in [0, 1.0]. Caller MUST gate on a registered
+ * spectral lattice (see ds_spectral_is_registered). */
+int32_t ds_calculate_monster_awareness(int sector_id,
+                                       const ds_sound_field_t *field);
+
 /* --- Physics (Z-Fiber) --- */
 
 /* Returns true if an entity can transition between sectors based on Z constraints */

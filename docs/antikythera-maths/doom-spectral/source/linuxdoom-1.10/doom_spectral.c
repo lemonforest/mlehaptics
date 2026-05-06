@@ -150,6 +150,24 @@ void ds_diffuse_sound(int source_sector, float time, ds_sound_field_t *out)
 }
 
 /* ------------------------------------------------------------------ */
+/*  AI (Monster awareness)                                             */
+/* ------------------------------------------------------------------ */
+
+int32_t ds_calculate_monster_awareness(const int sector_id,
+                                       const ds_sound_field_t *const field)
+{
+    float intensity;
+
+    assert(sector_id >= 0);
+    assert(sector_id < DS_E1M1_SECTORS);
+    assert(field != (void *)0);
+
+    intensity = field->intensity[sector_id];
+    /* Intensity in [0, 1] -> 16.16 fixed point. */
+    return (int32_t)(intensity * 65536.0f);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Haptics (Tension)                                                 */
 /* ------------------------------------------------------------------ */
 
