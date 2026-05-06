@@ -1293,6 +1293,110 @@ def terra_luna_time_to_jd(
     return STLT_EPOCHS[epoch] + float(synodic_count) * STLT_SYNODIC_MONTH_DAYS
 
 
+# ──────────────────────────────────────────────────────────────────────
+# v0.14.0 Sol Moon Times — generic moon-time primitive.
+#
+# For non-Luna moons (Galileans, Saturnians, Phobos/Deimos, Titania,
+# Triton, Charon), the natural time unit is the moon's sidereal period.
+# Every moon in the 38-body roster is tidally locked, so:
+#
+#     sidereal day = orbital period = rotation period
+#
+# The "Sol <Parent>-<Body> Time" name (per the v0.9.1 moons-stuck-to-
+# parent convention) counts sidereal cycles since a chosen epoch.
+#
+# Default epoch is J2000 — historical anchors (like STLT's Meton)
+# don't generalise to non-Luna moons. Galileo's first observations
+# (Jan 1610 = JD ~2305448) could be a non-default option for the
+# Galilean family; not shipped in v0.14.0 but easy to add later.
+# ──────────────────────────────────────────────────────────────────────
+
+#: J2000.0 reference epoch JD — the default for Sol Moon Times.
+SOL_MOON_TIME_J2000_JD_TDB: float = 2451545.0
+
+
+@dataclass(frozen=True)
+class MoonTime:
+    """Sol Moon Time at a given JD (TDB).
+
+    Body-agnostic anchored count using the moon's sidereal period as
+    the natural unit. Every moon in the BODIES roster is tidally
+    locked, so the sidereal day equals the orbital period equals the
+    rotation period.
+    """
+    jd_tdb: float
+    body_name: str
+    parent_name: str
+    epoch_name: str
+    epoch_jd_tdb: float
+    days_since_epoch: float
+    sidereal_period_days: float
+    sidereal_count: float
+    sidereal_phase: float
+
+    def to_dict(self) -> dict:
+        return {
+            "jd_tdb":               float(self.jd_tdb),
+            "body_name":            str(self.body_name),
+            "parent_name":          str(self.parent_name),
+            "epoch_name":           str(self.epoch_name),
+            "epoch_jd_tdb":         float(self.epoch_jd_tdb),
+            "days_since_epoch":     float(self.days_since_epoch),
+            "sidereal_period_days": float(self.sidereal_period_days),
+            "sidereal_count":       float(self.sidereal_count),
+            "sidereal_phase":       float(self.sidereal_phase),
+        }
+
+
+def jd_to_moon_time(
+    body_name: str,
+    jd_tdb: float,
+    *,
+    parent_name: str,
+    sidereal_period_days: float,
+    epoch_jd_tdb: float = SOL_MOON_TIME_J2000_JD_TDB,
+    epoch_name: str = "j2000",
+) -> MoonTime:
+    """JD (TDB) → MoonTime for the named moon.
+
+    Caller-supplied parent + sidereal period (looked up from BODIES at
+    the bridge layer) keeps this primitive light-weight and free of
+    BODIES-table imports — same separation-of-concerns as the existing
+    time-scale primitives in this module.
+    """
+    if not (sidereal_period_days > 0.0):
+        raise ValueError(
+            f"sidereal_period_days must be > 0, got {sidereal_period_days!r}"
+        )
+    delta = float(jd_tdb) - float(epoch_jd_tdb)
+    sid = delta / float(sidereal_period_days)
+    return MoonTime(
+        jd_tdb=float(jd_tdb),
+        body_name=str(body_name),
+        parent_name=str(parent_name),
+        epoch_name=str(epoch_name),
+        epoch_jd_tdb=float(epoch_jd_tdb),
+        days_since_epoch=float(delta),
+        sidereal_period_days=float(sidereal_period_days),
+        sidereal_count=sid,
+        sidereal_phase=sid - math.floor(sid),
+    )
+
+
+def moon_time_to_jd(
+    sidereal_count: float,
+    *,
+    sidereal_period_days: float,
+    epoch_jd_tdb: float = SOL_MOON_TIME_J2000_JD_TDB,
+) -> float:
+    """Inverse on the sidereal-cycle count."""
+    if not (sidereal_period_days > 0.0):
+        raise ValueError(
+            f"sidereal_period_days must be > 0, got {sidereal_period_days!r}"
+        )
+    return float(epoch_jd_tdb) + float(sidereal_count) * float(sidereal_period_days)
+
+
 __all__ = [
     "MARS_SOL_PER_JD",
     "MSD_EPOCH_JD",
@@ -1387,4 +1491,9 @@ __all__ = [
     "TerraLunaTime",
     "jd_to_terra_luna_time",
     "terra_luna_time_to_jd",
+    # v0.14.0 Sol Moon Times — generic primitive (Galileans first).
+    "SOL_MOON_TIME_J2000_JD_TDB",
+    "MoonTime",
+    "jd_to_moon_time",
+    "moon_time_to_jd",
 ]

@@ -10,7 +10,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.10)
+(no entries yet — next entries land after v0.14.0)
+
+## [0.14.0] — 2026-05-05
+
+**Sol Moon Times: Galileans (Io / Europa / Ganymede / Callisto).** First slice of task `` `#86` `` — extends the Sol Time hierarchy to non-Luna moons under the moons-stuck-to-parent `Sol <Parent>-<Body> Time` naming convention from v0.9.1.
+
+### Added
+
+- **Generic moon-time primitive** (`_research/time_scales.py`):
+  - `MoonTime` dataclass: `body_name`, `parent_name`, `epoch_name`, `epoch_jd_tdb`, `days_since_epoch`, `sidereal_period_days`, `sidereal_count`, `sidereal_phase`.
+  - `jd_to_moon_time(body_name, jd_tdb, *, parent_name, sidereal_period_days, ...)`: body-agnostic factory. Caller-supplied parent + sidereal period (looked up at the bridge layer from `BODIES`) keeps this primitive light-weight and free of `BODIES`-table imports — same separation-of-concerns as the rest of `_research/time_scales.py`.
+  - `moon_time_to_jd(sidereal_count, *, sidereal_period_days, ...)`: inverse.
+  - `SOL_MOON_TIME_J2000_JD_TDB`: shared default epoch (J2000.0).
+
+- **Per-Galilean bridge wrappers** (`bridge.py`):
+
+  | Function | Inverse | Abbrev |
+  |---|---|---|
+  | `jd_to_sol_jupiter_io_time` | `sol_jupiter_io_time_to_jd` | **SJIT** |
+  | `jd_to_sol_jupiter_europa_time` | `sol_jupiter_europa_time_to_jd` | **SJET** |
+  | `jd_to_sol_jupiter_ganymede_time` | `sol_jupiter_ganymede_time_to_jd` | **SJGT** |
+  | `jd_to_sol_jupiter_callisto_time` | `sol_jupiter_callisto_time_to_jd` | **SJCT** |
+
+  Each returns a dict with `ok`, `jd_tdb`, `body_name`, `parent_name="jupiter"`, `epoch_name="j2000"`, `sidereal_period_days`, `sidereal_count`, `sidereal_phase`, plus an `epoch` block carrying the abbreviation, sol-time-name, parent-body, moon-body, and a per-moon note.
+
+- **Per-Galilean CLI subcommands**: `time-jupiter-io`, `time-jupiter-europa`, `time-jupiter-ganymede`, `time-jupiter-callisto`. Each takes `--jd` or `--sidereal-count` (mutex required), supports `--proper` / `--state` / `--dynamics` augmenting flags via `_add_proper_flags`. The four subparsers share a helper (`_add_galilean_subparser`) so they stay consistent.
+
+- **Test module** (`tests/test_galilean_sol_moon_times.py`): 35 tests covering generic primitive, all four bridge surfaces (J2000-zero, after-one-sidereal-period, inverse round-trip, NaN/Inf rejection), CLI parsing, abbreviation uniqueness, and the Galilean Laplace-resonance witness (canonical form `n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`; plus the assertion that Callisto is NOT in the resonance).
+
+- **Parity smoke registrations** (`tests/test_parity_smoke.py`): 8 new entries (4 forward + 4 inverse) classified as `python_only` with rationale matching the rest of the Sol Time series.
+
+### Naming convention
+
+Per v0.9.1's moons-stuck-to-parent `Sol <Parent>-<Body> Time`: the production names are *Sol Jupiter-Io Time*, *Sol Jupiter-Europa Time*, *Sol Jupiter-Ganymede Time*, *Sol Jupiter-Callisto Time*. The 4-letter abbreviations follow `S<Planet-initial><Moon-initial>T`. ROADMAP `## Naming convention contingencies` documents the fallback policy if moon-letter collisions arise in future ships (Saturnians, etc.) — switch uniformly to a 6-letter `S<Planet2><Moon2>T` pattern (e.g., `SJuGaT`).
+
+### Why default epoch is J2000
+
+STLT (v0.10.0) used Meton's 432 BCE summer solstice — a Greek-historical anchor that doesn't generalise to non-Luna moons. For Galileans, J2000 is the natural anchor: matches the rest of the Sol Time series, no civilisation has been keeping a Galilean-eclipse archive, and Galileo's own 1610 telescopic discoveries (JD ~2305448) could be a future non-default option but aren't load-bearing for v0.14.0.
+
+### Laplace resonance
+
+The 4:2:1 mean-motion resonance among Io / Europa / Ganymede (canonical form `n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`) is documented in the test module and in the per-moon docstrings. Callisto is the only Galilean **not** in the resonance — its mean motion is irrationally related to the inner triple. The Sol Time wrappers don't expose resonance metrics in the per-moon dict (the resonance is a pair-relation, not a per-body property); future analysis tooling can compose `sidereal_count` values across the inner triple to recover it.
+
+### Test count
+
+294 tests pass, 4 skipped (was 251 + 4 in v0.13.10 — +43 new: 35 Galilean tests + 8 parity-smoke entries).
+
+### Migration
+
+None. Pure-additive. No API / encoder / ABI / encoder-test surface changes.
 
 ## [0.13.10] — 2026-05-05
 

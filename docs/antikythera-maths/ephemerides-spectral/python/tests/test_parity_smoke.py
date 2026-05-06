@@ -292,6 +292,51 @@ PARITY_TARGETS: Dict[str, Dict] = {
         "rationale": "inverse of jd_to_sol_terra_luna_time",
         "kwargs_py": {"synodic_count": 0.0},
     },
+    # v0.14.0 Sol Moon Times — Galileans (Io / Europa / Ganymede / Callisto).
+    # Pure-Python time-scale formulae using each moon's sidereal period
+    # from BODIES; no C twin (same status as the rest of the Sol Time
+    # series). Tidally locked, so sidereal day = orbital period =
+    # rotation period. See test_galilean_sol_moon_times.py.
+    "jd_to_sol_jupiter_io_time": {
+        "status": "python_only",
+        "rationale": "v0.14.0 Sol Jupiter-Io Time (SJIT) — anchored sidereal-cycle count for Io since J2000. Pure-Python time-scale formula; C twin queued. Innermost Galilean; participates in 4:2:1 Laplace resonance with Europa + Ganymede.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_io_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_io_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_europa_time": {
+        "status": "python_only",
+        "rationale": "v0.14.0 Sol Jupiter-Europa Time (SJET) — anchored sidereal-cycle count for Europa since J2000. Pure-Python time-scale formula; C twin queued.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_europa_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_europa_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_ganymede_time": {
+        "status": "python_only",
+        "rationale": "v0.14.0 Sol Jupiter-Ganymede Time (SJGT) — anchored sidereal-cycle count for Ganymede since J2000. Pure-Python time-scale formula; C twin queued. Largest moon in the solar system.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_ganymede_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_ganymede_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
+    "jd_to_sol_jupiter_callisto_time": {
+        "status": "python_only",
+        "rationale": "v0.14.0 Sol Jupiter-Callisto Time (SJCT) — anchored sidereal-cycle count for Callisto since J2000. Pure-Python time-scale formula; C twin queued. Outermost Galilean; the only one NOT in the Laplace resonance.",
+        "kwargs_py": {"jd_tdb": 2451545.0},
+    },
+    "sol_jupiter_callisto_time_to_jd": {
+        "status": "python_only",
+        "rationale": "inverse of jd_to_sol_jupiter_callisto_time",
+        "kwargs_py": {"sidereal_count": 0.0},
+    },
     "get_proper_time_rate": {
         "status": "python_only",
         "rationale": "v0.11.0 Sol Proper Time (SPrT) — leading-order GR + orbital kinematic dilation per body. Pure-Python time-scale formula; C twin queued. The same physics as Mercury's existing 43\"/century PN diagonal correction, applied per-body.",

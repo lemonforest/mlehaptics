@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.10)
+(no entries yet — next entries land after v0.14.0)
+
+## [0.14.0] — 2026-05-05
+
+**Sol Moon Times: Galileans (Io / Europa / Ganymede / Callisto).** First slice of task `` `#86` ``. Extends the Sol Time hierarchy to non-Luna moons under the moons-stuck-to-parent `Sol <Parent>-<Body> Time` naming convention from v0.9.1.
+
+### Added
+
+- **Generic moon-time primitive** (`_research/time_scales.py`): `MoonTime` dataclass + `jd_to_moon_time` factory + inverse + `SOL_MOON_TIME_J2000_JD_TDB` constant. Body-agnostic: caller supplies parent + sidereal period; bridge layer reads them from `BODIES`.
+
+- **Four per-Galilean bridge wrappers** + inverses with abbreviations **SJIT**, **SJET**, **SJGT**, **SJCT**.
+
+- **Four per-Galilean CLI subcommands**: `time-jupiter-io`, `time-jupiter-europa`, `time-jupiter-ganymede`, `time-jupiter-callisto`. Built via a shared `_add_galilean_subparser` helper — same `--jd`/`--sidereal-count` mutex, same augmenting-flag support (`--proper` / `--state` / `--dynamics`).
+
+- **35 new tests** in `tests/test_galilean_sol_moon_times.py` + 8 parity-smoke registrations (`python_only`). Covers J2000-zero, after-one-sidereal-period, inverse round-trip, NaN/Inf rejection, CLI parsing, abbreviation uniqueness, and a Galilean Laplace-resonance witness (`n_Io − 3·n_Europa + 2·n_Ganymede ≈ 0`).
+
+### Naming convention contingencies
+
+ROADMAP gains a `## Naming convention contingencies` section documenting the fallback policy if moon-letter collisions arise in future ships. Current 4-letter abbreviations are `S<Planet><Moon>T`; the fallback (when triggered) switches uniformly across all Sol Moon Times to a 6-letter `S<Planet2><Moon2>T` pattern (e.g., `SJuGaT` for Sol Jupiter-Ganymede Time). Forward-looking; no collisions yet in the v0.14.0 Galilean roster.
+
+### Test count
+
+294 tests pass, 4 skipped (was 251 + 4 in v0.13.10).
+
+### Migration
+
+None. Pure-additive. No API / encoder / ABI / encoder-test changes.
 
 ## [0.13.10] — 2026-05-05
 
