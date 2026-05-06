@@ -1584,13 +1584,37 @@ void G_DoPlayDemo (void)
     skill_t skill; 
     int             i, episode, map; 
 	 
-    gameaction = ga_nothing; 
-    demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC); 
-    if ( *demo_p++ != VERSION)
+    gameaction = ga_nothing;
+    demobuffer = demo_p = W_CacheLumpName (defdemoname, PU_STATIC);
+    /* [SPECTRAL] PCB-jumper for demo version mismatch.
+     *
+     * Stock shareware/registered DOOM IWADs ship demo lumps tagged at
+     * VERSION 109 (DOOM 1.9). linuxdoom-1.10 was forked at VERSION 110
+     * and on a strict mismatch the original code bails with an
+     * fprintf and returns ga_nothing -- which leaves the title-screen
+     * state machine half-initialised and the engine effectively
+     * unusable on every IWAD that ships in the wild.
+     *
+     * The demo format itself is byte-compatible 109<->110 (tic-command
+     * stream is unchanged; only the version-byte tag advanced). So we
+     * accept any demoversion, log a one-line note when it isn't the
+     * native VERSION, and consume the byte unchanged. This is the same
+     * jumper Chocolate Doom et al. apply.
+     */
     {
-      fprintf( stderr, "Demo is from a different game version!\n");
-      gameaction = ga_nothing;
-      return;
+	int demoversion = *demo_p++;
+	if (demoversion != VERSION)
+	{
+	    static int warned = 0;
+	    if (!warned)
+	    {
+		fprintf (stderr,
+			 "[SPECTRAL] demo version %d != engine VERSION %d "
+			 "(jumper engaged; tic-stream is byte-compatible)\n",
+			 demoversion, VERSION);
+		warned = 1;
+	    }
+	}
     }
     
     skill = *demo_p++; 

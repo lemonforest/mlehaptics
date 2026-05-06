@@ -365,18 +365,22 @@ S_StartSoundAtVolume
     sfx->lumpnum = I_GetSfxLumpNum(sfx);
 
 #ifndef SNDSRV
-  // cache data if necessary
+  // [SPECTRAL] Pre-cache check silenced. The 1997 sndserver path
+  // expected sfx->data to be populated by I_CacheSound; modern builds
+  // run without sndserver (sounds don't play, but the engine doesn't
+  // care). The original code printed "16bit and not pre-cached - wtf?"
+  // every time a sound was triggered, spamming hundreds of lines per
+  // gameplay second. Now silent on the first 1, suppressed thereafter.
   if (!sfx->data)
   {
-    fprintf( stderr,
-	     "S_StartSoundAtVolume: 16bit and not pre-cached - wtf?\n");
-
-    // DOS remains, 8bit handling
-    //sfx->data = (void *) W_CacheLumpNum(sfx->lumpnum, PU_MUSIC);
-    // fprintf( stderr,
-    //	     "S_StartSoundAtVolume: loading %d (lump %d) : 0x%x\n",
-    //       sfx_id, sfx->lumpnum, (int)sfx->data );
-    
+      static int sndsrv_warned = 0;
+      if (!sndsrv_warned)
+      {
+	  fprintf (stderr,
+		   "[SPECTRAL] sound effects not pre-cached "
+		   "(sndserver not running); sfx muted, gameplay continues\n");
+	  sndsrv_warned = 1;
+      }
   }
 #endif
   
