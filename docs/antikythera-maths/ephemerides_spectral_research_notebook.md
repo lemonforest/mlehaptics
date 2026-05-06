@@ -957,4 +957,74 @@ The +0.743 Spearman headline is real but the Fiedler partition tells a narrower 
 
 **Defer ship of a spectral-only ITN query** to v0.18.0 or later, gated on at least one of the §13.6 refinements (two-eigenvector embedding, diffusion distance, resonance-weighted edges) lifting the Spearman past 0.85 *with* a Matthews φ past 0.6 — the bar at which the spectrum genuinely competes with the Dijkstra rather than weakly anticipating it. Until then, `find_itn_chains` remains the canonical query and this section serves as the baseline result that the next iteration tries to beat.
 
-**Open question for v0.17.x scoping.** The most natural next step is the **resonance-weighted Laplacian** because it ties the gateway-graph thread directly to the BIP cyclic-group encoder's primary surface (notebook §6) and to the architectural-mode work (§11.6). If a Laplacian whose edges are integer-resonance-strength weighted produces a Fiedler vector that splits inner-vs-outer or cheap-chain-clusters more sharply than the inv-Hohmann one does, the spectral-ITN claim acquires a second leg of evidence and becomes worth a real ship surface. That is the v0.17.x or v0.17.y scoping question.
+**Open question for v0.17.x scoping.** The most natural next step is the **resonance-weighted Laplacian** because it ties the gateway-graph thread directly to the BIP cyclic-group encoder's primary surface (notebook §6) and to the architectural-mode work (§11.6). If a Laplacian whose edges are integer-resonance-strength weighted produces a Fiedler vector that splits inner-vs-outer or cheap-chain-clusters more sharply than the inv-Hohmann one does, the spectral-ITN claim acquires a second leg of evidence and becomes worth a real ship surface. That is the v0.17.x or v0.17.y scoping question. *(Answered in §13.8.)*
+
+### 13.8 Follow-up — resonance-weighted Laplacian
+
+The §13.7 open question got an answer. A third edge weighting was added to [`research/gateway_graph_laplacian.py`](research/gateway_graph_laplacian.py):
+
+```
+w_ij = exp(-residual / scale) / (p + q),    scale = 5e-3
+```
+
+where `(p, q)` is the best small-integer rational approximation of `min(p_i, p_j) / max(p_i, p_j)` from `_best_rational_approx(ratio, max_int=30)` — the **same primitive v0.17.0 ITN chains use for the per-leg resonance signature**, so the gateway-graph and the chain signatures share their lowest-level symbol.
+
+The weight has two physically-motivated factors:
+
+* `1 / (p + q)` — strong low-order resonances dominate (Jupiter-Saturn 2:5 → `p+q=7`, Terra-Jupiter 1:12 → `p+q=13`, Ceres-Pallas 1:1 → `p+q=2`); high-order Stern-Brocot best-rationals are damped (Saturn-Uranus 7:20 → `p+q=27`).
+* `exp(-residual / scale)` with `scale = 0.5%` — penalises ratios that *land near* a low-order rational without a true period lock. The Uranus-Neptune ratio 0.510 best-fits as 15:29 with `p+q=44` (real value, no spurious 1:2 gift); Earth-Mars 8:15 has residual 0.24% so `exp(-0.48) ≈ 0.62` (kept); Saturn-Uranus 7:20 has residual 1.3% so `exp(-2.6) ≈ 0.07` (suppressed).
+
+The five strongest resonance edges in the 13-body roster are physically meaningful: ceres↔pallas 1:1 (the "near-degeneracy" pair driving the inv_synodic null result, here interpretable as a true resonance), neptune↔pluto 2:3 (the well-known mean-motion lock), mars↔hygiea 1:3, jupiter↔saturn 2:5 (the great inequality), and venus↔hygiea 1:9.
+
+#### 13.8.1 Result
+
+| Predictor | Weighting | Spearman ρ | Matthews φ | n_finite | n_inf |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| Fiedler distance + partition | inv_dv (§13 primary) | **+0.743** | **+0.336** | 53 | 25 |
+| Fiedler distance + partition | inv_synodic (§13 control) | −0.301 | +0.083 | 53 | 25 |
+| Fiedler distance + partition | **resonance (this section)** | **+0.632** | +0.207 | 53 | 25 |
+
+**The lift hypothesis is null.** Resonance-weighted Spearman ρ = +0.632 is *below* the inv_dv baseline of +0.743; Matthews φ = +0.207 is below +0.336. The §13.7 ship bar (ρ ≥ 0.85 *with* φ ≥ 0.6) is not cleared.
+
+But the partition itself is **structurally cleaner** than the inv_dv partition — and that's a separately-interesting finding.
+
+#### 13.8.2 The inner/outer partition
+
+The resonance Fiedler vector cleanly bipartitions the 13-body roster on the **asteroid-belt boundary**:
+
+| Partition | Bodies (sorted by Fiedler-vector entry) | Periods (d) |
+| :--- | :--- | :--- |
+| Negative (outer 5) | pluto (−0.585), neptune (−0.585), uranus (−0.137), jupiter (−0.078), saturn (−0.042) | 4332 – 90560 |
+| Positive (inner 8) | hygiea (+0.093), pallas (+0.137), ceres (+0.139), vesta (+0.158), mars (+0.171), terra (+0.197), venus (+0.202), mercury (+0.329) | 88 – 2031 |
+
+Compare to the inv_dv partition from §13.5: {mercury, venus} negative (`f₂[mercury] = +0.952`, the rest clustered in `[-0.10, -0.03]`) — essentially a Mercury-isolation indicator. The resonance partition is far more architecturally informative: it **identifies the asteroid belt as the spectral inner-vs-outer boundary**. Pluto and Neptune share the strongest (−0.585) entry — the 2:3 mean-motion lock dragging both deep into the outer cluster.
+
+That's a non-trivial finding *about the body-graph architecture*: the spectrum of a Laplacian whose edges are weighted by integer-resonance strength encodes, in its second eigenvector, the canonical inner/outer system division that planetary scientists draw by inspection. The Antikythera-style cyclic-group encoder, applied to the BODIES roster, **discovers this partition without being told it exists**.
+
+#### 13.8.3 Why the cleaner partition gives the weaker Spearman
+
+The two findings are not contradictory; they are about different things:
+
+* **Inv_dv partition** (mercury vs everyone) maximises the *cost* signal per partition: across-partition pairs are uniformly expensive (mercury Hohmann to anywhere is ≥ 14 km/s); within-partition pairs span the full Δv range. The Fiedler distance scale `|f₂[mercury] − f₂[else]| ≈ 1.0` vs `|f₂[else] − f₂[else']| ≈ 0.1` provides a 10:1 contrast that ranks the cross-partition pairs at the top of both rankings simultaneously. *Spearman ρ rewards rank agreement on extremes.*
+* **Resonance partition** (inner vs outer) maximises the *period-ratio* signal per partition: within-partition pairs share approximately commensurable periods (close mean motions ⇒ low-order rationals ⇒ short Fiedler distance); across-partition pairs have wildly different mean motions. But Hohmann Δv depends on **semi-major-axis difference**, not on period-ratio rationality — so within-cluster Δv variance is large (Mars-Vesta = 4.7 km/s vs Mercury-Vesta = 24.0 km/s, both within the inner cluster) and the Fiedler distance fails to track it.
+
+In short: the resonance Laplacian asks "**which bodies live on the same gear-ratio ladder**" — the BIP / cyclic-group native question. The inv_dv Laplacian asks "**which bodies share an accessibility class**" — the trajectory-design native question. The two questions have different correct answers, and §13.5–§13.6 + §13.8.1 just measured both.
+
+#### 13.8.4 Why this is still the right "next move"
+
+§13.7 said the next-step refinement that "ties the gateway-graph thread back to the BIP cyclic-group encoder primary surface (notebook §6) and to the architectural-mode work (§11.6)" was the resonance-weighted Laplacian. That's what §13.8 ran. The **§13.7 open question** had two halves:
+
+1. *Does it lift Spearman past 0.85 with Matthews φ past 0.6?* **No.** ρ = +0.632, φ = +0.207. The resonance Laplacian does not promote `bridge.predict_itn_accessibility` to a v0.18.0 ship surface.
+2. *Does it produce a Fiedler vector that splits inner-vs-outer or cheap-chain-clusters more sharply than inv_dv?* **Yes — for inner-vs-outer.** The resonance partition is the canonical asteroid-belt boundary, far more architecturally informative than the inv_dv mercury-isolation. *(For cheap-chain-clusters, no: the within-cluster Δv variance is large.)*
+
+So the resonance Laplacian earns a **partial answer** to §13.7. The thesis from §12.3 — "the ITN is implicit in the body-roster gear ratios" — is consistent with the resonance result *at the inner/outer-architecture level* but not at the within-architecture-class accessibility level. The cyclic-group encoder *does* discover the body-graph's inner/outer division for free; it does *not* additionally discover the per-pair Δv ordering.
+
+#### 13.8.5 Updated recommendation (supersedes §13.7's first paragraph)
+
+* **Ship as v0.17.x research-output (notebook-only)** — unchanged from §13.7. §13.8 adds another datapoint to the same research arc but does not change the ship verdict.
+* **A `bridge.predict_itn_accessibility` ship surface remains deferred** to v0.18.0 or later. The two refinements still untried from §13.6 are the **two-eigenvector embedding** (`(f₂, f₃)` Euclidean distance — the inv_dv partition might gain finer discrimination from `f₃`) and the **diffusion distance** (`d_t(i, j) = ‖exp(−t L) e_i − exp(−t L) e_j‖`, which captures multi-step accessibility — the natural spectral analogue of the multi-leg Dijkstra). Either could lift the Spearman past 0.85; neither has been measured.
+* **A complementary architectural surface** could ship now: a `bridge.classify_body_architecture` query that returns the resonance Laplacian's Fiedler partition (inner / outer-system designation per body). This is a different ship surface than ITN accessibility — it is a body-roster-architecture indicator, useful for visualisations and for cross-pollinating with the §11.6 architectural-mode thread. Ship-or-not depends on whether the project wants a *partition* surface in the bridge today; it is not the ITN predictor §13.7 set out to find.
+
+#### 13.8.6 Refinement still in scope
+
+The Δv-vs-resonance comparison suggests a **hybrid edge weight** worth measuring: `w_ij = w_ij^{inv_dv} × w_ij^{resonance}`, multiplying the cost signal by the resonance signal. The hypothesis is that pairs which are *both* cost-cheap *and* resonance-locked (Earth-Mars, Jupiter-Saturn) get a multiplicatively stronger edge than either pure metric provides. If the hybrid Spearman lifts past either pure metric, the spectral-ITN ship-surface case becomes much stronger. This is the obvious next single-experiment refinement and slots cleanly into the §13.6 list above.
