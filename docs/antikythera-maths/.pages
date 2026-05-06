@@ -1,13 +1,23 @@
 title: Antikythera mathematics
 
-# Two research notebooks (the bronze antikythera mechanism and the
-# JPL DE441 ephemerides instrument) flanked by their PyPI packages
-# (antikythera-spectral, ephemerides-spectral) and the underlying
-# research code. Older planning / instructions docs come last.
+# Three research notebooks (the bronze antikythera mechanism, the
+# JPL DE441 ephemerides instrument, and the doom-spectral lattice)
+# flanked by their PyPI packages (antikythera-spectral,
+# ephemerides-spectral) and the underlying research code. Older
+# planning / instructions docs come last.
+#
+# IMPORTANT: This is an explicit-nav file, which means
+# awesome-pages treats the list as a whitelist -- any sibling .md
+# or subdirectory NOT listed here is silently excluded from the
+# RTD sidebar (it remains indexed by site search). When you add a
+# new notebook or subfolder under docs/antikythera-maths/,
+# remember to add it here too or it will appear to "vanish" from
+# the published nav.
 
 nav:
   - antikythera_spectral_research_notebook.md
   - ephemerides_spectral_research_notebook.md
+  - doom_spectral_research_notebook.md
   - antikythera-spectral
   - ephemerides-spectral
   - research
