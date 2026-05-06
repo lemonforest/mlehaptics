@@ -1,8 +1,16 @@
 # DOOM as a Spectral Lattice System
 
-**Authors:** Steven (mlehaptics Project) & Gemini Code Assist
+**Authors:** Steven (mlehaptics Project), Claude (Anthropic), Gemini Code Assist
 **Date:** May 2026
-**Status:** Active research — translating id Tech 1 into a graph-Laplacian spectral model.
+**Status:** Active research — translating id Tech 1 into a graph-Laplacian spectral model. **End-to-end existence proof for the chess-spectral Rosetta Stone procedure** (see §7.4); anchored at v1.0.0.
+
+### Authorship attribution
+
+The notebook covers an arc that spans two AI collaborators with very different scopes of contribution; documenting which work came from where is the same authorship-discipline the chess-spectral notebook applies in §42.
+
+- **Steven (mlehaptics Project)** — primary research direction across the whole arc; the music / resonance / haptic-manifold vocabulary that the framing is built on; all decision authority; hardware integration testing; design questions that drove the work forward at each turn ("can we make secrets glow," "wire a PCB jumper for the demo version mismatch," "scale the window without changing the res," "let's tag this v1.0.0 to trigger RTD stable"). The chess-spectral §42 methodology section explicitly credits this collaborator's vocabulary as the dictionary that enabled the cross-disciplinary translation; the doom-spectral integration is the first instance where that same dictionary was applied to a legacy game engine.
+- **Claude (Anthropic)** — co-author on the integration arc and the capstone documentation. Specifically: §6 (the verbose live-integration walk-through into linuxdoom-1.10), §7 (the FPU → graph-Laplacian replacement procedure), the entire fix-branch that landed as PR #221 (every compile / link / run fix needed to take the original PR #220 vendor-drop from "won't compile" to a runnable 32-bit ELF), the TrueColor X11 translation layer, the IDSPECTRAL cheat with classic SCRAMBLE encoding, the graph-diffusion bleed (one-hop propagation along `ds_e1m1_adj` so the secret-glow hum reaches sectors the player can actually see), the demo-version PCB jumper, the post-#220 review that identified the original integration bugs, the follow-up TrueColor scale-loop optimization (PR #222), and the v1.0.0 capstone tag annotation.
+- **Gemini Code Assist** — original five-track research sketch (§1, May 2026) and the first-pass linuxdoom-1.10 integration patches that landed as PR #220. The five tracks (Blockmap/Sector graph Laplacian, Z-axis fiber bundle, dynamic sheaf Laplacian, sound diffusion, BIP encoder kinematics) are the structural skeleton this notebook is built around; the initial vendor drop of the linuxdoom source tree at `doom-spectral/source/linuxdoom-1.10/` is also from this contribution. Several specific math decisions (the 512-D BIP hypervector dimension, the coprime shift constants 67 / 7 for cross-axis decorrelation, the 85-sector E1M1 lattice extraction in `ds_data.h`) originate here. The integration patches in PR #220 didn't compile on first land, but the data tables, the encoder shape, and the research-track decomposition were the right starting point for the fix branch to build on.
 
 > Living document. Sibling to:
 > - [../chess-maths/chess_spectral_research_notebook.md](../chess-maths/chess_spectral_research_notebook.md) — The static fiber bundle and piece kinematics; §20.21 frames this notebook as the fourth sibling and tabulates the Track 1 / Track 3 / Track 4 correspondences (2D Grid Laplacian; dynamic sheaf raycast; heat-equation diffusion). The chess notebook is the foundational one — it carries the full vocabulary stack and the cross-disciplinary methodological note (§42).
