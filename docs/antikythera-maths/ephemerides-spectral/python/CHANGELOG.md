@@ -10,7 +10,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.13.6)
+(no entries yet — next entries land after v0.13.7)
+
+## [0.13.7] — 2026-05-05
+
+**JPL Power-of-Ten Rule 10 fixes — cross-platform pedantic-build CI matrix.** Fourth code-quality patch in the v0.13.4-v0.13.8 rule-fix sequence. CI-only addition; no public API / ABI / encoder change.
+
+### Added
+
+- **`ES_PEDANTIC` CMake option** (default OFF) elevates the existing pedantic warning flags to errors:
+
+  | Toolchain | Existing flags | With `ES_PEDANTIC=ON` |
+  |---|---|---|
+  | gcc / clang | `-Wall -Wextra -Wpedantic` | + `-Werror` |
+  | MSVC | `/W4` | + `/WX` |
+
+  The casual local build stays friendly (warnings emitted but not fatal); CI turns it on so any new warning fails the build.
+
+- **`pedantic-build` job** in `.github/workflows/ephemerides-spectral-ci.yml` runs a 3-cell matrix:
+
+  | Cell | Toolchain |
+  |---|---|
+  | `ubuntu-latest` | gcc |
+  | `macos-14` | clang |
+  | `windows-latest` | MSVC |
+
+  Each cell runs `cmake -DES_PEDANTIC=ON` then `cmake --build`, so any new warning fails CI on every PR.
+
+  **Always-on** (not gated by the `wheel-check` label) — Rule 10 is a permanent invariant, not a per-PR opt-in. Cost ~30s per cell. Cheap protection against signed/unsigned mismatches, unused-variable regressions, missing-prototype drift, etc.
+
+### Why ES_PEDANTIC is opt-in by default
+
+Casual local builds (e.g. `cmake --build` during development for a quick parity check) shouldn't fail on a newly-introduced unused-variable warning the developer is about to fix. `ES_PEDANTIC=OFF` keeps warnings as warnings during development; CI enforces the zero-warnings invariant before merge.
+
+### Holzmann's Rule 10
+
+> *"All code must be compiled, from the first day of development, with all compiler warnings enabled at the compiler's most pedantic setting. All code must compile with these settings without any warnings."*
+
+The 3-cell matrix is the cross-platform implementation: gcc on Linux, clang on macOS, MSVC on Windows. All three see the same source tree; each emits its own warnings (gcc and MSVC notably differ on which patterns warn). The matrix-CI satisfies "without any warnings" across every platform we ship to.
+
+### Audit ratchet
+
+Rule 10 is enforced by CI rather than by `tests/test_jpl_audit.py` (which counts source-side patterns; warnings are toolchain-side and toolchain-version-dependent). The `pedantic-build` job is the ratchet — drop the pin, drop the warning.
+
+**All five mechanically-enforceable JPL rules now satisfied:**
+
+| Rule | Status | Mechanism |
+|---|---|---|
+| 1 (no `goto`) | ✅ | Pinned in `test_jpl_audit.py` |
+| 3 (no dynamic alloc) | ✅ | Pinned in `test_jpl_audit.py` |
+| 4 (≤60-line functions) | ✅ | Pinned in `test_jpl_audit.py` |
+| 5 (≥2 assertions/function) | ✅ | Pinned in `test_jpl_audit.py` |
+| 10 (zero warnings at pedantic) | ✅ | Enforced by `pedantic-build` CI job |
+
+Remaining JPL roadmap: Rules 6+7 (manual scope + return-value audits, v0.13.8).
+
+### Migration
+
+None. CI-only addition. Local builds default to the previous behaviour (warnings as warnings); developers wanting Rule 10 enforcement locally can pass `-DES_PEDANTIC=ON` to cmake.
+
+251 tests pass, 4 skipped (unchanged from v0.13.6).
 
 ## [0.13.6] — 2026-05-05
 

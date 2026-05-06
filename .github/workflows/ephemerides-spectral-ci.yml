@@ -444,3 +444,42 @@ jobs:
           assert (py == c).all(), 'native parity mismatch at +20 yr'
           print('native smoke: PASS', _native_bip.LIB_PATH)
           "
+
+  pedantic-build:
+    # JPL Power-of-Ten Rule 10 — "All code must compile with all
+    # compiler warnings enabled at the compiler's most pedantic
+    # setting, without any warnings."
+    #
+    # Builds the C library directly via cmake -DES_PEDANTIC=ON across
+    # the three target toolchains (Linux gcc, macOS clang, Windows MSVC).
+    # ES_PEDANTIC=ON elevates the existing -Wall -Wextra -Wpedantic
+    # (gcc/clang) or /W4 (MSVC) warnings to ERRORS, so any new warning
+    # fails the build.
+    #
+    # Always-on (not gated by `wheel-check`) — Rule 10 is a permanent
+    # invariant, not a per-PR opt-in. Cost is ~30s per cell; cheap
+    # protection against the class of regression where someone
+    # introduces a signed/unsigned mismatch or unused-variable.
+    name: pedantic build • ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  cc: gcc }
+          - { os: macos-14,       cc: clang }
+          - { os: windows-latest, cc: msvc }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure with ES_PEDANTIC=ON
+        working-directory: docs/antikythera-maths/ephemerides-spectral
+        shell: bash
+        run: |
+          mkdir -p build-pedantic
+          cmake -S . -B build-pedantic -DES_PEDANTIC=ON
+
+      - name: Build (warnings → errors)
+        working-directory: docs/antikythera-maths/ephemerides-spectral
+        shell: bash
+        run: cmake --build build-pedantic --config Release
