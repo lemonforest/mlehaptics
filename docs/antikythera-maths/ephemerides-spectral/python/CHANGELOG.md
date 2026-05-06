@@ -10,7 +10,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no entries yet — next entries land after v0.18.2)
+(no entries yet — next entries land after v0.19.0)
+
+## [0.19.0] — 2026-05-06
+
+**Sol Electromagnetic Instrument — state-at-epoch query surface for the solar-system EM sector.** Pure-Python additive; **no ABI bump** (`ES_ABI_VERSION = 8` unchanged).
+
+### Added — Pythonic API
+
+- `_research.em_instrument` — wrapper module with `compute_em_state_at_jd`, `list_em_couplings`, `compute_em_architecture`.
+- `_research.em_instrument_data` — data module with `SOL_EM_BODIES` (16 entries), `EM_COUPLINGS` (7 entries), `SOURCES` (19 citations), `EmBodyState` / `EmCoupling` dataclasses, and class-label constants (`EM_CLASS_MAGNETISED` / `_INDUCED` / `_UNMAGNETISED` / `_STAR`).
+
+### Added — bridge dict API
+
+- `bridge.get_em_state(jd_tdb: float) -> dict`
+- `bridge.list_em_couplings() -> dict`
+- `bridge.em_architecture(target: Optional[str] = None) -> dict`
+
+### Added — CLI
+
+- `em-state --jd-tdb <jd>`
+- `em-couplings`
+- `em-architecture [--target <body>]`
+
+### 16-body EM roster
+
+| Class | Bodies | Count |
+|---|---|---:|
+| star | sun | 1 |
+| magnetised | mercury, terra, jupiter, ganymede, saturn, uranus, neptune | 7 |
+| induced | venus, europa, callisto, titan | 4 |
+| unmagnetised | luna, mars, io, enceladus | 4 |
+
+### Test count
+
+730 pass, 41 skipped (was 685 + 41 in v0.18.2; +45 net new — 46 in `tests/test_em_instrument.py` + 3 parity-smoke entries — minus a small reconciliation when rebased onto v0.18.2).
+
+### Migration
+
+Pure-additive bridge + CLI; no existing call sites change. `ES_VERSION_STRING` bumps `0.18.2 → 0.19.0` (v0.19.0 includes the v0.18.2 2-D Fiedler-embedding upgrade for `predict_itn_accessibility` from the parallel branch — both ships landed on the same day).
 
 ## [0.18.2] — 2026-05-06
 

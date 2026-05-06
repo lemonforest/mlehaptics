@@ -477,6 +477,20 @@ def _cmd_predict_itn_accessibility(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_em_state(args: argparse.Namespace) -> int:
+    return _emit(bridge.get_em_state(args.jd_tdb), pretty=args.pretty)
+
+
+def _cmd_em_couplings(args: argparse.Namespace) -> int:
+    return _emit(bridge.list_em_couplings(), pretty=args.pretty)
+
+
+def _cmd_em_architecture(args: argparse.Namespace) -> int:
+    return _emit(
+        bridge.em_architecture(target=args.target), pretty=args.pretty
+    )
+
+
 def _cmd_lunar_kernels(args: argparse.Namespace) -> int:
     return _emit(bridge.list_lunar_kernels(), pretty=args.pretty)
 
@@ -2190,6 +2204,78 @@ def _make_parser() -> argparse.ArgumentParser:
     pa.add_argument("--target", required=True,
                     help="Target body (lower-case heliocentric name).")
     pa.set_defaults(func=_cmd_predict_itn_accessibility)
+
+    # em-state (v0.19.0) — Sol Electromagnetic Instrument: per-body
+    # state-at-epoch query (rotation phase, intrinsic dipole, etc.).
+    es = sub.add_parser(
+        "em-state",
+        help="Per-body EM state at JD (rotation phase + dipole moment + ...)",
+        description=(
+            "Returns the per-body EM observables (intrinsic dipole\n"
+            "moment, rotation phase advanced from J2000, synchrotron\n"
+            "power, plasma source rate, photoelectric potential) for\n"
+            "the 16-body Sol Electromagnetic roster at the requested JD.\n"
+            "\n"
+            "The Sol EM Instrument is a state-at-epoch query surface,\n"
+            "not a BIP encoder — EM clocks (rotational, Carrington,\n"
+            "solar cycle) don't form a low-order rational lattice with\n"
+            "orbital periods, so the cyclic-group encoder discipline\n"
+            "doesn't transplant. See research notebook section 16.\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral em-state --jd-tdb 2451545.0 --pretty\n"
+            "  ephemerides-spectral em-state --jd-tdb 2470000.0"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    es.add_argument("--jd-tdb", dest="jd_tdb", type=float, required=True,
+                    help="Julian Date in TDB.")
+    es.set_defaults(func=_cmd_em_state)
+
+    # em-couplings (v0.19.0) — static catalog of pairwise EM couplings.
+    ec = sub.add_parser(
+        "em-couplings",
+        help="Static catalog of pairwise EM couplings (Io flux tube etc.)",
+        description=(
+            "Returns the 7-entry catalog of significant pairwise EM\n"
+            "couplings: Jupiter-Io flux tube (10^12 W headliner);\n"
+            "Saturn-Enceladus plasma mass loading; Saturn-Titan\n"
+            "induced magnetosphere; Sun-Earth IMF reconnection;\n"
+            "Jupiter-Europa / Jupiter-Ganymede; Sun-asteroid radiation\n"
+            "pressure. Each entry carries a source_key pointing into\n"
+            "_research.em_instrument_data.SOURCES for citation."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ec.set_defaults(func=_cmd_em_couplings)
+
+    # em-architecture (v0.19.0) — magnetised/induced/unmagnetised partition.
+    ea = sub.add_parser(
+        "em-architecture",
+        help="Magnetised / induced / unmagnetised classification of EM-roster bodies",
+        description=(
+            "Partitions the 16-body Sol EM roster into\n"
+            "  magnetised   (intrinsic dipole significant; e.g. Earth, Jupiter)\n"
+            "  induced      (subsurface ocean / ionosphere; e.g. Europa, Titan)\n"
+            "  unmagnetised (negligible field; e.g. Mars, Luna)\n"
+            "  star         (the Sun)\n"
+            "\n"
+            "Different partition than body_architecture (which classifies\n"
+            "by orbital position via the resonance Fiedler partition).\n"
+            "This partition is by intrinsic-field presence (lookup, not\n"
+            "eigendecomposition).\n"
+            "\n"
+            "Examples:\n"
+            "  ephemerides-spectral em-architecture --pretty\n"
+            "  ephemerides-spectral em-architecture --target jupiter"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ea.add_argument("--target", default=None,
+                    help="Body name (lower-case). If omitted, return the "
+                         "full partition; if given, return just that body's "
+                         "record.")
+    ea.set_defaults(func=_cmd_em_architecture)
 
     # lunar-kernels
     lk = sub.add_parser(

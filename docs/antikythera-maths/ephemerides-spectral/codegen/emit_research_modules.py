@@ -33,6 +33,8 @@ _INCLUDED_MODULES: List[str] = [
     "dynamics.py",
     "body_architecture.py",
     "predict_itn_accessibility.py",
+    "em_instrument_data.py",
+    "em_instrument.py",
 ]
 
 def emit() -> List[Path]:

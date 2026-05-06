@@ -131,6 +131,11 @@ from ephemerides_spectral._research.body_architecture import (
 from ephemerides_spectral._research.predict_itn_accessibility import (
     predict_itn_accessibility as _predict_itn_accessibility_impl,
 )
+from ephemerides_spectral._research.em_instrument import (
+    compute_em_architecture as _compute_em_architecture_impl,
+    compute_em_state_at_jd as _compute_em_state_at_jd_impl,
+    list_em_couplings as _list_em_couplings_impl,
+)
 from ephemerides_spectral._research import diagnosed_fibers as _patches
 from ephemerides_spectral.version import __version__
 
@@ -2572,6 +2577,75 @@ def predict_itn_accessibility(
     real empirical payload).
     """
     return _predict_itn_accessibility_impl(departure, target)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.19.0 — Sol Electromagnetic Instrument
+# ──────────────────────────────────────────────────────────────────────
+
+
+def get_em_state(jd_tdb: float) -> Dict[str, Any]:
+    """Per-body EM state at the requested JD.
+
+    Promotes the v0.19.0 architectural commitment from research notebook
+    §16.9 to a stable ship surface. Returns rotation phase + intrinsic
+    dipole moment + synchrotron power + plasma source rate + photoelectric
+    potential per body, advanced from EM_REFERENCE_JD = J2000.0.
+
+    The Sol Electromagnetic Instrument is a **state-at-epoch query
+    surface**, not a BIP encoder — the §16.3 / §16.9.1 rhythm-mismatch
+    finding established that EM clocks (rotational, Carrington, solar
+    cycle, plume duty cycle, secular Yarkovsky) don't form a low-order
+    rational lattice with each other or with orbital periods, so the
+    cyclic-group encoder discipline doesn't transplant.
+
+    Roster: 16 bodies (sun + 7 magnetised + 4 induced + 4 unmagnetised) —
+    strict subset of the v0.16.0 52-body celestial roster, picked for
+    significant EM observables.
+
+    See research notebook §16 for the architectural scoping.
+    """
+    return _compute_em_state_at_jd_impl(jd_tdb)
+
+
+def list_em_couplings() -> Dict[str, Any]:
+    """Static catalog of significant pairwise EM couplings.
+
+    Returns 7 entries: Jupiter-Io flux tube (10¹² W, dominant);
+    Saturn-Enceladus plasma mass loading; Saturn-Titan induced
+    magnetosphere; Sun-Earth IMF reconnection; Jupiter-Europa /
+    Jupiter-Ganymede (induced + intrinsic-field-to-intrinsic-field);
+    Sun-asteroid-belt radiation pressure (scoping anchor).
+
+    Each entry carries a `source_key` pointing into the
+    `_research.em_instrument_data.SOURCES` citation dict.
+    """
+    return _list_em_couplings_impl()
+
+
+def em_architecture(target: Optional[str] = None) -> Dict[str, Any]:
+    """Magnetised / induced / unmagnetised classification of EM-roster
+    bodies.
+
+    Different partition than the v0.18.0 inner/outer split from
+    `bridge.body_architecture` — that one classifies by orbital
+    position via the resonance Fiedler partition; this one classifies
+    by intrinsic-field presence (lookup, not eigendecomposition).
+
+    Parameters
+    ----------
+    target : str, optional. If given, return just that body's record;
+        else return the full partition.
+
+    Returns
+    -------
+    dict
+        Full partition (target=None): `{ok, n_bodies, bodies, partitions}`
+        with `partitions = {"magnetised": [...], "induced": [...],
+        "unmagnetised": [...], "star": [...]}`.
+        Single-body (target=name): per-body record + class.
+    """
+    return _compute_em_architecture_impl(target=target)
 
 
 def get_natural_resonance_group() -> Dict[str, Any]:
